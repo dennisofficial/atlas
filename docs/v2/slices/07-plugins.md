@@ -399,6 +399,37 @@ preset groups under the spawner in the sidebar via `spawned-by` alone or needs a
 messages it and the peer replies; the sidebar nests it under the parent; the operator archives it and
 it moves to Done; the budget refuses a message past the limit.
 
+**Settled 2026-11-09 (the open questions above).**
+- **`intoPod` is default-on, so there is no flag.** The teammate preset _is_ "placement = the
+  spawner's pod" (03-teammates, "The decision"), so `spawn_session` always places the peer there.
+  The pod is resolved as `spawner.podSessionId ?? spawner.sessionId`, so a peer of a peer stays on
+  the root pod. The column is `V2Session.podSessionId`; the sandbox name stays
+  `sandboxNameOf(podSessionId)`.
+- **The sidebar nests by `spawned-by` alone.** v1 nests teammates with no family label
+  (`apps/web/src/features/shell/live-list.ts:139-150`); v2 reuses the shape, and the existing
+  `TeammateList` gives the Done group for archived children. A label would describe a `managedBy`
+  pointer that meant three things; v2's link means one.
+- **Tools, not commands, are the session's command surface.** `spawn_session`, `message_session`
+  and `list_sessions` are pod tools over a host port (`PluginPodContext.sessions`, implemented in
+  `packages/host` over `HeldSessionDeps.plane`, ADR 0027) rather than control-handled commands: the
+  API's command route returns no result, so a control `spawn_session` could not tell the model the
+  new session id, and nothing else would call it. The one control command is `reset-peer-budget`,
+  which the operator's web row action posts. The ACL and the budget live in `packages/control`
+  (`peer-sessions.ts`), so both paths enforce them in one place.
+- **The budget is 20 spawner messages per peer**, counted on the peer's row (`peerMessagesSent`,
+  bumped atomically under the row lock) and reset by `reset-peer-budget`. A peer's reply to its
+  spawner is not budgeted: the budget is the spawner's turn, and a peer has no `report_to_main`.
+- **A shared pod parks by its sandbox deadline, not by a release stop.** The idle release stops the
+  sandbox only when no other session is placed on the pod (`podPeersPlaced`, which counts a root
+  session whose `podSessionId` is null as itself). Any other placed session blocks the stop, so no
+  release can stop a sandbox under a peer that is working or about to wake; a working session keeps
+  renewing the deadline, and when none does the sandbox expires and snapshots. A single-session pod
+  still stops on release, exactly as before.
+- **The sender is an inbox column, not payload JSON.** `V2InboxEntry.senderSessionId` carries it, so
+  a host that predates this slice still parses the message (it renders it in the operator lane
+  rather than dropping it) during the deploy that introduces it, and the payload stays the shape
+  every reader knows.
+
 ## 6. Test plan
 
 | Layer                                   | What                                                                                                                                                                                                    |

@@ -98,6 +98,7 @@ describe('the setup gate deadline', () => {
       })
       const runtime = await factory({
         sessionId: 'gate-session-1',
+        podSessionId: 'gate-session-1',
         threadId: toThreadId('gate-thread'),
         epoch: 1,
         signal: new AbortController().signal,
@@ -132,6 +133,7 @@ describe('SessionRuntime.prepare', () => {
     })
     const runtime = await factory({
       sessionId: 'prepare-session-1',
+      podSessionId: 'prepare-session-1',
       threadId: toThreadId('prepare-thread'),
       epoch: 1,
       signal: new AbortController().signal,

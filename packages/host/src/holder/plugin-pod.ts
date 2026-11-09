@@ -6,6 +6,7 @@ import { newKey } from '../calls/remote-calls'
 import { worktreesOf } from './checkouts'
 import type { HeldSessionDeps } from './held-session-deps'
 import { podControlOf } from './pod-control'
+import { podSessionsOf } from './plugin-sessions'
 import type { SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
 
@@ -49,6 +50,7 @@ export const pluginPodContextOf = (args: {
     sessionId: deps.sessionId,
     control: podControlOf({ client: deps.control, threadId }),
     crew: args.crew,
+    sessions: podSessionsOf({ plane: deps.plane, sessionId: deps.sessionId }),
     worktrees: worktreesOf({ calls: runtime.remoteCalls }),
     append: async (drafts) => {
       await record.append({ threadId, runId: deps.ids.nextRunId(), drafts })

@@ -77,6 +77,7 @@ const commitInShell = async (args: {
       setupDeadlineMs: 60_000,
     })({
       sessionId: 'signing-session',
+      podSessionId: 'signing-session',
       threadId: toThreadId('signing-thread'),
       epoch: 1,
       signal: new AbortController().signal,

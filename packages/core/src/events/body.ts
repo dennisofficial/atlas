@@ -97,6 +97,7 @@ export type EventBody =
   | {
       type: 'user-said'
       text: string
+      sender?: { session: string } | undefined
       via?: EMessageOrigin | undefined
       requestId?: string | undefined
       inboxId?: number | undefined

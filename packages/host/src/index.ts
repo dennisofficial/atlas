@@ -43,6 +43,7 @@ export type {
   PrepareResult,
   FoundPullRequest,
   PrepareStepReporter,
+  PodPeers,
   PullRequestFinder,
   PullRequestSource,
   SessionRuntime,

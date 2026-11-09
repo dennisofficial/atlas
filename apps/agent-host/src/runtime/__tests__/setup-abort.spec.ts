@@ -133,6 +133,7 @@ describe('SessionRuntime.prepare after the setup deadline', () => {
       })
       const runtime = await factory({
         sessionId: 'abort-session-1',
+        podSessionId: 'abort-session-1',
         threadId: toThreadId('abort-thread'),
         epoch: 1,
         signal: new AbortController().signal,

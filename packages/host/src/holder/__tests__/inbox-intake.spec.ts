@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { toRunId, toThreadId, type InboxEntry } from '@dltech/atlas-core'
+import { EMessageOrigin, toRunId, toThreadId, type InboxEntry } from '@dltech/atlas-core'
 import { composeCommands } from '@dltech/atlas-commands'
 import type { ControlPlane } from '@dltech/atlas-control'
 
@@ -10,15 +10,15 @@ import type { SessionRecord } from '../record/record-adapter'
 const NOW = Date.parse('2026-11-08T12:00:00.000Z')
 const HOUR_MS = 60 * 60 * 1000
 
-const entry = (inboxId: number): InboxEntry =>
-  ({
-    sessionId: 'session-1',
-    inboxId,
-    kind: 'message',
-    payload: JSON.stringify({ text: `m${inboxId}` }),
-    postedAt: new Date(NOW).toISOString(),
-    consumedSeq: null,
-  }) as InboxEntry
+const entry = (inboxId: number): InboxEntry => ({
+  sessionId: 'session-1',
+  inboxId,
+  kind: 'message',
+  payload: JSON.stringify({ text: `m${inboxId}` }),
+  postedAt: new Date(NOW).toISOString(),
+  consumedSeq: null,
+  senderSessionId: null,
+})
 
 const intakeOver = (
   readInbox: (args: { afterId: number }) => Promise<InboxEntry[]>,
@@ -147,6 +147,40 @@ describe('InboxIntake', () => {
         inboxId: 5,
       },
     ])
+  })
+
+  it('drafts an entry carrying a sender session id as a peer agent', async () => {
+    const fromSession = { ...entry(9), senderSessionId: 'ses_2' }
+    const drain = await intakeOver(async () => [fromSession]).prepare()
+    expect(drain.drafts).toEqual([
+      {
+        type: 'user-said',
+        text: 'm9',
+        sender: { session: 'ses_2' },
+        via: EMessageOrigin.PeerAgent,
+        requestId: 'inbox:9',
+        inboxId: 9,
+      },
+    ])
+  })
+
+  it('leaves the draft unchanged when no sender session id rides on the entry', async () => {
+    const drain = await intakeOver(async () => [entry(10)]).prepare()
+    expect(drain.drafts).toEqual([
+      { type: 'user-said', text: 'm10', requestId: 'inbox:10', inboxId: 10 },
+    ])
+  })
+
+  it('drops a message whose payload carries the sender inside it', async () => {
+    const misplaced = {
+      ...entry(11),
+      payload: JSON.stringify({ text: 'a steer', sender: { session: 'ses_2' } }),
+    }
+    const drain = await intakeOver(async () => [misplaced], {
+      append: async () => [],
+    } as unknown as SessionRecord).prepare()
+    expect(drain.drafts).toEqual([])
+    expect(drain.wakesTurn).toBe(false)
   })
 
   it('drafts a message that carries uploads', async () => {

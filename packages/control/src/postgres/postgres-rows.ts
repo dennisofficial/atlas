@@ -27,6 +27,7 @@ export const toInbox = (row: {
   payload: string
   postedAt: Date
   consumedSeq: number | null
+  senderSessionId: string | null
 }): InboxEntry => ({ ...row, postedAt: iso(row.postedAt) })
 
 export const toSessionRow = (row: {
@@ -40,6 +41,9 @@ export const toSessionRow = (row: {
   modelRef: string | null
   modelEffort: string | null
   modelFast: boolean | null
+  spawnedBySessionId: string | null
+  podSessionId: string | null
+  peerMessagesSent: number
 }): ControlSessionRow => ({
   sessionId: row.id,
   userId: row.userId,
@@ -51,6 +55,9 @@ export const toSessionRow = (row: {
   modelRef: row.modelRef,
   modelEffort: row.modelEffort,
   modelFast: row.modelFast,
+  spawnedBySessionId: row.spawnedBySessionId,
+  podSessionId: row.podSessionId,
+  peerMessagesSent: row.peerMessagesSent,
 })
 
 export const toThreadRow = (row: {

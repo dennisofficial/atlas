@@ -1,6 +1,11 @@
 import { RandomIds } from './runtime/random-ids'
 import { composeCommands } from '@dltech/atlas-commands'
-import { SessionHolder, type HostPresence, type PodControlClient } from '@dltech/atlas-host'
+import {
+  SessionHolder,
+  type HostPresence,
+  type PodControlClient,
+  type PodPeers,
+} from '@dltech/atlas-host'
 import { nativeCommandHandlers, nativeCommands } from '@dltech/atlas-native-commands'
 import { composedPlugins } from './registered-plugins'
 import type { ControlPlane } from '@dltech/atlas-control'
@@ -46,6 +51,7 @@ export type ComposeAgentHostArgs = {
 
 export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
   const timers = args.timers ?? { now: () => Date.now(), ...systemTimers }
+  const podPeers: PodPeers = { placed: (params) => args.plane.podPeersPlaced(params) }
   return new SessionHolder({
     presence: args.presence,
     plane: args.plane,
@@ -61,9 +67,11 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
       timers,
       media: args.media,
       plugins: composedPlugins,
+      podPeers,
       ...(args.log === undefined ? {} : { log: args.log }),
     }),
     ids: new RandomIds(),
+    podPeers,
     isPermanentStartError,
     reasonOfStartError: startFailureReason,
     maxSessions: args.env.maxSessions,

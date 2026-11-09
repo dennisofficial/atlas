@@ -1,6 +1,7 @@
 import { toThreadId } from '@dltech/atlas-core'
 import {
   EMPTY_CREW,
+  EMPTY_SESSIONS,
   EMPTY_WORKTREES,
   type MemoryKind,
   type MemoryScope,
@@ -88,6 +89,7 @@ export const rig = (memory: PodMemory = fakeMemory().port) => {
   const ctx: PluginPodContext = {
     sessionId: 's1',
     crew: EMPTY_CREW,
+    sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
     control: {
       exposePort: async () => {

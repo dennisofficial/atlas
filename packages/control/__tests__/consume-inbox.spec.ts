@@ -15,6 +15,7 @@ const entry: InboxEntry = {
   payload: '"a"',
   postedAt: '2026-11-02T12:00:00.000Z',
   consumedSeq: null,
+  senderSessionId: null,
 }
 
 const raceOn = (params: { tx: ControlTx; beforeMarkFails: () => Promise<void> }): ControlTx =>

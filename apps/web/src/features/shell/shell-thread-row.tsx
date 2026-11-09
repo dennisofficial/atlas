@@ -55,6 +55,7 @@ export function ThreadNodeRow({
         v2={isV2Session(session)}
         v2View={session.v2View}
         listedNaming={session.naming ?? false}
+        spawnedBy={session.spawnedBy}
         teammateParents={teammateParentsOf(session)}
         collapsed={teammates.length === 0}
       />

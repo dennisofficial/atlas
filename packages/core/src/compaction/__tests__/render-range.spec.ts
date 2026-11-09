@@ -61,6 +61,17 @@ describe('transcriptOfRange', () => {
     )
   })
 
+  it('names the sending session when the message carries one', () => {
+    const events = eventsFrom([
+      { type: 'user-said', text: 'carrying a steer', sender: { session: 'ses_2' } },
+      said('mine'),
+    ])
+
+    expect(transcriptOfRange({ events, throughSeq: 2 })).toBe(
+      'Session ses_2: carrying a steer\nOperator: mine',
+    )
+  })
+
   it('stops at the watermark and leaves the tail out of the summariser prompt', () => {
     const events = eventsFrom([said('first'), replied('one'), said('second')])
 

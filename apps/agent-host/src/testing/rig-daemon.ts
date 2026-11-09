@@ -73,11 +73,11 @@ const killChild = async (child: DaemonChild, signal: 'SIGTERM' | 'SIGKILL'): Pro
 }
 
 export const startDaemon = async (args: {
-  sessionId: string
+  sandboxSessionId: string
   secret: string
 }): Promise<RigDaemon> => {
   const home = mkdtempSync(join(tmpdir(), 'atlas-fault-rig-daemon-'))
-  const sandboxName = sandboxNameOf(args.sessionId)
+  const sandboxName = sandboxNameOf(args.sandboxSessionId)
   const token = daemonToken({ secret: args.secret, sandboxName })
   const env = {
     ...daemonTestEnv(home),

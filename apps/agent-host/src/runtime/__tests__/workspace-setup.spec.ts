@@ -61,7 +61,7 @@ const makeRemote = (dir: string): string => {
 
 const openPorts = async (args: { sessionId: string }) => {
   const endpoint = await sandbox.wake({
-    sessionId: args.sessionId,
+    sandboxSessionId: args.sessionId,
     credentials: { token: '', teamId: '', projectId: '' },
     signal: new AbortController().signal,
   })

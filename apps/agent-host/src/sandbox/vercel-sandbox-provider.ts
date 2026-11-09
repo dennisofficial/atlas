@@ -50,7 +50,7 @@ export class VercelSandboxProvider extends SandboxProvider {
   }
 
   async wake(args: {
-    sessionId: string
+    sandboxSessionId: string
     credentials: VercelCredentials
     signal: AbortSignal
   }): Promise<DaemonEndpoint> {
@@ -64,11 +64,11 @@ export class VercelSandboxProvider extends SandboxProvider {
   }
 
   private async wakeWithin(args: {
-    sessionId: string
+    sandboxSessionId: string
     credentials: VercelCredentials
     signal: AbortSignal
   }): Promise<DaemonEndpoint> {
-    const sandboxName = sandboxNameOf(args.sessionId)
+    const sandboxName = sandboxNameOf(args.sandboxSessionId)
     const token = daemonToken({ secret: this.args.daemonSecret, sandboxName })
     const sandbox = await mountWithRetries({
       sdk: this.sdk,
@@ -79,7 +79,7 @@ export class VercelSandboxProvider extends SandboxProvider {
       credentials: args.credentials,
       name: sandboxName,
       image: this.args.image,
-      threadId: args.sessionId,
+      threadId: args.sandboxSessionId,
       token: randomUUID(),
       environment: { ATLAS_SANDBOX_NAME: sandboxName },
       onCreate: () => Promise.resolve(),
@@ -108,21 +108,21 @@ export class VercelSandboxProvider extends SandboxProvider {
     }
   }
 
-  async stop(args: { sessionId: string; credentials: VercelCredentials }): Promise<void> {
+  async stop(args: { sandboxSessionId: string; credentials: VercelCredentials }): Promise<void> {
     const sandbox = await this.sdk.get({
       ...args.credentials,
-      name: sandboxNameOf(args.sessionId),
+      name: sandboxNameOf(args.sandboxSessionId),
       signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
     })
     await sandbox.stop({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
   }
 
   async keepAlive(args: {
-    sessionId: string
+    sandboxSessionId: string
     credentials: VercelCredentials
     until: number
   }): Promise<void> {
-    const sandboxName = sandboxNameOf(args.sessionId)
+    const sandboxName = sandboxNameOf(args.sandboxSessionId)
     const sandbox = await this.sdk.get({
       ...args.credentials,
       name: sandboxName,
@@ -131,7 +131,7 @@ export class VercelSandboxProvider extends SandboxProvider {
     await renewSessionDeadline({
       sandbox,
       name: sandboxName,
-      sessionId: args.sessionId,
+      sessionId: args.sandboxSessionId,
       until: args.until,
     })
   }

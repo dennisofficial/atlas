@@ -1,6 +1,7 @@
 import { EAgentStatus, toThreadId, type ActiveWorktree, type V2Event } from '@dltech/atlas-core'
 import {
   EMPTY_CREW,
+  EMPTY_SESSIONS,
   type PluginPodContext,
   type PodCrew,
   type PodWorktrees,
@@ -132,6 +133,7 @@ export const rig = (
   const ctx: PluginPodContext = {
     sessionId: 's1',
     crew: args.crew ?? fakeCrew().port,
+    sessions: EMPTY_SESSIONS,
     worktrees: args.worktrees ?? fakeWorktrees().port,
     control: {
       exposePort: async () => {

@@ -8,6 +8,7 @@ export type InboxEntry = {
   payload: string
   postedAt: string
   consumedSeq: number | null
+  senderSessionId: string | null
 }
 
 export type InboxRefusal = { kind: 'already-consumed' } | { kind: 'unknown-inbox-entry' }

@@ -2,6 +2,7 @@ import {
   attachmentsOf,
   awaitsReplyOf,
   EInputConsumed,
+  EMessageOrigin,
   INBOX_KIND_RETRY,
   INBOX_KIND_STOP,
   type EventDraft,
@@ -79,11 +80,15 @@ export class InboxIntake implements AgentIntake {
           await this.consumeUnknown(entry)
           continue
         }
-        const { text, ...legacy } = parsed.data
-        const attachments = attachmentsOf(legacy)
+        const { text } = parsed.data
+        const attachments = attachmentsOf(parsed.data)
+        const sender = entry.senderSessionId
         drafts.push({
           type: 'user-said',
           text,
+          ...(sender === null
+            ? {}
+            : { sender: { session: sender }, via: EMessageOrigin.PeerAgent }),
           ...(attachments.length === 0 ? {} : { attachments }),
           requestId: `inbox:${entry.inboxId}`,
           inboxId: entry.inboxId,

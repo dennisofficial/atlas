@@ -61,7 +61,7 @@ describe('VercelSandboxProvider.wake', () => {
         sdk,
       })
       const endpoint = await provider.wake({
-        sessionId: 's1',
+        sandboxSessionId: 's1',
         credentials: CREDENTIALS,
         signal: AbortSignal.timeout(5000),
       })
@@ -112,7 +112,11 @@ describe('VercelSandboxProvider.wake deadline', () => {
       const provider = providerOf({ sdk: hangingSdk(seen), path: b.path, wakeDeadlineMs: 50 })
       const started = Date.now()
       const failure = await provider
-        .wake({ sessionId: 's2', credentials: CREDENTIALS, signal: new AbortController().signal })
+        .wake({
+          sandboxSessionId: 's2',
+          credentials: CREDENTIALS,
+          signal: new AbortController().signal,
+        })
         .catch((error: unknown) => error)
       expect(failure).toBeInstanceOf(SandboxUnavailableError)
       expect((failure as Error).message).toContain('did not wake')
@@ -129,7 +133,7 @@ describe('VercelSandboxProvider.wake deadline', () => {
       const provider = providerOf({ sdk: hangingSdk([]), path: b.path })
       const controller = new AbortController()
       const waking = provider.wake({
-        sessionId: 's3',
+        sandboxSessionId: 's3',
         credentials: CREDENTIALS,
         signal: controller.signal,
       })

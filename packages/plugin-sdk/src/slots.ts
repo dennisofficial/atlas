@@ -13,9 +13,18 @@ import type { CallOp, CallResult, DaemonEventFrame } from '@dltech/atlas-protoco
 
 import type { PodCrew } from './crew'
 import type { PodMemory } from './memory'
+import type { PodSessions } from './sessions'
 import type { PodWorktrees } from './worktrees'
 
 export type { PodCrew, SubagentSaid, SubagentSnapshot, SubagentWorktree } from './crew'
+export type {
+  PeerMessage,
+  PeerRoster,
+  PeerSessionSummary,
+  PeerSpawned,
+  PodSessions,
+} from './sessions'
+export { EMPTY_SESSIONS } from './sessions'
 export { EMPTY_WORKTREES } from './worktrees'
 export type {
   PodWorktrees,
@@ -45,6 +54,7 @@ export type PluginPodContext = {
   sessionId: string
   control: PodControl
   crew: PodCrew
+  sessions: PodSessions
   worktrees: PodWorktrees
   append(drafts: readonly (EventDraft | RecordBody | PluginEventBody)[]): Promise<void>
   events(): readonly V2Event[]

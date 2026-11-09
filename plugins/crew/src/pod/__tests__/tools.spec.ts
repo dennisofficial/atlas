@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { EAgentStatus, EReportKind, toThreadId } from '@dltech/atlas-core'
 import {
   EMPTY_CREW,
+  EMPTY_SESSIONS,
   EMPTY_WORKTREES,
   type PluginPodContext,
   type PodCrew,
@@ -55,6 +56,7 @@ const rig = (crew: PodCrew) => {
   const ctx: PluginPodContext = {
     sessionId: 's1',
     crew,
+    sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
     control: {
       exposePort: async () => {

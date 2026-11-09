@@ -1,0 +1,220 @@
+[
+  {
+    "id": "column.v2.V2InboxEntry.senderSessionId",
+    "label": "Add column \"senderSessionId\" to \"V2InboxEntry\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "column",
+        "name": "senderSessionId",
+        "table": "V2InboxEntry"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"senderSessionId\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2InboxEntry",
+          "senderSessionId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"senderSessionId\"",
+        "sql": "ALTER TABLE \"v2\".\"V2InboxEntry\" ADD COLUMN \"senderSessionId\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"senderSessionId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2InboxEntry",
+          "senderSessionId"
+        ]
+      },
+      {
+        "description": "verify column \"senderSessionId\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "v2",
+          "V2InboxEntry",
+          "senderSessionId",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.v2.V2Session.peerMessagesSent",
+    "label": "Add column \"peerMessagesSent\" to \"V2Session\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "column",
+        "name": "peerMessagesSent",
+        "table": "V2Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"peerMessagesSent\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "peerMessagesSent"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"peerMessagesSent\"",
+        "sql": "ALTER TABLE \"v2\".\"V2Session\" ADD COLUMN \"peerMessagesSent\" int4 DEFAULT 0 NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"peerMessagesSent\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "peerMessagesSent"
+        ]
+      },
+      {
+        "description": "verify column \"peerMessagesSent\" has type \"integer\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "peerMessagesSent",
+          "integer"
+        ]
+      },
+      {
+        "description": "verify column \"peerMessagesSent\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "peerMessagesSent",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.v2.V2Session.podSessionId",
+    "label": "Add column \"podSessionId\" to \"V2Session\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "column",
+        "name": "podSessionId",
+        "table": "V2Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"podSessionId\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "podSessionId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"podSessionId\"",
+        "sql": "ALTER TABLE \"v2\".\"V2Session\" ADD COLUMN \"podSessionId\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"podSessionId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "podSessionId"
+        ]
+      },
+      {
+        "description": "verify column \"podSessionId\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "podSessionId",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.v2.V2Session.spawnedBySessionId",
+    "label": "Add column \"spawnedBySessionId\" to \"V2Session\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "column",
+        "name": "spawnedBySessionId",
+        "table": "V2Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"spawnedBySessionId\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "spawnedBySessionId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"spawnedBySessionId\"",
+        "sql": "ALTER TABLE \"v2\".\"V2Session\" ADD COLUMN \"spawnedBySessionId\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"spawnedBySessionId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "spawnedBySessionId"
+        ]
+      },
+      {
+        "description": "verify column \"spawnedBySessionId\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "spawnedBySessionId",
+          "text"
+        ]
+      }
+    ]
+  }
+]

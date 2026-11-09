@@ -84,8 +84,14 @@ export type SessionRuntime = {
   release(): Promise<void>
 }
 
+export type PodPeers = {
+  placed(args: { podSessionId: string; excludeSessionId: string }): Promise<number>
+}
+
 export type SessionRuntimeFactory = (args: {
   sessionId: string
+  podSessionId: string
+  podPeers?: PodPeers | undefined
   threadId: ThreadId
   epoch: number
   signal: AbortSignal

@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'7d575a2f90a2bd1fc58e196fe37784b57392947281b09cba18ca680cb3714c04'>;
+  StorageHashBase<'ebf8777b2b82d8c930e2fcd0acfe2a111987d8b1354639773a9d84d4e03c8adb'>;
 export type ExecutionHash =
   ExecutionHashBase<'0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289'>;
 export type ProfileHash =
@@ -1140,6 +1140,7 @@ export namespace Models {
     kind: FieldOutputTypes['v2']['V2InboxEntry']['kind'];
     payload: FieldOutputTypes['v2']['V2InboxEntry']['payload'];
     postedAt: FieldOutputTypes['v2']['V2InboxEntry']['postedAt'];
+    senderSessionId: FieldOutputTypes['v2']['V2InboxEntry']['senderSessionId'];
     sessionId: FieldOutputTypes['v2']['V2InboxEntry']['sessionId'];
     session: v2_V2Session;
     readonly [RelationKeys]?: 'session';
@@ -1163,7 +1164,10 @@ export namespace Models {
     modelFast: FieldOutputTypes['v2']['V2Session']['modelFast'];
     modelRef: FieldOutputTypes['v2']['V2Session']['modelRef'];
     nextInboxId: FieldOutputTypes['v2']['V2Session']['nextInboxId'];
+    peerMessagesSent: FieldOutputTypes['v2']['V2Session']['peerMessagesSent'];
+    podSessionId: FieldOutputTypes['v2']['V2Session']['podSessionId'];
     projectId: FieldOutputTypes['v2']['V2Session']['projectId'];
+    spawnedBySessionId: FieldOutputTypes['v2']['V2Session']['spawnedBySessionId'];
     title: FieldOutputTypes['v2']['V2Session']['title'];
     titledFromInboxId: FieldOutputTypes['v2']['V2Session']['titledFromInboxId'];
     userId: FieldOutputTypes['v2']['V2Session']['userId'];
@@ -6374,6 +6378,12 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
+                readonly senderSessionId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
                 readonly sessionId: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
@@ -6527,10 +6537,32 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly many: false;
                 };
+                readonly peerMessagesSent: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
+                  };
+                  readonly many: false;
+                };
+                readonly podSessionId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
                 readonly projectId: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly spawnedBySessionId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
                   readonly many: false;
                 };
                 readonly title: {
@@ -11935,6 +11967,10 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
+              readonly senderSessionId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly sessionId: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -11963,6 +11999,7 @@ type ContractBase = Omit<
                 readonly kind: { readonly column: 'kind' };
                 readonly payload: { readonly column: 'payload' };
                 readonly postedAt: { readonly column: 'postedAt' };
+                readonly senderSessionId: { readonly column: 'senderSessionId' };
                 readonly sessionId: { readonly column: 'sessionId' };
               };
             };
@@ -12067,8 +12104,20 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
+              readonly peerMessagesSent: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly podSessionId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly projectId: {
                 readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly spawnedBySessionId: {
+                readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
               readonly title: {
@@ -12149,7 +12198,10 @@ type ContractBase = Omit<
                 readonly modelFast: { readonly column: 'modelFast' };
                 readonly modelRef: { readonly column: 'modelRef' };
                 readonly nextInboxId: { readonly column: 'nextInboxId' };
+                readonly peerMessagesSent: { readonly column: 'peerMessagesSent' };
+                readonly podSessionId: { readonly column: 'podSessionId' };
                 readonly projectId: { readonly column: 'projectId' };
+                readonly spawnedBySessionId: { readonly column: 'spawnedBySessionId' };
                 readonly title: { readonly column: 'title' };
                 readonly titledFromInboxId: { readonly column: 'titledFromInboxId' };
                 readonly userId: { readonly column: 'userId' };
