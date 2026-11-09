@@ -611,6 +611,49 @@ the model's last `assistant-said`, so an answer resets the question; `turn-posit
 the live shape (ending before the answer does not continue; ending after it does; a tool result
 does). The third production run above is the confirmation.
 
+### 8.5 `plugins/services` part 2: a public URL (previews)
+
+A service started on a port is now reachable on the internet, and the tool that started it is told
+the URL. The host publishes; the sandbox only runs the tunnel.
+- **Host**: `ctx.control.exposePort({ port })` (#2053) posts to `hostSelf.exposePort` with
+  `AGENT_HOST_TOKEN`, authenticated by `HostTokenMiddleware` (constant-time compare) and answered by
+  `PreviewTunnelService.expose` — the only code that talks to Cloudflare.
+- **Sandbox**: the daemon's new `previews.expose` / `previews.stop` / `previews.list`
+  (`apps/daemon/src/ops/previews/index.ts`) run `cloudflared tunnel --no-autoupdate run --url
+  http://127.0.0.1:<port>` in its own process group, one per port. The binary is already in the image
+  (`apps/serve/sandbox-image/Dockerfile:150-153`).
+- **Journal**: `service-started` carries an optional `url`, the `services` view row shows it, and the
+  tool text says plainly when a service is sandbox-only.
+- A failed exposure never blocks the start: the reason is reported in the tool text.
+
+Two secret-handling fixes came with it: the daemon journals every op to
+`~/.atlas-daemon/calls/<key>/state.json` before running it, so `journalOp` redacts the tunnel token
+(spec: `journal-redaction.spec.ts`); and the token reaches cloudflared through `TUNNEL_TOKEN` in the
+child environment rather than `--token` in argv, so `ps` in the sandbox cannot read it.
+
+**Live check (2026-11-08, production).** Session `dc58e34d-c730-4a8c-b60b-f6956635dbc2`, agent host
+`bbcadc696`, API `7a942ae1a`.
+
+| Step                                           | Result                                                                     |
+| ---------------------------------------------- | -------------------------------------------------------------------------- |
+| `service_start` a Bun HTTP server on port 4321 | `service-started` (with `url`), `service-ready`                            |
+| `curl https://4321-350kk450kd.byatlas.dev`     | `200`, `content-type: text/plain`, body `preview-ok`, `server: cloudflare` |
+| `service_stop`                                 | `service-ended`; the same URL answered `530` (origin down) within seconds  |
+
+Two things the first runs found, both fixed:
+- **`hostSelf.exposePort` used the v1 session resolver.** It read `Thread`/`Session` (#2059), which a
+  v2 thread is not, so every call answered `404 thread not found` and the tool text said
+  `its public URL could not be created (the control plane rejected the call (404): thread not found)`.
+  It now resolves the owner from `v2.V2Session` by `mainThreadId`. Worth remembering: a "the CP said
+  404" in a preview is almost always an owner-resolution bug, not a credential problem.
+- **The tunnel needs a moment.** The first fetch after `service-started` answered `403`; a second a
+  few seconds later answered `200`. Do not read the first non-200 as a failure — retry before
+  concluding the tunnel is down (and `530` is the shape of "it really is down").
+
+Not in this slice: the web preview list, portal pages, custom domains, and streaming the tunnel's
+logs. The `portals`/`portal` declaration fields are accepted but only their presence is used, since a
+tunnel needs a port to point at.
+
 ## 9. Answers (2026-11-08)
 
 1. **Order and packaging.** As recommended in §3: the contract, then github (subscriptions inside one
