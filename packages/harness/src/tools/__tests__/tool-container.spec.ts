@@ -76,6 +76,7 @@ const BUILTIN_NAMES = [
   'worktree_list',
   'web_fetch',
   'web_search',
+  'browser',
 ]
 
 async function containerRootedAt(root: string): Promise<DependencyContainer> {

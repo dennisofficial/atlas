@@ -55,6 +55,7 @@ describe('the harness container graph', () => {
       'agent_spawn',
       'agent_stop',
       'bash',
+      'browser',
       'cloud_config',
       'edit',
       'enter_worktree',

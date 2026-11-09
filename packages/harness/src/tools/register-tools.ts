@@ -49,6 +49,7 @@ import { AgentSpawnTool } from './builtin/agent-spawn'
 import { AgentStopTool } from './builtin/agent-stop'
 import { ReportToMainTool } from './builtin/report-to-main'
 import { BashTool } from './builtin/bash'
+import { BrowserTool } from './builtin/browser'
 import { EditTool } from './builtin/edit'
 import { EnterWorktreeTool } from './builtin/enter-worktree'
 import { ExecutionLocationTool } from './builtin/execution-location'
@@ -266,6 +267,9 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
         resolver.resolve(WebSearchBackendToken),
         resolver.resolve(SecretsStoreToken),
       ),
+  })
+  container.register(portToken(ToolDefinition), {
+    useFactory: (resolver) => new BrowserTool(resolver.resolve(registeredPortToken(ProcessPort))),
   })
 
   container.register(registeredPortToken(ToolRegistry), {

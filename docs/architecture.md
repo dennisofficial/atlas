@@ -449,6 +449,28 @@ Restart. The harness watches `.atlas/services.yaml` and bumps the services chang
 refetch the view on every roster push. A workspace prompt fragment lists declared names and loader
 rejections, and the `atlas` skill carries the procedure.
 
+## Browsers
+
+**Two different things share one tab, and say so.** The right-hand pane is **Preview** on web: sandboxed
+iframes for the session's preview ports and any URL that allows framing, routed through the preview
+worker (`apps/preview-worker`), with the desktop preview-origin gate deciding which origins the Mac
+window's own webview may frame. On Mac it is **Browser**: one Electrobun `<electrobun-webview>` per open
+tab, a real WKWebView with a persistent profile (`persist:atlas-browser`), so any site loads and logins
+stick. The capability flag `window.atlasDesktop.nativeBrowser` (set by the Mac preload, read through
+`hasNativeBrowser`) picks the layer; nothing sniffs the platform or user agent.
+
+**A tab's page outlives the tab you are looking at.** Every opened tab in every session keeps its view
+mounted, hidden rather than destroyed (`toggleHidden`), so switching tabs or sessions returns to the page
+where it was, with no reload. A native view paints above the host page and CSS cannot cover it, so the
+native layer masks small popovers (`masks` selectors), hides the whole view while a dialog or sheet is
+open, and pins four fixed clip strips to the panel's rect; the view exists exactly as long as its tab is
+open, so a host reload cannot strand one.
+
+**Agents get a browser too, a different one.** The `browser` tool drives the `agent-browser` CLI that the
+sandbox image bakes in (`apps/serve/sandbox-image/Dockerfile`), one `--session atlas-<threadId>` per
+thread so agents never share a daemon, with page output wrapped as untrusted data. It is Chrome in the
+pod, not the operator's Mac pane.
+
 ## Sub-agents
 
 **A sub-agent is a first-class Atlas thread that Atlas spawned**, not `runTurn` called recursively

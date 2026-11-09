@@ -7,6 +7,9 @@ import { cn } from '@dltech/atlas-ui/lib/utils'
 import { TabsList, TabsTrigger } from '@dltech/atlas-ui/components/tabs'
 
 import { ERightTab, TAB_LABEL } from './right-tab'
+import { useHasNativeBrowser } from '@/features/desktop/use-has-native-browser'
+
+const BROWSER_LABEL = 'Browser'
 
 const TAB_ICON: Record<ERightTab, LucideIcon> = {
   [ERightTab.Details]: InfoIcon,
@@ -22,6 +25,9 @@ export type RightTabStripProps = {
 }
 
 export function RightTabStrip({ counts, className }: RightTabStripProps) {
+  const nativeBrowser = useHasNativeBrowser()
+  const labelOf = (tab: ERightTab) =>
+    nativeBrowser && tab === ERightTab.Preview ? BROWSER_LABEL : TAB_LABEL[tab]
   return (
     <div className={cn('@container flex h-10 shrink-0 items-end border-b px-3', className)}>
       <TabsList variant="line" className="justify-start">
@@ -32,12 +38,12 @@ export function RightTabStrip({ counts, className }: RightTabStripProps) {
             <TabsTrigger
               key={value}
               value={value}
-              title={TAB_LABEL[value]}
+              title={labelOf(value)}
               className="group/tab flex-none"
             >
               <Icon aria-hidden />
               <span className="sr-only group-data-active/tab:not-sr-only @lg:not-sr-only">
-                {TAB_LABEL[value]}
+                {labelOf(value)}
               </span>
               {count > 0 ? <span className="font-mono text-xs tabular-nums">{count}</span> : null}
             </TabsTrigger>
