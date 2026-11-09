@@ -18,6 +18,7 @@ import { SplashOverlay } from '../splash/splash-overlay'
 import { fontAssets } from '../theme/fonts'
 import { navigationThemeOf } from '../theme/navigation-theme'
 import { installWebReset } from '../theme/web-reset'
+import { UpdateCard } from '../updates/update-card'
 
 installNotificationHandler()
 installWebReset()
@@ -37,6 +38,7 @@ const RootStack = ({ fontsReady }: { fontsReady: boolean }) => {
         </Stack.Protected>
         <Stack.Screen name="auth/callback" options={{ presentation: 'modal' }} />
       </Stack>
+      <UpdateCard />
       <SplashOverlay ready={fontsReady && state !== EAuthState.Loading} />
     </>
   )
