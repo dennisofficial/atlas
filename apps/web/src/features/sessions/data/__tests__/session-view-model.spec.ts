@@ -157,7 +157,7 @@ describe('sessionViewModelOf', () => {
       branch: undefined,
       entries: [],
       subscriptions: [],
-      shells: { running: 0, awaitingInput: false, labels: [] },
+      shells: { running: 0, awaitingInput: false, labels: [], rows: [] },
       crew: { running: 0, total: 0 },
       crewRows: [],
       previews: [],
@@ -220,7 +220,12 @@ describe('sessionViewModelOf', () => {
     }
     const ended = { ...shell, shellId: 'sh2', name: 'build', status: 'exited' }
     const model = sessionViewModelOf(viewOf({ pluginViews: { shells: [shell, ended] } }))
-    expect(model.shells).toEqual({ running: 1, awaitingInput: true, labels: ['dev server'] })
+    expect(model.shells).toEqual({
+      running: 1,
+      awaitingInput: true,
+      labels: ['dev server'],
+      rows: [{ shellId: 'sh1', name: 'dev server' }],
+    })
   })
 
   it('lists the published services from the plugin view as previews', () => {

@@ -24,6 +24,7 @@ const snapshotOf = (raw: readonly unknown[]): SessionSnapshot => ({
   cursor: undefined,
   status: undefined,
   overlay: undefined,
+  shells: {},
   connection: ESessionConnection.Live,
   error: undefined,
   skipped: 0,

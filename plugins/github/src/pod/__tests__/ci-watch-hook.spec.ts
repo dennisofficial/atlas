@@ -68,6 +68,7 @@ const rig = (answers: Record<string, ReturnType<typeof exec>>) => {
       if (answer === undefined) return exec('', 1)(options?.onOutput)
       return answer(options?.onOutput)
     },
+    live: () => undefined,
     onDaemonEvent: () => () => undefined,
     log: () => undefined,
   }

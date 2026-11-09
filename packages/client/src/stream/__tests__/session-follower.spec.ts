@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { ESessionStatus } from '@dltech/atlas-core'
+import { ESessionStatus, EShellStatus } from '@dltech/atlas-core'
 import {
   EStreamBlockKind,
   EStreamErrorCode,
@@ -196,5 +196,63 @@ describe('the session follower', () => {
       eventsMessage({ id: 's1', events: mintUserEvents({ count: 1 }), live: true }),
     )
     expect(follower.getSnapshot().error).toBeUndefined()
+  })
+})
+
+describe('live shell output', () => {
+  const shellFrame = (args: { offset: number; text: string }) => ({
+    type: 'frame' as const,
+    id: 's1',
+    frame: { type: 'shell-output' as const, shellId: 'shell-1', ...args },
+  })
+
+  it('keeps a tail per shell, appending only the bytes it has not seen', () => {
+    const { follower } = setup()
+
+    follower.handleMessage(shellFrame({ offset: 0, text: 'one\n' }))
+    follower.handleMessage(shellFrame({ offset: 0, text: 'one\ntwo\n' }))
+    follower.handleMessage(shellFrame({ offset: 4, text: 'two\nthree\n' }))
+    follower.handleMessage(shellFrame({ offset: 0, text: 'one\n' }))
+
+    expect(follower.getSnapshot().shells).toEqual({
+      'shell-1': { text: 'one\ntwo\nthree\n', at: 14 },
+    })
+  })
+
+  it('forgets the tail of a shell once its ending is in the journal', () => {
+    const { follower } = setup()
+    follower.handleMessage(shellFrame({ offset: 0, text: 'one\n' }))
+    follower.handleMessage(
+      eventsMessage({
+        id: 's1',
+        live: true,
+        events: mintUserEvents({ count: 1 }).map((event) => ({
+          ...event,
+          type: 'background-shell-ended' as const,
+          shellId: 'shell-1',
+          command: 'ticker',
+          status: EShellStatus.Exited,
+          output: 'one\n',
+          droppedCharacters: 0,
+          remainingCharacters: 0,
+        })),
+      }),
+    )
+
+    expect(follower.getSnapshot().shells).toEqual({})
+  })
+
+  it('starts over on a reset', () => {
+    const { follower } = setup()
+    follower.handleMessage(shellFrame({ offset: 0, text: 'one\n' }))
+
+    follower.handleMessage({
+      type: 'reset',
+      id: 's1',
+      reason: EStreamResetReason.Ahead,
+      tailFrom: 0,
+    })
+
+    expect(follower.getSnapshot().shells).toEqual({})
   })
 })

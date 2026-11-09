@@ -82,13 +82,18 @@ export const contextOfView = (view: SessionViewOutput): SessionContextModel | nu
   }
 }
 
+export const shellTailTextOf = (
+  shells: Readonly<Record<string, { text: string }>>,
+): Record<string, string> =>
+  Object.fromEntries(Object.entries(shells).map(([shellId, tail]) => [shellId, tail.text]))
+
 export const sessionViewModelOf = (view: SessionViewOutput | undefined): SessionViewModel => {
   if (view === undefined)
     return {
       branch: undefined,
       entries: [],
       subscriptions: [],
-      shells: { running: 0, awaitingInput: false, labels: [] },
+      shells: { running: 0, awaitingInput: false, labels: [], rows: [] },
       crew: { running: 0, total: 0 },
       crewRows: [],
       previews: [],

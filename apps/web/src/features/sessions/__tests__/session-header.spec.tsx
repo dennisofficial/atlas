@@ -11,7 +11,7 @@ import { EHeaderState } from '@/features/threads/data/header-model'
 import type { PullRequestEntry } from '@/features/threads/data/pull-request-entries'
 
 import { CrewPanel } from '../crew-panel'
-import { PreviewLinks, SessionHeader } from '../session-header'
+import { PreviewLinks, SessionHeader, ShellTails } from '../session-header'
 
 const entry = (overrides: Partial<PullRequestEntry> = {}): PullRequestEntry => ({
   repo: 'owner/atlas',
@@ -58,6 +58,7 @@ const render = (props: {
   entries: PullRequestEntry[]
   subscriptions?: SubscribedPullRequest[]
   shells?: ShellRoster
+  shellTails?: Readonly<Record<string, string>>
   crewRows?: readonly CrewRow[]
   previews?: readonly PreviewItem[]
 }) =>
@@ -71,7 +72,8 @@ const render = (props: {
         branch={props.branch}
         entries={props.entries}
         subscriptions={props.subscriptions ?? []}
-        shells={props.shells ?? { running: 0, awaitingInput: false, labels: [] }}
+        shells={props.shells ?? { running: 0, awaitingInput: false, labels: [], rows: [] }}
+        shellTails={props.shellTails ?? {}}
         crew={{
           running: (props.crewRows ?? []).filter((row) => row.status === 'running').length,
           total: (props.crewRows ?? []).length,
@@ -136,7 +138,15 @@ describe('SessionHeader', () => {
   it('shows the running shell count titled with their labels', () => {
     const html = render({
       entries: [],
-      shells: { running: 2, awaitingInput: false, labels: ['dev server', 'watcher'] },
+      shells: {
+        running: 2,
+        awaitingInput: false,
+        labels: ['dev server', 'watcher'],
+        rows: [
+          { shellId: 'sh1', name: 'dev server' },
+          { shellId: 'sh2', name: 'watcher' },
+        ],
+      },
     })
     expect(html).toContain('data-session-shells')
     expect(html).toContain('title="dev server, watcher"')
@@ -217,5 +227,31 @@ describe('PreviewLinks', () => {
     expect(html).toContain('title="https://4321-abc.byatlas.dev"')
     expect(html).toContain('>web<')
     expect(html).toContain(':4321')
+  })
+})
+
+describe('ShellTails', () => {
+  const shells = {
+    running: 1,
+    awaitingInput: false,
+    labels: ['"ticker" (`while true; do date; sleep 1; done`)'],
+    rows: [{ shellId: 'shell-1', name: '"ticker" (`while true; do date; sleep 1; done`)' }],
+  }
+
+  it('shows the tail streamed for a running shell', () => {
+    const html = renderToStaticMarkup(
+      <ShellTails shells={shells} tails={{ 'shell-1': 'tick 1\ntick 2\n' }} />,
+    )
+
+    expect(html).toContain('data-shell-tail="shell-1"')
+    expect(html).toContain('tick 1')
+    expect(html).toContain('tick 2')
+  })
+
+  it('says so when nothing has been streamed yet', () => {
+    const html = renderToStaticMarkup(<ShellTails shells={shells} tails={{}} />)
+
+    expect(html).toContain('No output yet')
+    expect(html).not.toContain('data-shell-tail=')
   })
 })

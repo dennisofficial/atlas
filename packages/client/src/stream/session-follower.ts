@@ -10,6 +10,12 @@ import {
 
 import { EStreamConnectionState } from './connection-machine'
 import {
+  ESessionConnection,
+  type FollowedState,
+  snapshotOf,
+  type SessionSnapshot,
+} from './follower-state'
+import {
   applyOverlayMessage,
   closeOverlayForEvents,
   EMPTY_OVERLAY_STATE,
@@ -17,6 +23,7 @@ import {
   type OverlayState,
 } from './overlay-store'
 import type { SessionCache } from './session-cache'
+import { applyShellOutput, withoutEndedShells, type ShellTail } from './shell-tails'
 import {
   applyPageOutcome,
   EMPTY_WINDOW,
@@ -33,26 +40,7 @@ const SETUP_OUTPUT_TAIL_CHARS = 16_000
 
 export const HYDRATE_TIMEOUT_MS = 2_000
 
-export enum ESessionConnection {
-  Live = 'live',
-  CatchingUp = 'catching-up',
-  Reconnecting = 'reconnecting',
-  Offline = 'offline',
-}
-
-export type SessionSnapshot = {
-  events: readonly V2Event[]
-  cursor: SessionCursor | undefined
-  status: SessionStatusOutput | undefined
-  view?: SessionViewOutput | undefined
-  overlay: OpenOverlay | undefined
-  setupOutput?: string | undefined
-  connection: ESessionConnection
-  error: EStreamErrorCode | undefined
-  skipped: number
-  writerAhead: boolean
-  fromCache: boolean
-}
+export { ESessionConnection, type SessionSnapshot }
 
 export type SessionFollower = {
   getSnapshot(): SessionSnapshot
@@ -74,39 +62,7 @@ export type SessionFollowerArgs = {
   knownEventTypes?: ReadonlySet<string> | undefined
 }
 
-type Inner = {
-  window: SessionWindow
-  overlay: OverlayState
-  status: SessionStatusOutput | undefined
-  view: SessionViewOutput | undefined
-  setupOutput: string
-  phase: EStreamConnectionState
-  live: boolean
-  error: EStreamErrorCode | undefined
-  skipped: number
-  writerAhead: boolean
-  fromCache: boolean
-}
-
-const connectionOf = (inner: Pick<Inner, 'phase' | 'live'>): ESessionConnection => {
-  if (inner.phase === EStreamConnectionState.Closed) return ESessionConnection.Offline
-  if (inner.phase !== EStreamConnectionState.Open) return ESessionConnection.Reconnecting
-  return inner.live ? ESessionConnection.Live : ESessionConnection.CatchingUp
-}
-
-const snapshotOf = (inner: Inner): SessionSnapshot => ({
-  events: inner.window.events,
-  cursor: inner.window.cursor,
-  status: inner.status,
-  view: inner.view,
-  overlay: inner.overlay.open,
-  setupOutput: inner.setupOutput,
-  connection: connectionOf(inner),
-  error: inner.error,
-  skipped: inner.skipped,
-  writerAhead: inner.writerAhead,
-  fromCache: inner.fromCache,
-})
+type Inner = FollowedState
 
 const settlesSetup = (events: readonly Record<string, unknown>[]): boolean =>
   events.some(
@@ -128,6 +84,7 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
     status: undefined,
     view: undefined,
     setupOutput: '',
+    shells: {},
     phase: EStreamConnectionState.Connecting,
     live: false,
     error: undefined,
@@ -178,6 +135,7 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
       ...inner,
       window,
       overlay,
+      shells: withoutEndedShells({ shells: inner.shells, events: message.events }),
       setupOutput: settlesSetup(message.events) ? '' : inner.setupOutput,
       live: message.live,
       error: undefined,
@@ -185,6 +143,13 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
       fromCache: false,
     })
     saveThrottled()
+  }
+
+  const handleShellOutput = (
+    frame: Extract<StreamServerMessage, { type: 'frame' }>['frame'] & { type: 'shell-output' },
+  ): void => {
+    const shells = applyShellOutput({ shells: inner.shells, frame })
+    if (shells !== inner.shells) commit({ ...inner, shells })
   }
 
   const handleSetupOutput = (text: string): void => {
@@ -227,6 +192,7 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
         status: undefined,
         view: undefined,
         setupOutput: '',
+        shells: {},
         live: false,
         skipped: 0,
         fromCache: false,
@@ -237,6 +203,8 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
       isSetupOutputCallId(message.frame.callId)
     ) {
       handleSetupOutput(message.frame.text)
+    } else if (message.type === 'frame' && message.frame.type === 'shell-output') {
+      handleShellOutput(message.frame)
     } else if (
       message.type === 'overlay' ||
       message.type === 'delta' ||

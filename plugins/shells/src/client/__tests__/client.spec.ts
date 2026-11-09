@@ -30,7 +30,7 @@ describe('shellsOfView', () => {
 
 describe('shellRosterOf', () => {
   it('is zeroes when the view is absent', () => {
-    expect(shellRosterOf({})).toEqual({ running: 0, awaitingInput: false, labels: [] })
+    expect(shellRosterOf({})).toEqual({ running: 0, awaitingInput: false, labels: [], rows: [] })
   })
 
   it('counts and labels two running shells', () => {
@@ -39,6 +39,10 @@ describe('shellRosterOf', () => {
       running: 2,
       awaitingInput: false,
       labels: ['dev server', 'watcher'],
+      rows: [
+        { shellId: 'sh1', name: 'dev server' },
+        { shellId: 'sh2', name: 'watcher' },
+      ],
     })
   })
 
@@ -55,6 +59,7 @@ describe('shellRosterOf', () => {
       running: 1,
       awaitingInput: false,
       labels: ['dev server'],
+      rows: [{ shellId: 'sh1', name: 'dev server' }],
     })
   })
 

@@ -17,6 +17,13 @@ export const sessionLiveChannel = (sessionId: string): string => `atlas:session-
 export const sessionLiveBufferKey = (sessionId: string): string =>
   `atlas:session-live-buf:${sessionId}`
 
+export const sessionShellBacklogKey = (sessionId: string): string =>
+  `atlas:session-shell-backlog:${sessionId}`
+
+export const SHELL_BACKLOG_FRAMES = 256
+
+export const SHELL_BACKLOG_TTL_SECONDS = 600
+
 const SETUP_OUTPUT_CALL_PREFIX = 'setup:'
 
 export const setupOutputCallId = (sessionId: string): string =>
@@ -37,6 +44,12 @@ export const compareFrameStamp = (args: { left: FrameStamp; right: FrameStamp })
 
 export const liveFrameSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('tool-output'), callId: z.string().min(1), text: z.string() }),
+  z.strictObject({
+    type: z.literal('shell-output'),
+    shellId: z.string().min(1),
+    offset: z.number().int().min(0),
+    text: z.string(),
+  }),
   z.strictObject({
     type: z.literal('retrying'),
     attempt: z.number().int().min(1),

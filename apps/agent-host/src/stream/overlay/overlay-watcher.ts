@@ -1,5 +1,5 @@
 import type { HostTimers } from '@dltech/atlas-host'
-import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
+import type { LogPort } from '@dltech/atlas-observability'
 import {
   compareFrameStamp,
   EStreamClearReason,
@@ -9,8 +9,11 @@ import {
 } from '@dltech/atlas-protocol'
 
 import { FOLLOW_HIGH_WATER_BYTES } from '../follow-limits'
-import { foldLiveBuffer, type FoldedStep } from './fold-live-buffer'
+import type { FoldedStep } from './fold-live-buffer'
 import { atOrBefore, FrameOrder } from './frame-order'
+import { readJoin, type JoinRead } from './join-read'
+import { ShellFrameHold, type ShellFrame } from './shell-frames'
+import { trackShown } from './shown-step'
 import { isStepFrame, sameLengths, sameStep, type OpenStep, type StepFrame } from './step-frames'
 
 export const OVERLAY_QUEUE_BYTES = 256 * 1024
@@ -21,13 +24,12 @@ export type QueuedFrame = { frame: LiveFrame; size: number }
 
 type Pending = { frame: StepFrame; size: number }
 
-type JoinRead = { ok: true; folded: FoldedStep | undefined } | { ok: false }
-
 export type OverlayWatcherArgs = {
   id: string
   send(message: StreamServerMessage): void
   bufferedAmount(): number
   readBuffer(): Promise<string | null>
+  readShellBacklog(): Promise<string[]>
   timers: HostTimers
   log: LogPort | undefined
 }
@@ -45,6 +47,10 @@ export class OverlayWatcher {
   private stopped = false
   private retries = 0
   private retryTimer: unknown
+
+  private readonly shells = new ShellFrameHold((frame) => {
+    if (!this.stopped) this.emit({ type: 'frame', id: this.args.id, frame })
+  })
 
   constructor(private readonly args: OverlayWatcherArgs) {}
 
@@ -85,7 +91,10 @@ export class OverlayWatcher {
     if (this.stopped) return
     this.handleDrain()
     const { frame } = item
-    if (!isStepFrame(frame)) return this.emit({ type: 'frame', id: this.args.id, frame })
+    if (!isStepFrame(frame)) {
+      if (frame.type === 'shell-output' && this.queue !== undefined) return this.shells.hold(frame)
+      return this.emit({ type: 'frame', id: this.args.id, frame })
+    }
     if (this.order.isStale(frame.at)) return
     if (this.queue !== undefined) {
       this.enqueue({ frame, size: item.size })
@@ -191,6 +200,7 @@ export class OverlayWatcher {
       await this.join()
       return
     }
+    this.shells.flush(read.shells)
     this.retries = 0
     this.queue = undefined
     for (const item of after) {
@@ -210,17 +220,12 @@ export class OverlayWatcher {
     }, delay)
   }
 
-  private async readSnapshot(): Promise<JoinRead> {
-    try {
-      return { ok: true, folded: foldLiveBuffer(await this.args.readBuffer()) }
-    } catch (error) {
-      this.args.log?.error({
-        source: 'stream',
-        message: 'reading the live buffer failed',
-        ...logFieldsOf({ error }),
-      })
-      return { ok: false }
-    }
+  private readSnapshot(): Promise<JoinRead> {
+    return readJoin({
+      readBuffer: () => this.args.readBuffer(),
+      readShellBacklog: () => this.args.readShellBacklog(),
+      log: this.args.log,
+    })
   }
 
   private applySnapshot(folded: FoldedStep | undefined): void {
@@ -288,11 +293,6 @@ export class OverlayWatcher {
   }
 
   private track(message: StreamServerMessage): void {
-    if (message.type === 'overlay') this.shown = message.key
-    if (message.type === 'overlay-clear') this.shown = undefined
-    if (message.type !== 'frame' || message.frame.type !== 'step-end') return
-    if (this.shown !== undefined && sameStep({ left: this.shown, right: message.frame.key })) {
-      this.shown = undefined
-    }
+    this.shown = trackShown({ shown: this.shown, message })
   }
 }

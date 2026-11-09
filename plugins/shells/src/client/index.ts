@@ -16,10 +16,13 @@ export const shellsClient: ClientSlot = {
   ],
 }
 
+export type ShellRosterRow = { shellId: string; name: string }
+
 export type ShellRoster = {
   running: number
   awaitingInput: boolean
   labels: readonly string[]
+  rows: readonly ShellRosterRow[]
 }
 
 export const shellsOfView = (views: Readonly<Record<string, unknown>>): readonly ShellRow[] =>
@@ -35,5 +38,6 @@ export const shellRosterOf = (views: Readonly<Record<string, unknown>>): ShellRo
     running: running.length,
     awaitingInput: running.some((row) => row.awaitingInput),
     labels: running.map((row) => row.name),
+    rows: running.map((row) => ({ shellId: row.shellId, name: row.name })),
   }
 }

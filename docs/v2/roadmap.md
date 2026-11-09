@@ -86,6 +86,12 @@ _Updated at the end of every slice. Last update: 2026-11-09._
   tools. Live-checked on production 2026-11-08: start, read, answer stdin, kill, the roster in
   `pluginViews.shells`, and a shell still listed by `shell_list` after the agent host was replaced
   (spec §8.3). The web header shows a chip with the running shells (#2036).
+- **Slice 7, `plugins/shells` follow-up** (`dennis/shells-live-output`): the running-shells reminder
+  moved out of the plugin's `beforeStep` hook into `defaultRules`, derived from the journal when no
+  live source is given, and the live output stream §5.2 declared shipped: the pod publishes
+  `shell-output` live frames driven by the daemon's throttled `shells.output` frame, a bounded Redis
+  backlog replays them to a browser joining mid-shell, and the web header's shells chip opens each
+  running shell's tail. The durable journal still records only the start and the ending (spec §8.3).
 - **Slice 7 PR 3, `plugins/github` complete** (`dennis/github-ui`): the PR finder and identity lookup
   moved from `apps/agent-host/src/github/` into the plugin's `/pod`, called from the agent-host
   composition root; the session header shows the PRs the session is subscribed to; specs prove the

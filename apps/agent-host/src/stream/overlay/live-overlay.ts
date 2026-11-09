@@ -43,6 +43,7 @@ export class LiveOverlay {
       send: (message) => target.send(message),
       bufferedAmount: () => target.bufferedAmount(),
       readBuffer: () => this.args.source.readBuffer(target.sessionId),
+      readShellBacklog: () => this.args.source.readShellBacklog(target.sessionId),
       timers: this.args.timers,
       log: this.args.log,
     })

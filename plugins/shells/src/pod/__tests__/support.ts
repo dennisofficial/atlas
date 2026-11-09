@@ -18,6 +18,7 @@ import {
   type CallOp,
   type CallResult,
   type DaemonEventFrame,
+  type LiveFrame,
   type ShellInfo,
 } from '@dltech/atlas-protocol'
 
@@ -36,6 +37,7 @@ export const rig = () => {
   const shells = new Map<string, FakeShell>()
   const listeners = new Set<(frame: DaemonEventFrame) => void>()
   const calls: CallOp[] = []
+  const liveFrames: LiveFrame[] = []
 
   const append = async (drafts: readonly (EventDraft | RecordBody | PluginEventBody)[]) => {
     for (const body of drafts) {
@@ -116,11 +118,23 @@ export const rig = () => {
     append,
     events: () => log,
     call,
+    live: (frame) => liveFrames.push(frame),
     onDaemonEvent: (listener) => {
       listeners.add(listener)
       return () => listeners.delete(listener)
     },
     log: () => undefined,
+  }
+
+  const output = (shellId: string): void => {
+    const shell = shells.get(shellId)
+    if (shell === undefined) throw new Error(`no shell ${shellId}`)
+    for (const listener of listeners) {
+      listener({
+        kind: 'event',
+        event: { type: 'shells.output', shellId, totalBytes: shell.info.totalBytes },
+      })
+    }
   }
 
   const frame = (shellId: string): DaemonEventFrame => {
@@ -129,7 +143,7 @@ export const rig = () => {
     return { kind: 'event', event: { type: 'shells.ended', shellId, info: shell.info } }
   }
 
-  return { ctx, log, shells, calls, print, finish, frame, listeners }
+  return { ctx, log, shells, calls, liveFrames, print, output, finish, frame, listeners }
 }
 
 export const invoke = async (args: {

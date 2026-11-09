@@ -8,6 +8,7 @@ export type TestFrame = WithoutStamp<LiveFrame>
 
 export class FakeLiveSource implements LiveSource {
   readonly buffers = new Map<string, string>()
+  readonly shellBacklogs = new Map<string, string[]>()
   readonly subscribed = new Set<string>()
   beforeRead: (() => void | Promise<void>) | undefined
   afterCapture: (() => void | Promise<void>) | undefined
@@ -52,6 +53,10 @@ export class FakeLiveSource implements LiveSource {
 
   async unsubscribe(sessionId: string): Promise<void> {
     this.subscribed.delete(sessionId)
+  }
+
+  async readShellBacklog(sessionId: string): Promise<string[]> {
+    return this.shellBacklogs.get(sessionId) ?? []
   }
 
   async readBuffer(sessionId: string): Promise<string | null> {

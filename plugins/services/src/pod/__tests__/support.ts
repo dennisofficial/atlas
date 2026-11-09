@@ -91,6 +91,7 @@ export const rig = (options: { control?: PodControl } = {}) => {
     append,
     events: () => log,
     call,
+    live: () => undefined,
     onDaemonEvent: (listener) => {
       listeners.add(listener)
       return () => listeners.delete(listener)

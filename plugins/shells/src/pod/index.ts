@@ -34,7 +34,11 @@ export const shellsPod: PodSlot = {
   },
   hooks: (ctx) => {
     const state = stateFor(ctx)
-    ctx.onDaemonEvent((frame) => void recordShellEnding({ ctx, state, frame }))
+    ctx.onDaemonEvent((frame) => {
+      void recordShellEnding({ ctx, state, frame })
+      if (frame.event.type === 'shells.output') void state.live.note(frame.event.shellId)
+      if (frame.event.type === 'shells.ended') state.live.forget(frame.event.shellId)
+    })
     return {}
   },
   prompts: [new BackgroundShellsFragment()],
