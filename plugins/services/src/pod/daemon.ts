@@ -33,7 +33,9 @@ export const startService = async (args: {
   serviceId: string
   command: string
   cwd: string
+  env?: Record<string, string> | undefined
   port?: number | undefined
+  healthPath?: string | undefined
   readyTimeoutMs?: number | undefined
   signal?: AbortSignal | undefined
 }): Promise<DaemonCall<ServiceInfo>> => {
@@ -45,7 +47,9 @@ export const startService = async (args: {
       serviceId: args.serviceId,
       command: args.command,
       cwd: args.cwd,
+      ...(args.env === undefined ? {} : { env: args.env }),
       ...(args.port === undefined ? {} : { port: args.port }),
+      ...(args.healthPath === undefined ? {} : { healthPath: args.healthPath }),
       ...(args.readyTimeoutMs === undefined ? {} : { readyTimeoutMs: args.readyTimeoutMs }),
     },
   })
@@ -103,4 +107,50 @@ export const readServiceLog = async (args: {
   if (!answer.ok) return answer
   if (answer.value.op !== 'services.log') return { ok: false, reason: WRONG_ANSWER }
   return { ok: true, value: answer.value.value }
+}
+
+export const readTextFile = async (args: {
+  ctx: Ctx
+  path: string
+  signal?: AbortSignal | undefined
+}): Promise<DaemonCall<string>> => {
+  const answer = await run({
+    ctx: args.ctx,
+    signal: args.signal,
+    op: { op: 'readFile', path: args.path },
+  })
+  if (!answer.ok) return answer
+  if (answer.value.op !== 'readFile') return { ok: false, reason: WRONG_ANSWER }
+  return { ok: true, value: answer.value.value }
+}
+
+export const runCommand = async (args: {
+  ctx: Ctx
+  command: string
+  cwd: string
+  env?: Record<string, string> | undefined
+  signal?: AbortSignal | undefined
+}): Promise<DaemonCall<{ exitCode: number | null; output: string }>> => {
+  const chunks: Buffer[] = []
+  const result = await args.ctx.call(
+    {
+      op: 'exec',
+      argv: ['/bin/sh', '-c', args.command],
+      cwd: args.cwd,
+      ...(args.env === undefined ? {} : { env: args.env }),
+    },
+    {
+      ...(args.signal === undefined ? {} : { signal: args.signal }),
+      onOutput: (bytes) => chunks.push(Buffer.from(bytes)),
+    },
+  )
+  if (result.status !== ECallStatus.Ok) return { ok: false, reason: result.error.message }
+  if (result.op !== 'exec') return { ok: false, reason: WRONG_ANSWER }
+  return {
+    ok: true,
+    value: {
+      exitCode: result.value.exitCode,
+      output: Buffer.concat(chunks).toString('utf8'),
+    },
+  }
 }

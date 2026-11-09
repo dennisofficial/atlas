@@ -1,5 +1,7 @@
 import { shellLabel } from '@dltech/atlas-core'
 
+export const STALE_MARK = '(stale: services.yaml changed; restart to apply)'
+
 export const renderStarted = (args: {
   serviceId: string
   pid: number
@@ -20,10 +22,13 @@ export const renderListLine = (args: {
   description?: string | undefined
   running: boolean
   port: number | null
-}): string =>
-  [
+  stale?: boolean | undefined
+}): string => {
+  const status = args.running ? 'running' : 'ended'
+  return [
     args.serviceId,
     shellLabel(args),
-    args.running ? 'running' : 'ended',
+    args.stale === true ? `${status} ${STALE_MARK}` : status,
     ...(args.port === null ? [] : [`port ${args.port}`]),
   ].join('  ')
+}
