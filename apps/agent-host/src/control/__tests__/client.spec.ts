@@ -21,6 +21,16 @@ const reply = (body: unknown, status = 200): Response =>
     headers: { 'content-type': 'application/json' },
   })
 
+const summary = {
+  scope: 'global' as const,
+  project: null,
+  name: 'm',
+  description: 'd',
+  type: 'user' as const,
+  revision: 1,
+  updatedAt: '2026-11-09T10:00:00.000Z',
+}
+
 const client = (): ReturnType<typeof podControlClientOf> =>
   podControlClientOf({ apiOrigin: ORIGIN, token: 'host-token' })
 
@@ -66,6 +76,43 @@ describe('podControlClientOf', () => {
     expect(listed).toEqual(snapshot)
     expect(seen[0]?.url).toBe(`${ORIGIN}/v1/trpc/hostMemory.list`)
     expect(seen[0]?.init?.body).toBe(JSON.stringify({ threadId: 'thr_1' }))
+  })
+
+  it('returns the saved memory, not the reply envelope', async () => {
+    stubFetch(() => reply({ result: { data: { memory: summary } } }))
+    const saved = await client().memory.write({
+      threadId: 'thr_1',
+      scope: 'global',
+      name: 'm',
+      description: 'd',
+      type: 'user',
+      body: 'b',
+    })
+    expect(saved).toEqual(summary)
+  })
+
+  it('returns the memory entry, and null for one the control plane does not hold', async () => {
+    const entryOf = { ...summary, body: 'Bun.' }
+    stubFetch(() => reply({ result: { data: { memory: entryOf } } }))
+    const entry = await client().memory.read({ threadId: 'thr_1', scope: 'global', name: 'm' })
+    expect(entry).toEqual(entryOf)
+    stubFetch(() => reply({ result: { data: { memory: null } } }))
+    expect(
+      await client().memory.read({ threadId: 'thr_1', scope: 'global', name: 'gone' }),
+    ).toBeNull()
+  })
+
+  it('returns the edited memory, not the reply envelope', async () => {
+    stubFetch(() => reply({ result: { data: { memory: { ...summary, revision: 2 } } } }))
+    const edited = await client().memory.edit({
+      threadId: 'thr_1',
+      scope: 'global',
+      name: 'm',
+      old: 'a',
+      new: 'b',
+      revision: 1,
+    })
+    expect(edited).toEqual({ ...summary, revision: 2 })
   })
 
   it('posts a memory write with its scope, name and body', async () => {

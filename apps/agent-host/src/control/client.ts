@@ -68,22 +68,28 @@ export const podControlClientOf = (args: {
         (await call('hostMemory.list', { threadId }, signal)) as Awaited<
           ReturnType<PodControlClient['memory']['list']>
         >,
-      read: async ({ threadId, scope, name, signal }) =>
-        (await call('hostMemory.get', { threadId, scope, name }, signal)) as Awaited<
-          ReturnType<PodControlClient['memory']['read']>
-        >,
-      write: async ({ threadId, scope, name, description, type, body, signal }) =>
-        (await call(
+      read: async ({ threadId, scope, name, signal }) => {
+        const reply = (await call('hostMemory.get', { threadId, scope, name }, signal)) as {
+          memory: Awaited<ReturnType<PodControlClient['memory']['read']>>
+        }
+        return reply.memory
+      },
+      write: async ({ threadId, scope, name, description, type, body, signal }) => {
+        const reply = (await call(
           'hostMemory.write',
           { threadId, scope, name, description, type, body },
           signal,
-        )) as Awaited<ReturnType<PodControlClient['memory']['write']>>,
-      edit: async ({ threadId, scope, name, old, new: replacement, revision, signal }) =>
-        (await call(
+        )) as { memory: Awaited<ReturnType<PodControlClient['memory']['write']>> }
+        return reply.memory
+      },
+      edit: async ({ threadId, scope, name, old, new: replacement, revision, signal }) => {
+        const reply = (await call(
           'hostMemory.edit',
           { threadId, scope, name, old, new: replacement, revision },
           signal,
-        )) as Awaited<ReturnType<PodControlClient['memory']['edit']>>,
+        )) as { memory: Awaited<ReturnType<PodControlClient['memory']['edit']>> }
+        return reply.memory
+      },
       remove: async ({ threadId, scope, name, signal }) => {
         const reply = (await call('hostMemory.remove', { threadId, scope, name }, signal)) as {
           removed: boolean
