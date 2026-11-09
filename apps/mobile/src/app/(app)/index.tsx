@@ -5,10 +5,16 @@ import { useMemo, useState } from 'react'
 import { ActivityIndicator, RefreshControl, SectionList, StyleSheet, View } from 'react-native'
 
 import { SearchField } from '../../sessions/search-field'
+import { ESessionKind, type ISessionEntry } from '../../sessions/session-groups'
 import { SectionHeader } from '../../sessions/section-header'
 import { BucketProjectLabel, SessionRow } from '../../sessions/session-row'
 import { EItemKind, sectionsOf } from '../../sessions/session-sections'
 import { ELoadState, useSessions } from '../../sessions/use-sessions'
+
+const sessionRouteOf = (entry: ISessionEntry) =>
+  entry.kind === ESessionKind.V2
+    ? ({ pathname: '/sessions/[id]', params: { id: entry.id, title: entry.title } } as const)
+    : ({ pathname: '/thread/[id]', params: { id: entry.id } } as const)
 
 const EmptyState = ({ searching }: { searching: boolean }) => (
   <View style={styles.empty}>
@@ -91,7 +97,7 @@ export default function SessionsScreen() {
           <SessionRow
             entry={item.entry}
             now={now}
-            onPress={() => router.push({ pathname: '/thread/[id]', params: { id: item.entry.id } })}
+            onPress={() => router.push(sessionRouteOf(item.entry))}
           />
         )
       }

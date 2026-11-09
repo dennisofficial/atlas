@@ -177,6 +177,7 @@ export function assembleTranscript(args: {
 export function deriveTranscript(args: {
   events: readonly Event[]
   signals: readonly StepSignal[]
+  steps?: readonly InFlightStep[] | undefined
   turns?: readonly TurnSpend[] | undefined
   reveal?: RevealGate | null
   thinking?: EThinkingVisibility
@@ -192,7 +193,7 @@ export function deriveTranscript(args: {
     persistedFailure: persistedFailureOf(args.events),
     failureDismissed: failureDismissedForTail(args.events),
     live: liveSteps({
-      steps: stepsOfSignalsAt({ signals: args.signals, now: args.now }),
+      steps: args.steps ?? stepsOfSignalsAt({ signals: args.signals, now: args.now }),
       events: args.events,
     }),
     ...(args.reveal === undefined ? {} : { reveal: args.reveal }),

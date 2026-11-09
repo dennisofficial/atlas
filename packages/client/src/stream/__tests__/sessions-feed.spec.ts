@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
-import type { FollowedSessionList } from '@dltech/atlas-client/stream'
+import type { StreamSessionRow } from '@dltech/atlas-protocol'
 
-import type { V2SessionSummary } from '../v2-rows'
-import { createSessionsFeed } from '../v2-sessions-feed'
+import type { FollowedSessionList } from '../sessions-list'
+import { createSessionsFeed } from '../sessions-feed'
 
-const rowOf = (sessionId: string): V2SessionSummary => ({
+const rowOf = (sessionId: string): StreamSessionRow => ({
   sessionId,
   projectId: 'p1',
   title: null,
@@ -17,7 +17,7 @@ const rowOf = (sessionId: string): V2SessionSummary => ({
 })
 
 const fakeList = () => {
-  let rows: readonly V2SessionSummary[] | undefined
+  let rows: readonly StreamSessionRow[] | undefined
   const listeners = new Set<() => void>()
   const state = { closed: 0 }
   const list: FollowedSessionList = {
@@ -28,7 +28,7 @@ const fakeList = () => {
     },
     close: () => void (state.closed += 1),
   }
-  const push = (next: readonly V2SessionSummary[]) => {
+  const push = (next: readonly StreamSessionRow[]) => {
     rows = next
     for (const listener of listeners) listener()
   }
@@ -38,7 +38,7 @@ const fakeList = () => {
 describe('sessions feed', () => {
   it('writes nothing before the first snapshot and every change after', () => {
     const fake = fakeList()
-    const written: (readonly V2SessionSummary[])[] = []
+    const written: (readonly StreamSessionRow[])[] = []
     const feed = createSessionsFeed({
       follow: () => fake.list,
       write: (rows) => written.push(rows),
@@ -74,7 +74,7 @@ describe('sessions feed', () => {
   it('writes an already-known snapshot when a holder arrives late and follows again after a full release', () => {
     const fake = fakeList()
     fake.push([rowOf('a')])
-    const written: (readonly V2SessionSummary[])[] = []
+    const written: (readonly StreamSessionRow[])[] = []
     const feed = createSessionsFeed({
       follow: () => fake.list,
       write: (rows) => written.push(rows),

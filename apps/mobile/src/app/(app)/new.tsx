@@ -10,10 +10,9 @@ import {
   withAlpha,
 } from '@dltech/atlas-ui-native'
 import { radius, space } from '@dltech/atlas-ui/tokens'
-import { randomUUID } from 'expo-crypto'
 import { router, useLocalSearchParams } from 'expo-router'
 import { ArrowUp } from 'lucide-react-native'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native'
 
 import { useAuth } from '../../auth/auth-provider'
@@ -29,7 +28,6 @@ export default function NewSessionScreen() {
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const sendId = useRef(randomUUID())
 
   useEffect(() => {
     if (api === undefined) return
@@ -51,8 +49,8 @@ export default function NewSessionScreen() {
     setSending(true)
     setError(null)
     try {
-      const id = await createSession({ api, projectId, text, sendId: sendId.current })
-      router.replace({ pathname: '/thread/[id]', params: { id } })
+      const id = await createSession({ api, projectId, text })
+      router.replace({ pathname: '/sessions/[id]', params: { id } })
     } catch {
       setError('The session could not be started. Try again.')
       setSending(false)

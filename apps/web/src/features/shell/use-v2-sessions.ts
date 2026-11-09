@@ -1,5 +1,6 @@
 'use client'
 
+import { createSessionsFeed, type SessionsFeed } from '@dltech/atlas-client/stream'
 import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 
@@ -8,7 +9,6 @@ import { sessionStream } from '@/features/sessions/data/session-stream'
 import { V2_SESSIONS_KEY } from '@/lib/cloud-keys'
 
 import type { V2SessionSummary } from './v2-rows'
-import { createSessionsFeed, type SessionsFeed } from './v2-sessions-feed'
 
 const NONE: readonly V2SessionSummary[] = []
 

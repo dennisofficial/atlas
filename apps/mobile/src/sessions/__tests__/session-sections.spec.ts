@@ -1,11 +1,17 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EWorkKind, type ISessionEntry, type ISessionPartition } from '../session-groups'
+import {
+  ESessionKind,
+  EWorkKind,
+  type ISessionEntry,
+  type ISessionPartition,
+} from '../session-groups'
 import { EItemKind, ESectionKind, GROUP_GAP, sectionsOf } from '../session-sections'
 import { ESessionStatus } from '../session-status'
 
 const entry = (id: string, projectName = 'atlas'): ISessionEntry => ({
   id,
+  kind: ESessionKind.V1,
   title: `Session ${id}`,
   projectName,
   createdAt: '2026-11-03T20:00:00.000Z',

@@ -1,23 +1,16 @@
-import type { ApiClient } from '@dltech/atlas-api-router'
-import type { CreateThreadReply, WireThread } from '@dltech/atlas-wire/web'
+export type CreateSessionApi = {
+  sessions: {
+    create: { mutate(input: { projectId: string }): Promise<{ sessionId: string }> }
+    post: { mutate(input: { sessionId: string; text: string }): Promise<unknown> }
+  }
+}
 
-const isReply = (value: WireThread | CreateThreadReply): value is CreateThreadReply =>
-  'thread' in value && 'provision' in value
-
-export const createSession = async ({
-  api,
-  projectId,
-  text,
-  sendId,
-}: {
-  api: ApiClient
+export const createSession = async (args: {
+  api: CreateSessionApi
   projectId: string
   text: string
-  sendId: string
 }): Promise<string> => {
-  const created = await api.threads.create.mutate({
-    projectId,
-    firstMessage: { sendId, text },
-  })
-  return isReply(created) ? created.thread.id : created.id
+  const { sessionId } = await args.api.sessions.create.mutate({ projectId: args.projectId })
+  await args.api.sessions.post.mutate({ sessionId, text: args.text })
+  return sessionId
 }

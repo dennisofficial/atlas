@@ -30,7 +30,7 @@ export const Composer = ({
   onStop,
 }: {
   working: boolean
-  attachments: ComposerAttachments
+  attachments?: ComposerAttachments | undefined
   onSend: (message: { text: string; attachments: Attachment[] }) => Promise<boolean>
   onStop: () => void
 }) => {
@@ -41,27 +41,27 @@ export const Composer = ({
   const [failed, setFailed] = useState(false)
   const [choosing, setChoosing] = useState(false)
 
-  const canSend = sendableOf({ text: draft, held: attachments.held }) && !sending
+  const canSend = sendableOf({ text: draft, held: attachments?.held ?? [] }) && !sending
 
   const handleSend = async () => {
     if (!canSend) return
     setSending(true)
     setFailed(false)
-    const sent = await onSend({ text: draft.trim(), attachments: attachments.attachments })
+    const sent = await onSend({ text: draft.trim(), attachments: attachments?.attachments ?? [] })
     setSending(false)
     if (!sent) {
       setFailed(true)
       return
     }
     setDraft('')
-    attachments.clear()
+    attachments?.clear()
   }
 
   const notice = failed
     ? draft.trim().length === 0
       ? "Attachments couldn't go on their own. Add a caption to queue them for later."
       : 'That message could not be sent.'
-    : (attachments.notice ?? (attachments.failed ? REMOVE_FAILED_FILES : null))
+    : (attachments?.notice ?? (attachments?.failed === true ? REMOVE_FAILED_FILES : null))
 
   const handlePick = (pick: () => Promise<void>) => {
     setChoosing(false)
@@ -70,13 +70,15 @@ export const Composer = ({
 
   return (
     <View style={styles.dock}>
-      {choosing ? (
+      {choosing && attachments !== undefined ? (
         <AttachMenu
           onPhoto={() => handlePick(attachments.pickPhotos)}
           onFile={() => handlePick(attachments.pickFiles)}
         />
       ) : null}
-      <AttachmentChips held={attachments.held} onRemove={attachments.remove} />
+      {attachments === undefined ? null : (
+        <AttachmentChips held={attachments.held} onRemove={attachments.remove} />
+      )}
       {notice === null ? null : (
         <Text size={ETextRole.Xs} tone={ETextTone.Destructive} style={styles.notice}>
           {notice}
@@ -101,14 +103,16 @@ export const Composer = ({
           style={styles.input}
         />
         <View style={styles.bar}>
-          <Button
-            label={choosing ? 'Close the attachment menu' : 'Attach a file'}
-            icon={Plus}
-            size={EButtonSize.Icon}
-            variant={EButtonVariant.Outline}
-            round
-            onPress={() => setChoosing((open) => !open)}
-          />
+          {attachments === undefined ? null : (
+            <Button
+              label={choosing ? 'Close the attachment menu' : 'Attach a file'}
+              icon={Plus}
+              size={EButtonSize.Icon}
+              variant={EButtonVariant.Outline}
+              round
+              onPress={() => setChoosing((open) => !open)}
+            />
+          )}
           {working ? (
             <Button
               label="Stop"
