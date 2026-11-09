@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { EStreamResetReason } from '@dltech/atlas-protocol'
 
 import { memorySessionCache, type SessionCache } from '../session-cache'
 import {
@@ -57,6 +58,26 @@ describe('the session follower with a cache', () => {
       eventsMessage({ id: 's1', events: mintUserEvents({ count: 3 }), live: true }),
     )
 
+    expect(follower.getSnapshot().fromCache).toBe(false)
+  })
+
+  it('stops calling a cached window cached once a reset throws it away', async () => {
+    const cache = memorySessionCache()
+    const { events, window } = cachedWindowOf(3)
+    await cache.save({ sessionId: 'session-1', window })
+    const { follower } = setup(cache)
+    await follower.hydrated
+    expect(follower.cursor()).toEqual(headOf(events))
+    expect(follower.getSnapshot().fromCache).toBe(true)
+
+    follower.handleMessage({
+      type: 'reset',
+      id: 's1',
+      reason: EStreamResetReason.Fork,
+      tailFrom: 0,
+    })
+
+    expect(follower.getSnapshot().cursor).toBeUndefined()
     expect(follower.getSnapshot().fromCache).toBe(false)
   })
 

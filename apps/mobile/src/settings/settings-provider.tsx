@@ -56,7 +56,7 @@ export const SettingsProvider = ({
 
   const value = useMemo<Settings>(
     () => ({ ready: state.ready, failed: state.failed, read: store.read, save, reload }),
-    [state.ready, state.failed, store, save, reload],
+    [state, store, save, reload],
   )
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>

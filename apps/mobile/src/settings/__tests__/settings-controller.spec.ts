@@ -97,6 +97,85 @@ describe('the settings controller', () => {
     expect((await storage.load()).has('model.fast')).toBe(false)
   })
 
+  it('keeps a save that lands while a load is still in flight', async () => {
+    let answer: () => void = () => undefined
+    const { controller } = setup({
+      list: () =>
+        new Promise((resolve) => {
+          answer = () =>
+            resolve({ settings: [{ key: 'model.id', value: encodeSettingValue('old-model') }] })
+        }),
+    })
+    const loading = controller.load()
+    await settle()
+
+    await controller.save({ 'model.id': 'new-model' })
+    answer()
+    await loading
+
+    expect(controller.read({ key: 'model.id', schema: z.string() })).toBe('new-model')
+  })
+
+  it('keeps a successful change when an older load answers afterwards', async () => {
+    let answer: () => void = () => undefined
+    const { controller } = setup({
+      list: () =>
+        new Promise((resolve) => {
+          answer = () =>
+            resolve({ settings: [{ key: 'model.id', value: encodeSettingValue('old') }] })
+        }),
+    })
+    const loading = controller.load()
+    await settle()
+    await controller.save({ 'model.id': 'fresh-model' })
+
+    answer()
+    await loading
+
+    expect(controller.read({ key: 'model.id', schema: z.string() })).toBe('fresh-model')
+  })
+
+  it('rolls back only the keys its own failed save touched', async () => {
+    let rejectFirst: () => void = () => undefined
+    const { controller } = setup({
+      patch: (values) =>
+        values['model.id']?.includes('broken') === true
+          ? new Promise((_resolve, reject) => {
+              rejectFirst = () => reject(new Error('refused'))
+            })
+          : Promise.resolve(),
+    })
+    const failing = controller.save({ 'model.id': 'broken' })
+    await controller.save({ 'model.fast': true })
+
+    rejectFirst()
+    await expect(failing).rejects.toThrow('refused')
+
+    expect(controller.read({ key: 'model.fast', schema: z.boolean() })).toBe(true)
+    expect(controller.read({ key: 'model.id', schema: z.string() })).toBe('')
+  })
+
+  it('leaves a fresh load alone when an older save is refused', async () => {
+    let rejectSave: () => void = () => undefined
+    const { controller } = setup({
+      list: () =>
+        Promise.resolve({
+          settings: [{ key: 'model.id', value: encodeSettingValue('theirs/model') }],
+        }),
+      patch: () =>
+        new Promise((_resolve, reject) => {
+          rejectSave = () => reject(new Error('refused'))
+        }),
+    })
+    const saving = controller.save({ 'model.id': 'mine/model' })
+    await controller.load()
+
+    rejectSave()
+    await expect(saving).rejects.toThrow('refused')
+
+    expect(controller.read({ key: 'model.id', schema: z.string() })).toBe('theirs/model')
+  })
+
   it('refuses to save while signed out', async () => {
     const storage = jsonSettingsStorage({ store: memoryJsonStore() })
     const controller = createSettingsController({ gateway: () => undefined, storage })

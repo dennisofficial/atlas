@@ -24,6 +24,8 @@ export type SettingsController = {
   load: () => Promise<void>
 }
 
+type Pending = { at: number; generation: number }
+
 const EMPTY: SettingsState = { values: new Map(), ready: false, failed: false }
 
 export const createSettingsController = (args: {
@@ -33,28 +35,49 @@ export const createSettingsController = (args: {
   const { gateway, storage } = args
   let state: SettingsState = EMPTY
   const listeners = new Set<() => void>()
+  const written = new Map<string, number>()
+  const pending = new Map<string, Pending>()
   let generation = 0
+  let mutation = 0
 
   const commit = (next: SettingsState): void => {
     state = next
     for (const listener of [...listeners]) listener()
   }
 
+  const keepLocal = (
+    fresh: SettingsValues,
+    args: { since: number; born: number },
+  ): SettingsValues => {
+    const merged = new Map(fresh)
+    const keep = (key: string): void => {
+      const value = state.values.get(key)
+      if (value === undefined) merged.delete(key)
+      else merged.set(key, value)
+    }
+    for (const [key, at] of written) if (at > args.since) keep(key)
+    for (const [key, entry] of pending) if (entry.generation === args.born) keep(key)
+    return merged
+  }
+
   const load = async (): Promise<void> => {
     const born = (generation += 1)
+    written.clear()
     const cached = await storage.load()
     if (born !== generation) return
     commit({ values: cached, ready: cached.size > 0, failed: false })
     const source = gateway()
     if (source === undefined) return
+    const since = mutation
     try {
       const body = await source.list()
       if (born !== generation) return
       const fresh: SettingsValues = new Map(
         body.settings.map((setting) => [setting.key, decodeSettingValue(setting.value)]),
       )
-      commit({ values: fresh, ready: true, failed: false })
-      void storage.save(fresh)
+      const merged = keepLocal(fresh, { since, born })
+      commit({ values: merged, ready: true, failed: false })
+      void storage.save(merged)
     } catch {
       if (born !== generation) return
       const held = state.values.size > 0
@@ -62,19 +85,37 @@ export const createSettingsController = (args: {
     }
   }
 
+  const restore = (held: ReadonlyMap<string, SettingScalar | undefined>, at: number): void => {
+    const values = new Map(state.values)
+    for (const [key, value] of held) {
+      if (written.get(key) !== at) continue
+      if (value === undefined) values.delete(key)
+      else values.set(key, value)
+    }
+    commit({ ...state, values })
+    void storage.save(values)
+  }
+
   const save = async (changes: SettingsChanges): Promise<void> => {
     const source = gateway()
     if (source === undefined) throw new Error('settings cannot be saved while signed out')
-    const previous = state.values
-    const next = applyChanges(previous, changes)
+    const born = generation
+    const at = (mutation += 1)
+    const held = new Map(Object.keys(changes).map((key) => [key, state.values.get(key)] as const))
+    for (const key of held.keys()) {
+      written.set(key, at)
+      pending.set(key, { at, generation: born })
+    }
+    const next = applyChanges(state.values, changes)
     commit({ ...state, values: next })
     void storage.save(next)
     try {
       await source.patch(encodedChanges(changes))
     } catch (error) {
-      commit({ ...state, values: previous })
-      void storage.save(previous)
+      if (born === generation) restore(held, at)
       throw error
+    } finally {
+      for (const key of held.keys()) if (pending.get(key)?.at === at) pending.delete(key)
     }
   }
 

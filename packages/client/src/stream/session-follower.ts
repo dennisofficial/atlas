@@ -229,6 +229,7 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
         setupOutput: '',
         live: false,
         skipped: 0,
+        fromCache: false,
       })
     } else if (
       message.type === 'frame' &&

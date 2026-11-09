@@ -1,6 +1,6 @@
 import { Directory, File, Paths } from 'expo-file-system'
 
-import type { JsonEntry, JsonStore } from './json-store'
+import { type JsonEntry, type JsonStore, serializedStore } from './json-store'
 
 const scratchName = (name: string): string => `${name}.writing`
 
@@ -11,7 +11,7 @@ export const fileJsonStore = ({ path }: { path: readonly string[] }): JsonStore 
   const ensure = (): void => {
     if (!directory.exists) directory.create({ intermediates: true })
   }
-  return {
+  return serializedStore({
     read: async (name) => {
       const file = fileIn(directory, name)
       if (!file.exists) return undefined
@@ -44,5 +44,5 @@ export const fileJsonStore = ({ path }: { path: readonly string[] }): JsonStore 
     clear: async () => {
       if (directory.exists) directory.delete()
     },
-  }
+  })
 }

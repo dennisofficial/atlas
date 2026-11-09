@@ -8,6 +8,25 @@ export type JsonStore = {
   clear: () => Promise<void>
 }
 
+export const serializedStore = (store: JsonStore): JsonStore => {
+  let chain: Promise<void> = Promise.resolve()
+  const enqueue = <T>(operation: () => Promise<T>): Promise<T> => {
+    const result = chain.then(operation)
+    chain = result.then(
+      () => undefined,
+      () => undefined,
+    )
+    return result
+  }
+  return {
+    read: (name) => enqueue(() => store.read(name)),
+    write: (name, value) => enqueue(() => store.write(name, value)),
+    remove: (name) => enqueue(() => store.remove(name)),
+    list: () => enqueue(() => store.list()),
+    clear: () => enqueue(() => store.clear()),
+  }
+}
+
 export const memoryJsonStore = (args: { now?: (() => number) | undefined } = {}): JsonStore => {
   const now = args.now ?? (() => Date.now())
   const files = new Map<string, { value: unknown; modifiedAt: number }>()

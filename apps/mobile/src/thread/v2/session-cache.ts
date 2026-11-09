@@ -1,30 +1,42 @@
 import { memorySessionCache, type SessionCache } from '@dltech/atlas-client/stream'
 
 import { fileJsonStore } from '../../storage/file-json-store'
+import type { JsonStore } from '../../storage/json-store'
 import { v2EventSchema } from './registered-plugins'
+import { queuedSessionCache, type QueuedSessionCache } from './session-cache-queue'
 import { createStoredSessionCache } from './session-cache-store'
 
 export const SESSION_CACHE_PATH = ['atlas', 'sessions'] as const
 
-let cache: SessionCache | undefined
+let store: JsonStore | undefined
+let cache: QueuedSessionCache | undefined
+
+const storeOf = (): JsonStore => {
+  store ??= fileJsonStore({ path: SESSION_CACHE_PATH })
+  return store
+}
 
 export const sessionCache = (): SessionCache => {
   if (cache !== undefined) return cache
   try {
-    cache = createStoredSessionCache({
-      store: fileJsonStore({ path: SESSION_CACHE_PATH }),
-      now: () => Date.now(),
-      eventSchema: v2EventSchema,
-    })
+    cache = queuedSessionCache(
+      createStoredSessionCache({
+        store: storeOf(),
+        now: () => Date.now(),
+        eventSchema: v2EventSchema,
+      }),
+    )
   } catch {
-    cache = memorySessionCache()
+    cache = queuedSessionCache(memorySessionCache())
   }
   return cache
 }
 
 export const clearSessionCache = async (): Promise<void> => {
+  cache?.stop()
+  await cache?.drain()
   cache = undefined
-  await fileJsonStore({ path: SESSION_CACHE_PATH })
+  await storeOf()
     .clear()
     .catch(() => undefined)
 }
