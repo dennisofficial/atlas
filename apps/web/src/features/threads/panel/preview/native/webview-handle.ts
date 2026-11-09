@@ -1,6 +1,7 @@
 export enum ENativeEvent {
   DidNavigate = 'did-navigate',
   DidNavigateInPage = 'did-navigate-in-page',
+  DidCommitNavigation = 'did-commit-navigation',
   DomReady = 'dom-ready',
   HostMessage = 'host-message',
 }

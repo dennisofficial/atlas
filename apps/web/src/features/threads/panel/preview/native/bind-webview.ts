@@ -39,14 +39,21 @@ export function bindWebview(args: {
     onTitle?.(title)
   }
 
+  const handleCommitted = (event: NativeEvent) => {
+    if (!bound) return
+    onEvent?.(ENativeEvent.DidCommitNavigation, urlOfEvent(event) ?? undefined)
+  }
+
   webview.on(ENativeEvent.DidNavigate, handleNavigated)
   webview.on(ENativeEvent.DidNavigateInPage, handleNavigated)
+  webview.on(ENativeEvent.DidCommitNavigation, handleCommitted)
   webview.on(ENativeEvent.DomReady, handleReady)
   webview.on(ENativeEvent.HostMessage, handleHostMessage)
   return () => {
     bound = false
     webview.off(ENativeEvent.DidNavigate, handleNavigated)
     webview.off(ENativeEvent.DidNavigateInPage, handleNavigated)
+    webview.off(ENativeEvent.DidCommitNavigation, handleCommitted)
     webview.off(ENativeEvent.DomReady, handleReady)
     webview.off(ENativeEvent.HostMessage, handleHostMessage)
   }
