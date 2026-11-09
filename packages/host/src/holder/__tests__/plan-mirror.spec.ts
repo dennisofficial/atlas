@@ -1,16 +1,23 @@
 import { describe, expect, it } from 'bun:test'
 
-import { PLAN_TOOL_NAME, toThreadId, type ToolCall, type ToolOutcome } from '@dltech/atlas-core'
+import {
+  EToolEffect,
+  PLAN_TOOL_NAME,
+  toCallId,
+  toThreadId,
+  type ToolCall,
+  type ToolOutcome,
+} from '@dltech/atlas-core'
 
 import { MirrorPlanHook } from '../plan-mirror'
 
-const callOf = (args: { name: string; input: unknown }): ToolCall =>
-  ({
-    id: 'call-1',
-    name: args.name,
-    input: args.input,
-    threadId: toThreadId('thr-1'),
-  }) as ToolCall
+const callOf = (args: { name: string; input: unknown }): ToolCall => ({
+  callId: toCallId('call-1'),
+  name: args.name,
+  input: args.input,
+  effect: EToolEffect.Read,
+  threadId: toThreadId('thr-1'),
+})
 
 const okResult: ToolOutcome = { ok: true, output: { tasks: [] }, modelText: 'No plan yet.' }
 
