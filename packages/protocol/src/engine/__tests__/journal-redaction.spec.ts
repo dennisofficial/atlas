@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 
 import { callOpSchema } from '../../ops'
-import { journalOp, parseCallJournal } from '../call-store'
+import {
+  CALL_JOURNAL_FORMAT,
+  ECallJournalState,
+  type CallJournal,
+  journalOp,
+  parseCallJournal,
+} from '../call-store'
 
 const SECRET = 'ghs_secret_value'
 const REDACTED = '[redacted]'
@@ -72,7 +78,13 @@ describe('journalOp', () => {
 
   it('still parses a journal written from a redacted op', () => {
     const op = journalOp({ op: 'writeFile', path: '/tmp/a', content: SECRET, mode: 0o600 })
-    const journal = { format: 1, state: 'running', epoch: 1, op, outputBytes: 0 } as const
+    const journal: CallJournal = {
+      format: CALL_JOURNAL_FORMAT,
+      state: ECallJournalState.Running,
+      epoch: 1,
+      op,
+      outputBytes: 0,
+    }
     expect(parseCallJournal(journal)).toEqual(journal)
   })
 })
