@@ -1,6 +1,6 @@
 # Slice 7 spec: plugins, one at a time
 
-Status: **spec, 2026-11-08.** The operator's answers are in §9; the contract PR (§2) is built.
+Status: **done 2026-11-09** (six plugins, PRs #2022–#2095; results and the live checks in §8).
 Anchors are `path:line` at `1ed61c015`; re-check before relying on one. Prior slice:
 [06-commands.md](06-commands.md). Contract: [architecture.md](../architecture.md) §4 P8 and §7,
 [0019](../../decisions/0019-v2-package-map.md), [0020](../../decisions/0020-v2-sub-agent-worktrees-and-peer-sessions.md),
@@ -901,6 +901,38 @@ The stale-instance trap recurred: the first probe on the deploy that had just go
 (`71df8fd1-…`) was served by the outgoing host and its tool list held every other plugin's tools and
 none of the three worktree tools; a fresh session minutes later had all 32. Compare the sandbox's
 cloned head with the deploy that served it before debugging the plugin.
+
+### 8.9 `plugins/sessions`
+
+Shipped: `plugins/sessions` (`@dltech/atlas-plugin-sessions`, `/core` `/pod` `/client`), registered in
+`apps/api`, `apps/agent-host` and `apps/web`; `spawn_session`, `message_session` and `list_sessions`
+as pod tools over `PluginPodContext.sessions` (implemented in `packages/host` over the control
+plane); the `spawnedBy` view and the `nestPeers` fold the sidebar reads; `reset-peer-budget` as the
+one control command; `senderSessionId` on the inbox entry and the `sender` + `via: "peer-agent"`
+lane on intake; `V2Session.spawnedBySessionId` / `podSessionId` and the 20-message budget on the
+peer's row.
+
+**The live check ran on production on 2026-11-09, merged as #2095 (`bd4eb64b1`).** Lead session
+`b6cdbfe7-63b3-4f46-a3fe-c493b3fe06cc` ("Tool Inventory Request") spawned peer
+`28d8d332-4635-4f73-bd69-fadd03a26e8c` ("Peer live check"):
+
+| Step                   | Evidence in the log                                                                                                                                                                                                           |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| tools registered       | the lead's transcript lists 34 tools, `spawn_session`, `message_session` and `list_sessions` among them                                                                                                                       |
+| one pod                | the peer's `podSessionId` is the lead's session id; the peer's `shell_list` (thread seq 26) saw the lead's ticker `shell-5f32d5db`, and `bash hostname; pwd` (seq 38) returned `1b74732b-2d3` / `/atlas/workspaces/workspace` |
+| brief and sender       | the spawn brief is the peer's inbox 1, `senderSessionId` = the lead                                                                                                                                                           |
+| a reply wakes the lead | 20 `pong` replies landed on the lead's inbox (3–22); each `user-said` carries `sender: {session: peer}` and `via: "peer-agent"`                                                                                               |
+| budget                 | 20 `ping`s filled the peer's inbox (3–22); the 21st `message_session` was refused at lead seq 174: "this session has received all 20 messages the operator's budget allows; the operator can reset it"                        |
+| archive                | peer archived 15:12:23 UTC, lead 15:12:37; the Done grouping is `nestPeers`                                                                                                                                                   |
+
+**The run stopped before it wrote this section** — after the archive, before the ticker kill and the
+teardown. This record is reconstructed from the production log (`v2."V2Event"` and
+`v2."V2InboxEntry"`) on 2026-11-09. The peer's `peerMessagesSent` reads 0 because
+`reset-peer-budget` was used after the refusal.
+
+**The seam review caught two defects before the merge:** a sender payload/schema mismatch that would
+have dropped every peer message, and a release that could stop a peer's sandbox. Both are fixed and
+covered by tests.
 
 ## 9. Answers (2026-11-08)
 
