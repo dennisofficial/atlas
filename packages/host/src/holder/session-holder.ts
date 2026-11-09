@@ -10,7 +10,7 @@ import {
 import type { ControlPlane } from '@dltech/atlas-control'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
-import type { HostBus, HostPresence, HostTimers, SessionRuntimeFactory } from './ports'
+import type { HostBus, HostPresence, HostTimers, PodPeers, SessionRuntimeFactory } from './ports'
 import type { PodControlClient } from './pod-control'
 import { ClaimLoop } from './claim-loop'
 import type { CommandHandlers } from './command-intake'
@@ -28,6 +28,7 @@ export type SessionHolderArgs = {
   timers: HostTimers
   runtimes: SessionRuntimeFactory
   ids: IdPort
+  podPeers?: PodPeers | undefined
   maxSessions: number
   appendRetryMs?: number | undefined
   idleMinutes?: number | undefined
@@ -55,6 +56,7 @@ export class SessionHolder {
   private readonly timers: HostTimers
   private readonly runtimes: SessionRuntimeFactory
   private readonly ids: IdPort
+  private readonly podPeers: PodPeers | undefined
   private readonly maxSessions: number
   private readonly appendRetryMs: number
   private readonly idleMinutes: number
@@ -90,6 +92,7 @@ export class SessionHolder {
     this.timers = args.timers
     this.runtimes = args.runtimes
     this.ids = args.ids
+    this.podPeers = args.podPeers
     this.maxSessions = args.maxSessions
     this.appendRetryMs = args.appendRetryMs ?? DEFAULTS.appendRetryMs
     this.idleMinutes = args.idleMinutes ?? DEFAULTS.idleMinutes
@@ -236,7 +239,9 @@ export class SessionHolder {
       })
       return
     }
-    const session = new HeldSession(this.deps({ lease }))
+    const session = new HeldSession(
+      this.deps({ lease, podSessionId: row.podSessionId ?? row.sessionId }),
+    )
     this.held.set(lease.sessionId, session)
     this.retryAt.set(lease.sessionId, lease.retryAfter)
     const finished = this.runAndSettle({
@@ -261,9 +266,11 @@ export class SessionHolder {
     await this.settler.settle({ lease, outcome })
   }
 
-  private deps(args: { lease: Lease }): HeldSessionDeps {
+  private deps(args: { lease: Lease; podSessionId: string }): HeldSessionDeps {
     return {
       sessionId: args.lease.sessionId,
+      podSessionId: args.podSessionId,
+      podPeers: this.podPeers,
       plane: this.plane,
       bus: this.bus,
       timers: this.timers,

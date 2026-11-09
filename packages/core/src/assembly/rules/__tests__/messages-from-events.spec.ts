@@ -76,6 +76,37 @@ describe('messagesFromEvents', () => {
     })
   })
 
+  it('names the sending session when the message carries one', () => {
+    const events = log([
+      {
+        type: 'user-said',
+        text: 'carrying a steer',
+        sender: { session: 'ses_2' },
+        via: EMessageOrigin.PeerAgent,
+      },
+    ])
+
+    const assembled = messagesFromEvents()(empty, contextFor({ events }))
+
+    expect(assembled.messages[0]?.message).toEqual({
+      role: 'user',
+      content: [
+        { type: 'text', text: agentSaidAs({ from: 'session ses_2', text: 'carrying a steer' }) },
+      ],
+    })
+  })
+
+  it('keeps an operator message in the operator-said lane when it names no session', () => {
+    const events = log([{ type: 'user-said', text: 'ship it' }])
+
+    const assembled = messagesFromEvents()(empty, contextFor({ events }))
+
+    expect(assembled.messages[0]?.message).toEqual({
+      role: 'user',
+      content: [{ type: 'text', text: operatorSaidAs('ship it') }],
+    })
+  })
+
   it('keeps an explicit operator message in the operator-said lane', () => {
     const events = log([{ type: 'user-said', text: 'yes, ship it', via: EMessageOrigin.Operator }])
 

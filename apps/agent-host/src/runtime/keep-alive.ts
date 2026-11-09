@@ -9,22 +9,26 @@ const KEEP_ALIVE_WINDOW_MS = 45 * 60_000
 
 export const startKeepAlive = (args: {
   sandbox: SandboxProvider
-  sessionId: string
+  sandboxSessionId: string
   credentials: VercelCredentials
   timers: HostTimers
   signal: AbortSignal
   log?: LogPort | undefined
 }): (() => void) => {
-  const { sandbox, sessionId, credentials, timers, signal, log } = args
+  const { sandbox, sandboxSessionId, credentials, timers, signal, log } = args
   let keepAlive = signal.aborted
     ? undefined
     : timers.setTimeout(function renew() {
         sandbox
-          .keepAlive({ sessionId, credentials, until: timers.now() + KEEP_ALIVE_WINDOW_MS })
+          .keepAlive({
+            sandboxSessionId,
+            credentials,
+            until: timers.now() + KEEP_ALIVE_WINDOW_MS,
+          })
           .catch((error: unknown) => {
             log?.error({
               source: 'runtime.keep-alive',
-              message: `keep-alive for ${sessionId} failed`,
+              message: `keep-alive for ${sandboxSessionId} failed`,
               ...logFieldsOf({ error }),
             })
           })

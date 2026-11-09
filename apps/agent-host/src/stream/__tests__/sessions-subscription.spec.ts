@@ -62,6 +62,7 @@ describe('sessions subscription', () => {
       createdAt: AT,
       updatedAt: AT,
       archivedAt: null,
+      spawnedBy: null,
       status: { state: ESessionStatus.Preparing },
       primaryBranch: null,
       pullRequest: null,

@@ -27,7 +27,7 @@ describe('SandboxSaidUploads on the real daemon', () => {
 
   beforeAll(async () => {
     server = Bun.serve({ port: 0, fetch: () => new Response(BYTES) })
-    daemon = await startDaemon({ sessionId: SESSION, secret: SECRET })
+    daemon = await startDaemon({ sandboxSessionId: SESSION, secret: SECRET })
     calls = new RemoteCalls({
       sessionId: SESSION,
       token: daemonToken({ secret: SECRET, sandboxName: sandboxNameOf(SESSION) }),

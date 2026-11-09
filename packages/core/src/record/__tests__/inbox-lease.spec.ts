@@ -12,6 +12,7 @@ const entry = (consumedSeq: number | null): InboxEntry => ({
   payload: '{}',
   postedAt: NOW,
   consumedSeq,
+  senderSessionId: null,
 })
 
 describe('inbox moves', () => {

@@ -10,6 +10,7 @@ export const postIn = async (params: {
   kind: string
   payload: string
   at: string
+  senderSessionId?: string | undefined
 }): Promise<{ inboxId: number }> => {
   const inboxId = await params.tx.allocateInboxId(params.sessionId)
   await params.tx.insertInboxEntry({
@@ -19,6 +20,7 @@ export const postIn = async (params: {
     payload: params.payload,
     postedAt: params.at,
     consumedSeq: null,
+    senderSessionId: params.senderSessionId ?? null,
   })
   await params.tx.notifyWake(params.sessionId)
   await params.tx.announce({ sessionId: params.sessionId })

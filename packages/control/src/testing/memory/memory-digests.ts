@@ -35,6 +35,11 @@ export const sessionDigestsIn = (
     .filter((row) => row.userId === params.userId)
     .filter((row) => params.projectId === undefined || row.projectId === params.projectId)
     .filter((row) => params.sessionId === undefined || row.sessionId === params.sessionId)
+    .filter(
+      (row) =>
+        params.spawnedBySessionId === undefined ||
+        row.spawnedBySessionId === params.spawnedBySessionId,
+    )
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
     .slice(0, params.limit)
     .map(sessionRowOf)

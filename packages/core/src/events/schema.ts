@@ -65,6 +65,7 @@ const coreEventBodySchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('user-said'),
     text: z.string(),
+    sender: z.object({ session: z.string().min(1) }).optional(),
     via: z.enum(EMessageOrigin).optional(),
     requestId: z.string().min(1).optional(),
     inboxId: z.number().int().min(1).optional(),

@@ -125,11 +125,13 @@ function lineOf(event: Event, payloadLimit: number): string | undefined {
 
 function saidLine(event: EventOfType<'user-said'>, limit: number): string {
   const speaker =
-    saidBy(event) === EMessageOrigin.Operator
-      ? 'Operator'
-      : saidBy(event) === EMessageOrigin.PeerAgent
-        ? 'Peer agent'
-        : 'Main agent'
+    event.sender !== undefined
+      ? `Session ${event.sender.session}`
+      : saidBy(event) === EMessageOrigin.Operator
+        ? 'Operator'
+        : saidBy(event) === EMessageOrigin.PeerAgent
+          ? 'Peer agent'
+          : 'Main agent'
   return `${speaker}: ${clipped(event.text, limit)}`
 }
 

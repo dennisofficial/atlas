@@ -45,11 +45,11 @@ class FakeSandbox extends SandboxProvider {
   }
 
   wake(args: {
-    sessionId: string
+    sandboxSessionId: string
     credentials: VercelCredentials
     signal: AbortSignal
   }): Promise<DaemonEndpoint> {
-    this.wakeStarted.push(args.sessionId)
+    this.wakeStarted.push(args.sandboxSessionId)
     if (this.rejectWake) return Promise.reject(new Error('daemon bundle missing'))
     if (this.neverResolve) return new Promise(() => {})
     return new Promise((resolve) => {
@@ -57,12 +57,12 @@ class FakeSandbox extends SandboxProvider {
     })
   }
 
-  async stop(args: { sessionId: string; credentials: VercelCredentials }): Promise<void> {
-    this.stopped.push(args.sessionId)
+  async stop(args: { sandboxSessionId: string; credentials: VercelCredentials }): Promise<void> {
+    this.stopped.push(args.sandboxSessionId)
   }
 
-  async keepAlive(args: { sessionId: string }): Promise<void> {
-    this.keptAlive.push(args.sessionId)
+  async keepAlive(args: { sandboxSessionId: string }): Promise<void> {
+    this.keptAlive.push(args.sandboxSessionId)
   }
 }
 
@@ -124,6 +124,7 @@ describe('createSessionRuntimeFactory', () => {
     })
     const promise = factory({
       sessionId: 's-1',
+      podSessionId: 's-1',
       threadId: toThreadId('t-1'),
       epoch: 1,
       signal: new AbortController().signal,
@@ -141,6 +142,7 @@ describe('createSessionRuntimeFactory', () => {
     })
     const runtime = await factory({
       sessionId: 's-2',
+      podSessionId: 's-2',
       threadId: toThreadId('t-2'),
       epoch: 1,
       signal: new AbortController().signal,
@@ -158,6 +160,7 @@ describe('createSessionRuntimeFactory', () => {
     })
     const runtime = await factory({
       sessionId: 's-3',
+      podSessionId: 's-3',
       threadId: toThreadId('t-3'),
       epoch: 1,
       signal: new AbortController().signal,
@@ -187,6 +190,7 @@ describe('createSessionRuntimeFactory', () => {
     })
     const args = {
       sessionId: 's-4',
+      podSessionId: 's-4',
       threadId: toThreadId('t-4'),
       epoch: 1,
       signal: new AbortController().signal,
@@ -204,6 +208,7 @@ describe('createSessionRuntimeFactory', () => {
     const factory = makeFactory({ api: apiOf(configured()), sandbox })
     const runtime = await factory({
       sessionId: 's-5',
+      podSessionId: 's-5',
       threadId: toThreadId('t-5'),
       epoch: 1,
       signal: new AbortController().signal,
@@ -221,6 +226,7 @@ describe('createSessionRuntimeFactory', () => {
     })
     const runtime = await factory({
       sessionId: 's-wake-fail',
+      podSessionId: 's-wake-fail',
       threadId: toThreadId('t-wake-fail'),
       epoch: 1,
       signal: new AbortController().signal,
@@ -256,6 +262,7 @@ describe('createSessionRuntimeFactory', () => {
     const lifetime = new AbortController()
     await factory({
       sessionId: 's-keep-alive',
+      podSessionId: 's-keep-alive',
       threadId: toThreadId('t-keep-alive'),
       epoch: 1,
       signal: lifetime.signal,
@@ -281,6 +288,7 @@ describe('createSessionRuntimeFactory', () => {
     lifetime.abort()
     await factory({
       sessionId: 's-aborted',
+      podSessionId: 's-aborted',
       threadId: toThreadId('t-aborted'),
       epoch: 1,
       signal: lifetime.signal,
@@ -303,6 +311,7 @@ describe('createSessionRuntimeFactory', () => {
       await expect(
         factory({
           sessionId: 's-model',
+          podSessionId: 's-model',
           threadId: toThreadId('t-model'),
           epoch: 1,
           signal: new AbortController().signal,
@@ -322,6 +331,7 @@ describe('createSessionRuntimeFactory', () => {
     })
     const runtime = await factory({
       sessionId: 's-6',
+      podSessionId: 's-6',
       threadId: toThreadId('t-6'),
       epoch: 1,
       signal: new AbortController().signal,
@@ -351,6 +361,7 @@ describe('createSessionRuntimeFactory', () => {
     }
     const runtime = await makeFactory({ api, sandbox: new FakeSandbox(true) })({
       sessionId: 's-7',
+      podSessionId: 's-7',
       threadId: toThreadId('t-7'),
       epoch: 1,
       signal: new AbortController().signal,

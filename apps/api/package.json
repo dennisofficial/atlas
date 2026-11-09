@@ -40,6 +40,7 @@
     "@dltech/atlas-plugin-github": "workspace:*",
     "@dltech/atlas-plugin-sdk": "workspace:*",
     "@dltech/atlas-plugin-services": "workspace:*",
+    "@dltech/atlas-plugin-sessions": "workspace:*",
     "@dltech/atlas-plugin-shells": "workspace:*",
     "@dltech/atlas-previews": "workspace:*",
     "@dltech/atlas-protocol": "workspace:*",

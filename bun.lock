@@ -38,6 +38,7 @@
         "@dltech/atlas-plugin-memory": "workspace:*",
         "@dltech/atlas-plugin-sdk": "workspace:*",
         "@dltech/atlas-plugin-services": "workspace:*",
+        "@dltech/atlas-plugin-sessions": "workspace:*",
         "@dltech/atlas-plugin-shells": "workspace:*",
         "@dltech/atlas-previews": "workspace:*",
         "@dltech/atlas-protocol": "workspace:*",
@@ -76,6 +77,7 @@
         "@dltech/atlas-plugin-github": "workspace:*",
         "@dltech/atlas-plugin-sdk": "workspace:*",
         "@dltech/atlas-plugin-services": "workspace:*",
+        "@dltech/atlas-plugin-sessions": "workspace:*",
         "@dltech/atlas-plugin-shells": "workspace:*",
         "@dltech/atlas-previews": "workspace:*",
         "@dltech/atlas-protocol": "workspace:*",
@@ -340,6 +342,7 @@
         "@dltech/atlas-plugin-github": "workspace:*",
         "@dltech/atlas-plugin-sdk": "workspace:*",
         "@dltech/atlas-plugin-services": "workspace:*",
+        "@dltech/atlas-plugin-sessions": "workspace:*",
         "@dltech/atlas-plugin-shells": "workspace:*",
         "@dltech/atlas-protocol": "workspace:*",
         "@dltech/atlas-ui": "workspace:*",
@@ -845,6 +848,19 @@
         "@types/bun": "latest",
       },
     },
+    "plugins/sessions": {
+      "name": "@dltech/atlas-plugin-sessions",
+      "version": "0.1.0",
+      "dependencies": {
+        "@dltech/atlas-commands": "workspace:*",
+        "@dltech/atlas-core": "workspace:*",
+        "@dltech/atlas-plugin-sdk": "workspace:*",
+        "zod": "^4.4.3",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
     "plugins/shells": {
       "name": "@dltech/atlas-plugin-shells",
       "version": "0.1.0",
@@ -1311,6 +1327,8 @@
     "@dltech/atlas-plugin-sdk": ["@dltech/atlas-plugin-sdk@workspace:packages/plugin-sdk"],
 
     "@dltech/atlas-plugin-services": ["@dltech/atlas-plugin-services@workspace:plugins/services"],
+
+    "@dltech/atlas-plugin-sessions": ["@dltech/atlas-plugin-sessions@workspace:plugins/sessions"],
 
     "@dltech/atlas-plugin-shells": ["@dltech/atlas-plugin-shells@workspace:plugins/shells"],
 

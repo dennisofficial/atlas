@@ -16,6 +16,7 @@ import {
   DaemonProcessPort,
   RemoteCalls,
   type HostTimers,
+  type PodPeers,
   type PrepareResult,
   type PrepareStepReporter,
   type SessionRuntimeFactory,
@@ -36,12 +37,13 @@ import { signerUploadBlobs } from '../uploads/upload-blobs'
 import type { ConfigSource } from '../config/agent-host-config'
 import { AgentHostCredentialPort } from '../config/agent-host-credential-port'
 import { SANDBOX_HOME_PATH, WORKSPACE_PATH } from '../sandbox/constants'
-import { SandboxProvider, sandboxNameOf, type DaemonEndpoint } from '../sandbox/sandbox-provider'
+import { SandboxProvider, sandboxNameOf } from '../sandbox/sandbox-provider'
 import { abortable } from './abortable'
 import { SandboxNotConfiguredError } from './sandbox-not-configured-error'
 import { PrepareSteps } from './prepare-steps'
 import { countRunningShells } from './running-shells'
 import { startKeepAlive } from './keep-alive'
+import { sandboxReleaseFor } from './sandbox-release'
 import { rewakingConnector } from './rewaking-connector'
 import { GithubPullRequestFinder, githubIdentityLookup } from '@dltech/atlas-plugin-github/pod'
 import type { ComposedPlugins } from '@dltech/atlas-plugin-sdk'
@@ -73,6 +75,7 @@ export type SessionRuntimeFactoryArgs = {
   media?: MediaSigner | undefined
   githubFetch?: typeof fetch | undefined
   plugins?: ComposedPlugins | undefined
+  podPeers?: PodPeers | undefined
 }
 
 const UNCONFIGURED_REF: ModelRef = { providerId: 'anthropic', modelId: 'claude-sonnet-4-5' }
@@ -81,18 +84,14 @@ export const createSessionRuntimeFactory = (
   args: SessionRuntimeFactoryArgs,
 ): SessionRuntimeFactory => {
   const launchDirectory = args.launchDirectory ?? WORKSPACE_PATH
-  return async ({ sessionId, threadId, epoch, signal }) => {
+  return async ({ sessionId, podSessionId: sandboxSessionId, threadId, epoch, signal }) => {
     const config = await args.config.read({ sessionId, threadId })
     if (config.vercel.configured === false) {
       throw new SandboxNotConfiguredError(config.vercel.gap)
     }
-    const credentials = {
-      token: config.vercel.token,
-      teamId: config.vercel.teamId,
-      projectId: config.vercel.projectId,
-    }
-    const wake = (): Promise<DaemonEndpoint> =>
-      args.sandbox.wake({ sessionId, credentials, signal })
+    const credentials = config.vercel
+    const sandboxName = sandboxNameOf(sandboxSessionId)
+    const wake = () => args.sandbox.wake({ sandboxSessionId, credentials, signal })
     const steps = new PrepareSteps()
     steps.report({ step: EWorkspaceStep.Sandbox, state: EWorkspaceStepState.Started })
     const endpoint = wake()
@@ -109,7 +108,7 @@ export const createSessionRuntimeFactory = (
     })
     const calls = new RemoteCalls({
       sessionId,
-      token: daemonToken({ secret: args.daemonSecret, sandboxName: sandboxNameOf(sessionId) }),
+      token: daemonToken({ secret: args.daemonSecret, sandboxName }),
       connector: rewakingConnector({ sessionId, first: endpoint, wake, signal }),
       timers: args.timers,
       onFenced: () => {},
@@ -147,7 +146,7 @@ export const createSessionRuntimeFactory = (
             workspace: config.workspace,
             githubToken: token,
             launchDirectory,
-            sandboxName: sandboxNameOf(sessionId),
+            sandboxName,
             signal,
             onStep: (step) => steps.report(step),
             onOutput: (text) => steps.output(text),
@@ -245,9 +244,10 @@ export const createSessionRuntimeFactory = (
       throw error
     }
 
+    const releaseSandbox = sandboxReleaseFor({ sandbox: args.sandbox, podPeers: args.podPeers })
     const stopKeepAlive = startKeepAlive({
       sandbox: args.sandbox,
-      sessionId,
+      sandboxSessionId,
       credentials,
       timers: args.timers,
       signal,
@@ -293,7 +293,7 @@ export const createSessionRuntimeFactory = (
       release: async () => {
         stopKeepAlive()
         calls.close()
-        await args.sandbox.stop({ sessionId, credentials })
+        await releaseSandbox({ sandboxSessionId, sessionId, credentials })
       },
     }
   }

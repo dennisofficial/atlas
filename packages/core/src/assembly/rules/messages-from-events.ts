@@ -137,10 +137,13 @@ function saidContent({
   const uploads = uploadsOf(attachments)
 
   const said = [event.text, ...named].join('\n')
+  const from = saidBy(event)
   const text =
-    saidBy(event) === EMessageOrigin.Operator
-      ? operatorSaid({ text: said })
-      : agentSaid({ from: agentSenderOf(event), text: said })
+    event.sender !== undefined
+      ? agentSaid({ from: `session ${event.sender.session}`, text: said })
+      : from === EMessageOrigin.Operator
+        ? operatorSaid({ text: said })
+        : agentSaid({ from: agentSenderOf(event), text: said })
 
   return [
     { type: 'text', text },

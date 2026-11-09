@@ -7,6 +7,7 @@ namespace v2 {
     payload     String
     postedAt    TimestamptzJsDate(3)
     consumedSeq Int?
+    senderSessionId String?
     session     V2Session             @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "V2InboxEntry_pkey")
 
     @@id([sessionId, inboxId], map: "V2InboxEntry_pkey")

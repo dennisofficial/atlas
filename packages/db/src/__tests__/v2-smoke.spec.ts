@@ -17,6 +17,9 @@ const sessionRow = () => ({
   modelRef: null,
   modelEffort: null,
   modelFast: null,
+  spawnedBySessionId: null,
+  podSessionId: null,
+  peerMessagesSent: 0,
 })
 
 describe('v2 namespace client', () => {

@@ -13,6 +13,7 @@ import { appendIn } from './append-ops'
 import { readBlobIn } from './blob-ops'
 import { UnknownThreadError } from './errors'
 import { postIn, takeBackIn, type TakeBackResult } from './inbox-ops'
+import { messagePeerIn, peersOfIn, spawnPeerIn } from './peer-sessions'
 import { LeaseOps } from './lease-ops'
 import {
   ControlStorePort,
@@ -24,6 +25,7 @@ import {
   type ThreadRow,
   type ControlSessionDigest,
   type ControlSessionRow,
+  type SessionDigestRow,
   type SessionListParams,
 } from './port'
 import { claimNextIn, wakeIn } from './claim-ops'
@@ -112,6 +114,54 @@ export class ControlPlane {
         at,
       })
     })
+  }
+
+  async spawnPeer(params: {
+    spawnerSessionId: string
+    sessionId: string
+    mainThreadId: string
+    title?: string | undefined
+    brief?: string | undefined
+  }): Promise<{ inboxId: number | null }> {
+    return this.store.transact(async (tx) => {
+      const spawner = await tx.readSession({ sessionId: params.spawnerSessionId })
+      if (spawner === undefined) throw new Error(`unknown session ${params.spawnerSessionId}`)
+      return spawnPeerIn({ tx, spawner, ...params, at: await this.nowIn(tx) })
+    })
+  }
+
+  async messagePeer(params: {
+    fromSessionId: string
+    toSessionId: string
+    text: string
+  }): Promise<{ inboxId: number } | { refused: string }> {
+    return this.store.transact(async (tx) => {
+      const from = await tx.readSession({ sessionId: params.fromSessionId })
+      if (from === undefined) throw new Error(`unknown session ${params.fromSessionId}`)
+      return messagePeerIn({ tx, from, ...params, at: await this.nowIn(tx) })
+    })
+  }
+
+  async peersOf(params: { sessionId: string }): Promise<{
+    spawner: ControlSessionRow | null
+    peers: readonly SessionDigestRow[]
+  }> {
+    return this.store.transact(async (tx) => {
+      const session = await tx.readSession({ sessionId: params.sessionId })
+      if (session === undefined) throw new Error(`unknown session ${params.sessionId}`)
+      return peersOfIn({ tx, session })
+    })
+  }
+
+  async resetPeerBudget(params: { sessionId: string }): Promise<boolean> {
+    return this.store.transact((tx) => tx.resetPeerMessages(params.sessionId))
+  }
+
+  async podPeersPlaced(params: {
+    podSessionId: string
+    excludeSessionId: string
+  }): Promise<number> {
+    return this.store.transact((tx) => tx.podPeersPlaced(params))
   }
 
   async readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined> {

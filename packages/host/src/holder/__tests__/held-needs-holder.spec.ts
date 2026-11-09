@@ -32,6 +32,7 @@ const entry = (params: { inboxId: number; kind: string }): InboxEntry => ({
   payload: '{}',
   postedAt: new Date().toISOString(),
   consumedSeq: null,
+  senderSessionId: null,
 })
 
 const preparedRecord = {

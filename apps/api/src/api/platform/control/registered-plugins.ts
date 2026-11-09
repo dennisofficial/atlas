@@ -4,6 +4,8 @@ import { crewControl } from '@dltech/atlas-plugin-crew/control'
 import { crewCoreSlots } from '@dltech/atlas-plugin-crew/core'
 import { githubCoreSlots } from '@dltech/atlas-plugin-github/core'
 import { servicesClient } from '@dltech/atlas-plugin-services/client'
+import { sessionsControl } from '@dltech/atlas-plugin-sessions/control'
+import { sessionsCoreSlots } from '@dltech/atlas-plugin-sessions/core'
 import { servicesControl } from '@dltech/atlas-plugin-services/control'
 import { servicesCoreSlots } from '@dltech/atlas-plugin-services/core'
 import { shellsClient } from '@dltech/atlas-plugin-shells/client'
@@ -42,6 +44,14 @@ export const registeredPlugins: readonly Plugin[] = [
     control: servicesControl,
     client: servicesClient,
     transport: 'stream',
+  }),
+  definePlugin({
+    name: 'sessions',
+    ...sessionsCoreSlots,
+    pod: EMPTY_POD,
+    control: sessionsControl,
+    client: { hooks: [] },
+    transport: 'none',
   }),
 ]
 

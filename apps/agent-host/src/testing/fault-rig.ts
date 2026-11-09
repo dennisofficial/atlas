@@ -156,7 +156,7 @@ export const startRig = async (args: {
     },
 
     async spawnDaemonFor({ sessionId }) {
-      const daemon = await startDaemon({ sessionId, secret: RIG_SECRET })
+      const daemon = await startDaemon({ sandboxSessionId: sessionId, secret: RIG_SECRET })
       closers.push(daemon.stop)
       return daemon
     },

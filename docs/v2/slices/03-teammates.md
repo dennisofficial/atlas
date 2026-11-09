@@ -73,16 +73,15 @@ A message into a session comes from the operator, from the main agent, or from a
 model must be told which (decisions.md). v1 half-has this: `user-said` carries an optional `via`
 of `EMessageOrigin` (`packages/core/src/events/body.ts:42-46`, schema at
 `core/src/events/schema.ts:63`, defaulted by `saidBy` at `body.ts:75-76`), and spawns and
-`agent_say` set it (`agents/registry/open-child.ts:37`, `say.ts:153`). But assembly drops it:
-every `user-said` is rendered through `operatorSaid(...)`
-(`assembly/rules/messages-from-events.ts:169`, wrapper at `context/envelope.ts:98-103`), so the
-model sees `<operator-said>` regardless of who sent it, and the envelope contract
-(`prompt/fragments/envelope-contract.ts`) tells it that tag is the operator's own words.
+`agent_say` set it (`agents/registry/open-child.ts:37`, `say.ts:153`). v2's assembly already
+renders the lane: `messages-from-events.ts` emits `<operator-said>` for an operator message and
+`<agent-said from="…">` for an agent one (`packages/core/src/context/envelope.ts:100-114`).
 
-v2 moves sender into the envelope, not just the body: the record event and the wire schema carry
-`sender: 'operator' | { session: SessionId }` on every inbound message, and assembly renders from
-it — operator messages keep the operator lane, agent messages render with their sender named.
-`via` in the body is subsumed.
+What was missing is identity, not the lane. A message that crosses sessions carries
+`sender: { session }` on the `user-said` body (optional, so old logs decode), the inbox reader
+stamps `via: PeerAgent` with it, and assembly renders the session id in `from` — so the model can
+tell a peer's words from the operator's and from the main agent's. `sender` refines `via`; the
+policy and tldr folds keep reading `via`.
 
 ## Multi-session pods
 
@@ -128,8 +127,9 @@ In flight or merged on v1 (the teammates-as-parallel-sessions slices, plan.md):
 
 - **Slice 4 (views)**: the session view carries `spawned-by`, archived state and the Done grouping;
   the sidebar stops reading `managedBySessionId`.
-- **Slice 7 (sessions plugin)**: `spawn_session` takes an optional `into-pod` placement (the
-  teammate preset); `message_session` sets `sender`; the per-session message budget from 0020
-  applies; the sender ACL is enforced by the CP command handlers.
+- **Slice 7 (sessions plugin)**: settled 2026-11-09 — `spawn_session` always places the peer on the
+  spawner's pod (the teammate preset has no `into-pod` flag), `message_session` sets `sender`, and
+  the sender ACL and the 20-message budget are enforced in `packages/control/src/peer-sessions.ts`
+  behind both the pod port and the operator's `reset-peer-budget` command.
 - **Slice 3 (worker host)**: one worker may hold leases for several sessions placed on one pod;
   park/wake follows "any placed session busy or addressed", and the sandbox daemon is shared.

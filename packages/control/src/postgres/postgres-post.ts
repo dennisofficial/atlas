@@ -21,6 +21,7 @@ export const postInboxEntryIn = async (params: {
       payload: params.payload,
       postedAt: params.at,
       consumedSeq: null,
+      senderSessionId: null,
     },
   })
   await notifyWakeIn({ tx, sessionId })

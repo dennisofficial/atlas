@@ -1,11 +1,16 @@
-import { describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 import { SidebarProvider } from '@dltech/atlas-ui/components/sidebar'
+import type { SessionCommandInput, SessionCommandOutput } from '@dltech/atlas-protocol'
 
+import { fakeFetch, mutationUrl, trpcOk } from '@/features/threads/data/__tests__/trpc-fake'
+
+import { archiveThread } from '../archive-thread'
 import { searchHrefOf, searchItemsOf } from '../search-items'
+import { requestResetPeerBudget } from '../shell-row-action'
 import { ThreadRow } from '../shell-thread-row'
-import { partitionThreads } from '../thread-partition'
+import { partitionThreads, type ShellSessionNode } from '../thread-partition'
 import { ThreadActionsContext } from '../thread-actions-context'
 import {
   v2RowOf,
@@ -15,6 +20,11 @@ import {
   type V2SessionSummary,
 } from '../v2-rows'
 import { agoIso, NOW, projectOf, sessionOf, threadOf } from './fixtures'
+
+const realFetch = globalThis.fetch
+afterEach(() => {
+  globalThis.fetch = realFetch
+})
 
 const summary = (overrides: Partial<V2SessionSummary> = {}): V2SessionSummary => ({
   sessionId: 'v2-a',
@@ -107,6 +117,117 @@ describe('withV2Sessions', () => {
     const partition = partitionThreads({ entries: merged, now: NOW })
     expect(partition.groups[0]?.sessions.map((s) => s.id)).toEqual(['ses_v1-old'])
     expect(partition.inactive[0]?.sessions.map((s) => s.id)).toEqual(['v2-a'])
+  })
+})
+
+const rowsOf = (sessions: readonly V2SessionSummary[]) =>
+  withV2Sessions({ entries: entries(), sessions })[0]?.sessions ?? []
+
+const childIdsOf = (sessions: readonly ShellSessionNode[], id: string): string[] =>
+  sessions.find((session) => session.id === id)?.teammates.map((peer) => peer.id) ?? []
+
+describe('withV2Sessions nesting', () => {
+  const root = summary({ sessionId: 'root', createdAt: agoIso(9) })
+  const peer = summary({ sessionId: 'peer', createdAt: agoIso(8), spawnedBy: 'root' })
+  const grandchild = summary({ sessionId: 'grand', createdAt: agoIso(7), spawnedBy: 'peer' })
+
+  it('nests a peer under its spawner instead of listing it as a root', () => {
+    const rows = rowsOf([root, peer])
+    expect(rows.map((row) => row.id)).toEqual(['ses_v1-old', 'root'])
+    expect(childIdsOf(rows, 'root')).toEqual(['peer'])
+    expect(rows.find((row) => row.id === 'root')?.teammates[0]?.v2).toBe(true)
+  })
+
+  it('nests a grandchild under the peer', () => {
+    const rows = rowsOf([root, peer, grandchild])
+    const nestedPeer = rows.find((row) => row.id === 'root')?.teammates[0]
+    expect(nestedPeer?.id).toBe('peer')
+    expect(nestedPeer?.teammates.map((node) => node.id)).toEqual(['grand'])
+    expect(nestedPeer?.teammates[0]?.v2).toBe(true)
+  })
+
+  it('keeps an archived peer in teammates so the row shows it in its Done group', () => {
+    const archived = summary({
+      sessionId: 'peer',
+      title: 'Done peer',
+      createdAt: agoIso(8),
+      archivedAt: agoIso(1),
+      spawnedBy: 'root',
+    })
+    const rows = rowsOf([root, archived])
+    expect(rows.map((row) => row.id)).toEqual(['ses_v1-old', 'root'])
+    expect(childIdsOf(rows, 'root')).toEqual(['peer'])
+    const html = render(rows.find((row) => row.id === 'root') as ShellSessionNode, 'peer')
+    expect(html).toContain('Done')
+    expect(html).toContain('href="/sessions/peer"')
+  })
+
+  it('keeps a peer whose spawner is not in the project as a root', () => {
+    const rows = rowsOf([summary({ sessionId: 'orphan', spawnedBy: 'elsewhere' })])
+    expect(rows.map((row) => row.id)).toEqual(['ses_v1-old', 'orphan'])
+    expect(childIdsOf(rows, 'orphan')).toEqual([])
+  })
+
+  it('keeps a peer whose spawner lives in another project as a root', () => {
+    const merged = withV2Sessions({
+      entries: entries(),
+      sessions: [summary({ sessionId: 'far', projectId: 'p2', spawnedBy: 'root' }), root],
+    })
+    expect(merged[0]?.sessions.map((row) => row.id)).toEqual(['ses_v1-old', 'root'])
+    expect(merged[1]?.sessions.map((row) => row.id)).toEqual(['far'])
+  })
+
+  it('collects a nested peer and its children as v2 sessions', () => {
+    const merged = withV2Sessions({ entries: entries(), sessions: [root, peer, grandchild] })
+    expect([...v2SessionIdsOf(merged)].sort()).toEqual(['grand', 'peer', 'root'])
+  })
+
+  it('archives a nested peer through the v2 sessions route', async () => {
+    const merged = withV2Sessions({ entries: entries(), sessions: [root, peer] })
+    const calls = fakeFetch(() => trpcOk({ archivedAt: null }))
+    await archiveThread({
+      threadId: 'peer',
+      archived: true,
+      v2: v2SessionIdsOf(merged).has('peer'),
+    })
+    expect(calls).toEqual([
+      {
+        url: mutationUrl('sessions.archive'),
+        method: 'POST',
+        body: { sessionId: 'peer', archived: true },
+      },
+    ])
+  })
+
+  it('orders siblings and roots by creation time however the list arrives', () => {
+    const early = summary({ sessionId: 'early', createdAt: agoIso(8), spawnedBy: 'root' })
+    const late = summary({ sessionId: 'late', createdAt: agoIso(3), spawnedBy: 'root' })
+    const newerRoot = summary({ sessionId: 'newer', createdAt: agoIso(4) })
+    const rows = rowsOf([late, newerRoot, root, early])
+    expect(rows.map((row) => row.id)).toEqual(['ses_v1-old', 'root', 'newer'])
+    expect(childIdsOf(rows, 'root')).toEqual(['early', 'late'])
+    expect(rowsOf([early, late, root, newerRoot]).map((row) => row.id)).toEqual(
+      rows.map((r) => r.id),
+    )
+  })
+})
+
+describe('Reset peer budget', () => {
+  it('only shows on a v2 row that has a spawner', () => {
+    expect(render(v2RowOf(summary({ spawnedBy: 'root' })))).toContain('Reset peer budget')
+    expect(render(v2RowOf(summary()))).not.toContain('Reset peer budget')
+  })
+
+  it('posts the reset command for the row session', async () => {
+    const calls: SessionCommandInput[] = []
+    const api = {
+      command: async (input: SessionCommandInput): Promise<SessionCommandOutput> => {
+        calls.push(input)
+        return {}
+      },
+    }
+    await requestResetPeerBudget({ api, sessionId: 'peer' })
+    expect(calls).toEqual([{ sessionId: 'peer', name: 'reset-peer-budget', args: {} }])
   })
 })
 

@@ -12,10 +12,13 @@ export const sessionDigestsIn = async (
   const projectId = params.projectId ?? ''
   const anySession = params.sessionId === undefined
   const sessionId = params.sessionId ?? ''
+  const anySpawner = params.spawnedBySessionId === undefined
+  const spawnedBySessionId = params.spawnedBySessionId ?? ''
   const rows = await params.tx.query(
     params.tx.raw
       .sql`SELECT s."id", s."userId", s."projectId", s."title", s."mainThreadId", s."createdAt", s."archivedAt",
-        s."modelRef", s."modelEffort", s."modelFast",
+        s."modelRef", s."modelEffort", s."modelFast", s."spawnedBySessionId",
+        s."podSessionId", s."peerMessagesSent",
         (SELECT e."at" FROM "v2"."V2Event" e
           WHERE e."threadId" = s."mainThreadId" ORDER BY e."seq" DESC LIMIT 1) AS "lastEventAt",
         first."text" AS "firstMessageText", first."postedAt" AS "firstMessageAt"
@@ -29,6 +32,7 @@ export const sessionDigestsIn = async (
       WHERE s."userId" = ${params.userId}
         AND (${anyProject}::boolean OR s."projectId" = ${projectId})
         AND (${anySession}::boolean OR s."id" = ${sessionId})
+        AND (${anySpawner}::boolean OR s."spawnedBySessionId" = ${spawnedBySessionId})
       ORDER BY s."createdAt" DESC
       LIMIT ${params.limit}`
       .returnsRow({
@@ -42,6 +46,9 @@ export const sessionDigestsIn = async (
         modelRef: { codecId: 'pg/text@1', nullable: true },
         modelEffort: { codecId: 'pg/text@1', nullable: true },
         modelFast: { codecId: 'pg/bool@1', nullable: true },
+        spawnedBySessionId: { codecId: 'pg/text@1', nullable: true },
+        podSessionId: { codecId: 'pg/text@1', nullable: true },
+        peerMessagesSent: 'pg/int4@1',
         lastEventAt: { codecId: 'pg/timestamptz-date@1', nullable: true },
         firstMessageText: { codecId: 'pg/text@1', nullable: true },
         firstMessageAt: { codecId: 'pg/timestamptz-date@1', nullable: true },
@@ -59,6 +66,9 @@ export const sessionDigestsIn = async (
     modelRef: row.modelRef,
     modelEffort: row.modelEffort,
     modelFast: row.modelFast,
+    spawnedBySessionId: row.spawnedBySessionId,
+    podSessionId: row.podSessionId,
+    peerMessagesSent: row.peerMessagesSent,
     lastEventAt: row.lastEventAt === null ? null : iso(row.lastEventAt),
     firstMessageText: row.firstMessageText,
     firstMessageAt: row.firstMessageAt === null ? null : iso(row.firstMessageAt),

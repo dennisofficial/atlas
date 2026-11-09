@@ -18,6 +18,9 @@ import { shellsClient } from '@dltech/atlas-plugin-shells/client'
 import { shellsControl } from '@dltech/atlas-plugin-shells/control'
 import { shellsCoreSlots } from '@dltech/atlas-plugin-shells/core'
 import { shellsPod } from '@dltech/atlas-plugin-shells/pod'
+import { sessionsControl } from '@dltech/atlas-plugin-sessions/control'
+import { sessionsCoreSlots } from '@dltech/atlas-plugin-sessions/core'
+import { sessionsPod } from '@dltech/atlas-plugin-sessions/pod'
 
 export const registeredPlugins: readonly Plugin[] = [
   definePlugin({
@@ -59,6 +62,14 @@ export const registeredPlugins: readonly Plugin[] = [
     control: servicesControl,
     client: servicesClient,
     transport: 'stream',
+  }),
+  definePlugin({
+    name: 'sessions',
+    ...sessionsCoreSlots,
+    pod: sessionsPod,
+    control: sessionsControl,
+    client: { hooks: [] },
+    transport: 'none',
   }),
 ]
 

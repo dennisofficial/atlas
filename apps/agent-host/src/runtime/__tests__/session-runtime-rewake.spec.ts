@@ -38,7 +38,7 @@ class DeadUrlSandbox extends SandboxProvider {
   rejectFrom = Number.POSITIVE_INFINITY
 
   async wake(_args: {
-    sessionId: string
+    sandboxSessionId: string
     credentials: VercelCredentials
     signal: AbortSignal
   }): Promise<DaemonEndpoint> {
@@ -75,6 +75,7 @@ describe('sandbox loss while held', () => {
     const sandbox = new DeadUrlSandbox()
     const runtime = await build(sandbox)({
       sessionId: 's-rewake',
+      podSessionId: 's-rewake',
       threadId: toThreadId('t-rewake'),
       epoch: 1,
       signal: new AbortController().signal,
@@ -88,6 +89,7 @@ describe('sandbox loss while held', () => {
     const sandbox = new DeadUrlSandbox()
     const runtime = await build(sandbox)({
       sessionId: 's-rewake-cap',
+      podSessionId: 's-rewake-cap',
       threadId: toThreadId('t-rewake-cap'),
       epoch: 1,
       signal: new AbortController().signal,
@@ -114,6 +116,7 @@ describe('sandbox loss while held', () => {
     sandbox.rejectFrom = 2
     const runtime = await build(sandbox)({
       sessionId: 's-rewake-bound',
+      podSessionId: 's-rewake-bound',
       threadId: toThreadId('t-rewake-bound'),
       epoch: 1,
       signal: new AbortController().signal,

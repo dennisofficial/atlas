@@ -14,12 +14,16 @@ export type ControlSessionRow = {
   modelRef: string | null
   modelEffort: string | null
   modelFast: boolean | null
+  spawnedBySessionId: string | null
+  podSessionId: string | null
+  peerMessagesSent: number
 }
 
 export type SessionListParams = {
   userId: string
   projectId?: string | undefined
   sessionId?: string | undefined
+  spawnedBySessionId?: string | undefined
   limit: number
 }
 
@@ -131,6 +135,8 @@ export interface ControlTx {
     modelRef?: string | undefined
     modelEffort?: string | undefined
     modelFast?: boolean | undefined
+    spawnedBySessionId?: string | undefined
+    podSessionId?: string | undefined
     at: string
   }): Promise<void>
   readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined>
@@ -149,6 +155,9 @@ export interface ControlTx {
     limit: number
   }): Promise<ControlSessionRow[]>
   listSessionDigests(params: SessionListParams): Promise<SessionDigestRow[]>
+  claimPeerMessage(params: { sessionId: string; budget: number }): Promise<number | null>
+  resetPeerMessages(sessionId: string): Promise<boolean>
+  podPeersPlaced(params: { podSessionId: string; excludeSessionId: string }): Promise<number>
   createThread(params: {
     threadId: string
     sessionId: string

@@ -34,6 +34,7 @@ const shellOutputOf = async (args: { token: string | null }): Promise<string> =>
       setupDeadlineMs: 60_000,
     })({
       sessionId: 'shell-env-session',
+      podSessionId: 'shell-env-session',
       threadId: toThreadId('shell-env-thread'),
       epoch: 1,
       signal: new AbortController().signal,

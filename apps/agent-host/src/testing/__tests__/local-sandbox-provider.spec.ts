@@ -13,7 +13,7 @@ describe('LocalSandboxProvider', () => {
 
   it('wakes and answers a hello with the endpoint token', async () => {
     const endpoint = await provider.wake({
-      sessionId: 's-local',
+      sandboxSessionId: 's-local',
       credentials: CREDENTIALS,
       signal: AbortSignal.timeout(10_000),
     })
@@ -45,7 +45,7 @@ describe('LocalSandboxProvider', () => {
       expect(helloReply.kind).toBe('hello-reply')
     } finally {
       socket.close()
-      await provider.stop({ sessionId: 's-local', credentials: CREDENTIALS })
+      await provider.stop({ sandboxSessionId: 's-local', credentials: CREDENTIALS })
     }
   })
 })

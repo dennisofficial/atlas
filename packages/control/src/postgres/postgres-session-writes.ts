@@ -13,6 +13,8 @@ export const createSessionIn = async (params: {
   modelRef?: string | undefined
   modelEffort?: string | undefined
   modelFast?: boolean | undefined
+  spawnedBySessionId?: string | undefined
+  podSessionId?: string | undefined
   at: string
 }): Promise<void> => {
   await params.tx.orm.v2.V2Session.create({
@@ -28,6 +30,8 @@ export const createSessionIn = async (params: {
     modelRef: params.modelRef ?? null,
     modelEffort: params.modelEffort ?? null,
     modelFast: params.modelFast ?? null,
+    spawnedBySessionId: params.spawnedBySessionId ?? null,
+    podSessionId: params.podSessionId ?? null,
   })
   await params.tx.orm.v2.V2Lease.create({
     sessionId: params.sessionId,

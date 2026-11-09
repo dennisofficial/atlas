@@ -14,7 +14,13 @@ export type SessionEntry = {
 
 export const rowForVersion = (args: { row: SessionSummary; version: number }): SessionSummary => {
   if (args.version >= STREAM_SESSION_VIEW_VERSION) return args.row
-  const { status: _status, primaryBranch: _branch, pullRequest: _pr, ...legacy } = args.row
+  const {
+    status: _status,
+    primaryBranch: _branch,
+    pullRequest: _pr,
+    spawnedBy: _spawnedBy,
+    ...legacy
+  } = args.row
   return legacy
 }
 

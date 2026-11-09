@@ -40,6 +40,8 @@ export class TakeOver {
       timed(deps, () =>
         deps.runtimeFor({
           sessionId: deps.sessionId,
+          podSessionId: deps.podSessionId,
+          podPeers: deps.podPeers,
           threadId: args.threadId,
           epoch: args.epoch,
           signal: args.signal,

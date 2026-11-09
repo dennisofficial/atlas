@@ -147,6 +147,7 @@ export const sessionSummarySchema = z.strictObject({
   createdAt: z.string().min(1),
   updatedAt: z.string().min(1),
   archivedAt: z.string().nullable(),
+  spawnedBy: z.string().min(1).nullable().optional(),
   status: sessionRowStatusSchema.optional(),
   primaryBranch: z.string().nullable().optional(),
   pullRequest: sessionRowPullRequestSchema.nullable().optional(),

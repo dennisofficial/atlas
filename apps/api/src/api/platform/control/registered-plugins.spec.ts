@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { eventSchemaOf } from '@dltech/atlas-plugin-sdk'
+import { eventSchemaOf, eventTypesOf } from '@dltech/atlas-plugin-sdk'
 import { composedPlugins, registeredPlugins } from './registered-plugins'
 
 const serviceReady = {
@@ -30,5 +30,18 @@ describe('registeredPlugins', () => {
 
   it('contributes the services view', () => {
     expect(composedPlugins.views.map((view) => view.name)).toContain('services')
+  })
+
+  it('registers the sessions plugin and its peer budget reset', () => {
+    expect(composedPlugins.names).toContain('sessions')
+    expect(composedPlugins.commands.map((command) => command.spec.name)).toContain(
+      'reset-peer-budget',
+    )
+    expect([...composedPlugins.control.commands.keys()]).toContain('reset-peer-budget')
+  })
+
+  it('adds no event type', () => {
+    const without = registeredPlugins.filter((plugin) => plugin.name !== 'sessions')
+    expect(eventTypesOf(registeredPlugins)).toEqual(eventTypesOf(without))
   })
 })

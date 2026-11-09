@@ -8,6 +8,7 @@ import {
 } from '@dltech/atlas-core'
 import {
   EMPTY_CREW,
+  EMPTY_SESSIONS,
   EMPTY_WORKTREES,
   type PluginPodContext,
   type PodControl,
@@ -84,6 +85,7 @@ export const rig = (options: { control?: PodControl } = {}) => {
   const ctx: PluginPodContext = {
     control: options.control ?? podControlStub,
     crew: EMPTY_CREW,
+    sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
     sessionId: 's1',
     append,

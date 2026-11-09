@@ -1,9 +1,7 @@
 import type { InboxEntry, Lease } from '@dltech/atlas-core'
 import type { SessionChange } from '@dltech/atlas-protocol'
 
-import type { ChangeFeed } from '../../change-feed'
 import {
-  ControlStorePort,
   type BlobRefWrite,
   type BlobRow,
   type BlobWrite,
@@ -14,12 +12,8 @@ import {
   type StoredEvent,
   type ThreadRow,
   type ControlSessionRow,
-  type PrStateRow,
   type SessionDigestRow,
   type SessionListParams,
-  type SessionPullRequestKey,
-  type SessionPullRequestRow,
-  type SessionViewRow,
 } from '../../port'
 import {
   allocateInboxIdIn,
@@ -36,6 +30,7 @@ import { claimNeedingIn } from './memory-claim-next'
 import { leasesHeldByIn, writeLeaseIn } from './memory-leases'
 import { createThreadIn, readThreadIn, writeThreadHeadIn } from './memory-threads'
 import { sessionDigestsIn } from './memory-digests'
+import { claimPeerMessageIn, podPeersPlacedIn, resetPeerMessagesIn } from './memory-peers'
 import {
   clearTitleFromIn,
   createSessionIn,
@@ -45,18 +40,10 @@ import {
   setSessionTitleIfUntitledIn,
   setSessionTitleIn,
 } from './memory-sessions'
-import { MemoryTestControls } from './memory-test-controls'
-import { cloneState, emptyState, refKey, type State } from './memory-state'
-import {
-  insertSessionPullRequestsIn,
-  readPrStatesIn,
-  readSessionViewIn,
-  sessionsLinkedToIn,
-  writeSessionViewIn,
-} from './memory-views'
+import { refKey, type State } from './memory-state'
+import { MemoryTxViews } from './memory-tx-views'
 
-export class MemoryTx implements ControlTx {
-  private readonly state: State
+export class MemoryTx extends MemoryTxViews implements ControlTx {
   private readonly clock: () => string
   private readonly presentHosts: ReadonlySet<number>
   private readonly pending: SessionChange[]
@@ -67,7 +54,7 @@ export class MemoryTx implements ControlTx {
     presentHosts: ReadonlySet<number>
     pending: SessionChange[]
   }) {
-    this.state = params.state
+    super(params.state)
     this.clock = params.clock
     this.presentHosts = params.presentHosts
     this.pending = params.pending
@@ -86,6 +73,8 @@ export class MemoryTx implements ControlTx {
     modelRef?: string | undefined
     modelEffort?: string | undefined
     modelFast?: boolean | undefined
+    spawnedBySessionId?: string | undefined
+    podSessionId?: string | undefined
     at: string
   }): Promise<void> {
     createSessionIn({ state: this.state, ...params })
@@ -93,6 +82,21 @@ export class MemoryTx implements ControlTx {
 
   async readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined> {
     return readSessionIn({ state: this.state, ...params })
+  }
+
+  async claimPeerMessage(params: { sessionId: string; budget: number }): Promise<number | null> {
+    return claimPeerMessageIn({ state: this.state, ...params })
+  }
+
+  async resetPeerMessages(sessionId: string): Promise<boolean> {
+    return resetPeerMessagesIn({ state: this.state, sessionId })
+  }
+
+  async podPeersPlaced(params: {
+    podSessionId: string
+    excludeSessionId: string
+  }): Promise<number> {
+    return podPeersPlacedIn({ state: this.state, ...params })
   }
 
   async setSessionArchived(params: { sessionId: string; archivedAt: string | null }) {
@@ -251,26 +255,6 @@ export class MemoryTx implements ControlTx {
 
   async announce(change: SessionChange): Promise<void> {
     this.pending.push({ ...change })
-  }
-
-  async readSessionView(sessionId: string): Promise<SessionViewRow | undefined> {
-    return readSessionViewIn({ state: this.state, sessionId })
-  }
-
-  async writeSessionView(row: SessionViewRow): Promise<void> {
-    writeSessionViewIn({ state: this.state, row })
-  }
-
-  async insertSessionPullRequests(rows: readonly SessionPullRequestRow[]): Promise<void> {
-    insertSessionPullRequestsIn({ state: this.state, rows })
-  }
-
-  async sessionsLinkedTo(key: SessionPullRequestKey): Promise<string[]> {
-    return sessionsLinkedToIn({ state: this.state, key })
-  }
-
-  async readPrStates(keys: readonly SessionPullRequestKey[]): Promise<PrStateRow[]> {
-    return readPrStatesIn({ state: this.state, keys })
   }
 
   async upsertPrSubscriptionLease(params: PrSubscriptionLease & { expiresAt: string }) {

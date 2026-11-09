@@ -47,6 +47,7 @@ export const sessionSummaryOf = (args: {
     createdAt: digest.createdAt,
     updatedAt: digest.lastEventAt ?? digest.createdAt,
     archivedAt: digest.archivedAt,
+    spawnedBy: digest.spawnedBySessionId,
     ...(view === null || view === undefined ? {} : rowViewOf(view)),
   }
 }
