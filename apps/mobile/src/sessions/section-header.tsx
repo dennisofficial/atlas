@@ -101,7 +101,7 @@ export const SectionHeader = ({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`New session in ${section.title}`}
-            hitSlop={8}
+            hitSlop={12}
             onPress={() => section.projectId !== null && onNewSession(section.projectId)}
             style={styles.action}
           >
@@ -112,7 +112,7 @@ export const SectionHeader = ({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={section.expanded ? 'Collapse project' : 'Expand project'}
-          hitSlop={8}
+          hitSlop={12}
           onPress={handleToggle}
           style={styles.action}
         >

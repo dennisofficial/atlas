@@ -27,7 +27,7 @@ export const Input = forwardRef<InputRef, IInputProps>(
           backgroundColor: dark ? withAlpha({ color: theme.input, alpha: 0.3 }) : 'transparent',
           paddingHorizontal: space(2.5),
           paddingVertical: multiline === true ? space(2) : 0,
-          ...(multiline === true ? { minHeight: 64 } : { height: large ? 36 : 32 }),
+          ...(multiline === true ? { minHeight: 64 } : { height: large ? 44 : 44 }),
           outlineWidth: 0,
           outlineColor: 'transparent',
         }

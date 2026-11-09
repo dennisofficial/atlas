@@ -9,6 +9,7 @@ import {
   buttonBoxOf,
   buttonColorsOf,
   isIconSize,
+  touchSlopOf,
 } from './button-style'
 import { Icon } from './icon'
 import { Text } from './text'
@@ -24,6 +25,7 @@ export interface IButtonProps {
   disabled?: boolean
   loading?: boolean
   stretch?: boolean
+  round?: boolean
 }
 
 export const Button = ({
@@ -36,6 +38,7 @@ export const Button = ({
   disabled = false,
   loading = false,
   stretch = false,
+  round = false,
 }: IButtonProps) => {
   const theme = useTheme()
   const dark = useIsDark()
@@ -46,13 +49,14 @@ export const Button = ({
       accessibilityLabel={label}
       accessibilityState={{ disabled, busy: loading }}
       disabled={disabled || loading}
-      hitSlop={iconOnly ? 6 : 0}
+      hitSlop={touchSlopOf(size)}
       onPress={onPress}
       style={({ pressed }) => {
         const colors = buttonColorsOf({ variant, theme, dark, pressed })
         return [
           styles.base,
           buttonBoxOf(size),
+          round ? styles.round : null,
           stretch ? styles.stretch : null,
           {
             backgroundColor: colors.background,
@@ -89,6 +93,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: 'row',
     justifyContent: 'center',
+  },
+  round: {
+    borderRadius: 999,
   },
   stretch: {
     alignSelf: 'stretch',

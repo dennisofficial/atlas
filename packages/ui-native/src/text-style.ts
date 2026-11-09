@@ -14,8 +14,11 @@ export enum ETextTone {
   OnPrimary = 'on-primary',
   Destructive = 'destructive',
   Warning = 'warning',
+  Link = 'link',
   Sidebar = 'sidebar',
 }
+
+export const RELAXED_LEADING = 1.625
 
 const TIGHT_EM = -0.025
 
@@ -24,16 +27,18 @@ export const textStyleOf = ({
   family,
   weight,
   tight,
+  leading,
 }: {
   role: ETextRole
   family: EFontFamily
   weight: EFontWeight
   tight: boolean
+  leading?: number
 }) => {
   const { fontSize, lineHeight } = typeScale[role]
   return {
     fontSize,
-    lineHeight,
+    lineHeight: leading === undefined ? lineHeight : fontSize * leading,
     fontFamily: fontFaceNames[family][weight],
     letterSpacing: tight ? fontSize * TIGHT_EM : 0,
   }
@@ -45,6 +50,7 @@ export const toneColorOf = ({ tone, theme }: { tone: ETextTone; theme: SemanticT
   if (tone === ETextTone.OnPrimary) return theme.primaryForeground
   if (tone === ETextTone.Destructive) return theme.destructive
   if (tone === ETextTone.Warning) return theme.warning
+  if (tone === ETextTone.Link) return theme.link
   if (tone === ETextTone.Sidebar) return theme.sidebarForeground
   return theme.foreground
 }

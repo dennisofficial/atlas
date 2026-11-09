@@ -188,4 +188,19 @@ describe('rowsOf', () => {
     expect(rows).toHaveLength(1)
     expect(rows[0]).toMatchObject({ kind: ERowKind.Message, author: EMessageAuthor.You })
   })
+
+  it('stamps messages and notices with the time the event arrived', () => {
+    const entries = [said('u1', 'hello'), reply('m1', 'hi there')]
+    const rows = rowsOf({
+      entries,
+      working: false,
+      now: Date.parse('2026-11-08T20:00:10.000Z'),
+      atOf: (id) => (id === 'u1' ? '2026-11-08T20:00:00.000Z' : '2026-11-08T20:00:05.000Z'),
+    })
+    expect(rows.map((row) => row.kind)).toEqual([ERowKind.Message, ERowKind.Message])
+    expect(rows.map((row) => (row.kind === ERowKind.Message ? row.at : undefined))).toEqual([
+      '2026-11-08T20:00:00.000Z',
+      '2026-11-08T20:00:05.000Z',
+    ])
+  })
 })

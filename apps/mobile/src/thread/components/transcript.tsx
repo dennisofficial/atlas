@@ -1,7 +1,8 @@
 import { space } from '@dltech/atlas-ui/tokens'
-import { ETextRole, ETextTone, Text } from '@dltech/atlas-ui-native'
+import { EFontWeight, ETextRole, ETextTone, Text, useTheme } from '@dltech/atlas-ui-native'
 import { useCallback, useEffect, useRef } from 'react'
 import {
+  ActivityIndicator,
   FlatList,
   type ListRenderItem,
   type NativeScrollEvent,
@@ -27,11 +28,20 @@ const tailSizeOf = (rows: readonly ThreadRow[]): number => {
 const isStreamingMessage = (row: ThreadRow | undefined): boolean =>
   row?.kind === ERowKind.Message && row.author === EMessageAuthor.Atlas && row.streaming
 
-const WorkingFooter = () => (
-  <Text size={ETextRole.Sm} tone={ETextTone.Muted}>
-    Working…
-  </Text>
-)
+const hasRunningWork = (rows: readonly ThreadRow[]): boolean =>
+  rows.some((row) => row.kind === ERowKind.Work && row.running)
+
+const WorkingFooter = () => {
+  const theme = useTheme()
+  return (
+    <View style={styles.working}>
+      <ActivityIndicator size="small" color={theme.mutedForeground} />
+      <Text size={ETextRole.Sm} tone={ETextTone.Muted}>
+        Working…
+      </Text>
+    </View>
+  )
+}
 
 export const Transcript = ({
   rows,
@@ -46,13 +56,15 @@ export const Transcript = ({
   const listRef = useRef<FlatList<ThreadRow>>(null)
   const isNearBottom = useRef(true)
   const tailSize = tailSizeOf(rows)
-  const showWorking = working && !isStreamingMessage(rows.at(-1))
+  const showWorking = working && !isStreamingMessage(rows.at(-1)) && !hasRunningWork(rows)
   const renderRow = useCallback<ListRenderItem<ThreadRow>>(
-    ({ item }) => {
-      if (item.kind === ERowKind.Message) return <MessageRowView row={item} threadId={threadId} />
-      if (item.kind === ERowKind.Work) return <WorkRowView row={item} />
-      return <NoticeRowView row={item} />
-    },
+    ({ item }) => (
+      <View style={styles.item}>
+        {item.kind === ERowKind.Message ? <MessageRowView row={item} threadId={threadId} /> : null}
+        {item.kind === ERowKind.Work ? <WorkRowView row={item} /> : null}
+        {item.kind === ERowKind.Notice ? <NoticeRowView row={item} /> : null}
+      </View>
+    ),
     [threadId],
   )
 
@@ -75,8 +87,10 @@ export const Transcript = ({
   if (rows.length === 0 && !working) {
     return (
       <View style={styles.empty}>
-        <Text tone={ETextTone.Muted}>Nothing here yet.</Text>
-        <Text size={ETextRole.Sm} tone={ETextTone.Muted}>
+        <Text size={ETextRole.Sm} weight={EFontWeight.Medium}>
+          Nothing here yet
+        </Text>
+        <Text size={ETextRole.Xs} tone={ETextTone.Muted}>
           Send a message to start.
         </Text>
       </View>
@@ -102,14 +116,24 @@ export const Transcript = ({
 
 const styles = StyleSheet.create({
   content: {
-    gap: space(5),
-    padding: space(4),
+    paddingBottom: space(2),
+    paddingHorizontal: space(4),
+    paddingTop: space(1),
+  },
+  item: {
+    paddingVertical: space(3),
   },
   empty: {
     alignItems: 'center',
     flex: 1,
     gap: space(1),
     justifyContent: 'center',
-    padding: space(4),
+    padding: space(6),
+  },
+  working: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: space(2),
+    paddingVertical: space(3),
   },
 })

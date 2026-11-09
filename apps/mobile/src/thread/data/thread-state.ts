@@ -127,7 +127,13 @@ export function viewOf(args: { state: ThreadState; now: number }): ThreadView {
     now: () => new Date(args.now),
   })
   const entries: readonly TranscriptEntry[] = model.entries
-  const rows = rowsOf({ entries, working: args.state.working, now: args.now })
+  const atByEntry = new Map(args.state.events.map((event) => [event.id, event.at]))
+  const rows = rowsOf({
+    entries,
+    working: args.state.working,
+    now: args.now,
+    atOf: (id) => atByEntry.get(id),
+  })
   const lastUser = rows.findLast((row) => row.kind === ERowKind.Message && row.author === 'you')
   return {
     rows,
