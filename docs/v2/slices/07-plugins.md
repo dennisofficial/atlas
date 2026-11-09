@@ -904,35 +904,52 @@ cloned head with the deploy that served it before debugging the plugin.
 
 ### 8.9 `plugins/sessions`
 
-Shipped: `plugins/sessions` (`@dltech/atlas-plugin-sessions`, `/core` `/pod` `/client`), registered in
-`apps/api`, `apps/agent-host` and `apps/web`; `spawn_session`, `message_session` and `list_sessions`
-as pod tools over `PluginPodContext.sessions` (implemented in `packages/host` over the control
-plane); the `spawnedBy` view and the `nestPeers` fold the sidebar reads; `reset-peer-budget` as the
-one control command; `senderSessionId` on the inbox entry and the `sender` + `via: "peer-agent"`
-lane on intake; `V2Session.spawnedBySessionId` / `podSessionId` and the 20-message budget on the
-peer's row.
+Shipped: `plugins/sessions` (`@dltech/atlas-plugin-sessions`, `/core` `/pod` `/control` `/client`),
+registered in `apps/api` and `apps/agent-host`; the tools `spawn_session`, `message_session` and
+`list_sessions` over a new `PluginPodContext.sessions` port implemented in `packages/host` over the
+control plane; the `reset-peer-budget` control command; the peers prompt fragment; the pure
+`nestPeers` fold the web sidebar uses. The settled answers are in §5.6 above.
 
-**The live check ran on production on 2026-11-09, merged as #2095 (`bd4eb64b1`).** Lead session
-`b6cdbfe7-63b3-4f46-a3fe-c493b3fe06cc` ("Tool Inventory Request") spawned peer
-`28d8d332-4635-4f73-bd69-fadd03a26e8c` ("Peer live check"):
+**Placement.** `V2Session.spawnedBySessionId` is the spawn link and `podSessionId` the sandbox the
+session runs against (`spawner.podSessionId ?? spawner.sessionId`, so a peer of a peer stays on the
+root pod). The agent host names the sandbox `atlas-v2-<podSessionId>` and hands the resolved id to
+wake, the daemon bearer, workspace setup, keep-alive and stop. The idle release stops a sandbox only
+when no other session is placed on the pod (`podPeersPlaced`, with `COALESCE("podSessionId","id")`),
+so a shared pod parks by its sandbox deadline instead of racing a peer's wake.
 
-| Step                   | Evidence in the log                                                                                                                                                                                                           |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| tools registered       | the lead's transcript lists 34 tools, `spawn_session`, `message_session` and `list_sessions` among them                                                                                                                       |
-| one pod                | the peer's `podSessionId` is the lead's session id; the peer's `shell_list` (thread seq 26) saw the lead's ticker `shell-5f32d5db`, and `bash hostname; pwd` (seq 38) returned `1b74732b-2d3` / `/atlas/workspaces/workspace` |
-| brief and sender       | the spawn brief is the peer's inbox 1, `senderSessionId` = the lead                                                                                                                                                           |
-| a reply wakes the lead | 20 `pong` replies landed on the lead's inbox (3–22); each `user-said` carries `sender: {session: peer}` and `via: "peer-agent"`                                                                                               |
-| budget                 | 20 `ping`s filled the peer's inbox (3–22); the 21st `message_session` was refused at lead seq 174: "this session has received all 20 messages the operator's budget allows; the operator can reset it"                        |
-| archive                | peer archived 15:12:23 UTC, lead 15:12:37; the Done grouping is `nestPeers`                                                                                                                                                   |
+**Sender.** `V2InboxEntry.senderSessionId` carries who posted; the payload stays `{text}`, so a host
+that predates the change still parses the message. The intake stamps `sender: {session}` plus
+`via: PeerAgent` on `user-said`, and assembly renders `<agent-said from="session ses_…">` — the
+operator lane is untouched, and old logs decode.
 
-**The run stopped before it wrote this section** — after the archive, before the ticker kill and the
-teardown. This record is reconstructed from the production log (`v2."V2Event"` and
-`v2."V2InboxEntry"`) on 2026-11-09. The peer's `peerMessagesSent` reads 0 because
-`reset-peer-budget` was used after the refusal.
+**Budget.** 20 spawner messages per peer, claimed by one conditional `UPDATE … RETURNING` under the
+row lock; a peer's reply is not budgeted. `reset-peer-budget` (control command, web row action) sets
+the count back to 0.
 
-**The seam review caught two defects before the merge:** a sender payload/schema mismatch that would
-have dropped every peer message, and a release that could stop a peer's sandbox. Both are fixed and
-covered by tests.
+**Live check (2026-11-09, production).** Session `b6cdbfe7-63b3-4f46-a3fe-c493b3fe06cc`, thread
+`914374a5-3dab-4713-a50a-6f3a968ff5c5`, project `cmvh6z3ls002i08jwseqmwbrv`, agent host on
+`bd4eb64b1` (its sandbox cloned the same head).
+
+| Step                           | Result                                                                                                                                                                                               |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| the session's declared tools   | 32, including `spawn_session`, `message_session` and `list_sessions`                                                                                                                                 |
+| a background shell in the lead | `shell-5f32d5db`, running, `while true; do echo tick; sleep 2; done`                                                                                                                                 |
+| `spawn_session` (title, brief) | `Started peer session 28d8d332-4635-4f73-bd69-fadd03a26e8c; your brief is its first message.`                                                                                                        |
+| the spawn link                 | `sessions.list` row for the peer: `spawnedBy` = the lead, title `Peer live check`, not archived                                                                                                      |
+| the peer's own thread          | the brief is a `user-said` with `sender: { session: <lead> }` and `via: peer-agent`; `list_sessions` shows the spawner and "You have spawned no peer sessions"; `branches-observed` head `bd4eb64b1` |
+| the shared pod                 | the peer's `shell_list` returned the lead's `shell-5f32d5db`, running, 60 characters printed                                                                                                         |
+| the peer's own sandbox view    | `hostname; pwd` → `1b74732b-2d3` (the lead's `atlas-v2-b6cdbfe7-…`) and `/atlas/workspaces/workspace`                                                                                                |
+| the reply lane                 | the peer's `message_session` woke the lead with a `user-said` carrying `sender: { session: <peer> }` and `via: peer-agent`                                                                           |
+| the budget                     | 20 `message_session` calls queued; the 21st was refused: "this session has received all 20 messages the operator's budget allows; the operator can reset it"                                         |
+| the reset                      | `peerMessagesSent` 20 → `reset-peer-budget` → 0 (read from the row)                                                                                                                                  |
+| archive to Done                | the peer's `archivedAt` set, `spawnedBy` intact — the data the sidebar's Done group folds                                                                                                            |
+| the ticker kill                | not completed: the lead's next turn opened with "session … lost its lease", so `shell_kill` could not run; the sandbox parks by its deadline, which is the rule this slice introduced                |
+| teardown                       | both sessions archived, temporary `AuthSession` deleted                                                                                                                                              |
+
+**The stale-instance trap recurred.** The first session (`5bc1c266-…`), created while the deploy of
+`bd4eb64b1` was going live, listed every other plugin's tools and none of the three new ones; its
+sandbox had cloned `bd4eb64b1`. A fresh session minutes later had all 32. Open a new session rather
+than debugging the plugin when exactly the new plugin's tools are missing.
 
 ## 9. Answers (2026-11-08)
 
