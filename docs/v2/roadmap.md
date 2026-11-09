@@ -23,6 +23,16 @@ Each slice is built in its own Atlas session and handed to a fresh session when 
 ## Current state
 
 _Updated at the end of every slice. Last update: 2026-11-08._
+- **Slice 7 PR 6, services part 2 — previews** (`dennis/service-previews`, #2058): the host publishes a
+  service through `ctx.control.exposePort`, the daemon runs cloudflared with the returned token,
+  `service-started` carries the `url`, and a stop takes it down. Live-checked on production
+  2026-11-08: `200 preview-ok` over HTTPS, then `530` after the stop (spec §8.5). Two fixes fell out:
+  `hostSelf.exposePort` resolved v1 sessions instead of `v2.V2Session` (#2059), and the tunnel token
+  was leaking into the daemon's op journal and cloudflared's argv, both closed.
+- **Slice 7 PR 7, declared services** (`dennis/declared-services-v2`, #2056): `service_start` by a
+  name from `.atlas/services.yaml` — `needs`, `setup` once per session with the declaration's env,
+  `health` through a new daemon `healthPath`, stale detection by `declarationHash`, restart and stop by
+  name (spec §8.4).
 - **Slice 7 PR 5, `plugins/services` part 1** (`dennis/services`): the plugin over the daemon's
   `services.*` ops — the `services` view, `service_start`/`stop`/`restart`/`list`, the ready/ended
   frame recorder with a log tail, and `service-ready` as the first real plugin event. Live-checked on
