@@ -14,7 +14,13 @@ import type { DaemonEventFrame } from '@dltech/atlas-protocol'
 import { z } from 'zod'
 
 import { definePlugin, type Plugin } from '..'
-import { EMPTY_CONTROL, EMPTY_POD, type PluginPodContext, type PodSlot } from '../slots'
+import {
+  EMPTY_CONTROL,
+  EMPTY_POD,
+  type PluginPodContext,
+  type PodControl,
+  type PodSlot,
+} from '../slots'
 
 export type ProbeObserved = { type: 'probe-observed'; label: string }
 
@@ -170,3 +176,9 @@ export const createFixturePlugin = (): { plugin: Plugin; record: ProbeRecord } =
 }
 
 export const fixturePlugin: Plugin = createFixturePlugin().plugin
+
+export const podControlStub: PodControl = {
+  exposePort: async () => {
+    throw new Error('this test has no control plane')
+  },
+}

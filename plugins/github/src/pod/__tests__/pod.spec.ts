@@ -1,3 +1,4 @@
+import { podControlStub } from '@dltech/atlas-plugin-sdk/testing'
 import { describe, expect, it } from 'bun:test'
 
 import {
@@ -44,6 +45,7 @@ const rig = (answers: Record<string, ReturnType<typeof exec>>) => {
     }
   }
   const ctx: PluginPodContext = {
+    control: podControlStub,
     sessionId: 's1',
     append,
     events: () => log,
