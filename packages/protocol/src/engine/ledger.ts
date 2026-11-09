@@ -71,10 +71,12 @@ export class CallLedger {
     return this.lock.run({
       key: args.key,
       task: async () => {
-        const stepped = stepCalls({
-          state: this.protocol,
-          input: { type: 'run', key: args.key, dispatched: true, epoch: args.epoch },
-        })
+        const stepRun = () =>
+          stepCalls({
+            state: this.protocol,
+            input: { type: 'run', key: args.key, dispatched: true, epoch: args.epoch },
+          })
+        let stepped = stepRun()
         if (stepped.effects.errors.includes(ECallError.StaleEpoch)) return staleEpoch(args.epoch)
         const spawns = stepped.effects.spawned.includes(args.key)
         if (spawns) {
@@ -87,6 +89,8 @@ export class CallLedger {
               message: `the journal of ${args.key} could not be read`,
             })
           }
+          stepped = stepRun()
+          if (stepped.effects.errors.includes(ECallError.StaleEpoch)) return staleEpoch(args.epoch)
           if (stored !== undefined) {
             this.protocol = stepped.state
             return await this.adopt({ ...args, stored })

@@ -277,7 +277,7 @@ export const materialize = async (args: {
       scrub: args.scrub,
     })
     if (!additionalCloned) return false
-    return writeSentinel({
+    return await writeSentinel({
       deps,
       path: args.sentinels.materialized,
       message: 'materialized sentinel write failed; setup is not done',

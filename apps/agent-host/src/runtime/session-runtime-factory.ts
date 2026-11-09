@@ -117,7 +117,6 @@ export const createSessionRuntimeFactory = (
       ...(args.log === undefined ? {} : { log: args.log }),
     })
     calls.open({ epoch })
-    calls.ready().catch(() => undefined)
 
     const processes = new DaemonProcessPort({ calls })
     const files = new DaemonFileSystemPort({ calls })
@@ -134,6 +133,7 @@ export const createSessionRuntimeFactory = (
           const signing = await prepareSigning({
             reader: args.signingKey,
             files,
+            calls,
             userId: config.userId,
             launchDirectory,
             signal,
