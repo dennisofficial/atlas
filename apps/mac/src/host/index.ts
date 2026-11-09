@@ -24,6 +24,7 @@ export interface ICreateDesktopHostOptions {
   updates?: IDesktopUpdatesPort
   window?: IDesktopWindowPort
   app?: IDesktopAppInfo
+  previewViews?: { clear: () => void }
   port?: number
 }
 
@@ -43,6 +44,7 @@ export function createDesktopHost({
   updates,
   window,
   app,
+  previewViews,
 }: ICreateDesktopHostOptions): IDesktopHost {
   const origin = apiOrigin ?? resolveApiOrigin(process.env)
   const authService = createAuthService({
@@ -91,6 +93,9 @@ export function createDesktopHost({
           bearer,
           onSignIn: authService.adopt,
         })
+      if (request.method === 'GET' && request.headers.get('sec-fetch-dest') === 'document') {
+        previewViews?.clear()
+      }
       return serveStatic({ webRoot, pathname })
     },
   })
