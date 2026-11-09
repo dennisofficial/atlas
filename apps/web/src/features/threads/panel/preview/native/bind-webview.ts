@@ -10,19 +10,24 @@ export function bindWebview(args: {
   webview: NativeWebview
   onNavigated: (url: string) => void
   onReady: () => void
+  onEvent?: ((event: ENativeEvent, url: string | undefined) => void) | undefined
 }): () => void {
-  const { webview, onNavigated, onReady } = args
+  const { webview, onNavigated, onReady, onEvent } = args
   let bound = true
 
   const handleNavigated = (event: NativeEvent) => {
     const url = urlOfEvent(event)
-    if (url !== null && bound) onNavigated(url)
+    if (!bound) return
+    onEvent?.(ENativeEvent.DidNavigate, url ?? undefined)
+    if (url !== null) onNavigated(url)
   }
 
   const handleReady = (event: NativeEvent) => {
     const url = urlOfEvent(event)
-    if (url !== null && bound) onNavigated(url)
-    if (bound) onReady()
+    if (!bound) return
+    onEvent?.(ENativeEvent.DomReady, url ?? undefined)
+    if (url !== null) onNavigated(url)
+    onReady()
   }
 
   webview.on(ENativeEvent.DidNavigate, handleNavigated)

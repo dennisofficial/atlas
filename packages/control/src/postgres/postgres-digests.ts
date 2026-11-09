@@ -18,7 +18,7 @@ export const sessionDigestsIn = async (
     params.tx.raw
       .sql`SELECT s."id", s."userId", s."projectId", s."title", s."mainThreadId", s."createdAt", s."archivedAt",
         s."modelRef", s."modelEffort", s."modelFast", s."spawnedBySessionId",
-        s."podSessionId", s."peerMessagesSent",
+        s."podSessionId",
         (SELECT e."at" FROM "v2"."V2Event" e
           WHERE e."threadId" = s."mainThreadId" ORDER BY e."seq" DESC LIMIT 1) AS "lastEventAt",
         first."text" AS "firstMessageText", first."postedAt" AS "firstMessageAt"
@@ -48,7 +48,6 @@ export const sessionDigestsIn = async (
         modelFast: { codecId: 'pg/bool@1', nullable: true },
         spawnedBySessionId: { codecId: 'pg/text@1', nullable: true },
         podSessionId: { codecId: 'pg/text@1', nullable: true },
-        peerMessagesSent: 'pg/int4@1',
         lastEventAt: { codecId: 'pg/timestamptz-date@1', nullable: true },
         firstMessageText: { codecId: 'pg/text@1', nullable: true },
         firstMessageAt: { codecId: 'pg/timestamptz-date@1', nullable: true },
@@ -68,7 +67,6 @@ export const sessionDigestsIn = async (
     modelFast: row.modelFast,
     spawnedBySessionId: row.spawnedBySessionId,
     podSessionId: row.podSessionId,
-    peerMessagesSent: row.peerMessagesSent,
     lastEventAt: row.lastEventAt === null ? null : iso(row.lastEventAt),
     firstMessageText: row.firstMessageText,
     firstMessageAt: row.firstMessageAt === null ? null : iso(row.firstMessageAt),

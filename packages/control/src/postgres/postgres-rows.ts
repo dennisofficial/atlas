@@ -43,7 +43,6 @@ export const toSessionRow = (row: {
   modelFast: boolean | null
   spawnedBySessionId: string | null
   podSessionId: string | null
-  peerMessagesSent: number
 }): ControlSessionRow => ({
   sessionId: row.id,
   userId: row.userId,
@@ -57,7 +56,6 @@ export const toSessionRow = (row: {
   modelFast: row.modelFast,
   spawnedBySessionId: row.spawnedBySessionId,
   podSessionId: row.podSessionId,
-  peerMessagesSent: row.peerMessagesSent,
 })
 
 export const toThreadRow = (row: {

@@ -14,6 +14,7 @@ import { slotKeyOf, useFrameRegistry } from './frame-registry'
 import { framesOf, type FrameSpec } from './frames-of'
 import { CLIP_COUNT } from './native/clip'
 import { nativeOf } from './native/native-controls'
+import { NativeDiagnostics } from './native/native-diagnostics'
 import { NativeFrame } from './native/native-frame'
 import { useNativeOverlaySync } from './native/overlay-sync'
 import { useSlotTracking } from './placement'
@@ -77,6 +78,7 @@ export function NativeFrameLayer() {
           />
         </div>
       ))}
+      {renderer === 'cef' ? <NativeDiagnostics frameKey={visibleKey} /> : null}
       {Array.from({ length: CLIP_COUNT }, (_, at) => (
         <div
           key={`clip-${at}`}

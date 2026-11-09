@@ -9,6 +9,7 @@ import { bindWebview } from './bind-webview'
 import { createFrameDriver, type FrameDriver } from './frame-driver'
 import { OVERLAY_MASKS } from './masks'
 import { registerNative } from './native-controls'
+import { forgetNativeStats, noteNativeEvent } from './native-stats'
 import { isNativeWebview } from './webview-handle'
 
 const CEF_PARTITION = 'persist:atlas-browser'
@@ -51,10 +52,12 @@ export function NativeFrame(props: {
       webview: element,
       onNavigated: (url) => latest.current.onNavigated({ frame: latest.current.frame, url }),
       onReady: held.reassertVisibility,
+      onEvent: (event, url) => noteNativeEvent({ key, event, url }),
     })
     return () => {
       unbind()
       unregister()
+      forgetNativeStats(key)
       driver.current = undefined
     }
   }, [element])

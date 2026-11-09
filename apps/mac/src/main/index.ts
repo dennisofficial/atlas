@@ -9,6 +9,7 @@ import Electrobun, {
   Utils,
 } from 'electrobun/main'
 import { createDesktopHost } from '../host'
+import { bunPath, startNextServer } from '../host/next-server'
 import { startOnStablePort } from '../host/stable-port'
 import { defaultDesktopHome, podConfigFromEnv } from '../host/pods/config'
 import { resolveServeVersion } from '../host/pods/serve-version'
@@ -21,6 +22,7 @@ import { DESKTOP_PRELOAD } from './preload'
 import { runLogged, writeLog } from './crash-log'
 import { type IExternalLinkRouter, routeExternalLinks } from './external-links-wiring'
 import { syncFullscreen } from './fullscreen'
+import { clearChildViews } from './clear-preview-views'
 import { deepLinkTargetOf, openUrlOf, previewCallbackPathOf } from './deep-link'
 import { externalUrlOf } from './external-links'
 import { navigateScript, previewCallbackScript, RELOAD_SCRIPT } from './in-app-navigation'
@@ -50,13 +52,18 @@ await runLogged(async () => {
   const windowRef: { current?: BrowserWindow } = {}
   const linksRef: { current?: IExternalLinkRouter } = {}
   const home = defaultDesktopHome()
+  const nextServer = await startNextServer({
+    root: join(PATHS.RESOURCES_FOLDER, 'app', 'web', 'apps', 'web'),
+    bunPath: bunPath(),
+  })
   const startHost = (port: number) =>
     createDesktopHost({
       port,
-      webRoot: join(PATHS.RESOURCES_FOLDER, 'app', 'web'),
+      appOrigin: nextServer.origin,
       secret,
       pods: podConfig,
       app: { version: localInfo.version, channel: localInfo.channel, chromium },
+      previewViews: { clear: () => void clearChildViews(windowRef.current?.webview.id) },
       auth: { home, openExternal: (url) => Utils.openExternal(url) },
       updates: {
         status: updateState.status,
@@ -138,5 +145,6 @@ await runLogged(async () => {
 
   Electrobun.events.on('before-quit', () => {
     void host.stop()
+    void nextServer.stop()
   })
 })

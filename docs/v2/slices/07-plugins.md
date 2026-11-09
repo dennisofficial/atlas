@@ -383,11 +383,10 @@ survives as the peer-session preset (03-teammates, "The decision").
 - **Commands** (control-handled, like `rename`): `spawn_session{agentType?, brief?, worktree?,
   intoPod?}`, `message_session{sessionId, text}`, `list_sessions`. The tools of the same names post
   them.
-- **Pod:** the three tools; the sender ACL and the per-session message budget are enforced by the
-  control handler, not the pod.
+- **Pod:** the three tools; the sender ACL is enforced by the control handler, not the pod.
 - **Control:** creating the session and its main thread (`createSessionWithMainThread`), the
-  `spawned-by` link, placement (`podRef` = the spawner's pod for the teammate preset), the inbox
-  message that wakes an idle peer, and the budget count.
+  `spawned-by` link, placement (`podRef` = the spawner's pod for the teammate preset), and the
+  inbox message that wakes an idle peer.
 - **Client:** the sidebar nesting and the Done group; the peer's own session page is the ordinary one.
 - **Transport:** `none`; the session stream carries everything.
 
@@ -413,12 +412,11 @@ it moves to Done; the budget refuses a message past the limit.
   and `list_sessions` are pod tools over a host port (`PluginPodContext.sessions`, implemented in
   `packages/host` over `HeldSessionDeps.plane`, ADR 0027) rather than control-handled commands: the
   API's command route returns no result, so a control `spawn_session` could not tell the model the
-  new session id, and nothing else would call it. The one control command is `reset-peer-budget`,
-  which the operator's web row action posts. The ACL and the budget live in `packages/control`
-  (`peer-sessions.ts`), so both paths enforce them in one place.
-- **The budget is 20 spawner messages per peer**, counted on the peer's row (`peerMessagesSent`,
-  bumped atomically under the row lock) and reset by `reset-peer-budget`. A peer's reply to its
-  spawner is not budgeted: the budget is the spawner's turn, and a peer has no `report_to_main`.
+  new session id, and nothing else would call it, so the plugin contributes no control command.
+  The ACL lives in `packages/control` (`peer-sessions.ts`), so both paths enforce it in one place.
+- **Peer messages are unlimited and the sender ACL is same-user only.** Any session of one user
+  may message any other session of that user, spawned by it or not; the 20-message budget the
+  feature first shipped was removed on 2026-11-09 at the operator's direction.
 - **A shared pod parks by its sandbox deadline, not by a release stop.** The idle release stops the
   sandbox only when no other session is placed on the pod (`podPeersPlaced`, which counts a root
   session whose `podSessionId` is null as itself). Any other placed session blocks the stop, so no
@@ -907,8 +905,8 @@ cloned head with the deploy that served it before debugging the plugin.
 Shipped: `plugins/sessions` (`@dltech/atlas-plugin-sessions`, `/core` `/pod` `/control` `/client`),
 registered in `apps/api` and `apps/agent-host`; the tools `spawn_session`, `message_session` and
 `list_sessions` over a new `PluginPodContext.sessions` port implemented in `packages/host` over the
-control plane; the `reset-peer-budget` control command; the peers prompt fragment; the pure
-`nestPeers` fold the web sidebar uses. The settled answers are in §5.6 above.
+control plane; the peers prompt fragment; the pure `nestPeers` fold the web sidebar uses. The
+settled answers are in §5.6 above.
 
 **Placement.** `V2Session.spawnedBySessionId` is the spawn link and `podSessionId` the sandbox the
 session runs against (`spawner.podSessionId ?? spawner.sessionId`, so a peer of a peer stays on the
@@ -922,9 +920,8 @@ that predates the change still parses the message. The intake stamps `sender: {s
 `via: PeerAgent` on `user-said`, and assembly renders `<agent-said from="session ses_…">` — the
 operator lane is untouched, and old logs decode.
 
-**Budget.** 20 spawner messages per peer, claimed by one conditional `UPDATE … RETURNING` under the
-row lock; a peer's reply is not budgeted. `reset-peer-budget` (control command, web row action) sets
-the count back to 0.
+**Budget removed (2026-11-09).** The 20-message budget this slice shipped was removed the same day
+at the operator's direction: peer messages are unlimited and the sender ACL is same-user only.
 
 **Live check (2026-11-09, production).** Session `b6cdbfe7-63b3-4f46-a3fe-c493b3fe06cc`, thread
 `914374a5-3dab-4713-a50a-6f3a968ff5c5`, project `cmvh6z3ls002i08jwseqmwbrv`, agent host on
@@ -940,8 +937,6 @@ the count back to 0.
 | the shared pod                 | the peer's `shell_list` returned the lead's `shell-5f32d5db`, running, 60 characters printed                                                                                                         |
 | the peer's own sandbox view    | `hostname; pwd` → `1b74732b-2d3` (the lead's `atlas-v2-b6cdbfe7-…`) and `/atlas/workspaces/workspace`                                                                                                |
 | the reply lane                 | the peer's `message_session` woke the lead with a `user-said` carrying `sender: { session: <peer> }` and `via: peer-agent`                                                                           |
-| the budget                     | 20 `message_session` calls queued; the 21st was refused: "this session has received all 20 messages the operator's budget allows; the operator can reset it"                                         |
-| the reset                      | `peerMessagesSent` 20 → `reset-peer-budget` → 0 (read from the row)                                                                                                                                  |
 | archive to Done                | the peer's `archivedAt` set, `spawnedBy` intact — the data the sidebar's Done group folds                                                                                                            |
 | the ticker kill                | not completed: the lead's next turn opened with "session … lost its lease", so `shell_kill` could not run; the sandbox parks by its deadline, which is the rule this slice introduced                |
 | teardown                       | both sessions archived, temporary `AuthSession` deleted                                                                                                                                              |
@@ -955,7 +950,8 @@ than debugging the plugin when exactly the new plugin's tools are missing.
 
 1. **Order and packaging.** As recommended in §3: the contract, then github (subscriptions inside one
    package), shells, services (previews inside), memory, crew, sessions.
-2. **Teammate budget.** 20 messages per peer session, resettable by the operator.
+2. **Teammate budget.** 20 messages per peer session, resettable by the operator. Superseded
+   2026-11-09: the operator removed the budget.
 3. **GitHub.** The pod acts with the operator's OAuth credentials. Commits are the user's, with no
    co-author trailer and no Atlas trace. The sandbox may push and open PRs.
 4. **MCP and skills.** Their own slice, out of slice 7 (see Next below).

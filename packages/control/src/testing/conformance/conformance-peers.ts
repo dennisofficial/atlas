@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
 import { ControlPlane } from '../../control-plane'
-import { PEER_MESSAGE_BUDGET } from '../../peer-sessions'
 import type { ConformanceParams } from './conformance'
 import { freshHosts } from './conformance-fresh-hosts'
 import { createSessionParams, PROJECT, SESSION, THREAD, T0, USER } from './support'
@@ -61,61 +60,52 @@ export function describeControlPlanePeers(params: ConformanceParams): void {
       expect((await plane.readSession({ sessionId: 'peer-2' }))?.podSessionId).toBe(SESSION)
     })
 
-    it('posts with the sender named and refuses the message past the budget', async () => {
+    it('posts a message with the sender named', async () => {
       await plane.createSession(createSessionParams({ sessionId: SESSION, mainThreadId: THREAD }))
       await spawn({ sessionId: 'peer-1', mainThreadId: 'peer-thread-1' })
-      for (let index = 0; index < PEER_MESSAGE_BUDGET; index += 1) {
-        const sent = await plane.messagePeer({
-          fromSessionId: SESSION,
-          toSessionId: 'peer-1',
-          text: `m${index}`,
-        })
-        expect(sent).toEqual({ inboxId: index + 1 })
-      }
-      const refused = await plane.messagePeer({
+      const sent = await plane.messagePeer({
         fromSessionId: SESSION,
         toSessionId: 'peer-1',
-        text: 'one too many',
+        text: 'm0',
       })
-      expect(refused).toMatchObject({ refused: expect.stringContaining('20') })
+      expect(sent).toEqual({ inboxId: 1 })
       const inbox = await plane.readInbox({ sessionId: 'peer-1', afterId: 0, limit: 100 })
-      expect(inbox.length).toBe(PEER_MESSAGE_BUDGET)
+      expect(inbox.length).toBe(1)
       expect(inbox[0]?.senderSessionId).toBe(SESSION)
       expect(JSON.parse(inbox[0]?.payload ?? '{}')).toEqual({ text: 'm0' })
-      expect((await plane.readSession({ sessionId: 'peer-1' }))?.peerMessagesSent).toBe(
-        PEER_MESSAGE_BUDGET,
-      )
     })
 
-    it('lets a peer reply without spending its own budget, and resets by the operator', async () => {
-      await plane.createSession(createSessionParams({ sessionId: SESSION, mainThreadId: THREAD }))
-      await spawn({ sessionId: 'peer-1', mainThreadId: 'peer-thread-1' })
-      const reply = await plane.messagePeer({
-        fromSessionId: 'peer-1',
-        toSessionId: SESSION,
-        text: 'done',
-      })
-      expect(reply).toEqual({ inboxId: 1 })
-      expect((await plane.readSession({ sessionId: 'peer-1' }))?.peerMessagesSent).toBe(0)
-      await plane.messagePeer({ fromSessionId: SESSION, toSessionId: 'peer-1', text: 'm' })
-      expect((await plane.readSession({ sessionId: 'peer-1' }))?.peerMessagesSent).toBe(1)
-      expect(await plane.resetPeerBudget({ sessionId: 'peer-1' })).toBe(true)
-      expect((await plane.readSession({ sessionId: 'peer-1' }))?.peerMessagesSent).toBe(0)
-      expect(await plane.resetPeerBudget({ sessionId: 'nope' })).toBe(false)
-    })
-
-    it('refuses a message between sessions with no spawn link', async () => {
+    it('lets two sessions of one user message each other with no spawn link', async () => {
       await plane.createSession(createSessionParams({ sessionId: SESSION, mainThreadId: THREAD }))
       await plane.createSession(
         createSessionParams({ sessionId: 'stranger', mainThreadId: 'stranger-thread' }),
       )
-      const refused = await plane.messagePeer({
+      const sent = await plane.messagePeer({
         fromSessionId: SESSION,
         toSessionId: 'stranger',
         text: 'hello',
       })
-      expect(refused).toMatchObject({ refused: expect.stringContaining('spawned') })
-      expect(await plane.readInbox({ sessionId: 'stranger', afterId: 0, limit: 10 })).toEqual([])
+      expect(sent).toEqual({ inboxId: 1 })
+      const inbox = await plane.readInbox({ sessionId: 'stranger', afterId: 0, limit: 10 })
+      expect(inbox[0]?.senderSessionId).toBe(SESSION)
+      expect(JSON.parse(inbox[0]?.payload ?? '{}')).toEqual({ text: 'hello' })
+    })
+
+    it('refuses a message to a session another user owns', async () => {
+      await plane.createSession(createSessionParams({ sessionId: SESSION, mainThreadId: THREAD }))
+      await plane.createSession({
+        sessionId: 'foreign',
+        userId: 'another-user',
+        projectId: PROJECT,
+        mainThreadId: 'foreign-thread',
+      })
+      const refused = await plane.messagePeer({
+        fromSessionId: SESSION,
+        toSessionId: 'foreign',
+        text: 'hello',
+      })
+      expect(refused).toEqual({ refused: 'there is no session foreign in this project' })
+      expect(await plane.readInbox({ sessionId: 'foreign', afterId: 0, limit: 10 })).toEqual([])
     })
 
     it('lists the peers a session spawned and the spawner it came from', async () => {

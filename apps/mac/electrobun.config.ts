@@ -13,7 +13,7 @@ export default {
   build: {
     mainProcess: 'bun',
     bun: { entrypoint: 'main-out/index.js', external: ['undici'] },
-    copy: { 'web-out': 'web' },
+    copy: { 'web-standalone': 'web' },
     mac: {
       codesign: signed,
       notarize: signed,

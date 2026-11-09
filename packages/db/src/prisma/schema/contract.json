@@ -8481,13 +8481,6 @@
                   "kind": "scalar"
                 }
               },
-              "peerMessagesSent": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/int4@1",
-                  "kind": "scalar"
-                }
-              },
               "podSessionId": {
                 "nullable": true,
                 "type": {
@@ -8635,9 +8628,6 @@
                 },
                 "nextInboxId": {
                   "column": "nextInboxId"
-                },
-                "peerMessagesSent": {
-                  "column": "peerMessagesSent"
                 },
                 "podSessionId": {
                   "column": "podSessionId"
@@ -15192,15 +15182,6 @@
                   "dataType": "pg/int4",
                   "nullable": false
                 },
-                "peerMessagesSent": {
-                  "codecId": "pg/int4@1",
-                  "dataType": "pg/int4",
-                  "default": {
-                    "kind": "literal",
-                    "value": 0
-                  },
-                  "nullable": false
-                },
                 "podSessionId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -15468,7 +15449,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "6b9d370124c540cc9199fd72746fa8fa368e613c6e21ea298f5943dfde733efc"
+    "storageHash": "31919bc07e05f8bd7cdba3993d5e8d4da55238cdb6046ca1a203c484218b01ab"
   },
   "execution": {
     "executionHash": "0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289",

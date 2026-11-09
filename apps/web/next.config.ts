@@ -19,8 +19,6 @@ const devOrigins = [
   ...publicHosts,
 ]
 
-const desktop = process.env.ATLAS_WEB_TARGET === 'desktop'
-
 function readGitCommit(): string {
   try {
     return execSync('git rev-parse HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
@@ -35,6 +33,7 @@ const webCommit = process.env.VERCEL_GIT_COMMIT_SHA || process.env.GITHUB_SHA ||
 
 const sharedConfig: NextConfig = {
   allowedDevOrigins: devOrigins,
+  output: 'standalone',
   env: {
     ATLAS_WEB_COMMIT: webCommit,
     ATLAS_WEB_VERSION: process.env.ATLAS_VERSION ?? '',
@@ -52,14 +51,7 @@ const sharedConfig: NextConfig = {
   ],
 }
 
-const desktopConfig: NextConfig = {
-  ...sharedConfig,
-  output: 'export',
-  images: { unoptimized: true },
-  typescript: { ignoreBuildErrors: true },
-}
-
-const cloudConfig: NextConfig = {
+const nextConfig: NextConfig = {
   ...sharedConfig,
   async rewrites() {
     const apiOrigin = resolveApiOrigin(process.env)
@@ -69,7 +61,5 @@ const cloudConfig: NextConfig = {
     ]
   },
 }
-
-const nextConfig = desktop ? desktopConfig : cloudConfig
 
 export default nextConfig

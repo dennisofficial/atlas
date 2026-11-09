@@ -18,6 +18,8 @@ const A = 'http://localhost:3000/'
 const B = 'http://localhost:3000/b'
 
 class FakeWebview implements NativeWebview {
+  webviewId = null
+  hidden = false
   listeners = new Map<string, Array<(event: NativeEvent) => void>>()
   calls: string[] = []
   on = (name: ENativeEvent, listener: (event: NativeEvent) => void) => {
@@ -109,7 +111,7 @@ describe('createFrameDriver', () => {
     driver.apply({ url: B, seq: 1, visible: false })
     driver.apply({ url: B, seq: 1, visible: false })
     driver.apply({ url: B, seq: 1, visible: true })
-    expect(webview.calls).toEqual([`load ${B}`, 'hidden true', 'hidden false'])
+    expect(webview.calls).toEqual([`load ${B}`, 'hidden true', 'hidden false', 'sync true'])
   })
 
   it('hides a visible tab while a dialog covers it and shows it again after', () => {
@@ -121,17 +123,26 @@ describe('createFrameDriver', () => {
     driver.setObscured(false)
     driver.apply({ url: A, seq: 0, visible: false })
     driver.setObscured(true)
-    expect(webview.calls).toEqual(['hidden true', 'hidden false', 'hidden true'])
+    expect(webview.calls).toEqual(['hidden true', 'hidden false', 'sync true', 'hidden true'])
   })
 
-  it('re-asserts hidden once the native view exists', () => {
+  it('re-asserts the wanted visibility once the native view exists', () => {
     const webview = new FakeWebview()
     const driver = createFrameDriver({ webview, seq: 0 })
     driver.reassertVisibility()
-    expect(webview.calls).toEqual([])
+    expect(webview.calls).toEqual(['hidden false', 'sync true'])
     driver.apply({ url: A, seq: 0, visible: false })
     driver.reassertVisibility()
-    expect(webview.calls).toEqual(['hidden true', 'hidden true'])
+    expect(webview.calls).toEqual(['hidden false', 'sync true', 'hidden true', 'hidden true'])
+  })
+
+  it('re-asserts geometry when a hidden frame is shown again, so a blank surface repaints', () => {
+    const webview = new FakeWebview()
+    const driver = createFrameDriver({ webview, seq: 0 })
+    driver.apply({ url: A, seq: 0, visible: false })
+    driver.apply({ url: A, seq: 0, visible: true })
+    driver.apply({ url: A, seq: 0, visible: true })
+    expect(webview.calls).toEqual(['hidden true', 'hidden false', 'sync true'])
   })
 })
 

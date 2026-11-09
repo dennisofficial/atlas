@@ -35,7 +35,6 @@ const seedThread = async (args: {
     modelFast: null,
     spawnedBySessionId: null,
     podSessionId: null,
-    peerMessagesSent: 0,
   })
 }
 

@@ -32,7 +32,7 @@ import { writeLeaseIn } from './postgres-leases'
 import { announceIn, notifyWakeIn } from './postgres-notify'
 import { hostPresentIn } from './postgres-presence'
 import { sessionDigestsIn } from './postgres-digests'
-import { claimPeerMessageIn, podPeersPlacedIn, resetPeerMessagesIn } from './postgres-peers'
+import { podPeersPlacedIn } from './postgres-peers'
 import {
   clearTitleFromIn,
   createSessionIn,
@@ -132,14 +132,6 @@ class PostgresTx implements ControlTx {
 
   async listSessionDigests(params: SessionListParams): Promise<SessionDigestRow[]> {
     return sessionDigestsIn({ tx: this.tx, ...params })
-  }
-
-  async claimPeerMessage(params: { sessionId: string; budget: number }): Promise<number | null> {
-    return claimPeerMessageIn({ tx: this.tx, ...params })
-  }
-
-  async resetPeerMessages(sessionId: string): Promise<boolean> {
-    return resetPeerMessagesIn({ tx: this.tx, sessionId })
   }
 
   async podPeersPlaced(params: {

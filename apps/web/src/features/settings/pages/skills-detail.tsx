@@ -1,14 +1,13 @@
 'use client'
 
-import { usePathname } from 'next/navigation'
 import { ESkillScope } from '@dltech/atlas-wire/web'
 
-import { routeIdAfter } from '@/lib/route-id'
+import { useRouteParam } from '@/lib/route-param'
 
 import { SkillDetailPage } from '../parts/skill-detail-view'
 
 export function SkillDetailRoute() {
-  const skill = routeIdAfter({ pathname: usePathname(), segment: 'skills' })
+  const skill = useRouteParam('skillId')
   return (
     <SkillDetailPage
       target={{ scope: ESkillScope.Personal, skill }}

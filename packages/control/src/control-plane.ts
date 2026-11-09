@@ -153,10 +153,6 @@ export class ControlPlane {
     })
   }
 
-  async resetPeerBudget(params: { sessionId: string }): Promise<boolean> {
-    return this.store.transact((tx) => tx.resetPeerMessages(params.sessionId))
-  }
-
   async podPeersPlaced(params: {
     podSessionId: string
     excludeSessionId: string

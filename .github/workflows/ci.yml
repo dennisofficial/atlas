@@ -288,6 +288,10 @@ jobs:
         run: bun run build:app
         working-directory: apps/mac
 
+      - name: verify the built app server answers flight requests
+        run: bun test src/host/__tests__/built-app.spec.ts
+        working-directory: apps/mac
+
       - name: list artifacts
         run: ls -la artifacts
         working-directory: apps/mac

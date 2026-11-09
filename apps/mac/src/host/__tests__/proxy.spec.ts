@@ -46,7 +46,7 @@ beforeAll(() => {
     },
   })
   host = createDesktopHost({
-    webRoot: '/nonexistent',
+    appOrigin: 'http://127.0.0.1:1',
     apiOrigin: `http://127.0.0.1:${upstream.port}`,
     secret: 's',
   })
@@ -96,7 +96,11 @@ describe('api proxy', () => {
   })
 
   test('returns 502 when the upstream is down', async () => {
-    const dead = createDesktopHost({ webRoot: '/x', apiOrigin: 'http://127.0.0.1:1', secret: 's' })
+    const dead = createDesktopHost({
+      appOrigin: 'http://127.0.0.1:1',
+      apiOrigin: 'http://127.0.0.1:1',
+      secret: 's',
+    })
     const res = await fetch(`${dead.url}/api/x`)
     expect(res.status).toBe(502)
     await dead.stop()

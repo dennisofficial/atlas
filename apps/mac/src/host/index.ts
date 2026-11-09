@@ -5,18 +5,17 @@ import { callbackResponse } from './auth/callback-page'
 import { createAuthHandler } from './auth/routes'
 import { createDesktopRouter } from './desktop-routes'
 import { isAuthorized, startSession } from './guard'
-import { isProxyPath, proxyToApi } from './proxy'
+import { isProxyPath, proxyToApp, proxyToApi } from './proxy'
 import type { IPodHostConfig } from './pods/config'
 import { defaultDesktopHome } from './pods/config'
 import { createPodsHandler } from './pods/routes'
-import { serveStatic } from './static'
 import type { IDesktopUpdatesPort } from './update-routes'
 import type { IDesktopWindowPort } from './window-routes'
 
 export { resolveApiOrigin, resolveWebOrigin }
 
 export interface ICreateDesktopHostOptions {
-  webRoot: string
+  appOrigin: string
   secret: string
   apiOrigin?: string
   pods?: IPodHostConfig
@@ -24,6 +23,7 @@ export interface ICreateDesktopHostOptions {
   updates?: IDesktopUpdatesPort
   window?: IDesktopWindowPort
   app?: IDesktopAppInfo
+  previewViews?: { clear: () => void }
   port?: number
 }
 
@@ -34,7 +34,7 @@ export interface IDesktopHost {
 }
 
 export function createDesktopHost({
-  webRoot,
+  appOrigin,
   apiOrigin,
   port,
   secret,
@@ -43,6 +43,7 @@ export function createDesktopHost({
   updates,
   window,
   app,
+  previewViews,
 }: ICreateDesktopHostOptions): IDesktopHost {
   const origin = apiOrigin ?? resolveApiOrigin(process.env)
   const authService = createAuthService({
@@ -91,7 +92,10 @@ export function createDesktopHost({
           bearer,
           onSignIn: authService.adopt,
         })
-      return serveStatic({ webRoot, pathname })
+      if (request.method === 'GET' && request.headers.get('sec-fetch-dest') === 'document') {
+        previewViews?.clear()
+      }
+      return proxyToApp({ request, appOrigin })
     },
   })
 

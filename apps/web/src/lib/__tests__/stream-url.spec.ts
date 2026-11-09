@@ -18,10 +18,6 @@ describe('resolveStreamUrl', () => {
     expect(resolveStreamUrl({ VERCEL_ENV: 'preview' })).toBe('wss://agent.byatlas.io/stream')
   })
 
-  it('uses the hosted stream in the desktop build', () => {
-    expect(resolveStreamUrl({ ATLAS_WEB_TARGET: 'desktop' })).toBe('wss://agent.byatlas.io/stream')
-  })
-
   it('falls back to the local agent host otherwise', () => {
     expect(resolveStreamUrl({})).toBe('ws://localhost:10000/stream')
     expect(resolveStreamUrl({ VERCEL_ENV: 'development' })).toBe('ws://localhost:10000/stream')

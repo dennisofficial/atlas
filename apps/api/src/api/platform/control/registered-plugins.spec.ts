@@ -32,12 +32,8 @@ describe('registeredPlugins', () => {
     expect(composedPlugins.views.map((view) => view.name)).toContain('services')
   })
 
-  it('registers the sessions plugin and its peer budget reset', () => {
+  it('registers the sessions plugin', () => {
     expect(composedPlugins.names).toContain('sessions')
-    expect(composedPlugins.commands.map((command) => command.spec.name)).toContain(
-      'reset-peer-budget',
-    )
-    expect([...composedPlugins.control.commands.keys()]).toContain('reset-peer-budget')
   })
 
   it('adds no event type', () => {

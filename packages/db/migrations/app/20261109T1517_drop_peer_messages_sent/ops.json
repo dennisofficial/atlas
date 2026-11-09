@@ -1,0 +1,44 @@
+[
+  {
+    "id": "dropColumn.V2Session.peerMessagesSent",
+    "label": "Drop column \"peerMessagesSent\" from \"V2Session\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "column",
+        "name": "peerMessagesSent",
+        "table": "V2Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"peerMessagesSent\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "peerMessagesSent"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"peerMessagesSent\"",
+        "sql": "ALTER TABLE \"v2\".\"V2Session\" DROP COLUMN \"peerMessagesSent\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"peerMessagesSent\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "peerMessagesSent"
+        ]
+      }
+    ]
+  }
+]

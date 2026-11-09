@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'6b9d370124c540cc9199fd72746fa8fa368e613c6e21ea298f5943dfde733efc'>;
+  StorageHashBase<'31919bc07e05f8bd7cdba3993d5e8d4da55238cdb6046ca1a203c484218b01ab'>;
 export type ExecutionHash =
   ExecutionHashBase<'0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289'>;
 export type ProfileHash =
@@ -1166,7 +1166,6 @@ export namespace Models {
     modelFast: FieldOutputTypes['v2']['V2Session']['modelFast'];
     modelRef: FieldOutputTypes['v2']['V2Session']['modelRef'];
     nextInboxId: FieldOutputTypes['v2']['V2Session']['nextInboxId'];
-    peerMessagesSent: FieldOutputTypes['v2']['V2Session']['peerMessagesSent'];
     podSessionId: FieldOutputTypes['v2']['V2Session']['podSessionId'];
     projectId: FieldOutputTypes['v2']['V2Session']['projectId'];
     spawnedBySessionId: FieldOutputTypes['v2']['V2Session']['spawnedBySessionId'];
@@ -6558,16 +6557,6 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/int4';
                   readonly codecId: 'pg/int4@1';
                   readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly peerMessagesSent: {
-                  readonly dataType: 'pg/int4';
-                  readonly codecId: 'pg/int4@1';
-                  readonly nullable: false;
-                  readonly default: {
-                    readonly kind: 'literal';
-                    readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
-                  };
                   readonly many: false;
                 };
                 readonly podSessionId: {
@@ -12137,10 +12126,6 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
-              readonly peerMessagesSent: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
-              };
               readonly podSessionId: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -12231,7 +12216,6 @@ type ContractBase = Omit<
                 readonly modelFast: { readonly column: 'modelFast' };
                 readonly modelRef: { readonly column: 'modelRef' };
                 readonly nextInboxId: { readonly column: 'nextInboxId' };
-                readonly peerMessagesSent: { readonly column: 'peerMessagesSent' };
                 readonly podSessionId: { readonly column: 'podSessionId' };
                 readonly projectId: { readonly column: 'projectId' };
                 readonly spawnedBySessionId: { readonly column: 'spawnedBySessionId' };
