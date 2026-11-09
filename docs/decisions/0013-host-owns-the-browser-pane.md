@@ -1,6 +1,6 @@
 # 0013. The Mac browser pane is one host-owned view per window
 
-Proposed 2026-11-09.
+Proposed 2026-11-09. Deferred the same day — see Outcome.
 
 ## Context
 
@@ -42,3 +42,16 @@ the right trade, and it is what makes the rest tractable.
 ## Follows
 
 `docs/mac-browser-pane.md` holds the contract, the lifecycle and the migration.
+
+## Outcome
+
+Every failure above was reproduced in Chromium (CEF) and none of them in Apple's web view: the pane
+was switched to it on 2026-11-09 (`paneRendererOf` in `apps/mac/src/main/pane-renderer.ts`, Chromium
+kept behind `ATLAS_PANE_RENDERER=cef`) and the reported symptoms stopped. The white pane, the black
+rebuilt pane and the crash on Back were all states of a CEF view that never got a browser.
+
+So the engine was the immediate cause and this decision is deferred, not taken. What still stands
+from it: a hidden pane view must not remain in the window's hierarchy (it swallowed clicks), and a
+shell document load must not destroy pane views (`clearChildViews` is still the teardown path that a
+`Cmd+R` runs through). Both are cheap to fix on their own. The one-owner contract here is the design
+to reach for if the seam bites again, rather than something to build while it does not.

@@ -1,6 +1,6 @@
 # The Mac browser pane
 
-Design for ADR [0013](decisions/0013-host-owns-the-browser-pane.md). Not built yet.
+Design for ADR [0013](decisions/0013-host-owns-the-browser-pane.md). Not built: the engine change that followed this design fixed the reported failures, so it is deferred rather than cancelled — see the ADR's Outcome.
 
 ## The contract
 
