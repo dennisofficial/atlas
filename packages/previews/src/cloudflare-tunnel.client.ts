@@ -1,9 +1,10 @@
-import { BadGatewayException } from '@nestjs/common'
-import { EnvService } from '../../../_core/config/env/env.service'
+import { CloudflareRecordExistsError, PreviewUpstreamError } from './errors'
 
 const API_BASE = 'https://api.cloudflare.com/client/v4'
 const REQUEST_TIMEOUT_MS = 30_000
 const CATCH_ALL_SERVICE = 'http_status:404'
+
+export type CloudflareConfig = { apiToken: string; accountId: string; zoneId: string }
 
 export interface CloudflareHttpRequest {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE'
@@ -22,8 +23,6 @@ export type CloudflareFetchFn = (
   url: string,
   request: CloudflareHttpRequest,
 ) => Promise<CloudflareHttpResponse>
-
-export class CloudflareRecordExistsError extends BadGatewayException {}
 
 export type DnsRecord = { id: string; content: string }
 
@@ -77,7 +76,7 @@ function resultOf(body: Record<string, unknown>): Record<string, unknown> {
 function requireString(args: { result: Record<string, unknown>; key: string; operation: string }) {
   const value = args.result[args.key]
   if (typeof value !== 'string' || value.length === 0) {
-    throw new BadGatewayException(
+    throw new PreviewUpstreamError(
       `cloudflare ${args.operation} returned an unexpected response (missing ${args.key})`,
     )
   }
@@ -88,7 +87,7 @@ export class CloudflareTunnelClient {
   private readonly fetchFn: CloudflareFetchFn
 
   constructor(
-    private readonly env: EnvService,
+    private readonly config: CloudflareConfig,
     args: { fetchFn?: CloudflareFetchFn } = {},
   ) {
     this.fetchFn = args.fetchFn ?? defaultCloudflareFetch
@@ -99,7 +98,7 @@ export class CloudflareTunnelClient {
     const result = await this.send({
       operation,
       method: 'POST',
-      path: `/accounts/${this.env.get('CLOUDFLARE_ACCOUNT_ID')}/cfd_tunnel`,
+      path: `/accounts/${this.config.accountId}/cfd_tunnel`,
       payload: { name: args.name, config_src: 'cloudflare' },
     })
     return {
@@ -120,7 +119,7 @@ export class CloudflareTunnelClient {
     await this.send({
       operation: 'update tunnel ingress',
       method: 'PUT',
-      path: `/accounts/${this.env.get('CLOUDFLARE_ACCOUNT_ID')}/cfd_tunnel/${args.tunnelId}/configurations`,
+      path: `/accounts/${this.config.accountId}/cfd_tunnel/${args.tunnelId}/configurations`,
       payload: { config: { ingress } },
     })
   }
@@ -130,7 +129,7 @@ export class CloudflareTunnelClient {
     const result = await this.send({
       operation,
       method: 'POST',
-      path: `/zones/${this.env.get('CLOUDFLARE_ZONE_ID')}/dns_records`,
+      path: `/zones/${this.config.zoneId}/dns_records`,
       payload: {
         type: 'CNAME',
         proxied: true,
@@ -145,7 +144,7 @@ export class CloudflareTunnelClient {
     const body = await this.request({
       operation: 'find dns record',
       method: 'GET',
-      path: `/zones/${this.env.get('CLOUDFLARE_ZONE_ID')}/dns_records?name=${encodeURIComponent(args.hostname)}`,
+      path: `/zones/${this.config.zoneId}/dns_records?name=${encodeURIComponent(args.hostname)}`,
     })
     const records = Array.isArray(body.result) ? body.result : []
     for (const record of records) {
@@ -160,7 +159,7 @@ export class CloudflareTunnelClient {
     await this.send({
       operation: 'update dns record',
       method: 'PUT',
-      path: `/zones/${this.env.get('CLOUDFLARE_ZONE_ID')}/dns_records/${args.recordId}`,
+      path: `/zones/${this.config.zoneId}/dns_records/${args.recordId}`,
       payload: {
         type: 'CNAME',
         proxied: true,
@@ -174,13 +173,13 @@ export class CloudflareTunnelClient {
     await this.send({
       operation: 'delete dns record',
       method: 'DELETE',
-      path: `/zones/${this.env.get('CLOUDFLARE_ZONE_ID')}/dns_records/${args.recordId}`,
+      path: `/zones/${this.config.zoneId}/dns_records/${args.recordId}`,
       tolerateMissing: true,
     })
   }
 
   async deleteTunnel(args: { tunnelId: string }): Promise<void> {
-    const tunnelPath = `/accounts/${this.env.get('CLOUDFLARE_ACCOUNT_ID')}/cfd_tunnel/${args.tunnelId}`
+    const tunnelPath = `/accounts/${this.config.accountId}/cfd_tunnel/${args.tunnelId}`
     await this.send({
       operation: 'clean up tunnel connections',
       method: 'DELETE',
@@ -209,7 +208,7 @@ export class CloudflareTunnelClient {
     const response = await this.fetchFn(`${API_BASE}${args.path}`, {
       method: args.method,
       headers: {
-        Authorization: `Bearer ${this.env.get('CLOUDFLARE_API_TOKEN')}`,
+        Authorization: `Bearer ${this.config.apiToken}`,
         'Content-Type': 'application/json',
       },
       ...(args.payload === undefined ? {} : { body: JSON.stringify(args.payload) }),
@@ -224,7 +223,7 @@ export class CloudflareTunnelClient {
       )
     }
     const messages = errorMessages(body)
-    throw new BadGatewayException(
+    throw new PreviewUpstreamError(
       messages.length > 0
         ? `cloudflare ${args.operation} failed: ${messages.join('; ')}`
         : `cloudflare ${args.operation} failed with status ${response.status}`,

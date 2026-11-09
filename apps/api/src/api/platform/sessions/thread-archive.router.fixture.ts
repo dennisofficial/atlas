@@ -5,7 +5,7 @@ import { EnvService } from '../../../_core/config/env/env.service'
 import { JobDispatcher, type AnyTask, type JobDispatch } from '../../../_core/ports/job-dispatcher'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { DrainStateService } from '../health/drain-state.service'
-import { CloudflareTunnelClient } from '../sandboxes/cloudflare-tunnel.client'
+import { CloudflareTunnelClient } from '@dltech/atlas-previews'
 import { PreviewTunnelService } from '../sandboxes/preview-tunnel.service'
 import { SandboxesService } from '../sandboxes/sandboxes.service'
 import { VercelSandboxClient } from '../sandboxes/vercel-sandbox.client'
@@ -55,7 +55,11 @@ export async function createArchiveRouterFixture() {
   })
   const stop = spyOn(vercel, 'stop').mockResolvedValue(undefined)
   const notifyParked = spyOn(vercel, 'notifyParked').mockResolvedValue(undefined)
-  const cloudflare = new CloudflareTunnelClient(env)
+  const cloudflare = new CloudflareTunnelClient({
+    apiToken: 'cf-token',
+    accountId: 'acct',
+    zoneId: 'zone',
+  })
   const deleteDnsRecord = spyOn(cloudflare, 'deleteDnsRecord').mockResolvedValue(undefined)
   const deleteTunnel = spyOn(cloudflare, 'deleteTunnel').mockResolvedValue(undefined)
   const previews = new PreviewTunnelService(env, cipher, cloudflare)

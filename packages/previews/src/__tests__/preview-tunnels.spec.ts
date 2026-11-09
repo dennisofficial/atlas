@@ -1,19 +1,16 @@
-import { db } from '@dltech/atlas-db'
-import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
-import { seedUsers } from '../../../../test/session-seed'
-import { EnvService } from '../../../_core/config/env/env.service'
-import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import {
-  CloudflareRecordExistsError,
-  type CloudflareTunnelClient,
-} from './cloudflare-tunnel.client'
-import { PreviewTunnelService } from './preview-tunnel.service'
+import { type CloudflareTunnelClient } from '../cloudflare-tunnel.client'
+import { CloudflareRecordExistsError } from '../errors'
+import { PreviewTunnels, type PreviewSecretCipher } from '../preview-tunnels'
 
-const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
+const fakeCipher: PreviewSecretCipher = {
+  encrypt: (plain) => `enc:${plain}`,
+  decrypt: (blob) => blob.slice(4),
+}
 
-describe('PreviewTunnelService', () => {
-  useTestDatabase()
+describe('PreviewTunnels', () => {
+  const currentDb = useTestDatabase()
   let created = 0
   const cloudflare = {
     createTunnel: vi.fn(async (_args: { name: string }) => {
@@ -34,21 +31,22 @@ describe('PreviewTunnelService', () => {
     deleteDnsRecord: vi.fn(async (_args: { recordId: string }) => undefined),
     deleteTunnel: vi.fn(async (_args: { tunnelId: string }) => undefined),
   }
-  const cipher = new SecretCipherService(new EnvService({ SECRETS_ENCRYPTION_KEY: HEX_KEY }))
-  const service = new PreviewTunnelService(
-    new EnvService({ PREVIEW_DOMAIN: 'byatlas.dev' }),
-    cipher,
-    cloudflare as unknown as CloudflareTunnelClient,
-  )
+  const tunnels = new PreviewTunnels({
+    db: currentDb().db,
+    cipher: fakeCipher,
+    domain: 'byatlas.dev',
+    cloudflare: cloudflare as unknown as CloudflareTunnelClient,
+  })
 
   beforeEach(async () => {
     created = 0
     for (const mock of Object.values(cloudflare)) mock.mockClear()
-    await seedUsers('usr-1', 'usr-2')
+    await seedUser({ db: currentDb().db, id: 'usr-1' })
+    await seedUser({ db: currentDb().db, id: 'usr-2' })
   })
 
   it('creates tunnel, cname and ingress on first expose', async () => {
-    const reply = await service.expose({
+    const reply = await tunnels.expose({
       threadId: 'thr-1',
       userId: 'usr-1',
       port: 3000,
@@ -62,21 +60,23 @@ describe('PreviewTunnelService', () => {
       tunnelId: 'tun-1',
       rules: [{ hostname: new URL(reply.url).hostname, port: 3000 }],
     })
-    const row = await db.orm.public.PreviewTunnel.where({
-      threadId: 'thr-1',
-    }).first()
-    expect(row?.sealedTunnelToken).not.toContain('tok-1')
+    const row = await currentDb()
+      .db.orm.public.PreviewTunnel.where({
+        threadId: 'thr-1',
+      })
+      .first()
+    expect(row?.sealedTunnelToken).toBe('enc:tok-1')
   })
 
   it('answers a repeated port without calling cloudflare', async () => {
-    const first = await service.expose({
+    const first = await tunnels.expose({
       threadId: 'thr-1',
       userId: 'usr-1',
       port: 3000,
     })
     for (const mock of Object.values(cloudflare)) mock.mockClear()
 
-    const second = await service.expose({
+    const second = await tunnels.expose({
       threadId: 'thr-1',
       userId: 'usr-1',
       port: 3000,
@@ -87,12 +87,12 @@ describe('PreviewTunnelService', () => {
   })
 
   it('puts both rules when a second port is exposed and shares the label', async () => {
-    const first = await service.expose({
+    const first = await tunnels.expose({
       threadId: 'thr-1',
       userId: 'usr-1',
       port: 3000,
     })
-    const second = await service.expose({
+    const second = await tunnels.expose({
       threadId: 'thr-1',
       userId: 'usr-1',
       port: 4000,
@@ -106,42 +106,42 @@ describe('PreviewTunnelService', () => {
 
   it('serialises concurrent exposes of one thread onto one tunnel', async () => {
     await Promise.all([
-      service.expose({ threadId: 'thr-1', userId: 'usr-1', port: 3000 }),
-      service.expose({ threadId: 'thr-1', userId: 'usr-1', port: 3000 }),
-      service.expose({ threadId: 'thr-1', userId: 'usr-1', port: 4000 }),
+      tunnels.expose({ threadId: 'thr-1', userId: 'usr-1', port: 3000 }),
+      tunnels.expose({ threadId: 'thr-1', userId: 'usr-1', port: 3000 }),
+      tunnels.expose({ threadId: 'thr-1', userId: 'usr-1', port: 4000 }),
     ])
 
     expect(cloudflare.createTunnel).toHaveBeenCalledTimes(1)
-    expect(await db.orm.public.PreviewRoute.all()).toHaveLength(2)
+    expect(await currentDb().db.orm.public.PreviewRoute.all()).toHaveLength(2)
   })
 
   it('tears down dns records, tunnel and rows, and is a no-op when absent', async () => {
-    await service.expose({ threadId: 'thr-1', userId: 'usr-1', port: 3000 })
-    await service.expose({ threadId: 'thr-1', userId: 'usr-1', port: 4000 })
+    await tunnels.expose({ threadId: 'thr-1', userId: 'usr-1', port: 3000 })
+    await tunnels.expose({ threadId: 'thr-1', userId: 'usr-1', port: 4000 })
 
-    await service.teardown({ threadId: 'thr-1' })
+    await tunnels.teardown({ threadId: 'thr-1' })
 
     expect(cloudflare.deleteDnsRecord).toHaveBeenCalledTimes(2)
     expect(cloudflare.deleteTunnel).toHaveBeenCalledWith({ tunnelId: 'tun-1' })
-    expect(await db.orm.public.PreviewTunnel.all()).toEqual([])
-    expect(await db.orm.public.PreviewRoute.all()).toEqual([])
+    expect(await currentDb().db.orm.public.PreviewTunnel.all()).toEqual([])
+    expect(await currentDb().db.orm.public.PreviewRoute.all()).toEqual([])
     cloudflare.deleteTunnel.mockClear()
-    await service.teardown({ threadId: 'thr-1' })
+    await tunnels.teardown({ threadId: 'thr-1' })
     expect(cloudflare.deleteTunnel).not.toHaveBeenCalled()
   })
 
   it('keeps other threads untouched on teardown', async () => {
-    await service.expose({ threadId: 'thr-1', userId: 'usr-1', port: 3000 })
-    const other = await service.expose({
+    await tunnels.expose({ threadId: 'thr-1', userId: 'usr-1', port: 3000 })
+    const other = await tunnels.expose({
       threadId: 'thr-2',
       userId: 'usr-2',
       port: 3000,
     })
 
-    await service.teardown({ threadId: 'thr-1' })
+    await tunnels.teardown({ threadId: 'thr-1' })
 
     expect(other.tunnelToken).toBe('tok-2')
-    const rows = await db.orm.public.PreviewTunnel.all()
+    const rows = await currentDb().db.orm.public.PreviewTunnel.all()
     expect(rows.map((row) => row.threadId)).toEqual(['thr-2'])
   })
 
@@ -149,11 +149,11 @@ describe('PreviewTunnelService', () => {
     cloudflare.putIngress.mockRejectedValueOnce(new Error('cf down'))
 
     await expect(
-      service.expose({ threadId: 'thr-1', userId: 'usr-1', port: 3000 }),
+      tunnels.expose({ threadId: 'thr-1', userId: 'usr-1', port: 3000 }),
     ).rejects.toThrow('cf down')
 
     expect(cloudflare.deleteDnsRecord).toHaveBeenCalledTimes(1)
-    expect(await db.orm.public.PreviewRoute.all()).toEqual([])
+    expect(await currentDb().db.orm.public.PreviewRoute.all()).toEqual([])
   })
 
   it('adopts an existing cname that already points at this tunnel', async () => {
@@ -163,10 +163,10 @@ describe('PreviewTunnelService', () => {
       content: 'tun-1.cfargotunnel.com',
     })
 
-    await service.expose({ threadId: 'thr-1', userId: 'usr-1', port: 3000 })
+    await tunnels.expose({ threadId: 'thr-1', userId: 'usr-1', port: 3000 })
 
     expect(cloudflare.repointCname).not.toHaveBeenCalled()
-    expect((await db.orm.public.PreviewRoute.all())[0]?.dnsRecordId).toBe('rec-old')
+    expect((await currentDb().db.orm.public.PreviewRoute.all())[0]?.dnsRecordId).toBe('rec-old')
   })
 
   it('repoints an existing cname that targets another tunnel', async () => {
@@ -176,7 +176,7 @@ describe('PreviewTunnelService', () => {
       content: 'tun-orphan.cfargotunnel.com',
     })
 
-    const reply = await service.expose({
+    const reply = await tunnels.expose({
       threadId: 'thr-1',
       userId: 'usr-1',
       port: 3000,
@@ -187,6 +187,6 @@ describe('PreviewTunnelService', () => {
       hostname: new URL(reply.url).hostname,
       tunnelId: 'tun-1',
     })
-    expect((await db.orm.public.PreviewRoute.all())[0]?.dnsRecordId).toBe('rec-old')
+    expect((await currentDb().db.orm.public.PreviewRoute.all())[0]?.dnsRecordId).toBe('rec-old')
   })
 })

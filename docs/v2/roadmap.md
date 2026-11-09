@@ -23,6 +23,14 @@ Each slice is built in its own Atlas session and handed to a fresh session when 
 ## Current state
 
 _Updated at the end of every slice. Last update: 2026-11-09._
+- **The agent host calls the API for nothing, and both backends are NestJS (2026-11-09)**
+  (`dennis/agent-host-owns-its-work`, [0027](../decisions/0027-both-backends-own-their-work.md)):
+  `hostSelf.*` and `hostMemory.*` are gone; memory is `@dltech/atlas-memory` and previews are
+  `@dltech/atlas-previews`, evaluated in-process by the host over its own Postgres, and `apps/api`
+  keeps thin Nest adapters that answer exactly as before. `AGENT_HOST_TOKEN`, its middleware and
+  its tier entries are deleted. The host boots a `@nestjs/core` application context with modules
+  and providers while the stream server keeps `Bun.serve`. The host tier now carries
+  `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID`/`CLOUDFLARE_ZONE_ID` for `exposePort`.
 - **`plugins/memory` live-checked on production (2026-11-09)**: write → index in the next prompt →
   read → edit → a stale edit refused with `read it again` → delete, all through the agent; sessions
   `8a7ed307-0e59-48a1-8637-b48e328713b8` and `cef48f40-2327-4ff6-819b-dfa015c41709` (spec §8.7). The

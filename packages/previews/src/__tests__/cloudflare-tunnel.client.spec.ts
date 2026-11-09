@@ -1,19 +1,13 @@
-import { BadGatewayException } from '@nestjs/common'
 import { beforeEach, describe, expect, it } from 'bun:test'
-import { EnvService } from '../../../_core/config/env/env.service'
 import {
-  CloudflareRecordExistsError,
   CloudflareTunnelClient,
   type CloudflareFetchFn,
   type CloudflareHttpRequest,
   type CloudflareHttpResponse,
-} from './cloudflare-tunnel.client'
+} from '../cloudflare-tunnel.client'
+import { CloudflareRecordExistsError, PreviewUpstreamError } from '../errors'
 
-const env = new EnvService({
-  CLOUDFLARE_API_TOKEN: 'cf-token',
-  CLOUDFLARE_ACCOUNT_ID: 'acct',
-  CLOUDFLARE_ZONE_ID: 'zone',
-})
+const config = { apiToken: 'cf-token', accountId: 'acct', zoneId: 'zone' }
 
 const reply = (body: unknown, status = 200): CloudflareHttpResponse => ({
   ok: status >= 200 && status < 300,
@@ -28,7 +22,7 @@ describe('CloudflareTunnelClient', () => {
     calls.push({ url, request })
     return respond()
   }
-  const client = new CloudflareTunnelClient(env, { fetchFn })
+  const client = new CloudflareTunnelClient(config, { fetchFn })
 
   beforeEach(() => {
     calls.length = 0
@@ -162,26 +156,26 @@ describe('CloudflareTunnelClient', () => {
     })
   })
 
-  it('maps a non-2xx response to a bad gateway carrying cloudflare messages', async () => {
+  it('maps a non-2xx response to an upstream error carrying cloudflare messages', async () => {
     respond = () => reply({ success: false, errors: [{ message: 'bad name' }] }, 400)
 
     const failure = await client.createTunnel({ name: 'x' }).catch((error: unknown) => error)
 
-    expect(failure).toBeInstanceOf(BadGatewayException)
+    expect(failure).toBeInstanceOf(PreviewUpstreamError)
     expect((failure as Error).message).toContain('bad name')
   })
 
-  it('maps success:false on a 200 to a bad gateway', async () => {
+  it('maps success:false on a 200 to an upstream error', async () => {
     respond = () => reply({ success: false, errors: [{ message: 'nope' }] })
 
     await expect(client.putIngress({ tunnelId: 't', rules: [] })).rejects.toBeInstanceOf(
-      BadGatewayException,
+      PreviewUpstreamError,
     )
   })
 
   it('rejects a create response missing the token', async () => {
     respond = () => reply({ success: true, result: { id: 'tun-1' } })
 
-    await expect(client.createTunnel({ name: 'x' })).rejects.toBeInstanceOf(BadGatewayException)
+    await expect(client.createTunnel({ name: 'x' })).rejects.toBeInstanceOf(PreviewUpstreamError)
   })
 })
