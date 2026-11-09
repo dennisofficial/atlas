@@ -1,5 +1,4 @@
 import { randomBytes } from 'node:crypto'
-import { join } from 'node:path'
 import Electrobun, {
   ApplicationMenu,
   BrowserWindow,
@@ -9,7 +8,12 @@ import Electrobun, {
   Utils,
 } from 'electrobun/main'
 import { createDesktopHost } from '../host'
-import { bunPath, startNextServer } from '../host/next-server'
+import { DESKTOP_CONTRACT } from '../host/contract'
+import { bunPath } from '../host/next-server'
+import { bunWebPayloadFs, downloadBytes, fetchJson, sha256Of } from '../host/web-payload/ports'
+import { createWebUpdater } from '../host/web-payload/updater'
+import { startAppServer } from './app-server'
+import { bundledWebRoot, manifestUrlOf, payloadWebRoot, webRootOverrideOf } from './web-ota'
 import { startOnStablePort } from '../host/stable-port'
 import { defaultDesktopHome, podConfigFromEnv } from '../host/pods/config'
 import { resolveServeVersion } from '../host/pods/serve-version'
@@ -73,29 +77,77 @@ const startApp = async () => {
   const windowRef: { current?: BrowserWindow } = {}
   const linksRef: { current?: IExternalLinkRouter } = {}
   const home = defaultDesktopHome()
-  const nextServer = await startNextServer({
-    root: join(PATHS.RESOURCES_FOLDER, 'app', 'web', 'apps', 'web'),
+  const bundledRoot = bundledWebRoot({ resourcesFolder: PATHS.RESOURCES_FOLDER })
+  const webUpdater = createWebUpdater({
+    home,
+    manifestUrl: manifestUrlOf({ env: process.env }),
+    contract: DESKTOP_CONTRACT,
+    ports: {
+      fs: bunWebPayloadFs(),
+      fetchJson,
+      download: downloadBytes,
+      sha256: sha256Of,
+      log: writeLog,
+      setInterval: (handler, ms) => setInterval(handler, ms),
+      clearInterval: (timer) => clearInterval(timer),
+    },
+  })
+  const overrideRoot = webRootOverrideOf({ env: process.env })
+  const installedHash = overrideRoot === undefined ? await webUpdater.installedRoot() : undefined
+  const appServer = await startAppServer({
+    root:
+      overrideRoot ??
+      (installedHash === undefined ? bundledRoot : payloadWebRoot({ home, hash: installedHash })),
+    fallback: bundledRoot,
     bunPath: bunPath(),
   })
+  if (appServer.usedFallback() && installedHash !== undefined)
+    await webUpdater.fail({ hash: installedHash })
+  const applyWebPayload = async (): Promise<boolean> => {
+    const hash = webUpdater.pending() ?? (await webUpdater.installedRoot())
+    if (hash === undefined) return false
+    try {
+      const result = await appServer.restart({
+        root: payloadWebRoot({ home, hash }),
+        fallback: bundledRoot,
+      })
+      if (result.usedFallback) {
+        await webUpdater.fail({ hash })
+        return false
+      }
+    } catch (error) {
+      writeLog({ label: 'web-payload-restart', error })
+      return false
+    }
+    windowRef.current?.webview.executeJavascript(RELOAD_SCRIPT)
+    return true
+  }
   const startHost = (port: number) =>
     createDesktopHost({
       port,
-      appOrigin: nextServer.origin,
+      appOrigin: () => appServer.origin(),
       secret,
       pods: podConfig,
       app: { version: localInfo.version, channel: localInfo.channel, chromium },
       previewViews: { clear: () => void clearChildViews(windowRef.current?.webview.id) },
       auth: { home, openExternal: (url) => Utils.openExternal(url) },
       updates: {
-        status: updateState.status,
+        status: () => ({ ...updateState.status(), web: webUpdater.status() }),
         check: async () => {
           const result = await checkNow({ updater: Updater, onReady: updateState.markReady })
+          const web = await webUpdater.check()
           if (result.outcome === EManualCheckOutcome.Failed) {
-            return { state: EDesktopUpdateState.Idle, error: result.message }
+            return { state: EDesktopUpdateState.Idle, error: result.message, web }
           }
-          return updateState.status()
+          return { ...updateState.status(), web }
         },
-        restart: () => restartToPrepared({ updater: Updater, state: updateState }),
+        restart: async () => {
+          if (updateState.status().state === EDesktopUpdateState.Ready) {
+            await restartToPrepared({ updater: Updater, state: updateState })
+            return
+          }
+          await applyWebPayload()
+        },
       },
       window: {
         titlebarDoubleClick: () => {
@@ -151,22 +203,25 @@ const startApp = async () => {
     updater: Updater,
     onReady: updateState.markReady,
   })
+  webUpdater.start()
 
   ApplicationMenu.on('application-menu-clicked', (event: unknown) => {
     const action = (event as { data?: { action?: string } }).data?.action
     if (action === EMenuAction.Settings)
       win.webview.executeJavascript(navigateScript('/settings') ?? '')
     if (action === EMenuAction.CheckForUpdates)
-      void runCheckForUpdates({ state: updateState }).catch((error: unknown) =>
-        writeLog({ label: 'check-for-updates', error }),
-      )
+      void runCheckForUpdates({
+        state: updateState,
+        web: { check: () => webUpdater.check(), apply: applyWebPayload },
+      }).catch((error: unknown) => writeLog({ label: 'check-for-updates', error }))
     if (action === EMenuAction.Reload) win.webview.executeJavascript(RELOAD_SCRIPT)
     if (action === EMenuAction.ToggleDevTools) win.webview.toggleDevTools()
   })
 
   Electrobun.events.on('before-quit', () => {
+    webUpdater.stop()
     void host.stop()
-    void nextServer.stop()
+    void appServer.stop()
   })
 }
 
