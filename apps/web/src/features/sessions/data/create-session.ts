@@ -19,8 +19,16 @@ export async function createSessionWithMessage(args: {
   text: string
   media: readonly Attachment[]
   uploads: readonly SaidUpload[]
+  model?: string | undefined
+  effort?: string | undefined
+  fast?: boolean | undefined
 }): Promise<string> {
-  const { sessionId } = await args.api.create({ projectId: args.projectId })
+  const { sessionId } = await args.api.create({
+    projectId: args.projectId,
+    ...(args.model === undefined ? {} : { model: args.model }),
+    ...(args.effort === undefined ? {} : { effort: args.effort }),
+    ...(args.fast === undefined ? {} : { fast: args.fast }),
+  })
   await args.api.post(
     postInputOf({
       sessionId,

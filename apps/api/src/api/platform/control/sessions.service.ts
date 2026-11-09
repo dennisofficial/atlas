@@ -60,7 +60,14 @@ export class SessionsService {
     return args.projectId
   }
 
-  async create(args: { userId: string; projectId: string; title?: string | undefined }) {
+  async create(args: {
+    userId: string
+    projectId: string
+    title?: string | undefined
+    model?: string | undefined
+    effort?: string | undefined
+    fast?: boolean | undefined
+  }) {
     await this.accessibleProjectId({
       userId: args.userId,
       projectId: args.projectId,
@@ -73,6 +80,9 @@ export class SessionsService {
       projectId: args.projectId,
       title: args.title,
       mainThreadId,
+      modelRef: args.model,
+      modelEffort: args.effort,
+      modelFast: args.fast,
     })
     return { sessionId, mainThreadId }
   }

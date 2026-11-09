@@ -10,6 +10,9 @@ namespace v2 {
     nextInboxId  Int
     createdAt    TimestamptzJsDate(3)
     archivedAt   TimestamptzJsDate(3)?
+    modelRef     String?
+    modelEffort  String?
+    modelFast    Boolean?
     threads      V2Thread[]
     inbox        V2InboxEntry[]
     lease        V2Lease?

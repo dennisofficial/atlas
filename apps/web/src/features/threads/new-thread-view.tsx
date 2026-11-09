@@ -155,6 +155,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
         text,
         media,
         uploads,
+        ...createFieldsOf(selection),
       })
       session.clear()
       drafts.handleSent(text)

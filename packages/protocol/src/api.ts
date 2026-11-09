@@ -14,6 +14,9 @@ import { inboxMediaSchema, sessionPostMediaListSchema } from './media'
 export const sessionCreateInputSchema = z.strictObject({
   projectId: z.string().min(1),
   title: z.string().optional(),
+  model: z.string().min(1).optional(),
+  effort: z.string().min(1).optional(),
+  fast: z.boolean().optional(),
 })
 
 export const sessionListInputSchema = z.strictObject({

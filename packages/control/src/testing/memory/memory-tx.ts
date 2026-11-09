@@ -83,6 +83,9 @@ export class MemoryTx implements ControlTx {
     projectId: string
     title?: string | undefined
     mainThreadId: string
+    modelRef?: string | undefined
+    modelEffort?: string | undefined
+    modelFast?: boolean | undefined
     at: string
   }): Promise<void> {
     createSessionIn({ state: this.state, ...params })

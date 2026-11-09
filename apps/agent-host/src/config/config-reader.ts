@@ -89,7 +89,7 @@ export class ConfigReader implements ConfigSource {
           : db.orm.public.Thread.first({ id: threadId }),
       ],
     )
-    const threadModel = this.threadModelOf(thread)
+    const named = this.modelChoiceOf(thread) ?? this.modelChoiceOf(session)
     return {
       userId,
       projectId,
@@ -98,7 +98,7 @@ export class ConfigReader implements ConfigSource {
         accounts,
         activeAccounts,
         settings,
-        ...(threadModel === undefined ? {} : { thread: threadModel }),
+        ...(named === undefined ? {} : { thread: named }),
       }),
       workspace: workspaceOf(project),
       vercel: await this.vercelOf({ userId, row: vercel }),
@@ -106,18 +106,18 @@ export class ConfigReader implements ConfigSource {
     }
   }
 
-  private threadModelOf(
-    thread: {
+  private modelChoiceOf(
+    row: {
       modelRef: string | null
       modelEffort: string | null
       modelFast: boolean | null
     } | null,
   ): ThreadModelChoice | undefined {
-    if (thread === null || thread.modelRef === null) return undefined
+    if (row === null || row.modelRef === null) return undefined
     return {
-      ref: thread.modelRef,
-      ...(thread.modelEffort === null ? {} : { effort: thread.modelEffort }),
-      ...(thread.modelFast === null ? {} : { fast: thread.modelFast }),
+      ref: row.modelRef,
+      ...(row.modelEffort === null ? {} : { effort: row.modelEffort }),
+      ...(row.modelFast === null ? {} : { fast: row.modelFast }),
     }
   }
 

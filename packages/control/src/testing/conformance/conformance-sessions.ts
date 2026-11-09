@@ -83,9 +83,28 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
         mainThreadId: THREAD,
         createdAt: T0,
         archivedAt: null,
+        modelRef: null,
+        modelEffort: null,
+        modelFast: null,
       })
       expect(await plane.head({ threadId: THREAD })).toEqual({ seq: 0, hash: expect.any(String) })
       expect(await plane.readSession({ sessionId: 'unknown' })).toBeUndefined()
+    })
+
+    it('remembers the model the session was created with', async () => {
+      await plane.createSession({
+        sessionId: SESSION,
+        userId: USER,
+        projectId: PROJECT,
+        mainThreadId: THREAD,
+        modelRef: 'openai/gpt-5',
+        modelEffort: 'high',
+        modelFast: true,
+      })
+      const row = await plane.readSession({ sessionId: SESSION })
+      expect(row?.modelRef).toBe('openai/gpt-5')
+      expect(row?.modelEffort).toBe('high')
+      expect(row?.modelFast).toBe(true)
     })
 
     it('lists sessions newest first per user with the limit clamped', async () => {

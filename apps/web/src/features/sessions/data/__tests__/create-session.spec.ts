@@ -92,6 +92,26 @@ describe('createSessionWithMessage', () => {
     expect('uploads' in body).toBe(false)
   })
 
+  it('names the model the session starts on when one is picked', async () => {
+    const { api, calls } = fakeApi()
+
+    await createSessionWithMessage({
+      api,
+      projectId: 'proj-1',
+      text: 'hello',
+      media: [],
+      uploads: [],
+      model: 'openai/gpt-5',
+      effort: 'high',
+      fast: true,
+    })
+
+    expect(calls[0]).toEqual([
+      'create',
+      { projectId: 'proj-1', model: 'openai/gpt-5', effort: 'high', fast: true },
+    ])
+  })
+
   it('fails when the first message cannot be posted', async () => {
     const { api } = fakeApi({ postFails: true })
 
