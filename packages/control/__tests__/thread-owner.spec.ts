@@ -45,6 +45,7 @@ describe('threadOwnerOf', () => {
 
     await expect(threadOwnerOf({ handle: db, threadId: 'thr-1' })).resolves.toEqual({
       userId: 'usr-1',
+      projectId: 'prj-1',
       project: 'dennisofficial/atlas',
     })
   })
@@ -55,6 +56,7 @@ describe('threadOwnerOf', () => {
 
     await expect(threadOwnerOf({ handle: db, threadId: 'thr-1' })).resolves.toEqual({
       userId: 'usr-1',
+      projectId: 'prj-1',
       project: null,
     })
   })

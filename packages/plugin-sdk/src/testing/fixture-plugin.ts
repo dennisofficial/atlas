@@ -183,6 +183,7 @@ const noControlPlane = async () => {
 
 export const podControlStub: PodControl = {
   exposePort: noControlPlane,
+  webSearch: { config: noControlPlane },
   memory: {
     list: noControlPlane,
     read: noControlPlane,

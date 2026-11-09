@@ -30,7 +30,11 @@ const ctxOf = (args: {
   }
   return {
     sessionId: 'ses_42',
-    control: { exposePort: unsupported, memory: {} as never },
+    control: {
+      exposePort: unsupported,
+      memory: {} as never,
+      webSearch: { config: async () => ({ backend: 'bing', key: undefined }) },
+    },
     crew: {} as never,
     sessions: {} as never,
     worktrees: {} as never,

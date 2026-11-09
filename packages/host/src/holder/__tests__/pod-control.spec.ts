@@ -84,6 +84,7 @@ const recordingClient = (): PodControlClient & { calls: { threadId: string; port
       return { url: `https://${args.port}-abc.byatlas.dev`, tunnelToken: 'tunnel-token' }
     },
     memory: memoryStub,
+    webSearch: { config: async () => ({ backend: 'bing', key: undefined }) },
   }
 }
 
@@ -107,6 +108,7 @@ describe('podControlOf', () => {
     const control = podControlOf({
       client: {
         memory: memoryStub,
+        webSearch: { config: async () => ({ backend: 'bing', key: undefined }) },
         exposePort: async () => {
           throw new Error('the control plane said no')
         },
@@ -149,6 +151,7 @@ describe('a plugin tool reaching ctx.control', () => {
       plugins: composePlugins([probePlugin]),
       control: {
         memory: memoryStub,
+        webSearch: { config: async () => ({ backend: 'bing', key: undefined }) },
         exposePort: async () => {
           throw new Error('the control plane rejected the call (500): boom')
         },
@@ -168,6 +171,7 @@ describe('podControlOf wiring', () => {
   it('does not read a thread id from the tool input', async () => {
     const client = {
       memory: memoryStub,
+      webSearch: { config: async () => ({ backend: 'bing', key: undefined }) },
       exposePort: vi.fn(async () => ({ url: 'u', tunnelToken: 't' })),
     }
     const control = podControlOf({ client, threadId: toThreadId('thr_holder') })
