@@ -51,6 +51,7 @@ export type SessionSnapshot = {
   error: EStreamErrorCode | undefined
   skipped: number
   writerAhead: boolean
+  fromCache: boolean
 }
 
 export type SessionFollower = {
@@ -84,6 +85,7 @@ type Inner = {
   error: EStreamErrorCode | undefined
   skipped: number
   writerAhead: boolean
+  fromCache: boolean
 }
 
 const connectionOf = (inner: Pick<Inner, 'phase' | 'live'>): ESessionConnection => {
@@ -103,6 +105,7 @@ const snapshotOf = (inner: Inner): SessionSnapshot => ({
   error: inner.error,
   skipped: inner.skipped,
   writerAhead: inner.writerAhead,
+  fromCache: inner.fromCache,
 })
 
 const settlesSetup = (events: readonly Record<string, unknown>[]): boolean =>
@@ -130,6 +133,7 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
     error: undefined,
     skipped: 0,
     writerAhead: false,
+    fromCache: false,
   }
   let snapshot = snapshotOf(inner)
   const listeners = new Set<() => void>()
@@ -178,6 +182,7 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
       live: message.live,
       error: undefined,
       skipped: inner.skipped + skipped,
+      fromCache: false,
     })
     saveThrottled()
   }
@@ -255,7 +260,7 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
       .load(sessionId)
       .then((window) => {
         if (!settle() || window === undefined || inner.window.cursor !== undefined) return
-        commit({ ...inner, window })
+        commit({ ...inner, window, fromCache: window.cursor !== undefined })
       })
       .catch(() => void settle())
   })

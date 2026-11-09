@@ -17,21 +17,38 @@ import {
   type IModelSelection,
   modelGroupsOf,
   modelTriggerLabelOf,
+  personalModelLabelOf,
+  pinnedModelsOf,
   searchModelsOf,
   selectionOf,
+  togglePinnedModel,
+  withoutPinned,
 } from './model-options'
-import { ModelRow, ProviderMark } from './model-picker-rows'
+import { DefaultRow, ModelRow, ProviderMark } from './model-picker-rows'
 
 type Props = {
   models: readonly IModelOption[]
   selection: IModelSelection | null
-  onSelect: (selection: IModelSelection) => void
+  pinned: readonly string[]
+  personalId: string
+  onPinnedChange: (ids: string[]) => void
+  onSelect: (selection: IModelSelection | null) => void
 }
 
-const SheetBody = ({ models, selection, onSelect, onClose }: Props & { onClose: () => void }) => {
+const SheetBody = ({
+  models,
+  selection,
+  pinned,
+  personalId,
+  onPinnedChange,
+  onSelect,
+  onClose,
+}: Props & { onClose: () => void }) => {
   const theme = useTheme()
   const [query, setQuery] = useState('')
-  const groups = modelGroupsOf(searchModelsOf({ models, query }))
+  const pinnedShown = searchModelsOf({ models: pinnedModelsOf({ models, pinned }), query })
+  const groups = modelGroupsOf(searchModelsOf({ models: withoutPinned({ models, pinned }), query }))
+  const personalLabel = personalModelLabelOf({ models, personalId })
 
   const handleModel = (model: IModelOption) => {
     const next = selectionOf({
@@ -44,6 +61,26 @@ const SheetBody = ({ models, selection, onSelect, onClose }: Props & { onClose: 
     onSelect(next)
     onClose()
   }
+
+  const handleDefault = () => {
+    onSelect(null)
+    onClose()
+  }
+
+  const handlePin = (id: string) => onPinnedChange(togglePinnedModel({ pinned, id }))
+
+  const row = (model: IModelOption) => (
+    <ModelRow
+      key={model.id}
+      model={model}
+      selected={model.id === selection?.model.id}
+      pinned={pinned.includes(model.id)}
+      onTogglePin={() => handlePin(model.id)}
+      onPress={() => handleModel(model)}
+    />
+  )
+
+  const nothingMatches = groups.length === 0 && pinnedShown.length === 0
 
   return (
     <>
@@ -65,29 +102,33 @@ const SheetBody = ({ models, selection, onSelect, onClose }: Props & { onClose: 
         />
       </View>
       <ScrollView keyboardShouldPersistTaps="handled">
+        {query.trim() === '' ? (
+          <DefaultRow label={personalLabel} selected={selection === null} onPress={handleDefault} />
+        ) : null}
         {models.length === 0 ? (
           <Text size={ETextRole.Sm} tone={ETextTone.Muted} style={styles.empty}>
             No models yet
           </Text>
         ) : null}
-        {models.length > 0 && groups.length === 0 ? (
+        {models.length > 0 && nothingMatches ? (
           <Text size={ETextRole.Sm} tone={ETextTone.Muted} style={styles.empty}>
             No models match
           </Text>
         ) : null}
+        {pinnedShown.length === 0 ? null : (
+          <View>
+            <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={styles.group}>
+              Pinned
+            </Text>
+            {pinnedShown.map(row)}
+          </View>
+        )}
         {groups.map((group) => (
           <View key={group.providerId}>
             <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={styles.group}>
               {group.provider}
             </Text>
-            {group.models.map((model) => (
-              <ModelRow
-                key={model.id}
-                model={model}
-                selected={model.id === selection?.model.id}
-                onPress={() => handleModel(model)}
-              />
-            ))}
+            {group.models.map(row)}
           </View>
         ))}
       </ScrollView>
@@ -95,7 +136,14 @@ const SheetBody = ({ models, selection, onSelect, onClose }: Props & { onClose: 
   )
 }
 
-export const ModelSelect = ({ models, selection, onSelect }: Props) => {
+export const ModelSelect = ({
+  models,
+  selection,
+  pinned,
+  personalId,
+  onPinnedChange,
+  onSelect,
+}: Props) => {
   const theme = useTheme()
   const [open, setOpen] = useState(false)
   const label = modelTriggerLabelOf({ models, selection })
@@ -141,6 +189,9 @@ export const ModelSelect = ({ models, selection, onSelect }: Props) => {
             <SheetBody
               models={models}
               selection={selection}
+              pinned={pinned}
+              personalId={personalId}
+              onPinnedChange={onPinnedChange}
               onSelect={onSelect}
               onClose={() => setOpen(false)}
             />

@@ -1,51 +1,25 @@
 import {
   Button,
-  CardList,
   CardRow,
   EButtonSize,
   EButtonVariant,
-  EFontFamily,
-  EFontWeight,
   ETextRole,
   ETextTone,
   Text,
   useTheme,
 } from '@dltech/atlas-ui-native'
 import { space } from '@dltech/atlas-ui/tokens'
-import type { ReactNode } from 'react'
-import { Alert, Platform, ScrollView, StyleSheet, View } from 'react-native'
+import { Alert, Platform, ScrollView, StyleSheet } from 'react-native'
 
 import { useAuth } from '../../auth/auth-provider'
+import { ModelDefaultsSection } from '../../settings/model-defaults-section'
+import { Row, Section } from '../../settings/settings-parts'
 import {
   ETestResult,
   usePermissionStatus,
   useTestNotification,
   useUpdateInfo,
 } from '../../settings/use-settings'
-
-const Section = ({ title, children }: { title: string; children: ReactNode }) => (
-  <View style={styles.section}>
-    <Text size={ETextRole.Sm} weight={EFontWeight.Medium} style={styles.sectionTitle}>
-      {title}
-    </Text>
-    <CardList>{children}</CardList>
-  </View>
-)
-
-const Row = ({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) => (
-  <CardRow>
-    <Text size={ETextRole.Sm}>{label}</Text>
-    <Text
-      size={ETextRole.Sm}
-      tone={ETextTone.Muted}
-      family={mono ? EFontFamily.Mono : EFontFamily.Sans}
-      numberOfLines={1}
-      style={styles.value}
-    >
-      {value}
-    </Text>
-  </CardRow>
-)
 
 const confirmSignOut = (signOut: () => void) => {
   if (Platform.OS !== 'web') {
@@ -72,6 +46,7 @@ export default function SettingsScreen() {
         <Row label="Email" value={user?.email ?? 'Unknown account'} />
         {user?.name !== undefined ? <Row label="Name" value={user.name} /> : null}
       </Section>
+      <ModelDefaultsSection />
       <Section title="Notifications">
         <Row label="Permission" value={permissionStatus} />
         <CardRow>
@@ -125,12 +100,6 @@ const styles = StyleSheet.create({
     gap: space(6),
     padding: space(4),
     paddingBottom: space(10),
-  },
-  section: {
-    gap: space(2),
-  },
-  sectionTitle: {
-    paddingHorizontal: space(1),
   },
   value: {
     flexShrink: 1,

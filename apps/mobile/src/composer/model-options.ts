@@ -105,6 +105,47 @@ export const modelGroupsOf = (models: readonly IModelOption[]): readonly IModelG
   }))
 }
 
+export const pinnedModelsOf = ({
+  models,
+  pinned,
+}: {
+  models: readonly IModelOption[]
+  pinned: readonly string[]
+}): readonly IModelOption[] => {
+  const byId = new Map(models.map((model) => [model.id, model]))
+  return pinned.flatMap((id) => {
+    const model = byId.get(id)
+    return model === undefined ? [] : [model]
+  })
+}
+
+export const withoutPinned = ({
+  models,
+  pinned,
+}: {
+  models: readonly IModelOption[]
+  pinned: readonly string[]
+}): readonly IModelOption[] => {
+  const held = new Set(pinned)
+  return models.filter((model) => !held.has(model.id))
+}
+
+export const togglePinnedModel = ({
+  pinned,
+  id,
+}: {
+  pinned: readonly string[]
+  id: string
+}): string[] => (pinned.includes(id) ? pinned.filter((entry) => entry !== id) : [...pinned, id])
+
+export const personalModelLabelOf = ({
+  models,
+  personalId,
+}: {
+  models: readonly IModelOption[]
+  personalId: string
+}): string | null => models.find((model) => model.id === personalId)?.label ?? null
+
 export const searchModelsOf = ({
   models,
   query,

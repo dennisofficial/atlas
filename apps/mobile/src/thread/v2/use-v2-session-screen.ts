@@ -1,4 +1,4 @@
-import { sessionStateLineOf } from '@dltech/atlas-client/stream'
+import { ESessionConnection, sessionStateLineOf } from '@dltech/atlas-client/stream'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { useAuth } from '../../auth/auth-provider'
@@ -11,6 +11,8 @@ export type V2SessionScreen = V2ThreadView & {
   now: number
   stateLine: string | null
   loaded: boolean
+  fromCache: boolean
+  catchingUp: boolean
   failedToLoad: boolean
   stale: boolean
   send: (message: { text: string }) => Promise<boolean>
@@ -58,6 +60,8 @@ export function useV2SessionScreen(sessionId: string): V2SessionScreen {
     now,
     stateLine: sessionStateLineOf(snapshot),
     loaded: snapshot.cursor !== undefined || snapshot.status !== undefined,
+    fromCache: snapshot.fromCache,
+    catchingUp: snapshot.fromCache && snapshot.connection !== ESessionConnection.Live,
     failedToLoad: snapshot.error !== undefined,
     stale: snapshot.skipped > 0,
     send,

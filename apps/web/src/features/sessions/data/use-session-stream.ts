@@ -19,6 +19,7 @@ const NOT_FOLLOWING: SessionSnapshot = {
   error: undefined,
   skipped: 0,
   writerAhead: false,
+  fromCache: false,
 }
 
 const notFollowingSnapshot = (): SessionSnapshot => NOT_FOLLOWING

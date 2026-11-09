@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Composer } from '../../../thread/composer/composer'
 import { StaleCard } from '../../../thread/composer/stale-card'
+import { SessionSkeleton } from '../../../thread/components/session-skeleton'
 import { Transcript } from '../../../thread/components/transcript'
 import { useV2SessionScreen } from '../../../thread/v2/use-v2-session-screen'
 
@@ -28,11 +29,7 @@ export default function SessionScreen() {
   return (
     <View style={[styles.screen, { backgroundColor: theme.background }]}>
       <Stack.Screen options={{ title: session.failedToLoad ? '' : (title ?? '') }} />
-      {!session.loaded && !session.failedToLoad ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={theme.primary} />
-        </View>
-      ) : null}
+      {session.loaded || session.failedToLoad ? null : <SessionSkeleton />}
       {session.failedToLoad ? (
         <View style={styles.center}>
           <Text size={ETextRole.Sm} tone={ETextTone.Destructive}>
@@ -72,9 +69,14 @@ export default function SessionScreen() {
               </View>
             ) : null}
             {session.stateLine === null ? null : (
-              <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={styles.state}>
-                {session.stateLine}
-              </Text>
+              <View style={styles.stateRow}>
+                {session.catchingUp ? (
+                  <ActivityIndicator size="small" color={theme.mutedForeground} />
+                ) : null}
+                <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={styles.state}>
+                  {session.stateLine}
+                </Text>
+              </View>
             )}
             <Composer working={session.working} onSend={session.send} onStop={session.stop} />
           </View>
@@ -111,8 +113,14 @@ const styles = StyleSheet.create({
     paddingBottom: space(2),
     paddingHorizontal: space(3),
   },
-  state: {
+  stateRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: space(1.5),
     paddingBottom: space(1),
     paddingHorizontal: space(4),
+  },
+  state: {
+    flexShrink: 1,
   },
 })

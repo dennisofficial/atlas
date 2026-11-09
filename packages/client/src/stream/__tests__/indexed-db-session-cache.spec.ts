@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { IDBFactory } from 'fake-indexeddb'
 
-import type { SessionWindow } from '@dltech/atlas-client/stream'
+import type { SessionWindow } from '../session-window'
 
 import {
   createIndexedDbSessionCache,

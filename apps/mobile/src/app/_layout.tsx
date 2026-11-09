@@ -14,6 +14,7 @@ import {
   installNotificationHandler,
   subscribeToNotificationResponses,
 } from '../push/notification-handler'
+import { SettingsProvider } from '../settings/settings-provider'
 import { SplashOverlay } from '../splash/splash-overlay'
 import { fontAssets } from '../theme/fonts'
 import { navigationThemeOf } from '../theme/navigation-theme'
@@ -59,8 +60,10 @@ export default function RootLayout() {
       <AnalyticsProvider>
         <ThemeProvider value={navigationThemeOf({ theme, dark })}>
           <AuthProvider>
-            <RootStack fontsReady={fontsLoaded || fontError !== null} />
-            <StatusBar style={dark ? 'light' : 'dark'} />
+            <SettingsProvider>
+              <RootStack fontsReady={fontsLoaded || fontError !== null} />
+              <StatusBar style={dark ? 'light' : 'dark'} />
+            </SettingsProvider>
           </AuthProvider>
         </ThemeProvider>
       </AnalyticsProvider>

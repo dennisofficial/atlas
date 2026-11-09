@@ -1,9 +1,11 @@
 import type { Attachment } from '@dltech/atlas-core'
 import { EFontWeight, ETextRole, Text, useTheme } from '@dltech/atlas-ui-native'
+import { decodeModelFavourites, encodeModelFavourites } from '@dltech/atlas-wire/web'
 import { space } from '@dltech/atlas-ui/tokens'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native'
+import { z } from 'zod'
 
 import { useAuth } from '../../auth/auth-provider'
 import { createSession } from '../../composer/create-session'
@@ -13,6 +15,7 @@ import { ModelSelect } from '../../composer/model-picker'
 import type { IProjectOption } from '../../composer/project-options'
 import { ProjectSelect } from '../../composer/project-select'
 import { useModels } from '../../composer/use-models'
+import { useSettings } from '../../settings/settings-provider'
 import { Composer } from '../../thread/composer/composer'
 
 export default function NewSessionScreen() {
@@ -25,8 +28,14 @@ export default function NewSessionScreen() {
   const [effort, setEffort] = useState<string | null>(null)
   const [fast, setFast] = useState(false)
   const { models } = useModels()
+  const settings = useSettings()
+  const [localPinned, setLocalPinned] = useState<string[] | null>(null)
   const selection = selectionOf({ models, modelId, effort, fast })
   const efforts = effortChoicesOf(selection)
+  const personalId = settings.read({ key: 'model.id', schema: z.string() })
+  const pinned =
+    localPinned ??
+    decodeModelFavourites(settings.read({ key: 'model.favourites', schema: z.string() }))
 
   useEffect(() => {
     if (api === undefined) return
@@ -40,10 +49,17 @@ export default function NewSessionScreen() {
     })
   }, [api])
 
-  const handleModelSelect = (next: IModelSelection) => {
-    setModelId(next.model.id)
-    setEffort(next.effort)
-    setFast(next.fast)
+  const handleModelSelect = (next: IModelSelection | null) => {
+    setModelId(next?.model.id ?? null)
+    setEffort(next?.effort ?? null)
+    setFast(next?.fast ?? false)
+  }
+
+  const handlePinnedChange = (ids: string[]) => {
+    setLocalPinned(ids)
+    settings
+      .save({ 'model.favourites': encodeModelFavourites(ids) })
+      .catch(() => setLocalPinned(null))
   }
 
   const handleEffortSelect = (name: string) => setEffort(name)
@@ -89,7 +105,14 @@ export default function NewSessionScreen() {
           onSend={handleSend}
         >
           <View style={styles.footer}>
-            <ModelSelect models={models} selection={selection} onSelect={handleModelSelect} />
+            <ModelSelect
+              models={models}
+              selection={selection}
+              pinned={pinned}
+              personalId={personalId}
+              onPinnedChange={handlePinnedChange}
+              onSelect={handleModelSelect}
+            />
             {selection === null || efforts.length === 0 ? null : (
               <EffortSelect selection={selection} onChange={handleEffortSelect} />
             )}

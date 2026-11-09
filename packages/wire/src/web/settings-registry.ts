@@ -1,3 +1,6 @@
+import { z } from 'zod'
+
+import type { SettingScalar } from './setting-codec'
 import {
   HARNESS_SETTING_ENTRIES,
   HARNESS_SETTING_PREFIXES,
@@ -31,6 +34,18 @@ export const isProjectSettingKey = (key: string): boolean =>
     prefixes: HARNESS_SETTING_PREFIXES,
     key,
   }) !== undefined
+
+export const resolveCloudSetting = <TValue extends SettingScalar>(args: {
+  values: ReadonlyMap<string, SettingScalar>
+  key: string
+  schema: z.ZodType<TValue>
+}): TValue => {
+  const entry = CLOUD_SETTING_REGISTRY.get(args.key)
+  if (entry === undefined) throw new Error(`setting ${args.key} is not in the registry`)
+  const stored = args.schema.safeParse(args.values.get(args.key))
+  if (stored.success) return stored.data
+  return args.schema.parse(entry.fallback)
+}
 
 export const validateCloudSetting = (args: { key: string; stored: string }): SettingValidation =>
   validateAgainst({

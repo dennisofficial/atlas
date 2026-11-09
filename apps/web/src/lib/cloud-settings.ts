@@ -4,9 +4,9 @@ import { useCallback } from 'react'
 import { z } from 'zod'
 
 import {
-  CLOUD_SETTING_REGISTRY,
   decodeSettingValue,
   encodeSettingValue,
+  resolveCloudSetting,
   type SettingScalar,
 } from '@dltech/atlas-wire/web'
 
@@ -35,11 +35,7 @@ export function resolveSetting<TValue extends SettingScalar>(args: {
   key: string
   schema: z.ZodType<TValue>
 }): TValue {
-  const entry = CLOUD_SETTING_REGISTRY.get(args.key)
-  if (entry === undefined) throw new Error(`setting ${args.key} is not in the registry`)
-  const stored = args.schema.safeParse(args.values.get(args.key))
-  if (stored.success) return stored.data
-  return args.schema.parse(entry.fallback)
+  return resolveCloudSetting(args)
 }
 
 export type CloudSettings = {
