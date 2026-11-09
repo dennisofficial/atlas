@@ -23,6 +23,13 @@ Each slice is built in its own Atlas session and handed to a fresh session when 
 ## Current state
 
 _Updated at the end of every slice. Last update: 2026-11-09._
+- **`plugins/sessions` live-checked on production (2026-11-09)** (`#2095`): a session spawned a peer
+  into its own sandbox — the peer saw the lead's background shell and reported back in a named peer
+  lane; the 20-message budget refused the 21st message and the operator reset it; archiving put the
+  peer in the parent's Done group. Session `b6cdbfe7-63b3-4f46-a3fe-c493b3fe06cc`, agent host
+  `bd4eb64b1` (spec §8.9). The live check also proved how a shared pod parks: the lead's last turn
+  lost its lease before `shell_kill`, and the sandbox was left to its deadline rather than stopped
+  under a peer.
 - **`plugins/crew` worktree tools live-checked on production (2026-11-09)** (`#2084`, `#2086`,
   `#2087`): `enter_worktree`, `exit_worktree`, `worktree_list` and `agent_spawn.worktree`, plus the
   web crew chip and panel. A child spawned into a new worktree ran, committed and reported from it;
