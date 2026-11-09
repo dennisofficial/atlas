@@ -9,7 +9,13 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 import { ETurnStatus, type LoopTurnRunner, type TurnOutcome } from '@dltech/atlas-agent'
-import type { PodCrew, SubagentSaid, SubagentSnapshot } from '@dltech/atlas-plugin-sdk'
+import type {
+  PodCrew,
+  SubagentSaid,
+  SubagentSnapshot,
+  SubagentWorktree,
+  WorktreeEntryInfo,
+} from '@dltech/atlas-plugin-sdk'
 
 import type { HeldSessionDeps } from '../held-session-deps'
 import type { SessionRuntime } from '../ports'
@@ -35,6 +41,7 @@ export type ChildRunArgs = {
   epoch: number
   agentType: string
   intent: string
+  worktree?: WorktreeEntryInfo | undefined
   signal: AbortSignal
   onLeaseLost(error: LeaseLostError): void
   drainDeadline(): number | undefined
@@ -83,6 +90,7 @@ export class ChildRun {
       nowIso: () => new Date(args.deps.timers.now()).toISOString(),
       ...(args.deps.log === undefined ? {} : { log: args.deps.log }),
     })
+    if (args.worktree !== undefined) await run.seedWorktree(args.worktree)
     await run.appendToParent([
       {
         type: 'agent-spawned',
@@ -90,6 +98,7 @@ export class ChildRun {
         agentType: args.agentType,
         intent: args.intent,
         mode: EAgentStart.Fresh,
+        ...(args.worktree === undefined ? {} : { worktree: run.worktreeOf }),
       },
     ])
     return run
@@ -135,6 +144,28 @@ export class ChildRun {
       status:
         this.ending ?? (this.pump === undefined ? EAgentStatus.Stopped : EAgentStatus.Running),
       endedAt: this.endedAt,
+      worktree: this.worktreeOf,
+    })
+  }
+
+  get worktreeOf(): SubagentWorktree | undefined {
+    const worktree = this.args.worktree
+    return worktree === undefined ? undefined : { path: worktree.path, branch: worktree.branch }
+  }
+
+  private async seedWorktree(worktree: WorktreeEntryInfo): Promise<void> {
+    await this.record.append({
+      threadId: this.agentId,
+      runId: this.args.deps.ids.nextRunId(),
+      drafts: [
+        {
+          type: 'worktree-entered',
+          path: worktree.path,
+          branch: worktree.branch,
+          ...(worktree.base === undefined ? {} : { base: worktree.base }),
+          adopted: worktree.adopted === true,
+        },
+      ],
     })
   }
 

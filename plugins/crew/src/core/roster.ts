@@ -13,6 +13,7 @@ export const crewRowSchema = z.object({
   startedAt: z.string(),
   endedAt: z.string().optional(),
   prose: z.string().optional(),
+  worktree: z.object({ path: z.string(), branch: z.string() }).optional(),
 })
 
 export const crewViewSchema = z.array(crewRowSchema).readonly()
@@ -38,6 +39,7 @@ export const foldCrew = (state: CrewViewState, event: Event | V2Event): CrewView
       turns: 0,
       toolCalls: 0,
       startedAt: event.at,
+      ...(event.worktree === undefined ? {} : { worktree: event.worktree }),
     })
   }
   if (event.type === 'agent-restarted') {

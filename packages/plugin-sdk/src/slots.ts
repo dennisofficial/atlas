@@ -13,8 +13,18 @@ import type { CallOp, CallResult, DaemonEventFrame } from '@dltech/atlas-protoco
 
 import type { PodCrew } from './crew'
 import type { PodMemory } from './memory'
+import type { PodWorktrees } from './worktrees'
 
-export type { PodCrew, SubagentSaid, SubagentSnapshot } from './crew'
+export type { PodCrew, SubagentSaid, SubagentSnapshot, SubagentWorktree } from './crew'
+export { EMPTY_WORKTREES } from './worktrees'
+export type {
+  PodWorktrees,
+  WorktreeEntryInfo,
+  WorktreeListing,
+  WorktreeRecord,
+  WorktreeRemoval,
+  WorktreeState,
+} from './worktrees'
 export type {
   MemoryAddress,
   MemoryEntry,
@@ -34,6 +44,7 @@ export type PluginPodContext = {
   sessionId: string
   control: PodControl
   crew: PodCrew
+  worktrees: PodWorktrees
   append(drafts: readonly (EventDraft | RecordBody | PluginEventBody)[]): Promise<void>
   events(): readonly V2Event[]
   call(

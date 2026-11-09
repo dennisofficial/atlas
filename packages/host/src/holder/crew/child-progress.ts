@@ -1,6 +1,6 @@
 import { EAgentStatus, type AssistantPart, type ThreadId, type V2Event } from '@dltech/atlas-core'
 import { ETurnStatus, type TurnOutcome } from '@dltech/atlas-agent'
-import type { SubagentSnapshot } from '@dltech/atlas-plugin-sdk'
+import type { SubagentSnapshot, SubagentWorktree } from '@dltech/atlas-plugin-sdk'
 
 export type Progress = {
   turns: number
@@ -63,6 +63,7 @@ export const snapshotOf = (args: {
   events: readonly V2Event[]
   status: EAgentStatus
   endedAt: string | undefined
+  worktree: SubagentWorktree | undefined
 }): SubagentSnapshot => {
   const progress = progressOf(args.events)
   return {
@@ -76,5 +77,6 @@ export const snapshotOf = (args: {
     ...(args.endedAt === undefined ? {} : { endedAt: args.endedAt }),
     ...(progress.prose === '' ? {} : { prose: progress.prose }),
     ...(progress.lastTool === undefined ? {} : { lastTool: progress.lastTool }),
+    ...(args.worktree === undefined ? {} : { worktree: args.worktree }),
   }
 }

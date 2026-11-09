@@ -126,4 +126,16 @@ describe('the crew view', () => {
     const state = crewOfEvents([spawned(1)])
     expect(foldCrew(state, stamp({ type: 'assistant-said', text: 'hi' }, 2))).toBe(state)
   })
+
+  it('carries the worktree a child was spawned into', () => {
+    const state = crewOfEvents([
+      spawned(1, {
+        worktree: { path: '/work/.atlas/worktrees/dennis/wt', branch: 'dennis/wt' },
+      }),
+    ])
+    expect(state[0]?.worktree).toEqual({
+      path: '/work/.atlas/worktrees/dennis/wt',
+      branch: 'dennis/wt',
+    })
+  })
 })

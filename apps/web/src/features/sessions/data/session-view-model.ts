@@ -1,5 +1,11 @@
 import { EMeterBasis, type SpendTally } from '@dltech/atlas-core'
 import {
+  crewOfView,
+  crewRosterOf,
+  type CrewRoster,
+  type CrewRow,
+} from '@dltech/atlas-plugin-crew/client'
+import {
   subscribedPullRequestsOf,
   type SubscribedPullRequest,
 } from '@dltech/atlas-plugin-github/client'
@@ -23,6 +29,8 @@ export type SessionViewModel = {
   entries: PullRequestEntry[]
   subscriptions: readonly SubscribedPullRequest[]
   shells: ShellRoster
+  crew: CrewRoster
+  crewRows: readonly CrewRow[]
   previews: readonly PreviewItem[]
   context: SessionContextModel | null
   spend: SpendTally | null
@@ -81,6 +89,8 @@ export const sessionViewModelOf = (view: SessionViewOutput | undefined): Session
       entries: [],
       subscriptions: [],
       shells: { running: 0, awaitingInput: false, labels: [] },
+      crew: { running: 0, total: 0 },
+      crewRows: [],
       previews: [],
       context: null,
       spend: null,
@@ -93,6 +103,8 @@ export const sessionViewModelOf = (view: SessionViewOutput | undefined): Session
     ),
     subscriptions: subscribedPullRequestsOf(view.pluginViews),
     shells: shellRosterOf(view.pluginViews),
+    crew: crewRosterOf(view.pluginViews),
+    crewRows: crewOfView(view.pluginViews),
     previews: previewsOfView(view.pluginViews),
     context: contextOfView(view),
     spend: view.spend.tally,
