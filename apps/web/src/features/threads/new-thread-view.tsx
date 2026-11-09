@@ -11,6 +11,7 @@ import { createLocalThread, newLocalThreadId } from '@/features/desktop/create-l
 import { ERunnerChoice, RunnerToggle } from '@/features/desktop/runner-toggle'
 import { useDesktop } from '@/features/desktop/use-desktop'
 import { createSessionWithMessage } from '@/features/sessions/data/create-session'
+import { sessionStream } from '@/features/sessions/data/session-stream'
 import { sessionsApi } from '@/features/sessions/data/sessions-api'
 import { useSessionAttachments } from '@/features/sessions/data/use-session-attachments'
 import { EEngine, EngineToggle } from '@/features/sessions/engine-toggle'
@@ -148,6 +149,8 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
     const { media, uploads } = session
     if (text.trim().length === 0 && media.length === 0 && uploads.length === 0) return
     setCreating(true)
+    void sessionStream()
+    void import('@/features/sessions/session-view')
     try {
       const sessionId = await createSessionWithMessage({
         api: sessionsApi,

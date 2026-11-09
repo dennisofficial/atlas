@@ -6,9 +6,9 @@ export type CreateSessionApi = {
         model?: string
         effort?: string
         fast?: boolean
+        firstMessage?: { text: string }
       }): Promise<{ sessionId: string }>
     }
-    post: { mutate(input: { sessionId: string; text: string }): Promise<unknown> }
   }
 }
 
@@ -25,7 +25,7 @@ export const createSession = async (args: {
     ...(args.model === undefined ? {} : { model: args.model }),
     ...(args.effort === undefined ? {} : { effort: args.effort }),
     ...(args.fast === undefined ? {} : { fast: args.fast }),
+    firstMessage: { text: args.text },
   })
-  await args.api.sessions.post.mutate({ sessionId, text: args.text })
   return sessionId
 }

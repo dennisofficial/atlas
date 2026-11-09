@@ -21,6 +21,7 @@ import {
   type SessionCommandOutput,
   type SessionEventsOutput,
   type SessionListOutput,
+  type SessionMessageDraft,
   type SessionPostMedia,
   type SessionRetryOutput,
   type SessionStatusOutput,
@@ -67,6 +68,7 @@ export class SessionsService {
     model?: string | undefined
     effort?: string | undefined
     fast?: boolean | undefined
+    firstMessage?: SessionMessageDraft | undefined
   }) {
     await this.accessibleProjectId({
       userId: args.userId,
@@ -74,7 +76,7 @@ export class SessionsService {
     })
     const sessionId = randomUUID()
     const mainThreadId = randomUUID()
-    await this.plane.createSession({
+    const session = {
       sessionId,
       userId: args.userId,
       projectId: args.projectId,
@@ -83,6 +85,24 @@ export class SessionsService {
       modelRef: args.model,
       modelEffort: args.effort,
       modelFast: args.fast,
+    }
+    if (args.firstMessage === undefined) {
+      await this.plane.createSession(session)
+      return { sessionId, mainThreadId }
+    }
+    const message = await this.messageOf({ userId: args.userId, draft: args.firstMessage })
+    const { inboxId } = await this.plane.createSessionWithMessage({
+      ...session,
+      message: { kind: INBOX_KIND_MESSAGE, payload: message.payload },
+    })
+    this.nameIfUntitled({
+      userId: args.userId,
+      sessionId,
+      projectId: args.projectId,
+      title: args.title,
+      text: args.firstMessage.text,
+      attachments: message.attachments,
+      inboxId,
     })
     return { sessionId, mainThreadId }
   }
@@ -113,42 +133,71 @@ export class SessionsService {
     attachments?: readonly Attachment[] | undefined
   }) {
     const session = await this.requireOwnedSession(args)
+    const message = await this.messageOf({ userId: args.userId, draft: args })
+    const { inboxId } = await this.plane.post({
+      sessionId: args.sessionId,
+      kind: INBOX_KIND_MESSAGE,
+      payload: message.payload,
+    })
+    this.nameIfUntitled({
+      userId: args.userId,
+      sessionId: args.sessionId,
+      projectId: session.projectId,
+      title: session.title,
+      text: args.text,
+      attachments: message.attachments,
+      inboxId,
+    })
+    return { inboxId }
+  }
+
+  private async messageOf(args: {
+    userId: string
+    draft: SessionMessageDraft
+  }): Promise<{ payload: string; attachments: readonly Attachment[] }> {
     const attachments = await postedAttachmentsOf({
       registry: this.media,
       store: this.store,
       userId: args.userId,
-      media: args.media,
-      uploads: args.uploads,
-      attachments: args.attachments,
+      media: args.draft.media,
+      uploads: args.draft.uploads,
+      attachments: args.draft.attachments,
     })
-    const payload = JSON.stringify(
-      inboxMessageSchema.parse({
+    return {
+      payload: JSON.stringify(
+        inboxMessageSchema.parse({
+          text: args.draft.text,
+          ...(attachments.length === 0 ? {} : { attachments }),
+        }),
+      ),
+      attachments,
+    }
+  }
+
+  private nameIfUntitled(args: {
+    userId: string
+    sessionId: string
+    projectId: string
+    title: string | null | undefined
+    text: string
+    attachments: readonly Attachment[]
+    inboxId: number
+  }): void {
+    if (args.title !== null && args.title !== undefined) return
+    this.background.keepAlive(
+      nameSession({
+        store: this.store,
+        titler: this.titler,
+        plane: this.plane,
+        logger: this.logger,
+        userId: args.userId,
+        sessionId: args.sessionId,
+        projectId: args.projectId,
         text: args.text,
-        ...(attachments.length === 0 ? {} : { attachments }),
+        attachments: args.attachments,
+        inboxId: args.inboxId,
       }),
     )
-    const { inboxId } = await this.plane.post({
-      sessionId: args.sessionId,
-      kind: INBOX_KIND_MESSAGE,
-      payload,
-    })
-    if (session.title === null) {
-      this.background.keepAlive(
-        nameSession({
-          store: this.store,
-          titler: this.titler,
-          plane: this.plane,
-          logger: this.logger,
-          userId: args.userId,
-          sessionId: args.sessionId,
-          projectId: session.projectId,
-          text: args.text,
-          attachments,
-          inboxId,
-        }),
-      )
-    }
-    return { inboxId }
   }
 
   async withdraw(args: {

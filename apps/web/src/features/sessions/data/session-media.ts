@@ -10,6 +10,7 @@ import type {
   MediaConfirmOutput,
   MediaPresignInput,
   MediaPresignOutput,
+  SessionMessageDraft,
   SessionPostInput,
   SessionPostMedia,
 } from '@dltech/atlas-protocol'
@@ -188,19 +189,24 @@ export function readyMediaOf(held: readonly HeldMedia[]): SessionPostMedia[] {
   })
 }
 
+export const messageInputOf = (args: {
+  text: string
+  media: readonly Attachment[]
+  uploads: readonly SaidUpload[]
+}): SessionMessageDraft => {
+  const attachments = [...args.media, ...attachmentsOf({ uploads: args.uploads })]
+  return {
+    text: args.text,
+    ...(attachments.length === 0 ? {} : { attachments }),
+  }
+}
+
 export const postInputOf = (args: {
   sessionId: string
   text: string
   media: readonly Attachment[]
   uploads: readonly SaidUpload[]
-}): SessionPostInput => {
-  const attachments = [...args.media, ...attachmentsOf({ uploads: args.uploads })]
-  return {
-    sessionId: args.sessionId,
-    text: args.text,
-    ...(attachments.length === 0 ? {} : { attachments }),
-  }
-}
+}): SessionPostInput => ({ sessionId: args.sessionId, ...messageInputOf(args) })
 
 const CHIP_STATUS: Record<EAttachmentStatus, EPromptAttachmentStatus> = {
   [EAttachmentStatus.Uploading]: EPromptAttachmentStatus.Uploading,

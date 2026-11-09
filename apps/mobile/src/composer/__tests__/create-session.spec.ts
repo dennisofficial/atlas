@@ -5,7 +5,6 @@ import { createSession, type CreateSessionApi } from '../create-session'
 type CreateInput = Parameters<CreateSessionApi['sessions']['create']['mutate']>[0]
 
 const fakeApi = () => {
-  const posted: { sessionId: string; text: string }[] = []
   const created: CreateInput[] = []
   const api: CreateSessionApi = {
     sessions: {
@@ -15,24 +14,17 @@ const fakeApi = () => {
           return { sessionId: 'ses_1' }
         },
       },
-      post: {
-        mutate: async (input) => {
-          posted.push(input)
-          return { inboxId: 1 }
-        },
-      },
     },
   }
-  return { api, created, posted }
+  return { api, created }
 }
 
 describe('createSession', () => {
-  it('creates a v2 session and posts the first message into it', async () => {
+  it('creates a v2 session with its first message in one call', async () => {
     const fake = fakeApi()
     const sessionId = await createSession({ api: fake.api, projectId: 'p1', text: 'hello' })
     expect(sessionId).toBe('ses_1')
-    expect(fake.created).toEqual([{ projectId: 'p1' }])
-    expect(fake.posted).toEqual([{ sessionId: 'ses_1', text: 'hello' }])
+    expect(fake.created).toEqual([{ projectId: 'p1', firstMessage: { text: 'hello' } }])
   })
 
   it('carries the picked model, its effort and the fast flag on create', async () => {
@@ -46,7 +38,13 @@ describe('createSession', () => {
       fast: true,
     })
     expect(fake.created).toEqual([
-      { projectId: 'p1', model: 'claude-opus-4', effort: 'high', fast: true },
+      {
+        projectId: 'p1',
+        model: 'claude-opus-4',
+        effort: 'high',
+        fast: true,
+        firstMessage: { text: 'hello' },
+      },
     ])
   })
 
@@ -60,6 +58,6 @@ describe('createSession', () => {
       effort: undefined,
       fast: undefined,
     })
-    expect(fake.created).toEqual([{ projectId: 'p1' }])
+    expect(fake.created).toEqual([{ projectId: 'p1', firstMessage: { text: 'hello' } }])
   })
 })

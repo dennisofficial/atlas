@@ -84,11 +84,9 @@ export class ThreadLaunchService extends ThreadLauncher {
       return { threadId: thread.id, claim: claimed, existing: false, appended }
     })
 
-    const dispatching =
-      existing || gap !== null || claim === null
-        ? Promise.resolve(true)
-        : this.pod.dispatch({ threadId, claim })
-    dispatching.catch(() => undefined)
+    if (!existing && gap === null && claim !== null) {
+      this.background.keepAlive(this.pod.dispatch({ threadId, claim }).catch(() => undefined))
+    }
     const [row, session] = await Promise.all([
       db.orm.public.Thread.where({ id: threadId }).all().firstOrThrow(),
       sessionOfThread({ reader: db, threadId }),
@@ -108,7 +106,6 @@ export class ThreadLaunchService extends ThreadLauncher {
     }
     if (existing) return { thread, provision: await this.provisionOf(threadId) }
     if (gap !== null) return { thread, provision: notConfiguredReplyOf(gap) }
-    if (!(await dispatching)) return { thread, provision: dispatchFailedReply }
     return { thread, provision: { state: ESandboxProvisionState.Booting } }
   }
 

@@ -89,6 +89,31 @@ export class ControlPlane {
     )
   }
 
+  async createSessionWithMessage(params: {
+    sessionId: string
+    userId: string
+    projectId: string
+    title?: string | undefined
+    mainThreadId: string
+    modelRef?: string | undefined
+    modelEffort?: string | undefined
+    modelFast?: boolean | undefined
+    message: { kind: string; payload: string }
+  }): Promise<{ inboxId: number }> {
+    const { message, ...session } = params
+    return this.store.transact(async (tx) => {
+      const at = await this.nowIn(tx)
+      await createSessionIn({ tx, ...session, at })
+      return postIn({
+        tx,
+        sessionId: params.sessionId,
+        kind: message.kind,
+        payload: message.payload,
+        at,
+      })
+    })
+  }
+
   async readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined> {
     return this.store.transact((tx) => tx.readSession(params))
   }

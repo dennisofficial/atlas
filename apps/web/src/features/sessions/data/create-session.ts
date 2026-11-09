@@ -6,7 +6,7 @@ import type {
   SessionPostOutput,
 } from '@dltech/atlas-protocol'
 
-import { postInputOf } from './session-media'
+import { messageInputOf } from './session-media'
 
 export type SessionsApi = {
   create(input: SessionCreateInput): Promise<SessionCreateOutput>
@@ -28,14 +28,11 @@ export async function createSessionWithMessage(args: {
     ...(args.model === undefined ? {} : { model: args.model }),
     ...(args.effort === undefined ? {} : { effort: args.effort }),
     ...(args.fast === undefined ? {} : { fast: args.fast }),
-  })
-  await args.api.post(
-    postInputOf({
-      sessionId,
+    firstMessage: messageInputOf({
       text: args.text,
       media: args.media,
       uploads: args.uploads,
     }),
-  )
+  })
   return sessionId
 }
