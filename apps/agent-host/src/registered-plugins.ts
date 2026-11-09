@@ -2,6 +2,10 @@ import { composePlugins, definePlugin, type Plugin } from '@dltech/atlas-plugin-
 import { githubControl } from '@dltech/atlas-plugin-github/control'
 import { githubCoreSlots } from '@dltech/atlas-plugin-github/core'
 import { githubPod } from '@dltech/atlas-plugin-github/pod'
+import { mcpClient } from '@dltech/atlas-plugin-mcp/client'
+import { mcpControl } from '@dltech/atlas-plugin-mcp/control'
+import { mcpCoreSlots } from '@dltech/atlas-plugin-mcp/core'
+import { mcpPod } from '@dltech/atlas-plugin-mcp/pod'
 import { memoryClient } from '@dltech/atlas-plugin-memory/client'
 import { memoryControl } from '@dltech/atlas-plugin-memory/control'
 import { memoryCoreSlots } from '@dltech/atlas-plugin-memory/core'
@@ -65,6 +69,17 @@ export const registeredPlugins: readonly Plugin[] = [
     pod: servicesPod,
     control: servicesControl,
     client: servicesClient,
+    transport: 'stream',
+  }),
+  definePlugin({
+    name: 'mcp',
+    ...mcpCoreSlots,
+    pod: mcpPod({
+      repoDirectory: null,
+      config: { rows: async () => [] },
+    }),
+    control: mcpControl,
+    client: mcpClient,
     transport: 'stream',
   }),
   definePlugin({

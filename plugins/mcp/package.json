@@ -5,7 +5,9 @@
   "type": "module",
   "exports": {
     "./core": "./src/core/index.ts",
-    "./pod": "./src/pod/index.ts"
+    "./pod": "./src/pod/index.ts",
+    "./control": "./src/control/index.ts",
+    "./client": "./src/client/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -13,6 +15,7 @@
   },
   "dependencies": {
     "@dltech/atlas-agent": "workspace:*",
+    "@dltech/atlas-commands": "workspace:*",
     "@dltech/atlas-core": "workspace:*",
     "@dltech/atlas-plugin-sdk": "workspace:*",
     "@dltech/atlas-protocol": "workspace:*",

@@ -3,6 +3,9 @@ import { githubControl } from '@dltech/atlas-plugin-github/control'
 import { crewControl } from '@dltech/atlas-plugin-crew/control'
 import { crewCoreSlots } from '@dltech/atlas-plugin-crew/core'
 import { githubCoreSlots } from '@dltech/atlas-plugin-github/core'
+import { mcpClient } from '@dltech/atlas-plugin-mcp/client'
+import { mcpControl } from '@dltech/atlas-plugin-mcp/control'
+import { mcpCoreSlots } from '@dltech/atlas-plugin-mcp/core'
 import { servicesClient } from '@dltech/atlas-plugin-services/client'
 import { sessionsControl } from '@dltech/atlas-plugin-sessions/control'
 import { sessionsCoreSlots } from '@dltech/atlas-plugin-sessions/core'
@@ -43,6 +46,14 @@ export const registeredPlugins: readonly Plugin[] = [
     pod: EMPTY_POD,
     control: servicesControl,
     client: servicesClient,
+    transport: 'stream',
+  }),
+  definePlugin({
+    name: 'mcp',
+    ...mcpCoreSlots,
+    pod: EMPTY_POD,
+    control: mcpControl,
+    client: mcpClient,
     transport: 'stream',
   }),
   definePlugin({
