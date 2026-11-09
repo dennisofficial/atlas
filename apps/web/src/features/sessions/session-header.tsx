@@ -2,6 +2,7 @@
 
 import { Bell, GitBranch, Globe, Terminal } from 'lucide-react'
 
+import type { CrewRoster, CrewRow } from '@dltech/atlas-plugin-crew/client'
 import type { SubscribedPullRequest } from '@dltech/atlas-plugin-github/client'
 import type { PreviewItem } from '@dltech/atlas-plugin-services/client'
 import type { ShellRoster } from '@dltech/atlas-plugin-shells/client'
@@ -25,6 +26,7 @@ import {
 
 import { RenameAction } from '@/features/shell/rename-action'
 
+import { HeaderCrew } from './crew-panel'
 import { useSessionPrObservation } from './data/use-session-pr-observation'
 
 const BADGE_VARIANT: Record<EHeaderState, 'destructive' | 'default' | 'secondary'> = {
@@ -152,6 +154,8 @@ export function SessionHeader({
   entries,
   subscriptions,
   shells,
+  crew,
+  crewRows,
   previews,
 }: {
   sessionId: string
@@ -162,6 +166,8 @@ export function SessionHeader({
   entries: readonly PullRequestEntry[]
   subscriptions: readonly SubscribedPullRequest[]
   shells: ShellRoster
+  crew: CrewRoster
+  crewRows: readonly CrewRow[]
   previews: readonly PreviewItem[]
 }) {
   const observationRef = useSessionPrObservation(entries)
@@ -190,6 +196,7 @@ export function SessionHeader({
         {pinned === undefined ? null : <HeaderPullRequest pinned={pinned} count={entries.length} />}
         {subscriptions.length === 0 ? null : <HeaderSubscriptions subscriptions={subscriptions} />}
         {shells.running === 0 ? null : <HeaderShells shells={shells} />}
+        {crew.total === 0 ? null : <HeaderCrew roster={crew} rows={crewRows} />}
         {previews.length === 0 ? null : <HeaderPreviews previews={previews} />}
         <Badge variant={BADGE_VARIANT[state]}>{STATE_LABEL[state]}</Badge>
       </div>

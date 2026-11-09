@@ -3,6 +3,7 @@ import type { ThreadId, ToolDeclaration, ToolDefinition } from '@dltech/atlas-co
 import type { PluginPodContext, PodCrew } from '@dltech/atlas-plugin-sdk'
 
 import { newKey } from '../calls/remote-calls'
+import { worktreesOf } from './checkouts'
 import type { HeldSessionDeps } from './held-session-deps'
 import { podControlOf } from './pod-control'
 import type { SessionRuntime } from './ports'
@@ -48,6 +49,7 @@ export const pluginPodContextOf = (args: {
     sessionId: deps.sessionId,
     control: podControlOf({ client: deps.control, threadId }),
     crew: args.crew,
+    worktrees: worktreesOf({ calls: runtime.remoteCalls }),
     append: async (drafts) => {
       await record.append({ threadId, runId: deps.ids.nextRunId(), drafts })
     },

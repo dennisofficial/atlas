@@ -44,6 +44,8 @@ const header = (args: { entries: PullRequestEntry[]; branch: string | undefined 
         entries={args.entries}
         subscriptions={[]}
         shells={{ running: 0, awaitingInput: false, labels: [] }}
+        crew={{ running: 0, total: 0 }}
+        crewRows={[]}
         previews={[]}
       />
     </div>

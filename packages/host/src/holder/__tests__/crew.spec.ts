@@ -25,18 +25,23 @@ import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID } from './holder-r
 
 const CHILD_BRIEF = 'CHILD-BRIEF read the thing'
 const SPAWN_PROBE = 'crew_spawn_probe'
+const WORKTREE_SPAWN_PROBE = 'crew_worktree_spawn_probe'
+const CHILD_WORKTREE = {
+  path: '/work/.atlas/worktrees/dennis/probe',
+  branch: 'dennis/probe',
+}
 
 type Spawned = { agentId: string | undefined }
 
 class CrewSpawnProbe extends ToolDefinition {
-  readonly name = SPAWN_PROBE
+  readonly name: string = SPAWN_PROBE
   readonly description = 'spawn a sub-agent through the crew port'
   readonly effect = EToolEffect.Write
   readonly inputSchema = z.object({})
 
   constructor(
-    private readonly ctx: PluginPodContext,
-    private readonly spawned: Spawned,
+    protected readonly ctx: PluginPodContext,
+    protected readonly spawned: Spawned,
   ) {
     super()
   }
@@ -56,6 +61,25 @@ class CrewSpawnProbe extends ToolDefinition {
   }
 }
 
+class WorktreeSpawnProbe extends CrewSpawnProbe {
+  override readonly name = WORKTREE_SPAWN_PROBE
+
+  override async invoke(): Promise<ToolOutcome> {
+    const snapshot = await this.ctx.crew.spawn({
+      agentType: 'general-purpose',
+      intent: 'probe',
+      prompt: CHILD_BRIEF,
+      worktree: CHILD_WORKTREE,
+    })
+    this.spawned.agentId = snapshot.agentId
+    return {
+      ok: true,
+      output: { agentId: snapshot.agentId },
+      modelText: `spawned ${snapshot.agentId}`,
+    }
+  }
+}
+
 const crewProbePlugin = (spawned: Spawned): Plugin =>
   definePlugin({
     name: 'crew-probe',
@@ -63,8 +87,8 @@ const crewProbePlugin = (spawned: Spawned): Plugin =>
     views: [],
     commands: [],
     pod: {
-      childDeny: [SPAWN_PROBE],
-      tools: (ctx) => [new CrewSpawnProbe(ctx, spawned)],
+      childDeny: [SPAWN_PROBE, WORKTREE_SPAWN_PROBE],
+      tools: (ctx) => [new CrewSpawnProbe(ctx, spawned), new WorktreeSpawnProbe(ctx, spawned)],
       prompts: [],
       commands: new Map(),
     },
@@ -98,12 +122,12 @@ const eventsIn = async (
 ): Promise<V2Event[]> =>
   (await rig.plane.readEvents({ threadId, afterSeq: 0, limit: 500, visible: false })).events
 
-const crewRig = async () => {
+const crewRig = async (callName: string = SPAWN_PROBE) => {
   const spawned: Spawned = { agentId: undefined }
   const composed = composePlugins([crewProbePlugin(spawned)])
   const model = splitModel({
     parent: [
-      { calls: [{ callId: 'c1', name: SPAWN_PROBE, input: {} }] },
+      { calls: [{ callId: 'c1', name: callName, input: {} }] },
       { text: 'parent done' },
       { text: 'saw the report' },
     ],
@@ -176,5 +200,37 @@ describe('a sub-agent spawned with the crew port', () => {
       ),
     ).toBe(true)
     expect((await rig.plane.readSession({ sessionId: SESSION }))?.mainThreadId).toBe(THREAD_ID)
+  })
+
+  it('seeds the child with the worktree the parent asked for, before its first turn', async () => {
+    const { rig } = await crewRig(WORKTREE_SPAWN_PROBE)
+
+    await rig.post('spawn one')
+    await rig.wake()
+
+    const landed = await flushUntil({
+      check: async () =>
+        (await eventsIn(rig, THREAD_ID)).some((event) => event.type === 'agent-ended'),
+      clock: rig.clock,
+    })
+    expect(landed).toBe(true)
+
+    const parentEvents = await eventsIn(rig, THREAD_ID)
+    const childId = childIdOf(parentEvents)
+    expect(parentEvents.filter((event) => event.type === 'agent-spawned')).toMatchObject([
+      { agentType: 'general-purpose', intent: 'probe', worktree: CHILD_WORKTREE },
+    ])
+
+    const childEvents = await eventsIn(rig, childId as typeof THREAD_ID)
+    const entered = childEvents.findIndex((event) => event.type === 'worktree-entered')
+    const said = childEvents.findIndex((event) => event.type === 'user-said')
+    expect(entered).toBeGreaterThanOrEqual(0)
+    expect(entered).toBeLessThan(said)
+    expect(childEvents[entered]).toMatchObject({
+      type: 'worktree-entered',
+      path: CHILD_WORKTREE.path,
+      branch: CHILD_WORKTREE.branch,
+      adopted: false,
+    })
   })
 })

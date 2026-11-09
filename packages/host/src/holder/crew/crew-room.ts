@@ -1,5 +1,10 @@
 import { EKilledBy, type ThreadId } from '@dltech/atlas-core'
-import type { PodCrew, SubagentSaid, SubagentSnapshot } from '@dltech/atlas-plugin-sdk'
+import type {
+  PodCrew,
+  SubagentSaid,
+  SubagentSnapshot,
+  WorktreeEntryInfo,
+} from '@dltech/atlas-plugin-sdk'
 
 import { ChildRun, type ChildRunArgs } from './child-run'
 
@@ -14,11 +19,13 @@ export class CrewRoom {
     agentType: string
     intent: string
     prompt: string
+    worktree?: WorktreeEntryInfo | undefined
   }): Promise<SubagentSnapshot> {
     const run = await ChildRun.open({
       ...this.args,
       agentType: args.agentType,
       intent: args.intent,
+      ...(args.worktree === undefined ? {} : { worktree: args.worktree }),
     })
     this.runs.set(run.agentId, run)
     void run.say(args.prompt)

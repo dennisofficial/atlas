@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { EAgentStatus, EReportKind, toThreadId } from '@dltech/atlas-core'
 import {
   EMPTY_CREW,
+  EMPTY_WORKTREES,
   type PluginPodContext,
   type PodCrew,
   type SubagentSnapshot,
@@ -54,6 +55,7 @@ const rig = (crew: PodCrew) => {
   const ctx: PluginPodContext = {
     sessionId: 's1',
     crew,
+    worktrees: EMPTY_WORKTREES,
     control: {
       exposePort: async () => {
         throw new Error('this rig exposes no port')
@@ -97,7 +99,7 @@ const textOf = (outcome: Awaited<ReturnType<typeof invoke>>): string =>
   outcome.ok ? outcome.modelText : outcome.reason
 
 describe('the crew pod', () => {
-  it('declares its five tools and denies four to a child', () => {
+  it('declares its five crew tools and three worktree tools, and denies four to a child', () => {
     const { ctx } = rig(fakeCrew().port)
     expect(crewPod.tools?.(ctx).map((tool) => tool.name)).toEqual([
       'agent_spawn',
@@ -105,6 +107,9 @@ describe('the crew pod', () => {
       'agent_stop',
       'agent_list',
       'report_to_main',
+      'enter_worktree',
+      'exit_worktree',
+      'worktree_list',
     ])
     expect(crewPod.childDeny).toEqual(['agent_spawn', 'agent_say', 'agent_stop', 'agent_list'])
   })

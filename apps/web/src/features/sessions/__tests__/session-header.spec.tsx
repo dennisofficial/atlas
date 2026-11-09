@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 
+import type { CrewRow } from '@dltech/atlas-plugin-crew/client'
 import type { SubscribedPullRequest } from '@dltech/atlas-plugin-github/client'
 import type { PreviewItem } from '@dltech/atlas-plugin-services/client'
 import type { ShellRoster } from '@dltech/atlas-plugin-shells/client'
@@ -9,6 +10,7 @@ import { SidebarProvider } from '@dltech/atlas-ui/components/sidebar'
 import { EHeaderState } from '@/features/threads/data/header-model'
 import type { PullRequestEntry } from '@/features/threads/data/pull-request-entries'
 
+import { CrewPanel } from '../crew-panel'
 import { PreviewLinks, SessionHeader } from '../session-header'
 
 const entry = (overrides: Partial<PullRequestEntry> = {}): PullRequestEntry => ({
@@ -40,11 +42,23 @@ const preview = (overrides: Partial<PreviewItem> = {}): PreviewItem => ({
   ...overrides,
 })
 
+const crewRow = (overrides: Partial<CrewRow> = {}): CrewRow => ({
+  agentId: 'a1',
+  agentType: 'general-purpose',
+  intent: 'work the branch',
+  status: 'running',
+  turns: 1,
+  toolCalls: 2,
+  startedAt: '2026-11-09T10:00:00.000Z',
+  ...overrides,
+})
+
 const render = (props: {
   branch?: string
   entries: PullRequestEntry[]
   subscriptions?: SubscribedPullRequest[]
   shells?: ShellRoster
+  crewRows?: readonly CrewRow[]
   previews?: readonly PreviewItem[]
 }) =>
   renderToStaticMarkup(
@@ -58,6 +72,11 @@ const render = (props: {
         entries={props.entries}
         subscriptions={props.subscriptions ?? []}
         shells={props.shells ?? { running: 0, awaitingInput: false, labels: [] }}
+        crew={{
+          running: (props.crewRows ?? []).filter((row) => row.status === 'running').length,
+          total: (props.crewRows ?? []).length,
+        }}
+        crewRows={props.crewRows ?? []}
         previews={props.previews ?? []}
       />
     </SidebarProvider>,
@@ -140,6 +159,54 @@ describe('SessionHeader', () => {
 
   it('shows no preview indicator when nothing is published', () => {
     expect(render({ entries: [entry()] })).not.toContain('data-session-previews')
+  })
+
+  it('counts the sub-agents and names them in the crew chip', () => {
+    const html = render({
+      entries: [entry()],
+      crewRows: [
+        crewRow(),
+        crewRow({
+          agentId: 'a2',
+          agentType: 'explore',
+          intent: 'map the plugin seam',
+          status: 'finished',
+        }),
+      ],
+    })
+
+    expect(html).toContain('data-session-crew')
+    expect(html).toContain('aria-label="2 sub-agents, 1 running"')
+    expect(html).toContain('title="general-purpose: work the branch, explore: map the plugin seam"')
+    expect(html).toContain('>1/2<')
+  })
+
+  it('shows no crew indicator when no sub-agent ran', () => {
+    expect(render({ entries: [entry()] })).not.toContain('data-session-crew')
+  })
+})
+
+describe('CrewPanel', () => {
+  it('names each sub-agent, its standing, its worktree and its last words', () => {
+    const html = renderToStaticMarkup(
+      <CrewPanel
+        rows={[
+          crewRow({
+            prose: 'Committed and pushed.',
+            worktree: { path: '/work/.atlas/worktrees/dennis/wt', branch: 'dennis/wt' },
+          }),
+        ]}
+      />,
+    )
+
+    expect(html).toContain('data-crew-row')
+    expect(html).toContain('general-purpose')
+    expect(html).toContain('work the branch')
+    expect(html).toContain('running')
+    expect(html).toContain('dennis/wt')
+    expect(html).toContain('/work/.atlas/worktrees/dennis/wt')
+    expect(html).toContain('Committed and pushed.')
+    expect(html).toContain('1 turn · 2 tools')
   })
 })
 
