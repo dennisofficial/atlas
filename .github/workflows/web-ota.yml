@@ -1,0 +1,98 @@
+name: web-ota
+
+# Publishes the Mac app's web payload: the interface alone, without a signed app build. The app
+# fetches this on launch and every five minutes (apps/mac/src/host/web-payload), so a UI change
+# reaches a running Atlas minutes after the merge that made it.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/web/**'
+      - 'apps/mac/**'
+      - 'packages/**'
+      - 'bun.lock'
+      - 'package.json'
+      - 'tsconfig.base.json'
+      - '.github/workflows/web-ota.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: web-ota
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      ATLAS_STREAM_URL: wss://agent.byatlas.io/stream
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2.2.0
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
+      - run: bun install --frozen-lockfile
+
+      - uses: actions/cache@v6
+        with:
+          path: apps/web/.next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('bun.lock') }}-${{ hashFiles('apps/web/src/**', 'apps/web/*.ts', 'apps/web/*.mjs', 'apps/web/package.json') }}
+          restore-keys: |
+            next-${{ runner.os }}-${{ hashFiles('bun.lock') }}-
+            next-${{ runner.os }}-
+
+      - name: build the payload
+        run: |
+          set -euo pipefail
+          bun run --cwd apps/web build
+          rm -rf apps/mac/web-standalone
+          cp -R apps/web/.next/standalone apps/mac/web-standalone
+          bun apps/mac/scripts/flatten-web-deps.ts apps/mac/web-standalone
+          bun apps/mac/scripts/drop-native-web-deps.ts apps/mac/web-standalone
+          mkdir -p apps/mac/web-standalone/apps/web/.next
+          cp -R apps/web/.next/static apps/mac/web-standalone/apps/web/.next/static
+          cp -R apps/web/public apps/mac/web-standalone/apps/web/public
+
+      - name: smoke the payload
+        run: |
+          set -euo pipefail
+          cd apps/mac/web-standalone/apps/web
+          PORT=4317 HOSTNAME=127.0.0.1 NODE_ENV=production bun server.js &
+          server=$!
+          trap 'kill $server || true' EXIT
+          answered=''
+          for _ in $(seq 1 30); do
+            if curl -fsS -o /dev/null http://127.0.0.1:4317/threads; then answered=1; break; fi
+            sleep 1
+          done
+          [ "$answered" = 1 ] || { echo "::error::the payload never answered on 4317"; exit 1; }
+
+      - name: pack
+        run: bun apps/mac/scripts/pack-web-payload.ts apps/mac/web-standalone "$RUNNER_TEMP/payload"
+
+      - name: publish the manifest and the artifact
+        run: |
+          set -euo pipefail
+          gh release view web-ota --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 ||
+            gh release create web-ota --repo "$GITHUB_REPOSITORY" --latest=false \
+              --title "web-ota" --notes "The Mac app's web payload, republished on every push to main."
+          gh release upload web-ota "$RUNNER_TEMP/payload/web-update.json" "$RUNNER_TEMP"/payload/web-*.tar.gz \
+            --clobber --repo "$GITHUB_REPOSITORY"
+
+      - name: summarise
+        run: |
+          set -euo pipefail
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat "$RUNNER_TEMP/payload/web-update.json" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          du -h "$RUNNER_TEMP"/payload/web-*.tar.gz >> "$GITHUB_STEP_SUMMARY"

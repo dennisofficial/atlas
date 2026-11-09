@@ -1,0 +1,135 @@
+import { decidePayload, EPayloadDecision, parseManifest } from './manifest'
+import { installPayload, type IWebPayloadFs } from './install'
+import { selectedPayload, stalePayloads } from './select'
+import { failedState, type IPayloadState } from './state'
+
+export const WEB_MANIFEST_URL =
+  'https://github.com/dennisofficial/atlas/releases/download/web-ota/web-update.json'
+export const WEB_MANIFEST_URL_ENV = 'ATLAS_WEB_PAYLOAD_URL'
+export const WEB_ROOT_ENV = 'ATLAS_WEB_ROOT'
+export const WEB_UPDATE_INTERVAL_MS = 5 * 60 * 1000
+
+export enum EWebPayloadState {
+  Idle = 'idle',
+  Ready = 'ready',
+}
+
+export interface IWebPayloadStatus {
+  state: EWebPayloadState
+  hash?: string
+  builtAt?: string
+  error?: string
+}
+
+export interface IWebUpdaterPorts {
+  fs: IWebPayloadFs
+  fetchJson: (url: string) => Promise<unknown>
+  download: (url: string) => Promise<Uint8Array>
+  sha256: (bytes: Uint8Array) => string
+  log: (args: { label: string; error: unknown }) => void
+  setInterval: (handler: () => void, ms: number) => ReturnType<typeof setInterval>
+  clearInterval: (timer: ReturnType<typeof setInterval>) => void
+}
+
+export interface IWebUpdater {
+  start: () => void
+  stop: () => void
+  check: () => Promise<IWebPayloadStatus>
+  status: () => IWebPayloadStatus
+  pending: () => string | undefined
+  installedRoot: () => Promise<string | undefined>
+  fail: (args: { hash: string }) => Promise<void>
+}
+
+export function createWebUpdater({
+  home,
+  manifestUrl,
+  contract,
+  ports,
+  intervalMs = WEB_UPDATE_INTERVAL_MS,
+}: {
+  home: string
+  manifestUrl: string
+  contract: number
+  ports: IWebUpdaterPorts
+  intervalMs?: number
+}): IWebUpdater {
+  let status: IWebPayloadStatus = { state: EWebPayloadState.Idle }
+  let pending: string | undefined
+  let timer: ReturnType<typeof setInterval> | undefined
+
+  const fail = (message: string): IWebPayloadStatus => {
+    status = { state: EWebPayloadState.Idle, error: message }
+    return status
+  }
+
+  const check = async (): Promise<IWebPayloadStatus> => {
+    try {
+      const manifest = parseManifest({ input: await ports.fetchJson(manifestUrl) })
+      if (manifest === undefined) return fail('the update manifest is invalid')
+      const state = await ports.fs.readState(home)
+      const decision = decidePayload({ manifest, current: state.current, contract })
+      if (decision.decision === EPayloadDecision.Refuse) return fail(decision.reason)
+      if (decision.decision === EPayloadDecision.Current) {
+        pending = undefined
+        status = { state: EWebPayloadState.Idle, hash: manifest.hash, builtAt: manifest.builtAt }
+        return status
+      }
+      const result = await installPayload({
+        home,
+        manifest,
+        manifestUrl,
+        fs: ports.fs,
+        download: ports.download,
+        sha256: ports.sha256,
+      })
+      if (!result.installed) return fail(`the payload did not install: ${result.reason}`)
+      await prune({ home, ports })
+      pending = result.hash
+      status = {
+        state: EWebPayloadState.Ready,
+        hash: manifest.hash,
+        builtAt: manifest.builtAt,
+      }
+      return status
+    } catch (error) {
+      ports.log({ label: 'web-payload', error })
+      return fail(error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  return {
+    start: () => {
+      void check()
+      if (timer !== undefined) return
+      timer = ports.setInterval(() => void check(), intervalMs)
+    },
+    stop: () => {
+      if (timer === undefined) return
+      ports.clearInterval(timer)
+      timer = undefined
+    },
+    check,
+    status: () => status,
+    pending: () => pending,
+    installedRoot: async () => {
+      const state: IPayloadState = await ports.fs.readState(home)
+      return selectedPayload({
+        state,
+        isComplete: (hash) => ports.fs.isComplete({ home, hash }),
+      })
+    },
+    fail: async ({ hash }) => {
+      const state = await ports.fs.readState(home)
+      await ports.fs.writeState({ home, state: failedState({ state, hash }) })
+      pending = undefined
+      status = { state: EWebPayloadState.Idle, error: 'the new interface could not start' }
+    },
+  }
+}
+
+async function prune({ home, ports }: { home: string; ports: IWebUpdaterPorts }): Promise<void> {
+  const state = await ports.fs.readState(home)
+  for (const hash of stalePayloads({ dirs: ports.fs.list(home), state }))
+    ports.fs.discard({ home, hash })
+}
