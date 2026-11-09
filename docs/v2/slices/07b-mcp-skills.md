@@ -11,7 +11,6 @@ calls the API for nothing).
 ## Goal
 
 Two v1 capabilities no v2 session has, each as its own plugin on the slice-6 contract.
-
 - **`plugins/mcp`.** A v2 session starts the operator's MCP servers, sees their tools under v1's
   names (`mcp__<server>__<tool>`), calls them, and is told each server's own instructions. A server
   that cannot start shows why instead of vanishing.
@@ -35,7 +34,6 @@ Two v1 capabilities no v2 session has, each as its own plugin on the slice-6 con
 ### 1.1 v1 MCP — the behaviour being reproduced
 
 Everything is in `packages/harness/src/mcp/` (~3.9k lines with specs) plus one writer tool.
-
 - **Config files**: `<ATLAS_HOME>/mcp.json` (user), `<cwd>/.atlas/mcp.json` (project),
   `<cwd>/.mcp.json` (Claude-Code compatibility, project root only, no parent walk)
   (`packages/harness/src/settings/paths.ts:35-49`; comment at `mcp/config/sources.ts:198`).
@@ -173,16 +171,15 @@ v1 has two homes for both features and they do not meet: on the operator's machi
 cloud, database rows pushed into the pod as files. v2 has one writer per piece of state
 (architecture §4), so each source needs one owner.
 
-| Feature | Source | v2 owner | Read by | Recommended |
-| ------- | ------ | -------- | ------- | ----------- |
-| MCP, user + project rows | `public.McpServer` (`sealedSpec`, `source = 'cloud'`) | CP (rows), host (unseal) | the agent host at claim, refreshed at each turn boundary | yes |
-| MCP, repo files | `.mcp.json`, `.atlas/mcp.json` in the clone | the pod's workspace (git) | the pod through the daemon's file port | yes |
-| Skills, user + project rows | `public.Skill` / `public.SkillFile` | CP (rows), host (read) | the agent host (`skill-index.ts` already reads the names) | yes |
-| Skills, repo dirs | `<repo>/.atlas/skills/*/SKILL.md` | the pod's workspace (git) | the pod through the daemon | yes |
-| Skills, built-ins | compiled `SKILL.md` text | the plugin package | the plugin, no IO | yes |
+| Feature                     | Source                                                | v2 owner                  | Read by                                                   | Recommended |
+| --------------------------- | ----------------------------------------------------- | ------------------------- | --------------------------------------------------------- | ----------- |
+| MCP, user + project rows    | `public.McpServer` (`sealedSpec`, `source = 'cloud'`) | CP (rows), host (unseal)  | the agent host at claim, refreshed at each turn boundary  | yes         |
+| MCP, repo files             | `.mcp.json`, `.atlas/mcp.json` in the clone           | the pod's workspace (git) | the pod through the daemon's file port                    | yes         |
+| Skills, user + project rows | `public.Skill` / `public.SkillFile`                   | CP (rows), host (read)    | the agent host (`skill-index.ts` already reads the names) | yes         |
+| Skills, repo dirs           | `<repo>/.atlas/skills/*/SKILL.md`                     | the pod's workspace (git) | the pod through the daemon                                | yes         |
+| Skills, built-ins           | compiled `SKILL.md` text                              | the plugin package        | the plugin, no IO                                         | yes         |
 
 The consequences, and what §9 asks the operator to confirm:
-
 1. **Cloud rows are read by the host over its own Postgres, unsealed with the host's cipher** — no
    API call, which is what 0027 requires and what `skill-index.ts:14` already does for names. A row
    the operator edits in Settings therefore reaches a v2 session at the next turn, not the next session.
@@ -197,7 +194,6 @@ The consequences, and what §9 asks the operator to confirm:
 Today `ComposedPodRegistry` snapshots a plugin's tools at claim
 (`packages/host/src/holder/plugin-pod.ts:13-38`). MCP tool sets are discovered and change when a
 server drops or gains tools, so the registry must ask the plugin again:
-
 - `ComposedPodRegistry` takes `extras: () => readonly ToolDefinition[]` instead of a fixed array.
   It calls the supplier once in the constructor so a static duplicate still throws at claim (as
   today), then again on every `declarations()` and `find(name)`.
@@ -317,14 +313,14 @@ Two plugin packages, no imports between them, both registered in
 compose the same plugin list; `mcp` is `transport: 'stream'` for its view, `skills` is
 `transport: 'none'`).
 
-| PR | Contents | Proves |
-| -- | -------- | ------ |
-| 1 | the live tool source (§3) | a plugin's tools change between steps; duplicates throw at claim, drop later |
-| 2 | `plugins/mcp` `/core` + `/pod`: config, precedence, lifecycle, bridge tools | config from rows and repo files, a stdio server answers a call in a live-ish rig, precedence and a disabled stub |
-| 3 | `plugins/mcp` `/control` + `/client`: the `mcp` view, the instructions hook, the `mcp` command | status rows, instructions offered once, tombstone on drop, the command's report |
-| 4 | `plugins/skills` `/core` + `/pod`: sources, listing, `skill` | precedence, listing budget, load with and without a directory |
-| 5 | bundled cloud files materialised into the pod | a bundle's references are readable through the loaded directory |
-| 6 | docs + live check (§8) | the exit criterion, on production |
+| PR  | Contents                                                                                       | Proves                                                                                                           |
+| --- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| 1   | the live tool source (§3)                                                                      | a plugin's tools change between steps; duplicates throw at claim, drop later                                     |
+| 2   | `plugins/mcp` `/core` + `/pod`: config, precedence, lifecycle, bridge tools                    | config from rows and repo files, a stdio server answers a call in a live-ish rig, precedence and a disabled stub |
+| 3   | `plugins/mcp` `/control` + `/client`: the `mcp` view, the instructions hook, the `mcp` command | status rows, instructions offered once, tombstone on drop, the command's report                                  |
+| 4   | `plugins/skills` `/core` + `/pod`: sources, listing, `skill`                                   | precedence, listing budget, load with and without a directory                                                    |
+| 5   | bundled cloud files materialised into the pod                                                  | a bundle's references are readable through the loaded directory                                                  |
+| 6   | docs + live check (§8)                                                                         | the exit criterion, on production                                                                                |
 
 The operator's live checks follow slice 7's practice: a fresh session (never one created during a
 deploy — the stale-instance trap in `07-plugins.md` §8), recorded in §8 with the session id.
