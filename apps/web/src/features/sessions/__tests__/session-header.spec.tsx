@@ -2,13 +2,14 @@ import { describe, expect, it } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 import type { SubscribedPullRequest } from '@dltech/atlas-plugin-github/client'
+import type { PreviewItem } from '@dltech/atlas-plugin-services/client'
 import type { ShellRoster } from '@dltech/atlas-plugin-shells/client'
 import { SidebarProvider } from '@dltech/atlas-ui/components/sidebar'
 
 import { EHeaderState } from '@/features/threads/data/header-model'
 import type { PullRequestEntry } from '@/features/threads/data/pull-request-entries'
 
-import { SessionHeader } from '../session-header'
+import { PreviewLinks, SessionHeader } from '../session-header'
 
 const entry = (overrides: Partial<PullRequestEntry> = {}): PullRequestEntry => ({
   repo: 'owner/atlas',
@@ -31,11 +32,20 @@ const subscribed: SubscribedPullRequest = {
   url: 'https://github.com/owner/atlas/pull/31',
 }
 
+const preview = (overrides: Partial<PreviewItem> = {}): PreviewItem => ({
+  serviceId: 'svc1',
+  label: 'web',
+  port: 4321,
+  url: 'https://4321-abc.byatlas.dev',
+  ...overrides,
+})
+
 const render = (props: {
   branch?: string
   entries: PullRequestEntry[]
   subscriptions?: SubscribedPullRequest[]
   shells?: ShellRoster
+  previews?: readonly PreviewItem[]
 }) =>
   renderToStaticMarkup(
     <SidebarProvider>
@@ -48,6 +58,7 @@ const render = (props: {
         entries={props.entries}
         subscriptions={props.subscriptions ?? []}
         shells={props.shells ?? { running: 0, awaitingInput: false, labels: [] }}
+        previews={props.previews ?? []}
       />
     </SidebarProvider>,
   )
@@ -115,5 +126,29 @@ describe('SessionHeader', () => {
 
   it('shows no shell indicator when none are running', () => {
     expect(render({ entries: [entry()] })).not.toContain('data-session-shells')
+  })
+
+  it('shows the preview count titled with their labels and ports', () => {
+    const html = render({
+      entries: [],
+      previews: [preview(), preview({ serviceId: 'svc2', label: 'api', port: 5000 })],
+    })
+    expect(html).toContain('data-session-previews')
+    expect(html).toContain('title="web:4321, api:5000"')
+    expect(html).toContain('>2<')
+  })
+
+  it('shows no preview indicator when nothing is published', () => {
+    expect(render({ entries: [entry()] })).not.toContain('data-session-previews')
+  })
+})
+
+describe('PreviewLinks', () => {
+  it('links each preview to its public url, labelled and ported', () => {
+    const html = renderToStaticMarkup(<PreviewLinks previews={[preview()]} />)
+    expect(html).toContain('href="https://4321-abc.byatlas.dev"')
+    expect(html).toContain('title="https://4321-abc.byatlas.dev"')
+    expect(html).toContain('>web<')
+    expect(html).toContain(':4321')
   })
 })
