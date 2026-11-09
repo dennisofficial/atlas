@@ -13,7 +13,7 @@ const FORBIDDEN_TARGETS: Record<Layer, readonly Layer[]> = {
 }
 
 const ALLOWED_EXTERNAL =
-  /^(?:@dltech\/(?:atlas-wire|atlas-db|atlas-core|atlas-control|atlas-protocol|atlas-media|bun-test-shims)(?:\/|$)|@dltech\/atlas-harness\/(?:models|titling|skill-specs|skill-catalogue|provider-oauth|mcp-oauth)$)/
+  /^(?:@dltech\/(?:atlas-(?:wire|db|core|control|protocol|media|commands|native-commands|plugin-sdk|plugin-github|plugin-services|plugin-shells)|bun-test-shims)(?:\/|$)|@dltech\/atlas-harness\/(?:models|titling|skill-specs|skill-catalogue|provider-oauth|mcp-oauth)$)/
 
 const API_ROOT = import.meta.dirname
 const SRC_ROOT = path.dirname(API_ROOT)
@@ -176,12 +176,13 @@ describe('api layer architecture', () => {
     ).toEqual([])
   })
 
-  it('imports no in-repo package other than wire, db, core and the harness subpaths', () => {
+  it('composes the control plane from the contract packages and nothing else in-repo', () => {
     expect(
       collectInRepoViolations(),
-      'the API depends on nothing in-repo except the shared wire contract, the db and ' +
-        '@dltech/atlas-harness/models; a new in-repo import belongs in @dltech/atlas-wire, ' +
-        '@dltech/atlas-db or not at all',
+      'the API composes the control plane from atlas-wire, atlas-db, atlas-core, atlas-control, ' +
+        'atlas-protocol, atlas-media, atlas-commands, atlas-native-commands, the plugin contract ' +
+        'and plugins, plus the harness subpaths it shares; a new in-repo import belongs in one of ' +
+        'those or not at all',
     ).toEqual([])
   })
 })

@@ -2,6 +2,7 @@ import type { PreviewPort } from '@dltech/atlas-ui/ai/preview-browser'
 import { EPreviewStatus } from '@dltech/atlas-ui/ai/preview-browser'
 
 import { NEW_TAB_URL } from '../../data/preview-browser/browser-model'
+import { parseWebUrl } from '../../data/preview-browser/web-url'
 import { previewPortForUrl } from '../../data/preview-ports'
 
 export enum ETabPage {
@@ -15,7 +16,8 @@ export enum ETabPage {
 
 export type TabPage =
   | { kind: ETabPage.NewTab | ETabPage.Loading | ETabPage.Held | ETabPage.External }
-  | { kind: ETabPage.Offline | ETabPage.Frame; port: PreviewPort }
+  | { kind: ETabPage.Offline; port: PreviewPort }
+  | { kind: ETabPage.Frame; port: PreviewPort | undefined }
 
 export function tabPageOf(args: {
   url: string
@@ -26,8 +28,9 @@ export function tabPageOf(args: {
   const { url, ports, loaded, held } = args
   if (url === NEW_TAB_URL) return { kind: ETabPage.NewTab }
   if (!loaded) return { kind: held ? ETabPage.Held : ETabPage.Loading }
+  if (parseWebUrl(url) === null) return { kind: ETabPage.External }
   const port = previewPortForUrl({ url, ports })
-  if (port === null) return { kind: ETabPage.External }
+  if (port === null) return { kind: ETabPage.Frame, port: undefined }
   if (port.status !== EPreviewStatus.Live) return { kind: ETabPage.Offline, port }
   return { kind: ETabPage.Frame, port }
 }

@@ -66,4 +66,16 @@ describe('desktop window routes', () => {
     expect(res.status).toBe(204)
     expect(previewOrigins).toEqual([['https://a.vercel.run', 'http://localhost:3000']])
   })
+
+  test('preview origins POST takes as many origins as the app has open', async () => {
+    const headers = { cookie: await cookie(), 'content-type': 'application/json' }
+    const origins = Array.from({ length: 64 }, (_, index) => `https://${index}.example.test/`)
+    const res = await fetch(`${host.url}${ORIGINS_PATH}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ origins }),
+    })
+    expect(res.status).toBe(204)
+    expect(previewOrigins.at(-1)).toHaveLength(origins.length)
+  })
 })

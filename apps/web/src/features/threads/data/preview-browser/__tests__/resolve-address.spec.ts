@@ -27,6 +27,7 @@ const API: PreviewPort = {
   status: EPreviewStatus.Stopped,
 }
 const PORTS = [API, WEB, STORYBOOK]
+const CALLBACK = 'https://callback.byatlas.dev/quickbooks/callback?code=c&state=abc'
 
 const resolve = (input: string, extra: { currentUrl?: string; allowExternal?: boolean } = {}) =>
   resolveAddress({
@@ -113,5 +114,29 @@ describe('resolveAddress', () => {
   it('rejects non-web schemes', () => {
     expect(resolve('javascript:alert(1)', { allowExternal: true })).toBeNull()
     expect(resolve('ftp://example.com', { allowExternal: true })).toBeNull()
+  })
+
+  it('sends a provider callback to the preview the sign-in started in', () => {
+    expect(resolve(CALLBACK)).toBe(
+      'https://3000-abcdefghij.byatlas.dev/quickbooks/callback?code=c&state=abc',
+    )
+    expect(
+      resolve('callback.byatlas.dev/quickbooks/callback?error=access_denied', {
+        currentUrl: 'https://6006-abcdefghij.byatlas.dev/?path=/story/button',
+      }),
+    ).toBe('https://6006-abcdefghij.byatlas.dev/quickbooks/callback?error=access_denied')
+  })
+
+  it('leaves the callback handoff for the Mac app and a portless session alone', () => {
+    const start = 'https://callback.byatlas.dev/__atlas/start?to=https%3A%2F%2Faccounts.google.com'
+    expect(resolve(start, { allowExternal: true })).toBe(start)
+    expect(
+      resolveAddress({
+        input: CALLBACK,
+        currentUrl: NEW_TAB_URL,
+        ports: [API],
+        allowExternal: true,
+      }),
+    ).toBe(CALLBACK)
   })
 })

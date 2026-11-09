@@ -1,6 +1,7 @@
-import { EPreviewStatus, type PreviewPort } from '@dltech/atlas-ui/ai/preview-browser'
+import type { PreviewPort } from '@dltech/atlas-ui/ai/preview-browser'
 
 import { previewPortForUrl } from '../preview-ports'
+import { previewCallbackUrlOf, previewOriginFor } from './preview-callback'
 import { parseWebUrl } from './web-url'
 
 const PORT_ONLY = /^:?(\d{2,5})(\/\S*)?$/
@@ -22,12 +23,8 @@ function resolvePath(args: {
   ports: PreviewPort[]
 }): string | null {
   const { path, currentUrl, ports } = args
-  const port =
-    previewPortForUrl({ url: currentUrl, ports }) ??
-    ports.find((candidate) => candidate.status === EPreviewStatus.Live)
-  if (port === undefined) return null
-  const origin = parseWebUrl(port.url)?.origin
-  if (origin === undefined) return null
+  const origin = previewOriginFor({ currentUrl, ports })
+  if (origin === null) return null
   return parseWebUrl(`${origin}${path}`)?.toString() ?? null
 }
 
@@ -48,12 +45,15 @@ function resolveLocal(args: {
 
 function resolveWeb(args: {
   text: string
+  currentUrl: string
   ports: PreviewPort[]
   allowExternal: boolean
 }): string | null {
-  const { text, ports, allowExternal } = args
+  const { text, currentUrl, ports, allowExternal } = args
   const url = parseWebUrl(HAS_SCHEME.test(text) ? text : `https://${text}`)
   if (url === null) return null
+  const callback = previewCallbackUrlOf({ url: url.toString(), currentUrl, ports })
+  if (callback !== null) return callback
   const resolved = url.toString()
   if (allowExternal) return resolved
   return previewPortForUrl({ url: resolved, ports }) === null ? null : resolved
@@ -68,5 +68,5 @@ export function resolveAddress(args: ResolveArgs): string | null {
   const local = PORT_ONLY.exec(text) ?? LOCALHOST.exec(text)
   if (local !== null) return resolveLocal({ match: local, ports, allowExternal })
   if (DIGITS_ONLY.test(text)) return null
-  return resolveWeb({ text, ports, allowExternal })
+  return resolveWeb({ text, currentUrl, ports, allowExternal })
 }
