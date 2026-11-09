@@ -88,13 +88,16 @@ works without the Mac.
 
 ## Engine: the one open decision
 
-CEF was chosen for user agent and WebAuthn. WebAuthn is impossible in the embedded browser — CEF
-carries no browser-side WebAuthn integration at all, so there is no macOS platform authenticator to
-reach — and a user agent is a string. That leaves site compatibility against Apple's view lifecycle,
-a ~300 MB bundle, and CEF's own upstream flake.
-- **WKWebView** (`IBrowserEngine` over the existing native path): Apple owns the view lifecycle, no
-  OOPIF flake, no CEF in the bundle, `WKUserScript` for titles. Older WebKit.
-- **CEF**: Chromium rendering for modern sites, at the cost above.
+The pane is already a native view — `renderer="cef"`, and the `cef #2` in the on-screen diagnostics
+is that view's host id. The iframe layer is the browser client's. So the question is not "native
+versus iframe"; it is which native engine, behind the same port.
+- **WKWebView** (electrobun's `native` renderer): Apple owns the view lifecycle, no upstream OOPIF
+  flake, no ~300 MB CEF in the bundle, `WKUserScript` for titles. Older WebKit.
+- **CEF**: Chromium rendering. Observed 2026-11-09: Google sign-in completes in CEF, so its
+  compatibility edge is real and the embedded-browser argument against it does not hold. The cost is
+  the ~300 MB bundle and CEF's own lifecycle flake, which is the seam this design has to survive.
+
+WebAuthn is out either way: the embedded browser carries no macOS platform authenticator.
 
 The seam is identical either way; only `pane-engine.ts` differs, so the port can ship first and the
 engine chosen after a live comparison.
