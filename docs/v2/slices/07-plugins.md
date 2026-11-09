@@ -808,10 +808,68 @@ ending is also appended to the child's own (unmerged) log. The frame carries no 
 needs the daemon to say whose unit it is; the child's listeners are disposed when its pump ends, which
 bounds the leak.
 
-**Not built (1b).** The worktree tools (`enter_worktree`, `exit_worktree`, `worktree_list`) and
-`agent_spawn.worktree` (ADR 0020 decision 1), and the web crew panel. The rest of §5.5's proof — a
-child that enters a worktree, edits, commits and reports, and a parent that removes the worktree —
-therefore runs with 1b.
+**1b shipped (`#2084`, `#2086`, `#2087`).** The worktree tools (`enter_worktree`, `exit_worktree`,
+`worktree_list`), `agent_spawn.worktree` (ADR 0020 decision 1), and the web crew chip and panel.
+- **The port.** `PluginPodContext.worktrees` (`PodWorktrees`: `list`, `create`, `inspect`, `remove`)
+  is implemented by `HostWorktrees` in `packages/host/src/holder/checkouts`, over the daemon's `exec`
+  and file ops, and handed to the plugin in `plugin-pod.ts`. No host-token route (ADR 0027).
+- **The plugin appends the foundation events.** A tool cannot add to its own dispatch's draft list,
+  and `ctx.append` would be invisible to `settle-pending`'s within-batch `activeWorktreeAfter`; so the
+  crew plugin's `afterTool` hook turns the tools' `{enteredWorktree}` / `{exitedWorktree}` output into
+  `worktree-entered` / `worktree-exited` drafts, and `settle-pending` moves the same assistant step's
+  later calls into the new directory. This is v1's `track-worktree` hook, moved into the plugin that
+  owns the tools.
+- **A child starts in its worktree.** `agent_spawn.worktree` creates (a name) or adopts (a path) the
+  worktree before the child's first turn; the host seeds the child's own record with
+  `worktree-entered`, so its tools and bash run there from the first step. `agent-spawned` gained an
+  optional `worktree { path, branch, base?, adopted? }`, because the child's event lives on the
+  child's thread, which the parent's view cannot fold.
+- **Removal is guarded by provenance and by git.** A path counts as Atlas-created when the log holds
+  a `worktree-entered` or `agent-spawned.worktree` for it with `adopted !== true` — which covers a
+  worktree this session spawned a child into — and an adopted worktree is never removed. Before
+  removing, the host reads the checkout's real `HEAD` and refuses if it differs from the branch the
+  session remembers, then deletes that checked-out branch. `WorktreeState.unpushed` is
+  `{ count, against } | null`: an upstream first, then the creation base, else `null`, and `isClean`
+  requires a real zero count, so a branch with no upstream cannot lose a commit silently (`#2087`
+  found the first version failing open).
+- **Layout.** `<repository>/.atlas/worktrees/<name>`, with a `*` `.gitignore` written inside it. No
+  v1 worktree lock file: one worktree per session plus git's own refusal covers the collision.
+- **Web.** The session header shows a crew chip (running, or running/total) that opens a panel of the
+  plugin's `crew` view: type, intent, standing, worktree, last report, turns and tool calls.
+
+**Known limits.** The parent's panel annotates a child with the worktree it was spawned into; a
+worktree the child enters itself mid-run is visible to `agent_list` (the child's record) but not
+mirrored into the parent's thread, whose log is all the view folds. And `worktree_list` compares the
+paths git prints: a repository reached through a symlink may list a canonical path that a lexically
+resolved argument cannot match, because the pod has no `realpath` op.
+
+Specs: `plugins/crew/src/pod/__tests__/worktree-{tools,enter,exit,list,spawn}.spec.ts` over a shared
+`worktree-rig.ts`, `.../worktree-hook.spec.ts`, `plugins/crew/src/core/__tests__/roster.spec.ts`,
+`packages/host/src/holder/__tests__/checkouts.spec.ts` (the git argv and parsing over a scripted
+process port), `.../crew.spec.ts` (the child's `worktree-entered` lands before its first turn, and
+the parent's `agent-spawned` carries the worktree and its provenance),
+`apps/web/src/features/sessions/__tests__/session-header.spec.tsx`.
+
+**Live check (2026-11-09, production).** Session `188f95e6-ffdf-4ee1-afd9-485520a5756e`, thread
+`9b7f56a4-c10a-4aaa-ab84-330095c723b3`, agent host on `313c7f417` (its sandbox cloned the same head).
+
+| Step                                | Result                                                                                                                                                                                                                                            |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| the session's declared tools        | 32, including `enter_worktree`, `exit_worktree` and `worktree_list`                                                                                                                                                                               |
+| `agent_spawn` into `dennis/live-wt` | `agent-spawned` with `worktree { path: /atlas/workspaces/workspace/.atlas/worktrees/dennis/live-wt, branch: dennis/live-wt, base: origin/main }`                                                                                                  |
+| the child's own work                | its report quotes `pwd` inside that worktree and commit `77d46ef5` on `dennis/live-wt` (1 file changed); `agent-ended` finished, 2 turns, 4 tool calls; its thread holds `worktree-entered` 1, `user-said` 1, `assistant-said` 2, `tool-called` 4 |
+| the wake                            | a `user-said` on the main thread: `Sub-agent brn_6c40ac11-… (general-purpose, "worktree proof") reported done.` with the same text                                                                                                                |
+| the view                            | `pluginViews.crew` = one row with the worktree path, branch and base, status finished, 2 turns, 4 tool calls, and the report as prose                                                                                                             |
+| `worktree_list`                     | the main checkout and `dennis/live-wt`, `current` = the main checkout                                                                                                                                                                             |
+| `enter_worktree` by that path       | `{ enteredWorktree: { adopted: false, base: origin/main, … } }`; the `worktree-entered` draft carried `adopted: false` and the base                                                                                                               |
+| `exit_worktree` `remove`            | refused: "removing the worktree … would lose 1 commit that is not on origin/main"                                                                                                                                                                 |
+| `exit_worktree` `remove` + discard  | removed, `returnTo` `/atlas/workspaces/workspace`                                                                                                                                                                                                 |
+| teardown                            | session archived `13:51:25Z`, temporary `AuthSession` row deleted                                                                                                                                                                                 |
+
+The stale-instance trap recurred: the first probe on the deploy that had just gone live
+(`71df8fd1-…`) was served by the outgoing host and its tool list held every other plugin's tools and
+none of the three worktree tools; a fresh session minutes later had all 32. Compare the sandbox's
+cloned head with the deploy that served it before debugging the plugin.
 
 ## 9. Answers (2026-11-08)
 
