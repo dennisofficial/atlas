@@ -19,6 +19,7 @@ import { runCheckForUpdates } from './check-for-updates'
 import { createUpdateState } from './update-state'
 import { EDesktopUpdateState } from '../host/update-routes'
 import { DESKTOP_PRELOAD } from './preload'
+import { PANE_RENDERER_ENV, paneRendererOf } from './pane-renderer'
 import { runLogged, writeLog } from './crash-log'
 import { type IExternalLinkRouter, routeExternalLinks } from './external-links-wiring'
 import { syncFullscreen } from './fullscreen'
@@ -55,7 +56,11 @@ async function showStartupFailure({
 
 const startApp = async () => {
   const localInfo = await Updater.getLocalInfo()
-  const chromium = BuildConfig.getSync().availableRenderers.includes('cef')
+  const chromium =
+    paneRendererOf({
+      available: BuildConfig.getSync().availableRenderers,
+      requested: process.env[PANE_RENDERER_ENV],
+    }) === 'cef'
   const serveVersion = resolveServeVersion({
     envVersion: process.env.ATLAS_SERVE_VERSION,
     channel: localInfo.channel,

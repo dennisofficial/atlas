@@ -15,8 +15,8 @@ import {
 import { InputGroupButton } from '#components/input-group'
 import { Popover, PopoverContent, PopoverTrigger } from '#components/popover'
 
+import { EffortDial } from './effort-dial'
 import {
-  EffortMenu,
   FastToggle,
   FilterChips,
   ModelRow,
@@ -288,11 +288,12 @@ export function ModelSelector({
           )}
         </PopoverContent>
       </Popover>
-      {effort && current && effortOptions.length > 0 ? (
-        <>
-          <span aria-hidden className="mx-0.5 h-4 w-px shrink-0 bg-border max-md:hidden" />
-          <EffortMenu efforts={effortOptions} value={effort} onChange={onEffortChange} />
-        </>
+      {effort && current && effortOptions.length > 1 ? (
+        <EffortDial
+          efforts={effortOptions}
+          value={effort}
+          {...(onEffortChange === undefined ? {} : { onChange: onEffortChange })}
+        />
       ) : null}
       {current?.fast === true && onFastChange !== undefined ? (
         <FastToggle pressed={fast} onToggle={onFastChange} />
