@@ -22,7 +22,10 @@ const dispatch = (args: { listeners: ReturnType<typeof runPreload>['listeners'];
 describe('DESKTOP_PRELOAD', () => {
   it('exposes the desktop bridge', () => {
     const { fakeWindow } = runPreload()
-    expect(Reflect.get(fakeWindow, 'atlasDesktop')).toEqual({ vibrancy: false })
+    expect(Reflect.get(fakeWindow, 'atlasDesktop')).toEqual({
+      vibrancy: false,
+      nativeBrowser: true,
+    })
   })
 
   it('claims Escape so AppKit never exits full screen on it', () => {

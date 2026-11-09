@@ -6,10 +6,8 @@ import type { LucideIcon } from 'lucide-react'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 import { TabsList, TabsTrigger } from '@dltech/atlas-ui/components/tabs'
 
-import { ERightTab, TAB_LABEL } from './right-tab'
 import { useHasNativeBrowser } from '@/features/desktop/use-has-native-browser'
-
-const BROWSER_LABEL = 'Browser'
+import { ERightTab, tabLabel } from './right-tab'
 
 const TAB_ICON: Record<ERightTab, LucideIcon> = {
   [ERightTab.Details]: InfoIcon,
@@ -26,8 +24,7 @@ export type RightTabStripProps = {
 
 export function RightTabStrip({ counts, className }: RightTabStripProps) {
   const nativeBrowser = useHasNativeBrowser()
-  const labelOf = (tab: ERightTab) =>
-    nativeBrowser && tab === ERightTab.Preview ? BROWSER_LABEL : TAB_LABEL[tab]
+  const labelOf = (tab: ERightTab) => tabLabel({ tab, nativeBrowser })
   return (
     <div className={cn('@container flex h-10 shrink-0 items-end border-b px-3', className)}>
       <TabsList variant="line" className="justify-start">

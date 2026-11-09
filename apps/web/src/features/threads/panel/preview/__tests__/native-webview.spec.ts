@@ -8,7 +8,9 @@ import {
 } from '../../../data/preview-browser/browser-model'
 import { bindWebview, urlOfEvent } from '../native/bind-webview'
 import { createFrameDriver } from '../native/frame-driver'
+import { NATIVE_PARTITION } from '../native/native-frame'
 import { nativeOf, registerNative } from '../native/native-controls'
+import { OVERLAY_MASKS } from '../native/masks'
 import { ENativeEvent, type NativeEvent, type NativeWebview } from '../native/webview-handle'
 import { reportedState } from '../report-navigation'
 
@@ -130,6 +132,15 @@ describe('createFrameDriver', () => {
     driver.apply({ url: A, seq: 0, visible: false })
     driver.reassertVisibility()
     expect(webview.calls).toEqual(['hidden true', 'hidden true'])
+  })
+})
+
+describe('the native tag configuration', () => {
+  it('shares one persistent profile and masks the popovers and clip strips', () => {
+    expect(NATIVE_PARTITION).toBe('persist:atlas-browser')
+    expect(OVERLAY_MASKS).toContain('[data-preview-clip]')
+    expect(OVERLAY_MASKS).toContain('[data-slot=dropdown-menu-content]')
+    expect(OVERLAY_MASKS).not.toContain('[data-slot=dialog-content]')
   })
 })
 
