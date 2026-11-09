@@ -16,7 +16,7 @@ import {
   type ConnectionState,
 } from './connection-machine'
 import { memorySessionCache, type SessionCache } from './session-cache'
-import { createSessionFollower, ESessionConnection, type SessionFollower } from './session-follower'
+import { createSessionFollower, type SessionFollower } from './session-follower'
 import { createSessionsList, type FollowedSessionList, type SessionsList } from './sessions-list'
 import {
   browserNetworkSignal,
@@ -171,10 +171,6 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
     const entry = followed.get(message.id)
     if (entry === undefined) return
     entry.follower.handleMessage(message)
-    const connection = entry.follower.getSnapshot().connection
-    if (connection === ESessionConnection.Outdated || connection === ESessionConnection.Stale) {
-      stopFollowing(entry)
-    }
   }
 
   const run = (effect: ConnectionEffect): void => {

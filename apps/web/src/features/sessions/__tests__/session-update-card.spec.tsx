@@ -49,11 +49,16 @@ beforeEach(() => {
 })
 
 describe('SessionUpdateCard on the web', () => {
-  it('offers a reload instead of a dead end', async () => {
-    await mount(<SessionUpdateCard />)
-    expect(document.body.textContent).toContain('A newer Atlas wrote this session')
-    expect(document.body.textContent).toContain('Reload to see everything in it.')
-    expect(button()?.textContent).toBe('Reload')
+  it('names the parts it skipped and offers nothing that would be a no-op', async () => {
+    await mount(<SessionUpdateCard skipped={2} writerAhead />)
+    expect(document.body.textContent).toContain('A newer Atlas wrote 2 parts of this session')
+    expect(document.body.textContent).toContain('The rest of the session still works.')
+    expect(button()).toBeUndefined()
+  })
+
+  it('says a part could not be read when the host knows nothing newer', async () => {
+    await mount(<SessionUpdateCard skipped={1} writerAhead={false} />)
+    expect(document.body.textContent).toContain('1 part of this session could not be read')
   })
 })
 
@@ -61,7 +66,7 @@ describe('SessionUpdateCard in the Mac app', () => {
   it('says no update has been released when the check finds none', async () => {
     Reflect.set(window, 'atlasDesktop', { vibrancy: false })
     answerWith({ state: 'idle' })
-    await mount(<SessionUpdateCard />)
+    await mount(<SessionUpdateCard skipped={1} writerAhead />)
     await settle()
     expect(document.body.textContent).toContain('No update has been released yet')
     expect(button()?.textContent).toBe('Check again')
@@ -70,7 +75,7 @@ describe('SessionUpdateCard in the Mac app', () => {
   it('offers the restart once an update is downloaded', async () => {
     Reflect.set(window, 'atlasDesktop', { vibrancy: false })
     answerWith({ state: 'ready', version: '1.2.3' })
-    await mount(<SessionUpdateCard />)
+    await mount(<SessionUpdateCard skipped={1} writerAhead />)
     await settle()
     expect(document.body.textContent).toContain('Restart to install 1.2.3.')
     expect(button()?.textContent).toBe('Restart to update')
@@ -79,7 +84,7 @@ describe('SessionUpdateCard in the Mac app', () => {
   it('reports a failed check rather than pretending to be current', async () => {
     Reflect.set(window, 'atlasDesktop', { vibrancy: false })
     globalThis.fetch = (async () => new Response('nope', { status: 500 })) as typeof fetch
-    await mount(<SessionUpdateCard />)
+    await mount(<SessionUpdateCard skipped={1} writerAhead />)
     await settle()
     expect(document.body.textContent).toContain('The update check failed.')
     expect(button()?.textContent).toBe('Try again')

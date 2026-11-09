@@ -38,8 +38,6 @@ export enum ESessionConnection {
   CatchingUp = 'catching-up',
   Reconnecting = 'reconnecting',
   Offline = 'offline',
-  Stale = 'stale',
-  Outdated = 'outdated',
 }
 
 export type SessionSnapshot = {
@@ -51,6 +49,8 @@ export type SessionSnapshot = {
   setupOutput?: string | undefined
   connection: ESessionConnection
   error: EStreamErrorCode | undefined
+  skipped: number
+  writerAhead: boolean
 }
 
 export type SessionFollower = {
@@ -82,16 +82,11 @@ type Inner = {
   phase: EStreamConnectionState
   live: boolean
   error: EStreamErrorCode | undefined
-  unreadable: boolean
-  serverAhead: boolean
+  skipped: number
+  writerAhead: boolean
 }
 
-const connectionOf = (
-  inner: Pick<Inner, 'phase' | 'live' | 'unreadable' | 'serverAhead'>,
-): ESessionConnection => {
-  if (inner.unreadable) {
-    return inner.serverAhead ? ESessionConnection.Stale : ESessionConnection.Outdated
-  }
+const connectionOf = (inner: Pick<Inner, 'phase' | 'live'>): ESessionConnection => {
   if (inner.phase === EStreamConnectionState.Closed) return ESessionConnection.Offline
   if (inner.phase !== EStreamConnectionState.Open) return ESessionConnection.Reconnecting
   return inner.live ? ESessionConnection.Live : ESessionConnection.CatchingUp
@@ -106,6 +101,8 @@ const snapshotOf = (inner: Inner): SessionSnapshot => ({
   setupOutput: inner.setupOutput,
   connection: connectionOf(inner),
   error: inner.error,
+  skipped: inner.skipped,
+  writerAhead: inner.writerAhead,
 })
 
 const settlesSetup = (events: readonly Record<string, unknown>[]): boolean =>
@@ -131,8 +128,8 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
     phase: EStreamConnectionState.Connecting,
     live: false,
     error: undefined,
-    unreadable: false,
-    serverAhead: false,
+    skipped: 0,
+    writerAhead: false,
   }
   let snapshot = snapshotOf(inner)
   const listeners = new Set<() => void>()
@@ -162,19 +159,16 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
   }
 
   const handleEvents = (message: Extract<StreamServerMessage, { type: 'events' }>): void => {
-    const { window, unreadable } = applyPageOutcome({
+    const { window, skipped, issue } = applyPageOutcome({
       window: inner.window,
       page: { events: message.events, head: message.head },
       eventSchema: args.eventSchema,
     })
     const overlay = closeOverlayForEvents({ state: inner.overlay, events: window.events })
-    if (unreadable !== undefined) {
+    if (skipped > 0) {
       console.warn(
-        `session ${sessionId}: stopping at an event this client cannot read (seq ${unreadable.seq ?? 'unknown'}): ${unreadable.issue}`,
+        `session ${sessionId}: skipped ${skipped} event(s) this client cannot read: ${issue ?? 'unreadable event'}`,
       )
-      commit({ ...inner, window, overlay, live: false, error: undefined, unreadable: true })
-      saveThrottled()
-      return
     }
     commit({
       ...inner,
@@ -183,6 +177,7 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
       setupOutput: settlesSetup(message.events) ? '' : inner.setupOutput,
       live: message.live,
       error: undefined,
+      skipped: inner.skipped + skipped,
     })
     saveThrottled()
   }
@@ -217,7 +212,6 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
   }
 
   const handleMessage = (message: StreamServerMessage): void => {
-    if (inner.unreadable) return
     if (message.type === 'events') handleEvents(message)
     else if (message.type === 'view') handleView(message)
     else if (message.type === 'error') commit({ ...inner, error: message.code })
@@ -229,6 +223,7 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
         view: undefined,
         setupOutput: '',
         live: false,
+        skipped: 0,
       })
     } else if (
       message.type === 'frame' &&
@@ -277,9 +272,9 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
       commit({ ...inner, phase, live: false })
     },
     setServerEventTypes: (types) => {
-      const serverAhead = types?.some((type) => !knownEventTypes.has(type)) ?? false
-      if (serverAhead === inner.serverAhead) return
-      commit({ ...inner, serverAhead })
+      const writerAhead = types?.some((type) => !knownEventTypes.has(type)) ?? false
+      if (writerAhead === inner.writerAhead) return
+      commit({ ...inner, writerAhead })
     },
     markResubscribing: () => {
       commit({ ...inner, live: false, overlay: { ...inner.overlay, open: undefined } })

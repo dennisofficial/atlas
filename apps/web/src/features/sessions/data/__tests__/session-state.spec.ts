@@ -71,13 +71,6 @@ describe('sessionStateLineOf', () => {
     expect(sessionStateLineOf(snapshotOf({ connection: ESessionConnection.Offline }))).toBe(
       'Offline — reload to reconnect',
     )
-    expect(sessionStateLineOf(snapshotOf({ connection: ESessionConnection.Outdated }))).toBe(
-      'This session has a part Atlas could not read. Reload to try again.',
-    )
-  })
-
-  it('leaves the stale connection line to the update card', () => {
-    expect(sessionStateLineOf(snapshotOf({ connection: ESessionConnection.Stale }))).toBeNull()
   })
 
   it('gives the setup failure with its reason', () => {
