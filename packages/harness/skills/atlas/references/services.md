@@ -198,6 +198,16 @@ runtime and listen on `$PORT` bound to `0.0.0.0`; never hardcode a port or hostn
   `next.config` to the `byatlas.dev` host (derive it from `PUBLIC_URL`), and start it with
   `-p $PORT -H 0.0.0.0`.
 
+### OAuth sign-in from a preview
+
+A provider redirects to one fixed URL, so it can never call back to a per-session preview host. Point
+the app's OAuth redirect URI (`AUTH_URL`, `NEXTAUTH_URL`, the provider's `redirectUri`) at
+`https://callback.byatlas.dev` plus the app's own callback path, and have the operator register that
+exact URL with the provider. The callback host answers with a 307 to the preview the browser last
+opened top-level, path and query intact, so sign-in only works from a preview opened in its own tab,
+and two previews signing in at once in one browser can cross. A provider that POSTs its callback
+(Apple's `form_post`) cannot be handed back this way.
+
 ## Troubleshooting
 
 - **Not ready** (`ready: false` after the 60 second budget): the URL is still returned. Read the log

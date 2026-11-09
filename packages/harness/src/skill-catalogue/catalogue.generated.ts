@@ -5,16 +5,16 @@ import type { BuiltInSkillCatalogueEntry } from './catalogue-types'
 export const BUILT_IN_SKILL_CATALOGUE: readonly BuiltInSkillCatalogueEntry[] = [
   {
     name: "atlas",
-    description: "Handbook to the Atlas harness: set up a repo or home for Atlas, configure and troubleshoot settings.json, ATLAS_HOME, instruction files (ATLAS.md, AGENTS.md, CLAUDE.md), skills, agent types, MCP servers (mcp.json, .mcp.json), .atlas/services.yaml (service_start, needs, preview URLs, PORT), .atlas/container.json, Dockerfile and devcontainer, plugins, worktrees, Atlas Cloud sandboxes, /container, parked sessions and cloud logs.",
+    description: "Handbook to the Atlas harness: set up a repo or home for Atlas, configure and troubleshoot settings.json, ATLAS_HOME, instruction files (ATLAS.md, AGENTS.md, CLAUDE.md), skills, agent types, MCP servers (mcp.json, .mcp.json), .atlas/services.yaml (service_start, needs, preview URLs, PORT), .atlas/container.json, Dockerfile and devcontainer, plugins, worktrees, Atlas Cloud sandboxes, /container, parked sessions, cloud logs, and OAuth sign-in callbacks from a preview through callback.byatlas.dev.",
     updatedAt: "1970-01-01T00:00:00.000Z",
-    entry: { path: 'SKILL.md', digest: "9c11ae2f9a23e85ea4d6827b3c8d5c33b97bb7cfbd6d9c4bf772441eba14c3f7", sizeBytes: 4528 },
+    entry: { path: 'SKILL.md', digest: "03383b05763421c1a3f778e1682f9ea63150ae2f1f5e18ad62c4f405a43aed34", sizeBytes: 4598 },
     files: [
       { path: "references/cloud-config.md", digest: "6e098294dffcc0026a3988f82e25fd2a2552f1f31862a4e7e821a2842daf575a", sizeBytes: 3452, isText: true },
       { path: "references/cloud.md", digest: "fc05aedd4776d25c703c3d12ec3e5c5cc969c2fa1ae9ec9e2784ffcaf3476daa", sizeBytes: 8397, isText: true },
       { path: "references/config.md", digest: "73af364b0be66b08283b34d2cbf4832da02351188c789d94534ea38b7d087d0c", sizeBytes: 8518, isText: true },
       { path: "references/container.md", digest: "0557e52c7c27544d494c38acfe5d1b797acdccb55885bfe3bfbb818160ff2551", sizeBytes: 9817, isText: true },
       { path: "references/plugins.md", digest: "a0f3117e49cf4cc6c555e1086bfcbc40396512432c6e70bf0c4e409c3b026c11", sizeBytes: 8387, isText: true },
-      { path: "references/services.md", digest: "5b5008df2a356acf6394de00ca316f4341120799f7cd052929f6026ce4fb0cd5", sizeBytes: 11540, isText: true },
+      { path: "references/services.md", digest: "d4cbc1e52cebf45e16feab0c8d6d2554963d4e28044367dbd122a8d211b6411d", sizeBytes: 12219, isText: true },
       { path: "references/worktrees.md", digest: "c0d20ae0291cccd680aafc0ae83e8d506a33d9b60beba719dffa438c3aee6481", sizeBytes: 9840, isText: true },
     ],
   },
