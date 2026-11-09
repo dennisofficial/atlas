@@ -16,7 +16,14 @@ export const agentEventSchemas = [
     agentType: z.string().min(1),
     intent: z.string(),
     mode: z.enum(EAgentStart),
-    worktree: z.object({ path: z.string(), branch: z.string() }).optional(),
+    worktree: z
+      .object({
+        path: z.string(),
+        branch: z.string(),
+        base: z.string().optional(),
+        adopted: z.boolean().optional(),
+      })
+      .optional(),
   }),
   z.object({
     type: z.literal('agent-ended'),

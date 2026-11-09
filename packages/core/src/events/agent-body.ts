@@ -14,7 +14,9 @@ export type AgentEventBody =
       agentType: string
       intent: string
       mode: EAgentStart
-      worktree?: { path: string; branch: string } | undefined
+      worktree?:
+        | { path: string; branch: string; base?: string | undefined; adopted?: boolean | undefined }
+        | undefined
     }
   | {
       type: 'agent-ended'
