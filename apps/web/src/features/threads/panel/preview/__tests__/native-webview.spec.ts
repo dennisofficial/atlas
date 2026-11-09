@@ -137,7 +137,7 @@ describe('createFrameDriver', () => {
 
 describe('the native tag configuration', () => {
   it('spells the one persistent profile per engine', () => {
-    expect(partitionFor('cef')).toBe('persist:atlas-browser')
+    expect(partitionFor('cef')).toBe('persist:default')
     expect(partitionFor('native')).toBe('persist:A7C4B1E2-9F3D-4C6A-8B2E-5D1F0A9C3E7B')
   })
 

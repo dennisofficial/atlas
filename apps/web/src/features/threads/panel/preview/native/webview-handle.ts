@@ -7,6 +7,8 @@ export enum ENativeEvent {
 export type NativeEvent = { detail?: unknown }
 
 export type NativeWebview = {
+  webviewId: number | null
+  hidden: boolean
   on: (name: ENativeEvent, listener: (event: NativeEvent) => void) => void
   off: (name: ENativeEvent, listener: (event: NativeEvent) => void) => void
   loadURL: (url: string) => void

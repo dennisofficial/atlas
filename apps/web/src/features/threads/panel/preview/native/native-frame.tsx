@@ -9,9 +9,11 @@ import { bindWebview } from './bind-webview'
 import { createFrameDriver, type FrameDriver } from './frame-driver'
 import { OVERLAY_MASKS } from './masks'
 import { registerNative } from './native-controls'
+import { forgetNativeStats, noteNativeEvent } from './native-stats'
 import { isNativeWebview } from './webview-handle'
 
-const CEF_PARTITION = 'persist:atlas-browser'
+// CEF's own default profile: the most-travelled request-context path, and one profile for the app.
+const CEF_PARTITION = 'persist:default'
 
 // Electrobun's WKWebView only takes a named store after `persist:` when it is a UUID, and otherwise silently drops to the app's default store.
 // https://github.com/blackboardsh/electrobun/blob/v2.0.5/package/src/native/macos/nativeWrapper.mm#L743-L767
@@ -51,10 +53,12 @@ export function NativeFrame(props: {
       webview: element,
       onNavigated: (url) => latest.current.onNavigated({ frame: latest.current.frame, url }),
       onReady: held.reassertVisibility,
+      onEvent: (event, url) => noteNativeEvent({ key, event, url }),
     })
     return () => {
       unbind()
       unregister()
+      forgetNativeStats(key)
       driver.current = undefined
     }
   }, [element])
@@ -69,7 +73,7 @@ export function NativeFrame(props: {
       src={initialUrl}
       partition={partitionFor(renderer)}
       renderer={renderer}
-      masks={OVERLAY_MASKS}
+      masks={renderer === 'cef' ? undefined : OVERLAY_MASKS}
       style={FILL}
     />
   )
