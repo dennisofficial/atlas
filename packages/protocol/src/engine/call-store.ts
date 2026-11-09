@@ -20,6 +20,11 @@ export type CallJournal =
   | (CallJournalFields & { state: ECallJournalState.Running })
   | (CallJournalFields & { state: ECallJournalState.Done; result: CallResult })
 
+const REDACTED = '[redacted]'
+
+export const journalOp = (op: CallOp): CallOp =>
+  op.op === 'previews.expose' ? { ...op, tunnelToken: REDACTED } : op
+
 const journalFields = {
   format: z.literal(CALL_JOURNAL_FORMAT),
   epoch: z.number().int().min(0),

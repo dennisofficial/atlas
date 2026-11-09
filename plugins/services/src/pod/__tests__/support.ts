@@ -6,7 +6,7 @@ import {
   type RecordBody,
   type V2Event,
 } from '@dltech/atlas-core'
-import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
+import type { PluginPodContext, PodControl } from '@dltech/atlas-plugin-sdk'
 import {
   CallFailureError,
   ECallStatus,
@@ -20,7 +20,14 @@ import { servicesPod } from '..'
 
 export type CallOptions = { signal?: AbortSignal; onOutput?(bytes: Uint8Array): void }
 
-export const rig = () => {
+export const controlOf = (args: { url: string; tunnelToken?: string }): PodControl => ({
+  exposePort: async () => ({
+    url: args.url,
+    tunnelToken: args.tunnelToken ?? 'tunnel-token',
+  }),
+})
+
+export const rig = (options: { control?: PodControl } = {}) => {
   const log: V2Event[] = []
   const listeners = new Set<(frame: DaemonEventFrame) => void>()
   const calls: CallOp[] = []
@@ -69,7 +76,7 @@ export const rig = () => {
   }
 
   const ctx: PluginPodContext = {
-    control: podControlStub,
+    control: options.control ?? podControlStub,
     sessionId: 's1',
     append,
     events: () => log,

@@ -39,6 +39,15 @@ describe('services view', () => {
     ])
   })
 
+  it('carries the public url a started service was published at', () => {
+    expect(
+      servicesOfEvents([started(1, { port: 3000, url: 'https://six-words.trycloudflare.com' })]),
+    ).toMatchObject([{ url: 'https://six-words.trycloudflare.com' }])
+    expect(servicesOfEvents([started(1, { port: 3000 })])).not.toMatchObject([
+      { url: expect.anything() },
+    ])
+  })
+
   it('records the ending status and clears ready', () => {
     expect(servicesOfEvents([started(1), ready(2), ended(3)])).toMatchObject([
       { status: EServiceStatus.Killed, ready: false, command: 'bun dev', changedAt: at(3) },

@@ -1,7 +1,9 @@
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 import type { DaemonEventFrame } from '@dltech/atlas-protocol'
 
+import { servicesOfEvents } from '../core'
 import { readServiceLog } from './daemon'
+import { stopPreview } from './expose'
 import type { ServicePodState } from './state'
 import { hasEnded, hasReady, outcomeOf, startedOf } from './status'
 
@@ -72,6 +74,10 @@ export const recordServiceFrame = async (args: {
         ...(state.restarting.has(serviceId) ? { restarting: true as const } : {}),
       },
     ])
+    if (!state.restarting.has(serviceId)) {
+      const row = servicesOfEvents(ctx.events()).find((kept) => kept.serviceId === serviceId)
+      await stopPreview({ ctx, port: row?.port })
+    }
   } catch (error) {
     state.endings.delete(serviceId)
     ctx.log(`services: recording the ending of ${serviceId} failed: ${String(error)}`)

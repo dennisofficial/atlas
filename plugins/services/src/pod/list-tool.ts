@@ -59,6 +59,7 @@ export class ServiceListTool extends SchemaTool<typeof inputSchema> {
           status: info.status,
           exitCode: info.exitCode,
           port: info.port,
+          ...(kept?.url === undefined ? {} : { url: kept.url }),
           startedAt: info.startedAt,
           running,
           stale:

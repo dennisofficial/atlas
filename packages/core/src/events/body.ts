@@ -227,6 +227,7 @@ export type EventBody =
       serviceId: string
       name?: string | undefined
       port?: number | undefined
+      url?: string | undefined
       declarationHash?: string | undefined
       command: string
       description?: string | undefined

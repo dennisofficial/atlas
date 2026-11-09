@@ -12,6 +12,8 @@ export class ServicesFragment extends PromptFragment {
       'service this conversation has started. A `name` comes from the project\u2019s `.atlas/services.yaml`:',
       'it starts what that service needs first and uses its command, working directory, env and port.',
       'A service whose declaration changed since it started is listed as stale until you restart it.',
+      'A service with a port is published at a public URL that the tool returns: hand the user that URL,',
+      'which is what they open. A service without a port is reachable only inside the sandbox.',
     ].join('\n')
   }
 }

@@ -11,6 +11,7 @@ import { z } from 'zod'
 
 import { servicesOfEvents } from '../core'
 import { stopService } from './daemon'
+import { stopPreview } from './expose'
 import { renderStopped } from './render'
 import type { ServicePodState } from './state'
 
@@ -66,6 +67,8 @@ export class ServiceStopTool extends SchemaTool<typeof inputSchema> {
       this.state.stopping.delete(serviceId)
       return { ok: false, reason: stopped.reason }
     }
+    const row = servicesOfEvents(this.ctx.events()).find((kept) => kept.serviceId === serviceId)
+    await stopPreview({ ctx: this.ctx, port: row?.port })
     return {
       ok: true,
       output: {
