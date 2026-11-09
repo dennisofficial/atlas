@@ -1,5 +1,6 @@
-import { ChevronsUpDown, LogOut, Settings } from 'lucide-react'
+import { ChevronsUpDown, Download, LogOut, Settings } from 'lucide-react'
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 
 import { Avatar, AvatarFallback } from '@dltech/atlas-ui/components/avatar'
 import {
@@ -17,9 +18,13 @@ import { desktopSignOut } from '@/features/desktop/desktop-auth'
 import { isDesktopHost } from '@/features/desktop/desktop-attributes'
 import { signOut, type SessionUser } from '@/lib/auth-api'
 
+import { macDownloadHref } from './mac-download'
+
 const SIGN_IN_PATH = '/sign-in'
 
 export function AccountMenu({ user, initials }: { user: SessionUser | null; initials: string }) {
+  const [macDownload, setMacDownload] = useState<string | null>(null)
+  useEffect(() => setMacDownload(macDownloadHref(window)), [])
   const handleSignOut = async () => {
     const leave = isDesktopHost(window) ? desktopSignOut : signOut
     await leave().catch(() => undefined)
@@ -39,6 +44,17 @@ export function AccountMenu({ user, initials }: { user: SessionUser | null; init
           <>
             <DropdownMenuGroup>
               <DropdownMenuLabel className="truncate">{user.email}</DropdownMenuLabel>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+          </>
+        )}
+        {macDownload === null ? null : (
+          <>
+            <DropdownMenuGroup>
+              <DropdownMenuItem render={<a href={macDownload} />}>
+                <Download />
+                Download Atlas for Mac
+              </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
           </>
