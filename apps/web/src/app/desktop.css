@@ -24,19 +24,21 @@ html[data-desktop]:not([data-fullscreen])
   margin-top: var(--desktop-titlebar-height);
 }
 
-html[data-desktop]:not([data-fullscreen]) header[data-chrome] {
+html[data-desktop]:not([data-fullscreen]) header[data-chrome="titlebar"] {
   height: var(--desktop-titlebar-height);
+  padding-left: var(--desktop-traffic-lights-inset);
 }
 
 html[data-desktop]:not([data-fullscreen]) header[data-chrome="titlebar-start"] {
   padding-left: var(--desktop-traffic-lights-inset);
 }
 
+/* An expanded sidebar reserves the traffic lights itself, so the header beside it starts at 0. */
 html[data-desktop]:not([data-fullscreen])
-  [data-slot="sidebar"][data-state="collapsed"]
+  [data-slot="sidebar"]:not([data-state="collapsed"])
   ~ [data-slot="sidebar-inset"]
   header[data-chrome="titlebar"] {
-  padding-left: var(--desktop-traffic-lights-inset);
+  padding-left: 0;
 }
 
 html[data-desktop]
