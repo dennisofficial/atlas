@@ -333,6 +333,7 @@ jobs:
           test -d "$app/Contents/Frameworks/Chromium Embedded Framework.framework"
           codesign --verify --deep --strict --verbose=2 "$app"
           du -sh "$app"
+        working-directory: apps/mac
 
       - name: verify no Chromium helper claims a Dock tile
         if: steps.reach.outputs.run == 'true'
