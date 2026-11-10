@@ -1,17 +1,19 @@
 import { describe, expect, it } from 'bun:test'
-import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { FakeSandboxSnapshotStore } from './sandbox-snapshots.fakes'
-import { sweepAllSandboxSnapshots } from './sandbox-snapshot-sweep-run'
+import { sweepAllSandboxSnapshots, type VercelTokenSource } from './sandbox-snapshot-sweep-run'
 
-const cipher = {
-  decrypt: () => JSON.stringify('sealed-token'),
-} as unknown as SecretCipherService
+const tokens = (byUser: Record<string, string | Error> = {}): VercelTokenSource => ({
+  accessToken: async ({ userId }) => {
+    const token = byUser[userId] ?? 'live-token'
+    if (token instanceof Error) throw token
+    return token
+  },
+})
 
 const credentialRow = (
   partial: { userId?: string; vercelProjectId?: string | null } = {},
-): { userId: string; sealedToken: string; teamId: string; vercelProjectId: string | null } => ({
+): { userId: string; teamId: string; vercelProjectId: string | null } => ({
   userId: partial.userId ?? 'usr-1',
-  sealedToken: 'sealed',
   teamId: 'team-1',
   vercelProjectId: partial.vercelProjectId === undefined ? 'prj-current' : partial.vercelProjectId,
 })
@@ -32,11 +34,12 @@ const staleStore = (): FakeSandboxSnapshotStore => {
 const runWith = async (args: {
   credentials: ReturnType<typeof credentialRow>[]
   pinned?: Record<string, string[]>
+  tokenSource?: VercelTokenSource
 }) => {
   const stores = new Map<string, FakeSandboxSnapshotStore>()
   const lines: string[] = []
   const run = await sweepAllSandboxSnapshots({
-    cipher,
+    tokens: args.tokenSource ?? tokens(),
     now: () => new Date('2026-11-10T00:00:00Z'),
     dryRun: false,
     log: (line) => lines.push(line),
@@ -81,5 +84,58 @@ describe('sweepAllSandboxSnapshots', () => {
     expect(run.users).toBe(2)
     expect(run.failedUsers).toBe(1)
     expect([...stores.keys()].sort()).toEqual(['team-1/prj-current', 'team-1/prj-sandboxes-old'])
+  })
+
+  it('hands the store the token the source resolves, never the expired stored one', async () => {
+    const seen: string[] = []
+    await sweepAllSandboxSnapshots({
+      tokens: tokens({ 'usr-1': 'refreshed-access-token' }),
+      now: () => new Date('2026-11-10T00:00:00Z'),
+      dryRun: true,
+      log: () => {},
+      listCredentials: async () => [credentialRow()],
+      listPinnedProjects: async () => [],
+      storeFor: (credentials) => {
+        seen.push(credentials.token)
+        return staleStore()
+      },
+    })
+
+    expect(seen).toEqual(['refreshed-access-token'])
+  })
+
+  it('sweeps the remaining projects of a user after one project throws', async () => {
+    const stores = new Map<string, FakeSandboxSnapshotStore>()
+    const run = await sweepAllSandboxSnapshots({
+      tokens: tokens(),
+      now: () => new Date('2026-11-10T00:00:00Z'),
+      dryRun: false,
+      log: () => {},
+      listCredentials: async () => [credentialRow()],
+      listPinnedProjects: async () => ['prj-broken', 'prj-healthy'],
+      storeFor: (credentials) => {
+        const store = staleStore()
+        store.failList = credentials.projectId === 'prj-broken'
+        stores.set(credentials.projectId, store)
+        return store
+      },
+    })
+
+    expect(run.totals.deleted).toBe(2)
+    expect(run.failures).toHaveLength(1)
+    expect(run.failures[0]).toContain('prj-broken')
+    expect(stores.get('prj-healthy')?.deletedIds).toEqual(['snap-old'])
+  })
+
+  it('names the user whose token cannot be resolved and sweeps the rest', async () => {
+    const { run } = await runWith({
+      credentials: [credentialRow({ userId: 'usr-1' }), credentialRow({ userId: 'usr-2' })],
+      tokenSource: tokens({ 'usr-1': new Error('reconnect Vercel') }),
+    })
+
+    expect(run.users).toBe(2)
+    expect(run.failedUsers).toBe(1)
+    expect(run.failures[0]).toContain('user=usr-1')
+    expect(run.totals.deleted).toBe(1)
   })
 })

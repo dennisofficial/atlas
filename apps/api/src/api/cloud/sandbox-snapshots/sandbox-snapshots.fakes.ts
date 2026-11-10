@@ -11,8 +11,10 @@ export class FakeSandboxSnapshotStore implements SandboxSnapshotStore {
   readonly retentionNames: string[] = []
   failDeleteIds = new Set<string>()
   failRetentionNames = new Set<string>()
+  failList = false
 
   async listSandboxes(): Promise<SandboxSummary[]> {
+    if (this.failList) throw new Error('list sandboxes failed')
     return this.sandboxes
   }
 

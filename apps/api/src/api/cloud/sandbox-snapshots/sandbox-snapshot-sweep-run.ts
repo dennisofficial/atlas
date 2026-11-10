@@ -1,6 +1,4 @@
 import { db } from '@dltech/atlas-db'
-import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import { openSecretValue } from '../secrets/sealed-secret'
 import type { SandboxSnapshotStore } from './sandbox-snapshot-store'
 import { sweepSandboxSnapshots, type SandboxSnapshotSweepResult } from './sandbox-snapshot-sweep'
 import { VercelSandboxSnapshotStore } from './vercel-sandbox-snapshot-store'
@@ -9,11 +7,16 @@ export type SandboxSnapshotSweepRun = {
   users: number
   failedUsers: number
   totals: SandboxSnapshotSweepResult
+  failures: string[]
+}
+
+/** Resolves a live Vercel token per user: an oauth-connected credential's stored token expires within the hour. */
+export type VercelTokenSource = {
+  accessToken: (args: { userId: string }) => Promise<string>
 }
 
 type CredentialRow = {
   userId: string
-  sealedToken: string
   teamId: string
   vercelProjectId: string | null
 }
@@ -43,7 +46,7 @@ const addTotals = (into: SandboxSnapshotSweepResult, from: SandboxSnapshotSweepR
 }
 
 export async function sweepAllSandboxSnapshots(args: {
-  cipher: SecretCipherService
+  tokens: VercelTokenSource
   now: () => Date
   dryRun: boolean
   log: (line: string) => void
@@ -59,16 +62,41 @@ export async function sweepAllSandboxSnapshots(args: {
   const listPinnedProjects = args.listPinnedProjects ?? pinnedProjectsOf
   const storeFor = args.storeFor ?? ((credentials) => new VercelSandboxSnapshotStore(credentials))
   const rows = await listCredentials()
-  const run: SandboxSnapshotSweepRun = { users: rows.length, failedUsers: 0, totals: emptyTotals() }
+  const run: SandboxSnapshotSweepRun = {
+    users: rows.length,
+    failedUsers: 0,
+    totals: emptyTotals(),
+    failures: [],
+  }
+  const fail = (message: string): void => {
+    run.failures.push(message)
+    args.log(`sandbox-snapshot-sweep ${message}`)
+  }
   for (const row of rows) {
+    let token: string
     try {
-      const token = openSecretValue({ cipher: args.cipher, sealed: row.sealedToken })
-      const projects = uniqueProjects([
-        row.vercelProjectId,
-        ...(await listPinnedProjects({ userId: row.userId })),
-      ])
-      if (projects.length === 0) throw new Error('credential holds no project')
-      for (const projectId of projects) {
+      token = await args.tokens.accessToken({ userId: row.userId })
+    } catch (failure) {
+      run.failedUsers++
+      fail(`user=${row.userId} token failed: ${String(failure)}`)
+      continue
+    }
+    let pinned: string[]
+    try {
+      pinned = await listPinnedProjects({ userId: row.userId })
+    } catch (failure) {
+      run.failedUsers++
+      fail(`user=${row.userId} pinned projects failed: ${String(failure)}`)
+      continue
+    }
+    const projects = uniqueProjects([row.vercelProjectId, ...pinned])
+    if (projects.length === 0) {
+      run.failedUsers++
+      fail(`user=${row.userId} failed: credential holds no project`)
+      continue
+    }
+    for (const projectId of projects) {
+      try {
         const result = await sweepSandboxSnapshots({
           store: storeFor({ token, teamId: row.teamId, projectId }),
           now: args.now,
@@ -78,10 +106,9 @@ export async function sweepAllSandboxSnapshots(args: {
           `sandbox-snapshot-sweep user=${row.userId} project=${projectId} ${JSON.stringify(result)}`,
         )
         addTotals(run.totals, result)
+      } catch (failure) {
+        fail(`user=${row.userId} project=${projectId} failed: ${String(failure)}`)
       }
-    } catch (failure) {
-      run.failedUsers++
-      args.log(`sandbox-snapshot-sweep user=${row.userId} failed: ${String(failure)}`)
     }
   }
   return run
