@@ -11,7 +11,6 @@ import {
   EToolEffect,
   NO_CONTENT_TEXT,
   PromptFragment,
-  type PromptModel,
   type ThreadId,
   type ToolDefinition,
   type ToolOutcome,
@@ -32,8 +31,6 @@ import { AgentSupervisor } from '../supervisor'
 import { agentTypeNamed, fixedModelPort, loggedOfType } from './fixtures'
 
 const PROJECT_DIRECTORY = '/w'
-
-const CHILD_MODEL: PromptModel = { contextWindow: 1_000_000 }
 
 const opened: { harness: AtlasHarness; temp: TempHome }[] = []
 
@@ -113,7 +110,6 @@ async function spawn(args: {
                 prompts,
                 agentType,
                 provider: harness.model.identity,
-                model: CHILD_MODEL,
                 projectDirectory: '/w',
               }),
             launchDirectory: PROJECT_DIRECTORY,

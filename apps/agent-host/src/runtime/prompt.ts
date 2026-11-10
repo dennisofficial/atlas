@@ -3,7 +3,6 @@ import {
   EExecutionLocation,
   ERunner,
   promptContextFor,
-  promptModelOf,
   type PromptFragment,
   type PromptSource,
   type ProviderIdentity,
@@ -60,7 +59,6 @@ export const agentHostPrompt = (args: {
       promptContextFor({
         groups: ALL_PROMPT_GROUPS,
         provider: args.identity,
-        model: promptModelOf(undefined),
         projectDirectory,
         placement: EExecutionLocation.Cloud,
         runner: ERunner.Vercel,

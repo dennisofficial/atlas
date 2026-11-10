@@ -12,7 +12,6 @@ import { DelegationFragment } from '../fragments/agents'
 const contextFor = (groups: readonly EPromptGroup[]): PromptContext => ({
   groups,
   provider: { id: 'anthropic-oauth', modelId: 'claude-opus-5' },
-  model: { contextWindow: 1_000_000 },
   projectDirectory: '/w',
 })
 
