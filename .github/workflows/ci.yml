@@ -292,6 +292,21 @@ jobs:
         run: bun test src/host/__tests__/built-app.spec.ts
         working-directory: apps/mac
 
+      - name: verify Chromium's helpers stay out of the Dock
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          app=$(find build -maxdepth 2 -path 'build/stable-macos-*/*.app' | head -1)
+          [ -n "$app" ] || { echo "::error::no built app under build/stable-macos-*"; exit 1; }
+          bundles=("$app"/Contents/Frameworks/*.app)
+          [ "${#bundles[@]}" -gt 0 ] || { echo "::notice::the app carries no helper bundles"; exit 0; }
+          for bundle in "${bundles[@]}"; do
+            plutil -extract LSUIElement raw "$bundle/Contents/Info.plist" | grep -qx true || {
+              echo "::error::$bundle would put its own tile in the Dock"; exit 1;
+            }
+          done
+        working-directory: apps/mac
+
       - name: list artifacts
         run: ls -la artifacts
         working-directory: apps/mac
