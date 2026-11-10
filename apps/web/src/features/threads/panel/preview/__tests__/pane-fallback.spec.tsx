@@ -1,5 +1,5 @@
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
 import { act, type ReactNode } from 'react'
 
 import type { PaneCommand } from '../desktop/pane-command'
@@ -68,6 +68,11 @@ afterAll(async () => {
 beforeEach(() => {
   sent.length = 0
   resetPaneAvailability()
+})
+
+afterEach(() => {
+  resetPaneAvailability()
+  globalThis.fetch = originalFetch
 })
 
 describe('a host with no pane route', () => {
