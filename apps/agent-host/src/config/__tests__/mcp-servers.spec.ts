@@ -18,6 +18,7 @@ const seedServer = async (args: {
   scope: { userId: string } | { projectId: string }
   spec?: unknown
   sealedSpec?: string
+  over?: Record<string, unknown>
 }): Promise<void> => {
   await args.db.orm.public.McpServer.create({
     id: args.id,
@@ -26,6 +27,41 @@ const seedServer = async (args: {
     sealedSpec:
       args.sealedSpec ?? sealed(args.spec ?? { name: args.name, transport: stdio(args.id) }),
     ...args.scope,
+    ...args.over,
+  })
+}
+
+const GRANT_URL = 'https://mcp.example.com/mcp'
+
+const grantOf = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
+  clientInfo: { clientId: 'cid' },
+  tokens: {
+    accessToken: 'at-1',
+    refreshToken: 'rt-1',
+    expiresAt: '2999-01-01T00:00:00.000Z',
+    ...over,
+  },
+  tokenEndpoint: 'https://oauth.example.com/token',
+  redirectUri: 'https://app.example.com/cb',
+})
+
+const seedGranted = async (args: {
+  db: ReturnType<typeof testDb>['db']
+  oauthStatus?: string
+  oauthServerUrl?: string
+  grant?: unknown
+}): Promise<void> => {
+  await seedServer({
+    db: args.db,
+    id: 'srv-posthog',
+    name: 'posthog',
+    scope: { projectId: 'proj-1' },
+    spec: { name: 'posthog', transport: { kind: 'http', url: GRANT_URL } },
+    over: {
+      oauthStatus: args.oauthStatus ?? 'active',
+      oauthServerUrl: args.oauthServerUrl ?? GRANT_URL,
+      oauthSealed: sealed(args.grant ?? grantOf()),
+    },
   })
 }
 
@@ -93,6 +129,69 @@ describe('McpServerReader', () => {
 
   it('reads nothing for a session that does not exist', async () => {
     expect(await readerOver().read({ sessionId: 's-nope' })).toEqual({ rows: [], rejections: [] })
+  })
+})
+
+describe('the cloud oauth grant', () => {
+  it('carries the access token of an active grant for the row url', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedGranted({ db })
+
+    const cloud = await readerOver(db).read({ sessionId: 's-1' })
+
+    expect(cloud.rows).toEqual([
+      {
+        source: 'project',
+        spec: { name: 'posthog', transport: { kind: 'http', url: GRANT_URL } },
+        accessToken: 'at-1',
+      },
+    ])
+  })
+
+  it('leaves an expired grant without a token', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedGranted({ db, grant: grantOf({ expiresAt: '2020-01-01T00:00:00.000Z' }) })
+
+    const cloud = await readerOver(db).read({ sessionId: 's-1' })
+
+    expect(cloud.rows).toEqual([
+      {
+        source: 'project',
+        spec: { name: 'posthog', transport: { kind: 'http', url: GRANT_URL } },
+      },
+    ])
+  })
+
+  it('leaves a grant made for another url without a token', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedGranted({ db, oauthServerUrl: 'https://elsewhere.example.com/mcp' })
+
+    const cloud = await readerOver(db).read({ sessionId: 's-1' })
+
+    expect(cloud.rows).toEqual([
+      {
+        source: 'project',
+        spec: { name: 'posthog', transport: { kind: 'http', url: GRANT_URL } },
+      },
+    ])
+  })
+
+  it('leaves a grant that is not active without a token', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedGranted({ db, oauthStatus: 'expired' })
+
+    const cloud = await readerOver(db).read({ sessionId: 's-1' })
+
+    expect(cloud.rows).toEqual([
+      {
+        source: 'project',
+        spec: { name: 'posthog', transport: { kind: 'http', url: GRANT_URL } },
+      },
+    ])
   })
 })
 

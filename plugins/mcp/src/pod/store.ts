@@ -301,7 +301,11 @@ export class McpStore {
 
     const client: McpTransportClient =
       transport.kind === 'http'
-        ? new HttpClient({ serverId: spec.name, transport })
+        ? new HttpClient({
+            serverId: spec.name,
+            transport,
+            accessToken: spec.accessToken,
+          })
         : new StdioClient({
             ctx: this.args.ctx,
             serverId: spec.name,

@@ -76,7 +76,11 @@ export type McpRejection = {
   detail: string
 }
 
-export type LoadedMcpEntry = McpEntry & { origin: EDefinitionOrigin; definedIn: string }
+export type LoadedMcpEntry = McpEntry & {
+  origin: EDefinitionOrigin
+  definedIn: string
+  accessToken?: string
+}
 
 export type McpSourceRead = {
   entries: readonly LoadedMcpEntry[]
@@ -235,7 +239,7 @@ export const parseMcpText = (args: {
   })
 }
 
-export type McpCloudRow = { source: 'user' | 'project'; spec: unknown }
+export type McpCloudRow = { source: 'user' | 'project'; spec: unknown; accessToken?: string }
 
 const CLOUD_ORIGIN: Readonly<Record<McpCloudRow['source'], EDefinitionOrigin>> = {
   user: EDefinitionOrigin.User,
@@ -253,7 +257,12 @@ export const parseMcpRows = (args: {
     const origin = CLOUD_ORIGIN[row.source]
     const parsed = mcpSpecSchema.safeParse(row.spec)
     if (parsed.success) {
-      entries.push({ ...parsed.data, origin, definedIn: args.definedIn })
+      entries.push({
+        ...parsed.data,
+        origin,
+        definedIn: args.definedIn,
+        ...(row.accessToken === undefined ? {} : { accessToken: row.accessToken }),
+      })
       continue
     }
     rejections.push({
