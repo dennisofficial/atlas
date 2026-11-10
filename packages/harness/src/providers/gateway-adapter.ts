@@ -7,6 +7,7 @@ import type {
 
 import {
   EAuthProvider,
+  isAnthropicModel,
   type AccountId,
   type CredentialPort,
   type EEffort,
@@ -24,11 +25,13 @@ import { withStreamProvenance } from './stream-provenance'
 export { GATEWAY_PROVIDER_ID }
 
 /**
- * `caching: 'auto'` has the gateway place the cache markers a provider needs (Anthropic) and is a
- * no-op where caching is implicit, so one request shape caches across every routed provider.
+ * `caching: 'auto'` has the gateway place the cache markers a provider needs and is a no-op where
+ * caching is implicit. Anthropic models are the exception: the gateway adds markers of its own on
+ * top of the breakpoints the assembler places, and Anthropic rejects a fifth.
  * https://vercel.com/docs/ai-gateway/models-and-providers/automatic-caching
  */
-const ROUTING_OPTIONS = { caching: 'auto' }
+const routingOptionsFor = (modelId: string): { caching?: 'auto' } =>
+  isAnthropicModel(modelId) ? {} : { caching: 'auto' }
 
 export class GatewayAdapter extends ProviderAdapter {
   readonly id = GATEWAY_PROVIDER_ID
@@ -91,7 +94,7 @@ export class GatewayAdapter extends ProviderAdapter {
     const prepared = (options: LanguageModelV4CallOptions): LanguageModelV4CallOptions => {
       const reasoning = gatewayReasoning({ card: args.card, effort: args.effort() })
       const routing = {
-        ...ROUTING_OPTIONS,
+        ...routingOptionsFor(modelId),
         ...options.providerOptions?.[GATEWAY_PROVIDER_ID],
       }
       return {
