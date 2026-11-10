@@ -55,16 +55,6 @@ function signAndNotarize({ dmg, signing }: { dmg: string; signing: SigningEnv })
   run({ cmd: ['xcrun', 'stapler', 'validate', dmg] })
 }
 
-function stapleApp({ app }: { app: string }) {
-  const validate = Bun.spawnSync({
-    cmd: ['xcrun', 'stapler', 'validate', app],
-    stdout: 'ignore',
-    stderr: 'ignore',
-  })
-  if (validate.exitCode === 0) return
-  run({ cmd: ['xcrun', 'stapler', 'staple', app] })
-}
-
 if (process.platform !== 'darwin') {
   fail(
     'requires macOS (hdiutil, create-dmg, codesign, notarytool); run it on a Mac or in the mac CI jobs',
@@ -88,7 +78,6 @@ try {
   const staging = join(work, 'staging')
   mkdirSync(staging)
   cpSync(sourceApp, join(staging, appName), { recursive: true, verbatimSymlinks: true })
-  if (signing) stapleApp({ app: join(staging, appName) })
 
   const background = join(work, 'background.tiff')
   run({

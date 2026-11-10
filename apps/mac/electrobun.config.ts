@@ -16,7 +16,9 @@ export default {
     copy: { 'web-standalone': 'web' },
     mac: {
       codesign: signed,
-      notarize: signed,
+      // Hutch submits the app and the DMG as two separate notarizations when both are enabled.
+      // scripts/make-dmg.ts submits the DMG once, and Apple's acceptance covers the app in it.
+      notarize: false,
       createDmg: false,
       icons: 'icon.iconset',
       bundleCEF: true,

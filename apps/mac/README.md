@@ -9,7 +9,7 @@ macOS client: the apps/web Next build (`output: 'standalone'`) run as a local se
 
 `bun run typecheck` and `bun run test` cover the host and run anywhere. `bun run typecheck:main` checks the Electrobun main process and needs the Hutch devkit.
 
-Hutch is Electrobun 2.x's build tool: it downloads the pinned Electrobun core and Bun toolchain, bundles the main process, packages `Atlas.app`, signs, notarizes, and emits the `.dmg` and update files. There is nothing to install by hand. The `electrobun` devDependency (pinned to 2.0.5) downloads its paired Hutch (0.28.2) into `~/.hutch` on first use, and every script calls `electrobun …`, which forwards to `hutch electrobun …`.
+Hutch is Electrobun 2.x's build tool: it downloads the pinned Electrobun core and Bun toolchain, bundles the main process, packages and signs `Atlas.app`, and emits the update files. Notarization happens once, on the DMG, in `scripts/make-dmg.ts`. There is nothing to install by hand. The `electrobun` devDependency (pinned to 2.0.5) downloads its paired Hutch (0.28.2) into `~/.hutch` on first use, and every script calls `electrobun …`, which forwards to `hutch electrobun …`.
 
 ## Sidebar vibrancy (disabled)
 
@@ -59,7 +59,7 @@ Pods boot serve at the app's own version (`Updater.getLocalInfo().version`). Onl
 
 ## Branded DMG
 
-Electrobun's own DMG is off (`createDmg: false`); `build:app` ends with `scripts/make-dmg.ts`, which builds `artifacts/macos-arm64-Atlas-<version>.dmg` (when `ATLAS_VERSION` is set, as the release job does) and copies it to the stable `artifacts/macos-arm64-Atlas.dmg` that the app's download button links to, from `build/stable-macos-*/Atlas.app` with `create-dmg` (`brew install create-dmg`) using the background in `assets/dmg/` (`background.svg` is the source; `background.png` and `background@2x.png` are rendered from it with `bunx sharp-cli --density`). With the `ELECTROBUN_DEVELOPER_ID`, `ELECTROBUN_APPLEAPIKEY`, `ELECTROBUN_APPLEAPIISSUER` and `ELECTROBUN_APPLEAPIKEYPATH` env it also signs, notarizes and staples the DMG; under `ATLAS_MAC_UNSIGNED=1` it leaves it unsigned. macOS only.
+Electrobun's own DMG is off (`createDmg: false`); `build:app` ends with `scripts/make-dmg.ts`, which builds `artifacts/macos-arm64-Atlas-<version>.dmg` (when `ATLAS_VERSION` is set, as the release job does) and copies it to the stable `artifacts/macos-arm64-Atlas.dmg` that the app's download button links to, from `build/stable-macos-*/Atlas.app` with `create-dmg` (`brew install create-dmg`) using the background in `assets/dmg/` (`background.svg` is the source; `background.png` and `background@2x.png` are rendered from it with `bunx sharp-cli --density`). With the `ELECTROBUN_DEVELOPER_ID`, `ELECTROBUN_APPLEAPIKEY`, `ELECTROBUN_APPLEAPIISSUER` and `ELECTROBUN_APPLEAPIKEYPATH` env it also signs, notarizes and staples the DMG; under `ATLAS_MAC_UNSIGNED=1` it leaves it unsigned. This DMG submission is the release's only notarization: Apple's acceptance covers the app inside it, which is why `electrobun.config.ts` leaves `notarize` off instead of paying for a second round trip. The trade is that first launch from a freshly downloaded DMG needs the network once, since the app itself carries no stapled ticket; later launches and every update are unaffected. macOS only.
 
 
 ## The Swift shell (slice 1)
