@@ -525,3 +525,27 @@ jobs:
       - uses: actions/checkout@v7
       - name: build the Swift shell
         run: swift build --package-path apps/mac/swift
+
+  mac-cef-spike:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2.2.0
+
+      - name: fetch CEF
+        run: bun apps/mac/swift/scripts/fetch-cef.ts
+
+      - name: build the CEF spike
+        run: swift build -c release --package-path apps/mac/swift
+
+      - name: pack the app
+        run: bun apps/mac/swift/scripts/pack-cef-spike.ts
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CefPaneSpike-mac-arm64
+          path: apps/mac/swift/.build/cef-spike/*.zip
+          if-no-files-found: error
+          retention-days: 25
