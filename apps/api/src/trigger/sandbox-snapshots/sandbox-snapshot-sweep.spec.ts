@@ -92,6 +92,7 @@ describe('sweepAllSandboxSnapshots', () => {
           vercelProjectId: 'p',
         },
       ],
+      listPinnedProjects: async () => [],
       storeFor: () => store,
     })
     expect(run).toMatchObject({ users: 2, failedUsers: 1, totals: { deleted: 2 } })
