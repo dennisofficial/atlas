@@ -69,25 +69,11 @@ jobs:
             exit 1
           fi
 
-      - name: build binary
-        run: bun run build
-
-      # A bundled binary can crash at module evaluation where source runs fine — tui-v1.119.0
-      # shipped tsyringe evaluating before its reflect polyfill — so run the built artifact once.
-      - name: smoke-run the binary
-        run: ./bin/atlas --version
-        working-directory: apps/tui
-
-      - name: build serve binary
-        run: bun run build:serve
-        working-directory: apps/serve
-
-      - name: fetch every platform's optional binaries
-        run: bun install --os='*' --cpu='*'
-
-      - name: build serve binary (linux-arm64)
-        run: bun run build:serve -- --target bun-linux-arm64 --outfile "$RUNNER_TEMP/atlas-serve-linux-arm64"
-        working-directory: apps/serve
+      # The render check reads the static build's story index and sizes, so the storybook is built
+      # here. Through turbo so an unchanged build comes back from the remote cache instead of being
+      # rebuilt on every PR.
+      - name: build the storybook
+        run: bunx turbo run build --filter=@dltech/atlas-storybook
 
       - name: fetch the diff base
         if: github.event_name != 'workflow_dispatch' && !startsWith(github.event.before, '0000000')
@@ -116,6 +102,109 @@ jobs:
         if: steps.render-plan.outputs.count != '0'
         run: bun run render-check
         working-directory: apps/storybook
+
+  # Compiled in its own job: a five-minute compile in `check` serialized behind lint and typecheck,
+  # and put the whole PR's latency behind work most PRs cannot break. The reach gate is the same
+  # dependency-closure question the release asks (`scripts/app-reach.ts`), so a web-only change
+  # skips the compile instead of paying for it. Everything else here is unchanged from when these
+  # steps lived in `check`.
+  binaries:
+    runs-on: ubuntu-latest
+    env:
+      REACH_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2.2.0
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
+      - run: bun install
+
+      - name: enable turbo remote cache
+        run: |
+          if [ -n "$VERCEL_TOKEN" ]; then
+            echo "TURBO_TOKEN=$VERCEL_TOKEN" >> "$GITHUB_ENV"
+            echo "TURBO_TEAM=comp-ai" >> "$GITHUB_ENV"
+          fi
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+      - name: do these binaries need building
+        id: reach
+        run: bun scripts/app-reach.ts --base "$REACH_BASE" --app apps/tui --app apps/serve >> "$GITHUB_OUTPUT"
+
+      - name: build binary
+        if: steps.reach.outputs.run == 'true'
+        run: bun run build
+
+      # A bundled binary can crash at module evaluation where source runs fine — tui-v1.119.0
+      # shipped tsyringe evaluating before its reflect polyfill — so run the built artifact once.
+      - name: smoke-run the binary
+        if: steps.reach.outputs.run == 'true'
+        run: ./bin/atlas --version
+        working-directory: apps/tui
+
+      - name: build serve binary
+        if: steps.reach.outputs.run == 'true'
+        run: bun run build:serve
+        working-directory: apps/serve
+
+      - name: fetch every platform's optional binaries
+        if: steps.reach.outputs.run == 'true'
+        run: bun install --os='*' --cpu='*'
+
+      - name: build serve binary (linux-arm64)
+        if: steps.reach.outputs.run == 'true'
+        run: bun run build:serve -- --target bun-linux-arm64 --outfile "$RUNNER_TEMP/atlas-serve-linux-arm64"
+        working-directory: apps/serve
+
+  # The Mac app serves its own Next build, so "the interface compiles" is a merge gate; until now the
+  # only job that proved it was the macOS rehearsal, because the app bundles that build. This does it
+  # on ubuntu with the Next cache for about a minute, and skips when nothing the interface imports
+  # changed. Main pushes skip it: web-ota.yml builds and smokes the payload there for real.
+  web-build:
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    env:
+      ATLAS_STREAM_URL: wss://agent.byatlas.io/stream
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2.2.0
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
+      - run: bun install
+
+      - name: does the interface need building
+        id: reach
+        run: bun scripts/app-reach.ts --base "${{ github.event.pull_request.base.sha }}" --app apps/web >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache/restore@v6
+        if: steps.reach.outputs.run == 'true'
+        with:
+          path: apps/web/.next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('bun.lock') }}-${{ hashFiles('apps/web/src/**', 'apps/web/*.ts', 'apps/web/*.mjs', 'apps/web/package.json') }}
+          restore-keys: |
+            next-${{ runner.os }}-${{ hashFiles('bun.lock') }}-
+            next-${{ runner.os }}-
+
+      - name: build the interface
+        if: steps.reach.outputs.run == 'true'
+        env:
+          NODE_ENV: production
+        run: bun run --cwd apps/web build
 
   # Every test suite in one job, made incremental by bun-test-incremental (a bun:test preload): a spec
   # runs only when `bun test --changed` selects it from the git diff AND it has no cached pass for its
@@ -265,22 +354,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Packaging the app is most of this job's ten minutes, and the Swift shell under apps/mac/swift
-      # is not part of what build:app produces. A change that cannot reach the electrobun bundle or
-      # the web payload skips the build rather than paying for it.
+      - uses: oven-sh/setup-bun@v2.2.0
+
+      # Packaging the app is most of this job's minutes, and the Swift shell under apps/mac/swift is
+      # not part of what build:app produces. The gate is the dependency closure of apps/mac — the
+      # same question the release asks — rather than a list of path prefixes, so a change to a
+      # package the app does not import skips the build and no path list can go stale.
       - name: did this change reach the app
         id: reach
-        run: |
-          files=$(git diff --name-only "${{ github.event.pull_request.base.sha }}...HEAD")
-          if echo "$files" | grep -qE '^(\.github/|apps/web/|packages/|apps/mac/(src/|scripts/|package\.json|hutch\.config\.ts|electrobun\.config\.ts|tsconfig\.json)|bun\.lock|package\.json)'; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=false" >> "$GITHUB_OUTPUT"
-            echo "no change here reaches the app; nothing for the rehearsal to check"
-          fi
-
-      - uses: oven-sh/setup-bun@v2.2.0
-        if: steps.reach.outputs.run == 'true'
+        run: bun scripts/app-reach.ts --base "${{ github.event.pull_request.base.sha }}" --app apps/mac >> "$GITHUB_OUTPUT"
 
       - run: bun install --frozen-lockfile
         if: steps.reach.outputs.run == 'true'
@@ -347,7 +429,7 @@ jobs:
   ci:
     name: ${{ github.event_name == 'pull_request' && 'ci' || 'ci (post-merge)' }}
     runs-on: ubuntu-latest
-    needs: [check, test, api-bundle, mac-app-rehearsal]
+    needs: [check, binaries, web-build, test, api-bundle, mac-app-rehearsal]
     if: always()
     steps:
       - name: Fail unless every check passed
@@ -359,7 +441,11 @@ jobs:
           echo "$NEEDS" | jq -e --arg event "$EVENT" '
             to_entries | all(
               .value.result == "success"
-              or (.key == "mac-app-rehearsal" and $event == "push" and .value.result == "skipped")
+              or (
+                .value.result == "skipped"
+                and $event == "push"
+                and (.key == "mac-app-rehearsal" or .key == "web-build")
+              )
             )' >/dev/null || { echo "::error::one or more CI checks did not pass"; exit 1; }
           echo "all CI checks passed"
 
