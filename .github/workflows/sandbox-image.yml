@@ -29,7 +29,7 @@ permissions:
 
 env:
   IMAGE: ghcr.io/${{ github.repository_owner }}/atlas-sandbox
-  VCR_IMAGE: vcr.vercel.com/comp-ai/atlas-web/atlas-sandbox
+  VCR_IMAGE: vcr.vercel.com/comp-ai/atlas-sandboxes/atlas-sandbox
 
 jobs:
   publish:
@@ -112,5 +112,6 @@ jobs:
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_TEAM_ID: team_GR4aCzLIY5D3YYWgITz3Tere
-          VERCEL_PROJECT_ID: prj_sYzDU4qVdx0jaSuYprH3QaZb1vIF
+          VERCEL_PROJECT_ID: prj_kmYGr5ZuEyOeZdJpjw2pZaVOaJwo
+          VERCEL_PROJECT_NAME: atlas-sandboxes
         run: bun apps/serve/scripts/prune-vcr-images.ts
