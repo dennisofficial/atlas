@@ -143,7 +143,7 @@ const EXTENDED = [
   '> [!WARNING]',
   '> A warning admonition.',
   '',
-  'Inline math $E = mc^2$ and a block:',
+  'Inline math $$E = mc^2$$ and a block:',
   '',
   '$$',
   '\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}',
@@ -168,4 +168,62 @@ export const StreamingText: Story = {
     caret: 'block',
     children: 'Reading the **token generator** and checking which',
   },
+}
+
+const REPORTED_ITALICS = [
+  'Best value so far is DeepSeek V4.1 Flash 1017 Fast — 1 high and 4 mediums for $21.94, ten times the surface coverage of the control for less money. Kimi reviewed the most ground (252 surface) but cost $54.80 to produce 26 informational items, so it buries the signal.',
+  '',
+  'The earlier *standard* run (555 requests, $23) *filed the CORS wildcard* — the deep control run *recorded it as ruled out*.',
+].join('\n')
+
+export const ReportedItalics: Story = {
+  args: { children: REPORTED_ITALICS },
+}
+
+const INDENTED_CHECKLIST = [
+  '- [ ] Parent task with a long enough line that it wraps around the container width',
+  '  - [x] Nested done child',
+  '  - [ ] Nested open child',
+  '    - [ ] Grandchild task',
+  '- [ ] Second parent',
+  '  - Plain nested bullet',
+  '  - [ ] Nested task with `code`',
+  '',
+  '1. [ ] Ordered task',
+  '2. [x] Ordered done',
+  '   - [ ] Nested under ordered',
+  '   - [x] Nested done under ordered',
+].join('\n')
+
+export const IndentedChecklist: Story = {
+  args: { children: INDENTED_CHECKLIST },
+}
+
+const INDENTED_LINES = [
+  'A paragraph whose next line is indented by two spaces',
+  '  and this is that indented line.',
+  '',
+  'A paragraph, a blank line, then a four-space indented code block:',
+  '',
+  '    const indented = true',
+  '      still inside the block',
+  '',
+  '- A list item that wraps',
+  '  with a two-space continuation line',
+  '    and a four-space continuation line',
+  '- A list item with an indented code block:',
+  '',
+  '      npm install @dltech/atlas',
+  '      bun run dev',
+  '',
+  '- Nested plain lists',
+  '  - Level two',
+  '    - Level three',
+  '      - Level four',
+  '> A quote that wraps',
+  '> onto an indented line inside the quote',
+].join('\n')
+
+export const IndentedLines: Story = {
+  args: { children: INDENTED_LINES },
 }
