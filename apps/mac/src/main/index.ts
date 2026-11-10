@@ -89,6 +89,7 @@ const startApp = async () => {
       download: downloadBytes,
       sha256: sha256Of,
       log: writeLog,
+      now: () => Date.now(),
       setInterval: (handler, ms) => setInterval(handler, ms),
       clearInterval: (timer) => clearInterval(timer),
     },
@@ -120,6 +121,7 @@ const startApp = async () => {
       writeLog({ label: 'web-payload-restart', error })
       return false
     }
+    webUpdater.applied()
     windowRef.current?.webview.executeJavascript(RELOAD_SCRIPT)
     return true
   }
@@ -213,7 +215,7 @@ const startApp = async () => {
     if (action === EMenuAction.CheckForUpdates)
       void runCheckForUpdates({
         state: updateState,
-        web: { check: () => webUpdater.check(), apply: applyWebPayload },
+        web: { check: () => webUpdater.check({ force: true }), apply: applyWebPayload },
       }).catch((error: unknown) => writeLog({ label: 'check-for-updates', error }))
     if (action === EMenuAction.Reload) win.webview.executeJavascript(RELOAD_SCRIPT)
     if (action === EMenuAction.ToggleDevTools) win.webview.toggleDevTools()

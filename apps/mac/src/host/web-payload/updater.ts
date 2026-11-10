@@ -8,6 +8,10 @@ export const WEB_MANIFEST_URL =
 export const WEB_MANIFEST_URL_ENV = 'ATLAS_WEB_PAYLOAD_URL'
 export const WEB_ROOT_ENV = 'ATLAS_WEB_ROOT'
 export const WEB_UPDATE_INTERVAL_MS = 5 * 60 * 1000
+// A merge publishes a payload every few minutes, so offering a reload for each one makes the card a
+// permanent fixture. After a reload the card stays quiet for this long; Check for Updates still
+// applies a pending payload on request.
+export const QUIET_AFTER_RELOAD_MS = 15 * 60 * 1000
 
 export enum EWebPayloadState {
   Idle = 'idle',
@@ -28,6 +32,7 @@ export interface IWebUpdaterPorts {
   download: (url: string) => Promise<Uint8Array>
   sha256: (bytes: Uint8Array) => string
   log: (args: { label: string; error: unknown }) => void
+  now: () => number
   setInterval: (handler: () => void, ms: number) => ReturnType<typeof setInterval>
   clearInterval: (timer: ReturnType<typeof setInterval>) => void
 }
@@ -35,9 +40,10 @@ export interface IWebUpdaterPorts {
 export interface IWebUpdater {
   start: () => void
   stop: () => void
-  check: () => Promise<IWebPayloadStatus>
+  check: (args?: { force?: boolean }) => Promise<IWebPayloadStatus>
   status: () => IWebPayloadStatus
   pending: () => string | undefined
+  applied: () => void
   installedRoot: () => Promise<string | undefined>
   fail: (args: { hash: string }) => Promise<void>
 }
@@ -67,6 +73,7 @@ export function createWebUpdater({
 }): IWebUpdater {
   let status: IWebPayloadStatus = { state: EWebPayloadState.Idle }
   let pending: string | undefined
+  let reloadedAt: number | undefined
   let timer: ReturnType<typeof setInterval> | undefined
 
   const fail = (message: string): IWebPayloadStatus => {
@@ -74,7 +81,10 @@ export function createWebUpdater({
     return status
   }
 
-  const check = async (): Promise<IWebPayloadStatus> => {
+  const quiet = (force: boolean): boolean =>
+    !force && reloadedAt !== undefined && ports.now() - reloadedAt < QUIET_AFTER_RELOAD_MS
+
+  const check = async ({ force = false }: { force?: boolean } = {}): Promise<IWebPayloadStatus> => {
     try {
       const manifest = parseManifest({ input: await ports.fetchJson(manifestUrl) })
       if (manifest === undefined) return fail('the update manifest is invalid')
@@ -98,7 +108,10 @@ export function createWebUpdater({
       if (!result.installed) return fail(`the payload did not install: ${result.reason}`)
       await prune({ home, ports })
       pending = result.hash
-      status = { state: EWebPayloadState.Ready, ...buildOf(manifest) }
+      status = {
+        state: quiet(force) ? EWebPayloadState.Idle : EWebPayloadState.Ready,
+        ...buildOf(manifest),
+      }
       return status
     } catch (error) {
       ports.log({ label: 'web-payload', error })
@@ -120,6 +133,12 @@ export function createWebUpdater({
     check,
     status: () => status,
     pending: () => pending,
+    applied: () => {
+      pending = undefined
+      reloadedAt = ports.now()
+      if (status.state === EWebPayloadState.Ready)
+        status = { ...status, state: EWebPayloadState.Idle }
+    },
     installedRoot: async () => {
       const state: IPayloadState = await ports.fs.readState(home)
       if (state.appVersion !== appVersion) return undefined
