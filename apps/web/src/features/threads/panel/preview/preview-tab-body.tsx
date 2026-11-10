@@ -12,6 +12,8 @@ import { EPreviewGate } from '@/features/desktop/use-preview-origins'
 import { useHasNativeBrowser } from '@/features/desktop/use-has-native-browser'
 
 import { liveKeyOf } from '../../data/preview-browser/live-tabs'
+import { PaneSlot } from './desktop/pane-slot'
+import { EPaneMode, usePaneMode } from './desktop/use-pane-mode'
 import { changeRegistry, hidden, shown, unloaded, useFrameRegistry } from './frame-registry'
 import { ETabPage, type TabPage } from './tab-page'
 
@@ -77,6 +79,7 @@ export function PreviewTabBody(props: {
   const { threadId, tabId, url, page, ports, onNavigate } = props
   const { gate } = useFrameRegistry()
   const nativeBrowser = useHasNativeBrowser()
+  const paneMode = usePaneMode()
   const key = liveKeyOf({ threadId, tabId })
   const framed =
     page.kind === ETabPage.Frame || page.kind === ETabPage.Loading || page.kind === ETabPage.Held
@@ -97,7 +100,11 @@ export function PreviewTabBody(props: {
         <OutsideSessionBar url={url} />
       ) : null}
       <div className="min-h-0 flex-1">
-        <PreviewSlot threadId={threadId} tabId={tabId} />
+        {paneMode === EPaneMode.Shell ? (
+          <PaneSlot url={url} />
+        ) : (
+          <PreviewSlot threadId={threadId} tabId={tabId} />
+        )}
       </div>
     </div>
   )
