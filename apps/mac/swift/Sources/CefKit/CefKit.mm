@@ -103,48 +103,46 @@ void AtlasCefDoMessageLoopWork(void) {
   CefDoMessageLoopWork();
 }
 
-static CefRefPtr<CefBrowserHost> PaneHost() {
+static CefRefPtr<CefBrowser> PaneBrowser() {
   if (g_client.get() == nullptr) return nullptr;
-  CefRefPtr<CefBrowser> browser = g_client->browser();
-  if (browser.get() == nullptr) return nullptr;
-  return browser->GetHost();
+  return g_client->browser();
 }
 
 BOOL AtlasCefNavigate(const char *url) {
   if (url == NULL) return NO;
-  CefRefPtr<CefBrowserHost> host = PaneHost();
-  if (host.get() == nullptr) return NO;
-  CefRefPtr<CefFrame> frame = host->GetMainFrame();
+  CefRefPtr<CefBrowser> browser = PaneBrowser();
+  if (browser.get() == nullptr) return NO;
+  CefRefPtr<CefFrame> frame = browser->GetMainFrame();
   if (frame.get() == nullptr) return NO;
   frame->LoadURL(CefString(url));
   return YES;
 }
 
 BOOL AtlasCefBack(void) {
-  CefRefPtr<CefBrowserHost> host = PaneHost();
-  if (host.get() == nullptr) return NO;
-  host->GoBack();
+  CefRefPtr<CefBrowser> browser = PaneBrowser();
+  if (browser.get() == nullptr) return NO;
+  browser->GoBack();
   return YES;
 }
 
 BOOL AtlasCefForward(void) {
-  CefRefPtr<CefBrowserHost> host = PaneHost();
-  if (host.get() == nullptr) return NO;
-  host->GoForward();
+  CefRefPtr<CefBrowser> browser = PaneBrowser();
+  if (browser.get() == nullptr) return NO;
+  browser->GoForward();
   return YES;
 }
 
 BOOL AtlasCefReload(void) {
-  CefRefPtr<CefBrowserHost> host = PaneHost();
-  if (host.get() == nullptr) return NO;
-  host->Reload();
+  CefRefPtr<CefBrowser> browser = PaneBrowser();
+  if (browser.get() == nullptr) return NO;
+  browser->Reload();
   return YES;
 }
 
 BOOL AtlasCefStop(void) {
-  CefRefPtr<CefBrowserHost> host = PaneHost();
-  if (host.get() == nullptr) return NO;
-  host->Stop();
+  CefRefPtr<CefBrowser> browser = PaneBrowser();
+  if (browser.get() == nullptr) return NO;
+  browser->StopLoad();
   return YES;
 }
 
