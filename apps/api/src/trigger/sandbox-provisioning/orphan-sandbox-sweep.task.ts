@@ -3,7 +3,10 @@ import { schedules } from '@trigger.dev/sdk'
 import { db } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../_lib/crypto/secret-cipher.service'
 import { openSecretValue } from '../../api/cloud/secrets/sealed-secret'
-import { liveSandboxNames } from '../../api/cloud/sandbox-provisioning/live-sandbox-names'
+import {
+  liveSandboxNames,
+  v2PodNames,
+} from '../../api/cloud/sandbox-provisioning/live-sandbox-names'
 import {
   sweepOrphanSandboxes,
   type OrphanSandboxStore,
@@ -65,9 +68,18 @@ export const orphanSandboxSweepTask = schedules.task({
   run: async () => {
     const logger = new Logger('OrphanSandboxSweep')
     const cipher = new SecretCipherService(workerEnvService())
+    const pods = await v2PodNames()
     return sweepOrphanSandboxes({
       stores: await storesOf({ cipher }),
       liveNames: liveSandboxNames,
+      retirableNames: async () => pods.retirable,
+      onRetired: async ({ name }) => {
+        const sessionIds = pods.sessionIdsByName.get(name) ?? []
+        if (sessionIds.length === 0) return
+        await db.orm.v2.V2Session.where((session) => session.id.in(sessionIds))
+          .where((session) => session.archivedAt.isNotNull())
+          .update({ podRetiredAt: new Date() })
+      },
       now: new Date(),
       dryRun: false,
       log: (line) => logger.log(line),
