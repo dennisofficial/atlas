@@ -180,8 +180,8 @@ export const isRefReachable = (args: { catalogue: ComposedCatalogue; ref: ModelR
 
 /**
  * The window the model port reads comes from this card. With no card `contextWindowOf` answers
- * `CONTEXT_WINDOW_UNMEASURED`, which `autoCompactBeforeStep` reads as "hold" — so auto-compact and
- * the context meter both stop without anything failing. Worth saying out loud once.
+ * `CONTEXT_WINDOW_UNMEASURED`, which `autoCompactAfterTurn` reads as "hold" and the context meter
+ * cannot divide by — so both go quiet without anything failing. Worth saying out loud once.
  */
 export const unmeasuredWindowWarning = (args: {
   catalogue: ComposedCatalogue

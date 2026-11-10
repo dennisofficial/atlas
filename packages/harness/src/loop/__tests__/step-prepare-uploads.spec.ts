@@ -61,7 +61,6 @@ function setup(port: SaidUploadsPort | undefined) {
     hooks: undefined,
     uploads: port,
     onContext: undefined,
-    compact: async () => false,
   }
   return { deps, seen }
 }

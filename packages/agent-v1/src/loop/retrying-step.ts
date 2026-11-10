@@ -273,14 +273,10 @@ export async function takeModelStepWithRetry(args: {
 
       if (args.prepare !== undefined) {
         try {
-          for (;;) {
-            args.signal.throwIfAborted()
-            const prepared = await args.prepare()
-            if (!prepared.ok) return { ok: false, ...preparedFailureMessage(prepared) }
-            if ('compacted' in prepared) continue
-            assembled = prepared.assembled
-            break
-          }
+          args.signal.throwIfAborted()
+          const prepared = await args.prepare()
+          if (!prepared.ok) return { ok: false, ...preparedFailureMessage(prepared) }
+          assembled = prepared.assembled
         } catch (error) {
           throwIfHandoff(args.signal)
           if (args.signal.aborted) return settled()

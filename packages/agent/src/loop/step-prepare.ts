@@ -1,15 +1,12 @@
 import {
   assemble,
-  autoCompactBeforeStep,
   contextWindowOf,
-  EAutoCompact,
   ERunFailureKind,
   attachmentsOf,
   exchangeFaults,
   mediaFilesOf,
   resolveMediaUrls,
   type MediaUrlResolver,
-  overflowsWindow,
   uploadsOf,
   type Assembled,
   type AssemblyPipeline,
@@ -26,33 +23,19 @@ import { ESpan, spanWith, type TracePort } from '@dltech/atlas-observability'
 import type { HookChain } from '../hooks/registry'
 import type { SaidUploadsPort } from '../uploads/said-uploads.port'
 import { TurnFault } from '../model/turn-fault'
-import { faultReport, overflowReport } from './turn-faults'
+import { faultReport } from './turn-faults'
 import type { TrackedTurnDeps } from './tracked-turn-deps'
 
-export type PreparedFailure =
-  | { kind: 'overflow'; tokens: number; window: number }
-  | { kind: 'exchange'; message: string; cause: unknown }
+export type PreparedFailure = { kind: 'exchange'; message: string; cause: unknown }
 
 export type PreparedStep =
   | { ok: true; assembled: Assembled; tokens: number }
-  | { ok: true; compacted: true }
   | ({ ok: false } & PreparedFailure)
 
 export function preparedFailureMessage(failure: PreparedFailure): {
   message: string
   cause: unknown
 } {
-  if (failure.kind === 'overflow') {
-    const message = overflowReport(failure)
-    return {
-      message,
-      cause: new TurnFault({
-        kind: ERunFailureKind.ContextOverflow,
-        message,
-        detail: { tokens: failure.tokens, window: failure.window },
-      }),
-    }
-  }
   return {
     message: failure.message,
     cause: new TurnFault({
@@ -71,39 +54,10 @@ export type StepPrepareDeps = {
   uploads: SaidUploadsPort | undefined
   mediaUrls?: MediaUrlResolver | undefined
   onContext: ((args: { tokens: number; window: number }) => void) | undefined
-  compact: (args: { threadId: ThreadId; tokens: number; window: number }) => Promise<boolean>
   trace?: TracePort | undefined
 }
 
-export function oncePerTurnCompact({
-  compact,
-  atPercent,
-  position,
-}: {
-  compact: ((args: { threadId: ThreadId }) => Promise<boolean>) | undefined
-  atPercent: () => number
-  position: { compacted: boolean }
-}): StepPrepareDeps['compact'] {
-  return async ({ threadId, tokens, window }) => {
-    if (position.compacted || compact === undefined) return false
-    if (
-      autoCompactBeforeStep({ tokens, window, atPercent: atPercent() }) !==
-      EAutoCompact.BeforeOverflow
-    ) {
-      return false
-    }
-    position.compacted = true
-    return compact({ threadId })
-  }
-}
-
-export const stepPrepareDepsOf = ({
-  deps,
-  position,
-}: {
-  deps: TrackedTurnDeps
-  position: { compacted: boolean }
-}): StepPrepareDeps => ({
+export const stepPrepareDepsOf = (deps: TrackedTurnDeps): StepPrepareDeps => ({
   model: deps.model,
   assembly: deps.assembly,
   countTokens: deps.countTokens,
@@ -112,11 +66,6 @@ export const stepPrepareDepsOf = ({
   mediaUrls: deps.mediaUrls,
   onContext: deps.onContext,
   trace: deps.trace,
-  compact: oncePerTurnCompact({
-    compact: deps.compact,
-    atPercent: deps.autoCompactAtPercent,
-    position,
-  }),
 })
 
 function filesInEvents({ events, threadId }: { events: readonly Event[]; threadId: ThreadId }): {
@@ -214,10 +163,6 @@ async function assembleStep(deps: StepPrepareDeps, args: StepPrepareArgs): Promi
   const tokens = deps.countTokens(assembled)
   const window = contextWindowOf(deps.model)
   deps.onContext?.({ tokens, window })
-
-  if (await deps.compact({ threadId: args.threadId, tokens, window }))
-    return { ok: true, compacted: true }
-  if (overflowsWindow({ tokens, window })) return { ok: false, kind: 'overflow', tokens, window }
 
   const faults = exchangeFaults(assembled)
   if (faults.length > 0) {

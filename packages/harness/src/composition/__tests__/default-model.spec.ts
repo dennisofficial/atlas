@@ -37,7 +37,7 @@ const nothingRemembered = createSettingsService({
 
 /**
  * `ModelCardSourceToken` hands the port `models.cardFor(model.choice().ref)`. If that ever answers
- * undefined the window reads `CONTEXT_WINDOW_UNMEASURED`, which `autoCompactBeforeStep` treats as
+ * undefined the window reads `CONTEXT_WINDOW_UNMEASURED`, which `autoCompactAfterTurn` treats as
  * "hold" — so auto-compact and the context meter both go quiet without anything failing. Nothing
  * else pins the shipped catalogue to the ref Atlas actually launches on.
  */

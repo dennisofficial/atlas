@@ -10,6 +10,5 @@ export type TrackedTurnDeps = Omit<
   tools: () => readonly ToolDeclaration[]
   countTokens: (assembled: Assembled) => number
   settlePending: SettlePending | undefined
-  autoCompactAtPercent: () => number
   launchDirectory: string
 }
