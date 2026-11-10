@@ -112,6 +112,7 @@ export class SessionsService {
       text: args.firstMessage.text,
       attachments: message.attachments,
       inboxId,
+      modelRef: args.model ?? null,
     })
     return { sessionId, mainThreadId }
   }
@@ -166,6 +167,7 @@ export class SessionsService {
       text: args.text,
       attachments: message.attachments,
       inboxId,
+      modelRef: session.modelRef,
     })
     return { inboxId }
   }
@@ -201,6 +203,7 @@ export class SessionsService {
     text: string
     attachments: readonly Attachment[]
     inboxId: number
+    modelRef: string | null
   }): void {
     if (args.title !== null && args.title !== undefined) return
     this.background.keepAlive(
@@ -215,6 +218,7 @@ export class SessionsService {
         text: args.text,
         attachments: args.attachments,
         inboxId: args.inboxId,
+        modelRef: args.modelRef,
       }),
     )
   }

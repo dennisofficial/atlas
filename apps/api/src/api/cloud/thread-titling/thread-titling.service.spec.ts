@@ -1,5 +1,6 @@
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { Logger } from '@nestjs/common'
 import { describe, expect, it, vi } from 'bun:test'
 import { recordingSignals } from '../../platform/sessions/thread-signals.fixture'
 import { seedThread, threadRow } from '../sandbox-provisioning/sandbox-provisioning.fixture'
@@ -14,7 +15,7 @@ const sessionTitle = async () => {
 const REQUEST = { userId: 'usr-1', threadId: 'thr-1', projectId: 'prj-1', text: 'fix login' }
 
 function serviceWith(args: { titler: () => Promise<string | null> }) {
-  const factory = vi.fn(() => args.titler) as unknown as TitlerFactory
+  const factory = vi.fn((_settings: Parameters<TitlerFactory>[0]) => args.titler)
   const { signals, framesOf, changedThreads } = recordingSignals()
   const config = { resolveForPod: vi.fn(async () => ({ settings: { 'model.quickModel': 'x/y' } })) }
   const accounts = { lease: vi.fn(async () => ({ accounts: [], active: [] })) }
@@ -23,7 +24,7 @@ function serviceWith(args: { titler: () => Promise<string | null> }) {
     accounts as never,
     {} as never,
     signals,
-    factory,
+    factory as unknown as TitlerFactory,
   )
   return { service, factory, framesOf, changedThreads }
 }
@@ -57,6 +58,41 @@ describe('ThreadTitlingService', () => {
 
     expect(await sessionTitle()).toBe('Mine')
     expect(frames).toHaveLength(0)
+  })
+
+  it('names a session with the model the session itself runs on when the quick model cannot answer', async () => {
+    const { service, factory } = serviceWith({ titler: async () => 'Fix login' })
+
+    await service.nameOf({
+      userId: 'usr-1',
+      projectId: 'prj-1',
+      text: 'fix login',
+      modelRef: 'gateway/deepseek/deepseek-v4.1-flash-1017-fast',
+    })
+
+    expect(factory.mock.calls[0]?.[0].fallbackRef).toEqual({
+      providerId: 'gateway',
+      modelId: 'deepseek/deepseek-v4.1-flash-1017-fast',
+    })
+  })
+
+  it('logs the reason a titling pass reported instead of leaving it silent', async () => {
+    await seedThread()
+    const warned = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined)
+    try {
+      const { service, factory } = serviceWith({ titler: async () => null })
+
+      await service.titleFirstMessage(REQUEST)
+      factory.mock.calls[0]?.[0].onFault?.(
+        new Error('This request would exceed your account monthly spend limit'),
+      )
+
+      const line = String(warned.mock.calls.at(-1)?.[0])
+      expect(line).toContain('titling thr-1 failed:')
+      expect(line).toContain('monthly spend limit')
+    } finally {
+      warned.mockRestore()
+    }
   })
 
   it('swallows a titler failure and leaves the thread untitled', async () => {

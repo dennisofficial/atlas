@@ -157,6 +157,32 @@ describe('titleFor', () => {
     expect(await titleFor({ model, text: 'rotate the token' })).toBeNull()
   })
 
+  it('reports the reason the primary refused', async () => {
+    const raised = new Error('This request would exceed your account monthly spend limit')
+    const faults: unknown[] = []
+
+    await titleFor({
+      model: modelRaising(raised),
+      text: 'rotate the token',
+      onFault: (fault) => faults.push(fault),
+    })
+
+    expect(faults).toEqual([raised])
+  })
+
+  it('reports a fallback that refused as well, after the primary did', async () => {
+    const faults: unknown[] = []
+
+    await titleFor({
+      model: modelRaising(new Error('primary refused')),
+      fallback: () => modelRaising(new Error('fallback refused')),
+      text: 'rotate the token',
+      onFault: (fault) => faults.push(String(fault)),
+    })
+
+    expect(faults).toEqual(['Error: primary refused', 'Error: fallback refused'])
+  })
+
   it('asks the fallback model when the primary refuses', async () => {
     const fallback = modelSaying('Refresh token rotation')
 

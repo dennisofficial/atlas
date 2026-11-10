@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
+import { parseRef } from '@dltech/atlas-core'
 import {
   createStandaloneTitler,
   type SaidImage,
@@ -30,6 +31,8 @@ type TitleSource = {
   projectId: string | null
   text: string
   images?: readonly SaidImage[] | undefined
+  modelRef?: string | undefined
+  onFault?: ((fault: unknown) => void) | undefined
 }
 
 @Injectable()
@@ -52,7 +55,10 @@ export class ThreadTitlingService extends SessionTitler {
 
   async titleFirstMessage(args: TitleFirstMessage): Promise<void> {
     try {
-      const title = await this.generate(args)
+      const title = await this.generate({
+        ...args,
+        onFault: (fault) => this.log.warn(`titling ${args.threadId} failed: ${String(fault)}`),
+      })
       if (title === null) return
       const changed = await this.writeIfUntitled({ threadId: args.threadId, title })
       if (!changed) return
@@ -67,10 +73,13 @@ export class ThreadTitlingService extends SessionTitler {
       this.config.resolveForPod({ userId: args.userId, projectId: args.projectId }),
       this.accounts.lease({ userId: args.userId }),
     ])
+    const fallbackRef = args.modelRef === undefined ? undefined : parseRef(args.modelRef)
     const titler: StandaloneTitler = this.titlerFactory({
       settings: config.settings,
       accounts: accountsOf(lease),
       credentials: new ApiCredentialPort({ userId: args.userId, lease, oauth: this.oauth }),
+      ...(fallbackRef === undefined ? {} : { fallbackRef }),
+      ...(args.onFault === undefined ? {} : { onFault: args.onFault }),
     })
     return titler({
       text: args.text,

@@ -6,6 +6,8 @@ export abstract class SessionTitler {
     projectId: string
     text: string
     images?: readonly SaidImage[] | undefined
+    modelRef?: string | undefined
+    onFault?: ((fault: unknown) => void) | undefined
   }): Promise<string | null>
 }
 

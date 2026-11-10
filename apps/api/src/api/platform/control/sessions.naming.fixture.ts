@@ -17,9 +17,11 @@ class FakeProjectAccess extends ProjectAccess {
 export class FakeTitler extends SessionTitler {
   readonly calls: Parameters<SessionTitler['nameOf']>[0][] = []
   next: () => Promise<string | null> = async () => null
+  report: Error | null = null
 
   async nameOf(args: Parameters<SessionTitler['nameOf']>[0]) {
     this.calls.push(args)
+    if (this.report !== null) args.onFault?.(this.report)
     return this.next()
   }
 }
