@@ -1,0 +1,24 @@
+// use prisma-8
+namespace v2 {
+  model V2Routine {
+    id            String                @id
+    userId        String
+    projectId     String
+    name          String
+    prompt        String
+    cron          String
+    timezone      String
+    enabled       Boolean               @default(true)
+    modelRef      String?
+    modelEffort   String?
+    modelFast     Boolean?
+    nextRunAt     TimestamptzJsDate(3)
+    lastRunAt     TimestamptzJsDate(3)?
+    lastSessionId String?
+    createdAt     TimestamptzJsDate(3)
+    updatedAt     TimestamptzJsDate(3)
+
+    @@index([enabled, nextRunAt])
+    @@index([userId])
+  }
+}

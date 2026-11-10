@@ -1,4 +1,5 @@
 import type { PrStateRow } from '../src/port'
+import type { RoutineRow } from '../src/port'
 import { InMemoryControlStore } from '../src/testing/memory'
 import {
   describeControlPlaneBlobs,
@@ -9,6 +10,7 @@ import {
   describeControlPlanePeers,
   describeControlPlanePresence,
   describeControlPlaneReads,
+  describeControlPlaneRoutines,
   describeControlPlaneSessions,
   describeControlPlaneSessionTitles,
   describeControlPlaneViews,
@@ -44,6 +46,11 @@ describeControlPlaneBlobs(conformanceParams)
 describeControlPlaneWakes(conformanceParams)
 describeControlPlaneChanges(conformanceParams)
 describeControlPlaneViews(conformanceParams)
+
+describeControlPlaneRoutines({
+  ...conformanceParams,
+  seedRoutine: async (row: RoutineRow) => store.setRoutine(row),
+})
 
 describeControlPlanePresence({
   ...conformanceParams,

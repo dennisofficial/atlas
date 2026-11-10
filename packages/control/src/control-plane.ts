@@ -32,6 +32,7 @@ import { claimNextIn, wakeIn } from './claim-ops'
 import { withDigestViews } from './session-digest-view'
 import { readSessionViewWithCatchUp, type SessionViewRead } from './session-view-read'
 import { readEventsIn, type ReadEventsPage } from './read-events'
+import { runRoutineIn, type RunRoutineParams, type RunRoutineResult } from './routine-ops'
 import { AppendAbort, type AppendOutcome } from './refusal'
 import { archiveIn, createSessionIn, renameIn, titleUntitledIn } from './session-ops'
 import { EMPTY_VISIBILITY_TEXT } from './stored-event'
@@ -383,6 +384,18 @@ export class ControlPlane {
 
   async hostPresent(params: { hostId: number }): Promise<boolean> {
     return this.store.transact((tx) => tx.hostPresent(params.hostId))
+  }
+
+  async runRoutine(params: RunRoutineParams): Promise<RunRoutineResult> {
+    return this.store.transact((tx) =>
+      runRoutineIn({
+        tx,
+        leases: this.leases,
+        ...params,
+        eventSchema: this.eventSchema,
+        pluginViews: this.pluginViews,
+      }),
+    )
   }
 
   private async requireThread(params: { tx: ControlTx; threadId: string }): Promise<ThreadRow> {

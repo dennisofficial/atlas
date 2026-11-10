@@ -4,6 +4,8 @@ import { subscriptionSubjectKey } from '../../port'
 import type {
   BlobRow,
   ControlSessionRow,
+  InsertRoutineRunParams,
+  RoutineRow,
   PrStateRow,
   SubscriptionLease,
   SessionViewRow,
@@ -35,6 +37,8 @@ export type State = {
   pullRequestLinks: Set<string>
   prStates: Map<string, PrStateRow>
   subscriptionLeases: Map<string, SubscriptionLease & { expiresAt: string }>
+  routines: Map<string, RoutineRow>
+  routineRuns: InsertRoutineRunParams[]
 }
 
 const PREPARE_HISTORY_TYPES: ReadonlySet<string> = new Set([
@@ -61,6 +65,8 @@ export const emptyState = (): State => ({
   pullRequestLinks: new Set(),
   prStates: new Map(),
   subscriptionLeases: new Map(),
+  routines: new Map(),
+  routineRuns: [],
 })
 
 export const cloneState = (state: State): State => ({
@@ -79,6 +85,8 @@ export const cloneState = (state: State): State => ({
   subscriptionLeases: new Map(
     [...state.subscriptionLeases].map(([key, value]) => [key, { ...value }]),
   ),
+  routines: new Map([...state.routines].map(([key, value]) => [key, { ...value }])),
+  routineRuns: state.routineRuns.map((run) => ({ ...run })),
 })
 
 export const hasPrepareHistory = (log: readonly StoredEvent[]): boolean =>

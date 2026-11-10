@@ -1,6 +1,6 @@
 import type { Hash, InboxEntry, Lease } from '@dltech/atlas-core'
 
-import type { ControlSessionRow, StoredEvent, ThreadRow } from '../port'
+import type { ControlSessionRow, RoutineRow, StoredEvent, ThreadRow } from '../port'
 
 export const iso = (value: Date): string => value.toISOString()
 
@@ -56,6 +56,42 @@ export const toSessionRow = (row: {
   modelFast: row.modelFast,
   spawnedBySessionId: row.spawnedBySessionId,
   podSessionId: row.podSessionId,
+})
+
+export const toRoutineRow = (row: {
+  id: string
+  userId: string
+  projectId: string
+  name: string
+  prompt: string
+  cron: string
+  timezone: string
+  enabled: boolean
+  modelRef: string | null
+  modelEffort: string | null
+  modelFast: boolean | null
+  nextRunAt: Date
+  lastRunAt: Date | null
+  lastSessionId: string | null
+  createdAt: Date
+  updatedAt: Date
+}): RoutineRow => ({
+  routineId: row.id,
+  userId: row.userId,
+  projectId: row.projectId,
+  name: row.name,
+  prompt: row.prompt,
+  cron: row.cron,
+  timezone: row.timezone,
+  enabled: row.enabled,
+  modelRef: row.modelRef,
+  modelEffort: row.modelEffort,
+  modelFast: row.modelFast,
+  nextRunAt: iso(row.nextRunAt),
+  lastRunAt: row.lastRunAt === null ? null : iso(row.lastRunAt),
+  lastSessionId: row.lastSessionId,
+  createdAt: iso(row.createdAt),
+  updatedAt: iso(row.updatedAt),
 })
 
 export const toThreadRow = (row: {

@@ -1,0 +1,216 @@
+[
+  {
+    "id": "table.V2Routine",
+    "label": "Create table \"V2Routine\"",
+    "summary": "Creates table \"V2Routine\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2Routine"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"V2Routine\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2Routine\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"V2Routine\"",
+        "sql": "CREATE TABLE \"v2\".\"V2Routine\" (\n  \"createdAt\" timestamptz(3) NOT NULL,\n  \"cron\" text NOT NULL,\n  \"enabled\" bool DEFAULT true NOT NULL,\n  \"id\" text NOT NULL,\n  \"lastRunAt\" timestamptz(3),\n  \"lastSessionId\" text,\n  \"modelEffort\" text,\n  \"modelFast\" bool,\n  \"modelRef\" text,\n  \"name\" text NOT NULL,\n  \"nextRunAt\" timestamptz(3) NOT NULL,\n  \"projectId\" text NOT NULL,\n  \"prompt\" text NOT NULL,\n  \"timezone\" text NOT NULL,\n  \"updatedAt\" timestamptz(3) NOT NULL,\n  \"userId\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"V2Routine\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2Routine\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.V2RoutineRun",
+    "label": "Create table \"V2RoutineRun\"",
+    "summary": "Creates table \"V2RoutineRun\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2RoutineRun"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"V2RoutineRun\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2RoutineRun\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"V2RoutineRun\"",
+        "sql": "CREATE TABLE \"v2\".\"V2RoutineRun\" (\n  \"at\" timestamptz(3) NOT NULL,\n  \"id\" text NOT NULL,\n  \"outcome\" text NOT NULL,\n  \"reason\" text,\n  \"routineId\" text NOT NULL,\n  \"scheduledFor\" timestamptz(3) NOT NULL,\n  \"sessionId\" text,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"V2RoutineRun\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2RoutineRun\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.V2Routine.V2Routine_enabled_nextRunAt_idx_a011dd38",
+    "label": "Create index \"V2Routine_enabled_nextRunAt_idx_a011dd38\" on \"V2Routine\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "index",
+        "name": "V2Routine_enabled_nextRunAt_idx_a011dd38",
+        "table": "V2Routine"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"V2Routine_enabled_nextRunAt_idx_a011dd38\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2Routine_enabled_nextRunAt_idx_a011dd38\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"V2Routine_enabled_nextRunAt_idx_a011dd38\"",
+        "sql": "CREATE INDEX \"V2Routine_enabled_nextRunAt_idx_a011dd38\" ON \"v2\".\"V2Routine\" (\"enabled\", \"nextRunAt\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"V2Routine_enabled_nextRunAt_idx_a011dd38\" exists on \"V2Routine\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2Routine_enabled_nextRunAt_idx_a011dd38\"",
+          "i",
+          "I",
+          "\"v2\".\"V2Routine\"",
+          "btree",
+          "[\"enabled\",\"nextRunAt\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.V2Routine.V2Routine_userId_idx_a489d58a",
+    "label": "Create index \"V2Routine_userId_idx_a489d58a\" on \"V2Routine\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "index",
+        "name": "V2Routine_userId_idx_a489d58a",
+        "table": "V2Routine"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"V2Routine_userId_idx_a489d58a\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2Routine_userId_idx_a489d58a\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"V2Routine_userId_idx_a489d58a\"",
+        "sql": "CREATE INDEX \"V2Routine_userId_idx_a489d58a\" ON \"v2\".\"V2Routine\" (\"userId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"V2Routine_userId_idx_a489d58a\" exists on \"V2Routine\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2Routine_userId_idx_a489d58a\"",
+          "i",
+          "I",
+          "\"v2\".\"V2Routine\"",
+          "btree",
+          "[\"userId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.V2RoutineRun.V2RoutineRun_routineId_at_idx_d4a1c233",
+    "label": "Create index \"V2RoutineRun_routineId_at_idx_d4a1c233\" on \"V2RoutineRun\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "index",
+        "name": "V2RoutineRun_routineId_at_idx_d4a1c233",
+        "table": "V2RoutineRun"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"V2RoutineRun_routineId_at_idx_d4a1c233\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2RoutineRun_routineId_at_idx_d4a1c233\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"V2RoutineRun_routineId_at_idx_d4a1c233\"",
+        "sql": "CREATE INDEX \"V2RoutineRun_routineId_at_idx_d4a1c233\" ON \"v2\".\"V2RoutineRun\" (\"routineId\", \"at\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"V2RoutineRun_routineId_at_idx_d4a1c233\" exists on \"V2RoutineRun\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2RoutineRun_routineId_at_idx_d4a1c233\"",
+          "i",
+          "I",
+          "\"v2\".\"V2RoutineRun\"",
+          "btree",
+          "[\"routineId\",\"at\"]"
+        ]
+      }
+    ]
+  }
+]

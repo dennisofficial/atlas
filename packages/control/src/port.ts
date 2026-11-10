@@ -87,6 +87,48 @@ export type SubscriptionLease = {
 export const subscriptionSubjectKey = (subject: SubscriptionSubject): string =>
   subject.kind === 'pull-request' ? `#${subject.number}` : subject.selector
 
+export type RoutineRow = {
+  routineId: string
+  userId: string
+  projectId: string
+  name: string
+  prompt: string
+  cron: string
+  timezone: string
+  enabled: boolean
+  modelRef: string | null
+  modelEffort: string | null
+  modelFast: boolean | null
+  nextRunAt: string
+  lastRunAt: string | null
+  lastSessionId: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type RoutineRunOutcome = 'started' | 'skipped-busy' | 'skipped'
+
+export type AdvanceRoutineParams = {
+  routineId: string
+  expectedNextRunAt: string
+  nextRunAt: string
+  lastRunAt?: string | undefined
+  lastSessionId?: string | undefined
+  at: string
+}
+
+export type InsertRoutineRunParams = {
+  id: string
+  routineId: string
+  scheduledFor: string
+  outcome: RoutineRunOutcome
+  reason?: string | undefined
+  sessionId?: string | undefined
+  at: string
+}
+
+export type ListDueRoutinesParams = { now: string; limit: number }
+
 export type ThreadRow = {
   threadId: string
   sessionId: string
@@ -211,8 +253,13 @@ export interface ControlTx {
   upsertSubscriptionLease(params: SubscriptionLease & { expiresAt: string }): Promise<void>
   deleteSubscriptionLease(params: SubscriptionLease): Promise<boolean>
   hostPresent(hostId: number): Promise<boolean>
+  lockRoutine(routineId: string): Promise<RoutineRow | undefined>
+  readRoutine(routineId: string): Promise<RoutineRow | undefined>
+  advanceRoutine(params: AdvanceRoutineParams): Promise<boolean>
+  insertRoutineRun(params: InsertRoutineRunParams): Promise<void>
 }
 
 export abstract class ControlStorePort {
   abstract transact<T>(work: (tx: ControlTx) => Promise<T>): Promise<T>
+  abstract listDueRoutines(params: ListDueRoutinesParams): Promise<RoutineRow[]>
 }
