@@ -33,6 +33,8 @@ jobs:
       ATLAS_STREAM_URL: wss://agent.byatlas.io/stream
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - uses: oven-sh/setup-bun@v2.2.0
 
@@ -42,6 +44,21 @@ jobs:
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
 
       - run: bun install --frozen-lockfile
+
+      # The payload carries the version this commit is released as, so an interface-only update
+      # shows a semver instead of the shell's older number. Same computation as the release job,
+      # on the same commit.
+      - name: compute the version this commit releases as
+        run: |
+          set -euo pipefail
+          out=$(bun apps/tui/scripts/release-version.ts)
+          echo "$out"
+          version=$(printf '%s\n' "$out" | sed -n 's/^version=//p')
+          if [ -z "$version" ]; then
+            echo "::warning::this commit is not release-worthy; publishing without a version"
+            exit 0
+          fi
+          echo "ATLAS_VERSION=$version" >> "$GITHUB_ENV"
 
       - uses: actions/cache@v6
         with:
