@@ -1,7 +1,8 @@
 import type { ToolOutcome } from '@dltech/atlas-core'
 import { z } from 'zod'
 
-import { frontmatterOf, SKILL_NAME_MAX_LENGTH, skillFrontmatterOf } from '../core'
+import { ESkillOrigin, frontmatterOf, SKILL_NAME_MAX_LENGTH, skillFrontmatterOf } from '../core'
+import type { SkillCatalogue } from './catalogue'
 import { BUILT_IN_SKILLS } from './builtin.generated'
 import type { CloudSkillRevision, CloudSkillWriteResult, SkillScopeName } from './port'
 import { SKILL_ENTRY_PATH } from './repo-writes'
@@ -57,6 +58,31 @@ const pathProblem = (path: string): string | undefined =>
   path.split('/').some((part) => part === '..' || part === '')
     ? `"${path}" is not a path inside the skill directory`
     : undefined
+
+const LAYER_OF_ORIGIN: Readonly<Partial<Record<ESkillOrigin, ESkillWriteLayer>>> = {
+  [ESkillOrigin.Repo]: ESkillWriteLayer.Repo,
+  [ESkillOrigin.CloudUser]: ESkillWriteLayer.User,
+  [ESkillOrigin.CloudProject]: ESkillWriteLayer.Project,
+}
+
+const repoDirectoryOf = (skill: SkillCatalogue['skills'][number]): string | null =>
+  'directory' in skill && skill.directory !== null ? skill.directory : null
+
+export const elsewhereOf = (args: {
+  catalogue: SkillCatalogue | null
+  name: string
+  layer: ESkillWriteLayer
+}): string | undefined => {
+  const kept = args.catalogue?.skills.find((skill) => skill.name === args.name)
+  if (kept === undefined) return undefined
+  const home = LAYER_OF_ORIGIN[kept.origin]
+  if (home === undefined || home === args.layer) return undefined
+  if (home === ESkillWriteLayer.Repo) {
+    const directory = repoDirectoryOf(kept)
+    return `the ${args.name} skill is loaded from the repo${directory === null ? '' : ` at ${directory}`}, so this session reads that copy; call this with layer repo to change the one you loaded`
+  }
+  return `the ${args.name} skill lives in the cloud ${home} layer; call this with layer ${home}`
+}
 
 export const builtInRefusal = (name: string): string =>
   `the ${name} skill ships compiled into Atlas, so a second copy of it cannot be installed, edited or deleted; call it by name instead`

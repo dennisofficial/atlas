@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { fakeCloud, fakeDaemon, invoke, skillDir, textOf, turn } from './support'
+import { fakeCloud, fakeDaemon, fakeWrites, invoke, skillDir, textOf, turn } from './support'
 
 const repoTree = () => ({
   '/repo/.git': { kind: 'dir' as const },
@@ -111,5 +111,106 @@ describe('the same three tools over the clone', () => {
     })
     expect(deleted.ok).toBe(false)
     expect(textOf(deleted)).toContain('has no clone')
+  })
+})
+
+describe('a write aimed at a layer the name does not live in', () => {
+  const shadowedTree = () => ({
+    ...repoTree(),
+    '/repo/.atlas/skills/alpha/SKILL.md': {
+      kind: 'file' as const,
+      text: skillDir('alpha', 'alpha body'),
+    },
+  })
+
+  const cloudAlpha = fakeCloud({
+    entries: [{ name: 'alpha', description: 'the cloud copy', scope: 'user' }],
+  })
+
+  it('refuses to edit the cloud copy a repo skill shadows, and names the clone path', async () => {
+    const { ctx } = fakeDaemon(shadowedTree())
+    const writes = fakeWrites()
+
+    const outcome = await invoke({
+      ctx,
+      cloud: cloudAlpha,
+      writes,
+      name: 'skill_edit',
+      input: { name: 'alpha', layer: 'user', baseRevision: 1, body: skillDir('alpha', 'changed') },
+    })
+
+    expect(outcome.ok).toBe(false)
+    expect(textOf(outcome)).toContain('/repo/.atlas/skills/alpha')
+    expect(textOf(outcome)).toContain('layer repo')
+    expect(writes.calls).toEqual([])
+  })
+
+  it('refuses to install a cloud copy under a name the repo already loads', async () => {
+    const { ctx } = fakeDaemon(shadowedTree())
+    const writes = fakeWrites()
+
+    const outcome = await invoke({
+      ctx,
+      cloud: cloudAlpha,
+      writes,
+      name: 'skill_install',
+      input: { name: 'alpha', layer: 'user', body: skillDir('alpha', 'another') },
+    })
+
+    expect(outcome.ok).toBe(false)
+    expect(writes.calls).toEqual([])
+  })
+
+  it('refuses to delete the cloud copy a repo skill shadows', async () => {
+    const { ctx } = fakeDaemon(shadowedTree())
+    const writes = fakeWrites()
+
+    const outcome = await invoke({
+      ctx,
+      cloud: cloudAlpha,
+      writes,
+      name: 'skill_delete',
+      input: { name: 'alpha', layer: 'user' },
+    })
+
+    expect(outcome.ok).toBe(false)
+    expect(writes.calls).toEqual([])
+  })
+
+  it('names the cloud layer a skill lives in when the layer asked for is the other one', async () => {
+    const { ctx } = fakeDaemon(repoTree())
+    const cloud = fakeCloud({
+      entries: [{ name: 'beta', description: 'a project skill', scope: 'project' }],
+    })
+
+    const outcome = await invoke({
+      ctx,
+      cloud,
+      writes: fakeWrites(),
+      name: 'skill_edit',
+      input: { name: 'beta', layer: 'user', baseRevision: 1, body: skillDir('beta', 'changed') },
+    })
+
+    expect(outcome.ok).toBe(false)
+    expect(textOf(outcome)).toContain('cloud project layer')
+    expect(textOf(outcome)).toContain('layer project')
+  })
+
+  it('still lets a repo skill be installed over a cloud name, which is how a repo overrides one', async () => {
+    const { ctx, nodes } = fakeDaemon(repoTree())
+    const cloud = fakeCloud({
+      entries: [{ name: 'beta', description: 'a project skill', scope: 'project' }],
+    })
+
+    const outcome = await invoke({
+      ctx,
+      cloud,
+      writes: fakeWrites(),
+      name: 'skill_install',
+      input: { name: 'beta', layer: 'repo', body: skillDir('beta', 'repo beta') },
+    })
+
+    expect(outcome.ok).toBe(true)
+    expect(nodes['/repo/.atlas/skills/beta/SKILL.md']).toBeDefined()
   })
 })
