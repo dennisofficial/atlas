@@ -29,6 +29,10 @@ const host = createDesktopHost({
   secret,
   app: { version: process.env.ATLAS_VERSION ?? '0.0.0', channel: 'stable', chromium: false },
   auth: { home: defaultDesktopHome(), openExternal: () => true },
+  // The pane is a real browser, so every origin the web app asks about is allowed. The route exists
+  // because the electrobun webview needed an allowlist; the shell keeps it answering 204 so the web
+  // app's preview gate settles instead of failing.
+  window: { titlebarDoubleClick: () => {}, setPreviewOrigins: () => {} },
   pane,
 })
 process.stdout.write(`${SESSION_MARKER}${sessionUrlOf({ origin: host.url, secret })}\n`)
