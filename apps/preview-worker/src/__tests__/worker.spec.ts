@@ -110,6 +110,24 @@ describe('response headers', () => {
     expect(await result.text()).toBe('{"a":1}')
     expect(result.headers.get('content-length')).toBe('7')
   })
+
+  it.each([
+    ['asset', '/_next/static/chunks/main-app.js', 'text/javascript', 'console.log(1)'],
+    ['page', '/', 'text/html; charset=utf-8', '<html><head></head><body>hi</body></html>'],
+  ])('makes every %s response uncacheable', async (_name, path, type, body) => {
+    const { result } = await run({
+      url: `${HOST}${path}`,
+      response: () =>
+        new Response(body, {
+          headers: {
+            'content-type': type,
+            'cache-control': 'public, max-age=31536000, immutable',
+            etag: '"abc"',
+          },
+        }),
+    })
+    expect(result.headers.get('cache-control')).toBe('no-store')
+  })
 })
 
 describe('html injection', () => {
