@@ -2,8 +2,10 @@ import { describe, expect, it } from 'bun:test'
 import {
   ORPHAN_SANDBOX_GRACE_MS,
   planOrphanSandboxes,
+  planSandboxStateReconcile,
   sweepOrphanSandboxes,
   type OrphanSandbox,
+  type StoredSandboxState,
 } from './orphan-sandbox-sweep'
 
 const NOW = new Date('2026-11-10T06:00:00Z')
@@ -77,6 +79,72 @@ describe('planOrphanSandboxes', () => {
   })
 })
 
+const storedRow = (
+  name: string,
+  overrides: Partial<StoredSandboxState> = {},
+): StoredSandboxState => ({
+  name,
+  state: 'running',
+  lastActivityAt: new Date(daysAgo(1)),
+  ...overrides,
+})
+
+const parkedNames = (plan: { park: StoredSandboxState[] }): string[] =>
+  plan.park.map((row) => row.name)
+
+describe('planSandboxStateReconcile', () => {
+  it('parks a running row whose sandbox Vercel reports stopped', () => {
+    const plan = planSandboxStateReconcile({
+      rows: [storedRow('atlas-thread-stopped', { lastActivityAt: NOW })],
+      sandboxes: [sandbox('atlas-thread-stopped', { status: 'stopped' })],
+      now: NOW,
+    })
+
+    expect(parkedNames(plan)).toEqual(['atlas-thread-stopped'])
+  })
+
+  it('parks a running row with no sandbox left only once it is past the grace', () => {
+    const fresh = storedRow('atlas-thread-fresh', { lastActivityAt: NOW })
+    const stale = storedRow('atlas-thread-stale', {
+      lastActivityAt: new Date(NOW.getTime() - ORPHAN_SANDBOX_GRACE_MS - 1),
+    })
+
+    expect(
+      parkedNames(planSandboxStateReconcile({ rows: [fresh], sandboxes: [], now: NOW })),
+    ).toEqual([])
+    expect(
+      parkedNames(planSandboxStateReconcile({ rows: [stale], sandboxes: [], now: NOW })),
+    ).toEqual(['atlas-thread-stale'])
+  })
+
+  it('leaves a running row whose sandbox Vercel reports running', () => {
+    const plan = planSandboxStateReconcile({
+      rows: [storedRow('atlas-thread-live')],
+      sandboxes: [sandbox('atlas-thread-live', { status: 'running' })],
+      now: NOW,
+    })
+
+    expect(plan).toEqual({ park: [] })
+  })
+
+  it('never rewrites a parked row, whatever Vercel reports', () => {
+    const parked = (name: string): StoredSandboxState =>
+      storedRow(name, { state: 'parked', lastActivityAt: new Date(daysAgo(9)) })
+    const rows = [parked('atlas-thread-a'), parked('atlas-thread-b'), parked('atlas-thread-c')]
+
+    const plan = planSandboxStateReconcile({
+      rows,
+      sandboxes: [
+        sandbox('atlas-thread-a', { status: 'running' }),
+        sandbox('atlas-thread-b', { status: 'stopped' }),
+      ],
+      now: NOW,
+    })
+
+    expect(plan).toEqual({ park: [] })
+  })
+})
+
 describe('sweepOrphanSandboxes', () => {
   it('deletes per project, stops retirable ones and reports retirement', async () => {
     const web = fakeStore([sandbox('atlas-thread-dead'), sandbox('atlas-thread-live')])
@@ -86,8 +154,8 @@ describe('sweepOrphanSandboxes', () => {
 
     const summary = await sweepOrphanSandboxes({
       stores: [
-        { label: 'usr-1/prj-web', store: web.store },
-        { label: 'usr-1/prj-sandboxes', store: peer.store },
+        { label: 'usr-1/prj-web', projectId: 'prj-web', store: web.store },
+        { label: 'usr-1/prj-sandboxes', projectId: 'prj-sandboxes', store: peer.store },
       ],
       liveNames: async () => new Set(['atlas-thread-live']),
       retirableNames: async () => new Set(['atlas-v2-dead']),
@@ -120,7 +188,7 @@ describe('sweepOrphanSandboxes', () => {
     const web = fakeStore([sandbox('atlas-thread-dead')])
 
     const summary = await sweepOrphanSandboxes({
-      stores: [{ label: 'usr-1/prj-web', store: web.store }],
+      stores: [{ label: 'usr-1/prj-web', projectId: 'prj-web', store: web.store }],
       liveNames: async () => new Set(),
       now: NOW,
       dryRun: true,
@@ -141,7 +209,7 @@ describe('sweepOrphanSandboxes', () => {
     }
 
     const summary = await sweepOrphanSandboxes({
-      stores: [{ label: 'usr-1/prj-web', store }],
+      stores: [{ label: 'usr-1/prj-web', projectId: 'prj-web', store }],
       liveNames: async () => new Set(),
       now: NOW,
       dryRun: false,
@@ -149,5 +217,25 @@ describe('sweepOrphanSandboxes', () => {
     })
 
     expect(summary).toMatchObject({ deleted: 1, failed: 1 })
+  })
+
+  it('reconciles stored states per project and sums the corrected rows', async () => {
+    const web = fakeStore([sandbox('atlas-thread-gone', { status: 'stopped' })])
+    const seen: Array<{ projectId: string; names: string[] }> = []
+
+    const summary = await sweepOrphanSandboxes({
+      stores: [{ label: 'usr-1/prj-web', projectId: 'prj-web', store: web.store }],
+      liveNames: async () => new Set(['atlas-thread-gone']),
+      reconcileStates: async (args) => {
+        seen.push({ projectId: args.projectId, names: args.sandboxes.map((one) => one.name) })
+        return 2
+      },
+      now: NOW,
+      dryRun: false,
+      log: () => undefined,
+    })
+
+    expect(seen).toEqual([{ projectId: 'prj-web', names: ['atlas-thread-gone'] }])
+    expect(summary.reconciled).toBe(2)
   })
 })
