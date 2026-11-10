@@ -213,6 +213,11 @@ export const contextFileContentWireSchema = z.discriminatedUnion('type', [
     data: z.string(),
     mediaType: z.enum(['image/png', 'image/jpeg', 'image/gif', 'image/webp']),
   }),
+  z.object({
+    type: z.literal('binary'),
+    data: z.string(),
+    bytes: z.number().int().nonnegative(),
+  }),
   z.object({ type: z.literal('refused'), reason: z.string() }),
 ])
 export type ContextFileContentWire = z.infer<typeof contextFileContentWireSchema>

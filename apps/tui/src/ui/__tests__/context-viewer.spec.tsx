@@ -146,6 +146,25 @@ describe('the context viewer', () => {
     }
   })
 
+  it('reads a binary file as its size, never a crash', async () => {
+    const setup = await mount(
+      <ContextViewer
+        width={WIDTH}
+        path="artifacts/pack.zip"
+        loading={false}
+        content={{ type: 'binary', data: 'AQAC', bytes: 3 }}
+        onDismiss={() => undefined}
+        attachScroll={() => undefined}
+      />,
+    )
+    try {
+      await setup.flush()
+      expect(setup.captureCharFrame()).toContain('the file is binary · 3 bytes')
+    } finally {
+      await teardown(setup)
+    }
+  })
+
   it('scrolls a long file all the way to its final line', async () => {
     const held: { box: ScrollBoxRenderable | null } = { box: null }
     const setup = await mount(

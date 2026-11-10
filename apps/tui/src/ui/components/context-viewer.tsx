@@ -240,6 +240,8 @@ export function ContextViewer(props: {
           <Panel rail={theme.rule} fill={theme.panelBg} width={viewport}>
             {props.content.type === 'refused' ? (
               <text fg={theme.warn}>{props.content.reason}</text>
+            ) : props.content.type === 'binary' ? (
+              <text fg={theme.warn}>{`the file is binary · ${props.content.bytes} bytes`}</text>
             ) : props.content.type !== 'text' ? null : (
               <TextBody
                 content={props.content}

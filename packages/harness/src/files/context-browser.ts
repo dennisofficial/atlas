@@ -11,6 +11,7 @@ export const MAX_CONTEXT_FILE_BYTES = 32 * 1024 * 1024
 export type ContextFileContent =
   | { type: 'text'; content: string; truncated: boolean }
   | { type: 'image'; data: string; mediaType: ImageMediaType }
+  | { type: 'binary'; data: string; bytes: number }
   | { type: 'refused'; reason: string }
 
 export type ImageMediaType = 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp'
@@ -72,7 +73,8 @@ export class ContextBrowser {
     if (read === null) return { type: 'refused', reason: 'the file could not be read' }
     const image = sniffImage(read)
     if (image !== null) return { type: 'image', data: read.toString('base64'), mediaType: image }
-    if (read.includes(0)) return { type: 'refused', reason: 'the file is binary' }
+    if (read.includes(0))
+      return { type: 'binary', data: read.toString('base64'), bytes: read.length }
     return { type: 'text', content: read.toString('utf8'), truncated: false }
   }
 

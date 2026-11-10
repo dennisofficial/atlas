@@ -2,7 +2,10 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   copyTextOf,
+  downloadNameOf,
+  downloadOf,
   ERenderKind,
+  fileSizeLabelOf,
   isHtmlPath,
   isMarkdownPath,
   renderableHtmlOf,
@@ -54,5 +57,37 @@ describe('copyTextOf', () => {
     expect(copyTextOf({ type: 'text', content: 'hi', truncated: false })).toBe('hi')
     expect(copyTextOf({ type: 'refused', reason: 'big' })).toBeNull()
     expect(copyTextOf({ type: 'image', data: '', mediaType: 'image/png' })).toBeNull()
+  })
+})
+
+describe('downloadOf', () => {
+  it('saves text as its own bytes and a binary file as the bytes it was', async () => {
+    const text = downloadOf({ type: 'text', content: 'hi', truncated: false })
+    expect(await text?.text()).toBe('hi')
+
+    const bytes = new Uint8Array([1, 0, 2])
+    const binary = downloadOf({
+      type: 'binary',
+      data: Buffer.from(bytes).toString('base64'),
+      bytes: 3,
+    })
+    expect(new Uint8Array(await binary?.arrayBuffer())).toEqual(bytes)
+
+    expect(downloadOf({ type: 'refused', reason: 'big' })).toBeNull()
+  })
+})
+
+describe('downloadNameOf', () => {
+  it('names the download after the file', () => {
+    expect(downloadNameOf('artifacts/workflows-design-pack.zip')).toBe('workflows-design-pack.zip')
+    expect(downloadNameOf('plan.md')).toBe('plan.md')
+  })
+})
+
+describe('fileSizeLabelOf', () => {
+  it('reads bytes, then KiB, then MiB', () => {
+    expect(fileSizeLabelOf(3)).toBe('3 B')
+    expect(fileSizeLabelOf(2048)).toBe('2.0 KiB')
+    expect(fileSizeLabelOf(5 * 1024 * 1024)).toBe('5.0 MiB')
   })
 })
