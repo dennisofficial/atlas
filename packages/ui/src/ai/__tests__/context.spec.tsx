@@ -11,7 +11,11 @@ describe('Context', () => {
 
   it('clamps to 100 and tolerates a zero limit', () => {
     expect(contextPercent({ used: 300, limit: 200 })).toBe(100)
-    expect(contextPercent({ used: 10, limit: 0 })).toBe(0)
+    expect(contextPercent({ used: 10, limit: 0 })).toBeNull()
+  })
+
+  it('has no percentage before a call reported usage', () => {
+    expect(contextPercent({ used: null, limit: 200_000 })).toBeNull()
   })
 
   it('formats token counts', () => {
@@ -24,5 +28,12 @@ describe('Context', () => {
     const html = renderToStaticMarkup(<Context used={50_000} limit={200_000} />)
 
     expect(html.replace(/<[^>]+>/g, '')).toContain('25% context')
+  })
+
+  it('shows an em dash and says so when nothing measured the window', () => {
+    const html = renderToStaticMarkup(<Context used={null} limit={200_000} />)
+
+    expect(html.replace(/<[^>]+>/g, '').trim()).toBe('—')
+    expect(html).toContain('Context not measured yet')
   })
 })

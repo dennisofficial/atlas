@@ -4,7 +4,6 @@ import {
   defaultPipeline,
   EMPTY_PROMPT,
   type AssemblyPipeline,
-  type Assembled,
   type ChunkFilter,
   type ClockPort,
   type CompiledPrompt,
@@ -53,7 +52,6 @@ export type BuildHarnessArgs = {
   prompt?: CompiledPrompt | undefined
   tools?: (() => readonly ToolDeclaration[]) | undefined
   dispatch?: ToolDispatcher | undefined
-  countTokens?: ((assembled: Assembled) => number) | undefined
   clock?: ClockPort | undefined
   ids?: IdPort | undefined
   onChunk?: ChunkFilter | undefined
@@ -94,7 +92,6 @@ export async function buildHarness(args: BuildHarnessArgs): Promise<AtlasHarness
       }),
     tools: args.tools,
     dispatch: args.dispatch,
-    countTokens: args.countTokens,
     onChunk: args.onChunk,
     hooks: args.hooks,
     spend: { ledger, clock },

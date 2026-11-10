@@ -15,7 +15,6 @@ import type { Event } from '../../../events/envelope'
 import { toThreadId } from '../../../events/ids'
 import { assemble } from '../../assemble'
 import type { RuleContext } from '../../rule'
-import { estimateTokens } from '../../tokens'
 import { compactedHistory } from '../compacted-history'
 import { operatorSaidAs } from '../../__tests__/log-fixture'
 import { messagesFromEvents } from '../messages-from-events'
@@ -25,7 +24,6 @@ const contextOf = (events: readonly Event[]): RuleContext => ({
   threadId: toThreadId('thread-1'),
   step: 0,
   provider: { id: 'anthropic', modelId: 'claude-opus-5' },
-  countTokens: estimateTokens,
 })
 
 const promptOf = (events: readonly Event[]) =>

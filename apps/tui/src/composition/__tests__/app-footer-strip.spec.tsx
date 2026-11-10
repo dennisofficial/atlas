@@ -19,7 +19,7 @@ const PILL = '1 shell'
 
 const SHELLS_OVERLAY = 'SHELL LOG'
 
-const TOO_NARROW_FOR_A_PILL = 16
+const TOO_NARROW_FOR_A_PILL = 12
 
 const running = (shellId: string): ShellSnapshot => ({
   threadId: toThreadId('thread'),

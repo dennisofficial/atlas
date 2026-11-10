@@ -265,7 +265,7 @@ describe('the usage tracker the policy reads from', () => {
     await fixture.close()
   })
 
-  it('falls back to the log estimate for an interrupted turn that left no reading', async () => {
+  it('has no reading for an interrupted turn that left none', async () => {
     const channel = createDeltaChannel()
     const fixture = openStoreFixture()
     const usage = createUsageTracker({ channel, log: fixture.log })
@@ -276,8 +276,23 @@ describe('the usage tracker the policy reads from', () => {
       drafts: [{ type: 'user-said', text: 'short' }],
     })
 
-    const used = await usage.usageOf({ threadId: THREAD, outcome: interruptedEmpty })
-    expect(used).toBeGreaterThan(0)
+    expect(await usage.usageOf({ threadId: THREAD, outcome: interruptedEmpty })).toBeNull()
+
+    await fixture.close()
+  })
+
+  it('has no reading before any call reported usage', async () => {
+    const channel = createDeltaChannel()
+    const fixture = openStoreFixture()
+    const usage = createUsageTracker({ channel, log: fixture.log })
+
+    await fixture.log.append({
+      threadId: THREAD,
+      runId: toRunId('run-1'),
+      drafts: [{ type: 'user-said', text: 'hello' }],
+    })
+
+    expect(await usage.usageOf({ threadId: THREAD, outcome: completed })).toBeNull()
 
     await fixture.close()
   })

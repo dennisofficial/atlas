@@ -4,10 +4,10 @@ import { SkillRegistryPort } from '../../skills/port'
 import { VolatilePromptFragment } from '../volatile'
 
 const SKILL_LISTING_BUDGET_FRACTION_OF_CONTEXT = 0.03
-const CHARS_PER_TOKEN = 4
+const CHARS_IN_TOKEN = 4
 
 const budgetCharsFor = (ctx: PromptContext): number =>
-  Math.floor(ctx.model.contextWindow * CHARS_PER_TOKEN * SKILL_LISTING_BUDGET_FRACTION_OF_CONTEXT)
+  Math.floor(ctx.model.contextWindow * CHARS_IN_TOKEN * SKILL_LISTING_BUDGET_FRACTION_OF_CONTEXT)
 
 export class SkillListingFragment extends VolatilePromptFragment {
   readonly id = 'skills.listing'

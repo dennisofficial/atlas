@@ -12,7 +12,6 @@ export type RuleContext = {
   threadId: ThreadId
   step: number
   provider: ProviderIdentity
-  countTokens: (value: Assembled) => number
   previous?: Assembled | undefined
   uploads?: ReadonlyMap<string, UploadPlacement> | undefined
   imageCapabilities?: ImageCapabilities | undefined

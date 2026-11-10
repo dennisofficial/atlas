@@ -108,6 +108,7 @@ export function createTurnPolicyRunner(args: {
     const { threadId, outcome } = args2
     const window = windowOf()
     const used = await usage.usageOf({ threadId, outcome })
+    if (used === null) return
     const decision = autoCompactAfterTurn({ used, window, atPercent: atPercent() })
     if (decision === EAutoCompact.Hold) return
 

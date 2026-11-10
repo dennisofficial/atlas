@@ -18,7 +18,6 @@ export type AgentOutputEvent =
       reason: ERetryReason
       delayMs: number
     }
-  | { type: 'context-size'; tokens: number; window: number }
   | StepStreamEvent
 
 export type AgentOutput = { emit(event: AgentOutputEvent): void }

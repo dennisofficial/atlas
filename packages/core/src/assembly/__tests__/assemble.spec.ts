@@ -51,20 +51,6 @@ describe('assemble', () => {
     expect(trace).toEqual([])
   })
 
-  it('records the token count each rule left behind', () => {
-    const { trace } = assemble({
-      rules: [
-        defineRule({
-          name: 'fourChars',
-          apply: () => ({ system: [{ text: 'abcd' }], messages: [] }),
-        }),
-      ],
-      ctx: contextFor({ events: [] }),
-    })
-
-    expect(trace[0]?.tokens).toBe(1)
-  })
-
   it('lets a throwing rule pass its input through and records the failure on the trace', () => {
     const exploding = defineRule({
       name: 'exploding',

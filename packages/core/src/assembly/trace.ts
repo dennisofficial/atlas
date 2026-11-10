@@ -13,7 +13,6 @@ export type AssemblyTraceStep = {
   name: string
   systemBlocks: number
   messages: number
-  tokens: number
   failure?: string | undefined
 }
 

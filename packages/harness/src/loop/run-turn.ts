@@ -26,16 +26,14 @@ export type TurnDeps = Omit<
   log: EventLogPort
   launchDirectory: string
   onToolOutput?: ((output: ToolOutputNotice) => void) | undefined
-  onContext?: ((args: { tokens: number; window: number }) => void) | undefined
 }
 
 const outputOf = (deps: TurnDeps): AgentOutput | undefined => {
-  const { onToolOutput, onContext } = deps
-  if (onToolOutput === undefined && onContext === undefined) return undefined
+  const { onToolOutput } = deps
+  if (onToolOutput === undefined) return undefined
   return {
     emit: (event) => {
-      if (event.type === 'tool-output') onToolOutput?.(event.output)
-      if (event.type === 'context-size') onContext?.(event)
+      if (event.type === 'tool-output') onToolOutput(event.output)
     },
   }
 }

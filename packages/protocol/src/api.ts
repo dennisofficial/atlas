@@ -1,7 +1,6 @@
 import {
   attachmentSchema,
   EAttachmentStore,
-  EMeterBasis,
   ESessionStatus,
   MAX_MESSAGE_UPLOADS,
   saidUploadSchema,
@@ -251,11 +250,9 @@ export const sessionSpendTallySchema = z.strictObject({
 })
 
 export const sessionContextMeterSchema = z.strictObject({
-  used: z.number().min(0),
+  used: z.number().min(0).nullable(),
   window: z.number().nullable(),
-  basis: z.enum(EMeterBasis),
   measuredThroughSeq: z.number().int().nullable(),
-  estimatedTokens: z.number().min(0),
 })
 
 export const sessionCheckoutsSchema = z.strictObject({

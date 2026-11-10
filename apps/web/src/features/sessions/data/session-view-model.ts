@@ -1,4 +1,4 @@
-import { EMeterBasis, type SpendTally } from '@dltech/atlas-core'
+import type { SpendTally } from '@dltech/atlas-core'
 import {
   crewOfView,
   crewRosterOf,
@@ -19,9 +19,8 @@ type LinkedPullRequest = SessionViewOutput['pullRequests'][number]
 type RowPullRequest = NonNullable<SessionSummary['pullRequest']>
 
 export type SessionContextModel = {
-  used: number
+  used: number | null
   limit: number
-  estimated: boolean
 }
 
 export type SessionViewModel = {
@@ -75,11 +74,7 @@ export const rowPullRequestEntryOf = (pullRequest: RowPullRequest): PullRequestE
 export const contextOfView = (view: SessionViewOutput): SessionContextModel | null => {
   const { context } = view
   if (context === null || context.window === null || context.window <= 0) return null
-  return {
-    used: context.used,
-    limit: context.window,
-    estimated: context.basis === EMeterBasis.Estimated,
-  }
+  return { used: context.used, limit: context.window }
 }
 
 export const shellTailTextOf = (

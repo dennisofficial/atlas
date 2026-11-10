@@ -5,7 +5,6 @@ import {
   defaultPipeline,
   CONTEXT_WINDOW_WHEN_THE_MODEL_IS_UNKNOWN,
   ALL_PROMPT_GROUPS,
-  estimateTokens,
   PromptFragment,
   promptContextFor,
   toThreadId,
@@ -54,7 +53,6 @@ const ctxFor = (provider: ProviderIdentity) => ({
   threadId: toThreadId('thread-fixture'),
   step: 0,
   provider,
-  countTokens: estimateTokens,
 })
 
 const OPUS_WINDOW: PromptModel = { contextWindow: 1_000_000 }

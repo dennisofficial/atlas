@@ -9,7 +9,6 @@ import {
   ETriage,
   EWorktreeExit,
   activeWorktreeOf,
-  estimateEventTokens,
   homeDirectoryOf,
   planFromEvents,
   repoOf,
@@ -107,7 +106,6 @@ describe('the log accumulator', () => {
     const events = varied()
     const acc = foldLogEvents({ events, effects })
 
-    expect(acc.tokens).toBe(estimateEventTokens(events))
     expect(acc.treeMutations).toBe(treeMutationsOf({ events, effects }))
     expect(acc.plan).toEqual(planFromEvents(events))
     expect(acc.worktree).toEqual(activeWorktreeOf(events))
@@ -124,7 +122,6 @@ describe('the log accumulator', () => {
     for (const event of events.slice(7)) foldLogEvent({ acc: continued, event, effects })
 
     expect(sidebarFoldFrom(continued)).toEqual(sidebarFoldFrom(whole))
-    expect(continued.tokens).toBe(whole.tokens)
     expect(continued.treeMutations).toBe(whole.treeMutations)
     expect(continued.plan).toEqual(whole.plan)
     expect(continued.worktree).toEqual(whole.worktree)
@@ -171,7 +168,6 @@ describe('the log accumulator', () => {
     const acc = emptyLogAccumulator()
 
     expect(sidebarFoldFrom(acc)).toEqual(sidebarFoldOf([]))
-    expect(acc.tokens).toBe(0)
     expect(acc.treeMutations).toBe(0)
     expect(acc.worktree).toBeUndefined()
     expect(acc.home).toBeNull()

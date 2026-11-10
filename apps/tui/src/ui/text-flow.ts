@@ -80,12 +80,12 @@ function settledWrappedRows(args: { prefix: string; width: number }): readonly s
   return rows
 }
 
-const CHARS_PER_TOKEN = 4
+const CHARS_IN_TOKEN = 4
 
 export function thinkingSummary(text: string): string {
   const body = text.trim()
   if (body.length === 0) return 'Thinking…'
-  const tokens = body.length / CHARS_PER_TOKEN
+  const tokens = body.length / CHARS_IN_TOKEN
   const count =
     tokens >= 1_000
       ? `${(tokens / 1_000).toFixed(1)}K`

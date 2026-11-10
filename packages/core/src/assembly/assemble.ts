@@ -38,19 +38,16 @@ function traceStep({
   stage,
   name,
   outcome,
-  ctx,
 }: {
   stage: EAssemblyStage
   name: string
   outcome: StageOutcome
-  ctx: RuleContext
 }): AssemblyTraceStep {
   return {
     stage,
     name,
     systemBlocks: outcome.assembled.system.length,
     messages: outcome.assembled.messages.length,
-    tokens: ctx.countTokens(outcome.assembled),
     failure: outcome.failure,
   }
 }
@@ -71,7 +68,7 @@ export function assemble({
 
   for (const rule of rules) {
     const outcome = applyStage({ apply: () => rule(current, ctx), input: current, onRuleFailure })
-    trace.push(traceStep({ stage: EAssemblyStage.Rule, name: rule.ruleName, outcome, ctx }))
+    trace.push(traceStep({ stage: EAssemblyStage.Rule, name: rule.ruleName, outcome }))
     current = outcome.assembled
   }
 
@@ -83,7 +80,7 @@ export function assemble({
       onRuleFailure,
     })
     trace.push(
-      traceStep({ stage: EAssemblyStage.Annotator, name: annotator.annotatorName, outcome, ctx }),
+      traceStep({ stage: EAssemblyStage.Annotator, name: annotator.annotatorName, outcome }),
     )
     current = outcome.assembled
   }

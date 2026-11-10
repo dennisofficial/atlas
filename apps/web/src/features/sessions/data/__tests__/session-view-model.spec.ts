@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EMeterBasis, ESessionStatus } from '@dltech/atlas-core'
+import { ESessionStatus } from '@dltech/atlas-core'
 import type { SessionViewOutput } from '@dltech/atlas-protocol'
 
 import { checksTallyOf } from '@/features/threads/data/header-model'
@@ -126,9 +126,7 @@ describe('contextOfView', () => {
   const meter = {
     used: 1200,
     window: 200000,
-    basis: EMeterBasis.Measured,
     measuredThroughSeq: 4,
-    estimatedTokens: 0,
   }
 
   it('is null without a context meter', () => {
@@ -139,15 +137,12 @@ describe('contextOfView', () => {
     expect(contextOfView(viewOf({ context: { ...meter, window: null } }))).toBeNull()
   })
 
-  it('reports used and limit, flagging an estimated basis', () => {
-    expect(contextOfView(viewOf({ context: meter }))).toEqual({
-      used: 1200,
+  it('reports used and limit, leaving an unmeasured reading null', () => {
+    expect(contextOfView(viewOf({ context: meter }))).toEqual({ used: 1200, limit: 200000 })
+    expect(contextOfView(viewOf({ context: { ...meter, used: null } }))).toEqual({
+      used: null,
       limit: 200000,
-      estimated: false,
     })
-    expect(
-      contextOfView(viewOf({ context: { ...meter, basis: EMeterBasis.Estimated } }))?.estimated,
-    ).toBe(true)
   })
 })
 

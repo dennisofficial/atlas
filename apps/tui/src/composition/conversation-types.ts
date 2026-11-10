@@ -91,7 +91,7 @@ export type Conversation = {
   working: boolean
   turnInFlight: () => boolean
   mutations: number
-  contextTokens: number
+  contextTokens: number | null
   projectDirectory: string
   activeWorktree: ActiveWorktree | null
   repo: string | null
