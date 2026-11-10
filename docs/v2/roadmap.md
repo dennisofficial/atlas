@@ -23,6 +23,8 @@ Each slice is built in its own Atlas session and handed to a fresh session when 
 ## Current state
 
 _Updated at the end of every slice. Last update: 2026-11-09._
+- **Slice 7b built (2026-11-10); one registration and the live checks left.** The live tool source (#2112), `plugins/mcp` with its view, instructions hook and command (#2118, #2122), the session's servers reaching it (#2138), `plugins/skills` with its listing, `skill` load and CRUD (#2119, #2137), and `task_write` (#2121) are merged. `plugins/skills` is merged but **not registered**, so a live session has no `skill` tool yet, and nothing in either plugin has run in a cloud session. Continue from [handoffs/slice-7b.md](handoffs/slice-7b.md).
+
 - **Slice 7c built, live check outstanding (2026-11-09)** (`#2116`, `#2121`): `plugins/web` gives a
   v2 session `web_search`, `web_fetch` and `browser` — the search over the operator's backend and
   `search.<backend>` key through one narrow `PodControl.webSearch` read, the fetch host-side with
