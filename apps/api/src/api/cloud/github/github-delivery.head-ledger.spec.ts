@@ -180,8 +180,10 @@ describe('GithubDeliveryService per-head verdict ledger', () => {
     })
 
     const events = await prEventRows()
-    expect(events.filter((row) => row.kind === 'verdict')).toHaveLength(1)
-    expect(events.filter((row) => row.kind === 'mergeability')).toHaveLength(1)
+    const verdicts = events.filter((row) => row.kind === 'verdict')
+    expect(verdicts).toHaveLength(1)
+    expect(verdicts[0]).toMatchObject({ payload: { verdict: 'green', mergeable: true } })
+    expect(events.filter((row) => row.kind === 'mergeability')).toHaveLength(0)
   })
 
   it('announces a verdict for a brand-new PR row that already reads settled', async () => {
@@ -215,7 +217,7 @@ describe('GithubDeliveryService per-head verdict ledger', () => {
     })
     const events = await prEventRows()
     expect(events.filter((row) => row.kind === 'verdict')).toHaveLength(1)
-    expect(events.filter((row) => row.kind === 'mergeability')).toHaveLength(1)
+    expect(events.filter((row) => row.kind === 'mergeability')).toHaveLength(0)
   })
 
   it('a settled failure emits the ledger verdict without a duplicate fail-fast verdict', async () => {
