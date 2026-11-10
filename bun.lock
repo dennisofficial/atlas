@@ -701,6 +701,13 @@
         "@types/bun": "latest",
       },
     },
+    "packages/schedule": {
+      "name": "@dltech/atlas-schedule",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
     "packages/syntax": {
       "name": "@dltech/atlas-syntax",
       "version": "0.1.0",
@@ -1410,6 +1417,8 @@
     "@dltech/atlas-prototype": ["@dltech/atlas-prototype@workspace:apps/prototype"],
 
     "@dltech/atlas-sandbox": ["@dltech/atlas-sandbox@workspace:packages/sandbox"],
+
+    "@dltech/atlas-schedule": ["@dltech/atlas-schedule@workspace:packages/schedule"],
 
     "@dltech/atlas-serve": ["@dltech/atlas-serve@workspace:apps/serve"],
 

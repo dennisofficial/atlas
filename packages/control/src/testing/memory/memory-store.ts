@@ -4,9 +4,13 @@ import type { ChangeFeed } from '../../change-feed'
 import {
   ControlStorePort,
   type ControlTx,
+  type InsertRoutineRunParams,
+  type ListDueRoutinesParams,
   type PrStateRow,
+  type RoutineRow,
   type SubscriptionLease,
 } from '../../port'
+import { dueRoutinesIn } from './memory-routines'
 import { MemoryTx } from './memory-tx'
 import { MemoryTestControls } from './memory-test-controls'
 import { cloneState, emptyState, type State } from './memory-state'
@@ -43,6 +47,10 @@ export class InMemoryControlStore extends ControlStorePort implements ChangeFeed
     return next
   }
 
+  listDueRoutines(params: ListDueRoutinesParams): Promise<RoutineRow[]> {
+    return Promise.resolve(dueRoutinesIn({ state: this.state, ...params }))
+  }
+
   nextHostId(): number {
     return this.controls.nextHostId()
   }
@@ -73,6 +81,14 @@ export class InMemoryControlStore extends ControlStorePort implements ChangeFeed
 
   subscriptionLeases(): Array<SubscriptionLease & { expiresAt: string }> {
     return this.controls.subscriptionLeases()
+  }
+
+  setRoutine(row: RoutineRow): void {
+    this.controls.setRoutine(row)
+  }
+
+  routineRuns(routineId: string): InsertRoutineRunParams[] {
+    return this.controls.routineRuns(routineId)
   }
 
   changesOf(sessionId: string): SessionChange[] {

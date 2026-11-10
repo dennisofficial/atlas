@@ -7,7 +7,12 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 
 import { ControlPlane } from '../src/control-plane'
 import { PostgresControlStore } from '../src/postgres'
-import { ControlStorePort, type ControlTx } from '../src/port'
+import {
+  ControlStorePort,
+  type ControlTx,
+  type ListDueRoutinesParams,
+  type RoutineRow,
+} from '../src/port'
 import { mint, said } from '../src/testing/conformance/support'
 
 const enabled = process.env.ATLAS_BENCH === '1'
@@ -24,6 +29,10 @@ class SilentStore extends ControlStorePort {
     return this.inner.transact((tx) =>
       work(Object.assign(Object.create(tx) as ControlTx, { announce: async () => undefined })),
     )
+  }
+
+  listDueRoutines(params: ListDueRoutinesParams): Promise<RoutineRow[]> {
+    return this.inner.listDueRoutines(params)
   }
 }
 

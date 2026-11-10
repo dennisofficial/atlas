@@ -19,13 +19,14 @@ import {
   describeControlPlanePeers,
   describeControlPlanePresence,
   describeControlPlaneReads,
+  describeControlPlaneRoutines,
   describeControlPlaneSessions,
   describeControlPlaneSessionTitles,
   describeControlPlaneViews,
   describeControlPlaneWakes,
 } from '../src/testing/conformance'
 import { ControlPlane } from '../src/control-plane'
-import type { PrStateRow } from '../src/port'
+import type { PrStateRow, RoutineRow } from '../src/port'
 import { PostgresControlStore } from '../src/postgres'
 
 const testDb = useTestDatabase()
@@ -127,6 +128,34 @@ describeControlPlaneBlobs(conformanceParams)
 describeControlPlaneWakes(conformanceParams)
 describeControlPlaneChanges(conformanceParams)
 describeControlPlaneViews(conformanceParams)
+
+describeControlPlaneRoutines({
+  ...conformanceParams,
+  seedRoutine: async (row: RoutineRow) => {
+    await testDb().pool.query(
+      `INSERT INTO "v2"."V2Routine" ("id", "userId", "projectId", "name", "prompt", "cron", "timezone", "enabled", "modelRef", "modelEffort", "modelFast", "nextRunAt", "lastRunAt", "lastSessionId", "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+      [
+        row.routineId,
+        row.userId,
+        row.projectId,
+        row.name,
+        row.prompt,
+        row.cron,
+        row.timezone,
+        row.enabled,
+        row.modelRef,
+        row.modelEffort,
+        row.modelFast,
+        row.nextRunAt,
+        row.lastRunAt,
+        row.lastSessionId,
+        row.createdAt,
+        row.updatedAt,
+      ],
+    )
+  },
+})
 
 describeControlPlanePresence({
   ...conformanceParams,
