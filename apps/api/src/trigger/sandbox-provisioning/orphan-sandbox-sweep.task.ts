@@ -1,10 +1,12 @@
 import { Logger } from '@nestjs/common'
 import { schedules } from '@trigger.dev/sdk'
 import { db } from '@dltech/atlas-db'
+import { ESandboxState } from '../../api/platform/sandboxes/sandboxes.types'
 import { SecretCipherService } from '../../_lib/crypto/secret-cipher.service'
 import { openSecretValue } from '../../api/cloud/secrets/sealed-secret'
 import {
   liveSandboxNames,
+  retirableSandboxNames,
   v2PodNames,
 } from '../../api/cloud/sandbox-provisioning/live-sandbox-names'
 import {
@@ -72,13 +74,19 @@ export const orphanSandboxSweepTask = schedules.task({
     return sweepOrphanSandboxes({
       stores: await storesOf({ cipher }),
       liveNames: liveSandboxNames,
-      retirableNames: async () => pods.retirable,
+      retirableNames: retirableSandboxNames,
       onRetired: async ({ name }) => {
         const sessionIds = pods.sessionIdsByName.get(name) ?? []
         if (sessionIds.length === 0) return
         await db.orm.v2.V2Session.where((session) => session.id.in(sessionIds))
           .where((session) => session.archivedAt.isNotNull())
           .update({ podRetiredAt: new Date() })
+      },
+      onStopped: async ({ name }) => {
+        await db.orm.public.CloudSandbox.where({ name }).update({
+          state: ESandboxState.Parked,
+          updatedAt: new Date(),
+        })
       },
       now: new Date(),
       dryRun: false,

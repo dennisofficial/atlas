@@ -82,6 +82,7 @@ describe('sweepOrphanSandboxes', () => {
     const web = fakeStore([sandbox('atlas-thread-dead'), sandbox('atlas-thread-live')])
     const peer = fakeStore([sandbox('atlas-v2-dead', { status: 'running' })])
     const retired: string[] = []
+    const stopped: string[] = []
 
     const summary = await sweepOrphanSandboxes({
       stores: [
@@ -90,6 +91,9 @@ describe('sweepOrphanSandboxes', () => {
       ],
       liveNames: async () => new Set(['atlas-thread-live']),
       retirableNames: async () => new Set(['atlas-v2-dead']),
+      onStopped: async ({ name }) => {
+        stopped.push(name)
+      },
       onRetired: async ({ name }) => {
         retired.push(name)
       },
@@ -108,6 +112,7 @@ describe('sweepOrphanSandboxes', () => {
     })
     expect(web.deleted).toEqual(['atlas-thread-dead'])
     expect(peer.stopped).toEqual(['atlas-v2-dead'])
+    expect(stopped).toEqual(['atlas-v2-dead'])
     expect(retired).toEqual(['atlas-thread-dead'])
   })
 

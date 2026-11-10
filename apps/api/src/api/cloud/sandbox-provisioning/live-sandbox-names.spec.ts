@@ -3,7 +3,7 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { describe, expect, it } from 'bun:test'
 import { sandboxNameFor } from '../../platform/sandboxes/sandbox-names'
 import { seedThreadRow, seedUsers } from '../../../../test/session-seed'
-import { liveSandboxNames, v2PodNames } from './live-sandbox-names'
+import { liveSandboxNames, retirableSandboxNames, v2PodNames } from './live-sandbox-names'
 
 const v2Session = async (args: {
   id: string
@@ -53,6 +53,33 @@ describe('liveSandboxNames', () => {
 
     expect(names.has('atlas-v2-v2-root')).toBe(true)
     expect(names.has('atlas-v2-v2-peer')).toBe(false)
+  })
+
+  it('lists a cloud sandbox whose session is archived as retirable, and a live one as not', async () => {
+    await seedUsers('user-a')
+    await seedThreadRow({ id: 'thr-live', userId: 'user-a' })
+    await seedThreadRow({ id: 'thr-archived', userId: 'user-a', archivedAt: new Date() })
+    for (const threadId of ['thr-live', 'thr-archived']) {
+      const at = new Date('2026-11-09T00:00:00Z')
+      await db.orm.public.CloudSandbox.create({
+        id: `sbx_${threadId}`,
+        sessionId: `ses_${threadId}`,
+        userId: 'user-a',
+        sandboxId: '',
+        name: `atlas-thread-${threadId}`,
+        region: 'iad1',
+        state: 'running',
+        lastActivityAt: at,
+        tokenHash: `hash_${threadId}`,
+        createdAt: at,
+        updatedAt: at,
+      })
+    }
+
+    const retirable = await retirableSandboxNames()
+
+    expect(retirable.has('atlas-thread-thr-archived')).toBe(true)
+    expect(retirable.has('atlas-thread-thr-live')).toBe(false)
   })
 
   it('retires a v2 pod only once every session on it is archived', async () => {
