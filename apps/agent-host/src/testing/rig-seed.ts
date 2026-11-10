@@ -1,16 +1,29 @@
 import { chainEvents, toRunId, toThreadId } from '@dltech/atlas-core'
-import { ControlPlane, ControlStorePort, type ControlTx } from '@dltech/atlas-control'
+import {
+  ControlPlane,
+  ControlStorePort,
+  type ControlTx,
+  type ListDueRoutinesParams,
+  type RoutineRow,
+} from '@dltech/atlas-control'
 import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
 
 const SEED_HOST_ID = 2_000_000_000
 
 class JoinedStore extends ControlStorePort {
-  constructor(private readonly tx: ControlTx) {
+  constructor(
+    private readonly owner: ControlStorePort,
+    private readonly tx: ControlTx,
+  ) {
     super()
   }
 
   transact<T>(work: (tx: ControlTx) => Promise<T>): Promise<T> {
     return work(this.tx)
+  }
+
+  listDueRoutines(params: ListDueRoutinesParams): Promise<RoutineRow[]> {
+    return this.owner.listDueRoutines(params)
   }
 }
 
@@ -46,7 +59,7 @@ export const seedSession = async (args: {
 }): Promise<string> => {
   const mainThreadId = `thread-${args.sessionId}`
   await args.store.transact(async (tx) => {
-    const plane = new ControlPlane({ store: new JoinedStore(tx) })
+    const plane = new ControlPlane({ store: new JoinedStore(args.store, tx) })
     await plane.createSession({
       sessionId: args.sessionId,
       userId: 'user-1',
