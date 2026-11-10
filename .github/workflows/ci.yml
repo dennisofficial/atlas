@@ -570,6 +570,8 @@ jobs:
       - uses: actions/checkout@v7
       - name: build the Swift shell
         run: swift build --package-path apps/mac/swift
+      - name: test the Swift shell
+        run: swift test --package-path apps/mac/swift
 
   mac-cef-spike:
     runs-on: macos-latest

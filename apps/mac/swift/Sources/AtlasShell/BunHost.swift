@@ -21,6 +21,11 @@ final class BunHost {
     private var process: Process?
     private var output = ""
     private let lock = NSLock()
+    private let paneOrigin: String?
+
+    init(paneOrigin: String? = nil) {
+        self.paneOrigin = paneOrigin
+    }
 
     func start() throws -> URL {
         let script = try Self.scriptPath()
@@ -28,6 +33,7 @@ final class BunHost {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: launch.executable)
         process.arguments = launch.arguments
+        process.environment = Self.environment(paneOrigin: paneOrigin)
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = pipe
@@ -101,6 +107,14 @@ final class BunHost {
             throw BunHostError.scriptMissing(dev)
         }
         return dev
+    }
+
+    static func environment(paneOrigin: String?) -> [String: String] {
+        var environment = ProcessInfo.processInfo.environment
+        if let paneOrigin {
+            environment["ATLAS_PANE_ORIGIN"] = paneOrigin
+        }
+        return environment
     }
 
     static func launchCommand(script: String) -> (executable: String, arguments: [String]) {
