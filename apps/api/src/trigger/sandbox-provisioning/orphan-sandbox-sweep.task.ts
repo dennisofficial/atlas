@@ -38,6 +38,8 @@ async function reconcileStates(args: {
   for (const row of plan.park) {
     await db.orm.public.CloudSandbox.where({ name: row.name }).update({
       state: ESandboxState.Parked,
+      runtimeCheckpoint: null,
+      runtimeCheckpointRevision: null,
       updatedAt: at,
     })
   }
@@ -115,6 +117,8 @@ export const orphanSandboxSweepTask = schedules.task({
       onStopped: async ({ name }) => {
         await db.orm.public.CloudSandbox.where({ name }).update({
           state: ESandboxState.Parked,
+          runtimeCheckpoint: null,
+          runtimeCheckpointRevision: null,
           updatedAt: new Date(),
         })
       },

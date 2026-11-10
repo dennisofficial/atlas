@@ -209,6 +209,11 @@ export class SandboxesService {
     }
   }
 
+  /**
+   * A stop the API drives happens before serve can mirror its own `parked` record — the sandbox is
+   * killed mid-park — so the mirror is dropped here instead of left saying `serving`, which would
+   * read as a running pod that no claim may wake.
+   */
   async park(args: {
     row: Pick<Row<'CloudSandbox'>, 'sessionId' | 'name'>
     threadId: string
@@ -218,6 +223,8 @@ export class SandboxesService {
     await this.vercel.stop({ threadId: args.threadId, name: args.row.name })
     await db.orm.public.CloudSandbox.where({ sessionId: args.row.sessionId }).update({
       state: ESandboxState.Parked,
+      runtimeCheckpoint: null,
+      runtimeCheckpointRevision: null,
       updatedAt: new Date(),
     })
     await this.signals.podChanged({ threadId: args.threadId })
