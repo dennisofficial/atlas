@@ -51,6 +51,7 @@ function serviceWith(args: {
     installNotice,
     localObservations(github),
     { record: async () => undefined } as never,
+    { coversRepo: async () => false } as never,
   )
 }
 

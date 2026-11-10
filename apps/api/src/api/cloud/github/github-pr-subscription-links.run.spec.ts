@@ -40,6 +40,7 @@ function serviceWith(): GithubPrSubscriptionLinks {
     {} as never,
     {} as never,
     { record: async () => undefined } as never,
+    { coversRepo: async () => false } as never,
   )
   return new GithubPrSubscriptionLinks(subscriptions)
 }

@@ -81,6 +81,7 @@ function subscriptionsService(): GithubSubscriptionsService {
     installNotice,
     localObservations(github),
     new GithubPrEventMailboxService(fanout, wake),
+    { coversRepo: async () => false } as never,
   )
 }
 

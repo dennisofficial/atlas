@@ -16,6 +16,7 @@ export class LocalObservationAdapter implements ObservationAdapter {
   private readonly authorizations = new Map<string, ObservationAuthorization>()
   private readonly versions = new Map<string, { value: number; expiresAt: number }>()
   private readonly categorySpent = new Map<string, number>()
+  private readonly sourceSpent = new Map<string, number>()
   private readonly index = new Map<string, Set<string>>()
   private readonly attempts = new Map<string, ObservationAttempt & { expiresAt: number }>()
   private minute = 0
@@ -137,6 +138,7 @@ export class LocalObservationAdapter implements ObservationAdapter {
       this.minute = minute
       this.spent = 0
       this.categorySpent.clear()
+      this.sourceSpent.clear()
     }
     if (this.spent >= GITHUB_HTTP_BUDGET_PER_MINUTE) return false
     const category = identity?.category ?? 'unclassified'
@@ -149,6 +151,8 @@ export class LocalObservationAdapter implements ObservationAdapter {
     const spent = this.categorySpent.get(category) ?? 0
     if (spent >= limit) return false
     this.categorySpent.set(category, spent + 1)
+    const source = identity?.source ?? 'unattributed'
+    this.sourceSpent.set(source, (this.sourceSpent.get(source) ?? 0) + 1)
     this.spent += 1
     return true
   }

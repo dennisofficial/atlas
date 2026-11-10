@@ -30,6 +30,7 @@ export type GithubRequestIdentity = {
   credentialFingerprint: string
   resource: string
   category?: EGithubHttpCategory | undefined
+  source?: string | undefined
 }
 export type GithubObservationAcquire = {
   id: string

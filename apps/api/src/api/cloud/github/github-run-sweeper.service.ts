@@ -11,6 +11,8 @@ import {
   type WorkflowRunSnapshot,
 } from './github-workflow-run-reads'
 import { postRunNoticeV2Sessions } from './github-v2-run-notice'
+import { GithubObservationStore } from './github-observation.store'
+import { withGithubRequestBudget } from './github-request-budget'
 import { GithubService } from './github.service'
 
 /**
@@ -27,9 +29,14 @@ export class GithubRunSweeperService {
     private readonly github: GithubService,
     private readonly reads: GithubWorkflowRunReads,
     private readonly wake: GithubSandboxWakeService,
+    private readonly observations: GithubObservationStore,
   ) {}
 
-  async handleSweep(): Promise<void> {
+  handleSweep(): Promise<void> {
+    return withGithubRequestBudget({ store: this.observations, run: () => this.sweepLive() })
+  }
+
+  private async sweepLive(): Promise<void> {
     const now = new Date()
     const rows = await db.orm.public.GithubSubscription.where({
       kind: WORKFLOW_RUN_KIND,

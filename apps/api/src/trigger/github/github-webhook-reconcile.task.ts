@@ -9,10 +9,13 @@ export const githubWebhookReconcileTask = schedules.task({
   run: async () =>
     withGithubSweepGraph({
       run: async (graph) => {
+        const now = new Date()
+        await graph.webhookInbox.reviveStarved({ now })
         await graph.webhookInbox.handleReconcile({
           process: (entry) => graph.deliveries.handle({ ...entry, replay: true }),
         })
-        await pruneCommitChecks({ now: new Date() })
+        await graph.webhookInbox.prune({ now })
+        await pruneCommitChecks({ now })
       },
     }),
 })

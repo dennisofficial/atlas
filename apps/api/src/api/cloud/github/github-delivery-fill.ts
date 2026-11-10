@@ -11,6 +11,8 @@ export type RestFill =
   | { kind: 'deferred' }
 
 export class GithubDeliveryFillDeferred extends Error {
+  readonly parked = true
+
   constructor(args: { repoFullName: string; prNumbers: number[] }) {
     super(
       `REST fill deferred by the GitHub budget for ${args.repoFullName} ${args.prNumbers.map((n) => `#${n}`).join(', ')}`,
