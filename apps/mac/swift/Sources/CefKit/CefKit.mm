@@ -79,8 +79,8 @@ BOOL AtlasCefInitialize(int argc, char *argv[]) {
            home != NULL ? home : "/tmp");
   snprintf(log_path, sizeof(log_path), "%s/cef.log", cache_path);
   mkdir(cache_path, 0700);
-  settings.root_cache_path = CefString(cache_path);
-  settings.log_file = CefString(log_path);
+  CefString(&settings.root_cache_path).FromString(cache_path);
+  CefString(&settings.log_file).FromString(log_path);
 
   g_client = new CefPaneClient();
 
