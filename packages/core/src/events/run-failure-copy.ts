@@ -73,6 +73,11 @@ function wordsOf(args: {
         detail:
           "This conversation no longer fits the model's context window. Compact it to summarise the older turns, or switch to a model with a larger window.",
       }
+    case ERunFailureKind.RequestTooLarge:
+      return {
+        title: 'The request was too large',
+        detail: `${subject} rejected the request for its size, not for its length in tokens: a large attachment or one very long tool result is the usual cause. Remove it, or compact and retry.`,
+      }
     case ERunFailureKind.ExchangeFault:
       return {
         title: 'Atlas built an invalid prompt',

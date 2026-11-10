@@ -36,6 +36,7 @@ export enum EProviderFailureKind {
   Delivery = 'delivery',
   ModelDenied = 'model-denied',
   ContextOverflow = 'context-overflow',
+  RequestTooLarge = 'request-too-large',
   InvalidRequest = 'invalid-request',
   Cancelled = 'cancelled',
   Other = 'other',

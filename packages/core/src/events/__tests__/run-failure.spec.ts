@@ -20,7 +20,7 @@ describe('runFailureKindOf', () => {
     [{ statusCode: 403 }, ERunFailureKind.ModelDenied],
     [{ providerType: 'permission_error' }, ERunFailureKind.ModelDenied],
     [{ statusCode: 404 }, ERunFailureKind.ModelDenied],
-    [{ statusCode: 413 }, ERunFailureKind.ContextOverflow],
+    [{ statusCode: 413 }, ERunFailureKind.RequestTooLarge],
     [{ providerCode: 'context_length_exceeded' }, ERunFailureKind.ContextOverflow],
     [{ statusCode: 401, authorizationDelivered: false }, ERunFailureKind.Delivery],
     [
@@ -150,6 +150,7 @@ describe('runFailureCopy', () => {
     [ERunFailureKind.Network, [ERunRemedy.Retry]],
     [ERunFailureKind.Stalled, [ERunRemedy.Retry]],
     [ERunFailureKind.ContextOverflow, [ERunRemedy.Compact, ERunRemedy.SwitchModel]],
+    [ERunFailureKind.RequestTooLarge, [ERunRemedy.Compact, ERunRemedy.Retry]],
     [ERunFailureKind.ExchangeFault, [ERunRemedy.Retry]],
     [ERunFailureKind.LoopGuard, [ERunRemedy.Retry]],
     [ERunFailureKind.ToolSettlement, [ERunRemedy.Retry]],
@@ -159,6 +160,13 @@ describe('runFailureCopy', () => {
     [ERunFailureKind.AgentFailed, [ERunRemedy.OpenAgent]],
   ])('orders remedies for %s', (kind, remedies) => {
     expect(remediesOf(kind)).toEqual(remedies)
+  })
+
+  it('says the request was too large rather than that the conversation is too long', () => {
+    const copy = runFailureCopy({ failure: failure(ERunFailureKind.RequestTooLarge) })
+
+    expect(copy.title).toBe('The request was too large')
+    expect(copy.detail).not.toContain('context window')
   })
 
   it('uses the message for other failures', () => {

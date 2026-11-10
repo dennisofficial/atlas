@@ -108,7 +108,7 @@ describe('classifying provider failures: the table', () => {
       Request,
       Never,
     ],
-    ['413', { statusCode: 413 }, Kind.ContextOverflow, Request, Never],
+    ['413', { statusCode: 413 }, Kind.RequestTooLarge, Request, Never],
     ['429 without hard evidence', { statusCode: 429 }, Kind.RateLimited, Route, Transient],
     ['529', { statusCode: 529 }, Kind.Overloaded, Route, Transient],
     ['503', { statusCode: 503 }, Kind.Overloaded, Route, Transient],
