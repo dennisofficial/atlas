@@ -15,12 +15,12 @@ final class MainWindow {
         self.split = split
         window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1280, height: 820),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
         )
         window.title = "Atlas"
-        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
         window.minSize = NSSize(width: 720, height: 480)
         window.contentViewController = split
         window.center()
@@ -48,6 +48,8 @@ final class ShellSplitViewController: NSSplitViewController {
     private let paneItem: NSSplitViewItem
 
     init(web: NSView, paneContainer: NSView) {
+        web.translatesAutoresizingMaskIntoConstraints = false
+        paneContainer.translatesAutoresizingMaskIntoConstraints = false
         paneItem = NSSplitViewItem(viewController: ViewHost(content: paneContainer))
         super.init(nibName: nil, bundle: nil)
         let webItem = NSSplitViewItem(viewController: ViewHost(content: web))
