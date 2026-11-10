@@ -50,6 +50,16 @@ jobs:
         id: sha
         run: echo "short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
+      # The shell adopts a newer web payload at runtime, so the updater it ships is the one from
+      # apps/mac/src/host/web-payload, bundled for node by bun.
+      - name: bundle the web payload updater
+        working-directory: apps/mac-electron
+        run: bun run bundle:payload
+
+      - name: test the shell
+        working-directory: apps/mac-electron
+        run: bun test
+
       # The shell spawns the same desktop host the Swift app does, so the payload it needs at runtime
       # (the bundled host, the Next standalone tree and a bun binary) is built before packaging.
       - name: build the web standalone tree
