@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { eventTypesOf } from '@dltech/atlas-plugin-sdk'
 
 import { composedPlugins, registeredPlugins } from '../registered-plugins'
+import { podContextOf } from '../testing/pod-context'
 
 describe('the agent host plugin composition', () => {
   it('registers crew beside the other native plugins', () => {
@@ -24,5 +25,18 @@ describe('the agent host plugin composition', () => {
   it('adds no event type', () => {
     const without = registeredPlugins.filter((plugin) => plugin.name !== 'sessions')
     expect(eventTypesOf(registeredPlugins)).toEqual(eventTypesOf(without))
+  })
+
+  it('registers the skills plugin with its four tools and both hooks', () => {
+    const ctx = podContextOf('s-1')
+    const names = composedPlugins.pod.tools(ctx).map((tool) => tool.name)
+    const hooks = composedPlugins.pod.hooks(ctx)
+
+    expect(names).toContain('skill')
+    expect(names).toContain('skill_install')
+    expect(names).toContain('skill_edit')
+    expect(names).toContain('skill_delete')
+    expect(hooks.beforeTurn?.map((hook) => hook.name)).toContain('skills-catalogue')
+    expect(hooks.beforeStep?.map((hook) => hook.name)).toContain('skills-listing')
   })
 })

@@ -15,7 +15,7 @@ export type {
   CloudSkillWriteResult,
   SkillScopeName,
 } from './port'
-export { ESkillWriteLayer } from './write-support'
+export { BUILT_IN_SKILL_NAMES, ESkillWriteLayer } from './write-support'
 export { REPO_SKILL_ROOTS } from './repo-source'
 export { SKILL_LISTING_HEADING } from './listing'
 
