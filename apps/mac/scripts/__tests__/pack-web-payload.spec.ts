@@ -30,6 +30,16 @@ describe('packWebPayload', () => {
     expect(manifest?.size).toBe(readFileSync(packed.artifactPath).byteLength)
     expect(manifest?.builtAt).toBe('2026-11-09T00:00:00.000Z')
     expect(manifest?.requiresShell).toBeGreaterThan(0)
+    expect(manifest?.version).toBeUndefined()
+  })
+
+  test('carries the version the commit releases as', () => {
+    const { work, root } = standalone()
+    const packed = packWebPayload({ root, outDir: join(work, 'out'), version: '1.294.0' })
+    const manifest = parseManifest({
+      input: JSON.parse(readFileSync(packed.manifestPath, 'utf8')),
+    })
+    expect(manifest?.version).toBe('1.294.0')
   })
 
   test('refuses a directory that is not a web standalone build', () => {

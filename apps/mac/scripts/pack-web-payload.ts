@@ -34,11 +34,13 @@ export function packWebPayload({
   outDir,
   builtAt = new Date().toISOString(),
   contract = DESKTOP_CONTRACT,
+  version,
 }: {
   root: string
   outDir: string
   builtAt?: string
   contract?: number
+  version?: string
 }): IPackedPayload {
   const source = resolve(root)
   if (!existsSync(join(source, 'apps', 'web', 'server.js')))
@@ -60,6 +62,7 @@ export function packWebPayload({
   const manifestPath = join(out, 'web-update.json')
   const manifest = {
     schemaVersion: 1,
+    ...(version === undefined ? {} : { version }),
     hash,
     artifact,
     sha256,
@@ -75,6 +78,11 @@ export function packWebPayload({
 if (import.meta.main) {
   const root = process.argv[2] ?? 'web-standalone'
   const outDir = process.argv[3] ?? 'artifacts'
-  const packed = packWebPayload({ root, outDir })
+  const version = process.env.ATLAS_VERSION?.trim()
+  const packed = packWebPayload({
+    root,
+    outDir,
+    ...(version === undefined || version.length === 0 ? {} : { version }),
+  })
   console.log(`packed ${packed.artifactPath} (${packed.size} bytes, hash ${packed.hash})`)
 }

@@ -5,6 +5,7 @@ const ARTIFACT = /^[a-zA-Z0-9][a-zA-Z0-9._-]*\.tar\.gz$/
 
 export const webManifestSchema = z.object({
   schemaVersion: z.literal(1),
+  version: z.string().min(1).optional(),
   hash: z.string().regex(HASH),
   artifact: z.string().regex(ARTIFACT),
   sha256: z.string().regex(/^[0-9a-f]{64}$/),
