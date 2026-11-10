@@ -4,6 +4,7 @@ directories:
   output: release
 files:
   - main.js
+  - preload.cjs
   - host-paths.js
   - package.json
 extraResources:
