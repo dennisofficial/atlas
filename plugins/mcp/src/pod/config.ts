@@ -8,11 +8,21 @@ import {
   parseMcpRows,
   parseMcpText,
   type McpCloudRow,
+  type McpRejection,
   type McpSourceInput,
   type MergedMcp,
 } from '../core'
 
 export type McpFileReader = (path: string) => Promise<string | null>
+
+export type McpCloudRead = {
+  rows: readonly McpCloudRow[]
+  rejections: readonly McpRejection[]
+}
+
+export type McpConfigPort = {
+  read(session: { sessionId: string }): Promise<McpCloudRead>
+}
 
 type Candidate = { text: string | null; error: string | null }
 
@@ -62,11 +72,14 @@ const repoSource = async (args: {
 }
 
 export const loadMcpConfig = async (args: {
-  rows: readonly McpCloudRow[]
+  cloud: McpCloudRead
   directory: string | null
   read: McpFileReader
 }): Promise<MergedMcp> => {
-  const sources: McpSourceInput[] = [parseMcpRows({ rows: args.rows, definedIn: 'the cloud' })]
+  const cloud = parseMcpRows({ rows: args.cloud.rows, definedIn: 'the cloud' })
+  const sources: McpSourceInput[] = [
+    { ...cloud, rejections: [...args.cloud.rejections, ...cloud.rejections] },
+  ]
   if (args.directory !== null) {
     sources.push(
       await repoSource({

@@ -6,6 +6,7 @@ import { mcpClient } from '@dltech/atlas-plugin-mcp/client'
 import { mcpControl } from '@dltech/atlas-plugin-mcp/control'
 import { mcpCoreSlots } from '@dltech/atlas-plugin-mcp/core'
 import { mcpPod } from '@dltech/atlas-plugin-mcp/pod'
+import { mcpServerPort } from './config/mcp-servers'
 import { memoryClient } from '@dltech/atlas-plugin-memory/client'
 import { memoryControl } from '@dltech/atlas-plugin-memory/control'
 import { memoryCoreSlots } from '@dltech/atlas-plugin-memory/core'
@@ -74,10 +75,7 @@ export const registeredPlugins: readonly Plugin[] = [
   definePlugin({
     name: 'mcp',
     ...mcpCoreSlots,
-    pod: mcpPod({
-      repoDirectory: null,
-      config: { rows: async () => [] },
-    }),
+    pod: mcpPod({ config: mcpServerPort() }),
     control: mcpControl,
     client: mcpClient,
     transport: 'stream',

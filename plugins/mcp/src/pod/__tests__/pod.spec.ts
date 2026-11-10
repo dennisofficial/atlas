@@ -1,7 +1,7 @@
 import { EDefinitionOrigin, EToolEffect, toThreadId } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
-import type { McpCloudRow } from '../../core'
+import { EMcpRejection, type McpCloudRow } from '../../core'
 import { mcpPod } from '..'
 import { McpBridgeTool } from '../bridge-tool'
 import { EMcpServerStatus, McpStore } from '../store'
@@ -24,11 +24,10 @@ const start = async (args: {
     args.eventLineBytes === undefined ? {} : { eventLineBytes: args.eventLineBytes },
   )
   for (const [path, text] of Object.entries(args.repoFiles ?? {})) daemon.files.set(path, text)
-  const config = { rows: async () => args.rows ?? rowsOf() }
+  const config = { read: async () => ({ rows: args.rows ?? rowsOf(), rejections: [] }) }
   const ctx = rig(daemon)
   const store = new McpStore({
     ctx,
-    repoDirectory: '/repo',
     config,
     connectTimeoutMs: 200,
     reconcileBudgetMs: 200,
@@ -107,8 +106,7 @@ describe('lifecycle', () => {
     ]
     const store = new McpStore({
       ctx: rig(daemon),
-      repoDirectory: '/repo',
-      config: { rows: async () => rows },
+      config: { read: async () => ({ rows, rejections: [] }) },
       connectTimeoutMs: 200,
       reconcileBudgetMs: 200,
     })
@@ -162,7 +160,7 @@ describe('config through the pod', () => {
 describe('bridge tools', () => {
   const boot = async (behaviours: Readonly<Record<string, FakeBehaviour>>) => {
     const { ctx } = await start({ behaviours })
-    const pod = mcpPod({ repoDirectory: '/repo', config: { rows: async () => rowsOf() } })
+    const pod = mcpPod({ config: { read: async () => ({ rows: rowsOf(), rejections: [] }) } })
     const hooks = pod.hooks?.(ctx)
     await hooks?.beforeTurn?.[0]?.run({ threadId: toThreadId('t1'), projectDirectory: '/repo' })
     return pod.tools?.(ctx) ?? []
@@ -218,5 +216,52 @@ describe('bridge tools', () => {
       ok: false,
       reason: "the 'gone' MCP server is not connected",
     })
+  })
+})
+
+describe('session context', () => {
+  it('asks the config port for the session it holds and skips repo files without a directory', async () => {
+    const daemon = fakeDaemon({ docs: { tools: [] } })
+    const asked: string[] = []
+    const store = new McpStore({
+      ctx: { ...rig(daemon), sessionId: 'ses_9', workspaceDirectory: null },
+      config: {
+        read: async (session) => {
+          asked.push(session.sessionId)
+          return { rows: rowsOf(), rejections: [] }
+        },
+      },
+      connectTimeoutMs: 200,
+      reconcileBudgetMs: 200,
+    })
+    await store.boot()
+    expect(asked).toEqual(['ses_9'])
+    expect(store.servers().map((server) => server.name)).toEqual(['docs'])
+  })
+
+  it('carries a cloud rejection beside the servers that did load', async () => {
+    const daemon = fakeDaemon({ docs: { tools: [] } })
+    const store = new McpStore({
+      ctx: rig(daemon),
+      config: {
+        read: async () => ({
+          rows: rowsOf(),
+          rejections: [
+            {
+              rejection: EMcpRejection.Unreadable,
+              name: 'sealed',
+              definedIn: 'the cloud',
+              origin: EDefinitionOrigin.User,
+              detail: 'malformed encrypted secret blob (expected iv.tag.ciphertext)',
+            },
+          ],
+        }),
+      },
+      connectTimeoutMs: 200,
+      reconcileBudgetMs: 200,
+    })
+    await store.boot()
+    expect(store.servers().map((server) => server.name)).toEqual(['docs'])
+    expect(store.rejectionsOf().map((rejection) => rejection.name)).toEqual(['sealed'])
   })
 })

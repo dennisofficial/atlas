@@ -51,6 +51,7 @@ export type PodControl = {
 
 export type PluginPodContext = {
   sessionId: string
+  workspaceDirectory?: string | null | undefined
   control: PodControl
   crew: PodCrew
   sessions: PodSessions
