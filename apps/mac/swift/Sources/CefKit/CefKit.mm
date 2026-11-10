@@ -1,127 +1,75 @@
 #import "CefKit.h"
 
-#include <atomic>
 #include <climits>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 #include <sys/stat.h>
 
-#include "include/capi/cef_app_capi.h"
-#include "include/capi/cef_browser_capi.h"
-#include "include/capi/cef_client_capi.h"
-#include "include/capi/cef_life_span_handler_capi.h"
-#include "include/capi/cef_load_handler_capi.h"
-#include "include/internal/cef_string.h"
+#include "include/cef_app.h"
+#include "include/cef_browser.h"
+#include "include/cef_client.h"
+#include "include/cef_life_span_handler.h"
+#include "include/cef_load_handler.h"
 
-static std::atomic<int32_t> g_references{1};
-static cef_browser_t *g_browser = NULL;
+class CefPaneApp : public CefApp {
+ public:
+  CefPaneApp() {}
 
-static void CEF_CALLBACK add_reference(struct _cef_base_ref_counted_t *self) {
-  ++g_references;
-}
+ private:
+  IMPLEMENT_REFCOUNTING(CefPaneApp);
+};
 
-static int32_t CEF_CALLBACK release_reference(struct _cef_base_ref_counted_t *self) {
-  return --g_references;
-}
+class CefPaneClient : public CefClient,
+                      public CefLifeSpanHandler,
+                      public CefLoadHandler {
+ public:
+  CefPaneClient() {}
 
-static int CEF_CALLBACK has_one_reference(struct _cef_base_ref_counted_t *self) {
-  return g_references.load() == 1;
-}
+  CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override { return this; }
 
-static int CEF_CALLBACK has_at_least_one_reference(struct _cef_base_ref_counted_t *self) {
-  return g_references.load() >= 1;
-}
+  CefRefPtr<CefLoadHandler> GetLoadHandler() override { return this; }
 
-static void init_base(cef_base_ref_counted_t *base, size_t size) {
-  base->size = size;
-  base->add_ref = add_reference;
-  base->release = release_reference;
-  base->has_one_ref = has_one_reference;
-  base->has_at_least_one_ref = has_at_least_one_reference;
-}
-
-static cef_string_t cef_string_from_utf8(const char *text) {
-  cef_string_t out = {};
-  cef_string_utf8_to_utf16(text, strlen(text), &out);
-  return out;
-}
-
-static void CEF_CALLBACK life_span_on_after_created(
-    struct _cef_life_span_handler_t *self,
-    struct _cef_browser_t *browser) {
-  if (!browser) return;
-  browser->base.add_ref(&browser->base);
-  g_browser = browser;
-  cef_browser_host_t *host = browser->get_host(browser);
-  if (host) host->was_resized(host);
-  NSLog(@"cef: browser created");
-}
-
-static void CEF_CALLBACK life_span_on_before_close(
-    struct _cef_life_span_handler_t *self,
-    struct _cef_browser_t *browser) {
-  if (g_browser) {
-    g_browser->base.release(&g_browser->base);
-    g_browser = NULL;
+  void OnAfterCreated(CefRefPtr<CefBrowser> browser) override {
+    browser_ = browser;
+    CefRefPtr<CefBrowserHost> host = browser->GetHost();
+    if (host.get() != nullptr) host->WasResized();
+    NSLog(@"cef: browser created");
   }
-  NSLog(@"cef: browser closed");
-}
 
-static void CEF_CALLBACK load_on_load_end(
-    struct _cef_load_handler_t *self,
-    struct _cef_browser_t *browser,
-    struct _cef_frame_t *frame,
-    int http_status_code) {
-  NSLog(@"cef: load end status=%d", http_status_code);
-}
+  void OnBeforeClose(CefRefPtr<CefBrowser> browser) override {
+    browser_ = nullptr;
+    NSLog(@"cef: browser closed");
+  }
 
-static cef_life_span_handler_t g_life_span = {};
-static cef_load_handler_t g_load_handler = {};
-static cef_client_t g_client = {};
+  void OnLoadEnd(CefRefPtr<CefBrowser> browser,
+                 CefRefPtr<CefFrame> frame,
+                 int http_status_code) override {
+    NSLog(@"cef: load end status=%d", http_status_code);
+  }
 
-static struct _cef_life_span_handler_t *CEF_CALLBACK client_get_life_span_handler(
-    struct _cef_client_t *self) {
-  return &g_life_span;
-}
+  CefRefPtr<CefBrowser> browser() const { return browser_; }
 
-static struct _cef_load_handler_t *CEF_CALLBACK client_get_load_handler(
-    struct _cef_client_t *self) {
-  return &g_load_handler;
-}
+ private:
+  CefRefPtr<CefBrowser> browser_;
 
-static void install_handlers(void) {
-  init_base(&g_client.base, sizeof(g_client));
-  init_base(&g_life_span.base, sizeof(g_life_span));
-  init_base(&g_load_handler.base, sizeof(g_load_handler));
+  IMPLEMENT_REFCOUNTING(CefPaneClient);
+};
 
-  g_life_span.on_after_created = life_span_on_after_created;
-  g_life_span.on_before_close = life_span_on_before_close;
-  g_load_handler.on_load_end = load_on_load_end;
-
-  g_client.get_life_span_handler = client_get_life_span_handler;
-  g_client.get_load_handler = client_get_load_handler;
-}
+static CefRefPtr<CefPaneClient> g_client;
 
 int32_t AtlasCefExecuteProcess(int argc, char *argv[]) {
-  cef_main_args_t main_args = {};
-  main_args.argc = argc;
-  main_args.argv = argv;
-  return cef_execute_process(&main_args, NULL, NULL);
+  CefMainArgs main_args(argc, argv);
+  return CefExecuteProcess(main_args, new CefPaneApp(), nullptr);
 }
 
 BOOL AtlasCefInitialize(int argc, char *argv[]) {
   [NSApplication sharedApplication];
-  install_handlers();
 
-  cef_main_args_t main_args = {};
-  main_args.argc = argc;
-  main_args.argv = argv;
+  CefMainArgs main_args(argc, argv);
 
-  cef_settings_t settings = {};
-  settings.size = sizeof(cef_settings_t);
-  settings.external_message_pump = 1;
-  settings.no_sandbox = 1;
+  CefSettings settings;
+  settings.external_message_pump = true;
+  settings.no_sandbox = true;
   settings.log_severity = LOGSEVERITY_INFO;
 
   const char *home = getenv("HOME");
@@ -131,27 +79,34 @@ BOOL AtlasCefInitialize(int argc, char *argv[]) {
            home != NULL ? home : "/tmp");
   snprintf(log_path, sizeof(log_path), "%s/cef.log", cache_path);
   mkdir(cache_path, 0700);
-  settings.root_cache_path = cef_string_from_utf8(cache_path);
-  settings.log_file = cef_string_from_utf8(log_path);
-  NSLog(@"cef: sizeof(settings)=%zu root_cache_path.str=%p log_file.str=%p", sizeof(cef_settings_t),
-        (void *)settings.root_cache_path.str, (void *)settings.log_file.str);
+  CefString(&settings.root_cache_path).FromString(cache_path);
+  CefString(&settings.log_file).FromString(log_path);
 
-  int result = cef_initialize(&main_args, &settings, NULL, NULL);
-  NSLog(@"cef: initialize result=%d", result);
-  return result == 1 ? YES : NO;
+  g_client = new CefPaneClient();
+
+  bool initialized = CefInitialize(main_args, settings, new CefPaneApp(), nullptr);
+  if (!initialized) NSLog(@"cef: CefInitialize failed");
+  NSLog(@"cef: initialize result=%d", initialized ? 1 : 0);
+  return initialized ? YES : NO;
 }
 
 void AtlasCefDoMessageLoopWork(void) {
-  cef_do_message_loop_work();
+  CefDoMessageLoopWork();
 }
 
 void AtlasCefShutdown(void) {
-  if (g_browser) {
-    cef_browser_host_t *host = g_browser->get_host(g_browser);
-    if (host) host->close_browser(host, 1);
-    for (int i = 0; i < 64 && g_browser; i++) cef_do_message_loop_work();
+  if (g_client.get() != nullptr) {
+    CefRefPtr<CefBrowser> browser = g_client->browser();
+    if (browser.get() != nullptr) {
+      CefRefPtr<CefBrowserHost> host = browser->GetHost();
+      if (host.get() != nullptr) host->CloseBrowser(true);
+    }
+    for (int i = 0; i < 64 && g_client->browser().get() != nullptr; i++) {
+      CefDoMessageLoopWork();
+    }
+    g_client = nullptr;
   }
-  cef_shutdown();
+  CefShutdown();
 }
 
 @implementation CefPaneView
@@ -174,33 +129,29 @@ void AtlasCefShutdown(void) {
 
 - (void)setFrameSize:(NSSize)newSize {
   [super setFrameSize:newSize];
-  if (!g_browser) return;
-  cef_browser_host_t *host = g_browser->get_host(g_browser);
-  if (!host) return;
-  host->notify_move_or_resize_started(host);
-  host->was_resized(host);
+  if (g_client.get() == nullptr) return;
+  CefRefPtr<CefBrowser> browser = g_client->browser();
+  if (browser.get() == nullptr) return;
+  CefRefPtr<CefBrowserHost> host = browser->GetHost();
+  if (host.get() == nullptr) return;
+  host->NotifyMoveOrResizeStarted();
+  host->WasResized();
 }
 
 - (void)createBrowserFor:(NSString *)url {
-  cef_window_info_t window_info = {};
-  window_info.size = sizeof(window_info);
-  window_info.parent_view = (cef_window_handle_t)(__bridge void *)self;
-  window_info.bounds.x = 0;
-  window_info.bounds.y = 0;
-  window_info.bounds.width = (int)NSWidth(self.bounds);
-  window_info.bounds.height = (int)NSHeight(self.bounds);
+  if (g_client.get() == nullptr) {
+    NSLog(@"cef: browser not created, AtlasCefInitialize has not run");
+    return;
+  }
 
-  cef_browser_settings_t browser_settings = {};
-  browser_settings.size = sizeof(browser_settings);
+  CefWindowInfo window_info;
+  window_info.SetAsChild((__bridge void *)self,
+                         CefRect(0, 0, (int)NSWidth(self.bounds), (int)NSHeight(self.bounds)));
 
-  cef_string_t url_string = cef_string_from_utf8([url UTF8String]);
-  g_client.base.size = sizeof(cef_client_t);
-  NSLog(@"cef: sizeof(client)=%zu base.size=%zu client=%p", sizeof(cef_client_t), g_client.base.size,
-        (void *)&g_client);
-  int created = cef_browser_host_create_browser(
-      &window_info, &g_client, &url_string, &browser_settings, NULL, NULL);
-  cef_string_utf16_clear(&url_string);
-  NSLog(@"cef: create browser result=%d", created);
+  CefBrowserSettings browser_settings;
+  CefRefPtr<CefBrowser> browser = CefBrowserHost::CreateBrowserSync(
+      window_info, g_client, CefString([url UTF8String]), browser_settings, nullptr, nullptr);
+  NSLog(@"cef: CreateBrowserSync returned %d", browser.get() != nullptr ? 1 : 0);
 }
 
 @end

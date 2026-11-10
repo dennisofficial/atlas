@@ -5,7 +5,6 @@ import { join } from 'node:path'
 const APP_NAME = 'CefPaneSpike'
 const BUNDLE_ID = 'dev.atlas.spike.cef-pane'
 const EXECUTABLE = APP_NAME
-const ZIPPED = `${APP_NAME}-mac-arm64.zip`
 
 const HELPERS = [
   { name: '', id: '' },
@@ -19,7 +18,13 @@ const binary = join(root, '.build', 'release', EXECUTABLE)
 const framework = join(root, '.cef', 'Release', 'Chromium Embedded Framework.framework')
 const staging = join(root, '.build', 'cef-spike')
 const bundle = join(staging, `${APP_NAME}.app`)
-const zipPath = join(staging, ZIPPED)
+const zipPath = join(staging, `${APP_NAME}-${shortSha()}-mac-arm64.zip`)
+
+// A fixed artifact name served stale builds from the CDN, so the zip carries the commit it was built from.
+function shortSha(): string {
+  const sha = Bun.env.GITHUB_SHA ?? run(['git', 'rev-parse', 'HEAD'], 'git rev-parse HEAD').trim()
+  return sha.slice(0, 7)
+}
 
 function infoPlist(fields: Record<string, string | boolean>): string {
   const entries = Object.entries(fields)
