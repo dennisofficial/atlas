@@ -8,6 +8,7 @@ import {
   type SubagentSnapshot,
   type WorktreeListing,
   type WorktreeState,
+  EMPTY_MCP_CONTROL,
 } from '@dltech/atlas-plugin-sdk'
 
 import { crewPod } from '..'
@@ -136,6 +137,7 @@ export const rig = (
     sessions: EMPTY_SESSIONS,
     worktrees: args.worktrees ?? fakeWorktrees().port,
     control: {
+      mcp: EMPTY_MCP_CONTROL,
       webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
       exposePort: async () => {
         throw new Error('this rig exposes no port')

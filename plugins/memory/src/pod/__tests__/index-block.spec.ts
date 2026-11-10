@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import type { Assembled } from '@dltech/atlas-core'
-import type { PluginPodContext, PodMemory } from '@dltech/atlas-plugin-sdk'
+import { EMPTY_MCP_CONTROL, type PluginPodContext, type PodMemory } from '@dltech/atlas-plugin-sdk'
 
 import { withMemoryIndex } from '../index-block'
 import { markStale, type MemoryPodState } from '../state'
@@ -13,6 +13,7 @@ const state = (): MemoryPodState => ({ text: null, loading: null, failed: false,
 
 const ctxWith = (memory: PodMemory): Pick<PluginPodContext, 'control'> => ({
   control: {
+    mcp: EMPTY_MCP_CONTROL,
     webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
     exposePort: async () => {
       throw new Error('no port')

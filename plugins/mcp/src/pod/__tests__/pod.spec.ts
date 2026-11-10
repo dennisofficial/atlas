@@ -199,7 +199,11 @@ describe('bridge tools', () => {
         ],
       },
     })
-    const effects = Object.fromEntries(tools.map((tool) => [tool.name, tool.effect]))
+    const effects = Object.fromEntries(
+      tools
+        .filter((tool) => tool.name.startsWith('mcp__docs__'))
+        .map((tool) => [tool.name, tool.effect]),
+    )
     expect(effects).toEqual({
       mcp__docs__search: EToolEffect.Read,
       mcp__docs__drop: EToolEffect.Destructive,

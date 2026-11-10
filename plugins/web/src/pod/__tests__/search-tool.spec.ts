@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EWebSearchBackend, toThreadId } from '@dltech/atlas-core'
-import type { PluginPodContext, WebSearchConfig } from '@dltech/atlas-plugin-sdk'
+import {
+  EMPTY_MCP_CONTROL,
+  type PluginPodContext,
+  type WebSearchConfig,
+} from '@dltech/atlas-plugin-sdk'
 
 import { keylessBackend, resolveBackend } from '../search'
 import { WebSearchTool } from '../search-tool'
@@ -15,6 +19,7 @@ const ctxWith = (config: WebSearchConfig): PluginPodContext => {
     control: {
       exposePort: unsupported,
       memory: {} as never,
+      mcp: EMPTY_MCP_CONTROL,
       webSearch: { config: async () => config },
     },
     crew: {} as never,

@@ -23,6 +23,7 @@ export type AgentHostEnv = {
   sandboxImage: string
   daemonBundlePath: string
   port: number
+  publicUrl: string
   trustedOrigins: string[]
 }
 
@@ -30,6 +31,7 @@ const DEFAULT_MAX_SESSIONS = 25
 const DEFAULT_SANDBOX_IMAGE = 'atlas-sandbox:latest'
 const DEFAULT_PORT = 10_000
 const DEFAULT_PREVIEW_DOMAIN = 'byatlas.dev'
+const DEFAULT_PUBLIC_URL = 'https://agent.byatlas.io'
 export const DEFAULT_DRAIN_MS = 270_000
 
 const defaultDaemonBundlePath = (): string => join(import.meta.dir, '../../../daemon/bin/daemon.js')
@@ -125,6 +127,7 @@ export const readAgentHostEnv = (
     sandboxImage: take(env, 'ATLAS_SANDBOX_IMAGE') ?? DEFAULT_SANDBOX_IMAGE,
     daemonBundlePath: take(env, 'ATLAS_DAEMON_BUNDLE') ?? defaultDaemonBundlePath(),
     port: parsePort(take(env, 'PORT')),
+    publicUrl: take(env, 'AGENT_HOST_PUBLIC_URL') ?? DEFAULT_PUBLIC_URL,
     trustedOrigins: parseOrigins(take(env, 'TRUSTED_ORIGINS')),
   }
 }

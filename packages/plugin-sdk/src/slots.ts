@@ -43,10 +43,25 @@ export type WebSearchConfig = { backend: string | undefined; key: string | undef
 
 export type PodWebSearch = { config(): Promise<WebSearchConfig> }
 
+export type McpServerSource = 'cloud' | 'repo'
+
+export type McpSignInBegin = { ok: true; url: string } | { ok: false; reason: string }
+
+export type PodMcpControl = {
+  token(args: { name: string; source: McpServerSource; url: string }): Promise<string | undefined>
+  begin(args: { name: string; source: McpServerSource; url: string }): Promise<McpSignInBegin>
+}
+
+export const EMPTY_MCP_CONTROL: PodMcpControl = {
+  token: async () => undefined,
+  begin: async () => ({ ok: false, reason: 'this session cannot start an MCP sign-in' }),
+}
+
 export type PodControl = {
   exposePort(args: { port: number }): Promise<{ url: string; tunnelToken: string }>
   memory: PodMemory
   webSearch: PodWebSearch
+  mcp: PodMcpControl
 }
 
 export type PluginPodContext = {

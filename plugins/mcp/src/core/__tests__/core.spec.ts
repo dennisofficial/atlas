@@ -22,6 +22,7 @@ const source = (args: {
     transport: stdio,
     ...(entry.disabled === true ? { disabled: true, transport: undefined } : {}),
     origin: args.origin ?? PROJECT,
+    source: 'repo',
     definedIn: 'file',
   })),
   rejections: [],

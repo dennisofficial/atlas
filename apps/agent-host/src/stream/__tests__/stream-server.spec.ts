@@ -48,6 +48,27 @@ describe('stream server http surface', () => {
     client.send({ type: 'hello', v: STREAM_PROTOCOL_VERSION, token: 'tok-a' })
     expect((await client.next()).type).toBe('ready')
   })
+
+  it('asks the oauth callback only on its own path and routes the rest itself', async () => {
+    const asked: string[] = []
+    harness = new StreamHarness({
+      mcpOauthCallback: async (request) => {
+        asked.push(new URL(request.url).pathname)
+        return new Response('signed in', { status: 302 })
+      },
+    })
+    expect((await fetch(`${harness.httpUrl}/healthz`)).status).toBe(200)
+    expect((await fetch(`${harness.httpUrl}/stream`)).status).toBe(426)
+    expect((await fetch(`${harness.httpUrl}/nope`)).status).toBe(404)
+    expect(asked).toEqual([])
+    expect((await fetch(`${harness.httpUrl}/mcp-oauth/callback?code=c&state=s`)).status).toBe(302)
+    expect(asked).toEqual(['/mcp-oauth/callback'])
+  })
+
+  it('404s the oauth callback path the callback leaves alone', async () => {
+    harness = new StreamHarness({ mcpOauthCallback: async () => null })
+    expect((await fetch(`${harness.httpUrl}/mcp-oauth/callback?code=c`)).status).toBe(404)
+  })
 })
 
 describe('stream server connection', () => {

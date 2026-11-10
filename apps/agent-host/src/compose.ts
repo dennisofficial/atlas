@@ -7,6 +7,7 @@ import {
   type PodPeers,
 } from '@dltech/atlas-host'
 import { nativeCommandHandlers, nativeCommands } from '@dltech/atlas-native-commands'
+import { mcpControlPort } from './config/mcp-control'
 import { composedPlugins } from './registered-plugins'
 import type { ControlPlane } from '@dltech/atlas-control'
 import type { LogPort } from '@dltech/atlas-observability'
@@ -52,6 +53,7 @@ export type ComposeAgentHostArgs = {
 export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
   const timers = args.timers ?? { now: () => Date.now(), ...systemTimers }
   const podPeers: PodPeers = { placed: (params) => args.plane.podPeersPlaced(params) }
+  const mcpControl = mcpControlPort()
   return new SessionHolder({
     presence: args.presence,
     plane: args.plane,
@@ -78,6 +80,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
     commands: composeCommands([...nativeCommands, ...composedPlugins.commands]),
     commandHandlers: new Map([...nativeCommandHandlers, ...composedPlugins.pod.commands]),
     control: args.control,
+    mcp: (sessionId) => mcpControl.of(sessionId),
     onHostIdChanged: args.onHostIdChanged,
     ...(args.log === undefined ? {} : { log: args.log }),
   })

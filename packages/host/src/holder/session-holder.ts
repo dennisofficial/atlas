@@ -1,4 +1,5 @@
 import type { CommandRegistry } from '@dltech/atlas-commands'
+import type { PodMcpControl } from '@dltech/atlas-plugin-sdk'
 import {
   EHeldOutcome,
   startVerdict,
@@ -39,6 +40,7 @@ export type SessionHolderArgs = {
   commands?: CommandRegistry | undefined
   commandHandlers?: CommandHandlers | undefined
   control?: PodControlClient | undefined
+  mcp?: ((sessionId: string) => PodMcpControl) | undefined
   log?: LogPort | undefined
   onHostIdChanged?: (() => void) | undefined
 }
@@ -66,6 +68,7 @@ export class SessionHolder {
   private readonly commands: CommandRegistry | undefined
   private readonly commandHandlers: CommandHandlers | undefined
   private readonly control: PodControlClient | undefined
+  private readonly mcp: ((sessionId: string) => PodMcpControl) | undefined
   private readonly log: LogPort | undefined
 
   private readonly held = new Map<string, HeldSession>()
@@ -102,6 +105,7 @@ export class SessionHolder {
     this.commands = args.commands
     this.commandHandlers = args.commandHandlers
     this.control = args.control
+    this.mcp = args.mcp
     this.log = args.log
     this.settler = new LeaseSettler({
       plane: args.plane,
@@ -288,6 +292,7 @@ export class SessionHolder {
       commands: this.commands,
       commandHandlers: this.commandHandlers,
       control: this.control,
+      mcp: this.mcp,
       log: this.log,
     }
   }
