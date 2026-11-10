@@ -7,8 +7,13 @@ import {
 
 import type { MediaSigner } from './media-signer'
 
-export type MediaUrlSource = {
+/**
+ * How the model is handed the pictures an event only references: a signed url where it takes one,
+ * the bytes themselves where it takes only those, and which hashes the store no longer has.
+ */
+export type MediaSource = {
   urlsFor(hashes: readonly string[]): Promise<ReadonlyMap<string, string>>
+  bytesFor(hashes: readonly string[]): Promise<ReadonlyMap<string, string>>
   missingOf(hashes: readonly string[]): Promise<string[]>
 }
 
@@ -27,7 +32,7 @@ export const mediaHashesOf = (messages: readonly Message[]): string[] => [
   ...new Set(messages.flatMap(hashesOfMessage)),
 ]
 
-export const signerUrls = (args: { signer: MediaSigner; userId: string }): MediaUrlSource => ({
+export const signerUrls = (args: { signer: MediaSigner; userId: string }): MediaSource => ({
   async urlsFor(hashes) {
     if (hashes.length === 0) return new Map()
     await args.signer.ready()
@@ -37,6 +42,14 @@ export const signerUrls = (args: { signer: MediaSigner; userId: string }): Media
       ),
     )
     return new Map(entries)
+  },
+  async bytesFor(hashes) {
+    const entries = await Promise.all(
+      hashes.map(
+        async (hash) => [hash, await args.signer.bytesOf({ userId: args.userId, hash })] as const,
+      ),
+    )
+    return new Map(entries.filter((entry): entry is readonly [string, string] => entry[1] !== null))
   },
   async missingOf(hashes) {
     const present = await Promise.all(

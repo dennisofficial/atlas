@@ -235,7 +235,7 @@ export const createSessionRuntimeFactory = (
                 fast: () => chosen?.fast ?? false,
               }),
               card: () => findCard({ catalog: generatedCatalogue(), ref }),
-              mediaUrls:
+              mediaSource:
                 args.media === undefined
                   ? undefined
                   : signerUrls({ signer: args.media, userId: config.userId }),

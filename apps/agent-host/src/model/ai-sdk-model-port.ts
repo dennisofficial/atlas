@@ -24,8 +24,13 @@ import { reportsFastSpeed } from './fast-speed'
 import { requireFinish, StreamEndedWithoutFinish } from './stream-ended-without-finish'
 import { toInstructions } from './instructions'
 import { providerIdentityOf } from './provider-identity'
-import { mediaHashesOf, type MediaUrlSource } from '../media/media-urls'
-import { toModelMessages, type MissingMedia } from './message-conversion'
+import { mediaHashesOf, type MediaSource } from '../media/media-urls'
+import {
+  toModelMessages,
+  type MediaBytes,
+  type MediaUrls,
+  type MissingMedia,
+} from './message-conversion'
 import { isMediaUnavailable } from './media-unavailable'
 import { toProviderPrompt } from './provider-prompt'
 import { toToolSet } from './tool-set'
@@ -97,7 +102,8 @@ export async function runModelStream(args: {
   signal: AbortSignal
   onChunk?: ChunkFilter
   streamTimeout?: StreamTimeout | undefined
-  mediaUrls?: ReadonlyMap<string, string> | undefined
+  mediaUrls?: MediaUrls | undefined
+  mediaBytes?: MediaBytes | undefined
   missingMedia?: MissingMedia | undefined
 }): Promise<ModelStepResult> {
   const instructions = toInstructions(args.prompt.instructions)
@@ -113,6 +119,7 @@ export async function runModelStream(args: {
     ...(instructions.length > 0 ? { instructions } : {}),
     messages: toModelMessages(args.prompt.messages, {
       ...(args.mediaUrls === undefined ? {} : { mediaUrls: args.mediaUrls }),
+      ...(args.mediaBytes === undefined ? {} : { mediaBytes: args.mediaBytes }),
       ...(args.missingMedia === undefined ? {} : { missingMedia: args.missingMedia }),
     }),
     tools: toToolSet(args.tools),
@@ -170,14 +177,14 @@ export type AiSdkModelPortArgs = {
   model: LanguageModel
   identity?: ProviderIdentity | undefined
   card?: ModelCardSource | undefined
-  mediaUrls?: MediaUrlSource | undefined
+  mediaSource?: MediaSource | undefined
 }
 
 export class AiSdkModelPort extends ModelPort {
   private readonly model: LanguageModel
   private readonly declaredIdentity: ProviderIdentity | undefined
   private readonly card: ModelCardSource | undefined
-  private readonly mediaUrls: MediaUrlSource | undefined
+  private readonly mediaSource: MediaSource | undefined
   private readonly missingMedia = new Set<string>()
 
   constructor(args: AiSdkModelPortArgs) {
@@ -185,7 +192,7 @@ export class AiSdkModelPort extends ModelPort {
     this.model = args.model
     this.declaredIdentity = args.identity
     this.card = args.card
-    this.mediaUrls = args.mediaUrls
+    this.mediaSource = args.mediaSource
   }
 
   get identity(): ProviderIdentity {
@@ -213,12 +220,13 @@ export class AiSdkModelPort extends ModelPort {
     signal: AbortSignal
     onChunk?: ChunkFilter
   }): Promise<ModelStepResult> {
-    const { prompt, mediaUrls } = await this.promptFor({ assembled })
+    const { prompt, mediaUrls, mediaBytes } = await this.promptFor({ assembled })
     const run = () =>
       runModelStream({
         model: this.model,
         prompt,
         mediaUrls,
+        mediaBytes,
         missingMedia: this.missingMedia,
         tools,
         signal,
@@ -227,7 +235,8 @@ export class AiSdkModelPort extends ModelPort {
     try {
       return await run()
     } catch (error) {
-      if (!(await this.droppedMissingMedia({ error, hashes: [...mediaUrls.keys()] }))) throw error
+      const sent = [...mediaUrls.keys(), ...mediaBytes.keys()]
+      if (!(await this.droppedMissingMedia({ error, hashes: sent }))) throw error
       return await run()
     }
   }
@@ -236,24 +245,45 @@ export class AiSdkModelPort extends ModelPort {
     error: unknown
     hashes: readonly string[]
   }): Promise<boolean> {
-    if (this.mediaUrls === undefined || !isMediaUnavailable(args.error)) return false
+    if (this.mediaSource === undefined || !isMediaUnavailable(args.error)) return false
     const live = args.hashes.filter((hash) => !this.missingMedia.has(hash))
     if (live.length === 0) return false
-    const missing = await this.mediaUrls.missingOf(live)
+    const missing = await this.mediaSource.missingOf(live)
     for (const hash of missing) this.missingMedia.add(hash)
     return missing.length > 0
   }
 
   private async promptFor({ assembled }: { assembled: Assembled }): Promise<{
     prompt: ProviderPrompt
-    mediaUrls: ReadonlyMap<string, string>
+    mediaUrls: MediaUrls
+    mediaBytes: MediaBytes
   }> {
     const provided = toProviderPrompt({ assembled, provider: this.identity })
     const prompt = carriesToolResultImages(cardOf(this.card))
       ? provided
       : { ...provided, messages: hoistToolResultFiles({ messages: provided.messages }) }
     const wanted = mediaHashesOf(prompt.messages).filter((hash) => !this.missingMedia.has(hash))
-    const mediaUrls = (await this.mediaUrls?.urlsFor(wanted)) ?? new Map()
-    return { prompt, mediaUrls }
+    return { prompt, ...(await this.mediaFor(wanted)) }
+  }
+
+  /**
+   * The channel the model's provider takes, not both: a url keeps the pixels out of every later
+   * request, and bytes are the only way an inline-only provider ever sees the picture at all. A
+   * model that takes neither is handed no picture, and assembly has already named each one.
+   */
+  private async mediaFor(
+    hashes: readonly string[],
+  ): Promise<{ mediaUrls: MediaUrls; mediaBytes: MediaBytes }> {
+    const none = { mediaUrls: new Map(), mediaBytes: new Map() }
+    const source = this.mediaSource
+    if (source === undefined || hashes.length === 0) return none
+
+    const support = this.traits().image?.images ?? 'inline'
+    if (support === 'url' || support === 'both') {
+      return { mediaUrls: await source.urlsFor(hashes), mediaBytes: new Map() }
+    }
+    if (support === 'inline')
+      return { mediaUrls: new Map(), mediaBytes: await source.bytesFor(hashes) }
+    return none
   }
 }

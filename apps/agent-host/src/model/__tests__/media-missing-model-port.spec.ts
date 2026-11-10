@@ -3,10 +3,19 @@ import { describe, expect, it } from 'bun:test'
 import { APICallError, type LanguageModelV4StreamPart } from '@ai-sdk/provider'
 import { MockLanguageModelV4 } from 'ai/test'
 
-import type { Assembled, MediaRef } from '@dltech/atlas-core'
+import type { Assembled, MediaRef, ModelCard } from '@dltech/atlas-core'
 
-import type { MediaUrlSource } from '../../media/media-urls'
+import type { MediaSource } from '../../media/media-urls'
 import { AiSdkModelPort } from '../ai-sdk-model-port'
+
+const URL_CARD: ModelCard = {
+  ref: { providerId: 'mock', modelId: 'mock-model' },
+  label: 'mock',
+  api: 'anthropic-messages',
+  contextWindow: 200_000,
+  imageTier: 'high-resolution' as ModelCard['imageTier'],
+  image: { images: 'both', maxInlineBytes: 1_000_000, maxEdge: 8000 },
+}
 
 const refOf = (letter: string): MediaRef => ({
   hash: letter.repeat(64),
@@ -96,10 +105,13 @@ const modelFailingFirst = (failure: () => Error, failures = 1) => {
 
 const sourceMissing = (missing: readonly string[]) => {
   const asked = { urls: [] as string[][], missing: [] as string[][] }
-  const source: MediaUrlSource = {
+  const source: MediaSource = {
     urlsFor: async (hashes) => {
       asked.urls.push([...hashes])
       return new Map(hashes.map((hash) => [hash, `https://blob.fake/${hash.slice(0, 1)}`]))
+    },
+    bytesFor: async (hashes) => {
+      return new Map(hashes.map((hash) => [hash, 'iVBORw0KGgo=']))
     },
     missingOf: async (hashes) => {
       asked.missing.push([...hashes])
@@ -123,7 +135,7 @@ describe('AiSdkModelPort missing media', () => {
   it('drops a vanished image, names it to the model and retries once', async () => {
     const model = modelFailingFirst(downloadRefusal)
     const { source, asked } = sourceMissing([gone.hash])
-    const port = new AiSdkModelPort({ model, identity, mediaUrls: source })
+    const port = new AiSdkModelPort({ model, identity, card: URL_CARD, mediaSource: source })
 
     await step(port)
 
@@ -137,7 +149,7 @@ describe('AiSdkModelPort missing media', () => {
   it('remembers the vanished image so the next step neither signs nor sends it', async () => {
     const model = modelFailingFirst(downloadRefusal)
     const { source, asked } = sourceMissing([gone.hash])
-    const port = new AiSdkModelPort({ model, identity, mediaUrls: source })
+    const port = new AiSdkModelPort({ model, identity, card: URL_CARD, mediaSource: source })
 
     await step(port)
     await step(port)
@@ -153,7 +165,7 @@ describe('AiSdkModelPort missing media', () => {
   it('rethrows the refusal when every image is still in the store', async () => {
     const model = modelFailingFirst(downloadRefusal)
     const { source } = sourceMissing([])
-    const port = new AiSdkModelPort({ model, identity, mediaUrls: source })
+    const port = new AiSdkModelPort({ model, identity, card: URL_CARD, mediaSource: source })
 
     await expect(step(port)).rejects.toThrow()
     expect(model.doStreamCalls).toHaveLength(1)
@@ -162,7 +174,7 @@ describe('AiSdkModelPort missing media', () => {
   it('leaves other failures to the retry policy', async () => {
     const model = modelFailingFirst(overloaded)
     const { source, asked } = sourceMissing([gone.hash])
-    const port = new AiSdkModelPort({ model, identity, mediaUrls: source })
+    const port = new AiSdkModelPort({ model, identity, card: URL_CARD, mediaSource: source })
 
     await expect(step(port)).rejects.toThrow()
     expect(asked.missing).toEqual([])
@@ -171,7 +183,7 @@ describe('AiSdkModelPort missing media', () => {
   it('retries only once when the retry is refused again', async () => {
     const model = modelFailingFirst(downloadRefusal, 2)
     const { source } = sourceMissing([gone.hash])
-    const port = new AiSdkModelPort({ model, identity, mediaUrls: source })
+    const port = new AiSdkModelPort({ model, identity, card: URL_CARD, mediaSource: source })
 
     await expect(step(port)).rejects.toThrow()
     expect(model.doStreamCalls).toHaveLength(2)

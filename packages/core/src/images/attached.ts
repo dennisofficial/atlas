@@ -15,6 +15,17 @@ export const imagePathLine = (image: ImageOnDisk): string =>
     ? `[image ${image.path}]`
     : `[image ${image.path} · ${image.width}×${image.height}]`
 
+/**
+ * A picture the model can neither be shown nor be given a path to. Spelled differently from
+ * `imagePathLine` on purpose: a file name is not a path, and writing one in the path line's shape
+ * taught the agent to `read` its working directory.
+ */
+export const missingImageLine = (name: string): string => `[image unavailable: ${name}]`
+
+/** A source the model can open, rather than a bare file name that names nothing it can reach. */
+export const looksLikePath = (source: string): boolean =>
+  source.includes('/') || source.includes('\\')
+
 export const inlinable = (image: ImageOnDisk & { data: string }): boolean =>
   planInlineDelivery({
     byteLength: base64Bytes(image.data),

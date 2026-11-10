@@ -454,7 +454,7 @@ describe('toModelMessage with a media part', () => {
     height: 480,
   } as const
 
-  it('names a user media part by its source, as the text line', () => {
+  it('names a user media part by its source when the source is a path', () => {
     const message: UserMessage = {
       role: 'user',
       content: [{ type: 'media', media, source: '/tmp/shot.png' }],
@@ -488,7 +488,7 @@ describe('toModelMessage with a media part', () => {
           toolName: 'read',
           output: {
             type: 'content',
-            value: [{ type: 'text', text: `[image ${'a'.repeat(64)} · 640×480]` }],
+            value: [{ type: 'text', text: `[image unavailable: ${'a'.repeat(64)}]` }],
           },
         },
       ],
@@ -572,7 +572,7 @@ describe('toModelMessage with a media part', () => {
       expect(toModelMessages([message])).toEqual([
         {
           role: 'user',
-          content: [{ type: 'text', text: `[image ${'a'.repeat(64)} · 640×480]` }],
+          content: [{ type: 'text', text: `[image unavailable: ${'a'.repeat(64)}]` }],
         },
       ])
     })

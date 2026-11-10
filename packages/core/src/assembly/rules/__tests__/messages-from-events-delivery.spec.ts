@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { EAttachmentStore, type Attachment } from '../../../attachments/attachment'
 import type { ImageCapabilities } from '../../../images/delivery'
 import { MAX_INLINE_BYTES } from '../../../images/limits'
+import { EUploadState } from '../../../uploads/placement'
 import type { Assembled } from '../../assembled'
 import { contextFor, log, operatorSaidAs } from '../../__tests__/log-fixture'
 import { messagesFromEvents } from '../messages-from-events'
@@ -43,6 +44,8 @@ const urls = new Map([
   [`upload:${UPLOAD_ID}`, 'https://blob.test/upload'],
   [`media:${HASH}`, 'https://blob.test/media'],
 ])
+
+const READY_AT = { state: EUploadState.Ready as const, path: '/atlas/home/uploads/shot.png' }
 
 const contentOf = ({
   attachment,
@@ -86,7 +89,7 @@ describe('delivering one picture per the model that reads it', () => {
     })
   })
 
-  it('names the same picture as a path line for a model with no vision', () => {
+  it('names a picture it cannot show and cannot place as unavailable, never as a path', () => {
     const content = contentOf({
       attachment: upload,
       imageCapabilities: blindModel,
@@ -95,9 +98,24 @@ describe('delivering one picture per the model that reads it', () => {
 
     expect(content?.[0]).toEqual({
       type: 'text',
-      text: operatorSaidAs('look\n[image shot.png · 4×3]'),
+      text: operatorSaidAs('look\n[image unavailable: shot.png]'),
     })
     expect(content?.some((part) => part.type === 'image')).toBe(false)
+  })
+
+  it('names a placed upload by the path the sandbox really has', () => {
+    const content = messagesFromEvents()(empty, {
+      ...contextFor({
+        events: log([{ type: 'user-said', text: 'look', attachments: [upload] }]),
+      }),
+      imageCapabilities: blindModel,
+      uploads: new Map([['11111111-1111-4111-8111-111111111111', READY_AT]]),
+    }).messages[0]?.message.content
+
+    expect(content?.[0]).toEqual({
+      type: 'text',
+      text: operatorSaidAs('look\n[image /atlas/home/uploads/shot.png · 4×3]'),
+    })
   })
 
   it('shows a media-store attachment as a url picture to a url-capable model', () => {
@@ -111,23 +129,20 @@ describe('delivering one picture per the model that reads it', () => {
     })
   })
 
-  it('falls back to the path line for media when the model takes only inline bytes', () => {
-    const content = contentOf({
-      attachment: media,
-      imageCapabilities: inlineModel,
-      mediaUrls: urls,
-    })
-
-    expect(content?.[0]).toEqual({
-      type: 'text',
-      text: operatorSaidAs('look\n[image photo.png · 4×3]'),
+  it('leaves a stored picture to the host when the model takes only inline bytes', () => {
+    expect(
+      contentOf({ attachment: media, imageCapabilities: inlineModel, mediaUrls: urls })?.[1],
+    ).toEqual({
+      type: 'media',
+      media: { hash: HASH, mediaType: 'image/png', size: 8, width: 4, height: 3 },
     })
   })
 
-  it('falls back to the path line for media when no url could be signed', () => {
-    const content = contentOf({ attachment: media, imageCapabilities: urlModel })
-
-    expect(content?.some((part) => part.type === 'image')).toBe(false)
+  it('leaves a stored picture to the host when no url could be signed here', () => {
+    expect(contentOf({ attachment: media, imageCapabilities: urlModel })?.[1]).toMatchObject({
+      type: 'media',
+      media: { hash: HASH },
+    })
   })
 
   it('keeps today’s inline behaviour when no capabilities are given', () => {

@@ -133,6 +133,11 @@ export const SUPPORTED_IMAGE_MEDIA_TYPES = [
 
 export type SupportedImageMediaType = (typeof SUPPORTED_IMAGE_MEDIA_TYPES)[number]
 
+export const supportedImageMediaTypeOf = (mediaType: string): SupportedImageMediaType | null =>
+  (SUPPORTED_IMAGE_MEDIA_TYPES as readonly string[]).includes(mediaType)
+    ? (mediaType as SupportedImageMediaType)
+    : null
+
 export function imageMediaType(bytes: Uint8Array): SupportedImageMediaType | null {
   if (pngSize(bytes)) return 'image/png'
   if (jpegSize(bytes)) return 'image/jpeg'

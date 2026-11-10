@@ -430,7 +430,11 @@ export function messagesFromEvents(): Rule {
       const { groups, settlements } = walkEvents({
         events: ctx.events,
         placements: ctx.uploads,
-        delivery: { capabilities: ctx.imageCapabilities, urls: ctx.mediaUrls },
+        delivery: {
+          capabilities: ctx.imageCapabilities,
+          urls: ctx.mediaUrls,
+          placements: ctx.uploads,
+        },
       })
 
       return {

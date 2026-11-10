@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { ref } from '../../../media/__tests__/media-ref.spec'
 import { toCallId } from '../../../events/ids'
 import type { Assembled } from '../../assembled'
-import { contextFor, log } from '../../__tests__/log-fixture'
+import { contextFor, log, operatorSaidAs } from '../../__tests__/log-fixture'
 import { messagesFromEvents } from '../messages-from-events'
 
 const empty: Assembled = { system: [], messages: [] }
@@ -14,7 +14,7 @@ const assemble = (events: Parameters<typeof log>[0]) =>
   )
 
 describe('a message that references stored media', () => {
-  it('reaches the model as the words followed by one path line per reference', () => {
+  it('reaches the host as the words followed by one reference per picture', () => {
     const [message] = assemble([
       {
         type: 'user-said',
@@ -23,10 +23,11 @@ describe('a message that references stored media', () => {
       },
     ])
 
-    expect(message?.content).toHaveLength(1)
+    expect(message?.content.map((part) => part.type)).toEqual(['text', 'media', 'media'])
     const text = message?.content[0]?.type === 'text' ? message.content[0].text : ''
-    expect(text).toContain(`what is this\n[image /tmp/a.png · ${ref.width}×${ref.height}]`)
-    expect(text).toContain(`[image ${'b'.repeat(64)} · ${ref.width}×${ref.height}]`)
+    expect(text).toEqual(operatorSaidAs('what is this'))
+    expect(message?.content[1]).toEqual({ type: 'media', media: ref, source: '/tmp/a.png' })
+    expect(message?.content[2]).toEqual({ type: 'media', media: { ...ref, hash: 'b'.repeat(64) } })
   })
 
   it('carries a media modelPart of a tool result through', () => {
