@@ -231,7 +231,7 @@ export function useConversation(args: ConversationArgs): Conversation {
     (): Promise<readonly Event[]> => app.log.read({ threadId }),
     [app.log, threadId],
   )
-  const used = usedTokens(logSummary.tokens)
+  const used = usedTokens()
   const delegatedToolCalls = useDelegatedToolCalls({ agents: app.agents, threadId })
   const rows = usePendingRows({
     queued,

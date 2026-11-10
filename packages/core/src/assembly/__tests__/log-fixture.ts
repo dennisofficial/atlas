@@ -5,7 +5,6 @@ import type { Event, EventEnvelope } from '../../events/envelope'
 import { toThreadId, toEventId, toRunId } from '../../events/ids'
 import { stampDrafts } from '../../events/stamp'
 import type { RuleContext } from '../rule'
-import { estimateTokens } from '../tokens'
 
 export const fixtureThreadId = toThreadId('thread-fixture')
 
@@ -38,7 +37,6 @@ export function contextFor({
     threadId: fixtureThreadId,
     step,
     provider: { id: 'fixture', modelId: 'fixture-model' },
-    countTokens: estimateTokens,
     ...(previous === undefined ? {} : { previous }),
   }
 }

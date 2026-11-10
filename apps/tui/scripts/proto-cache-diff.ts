@@ -8,7 +8,6 @@ import {
   defaultRules,
   EForkMode,
   EMPTY_PROMPT,
-  estimateTokens,
   toThreadId,
   type AssembledMessage,
   type Event,
@@ -193,7 +192,7 @@ const assembleAt = ({
   launchDirectory,
   repoRoot,
 }: Replay & { events: readonly Event[] }): Assembly => {
-  const ctx: RuleContext = { events, threadId, step: 0, provider, countTokens: estimateTokens }
+  const ctx: RuleContext = { events, threadId, step: 0, provider }
   const { assembled } = assemble({
     rules: defaultRules({ prompt: () => EMPTY_PROMPT, launchDirectory, repoRoot }),
     annotators: defaultAnnotators(),

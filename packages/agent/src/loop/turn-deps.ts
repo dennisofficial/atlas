@@ -1,5 +1,4 @@
 import type {
-  Assembled,
   AssemblyPipeline,
   ChunkFilter,
   IdPort,
@@ -33,7 +32,6 @@ export type TurnDeps = {
   ids: IdPort
   assembly: AssemblyPipeline
   tools?: (() => readonly ToolDeclaration[]) | undefined
-  countTokens?: ((assembled: Assembled) => number) | undefined
   onChunk?: ChunkFilter | undefined
   output?: AgentOutput | undefined
   dispatch?: ToolDispatcher | undefined

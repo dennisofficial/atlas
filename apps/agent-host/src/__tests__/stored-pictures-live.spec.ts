@@ -182,7 +182,6 @@ describe.skipIf(!live)('a stored picture, live: real blob, real daemon, real pro
         threadId,
         step: 0,
         provider: { id: 'probe', modelId: 'probe-vision' },
-        countTokens: () => 1,
         imageCapabilities: cardOf(images).image,
         mediaUrls: urls,
         uploads: placements,

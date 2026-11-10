@@ -1,8 +1,5 @@
 import {
-  estimateTokensFor,
-  imageTierOf,
   saidBody,
-  type Assembled,
   type ThreadId,
   type EventDraft,
   type Attachment,
@@ -76,10 +73,6 @@ export class LoopTurnRunner extends TurnRunner {
     this.failureDiagnostics = deps.failureDiagnostics
 
     const tools = deps.tools ?? (() => [])
-    const countTokens =
-      deps.countTokens ??
-      ((assembled: Assembled) => estimateTokensFor(imageTierOf(deps.model))(assembled))
-
     this.tracked = {
       record: deps.record,
       modelContext: deps.modelContext,
@@ -87,12 +80,7 @@ export class LoopTurnRunner extends TurnRunner {
       ids: deps.ids,
       assembly: deps.assembly,
       tools,
-      countTokens,
       onChunk: deps.onChunk,
-      onContext:
-        deps.output === undefined
-          ? undefined
-          : ({ tokens, window }) => deps.output?.emit({ type: 'context-size', tokens, window }),
       hooks: deps.hooks,
       uploads: deps.uploads,
       mediaUrls: deps.mediaUrls,

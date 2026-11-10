@@ -81,6 +81,6 @@ describe('the cache tiers are a breakdown of the prompt, not an addition to it',
       cacheWriteTokens: 1_500,
     }
 
-    expect(contextTokens({ reported, events: [] })).toBe(41_900)
+    expect(contextTokens(reported)).toBe(41_900)
   })
 })

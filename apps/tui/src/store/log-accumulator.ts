@@ -2,7 +2,6 @@ import {
   EDecision,
   ETriage,
   EToolEffect,
-  estimateEventTokens,
   PLAN_TOOL_NAME,
   planInputSchema,
   planTasks,
@@ -25,7 +24,6 @@ export type LogAccumulator = {
   pauses: number
   dimensionTally: Map<ERiskDimension, number>
   judgeUnreachable: string | null
-  tokens: number
   treeMutations: number
   worktree: ActiveWorktree | undefined
   home: string | null
@@ -42,7 +40,6 @@ export const emptyLogAccumulator = (): LogAccumulator => ({
   pauses: 0,
   dimensionTally: new Map(),
   judgeUnreachable: null,
-  tokens: 0,
   treeMutations: 0,
   worktree: undefined,
   home: null,
@@ -73,7 +70,6 @@ export function foldLogEvent(args: {
 }): void {
   const { acc, event, effects } = args
   acc.lastActivity = event.at
-  acc.tokens += estimateEventTokens([event])
 
   switch (event.type) {
     case 'user-said':

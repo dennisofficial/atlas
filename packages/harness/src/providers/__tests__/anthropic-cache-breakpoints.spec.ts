@@ -7,7 +7,6 @@ import {
   defaultRules,
   ECacheTtl,
   type CompiledPrompt,
-  estimateTokens,
   stampDrafts,
   toThreadId,
   toEventId,
@@ -72,7 +71,6 @@ const sentBody = async (): Promise<{
       threadId: toThreadId('thread-fixture'),
       step: 0,
       provider: { id: ANTHROPIC_PROVIDER_ID, modelId: MODEL_ID },
-      countTokens: estimateTokens,
     },
   })
 

@@ -260,11 +260,4 @@ describe('a child stepping against a real turn runner', () => {
     expect(reading?.window).toBe(HAIKU_WINDOW)
     expect(reading?.tokens).toBeGreaterThan(0)
   })
-
-  it("leaves the parent's turn deps without an observer, so no reading can reach the parent's meter", async () => {
-    const { parentTurn } = await openRealChild()
-
-    expect(parentTurn.onContext).toBeUndefined()
-    expect(Object.hasOwn(parentTurn, 'onContext')).toBe(false)
-  })
 })

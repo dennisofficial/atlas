@@ -1,6 +1,5 @@
 import {
   contextTokens,
-  estimateEventTokens,
   type Chunk,
   type EventLogPort,
   type ModelUsage,
@@ -11,11 +10,9 @@ import type { DeltaChannel } from '../channel/delta-channel'
 import { ETurnStatus, type TurnOutcome } from '../loop/turn-outcome'
 
 /**
- * How full the window stands, learned rather than asked: the channel carries every step's reported
- * usage, so watching it beats re-reading the log after each turn — and a turn that ended with an
- * answered call (Paused, Interrupted before its events landed) leaves no fresh reading, where the
- * estimate from the log is the truthful remainder. Idle means the turn did not run at all, so its
- * zero says nothing about the window.
+ * How full the window stands, as the last call that reported usage left it. A turn that ends without
+ * a reading (Paused, Interrupted before its events landed) leaves the window unmeasured rather than
+ * guessed at. Idle means the turn did not run at all, so its zero says nothing about the window.
  */
 export function createUsageTracker(args: { channel: DeltaChannel; log: EventLogPort }) {
   const reported = new Map<ThreadId, ModelUsage>()
@@ -31,15 +28,9 @@ export function createUsageTracker(args: { channel: DeltaChannel; log: EventLogP
     }: {
       threadId: ThreadId
       outcome: TurnOutcome
-    }): Promise<number> => {
-      const latest = reported.get(threadId)
-      if (outcome.status === ETurnStatus.Completed || outcome.status === ETurnStatus.Failed) {
-        return latest === undefined
-          ? estimateEventTokens(await args.log.read({ threadId }))
-          : contextTokens({ reported: latest, events: [] })
-      }
+    }): Promise<number | null> => {
       if (outcome.status === ETurnStatus.Idle) return 0
-      return estimateEventTokens(await args.log.read({ threadId }))
+      return contextTokens(reported.get(threadId) ?? null)
     },
 
     onChunk: ({ threadId, chunk }: { threadId: ThreadId; chunk: Chunk }): void => {

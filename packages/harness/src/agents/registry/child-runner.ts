@@ -1,4 +1,5 @@
 import {
+  contextWindowOf,
   EMessageOrigin,
   saidBody,
   type AssemblyPipeline,
@@ -99,6 +100,28 @@ function observingLog({
   }
 }
 
+/**
+ * A child's window reading is whatever its own call last reported: the assembled prompt is nobody's
+ * to count, so there is nothing to measure until a provider answers.
+ */
+function reportUsage({
+  draft,
+  model,
+  observeContext,
+}: {
+  draft: EventDraft
+  model: ModelPort
+  observeContext: (args: { tokens: number; window: number }) => void
+}): void {
+  if (draft.type !== 'assistant-said' && draft.type !== 'tool-called') return
+  const usage = draft.usage
+  if (usage === undefined) return
+  observeContext({
+    tokens: Math.max(0, usage.inputTokens) + Math.max(0, usage.outputTokens),
+    window: usage.contextWindow ?? contextWindowOf(model),
+  })
+}
+
 export type ChildRunnerSource = (args: ChildRunnerRequest) => TurnRunner | Promise<TurnRunner>
 
 export type ChildRunnerRequest = {
@@ -194,8 +217,14 @@ export async function buildChildRunner({
     deps: {
       ...turn,
       launchDirectory: projectDirectory ?? turn.launchDirectory,
-      log: observingLog({ log: turn.log, threadId, observe }),
-      onContext: observeContext,
+      log: observingLog({
+        log: turn.log,
+        threadId,
+        observe: (drafts) => {
+          observe(drafts)
+          for (const draft of drafts) reportUsage({ draft, model, observeContext })
+        },
+      }),
       model,
       ...(failover === undefined ? {} : { retry: { ...turn.retry, failover } }),
       tools: () => registry.declarations(),

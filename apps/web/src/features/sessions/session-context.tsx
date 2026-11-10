@@ -27,32 +27,30 @@ export function SessionContext({
   const percent = contextPercent(context)
   const stats = spend === null ? null : tokenStatsOf(spend)
   const cost = spend?.costUsd ?? null
-  const qualifier = context.estimated ? ', estimated' : ''
+  const reading = percent === null ? '—' : `${percent}%`
+  const label = percent === null ? 'Context not measured yet' : `Context ${percent}%`
   return (
     <HoverCard>
       <HoverCardTrigger
         delay={10}
         closeDelay={100}
         render={
-          <Button
-            variant="ghost"
-            size="sm"
-            className="ml-auto tabular-nums"
-            aria-label={`Context ${percent}%${qualifier}`}
-          />
+          <Button variant="ghost" size="sm" className="ml-auto tabular-nums" aria-label={label} />
         }
       >
-        {percent}% context
+        {reading}
+        {percent === null ? '' : ' context'}
       </HoverCardTrigger>
       <HoverCardContent>
         <div className="flex w-64 flex-col gap-3">
           <div className="flex items-center justify-between gap-3 text-sm">
-            <span className="font-medium">Context{context.estimated ? ' (estimated)' : ''}</span>
+            <span className="font-medium">Context</span>
             <span className="text-muted-foreground tabular-nums">
-              {formatTokens(context.used)} / {formatTokens(context.limit)}
+              {context.used === null ? 'not measured yet' : formatTokens(context.used)} /{' '}
+              {formatTokens(context.limit)}
             </span>
           </div>
-          <Progress value={percent} aria-label="Context used" />
+          {percent === null ? null : <Progress value={percent} aria-label="Context used" />}
           {cost === null && stats === null ? null : (
             <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs leading-4 text-muted-foreground">
               {cost === null ? null : <Stat value={formatUsd(cost)} unit="spent" />}
