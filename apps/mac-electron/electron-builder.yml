@@ -6,6 +6,9 @@ files:
   - main.js
   - preload.cjs
   - host-paths.js
+  - host-process.js
+  - web-payload.js
+  - payload/**/*
   - package.json
 extraResources:
   - from: dist/host.js

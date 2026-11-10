@@ -1,18 +1,18 @@
-import { spawn } from 'node:child_process'
 import { createServer } from 'node:http'
 import { join } from 'node:path'
 
 import { app, BrowserWindow, WebContentsView } from 'electron'
 
+import { hostEnvironment, resolveBun, resolveHostScript, webRootAt } from './host-paths.js'
+import { startHost } from './host-process.js'
 import {
-  hostEnvironment,
-  resolveBun,
-  resolveHostScript,
-  sessionUrlIn,
-  webRootAt,
-} from './host-paths.js'
+  createElectronWebUpdater,
+  manifestUrlOf,
+  payloadHomeOf,
+  payloadWebRoot,
+  webRootFor,
+} from './web-payload.js'
 
-const START_TIMEOUT_MS = 20_000
 const PANE_PATH = '/pane'
 const DESKTOP_PANE_PATH = '/desktop/pane'
 const PANE_PARTITION = 'persist:spike'
@@ -135,41 +135,6 @@ async function startPaneServer({ pane }) {
   return { server, origin: `http://127.0.0.1:${server.address().port}` }
 }
 
-function startHost({ script, bun, environment }) {
-  const child = spawn(bun, [script], { env: environment, stdio: ['ignore', 'pipe', 'pipe'] })
-  let output = ''
-  let settled = false
-  const url = new Promise((resolve, reject) => {
-    const fail = (error) => {
-      if (settled) return
-      settled = true
-      clearTimeout(timer)
-      reject(error)
-    }
-    const timer = setTimeout(() => {
-      child.kill('SIGTERM')
-      fail(
-        new Error(
-          `the desktop host did not report a session URL within ${START_TIMEOUT_MS}ms\n${output}`,
-        ),
-      )
-    }, START_TIMEOUT_MS)
-    const collect = (chunk) => {
-      output = (output + chunk.toString()).slice(-OUTPUT_LIMIT)
-      const found = sessionUrlIn(output)
-      if (found === undefined || settled) return
-      settled = true
-      clearTimeout(timer)
-      resolve(found)
-    }
-    child.stdout.on('data', collect)
-    child.stderr.on('data', collect)
-    child.on('error', (error) => fail(error))
-    child.on('exit', (code) => fail(new Error(`the desktop host exited with ${code}\n${output}`)))
-  })
-  return { child, url, output: () => output }
-}
-
 function errorPage(error) {
   const message = error instanceof Error ? error.message : String(error)
   const html = `<!doctype html><meta charset="utf-8"><title>Atlas could not start</title>
@@ -201,28 +166,64 @@ async function createWindow() {
   pane.setVisible(false)
 
   const session = await startPaneServer({ pane })
-  const host = startHost({
-    script: resolveHostScript({
-      env: process.env,
-      resourcesPath: process.resourcesPath,
-      appRoot: app.getAppPath(),
-    }),
-    bun: resolveBun({ env: process.env, resourcesPath: process.resourcesPath }),
-    environment: hostEnvironment({
-      base: process.env,
-      paneOrigin: session.origin,
-      webRoot: webRootAt({ resourcesPath: process.resourcesPath }),
-    }),
+  const script = resolveHostScript({
+    env: process.env,
+    resourcesPath: process.resourcesPath,
+    appRoot: app.getAppPath(),
   })
+  const bun = resolveBun({ env: process.env, resourcesPath: process.resourcesPath })
+  const home = payloadHomeOf({ userData: app.getPath('userData') })
+  const bundledRoot = webRootAt({ resourcesPath: process.resourcesPath })
+  const payloads = createElectronWebUpdater({
+    home,
+    manifestUrl: manifestUrlOf({ env: process.env }),
+    appVersion: app.getVersion(),
+  })
+  const startSession = (webRoot) =>
+    startHost({
+      script,
+      bun,
+      environment: hostEnvironment({ base: process.env, paneOrigin: session.origin, webRoot }),
+    })
 
+  let host
   win.on('closed', () => {
-    host.child.kill('SIGTERM')
+    payloads.stop()
+    host?.child.kill('SIGTERM')
     session.server.close()
     pane.webContents.close()
   })
 
+  const swapTo = async ({ hash }) => {
+    const next = startSession(payloadWebRoot({ home, hash }))
+    try {
+      const url = await next.url
+      await win.loadURL(url)
+      host?.child.kill('SIGTERM')
+      host = next
+      console.log(`[web-payload] swapped the interface to ${hash}`)
+      return true
+    } catch (error) {
+      next.child.kill('SIGTERM')
+      console.error('[web-payload] the new interface did not start; keeping this one', error)
+      await payloads.updater.fail({ hash })
+      return false
+    }
+  }
+
   try {
-    await win.loadURL(await host.url)
+    const installedHash = await payloads.updater.installedRoot()
+    try {
+      host = startSession(webRootFor({ home, bundledRoot, installedHash }))
+      await win.loadURL(await host.url)
+    } catch (error) {
+      if (installedHash === undefined) throw error
+      console.error('[web-payload] the installed interface failed; using the bundled one', error)
+      await payloads.updater.fail({ hash: installedHash })
+      host = startSession(bundledRoot)
+      await win.loadURL(await host.url)
+    }
+    payloads.start({ onPayload: swapTo })
   } catch (error) {
     await win.loadURL(errorPage(error))
   }
