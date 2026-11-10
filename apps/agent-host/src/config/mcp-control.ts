@@ -130,7 +130,7 @@ export const mcpControlOf = (args: {
         returnTarget: { surface: owner.surface, screen: { kind: 'session', id: sessionId } },
       })
       if (!begun.ok) return begun
-      return { ok: true, url: begun.url }
+      return { ok: true, url: begun.url, expiresAt: begun.expiresAt }
     },
   })
 

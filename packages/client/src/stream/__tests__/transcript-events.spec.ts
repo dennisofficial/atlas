@@ -188,6 +188,19 @@ describe('transcriptEventsOf', () => {
     ])
   })
 
+  it('carries an event whose type a registered plugin named', () => {
+    const events = mintEvents({
+      bodies: [
+        { type: 'user-said', text: 'hi' },
+        { type: 'probe-observed', label: 'x' },
+      ],
+    })
+
+    expect(
+      transcriptEventsOf(events, new Set(['probe-observed'])).map((event) => `${event.type}`),
+    ).toEqual(['user-said', 'probe-observed'])
+  })
+
   it('passes a plain object input and output through untouched', () => {
     const events = mintEvents({
       bodies: toolBodies({ input: { command: 'ls' }, output: { stdout: 'a' } }),

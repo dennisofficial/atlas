@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@dltech/atlas-agent": "workspace:*",
+    "@dltech/atlas-client": "workspace:*",
     "@dltech/atlas-commands": "workspace:*",
     "@dltech/atlas-core": "workspace:*",
     "@dltech/atlas-plugin-sdk": "workspace:*",

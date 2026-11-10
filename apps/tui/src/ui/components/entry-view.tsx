@@ -250,6 +250,13 @@ function DerivedEntryView(props: {
         </box>
       )
 
+    case EEntryKind.SignIn:
+      return (
+        <box flexDirection="row" marginBottom={1} flexShrink={0}>
+          <text fg={entry.result === 'failed' ? theme.warn : theme.dim}>{entry.text}</text>
+        </box>
+      )
+
     case EEntryKind.OperatorInput:
       return (
         <box flexDirection="row" marginBottom={1} flexShrink={0}>

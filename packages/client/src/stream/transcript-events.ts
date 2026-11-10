@@ -30,7 +30,16 @@ const resolvedOf = (event: Event): Event => {
   return event
 }
 
-const transcriptEventOf = (event: V2Event): Event | null => {
+/**
+ * A plugin's own event, carried untouched: this package cannot name its body, so the surface says
+ * which plugin types it parsed and the plugin's own fold narrows them.
+ */
+const carriedOf = (event: V2Event): Event => withoutChain(event) as unknown as Event
+
+const NO_PLUGIN_TYPES: ReadonlySet<string> = new Set()
+
+const transcriptEventOf = (event: V2Event, pluginTypes: ReadonlySet<string>): Event | null => {
+  const type: string = event.type
   switch (event.type) {
     case 'history-rewound':
     case 'input-consumed':
@@ -46,12 +55,16 @@ const transcriptEventOf = (event: V2Event): Event | null => {
     case 'history-summarised':
       return compactedOf(event)
     default:
-      return isCoreEvent(event) ? resolvedOf(withoutChain(event)) : null
+      if (isCoreEvent(event)) return resolvedOf(withoutChain(event))
+      return pluginTypes.has(type) ? carriedOf(event) : null
   }
 }
 
-export const transcriptEventsOf = (events: readonly V2Event[]): Event[] =>
+export const transcriptEventsOf = (
+  events: readonly V2Event[],
+  pluginTypes: ReadonlySet<string> = NO_PLUGIN_TYPES,
+): Event[] =>
   events.flatMap((event) => {
-    const mapped = transcriptEventOf(event)
+    const mapped = transcriptEventOf(event, pluginTypes)
     return mapped === null ? [] : [mapped]
   })

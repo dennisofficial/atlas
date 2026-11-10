@@ -10,6 +10,7 @@ import {
 import { entriesOfAssistantEvent, saidWhileToolsWereOutstanding } from './assistant-entries'
 import { contextLoadedWith, contextRuns, NOTHING_ATTACHED } from './context-entries'
 import { inOneBreath } from './entry-folds'
+import type { TranscriptEntryFold } from './entry-builders'
 import { noticeEntriesOf } from './notice-entries'
 import { attachmentsOf } from './tool-attachments'
 import { toolRuns, type ToolRun } from './tool-runs'
@@ -20,6 +21,7 @@ import type { TurnSpend } from './turn-spend'
 export function durableEntries(args: {
   events: readonly Event[]
   turns?: readonly TurnSpend[] | undefined
+  pluginEntries?: readonly TranscriptEntryFold[] | undefined
 }): TranscriptEntry[] {
   const events = args.events.filter((event) => !isNoticeArrival(event))
   const opened = new Map<string, ToolRun>(toolRuns(events).map((run) => [run.openedBy, run]))
@@ -37,6 +39,10 @@ export function durableEntries(args: {
     current: currentContext,
   })
   const turns = turnsBySeq({ events, turns: args.turns ?? [] })
+  const pluginRows = new Map<string, TranscriptEntry>()
+  for (const fold of args.pluginEntries ?? []) {
+    for (const [id, entry] of fold(events)) pluginRows.set(id, entry)
+  }
   const footers = new Map(latestTldrPerAnchor(events).map((footer) => [footer.throughSeq, footer]))
 
   const shellKey = (args: { shellId: string; command: string }): string =>
@@ -137,6 +143,9 @@ export function durableEntries(args: {
       const run = opened.get(event.callId)
       return run === undefined ? [] : [toolsRanEntry(run)]
     }
+
+    const pluginRow = pluginRows.get(event.id)
+    if (pluginRow !== undefined) return [pluginRow]
 
     const notice = noticeEntriesOf(event)
     if (notice !== null) return notice

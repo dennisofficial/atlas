@@ -212,4 +212,45 @@ describe('sessionTranscriptOf', () => {
       { id: upload.uploadId, name: 'deploy.sh', content: { store: 'upload' } },
     ])
   })
+
+  it('shows an MCP sign-in as a row of its own, settled into signed in', () => {
+    const events = mint([
+      {
+        type: 'mcp-sign-in-started',
+        server: 'posthog',
+        url: 'https://provider.test/authorize?client_id=c',
+        expiresAt: '2026-11-05T10:10:00.000Z',
+        sessionId: 's1',
+      },
+      { type: 'mcp-sign-in-resolved', server: 'posthog', result: 'connected', sessionId: 's1' },
+    ])
+
+    const [item] = sessionTranscriptOf(snapshotOf({ events })).items
+
+    expect(item).toMatchObject({
+      kind: ETranscriptKind.SignIn,
+      subject: 'posthog',
+      result: 'connected',
+      text: 'signed in to the posthog MCP server',
+    })
+  })
+
+  it('keeps a sign-in row live until its resolution lands', () => {
+    const events = mint([
+      {
+        type: 'mcp-sign-in-started',
+        server: 'posthog',
+        url: 'https://provider.test/authorize?client_id=c',
+        sessionId: 's1',
+      },
+    ])
+
+    const [item] = sessionTranscriptOf(snapshotOf({ events })).items
+
+    expect(item).toMatchObject({
+      kind: ETranscriptKind.SignIn,
+      subject: 'posthog',
+      url: 'https://provider.test/authorize?client_id=c',
+    })
+  })
 })

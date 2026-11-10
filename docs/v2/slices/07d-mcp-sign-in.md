@@ -270,3 +270,37 @@ user (removed afterwards):
 
 Not exercised live: approving at the provider (interactive login) and so the grant landing and the
 roster flipping on the next turn; the Mac app opening the deep link; iOS on a simulator.
+
+## 10. The card: what was built and how it was proved
+
+**Status, 2026-11-10.** The card half of the follow-up; the return target is §8.
+
+The tool no longer prints the authorize URL. `mcp_sign_in` emits `mcp-sign-in-started`
+(`{server, url, expiresAt?, sessionId}`) as it returns, and the session emits `mcp-sign-in-resolved`
+(`{server, result, sessionId, reason?}`) the next time its reconcile sees the row flip — connected, or
+failed with the row's reason, or failed because the link it handed out died first. Both events are
+registered in `mcpCoreSlots.events`; the roster view is unchanged.
+
+The row is the plugin's, not the transcript's: `ClientSlot` grew `entryFolds`, so a plugin names the
+transcript rows its own events produce and the surfaces compose them from the plugins they register
+(`mcpSignInEntries` in `plugins/mcp/src/client/sign-in-entry.ts`). Web renders it as a row among the
+others (`transcript-sign-in.tsx`); TUI renders the same entry's text, which carries the link, because
+a surface without the card still has to be actionable; mobile does not fold plugin entries at all, so
+it shows the tool row and the tool's text only. The Mac app runs the web interface, so it gets the
+card.
+
+Proved without a live provider:
+- Pod: the card event carries the link while the model text does not
+  (`plugins/mcp/src/pod/__tests__/sign-in.spec.ts`), a refusal draws nothing, and the resolution is
+  written once when the grant lands (the http server answers 401, then stands up once a token
+  arrives) and when the link expires.
+- Fold: the two events become one row keyed by the event that drew it, and redraw as signed in or
+  failed (`plugins/mcp/src/client/__tests__/sign-in-entry.spec.ts`).
+- Surface: the session transcript builds that row end to end from chained `V2Event`s
+  (`apps/web/src/features/sessions/data/__tests__/session-transcript.spec.ts`), and the card renders
+  idle, signed in and failed with reason
+  (`apps/web/src/features/threads/__tests__/transcript-sign-in.spec.tsx`).
+
+Still to run live, once this is deployed: in a v2 session on a server with no grant, `mcp_sign_in`
+leaves a card and no URL in the message text; the button opens the provider; after approval the next
+turn's card reads signed in and the roster says connected.

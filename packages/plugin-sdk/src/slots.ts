@@ -1,4 +1,5 @@
 import type { HookChainArgs } from '@dltech/atlas-agent'
+import type { TranscriptEntryFold } from '@dltech/atlas-client/transcript'
 import type { CommandHandler, ControlCommandHandler } from '@dltech/atlas-commands'
 import type {
   EventDraft,
@@ -45,7 +46,9 @@ export type PodWebSearch = { config(): Promise<WebSearchConfig> }
 
 export type McpServerSource = 'cloud' | 'repo'
 
-export type McpSignInBegin = { ok: true; url: string } | { ok: false; reason: string }
+export type McpSignInBegin =
+  | { ok: true; url: string; expiresAt?: string | undefined }
+  | { ok: false; reason: string }
 
 export type PodMcpControl = {
   token(args: { name: string; source: McpServerSource; url: string }): Promise<string | undefined>
@@ -103,7 +106,10 @@ export type ClientHook = {
   appliesTo(event: V2Event): boolean
 }
 
-export type ClientSlot = { hooks: readonly ClientHook[] }
+export type ClientSlot = {
+  hooks: readonly ClientHook[]
+  entryFolds?: readonly TranscriptEntryFold[] | undefined
+}
 
 export type PluginTransport = 'none' | 'stream'
 
