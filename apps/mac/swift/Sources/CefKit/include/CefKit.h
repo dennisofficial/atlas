@@ -1,13 +1,21 @@
 #import <AppKit/AppKit.h>
 #import <Foundation/Foundation.h>
 
-int32_t AtlasCefExecuteProcess(int argc, char *argv[]);
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-BOOL AtlasCefInitialize(int argc, char *argv[]);
+int32_t AtlasCefExecuteProcess(int argc, char * _Nullable argv[]);
+
+BOOL AtlasCefInitialize(int argc, char * _Nullable argv[]);
 
 void AtlasCefDoMessageLoopWork(void);
 
 void AtlasCefShutdown(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 @interface CefPaneView : NSView
 
