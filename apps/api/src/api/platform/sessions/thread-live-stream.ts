@@ -73,6 +73,7 @@ export function attachLiveStream(args: {
         type: EThreadLiveFrame.Snapshot,
         rows: snapshot.rows,
         projects: snapshot.projects,
+        counts: snapshot.counts,
       })
       for (const signal of buffered.splice(0)) deliver({ signal, snapshotRows, sink })
     })
