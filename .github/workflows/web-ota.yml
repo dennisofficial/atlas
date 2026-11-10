@@ -89,6 +89,17 @@ jobs:
           gh release upload web-ota "$RUNNER_TEMP/payload/web-update.json" "$RUNNER_TEMP"/payload/web-*.tar.gz \
             --clobber --repo "$GITHUB_REPOSITORY"
 
+      - name: drop payloads the manifest no longer names
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/web-ota" \
+            --jq '[.assets[] | select(.name | endswith(".tar.gz"))] | sort_by(.created_at) | reverse | .[5:] | .[].name' |
+            while read -r name; do
+              [ -n "$name" ] || continue
+              echo "removing $name"
+              gh release delete-asset web-ota "$name" --yes --repo "$GITHUB_REPOSITORY"
+            done
+
       - name: summarise
         run: |
           set -euo pipefail
