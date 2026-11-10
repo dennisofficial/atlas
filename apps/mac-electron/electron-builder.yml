@@ -3,11 +3,8 @@ productName: Atlas Electron Spike
 directories:
   output: release
 files:
-  - main.js
-  - preload.cjs
-  - host-paths.js
-  - host-process.js
-  - web-payload.js
+  - '*.js'
+  - '*.cjs'
   - payload/**/*
   - package.json
 extraResources:
