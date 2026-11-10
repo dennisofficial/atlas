@@ -9,6 +9,7 @@ import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { GithubPrStreamRouter } from './github-pr-stream.router'
 import type { GithubSubscriptionsService } from './github-subscriptions.service'
+import type { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
 
 export const STATE: GithubPrStateDto = {
   repoFullName: 'compai/app',
@@ -61,6 +62,15 @@ export const podCtxFor = (args: { userId: string; threadId: string }): SessionOr
   pod: { threadId: args.threadId },
 })
 
+export const sandboxCtxFor = (args: {
+  userId: string
+  sandboxId: string
+  threadId: string
+}): SessionOrSandboxTrpcCtx => ({
+  ...ctxFor(args.userId),
+  sandbox: { sandboxId: args.sandboxId, threadId: args.threadId },
+})
+
 export const optionsFor = (signal?: AbortSignal) => ({
   ctx: undefined,
   input: undefined,
@@ -86,12 +96,29 @@ export const fakeSubscriptions = (states: StreamFakes['states'] = []) => ({
 export const fakeMailbox = (
   undelivered: StreamFakes['undelivered'] = [],
   threadMissed: StreamFakes['threadMissed'] = [],
+  acks: Array<{ threadId: string; eventIds: readonly string[] }> = [],
 ) => ({
   replayUndelivered: async (): Promise<GithubPrEventDto[]> => {
     if (undelivered instanceof Error) throw undelivered
     return undelivered
   },
   replayForThread: async (): Promise<GithubPrEventDto[]> => threadMissed,
+  acknowledge: async (args: { threadId: string; eventIds: readonly string[] }) => {
+    acks.push(args)
+    return args.eventIds.length
+  },
+})
+
+export const fakeSandboxes = (family: { root: string; children?: readonly string[] }) => ({
+  assertThreadInFamily: async (args: {
+    sandboxThreadId: string
+    threadId: string
+  }): Promise<void> => {
+    if (args.threadId === args.sandboxThreadId) return
+    if (args.sandboxThreadId === family.root && (family.children ?? []).includes(args.threadId))
+      return
+    throw new Error('the sandbox token reaches only its own thread and its sub-agents')
+  },
 })
 
 export function routerWith(fakes: StreamFakes = {}): {
@@ -114,6 +141,7 @@ export function routerWith(fakes: StreamFakes = {}): {
     drain,
     mailbox,
     observations,
+    fakeSandboxes({ root: 'thr_1' }) as unknown as SandboxesService,
   )
   return { router, fanout, drain, mailbox, observations }
 }

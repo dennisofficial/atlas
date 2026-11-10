@@ -7,12 +7,34 @@ import { GithubObservationStore } from './github-observation.store'
 import { normalizedRepo } from './github-pr-identity'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
-import { nextVersionOf, readPrStateForUpdate, snapshotOfLocked } from './github-pr-head-checks'
+import {
+  type LockedPrState,
+  nextVersionOf,
+  readPrStateForUpdate,
+  snapshotOfLocked,
+} from './github-pr-head-checks'
 import { deliverPrTransitions } from './github-pr-transition-push'
 import { branchRoutingOf, dtoOf, subscriberWhereOf } from './github-delivery-routing'
 import type { GithubPrStateRecord } from './github-realtime.types'
 
 export type PrStateWrite = { row: Row<'GithubPrState'>; userIds: string[] }
+
+const TERMINAL_STATES = new Set(['merged', 'closed'])
+
+/**
+ * GitHub delivers a hook and retries it later after a deferral, so an observation can arrive out
+ * of order. A merged or closed row stays terminal unless the PR itself reopened: a stale `opened`
+ * or `edited` payload replayed afterwards must not move it back to open or draft.
+ */
+export function terminalStateKept(args: {
+  prior: LockedPrState | null
+  next: string
+  reopens: boolean
+}): string | null {
+  if (args.prior === null || args.reopens) return null
+  if (!TERMINAL_STATES.has(args.prior.state)) return null
+  return TERMINAL_STATES.has(args.next) ? null : args.prior.state
+}
 
 export class GithubPrStateWriter {
   constructor(
@@ -36,20 +58,28 @@ export class GithubPrStateWriter {
     repoFullName: string
     prNumber: number
     fields: GithubPrStateRecord
+    reopens?: boolean
   }): Promise<PrStateWrite> {
     const { tx } = args
     const repoFullName = normalizedRepo(args.repoFullName)
-    const fields = {
-      ...args.fields,
-      headRepoFullName:
-        args.fields.headRepoFullName === null ? null : normalizedRepo(args.fields.headRepoFullName),
-    }
-
-    const priorRow = await readPrStateForUpdate({
+    const locked = await readPrStateForUpdate({
       tx,
       repoFullName,
       prNumber: args.prNumber,
     })
+    const keptState = terminalStateKept({
+      prior: locked,
+      next: args.fields.state,
+      reopens: args.reopens === true,
+    })
+    const fields = {
+      ...args.fields,
+      state: keptState ?? args.fields.state,
+      headRepoFullName:
+        args.fields.headRepoFullName === null ? null : normalizedRepo(args.fields.headRepoFullName),
+    }
+
+    const priorRow = locked
     const prior = priorRow === null ? null : snapshotOfLocked(priorRow)
     const headBranch = fields.headBranch ?? priorRow?.headBranch
     const headRepoFullName = fields.headRepoFullName ?? priorRow?.headRepoFullName ?? null
@@ -96,6 +126,7 @@ export class GithubPrStateWriter {
     repoFullName: string
     prNumber: number
     fields: GithubPrStateRecord
+    reopens?: boolean
   }): Promise<void> {
     const write = await db.transaction((tx) => this.writeState({ tx, ...args }))
     await this.publish(write)

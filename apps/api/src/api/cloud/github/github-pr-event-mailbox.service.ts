@@ -20,19 +20,43 @@ export class GithubPrEventMailboxService {
     private readonly fanout: GithubPrFanoutService,
     private readonly wake: GithubSandboxWakeService,
   ) {
-    this.fanout.onEventDelivered(({ ackId, userStream, threadIds }) => {
+    this.fanout.onEventDelivered(({ ackId, userId, userStream, threadIds }) => {
       if (userStream) {
         void db.orm.public.GithubPrEvent.where({ id: ackId, deliveredAt: null })
           .updateAndCount({ deliveredAt: new Date() })
           .catch(() => undefined)
       }
       if (threadIds.length === 0) return
-      const leaseExpiresAt = new Date(Date.now() + REPLAY_LEASE_MS)
-      void db.orm.public.GithubPrEventDelivery.createAndCount(
-        threadIds.map((threadId) => ({ eventId: ackId, threadId, leaseExpiresAt })),
-        { onConflict: 'skip' },
-      ).catch(() => undefined)
+      void this.stampDeliveries({ ackId, userId, threadIds }).catch(() => undefined)
     })
+  }
+
+  /**
+   * A stream only sees the frames of its user, so the fanout reports every open thread of that
+   * user. Only a thread holding a subscription for the event's PR journals and acks the frame, so
+   * only that thread gets a delivery row; a row for any other thread is a lease nothing retires.
+   */
+  private async stampDeliveries(args: {
+    ackId: string
+    userId: string
+    threadIds: readonly string[]
+  }): Promise<void> {
+    const event = await db.orm.public.GithubPrEvent.where({ id: args.ackId }).first()
+    if (event === null) return
+    const subscribed = await db.orm.public.GithubSubscription.where({
+      userId: args.userId,
+      repoFullName: event.repoFullName,
+      prNumber: event.prNumber,
+    })
+      .where((subscription) => subscription.threadId.in([...args.threadIds]))
+      .all()
+    const threadIds = [...new Set(subscribed.map((subscription) => subscription.threadId))]
+    if (threadIds.length === 0) return
+    const leaseExpiresAt = new Date(Date.now() + REPLAY_LEASE_MS)
+    await db.orm.public.GithubPrEventDelivery.createAndCount(
+      threadIds.map((threadId) => ({ eventId: args.ackId, threadId, leaseExpiresAt })),
+      { onConflict: 'skip' },
+    )
   }
 
   async record(args: {

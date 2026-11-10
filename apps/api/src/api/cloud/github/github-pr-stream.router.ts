@@ -26,6 +26,7 @@ import {
 } from 'nestjs-trpc'
 import { meta } from '../../../_module/trpc/procedure-meta'
 import { DrainStateService } from '../../platform/health/drain-state.service'
+import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
 import {
   SessionOrSandboxMiddleware,
   type SessionOrSandboxTrpcCtx,
@@ -50,6 +51,7 @@ export class GithubPrStreamRouter {
     private readonly drain: DrainStateService,
     private readonly mailbox: GithubPrEventMailboxService,
     private readonly observations: GithubObservationStore,
+    private readonly sandboxes: SandboxesService,
   ) {}
 
   @Subscription({
@@ -109,9 +111,32 @@ export class GithubPrStreamRouter {
     @Ctx() ctx: SessionOrSandboxTrpcCtx,
     @Input() input: GithubPrAckEventsInput,
   ): Promise<{ acked: number }> {
-    const threadId = ctx.pod?.threadId ?? ctx.sandbox?.threadId ?? input.threadId
+    const threadId = await this.ackThread({ ctx, requested: input.threadId })
     const acked = await this.mailbox.acknowledge({ threadId, eventIds: input.eventIds })
+    if (acked === 0) {
+      this.logger.warn(
+        `acked no pr-event delivery row for thread ${threadId} (${input.eventIds.length} event(s) requested)`,
+      )
+    }
     return { acked }
+  }
+
+  /** A pod or sandbox acks for its own thread or a sub-agent thread of it, never another thread. */
+  private async ackThread(args: {
+    ctx: SessionOrSandboxTrpcCtx
+    requested: string
+  }): Promise<string> {
+    const familyThreadId = args.ctx.pod?.threadId ?? args.ctx.sandbox?.threadId
+    if (familyThreadId === undefined || familyThreadId === args.requested) return args.requested
+    try {
+      await this.sandboxes.assertThreadInFamily({
+        sandboxThreadId: familyThreadId,
+        threadId: args.requested,
+      })
+      return args.requested
+    } catch {
+      return familyThreadId
+    }
   }
 
   @Subscription({ input: githubPrStatesInputSchema, output: githubPrStatesOutputSchema })

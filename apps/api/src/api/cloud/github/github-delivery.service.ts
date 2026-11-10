@@ -161,6 +161,7 @@ export class GithubDeliveryService {
         fields: payloadFields,
         prior: prior === null ? null : stateFieldsOf(prior),
       }),
+      reopens: payload.action === 'reopened',
     })
 
     if (token === undefined || !headMoves) {
