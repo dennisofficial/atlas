@@ -67,6 +67,7 @@ export async function sweepOrphanSandboxes(args: {
   liveNames: () => Promise<ReadonlySet<string>>
   retirableNames?: () => Promise<ReadonlySet<string>>
   onRetired?: (args: { name: string }) => Promise<void>
+  onStopped?: (args: { name: string }) => Promise<void>
   now: Date
   dryRun: boolean
   log: (line: string) => void
@@ -108,6 +109,7 @@ export async function sweepOrphanSandboxes(args: {
         try {
           await store.stopSandbox({ name: sandbox.name })
           summary.stopped += 1
+          await args.onStopped?.({ name: sandbox.name })
         } catch (failure) {
           failed(sandbox.name)(failure)
         }

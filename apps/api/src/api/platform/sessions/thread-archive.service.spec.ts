@@ -21,6 +21,7 @@ import { inertTeammateStop } from './teammate-archive-stop.fixture'
 import { TeammateArchiveStopService } from './teammate-archive-stop'
 import { inertSignals } from './thread-signals.fixture'
 import { ThreadArchiveService } from './thread-archive.service'
+import type { SandboxesService } from '../sandboxes/sandboxes.service'
 
 class FakeDispatcher extends JobDispatcher {
   readonly calls: JobDispatch<AnyTask>[] = []
@@ -82,6 +83,47 @@ describe('ThreadArchiveService', () => {
       payload: { threadId: 'thr_1', archivedAt },
       idempotencyKey: `thread-archive-cleanup:thr_1:${archivedAt}`,
     })
+  })
+
+  it('stops the pod before the response when a session is archived', async () => {
+    await seedSandboxRow({ threadId: 'thr_1' })
+    const parked: string[] = []
+    const sandboxes = {
+      park: async (args: { row: { name: string } }) => {
+        parked.push(args.row.name)
+      },
+    } as unknown as SandboxesService
+    service = new ThreadArchiveService(
+      dispatcher,
+      inertSignals(),
+      inertTeammateStop(),
+      undefined,
+      sandboxes,
+    )
+
+    await service.setArchived({ userId: USER_A, threadId: 'thr_1', archived: true })
+
+    expect(parked).toEqual(['atlas-thread-thr_1'])
+  })
+
+  it('keeps the archive when the pod cannot be parked', async () => {
+    await seedSandboxRow({ threadId: 'thr_1' })
+    const sandboxes = {
+      park: async () => {
+        throw new Error('pod gone')
+      },
+    } as unknown as SandboxesService
+    service = new ThreadArchiveService(
+      dispatcher,
+      inertSignals(),
+      inertTeammateStop(),
+      undefined,
+      sandboxes,
+    )
+
+    await service.setArchived({ userId: USER_A, threadId: 'thr_1', archived: true })
+
+    expect((await sessionOfThreadRow('thr_1'))?.archivedAt).toBeInstanceOf(Date)
   })
 
   it('unarchives by clearing archivedAt and dispatches nothing', async () => {

@@ -42,6 +42,26 @@ export async function v2PodNames(): Promise<V2PodNames> {
  * nobody can reach: resuming a pod looks it up by name, so a name with no live session behind it is
  * dead weight until it is deleted.
  */
+/**
+ * Names whose pod must not be running: nothing live can resume them. A v2 pod whose sessions are all
+ * archived, and a cloud sandbox whose session is archived — archiving parks the pod, and this list
+ * lets the hourly sweep finish the job when that park could not reach it.
+ */
+export async function retirableSandboxNames(): Promise<ReadonlySet<string>> {
+  const names = new Set<string>((await v2PodNames()).retirable)
+  const archived = await db.orm.public.Session.where((session) => session.archivedAt.isNotNull())
+    .select('id')
+    .all()
+  if (archived.length === 0) return names
+  const rows = await db.orm.public.CloudSandbox.where((row) =>
+    row.sessionId.in(archived.map((session) => session.id)),
+  )
+    .select('name')
+    .all()
+  for (const row of rows) names.add(row.name)
+  return names
+}
+
 export async function liveSandboxNames(): Promise<ReadonlySet<string>> {
   const sessions = await db.orm.public.Session.where((session) => session.archivedAt.isNull())
     .select('id')

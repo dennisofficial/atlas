@@ -7,7 +7,10 @@ import { sessionOfThread } from './session-of-thread'
 import { ownedThread } from './ownership'
 import { appendStoredWithin, nextRunId } from './append'
 import { threadsSubscriptions } from './thread-subscriptions'
+import { SandboxesService } from '../sandboxes/sandboxes.service'
+import { parkedOf } from '../sandboxes/sandbox-lifecycle'
 import { TeammateArchiveStopService } from './teammate-archive-stop'
+import { ARCHIVE_PARK_REASON } from './thread-archive-cleanup-run'
 import { ThreadSignalsService } from './thread-signals.service'
 import {
   threadArchiveCleanupIdempotencyKey,
@@ -29,6 +32,8 @@ export class ThreadArchiveService {
     @Optional()
     @Inject(PrSubscriptionLinks)
     private readonly prLinks?: PrSubscriptionLinks,
+    @Optional()
+    private readonly sandboxes?: SandboxesService,
   ) {}
 
   async setArchived(args: { userId: string; threadId: string; archived: boolean }): Promise<void> {
@@ -41,8 +46,26 @@ export class ThreadArchiveService {
     await db.orm.public.Session.where({ id: session.id }).update({ archivedAt })
     this.signals.threadChanged({ threadId })
     if (archivedAt === null) return
+    await this.parkPod({ threadId, sessionId: session.id })
     await this.endSubscriptions({ userId, sessionId: session.id })
     await this.dispatchCleanup({ threadId, archivedAt: archivedAt.toISOString() })
+  }
+
+  /**
+   * An archived session must not keep a sandbox running: it stops here, before the response, and the
+   * cleanup task re-runs the same park as the backstop when this one could not reach the sandbox.
+   */
+  private async parkPod(args: { threadId: string; sessionId: string }): Promise<void> {
+    if (this.sandboxes === undefined) return
+    const row = await db.orm.public.CloudSandbox.first({ sessionId: args.sessionId })
+    if (row === null || parkedOf(row)) return
+    try {
+      await this.sandboxes.park({ row, threadId: args.threadId, reason: ARCHIVE_PARK_REASON })
+    } catch (failure) {
+      this.logger.warn(
+        `parking the pod of archived thread ${args.threadId} failed: ${failureText(failure)}`,
+      )
+    }
   }
 
   /**
