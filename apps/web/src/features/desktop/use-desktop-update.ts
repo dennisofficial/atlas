@@ -13,29 +13,25 @@ import { useIsDesktop } from './use-is-desktop'
 
 export const UPDATE_POLL_MS = 60 * 1000
 export const RESTART_POLL_MS = 2 * 1000
-// A merge publishes a payload every few minutes, so a card for every one is a permanent fixture.
-// After a reload the card stays away this long; the menu's Check for Updates still applies one.
-export const INTERFACE_QUIET_MS = 15 * 60 * 1000
-const RELOADED_AT_KEY = 'atlas.interface.reloaded-at'
+// The interface is expected to move constantly, so the card is only for a person who is looking at
+// it. A payload whose hash has already been applied is never offered twice, and one that arrives
+// while the window is in the background reloads itself.
+const APPLIED_HASH_KEY = 'atlas.interface.applied-hash'
 
-function readReloadedAt(): number | undefined {
+function readAppliedHash(): string | undefined {
   try {
-    const raw = window.localStorage.getItem(RELOADED_AT_KEY)
-    const parsed = raw === null ? Number.NaN : Number(raw)
-    return Number.isFinite(parsed) ? parsed : undefined
+    return window.localStorage.getItem(APPLIED_HASH_KEY) ?? undefined
   } catch {
     return undefined
   }
 }
 
-function rememberReload(): number {
-  const now = Date.now()
+function rememberAppliedHash(hash: string): void {
   try {
-    window.localStorage.setItem(RELOADED_AT_KEY, String(now))
+    window.localStorage.setItem(APPLIED_HASH_KEY, hash)
   } catch {
-    return now
+    undefined
   }
-  return now
 }
 
 export enum EDesktopUpdateKind {
@@ -66,10 +62,11 @@ export function useDesktopUpdate(): DesktopUpdateView {
 
   const restarting = requested || update.state === EDesktopUpdateState.Restarting
   const pollMs = restarting ? RESTART_POLL_MS : UPDATE_POLL_MS
-  const [reloadedAt, setReloadedAt] = useState<number | undefined>(readReloadedAt)
+  const [appliedHash, setAppliedHash] = useState<string | undefined>(readAppliedHash)
+  const interfaceHash = update.web?.hash
   const appReady = update.state !== EDesktopUpdateState.Idle
-  const quiet = reloadedAt !== undefined && Date.now() - reloadedAt < INTERFACE_QUIET_MS
-  const interfaceReady = update.web?.state === EWebPayloadState.Ready && !quiet
+  const interfaceReady =
+    update.web?.state === EWebPayloadState.Ready && interfaceHash !== appliedHash
   const liveKind = appReady
     ? EDesktopUpdateKind.App
     : interfaceReady
@@ -100,9 +97,20 @@ export function useDesktopUpdate(): DesktopUpdateView {
     }
   }, [isDesktop, pollMs])
 
+  useEffect(() => {
+    if (!isDesktop || !interfaceReady || interfaceHash === undefined) return
+    if (typeof document.hasFocus === 'function' && document.hasFocus()) return
+    setAppliedHash(interfaceHash)
+    rememberAppliedHash(interfaceHash)
+    void restartForUpdate().catch(() => undefined)
+  }, [isDesktop, interfaceReady, interfaceHash])
+
   const restart = useCallback(() => {
     setRequestedFor(kind)
-    if (kind === EDesktopUpdateKind.Interface) setReloadedAt(rememberReload())
+    if (kind === EDesktopUpdateKind.Interface && interfaceHash !== undefined) {
+      setAppliedHash(interfaceHash)
+      rememberAppliedHash(interfaceHash)
+    }
     setRequested(true)
     setRequestError(undefined)
     setUpdate((previous) => ({
