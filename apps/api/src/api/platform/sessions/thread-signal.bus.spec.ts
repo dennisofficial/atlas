@@ -11,6 +11,8 @@ import {
   THREAD_SIGNAL_CHANNEL,
 } from './thread-signal.bus'
 
+const EMPTY_COUNTS = { active: 0, inactive: 0, archived: 0 }
+
 const HEAD = { threadId: 'thr_1', frame: { type: EThreadStreamFrame.Head, head: 4 } } as const
 
 describe('InProcessThreadSignalBus', () => {
@@ -156,7 +158,7 @@ describe('RedisThreadSignalBus', () => {
       const detach = attachLiveStream({
         signals,
         userId: 'user',
-        readSnapshot: async () => ({ rows: [], projects: [] }),
+        readSnapshot: async () => ({ rows: [], projects: [], counts: EMPTY_COUNTS }),
         sink: { push: pushed, close: closed },
       })
       try {

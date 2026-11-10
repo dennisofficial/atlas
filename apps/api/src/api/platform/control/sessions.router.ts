@@ -46,6 +46,12 @@ import {
   type SessionWithdrawInput,
   type SessionWithdrawOutput,
 } from '@dltech/atlas-protocol'
+import {
+  sessionPageInputSchema,
+  sessionPageOutputSchema,
+  type SessionPageInput,
+  type SessionPageOutput,
+} from '@dltech/atlas-wire'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
 import { SessionsService } from './sessions.service'
 
@@ -92,6 +98,11 @@ export class SessionsRouter {
     @Ctx() ctx: SessionTrpcCtx,
   ): Promise<SessionArchiveOutput> {
     return this.sessions.archive({ userId: ctx.auth.userId, ...input })
+  }
+
+  @Query({ input: sessionPageInputSchema, output: sessionPageOutputSchema })
+  page(@Input() input: SessionPageInput, @Ctx() ctx: SessionTrpcCtx): Promise<SessionPageOutput> {
+    return this.sessions.page({ userId: ctx.auth.userId, ...input })
   }
 
   @Query({ input: sessionEventsInputSchema, output: sessionEventsOutputSchema })

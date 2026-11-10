@@ -10,6 +10,8 @@ import { InProcessThreadSignalBus } from './thread-signal.bus'
 import { attachLiveStream } from './thread-live-stream'
 import { ThreadSignalsService } from './thread-signals.service'
 
+const EMPTY_COUNTS = { active: 0, inactive: 0, archived: 0 }
+
 class DelayedBus extends InProcessThreadSignalBus {
   readonly acknowledgment = Promise.withResolvers<void>()
   subscriptions = 0
@@ -33,7 +35,7 @@ afterEach(() => {
 function open(args: { bus: DelayedBus }) {
   const signals = new ThreadSignalsService(new DrainStateService(), args.bus)
   const frames: ThreadLiveFrame[] = []
-  const readSnapshot = mock(async () => ({ rows: [], projects: [] }))
+  const readSnapshot = mock(async () => ({ rows: [], projects: [], counts: EMPTY_COUNTS }))
   const close = mock(() => {})
   const detach = attachLiveStream({
     signals,
@@ -62,7 +64,7 @@ describe('live subscription readiness', () => {
 
     expect(readSnapshot).toHaveBeenCalledTimes(1)
     expect(frames).toEqual([
-      { type: EThreadLiveFrame.Snapshot, rows: [], projects: [] },
+      { type: EThreadLiveFrame.Snapshot, rows: [], projects: [], counts: EMPTY_COUNTS },
       { type: EThreadLiveFrame.ProjectRemove, projectId: 'project' },
     ])
   })

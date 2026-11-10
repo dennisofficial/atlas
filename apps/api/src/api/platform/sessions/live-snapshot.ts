@@ -1,19 +1,39 @@
 import { db, type Row } from '@dltech/atlas-db'
-import { wireThreadSchema, type LiveThreadRow, type Project } from '@dltech/atlas-wire'
+import {
+  ESessionBucket,
+  wireThreadSchema,
+  type LiveThreadRow,
+  type Project,
+  type SessionBucketCounts,
+} from '@dltech/atlas-wire'
 import { toProject } from './live-project'
+import { bucketSessions, countsOf, SIDEBAR_BUCKET_LIMIT } from './sidebar-bucket'
 import { enrichThreads } from './thread-enrichment'
 import { withSessions } from './thread-with-session'
 
-export type LiveSnapshot = { rows: LiveThreadRow[]; projects: Project[] }
+export type LiveSnapshot = {
+  rows: LiveThreadRow[]
+  projects: Project[]
+  counts: SessionBucketCounts
+}
 
-export async function liveSnapshot(args: { userId: string }): Promise<LiveSnapshot> {
+export async function liveSnapshot(args: {
+  userId: string
+  now?: number | undefined
+}): Promise<LiveSnapshot> {
   const sessions = await db.orm.public.Session.where({ userId: args.userId })
     .where((session) => session.mainThreadId.isNotNull())
     .orderBy((session) => session.updatedAt.desc())
     .all()
-  const rows = await liveRowsOf({ userId: args.userId, sessions })
+  const buckets = bucketSessions({ sessions, now: args.now ?? Date.now() })
+  const kept = [
+    ...buckets[ESessionBucket.Active],
+    ...buckets[ESessionBucket.Inactive].slice(0, SIDEBAR_BUCKET_LIMIT),
+    ...buckets[ESessionBucket.Archived].slice(0, SIDEBAR_BUCKET_LIMIT),
+  ].sort((left, right) => right.updatedAt.getTime() - left.updatedAt.getTime())
+  const rows = await liveRowsOf({ userId: args.userId, sessions: kept })
   const projects = await listLiveProjects({ userId: args.userId })
-  return { rows, projects }
+  return { rows, projects, counts: countsOf(buckets) }
 }
 
 async function listLiveProjects(args: { userId: string }): Promise<Project[]> {
@@ -23,7 +43,7 @@ async function listLiveProjects(args: { userId: string }): Promise<Project[]> {
   return rows.map((row) => toProject(row))
 }
 
-async function liveRowsOf(args: {
+export async function liveRowsOf(args: {
   userId: string
   sessions: readonly Row<'Session'>[]
 }): Promise<LiveThreadRow[]> {

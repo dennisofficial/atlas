@@ -28,8 +28,10 @@ import {
   type SessionViewOutput,
   type SessionWithdrawOutput,
 } from '@dltech/atlas-protocol'
+import type { SessionPageOutput } from '@dltech/atlas-wire'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { SessionTitler } from '../../../_core/ports/session-titler'
+import { pageSessions, type PageBucket } from '../sessions/session-pages'
 import { COMMAND_REGISTRY, controlCommandHandlers, postCommand } from './command-registry'
 import { MediaRegistry } from './media-registry'
 import { ProjectAccess } from './project-access'
@@ -129,6 +131,16 @@ export class SessionsService {
     return {
       sessions: sessions.map((digest) => sessionSummaryOf({ digest, now })),
     }
+  }
+
+  async page(args: {
+    userId: string
+    bucket: PageBucket
+    cursor?: string | undefined
+    limit?: number | undefined
+    search?: string | undefined
+  }): Promise<SessionPageOutput> {
+    return pageSessions(args)
   }
 
   async post(args: {
