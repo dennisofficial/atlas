@@ -199,18 +199,39 @@ export class GithubSubscriptionsService {
       .where((subscription) => subscription.prNumber.isNotNull())
       .where(subscriptionLiveWhere({ now: new Date() }))
       .all()
-    return cachedPrStates([
-      ...subscriptions.flatMap((subscription) =>
+    const polled = new Set(
+      subscriptions
+        .filter((subscription) => subscription.pollBacked)
+        .map(
+          (subscription) =>
+            `${normalizedRepo(subscription.repoFullName)}#${subscription.prNumber ?? 0}`,
+        ),
+    )
+    if (polled.size === 0)
+      return cachedPrStates(
+        subscriptions.flatMap((subscription) =>
+          subscription.prNumber === null
+            ? []
+            : [{ repoFullName: subscription.repoFullName, prNumber: subscription.prNumber }],
+        ),
+      )
+    const installUrl = this.installNotice.installUrl()
+    const states = await cachedPrStates(
+      subscriptions.flatMap((subscription) =>
         subscription.prNumber === null
           ? []
-          : [
-              {
-                repoFullName: subscription.repoFullName,
-                prNumber: subscription.prNumber,
-              },
-            ],
+          : [{ repoFullName: subscription.repoFullName, prNumber: subscription.prNumber }],
       ),
-    ])
+    )
+    return states.map((state) =>
+      polled.has(`${normalizedRepo(state.repoFullName)}#${state.prNumber}`)
+        ? {
+            ...state,
+            polled: true,
+            ...(installUrl === null ? {} : { pollingInstallUrl: installUrl }),
+          }
+        : state,
+    )
   }
 
   private async ensureAccess(args: {

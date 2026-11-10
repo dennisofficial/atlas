@@ -64,7 +64,6 @@ describe('github sweep scheduler gating', () => {
     const calls: string[] = []
     const scheduler = new GithubSweepSchedulerService(
       { handlePoll: async () => void calls.push('poll') } as never,
-      { handleSweep: async () => void calls.push('run-sweep') } as never,
       { handleSweep: async () => void calls.push('hook-sweep') } as never,
       {} as never,
       {} as never,
@@ -72,6 +71,6 @@ describe('github sweep scheduler gating', () => {
 
     await scheduler.handlePollTick()
 
-    expect(calls).toEqual(['poll', 'run-sweep'])
+    expect(calls).toEqual(['poll'])
   })
 })

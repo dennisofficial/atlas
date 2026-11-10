@@ -18,6 +18,8 @@ import { GithubDeliveryService } from './github-delivery.service'
 import { GithubWebhookInboxService } from './github-webhook-inbox.service'
 import { parseHookRepoParam } from './github-pr-payload'
 import { verifyGithubSignature } from './github-webhook.signature'
+import { handleSupplementaryEvent } from './github-supplementary-events'
+import { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import type { GithubPrWebhookRequest } from './github-webhook.types'
 
 /**
@@ -35,6 +37,7 @@ export class GithubHookController {
     private readonly deliveries: GithubDeliveryService,
     private readonly cipher: SecretCipherService,
     private readonly inbox: GithubWebhookInboxService,
+    private readonly wake: GithubSandboxWakeService,
   ) {}
 
   @Post(':repo')
@@ -73,7 +76,14 @@ export class GithubHookController {
       if (!fresh) return { received: true }
     }
     try {
-      const outcome = await this.deliveries.handle({ event, payload })
+      const supplementary = await handleSupplementaryEvent({
+        event,
+        payload,
+        wake: this.wake,
+      })
+      const outcome = supplementary
+        ? { handled: true }
+        : await this.deliveries.handle({ event, payload })
       if (!outcome.handled)
         this.logger.log(`unhandled github delivery event=${event} repo=${repoFullName}`)
     } catch (failure) {

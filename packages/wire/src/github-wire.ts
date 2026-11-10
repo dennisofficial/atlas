@@ -94,6 +94,8 @@ export const githubPrStateSchema = z.object({
   mergeable: z.boolean().nullable(),
   version: z.number().int(),
   updatedAt: z.string(),
+  polled: z.boolean().optional(),
+  pollingInstallUrl: z.string().optional(),
 })
 export type GithubPrState = z.infer<typeof githubPrStateSchema>
 

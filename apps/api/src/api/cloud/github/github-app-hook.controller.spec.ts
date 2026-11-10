@@ -39,6 +39,7 @@ function controllerWith() {
     {
       keepAlive: (work: Promise<unknown>) => pending.push(work),
     } as unknown as BackgroundWork,
+    { notifyEvent: () => undefined } as never,
   )
   return { controller, unknown, syncNow, settle: () => Promise.all(pending) }
 }

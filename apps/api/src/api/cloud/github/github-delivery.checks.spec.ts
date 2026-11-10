@@ -130,6 +130,7 @@ describe('GithubDeliveryService check rows', () => {
     const { service } = await setupTrackedPr()
 
     expect(HOOK_EVENTS).toContain('status')
+    expect(HOOK_EVENTS).toContain('workflow_run')
     expect(
       await service.handle({
         event: 'status',
