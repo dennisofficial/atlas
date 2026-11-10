@@ -170,7 +170,6 @@ export * from './prompt/context'
 export * from './prompt/fragment'
 export * from './prompt/compiled'
 export * from './prompt/coverage'
-export * from './prompt/model'
 
 export * from './policy/before-tool'
 export * from './policy/concurrency'

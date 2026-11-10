@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
-  CONTEXT_WINDOW_WHEN_THE_MODEL_IS_UNKNOWN,
   ALL_PROMPT_GROUPS,
   ESkipReason,
   PromptFragment,
@@ -15,13 +14,8 @@ import { ConditionalFragment, CountingFragment, SayingFragment, contextFor } fro
 
 const forModel = (modelId: string) => contextFor({ modelId })
 
-const WIDE_CONTEXT = 1_000_000
-
 const OPUS = forModel('claude-opus-5')
-const CODEX = contextFor({
-  modelId: 'gpt-5-codex',
-  model: { contextWindow: 400_000 },
-})
+const INFERENCE = contextFor({ providerId: 'inference', modelId: 'kimi-k3' })
 
 describe('InMemoryPromptRegistry', () => {
   it('compiles the fragments in registration order into one system block', () => {
@@ -80,41 +74,23 @@ describe('InMemoryPromptRegistry', () => {
     expect(compiled.blocks).toEqual([{ text: 'kept' }])
   })
 
-  it('gives one registry two prompts when a fragment conditions on a model trait', () => {
+  it('gives one registry two prompts when a fragment conditions on the provider', () => {
     const registry = new InMemoryPromptRegistry([
       new SayingFragment('identity', 'You are Atlas.'),
       new ConditionalFragment(
-        'wide-context-only',
-        'Advice for a roomy window.',
-        (ctx) => ctx.model.contextWindow >= WIDE_CONTEXT,
+        'anthropic-only',
+        'Advice for an Anthropic model.',
+        (ctx) => ctx.provider.id === 'anthropic-oauth',
       ),
     ])
 
     expect(registry.compile(OPUS).blocks).toEqual([
-      { text: 'You are Atlas.\n\nAdvice for a roomy window.' },
+      { text: 'You are Atlas.\n\nAdvice for an Anthropic model.' },
     ])
-    expect(registry.compile(CODEX).blocks).toEqual([{ text: 'You are Atlas.' }])
-    expect(registry.compile(CODEX).skipped).toEqual([
-      { id: 'wide-context-only', reason: ESkipReason.Condition },
+    expect(registry.compile(INFERENCE).blocks).toEqual([{ text: 'You are Atlas.' }])
+    expect(registry.compile(INFERENCE).skipped).toEqual([
+      { id: 'anthropic-only', reason: ESkipReason.Condition },
     ])
-  })
-
-  it('compiles a context for a model no catalogue holds without throwing', () => {
-    const registry = new InMemoryPromptRegistry([
-      new SayingFragment('identity', 'You are Atlas.'),
-      new ConditionalFragment(
-        'wide-context-only',
-        'Advice for a roomy window.',
-        (ctx) => ctx.model.contextWindow >= WIDE_CONTEXT,
-      ),
-    ])
-
-    const uncatalogued = contextFor({
-      modelId: 'claude-opus-12',
-      model: { contextWindow: CONTEXT_WINDOW_WHEN_THE_MODEL_IS_UNKNOWN },
-    })
-
-    expect(registry.compile(uncatalogued).blocks).toEqual([{ text: 'You are Atlas.' }])
   })
 
   it('refuses two fragments under one id at construction, naming the collision', () => {
@@ -161,10 +137,12 @@ describe('the compile memo', () => {
     const registry = new InMemoryPromptRegistry([counting])
 
     registry.compile(OPUS)
-    registry.compile(CODEX)
+    registry.compile(forModel('claude-haiku-4-6'))
 
     expect(counting.calls).toBe(2)
-    expect(registry.compile(CODEX).blocks).toEqual([{ text: 'compiled for gpt-5-codex' }])
+    expect(registry.compile(forModel('claude-haiku-4-6')).blocks).toEqual([
+      { text: 'compiled for claude-haiku-4-6' },
+    ])
   })
 
   it('recompiles for a different provider under the same modelId', () => {
@@ -189,14 +167,25 @@ describe('the compile memo', () => {
 })
 
 describe('dead prose', () => {
-  const contexts = reachablePromptContexts({
-    groupSets: [ALL_PROMPT_GROUPS, NO_PROMPT_GROUPS],
-    providerIds: ['anthropic-oauth'],
-    projectDirectory: '/w',
-  })
+  const idsThatAreDead = (args: {
+    fragments: readonly PromptFragment[]
+    providerIds: readonly string[]
+  }): readonly string[] =>
+    deadFragmentIds({
+      fragments: args.fragments,
+      contexts: reachablePromptContexts({
+        groupSets: [ALL_PROMPT_GROUPS, NO_PROMPT_GROUPS],
+        providerIds: args.providerIds,
+        projectDirectory: '/w',
+      }),
+    })
 
-  const idsThatAreDead = (fragments: readonly PromptFragment[]): readonly string[] =>
-    deadFragmentIds({ fragments, contexts })
+  const anthropicOnly = (): PromptFragment =>
+    new ConditionalFragment(
+      'anthropic-only',
+      'text',
+      (ctx) => ctx.provider.id === 'anthropic-oauth',
+    )
 
   it('names a fragment no reachable context can ever select', () => {
     const fragments = [
@@ -204,30 +193,18 @@ describe('dead prose', () => {
       new ConditionalFragment('never', 'unreachable', () => false),
     ]
 
-    expect(idsThatAreDead(fragments)).toEqual(['never'])
+    expect(idsThatAreDead({ fragments, providerIds: ['anthropic-oauth'] })).toEqual(['never'])
   })
 
-  it('leaves a fragment alive when one sampled window selects it', () => {
-    const fragments = [
-      new ConditionalFragment(
-        'wide-only',
-        'text',
-        (ctx) => ctx.model.contextWindow >= WIDE_CONTEXT,
-      ),
-    ]
-
-    expect(idsThatAreDead(fragments)).toEqual([])
+  it('leaves a fragment alive when one sampled provider selects it', () => {
+    expect(
+      idsThatAreDead({ fragments: [anthropicOnly()], providerIds: ['anthropic-oauth'] }),
+    ).toEqual([])
   })
 
-  it('samples a window narrow enough to select a fragment written for a small model', () => {
-    const fragments = [
-      new ConditionalFragment(
-        'narrow-only',
-        'text',
-        (ctx) => ctx.model.contextWindow <= CONTEXT_WINDOW_WHEN_THE_MODEL_IS_UNKNOWN,
-      ),
-    ]
-
-    expect(idsThatAreDead(fragments)).toEqual([])
+  it('names a fragment dead when the sample never reaches the provider it is written for', () => {
+    expect(idsThatAreDead({ fragments: [anthropicOnly()], providerIds: ['inference'] })).toEqual([
+      'anthropic-only',
+    ])
   })
 })

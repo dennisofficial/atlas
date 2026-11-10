@@ -31,7 +31,6 @@ const partIdsFor = (groups: readonly EPromptGroup[]): string[] => {
   const ctx: PromptContext = {
     groups,
     provider: { id: 'anthropic-oauth', modelId: 'claude-opus-5' },
-    model: { contextWindow: 1_000_000 },
     projectDirectory: '/w',
   }
   return container

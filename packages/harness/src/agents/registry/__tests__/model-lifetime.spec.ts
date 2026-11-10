@@ -34,7 +34,6 @@ const assemblyFor: ChildRunnerDeps['assemblyFor'] = ({ agentType, model }) =>
         prompts: new InMemoryPromptRegistry([new ProviderLineFragment()]),
         agentType,
         provider: model.identity,
-        model: { contextWindow: 200_000 },
         projectDirectory: LAUNCH,
       }),
     launchDirectory: LAUNCH,

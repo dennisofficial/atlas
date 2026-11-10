@@ -2,13 +2,11 @@ import { ALL_PROMPT_GROUPS, PromptFragment, type PromptContext } from '@dltech/a
 
 export const contextFor = (args: {
   modelId: string
-  model?: PromptContext['model']
   providerId?: string
   projectDirectory?: string
 }): PromptContext => ({
   groups: ALL_PROMPT_GROUPS,
   provider: { id: args.providerId ?? 'anthropic-oauth', modelId: args.modelId },
-  model: args.model ?? { contextWindow: 1_000_000 },
   projectDirectory: args.projectDirectory ?? '/w',
 })
 

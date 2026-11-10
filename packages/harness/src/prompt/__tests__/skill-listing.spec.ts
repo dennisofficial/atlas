@@ -4,6 +4,7 @@ import {
   ALL_PROMPT_GROUPS,
   NO_PROMPT_GROUPS,
   ESkipReason,
+  SKILL_LISTING_BUDGET_CHARS,
   type PromptContext,
 } from '@dltech/atlas-core'
 
@@ -15,7 +16,6 @@ import { FakeSkillRegistry, fakeSkill } from './fake-skills'
 const OPUS: PromptContext = {
   groups: ALL_PROMPT_GROUPS,
   provider: { id: 'anthropic-oauth', modelId: 'claude-opus-5' },
-  model: { contextWindow: 1_000_000 },
   projectDirectory: '/w',
 }
 
@@ -39,7 +39,7 @@ const CORPUS = [
 const fragmentOver = (registry: FakeSkillRegistry): SkillListingFragment =>
   new SkillListingFragment(registry)
 
-const listingOver = (registry: FakeSkillRegistry): string => fragmentOver(registry).text(OPUS)
+const listingOver = (registry: FakeSkillRegistry): string => fragmentOver(registry).text()
 
 describe('the skill listing fragment', () => {
   it('lists a skill the model may invoke', () => {
@@ -73,6 +73,17 @@ describe('the skill listing fragment', () => {
     expect(text).not.toContain('Load the skill that matches your task')
     expect(text).not.toContain('load ui-design')
     expect(text).not.toContain('skill-relevance hint')
+  })
+
+  it('holds the listing inside one flat budget rather than sizing it from a window', () => {
+    const shelf = Array.from({ length: 60 }, (_, at) =>
+      fakeSkill({ name: `skill-${at}`, description: 'w'.repeat(600) }),
+    )
+
+    const text = listingOver(new FakeSkillRegistry({ skills: shelf }))
+
+    expect(text.length).toBeGreaterThan(0)
+    expect(text.length).toBeLessThanOrEqual(SKILL_LISTING_BUDGET_CHARS)
   })
 
   it('emits nothing when no skill is model-invocable', () => {

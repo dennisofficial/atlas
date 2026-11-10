@@ -5,8 +5,6 @@ import {
   NO_PROMPT_GROUPS,
   ESettingId,
   promptContextFor,
-  promptModelOf,
-  contextWindowOf,
   toggleValueOf,
   ClockPort,
   DecisionPort,
@@ -116,7 +114,6 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
       promptContextFor({
         groups: ALL_PROMPT_GROUPS,
         provider: modelPort.identity,
-        model: promptModelOf(models.cardFor(model.choice().ref)),
         projectDirectory,
         placement: executionLocation.current(),
         runner: executionLocation.currentRunner(),
@@ -202,10 +199,6 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
               agentType,
               groups: isTeammateType(agentType.name) ? ALL_PROMPT_GROUPS : NO_PROMPT_GROUPS,
               provider: childModel.identity,
-              model: {
-                contextWindow:
-                  contextWindowOf(childModel) || promptModelOf(undefined).contextWindow,
-              },
               projectDirectory,
               placement: executionLocation.current(),
               runner: executionLocation.currentRunner(),
