@@ -6,6 +6,7 @@ import { failedChecksOf } from './github-failed-checks'
 import { dischargeHeadVerdict, EHeadVerdict } from './github-pr-head-checks'
 import {
   transitionsOf,
+  verdictMergeability,
   type PrTransitionEvent,
   type PrTransitionSnapshot,
 } from './github-pr-event-transitions'
@@ -23,8 +24,9 @@ export type PrTransitionWrites = {
  * discharged through the ledger so a settled read announces once per (head, verdict) however the
  * checks got there — zero→green on an unchanged SHA and a first settled observation included —
  * the fail-fast signal for the first failure of a still-running suite (a timing signal, grouped
- * per user policy), and the non-verdict boundaries (mergeability, state), which still require a
- * prior snapshot: a freshly-tracked PR must not replay the state it already had. Event rows carry
+ * per user policy), and the non-verdict boundaries (a merge conflict, state), which still require a
+ * prior snapshot: a freshly-tracked PR must not replay the state it already had. A PR that turns
+ * mergeable is not one of them — that fact is carried by the green verdict itself. Event rows carry
  * dedupe keys, so a replayed observation whose rows already exist inserts nothing, and a
  * recipientless observation writes no rows and claims no obligation — the next observation with
  * subscribers discharges it.
@@ -64,6 +66,7 @@ export async function deliverPrTransitions(args: {
         verdict,
         headSha: next.headSha,
         settled: true,
+        ...(verdict === EHeadVerdict.Green ? verdictMergeability(next) : {}),
         ...(failedChecks.length === 0 ? {} : { failedChecks }),
       }
       await writes.mailbox.record({

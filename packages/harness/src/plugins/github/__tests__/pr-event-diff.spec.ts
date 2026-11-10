@@ -132,6 +132,18 @@ describe('prEventsOfPoll', () => {
     ])
   })
 
+  it('leaves a pull request turning mergeable with checks to its green verdict', () => {
+    const tally = { running: 0, passed: 3, failed: 0 }
+
+    expect(
+      second(aPullRequest({ mergeable: false, tally }), aPullRequest({ mergeable: true, tally }))
+        .events,
+    ).toEqual([])
+    expect(
+      drafts(second(aPullRequest({ mergeable: false }), aPullRequest({ mergeable: true }))),
+    ).toEqual([expect.objectContaining({ kind: EPrEventKind.Mergeability, mergeable: true })])
+  })
+
   it('emits mergeability on a definite change, never from or to unknown alone', () => {
     const unknown = aPullRequest({ mergeable: null })
 

@@ -67,7 +67,7 @@ describe('v2 session notice for a PR event', () => {
     await seedPrState({ ...FILLED_PR_STATE, checksRunning: 1, checksPassed: 0 })
   }
 
-  it('posts one inbox message naming the PR and the checks tally, with the delivery row as ack', async () => {
+  it('posts one inbox message naming the PR, its checks tally and its mergeability', async () => {
     const { service } = settledGreen()
     await seedWatchedPr()
 
@@ -76,7 +76,7 @@ describe('v2 session notice for a PR event', () => {
     expect(await inboxOf(SESSION)).toEqual([
       {
         kind: INBOX_KIND_MESSAGE,
-        text: 'GitHub: PR #42 (https://github.com/compai/app/pull/42): checks passed (3 passed, 0 failed, 0 running).',
+        text: 'GitHub: PR #42 (https://github.com/compai/app/pull/42): checks passed (3 passed, 0 failed, 0 running), and the PR is mergeable.',
       },
     ])
     const [event] = await prEventRows()

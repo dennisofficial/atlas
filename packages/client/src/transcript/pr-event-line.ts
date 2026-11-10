@@ -75,7 +75,7 @@ const verdictLine = (event: PrEvent): string => {
       ? `${prefix(event)}: a check failed, CI still running`
       : `${prefix(event)}: ${names} failed, CI still running`
   if (event.verdict === EPrVerdict.Failed) return `${prefix(event)}: CI failed`
-  return `${prefix(event)}: CI green`
+  return `${prefix(event)}: CI green${event.mergeable === true ? ', mergeable' : ''}`
 }
 
 const mergeabilityLine = (event: PrEvent): string =>

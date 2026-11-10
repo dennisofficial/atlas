@@ -77,21 +77,21 @@ describe('transitionsOf', () => {
     expect(events).toEqual([])
   })
 
-  it('suppresses the standalone mergeability flip while checks are still running', () => {
+  it('sends a conflict straight away, even while checks are still running', () => {
     const events = transitionsOf({
       prior: runningNoMergeable,
       next: { ...base, checksRunning: 5, checksPassed: 3, checksFailed: 0, mergeable: false },
     })
-    expect(events).toEqual([])
+    expect(kindsOf(events)).toEqual([EPrEventKind.Mergeability])
+    expect(events[0]?.payload.mergeable).toBe(false)
   })
 
-  it('bundles the mergeability flip with the settled green verdict', () => {
+  it('leaves a pull request that turned mergeable to the settled verdict that carries it', () => {
     const events = transitionsOf({
       prior: runningNoMergeable,
       next: { ...base, checksRunning: 0, checksPassed: 10, checksFailed: 0, mergeable: true },
     })
-    expect(kindsOf(events)).toEqual([EPrEventKind.Verdict, EPrEventKind.Mergeability])
-    expect(events[1]?.payload.mergeable).toBe(true)
+    expect(kindsOf(events)).toEqual([EPrEventKind.Verdict])
   })
 
   it('emits mergeability at settle even when the flip resolves to false', () => {
@@ -101,6 +101,22 @@ describe('transitionsOf', () => {
     })
     expect(kindsOf(events)).toEqual([EPrEventKind.Verdict, EPrEventKind.Mergeability])
     expect(events[1]?.payload.mergeable).toBe(false)
+  })
+
+  it('says nothing at all when an already settled pull request turns mergeable', () => {
+    const events = transitionsOf({
+      prior: {
+        state: 'open',
+        headSha: 'abc',
+        checksRunning: 0,
+        checksPassed: 10,
+        checksFailed: 0,
+        checksIgnored: 0,
+        mergeable: null,
+      },
+      next: { ...base, checksRunning: 0, checksPassed: 10, checksFailed: 0, mergeable: true },
+    })
+    expect(events).toEqual([])
   })
 
   it('emits no mergeability event when the settled value stays null', () => {
@@ -149,7 +165,7 @@ describe('transitionsOf', () => {
       next: { ...base, checksRunning: 0, checksPassed: 9, checksFailed: 1, mergeable: true },
       options,
     })
-    expect(kindsOf(settled)).toEqual([EPrEventKind.Verdict, EPrEventKind.Mergeability])
+    expect(kindsOf(settled)).toEqual([EPrEventKind.Verdict])
     expect(settled[0]?.payload.verdict).toBe('failed')
   })
 
