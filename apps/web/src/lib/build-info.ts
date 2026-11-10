@@ -21,12 +21,12 @@ export function versionLines({
 }): string[] {
   const lines: string[] = []
   if (desktopVersion !== null && desktopVersion.length > 0) {
-    lines.push(`Atlas for Mac ${desktopVersion}`)
+    lines.push(`App ${desktopVersion}`)
   }
-  const webParts = [
-    web.version.length > 0 ? `v${web.version}` : '',
+  const interfaceParts = [
+    web.version.length > 0 ? web.version : '',
     web.commit.slice(0, SHORT_SHA_LENGTH),
   ].filter((part) => part.length > 0)
-  if (webParts.length > 0) lines.push(`web ${webParts.join(' · ')}`)
+  if (interfaceParts.length > 0) lines.push(`Interface ${interfaceParts.join(' · ')}`)
   return lines
 }

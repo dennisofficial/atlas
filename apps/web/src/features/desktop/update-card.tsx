@@ -37,11 +37,11 @@ export function updateCopy({
     shown === undefined
       ? kind === EDesktopUpdateKind.Interface
         ? 'A newer build is ready to install'
-        : 'A new version of Atlas is ready'
-      : `Atlas ${shown} is ready to install`
+        : 'A new app build is ready to install'
+      : `${kind === EDesktopUpdateKind.Interface ? 'Interface' : 'App'} ${shown} is ready to install`
   if (kind === EDesktopUpdateKind.Interface)
-    return { title: 'New interface ready', line, action: 'Reload', busy: 'Reloading…' }
-  return { title: 'Update ready', line, action: 'Restart to update', busy: 'Restarting…' }
+    return { title: 'Interface update ready', line, action: 'Reload', busy: 'Reloading…' }
+  return { title: 'App update ready', line, action: 'Restart to update', busy: 'Restarting…' }
 }
 
 export function UpdateCard() {

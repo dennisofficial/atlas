@@ -51,18 +51,18 @@ const mount = async () => {
 }
 
 describe('useVersionLines', () => {
-  it('shows only the web commit outside the Mac app and never asks the host', async () => {
+  it('shows only the interface commit outside the Mac app and never asks the host', async () => {
     const unmount = await mount()
-    expect(document.body.textContent).toBe('web abcdef0')
+    expect(document.body.textContent).toBe('Interface abcdef0')
     expect(calls).toEqual([])
     await unmount()
   })
 
-  it('adds the Mac app version from the desktop host', async () => {
+  it('adds the app version from the desktop host', async () => {
     Reflect.set(window, 'atlasDesktop', {})
     const unmount = await mount()
     expect(calls).toEqual(['/desktop/version'])
-    expect(document.body.textContent).toBe('Atlas for Mac 1.42.0 | web abcdef0')
+    expect(document.body.textContent).toBe('App 1.42.0 | Interface abcdef0')
     await unmount()
   })
 })
