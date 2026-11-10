@@ -21,7 +21,9 @@ export default {
       notarize: false,
       createDmg: false,
       icons: 'icon.iconset',
-      bundleCEF: true,
+      // CEF is off until Hutch stages its helper apps with an Info.plist carrying LSUIElement; without one
+      // each helper claims a Dock tile at every launch. The pane runs on WKWebView either way (see README).
+      bundleCEF: false,
       entitlements: {
         'com.apple.security.cs.allow-jit': true,
         'com.apple.security.cs.allow-unsigned-executable-memory': true,
@@ -32,6 +34,6 @@ export default {
     baseUrl: 'https://github.com/dennisofficial/atlas/releases/latest/download',
     generatePatch: true,
   },
-  scripts: { postWrap: './scripts/post-wrap.ts' },
+  scripts: { postWrap: './scripts/wrapper-autoclose.ts' },
   runtime: { exitOnLastWindowClosed: true },
 } satisfies ElectrobunConfig

@@ -16,9 +16,6 @@
     "scripts/flatten-web-deps.ts",
     "scripts/wrapper-autoclose-plan.ts",
     "scripts/wrapper-autoclose.ts",
-    "scripts/helper-plists-plan.ts",
-    "scripts/helper-plists.ts",
-    "scripts/post-wrap.ts",
     "scripts/__tests__",
     "src/main/__tests__"
   ]
