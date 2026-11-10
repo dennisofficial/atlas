@@ -199,18 +199,39 @@ export class GithubSubscriptionsService {
       .where((subscription) => subscription.prNumber.isNotNull())
       .where(subscriptionLiveWhere({ now: new Date() }))
       .all()
-    return cachedPrStates([
-      ...subscriptions.flatMap((subscription) =>
+    const polled = new Set(
+      subscriptions
+        .filter((subscription) => subscription.pollBacked)
+        .map(
+          (subscription) =>
+            `${normalizedRepo(subscription.repoFullName)}#${subscription.prNumber ?? 0}`,
+        ),
+    )
+    if (polled.size === 0)
+      return cachedPrStates(
+        subscriptions.flatMap((subscription) =>
+          subscription.prNumber === null
+            ? []
+            : [{ repoFullName: subscription.repoFullName, prNumber: subscription.prNumber }],
+        ),
+      )
+    const installUrl = this.installNotice.installUrl()
+    const states = await cachedPrStates(
+      subscriptions.flatMap((subscription) =>
         subscription.prNumber === null
           ? []
-          : [
-              {
-                repoFullName: subscription.repoFullName,
-                prNumber: subscription.prNumber,
-              },
-            ],
+          : [{ repoFullName: subscription.repoFullName, prNumber: subscription.prNumber }],
       ),
-    ])
+    )
+    return states.map((state) =>
+      polled.has(`${normalizedRepo(state.repoFullName)}#${state.prNumber}`)
+        ? {
+            ...state,
+            polled: true,
+            ...(installUrl === null ? {} : { pollingInstallUrl: installUrl }),
+          }
+        : state,
+    )
   }
 
   private async ensureAccess(args: {
@@ -254,6 +275,9 @@ export class GithubSubscriptionsService {
       return remembered
     }
 
+    const cursor = `branch:${args.repoFullName}:${branch}`
+    if ((await this.observations.attempt({ key: cursor })).nextAttemptAt > Date.now())
+      return remembered
     const token = await this.requireToken({ userId: args.userId })
     const found = await this.reads.findOpenPrForBranch({
       source: EGithubCallSource.SubscriptionResolve,
@@ -262,6 +286,7 @@ export class GithubSubscriptionsService {
       repo: args.repo,
       branch,
     })
+    await this.observations.recordAttempt({ key: cursor, failed: found === null })
     return found === null ? remembered : found.number
   }
 

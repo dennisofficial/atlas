@@ -76,6 +76,8 @@ export interface GithubPrStateDto {
   mergeable: boolean | null
   version: number
   updatedAt: string
+  polled?: boolean | undefined
+  pollingInstallUrl?: string | undefined
 }
 
 export type GithubPrStateFields = Omit<

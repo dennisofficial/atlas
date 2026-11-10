@@ -9,7 +9,7 @@ import { GithubUserReads } from './github-user-reads'
 import { GithubService } from './github.service'
 
 export const HOOK_LIVENESS_KEY = 'hook-liveness'
-export const HOOK_LIVENESS_INTERVAL_MS = 15 * 60_000
+export const HOOK_LIVENESS_INTERVAL_MS = 60 * 60_000
 export const HOOK_LIVENESS_PER_PASS = 5
 
 @Injectable()
