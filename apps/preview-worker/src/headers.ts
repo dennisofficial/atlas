@@ -1,6 +1,8 @@
 import { editCsp } from './csp'
 import { rewriteSetCookie } from './cookies'
 
+const NO_STORE = 'no-store'
+
 export function rewriteResponseHeaders(args: {
   headers: Headers
   scriptHash: string | null
@@ -19,5 +21,6 @@ export function rewriteResponseHeaders(args: {
     else next.set('content-security-policy', edited)
   }
   if (dropContentLength) next.delete('content-length')
+  next.set('cache-control', NO_STORE)
   return next
 }
