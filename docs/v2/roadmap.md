@@ -35,10 +35,11 @@ _Updated at the end of every slice. Last update: 2026-11-10._
   at a missing file showed `failed` with its stderr. The live run also found five defects, fixed in
   #2157: `>-` frontmatter descriptions, a skill installed mid-turn that could not be loaded until the
   next turn, MCP config rejections that vanished from the view, instructions arriving a turn late, and
-  a killed server still reading `connected`. **Still open:** both cloud MCP servers answer
-  `needs-auth` — correct for `wispr-flow` (no grant), wrong for `Posthog`, whose active sealed OAuth
-  grant the plugin never reads; wiring it (bearer first, refresh in its own slice) is the next MCP
-  piece.
+  a killed server still reading `connected`. The last gap closed the same day: a cloud row's
+  sealed OAuth grant is now used (#2168), so `Posthog` connects — the roster read `connected` with one
+  tool and `mcp__Posthog__exec` returned live project data — while `wispr-flow` stays `needs-auth`
+  because it holds no grant until the operator signs in from Settings. Refresh of an expired grant is
+  its own slice.
 
 - **Slice 7c built, live check outstanding (2026-11-09)** (`#2116`, `#2121`): `plugins/web` gives a
   v2 session `web_search`, `web_fetch` and `browser` — the search over the operator's backend and
