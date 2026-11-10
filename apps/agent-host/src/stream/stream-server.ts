@@ -28,6 +28,7 @@ export type StreamServerArgs = {
   port: number
   auth: StreamAuthPort
   trustedOrigins: readonly string[]
+  mcpOauthCallback?: ((request: Request) => Promise<Response | null>) | undefined
   eventTypes?: readonly string[] | undefined
   maxConnectionsPerUser?: number
   subscriptions?: SubscriptionPort
@@ -61,13 +62,17 @@ export const startStreamServer = (args: StreamServerArgs): StreamServer => {
 
   const server: Server<StreamSocketData> = Bun.serve<StreamSocketData>({
     port: args.port,
-    fetch: (request, bunServer) => {
+    fetch: async (request, bunServer) => {
       const { pathname } = new URL(request.url)
       if (pathname === '/healthz' && request.method === 'GET') {
         return Response.json(
           { ok: !draining, connections: open.size },
           { status: draining ? 503 : 200 },
         )
+      }
+      if (args.mcpOauthCallback !== undefined) {
+        const answered = await args.mcpOauthCallback(request)
+        if (answered !== null) return answered
       }
       if (pathname !== '/stream') return new Response('not found', { status: 404 })
       if (!isUpgrade(request)) return new Response('upgrade required', { status: 426 })
