@@ -1,7 +1,13 @@
 import { EDefinitionOrigin } from '@dltech/atlas-core'
 import { createDb, createPool, type Db } from '@dltech/atlas-db'
-import { EMcpRejection, type McpCloudRow, type McpRejection } from '@dltech/atlas-plugin-mcp/core'
+import {
+  EMcpRejection,
+  mcpSpecSchema,
+  type McpCloudRow,
+  type McpRejection,
+} from '@dltech/atlas-plugin-mcp/core'
 import type { McpCloudRead, McpConfigPort } from '@dltech/atlas-plugin-mcp/pod'
+import { z } from 'zod'
 
 import { databaseUrlWithTls } from './database-url'
 import { readAgentHostEnv } from './env'
@@ -30,10 +36,52 @@ const rejectionOf = (args: {
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
 
+const grantSchema = z.object({
+  tokens: z.object({
+    accessToken: z.string(),
+    expiresAt: z.string().optional(),
+  }),
+})
+
+type ScopeRow = {
+  name: string
+  sealedSpec: string | null
+  oauthStatus: string | null
+  oauthServerUrl: string | null
+  oauthSealed: string | null
+}
+
+const unsealed = (args: { cipher: SecretCipher; sealed: string }): unknown => {
+  try {
+    return JSON.parse(args.cipher.decrypt(args.sealed))
+  } catch {
+    return undefined
+  }
+}
+
+const accessTokenOf = (args: {
+  cipher: SecretCipher
+  row: ScopeRow
+  spec: unknown
+}): string | undefined => {
+  if (args.row.oauthStatus !== 'active') return undefined
+  const { oauthSealed, oauthServerUrl } = args.row
+  if (oauthSealed === null || oauthServerUrl === null) return undefined
+  const parsed = mcpSpecSchema.safeParse(args.spec)
+  const transport = parsed.success ? parsed.data.transport : undefined
+  if (transport?.kind !== 'http' || transport.url !== oauthServerUrl) return undefined
+
+  const grant = grantSchema.safeParse(unsealed({ cipher: args.cipher, sealed: oauthSealed }))
+  if (!grant.success) return undefined
+  const { accessToken, expiresAt } = grant.data.tokens
+  if (expiresAt !== undefined && Date.parse(expiresAt) <= Date.now()) return undefined
+  return accessToken
+}
+
 const readScope = (args: {
   cipher: SecretCipher
   scope: McpCloudRow['source']
-  rows: readonly { name: string; sealedSpec: string | null }[]
+  rows: readonly ScopeRow[]
 }): McpCloudRead => {
   const rows: McpCloudRow[] = []
   const rejections: McpRejection[] = []
@@ -50,9 +98,12 @@ const readScope = (args: {
       continue
     }
     try {
+      const spec: unknown = JSON.parse(args.cipher.decrypt(row.sealedSpec))
+      const accessToken = accessTokenOf({ cipher: args.cipher, row, spec })
       rows.push({
         source: args.scope,
-        spec: JSON.parse(args.cipher.decrypt(row.sealedSpec)),
+        spec,
+        ...(accessToken === undefined ? {} : { accessToken }),
       })
     } catch (error) {
       rejections.push(

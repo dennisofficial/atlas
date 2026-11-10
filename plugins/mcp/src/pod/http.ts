@@ -43,6 +43,7 @@ export class HttpClient implements McpTransportClient {
     private readonly args: {
       serverId: string
       transport: McpHttpTransport
+      accessToken?: string | undefined
       timeoutMs?: number
     },
   ) {}
@@ -78,8 +79,10 @@ export class HttpClient implements McpTransportClient {
   }
 
   private headers(): Record<string, string> {
+    const token = this.args.accessToken
     return {
       ...(this.args.transport.headers ?? {}),
+      ...(token === undefined ? {} : { authorization: `Bearer ${token}` }),
       'content-type': 'application/json',
       accept: 'application/json, text/event-stream',
       ...(this.sessionId === undefined ? {} : { 'mcp-session-id': this.sessionId }),
