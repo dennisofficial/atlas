@@ -109,10 +109,22 @@ final class BunHost {
         return dev
     }
 
+    static func webServerPath() -> String? {
+        guard let resources = Bundle.main.resourceURL else { return nil }
+        var url = resources.appendingPathComponent("web-standalone", isDirectory: true)
+        url.appendPathComponent("apps/web/server.js", isDirectory: false)
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        return url.path
+    }
+
     static func environment(paneOrigin: String?) -> [String: String] {
         var environment = ProcessInfo.processInfo.environment
         if let paneOrigin {
             environment["ATLAS_PANE_ORIGIN"] = paneOrigin
+        }
+        if let webServer = webServerPath() {
+            environment["ATLAS_WEB_ROOT"] = URL(fileURLWithPath: webServer)
+                .deletingLastPathComponent().path
         }
         return environment
     }

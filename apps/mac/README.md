@@ -5,7 +5,7 @@ macOS client: the apps/web Next build (`output: 'standalone'`) run as a local se
 ## Run on a Mac
 
 1. `bun install` at the repo root.
-2. `cd apps/mac && bun run dev` (release bundle: `bun run build:app`) (builds the web app's standalone server into `web-standalone/`, launches the app).
+2. `cd apps/mac && bun run dev` (the electrobun dev loop) (builds the web app's standalone server into `web-standalone/`, launches the app). `bun run build:app` packs the Swift shell instead, into `build/AtlasShell.app`.
 
 `bun run typecheck` and `bun run test` cover the host and run anywhere. `bun run typecheck:main` checks the Electrobun main process and needs the Hutch devkit.
 
@@ -65,13 +65,16 @@ Pods boot serve at the app's own version (`Updater.getLocalInfo().version`). Onl
 
 ## Branded DMG
 
-Electrobun's own DMG is off (`createDmg: false`); `build:app` ends with `scripts/make-dmg.ts`, which builds `artifacts/macos-arm64-Atlas-<version>.dmg` (when `ATLAS_VERSION` is set, as the release job does) and copies it to the stable `artifacts/macos-arm64-Atlas.dmg` that the app's download button links to, from `build/stable-macos-*/Atlas.app` with `create-dmg` (`brew install create-dmg`) using the background in `assets/dmg/` (`background.svg` is the source; `background.png` and `background@2x.png` are rendered from it with `bunx sharp-cli --density`). With the `ELECTROBUN_DEVELOPER_ID`, `ELECTROBUN_APPLEAPIKEY`, `ELECTROBUN_APPLEAPIISSUER` and `ELECTROBUN_APPLEAPIKEYPATH` env it also signs, notarizes and staples the DMG; under `ATLAS_MAC_UNSIGNED=1` it leaves it unsigned. This DMG submission is the release's only notarization: Apple's acceptance covers the app inside it, which is why `electrobun.config.ts` leaves `notarize` off instead of paying for a second round trip. The trade is that first launch from a freshly downloaded DMG needs the network once, since the app itself carries no stapled ticket; later launches and every update are unaffected. macOS only.
+Electrobun's own DMG is off (`createDmg: false`); `scripts/make-dmg.ts` (no longer part of `build:app`) builds `artifacts/macos-arm64-Atlas-<version>.dmg` (when `ATLAS_VERSION` is set, as the release job does) and copies it to the stable `artifacts/macos-arm64-Atlas.dmg` that the app's download button links to, from `build/stable-macos-*/Atlas.app` with `create-dmg` (`brew install create-dmg`) using the background in `assets/dmg/` (`background.svg` is the source; `background.png` and `background@2x.png` are rendered from it with `bunx sharp-cli --density`). With the `ELECTROBUN_DEVELOPER_ID`, `ELECTROBUN_APPLEAPIKEY`, `ELECTROBUN_APPLEAPIISSUER` and `ELECTROBUN_APPLEAPIKEYPATH` env it also signs, notarizes and staples the DMG; under `ATLAS_MAC_UNSIGNED=1` it leaves it unsigned. This DMG submission is the release's only notarization: Apple's acceptance covers the app inside it, which is why `electrobun.config.ts` leaves `notarize` off instead of paying for a second round trip. The trade is that first launch from a freshly downloaded DMG needs the network once, since the app itself carries no stapled ticket; later launches and every update are unaffected. macOS only.
 
 
-## The Swift shell (slice 1)
+## The Swift shell
 
 `swift/` holds the native shell that replaces electrobun at cutover: window, web view, menus and the
-supervision of the Bun desktop host. It is additive until then — `bun run build:app` still ships the
-electrobun app. `src/desktop-host/index.ts` is the entry the shell spawns: it starts the Next server,
-creates the desktop host and prints `ATLAS_URL=…` for the shell to load. Design:
-`docs/mac-native-shell.md`.
+supervision of the Bun desktop host. `bun run build:app` now packs it: `scripts/pack-shell.ts` builds
+`build/AtlasShell.app` with the shell binary, the Bun runtime, the desktop host bundled to
+`Contents/Resources/app/host.js`, `web-standalone` beside it, and CEF's framework plus its four
+`LSUIElement` helpers under `Contents/Frameworks/`, ad-hoc signed framework → helpers → app.
+`src/desktop-host/index.ts` is the entry the shell spawns: it starts the Next server from
+`Contents/Resources/web-standalone/apps/web`, creates the desktop host and prints `ATLAS_URL=…` for
+the shell to load. Design: `docs/mac-native-shell.md`.

@@ -250,29 +250,26 @@ jobs:
   # packaging still work without touching a secret, so fork PRs run it too and it gates merges.
   # Main pushes skip it: the PR run already proved the merge commit and `mac-release` builds it
   # for real, so a main push never waits on a second macOS runner before releasing. Signing and
-  # notarization happen only in `mac-release`. Hutch builds for the host only, so this runs on
-  # the arm64 mac runner.
+  # notarization happen only in `mac-release`. The shell and its CEF wrappers are arm64 only, so
+  # this runs on the arm64 mac runner.
   # No bun cache on macOS: restoring the ~650 MB archive takes longer than a cold install. The
   # Next cache is restore-only here and saved by `mac-release` on main, so PRs never upload one.
   mac-app-rehearsal:
     if: github.event_name != 'push'
     runs-on: macos-latest
-    timeout-minutes: 30
-    env:
-      ATLAS_MAC_UNSIGNED: '1'
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      # Packaging the app is most of this job's ten minutes, and the Swift shell under apps/mac/swift
-      # is not part of what build:app produces. A change that cannot reach the electrobun bundle or
-      # the web payload skips the build rather than paying for it.
+      # build:app packs the Swift shell, so the Swift sources, the CEF wrapper and the web payload
+      # all reach it. A change that touches none of them skips the build rather than paying for it.
       - name: did this change reach the app
         id: reach
         run: |
           files=$(git diff --name-only "${{ github.event.pull_request.base.sha }}...HEAD")
-          if echo "$files" | grep -qE '^(\.github/|apps/web/|packages/|apps/mac/(src/|scripts/|package\.json|hutch\.config\.ts|electrobun\.config\.ts|tsconfig\.json)|bun\.lock|package\.json)'; then
+          if echo "$files" | grep -qE '^(\.github/|apps/web/|packages/|apps/mac/|bun\.lock|package\.json)'; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
@@ -294,16 +291,26 @@ jobs:
             next-${{ runner.os }}-${{ hashFiles('bun.lock') }}-
             next-${{ runner.os }}-
 
-      - name: restore hutch
+      # Same framework the `mac-cef-spike` job caches, so whichever job runs first pays the download.
+      - uses: actions/cache@v6
         if: steps.reach.outputs.run == 'true'
-        uses: actions/cache@v6
         with:
-          path: ~/.hutch
-          key: hutch-${{ runner.os }}-${{ hashFiles('apps/mac/hutch.config.ts', 'apps/mac/package.json') }}
+          path: apps/mac/swift/.cef
+          key: cef-156.0.26-g8ea0c73-macosarm64-minimal
 
-      - name: install create-dmg
+      - name: fetch CEF
         if: steps.reach.outputs.run == 'true'
-        run: command -v create-dmg >/dev/null || brew install create-dmg
+        run: bun apps/mac/swift/scripts/fetch-cef.ts
+
+      # Package.swift only declares the CEF targets once the framework and this archive are on disk.
+      - name: build the CEF C++ wrapper
+        if: steps.reach.outputs.run == 'true'
+        run: |
+          cmake -S apps/mac/swift/.cef -B apps/mac/swift/.build/cef-wrapper \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 \
+            -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY="$PWD/apps/mac/swift/.build/cef-wrapper/lib"
+          cmake --build apps/mac/swift/.build/cef-wrapper --target libcef_dll_wrapper --parallel 4
 
       - name: build unsigned app
         if: steps.reach.outputs.run == 'true'
@@ -315,15 +322,29 @@ jobs:
         run: bun test src/host/__tests__/built-app.spec.ts
         working-directory: apps/mac
 
+      - name: verify the app is signed for launch from a download
+        if: steps.reach.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          app=build/AtlasShell.app
+          test -x "$app/Contents/MacOS/AtlasShell"
+          test -f "$app/Contents/Resources/web-standalone/apps/web/server.js"
+          test -f "$app/Contents/Resources/app/host.js"
+          test -d "$app/Contents/Frameworks/Chromium Embedded Framework.framework"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          du -sh "$app"
+
       - name: verify no Chromium helper claims a Dock tile
         if: steps.reach.outputs.run == 'true'
         run: |
           set -euo pipefail
           shopt -s nullglob
-          app=$(find build -maxdepth 2 -path 'build/stable-macos-*/*.app' | head -1)
-          if [ -z "$app" ]; then echo "::error::no built app under build/stable-macos-*"; exit 1; fi
+          app=build/AtlasShell.app
           bundles=("$app"/Contents/Frameworks/*.app)
-          if [ "${#bundles[@]}" -eq 0 ]; then echo "the app carries no Chromium helpers"; exit 0; fi
+          if [ "${#bundles[@]}" -ne 4 ]; then
+            echo "::error::expected Chromium's four helpers in $app/Contents/Frameworks, found ${#bundles[@]}"
+            exit 1
+          fi
           for bundle in "${bundles[@]}"; do
             if ! plutil -extract LSUIElement raw "$bundle/Contents/Info.plist" | grep -qx true; then
               echo "::error::$bundle would put its own tile in the Dock; see apps/mac/README.md"
@@ -332,10 +353,18 @@ jobs:
           done
         working-directory: apps/mac
 
-      - name: list artifacts
+      - name: short sha
         if: steps.reach.outputs.run == 'true'
-        run: ls -la artifacts
-        working-directory: apps/mac
+        id: sha
+        run: echo "short=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        if: steps.reach.outputs.run == 'true'
+        with:
+          name: AtlasShell-${{ steps.sha.outputs.short }}-mac-arm64
+          path: apps/mac/build/AtlasShell-*.zip
+          if-no-files-found: error
+          retention-days: 25
 
   # The jobs below spell out `!cancelled()` because an implicit success() also sees transitive
   # needs, so the rehearsal skipped on main pushes would otherwise skip both release jobs.
