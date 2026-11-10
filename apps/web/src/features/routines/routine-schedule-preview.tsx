@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
 
-import { minimumGapMinutes } from '@dltech/atlas-schedule'
 import { FieldDescription } from '@dltech/atlas-ui/components/field'
 
 import { dateAt } from './routine-format'
@@ -9,7 +8,7 @@ import { cronOf, isKnownTimezone, nextOccurrencesOf, scheduleSummaryOf } from '.
 type Preview =
   | { kind: 'unknown-cron' }
   | { kind: 'unknown-timezone' }
-  | { kind: 'ready'; occurrences: readonly string[]; gapMinutes: number }
+  | { kind: 'ready'; occurrences: readonly string[]; runsPerDay: number }
 
 const previewOf = ({ cron, timezone }: { cron: string; timezone: string }): Preview => {
   const parsed = cronOf(cron)
@@ -18,7 +17,7 @@ const previewOf = ({ cron, timezone }: { cron: string; timezone: string }): Prev
   return {
     kind: 'ready',
     occurrences: nextOccurrencesOf({ cron, timeZone: timezone, from: Date.now(), count: 3 }),
-    gapMinutes: minimumGapMinutes(parsed),
+    runsPerDay: parsed.hours.length * parsed.minutes.length,
   }
 }
 
@@ -52,7 +51,9 @@ export function RoutineSchedulePreview({ cron, timezone }: { cron: string; timez
               {dateAt({ iso: occurrence, timeZone: timezone })}
             </p>
           ))}
-          <p className="mt-1.5 text-muted-foreground">minimum gap {preview.gapMinutes} minutes</p>
+          {preview.runsPerDay > 1 ? (
+            <p className="mt-1.5 text-muted-foreground">{preview.runsPerDay} runs a day</p>
+          ) : null}
         </div>
       )}
     </>

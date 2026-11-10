@@ -11,6 +11,7 @@ import { Button } from '@dltech/atlas-ui/components/button'
 
 import { useClock } from '@/features/shell/use-clock'
 import { useV2Sessions } from '@/features/shell/use-v2-sessions'
+import { useModelPicker } from '@/features/threads/data/use-model-picker'
 import { messageOf } from '@/features/threads/data/use-send'
 import { EQueryState } from '@/lib/use-cloud-query'
 
@@ -40,7 +41,13 @@ export function RoutineDetail({ routine }: { routine: Routine }) {
   const runs = useRoutineRuns(routine.routineId)
   const update = useUpdateRoutine()
   const runNow = useRunRoutineNow()
+  const models = useModelPicker()
   const [editOpen, setEditOpen] = useState(false)
+  const modelLabel =
+    routine.model === null
+      ? 'Account default'
+      : (models.options.models.find((option) => option.id === routine.model)?.label ??
+        routine.model)
   const state = routineStateOf({ routine, sessionState })
   const running = isRoutineSessionLive(sessionState) && routine.lastSessionId !== null
 
@@ -102,7 +109,15 @@ export function RoutineDetail({ routine }: { routine: Routine }) {
             </Fact>
             <Fact label="Project">{routine.projectId}</Fact>
             <Fact label="Model">
-              <span className="font-mono text-xs">{routine.model ?? 'account default'}</span>
+              {modelLabel}
+              {routine.effort === null ? null : (
+                <span className="ml-1.5 text-xs text-muted-foreground">
+                  {routine.effort} effort
+                </span>
+              )}
+              {routine.fast === true ? (
+                <span className="ml-1.5 text-xs text-muted-foreground">fast</span>
+              ) : null}
             </Fact>
           </dl>
 

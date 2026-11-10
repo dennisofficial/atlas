@@ -21,12 +21,13 @@ import {
 import { useModelPicker } from '@/features/threads/data/use-model-picker'
 import { fetchProjects } from '@/features/threads/data/threads-api'
 import { messageOf } from '@/features/threads/data/use-send'
+import { ModelPickerControls } from '@/features/threads/model-picker'
 import { PROJECTS_KEY } from '@/lib/cloud-keys'
 import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 
 import { useCreateRoutine, useRemoveRoutine, useUpdateRoutine } from './data/routines-api'
-import { draftOf, type RoutineDraft } from './routine-draft'
-import { RoutineSchedulePreview } from './routine-schedule-preview'
+import { cronOfDraft, draftOf, modelPatchOf, type RoutineDraft } from './routine-draft'
+import { RoutineScheduleField } from './routine-schedule-field'
 
 const LABEL = 'flex flex-col gap-1.5 text-sm font-medium'
 const CONTROL =
@@ -60,9 +61,9 @@ function RoutineForm({
     const body = {
       name: draft.name.trim(),
       prompt: draft.prompt,
-      cron: draft.cron.trim(),
+      cron: cronOfDraft(draft),
       timezone: draft.timezone.trim(),
-      model: draft.model === '' ? null : draft.model,
+      ...modelPatchOf(draft.selection),
     }
     try {
       if (routine === undefined) {
@@ -95,8 +96,6 @@ function RoutineForm({
       .catch((error: unknown) => setFailure(messageOf(error)))
   }
 
-  const modelOptions = models.options.models.filter((option) => option.disabled !== true)
-
   return (
     <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
@@ -128,47 +127,24 @@ function RoutineForm({
           </NativeSelect>
         </Field>
 
-        <div className="flex flex-col gap-1.5">
-          <Field>
-            <FieldLabel htmlFor="routine-cron">Schedule</FieldLabel>
-            <Input
-              id="routine-cron"
-              className="font-mono"
-              value={draft.cron}
-              onChange={(event) => patch({ cron: event.target.value })}
-              required
-              maxLength={120}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="routine-timezone">Timezone</FieldLabel>
-            <Input
-              id="routine-timezone"
-              className="font-mono"
-              value={draft.timezone}
-              onChange={(event) => patch({ timezone: event.target.value })}
-              required
-              maxLength={80}
-            />
-          </Field>
-          <RoutineSchedulePreview cron={draft.cron.trim()} timezone={draft.timezone.trim()} />
-        </div>
+        <h2 className="text-xs font-medium text-muted-foreground">Schedule</h2>
+        <RoutineScheduleField
+          fields={draft.schedule}
+          timezone={draft.timezone}
+          onFieldsChange={(schedule) => patch({ schedule })}
+          onTimezoneChange={(timezone) => patch({ timezone })}
+        />
 
         <Field>
-          <FieldLabel htmlFor="routine-model">Model</FieldLabel>
-          <NativeSelect
-            id="routine-model"
-            className="w-full"
-            value={draft.model}
-            onChange={(event) => patch({ model: event.target.value })}
-          >
-            <NativeSelectOption value="">Account default</NativeSelectOption>
-            {modelOptions.map((option) => (
-              <NativeSelectOption key={option.id} value={option.id}>
-                {option.label}
-              </NativeSelectOption>
-            ))}
-          </NativeSelect>
+          <FieldLabel>Model</FieldLabel>
+          <ModelPickerControls
+            picker={models}
+            selection={draft.selection}
+            onSelectionChange={(selection) => patch({ selection })}
+          />
+          <FieldDescription>
+            Account default follows your model setting at the moment each run starts.
+          </FieldDescription>
         </Field>
 
         <label className={LABEL} htmlFor="routine-prompt">

@@ -30,6 +30,6 @@ describe('RoutineSchedulePreview', () => {
     )
     expect(html).toContain('Every 15 minutes · Europe/London')
     expect(html).toContain('Next three runs')
-    expect(html).toContain('minimum gap 15 minutes')
+    expect(html).toContain('96 runs a day')
   })
 })
