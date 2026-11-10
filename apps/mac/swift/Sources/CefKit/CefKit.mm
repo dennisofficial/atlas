@@ -1,7 +1,11 @@
 #import "CefKit.h"
 
 #include <atomic>
+#include <climits>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
+#include <sys/stat.h>
 
 #include "include/capi/cef_app_capi.h"
 #include "include/capi/cef_browser_capi.h"
@@ -119,6 +123,16 @@ BOOL AtlasCefInitialize(int argc, char *argv[]) {
   settings.external_message_pump = 1;
   settings.no_sandbox = 1;
   settings.log_severity = LOGSEVERITY_INFO;
+
+  const char *home = getenv("HOME");
+  char cache_path[PATH_MAX];
+  char log_path[PATH_MAX];
+  snprintf(cache_path, sizeof(cache_path), "%s/Library/Application Support/CefPaneSpike",
+           home != NULL ? home : "/tmp");
+  snprintf(log_path, sizeof(log_path), "%s/cef.log", cache_path);
+  mkdir(cache_path, 0700);
+  settings.root_cache_path = cef_string_from_utf8(cache_path);
+  settings.log_file = cef_string_from_utf8(log_path);
 
   int result = cef_initialize(&main_args, &settings, NULL, NULL);
   NSLog(@"cef: initialize result=%d", result);
