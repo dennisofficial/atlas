@@ -120,7 +120,10 @@ final class PaneController {
 
     private func makePane(url: String, rect: PaneRect) -> NSView? {
         #if CEF
-        let view = CefPaneView(frame: container.bounds, url: url)
+        guard let view = CefPaneView(frame: container.bounds, url: url) else {
+            Log.write("pane: the CEF view did not initialise")
+            return nil
+        }
         container.addSubview(view)
         Log.write("pane: browser view created at \(rect.x),\(rect.y) \(rect.width)x\(rect.height)")
         return view
