@@ -24,6 +24,7 @@ import {
   isBuiltInSkillName,
   cloudMissing,
   deleteSchema,
+  elsewhereOf,
   descriptionOf,
   editSchema,
   installSchema,
@@ -81,6 +82,17 @@ export class SkillInstallTool extends SchemaTool<typeof installSchema> {
     }
 
     if (this.options.writes === undefined) return cloudMissing()
+    const elsewhere = elsewhereOf({
+      catalogue: await catalogueFor({
+        ctx: this.ctx,
+        state: this.state,
+        cloud: this.options.cloud,
+        directory: projectDirectory,
+      }),
+      name: input.name,
+      layer: input.layer,
+    })
+    if (elsewhere !== undefined) return { ok: false, reason: elsewhere }
     const result = await this.options.writes.write({
       scope,
       name: input.name,
@@ -138,6 +150,8 @@ export class SkillEditTool extends SchemaTool<typeof editSchema> {
         cloud: this.options.cloud,
         directory: projectDirectory,
       })
+      const elsewhere = elsewhereOf({ catalogue, name: input.name, layer: input.layer })
+      if (elsewhere !== undefined) return { ok: false, reason: elsewhere }
       const found = catalogue?.skills.find(
         (skill) => skill.name === input.name && skill.origin === ESkillOrigin.Repo,
       )
@@ -163,6 +177,17 @@ export class SkillEditTool extends SchemaTool<typeof editSchema> {
     }
 
     if (this.options.writes === undefined) return cloudMissing()
+    const elsewhere = elsewhereOf({
+      catalogue: await catalogueFor({
+        ctx: this.ctx,
+        state: this.state,
+        cloud: this.options.cloud,
+        directory: projectDirectory,
+      }),
+      name: input.name,
+      layer: input.layer,
+    })
+    if (elsewhere !== undefined) return { ok: false, reason: elsewhere }
     const result = await this.options.writes.write({
       scope,
       name: input.name,
@@ -222,6 +247,8 @@ export class SkillDeleteTool extends SchemaTool<typeof deleteSchema> {
         cloud: this.options.cloud,
         directory: projectDirectory,
       })
+      const elsewhere = elsewhereOf({ catalogue, name: input.name, layer: input.layer })
+      if (elsewhere !== undefined) return { ok: false, reason: elsewhere }
       const found = catalogue?.skills.find(
         (skill) => skill.name === input.name && skill.origin === ESkillOrigin.Repo,
       )
@@ -243,6 +270,17 @@ export class SkillDeleteTool extends SchemaTool<typeof deleteSchema> {
     }
 
     if (this.options.writes === undefined) return cloudMissing()
+    const elsewhere = elsewhereOf({
+      catalogue: await catalogueFor({
+        ctx: this.ctx,
+        state: this.state,
+        cloud: this.options.cloud,
+        directory: projectDirectory,
+      }),
+      name: input.name,
+      layer: input.layer,
+    })
+    if (elsewhere !== undefined) return { ok: false, reason: elsewhere }
     const result = await this.options.writes.remove({ scope, name: input.name })
     if (!result.ok) return { ok: false, reason: result.reason }
     forgetCatalogue(this.state)
