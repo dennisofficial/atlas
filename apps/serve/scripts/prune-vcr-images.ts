@@ -168,13 +168,16 @@ async function main(): Promise<number> {
   const token = process.env.VERCEL_TOKEN
   const teamId = process.env.VERCEL_TEAM_ID
   const projectId = process.env.VERCEL_PROJECT_ID
-  if (!token || !teamId || !projectId) {
-    console.error('VERCEL_TOKEN, VERCEL_TEAM_ID and VERCEL_PROJECT_ID are required')
+  const project = process.env.VERCEL_PROJECT_NAME
+  if (!token || !teamId || !projectId || !project) {
+    console.error(
+      'VERCEL_TOKEN, VERCEL_TEAM_ID, VERCEL_PROJECT_ID and VERCEL_PROJECT_NAME are required',
+    )
     return 2
   }
   const api = 'https://api.vercel.com'
   const repository = 'atlas-sandbox'
-  const scope = { api, token, teamId, projectId, repository, project: 'atlas-web' }
+  const scope = { api, token, teamId, projectId, repository, project }
 
   const [images, sandboxes] = await Promise.all([listAllImages(scope), listAllSandboxes(scope)])
   const plan = planPrune({ images, sandboxes })
