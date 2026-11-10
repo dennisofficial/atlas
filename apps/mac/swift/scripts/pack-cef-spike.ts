@@ -108,7 +108,7 @@ async function assembly(): Promise<void> {
       await helperPlist(helper.name, helper.id),
     )
     await symlink(
-      '../../Chromium Embedded Framework.framework',
+      '../../../Chromium Embedded Framework.framework',
       join(helperBundle, 'Contents', 'Frameworks', 'Chromium Embedded Framework.framework'),
     )
   }
