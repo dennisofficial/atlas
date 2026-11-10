@@ -7,7 +7,9 @@ export const paneTargetIdOf = (args: { threadId: string; tabId: string }): strin
 
 const PROBE_TIMEOUT_MS = 2000
 
-async function post(command: PaneCommand, signal?: AbortSignal): Promise<Response | null> {
+type PaneRequest = PaneCommand & { id?: string }
+
+async function post(command: PaneRequest, signal?: AbortSignal): Promise<Response | null> {
   try {
     return await fetch(PANE_PATH, {
       method: 'POST',
