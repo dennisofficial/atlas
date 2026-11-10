@@ -1,13 +1,17 @@
-import type { Pool } from '@dltech/atlas-db'
+import { createDb, type Pool } from '@dltech/atlas-db'
 import type { LogPort } from '@dltech/atlas-observability'
 import { eventTypesOf } from '@dltech/atlas-plugin-sdk'
 
 import type { AgentHostEnv } from '../config/env'
+import { SecretCipher } from '../config/secret-cipher'
+import { mcpOauthCallbackOf } from '../mcp-oauth'
 import { registeredPlugins } from '../registered-plugins'
 import { createPgStreamAuth } from '../stream/pg-stream-auth'
 import type { SubscriptionPort } from '../stream/subscription-port'
 import { startStreamServer, type StreamServer } from '../stream/stream-server'
 import { systemHostTimers } from '../stream/system-timers'
+
+const WEB_ORIGIN_FALLBACK = 'https://byatlas.io'
 
 export type StreamServiceArgs = {
   env: AgentHostEnv
@@ -29,6 +33,11 @@ export class StreamService {
 
   start(startArgs: StreamStartArgs): StreamServer {
     const server = startStreamServer({
+      mcpOauthCallback: mcpOauthCallbackOf({
+        db: createDb(this.args.pool),
+        cipher: new SecretCipher(this.args.env.secretsEncryptionKey),
+        webOrigin: this.args.env.trustedOrigins[0] ?? WEB_ORIGIN_FALLBACK,
+      }),
       port: this.args.env.port,
       auth: createPgStreamAuth({ pool: this.args.pool }),
       subscriptions: startArgs.subscriptions,
