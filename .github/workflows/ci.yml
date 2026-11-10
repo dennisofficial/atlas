@@ -670,6 +670,17 @@ jobs:
           bun run pack:host
           npx electron-builder --mac dmg --arm64 --publish never -c.extraMetadata.version="$VERSION"
 
+      # A verification or upload that fails after the build should still leave a signed build to
+      # install by hand, which is how the Electron app reached a Mac before this job could sign one.
+      - name: keep the dmg for a hand install
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: AtlasElectron-${{ github.sha }}-mac-arm64
+          path: apps/mac-electron/release/*.dmg
+          if-no-files-found: ignore
+          retention-days: 14
+
       # An installed app that refuses to launch looks like a signing bug long after this run, so the
       # nested runtime is checked here: deep verification plus the runtime flag bun must carry.
       - name: verify the electron signature
@@ -678,10 +689,7 @@ jobs:
           app=$(find apps/mac-electron/release -maxdepth 2 -name '*.app' -type d | head -1)
           [ -n "$app" ] || { echo "::error::no .app in apps/mac-electron/release"; exit 1; }
           codesign --verify --deep --strict --verbose=2 "$app"
-          codesign -dv "$app/Contents/Resources/bin/bun" 2>&1 | tee "$RUNNER_TEMP/bun-signature.txt"
-          grep -q 'flags=0x10000(runtime)' "$RUNNER_TEMP/bun-signature.txt" || { echo "::error::the bun runtime is not signed with the hardened runtime"; exit 1; }
-          grep -q 'Authority=Developer ID Application' "$RUNNER_TEMP/bun-signature.txt" || { echo "::error::the bun runtime is not Developer ID signed"; exit 1; }
-          codesign -d --entitlements :- "$app/Contents/Resources/bin/bun" 2>/dev/null | grep -q 'com.apple.security.cs.allow-jit' || { echo "::error::the bun runtime cannot use the JIT"; exit 1; }
+          bun apps/mac-electron/scripts/verify-signature.ts "$app"
           shasum -a 256 apps/mac-electron/release/*.dmg
 
       - name: upload the electron app to the release
