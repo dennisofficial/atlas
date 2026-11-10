@@ -12,7 +12,6 @@ import {
   type IdPort,
   type ModelPort,
   type ProviderIdentity,
-  type ThreadId,
   type ToolDeclaration,
 } from '@dltech/atlas-core'
 
@@ -59,8 +58,6 @@ export type BuildHarnessArgs = {
   ids?: IdPort | undefined
   onChunk?: ChunkFilter | undefined
   hooks?: HookChain | undefined
-  compact?: ((args: { threadId: ThreadId }) => Promise<boolean>) | undefined
-  autoCompactAtPercent?: (() => number) | undefined
   launchDirectory?: string | undefined
   watchLoop?: LoopWatch | undefined
   expandContext?: TurnDeps['expandContext']
@@ -104,10 +101,6 @@ export async function buildHarness(args: BuildHarnessArgs): Promise<AtlasHarness
     applyLoopCut: createLoopCut({ log, registry, clock, ids }),
     ...(args.watchLoop === undefined ? {} : { watchLoop: args.watchLoop }),
     ...(args.expandContext === undefined ? {} : { expandContext: args.expandContext }),
-    ...(args.compact === undefined ? {} : { compact: args.compact }),
-    ...(args.autoCompactAtPercent === undefined
-      ? {}
-      : { autoCompactAtPercent: args.autoCompactAtPercent }),
   }
 
   return {

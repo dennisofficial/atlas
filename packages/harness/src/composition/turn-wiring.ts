@@ -14,7 +14,6 @@ import {
   IdPort,
   QualityReviewPort,
   rangeValueOf,
-  type ThreadId,
 } from '@dltech/atlas-core'
 
 import { ActivityTurnRunner } from '../activity/activity-turn-runner'
@@ -50,7 +49,6 @@ import { ThreadStorePort } from '../store/thread-store'
 import { turnUploadDeps } from '../uploads/turn-upload-deps'
 import { ToolDispatcher } from '../tools/dispatch'
 
-import { compactTurn, ECompaction } from './compact-turn'
 import { createTurnPolicyRunner } from './turn-policy-runner'
 import type { TurnPolicy } from '../loop/turn-policy'
 import { LocalRewindMachinery } from '../store/local-rewind-machinery'
@@ -94,17 +92,6 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
   const agents = container.resolve(registeredPortToken(AgentRegistryPort))
   const services = container.resolve(registeredPortToken(ServiceRegistryPort))
   const waitState = container.resolve(ModelWaitStateToken)
-
-  const compactBeforeOverflow = async ({ threadId }: { threadId: ThreadId }): Promise<boolean> => {
-    const compaction = await compactTurn({
-      log,
-      threads,
-      agents,
-      threadId,
-      summarise: args.summarise,
-    })
-    return compaction.type === ECompaction.Compacted
-  }
 
   const { intake, recordTeardownEndings } = bindIntake({
     pending,
@@ -165,7 +152,6 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
       clock: container.resolve(registeredPortToken(ClockPort)),
       telemetry: container.resolve(registeredPortToken(TelemetryPort)),
     },
-    compact: compactBeforeOverflow,
     applyLoopCut: createLoopCut({
       log,
       registry: container.resolve(SessionRegistryToken),

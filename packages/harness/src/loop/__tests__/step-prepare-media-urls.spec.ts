@@ -74,7 +74,6 @@ const imagesSent = async (found: boolean) => {
           found ? { found: true, downloadUrl: SIGNED, size: 8 } : { found: false },
       }),
       onContext: undefined,
-      compact: async () => false,
     },
     {
       threadId,
