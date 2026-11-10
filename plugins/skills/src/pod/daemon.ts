@@ -56,6 +56,52 @@ export const directoryOf = async (args: {
   return { ok: true, value: answer.value.value }
 }
 
+export const mkdirOf = async (args: {
+  ctx: Ctx
+  path: string
+  signal?: AbortSignal | undefined
+}): Promise<DaemonCall<null>> => {
+  const answer = await run({
+    ctx: args.ctx,
+    signal: args.signal,
+    op: { op: 'mkdir', path: args.path },
+  })
+  if (!answer.ok) return answer
+  if (answer.value.op !== 'mkdir') return { ok: false, reason: WRONG_ANSWER }
+  return { ok: true, value: null }
+}
+
+export const writeTextOf = async (args: {
+  ctx: Ctx
+  path: string
+  content: string
+  signal?: AbortSignal | undefined
+}): Promise<DaemonCall<null>> => {
+  const answer = await run({
+    ctx: args.ctx,
+    signal: args.signal,
+    op: { op: 'writeFile', path: args.path, content: args.content },
+  })
+  if (!answer.ok) return answer
+  if (answer.value.op !== 'writeFile') return { ok: false, reason: WRONG_ANSWER }
+  return { ok: true, value: null }
+}
+
+export const removeOf = async (args: {
+  ctx: Ctx
+  path: string
+  signal?: AbortSignal | undefined
+}): Promise<DaemonCall<null>> => {
+  const answer = await run({
+    ctx: args.ctx,
+    signal: args.signal,
+    op: { op: 'remove', path: args.path },
+  })
+  if (!answer.ok) return answer
+  if (answer.value.op !== 'remove') return { ok: false, reason: WRONG_ANSWER }
+  return { ok: true, value: null }
+}
+
 export const textOf = async (args: {
   ctx: Ctx
   path: string

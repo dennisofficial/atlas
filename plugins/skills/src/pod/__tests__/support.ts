@@ -10,7 +10,13 @@ import {
 import { ECallStatus, type CallOp, type CallResult } from '@dltech/atlas-protocol'
 
 import { skillsPodOf } from '..'
-import type { CloudSkillEntry, CloudSkillSource, CloudSkillText } from '../port'
+import type {
+  CloudSkillBody,
+  CloudSkillEntry,
+  CloudSkillSource,
+  CloudSkillText,
+  CloudSkillWriter,
+} from '../port'
 
 export type FakeNode =
   | { kind: 'file'; text: string }
@@ -68,6 +74,28 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
         }))
       return ok(op.op, entries)
     }
+    if (op.op === 'mkdir') {
+      const segments = op.path.split('/').filter((part) => part !== '')
+      for (let index = 1; index <= segments.length; index += 1) {
+        const path = `/${segments.slice(0, index).join('/')}`
+        const node = nodes[path]
+        if (node !== undefined && node.kind !== 'dir')
+          return failed(op.op, `not a directory: ${path}`)
+        nodes[path] = { kind: 'dir' }
+      }
+      return ok(op.op, null)
+    }
+    if (op.op === 'writeFile') {
+      const parent = dirname(op.path)
+      if (nodes[parent]?.kind !== 'dir') return failed(op.op, `no such directory: ${parent}`)
+      nodes[op.path] = { kind: 'file', text: op.content }
+      return ok(op.op, null)
+    }
+    if (op.op === 'remove') {
+      for (const path of Object.keys(nodes))
+        if (path === op.path || path.startsWith(`${op.path}/`)) delete nodes[path]
+      return ok(op.op, null)
+    }
     if (op.op === 'readFile') {
       const real = targetOf(op.path)
       const node = real === undefined ? undefined : nodes[real]
@@ -108,8 +136,11 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
     log: () => undefined,
   }
 
-  return { ctx, calls }
+  return { ctx, calls, nodes }
 }
+
+const bodyAt = (text: string | undefined): CloudSkillBody | null =>
+  text === undefined ? null : { text, revision: 1, hash: `h-${text.length}` }
 
 export const fakeCloud = (args: {
   entries: readonly CloudSkillEntry[]
@@ -120,19 +151,37 @@ export const fakeCloud = (args: {
   return {
     entries: () => args.entries,
     frontmatter: async () => args.frontmatter ?? [],
-    text: async (entry) => texts[`${entry.scope}:${entry.name}`] ?? null,
-    file: async (entry, path) => texts[`${entry.scope}:${entry.name}:${path}`] ?? null,
+    body: async (entry) => bodyAt(texts[`${entry.scope}:${entry.name}`]),
+    file: async (entry, path) => bodyAt(texts[`${entry.scope}:${entry.name}:${path}`]),
+  }
+}
+
+export const fakeWrites = (): CloudSkillWriter & { calls: string[] } => {
+  const calls: string[] = []
+  return {
+    calls,
+    write: async (request) => {
+      calls.push(
+        `write ${request.scope}:${request.name}:${request.path}:${String(request.baseRevision)}`,
+      )
+      return { ok: true, revision: request.baseRevision === null ? 1 : request.baseRevision + 1 }
+    },
+    remove: async (request) => {
+      calls.push(`remove ${request.scope}:${request.name}`)
+      return { ok: true, revision: 0 }
+    },
   }
 }
 
 export const invoke = async (args: {
   ctx: PluginPodContext
   cloud: CloudSkillSource
+  writes?: CloudSkillWriter | undefined
   name: string
   input: unknown
   projectDirectory?: string
 }) => {
-  const tool = skillsPodOf({ cloud: args.cloud })
+  const tool = skillsPodOf({ cloud: args.cloud, writes: args.writes })
     .tools?.(args.ctx)
     .find((candidate) => candidate.name === args.name)
   if (tool === undefined) throw new Error(`no tool ${args.name}`)
@@ -151,9 +200,10 @@ export const textOf = (outcome: Awaited<ReturnType<typeof invoke>>): string =>
 export const turn = async (args: {
   ctx: PluginPodContext
   cloud: CloudSkillSource
+  writes?: CloudSkillWriter | undefined
   projectDirectory?: string
 }): Promise<readonly string[]> => {
-  const pod = skillsPodOf({ cloud: args.cloud })
+  const pod = skillsPodOf({ cloud: args.cloud, writes: args.writes })
   const hooks = pod.hooks?.(args.ctx)
   for (const hook of hooks?.beforeTurn ?? [])
     await hook.run({

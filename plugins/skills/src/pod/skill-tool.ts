@@ -15,6 +15,7 @@ import type { SkillCatalogue } from './catalogue'
 import { catalogueFor } from './catalogue-source'
 import { textOf } from './daemon'
 import type { SkillsPodOptions } from './hooks'
+import type { CloudSkillBody } from './port'
 import type { SkillsPodState } from './state'
 import type { BuiltInFile } from './builtin-files'
 import type {
@@ -180,44 +181,55 @@ export class SkillTool extends SchemaTool<typeof inputSchema> {
         reason: `"${args.path}" is a ${binary.binary} file in the ${args.skill.name} skill, so it cannot be read as text`,
       }
 
-    const text = await this.bundledText({ skill: args.skill, path: args.path })
-    if (text === null)
+    const bundled = await this.bundledText({ skill: args.skill, path: args.path })
+    if (bundled === null)
       return {
         ok: false,
         reason: `the ${args.skill.name} skill bundles no readable file at "${args.path}"`,
       }
     return {
       ok: true,
-      output: { name: args.skill.name, path: args.path, text },
-      modelText: text,
+      output: {
+        name: args.skill.name,
+        path: args.path,
+        text: bundled.text,
+        revision: bundled.revision,
+        hash: bundled.hash,
+      },
+      modelText: bundled.text,
     }
   }
 
-  private async bundledText(args: { skill: CatalogueSkill; path: string }): Promise<string | null> {
+  private async bundledText(args: {
+    skill: CatalogueSkill
+    path: string
+  }): Promise<CloudSkillBody | null> {
     if (isCloudSkill(args.skill))
       return await this.options.cloud.file(cloudEntryOf(args.skill), args.path)
     if (isBuiltInSkill(args.skill)) {
       const found = args.skill.files.find(
         (file) => !isBinaryFile(file) && file.path.toLowerCase() === args.path.toLowerCase(),
       )
-      return found === undefined || isBinaryFile(found) ? null : found.text
+      return found === undefined || isBinaryFile(found)
+        ? null
+        : { text: found.text, revision: 0, hash: '' }
     }
     if (!isRepoSkill(args.skill)) return null
 
     const read = await textOf({ ctx: this.ctx, path: join(args.skill.directory, args.path) })
-    return read.ok ? read.value : null
+    return read.ok ? { text: read.value, revision: 0, hash: '' } : null
   }
 
   private async loadBody(args: {
     skill: CatalogueSkill
     arguments: string | undefined
   }): Promise<ToolOutcome> {
-    const text = await this.skillText(args.skill)
-    if (text === null)
+    const loaded = await this.skillText(args.skill)
+    if (loaded === null)
       return { ok: false, reason: `the ${args.skill.name} skill's text could not be read` }
 
     const argumentText = args.arguments?.trim() ?? ''
-    const body = expandSkillBody({ body: skillBodyOf(text), argumentText })
+    const body = expandSkillBody({ body: skillBodyOf(loaded.text), argumentText })
     const note = noteOf(args.skill)
     return {
       ok: true,
@@ -227,17 +239,19 @@ export class SkillTool extends SchemaTool<typeof inputSchema> {
         path: entryPathOf(args.skill),
         text: body,
         argumentText,
+        revision: loaded.revision,
+        hash: loaded.hash,
       },
       modelText: note === '' ? body : `${note}\n\n${body}`,
     }
   }
 
-  private async skillText(skill: CatalogueSkill): Promise<string | null> {
-    if (isBuiltInSkill(skill)) return skill.text
+  private async skillText(skill: CatalogueSkill): Promise<CloudSkillBody | null> {
+    if (isBuiltInSkill(skill)) return { text: skill.text, revision: 0, hash: '' }
     if (isRepoSkill(skill)) {
       const read = await textOf({ ctx: this.ctx, path: skill.entryPath })
-      return read.ok ? read.value : null
+      return read.ok ? { text: read.value, revision: 0, hash: '' } : null
     }
-    return await this.options.cloud.text(cloudEntryOf(skill))
+    return await this.options.cloud.body(cloudEntryOf(skill))
   }
 }
