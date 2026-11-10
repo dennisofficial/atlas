@@ -39,6 +39,14 @@ Electrobun's CEF artifact is roughly 150 MB compressed and several hundred MB in
 that carries it is therefore a full download — there is nothing to delta against — and releases after it
 patch as usual, because the pinned Chromium is byte-identical between them.
 
+Electrobun initializes CEF at launch whenever the bundle carries it, so Chromium's GPU process starts even
+when the pane runs on WKWebView. Hutch stages each helper as `Contents/Frameworks/bun Helper*.app` with no
+`Info.plist`, so every helper registers as a foreground app and puts a `bun Helper` tile in the Dock.
+`scripts/post-wrap.ts` writes an `Info.plist` with `LSUIElement` into each helper bundle before Hutch signs
+the wrapper (`scripts/helper-plists-plan.ts` builds it, `scripts/wrapper-autoclose.ts` keeps its
+`LSEnvironment` edit there). Hutch runs `postWrap` for release wrappers only, so `electrobun dev` still
+shows the tiles.
+
 ## Updates
 
 Two paths, so a change to the interface never waits on a signed app build.

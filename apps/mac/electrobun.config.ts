@@ -32,6 +32,6 @@ export default {
     baseUrl: 'https://github.com/dennisofficial/atlas/releases/latest/download',
     generatePatch: true,
   },
-  scripts: { postWrap: './scripts/wrapper-autoclose.ts' },
+  scripts: { postWrap: './scripts/post-wrap.ts' },
   runtime: { exitOnLastWindowClosed: true },
 } satisfies ElectrobunConfig
