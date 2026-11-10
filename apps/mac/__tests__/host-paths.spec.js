@@ -41,14 +41,14 @@ describe('resolveHostScript', () => {
   test('takes the bundled host before the dev entry', () => {
     const resources = join(root, 'Resources')
     touch(join(resources, 'app', 'host.js'))
-    const appRoot = join(root, 'apps', 'mac-electron')
+    const appRoot = join(root, 'apps', 'mac')
     touch(join(appRoot, '..', 'mac', 'src', 'desktop-host', 'index.ts'))
     const script = resolveHostScript({ env: {}, resourcesPath: resources, appRoot })
     expect(script).toBe(join(resources, 'app', 'host.js'))
   })
 
   test('falls back to the source checkout', () => {
-    const appRoot = join(root, 'apps', 'mac-electron')
+    const appRoot = join(root, 'apps', 'mac')
     const dev = join(appRoot, '..', 'mac', 'src', 'desktop-host', 'index.ts')
     touch(dev)
     const script = resolveHostScript({ env: {}, resourcesPath: join(root, 'none'), appRoot })
@@ -56,7 +56,7 @@ describe('resolveHostScript', () => {
   })
 
   test('names the path it could not find', () => {
-    const appRoot = join(root, 'apps', 'mac-electron')
+    const appRoot = join(root, 'apps', 'mac')
     const missing = join(appRoot, '..', 'mac', 'src', 'desktop-host', 'index.ts')
     expect(() => resolveHostScript({ env: {}, resourcesPath: undefined, appRoot })).toThrow(
       HostMissingError,

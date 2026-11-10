@@ -5,9 +5,8 @@ import { writeSupervisorBundle } from '../../../packages/harness/src/shells/supe
 
 const APP_ROOT = resolve(import.meta.dir, '..')
 const REPO_ROOT = resolve(APP_ROOT, '..', '..')
-const MAC_ROOT = join(REPO_ROOT, 'apps', 'mac')
-const HOST_ENTRY = join(MAC_ROOT, 'src', 'desktop-host', 'index.ts')
-export const WEB_STANDALONE = join(MAC_ROOT, 'web-standalone')
+const HOST_ENTRY = join(APP_ROOT, 'src', 'desktop-host', 'index.ts')
+export const WEB_STANDALONE = join(APP_ROOT, 'web-standalone')
 export const DIST = join(APP_ROOT, 'dist')
 const STREAM_URL = 'wss://agent.byatlas.io/stream'
 
@@ -49,11 +48,11 @@ export async function buildWebStandalone({ bun, root = REPO_ROOT, standalone = W
   })
   await run({
     args: [bun, 'scripts/flatten-web-deps.ts', 'web-standalone'],
-    cwd: join(root, 'apps', 'mac'),
+    cwd: APP_ROOT,
   })
   await run({
     args: [bun, 'scripts/drop-native-web-deps.ts', 'web-standalone'],
-    cwd: join(root, 'apps', 'mac'),
+    cwd: APP_ROOT,
   })
   mkdirSync(join(standalone, 'apps', 'web', '.next'), { recursive: true })
   cpSync(

@@ -40,4 +40,4 @@ mac:
         - arm64
 dmg:
   title: Atlas ${version}
-  artifactName: Atlas-${version}-mac-arm64.dmg
+  artifactName: macos-arm64-Atlas.dmg
