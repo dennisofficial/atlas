@@ -8,6 +8,7 @@
 #include "include/cef_app.h"
 #include "include/cef_browser.h"
 #include "include/cef_client.h"
+#include "include/cef_frame.h"
 #include "include/cef_life_span_handler.h"
 #include "include/cef_load_handler.h"
 
@@ -100,6 +101,49 @@ BOOL AtlasCefInitialize(int argc, char *argv[]) {
 
 void AtlasCefDoMessageLoopWork(void) {
   CefDoMessageLoopWork();
+}
+
+static CefRefPtr<CefBrowser> PaneBrowser() {
+  if (g_client.get() == nullptr) return nullptr;
+  return g_client->browser();
+}
+
+BOOL AtlasCefNavigate(const char *url) {
+  if (url == NULL) return NO;
+  CefRefPtr<CefBrowser> browser = PaneBrowser();
+  if (browser.get() == nullptr) return NO;
+  CefRefPtr<CefFrame> frame = browser->GetMainFrame();
+  if (frame.get() == nullptr) return NO;
+  frame->LoadURL(CefString(url));
+  return YES;
+}
+
+BOOL AtlasCefBack(void) {
+  CefRefPtr<CefBrowser> browser = PaneBrowser();
+  if (browser.get() == nullptr) return NO;
+  browser->GoBack();
+  return YES;
+}
+
+BOOL AtlasCefForward(void) {
+  CefRefPtr<CefBrowser> browser = PaneBrowser();
+  if (browser.get() == nullptr) return NO;
+  browser->GoForward();
+  return YES;
+}
+
+BOOL AtlasCefReload(void) {
+  CefRefPtr<CefBrowser> browser = PaneBrowser();
+  if (browser.get() == nullptr) return NO;
+  browser->Reload();
+  return YES;
+}
+
+BOOL AtlasCefStop(void) {
+  CefRefPtr<CefBrowser> browser = PaneBrowser();
+  if (browser.get() == nullptr) return NO;
+  browser->StopLoad();
+  return YES;
 }
 
 @implementation CefPaneView

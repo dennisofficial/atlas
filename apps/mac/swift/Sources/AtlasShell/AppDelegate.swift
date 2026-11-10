@@ -1,16 +1,27 @@
 import AppKit
+#if CEF
+import CefKit
+#endif
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var window: MainWindow?
     private var host: BunHost?
+    private var pane: PaneController?
+    private var routes: PaneRoutes?
+    private var pump: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Log.write("shell launched")
         Menus.install(reloadTarget: self)
+        startCef()
         do {
-            let host = BunHost()
+            let pane = PaneController()
+            let routes = try PaneRoutes { pane.apply($0) }
+            self.pane = pane
+            self.routes = routes
+            let host = BunHost(paneOrigin: routes.origin)
             self.host = host
-            let window = MainWindow(url: try host.start())
+            let window = MainWindow(url: try host.start(), pane: pane)
             self.window = window
             window.show()
             Log.write("window shown")
@@ -20,7 +31,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        stopPump()
+        routes?.stop()
         host?.stop()
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        stopPump()
+        // CEF 156 sends AppKit's -isHandlingSendEvent, dropped in macOS 27, so the process exits without CefShutdown.
+        return .terminateNow
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -29,6 +48,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func reloadPage(_ sender: Any?) {
         window?.reload()
+    }
+
+    private func startCef() {
+        #if CEF
+        let childExitCode = AtlasCefExecuteProcess(CommandLine.argc, CommandLine.unsafeArgv)
+        if childExitCode >= 0 {
+            exit(childExitCode)
+        }
+        guard AtlasCefInitialize(CommandLine.argc, CommandLine.unsafeArgv) else {
+            Log.write("cef: initialize failed, the pane stays inert")
+            return
+        }
+        let pump = Timer(timeInterval: 1.0 / 60.0, repeats: true) { _ in
+            AtlasCefDoMessageLoopWork()
+        }
+        RunLoop.main.add(pump, forMode: .common)
+        self.pump = pump
+        #else
+        Log.write("cef: not built into this shell, the pane stays inert")
+        #endif
+    }
+
+    private func stopPump() {
+        pump?.invalidate()
+        pump = nil
     }
 
     private func fail(_ error: Error) {

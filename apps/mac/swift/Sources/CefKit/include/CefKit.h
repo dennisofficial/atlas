@@ -11,6 +11,16 @@ BOOL AtlasCefInitialize(int argc, char * _Nullable argv[]);
 
 void AtlasCefDoMessageLoopWork(void);
 
+BOOL AtlasCefNavigate(const char * _Nullable url);
+
+BOOL AtlasCefBack(void);
+
+BOOL AtlasCefForward(void);
+
+BOOL AtlasCefReload(void);
+
+BOOL AtlasCefStop(void);
+
 #ifdef __cplusplus
 }
 #endif
