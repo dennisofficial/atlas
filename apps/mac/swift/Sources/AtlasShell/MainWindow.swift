@@ -13,7 +13,12 @@ final class MainWindow {
         // strip once it sees this bridge; the electrobun host provided the same object.
         configuration.userContentController.addUserScript(
             WKUserScript(
-                source: "window.atlasDesktop = {}",
+                // A stock titlebar sits above the web UI, so the traffic lights are not over it: the
+                // web app's own header keeps its height but drops the inset it reserves for them.
+                source: """
+                window.atlasDesktop = {}
+                document.documentElement.style.setProperty('--desktop-traffic-lights-inset', '0px')
+                """,
                 injectionTime: .atDocumentStart,
                 forMainFrameOnly: true
             )
@@ -24,13 +29,12 @@ final class MainWindow {
         self.shell = shell
         window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1280, height: 820),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
         )
         window.title = "Atlas"
         window.titleVisibility = .hidden
-        window.titlebarAppearsTransparent = true
         window.minSize = NSSize(width: 720, height: 480)
         window.maxSize = NSSize(
             width: CGFloat.greatestFiniteMagnitude,
