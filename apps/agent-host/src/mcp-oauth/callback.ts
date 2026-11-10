@@ -1,7 +1,7 @@
 import type { Db } from '@dltech/atlas-db'
 
 import type { SecretCipher } from '../config/secret-cipher'
-import { callbackRedirectOf, DEFAULT_RETURN_TO } from './redirect'
+import { callbackAnswerOf, DEFAULT_RETURN_TARGET, type CallbackAnswer } from './redirect'
 import { sealJson, unsealJson } from './seal'
 import { serverUrlOf } from './server-url'
 import { guardedFetch, type HostResolver } from './ssrf'
@@ -9,6 +9,7 @@ import { McpOauthStore } from './store'
 import { exchangeAuthorizationCode } from './token'
 import {
   sealedPendingSchema,
+  type McpReturnTarget,
   type McpServerGrantRow,
   type OAuthFetch,
   type PendingRow,
@@ -27,8 +28,13 @@ export type McpOauthCallbackArgs = {
   resolveHost?: HostResolver | undefined
 }
 
-const redirect = (location: string): Response =>
-  new Response(null, { status: 302, headers: { location } })
+const respond = (answer: CallbackAnswer): Response =>
+  answer.kind === 'redirect'
+    ? new Response(null, { status: 302, headers: { location: answer.location } })
+    : new Response(answer.html, {
+        status: 200,
+        headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' },
+      })
 
 const ownsRow = async (args: {
   store: McpOauthStore
@@ -50,11 +56,24 @@ export const mcpOauthCallbackOf = (args: McpOauthCallbackArgs) => {
     resolveHost: args.resolveHost,
   })
 
+  const targetOf = (pending: PendingRow | null): McpReturnTarget => {
+    if (pending === null) return DEFAULT_RETURN_TARGET
+    try {
+      return unsealJson({
+        cipher: args.cipher,
+        sealed: pending.sealed,
+        schema: sealedPendingSchema,
+      }).returnTarget
+    } catch {
+      return { surface: pending.surface, screen: DEFAULT_RETURN_TARGET.screen }
+    }
+  }
+
   const failedOf = (pending: PendingRow | null) => (reason: string, serverUrl?: string) =>
-    redirect(
-      callbackRedirectOf({
+    respond(
+      callbackAnswerOf({
         webOrigin: args.webOrigin,
-        returnTo: pending?.returnTo ?? DEFAULT_RETURN_TO,
+        target: targetOf(pending),
         serverUrl: serverUrl ?? pending?.serverUrl,
         reason,
       }),
@@ -94,10 +113,10 @@ export const mcpOauthCallbackOf = (args: McpOauthCallbackArgs) => {
       sealed: sealJson({ cipher: args.cipher, value: grant }),
     })
     return written
-      ? redirect(
-          callbackRedirectOf({
+      ? respond(
+          callbackAnswerOf({
             webOrigin: args.webOrigin,
-            returnTo: pending.returnTo,
+            target: sealed.returnTarget,
             serverUrl: pending.serverUrl,
           }),
         )

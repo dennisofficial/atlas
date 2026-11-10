@@ -2,6 +2,7 @@ import {
   EStreamClose,
   parseServerMessage,
   STREAM_PROTOCOL_VERSION,
+  type EStreamSurface,
   type StreamServerMessage,
 } from '@dltech/atlas-protocol'
 
@@ -111,7 +112,11 @@ const connect = (state: ConnectionState): ConnectionStep => {
   }
 }
 
-const socketOpened = (args: { state: ConnectionState; token: string }): ConnectionStep => {
+const socketOpened = (args: {
+  state: ConnectionState
+  token: string
+  surface?: EStreamSurface | undefined
+}): ConnectionStep => {
   if (args.state.phase !== EStreamConnectionState.Connecting) return stay(args.state)
   return {
     state: { ...args.state, phase: EStreamConnectionState.Authenticating },
@@ -122,6 +127,7 @@ const socketOpened = (args: { state: ConnectionState; token: string }): Connecti
           type: 'hello',
           v: STREAM_PROTOCOL_VERSION,
           token: args.token,
+          ...(args.surface === undefined ? {} : { surface: args.surface }),
         },
       },
     ],

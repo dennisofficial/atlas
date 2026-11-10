@@ -20,6 +20,7 @@ const sessionRow = () => ({
   spawnedBySessionId: null,
   podSessionId: null,
   podRetiredAt: null,
+  lastSurface: 'web',
 })
 
 describe('v2 namespace client', () => {

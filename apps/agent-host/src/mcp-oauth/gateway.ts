@@ -7,7 +7,7 @@ import { oauthClientFor } from './client'
 import { discoverOauthEndpoints } from './discovery'
 import { OAuthError } from './errors'
 import { generatePkce } from './pkce'
-import { DEFAULT_RETURN_TO } from './redirect'
+import { returnPathOf } from './redirect'
 import { normalizeServerUrl, sealJson, unsealJson } from './seal'
 import { serverUrlOf } from './server-url'
 import { guardedFetch, SsrfRejectedError, type HostResolver } from './ssrf'
@@ -20,6 +20,7 @@ import {
   type McpOauthBeginArgs,
   type McpOauthGateway,
   type McpOauthGrant,
+  type McpOauthServerRef,
   type McpServerGrantRow,
   type OAuthFetch,
   type OAuthTokens,
@@ -105,6 +106,7 @@ export class McpOauthService implements McpOauthGateway {
         clientInfo,
         tokenEndpoint: found.tokenEndpoint,
         redirectUri: this.redirectUri,
+        returnTarget: args.returnTarget,
         ...(found.authMethods === undefined ? {} : { authMethods: found.authMethods }),
         ...(found.resource === undefined ? {} : { resource: found.resource }),
       }
@@ -114,7 +116,8 @@ export class McpOauthService implements McpOauthGateway {
         userId: args.userId,
         serverUrl,
         sealed: sealJson({ cipher: this.args.cipher, value: pending }),
-        returnTo: DEFAULT_RETURN_TO,
+        returnTo: returnPathOf(args.returnTarget.screen),
+        surface: args.returnTarget.surface,
         expiresAt,
         mcpServerId: resolved.row.id,
       })
@@ -138,7 +141,7 @@ export class McpOauthService implements McpOauthGateway {
     }
   }
 
-  async refresh(args: McpOauthBeginArgs): Promise<McpOauthGrant> {
+  async refresh(args: McpOauthServerRef): Promise<McpOauthGrant> {
     const resolved = await this.rowFor(args)
     if (!resolved.ok) return resolved
     for (let pass = 0; pass < REFRESH_PASSES; pass += 1) {
@@ -159,9 +162,10 @@ export class McpOauthService implements McpOauthGateway {
   }
 
   private async rowFor(
-    args: McpOauthBeginArgs,
+    args: McpOauthServerRef,
   ): Promise<{ ok: true; row: McpServerGrantRow } | { ok: false; reason: string }> {
     if (args.source === 'repo') {
+      if (args.projectId === undefined) return { ok: false, reason: 'mcp server not found' }
       const row = await this.store.touchRepoServer({
         projectId: args.projectId,
         name: args.name,
@@ -170,12 +174,16 @@ export class McpOauthService implements McpOauthGateway {
       })
       return { ok: true, row }
     }
+    const scoped =
+      args.projectId === undefined
+        ? null
+        : await this.store.findByName({
+            projectId: args.projectId,
+            source: 'cloud',
+            name: args.name,
+          })
     const row =
-      (await this.store.findByName({
-        projectId: args.projectId,
-        source: 'cloud',
-        name: args.name,
-      })) ??
+      scoped ??
       (await this.store.findByName({ userId: args.userId, source: 'cloud', name: args.name }))
     return row === null ? { ok: false, reason: 'mcp server not found' } : { ok: true, row }
   }

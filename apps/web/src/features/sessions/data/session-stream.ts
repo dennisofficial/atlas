@@ -6,7 +6,9 @@ import {
   type SessionCache,
   type StreamConnection,
 } from '@dltech/atlas-client/stream'
+import { EStreamSurface } from '@dltech/atlas-protocol'
 
+import { isDesktopHost } from '@/features/desktop/desktop-attributes'
 import { AuthApiError } from '@/lib/auth-api'
 import { sharedQueryClient } from '@/lib/query-client'
 import { SESSION_QUERY_KEY } from '@/lib/use-session-query'
@@ -41,6 +43,7 @@ export function sessionStream(): StreamConnection {
   if (connection !== undefined) return connection
   connection = createStreamConnection({
     url: process.env.ATLAS_STREAM_URL ?? '',
+    surface: isDesktopHost(window) ? EStreamSurface.Desktop : EStreamSurface.Web,
     getToken: tokenSourceOf({ fetchToken: fetchStreamToken, onSignedOut: handleSignedOut }),
     socket: browserStreamSocket,
     scheduler: systemStreamScheduler,
