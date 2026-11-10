@@ -16,7 +16,9 @@ transcript, that finishes the sign-in — no token typed into the chat and none 
 2. The same works for a server only the repo names (a `.mcp.json` or `.atlas/mcp.json` entry with no
    cloud row): the tool starts the flow for that entry, and after approval the entry connects.
 3. A grant that expires is refreshed by the session itself, with no second operator action.
-4. Nothing in the transcript, the session events or the sandbox holds an access or refresh token.
+4. A repo-declared server's grant sits on its `source = 'repo'` row, keyed by `(userId, 'repo', name)`
+   with its `repoUrl`, and Settings lists it beside the cloud rows.
+5. Nothing in the transcript, the session events or the sandbox holds an access or refresh token.
 
 ## 1. What exists today
 
@@ -35,6 +37,10 @@ transcript, that finishes the sign-in — no token typed into the chat and none 
   answers `needs-auth`, and nothing in v2 can change that.
 - **The pod cannot ask a human anything mid-call.** There is no elicitation seam: `operator_input`
   waits on the same missing piece ([07c](07c-native-tools.md) §).
+- **v1 already models a repo server as a row.** `public.McpServer.source` is `cloud | repo`; a repo row
+  carries `repoUrl` and `lastSeenAt` instead of a sealed spec, and its grant is sealed onto that same
+  row by the OAuth store (`touchRepoServer`, `writeGrant`). What v2 lacks is only the read of those
+  rows and a way to create one.
 - **The tables are there.** `public.McpServer` already carries `oauthStatus`, `oauthServerUrl`,
   `oauthSealed`, `oauthGeneration`, `oauthRefreshAttempt`, `oauthRefreshStartedAt` and
   `oauthUpdatedAt`; `public.McpOauthPending` holds a sealed in-flight flow keyed by user and server
@@ -69,22 +75,27 @@ authorization code + PKCE with a redirect URI, not device codes, and a paste pat
 seam this slice does not build. If a needed server turns out to be device-code only, that is a
 follow-up.
 
-## 3. Grant home — the decision this slice turns on
+## 3. Where a grant lives — already decided by v1's table
 
-A cloud row is the natural home: the columns exist, Settings already lists the row as signed in, the
-host already reads it, and every session of that user reuses it.
+There is no new decision to make here: the table already carries repo-scoped servers.
+`public.McpServer.source` is `cloud | repo` (`packages/db/src/prisma/schema/user-config/mcp-server.prisma`),
+keyed by `(userId, source, name)` and `(projectId, source, name)`, so a repo entry and a cloud row may
+share a name. A repo row is defined by its URL rather than by a spec — the check constraint
+`McpServer_fields_by_source` requires `repoUrl IS NOT NULL AND lastSeenAt IS NOT NULL` exactly when
+`source = 'repo'` — and the grant columns are the same ones, so a repo server's grant lives on its repo
+row (`prisma-mcp-oauth.store.ts:136-168` `touchRepoServer`, `:169` `writeGrant`).
 
-For a **repo-only server** there is no row. Two options:
-- **Create a user-scope `McpServer` row on first sign-in** (recommended). It appears in Settings beside
-  the others, can be disconnected there, and every future session — repo or not — reuses the grant.
-  The cost is that a repo file silently adds a cloud row, so the row should record that a session
-  created it.
-- **Keep grants out of Settings** in a table keyed by (userId, projectId, name, url). Cleaner in theory,
-  but it is a second place to show, revoke and refresh, and the precedence rules would have to learn
-  about it.
-
-Repo entries are read fresh each turn, so a grant created for one is used from the next turn without any
-copying: the entry keeps its own definition and only borrows the credential.
+What this slice adds on the v2 side is only that reading:
+- **The host reads both sources.** `apps/agent-host/src/config/mcp-servers.ts` filters
+  `source: 'cloud'` today; it also selects `source: 'repo'` rows for the user and the project, and the
+  plugin matches them to the repo entry by name and `repoUrl`, so a repo entry keeps its own definition
+  (command, headers, disabled stub) and takes only the credential from the row.
+- **Signing in touches the row.** A repo entry with no row gets one the way v1 creates it
+  (`touchRepoServer`: `repoUrl` = the entry's URL, `lastSeenAt` = now, id `rmcp_…`), then the grant is
+  sealed onto it; a later load bumps `lastSeenAt` when it is stale, so a row nothing has seen is
+  identifiable and sweepable.
+- **Settings stays one list.** A repo-signed-in server appears there beside the cloud rows, marked by
+  its `repo` source, and disconnect works on the same row.
 
 ## 4. Refresh
 
@@ -120,10 +131,8 @@ request answers 401, the host refreshes it against `tokenEndpoint` and seals the
 
 ## 7. Open questions
 
-1. **Grant home for a repo-only server**: a user-scope `McpServer` row (recommended) or a separate
-   grants table? The row reuses everything; a table keeps Settings clean.
-2. **Callback host**: a route on the agent host (recommended, it owns the flow) or a static render of
+1. **Callback host**: a route on the agent host (recommended, it owns the flow) or a static render of
    the same route on every host instance — it is a GET with a sealed state, so any instance can take
    it, provided the pending row is in Postgres rather than in memory.
-3. **What the tool shows when no flow can start** (an unreachable authorization server, a provider that
+2. **What the tool shows when no flow can start** (an unreachable authorization server, a provider that
    refuses dynamic registration): a refusal naming the reason, never a link that cannot complete.
