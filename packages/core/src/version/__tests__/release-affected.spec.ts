@@ -52,8 +52,9 @@ describe('affectedApps', () => {
     expect(affected(['apps/tui/src/app.tsx'])).toEqual(['apps/tui'])
   })
 
-  it('marks web affected by a change in a package it depends on', () => {
-    expect(affected(['packages/ui/src/button.tsx'])).toEqual(['apps/web'])
+  it('ships no release for a change only the web payload carries', () => {
+    expect(affected(['apps/web/src/app/page.tsx'])).toEqual([])
+    expect(affected(['packages/ui/src/button.tsx'])).toEqual([])
   })
 
   it('marks every app reaching a deep dependency', () => {
