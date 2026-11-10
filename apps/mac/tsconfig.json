@@ -2,6 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "include": [
     "src/host",
+    "src/desktop-host",
     "src/main/vibrancy.ts",
     "src/main/preload.ts",
     "src/main/crash-log.ts",
