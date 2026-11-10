@@ -36,12 +36,6 @@ func cefTargets() -> [Target] {
             cSettings: [.headerSearchPath("../../.cef"), .unsafeFlags(["-std=c++20"])],
             cxxSettings: [.headerSearchPath("../../.cef"), .unsafeFlags(["-std=c++20"])]
         ),
-        .executableTarget(
-            name: "CefPaneSpike",
-            dependencies: ["CefKit"],
-            path: "Sources/CefPaneSpike",
-            linkerSettings: cefLinkerSettings()
-        ),
     ]
 }
 

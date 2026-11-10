@@ -573,15 +573,18 @@ jobs:
       - name: test the Swift shell
         run: swift test --package-path apps/mac/swift
 
-  mac-cef-spike:
+  # The throwaway CefPaneSpike app proved CEF loads in a signed bundle on macOS (2026-11-10). The shell
+  # owns the pane now, so this is compile coverage until cutover packages the shell with CEF's helper
+  # processes, which is when a launch assertion can return against the real app.
+  mac-cef-build:
     runs-on: macos-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: did this change reach the CEF spike
+      - name: did this change reach the CEF binding
         id: reach
         run: |
           base="${{ github.event.pull_request.base.sha || github.event.before }}"
@@ -593,7 +596,7 @@ jobs:
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
-            echo "no change here reaches the CEF spike; nothing to build"
+            echo "no change here reaches the CEF binding; nothing to build"
           fi
 
       - uses: oven-sh/setup-bun@v2.2.0
@@ -618,39 +621,6 @@ jobs:
             -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY="$PWD/apps/mac/swift/.build/cef-wrapper/lib"
           cmake --build apps/mac/swift/.build/cef-wrapper --target libcef_dll_wrapper --parallel 4
 
-      - name: build the CEF spike
+      - name: build the shell against CEF
         if: steps.reach.outputs.run == 'true'
         run: swift build -c release --package-path apps/mac/swift
-
-      - name: pack the app
-        if: steps.reach.outputs.run == 'true'
-        run: bun apps/mac/swift/scripts/pack-cef-spike.ts
-
-      - name: launch the packed app and wait for the load to end
-        if: steps.reach.outputs.run == 'true'
-        run: |
-          app="apps/mac/swift/.build/cef-spike/CefPaneSpike.app/Contents/MacOS/CefPaneSpike"
-          log="$RUNNER_TEMP/spike.log"
-          "$app" https://example.com > "$log" 2>&1 &
-          pid=$!
-          for _ in $(seq 1 60); do
-            grep -q "cef: load end status=" "$log" && break
-            sleep 1
-          done
-          kill "$pid" 2>/dev/null || true
-          pkill -f CefPaneSpike 2>/dev/null || true
-          cat "$log"
-          grep -q "cef: load end status=200" "$log"
-
-      - name: short sha
-        if: steps.reach.outputs.run == 'true'
-        id: sha
-        run: echo "short=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/upload-artifact@v4
-        if: steps.reach.outputs.run == 'true'
-        with:
-          name: CefPaneSpike-${{ steps.sha.outputs.short }}-mac-arm64
-          path: apps/mac/swift/.build/cef-spike/*.zip
-          if-no-files-found: error
-          retention-days: 25
