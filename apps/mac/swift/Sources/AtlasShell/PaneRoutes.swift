@@ -1,14 +1,14 @@
 import AtlasShellCore
+import Darwin
 import Foundation
-import Network
 
 enum PaneRoutesError: LocalizedError {
-    case listenerFailed
+    case listenerFailed(String)
 
     var errorDescription: String? {
         switch self {
-        case .listenerFailed:
-            return "The pane route listener could not bind a loopback port."
+        case .listenerFailed(let detail):
+            return "The pane route listener could not bind a loopback port: \(detail)"
         }
     }
 }
@@ -17,100 +17,144 @@ final class PaneRoutes {
     static let paths: Set<String> = ["/pane", "/desktop/pane"]
 
     let origin: String
-    private let listener: NWListener
-    private let queue = DispatchQueue(label: "dev.atlas.pane-routes")
+    private let socketFD: Int32
+    private let queue = DispatchQueue(label: "dev.atlas.pane-routes", attributes: .concurrent)
     private let handle: (PaneCommand) -> Void
+    private let stateLock = NSLock()
+    private var closed = false
 
     init(port: UInt16 = 0, handle: @escaping (PaneCommand) -> Void) throws {
-        guard let endpoint = NWEndpoint.Port(rawValue: port),
-              let listener = try? NWListener(using: .tcp, on: endpoint)
-        else { throw PaneRoutesError.listenerFailed }
-        self.listener = listener
-        self.handle = handle
+        let fd = socket(AF_INET, SOCK_STREAM, 0)
+        guard fd >= 0 else { throw PaneRoutesError.listenerFailed(Self.describe("socket")) }
 
-        let ready = DispatchSemaphore(value: 0)
-        let assigned = PortBox()
-        listener.stateUpdateHandler = { state in
-            switch state {
-            case .ready:
-                if let bound = listener.port { assigned.set(bound.rawValue) }
-                ready.signal()
-            case .failed, .cancelled:
-                ready.signal()
-            default:
-                break
+        var reuse: Int32 = 1
+        setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuse, socklen_t(MemoryLayout<Int32>.size))
+        var noSignal: Int32 = 1
+        setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &noSignal, socklen_t(MemoryLayout<Int32>.size))
+
+        var address = sockaddr_in()
+        address.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+        address.sin_family = sa_family_t(AF_INET)
+        address.sin_port = port.bigEndian
+        address.sin_addr.s_addr = inet_addr("127.0.0.1")
+
+        let bound = withUnsafePointer(to: &address) { pointer in
+            pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                Darwin.bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
             }
         }
-        listener.start(queue: queue)
+        guard bound == 0 else {
+            let detail = Self.describe("bind 127.0.0.1:\(port)")
+            close(fd)
+            throw PaneRoutesError.listenerFailed(detail)
+        }
+        guard Darwin.listen(fd, 16) == 0 else {
+            let detail = Self.describe("listen")
+            close(fd)
+            throw PaneRoutesError.listenerFailed(detail)
+        }
 
-        guard ready.wait(timeout: .now() + 5) == .success, let bound = assigned.get() else {
-            listener.cancel()
-            throw PaneRoutesError.listenerFailed
+        var assigned = sockaddr_in()
+        var length = socklen_t(MemoryLayout<sockaddr_in>.size)
+        let named = withUnsafeMutablePointer(to: &assigned) { pointer in
+            pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                getsockname(fd, $0, &length)
+            }
         }
-        origin = "http://127.0.0.1:\(bound)"
+        guard named == 0 else {
+            let detail = Self.describe("getsockname")
+            close(fd)
+            throw PaneRoutesError.listenerFailed(detail)
+        }
+
+        self.socketFD = fd
+        self.handle = handle
+        self.origin = "http://127.0.0.1:\(UInt16(bigEndian: assigned.sin_port))"
+    }
+
+    func start() {
         Log.write("pane routes listening at \(origin)")
-        listener.newConnectionHandler = { [weak self] connection in
-            self?.accept(connection)
-        }
+        queue.async { [weak self] in self?.acceptLoop() }
     }
 
     func stop() {
-        listener.cancel()
+        stateLock.lock()
+        let alreadyClosed = closed
+        closed = true
+        stateLock.unlock()
+        if !alreadyClosed { close(socketFD) }
     }
 
-    private func accept(_ connection: NWConnection) {
-        connection.start(queue: queue)
-        receive(connection, accumulated: Data())
+    private var isClosed: Bool {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+        return closed
     }
 
-    private func receive(_ connection: NWConnection, accumulated: Data) {
-        connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { [weak self] chunk, _, isComplete, failure in
-            guard let self else {
-                connection.cancel()
+    private func acceptLoop() {
+        while !isClosed {
+            let client = accept(socketFD, nil, nil)
+            if client < 0 {
+                if errno == EINTR { continue }
+                if !isClosed { Log.write("pane: accept failed: \(Self.describe("accept"))") }
                 return
             }
-            if failure != nil {
-                connection.cancel()
+            var noSignal: Int32 = 1
+            setsockopt(client, SOL_SOCKET, SO_NOSIGPIPE, &noSignal, socklen_t(MemoryLayout<Int32>.size))
+            queue.async { [weak self] in self?.serve(client) }
+        }
+    }
+
+    private func serve(_ client: Int32) {
+        defer { close(client) }
+        var buffer = Data()
+        var chunk = [UInt8](repeating: 0, count: 16 * 1024)
+        let limit = PaneHTTPRequest.maximumHeaderBytes + PaneHTTPRequest.maximumBodyBytes
+
+        while buffer.count <= limit {
+            let read = recv(client, &chunk, chunk.count, 0)
+            if read < 0 {
+                if errno == EINTR { continue }
                 return
             }
-            var buffer = accumulated
-            if let chunk { buffer.append(chunk) }
+            if read == 0 { return }
+            buffer.append(contentsOf: chunk[0..<read])
 
             switch PaneHTTPRequest.parse(buffer) {
             case .request(let method, let path, let body):
-                respond(connection, method: method, path: path, body: body)
+                respond(client, method: method, path: path, body: body)
+                return
             case .malformed:
-                reply(connection, status: 400, body: PaneReply.invalidRequest)
+                write(client, status: 400, body: PaneReply.invalidRequest)
+                return
             case .incomplete:
-                if isComplete || buffer.count > PaneHTTPRequest.maximumHeaderBytes + PaneHTTPRequest.maximumBodyBytes {
-                    connection.cancel()
-                    return
-                }
-                receive(connection, accumulated: buffer)
+                continue
             }
         }
+
+        write(client, status: 400, body: PaneReply.invalidRequest)
     }
 
-    private func respond(_ connection: NWConnection, method: String, path: String, body: Data) {
+    private func respond(_ client: Int32, method: String, path: String, body: Data) {
         guard Self.paths.contains(path) else {
-            reply(connection, status: 404, body: PaneReply.notFound)
+            write(client, status: 404, body: PaneReply.notFound)
             return
         }
         guard method == "POST" else {
-            reply(connection, status: 405, body: PaneReply.methodNotAllowed)
+            write(client, status: 405, body: PaneReply.methodNotAllowed)
             return
         }
         do {
             let command = try PaneCommand.decode(from: body)
             DispatchQueue.main.async { self.handle(command) }
-            reply(connection, status: 200, body: PaneReply.ok)
+            write(client, status: 200, body: PaneReply.ok)
         } catch {
             Log.write("pane: rejected command body \(body.count) bytes")
-            reply(connection, status: 400, body: PaneReply.invalidCommand)
+            write(client, status: 400, body: PaneReply.invalidCommand)
         }
     }
 
-    private func reply(_ connection: NWConnection, status: Int, body: String) {
+    private func write(_ client: Int32, status: Int, body: String) {
         let payload = Data(body.utf8)
         let head = "HTTP/1.1 \(status) \(Self.reason(status))\r\n"
             + "content-type: application/json\r\n"
@@ -118,12 +162,19 @@ final class PaneRoutes {
             + "connection: close\r\n\r\n"
         var response = Data(head.utf8)
         response.append(payload)
-        connection.send(
-            content: response,
-            contentContext: .defaultMessage,
-            isComplete: true,
-            completion: .contentProcessed { _ in connection.cancel() }
-        )
+        response.withUnsafeBytes { raw in
+            guard let base = raw.baseAddress else { return }
+            var sent = 0
+            while sent < raw.count {
+                let written = Darwin.send(client, base.advanced(by: sent), raw.count - sent, 0)
+                if written <= 0 { return }
+                sent += written
+            }
+        }
+    }
+
+    private static func describe(_ label: String) -> String {
+        "\(label): \(String(cString: strerror(errno)))"
     }
 
     private static func reason(_ status: Int) -> String {
@@ -143,21 +194,4 @@ private enum PaneReply {
     static let invalidCommand = #"{"ok":false,"error":"invalid command"}"#
     static let notFound = #"{"ok":false,"error":"not found"}"#
     static let methodNotAllowed = #"{"ok":false,"error":"method not allowed"}"#
-}
-
-private final class PortBox {
-    private var value: UInt16?
-    private let lock = NSLock()
-
-    func set(_ port: UInt16) {
-        lock.lock()
-        value = port
-        lock.unlock()
-    }
-
-    func get() -> UInt16? {
-        lock.lock()
-        defer { lock.unlock() }
-        return value
-    }
 }

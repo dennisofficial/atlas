@@ -13,12 +13,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         Log.write("shell launched")
         Menus.install(reloadTarget: self)
-        startCef()
         do {
             let pane = PaneController()
             let routes = try PaneRoutes { pane.apply($0) }
+            routes.start()
             self.pane = pane
             self.routes = routes
+            startCef()
             let host = BunHost(paneOrigin: routes.origin)
             self.host = host
             let window = MainWindow(url: try host.start(), pane: pane)
