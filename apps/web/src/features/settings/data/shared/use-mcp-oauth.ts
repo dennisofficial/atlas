@@ -8,7 +8,7 @@ import type { McpOauthServer } from '@dltech/atlas-wire/web'
 import { isDesktopHost } from '@/features/desktop/desktop-attributes'
 import { fetchStreamToken } from '@/features/sessions/data/stream-token'
 import { api, cloudCall } from '@/lib/api-client'
-import { resolveHostOrigin } from '@/lib/host-url'
+import { hostOrigin } from '@/lib/host-url'
 import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 
 import { beginMcpSignIn } from './mcp-signin-request'
@@ -59,7 +59,7 @@ export function useMcpOauth({ projectId }: { projectId?: string } = {}): McpOaut
       void runAction({
         work: async () => {
           const result = await beginMcpSignIn({
-            hostOrigin: resolveHostOrigin(process.env),
+            hostOrigin: hostOrigin(),
             token: await fetchStreamToken(),
             serverId,
             surface: isDesktopHost(window) ? 'desktop' : 'web',
