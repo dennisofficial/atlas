@@ -129,6 +129,48 @@ request answers 401, the host refreshes it against `tokenEndpoint` and seals the
 - Signing out from the transcript (`mcp_sign_out`): Settings' disconnect is enough for now.
 - Refresh for a grant whose refresh token the provider no longer honours — that is a sign-in again.
 
+## 8. Live check (2026-11-10, production)
+
+Run on the deploy of `7dc9805eb` (`agent.byatlas.io` live from 16:05Z), in a fresh v2 session
+(`7b68c42c…`) whose clone carried one repo-only http server in `.mcp.json`:
+`{"mcpServers":{"posthog-live":{"url":"https://mcp.posthog.com/mcp"}}}` — no cloud row for it at all.
+1. `mcp_sign_in {"name":"posthog-live"}` answered `Open this link to sign in to the posthog-live MCP
+   server: https://oauth.posthog.com/oauth/authorize/?…` — a real authorize URL carrying a registered
+   `client_id`, `code_challenge` with `S256`, `redirect_uri=https://agent.byatlas.io/mcp-oauth/callback`
+   and a sealed `state`, plus Posthog's scope list.
+2. The host created the row before the redirect: `posthog-live | source = repo |
+   repoUrl = https://mcp.posthog.com/mcp | lastSeenAt set | no grant`, and one `McpOauthPending` row
+   bound to it, unexpired.
+3. The link was approved in a browser. The callback consumed the pending row (0 left), sealed the
+   grant on the same row (`oauthStatus = active`, `oauthGeneration = 1`, `oauthUpdatedAt` 16:07:08Z),
+   and redirected — **to global Settings, not to the session**, which is the defect §9 records.
+4. The next turn's roster read `posthog-live | http | connected | 1 tool | layer project` beside
+   `Posthog | connected | 1` and `wispr-flow | needs-auth | 0`, whose reason now reads `the
+   'wispr-flow' MCP server needs a sign-in; call mcp_sign_in to start one`.
+
+So the slice's exit criteria 1–2 and 5 hold for a repo-only server end to end, and the tool is what a
+model reaches for when the roster says `needs-auth`. Criterion 3 (refresh) is covered by specs only:
+two concurrent refreshes make one token call, but no expired grant was refreshed live.
+
+The row and grant created by this check were deleted afterwards, so nothing about it is left in the
+account.
+
+## 9. What this check found
+
+Two defects, both from v1 features this port dropped, each with its own handoff:
+- **The callback returns to Settings, never to where the flow started.**
+  `apps/agent-host/src/mcp-oauth/store.ts:50` hardcodes `returnSurface: 'web'` and
+  `sealedPendingSchema` (`types.ts:55`) carries no `returnTo`, no surface and no session, so the
+  callback can only fall back to `/settings/integrations`. v1 took `returnTo` and `surface` on `begin`
+  and had a desktop branch. The fix is a return target of **surface × screen** (`web | desktop | ios`
+  by `session:<id> | settings:user | settings:project:<id>`), recorded in the pending row — the
+  server-side equivalent of the cookie `callback.byatlas.io` uses — plus the `atlas://` deep link for
+  the apps and a Settings-initiated `begin` for the settings entry points.
+- **The authorize URL is the tool's result text.** It is a screenful of percent-encoded scopes. It
+  should be two events (`mcp-sign-in-started`, `mcp-sign-in-resolved`) rendered as a card in the
+  transcript, with the tool's text reduced to one line — the shape `operator_input` already uses, and
+  the event log stays the only source of truth the custody of this is a fold over.
+
 ## 7. Open questions
 
 1. **Callback host**: a route on the agent host (recommended, it owns the flow) or a static render of
