@@ -4,7 +4,7 @@ import type { Assembled } from '../../assembled'
 import type { RuleContext } from '../../rule'
 import { contextFor } from '../../__tests__/log-fixture'
 import { cacheBreakpoints } from '../cache-breakpoints'
-import { OPENAI_PROVIDER_ID, requestCacheKey } from '../request-cache-key'
+import { GATEWAY_PROVIDER_ID, OPENAI_PROVIDER_ID, requestCacheKey } from '../request-cache-key'
 
 const BARE: Assembled = { system: [], messages: [] }
 
@@ -27,6 +27,19 @@ describe('requestCacheKey', () => {
     const result = requestCacheKey()(BARE, [], contextOn('anthropic'))
 
     expect(result.requestOptions).toBeUndefined()
+  })
+
+  it('keys the gateway session by thread so its cache pin follows the account', () => {
+    const ctx = contextOn(GATEWAY_PROVIDER_ID)
+    const result = requestCacheKey({ providerId: GATEWAY_PROVIDER_ID, optionKey: 'sessionId' })(
+      BARE,
+      [],
+      ctx,
+    )
+
+    expect(result.requestOptions).toEqual({
+      gateway: { sessionId: String(ctx.threadId) },
+    })
   })
 
   it('survives the cache-breakpoint annotator running ahead of it', () => {

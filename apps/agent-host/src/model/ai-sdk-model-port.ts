@@ -5,6 +5,7 @@ import { InvalidResponseDataError, stepCountIs, streamText, type LanguageModel }
 import {
   carriesToolResultImages,
   DEFAULT_IMAGE_TIER,
+  gatewayRoutingOf,
   hoistToolResultFiles,
   ModelPort,
   type Assembled,
@@ -154,7 +155,10 @@ export async function runModelStream(args: {
   }
 
   const result = accumulator.finish()
-  return ranFast ? { ...result, ranFast: true } : result
+  const withFast: ModelStepResult = ranFast ? { ...result, ranFast: true } : result
+  const routing = args.signal.aborted ? undefined : await gatewayRoutingOf(stream.finalStep)
+
+  return routing === undefined ? withFast : { ...withFast, routing }
 }
 
 export type ModelCardSource = ModelCard | (() => ModelCard | undefined)

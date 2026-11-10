@@ -1,10 +1,12 @@
 import type { Message } from '../../message/message'
 import type { MessagePart } from '../../message/parts'
-import type { ProviderOptions } from '../../provider'
+import { isAnthropicModel, type ProviderIdentity, type ProviderOptions } from '../../provider'
 import type { Assembled, AssembledMessage, SystemBlock } from '../assembled'
 import { defineAnnotator, type Annotator } from '../rule'
 
-export const ANTHROPIC_PROVIDER_ID = 'anthropic'
+import { ANTHROPIC_PROVIDER_ID, GATEWAY_PROVIDER_ID } from './provider-ids'
+
+export { ANTHROPIC_PROVIDER_ID }
 
 export enum ECacheTtl {
   FiveMinutes = '5m',
@@ -18,6 +20,23 @@ export enum ECacheTtl {
 export const CACHE_BREAKPOINT_BUDGET = 4
 export const CACHE_LOOKBACK_BLOCKS = 20
 export const CACHE_ANCHOR_STRIDE_BLOCKS = 15
+
+/**
+ * `cache_control` is Anthropic's protocol rather than a provider's: a gateway route to an
+ * `anthropic/…` model carries the same markers, and is the case the gateway's own `caching: 'auto'`
+ * no longer covers. https://vercel.com/docs/ai-gateway/models-and-providers/automatic-caching
+ */
+export function servesExplicitBreakpoints(args: {
+  provider: ProviderIdentity
+  providerId: string
+}): boolean {
+  if (args.provider.id === args.providerId) return true
+  return (
+    args.providerId === ANTHROPIC_PROVIDER_ID &&
+    args.provider.id === GATEWAY_PROVIDER_ID &&
+    isAnthropicModel(args.provider.modelId)
+  )
+}
 
 const CACHE_CONTROL_KEY = 'cacheControl'
 
@@ -157,7 +176,7 @@ export function cacheBreakpoints(options: CacheBreakpointOptions = {}): Annotato
   return defineAnnotator({
     name: 'cacheBreakpoints',
     apply: (input, _trace, ctx): Assembled => {
-      if (ctx.provider.id !== providerId) return input
+      if (!servesExplicitBreakpoints({ provider: ctx.provider, providerId })) return input
 
       const system = markLastSystemBlock({ blocks: input.system, ttl: systemTtl })
       const spentOnSystem = input.system.length > 0 ? 1 : 0

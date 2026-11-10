@@ -127,6 +127,7 @@ describe('defaultPipeline', () => {
       'cacheBreakpoints',
       'requestCacheKey:openai',
       'requestCacheKey:inference',
+      'requestCacheKey:gateway',
     ])
     expect(assembled.system.at(-1)?.providerOptions).toBeDefined()
     const durable = assembled.messages.filter((entry) => entry.volatile !== true)

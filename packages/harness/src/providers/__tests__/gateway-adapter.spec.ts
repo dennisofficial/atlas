@@ -31,14 +31,22 @@ const card: ModelCard = {
   effort: { [EEffort.Off]: 'none', [EEffort.Low]: 'low', [EEffort.High]: 'high' },
 }
 
+const anthropicCard: ModelCard = {
+  ...card,
+  ref: { providerId: GATEWAY_PROVIDER_ID, modelId: 'anthropic/claude-opus-5-5' },
+  label: 'Claude Opus 5.5',
+}
+
 const ask = async (args: {
   effort: EEffort
+  card?: ModelCard
   providerOptions?: Record<string, Record<string, string>>
 }) => {
+  const chosen = args.card ?? card
   const recorder = recordingFetch({ body: RESULT_JSON, contentType: 'application/json' })
-  const adapter = new GatewayAdapter({ credentials, cards: [card], fetch: recorder.fetch })
+  const adapter = new GatewayAdapter({ credentials, cards: [chosen], fetch: recorder.fetch })
   const result = await generateText({
-    model: adapter.model({ card, effort: () => args.effort }),
+    model: adapter.model({ card: chosen, effort: () => args.effort }),
     prompt: 'ping',
     ...(args.providerOptions === undefined ? {} : { providerOptions: args.providerOptions }),
   })
@@ -71,6 +79,23 @@ describe('the gateway adapter', () => {
     expect(request.body).toMatchObject({
       reasoning: 'none',
       providerOptions: { [GATEWAY_PROVIDER_ID]: { caching: 'auto', order: 'vertex' } },
+    })
+  })
+
+  it('leaves anthropic markers to the assembler, which already places its own', async () => {
+    const { request } = await ask({ effort: EEffort.Off, card: anthropicCard })
+
+    expect(request.body).toMatchObject({ providerOptions: { [GATEWAY_PROVIDER_ID]: {} } })
+  })
+
+  it('carries the session id the assembler pinned to the thread', async () => {
+    const { request } = await ask({
+      effort: EEffort.Off,
+      providerOptions: { [GATEWAY_PROVIDER_ID]: { sessionId: 'brn_session' } },
+    })
+
+    expect(request.body).toMatchObject({
+      providerOptions: { [GATEWAY_PROVIDER_ID]: { caching: 'auto', sessionId: 'brn_session' } },
     })
   })
 

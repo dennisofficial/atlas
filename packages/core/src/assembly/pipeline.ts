@@ -1,5 +1,9 @@
 import { cacheBreakpoints } from './annotators/cache-breakpoints'
-import { INFERENCE_PROVIDER_ID, requestCacheKey } from './annotators/request-cache-key'
+import {
+  GATEWAY_PROVIDER_ID,
+  INFERENCE_PROVIDER_ID,
+  requestCacheKey,
+} from './annotators/request-cache-key'
 import type { Annotator, Rule } from './rule'
 import { agentEndingsBlock } from './rules/agent-endings-block'
 import { compactedHistory } from './rules/compacted-history'
@@ -52,6 +56,7 @@ export function defaultAnnotators(): readonly Annotator[] {
     cacheBreakpoints(),
     requestCacheKey(),
     requestCacheKey({ providerId: INFERENCE_PROVIDER_ID, optionKey: 'prompt_cache_key' }),
+    requestCacheKey({ providerId: GATEWAY_PROVIDER_ID, optionKey: 'sessionId' }),
   ]
 }
 

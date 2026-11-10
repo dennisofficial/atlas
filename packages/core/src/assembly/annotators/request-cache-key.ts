@@ -1,12 +1,18 @@
 import type { Assembled } from '../assembled'
 import { defineAnnotator, type Annotator } from '../rule'
 
-export const OPENAI_PROVIDER_ID = 'openai'
-export const INFERENCE_PROVIDER_ID = 'inference'
+import { GATEWAY_PROVIDER_ID, INFERENCE_PROVIDER_ID, OPENAI_PROVIDER_ID } from './provider-ids'
+
+export { GATEWAY_PROVIDER_ID, INFERENCE_PROVIDER_ID, OPENAI_PROVIDER_ID }
 
 // The codex backend answers prompt_cache_retention and prompt_cache_options with a 400, but it
 // does accept prompt_cache_key — the parameter codex_cli_rs pins to its session id (verified live
 // 2026-09-10). Keying it by thread keeps one conversation's prefix lookups on one affinity group.
+//
+// The gateway wants the same key as `gateway.sessionId`: without one it fingerprints the
+// conversation and pins only the provider slug, never the account that holds the cache, so when a
+// model has a single upstream every rerouted account re-prefills the prompt.
+// https://vercel.com/docs/ai-gateway/models-and-providers/session-affinity
 //
 // @ai-sdk/openai parses `promptCacheKey` out of provider options, so the openai annotator keeps
 // the camelCase key. @ai-sdk/openai-compatible instead spreads unknown provider options into the
