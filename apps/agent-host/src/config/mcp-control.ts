@@ -120,7 +120,7 @@ export const mcpControlOf = (args: {
         url: request.url,
       })
       if (!begun.ok) return begun
-      return { ok: true, url: begun.url }
+      return { ok: true, url: begun.url, expiresAt: begun.expiresAt }
     },
   })
 

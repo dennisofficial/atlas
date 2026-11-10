@@ -51,10 +51,36 @@ export class McpSignInTool extends SchemaTool<typeof signInSchema> {
     })
     if (!begun.ok) return { ok: false, reason: begun.reason }
 
+    await this.recordCard({ server: spec.name, url: begun.url, expiresAt: begun.expiresAt })
+    this.store.noteSignInStarted({
+      server: spec.name,
+      ...(begun.expiresAt === undefined ? {} : { expiresAt: begun.expiresAt }),
+    })
+
     return {
       ok: true,
       output: { name: spec.name, url: begun.url },
-      modelText: `Open this link to sign in to the ${spec.name} MCP server: ${begun.url}\nApprove it in the browser; the grant lands on the server's row and the next turn connects it. Nothing needs to be pasted back here.`,
+      modelText: `A sign-in card for the ${spec.name} MCP server is now in the transcript: the operator opens it, approves at the provider, and the next turn connects the server. Nothing is pasted back here.`,
+    }
+  }
+
+  private async recordCard(args: {
+    server: string
+    url: string
+    expiresAt: string | undefined
+  }): Promise<void> {
+    try {
+      await this.ctx.append([
+        {
+          type: 'mcp-sign-in-started',
+          server: args.server,
+          url: args.url,
+          ...(args.expiresAt === undefined ? {} : { expiresAt: args.expiresAt }),
+          sessionId: this.ctx.sessionId,
+        },
+      ])
+    } catch (error) {
+      this.ctx.log(`mcp: recording the sign-in card for ${args.server} failed: ${String(error)}`)
     }
   }
 }

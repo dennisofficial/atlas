@@ -3,8 +3,15 @@ import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
 import type { McpServerChanged, McpServerRemoved } from '../core'
 import type { LoadedMcpEntry, McpRejection } from '../core'
-import { EMcpViewStatus, sameMcpRow, type McpServerRow } from '../core'
+import {
+  EMcpViewStatus,
+  sameMcpRow,
+  type McpServerRow,
+  type McpSignInResolved,
+  type OutstandingSignIn,
+} from '../core'
 import { McpBridgeTool } from './bridge-tool'
+import { McpSignInBook } from './sign-in-book'
 import { fileReaderOf, loadMcpConfig, type McpConfigPort } from './config'
 import { HttpClient } from './http'
 import { StdioClient } from './stdio'
@@ -92,6 +99,7 @@ export class McpStore {
   private readonly held = new Map<string, Held>()
   private rejections: readonly McpRejection[] = []
   private published = new Map<string, McpServerRow>()
+  private readonly signIns = new McpSignInBook()
   private started = false
 
   constructor(
@@ -206,10 +214,14 @@ export class McpStore {
     await Promise.allSettled(held.map(async (entry) => await entry.client.close()))
   }
 
+  noteSignInStarted(pending: OutstandingSignIn): void {
+    this.signIns.note(pending)
+  }
+
   private async publish(): Promise<void> {
     const rows = this.rows()
     const next = new Map(rows.map((row) => [row.name, row]))
-    const drafts: (McpServerChanged | McpServerRemoved)[] = []
+    const drafts: (McpServerChanged | McpServerRemoved | McpSignInResolved)[] = []
     for (const row of rows) {
       const kept = this.published.get(row.name)
       if (kept !== undefined && sameMcpRow(kept, row)) continue
@@ -220,6 +232,13 @@ export class McpStore {
       drafts.push({ type: 'mcp-server-removed', name })
     }
     this.published = next
+    drafts.push(
+      ...this.signIns.resolutionsOf({
+        sessionId: this.args.ctx.sessionId,
+        rows,
+        now: Date.now(),
+      }),
+    )
     if (drafts.length === 0) return
     try {
       await this.args.ctx.append(drafts)

@@ -28,6 +28,7 @@ import {
 } from '../data/transcript-turns'
 import { ReportNotice, SpawnCard } from './transcript-agents'
 import { TranscriptNotice } from './transcript-notice'
+import { TranscriptSignIn } from './transcript-sign-in'
 import { TranscriptMarkdown } from './transcript-markdown'
 import { ToolRow } from './transcript-tool-row'
 
@@ -261,6 +262,8 @@ function TurnViewBody({
       return <ReportNotice item={turn.item} onOpenAgent={actions.openAgent} />
     case ETurnKind.Notice:
       return <TranscriptNotice item={turn.item} />
+    case ETurnKind.SignIn:
+      return <TranscriptSignIn item={turn.item} />
     case ETurnKind.Agent:
       return <AgentTurnView turn={turn} now={now} models={models} actions={actions} />
   }

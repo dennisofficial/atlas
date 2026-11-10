@@ -16,6 +16,7 @@ export enum ETurnKind {
   Agent = 'agent',
   Report = 'report',
   Notice = 'notice',
+  SignIn = 'sign-in',
 }
 
 export enum ESegmentKind {
@@ -77,7 +78,13 @@ export type NoticeTurn = {
   item: ItemOf<ETranscriptKind.Notice>
 }
 
-export type Turn = UserTurn | ReportTurn | NoticeTurn | AgentTurn
+export type SignInTurn = {
+  kind: ETurnKind.SignIn
+  id: string
+  item: ItemOf<ETranscriptKind.SignIn>
+}
+
+export type Turn = UserTurn | ReportTurn | NoticeTurn | SignInTurn | AgentTurn
 
 export const WORKING_TURN_ID = 'working'
 const TURN_START = 'start'
@@ -89,7 +96,10 @@ type TurnStart = { id: string; at?: string | undefined }
 
 type Run = Exclude<
   TranscriptRow,
-  ItemOf<ETranscriptKind.User> | ItemOf<ETranscriptKind.Notice> | ReportItem
+  | ItemOf<ETranscriptKind.User>
+  | ItemOf<ETranscriptKind.Notice>
+  | ItemOf<ETranscriptKind.SignIn>
+  | ReportItem
 >
 
 const latestOf = (stamps: ReadonlyArray<string | undefined>): string | undefined =>
@@ -251,6 +261,12 @@ export function turnsOf(args: { items: readonly TranscriptRow[]; working: boolea
     if (item.kind === ETranscriptKind.Notice) {
       closeRun(false)
       turns.push({ kind: ETurnKind.Notice, id: item.id, item })
+      after = item
+      continue
+    }
+    if (item.kind === ETranscriptKind.SignIn) {
+      closeRun(false)
+      turns.push({ kind: ETurnKind.SignIn, id: item.id, item })
       after = item
       continue
     }

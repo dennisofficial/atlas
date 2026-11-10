@@ -1,5 +1,9 @@
 import type { ClientSlot } from '@dltech/atlas-plugin-sdk'
 
+import { mcpSignInEntries } from './sign-in-entry'
+
+export { mcpSignInEntries }
+
 export const mcpClient: ClientSlot = {
   hooks: [
     {
@@ -7,4 +11,5 @@ export const mcpClient: ClientSlot = {
       appliesTo: (event) => event.type.startsWith('mcp-server-'),
     },
   ],
+  entryFolds: [mcpSignInEntries],
 }

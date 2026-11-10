@@ -10,6 +10,7 @@ import {
   transcriptViewOf,
   type ThreadTranscriptView,
 } from '@/features/threads/data/transcript-items'
+import { sessionEntryFolds, sessionEventTypes } from '../registered-plugins'
 
 export const sessionTranscriptOf = (
   snapshot: Pick<SessionSnapshot, 'events' | 'overlay'> & {
@@ -18,7 +19,8 @@ export const sessionTranscriptOf = (
 ): ThreadTranscriptView =>
   transcriptViewOf({
     durable: durableTranscriptOf({
-      events: transcriptEventsOf(snapshot.events),
+      events: transcriptEventsOf(snapshot.events, sessionEventTypes),
+      pluginEntries: sessionEntryFolds,
     }),
     live: overlayStepOf(snapshot.overlay),
     thinking: EThinkingVisibility.Keep,

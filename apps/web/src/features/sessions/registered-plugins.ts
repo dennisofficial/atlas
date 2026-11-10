@@ -60,4 +60,6 @@ const registeredPlugins: readonly Plugin[] = [
 
 export const sessionEventSchema = eventSchemaOf(registeredPlugins)
 
+export const sessionEntryFolds = registeredPlugins.flatMap((plugin) => plugin.client.entryFolds ?? [])
+
 export const sessionEventTypes: ReadonlySet<string> = new Set(eventTypesOf(registeredPlugins))
