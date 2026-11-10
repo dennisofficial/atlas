@@ -61,7 +61,9 @@ const entriesWith = (title: string): ProjectThreads[] => [
 
 function Probe() {
   const query = useLiveList()
-  return <p>{query.data === undefined ? query.state : visibleTitles(query.data).join(',')}</p>
+  return (
+    <p>{query.data === undefined ? query.state : visibleTitles(query.data.entries).join(',')}</p>
+  )
 }
 
 const titlesOf = (entry: ProjectThreads) =>
@@ -159,7 +161,7 @@ describe('useLiveList sidebar cache', () => {
   it('does not replace data already held by the query client', async () => {
     const client = createTestQueryClient()
     client.setQueryData([SHELL_THREADS_KEY], {
-      value: { entries: entriesWith('live'), startedAt: 5 },
+      value: { entries: entriesWith('live'), counts: null, startedAt: 5 },
     })
     writeSidebarCache(entriesWith('cached'))
     const { container } = await mount(client)

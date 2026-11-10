@@ -1,3 +1,5 @@
+import type { SessionPageInput } from '@dltech/atlas-wire/web'
+
 import { api, cloudCall } from '@/lib/api-client'
 
 import type { SessionsApi } from './create-session'
@@ -12,6 +14,9 @@ export const fetchV2Sessions = async () =>
 
 export const archiveV2Session = (args: { sessionId: string; archived: boolean }) =>
   cloudCall(api.sessions.archive.mutate(args))
+
+export const fetchSessionPage = (input: SessionPageInput) =>
+  cloudCall(api.sessions.page.query(input))
 
 export const sessionsApi: SessionsApi & WithdrawApi & RetryApi & RewindApi = {
   create: (input) => cloudCall(api.sessions.create.mutate(input)),

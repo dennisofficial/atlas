@@ -9,10 +9,10 @@ import { EQueryState, type CloudQuery } from '@/lib/use-cloud-query'
 import type { SessionNode } from '@/features/threads/data/threads-api'
 
 import { archiveThread } from './archive-thread'
+import type { ShellThreads } from './live-list'
 import { ThreadsSkeleton } from './shell-skeletons'
 import { ThreadList } from './shell-thread-list'
 import { ThreadActionsContext } from './thread-actions-context'
-import type { ProjectThreads } from './thread-partition'
 import { useThreadArchive } from './use-thread-archive'
 import { v2SessionHref, v2SessionIdsOf } from './v2-rows'
 
@@ -20,11 +20,11 @@ export function ShellSidebarContent({
   query,
   activeThreadId,
 }: {
-  query: CloudQuery<ProjectThreads[]>
+  query: CloudQuery<ShellThreads>
   activeThreadId: string | null
 }) {
   const router = useRouter()
-  const v2Ids = useMemo(() => v2SessionIdsOf(query.data), [query.data])
+  const v2Ids = useMemo(() => v2SessionIdsOf(query.data?.entries), [query.data])
   const handleArchived = useCallback(
     (threadId: string) => {
       if (threadId !== activeThreadId) return
@@ -49,14 +49,14 @@ export function ShellSidebarContent({
         visit(session.teammates)
       }
     }
-    for (const entry of query.data ?? []) {
+    for (const entry of query.data?.entries ?? []) {
       for (const session of entry.sessions) visit(session.teammates)
     }
     return ids
   }, [query.data])
   const isTeammate = useCallback((threadId: string) => teammateIds.has(threadId), [teammateIds])
   const { entries, handleToggleArchive } = useThreadArchive({
-    entries: query.data,
+    entries: query.data?.entries,
     reload: query.reload,
     onArchived: handleArchived,
     isTeammate,
@@ -74,7 +74,11 @@ export function ShellSidebarContent({
   }
   return (
     <ThreadActionsContext.Provider value={actions}>
-      <ThreadList entries={entries ?? query.data} activeThreadId={activeThreadId} />
+      <ThreadList
+        entries={entries ?? query.data.entries}
+        counts={query.data.counts}
+        activeThreadId={activeThreadId}
+      />
     </ThreadActionsContext.Provider>
   )
 }
