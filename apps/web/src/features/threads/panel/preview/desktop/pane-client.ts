@@ -24,14 +24,24 @@ async function accepted(response: Response | null): Promise<boolean> {
   return reply.ok === true
 }
 
-export async function sendPaneCommand(command: PaneCommand): Promise<boolean> {
-  return accepted(await post(command))
+let tail: Promise<unknown> = Promise.resolve()
+
+function enqueue(run: () => Promise<boolean>): Promise<boolean> {
+  const sent = tail.then(run)
+  tail = sent.catch(() => false)
+  return sent
+}
+
+export function sendPaneCommand(command: PaneCommand): Promise<boolean> {
+  return enqueue(async () => accepted(await post(command)))
 }
 
 let availability: Promise<boolean> | null = null
 
 export function paneAvailable(): Promise<boolean> {
-  availability ??= post({ kind: 'hide' }, AbortSignal.timeout(PROBE_TIMEOUT_MS)).then(accepted)
+  availability ??= enqueue(async () =>
+    accepted(await post({ kind: 'hide' }, AbortSignal.timeout(PROBE_TIMEOUT_MS))),
+  )
   return availability
 }
 

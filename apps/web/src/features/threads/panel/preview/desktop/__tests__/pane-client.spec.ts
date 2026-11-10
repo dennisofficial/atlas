@@ -25,6 +25,8 @@ const failWith = (failure: Error) => {
   }) as typeof fetch
 }
 
+const tick = () => new Promise<void>((done) => setTimeout(done, 0))
+
 const bodyOf = (call: Call | undefined): PaneCommand =>
   JSON.parse(String(call?.init?.body)) as PaneCommand
 
@@ -94,6 +96,39 @@ describe('sendPaneCommand', () => {
     expect(calls[0]?.url).toBe(PANE_PATH)
     expect(calls[0]?.init?.headers).toEqual({ 'content-type': 'application/json' })
     expect(bodyOf(calls[0])).toEqual({ kind: 'setRect', rect })
+  })
+
+  it('delivers commands one at a time, in the order they were sent', async () => {
+    const releases: Array<() => void> = []
+    const release = () => {
+      for (const done of releases.splice(0)) done()
+    }
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      calls.push({ url: String(input), init })
+      await new Promise<void>((done) => releases.push(done))
+      return new Response(JSON.stringify({ ok: true }), { status: 200 })
+    }) as typeof fetch
+
+    try {
+      const first = sendPaneCommand({
+        kind: 'show',
+        url: 'https://example.com/',
+        rect: { x: 0, y: 0, width: 1, height: 1 },
+      })
+      const second = sendPaneCommand({ kind: 'hide' })
+      await tick()
+      expect(calls.map((call) => bodyOf(call).kind)).toEqual(['show'])
+
+      release()
+      await first
+      await tick()
+      expect(calls.map((call) => bodyOf(call).kind)).toEqual(['show', 'hide'])
+
+      release()
+      await second
+    } finally {
+      release()
+    }
   })
 
   it('reports a refused command rather than throwing', async () => {
