@@ -116,7 +116,9 @@ export class HttpClient implements McpTransportClient {
       signal: AbortSignal.timeout(this.args.timeoutMs ?? HTTP_TIMEOUT_MS),
     })
     if (response.status === 401)
-      throw new McpUnauthorizedError(`the '${this.args.serverId}' MCP server needs a sign-in`)
+      throw new McpUnauthorizedError(
+        `the '${this.args.serverId}' MCP server needs a sign-in; call mcp_sign_in to start one`,
+      )
     if (!response.ok)
       throw new McpTransportError(
         `the '${this.args.serverId}' MCP server answered ${response.status}`,

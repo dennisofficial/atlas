@@ -63,7 +63,10 @@ export class McpBridgeTool extends ToolDefinition {
       result = await caller.call({ tool: this.tool, input: args.input })
     } catch (error) {
       if (error instanceof McpUnauthorizedError)
-        return { ok: false, reason: `the '${this.server}' MCP server needs a sign-in` }
+        return {
+          ok: false,
+          reason: `the '${this.server}' MCP server needs a sign-in; call mcp_sign_in to start one`,
+        }
       return {
         ok: false,
         reason: `the '${this.server}' MCP server rejected the call: ${messageOf(error)}`,
