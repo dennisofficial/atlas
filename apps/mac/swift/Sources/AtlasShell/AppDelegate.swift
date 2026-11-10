@@ -53,6 +53,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func startCef() {
         #if CEF
+        if ProcessInfo.processInfo.environment["ATLAS_DISABLE_CEF"] == "1" {
+            Log.write("cef: disabled by ATLAS_DISABLE_CEF, no message pump started")
+            return
+        }
         guard AtlasCefInitialize(CommandLine.argc, CommandLine.unsafeArgv) else {
             Log.write("cef: initialize failed, the pane stays inert")
             return
