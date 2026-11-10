@@ -32,6 +32,10 @@ describe('the release build', () => {
     expect(config.mac.entitlementsInherit).toBe(config.mac.entitlements)
   })
 
+  test('leaves the web tree bun serves out of signing', () => {
+    expect(config.mac.signIgnore.join(' ')).toContain('/web-standalone/')
+  })
+
   test('notarizes', () => {
     expect(config.mac.notarize).toBe(true)
   })

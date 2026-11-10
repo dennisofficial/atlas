@@ -33,6 +33,11 @@ mac:
   # nested executable left unsigned makes the installed app refuse to launch.
   binaries:
     - Contents/Resources/bin/bun
+  # @electron/osx-sign picks what to sign by content, not by Mach-O magic, so every PNG in this tree
+  # reached codesign and aborted the build (2026-11-10). These files are data the bundled bun serves;
+  # nothing in web-standalone is loaded as code (drop-native-web-deps removes sharp and @img).
+  signIgnore:
+    - '/web-standalone/'
   notarize: true
   target:
     - target: dmg
