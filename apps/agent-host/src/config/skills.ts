@@ -15,6 +15,8 @@ import { skillWriterOf } from './skill-writes'
 
 const QUERY_TIMEOUT_MS = 10_000
 
+const OWNER_CACHE_LIMIT = 500
+
 const NO_OWNER = 'this session has no owner to write skills for'
 
 const refusal = (reason: string): CloudSkillWriteResult => ({ ok: false, reason, current: null })
@@ -117,6 +119,10 @@ export const skillCloudPort = (args: { db?: Db | undefined } = {}): SkillCloudPo
     if (cached !== undefined) return await cached
     const read = ownerOf({ db: database(), sessionId })
     owners.set(sessionId, read)
+    if (owners.size > OWNER_CACHE_LIMIT) {
+      const oldest = owners.keys().next()
+      if (!oldest.done && oldest.value !== sessionId) owners.delete(oldest.value)
+    }
     try {
       return await read
     } catch (failure) {
