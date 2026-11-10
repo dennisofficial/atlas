@@ -9,7 +9,7 @@ on:
     branches: [main]
     paths:
       - 'apps/web/**'
-      - 'apps/mac/**'
+      - 'apps/mac/scripts/**'
       - 'packages/**'
       - 'bun.lock'
       - 'package.json'
