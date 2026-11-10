@@ -53,10 +53,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func startCef() {
         #if CEF
-        let childExitCode = AtlasCefExecuteProcess(CommandLine.argc, CommandLine.unsafeArgv)
-        if childExitCode >= 0 {
-            exit(childExitCode)
-        }
         guard AtlasCefInitialize(CommandLine.argc, CommandLine.unsafeArgv) else {
             Log.write("cef: initialize failed, the pane stays inert")
             return
