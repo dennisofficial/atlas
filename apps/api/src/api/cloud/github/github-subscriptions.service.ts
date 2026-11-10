@@ -275,9 +275,6 @@ export class GithubSubscriptionsService {
       return remembered
     }
 
-    const cursor = `branch:${args.repoFullName}:${branch}`
-    if ((await this.observations.attempt({ key: cursor })).nextAttemptAt > Date.now())
-      return remembered
     const token = await this.requireToken({ userId: args.userId })
     const found = await this.reads.findOpenPrForBranch({
       source: EGithubCallSource.SubscriptionResolve,
@@ -286,7 +283,6 @@ export class GithubSubscriptionsService {
       repo: args.repo,
       branch,
     })
-    await this.observations.recordAttempt({ key: cursor, failed: found === null })
     return found === null ? remembered : found.number
   }
 
