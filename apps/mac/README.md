@@ -59,3 +59,12 @@ Pods boot serve at the app's own version (`Updater.getLocalInfo().version`). Onl
 ## Branded DMG
 
 Electrobun's own DMG is off (`createDmg: false`); `build:app` ends with `scripts/make-dmg.ts`, which builds `artifacts/macos-arm64-Atlas-<version>.dmg` (when `ATLAS_VERSION` is set, as the release job does) and copies it to the stable `artifacts/macos-arm64-Atlas.dmg` that the app's download button links to, from `build/stable-macos-*/Atlas.app` with `create-dmg` (`brew install create-dmg`) using the background in `assets/dmg/` (`background.svg` is the source; `background.png` and `background@2x.png` are rendered from it with `bunx sharp-cli --density`). With the `ELECTROBUN_DEVELOPER_ID`, `ELECTROBUN_APPLEAPIKEY`, `ELECTROBUN_APPLEAPIISSUER` and `ELECTROBUN_APPLEAPIKEYPATH` env it also signs, notarizes and staples the DMG; under `ATLAS_MAC_UNSIGNED=1` it leaves it unsigned. macOS only.
+
+
+## The Swift shell (slice 1)
+
+`swift/` holds the native shell that replaces electrobun at cutover: window, web view, menus and the
+supervision of the Bun desktop host. It is additive until then — `bun run build:app` still ships the
+electrobun app. `src/desktop-host/index.ts` is the entry the shell spawns: it starts the Next server,
+creates the desktop host and prints `ATLAS_URL=…` for the shell to load. Design:
+`docs/mac-native-shell.md`.
