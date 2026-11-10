@@ -103,13 +103,22 @@ describe('UpdateCard', () => {
 
   it('offers a reload when only the interface is ready', async () => {
     asDesktop()
-    body = { state: 'idle', web: { state: 'ready', hash: 'abc123' } }
+    body = { state: 'idle', web: { state: 'ready', version: '1.296.0', hash: 'abc123' } }
     const unmount = await mount(<UpdateCard />)
     expect(document.body.textContent).toContain('New interface ready')
+    expect(document.body.textContent).toContain('Atlas 1.296.0 is ready to install')
     expect(button('Reload')?.disabled).toBe(false)
     await act(async () => button('Reload')?.click())
     expect(calls).toContainEqual({ path: '/desktop/update/restart', method: 'POST' })
     expect(button('Reloading…')?.disabled).toBe(true)
+    await unmount()
+  })
+
+  it('falls back when the payload carries no version', async () => {
+    asDesktop()
+    body = { state: 'idle', web: { state: 'ready', hash: 'abc123' } }
+    const unmount = await mount(<UpdateCard />)
+    expect(document.body.textContent).toContain('The latest interface is ready')
     await unmount()
   })
 

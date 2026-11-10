@@ -13,6 +13,7 @@ export enum EWebPayloadState {
 
 export const webPayloadStatusSchema = z.object({
   state: z.enum(EWebPayloadState),
+  version: z.string().min(1).optional(),
   hash: z.string().min(1).optional(),
   builtAt: z.string().min(1).optional(),
   error: z.string().min(1).optional(),

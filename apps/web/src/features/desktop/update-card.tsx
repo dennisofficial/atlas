@@ -28,22 +28,15 @@ export function updateCopy({
   kind: EDesktopUpdateKind
   version: string | undefined
 }): IUpdateCopy {
+  const line =
+    version === undefined
+      ? kind === EDesktopUpdateKind.Interface
+        ? 'The latest interface is ready'
+        : 'A new version of Atlas is ready'
+      : `Atlas ${version} is ready to install`
   if (kind === EDesktopUpdateKind.Interface)
-    return {
-      title: 'New interface ready',
-      line: 'Reload to pick it up',
-      action: 'Reload',
-      busy: 'Reloading…',
-    }
-  return {
-    title: 'Update ready',
-    line:
-      version === undefined
-        ? 'A new version of Atlas is ready'
-        : `Atlas ${version} is ready to install`,
-    action: 'Restart to update',
-    busy: 'Restarting…',
-  }
+    return { title: 'New interface ready', line, action: 'Reload', busy: 'Reloading…' }
+  return { title: 'Update ready', line, action: 'Restart to update', busy: 'Restarting…' }
 }
 
 export function UpdateCard() {
