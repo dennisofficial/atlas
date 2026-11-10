@@ -284,10 +284,14 @@ registered in `mcpCoreSlots.events`; the roster view is unchanged.
 The row is the plugin's, not the transcript's: `ClientSlot` grew `entryFolds`, so a plugin names the
 transcript rows its own events produce and the surfaces compose them from the plugins they register
 (`mcpSignInEntries` in `plugins/mcp/src/client/sign-in-entry.ts`). Web renders it as a row among the
-others (`transcript-sign-in.tsx`); TUI renders the same entry's text, which carries the link, because
-a surface without the card still has to be actionable; mobile does not fold plugin entries at all, so
-it shows the tool row and the tool's text only. The Mac app runs the web interface, so it gets the
-card.
+others (`transcript-sign-in.tsx`) and the Mac app runs the web interface, so both get the card.
+
+Only the v2 session transcript composes those folds, so a **v1** session draws no card: the v1 web
+thread view (`transcriptOf`) and the TUI (`durable-cache.ts`) fold events without them, and a v1
+reader sees the tool row and, expanded, the tool output — which still carries the link. The TUI's
+entry view does render `EEntryKind.SignIn` as its text, so the row appears if anything ever hands the
+TUI one; today nothing does, because the TUI composes no plugin client slots. Mobile is not wired at
+all.
 
 Proved without a live provider:
 - Pod: the card event carries the link while the model text does not
@@ -301,6 +305,22 @@ Proved without a live provider:
   idle, signed in and failed with reason
   (`apps/web/src/features/threads/__tests__/transcript-sign-in.spec.tsx`).
 
-Still to run live, once this is deployed: in a v2 session on a server with no grant, `mcp_sign_in`
-leaves a card and no URL in the message text; the button opens the provider; after approval the next
-turn's card reads signed in and the roster says connected.
+### Run live (2026-11-10, production)
+
+Against `agent.byatlas.io` and `api.byatlas.io` once `tui-v1.308.2` was cut and the web deploy carried
+`be94cdbc7`, with a temporary `AuthSession` for the operator's user (deleted afterwards; the session
+archived):
+- A fresh v2 session in the atlas project, asked to sign in to the `wispr-flow` row it saw as
+  needs-auth, called `mcp_sign_in {name:'wispr-flow'}`. The log then held `mcp-sign-in-started` with
+  `server: wispr-flow`, a real `https://mcp-auth.wisprflow.com/oauth2/authorize` URL carrying a
+  registered `client_id`, an S256 challenge, `redirect_uri=https://agent.byatlas.io/mcp-oauth/callback`
+  and a sealed `state`, `expiresAt: 18:43:07Z` and the session's own id.
+- The tool's `modelText` was one line — "A sign-in card for the wispr-flow MCP server is now in the
+  transcript…" — with no URL, and the assistant's reply repeated that. No URL reached the transcript
+  text.
+- The roster still read `wispr-flow needs-auth` after the tool, which is the resolution staying
+  absent: nothing was approved.
+
+Not exercised live: approving at the provider (an interactive login), and so the card flipping to
+signed in, `mcp-sign-in-resolved`, and the roster turning connected on the next turn — all three are
+covered only by the specs above.
