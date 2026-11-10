@@ -31,8 +31,14 @@ describe('skillTextOf', () => {
     await seedSkill({ db, name: 'alpha', scope: 'user' })
     await seedSkill({ db, name: 'beta', scope: 'project' })
 
-    expect(await skillTextOf({ db, owner: OWNER, scope: 'user', name: 'alpha' })).toBe('body')
-    expect(await skillTextOf({ db, owner: OWNER, scope: 'project', name: 'beta' })).toBe('body')
+    expect(await skillTextOf({ db, owner: OWNER, scope: 'user', name: 'alpha' })).toMatchObject({
+      text: 'body',
+      revision: 1,
+    })
+    expect(await skillTextOf({ db, owner: OWNER, scope: 'project', name: 'beta' })).toMatchObject({
+      text: 'body',
+      revision: 1,
+    })
   })
 
   it('reads one bundled file by path and matches the entry name case-insensitively', async () => {
@@ -51,10 +57,10 @@ describe('skillTextOf', () => {
         name: 'alpha',
         path: 'references/one.md',
       }),
-    ).toBe('one')
+    ).toMatchObject({ text: 'one', revision: 1 })
     expect(
       await skillTextOf({ db, owner: OWNER, scope: 'user', name: 'alpha', path: 'skill.md' }),
-    ).toBe('body')
+    ).toMatchObject({ text: 'body', revision: 1 })
   })
 
   it('reads the SKILL.md text of every user and project skill in one pass', async () => {

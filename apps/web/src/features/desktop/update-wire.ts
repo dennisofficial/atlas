@@ -6,10 +6,24 @@ export enum EDesktopUpdateState {
   Restarting = 'restarting',
 }
 
+export enum EWebPayloadState {
+  Idle = 'idle',
+  Ready = 'ready',
+}
+
+export const webPayloadStatusSchema = z.object({
+  state: z.enum(EWebPayloadState),
+  hash: z.string().min(1).optional(),
+  builtAt: z.string().min(1).optional(),
+  error: z.string().min(1).optional(),
+})
+export type WebPayloadStatus = z.infer<typeof webPayloadStatusSchema>
+
 export const desktopUpdateSchema = z.object({
   state: z.enum(EDesktopUpdateState),
   version: z.string().min(1).optional(),
   error: z.string().min(1).optional(),
+  web: webPayloadStatusSchema.optional(),
 })
 export type DesktopUpdate = z.infer<typeof desktopUpdateSchema>
 

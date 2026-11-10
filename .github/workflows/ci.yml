@@ -315,19 +315,20 @@ jobs:
         run: bun test src/host/__tests__/built-app.spec.ts
         working-directory: apps/mac
 
-      - name: verify Chromium's helpers stay out of the Dock
+      - name: verify no Chromium helper claims a Dock tile
         if: steps.reach.outputs.run == 'true'
         run: |
           set -euo pipefail
           shopt -s nullglob
           app=$(find build -maxdepth 2 -path 'build/stable-macos-*/*.app' | head -1)
-          [ -n "$app" ] || { echo "::error::no built app under build/stable-macos-*"; exit 1; }
+          if [ -z "$app" ]; then echo "::error::no built app under build/stable-macos-*"; exit 1; fi
           bundles=("$app"/Contents/Frameworks/*.app)
-          [ "${#bundles[@]}" -gt 0 ] || { echo "::notice::the app carries no helper bundles"; exit 0; }
+          if [ "${#bundles[@]}" -eq 0 ]; then echo "the app carries no Chromium helpers"; exit 0; fi
           for bundle in "${bundles[@]}"; do
-            plutil -extract LSUIElement raw "$bundle/Contents/Info.plist" | grep -qx true || {
-              echo "::error::$bundle would put its own tile in the Dock"; exit 1;
-            }
+            if ! plutil -extract LSUIElement raw "$bundle/Contents/Info.plist" | grep -qx true; then
+              echo "::error::$bundle would put its own tile in the Dock; see apps/mac/README.md"
+              exit 1
+            fi
           done
         working-directory: apps/mac
 

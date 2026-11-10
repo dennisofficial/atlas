@@ -1,0 +1,97 @@
+import { describe, expect, it } from 'bun:test'
+
+import { fakeCloud, fakeDaemon, invoke, skillDir, textOf, turn } from './support'
+
+const repoTree = () => ({
+  '/repo/.git': { kind: 'dir' as const },
+  '/repo/.atlas/skills': { kind: 'dir' as const },
+  '/repo/.atlas/skills/alpha': { kind: 'dir' as const },
+  '/repo/.atlas/skills/alpha/SKILL.md': {
+    kind: 'file' as const,
+    text: skillDir('alpha', 'alpha body'),
+  },
+})
+
+describe('the same three tools over the clone', () => {
+  it('installs a repo skill into .atlas/skills and the next turn lists it', async () => {
+    const { ctx, nodes } = fakeDaemon(repoTree())
+    const cloud = fakeCloud({ entries: [] })
+
+    const installed = await invoke({
+      ctx,
+      cloud,
+      name: 'skill_install',
+      input: { layer: 'repo', name: 'gamma', body: skillDir('gamma', 'gamma body') },
+    })
+    expect(textOf(installed)).toContain('/repo/.atlas/skills/gamma/SKILL.md')
+    expect(nodes['/repo/.atlas/skills/gamma/SKILL.md']).toEqual({
+      kind: 'file',
+      text: skillDir('gamma', 'gamma body'),
+    })
+
+    const listing = await turn({ ctx, cloud })
+    expect(listing.join('\n')).toContain('gamma: does gamma')
+  })
+
+  it('edits a repo skill whole and deletes its directory', async () => {
+    const { ctx, nodes } = fakeDaemon(repoTree())
+    const cloud = fakeCloud({ entries: [] })
+
+    const edited = await invoke({
+      ctx,
+      cloud,
+      name: 'skill_edit',
+      input: { name: 'alpha', layer: 'repo', body: skillDir('alpha', 'changed') },
+    })
+    expect(edited.ok).toBe(true)
+    expect(nodes['/repo/.atlas/skills/alpha/SKILL.md']).toEqual({
+      kind: 'file',
+      text: skillDir('alpha', 'changed'),
+    })
+
+    const deleted = await invoke({
+      ctx,
+      cloud,
+      name: 'skill_delete',
+      input: { name: 'alpha', layer: 'repo' },
+    })
+    expect(deleted.ok).toBe(true)
+    expect(nodes['/repo/.atlas/skills/alpha']).toBeUndefined()
+    expect(nodes['/repo/.atlas/skills/alpha/SKILL.md']).toBeUndefined()
+  })
+
+  it('refuses an edit of a repo skill that is not there', async () => {
+    const { ctx } = fakeDaemon(repoTree())
+    const outcome = await invoke({
+      ctx,
+      cloud: fakeCloud({ entries: [] }),
+      name: 'skill_edit',
+      input: { name: 'delta', layer: 'repo', body: skillDir('delta', 'x') },
+    })
+    expect(outcome.ok).toBe(false)
+    expect(textOf(outcome)).toContain('call skill_install with layer repo')
+  })
+
+  it('refuses a repo write in a session with no clone, and says to use another layer', async () => {
+    const { ctx } = fakeDaemon({ '/repo/.atlas/skills': { kind: 'dir' } })
+    const cloud = fakeCloud({ entries: [] })
+
+    const installed = await invoke({
+      ctx,
+      cloud,
+      name: 'skill_install',
+      input: { layer: 'repo', name: 'gamma', body: skillDir('gamma', 'x') },
+    })
+    expect(installed.ok).toBe(false)
+    expect(textOf(installed)).toContain('has no clone')
+
+    const deleted = await invoke({
+      ctx,
+      cloud,
+      name: 'skill_delete',
+      input: { name: 'alpha', layer: 'repo' },
+    })
+    expect(deleted.ok).toBe(false)
+    expect(textOf(deleted)).toContain('has no clone')
+  })
+})

@@ -19,4 +19,5 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
   parsing `usePathname()`.
 - The `mac-app-rehearsal` CI job builds the packaged app and checks the built server answers flight
   requests on every PR.
-- UI changes reach the Mac only on a release (PR title `fix` or `feat`).
+- Interface changes reach the Mac as a web payload within minutes of a merge
+  (`.github/workflows/web-ota.yml`); a change under `apps/mac/src` still needs a release.

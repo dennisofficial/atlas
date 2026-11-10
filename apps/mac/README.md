@@ -27,25 +27,22 @@ Hutch is Electrobun 2.x's build tool: it downloads the pinned Electrobun core an
 
 ## Chromium in the browser pane
 
-The app ships Chromium (`build.mac.bundleCEF` in `electrobun.config.ts`, plus the JIT and executable-memory
-entitlements a hardened-runtime Chromium needs) for the right-hand **Browser** pane, while the window and
-every other view stay on WKWebView: only the pane's `<electrobun-webview>` is created with `renderer="cef"`.
-`BuildConfig.getSync().availableRenderers` decides at launch whether the build can paint Chromium, and that
-answer travels to the page as `chromium` on `/desktop/version`; a dev build without CEF reports false and the
-pane falls back to WKWebView. The pane keeps one persistent profile (`persist:atlas-browser` under Chromium),
-so a site login survives restarts and every session.
+The app does not ship Chromium: `build.mac.bundleCEF` is off in `electrobun.config.ts`. Every view, the
+right-hand **Browser** pane included, runs on WKWebView, `BuildConfig.getSync().availableRenderers` reports
+`native` only, and `/desktop/version` answers `chromium: false`, so the pane's `<electrobun-webview>` falls
+back to Apple's engine — where it sits since #2117. Turn `bundleCEF` back on (and keep the JIT and
+executable-memory entitlements, which a hardened-runtime Chromium needs) once the next paragraph is done.
 
-Electrobun's CEF artifact is roughly 150 MB compressed and several hundred MB installed. The first release
-that carries it is therefore a full download — there is nothing to delta against — and releases after it
-patch as usual, because the pinned Chromium is byte-identical between them.
+Electrobun initializes CEF at launch whenever the bundle carries it, so a `bundleCEF: true` build starts
+Chromium's GPU process even though every view is native. Hutch stages each helper as
+`Contents/Frameworks/bun Helper*.app` with no `Info.plist`, so each helper registers as a foreground app and
+puts a stray `bun Helper` tile in the Dock at every launch — the tile this app used to show. `postWrap` runs
+before Hutch stages the helpers, so a plist written there lands in nothing (that is why #2141 did not take).
+CEF comes back once Hutch writes `Info.plist` with `LSUIElement` into each helper bundle, or once this app
+re-signs them itself in `scripts/make-dmg.ts`; the Mac rehearsal's "Chromium's helpers stay out of the Dock"
+step fails if the app carries helpers that would claim a tile.
 
-Electrobun initializes CEF at launch whenever the bundle carries it, so Chromium's GPU process starts even
-when the pane runs on WKWebView. Hutch stages each helper as `Contents/Frameworks/bun Helper*.app` with no
-`Info.plist`, so every helper registers as a foreground app and puts a `bun Helper` tile in the Dock.
-`scripts/post-wrap.ts` writes an `Info.plist` with `LSUIElement` into each helper bundle before Hutch signs
-the wrapper (`scripts/helper-plists-plan.ts` builds it, `scripts/wrapper-autoclose.ts` keeps its
-`LSEnvironment` edit there). Hutch runs `postWrap` for release wrappers only, so `electrobun dev` still
-shows the tiles.
+Electrobun's CEF artifact is roughly 150 MB compressed and 325 MB installed, which the app no longer pays.
 
 ## Updates
 

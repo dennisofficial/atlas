@@ -4,10 +4,14 @@ import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
 import { catalogueFor } from './catalogue-source'
 import { listingBudgetChars, skillListingOf } from './listing'
-import type { CloudSkillSource } from './port'
+import type { CloudSkillSource, CloudSkillWriter } from './port'
 import type { SkillsPodState } from './state'
 
-export type SkillsPodOptions = { cloud: CloudSkillSource; contextWindowTokens: number }
+export type SkillsPodOptions = {
+  cloud: CloudSkillSource
+  contextWindowTokens: number
+  writes?: CloudSkillWriter | undefined
+}
 
 type Ctx = Pick<PluginPodContext, 'call' | 'log'>
 
