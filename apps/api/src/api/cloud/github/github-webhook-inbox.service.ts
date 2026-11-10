@@ -1,17 +1,21 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { db, or, type Row, type Tx } from '@dltech/atlas-db'
+import { GithubDeliveryFillDeferred } from './github-delivery-fill'
 
 const RECONCILE_BATCH = 32
 export const MAX_ATTEMPTS = 10
 export const INLINE_LEASE_MS = 5 * 60_000
 export const RETRY_BASE_MS = 60_000
 export const RETRY_CAP_MS = 60 * 60_000
+export const DEFERRED_MAX_AGE_MS = 6 * 60 * 60_000
 
 type InboxPayload = Row<'GithubWebhookInbox'>['payload']
 
 export function retryDelayMs(attempts: number): number {
   return Math.min(RETRY_CAP_MS, RETRY_BASE_MS * 2 ** Math.max(0, attempts - 1))
 }
+
+const deferredAttempts = (attempts: number): number => Math.min(attempts, MAX_ATTEMPTS - 1)
 
 /**
  * Durable webhook inbox. Every HMAC-verified delivery lands here before any processing, keyed by
@@ -59,7 +63,12 @@ export class GithubWebhookInboxService {
     if (row === null) return
     const processingError = String(args.error).slice(0, 1000)
     const now = new Date()
-    if (row.attempts >= MAX_ATTEMPTS) {
+    const deferred = args.error instanceof GithubDeliveryFillDeferred
+    if (deferred && now.getTime() - row.receivedAt.getTime() >= DEFERRED_MAX_AGE_MS) {
+      await this.markDead({ row, processingError, now })
+      return
+    }
+    if (!deferred && row.attempts >= MAX_ATTEMPTS) {
       await this.markDead({ row, processingError, now })
       return
     }
@@ -67,6 +76,7 @@ export class GithubWebhookInboxService {
       processingError,
       leaseUntil: null,
       nextAttemptAt: new Date(now.getTime() + retryDelayMs(row.attempts)),
+      ...(deferred ? { attempts: deferredAttempts(row.attempts) } : {}),
     })
   }
 

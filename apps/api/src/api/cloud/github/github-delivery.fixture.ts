@@ -126,7 +126,11 @@ export function serviceWith(args: {
   observations?: GithubObservationStore
   readPullRequest?: GithubUserReads['readPullRequest']
   readCheckAnnotations?: GithubUserReads['readCheckAnnotations']
-}): { service: GithubDeliveryService; fanout: GithubPrFanoutService } {
+}): {
+  service: GithubDeliveryService
+  fanout: GithubPrFanoutService
+  mailbox: GithubPrEventMailboxService
+} {
   const github = {
     findToken: async ({ userId }: { userId: string }) => args.tokens?.[userId],
   } as unknown as GithubService
@@ -153,6 +157,7 @@ export function serviceWith(args: {
       args.observations ?? localObservations(github),
     ),
     fanout,
+    mailbox,
   }
 }
 

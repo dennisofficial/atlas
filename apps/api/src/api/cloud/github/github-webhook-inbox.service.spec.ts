@@ -1,7 +1,9 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { describe, expect, it } from 'bun:test'
 import { db, sharedPool } from '@dltech/atlas-db'
+import { GithubDeliveryFillDeferred } from './github-delivery-fill'
 import {
+  DEFERRED_MAX_AGE_MS,
   GithubWebhookInboxService,
   INLINE_LEASE_MS,
   MAX_ATTEMPTS,
@@ -220,6 +222,61 @@ describe('GithubWebhookInboxService', () => {
 
     const row = await db.orm.public.GithubWebhookInbox.where({ deliveryId: 'd-crashed' }).first()
     expect(calls).toBe(0)
+    expect(row?.deadAt).not.toBeNull()
+  })
+
+  it('retries a budget-deferred delivery past the attempt cap and still settles it', async () => {
+    const service = inbox()
+    await service.insert({ deliveryId: 'd-deferred', event: 'check_run', payload: { n: 1 } })
+    const deferred = () =>
+      new GithubDeliveryFillDeferred({ repoFullName: 'compai/app', prNumbers: [888] })
+
+    for (let round = 0; round < MAX_ATTEMPTS + 6; round += 1) {
+      await db.orm.public.GithubWebhookInbox.where({ deliveryId: 'd-deferred' }).updateAndCount({
+        leaseUntil: null,
+        nextAttemptAt: null,
+      })
+      await service.handleReconcile({
+        process: async () => {
+          throw deferred()
+        },
+      })
+    }
+
+    let row = await db.orm.public.GithubWebhookInbox.where({ deliveryId: 'd-deferred' }).first()
+    expect(row?.deadAt).toBeNull()
+    expect(row?.processedAt).toBeNull()
+    expect(row?.attempts).toBeLessThan(MAX_ATTEMPTS)
+    expect(row?.processingError).toContain('deferred')
+
+    await db.orm.public.GithubWebhookInbox.where({ deliveryId: 'd-deferred' }).updateAndCount({
+      leaseUntil: null,
+      nextAttemptAt: null,
+    })
+    await service.handleReconcile({ process: async () => undefined })
+
+    row = await db.orm.public.GithubWebhookInbox.where({ deliveryId: 'd-deferred' }).first()
+    expect(row?.processedAt).not.toBeNull()
+  })
+
+  it('gives up on a delivery the budget deferred past its age ceiling', async () => {
+    const service = inbox()
+    await service.insert({ deliveryId: 'd-deferred-old', event: 'check_run', payload: {} })
+    await db.orm.public.GithubWebhookInbox.where({ deliveryId: 'd-deferred-old' }).updateAndCount({
+      receivedAt: new Date(Date.now() - DEFERRED_MAX_AGE_MS - 1_000),
+      leaseUntil: null,
+      nextAttemptAt: null,
+    })
+
+    await service.handleReconcile({
+      process: async () => {
+        throw new GithubDeliveryFillDeferred({ repoFullName: 'compai/app', prNumbers: [888] })
+      },
+    })
+
+    const row = await db.orm.public.GithubWebhookInbox.where({
+      deliveryId: 'd-deferred-old',
+    }).first()
     expect(row?.deadAt).not.toBeNull()
   })
 
