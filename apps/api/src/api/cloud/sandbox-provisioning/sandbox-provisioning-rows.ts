@@ -88,6 +88,7 @@ export async function claimRow(args: {
   }).updateAndCount({
     wakeClaim,
     ...mintedColumns,
+    retiredAt: null,
     ...(args.pendingVcpus === undefined ? {} : { pendingVcpus: args.pendingVcpus }),
     state: ESandboxState.Resuming,
     updatedAt: wakeClaim,

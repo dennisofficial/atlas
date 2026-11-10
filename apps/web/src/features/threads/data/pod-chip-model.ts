@@ -10,6 +10,7 @@ const UI_STATE: Record<EPodState, EUiPodState | null> = {
   [EPodState.Running]: EUiPodState.Running,
   [EPodState.Parked]: EUiPodState.Parked,
   [EPodState.Failed]: EUiPodState.Stopped,
+  [EPodState.Retired]: EUiPodState.Stopped,
 }
 
 const POD_STATE_LABEL: Record<EPodState, string | null> = {
@@ -18,6 +19,7 @@ const POD_STATE_LABEL: Record<EPodState, string | null> = {
   [EPodState.Running]: 'Running',
   [EPodState.Parked]: 'Parked',
   [EPodState.Failed]: 'Failed',
+  [EPodState.Retired]: 'Released',
 }
 
 export const podStateLabelOf = (pod: PodStatus | null): string | null =>

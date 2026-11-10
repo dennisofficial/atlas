@@ -20,8 +20,8 @@ describe('ThreadMessagesService.send after the archived-sandbox sweep deleted th
   it('unarchives the session and boots a fresh sandbox', async () => {
     await seedArchivedApiSession({ archivedAt: EIGHT_DAYS_AGO })
     const swept = await sweepArchivedSandboxes({ now: new Date(), deps: recordingSweepDeps().deps })
-    expect(swept.deleted).toBe(1)
-    expect(await sandboxRows()).toHaveLength(0)
+    expect(swept.retired).toBe(1)
+    expect((await sandboxRows())[0]?.retiredAt).not.toBeNull()
 
     const { service, dispatch } = messagesWith()
     const reply = await service.send(ARGS)

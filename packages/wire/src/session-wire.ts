@@ -49,7 +49,7 @@ export const wireThreadSchema = z.object({
       working: z.boolean(),
       awaiting: z.enum(['approval', 'input']).nullable(),
       lastOutcome: z.enum(['completed', 'failed', 'stopped']).nullable(),
-      podState: z.enum(['none', 'booting', 'running', 'parked', 'failed']),
+      podState: z.enum(['none', 'booting', 'running', 'parked', 'failed', 'retired']),
       lastAssistantSeq: z.number().int(),
       readSeq: z.number().int().nullable(),
     })

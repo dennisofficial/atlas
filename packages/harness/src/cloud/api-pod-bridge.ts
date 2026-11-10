@@ -39,6 +39,7 @@ const SANDBOX_STATES: Readonly<Record<EPodState, ECloudSandboxState>> = {
   [EPodState.Parked]: ECloudSandboxState.Parked,
   [EPodState.Failed]: ECloudSandboxState.Stopped,
   [EPodState.None]: ECloudSandboxState.Stopped,
+  [EPodState.Retired]: ECloudSandboxState.Stopped,
 }
 
 const RESIZE_APPLIES: Readonly<Record<EPodResizeApplies, EResizeApplies>> = {

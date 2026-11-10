@@ -1,0 +1,54 @@
+[
+  {
+    "id": "column.v2.V2Session.podRetiredAt",
+    "label": "Add column \"podRetiredAt\" to \"V2Session\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "column",
+        "name": "podRetiredAt",
+        "table": "V2Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"podRetiredAt\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "podRetiredAt"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"podRetiredAt\"",
+        "sql": "ALTER TABLE \"v2\".\"V2Session\" ADD COLUMN \"podRetiredAt\" timestamptz(3)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"podRetiredAt\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "podRetiredAt"
+        ]
+      },
+      {
+        "description": "verify column \"podRetiredAt\" has type \"timestamp(3) with time zone\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "podRetiredAt",
+          "timestamp(3) with time zone"
+        ]
+      }
+    ]
+  }
+]

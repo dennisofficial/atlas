@@ -23,10 +23,23 @@ export class VercelOrphanSandboxStore implements OrphanSandboxStore {
   }
 
   async deleteSandbox(args: { name: string }): Promise<void> {
-    try {
-      const sandbox = await Sandbox.get({ ...this.credentials, name: args.name, resume: false })
+    await this.withSandbox(args.name, async (sandbox) => {
       if (sandbox.status === 'running') return
       await sandbox.delete()
+    })
+  }
+
+  async stopSandbox(args: { name: string }): Promise<void> {
+    await this.withSandbox(args.name, async (sandbox) => {
+      if (sandbox.status !== 'running') return
+      await sandbox.stop()
+    })
+  }
+
+  private async withSandbox(name: string, act: (sandbox: Sandbox) => Promise<void>): Promise<void> {
+    try {
+      const sandbox = await Sandbox.get({ ...this.credentials, name, resume: false })
+      await act(sandbox)
     } catch (failure) {
       if (isSandboxMissing(failure)) return
       throw failure

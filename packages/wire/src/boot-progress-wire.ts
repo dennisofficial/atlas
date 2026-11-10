@@ -262,6 +262,7 @@ export enum EPodState {
   Running = 'running',
   Parked = 'parked',
   Failed = 'failed',
+  Retired = 'retired',
 }
 
 export const podResourcesSchema = z.object({

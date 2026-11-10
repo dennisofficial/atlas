@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'1440ea06adc82bfb24c1b7d40dc3fc4a31df6691444f3237fb72c7a072b29df7'>;
+  StorageHashBase<'16fc818c1490fd04ea35cb9a949f3280daae90ebb67a43d77ac7ce33dd3c6899'>;
 export type ExecutionHash =
   ExecutionHashBase<'0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289'>;
 export type ProfileHash =
@@ -352,6 +352,7 @@ export namespace Models {
     pendingVcpus: FieldOutputTypes['public']['CloudSandbox']['pendingVcpus'];
     pinnedModel: FieldOutputTypes['public']['CloudSandbox']['pinnedModel'];
     region: FieldOutputTypes['public']['CloudSandbox']['region'];
+    retiredAt: FieldOutputTypes['public']['CloudSandbox']['retiredAt'];
     runningServeVersion: FieldOutputTypes['public']['CloudSandbox']['runningServeVersion'];
     runtimeCheckpoint: FieldOutputTypes['public']['CloudSandbox']['runtimeCheckpoint'];
     runtimeCheckpointRevision: FieldOutputTypes['public']['CloudSandbox']['runtimeCheckpointRevision'];
@@ -1167,6 +1168,7 @@ export namespace Models {
     modelFast: FieldOutputTypes['v2']['V2Session']['modelFast'];
     modelRef: FieldOutputTypes['v2']['V2Session']['modelRef'];
     nextInboxId: FieldOutputTypes['v2']['V2Session']['nextInboxId'];
+    podRetiredAt: FieldOutputTypes['v2']['V2Session']['podRetiredAt'];
     podSessionId: FieldOutputTypes['v2']['V2Session']['podSessionId'];
     projectId: FieldOutputTypes['v2']['V2Session']['projectId'];
     spawnedBySessionId: FieldOutputTypes['v2']['V2Session']['spawnedBySessionId'];
@@ -1748,6 +1750,13 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly retiredAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
                 readonly runningServeVersion: {
@@ -6566,6 +6575,13 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly many: false;
                 };
+                readonly podRetiredAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
                 readonly podSessionId: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
@@ -7390,6 +7406,14 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly retiredAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
               readonly runningServeVersion: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -7518,6 +7542,7 @@ type ContractBase = Omit<
                 readonly pendingVcpus: { readonly column: 'pendingVcpus' };
                 readonly pinnedModel: { readonly column: 'pinnedModel' };
                 readonly region: { readonly column: 'region' };
+                readonly retiredAt: { readonly column: 'retiredAt' };
                 readonly runningServeVersion: { readonly column: 'runningServeVersion' };
                 readonly runtimeCheckpoint: { readonly column: 'runtimeCheckpoint' };
                 readonly runtimeCheckpointRevision: {
@@ -12138,6 +12163,14 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
+              readonly podRetiredAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
               readonly podSessionId: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -12228,6 +12261,7 @@ type ContractBase = Omit<
                 readonly modelFast: { readonly column: 'modelFast' };
                 readonly modelRef: { readonly column: 'modelRef' };
                 readonly nextInboxId: { readonly column: 'nextInboxId' };
+                readonly podRetiredAt: { readonly column: 'podRetiredAt' };
                 readonly podSessionId: { readonly column: 'podSessionId' };
                 readonly projectId: { readonly column: 'projectId' };
                 readonly spawnedBySessionId: { readonly column: 'spawnedBySessionId' };

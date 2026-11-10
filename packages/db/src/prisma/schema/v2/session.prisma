@@ -15,6 +15,7 @@ namespace v2 {
     modelFast    Boolean?
     spawnedBySessionId String?
     podSessionId       String?
+    podRetiredAt       TimestamptzJsDate(3)?
     threads      V2Thread[]
     inbox        V2InboxEntry[]
     lease        V2Lease?

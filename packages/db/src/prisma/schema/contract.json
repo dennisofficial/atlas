@@ -919,6 +919,16 @@
                   "kind": "scalar"
                 }
               },
+              "retiredAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
               "runningServeVersion": {
                 "nullable": true,
                 "type": {
@@ -1125,6 +1135,9 @@
                 },
                 "region": {
                   "column": "region"
+                },
+                "retiredAt": {
+                  "column": "retiredAt"
                 },
                 "runningServeVersion": {
                   "column": "runningServeVersion"
@@ -8491,6 +8504,16 @@
                   "kind": "scalar"
                 }
               },
+              "podRetiredAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
               "podSessionId": {
                 "nullable": true,
                 "type": {
@@ -8638,6 +8661,9 @@
                 },
                 "nextInboxId": {
                   "column": "nextInboxId"
+                },
+                "podRetiredAt": {
+                  "column": "podRetiredAt"
                 },
                 "podSessionId": {
                   "column": "podSessionId"
@@ -9443,6 +9469,14 @@
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": false
+                },
+                "retiredAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
                 },
                 "runningServeVersion": {
                   "codecId": "pg/text@1",
@@ -15197,6 +15231,14 @@
                   "dataType": "pg/int4",
                   "nullable": false
                 },
+                "podRetiredAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
                 "podSessionId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -15464,7 +15506,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "1440ea06adc82bfb24c1b7d40dc3fc4a31df6691444f3237fb72c7a072b29df7"
+    "storageHash": "16fc818c1490fd04ea35cb9a949f3280daae90ebb67a43d77ac7ce33dd3c6899"
   },
   "execution": {
     "executionHash": "0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289",
