@@ -36,10 +36,10 @@ _Updated at the end of every slice. Last update: 2026-11-10._
   #2157: `>-` frontmatter descriptions, a skill installed mid-turn that could not be loaded until the
   next turn, MCP config rejections that vanished from the view, instructions arriving a turn late, and
   a killed server still reading `connected`. The last gap closed the same day: a cloud row's
-  sealed OAuth grant is now used (#2168), so `Posthog` connects — the roster read `connected` with one
-  tool and `mcp__Posthog__exec` returned live project data — while `wispr-flow` stays `needs-auth`
-  because it holds no grant until the operator signs in from Settings. Refresh of an expired grant is
-  its own slice.
+  sealed OAuth grant is now used (#2168), so both cloud servers connect: the roster read `Posthog connected` with one tool and
+  `mcp__Posthog__exec` returned live project data, and after a Settings sign-in `wispr-flow connected`
+  with fifteen tools answered `search_meetings`. A row with no grant stays `needs-auth`. Refresh of an
+  expired grant is its own slice.
 
 - **Slice 7c built, live check outstanding (2026-11-09)** (`#2116`, `#2121`): `plugins/web` gives a
   v2 session `web_search`, `web_fetch` and `browser` — the search over the operator's backend and
