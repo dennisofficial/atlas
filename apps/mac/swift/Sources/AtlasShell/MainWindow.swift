@@ -32,6 +32,15 @@ final class MainWindow {
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.minSize = NSSize(width: 720, height: 480)
+        window.maxSize = NSSize(
+            width: CGFloat.greatestFiniteMagnitude,
+            height: CGFloat.greatestFiniteMagnitude
+        )
+        window.contentMinSize = NSSize(width: 720, height: 480)
+        window.contentMaxSize = NSSize(
+            width: CGFloat.greatestFiniteMagnitude,
+            height: CGFloat.greatestFiniteMagnitude
+        )
         window.contentView = shell
         shell.autoresizingMask = [.width, .height]
         window.center()
@@ -42,6 +51,13 @@ final class MainWindow {
     }
 
     func show() {
+        let mask = window.styleMask
+        Log.write(
+            "window mask=\(mask.rawValue) resizable=\(mask.contains(.resizable)) " +
+                "zoomable=\(window.isZoomable) min=\(window.minSize) max=\(window.maxSize) " +
+                "contentMin=\(window.contentMinSize) contentMax=\(window.contentMaxSize) " +
+                "frame=\(window.frame)"
+        )
         window.makeKeyAndOrderFront(nil)
         NSApplication.shared.activate(ignoringOtherApps: true)
     }
