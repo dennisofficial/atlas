@@ -18,6 +18,7 @@ import {
   writeRepoSkillFile,
 } from './repo-writes'
 import type { SkillsPodState } from './state'
+import { forgetCatalogue } from './state'
 import {
   builtInRefusal,
   isBuiltInSkillName,
@@ -31,7 +32,6 @@ import {
   refused,
   scopeOf,
 } from './write-support'
-import type { ESkillWriteLayer } from './write-support'
 
 export class SkillInstallTool extends SchemaTool<typeof installSchema> {
   readonly name = 'skill_install'
@@ -47,6 +47,7 @@ export class SkillInstallTool extends SchemaTool<typeof installSchema> {
 
   constructor(
     private readonly ctx: PluginPodContext,
+    private readonly state: SkillsPodState,
     private readonly options: SkillsPodOptions,
   ) {
     super()
@@ -71,6 +72,7 @@ export class SkillInstallTool extends SchemaTool<typeof installSchema> {
         body: input.body,
       })
       if (!written.ok) return { ok: false, reason: written.reason }
+      forgetCatalogue(this.state)
       return {
         ok: true,
         output: { name: input.name, layer: input.layer, path: written.path },
@@ -88,6 +90,7 @@ export class SkillInstallTool extends SchemaTool<typeof installSchema> {
       baseRevision: 0,
     })
     if (!result.ok) return refused(result, input.name)
+    forgetCatalogue(this.state)
     return {
       ok: true,
       output: { name: input.name, layer: input.layer, revision: result.revision },
@@ -151,6 +154,7 @@ export class SkillEditTool extends SchemaTool<typeof editSchema> {
         body: input.body,
       })
       if (!written.ok) return { ok: false, reason: written.reason }
+      forgetCatalogue(this.state)
       return {
         ok: true,
         output: { name: input.name, layer: input.layer, path: written.path },
@@ -168,6 +172,7 @@ export class SkillEditTool extends SchemaTool<typeof editSchema> {
       baseRevision: input.baseRevision ?? null,
     })
     if (!result.ok) return refused(result, input.name)
+    forgetCatalogue(this.state)
     return {
       ok: true,
       output: { name: input.name, layer: input.layer, revision: result.revision },
@@ -229,6 +234,7 @@ export class SkillDeleteTool extends SchemaTool<typeof deleteSchema> {
         directory: repoSkillDirectoryOf({ projectDirectory, name: input.name }),
       })
       if (!removed.ok) return { ok: false, reason: removed.reason }
+      forgetCatalogue(this.state)
       return {
         ok: true,
         output: { name: input.name, layer: input.layer, path: removed.path },
@@ -239,6 +245,7 @@ export class SkillDeleteTool extends SchemaTool<typeof deleteSchema> {
     if (this.options.writes === undefined) return cloudMissing()
     const result = await this.options.writes.remove({ scope, name: input.name })
     if (!result.ok) return { ok: false, reason: result.reason }
+    forgetCatalogue(this.state)
     return {
       ok: true,
       output: { name: input.name, layer: input.layer },

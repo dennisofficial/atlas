@@ -10,6 +10,10 @@ export type SkillsPodState = {
 
 const states = new WeakMap<PluginPodContext, SkillsPodState>()
 
+export const forgetCatalogue = (state: SkillsPodState): void => {
+  state.catalogue = null
+}
+
 export const stateFor = (ctx: PluginPodContext): SkillsPodState => {
   const kept = states.get(ctx)
   if (kept !== undefined) return kept
