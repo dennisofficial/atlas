@@ -1,4 +1,5 @@
 import type { ThreadId } from '@dltech/atlas-core'
+import { EMPTY_MCP_CONTROL } from '@dltech/atlas-plugin-sdk'
 import type {
   MemoryAddress,
   MemoryEntry,
@@ -6,6 +7,7 @@ import type {
   MemorySnapshot,
   MemorySummary,
   PodControl,
+  PodMcpControl,
   WebSearchConfig,
 } from '@dltech/atlas-plugin-sdk'
 
@@ -38,6 +40,7 @@ const unreachable = (): Error => new Error('this session cannot reach the contro
 export const podControlOf = (args: {
   client: PodControlClient | undefined
   threadId: ThreadId
+  mcp?: PodMcpControl | undefined
 }): PodControl => ({
   exposePort: async ({ port }) => {
     if (args.client === undefined) throw unreachable()
@@ -48,6 +51,7 @@ export const podControlOf = (args: {
       throw new Error(`could not expose port ${port}: ${message}`)
     }
   },
+  mcp: args.mcp ?? EMPTY_MCP_CONTROL,
   webSearch: {
     config: async () => {
       if (args.client === undefined) throw unreachable()

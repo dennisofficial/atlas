@@ -61,7 +61,11 @@ export const pluginPodContextOf = (args: {
   return {
     sessionId: deps.sessionId,
     workspaceDirectory: runtime.launchDirectory,
-    control: podControlOf({ client: deps.control, threadId }),
+    control: podControlOf({
+      client: deps.control,
+      threadId,
+      ...(deps.mcp === undefined ? {} : { mcp: deps.mcp(deps.sessionId) }),
+    }),
     crew: args.crew,
     sessions: podSessionsOf({ plane: deps.plane, sessionId: deps.sessionId }),
     worktrees: worktreesOf({ calls: runtime.remoteCalls }),

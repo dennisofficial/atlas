@@ -6,12 +6,14 @@ import { mcpCommand } from '../core'
 import type { McpConfigPort } from './config'
 import { mcpInstructionsHook } from './instructions'
 import { mcpReport } from './report'
+import { McpSignInTool } from './sign-in'
 import { McpStores } from './store'
 
 export { MCP_NAME_PREFIX } from './bridge-tool'
 export { McpBridgeTool } from './bridge-tool'
 export { mcpInstructionsHook, mcpInstructionsOf } from './instructions'
 export { mcpReport, mcpReportRow, NO_MCP_SERVERS } from './report'
+export { McpSignInTool } from './sign-in'
 export { loadMcpConfig, type McpCloudRead, type McpConfigPort } from './config'
 export { EMcpServerStatus, McpStore, McpStores, type McpServerState } from './store'
 export { HttpClient } from './http'
@@ -45,7 +47,7 @@ export const mcpPod = (args: McpPodArgs): PodSlot => {
   }
   return {
     ...EMPTY_POD,
-    tools: (ctx) => stores.of(ctx).tools(),
+    tools: (ctx) => [...stores.of(ctx).tools(), new McpSignInTool(ctx, stores.of(ctx))],
     hooks: (ctx) => ({
       beforeTurn: [
         {

@@ -79,6 +79,7 @@ export type McpRejection = {
 export type LoadedMcpEntry = McpEntry & {
   origin: EDefinitionOrigin
   definedIn: string
+  source: 'cloud' | 'repo'
   accessToken?: string
 }
 
@@ -122,7 +123,12 @@ export const readMcpEntries = (args: {
     const parsed = mcpSpecSchema.safeParse({ ...fields, name })
 
     if (parsed.success) {
-      entries.push({ ...parsed.data, origin: args.origin, definedIn: args.definedIn })
+      entries.push({
+        ...parsed.data,
+        origin: args.origin,
+        definedIn: args.definedIn,
+        source: 'repo',
+      })
       continue
     }
 
@@ -261,6 +267,7 @@ export const parseMcpRows = (args: {
         ...parsed.data,
         origin,
         definedIn: args.definedIn,
+        source: 'cloud',
         ...(row.accessToken === undefined ? {} : { accessToken: row.accessToken }),
       })
       continue

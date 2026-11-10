@@ -257,6 +257,24 @@ export class McpStore {
     }
   }
 
+  specOf(name: string): LoadedMcpEntry | undefined {
+    return this.held.get(name)?.spec
+  }
+
+  private async tokenOf(spec: LoadedMcpEntry): Promise<string | undefined> {
+    const transport = spec.transport
+    if (transport?.kind !== 'http') return undefined
+    try {
+      return await this.args.ctx.control.mcp.token({
+        name: spec.name,
+        source: spec.source,
+        url: transport.url,
+      })
+    } catch {
+      return undefined
+    }
+  }
+
   private async markFailed(args: {
     name: string
     client: McpTransportClient
@@ -299,12 +317,13 @@ export class McpStore {
       }
     }
 
+    const token = spec.accessToken ?? (await this.tokenOf(spec))
     const client: McpTransportClient =
       transport.kind === 'http'
         ? new HttpClient({
             serverId: spec.name,
             transport,
-            accessToken: spec.accessToken,
+            ...(token === undefined ? {} : { accessToken: token }),
           })
         : new StdioClient({
             ctx: this.args.ctx,

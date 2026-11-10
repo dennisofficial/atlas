@@ -2,6 +2,7 @@ import type { CommandRegistry } from '@dltech/atlas-commands'
 import type { IdPort } from '@dltech/atlas-core'
 import type { ControlPlane } from '@dltech/atlas-control'
 import type { LogPort } from '@dltech/atlas-observability'
+import type { PodMcpControl } from '@dltech/atlas-plugin-sdk'
 
 import type { CommandHandlers } from './command-intake'
 import type { PodControlClient } from './pod-control'
@@ -26,5 +27,6 @@ export type HeldSessionDeps = {
   commands?: CommandRegistry | undefined
   commandHandlers?: CommandHandlers | undefined
   control?: PodControlClient | undefined
+  mcp?: ((sessionId: string) => PodMcpControl) | undefined
   log?: LogPort | undefined
 }
