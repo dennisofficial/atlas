@@ -10,13 +10,39 @@ import {
   v2PodNames,
 } from '../../api/cloud/sandbox-provisioning/live-sandbox-names'
 import {
+  planSandboxStateReconcile,
   sweepOrphanSandboxes,
+  type OrphanSandbox,
   type OrphanSandboxStore,
+  type SandboxStateReconciler,
 } from '../../api/cloud/sandbox-provisioning/orphan-sandbox-sweep'
 import { VercelOrphanSandboxStore } from '../../api/cloud/sandbox-provisioning/vercel-orphan-sandbox-store'
 import { workerEnvService } from '../github/github-sweep-graph'
 
-type StoreEntry = { label: string; store: OrphanSandboxStore }
+type StoreEntry = { label: string; projectId: string; store: OrphanSandboxStore }
+
+async function reconcileStates(args: {
+  projectId: string
+  sandboxes: readonly OrphanSandbox[]
+  now: Date
+}): Promise<number> {
+  const rows = await db.orm.public.CloudSandbox.where({ vercelProjectId: args.projectId })
+    .select('name', 'state', 'lastActivityAt')
+    .all()
+  const plan = planSandboxStateReconcile({
+    rows,
+    sandboxes: args.sandboxes,
+    now: args.now,
+  })
+  const at = new Date()
+  for (const row of plan.park) {
+    await db.orm.public.CloudSandbox.where({ name: row.name }).update({
+      state: ESandboxState.Parked,
+      updatedAt: at,
+    })
+  }
+  return plan.park.length
+}
 
 const projectIdsOf = (args: {
   projectId: string | null
@@ -37,6 +63,7 @@ async function storesOf(args: { cipher: SecretCipherService }): Promise<StoreEnt
     if (entries.has(key)) return
     entries.set(key, {
       label: `${entry.owner}/${entry.projectId}`,
+      projectId: entry.projectId,
       store: new VercelOrphanSandboxStore({
         token: entry.token,
         teamId: entry.teamId,
@@ -71,6 +98,9 @@ export const orphanSandboxSweepTask = schedules.task({
     const logger = new Logger('OrphanSandboxSweep')
     const cipher = new SecretCipherService(workerEnvService())
     const pods = await v2PodNames()
+    const now = new Date()
+    const reconcile: SandboxStateReconciler = async ({ projectId, sandboxes }) =>
+      reconcileStates({ projectId, sandboxes, now })
     return sweepOrphanSandboxes({
       stores: await storesOf({ cipher }),
       liveNames: liveSandboxNames,
@@ -88,7 +118,8 @@ export const orphanSandboxSweepTask = schedules.task({
           updatedAt: new Date(),
         })
       },
-      now: new Date(),
+      reconcileStates: reconcile,
+      now,
       dryRun: false,
       log: (line) => logger.log(line),
     })
