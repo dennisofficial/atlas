@@ -36,6 +36,7 @@ afterEach(() => {
   globalThis.fetch = realFetch
   Reflect.deleteProperty(window, 'atlasDesktop')
   document.body.innerHTML = ''
+  window.localStorage.clear()
 })
 
 const mount = async (element: ReactElement) => {
@@ -112,6 +113,17 @@ describe('UpdateCard', () => {
     expect(calls).toContainEqual({ path: '/desktop/update/restart', method: 'POST' })
     expect(button('Reloading…')?.disabled).toBe(true)
     await unmount()
+  })
+
+  it('stops offering reloads for a while after one', async () => {
+    asDesktop()
+    body = { state: 'idle', web: { state: 'ready', version: '1.296.0', hash: 'abc123' } }
+    const first = await mount(<UpdateCard />)
+    await act(async () => button('Reload')?.click())
+    await first()
+    const second = await mount(<UpdateCard />)
+    expect(document.body.textContent).not.toContain('New interface ready')
+    await second()
   })
 
   it('falls back when the payload carries no version', async () => {

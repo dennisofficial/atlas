@@ -1,7 +1,12 @@
 import { describe, expect, test } from 'bun:test'
 
 import type { IPayloadState } from '../state'
-import { createWebUpdater, EWebPayloadState, type IWebUpdaterPorts } from '../updater'
+import {
+  createWebUpdater,
+  EWebPayloadState,
+  type IWebUpdaterPorts,
+  QUIET_AFTER_RELOAD_MS,
+} from '../updater'
 import { fakePayloadFs, manifestOf } from './fixtures'
 
 const archive = new Uint8Array([1, 2, 3])
@@ -20,22 +25,36 @@ function fakePorts({
   const payloadFs = fakePayloadFs({ state, complete })
   const logs: unknown[] = []
   const intervals: Array<() => void> = []
+  let clock = 0
+  let currentManifest = manifestInput
   const ports: IWebUpdaterPorts = {
     fs: payloadFs.fs,
     fetchJson: async () => {
       if (manifestError !== undefined) throw manifestError
-      return manifestInput
+      return currentManifest
     },
     download: async () => archive,
     sha256: () => manifestOf().sha256,
     log: ({ error }) => void logs.push(error),
+    now: () => clock,
     setInterval: (handler) => {
       intervals.push(handler)
       return 1 as unknown as ReturnType<typeof setInterval>
     },
     clearInterval: () => undefined,
   }
-  return { ports, payloadFs, logs, intervals }
+  return {
+    ports,
+    payloadFs,
+    logs,
+    intervals,
+    setManifest: (next: unknown) => {
+      currentManifest = next
+    },
+    advance: (ms: number) => {
+      clock += ms
+    },
+  }
 }
 
 function updaterOf(fake: ReturnType<typeof fakePorts>) {
@@ -132,6 +151,52 @@ describe('createWebUpdater', () => {
     })
     const updater = updaterOf(fake)
     expect(await updater.installedRoot()).toBe(manifestOf().hash)
+  })
+
+  test('clears the ready state once the payload has been reloaded', async () => {
+    const fake = fakePorts()
+    const updater = updaterOf(fake)
+    await updater.check()
+    expect(updater.status().state).toBe(EWebPayloadState.Ready)
+    updater.applied()
+    expect(updater.status().state).toBe(EWebPayloadState.Idle)
+    expect(updater.pending()).toBeUndefined()
+  })
+
+  test('stays quiet for the quiet window after a reload, then speaks again', async () => {
+    const fake = fakePorts()
+    const updater = updaterOf(fake)
+    await updater.check()
+    updater.applied()
+    const newer = manifestOf({ hash: 'e'.repeat(16), artifact: 'web-eeeeeeeeeeeeeeee.tar.gz' })
+    fake.setManifest(newer)
+
+    expect((await updater.check()).state).toBe(EWebPayloadState.Idle)
+    expect(updater.pending()).toBe(newer.hash)
+
+    fake.advance(QUIET_AFTER_RELOAD_MS)
+    fake.setManifest(manifestOf({ hash: 'd'.repeat(16), artifact: 'web-dddddddddddddddd.tar.gz' }))
+    expect((await updater.check()).state).toBe(EWebPayloadState.Ready)
+  })
+
+  test('never speaks about a payload it installed during the quiet window', async () => {
+    const fake = fakePorts()
+    const updater = updaterOf(fake)
+    await updater.check()
+    updater.applied()
+    fake.setManifest(manifestOf({ hash: 'e'.repeat(16), artifact: 'web-eeeeeeeeeeeeeeee.tar.gz' }))
+    expect((await updater.check()).state).toBe(EWebPayloadState.Idle)
+    fake.advance(QUIET_AFTER_RELOAD_MS)
+    expect((await updater.check()).state).toBe(EWebPayloadState.Idle)
+  })
+
+  test('names a pending payload even inside the quiet window when asked', async () => {
+    const fake = fakePorts()
+    const updater = updaterOf(fake)
+    await updater.check()
+    updater.applied()
+    fake.setManifest(manifestOf({ hash: 'e'.repeat(16), artifact: 'web-eeeeeeeeeeeeeeee.tar.gz' }))
+    expect((await updater.check({ force: true })).state).toBe(EWebPayloadState.Ready)
   })
 
   test('prunes payloads the state no longer points at', async () => {

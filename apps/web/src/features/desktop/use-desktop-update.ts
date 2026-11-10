@@ -13,6 +13,30 @@ import { useIsDesktop } from './use-is-desktop'
 
 export const UPDATE_POLL_MS = 60 * 1000
 export const RESTART_POLL_MS = 2 * 1000
+// A merge publishes a payload every few minutes, so a card for every one is a permanent fixture.
+// After a reload the card stays away this long; the menu's Check for Updates still applies one.
+export const INTERFACE_QUIET_MS = 15 * 60 * 1000
+const RELOADED_AT_KEY = 'atlas.interface.reloaded-at'
+
+function readReloadedAt(): number | undefined {
+  try {
+    const raw = window.localStorage.getItem(RELOADED_AT_KEY)
+    const parsed = raw === null ? Number.NaN : Number(raw)
+    return Number.isFinite(parsed) ? parsed : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function rememberReload(): number {
+  const now = Date.now()
+  try {
+    window.localStorage.setItem(RELOADED_AT_KEY, String(now))
+  } catch {
+    return now
+  }
+  return now
+}
 
 export enum EDesktopUpdateKind {
   App = 'app',
@@ -42,8 +66,10 @@ export function useDesktopUpdate(): DesktopUpdateView {
 
   const restarting = requested || update.state === EDesktopUpdateState.Restarting
   const pollMs = restarting ? RESTART_POLL_MS : UPDATE_POLL_MS
+  const [reloadedAt, setReloadedAt] = useState<number | undefined>(readReloadedAt)
   const appReady = update.state !== EDesktopUpdateState.Idle
-  const interfaceReady = update.web?.state === EWebPayloadState.Ready
+  const quiet = reloadedAt !== undefined && Date.now() - reloadedAt < INTERFACE_QUIET_MS
+  const interfaceReady = update.web?.state === EWebPayloadState.Ready && !quiet
   const liveKind = appReady
     ? EDesktopUpdateKind.App
     : interfaceReady
@@ -76,6 +102,7 @@ export function useDesktopUpdate(): DesktopUpdateView {
 
   const restart = useCallback(() => {
     setRequestedFor(kind)
+    if (kind === EDesktopUpdateKind.Interface) setReloadedAt(rememberReload())
     setRequested(true)
     setRequestError(undefined)
     setUpdate((previous) => ({
