@@ -3,12 +3,10 @@ import { tmpdir } from 'node:os'
 import { describe, expect, it } from 'bun:test'
 
 import {
-  ALL_PROMPT_GROUPS,
   EWebSearchBackend,
   PromptFragment,
   ToolDefinition,
   toThreadId,
-  type PromptContext,
   type ToolOutcome,
 } from '@dltech/atlas-core'
 
@@ -21,13 +19,6 @@ import {
 } from '../../container/tokens'
 import { registerBuiltinPromptFragments } from '../../prompt/register-prompt-fragments'
 import { SkillListingFragment } from '../../prompt/fragments/skills'
-
-const OPUS: PromptContext = {
-  groups: ALL_PROMPT_GROUPS,
-  provider: { id: 'anthropic-oauth', modelId: 'claude-opus-5' },
-  model: { contextWindow: 1_000_000 },
-  projectDirectory: '/w',
-}
 
 const wired = (): DependencyContainer => {
   const container = createHarnessContainer()
@@ -84,10 +75,10 @@ describe('the skill registry the tool and the listing share', () => {
   it('hands the listing fragment a registry it can read, so compiling a prompt does not throw', () => {
     const fragment = listingFragment(wired())
 
-    expect(() => fragment.text(OPUS)).not.toThrow()
+    expect(() => fragment.text()).not.toThrow()
   })
 
   it('emits no listing header before anything has awaited the first reload', () => {
-    expect(listingFragment(wired()).text(OPUS)).toBe('')
+    expect(listingFragment(wired()).text()).toBe('')
   })
 })

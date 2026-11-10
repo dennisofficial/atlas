@@ -1,15 +1,19 @@
 import type { RegisteredHook } from '@dltech/atlas-agent'
-import { EStage, type BeforeStep, type BeforeTurn } from '@dltech/atlas-core'
+import {
+  EStage,
+  SKILL_LISTING_BUDGET_CHARS,
+  type BeforeStep,
+  type BeforeTurn,
+} from '@dltech/atlas-core'
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
 import { catalogueFor } from './catalogue-source'
-import { listingBudgetChars, skillListingOf } from './listing'
+import { skillListingOf } from './listing'
 import type { CloudSkillSource, CloudSkillWriter } from './port'
 import type { SkillsPodState } from './state'
 
 export type SkillsPodOptions = {
   cloud: CloudSkillSource
-  contextWindowTokens: number
   writes?: CloudSkillWriter | undefined
 }
 
@@ -54,10 +58,7 @@ export const skillsListingHook = (args: {
       directory,
     })
     if (catalogue === null) return assembled
-    const listing = skillListingOf({
-      catalogue,
-      budgetChars: listingBudgetChars(args.options.contextWindowTokens),
-    })
+    const listing = skillListingOf({ catalogue, budgetChars: SKILL_LISTING_BUDGET_CHARS })
     if (listing === '') return assembled
     return { ...assembled, system: [...assembled.system, { text: listing }] }
   },

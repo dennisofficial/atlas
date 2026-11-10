@@ -1,10 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import { ArrowLeftIcon, CheckIcon, CopyIcon, DownloadIcon } from 'lucide-react'
 
+import { CodeViewer } from '@dltech/atlas-ui/ai/code-viewer'
 import { MessageResponse } from '@dltech/atlas-ui/ai/message-response'
 import { Button } from '@dltech/atlas-ui/components/button'
+import { languageOfPath } from '@dltech/atlas-ui/lib/language-of-path'
 import type { ContextFileContentWire } from '@dltech/atlas-wire/web'
 
 import { useThreadPanel } from '../panel/thread-panel-context'
@@ -49,6 +51,14 @@ export function Notice({ children }: { children: string }) {
   return <p className="text-sm text-muted-foreground">{children}</p>
 }
 
+function ProseColumn({ children }: { children: ReactNode }) {
+  return (
+    <div className="h-full overflow-auto">
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-2 px-4 py-6">{children}</div>
+    </div>
+  )
+}
+
 export function DownloadButton(props: {
   file: ContextFileContentWire
   path: string
@@ -83,37 +93,63 @@ export function DownloadButton(props: {
 
 export function ContextFileBody(props: { loaded: LoadedContextFile; path: string }) {
   const { loaded, path } = props
-  if (loaded.state === 'loading') return <Notice>Reading file…</Notice>
-  if (loaded.state === 'failed') return <Notice>File unavailable</Notice>
+  if (loaded.state === 'loading') {
+    return (
+      <ProseColumn>
+        <Notice>Reading file…</Notice>
+      </ProseColumn>
+    )
+  }
+  if (loaded.state === 'failed') {
+    return (
+      <ProseColumn>
+        <Notice>File unavailable</Notice>
+      </ProseColumn>
+    )
+  }
   const { file } = loaded
-  if (file.type === 'refused') return <Notice>{file.reason}</Notice>
+  if (file.type === 'refused') {
+    return (
+      <ProseColumn>
+        <Notice>{file.reason}</Notice>
+      </ProseColumn>
+    )
+  }
   if (file.type === 'binary') {
     return (
-      <div className="flex flex-col items-start gap-3">
+      <ProseColumn>
         <Notice>{`Binary file · ${fileSizeLabelOf(file.bytes)}`}</Notice>
         <DownloadButton file={file} path={path} labelled />
-      </div>
+      </ProseColumn>
     )
   }
   if (file.type === 'image') {
     return (
-      // biome-ignore lint/performance/noImgElement: next/image cannot optimize a data: URL
-      <img
-        src={`data:${file.mediaType};base64,${file.data}`}
-        alt={path}
-        className="h-auto w-auto max-w-full self-start"
-      />
+      <ProseColumn>
+        {/* biome-ignore lint/performance/noImgElement: next/image cannot optimize a data: URL */}
+        <img
+          src={`data:${file.mediaType};base64,${file.data}`}
+          alt={path}
+          className="h-auto w-auto max-w-full self-start"
+        />
+      </ProseColumn>
+    )
+  }
+  if (!isMarkdownPath(path)) {
+    return (
+      <div className="flex h-full min-h-0 flex-col">
+        <div className="min-h-0 flex-1">
+          <CodeViewer path={path} content={file.content} language={languageOfPath(path)} />
+        </div>
+        {file.truncated ? <Notice>Truncated</Notice> : null}
+      </div>
     )
   }
   return (
-    <>
-      {isMarkdownPath(path) ? (
-        <MessageResponse>{file.content}</MessageResponse>
-      ) : (
-        <pre className="font-mono text-sm whitespace-pre-wrap">{file.content}</pre>
-      )}
+    <ProseColumn>
+      <MessageResponse>{file.content}</MessageResponse>
       {file.truncated ? <Notice>Truncated</Notice> : null}
-    </>
+    </ProseColumn>
   )
 }
 
@@ -144,7 +180,7 @@ export function ContextViewer({ path }: { path: string }) {
           <HtmlFrame html={html} title={path} />
         </div>
       ) : (
-        <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col gap-2 overflow-auto px-4 py-6">
+        <div className="min-h-0 flex-1">
           <ContextFileBody loaded={loaded} path={path} />
         </div>
       )}

@@ -32,7 +32,6 @@ const contextFor = ({
 }): PromptContext => ({
   groups,
   provider: { id: providerId, modelId },
-  model: { contextWindow: 200_000 },
   projectDirectory: '/w',
 })
 

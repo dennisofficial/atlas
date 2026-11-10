@@ -6,7 +6,6 @@ import { PromptFragmentRegistry } from '../prompt-registry'
 const ctx = {
   groups: ALL_PROMPT_GROUPS,
   provider: { id: 'anthropic', modelId: 'm' },
-  model: { contextWindow: 1_000 },
   projectDirectory: '/w',
 }
 

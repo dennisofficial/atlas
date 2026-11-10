@@ -3,12 +3,6 @@ import type { SkillCatalogue } from './catalogue'
 
 export const SKILL_LISTING_HEADING = 'Skills available to load:'
 
-const CHARS_PER_TOKEN = 4
-const CONTEXT_FRACTION = 0.03
-
-export const listingBudgetChars = (contextWindowTokens: number): number =>
-  Math.floor(contextWindowTokens * CHARS_PER_TOKEN * CONTEXT_FRACTION)
-
 const entriesOf = (catalogue: SkillCatalogue): readonly SkillListingEntry[] =>
   catalogue.skills
     .filter((skill) => skill.modelInvocable)

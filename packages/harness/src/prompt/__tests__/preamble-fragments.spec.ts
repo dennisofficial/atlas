@@ -26,7 +26,6 @@ import { FakeSkillRegistry } from './fake-skills'
 const CONTEXT: PromptContext = {
   groups: ALL_PROMPT_GROUPS,
   provider: { id: 'anthropic-oauth', modelId: 'claude-opus-5' },
-  model: { contextWindow: 1_000_000 },
   projectDirectory: '/prompt-primary-fixture',
 }
 

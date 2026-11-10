@@ -34,9 +34,12 @@ export type MessageResponseProps = ComponentProps<typeof Streamdown> & {
   breaks?: boolean
 }
 
+// remark-math pairs the first `$` with the next one even across a clause, so money in an agent
+// reply ("for $21.94, ten times … cost $54.80") rendered as KaTeX: math mode drops the spaces,
+// sets the run in a serif italic, shows `*` literally and refuses to wrap. Only `$$` is math.
 const plugins = {
   mermaid,
-  math: createMathPlugin({ singleDollarTextMath: true }),
+  math: createMathPlugin({ singleDollarTextMath: false }),
 }
 const remarkPlugins = [
   ...Object.values(defaultRemarkPlugins),

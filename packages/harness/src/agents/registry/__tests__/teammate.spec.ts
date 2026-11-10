@@ -320,7 +320,6 @@ describe("a teammate's session", () => {
                   groups:
                     agentType.name === TEAMMATE_AGENT_TYPE ? ALL_PROMPT_GROUPS : NO_PROMPT_GROUPS,
                   provider: harness.model.identity,
-                  model: { contextWindow: 1_000_000 },
                   projectDirectory: PROJECT_DIRECTORY,
                 }),
               launchDirectory: PROJECT_DIRECTORY,

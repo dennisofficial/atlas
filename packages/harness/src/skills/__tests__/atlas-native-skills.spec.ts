@@ -4,13 +4,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import {
-  ALL_PROMPT_GROUPS,
-  NO_PROMPT_GROUPS,
-  toThreadId,
-  type PromptContext,
-  type EPromptGroup,
-} from '@dltech/atlas-core'
+import { ALL_PROMPT_GROUPS, NO_PROMPT_GROUPS, toThreadId } from '@dltech/atlas-core'
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
 import { SkillListingFragment } from '../../prompt/fragments/skills'
@@ -41,13 +35,6 @@ const registryOfBuiltIns = async (): Promise<LiveSkillRegistry> => {
   await registry.reload()
   return registry
 }
-
-const contextFor = (groups: readonly EPromptGroup[]): PromptContext => ({
-  groups,
-  provider: { id: 'anthropic', modelId: 'claude-sonnet-4-6' },
-  model: { contextWindow: 200_000 },
-  projectDirectory: '/unrelated/project',
-})
 
 describe('native Atlas help skills', () => {
   it.each(ATLAS_SKILLS)(
@@ -80,7 +67,7 @@ describe('native Atlas help skills', () => {
     'lists help without its body headings for %j groups',
     async (groups) => {
       const registry = await registryOfBuiltIns()
-      const listing = new SkillListingFragment(registry).text(contextFor(groups))
+      const listing = new SkillListingFragment(registry).text()
 
       for (const name of ATLAS_SKILLS) {
         const skill = registry.byName(name)

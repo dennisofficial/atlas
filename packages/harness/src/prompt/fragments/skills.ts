@@ -1,13 +1,11 @@
-import { renderSkillListing, type PromptContext, type SkillListingEntry } from '@dltech/atlas-core'
+import {
+  renderSkillListing,
+  SKILL_LISTING_BUDGET_CHARS,
+  type SkillListingEntry,
+} from '@dltech/atlas-core'
 
 import { SkillRegistryPort } from '../../skills/port'
 import { VolatilePromptFragment } from '../volatile'
-
-const SKILL_LISTING_BUDGET_FRACTION_OF_CONTEXT = 0.03
-const CHARS_IN_TOKEN = 4
-
-const budgetCharsFor = (ctx: PromptContext): number =>
-  Math.floor(ctx.model.contextWindow * CHARS_IN_TOKEN * SKILL_LISTING_BUDGET_FRACTION_OF_CONTEXT)
 
 export class SkillListingFragment extends VolatilePromptFragment {
   readonly id = 'skills.listing'
@@ -27,11 +25,14 @@ export class SkillListingFragment extends VolatilePromptFragment {
       }))
   }
 
-  override stamp(ctx: PromptContext): string {
-    return this.text(ctx)
+  override stamp(): string {
+    return this.text()
   }
 
-  text(ctx: PromptContext): string {
-    return renderSkillListing({ entries: this.entries(), budgetChars: budgetCharsFor(ctx) }).trim()
+  text(): string {
+    return renderSkillListing({
+      entries: this.entries(),
+      budgetChars: SKILL_LISTING_BUDGET_CHARS,
+    }).trim()
   }
 }

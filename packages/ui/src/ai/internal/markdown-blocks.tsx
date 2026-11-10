@@ -83,7 +83,8 @@ export function MarkdownListItem({
       data-streamdown="list-item"
       className={cn(
         'pl-1 [&>*+*]:mt-2 [&>p]:my-0',
-        task && 'flex items-start gap-2 pl-0 [&>*+*]:mt-0',
+        task &&
+          'relative pl-6 [&>*+*]:mt-0 [&>[data-slot=checkbox]]:absolute [&>[data-slot=checkbox]]:left-0 [&>[data-slot=checkbox]]:top-0.5',
         className,
       )}
       {...props}
@@ -99,14 +100,7 @@ export function MarkdownInput({
 }: ComponentProps<'input'> & ExtraProps) {
   if (type !== 'checkbox') return <input type={type} checked={checked} {...props} />
 
-  return (
-    <Checkbox
-      checked={checked === true}
-      readOnly
-      aria-label={checked ? 'Done' : 'Not done'}
-      className="mt-0.5"
-    />
-  )
+  return <Checkbox checked={checked === true} readOnly aria-label={checked ? 'Done' : 'Not done'} />
 }
 
 export function MarkdownBlockquote({
