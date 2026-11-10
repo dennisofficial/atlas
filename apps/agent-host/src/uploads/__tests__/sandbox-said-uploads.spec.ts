@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EUploadState, toThreadId, type SaidUpload } from '@dltech/atlas-core'
+import { EUploadState, toThreadId, type SaidMediaFile, type SaidUpload } from '@dltech/atlas-core'
 
 import { SandboxSaidUploads } from '../sandbox-said-uploads'
 import type { UploadBlobs } from '../upload-blobs'
@@ -75,7 +75,7 @@ const placeOf = async (args: {
   const placed = await args.uploads.place({
     threadId,
     uploads: [args.upload],
-    ...(args.current === undefined ? {} : { currentUploadIds: args.current }),
+    ...(args.current === undefined ? {} : { currentFileIds: args.current }),
   })
   return placed.get(args.upload.uploadId)
 }
@@ -149,7 +149,7 @@ describe('SandboxSaidUploads', () => {
     expect(await placeOf({ uploads: older.uploads, upload, current: new Set() })).toEqual({
       state: EUploadState.Missing,
     })
-    await older.uploads.place({ threadId, uploads: [upload], currentUploadIds: new Set() })
+    await older.uploads.place({ threadId, uploads: [upload], currentFileIds: new Set() })
     expect(older.log.fetch).toHaveLength(2)
   })
 
@@ -159,5 +159,86 @@ describe('SandboxSaidUploads', () => {
     const placed = await uploads.place({ threadId, uploads: [a, b] })
     expect(placed.get(ID_A)?.state).toBe(EUploadState.Ready)
     expect(placed.get(ID_B)?.state).toBe(EUploadState.Ready)
+  })
+})
+
+describe('SandboxSaidUploads stored pictures', () => {
+  const HASH = 'c'.repeat(64)
+
+  const pictureOf = (overrides: Partial<SaidMediaFile> = {}): SaidMediaFile => ({
+    hash: HASH,
+    name: 'shot.png',
+    size: 9,
+    mediaType: 'image/png',
+    ...overrides,
+  })
+
+  const placePicture = async (args: {
+    uploads: SandboxSaidUploads
+    file: SaidMediaFile
+    current?: ReadonlySet<string>
+  }) => {
+    const placed = await args.uploads.place({
+      threadId,
+      uploads: [],
+      mediaFiles: [args.file],
+      ...(args.current === undefined ? {} : { currentFileIds: args.current }),
+    })
+    return placed.get(args.file.hash)
+  }
+
+  it('writes the stored picture where the sandbox keeps its files, from the media blob', async () => {
+    const pathname = `media/${USER}/${HASH}`
+    const { uploads, log } = setup({ sizes: { [pathname]: 9 } })
+    const path = `${HOME}/uploads/${HASH}/shot.png`
+
+    expect(await placePicture({ uploads, file: pictureOf() })).toEqual({
+      state: EUploadState.Ready,
+      path,
+    })
+    expect(log.fetch).toEqual([{ url: `https://blob.fake/${pathname}?sig=1`, path, size: 9 }])
+  })
+
+  it('falls back to the hash when the name is not one a file may have', async () => {
+    const pathname = `media/${USER}/${HASH}`
+    const { uploads, log } = setup({ sizes: { [pathname]: 9 } })
+    const file = pictureOf({ name: '../../etc/passwd' })
+
+    expect(await placePicture({ uploads, file })).toEqual({
+      state: EUploadState.Ready,
+      path: `${HOME}/uploads/${HASH}/${HASH}`,
+    })
+    expect(log.fetch[0]?.path).toBe(`${HOME}/uploads/${HASH}/${HASH}`)
+  })
+
+  it('refuses a hash that is not one of ours', async () => {
+    const { uploads, log, blobCalls } = setup()
+    expect(await placePicture({ uploads, file: pictureOf({ hash: '../etc' }) })).toEqual({
+      state: EUploadState.Missing,
+    })
+    expect(log.stat).toEqual([])
+    expect(blobCalls.sizeOf).toEqual([])
+  })
+
+  it('marks a picture the store no longer holds missing', async () => {
+    const { uploads } = setup()
+    expect(await placePicture({ uploads, file: pictureOf() })).toEqual({
+      state: EUploadState.Missing,
+    })
+  })
+
+  it('places an upload and a stored picture in one call', async () => {
+    const upload = uploadOf(ID_A)
+    const pathname = `media/${USER}/${HASH}`
+    const { uploads } = setup({ sizes: { [upload.pathname]: 5, [pathname]: 9 } })
+
+    const placed = await uploads.place({
+      threadId,
+      uploads: [upload],
+      mediaFiles: [pictureOf()],
+    })
+
+    expect(placed.get(ID_A)?.state).toBe(EUploadState.Ready)
+    expect(placed.get(HASH)?.state).toBe(EUploadState.Ready)
   })
 })

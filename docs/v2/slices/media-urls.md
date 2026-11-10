@@ -104,6 +104,18 @@ neither way is named as unavailable rather than given a file name to mistake for
 Width and height are measured once, when the image is stored, so assembly never decodes anything
 for a `MediaPart`. The image cap and the token estimate read `media.width`/`media.height`.
 
+### The same picture is also a file in the sandbox
+
+A picture the operator attaches is a file like any other, so it is placed where the others are:
+`mediaFilesOf` (`packages/core/src/attachments/media-files.ts`) lists the stored pictures of a
+message, the loop asks the `SaidUploadsPort` for them beside the uploads
+(`packages/agent/src/loop/step-prepare.ts`), and the host fetches `media/<userId>/<hash>` through the
+daemon to `/atlas/home/uploads/<hash>/<name>`. The block that names attached files names it too.
+
+One blob, one copy in the sandbox, and no second upload: the agent can `read`, crop, OCR or script
+against the very bytes the model was shown, and a hash names the file, so two messages carrying one
+screenshot share it.
+
 ### Storage layout and the registry
 
 - Pathname: `media/<userId>/<hash>`. It is content-addressed per user, so the same screenshot is

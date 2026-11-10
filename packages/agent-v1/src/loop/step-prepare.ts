@@ -6,6 +6,7 @@ import {
   ERunFailureKind,
   attachmentsOf,
   exchangeFaults,
+  mediaFilesOf,
   resolveMediaUrls,
   type MediaUrlResolver,
   overflowsWindow,
@@ -15,6 +16,7 @@ import {
   type Event,
   type ModelPort,
   type RuleContext,
+  type SaidMediaFile,
   type SaidUpload,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -117,21 +119,30 @@ export const stepPrepareDepsOf = ({
   }),
 })
 
-function uploadsInEvents({ events, threadId }: { events: readonly Event[]; threadId: ThreadId }): {
-  all: SaidUpload[]
+function filesInEvents({ events, threadId }: { events: readonly Event[]; threadId: ThreadId }): {
+  uploads: SaidUpload[]
+  mediaFiles: SaidMediaFile[]
   current: Set<string>
 } {
-  const all: SaidUpload[] = []
+  const uploads: SaidUpload[] = []
+  const mediaFiles: SaidMediaFile[] = []
+  const seenMedia = new Set<string>()
   let current = new Set<string>()
   for (const event of events) {
     if (event.threadId !== threadId) continue
     if (event.type === 'assistant-said') current = new Set()
     if (event.type !== 'user-said') continue
-    const uploads = uploadsOf(attachmentsOf(event))
-    all.push(...uploads)
-    for (const upload of uploads) current.add(upload.uploadId)
+    const attachments = attachmentsOf(event)
+    for (const file of mediaFilesOf(attachments)) {
+      if (!seenMedia.has(file.hash)) mediaFiles.push(file)
+      seenMedia.add(file.hash)
+      current.add(file.hash)
+    }
+    const found = uploadsOf(attachments)
+    uploads.push(...found)
+    for (const upload of found) current.add(upload.uploadId)
   }
-  return { all, current }
+  return { uploads, mediaFiles, current }
 }
 
 type StepPrepareArgs = {
@@ -154,17 +165,18 @@ export function prepareStepAssembly(
 }
 
 async function assembleStep(deps: StepPrepareDeps, args: StepPrepareArgs): Promise<PreparedStep> {
-  const uploads = uploadsInEvents({
+  const files = filesInEvents({
     events: args.events,
     threadId: args.threadId,
   })
   const placements =
-    deps.uploads === undefined || uploads.all.length === 0
+    deps.uploads === undefined || (files.uploads.length === 0 && files.mediaFiles.length === 0)
       ? undefined
       : await deps.uploads.place({
           threadId: args.threadId,
-          uploads: uploads.all,
-          currentUploadIds: uploads.current,
+          uploads: files.uploads,
+          mediaFiles: files.mediaFiles,
+          currentFileIds: files.current,
           ...(args.signal === undefined ? {} : { signal: args.signal }),
         })
 

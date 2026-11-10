@@ -73,7 +73,9 @@ sequenceDiagram
   { url, path, size }`, which streams to `<path>.part`, checks the size and renames. A failure
   throws for an upload of the current message and is `Missing` for an older one (v1's rule). The
   bytes go Blob → sandbox and never cross the agent host.
-- **Path**: `SANDBOX_HOME_PATH + '/' + uploadPathOf(upload)` = `/atlas/home/uploads/<uploadId>/<name>`.
+- **Stored pictures too**: a picture the model is shown by url (`media-urls.md`) is placed the same
+  way, keyed by its content hash, so every attachment is a file the sandbox can open.
+- **Path**: `SANDBOX_HOME_PATH + '/' + uploadPathOf(file)` = `/atlas/home/uploads/<fileId>/<name>`.
   No session id: a sandbox belongs to one session. `<uploadId>` keeps two files of one name apart.
   It is outside `WORKSPACE_PATH`, so an upload never rides a `git add`. `read` and `bash` accept
   absolute paths with no workspace restriction (`resolveToolPath`,

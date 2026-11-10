@@ -13,7 +13,8 @@ export const uploadBlobPathnameOf = (args: {
   name: string
 }): string => `${uploadBlobPrefixOf(args.userId)}${args.uploadId}/${args.name}`
 
-const isSafeUploadName = (name: string): boolean =>
+/** A name that can be a file's own, with no directory in it and nothing a path would obey. */
+export const isSafeFileName = (name: string): boolean =>
   name.length > 0 && name !== '.' && name !== '..' && !UNSAFE_NAME_CHARACTER.test(name)
 
 export const isOwnedUpload = (args: {
@@ -21,7 +22,7 @@ export const isOwnedUpload = (args: {
   userId: string
 }): boolean =>
   UUID.test(args.upload.uploadId) &&
-  isSafeUploadName(args.upload.name) &&
+  isSafeFileName(args.upload.name) &&
   args.upload.pathname ===
     uploadBlobPathnameOf({
       userId: args.userId,

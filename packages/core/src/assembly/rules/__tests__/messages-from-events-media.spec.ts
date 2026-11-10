@@ -23,11 +23,11 @@ describe('a message that references stored media', () => {
       },
     ])
 
-    expect(message?.content.map((part) => part.type)).toEqual(['text', 'media', 'media'])
+    expect(message?.content.map((part) => part.type)).toEqual(['text', 'text', 'media', 'media'])
     const text = message?.content[0]?.type === 'text' ? message.content[0].text : ''
     expect(text).toEqual(operatorSaidAs('what is this'))
-    expect(message?.content[1]).toEqual({ type: 'media', media: ref, source: '/tmp/a.png' })
-    expect(message?.content[2]).toEqual({ type: 'media', media: { ...ref, hash: 'b'.repeat(64) } })
+    expect(message?.content[2]).toEqual({ type: 'media', media: ref, source: '/tmp/a.png' })
+    expect(message?.content[3]).toEqual({ type: 'media', media: { ...ref, hash: 'b'.repeat(64) } })
   })
 
   it('carries a media modelPart of a tool result through', () => {

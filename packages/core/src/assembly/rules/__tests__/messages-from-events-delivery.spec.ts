@@ -120,7 +120,7 @@ describe('delivering one picture per the model that reads it', () => {
 
   it('shows a media-store attachment as a url picture to a url-capable model', () => {
     expect(
-      contentOf({ attachment: media, imageCapabilities: urlModel, mediaUrls: urls })?.[1],
+      contentOf({ attachment: media, imageCapabilities: urlModel, mediaUrls: urls })?.[2],
     ).toEqual({
       type: 'image',
       bytes: { kind: 'url', url: 'https://blob.test/media' },
@@ -131,7 +131,7 @@ describe('delivering one picture per the model that reads it', () => {
 
   it('leaves a stored picture to the host when the model takes only inline bytes', () => {
     expect(
-      contentOf({ attachment: media, imageCapabilities: inlineModel, mediaUrls: urls })?.[1],
+      contentOf({ attachment: media, imageCapabilities: inlineModel, mediaUrls: urls })?.[2],
     ).toEqual({
       type: 'media',
       media: { hash: HASH, mediaType: 'image/png', size: 8, width: 4, height: 3 },
@@ -139,7 +139,7 @@ describe('delivering one picture per the model that reads it', () => {
   })
 
   it('leaves a stored picture to the host when no url could be signed here', () => {
-    expect(contentOf({ attachment: media, imageCapabilities: urlModel })?.[1]).toMatchObject({
+    expect(contentOf({ attachment: media, imageCapabilities: urlModel })?.[2]).toMatchObject({
       type: 'media',
       media: { hash: HASH },
     })
