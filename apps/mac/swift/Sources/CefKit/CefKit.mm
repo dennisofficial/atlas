@@ -15,6 +15,14 @@ class CefPaneApp : public CefApp {
  public:
   CefPaneApp() {}
 
+  void OnBeforeCommandLineProcessing(const CefString &process_type,
+                                     CefRefPtr<CefCommandLine> command_line) override {
+    if (!process_type.empty()) return;
+    command_line->AppendSwitch("use-mock-keychain");
+    command_line->AppendSwitchWithValue("password-store", "basic");
+    command_line->AppendSwitch("disable-notifications");
+  }
+
  private:
   IMPLEMENT_REFCOUNTING(CefPaneApp);
 };
@@ -92,21 +100,6 @@ BOOL AtlasCefInitialize(int argc, char *argv[]) {
 
 void AtlasCefDoMessageLoopWork(void) {
   CefDoMessageLoopWork();
-}
-
-void AtlasCefShutdown(void) {
-  if (g_client.get() != nullptr) {
-    CefRefPtr<CefBrowser> browser = g_client->browser();
-    if (browser.get() != nullptr) {
-      CefRefPtr<CefBrowserHost> host = browser->GetHost();
-      if (host.get() != nullptr) host->CloseBrowser(true);
-    }
-    for (int i = 0; i < 64 && g_client->browser().get() != nullptr; i++) {
-      CefDoMessageLoopWork();
-    }
-    g_client = nullptr;
-  }
-  CefShutdown();
 }
 
 @implementation CefPaneView
