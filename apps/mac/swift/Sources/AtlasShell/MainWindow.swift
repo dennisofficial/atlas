@@ -9,18 +9,28 @@ final class MainWindow {
     init(url: URL, pane: PaneController) {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
+        // The web app draws its own titlebar, spaces it for the traffic lights and installs the drag
+        // strip once it sees this bridge; the electrobun host provided the same object.
+        configuration.userContentController.addUserScript(
+            WKUserScript(
+                source: "window.atlasDesktop = {}",
+                injectionTime: .atDocumentStart,
+                forMainFrameOnly: true
+            )
+        )
         let web = WKWebView(frame: .zero, configuration: configuration)
         let split = ShellSplitViewController(web: web, paneContainer: pane.container)
         self.web = web
         self.split = split
         window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1280, height: 820),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
         window.title = "Atlas"
         window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
         window.minSize = NSSize(width: 720, height: 480)
         window.contentViewController = split
         window.center()
