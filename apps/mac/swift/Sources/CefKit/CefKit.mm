@@ -13,8 +13,8 @@
 static std::atomic<int32_t> g_references{1};
 static cef_browser_t *g_browser = NULL;
 
-static int32_t CEF_CALLBACK add_reference(struct _cef_base_ref_counted_t *self) {
-  return ++g_references;
+static void CEF_CALLBACK add_reference(struct _cef_base_ref_counted_t *self) {
+  ++g_references;
 }
 
 static int32_t CEF_CALLBACK release_reference(struct _cef_base_ref_counted_t *self) {
@@ -168,7 +168,7 @@ void AtlasCefShutdown(void) {
 - (void)createBrowserFor:(NSString *)url {
   cef_window_info_t window_info = {};
   window_info.size = sizeof(window_info);
-  window_info.parent_view = (cef_window_handle_t)(void *)self;
+  window_info.parent_view = (cef_window_handle_t)(__bridge void *)self;
   window_info.bounds.x = 0;
   window_info.bounds.y = 0;
   window_info.bounds.width = (int)NSWidth(self.bounds);
