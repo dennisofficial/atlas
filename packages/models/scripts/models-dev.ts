@@ -17,6 +17,12 @@ const modelSchema = z.object({
   reasoning: z.boolean().optional(),
   reasoning_options: z.array(reasoningOptionSchema).optional(),
   tool_call: z.boolean().optional(),
+  modalities: z
+    .object({
+      input: z.array(z.string()),
+      output: z.array(z.string()).optional(),
+    })
+    .optional(),
   limit: z
     .object({
       context: z.number().optional(),
