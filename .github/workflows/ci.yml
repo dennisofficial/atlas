@@ -546,15 +546,42 @@ jobs:
       - name: fetch CEF
         run: bun apps/mac/swift/scripts/fetch-cef.ts
 
+      - name: build the CEF C++ wrapper
+        run: |
+          cmake -S apps/mac/swift/.cef -B apps/mac/swift/.build/cef-wrapper \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 \
+            -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY="$PWD/apps/mac/swift/.build/cef-wrapper/lib"
+          cmake --build apps/mac/swift/.build/cef-wrapper --target libcef_dll_wrapper --parallel 4
+
       - name: build the CEF spike
         run: swift build -c release --package-path apps/mac/swift
 
       - name: pack the app
         run: bun apps/mac/swift/scripts/pack-cef-spike.ts
 
+      - name: launch the packed app and wait for the load to end
+        run: |
+          app="apps/mac/swift/.build/cef-spike/CefPaneSpike.app/Contents/MacOS/CefPaneSpike"
+          log="$RUNNER_TEMP/spike.log"
+          "$app" https://example.com > "$log" 2>&1 &
+          pid=$!
+          for _ in $(seq 1 60); do
+            grep -q "cef: load end status=" "$log" && break
+            sleep 1
+          done
+          kill "$pid" 2>/dev/null || true
+          pkill -f CefPaneSpike 2>/dev/null || true
+          cat "$log"
+          grep -q "cef: load end status=200" "$log"
+
+      - name: short sha
+        id: sha
+        run: echo "short=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
+
       - uses: actions/upload-artifact@v4
         with:
-          name: CefPaneSpike-mac-arm64
+          name: CefPaneSpike-${{ steps.sha.outputs.short }}-mac-arm64
           path: apps/mac/swift/.build/cef-spike/*.zip
           if-no-files-found: error
           retention-days: 25
