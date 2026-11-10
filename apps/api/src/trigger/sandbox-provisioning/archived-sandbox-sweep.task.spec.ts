@@ -16,7 +16,7 @@ describe('archivedSandboxSweepTask', () => {
   it('registers the sweep daily with one attempt', () => {
     expect(archivedSandboxSweepTask).toMatchObject({
       id: 'archived-sandbox-sweep',
-      cron: '23 6 * * *',
+      cron: '15 * * * *',
       retry: { maxAttempts: 1 },
     })
   })

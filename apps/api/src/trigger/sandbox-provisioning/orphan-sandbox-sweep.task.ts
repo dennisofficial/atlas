@@ -60,7 +60,7 @@ async function storesOf(args: { cipher: SecretCipherService }): Promise<StoreEnt
 
 export const orphanSandboxSweepTask = schedules.task({
   id: 'orphan-sandbox-sweep',
-  cron: '47 5 * * *',
+  cron: '5 * * * *',
   retry: { maxAttempts: 3 },
   run: async () => {
     const logger = new Logger('OrphanSandboxSweep')

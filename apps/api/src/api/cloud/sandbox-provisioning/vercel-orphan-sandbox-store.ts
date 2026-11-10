@@ -1,5 +1,6 @@
 import { Sandbox } from '@vercel/sandbox'
 import type { VercelCredentials } from '@dltech/atlas-wire'
+import { isSandboxMissing } from '../../platform/sandboxes/vercel-sandbox.errors'
 import type { OrphanSandbox, OrphanSandboxStore } from './orphan-sandbox-sweep'
 
 /** Vercel's list endpoints reject a limit above 50. */
@@ -22,8 +23,13 @@ export class VercelOrphanSandboxStore implements OrphanSandboxStore {
   }
 
   async deleteSandbox(args: { name: string }): Promise<void> {
-    const sandbox = await Sandbox.get({ ...this.credentials, name: args.name, resume: false })
-    if (sandbox.status === 'running') return
-    await sandbox.delete()
+    try {
+      const sandbox = await Sandbox.get({ ...this.credentials, name: args.name, resume: false })
+      if (sandbox.status === 'running') return
+      await sandbox.delete()
+    } catch (failure) {
+      if (isSandboxMissing(failure)) return
+      throw failure
+    }
   }
 }

@@ -16,7 +16,7 @@ export async function runArchivedSandboxSweep(): Promise<ArchivedSandboxSweepSum
 
 export const archivedSandboxSweepTask = schedules.task({
   id: 'archived-sandbox-sweep',
-  cron: '23 6 * * *',
+  cron: '15 * * * *',
   retry: { maxAttempts: 1 },
   run: runArchivedSandboxSweep,
 })
