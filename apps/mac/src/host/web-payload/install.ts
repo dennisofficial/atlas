@@ -55,6 +55,14 @@ export async function installPayload({
     fs.discard({ home, hash: manifest.hash })
     return { installed: false, reason: EInstallFailure.WriteFailed }
   }
-  await fs.writeState({ home, state: installedState({ state, hash: manifest.hash, appVersion }) })
+  await fs.writeState({
+    home,
+    state: installedState({
+      state,
+      hash: manifest.hash,
+      appVersion,
+      ...(manifest.version === undefined ? {} : { version: manifest.version }),
+    }),
+  })
   return { installed: true, hash: manifest.hash }
 }

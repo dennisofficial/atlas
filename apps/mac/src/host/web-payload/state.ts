@@ -5,6 +5,7 @@ const stateSchema = z.object({
   previous: z.string().optional(),
   failed: z.string().optional(),
   appVersion: z.string().optional(),
+  version: z.string().optional(),
 })
 
 export interface IPayloadState {
@@ -12,6 +13,7 @@ export interface IPayloadState {
   previous?: string
   failed?: string
   appVersion?: string
+  version?: string
 }
 
 export function parseState({ input }: { input: unknown }): IPayloadState {
@@ -22,6 +24,7 @@ export function parseState({ input }: { input: unknown }): IPayloadState {
   if (parsed.data.previous !== undefined) state.previous = parsed.data.previous
   if (parsed.data.failed !== undefined) state.failed = parsed.data.failed
   if (parsed.data.appVersion !== undefined) state.appVersion = parsed.data.appVersion
+  if (parsed.data.version !== undefined) state.version = parsed.data.version
   return state
 }
 
@@ -29,12 +32,15 @@ export function installedState({
   state,
   hash,
   appVersion,
+  version,
 }: {
   state: IPayloadState
   hash: string
   appVersion: string
+  version?: string
 }): IPayloadState {
   const next: IPayloadState = { current: hash, appVersion }
+  if (version !== undefined) next.version = version
   if (state.current !== undefined) next.previous = state.current
   if (state.failed !== undefined && state.failed !== hash) next.failed = state.failed
   return next

@@ -8,6 +8,7 @@
     "src/main/crash-log.ts",
     "src/main/pane-renderer.ts",
     "src/main/auto-update.ts",
+    "src/main/about-plan.ts",
     "src/main/app-server.ts",
     "src/main/web-ota.ts",
     "scripts/dmg-plan.ts",
