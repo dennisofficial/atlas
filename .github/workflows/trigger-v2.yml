@@ -1,0 +1,48 @@
+name: trigger-v2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/trigger/**'
+      - 'packages/jobs/**'
+      - 'packages/control/**'
+      - 'packages/db/**'
+      - 'package.json'
+      - 'bun.lock'
+      - 'tsconfig.base.json'
+      - '.github/workflows/trigger-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trigger-v2
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2.2.0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
+      - run: bun install --frozen-lockfile
+
+      # The CLI authenticates from TRIGGER_ACCESS_TOKEN (a tr_pat_ personal token) and reads the
+      # project ref from trigger.config.ts, exactly as release.yml does for the v1 project.
+      - name: deploy tasks to prod
+        run: bun run --cwd apps/trigger deploy:ci
+        env:
+          TRIGGER_ACCESS_TOKEN: ${{ secrets.TRIGGER_ACCESS_TOKEN }}

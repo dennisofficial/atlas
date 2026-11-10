@@ -15,5 +15,9 @@
   "devDependencies": {
     "electron": "45.2.3",
     "electron-builder": "26.18.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dennisofficial/atlas.git"
   }
 }

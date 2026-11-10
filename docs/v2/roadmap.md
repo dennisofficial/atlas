@@ -23,6 +23,12 @@ Each slice is built in its own Atlas session and handed to a fresh session when 
 ## Current state
 
 _Updated at the end of every slice. Last update: 2026-11-10._
+- **Spec written 2026-11-10: slice 8, routines** ([spec](slices/08-routines.md)), approved by the
+  operator the same day. A routine is a cron-scheduled prompt that spawns a fresh session at each
+  occurrence; a one-minute trigger.dev sweep fans out one child job per due routine, and the child
+  does the whole spawn in one transaction (create session + post the prompt + ledger row + advance
+  `nextRunAt`). Built in two parts because 0022's `apps/trigger` does not exist yet: part 1 is that
+  app plus `packages/jobs` and a heartbeat task, part 2 is the routine itself.
 - **Done 2026-11-10: slice 7b, MCP and skills** ([spec](slices/07b-mcp-skills.md), live check in
   its §9). `plugins/skills` is registered (#2150), so a session offers `skill`, `skill_install`,
   `skill_edit` and `skill_delete`, its listing carries the cloud rows, the clone's `.atlas/skills` and

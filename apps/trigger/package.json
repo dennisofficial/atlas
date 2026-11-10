@@ -1,0 +1,25 @@
+{
+  "name": "@dltech/atlas-trigger",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "trigger dev",
+    "deploy": "trigger deploy",
+    "deploy:ci": "trigger deploy --skip-update-check",
+    "typecheck": "tsc --noEmit --incremental false",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@dltech/atlas-jobs": "workspace:*",
+    "@dotenvx/dotenvx": "^1.71.0",
+    "@trigger.dev/sdk": "4.7.4"
+  },
+  "devDependencies": {
+    "@trigger.dev/build": "4.7.4",
+    "@types/bun": "latest",
+    "@types/node": "^26.3.0",
+    "trigger.dev": "4.7.4",
+    "typescript": "6.0.3"
+  }
+}
