@@ -406,9 +406,10 @@ valid to 2026-11-16), which Settings reads to show "Signed in"; `plugins/mcp` di
 #2168 fixes that — the host unseals the grant and the http transport sends the bearer while the token
 is unexpired — and the next live run connected it: the roster read `Posthog connected (1 tool)`,
 `mcp__Posthog__exec` answered `info project-get` and then `call project-get {}` with live project data.
-`wispr-flow` holds no grant at all, so `needs-auth` is still the truth there until the operator signs
-in from Settings. Refresh of an expired grant (two agent hosts must not refresh one row at once) is
-its own slice.
+`wispr-flow` holds no grant until the operator signs in from Settings, and it did: the roster then read
+`wispr-flow connected (15 tools)` and `mcp__wispr-flow__search_meetings` returned a real meeting. With
+no grant the row stays `needs-auth`, which is honest. Refresh of an expired grant (two agent hosts must
+not refresh one row at once) is its own slice.
 
 **Fixed because of this check** (#2157): a `description: >-` frontmatter block rendered as `>-` in
 the listing; a skill installed mid-turn could not be loaded until the next turn; an MCP config entry
