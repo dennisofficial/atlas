@@ -2,6 +2,8 @@ import type { AssistantContent, ModelMessage, ToolResultPart as ModelToolResultP
 
 import {
   imagePathLine,
+  looksLikePath,
+  missingImageLine,
   type AssistantMessage,
   type FilePart,
   type ImagePart,
@@ -44,14 +46,16 @@ const toModelToolCallPart = (part: ToolCallPart) => ({
   ...carriedProviderOptions(part.providerOptions),
 })
 
-const toModelMediaText = (part: MediaPart) => ({
-  type: 'text' as const,
-  text: imagePathLine({
-    path: part.source ?? part.media.hash,
-    width: part.media.width,
-    height: part.media.height,
-  }),
-})
+const toModelMediaText = (part: MediaPart) => {
+  const { source, media } = part
+  return {
+    type: 'text' as const,
+    text:
+      source !== undefined && looksLikePath(source)
+        ? imagePathLine({ path: source, width: media.width, height: media.height })
+        : missingImageLine(source ?? media.hash),
+  }
+}
 
 const toModelToolResultOutput = (output: ToolResultOutput): ModelToolResultOutput => {
   if (output.type !== 'content') return output

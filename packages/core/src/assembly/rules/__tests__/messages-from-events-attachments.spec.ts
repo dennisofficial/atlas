@@ -95,7 +95,7 @@ describe('a message carrying attachments', () => {
     expect(content?.map((part) => part.type)).toEqual(['text', 'text', 'image'])
   })
 
-  it('names a media attachment by path line', () => {
+  it('hands a media attachment on as the reference the host fetches from', () => {
     const media: Attachment = {
       id: 'media:x',
       name: 'cat.png',
@@ -105,8 +105,16 @@ describe('a message carrying attachments', () => {
       image: { width: 10, height: 20 },
     }
     const content = contentOf([media])
-    expect(content?.[0]).toMatchObject({ type: 'text' })
-    expect(JSON.stringify(content?.[0])).toContain('[image cat.png · 10×20]')
-    expect(content).toHaveLength(1)
+    expect(content?.[1]).toEqual({
+      type: 'media',
+      media: {
+        hash: 'a'.repeat(64),
+        mediaType: 'image/png',
+        size: 9,
+        width: 10,
+        height: 20,
+      },
+    })
+    expect(content).toHaveLength(2)
   })
 })

@@ -2,7 +2,7 @@ import {
   decodeBase64,
   decodesAsImage,
   imageSize,
-  SUPPORTED_IMAGE_MEDIA_TYPES,
+  supportedImageMediaTypeOf,
   type SupportedImageMediaType,
 } from '../../images/limits'
 import { inlineImageData } from '../../message/image-bytes'
@@ -80,13 +80,8 @@ const withoutCorruptPixels = (part: ImagePart): TextPart => ({
   text: `[image dropped from context: ${described(part)} · not a valid image of its type]`,
 })
 
-const asSupported = (mediaType: string): SupportedImageMediaType | null =>
-  (SUPPORTED_IMAGE_MEDIA_TYPES as readonly string[]).includes(mediaType)
-    ? (mediaType as SupportedImageMediaType)
-    : null
-
 const imageIsCorrupt = (part: ImagePart): boolean => {
-  const mediaType = asSupported(part.mediaType)
+  const mediaType = supportedImageMediaTypeOf(part.mediaType)
   const data = inlineImageData(part)
   if (mediaType === null || data === undefined) return false
   return !decodesAsImage({ bytes: decodeBase64(data), mediaType })

@@ -2,6 +2,8 @@ import type { AssistantContent, ModelMessage, ToolResultPart as ModelToolResultP
 
 import {
   imagePathLine,
+  looksLikePath,
+  missingImageLine,
   type AssistantMessage,
   type FilePart,
   type ImagePart,
@@ -46,22 +48,21 @@ const toModelToolCallPart = (part: ToolCallPart) => ({
 
 export type MediaUrls = ReadonlyMap<string, string>
 
+export type MediaBytes = ReadonlyMap<string, string>
+
 export type MissingMedia = ReadonlySet<string>
 
-type MediaSend = { mediaUrls: MediaUrls; missingMedia: MissingMedia }
+type MediaSend = {
+  mediaUrls: MediaUrls
+  mediaBytes: MediaBytes
+  missingMedia: MissingMedia
+}
 
 const NO_MEDIA_URLS: MediaUrls = new Map()
 
-const NO_MISSING_MEDIA: MissingMedia = new Set()
+const NO_MEDIA_BYTES: MediaBytes = new Map()
 
-const toModelMediaText = (part: MediaPart) => ({
-  type: 'text' as const,
-  text: imagePathLine({
-    path: part.source ?? part.media.hash,
-    width: part.media.width,
-    height: part.media.height,
-  }),
-})
+const NO_MISSING_MEDIA: MissingMedia = new Set()
 
 const toModelMediaUrlPart = ({ part, url }: { part: MediaPart; url: string }) => ({
   type: 'file' as const,
@@ -69,15 +70,33 @@ const toModelMediaUrlPart = ({ part, url }: { part: MediaPart; url: string }) =>
   mediaType: part.media.mediaType,
 })
 
-const toModelMissingMediaText = (part: MediaPart) => ({
-  type: 'text' as const,
-  text: `[image unavailable: ${part.source ?? part.media.hash}]`,
+const toModelMediaBytesPart = ({ part, data }: { part: MediaPart; data: string }) => ({
+  type: 'file' as const,
+  data: { type: 'data' as const, data },
+  mediaType: part.media.mediaType,
 })
 
+/**
+ * A picture the model is not shown. A source that is really a path stays readable by `read`; a file
+ * name does not, so it is named as unavailable rather than spelled like a path that is not there.
+ */
+const toModelMediaText = (part: MediaPart) => {
+  const { source, media } = part
+  return {
+    type: 'text' as const,
+    text:
+      source !== undefined && looksLikePath(source)
+        ? imagePathLine({ path: source, width: media.width, height: media.height })
+        : missingImageLine(source ?? media.hash),
+  }
+}
+
 const toModelMediaPart = ({ part, media }: { part: MediaPart; media: MediaSend }) => {
-  if (media.missingMedia.has(part.media.hash)) return toModelMissingMediaText(part)
+  if (media.missingMedia.has(part.media.hash)) return toModelMediaText(part)
   const url = media.mediaUrls.get(part.media.hash)
-  return url === undefined ? toModelMediaText(part) : toModelMediaUrlPart({ part, url })
+  if (url !== undefined) return toModelMediaUrlPart({ part, url })
+  const bytes = media.mediaBytes.get(part.media.hash)
+  return bytes === undefined ? toModelMediaText(part) : toModelMediaBytesPart({ part, data: bytes })
 }
 
 const toModelToolResultOutput = ({
@@ -171,10 +190,15 @@ const toModelAssistantPart = (part: CoreAssistantPart): ModelAssistantPart => {
   return toModelToolCallPart(part)
 }
 
-export type MediaSendOptions = { mediaUrls?: MediaUrls; missingMedia?: MissingMedia }
+export type MediaSendOptions = {
+  mediaUrls?: MediaUrls
+  mediaBytes?: MediaBytes
+  missingMedia?: MissingMedia
+}
 
 const mediaSendOf = (options: MediaSendOptions): MediaSend => ({
   mediaUrls: options.mediaUrls ?? NO_MEDIA_URLS,
+  mediaBytes: options.mediaBytes ?? NO_MEDIA_BYTES,
   missingMedia: options.missingMedia ?? NO_MISSING_MEDIA,
 })
 

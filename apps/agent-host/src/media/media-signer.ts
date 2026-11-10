@@ -61,6 +61,12 @@ export class MediaSigner {
     return (await this.store.head({ pathname: mediaPathname(args) })) !== null
   }
 
+  /** The stored pixels, for the models whose provider takes a picture only as base64. */
+  async bytesOf(args: { userId: string; hash: string }): Promise<string | null> {
+    const bytes = await this.store.read({ pathname: mediaPathname(args) }).catch(() => null)
+    return bytes === null ? null : Buffer.from(bytes).toString('base64')
+  }
+
   private async adopt(windowStart: number): Promise<void> {
     const existing = await this.windows.find(windowStart)
     if (existing === null) await this.issue(windowStart)

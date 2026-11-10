@@ -3,9 +3,16 @@ import { describe, expect, it } from 'bun:test'
 import type { LanguageModelV4StreamPart } from '@ai-sdk/provider'
 import { MockLanguageModelV4 } from 'ai/test'
 
-import type { Assembled, MediaRef } from '@dltech/atlas-core'
+import {
+  EImageTier,
+  MAX_API_EDGE,
+  MAX_INLINE_BYTES,
+  type Assembled,
+  type MediaRef,
+  type ModelCard,
+} from '@dltech/atlas-core'
 
-import type { MediaUrlSource } from '../../media/media-urls'
+import type { MediaSource } from '../../media/media-urls'
 import { AiSdkModelPort } from '../ai-sdk-model-port'
 
 const media: MediaRef = {
@@ -47,6 +54,23 @@ const PARTS: LanguageModelV4StreamPart[] = [
   },
 ]
 
+const cardOf = (image: ModelCard['image']): ModelCard => ({
+  ref: { providerId: 'mock', modelId: 'mock-model' },
+  label: 'mock',
+  api: 'anthropic-messages',
+  contextWindow: 200_000,
+  imageTier: EImageTier.HighResolution,
+  ...(image === undefined ? {} : { image }),
+})
+
+const URL_CARD = cardOf({
+  images: 'both',
+  maxInlineBytes: MAX_INLINE_BYTES,
+  maxEdge: MAX_API_EDGE,
+})
+
+const INLINE_CARD = cardOf({ images: 'inline', maxInlineBytes: MAX_INLINE_BYTES })
+
 const recordingModel = () => {
   const model = new MockLanguageModelV4({
     supportedUrls: { 'image/*': [/^https:\/\//] },
@@ -62,12 +86,15 @@ const recordingModel = () => {
   return model
 }
 
-const run = async (mediaUrls?: MediaUrlSource) => {
+const run = async (
+  args: { mediaSource?: MediaSource; modelCard?: ModelCard } = {},
+): Promise<readonly unknown[]> => {
   const model = recordingModel()
   const port = new AiSdkModelPort({
     model,
     identity: { id: 'mock', modelId: 'mock-model' },
-    mediaUrls,
+    ...(args.modelCard === undefined ? {} : { card: args.modelCard }),
+    ...(args.mediaSource === undefined ? {} : { mediaSource: args.mediaSource }),
   })
   await port.step({
     assembled,
@@ -78,34 +105,76 @@ const run = async (mediaUrls?: MediaUrlSource) => {
   return prompt.flatMap((message) => (message.role === 'user' ? message.content : []))
 }
 
-describe('AiSdkModelPort media urls', () => {
-  it('hands the model a url file part for a media part', async () => {
+const typeOf = (part: unknown): string | undefined => (part as { type?: string }).type
+
+const filePartOf = (content: readonly unknown[]) => content.find((part) => typeOf(part) === 'file')
+
+describe('AiSdkModelPort media delivery', () => {
+  it('hands a url-capable model a url file part', async () => {
     const asked: string[][] = []
-    const source: MediaUrlSource = {
+    const mediaSource: MediaSource = {
       urlsFor: async (hashes) => {
         asked.push([...hashes])
         return new Map([[media.hash, 'https://blob.fake/d?sig=1']])
       },
+      bytesFor: async () => new Map(),
       missingOf: async () => [],
     }
 
-    const content = await run(source)
+    const content = await run({ mediaSource, modelCard: URL_CARD })
 
     expect(asked).toEqual([[media.hash]])
-    const file = content.find((part) => part.type === 'file')
-    expect(file).toMatchObject({ type: 'file', mediaType: 'image/png' })
-    const data = file?.type === 'file' ? file.data : undefined
-    expect(data).toMatchObject({ type: 'url' })
-    expect(String((data as { url: URL }).url)).toBe('https://blob.fake/d?sig=1')
+    expect(filePartOf(content)).toMatchObject({
+      type: 'file',
+      mediaType: 'image/png',
+      data: { type: 'url' },
+    })
   })
 
-  it('falls back to the text line without a source', async () => {
-    const content = await run(undefined)
+  it('inlines the stored bytes for a provider that takes only those', async () => {
+    const asked: string[][] = []
+    const mediaSource: MediaSource = {
+      urlsFor: async () => new Map(),
+      bytesFor: async (hashes) => {
+        asked.push([...hashes])
+        return new Map([[media.hash, 'iVBORw0KGgo=']])
+      },
+      missingOf: async () => [],
+    }
 
-    expect(content.some((part) => part.type === 'file')).toBe(false)
+    const content = await run({ mediaSource, modelCard: INLINE_CARD })
+
+    expect(asked).toEqual([[media.hash]])
+    expect(filePartOf(content)).toEqual({
+      type: 'file',
+      mediaType: 'image/png',
+      data: { type: 'data', data: 'iVBORw0KGgo=' },
+    })
+  })
+
+  it('names what the store no longer holds instead of inventing a path', async () => {
+    const mediaSource: MediaSource = {
+      urlsFor: async () => new Map(),
+      bytesFor: async () => new Map(),
+      missingOf: async () => [],
+    }
+
+    const content = await run({ mediaSource, modelCard: INLINE_CARD })
+
+    expect(filePartOf(content)).toBeUndefined()
     expect(content).toContainEqual({
       type: 'text',
-      text: `[image ${'d'.repeat(64)} · 4×4]`,
+      text: `[image unavailable: ${'d'.repeat(64)}]`,
+    })
+  })
+
+  it('sends no picture and no path without a media source', async () => {
+    const content = await run({ modelCard: URL_CARD })
+
+    expect(filePartOf(content)).toBeUndefined()
+    expect(content).toContainEqual({
+      type: 'text',
+      text: `[image unavailable: ${'d'.repeat(64)}]`,
     })
   })
 })

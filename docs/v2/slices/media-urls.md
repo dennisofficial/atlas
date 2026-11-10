@@ -91,8 +91,15 @@ export type MediaPart = {
 appear (`parts.ts`, `events/body.ts:119` and `:148`, both zod schemas). It is a separate part
 type, not a variant of `ImagePart`, so every existing `part.data` reader stays correct and the
 compiler lists every switch that must learn it. v1 never produces one. Its conversion
-(`packages/harness/src/model/message-conversion.ts`) renders it as the text line
-`imagePathLine` (`packages/core/src/images/attached.ts:17`) instead of failing.
+(`packages/harness/src/model/message-conversion.ts`) renders it as a text line instead of failing:
+`imagePathLine` (`packages/core/src/images/attached.ts:17`) when the part's source is really a path
+the model can `read`, and `missingImageLine` when it is only a name.
+
+The channel follows the card, at the last possible moment: `AiSdkModelPort` sends a signed url where
+the model takes one, and fetches the bytes out of the store to inline them where the provider takes
+only base64 (`MediaSigner.bytesOf`). Assembly therefore hands a stored picture on as a `MediaPart`
+rather than deciding on its own that the model cannot see it, and a picture that reaches the prompt
+neither way is named as unavailable rather than given a file name to mistake for a path.
 
 Width and height are measured once, when the image is stored, so assembly never decodes anything
 for a `MediaPart`. The image cap and the token estimate read `media.width`/`media.height`.
