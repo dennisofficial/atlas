@@ -115,15 +115,16 @@ describe('UpdateCard', () => {
     await unmount()
   })
 
-  it('stops offering reloads for a while after one', async () => {
+  it('reloads by itself when the window is in the background', async () => {
     asDesktop()
     body = { state: 'idle', web: { state: 'ready', version: '1.296.0', hash: 'abc123' } }
-    const first = await mount(<UpdateCard />)
-    await act(async () => button('Reload')?.click())
-    await first()
-    const second = await mount(<UpdateCard />)
+    const focused = document.hasFocus
+    Object.defineProperty(document, 'hasFocus', { value: () => false, configurable: true })
+    const unmount = await mount(<UpdateCard />)
+    expect(calls).toContainEqual({ path: '/desktop/update/restart', method: 'POST' })
     expect(document.body.textContent).not.toContain('New interface ready')
-    await second()
+    Object.defineProperty(document, 'hasFocus', { value: focused, configurable: true })
+    await unmount()
   })
 
   it('falls back when the payload carries no version', async () => {
