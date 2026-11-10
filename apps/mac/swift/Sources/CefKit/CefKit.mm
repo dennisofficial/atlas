@@ -133,6 +133,8 @@ BOOL AtlasCefInitialize(int argc, char *argv[]) {
   mkdir(cache_path, 0700);
   settings.root_cache_path = cef_string_from_utf8(cache_path);
   settings.log_file = cef_string_from_utf8(log_path);
+  NSLog(@"cef: sizeof(settings)=%zu root_cache_path.str=%p log_file.str=%p", sizeof(cef_settings_t),
+        (void *)settings.root_cache_path.str, (void *)settings.log_file.str);
 
   int result = cef_initialize(&main_args, &settings, NULL, NULL);
   NSLog(@"cef: initialize result=%d", result);
@@ -192,6 +194,9 @@ void AtlasCefShutdown(void) {
   browser_settings.size = sizeof(browser_settings);
 
   cef_string_t url_string = cef_string_from_utf8([url UTF8String]);
+  g_client.base.size = sizeof(cef_client_t);
+  NSLog(@"cef: sizeof(client)=%zu base.size=%zu client=%p", sizeof(cef_client_t), g_client.base.size,
+        (void *)&g_client);
   int created = cef_browser_host_create_browser(
       &window_info, &g_client, &url_string, &browser_settings, NULL, NULL);
   cef_string_utf16_clear(&url_string);
