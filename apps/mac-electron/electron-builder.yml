@@ -4,6 +4,11 @@ directories:
   output: release
 files:
   - main.js
+  - host-process.js
+  - pane-command.js
+  - pane-controller.js
+  - pane-geometry.js
+  - pane-server.js
   - package.json
 asar: true
 mac:
