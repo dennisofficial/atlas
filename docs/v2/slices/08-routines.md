@@ -120,13 +120,20 @@ lastSessionId?, createdAt, updatedAt`.
 - `apps/trigger` — the two tasks, their graph, the new trigger.dev project, its tier file.
 - `apps/api` — `routines` router (`list/create/update/delete/runNow`), protocol schemas.
 - `apps/web` — the Routines page: list with live status of the last run, next run, create/edit with
-  cron validation and a next-runs preview, enable/disable, delete, open last run.
+  cron validation and a next-runs preview, enable/disable, delete, open last run. It is a third tab
+  in `ShellBottomNav` (`apps/web/src/features/shell/shell-bottom-nav.tsx`, today `Threads` and
+  `Projects` from `EAppNav` in `shell-types.ts:1`): `EAppNav.Routines`, a `/routines` route beside
+  `app/(private)/projects`, and the sidebar body swapping to the routine list the way it already
+  swaps between threads and projects. The Mac shell renders the same web payload and inherits it;
+  TUI is out of scope. Placement decided by the operator on 2026-11-10.
 
 ## 4. Packaging and the PR sequence
 
 - **Part 1, `feat(trigger):`** `apps/trigger` + `packages/jobs` + heartbeat task + its own tier file
-  - deploy workflow. Proves the deploy before any routine code depends on it. Needs the operator to
-    create the v2 trigger.dev project and set `TRIGGER_PROJECT_REF` / `TRIGGER_V2_SECRET_KEY`.
+  - deploy workflow. Proves the deploy before any routine code depends on it. The v2 trigger.dev
+    project already existed (`proj_muqwamionbikynuchupc`); the deploy authenticates with
+    `TRIGGER_ACCESS_TOKEN` and the ref is hardcoded like v1's. Only the project's
+    `TRIGGER_SECRET_KEY` is still dashboard-held, for running or inspecting runs.
 - **Part 2a, `feat(control):`** `packages/schedule`, the two models + migration, the store methods
   and `runRoutine` with conformance tests. No dispatcher yet, so nothing fires.
 - **Part 2b, `feat(trigger):`** the sweep and child tasks, wires schedule + control together.
