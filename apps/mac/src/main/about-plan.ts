@@ -16,7 +16,7 @@ export function aboutLines({
   iface: IAboutInterface | undefined
 }): string[] {
   return [
-    `Atlas for Mac ${app.version} (${app.channel})`,
+    `App ${app.version} (${app.channel})`,
     iface === undefined
       ? 'Interface: the copy bundled with this app'
       : `Interface ${iface.version}`,

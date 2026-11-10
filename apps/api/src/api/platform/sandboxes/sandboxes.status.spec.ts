@@ -1,12 +1,25 @@
 import { NotFoundException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { EBootStepState, EPodState, ERuntimePhase } from '@dltech/atlas-wire'
 import { beforeEach, describe, expect, it } from 'bun:test'
-import { sandboxByThread, USER_A, USER_B } from '../../../../test/session-seed'
+import { asJson, sandboxByThread, USER_A, USER_B } from '../../../../test/session-seed'
 import { prepareSandboxes, sandboxRow, THREAD, type StubClient } from './sandboxes.fixture'
+import { podStateOf } from './pod-state'
+import { parkedOf, wakeableOf } from './sandbox-lifecycle'
 import type { SandboxesService } from './sandboxes.service'
 import { ESandboxState } from './sandboxes.types'
 import { SandboxMissingError } from './vercel-sandbox.client'
+
+const servingCheckpoint = () => ({
+  phase: ERuntimePhase.Serving,
+  revision: 7,
+  threadId: THREAD,
+  runtimeId: 'runtime-1',
+  sandboxSessionId: 'sbx-1',
+  reportedAt: '2026-09-16T00:00:00.000Z',
+  transcript: { head: 12, count: 3, digest: 'a'.repeat(64) },
+})
 
 describe('SandboxesService listing, status, stop and destroy', () => {
   let client: StubClient
@@ -64,6 +77,27 @@ describe('SandboxesService listing, status, stop and destroy', () => {
     const row = await sandboxByThread(THREAD)
     expect(row?.state).toBe(ESandboxState.Parked)
     expect(row?.sealedToken).not.toBeNull()
+  })
+
+  it('drops the serving mirror when the API stops the pod, so the row reads parked and wakeable', async () => {
+    await sandboxRow({
+      threadId: THREAD,
+      state: ESandboxState.Running,
+      serveUrl: 'https://sb-1.vercel.run',
+      runtimeCheckpoint: asJson(servingCheckpoint()),
+      runtimeCheckpointRevision: 7,
+    })
+
+    await service.stop({ userId: USER_A, threadId: THREAD })
+
+    const row = await sandboxByThread(THREAD)
+    expect(row?.state).toBe(ESandboxState.Parked)
+    expect(row?.runtimeCheckpoint).toBeNull()
+    expect(row?.runtimeCheckpointRevision).toBeNull()
+    if (row === null) throw new Error('the stopped sandbox row is missing')
+    expect(parkedOf(row)).toBe(true)
+    expect(wakeableOf(row)).toBe(true)
+    expect(podStateOf({ row, lastBootStepState: EBootStepState.Done })).toBe(EPodState.Parked)
   })
 
   it('notifies the sandbox before stopping it, with the operator-stop reason', async () => {

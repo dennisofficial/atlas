@@ -40,8 +40,6 @@ export type SpanFields = {
   readonly status?: string | undefined
   readonly verdict?: string | undefined
   readonly finishReason?: string | undefined
-  readonly finalProvider?: string | undefined
-  readonly sessionIdSource?: string | undefined
   readonly outcome?: ESpanOutcome | undefined
   readonly step?: number | undefined
   readonly delayMs?: number | undefined

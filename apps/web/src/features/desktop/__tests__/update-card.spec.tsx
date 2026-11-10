@@ -76,8 +76,8 @@ describe('UpdateCard', () => {
     asDesktop()
     body = { state: 'ready', version: '1.2.3' }
     const unmount = await mount(<UpdateCard />)
-    expect(document.body.textContent).toContain('Update ready')
-    expect(document.body.textContent).toContain('Atlas 1.2.3 is ready to install')
+    expect(document.body.textContent).toContain('App update ready')
+    expect(document.body.textContent).toContain('App 1.2.3 is ready to install')
     await unmount()
   })
 
@@ -85,7 +85,7 @@ describe('UpdateCard', () => {
     asDesktop()
     body = { state: 'ready' }
     const unmount = await mount(<UpdateCard />)
-    expect(document.body.textContent).toContain('A new version of Atlas is ready')
+    expect(document.body.textContent).toContain('A new app build is ready to install')
     await unmount()
   })
 
@@ -106,13 +106,30 @@ describe('UpdateCard', () => {
     asDesktop()
     body = { state: 'idle', web: { state: 'ready', version: '1.296.0', hash: 'abc123' } }
     const unmount = await mount(<UpdateCard />)
-    expect(document.body.textContent).toContain('New interface ready')
-    expect(document.body.textContent).toContain('Atlas 1.296.0 is ready to install')
+    expect(document.body.textContent).toContain('Interface update ready')
+    expect(document.body.textContent).toContain('Interface 1.296.0 is ready to install')
     expect(button('Reload')?.disabled).toBe(false)
     await act(async () => button('Reload')?.click())
     expect(calls).toContainEqual({ path: '/desktop/update/restart', method: 'POST' })
     expect(button('Reloading…')?.disabled).toBe(true)
     await unmount()
+  })
+
+  it('names no version when the running interface is already that version', async () => {
+    asDesktop()
+    const real = process.env.ATLAS_WEB_VERSION
+    process.env.ATLAS_WEB_VERSION = '1.302.0'
+    try {
+      body = { state: 'idle', web: { state: 'ready', version: '1.302.0', hash: 'def456' } }
+      const unmount = await mount(<UpdateCard />)
+      expect(document.body.textContent).toContain('Interface update ready')
+      expect(document.body.textContent).toContain('A newer build is ready to install')
+      expect(document.body.textContent).not.toContain('Interface 1.302.0')
+      await unmount()
+    } finally {
+      if (real === undefined) delete process.env.ATLAS_WEB_VERSION
+      else process.env.ATLAS_WEB_VERSION = real
+    }
   })
 
   it('reloads by itself when the window is in the background', async () => {
@@ -122,7 +139,7 @@ describe('UpdateCard', () => {
     Object.defineProperty(document, 'hasFocus', { value: () => false, configurable: true })
     const unmount = await mount(<UpdateCard />)
     expect(calls).toContainEqual({ path: '/desktop/update/restart', method: 'POST' })
-    expect(document.body.textContent).not.toContain('New interface ready')
+    expect(document.body.textContent).not.toContain('Interface update ready')
     Object.defineProperty(document, 'hasFocus', { value: focused, configurable: true })
     await unmount()
   })
@@ -131,7 +148,7 @@ describe('UpdateCard', () => {
     asDesktop()
     body = { state: 'idle', web: { state: 'ready', hash: 'abc123' } }
     const unmount = await mount(<UpdateCard />)
-    expect(document.body.textContent).toContain('The latest interface is ready')
+    expect(document.body.textContent).toContain('A newer build is ready to install')
     await unmount()
   })
 

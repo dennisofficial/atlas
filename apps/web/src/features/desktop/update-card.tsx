@@ -12,6 +12,8 @@ import {
   CardTitle,
 } from '@dltech/atlas-ui/components/card'
 
+import { webBuild } from '@/lib/build-info'
+
 import { EDesktopUpdateKind, useDesktopUpdate } from './use-desktop-update'
 
 export interface IUpdateCopy {
@@ -24,25 +26,32 @@ export interface IUpdateCopy {
 export function updateCopy({
   kind,
   version,
+  running,
 }: {
   kind: EDesktopUpdateKind
   version: string | undefined
+  running: string | undefined
 }): IUpdateCopy {
+  const shown = kind === EDesktopUpdateKind.Interface && version === running ? undefined : version
   const line =
-    version === undefined
+    shown === undefined
       ? kind === EDesktopUpdateKind.Interface
-        ? 'The latest interface is ready'
-        : 'A new version of Atlas is ready'
-      : `Atlas ${version} is ready to install`
+        ? 'A newer build is ready to install'
+        : 'A new app build is ready to install'
+      : `${kind === EDesktopUpdateKind.Interface ? 'Interface' : 'App'} ${shown} is ready to install`
   if (kind === EDesktopUpdateKind.Interface)
-    return { title: 'New interface ready', line, action: 'Reload', busy: 'Reloading…' }
-  return { title: 'Update ready', line, action: 'Restart to update', busy: 'Restarting…' }
+    return { title: 'Interface update ready', line, action: 'Reload', busy: 'Reloading…' }
+  return { title: 'App update ready', line, action: 'Restart to update', busy: 'Restarting…' }
 }
 
 export function UpdateCard() {
   const update = useDesktopUpdate()
   if (!update.ready || update.kind === undefined || update.dismissed) return null
-  const copy = updateCopy({ kind: update.kind, version: update.version })
+  const copy = updateCopy({
+    kind: update.kind,
+    version: update.version,
+    running: webBuild().version,
+  })
   return (
     <Card size="sm" aria-label={copy.title} role="region">
       <CardHeader>

@@ -17,7 +17,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
   API stays in `apps/api`.
 - Read a dynamic segment in a client component with `useRouteParam` (`src/lib/route-param.ts`), never by
   parsing `usePathname()`.
-- The `mac-app-rehearsal` CI job builds the packaged app and checks the built server answers flight
-  requests on every PR.
+- The `web-build` CI job builds this app on every PR whose change reaches it (`scripts/app-reach.ts`,
+  the dependency closure rather than a path list), and `mac-app-rehearsal` builds the packaged app —
+  and checks the built server answers flight requests — only when a change reaches `apps/mac`.
 - Interface changes reach the Mac as a web payload within minutes of a merge
   (`.github/workflows/web-ota.yml`); a change under `apps/mac/src` still needs a release.

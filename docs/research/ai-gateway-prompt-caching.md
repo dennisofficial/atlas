@@ -235,3 +235,26 @@ the prompt.
 - **Whether `x-session-affinity`/`x-session-id` are forwarded to DeepSeek and used for its cache
   routing.** The Gateway says it forwards those headers "to the provider it selects, so providers that
   use them for their own cache routing can"; DeepSeek's docs do not mention them.
+
+## Follow-up, 2026-11-10: the pin shipped, the routing never surfaced
+
+Atlas now sends the thread id as `gateway.sessionId` and stops adding `caching: 'auto'` for
+`anthropic/…` models (PR #2139). Two things were learned after it shipped, both from measurement
+rather than docs.
+- **The SDK never exposes routing, so nothing can record which account served a call.**
+  `@ai-sdk/gateway` 4.0.125 (installed) and 4.0.139 (registry `latest`) both declare gateway
+  metadata as `asyncJob` plus an index signature, and neither parses `finalProvider` or
+  `clientSessionIdSource` from the response. The span fields added to read them were removed again:
+  they could never populate, and upgrading the dependency would not change that.
+- **Sending the session id produced no measurable change on DeepSeek.** After the release, 746
+  calls on `1.294.0`/`1.295.0` were compared with 4,216 on older serves. Pooled, cold calls fell
+  from ~5% to 1.3% and fresh tokens per call from 36.1k to 20.9k — but `1.293.0`, released before
+  the change and never carrying it, measured the same (16.5k fresh tokens per call, 89.6% of fresh
+  re-read, 1.0% cold). The gradient tracks how recently a sandbox started, not the session id, so
+  no effect is attributable to affinity on this route. Plausible reasons: Baseten does not use
+  `x-session-affinity` for cache routing (undocumented either way), or the write from one call is
+  not visible to the next call a second later.
+- **The dominant cost is not routing.** On every serve version tried, ~90% of the tokens billed as
+  fresh input are re-reads of prompt the previous call in the same turn already sent — 17k to 50k
+  tokens per call on a prompt that only grows. That survives both routing settings and is what the
+  DeepSeek bill is actually made of.
