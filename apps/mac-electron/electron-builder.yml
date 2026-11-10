@@ -4,7 +4,22 @@ directories:
   output: release
 files:
   - main.js
+  - host-paths.js
   - package.json
+extraResources:
+  - from: dist/host.js
+    to: app/host.js
+  - from: dist
+    to: app
+    filter:
+      - '**/*'
+      - '!host.js'
+      - '!web-standalone/**'
+      - '!bin/**'
+  - from: dist/web-standalone
+    to: web-standalone
+  - from: dist/bin/bun
+    to: bin/bun
 asar: true
 mac:
   category: public.app-category.developer-tools

@@ -50,6 +50,16 @@ jobs:
         id: sha
         run: echo "short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
+      # The shell spawns the same desktop host the Swift app does, so the payload it needs at runtime
+      # (the bundled host, the Next standalone tree and a bun binary) is built before packaging.
+      - name: build the web standalone tree
+        working-directory: apps/mac
+        run: bun run build:web
+
+      - name: pack the desktop host
+        working-directory: apps/mac-electron
+        run: bun run pack:host
+
       - name: build the dmg
         working-directory: apps/mac-electron
         run: npx electron-builder --mac dmg --arm64
