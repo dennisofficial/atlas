@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'1440ea06adc82bfb24c1b7d40dc3fc4a31df6691444f3237fb72c7a072b29df7'>;
+  StorageHashBase<'fa3eeff401780a4f24dc6679022b22033181cc05d84b4cd2f483a41337134f2c'>;
 export type ExecutionHash =
   ExecutionHashBase<'0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289'>;
 export type ProfileHash =
@@ -352,6 +352,7 @@ export namespace Models {
     pendingVcpus: FieldOutputTypes['public']['CloudSandbox']['pendingVcpus'];
     pinnedModel: FieldOutputTypes['public']['CloudSandbox']['pinnedModel'];
     region: FieldOutputTypes['public']['CloudSandbox']['region'];
+    retiredAt: FieldOutputTypes['public']['CloudSandbox']['retiredAt'];
     runningServeVersion: FieldOutputTypes['public']['CloudSandbox']['runningServeVersion'];
     runtimeCheckpoint: FieldOutputTypes['public']['CloudSandbox']['runtimeCheckpoint'];
     runtimeCheckpointRevision: FieldOutputTypes['public']['CloudSandbox']['runtimeCheckpointRevision'];
@@ -1748,6 +1749,13 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly retiredAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
                 readonly runningServeVersion: {
@@ -7390,6 +7398,14 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly retiredAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
               readonly runningServeVersion: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -7518,6 +7534,7 @@ type ContractBase = Omit<
                 readonly pendingVcpus: { readonly column: 'pendingVcpus' };
                 readonly pinnedModel: { readonly column: 'pinnedModel' };
                 readonly region: { readonly column: 'region' };
+                readonly retiredAt: { readonly column: 'retiredAt' };
                 readonly runningServeVersion: { readonly column: 'runningServeVersion' };
                 readonly runtimeCheckpoint: { readonly column: 'runtimeCheckpoint' };
                 readonly runtimeCheckpointRevision: {

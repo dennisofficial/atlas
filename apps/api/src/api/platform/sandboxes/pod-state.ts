@@ -24,6 +24,7 @@ export function podStateOf(args: {
   lastBootStepState: EBootStepState | undefined
 }): EPodState {
   const { row, lastBootStepState } = args
+  if (row !== null && row.retiredAt !== null) return EPodState.Retired
   const standing = row === null ? undefined : standingStateOf(row)
   if (standing === ESandboxProvisionState.Running) return EPodState.Running
   if (standing === ESandboxProvisionState.Booting) return EPodState.Booting

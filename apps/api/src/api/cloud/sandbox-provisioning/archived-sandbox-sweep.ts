@@ -12,7 +12,7 @@ export type ArchivedSandboxSweepDeps = {
 
 export type ArchivedSandboxSweepSummary = {
   scanned: number
-  deleted: number
+  retired: number
   skipped: number
   failed: number
 }
@@ -36,7 +36,9 @@ async function sweepTargets(args: { cutoff: Date }): Promise<SweepTarget[]> {
   if (sessions.length === 0) return []
   const sandboxes = await db.orm.public.CloudSandbox.where((sandbox) =>
     sandbox.sessionId.in(sessions.map((session) => session.id)),
-  ).all()
+  )
+    .where((sandbox) => sandbox.retiredAt.isNull())
+    .all()
   const bySession = new Map(sandboxes.map((sandbox) => [sandbox.sessionId, sandbox]))
   return sessions.flatMap((session) => {
     const sandbox = bySession.get(session.id)
@@ -65,10 +67,15 @@ async function apiProvisioned(args: { target: SweepTarget }): Promise<boolean> {
   return step !== null
 }
 
-async function deleteOne(args: {
+/**
+ * The row outlives the sandbox on purpose: it is the only record that this session had a pod, how
+ * long it lived, and that its workspace is gone — which is what lets the client say "released"
+ * instead of "parked" and refuse to pretend a resume would bring the files back.
+ */
+async function retireOne(args: {
   target: SweepTarget
   deps: ArchivedSandboxSweepDeps
-}): Promise<'deleted' | 'skipped'> {
+}): Promise<'retired' | 'skipped'> {
   const { target, deps } = args
   const { sandbox } = target
   await db.orm.public.CloudSandbox.where({ id: sandbox.id }).updateAndCount({
@@ -81,9 +88,16 @@ async function deleteOne(args: {
   if (fresh?.archivedAt === null || fresh?.archivedAt === undefined) return 'skipped'
   if (fresh.mainThreadId === null) return 'skipped'
   await deps.deleteSandbox({ threadId: fresh.mainThreadId, name: sandbox.name })
-  await db.orm.public.CloudSandbox.where({ id: sandbox.id }).delete()
+  const at = new Date()
+  await db.orm.public.CloudSandbox.where({ id: sandbox.id }).updateAndCount({
+    retiredAt: at,
+    serveUrl: null,
+    runtimeCheckpoint: null,
+    runtimeCheckpointRevision: null,
+    updatedAt: at,
+  })
   await deps.podChanged({ threadId: fresh.mainThreadId })
-  return 'deleted'
+  return 'retired'
 }
 
 export async function sweepArchivedSandboxes(args: {
@@ -95,7 +109,7 @@ export async function sweepArchivedSandboxes(args: {
   const targets = await sweepTargets({ cutoff })
   const summary: ArchivedSandboxSweepSummary = {
     scanned: targets.length,
-    deleted: 0,
+    retired: 0,
     skipped: 0,
     failed: 0,
   }
@@ -109,7 +123,7 @@ export async function sweepArchivedSandboxes(args: {
       continue
     }
     try {
-      const outcome = await deleteOne({ target, deps })
+      const outcome = await retireOne({ target, deps })
       summary[outcome] += 1
     } catch (failure) {
       summary.failed += 1

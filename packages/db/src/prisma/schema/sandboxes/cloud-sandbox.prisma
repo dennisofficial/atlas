@@ -19,6 +19,7 @@ model CloudSandbox {
   serveVersion              String?
   runningServeVersion       String?
   wakeFailedAt              TimestamptzJsDate(3)?
+  retiredAt                 TimestamptzJsDate(3)?
   wakeClaim                 TimestamptzJsDate(3)?
   pendingSend               Jsonb?
   pendingVcpus              Int?
