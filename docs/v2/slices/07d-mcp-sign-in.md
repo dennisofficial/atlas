@@ -157,7 +157,6 @@ it shows the tool row and the tool's text only. The Mac app runs the web interfa
 card.
 
 Proved without a live provider:
-
 - Pod: the card event carries the link while the model text does not
   (`plugins/mcp/src/pod/__tests__/sign-in.spec.ts`), a refusal draws nothing, and the resolution is
   written once when the grant lands (the http server answers 401, then stands up once a token
