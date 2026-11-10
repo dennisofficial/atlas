@@ -3,7 +3,7 @@ import type { ImageCapabilities } from '../images/delivery'
 import { DEFAULT_IMAGE_TIER, type EImageTier } from '../images/projection'
 import type { AssistantPart } from '../events/body'
 import type { CallId } from '../events/ids'
-import type { GatewayRouting, ProviderIdentity } from '../provider'
+import type { ProviderIdentity } from '../provider'
 import type { Chunk, EFinishReason, ModelUsage } from '../stream/chunk'
 import type { ToolDeclaration } from '../tools/tool'
 
@@ -17,7 +17,6 @@ export type ModelStepResult = {
   finishReason: EFinishReason
   usage?: ModelUsage
   ranFast?: true
-  routing?: GatewayRouting | undefined
 }
 
 export type ModelTraits = {

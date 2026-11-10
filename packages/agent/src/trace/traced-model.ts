@@ -37,8 +37,6 @@ const resultFieldsOf = (result: ModelStepResult): SpanFields => ({
   outputTokens: result.usage?.outputTokens,
   cacheReadTokens: result.usage?.cacheReadTokens,
   cacheWriteTokens: result.usage?.cacheWriteTokens,
-  finalProvider: result.routing?.finalProvider,
-  sessionIdSource: result.routing?.sessionIdSource,
 })
 
 export class TracedModel extends ModelPort {
