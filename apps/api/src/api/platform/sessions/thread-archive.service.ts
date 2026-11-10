@@ -46,16 +46,22 @@ export class ThreadArchiveService {
     await db.orm.public.Session.where({ id: session.id }).update({ archivedAt })
     this.signals.threadChanged({ threadId })
     if (archivedAt === null) return
-    await this.parkPod({ threadId, sessionId: session.id })
     await this.endSubscriptions({ userId, sessionId: session.id })
-    await this.dispatchCleanup({ threadId, archivedAt: archivedAt.toISOString() })
+    const dispatched = await this.dispatchCleanup({
+      threadId,
+      archivedAt: archivedAt.toISOString(),
+    })
+    if (!dispatched) await this.parkPodWhenDispatchFailed({ threadId, sessionId: session.id })
   }
 
   /**
-   * An archived session must not keep a sandbox running: it stops here, before the response, and the
-   * cleanup task re-runs the same park as the backstop when this one could not reach the sandbox.
+   * No worker will ever reach the pod when the dispatch itself failed, so the sandbox is stopped
+   * here: a slow response is worth less than a sandbox left running for a session already archived.
    */
-  private async parkPod(args: { threadId: string; sessionId: string }): Promise<void> {
+  private async parkPodWhenDispatchFailed(args: {
+    threadId: string
+    sessionId: string
+  }): Promise<void> {
     if (this.sandboxes === undefined) return
     const row = await db.orm.public.CloudSandbox.first({ sessionId: args.sessionId })
     if (row === null || parkedOf(row)) return
@@ -114,17 +120,19 @@ export class ThreadArchiveService {
       })
   }
 
-  private async dispatchCleanup(payload: ThreadArchiveCleanupPayload): Promise<void> {
+  private async dispatchCleanup(payload: ThreadArchiveCleanupPayload): Promise<boolean> {
     try {
       await this.dispatcher.dispatch({
         task: threadArchiveCleanupTaskContract,
         payload,
         idempotencyKey: threadArchiveCleanupIdempotencyKey(payload),
       })
+      return true
     } catch (failure) {
       this.logger.warn(
         `dispatching thread-archive-cleanup for thread ${payload.threadId} failed: ${failureText(failure)}`,
       )
+      return false
     }
   }
 }
