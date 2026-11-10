@@ -36,6 +36,29 @@ describe('ContextFileBody', () => {
     await act(async () => root.unmount())
   })
 
+  it('renders a context code file with a line per line and numbered gutters', async () => {
+    const { createRoot } = await import('react-dom/client')
+    const host = document.createElement('div')
+    const root = createRoot(host)
+    await act(async () =>
+      root.render(
+        <ContextFileBody
+          path="artifacts/vuln-scorecard.ts"
+          loaded={{
+            state: 'ready',
+            file: { type: 'text', content: 'const a = 1\nreturn a\n', truncated: false },
+          }}
+        />,
+      ),
+    )
+    expect(host.querySelectorAll('[data-line]').length).toBe(2)
+    expect(host.textContent).toContain('const a = 1')
+    expect(host.querySelector('section')?.getAttribute('aria-label')).toBe(
+      'Contents of artifacts/vuln-scorecard.ts',
+    )
+    await act(async () => root.unmount())
+  })
+
   it('offers a binary file as a download instead of a blank pane', async () => {
     const { createRoot } = await import('react-dom/client')
     const host = document.createElement('div')
