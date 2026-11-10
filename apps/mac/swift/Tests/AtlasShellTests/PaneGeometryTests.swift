@@ -1,4 +1,7 @@
+import CoreGraphics
 import XCTest
+
+@testable import AtlasShellCore
 
 final class PaneGeometryTests: XCTestCase {
     func testFullRightHalfLandsOnTheContainerOrigin() {
