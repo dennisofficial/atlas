@@ -2,7 +2,7 @@ import { decodeBase64, imageSize, visualTokens, type ImageSize } from '../images
 import { DEFAULT_IMAGE_TIER, type EImageTier } from '../images/projection'
 import { inlineImageData } from '../message/image-bytes'
 import type { Message } from '../message/message'
-import type { FilePart, ImagePart, MediaPart, MessagePart } from '../message/parts'
+import type { ImagePart, MediaPart, MessagePart } from '../message/parts'
 import type { Assembled } from './assembled'
 
 const CHARS_PER_TOKEN = 4
@@ -39,12 +39,11 @@ function mediaTokens({ part, tier }: { part: MediaPart; tier: EImageTier }): num
   return visualTokens({ byteLength: 0, tier, width, height }) ?? UNMEASURABLE_IMAGE_TOKENS
 }
 
-const fileTokens = (part: FilePart): number => textTokens(part.data)
-
 function partTokens({ part, tier }: { part: MessagePart; tier: EImageTier }): number {
   if (part.type === 'text' || part.type === 'reasoning') return textTokens(part.text)
   if (part.type === 'image') return imageTokens({ part, tier })
-  if (part.type === 'file') return fileTokens(part)
+  // A document is priced by the provider that reads it, on its own rules, not by our bytes count.
+  if (part.type === 'file') return 0
   if (part.type === 'media') return mediaTokens({ part, tier })
   if (part.type === 'tool-call') return textTokens(JSON.stringify(part.input ?? null))
   if (part.output.type === 'content') {
