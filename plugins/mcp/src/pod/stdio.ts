@@ -53,6 +53,7 @@ export class StdioClient implements McpTransportClient {
       serverId: string
       transport: McpStdioTransport
       timeoutMs?: number
+      onExit?: (reason: string) => void
     },
   ) {}
 
@@ -202,6 +203,8 @@ export class StdioClient implements McpTransportClient {
     }
     this.exitError = new McpTransportError(exitReasonOf(exit), read?.stderr ?? [])
     this.rejectAll(this.exitError)
+    if (this.closed) return
+    this.args.onExit?.(this.exitError.message)
   }
 
   private async read(): Promise<ReadResult | null> {

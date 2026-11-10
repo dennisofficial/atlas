@@ -48,7 +48,7 @@ export const mcpInstructionsHook = (args: {
   offered: Map<ThreadId, Set<string>>
 }): McpInstructionsHook => ({
   name: 'mcp-instructions',
-  order: { stage: EStage.Observe, nudge: 0 },
+  order: { stage: EStage.Observe, nudge: 20 },
   run: async ({ threadId }) => {
     const offered = args.offered.get(threadId) ?? new Set<string>()
     const drafts = mcpInstructionsOf({ live: args.store.instructionsByServer(), offered })
