@@ -17,8 +17,8 @@ import {
 const NOW = new Date('2026-11-02T06:23:00.000Z')
 
 const DAY_MS = 24 * 60 * 60 * 1_000
-const EIGHT_DAYS_AGO = new Date(NOW.getTime() - 8 * DAY_MS)
-const SIX_DAYS_AGO = new Date(NOW.getTime() - 6 * DAY_MS)
+const PAST_GRACE = new Date(NOW.getTime() - 2 * DAY_MS)
+const WITHIN_GRACE = new Date(NOW.getTime() - 2 * 60 * 60 * 1_000)
 
 const sandboxRows = () => db.orm.public.CloudSandbox.all()
 
@@ -29,8 +29,12 @@ describe('sweepArchivedSandboxes', () => {
     await seedUsers('usr-1')
   })
 
+  it('pays for an archived pod for one day and no longer', () => {
+    expect(ARCHIVED_SANDBOX_GRACE_MS).toBe(24 * 60 * 60 * 1_000)
+  })
+
   it('deletes the pod of an API-provisioned session archived beyond the grace', async () => {
-    await seedArchivedApiSession({ archivedAt: EIGHT_DAYS_AGO })
+    await seedArchivedApiSession({ archivedAt: PAST_GRACE })
     const { deps, deleted, announced } = recordingSweepDeps()
 
     const summary = await sweepArchivedSandboxes({ now: NOW, deps })
@@ -42,7 +46,7 @@ describe('sweepArchivedSandboxes', () => {
   })
 
   it('leaves a session archived within the grace untouched', async () => {
-    await seedArchivedApiSession({ archivedAt: SIX_DAYS_AGO })
+    await seedArchivedApiSession({ archivedAt: WITHIN_GRACE })
     const { deps, deleted, announced } = recordingSweepDeps()
 
     const summary = await sweepArchivedSandboxes({ now: NOW, deps })
@@ -67,7 +71,7 @@ describe('sweepArchivedSandboxes', () => {
   })
 
   it('skips a TUI BYO row with no boot steps', async () => {
-    await seedArchivedApiSession({ archivedAt: EIGHT_DAYS_AGO, withBootSteps: false })
+    await seedArchivedApiSession({ archivedAt: PAST_GRACE, withBootSteps: false })
     const { deps, deleted } = recordingSweepDeps()
 
     const summary = await sweepArchivedSandboxes({ now: NOW, deps })
@@ -78,7 +82,7 @@ describe('sweepArchivedSandboxes', () => {
   })
 
   it('skips a thread whose pod is a local lease', async () => {
-    await seedArchivedApiSession({ archivedAt: EIGHT_DAYS_AGO, withLease: true })
+    await seedArchivedApiSession({ archivedAt: PAST_GRACE, withLease: true })
     const { deps, deleted } = recordingSweepDeps()
 
     const summary = await sweepArchivedSandboxes({ now: NOW, deps })
@@ -89,7 +93,7 @@ describe('sweepArchivedSandboxes', () => {
   })
 
   it('skips a pod an unarchived teammate session still uses', async () => {
-    await seedArchivedApiSession({ archivedAt: EIGHT_DAYS_AGO })
+    await seedArchivedApiSession({ archivedAt: PAST_GRACE })
     await seedThreadRow({ id: 'thr-mate', userId: 'usr-1' })
     await db.orm.public.Session.where({ id: 'ses_thr-mate' }).update({
       managedBySessionId: 'ses_thr-1',
@@ -104,8 +108,8 @@ describe('sweepArchivedSandboxes', () => {
   })
 
   it('still deletes when every teammate is itself archived', async () => {
-    await seedArchivedApiSession({ archivedAt: EIGHT_DAYS_AGO })
-    await seedThreadRow({ id: 'thr-mate', userId: 'usr-1', archivedAt: EIGHT_DAYS_AGO })
+    await seedArchivedApiSession({ archivedAt: PAST_GRACE })
+    await seedThreadRow({ id: 'thr-mate', userId: 'usr-1', archivedAt: PAST_GRACE })
     await db.orm.public.Session.where({ id: 'ses_thr-mate' }).update({
       managedBySessionId: 'ses_thr-1',
     })
@@ -120,7 +124,7 @@ describe('sweepArchivedSandboxes', () => {
 
   it('never selects the archived teammate session itself', async () => {
     await seedThreadRow({ id: 'thr-manager', userId: 'usr-1' })
-    await seedArchivedApiSession({ threadId: 'thr-mate', archivedAt: EIGHT_DAYS_AGO })
+    await seedArchivedApiSession({ threadId: 'thr-mate', archivedAt: PAST_GRACE })
     await db.orm.public.Session.where({ id: 'ses_thr-mate' }).update({
       managedBySessionId: 'ses_thr-manager',
     })
@@ -132,7 +136,7 @@ describe('sweepArchivedSandboxes', () => {
   })
 
   it('counts a failed delete, keeps the row, and clears the claim so the next run retries', async () => {
-    await seedArchivedApiSession({ archivedAt: EIGHT_DAYS_AGO })
+    await seedArchivedApiSession({ archivedAt: PAST_GRACE })
     const { deps, deleted, announced, logged } = recordingSweepDeps({
       deleteFails: new Error('vercel is down'),
     })
@@ -154,8 +158,8 @@ describe('sweepArchivedSandboxes', () => {
   })
 
   it('skips a session unarchived between the select and its delete', async () => {
-    await seedArchivedApiSession({ archivedAt: EIGHT_DAYS_AGO })
-    await seedArchivedApiSession({ threadId: 'thr-2', archivedAt: EIGHT_DAYS_AGO })
+    await seedArchivedApiSession({ archivedAt: PAST_GRACE })
+    await seedArchivedApiSession({ threadId: 'thr-2', archivedAt: PAST_GRACE })
     const { deps, deleted } = recordingSweepDeps()
     const reactivating: ArchivedSandboxSweepDeps = {
       ...deps,
