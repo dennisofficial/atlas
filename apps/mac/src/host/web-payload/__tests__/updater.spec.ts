@@ -59,6 +59,14 @@ describe('createWebUpdater', () => {
     expect(fake.payloadFs.state().current).toBe(manifestOf().hash)
   })
 
+  test('reports the version the payload was built as', async () => {
+    const fake = fakePorts({ manifestInput: manifestOf({ version: '1.294.0' }) })
+    const updater = updaterOf(fake)
+    const status = await updater.check()
+    expect(status.state).toBe(EWebPayloadState.Ready)
+    expect(status.version).toBe('1.294.0')
+  })
+
   test('does no work when the payload is already current', async () => {
     const fake = fakePorts({ state: { current: manifestOf().hash }, complete: [manifestOf().hash] })
     const updater = updaterOf(fake)

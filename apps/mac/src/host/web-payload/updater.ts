@@ -1,4 +1,4 @@
-import { decidePayload, EPayloadDecision, parseManifest } from './manifest'
+import { decidePayload, EPayloadDecision, parseManifest, type WebManifest } from './manifest'
 import { installPayload, type IWebPayloadFs } from './install'
 import { selectedPayload, stalePayloads } from './select'
 import { failedState, type IPayloadState } from './state'
@@ -16,6 +16,7 @@ export enum EWebPayloadState {
 
 export interface IWebPayloadStatus {
   state: EWebPayloadState
+  version?: string
   hash?: string
   builtAt?: string
   error?: string
@@ -39,6 +40,14 @@ export interface IWebUpdater {
   pending: () => string | undefined
   installedRoot: () => Promise<string | undefined>
   fail: (args: { hash: string }) => Promise<void>
+}
+
+function buildOf(manifest: WebManifest): Pick<IWebPayloadStatus, 'version' | 'hash' | 'builtAt'> {
+  const build: Pick<IWebPayloadStatus, 'hash' | 'builtAt'> = {
+    hash: manifest.hash,
+    builtAt: manifest.builtAt,
+  }
+  return manifest.version === undefined ? build : { ...build, version: manifest.version }
 }
 
 export function createWebUpdater({
@@ -74,7 +83,7 @@ export function createWebUpdater({
       if (decision.decision === EPayloadDecision.Refuse) return fail(decision.reason)
       if (decision.decision === EPayloadDecision.Current) {
         pending = undefined
-        status = { state: EWebPayloadState.Idle, hash: manifest.hash, builtAt: manifest.builtAt }
+        status = { state: EWebPayloadState.Idle, ...buildOf(manifest) }
         return status
       }
       const result = await installPayload({
@@ -89,11 +98,7 @@ export function createWebUpdater({
       if (!result.installed) return fail(`the payload did not install: ${result.reason}`)
       await prune({ home, ports })
       pending = result.hash
-      status = {
-        state: EWebPayloadState.Ready,
-        hash: manifest.hash,
-        builtAt: manifest.builtAt,
-      }
+      status = { state: EWebPayloadState.Ready, ...buildOf(manifest) }
       return status
     } catch (error) {
       ports.log({ label: 'web-payload', error })

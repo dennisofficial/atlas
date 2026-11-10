@@ -94,7 +94,7 @@ export function useDesktopUpdate(): DesktopUpdateView {
   return {
     ready: isDesktop && kind !== undefined,
     kind,
-    version: update.version,
+    version: kind === EDesktopUpdateKind.Interface ? update.web?.version : update.version,
     restarting,
     error: restarting ? undefined : (requestError ?? update.error),
     dismissed,
