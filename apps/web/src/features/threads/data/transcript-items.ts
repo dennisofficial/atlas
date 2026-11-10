@@ -9,6 +9,7 @@ import {
   type RevealGate,
   type ToolCall,
   type TranscriptEntry,
+  type TranscriptEntryFold,
 } from '@dltech/atlas-client/transcript'
 import {
   applyDiagramRepairs,
@@ -68,8 +69,19 @@ export type TranscriptItem = Timed &
         heldOpen: boolean
       }
     | { kind: ETranscriptKind.Tools; id: string; calls: ToolCallItem[] }
+    | SignInItem
     | NoticeItem
   )
+
+export type SignInItem = {
+  kind: ETranscriptKind.SignIn
+  id: string
+  text: string
+  subject: string
+  url: string
+  result?: 'connected' | 'failed' | undefined
+  reason?: string | undefined
+}
 
 export type TranscriptRow = TranscriptItem | SpawnItem | ReportItem
 
@@ -113,6 +125,16 @@ function textItemOf(args: {
             streaming: entry.streaming,
             ...(fastEvents.has(eventIdOf(entry.key)) ? { fast: true as const } : {}),
           }
+    case EEntryKind.SignIn:
+      return {
+        kind: ETranscriptKind.SignIn,
+        id: entry.key,
+        text: entry.text,
+        subject: entry.subject,
+        url: entry.url,
+        ...(entry.result === undefined ? {} : { result: entry.result }),
+        ...(entry.reason === undefined ? {} : { reason: entry.reason }),
+      }
     case EEntryKind.ModelThought:
       return entry.text.trim().length === 0
         ? null
@@ -191,8 +213,11 @@ const fastEventsOf = (events: readonly Event[]): ReadonlySet<string> =>
     ),
   )
 
-export const durableTranscriptOf = (args: { events: readonly Event[] }): DurableTranscript => ({
-  entries: durableEntries({ events: args.events }),
+export const durableTranscriptOf = (args: {
+  events: readonly Event[]
+  pluginEntries?: readonly TranscriptEntryFold[] | undefined
+}): DurableTranscript => ({
+  entries: durableEntries({ events: args.events, pluginEntries: args.pluginEntries }),
   stamps: new Map(args.events.map((event) => [event.id as string, event.at])),
   spawns: spawnItemsOf(args.events),
   reports: [...reportItemsOf(args.events).values()],

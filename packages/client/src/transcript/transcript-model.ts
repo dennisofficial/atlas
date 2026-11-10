@@ -27,6 +27,7 @@ export enum EEntryKind {
   SandboxNotice = 'sandbox-notice',
   Rotated = 'rotated',
   OperatorInput = 'operator-input',
+  SignIn = 'sign-in',
   SystemContext = 'system-context',
   SystemNotice = 'system-notice',
   PrEvent = 'pr-event',
@@ -213,6 +214,18 @@ export type OperatorInputEntry = {
   text: string
 }
 
+export type SignInEntry = {
+  kind: EEntryKind.SignIn
+  author: EAuthor.Model
+  key: string
+  text: string
+  subject: string
+  url: string
+  expiresAt?: string | undefined
+  result?: 'connected' | 'failed' | undefined
+  reason?: string | undefined
+}
+
 export type SystemContextItem = {
   key: string
   label: string
@@ -266,6 +279,7 @@ export type TranscriptEntry =
   | SandboxNoticeEntry
   | RotatedEntry
   | OperatorInputEntry
+  | SignInEntry
   | SystemContextEntry
   | SystemNoticeEntry
   | PrEventEntry

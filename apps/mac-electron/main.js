@@ -1,4 +1,5 @@
 import { createServer } from 'node:http'
+import { join } from 'node:path'
 
 import { app, BrowserWindow, WebContentsView } from 'electron'
 
@@ -14,16 +15,10 @@ import {
 
 const PANE_PATH = '/pane'
 const DESKTOP_PANE_PATH = '/desktop/pane'
-const PANE_URL = 'https://google.com'
 const PANE_PARTITION = 'persist:spike'
 const WINDOW_WIDTH = 1280
 const WINDOW_HEIGHT = 820
-const PANE_SHARE = 0.5
-
-function paneBounds({ width, height }) {
-  const paneWidth = Math.round(width * PANE_SHARE)
-  return { x: width - paneWidth, y: 0, width: paneWidth, height }
-}
+const OUTPUT_LIMIT = 8_000
 
 function validRect(rect) {
   return (
@@ -156,22 +151,19 @@ async function createWindow() {
     height: WINDOW_HEIGHT,
     resizable: true,
     titleBarStyle: 'hiddenInset',
+    // The web app draws its own titlebar, its drag regions and the traffic-light inset once it sees
+    // this bridge; without it the window cannot be moved by the page's own chrome.
+    webPreferences: {
+      preload: join(import.meta.dirname, 'preload.cjs'),
+      contextIsolation: true,
+    },
   })
 
   const pane = new WebContentsView({
     webPreferences: { partition: PANE_PARTITION, contextIsolation: true },
   })
   win.contentView.addChildView(pane)
-
-  const layoutPane = () => {
-    const [width, height] = win.getContentSize()
-    pane.setBounds(paneBounds({ width, height }))
-  }
-
-  win.on('resize', layoutPane)
-
-  layoutPane()
-  pane.webContents.loadURL(PANE_URL)
+  pane.setVisible(false)
 
   const session = await startPaneServer({ pane })
   const script = resolveHostScript({
