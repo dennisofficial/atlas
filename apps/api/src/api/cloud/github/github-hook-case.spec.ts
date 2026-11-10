@@ -36,6 +36,7 @@ describe('legacy mixed-case hook identity', () => {
         graph.delivery,
         graph.cipher,
         new GithubWebhookInboxService(),
+        { notifyEvent: () => undefined } as never,
       )
       expect(
         await controller.handleDelivery(

@@ -24,6 +24,7 @@ import { SessionOrSandboxMiddleware } from '../../platform/sessions/session-or-s
 import type { GithubAppInstallNoticeService } from './github-app-install-notice.service'
 import { PULL_REQUEST_PAYLOAD } from './github-delivery.fixture'
 import { GithubDeliveryService } from './github-delivery.service'
+import { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import { GithubHookController } from './github-hook.controller'
 import { GithubWebhookInboxService } from './github-webhook-inbox.service'
 import { seedLinkedPr } from './github-linked-pr.fixture'
@@ -147,6 +148,7 @@ describe('authorized linked PR observation across real HTTP, Redis and Postgres'
         )
       },
       providers: [
+        { provide: GithubSandboxWakeService, useValue: { notifyEvent: () => undefined } },
         GithubPrStreamRouter,
         SessionOrSandboxMiddleware,
         { provide: DrainStateService, useValue: new DrainStateService() },

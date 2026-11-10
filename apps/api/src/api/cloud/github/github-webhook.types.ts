@@ -172,3 +172,41 @@ export interface GithubAppInstallationRepositoriesWebhookPayload {
   repositories_removed?: GithubAppInstallationRepository[]
   repository_selection?: string
 }
+
+export interface GithubWorkflowRunWebhookJob {
+  name: string
+  status?: string
+  conclusion?: string | null
+}
+
+export interface GithubWorkflowRunWebhookRun {
+  id: number
+  name?: string
+  path?: string | null
+  status?: string
+  conclusion?: string | null
+  head_branch?: string | null
+  html_url?: string | null
+  jobs?: GithubWorkflowRunWebhookJob[]
+}
+
+export interface GithubWorkflowRunWebhookPayload {
+  action: string
+  workflow_run: GithubWorkflowRunWebhookRun
+  repository: GithubWebhookRepository
+}
+
+/** https://docs.github.com/en/webhooks/webhook-events-and-payloads#merge_queue_entry */
+export interface GithubMergeQueueEntryMergeGroup {
+  head_ref?: string | null
+  head_sha?: string | null
+  base_ref?: string | null
+}
+
+export interface GithubMergeQueueEntryWebhookPayload {
+  action: string
+  pull_request?: { number: number }
+  merge_group?: GithubMergeQueueEntryMergeGroup
+  repository: GithubWebhookRepository
+  sender?: GithubWebhookUser
+}

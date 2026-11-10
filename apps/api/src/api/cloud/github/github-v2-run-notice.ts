@@ -3,7 +3,7 @@ import { postInboxEntryIn } from '@dltech/atlas-control/postgres'
 import type { Row, Tx } from '@dltech/atlas-db'
 import { INBOX_KIND_MESSAGE, inboxMessageSchema } from '@dltech/atlas-protocol'
 
-import type { WorkflowRunSnapshot } from './github-workflow-run-reads'
+import type { WorkflowRunSnapshot } from './github-run-snapshot'
 
 export const runNoticeText = (args: { repoFullName: string; run: WorkflowRunSnapshot }): string =>
   runEventContent({

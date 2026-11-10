@@ -22,6 +22,8 @@ import { installLandingPage } from './github-app-install-landing'
 import { GithubDeliveryService } from './github-delivery.service'
 import { GithubWebhookInboxService } from './github-webhook-inbox.service'
 import { verifyGithubSignature } from './github-webhook.signature'
+import { handleSupplementaryEvent } from './github-supplementary-events'
+import { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import type {
   GithubAppInstallationRepositoriesWebhookPayload,
   GithubAppInstallationWebhookPayload,
@@ -48,6 +50,7 @@ export class GithubAppHookController {
     private readonly inbox: GithubWebhookInboxService,
     private readonly appSync: GithubAppSyncService,
     private readonly background: BackgroundWork,
+    private readonly wake: GithubSandboxWakeService,
   ) {}
 
   /**
@@ -113,7 +116,14 @@ export class GithubAppHookController {
       if (!fresh) return { received: true }
     }
     try {
-      const outcome = await this.deliveries.handle({ event, payload })
+      const supplementary = await handleSupplementaryEvent({
+        event,
+        payload,
+        wake: this.wake,
+      })
+      const outcome = supplementary
+        ? { handled: true }
+        : await this.deliveries.handle({ event, payload })
       if (!outcome.handled) this.logger.log(`unhandled github app delivery event=${event}`)
     } catch (failure) {
       if (deliveryId !== undefined)

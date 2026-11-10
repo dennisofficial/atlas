@@ -12,8 +12,6 @@ import { GithubHookSweepService } from '../../api/cloud/github/github-hook-sweep
 import { GithubDeviceClient } from '../../api/cloud/github/github-device-client'
 import { GithubHookLifecycleService } from '../../api/cloud/github/github-hook-lifecycle.service'
 import { GithubPollSweeperService } from '../../api/cloud/github/github-poll-sweeper.service'
-import { GithubRunSweeperService } from '../../api/cloud/github/github-run-sweeper.service'
-import { GithubWorkflowRunReads } from '../../api/cloud/github/github-workflow-run-reads'
 import { GithubDeliveryService } from '../../api/cloud/github/github-delivery.service'
 import { GithubPrDiscussionDeliveryService } from '../../api/cloud/github/github-pr-discussion-delivery.service'
 import { GithubWebhookInboxService } from '../../api/cloud/github/github-webhook-inbox.service'
@@ -37,7 +35,6 @@ import { buildWorkerThreadSignals } from '../thread-signals-graph'
 
 export type GithubSweepGraph = {
   pollSweeper: GithubPollSweeperService
-  runSweeper: GithubRunSweeperService
   hookLifecycle: GithubHookLifecycleService
   hookSweep: GithubHookSweepService
   webhookInbox: GithubWebhookInboxService
@@ -109,12 +106,6 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
       mailbox,
       workerSignals.signals,
       hookLifecycle,
-      observations,
-    ),
-    runSweeper: new GithubRunSweeperService(
-      github,
-      new GithubWorkflowRunReads(),
-      wake,
       observations,
     ),
     hookLifecycle,

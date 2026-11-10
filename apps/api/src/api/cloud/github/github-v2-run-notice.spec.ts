@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import type { WorkflowRunSnapshot } from './github-workflow-run-reads'
+import type { WorkflowRunSnapshot } from './github-run-snapshot'
 import { runNoticeText } from './github-v2-run-notice'
 
 const RUN: WorkflowRunSnapshot = {

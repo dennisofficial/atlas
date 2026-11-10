@@ -17,7 +17,6 @@ import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubHookController } from './github-hook.controller'
 import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import { GithubPollSweeperService } from './github-poll-sweeper.service'
-import { GithubRunSweeperService } from './github-run-sweeper.service'
 import { sweepSchedulerProviders } from './github-sweep-scheduler'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { prFrameBusProvider } from './github-pr-fanout.transport'
@@ -29,7 +28,6 @@ import { GithubPrSubscriptionLinks } from './github-pr-subscription-links'
 import { GithubSubscriptionsRouter } from './github-subscriptions.router'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
 import { GithubUserReads } from './github-user-reads'
-import { GithubWorkflowRunReads } from './github-workflow-run-reads'
 import { GithubWebhookInboxService } from './github-webhook-inbox.service'
 import { GithubModule } from './github.module'
 import { GithubObservationStore } from './github-observation.store'
@@ -46,7 +44,6 @@ import { GithubObservationStore } from './github-observation.store'
     GithubObservationStore,
     GithubHookLifecycleService,
     GithubPollSweeperService,
-    GithubRunSweeperService,
     ...sweepSchedulerProviders(),
     GithubDeliveryService,
     GithubPrDiscussionDeliveryService,
@@ -65,7 +62,6 @@ import { GithubObservationStore } from './github-observation.store'
     backgroundWorkProvider(),
     wakeDebounceProvider(),
     GithubUserReads,
-    GithubWorkflowRunReads,
   ],
 })
 export class GithubRealtimeModule {}
