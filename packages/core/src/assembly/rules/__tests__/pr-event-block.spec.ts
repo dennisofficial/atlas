@@ -166,6 +166,19 @@ describe('handing a PR event to the model', () => {
     expect(failed).toContain(`checks failed on 0123456. ${URL}`)
   })
 
+  it('rolls a mergeable pull request into the green verdict sentence', () => {
+    const green = prEventBlock(
+      eventOf({
+        kind: EPrEventKind.Verdict,
+        verdict: EPrVerdict.Green,
+        headSha: '0123456789abcdef',
+        mergeable: true,
+      }),
+    )
+
+    expect(green).toContain('CI finished, all checks passed on 0123456 and the PR is mergeable.')
+  })
+
   it('leaves the tip off a verdict whose sha is absent or shorter than seven characters', () => {
     const absent = prEventBlock(eventOf({ kind: EPrEventKind.Verdict, verdict: EPrVerdict.Green }))
     const short = prEventBlock(

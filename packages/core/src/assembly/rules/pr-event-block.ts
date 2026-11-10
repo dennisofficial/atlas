@@ -48,8 +48,10 @@ const failedVerdictSentence = (event: PrEvent): string => {
 }
 
 const verdictSentence = (event: PrEvent): string => {
-  if (event.verdict === EPrVerdict.Green)
-    return `CI finished, all checks passed${tipSuffix(event)}.`
+  if (event.verdict === EPrVerdict.Green) {
+    const mergeable = event.mergeable === true ? ' and the PR is mergeable' : ''
+    return `CI finished, all checks passed${tipSuffix(event)}${mergeable}.`
+  }
   if (event.verdict === EPrVerdict.Failed) {
     return `${failedVerdictSentence(event)}${failedChecksBlock({ checks: event.failedChecks, repo: event.repo })}`
   }

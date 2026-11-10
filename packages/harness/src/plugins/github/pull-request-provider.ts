@@ -105,7 +105,11 @@ export function occurrenceOf({
       ? batch({ draft, key: 'verdict', settles: true })
       : now({ draft, key: 'verdict' })
   }
-  if (frame.kind === EPrEventKind.Mergeability) return batch({ draft, key: 'mergeability' })
+  if (frame.kind === EPrEventKind.Mergeability) {
+    return payload.mergeable === false
+      ? now({ draft, key: 'mergeability' })
+      : batch({ draft, key: 'mergeability' })
+  }
   if (frame.kind === EPrEventKind.State) {
     const terminal = payload.state === 'merged' || payload.state === 'closed'
     return terminal

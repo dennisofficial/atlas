@@ -29,10 +29,23 @@ export type PrTransitionOptions = {
  * not; a steady-state re-read emits nothing. `prior` null means the row is brand new, and a
  * freshly-tracked PR does not announce a state it already had. Verdicts are an exception: the
  * per-head ledger (github-pr-head-checks.ts) owes them on any settled observation, so verdicts
- * are discharged outside this diff.
+ * are discharged outside this diff. Mergeability splits the same way: a conflict is announced the
+ * moment it appears, while turning mergeable rides the verdict that closes CI.
  */
 function completedCount(snapshot: PrTransitionSnapshot): number {
   return snapshot.checksPassed + snapshot.checksFailed + snapshot.checksIgnored
+}
+
+function hasChecks(snapshot: PrTransitionSnapshot): boolean {
+  return snapshot.checksRunning > 0 || completedCount(snapshot) > 0
+}
+
+/**
+ * A green verdict closing CI is where "mergeable" belongs, so the two arrive as one notice: a PR
+ * that turns mergeable while checks run, or after they settled, never gets a second line saying so.
+ */
+export function verdictMergeability(next: PrTransitionSnapshot): { mergeable?: true } {
+  return next.mergeable === true ? { mergeable: true } : {}
 }
 
 export function transitionsOf(args: {
@@ -87,13 +100,13 @@ export function transitionsOf(args: {
     )
   }
 
-  const checksQuiet = args.next.checksRunning === 0 || completedCount(args.next) === 0
-  if (args.next.mergeable !== null && args.prior.mergeable !== args.next.mergeable && checksQuiet) {
-    events.push(
-      eventOf(args, EPrEventKind.Mergeability, String(args.next.mergeable), {
-        mergeable: args.next.mergeable,
-      }),
-    )
+  const mergeable = args.next.mergeable
+  if (
+    mergeable !== null &&
+    mergeable !== args.prior.mergeable &&
+    (mergeable === false || !hasChecks(args.next))
+  ) {
+    events.push(eventOf(args, EPrEventKind.Mergeability, String(mergeable), { mergeable }))
   }
 
   if (args.prior.state !== args.next.state) {

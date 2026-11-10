@@ -14,7 +14,10 @@ const failedNames = (payload: GithubPrEventPayload): string => {
 }
 
 const verdictText = (args: { payload: GithubPrEventPayload; tally: Tally | null }): string => {
-  if (args.payload.verdict === 'green') return `checks passed${tallyText(args.tally)}.`
+  if (args.payload.verdict === 'green') {
+    const mergeable = args.payload.mergeable === true ? ', and the PR is mergeable' : ''
+    return `checks passed${tallyText(args.tally)}${mergeable}.`
+  }
   const progress =
     args.payload.settled === false ? 'a check failed, others still running' : 'checks failed'
   return `${progress}${tallyText(args.tally)}.${failedNames(args.payload)}`

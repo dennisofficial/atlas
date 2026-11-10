@@ -17,6 +17,19 @@ describe('v2NoticeText', () => {
     ).toBe(`GitHub: PR #42 (${URL}): checks failed (2 passed, 1 failed, 0 running). Failed: build.`)
   })
 
+  it('rolls a mergeable pull request into the verdict that closes CI', () => {
+    expect(
+      v2NoticeText({
+        kind: EPrEventKind.Verdict,
+        prNumber: 42,
+        tally: { checksPassed: 2, checksFailed: 0, checksRunning: 0 },
+        payload: { url: URL, verdict: 'green', settled: true, mergeable: true },
+      }),
+    ).toBe(
+      `GitHub: PR #42 (${URL}): checks passed (2 passed, 0 failed, 0 running), and the PR is mergeable.`,
+    )
+  })
+
   it('marks an unsettled failure', () => {
     expect(
       v2NoticeText({

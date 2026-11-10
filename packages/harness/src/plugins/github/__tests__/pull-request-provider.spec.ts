@@ -124,8 +124,14 @@ describe('the pull request provider', () => {
         settles: true,
       },
       {
-        name: 'mergeability',
+        name: 'a conflict',
         frame: () => frame({ kind: EPrEventKind.Mergeability, payload: { mergeable: false } }),
+        key: 'mergeability',
+        urgency: EOccurrenceUrgency.Now,
+      },
+      {
+        name: 'a pull request turning mergeable',
+        frame: () => frame({ kind: EPrEventKind.Mergeability, payload: { mergeable: true } }),
         key: 'mergeability',
         urgency: EOccurrenceUrgency.Batch,
       },

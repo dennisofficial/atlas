@@ -47,6 +47,8 @@ const failedVerdict = (): PrEventFrame =>
 const greenVerdict = (): PrEventFrame =>
   frame({ kind: EPrEventKind.Verdict, payload: { verdict: EPrVerdict.Green, headSha: 'abc' } })
 const mergeability = (): PrEventFrame =>
+  frame({ kind: EPrEventKind.Mergeability, payload: { mergeable: true } })
+const conflict = (): PrEventFrame =>
   frame({ kind: EPrEventKind.Mergeability, payload: { mergeable: false } })
 const merged = (): PrEventFrame => frame({ kind: EPrEventKind.State, payload: { state: 'merged' } })
 
@@ -147,7 +149,7 @@ describe('subscription delivery, provider to intake', () => {
     expect(batch.drafts).toEqual([])
   })
 
-  it('holds a mergeability frame and delivers it with the green verdict in order', async () => {
+  it('holds a pull request turning mergeable and delivers it with the green verdict in order', async () => {
     const { provider, intake, subscribe } = wired()
     await subscribe('owner/repo#7')
 
@@ -161,6 +163,18 @@ describe('subscription delivery, provider to intake', () => {
     expect(batch.wakesTurn).toBe(true)
     expect(kindsOf(batch.drafts)).toEqual([EPrEventKind.Mergeability, EPrEventKind.Verdict])
     expect(batch.drafts[1]).toMatchObject({ verdict: EPrVerdict.Green })
+  })
+
+  it('wakes the thread at once for a conflict, without waiting on a verdict', async () => {
+    const { provider, intake, subscribe } = wired()
+    await subscribe('owner/repo#7')
+
+    provider.onFrame(conflict())
+
+    const batch = await intake.prepare({ threadId: MAIN })
+    expect(batch.wakesTurn).toBe(true)
+    expect(batch.drafts).toHaveLength(1)
+    expect(batch.drafts[0]).toMatchObject({ kind: EPrEventKind.Mergeability, mergeable: false })
   })
 
   it('delivers a merged state and then ends the subscription as completed', async () => {

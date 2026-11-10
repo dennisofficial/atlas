@@ -26,6 +26,9 @@ const verdictOf = (checks: EChecksState): EPrVerdict | null => {
   return null
 }
 
+const hasChecks = (tally: PullRequest['tally']): boolean =>
+  tally.running + tally.passed + tally.failed > 0
+
 const verdictDrafts = (args: {
   repo: string
   previous: PullRequest
@@ -50,6 +53,9 @@ const verdictDrafts = (args: {
       verdict,
       headSha: args.current.headSha,
       settled,
+      ...(verdict === EPrVerdict.Green && args.current.mergeable === true
+        ? { mergeable: true }
+        : {}),
     },
   ]
 }
@@ -57,7 +63,9 @@ const verdictDrafts = (args: {
 /**
  * Compared against the last definite value rather than the previous reading: GitHub answers
  * `UNKNOWN` while it recomputes after a push, so true → unknown → false is still a conflict, and
- * unknown → true is the recompute settling, not news.
+ * unknown → true is the recompute settling, not news. A conflict is the only mergeability that
+ * stands alone: turning mergeable rides the green verdict that closes CI, and is its own notice
+ * only on a pull request with no checks at all.
  */
 const mergeabilityDrafts = (args: {
   repo: string
@@ -66,7 +74,7 @@ const mergeabilityDrafts = (args: {
 }): readonly PrEventDraft[] => {
   const { mergeable } = args.current
   if (mergeable === null || mergeable === args.remembered) return []
-  if (args.remembered === null && mergeable) return []
+  if (mergeable && (args.remembered === null || hasChecks(args.current.tally))) return []
 
   return [
     {

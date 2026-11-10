@@ -112,12 +112,50 @@ describe('GithubDeliveryService transition events', () => {
     expect((await prEventRows()).filter((row) => row.kind === 'verdict')).toHaveLength(1)
   })
 
-  it('records a mergeability flip but not a repeated mergeable value', async () => {
+  it('records a conflict straight away and not a repeated one', async () => {
+    const readPullRequest = vi.fn(async () => ({
+      ...REST_FIELDS,
+      checksRunning: 3,
+      checksPassed: 1,
+      mergeable: false,
+    }))
+    const { service } = serviceWith({
+      tokens: { 'usr-creator': 'ghu_creator' },
+      readPullRequest,
+    })
+    await seedHook({ createdBy: 'usr-creator' })
+    await seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    await seedPrState({
+      ...FILLED_PR_STATE,
+      checksRunning: 3,
+      checksPassed: 1,
+      mergeable: true,
+    })
+
+    await service.handle({
+      event: 'pull_request',
+      payload: PULL_REQUEST_PAYLOAD,
+    })
+    const flips = (await prEventRows()).filter((row) => row.kind === 'mergeability')
+    expect(flips).toHaveLength(1)
+    expect(flips[0]).toMatchObject({ payload: { mergeable: false } })
+    expect((await prStateRows())[0]).toMatchObject({ mergeable: false })
+
+    await service.handle({
+      event: 'pull_request',
+      payload: PULL_REQUEST_PAYLOAD,
+    })
+    expect((await prEventRows()).filter((row) => row.kind === 'mergeability')).toHaveLength(1)
+  })
+
+  it('says nothing when a pull request whose CI already finished turns mergeable', async () => {
+    let mergeable: boolean | null = null
     const readPullRequest = vi.fn(async () => ({
       ...REST_FIELDS,
       checksRunning: 0,
       checksPassed: 3,
-      mergeable: true,
+      checksFailed: 0,
+      mergeable,
     }))
     const { service } = serviceWith({
       tokens: { 'usr-creator': 'ghu_creator' },
@@ -129,33 +167,25 @@ describe('GithubDeliveryService transition events', () => {
       ...FILLED_PR_STATE,
       checksRunning: 0,
       checksPassed: 3,
-      mergeable: false,
+      checksFailed: 0,
+      mergeable: null,
     })
 
     await service.handle({
       event: 'pull_request',
       payload: PULL_REQUEST_PAYLOAD,
     })
-    const flips = (await prEventRows()).filter((row) => row.kind === 'mergeability')
-    expect(flips.length).toBeGreaterThan(0)
-    expect(flips[flips.length - 1]).toMatchObject({
-      payload: { mergeable: true },
-    })
-    const settled = (await prStateRows())[0]
-    expect(settled).toMatchObject({ mergeable: true })
+    const announced = await prEventRows()
+    expect(announced.filter((row) => row.kind === 'verdict')).toHaveLength(1)
 
-    const before = (await prEventRows()).filter((row) => row.kind === 'mergeability').length
-    readPullRequest.mockImplementation(async () => ({
-      ...REST_FIELDS,
-      checksRunning: 0,
-      checksPassed: 3,
-      mergeable: true,
-    }))
+    mergeable = true
     await service.handle({
       event: 'pull_request',
       payload: PULL_REQUEST_PAYLOAD,
     })
-    expect((await prEventRows()).filter((row) => row.kind === 'mergeability')).toHaveLength(before)
+
+    expect(await prEventRows()).toHaveLength(announced.length)
+    expect((await prStateRows())[0]).toMatchObject({ mergeable: true })
   })
 
   it('records verdicts per subscriber verdict timing: fail-fast fires mid-run and again when the run finishes, settled waits', async () => {
@@ -217,7 +247,7 @@ describe('GithubDeliveryService transition events', () => {
     })
   })
 
-  it('suppresses the mid-run mergeability flip and bundles it with the settled verdict', async () => {
+  it('carries the mergeability on the verdict that closes CI instead of a notice of its own', async () => {
     const readPullRequest = vi.fn(async () => ({
       ...REST_FIELDS,
       checksRunning: 0,
@@ -256,12 +286,10 @@ describe('GithubDeliveryService transition events', () => {
       payload: SETTLING_CHECK_RUN_PAYLOAD,
     })
 
-    const kinds = (await prEventRows()).map((row) => row.kind)
-    expect(kinds.filter((kind) => kind === 'verdict')).toHaveLength(1)
-    expect(kinds.filter((kind) => kind === 'mergeability')).toHaveLength(1)
-    expect((await prEventRows()).find((row) => row.kind === 'mergeability')).toMatchObject({
-      payload: { mergeable: true },
-    })
+    const verdicts = (await prEventRows()).filter((row) => row.kind === 'verdict')
+    expect(verdicts).toHaveLength(1)
+    expect(verdicts[0]).toMatchObject({ payload: { verdict: 'green', mergeable: true } })
+    expect((await prEventRows()).filter((row) => row.kind === 'mergeability')).toHaveLength(0)
   })
 
   it('records no transition events for a brand-new PR row', async () => {

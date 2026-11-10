@@ -60,6 +60,20 @@ describe('a failed verdict line', () => {
   })
 })
 
+describe('a green verdict line', () => {
+  it('says the pull request is mergeable when the verdict closed CI with it', () => {
+    expect(
+      prEventLine(verdict({ verdict: EPrVerdict.Green, settled: true, mergeable: true })),
+    ).toBe('PR #794: CI green, mergeable')
+  })
+
+  it('says only that CI is green when mergeability is not in the verdict', () => {
+    expect(prEventLine(verdict({ verdict: EPrVerdict.Green, settled: true }))).toBe(
+      'PR #794: CI green',
+    )
+  })
+})
+
 describe('a review comment line', () => {
   const comment = (over: Partial<EventOfType<'pr-event'>>) =>
     verdict({
