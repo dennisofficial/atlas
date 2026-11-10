@@ -82,15 +82,27 @@ describe('ContextBrowser', () => {
     })
   })
 
-  it('refuses missing, directory, and binary paths', async () => {
+  it('refuses missing and directory paths', async () => {
     const root = await mkdtemp(join(tmpdir(), 'atlas-context-browser-'))
     roots.push(root)
-    await writeFile(join(root, 'bin.dat'), Buffer.from([1, 0, 2]))
     const browser = new ContextBrowser({ root })
 
     expect((await browser.load('nope.md')).type).toBe('refused')
     expect((await browser.load('.')).type).toBe('refused')
-    expect((await browser.load('bin.dat')).type).toBe('refused')
+  })
+
+  it('returns a binary file as base64 bytes so a viewer can save it', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'atlas-context-browser-'))
+    roots.push(root)
+    const bytes = Buffer.from([1, 0, 2])
+    await writeFile(join(root, 'bin.dat'), bytes)
+    const browser = new ContextBrowser({ root })
+
+    expect(await browser.load('bin.dat')).toEqual({
+      type: 'binary',
+      data: bytes.toString('base64'),
+      bytes: bytes.length,
+    })
   })
 
   it('refuses a path that escapes the folder', async () => {

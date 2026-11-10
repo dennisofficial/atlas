@@ -2,6 +2,7 @@ import type { V2Event } from '@dltech/atlas-core'
 import type { z } from 'zod'
 import {
   EStreamSubscribeKind,
+  type EStreamSurface,
   type StreamClientMessage,
   type StreamServerMessage,
 } from '@dltech/atlas-protocol'
@@ -28,6 +29,7 @@ import {
 
 export type StreamConnectionArgs = {
   url: string
+  surface?: EStreamSurface | undefined
   getToken(): Promise<string>
   socket: StreamSocketFactory
   scheduler: StreamScheduler
@@ -101,7 +103,15 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
           if (!isCurrent()) return
           args
             .getToken()
-            .then((token) => isCurrent() && dispatch({ type: 'socket-opened', token }))
+            .then(
+              (token) =>
+                isCurrent() &&
+                dispatch({
+                  type: 'socket-opened',
+                  token,
+                  ...(args.surface === undefined ? {} : { surface: args.surface }),
+                }),
+            )
             .catch(() => isCurrent() && dispatch({ type: 'token-failed' }))
         },
         handleMessage: (data) => {

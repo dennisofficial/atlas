@@ -1,13 +1,22 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ArrowLeftIcon, CheckIcon, CopyIcon } from 'lucide-react'
+import { ArrowLeftIcon, CheckIcon, CopyIcon, DownloadIcon } from 'lucide-react'
 
 import { MessageResponse } from '@dltech/atlas-ui/ai/message-response'
 import { Button } from '@dltech/atlas-ui/components/button'
+import type { ContextFileContentWire } from '@dltech/atlas-wire/web'
 
 import { useThreadPanel } from '../panel/thread-panel-context'
-import { copyTextOf, EContextView, isMarkdownPath, renderableHtmlOf } from './context-model'
+import {
+  copyTextOf,
+  downloadNameOf,
+  downloadOf,
+  EContextView,
+  fileSizeLabelOf,
+  isMarkdownPath,
+  renderableHtmlOf,
+} from './context-model'
 import { ContextViewToggle, HtmlFrame } from './html-view'
 import { type LoadedContextFile, useContextFile } from './use-context-file'
 
@@ -40,12 +49,52 @@ export function Notice({ children }: { children: string }) {
   return <p className="text-sm text-muted-foreground">{children}</p>
 }
 
+export function DownloadButton(props: {
+  file: ContextFileContentWire
+  path: string
+  labelled?: boolean
+}) {
+  if (props.file.type === 'refused') return null
+  const name = downloadNameOf(props.path)
+  const handleDownload = () => {
+    const blob = downloadOf(props.file)
+    if (blob === null) return
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = name
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }
+  if (props.labelled === true) {
+    return (
+      <Button variant="outline" size="sm" onClick={handleDownload}>
+        <DownloadIcon />
+        Download
+      </Button>
+    )
+  }
+  return (
+    <Button variant="ghost" size="icon-sm" aria-label={`Download ${name}`} onClick={handleDownload}>
+      <DownloadIcon />
+    </Button>
+  )
+}
+
 export function ContextFileBody(props: { loaded: LoadedContextFile; path: string }) {
   const { loaded, path } = props
   if (loaded.state === 'loading') return <Notice>Reading file…</Notice>
   if (loaded.state === 'failed') return <Notice>File unavailable</Notice>
   const { file } = loaded
   if (file.type === 'refused') return <Notice>{file.reason}</Notice>
+  if (file.type === 'binary') {
+    return (
+      <div className="flex flex-col items-start gap-3">
+        <Notice>{`Binary file · ${fileSizeLabelOf(file.bytes)}`}</Notice>
+        <DownloadButton file={file} path={path} labelled />
+      </div>
+    )
+  }
   if (file.type === 'image') {
     return (
       // biome-ignore lint/performance/noImgElement: next/image cannot optimize a data: URL
@@ -88,6 +137,7 @@ export function ContextViewer({ path }: { path: string }) {
         </p>
         {html === null ? null : <ContextViewToggle value={view} onValueChange={setView} />}
         {text === null ? null : <CopyButton text={text} />}
+        {loaded.state === 'ready' ? <DownloadButton file={loaded.file} path={path} /> : null}
       </header>
       {showsFrame ? (
         <div className="min-h-0 flex-1">

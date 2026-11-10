@@ -35,4 +35,24 @@ describe('ContextFileBody', () => {
     expect(image?.className).toContain('w-auto')
     await act(async () => root.unmount())
   })
+
+  it('offers a binary file as a download instead of a blank pane', async () => {
+    const { createRoot } = await import('react-dom/client')
+    const host = document.createElement('div')
+    const root = createRoot(host)
+    await act(async () =>
+      root.render(
+        <ContextFileBody
+          path="artifacts/workflows-design-pack.zip"
+          loaded={{
+            state: 'ready',
+            file: { type: 'binary', data: 'aGVsbG8=', bytes: 5 },
+          }}
+        />,
+      ),
+    )
+    expect(host.textContent).toContain('Binary file · 5 B')
+    expect(host.querySelector('button')?.textContent).toContain('Download')
+    await act(async () => root.unmount())
+  })
 })

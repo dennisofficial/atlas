@@ -129,6 +129,48 @@ request answers 401, the host refreshes it against `tokenEndpoint` and seals the
 - Signing out from the transcript (`mcp_sign_out`): Settings' disconnect is enough for now.
 - Refresh for a grant whose refresh token the provider no longer honours — that is a sign-in again.
 
+## 8. Live check (2026-11-10, production)
+
+Run on the deploy of `7dc9805eb` (`agent.byatlas.io` live from 16:05Z), in a fresh v2 session
+(`7b68c42c…`) whose clone carried one repo-only http server in `.mcp.json`:
+`{"mcpServers":{"posthog-live":{"url":"https://mcp.posthog.com/mcp"}}}` — no cloud row for it at all.
+1. `mcp_sign_in {"name":"posthog-live"}` answered `Open this link to sign in to the posthog-live MCP
+   server: https://oauth.posthog.com/oauth/authorize/?…` — a real authorize URL carrying a registered
+   `client_id`, `code_challenge` with `S256`, `redirect_uri=https://agent.byatlas.io/mcp-oauth/callback`
+   and a sealed `state`, plus Posthog's scope list.
+2. The host created the row before the redirect: `posthog-live | source = repo |
+   repoUrl = https://mcp.posthog.com/mcp | lastSeenAt set | no grant`, and one `McpOauthPending` row
+   bound to it, unexpired.
+3. The link was approved in a browser. The callback consumed the pending row (0 left), sealed the
+   grant on the same row (`oauthStatus = active`, `oauthGeneration = 1`, `oauthUpdatedAt` 16:07:08Z),
+   and redirected — **to global Settings, not to the session**, which is the defect §9 records.
+4. The next turn's roster read `posthog-live | http | connected | 1 tool | layer project` beside
+   `Posthog | connected | 1` and `wispr-flow | needs-auth | 0`, whose reason now reads `the
+   'wispr-flow' MCP server needs a sign-in; call mcp_sign_in to start one`.
+
+So the slice's exit criteria 1–2 and 5 hold for a repo-only server end to end, and the tool is what a
+model reaches for when the roster says `needs-auth`. Criterion 3 (refresh) is covered by specs only:
+two concurrent refreshes make one token call, but no expired grant was refreshed live.
+
+The row and grant created by this check were deleted afterwards, so nothing about it is left in the
+account.
+
+## 9. What this check found
+
+Two defects, both from v1 features this port dropped, each with its own handoff:
+- **The callback returns to Settings, never to where the flow started.**
+  `apps/agent-host/src/mcp-oauth/store.ts:50` hardcodes `returnSurface: 'web'` and
+  `sealedPendingSchema` (`types.ts:55`) carries no `returnTo`, no surface and no session, so the
+  callback can only fall back to `/settings/integrations`. v1 took `returnTo` and `surface` on `begin`
+  and had a desktop branch. The fix is a return target of **surface × screen** (`web | desktop | ios`
+  by `session:<id> | settings:user | settings:project:<id>`), recorded in the pending row — the
+  server-side equivalent of the cookie `callback.byatlas.io` uses — plus the `atlas://` deep link for
+  the apps and a Settings-initiated `begin` for the settings entry points.
+- **The authorize URL is the tool's result text.** It is a screenful of percent-encoded scopes. It
+  should be two events (`mcp-sign-in-started`, `mcp-sign-in-resolved`) rendered as a card in the
+  transcript, with the tool's text reduced to one line — the shape `operator_input` already uses, and
+  the event log stays the only source of truth the custody of this is a fold over.
+
 ## 7. Open questions
 
 1. **Callback host**: a route on the agent host (recommended, it owns the flow) or a static render of
@@ -137,10 +179,84 @@ request answers 401, the host refreshes it against `tokenEndpoint` and seals the
 2. **What the tool shows when no flow can start** (an unreachable authorization server, a provider that
    refuses dynamic registration): a refusal naming the reason, never a link that cannot complete.
 
-## 8. What was built and how it was proved
+## 8. Return target (2026-11-10)
 
-**Status, 2026-11-10.** The card half of the follow-up is built; the return-target half
-(`mcp-sign-in-return-target`) is a separate PR and untouched here.
+**Settled:** open question 1 above. The callback stays on the agent host, and it now returns to the
+screen the flow started from instead of global Settings.
+
+### The model
+
+```ts
+type McpReturnSurface = 'web' | 'desktop' | 'ios'
+type McpReturnScreen =
+  | { kind: 'session'; id: string }
+  | { kind: 'settings'; scope: 'user' }
+  | { kind: 'settings'; scope: 'project'; id: string }
+```
+
+`sealedPendingSchema` carries `returnTarget: {surface, screen}` in the sealed blob — the callback's
+only tamper-proof record, since the vendor's redirect carries nothing of ours. The row's existing
+`returnTo` (`/sessions/<id>`, `/settings/integrations`, `/projects/<id>/settings/mcp`) and
+`returnSurface` columns are written from it too, as the fallback when a blob will not unseal.
+
+### Where a surface comes from
+
+- The client declares it on the stream `hello` (`{type:'hello', v, token, surface?}`, optional;
+  `EStreamSurface`). Web sends `desktop` when the Mac bridge is present and `web` otherwise; the iOS
+  app sends `ios`.
+- One connection serves many sessions, so the host records the surface when a session subscription
+  opens: `UPDATE v2."V2Session" SET "lastSurface" = $1 … WHERE lastSurface IS DISTINCT FROM $1`,
+  default `web`. `McpOauthService.begin` reads it through `apps/agent-host/src/config/mcp-control.ts`,
+  which is already per session.
+
+### Two entry points, one begin
+
+- **The tool.** `mcp_sign_in` → `PodControl.mcp.begin({name, source, url})` → the adapter adds
+  `{surface: lastSurface, screen: {kind:'session', id: sessionId}}`. The port signature did not change:
+  `control.of(sessionId)` already scopes it to one session, so no pod fake moved.
+- **Settings.** `POST /mcp-oauth/begin` on the host, `{serverId, surface, screen}`, bearer = the same
+  session token the stream uses. The route resolves the row by id (never a client-supplied URL),
+  checks the caller owns the user row or the project, checks a project screen's owner, then calls the
+  same begin. CORS mirrors the origin under the websocket's rule (a host with `TRUSTED_ORIGINS` unset
+  accepts any origin; the bearer, not the cookie, is the boundary). The web settings pages call it
+  from `beginMcpSignIn` (`apps/web/src/features/settings/data/shared/mcp-signin-request.ts`); sign-out
+  and listing stay on the API for now.
+
+### The mapping
+
+| surface   | screen   | answer                                                                                                     |
+| --------- | -------- | ---------------------------------------------------------------------------------------------------------- |
+| `web`     | any      | 302 `${webOrigin}${path}?mcpOauth=&mcpServer=&mcpReason=`                                                  |
+| `desktop` | any      | HTML: `location.href = atlas://open${path}${search}`, with the web URL as a "Continue in the browser" link |
+| `ios`     | session  | HTML: `atlas:///sessions/<id>${search}` — the shape `apps/mobile/src/navigation/destination.ts` parses     |
+| `ios`     | settings | 302 to the web URL: the iOS app registers no settings route, so it stays in the browser                    |
+
+Failures (`unknown_state`, `expired`, `session_mismatch`, `server_changed`, `missing_code`,
+`exchange_failed`, a provider error) take the same path, so an expired state names its reason on the
+screen the flow started from. An unknown state has no row to read, so it lands on the user settings
+page.
+
+### Verified locally
+
+- `apps/agent-host`: `bun test` (1013 tests) and cold `bunx tsc --noEmit --incremental false`.
+  New: `redirect.spec.ts` (every surface × screen, escaping, reason length), `begin-route.spec.ts`
+  (bearer, origin, ownership, project screen, repo row), and callback cases for each screen, the
+  desktop/ios pages, an expired state on its own screen and an unknown state on settings.
+- `apps/web` (2212), `packages/client` (789), `packages/protocol` (201), `plugins/mcp` (54),
+  `packages/db` v2 smoke: green, each cold-typechecked.
+- Migration `20261110T1637_mcp_session_surface` adds `v2."V2Session"."lastSurface" text NOT NULL
+  DEFAULT 'web'`; the db `refs/db.json` is at its hash.
+
+### Live run
+
+Runs after the merge deploys the host, with the steps the slice used: a v2 session asks for a
+sign-in, approves at the provider, and lands back on that session on web; the same from the Mac app
+lands in the app on that session; a user-scope and a project-scope settings sign-in each return to
+their own page.
+
+## 10. The card: what was built and how it was proved
+
+**Status, 2026-11-10.** The card half of the follow-up; the return target is §8.
 
 The tool no longer prints the authorize URL. `mcp_sign_in` emits `mcp-sign-in-started`
 (`{server, url, expiresAt?, sessionId}`) as it returns, and the session emits `mcp-sign-in-resolved`

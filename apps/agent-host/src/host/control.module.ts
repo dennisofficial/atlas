@@ -59,9 +59,9 @@ const hostBusProvider: Provider = {
 
 const followStackProvider: Provider = {
   provide: FOLLOW_STACK,
-  useFactory: (env: AgentHostEnv, plane: ControlPlane, log: LogPort): FollowStack =>
-    new FollowStack({ env, plane, log }),
-  inject: [AGENT_HOST_ENV, CONTROL_PLANE, LOG],
+  useFactory: (env: AgentHostEnv, db: Db, plane: ControlPlane, log: LogPort): FollowStack =>
+    new FollowStack({ env, db, plane, log }),
+  inject: [AGENT_HOST_ENV, DB, CONTROL_PLANE, LOG],
 }
 
 @Module({

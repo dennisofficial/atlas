@@ -6,7 +6,6 @@ import type {
   LoopCut,
   MediaUrlResolver,
   ModelPort,
-  ThreadId,
   ToolDeclaration,
 } from '@dltech/atlas-core'
 import type { LogPort, TracePort } from '@dltech/atlas-observability'
@@ -44,14 +43,12 @@ export type TurnDeps = {
   intake?: AgentIntake | undefined
   expandContext?: ExpandContext | undefined
   spend?: TurnLedgerDeps | undefined
-  compact?: ((args: { threadId: ThreadId }) => Promise<boolean>) | undefined
   applyLoopCut?: ApplyLoopCut | undefined
   onLoopCut?: ((cut: LoopCut) => void) | undefined
   watchLoop?: LoopWatch | undefined
   onLoopWatch?: (() => void) | undefined
   onLoopWatchCut?: ((args: { steps: number }) => void) | undefined
   onLoopStop?: (() => void) | undefined
-  autoCompactAtPercent?: (() => number) | undefined
   launchDirectory: string
   retry?: RetryDeps | undefined
   sleepPrevention?: SleepPrevention | undefined

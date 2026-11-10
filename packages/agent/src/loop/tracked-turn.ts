@@ -52,7 +52,7 @@ export async function runTrackedTurn(
   const { record, ids } = deps
   const abortSignal = signal ?? new AbortController().signal
   const position = openPosition()
-  const preparedAssembly = stepPrepareDepsOf({ deps, position })
+  const preparedAssembly = stepPrepareDepsOf(deps)
 
   const interrupted = async (): Promise<TurnOutcome> => ({
     status: ETurnStatus.Interrupted,
@@ -189,11 +189,6 @@ export async function runTrackedTurn(
       const { message, cause } = preparedFailureMessage(prepared)
       return { status: ETurnStatus.Failed, runId, message, cause }
     }
-    if ('compacted' in prepared) {
-      position.previous = undefined
-      continue
-    }
-
     const assembled = prepared.assembled
     position.previous = assembled
 

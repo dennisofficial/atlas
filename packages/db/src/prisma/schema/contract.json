@@ -8469,6 +8469,13 @@
                   "kind": "scalar"
                 }
               },
+              "lastSurface": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "mainThreadId": {
                 "nullable": false,
                 "type": {
@@ -8646,6 +8653,9 @@
                 },
                 "id": {
                   "column": "id"
+                },
+                "lastSurface": {
+                  "column": "lastSurface"
                 },
                 "mainThreadId": {
                   "column": "mainThreadId"
@@ -15206,6 +15216,15 @@
                   "dataType": "pg/text",
                   "nullable": false
                 },
+                "lastSurface": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "default": {
+                    "kind": "literal",
+                    "value": "web"
+                  },
+                  "nullable": false
+                },
                 "mainThreadId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -15506,7 +15525,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "16fc818c1490fd04ea35cb9a949f3280daae90ebb67a43d77ac7ce33dd3c6899"
+    "storageHash": "419b73dd7ccf410f5f3dca1e6722d5d82ea53438cce0aa3929fb0d7cec776664"
   },
   "execution": {
     "executionHash": "0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289",

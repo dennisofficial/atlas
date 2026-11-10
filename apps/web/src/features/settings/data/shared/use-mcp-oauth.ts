@@ -3,18 +3,16 @@
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
-import { EMcpOauthBeginOutcome, type McpOauthServer } from '@dltech/atlas-wire/web'
+import type { McpOauthServer } from '@dltech/atlas-wire/web'
 
+import { isDesktopHost } from '@/features/desktop/desktop-attributes'
+import { fetchStreamToken } from '@/features/sessions/data/stream-token'
 import { api, cloudCall } from '@/lib/api-client'
+import { resolveHostOrigin } from '@/lib/host-url'
 import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 
-import {
-  authStateOf,
-  cloudServerOf,
-  repoServersOf,
-  returnSurfaceOf,
-  EMcpAuthState,
-} from './mcp-oauth'
+import { beginMcpSignIn } from './mcp-signin-request'
+import { authStateOf, cloudServerOf, repoServersOf, EMcpAuthState } from './mcp-oauth'
 import { runAction } from './run-action'
 
 export type McpOauth = {
@@ -54,29 +52,35 @@ export function useMcpOauth({ projectId }: { projectId?: string } = {}): McpOaut
     if (failed) toast.error("Couldn't check MCP sign-in status")
   }, [failed])
 
-  const signIn = useCallback((serverId: string) => {
-    setBusyId(serverId)
-    let redirecting = false
-    void runAction({
-      work: async () => {
-        const result = await cloudCall(
-          api.mcpOauth.begin.mutate({
+  const signIn = useCallback(
+    (serverId: string) => {
+      setBusyId(serverId)
+      let redirecting = false
+      void runAction({
+        work: async () => {
+          const result = await beginMcpSignIn({
+            hostOrigin: resolveHostOrigin(process.env),
+            token: await fetchStreamToken(),
             serverId,
-            returnTo: window.location.pathname,
-            surface: returnSurfaceOf(window),
-          }),
-        )
-        if (result.outcome === EMcpOauthBeginOutcome.Redirect) {
-          redirecting = true
-          window.location.assign(result.authorizationUrl)
-          return
-        }
-        toast.info(`Sign-in isn't available for this server: ${result.reason}`)
-      },
-    }).finally(() => {
-      if (!redirecting) setBusyId(null)
-    })
-  }, [])
+            surface: isDesktopHost(window) ? 'desktop' : 'web',
+            screen:
+              projectId === undefined
+                ? { kind: 'settings', scope: 'user' }
+                : { kind: 'settings', scope: 'project', id: projectId },
+          })
+          if (result.ok) {
+            redirecting = true
+            window.location.assign(result.url)
+            return
+          }
+          toast.info(`Sign-in isn't available for this server: ${result.reason}`)
+        },
+      }).finally(() => {
+        if (!redirecting) setBusyId(null)
+      })
+    },
+    [projectId],
+  )
 
   const signOut = useCallback(
     (serverId: string) =>

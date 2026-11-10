@@ -1,4 +1,8 @@
-import type { StreamClientMessage, StreamServerMessage } from '@dltech/atlas-protocol'
+import type {
+  EStreamSurface,
+  StreamClientMessage,
+  StreamServerMessage,
+} from '@dltech/atlas-protocol'
 
 export const SILENCE_LIMIT_MS = 45_000
 
@@ -38,7 +42,7 @@ export type ConnectionState = {
 
 export type ConnectionInput =
   | { type: 'connect' }
-  | { type: 'socket-opened'; token: string }
+  | { type: 'socket-opened'; token: string; surface?: EStreamSurface | undefined }
   | { type: 'token-failed' }
   | { type: 'message'; data: string }
   | { type: 'socket-closed'; code: number }

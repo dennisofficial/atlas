@@ -49,3 +49,9 @@ export enum EStreamSubscribeKind {
   Session = 'session',
   Sessions = 'sessions',
 }
+
+export enum EStreamSurface {
+  Web = 'web',
+  Desktop = 'desktop',
+  Ios = 'ios',
+}

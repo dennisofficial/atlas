@@ -31,12 +31,18 @@ const beginUrlOf = (result: McpOauthBegin): URL => {
 const gatewayOver = (db = testDb().db) =>
   mcpOauthGatewayOf({ db, cipher, publicUrl: 'https://agent.byatlas.io', allowLocalTargets: true })
 
+const RETURN_TARGET = {
+  surface: 'web' as const,
+  screen: { kind: 'session' as const, id: 'ses_1' },
+}
+
 const cloudArgs = {
   userId: 'user-1',
   projectId: 'proj-1',
   source: 'cloud' as const,
   name: 'posthog',
   url: SERVER_URL,
+  returnTarget: RETURN_TARGET,
 }
 
 describe('begin', () => {
@@ -78,6 +84,9 @@ describe('begin', () => {
     expect(sealed.redirectUri).toBe(REDIRECT_URI)
     expect(row.serverUrl).toBe(SERVER_URL)
     expect(row.mcpServerId).toBe('srv-posthog')
+    expect(row.returnTo).toBe('/sessions/ses_1')
+    expect(row.returnSurface).toBe('web')
+    expect(JSON.parse(cipher.decrypt(row.sealed))).toMatchObject({ returnTarget: RETURN_TARGET })
     expect(row.expiresAt.getTime()).toBeGreaterThan(Date.now())
     if (!result.ok) throw new Error('begin refused')
     expect(result.expiresAt).toBe(row.expiresAt.toISOString())
@@ -170,6 +179,7 @@ describe('begin', () => {
       source: 'repo',
       name: 'swept',
       url: SERVER_URL,
+      returnTarget: RETURN_TARGET,
     })
 
     beginUrlOf(result)
