@@ -18,7 +18,12 @@ export class StreamHarness {
   server: StreamServer
   private readonly clients: TestClient[] = []
 
-  constructor(args: { trustedOrigins?: string[] } = {}) {
+  constructor(
+    args: {
+      trustedOrigins?: string[]
+      mcpOauthCallback?: (request: Request) => Promise<Response | null>
+    } = {},
+  ) {
     this.auth.grant({ token: 'tok-a', userId: 'user-a', expiresAt: 3_600_000 })
     this.auth.grant({ token: 'tok-b', userId: 'user-b', expiresAt: 3_600_000 })
     this.server = startStreamServer({
@@ -26,6 +31,7 @@ export class StreamHarness {
       auth: this.auth,
       trustedOrigins: args.trustedOrigins ?? [],
       timers: this.timers,
+      ...(args.mcpOauthCallback === undefined ? {} : { mcpOauthCallback: args.mcpOauthCallback }),
     })
   }
 

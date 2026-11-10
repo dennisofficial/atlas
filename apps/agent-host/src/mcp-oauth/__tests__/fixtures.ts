@@ -1,5 +1,3 @@
-import { afterEach } from 'bun:test'
-
 import type { Db } from '@dltech/atlas-db'
 
 import { cipher, sealed } from '../../config/__tests__/config-reader.fixture'
@@ -18,6 +16,11 @@ export const REGISTRATION_ENDPOINT = `${AUTH_ORIGIN}/register`
 export type FetchCall = { url: string; method: string; body: string | undefined }
 
 let restore: (() => void) | undefined
+
+export const restoreFetch = (): void => {
+  restore?.()
+  restore = undefined
+}
 
 export const stubFetch = (
   handler: (call: FetchCall) => Response | Promise<Response>,
@@ -40,11 +43,6 @@ export const stubFetch = (
   }
   return { calls }
 }
-
-afterEach(() => {
-  restore?.()
-  restore = undefined
-})
 
 export const json = (
   body: unknown,

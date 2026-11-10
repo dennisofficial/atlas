@@ -1,5 +1,5 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'bun:test'
 
 import { seedOwner, sealed } from '../../config/__tests__/config-reader.fixture'
 import { mcpOauthGatewayOf } from '../gateway'
@@ -9,11 +9,14 @@ import {
   cipher,
   grantOf,
   json,
+  restoreFetch,
   seedCloudServer,
   stubFetch,
 } from './fixtures'
 
 const testDb = useTestDatabase()
+
+afterEach(restoreFetch)
 
 const gatewayOver = (db = testDb().db) =>
   mcpOauthGatewayOf({ db, cipher, publicUrl: 'https://agent.byatlas.io', allowLocalTargets: true })

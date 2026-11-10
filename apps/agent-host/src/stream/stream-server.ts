@@ -3,6 +3,7 @@ import type { Server } from 'bun'
 import type { HostTimers } from '@dltech/atlas-host'
 import type { LogPort } from '@dltech/atlas-observability'
 
+import { MCP_OAUTH_CALLBACK_PATH } from '../mcp-oauth'
 import type { StreamAuthPort } from './stream-auth'
 import { StreamConnection, type StreamSocketData } from './stream-connection'
 import {
@@ -45,6 +46,8 @@ const originAllowed = (args: { request: Request; trusted: readonly string[] }): 
   return origin === null || args.trusted.includes(origin)
 }
 
+const notFound = (): Response => new Response('not found', { status: 404 })
+
 export const startStreamServer = (args: StreamServerArgs): StreamServer => {
   const timers = args.timers ?? systemHostTimers
   const subscriptions = args.subscriptions ?? unimplementedSubscriptions
@@ -62,7 +65,7 @@ export const startStreamServer = (args: StreamServerArgs): StreamServer => {
 
   const server: Server<StreamSocketData> = Bun.serve<StreamSocketData>({
     port: args.port,
-    fetch: async (request, bunServer) => {
+    fetch: (request, bunServer) => {
       const { pathname } = new URL(request.url)
       if (pathname === '/healthz' && request.method === 'GET') {
         return Response.json(
@@ -70,11 +73,11 @@ export const startStreamServer = (args: StreamServerArgs): StreamServer => {
           { status: draining ? 503 : 200 },
         )
       }
-      if (args.mcpOauthCallback !== undefined) {
-        const answered = await args.mcpOauthCallback(request)
-        if (answered !== null) return answered
+      const callback = args.mcpOauthCallback
+      if (callback !== undefined && pathname === MCP_OAUTH_CALLBACK_PATH) {
+        return callback(request).then((answered) => answered ?? notFound())
       }
-      if (pathname !== '/stream') return new Response('not found', { status: 404 })
+      if (pathname !== '/stream') return notFound()
       if (!isUpgrade(request)) return new Response('upgrade required', { status: 426 })
       if (draining) return new Response('draining', { status: 503 })
       if (!originAllowed({ request, trusted: args.trustedOrigins })) {

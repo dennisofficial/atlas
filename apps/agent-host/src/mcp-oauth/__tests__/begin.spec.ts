@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'bun:test'
 
 import { seedOwner } from '../../config/__tests__/config-reader.fixture'
 import { mcpOauthGatewayOf } from '../gateway'
@@ -14,11 +14,14 @@ import {
   cipher,
   discoveryFetch,
   json,
+  restoreFetch,
   seedCloudServer,
   stubFetch,
 } from './fixtures'
 
 const testDb = useTestDatabase()
+
+afterEach(restoreFetch)
 
 const beginUrlOf = (result: McpOauthBegin): URL => {
   if (!result.ok) throw new Error(`begin failed: ${result.reason}`)

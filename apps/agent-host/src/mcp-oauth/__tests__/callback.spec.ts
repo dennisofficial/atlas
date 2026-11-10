@@ -1,5 +1,5 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'bun:test'
 
 import { McpServerReader } from '../../config/mcp-servers'
 import { seedOwner } from '../../config/__tests__/config-reader.fixture'
@@ -12,11 +12,14 @@ import {
   WEB_ORIGIN,
   cipher,
   json,
+  restoreFetch,
   seedCloudServer,
   stubFetch,
 } from './fixtures'
 
 const testDb = useTestDatabase()
+
+afterEach(restoreFetch)
 
 const CALLBACK = 'https://agent.byatlas.io/mcp-oauth/callback'
 
