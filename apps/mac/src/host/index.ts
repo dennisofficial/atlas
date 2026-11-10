@@ -4,6 +4,7 @@ import { CALLBACK_PATH, createAuthService, type IAuthConfig } from './auth/auth-
 import { callbackResponse } from './auth/callback-page'
 import { createAuthHandler } from './auth/routes'
 import { createDesktopRouter } from './desktop-routes'
+import type { IPanePort } from './pane-routes'
 import { isAuthorized, startSession } from './guard'
 import { isProxyPath, proxyToApp, proxyToApi } from './proxy'
 import type { IPodHostConfig } from './pods/config'
@@ -24,6 +25,7 @@ export interface ICreateDesktopHostOptions {
   window?: IDesktopWindowPort
   app?: IDesktopAppInfo
   previewViews?: { clear: () => void }
+  pane?: IPanePort | undefined
   port?: number
 }
 
@@ -44,6 +46,7 @@ export function createDesktopHost({
   window,
   app,
   previewViews,
+  pane,
 }: ICreateDesktopHostOptions): IDesktopHost {
   const origin = apiOrigin ?? resolveApiOrigin(process.env)
   const appOriginOf = typeof appOrigin === 'function' ? appOrigin : () => appOrigin
@@ -62,6 +65,7 @@ export function createDesktopHost({
     updates,
     window,
     app,
+    pane,
     auth: createAuthHandler({ auth: authService }),
     pods: podsHandler,
   })
