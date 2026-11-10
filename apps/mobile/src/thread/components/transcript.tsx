@@ -12,7 +12,7 @@ import {
 } from 'react-native'
 
 import { EMessageAuthor, ERowKind, type ThreadRow } from '../rows'
-import { useKeyboardInset } from '../../layout/use-keyboard-inset'
+import { useKeyboard } from '../../layout/use-keyboard'
 import { MessageRowView } from './message-row'
 import { NoticeRowView } from './notice-row'
 import { WorkRowView } from './work-row'
@@ -56,7 +56,7 @@ export const Transcript = ({
 }) => {
   const listRef = useRef<FlatList<ThreadRow>>(null)
   const isNearBottom = useRef(true)
-  const keyboardInset = useKeyboardInset()
+  const keyboardInset = useKeyboard().inset
   const keyboardVisible = keyboardInset > 0
   const tailSize = tailSizeOf(rows)
   const showWorking = working && !isStreamingMessage(rows.at(-1)) && !hasRunningWork(rows)
