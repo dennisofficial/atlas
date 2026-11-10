@@ -18,8 +18,8 @@ func cefTargets() -> [Target] {
             name: "CefKit",
             path: "Sources/CefKit",
             publicHeadersPath: "include",
-            cSettings: [.headerSearchPath("../../.cef")],
-            cxxSettings: [.headerSearchPath("../../.cef"), .unsafeFlags(["-std=c++17"])]
+            cSettings: [.headerSearchPath("../../.cef"), .unsafeFlags(["-std=c++20"])],
+            cxxSettings: [.headerSearchPath("../../.cef"), .unsafeFlags(["-std=c++20"])]
         ),
         .executableTarget(
             name: "CefPaneSpike",
