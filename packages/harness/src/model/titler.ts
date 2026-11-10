@@ -69,6 +69,7 @@ export async function titleFor(args: {
   images?: readonly SaidImage[] | undefined
   signal?: AbortSignal | undefined
   fallback?: (() => LanguageModel | undefined) | undefined
+  onFault?: ((fault: unknown) => void) | undefined
 }): Promise<string | null> {
   const asked = args.text.trim()
   const shown = (args.images ?? []).filter((image) => inlinable(image))
@@ -89,11 +90,17 @@ export async function titleFor(args: {
     return sanitizedTitle(generated.output.name)
   }
 
-  const named = await attempt(args.model).catch(() => null)
+  const attempted = (model: LanguageModel): Promise<string | null> =>
+    attempt(model).catch((fault: unknown) => {
+      args.onFault?.(fault)
+      return null
+    })
+
+  const named = await attempted(args.model)
   if (named !== null) return named
 
   const fallback = args.fallback?.()
   if (fallback === undefined) return null
 
-  return await attempt(fallback).catch(() => null)
+  return await attempted(fallback)
 }

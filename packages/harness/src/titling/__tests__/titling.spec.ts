@@ -61,10 +61,18 @@ describe('titlerRefOf', () => {
 })
 
 describe('createStandaloneTitler', () => {
-  it('answers null without throwing when no provider is reachable', async () => {
-    const titler = createStandaloneTitler({ settings: {}, accounts: [], credentials: refusing })
+  it('reports why it could not name when no provider is reachable', async () => {
+    const faults: unknown[] = []
+    const titler = createStandaloneTitler({
+      settings: {},
+      accounts: [],
+      credentials: refusing,
+      onFault: (fault) => faults.push(fault),
+    })
 
     expect(await titler({ text: 'fix the login bug' })).toBeNull()
+    expect(faults).toHaveLength(1)
+    expect(String(faults[0])).not.toBe('')
   })
 
   it('answers null for an empty message', async () => {

@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it, spyOn } from 'bun:test'
+import { Logger } from '@nestjs/common'
 import { fallbackTitleOf } from '@dltech/atlas-control'
 import type { SessionsService } from './sessions.service'
 import { listedSession, setupNaming as setup } from './sessions.naming.fixture'
@@ -31,7 +32,9 @@ describe('SessionsService naming', () => {
     const after = await titleOf({ service, sessionId: created.sessionId })
     expect(after?.title).toBe('Build Fix')
     expect(after?.naming).toBe(false)
-    expect(titler.calls).toEqual([{ userId: 'user-a', projectId: 'proj-a', text: 'fix the build' }])
+    expect(titler.calls).toMatchObject([
+      { userId: 'user-a', projectId: 'proj-a', text: 'fix the build' },
+    ])
   })
 
   it('stores the fallback title when the titler answers nothing', async () => {
@@ -74,6 +77,39 @@ describe('SessionsService naming', () => {
     const after = await titleOf({ service, sessionId: created.sessionId })
     expect(after?.title).toBe('hello world')
     expect(after?.naming).toBe(false)
+  })
+
+  it('hands the titler the model the session itself runs on', async () => {
+    const { service, titler, background } = setup()
+    const created = await service.create({
+      userId: 'user-a',
+      projectId: 'proj-a',
+      model: 'gateway/deepseek/deepseek-v4.1-flash-1017-fast',
+    })
+
+    await service.post({ userId: 'user-a', sessionId: created.sessionId, text: 'hello world' })
+    await background.settle()
+
+    expect(titler.calls[0]?.modelRef).toBe('gateway/deepseek/deepseek-v4.1-flash-1017-fast')
+  })
+
+  it('logs why the titler could not name the session and stores the fallback title', async () => {
+    const { service, titler, background } = setup()
+    const warned = spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined)
+    try {
+      titler.report = new Error('This request would exceed your account monthly spend limit')
+      const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+
+      await service.post({ userId: 'user-a', sessionId: created.sessionId, text: 'hello world' })
+      await background.settle()
+
+      const line = String(warned.mock.calls.at(-1)?.[0])
+      expect(line).toContain(`naming ${created.sessionId} failed:`)
+      expect(line).toContain('monthly spend limit')
+      expect((await titleOf({ service, sessionId: created.sessionId }))?.title).toBe('hello world')
+    } finally {
+      warned.mockRestore()
+    }
   })
 
   it('does not wait for naming before the post returns', async () => {

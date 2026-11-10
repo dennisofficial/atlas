@@ -35,7 +35,7 @@ describe('SessionsService naming with images', () => {
     expect((await listedSession({ service, sessionId: created.sessionId }))?.title).toBe(
       'Broken Layout',
     )
-    expect(titler.calls).toEqual([
+    expect(titler.calls).toMatchObject([
       {
         userId: 'user-a',
         projectId: 'proj-a',
@@ -80,7 +80,9 @@ describe('SessionsService naming with images', () => {
     })
     await background.settle()
 
-    expect(titler.calls).toEqual([{ userId: 'user-a', projectId: 'proj-a', text: 'fix this' }])
+    expect(titler.calls).toMatchObject([
+      { userId: 'user-a', projectId: 'proj-a', text: 'fix this' },
+    ])
   })
 
   it('leaves an image-only session untitled when the titler answers nothing', async () => {

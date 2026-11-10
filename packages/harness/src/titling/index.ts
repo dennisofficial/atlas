@@ -99,6 +99,7 @@ export function createStandaloneTitler(args: {
   accounts: readonly Account[]
   credentials: CredentialPort
   fallbackRef?: ModelRef | undefined
+  onFault?: ((fault: unknown) => void) | undefined
 }): StandaloneTitler {
   const settled = resolutionOf(args.settings)
   const catalogue = catalogueOf({ credentials: args.credentials, accounts: args.accounts })
@@ -119,5 +120,15 @@ export function createStandaloneTitler(args: {
     fallback,
   })
 
-  return ({ text, images, signal }) => titleFor({ model, text, images, signal }).catch(() => null)
+  return ({ text, images, signal }) =>
+    titleFor({
+      model,
+      text,
+      images,
+      signal,
+      ...(args.onFault === undefined ? {} : { onFault: args.onFault }),
+    }).catch((fault: unknown) => {
+      args.onFault?.(fault)
+      return null
+    })
 }
