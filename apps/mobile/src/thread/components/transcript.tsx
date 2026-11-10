@@ -12,6 +12,7 @@ import {
 } from 'react-native'
 
 import { EMessageAuthor, ERowKind, type ThreadRow } from '../rows'
+import { useKeyboardInset } from '../../layout/use-keyboard-inset'
 import { MessageRowView } from './message-row'
 import { NoticeRowView } from './notice-row'
 import { WorkRowView } from './work-row'
@@ -55,6 +56,8 @@ export const Transcript = ({
 }) => {
   const listRef = useRef<FlatList<ThreadRow>>(null)
   const isNearBottom = useRef(true)
+  const keyboardInset = useKeyboardInset()
+  const keyboardVisible = keyboardInset > 0
   const tailSize = tailSizeOf(rows)
   const showWorking = working && !isStreamingMessage(rows.at(-1)) && !hasRunningWork(rows)
   const renderRow = useCallback<ListRenderItem<ThreadRow>>(
@@ -73,6 +76,10 @@ export const Transcript = ({
   useEffect(() => {
     if (isNearBottom.current) scrollToEnd()
   }, [rows.length, tailSize])
+
+  useEffect(() => {
+    if (keyboardVisible && isNearBottom.current) scrollToEnd()
+  }, [keyboardVisible])
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent
