@@ -64,3 +64,39 @@ describe('a message with uploads', () => {
     expect(textsOf({})).toHaveLength(1)
   })
 })
+
+describe('a message carrying a stored picture', () => {
+  const HASH = 'c'.repeat(64)
+
+  const media = {
+    media: { hash: HASH, mediaType: 'image/png' as const, size: 9, width: 4, height: 3 },
+    source: 'shot.png',
+  }
+
+  const textsOf = (
+    placements?: Map<
+      string,
+      { state: EUploadState.Ready; path: string } | { state: EUploadState.Missing }
+    >,
+  ) => {
+    const base = contextFor({ events: log([{ type: 'user-said', text: 'look', media: [media] }]) })
+    const ctx = placements === undefined ? base : { ...base, uploads: placements }
+    const content = messagesFromEvents()(empty, ctx).messages[0]?.message.content
+    return (content ?? []).flatMap((part) => (part.type === 'text' ? [part.text] : []))
+  }
+
+  it('names the file the sandbox holds it at, beside the picture the model is shown', () => {
+    const texts = textsOf(
+      new Map([[HASH, { state: EUploadState.Ready, path: `/s/uploads/${HASH}/shot.png` }]]),
+    )
+
+    expect(texts[1]).toContain('The operator attached these files:')
+    expect(texts[1]).toContain(`- /s/uploads/${HASH}/shot.png (9 B, image/png)`)
+  })
+
+  it('says a picture it could not place is no longer available', () => {
+    expect(textsOf(new Map([[HASH, { state: EUploadState.Missing }]]))[1]).toContain(
+      '- shot.png: no longer available',
+    )
+  })
+})

@@ -188,7 +188,7 @@ describe('ApiSaidUploads', () => {
       const placed = await uploads.place({
         threadId,
         uploads: [upload],
-        currentUploadIds: new Set(),
+        currentFileIds: new Set(),
       })
 
       expect(placed.get(ID)).toEqual({ state: EUploadState.Missing })
@@ -196,7 +196,7 @@ describe('ApiSaidUploads', () => {
 
     it('are retried on the next call rather than remembered as Missing', async () => {
       const { uploads, calls } = build({ status: 500 })
-      const args = { threadId, uploads: [upload], currentUploadIds: new Set<string>() }
+      const args = { threadId, uploads: [upload], currentFileIds: new Set<string>() }
 
       await uploads.place(args)
       await uploads.place(args)
@@ -208,7 +208,7 @@ describe('ApiSaidUploads', () => {
       const { uploads } = build({ status: 500 })
 
       await expect(
-        uploads.place({ threadId, uploads: [upload], currentUploadIds: new Set([ID]) }),
+        uploads.place({ threadId, uploads: [upload], currentFileIds: new Set([ID]) }),
       ).rejects.toThrow(/status 500/)
     })
   })

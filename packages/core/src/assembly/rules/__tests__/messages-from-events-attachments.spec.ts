@@ -105,7 +105,7 @@ describe('a message carrying attachments', () => {
       image: { width: 10, height: 20 },
     }
     const content = contentOf([media])
-    expect(content?.[1]).toEqual({
+    expect(content?.[2]).toEqual({
       type: 'media',
       media: {
         hash: 'a'.repeat(64),
@@ -115,6 +115,6 @@ describe('a message carrying attachments', () => {
         height: 20,
       },
     })
-    expect(content).toHaveLength(2)
+    expect(content).toHaveLength(3)
   })
 })

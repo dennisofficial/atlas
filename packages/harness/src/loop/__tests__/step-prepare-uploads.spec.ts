@@ -84,7 +84,9 @@ describe('prepareStepAssembly uploads', () => {
     await prepareStepAssembly(deps, { threadId, events, step: 0, previous: undefined })
 
     expect(seen.uploads).toBe(map)
-    expect(calls).toEqual([{ threadId, uploads: [upload], currentUploadIds: new Set([ID]) }])
+    expect(calls).toEqual([
+      { threadId, uploads: [upload], mediaFiles: [], currentFileIds: new Set([ID]) },
+    ])
   })
 
   it('does not call the port when no message carries uploads', async () => {
@@ -106,9 +108,9 @@ describe('prepareStepAssembly uploads', () => {
 
   it('treats only uploads after the last assistant output as current', async () => {
     const older = { ...upload, uploadId: '11111111-1111-4222-8333-444455556666' }
-    const calls: Array<{ currentUploadIds?: ReadonlySet<string>; signal?: AbortSignal }> = []
+    const calls: Array<{ currentFileIds?: ReadonlySet<string>; signal?: AbortSignal }> = []
     const port = {
-      place: async (args: { currentUploadIds?: ReadonlySet<string>; signal?: AbortSignal }) => {
+      place: async (args: { currentFileIds?: ReadonlySet<string>; signal?: AbortSignal }) => {
         calls.push(args)
         return new Map()
       },
@@ -129,7 +131,40 @@ describe('prepareStepAssembly uploads', () => {
       signal: controller.signal,
     })
 
-    expect(calls[0]?.currentUploadIds).toEqual(new Set([ID]))
+    expect(calls[0]?.currentFileIds).toEqual(new Set([ID]))
     expect(calls[0]?.signal).toBe(controller.signal)
+  })
+})
+
+describe('prepareStepAssembly stored pictures', () => {
+  const HASH = 'c'.repeat(64)
+
+  const media = {
+    media: { hash: HASH, mediaType: 'image/png' as const, size: 9, width: 4, height: 3 },
+    source: 'shot.png',
+  }
+
+  it('asks for the file that carries a stored picture, once per hash', async () => {
+    type Asked = { hash: string; name: string; size: number; mediaType: string }
+    const calls: Array<{ mediaFiles?: readonly Asked[] }> = []
+    const port = {
+      place: async (args: { mediaFiles?: readonly Asked[] }) => {
+        calls.push(args)
+        return new Map()
+      },
+    } as unknown as SaidUploadsPort
+    const { deps, seen } = setup(port)
+    const events = eventsOf([
+      { type: 'user-said', text: 'look', media: [media] },
+      { type: 'assistant-said', parts: [{ type: 'text', text: 'ok' }] },
+      { type: 'user-said', text: 'again', media: [media] },
+    ])
+
+    await prepareStepAssembly(deps, { threadId, events, step: 0, previous: undefined })
+
+    expect(calls[0]?.mediaFiles).toEqual([
+      { hash: HASH, name: 'shot.png', size: 9, mediaType: 'image/png' },
+    ])
+    expect(seen.uploads?.get(HASH)).toBeUndefined()
   })
 })

@@ -33,12 +33,12 @@ class RecordingUploads extends SaidUploadsPort {
   async place(args: {
     threadId: ThreadId
     uploads: readonly SaidUpload[]
-    currentUploadIds?: ReadonlySet<string> | undefined
+    currentFileIds?: ReadonlySet<string> | undefined
   }): Promise<ReadonlyMap<string, UploadPlacement>> {
     this.calls.push({
       threadId: args.threadId,
       uploadIds: args.uploads.map((upload) => upload.uploadId),
-      current: [...(args.currentUploadIds ?? [])],
+      current: [...(args.currentFileIds ?? [])],
     })
     return new Map(args.uploads.map((upload) => [upload.uploadId, this.placement]))
   }

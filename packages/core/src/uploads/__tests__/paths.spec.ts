@@ -4,7 +4,7 @@ import { uploadPathOf } from '../paths'
 
 describe('uploadPathOf', () => {
   test('joins the uploads dir, id and name', () => {
-    expect(uploadPathOf({ uploadId: 'abc', name: 'a.txt' })).toBe('uploads/abc/a.txt')
+    expect(uploadPathOf({ fileId: 'abc', name: 'a.txt' })).toBe('uploads/abc/a.txt')
   })
 })
 

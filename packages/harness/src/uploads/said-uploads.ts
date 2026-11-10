@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path'
 import {
   EUploadState,
   uploadPathOf,
+  type SaidMediaFile,
   type SaidUpload,
   type ThreadId,
   type UploadPlacement,
@@ -44,10 +45,13 @@ export class ApiSaidUploads extends SaidUploadsPort {
   async place(args: {
     threadId: ThreadId
     uploads: readonly SaidUpload[]
-    currentUploadIds?: ReadonlySet<string> | undefined
+    mediaFiles?: readonly SaidMediaFile[] | undefined
+    currentFileIds?: ReadonlySet<string> | undefined
     signal?: AbortSignal | undefined
   }): Promise<ReadonlyMap<string, UploadPlacement>> {
-    const placements = new Map<string, UploadPlacement>()
+    const placements = new Map<string, UploadPlacement>(
+      (args.mediaFiles ?? []).map((file) => [file.hash, { state: EUploadState.Missing }]),
+    )
     const queue = [...args.uploads]
     const worker = async (): Promise<void> => {
       for (let next = queue.shift(); next !== undefined; next = queue.shift()) {
@@ -61,7 +65,7 @@ export class ApiSaidUploads extends SaidUploadsPort {
   private async placeOne(args: {
     threadId: ThreadId
     upload: SaidUpload
-    currentUploadIds?: ReadonlySet<string> | undefined
+    currentFileIds?: ReadonlySet<string> | undefined
     signal?: AbortSignal | undefined
   }): Promise<UploadPlacement> {
     if (!isWellFormed(args.upload)) return { state: EUploadState.Missing }
@@ -69,7 +73,10 @@ export class ApiSaidUploads extends SaidUploadsPort {
     if (remembered !== undefined) return remembered
 
     const sessionDir = await this.deps.sessionDirOf(args.threadId)
-    const target = join(sessionDir, uploadPathOf(args.upload))
+    const target = join(
+      sessionDir,
+      uploadPathOf({ fileId: args.upload.uploadId, name: args.upload.name }),
+    )
     try {
       const placement = (await this.isPresent(target))
         ? { state: EUploadState.Ready as const, path: target }
@@ -77,7 +84,7 @@ export class ApiSaidUploads extends SaidUploadsPort {
       this.settled.set(args.upload.uploadId, placement)
       return placement
     } catch (error) {
-      const current = args.currentUploadIds?.has(args.upload.uploadId) ?? true
+      const current = args.currentFileIds?.has(args.upload.uploadId) ?? true
       if (current || args.signal?.aborted === true) throw error
       return { state: EUploadState.Missing }
     }

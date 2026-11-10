@@ -2,7 +2,10 @@ import { SaidUploadsPort } from '@dltech/atlas-agent'
 import {
   EUploadState,
   isOwnedUpload,
+  isSafeFileName,
+  mediaPathname,
   uploadPathOf,
+  type SaidMediaFile,
   type SaidUpload,
   type ThreadId,
   type UploadPlacement,
@@ -13,13 +16,18 @@ import type { UploadBlobs } from './upload-blobs'
 
 const CONCURRENCY = 4
 const MISSING: UploadPlacement = { state: EUploadState.Missing }
+const MEDIA_HASH = /^[0-9a-f]{64}$/
 
 type PlaceArgs = {
   threadId: ThreadId
   uploads: readonly SaidUpload[]
-  currentUploadIds?: ReadonlySet<string> | undefined
+  mediaFiles?: readonly SaidMediaFile[] | undefined
+  currentFileIds?: ReadonlySet<string> | undefined
   signal?: AbortSignal | undefined
 }
+
+/** One file an attachment needs on disk: where the blob keeps it, and what to call it there. */
+type PlaceableFile = { fileId: string; pathname: string; name: string; owned: boolean }
 
 export type SandboxSaidUploadsDeps = {
   userId: string
@@ -37,33 +45,55 @@ export class SandboxSaidUploads extends SaidUploadsPort {
 
   async place(args: PlaceArgs): Promise<ReadonlyMap<string, UploadPlacement>> {
     const placements = new Map<string, UploadPlacement>()
-    const queue = [...args.uploads]
+    const queue = this.filesOf(args)
     const worker = async (): Promise<void> => {
       for (let next = queue.shift(); next !== undefined; next = queue.shift()) {
-        placements.set(next.uploadId, await this.placeOne({ ...args, upload: next }))
+        placements.set(next.fileId, await this.placeOne({ ...args, file: next }))
       }
     }
     await Promise.all(Array.from({ length: Math.min(CONCURRENCY, queue.length) }, worker))
     return placements
   }
 
-  private async placeOne(args: PlaceArgs & { upload: SaidUpload }): Promise<UploadPlacement> {
-    const { upload } = args
-    if (!isOwnedUpload({ upload, userId: this.deps.userId })) return MISSING
-    const remembered = this.settled.get(upload.uploadId)
+  private filesOf(args: PlaceArgs): PlaceableFile[] {
+    const userId = this.deps.userId
+    return [
+      ...args.uploads.map(
+        (upload): PlaceableFile => ({
+          fileId: upload.uploadId,
+          pathname: upload.pathname,
+          name: upload.name,
+          owned: isOwnedUpload({ upload, userId }),
+        }),
+      ),
+      ...(args.mediaFiles ?? []).map(
+        (file): PlaceableFile => ({
+          fileId: file.hash,
+          pathname: mediaPathname({ userId, hash: file.hash }),
+          name: isSafeFileName(file.name) ? file.name : file.hash,
+          owned: MEDIA_HASH.test(file.hash),
+        }),
+      ),
+    ]
+  }
+
+  private async placeOne(args: PlaceArgs & { file: PlaceableFile }): Promise<UploadPlacement> {
+    const { file } = args
+    if (!file.owned) return MISSING
+    const remembered = this.settled.get(file.fileId)
     if (remembered !== undefined) return remembered
     const { blobs } = this.deps
     if (blobs === null) return MISSING
 
-    const target = `${this.deps.home}/${uploadPathOf(upload)}`
+    const target = `${this.deps.home}/${uploadPathOf({ fileId: file.fileId, name: file.name })}`
     try {
       const placement = (await this.isPresent(target))
         ? { state: EUploadState.Ready as const, path: target }
-        : await this.fetchTo({ upload, target, blobs, signal: args.signal })
-      this.settled.set(upload.uploadId, placement)
+        : await this.fetchTo({ file, target, blobs, signal: args.signal })
+      this.settled.set(file.fileId, placement)
       return placement
     } catch (error) {
-      const current = args.currentUploadIds?.has(upload.uploadId) ?? true
+      const current = args.currentFileIds?.has(file.fileId) ?? true
       if (current || args.signal?.aborted === true) throw error
       return MISSING
     }
@@ -78,19 +108,19 @@ export class SandboxSaidUploads extends SaidUploadsPort {
   }
 
   private async fetchTo(args: {
-    upload: SaidUpload
+    file: PlaceableFile
     target: string
     blobs: UploadBlobs
     signal: AbortSignal | undefined
   }): Promise<UploadPlacement> {
-    const { upload, target, blobs, signal } = args
-    const size = await blobs.sizeOf(upload.pathname)
+    const { file, target, blobs, signal } = args
+    const size = await blobs.sizeOf(file.pathname)
     if (size === null) {
-      this.settled.set(upload.uploadId, MISSING)
+      this.settled.set(file.fileId, MISSING)
       return MISSING
     }
     await blobs.ready()
-    const url = await blobs.urlOf(upload.pathname)
+    const url = await blobs.urlOf(file.pathname)
     await this.deps.files.fetchToFile({
       url,
       path: target,

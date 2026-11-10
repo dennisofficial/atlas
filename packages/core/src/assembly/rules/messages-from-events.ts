@@ -7,7 +7,7 @@ import { callIdsIn, freshCallId } from '../../events/dedupe-call-ids'
 import type { Event, EventOfType, EventRef } from '../../events/envelope'
 import { isNoticeArrival } from '../../events/notice-stage'
 import { liveNudgeIds } from '../../events/nudges'
-import { attachmentsOf, uploadsOf } from '../../attachments'
+import { attachmentsOf, mediaFilesOf, uploadsOf } from '../../attachments'
 import type { ToolCallPart, ToolResultPart, UserContentPart } from '../../message/parts'
 import { shellEventContextsOf } from '../../shells/lifecycle'
 import type { AssembledMessage } from '../assembled'
@@ -27,7 +27,7 @@ import { runEventBlock } from './run-event-block'
 import { sandboxSetupBlock } from './sandbox-setup-block'
 import { serviceEndedBlock } from './service-ended-block'
 import { subscriptionBlock, type SubscriptionLabels } from './subscription-block'
-import { uploadsBlock } from './uploads-block'
+import { attachedFilesBlock } from './attached-files-block'
 import type { UploadPlacement } from '../../uploads/placement'
 import { endingsToldByKill } from './shell-kill-coverage'
 
@@ -136,6 +136,7 @@ function saidContent({
   const attachments = attachmentsOf(event)
   const { shown, named } = attachmentPartsOf({ attachments, delivery })
   const uploads = uploadsOf(attachments)
+  const mediaFiles = mediaFilesOf(attachments)
 
   const said = [event.text, ...named].join('\n')
   const from = saidBy(event)
@@ -148,12 +149,12 @@ function saidContent({
 
   return [
     { type: 'text', text },
-    ...(uploads.length === 0
+    ...(uploads.length === 0 && mediaFiles.length === 0
       ? []
       : [
           {
             type: 'text' as const,
-            text: uploadsBlock({ uploads, placements }),
+            text: attachedFilesBlock({ uploads, mediaFiles, placements }),
           },
         ]),
     ...shown,
