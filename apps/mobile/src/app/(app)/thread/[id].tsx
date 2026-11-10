@@ -9,9 +9,9 @@ import {
 } from '@dltech/atlas-ui-native'
 import { space } from '@dltech/atlas-ui/tokens'
 import { Stack, useLocalSearchParams } from 'expo-router'
-import { ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { ActivityIndicator, StyleSheet, View } from 'react-native'
 
+import { KeyboardDock } from '../../../layout/keyboard-dock'
 import { Composer } from '../../../thread/composer/composer'
 import { OperatorInputCard } from '../../../thread/composer/operator-input-card'
 import { StaleCard } from '../../../thread/composer/stale-card'
@@ -19,11 +19,8 @@ import { useAttachments } from '../../../thread/composer/use-attachments'
 import { Transcript } from '../../../thread/components/transcript'
 import { useThread } from '../../../thread/data/use-thread'
 
-const HEADER_HEIGHT = Platform.OS === 'ios' ? 100 : 64
-
 export default function ThreadScreen() {
   const theme = useTheme()
-  const insets = useSafeAreaInsets()
   const { id } = useLocalSearchParams<{ id: string }>()
   const thread = useThread(id)
   const attachments = useAttachments()
@@ -45,11 +42,7 @@ export default function ThreadScreen() {
         </View>
       ) : null}
       {thread.loaded ? (
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={HEADER_HEIGHT}
-          style={styles.fill}
-        >
+        <>
           <Transcript rows={thread.rows} working={thread.working} now={thread.now} threadId={id} />
           {thread.failure === null ? null : (
             <View style={styles.failure}>
@@ -64,7 +57,7 @@ export default function ThreadScreen() {
               />
             </View>
           )}
-          <View style={{ paddingBottom: insets.bottom }}>
+          <KeyboardDock>
             {thread.stale ? (
               <View style={styles.operator}>
                 <StaleCard />
@@ -85,8 +78,8 @@ export default function ThreadScreen() {
               onSend={thread.send}
               onStop={thread.stop}
             />
-          </View>
-        </KeyboardAvoidingView>
+          </KeyboardDock>
+        </>
       ) : null}
     </View>
   )
@@ -94,9 +87,6 @@ export default function ThreadScreen() {
 
 const styles = StyleSheet.create({
   screen: {
-    flex: 1,
-  },
-  fill: {
     flex: 1,
   },
   center: {

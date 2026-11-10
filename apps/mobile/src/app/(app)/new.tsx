@@ -4,7 +4,7 @@ import { decodeModelFavourites, encodeModelFavourites } from '@dltech/atlas-wire
 import { space } from '@dltech/atlas-ui/tokens'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useEffect, useState } from 'react'
-import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import { z } from 'zod'
 
 import { useAuth } from '../../auth/auth-provider'
@@ -15,6 +15,7 @@ import { ModelSelect } from '../../composer/model-picker'
 import type { IProjectOption } from '../../composer/project-options'
 import { ProjectSelect } from '../../composer/project-select'
 import { useModels } from '../../composer/use-models'
+import { KeyboardDock } from '../../layout/keyboard-dock'
 import { useSettings } from '../../settings/settings-provider'
 import { Composer } from '../../thread/composer/composer'
 
@@ -88,11 +89,7 @@ export default function NewSessionScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={100}
-      style={[styles.screen, { backgroundColor: theme.background }]}
-    >
+    <KeyboardDock style={[styles.screen, { backgroundColor: theme.background }]}>
       <View style={styles.center}>
         <Text size={ETextRole.Xl} weight={EFontWeight.Medium} tight style={styles.heading}>
           What should Atlas work on?
@@ -128,7 +125,7 @@ export default function NewSessionScreen() {
           </View>
         </Composer>
       </View>
-    </KeyboardAvoidingView>
+    </KeyboardDock>
   )
 }
 

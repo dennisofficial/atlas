@@ -9,20 +9,17 @@ import {
 } from '@dltech/atlas-ui-native'
 import { space } from '@dltech/atlas-ui/tokens'
 import { Stack, useLocalSearchParams } from 'expo-router'
-import { ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { ActivityIndicator, StyleSheet, View } from 'react-native'
 
+import { KeyboardDock } from '../../../layout/keyboard-dock'
 import { Composer } from '../../../thread/composer/composer'
 import { StaleCard } from '../../../thread/composer/stale-card'
 import { SessionSkeleton } from '../../../thread/components/session-skeleton'
 import { Transcript } from '../../../thread/components/transcript'
 import { useV2SessionScreen } from '../../../thread/v2/use-v2-session-screen'
 
-const HEADER_HEIGHT = Platform.OS === 'ios' ? 100 : 64
-
 export default function SessionScreen() {
   const theme = useTheme()
-  const insets = useSafeAreaInsets()
   const { id, title } = useLocalSearchParams<{ id: string; title?: string }>()
   const session = useV2SessionScreen(id)
 
@@ -38,11 +35,7 @@ export default function SessionScreen() {
         </View>
       ) : null}
       {session.loaded ? (
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={HEADER_HEIGHT}
-          style={styles.fill}
-        >
+        <>
           <Transcript
             rows={session.rows}
             working={session.working}
@@ -62,7 +55,7 @@ export default function SessionScreen() {
               />
             </View>
           )}
-          <View style={{ paddingBottom: insets.bottom }}>
+          <KeyboardDock>
             {session.stale ? (
               <View style={styles.operator}>
                 <StaleCard />
@@ -79,8 +72,8 @@ export default function SessionScreen() {
               </View>
             )}
             <Composer working={session.working} onSend={session.send} onStop={session.stop} />
-          </View>
-        </KeyboardAvoidingView>
+          </KeyboardDock>
+        </>
       ) : null}
     </View>
   )
@@ -88,9 +81,6 @@ export default function SessionScreen() {
 
 const styles = StyleSheet.create({
   screen: {
-    flex: 1,
-  },
-  fill: {
     flex: 1,
   },
   center: {
