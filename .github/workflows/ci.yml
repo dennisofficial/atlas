@@ -659,7 +659,7 @@ jobs:
       - name: build the electron dmg
         working-directory: apps/mac-electron
         env:
-          CSC_NAME: 'Developer ID Application: Dennis Lysenko (9H7HK25CVR)'
+          CSC_NAME: 'Dennis Lysenko (9H7HK25CVR)'
         run: |
           set -euo pipefail
           VERSION="${TAG#tui-v}"
