@@ -1,0 +1,73 @@
+name: mac-electron
+
+# Unsigned arm64 DMG of the Electron spike shell (apps/mac-electron), so a Mac can run it and compare
+# window behaviour against the Swift shell. No certificates: electron-builder's `mac.identity: null`
+# skips signing and `hardenedRuntime` is off, and nothing here runs the app on the Linux/CI side.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'apps/mac-electron/**'
+      - '.github/workflows/mac-electron.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mac-electron-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dmg:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - uses: oven-sh/setup-bun@v2.2.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
+      # apps/mac-electron is a bun workspace member (`apps/*`), so the lockfile install covers it.
+      - run: bun install --frozen-lockfile
+
+      # bun blocks electron's postinstall (not in root trustedDependencies), so the Chromium binary
+      # it would have downloaded is fetched here instead. electron-builder needs the dist.
+      - name: fetch the electron binary
+        run: node apps/mac-electron/node_modules/electron/install.js
+
+      - name: short sha
+        id: sha
+        run: echo "short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: build the dmg
+        working-directory: apps/mac-electron
+        run: npx electron-builder --mac dmg --arm64
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: list and checksum
+        working-directory: apps/mac-electron
+        run: |
+          set -euo pipefail
+          ls -lh release/*.dmg
+          shasum -a 256 release/*.dmg | tee release/SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AtlasElectron-${{ steps.sha.outputs.short }}-mac-arm64
+          path: |
+            apps/mac-electron/release/*.dmg
+            apps/mac-electron/release/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14
