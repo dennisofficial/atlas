@@ -495,7 +495,8 @@ jobs:
   # app itself changed (`release-version.ts` reports whether a change reached apps/mac or a package
   # it depends on). A merge that touches only the interface cuts the release for the binaries and
   # lets web-ota.yml carry the UI, instead of paying thirteen minutes for an unchanged app. The app
-  # is stamped with that release's version and its files are attached to the same GitHub release.
+  # is stamped with that release's version, signed and notarized as a DMG, and its files are attached
+  # to the same GitHub release.
   # The release is created with --latest=false and only marked latest here, after the upload, so
   # releases/latest/download/<file> (the Mac auto-updater's URL) never points at a release that
   # lacks the Mac files. The TUI updater reads the releases list, so it is unaffected.
@@ -503,7 +504,7 @@ jobs:
     runs-on: macos-latest
     needs: [release]
     if: ${{ !cancelled() && needs.release.result == 'success' && needs.release.outputs.tag != '' && needs.release.outputs.mac == 'true' }}
-    timeout-minutes: 45
+    timeout-minutes: 60
     permissions:
       contents: write
     env:
@@ -529,11 +530,23 @@ jobs:
             next-${{ runner.os }}-${{ hashFiles('bun.lock') }}-
             next-${{ runner.os }}-
 
-      - name: restore hutch
-        uses: actions/cache@v6
+      # build:app compiles the Swift shell against CEF, so the framework and its C++ wrapper come
+      # first. Same key as the rehearsal, so whichever job runs first pays the download.
+      - uses: actions/cache@v6
         with:
-          path: ~/.hutch
-          key: hutch-${{ runner.os }}-${{ hashFiles('apps/mac/hutch.config.ts', 'apps/mac/package.json') }}
+          path: apps/mac/swift/.cef
+          key: cef-156.0.26-g8ea0c73-macosarm64-minimal
+
+      - name: fetch CEF
+        run: bun apps/mac/swift/scripts/fetch-cef.ts
+
+      - name: build the CEF C++ wrapper
+        run: |
+          cmake -S apps/mac/swift/.cef -B apps/mac/swift/.build/cef-wrapper \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 \
+            -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY="$PWD/apps/mac/swift/.build/cef-wrapper/lib"
+          cmake --build apps/mac/swift/.build/cef-wrapper --target libcef_dll_wrapper --parallel 4
 
       - name: import signing certificate
         env:
@@ -564,19 +577,28 @@ jobs:
       - name: install create-dmg
         run: command -v create-dmg >/dev/null || brew install create-dmg
 
-      - name: build signed app
+      - name: build the app
         run: |
           set -euo pipefail
           ATLAS_VERSION="${TAG#tui-v}"
           [ -n "$ATLAS_VERSION" ] && [ "$ATLAS_VERSION" != "$TAG" ] || { echo "::error::unexpected release tag '$TAG'"; exit 1; }
-          export ATLAS_VERSION
+          echo "ATLAS_VERSION=$ATLAS_VERSION" >> "$GITHUB_ENV"
           bun run build:app
+        working-directory: apps/mac
+
+      # The packer signs ad-hoc so a local build launches; this re-signs the framework, its four
+      # helpers, the Bun runtime and then the app with the Developer ID, builds the DMG around that
+      # app, and notarizes the DMG once (Apple's acceptance covers the app inside it).
+      - name: sign, notarize and package the DMG
+        run: |
+          set -euo pipefail
+          bun run make:dmg
+          du -h artifacts/*
         working-directory: apps/mac
 
       - name: upload to release
         run: |
           set -euo pipefail
-          ls -la artifacts
           files=(artifacts/*)
           [ -e "${files[0]}" ] || { echo "::error::apps/mac/artifacts is empty"; exit 1; }
           for attempt in 1 2 3; do

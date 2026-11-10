@@ -1,3 +1,7 @@
+import { posix } from 'node:path'
+
+import { CEF_HELPERS, SHELL_NAME, bundlePaths, helperPath } from './pack-shell-plan'
+
 export type SigningEnv = {
   identity: string
   apiKeyPath: string
@@ -18,6 +22,12 @@ export function readSigningEnv({
   if (!identity || !apiKeyPath || !apiKeyId || !apiIssuer) return null
   return { identity, apiKeyPath, apiKeyId, apiIssuer }
 }
+
+export const CHANNEL = 'stable'
+export const PLATFORM = 'macos-arm64'
+export const PRODUCT_NAME = 'Atlas'
+export const APP_BUNDLE_NAME = `${PRODUCT_NAME}.app`
+export const ENTITLEMENTS = posix.join('assets', 'entitlements.plist')
 
 export const WINDOW = { width: 660, height: 400 } as const
 export const APP_ICON_POSITION = { x: 180, y: 200 } as const
@@ -64,33 +74,47 @@ export function buildCreateDmgArgs(params: {
   ]
 }
 
-function dmgPartsOf({ channelDir, bundleName }: { channelDir: string; bundleName: string }) {
-  const [channel, ...platform] = channelDir.split('-')
-  const prefix = channel === 'stable' ? '' : `${channel}-`
-  return { prefix, platform: platform.join('-') }
+interface DmgNameParams {
+  channel: string
+  platform: string
+  productName: string
+}
+
+function assetPrefix({ channel }: { channel: string }): string {
+  return channel === '' || channel === CHANNEL ? '' : `${channel}-`
 }
 
 // The unversioned name is what the app's download button links to, and GitHub's /releases/latest/download/ needs it to be stable.
-export function dmgNameFor({
-  channelDir,
-  bundleName,
-}: {
-  channelDir: string
-  bundleName: string
-}): string {
-  const { prefix, platform } = dmgPartsOf({ channelDir, bundleName })
-  return `${prefix}${platform}-${bundleName}.dmg`
+export function dmgNameFor({ channel, platform, productName }: DmgNameParams): string {
+  return `${assetPrefix({ channel })}${platform}-${productName}.dmg`
 }
 
 export function dmgArtifactNameFor({
-  channelDir,
-  bundleName,
+  channel,
+  platform,
+  productName,
   version,
-}: {
-  channelDir: string
-  bundleName: string
-  version: string
-}): string {
-  const { prefix, platform } = dmgPartsOf({ channelDir, bundleName })
-  return `${prefix}${platform}-${bundleName}-${version}.dmg`
+}: DmgNameParams & { version: string }): string {
+  return `${assetPrefix({ channel })}${platform}-${productName}-${version}.dmg`
+}
+
+export interface SignTarget {
+  readonly path: string
+  readonly deep: boolean
+  readonly entitlements: boolean
+}
+
+// Chromium refuses to load nested framework code that is unsigned, so the framework and each helper are signed before the app.
+export function dmgSignTargets({ appPath }: { appPath: string }): SignTarget[] {
+  const paths = bundlePaths({ bundle: appPath, app: SHELL_NAME })
+  return [
+    { path: paths.framework, deep: false, entitlements: false },
+    ...CEF_HELPERS.map((helper) => ({
+      path: helperPath({ frameworks: paths.frameworks, app: SHELL_NAME, helper }),
+      deep: true,
+      entitlements: true,
+    })),
+    { path: posix.join(paths.contents, 'MacOS', 'bun'), deep: false, entitlements: true },
+    { path: appPath, deep: false, entitlements: true },
+  ]
 }
