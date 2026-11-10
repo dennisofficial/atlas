@@ -7,7 +7,7 @@ const app = { version: '1.298.0', channel: 'stable', chromium: false }
 describe('aboutLines', () => {
   test('names the native build and the interface the payload installed', () => {
     expect(aboutLines({ app, iface: { version: '1.299.2' } })).toEqual([
-      'Atlas for Mac 1.298.0 (stable)',
+      'App 1.298.0 (stable)',
       'Interface 1.299.2',
       'Chromium pane: not included',
     ])

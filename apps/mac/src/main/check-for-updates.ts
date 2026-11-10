@@ -36,7 +36,7 @@ export async function runCheckForUpdates({
       type: 'question',
       title: 'Update Ready',
       message:
-        result.version.length > 0 ? `Atlas ${result.version} is ready.` : 'An update is ready.',
+        result.version.length > 0 ? `App ${result.version} is ready.` : 'An update is ready.',
       detail: 'Restart Atlas to install it.',
       buttons: ['Restart Now', 'Later'],
       defaultId: PRIMARY_BUTTON,

@@ -8,18 +8,18 @@ describe('versionLines', () => {
   it('puts the Mac version on its own line above the web build', () => {
     expect(
       versionLines({ web: { commit: SHA, version: '1.42.0' }, desktopVersion: '1.41.0' }),
-    ).toEqual(['Atlas for Mac 1.41.0', 'web v1.42.0 · 0123456'])
+    ).toEqual(['App 1.41.0', 'Interface 1.42.0 · 0123456'])
   })
 
-  it('shows only the web line on plain web', () => {
+  it('shows only the interface line on plain web', () => {
     expect(versionLines({ web: { commit: SHA, version: '' }, desktopVersion: null })).toEqual([
-      'web 0123456',
+      'Interface 0123456',
     ])
   })
 
-  it('shows the Mac version alone when the web build is unstamped', () => {
+  it('shows the app version alone when the interface build is unstamped', () => {
     expect(versionLines({ web: { commit: '', version: '' }, desktopVersion: '1.41.0' })).toEqual([
-      'Atlas for Mac 1.41.0',
+      'App 1.41.0',
     ])
   })
 
