@@ -10,7 +10,7 @@
     "bundle:payload": "bun scripts/bundle-payload.ts",
     "pack:host": "bun scripts/pack-host.ts",
     "test": "bun run bundle:payload && bun test",
-    "dist:mac": "bun run bundle:payload && electron-builder --mac dmg --arm64"
+    "dist:mac": "bun run bundle:payload && bun run pack:host && electron-builder --mac dmg --arm64"
   },
   "devDependencies": {
     "electron": "45.2.3",

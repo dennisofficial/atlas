@@ -27,10 +27,11 @@ const latest = latestRelease({
   prefix: RELEASE_TAG_PREFIX,
 })
 const since = latest?.tag ?? null
+const changed = changedPathsSince(since)
 const affected = affectedApps({
   manifests: await workspaceManifests(),
   apps: SHIPPED_APP_DIRS,
-  changedPaths: changedPathsSince(since),
+  changedPaths: changed,
 })
 const next = nextReleaseVersion({
   current: latest?.version ?? null,
@@ -42,7 +43,9 @@ console.error(
   `affected apps since ${since ?? 'the first commit'}: ${affected.join(', ') || 'none'}`,
 )
 
-console.log(`mac=${affected.includes('apps/mac') ? 'true' : 'false'}`)
+const macChanged =
+  affected.includes('apps/mac') || changed.some((path) => path.startsWith('apps/mac-electron/'))
+console.log(`mac=${macChanged ? 'true' : 'false'}`)
 
 if (next === null) {
   console.log('skip=true')
