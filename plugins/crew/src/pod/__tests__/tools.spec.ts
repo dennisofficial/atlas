@@ -8,6 +8,7 @@ import {
   type PluginPodContext,
   type PodCrew,
   type SubagentSnapshot,
+  EMPTY_MCP_CONTROL,
 } from '@dltech/atlas-plugin-sdk'
 
 import { CREW_AGENT_TYPES, crewAgentTypeOf } from '../../core'
@@ -59,6 +60,7 @@ const rig = (crew: PodCrew) => {
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
     control: {
+      mcp: EMPTY_MCP_CONTROL,
       webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
       exposePort: async () => {
         throw new Error('this rig exposes no port')

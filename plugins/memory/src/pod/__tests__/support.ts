@@ -8,6 +8,7 @@ import {
   type MemorySummary,
   type PluginPodContext,
   type PodMemory,
+  EMPTY_MCP_CONTROL,
 } from '@dltech/atlas-plugin-sdk'
 
 import { memoryPod } from '..'
@@ -92,6 +93,7 @@ export const rig = (memory: PodMemory = fakeMemory().port) => {
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
     control: {
+      mcp: EMPTY_MCP_CONTROL,
       webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
       exposePort: async () => {
         throw new Error('this rig exposes no port')

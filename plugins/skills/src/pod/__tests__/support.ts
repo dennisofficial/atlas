@@ -6,6 +6,7 @@ import {
   EMPTY_SESSIONS,
   EMPTY_WORKTREES,
   type PluginPodContext,
+  EMPTY_MCP_CONTROL,
 } from '@dltech/atlas-plugin-sdk'
 import { ECallStatus, type CallOp, type CallResult } from '@dltech/atlas-protocol'
 
@@ -123,6 +124,7 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
         },
         delete: async () => false,
       },
+      mcp: EMPTY_MCP_CONTROL,
       webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
     },
     crew: EMPTY_CREW,
