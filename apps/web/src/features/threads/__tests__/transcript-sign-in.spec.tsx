@@ -24,7 +24,9 @@ describe('the sign-in card', () => {
 
     expect(html).toContain('posthog needs a sign-in')
     expect(html).toContain('Sign in')
-    expect(html).toContain('href="https://provider.test/authorize?client_id=c&amp;code_challenge=xyz"')
+    expect(html).toContain(
+      'href="https://provider.test/authorize?client_id=c&amp;code_challenge=xyz"',
+    )
     expect(html).toContain('target="_blank"')
     expect(html).toContain('rel="noreferrer"')
   })

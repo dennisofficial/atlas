@@ -141,7 +141,10 @@ describe('resolving a sign-in the session started', () => {
 
   it('fails the card once the link it handed out has expired', () => {
     expect(
-      resolve({ pending: [{ server: 'posthog', expiresAt: '2026-11-10T11:59:00.000Z' }], rows: [] }),
+      resolve({
+        pending: [{ server: 'posthog', expiresAt: '2026-11-10T11:59:00.000Z' }],
+        rows: [],
+      }),
     ).toEqual({
       resolved: [
         {

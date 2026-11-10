@@ -8,7 +8,8 @@ type SignInResolved = Extract<V2Event, { type: 'mcp-sign-in-resolved' }>
 
 type SignInRun = { started: SignInStarted; resolved: SignInResolved | undefined }
 
-const pairKey = (event: SignInStarted | SignInResolved): string => `${event.sessionId}:${event.server}`
+const pairKey = (event: SignInStarted | SignInResolved): string =>
+  `${event.sessionId}:${event.server}`
 
 const runsOf = (events: readonly (Event | V2Event)[]): ReadonlyMap<string, SignInRun> => {
   const open = new Map<string, string>()

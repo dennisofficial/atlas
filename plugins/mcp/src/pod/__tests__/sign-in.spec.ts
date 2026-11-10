@@ -48,7 +48,9 @@ const stubFetch = (answer: (request: Captured) => Response): (() => void) => {
 }
 
 const unauthorized = (request: Captured): Response =>
-  request.method === 'DELETE' ? new Response(null, { status: 200 }) : new Response('no', { status: 401 })
+  request.method === 'DELETE'
+    ? new Response(null, { status: 200 })
+    : new Response('no', { status: 401 })
 
 const needsAuthRows: readonly McpCloudRow[] = [
   { source: 'user', spec: { name: 'posthog', transport: { kind: 'http', url: SERVER_URL } } },
@@ -100,8 +102,7 @@ describe('mcp_sign_in drawing a card', () => {
 
       expect(await tool.invoke(invocation({ name: 'ghost' }))).toEqual({
         ok: false,
-        reason:
-          'no MCP server is named ghost in this session; the mcp view lists the ones it has',
+        reason: 'no MCP server is named ghost in this session; the mcp view lists the ones it has',
       })
       expect(startedCards(appended)).toEqual([])
     } finally {
