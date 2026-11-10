@@ -1,9 +1,4 @@
-export const SHIPPED_APP_DIRS: readonly string[] = [
-  'apps/tui',
-  'apps/serve',
-  'apps/mac',
-  'apps/web',
-]
+export const SHIPPED_APP_DIRS: readonly string[] = ['apps/tui', 'apps/serve', 'apps/mac']
 
 export type WorkspaceManifest = {
   readonly dir: string

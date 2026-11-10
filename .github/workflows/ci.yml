@@ -345,6 +345,7 @@ jobs:
       cancel-in-progress: true
     outputs:
       tag: ${{ steps.version.outputs.skip != 'true' && format('tui-v{0}', steps.version.outputs.version) || '' }}
+      mac: ${{ steps.version.outputs.mac }}
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       TARGET_SHA: ${{ github.sha }}
@@ -419,15 +420,18 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: gh workflow run sandbox-image.yml -f release_tag="tui-v${VERSION}" -f release_sha="$TARGET_SHA"
 
-  # Signed and notarized build, only for a release the `release` job actually cut. The app is
-  # stamped with that release's version and its files are attached to the same GitHub release.
+  # Signed and notarized build, only for a release the `release` job actually cut and only when the
+  # app itself changed (`release-version.ts` reports whether a change reached apps/mac or a package
+  # it depends on). A merge that touches only the interface cuts the release for the binaries and
+  # lets web-ota.yml carry the UI, instead of paying thirteen minutes for an unchanged app. The app
+  # is stamped with that release's version and its files are attached to the same GitHub release.
   # The release is created with --latest=false and only marked latest here, after the upload, so
   # releases/latest/download/<file> (the Mac auto-updater's URL) never points at a release that
   # lacks the Mac files. The TUI updater reads the releases list, so it is unaffected.
   mac-release:
     runs-on: macos-latest
     needs: [release]
-    if: ${{ !cancelled() && needs.release.result == 'success' && needs.release.outputs.tag != '' }}
+    if: ${{ !cancelled() && needs.release.result == 'success' && needs.release.outputs.tag != '' && needs.release.outputs.mac == 'true' }}
     timeout-minutes: 45
     permissions:
       contents: write

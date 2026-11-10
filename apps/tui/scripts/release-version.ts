@@ -87,6 +87,8 @@ console.error(
   `affected apps since ${since ?? 'the first commit'}: ${affected.join(', ') || 'none'}`,
 )
 
+console.log(`mac=${affected.includes('apps/mac') ? 'true' : 'false'}`)
+
 if (next === null) {
   console.log('skip=true')
   process.exit(0)
