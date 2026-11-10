@@ -52,7 +52,10 @@ Atlas.app  (Swift)
 ## The pane contract
 
 The web UI keeps one client and one slot; the transport is HTTP to the Bun child, exactly like every
-other desktop route, so nothing new crosses into Swift for this.
+other desktop route, so nothing new crosses into Swift for this. The child holds a `pane` port and
+`POST /desktop/pane` forwards each command to the shell's own loopback listener at `POST /pane`,
+which answers `{ ok }` or `{ ok: false, error }`. The shell needs no channel into the child, and the
+command surface is testable from curl before any Swift view exists.
 
 Web → shell, `POST /desktop/pane`:
 
