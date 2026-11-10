@@ -268,7 +268,12 @@ jobs:
       - name: did this change reach the app
         id: reach
         run: |
-          files=$(git diff --name-only "${{ github.event.pull_request.base.sha }}...HEAD")
+          base="${{ github.event.pull_request.base.sha }}"
+          if [ -z "$base" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          files=$(git diff --name-only "$base...HEAD")
           if echo "$files" | grep -qE '^(\.github/|apps/web/|packages/|apps/mac/|bun\.lock|package\.json)'; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
