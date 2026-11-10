@@ -4,7 +4,6 @@ import { stepCountIs, streamText, type LanguageModel } from 'ai'
 import {
   carriesToolResultImages,
   DEFAULT_IMAGE_TIER,
-  gatewayRoutingOf,
   hoistToolResultFiles,
   ModelPort,
   type Assembled,
@@ -175,10 +174,7 @@ export async function runModelStream(args: {
   }
 
   const result = accumulator.finish()
-  const withFast: ModelStepResult = ranFast ? { ...result, ranFast: true } : result
-  const routing = args.signal.aborted ? undefined : await gatewayRoutingOf(stream.finalStep)
-
-  return routing === undefined ? withFast : { ...withFast, routing }
+  return ranFast ? { ...result, ranFast: true } : result
 }
 
 export type ModelCardSource = ModelCard | (() => ModelCard | undefined)
