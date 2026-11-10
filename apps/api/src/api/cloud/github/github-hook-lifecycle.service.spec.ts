@@ -292,4 +292,31 @@ describe('GithubHookLifecycleService', () => {
     expect(deleted).toHaveLength(0)
     expect((await repoHookRows())[0]?.status).toBe('active')
   })
+
+  it('keeps a held hook in coverage while github still answers for it', async () => {
+    const { service, verified } = serviceWith({
+      tokens: { 'usr-creator': 'ghu_creator' },
+      getHook: async () => 'found',
+    })
+    await seedHook({ repoFullName: 'compai/app' })
+
+    await service.verifyHeldHooks({ limit: 5 })
+
+    expect(verified).toEqual(['app'])
+    expect((await repoHookRows())[0]?.status).toBe('active')
+  })
+
+  it('drops a repo out of webhook coverage when its hook is gone and cannot be recreated', async () => {
+    const { service, created } = serviceWith({
+      tokens: { 'usr-creator': 'ghu_creator' },
+      getHook: async () => 'missing',
+      createHook: async () => ({ outcome: 'forbidden' }),
+    })
+    await seedHook({ repoFullName: 'compai/app' })
+
+    await service.verifyHeldHooks({ limit: 5 })
+
+    expect(created).toEqual(['app'])
+    expect((await repoHookRows())[0]?.status).toBe('orphaned')
+  })
 })

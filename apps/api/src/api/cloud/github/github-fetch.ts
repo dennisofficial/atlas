@@ -53,6 +53,7 @@ export async function githubFetch(args: {
       source === EGithubCallSource.RepoAccess
         ? EGithubHttpCategory.Authorization
         : EGithubHttpCategory.Refresh,
+    source,
   }
   init?.signal?.throwIfAborted()
   await takeGithubRequestSlot(identity)

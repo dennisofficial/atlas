@@ -90,12 +90,14 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
     installations,
     observations,
   )
+  const syncGate = new GithubAppSyncGate(redis)
   const hookSweep = new GithubHookSweepService(
-    new GithubAppSyncService(new GithubAppClient(env), installations, new GithubAppSyncGate(redis)),
+    new GithubAppSyncService(new GithubAppClient(env), installations, syncGate),
     hookLifecycle,
     installations,
     github,
     reads,
+    syncGate,
   )
 
   return {
@@ -109,7 +111,12 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
       hookLifecycle,
       observations,
     ),
-    runSweeper: new GithubRunSweeperService(github, new GithubWorkflowRunReads(), wake),
+    runSweeper: new GithubRunSweeperService(
+      github,
+      new GithubWorkflowRunReads(),
+      wake,
+      observations,
+    ),
     hookLifecycle,
     hookSweep,
     webhookInbox: new GithubWebhookInboxService(),

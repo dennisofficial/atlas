@@ -1,6 +1,7 @@
 import { vi } from 'bun:test'
 import { localObservations } from './github-observation.fixture'
 import { stubGlobal } from '@dltech/bun-test-shims'
+import { GithubAppInstallationsService } from './github-app-installations.service'
 import type { GithubAppInstallNoticeService } from './github-app-install-notice.service'
 import type { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import type { PullRequestCacheFields } from './github-pull-request-mapping'
@@ -33,6 +34,7 @@ export function serviceWith(args: {
   fetchImpl?: typeof fetch
   shouldRecommend?: () => Promise<boolean>
   mailbox?: GithubPrEventMailboxService
+  coversRepo?: (args: { repoFullName: string }) => Promise<boolean>
 }): GithubSubscriptionsService {
   const github = {
     findToken: async () => args.token,
@@ -59,5 +61,8 @@ export function serviceWith(args: {
     installNotice,
     localObservations(github),
     mailbox,
+    args.coversRepo === undefined
+      ? new GithubAppInstallationsService()
+      : ({ coversRepo: args.coversRepo } as never),
   )
 }

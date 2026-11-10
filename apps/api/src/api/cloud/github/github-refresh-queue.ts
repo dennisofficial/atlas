@@ -4,6 +4,7 @@ import { cachedPrStates, normalizedRepo, prIdentity, repoPattern } from './githu
 import { subscriptionLiveWhere } from './github-delivery-routing'
 import type { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import type { GithubObservationStore } from './github-observation.store'
+import type { RepoCoverage } from './github-repo-coverage'
 import { GithubHttpBudgetUnavailable, GithubCredentialCooldown } from './github-request-budget'
 import { GithubUserReadFailed } from './github-user-reads'
 import { unsettledHeadExists } from './github-pr-head-checks'
@@ -18,6 +19,7 @@ type Target = {
 type QueueDeps = {
   observations: GithubObservationStore
   hooks: GithubHookLifecycleService
+  coverage: RepoCoverage
   logger: Logger
   resolve: (subscription: Row<'GithubSubscription'>) => Promise<number | null>
   refresh: (args: {
@@ -51,7 +53,7 @@ export async function refreshGithubQueue(deps: QueueDeps): Promise<void> {
       add({ ...row, prNumber: row.prNumber, userIds: [row.userId], observed: false })
       continue
     }
-    if (!row.pollBacked) continue
+    if (!row.pollBacked || deps.coverage.covers(row.repoFullName)) continue
     const key = `${normalizedRepo(row.repoFullName)}:${row.branch}`
     branches.set(key, [...(branches.get(key) ?? []), row])
   }
@@ -108,6 +110,7 @@ export async function refreshGithubQueue(deps: QueueDeps): Promise<void> {
     )
   const hooks = new Map<string, boolean>()
   for (const target of rotated(ordered)) {
+    if (deps.coverage.covers(target.repoFullName)) continue
     const key = prIdentity(target)
     if ((await deps.observations.attempt({ key })).nextAttemptAt > Date.now()) continue
     const state = states.get(key)

@@ -187,6 +187,43 @@ export class GithubHookLifecycleService {
     })
   }
 
+  /**
+   * A personal hook GitHub deleted still proves nothing, but its row keeps the repo "covered" and
+   * therefore un-polled. A bounded pass per sweep keeps a silently dead hook from leaving a repo
+   * stale forever: recreate what we can, and let the row fall out of coverage when we cannot so the
+   * timer sweep owns the repo again.
+   */
+  async verifyHeldHooks(args: { limit: number }): Promise<void> {
+    const held = await db.orm.public.GithubRepoHook.where({
+      status: ERepoHookStatus.Active,
+      idleSince: null,
+    })
+      .limit(args.limit)
+      .all()
+    for (const hook of held) {
+      if (await this.installations.coversRepo({ repoFullName: hook.repoFullName })) continue
+      const alive = await this.isHookAlive({
+        userId: hook.createdBy,
+        repoFullName: hook.repoFullName,
+        hookId: hook.hookId,
+      })
+      if (alive) continue
+      const recreated = await this.reconcile({
+        userId: hook.createdBy,
+        repoFullName: hook.repoFullName,
+        storedRepo: hook.repoFullName,
+      })
+      if (recreated !== 'poll-backed') continue
+      await db.orm.public.GithubRepoHook.where({
+        repoFullName: hook.repoFullName,
+        status: ERepoHookStatus.Active,
+      }).updateAndCount({ status: ERepoHookStatus.Orphaned })
+      this.logger.warn(
+        `the webhook for ${hook.repoFullName} is gone and could not be recreated; that repo falls back to polling`,
+      )
+    }
+  }
+
   private async reconcile(args: {
     userId: string
     repoFullName: string
