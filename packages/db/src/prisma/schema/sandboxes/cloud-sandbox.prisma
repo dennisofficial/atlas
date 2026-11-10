@@ -6,6 +6,7 @@ model CloudSandbox {
   sandboxId                 String
   name                      String
   region                    String
+  vercelProjectId           String?
   state                     String
   lastActivityAt            TimestamptzJsDate(3)
   tokenHash                 String

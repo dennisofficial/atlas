@@ -9,6 +9,7 @@ import { db } from '@dltech/atlas-db'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { podSessionOf, sessionOfThread } from '../../platform/sessions/session-of-thread'
 import { recordBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
+import { pinPodProject } from '../../platform/sandboxes/pod-project'
 import { failureText, type SandboxWakeBoot } from '../github/github-sandbox-wake-boot'
 import type { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import type { ScopedConfigService } from '../scoped-config/scoped-config.service'
@@ -81,7 +82,8 @@ export async function runPodProvision(args: {
       cipher: deps.cipher,
       log: deps.log,
     })
-    const credentials = await deps.scoped.vercelCredentials({ thread })
+    const owner = await deps.scoped.vercelCredentials({ thread })
+    const credentials = { ...owner, projectId: row.vercelProjectId ?? owner.projectId }
     const vcpus = await podVcpusOf({ sessionId: session.id, userId: thread.userId })
     const resizing = row.pendingVcpus !== null
     if (payload.stopSessionId !== undefined) {
@@ -114,7 +116,8 @@ export async function runPodProvision(args: {
       serveVersion: undefined,
       freshToken: token,
       resumeToken: token,
-      onFreshSandbox: () => Promise.resolve(),
+      onFreshSandbox: () =>
+        pinPodProject({ sessionId: podSessionId, projectId: credentials.projectId }),
       injectVercelCredentials: false,
       environment: apiProvisionedEnvironment({
         userId: thread.userId,

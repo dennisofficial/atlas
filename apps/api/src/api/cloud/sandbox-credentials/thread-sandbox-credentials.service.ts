@@ -6,6 +6,7 @@ import {
 } from '../../../_core/ports/sandbox-credentials'
 import { db } from '@dltech/atlas-db'
 import { podSessionOf } from '../../platform/sessions/session-of-thread'
+import { pinnedProjectOf } from '../../platform/sandboxes/pod-project'
 import { ScopedConfigService } from '../scoped-config/scoped-config.service'
 
 @Injectable()
@@ -27,7 +28,14 @@ export class ThreadSandboxCredentialsService extends SandboxCredentials {
       return this.legacyCredentials()
     }
     const credentials = await this.scoped.vercelCredentials({ thread: { userId: thread.userId } })
-    return { ...credentials, ownerCredential: true, userId: thread.userId }
+    const sessionId = await podSessionOf({ reader: db, threadId: args.threadId })
+    const pinned = await pinnedProjectOf({ sessionId })
+    return {
+      ...credentials,
+      projectId: pinned ?? credentials.projectId,
+      ownerCredential: true,
+      userId: thread.userId,
+    }
   }
 
   private async apiProvisioned(threadId: string): Promise<boolean> {

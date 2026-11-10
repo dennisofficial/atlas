@@ -1013,6 +1013,13 @@
                   "kind": "scalar"
                 }
               },
+              "vercelProjectId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "wakeClaim": {
                 "nullable": true,
                 "type": {
@@ -1157,6 +1164,9 @@
                 },
                 "userId": {
                   "column": "userId"
+                },
+                "vercelProjectId": {
+                  "column": "vercelProjectId"
                 },
                 "wakeClaim": {
                   "column": "wakeClaim"
@@ -9502,6 +9512,11 @@
                   "dataType": "pg/text",
                   "nullable": false
                 },
+                "vercelProjectId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
                 "wakeClaim": {
                   "codecId": "pg/timestamptz-date@1",
                   "dataType": "pg/timestamptz",
@@ -15449,7 +15464,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "31919bc07e05f8bd7cdba3993d5e8d4da55238cdb6046ca1a203c484218b01ab"
+    "storageHash": "1440ea06adc82bfb24c1b7d40dc3fc4a31df6691444f3237fb72c7a072b29df7"
   },
   "execution": {
     "executionHash": "0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289",

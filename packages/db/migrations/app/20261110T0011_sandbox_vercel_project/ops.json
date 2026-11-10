@@ -1,0 +1,76 @@
+[
+  {
+    "id": "column.public.CloudSandbox.vercelProjectId",
+    "label": "Add column \"vercelProjectId\" to \"CloudSandbox\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "vercelProjectId",
+        "table": "CloudSandbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"vercelProjectId\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "CloudSandbox",
+          "vercelProjectId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"vercelProjectId\"",
+        "sql": "ALTER TABLE \"public\".\"CloudSandbox\" ADD COLUMN \"vercelProjectId\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"vercelProjectId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "CloudSandbox",
+          "vercelProjectId"
+        ]
+      },
+      {
+        "description": "verify column \"vercelProjectId\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "CloudSandbox",
+          "vercelProjectId",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "data.sandbox-vercel-project-id-backfill",
+    "invariantId": "sandbox-vercel-project-id-backfill",
+    "label": "Backfill CloudSandbox.vercelProjectId from the owning user's current Vercel project so sandboxes made before the column existed stay reachable when that credential moves to another project",
+    "operationClass": "data",
+    "target": {
+      "id": "table.CloudSandbox",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "CloudSandbox"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Backfill CloudSandbox.vercelProjectId from the owning user's current Vercel project so sandboxes made before the column existed stay reachable when that credential moves to another project",
+        "sql": "UPDATE \"public\".\"CloudSandbox\" AS b\nSET \"vercelProjectId\" = c.\"vercelProjectId\"\nFROM \"public\".\"UserVercelCredential\" AS c\nWHERE c.\"userId\" = b.\"userId\" AND c.\"vercelProjectId\" IS NOT NULL AND b.\"vercelProjectId\" IS NULL"
+      }
+    ],
+    "postcheck": []
+  }
+]
