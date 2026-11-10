@@ -180,7 +180,7 @@ cloud, database rows pushed into the pod as files. v2 has one writer per piece o
 | Skills, repo dirs           | `<repo>/.atlas/skills`, `<repo>/.agents/skills` (symlinks followed, `.claude` not read) | the pod's workspace (git)                | the pod through the daemon                               | yes         |
 | Skills, built-ins           | compiled `SKILL.md` text                                                                | the plugin package                       | the plugin, no IO                                        | yes         |
 
-The consequences, and what §9 asks the operator to confirm:
+The consequences, and what §10 asks the operator to confirm:
 1. **Cloud rows are read by the host over its own Postgres, unsealed with the host's cipher** — no
    API call, which is what 0027 requires and what `skill-index.ts:14` already does for names. A row
    the operator edits in Settings therefore reaches a v2 session at the next turn, not the next session.
@@ -370,7 +370,49 @@ deploy — the stale-instance trap in `07-plugins.md` §8), recorded in §8 with
 - **Web UI beyond the plugin view and the one upload control**: no header chips, no new settings
   pages for MCP.
 
-## 9. Answers (2026-11-09)
+## 9. Live check (2026-11-10, production)
+
+Session `f847bbe2-fd8e-41fa-a3af-ad9f230d6db3` (agent host 299, deploy `f4bcaeb4e`, which carries
+#2150 and #2157), the operator's atlas project, one message per check.
+
+**Skills.** The prompt carried a `Skills available to load:` block with a built-in (`atlas`,
+`commit`), a repo skill from the clone's `.agents/skills` (`atlas-traces`) and the operator's cloud
+rows (`better-layout`, `code-review`, ...). `skill` loaded one of each and told the model where the
+bundled files are: the repo and built-in skills name their directory, a cloud skill says its files
+come back through the same tool with a `path`. `skill_install` (user) wrote `live-check-echo` at
+revision 1 — the row and its `SKILL.md` in `public.Skill`/`SkillFile` — and the next turn's listing
+carried it; a `skill_edit` at `baseRevision 0` was refused naming revision 1 and its hash, the retry
+at revision 1 answered revision 2; `skill_delete` removed the row, which the database then showed
+gone. A `skill_install` with `layer: repo` wrote `<repo>/.atlas/skills/live-check-repo/SKILL.md` and
+`skill_delete` removed the directory.
+
+**MCP.** The two cloud rows arrive in the session with their layers — `Posthog` (project) and
+`wispr-flow` (user), both http — and the project `.atlas/mcp.json` beats the cloud project row: a
+`{"mcpServers":{"Posthog":{"disabled":true}}}` stub removed it from the roster while the user row
+stayed. A Claude-compat `.mcp.json` stub does not hide it, by design. A stdio server named by the
+clone's `.mcp.json` connected, `mcp__echo__echo` returned `echo: hello from the live check`, and its
+`instructions` arrived in an `mcp-instructions` context block carrying v1's third-party envelope.
+Killing it made the next call answer `the 'echo' MCP server rejected the call: the server was killed
+by SIGTERM`; pointing its entry at a missing file made the roster show `failed` with
+`the server exited with code 1 … Module not found`.
+
+**Precedence.** A repo `opentui` shadowed the cloud user row of the same name: `skill` answered with
+the clone's directory (`/atlas/workspaces/workspace/.agents/skills/opentui`), which a cloud skill
+cannot do.
+
+**Not live, and why.** Both cloud servers answer `needs-auth`. For `wispr-flow` that is the truth —
+its row holds no grant. For `Posthog` it is not: the row carries an active sealed OAuth grant (access
+token, refresh token, valid to 2026-11-16) that Settings reads to show "Signed in", and `plugins/mcp`
+never reads `oauthSealed`, so its http client sends no `Authorization` header. MCP sign-in is out of
+this slice (§ Out of scope); wiring the grant — bearer first, refresh in its own slice, because two
+agent hosts must not refresh one row at once — is the next piece of MCP work.
+
+**Fixed because of this check** (#2157): a `description: >-` frontmatter block rendered as `>-` in
+the listing; a skill installed mid-turn could not be loaded until the next turn; an MCP config entry
+that failed to parse vanished from the view; a server's instructions arrived one turn after its
+tools; a server killed mid-turn still read `connected` in the view.
+
+## 10. Answers (2026-11-09)
 
 1. **Both sources, the way v1 does it.** Cloud rows plus the json files: the rows are what Settings
    writes, the clone's files are what a repo commits, and `.mcp.json` / `.atlas/mcp.json` are read in
