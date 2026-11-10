@@ -24,6 +24,7 @@
     "@dltech/atlas-plugin-shells": "workspace:*",
     "@dltech/atlas-plugin-sdk": "workspace:*",
     "@dltech/atlas-protocol": "workspace:*",
+    "@dltech/atlas-schedule": "workspace:*",
     "@dltech/atlas-ui": "workspace:*",
     "@dltech/atlas-wire": "workspace:*",
     "@tanstack/react-query": "^5.105.0",

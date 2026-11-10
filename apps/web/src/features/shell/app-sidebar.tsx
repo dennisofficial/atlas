@@ -10,6 +10,7 @@ import {
 } from '@dltech/atlas-ui/components/sidebar'
 
 import { UpdateCard } from '@/features/desktop/update-card'
+import { RoutineSidebarList } from '@/features/routines/routine-sidebar-list'
 import { initialsOf } from '@/features/settings/session/initials'
 import { useSessionUser } from '@/features/settings/session/use-session-identity'
 import { EQueryState } from '@/lib/use-cloud-query'
@@ -20,7 +21,7 @@ import { ShellBottomNav } from './shell-bottom-nav'
 import { ShellSidebarContent } from './shell-sidebar-content'
 import { ShellTopBar } from './shell-top-bar'
 import { SidebarVersion } from './sidebar-version'
-import type { EAppNav } from './shell-types'
+import { EAppNav } from './shell-types'
 import { useOpenSearchRequests } from './search-events'
 import { useSearchHotkey } from './use-search-hotkey'
 import { useShellEntries } from './use-shell-entries'
@@ -28,10 +29,16 @@ import { useShellEntries } from './use-shell-entries'
 export interface AppSidebarProps {
   activeThreadId: string | null
   activeSessionId?: string | null
+  activeRoutineId?: string | null
   activeNav: EAppNav
 }
 
-export function AppSidebar({ activeThreadId, activeSessionId = null, activeNav }: AppSidebarProps) {
+export function AppSidebar({
+  activeThreadId,
+  activeSessionId = null,
+  activeRoutineId = null,
+  activeNav,
+}: AppSidebarProps) {
   const query = useShellEntries(activeThreadId)
   const { user } = useSessionUser()
   const [searchOpen, setSearchOpen] = useState(false)
@@ -45,9 +52,13 @@ export function AppSidebar({ activeThreadId, activeSessionId = null, activeNav }
   return (
     <>
       <Sidebar collapsible="icon">
-        <ShellTopBar onSearch={handleOpenSearch} />
+        <ShellTopBar nav={activeNav} onSearch={handleOpenSearch} />
         <SidebarContent className="group-data-[collapsible=icon]:hidden">
-          <ShellSidebarContent query={query} activeThreadId={activeThreadId ?? activeSessionId} />
+          {activeNav === EAppNav.Routines ? (
+            <RoutineSidebarList activeRoutineId={activeRoutineId} />
+          ) : (
+            <ShellSidebarContent query={query} activeThreadId={activeThreadId ?? activeSessionId} />
+          )}
         </SidebarContent>
         <SidebarFooter variant="bordered" className="group-data-[collapsible=icon]:mt-auto">
           <div className="group-data-[collapsible=icon]:hidden empty:hidden">

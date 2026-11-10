@@ -1,4 +1,4 @@
-import { FolderKanban, MessagesSquare } from 'lucide-react'
+import { CalendarClock, FolderKanban, MessagesSquare } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import Link from 'next/link'
 
@@ -16,6 +16,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { nav: EAppNav.Threads, label: 'Threads', href: '/threads', Icon: MessagesSquare },
+  { nav: EAppNav.Routines, label: 'Routines', href: '/routines', Icon: CalendarClock },
   {
     nav: EAppNav.Projects,
     label: 'Projects',

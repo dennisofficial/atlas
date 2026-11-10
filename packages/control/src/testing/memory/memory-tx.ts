@@ -28,9 +28,12 @@ import {
 } from './memory-inbox'
 import {
   advanceRoutineIn,
+  deleteRoutineIn,
+  insertRoutineIn,
   insertRoutineRunIn,
   lockRoutineIn,
   readRoutineIn,
+  updateRoutineIn,
 } from './memory-routines'
 import { subscriptionLeaseKey } from './memory-state'
 import { blobHashesPresent, insertBlobRows, readBlobRow } from './memory-blobs'
@@ -284,5 +287,17 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
 
   async insertRoutineRun(params: InsertRoutineRunParams): Promise<void> {
     await insertRoutineRunIn({ state: this.state, ...params })
+  }
+
+  async insertRoutine(row: RoutineRow): Promise<void> {
+    await insertRoutineIn({ state: this.state, row })
+  }
+
+  async updateRoutine(row: RoutineRow): Promise<void> {
+    await updateRoutineIn({ state: this.state, row })
+  }
+
+  async deleteRoutine(routineId: string): Promise<void> {
+    await deleteRoutineIn({ state: this.state, routineId })
   }
 }

@@ -16,6 +16,7 @@ export type ControlSessionRow = {
   modelFast: boolean | null
   spawnedBySessionId: string | null
   podSessionId: string | null
+  routineId: string | null
 }
 
 export type SessionListParams = {
@@ -106,7 +107,7 @@ export type RoutineRow = {
   updatedAt: string
 }
 
-export type RoutineRunOutcome = 'started' | 'skipped-busy' | 'skipped'
+export type RoutineRunOutcome = 'started' | 'skipped-busy' | 'skipped' | 'failed'
 
 export type AdvanceRoutineParams = {
   routineId: string
@@ -128,6 +129,22 @@ export type InsertRoutineRunParams = {
 }
 
 export type ListDueRoutinesParams = { now: string; limit: number }
+
+export type RoutineRunRow = {
+  id: string
+  routineId: string
+  scheduledFor: string
+  outcome: RoutineRunOutcome
+  reason: string | null
+  sessionId: string | null
+  at: string
+}
+
+export type ListRoutinesParams = { userId: string; projectId?: string | undefined }
+
+export type ReadRoutineForUserParams = { routineId: string; userId: string }
+
+export type ListRoutineRunsParams = { routineId: string; limit: number }
 
 export type ThreadRow = {
   threadId: string
@@ -185,6 +202,7 @@ export interface ControlTx {
     modelFast?: boolean | undefined
     spawnedBySessionId?: string | undefined
     podSessionId?: string | undefined
+    routineId?: string | undefined
     at: string
   }): Promise<void>
   readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined>
@@ -257,9 +275,15 @@ export interface ControlTx {
   readRoutine(routineId: string): Promise<RoutineRow | undefined>
   advanceRoutine(params: AdvanceRoutineParams): Promise<boolean>
   insertRoutineRun(params: InsertRoutineRunParams): Promise<void>
+  insertRoutine(row: RoutineRow): Promise<void>
+  updateRoutine(row: RoutineRow): Promise<void>
+  deleteRoutine(routineId: string): Promise<void>
 }
 
 export abstract class ControlStorePort {
   abstract transact<T>(work: (tx: ControlTx) => Promise<T>): Promise<T>
   abstract listDueRoutines(params: ListDueRoutinesParams): Promise<RoutineRow[]>
+  abstract listRoutines(params: ListRoutinesParams): Promise<RoutineRow[]>
+  abstract readRoutineForUser(params: ReadRoutineForUserParams): Promise<RoutineRow | undefined>
+  abstract listRoutineRuns(params: ListRoutineRunsParams): Promise<RoutineRunRow[]>
 }

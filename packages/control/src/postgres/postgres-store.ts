@@ -12,7 +12,11 @@ import {
   type ControlTx,
   type InsertRoutineRunParams,
   type ListDueRoutinesParams,
+  type ListRoutineRunsParams,
+  type ListRoutinesParams,
+  type ReadRoutineForUserParams,
   type RoutineRow,
+  type RoutineRunRow,
   type ReadEventsParams,
   type StoredEvent,
   type ThreadRow,
@@ -63,10 +67,16 @@ import {
 } from './postgres-views'
 import {
   advanceRoutineIn,
+  deleteRoutineIn,
   dueRoutinesIn,
+  insertRoutineIn,
   insertRoutineRunIn,
   lockRoutineIn,
   readRoutineIn,
+  routineRunsIn,
+  updateRoutineIn,
+  userRoutineIn,
+  userRoutinesIn,
 } from './postgres-routines'
 import { deleteSubscriptionLeaseIn, upsertSubscriptionLeaseIn } from './postgres-subscriptions'
 import { toLease, toThreadRow } from './postgres-rows'
@@ -333,6 +343,18 @@ class PostgresTx implements ControlTx {
   async insertRoutineRun(params: InsertRoutineRunParams): Promise<void> {
     await insertRoutineRunIn({ tx: this.tx, ...params })
   }
+
+  async insertRoutine(row: RoutineRow): Promise<void> {
+    await insertRoutineIn({ tx: this.tx, row })
+  }
+
+  async updateRoutine(row: RoutineRow): Promise<void> {
+    await updateRoutineIn({ tx: this.tx, row })
+  }
+
+  async deleteRoutine(routineId: string): Promise<void> {
+    await deleteRoutineIn({ tx: this.tx, routineId })
+  }
 }
 
 export class PostgresControlStore extends ControlStorePort {
@@ -347,6 +369,24 @@ export class PostgresControlStore extends ControlStorePort {
   listDueRoutines(params: ListDueRoutinesParams): Promise<RoutineRow[]> {
     return retryOnConnectionLoss(() =>
       this.db.transaction((tx) => dueRoutinesIn({ tx, ...params })),
+    )
+  }
+
+  listRoutines(params: ListRoutinesParams): Promise<RoutineRow[]> {
+    return retryOnConnectionLoss(() =>
+      this.db.transaction((tx) => userRoutinesIn({ tx, ...params })),
+    )
+  }
+
+  readRoutineForUser(params: ReadRoutineForUserParams): Promise<RoutineRow | undefined> {
+    return retryOnConnectionLoss(() =>
+      this.db.transaction((tx) => userRoutineIn({ tx, ...params })),
+    )
+  }
+
+  listRoutineRuns(params: ListRoutineRunsParams): Promise<RoutineRunRow[]> {
+    return retryOnConnectionLoss(() =>
+      this.db.transaction((tx) => routineRunsIn({ tx, ...params })),
     )
   }
 }

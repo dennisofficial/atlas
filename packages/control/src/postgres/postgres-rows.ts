@@ -1,6 +1,13 @@
 import type { Hash, InboxEntry, Lease } from '@dltech/atlas-core'
 
-import type { ControlSessionRow, RoutineRow, StoredEvent, ThreadRow } from '../port'
+import type {
+  ControlSessionRow,
+  RoutineRow,
+  RoutineRunOutcome,
+  RoutineRunRow,
+  StoredEvent,
+  ThreadRow,
+} from '../port'
 
 export const iso = (value: Date): string => value.toISOString()
 
@@ -43,6 +50,7 @@ export const toSessionRow = (row: {
   modelFast: boolean | null
   spawnedBySessionId: string | null
   podSessionId: string | null
+  routineId: string | null
 }): ControlSessionRow => ({
   sessionId: row.id,
   userId: row.userId,
@@ -56,6 +64,7 @@ export const toSessionRow = (row: {
   modelFast: row.modelFast,
   spawnedBySessionId: row.spawnedBySessionId,
   podSessionId: row.podSessionId,
+  routineId: row.routineId,
 })
 
 export const toRoutineRow = (row: {
@@ -92,6 +101,43 @@ export const toRoutineRow = (row: {
   lastSessionId: row.lastSessionId,
   createdAt: iso(row.createdAt),
   updatedAt: iso(row.updatedAt),
+})
+
+export const fromRoutineRow = (row: RoutineRow) => ({
+  id: row.routineId,
+  userId: row.userId,
+  projectId: row.projectId,
+  name: row.name,
+  prompt: row.prompt,
+  cron: row.cron,
+  timezone: row.timezone,
+  enabled: row.enabled,
+  modelRef: row.modelRef,
+  modelEffort: row.modelEffort,
+  modelFast: row.modelFast,
+  nextRunAt: new Date(row.nextRunAt),
+  lastRunAt: row.lastRunAt === null ? null : new Date(row.lastRunAt),
+  lastSessionId: row.lastSessionId,
+  createdAt: new Date(row.createdAt),
+  updatedAt: new Date(row.updatedAt),
+})
+
+export const toRoutineRunRow = (row: {
+  id: string
+  routineId: string
+  scheduledFor: Date
+  outcome: string
+  reason: string | null
+  sessionId: string | null
+  at: Date
+}): RoutineRunRow => ({
+  id: row.id,
+  routineId: row.routineId,
+  scheduledFor: iso(row.scheduledFor),
+  outcome: row.outcome as RoutineRunOutcome,
+  reason: row.reason,
+  sessionId: row.sessionId,
+  at: iso(row.at),
 })
 
 export const toThreadRow = (row: {

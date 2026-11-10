@@ -17,6 +17,7 @@ export const isV2Session = (session: ShellSessionNode): boolean => session.v2 ==
 const rowViewOf = (summary: V2SessionSummary): V2RowView => ({
   status: summary.status?.state,
   branch: summary.primaryBranch ?? undefined,
+  routineId: summary.routineId ?? undefined,
   pullRequest:
     summary.pullRequest === null || summary.pullRequest === undefined
       ? undefined

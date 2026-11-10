@@ -8,6 +8,7 @@ export type V2RowView = {
   status: ESessionStatus | undefined
   branch: string | undefined
   pullRequest: PullRequestEntry | undefined
+  routineId: string | undefined
 }
 
 const ICON: Record<ESessionStatus, EThreadStatus> = {
