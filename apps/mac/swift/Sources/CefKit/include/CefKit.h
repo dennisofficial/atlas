@@ -11,8 +11,6 @@ BOOL AtlasCefInitialize(int argc, char * _Nullable argv[]);
 
 void AtlasCefDoMessageLoopWork(void);
 
-void AtlasCefShutdown(void);
-
 #ifdef __cplusplus
 }
 #endif

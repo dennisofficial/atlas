@@ -535,18 +535,39 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: did this change reach the CEF spike
+        id: reach
+        run: |
+          base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          files=""
+          if [ -n "$base" ] && git rev-parse --quiet --verify "$base^{commit}" >/dev/null; then
+            files=$(git diff --name-only "$base...HEAD")
+          fi
+          if [ -z "$base" ] || echo "$files" | grep -qE '^(apps/mac/swift/|\.github/|bun\.lock|package\.json)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "no change here reaches the CEF spike; nothing to build"
+          fi
 
       - uses: oven-sh/setup-bun@v2.2.0
+        if: steps.reach.outputs.run == 'true'
 
       - uses: actions/cache@v6
+        if: steps.reach.outputs.run == 'true'
         with:
           path: apps/mac/swift/.cef
           key: cef-156.0.26-g8ea0c73-macosarm64-minimal
 
       - name: fetch CEF
+        if: steps.reach.outputs.run == 'true'
         run: bun apps/mac/swift/scripts/fetch-cef.ts
 
       - name: build the CEF C++ wrapper
+        if: steps.reach.outputs.run == 'true'
         run: |
           cmake -S apps/mac/swift/.cef -B apps/mac/swift/.build/cef-wrapper \
             -DCMAKE_BUILD_TYPE=Release \
@@ -555,12 +576,15 @@ jobs:
           cmake --build apps/mac/swift/.build/cef-wrapper --target libcef_dll_wrapper --parallel 4
 
       - name: build the CEF spike
+        if: steps.reach.outputs.run == 'true'
         run: swift build -c release --package-path apps/mac/swift
 
       - name: pack the app
+        if: steps.reach.outputs.run == 'true'
         run: bun apps/mac/swift/scripts/pack-cef-spike.ts
 
       - name: launch the packed app and wait for the load to end
+        if: steps.reach.outputs.run == 'true'
         run: |
           app="apps/mac/swift/.build/cef-spike/CefPaneSpike.app/Contents/MacOS/CefPaneSpike"
           log="$RUNNER_TEMP/spike.log"
@@ -576,10 +600,12 @@ jobs:
           grep -q "cef: load end status=200" "$log"
 
       - name: short sha
+        if: steps.reach.outputs.run == 'true'
         id: sha
         run: echo "short=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v4
+        if: steps.reach.outputs.run == 'true'
         with:
           name: CefPaneSpike-${{ steps.sha.outputs.short }}-mac-arm64
           path: apps/mac/swift/.build/cef-spike/*.zip

@@ -40,9 +40,10 @@ final class SpikeDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         NSApp.terminate(nil)
     }
 
-    func applicationWillTerminate(_ notification: Notification) {
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         stopPump()
-        AtlasCefShutdown()
+        // CEF 156 sends AppKit's -isHandlingSendEvent, dropped in macOS 27, so the process exits without CefShutdown.
+        return .terminateNow
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
