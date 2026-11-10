@@ -86,21 +86,40 @@ works without the Mac.
 - `apps/web/src/features/threads/panel/preview/desktop/pane-slot.tsx` — a div that measures itself,
   sends `show`/`setRect`/`hide`, and tells the client when a dialog covers it.
 
-## Engine: the one open decision
+## Engine
 
 The pane is already a native view — `renderer="cef"`, and the `cef #2` in the on-screen diagnostics
 is that view's host id. The iframe layer is the browser client's. So the question is not "native
 versus iframe"; it is which native engine, behind the same port.
-- **WKWebView** (electrobun's `native` renderer): Apple owns the view lifecycle, no upstream OOPIF
-  flake, no ~300 MB CEF in the bundle, `WKUserScript` for titles. Older WebKit.
-- **CEF**: Chromium rendering. Observed 2026-11-09: Google sign-in completes in CEF, so its
-  compatibility edge is real and the embedded-browser argument against it does not hold. The cost is
-  the ~300 MB bundle and CEF's own lifecycle flake, which is the seam this design has to survive.
 
-WebAuthn is out either way: the embedded browser carries no macOS platform authenticator.
+Measured 2026-11-10 in Claude Desktop's own browser pane, the app this pane is judged against, by
+serving a probe page and reading it back (`window.top === window`, `navigator.userAgentData`,
+`PublicKeyCredential`, a `Partitioned; SameSite=None; Secure` cookie):
 
-The seam is identical either way; only `pane-engine.ts` differs, so the port can ship first and the
-engine chosen after a live comparison.
+| fact                | value                                                                                                                             |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| engine              | Chromium 152.0.7977.167 (`userAgentData.brands` says `Chromium 152`, no Google Chrome brand)                                      |
+| host                | Electron (framework in the bundle), Electron token stripped from the UA: `… Claude/4.23118.1 Chrome/152.0.7977.167 Safari/537.36` |
+| framing             | top-level document, no referrer — a sibling web contents in the app window, not an iframe                                         |
+| partitioned cookies | supported (CHIPS writes and reads back)                                                                                           |
+| WebAuthn            | `PublicKeyCredential` present, platform authenticator `true`, conditional mediation `true`                                        |
+| popups              | blocked; `navigator.webdriver` false                                                                                              |
+| geometry            | content 946×1140 CSS px inside a 2056×1290 window — a split, right-hand pane                                                      |
+
+What that settles:
+- **WebKit is not the long-term engine.** It has no `Partitioned` attribute, so a site using CHIPS
+  cannot stay signed in: observed as a 401 loop in our WKWebView pane on 2026-11-09, and as working
+  sign-in in that Chromium pane the next day on the same app.
+- **"WebAuthn is out either way" was wrong and is withdrawn.** A macOS Chromium pane exposes the
+  platform authenticator. Whether a CEF host has to implement the delegate itself is still open; the
+  engine class is not the blocker.
+- The compatibility bar is Chromium, and both reference apps reach it by embedding Chromium rather
+  than using the system web view.
+
+So the live choice is WKWebView now with a known engine tail, or CEF with parity at the cost of the
+~300 MB bundle, helper-process signing and a lifecycle we have to survive. The seam is identical
+either way; only `pane-engine.ts` differs, so the port ships first and the engine is swapped behind
+it.
 
 ## Slices
 
