@@ -8,6 +8,11 @@
     "api": "anthropic-messages",
     "contextWindow": 1000000,
     "imageTier": "high-resolution",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 10,
@@ -32,6 +37,11 @@
     "api": "anthropic-messages",
     "contextWindow": 1000000,
     "imageTier": "high-resolution",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 10,
@@ -50,12 +60,46 @@
   {
     "ref": {
       "providerId": "anthropic",
+      "modelId": "claude-fable-5-2"
+    },
+    "label": "Claude Fable 5.2",
+    "api": "anthropic-messages",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 8,
+      "outputPerMillion": 40,
+      "cacheReadPerMillion": 0.2,
+      "cacheWritePerMillion": 10
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "anthropic",
       "modelId": "claude-haiku-4-5"
     },
     "label": "Claude Haiku 4.5 (latest)",
     "api": "anthropic-messages",
     "contextWindow": 200000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 64000,
     "cost": {
       "inputPerMillion": 1,
@@ -78,6 +122,11 @@
     "api": "anthropic-messages",
     "contextWindow": 200000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 64000,
     "cost": {
       "inputPerMillion": 1,
@@ -100,6 +149,11 @@
     "api": "anthropic-messages",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 0.1,
@@ -124,6 +178,11 @@
     "api": "anthropic-messages",
     "contextWindow": 200000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 64000,
     "cost": {
       "inputPerMillion": 5,
@@ -146,6 +205,11 @@
     "api": "anthropic-messages",
     "contextWindow": 200000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 64000,
     "cost": {
       "inputPerMillion": 5,
@@ -168,6 +232,11 @@
     "api": "anthropic-messages",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 5,
@@ -191,6 +260,11 @@
     "api": "anthropic-messages",
     "contextWindow": 1000000,
     "imageTier": "high-resolution",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 5,
@@ -215,6 +289,11 @@
     "api": "anthropic-messages",
     "contextWindow": 1000000,
     "imageTier": "high-resolution",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 5,
@@ -239,6 +318,11 @@
     "api": "anthropic-messages",
     "contextWindow": 1000000,
     "imageTier": "high-resolution",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 5,
@@ -263,6 +347,11 @@
     "api": "anthropic-messages",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 4,
@@ -287,6 +376,11 @@
     "api": "anthropic-messages",
     "contextWindow": 200000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 64000,
     "cost": {
       "inputPerMillion": 3,
@@ -309,6 +403,11 @@
     "api": "anthropic-messages",
     "contextWindow": 200000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 64000,
     "cost": {
       "inputPerMillion": 3,
@@ -331,6 +430,11 @@
     "api": "anthropic-messages",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 3,
@@ -354,6 +458,11 @@
     "api": "anthropic-messages",
     "contextWindow": 1000000,
     "imageTier": "high-resolution",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 2,
@@ -378,6 +487,11 @@
     "api": "anthropic-messages",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 2,

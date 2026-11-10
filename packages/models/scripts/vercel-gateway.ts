@@ -17,6 +17,12 @@ const modelSchema = z.object({
   context_window: z.number().optional(),
   max_tokens: z.number().optional(),
   tags: z.array(z.string()).optional(),
+  modalities: z
+    .object({
+      input: z.array(z.string()),
+      output: z.array(z.string()).optional(),
+    })
+    .optional(),
   reasoning_options: z.array(reasoningOptionSchema).nullable().optional(),
   pricing: z
     .object({

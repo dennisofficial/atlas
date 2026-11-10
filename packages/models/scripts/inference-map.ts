@@ -53,6 +53,7 @@ function cardFor(model: InferenceModel): GeneratedCard | undefined {
     api: OPENAI_COMPLETIONS_API,
     contextWindow,
     imageTier: imageTierFor(model.id),
+    ...(model.input_modalities === undefined ? {} : { inputModalities: model.input_modalities }),
     ...(maxOutputTokens === undefined ? {} : { maxOutputTokens }),
     ...(inputPerMillion === undefined || outputPerMillion === undefined
       ? {}

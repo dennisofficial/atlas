@@ -47,6 +47,7 @@ export type GeneratedCard = {
   api: string
   contextWindow: number
   imageTier: string
+  inputModalities?: readonly string[]
   maxOutputTokens?: number
   cost?: {
     inputPerMillion: number
@@ -114,7 +115,7 @@ export function toModelCard(row: GeneratedCard): ModelCard | undefined {
     api: row.api,
     contextWindow: row.contextWindow,
     imageTier,
-    image: imageCapabilitiesOf({ api: row.api, ref: row.ref }),
+    image: imageCapabilitiesOf({ api: row.api, inputModalities: row.inputModalities }),
     ...(row.maxOutputTokens === undefined ? {} : { maxOutputTokens: row.maxOutputTokens }),
     ...(cost === undefined ? {} : { cost }),
     ...(effort === undefined ? {} : { effort }),

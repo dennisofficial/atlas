@@ -64,4 +64,17 @@ describe('mapGatewayModels', () => {
     const { cards } = mapGatewayModels([model({ pricing: undefined })])
     expect(cards[0]?.cost).toBeUndefined()
   })
+
+  it('carries the input modalities the gateway publishes', () => {
+    const { cards } = mapGatewayModels([
+      model({ id: 'moonshotai/kimi-k3-fast', modalities: { input: ['text', 'image'] } }),
+    ])
+
+    expect(cards[0]?.inputModalities).toEqual(['text', 'image'])
+  })
+
+  it('leaves modalities off a row the gateway published none for', () => {
+    const { cards } = mapGatewayModels([model({ modalities: undefined })])
+    expect(cards[0]?.inputModalities).toBeUndefined()
+  })
 })
