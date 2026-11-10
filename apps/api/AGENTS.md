@@ -40,7 +40,12 @@ resolves the owner's `UserVercelCredential` (`userVercel.*`) with token, team an
 both boot paths on a fresh create and read by `platform/sandboxes/pod-project.ts`): every later
 resume, renewal, stop, resize and delete targets that project, so moving the credential to another
 project only moves sandboxes created after it — old pods keep working until their sandbox is
-destroyed, and the snapshot sweeper covers every project still in use. A
+destroyed, and the snapshot sweeper covers every project still in use. **Sandbox storage ends a day after a session is archived.**
+`archived-sandbox-sweep` deletes the pod of a session archived past `ARCHIVED_SANDBOX_GRACE_MS`
+(24 h), and `orphan-sandbox-sweep` deletes stopped
+sandboxes whose name no unarchived session resolves (a deleted thread's pod, a dead v2 session's, a
+probe's) — a sandbox is addressed only by name, so a name nothing resolves is unreachable storage.
+The session rows stay for analytics. A
 missing piece still creates the thread and message and answers `not-configured` with the gap. The
 API env `VERCEL_*` only inspect and stop TUI BYO rows; they never create a sandbox.
 

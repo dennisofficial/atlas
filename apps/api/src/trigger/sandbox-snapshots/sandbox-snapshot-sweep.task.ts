@@ -6,7 +6,7 @@ import { workerEnvService } from '../github/github-sweep-graph'
 
 export const sandboxSnapshotSweepTask = schedules.task({
   id: 'sandbox-snapshot-sweep',
-  cron: '41 5 * * *',
+  cron: '35 * * * *',
   retry: { maxAttempts: 3 },
   run: async () => {
     const logger = new Logger('SandboxSnapshotSweep')

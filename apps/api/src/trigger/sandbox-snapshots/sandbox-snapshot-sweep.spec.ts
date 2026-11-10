@@ -104,7 +104,7 @@ describe('sandboxSnapshotSweepTask', () => {
     const { sandboxSnapshotSweepTask } = await import('./sandbox-snapshot-sweep.task')
     expect(sandboxSnapshotSweepTask).toMatchObject({
       id: 'sandbox-snapshot-sweep',
-      cron: '41 5 * * *',
+      cron: '35 * * * *',
       retry: { maxAttempts: 3 },
     })
   })

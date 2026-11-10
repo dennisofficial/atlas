@@ -2,7 +2,7 @@ import { db, type Row } from '@dltech/atlas-db'
 import type { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import type { VercelSandboxClient } from '../../platform/sandboxes/vercel-sandbox.client'
 
-export const ARCHIVED_SANDBOX_GRACE_MS = 7 * 24 * 60 * 60 * 1_000
+export const ARCHIVED_SANDBOX_GRACE_MS = 24 * 60 * 60 * 1_000
 
 export type ArchivedSandboxSweepDeps = {
   deleteSandbox: VercelSandboxClient['delete']
