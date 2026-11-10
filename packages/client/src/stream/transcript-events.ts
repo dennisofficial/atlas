@@ -39,6 +39,7 @@ const carriedOf = (event: V2Event): Event => withoutChain(event) as unknown as E
 const NO_PLUGIN_TYPES: ReadonlySet<string> = new Set()
 
 const transcriptEventOf = (event: V2Event, pluginTypes: ReadonlySet<string>): Event | null => {
+  const type: string = event.type
   switch (event.type) {
     case 'history-rewound':
     case 'input-consumed':
@@ -55,7 +56,7 @@ const transcriptEventOf = (event: V2Event, pluginTypes: ReadonlySet<string>): Ev
       return compactedOf(event)
     default:
       if (isCoreEvent(event)) return resolvedOf(withoutChain(event))
-      return pluginTypes.has(event.type) ? carriedOf(event) : null
+      return pluginTypes.has(type) ? carriedOf(event) : null
   }
 }
 

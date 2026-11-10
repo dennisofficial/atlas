@@ -197,7 +197,7 @@ describe('transcriptEventsOf', () => {
     })
 
     expect(
-      transcriptEventsOf(events, new Set(['probe-observed'])).map((event) => event.type),
+      transcriptEventsOf(events, new Set(['probe-observed'])).map((event) => `${event.type}`),
     ).toEqual(['user-said', 'probe-observed'])
   })
 
