@@ -252,6 +252,59 @@ describe('createPaneSync', () => {
     expect(sent.slice(1)).toEqual([{ kind: 'navigate', url: 'https://example.com/b' }])
   })
 
+  it('shows a remounted target without navigating when its url is unchanged', async () => {
+    const first = slotAt(RECT)
+    const firstRun = recorder()
+    const firstSync = createPaneSync({
+      element: first.element,
+      id: 'pane:remount:unchanged',
+      url: URL_A,
+      send: firstRun.send,
+      environment: fakeEnvironment().environment,
+    })
+    await settle()
+    firstSync.stop()
+    const second = slotAt(RECT)
+    const secondRun = recorder()
+    createPaneSync({
+      element: second.element,
+      id: 'pane:remount:unchanged',
+      url: URL_A,
+      send: secondRun.send,
+      environment: fakeEnvironment().environment,
+    })
+    await settle()
+    expect(secondRun.sent.filter((command) => command.kind === 'navigate')).toEqual([])
+    expect(secondRun.sent[0]).toMatchObject({ kind: 'show', url: URL_A })
+  })
+
+  it('navigates a remounted target whose url changed while it was away', async () => {
+    const first = slotAt(RECT)
+    const firstRun = recorder()
+    const firstSync = createPaneSync({
+      element: first.element,
+      id: 'pane:remount:changed',
+      url: URL_A,
+      send: firstRun.send,
+      environment: fakeEnvironment().environment,
+    })
+    await settle()
+    firstSync.stop()
+    const second = slotAt(RECT)
+    const secondRun = recorder()
+    createPaneSync({
+      element: second.element,
+      id: 'pane:remount:changed',
+      url: 'https://example.com/moved',
+      send: secondRun.send,
+      environment: fakeEnvironment().environment,
+    })
+    await settle()
+    expect(secondRun.sent.filter((command) => command.kind === 'navigate')).toEqual([
+      { kind: 'navigate', url: 'https://example.com/moved' },
+    ])
+  })
+
   it('keeps one command in flight and sends the latest after it settles', async () => {
     const { element, place } = slotAt(RECT)
     const { sent, send, settle } = deferred()

@@ -87,10 +87,12 @@ describe('createPaneRegistry', () => {
     expect(registry.size()).toBe(1)
   })
 
-  test('reloads when the target is shown at a url it is not on', () => {
+  test('keeps the page when the target is shown again, and moves it only on navigate', () => {
     const { registry, at } = registryWith()
     registry.apply({ kind: 'show', id: 'a', url: URL_A, rect: RECT })
     registry.apply({ kind: 'show', id: 'a', url: 'https://example.com/b', rect: RECT })
+    expect(at('a').loads).toEqual([URL_A])
+    registry.apply({ kind: 'navigate', id: 'a', url: 'https://example.com/b' })
     expect(at('a').loads).toEqual([URL_A, 'https://example.com/b'])
   })
 

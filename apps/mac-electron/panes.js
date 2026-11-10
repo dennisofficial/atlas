@@ -66,8 +66,7 @@ export function createPaneRegistry({ create, release, limit = PANE_TARGET_LIMIT 
       if (otherId !== id) other.view.setVisible(false)
     }
     const entry = held.get(id) ?? createFor(id)
-    const loaded = entry.view.webContents.getURL()
-    if (loaded === '' || loaded !== command.url) void entry.view.webContents.loadURL(command.url)
+    if (entry.view.webContents.getURL() === '') void entry.view.webContents.loadURL(command.url)
     entry.view.setBounds(command.rect)
     entry.view.setVisible(true)
     entry.shownAt = ++clock

@@ -31,8 +31,11 @@ export type PaneSync = { apply: (url: string) => void; stop: () => void }
 
 const MEASURE_EVENTS = ['scroll', 'resize'] as const
 
+const requestedUrlByTarget = new Map<string, string>()
+
 export function createPaneSync(args: {
   element: HTMLElement
+  id: string
   url: string
   send: PaneSender
   environment?: PaneEnvironment | undefined
@@ -96,7 +99,10 @@ export function createPaneSync(args: {
     if (!shown) {
       shown = true
       sent = rect
+      const previous = requestedUrlByTarget.get(args.id)
       deliver({ kind: 'show', url, rect })
+      if (previous !== undefined && previous !== url) deliver({ kind: 'navigate', url })
+      requestedUrlByTarget.set(args.id, url)
       probe()
       return
     }
@@ -118,6 +124,7 @@ export function createPaneSync(args: {
       if (stopped || next === url) return
       url = next
       if (!shown) return
+      requestedUrlByTarget.set(args.id, next)
       deliver({ kind: 'navigate', url: next })
     },
     stop: () => {

@@ -19,6 +19,7 @@ export function PaneSlot(props: { id: string; url: string }) {
     if (element === null) return
     const held = createPaneSync({
       element,
+      id,
       url: latest.current,
       send: (command) => sendPaneCommand({ id, command }),
     })
