@@ -8,6 +8,7 @@ import { dtoOf, liveUntilOf, subscriberWhereOf } from './github-delivery-routing
 import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import { normalizedRepo, repoPattern } from './github-pr-identity'
 import { GithubObservationStore } from './github-observation.store'
+import { readRepoCoverage } from './github-repo-coverage'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { deliverPrTransitions } from './github-pr-transition-push'
@@ -41,10 +42,11 @@ export class GithubPollSweeperService {
     try {
       await withGithubRequestBudget({
         store: this.observations,
-        run: () =>
+        run: async () =>
           refreshGithubQueue({
             observations: this.observations,
             hooks: this.hooks,
+            coverage: await readRepoCoverage(),
             logger: this.logger,
             resolve: (row) => this.resolvePrNumber(row),
             refresh: (target) => this.pollOne(target),

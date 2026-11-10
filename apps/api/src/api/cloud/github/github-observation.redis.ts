@@ -66,6 +66,8 @@ local category = tonumber(redis.call('GET', KEYS[3]) or '0')
 if category >= tonumber(ARGV[3]) then return 0 end
 redis.call('INCR', KEYS[3])
 redis.call('PEXPIRE', KEYS[3], 125000)
+redis.call('INCR', KEYS[4])
+redis.call('PEXPIRE', KEYS[4], 125000)
 redis.call('INCR', KEYS[1])
 redis.call('PEXPIRE', KEYS[1], 125000)
 return 1
@@ -198,10 +200,11 @@ export class RedisObservationAdapter implements ObservationAdapter {
     const minute = Math.floor(Date.now() / 60_000)
     const result = await this.client.eval(
       BUDGET,
-      3,
+      4,
       `${this.prefix}http:${minute}`,
       this.cooldownKey(identity),
       `${this.prefix}http:${minute}:${identity?.category ?? 'unclassified'}`,
+      `${this.prefix}http:${minute}:src:${identity?.source ?? 'unattributed'}`,
       Date.now(),
       GITHUB_HTTP_BUDGET_PER_MINUTE,
       identity?.category === EGithubHttpCategory.Authorization

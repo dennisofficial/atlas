@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it } from 'bun:test'
 
 import { ensureUsers, seedSubscription } from '../../../../test/github-seed'
 import { GithubRunSweeperService } from './github-run-sweeper.service'
+import type { GithubObservationStore } from './github-observation.store'
 import type { WakeEventNotice } from './github-sandbox-wake-intent'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import type { GithubWorkflowRunReads, WorkflowRunRead } from './github-workflow-run-reads'
@@ -68,7 +69,10 @@ function sweeperWith(args: {
   const wake = {
     notifyEvent: (notice: WakeEventNotice) => notices.push(notice),
   } as unknown as GithubSandboxWakeService
-  return { sweeper: new GithubRunSweeperService(github, reads, wake), notices }
+  const observations = {
+    takeHttpSlot: async () => true,
+  } as unknown as GithubObservationStore
+  return { sweeper: new GithubRunSweeperService(github, reads, wake, observations), notices }
 }
 
 const seedRunRow = (overrides: Partial<Row<'GithubSubscription'>> = {}) =>

@@ -14,6 +14,7 @@ const scope = new AsyncLocalStorage<GithubHttpBudget>()
 
 export class GithubHttpBudgetUnavailable extends HttpException {
   readonly rateLimited = true
+  readonly parked = true
   constructor() {
     super(
       'GitHub HTTP budget or shared coordinator unavailable; retry later',
@@ -23,6 +24,15 @@ export class GithubHttpBudgetUnavailable extends HttpException {
 }
 
 export class GithubCredentialCooldown extends GithubHttpBudgetUnavailable {}
+
+/**
+ * A refusal is not a failure: the work it belonged to is still valid and will run as soon as the
+ * window has room. Callers that durably queue work must park it, never charge it an attempt.
+ */
+export const isGithubBudgetParked = (failure: unknown): boolean =>
+  typeof failure === 'object' &&
+  failure !== null &&
+  (failure as { parked?: boolean }).parked === true
 
 export function withGithubRequestBudget<T>(args: {
   store: GithubHttpBudget

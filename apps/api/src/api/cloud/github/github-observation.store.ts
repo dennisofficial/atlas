@@ -5,13 +5,14 @@ import { LocalObservationAdapter, localObservationAdapter } from './github-obser
 import { RedisObservationAdapter } from './github-observation.redis'
 import { GithubObservationAcquirer } from './github-observation-acquire'
 import { authorizationAllows, authorizationKey } from './github-observation-authorization'
-import type {
-  ObservationAdapter,
-  ObservationLease,
-  ObservedPr,
-  GithubRequestIdentity,
-  GithubObservationAcquire,
-  ObservationAcquisition,
+import {
+  OBSERVATION_TTL_MS,
+  type ObservationAdapter,
+  type ObservationLease,
+  type ObservedPr,
+  type GithubRequestIdentity,
+  type GithubObservationAcquire,
+  type ObservationAcquisition,
 } from './github-observation.types'
 import { credentialFingerprint } from './github-request-budget'
 export { credentialFingerprint } from './github-request-budget'
@@ -120,6 +121,52 @@ export class GithubObservationStore {
   }
   recordAttempt(args: { key: string; failed: boolean }): Promise<void> {
     return this.coordinated(this.adapter.recordAttempt(args))
+  }
+
+  /**
+   * A proven repository authorization is shared with every reader of the same credential, so a
+   * subscribe that would otherwise spend a `/repos/{owner}/{repo}` call rides the proof the
+   * observation path already wrote.
+   */
+  async provenAccess(args: { userId: string; repoFullName: string }): Promise<boolean> {
+    const token = await this.github.findToken({ userId: args.userId })
+    if (token === undefined) return false
+    const fingerprint = credentialFingerprint(token)
+    try {
+      return await this.allows({
+        userId: args.userId,
+        fingerprint,
+        repo: normalizedRepo(args.repoFullName),
+      })
+    } catch {
+      return false
+    }
+  }
+
+  async recordAccess(args: { userId: string; repoFullName: string }): Promise<void> {
+    const token = await this.github.findToken({ userId: args.userId })
+    if (token === undefined) return
+    const key = authorizationKey({
+      userId: args.userId,
+      fingerprint: credentialFingerprint(token),
+      repo: normalizedRepo(args.repoFullName),
+    })
+    try {
+      const version = await this.coordinated(this.adapter.beginAuthorization(key))
+      await this.coordinated(
+        this.adapter.writeAuthorization({
+          key,
+          state: {
+            version,
+            checkedAt: Date.now(),
+            authorizedUntil: Date.now() + OBSERVATION_TTL_MS,
+            deniedUntil: 0,
+          },
+        }),
+      )
+    } catch {
+      return
+    }
   }
 
   private async authorizedOwners(leases: ObservationLease[], repo: string): Promise<string[]> {

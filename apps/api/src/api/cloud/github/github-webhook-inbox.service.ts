@@ -1,11 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { db, or, type Row, type Tx } from '@dltech/atlas-db'
+import { isGithubBudgetParked } from './github-request-budget'
 
 const RECONCILE_BATCH = 32
 export const MAX_ATTEMPTS = 10
 export const INLINE_LEASE_MS = 5 * 60_000
 export const RETRY_BASE_MS = 60_000
 export const RETRY_CAP_MS = 60 * 60_000
+export const PARK_RETRY_MS = 30_000
+export const BUDGET_ERROR_MARKER = 'GitHub budget'
+export const DEAD_RETENTION_MS = 7 * 24 * 60 * 60_000
+export const PROCESSED_RETENTION_MS = 24 * 60 * 60_000
 
 type InboxPayload = Row<'GithubWebhookInbox'>['payload']
 
@@ -19,6 +24,11 @@ export function retryDelayMs(attempts: number): number {
  * of a duplicate, and "did GitHub even send it?" is answerable from the database. Processing
  * failures are recorded on the row and answered 200 — GitHub must not retry-storm — and the
  * scheduled reconcile pass retries what never processed.
+ *
+ * `attempts` counts failures, never claims. A delivery the GitHub request budget refused was never
+ * attempted against GitHub at all, so it parks and is retried shortly without being charged an
+ * attempt; charging it walked whole bursts of deliveries into the dead letter and left their pull
+ * requests permanently stale.
  */
 @Injectable()
 export class GithubWebhookInboxService {
@@ -34,7 +44,7 @@ export class GithubWebhookInboxService {
           event: args.event,
           payload: (args.payload ?? null) as InboxPayload,
           receivedAt: now,
-          attempts: 1,
+          attempts: 0,
           leaseUntil: new Date(now.getTime() + INLINE_LEASE_MS),
         },
       ],
@@ -59,14 +69,24 @@ export class GithubWebhookInboxService {
     if (row === null) return
     const processingError = String(args.error).slice(0, 1000)
     const now = new Date()
-    if (row.attempts >= MAX_ATTEMPTS) {
-      await this.markDead({ row, processingError, now })
+    if (isGithubBudgetParked(args.error)) {
+      await db.orm.public.GithubWebhookInbox.where({ deliveryId: args.deliveryId }).updateAndCount({
+        processingError,
+        leaseUntil: null,
+        nextAttemptAt: new Date(now.getTime() + PARK_RETRY_MS),
+      })
+      return
+    }
+    const attempts = row.attempts + 1
+    if (attempts >= MAX_ATTEMPTS) {
+      await this.markDead({ row: { ...row, attempts }, processingError, now })
       return
     }
     await db.orm.public.GithubWebhookInbox.where({ deliveryId: args.deliveryId }).updateAndCount({
+      attempts,
       processingError,
       leaseUntil: null,
-      nextAttemptAt: new Date(now.getTime() + retryDelayMs(row.attempts)),
+      nextAttemptAt: new Date(now.getTime() + retryDelayMs(attempts)),
     })
   }
 
@@ -83,6 +103,28 @@ export class GithubWebhookInboxService {
       }
       await this.markProcessed({ deliveryId: row.deliveryId })
     }
+  }
+
+  /**
+   * Deliveries that starved to death before parking existed get one more life: the budget has room
+   * again now that covered repos are no longer timer-polled, and replaying them repairs the pull
+   * requests they were carrying without a single REST read.
+   */
+  reviveStarved(args: { now: Date }): Promise<number> {
+    return db.orm.public.GithubWebhookInbox.where((row) =>
+      row.processingError.ilike(`%${BUDGET_ERROR_MARKER}%`),
+    )
+      .where((row) => row.deadAt.gte(new Date(args.now.getTime() - DEAD_RETENTION_MS)))
+      .updateAndCount({ deadAt: null, attempts: 1, leaseUntil: null, nextAttemptAt: null })
+  }
+
+  prune(args: { now: Date }): Promise<number> {
+    return db.orm.public.GithubWebhookInbox.where((row) =>
+      or(
+        row.processedAt.lt(new Date(args.now.getTime() - PROCESSED_RETENTION_MS)),
+        row.deadAt.lt(new Date(args.now.getTime() - DEAD_RETENTION_MS)),
+      ),
+    ).deleteAndCount()
   }
 
   private async claimDue(): Promise<Row<'GithubWebhookInbox'>[]> {
@@ -106,14 +148,12 @@ export class GithubWebhookInboxService {
           })
           continue
         }
-        const attempts = row.attempts + 1
         await tx.orm.public.GithubWebhookInbox.where({
           deliveryId: row.deliveryId,
         }).updateAndCount({
-          attempts,
           leaseUntil: new Date(now.getTime() + INLINE_LEASE_MS),
         })
-        claimed.push({ ...row, attempts })
+        claimed.push(row)
       }
       return claimed
     })
@@ -128,6 +168,7 @@ export class GithubWebhookInboxService {
     await (args.tx ?? db).orm.public.GithubWebhookInbox.where({
       deliveryId: args.row.deliveryId,
     }).updateAndCount({
+      attempts: args.row.attempts,
       processingError: args.processingError,
       leaseUntil: null,
       nextAttemptAt: null,
