@@ -12,7 +12,6 @@ import {
   EMPTY_CONTROL,
   EMPTY_POD,
   type PluginPodContext,
-  EMPTY_MCP_CONTROL,
 } from '@dltech/atlas-plugin-sdk'
 import { z } from 'zod'
 import { podControlOf, type PodControlClient } from '../pod-control'
