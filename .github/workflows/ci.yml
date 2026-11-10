@@ -262,12 +262,31 @@ jobs:
       ATLAS_MAC_UNSIGNED: '1'
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # Packaging the app is most of this job's ten minutes, and the Swift shell under apps/mac/swift
+      # is not part of what build:app produces. A change that cannot reach the electrobun bundle or
+      # the web payload skips the build rather than paying for it.
+      - name: did this change reach the app
+        id: reach
+        run: |
+          files=$(git diff --name-only "${{ github.event.pull_request.base.sha }}...HEAD")
+          if echo "$files" | grep -qE '^(\.github/|apps/web/|packages/|apps/mac/(src/|scripts/|package\.json|hutch\.config\.ts|electrobun\.config\.ts|tsconfig\.json)|bun\.lock|package\.json)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "no change here reaches the app; nothing for the rehearsal to check"
+          fi
 
       - uses: oven-sh/setup-bun@v2.2.0
+        if: steps.reach.outputs.run == 'true'
 
       - run: bun install --frozen-lockfile
+        if: steps.reach.outputs.run == 'true'
 
       - uses: actions/cache/restore@v6
+        if: steps.reach.outputs.run == 'true'
         with:
           path: apps/web/.next/cache
           key: next-${{ runner.os }}-${{ hashFiles('bun.lock') }}-${{ hashFiles('apps/web/src/**', 'apps/web/*.ts', 'apps/web/*.mjs', 'apps/web/package.json') }}
@@ -276,23 +295,28 @@ jobs:
             next-${{ runner.os }}-
 
       - name: restore hutch
+        if: steps.reach.outputs.run == 'true'
         uses: actions/cache@v6
         with:
           path: ~/.hutch
           key: hutch-${{ runner.os }}-${{ hashFiles('apps/mac/hutch.config.ts', 'apps/mac/package.json') }}
 
       - name: install create-dmg
+        if: steps.reach.outputs.run == 'true'
         run: command -v create-dmg >/dev/null || brew install create-dmg
 
       - name: build unsigned app
+        if: steps.reach.outputs.run == 'true'
         run: bun run build:app
         working-directory: apps/mac
 
       - name: verify the built app server answers flight requests
+        if: steps.reach.outputs.run == 'true'
         run: bun test src/host/__tests__/built-app.spec.ts
         working-directory: apps/mac
 
       - name: verify no Chromium helper claims a Dock tile
+        if: steps.reach.outputs.run == 'true'
         run: |
           set -euo pipefail
           shopt -s nullglob
@@ -309,6 +333,7 @@ jobs:
         working-directory: apps/mac
 
       - name: list artifacts
+        if: steps.reach.outputs.run == 'true'
         run: ls -la artifacts
         working-directory: apps/mac
 
