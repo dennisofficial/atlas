@@ -33,7 +33,9 @@ const deleteSchema = z.strictObject({
 
 const NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/
 
-const builtInNames = new Set(BUILT_IN_SKILLS.map((skill) => skill.name))
+export const BUILT_IN_SKILL_NAMES: readonly string[] = BUILT_IN_SKILLS.map((skill) => skill.name)
+
+const builtInNames = new Set(BUILT_IN_SKILL_NAMES)
 
 export const isBuiltInSkillName = (name: string): boolean => builtInNames.has(name)
 

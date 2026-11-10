@@ -1,4 +1,11 @@
-import { composePlugins, definePlugin, type Plugin } from '@dltech/atlas-plugin-sdk'
+import {
+  composePlugins,
+  definePlugin,
+  EMPTY_CONTROL,
+  EMPTY_POD,
+  type Plugin,
+  type PluginPodContext,
+} from '@dltech/atlas-plugin-sdk'
 import { githubControl } from '@dltech/atlas-plugin-github/control'
 import { githubCoreSlots } from '@dltech/atlas-plugin-github/core'
 import { githubPod } from '@dltech/atlas-plugin-github/pod'
@@ -7,6 +14,8 @@ import { mcpControl } from '@dltech/atlas-plugin-mcp/control'
 import { mcpCoreSlots } from '@dltech/atlas-plugin-mcp/core'
 import { mcpPod } from '@dltech/atlas-plugin-mcp/pod'
 import { mcpServerPort } from './config/mcp-servers'
+import { skillCloudPort } from './config/skills'
+import { skillsPodOf } from '@dltech/atlas-plugin-skills/pod'
 import { memoryClient } from '@dltech/atlas-plugin-memory/client'
 import { memoryControl } from '@dltech/atlas-plugin-memory/control'
 import { memoryCoreSlots } from '@dltech/atlas-plugin-memory/core'
@@ -30,6 +39,14 @@ import { webClient } from '@dltech/atlas-plugin-web/client'
 import { webControl } from '@dltech/atlas-plugin-web/control'
 import { webCoreSlots } from '@dltech/atlas-plugin-web/core'
 import { webPod } from '@dltech/atlas-plugin-web/pod'
+
+const skillCloud = skillCloudPort()
+
+const skillsPodFor = (ctx: PluginPodContext) =>
+  skillsPodOf({
+    cloud: skillCloud.source(ctx.sessionId),
+    writes: skillCloud.writer(ctx.sessionId),
+  })
 
 export const registeredPlugins: readonly Plugin[] = [
   definePlugin({
@@ -79,6 +96,20 @@ export const registeredPlugins: readonly Plugin[] = [
     control: mcpControl,
     client: mcpClient,
     transport: 'stream',
+  }),
+  definePlugin({
+    name: 'skills',
+    events: [],
+    views: [],
+    commands: [],
+    pod: {
+      ...EMPTY_POD,
+      tools: (ctx) => skillsPodFor(ctx).tools?.(ctx) ?? [],
+      hooks: (ctx) => skillsPodFor(ctx).hooks?.(ctx) ?? {},
+    },
+    control: EMPTY_CONTROL,
+    client: { hooks: [] },
+    transport: 'none',
   }),
   definePlugin({
     name: 'sessions',

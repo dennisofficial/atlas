@@ -38,6 +38,7 @@
     "@dltech/atlas-plugin-services": "workspace:*",
     "@dltech/atlas-plugin-sessions": "workspace:*",
     "@dltech/atlas-plugin-shells": "workspace:*",
+    "@dltech/atlas-plugin-skills": "workspace:*",
     "@dltech/atlas-plugin-web": "workspace:*",
     "@dltech/atlas-previews": "workspace:*",
     "@dltech/atlas-protocol": "workspace:*",
