@@ -1,7 +1,7 @@
 import AppKit
 import WebKit
 
-final class MainWindow {
+final class MainWindow: NSObject, NSWindowDelegate {
     private let window: NSWindow
     private let web: WKWebView
     private let shell: ShellView
@@ -33,6 +33,8 @@ final class MainWindow {
             backing: .buffered,
             defer: false
         )
+        super.init()
+        window.delegate = self
         window.title = "Atlas"
         window.titleVisibility = .hidden
         window.minSize = NSSize(width: 720, height: 480)
@@ -72,6 +74,32 @@ final class MainWindow {
 
     func focus() {
         window.makeKeyAndOrderFront(nil)
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        Log.write("window shouldClose")
+        return true
+    }
+
+    func windowWillResize(_ sender: NSWindow, to frameSize: NSSize) -> NSSize {
+        Log.write("window willResize to \(frameSize)")
+        return frameSize
+    }
+
+    func windowDidResize(_ notification: Notification) {
+        Log.write("window didResize \(window.frame)")
+    }
+
+    func windowDidBecomeKey(_ notification: Notification) {
+        Log.write("window didBecomeKey")
+    }
+
+    func windowDidResignKey(_ notification: Notification) {
+        Log.write("window didResignKey")
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        Log.write("window willClose")
     }
 }
 
