@@ -25,7 +25,7 @@ function infoPlist(fields: Record<string, string | boolean>): string {
   const entries = Object.entries(fields)
     .map(([key, value]) =>
       typeof value === 'boolean'
-        ? `\t<key>${key}</key>\n\t${value}`
+        ? `\t<key>${key}</key>\n\t${value ? '<true/>' : '<false/>'}`
         : `\t<key>${key}</key>\n\t<string>${value}</string>`,
     )
     .join('\n')
