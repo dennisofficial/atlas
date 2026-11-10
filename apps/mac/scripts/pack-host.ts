@@ -42,10 +42,11 @@ export async function buildWebStandalone({ bun, root = REPO_ROOT, standalone = W
     env: { ATLAS_STREAM_URL: STREAM_URL },
   })
   rmSync(standalone, { recursive: true, force: true })
-  cpSync(join(root, 'apps', 'web', '.next', 'standalone'), standalone, {
-    recursive: true,
-    dereference: true,
-  })
+  // Bun's isolated linker leaves node_modules full of symlinks into its store. Copying them as
+  // symlinks lets flatten-web-deps replace each one with the package and its store siblings;
+  // dereferencing here would bake `next` into a real directory that can no longer resolve
+  // `@swc/helpers`, and the server then dies at startup.
+  cpSync(join(root, 'apps', 'web', '.next', 'standalone'), standalone, { recursive: true })
   await run({
     args: [bun, 'scripts/flatten-web-deps.ts', 'web-standalone'],
     cwd: APP_ROOT,
