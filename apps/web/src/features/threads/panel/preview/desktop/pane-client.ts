@@ -2,9 +2,14 @@ import type { PaneCommand } from './pane-command'
 
 export const PANE_PATH = '/desktop/pane'
 
+export const paneTargetIdOf = (args: { threadId: string; tabId: string }): string =>
+  `pane:${args.threadId}:${args.tabId}`
+
 const PROBE_TIMEOUT_MS = 2000
 
-async function post(command: PaneCommand, signal?: AbortSignal): Promise<Response | null> {
+type PaneRequest = PaneCommand & { id?: string }
+
+async function post(command: PaneRequest, signal?: AbortSignal): Promise<Response | null> {
   try {
     return await fetch(PANE_PATH, {
       method: 'POST',
@@ -32,8 +37,8 @@ function enqueue(run: () => Promise<boolean>): Promise<boolean> {
   return sent
 }
 
-export function sendPaneCommand(command: PaneCommand): Promise<boolean> {
-  return enqueue(async () => accepted(await post(command)))
+export function sendPaneCommand(args: { id: string; command: PaneCommand }): Promise<boolean> {
+  return enqueue(async () => accepted(await post({ ...args.command, id: args.id })))
 }
 
 let availability: Promise<boolean> | null = null

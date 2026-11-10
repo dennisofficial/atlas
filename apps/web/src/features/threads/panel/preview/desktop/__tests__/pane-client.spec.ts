@@ -1,7 +1,15 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
 import type { PaneCommand } from '../pane-command'
-import { PANE_PATH, paneAvailable, resetPaneAvailability, sendPaneCommand } from '../pane-client'
+import {
+  PANE_PATH,
+  paneAvailable,
+  paneTargetIdOf,
+  resetPaneAvailability,
+  sendPaneCommand,
+} from '../pane-client'
+
+const TARGET = 'pane:thread-1:tab-1'
 
 type Call = { url: string; init: RequestInit | undefined }
 
@@ -88,14 +96,38 @@ describe('paneAvailable', () => {
   })
 })
 
+describe('paneTargetIdOf', () => {
+  it('derives the same id for a target every time, so a remount lands on the same pane', () => {
+    expect(paneTargetIdOf({ threadId: 'thread-1', tabId: 'tab-1' })).toBe(TARGET)
+    expect(paneTargetIdOf({ threadId: 'thread-1', tabId: 'tab-1' })).toBe(
+      paneTargetIdOf({ threadId: 'thread-1', tabId: 'tab-1' }),
+    )
+  })
+
+  it('gives each target its own id, wherever it sits', () => {
+    const ids = [
+      paneTargetIdOf({ threadId: 'thread-1', tabId: 'tab-1' }),
+      paneTargetIdOf({ threadId: 'thread-1', tabId: 'tab-2' }),
+      paneTargetIdOf({ threadId: 'thread-2', tabId: 'tab-1' }),
+    ]
+    expect(new Set(ids).size).toBe(3)
+  })
+})
+
 describe('sendPaneCommand', () => {
+  it('carries the target id on the command', async () => {
+    replyWith(200, { ok: true })
+    expect(await sendPaneCommand({ id: TARGET, command: { kind: 'hide' } })).toBe(true)
+    expect(bodyOf(calls[0])).toEqual({ kind: 'hide', id: TARGET })
+  })
+
   it('posts the command the shell decodes', async () => {
     replyWith(200, { ok: true })
     const rect = { x: 12.5, y: 40.25, width: 700, height: 400 }
-    expect(await sendPaneCommand({ kind: 'setRect', rect })).toBe(true)
+    expect(await sendPaneCommand({ id: TARGET, command: { kind: 'setRect', rect } })).toBe(true)
     expect(calls[0]?.url).toBe(PANE_PATH)
     expect(calls[0]?.init?.headers).toEqual({ 'content-type': 'application/json' })
-    expect(bodyOf(calls[0])).toEqual({ kind: 'setRect', rect })
+    expect(bodyOf(calls[0])).toEqual({ kind: 'setRect', rect, id: TARGET })
   })
 
   it('delivers commands one at a time, in the order they were sent', async () => {
@@ -111,11 +143,14 @@ describe('sendPaneCommand', () => {
 
     try {
       const first = sendPaneCommand({
-        kind: 'show',
-        url: 'https://example.com/',
-        rect: { x: 0, y: 0, width: 1, height: 1 },
+        id: TARGET,
+        command: {
+          kind: 'show',
+          url: 'https://example.com/',
+          rect: { x: 0, y: 0, width: 1, height: 1 },
+        },
       })
-      const second = sendPaneCommand({ kind: 'hide' })
+      const second = sendPaneCommand({ id: TARGET, command: { kind: 'hide' } })
       await tick()
       expect(calls.map((call) => bodyOf(call).kind)).toEqual(['show'])
 
@@ -133,6 +168,6 @@ describe('sendPaneCommand', () => {
 
   it('reports a refused command rather than throwing', async () => {
     replyWith(400, { ok: false, error: 'invalid command' })
-    expect(await sendPaneCommand({ kind: 'hide' })).toBe(false)
+    expect(await sendPaneCommand({ id: TARGET, command: { kind: 'hide' } })).toBe(false)
   })
 })
