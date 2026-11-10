@@ -22,8 +22,7 @@ const storeWith = (args: {
 }) =>
   new McpStore({
     ctx: args.ctx,
-    repoDirectory: '/repo',
-    config: { rows: async () => args.rows() },
+    config: { read: async () => ({ rows: args.rows(), rejections: [] }) },
     connectTimeoutMs: 200,
     reconcileBudgetMs: 200,
   })

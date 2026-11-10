@@ -2,10 +2,10 @@ import type { EDefinitionOrigin, ToolDefinition } from '@dltech/atlas-core'
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
 import type { McpServerChanged, McpServerRemoved } from '../core'
-import type { LoadedMcpEntry, McpCloudRow, McpRejection } from '../core'
+import type { LoadedMcpEntry, McpRejection } from '../core'
 import { EMcpViewStatus, sameMcpRow, type McpServerRow } from '../core'
 import { McpBridgeTool } from './bridge-tool'
-import { fileReaderOf, loadMcpConfig } from './config'
+import { fileReaderOf, loadMcpConfig, type McpConfigPort } from './config'
 import { HttpClient } from './http'
 import { StdioClient } from './stdio'
 import {
@@ -31,8 +31,6 @@ export type McpServerState = {
   tools: number
   reason: string | undefined
 }
-
-export type McpConfigPort = { rows(): Promise<readonly McpCloudRow[]> }
 
 type Held = {
   spec: LoadedMcpEntry
@@ -99,7 +97,6 @@ export class McpStore {
   constructor(
     private readonly args: {
       ctx: PluginPodContext
-      repoDirectory: string | null
       config: McpConfigPort
       connectTimeoutMs: number
       reconcileBudgetMs: number
@@ -223,8 +220,8 @@ export class McpStore {
 
   private async load() {
     return await loadMcpConfig({
-      rows: await this.args.config.rows(),
-      directory: this.args.repoDirectory,
+      cloud: await this.args.config.read({ sessionId: this.args.ctx.sessionId }),
+      directory: this.args.ctx.workspaceDirectory ?? null,
       read: fileReaderOf({ call: (op) => this.args.ctx.call(op) }),
     })
   }
@@ -321,7 +318,6 @@ export class McpStores {
 
   constructor(
     private readonly args: {
-      repoDirectory: string | null
       config: McpConfigPort
       connectTimeoutMs?: number
       reconcileBudgetMs?: number
@@ -337,7 +333,6 @@ export class McpStores {
     if (kept !== undefined) return kept
     const store = new McpStore({
       ctx,
-      repoDirectory: this.args.repoDirectory,
       config: this.args.config,
       connectTimeoutMs: this.args.connectTimeoutMs ?? CONNECT_TIMEOUT_MS,
       reconcileBudgetMs: this.args.reconcileBudgetMs ?? RECONCILE_BUDGET_MS,

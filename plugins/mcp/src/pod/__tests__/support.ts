@@ -175,6 +175,7 @@ export const fakeDaemon = (
 
 export const rig = (daemon: ReturnType<typeof fakeDaemon>): PluginPodContext => ({
   sessionId: 's1',
+  workspaceDirectory: '/repo',
   control: podControlStub,
   crew: EMPTY_CREW,
   sessions: EMPTY_SESSIONS,

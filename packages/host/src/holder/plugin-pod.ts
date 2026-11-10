@@ -60,6 +60,7 @@ export const pluginPodContextOf = (args: {
   const { deps, runtime, record, threadId } = args
   return {
     sessionId: deps.sessionId,
+    workspaceDirectory: runtime.launchDirectory,
     control: podControlOf({ client: deps.control, threadId }),
     crew: args.crew,
     sessions: podSessionsOf({ plane: deps.plane, sessionId: deps.sessionId }),
