@@ -101,6 +101,26 @@ describe('UpdateCard', () => {
     await unmount()
   })
 
+  it('offers a reload when only the interface is ready', async () => {
+    asDesktop()
+    body = { state: 'idle', web: { state: 'ready', hash: 'abc123' } }
+    const unmount = await mount(<UpdateCard />)
+    expect(document.body.textContent).toContain('New interface ready')
+    expect(button('Reload')?.disabled).toBe(false)
+    await act(async () => button('Reload')?.click())
+    expect(calls).toContainEqual({ path: '/desktop/update/restart', method: 'POST' })
+    expect(button('Reloading…')?.disabled).toBe(true)
+    await unmount()
+  })
+
+  it('offers a restart when an app build and an interface are both ready', async () => {
+    asDesktop()
+    body = { state: 'ready', version: '1.2.3', web: { state: 'ready', hash: 'abc123' } }
+    const unmount = await mount(<UpdateCard />)
+    expect(button('Restart to update')?.disabled).toBe(false)
+    await unmount()
+  })
+
   it('keeps restarting while the host reports restarting', async () => {
     asDesktop()
     body = { state: 'restarting', version: '1.2.3' }

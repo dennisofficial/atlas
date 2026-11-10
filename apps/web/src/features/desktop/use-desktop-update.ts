@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react'
 import {
   type DesktopUpdate,
   EDesktopUpdateState,
+  EWebPayloadState,
   getDesktopUpdate,
   restartForUpdate,
 } from './update-wire'
@@ -13,8 +14,14 @@ import { useIsDesktop } from './use-is-desktop'
 export const UPDATE_POLL_MS = 60 * 1000
 export const RESTART_POLL_MS = 2 * 1000
 
+export enum EDesktopUpdateKind {
+  App = 'app',
+  Interface = 'interface',
+}
+
 export type DesktopUpdateView = {
   ready: boolean
+  kind: EDesktopUpdateKind | undefined
   version: string | undefined
   restarting: boolean
   error: string | undefined
@@ -29,11 +36,20 @@ export function useDesktopUpdate(): DesktopUpdateView {
   const isDesktop = useIsDesktop()
   const [update, setUpdate] = useState<DesktopUpdate>(IDLE)
   const [requested, setRequested] = useState(false)
+  const [requestedFor, setRequestedFor] = useState<EDesktopUpdateKind | undefined>(undefined)
   const [requestError, setRequestError] = useState<string | undefined>(undefined)
   const [dismissed, setDismissed] = useState(false)
 
   const restarting = requested || update.state === EDesktopUpdateState.Restarting
   const pollMs = restarting ? RESTART_POLL_MS : UPDATE_POLL_MS
+  const appReady = update.state !== EDesktopUpdateState.Idle
+  const interfaceReady = update.web?.state === EWebPayloadState.Ready
+  const liveKind = appReady
+    ? EDesktopUpdateKind.App
+    : interfaceReady
+      ? EDesktopUpdateKind.Interface
+      : undefined
+  const kind = requested ? (requestedFor ?? liveKind) : liveKind
 
   useEffect(() => {
     if (!isDesktop) return undefined
@@ -59,6 +75,7 @@ export function useDesktopUpdate(): DesktopUpdateView {
   }, [isDesktop, pollMs])
 
   const restart = useCallback(() => {
+    setRequestedFor(kind)
     setRequested(true)
     setRequestError(undefined)
     setUpdate((previous) => ({
@@ -68,13 +85,15 @@ export function useDesktopUpdate(): DesktopUpdateView {
     }))
     restartForUpdate().catch((error: unknown) => {
       setRequested(false)
+      setRequestedFor(undefined)
       setRequestError(error instanceof Error ? error.message : String(error))
     })
-  }, [])
+  }, [kind])
   const dismiss = useCallback(() => setDismissed(true), [])
 
   return {
-    ready: isDesktop && update.state !== EDesktopUpdateState.Idle,
+    ready: isDesktop && kind !== undefined,
+    kind,
     version: update.version,
     restarting,
     error: restarting ? undefined : (requestError ?? update.error),

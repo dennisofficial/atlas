@@ -12,22 +12,49 @@ import {
   CardTitle,
 } from '@dltech/atlas-ui/components/card'
 
-import { useDesktopUpdate } from './use-desktop-update'
+import { EDesktopUpdateKind, useDesktopUpdate } from './use-desktop-update'
 
-export function updateLine(version: string | undefined): string {
-  return version === undefined
-    ? 'A new version of Atlas is ready'
-    : `Atlas ${version} is ready to install`
+export interface IUpdateCopy {
+  title: string
+  line: string
+  action: string
+  busy: string
+}
+
+export function updateCopy({
+  kind,
+  version,
+}: {
+  kind: EDesktopUpdateKind
+  version: string | undefined
+}): IUpdateCopy {
+  if (kind === EDesktopUpdateKind.Interface)
+    return {
+      title: 'New interface ready',
+      line: 'Reload to pick it up',
+      action: 'Reload',
+      busy: 'Reloading…',
+    }
+  return {
+    title: 'Update ready',
+    line:
+      version === undefined
+        ? 'A new version of Atlas is ready'
+        : `Atlas ${version} is ready to install`,
+    action: 'Restart to update',
+    busy: 'Restarting…',
+  }
 }
 
 export function UpdateCard() {
   const update = useDesktopUpdate()
-  if (!update.ready || update.dismissed) return null
+  if (!update.ready || update.kind === undefined || update.dismissed) return null
+  const copy = updateCopy({ kind: update.kind, version: update.version })
   return (
-    <Card size="sm" aria-label="Update ready" role="region">
+    <Card size="sm" aria-label={copy.title} role="region">
       <CardHeader>
-        <CardTitle>Update ready</CardTitle>
-        <CardDescription>{updateLine(update.version)}</CardDescription>
+        <CardTitle>{copy.title}</CardTitle>
+        <CardDescription>{copy.line}</CardDescription>
         <CardAction>
           <Button variant="ghost" size="icon-xs" aria-label="Dismiss" onClick={update.dismiss}>
             <XIcon />
@@ -41,7 +68,7 @@ export function UpdateCard() {
           </p>
         )}
         <Button size="sm" className="w-full" disabled={update.restarting} onClick={update.restart}>
-          {update.restarting ? 'Restarting…' : 'Restart to update'}
+          {update.restarting ? copy.busy : copy.action}
         </Button>
       </CardContent>
     </Card>
