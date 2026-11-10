@@ -45,6 +45,7 @@ export interface IWebUpdater {
   pending: () => string | undefined
   applied: () => void
   installedRoot: () => Promise<string | undefined>
+  installedVersion: () => Promise<string | undefined>
   fail: (args: { hash: string }) => Promise<void>
 }
 
@@ -146,6 +147,10 @@ export function createWebUpdater({
         state,
         isComplete: (hash) => ports.fs.isComplete({ home, hash }),
       })
+    },
+    installedVersion: async () => {
+      const state: IPayloadState = await ports.fs.readState(home)
+      return state.appVersion === appVersion ? state.version : undefined
     },
     fail: async ({ hash }) => {
       const state = await ports.fs.readState(home)

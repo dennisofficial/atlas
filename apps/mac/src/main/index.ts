@@ -17,6 +17,7 @@ import { bundledWebRoot, manifestUrlOf, payloadWebRoot, webRootOverrideOf } from
 import { startOnStablePort } from '../host/stable-port'
 import { defaultDesktopHome, podConfigFromEnv } from '../host/pods/config'
 import { resolveServeVersion } from '../host/pods/serve-version'
+import { runAbout } from './about'
 import { EMenuAction, installApplicationMenu } from './menu'
 import { checkNow, EManualCheckOutcome, restartToPrepared, startAutoUpdate } from './auto-update'
 import { runCheckForUpdates } from './check-for-updates'
@@ -210,6 +211,14 @@ const startApp = async () => {
 
   ApplicationMenu.on('application-menu-clicked', (event: unknown) => {
     const action = (event as { data?: { action?: string } }).data?.action
+    if (action === EMenuAction.About)
+      void (async () => {
+        const version = await webUpdater.installedVersion()
+        await runAbout({
+          app: { version: localInfo.version, channel: localInfo.channel, chromium },
+          iface: version === undefined ? undefined : { version },
+        })
+      })().catch((error: unknown) => writeLog({ label: 'about', error }))
     if (action === EMenuAction.Settings)
       win.webview.executeJavascript(navigateScript('/settings') ?? '')
     if (action === EMenuAction.CheckForUpdates)
