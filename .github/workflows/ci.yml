@@ -613,12 +613,21 @@ jobs:
       - name: write notarization key
         env:
           APPLE_API_KEY_P8_BASE64: ${{ secrets.APPLE_API_KEY_P8_BASE64 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         run: |
           echo "$APPLE_API_KEY_P8_BASE64" | base64 --decode > "$RUNNER_TEMP/AuthKey.p8"
           echo "ELECTROBUN_APPLEAPIKEYPATH=$RUNNER_TEMP/AuthKey.p8" >> "$GITHUB_ENV"
+          # electron-builder's notarize step reads these three names, and only these three.
+          echo "APPLE_API_KEY=$RUNNER_TEMP/AuthKey.p8" >> "$GITHUB_ENV"
+          echo "APPLE_API_KEY_ID=$APPLE_API_KEY_ID" >> "$GITHUB_ENV"
+          echo "APPLE_API_ISSUER=$APPLE_API_ISSUER" >> "$GITHUB_ENV"
 
       - name: install create-dmg
         run: command -v create-dmg >/dev/null || brew install create-dmg
+
+      - name: fetch the electron binary
+        run: node apps/mac-electron/node_modules/electron/install.js
 
       - name: build signed app
         run: |
@@ -643,6 +652,48 @@ jobs:
           done
           gh release edit "$TAG" --latest --repo "$GITHUB_REPOSITORY"
         working-directory: apps/mac
+
+      # The Electron shell rides the same release as the electrobun build: one version, two assets,
+      # until the operator says the Electron app replaces it. Its version comes from the tag rather
+      # than package.json, and the identity is named so signing never depends on keychain discovery.
+      - name: build the electron dmg
+        working-directory: apps/mac-electron
+        env:
+          CSC_NAME: 'Developer ID Application: Dennis Lysenko (9H7HK25CVR)'
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#tui-v}"
+          [ -n "$VERSION" ] && [ "$VERSION" != "$TAG" ] || { echo "::error::unexpected release tag '$TAG'"; exit 1; }
+          mkdir -p build
+          iconutil -c icns ../mac/icon.iconset -o build/icon.icns
+          bun run bundle:payload
+          bun run pack:host
+          npx electron-builder --mac dmg --arm64 -c.extraMetadata.version="$VERSION"
+
+      # An installed app that refuses to launch looks like a signing bug long after this run, so the
+      # nested runtime is checked here: deep verification plus the runtime flag bun must carry.
+      - name: verify the electron signature
+        run: |
+          set -euo pipefail
+          app=$(find apps/mac-electron/release -maxdepth 2 -name '*.app' -type d | head -1)
+          [ -n "$app" ] || { echo "::error::no .app in apps/mac-electron/release"; exit 1; }
+          codesign --verify --deep --strict --verbose=2 "$app"
+          codesign -dv "$app/Contents/Resources/bin/bun" 2>&1 | tee "$RUNNER_TEMP/bun-signature.txt"
+          grep -q 'flags=0x10000(runtime)' "$RUNNER_TEMP/bun-signature.txt" || { echo "::error::the bun runtime is not signed with the hardened runtime"; exit 1; }
+          grep -q 'Authority=Developer ID Application' "$RUNNER_TEMP/bun-signature.txt" || { echo "::error::the bun runtime is not Developer ID signed"; exit 1; }
+          codesign -d --entitlements :- "$app/Contents/Resources/bin/bun" 2>/dev/null | grep -q 'com.apple.security.cs.allow-jit' || { echo "::error::the bun runtime cannot use the JIT"; exit 1; }
+          shasum -a 256 apps/mac-electron/release/*.dmg
+
+      - name: upload the electron app to the release
+        run: |
+          set -euo pipefail
+          ls -la apps/mac-electron/release/*.dmg
+          for attempt in 1 2 3; do
+            if gh release upload "$TAG" apps/mac-electron/release/*.dmg --clobber --repo "$GITHUB_REPOSITORY"; then break; fi
+            if [ "$attempt" = 3 ]; then echo "::error::upload attempt $attempt failed"; exit 1; fi
+            echo "::warning::upload attempt $attempt failed; retrying"
+            sleep $((attempt * 15))
+          done
 
       - name: remove signing material
         if: always()

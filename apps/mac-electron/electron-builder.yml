@@ -1,5 +1,5 @@
-appId: com.dltech.atlas.electron-spike
-productName: Atlas Electron Spike
+appId: io.byatlas.mac
+productName: Atlas
 directories:
   output: release
 files:
@@ -27,11 +27,20 @@ extraResources:
 asar: true
 mac:
   category: public.app-category.developer-tools
-  identity: null
-  hardenedRuntime: false
+  icon: icon.icns
+  hardenedRuntime: true
+  entitlements: entitlements.mac.plist
+  entitlementsInherit: entitlements.mac.plist
+  # The app spawns Contents/Resources/bin/bun as its desktop host. @electron/osx-sign signs every path
+  # in this list, with the hardened runtime and `entitlementsInherit`, before it signs the bundle; a
+  # nested executable left unsigned makes the installed app refuse to launch.
+  binaries:
+    - Contents/Resources/bin/bun
+  notarize: true
   target:
     - target: dmg
       arch:
         - arm64
 dmg:
-  title: ${productName} ${version}
+  title: Atlas ${version}
+  artifactName: Atlas-${version}-mac-arm64.dmg
