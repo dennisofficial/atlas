@@ -7,6 +7,7 @@ import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 import {
   EStreamClose,
   EStreamErrorCode,
+  EStreamSurface,
   STREAM_HELLO_TIMEOUT_MS,
   STREAM_MAX_CLIENT_FRAME_BYTES,
   STREAM_PROTOCOL_VERSION,
@@ -53,6 +54,7 @@ export class StreamConnection {
   readonly id = randomUUID()
   private phase = EPhase.AwaitingHello
   private bearer = ''
+  private surface = EStreamSurface.Web
   private userId: string | undefined
   private session: SubscriptionSession | undefined
   private expiresAt = 0
@@ -87,6 +89,7 @@ export class StreamConnection {
         )
         this.phase = EPhase.Authenticating
         this.bearer = decoded.message.token
+        this.surface = decoded.message.surface ?? EStreamSurface.Web
         this.authenticate(decoded.message.v)
         return
       }
@@ -166,6 +169,7 @@ export class StreamConnection {
         this.session = this.deps.subscriptions.open({
           userId: principal.userId,
           version,
+          surface: this.surface,
           send: (m) => this.send(m),
           bufferedAmount: () => this.socket.getBufferedAmount(),
           close: (code) => this.close(code),

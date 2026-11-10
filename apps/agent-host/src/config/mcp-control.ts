@@ -2,7 +2,12 @@ import { createDb, createPool, type Db } from '@dltech/atlas-db'
 import type { McpServerSource, PodMcpControl } from '@dltech/atlas-plugin-sdk'
 import { z } from 'zod'
 
-import { mcpOauthGatewayOf, type McpOauthGateway } from '../mcp-oauth'
+import {
+  mcpOauthGatewayOf,
+  surfaceOf,
+  type McpOauthGateway,
+  type McpReturnSurface,
+} from '../mcp-oauth'
 import { databaseUrlWithTls } from './database-url'
 import { readAgentHostEnv } from './env'
 import { SecretCipher } from './secret-cipher'
@@ -15,7 +20,7 @@ const grantSchema = z.object({
   tokens: z.object({ accessToken: z.string(), expiresAt: z.string().optional() }),
 })
 
-type Owner = { userId: string; projectId: string }
+type Owner = { userId: string; projectId: string; surface: McpReturnSurface }
 
 type ServerRow = {
   name: string
@@ -53,7 +58,11 @@ export const mcpControlOf = (args: {
     const read = args.db.orm.v2.V2Session.first({ id: sessionId }).then((session) =>
       session === null || session === undefined
         ? null
-        : { userId: session.userId, projectId: session.projectId },
+        : {
+            userId: session.userId,
+            projectId: session.projectId,
+            surface: surfaceOf(session.lastSurface),
+          },
     )
     owners.set(sessionId, read)
     if (owners.size > OWNER_CACHE_LIMIT) {
@@ -118,6 +127,7 @@ export const mcpControlOf = (args: {
         source: request.source,
         name: request.name,
         url: request.url,
+        returnTarget: { surface: owner.surface, screen: { kind: 'session', id: sessionId } },
       })
       if (!begun.ok) return begun
       return { ok: true, url: begun.url }

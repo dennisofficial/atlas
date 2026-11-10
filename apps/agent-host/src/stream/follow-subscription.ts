@@ -55,6 +55,11 @@ export class FollowSubscription implements FollowTarget {
         return
       }
       this.thread = session.mainThreadId
+      this.args.deps.recordSurface?.({
+        sessionId: this.sessionId,
+        userId: this.args.connection.userId,
+        surface: this.args.connection.surface,
+      })
       this.args.index.add(this)
       this.markDirty()
     } catch (error) {

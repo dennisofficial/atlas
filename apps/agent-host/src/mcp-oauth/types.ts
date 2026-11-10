@@ -52,6 +52,26 @@ export const sealedGrantSchema = z.object({
 })
 export type SealedGrant = z.infer<typeof sealedGrantSchema>
 
+export const mcpReturnSurfaceSchema = z.enum(['web', 'desktop', 'ios'])
+export type McpReturnSurface = z.infer<typeof mcpReturnSurfaceSchema>
+
+export const mcpReturnScreenSchema = z.union([
+  z.strictObject({ kind: z.literal('session'), id: z.string().min(1) }),
+  z.strictObject({ kind: z.literal('settings'), scope: z.literal('user') }),
+  z.strictObject({
+    kind: z.literal('settings'),
+    scope: z.literal('project'),
+    id: z.string().min(1),
+  }),
+])
+export type McpReturnScreen = z.infer<typeof mcpReturnScreenSchema>
+
+export const mcpReturnTargetSchema = z.strictObject({
+  surface: mcpReturnSurfaceSchema,
+  screen: mcpReturnScreenSchema,
+})
+export type McpReturnTarget = z.infer<typeof mcpReturnTargetSchema>
+
 export const sealedPendingSchema = z.object({
   codeVerifier: z.string(),
   clientInfo: clientInformationSchema,
@@ -59,6 +79,7 @@ export const sealedPendingSchema = z.object({
   authMethods: z.array(z.string()).optional(),
   resource: z.string().optional(),
   redirectUri: z.string(),
+  returnTarget: mcpReturnTargetSchema,
 })
 export type SealedPending = z.infer<typeof sealedPendingSchema>
 
@@ -93,6 +114,7 @@ export type PendingRow = {
   serverUrl: string
   sealed: string
   returnTo: string
+  surface: McpReturnSurface
   expiresAt: Date
   mcpServerId: string | null
 }
@@ -107,17 +129,19 @@ export type McpOauthGrant =
   | { ok: true; accessToken: string; expiresAt: string | null }
   | { ok: false; reason: string }
 
-export type McpOauthBeginArgs = {
+export type McpOauthServerRef = {
   userId: string
-  projectId: string
+  projectId?: string | undefined
   source: McpServerSource
   name: string
   url: string
 }
 
+export type McpOauthBeginArgs = McpOauthServerRef & { returnTarget: McpReturnTarget }
+
 export type McpOauthGateway = {
   begin(args: McpOauthBeginArgs): Promise<McpOauthBegin>
-  refresh(args: McpOauthBeginArgs): Promise<McpOauthGrant>
+  refresh(args: McpOauthServerRef): Promise<McpOauthGrant>
 }
 
 export type McpOauthRuntime = {

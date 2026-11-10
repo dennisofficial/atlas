@@ -1,5 +1,6 @@
 import {
   EStreamErrorCode,
+  type EStreamSurface,
   type StreamClientMessage,
   type StreamServerMessage,
 } from '@dltech/atlas-protocol'
@@ -12,6 +13,7 @@ export type StreamSubscriptionMessage = Extract<
 export type SubscriptionConnection = {
   userId: string
   version: number
+  surface: EStreamSurface
   send(message: StreamServerMessage): void
   bufferedAmount(): number
   close(code: number): void

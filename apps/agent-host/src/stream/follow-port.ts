@@ -64,7 +64,12 @@ export const createFollowSubscriptions = (
     sessionViews.refreshAll()
     sessions.handleGap()
   })
-  const deps: FollowDeps = { plane, timers, log }
+  const deps: FollowDeps = {
+    plane,
+    timers,
+    log,
+    ...(args.recordSurface === undefined ? {} : { recordSurface: args.recordSurface }),
+  }
   return {
     open: (connection) => new FollowSession({ connection, deps, index, sessions }),
     close: () => {

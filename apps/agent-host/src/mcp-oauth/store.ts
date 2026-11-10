@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 
 import { isUniqueViolation, type Db } from '@dltech/atlas-db'
 
+import { surfaceOf } from './redirect'
 import type { AttemptFence, McpServerGrantRow, PendingRow } from './types'
 
 const REPO_SEEN_BUMP_MS = 3_600_000
@@ -47,7 +48,7 @@ export class McpOauthStore {
       serverUrl: row.serverUrl,
       sealed: row.sealed,
       returnTo: row.returnTo,
-      returnSurface: 'web',
+      returnSurface: row.surface,
       expiresAt: row.expiresAt,
       ...(row.mcpServerId === null ? {} : { mcpServerId: row.mcpServerId }),
     })
@@ -60,6 +61,7 @@ export class McpOauthStore {
       'serverUrl',
       'sealed',
       'returnTo',
+      'returnSurface',
       'expiresAt',
       'mcpServerId',
     ).first({ id: args.id })
@@ -67,7 +69,9 @@ export class McpOauthStore {
     const count = await this.db.orm.public.McpOauthPending.where({
       id: args.id,
     }).deleteAndCount()
-    return count === 1 ? row : null
+    if (count !== 1) return null
+    const { returnSurface, ...rest } = row
+    return { ...rest, surface: surfaceOf(returnSurface) }
   }
 
   find({ id }: { id: string }): Promise<McpServerGrantRow | null> {

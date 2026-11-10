@@ -4,7 +4,7 @@ import { eventTypesOf } from '@dltech/atlas-plugin-sdk'
 
 import type { AgentHostEnv } from '../config/env'
 import { SecretCipher } from '../config/secret-cipher'
-import { mcpOauthCallbackOf } from '../mcp-oauth'
+import { mcpOauthBeginOf, mcpOauthCallbackOf, mcpOauthGatewayOf } from '../mcp-oauth'
 import { registeredPlugins } from '../registered-plugins'
 import { createPgStreamAuth } from '../stream/pg-stream-auth'
 import type { SubscriptionPort } from '../stream/subscription-port'
@@ -32,14 +32,24 @@ export class StreamService {
   }
 
   start(startArgs: StreamStartArgs): StreamServer {
+    const db = createDb(this.args.pool)
+    const cipher = new SecretCipher(this.args.env.secretsEncryptionKey)
+    const auth = createPgStreamAuth({ pool: this.args.pool })
     const server = startStreamServer({
+      mcpOauthBegin: mcpOauthBeginOf({
+        db,
+        cipher,
+        gateway: mcpOauthGatewayOf({ db, cipher, publicUrl: this.args.env.publicUrl }),
+        resolve: (bearer) => auth.resolve(bearer),
+        trustedOrigins: this.args.env.trustedOrigins,
+      }),
       mcpOauthCallback: mcpOauthCallbackOf({
-        db: createDb(this.args.pool),
-        cipher: new SecretCipher(this.args.env.secretsEncryptionKey),
+        db,
+        cipher,
         webOrigin: this.args.env.trustedOrigins[0] ?? WEB_ORIGIN_FALLBACK,
       }),
       port: this.args.env.port,
-      auth: createPgStreamAuth({ pool: this.args.pool }),
+      auth,
       subscriptions: startArgs.subscriptions,
       timers: systemHostTimers,
       eventTypes: eventTypesOf(registeredPlugins),

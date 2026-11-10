@@ -1,4 +1,5 @@
 import type { ControlPlane } from '@dltech/atlas-control'
+import type { Db } from '@dltech/atlas-db'
 import type { LogPort } from '@dltech/atlas-observability'
 
 import { startPgChangeFeed, type PgChangeFeed } from '../bus/pg-change-feed'
@@ -7,10 +8,12 @@ import { databaseUrlWithTls } from '../config/database-url'
 import type { AgentHostEnv } from '../config/env'
 import { createFollowSubscriptions, type FollowSubscriptions } from '../stream/follow-port'
 import type { LiveSource } from '../stream/live-source'
+import { recordSessionSurface } from '../stream/session-surface'
 import { systemHostTimers } from '../stream/system-timers'
 
 export type FollowStackArgs = {
   env: AgentHostEnv
+  db: Db
   plane: ControlPlane
   log: LogPort
 }
@@ -37,6 +40,7 @@ export class FollowStack {
       live,
       timers: systemHostTimers,
       log: this.args.log,
+      recordSurface: recordSessionSurface({ db: this.args.db }),
     })
     this.feed = feed
     this.live = live

@@ -12,6 +12,7 @@ import {
 } from '@dltech/atlas-core'
 import {
   EStreamSubscribeKind,
+  EStreamSurface,
   STREAM_PROTOCOL_VERSION,
   type StreamServerMessage,
 } from '@dltech/atlas-protocol'
@@ -123,6 +124,7 @@ export class FollowRig {
     return this.follow.open({
       userId,
       version,
+      surface: EStreamSurface.Web,
       send: (message) => this.sent.push(message),
       bufferedAmount: () => this.buffered,
       close: (code) => this.closedWith.push(code),
