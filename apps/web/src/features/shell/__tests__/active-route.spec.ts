@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
-import { activeNavOf, activeSessionIdOf, activeThreadIdOf } from '../active-route'
+import {
+  activeNavOf,
+  activeRoutineIdOf,
+  activeSessionIdOf,
+  activeThreadIdOf,
+} from '../active-route'
 import { EAppNav } from '../shell-types'
 
 describe('activeThreadIdOf', () => {
@@ -35,6 +40,24 @@ describe('activeSessionIdOf', () => {
   })
 })
 
+describe('activeRoutineIdOf', () => {
+  it('reads the routine id from a routine path', () => {
+    expect(activeRoutineIdOf('/routines/rte_1')).toBe('rte_1')
+    expect(activeRoutineIdOf('/routines/rte_1/')).toBe('rte_1')
+    expect(activeRoutineIdOf('/routines/a%20b')).toBe('a b')
+  })
+
+  it('is null for the routines index and every other path', () => {
+    expect(activeRoutineIdOf('/routines')).toBeNull()
+    expect(activeRoutineIdOf('/threads/rte_1')).toBeNull()
+    expect(activeRoutineIdOf('/routines/a/b')).toBeNull()
+  })
+
+  it('falls back to the raw segment when it is not decodable', () => {
+    expect(activeRoutineIdOf('/routines/%E0%A4%A')).toBe('%E0%A4%A')
+  })
+})
+
 describe('activeNavOf', () => {
   it('marks projects paths as Projects and everything else as Threads', () => {
     expect(activeNavOf('/projects')).toBe(EAppNav.Projects)
@@ -42,5 +65,11 @@ describe('activeNavOf', () => {
     expect(activeNavOf('/threads')).toBe(EAppNav.Threads)
     expect(activeNavOf('/threads/new')).toBe(EAppNav.Threads)
     expect(activeNavOf('/projectsx')).toBe(EAppNav.Threads)
+  })
+
+  it('marks routines paths as Routines', () => {
+    expect(activeNavOf('/routines')).toBe(EAppNav.Routines)
+    expect(activeNavOf('/routines/rte_1')).toBe(EAppNav.Routines)
+    expect(activeNavOf('/routinesx')).toBe(EAppNav.Threads)
   })
 })

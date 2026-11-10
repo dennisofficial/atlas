@@ -4,7 +4,11 @@ import {
   ControlStorePort,
   type ControlTx,
   type ListDueRoutinesParams,
+  type ListRoutineRunsParams,
+  type ListRoutinesParams,
+  type ReadRoutineForUserParams,
   type RoutineRow,
+  type RoutineRunRow,
 } from '@dltech/atlas-control'
 import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
 
@@ -24,6 +28,18 @@ class JoinedStore extends ControlStorePort {
 
   listDueRoutines(params: ListDueRoutinesParams): Promise<RoutineRow[]> {
     return this.owner.listDueRoutines(params)
+  }
+
+  listRoutines(params: ListRoutinesParams): Promise<RoutineRow[]> {
+    return this.owner.listRoutines(params)
+  }
+
+  readRoutineForUser(params: ReadRoutineForUserParams): Promise<RoutineRow | undefined> {
+    return this.owner.readRoutineForUser(params)
+  }
+
+  listRoutineRuns(params: ListRoutineRunsParams): Promise<RoutineRunRow[]> {
+    return this.owner.listRoutineRuns(params)
   }
 }
 

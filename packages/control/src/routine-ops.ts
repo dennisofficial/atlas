@@ -143,6 +143,7 @@ export const runRoutineIn = async (
     modelRef: routine.modelRef ?? undefined,
     modelEffort: routine.modelEffort ?? undefined,
     modelFast: routine.modelFast ?? undefined,
+    routineId,
     at: now,
   })
   await postIn({

@@ -19,6 +19,7 @@ export const rowForVersion = (args: { row: SessionSummary; version: number }): S
     primaryBranch: _branch,
     pullRequest: _pr,
     spawnedBy: _spawnedBy,
+    routineId: _routineId,
     ...legacy
   } = args.row
   return legacy

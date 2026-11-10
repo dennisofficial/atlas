@@ -11,7 +11,10 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@dltech/atlas-control": "workspace:*",
+    "@dltech/atlas-db": "workspace:*",
     "@dltech/atlas-jobs": "workspace:*",
+    "@dltech/atlas-schedule": "workspace:*",
     "@dotenvx/dotenvx": "^1.71.0",
     "@trigger.dev/sdk": "4.7.4"
   },

@@ -1,8 +1,7 @@
 import { describe, expect, it, mock } from 'bun:test'
+import { triggerSdkFake } from './trigger-sdk.fake'
 
-mock.module('@trigger.dev/sdk', () => ({
-  schedules: { task: <T>(definition: T): T => definition },
-}))
+mock.module('@trigger.dev/sdk', () => triggerSdkFake)
 
 const { heartbeatTask, runHeartbeat } = await import('../trigger/heartbeat.task')
 

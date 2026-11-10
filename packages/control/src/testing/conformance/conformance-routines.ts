@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it } from 'bun:test'
 
 import type { ControlStorePort, RoutineRow } from '../../port'
 import type { ConformanceParams } from './conformance'
+import { describeControlPlaneRoutineCrud } from './conformance-routine-crud'
+import { makeHarness } from './support'
 
 export type RoutinesConformanceParams = ConformanceParams & {
   seedRoutine: (row: RoutineRow) => Promise<void>
@@ -121,5 +123,34 @@ export function describeControlPlaneRoutines(params: RoutinesConformanceParams):
       const row = await store.transact((tx) => tx.readRoutine('locked'))
       expect(row?.nextRunAt).toBe(at(2))
     })
+
+    it('records the routine on the session a run starts and nothing on a composed one', async () => {
+      const harness = makeHarness(params.makeStore())
+      await harness.plane.createRoutine({
+        ...routineOf({ routineId: 'digest', nextRunAt: at(0) }),
+        name: 'Digest',
+      })
+      const result = await harness.plane.runRoutine({
+        routineId: 'digest',
+        scheduledFor: at(0),
+        now: T0,
+        wedgedAfterMs: 5 * 60_000,
+        nextOccurrence: () => at(60),
+        createSessionId: () => ({ sessionId: 'routine-session', mainThreadId: 'routine-thread' }),
+      })
+      expect(result.outcome).toBe('started')
+      expect((await harness.plane.readSession({ sessionId: 'routine-session' }))?.routineId).toBe(
+        'digest',
+      )
+      await harness.plane.createSession({
+        sessionId: 'composed',
+        userId: 'user-1',
+        projectId: 'project-1',
+        mainThreadId: 'composed-thread',
+      })
+      expect((await harness.plane.readSession({ sessionId: 'composed' }))?.routineId).toBeNull()
+    })
   })
+
+  describeControlPlaneRoutineCrud(params)
 }

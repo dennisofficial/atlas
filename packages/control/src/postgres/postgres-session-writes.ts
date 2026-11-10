@@ -15,6 +15,7 @@ export const createSessionIn = async (params: {
   modelFast?: boolean | undefined
   spawnedBySessionId?: string | undefined
   podSessionId?: string | undefined
+  routineId?: string | undefined
   at: string
 }): Promise<void> => {
   await params.tx.orm.v2.V2Session.create({
@@ -32,6 +33,7 @@ export const createSessionIn = async (params: {
     modelFast: params.modelFast ?? null,
     spawnedBySessionId: params.spawnedBySessionId ?? null,
     podSessionId: params.podSessionId ?? null,
+    routineId: params.routineId ?? null,
   })
   await params.tx.orm.v2.V2Lease.create({
     sessionId: params.sessionId,

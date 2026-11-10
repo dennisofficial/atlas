@@ -3,6 +3,7 @@ import { EAppNav } from './shell-types'
 const THREAD_PATH = /^\/threads\/([^/]+)\/?$/
 const NEW_THREAD_SEGMENT = 'new'
 const PROJECTS_PATH = /^\/projects(\/|$)/
+const ROUTINES_PATH = /^\/routines(\/|$)/
 
 export function activeThreadIdOf(pathname: string): string | null {
   const segment = THREAD_PATH.exec(pathname)?.[1]
@@ -14,6 +15,13 @@ export function activeThreadIdOf(pathname: string): string | null {
   }
 }
 
+export function activeRoutineIdOf(pathname: string): string | undefined {
+  const match = /^\/routines\/([^/]+)\/?$/.exec(pathname)
+  return match?.[1] === undefined ? undefined : decodeURIComponent(match[1])
+}
+
 export function activeNavOf(pathname: string): EAppNav {
-  return PROJECTS_PATH.test(pathname) ? EAppNav.Projects : EAppNav.Threads
+  if (PROJECTS_PATH.test(pathname)) return EAppNav.Projects
+  if (ROUTINES_PATH.test(pathname)) return EAppNav.Routines
+  return EAppNav.Threads
 }

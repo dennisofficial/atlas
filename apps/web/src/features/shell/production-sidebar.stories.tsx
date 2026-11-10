@@ -12,6 +12,7 @@ import { Toaster } from '@dltech/atlas-ui/components/sonner'
 import type { WireThread } from '@dltech/atlas-wire/web'
 
 import { createFixtureSource } from './production-sidebar-fixture-source'
+import { EAppNav } from './shell-types'
 import {
   archiveFixtureSessions,
   interactiveSessions,
@@ -89,7 +90,7 @@ function ProductionSidebar({
           className="flex min-h-svh w-full bg-background"
         >
           <Sidebar collapsible="icon">
-            <ShellTopBar onSearch={() => setSearches((count) => count + 1)} />
+            <ShellTopBar nav={EAppNav.Threads} onSearch={() => setSearches((count) => count + 1)} />
             <SidebarContent
               className={paneHidden ? 'hidden' : 'group-data-[collapsible=icon]:hidden'}
             >

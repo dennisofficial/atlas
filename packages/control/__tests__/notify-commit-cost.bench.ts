@@ -11,7 +11,11 @@ import {
   ControlStorePort,
   type ControlTx,
   type ListDueRoutinesParams,
+  type ListRoutineRunsParams,
+  type ListRoutinesParams,
+  type ReadRoutineForUserParams,
   type RoutineRow,
+  type RoutineRunRow,
 } from '../src/port'
 import { mint, said } from '../src/testing/conformance/support'
 
@@ -33,6 +37,18 @@ class SilentStore extends ControlStorePort {
 
   listDueRoutines(params: ListDueRoutinesParams): Promise<RoutineRow[]> {
     return this.inner.listDueRoutines(params)
+  }
+
+  listRoutines(params: ListRoutinesParams): Promise<RoutineRow[]> {
+    return this.inner.listRoutines(params)
+  }
+
+  readRoutineForUser(params: ReadRoutineForUserParams): Promise<RoutineRow | undefined> {
+    return this.inner.readRoutineForUser(params)
+  }
+
+  listRoutineRuns(params: ListRoutineRunsParams): Promise<RoutineRunRow[]> {
+    return this.inner.listRoutineRuns(params)
   }
 }
 

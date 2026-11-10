@@ -11,6 +11,8 @@ import { mediaStoreProvider } from './media-store.provider'
 import { MediaRouter } from './media.router'
 import { MediaService } from './media.service'
 import { DbProjectAccess, ProjectAccess } from './project-access'
+import { RoutinesRouter } from './routines.router'
+import { RoutinesService } from './routines.service'
 import { SessionsRouter } from './sessions.router'
 import { SessionsService } from './sessions.service'
 
@@ -37,6 +39,8 @@ export const controlPlaneProvider: Provider = {
     SessionsRouter,
     MediaService,
     MediaRouter,
+    RoutinesService,
+    RoutinesRouter,
   ],
   exports: [ControlPlane],
 })

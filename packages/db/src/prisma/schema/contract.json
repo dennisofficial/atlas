@@ -8813,6 +8813,13 @@
                   "kind": "scalar"
                 }
               },
+              "routineId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "spawnedBySessionId": {
                 "nullable": true,
                 "type": {
@@ -8958,6 +8965,9 @@
                 },
                 "projectId": {
                   "column": "projectId"
+                },
+                "routineId": {
+                  "column": "routineId"
                 },
                 "spawnedBySessionId": {
                   "column": "spawnedBySessionId"
@@ -15735,6 +15745,11 @@
                   "dataType": "pg/text",
                   "nullable": false
                 },
+                "routineId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
                 "spawnedBySessionId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -15992,7 +16007,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "43d6199d8535e370ff8adfa29c80cb268a6c59c8f8a659ba7c1881af231aaa1f"
+    "storageHash": "3e13111b52f735f29ef70ebcfa0815829a41fd9e122e69ac9b00ada6f90e27b8"
   },
   "execution": {
     "executionHash": "0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289",

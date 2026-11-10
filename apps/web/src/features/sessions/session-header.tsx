@@ -209,6 +209,7 @@ function HeaderPreviews({ previews }: { previews: readonly PreviewItem[] }) {
 export function SessionHeader({
   sessionId,
   state,
+  routineId = null,
   title,
   naming,
   branch,
@@ -222,6 +223,7 @@ export function SessionHeader({
 }: {
   sessionId: string
   state: EHeaderState
+  routineId?: string | null
   title: string | null
   naming: boolean
   branch: string | undefined
@@ -248,6 +250,11 @@ export function SessionHeader({
         </h1>
         <RenameAction sessionId={sessionId} title={title} />
         <Badge variant="outline">v2</Badge>
+        {routineId === null ? null : (
+          <Badge variant="outline" data-session-routine>
+            routine
+          </Badge>
+        )}
       </div>
       <div className="flex min-w-0 shrink-0 items-center gap-3">
         {branch === undefined ? null : (

@@ -169,6 +169,14 @@ export function ThreadRowBody({
               v2
             </span>
           ) : null}
+          {v2View?.routineId === undefined ? null : (
+            <span
+              data-engine-tag="routine"
+              className="shrink-0 rounded-sm border px-1 font-mono text-[10px] leading-4 text-muted-foreground group-data-[collapsible=icon]:hidden"
+            >
+              routine
+            </span>
+          )}
           {thread.runner === 'local' ? (
             <span className="group-data-[collapsible=icon]:hidden">
               <LocalPodIcon />

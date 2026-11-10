@@ -6,7 +6,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import { SidebarInset, SidebarProvider } from '@dltech/atlas-ui/components/sidebar'
 import { TooltipProvider } from '@dltech/atlas-ui/components/tooltip'
 
-import { activeNavOf, activeThreadIdOf } from './active-route'
+import { activeNavOf, activeRoutineIdOf, activeThreadIdOf } from './active-route'
 import { AppSidebar } from './app-sidebar'
 import { AtlasMark } from './atlas-mark'
 import { PendingThreadProvider, usePendingThread } from './pending-thread'
@@ -27,6 +27,7 @@ function ShellFrame({ children }: { children: ReactNode }) {
   const demo = useShellDemo(pathname)
   const pendingThread = usePendingThread()
   const activeThreadId = activeThreadIdOf(pathname) ?? pendingThread?.id
+  const activeRoutineId = activeRoutineIdOf(pathname)
 
   return (
     <TooltipProvider>
@@ -38,6 +39,7 @@ function ShellFrame({ children }: { children: ReactNode }) {
       >
         <AppSidebar
           activeThreadId={activeThreadId}
+          activeRoutineId={activeRoutineId}
           activeNav={activeNavOf(pathname)}
           demo={demo}
           pendingThread={pendingThread}
