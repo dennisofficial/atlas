@@ -247,12 +247,29 @@ page.
 - Migration `20261110T1637_mcp_session_surface` adds `v2."V2Session"."lastSurface" text NOT NULL
   DEFAULT 'web'`; the db `refs/db.json` is at its hash.
 
-### Live run
+### Live run (2026-11-10, host at `0848daefb`)
 
-Runs after the merge deploys the host, with the steps the slice used: a v2 session asks for a
-sign-in, approves at the provider, and lands back on that session on web; the same from the Mac app
-lands in the app on that session; a user-scope and a project-scope settings sign-in each return to
-their own page.
+Against `agent.byatlas.io` once the merge deployed, with a temporary `AuthSession` for the operator's
+user (removed afterwards):
+- `POST /mcp-oauth/begin {serverId: the wispr-flow row, surface: 'web', screen: {kind:'settings',
+  scope:'user'}}` answered a real wispr-flow authorize URL; the pending row read
+  `returnTo=/settings/integrations, returnSurface=web`; the callback without a code answered
+  `302 https://byatlas.io/settings/integrations?mcpOauth=failed&mcpServer=…&mcpReason=missing_code`.
+  (The web origin is `https://byatlas.io`: the production host runs with `TRUSTED_ORIGINS` unset, so
+  the callback's `webOrigin` falls back.)
+- The same with `surface: 'desktop', screen: {kind:'session', id:'ses_live_check'}` answered a page
+  whose script opens `atlas://open/sessions/ses_live_check?mcpOauth=failed&…` and whose body carries
+  the web fallback; `surface: 'ios'` gave `atlas:///sessions/ses_live_check?…`.
+- A project screen the caller does not own answered `403`; a request with no bearer answered `401`.
+- A fresh v2 session in the atlas project was subscribed to over the stream with `surface: 'desktop'`;
+  `v2."V2Session"."lastSurface"` then read `desktop`. Its roster showed `wispr-flow` as needs-auth, so
+  asking it to sign in made the model call `mcp_sign_in {name:'wispr-flow'}`; the tool result carried
+  the authorize URL, and the pending row it wrote read `returnTo=/sessions/<that id>,
+  returnSurface=desktop`. That state's callback opens `atlas://open/sessions/<that id>?…` (exercised
+  without a code, so on the failure path). The session was archived and its token deleted.
+
+Not exercised live: approving at the provider (interactive login) and so the grant landing and the
+roster flipping on the next turn; the Mac app opening the deep link; iOS on a simulator.
 
 ## 10. The card: what was built and how it was proved
 
