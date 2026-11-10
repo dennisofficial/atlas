@@ -668,7 +668,7 @@ jobs:
           iconutil -c icns ../mac/icon.iconset -o build/icon.icns
           bun run bundle:payload
           bun run pack:host
-          npx electron-builder --mac dmg --arm64 -c.extraMetadata.version="$VERSION"
+          npx electron-builder --mac dmg --arm64 --publish never -c.extraMetadata.version="$VERSION"
 
       # An installed app that refuses to launch looks like a signing bug long after this run, so the
       # nested runtime is checked here: deep verification plus the runtime flag bun must carry.
