@@ -164,5 +164,35 @@ which becomes a field on `V2Routine` if the operator asks for it.
 
 ## 8. Live check
 
-To be recorded when part 2c lands: routine id, its session id, the skipped-busy occurrence, the
-disabled-mid-flight occurrence, and the timings from dispatch to first token.
+Recorded 2026-11-10 against production (`api.byatlas.io`, trigger.dev `proj_muqwamionbikynuchupc`)
+on `5bd544c28` (`feat(routines): run a saved prompt on a cron schedule`, #2215). Routine
+`5c2ed493-8d5b-4af3-a27e-3bbb5ca83f74`, cron `*/5 * * * *` in UTC, prompt: run the workspace test
+suite at the repository root and report per-package pass/fail counts and wall time.
+1. **A routine spawns a session with no client open — produced.** Occurrence 21:45:00Z; the
+   dispatcher wrote session `bf43a4fb-9dea-48e5-bab8-868e72a2051d` at 21:45:49Z and nothing else
+   touched it. The host pulled it: `preparing` 21:45:49 → `thinking` 21:46:34 → `running-tool bash`
+   21:46:41 → `idle` 21:56:48. Boot to first model turn 45 s; the run took 10 m 59 s and left 66
+   events, the prompt verbatim first.
+2. **A second occurrence during a live run records `skipped-busy` — produced.** The 21:50:00Z
+   occurrence arrived while the first run was in `running-tool` (`running-tool` still at 21:50:40Z).
+   Ledger row `c13dd213-b41b-4d00-a7ab-55039d46ab47`: `skipped-busy`, reason `running-tool`, no
+   session, at 21:50:52Z; `nextRunAt` advanced to 21:55:00Z and the cadence continued.
+3. **Disabled between dispatch and execution records `skipped`; deleting leaves sessions
+   intact — partly produced.** Deleting is proven: `routines.remove` returned `{removed: true}`,
+   `sessions.list` still returns `bf43a4fb` with its `routineId`, and the ledger went with the
+   routine. Disabling stops dispatch: with `nextRunAt` at 21:55:00Z and 22:00:00Z and the routine
+   disabled seconds after each minute, no occurrence was dispatched and no ledger row appeared. The
+   disabled-mid-flight `skipped` row was **not** produced live: a `*/1` schedule starts ~45 s into
+   the minute and its child's transaction follows within a second, so the window between dispatch
+   and execution is sub-second from outside. Producing it would need a child queued behind
+   `concurrencyLimit(routine-runs, 3)` or a hand-triggered run, the latter needing the project's
+   `TRIGGER_SECRET_KEY`, which is dashboard-only. The path is covered on both stores by
+   `conformance-routine-crud` and `routine-ops` (`disabled`, `already-ran`).
+4. **The same occurrence dispatched twice produces exactly one session — not produced live.** Same
+   obstacle in reverse: a second dispatch needs two overlapping sweeps or a hand-triggered child.
+   Both guards are covered: `runRoutine` twice for one `scheduledFor` yields one session (conformance,
+   memory and Postgres), and the sweep sets trigger.dev's idempotency key per occurrence
+   (`routine:<id>:<scheduledFor>`).
+
+Operational note: a trigger.dev `*/1` schedule starts its run ~45 s past the minute, so an occurrence
+due at `T` produces its session near `T+50 s`, not at `T`.
