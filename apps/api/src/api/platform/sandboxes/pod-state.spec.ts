@@ -13,6 +13,7 @@ const sandbox = (partial: Partial<Row<'CloudSandbox'>> = {}): Row<'CloudSandbox'
   sandboxId: 'sandbox-id',
   name: 'name',
   region: 'iad1',
+  vercelProjectId: null,
   state: 'parked',
   lastActivityAt: NOW,
   tokenHash: 'hash',

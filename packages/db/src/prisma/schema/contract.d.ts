@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'31919bc07e05f8bd7cdba3993d5e8d4da55238cdb6046ca1a203c484218b01ab'>;
+  StorageHashBase<'1440ea06adc82bfb24c1b7d40dc3fc4a31df6691444f3237fb72c7a072b29df7'>;
 export type ExecutionHash =
   ExecutionHashBase<'0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289'>;
 export type ProfileHash =
@@ -365,6 +365,7 @@ export namespace Models {
     tokenHash: FieldOutputTypes['public']['CloudSandbox']['tokenHash'];
     updatedAt: FieldOutputTypes['public']['CloudSandbox']['updatedAt'];
     userId: FieldOutputTypes['public']['CloudSandbox']['userId'];
+    vercelProjectId: FieldOutputTypes['public']['CloudSandbox']['vercelProjectId'];
     wakeClaim: FieldOutputTypes['public']['CloudSandbox']['wakeClaim'];
     wakeFailedAt: FieldOutputTypes['public']['CloudSandbox']['wakeFailedAt'];
     workspaceRemoteUrl: FieldOutputTypes['public']['CloudSandbox']['workspaceRemoteUrl'];
@@ -1826,6 +1827,12 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly vercelProjectId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
                   readonly many: false;
                 };
                 readonly wakeClaim: {
@@ -7439,6 +7446,10 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly vercelProjectId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly wakeClaim: {
                 readonly nullable: true;
                 readonly type: {
@@ -7522,6 +7533,7 @@ type ContractBase = Omit<
                 readonly tokenHash: { readonly column: 'tokenHash' };
                 readonly updatedAt: { readonly column: 'updatedAt' };
                 readonly userId: { readonly column: 'userId' };
+                readonly vercelProjectId: { readonly column: 'vercelProjectId' };
                 readonly wakeClaim: { readonly column: 'wakeClaim' };
                 readonly wakeFailedAt: { readonly column: 'wakeFailedAt' };
                 readonly workspaceRemoteUrl: { readonly column: 'workspaceRemoteUrl' };

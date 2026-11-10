@@ -18,12 +18,37 @@ type CredentialRow = {
   vercelProjectId: string | null
 }
 
+const emptyTotals = (): SandboxSnapshotSweepResult => ({
+  retentionApplied: 0,
+  retentionFailed: 0,
+  deleted: 0,
+  deleteFailed: 0,
+  bytesFreed: 0,
+})
+
+const uniqueProjects = (ids: readonly (string | null)[]): string[] => [
+  ...new Set(ids.filter((id): id is string => id !== null)),
+]
+
+const pinnedProjectsOf = async (args: { userId: string }): Promise<string[]> => {
+  const rows = await db.orm.public.CloudSandbox.where({ userId: args.userId })
+    .select('vercelProjectId')
+    .all()
+  return uniqueProjects(rows.map((row) => row.vercelProjectId))
+}
+
+const addTotals = (into: SandboxSnapshotSweepResult, from: SandboxSnapshotSweepResult): void => {
+  for (const key of Object.keys(into) as (keyof SandboxSnapshotSweepResult)[])
+    into[key] += from[key]
+}
+
 export async function sweepAllSandboxSnapshots(args: {
   cipher: SecretCipherService
   now: () => Date
   dryRun: boolean
   log: (line: string) => void
   listCredentials?: () => Promise<CredentialRow[]>
+  listPinnedProjects?: (args: { userId: string }) => Promise<string[]>
   storeFor?: (credentials: {
     token: string
     teamId: string
@@ -31,25 +56,29 @@ export async function sweepAllSandboxSnapshots(args: {
   }) => SandboxSnapshotStore
 }): Promise<SandboxSnapshotSweepRun> {
   const listCredentials = args.listCredentials ?? (() => db.orm.public.UserVercelCredential.all())
+  const listPinnedProjects = args.listPinnedProjects ?? pinnedProjectsOf
   const storeFor = args.storeFor ?? ((credentials) => new VercelSandboxSnapshotStore(credentials))
   const rows = await listCredentials()
-  const run: SandboxSnapshotSweepRun = {
-    users: rows.length,
-    failedUsers: 0,
-    totals: { retentionApplied: 0, retentionFailed: 0, deleted: 0, deleteFailed: 0, bytesFreed: 0 },
-  }
+  const run: SandboxSnapshotSweepRun = { users: rows.length, failedUsers: 0, totals: emptyTotals() }
   for (const row of rows) {
     try {
       const token = openSecretValue({ cipher: args.cipher, sealed: row.sealedToken })
-      if (row.vercelProjectId === null) throw new Error('credential holds no project')
-      const result = await sweepSandboxSnapshots({
-        store: storeFor({ token, teamId: row.teamId, projectId: row.vercelProjectId }),
-        now: args.now,
-        dryRun: args.dryRun,
-      })
-      args.log(`sandbox-snapshot-sweep user=${row.userId} ${JSON.stringify(result)}`)
-      for (const key of Object.keys(run.totals) as (keyof SandboxSnapshotSweepResult)[])
-        run.totals[key] += result[key]
+      const projects = uniqueProjects([
+        row.vercelProjectId,
+        ...(await listPinnedProjects({ userId: row.userId })),
+      ])
+      if (projects.length === 0) throw new Error('credential holds no project')
+      for (const projectId of projects) {
+        const result = await sweepSandboxSnapshots({
+          store: storeFor({ token, teamId: row.teamId, projectId }),
+          now: args.now,
+          dryRun: args.dryRun,
+        })
+        args.log(
+          `sandbox-snapshot-sweep user=${row.userId} project=${projectId} ${JSON.stringify(result)}`,
+        )
+        addTotals(run.totals, result)
+      }
     } catch (failure) {
       run.failedUsers++
       args.log(`sandbox-snapshot-sweep user=${row.userId} failed: ${String(failure)}`)

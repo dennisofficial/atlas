@@ -35,7 +35,12 @@ the two rows point at each other. `threads.live` streams the sidebar as a snapsh
 `managedBySessionId`. `threads.list` returns session main threads only. better-auth's table is `AuthSession`.
 
 A thread's owner is fixed at creation (`Thread.userId`). `ScopedConfigService.vercelCredentials`
-resolves the owner's `UserVercelCredential` (`userVercel.*`) with token, team and project id. A
+resolves the owner's `UserVercelCredential` (`userVercel.*`) with token, team and project id.
+**A sandbox keeps the Vercel project it was created in** (`CloudSandbox.vercelProjectId`, written by
+both boot paths on a fresh create and read by `platform/sandboxes/pod-project.ts`): every later
+resume, renewal, stop, resize and delete targets that project, so moving the credential to another
+project only moves sandboxes created after it — old pods keep working until their sandbox is
+destroyed, and the snapshot sweeper covers every project still in use. A
 missing piece still creates the thread and message and answers `not-configured` with the gap. The
 API env `VERCEL_*` only inspect and stop TUI BYO rows; they never create a sandbox.
 

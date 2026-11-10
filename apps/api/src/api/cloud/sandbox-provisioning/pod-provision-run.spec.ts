@@ -266,4 +266,27 @@ describe('failPodProvision', () => {
     expect(row?.wakeClaim).not.toBeNull()
     expect(await bootSteps()).toEqual([])
   })
+
+  it('resumes a sandbox in the project it was created in, not the credential current one', async () => {
+    await seedThread()
+    await seedSandboxRow({ vercelProjectId: 'prj-sandboxes-old' })
+    const scoped = fakeScoped()
+    const { boot, calls } = fakeBoot()
+
+    await runPodProvision({ payload: await payloadOf(), deps: runDepsWith({ boot, scoped }) })
+
+    expect(calls[0]?.credentials).toMatchObject({ projectId: 'prj-sandboxes-old' })
+    expect(scoped.vercelCredentials).toHaveBeenCalled()
+  })
+
+  it('pins the project a freshly created sandbox landed in', async () => {
+    await seedThread()
+    await seedSandboxRow()
+    const { boot, calls } = fakeBoot()
+
+    await runPodProvision({ payload: await payloadOf(), deps: runDepsWith({ boot }) })
+    await calls[0]?.onFreshSandbox()
+
+    expect((await sandboxRows())[0]?.vercelProjectId).toBe(CREDENTIALS.projectId)
+  })
 })

@@ -152,6 +152,37 @@ describe('ThreadSandboxCredentialsService', () => {
     expect(credentials.userId).toBeUndefined()
   })
 
+  it('keeps a sandbox in the project it was created in after the credential moved', async () => {
+    await seedThreadWithProject('proj-1')
+    const at = new Date('2026-11-09T10:00:00Z')
+    await db.orm.public.CloudSandbox.create({
+      id: 'sbx-1',
+      sessionId: 'ses_thr-1',
+      userId: 'user-a',
+      sandboxId: '',
+      name: 'atlas-thread-1',
+      region: 'iad1',
+      vercelProjectId: 'prj-sandboxes-old',
+      state: 'running',
+      lastActivityAt: at,
+      tokenHash: 'hash',
+      createdAt: at,
+      updatedAt: at,
+    })
+    const { scoped } = scopedReturning(async () => ({
+      token: 'user-token',
+      teamId: 'user-team',
+      projectId: 'prj-sandboxes-new',
+    }))
+
+    const credentials = await new ThreadSandboxCredentialsService(
+      scoped,
+      envWith(LEGACY_ENV),
+    ).forThread({ threadId: 'thr-1' })
+
+    expect(credentials.projectId).toBe('prj-sandboxes-old')
+  })
+
   it('answers 503 when a legacy thread finds no env credential', async () => {
     await seedThreadWithProject(null)
     const { scoped } = scopedReturning(async () => {

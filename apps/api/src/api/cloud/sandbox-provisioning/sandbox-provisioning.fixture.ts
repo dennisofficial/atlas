@@ -197,6 +197,7 @@ export async function seedSandboxRow(
     wakeClaim?: Date | null
     wakeFailedAt?: Date | null
     serveUrl?: string | null
+    vercelProjectId?: string | null
     runtimeCheckpoint?: SeededCheckpoint
   } = {},
 ): Promise<void> {
@@ -208,6 +209,7 @@ export async function seedSandboxRow(
     sandboxId: '',
     name: 'atlas-thread-1',
     region: 'iad1',
+    vercelProjectId: partial.vercelProjectId ?? null,
     state: partial.state ?? 'resuming',
     lastActivityAt: at,
     tokenHash: 'hash',

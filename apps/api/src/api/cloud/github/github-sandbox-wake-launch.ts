@@ -48,7 +48,12 @@ export async function bootClaimedSandbox(
     serveVersion: row.serveVersion ?? undefined,
     freshToken,
     resumeToken: unsealedToken(deps, row),
-    onFreshSandbox: () => adoptFreshSandbox(deps, { sessionId: row.sessionId, token: freshToken }),
+    onFreshSandbox: () =>
+      adoptFreshSandbox(deps, {
+        sessionId: row.sessionId,
+        token: freshToken,
+        projectId: credentials.projectId,
+      }),
   })
   const at = new Date()
   await db.orm.public.CloudSandbox.where({ sessionId: row.sessionId }).update({
@@ -67,11 +72,12 @@ export async function bootClaimedSandbox(
 /** The prior sandbox's lifecycle record died with it; the fresh serve mirrors from revision 1. */
 async function adoptFreshSandbox(
   deps: WakeLaunchDeps,
-  args: { sessionId: string; token: string },
+  args: { sessionId: string; token: string; projectId: string },
 ): Promise<void> {
   await db.orm.public.CloudSandbox.where({ sessionId: args.sessionId }).update({
     tokenHash: hashSessionToken(args.token),
     sealedToken: deps.cipher.encrypt(args.token),
+    vercelProjectId: args.projectId,
     runtimeCheckpoint: null,
     runtimeCheckpointRevision: null,
     updatedAt: new Date(),
