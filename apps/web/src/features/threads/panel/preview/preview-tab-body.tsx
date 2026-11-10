@@ -12,6 +12,7 @@ import { EPreviewGate } from '@/features/desktop/use-preview-origins'
 import { useHasNativeBrowser } from '@/features/desktop/use-has-native-browser'
 
 import { liveKeyOf } from '../../data/preview-browser/live-tabs'
+import { paneTargetIdOf } from './desktop/pane-client'
 import { PaneSlot } from './desktop/pane-slot'
 import { EPaneMode, usePaneMode } from './desktop/use-pane-mode'
 import { changeRegistry, hidden, shown, unloaded, useFrameRegistry } from './frame-registry'
@@ -101,7 +102,7 @@ export function PreviewTabBody(props: {
       ) : null}
       <div className="min-h-0 flex-1">
         {paneMode === EPaneMode.Shell ? (
-          <PaneSlot url={url} />
+          <PaneSlot id={paneTargetIdOf({ threadId, tabId })} url={url} />
         ) : (
           <PreviewSlot threadId={threadId} tabId={tabId} />
         )}

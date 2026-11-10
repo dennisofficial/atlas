@@ -5,6 +5,7 @@ import { app, BrowserWindow, WebContentsView } from 'electron'
 
 import { hostEnvironment, resolveBun, resolveHostScript, webRootAt } from './host-paths.js'
 import { startHost } from './host-process.js'
+import { createPaneRegistry, validCommand } from './panes.js'
 import {
   createElectronWebUpdater,
   manifestUrlOf,
@@ -19,70 +20,6 @@ const PANE_PARTITION = 'persist:spike'
 const WINDOW_WIDTH = 1280
 const WINDOW_HEIGHT = 820
 const OUTPUT_LIMIT = 8_000
-
-function validRect(rect) {
-  return (
-    typeof rect === 'object' &&
-    rect !== null &&
-    ['x', 'y', 'width', 'height'].every((key) => typeof rect[key] === 'number')
-  )
-}
-
-function validCommand(command) {
-  if (typeof command !== 'object' || command === null) return false
-  switch (command.kind) {
-    case 'show':
-      return typeof command.url === 'string' && validRect(command.rect)
-    case 'hide':
-    case 'back':
-    case 'forward':
-    case 'reload':
-    case 'stop':
-      return true
-    case 'setRect':
-      return validRect(command.rect)
-    case 'navigate':
-      return typeof command.url === 'string'
-    case 'setObscured':
-      return typeof command.obscured === 'boolean'
-    default:
-      return false
-  }
-}
-
-function applyPaneCommand(pane, command) {
-  switch (command.kind) {
-    case 'show':
-      pane.setVisible(true)
-      pane.setBounds(command.rect)
-      void pane.webContents.loadURL(command.url)
-      break
-    case 'hide':
-      pane.setVisible(false)
-      break
-    case 'setRect':
-      pane.setBounds(command.rect)
-      break
-    case 'navigate':
-      void pane.webContents.loadURL(command.url)
-      break
-    case 'back':
-      pane.webContents.navigationHistory.goBack()
-      break
-    case 'forward':
-      pane.webContents.navigationHistory.goForward()
-      break
-    case 'reload':
-      pane.webContents.reload()
-      break
-    case 'stop':
-      pane.webContents.stop()
-      break
-    case 'setObscured':
-      pane.setVisible(!command.obscured)
-      break
-  }
-}
 
 async function readBody(request) {
   const chunks = []
@@ -99,7 +36,7 @@ function respond(response, status, body) {
   response.end(payload)
 }
 
-async function startPaneServer({ pane }) {
+async function startPaneServer({ panes }) {
   const server = createServer((request, response) => {
     const pathname = new URL(request.url ?? '/', 'http://127.0.0.1').pathname
     if (pathname !== PANE_PATH && pathname !== DESKTOP_PANE_PATH) {
@@ -123,7 +60,7 @@ async function startPaneServer({ pane }) {
           respond(response, 400, { ok: false, error: 'invalid command' })
           return
         }
-        applyPaneCommand(pane, command)
+        panes.apply(command)
         respond(response, 200, { ok: true })
       })
       .catch((error) => respond(response, 500, { ok: false, error: String(error) }))
@@ -159,13 +96,22 @@ async function createWindow() {
     },
   })
 
-  const pane = new WebContentsView({
-    webPreferences: { partition: PANE_PARTITION, contextIsolation: true },
+  const panes = createPaneRegistry({
+    create: () => {
+      const view = new WebContentsView({
+        webPreferences: { partition: PANE_PARTITION, contextIsolation: true },
+      })
+      win.contentView.addChildView(view)
+      view.setVisible(false)
+      return view
+    },
+    release: (view) => {
+      if (!win.isDestroyed()) win.contentView.removeChildView(view)
+      if (!view.webContents.isDestroyed()) view.webContents.close()
+    },
   })
-  win.contentView.addChildView(pane)
-  pane.setVisible(false)
 
-  const session = await startPaneServer({ pane })
+  const session = await startPaneServer({ panes })
   const script = resolveHostScript({
     env: process.env,
     resourcesPath: process.resourcesPath,
@@ -191,7 +137,7 @@ async function createWindow() {
     payloads.stop()
     host?.child.kill('SIGTERM')
     session.server.close()
-    pane.webContents.close()
+    panes.destroy()
   })
 
   const swapTo = async ({ hash }) => {
