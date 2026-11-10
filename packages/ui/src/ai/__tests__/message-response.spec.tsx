@@ -46,6 +46,14 @@ describe('MessageResponse', () => {
     expect(html).toContain('>ts<')
   })
 
+  it('lays a task item out as a column so a nested list stays under its label', () => {
+    const html = render('- [ ] Parent\n  - [x] Child')
+    const item = /<li[^>]*data-streamdown="list-item"[^>]*>/.exec(html)?.[0] ?? ''
+
+    expect(item).toContain('relative pl-6')
+    expect(item).not.toContain('flex')
+  })
+
   it('renders inline code without a code block', () => {
     const html = render('Use `bun test` here')
 
