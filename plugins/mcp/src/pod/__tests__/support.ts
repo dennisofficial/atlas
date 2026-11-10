@@ -154,6 +154,17 @@ export const fakeDaemon = (
     throw new Error(`the fake daemon does not answer ${op.op}`)
   }
 
+  const kill = (
+    serverId: string,
+    exit: { exitCode: number | null; signal: string | null } = {
+      exitCode: null,
+      signal: 'SIGTERM',
+    },
+  ): void => {
+    ended.set(serverId, exit)
+    publish({ type: 'mcp.exited', serverId, ...exit })
+  }
+
   const onDaemonEvent = (listener: (frame: DaemonEventFrame) => void): (() => void) => {
     listeners.push(listener)
     return () => {
@@ -165,6 +176,7 @@ export const fakeDaemon = (
   return {
     call,
     onDaemonEvent,
+    kill,
     spawns,
     closed,
     files,

@@ -1,7 +1,7 @@
 import { EDefinitionOrigin, EToolEffect, toThreadId } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
-import { EMcpRejection, type McpCloudRow } from '../../core'
+import { EMcpRejection, EMcpViewStatus, type McpCloudRow } from '../../core'
 import { mcpPod } from '..'
 import { McpBridgeTool } from '../bridge-tool'
 import { EMcpServerStatus, McpStore } from '../store'
@@ -146,6 +146,19 @@ describe('config through the pod', () => {
     expect(daemon.spawns).toEqual([])
   })
 
+  it('turns an entry that fails to parse into a failed row carrying the parse detail', async () => {
+    const { store } = await start({
+      rows: [],
+      repoFiles: { '/repo/.atlas/mcp.json': JSON.stringify({ mcpServers: { docs: {} } }) },
+    })
+    const [row] = store.rows()
+    expect(row?.name).toBe('docs')
+    expect(row?.transport).toBeNull()
+    expect(row?.status).toBe(EMcpViewStatus.Failed)
+    expect(row?.toolCount).toBe(0)
+    expect(row?.reason).toContain('transport')
+  })
+
   it("reads Claude's .mcp.json when no native definition names the server", async () => {
     const { daemon } = await start({
       rows: [],
@@ -263,5 +276,13 @@ describe('session context', () => {
     await store.boot()
     expect(store.servers().map((server) => server.name)).toEqual(['docs'])
     expect(store.rejectionsOf().map((rejection) => rejection.name)).toEqual(['sealed'])
+    expect(store.rows().map((row) => [row.name, row.status, row.reason])).toEqual([
+      ['docs', EMcpViewStatus.Connected, undefined],
+      [
+        'sealed',
+        EMcpViewStatus.Failed,
+        'malformed encrypted secret blob (expected iv.tag.ciphertext)',
+      ],
+    ])
   })
 })

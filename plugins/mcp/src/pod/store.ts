@@ -166,14 +166,24 @@ export class McpStore {
   }
 
   rows(): readonly McpServerRow[] {
-    return this.servers().map((server) => ({
-      name: server.name,
-      transport: server.transport,
-      status: viewStatusOf(server.status),
-      toolCount: server.tools,
-      ...(server.reason === undefined ? {} : { reason: server.reason }),
-      layer: server.origin,
-    }))
+    return [
+      ...this.servers().map((server) => ({
+        name: server.name,
+        transport: server.transport,
+        status: viewStatusOf(server.status),
+        toolCount: server.tools,
+        ...(server.reason === undefined ? {} : { reason: server.reason }),
+        layer: server.origin,
+      })),
+      ...this.rejections.map((rejection) => ({
+        name: rejection.name ?? rejection.definedIn,
+        transport: null,
+        status: EMcpViewStatus.Failed,
+        toolCount: 0,
+        reason: rejection.detail,
+        layer: rejection.origin,
+      })),
+    ]
   }
 
   instructionsByServer(): Map<string, string> {
@@ -247,6 +257,19 @@ export class McpStore {
     }
   }
 
+  private async markFailed(args: {
+    name: string
+    client: McpTransportClient
+    reason: string
+  }): Promise<void> {
+    const held = this.held.get(args.name)
+    if (held === undefined || held.client !== args.client) return
+    if (held.status !== EMcpServerStatus.Connected) return
+    held.status = EMcpServerStatus.Failed
+    held.reason = args.reason
+    await this.publish()
+  }
+
   private async ensure(spec: LoadedMcpEntry): Promise<void> {
     const existing = this.held.get(spec.name)
     if (existing !== undefined && sameSpec(existing.spec, spec)) {
@@ -279,7 +302,12 @@ export class McpStore {
     const client: McpTransportClient =
       transport.kind === 'http'
         ? new HttpClient({ serverId: spec.name, transport })
-        : new StdioClient({ ctx: this.args.ctx, serverId: spec.name, transport })
+        : new StdioClient({
+            ctx: this.args.ctx,
+            serverId: spec.name,
+            transport,
+            onExit: (reason) => void this.markFailed({ name: spec.name, client, reason }),
+          })
 
     try {
       const connection = await withCeiling({

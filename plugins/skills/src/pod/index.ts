@@ -37,7 +37,7 @@ export const skillsPodOf = (args: {
       const state = stateFor(ctx)
       return [
         new SkillTool(ctx, state, options),
-        new SkillInstallTool(ctx, options),
+        new SkillInstallTool(ctx, state, options),
         new SkillEditTool(ctx, state, options),
         new SkillDeleteTool(ctx, state, options),
       ]

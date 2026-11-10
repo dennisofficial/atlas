@@ -81,4 +81,15 @@ describe('frontmatterOf', () => {
       'name',
     ])
   })
+
+  it('folds an indented block scalar into one sentence', () => {
+    const text =
+      '---\nname: alpha\ndescription: >-\n  Does alpha when the task\n  names it, and only\n  then.\n---\n'
+    expect(parsed(text).description).toBe('Does alpha when the task names it, and only then.')
+  })
+
+  it('keeps the newlines of a literal block scalar', () => {
+    const text = '---\nname: alpha\ndescription: |\n  does alpha\n  and beta\n---\n'
+    expect(parsed(text).description).toBe('does alpha\nand beta')
+  })
 })

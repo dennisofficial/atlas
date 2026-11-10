@@ -60,6 +60,24 @@ describe('the same three tools over the clone', () => {
     expect(nodes['/repo/.atlas/skills/alpha/SKILL.md']).toBeUndefined()
   })
 
+  it('loads a skill it has just installed, with no turn boundary in between', async () => {
+    const { ctx } = fakeDaemon(repoTree())
+    const cloud = fakeCloud({ entries: [] })
+    await turn({ ctx, cloud })
+
+    const installed = await invoke({
+      ctx,
+      cloud,
+      name: 'skill_install',
+      input: { layer: 'repo', name: 'gamma', body: skillDir('gamma', 'gamma body') },
+    })
+    expect(installed.ok).toBe(true)
+
+    const loaded = await invoke({ ctx, cloud, name: 'skill', input: { name: 'gamma' } })
+    expect(loaded.ok).toBe(true)
+    expect(textOf(loaded)).toContain('gamma body')
+  })
+
   it('refuses an edit of a repo skill that is not there', async () => {
     const { ctx } = fakeDaemon(repoTree())
     const outcome = await invoke({
