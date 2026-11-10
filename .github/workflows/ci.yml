@@ -69,6 +69,12 @@ jobs:
             exit 1
           fi
 
+      # The render check reads the static build's story index and sizes, so the storybook is built
+      # here. Through turbo so an unchanged build comes back from the remote cache instead of being
+      # rebuilt on every PR.
+      - name: build the storybook
+        run: bunx turbo run build --filter=@dltech/atlas-storybook
+
       - name: fetch the diff base
         if: github.event_name != 'workflow_dispatch' && !startsWith(github.event.before, '0000000')
         run: git fetch --no-tags --depth=1 origin "$RENDER_CHECK_BASE" || echo "RENDER_CHECK_ALL=1" >> "$GITHUB_ENV"
