@@ -42,12 +42,12 @@ final class PaneController {
     }
 
     private func show(url: String, rect: PaneRect) {
-        if let pane, self.url != url {
-            self.url = url
-            navigate(url)
-        } else if pane == nil {
+        if pane == nil {
             pane = makePane(url: url, rect: rect)
             self.url = url
+        } else if self.url != url {
+            self.url = url
+            navigate(url)
         }
         visible = true
         setRect(rect)

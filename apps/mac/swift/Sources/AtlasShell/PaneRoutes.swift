@@ -41,9 +41,6 @@ final class PaneRoutes {
                 break
             }
         }
-        listener.newConnectionHandler = { [weak self] connection in
-            self?.accept(connection)
-        }
         listener.start(queue: queue)
 
         guard ready.wait(timeout: .now() + 5) == .success, let bound = assigned.get() else {
@@ -52,6 +49,9 @@ final class PaneRoutes {
         }
         origin = "http://127.0.0.1:\(bound)"
         Log.write("pane routes listening at \(origin)")
+        listener.newConnectionHandler = { [weak self] connection in
+            self?.accept(connection)
+        }
     }
 
     func stop() {
