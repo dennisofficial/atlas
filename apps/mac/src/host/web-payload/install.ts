@@ -30,6 +30,7 @@ export async function installPayload({
   fs,
   download,
   sha256,
+  appVersion,
 }: {
   home: string
   manifest: WebManifest
@@ -37,6 +38,7 @@ export async function installPayload({
   fs: IWebPayloadFs
   download: (url: string) => Promise<Uint8Array>
   sha256: (bytes: Uint8Array) => string
+  appVersion: string
 }): Promise<TInstallResult> {
   const archive = await download(artifactUrl({ manifest, manifestUrl })).catch(() => undefined)
   if (archive === undefined) return { installed: false, reason: EInstallFailure.DownloadFailed }
@@ -53,6 +55,6 @@ export async function installPayload({
     fs.discard({ home, hash: manifest.hash })
     return { installed: false, reason: EInstallFailure.WriteFailed }
   }
-  await fs.writeState({ home, state: installedState({ state, hash: manifest.hash }) })
+  await fs.writeState({ home, state: installedState({ state, hash: manifest.hash, appVersion }) })
   return { installed: true, hash: manifest.hash }
 }

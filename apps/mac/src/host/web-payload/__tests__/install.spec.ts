@@ -18,6 +18,7 @@ function install({
     fs,
     download,
     sha256: digest,
+    appVersion: '1.0.0',
   })
 }
 
@@ -32,13 +33,18 @@ describe('installPayload', () => {
       'write-state',
     ])
     expect(fake.state().current).toBe(manifestOf().hash)
+    expect(fake.state().appVersion).toBe('1.0.0')
     expect(fake.promoted.has(manifestOf().hash)).toBe(true)
   })
 
   test('keeps the previous payload in the state for rollback', async () => {
     const fake = fakePayloadFs({ state: { current: 'f'.repeat(16) } })
     await install({ fs: fake.fs })
-    expect(fake.state()).toEqual({ current: manifestOf().hash, previous: 'f'.repeat(16) })
+    expect(fake.state()).toEqual({
+      current: manifestOf().hash,
+      previous: 'f'.repeat(16),
+      appVersion: '1.0.0',
+    })
   })
 
   test('refuses an archive whose digest does not match', async () => {

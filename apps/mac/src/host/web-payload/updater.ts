@@ -45,12 +45,14 @@ export function createWebUpdater({
   home,
   manifestUrl,
   contract,
+  appVersion,
   ports,
   intervalMs = WEB_UPDATE_INTERVAL_MS,
 }: {
   home: string
   manifestUrl: string
   contract: number
+  appVersion: string
   ports: IWebUpdaterPorts
   intervalMs?: number
 }): IWebUpdater {
@@ -82,6 +84,7 @@ export function createWebUpdater({
         fs: ports.fs,
         download: ports.download,
         sha256: ports.sha256,
+        appVersion,
       })
       if (!result.installed) return fail(`the payload did not install: ${result.reason}`)
       await prune({ home, ports })
@@ -114,6 +117,7 @@ export function createWebUpdater({
     pending: () => pending,
     installedRoot: async () => {
       const state: IPayloadState = await ports.fs.readState(home)
+      if (state.appVersion !== appVersion) return undefined
       return selectedPayload({
         state,
         isComplete: (hash) => ports.fs.isComplete({ home, hash }),
