@@ -206,10 +206,10 @@ async function createWindow() {
     const next = startSession(payloadWebRoot({ home, hash }))
     try {
       const url = await next.url
+      await win.loadURL(url)
       host?.child.kill('SIGTERM')
       host = next
       console.log(`[web-payload] swapped the interface to ${hash}`)
-      await win.loadURL(url)
       return true
     } catch (error) {
       next.child.kill('SIGTERM')
