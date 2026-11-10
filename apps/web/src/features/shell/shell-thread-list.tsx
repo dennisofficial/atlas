@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { useMemo, useState } from 'react'
 
 import { SidebarGroup } from '@dltech/atlas-ui/components/sidebar'
+import { ESessionBucket, type SessionBucketCounts } from '@dltech/atlas-wire/web'
 
 import type { ApiPrStatesSubscribe } from '@/features/threads/data/api-pr-states-source'
 import { useApiPrStates } from '@/features/threads/data/use-api-pr-states'
@@ -11,9 +12,12 @@ import { SidebarPrObservationsProvider } from './shell-pr-observations'
 import { SidebarPrStatesProvider } from './shell-sidebar-pr-states'
 import { ThreadFamilyProvider } from './shell-thread-family'
 import { useClock } from './use-clock'
+import type { PageBucket } from './session-pager'
 import { Bucket } from './shell-bucket'
+import { BucketSheet } from './shell-bucket-sheet'
 import { ProjectGroup } from './shell-project-group'
 import {
+  countThreads,
   mainThreadsOf,
   partitionThreads,
   projectKeyOf,
@@ -22,6 +26,7 @@ import {
 
 export interface ThreadListProps {
   entries: readonly ProjectThreads[]
+  counts?: SessionBucketCounts | null
   activeThreadId: string | null
   subscribe?: ApiPrStatesSubscribe
 }
@@ -59,10 +64,15 @@ export function ThreadList(props: ThreadListProps) {
   )
 }
 
-function ThreadListContent({ entries, activeThreadId }: ThreadListProps) {
+function ThreadListContent({ entries, counts, activeThreadId }: ThreadListProps) {
   const [collapsed, setCollapsed] = useState<string[]>([])
+  const [paging, setPaging] = useState<PageBucket | null>(null)
   const now = useClock()
   const partition = useMemo(() => partitionThreads({ entries, now }), [entries, now])
+  const totals = {
+    [ESessionBucket.Inactive]: counts?.inactive ?? countThreads(partition.inactive),
+    [ESessionBucket.Archived]: counts?.archived ?? countThreads(partition.archived),
+  }
 
   const handleOpenChange = (projectId: string, open: boolean) => {
     setCollapsed((current) =>
@@ -101,6 +111,8 @@ function ThreadListContent({ entries, activeThreadId }: ThreadListProps) {
                 label="Inactive"
                 hint="Last 72h"
                 entries={partition.inactive}
+                total={totals[ESessionBucket.Inactive]}
+                onShowAll={() => setPaging(ESessionBucket.Inactive)}
                 activeThreadId={activeThreadId}
               />
             )}
@@ -108,12 +120,22 @@ function ThreadListContent({ entries, activeThreadId }: ThreadListProps) {
               <Bucket
                 label="Archived"
                 entries={partition.archived}
+                total={totals[ESessionBucket.Archived]}
+                onShowAll={() => setPaging(ESessionBucket.Archived)}
                 activeThreadId={activeThreadId}
               />
             )}
           </div>
         )}
       </div>
+      {paging !== null && (
+        <BucketSheet
+          bucket={paging}
+          onOpenChange={(open) => {
+            if (!open) setPaging(null)
+          }}
+        />
+      )}
     </SidebarGroup>
   )
 }

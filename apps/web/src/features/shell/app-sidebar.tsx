@@ -66,7 +66,7 @@ export function AppSidebar({ activeThreadId, activeSessionId = null, activeNav }
       <SearchPalette
         open={searchOpen}
         onOpenChange={setSearchOpen}
-        entries={query.state === EQueryState.Ready ? query.data : []}
+        entries={query.state === EQueryState.Ready ? query.data.entries : []}
       />
     </>
   )

@@ -2,6 +2,7 @@ import {
   EThreadLiveFrame,
   type LiveThreadRow,
   type Project,
+  type SessionBucketCounts,
   type ThreadLiveFrame,
   type WireSessionNode,
 } from '@dltech/atlas-wire/web'
@@ -13,7 +14,13 @@ export type LiveListState = {
   removedRevs: Map<string, number>
   projects: Map<string, Project>
   deletedProjectIds: Set<string>
+  counts: SessionBucketCounts | null
   ready: boolean
+}
+
+export interface ShellThreads {
+  entries: ProjectThreads[]
+  counts: SessionBucketCounts | null
 }
 
 export const emptyLiveList = (): LiveListState => ({
@@ -21,6 +28,7 @@ export const emptyLiveList = (): LiveListState => ({
   removedRevs: new Map(),
   projects: new Map(),
   deletedProjectIds: new Set(),
+  counts: null,
   ready: false,
 })
 
@@ -108,7 +116,10 @@ export function applyLiveFrame({
       for (const row of frame.rows) rows.set(row.thread.id, row)
       const projects = new Map<string, Project>()
       for (const project of frame.projects) projects.set(project.id, project)
-      return { state: { ...emptyLiveList(), rows, projects, ready: true }, resync: false }
+      return {
+        state: { ...emptyLiveList(), rows, projects, counts: frame.counts ?? null, ready: true },
+        resync: false,
+      }
     }
     case EThreadLiveFrame.Upsert:
       return { state: upsert({ state, row: frame.row }), resync: false }

@@ -12,15 +12,15 @@ import { usePageVisible } from '@/lib/use-page-visible'
 import { activityOverrides } from './activity-overrides'
 import { createdThreads } from './created-threads'
 import { createLiveListPublisher } from './live-list-publisher'
+import type { ShellThreads } from './live-list'
 import { createThreadsLive } from './live-stream'
 import { readSidebarCache, writeSidebarCache } from './sidebar-cache'
-import type { ProjectThreads } from './thread-partition'
 
-type ShellThreadsBox = { value: { entries: ProjectThreads[]; startedAt: number } }
+type ShellThreadsBox = { value: ShellThreads & { startedAt: number } }
 
 const CACHE_STARTED_AT = 0
 
-export function useLiveList(): CloudQuery<ProjectThreads[]> {
+export function useLiveList(): CloudQuery<ShellThreads> {
   const queryClient = useQueryClient()
   const visible = usePageVisible()
   const live = useRef<ReturnType<typeof createThreadsLive> | undefined>(undefined)
@@ -29,11 +29,12 @@ export function useLiveList(): CloudQuery<ProjectThreads[]> {
     ({
       applied,
       entries,
+      counts,
     }: Parameters<Parameters<typeof createLiveListPublisher>[0]['publish']>[0]) => {
       createdThreads.forgetListed(entries)
       activityOverrides.settleBefore(applied.at)
       queryClient.setQueryData([SHELL_THREADS_KEY], {
-        value: { entries, startedAt: applied.at },
+        value: { entries, counts, startedAt: applied.at },
       })
       queryClient.setQueryData([PROJECTS_KEY], {
         value: [...applied.state.projects.values()],
@@ -50,7 +51,7 @@ export function useLiveList(): CloudQuery<ProjectThreads[]> {
     const cached = readSidebarCache()
     if (cached === undefined) return
     queryClient.setQueryData<ShellThreadsBox>([SHELL_THREADS_KEY], {
-      value: { entries: cached, startedAt: CACHE_STARTED_AT },
+      value: { entries: cached, counts: null, startedAt: CACHE_STARTED_AT },
     })
   }, [queryClient])
 
@@ -79,7 +80,8 @@ export function useLiveList(): CloudQuery<ProjectThreads[]> {
 
   const query = useQuery<ShellThreadsBox>({ queryKey: [SHELL_THREADS_KEY], queryFn: skipToken })
   if (query.data !== undefined) {
-    return { state: EQueryState.Ready, data: query.data.value.entries, error: undefined, reload }
+    const { entries, counts } = query.data.value
+    return { state: EQueryState.Ready, data: { entries, counts }, error: undefined, reload }
   }
   return { state: EQueryState.Loading, data: undefined, error: undefined, reload }
 }
