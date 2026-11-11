@@ -1,6 +1,7 @@
 import { HttpException, HttpStatus, type Logger } from '@nestjs/common'
 import { TRPCError } from '@trpc/server'
 import type { TRPC_ERROR_CODE_KEY } from '@trpc/server/rpc'
+import { UserFacingException } from '../../_core/http/user-facing-exception'
 import { mapToHttpException } from '../../api/http-exception-mapping'
 
 const INTERNAL_MESSAGE = 'Internal server error'
@@ -66,7 +67,10 @@ export function toTrpcError({
   if (isServerFault) log.error(describeCauseChain(failure))
   return new TRPCError({
     code: trpcCodeOf({ status }),
-    message: isServerFault ? INTERNAL_MESSAGE : mapped.message,
+    message:
+      isServerFault && !(failure instanceof UserFacingException)
+        ? INTERNAL_MESSAGE
+        : mapped.message,
     cause: mapped,
   })
 }

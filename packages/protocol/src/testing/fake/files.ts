@@ -89,7 +89,10 @@ export const fakeFilesGroup =
           run: async ({ op }) => {
             fs.writeFile({
               path: op.path,
-              content: new TextEncoder().encode(op.content),
+              content:
+                op.encoding === 'base64'
+                  ? new Uint8Array(Buffer.from(op.content, 'base64'))
+                  : new TextEncoder().encode(op.content),
               mode: op.mode,
             })
             return null
