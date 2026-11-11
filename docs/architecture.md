@@ -454,14 +454,14 @@ rejections, and the `atlas` skill carries the procedure.
 **Two different things share one tab, and say so.** The right-hand pane is **Preview** on web: sandboxed
 iframes for the session's preview ports and any URL that allows framing, routed through the preview
 worker (`apps/preview-worker`), with the desktop preview-origin gate deciding which origins the Mac
-window's own webview may frame. On Mac it is **Browser**: one Electrobun `<electrobun-webview>` per open
-tab, painted by the Chromium the app bundles (`renderer="cef"`, `build.mac.bundleCEF`) while the app shell
-stays on WKWebView. Chromium is not a preference: a WKWebView child view sends a user agent sites answer
-with their legacy pages, and it can only run WebAuthn for domains the app itself is entitled to, so
-passkeys and modern sites are unreachable there. The capability flag `window.atlasDesktop.nativeBrowser`
-(set by the Mac preload, read through `hasNativeBrowser`) picks the layer; nothing sniffs the platform or
-user agent, and the build reports its own engines through `availableRenderers` → `chromium` on
-`/desktop/version`, which is what chooses the renderer and its partition.
+window's own webview may frame. On Mac it is **Browser**: one Electron `WebContentsView` per open target
+in the app window (`apps/mac/panes.js`), Chromium like the rest of the app. Chromium is not a preference:
+a WKWebView child view sends a user agent sites answer with their legacy pages, and it can only run
+WebAuthn for domains the app itself is entitled to, so passkeys and modern sites are unreachable there.
+The pane layer is chosen by probing the host's `/desktop/pane` route
+(`apps/web/src/features/threads/panel/preview/desktop/pane-client.ts`), with the iframe Preview layer as
+the fallback, and each target gets its own view and its own partition; nothing sniffs the platform or
+user agent.
 
 **One browser profile for the app.** The pane keeps a single persistent profile — `persist:atlas-browser`
 under Chromium, `persist:<uuid>` on the WKWebView fallback, which only accepts a UUID there — so signing

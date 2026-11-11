@@ -43,8 +43,7 @@ console.error(
   `affected apps since ${since ?? 'the first commit'}: ${affected.join(', ') || 'none'}`,
 )
 
-const macChanged =
-  affected.includes('apps/mac') || changed.some((path) => path.startsWith('apps/mac-electron/'))
+const macChanged = affected.includes('apps/mac')
 console.log(`mac=${macChanged ? 'true' : 'false'}`)
 
 if (next === null) {
