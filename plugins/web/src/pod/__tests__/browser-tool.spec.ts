@@ -66,29 +66,118 @@ const invoke = (
   }) as Promise<{ ok: boolean; [key: string]: unknown }>
 
 describe('BrowserTool', () => {
-  it('runs agent-browser in a browser named for the session', async () => {
+  it('runs the whole script in one exec that ends by closing the browser', async () => {
     const seen: CallOp[] = []
     const tool = new BrowserTool(ctxOf({ result: execOk(0), output: 'atlas', seen }))
 
-    const outcome = await invoke(tool, { args: ['open', 'example.com'] })
+    const outcome = await invoke(tool, {
+      commands: [['open', 'example.com'], ['fill', '@e2', 'hello world'], ['read']],
+    })
 
     expect(outcome.ok).toBe(true)
+    expect(seen).toHaveLength(1)
     expect(seen[0]).toEqual({
       op: 'exec',
-      argv: ['agent-browser', '--session', 'atlas-ses_42', 'open', 'example.com'],
+      argv: [
+        'agent-browser',
+        '--session',
+        'atlas-ses_42',
+        'batch',
+        '"open" "example.com"',
+        '"fill" "@e2" "hello world"',
+        '"read"',
+        '"close"',
+      ],
       timeoutMs: 120_000,
     })
     expect(String(outcome.modelText)).toContain('atlas')
+  })
+
+  it('reports what the binary printed and the commands it ran when a step fails', async () => {
+    const tool = new BrowserTool(
+      ctxOf({
+        result: execOk(1),
+        output:
+          '[agent-browser] launched browser\n✗ Command 2: Element not found: #nope. Verify the selector.',
+      }),
+    )
+
+    const outcome = await invoke(tool, {
+      commands: [
+        ['open', 'example.com'],
+        ['click', '#nope'],
+      ],
+    })
+
+    expect(outcome.ok).toBe(false)
+    const reason = String(outcome.reason)
+    expect(reason).toContain('exited 1')
+    expect(reason).toContain('open example.com; click #nope')
+    expect(reason).toContain('Element not found: #nope')
+  })
+
+  it('keeps the exit code and the argv when the binary prints nothing', async () => {
+    const tool = new BrowserTool(ctxOf({ result: execOk(2) }))
+
+    const outcome = await invoke(tool, { commands: [['open', 'example.com']] })
+
+    expect(outcome.ok).toBe(false)
+    const reason = String(outcome.reason)
+    expect(reason).toContain('exited 2')
+    expect(reason).toContain('open example.com; close')
+    expect(reason).toContain('it printed nothing')
+  })
+
+  it('says the process box and browser are gone when the call times out', async () => {
+    const tool = new BrowserTool(
+      ctxOf({ result: execOk(null, EExecOutcome.TimedOut), output: 'partial page' }),
+    )
+
+    const outcome = await invoke(tool, {
+      commands: [['open', 'slow.example.com']],
+      timeoutMs: 2_000,
+    })
+
+    expect(outcome.ok).toBe(false)
+    const reason = String(outcome.reason)
+    expect(reason).toContain('2000ms')
+    expect(reason).toContain('killed the call')
+    expect(reason).toContain('partial page')
+  })
+
+  it('reports an out of memory kill with its output', async () => {
+    const tool = new BrowserTool(
+      ctxOf({ result: execOk(null, EExecOutcome.OomKilled), output: 'opened' }),
+    )
+
+    const outcome = await invoke(tool, { commands: [['open', 'example.com']] })
+
+    expect(outcome.ok).toBe(false)
+    expect(String(outcome.reason)).toContain('out of memory')
+    expect(String(outcome.reason)).toContain('opened')
   })
 
   it('refuses a caller-chosen session', async () => {
     const seen: CallOp[] = []
     const tool = new BrowserTool(ctxOf({ result: execOk(0), seen }))
 
-    const outcome = await invoke(tool, { args: ['open', '--session', 'other', 'example.com'] })
+    const outcome = await invoke(tool, {
+      commands: [['open', '--session', 'other', 'example.com']],
+    })
 
     expect(outcome.ok).toBe(false)
     expect(String(outcome.reason)).toContain('--session')
+    expect(seen).toHaveLength(0)
+  })
+
+  it('refuses an empty script', async () => {
+    const seen: CallOp[] = []
+    const tool = new BrowserTool(ctxOf({ result: execOk(0), seen }))
+
+    const outcome = await invoke(tool, { commands: [] })
+
+    expect(outcome.ok).toBe(false)
+    expect(String(outcome.reason)).toContain('invalid input')
     expect(seen).toHaveLength(0)
   })
 
@@ -96,22 +185,11 @@ describe('BrowserTool', () => {
     const long = `${'a'.repeat(16_000)}${'b'.repeat(6_000)}${'c'.repeat(4_000)}`
     const tool = new BrowserTool(ctxOf({ result: execOk(0), output: long }))
 
-    const outcome = await invoke(tool, { args: ['read'] })
+    const outcome = await invoke(tool, { commands: [['read']] })
 
     expect(outcome.ok).toBe(true)
     expect((outcome.output as { truncated: boolean }).truncated).toBe(true)
     expect(String(outcome.modelText)).toContain('characters dropped from the middle')
-  })
-
-  it('fails with a retry hint when the call times out', async () => {
-    const tool = new BrowserTool(
-      ctxOf({ result: execOk(null, EExecOutcome.TimedOut), output: 'partial' }),
-    )
-
-    const outcome = await invoke(tool, { args: ['wait'], timeoutMs: 2_000 })
-
-    expect(outcome.ok).toBe(false)
-    expect(String(outcome.reason)).toContain('2000ms')
   })
 
   it('reports a failed exec with the daemon message', async () => {
@@ -128,7 +206,7 @@ describe('BrowserTool', () => {
       }),
     )
 
-    const outcome = await invoke(tool, { args: ['open', 'example.com'] })
+    const outcome = await invoke(tool, { commands: [['open', 'example.com']] })
 
     expect(outcome.ok).toBe(false)
     expect(String(outcome.reason)).toContain('agent-browser')
