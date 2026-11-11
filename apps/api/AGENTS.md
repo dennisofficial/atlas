@@ -112,6 +112,18 @@ GitHub webhooks).
   the feature's `*.router.fixture.ts` and supertest against `/v1/trpc/<alias>.<procedure>`.
   Queries are GET with `?input=<json>`, mutations POST the input as the JSON body.
 
+## Artifact storage
+
+Publishing writes through `ArtifactBlobStore`
+(`src/api/cloud/artifacts/artifact-blob-store.ts`), bound by `artifact-blob-store.provider.ts` from
+`ARTIFACT_STORAGE`: `vercel` (the default, `ARTIFACT_BLOB_READ_WRITE_TOKEN`) or `s3`, one
+S3-compatible adapter for Cloudflare R2, DigitalOcean Spaces and MinIO
+(`ARTIFACT_S3_ENDPOINT`, `ARTIFACT_S3_REGION`, `ARTIFACT_S3_BUCKET`, `ARTIFACT_S3_ACCESS_KEY_ID`,
+`ARTIFACT_S3_SECRET_ACCESS_KEY`). Object keys are the artifact pathnames unchanged —
+`artifacts/<id>/_route/<path>` and `routes/<id>.json` — so `apps/artifacts-host` serves either
+backend from `ARTIFACT_BLOB_BASE_URL` alone. Switching backends is an env change, never a data
+move: copy the bucket first, and the old objects stay where they are.
+
 ## Layout
 
 ```
