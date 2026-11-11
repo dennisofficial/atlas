@@ -161,10 +161,10 @@ describe('respond', () => {
     expect(response.headers.get('cdn-cache-control')).toBe('no-store')
   })
 
-  test('answers a plain 404 with no body', async () => {
+  test('answers the deployment not-found page', async () => {
     const response = await serveWith({ path: '/missing.js' })
     expect(response.status).toBe(404)
-    expect(await response.text()).toBe('')
+    expect(await response.text()).toContain('does not exist on this artifact')
     expect(response.headers.get('cache-control')).toBe('no-store')
   })
 

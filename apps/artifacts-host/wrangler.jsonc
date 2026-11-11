@@ -14,6 +14,6 @@
   ],
   "vars": {
     "ARTIFACT_DOMAIN": "byatlas.site",
-    "ARTIFACT_BLOB_BASE_URL": "https://store_DwnGog0YyNXtRKJc.public.blob.vercel-storage.com"
+    "ARTIFACT_BLOB_BASE_URL": "https://dwngog0yynxtrkjc.public.blob.vercel-storage.com"
   }
 }

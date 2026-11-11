@@ -2,6 +2,7 @@ import { contentTypeOf, routeCandidatesOf, type RouteCandidate } from '@dltech/a
 
 import { cacheHeadersOf } from './cache-headers'
 import { subdomainOf } from './host-label'
+import { artifactNotFoundHtml, deploymentNotFoundHtml } from './pages'
 import type { ObjectFetcher, RouteObjectFetcher } from './route-object'
 
 export type RespondArgs = {
@@ -31,11 +32,29 @@ const methodNotAllowed = (): Response =>
     },
   })
 
-const emptyNotFound = (): Response =>
-  new Response(null, {
-    status: 404,
-    headers: { ...securityHeaders(), ...cacheHeadersOf({ path: '', status: 404 }) },
+const htmlResponse = ({
+  request,
+  html,
+  status,
+}: {
+  request: Request
+  html: string
+  status: 404
+}): Response =>
+  new Response(request.method === 'HEAD' ? null : html, {
+    status,
+    headers: {
+      ...securityHeaders(),
+      ...cacheHeadersOf({ path: '', status }),
+      'Content-Type': 'text/html; charset=utf-8',
+    },
   })
+
+const artifactNotFound = ({ request, host }: { request: Request; host: string }): Response =>
+  htmlResponse({ request, html: artifactNotFoundHtml({ host }), status: 404 })
+
+const deploymentNotFound = ({ request }: { request: Request }): Response =>
+  htmlResponse({ request, html: deploymentNotFoundHtml(), status: 404 })
 
 const fileResponse = ({
   request,
@@ -75,18 +94,19 @@ export async function respond({
 }: RespondArgs): Promise<Response> {
   if (!SERVED_METHODS.has(request.method)) return methodNotAllowed()
 
-  const subdomain = subdomainOf({ host: hostOf(request), domain })
-  if (subdomain === null) return emptyNotFound()
+  const host = hostOf(request)
+  const subdomain = subdomainOf({ host, domain })
+  if (subdomain === null) return artifactNotFound({ request, host })
 
   const route = await fetchRoute(subdomain)
-  if (route === null) return emptyNotFound()
+  if (route === null) return artifactNotFound({ request, host })
 
   const resolution = routeCandidatesOf({
     id: subdomain,
     pathname: new URL(request.url).pathname,
     serve: route.serve,
   })
-  if (resolution === null) return emptyNotFound()
+  if (resolution === null) return deploymentNotFound({ request })
 
   for (const candidate of resolution.candidates) {
     const object = await fetchObject(candidate.key)
@@ -108,5 +128,5 @@ export async function respond({
     }
   }
 
-  return emptyNotFound()
+  return deploymentNotFound({ request })
 }
