@@ -19,7 +19,9 @@ One browser view per window, owned by the shell's main process (`apps/mac/main.j
 never holds a native object; it sends commands over the desktop host's guarded route family and
 listens for events.
 
-Web → host, `POST /desktop/pane` (same `secret` guard as `/desktop/window`):
+Web → host, `POST /desktop/pane` (same `secret` guard as `/desktop/window`). Every command carries
+`id`, the preview target (`pane:<threadId>:<tabId>`); a command without one acts on a single default
+view, which is only what a released web build older than the id sends:
 
 | command                                | body                                            | meaning                                                                                                     |
 | -------------------------------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
