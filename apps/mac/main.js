@@ -129,7 +129,12 @@ async function createWindow() {
     startHost({
       script,
       bun,
-      environment: hostEnvironment({ base: process.env, paneOrigin: session.origin, webRoot }),
+      environment: hostEnvironment({
+        base: process.env,
+        paneOrigin: session.origin,
+        webRoot,
+        appVersion: app.getVersion(),
+      }),
     })
 
   let host
