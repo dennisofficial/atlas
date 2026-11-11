@@ -2,7 +2,7 @@ import { Logger } from '@nestjs/common'
 import type { EnvService } from '../../_core/config/env/env.service'
 import { SecretCipherService } from '../../_lib/crypto/secret-cipher.service'
 import type { ArchivedSandboxSweepDeps } from '../../api/cloud/sandbox-provisioning/archived-sandbox-sweep'
-import { ThreadSandboxCredentialsService } from '../../api/cloud/sandbox-credentials/thread-sandbox-credentials.service'
+import { ScopedSandboxCredentialsService } from '../../api/cloud/sandbox-credentials/scoped-sandbox-credentials.service'
 import { buildScopedConfig } from '../../api/cloud/scoped-config/scoped-config.factory'
 import { VercelSandboxClient } from '../../api/platform/sandboxes/vercel-sandbox.client'
 import { workerEnvService } from '../github/github-sweep-graph'
@@ -19,7 +19,7 @@ export function buildArchivedSandboxSweepGraph(args: {
   const { env } = args
   const cipher = new SecretCipherService(env)
   const vercel = new VercelSandboxClient(
-    new ThreadSandboxCredentialsService(buildScopedConfig({ cipher, env }), env),
+    new ScopedSandboxCredentialsService(buildScopedConfig({ cipher, env }), env),
   )
   const { signals, dispose } = buildWorkerThreadSignals({ env })
   const logger = new Logger('ArchivedSandboxSweep')

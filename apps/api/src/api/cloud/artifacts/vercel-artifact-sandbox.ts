@@ -5,6 +5,7 @@ import {
   ARTIFACT_SANDBOX_STOP_TIMEOUT_MS,
   ARTIFACT_WORKSPACE,
   ArtifactSandbox,
+  buildCredentialsOf,
   type ArtifactSandboxCommand,
   type ArtifactSandboxFile,
   type ArtifactSandboxRequest,
@@ -58,8 +59,9 @@ export class VercelArtifactSandbox extends ArtifactSandbox {
   }
 
   async run(request: ArtifactSandboxRequest): Promise<ArtifactSandboxResult> {
-    const { token, teamId, projectId } = await this.credentials.forThread({
-      threadId: request.threadId,
+    const { token, teamId, projectId } = await buildCredentialsOf({
+      credentials: this.credentials,
+      owner: request.owner,
     })
     const sandbox = await Sandbox.create({
       token,

@@ -22,7 +22,7 @@ describe('ArtifactBuild', () => {
 
   const run = (args: { spec: unknown; result: Parameters<FakeArtifactSandbox['scripted']>[0] }) => {
     sandbox.scripted(args.result)
-    return build.run({ threadId: 'thread-a', spec: parseSpec(args.spec), files: SOURCE })
+    return build.run({ owner: { threadId: 'thread-a' }, spec: parseSpec(args.spec), files: SOURCE })
   }
 
   beforeEach(() => sandbox.reset())
@@ -43,6 +43,7 @@ describe('ArtifactBuild', () => {
     expect(result.files.map((file) => file.path)).toEqual(['assets/app.js', 'index.html'])
     expect(result.log).toContain('prepared')
     expect(result.log).toContain('==> build (exit 0)')
+    expect(sandbox.lastRequest.owner).toEqual({ threadId: 'thread-a' })
     expect(sandbox.lastRequest.files.map((file) => file.path)).toEqual(['index.html', 'app.css'])
   })
 

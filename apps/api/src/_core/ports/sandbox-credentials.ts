@@ -7,6 +7,14 @@ export type ThreadSandboxCredentials = {
   userId: string | undefined
 }
 
+export type UserSandboxCredentials = {
+  token: string
+  teamId: string
+  projectId: string
+  userId: string
+}
+
 export abstract class SandboxCredentials {
   abstract forThread(args: { threadId: string }): Promise<ThreadSandboxCredentials>
+  abstract forUser(args: { userId: string }): Promise<UserSandboxCredentials>
 }

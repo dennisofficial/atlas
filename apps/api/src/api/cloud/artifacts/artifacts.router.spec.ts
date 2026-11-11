@@ -171,6 +171,7 @@ describe('ArtifactsRouter', () => {
       }).expect(200)
 
       expect(dataOf(res.body)).toMatchObject({ version: 2, status: 'ready' })
+      expect(sandbox.lastRequest.owner).toEqual({ threadId: 'thread-a' })
       const subdomain = await subdomainOf(granted.artifactId)
       const route = routePrefixOf({ id: subdomain })
       expect(keysUnder(route)).toEqual([`${route}assets/app.js`, `${route}index.html`])
@@ -238,23 +239,23 @@ describe('ArtifactsRouter', () => {
       })
     })
 
-    it('refuses a build published without a pod or sandbox token', async () => {
+    it('builds a UI publish on the publisher\u2019s own credentials', async () => {
       const granted = artifactBeginPublishOutputSchema.parse(
         dataOf((await begin(OWNER).expect(200)).body),
       )
       await seedGranted(granted)
+      sandbox.scripted(
+        sandboxResult({ outDir: builtFiles([{ path: 'index.html', body: '<h1>built</h1>' }]) }),
+      )
 
       const res = await commit(OWNER, {
         artifactId: granted.artifactId,
         version: granted.version,
         spec: { build: { cmd: 'bun run build', outDir: 'dist' } },
-      })
+      }).expect(200)
 
-      expect(res.status).toBe(400)
-      expect(Reflect.get(res.body, 'error')).toMatchObject({
-        message: expect.stringContaining('sandbox or pod token'),
-      })
-      expect(sandbox.requests).toHaveLength(0)
+      expect(dataOf(res.body)).toMatchObject({ status: 'ready' })
+      expect(sandbox.lastRequest.owner).toEqual({ userId: 'user-a' })
     })
 
     it("refuses another user's artifact", async () => {

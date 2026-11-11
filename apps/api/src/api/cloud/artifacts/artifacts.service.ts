@@ -29,6 +29,7 @@ import type {
 } from '@dltech/atlas-wire'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { ArtifactBuild } from './artifact-build'
+import type { ArtifactBuildOwner } from './artifact-sandbox'
 import { ArtifactBlobStore } from './artifact-blob-store'
 import type { ArtifactRow, BuildRow } from './artifact-rows'
 import { writeArtifactRoute } from './artifact-route'
@@ -104,7 +105,7 @@ export class ArtifactsService {
       spec.build === undefined
         ? null
         : await this.build.run({
-            threadId: this.threadOf(args.threadId),
+            owner: this.buildOwnerOf({ userId: args.userId, threadId: args.threadId }),
             spec,
             files: source.files,
           })
@@ -216,13 +217,8 @@ export class ArtifactsService {
     }
   }
 
-  private threadOf(threadId: string | undefined): string {
-    if (threadId === undefined) {
-      throw new BadRequestException(
-        "a build runs on the publishing pod's Vercel credentials: publish it with a sandbox or pod token",
-      )
-    }
-    return threadId
+  private buildOwnerOf(args: { userId: string; threadId: string | undefined }): ArtifactBuildOwner {
+    return args.threadId === undefined ? { userId: args.userId } : { threadId: args.threadId }
   }
 
   private async openBuild(args: {
