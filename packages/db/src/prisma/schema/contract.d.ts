@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'a04df9006767473ac4a56cce0bc21d144268ba24e28d5e1982fc2e71496f36f2'>;
+  StorageHashBase<'1143c80ee8dbac2b5a381aa19f5806cfa71c9c3de8e53ffb5f82bd8eef4d80e1'>;
 export type ExecutionHash =
   ExecutionHashBase<'27a680d0d8367c03704617bfac2d0041e04bd5395fc473f9e021f03bd0d4c6fa'>;
 export type ProfileHash =
@@ -335,9 +335,7 @@ export namespace Models {
     currentVersion: FieldOutputTypes['public']['Artifact']['currentVersion'];
     id: FieldOutputTypes['public']['Artifact']['id'];
     name: FieldOutputTypes['public']['Artifact']['name'];
-    slug: FieldOutputTypes['public']['Artifact']['slug'];
     subdomain: FieldOutputTypes['public']['Artifact']['subdomain'];
-    token: FieldOutputTypes['public']['Artifact']['token'];
     updatedAt: FieldOutputTypes['public']['Artifact']['updatedAt'];
     userId: FieldOutputTypes['public']['Artifact']['userId'];
     user: public_User;
@@ -1709,19 +1707,7 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly many: false;
                 };
-                readonly slug: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
                 readonly subdomain: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly token: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
@@ -1746,11 +1732,6 @@ type ContractBase = Omit<
                 {
                   readonly columns: readonly ['subdomain'];
                   readonly name: 'Artifact_subdomain_key';
-                },
-                { readonly columns: readonly ['token']; readonly name: 'Artifact_token_key' },
-                {
-                  readonly columns: readonly ['userId', 'slug'];
-                  readonly name: 'Artifact_userId_slug_key';
                 },
               ];
               indexes: readonly [
@@ -7804,15 +7785,7 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
-              readonly slug: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
               readonly subdomain: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly token: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
@@ -7859,9 +7832,7 @@ type ContractBase = Omit<
                 readonly currentVersion: { readonly column: 'currentVersion' };
                 readonly id: { readonly column: 'id' };
                 readonly name: { readonly column: 'name' };
-                readonly slug: { readonly column: 'slug' };
                 readonly subdomain: { readonly column: 'subdomain' };
-                readonly token: { readonly column: 'token' };
                 readonly updatedAt: { readonly column: 'updatedAt' };
                 readonly userId: { readonly column: 'userId' };
               };

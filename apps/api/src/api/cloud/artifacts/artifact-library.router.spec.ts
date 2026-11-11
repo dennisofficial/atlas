@@ -50,7 +50,7 @@ describe('ArtifactsRouter library', () => {
   afterEach(() => app.close())
 
   it('projects the stored build log and duration of the last build', async () => {
-    await publish()
+    const published = await publish()
     const granted = artifactBeginPublishOutputSchema.parse(
       dataOf(
         (
@@ -58,7 +58,7 @@ describe('ArtifactsRouter library', () => {
             app,
             path: 'artifacts.beginPublish',
             token: 'sandbox-token-a',
-            input: withSlug('demo'),
+            input: withSlug(published.subdomain),
           }).expect(200)
         ).body,
       ),
@@ -85,7 +85,9 @@ describe('ArtifactsRouter library', () => {
       },
     }).expect(200)
 
-    const detail = artifactGetOutputSchema.parse(dataOf((await get(OWNER, 'demo')).body))
+    const detail = artifactGetOutputSchema.parse(
+      dataOf((await get(OWNER, published.subdomain)).body),
+    )
 
     expect(detail.build.log).toContain('installed')
     expect(detail.build.durationMs).toBeGreaterThanOrEqual(0)
@@ -110,10 +112,10 @@ describe('ArtifactsRouter library', () => {
     })
 
     it('returns the artifact and its last build for a sandbox', async () => {
-      await publish()
+      const published = await publish()
 
       const detail = artifactGetOutputSchema.parse(
-        dataOf((await get('sandbox-token-a', 'demo')).body),
+        dataOf((await get('sandbox-token-a', published.subdomain)).body),
       )
 
       expect(detail.artifact.status).toBe('ready')
@@ -121,10 +123,10 @@ describe('ArtifactsRouter library', () => {
     })
 
     it('answers 404 for an unknown slug and for another user', async () => {
-      await publish()
+      const published = await publish()
 
       expect((await get(OWNER, 'missing')).status).toBe(404)
-      expect((await get('session-b', 'demo')).status).toBe(404)
+      expect((await get('session-b', published.subdomain)).status).toBe(404)
     })
   })
 
@@ -133,7 +135,7 @@ describe('ArtifactsRouter library', () => {
       const published = await publish()
 
       const exported = artifactSourceExportOutputSchema.parse(
-        dataOf((await sourceExport(OWNER, 'demo')).body),
+        dataOf((await sourceExport(OWNER, published.subdomain)).body),
       )
 
       expect(exported.entries.map((entry) => entry.path)).toEqual(['app.css', 'index.html'])
@@ -147,9 +149,9 @@ describe('ArtifactsRouter library', () => {
     })
 
     it("refuses another user's artifact", async () => {
-      await publish()
+      const published = await publish()
 
-      expect((await sourceExport('session-b', 'demo')).status).toBe(404)
+      expect((await sourceExport('session-b', published.subdomain)).status).toBe(404)
     })
   })
 })

@@ -7,9 +7,10 @@ export const urlOf = (args: { artifact: ArtifactRow; domain: string }): string =
   artifactUrlOf({ subdomain: args.artifact.subdomain, domain: args.domain })
 
 export async function ownedArtifact(args: { userId: string; slug: string }): Promise<ArtifactRow> {
-  const bySlug = await db.orm.public.Artifact.first({ userId: args.userId, slug: args.slug })
-  const artifact =
-    bySlug ?? (await db.orm.public.Artifact.first({ userId: args.userId, subdomain: args.slug }))
+  const artifact = await db.orm.public.Artifact.first({
+    userId: args.userId,
+    subdomain: args.slug,
+  })
   if (artifact === null) throw new NotFoundException(`no artifact ${args.slug}`)
   return artifact
 }
