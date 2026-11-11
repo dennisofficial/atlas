@@ -33,9 +33,10 @@ export function webRootAt({ resourcesPath }) {
   return join(resourcesPath, 'web-standalone', 'apps', 'web')
 }
 
-export function hostEnvironment({ base, paneOrigin, webRoot, appVersion }) {
+export function hostEnvironment({ base, paneOrigin, updateOrigin, webRoot, appVersion }) {
   const environment = { ...base }
   if (paneOrigin) environment.ATLAS_PANE_ORIGIN = paneOrigin
+  if (updateOrigin) environment.ATLAS_UPDATE_ORIGIN = updateOrigin
   if (webRoot) environment.ATLAS_WEB_ROOT = webRoot
   if (appVersion) environment.ATLAS_VERSION = appVersion
   return environment

@@ -166,18 +166,11 @@ export function createElectronWebUpdater({
   let timer
   let checking = false
 
-  const poll = async ({ onPayload }) => {
+  const poll = async () => {
     if (checking) return
     checking = true
     try {
       await updater.check()
-      const hash = updater.pending()
-      if (hash === undefined) return
-      const swapped = await onPayload({ hash }).catch((error) => {
-        log({ label: 'web-payload-swap', error })
-        return false
-      })
-      if (swapped === true) updater.applied()
     } finally {
       checking = false
     }
@@ -187,10 +180,14 @@ export function createElectronWebUpdater({
     updater,
     launchRoot: async ({ bundledRoot }) =>
       webRootFor({ home, bundledRoot, installedHash: await updater.installedRoot() }),
-    start: ({ onPayload }) => {
-      void poll({ onPayload })
+    check: async () => {
+      await poll()
+      return updater.status()
+    },
+    start: () => {
+      void poll()
       if (timer !== undefined) return
-      timer = setInterval(() => void poll({ onPayload }), intervalMs)
+      timer = setInterval(() => void poll(), intervalMs)
     },
     stop: () => {
       if (timer === undefined) return

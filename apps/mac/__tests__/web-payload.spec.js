@@ -116,25 +116,30 @@ test('offline keeps the bundled tree', async () => {
   expect(await payloads.launchRoot({ bundledRoot: BUNDLED_ROOT })).toBe(BUNDLED_ROOT)
 })
 
-test('a pending payload reaches the swap callback once', async () => {
-  const bytes = archiveOf({ marker: 'swap' })
+test('installs a payload and leaves it waiting for the person to reload', async () => {
+  const bytes = archiveOf({ marker: 'wait' })
   const manifest = manifestFor({ bytes, version: '9.9.9' })
   const payloads = updaterFor({ manifest, bytes })
 
-  const seen = new Promise((resolve) => {
-    payloads.start({
-      onPayload: async ({ hash }) => {
-        resolve(hash)
-        return true
-      },
-    })
-  })
+  const status = await payloads.check()
 
-  try {
-    expect(await seen).toBe(manifest.hash)
-    await Bun.sleep(0)
-  } finally {
-    payloads.stop()
-  }
-  expect(payloads.updater.pending()).toBeUndefined()
+  expect(status.state).toBe(EWebPayloadState.Ready)
+  expect(status.version).toBe('9.9.9')
+  expect(payloads.updater.pending()).toBe(manifest.hash)
+  expect(await payloads.launchRoot({ bundledRoot: BUNDLED_ROOT })).toBe(
+    payloadWebRoot({ home, hash: manifest.hash }),
+  )
+})
+
+test('polls without ever swapping the page out from under the window', async () => {
+  const bytes = archiveOf({ marker: 'poll' })
+  const manifest = manifestFor({ bytes, version: '9.9.9' })
+  const payloads = updaterFor({ manifest, bytes })
+
+  payloads.start()
+  await Bun.sleep(10)
+  payloads.stop()
+
+  expect(payloads.updater.pending()).toBe(manifest.hash)
+  expect(payloads.updater.status().state).toBe(EWebPayloadState.Ready)
 })

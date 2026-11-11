@@ -81,6 +81,9 @@ export function PreviewTabBody(props: {
   const { gate } = useFrameRegistry()
   const nativeBrowser = useHasNativeBrowser()
   const paneMode = usePaneMode()
+  // The shell draws a real browser view under the slot, so neither the embedded-frame fallbacks nor
+  // the "this site blocks embedding" bar describe what is on screen.
+  const inShell = paneMode === EPaneMode.Shell
   const key = liveKeyOf({ threadId, tabId })
   const framed =
     page.kind === ETabPage.Frame || page.kind === ETabPage.Loading || page.kind === ETabPage.Held
@@ -94,10 +97,10 @@ export function PreviewTabBody(props: {
   if (page.kind === ETabPage.Loading) return null
   if (page.kind === ETabPage.External) return <ExternalNotice url={url} />
   if (page.kind === ETabPage.Offline) return <PreviewOffline port={page.port} />
-  if (!nativeBrowser && gate === EPreviewGate.Failed) return <BlockedNotice />
+  if (!inShell && !nativeBrowser && gate === EPreviewGate.Failed) return <BlockedNotice />
   return (
     <div className="flex h-full min-h-0 flex-col">
-      {page.kind === ETabPage.Frame && page.port === undefined && !nativeBrowser ? (
+      {page.kind === ETabPage.Frame && page.port === undefined && !inShell && !nativeBrowser ? (
         <OutsideSessionBar url={url} />
       ) : null}
       <div className="min-h-0 flex-1">

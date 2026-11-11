@@ -7,6 +7,7 @@ import { cn } from '@dltech/atlas-ui/lib/utils'
 import { useHasNativeBrowser } from '@/features/desktop/use-has-native-browser'
 
 import { useAllPreviewBrowsers } from '../../data/preview-browser/use-preview-browser'
+import { EPaneMode, usePaneMode } from './desktop/use-pane-mode'
 import { changeRegistry, slotKeyOf, useFrameRegistry, withLoading } from './frame-registry'
 import { framesOf, type FrameSpec } from './frames-of'
 import { NativeFrameLayer } from './native-frame-layer'
@@ -66,6 +67,10 @@ function PreviewFrame(props: {
 
 export function PreviewFrameLayer() {
   const native = useHasNativeBrowser()
+  const pane = usePaneMode()
+  // In the Mac shell the preview is a native view owned by the shell. Drawing frames over it would
+  // put a second, empty browser underneath every preview tab.
+  if (pane !== EPaneMode.InPage) return null
   return native ? <NativeFrameLayer /> : <IframeFrameLayer />
 }
 
