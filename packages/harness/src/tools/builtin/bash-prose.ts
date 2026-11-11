@@ -1,5 +1,6 @@
 import { readIdling } from '@dltech/atlas-core'
 
+import { sessionDirectoriesDescription } from '../../execution/session-environment'
 import { MATCHED_LINES_CAP } from '../../shells/shell-watch'
 
 export function bashDescription({
@@ -23,9 +24,8 @@ export function bashDescription({
     'runInBackground to get a shell id back at once; the shell',
     'outlives the turn that started it and reconnects after an Atlas restart. Full background output',
     'is saved in the owning thread’s session folder; the returned output path can be read or grepped.',
-    'shell_input writes to a durable shell’s stdin. ATLAS_SESSION_DIR and ATLAS_CONTEXT_DIR name',
-    'the session directories shared by the conversation and its agents. ATLAS_THREAD_DIR names the',
-    'thread directory private to the calling thread.',
+    'shell_input writes to a durable shell’s stdin.',
+    sessionDirectoriesDescription,
     'Scratch files, probes, and one-off downloads belong in $ATLAS_SESSION_DIR/scratch, never loose in the Atlas home directory.',
     'The output file does not rotate. A 5 GiB kernel file-size limit bounds regular-file writes for background commands.',
     'A server - a dev server, a database, anything that listens',

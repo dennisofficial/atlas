@@ -309,6 +309,36 @@ describe('createPaneSync', () => {
     expect(secondRun.sent[0]).toMatchObject({ kind: 'show', url: URL_A })
   })
 
+  it('navigates again to an address the shell refused to take', async () => {
+    const { element } = slotAt(RECT)
+    const sent: PaneCommand[] = []
+    let refuse = true
+    const send: PaneSender = async (command) => {
+      sent.push(command)
+      return !refuse
+    }
+    const sync = createPaneSync({
+      element,
+      id: 'pane:refused:tab-1',
+      url: URL_A,
+      send,
+      environment: fakeEnvironment().environment,
+    })
+    await settle()
+    sync.apply('https://example.com/b')
+    await settle()
+    refuse = false
+    sync.apply(URL_A)
+    await settle()
+    sync.apply('https://example.com/b')
+    await settle()
+    expect(sent.filter((command) => command.kind === 'navigate')).toEqual([
+      { kind: 'navigate', url: 'https://example.com/b' },
+      { kind: 'navigate', url: URL_A },
+      { kind: 'navigate', url: 'https://example.com/b' },
+    ])
+  })
+
   it('navigates a remounted target whose url changed while it was away', async () => {
     const first = slotAt(RECT)
     const firstRun = recorder()

@@ -21,17 +21,17 @@ listens for events.
 
 Web → host, `POST /desktop/pane` (same `secret` guard as `/desktop/window`):
 
-| command                                | body                                            | meaning                                     |
-| -------------------------------------- | ----------------------------------------------- | ------------------------------------------- |
-| `show`                                 | `{ url, rect: { x, y, width, height }, zoom? }` | create on first use, then show at `rect`    |
-| `hide`                                 | `{}`                                            | take the view out of the window's hierarchy |
-| `setRect`                              | `{ rect }`                                      | move/resize while shown                     |
-| `navigate`                             | `{ url }`                                       | load a url (tab switch, typed address)      |
-| `back` / `forward` / `reload` / `stop` | `{}`                                            | history and loading                         |
-| `setObscured`                          | `{ obscured }`                                  | a popover or dialog covers the pane         |
+| command                                | body                                            | meaning                                                                                                     |
+| -------------------------------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `show`                                 | `{ url, rect: { x, y, width, height }, zoom? }` | create on first use, show at `rect`, and load `url` when it is not the address this view was last asked for |
+| `hide`                                 | `{}`                                            | take the view out of the window's hierarchy                                                                 |
+| `setRect`                              | `{ rect }`                                      | move/resize while shown                                                                                     |
+| `navigate`                             | `{ url }`                                       | load a url (tab switch, typed address)                                                                      |
+| `back` / `forward` / `reload` / `stop` | `{}`                                            | history and loading                                                                                         |
+| `setObscured`                          | `{ obscured }`                                  | a popover or dialog covers the pane                                                                         |
 
-Host → web today: the shell main process forwards each view's `did-navigate`, `did-navigate-in-page`
-and `page-title-updated` to the window, and `apps/mac/preload.cjs` hands them to the web app's
+Host → web today: the shell main process forwards each view's `did-navigate`, `did-navigate-in-page`,
+`did-fail-load` and `page-title-updated` to the window, and `apps/mac/preload.cjs` hands them to the web app's
 `onPaneNavigated` / `onPaneTitled` listeners on the `window.atlasDesktop` bridge.
 `desktop/pane-reports.tsx` routes them into the tab reducer, so the address bar, the tab title and
 back/forward follow what the browser actually did. `desktop/pane-locations.ts` remembers the address
@@ -58,8 +58,12 @@ unchanged — it is the tab strip, not the transport.
 
 ## Lifecycle, the part that matters
 
-- **Create once.** The first `show` creates the view; every later `show` re-adds it. Nothing the
-  web app does destroys it.
+- **Create once, keep alive.** The first `show` creates the view; every later `show` re-shows it.
+  Switching a tab or a session is a visibility change, never a reload: the only teardown is the
+  target falling past `PANE_TARGET_LIMIT`, or the window closing.
+- **`show` carries the address.** The registry remembers the url each view was last _asked_ for and
+  loads again when it changes, so a remounted slot cannot leave a stale page behind. Comparing
+  against `getURL()` instead would reload on every server-side redirect.
 - **Hide means gone from the hierarchy**, not `toggleHidden`: a hidden view must not paint and must
   not hit-test. `show` re-adds, sets the frame, then orders it above the web view.
 - **A shell document load does not touch the view.** `clearChildViews` and its document-request
@@ -67,6 +71,9 @@ unchanged — it is the tab strip, not the transport.
   at the new rect. This is what removes the `Cmd+R` crash.
 - **Creation failure is an event**, never a half-state: the host destroys the attempt and emits
   `{ kind: 'failed' }`. The app offers one explicit retry; there are no timers.
+- **A failed load keeps the old page and says so.** `did-fail-load` on the main frame reports the
+  address the view is still on, so the address bar never names a page nobody can see; aborted loads
+  (`ERR_ABORTED`) are noise and are ignored.
 - **Window close or quit** is the only teardown path.
 - `setRect` is coalesced to one call per animation frame on the web side.
 

@@ -17,6 +17,35 @@ import { ETranscriptKind } from '@/features/threads/data/transcript-kind'
 
 import { sessionTranscriptOf } from '../session-transcript'
 
+describe('a message from another session', () => {
+  const peerSaid = (session: string): V2Body[] => [
+    { type: 'user-said', text: 'second reply ok', sender: { session }, via: 'peer-agent' as never },
+  ]
+
+  it('names the session that sent it, rather than showing its id', () => {
+    const view = sessionTranscriptOf({
+      events: mint(peerSaid('ses_2')),
+      overlay: undefined,
+      sessionNameOf: (id) => (id === 'ses_2' ? 'Fix login' : undefined),
+    })
+    const row = view.items[0]
+    expect(row.kind).toBe(ETranscriptKind.Notice)
+    expect(row.kind === ETranscriptKind.Notice ? row.title : '').toBe('Message from Fix login')
+  })
+
+  it('never falls back to a raw id when the session is unknown', () => {
+    const view = sessionTranscriptOf({
+      events: mint(peerSaid('ses_2')),
+      overlay: undefined,
+      sessionNameOf: () => undefined,
+    })
+    const row = view.items[0]
+    expect(row.kind === ETranscriptKind.Notice ? row.title : '').toBe(
+      'Message from another session',
+    )
+  })
+})
+
 const call = toCallId('call-1')
 
 const mint = (bodies: readonly V2Body[]): V2Event[] =>

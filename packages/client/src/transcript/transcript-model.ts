@@ -147,6 +147,7 @@ export type AgentSaidEntry = {
   key: string
   text: string
   sender: string
+  senderSessionId: string | null
 }
 
 export type AgentEndedEntry = {

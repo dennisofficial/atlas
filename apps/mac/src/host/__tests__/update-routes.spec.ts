@@ -14,7 +14,7 @@ beforeAll(() => {
     apiOrigin: 'http://127.0.0.1:1',
     secret: SECRET,
     updates: {
-      status: () => status,
+      status: async () => status,
       check: async () => {
         checks += 1
         status = { state: EDesktopUpdateState.Ready, version: '1.2.4' }

@@ -349,7 +349,8 @@ jobs:
           iconutil -c icns icon.iconset -o build/icon.icns
           bun run bundle:payload
           bun run pack:host
-          npx electron-builder --mac dmg --arm64
+          npx electron-builder --mac dmg zip --arm64
+          bun scripts/update-manifest.ts --version 0.0.0 --dir release
         working-directory: apps/mac
 
       - name: verify the built app server answers flight requests
@@ -575,7 +576,8 @@ jobs:
           iconutil -c icns icon.iconset -o build/icon.icns
           bun run bundle:payload
           bun run pack:host
-          npx electron-builder --mac dmg --arm64 --publish never -c.extraMetadata.version="$VERSION"
+          npx electron-builder --mac dmg zip --arm64 --publish never -c.extraMetadata.version="$VERSION"
+          bun scripts/update-manifest.ts --version "$VERSION" --dir release
 
       # A verification or upload that fails after the build should still leave a signed build to
       # install by hand, which is how the Electron app reached a Mac before this job could sign one.
@@ -602,9 +604,10 @@ jobs:
       - name: upload the app to the release
         run: |
           set -euo pipefail
-          ls -la apps/mac/release/*.dmg
+          ls -la apps/mac/release/*.dmg apps/mac/release/*.zip apps/mac/release/latest-mac.yml
           for attempt in 1 2 3; do
-            if gh release upload "$TAG" apps/mac/release/*.dmg --clobber --repo "$GITHUB_REPOSITORY"; then break; fi
+            if gh release upload "$TAG" apps/mac/release/*.dmg apps/mac/release/*.zip \
+              apps/mac/release/latest-mac.yml --clobber --repo "$GITHUB_REPOSITORY"; then break; fi
             if [ "$attempt" = 3 ]; then echo "::error::upload attempt $attempt failed"; exit 1; fi
             echo "::warning::upload attempt $attempt failed; retrying"
             sleep $((attempt * 15))

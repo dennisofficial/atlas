@@ -33,5 +33,5 @@ export function groupTeammates(teammates: readonly WireThread[]): TeammateGroups
 }
 
 export function teammateCountLabel(count: number): string {
-  return `${count} ${count === 1 ? 'session' : 'sessions'} created here`
+  return `${count} ${count === 1 ? 'teammate' : 'teammates'}`
 }

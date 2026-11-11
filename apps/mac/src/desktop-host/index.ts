@@ -4,12 +4,14 @@ import { createDesktopHost } from '../host'
 import { bunPath, startNextServer } from '../host/next-server'
 import { defaultDesktopHome } from '../host/pods/config'
 import type { IPanePort, PaneReply } from '../host/pane-routes'
+import { createUpdatesPort, UPDATE_ORIGIN_ENV } from '../host/updates-port'
 import { SESSION_MARKER, sessionUrlOf } from './session-url'
 
 const webRoot =
   process.env.ATLAS_WEB_ROOT ?? join(import.meta.dir, '../../../web-standalone/apps/web')
 const secret = process.env.ATLAS_SECRET ?? crypto.randomUUID()
 const paneOrigin = process.env.ATLAS_PANE_ORIGIN
+const updateOrigin = process.env[UPDATE_ORIGIN_ENV]
 const pane: IPanePort | undefined =
   paneOrigin === undefined
     ? undefined
@@ -34,6 +36,7 @@ const host = createDesktopHost({
   // app's preview gate settles instead of failing.
   window: { titlebarDoubleClick: () => {}, setPreviewOrigins: () => {} },
   pane,
+  updates: updateOrigin === undefined ? undefined : createUpdatesPort({ origin: updateOrigin }),
 })
 process.stdout.write(`${SESSION_MARKER}${sessionUrlOf({ origin: host.url, secret })}\n`)
 

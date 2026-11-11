@@ -99,12 +99,19 @@ describe('createPaneRegistry', () => {
     expect(registry.size()).toBe(1)
   })
 
-  test('keeps the page when the target is shown again, and moves it only on navigate', () => {
+  test('shows a target again without reloading it when the address it was asked for is the same', () => {
+    const { registry, at } = registryWith()
+    registry.apply({ kind: 'show', id: 'a', url: URL_A, rect: RECT })
+    registry.apply({ kind: 'hide', id: 'a' })
+    registry.apply({ kind: 'show', id: 'a', url: URL_A, rect: OTHER_RECT })
+    expect(at('a').loads).toEqual([URL_A])
+    expect(at('a').bounds).toEqual(OTHER_RECT)
+  })
+
+  test('navigates a target that is shown with an address it was never asked for', () => {
     const { registry, at } = registryWith()
     registry.apply({ kind: 'show', id: 'a', url: URL_A, rect: RECT })
     registry.apply({ kind: 'show', id: 'a', url: 'https://example.com/b', rect: RECT })
-    expect(at('a').loads).toEqual([URL_A])
-    registry.apply({ kind: 'navigate', id: 'a', url: 'https://example.com/b' })
     expect(at('a').loads).toEqual([URL_A, 'https://example.com/b'])
   })
 
@@ -161,6 +168,17 @@ describe('createPaneRegistry', () => {
     expect(released).toEqual([])
   })
 
+  test('keeps every tab of a session alive until the cap is reached', () => {
+    const { registry, at, released } = registryWith()
+    for (const id of ['t1', 't2', 't3'])
+      registry.apply({ kind: 'show', id, url: URL_A, rect: RECT })
+    registry.apply({ kind: 'hide', id: 't3' })
+    registry.apply({ kind: 'show', id: 't1', url: URL_A, rect: RECT })
+    expect(released).toEqual([])
+    expect(registry.ids()).toEqual(['t1', 't2', 't3'])
+    expect(at('t2').loads).toEqual([URL_A])
+  })
+
   test('destroys the least recently shown target past the cap', () => {
     const { registry, at, released } = registryWith()
     const ids = Array.from({ length: PANE_TARGET_LIMIT }, (_, index) => `t${index}`)
@@ -206,6 +224,28 @@ describe('createPaneRegistry reports', () => {
       { id: TARGET, url: 'https://example.com/b' },
       { id: TARGET, url: 'https://example.com/b#top' },
     ])
+  })
+
+  test('reports the page a target still shows when a load fails', () => {
+    const { registry, at, navigations } = reporters()
+    registry.apply({ kind: 'show', id: TARGET, url: URL_A, rect: RECT })
+    navigations.length = 0
+    at(TARGET).handlers['did-fail-load'](
+      {},
+      -105,
+      'ERR_NAME_NOT_RESOLVED',
+      'https://gone.example/',
+      true,
+    )
+    expect(navigations).toEqual([{ id: TARGET, url: URL_A }])
+  })
+
+  test('ignores a failed sub frame and an aborted load', () => {
+    const { registry, at, navigations } = reporters()
+    registry.apply({ kind: 'show', id: TARGET, url: URL_A, rect: RECT })
+    at(TARGET).handlers['did-fail-load']({}, -3, 'ERR_ABORTED', 'https://example.com/x', true)
+    at(TARGET).handlers['did-fail-load']({}, -105, 'ERR', 'https://example.com/x', false)
+    expect(navigations).toEqual([])
   })
 
   test('ignores a navigation inside a sub frame', () => {

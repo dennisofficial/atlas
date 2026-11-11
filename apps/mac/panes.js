@@ -1,6 +1,11 @@
 const DEFAULT_PANE_ID = 'default'
 
-export const PANE_TARGET_LIMIT = 8
+// One view per preview tab, kept alive for as long as the target exists: switching a session or a
+// tab is a visibility change, never a reload. The cap is memory, not policy — past it the least
+// recently shown view is destroyed, which is the only way a tab ever loses its page.
+export const PANE_TARGET_LIMIT = 20
+
+const ERR_ABORTED = -3
 
 export function paneTargetOf(command) {
   return typeof command.id === 'string' && command.id !== '' ? command.id : DEFAULT_PANE_ID
@@ -37,8 +42,23 @@ export function validCommand(command) {
   }
 }
 
+function loadInto({ entry, url }) {
+  entry.requested = url
+  entry.view.webContents.loadURL(url).catch((error) => {
+    console.error(`[pane] ${url} did not load`, error)
+  })
+}
+
 function watchNavigation({ id, webContents, onNavigate, onTitle }) {
   webContents.on('did-navigate', (_event, url) => onNavigate({ id, url }))
+  webContents.on('did-fail-load', (_event, errorCode, errorDescription, failedUrl, isMainFrame) => {
+    if (!isMainFrame || errorCode === ERR_ABORTED) return
+    console.error(`[pane] ${failedUrl} answered ${errorCode} ${errorDescription}`)
+    // The view keeps whatever it was showing, so tell the interface where it actually is instead of
+    // leaving an address bar that names a page nobody can see.
+    const at = webContents.getURL()
+    if (at !== '') onNavigate({ id, url: at })
+  })
   webContents.on('did-navigate-in-page', (_event, url, isMainFrame) => {
     if (isMainFrame) onNavigate({ id, url })
   })
@@ -70,7 +90,7 @@ export function createPaneRegistry({
   const createFor = (id) => {
     const view = create(id)
     watchNavigation({ id, webContents: view.webContents, onNavigate, onTitle })
-    const entry = { id, view, shownAt: ++clock }
+    const entry = { id, view, shownAt: ++clock, requested: undefined }
     held.set(id, entry)
     trim()
     return held.get(id) ?? entry
@@ -82,7 +102,7 @@ export function createPaneRegistry({
       if (otherId !== id) other.view.setVisible(false)
     }
     const entry = held.get(id) ?? createFor(id)
-    if (entry.view.webContents.getURL() === '') void entry.view.webContents.loadURL(command.url)
+    if (entry.requested !== command.url) loadInto({ entry, url: command.url })
     entry.view.setBounds(command.rect)
     entry.view.setVisible(true)
     entry.shownAt = ++clock
@@ -103,7 +123,7 @@ export function createPaneRegistry({
         entry.view.setBounds(command.rect)
         break
       case 'navigate':
-        void entry.view.webContents.loadURL(command.url)
+        loadInto({ entry, url: command.url })
         break
       case 'back':
         entry.view.webContents.navigationHistory.goBack()

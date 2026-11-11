@@ -41,6 +41,11 @@ describe('RoutineScheduleField', () => {
     expect(html).not.toContain('role="alert"')
   })
 
+  it('admits when the sentence only approximates the expression', () => {
+    expect(render('1-56/5 * * * *')).toContain('only approximates')
+    expect(render('every weekday at 7am')).not.toContain('only approximates')
+  })
+
   it('always shows the timezone', () => {
     expect(render('every day at 6')).toContain('id="routine-timezone"')
     expect(render('nonsense')).toContain('id="routine-timezone"')

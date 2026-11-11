@@ -1,4 +1,5 @@
 import type { Routine } from '@dltech/atlas-protocol'
+import { parseScheduleText } from '@dltech/atlas-schedule'
 
 import {
   effortOfName,
@@ -6,7 +7,7 @@ import {
   type ModelSelection,
 } from '@/features/threads/data/model-selection'
 
-import { scheduleSummaryOf } from './routine-schedule'
+import { cronOf, scheduleSummaryOf } from './routine-schedule'
 import { cronOfFields, DEFAULT_SCHEDULE_FIELDS } from './routine-schedule-fields'
 
 export interface RoutineDraft {
@@ -14,9 +15,12 @@ export interface RoutineDraft {
   name: string
   prompt: string
   when: string
+  cron: string | null
   timezone: string
   selection: ModelSelection
 }
+
+export type DraftSchedule = { ok: true; cron: string } | { ok: false; reason: string }
 
 export const NEW_ROUTINE_WHEN = scheduleSummaryOf(cronOfFields(DEFAULT_SCHEDULE_FIELDS))
 
@@ -30,6 +34,7 @@ export const draftOf = (
         name: '',
         prompt: '',
         when: NEW_ROUTINE_WHEN,
+        cron: null,
         timezone: args.defaultTimezone,
         selection: UNSET_SELECTION,
       }
@@ -38,6 +43,7 @@ export const draftOf = (
         name: routine.name,
         prompt: routine.prompt,
         when: scheduleSummaryOf(routine.cron),
+        cron: cronOf(routine.cron) === null ? null : routine.cron,
         timezone: routine.timezone,
         selection:
           routine.model === null
@@ -48,6 +54,14 @@ export const draftOf = (
                 fast: routine.fast === true,
               },
       }
+
+export const scheduleOfDraft = (draft: RoutineDraft): DraftSchedule => {
+  if (draft.cron !== null && draft.when === scheduleSummaryOf(draft.cron)) {
+    return { ok: true, cron: draft.cron }
+  }
+  const parsed = parseScheduleText(draft.when)
+  return parsed.ok ? { ok: true, cron: parsed.cron.expression } : parsed
+}
 
 export const modelPatchOf = (
   selection: ModelSelection,

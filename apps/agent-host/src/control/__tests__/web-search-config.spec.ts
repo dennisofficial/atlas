@@ -29,8 +29,8 @@ const configOf = (rows: WebSearchRows): ReturnType<typeof webSearchConfigOf> =>
   webSearchConfigOf({ rows, cipher, userId: 'usr-1', projectId: 'prj-1' })
 
 describe('webSearchConfigOf', () => {
-  it('answers no backend when the operator never chose one', async () => {
-    expect(await configOf(rowsOf({}))).toEqual({ backend: undefined, key: undefined })
+  it('falls back to the keyless backend the setting declares when nothing is chosen', async () => {
+    expect(await configOf(rowsOf({}))).toEqual({ backend: 'bing', key: undefined })
   })
 
   it('reads the backend and its own secret name', async () => {

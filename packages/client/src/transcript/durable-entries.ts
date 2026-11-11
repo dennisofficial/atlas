@@ -106,6 +106,7 @@ export function durableEntries(args: {
           key: event.id,
           text: event.text,
           sender: agentSenderOf(event),
+          senderSessionId: event.sender?.session ?? null,
         },
       ]
     }

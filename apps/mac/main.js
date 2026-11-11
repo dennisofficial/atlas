@@ -2,11 +2,15 @@ import { createServer } from 'node:http'
 import { join } from 'node:path'
 
 import { app, BrowserWindow, ipcMain, WebContentsView, shell } from 'electron'
+// electron-updater ships CommonJS and builds `autoUpdater` behind a getter, so it is read here
+// rather than destructured by the ESM loader.
+import electronUpdater from 'electron-updater'
 
 import { hostEnvironment, resolveBun, resolveHostScript, webRootAt } from './host-paths.js'
 import { externalUrlOf, sameOrigin } from './links.js'
 import { startHost } from './host-process.js'
 import { createPaneRegistry, validCommand } from './panes.js'
+import { answerUpdate, createBinaryUpdater, createDesktopUpdates } from './updates.js'
 import {
   createElectronWebUpdater,
   manifestUrlOf,
@@ -24,6 +28,8 @@ const DESKTOP_PANE_PATH = '/desktop/pane'
 const PANE_PARTITION = 'persist:spike'
 const WINDOW_WIDTH = 1280
 const WINDOW_HEIGHT = 820
+
+const { autoUpdater } = electronUpdater
 
 ipcMain.on(FULLSCREEN_QUERY, (event) => {
   event.returnValue = BrowserWindow.fromWebContents(event.sender)?.isFullScreen() ?? false
@@ -44,9 +50,24 @@ function respond(response, status, body) {
   response.end(payload)
 }
 
-async function startPaneServer({ panes }) {
+async function startDesktopServer({ panes, updates }) {
   const server = createServer((request, response) => {
     const pathname = new URL(request.url ?? '/', 'http://127.0.0.1').pathname
+    const answered = answerUpdate({ updates, request, pathname })
+    if (answered !== undefined) {
+      answered.then(
+        ({ status, body }) => {
+          if (body === null) {
+            response.writeHead(status, { 'content-length': 0 })
+            response.end()
+            return
+          }
+          respond(response, status, body)
+        },
+        (error) => respond(response, 500, { ok: false, error: String(error) }),
+      )
+      return
+    }
     if (pathname !== PANE_PATH && pathname !== DESKTOP_PANE_PATH) {
       respond(response, 404, { ok: false, error: 'not found' })
       return
@@ -144,7 +165,6 @@ async function createWindow() {
     },
   })
 
-  const session = await startPaneServer({ panes })
   const script = resolveHostScript({
     env: process.env,
     resourcesPath: process.resourcesPath,
@@ -158,6 +178,11 @@ async function createWindow() {
     manifestUrl: manifestUrlOf({ env: process.env }),
     appVersion: app.getVersion(),
   })
+  const binary = createBinaryUpdater({ autoUpdater, enabled: app.isPackaged })
+
+  let host
+  let session
+
   const startSession = (webRoot) =>
     startHost({
       script,
@@ -165,19 +190,15 @@ async function createWindow() {
       environment: hostEnvironment({
         base: process.env,
         paneOrigin: session.origin,
+        updateOrigin: session.origin,
         webRoot,
         appVersion: app.getVersion(),
       }),
     })
 
-  let host
-  win.on('closed', () => {
-    payloads.stop()
-    host?.child.kill('SIGTERM')
-    session.server.close()
-    panes.destroy()
-  })
-
+  // A new interface is installed in the background and waits for the person to take it: the web app
+  // asks for this route and reloads itself when the window is in the background, so no update ever
+  // pulls the page out from under a half-written message.
   const swapTo = async ({ hash }) => {
     const next = startSession(payloadWebRoot({ home, hash }))
     try {
@@ -185,6 +206,7 @@ async function createWindow() {
       await win.loadURL(url)
       host?.child.kill('SIGTERM')
       host = next
+      payloads.updater.applied()
       console.log(`[web-payload] swapped the interface to ${hash}`)
       return true
     } catch (error) {
@@ -194,6 +216,21 @@ async function createWindow() {
       return false
     }
   }
+
+  const updates = createDesktopUpdates({
+    payloads: { updater: payloads.updater, check: payloads.check, swap: swapTo },
+    binary,
+  })
+
+  session = await startDesktopServer({ panes, updates })
+
+  win.on('closed', () => {
+    payloads.stop()
+    binary.stop()
+    host?.child.kill('SIGTERM')
+    session.server.close()
+    panes.destroy()
+  })
 
   try {
     const installedHash = await payloads.updater.installedRoot()
@@ -207,7 +244,8 @@ async function createWindow() {
       host = startSession(bundledRoot)
       await win.loadURL(await host.url)
     }
-    payloads.start({ onPayload: swapTo })
+    payloads.start()
+    binary.start()
   } catch (error) {
     await win.loadURL(errorPage(error))
   }
