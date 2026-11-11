@@ -1,0 +1,400 @@
+[
+  {
+    "id": "table.Artifact",
+    "label": "Create table \"Artifact\"",
+    "summary": "Creates table \"Artifact\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Artifact"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Artifact\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Artifact\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"Artifact\"",
+        "sql": "CREATE TABLE \"public\".\"Artifact\" (\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"currentVersion\" int4 DEFAULT 0 NOT NULL,\n  \"id\" text NOT NULL,\n  \"name\" text NOT NULL,\n  \"slug\" text NOT NULL,\n  \"token\" text NOT NULL,\n  \"updatedAt\" timestamptz(3) NOT NULL,\n  \"userId\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"Artifact\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"Artifact\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.ArtifactVersion",
+    "label": "Create table \"ArtifactVersion\"",
+    "summary": "Creates table \"ArtifactVersion\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "ArtifactVersion"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"ArtifactVersion\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ArtifactVersion\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"ArtifactVersion\"",
+        "sql": "CREATE TABLE \"public\".\"ArtifactVersion\" (\n  \"artifactId\" text NOT NULL,\n  \"bytes\" int4 NOT NULL,\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"durationMs\" int4,\n  \"failure\" text,\n  \"fileCount\" int4 NOT NULL,\n  \"id\" text NOT NULL,\n  \"log\" text,\n  \"manifest\" jsonb NOT NULL,\n  \"sourceHash\" text NOT NULL,\n  \"spec\" jsonb NOT NULL,\n  \"specHash\" text NOT NULL,\n  \"status\" text NOT NULL,\n  \"version\" int4 NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"ArtifactVersion\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"ArtifactVersion\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.Artifact.Artifact_token_key",
+    "label": "Add unique constraint on \"Artifact\" (token)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "Artifact_token_key",
+        "table": "Artifact"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Artifact_token_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Artifact_token_key",
+          "public",
+          "\"public\".\"Artifact\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"Artifact_token_key\"",
+        "sql": "ALTER TABLE \"public\".\"Artifact\" ADD CONSTRAINT \"Artifact_token_key\" UNIQUE (\"token\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"Artifact_token_key\" exists on (token)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "Artifact_token_key",
+          "public",
+          "\"public\".\"Artifact\"",
+          "u",
+          "[\"token\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.Artifact.Artifact_userId_slug_key",
+    "label": "Add unique constraint on \"Artifact\" (userId, slug)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "Artifact_userId_slug_key",
+        "table": "Artifact"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Artifact_userId_slug_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Artifact_userId_slug_key",
+          "public",
+          "\"public\".\"Artifact\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"Artifact_userId_slug_key\"",
+        "sql": "ALTER TABLE \"public\".\"Artifact\" ADD CONSTRAINT \"Artifact_userId_slug_key\" UNIQUE (\"userId\", \"slug\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"Artifact_userId_slug_key\" exists on (userId, slug)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "Artifact_userId_slug_key",
+          "public",
+          "\"public\".\"Artifact\"",
+          "u",
+          "[\"userId\",\"slug\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.ArtifactVersion.ArtifactVersion_artifactId_version_key",
+    "label": "Add unique constraint on \"ArtifactVersion\" (artifactId, version)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "ArtifactVersion_artifactId_version_key",
+        "table": "ArtifactVersion"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"ArtifactVersion_artifactId_version_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ArtifactVersion_artifactId_version_key",
+          "public",
+          "\"public\".\"ArtifactVersion\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"ArtifactVersion_artifactId_version_key\"",
+        "sql": "ALTER TABLE \"public\".\"ArtifactVersion\" ADD CONSTRAINT \"ArtifactVersion_artifactId_version_key\" UNIQUE (\"artifactId\", \"version\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"ArtifactVersion_artifactId_version_key\" exists on (artifactId, version)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "ArtifactVersion_artifactId_version_key",
+          "public",
+          "\"public\".\"ArtifactVersion\"",
+          "u",
+          "[\"artifactId\",\"version\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Artifact.Artifact_userId_idx",
+    "label": "Create index \"Artifact_userId_idx\" on \"Artifact\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Artifact_userId_idx",
+        "table": "Artifact"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Artifact_userId_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Artifact_userId_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Artifact_userId_idx\"",
+        "sql": "CREATE INDEX \"Artifact_userId_idx\" ON \"public\".\"Artifact\" (\"userId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Artifact_userId_idx\" exists on \"Artifact\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"Artifact_userId_idx\"",
+          "i",
+          "I",
+          "\"public\".\"Artifact\"",
+          "btree",
+          "[\"userId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.ArtifactVersion.ArtifactVersion_artifactId_idx",
+    "label": "Create index \"ArtifactVersion_artifactId_idx\" on \"ArtifactVersion\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "ArtifactVersion_artifactId_idx",
+        "table": "ArtifactVersion"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"ArtifactVersion_artifactId_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ArtifactVersion_artifactId_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"ArtifactVersion_artifactId_idx\"",
+        "sql": "CREATE INDEX \"ArtifactVersion_artifactId_idx\" ON \"public\".\"ArtifactVersion\" (\"artifactId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"ArtifactVersion_artifactId_idx\" exists on \"ArtifactVersion\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"ArtifactVersion_artifactId_idx\"",
+          "i",
+          "I",
+          "\"public\".\"ArtifactVersion\"",
+          "btree",
+          "[\"artifactId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.Artifact.Artifact_userId_fkey",
+    "label": "Add foreign key \"Artifact_userId_fkey\" on \"Artifact\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Artifact_userId_fkey",
+        "table": "Artifact"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"Artifact_userId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Artifact_userId_fkey",
+          "public",
+          "\"public\".\"Artifact\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"Artifact_userId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Artifact\"\nADD CONSTRAINT \"Artifact_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"Artifact_userId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "Artifact_userId_fkey",
+          "public",
+          "\"public\".\"Artifact\"",
+          "f",
+          "[\"userId\"]",
+          "\"public\".\"User\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.ArtifactVersion.ArtifactVersion_artifactId_fkey",
+    "label": "Add foreign key \"ArtifactVersion_artifactId_fkey\" on \"ArtifactVersion\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "ArtifactVersion_artifactId_fkey",
+        "table": "ArtifactVersion"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"ArtifactVersion_artifactId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ArtifactVersion_artifactId_fkey",
+          "public",
+          "\"public\".\"ArtifactVersion\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"ArtifactVersion_artifactId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"ArtifactVersion\"\nADD CONSTRAINT \"ArtifactVersion_artifactId_fkey\"\nFOREIGN KEY (\"artifactId\")\nREFERENCES \"public\".\"Artifact\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"ArtifactVersion_artifactId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "ArtifactVersion_artifactId_fkey",
+          "public",
+          "\"public\".\"ArtifactVersion\"",
+          "f",
+          "[\"artifactId\"]",
+          "\"public\".\"Artifact\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  }
+]

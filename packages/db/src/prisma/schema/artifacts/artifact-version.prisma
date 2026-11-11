@@ -1,0 +1,21 @@
+// use prisma-8
+model ArtifactVersion {
+  id         String               @id
+  artifactId String
+  version    Int
+  status     String
+  manifest   Jsonb
+  spec       Jsonb
+  sourceHash String
+  specHash   String
+  bytes      Int
+  fileCount  Int
+  durationMs Int?
+  log        String?
+  failure    String?
+  createdAt  TimestamptzJsDate(3) @default(now())
+  artifact   Artifact             @relation(fields: [artifactId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([artifactId, version], map: "ArtifactVersion_artifactId_version_key")
+  @@index([artifactId], map: "ArtifactVersion_artifactId_idx")
+}

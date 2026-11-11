@@ -54,6 +54,7 @@ export const sharedPortBindings = {
   AppInstallRecommendationSink: { runtime: 'shared', transport: null },
   UserLayerSyncPort: { runtime: 'shared', transport: null },
   MemoryPort: { runtime: 'shared', transport: null },
+  ArtifactPort: { runtime: 'shared', transport: null },
   GitChangesPort: { runtime: 'shared', transport: null },
   TerminalPort: { runtime: 'shared', transport: null },
   SaidUploadsPort: { runtime: 'shared', transport: null },

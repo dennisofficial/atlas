@@ -100,5 +100,7 @@ packages/vitest-incremental/.fixture/
 # CEF distribution fetched by apps/mac/swift/scripts/fetch-cef.ts (~330 MB unpacked) — never committed
 apps/mac/swift/.cef/
 
+apps/artifacts-host/.vercel/
+.vercel/
 # trigger.dev CLI scratch, written by `trigger deploy`
 .trigger/
