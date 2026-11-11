@@ -74,7 +74,14 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     connection: sessionStream,
     cache: sessionCache(),
   })
-  const listed = useV2Sessions().find((session) => session.sessionId === sessionId)
+  const sessions = useV2Sessions()
+  const listed = sessions.find((session) => session.sessionId === sessionId)
+  const sessionNameOf = useMemo(() => {
+    const titles = new Map(
+      sessions.map((session) => [session.sessionId, session.title ?? undefined]),
+    )
+    return (id: string) => titles.get(id)
+  }, [sessions])
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const files = useComposerAttachments()
@@ -87,8 +94,9 @@ export function SessionView({ sessionId }: { sessionId: string }) {
         events: snapshot.events,
         overlay: snapshot.overlay,
         reveal,
+        sessionNameOf,
       }),
-    [snapshot.events, snapshot.overlay, reveal],
+    [snapshot.events, snapshot.overlay, reveal, sessionNameOf],
   )
   const boot = useMemo(
     () =>

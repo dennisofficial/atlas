@@ -104,6 +104,7 @@ function textItemOf(args: {
   entry: TranscriptEntry
   fastEvents: ReadonlySet<string>
   repairs: DiagramRepairsByMessage
+  sessionNameOf?: SessionNameOf | undefined
 }): TranscriptItem | null {
   const { entry, fastEvents } = args
   switch (entry.kind) {
@@ -113,7 +114,7 @@ function textItemOf(args: {
       return {
         kind: ETranscriptKind.Notice,
         id: entry.key,
-        title: `Message from ${entry.sender}`,
+        title: senderTitleOf({ entry, sessionNameOf: args.sessionNameOf }),
         body: entry.text,
         tone: ENoticeTone.Quiet,
       }
@@ -248,12 +249,25 @@ function prRunAt(args: { entries: readonly TranscriptEntry[]; index: number }): 
   return run
 }
 
+export type SessionNameOf = (sessionId: string) => string | undefined
+
+const senderTitleOf = (args: {
+  entry: Extract<TranscriptEntry, { kind: EEntryKind.AgentSaid }>
+  sessionNameOf: SessionNameOf | undefined
+}): string => {
+  const sessionId = args.entry.senderSessionId
+  if (sessionId === null) return `Message from ${args.entry.sender}`
+  const name = args.sessionNameOf?.(sessionId)?.trim()
+  return name === undefined || name === '' ? 'Message from another session' : `Message from ${name}`
+}
+
 export function transcriptViewOf(args: {
   durable: DurableTranscript
   live: readonly InFlightStep[]
   outputs?: ReadonlyMap<CallId, string>
   reveal?: RevealGate | null
   thinking?: EThinkingVisibility
+  sessionNameOf?: SessionNameOf | undefined
 }): ThreadTranscriptView {
   const model = assembleTranscript({
     durable: args.durable.entries,
@@ -275,7 +289,9 @@ export function transcriptViewOf(args: {
       entry.kind === EEntryKind.ToolsRan
         ? rowsOfTools({ key: entry.key, calls: entry.run.calls, pool })
         : [
-            run.length > 0 ? prNoticeItemOf(run) : textItemOf({ entry, fastEvents, repairs }),
+            run.length > 0
+              ? prNoticeItemOf(run)
+              : textItemOf({ entry, fastEvents, repairs, sessionNameOf: args.sessionNameOf }),
           ].flatMap((item) => (item === null ? [] : [item]))
     for (const row of found) rows.push(stamped({ row, at: atOf({ row, stamps }) }))
   }
