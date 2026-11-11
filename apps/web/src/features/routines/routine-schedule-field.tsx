@@ -1,13 +1,9 @@
 'use client'
 
-import {
-  Combobox,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxList,
-} from '@dltech/atlas-ui/components/combobox'
+import { useMemo, useState } from 'react'
+
+import { parseScheduleText } from '@dltech/atlas-schedule'
+import { Button } from '@dltech/atlas-ui/components/button'
 import { Field, FieldDescription, FieldLabel } from '@dltech/atlas-ui/components/field'
 import { Input } from '@dltech/atlas-ui/components/input'
 import {
@@ -18,10 +14,12 @@ import {
   SelectValue,
 } from '@dltech/atlas-ui/components/select'
 
-import { RoutineSchedulePreview } from './routine-schedule-preview'
+import { scheduleSummaryOf } from './routine-schedule'
 import {
   cronOfFields,
+  DEFAULT_SCHEDULE_FIELDS,
   ESchedulePreset,
+  fieldsOfCron,
   fieldsWithPreset,
   fieldsWithTime,
   HOUR_INTERVALS,
@@ -32,7 +30,8 @@ import {
   WEEKDAY_NAMES,
   type ScheduleFields,
 } from './routine-schedule-fields'
-import { timezoneChoicesOf } from './routine-timezones'
+import { RoutineSchedulePreview } from './routine-schedule-preview'
+import { RoutineTimezoneField } from './routine-timezone-field'
 
 const PRESET_ITEMS = presetItemsOf()
 const WEEKDAY_ITEMS = WEEKDAY_NAMES.map((label, index) => ({ value: String(index), label }))
@@ -49,10 +48,18 @@ const HOUR_ITEMS = HOUR_INTERVALS.map((value) => ({
   label: value === 1 ? 'Every hour' : `Every ${value} hours`,
 }))
 
+const EXAMPLES =
+  '“every weekday at 7am”, “every Monday at 9”, “every 15 minutes”, “first of the month at 8”'
+
 const numberChosen = (next: unknown, fallback: number): number => {
   const value = Number(next)
   return Number.isInteger(value) && value > 0 ? value : fallback
 }
+
+const phraseOf = (fields: ScheduleFields): string =>
+  fields.preset === ESchedulePreset.Custom
+    ? fields.custom.trim()
+    : scheduleSummaryOf(cronOfFields(fields))
 
 function ChoiceRow({
   label,
@@ -88,94 +95,32 @@ function ChoiceRow({
   )
 }
 
-function TimezoneField({
-  timezone,
+function SchedulePicker({
+  fields,
   onChange,
 }: {
-  timezone: string
-  onChange: (next: string) => void
-}) {
-  const choices = timezoneChoicesOf({ query: timezone, selected: timezone })
-  const handleValueChange = (next: string | null) => {
-    if (next !== null) onChange(next)
-  }
-  const handleInputChange = (next: string, details: { reason: string }) => {
-    if (details.reason === 'input-change') onChange(next)
-  }
-
-  return (
-    <Field>
-      <FieldLabel htmlFor="routine-timezone">Timezone</FieldLabel>
-      <Combobox
-        items={choices}
-        filter={null}
-        value={timezone === '' ? null : timezone}
-        onValueChange={handleValueChange}
-        inputValue={timezone}
-        onInputValueChange={handleInputChange}
-      >
-        <ComboboxInput
-          id="routine-timezone"
-          className="font-mono"
-          placeholder="Europe/London"
-          autoComplete="off"
-          spellCheck={false}
-          showTrigger={false}
-        />
-        <ComboboxContent>
-          <ComboboxEmpty>No timezone matches</ComboboxEmpty>
-          <ComboboxList>
-            {(zone: string) => (
-              <ComboboxItem key={zone} value={zone} className="font-mono text-xs">
-                {zone}
-              </ComboboxItem>
-            )}
-          </ComboboxList>
-        </ComboboxContent>
-      </Combobox>
-    </Field>
-  )
-}
-
-export function RoutineScheduleField({
-  fields,
-  timezone,
-  onFieldsChange,
-  onTimezoneChange,
-}: {
   fields: ScheduleFields
-  timezone: string
-  onFieldsChange: (next: ScheduleFields) => void
-  onTimezoneChange: (next: string) => void
+  onChange: (next: ScheduleFields) => void
 }) {
-  const cron = cronOfFields(fields)
-  const patch = (next: Partial<ScheduleFields>) => onFieldsChange({ ...fields, ...next })
+  const patch = (next: Partial<ScheduleFields>) => onChange({ ...fields, ...next })
   const handlePresetChange = (next: unknown) => {
     const preset = PRESET_ITEMS.find((item) => item.value === next)?.value
-    if (preset !== undefined) onFieldsChange(fieldsWithPreset(fields, preset))
+    if (preset !== undefined) onChange(fieldsWithPreset(fields, preset))
   }
   const handleTimeChange = (event: React.ChangeEvent<HTMLInputElement>) =>
-    onFieldsChange(fieldsWithTime(fields, event.target.value))
+    onChange(fieldsWithTime(fields, event.target.value))
   const handleCustomChange = (event: React.ChangeEvent<HTMLInputElement>) =>
     patch({ custom: event.target.value })
 
   return (
-    <div className="flex flex-col gap-3">
-      <Field>
-        <FieldLabel htmlFor="routine-preset">Repeat</FieldLabel>
-        <Select items={PRESET_ITEMS} value={fields.preset} onValueChange={handlePresetChange}>
-          <SelectTrigger id="routine-preset" size="sm" className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {PRESET_ITEMS.map((item) => (
-              <SelectItem key={item.value} value={item.value}>
-                {item.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </Field>
+    <div className="flex flex-col gap-3 rounded-md border border-border p-3">
+      <ChoiceRow
+        id="routine-preset"
+        label="Repeat"
+        items={PRESET_ITEMS}
+        value={fields.preset}
+        onChange={handlePresetChange}
+      />
 
       {takesTimeOfDay(fields.preset) ? (
         <div className="grid grid-cols-2 gap-3">
@@ -205,7 +150,6 @@ export function RoutineScheduleField({
               className="font-mono tabular-nums"
               value={timeOfFields(fields)}
               onChange={handleTimeChange}
-              required
             />
           </Field>
         </div>
@@ -242,7 +186,6 @@ export function RoutineScheduleField({
             value={fields.custom}
             onChange={handleCustomChange}
             placeholder="0 7 * * 1-5"
-            required
             maxLength={120}
           />
           <FieldDescription>
@@ -250,9 +193,78 @@ export function RoutineScheduleField({
           </FieldDescription>
         </Field>
       ) : null}
+    </div>
+  )
+}
 
-      <TimezoneField timezone={timezone} onChange={onTimezoneChange} />
-      <RoutineSchedulePreview cron={cron} timezone={timezone} />
+export function RoutineScheduleField({
+  when,
+  timezone,
+  onWhenChange,
+  onTimezoneChange,
+}: {
+  when: string
+  timezone: string
+  onWhenChange: (next: string) => void
+  onTimezoneChange: (next: string) => void
+}) {
+  const [picking, setPicking] = useState(false)
+  const parsed = useMemo(() => parseScheduleText(when), [when])
+  const fields = parsed.ok ? fieldsOfCron(parsed.cron.expression) : DEFAULT_SCHEDULE_FIELDS
+  const handleWhenChange = (event: React.ChangeEvent<HTMLInputElement>) =>
+    onWhenChange(event.target.value)
+  const handlePickerChange = (next: ScheduleFields) => onWhenChange(phraseOf(next))
+  const handleTogglePicking = () => setPicking((current) => !current)
+
+  return (
+    <div className="flex flex-col gap-3">
+      <Field>
+        <FieldLabel htmlFor="routine-when">When</FieldLabel>
+        <Input
+          id="routine-when"
+          value={when}
+          onChange={handleWhenChange}
+          placeholder="every weekday at 7am"
+          autoComplete="off"
+          spellCheck={false}
+          maxLength={120}
+        />
+        <FieldDescription>
+          Say it the way you would say it — {EXAMPLES}. Runs start at the same wall-clock time in
+          the timezone below.
+        </FieldDescription>
+      </Field>
+
+      {parsed.ok ? null : (
+        <p role="alert" className="text-xs text-destructive">
+          {parsed.reason}
+        </p>
+      )}
+
+      {parsed.ok ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="self-start text-xs text-muted-foreground"
+          onClick={handleTogglePicking}
+        >
+          {picking ? 'Hide the list' : 'Pick from a list instead'}
+        </Button>
+      ) : null}
+
+      {!parsed.ok || picking ? (
+        <SchedulePicker fields={fields} onChange={handlePickerChange} />
+      ) : null}
+
+      <Field>
+        <FieldLabel htmlFor="routine-timezone">Timezone</FieldLabel>
+        <RoutineTimezoneField id="routine-timezone" value={timezone} onChange={onTimezoneChange} />
+      </Field>
+
+      {parsed.ok ? (
+        <RoutineSchedulePreview cron={parsed.cron.expression} timezone={timezone} />
+      ) : null}
     </div>
   )
 }

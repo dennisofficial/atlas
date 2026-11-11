@@ -6,39 +6,39 @@ import {
   type ModelSelection,
 } from '@/features/threads/data/model-selection'
 
-import {
-  cronOfFields,
-  DEFAULT_SCHEDULE_FIELDS,
-  fieldsOfCron,
-  type ScheduleFields,
-} from './routine-schedule-fields'
-import { deviceTimezone } from './routine-timezones'
+import { scheduleSummaryOf } from './routine-schedule'
+import { cronOfFields, DEFAULT_SCHEDULE_FIELDS } from './routine-schedule-fields'
 
 export interface RoutineDraft {
   projectId: string
   name: string
   prompt: string
+  when: string
   timezone: string
-  schedule: ScheduleFields
   selection: ModelSelection
 }
 
-export const draftOf = (routine: Routine | undefined, projectId: string): RoutineDraft =>
+export const NEW_ROUTINE_WHEN = scheduleSummaryOf(cronOfFields(DEFAULT_SCHEDULE_FIELDS))
+
+export const draftOf = (
+  routine: Routine | undefined,
+  args: { projectId: string; defaultTimezone: string },
+): RoutineDraft =>
   routine === undefined
     ? {
-        projectId,
+        projectId: args.projectId,
         name: '',
         prompt: '',
-        timezone: deviceTimezone(),
-        schedule: DEFAULT_SCHEDULE_FIELDS,
+        when: NEW_ROUTINE_WHEN,
+        timezone: args.defaultTimezone,
         selection: UNSET_SELECTION,
       }
     : {
         projectId: routine.projectId,
         name: routine.name,
         prompt: routine.prompt,
+        when: scheduleSummaryOf(routine.cron),
         timezone: routine.timezone,
-        schedule: fieldsOfCron(routine.cron),
         selection:
           routine.model === null
             ? UNSET_SELECTION
@@ -48,8 +48,6 @@ export const draftOf = (routine: Routine | undefined, projectId: string): Routin
                 fast: routine.fast === true,
               },
       }
-
-export const cronOfDraft = (draft: RoutineDraft): string => cronOfFields(draft.schedule)
 
 export const modelPatchOf = (
   selection: ModelSelection,

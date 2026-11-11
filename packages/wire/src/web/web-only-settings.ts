@@ -84,4 +84,5 @@ export const WEB_ONLY_SETTING_ENTRIES = [
     schema: z.string().regex(QUIET_HOUR_PATTERN),
     fallback: '07:00',
   }),
+  webEntry({ key: 'web.routine.timezone', schema: z.string(), fallback: '' }),
 ]

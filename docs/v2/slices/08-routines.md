@@ -196,3 +196,48 @@ suite at the repository root and report per-package pass/fail counts and wall ti
 
 Operational note: a trigger.dev `*/1` schedule starts its run ~45 s past the minute, so an occurrence
 due at `T` produces its session near `T+50 s`, not at `T`.
+
+## 9. Follow-up, 2026-11-11: a sentence, a default zone, and the agent
+
+Approved by the operator on 2026-11-11 in conversation. Three changes, none of which touch the
+dispatcher, the schema or the API contract.
+1. **The schedule is typed the way it is said.** The form's schedule control is a text input
+   ("every weekday at 7am", "every 15 minutes", "first of the month at 8", or a raw five-field
+   expression). `parseScheduleText` (`packages/schedule/src/text.ts`) turns it into a cron with no
+   model call, no network and no clock; the preview below it confirms the runs the dispatcher would
+   take. The preset picker stays as the escape hatch — it opens when the sentence cannot be read and
+   is one click away otherwise — so nothing that used to be possible became impossible. Editing an
+   existing routine opens as the sentence its cron means
+   (`scheduleSummaryOf`), and every phrase the app writes parses back to the cron it wrote.
+2. **The timezone defaults to a user setting, not the browser.** `web.routine.timezone`
+   (`packages/wire/src/web/web-only-settings.ts`) is a personal setting edited at Settings → Agent →
+   Routines; empty means the device's zone. A new routine opens in that zone, and a run keeps its
+   wall-clock time in the routine's own zone, so travelling does not move an existing routine.
+3. **Agents manage routines too.** See §9.1.
+
+### 9.1 The agent's routine tools
+
+Five builtin tools in `packages/harness/src/tools/builtin/routine-*.ts`, registered by
+`registerRoutineTools` (`packages/harness/src/routines/register.ts`) beside the subscription tools in
+`register-tools.ts`. They reach the control plane the way `cloud_config` does: the pod already holds
+an `ApiClient` for the signed-in session (`routineAccessOf`, mirroring
+`packages/harness/src/cloud/cloud-config-access.ts`), and each call goes through `cloudCall` so an
+API refusal arrives as `ok: false` with its message instead of an exception.
+
+| Tool             | Effect | What it does                                                                                                                       |
+| ---------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `routine_list`   | read   | The session project's routines: id, name, cron, timezone, enabled, next run, last run's session                                    |
+| `routine_create` | write  | name, prompt, cron, timezone (required — no invented default), optional model/effort/fast/enabled                                  |
+| `routine_update` | write  | any subset of the create fields plus `enabled`, at least one; `model`/`effort`/`fast` set to null fall back to the account default |
+| `routine_delete` | write  | deletes the routine, leaving its past sessions                                                                                     |
+| `routine_run`    | write  | starts one run now, off schedule, and returns the session id                                                                       |
+
+Scope is the session's own project: a session without one gets a plain refusal, and nothing in the
+tool can name another project. Validation is the API's, which is the point — the five-minute floor,
+cron parsing and the timezone check live in one place (`routines.service.ts`), so the tools inherit
+them instead of restating them.
+
+No classifier change was needed: a tool with `TAKES_NO_PATHS` and no deeds of its own yields
+`EDeed.Routine`, which the prefilter already treats as quiet, exactly as `cloud_config` and
+`subscribe` are treated. Only `EToolEffect` differs — `routine_list` is Read and concurrency-safe; the
+four writers are Write.
