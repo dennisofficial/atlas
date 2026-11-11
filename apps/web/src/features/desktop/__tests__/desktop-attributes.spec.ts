@@ -1,7 +1,13 @@
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
 
-import { applyDesktopAttributes, hasNativeBrowser, isDesktopHost } from '../desktop-attributes'
+import {
+  applyDesktopAttributes,
+  applyFullScreen,
+  hasNativeBrowser,
+  isDesktopHost,
+  watchFullScreen,
+} from '../desktop-attributes'
 
 beforeAll(() => GlobalRegistrator.register())
 afterAll(async () => {
@@ -54,5 +60,57 @@ describe('applyDesktopAttributes', () => {
     applyDesktopAttributes({ root, host: { atlasDesktop: 'yes' } })
     expect(root.hasAttribute('data-desktop')).toBe(false)
     expect(root.hasAttribute('data-native-browser')).toBe(false)
+  })
+})
+
+describe('applyFullScreen', () => {
+  it('marks the root while the window is full screen', () => {
+    applyFullScreen({ root, fullScreen: true })
+    expect(root.hasAttribute('data-fullscreen')).toBe(true)
+    applyFullScreen({ root, fullScreen: false })
+    expect(root.hasAttribute('data-fullscreen')).toBe(false)
+  })
+})
+
+describe('watchFullScreen', () => {
+  const bridgeHost = (initial: boolean) => {
+    const listeners = new Set<(fullScreen: boolean) => void>()
+    return {
+      listeners,
+      host: {
+        atlasDesktop: {
+          fullScreen: () => initial,
+          onFullScreenChange: (listener: (fullScreen: boolean) => void) => listeners.add(listener),
+          offFullScreenChange: (listener: (fullScreen: boolean) => void) =>
+            listeners.delete(listener),
+        },
+      },
+    }
+  }
+
+  it('reports the host state and follows it until it is stopped', () => {
+    const seen: boolean[] = []
+    const { host, listeners } = bridgeHost(false)
+    const stop = watchFullScreen({ host, onChange: (fullScreen) => seen.push(fullScreen) })
+    expect(seen).toEqual([false])
+    for (const listener of listeners) listener(true)
+    expect(seen).toEqual([false, true])
+    stop()
+    expect(listeners.size).toBe(0)
+  })
+
+  it('starts from the host state when the app opens full screen', () => {
+    const seen: boolean[] = []
+    const { host } = bridgeHost(true)
+    watchFullScreen({ host, onChange: (fullScreen) => seen.push(fullScreen) })
+    expect(seen).toEqual([true])
+  })
+
+  it('does nothing for a host that does not report full screen', () => {
+    const seen: boolean[] = []
+    for (const host of [{}, { atlasDesktop: {} }, { atlasDesktop: { vibrancy: false } }]) {
+      watchFullScreen({ host, onChange: (fullScreen) => seen.push(fullScreen) })()
+    }
+    expect(seen).toEqual([])
   })
 })
