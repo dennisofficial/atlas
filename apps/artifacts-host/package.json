@@ -2,7 +2,7 @@
   "name": "@dltech/atlas-artifacts-host",
   "version": "0.1.0",
   "private": true,
-  "description": "Vercel function that serves a published artifact at <token>-<slug>.<domain> from public Blob storage, with no database and no credential.",
+  "description": "Vercel function that serves a published artifact at <subdomain>.<domain> from path-addressed public Blob storage, with no database and no credential.",
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",

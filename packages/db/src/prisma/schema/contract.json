@@ -787,6 +787,13 @@
                   "kind": "scalar"
                 }
               },
+              "subdomain": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "token": {
                 "nullable": false,
                 "type": {
@@ -861,6 +868,9 @@
                 },
                 "slug": {
                   "column": "slug"
+                },
+                "subdomain": {
+                  "column": "subdomain"
                 },
                 "token": {
                   "column": "token"
@@ -9969,6 +9979,11 @@
                   "dataType": "pg/text",
                   "nullable": false
                 },
+                "subdomain": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
                 "token": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -10026,6 +10041,12 @@
                 ]
               },
               "uniques": [
+                {
+                  "columns": [
+                    "subdomain"
+                  ],
+                  "name": "Artifact_subdomain_key"
+                },
                 {
                   "columns": [
                     "token"
@@ -16567,7 +16588,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "de1257f050bc3d136fa91828788d6c4c5af6c2cc0b22bcd66f942b8831d9bb72"
+    "storageHash": "a04df9006767473ac4a56cce0bc21d144268ba24e28d5e1982fc2e71496f36f2"
   },
   "execution": {
     "executionHash": "27a680d0d8367c03704617bfac2d0041e04bd5395fc473f9e021f03bd0d4c6fa",

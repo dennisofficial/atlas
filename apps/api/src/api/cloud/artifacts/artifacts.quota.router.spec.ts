@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { seedSessionUsers } from '../../../test/web-settings.fake-db'
 import { trpcMutation } from '../session-trpc-test-app'
 import { FakeArtifactBlobStore } from './artifact-blob-store.fakes'
-import { ArtifactRetention } from './artifact-retention'
 import { buildArtifactsApp, OWNER } from './artifacts.router.fixture'
 
 const fullVersion = {
@@ -22,7 +21,6 @@ describe('ArtifactsRouter per-user ceiling', () => {
   useTestDatabase()
   let app: INestApplication
   const blobs = new FakeArtifactBlobStore()
-  const retention = new ArtifactRetention(blobs)
 
   const begin = (name: string) =>
     trpcMutation({
@@ -35,7 +33,7 @@ describe('ArtifactsRouter per-user ceiling', () => {
   beforeEach(async () => {
     await seedSessionUsers()
     blobs.reset()
-    app = await buildArtifactsApp({ blobs, retention })
+    app = await buildArtifactsApp({ blobs })
   })
 
   afterEach(() => app.close())

@@ -7,7 +7,7 @@ import type { ArtifactSummary } from '@dltech/atlas-wire/web'
 
 import { createTestQueryClient, TestQueryProvider } from '@/lib/__tests__/query-test-provider'
 
-import { artifactSummary } from './fixtures'
+import { artifactSummary, buildSummary } from './fixtures'
 
 const state: { artifacts: ArtifactSummary[] } = { artifacts: [] }
 
@@ -17,8 +17,10 @@ mock.module('../artifacts-api', () => ({
   ARTIFACTS_KEY: 'artifacts',
   artifactKeyOf: (slug: string) => `artifact:${slug}`,
   fetchArtifacts: async () => ({ artifacts: state.artifacts }),
-  fetchArtifact: async () => ({ artifact: artifactSummary(), versions: [], current: [] }),
-  rollbackArtifact: async () => ({ url: 'https://example.test', version: 1 }),
+  fetchArtifact: async () => ({
+    artifact: artifactSummary(),
+    build: buildSummary(),
+  }),
   unpublishArtifact: async () => ({ ok: true }),
 }))
 
@@ -70,8 +72,16 @@ const rowNames = () =>
 describe('ArtifactsView', () => {
   it('renders a row per artifact, newest updated first', async () => {
     state.artifacts = [
-      artifactSummary({ slug: 'old', name: 'Old', updatedAt: '2026-11-01T00:00:00.000Z' }),
-      artifactSummary({ slug: 'new', name: 'New', updatedAt: '2026-11-10T00:00:00.000Z' }),
+      artifactSummary({
+        subdomain: 'ab12cd34ef56',
+        name: 'Old',
+        updatedAt: '2026-11-01T00:00:00.000Z',
+      }),
+      artifactSummary({
+        subdomain: 'zy98wx76vu54',
+        name: 'New',
+        updatedAt: '2026-11-10T00:00:00.000Z',
+      }),
     ]
     await mount()
 
@@ -79,19 +89,17 @@ describe('ArtifactsView', () => {
       anchor.getAttribute('href')?.startsWith('/artifacts/'),
     )
     expect(links.map((anchor) => anchor.getAttribute('href'))).toEqual([
-      '/artifacts/new',
-      '/artifacts/old',
+      '/artifacts/zy98wx76vu54',
+      '/artifacts/ab12cd34ef56',
     ])
     expect(rowNames()).toEqual(['New', 'Old'])
   })
 
-  it('shows the URL, the status chip, the version, the size and the relative update', async () => {
+  it('shows the URL, the status chip and the relative update', async () => {
     state.artifacts = [
       artifactSummary({
         name: 'Docs',
-        url: 'https://abc123-docs.artifacts.example',
-        bytes: 2048,
-        currentVersion: 4,
+        url: 'https://ab12cd34ef56.artifacts.example',
         status: 'building',
         updatedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
       }),
@@ -99,10 +107,8 @@ describe('ArtifactsView', () => {
     await mount()
 
     const text = document.body.textContent ?? ''
-    expect(text).toContain('https://abc123-docs.artifacts.example')
+    expect(text).toContain('https://ab12cd34ef56.artifacts.example')
     expect(text).toContain('Building')
-    expect(text).toContain('v4')
-    expect(text).toContain('2.0 KB')
     expect(text).toContain('Updated 3h ago')
     expect(document.querySelector('[aria-label="Copy Docs URL"]')).not.toBeNull()
   })

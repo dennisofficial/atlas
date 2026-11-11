@@ -1,8 +1,8 @@
-import type { ArtifactVersionSummary } from '@dltech/atlas-wire/web'
+import type { ArtifactBuild } from '@dltech/atlas-wire/web'
 
 import { relativeTime } from '@/features/settings/data/personal/relative-time'
 
-import { versionsNewestFirst } from './artifact-format'
+import { formatDuration } from './artifact-format'
 import { ArtifactStatusChip } from './artifact-status-chip'
 
 const COLLAPSE_LOG_LINES = 40
@@ -25,33 +25,22 @@ function BuildLog({ log }: { log: string }) {
   )
 }
 
-export function ArtifactLogs({ versions }: { versions: readonly ArtifactVersionSummary[] }) {
-  const ordered = versionsNewestFirst(versions)
-
+export function ArtifactBuildLog({ build }: { build: ArtifactBuild }) {
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-sm font-medium">Build logs</h2>
-      {ordered.length === 0 ? (
-        <p className="text-xs text-muted-foreground">This artifact has no builds yet.</p>
-      ) : (
-        <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border">
-          {ordered.map((version) => (
-            <li key={version.version} className="flex flex-col gap-2 px-4 py-3">
-              <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">v{version.version}</span>
-                <ArtifactStatusChip status={version.status} />
-                <span className="shrink-0">{relativeTime({ from: version.createdAt })}</span>
-              </div>
-              {version.failure === null ? null : (
-                <pre className="overflow-x-auto rounded-lg bg-muted px-3 py-2 font-mono text-xs whitespace-pre-wrap text-destructive">
-                  {version.failure}
-                </pre>
-              )}
-              {version.log === null ? null : <BuildLog log={version.log} />}
-            </li>
-          ))}
-        </ul>
+      <h2 className="text-sm font-medium">Last build</h2>
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <ArtifactStatusChip status={build.status} />
+        <span>{relativeTime({ from: build.updatedAt })}</span>
+        <span aria-hidden>·</span>
+        <span>took {formatDuration(build.durationMs)}</span>
+      </div>
+      {build.failure === null ? null : (
+        <pre className="overflow-x-auto rounded-lg bg-muted px-3 py-2 font-mono text-xs whitespace-pre-wrap text-destructive">
+          {build.failure}
+        </pre>
       )}
+      {build.log === null ? null : <BuildLog log={build.log} />}
     </section>
   )
 }

@@ -1,70 +1,57 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
+  artifactBuildSchema,
+  artifactGetOutputSchema,
   artifactRouteSchema,
   artifactSummarySchema,
-  artifactVersionSummarySchema,
 } from '../artifacts'
-
-const ENTRY = {
-  path: 'index.html',
-  tree: 'dist' as const,
-  sha256: 'a'.repeat(64),
-  size: 12,
-  type: 'text/html; charset=utf-8',
-}
 
 const ROUTE = {
   artifactId: 'art_1',
-  slug: 'dashboard',
+  subdomain: 'k7f2m9qxabcd',
   name: 'Dashboard',
-  version: 3,
-  manifest: [ENTRY],
+  serve: { spa: true, notFound: '404.html' },
 }
 
 const SUMMARY = {
-  slug: 'dashboard',
+  subdomain: 'k7f2m9qxabcd',
   name: 'Dashboard',
-  url: 'https://k7f2m9qx-dashboard.byatlas.site',
-  currentVersion: 3,
+  url: 'https://k7f2m9qxabcd.byatlas.site',
   status: 'ready' as const,
-  bytes: 12,
-  fileCount: 1,
-  createdAt: '2026-11-08T09:00:00.000Z',
   updatedAt: '2026-11-10T09:00:00.000Z',
-  sourceHash: 'b'.repeat(64),
-  specHash: 'c'.repeat(64),
 }
 
-const VERSION = {
-  version: 3,
+const BUILD = {
   status: 'ready' as const,
-  createdAt: '2026-11-10T09:00:00.000Z',
-  bytes: 12,
-  fileCount: 1,
+  log: 'bun run build\nbuilt in 4.2s',
   failure: null,
   durationMs: 4200,
-  log: 'bun run build\nbuilt in 4.2s',
+  updatedAt: '2026-11-10T09:00:00.000Z',
 }
 
 describe('artifactRouteSchema', () => {
-  it('round-trips a route object that carries serve rules', () => {
-    const route = {
-      ...ROUTE,
-      serve: { spa: true, notFound: 'index.html' },
-    }
-
-    expect(artifactRouteSchema.parse(JSON.parse(JSON.stringify(route)))).toEqual(route)
+  it('round-trips the route object the host reads', () => {
+    expect(artifactRouteSchema.parse(JSON.parse(JSON.stringify(ROUTE)))).toEqual(ROUTE)
   })
 
-  it('round-trips a route object whose serve rules name no custom 404', () => {
-    const route = { ...ROUTE, serve: { spa: true } }
+  it('round-trips serve rules that name no custom 404', () => {
+    const route = { ...ROUTE, serve: { spa: false } }
 
-    expect(artifactRouteSchema.parse(JSON.parse(JSON.stringify(route)))).toEqual(route)
+    expect(artifactRouteSchema.parse(route)).toEqual(route)
   })
 
-  it('still accepts a routing object written before serve existed', () => {
-    expect(artifactRouteSchema.parse(ROUTE)).toEqual(ROUTE)
+  it('carries no manifest and no version', () => {
+    const parsed = artifactRouteSchema.parse(ROUTE) as Record<string, unknown>
+
+    expect(parsed.manifest).toBeUndefined()
+    expect(parsed.version).toBeUndefined()
+  })
+
+  it('rejects a route without serve rules', () => {
+    const { serve: _serve, ...withoutServe } = ROUTE
+
+    expect(artifactRouteSchema.safeParse(withoutServe).success).toBe(false)
   })
 
   it('rejects serve rules without spa', () => {
@@ -72,28 +59,57 @@ describe('artifactRouteSchema', () => {
       artifactRouteSchema.safeParse({ ...ROUTE, serve: { notFound: '404.html' } }).success,
     ).toBe(false)
   })
+
+  it.each(['Upper', '-lead', 'trail-', 'dot.dot', 'a'.repeat(64)])(
+    'rejects the subdomain %p',
+    (subdomain) => {
+      expect(artifactRouteSchema.safeParse({ ...ROUTE, subdomain }).success).toBe(false)
+    },
+  )
 })
 
 describe('artifactSummarySchema', () => {
-  it('accepts the hashes and the creation time of a published artifact', () => {
+  it('accepts the fields the artifact list needs', () => {
     expect(artifactSummarySchema.parse(SUMMARY)).toEqual(SUMMARY)
   })
 
-  it('accepts an artifact with no version to hash yet', () => {
-    const unbuilt = { ...SUMMARY, currentVersion: 0, sourceHash: null, specHash: null }
+  it('drops version history', () => {
+    const parsed = artifactSummarySchema.parse(SUMMARY) as Record<string, unknown>
 
-    expect(artifactSummarySchema.parse(unbuilt)).toEqual(unbuilt)
+    expect(parsed.currentVersion).toBeUndefined()
+    expect(parsed.sourceHash).toBeUndefined()
   })
 })
 
-describe('artifactVersionSummarySchema', () => {
+describe('artifactBuildSchema', () => {
   it('accepts a stored build log and duration', () => {
-    expect(artifactVersionSummarySchema.parse(VERSION)).toEqual(VERSION)
+    expect(artifactBuildSchema.parse(BUILD)).toEqual(BUILD)
   })
 
-  it('accepts a version that captured neither', () => {
-    const bare = { ...VERSION, status: 'building' as const, durationMs: null, log: null }
+  it('accepts a failed build with its reason and no log', () => {
+    const failed = {
+      status: 'failed' as const,
+      log: null,
+      failure: 'exit 1',
+      durationMs: null,
+      updatedAt: '2026-11-10T09:00:00.000Z',
+    }
 
-    expect(artifactVersionSummarySchema.parse(bare)).toEqual(bare)
+    expect(artifactBuildSchema.parse(failed)).toEqual(failed)
+  })
+})
+
+describe('artifactGetOutputSchema', () => {
+  it('pairs the summary with the build it last ran', () => {
+    expect(artifactGetOutputSchema.parse({ artifact: SUMMARY, build: BUILD })).toEqual({
+      artifact: SUMMARY,
+      build: BUILD,
+    })
+  })
+
+  it('rejects the old manifest and version list', () => {
+    const legacy = { artifact: SUMMARY, versions: [], current: [] }
+
+    expect(artifactGetOutputSchema.safeParse(legacy).success).toBe(false)
   })
 })

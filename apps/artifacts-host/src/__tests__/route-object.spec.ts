@@ -1,25 +1,14 @@
 import { describe, expect, spyOn, test } from 'bun:test'
 
-import type { ManifestEntry } from '@dltech/atlas-artifacts'
+import { createObjectFetcher, createRouteFetcher, parseRouteObject } from '../route-object'
 
-import { createBlobFetcher, createRouteFetcher, parseRouteObject } from '../route-object'
-
-const LABEL = { token: 'k7f2m9qx', slug: 'dashboard' }
-
-const entry: ManifestEntry = {
-  path: 'index.html',
-  tree: 'dist',
-  sha256: 'a'.repeat(64),
-  size: 12,
-  type: 'text/html; charset=utf-8',
-}
+const SUBDOMAIN = 'k7f2m9qxabcd'
 
 const route = {
   artifactId: 'art_1',
-  slug: 'dashboard',
+  subdomain: SUBDOMAIN,
   name: 'Dashboard',
-  version: 3,
-  manifest: [entry],
+  serve: { spa: true, notFound: '404.html' },
 }
 
 const stubFetchOf = (body: () => Promise<Response>): typeof fetch =>
@@ -32,22 +21,14 @@ const jsonResponse = (body: unknown, status = 200): Response =>
   })
 
 describe('parseRouteObject', () => {
-  test('defaults to no serve rules on an object written before serve existed', () => {
-    expect(parseRouteObject(route)).toEqual({
-      ...route,
-      manifest: [entry],
-      serve: { spa: false },
-    })
+  test('reads the serve rules from the route object', () => {
+    expect(parseRouteObject(route)).toEqual(route)
   })
 
-  test('reads the serve rules from the routing object', () => {
-    const parsed = parseRouteObject({ ...route, serve: { spa: true, notFound: '404.html' } })
+  test('defaults to no serve rules when the object has none', () => {
+    const { serve: _serve, ...withoutServe } = route
 
-    expect(parsed?.serve).toEqual({ spa: true, notFound: '404.html' })
-  })
-
-  test('reads serve rules that name no custom 404', () => {
-    expect(parseRouteObject({ ...route, serve: { spa: true } })?.serve).toEqual({ spa: true })
+    expect(parseRouteObject(withoutServe)).toEqual({ ...withoutServe, serve: { spa: false } })
   })
 
   test('rejects a non-object', () => {
@@ -56,23 +37,11 @@ describe('parseRouteObject', () => {
     expect(parseRouteObject([route])).toBeNull()
   })
 
-  test('rejects a missing field', () => {
+  test('rejects a missing or unusable label', () => {
+    expect(parseRouteObject({ ...route, artifactId: '' })).toBeNull()
     expect(parseRouteObject({ ...route, name: '' })).toBeNull()
-    expect(parseRouteObject({ ...route, version: -1 })).toBeNull()
-    expect(parseRouteObject({ ...route, version: 1.5 })).toBeNull()
-    expect(parseRouteObject({ artifactId: 'art_1', slug: 'dashboard', version: 1 })).toBeNull()
-  })
-
-  test('answers null for a malformed manifest instead of throwing', () => {
-    expect(parseRouteObject({ ...route, manifest: [] })).toEqual({
-      ...route,
-      manifest: [],
-      serve: { spa: false },
-    })
-    expect(parseRouteObject({ ...route, manifest: [{ ...entry, type: '' }] })).toBeNull()
-    expect(parseRouteObject({ ...route, manifest: [{ ...entry, sha256: 'nope' }] })).toBeNull()
-    expect(parseRouteObject({ ...route, manifest: undefined })).toBeNull()
-    expect(parseRouteObject({ ...route, manifest: [entry, entry] })).toBeNull()
+    expect(parseRouteObject({ ...route, subdomain: undefined })).toBeNull()
+    expect(parseRouteObject({ ...route, subdomain: 'Not A Label' })).toBeNull()
   })
 
   test('rejects unparsable serve rules', () => {
@@ -85,32 +54,26 @@ describe('parseRouteObject', () => {
 describe('createRouteFetcher', () => {
   const baseUrl = 'https://blob.example'
 
-  test('fetches the routing object by its host label', async () => {
+  test('fetches the route object by its subdomain', async () => {
     const fetchSpy = spyOn(globalThis, 'fetch')
     fetchSpy.mockImplementation(stubFetchOf(() => Promise.resolve(jsonResponse(route))))
     try {
-      expect(await createRouteFetcher(baseUrl)(LABEL)).toEqual({
-        ...route,
-        manifest: [entry],
-        serve: { spa: false },
-      })
+      expect(await createRouteFetcher(baseUrl)(SUBDOMAIN)).toEqual(route)
       expect(fetchSpy).toHaveBeenCalledTimes(1)
-      expect(fetchSpy.mock.calls[0]?.[0]).toBe(
-        'https://blob.example/routes/k7f2m9qx-dashboard.json',
-      )
+      expect(fetchSpy.mock.calls[0]?.[0]).toBe(`https://blob.example/routes/${SUBDOMAIN}.json`)
       expect(fetchSpy.mock.calls[0]?.[1]).toMatchObject({ cache: 'no-store' })
     } finally {
       fetchSpy.mockRestore()
     }
   })
 
-  test('returns null when the routing object is absent', async () => {
+  test('returns null when the route object is absent', async () => {
     const fetchSpy = spyOn(globalThis, 'fetch')
     fetchSpy.mockImplementation(
       stubFetchOf(() => Promise.resolve(new Response('missing', { status: 404 }))),
     )
     try {
-      expect(await createRouteFetcher(baseUrl)(LABEL)).toBeNull()
+      expect(await createRouteFetcher(baseUrl)(SUBDOMAIN)).toBeNull()
     } finally {
       fetchSpy.mockRestore()
     }
@@ -122,7 +85,7 @@ describe('createRouteFetcher', () => {
       stubFetchOf(() => Promise.resolve(new Response('not json', { status: 200 }))),
     )
     try {
-      expect(await createRouteFetcher(baseUrl)(LABEL)).toBeNull()
+      expect(await createRouteFetcher(baseUrl)(SUBDOMAIN)).toBeNull()
     } finally {
       fetchSpy.mockRestore()
     }
@@ -132,33 +95,51 @@ describe('createRouteFetcher', () => {
     const fetchSpy = spyOn(globalThis, 'fetch')
     fetchSpy.mockImplementation(stubFetchOf(() => Promise.reject(new Error('offline'))))
     try {
-      expect(await createRouteFetcher(baseUrl)(LABEL)).toBeNull()
+      expect(await createRouteFetcher(baseUrl)(SUBDOMAIN)).toBeNull()
+    } finally {
+      fetchSpy.mockRestore()
+    }
+  })
+
+  test('returns null when the object belongs to another subdomain', async () => {
+    const fetchSpy = spyOn(globalThis, 'fetch')
+    fetchSpy.mockImplementation(
+      stubFetchOf(() => Promise.resolve(jsonResponse({ ...route, subdomain: 'zzzzzzzzzzzz' }))),
+    )
+    try {
+      expect(await createRouteFetcher(baseUrl)(SUBDOMAIN)).toBeNull()
     } finally {
       fetchSpy.mockRestore()
     }
   })
 })
 
-describe('createBlobFetcher', () => {
-  test('returns the stored response', async () => {
+describe('createObjectFetcher', () => {
+  test('fetches a stored object by its key', async () => {
     const fetchSpy = spyOn(globalThis, 'fetch')
     fetchSpy.mockImplementation(stubFetchOf(() => Promise.resolve(new Response('hello'))))
     try {
-      const blob = await createBlobFetcher('https://blob.example/')('a'.repeat(64))
-      expect(await blob?.text()).toBe('hello')
-      expect(fetchSpy.mock.calls[0]?.[0]).toBe(`https://blob.example/blobs/${'a'.repeat(64)}`)
+      const object = await createObjectFetcher('https://blob.example/')(
+        'artifacts/k7f2m9qxabcd/_route/index.html',
+      )
+      expect(await object?.text()).toBe('hello')
+      expect(fetchSpy.mock.calls[0]?.[0]).toBe(
+        'https://blob.example/artifacts/k7f2m9qxabcd/_route/index.html',
+      )
     } finally {
       fetchSpy.mockRestore()
     }
   })
 
-  test('returns null for a missing blob', async () => {
+  test('returns null for a missing object', async () => {
     const fetchSpy = spyOn(globalThis, 'fetch')
     fetchSpy.mockImplementation(
       stubFetchOf(() => Promise.resolve(new Response('missing', { status: 404 }))),
     )
     try {
-      expect(await createBlobFetcher('https://blob.example')('a'.repeat(64))).toBeNull()
+      expect(
+        await createObjectFetcher('https://blob.example')('artifacts/x/_route/index.html'),
+      ).toBeNull()
     } finally {
       fetchSpy.mockRestore()
     }

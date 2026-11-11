@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import {
   BadRequestException,
   ConflictException,
@@ -8,17 +8,18 @@ import {
 import {
   MAX_BYTES_PER_USER,
   MAX_BYTES_PER_VERSION,
-  blobPathOf,
   exceededBy,
   manifestHash,
   parseManifest,
   parseSpec,
+  routePrefixOf,
+  sourcePathOf,
+  sourcePrefixOf,
   specHash,
   type ArtifactSpec,
   type ManifestEntry,
 } from '@dltech/atlas-artifacts'
-import { randomToken } from '@dltech/atlas-artifacts/node'
-import { db, isUniqueViolation, violatedConstraint } from '@dltech/atlas-db'
+import { db, violatedConstraint } from '@dltech/atlas-db'
 import type {
   ArtifactBeginPublishInput,
   ArtifactBeginPublishOutput,
@@ -29,26 +30,17 @@ import type {
 import { EnvService } from '../../../_core/config/env/env.service'
 import { ArtifactBuild } from './artifact-build'
 import { ArtifactBlobStore } from './artifact-blob-store'
-import { missingBlobs, presentShas, urlOf } from './artifact-repository'
-import { ArtifactRetention } from './artifact-retention'
-import { totalBytesOf, type ArtifactRow } from './artifact-rows'
+import type { ArtifactRow, BuildRow } from './artifact-rows'
 import { writeArtifactRoute } from './artifact-route'
+import { ownedById, resolveArtifact } from './artifact-record'
+import { buildRowOfVersion, urlOf } from './artifact-repository'
+import { pruneTree, sourceFilesOf, sourceKeysOf, writeRouteTree } from './artifact-tree'
 
 const VERSION_COLLISION = 'ArtifactVersion_artifactId_version_key'
 
-const SLUG_MAX_LENGTH = 39
+const ATTEMPTS = 3
 
 const EMPTY_SPEC_HASH = specHash(parseSpec({}))
-
-const slugFrom = (name: string): string => {
-  const slug = name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, SLUG_MAX_LENGTH)
-    .replace(/-+$/g, '')
-  return slug.length === 0 ? 'artifact' : slug
-}
 
 const storedSpecOf = (spec: ArtifactSpec) => ({
   serve:
@@ -58,18 +50,13 @@ const storedSpecOf = (spec: ArtifactSpec) => ({
   publish: { include: [...spec.publish.include], exclude: [...spec.publish.exclude] },
 })
 
-const withDistCopy = (entries: readonly ManifestEntry[]): ManifestEntry[] => {
-  const source = entries.filter((entry) => entry.tree === 'src')
-  const dist = entries.filter((entry) => entry.tree === 'dist')
-  if (dist.length > 0) return [...source, ...dist]
-  return [...source, ...source.map((entry) => ({ ...entry, tree: 'dist' as const }))]
-}
+const totalBytesOf = (entries: readonly ManifestEntry[]): number =>
+  entries.reduce((total, entry) => total + entry.size, 0)
 
 @Injectable()
 export class ArtifactsService {
   constructor(
     private readonly blobs: ArtifactBlobStore,
-    private readonly retention: ArtifactRetention,
     private readonly env: EnvService,
     private readonly build: ArtifactBuild,
   ) {}
@@ -80,19 +67,18 @@ export class ArtifactsService {
   }): Promise<ArtifactBeginPublishOutput> {
     const entries = this.parseEntries(args.body.entries)
     await this.assertPublishQuota({ userId: args.userId, entries })
-    const artifact = await this.resolveArtifact({
+    const artifact = await resolveArtifact({
       userId: args.userId,
       slug: args.body.slug,
       name: args.body.name,
     })
-    const version = await this.insertVersion({ artifact, entries })
-    const uploads = await this.missingUploads(entries)
+    const version = await this.openBuild({ artifact, entries })
     return {
       artifactId: artifact.id,
       token: artifact.token,
       slug: artifact.slug,
       version,
-      uploads,
+      uploads: await this.sourceUploads({ artifact, entries }),
     }
   }
 
@@ -102,77 +88,92 @@ export class ArtifactsService {
     body: ArtifactCommitPublishInput
   }): Promise<ArtifactCommitPublishOutput> {
     const spec = this.readSpec(args.body.spec)
-    const artifact = await db.orm.public.Artifact.first({ id: args.body.artifactId })
-    if (artifact === null || artifact.userId !== args.userId) {
-      throw new NotFoundException('no such artifact')
-    }
-    const version = await db.orm.public.ArtifactVersion.first({
+    const artifact = await ownedById({ userId: args.userId, artifactId: args.body.artifactId })
+    const row = await buildRowOfVersion({
       artifactId: artifact.id,
       version: args.body.version,
     })
-    if (version === null) throw new NotFoundException(`no version ${args.body.version}`)
-    const stored = parseManifest(version.manifest)
-    const firstMissing = (await missingBlobs({ blobs: this.blobs, entries: stored }))[0]
-    if (firstMissing !== undefined) {
-      throw new BadRequestException(
-        `no uploaded content for ${firstMissing.tree}/${firstMissing.path}`,
-      )
+    if (row === null) throw new NotFoundException(`no version ${args.body.version}`)
+    const entries = parseManifest(row.manifest)
+    const source = await sourceFilesOf({ blobs: this.blobs, id: artifact.subdomain, entries })
+    if ('missing' in source) {
+      throw new BadRequestException(`no uploaded source for ${source.missing}`)
     }
+    const url = urlOf({ artifact, domain: this.env.get('ARTIFACT_DOMAIN') })
     const built =
       spec.build === undefined
         ? null
         : await this.build.run({
             threadId: this.threadOf(args.threadId),
             spec,
-            source: stored,
+            files: source.files,
           })
     if (built !== null && built.status === 'failed') {
-      await db.orm.public.ArtifactVersion.where({ id: version.id }).update({
+      await this.recordBuild({
+        row,
         status: 'failed',
         failure: built.failure,
         log: built.log,
         durationMs: built.durationMs,
       })
-      return {
-        slug: artifact.slug,
-        version: args.body.version,
-        url: urlOf({ artifact, domain: this.env.get('ARTIFACT_DOMAIN') }),
-        status: 'failed',
-      }
+      return { slug: artifact.slug, version: row.version, url, status: 'failed' }
     }
-    const manifest =
-      built === null
-        ? withDistCopy(stored)
-        : [...stored.filter((entry) => entry.tree === 'src'), ...built.manifest]
-    await db.transaction(async (tx) => {
-      await tx.orm.public.ArtifactVersion.where({ id: version.id }).update({
-        status: 'ready',
-        manifest,
-        spec: storedSpecOf(spec),
-        specHash: specHash(spec),
-        bytes: totalBytesOf(manifest),
-        fileCount: manifest.length,
-        log: built?.log ?? null,
-        durationMs: built?.durationMs ?? null,
-      })
-      await tx.orm.public.Artifact.where({ id: artifact.id }).update({
-        currentVersion: args.body.version,
-      })
-    })
-    await writeArtifactRoute({
+    const files = built === null ? source.files : built.files
+    const keys = await writeRouteTree({ blobs: this.blobs, id: artifact.subdomain, files })
+    await writeArtifactRoute({ blobs: this.blobs, artifact, spec })
+    await pruneTree({
       blobs: this.blobs,
-      artifact,
-      version: args.body.version,
-      manifest,
-      spec,
+      prefix: routePrefixOf({ id: artifact.subdomain }),
+      keep: keys,
     })
-    this.retention.afterPublish({ artifactId: artifact.id })
-    return {
-      slug: artifact.slug,
-      version: args.body.version,
-      url: urlOf({ artifact, domain: this.env.get('ARTIFACT_DOMAIN') }),
+    await pruneTree({
+      blobs: this.blobs,
+      prefix: sourcePrefixOf({ id: artifact.subdomain }),
+      keep: sourceKeysOf({ id: artifact.subdomain, entries }),
+    })
+    await this.recordBuild({
+      row,
       status: 'ready',
-    }
+      failure: null,
+      log: built?.log ?? null,
+      durationMs: built?.durationMs ?? null,
+      spec,
+      bytes: files.reduce((total, file) => total + file.content.length, 0),
+      fileCount: files.length,
+    })
+    return { slug: artifact.slug, version: row.version, url, status: 'ready' }
+  }
+
+  private async recordBuild(args: {
+    row: BuildRow
+    status: 'ready' | 'failed'
+    failure: string | null
+    log: string | null
+    durationMs: number | null
+    spec?: ArtifactSpec
+    bytes?: number
+    fileCount?: number
+  }): Promise<void> {
+    await db.transaction(async (tx) => {
+      await tx.orm.public.ArtifactVersion.where({ id: args.row.id }).update({
+        status: args.status,
+        failure: args.failure,
+        log: args.log,
+        durationMs: args.durationMs,
+        ...(args.spec === undefined
+          ? {}
+          : { spec: storedSpecOf(args.spec), specHash: specHash(args.spec) }),
+        ...(args.bytes === undefined ? {} : { bytes: args.bytes }),
+        ...(args.fileCount === undefined ? {} : { fileCount: args.fileCount }),
+      })
+      const previous = await tx.orm.public.ArtifactVersion.where({
+        artifactId: args.row.artifactId,
+      }).all()
+      for (const older of previous) {
+        if (older.version === args.row.version) continue
+        await tx.orm.public.ArtifactVersion.where({ id: older.id }).deleteAndCount()
+      }
+    })
   }
 
   private async assertPublishQuota(args: {
@@ -189,10 +190,10 @@ export class ArtifactsService {
   private async storedBytesOf(userId: string): Promise<number> {
     const artifacts = await db.orm.public.Artifact.where({ userId }).all()
     if (artifacts.length === 0) return 0
-    const versions = await db.orm.public.ArtifactVersion.where((version) =>
-      version.artifactId.in(artifacts.map((artifact) => artifact.id)),
+    const rows = await db.orm.public.ArtifactVersion.where((row) =>
+      row.artifactId.in(artifacts.map((artifact) => artifact.id)),
     ).all()
-    return versions.reduce((total, version) => total + version.bytes, 0)
+    return rows.reduce((total, row) => total + row.bytes, 0)
   }
 
   private parseEntries(raw: readonly ManifestEntry[]): ManifestEntry[] {
@@ -224,51 +225,15 @@ export class ArtifactsService {
     return threadId
   }
 
-  private async resolveArtifact(args: {
-    userId: string
-    slug: string | undefined
-    name: string | undefined
-  }): Promise<ArtifactRow> {
-    if (args.slug !== undefined) {
-      const existing = await db.orm.public.Artifact.first({
-        userId: args.userId,
-        slug: args.slug,
-      })
-      if (existing === null) throw new NotFoundException(`no artifact ${args.slug}`)
-      return existing
-    }
-    const name = args.name ?? 'artifact'
-    const base = slugFrom(name)
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const slug = attempt === 0 ? base : `${base.slice(0, 30)}-${randomToken(randomBytes(4))}`
-      try {
-        return await db.orm.public.Artifact.create({
-          id: randomUUID(),
-          userId: args.userId,
-          slug,
-          token: randomToken(randomBytes(8)),
-          name,
-          currentVersion: 0,
-        })
-      } catch (error) {
-        if (!isUniqueViolation(error)) throw error
-      }
-    }
-    throw new ConflictException('could not allocate an artifact slug')
-  }
-
-  private async insertVersion(args: {
+  private async openBuild(args: {
     artifact: ArtifactRow
-    entries: ManifestEntry[]
+    entries: readonly ManifestEntry[]
   }): Promise<number> {
-    const sourceHash = manifestHash(args.entries.filter((entry) => entry.tree === 'src'))
-    for (let attempt = 0; ; attempt++) {
+    for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
       try {
         return await db.transaction(async (tx) => {
-          const latest = await tx.orm.public.ArtifactVersion.where({
-            artifactId: args.artifact.id,
-          }).aggregate((aggregate) => ({ maxVersion: aggregate.max('version') }))
-          const version = (latest.maxVersion ?? 0) + 1
+          const artifact = await tx.orm.public.Artifact.first({ id: args.artifact.id })
+          const version = (artifact?.currentVersion ?? 0) + 1
           await tx.orm.public.ArtifactVersion.create({
             id: randomUUID(),
             artifactId: args.artifact.id,
@@ -276,10 +241,13 @@ export class ArtifactsService {
             status: 'building',
             manifest: args.entries,
             spec: {},
-            sourceHash,
+            sourceHash: manifestHash(args.entries),
             specHash: EMPTY_SPEC_HASH,
             bytes: totalBytesOf(args.entries),
             fileCount: args.entries.length,
+          })
+          await tx.orm.public.Artifact.where({ id: args.artifact.id }).update({
+            currentVersion: version,
           })
           return version
         })
@@ -287,17 +255,18 @@ export class ArtifactsService {
         if (attempt > 0 || violatedConstraint(error) !== VERSION_COLLISION) throw error
       }
     }
+    throw new ConflictException('could not open a build for this artifact')
   }
 
-  private async missingUploads(entries: readonly ManifestEntry[]): Promise<ArtifactUpload[]> {
-    const bySha = new Map<string, ManifestEntry>()
-    for (const entry of entries) if (!bySha.has(entry.sha256)) bySha.set(entry.sha256, entry)
-    const present = await presentShas({ blobs: this.blobs, shas: [...bySha.keys()] })
+  private async sourceUploads(args: {
+    artifact: ArtifactRow
+    entries: readonly ManifestEntry[]
+  }): Promise<ArtifactUpload[]> {
     const uploads: ArtifactUpload[] = []
-    for (const entry of bySha.values()) {
-      if (present.has(entry.sha256)) continue
+    for (const entry of args.entries) {
+      const pathname = sourcePathOf({ id: args.artifact.subdomain, path: entry.path })
       const { url } = await this.blobs.presignUpload({
-        pathname: blobPathOf(entry.sha256),
+        pathname,
         maxBytes: MAX_BYTES_PER_VERSION,
       })
       uploads.push({ path: entry.path, tree: entry.tree, sha256: entry.sha256, url })

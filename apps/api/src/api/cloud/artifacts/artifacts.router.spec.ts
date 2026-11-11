@@ -1,16 +1,17 @@
 import type { INestApplication } from '@nestjs/common'
-import { blobPathOf } from '@dltech/atlas-artifacts'
+import { routePathOf, routePrefixOf, sourcePathOf, sourcePrefixOf } from '@dltech/atlas-artifacts'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import {
   artifactBeginPublishOutputSchema,
   artifactGetOutputSchema,
   artifactListOutputSchema,
+  artifactRouteSchema,
   artifactSourceExportOutputSchema,
 } from '@dltech/atlas-wire'
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { seedSessionUsers } from '../../../test/web-settings.fake-db'
-import { buildSessionTrpcApp, dataOf, trpcMutation, trpcQuery } from '../session-trpc-test-app'
+import { dataOf, trpcMutation, trpcQuery } from '../session-trpc-test-app'
 import { FakeArtifactBlobStore } from './artifact-blob-store.fakes'
 import {
   FakeArtifactSandbox,
@@ -18,23 +19,23 @@ import {
   finishedCommand,
   sandboxResult,
 } from './artifact-sandbox.fakes'
-import { ArtifactRetention } from './artifact-retention'
 import {
+  ARTIFACT_DOMAIN,
   buildArtifactsApp,
   DEFAULT_INPUT,
   OWNER,
+  SOURCE_BODIES,
   SRC_INDEX,
-  SRC_STYLE,
   publishArtifact,
-  seedUploads,
+  seedSources,
+  subdomainOf,
   withSlug,
 } from './artifacts.router.fixture'
 
 describe('ArtifactsRouter', () => {
-  const database = useTestDatabase()
+  useTestDatabase()
   let app: INestApplication
   const blobs = new FakeArtifactBlobStore()
-  const retention = new ArtifactRetention(blobs)
   const sandbox = new FakeArtifactSandbox()
 
   const begin = (token: string, input: unknown = DEFAULT_INPUT) =>
@@ -47,52 +48,47 @@ describe('ArtifactsRouter', () => {
   const sourceExport = (token: string, slug: string) =>
     trpcQuery({ app, path: 'artifacts.sourceExport', token, input: { slug } })
 
-  const beginOf = async (token: string, input: unknown = DEFAULT_INPUT) =>
-    artifactBeginPublishOutputSchema.parse(dataOf((await begin(token, input).expect(200)).body))
+  const keysUnder = (prefix: string): string[] =>
+    [...blobs.stored.keys()].filter((key) => key.startsWith(prefix)).sort()
 
-  const publish = (token = OWNER, input: unknown = DEFAULT_INPUT) =>
-    publishArtifact({ app, blobs, token, input })
-  const seedAll = () =>
-    seedUploads({ blobs, shas: DEFAULT_INPUT.entries.map((entry) => entry.sha256) })
+  const publish = (args: { token?: string; input?: unknown; spec?: unknown } = {}) =>
+    publishArtifact({ app, blobs, ...args })
+
+  const seedGranted = async (granted: {
+    artifactId: string
+    uploads: readonly { path: string }[]
+  }): Promise<void> =>
+    seedSources({
+      blobs,
+      artifactId: granted.artifactId,
+      paths: granted.uploads.map((upload) => upload.path),
+    })
 
   beforeEach(async () => {
     await seedSessionUsers()
     blobs.reset()
     sandbox.reset()
-    app = await buildArtifactsApp({ blobs, retention, sandbox })
+    app = await buildArtifactsApp({ blobs, sandbox })
   })
 
   afterEach(() => app.close())
 
   describe('artifacts.beginPublish', () => {
-    it('mints an artifact and presigns every missing blob for a session', async () => {
+    it('mints a hostname-safe subdomain and presigns the source tree under it', async () => {
       const res = await begin(OWNER).expect(200)
 
-      expect(res.headers['cache-control']).toBe('no-store')
       const grant = artifactBeginPublishOutputSchema.parse(dataOf(res.body))
       expect(grant).toMatchObject({ slug: 'demo', version: 1 })
-      expect(grant.token).toMatch(/^[a-z0-9]{8}$/)
-      expect(grant.uploads.map((upload) => upload.sha256)).toEqual([
-        SRC_INDEX.sha256,
-        SRC_STYLE.sha256,
-      ])
-      expect(grant.uploads[0]?.url).toBe(`https://blob.test/put/${blobPathOf(SRC_INDEX.sha256)}`)
-    })
-
-    it('skips an upload the pool already holds', async () => {
-      const first = await beginOf(OWNER)
-      blobs.seed({ pathname: blobPathOf(SRC_INDEX.sha256), body: 'cached' })
-
-      const second = await beginOf(OWNER, withSlug('demo'))
-
-      expect(second.artifactId).toBe(first.artifactId)
-      expect(second.version).toBe(2)
-      expect(second.uploads.map((upload) => upload.sha256)).toEqual([SRC_STYLE.sha256])
+      expect(grant.uploads.map((upload) => upload.path)).toEqual(['index.html', 'app.css'])
+      const subdomain = await subdomainOf(grant.artifactId)
+      expect(subdomain).toMatch(/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/)
+      expect(grant.uploads[0]?.url).toBe(
+        `https://blob.test/put/${sourcePathOf({ id: subdomain, path: 'index.html' })}`,
+      )
     })
 
     it('accepts a sandbox token', async () => {
       const res = await begin('sandbox-token-a').expect(200)
-
       expect(artifactBeginPublishOutputSchema.parse(dataOf(res.body)).slug).toBe('demo')
     })
 
@@ -125,39 +121,38 @@ describe('ArtifactsRouter', () => {
   })
 
   describe('artifacts.commitPublish', () => {
-    it('serves a no-build version from its own source tree', async () => {
+    it('writes both trees, the route object, and prunes what it did not write', async () => {
       const published = await publish()
-      const detail = artifactGetOutputSchema.parse(dataOf((await get(OWNER, 'demo')).body))
+      const route = routePrefixOf({ id: published.subdomain })
+      const source = sourcePrefixOf({ id: published.subdomain })
 
-      expect(detail.current.map((entry) => `${entry.tree}/${entry.path}`)).toEqual([
-        'src/index.html',
-        'src/app.css',
-        'dist/index.html',
-        'dist/app.css',
-      ])
-      expect(detail.artifact).toMatchObject({ currentVersion: 1, status: 'ready', fileCount: 4 })
-      expect(detail.artifact.url).toBe(`https://${published.token}-demo.artifacts.test`)
-    })
-
-    it('rejects a missing upload', async () => {
-      const granted = await beginOf(OWNER)
-
-      const missing = await commit(OWNER, {
-        artifactId: granted.artifactId,
-        version: granted.version,
-        spec: {},
+      expect(keysUnder(route)).toEqual([`${route}app.css`, `${route}index.html`])
+      expect(keysUnder(source)).toEqual([`${source}app.css`, `${source}index.html`])
+      const routeObject = artifactRouteSchema.parse(
+        blobs.bodyOf(routePathOf({ id: published.subdomain })),
+      )
+      expect(routeObject).toMatchObject({
+        artifactId: published.artifactId,
+        subdomain: published.subdomain,
+        name: 'demo',
+        serve: { spa: false },
       })
 
-      expect(missing.status).toBe(400)
-      expect(Reflect.get(missing.body, 'error')).toMatchObject({
-        message: expect.stringContaining('src/index.html'),
-      })
+      blobs.seed({ pathname: `${route}stale.html`, body: 'stale' })
+      blobs.seed({ pathname: `${source}stale.html`, body: 'stale' })
+      await publish({ input: withSlug('demo') })
+
+      expect(blobs.stored.has(`${route}stale.html`)).toBe(false)
+      expect(blobs.stored.has(`${source}stale.html`)).toBe(false)
+      expect(keysUnder(route)).toHaveLength(2)
     })
 
-    it('builds a spec with a build block and serves the built tree', async () => {
+    it('serves the built output when the spec builds', async () => {
       await publish()
-      const granted = await beginOf('sandbox-token-a', withSlug('demo'))
-      seedAll()
+      const granted = artifactBeginPublishOutputSchema.parse(
+        dataOf((await begin('sandbox-token-a', withSlug('demo')).expect(200)).body),
+      )
+      await seedGranted(granted)
       sandbox.scripted(
         sandboxResult({
           install: finishedCommand({ stdout: 'installed' }),
@@ -175,25 +170,27 @@ describe('ArtifactsRouter', () => {
       }).expect(200)
 
       expect(dataOf(res.body)).toMatchObject({ version: 2, status: 'ready' })
+      const subdomain = await subdomainOf(granted.artifactId)
+      const route = routePrefixOf({ id: subdomain })
+      expect(keysUnder(route)).toEqual([`${route}assets/app.js`, `${route}index.html`])
+      expect((await blobs.read({ pathname: `${route}index.html` }))?.toString()).toBe(
+        '<h1>built</h1>',
+      )
       const detail = artifactGetOutputSchema.parse(dataOf((await get(OWNER, 'demo')).body))
-      expect(detail.current.map((entry) => `${entry.tree}/${entry.path}`)).toEqual([
-        'src/index.html',
-        'src/app.css',
-        'dist/assets/app.js',
-        'dist/index.html',
-      ])
-      const stored = await db.orm.public.ArtifactVersion.first({
-        artifactId: granted.artifactId,
-        version: 2,
-      })
-      expect(stored).toMatchObject({ status: 'ready', fileCount: 4 })
-      expect(stored?.log).toContain('installed')
+      expect(detail.build.log).toContain('installed')
+      expect(detail.build.durationMs).toBeGreaterThanOrEqual(0)
     })
 
-    it('fails the version and leaves currentVersion on a failed build', async () => {
-      await publish()
-      const granted = await beginOf('sandbox-token-a', withSlug('demo'))
-      seedAll()
+    it('leaves the previous route tree and route object alone when the build fails', async () => {
+      const published = await publish()
+      const route = routePrefixOf({ id: published.subdomain })
+      const before = keysUnder(route)
+      const routeObjectBefore = blobs.stored.get(routePathOf({ id: published.subdomain }))?.body
+
+      const granted = artifactBeginPublishOutputSchema.parse(
+        dataOf((await begin('sandbox-token-a', withSlug('demo')).expect(200)).body),
+      )
+      await seedGranted(granted)
       sandbox.scripted(
         sandboxResult({
           build: finishedCommand({ exitCode: 1, stderr: 'TS2304: cannot find name' }),
@@ -206,21 +203,41 @@ describe('ArtifactsRouter', () => {
         spec: { build: { cmd: 'bun run build', outDir: 'dist' } },
       }).expect(200)
 
-      expect(dataOf(res.body)).toMatchObject({ version: 2, status: 'failed' })
-      const artifact = await db.orm.public.Artifact.first({ id: granted.artifactId })
-      expect(artifact?.currentVersion).toBe(1)
-      const stored = await db.orm.public.ArtifactVersion.first({
-        artifactId: granted.artifactId,
-        version: 2,
+      expect(dataOf(res.body)).toMatchObject({ status: 'failed' })
+      expect(keysUnder(route)).toEqual(before)
+      expect(blobs.stored.get(routePathOf({ id: published.subdomain }))?.body).toBe(
+        routeObjectBefore,
+      )
+      const detail = artifactGetOutputSchema.parse(dataOf((await get(OWNER, 'demo')).body))
+      expect(detail.build).toMatchObject({
+        status: 'failed',
+        failure: 'build failed with exit code 1: TS2304: cannot find name',
       })
-      expect(stored?.status).toBe('failed')
-      expect(stored?.failure).toBe('build failed with exit code 1: TS2304: cannot find name')
-      expect(stored?.log).toContain('==> build (exit 1)')
+      expect(detail.build.log).toContain('==> build (exit 1)')
+    })
+
+    it('rejects a missing upload', async () => {
+      const granted = artifactBeginPublishOutputSchema.parse(
+        dataOf((await begin(OWNER).expect(200)).body),
+      )
+
+      const missing = await commit(OWNER, {
+        artifactId: granted.artifactId,
+        version: granted.version,
+        spec: {},
+      })
+
+      expect(missing.status).toBe(400)
+      expect(Reflect.get(missing.body, 'error')).toMatchObject({
+        message: expect.stringContaining('index.html'),
+      })
     })
 
     it('refuses a build published without a pod or sandbox token', async () => {
-      const granted = await beginOf(OWNER)
-      seedAll()
+      const granted = artifactBeginPublishOutputSchema.parse(
+        dataOf((await begin(OWNER).expect(200)).body),
+      )
+      await seedGranted(granted)
 
       const res = await commit(OWNER, {
         artifactId: granted.artifactId,
@@ -236,8 +253,9 @@ describe('ArtifactsRouter', () => {
     })
 
     it("refuses another user's artifact", async () => {
-      const granted = await beginOf(OWNER)
-      seedAll()
+      const granted = artifactBeginPublishOutputSchema.parse(
+        dataOf((await begin(OWNER).expect(200)).body),
+      )
 
       const res = await commit('session-b', {
         artifactId: granted.artifactId,
@@ -246,65 +264,6 @@ describe('ArtifactsRouter', () => {
       })
 
       expect(res.status).toBe(404)
-    })
-  })
-
-  describe('artifacts.list and artifacts.get', () => {
-    it('lists published artifacts with their served status', async () => {
-      await publish()
-
-      const res = await list(OWNER).expect(200)
-      const [summary] = artifactListOutputSchema.parse(dataOf(res.body)).artifacts
-
-      expect(summary).toMatchObject({
-        slug: 'demo',
-        name: 'demo',
-        currentVersion: 1,
-        status: 'ready',
-        bytes: 34,
-        fileCount: 4,
-      })
-      const empty = artifactListOutputSchema.parse(dataOf((await list('session-b')).body))
-      expect(empty.artifacts).toEqual([])
-    })
-
-    it('returns artifact, versions and manifest in one call for a sandbox', async () => {
-      await publish()
-      await publish(OWNER, withSlug('demo'))
-
-      const res = await get('sandbox-token-a', 'demo').expect(200)
-      const detail = artifactGetOutputSchema.parse(dataOf(res.body))
-
-      expect(detail.versions.map((version) => version.version)).toEqual([2, 1])
-      expect(detail.current).toHaveLength(4)
-      expect(detail.artifact.status).toBe('ready')
-    })
-
-    it('answers 404 for an unknown slug and for another user', async () => {
-      await publish()
-
-      expect((await get(OWNER, 'missing')).status).toBe(404)
-      expect((await get('session-b', 'demo')).status).toBe(404)
-    })
-  })
-
-  describe('artifacts.sourceExport', () => {
-    it('signs a GET for every source entry and only those', async () => {
-      await publish()
-
-      const res = await sourceExport(OWNER, 'demo').expect(200)
-      const exported = artifactSourceExportOutputSchema.parse(dataOf(res.body))
-
-      expect(exported.entries.map((entry) => entry.path)).toEqual(['index.html', 'app.css'])
-      expect(exported.entries[0]?.url).toBe(
-        `https://blob.test/get/${blobPathOf(SRC_INDEX.sha256)}?ttl=3600000`,
-      )
-    })
-
-    it("refuses another user's artifact", async () => {
-      await publish()
-
-      expect((await sourceExport('session-b', 'demo')).status).toBe(404)
     })
   })
 })

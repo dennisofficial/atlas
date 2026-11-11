@@ -4,6 +4,7 @@ model Artifact {
   userId         String
   slug           String
   token          String
+  subdomain      String
   name           String
   currentVersion Int                  @default(0)
   createdAt      TimestamptzJsDate(3) @default(now())
@@ -13,5 +14,6 @@ model Artifact {
 
   @@unique([userId, slug], map: "Artifact_userId_slug_key")
   @@unique([token], map: "Artifact_token_key")
+  @@unique([subdomain], map: "Artifact_subdomain_key")
   @@index([userId], map: "Artifact_userId_idx")
 }

@@ -1,55 +1,48 @@
-import type { ManifestEntry } from './manifest'
+import { sanitizeRequestPath } from './request-path'
 import type { ArtifactSpec } from './spec'
+import { routeFilePathOf } from './storage-path'
 
-export type Resolution =
-  | { kind: 'file'; entry: ManifestEntry }
-  | { kind: 'notFound'; status: 404; entry?: ManifestEntry }
+export type RouteCandidate = { path: string; key: string }
 
-const decodePathname = (pathname: string): string | null => {
-  let decoded: string
-  try {
-    decoded = decodeURIComponent(pathname)
-  } catch {
-    return null
-  }
-  if (decoded.includes('\0')) return null
-  const segments = decoded.split('/').filter((segment) => segment !== '' && segment !== '.')
-  if (segments.some((segment) => segment === '..')) return null
-  return `/${segments.join('/')}`
+export type RouteResolution = {
+  candidates: readonly RouteCandidate[]
+  notFound: RouteCandidate | null
 }
 
-const lastSegmentOf = (pathname: string): string => pathname.slice(pathname.lastIndexOf('/') + 1)
+const SHELL_PATH = 'index.html'
 
-export function resolveRequest(args: {
+const candidateOf = ({ id, path }: { id: string; path: string }): RouteCandidate => ({
+  path,
+  key: routeFilePathOf({ id, path }),
+})
+
+const lastSegmentOf = (path: string): string => path.slice(path.lastIndexOf('/') + 1)
+
+const isRootPath = (pathname: string): boolean => pathname === '' || pathname === '/'
+
+export function routeCandidatesOf(args: {
+  id: string
   pathname: string
-  files: ReadonlyMap<string, ManifestEntry>
   serve: ArtifactSpec['serve']
-}): Resolution {
-  const pathname = decodePathname(args.pathname)
-  if (pathname === null) return { kind: 'notFound', status: 404 }
+}): RouteResolution | null {
+  const path = isRootPath(args.pathname) ? '' : sanitizeRequestPath(args.pathname)
+  if (path === null) return null
 
-  const relative = pathname.replace(/^\//, '')
-  const exact = args.files.get(relative)
-  if (exact !== undefined) return { kind: 'file', entry: exact }
-
-  if (pathname.endsWith('/')) {
-    const index = args.files.get(`${relative}index.html`)
-    if (index !== undefined) return { kind: 'file', entry: index }
+  const candidates: RouteCandidate[] = []
+  const push = (candidatePath: string): void => {
+    const candidate = candidateOf({ id: args.id, path: candidatePath })
+    if (candidates.some((existing) => existing.key === candidate.key)) return
+    candidates.push(candidate)
   }
 
-  const nested = args.files.get(relative === '' ? 'index.html' : `${relative}/index.html`)
-  if (nested !== undefined) return { kind: 'file', entry: nested }
+  push(path === '' ? SHELL_PATH : path)
+  push(path === '' ? SHELL_PATH : `${path}/index.html`)
 
-  const lastSegment = lastSegmentOf(pathname)
-  if (args.serve.spa && !lastSegment.includes('.')) {
-    const shell = args.files.get('index.html')
-    if (shell !== undefined) return { kind: 'file', entry: shell }
-  }
+  if (args.serve.spa && !lastSegmentOf(path).includes('.')) push(SHELL_PATH)
 
-  if (args.serve.notFound !== undefined) {
-    const entry = args.files.get(args.serve.notFound)
-    if (entry !== undefined) return { kind: 'notFound', status: 404, entry }
-  }
+  const notFoundPath =
+    args.serve.notFound === undefined ? null : sanitizeRequestPath(args.serve.notFound)
+  const notFound = notFoundPath === null ? null : candidateOf({ id: args.id, path: notFoundPath })
 
-  return { kind: 'notFound', status: 404 }
+  return { candidates, notFound }
 }

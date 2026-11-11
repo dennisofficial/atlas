@@ -5,8 +5,6 @@ import {
   artifactCommitPublishOutputSchema,
   artifactGetOutputSchema,
   artifactListOutputSchema,
-  artifactRollbackInputSchema,
-  artifactRollbackOutputSchema,
   artifactSlugInputSchema,
   artifactSourceExportOutputSchema,
   artifactUnpublishOutputSchema,
@@ -16,8 +14,6 @@ import {
   type ArtifactCommitPublishOutput,
   type ArtifactGetOutput,
   type ArtifactListOutput,
-  type ArtifactRollbackInput,
-  type ArtifactRollbackOutput,
   type ArtifactSlugInput,
   type ArtifactSourceExportOutput,
   type ArtifactUnpublishOutput,
@@ -98,19 +94,6 @@ export class ArtifactsRouter {
     @Ctx() ctx: SessionOrSandboxTrpcCtx,
   ): Promise<ArtifactSourceExportOutput> {
     return this.library.sourceExport({ userId: ctx.auth.userId, slug: input.slug })
-  }
-
-  @Mutation({
-    input: artifactRollbackInputSchema,
-    output: artifactRollbackOutputSchema,
-    meta: reachable,
-  })
-  @UseMiddlewares(SessionOrSandboxMiddleware)
-  rollback(
-    @Input() input: ArtifactRollbackInput,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
-  ): Promise<ArtifactRollbackOutput> {
-    return this.lifecycle.rollback({ userId: ctx.auth.userId, body: input })
   }
 
   @Mutation({

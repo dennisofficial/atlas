@@ -3,7 +3,6 @@ import { SessionsModule } from '../../platform/sessions/sessions.module'
 import { ArtifactBlobStore } from './artifact-blob-store'
 import { ArtifactLifecycleService } from './artifact-lifecycle.service'
 import { ArtifactLibraryService } from './artifact-library.service'
-import { ArtifactRetention } from './artifact-retention'
 import { ArtifactBuild } from './artifact-build'
 import { ArtifactSandbox } from './artifact-sandbox'
 import { ArtifactsRouter } from './artifacts.router'
@@ -19,7 +18,6 @@ import { SandboxCredentialsModule } from '../sandbox-credentials/sandbox-credent
     ArtifactsService,
     ArtifactLibraryService,
     ArtifactLifecycleService,
-    ArtifactRetention,
     ArtifactBuild,
     { provide: ArtifactBlobStore, useClass: VercelArtifactBlobStore },
     { provide: ArtifactSandbox, useClass: VercelArtifactSandbox },

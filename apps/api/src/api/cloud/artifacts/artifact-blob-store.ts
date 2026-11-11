@@ -25,5 +25,6 @@ export abstract class ArtifactBlobStore {
   }): Promise<void>
   abstract read(args: { pathname: string }): Promise<Buffer | null>
   abstract delete(args: { pathname: string }): Promise<void>
+  abstract remove(pathnames: readonly string[]): Promise<void>
   abstract list(args: { prefix: string }): Promise<ArtifactBlobSummary[]>
 }

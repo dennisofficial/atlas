@@ -35,17 +35,11 @@ const BEGINNED = {
 }
 
 const SUMMARY: ArtifactSummary = {
-  slug: 'demo',
+  subdomain: 'demo',
   name: 'Demo',
   url: 'https://demo.artifacts.test',
-  currentVersion: 3,
   status: 'ready',
-  bytes: 2048,
-  fileCount: 2,
-  createdAt: '2026-11-01T00:00:00.000Z',
   updatedAt: '2026-11-01T00:00:00.000Z',
-  sourceHash: null,
-  specHash: null,
 }
 
 const portWith = (args: { respond: (call: Call) => Response; session?: CloudSession | null }) => {

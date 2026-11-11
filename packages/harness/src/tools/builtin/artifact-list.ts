@@ -13,26 +13,17 @@ import type { ArtifactPort } from '../../artifacts/artifact-port'
 const inputSchema = z.strictObject({})
 
 const description = [
-  'List the artifacts you have published, one row each: name, URL, current version, status, size and when it last changed.',
+  'List the artifacts you have published, one row each: name, URL, status and when it was last published.',
   'Status is building while the server compiles the source, ready when the URL serves it, and failed when the build did not.',
 ].join(' ')
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
 
-const kib = (bytes: number): string => `${(bytes / 1024).toFixed(bytes < 1024 * 10 ? 1 : 0)} KiB`
-
 const rowOf = (artifact: ArtifactSummary): string =>
-  [
-    artifact.name,
-    artifact.url,
-    `v${artifact.currentVersion}`,
-    artifact.status,
-    `${kib(artifact.bytes)} (${artifact.fileCount} files)`,
-    artifact.updatedAt,
-  ].join(' | ')
+  [artifact.name, artifact.url, artifact.status, artifact.updatedAt].join(' | ')
 
-const HEADER = ['name', 'url', 'version', 'status', 'bytes', 'updated'].join(' | ')
+const HEADER = ['name', 'url', 'status', 'updated'].join(' | ')
 
 export class ListArtifactsTool extends SchemaTool<typeof inputSchema> {
   readonly name = 'artifact_list'

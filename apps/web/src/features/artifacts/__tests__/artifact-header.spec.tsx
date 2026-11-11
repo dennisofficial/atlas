@@ -6,7 +6,7 @@ import type { Root } from 'react-dom/client'
 import { ArtifactHeader } from '../artifact-header'
 import { artifactSummary } from './fixtures'
 
-const ARTIFACT = artifactSummary({ name: 'Docs', currentVersion: 2 })
+const ARTIFACT = artifactSummary({ name: 'Docs' })
 
 let root: Root | null = null
 let container: HTMLDivElement | null = null
@@ -37,7 +37,7 @@ const click = (element: Element | undefined) =>
     element?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
   })
 
-async function mount(args: { rollbackTarget: number | null; onUnpublish: () => void }) {
+async function mount(args: { busy?: boolean; onUnpublish: () => void }) {
   const { createRoot } = await import('react-dom/client')
   container = document.createElement('div')
   document.body.append(container)
@@ -46,9 +46,7 @@ async function mount(args: { rollbackTarget: number | null; onUnpublish: () => v
     root?.render(
       <ArtifactHeader
         artifact={ARTIFACT}
-        rollbackTarget={args.rollbackTarget}
-        busy={false}
-        onRollback={() => undefined}
+        busy={args.busy ?? false}
         onUnpublish={args.onUnpublish}
       />,
     ),
@@ -56,30 +54,22 @@ async function mount(args: { rollbackTarget: number | null; onUnpublish: () => v
 }
 
 describe('ArtifactHeader', () => {
-  it('offers Open, Copy URL, Rollback and Unpublish', async () => {
-    await mount({ rollbackTarget: 1, onUnpublish: () => undefined })
+  it('offers Open, Copy URL and Unpublish, and no rollback', async () => {
+    await mount({ onUnpublish: () => undefined })
 
-    const text = document.body.textContent ?? ''
     expect(buttons().map((element) => element.textContent?.trim())).toEqual([
       'Copy URL',
-      'Rollback to v1',
       'Unpublish',
     ])
-    const open = document.querySelector('a[href="https://abc123-demo.artifacts.example"]')
+    const open = document.querySelector('a[href="https://ab12cd34ef56.artifacts.example"]')
     expect(open?.textContent).toContain('Open')
     expect(open?.getAttribute('target')).toBe('_blank')
-    expect(text).toContain('https://abc123-demo.artifacts.example')
-  })
-
-  it('cannot roll back when no other version is ready', async () => {
-    await mount({ rollbackTarget: null, onUnpublish: () => undefined })
-
-    expect(button('Rollback')?.hasAttribute('disabled')).toBe(true)
+    expect(document.body.textContent).toContain('https://ab12cd34ef56.artifacts.example')
   })
 
   it('asks for confirmation before it unpublishes', async () => {
     const onUnpublish = mock(() => undefined)
-    await mount({ rollbackTarget: null, onUnpublish })
+    await mount({ onUnpublish })
 
     await click(button('Unpublish'))
 
