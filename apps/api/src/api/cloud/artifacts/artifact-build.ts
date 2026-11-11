@@ -9,6 +9,7 @@ import {
   ARTIFACT_BUILD_CLAMP_MS,
   ArtifactSandbox,
   artifactBuildEnv,
+  type ArtifactBuildOwner,
   type ArtifactSandboxCommand,
   type ArtifactSandboxFile,
   type ArtifactSandboxResult,
@@ -129,7 +130,7 @@ export class ArtifactBuild {
   constructor(private readonly sandbox: ArtifactSandbox) {}
 
   async run(args: {
-    threadId: string
+    owner: ArtifactBuildOwner
     spec: ArtifactSpec
     files: readonly ArtifactSandboxFile[]
   }): Promise<ArtifactBuildResult> {
@@ -142,7 +143,7 @@ export class ArtifactBuild {
         ? `artifact build clamped to ${Math.round(ARTIFACT_BUILD_CLAMP_MS / 1000)}s (spec.build.timeoutSec is ${build.timeoutSec})`
         : null
     const result = await this.sandbox.run({
-      threadId: args.threadId,
+      owner: args.owner,
       files: args.files,
       install: build.install,
       cmd: build.cmd,
