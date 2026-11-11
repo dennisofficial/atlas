@@ -2,8 +2,8 @@ import { describe, expect, mock, test } from 'bun:test'
 
 const exposed = {}
 const sent = []
+const handlers = new Map()
 let state = false
-let onState = () => undefined
 
 mock.module('electron', () => ({
   contextBridge: {
@@ -13,7 +13,7 @@ mock.module('electron', () => ({
   },
   ipcRenderer: {
     on: (channel, handler) => {
-      onState = handler
+      handlers.set(channel, handler)
     },
     sendSync: (channel) => {
       sent.push(channel)
@@ -23,6 +23,17 @@ mock.module('electron', () => ({
 }))
 
 await import('../preload.cjs')
+
+const emit = (channel, payload) => {
+  handlers.get(channel)({}, payload)
+}
+
+const listen = (name) => {
+  const seen = []
+  const listener = (report) => seen.push(report)
+  exposed.atlasDesktop[name](listener)
+  return { seen, listener }
+}
 
 describe('the atlasDesktop bridge', () => {
   test('reads full screen from the main process', () => {
@@ -37,12 +48,29 @@ describe('the atlasDesktop bridge', () => {
     const seen = []
     const listener = (fullScreen) => seen.push(fullScreen)
     exposed.atlasDesktop.onFullScreenChange(listener)
-    onState({}, true)
+    emit('atlas-desktop:fullscreen', true)
     expect(seen).toEqual([true])
-    onState({}, false)
+    emit('atlas-desktop:fullscreen', false)
     expect(seen).toEqual([true, false])
     exposed.atlasDesktop.offFullScreenChange(listener)
-    onState({}, true)
+    emit('atlas-desktop:fullscreen', true)
     expect(seen).toEqual([true, false])
+  })
+
+  test('forwards every pane navigation to the listeners it was given, once each', () => {
+    const { seen, listener } = listen('onPaneNavigated')
+    const report = { id: 'pane:thread-1:tab-1', url: 'https://example.com/a' }
+    emit('atlas-desktop:pane-navigated', report)
+    expect(seen).toEqual([report])
+    exposed.atlasDesktop.offPaneNavigated(listener)
+    emit('atlas-desktop:pane-navigated', report)
+    expect(seen).toEqual([report])
+  })
+
+  test('forwards pane titles on their own channel', () => {
+    const { seen } = listen('onPaneTitled')
+    const report = { id: 'pane:thread-1:tab-1', title: 'Inbox' }
+    emit('atlas-desktop:pane-titled', report)
+    expect(seen).toEqual([report])
   })
 })

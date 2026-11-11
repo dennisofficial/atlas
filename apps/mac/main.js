@@ -17,6 +17,8 @@ import {
 
 const FULLSCREEN_STATE = 'atlas-desktop:fullscreen'
 const FULLSCREEN_QUERY = 'atlas-desktop:is-fullscreen'
+const PANE_NAVIGATED = 'atlas-desktop:pane-navigated'
+const PANE_TITLED = 'atlas-desktop:pane-titled'
 const PANE_PATH = '/pane'
 const DESKTOP_PANE_PATH = '/desktop/pane'
 const PANE_PARTITION = 'persist:spike'
@@ -133,6 +135,12 @@ async function createWindow() {
     release: (view) => {
       if (!win.isDestroyed()) win.contentView.removeChildView(view)
       if (!view.webContents.isDestroyed()) view.webContents.close()
+    },
+    onNavigate: (report) => {
+      if (!win.isDestroyed()) win.webContents.send(PANE_NAVIGATED, report)
+    },
+    onTitle: (report) => {
+      if (!win.isDestroyed()) win.webContents.send(PANE_TITLED, report)
     },
   })
 

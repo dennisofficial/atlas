@@ -2,9 +2,6 @@ import type { PaneCommand } from './pane-command'
 
 export const PANE_PATH = '/desktop/pane'
 
-export const paneTargetIdOf = (args: { threadId: string; tabId: string }): string =>
-  `pane:${args.threadId}:${args.tabId}`
-
 const PROBE_TIMEOUT_MS = 2000
 
 type PaneRequest = PaneCommand & { id?: string }

@@ -3,11 +3,12 @@ import { describe, expect, it } from 'bun:test'
 import {
   freshBrowser,
   navigated,
+  titled,
   updateTab,
   type BrowserState,
 } from '../../../data/preview-browser/browser-model'
 import { EFrameMessage, frameReportOf } from '../frame-messages'
-import { reportedState } from '../report-navigation'
+import { reportedLocation, reportedState } from '../report-navigation'
 
 const ORIGIN = 'https://3000-abcdefghij.byatlas.dev'
 const A = `${ORIGIN}/`
@@ -95,5 +96,27 @@ describe('reportedState', () => {
     expect(reportedState({ state, tabId: 'tab-1', url: A, title: '' })).toBe(state)
     expect(reportedState({ state, tabId: 'tab-1', url: 'about:blank', title: '' })).toBe(state)
     expect(reportedState({ state, tabId: 'nope', url: B, title: 'B' })).toBe(state)
+  })
+})
+
+describe('reportedLocation', () => {
+  const stateOn = (): BrowserState =>
+    updateTab({
+      state: freshBrowser(),
+      id: 'tab-1',
+      change: (tab) => titled({ tab: navigated({ tab, url: A }), title: 'A' }),
+    })
+
+  it('moves the tab to the reported url and leaves the title it already had', () => {
+    const tab = reportedLocation({ state: stateOn(), tabId: 'tab-1', url: B }).tabs[0]!
+    expect(tab.history.at(-1)).toBe(B)
+    expect(tab.title).toBe('A')
+  })
+
+  it('returns the same state for the current url, a non-web url or an unknown tab', () => {
+    const state = stateOn()
+    expect(reportedLocation({ state, tabId: 'tab-1', url: A })).toBe(state)
+    expect(reportedLocation({ state, tabId: 'tab-1', url: 'about:blank' })).toBe(state)
+    expect(reportedLocation({ state, tabId: 'nope', url: B })).toBe(state)
   })
 })

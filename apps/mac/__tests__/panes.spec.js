@@ -3,9 +3,20 @@ import { describe, expect, test } from 'bun:test'
 import { createPaneRegistry, PANE_TARGET_LIMIT, validCommand } from '../panes.js'
 
 const fakeView = (id) => {
-  const state = { id, url: '', loads: [], bounds: undefined, visible: false, history: [] }
+  const state = {
+    id,
+    url: '',
+    loads: [],
+    bounds: undefined,
+    visible: false,
+    history: [],
+    handlers: {},
+  }
   const view = {
     webContents: {
+      on: (name, handler) => {
+        state.handlers[name] = handler
+      },
       getURL: () => state.url,
       loadURL: (url) => {
         state.loads.push(url)
@@ -30,7 +41,7 @@ const fakeView = (id) => {
   return { view, state }
 }
 
-const registryWith = (limit) => {
+const registryWith = (limit, extra = {}) => {
   const made = new Map()
   const released = []
   const registry = createPaneRegistry({
@@ -43,6 +54,7 @@ const registryWith = (limit) => {
       for (const [id, one] of made) if (one.view === view) released.push(id)
     },
     ...(limit === undefined ? {} : { limit }),
+    ...extra,
   })
   const at = (id) => made.get(id).state
   return { registry, released, at }
@@ -169,5 +181,52 @@ describe('createPaneRegistry', () => {
     registry.destroy()
     expect(released).toEqual(['a', 'b'])
     expect(registry.size()).toBe(0)
+  })
+})
+
+describe('createPaneRegistry reports', () => {
+  const TARGET = 'pane:thread-1:tab-1'
+
+  const reporters = () => {
+    const navigations = []
+    const titles = []
+    const { registry, at } = registryWith(undefined, {
+      onNavigate: (report) => navigations.push(report),
+      onTitle: (report) => titles.push(report),
+    })
+    return { registry, at, navigations, titles }
+  }
+
+  test('reports every navigation of a target under its own id', () => {
+    const { registry, at, navigations } = reporters()
+    registry.apply({ kind: 'show', id: TARGET, url: URL_A, rect: RECT })
+    at(TARGET).handlers['did-navigate']({}, 'https://example.com/b')
+    at(TARGET).handlers['did-navigate-in-page']({}, 'https://example.com/b#top', true)
+    expect(navigations).toEqual([
+      { id: TARGET, url: 'https://example.com/b' },
+      { id: TARGET, url: 'https://example.com/b#top' },
+    ])
+  })
+
+  test('ignores a navigation inside a sub frame', () => {
+    const { registry, at, navigations } = reporters()
+    registry.apply({ kind: 'show', id: TARGET, url: URL_A, rect: RECT })
+    at(TARGET).handlers['did-navigate-in-page']({}, 'https://ads.example.com/frame', false)
+    expect(navigations).toEqual([])
+  })
+
+  test('reports the page title the target commits', () => {
+    const { registry, at, titles } = reporters()
+    registry.apply({ kind: 'show', id: TARGET, url: URL_A, rect: RECT })
+    at(TARGET).handlers['page-title-updated']({}, 'Inbox')
+    expect(titles).toEqual([{ id: TARGET, title: 'Inbox' }])
+  })
+
+  test('attributes each report to the target that made it', () => {
+    const { registry, at, navigations } = reporters()
+    registry.apply({ kind: 'show', id: 'a', url: URL_A, rect: RECT })
+    registry.apply({ kind: 'show', id: 'b', url: URL_A, rect: RECT })
+    at('b').handlers['did-navigate']({}, 'https://example.com/b')
+    expect(navigations).toEqual([{ id: 'b', url: 'https://example.com/b' }])
   })
 })
