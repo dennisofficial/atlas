@@ -62,10 +62,10 @@ class ScriptedProcesses extends ProcessPort {
 }
 
 class RecordingFiles extends FileSystemPort {
-  readonly written: { path: string; content: string }[] = []
+  readonly written: { path: string; content: string | Uint8Array }[] = []
   readonly directories: string[] = []
 
-  async writeFile(args: { path: string; content: string }): Promise<void> {
+  async writeFile(args: { path: string; content: string | Uint8Array }): Promise<void> {
     this.written.push({ path: args.path, content: args.content })
   }
 

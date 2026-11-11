@@ -25,6 +25,7 @@ export const writeFileOpSchema = z
     op: z.literal('writeFile'),
     path: z.string().min(1),
     content: z.string(),
+    encoding: z.enum(['utf8', 'base64']).optional(),
     mode: z.number().int().min(0).max(0o777).optional(),
   })
   .strict()

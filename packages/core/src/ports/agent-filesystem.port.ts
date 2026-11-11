@@ -18,7 +18,7 @@ export abstract class AgentFileSystemPort {
 
   abstract writeFile(args: {
     path: string
-    content: string
+    content: string | Uint8Array
     mode?: number | undefined
     threadId?: ThreadId | undefined
   }): Promise<void>

@@ -128,7 +128,7 @@ export class FakeFiles extends FileSystemPort {
     return { text, strict: text }
   }
 
-  async writeFile(args: { path: string; content: string }): Promise<void> {
+  async writeFile(args: { path: string; content: string | Uint8Array }): Promise<void> {
     this.put(args.path, args.content)
   }
 

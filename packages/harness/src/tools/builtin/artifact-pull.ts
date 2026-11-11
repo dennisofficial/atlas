@@ -45,25 +45,10 @@ async function occupied(args: { dir: string; files: FileSystemPort }): Promise<b
   }
 }
 
-async function fetchText(url: string, fetchFn: typeof fetch): Promise<string> {
+async function fetchBytes(url: string, fetchFn: typeof fetch): Promise<Uint8Array> {
   const response = await fetchFn(url)
   if (!response.ok) throw new Error(`downloading ${url} failed with HTTP ${response.status}`)
-  const bytes = new Uint8Array(await response.arrayBuffer())
-  try {
-    return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
-  } catch {
-    throw new ArtifactRefused(
-      `${redactedPath(url)} is not UTF-8 text, and the filesystem restores text files only. Pull the source directory that holds it instead.`,
-    )
-  }
-}
-
-const redactedPath = (url: string): string => {
-  try {
-    return new URL(url).pathname
-  } catch {
-    return url
-  }
+  return new Uint8Array(await response.arrayBuffer())
 }
 
 export class PullArtifactTool extends SchemaTool<typeof inputSchema> {
@@ -119,9 +104,9 @@ export class PullArtifactTool extends SchemaTool<typeof inputSchema> {
           )
         }
         const target = resolve(dir.path, entry.path)
-        const text = await fetchText(entry.url, fetchFn)
+        const bytes = await fetchBytes(entry.url, fetchFn)
         await this.deps.files.mkdir({ path: dirname(target) })
-        await this.deps.files.writeFile({ path: target, content: text })
+        await this.deps.files.writeFile({ path: target, content: bytes })
       }
 
       return {
