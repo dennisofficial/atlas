@@ -846,6 +846,7 @@
       "name": "@dltech/atlas-wire",
       "version": "0.1.0",
       "dependencies": {
+        "@dltech/atlas-core": "workspace:*",
         "@vercel/sandbox": "^3.3.0",
         "zod": "^4.4.3",
       },
