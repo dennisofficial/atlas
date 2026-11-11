@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "atlas-artifacts-host",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-11",
+  "observability": {
+    "enabled": true
+  },
+  "routes": [
+    {
+      "pattern": "*.byatlas.site/*",
+      "zone_name": "byatlas.site"
+    }
+  ],
+  "vars": {
+    "ARTIFACT_DOMAIN": "byatlas.site",
+    "ARTIFACT_BLOB_BASE_URL": "https://store_DwnGog0YyNXtRKJc.public.blob.vercel-storage.com"
+  }
+}
