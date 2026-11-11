@@ -72,10 +72,6 @@ function LoginRow({
   )
 }
 
-/**
- * One provider's subscription logins: every login Atlas holds, which one it uses, and the way in to
- * another. A provider with none still gets a row, since sign-in is reached through it.
- */
 export function ProviderLoginsCard({
   provider,
   logins,

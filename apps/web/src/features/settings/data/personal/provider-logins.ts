@@ -6,11 +6,6 @@ export type ProviderLogins = {
   activeId: string | null
 }
 
-/**
- * A provider holds any number of subscription logins; the active pointer is one of them, except when
- * it names the provider's API key instead — a key and a login are both usable, and only one of them
- * carries the pointer at a time.
- */
 export function loginsOf(args: {
   accounts: readonly Account[]
   provider: EProviderId
