@@ -166,6 +166,28 @@ export function describeControlPlaneClaimNext(params: ConformanceParams): void {
       await releaseAll()
     })
 
+    it('a revoke at the epoch a fenced holder held lets the next claim mint a higher epoch', async () => {
+      await newSession('fenced')
+      const first = await present()
+      const [claimed] = (await harness.plane.claimNext({ hostId: first, limit: 1 })).leases
+      const heldEpoch = claimed?.epoch ?? -1
+      const settled = await harness.plane.revoke({
+        sessionId: 'fenced',
+        wantsHolder: true,
+        epoch: heldEpoch,
+      })
+      expect(settled).toMatchObject({
+        ok: true,
+        lease: { epoch: heldEpoch + 1, holderHostId: null, wantsHolder: true },
+      })
+      harness.setNow(after({ from: T0, ms: SECOND }))
+      const second = await present()
+      const reclaimed = (await harness.plane.claimNext({ hostId: second, limit: 1 })).leases
+      expect(reclaimed).toMatchObject([{ sessionId: 'fenced', holderHostId: second }])
+      expect(reclaimed[0]?.epoch ?? -1).toBeGreaterThan(heldEpoch)
+      await releaseAll()
+    })
+
     it('revoke with resetRetry clears attempts and retryAfter so the next claim is immediate', async () => {
       await newSession('reset')
       const hostId = await present()
