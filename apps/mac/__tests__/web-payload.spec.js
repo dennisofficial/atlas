@@ -131,13 +131,21 @@ test('installs a payload and leaves it waiting for the person to reload', async 
   )
 })
 
+async function until(condition, timeoutMs = 5000) {
+  const started = Date.now()
+  while (!condition()) {
+    if (Date.now() - started > timeoutMs) throw new Error('the poller never installed the payload')
+    await Bun.sleep(5)
+  }
+}
+
 test('polls without ever swapping the page out from under the window', async () => {
   const bytes = archiveOf({ marker: 'poll' })
   const manifest = manifestFor({ bytes, version: '9.9.9' })
   const payloads = updaterFor({ manifest, bytes })
 
   payloads.start()
-  await Bun.sleep(10)
+  await until(() => payloads.updater.pending() === manifest.hash)
   payloads.stop()
 
   expect(payloads.updater.pending()).toBe(manifest.hash)
