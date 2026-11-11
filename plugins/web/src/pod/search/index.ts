@@ -1,6 +1,7 @@
 import {
   BACKEND_TRAITS,
   backendOf,
+  ESettingId,
   EWebSearchBackend,
   type WebSearchFindings,
 } from '@dltech/atlas-core'
@@ -44,7 +45,7 @@ export async function runSearch(args: {
   if (args.credential === undefined && !keylessBackend(args.backend)) {
     return {
       ok: false,
-      reason: `${args.backend} needs a key, and none is set: add it in Settings as search.${args.backend}`,
+      reason: `${BACKEND_TRAITS[args.backend].label} needs a key and none is set: choose it under the ${ESettingId.WebSearchBackend} setting and save the key as search.${args.backend}`,
     }
   }
 

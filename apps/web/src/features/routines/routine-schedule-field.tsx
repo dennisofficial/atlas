@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from '@dltech/atlas-ui/components/select'
 
-import { scheduleSummaryOf } from './routine-schedule'
+import { scheduleSummaryIsExact, scheduleSummaryOf } from './routine-schedule'
 import {
   cronOfFields,
   DEFAULT_SCHEDULE_FIELDS,
@@ -210,6 +210,7 @@ export function RoutineScheduleField({
 }) {
   const [picking, setPicking] = useState(false)
   const parsed = useMemo(() => parseScheduleText(when), [when])
+  const exact = useMemo(() => parsed.ok && scheduleSummaryIsExact(parsed.cron.expression), [parsed])
   const fields = parsed.ok ? fieldsOfCron(parsed.cron.expression) : DEFAULT_SCHEDULE_FIELDS
   const handleWhenChange = (event: React.ChangeEvent<HTMLInputElement>) =>
     onWhenChange(event.target.value)
@@ -240,6 +241,13 @@ export function RoutineScheduleField({
           {parsed.reason}
         </p>
       )}
+
+      {parsed.ok && !exact ? (
+        <p className="text-xs text-muted-foreground">
+          The sentence above only approximates this expression, which runs on a pattern it cannot
+          spell out: the expression is saved back exactly as it is unless you change the field.
+        </p>
+      ) : null}
 
       {parsed.ok ? (
         <Button

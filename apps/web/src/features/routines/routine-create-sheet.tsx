@@ -5,7 +5,6 @@ import { useState } from 'react'
 import { z } from 'zod'
 
 import type { Routine } from '@dltech/atlas-protocol'
-import { parseScheduleText } from '@dltech/atlas-schedule'
 import { Button } from '@dltech/atlas-ui/components/button'
 import { Field, FieldDescription, FieldLabel } from '@dltech/atlas-ui/components/field'
 import { Input } from '@dltech/atlas-ui/components/input'
@@ -33,7 +32,7 @@ import { PROJECTS_KEY } from '@/lib/cloud-keys'
 import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 
 import { useCreateRoutine, useRemoveRoutine, useUpdateRoutine } from './data/routines-api'
-import { draftOf, modelPatchOf, type RoutineDraft } from './routine-draft'
+import { draftOf, modelPatchOf, scheduleOfDraft, type RoutineDraft } from './routine-draft'
 import { RoutineScheduleField } from './routine-schedule-field'
 
 const LABEL = 'flex flex-col gap-1.5 text-sm font-medium'
@@ -72,7 +71,7 @@ function RoutineForm({
 
   const submit = async () => {
     setFailure(null)
-    const schedule = parseScheduleText(draft.when)
+    const schedule = scheduleOfDraft(draft)
     if (!schedule.ok) {
       setFailure(schedule.reason)
       return
@@ -80,7 +79,7 @@ function RoutineForm({
     const body = {
       name: draft.name.trim(),
       prompt: draft.prompt,
-      cron: schedule.cron.expression,
+      cron: schedule.cron,
       timezone: draft.timezone.trim(),
       ...modelPatchOf(draft.selection),
     }

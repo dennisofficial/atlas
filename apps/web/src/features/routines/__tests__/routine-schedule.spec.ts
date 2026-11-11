@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
-import { cronOf, isKnownTimezone, nextOccurrencesOf, scheduleSummaryOf } from '../routine-schedule'
+import {
+  cronOf,
+  isKnownTimezone,
+  nextOccurrencesOf,
+  scheduleSummaryIsExact,
+  scheduleSummaryOf,
+} from '../routine-schedule'
 
 const LONDON = 'Europe/London'
 const UTC = 'UTC'
@@ -24,6 +30,25 @@ describe('cronOf', () => {
     expect(cronOf('0 25 * * *')).toBeNull()
     expect(cronOf('every morning')).toBeNull()
     expect(cronOf('0 7 * * 8')).toBeNull()
+  })
+})
+
+describe('scheduleSummaryIsExact', () => {
+  it('knows when the words carry the whole schedule', () => {
+    expect(scheduleSummaryIsExact('0 7 * * 1-5')).toBe(true)
+    expect(scheduleSummaryIsExact('0 9 * * 1,3,5')).toBe(true)
+    expect(scheduleSummaryIsExact('0 0 * * 7')).toBe(true)
+    expect(scheduleSummaryIsExact('0 7 1 * 1')).toBe(true)
+  })
+
+  it('says so when the words hide the minute a gap starts on', () => {
+    expect(scheduleSummaryIsExact('1-56/5 * * * *')).toBe(false)
+    expect(scheduleSummaryIsExact('0 1-22/3 * * *')).toBe(false)
+    expect(scheduleSummaryIsExact('2-59/3 * * * *')).toBe(false)
+  })
+
+  it('says so when the words leave no schedule at all', () => {
+    expect(scheduleSummaryIsExact('not a cron')).toBe(false)
   })
 })
 

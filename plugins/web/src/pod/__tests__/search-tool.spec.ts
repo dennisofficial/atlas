@@ -85,6 +85,7 @@ describe('WebSearchTool', () => {
     const outcome = await invoke(tool, { query: 'atlas' })
 
     expect(outcome.ok).toBe(false)
+    expect(String(outcome.reason)).toContain('web.searchBackend')
     expect(String(outcome.reason)).toContain('search.brave')
   })
 
