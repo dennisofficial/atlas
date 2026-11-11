@@ -9,7 +9,13 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 
-import { contextDirectory, imagesDirectory, threadDataDirectory } from '../store/sessions/paths'
+import {
+  CONTEXT_DIRECTORY_NAME,
+  THREADS_DIRECTORY_NAME,
+  contextDirectory,
+  imagesDirectory,
+  threadDataDirectory,
+} from '../store/sessions/paths'
 import type { SessionRegistry } from '../store/sessions/registry'
 
 export const ATLAS_SESSION_DIR_ENV = 'ATLAS_SESSION_DIR'
@@ -34,6 +40,32 @@ export type SessionPaths = {
   imagesDir: string
 }
 
+export const sessionPathsOf = ({
+  sessionDir,
+  threadId,
+}: {
+  sessionDir: string
+  threadId: ThreadId
+}): SessionPaths => ({
+  sessionDir,
+  threadDir: threadDataDirectory({ sessionDir, threadId }),
+  contextDir: contextDirectory({ sessionDir }),
+  imagesDir: imagesDirectory({ sessionDir }),
+})
+
+export const sessionEnvironmentOf = (paths: SessionPaths): Record<string, string> => ({
+  [ATLAS_SESSION_DIR_ENV]: paths.sessionDir,
+  [ATLAS_THREAD_DIR_ENV]: paths.threadDir,
+  [ATLAS_CONTEXT_DIR_ENV]: paths.contextDir,
+})
+
+export const sessionDirectoriesDescription = [
+  `${ATLAS_SESSION_DIR_ENV} is the session directory, shared by the conversation and every agent it spawns;`,
+  `${ATLAS_CONTEXT_DIR_ENV} is $${ATLAS_SESSION_DIR_ENV}/${CONTEXT_DIRECTORY_NAME}, the shared context folder that survives compaction;`,
+  `${ATLAS_THREAD_DIR_ENV} is $${ATLAS_SESSION_DIR_ENV}/${THREADS_DIRECTORY_NAME}/<thread id>, private to the calling thread.`,
+  'All three hold session data outside the working tree, never a change to the project.',
+].join(' ')
+
 type ChunkReader = {
   read(): Promise<{ done: boolean; value?: Uint8Array | undefined }>
   cancel(reason?: unknown): Promise<void>
@@ -54,15 +86,7 @@ const withPaths = ({
 }: {
   env: Environment
   paths: SessionPaths | undefined
-}): Environment =>
-  paths === undefined
-    ? env
-    : {
-        ...env,
-        [ATLAS_SESSION_DIR_ENV]: paths.sessionDir,
-        [ATLAS_THREAD_DIR_ENV]: paths.threadDir,
-        [ATLAS_CONTEXT_DIR_ENV]: paths.contextDir,
-      }
+}): Environment => (paths === undefined ? env : { ...env, ...sessionEnvironmentOf(paths) })
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
@@ -134,13 +158,10 @@ export class SessionEnvironmentProcessPort implements ProcessPort {
       )
     }
 
-    const threadDir = threadDataDirectory({ sessionDir, threadId })
-    const contextDir = contextDirectory({ sessionDir })
-    const imagesDir = imagesDirectory({ sessionDir })
-    await ensurePrivateDirectory({ anchor: dirname(sessionDir), directory: threadDir })
-    await ensurePrivateDirectory({ anchor: sessionDir, directory: contextDir })
-    await ensurePrivateDirectory({ anchor: sessionDir, directory: imagesDir })
-    const paths: SessionPaths = { sessionDir, threadDir, contextDir, imagesDir }
+    const paths = sessionPathsOf({ sessionDir, threadId })
+    await ensurePrivateDirectory({ anchor: dirname(sessionDir), directory: paths.threadDir })
+    await ensurePrivateDirectory({ anchor: sessionDir, directory: paths.contextDir })
+    await ensurePrivateDirectory({ anchor: sessionDir, directory: paths.imagesDir })
     this.resolved.set(threadId, paths)
     return paths
   }

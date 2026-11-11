@@ -1,13 +1,11 @@
 import type { ThreadId } from '@dltech/atlas-core'
 
 import {
-  ATLAS_CONTEXT_DIR_ENV,
-  ATLAS_SESSION_DIR_ENV,
-  ATLAS_THREAD_DIR_ENV,
   RESERVED_SESSION_ENV,
+  sessionEnvironmentOf,
+  sessionPathsOf,
   withoutReservedSessionEnv,
 } from '../execution/session-environment'
-import { contextDirectory, threadDataDirectory } from '../store/sessions/paths'
 import type { SessionRegistry } from '../store/sessions/registry'
 
 export const ATLAS_SHELL_DIR_ENV = 'ATLAS_SHELL_DIR'
@@ -37,11 +35,7 @@ export function threadEnvironmentFrom({
   return async ({ threadId }) => {
     const sessionDir = await sessions.sessionDirOf({ threadId })
     if (sessionDir === undefined) return undefined
-    return {
-      [ATLAS_SESSION_DIR_ENV]: sessionDir,
-      [ATLAS_THREAD_DIR_ENV]: threadDataDirectory({ sessionDir, threadId }),
-      [ATLAS_CONTEXT_DIR_ENV]: contextDirectory({ sessionDir }),
-    }
+    return sessionEnvironmentOf(sessionPathsOf({ sessionDir, threadId }))
   }
 }
 

@@ -9,7 +9,8 @@ export class ContextFolderFragment extends PromptFragment {
 
   text(): string {
     return [
-      'ATLAS_CONTEXT_DIR is the session’s shared source of truth. Every sub-agent, teammate, and thread in',
+      'ATLAS_CONTEXT_DIR ($ATLAS_SESSION_DIR/context) is the session’s shared source of truth: it sits',
+      'outside the project tree, every sub-agent, teammate, and thread in',
       'this session can read it, and it survives compaction — what you hold only in your head is the first',
       'thing lost when your window fills, so understanding belongs on disk the moment it settles.',
       '',
