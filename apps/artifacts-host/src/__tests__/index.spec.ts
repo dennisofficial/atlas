@@ -80,11 +80,11 @@ describe('artifact host worker', () => {
     expect(urls).toEqual([routeUrl, indexUrl])
   })
 
-  test('answers 404 with no-store for an unknown artifact', async () => {
+  test('answers the atlas not-found page with no-store for an unknown artifact', async () => {
     stubBlobs({})
     const response = await worker.fetch(requestOf(), envOf())
     expect(response.status).toBe(404)
-    expect(await response.text()).toBe('')
+    expect(await response.text()).toContain('Artifact not found')
     expect(response.headers.get('cache-control')).toBe('no-store')
     expect(response.headers.get('cdn-cache-control')).toBe('no-store')
   })
