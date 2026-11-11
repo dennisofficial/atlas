@@ -32,6 +32,24 @@ describe('pane route', () => {
     expect(await response?.json()).toEqual({ ok: true })
   })
 
+  test('carries the target a command belongs to, so each preview tab keeps its own view', async () => {
+    const seen: PaneCommand[] = []
+    await handler(seen)(
+      post({
+        kind: 'show',
+        id: 'pane:thread-1:tab-2',
+        url: 'https://x.test',
+        rect,
+      }),
+      PANE_PATH,
+    )
+    await handler(seen)(post({ kind: 'hide', id: 'pane:thread-1:tab-2' }), PANE_PATH)
+    expect(seen).toEqual([
+      { kind: 'show', id: 'pane:thread-1:tab-2', url: 'https://x.test', rect },
+      { kind: 'hide', id: 'pane:thread-1:tab-2' },
+    ])
+  })
+
   test('rejects a command it does not know', async () => {
     const seen: PaneCommand[] = []
     const response = await handler(seen)(post({ kind: 'explode' }), PANE_PATH)
