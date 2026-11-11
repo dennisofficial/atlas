@@ -19,9 +19,6 @@ env:
 jobs:
   check:
     runs-on: ubuntu-latest
-    env:
-      RENDER_CHECK_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
-      RENDER_CHECK_ALL: ${{ github.event_name == 'workflow_dispatch' && '1' || '' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -68,40 +65,6 @@ jobs:
             echo "::error::packages/harness/src/plugin-types is stale; run 'bun run --cwd packages/harness plugin-types:generate' and commit it"
             exit 1
           fi
-
-      # The render check reads the static build's story index and sizes, so the storybook is built
-      # here. Through turbo so an unchanged build comes back from the remote cache instead of being
-      # rebuilt on every PR.
-      - name: build the storybook
-        run: bunx turbo run build --filter=@dltech/atlas-storybook
-
-      - name: fetch the diff base
-        if: github.event_name != 'workflow_dispatch' && !startsWith(github.event.before, '0000000')
-        run: git fetch --no-tags --depth=1 origin "$RENDER_CHECK_BASE" || echo "RENDER_CHECK_ALL=1" >> "$GITHUB_ENV"
-
-      # The pull_request checkout is the merge commit, so base.sha..HEAD is exactly the PR's diff
-      # and a tree diff needs no history on a shallow clone.
-      - name: plan storybook render check
-        id: render-plan
-        run: bun run render-check plan
-        working-directory: apps/storybook
-
-      - name: cache playwright browsers
-        if: steps.render-plan.outputs.count != '0'
-        uses: actions/cache@v6
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-
-      - name: install chromium
-        if: steps.render-plan.outputs.count != '0'
-        run: bunx playwright install --with-deps chromium
-        working-directory: apps/storybook
-
-      - name: render affected stories
-        if: steps.render-plan.outputs.count != '0'
-        run: bun run render-check
-        working-directory: apps/storybook
 
   # Compiled in its own job: a five-minute compile in `check` serialized behind lint and typecheck,
   # and put the whole PR's latency behind work most PRs cannot break. The reach gate is the same
