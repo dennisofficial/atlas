@@ -81,24 +81,29 @@ describe('SessionHolder settle', () => {
     expect(await advanceUntil(rig, async () => (await answers(rig)) === 2)).toBe(true)
   }, 20_000)
 
-  it('Fenced writes nothing: a holder whose epoch moved never calls revoke', async () => {
-    const rig = await idleRig()
+  it('a fenced holder revokes once at the epoch it holds and leaves the successor lease alone', async () => {
+    const log = new CollectingLog()
+    const rig = await idleRig({ log })
+    const held = await leaseOf(rig)
     const thief = rig.store.nextHostId()
     rig.store.markHostPresent(thief)
     await rig.plane.grant({ sessionId: SESSION, hostId: thief })
     const successor = await leaseOf(rig)
     const original = rig.plane.revoke.bind(rig.plane)
-    let revokes = 0
+    const revokedAt: number[] = []
     rig.plane.revoke = (async (params: Parameters<typeof rig.plane.revoke>[0]) => {
-      revokes += 1
+      revokedAt.push(params.epoch)
       return original(params)
     }) as typeof rig.plane.revoke
 
     rig.clock.advance(13_000)
     expect(await advanceUntil(rig, () => rig.holder.heldIds().length === 0)).toBe(true)
     await rig.flush()
-    expect(revokes).toBe(0)
+    expect(revokedAt).toEqual([held.epoch])
     expect(await leaseOf(rig)).toEqual(successor)
+    expect(
+      log.entries.filter((entry) => entry.severity === 'warn' && entry.message.includes('settle')),
+    ).toHaveLength(1)
   }, 20_000)
 
   it('quarantines a crash-looping session: one failure event, no runtime, fresh tries after', async () => {

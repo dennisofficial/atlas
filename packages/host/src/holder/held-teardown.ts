@@ -1,6 +1,7 @@
 import { EHeldOutcome, type HeldOutcome } from '@dltech/atlas-core'
 import { logFieldsOf } from '@dltech/atlas-observability'
 
+import type { FencedSettlement } from './fenced-settlement'
 import { drainNeedsHolder } from './held-needs-holder'
 import type { HeldSessionDeps } from './held-session-deps'
 import type { SessionRuntime } from './ports'
@@ -16,10 +17,13 @@ export const teardownHeld = async (args: {
   turnRunning: boolean
   kind: EHeldOutcome
   released: boolean
+  epoch: number
+  fenced: FencedSettlement
 }): Promise<HeldOutcome> => {
   const { deps, runtime, kind } = args
   if (kind === EHeldOutcome.Fenced) {
     runtime?.remoteCalls.close()
+    await args.fenced.settle(args.epoch)
     return { kind, needsHolder: false }
   }
   if (runtime !== undefined && !args.released) {

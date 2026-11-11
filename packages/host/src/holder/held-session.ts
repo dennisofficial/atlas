@@ -8,6 +8,7 @@ import {
 } from '@dltech/atlas-core'
 import { LoopTurnRunner, PauseSignal } from '@dltech/atlas-agent'
 
+import { FencedSettlement } from './fenced-settlement'
 import type { SessionRuntime } from './ports'
 import type { BranchObserver } from './branch-observer'
 import { CrewRoom } from './crew'
@@ -47,6 +48,7 @@ export class HeldSession {
   private reconciler: Reconciler | undefined
   private finishDrive: (() => void) | undefined
   private readonly idle: IdleDeadline
+  private readonly fenced: FencedSettlement
   private leaseEpoch = 0
   private drainModelOnly = false
   private outcome: EHeldOutcome | undefined
@@ -68,6 +70,7 @@ export class HeldSession {
         else this.reconciler?.request()
       },
     })
+    this.fenced = new FencedSettlement(deps)
     this.stall = new StallGuard({
       deps,
       turns: this.turns,
@@ -145,6 +148,8 @@ export class HeldSession {
       turnRunning: this.turns.turnRunning,
       kind: this.outcome ?? EHeldOutcome.Faulted,
       released: this.released,
+      epoch: this.leaseEpoch,
+      fenced: this.fenced,
     })
   }
 
