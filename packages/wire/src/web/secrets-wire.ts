@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const ENV_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]{0,199}$/
+export { ENV_NAME_PATTERN } from '@dltech/atlas-core'
 
 export const REAUTH_REQUIRED_CODE = 'REAUTH_REQUIRED'
 

@@ -35,6 +35,7 @@ import type { SigningKeyReader } from '../tokens/signing-key-reader'
 import { SandboxSaidUploads } from '../uploads/sandbox-said-uploads'
 import { signerUploadBlobs } from '../uploads/upload-blobs'
 import type { ConfigSource } from '../config/agent-host-config'
+import type { CloudConfigStore } from '../config/cloud-config-store'
 import { AgentHostCredentialPort } from '../config/agent-host-credential-port'
 import { SANDBOX_HOME_PATH, WORKSPACE_PATH } from '../sandbox/constants'
 import { SandboxProvider, sandboxNameOf } from '../sandbox/sandbox-provider'
@@ -50,6 +51,7 @@ import type { ComposedPlugins } from '@dltech/atlas-plugin-sdk'
 import { agentHostPrompt } from './prompt'
 import { watchWorkspaceRepos } from './git-watch'
 import { TaskWriteTool } from '../agent-tools/task-write'
+import { configToolsOf } from './config-tools'
 import { daemonToolsOf } from './tools'
 import { ShellEnvCell } from './shell-env'
 import { pathEnvironmentOf, sessionPathsOf, shellEnvironmentOf } from './session-paths'
@@ -78,6 +80,7 @@ export type SessionRuntimeFactoryArgs = {
   githubFetch?: typeof fetch | undefined
   plugins?: ComposedPlugins | undefined
   podPeers?: PodPeers | undefined
+  configWrites?: CloudConfigStore | undefined
 }
 
 const UNCONFIGURED_REF: ModelRef = {
@@ -249,7 +252,11 @@ export const createSessionRuntimeFactory = (
       setup: gate,
       shellEnv: () => shellEnvironmentOf({ paths, base: shellEnv.current() }),
     })
-    const tools = [...daemonToolList, new TaskWriteTool()]
+    const tools = [
+      ...daemonToolList,
+      new TaskWriteTool(),
+      ...configToolsOf({ store: args.configWrites, projectId: config.projectId }),
+    ]
     const registry = new InMemoryToolRegistry(tools)
     const byName = new Map(tools.map((tool) => [tool.name, tool]))
 

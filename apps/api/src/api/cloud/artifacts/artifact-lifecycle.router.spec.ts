@@ -35,7 +35,7 @@ describe('ArtifactsRouter lifecycle', () => {
       const route = routePrefixOf({ id: published.subdomain })
       const source = sourcePrefixOf({ id: published.subdomain })
 
-      const res = await unpublish(OWNER, 'demo').expect(200)
+      const res = await unpublish(OWNER, published.subdomain).expect(200)
 
       expect(dataOf(res.body)).toEqual({ ok: true })
       expect(blobs.deleted[0]).toBe(routePathOf({ id: published.subdomain }))
@@ -50,14 +50,14 @@ describe('ArtifactsRouter lifecycle', () => {
     })
 
     it('keeps the bytes of another artifact under a different id', async () => {
-      await publishArtifact({ app, blobs })
+      const published = await publishArtifact({ app, blobs })
       const other = await publishArtifact({
         app,
         blobs,
         input: { ...DEFAULT_INPUT, name: 'other' },
       })
 
-      await unpublish(OWNER, 'demo').expect(200)
+      await unpublish(OWNER, published.subdomain).expect(200)
 
       expect(
         [...blobs.stored.keys()].filter((key) =>
@@ -67,9 +67,9 @@ describe('ArtifactsRouter lifecycle', () => {
     })
 
     it("refuses another user's artifact", async () => {
-      await publishArtifact({ app, blobs })
+      const published = await publishArtifact({ app, blobs })
 
-      expect((await unpublish('session-b', 'demo')).status).toBe(404)
+      expect((await unpublish('session-b', published.subdomain)).status).toBe(404)
       expect(await db.orm.public.Artifact.where((row) => row.id.neq('')).all()).toHaveLength(1)
     })
 

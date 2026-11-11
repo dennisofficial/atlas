@@ -35,10 +35,8 @@ export const EXCEPTIONS: Readonly<Record<string, string>> = {
   artifact_pull: 'artifacts are the v2 control plane’s, fetched over its API, so a pod has no tool',
   artifact_unpublish:
     'artifacts are the v2 control plane’s, unpublished over its API, so a pod has no tool',
-  cloud_config: 'cloud config is control-plane state in v2, which agent-host only reads',
   execution_location:
     'a v2 pod never moves execution location; the control plane decides where a session runs',
-  'mcp-edit': 'the v2 pod edits its own MCP config, but the operator’s list is the control plane’s',
   operator_input:
     'the v2 cloud loop has no live operator surface mid-tool, so there is nobody to ask',
   operator_shell_input:

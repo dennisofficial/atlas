@@ -4,8 +4,6 @@ import type { ArtifactSummary } from '@dltech/atlas-wire'
 export type ArtifactRow = {
   id: string
   userId: string
-  slug: string
-  token: string
   subdomain: string
   name: string
   currentVersion: number

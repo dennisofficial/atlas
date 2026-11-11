@@ -20,9 +20,6 @@ export const artifactEntrySchema = z.strictObject({
 })
 export type ArtifactEntry = z.infer<typeof artifactEntrySchema>
 
-export const artifactManifestSchema = z.array(artifactEntrySchema)
-export type ArtifactManifest = z.infer<typeof artifactManifestSchema>
-
 export const artifactSpecInputSchema = z.record(z.string(), z.unknown())
 export type ArtifactSpecInput = z.infer<typeof artifactSpecInputSchema>
 

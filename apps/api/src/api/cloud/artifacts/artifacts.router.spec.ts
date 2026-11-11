@@ -78,9 +78,9 @@ describe('ArtifactsRouter', () => {
       const res = await begin(OWNER).expect(200)
 
       const grant = artifactBeginPublishOutputSchema.parse(dataOf(res.body))
-      expect(grant).toMatchObject({ slug: 'demo', version: 1 })
-      expect(grant.uploads.map((upload) => upload.path)).toEqual(['index.html', 'app.css'])
       const subdomain = await subdomainOf(grant.artifactId)
+      expect(grant).toMatchObject({ slug: subdomain, version: 1 })
+      expect(grant.uploads.map((upload) => upload.path)).toEqual(['index.html', 'app.css'])
       expect(subdomain).toMatch(/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/)
       expect(grant.uploads[0]?.url).toBe(
         `https://blob.test/put/${sourcePathOf({ id: subdomain, path: 'index.html' })}`,
@@ -89,7 +89,8 @@ describe('ArtifactsRouter', () => {
 
     it('accepts a sandbox token', async () => {
       const res = await begin('sandbox-token-a').expect(200)
-      expect(artifactBeginPublishOutputSchema.parse(dataOf(res.body)).slug).toBe('demo')
+      const grant = artifactBeginPublishOutputSchema.parse(dataOf(res.body))
+      expect(grant.slug).toBe(await subdomainOf(grant.artifactId))
     })
 
     it('rejects an over-limit publish and a path outside the tree', async () => {
@@ -109,10 +110,10 @@ describe('ArtifactsRouter', () => {
     })
 
     it("rejects an unknown slug and another user's slug", async () => {
-      await publish()
+      const published = await publish()
 
       expect((await begin(OWNER, withSlug('missing'))).status).toBe(404)
-      expect((await begin('session-b', withSlug('demo'))).status).toBe(404)
+      expect((await begin('session-b', withSlug(published.subdomain))).status).toBe(404)
     })
 
     it('requires a bearer', async () => {
@@ -140,7 +141,7 @@ describe('ArtifactsRouter', () => {
 
       blobs.seed({ pathname: `${route}stale.html`, body: 'stale' })
       blobs.seed({ pathname: `${source}stale.html`, body: 'stale' })
-      await publish({ input: withSlug('demo') })
+      await publish({ input: withSlug(published.subdomain) })
 
       expect(blobs.stored.has(`${route}stale.html`)).toBe(false)
       expect(blobs.stored.has(`${source}stale.html`)).toBe(false)
@@ -148,9 +149,9 @@ describe('ArtifactsRouter', () => {
     })
 
     it('serves the built output when the spec builds', async () => {
-      await publish()
+      const published = await publish()
       const granted = artifactBeginPublishOutputSchema.parse(
-        dataOf((await begin('sandbox-token-a', withSlug('demo')).expect(200)).body),
+        dataOf((await begin('sandbox-token-a', withSlug(published.subdomain)).expect(200)).body),
       )
       await seedGranted(granted)
       sandbox.scripted(
@@ -176,7 +177,9 @@ describe('ArtifactsRouter', () => {
       expect((await blobs.read({ pathname: `${route}index.html` }))?.toString()).toBe(
         '<h1>built</h1>',
       )
-      const detail = artifactGetOutputSchema.parse(dataOf((await get(OWNER, 'demo')).body))
+      const detail = artifactGetOutputSchema.parse(
+        dataOf((await get(OWNER, published.subdomain)).body),
+      )
       expect(detail.build.log).toContain('installed')
       expect(detail.build.durationMs).toBeGreaterThanOrEqual(0)
     })
@@ -188,7 +191,7 @@ describe('ArtifactsRouter', () => {
       const routeObjectBefore = blobs.stored.get(routePathOf({ id: published.subdomain }))?.body
 
       const granted = artifactBeginPublishOutputSchema.parse(
-        dataOf((await begin('sandbox-token-a', withSlug('demo')).expect(200)).body),
+        dataOf((await begin('sandbox-token-a', withSlug(published.subdomain)).expect(200)).body),
       )
       await seedGranted(granted)
       sandbox.scripted(
@@ -208,7 +211,9 @@ describe('ArtifactsRouter', () => {
       expect(blobs.stored.get(routePathOf({ id: published.subdomain }))?.body).toBe(
         routeObjectBefore,
       )
-      const detail = artifactGetOutputSchema.parse(dataOf((await get(OWNER, 'demo')).body))
+      const detail = artifactGetOutputSchema.parse(
+        dataOf((await get(OWNER, published.subdomain)).body),
+      )
       expect(detail.build).toMatchObject({
         status: 'failed',
         failure: 'build failed with exit code 1: TS2304: cannot find name',

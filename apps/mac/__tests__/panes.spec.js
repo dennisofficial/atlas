@@ -90,6 +90,24 @@ describe('createPaneRegistry', () => {
     expect(registry.size()).toBe(1)
   })
 
+  test('shows a target again without reloading a page that redirected itself', () => {
+    const { registry, at } = registryWith()
+    registry.apply({ kind: 'show', id: 'a', url: URL_A, rect: RECT })
+    at('a').handlers['did-navigate']({}, 'https://example.com/signed-in')
+    registry.apply({ kind: 'hide', id: 'a' })
+    registry.apply({ kind: 'show', id: 'a', url: 'https://example.com/signed-in', rect: RECT })
+    expect(at('a').loads).toEqual([URL_A])
+  })
+
+  test('shows a target again without reloading a page that changed its own address', () => {
+    const { registry, at } = registryWith()
+    registry.apply({ kind: 'show', id: 'a', url: URL_A, rect: RECT })
+    at('a').handlers['did-navigate-in-page']({}, 'https://example.com/a#files', true)
+    registry.apply({ kind: 'hide', id: 'a' })
+    registry.apply({ kind: 'show', id: 'a', url: 'https://example.com/a#files', rect: RECT })
+    expect(at('a').loads).toEqual([URL_A])
+  })
+
   test('treats a command without an id as one default target', () => {
     const { registry, at } = registryWith()
     registry.apply({ kind: 'show', url: URL_A, rect: RECT })

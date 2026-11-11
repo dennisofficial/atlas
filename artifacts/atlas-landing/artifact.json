@@ -1,0 +1,6 @@
+{
+  "name": "Atlas",
+  "serve": {
+    "spa": false
+  }
+}
