@@ -39,7 +39,6 @@ const onTheClipboard = (over: Partial<ClipboardImage> = {}): ClipboardImageReade
     width: WIDTH,
     height: HEIGHT,
     delivery: EImageDelivery.Inline,
-    tokens: 200,
     ...over,
   })
 }
@@ -294,7 +293,7 @@ describe('a screenshot pasted into the draft', () => {
     }
   }, 60_000)
 
-  it('shows what the picture was and cost under the message in the transcript', async () => {
+  it('shows what the picture was under the message in the transcript', async () => {
     const mounted = await open({ app: scripted(), clipboard: onTheClipboard() })
 
     try {
@@ -311,8 +310,7 @@ describe('a screenshot pasted into the draft', () => {
       expect(shown).toBe(true)
 
       const frame = await mounted.frame()
-      expect(frame).toContain('560×280')
-      expect(frame).toContain('tokens')
+      expect(frame).toContain('shot.png · 560×280')
     } finally {
       await mounted.done()
     }
