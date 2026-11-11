@@ -69,14 +69,14 @@ export class ArtifactsService {
     await this.assertPublishQuota({ userId: args.userId, entries })
     const artifact = await resolveArtifact({
       userId: args.userId,
-      slug: args.body.slug,
+      subdomain: args.body.subdomain,
       name: args.body.name,
     })
     const version = await this.openBuild({ artifact, entries })
     return {
       artifactId: artifact.id,
       token: artifact.subdomain,
-      slug: artifact.subdomain,
+      subdomain: artifact.subdomain,
       version,
       uploads: await this.sourceUploads({ artifact, entries }),
     }
@@ -116,7 +116,7 @@ export class ArtifactsService {
         log: built.log,
         durationMs: built.durationMs,
       })
-      return { slug: artifact.subdomain, version: row.version, url, status: 'failed' }
+      return { subdomain: artifact.subdomain, version: row.version, url, status: 'failed' }
     }
     const files = built === null ? source.files : built.files
     const keys = await writeRouteTree({ blobs: this.blobs, id: artifact.subdomain, files })
@@ -141,7 +141,7 @@ export class ArtifactsService {
       bytes: files.reduce((total, file) => total + file.content.length, 0),
       fileCount: files.length,
     })
-    return { slug: artifact.subdomain, version: row.version, url, status: 'ready' }
+    return { subdomain: artifact.subdomain, version: row.version, url, status: 'ready' }
   }
 
   private async recordBuild(args: {

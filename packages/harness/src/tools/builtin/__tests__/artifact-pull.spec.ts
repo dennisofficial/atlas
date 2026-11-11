@@ -52,7 +52,7 @@ describe('artifact_pull', () => {
     const rig = rigOf()
     rig.files.put('/ws/out/existing.txt', 'mine')
 
-    const outcome = await invoke({ slug: 'demo', dir: 'out' }, rig.tool)
+    const outcome = await invoke({ subdomain: 'demo', dir: 'out' }, rig.tool)
 
     expect(outcome.ok).toBe(false)
     expect(reasonOf(outcome)).toContain('not empty')
@@ -64,7 +64,7 @@ describe('artifact_pull', () => {
     const rig = rigOf()
     rig.files.put('/ws/out/existing.txt', 'mine')
 
-    const outcome = await invoke({ slug: 'demo', dir: 'out', force: true }, rig.tool)
+    const outcome = await invoke({ subdomain: 'demo', dir: 'out', force: true }, rig.tool)
 
     expect(outcome.ok).toBe(true)
     expect(rig.files.text('/ws/out/src/main.ts')).toBe(
@@ -79,7 +79,7 @@ describe('artifact_pull', () => {
   it('restores into an empty directory and says a build step may follow', async () => {
     const rig = rigOf()
 
-    const outcome = await invoke({ slug: 'demo', dir: 'out' }, rig.tool)
+    const outcome = await invoke({ subdomain: 'demo', dir: 'out' }, rig.tool)
 
     expect(outcome.ok).toBe(true)
     expect(outcome.ok ? outcome.modelText : '').toContain('bun install')
@@ -92,7 +92,7 @@ describe('artifact_pull', () => {
     const rig = rigOf()
     rig.port.sourceEntries = [{ path: 'assets/logo.png', url: 'https://download.test/logo.png' }]
 
-    const outcome = await invoke({ slug: 'demo', dir: 'out' }, rig.tool)
+    const outcome = await invoke({ subdomain: 'demo', dir: 'out' }, rig.tool)
 
     expect(outcome.ok).toBe(true)
     expect(await rig.files.readBytes({ path: '/ws/out/assets/logo.png' })).toEqual(PNG_BYTES)
@@ -102,7 +102,7 @@ describe('artifact_pull', () => {
     const rig = rigOf()
     rig.port.failure = new ArtifactUnavailable('sign in to Atlas Cloud to pull artifacts')
 
-    const outcome = await invoke({ slug: 'demo', dir: 'out' }, rig.tool)
+    const outcome = await invoke({ subdomain: 'demo', dir: 'out' }, rig.tool)
 
     expect(outcome.ok).toBe(false)
     expect(reasonOf(outcome)).toContain('sign in to Atlas Cloud')

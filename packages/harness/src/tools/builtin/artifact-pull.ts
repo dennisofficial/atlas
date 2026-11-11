@@ -18,7 +18,7 @@ import { ArtifactRefused, type ArtifactPort } from '../../artifacts/artifact-por
 import { filePathSchema, pathEnvironmentNote, resolveToolPath } from './file-text'
 
 const inputSchema = z.strictObject({
-  slug: z.string().min(1).max(120),
+  subdomain: z.string().min(1).max(120),
   dir: filePathSchema,
   force: z.boolean().optional(),
 })
@@ -91,9 +91,9 @@ export class PullArtifactTool extends SchemaTool<typeof inputSchema> {
         )
       }
 
-      const exported = await this.deps.port.sourceExport({ slug: input.slug })
+      const exported = await this.deps.port.sourceExport({ subdomain: input.subdomain })
       if (exported.entries.length === 0) {
-        throw new ArtifactRefused(`${input.slug} has no published source to restore.`)
+        throw new ArtifactRefused(`${input.subdomain} has no published source to restore.`)
       }
 
       const fetchFn = this.deps.fetchFn ?? fetch
@@ -111,9 +111,9 @@ export class PullArtifactTool extends SchemaTool<typeof inputSchema> {
 
       return {
         ok: true,
-        output: { slug: input.slug, dir: dir.path, files: exported.entries.length },
+        output: { subdomain: input.subdomain, dir: dir.path, files: exported.entries.length },
         modelText: [
-          `Restored ${exported.entries.length} source files of ${input.slug} into ${dir.path}.`,
+          `Restored ${exported.entries.length} source files of ${input.subdomain} into ${dir.path}.`,
           'This is the editable source, so publishing again from here ships what you change; dependencies are not part of it, so run bun install before the code runs.',
         ].join('\n\n'),
       }

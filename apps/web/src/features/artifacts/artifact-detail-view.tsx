@@ -36,10 +36,10 @@ export function ArtifactDetail({ data }: { data: ArtifactGetOutput }) {
 }
 
 export function ArtifactDetailView() {
-  const slug = useRouteParam('slug')
+  const subdomain = useRouteParam('subdomain')
   const query = useCloudQuery({
-    key: artifactKeyOf(slug),
-    load: () => fetchArtifact(slug),
+    key: artifactKeyOf(subdomain),
+    load: () => fetchArtifact(subdomain),
   })
 
   return (

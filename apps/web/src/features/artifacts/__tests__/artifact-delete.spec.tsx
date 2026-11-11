@@ -19,7 +19,7 @@ mock.module('next/navigation', () => ({
 
 mock.module('../artifacts-api', () => ({
   ARTIFACTS_KEY: 'artifacts',
-  artifactKeyOf: (slug: string) => `artifact:${slug}`,
+  artifactKeyOf: (subdomain: string) => `artifact:${subdomain}`,
   fetchArtifacts: async () => {
     calls.list += 1
     return { artifacts: state.artifacts }
