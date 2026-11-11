@@ -30,6 +30,7 @@
     "@ai-sdk/provider": "4.0.33",
     "@dltech/atlas-agent-v1": "workspace:*",
     "@dltech/atlas-api-router": "workspace:*",
+    "@dltech/atlas-artifacts": "workspace:*",
     "@dltech/atlas-client": "workspace:*",
     "@dltech/atlas-core": "workspace:*",
     "@dltech/atlas-models": "workspace:*",

@@ -39,6 +39,7 @@ model User {
   userFiles                UserFile[]
   pushDevices              PushDevice[]
   vercelCredential         UserVercelCredential?
+  artifacts                Artifact[]
 
   @@unique([email], map: "User_email_key")
 }

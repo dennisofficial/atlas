@@ -23,9 +23,9 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'419b73dd7ccf410f5f3dca1e6722d5d82ea53438cce0aa3929fb0d7cec776664'>;
+  StorageHashBase<'fd9a0832ce16a151a78adc54604d9147ad4852ed10a1b6c4f8d51fbdd13ed562'>;
 export type ExecutionHash =
-  ExecutionHashBase<'0275e5ed87477e086ae15eb40d5c3764feaaf7ccfe7826aed71a50b8c6bdd289'>;
+  ExecutionHashBase<'27a680d0d8367c03704617bfac2d0041e04bd5395fc473f9e021f03bd0d4c6fa'>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
 
@@ -329,6 +329,37 @@ export namespace Models {
     activePointers: public_ActiveAccount[];
     user: public_User;
     readonly [RelationKeys]?: 'activePointers' | 'user';
+  };
+  export type public_Artifact = {
+    createdAt: FieldOutputTypes['public']['Artifact']['createdAt'];
+    currentVersion: FieldOutputTypes['public']['Artifact']['currentVersion'];
+    id: FieldOutputTypes['public']['Artifact']['id'];
+    name: FieldOutputTypes['public']['Artifact']['name'];
+    slug: FieldOutputTypes['public']['Artifact']['slug'];
+    token: FieldOutputTypes['public']['Artifact']['token'];
+    updatedAt: FieldOutputTypes['public']['Artifact']['updatedAt'];
+    userId: FieldOutputTypes['public']['Artifact']['userId'];
+    user: public_User;
+    versions: public_ArtifactVersion[];
+    readonly [RelationKeys]?: 'user' | 'versions';
+  };
+  export type public_ArtifactVersion = {
+    artifactId: FieldOutputTypes['public']['ArtifactVersion']['artifactId'];
+    bytes: FieldOutputTypes['public']['ArtifactVersion']['bytes'];
+    createdAt: FieldOutputTypes['public']['ArtifactVersion']['createdAt'];
+    durationMs: FieldOutputTypes['public']['ArtifactVersion']['durationMs'];
+    failure: FieldOutputTypes['public']['ArtifactVersion']['failure'];
+    fileCount: FieldOutputTypes['public']['ArtifactVersion']['fileCount'];
+    id: FieldOutputTypes['public']['ArtifactVersion']['id'];
+    log: FieldOutputTypes['public']['ArtifactVersion']['log'];
+    manifest: FieldOutputTypes['public']['ArtifactVersion']['manifest'];
+    sourceHash: FieldOutputTypes['public']['ArtifactVersion']['sourceHash'];
+    spec: FieldOutputTypes['public']['ArtifactVersion']['spec'];
+    specHash: FieldOutputTypes['public']['ArtifactVersion']['specHash'];
+    status: FieldOutputTypes['public']['ArtifactVersion']['status'];
+    version: FieldOutputTypes['public']['ArtifactVersion']['version'];
+    artifact: public_Artifact;
+    readonly [RelationKeys]?: 'artifact';
   };
   export type public_AuthSession = {
     createdAt: FieldOutputTypes['public']['AuthSession']['createdAt'];
@@ -956,6 +987,7 @@ export namespace Models {
     accounts: public_Account[];
     activeAccounts: public_ActiveAccount[];
     agentAccounts: public_AgentAccount[];
+    artifacts: public_Artifact[];
     authSessions: public_AuthSession[];
     cloudSandboxes: public_CloudSandbox[];
     composerDrafts: public_ComposerDraft[];
@@ -989,6 +1021,7 @@ export namespace Models {
       | 'accounts'
       | 'activeAccounts'
       | 'agentAccounts'
+      | 'artifacts'
       | 'authSessions'
       | 'cloudSandboxes'
       | 'composerDrafts'
@@ -1218,6 +1251,8 @@ export declare const models: {
     Account: Models.public_Account;
     ActiveAccount: Models.public_ActiveAccount;
     AgentAccount: Models.public_AgentAccount;
+    Artifact: Models.public_Artifact;
+    ArtifactVersion: Models.public_ArtifactVersion;
     AuthSession: Models.public_AuthSession;
     CloudSandbox: Models.public_CloudSandbox;
     ComposerDraft: Models.public_ComposerDraft;
@@ -1604,6 +1639,212 @@ type ContractBase = Omit<
                   readonly target: {
                     readonly namespaceId: 'public' & NamespaceId;
                     readonly tableName: 'User';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
+            readonly Artifact: {
+              columns: {
+                readonly createdAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly currentVersion: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
+                  };
+                  readonly many: false;
+                };
+                readonly id: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly name: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly slug: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly token: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly updatedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly userId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [
+                { readonly columns: readonly ['token']; readonly name: 'Artifact_token_key' },
+                {
+                  readonly columns: readonly ['userId', 'slug'];
+                  readonly name: 'Artifact_userId_slug_key';
+                },
+              ];
+              indexes: readonly [
+                {
+                  readonly name: 'Artifact_userId_idx';
+                  readonly columns: readonly ['userId'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'Artifact';
+                    readonly columns: readonly ['userId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'User';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
+            readonly ArtifactVersion: {
+              columns: {
+                readonly artifactId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly bytes: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly createdAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly durationMs: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly failure: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly fileCount: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly id: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly log: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly manifest: {
+                  readonly dataType: 'pg/jsonb';
+                  readonly codecId: 'pg/jsonb@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly sourceHash: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly spec: {
+                  readonly dataType: 'pg/jsonb';
+                  readonly codecId: 'pg/jsonb@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly specHash: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly status: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly version: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [
+                {
+                  readonly columns: readonly ['artifactId', 'version'];
+                  readonly name: 'ArtifactVersion_artifactId_version_key';
+                },
+              ];
+              indexes: readonly [
+                {
+                  readonly name: 'ArtifactVersion_artifactId_idx';
+                  readonly columns: readonly ['artifactId'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'ArtifactVersion';
+                    readonly columns: readonly ['artifactId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'Artifact';
                     readonly columns: readonly ['id'];
                   };
                 },
@@ -6836,6 +7077,11 @@ type ContractBase = Omit<
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'AgentAccount';
     };
+    readonly Artifact: { readonly namespace: 'public' & NamespaceId; readonly model: 'Artifact' };
+    readonly ArtifactVersion: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'ArtifactVersion';
+    };
     readonly AuthSession: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'AuthSession';
@@ -7295,6 +7541,184 @@ type ContractBase = Omit<
                 readonly subscription: { readonly column: 'subscription' };
                 readonly updatedAt: { readonly column: 'updatedAt' };
                 readonly userId: { readonly column: 'userId' };
+              };
+            };
+          };
+          readonly Artifact: {
+            readonly fields: {
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly currentVersion: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly name: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly slug: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly token: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly userId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: {
+              readonly user: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['userId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly versions: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'ArtifactVersion';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['artifactId'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'Artifact';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly currentVersion: { readonly column: 'currentVersion' };
+                readonly id: { readonly column: 'id' };
+                readonly name: { readonly column: 'name' };
+                readonly slug: { readonly column: 'slug' };
+                readonly token: { readonly column: 'token' };
+                readonly updatedAt: { readonly column: 'updatedAt' };
+                readonly userId: { readonly column: 'userId' };
+              };
+            };
+          };
+          readonly ArtifactVersion: {
+            readonly fields: {
+              readonly artifactId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly bytes: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly durationMs: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly failure: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly fileCount: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly log: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly manifest: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
+              };
+              readonly sourceHash: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly spec: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
+              };
+              readonly specHash: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly status: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly version: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+            };
+            readonly relations: {
+              readonly artifact: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Artifact';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['artifactId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'ArtifactVersion';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly artifactId: { readonly column: 'artifactId' };
+                readonly bytes: { readonly column: 'bytes' };
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly durationMs: { readonly column: 'durationMs' };
+                readonly failure: { readonly column: 'failure' };
+                readonly fileCount: { readonly column: 'fileCount' };
+                readonly id: { readonly column: 'id' };
+                readonly log: { readonly column: 'log' };
+                readonly manifest: { readonly column: 'manifest' };
+                readonly sourceHash: { readonly column: 'sourceHash' };
+                readonly spec: { readonly column: 'spec' };
+                readonly specHash: { readonly column: 'specHash' };
+                readonly status: { readonly column: 'status' };
+                readonly version: { readonly column: 'version' };
               };
             };
           };
@@ -10986,6 +11410,17 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['userId'];
                 };
               };
+              readonly artifacts: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Artifact';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['userId'];
+                };
+              };
               readonly authSessions: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
@@ -12509,6 +12944,15 @@ type ContractBase = Omit<
           readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'AgentAccount';
+            readonly field: 'updatedAt';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly ref: {
+            readonly entry: 'Artifact';
             readonly field: 'updatedAt';
             readonly namespace: 'public';
           };

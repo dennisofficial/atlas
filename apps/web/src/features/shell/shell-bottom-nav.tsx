@@ -1,4 +1,4 @@
-import { FolderKanban, MessagesSquare } from 'lucide-react'
+import { AppWindow, FolderKanban, MessagesSquare } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import Link from 'next/link'
 
@@ -22,6 +22,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/projects',
     Icon: FolderKanban,
   },
+  { nav: EAppNav.Artifacts, label: 'Artifacts', href: '/artifacts', Icon: AppWindow },
 ]
 
 export function ShellBottomNav({ activeNav }: { activeNav: EAppNav }) {
