@@ -18,6 +18,7 @@ services:
   web:
     command: bun run dev -H 0.0.0.0
     cwd: apps/web
+    port: 3001
     health: /
     env:
       ATLAS_API_ORIGIN: ${services.api.url}
