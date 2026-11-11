@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import type { Routine } from '@dltech/atlas-protocol'
 
-import { draftOf, modelPatchOf } from '../routine-draft'
+import { draftOf, modelPatchOf, scheduleOfDraft, type RoutineDraft } from '../routine-draft'
 
 const routine = (patch: Partial<Routine> = {}): Routine => ({
   routineId: 'routine-1',
@@ -57,6 +57,49 @@ describe('draftOf', () => {
       defaultTimezone: 'UTC',
     })
     expect(draft.selection).toEqual({ id: 'fable-5.5', effort: 'high', fast: true })
+  })
+})
+
+const draftWithWhen = (when: string): RoutineDraft => ({
+  ...draftOf(routine(), { projectId: '', defaultTimezone: 'UTC' }),
+  when,
+})
+
+const savedCronOf = (cron: string): string | undefined => {
+  const draft = draftOf(routine({ cron }), { projectId: '', defaultTimezone: 'UTC' })
+  const saved = scheduleOfDraft(draft)
+  return saved.ok ? saved.cron : undefined
+}
+
+describe('scheduleOfDraft', () => {
+  const awkward = [
+    '*/7 * * * *',
+    '0 9 * * 1,3,5',
+    '30 4 1,15 * *',
+    '0 0 1 * 0',
+    '1-56/5 * * * *',
+    '0 1-22/3 * * *',
+    '0 0 * * 7',
+  ]
+
+  it('writes an unedited schedule back byte identical', () => {
+    expect(awkward.map(savedCronOf)).toEqual(awkward)
+  })
+
+  it('re-derives the expression once the sentence changes', () => {
+    expect(scheduleOfDraft(draftWithWhen('every day at 6am'))).toEqual({
+      ok: true,
+      cron: '0 6 * * *',
+    })
+  })
+
+  it('refuses a sentence it cannot read', () => {
+    expect(scheduleOfDraft(draftWithWhen('whenever I feel like it')).ok).toBe(false)
+  })
+
+  it('derives the default schedule of a routine that was never loaded', () => {
+    const draft = draftOf(undefined, { projectId: 'project-1', defaultTimezone: 'UTC' })
+    expect(scheduleOfDraft(draft)).toEqual({ ok: true, cron: '0 7 * * 1-5' })
   })
 })
 

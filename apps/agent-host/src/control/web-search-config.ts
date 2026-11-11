@@ -1,10 +1,17 @@
+import { ATLAS_SETTINGS, ESettingId, ESettingKind, type ChoiceDefinition } from '@dltech/atlas-core'
 import type { WebSearchConfig } from '@dltech/atlas-plugin-sdk'
 
 import type { SecretCipher } from '../config/secret-cipher'
 
-const BACKEND_KEY = 'web.searchBackend'
+const BACKEND_KEY = ESettingId.WebSearchBackend
 const SECRET_PREFIX = 'search.'
 const SETTING_VALUE_PREFIX = 'atlas-setting:v1:'
+
+const backendDefinition = ATLAS_SETTINGS.find(
+  (definition): definition is ChoiceDefinition =>
+    definition.id === BACKEND_KEY && definition.kind === ESettingKind.Choice,
+)
+const DEFAULT_BACKEND = backendDefinition?.fallback
 
 const decodedSetting = (stored: string): string => {
   if (!stored.startsWith(SETTING_VALUE_PREFIX)) return stored
@@ -47,7 +54,7 @@ export const webSearchConfigOf = async (args: {
   ])
 
   const stored = projectSetting?.value ?? userSetting?.value ?? null
-  if (stored === null) return { backend: undefined, key: undefined }
+  if (stored === null) return { backend: DEFAULT_BACKEND, key: undefined }
 
   const backend = decodedSetting(stored)
   const name = `${SECRET_PREFIX}${backend}`

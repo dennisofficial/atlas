@@ -2,6 +2,7 @@ import {
   type Cron,
   CronNeverFiresError,
   parseCron,
+  parseScheduleText,
   upcomingOccurrences,
 } from '@dltech/atlas-schedule'
 
@@ -102,6 +103,23 @@ const summaryOfCron = (cron: Cron): string => {
 export const scheduleSummaryOf = (expression: string): string => {
   const cron = cronOf(expression)
   return cron === null ? expression : summaryOfCron(cron)
+}
+
+const sameValues = (left: readonly number[], right: readonly number[]): boolean =>
+  left.length === right.length && left.every((value, index) => value === right[index])
+
+const sameSchedule = (left: Cron, right: Cron): boolean =>
+  sameValues(left.minutes, right.minutes) &&
+  sameValues(left.hours, right.hours) &&
+  sameValues(left.daysOfMonth, right.daysOfMonth) &&
+  sameValues(left.months, right.months) &&
+  sameValues(left.daysOfWeek, right.daysOfWeek)
+
+export const scheduleSummaryIsExact = (expression: string): boolean => {
+  const cron = cronOf(expression)
+  if (cron === null) return false
+  const reread = parseScheduleText(summaryOfCron(cron))
+  return reread.ok && sameSchedule(cron, reread.cron)
 }
 
 export const nextOccurrencesOf = (args: {
