@@ -17,7 +17,6 @@ const image = (ordinal: number): DraftImage => ({
   width: 640,
   height: 480,
   delivery: EImageDelivery.Inline,
-  tokens: 100,
 })
 
 describe('planRestoredTokens', () => {

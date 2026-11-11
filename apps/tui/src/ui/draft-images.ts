@@ -3,7 +3,6 @@ import {
   EImageDelivery,
   imagePathLine,
   imageTagOrdinals,
-  visualTokens,
   type SaidFile,
   type SaidImage,
 } from '@dltech/atlas-core'
@@ -29,7 +28,6 @@ export function restoredImages(args: {
     width: image.width,
     height: image.height,
     delivery: EImageDelivery.Inline,
-    tokens: visualTokens({ byteLength: base64Bytes(image.data), ...image }),
   }))
 }
 

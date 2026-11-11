@@ -1,9 +1,10 @@
 import { createServer } from 'node:http'
 import { join } from 'node:path'
 
-import { app, BrowserWindow, WebContentsView } from 'electron'
+import { app, BrowserWindow, ipcMain, WebContentsView, shell } from 'electron'
 
 import { hostEnvironment, resolveBun, resolveHostScript, webRootAt } from './host-paths.js'
+import { externalUrlOf, sameOrigin } from './links.js'
 import { startHost } from './host-process.js'
 import { createPaneRegistry, validCommand } from './panes.js'
 import {
@@ -14,12 +15,17 @@ import {
   webRootFor,
 } from './web-payload.js'
 
+const FULLSCREEN_STATE = 'atlas-desktop:fullscreen'
+const FULLSCREEN_QUERY = 'atlas-desktop:is-fullscreen'
 const PANE_PATH = '/pane'
 const DESKTOP_PANE_PATH = '/desktop/pane'
 const PANE_PARTITION = 'persist:spike'
 const WINDOW_WIDTH = 1280
 const WINDOW_HEIGHT = 820
-const OUTPUT_LIMIT = 8_000
+
+ipcMain.on(FULLSCREEN_QUERY, (event) => {
+  event.returnValue = BrowserWindow.fromWebContents(event.sender)?.isFullScreen() ?? false
+})
 
 async function readBody(request) {
   const chunks = []
@@ -82,6 +88,16 @@ function errorPage(error) {
   return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`
 }
 
+function openInBrowser(url) {
+  const external = externalUrlOf(url)
+  if (external !== null) void shell.openExternal(external)
+}
+
+function denyWindow(url) {
+  openInBrowser(url)
+  return { action: 'deny' }
+}
+
 async function createWindow() {
   const win = new BrowserWindow({
     width: WINDOW_WIDTH,
@@ -96,10 +112,19 @@ async function createWindow() {
     },
   })
 
+  win.on('enter-full-screen', () => win.webContents.send(FULLSCREEN_STATE, true))
+  win.on('leave-full-screen', () => win.webContents.send(FULLSCREEN_STATE, false))
+  win.webContents.setWindowOpenHandler(({ url }) => denyWindow(url))
+
   const panes = createPaneRegistry({
     create: () => {
       const view = new WebContentsView({
         webPreferences: { partition: PANE_PARTITION, contextIsolation: true },
+      })
+      view.webContents.setWindowOpenHandler(({ url }) => {
+        if (!sameOrigin(url, view.webContents.getURL())) return denyWindow(url)
+        void view.webContents.loadURL(url)
+        return { action: 'deny' }
       })
       win.contentView.addChildView(view)
       view.setVisible(false)
@@ -129,7 +154,12 @@ async function createWindow() {
     startHost({
       script,
       bun,
-      environment: hostEnvironment({ base: process.env, paneOrigin: session.origin, webRoot }),
+      environment: hostEnvironment({
+        base: process.env,
+        paneOrigin: session.origin,
+        webRoot,
+        appVersion: app.getVersion(),
+      }),
     })
 
   let host

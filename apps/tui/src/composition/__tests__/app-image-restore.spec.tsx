@@ -40,7 +40,6 @@ const onTheClipboard = (over: Partial<ClipboardImage> = {}): ClipboardImageReade
     width: WIDTH,
     height: HEIGHT,
     delivery: EImageDelivery.Inline,
-    tokens: 200,
     ...over,
   })
 }

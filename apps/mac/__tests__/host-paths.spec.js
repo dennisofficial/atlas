@@ -87,23 +87,32 @@ test('webRootAt points at the standalone app', () => {
   )
 })
 
-test('hostEnvironment sets the pane origin and web root over the inherited environment', () => {
+test('hostEnvironment sets the pane origin, web root and app version over the inherited environment', () => {
   const environment = hostEnvironment({
-    base: { PATH: '/bin', ATLAS_WEB_ROOT: '/stale' },
+    base: { PATH: '/bin', ATLAS_WEB_ROOT: '/stale', ATLAS_VERSION: '0.0.0' },
     paneOrigin: 'http://127.0.0.1:9000',
     webRoot: '/Resources/web-standalone/apps/web',
+    appVersion: '1.314.1',
   })
   expect(environment).toEqual({
     PATH: '/bin',
     ATLAS_WEB_ROOT: '/Resources/web-standalone/apps/web',
     ATLAS_PANE_ORIGIN: 'http://127.0.0.1:9000',
+    ATLAS_VERSION: '1.314.1',
   })
+})
+
+test('hostEnvironment carries the app version the packaged app reports', () => {
+  const environment = hostEnvironment({ base: { PATH: '/bin' }, appVersion: '1.315.1' })
+  expect(environment.ATLAS_VERSION).toBe('1.315.1')
+  expect(hostEnvironment({ base: { PATH: '/bin' } }).ATLAS_VERSION).toBeUndefined()
 })
 
 test('hostEnvironment leaves the pane origin unset without a listener', () => {
   const environment = hostEnvironment({ base: { PATH: '/bin' }, webRoot: '/web' })
   expect(environment.ATLAS_PANE_ORIGIN).toBeUndefined()
   expect(environment.ATLAS_WEB_ROOT).toBe('/web')
+  expect(environment.ATLAS_VERSION).toBeUndefined()
 })
 
 test('sessionUrlIn reads the marker line only', () => {

@@ -34,6 +34,11 @@ const COPY: Record<EAppNav, { search: string; create: string; href: string }> = 
     create: 'New thread',
     href: '/threads/new',
   },
+  [EAppNav.Artifacts]: {
+    search: 'Search artifacts',
+    create: 'New thread',
+    href: '/threads/new',
+  },
 }
 
 export function ShellTopBar({ nav, onSearch }: { nav: EAppNav; onSearch: () => void }) {

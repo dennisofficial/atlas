@@ -13,7 +13,7 @@ Prisma 8 is stale. After a Prisma bump, run `bunx prisma skills sync` and delete
 - One model per file under `src/prisma/schema/<domain>/<model>.prisma`. Every file's first line is
   `// use prisma-8`; a file without it is silently skipped by `contract emit`.
 - Domains: `auth`, `projects`, `threads`, `sandboxes`, `provider-accounts`, `github`,
-  `user-config`. Relations resolve across files.
+  `user-config`, `artifacts`. Relations resolve across files.
 - After any edit: `bun run contract:emit`. The emitted `src/prisma/schema/contract.{json,d.ts}` are
   committed; there is no generate step. CI fails when they are stale.
 - Every timestamp is `TimestamptzJsDate(3)`: a JS `Date` in and out, ISO 8601 in JSON, and no

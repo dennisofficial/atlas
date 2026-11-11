@@ -10,7 +10,6 @@ import {
   imageSize,
   planInlineDelivery,
   projectedSize,
-  visualTokens,
   type EImageTier,
   type PngCodec,
   type SupportedImageMediaType,
@@ -29,7 +28,6 @@ export type ClipboardImage = {
   width?: number | undefined
   height?: number | undefined
   delivery: EImageDelivery
-  tokens: number | null
   reason?: string | undefined
   tier?: EImageTier | undefined
 }
@@ -125,8 +123,8 @@ export const readClipboardImage: ClipboardImageReader = async ({ directory, tier
   await attachClipboardImage({ directory, tier, pull: clipboardBytes, memory: oneGesture })
 
 /**
- * The paste is written at the size the model will actually read it — the tier projection, the same
- * number the token chip reports. Anthropic resizes server-side either way, but providers that do
+ * The paste is written at the size the model will actually read it — the tier projection.
+ * Anthropic resizes server-side either way, but providers that do
  * not (a deployment with a fixed prefill budget rejects a 4K screenshot outright, which bricks the
  * turn) read exactly what is sent. A paste that cannot be re-encoded — a JPEG, an interlaced PNG,
  * a re-encode that comes out larger — keeps its original bytes; the resize never blocks a paste.
@@ -180,7 +178,6 @@ async function writtenClipboardImage(args: {
     width: facts.width,
     height: facts.height,
     delivery: settled.delivery,
-    tokens: visualTokens({ ...facts, tier }),
     ...(settled.reason === undefined ? {} : { reason: settled.reason }),
     tier,
   }

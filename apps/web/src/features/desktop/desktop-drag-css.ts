@@ -1,3 +1,5 @@
+// Chromium hands a drag region to the window as titlebar, so the page inside it receives no
+// pointer events at all; a scrolling list must never be one.
 export const NO_DRAG_SELECTORS = [
   'button',
   'a',
@@ -10,6 +12,7 @@ export const NO_DRAG_SELECTORS = [
   '[role=menuitem]',
   '[role=combobox]',
   '[contenteditable]',
+  '[data-slot=sidebar-content]',
 ].join(',')
 
 export const DRAG_SELECTORS = [

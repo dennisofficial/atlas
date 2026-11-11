@@ -1,5 +1,15 @@
 html[data-desktop] {
-  --desktop-titlebar-height: calc(var(--spacing) * 11);
+  /* The traffic lights macOS draws around a titleBarStyle: hiddenInset window, measured on the
+     shipped Mac app: 12px circles whose tops sit 11px below the window top, centres 23px apart.
+     The titlebar band is a circle grown by its own inset, so whatever centres in it centres on the
+     lights. */
+  --desktop-traffic-light-size: calc(var(--spacing) * 3);
+  --desktop-traffic-light-inset: calc(var(--spacing) * 2.75);
+  --desktop-titlebar-height: calc(
+    var(--desktop-traffic-light-inset) *
+    2 +
+    var(--desktop-traffic-light-size)
+  );
   --desktop-traffic-lights-inset: calc(var(--spacing) * 20);
 }
 
@@ -12,10 +22,6 @@ html[data-desktop]:not([data-fullscreen])
   [data-desktop-wordmark] {
   display: flex;
   box-sizing: border-box;
-  position: relative;
-  /* Measured from the shipped electrobun build: its wordmark centre sits 4.5px above the traffic
-     lights, while this row sat 7.5px below them. Relative offset keeps the content below in place. */
-  top: calc(var(--spacing) * -3);
   height: var(--desktop-titlebar-height);
   margin-top: calc(var(--spacing) * -2);
   padding-left: calc(var(--desktop-traffic-lights-inset) - var(--spacing) * 2);

@@ -27,6 +27,16 @@ describe('isDragRegionTarget', () => {
     expect(isDragRegionTarget(body.querySelector('header'))).toBe(true)
   })
 
+  it('keeps the scrolling sidebar list out of the drag region', () => {
+    document.documentElement.setAttribute('data-desktop', '')
+    const body = mount(
+      '<div data-slot="sidebar-inner"><div data-slot="sidebar-header" id="h"></div><div data-slot="sidebar-content"><div id="row" class="hover:bg-sidebar-accent"><span id="rule"></span></div></div></div>',
+    )
+    expect(isDragRegionTarget(body.querySelector('#h'))).toBe(true)
+    expect(isDragRegionTarget(body.querySelector('#row'))).toBe(false)
+    expect(isDragRegionTarget(body.querySelector('#rule'))).toBe(false)
+  })
+
   it('rejects interactive descendants and non-drag content', () => {
     document.documentElement.setAttribute('data-desktop', '')
     const body = mount(

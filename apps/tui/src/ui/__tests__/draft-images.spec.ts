@@ -12,7 +12,6 @@ const shot = (over: Partial<ClipboardImage> = {}): ClipboardImage => ({
   width: 560,
   height: 280,
   delivery: EImageDelivery.Inline,
-  tokens: 200,
   ...over,
 })
 

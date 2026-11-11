@@ -36,7 +36,7 @@ describe('UserBlock attachments', () => {
     expect(frame).toContain('◆ implement')
     expect(frame).toContain('◆ tdd')
     expect(frame).toContain('⬚ user-block.tsx')
-    expect(frame).toContain('▣ paste-1.png · 560×280 · ~200 tokens')
+    expect(frame).toContain('▣ paste-1.png · 560×280')
   })
 
   it('keeps every chip inside the slab, below the said text', async () => {

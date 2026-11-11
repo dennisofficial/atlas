@@ -14,11 +14,11 @@ const said = (over: Partial<Attachment> = {}): Attachment => ({
 })
 
 describe('what a picture that rode along reads as in the transcript', () => {
-  it('names the file, its size in pixels, and what it cost', () => {
-    expect(saidImageText(said())).toBe('paste-1.png · 560×280 · ~200 tokens')
+  it('names the file and its size in pixels', () => {
+    expect(saidImageText(said())).toBe('paste-1.png · 560×280')
   })
 
-  it('leaves out the size and the cost when the dimensions were never read', () => {
+  it('leaves out the size when the dimensions were never read', () => {
     expect(saidImageText(said({ image: {} }))).toBe('paste-1.png')
   })
 })

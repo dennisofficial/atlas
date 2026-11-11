@@ -1,11 +1,15 @@
 import {
   AfterToolHook,
+  AgentFileSystemPort,
   BeforeTurnHook,
   githubProjectOf,
+  ProcessPort,
   PromptFragment,
   ToolDefinition,
 } from '@dltech/atlas-core'
 
+import { ArtifactPort } from '../artifacts/artifact-port'
+import { CloudArtifactPort } from '../artifacts/cloud-artifact-port'
 import { CloudMemoryPort } from '../memory/cloud-memory-port'
 import { newMemoryIndexState } from '../memory/memory-index-state'
 import { MemoryPort } from '../memory/memory-port'
@@ -23,6 +27,10 @@ import { LoadMemoryIndexHook } from '../hooks/load-memory'
 import { NestedInstructionsHook } from '../hooks/nested-instructions'
 import { MemoryFragment } from '../prompt/fragments/memory'
 import type { SettingsService } from '../settings/service'
+import { ListArtifactsTool } from '../tools/builtin/artifact-list'
+import { PublishArtifactTool } from '../tools/builtin/artifact-publish'
+import { PullArtifactTool } from '../tools/builtin/artifact-pull'
+import { UnpublishArtifactTool } from '../tools/builtin/artifact-unpublish'
 import { DeleteMemoryTool } from '../tools/builtin/memory-delete'
 import { EditMemoryTool } from '../tools/builtin/memory-edit'
 import { ReadMemoryTool } from '../tools/builtin/memory-read'
@@ -58,18 +66,31 @@ export async function bindInstructionsAndMemory(args: {
   const project = githubProjectOf(args.repoIdentity ?? (await readOriginIdentity(args.repoRoot)))
   const state = newMemoryIndexState()
 
+  const session = (resolver: DependencyContainer) => () =>
+    resolver.isRegistered(ServeSessionToken, true)
+      ? resolver.resolve(ServeSessionToken)
+      : resolver.resolve(CloudSessionStoreToken).read()
+
+  const clientVersionOf = (resolver: DependencyContainer): string =>
+    resolver.isRegistered(ClientVersionToken, true) ? resolver.resolve(ClientVersionToken) : 'dev'
+
   container.register(registeredPortToken(MemoryPort), {
     useFactory: instanceCachingFactory(
       (resolver) =>
         new CloudMemoryPort({
           project,
-          clientVersion: resolver.isRegistered(ClientVersionToken, true)
-            ? resolver.resolve(ClientVersionToken)
-            : 'dev',
-          session: () =>
-            resolver.isRegistered(ServeSessionToken, true)
-              ? resolver.resolve(ServeSessionToken)
-              : resolver.resolve(CloudSessionStoreToken).read(),
+          clientVersion: clientVersionOf(resolver),
+          session: session(resolver),
+        }),
+    ),
+  })
+
+  container.register(registeredPortToken(ArtifactPort), {
+    useFactory: instanceCachingFactory(
+      (resolver) =>
+        new CloudArtifactPort({
+          clientVersion: clientVersionOf(resolver),
+          session: session(resolver),
         }),
     ),
   })
@@ -96,5 +117,29 @@ export async function bindInstructionsAndMemory(args: {
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) =>
       new DeleteMemoryTool(resolver.resolve(registeredPortToken(MemoryPort))),
+  })
+
+  container.register(portToken(ToolDefinition), {
+    useFactory: (resolver) =>
+      new PublishArtifactTool({
+        port: resolver.resolve(registeredPortToken(ArtifactPort)),
+        processes: resolver.resolve(registeredPortToken(ProcessPort)),
+        files: resolver.resolve(registeredPortToken(AgentFileSystemPort)),
+      }),
+  })
+  container.register(portToken(ToolDefinition), {
+    useFactory: (resolver) =>
+      new PullArtifactTool({
+        port: resolver.resolve(registeredPortToken(ArtifactPort)),
+        files: resolver.resolve(registeredPortToken(AgentFileSystemPort)),
+      }),
+  })
+  container.register(portToken(ToolDefinition), {
+    useFactory: (resolver) =>
+      new ListArtifactsTool(resolver.resolve(registeredPortToken(ArtifactPort))),
+  })
+  container.register(portToken(ToolDefinition), {
+    useFactory: (resolver) =>
+      new UnpublishArtifactTool(resolver.resolve(registeredPortToken(ArtifactPort))),
   })
 }
