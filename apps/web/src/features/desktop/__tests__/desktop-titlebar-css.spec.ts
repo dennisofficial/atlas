@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 const css = await Bun.file(new URL('../../../app/desktop.css', import.meta.url)).text()
+const flat = css.replace(/\s+/g, ' ')
 
 const blockOf = (selector: string): string => {
   const start = css.indexOf(selector)
@@ -10,10 +11,10 @@ const blockOf = (selector: string): string => {
 
 describe('desktop.css titlebar band', () => {
   it('builds the titlebar band out of the traffic light geometry', () => {
-    expect(css).toContain('--desktop-traffic-light-size: calc(var(--spacing) * 3)')
-    expect(css).toContain('--desktop-traffic-light-inset: calc(var(--spacing) * 2.75)')
-    expect(css).toMatch(
-      /--desktop-titlebar-height: calc\(\s*var\(--desktop-traffic-light-inset\) \* 2 \+ var\(--desktop-traffic-light-size\)\s*\)/,
+    expect(flat).toContain('--desktop-traffic-light-size: calc(var(--spacing) * 3)')
+    expect(flat).toContain('--desktop-traffic-light-inset: calc(var(--spacing) * 2.75)')
+    expect(flat).toContain(
+      '--desktop-titlebar-height: calc( var(--desktop-traffic-light-inset) * 2 + var(--desktop-traffic-light-size) )',
     )
   })
 
