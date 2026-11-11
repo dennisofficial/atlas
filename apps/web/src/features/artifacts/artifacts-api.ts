@@ -8,5 +8,5 @@ export const fetchArtifacts = () => cloudCall(api.artifacts.list.query())
 
 export const fetchArtifact = (ref: string) => cloudCall(api.artifacts.get.query({ slug: ref }))
 
-export const unpublishArtifact = (ref: string) =>
+export const deleteArtifact = (ref: string) =>
   cloudCall(api.artifacts.unpublish.mutate({ slug: ref }))

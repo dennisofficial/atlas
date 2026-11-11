@@ -37,30 +37,23 @@ const click = (element: Element | undefined) =>
     element?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
   })
 
-async function mount(args: { busy?: boolean; onUnpublish: () => void }) {
+async function mount(args: { busy?: boolean; onDelete: () => void }) {
   const { createRoot } = await import('react-dom/client')
   container = document.createElement('div')
   document.body.append(container)
   root = createRoot(container)
   await act(async () =>
     root?.render(
-      <ArtifactHeader
-        artifact={ARTIFACT}
-        busy={args.busy ?? false}
-        onUnpublish={args.onUnpublish}
-      />,
+      <ArtifactHeader artifact={ARTIFACT} busy={args.busy ?? false} onDelete={args.onDelete} />,
     ),
   )
 }
 
 describe('ArtifactHeader', () => {
-  it('offers Open, Copy URL and Unpublish, and no rollback', async () => {
-    await mount({ onUnpublish: () => undefined })
+  it('offers Open, Copy URL and Delete, and no rollback', async () => {
+    await mount({ onDelete: () => undefined })
 
-    expect(buttons().map((element) => element.textContent?.trim())).toEqual([
-      'Copy URL',
-      'Unpublish',
-    ])
+    expect(buttons().map((element) => element.textContent?.trim())).toEqual(['Copy URL', 'Delete'])
     const open = document.querySelector('a[href="https://ab12cd34ef56.artifacts.example"]')
     expect(open?.textContent).toContain('Open')
     expect(open?.getAttribute('target')).toBe('_blank')
@@ -68,20 +61,20 @@ describe('ArtifactHeader', () => {
   })
 
   it('asks for confirmation before it unpublishes', async () => {
-    const onUnpublish = mock(() => undefined)
-    await mount({ onUnpublish })
+    const onDelete = mock(() => undefined)
+    await mount({ onDelete })
 
-    await click(button('Unpublish'))
+    await click(button('Delete'))
 
     const dialog = document.querySelector('[role="alertdialog"], [role="dialog"]')
     expect(dialog).not.toBeNull()
-    expect(dialog?.textContent).toContain('Unpublish Docs?')
-    expect(onUnpublish).not.toHaveBeenCalled()
+    expect(dialog?.textContent).toContain('Delete Docs?')
+    expect(onDelete).not.toHaveBeenCalled()
 
     const confirm = [...(dialog?.querySelectorAll('button') ?? [])].find(
-      (element) => element.textContent?.trim() === 'Unpublish',
+      (element) => element.textContent?.trim() === 'Delete',
     )
     await click(confirm)
-    expect(onUnpublish).toHaveBeenCalledTimes(1)
+    expect(onDelete).toHaveBeenCalledTimes(1)
   })
 })
