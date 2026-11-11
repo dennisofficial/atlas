@@ -28,6 +28,8 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.87",
+    "@aws-sdk/client-s3": "^3.1167.0",
+    "@aws-sdk/s3-request-presigner": "^3.1167.0",
     "@dltech/atlas-artifacts": "workspace:*",
     "@dltech/atlas-commands": "workspace:*",
     "@dltech/atlas-control": "workspace:*",
@@ -40,8 +42,8 @@
     "@dltech/atlas-native-commands": "workspace:*",
     "@dltech/atlas-plugin-crew": "workspace:*",
     "@dltech/atlas-plugin-github": "workspace:*",
-    "@dltech/atlas-plugin-sdk": "workspace:*",
     "@dltech/atlas-plugin-mcp": "workspace:*",
+    "@dltech/atlas-plugin-sdk": "workspace:*",
     "@dltech/atlas-plugin-services": "workspace:*",
     "@dltech/atlas-plugin-sessions": "workspace:*",
     "@dltech/atlas-plugin-shells": "workspace:*",
