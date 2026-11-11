@@ -14,30 +14,24 @@ const account = (provider: string, status = 'active') => ({
 
 const CLAUDE = 'Claude Plan'
 const CODEX = 'Codex Plan'
-const ALL_LABELS = [CLAUDE, CODEX, 'OpenRouter', 'Inference.net', 'Vercel AI Gateway']
 const selectable = (options: { disabled?: boolean }[]) =>
   options.filter((option) => option.disabled !== true)
 const countOf = (provider: string) => withoutDatedDuplicates(cardsForProvider(provider)).length
 
 describe('modelOptionsOf', () => {
-  it('lists all five providers in catalogue order, unconnected ones disabled', () => {
+  it('lists only the providers that hold a key, in catalogue order', () => {
     const { models, reconnectProviders } = modelOptionsOf({
       accounts: [account('openai'), account('anthropic')],
     })
-    expect([...new Set(models.map((model) => model.provider))]).toEqual(ALL_LABELS)
+    expect([...new Set(models.map((model) => model.provider))]).toEqual([CLAUDE, CODEX])
     expect(selectable(models)).toHaveLength(countOf('anthropic') + countOf('openai'))
     expect(reconnectProviders).toEqual([])
   })
 
-  it('marks providers without an account disabled with a no-key note', () => {
+  it('hides a provider that has no account at all', () => {
     const { models } = modelOptionsOf({ accounts: [account('anthropic')] })
-    const dormant = models.filter((model) => model.provider !== CLAUDE)
-    expect(dormant.length).toBeGreaterThan(0)
-    expect(dormant.every((model) => model.disabled === true)).toBe(true)
-    expect(dormant.every((model) => model.disabledNote === 'no key')).toBe(true)
-    expect(
-      models.filter((model) => model.provider === CLAUDE).every((model) => !model.disabled),
-    ).toBe(true)
+    expect([...new Set(models.map((model) => model.provider))]).toEqual([CLAUDE])
+    expect(models.every((model) => model.disabled !== true)).toBe(true)
   })
 
   it('turns a provider whose only accounts expired into a reconnect row without models', () => {
@@ -66,10 +60,9 @@ describe('modelOptionsOf', () => {
     expect(reconnectProviders).toEqual([])
   })
 
-  it('offers every provider disabled without accounts', () => {
+  it('offers no models when no provider holds a key', () => {
     const { models, reconnectProviders } = modelOptionsOf({ accounts: [] })
-    expect([...new Set(models.map((model) => model.provider))]).toEqual(ALL_LABELS)
-    expect(selectable(models)).toEqual([])
+    expect(models).toEqual([])
     expect(reconnectProviders).toEqual([])
   })
 
@@ -115,7 +108,7 @@ describe('modelOptionsOf', () => {
     expect(models.find((model) => model.id === `openai/${bare?.ref.modelId}`)?.efforts).toEqual([])
   })
 
-  it('keeps a thread model whose provider is no longer offered selectable', () => {
+  it('keeps a thread model whose provider has no key, marked unusable', () => {
     const card = cardsForProvider('anthropic')[0]
     const id = `anthropic/${card?.ref.modelId}`
     const { models } = modelOptionsOf({
@@ -123,6 +116,8 @@ describe('modelOptionsOf', () => {
       currentId: id,
     })
     expect(models.find((model) => model.id === id)?.label).toBe(card?.label.replace(/^Claude /, ''))
+    expect(models.find((model) => model.id === id)?.disabled).toBe(true)
+    expect(models.find((model) => model.id === id)?.disabledNote).toBe('no key')
     const unknown = modelOptionsOf({
       accounts: [account('openai')],
       currentId: 'x/y',

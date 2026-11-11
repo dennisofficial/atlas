@@ -42,14 +42,9 @@ export const ModelRow = ({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={model.label}
-      accessibilityState={{ disabled: model.disabled, selected }}
-      disabled={model.disabled}
+      accessibilityState={{ selected }}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.row,
-        { opacity: model.disabled ? 0.5 : 1 },
-        pressed ? { backgroundColor: theme.accent } : null,
-      ]}
+      style={({ pressed }) => [styles.row, pressed ? { backgroundColor: theme.accent } : null]}
     >
       <ProviderMark monogram={model.monogram} />
       <Text size={ETextRole.Sm} numberOfLines={1} style={styles.rowLabel}>
@@ -58,12 +53,12 @@ export const ModelRow = ({
       <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={styles.context}>
         {model.context}
       </Text>
-      {model.note === null && model.rate === null ? null : (
+      {model.rate === null ? null : (
         <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={styles.rate}>
-          {model.note ?? model.rate}
+          {model.rate}
         </Text>
       )}
-      {onTogglePin === undefined || model.disabled ? null : (
+      {onTogglePin === undefined ? null : (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={pinned ? `Unpin ${model.label}` : `Pin ${model.label}`}
