@@ -15,7 +15,6 @@
       "main": true
     }
   },
-  "ignoreCommand": "[ -z \"$VERCEL_GIT_PREVIOUS_SHA\" ] && exit 1; [ \"$VERCEL_GIT_PREVIOUS_SHA\" = \"$VERCEL_GIT_COMMIT_SHA\" ] && exit 1; bunx turbo@2.10.11 query affected --packages @dltech/atlas-artifacts-host --base \"$VERCEL_GIT_PREVIOUS_SHA\" --exit-code",
   "functions": {
     "api/serve.ts": {
       "includeFiles": ".env.production.enc"
