@@ -49,18 +49,27 @@ function loadInto({ entry, url }) {
   })
 }
 
-function watchNavigation({ id, webContents, onNavigate, onTitle }) {
-  webContents.on('did-navigate', (_event, url) => onNavigate({ id, url }))
+function watchNavigation({ entry, onNavigate, onTitle }) {
+  const { id, view } = entry
+  const { webContents } = view
+  // A page redirects and follows its own links, so what the view was last asked for is not where it
+  // is now: `show` has to know the address it actually committed or it reloads the page on every
+  // tab switch. Every committed navigation moves the view, so it moves what it was asked for too.
+  const followed = (url) => {
+    entry.requested = url
+    onNavigate({ id, url })
+  }
+  webContents.on('did-navigate', (_event, url) => followed(url))
   webContents.on('did-fail-load', (_event, errorCode, errorDescription, failedUrl, isMainFrame) => {
     if (!isMainFrame || errorCode === ERR_ABORTED) return
     console.error(`[pane] ${failedUrl} answered ${errorCode} ${errorDescription}`)
     // The view keeps whatever it was showing, so tell the interface where it actually is instead of
     // leaving an address bar that names a page nobody can see.
     const at = webContents.getURL()
-    if (at !== '') onNavigate({ id, url: at })
+    if (at !== '') followed(at)
   })
   webContents.on('did-navigate-in-page', (_event, url, isMainFrame) => {
-    if (isMainFrame) onNavigate({ id, url })
+    if (isMainFrame) followed(url)
   })
   webContents.on('page-title-updated', (_event, title) => onTitle({ id, title }))
 }
@@ -88,9 +97,8 @@ export function createPaneRegistry({
   }
 
   const createFor = (id) => {
-    const view = create(id)
-    watchNavigation({ id, webContents: view.webContents, onNavigate, onTitle })
-    const entry = { id, view, shownAt: ++clock, requested: undefined }
+    const entry = { id, view: create(id), shownAt: ++clock, requested: undefined }
+    watchNavigation({ entry, onNavigate, onTitle })
     held.set(id, entry)
     trim()
     return held.get(id) ?? entry

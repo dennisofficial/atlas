@@ -11,16 +11,18 @@ const RECT = z.object({
 
 const URL = z.string().min(1)
 
+const TARGET = { id: z.string().min(1).optional() }
+
 export const paneCommandSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('show'), url: URL, rect: RECT }),
-  z.object({ kind: z.literal('hide') }),
-  z.object({ kind: z.literal('setRect'), rect: RECT }),
-  z.object({ kind: z.literal('navigate'), url: URL }),
-  z.object({ kind: z.literal('back') }),
-  z.object({ kind: z.literal('forward') }),
-  z.object({ kind: z.literal('reload') }),
-  z.object({ kind: z.literal('stop') }),
-  z.object({ kind: z.literal('setObscured'), obscured: z.boolean() }),
+  z.object({ ...TARGET, kind: z.literal('show'), url: URL, rect: RECT }),
+  z.object({ ...TARGET, kind: z.literal('hide') }),
+  z.object({ ...TARGET, kind: z.literal('setRect'), rect: RECT }),
+  z.object({ ...TARGET, kind: z.literal('navigate'), url: URL }),
+  z.object({ ...TARGET, kind: z.literal('back') }),
+  z.object({ ...TARGET, kind: z.literal('forward') }),
+  z.object({ ...TARGET, kind: z.literal('reload') }),
+  z.object({ ...TARGET, kind: z.literal('stop') }),
+  z.object({ ...TARGET, kind: z.literal('setObscured'), obscured: z.boolean() }),
 ])
 
 export type PaneCommand = z.infer<typeof paneCommandSchema>
