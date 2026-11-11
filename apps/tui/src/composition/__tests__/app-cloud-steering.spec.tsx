@@ -41,7 +41,6 @@ const onTheClipboard = (): ClipboardImageReader => {
     width: 560,
     height: 280,
     delivery: EImageDelivery.Inline,
-    tokens: 200,
   })
 }
 

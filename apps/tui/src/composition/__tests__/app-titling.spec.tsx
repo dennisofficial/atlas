@@ -62,7 +62,6 @@ const screenshotOnClipboard = (): ClipboardImageReader => {
     width: SHOT_WIDTH,
     height: SHOT_HEIGHT,
     delivery: EImageDelivery.Inline,
-    tokens: 200,
   })
 }
 
