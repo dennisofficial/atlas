@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Atlas — a coding-agent harness you can read all the way down</title>
+    <meta
+      name="description"
+      content="Atlas is a model-agnostic coding-agent harness. The agent loop runs on raw LLM calls through the Vercel AI SDK, and every decision it makes is code in the repo."
+    />
+    <meta name="color-scheme" content="dark" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230b0b0c'/%3E%3Ctext x='16' y='23' font-family='Helvetica,Arial,sans-serif' font-size='20' font-weight='600' fill='%23ededea' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <div class="wrap header-inner">
+        <span class="wordmark">Atlas</span>
+        <nav class="site-nav" aria-label="Project links">
+          <a href="https://github.com/dennisofficial/atlas">GitHub</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero">
+        <div class="wrap">
+          <p class="eyebrow">Coding-agent harness</p>
+          <h1>A coding agent you can read all the way down.</h1>
+          <p class="lede">
+            Atlas runs the agent loop itself: raw LLM calls through the Vercel AI SDK, and its own
+            code deciding what the model sees, which tools it may call, when a human is asked, and
+            what happens on rewind.
+          </p>
+          <p class="hero-actions">
+            <a class="button" href="https://github.com/dennisofficial/atlas">Read the source</a>
+          </p>
+        </div>
+
+        <div class="wrap">
+          <dl class="facts">
+            <div class="fact">
+              <dt>Models</dt>
+              <dd>Claude, Codex, other providers</dd>
+            </div>
+            <div class="fact">
+              <dt>Surfaces</dt>
+              <dd>Web app, Mac app, terminal</dd>
+            </div>
+            <div class="fact">
+              <dt>Sessions</dt>
+              <dd>Cloud sandboxes that outlive a disconnect</dd>
+            </div>
+          </dl>
+        </div>
+      </section>
+
+      <section class="what" aria-labelledby="what-title">
+        <div class="wrap">
+          <h2 id="what-title">What it does</h2>
+          <ol class="grid">
+            <li class="card">
+              <p class="card-index">01</p>
+              <h3>Owns the loop</h3>
+              <p>
+                Context assembly, tool selection, permission checks and rewind are harness code,
+                not a vendor SDK's defaults. Nothing important sits behind an API you cannot open.
+              </p>
+            </li>
+            <li class="card">
+              <p class="card-index">02</p>
+              <h3>Model-agnostic</h3>
+              <p>
+                Claude and Codex credentials are one provider among several. You bring the keys;
+                swapping the model does not change how sessions think.
+              </p>
+            </li>
+            <li class="card">
+              <p class="card-index">03</p>
+              <h3>Long-lived sessions</h3>
+              <p>
+                Agents run in cloud sandboxes and survive disconnects. The web app, the Mac app and
+                the terminal attach to the same session over different transports.
+              </p>
+            </li>
+            <li class="card">
+              <p class="card-index">04</p>
+              <h3>Ships what it builds</h3>
+              <p>
+                Static sites publish straight from the repo as artifacts, and dev servers come up
+                as previews — this page is one of them.
+              </p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="closing" aria-labelledby="closing-title">
+        <div class="wrap">
+          <h2 id="closing-title">Small, public, in progress</h2>
+          <p>
+            Atlas is a public repo with one daily user, under active development. No customer
+            logos, no case studies, no benchmarks — the honest claim is that the whole harness is
+            readable, and that it works well for the person building it.
+          </p>
+          <p class="closing-link">
+            <a href="https://github.com/dennisofficial/atlas">github.com/dennisofficial/atlas</a>
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer-inner">
+        <p>Atlas runs the agent loop. Everything else is a surface.</p>
+        <p><a href="https://github.com/dennisofficial/atlas">Source</a></p>
+      </div>
+    </footer>
+  </body>
+</html>
