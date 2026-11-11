@@ -164,6 +164,20 @@ describe('InboxIntake', () => {
     ])
   })
 
+  it('drafts an entry carrying an origin in its payload as that origin', async () => {
+    const fromChild = { ...entry(11), payload: JSON.stringify({ text: 'm11', via: 'child-agent' }) }
+    const drain = await intakeOver(async () => [fromChild]).prepare()
+    expect(drain.drafts).toEqual([
+      {
+        type: 'user-said',
+        text: 'm11',
+        via: EMessageOrigin.ChildAgent,
+        requestId: 'inbox:11',
+        inboxId: 11,
+      },
+    ])
+  })
+
   it('leaves the draft unchanged when no sender session id rides on the entry', async () => {
     const drain = await intakeOver(async () => [entry(10)]).prepare()
     expect(drain.drafts).toEqual([

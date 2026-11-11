@@ -315,7 +315,7 @@ export class ChildRun {
       },
     ])
     if (reportWakesParent(args.kind)) {
-      await wakeParent(this.parent, reportTextOf(this.parent, args.kind, args.text))
+      await wakeParent(this.parent, reportTextOf(this.parent, args.kind))
       this.woke = true
     }
     return this.snapshot()

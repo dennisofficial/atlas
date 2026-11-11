@@ -2,8 +2,10 @@ import {
   attachmentsOf as attachmentsOfSaid,
   currentContextEvents,
   EKilledBy,
+  EMessageOrigin,
   isNoticeArrival,
   latestTldrPerAnchor,
+  saidBy,
   type Event,
 } from '@dltech/atlas-core'
 
@@ -17,6 +19,14 @@ import { toolRuns, type ToolRun } from './tool-runs'
 import { EAuthor, EEntryKind, toolsRanEntry, type TranscriptEntry } from './transcript-model'
 import { turnEndedEntry, turnsBySeq } from './turn-rows'
 import type { TurnSpend } from './turn-spend'
+
+const agentSenderOf = (event: Event & { type: 'user-said' }): string => {
+  if (event.sender !== undefined) return `session ${event.sender.session}`
+  const from = saidBy(event)
+  if (from === EMessageOrigin.PeerAgent) return 'a peer agent'
+  if (from === EMessageOrigin.ChildAgent) return 'a sub-agent'
+  return 'the main agent'
+}
 
 export function durableEntries(args: {
   events: readonly Event[]
@@ -90,6 +100,18 @@ export function durableEntries(args: {
     if (event.type === 'background-shell-ended') {
       if (isRedundantEnding(event)) return []
       if (event.killedBy !== EKilledBy.SessionEnd) settledShells.add(shellKey(event))
+    }
+
+    if (event.type === 'user-said' && saidBy(event) !== EMessageOrigin.Operator) {
+      return [
+        {
+          kind: EEntryKind.AgentSaid,
+          author: EAuthor.Model,
+          key: event.id,
+          text: event.text,
+          sender: agentSenderOf(event),
+        },
+      ]
     }
 
     if (event.type === 'user-said') {

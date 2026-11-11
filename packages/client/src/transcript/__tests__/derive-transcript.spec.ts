@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EAssistantPlaceholder } from '@dltech/atlas-core'
+import { EAssistantPlaceholder, EMessageOrigin } from '@dltech/atlas-core'
 import { EStepEnd, type StepId, type StepSignal } from '../../channel'
 
 import { deriveTranscript } from '../derive-transcript'
@@ -421,5 +421,29 @@ describe('a tool group opened by the step that was thinking', () => {
 
     expect(model.entries.at(-1)?.kind).toBe(EEntryKind.ModelThought)
     expect(model.entries.at(-1)?.text).toBe('weighing it up\n\nlet me read the doc')
+  })
+})
+
+describe('a message from another agent', () => {
+  it('renders in the agent lane rather than as something the operator said', () => {
+    const model = deriveTranscript({
+      events: log([
+        {
+          type: 'user-said',
+          text: 'Sub-agent brn_1 reported done.',
+          via: EMessageOrigin.ChildAgent,
+        },
+      ]),
+      signals: [],
+    })
+
+    expect(model.entries).toMatchObject([
+      {
+        kind: EEntryKind.AgentSaid,
+        author: EAuthor.Model,
+        text: 'Sub-agent brn_1 reported done.',
+        sender: 'a sub-agent',
+      },
+    ])
   })
 })

@@ -1,6 +1,7 @@
 import {
   attachmentSchema,
   EAttachmentStore,
+  EMessageOrigin,
   ESessionStatus,
   MAX_MESSAGE_UPLOADS,
   saidUploadSchema,
@@ -103,6 +104,7 @@ export type SessionStatusInput = z.infer<typeof sessionStatusInputSchema>
 
 export const inboxMessageSchema = z.strictObject({
   text: z.string(),
+  via: z.nativeEnum(EMessageOrigin).optional(),
   media: z.array(inboxMediaSchema).optional(),
   uploads: z.array(saidUploadSchema).optional(),
   attachments: z.array(attachmentSchema).optional(),

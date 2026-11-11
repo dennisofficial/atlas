@@ -133,7 +133,9 @@ function saidLine(event: EventOfType<'user-said'>, limit: number): string {
         ? 'Operator'
         : saidBy(event) === EMessageOrigin.PeerAgent
           ? 'Peer agent'
-          : 'Main agent'
+          : saidBy(event) === EMessageOrigin.ChildAgent
+            ? 'Sub-agent'
+            : 'Main agent'
   return `${speaker}: ${clipped(event.text, limit)}`
 }
 
