@@ -130,7 +130,7 @@ const rowsOf = (sessions: readonly V2SessionSummary[]) =>
 const childIdsOf = (sessions: readonly ShellSessionNode[], id: string): string[] =>
   sessions.find((session) => session.id === id)?.teammates.map((peer) => peer.id) ?? []
 
-describe('withV2Sessions nesting', () => {
+describe('withV2Sessions placement', () => {
   const root = summary({ sessionId: 'root', createdAt: agoIso(9) })
   const peer = summary({
     sessionId: 'peer',
@@ -143,29 +143,28 @@ describe('withV2Sessions nesting', () => {
     spawnedBy: 'peer',
   })
 
-  it('nests a peer under its spawner instead of listing it as a root', () => {
+  it('lists a spawned session as a row of its own, like one made from the new-session button', () => {
     const rows = rowsOf([root, peer])
-    expect(rows.map((row) => row.id)).toEqual(['ses_v1-old', 'root'])
-    expect(childIdsOf(rows, 'root')).toEqual(['peer'])
-    expect(rows.find((row) => row.id === 'root')?.teammates[0]?.v2).toBe(true)
+    expect(rows.map((row) => row.id)).toEqual(['ses_v1-old', 'root', 'peer'])
+    expect(childIdsOf(rows, 'root')).toEqual([])
+    expect(rows.find((row) => row.id === 'peer')?.spawnedBy).toBe('root')
   })
 
-  it('nests a grandchild under the peer', () => {
+  it('lists a grandchild as its own row too, keeping only its provenance', () => {
     const rows = rowsOf([root, peer, grandchild])
-    const nestedPeer = rows.find((row) => row.id === 'root')?.teammates[0]
-    expect(nestedPeer?.id).toBe('peer')
-    expect(nestedPeer?.teammates.map((node) => node.id)).toEqual(['grand'])
-    expect(nestedPeer?.teammates[0]?.v2).toBe(true)
+    expect(rows.map((row) => row.id)).toEqual(['ses_v1-old', 'root', 'peer', 'grand'])
+    expect(rows.every((row) => row.teammates.length === 0)).toBe(true)
+    expect(rows.find((row) => row.id === 'grand')?.spawnedBy).toBe('peer')
   })
 
-  it('labels the group by provenance and calls a spawned session a session', () => {
+  it('draws no provenance label, because a spawned session is not a child', () => {
     const rows = rowsOf([root, peer])
-    const html = render(rows.find((row) => row.id === 'root') as ShellSessionNode)
-    expect(html).toContain('Created from Fix login')
-    expect(html).not.toContain('teammate')
+    const html = render(rows.find((row) => row.id === 'peer') as ShellSessionNode)
+    expect(html).not.toContain('Created from')
+    expect(rows.find((row) => row.id === 'peer')?.spawnedBy).toBe('root')
   })
 
-  it('keeps an archived peer in teammates so the row shows it in its Done group', () => {
+  it('lists an archived spawned session as its own row', () => {
     const archived = summary({
       sessionId: 'peer',
       title: 'Done peer',
@@ -174,10 +173,9 @@ describe('withV2Sessions nesting', () => {
       spawnedBy: 'root',
     })
     const rows = rowsOf([root, archived])
-    expect(rows.map((row) => row.id)).toEqual(['ses_v1-old', 'root'])
-    expect(childIdsOf(rows, 'root')).toEqual(['peer'])
-    const html = render(rows.find((row) => row.id === 'root') as ShellSessionNode, 'peer')
-    expect(html).toContain('Done')
+    expect(rows.map((row) => row.id)).toEqual(['ses_v1-old', 'root', 'peer'])
+    expect(childIdsOf(rows, 'root')).toEqual([])
+    const html = render(rows.find((row) => row.id === 'peer') as ShellSessionNode, 'peer')
     expect(html).toContain('href="/sessions/peer"')
   })
 
@@ -224,7 +222,7 @@ describe('withV2Sessions nesting', () => {
     ])
   })
 
-  it('orders siblings and roots by creation time however the list arrives', () => {
+  it('orders every session by creation time however the list arrives', () => {
     const early = summary({
       sessionId: 'early',
       createdAt: agoIso(8),
@@ -237,8 +235,8 @@ describe('withV2Sessions nesting', () => {
     })
     const newerRoot = summary({ sessionId: 'newer', createdAt: agoIso(4) })
     const rows = rowsOf([late, newerRoot, root, early])
-    expect(rows.map((row) => row.id)).toEqual(['ses_v1-old', 'root', 'newer'])
-    expect(childIdsOf(rows, 'root')).toEqual(['early', 'late'])
+    expect(rows.map((row) => row.id)).toEqual(['ses_v1-old', 'root', 'early', 'newer', 'late'])
+    expect(childIdsOf(rows, 'root')).toEqual([])
     expect(rowsOf([early, late, root, newerRoot]).map((row) => row.id)).toEqual(
       rows.map((r) => r.id),
     )
