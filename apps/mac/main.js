@@ -1,7 +1,7 @@
 import { createServer } from 'node:http'
 import { join } from 'node:path'
 
-import { app, BrowserWindow, WebContentsView } from 'electron'
+import { app, BrowserWindow, ipcMain, WebContentsView } from 'electron'
 
 import { hostEnvironment, resolveBun, resolveHostScript, webRootAt } from './host-paths.js'
 import { startHost } from './host-process.js'
@@ -14,12 +14,18 @@ import {
   webRootFor,
 } from './web-payload.js'
 
+const FULLSCREEN_STATE = 'atlas-desktop:fullscreen'
+const FULLSCREEN_QUERY = 'atlas-desktop:is-fullscreen'
 const PANE_PATH = '/pane'
 const DESKTOP_PANE_PATH = '/desktop/pane'
 const PANE_PARTITION = 'persist:spike'
 const WINDOW_WIDTH = 1280
 const WINDOW_HEIGHT = 820
 const OUTPUT_LIMIT = 8_000
+
+ipcMain.on(FULLSCREEN_QUERY, (event) => {
+  event.returnValue = BrowserWindow.fromWebContents(event.sender)?.isFullScreen() ?? false
+})
 
 async function readBody(request) {
   const chunks = []
@@ -95,6 +101,9 @@ async function createWindow() {
       contextIsolation: true,
     },
   })
+
+  win.on('enter-full-screen', () => win.webContents.send(FULLSCREEN_STATE, true))
+  win.on('leave-full-screen', () => win.webContents.send(FULLSCREEN_STATE, false))
 
   const panes = createPaneRegistry({
     create: () => {

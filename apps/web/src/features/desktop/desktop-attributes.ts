@@ -24,3 +24,33 @@ export function applyDesktopAttributes({ root, host }: { root: HTMLElement; host
   if (parsed.data.vibrancy === true) root.dataset.vibrancy = ''
   if (parsed.data.nativeBrowser === true) root.dataset.nativeBrowser = ''
 }
+
+export function applyFullScreen({
+  root,
+  fullScreen,
+}: {
+  root: HTMLElement
+  fullScreen: boolean
+}): void {
+  root.toggleAttribute('data-fullscreen', fullScreen)
+}
+
+export function watchFullScreen({
+  host,
+  onChange,
+}: {
+  host: object
+  onChange: (fullScreen: boolean) => void
+}): () => void {
+  const bridge: unknown = Reflect.get(host, 'atlasDesktop')
+  if (typeof bridge !== 'object' || bridge === null) return () => undefined
+  const read = Reflect.get(bridge, 'fullScreen')
+  const watch = Reflect.get(bridge, 'onFullScreenChange')
+  const unwatch = Reflect.get(bridge, 'offFullScreenChange')
+  if (typeof watch !== 'function' || typeof unwatch !== 'function') return () => undefined
+  watch.call(bridge, onChange)
+  if (typeof read === 'function') onChange(read.call(bridge) === true)
+  return () => {
+    unwatch.call(bridge, onChange)
+  }
+}
