@@ -42,13 +42,19 @@ const ordinalOf = (day: number): string => {
 const isWeekdays = (days: readonly number[]): boolean =>
   days.length === 5 && days.every((day, index) => day === index + 1)
 
-const uniformGapOf = (minutes: readonly number[]): number | null => {
-  const sorted = [...minutes].sort((left, right) => left - right)
+const uniformGapOf = ({
+  values,
+  size,
+}: {
+  values: readonly number[]
+  size: number
+}): number | null => {
+  const sorted = [...values].sort((left, right) => left - right)
   const first = sorted[0]
   const last = sorted.at(-1)
   if (sorted.length < 2 || first === undefined || last === undefined) return null
   const gap = (sorted[1] ?? 0) - first
-  if (first + MINUTES_PER_HOUR - last !== gap) return null
+  if (first + size - last !== gap) return null
   const even = sorted.every(
     (minute, index) => index === 0 || minute - (sorted[index - 1] ?? 0) === gap,
   )
@@ -59,8 +65,15 @@ const minuteCadenceOf = (cron: Cron): string | null => {
   if (!covers(cron.hours, HOURS_PER_DAY)) return null
   if (cron.minutes.length === MINUTES_PER_HOUR) return 'Every minute'
   if (cron.minutes.length === 1) return `Every hour at :${pad(cron.minutes[0] ?? 0)}`
-  const gap = uniformGapOf(cron.minutes)
+  const gap = uniformGapOf({ values: cron.minutes, size: MINUTES_PER_HOUR })
   return gap === null ? null : `Every ${gap} minutes`
+}
+
+const hourCadenceOf = (cron: Cron): string | null => {
+  if (cron.minutes.length !== 1) return null
+  const gap = uniformGapOf({ values: cron.hours, size: HOURS_PER_DAY })
+  if (gap === null) return null
+  return gap === 1 ? 'Every hour' : `Every ${gap} hours`
 }
 
 const weekdaysOf = ({ days, at }: { days: readonly number[]; at: string }): string | null => {
@@ -72,7 +85,7 @@ const weekdaysOf = ({ days, at }: { days: readonly number[]; at: string }): stri
 const summaryOfCron = (cron: Cron): string => {
   const minute = cron.minutes[0] ?? 0
   if (!covers(cron.months, MONTHS_PER_YEAR)) return cron.expression
-  const cadence = minuteCadenceOf(cron)
+  const cadence = minuteCadenceOf(cron) ?? hourCadenceOf(cron)
   if (cadence !== null) return cadence
   if (cron.minutes.length !== 1 || cron.hours.length !== 1) return cron.expression
   const at = `${pad(cron.hours[0] ?? 0)}:${pad(minute)}`

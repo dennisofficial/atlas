@@ -2,8 +2,10 @@
 
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { z } from 'zod'
 
 import type { Routine } from '@dltech/atlas-protocol'
+import { parseScheduleText } from '@dltech/atlas-schedule'
 import { Button } from '@dltech/atlas-ui/components/button'
 import { Field, FieldDescription, FieldLabel } from '@dltech/atlas-ui/components/field'
 import { Input } from '@dltech/atlas-ui/components/input'
@@ -18,15 +20,20 @@ import {
   SheetTitle,
 } from '@dltech/atlas-ui/components/sheet'
 
+import {
+  ROUTINE_TIMEZONE_KEY,
+  routineTimezoneOf,
+} from '@/features/settings/data/personal/routine-settings'
 import { useModelPicker } from '@/features/threads/data/use-model-picker'
 import { fetchProjects } from '@/features/threads/data/threads-api'
 import { messageOf } from '@/features/threads/data/use-send'
 import { ModelPickerControls } from '@/features/threads/model-picker'
+import { useCloudSettings } from '@/lib/cloud-settings'
 import { PROJECTS_KEY } from '@/lib/cloud-keys'
 import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 
 import { useCreateRoutine, useRemoveRoutine, useUpdateRoutine } from './data/routines-api'
-import { cronOfDraft, draftOf, modelPatchOf, type RoutineDraft } from './routine-draft'
+import { draftOf, modelPatchOf, type RoutineDraft } from './routine-draft'
 import { RoutineScheduleField } from './routine-schedule-field'
 
 const LABEL = 'flex flex-col gap-1.5 text-sm font-medium'
@@ -45,10 +52,17 @@ function RoutineForm({
   const router = useRouter()
   const projects = useCloudQuery({ key: PROJECTS_KEY, load: fetchProjects })
   const models = useModelPicker()
+  const settings = useCloudSettings()
   const create = useCreateRoutine()
   const update = useUpdateRoutine()
   const remove = useRemoveRoutine()
-  const [draft, setDraft] = useState(() => draftOf(routine, defaultProjectId))
+  const storedTimezone = settings.read({ key: ROUTINE_TIMEZONE_KEY, schema: z.string() })
+  const [draft, setDraft] = useState(() =>
+    draftOf(routine, {
+      projectId: defaultProjectId,
+      defaultTimezone: routineTimezoneOf(storedTimezone),
+    }),
+  )
   const [failure, setFailure] = useState<string | null>(null)
   const saving = create.isPending || update.isPending || remove.isPending
 
@@ -58,10 +72,15 @@ function RoutineForm({
 
   const submit = async () => {
     setFailure(null)
+    const schedule = parseScheduleText(draft.when)
+    if (!schedule.ok) {
+      setFailure(schedule.reason)
+      return
+    }
     const body = {
       name: draft.name.trim(),
       prompt: draft.prompt,
-      cron: cronOfDraft(draft),
+      cron: schedule.cron.expression,
       timezone: draft.timezone.trim(),
       ...modelPatchOf(draft.selection),
     }
@@ -129,9 +148,9 @@ function RoutineForm({
 
         <h2 className="text-xs font-medium text-muted-foreground">Schedule</h2>
         <RoutineScheduleField
-          fields={draft.schedule}
+          when={draft.when}
           timezone={draft.timezone}
-          onFieldsChange={(schedule) => patch({ schedule })}
+          onWhenChange={(when) => patch({ when })}
           onTimezoneChange={(timezone) => patch({ timezone })}
         />
 
@@ -161,8 +180,8 @@ function RoutineForm({
         </label>
         <Field>
           <FieldDescription>
-            The prompt is sent as the session&rsquo;s first message, unchanged. Rewrites are yours
-            to make; the agent cannot edit a routine.
+            The prompt is sent as the session&rsquo;s first message, unchanged. You and the agent
+            both edit routines, and either side&rsquo;s changes show up here.
           </FieldDescription>
         </Field>
 
