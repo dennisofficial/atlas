@@ -1438,6 +1438,10 @@ and a label, and one of them marked as the one that answers for its provider. `A
 with every secret sealed by aes-256-gcm under `~/.atlas/key`. A file rather than the OS keychain,
 because the keychain is one platform's and the vault is not.
 
+Every client that manages accounts manages all of them: the TUI's accounts drawer and the web/Mac
+Providers page list each login a provider holds, switch which one answers, and add another by
+signing in again. The mobile app carries no provider management; it edits model defaults only.
+
 **The model port asks for a credential per request.** `createAnthropicOauthModel` resolves one inside
 `doStream`, so a token that goes stale mid-session is refreshed by the next step rather than failing
 the turn — nothing above the port has to know a refresh happened.

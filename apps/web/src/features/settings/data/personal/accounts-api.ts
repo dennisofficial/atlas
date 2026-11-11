@@ -11,7 +11,7 @@ export enum EAccountKind {
   ApiKey = 'api-key',
 }
 
-const AUTH_PROVIDER_OF: Record<EProviderId, EAuthProvider> = {
+export const AUTH_PROVIDER_OF: Record<EProviderId, EAuthProvider> = {
   [EProviderId.Anthropic]: EAuthProvider.Anthropic,
   [EProviderId.OpenAI]: EAuthProvider.OpenAI,
   [EProviderId.OpenRouter]: EAuthProvider.OpenRouter,
@@ -36,19 +36,27 @@ export async function fetchAccounts(): Promise<Account[]> {
   return z.array(accountSchema).parse(await cloudCall(api.accounts.list.query()))
 }
 
-export function subscriptionFor(args: {
-  accounts: Account[]
+export async function fetchActiveAccountId(provider: EProviderId): Promise<string | null> {
+  const active = await cloudCall(
+    api.accounts.active.query({ provider: AUTH_PROVIDER_OF[provider] }),
+  )
+  return active.accountId
+}
+
+export async function activateAccount(args: {
   provider: EProviderId
-}): Account | null {
-  return (
-    args.accounts.find(
-      (account) => account.provider === args.provider && account.kind === EAccountKind.Oauth,
-    ) ?? null
+  accountId: string
+}): Promise<void> {
+  await cloudCall(
+    api.accounts.setActive.mutate({
+      provider: AUTH_PROVIDER_OF[args.provider],
+      accountId: args.accountId,
+    }),
   )
 }
 
 export function apiKeyFor(args: {
-  accounts: Account[]
+  accounts: readonly Account[]
   provider: EProviderId
 }): ApiKeyEntry | null {
   const account = args.accounts.find(

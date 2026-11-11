@@ -2,33 +2,37 @@
 
 import { useCallback } from 'react'
 
+import { EOauthProvider } from '@dltech/atlas-wire/web'
+import { EBrand } from '@dltech/atlas-ui/components/brand-mark'
+
 import { MODEL_PICKER_KEY } from '@/lib/cloud-keys'
 import { useCloudQuery } from '@/lib/use-cloud-query'
 import { useInvalidateCloud } from '@/lib/use-invalidate-cloud'
 
 import {
+  activateAccount,
   apiKeyFor,
   createApiKeyAccount,
   fetchAccounts,
+  fetchActiveAccountId,
   removeAccount,
   replaceApiKey,
-  subscriptionFor,
   type Account,
 } from '../data/personal/accounts-api'
+import { loginsOf } from '../data/personal/provider-logins'
 import { QueryPage } from '../data/personal/query-boundary'
-import { ProvidersSkeleton } from '../skeletons/library-skeletons'
-import { EProviderSignInState, useProviderSignIn } from '../data/personal/use-provider-sign-in'
+import { useProviderSignIn } from '../data/personal/use-provider-sign-in'
 import { useSaveAction } from '../data/personal/use-save-action'
 import { API_KEY_PROVIDERS, EProviderId } from '../fixtures/settings-agent'
 import { ApiKeyRow } from '../parts/agent-api-key-row'
-import { ProviderSignInPanel } from '../parts/provider-sign-in-panel'
-import { SubscriptionRow, type SubscriptionAccount } from '../parts/agent-subscription-row'
-import { EOauthProvider } from '@dltech/atlas-wire/web'
-import { EBrand } from '@dltech/atlas-ui/components/brand-mark'
+import { ProviderLoginsCard } from '../parts/provider-logins-card'
+import { ProvidersSkeleton } from '../skeletons/library-skeletons'
 import { SettingsCard, SettingsPage, SettingsSection } from '../settings-layout'
 
 const TITLE = 'Providers'
 const DESCRIPTION = 'Where Atlas gets model access. A subscription is used first, then an API key.'
+
+const ACCOUNTS_KEY = 'provider-logins'
 
 const SUBSCRIPTIONS = [
   {
@@ -45,21 +49,30 @@ const SUBSCRIPTIONS = [
     brand: EBrand.OpenAI,
     idleDescription: 'Use your ChatGPT Plus or Pro plan for GPT-5 models.',
   },
-]
+] as const
 
-export function subscriptionView(account: Account | null): SubscriptionAccount | null {
-  if (account === null) return null
-  return {
-    email: account.email ?? account.label,
-    plan: account.subscription ?? 'Connected',
-  }
+type Subscription = (typeof SUBSCRIPTIONS)[number]
+
+type ProvidersData = {
+  accounts: readonly Account[]
+  active: Readonly<Record<string, string | null>>
+}
+
+async function loadProviders(): Promise<ProvidersData> {
+  const [accounts, active] = await Promise.all([
+    fetchAccounts(),
+    Promise.all(
+      SUBSCRIPTIONS.map(
+        async (subscription) =>
+          [subscription.provider, await fetchActiveAccountId(subscription.provider)] as const,
+      ),
+    ),
+  ])
+  return { accounts, active: Object.fromEntries(active) }
 }
 
 export function ProvidersPage() {
-  const query = useCloudQuery({
-    key: 'personal-accounts',
-    load: fetchAccounts,
-  })
+  const query = useCloudQuery({ key: ACCOUNTS_KEY, load: loadProviders })
   return (
     <QueryPage
       query={query}
@@ -67,23 +80,23 @@ export function ProvidersPage() {
       description={DESCRIPTION}
       skeleton={<ProvidersSkeleton />}
     >
-      {(accounts) => <ProvidersContent accounts={accounts} reload={query.reload} />}
+      {(data) => <ProvidersContent data={data} reload={query.reload} />}
     </QueryPage>
   )
 }
 
 function ProvidersContent({
-  accounts,
-  reload: reloadAccounts,
+  data,
+  reload: reloadQuery,
 }: {
-  accounts: Account[]
+  data: ProvidersData
   reload: () => void
 }) {
   const invalidateCloud = useInvalidateCloud()
   const reload = useCallback(() => {
-    reloadAccounts()
+    reloadQuery()
     void invalidateCloud([MODEL_PICKER_KEY])
-  }, [reloadAccounts, invalidateCloud])
+  }, [reloadQuery, invalidateCloud])
   const { saving, run } = useSaveAction()
 
   const handleKeySave = useCallback(
@@ -107,6 +120,17 @@ function ProvidersContent({
       }),
     [run, reload],
   )
+  const handleSwitch = useCallback(
+    (args: { provider: EProviderId; accountId: string }) =>
+      run({
+        work: async () => {
+          await activateAccount(args)
+          reload()
+        },
+        success: 'Atlas will use that account',
+      }),
+    [run, reload],
+  )
   const handleRemove = useCallback(
     (args: { accountId: string; success: string }) =>
       run({
@@ -123,25 +147,23 @@ function ProvidersContent({
     <SettingsPage title={TITLE} description={DESCRIPTION}>
       <SettingsSection
         title="Subscriptions"
-        description="Sign in with a plan you already pay for. Takes precedence over API keys."
+        description="Sign in with the plans you already pay for, then choose the account each provider uses. A subscription takes precedence over an API key."
       >
         <SettingsCard>
-          {SUBSCRIPTIONS.map((subscription) => {
-            const account = subscriptionFor({
-              accounts,
-              provider: subscription.provider,
-            })
-            return (
-              <SubscriptionSignInRow
-                key={subscription.provider}
-                subscription={subscription}
-                account={account}
-                busy={saving}
-                reload={reload}
-                onSignOut={(accountId) => void handleRemove({ accountId, success: 'Signed out' })}
-              />
-            )
-          })}
+          {SUBSCRIPTIONS.map((subscription) => (
+            <SubscriptionGroup
+              key={subscription.provider}
+              subscription={subscription}
+              accounts={data.accounts}
+              activeId={data.active[subscription.provider] ?? null}
+              busy={saving}
+              reload={reload}
+              onSwitch={(accountId) =>
+                void handleSwitch({ provider: subscription.provider, accountId })
+              }
+              onRemove={(accountId) => void handleRemove({ accountId, success: 'Signed out' })}
+            />
+          ))}
         </SettingsCard>
       </SettingsSection>
       <SettingsSection
@@ -150,7 +172,7 @@ function ProvidersContent({
       >
         <SettingsCard>
           {API_KEY_PROVIDERS.map((provider) => {
-            const entry = apiKeyFor({ accounts, provider: provider.id })
+            const entry = apiKeyFor({ accounts: data.accounts, provider: provider.id })
             return (
               <ApiKeyRow
                 key={provider.id}
@@ -181,42 +203,37 @@ function ProvidersContent({
   )
 }
 
-function SubscriptionSignInRow({
+function SubscriptionGroup({
   subscription,
-  account,
+  accounts,
+  activeId,
   busy,
   reload,
-  onSignOut,
+  onSwitch,
+  onRemove,
 }: {
-  subscription: (typeof SUBSCRIPTIONS)[number]
-  account: Account | null
+  subscription: Subscription
+  accounts: readonly Account[]
+  activeId: string | null
   busy: boolean
   reload: () => void
-  onSignOut: (accountId: string) => void
+  onSwitch: (accountId: string) => void
+  onRemove: (accountId: string) => void
 }) {
   const control = useProviderSignIn({
     provider: subscription.oauthProvider,
     onChanged: reload,
   })
+  const logins = loginsOf({ accounts, provider: subscription.provider, activeId })
   return (
-    <SubscriptionRow
-      name={subscription.name}
-      brand={subscription.brand}
-      idleDescription={subscription.idleDescription}
-      signInLabel={`Sign in with ${subscription.name.split(' ')[0]}`}
-      account={subscriptionView(account)}
+    <ProviderLoginsCard
+      provider={subscription}
+      logins={logins.logins}
+      activeId={logins.activeId}
       busy={busy}
-      signInBusy={control.flow.status !== EProviderSignInState.Idle}
-      signInPanel={
-        <ProviderSignInPanel
-          name={subscription.name.split(' ')[0] ?? subscription.name}
-          control={control}
-        />
-      }
-      onSignIn={control.start}
-      onSignOut={() => {
-        if (account !== null) onSignOut(account.id)
-      }}
+      signIn={control}
+      onSwitch={onSwitch}
+      onRemove={onRemove}
     />
   )
 }
