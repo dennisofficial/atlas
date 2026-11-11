@@ -4,6 +4,7 @@ const THREAD_PATH = /^\/threads\/([^/]+)\/?$/
 const SESSION_PATH = /^\/sessions\/([^/]+)\/?$/
 const NEW_THREAD_SEGMENT = 'new'
 const PROJECTS_PATH = /^\/projects(\/|$)/
+const ARTIFACTS_PATH = /^\/artifacts(\/|$)/
 const ROUTINES_PATH = /^\/routines(\/|$)/
 const ROUTINE_PATH = /^\/routines\/([^/]+)\/?$/
 
@@ -39,5 +40,6 @@ export function activeRoutineIdOf(pathname: string): string | null {
 
 export function activeNavOf(pathname: string): EAppNav {
   if (PROJECTS_PATH.test(pathname)) return EAppNav.Projects
+  if (ARTIFACTS_PATH.test(pathname)) return EAppNav.Artifacts
   return ROUTINES_PATH.test(pathname) ? EAppNav.Routines : EAppNav.Threads
 }

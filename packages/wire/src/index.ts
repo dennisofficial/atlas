@@ -56,6 +56,7 @@ export * from './web/file-mounts-wire.js'
 export * from './web/personal-resources-wire.js'
 export * from './web/harness-secrets-wire.js'
 export * from './published-bundle-wire.js'
+export * from './artifacts.js'
 export * from './user-files-wire.js'
 export {
   userVercelCredentialSchema,

@@ -17,6 +17,7 @@ import { apiErrorFormatter } from '../_module/trpc/trpc-error-formatter'
 import { AccountsModule } from './platform/accounts/accounts.module'
 import { CredentialAvailabilityModule } from './platform/credential-availability/credential-availability.module'
 import { AuthModule } from './platform/auth/auth.module'
+import { ArtifactsModule } from './cloud/artifacts/artifacts.module'
 import { GithubModule } from './cloud/github/github.module'
 import { GithubRealtimeModule } from './cloud/github/github-realtime.module'
 import { sweepScheduleImports } from './cloud/github/github-sweep-scheduler'
@@ -98,6 +99,7 @@ import { ControlPlaneModule } from './platform/control/control-plane.module'
     GithubModule,
     SshSigningKeyModule,
     MemoriesModule,
+    ArtifactsModule,
     PublishedBundlesModule,
     ComposerUploadsModule,
     ComposerDraftsModule,

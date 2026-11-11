@@ -1,0 +1,17 @@
+// use prisma-8
+model Artifact {
+  id             String               @id
+  userId         String
+  slug           String
+  token          String
+  name           String
+  currentVersion Int                  @default(0)
+  createdAt      TimestamptzJsDate(3) @default(now())
+  updatedAt      TimestamptzJsDate(3) @onCreate(now()) @onUpdate(now())
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  versions       ArtifactVersion[]
+
+  @@unique([userId, slug], map: "Artifact_userId_slug_key")
+  @@unique([token], map: "Artifact_token_key")
+  @@index([userId], map: "Artifact_userId_idx")
+}

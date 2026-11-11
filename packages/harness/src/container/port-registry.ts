@@ -1,5 +1,6 @@
 import type { PortRegistryEntry } from '@dltech/atlas-core'
 
+import type { ArtifactPort } from '../artifacts/artifact-port'
 import type { DiagramRepairPort } from '../diagrams/diagram-repair-port'
 import type { SessionActivityPort } from '../activity/port'
 import type { GitChangesPort } from '../changes/git-changes.port'
@@ -79,6 +80,7 @@ declare module '@dltech/atlas-core' {
       readonly transport: 'none'
     }
     readonly MemoryPort: PortRegistryEntry<MemoryPort> & { readonly transport: 'none' }
+    readonly ArtifactPort: PortRegistryEntry<ArtifactPort> & { readonly transport: 'none' }
     readonly GitChangesPort: PortRegistryEntry<GitChangesPort> & { readonly transport: 'none' }
     readonly SubscriptionRegistryPort: PortRegistryEntry<SubscriptionRegistryPort> & {
       readonly transport: 'detached'

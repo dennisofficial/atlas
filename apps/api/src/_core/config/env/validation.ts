@@ -3,6 +3,8 @@ import type { IAuthEnv } from './sections/auth'
 import { authEnvSchema } from './sections/auth'
 import type { IBlobEnv } from './sections/blob'
 import { blobEnvSchema } from './sections/blob'
+import type { IArtifactsEnv } from './sections/artifacts'
+import { artifactsEnvSchema } from './sections/artifacts'
 import type { ICloudflareEnv } from './sections/cloudflare'
 import { cloudflareEnvSchema } from './sections/cloudflare'
 import type { ICryptoEnv } from './sections/crypto'
@@ -30,6 +32,7 @@ export interface IEnvConfig
   extends IRuntimeEnv,
     IAuthEnv,
     IBlobEnv,
+    IArtifactsEnv,
     ICloudflareEnv,
     IDatabaseEnv,
     ICryptoEnv,
@@ -45,6 +48,7 @@ export const envConfigValidation = Joi.object({
   ...runtimeEnvSchema,
   ...authEnvSchema,
   ...blobEnvSchema,
+  ...artifactsEnvSchema,
   ...cloudflareEnvSchema,
   ...databaseEnvSchema,
   ...cryptoEnvSchema,
