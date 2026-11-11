@@ -9,7 +9,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@dltech/atlas-ui/components/empty'
-import type { ArtifactSummary } from '@dltech/atlas-wire'
+import type { ArtifactSummary } from '@dltech/atlas-wire/web'
 
 import { QueryGate } from '@/features/settings/data/shared/query-gate'
 import { useCloudQuery } from '@/lib/use-cloud-query'

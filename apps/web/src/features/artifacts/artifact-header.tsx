@@ -14,7 +14,7 @@ import {
   AlertDialogTrigger,
 } from '@dltech/atlas-ui/components/alert-dialog'
 import { Button } from '@dltech/atlas-ui/components/button'
-import type { ArtifactSummary } from '@dltech/atlas-wire'
+import type { ArtifactSummary } from '@dltech/atlas-wire/web'
 
 import { ArtifactStatusChip } from './artifact-status-chip'
 import { CopyButton } from './copy-button'

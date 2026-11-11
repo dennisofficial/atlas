@@ -1,4 +1,4 @@
-import type { ArtifactVersionSummary } from '@dltech/atlas-wire'
+import type { ArtifactVersionSummary } from '@dltech/atlas-wire/web'
 
 import { relativeTime } from '@/features/settings/data/personal/relative-time'
 

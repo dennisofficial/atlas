@@ -1,4 +1,4 @@
-import type { ArtifactEntry } from '@dltech/atlas-wire'
+import type { ArtifactEntry } from '@dltech/atlas-wire/web'
 
 export type ArtifactTree = 'src' | 'dist'
 

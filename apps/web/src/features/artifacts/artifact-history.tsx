@@ -3,7 +3,7 @@
 import { RotateCcwIcon } from 'lucide-react'
 
 import { Button } from '@dltech/atlas-ui/components/button'
-import type { ArtifactSummary, ArtifactVersionSummary } from '@dltech/atlas-wire'
+import type { ArtifactSummary, ArtifactVersionSummary } from '@dltech/atlas-wire/web'
 
 import { shortDate } from '@/features/settings/data/personal/relative-time'
 

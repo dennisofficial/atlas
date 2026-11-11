@@ -92,7 +92,22 @@ async function hashOf(args: {
   )
 }
 
-async function putOne(args: { upload: ArtifactUpload; body: Uint8Array; fetchFn: typeof fetch }) {
+const defaultUploadFetch: ArtifactUploadFetch = async (url, init) => {
+  const body = new ArrayBuffer(init.body.byteLength)
+  new Uint8Array(body).set(init.body)
+  return fetch(url, { method: init.method, body })
+}
+
+type ArtifactUploadFetch = (
+  url: string,
+  init: { method: 'PUT'; body: Uint8Array },
+) => Promise<{ ok: boolean; status: number }>
+
+async function putOne(args: {
+  upload: ArtifactUpload
+  body: Uint8Array
+  fetchFn: ArtifactUploadFetch
+}) {
   const response = await args.fetchFn(args.upload.url, { method: 'PUT', body: args.body })
   if (!response.ok) {
     throw new Error(`uploading ${args.upload.path} failed with HTTP ${response.status}`)
@@ -102,7 +117,7 @@ async function putOne(args: { upload: ArtifactUpload; body: Uint8Array; fetchFn:
 async function putUploads(args: {
   uploads: readonly ArtifactUpload[]
   hashed: readonly Hashed[]
-  fetchFn: typeof fetch
+  fetchFn: ArtifactUploadFetch
 }): Promise<void> {
   const bodies = new Map(args.hashed.map((file) => [file.path, file.bytes]))
   const queue = [...args.uploads]
@@ -138,7 +153,7 @@ export class PublishArtifactTool extends SchemaTool<typeof inputSchema> {
       port: ArtifactPort
       processes: ProcessPort
       files: FileSystemPort
-      fetchFn?: typeof fetch | undefined
+      fetchFn?: ArtifactUploadFetch | undefined
     },
   ) {
     super()
@@ -169,7 +184,7 @@ export class PublishArtifactTool extends SchemaTool<typeof inputSchema> {
       await putUploads({
         uploads: begun.uploads,
         hashed,
-        fetchFn: this.deps.fetchFn ?? fetch,
+        fetchFn: this.deps.fetchFn ?? defaultUploadFetch,
       })
       const committed = await this.deps.port.commitPublish({
         artifactId: begun.artifactId,

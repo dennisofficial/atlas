@@ -27,6 +27,7 @@ describe('next.config', () => {
       '@dltech/atlas-harness',
       '@dltech/atlas-models',
       '@dltech/atlas-protocol',
+      '@dltech/atlas-schedule',
       '@dltech/atlas-ui',
       '@dltech/atlas-wire',
     ])

@@ -1,6 +1,6 @@
 'use client'
 
-import type { ArtifactGetOutput } from '@dltech/atlas-wire'
+import type { ArtifactGetOutput } from '@dltech/atlas-wire/web'
 
 import { QueryGate } from '@/features/settings/data/shared/query-gate'
 import { useRouteParam } from '@/lib/route-param'

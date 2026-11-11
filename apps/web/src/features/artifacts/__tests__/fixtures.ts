@@ -1,4 +1,4 @@
-import type { ArtifactEntry, ArtifactSummary, ArtifactVersionSummary } from '@dltech/atlas-wire'
+import type { ArtifactEntry, ArtifactSummary, ArtifactVersionSummary } from '@dltech/atlas-wire/web'
 
 export const artifactSummary = (over: Partial<ArtifactSummary> = {}): ArtifactSummary => ({
   slug: 'demo',

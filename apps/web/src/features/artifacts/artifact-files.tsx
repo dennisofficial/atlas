@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { FileIcon, FolderIcon } from 'lucide-react'
 
 import { Button } from '@dltech/atlas-ui/components/button'
-import type { ArtifactEntry, ArtifactSummary } from '@dltech/atlas-wire'
+import type { ArtifactEntry, ArtifactSummary } from '@dltech/atlas-wire/web'
 
 import {
   artifactFileTree,

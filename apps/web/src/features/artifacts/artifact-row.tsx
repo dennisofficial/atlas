@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-import type { ArtifactSummary } from '@dltech/atlas-wire'
+import type { ArtifactSummary } from '@dltech/atlas-wire/web'
 
 import { relativeTime } from '@/features/settings/data/personal/relative-time'
 

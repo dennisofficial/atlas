@@ -1,4 +1,8 @@
-import type { ArtifactStatus, ArtifactSummary, ArtifactVersionSummary } from '@dltech/atlas-wire'
+import type {
+  ArtifactStatus,
+  ArtifactSummary,
+  ArtifactVersionSummary,
+} from '@dltech/atlas-wire/web'
 
 const UNITS = ['B', 'KB', 'MB', 'GB'] as const
 const STEP = 1024

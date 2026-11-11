@@ -1,4 +1,4 @@
-import type { ArtifactStatus } from '@dltech/atlas-wire'
+import type { ArtifactStatus } from '@dltech/atlas-wire/web'
 
 import { Badge } from '@dltech/atlas-ui/components/badge'
 

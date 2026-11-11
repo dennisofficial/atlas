@@ -3,7 +3,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, mock } from 'bun:
 import { act } from 'react'
 import type { Root } from 'react-dom/client'
 
-import type { ArtifactSummary } from '@dltech/atlas-wire'
+import type { ArtifactSummary } from '@dltech/atlas-wire/web'
 
 import { createTestQueryClient, TestQueryProvider } from '@/lib/__tests__/query-test-provider'
 

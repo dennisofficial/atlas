@@ -3,7 +3,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'bun:test'
 import { act } from 'react'
 import type { Root } from 'react-dom/client'
 
-import type { ArtifactVersionSummary } from '@dltech/atlas-wire'
+import type { ArtifactVersionSummary } from '@dltech/atlas-wire/web'
 
 import { ArtifactLogs } from '../artifact-logs'
 import { versionSummary } from './fixtures'
