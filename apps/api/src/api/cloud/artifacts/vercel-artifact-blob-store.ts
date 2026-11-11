@@ -16,6 +16,8 @@ const LIST_PAGE_SIZE = 1000
 
 const DOWNLOAD_TTL_MS = 15 * 60 * 1000
 
+const REMOVE_BATCH_SIZE = 100
+
 @Injectable()
 export class VercelArtifactBlobStore extends ArtifactBlobStore {
   constructor(private readonly env: EnvService) {
@@ -42,7 +44,7 @@ export class VercelArtifactBlobStore extends ArtifactBlobStore {
       access: 'public',
       validUntil,
       addRandomSuffix: false,
-      allowOverwrite: false,
+      allowOverwrite: true,
       ...constraints,
     })
     return { url: presignedUrl, validUntil }
@@ -102,6 +104,14 @@ export class VercelArtifactBlobStore extends ArtifactBlobStore {
 
   async delete(args: { pathname: string }): Promise<void> {
     await del(args.pathname, { token: this.token() })
+  }
+
+  async remove(pathnames: readonly string[]): Promise<void> {
+    if (pathnames.length === 0) return
+    const token = this.token()
+    for (let start = 0; start < pathnames.length; start += REMOVE_BATCH_SIZE) {
+      await del([...pathnames.slice(start, start + REMOVE_BATCH_SIZE)], { token })
+    }
   }
 
   async list(args: { prefix: string }): Promise<ArtifactBlobSummary[]> {

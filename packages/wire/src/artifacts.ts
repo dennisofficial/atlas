@@ -7,6 +7,10 @@ export type ArtifactStatus = z.infer<typeof artifactStatusSchema>
 
 const sha256Schema = z.string().regex(/^[0-9a-f]{64}$/)
 
+export const ARTIFACT_SUBDOMAIN_PATTERN = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/
+
+export const artifactSubdomainSchema = z.string().regex(ARTIFACT_SUBDOMAIN_PATTERN)
+
 export const artifactEntrySchema = z.strictObject({
   path: z.string().min(1).max(1024),
   tree: z.enum(['src', 'dist']),
@@ -30,11 +34,9 @@ export type ArtifactServe = z.infer<typeof artifactServeSchema>
 
 export const artifactRouteSchema = z.strictObject({
   artifactId: z.string().min(1),
-  slug: z.string().min(1),
+  subdomain: artifactSubdomainSchema,
   name: z.string().min(1),
-  version: z.number().int().nonnegative(),
-  manifest: artifactManifestSchema,
-  serve: artifactServeSchema.optional(),
+  serve: artifactServeSchema,
 })
 export type ArtifactRoute = z.infer<typeof artifactRouteSchema>
 
@@ -78,17 +80,11 @@ export const artifactCommitPublishOutputSchema = z.strictObject({
 export type ArtifactCommitPublishOutput = z.infer<typeof artifactCommitPublishOutputSchema>
 
 export const artifactSummarySchema = z.strictObject({
-  slug: z.string().min(1),
+  subdomain: artifactSubdomainSchema,
   name: z.string().min(1),
   url: z.url(),
-  currentVersion: z.number().int().nonnegative(),
   status: artifactStatusSchema,
-  bytes: z.number().int().nonnegative(),
-  fileCount: z.number().int().nonnegative(),
-  createdAt: z.string(),
   updatedAt: z.string(),
-  sourceHash: z.string().nullable(),
-  specHash: z.string().nullable(),
 })
 export type ArtifactSummary = z.infer<typeof artifactSummarySchema>
 
@@ -100,22 +96,18 @@ export type ArtifactListOutput = z.infer<typeof artifactListOutputSchema>
 export const artifactSlugInputSchema = z.strictObject({ slug: z.string().min(1).max(120) })
 export type ArtifactSlugInput = z.infer<typeof artifactSlugInputSchema>
 
-export const artifactVersionSummarySchema = z.strictObject({
-  version: z.number().int().positive(),
+export const artifactBuildSchema = z.strictObject({
   status: artifactStatusSchema,
-  createdAt: z.string(),
-  bytes: z.number().int().nonnegative(),
-  fileCount: z.number().int().nonnegative(),
+  log: z.string().nullable(),
   failure: z.string().nullable(),
   durationMs: z.number().int().nonnegative().nullable(),
-  log: z.string().nullable(),
+  updatedAt: z.string(),
 })
-export type ArtifactVersionSummary = z.infer<typeof artifactVersionSummarySchema>
+export type ArtifactBuild = z.infer<typeof artifactBuildSchema>
 
 export const artifactGetOutputSchema = z.strictObject({
   artifact: artifactSummarySchema,
-  versions: z.array(artifactVersionSummarySchema),
-  current: artifactManifestSchema,
+  build: artifactBuildSchema,
 })
 export type ArtifactGetOutput = z.infer<typeof artifactGetOutputSchema>
 
@@ -123,18 +115,6 @@ export const artifactSourceExportOutputSchema = z.strictObject({
   entries: z.array(z.strictObject({ path: z.string().min(1), url: z.url() })),
 })
 export type ArtifactSourceExportOutput = z.infer<typeof artifactSourceExportOutputSchema>
-
-export const artifactRollbackInputSchema = z.strictObject({
-  slug: z.string().min(1).max(120),
-  version: z.number().int().positive(),
-})
-export type ArtifactRollbackInput = z.infer<typeof artifactRollbackInputSchema>
-
-export const artifactRollbackOutputSchema = z.strictObject({
-  url: z.url(),
-  version: z.number().int().positive(),
-})
-export type ArtifactRollbackOutput = z.infer<typeof artifactRollbackOutputSchema>
 
 export const artifactUnpublishOutputSchema = z.strictObject({ ok: z.literal(true) })
 export type ArtifactUnpublishOutput = z.infer<typeof artifactUnpublishOutputSchema>

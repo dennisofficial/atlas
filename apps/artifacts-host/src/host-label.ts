@@ -1,6 +1,6 @@
-import { isValidSlug, isValidToken } from '@dltech/atlas-artifacts'
+import { subdomainOfLabel, type Subdomain } from '@dltech/atlas-artifacts'
 
-export type HostLabel = { token: string; slug: string }
+export type HostSubdomain = Subdomain
 
 const HOST_PORT = /:\d{1,5}$/
 
@@ -18,25 +18,16 @@ const firstLabelOf = (bare: string): string | null => {
   return first === undefined || first.length === 0 ? null : first
 }
 
-const labelOfParts = (label: string): HostLabel | null => {
-  const dash = label.indexOf('-')
-  if (dash === -1) return null
-  const token = label.slice(0, dash)
-  const slug = label.slice(dash + 1)
-  if (!isValidToken(token) || !isValidSlug(slug)) return null
-  return { token, slug }
-}
-
-export function labelOf({
+export function subdomainOf({
   host,
   domain,
 }: {
   host: string
   domain: string | undefined
-}): HostLabel | null {
+}): HostSubdomain | null {
   const bare = withoutPort(host)
   if (bare.length === 0) return null
   const label = domain === undefined ? firstLabelOf(bare) : labelInDomain({ bare, domain })
   if (label === null) return null
-  return labelOfParts(label)
+  return subdomainOfLabel(label)
 }

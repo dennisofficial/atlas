@@ -1,14 +1,10 @@
 import { Injectable } from '@nestjs/common'
 import { createHash } from 'node:crypto'
 import {
-  blobPathOf,
-  contentTypeOf,
-  exceededBy,
+  MAX_BYTES_PER_VERSION,
+  MAX_FILES_PER_VERSION,
   type ArtifactSpec,
-  type ManifestEntry,
 } from '@dltech/atlas-artifacts'
-import { ArtifactBlobStore } from './artifact-blob-store'
-import { presentShas } from './artifact-repository'
 import {
   ARTIFACT_BUILD_CLAMP_MS,
   ArtifactSandbox,
@@ -21,7 +17,7 @@ import {
 export const ARTIFACT_LOG_CAP_BYTES = 64 * 1024
 
 export type ArtifactBuildResult =
-  | { status: 'ready'; manifest: ManifestEntry[]; log: string; durationMs: number }
+  | { status: 'ready'; files: ArtifactSandboxFile[]; log: string; durationMs: number }
   | { status: 'failed'; failure: string; log: string; durationMs: number }
 
 const sha256Of = (content: Buffer): string => createHash('sha256').update(content).digest('hex')
@@ -105,28 +101,37 @@ const failureOf = (args: {
   return null
 }
 
-const manifestOf = (files: readonly ArtifactSandboxFile[]): ManifestEntry[] =>
-  [...files]
-    .map((file) => ({
-      path: file.path,
-      tree: 'dist' as const,
-      sha256: sha256Of(file.content),
-      size: file.content.length,
-      type: contentTypeOf(file.path),
-    }))
-    .sort((left, right) => (left.path < right.path ? -1 : left.path > right.path ? 1 : 0))
+const limitFailure = (files: readonly ArtifactSandboxFile[]): string | null => {
+  if (files.length > MAX_FILES_PER_VERSION) {
+    return `the build wrote ${files.length} files, over the ${MAX_FILES_PER_VERSION} file ceiling`
+  }
+  const bytes = files.reduce((total, file) => total + file.content.length, 0)
+  if (bytes > MAX_BYTES_PER_VERSION) {
+    return `the build wrote ${bytes} bytes, over the ${MAX_BYTES_PER_VERSION} byte ceiling`
+  }
+  return null
+}
+
+const sortedFiles = (files: readonly ArtifactSandboxFile[]): ArtifactSandboxFile[] =>
+  [...files].sort((left, right) => (left.path < right.path ? -1 : left.path > right.path ? 1 : 0))
+
+export const fingerprintOf = (files: readonly ArtifactSandboxFile[]): string =>
+  sha256Of(
+    Buffer.from(
+      sortedFiles(files)
+        .map((file) => `${file.path}\0${sha256Of(file.content)}`)
+        .join('\n'),
+    ),
+  )
 
 @Injectable()
 export class ArtifactBuild {
-  constructor(
-    private readonly sandbox: ArtifactSandbox,
-    private readonly blobs: ArtifactBlobStore,
-  ) {}
+  constructor(private readonly sandbox: ArtifactSandbox) {}
 
   async run(args: {
     threadId: string
     spec: ArtifactSpec
-    source: readonly ManifestEntry[]
+    files: readonly ArtifactSandboxFile[]
   }): Promise<ArtifactBuildResult> {
     const build = args.spec.build
     if (build === undefined) throw new Error('ArtifactBuild.run needs a spec with a build block')
@@ -136,18 +141,9 @@ export class ArtifactBuild {
       build.timeoutSec * 1000 > ARTIFACT_BUILD_CLAMP_MS
         ? `artifact build clamped to ${Math.round(ARTIFACT_BUILD_CLAMP_MS / 1000)}s (spec.build.timeoutSec is ${build.timeoutSec})`
         : null
-    const sources = await this.sourceFiles(args.source)
-    if ('missing' in sources) {
-      return {
-        status: 'failed',
-        failure: `the blob pool has no source for ${sources.missing}`,
-        log: capArtifactLog({ log: '', header, exitCode: null }),
-        durationMs: Date.now() - startedAt,
-      }
-    }
     const result = await this.sandbox.run({
       threadId: args.threadId,
-      files: sources.files,
+      files: args.files,
       install: build.install,
       cmd: build.cmd,
       outDir: build.outDir,
@@ -158,40 +154,8 @@ export class ArtifactBuild {
     const durationMs = Date.now() - startedAt
     const failure = failureOf({ result, outDir: build.outDir, timeoutMs })
     if (failure !== null) return { status: 'failed', failure, log, durationMs }
-    const manifest = manifestOf(result.outDir)
-    const exceeded = exceededBy(manifest)
-    if (exceeded !== null) return { status: 'failed', failure: exceeded.reason, log, durationMs }
-    await this.upload({ files: result.outDir, manifest })
-    return { status: 'ready', manifest, log, durationMs }
-  }
-
-  private async sourceFiles(
-    source: readonly ManifestEntry[],
-  ): Promise<{ files: ArtifactSandboxFile[] } | { missing: string }> {
-    const files: ArtifactSandboxFile[] = []
-    for (const entry of source) {
-      const content = await this.blobs.read({ pathname: blobPathOf(entry.sha256) })
-      if (content === null) return { missing: `${entry.tree}/${entry.path}` }
-      files.push({ path: entry.path, content })
-    }
-    return { files }
-  }
-
-  private async upload(args: {
-    files: readonly ArtifactSandboxFile[]
-    manifest: readonly ManifestEntry[]
-  }): Promise<void> {
-    const bySha = new Map<string, ArtifactSandboxFile>()
-    for (const file of args.files) bySha.set(sha256Of(file.content), file)
-    const present = await presentShas({ blobs: this.blobs, shas: [...bySha.keys()] })
-    for (const [sha, file] of bySha) {
-      if (present.has(sha)) continue
-      await this.blobs.put({
-        pathname: blobPathOf(sha),
-        body: file.content,
-        contentType: contentTypeOf(file.path),
-        allowOverwrite: true,
-      })
-    }
+    const limited = limitFailure(result.outDir)
+    if (limited !== null) return { status: 'failed', failure: limited, log, durationMs }
+    return { status: 'ready', files: sortedFiles(result.outDir), log, durationMs }
   }
 }

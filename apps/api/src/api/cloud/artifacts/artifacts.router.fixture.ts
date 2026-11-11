@@ -1,5 +1,6 @@
 import type { INestApplication } from '@nestjs/common'
-import { blobPathOf } from '@dltech/atlas-artifacts'
+import { sourcePathOf } from '@dltech/atlas-artifacts'
+import { db } from '@dltech/atlas-db'
 import { artifactBeginPublishOutputSchema } from '@dltech/atlas-wire'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { buildSessionTrpcApp, dataOf, trpcMutation } from '../session-trpc-test-app'
@@ -8,7 +9,6 @@ import type { FakeArtifactBlobStore } from './artifact-blob-store.fakes'
 import { ArtifactBuild } from './artifact-build'
 import { ArtifactLifecycleService } from './artifact-lifecycle.service'
 import { ArtifactLibraryService } from './artifact-library.service'
-import { ArtifactRetention } from './artifact-retention'
 import { ArtifactSandbox } from './artifact-sandbox'
 import { FakeArtifactSandbox } from './artifact-sandbox.fakes'
 import { ArtifactsRouter } from './artifacts.router'
@@ -20,11 +20,16 @@ export const OWNER = 'session-a'
 
 export const SANDBOX_TOKENS = { 'sandbox-token-a': { threadId: 'thread-a', userId: 'user-a' } }
 
+export const SOURCE_BODIES: Record<string, string> = {
+  'index.html': '<h1>hello</h1>',
+  'app.css': 'h1{color:red}',
+}
+
 export const SRC_INDEX = {
   path: 'index.html',
   tree: 'src' as const,
   sha256: 'a'.repeat(64),
-  size: 12,
+  size: 13,
   type: 'text/html',
 }
 
@@ -32,7 +37,7 @@ export const SRC_STYLE = {
   path: 'app.css',
   tree: 'src' as const,
   sha256: 'b'.repeat(64),
-  size: 5,
+  size: 13,
   type: 'text/css',
 }
 
@@ -42,7 +47,6 @@ export const withSlug = (slug: string) => ({ slug, entries: DEFAULT_INPUT.entrie
 
 export const buildArtifactsApp = (args: {
   blobs: FakeArtifactBlobStore
-  retention: ArtifactRetention
   sandbox?: FakeArtifactSandbox
 }): Promise<INestApplication> =>
   buildSessionTrpcApp({
@@ -53,7 +57,6 @@ export const buildArtifactsApp = (args: {
       ArtifactLibraryService,
       ArtifactLifecycleService,
       { provide: ArtifactBlobStore, useValue: args.blobs },
-      { provide: ArtifactRetention, useValue: args.retention },
       ArtifactBuild,
       { provide: ArtifactSandbox, useValue: args.sandbox ?? new FakeArtifactSandbox() },
       {
@@ -63,8 +66,26 @@ export const buildArtifactsApp = (args: {
     ],
   })
 
-export const seedUploads = (args: { blobs: FakeArtifactBlobStore; shas: readonly string[] }) => {
-  for (const sha of args.shas) args.blobs.seed({ pathname: blobPathOf(sha), body: sha })
+export const subdomainOf = async (artifactId: string): Promise<string> => {
+  const artifact = await db.orm.public.Artifact.first({ id: artifactId })
+  if (artifact === null) throw new Error(`no artifact ${artifactId}`)
+  return artifact.subdomain
+}
+
+export async function seedSources(args: {
+  blobs: FakeArtifactBlobStore
+  artifactId: string
+  paths: readonly string[]
+  bodies?: Record<string, string>
+}): Promise<void> {
+  const subdomain = await subdomainOf(args.artifactId)
+  const bodies = args.bodies ?? SOURCE_BODIES
+  for (const path of args.paths) {
+    args.blobs.seed({
+      pathname: sourcePathOf({ id: subdomain, path }),
+      body: bodies[path] ?? `${path} body`,
+    })
+  }
 }
 
 export async function publishArtifact(args: {
@@ -72,7 +93,14 @@ export async function publishArtifact(args: {
   blobs: FakeArtifactBlobStore
   token?: string
   input?: unknown
-}): Promise<{ artifactId: string; token: string; slug: string; version: number }> {
+  spec?: unknown
+}): Promise<{
+  artifactId: string
+  token: string
+  slug: string
+  version: number
+  subdomain: string
+}> {
   const token = args.token ?? OWNER
   const begun = await trpcMutation({
     app: args.app,
@@ -81,12 +109,16 @@ export async function publishArtifact(args: {
     input: args.input ?? DEFAULT_INPUT,
   }).expect(200)
   const granted = artifactBeginPublishOutputSchema.parse(dataOf(begun.body))
-  seedUploads({ blobs: args.blobs, shas: granted.uploads.map((upload) => upload.sha256) })
+  await seedSources({
+    blobs: args.blobs,
+    artifactId: granted.artifactId,
+    paths: granted.uploads.map((upload) => upload.path),
+  })
   await trpcMutation({
     app: args.app,
     path: 'artifacts.commitPublish',
     token,
-    input: { artifactId: granted.artifactId, version: granted.version, spec: {} },
+    input: { artifactId: granted.artifactId, version: granted.version, spec: args.spec ?? {} },
   }).expect(200)
-  return granted
+  return { ...granted, subdomain: await subdomainOf(granted.artifactId) }
 }

@@ -23,7 +23,7 @@ export function ArtifactList({ artifacts }: { artifacts: readonly ArtifactSummar
   return (
     <ul className={ARTIFACT_LIST_CLASS}>
       {artifactsNewestFirst(artifacts).map((artifact) => (
-        <ArtifactRow key={artifact.slug} artifact={artifact} />
+        <ArtifactRow key={artifact.subdomain} artifact={artifact} />
       ))}
     </ul>
   )

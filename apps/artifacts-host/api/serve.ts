@@ -1,6 +1,6 @@
 import { respond } from '../src/respond'
 import { injectEncryptedTierEnv } from '../src/tier-env'
-import { createBlobFetcher, createRouteFetcher } from '../src/route-object'
+import { createObjectFetcher, createRouteFetcher } from '../src/route-object'
 
 injectEncryptedTierEnv()
 
@@ -25,7 +25,7 @@ const handler = {
       request,
       domain: process.env.ARTIFACT_DOMAIN?.trim() || undefined,
       fetchRoute: createRouteFetcher(baseUrl),
-      fetchBlob: createBlobFetcher(baseUrl),
+      fetchObject: createObjectFetcher(baseUrl),
     })
   },
 }

@@ -10,17 +10,11 @@ import { UnpublishArtifactTool } from '../artifact-unpublish'
 import { FakeArtifactPort } from './artifact-fakes'
 
 const summary: ArtifactSummary = {
-  slug: 'demo',
+  subdomain: 'demo',
   name: 'Demo',
   url: 'https://demo.artifacts.test',
-  currentVersion: 4,
   status: 'ready',
-  bytes: 20_480,
-  fileCount: 12,
-  createdAt: '2026-11-08T10:00:00.000Z',
   updatedAt: '2026-11-09T10:00:00.000Z',
-  sourceHash: null,
-  specHash: null,
 }
 
 const invoke = async (input: Record<string, unknown>, tool: ToolDefinition) =>
@@ -45,14 +39,14 @@ describe('artifact_list', () => {
     expect(text).not.toContain('|')
   })
 
-  it('renders a row per artifact with its URL, version, status, size and age', async () => {
+  it('renders a row per artifact with its URL, status and when it was last published', async () => {
     const port = new FakeArtifactPort()
     port.artifacts = [summary]
 
     const text = modelTextOf(await invoke({}, new ListArtifactsTool(port)))
 
-    expect(text).toContain('name | url | version | status | bytes | updated')
-    expect(text).toContain('Demo | https://demo.artifacts.test | v4 | ready | 20 KiB (12 files)')
+    expect(text).toContain('name | url | status | updated')
+    expect(text).toContain('Demo | https://demo.artifacts.test | ready | 2026-11-09T10:00:00.000Z')
     expect(text).toContain(summary.updatedAt)
   })
 

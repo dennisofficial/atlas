@@ -1,0 +1,121 @@
+[
+  {
+    "id": "column.Artifact.subdomain",
+    "label": "Add column subdomain to Artifact",
+    "summary": "Adds column subdomain to table Artifact",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "subdomain",
+        "table": "Artifact"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"subdomain\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Artifact",
+          "subdomain"
+        ]
+      },
+      {
+        "description": "ensure table \"Artifact\" is empty before adding NOT NULL column without default",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"public\".\"Artifact\" LIMIT 1) AS \"result\"",
+        "params": [],
+        "meta": {
+          "requiredColumn": {
+            "table": "Artifact",
+            "column": "subdomain",
+            "reason": "newField"
+          }
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"subdomain\"",
+        "sql": "ALTER TABLE \"public\".\"Artifact\" ADD COLUMN \"subdomain\" text NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"subdomain\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Artifact",
+          "subdomain"
+        ]
+      },
+      {
+        "description": "verify column \"subdomain\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "Artifact",
+          "subdomain",
+          "NO"
+        ]
+      },
+      {
+        "description": "verify column \"subdomain\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Artifact",
+          "subdomain",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.Artifact.Artifact_subdomain_key",
+    "label": "Add unique constraint on \"Artifact\" (subdomain)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "Artifact_subdomain_key",
+        "table": "Artifact"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Artifact_subdomain_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Artifact_subdomain_key",
+          "public",
+          "\"public\".\"Artifact\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"Artifact_subdomain_key\"",
+        "sql": "ALTER TABLE \"public\".\"Artifact\" ADD CONSTRAINT \"Artifact_subdomain_key\" UNIQUE (\"subdomain\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"Artifact_subdomain_key\" exists on (subdomain)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "Artifact_subdomain_key",
+          "public",
+          "\"public\".\"Artifact\"",
+          "u",
+          "[\"subdomain\"]"
+        ]
+      }
+    ]
+  }
+]

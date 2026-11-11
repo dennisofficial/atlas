@@ -67,6 +67,10 @@ export class FakeArtifactBlobStore extends ArtifactBlobStore {
     this.stored.delete(args.pathname)
   }
 
+  async remove(pathnames: readonly string[]): Promise<void> {
+    for (const pathname of pathnames) await this.delete({ pathname })
+  }
+
   async list(args: { prefix: string }): Promise<ArtifactBlobSummary[]> {
     return [...this.stored.entries()]
       .filter(([pathname]) => pathname.startsWith(args.prefix))

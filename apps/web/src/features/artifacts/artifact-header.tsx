@@ -1,6 +1,6 @@
 'use client'
 
-import { ExternalLinkIcon, RotateCcwIcon } from 'lucide-react'
+import { ExternalLinkIcon } from 'lucide-react'
 
 import {
   AlertDialog,
@@ -37,8 +37,8 @@ export function UnpublishDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Unpublish {name}?</AlertDialogTitle>
           <AlertDialogDescription>
-            The artifact and every version of it are deleted, and its URL stops serving. Files an
-            agent kept in the thread are not touched.
+            The artifact, its source and its published build are deleted, and its URL stops serving.
+            Files an agent kept in the thread are not touched.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -54,15 +54,11 @@ export function UnpublishDialog({
 
 export function ArtifactHeader({
   artifact,
-  rollbackTarget,
   busy,
-  onRollback,
   onUnpublish,
 }: {
   artifact: ArtifactSummary
-  rollbackTarget: number | null
   busy: boolean
-  onRollback: (version: number) => void
   onUnpublish: () => void
 }) {
   return (
@@ -70,7 +66,6 @@ export function ArtifactHeader({
       <div className="flex min-w-0 flex-wrap items-center gap-2">
         <h1 className="truncate text-xl font-medium tracking-tight">{artifact.name}</h1>
         <ArtifactStatusChip status={artifact.status} />
-        <span className="text-xs text-muted-foreground">v{artifact.currentVersion}</span>
       </div>
       <p className="truncate font-mono text-xs text-muted-foreground">{artifact.url}</p>
       <div className="flex flex-wrap items-center gap-2">
@@ -83,15 +78,6 @@ export function ArtifactHeader({
           Open
         </Button>
         <CopyButton value={artifact.url} label="Copy artifact URL" text="Copy URL" />
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={rollbackTarget === null || busy}
-          onClick={() => (rollbackTarget === null ? undefined : onRollback(rollbackTarget))}
-        >
-          <RotateCcwIcon data-icon="inline-start" />
-          {rollbackTarget === null ? 'Rollback' : `Rollback to v${rollbackTarget}`}
-        </Button>
         <UnpublishDialog name={artifact.name} busy={busy} onUnpublish={onUnpublish} />
       </div>
     </header>

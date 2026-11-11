@@ -10,7 +10,8 @@ import {
   type SelectionPolicy,
 } from '../selection'
 import { parseSpec, SPEC_FILE_NAME, type ArtifactSpec } from '../spec'
-import { TOKEN_LENGTH } from '../tokens'
+
+const TOKEN_LENGTH = 8
 
 const GITIGNORE_FILE_NAME = '.gitignore'
 
