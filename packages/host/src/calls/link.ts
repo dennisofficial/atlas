@@ -58,6 +58,9 @@ export class DaemonLink {
   start(args: { connector(): Promise<DaemonConnector>; hello(): HostFrame }): void {
     this.connector = args.connector
     this.hello = args.hello
+    this.stopped = false
+    this.failures = 0
+    this.misses = 0
     void this.connect()
   }
 
@@ -91,10 +94,8 @@ export class DaemonLink {
   }
 
   restart(): void {
-    this.stopped = false
-    this.failures = 0
-    this.misses = 0
-    void this.connect()
+    if (this.connector === null || this.hello === null) return
+    this.start({ connector: this.connector, hello: this.hello })
   }
 
   teardown(): void {

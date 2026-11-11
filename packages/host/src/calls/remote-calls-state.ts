@@ -38,7 +38,7 @@ export class RemoteCallsState {
 
   private epoch = 0
   private linkBootId: string | undefined
-  private fenced = false
+  private fencedAt: number | undefined
   private closed = false
   private detached = false
   private down: Error | null = null
@@ -56,7 +56,7 @@ export class RemoteCallsState {
         onFrame: (frame) => handleDaemonFrame(this.sink(), frame),
         onDown: () => this.handleLinkDown(),
         onSuperseded: (reason) => {
-          this.fenced = true
+          this.fencedAt = this.epoch
           args.onFenced()
           this.failAll(new FencedError(`session ${args.sessionId} lost its lease: ${reason}`))
         },
@@ -77,7 +77,9 @@ export class RemoteCallsState {
   }
 
   open(args: { epoch: number }): void {
+    const tookOver = this.leaseTookOver(args.epoch)
     this.epoch = args.epoch
+    if (tookOver) this.gate.rearm()
     this.link.start({
       connector: this.args.connector,
       hello: () => ({
@@ -87,6 +89,17 @@ export class RemoteCallsState {
         token: this.args.token,
       }),
     })
+  }
+
+  private leaseTookOver(epoch: number): boolean {
+    if (this.fencedAt === undefined || epoch <= this.fencedAt) return false
+    this.fencedAt = undefined
+    this.down = null
+    return true
+  }
+
+  private get fenced(): boolean {
+    return this.fencedAt !== undefined
   }
 
   ready(): Promise<ReadyReply> {
