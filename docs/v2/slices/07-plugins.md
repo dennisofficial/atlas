@@ -380,34 +380,30 @@ survives as the peer-session preset (03-teammates, "The decision").
 - **Views:** `spawnedBy` (the sidebar nesting and the Done grouping). Slice 4's view does not carry
   it; this plugin adds the fold, and web's sidebar reads it
   (`apps/web/src/features/shell/v2-rows.ts:19`).
-- **Commands** (control-handled, like `rename`): `spawn_session{agentType?, brief?, worktree?,
-  intoPod?}`, `message_session{sessionId, text}`, `list_sessions`. The tools of the same names post
-  them.
+- **Commands** (control-handled, like `rename`): `spawn_session{title?, brief?}`,
+  `message_session{sessionId, text}`, `report_to_spawner{kind, text}`, `list_sessions`. The tools of
+  the same names post them; `report_to_spawner` resolves the spawner from the session row.
 - **Pod:** the three tools; the sender ACL is enforced by the control handler, not the pod.
 - **Control:** creating the session and its main thread (`createSessionWithMainThread`), the
-  `spawned-by` link, placement (`podRef` = the spawner's pod for the teammate preset), and the
-  inbox message that wakes an idle peer.
+  `spawned-by` link, the spawner lookup behind a report, and the inbox message that wakes an idle
+  peer. A spawned session always gets its own pod; the control plane cannot place it on another
+  session's pod.
 - **Client:** the sidebar nesting and the Done group; the peer's own session page is the ordinary one.
 - **Transport:** `none`; the session stream carries everything.
 
-**Open (0020, to settle in this plugin's spec section):** the per-session message budget (a number
-and a window); whether `intoPod` is default-on for a teammate preset or an option; whether the
-preset groups under the spawner in the sidebar via `spawned-by` alone or needs a family label.
-
-**Proof (live):** a v2 session spawns a peer with the teammate preset; it shares the pod; the parent
-messages it and the peer replies; the sidebar nests it under the parent; the operator archives it and
-it moves to Done; the budget refuses a message past the limit.
+**Proof (live):** a v2 session spawns a peer; the peer gets its own pod; the parent messages it and
+the peer replies; the sidebar nests it under the parent; the operator archives it and it moves to
+Done.
 
 **Settled 2026-11-09 (the open questions above).**
-- **`spawn_session` creates an ordinary session by default, and a teammate only when asked.** The
-  operator's correction of 2026-11-09: `spawn_session{title?, brief?, intoPod?}` with `intoPod`
-  absent or false is the same as creating a session in the UI — its **own sandbox and a fresh
-  clone**, the spawner's project, its own lifecycle, no tie beyond the provenance link. It exists so
-  a session can hand off or send off-scope work ("create a new session") and keep going. `intoPod:
-  true` is the **teammate** this slice's design described: `podSessionId = spawner.podSessionId ??
-  spawner.sessionId`, so it shares the lead's sandbox, workspace and context. **A teammate cannot
-  create another teammate**: `intoPod: true` from a session whose own `podSessionId` is set is
-  refused, though it may still create an ordinary session.
+- **`spawn_session` creates an ordinary session, always.** It is the same as creating a session in
+  the UI — its **own sandbox and a fresh clone**, the spawner's project, its own lifecycle, no tie
+  beyond the provenance link — because a session created by another session is a session, not a
+  second kind of session sharing a sandbox. `spawnedBySessionId` is provenance that enters the
+  sidebar nesting and the child's prompt; it grants or restricts nothing. A spawned session that
+  spawns another gets an ordinary session too, and `report_to_spawner{kind, text}` posts to the
+  creator's inbox as a message from the reporting session, waking it for done, blocked and
+  needs-decision and not for progress. See [sessions-link.md](sessions-link.md).
 - **The sidebar nests by `spawned-by` alone.** v1 nests teammates with no family label
   (`apps/web/src/features/shell/live-list.ts:139-150`); v2 reuses the shape, and the existing
   `TeammateList` gives the Done group for archived children. The nesting is a display convenience
@@ -422,10 +418,9 @@ it moves to Done; the budget refuses a message past the limit.
   the same rows the sidebar shows. `message_session` accepts any session of the same user; messages
   are unlimited (the 20-message budget the feature first shipped was removed on 2026-11-09 at the
   operator's direction).
-- **A shared pod parks by its sandbox deadline, not by a release stop.** For a teammate, the idle
-  release stops the sandbox only when no other session is placed on the pod (`podPeersPlaced`, which
-  counts a root session whose `podSessionId` is null as itself). Any other placed session blocks the
-  stop, so no release can stop a sandbox under a teammate that is working or about to wake.
+- **A pod parks by its sandbox deadline, not by a release stop.** The idle release stops a sandbox
+  only when no other session is placed on its pod (`podPeersPlaced`, which counts a root session
+  whose `podSessionId` is null as itself).
 - **The sender is an inbox column, not payload JSON.** `V2InboxEntry.senderSessionId` carries it, so
   a host that predates this slice still parses the message (it renders it in the operator lane
   rather than dropping it) during the deploy that introduces it, and the payload stays the shape
@@ -925,13 +920,12 @@ registered in `apps/api` and `apps/agent-host`; the tools `spawn_session`, `mess
 control plane; the sessions prompt fragment; the pure `nestPeers` fold the web sidebar uses. The
 settled answers are in §5.6 above.
 
-**A spawned session is an ordinary session unless asked for a teammate.** `spawn_session` with
-`intoPod` absent or false is the same as creating a session in the UI — its own sandbox and a fresh
-clone, no lifecycle tie. `intoPod: true` makes a **teammate**: `podSessionId = spawner.podSessionId ??
-spawner.sessionId`, so it shares the lead's sandbox, workspace and context, and a teammate cannot
-create another teammate (`intoPod: true` from a session whose own `podSessionId` is set is refused).
-`spawnedBySessionId` is provenance that feeds the sidebar nesting and grants or restricts nothing.
-The live check below ran when placement was the default; it is now the teammate mode.
+**A spawned session is an ordinary session.** `spawn_session` is the same as creating a session in
+the UI — its own sandbox and a fresh clone, no lifecycle tie and no second placement mode (the
+`intoPod` field was removed on 2026-11-11; see [sessions-link.md](sessions-link.md)).
+`spawnedBySessionId` is provenance that feeds the sidebar nesting and grants or restricts nothing,
+and the child reports back with `report_to_spawner`. The live check below ran when every spawn was
+placed on the spawner's pod, which no longer exists; the rows marked † describe that mode.
 
 **Sender.** `V2InboxEntry.senderSessionId` carries who posted; the payload stays `{text}`, so a host
 that predates the change still parses the message. The intake stamps `sender: {session}` plus
@@ -942,7 +936,7 @@ user may message any other; the 20-message budget the feature first shipped was 
 **Live check (2026-11-09, production).** Session `b6cdbfe7-63b3-4f46-a3fe-c493b3fe06cc`, thread
 `914374a5-3dab-4713-a50a-6f3a968ff5c5`, project `cmvh6z3ls002i08jwseqmwbrv`, agent host on
 `bd4eb64b1` (its sandbox cloned the same head). It ran when every spawn was placed on the spawner's
-pod — today that is `intoPod: true`; the rows marked † describe the teammate mode.
+pod, a placement that no longer exists; the rows marked † describe that mode.
 
 | Step                           | Result                                                                                                                                                                                                      |
 | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

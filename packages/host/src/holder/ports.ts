@@ -2,6 +2,7 @@ import type {
   AssemblyPipeline,
   MediaUrlResolver,
   ModelPort,
+  PromptSpawner,
   ThreadId,
   WorkspaceStepReport,
 } from '@dltech/atlas-core'
@@ -95,4 +96,5 @@ export type SessionRuntimeFactory = (args: {
   threadId: ThreadId
   epoch: number
   signal: AbortSignal
+  spawner?: PromptSpawner | undefined
 }) => Promise<SessionRuntime>

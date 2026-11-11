@@ -79,6 +79,11 @@ describe('agent_spawn with a worktree', () => {
       method: 'create',
       args: { cwd: inWorktree.path, name: 'dennis/child' },
     })
+    const spawn = crew.calls.find((call) => call.method === 'spawn')
+    expect(spawn?.args).toMatchObject({ worktree: { branch: 'dennis/child' } })
+    expect(spawn?.args).not.toMatchObject({
+      worktree: { branch: inWorktree.branch },
+    })
   })
 
   it('refuses an absolute path git does not list instead of creating a branch', async () => {

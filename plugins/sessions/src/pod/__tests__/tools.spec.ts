@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { toThreadId, type PromptContext } from '@dltech/atlas-core'
+import { ESessionStatus, EReportKind, toThreadId, type PromptContext } from '@dltech/atlas-core'
 import {
   EMPTY_CREW,
   EMPTY_WORKTREES,
@@ -26,6 +26,7 @@ const briefOf = (overrides: Partial<SessionBrief> = {}): SessionBrief => ({
   spawnedBy: 's1',
   archivedAt: null,
   current: false,
+  status: { state: ESessionStatus.Idle },
   ...overrides,
 })
 
@@ -40,6 +41,10 @@ const fakeSessions = (
     },
     message: async (messageArgs) => {
       calls.push({ method: 'message', args: messageArgs })
+      return args.refused === undefined ? { queued: true } : { refused: args.refused }
+    },
+    report: async (reportArgs) => {
+      calls.push({ method: 'report', args: reportArgs })
       return args.refused === undefined ? { queued: true } : { refused: args.refused }
     },
     list: async () => {
@@ -61,7 +66,9 @@ const rig = (sessions: PodSessions) => {
         throw new Error('this rig exposes no port')
       },
       mcp: EMPTY_MCP_CONTROL,
-      webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
+      webSearch: {
+        config: async () => ({ backend: undefined, key: undefined }),
+      },
       memory: {
         list: async () => ({ project: null, memories: [] }),
         read: async () => null,
@@ -102,38 +109,55 @@ const textOf = (outcome: Awaited<ReturnType<typeof invoke>>): string =>
   outcome.ok ? outcome.modelText : outcome.reason
 
 describe('the sessions pod', () => {
-  it('declares its three tools and prompts a fragment, and denies a child none', () => {
+  it('declares its four tools and prompts a fragment, and denies a child none', () => {
     const { ctx } = rig(fakeSessions().port)
     expect(sessionsPod.tools?.(ctx).map((tool) => tool.name)).toEqual([
       'spawn_session',
       'message_session',
+      'report_to_spawner',
       'list_sessions',
     ])
     expect(sessionsPod.prompts.map((fragment) => fragment.id)).toEqual(['sessions.peers'])
     expect(sessionsPod.childDeny).toBeUndefined()
   })
 
-  it('writes with spawn and message and reads with list', () => {
+  it('writes with spawn, message and report and reads with list', () => {
     const { ctx } = rig(fakeSessions().port)
     const effects = (sessionsPod.tools?.(ctx) ?? []).map((tool) => [tool.name, tool.effect])
     expect(effects).toEqual([
       ['spawn_session', 'write'],
       ['message_session', 'write'],
+      ['report_to_spawner', 'write'],
       ['list_sessions', 'read'],
     ])
   })
 
-  it('describes every session as the operator’s own, with no lead or peer', () => {
+  it('describes every session as the operator’s own, with no lead or peer and no shared pod', () => {
     const { ctx } = rig(fakeSessions().port)
     for (const tool of sessionsPod.tools?.(ctx) ?? []) {
-      expect(tool.description).toContain('operator')
       expect(tool.description).not.toContain('peer')
       expect(tool.description).not.toContain('sub-agent')
+      expect(tool.description).not.toContain('intoPod')
+      expect(tool.description).not.toContain('shares your sandbox')
     }
     const text = sessionsPod.prompts[0]?.text(promptCtx) ?? ''
     expect(text).not.toContain('peer')
-    expect(text).toContain('teammate')
+    expect(text).not.toContain('teammate')
     expect(text).toContain('provenance')
+    expect(text).toContain('own sandbox')
+  })
+
+  it('names the session that created this one in the fragment', () => {
+    const text = sessionsPod.prompts[0]?.text({
+      ...promptCtx,
+      spawner: { sessionId: 's0', title: 'the parser' },
+    })
+    expect(text).toContain('s0 (the parser) created this one')
+    expect(text).toContain('report_to_spawner')
+  })
+
+  it('says nothing about a creator when this session has no spawner', () => {
+    expect(sessionsPod.prompts[0]?.text(promptCtx) ?? '').not.toContain('created this one')
   })
 })
 
@@ -149,11 +173,14 @@ describe('spawn_session', () => {
     expect(sessions.calls).toEqual([
       {
         method: 'spawn',
-        args: { title: 'trace the port', brief: 'read the port and report', intoPod: undefined },
+        args: { title: 'trace the port', brief: 'read the port and report' },
       },
     ])
     expect(outcome.ok).toBe(true)
-    expect(outcome.ok && outcome.output).toEqual({ sessionId: 'p1', mainThreadId: 't1' })
+    expect(outcome.ok && outcome.output).toEqual({
+      sessionId: 'p1',
+      mainThreadId: 't1',
+    })
     expect(textOf(outcome)).toContain('p1')
     expect(textOf(outcome)).toContain('first message')
   })
@@ -163,13 +190,13 @@ describe('spawn_session', () => {
     const { ctx } = rig(sessions.port)
     const outcome = await invoke({ ctx, name: 'spawn_session', input: {} })
     expect(sessions.calls).toEqual([
-      { method: 'spawn', args: { title: undefined, brief: undefined, intoPod: undefined } },
+      { method: 'spawn', args: { title: undefined, brief: undefined } },
     ])
     expect(textOf(outcome)).toContain('no brief')
     expect(textOf(outcome)).not.toContain('teammate')
   })
 
-  it('asks for a teammate in the calling sandbox when intoPod is true', async () => {
+  it('refuses a field that would place the session on another pod', async () => {
     const sessions = fakeSessions()
     const { ctx } = rig(sessions.port)
     const outcome = await invoke({
@@ -177,12 +204,42 @@ describe('spawn_session', () => {
       name: 'spawn_session',
       input: { brief: 'pair with me', intoPod: true },
     })
+    expect(outcome.ok).toBe(false)
+    expect(sessions.calls).toEqual([])
+  })
+})
+
+describe('report_to_spawner', () => {
+  it('sends the kind and the text and says the report is with the spawner', async () => {
+    const sessions = fakeSessions()
+    const { ctx } = rig(sessions.port)
+    const outcome = await invoke({
+      ctx,
+      name: 'report_to_spawner',
+      input: { kind: EReportKind.Blocked, text: 'the parser needs a fixture' },
+    })
     expect(sessions.calls).toEqual([
-      { method: 'spawn', args: { title: undefined, brief: 'pair with me', intoPod: true } },
+      {
+        method: 'report',
+        args: { kind: EReportKind.Blocked, text: 'the parser needs a fixture' },
+      },
     ])
-    expect(textOf(outcome)).toBe(
-      'Started teammate p1 in your sandbox; your brief is its first message.',
-    )
+    expect(outcome.ok && outcome.output).toEqual({ kind: EReportKind.Blocked })
+    expect(textOf(outcome)).toContain('created you')
+  })
+
+  it('turns a session with no spawner into the tool reason', async () => {
+    const sessions = fakeSessions({ refused: 'this session has no spawner' })
+    const { ctx } = rig(sessions.port)
+    const outcome = await invoke({
+      ctx,
+      name: 'report_to_spawner',
+      input: { kind: EReportKind.Done, text: 'all done' },
+    })
+    expect(outcome).toEqual({
+      ok: false,
+      reason: 'this session has no spawner',
+    })
   })
 })
 
@@ -203,23 +260,49 @@ describe('message_session', () => {
   })
 
   it('turns a refusal into the tool reason and keeps the message', async () => {
-    const sessions = fakeSessions({ refused: 'this session has received all 20 messages' })
+    const sessions = fakeSessions({
+      refused: 'this session has received all 20 messages',
+    })
     const { ctx } = rig(sessions.port)
     const outcome = await invoke({
       ctx,
       name: 'message_session',
       input: { sessionId: 'p1', text: 'again' },
     })
-    expect(outcome).toEqual({ ok: false, reason: 'this session has received all 20 messages' })
+    expect(outcome).toEqual({
+      ok: false,
+      reason: 'this session has received all 20 messages',
+    })
   })
 })
 
 describe('list_sessions', () => {
-  it('lists every session with its title, archived state and the current one marked', async () => {
+  it('lists every session with its title, status and the current one marked', async () => {
     const briefs = [
-      briefOf({ sessionId: 's0', title: 'the main one', spawnedBy: null, current: true }),
-      briefOf({ sessionId: 'p1', title: 'one' }),
-      briefOf({ sessionId: 'p2', title: null, archivedAt: '2026-11-09T10:00:00.000Z' }),
+      briefOf({
+        sessionId: 's0',
+        title: 'the main one',
+        spawnedBy: null,
+        current: true,
+      }),
+      briefOf({
+        sessionId: 'p1',
+        title: 'one',
+        status: { state: ESessionStatus.Thinking },
+      }),
+      briefOf({
+        sessionId: 'p2',
+        title: null,
+        status: {
+          state: ESessionStatus.Failed,
+          reason: 'the sandbox did not boot',
+        },
+      }),
+      briefOf({
+        sessionId: 'p3',
+        title: 'three',
+        archivedAt: '2026-11-09T10:00:00.000Z',
+      }),
     ]
     const sessions = fakeSessions({ briefs })
     const { ctx } = rig(sessions.port)
@@ -227,10 +310,11 @@ describe('list_sessions', () => {
     expect(outcome.ok).toBe(true)
     expect(outcome.ok && outcome.output).toEqual({ sessions: briefs })
     const text = textOf(outcome)
-    expect(text).toContain('s0  the main one  open  current')
-    expect(text).toContain('p1  one  open')
-    expect(text).toContain('p2  untitled  archived 2026-11-09T10:00:00.000Z')
-    expect(text).not.toContain('p1  one  open  current')
+    expect(text).toContain('s0  the main one  idle  current')
+    expect(text).toContain('p1  one  working')
+    expect(text).toContain('p2  untitled  failed: the sandbox did not boot')
+    expect(text).toContain('p3  three  archived 2026-11-09T10:00:00.000Z')
+    expect(text).not.toContain('p1  one  working  current')
   })
 
   it('says so when the operator has no sessions', async () => {
