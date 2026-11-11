@@ -7,6 +7,7 @@ import {
   type PodPeers,
 } from '@dltech/atlas-host'
 import { nativeCommandHandlers, nativeCommands } from '@dltech/atlas-native-commands'
+import { cloudConfigStore } from './config/cloud-config-store'
 import { mcpControlPort } from './config/mcp-control'
 import { composedPlugins } from './registered-plugins'
 import type { ControlPlane } from '@dltech/atlas-control'
@@ -70,6 +71,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
       media: args.media,
       plugins: composedPlugins,
       podPeers,
+      configWrites: cloudConfigStore(),
       ...(args.log === undefined ? {} : { log: args.log }),
     }),
     ids: new RandomIds(),
