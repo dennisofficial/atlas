@@ -52,6 +52,14 @@ export function createPaneSync(args: {
   let obscured = false
   let stopped = false
 
+  // A place the pane is only counts once the shell accepted the command that took it there. Noting
+  // the address up front used to make one dropped command permanent: the next attempt saw a location
+  // the pane was never at and skipped the navigation.
+  const noteDelivered = (command: PaneCommand): void => {
+    if (command.kind === 'navigate' || command.kind === 'show')
+      notePaneLocation({ id: args.id, url: command.url })
+  }
+
   const deliver = (command: PaneCommand): void => {
     if (stopped && command.kind !== 'hide') return
     if (inFlight) {
@@ -61,7 +69,8 @@ export function createPaneSync(args: {
     inFlight = true
     void send(command)
       .catch(() => false)
-      .then(() => {
+      .then((accepted) => {
+        if (accepted === true) noteDelivered(command)
         inFlight = false
         const next = queued
         queued = undefined
@@ -73,7 +82,6 @@ export function createPaneSync(args: {
 
   const requestNavigation = (target: string): void => {
     requestedUrlByTarget.set(args.id, target)
-    notePaneLocation({ id: args.id, url: target })
     deliver({ kind: 'navigate', url: target })
   }
 

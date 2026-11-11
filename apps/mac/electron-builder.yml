@@ -34,10 +34,20 @@ mac:
   binaries:
     - Contents/Resources/bin/bun
   notarize: true
+  # Squirrel.Mac validates the replacement bundle from a zip, so auto-update cannot work from the
+  # dmg alone; the zip and latest-mac.yml travel to the same release as the dmg.
   target:
     - target: dmg
+      arch:
+        - arm64
+    - target: zip
       arch:
         - arm64
 dmg:
   title: Atlas ${version}
   artifactName: macos-arm64-Atlas.dmg
+# The feed the app reads for a new build: electron-updater fetches latest-mac.yml from the release
+# marked latest, which `mac-release` re-marks only after the dmg and the zip are attached.
+publish:
+  provider: generic
+  url: https://github.com/dennisofficial/atlas/releases/latest/download
