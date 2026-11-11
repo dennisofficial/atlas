@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto'
 
+import { ENV_NAME_PATTERN } from '@dltech/atlas-core'
 import { createDb, createPool, type Db } from '@dltech/atlas-db'
 import { mcpSpecSchema, type McpTransport } from '@dltech/atlas-plugin-mcp/core'
-import { ENV_NAME_PATTERN } from '@dltech/atlas-wire/web'
 
 import { databaseUrlWithTls } from './database-url'
 import { readAgentHostEnv } from './env'

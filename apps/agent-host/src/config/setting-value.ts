@@ -4,7 +4,7 @@ import {
   PROJECT_SETTING_REGISTRY,
   validateProjectSetting,
   type SettingScalar,
-} from '@dltech/atlas-wire/web'
+} from '@dltech/atlas-core'
 
 export type SettingEncoding = { ok: true; stored: string } | { ok: false; reason: string }
 

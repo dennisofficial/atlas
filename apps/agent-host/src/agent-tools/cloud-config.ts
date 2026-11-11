@@ -1,11 +1,11 @@
 import {
+  decodeSettingValue,
   EToolEffect,
   SchemaTool,
   TAKES_NO_PATHS,
   type ToolOutcome,
   type ToolRun,
 } from '@dltech/atlas-core'
-import { decodeSettingValue } from '@dltech/atlas-wire/web'
 import { z } from 'zod'
 
 import { DEFAULT_FILE_MODE, type CloudConfigClient } from '../config/cloud-config-store'
