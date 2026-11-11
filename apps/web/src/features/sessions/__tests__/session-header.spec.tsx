@@ -55,6 +55,7 @@ const crewRow = (overrides: Partial<CrewRow> = {}): CrewRow => ({
 
 const render = (props: {
   branch?: string
+  routineId?: string | null
   entries: PullRequestEntry[]
   subscriptions?: SubscribedPullRequest[]
   shells?: ShellRoster
@@ -67,6 +68,7 @@ const render = (props: {
       <SessionHeader
         sessionId="s1"
         state={EHeaderState.Idle}
+        routineId={props.routineId ?? null}
         title="Fix login"
         naming={false}
         branch={props.branch}
@@ -193,6 +195,11 @@ describe('SessionHeader', () => {
 
   it('shows no crew indicator when no sub-agent ran', () => {
     expect(render({ entries: [entry()] })).not.toContain('data-session-crew')
+  })
+
+  it('tags a session a routine produced, and leaves an ordinary session untagged', () => {
+    expect(render({ entries: [], routineId: 'rte-1' })).toContain('data-session-routine')
+    expect(render({ entries: [] })).not.toContain('data-session-routine')
   })
 })
 

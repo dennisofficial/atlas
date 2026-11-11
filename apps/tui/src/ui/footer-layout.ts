@@ -12,13 +12,15 @@ export const FOOTER_GUTTER = 1
 export type FooterEffort = EEffort
 
 export type FooterContext = {
-  percent: number
+  percent: number | null
   tokensUsed?: number
   meters?: readonly FooterMeter[]
   measured?: boolean
 }
 
 export const UNMEASURED_CONTEXT = 'ctx ?'
+
+export const UNMEASURED_READING = '—'
 
 export const isMeasured = (context: FooterContext): boolean => context.measured !== false
 
@@ -52,7 +54,6 @@ export function effortSegment(effort: FooterEffort, fast?: boolean): string {
 }
 
 export function readouts(context: FooterContext): readonly FooterReadout[] {
-  const percent = `${Math.round(context.percent)}%`
   const meters = context.meters ?? []
 
   /**
@@ -67,6 +68,16 @@ export function readouts(context: FooterContext): readonly FooterReadout[] {
       { full: false, text: UNMEASURED_CONTEXT, meters: [] },
     ]
   }
+
+  if (context.percent === null) {
+    return [
+      ...(meters.length === 0 ? [] : [{ full: true, text: UNMEASURED_READING, meters }]),
+      { full: true, text: UNMEASURED_READING, meters: [] },
+      { full: false, text: UNMEASURED_READING, meters: [] },
+    ]
+  }
+
+  const percent = `${Math.round(context.percent)}%`
 
   if (isContextWarning(context.percent)) {
     const spelled = `context ${percent} — ${COMPACT_COMMAND} to compact`

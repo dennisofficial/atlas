@@ -2,6 +2,7 @@ import type { InboxEntry, Lease } from '@dltech/atlas-core'
 import type { SessionChange } from '@dltech/atlas-protocol'
 
 import {
+  type AdvanceRoutineParams,
   type BlobRefWrite,
   type BlobRow,
   type BlobWrite,
@@ -13,6 +14,8 @@ import {
   type ThreadRow,
   type ControlSessionRow,
   type SessionDigestRow,
+  type InsertRoutineRunParams,
+  type RoutineRow,
   type SessionListParams,
 } from '../../port'
 import {
@@ -23,6 +26,15 @@ import {
   readInboxEntriesIn,
   readInboxEntryIn,
 } from './memory-inbox'
+import {
+  advanceRoutineIn,
+  deleteRoutineIn,
+  insertRoutineIn,
+  insertRoutineRunIn,
+  lockRoutineIn,
+  readRoutineIn,
+  updateRoutineIn,
+} from './memory-routines'
 import { subscriptionLeaseKey } from './memory-state'
 import { blobHashesPresent, insertBlobRows, readBlobRow } from './memory-blobs'
 import { insertEventsIn, readEventsIn } from './memory-events'
@@ -259,5 +271,33 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
 
   async hostPresent(hostId: number): Promise<boolean> {
     return this.presentHosts.has(hostId)
+  }
+
+  async lockRoutine(routineId: string): Promise<RoutineRow | undefined> {
+    return lockRoutineIn({ state: this.state, routineId })
+  }
+
+  async readRoutine(routineId: string): Promise<RoutineRow | undefined> {
+    return readRoutineIn({ state: this.state, routineId })
+  }
+
+  async advanceRoutine(params: AdvanceRoutineParams): Promise<boolean> {
+    return advanceRoutineIn({ state: this.state, ...params })
+  }
+
+  async insertRoutineRun(params: InsertRoutineRunParams): Promise<void> {
+    await insertRoutineRunIn({ state: this.state, ...params })
+  }
+
+  async insertRoutine(row: RoutineRow): Promise<void> {
+    await insertRoutineIn({ state: this.state, row })
+  }
+
+  async updateRoutine(row: RoutineRow): Promise<void> {
+    await updateRoutineIn({ state: this.state, row })
+  }
+
+  async deleteRoutine(routineId: string): Promise<void> {
+    await deleteRoutineIn({ state: this.state, routineId })
   }
 }

@@ -10,12 +10,11 @@ import {
 
 export type LogSummary = Pick<
   LogAccumulator,
-  'opening' | 'tokens' | 'treeMutations' | 'worktree' | 'home' | 'repo'
+  'opening' | 'treeMutations' | 'worktree' | 'home' | 'repo'
 > & { windowStartSeq: number }
 
 export const sameLogSummary = (left: LogSummary, right: LogSummary): boolean =>
   left.opening === right.opening &&
-  left.tokens === right.tokens &&
   left.treeMutations === right.treeMutations &&
   left.worktree === right.worktree &&
   left.home === right.home &&

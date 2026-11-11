@@ -8,6 +8,9 @@
     "api": "ai-gateway",
     "contextWindow": 40960,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 16384,
     "cost": {
       "inputPerMillion": 0.12,
@@ -23,6 +26,9 @@
     "api": "ai-gateway",
     "contextWindow": 262144,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 16384,
     "cost": {
       "inputPerMillion": 0.22,
@@ -38,6 +44,9 @@
     "api": "ai-gateway",
     "contextWindow": 40960,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 16384,
     "cost": {
       "inputPerMillion": 0.12,
@@ -53,6 +62,9 @@
     "api": "ai-gateway",
     "contextWindow": 128000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 8192,
     "cost": {
       "inputPerMillion": 0.15,
@@ -74,6 +86,9 @@
     "api": "ai-gateway",
     "contextWindow": 262144,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 32768,
     "cost": {
       "inputPerMillion": 0.22,
@@ -90,6 +105,9 @@
     "api": "ai-gateway",
     "contextWindow": 262144,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 8192,
     "cost": {
       "inputPerMillion": 0.15,
@@ -105,6 +123,9 @@
     "api": "ai-gateway",
     "contextWindow": 256000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 256000,
     "cost": {
       "inputPerMillion": 0.5,
@@ -120,6 +141,9 @@
     "api": "ai-gateway",
     "contextWindow": 256000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 65536,
     "cost": {
       "inputPerMillion": 1.2,
@@ -136,6 +160,9 @@
     "api": "ai-gateway",
     "contextWindow": 262114,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 262114,
     "cost": {
       "inputPerMillion": 0.15,
@@ -151,6 +178,9 @@
     "api": "ai-gateway",
     "contextWindow": 262144,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 262144,
     "cost": {
       "inputPerMillion": 0.15,
@@ -166,6 +196,10 @@
     "api": "ai-gateway",
     "contextWindow": 262144,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 262144,
     "cost": {
       "inputPerMillion": 0.2,
@@ -182,6 +216,11 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 64000,
     "cost": {
       "inputPerMillion": 0.1,
@@ -208,6 +247,11 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 64000,
     "cost": {
       "inputPerMillion": 0.4,
@@ -234,6 +278,11 @@
     "api": "ai-gateway",
     "contextWindow": 256000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 256000,
     "cost": {
       "inputPerMillion": 0.6,
@@ -249,6 +298,11 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 64000,
     "cost": {
       "inputPerMillion": 0.5,
@@ -275,6 +329,11 @@
     "api": "ai-gateway",
     "contextWindow": 991000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 64000,
     "cost": {
       "inputPerMillion": 0.03,
@@ -301,6 +360,9 @@
     "api": "ai-gateway",
     "contextWindow": 991000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 64000,
     "cost": {
       "inputPerMillion": 2.5,
@@ -327,6 +389,11 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 64000,
     "cost": {
       "inputPerMillion": 0.4,
@@ -353,6 +420,10 @@
     "api": "ai-gateway",
     "contextWindow": 262144,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 2,
@@ -372,14 +443,19 @@
     },
     "label": "Qwen3.8 27B",
     "api": "ai-gateway",
-    "contextWindow": 1000000,
+    "contextWindow": 262144,
     "imageTier": "standard",
-    "maxOutputTokens": 131072,
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf",
+      "video"
+    ],
+    "maxOutputTokens": 262144,
     "cost": {
-      "inputPerMillion": 0.5,
-      "outputPerMillion": 3,
-      "cacheReadPerMillion": 0.1,
-      "cacheWritePerMillion": 0.625
+      "inputPerMillion": 0.06,
+      "outputPerMillion": 2.3,
+      "cacheReadPerMillion": 0.059
     },
     "effort": {
       "off": "none",
@@ -397,6 +473,11 @@
     "api": "ai-gateway",
     "contextWindow": 991000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 0.15,
@@ -419,6 +500,10 @@
     "api": "ai-gateway",
     "contextWindow": 262144,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 2,
@@ -440,6 +525,11 @@
     "api": "ai-gateway",
     "contextWindow": 991000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 2,
@@ -462,6 +552,10 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 4,
@@ -484,6 +578,10 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 0.15,
@@ -506,6 +604,11 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 1000000,
     "cost": {
       "inputPerMillion": 0.33,
@@ -528,6 +631,11 @@
     "api": "ai-gateway",
     "contextWindow": 300000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 8192,
     "cost": {
       "inputPerMillion": 0.06,
@@ -544,6 +652,9 @@
     "api": "ai-gateway",
     "contextWindow": 128000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 8192,
     "cost": {
       "inputPerMillion": 0.035,
@@ -560,6 +671,11 @@
     "api": "ai-gateway",
     "contextWindow": 300000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 8192,
     "cost": {
       "inputPerMillion": 0.8,
@@ -576,6 +692,11 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "high-resolution",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 10,
@@ -600,6 +721,11 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "high-resolution",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 10,
@@ -618,12 +744,75 @@
   {
     "ref": {
       "providerId": "gateway",
+      "modelId": "anthropic/claude-fable-5.2"
+    },
+    "label": "Claude Fable 5.2",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 8,
+      "outputPerMillion": 40,
+      "cacheReadPerMillion": 0.2,
+      "cacheWritePerMillion": 10
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "anthropic/claude-fable-5.2-fast"
+    },
+    "label": "Claude Fable 5.2 (Fast)",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 16,
+      "outputPerMillion": 80,
+      "cacheReadPerMillion": 0.4,
+      "cacheWritePerMillion": 20
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
       "modelId": "anthropic/claude-haiku-4.5"
     },
     "label": "Claude Haiku 4.5",
     "api": "ai-gateway",
     "contextWindow": 200000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 64000,
     "cost": {
       "inputPerMillion": 1,
@@ -641,6 +830,11 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 0.1,
@@ -666,6 +860,11 @@
     "api": "ai-gateway",
     "contextWindow": 200000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 64000,
     "cost": {
       "inputPerMillion": 5,
@@ -689,6 +888,11 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 5,
@@ -713,6 +917,11 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "high-resolution",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 5,
@@ -738,6 +947,11 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "high-resolution",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 5,
@@ -763,6 +977,11 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 10,
@@ -788,6 +1007,11 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "high-resolution",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 5,
@@ -813,6 +1037,11 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 10,
@@ -838,6 +1067,11 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 4,
@@ -862,6 +1096,11 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 8,
@@ -886,6 +1125,11 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 64000,
     "cost": {
       "inputPerMillion": 3,
@@ -903,6 +1147,11 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 3,
@@ -927,6 +1176,11 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "high-resolution",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 2,
@@ -952,6 +1206,11 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 2,
@@ -976,6 +1235,10 @@
     "api": "ai-gateway",
     "contextWindow": 256000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 32000,
     "cost": {
       "inputPerMillion": 0.25,
@@ -992,6 +1255,10 @@
     "api": "ai-gateway",
     "contextWindow": 256000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 64000,
     "cost": {
       "inputPerMillion": 0.25,
@@ -1014,6 +1281,11 @@
     "api": "ai-gateway",
     "contextWindow": 262144,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "video"
+    ],
     "maxOutputTokens": 262144,
     "cost": {
       "inputPerMillion": 0.5,
@@ -1036,6 +1308,10 @@
     "api": "ai-gateway",
     "contextWindow": 262144,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 0.5,
@@ -1058,6 +1334,9 @@
     "api": "ai-gateway",
     "contextWindow": 256000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 8000,
     "cost": {
       "inputPerMillion": 2.5,
@@ -1073,6 +1352,9 @@
     "api": "ai-gateway",
     "contextWindow": 128000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 8192,
     "cost": {
       "inputPerMillion": 1.35,
@@ -1094,6 +1376,9 @@
     "api": "ai-gateway",
     "contextWindow": 163840,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 0.25,
@@ -1116,6 +1401,9 @@
     "api": "ai-gateway",
     "contextWindow": 128000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 8000,
     "cost": {
       "inputPerMillion": 0.62,
@@ -1137,6 +1425,9 @@
     "api": "ai-gateway",
     "contextWindow": 128000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 8000,
     "cost": {
       "inputPerMillion": 0.62,
@@ -1158,6 +1449,9 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 384000,
     "cost": {
       "inputPerMillion": 0.13,
@@ -1180,6 +1474,9 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 384000,
     "cost": {
       "inputPerMillion": 0.13,
@@ -1202,6 +1499,10 @@
     "api": "ai-gateway",
     "contextWindow": 1048576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 1048576,
     "cost": {
       "inputPerMillion": 0.2156,
@@ -1224,6 +1525,9 @@
     "api": "ai-gateway",
     "contextWindow": 1048600,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 1048600,
     "cost": {
       "inputPerMillion": 1.32,
@@ -1246,6 +1550,9 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 384000,
     "cost": {
       "inputPerMillion": 0.66,
@@ -1268,6 +1575,11 @@
     "api": "ai-gateway",
     "contextWindow": 1048576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 32768,
     "cost": {
       "inputPerMillion": 0.3,
@@ -1290,6 +1602,10 @@
     "api": "ai-gateway",
     "contextWindow": 1048576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 262144,
     "cost": {
       "inputPerMillion": 0.3,
@@ -1312,6 +1628,10 @@
     "api": "ai-gateway",
     "contextWindow": 1048576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 262144,
     "cost": {
       "inputPerMillion": 0.6,
@@ -1328,12 +1648,42 @@
   {
     "ref": {
       "providerId": "gateway",
+      "modelId": "deepseek/deepseek-v4.1-flash-1017-ultrafast"
+    },
+    "label": "DeepSeek V4.1 Flash 1017 Ultrafast",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
+    "maxOutputTokens": 1048576,
+    "cost": {
+      "inputPerMillion": 2.4,
+      "outputPerMillion": 9.6,
+      "cacheReadPerMillion": 0.048
+    },
+    "effort": {
+      "off": "none",
+      "low": "low",
+      "high": "high",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
       "modelId": "deepseek/deepseek-v4.1-flash-fast"
     },
     "label": "DeepSeek V4.1 Flash Fast",
     "api": "ai-gateway",
     "contextWindow": 1048576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 32768,
     "cost": {
       "inputPerMillion": 0.6,
@@ -1356,6 +1706,10 @@
     "api": "ai-gateway",
     "contextWindow": 1048576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 1048576,
     "cost": {
       "inputPerMillion": 3,
@@ -1377,6 +1731,11 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 65535,
     "cost": {
       "inputPerMillion": 0.3,
@@ -1399,6 +1758,11 @@
     "api": "ai-gateway",
     "contextWindow": 1048576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 65535,
     "cost": {
       "inputPerMillion": 0.1,
@@ -1421,6 +1785,11 @@
     "api": "ai-gateway",
     "contextWindow": 1048576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 65535,
     "cost": {
       "inputPerMillion": 1.25,
@@ -1443,6 +1812,11 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 65000,
     "cost": {
       "inputPerMillion": 0.5,
@@ -1463,6 +1837,11 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 65000,
     "cost": {
       "inputPerMillion": 0.25,
@@ -1483,6 +1862,11 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 64000,
     "cost": {
       "inputPerMillion": 2,
@@ -1503,6 +1887,12 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf",
+      "video"
+    ],
     "maxOutputTokens": 64000,
     "cost": {
       "inputPerMillion": 1.5,
@@ -1510,7 +1900,9 @@
       "cacheReadPerMillion": 0.15
     },
     "effort": {
+      "off": "none",
       "low": "low",
+      "medium": "medium",
       "high": "high"
     }
   },
@@ -1523,6 +1915,12 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf",
+      "video"
+    ],
     "maxOutputTokens": 65000,
     "cost": {
       "inputPerMillion": 0.3,
@@ -1543,6 +1941,12 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf",
+      "video"
+    ],
     "maxOutputTokens": 64000,
     "cost": {
       "inputPerMillion": 0.75,
@@ -1563,6 +1967,12 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf",
+      "video"
+    ],
     "maxOutputTokens": 65535,
     "cost": {
       "inputPerMillion": 0.75,
@@ -1570,7 +1980,9 @@
       "cacheReadPerMillion": 0.075
     },
     "effort": {
+      "off": "none",
       "low": "low",
+      "medium": "medium",
       "high": "high"
     }
   },
@@ -1583,6 +1995,12 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf",
+      "video"
+    ],
     "maxOutputTokens": 65535,
     "cost": {
       "inputPerMillion": 0.75,
@@ -1603,6 +2021,39 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf",
+      "video"
+    ],
+    "maxOutputTokens": 1000000,
+    "cost": {
+      "inputPerMillion": 2,
+      "outputPerMillion": 10,
+      "cacheReadPerMillion": 0.1
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "google/gemini-4-carbon"
+    },
+    "label": "Gemini 4 Carbon",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf",
+      "video"
+    ],
     "maxOutputTokens": 1000000,
     "cost": {
       "inputPerMillion": 2,
@@ -1624,6 +2075,11 @@
     "api": "ai-gateway",
     "contextWindow": 262144,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 0.15,
@@ -1640,10 +2096,39 @@
     "api": "ai-gateway",
     "contextWindow": 262144,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 0.14,
       "outputPerMillion": 0.4
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "humansand/ampersand-v0.1"
+    },
+    "label": "Ampersand v0.1",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
+    "maxOutputTokens": 32768,
+    "cost": {
+      "inputPerMillion": 0,
+      "outputPerMillion": 0
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "max": "max"
     }
   },
   {
@@ -1655,6 +2140,9 @@
     "api": "ai-gateway",
     "contextWindow": 128000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 0.25,
@@ -1676,6 +2164,9 @@
     "api": "ai-gateway",
     "contextWindow": 260000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 65536,
     "cost": {
       "inputPerMillion": 0.04,
@@ -1697,6 +2188,9 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 0.1,
@@ -1718,6 +2212,9 @@
     "api": "ai-gateway",
     "contextWindow": 32000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 16384,
     "cost": {
       "inputPerMillion": 0.25,
@@ -1733,6 +2230,9 @@
     "api": "ai-gateway",
     "contextWindow": 256000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 32000,
     "cost": {
       "inputPerMillion": 0.021,
@@ -1749,6 +2249,9 @@
     "api": "ai-gateway",
     "contextWindow": 256000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 32000,
     "cost": {
       "inputPerMillion": 0.075,
@@ -1765,6 +2268,9 @@
     "api": "ai-gateway",
     "contextWindow": 256000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 32000,
     "cost": {
       "inputPerMillion": 0.075,
@@ -1787,6 +2293,11 @@
     "api": "ai-gateway",
     "contextWindow": 256000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "video"
+    ],
     "maxOutputTokens": 32000,
     "cost": {
       "inputPerMillion": 0.075,
@@ -1803,6 +2314,9 @@
     "api": "ai-gateway",
     "contextWindow": 262144,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 32768,
     "cost": {
       "inputPerMillion": 0.3,
@@ -1825,6 +2339,9 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 262144,
     "cost": {
       "inputPerMillion": 0.3,
@@ -1847,6 +2364,11 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 32000,
     "cost": {
       "inputPerMillion": 1.5,
@@ -1867,6 +2389,9 @@
     "api": "ai-gateway",
     "contextWindow": 128000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 8200,
     "cost": {
       "inputPerMillion": 0.05,
@@ -1891,17 +2416,15 @@
     "api": "ai-gateway",
     "contextWindow": 1048576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 0.3,
       "outputPerMillion": 1.2,
       "cacheReadPerMillion": 0.006
-    },
-    "effort": {
-      "off": "none",
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
     }
   },
   {
@@ -1913,6 +2436,9 @@
     "api": "ai-gateway",
     "contextWindow": 128000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 8192,
     "cost": {
       "inputPerMillion": 0.72,
@@ -1934,6 +2460,9 @@
     "api": "ai-gateway",
     "contextWindow": 128000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 8192,
     "cost": {
       "inputPerMillion": 0.22,
@@ -1955,6 +2484,9 @@
     "api": "ai-gateway",
     "contextWindow": 128000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 8192,
     "cost": {
       "inputPerMillion": 0.72,
@@ -1976,6 +2508,10 @@
     "api": "ai-gateway",
     "contextWindow": 128000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 8192,
     "cost": {
       "inputPerMillion": 0.24,
@@ -1997,6 +2533,10 @@
     "api": "ai-gateway",
     "contextWindow": 128000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 8192,
     "cost": {
       "inputPerMillion": 0.17,
@@ -2012,12 +2552,45 @@
   {
     "ref": {
       "providerId": "gateway",
+      "modelId": "meta/muse-ember"
+    },
+    "label": "Muse Ember",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
+    "maxOutputTokens": 1048576,
+    "cost": {
+      "inputPerMillion": 0.1,
+      "outputPerMillion": 0.5,
+      "cacheReadPerMillion": 0.004
+    },
+    "effort": {
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
       "modelId": "meta/muse-glimmer-30b"
     },
     "label": "Muse Glimmer 30B",
     "api": "ai-gateway",
     "contextWindow": 131072,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 0.35,
@@ -2040,6 +2613,11 @@
     "api": "ai-gateway",
     "contextWindow": 1048576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 1048576,
     "cost": {
       "inputPerMillion": 1.25,
@@ -2063,6 +2641,11 @@
     "api": "ai-gateway",
     "contextWindow": 1048576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 1048576,
     "cost": {
       "inputPerMillion": 1.25,
@@ -2086,6 +2669,11 @@
     "api": "ai-gateway",
     "contextWindow": 1048576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 1048576,
     "cost": {
       "inputPerMillion": 0.1,
@@ -2109,6 +2697,11 @@
     "api": "ai-gateway",
     "contextWindow": 1048576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 1048576,
     "cost": {
       "inputPerMillion": 1.25,
@@ -2133,6 +2726,11 @@
     "api": "ai-gateway",
     "contextWindow": 1048576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 1048576,
     "cost": {
       "inputPerMillion": 0.1,
@@ -2157,6 +2755,12 @@
     "api": "ai-gateway",
     "contextWindow": 1048576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "audio",
+      "image",
+      "video"
+    ],
     "maxOutputTokens": 1048576,
     "cost": {
       "inputPerMillion": 1.25,
@@ -2179,6 +2783,11 @@
     "api": "ai-gateway",
     "contextWindow": 1048576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 1048576,
     "cost": {
       "inputPerMillion": 4,
@@ -2203,6 +2812,9 @@
     "api": "ai-gateway",
     "contextWindow": 205000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 205000,
     "cost": {
       "inputPerMillion": 0.3,
@@ -2220,6 +2832,9 @@
     "api": "ai-gateway",
     "contextWindow": 204800,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 0.3,
@@ -2237,6 +2852,9 @@
     "api": "ai-gateway",
     "contextWindow": 204800,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 0.3,
@@ -2254,6 +2872,9 @@
     "api": "ai-gateway",
     "contextWindow": 204800,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 131000,
     "cost": {
       "inputPerMillion": 0.3,
@@ -2271,6 +2892,9 @@
     "api": "ai-gateway",
     "contextWindow": 204800,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 131000,
     "cost": {
       "inputPerMillion": 0.6,
@@ -2288,6 +2912,9 @@
     "api": "ai-gateway",
     "contextWindow": 204800,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 131000,
     "cost": {
       "inputPerMillion": 0.3,
@@ -2305,6 +2932,9 @@
     "api": "ai-gateway",
     "contextWindow": 204800,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 131100,
     "cost": {
       "inputPerMillion": 0.6,
@@ -2322,6 +2952,11 @@
     "api": "ai-gateway",
     "contextWindow": 512000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 512000,
     "cost": {
       "inputPerMillion": 0.3,
@@ -2338,6 +2973,10 @@
     "api": "ai-gateway",
     "contextWindow": 1048576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 1048576,
     "cost": {
       "inputPerMillion": 0.15,
@@ -2361,6 +3000,9 @@
     "api": "ai-gateway",
     "contextWindow": 128000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 4000,
     "cost": {
       "inputPerMillion": 0.3,
@@ -2377,6 +3019,11 @@
     "api": "ai-gateway",
     "contextWindow": 262144,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 256000,
     "cost": {
       "inputPerMillion": 0.2,
@@ -2393,6 +3040,10 @@
     "api": "ai-gateway",
     "contextWindow": 131072,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 4000,
     "cost": {
       "inputPerMillion": 0.1,
@@ -2409,6 +3060,10 @@
     "api": "ai-gateway",
     "contextWindow": 262144,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 4000,
     "cost": {
       "inputPerMillion": 0.15,
@@ -2425,6 +3080,10 @@
     "api": "ai-gateway",
     "contextWindow": 262144,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 256000,
     "cost": {
       "inputPerMillion": 0.5,
@@ -2441,6 +3100,10 @@
     "api": "ai-gateway",
     "contextWindow": 1048576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 262144,
     "cost": {
       "inputPerMillion": 0.7,
@@ -2461,6 +3124,10 @@
     "api": "ai-gateway",
     "contextWindow": 262144,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 256000,
     "cost": {
       "inputPerMillion": 1.5,
@@ -2481,6 +3148,9 @@
     "api": "ai-gateway",
     "contextWindow": 131072,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 0.029,
@@ -2496,6 +3166,10 @@
     "api": "ai-gateway",
     "contextWindow": 262144,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 4000,
     "cost": {
       "inputPerMillion": 0.15,
@@ -2512,6 +3186,9 @@
     "api": "ai-gateway",
     "contextWindow": 131000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 4000,
     "cost": {
       "inputPerMillion": 0.3,
@@ -2528,6 +3205,9 @@
     "api": "ai-gateway",
     "contextWindow": 131072,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 0.57,
@@ -2543,6 +3223,10 @@
     "api": "ai-gateway",
     "contextWindow": 256000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 256000,
     "cost": {
       "inputPerMillion": 0.6,
@@ -2564,6 +3248,11 @@
     "api": "ai-gateway",
     "contextWindow": 262000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "video"
+    ],
     "maxOutputTokens": 262000,
     "cost": {
       "inputPerMillion": 0.95,
@@ -2580,6 +3269,12 @@
     "api": "ai-gateway",
     "contextWindow": 256000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf",
+      "video"
+    ],
     "maxOutputTokens": 32768,
     "cost": {
       "inputPerMillion": 0.95,
@@ -2602,6 +3297,12 @@
     "api": "ai-gateway",
     "contextWindow": 262144,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf",
+      "video"
+    ],
     "maxOutputTokens": 32768,
     "cost": {
       "inputPerMillion": 1.9,
@@ -2624,6 +3325,12 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf",
+      "video"
+    ],
     "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 3,
@@ -2645,6 +3352,11 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 4.5,
@@ -2666,14 +3378,17 @@
     },
     "label": "Kimi K3.1 Pro",
     "api": "ai-gateway",
-    "contextWindow": 1048576,
+    "contextWindow": 1000000,
     "imageTier": "standard",
-    "maxOutputTokens": 1048576,
+    "inputModalities": [
+      "text",
+      "image"
+    ],
+    "maxOutputTokens": 262144,
     "cost": {
       "inputPerMillion": 2,
       "outputPerMillion": 10,
-      "cacheReadPerMillion": 0.2,
-      "cacheWritePerMillion": 2
+      "cacheReadPerMillion": 0.2
     },
     "effort": {
       "low": "low",
@@ -2690,6 +3405,10 @@
     "api": "ai-gateway",
     "contextWindow": 1048576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 1048576,
     "cost": {
       "inputPerMillion": 4,
@@ -2712,6 +3431,9 @@
     "api": "ai-gateway",
     "contextWindow": 262144,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 262144,
     "cost": {
       "inputPerMillion": 0.05,
@@ -2734,6 +3456,9 @@
     "api": "ai-gateway",
     "contextWindow": 256000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 32000,
     "cost": {
       "inputPerMillion": 0.15,
@@ -2755,6 +3480,9 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 65000,
     "cost": {
       "inputPerMillion": 0.6,
@@ -2777,11 +3505,14 @@
     "api": "ai-gateway",
     "contextWindow": 262144,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 131072,
     "cost": {
-      "inputPerMillion": 0.05,
-      "outputPerMillion": 0.2,
-      "cacheReadPerMillion": 0.01
+      "inputPerMillion": 0.06,
+      "outputPerMillion": 0.16,
+      "cacheReadPerMillion": 0.03
     },
     "effort": {
       "off": "none",
@@ -2799,6 +3530,9 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 65000,
     "cost": {
       "inputPerMillion": 0,
@@ -2820,6 +3554,11 @@
     "api": "ai-gateway",
     "contextWindow": 1048576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "video"
+    ],
     "maxOutputTokens": 1048576,
     "cost": {
       "inputPerMillion": 0.2,
@@ -2842,6 +3581,10 @@
     "api": "ai-gateway",
     "contextWindow": 131072,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 0.2,
@@ -2863,6 +3606,9 @@
     "api": "ai-gateway",
     "contextWindow": 131072,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 0.06,
@@ -2884,6 +3630,11 @@
     "api": "ai-gateway",
     "contextWindow": 1047576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 32768,
     "cost": {
       "inputPerMillion": 2,
@@ -2900,6 +3651,11 @@
     "api": "ai-gateway",
     "contextWindow": 1047576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 32768,
     "cost": {
       "inputPerMillion": 3.5,
@@ -2916,6 +3672,11 @@
     "api": "ai-gateway",
     "contextWindow": 1047576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 32768,
     "cost": {
       "inputPerMillion": 0.4,
@@ -2932,6 +3693,11 @@
     "api": "ai-gateway",
     "contextWindow": 1047576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 32768,
     "cost": {
       "inputPerMillion": 0.7,
@@ -2948,6 +3714,11 @@
     "api": "ai-gateway",
     "contextWindow": 1047576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 32768,
     "cost": {
       "inputPerMillion": 0.1,
@@ -2964,6 +3735,11 @@
     "api": "ai-gateway",
     "contextWindow": 128000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 16384,
     "cost": {
       "inputPerMillion": 2.5,
@@ -2980,6 +3756,11 @@
     "api": "ai-gateway",
     "contextWindow": 128000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 16384,
     "cost": {
       "inputPerMillion": 4.25,
@@ -2996,6 +3777,11 @@
     "api": "ai-gateway",
     "contextWindow": 128000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 16384,
     "cost": {
       "inputPerMillion": 0.15,
@@ -3012,6 +3798,11 @@
     "api": "ai-gateway",
     "contextWindow": 128000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 16384,
     "cost": {
       "inputPerMillion": 0.25,
@@ -3028,6 +3819,11 @@
     "api": "ai-gateway",
     "contextWindow": 400000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 1.25,
@@ -3050,6 +3846,11 @@
     "api": "ai-gateway",
     "contextWindow": 400000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 1.25,
@@ -3071,6 +3872,11 @@
     "api": "ai-gateway",
     "contextWindow": 400000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 2.5,
@@ -3093,6 +3899,11 @@
     "api": "ai-gateway",
     "contextWindow": 400000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 0.25,
@@ -3115,6 +3926,11 @@
     "api": "ai-gateway",
     "contextWindow": 400000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 0.45,
@@ -3137,6 +3953,11 @@
     "api": "ai-gateway",
     "contextWindow": 400000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 0.05,
@@ -3159,6 +3980,11 @@
     "api": "ai-gateway",
     "contextWindow": 400000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 272000,
     "cost": {
       "inputPerMillion": 15,
@@ -3177,6 +4003,11 @@
     "api": "ai-gateway",
     "contextWindow": 400000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 1.25,
@@ -3199,6 +4030,11 @@
     "api": "ai-gateway",
     "contextWindow": 400000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 1.25,
@@ -3221,6 +4057,11 @@
     "api": "ai-gateway",
     "contextWindow": 400000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 0.25,
@@ -3243,6 +4084,11 @@
     "api": "ai-gateway",
     "contextWindow": 400000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 1.25,
@@ -3267,6 +4113,11 @@
     "api": "ai-gateway",
     "contextWindow": 400000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 2.5,
@@ -3291,6 +4142,11 @@
     "api": "ai-gateway",
     "contextWindow": 400000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 1.75,
@@ -3315,6 +4171,11 @@
     "api": "ai-gateway",
     "contextWindow": 400000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 1.75,
@@ -3337,6 +4198,11 @@
     "api": "ai-gateway",
     "contextWindow": 400000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 3.5,
@@ -3361,6 +4227,11 @@
     "api": "ai-gateway",
     "contextWindow": 400000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 21,
@@ -3381,6 +4252,11 @@
     "api": "ai-gateway",
     "contextWindow": 400000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 1.75,
@@ -3405,6 +4281,11 @@
     "api": "ai-gateway",
     "contextWindow": 400000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 3.5,
@@ -3429,6 +4310,11 @@
     "api": "ai-gateway",
     "contextWindow": 1050000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 2.5,
@@ -3453,6 +4339,11 @@
     "api": "ai-gateway",
     "contextWindow": 1050000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 5,
@@ -3477,6 +4368,11 @@
     "api": "ai-gateway",
     "contextWindow": 400000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 0.75,
@@ -3501,6 +4397,11 @@
     "api": "ai-gateway",
     "contextWindow": 400000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 1.5,
@@ -3525,6 +4426,11 @@
     "api": "ai-gateway",
     "contextWindow": 400000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 0.2,
@@ -3549,6 +4455,11 @@
     "api": "ai-gateway",
     "contextWindow": 1050000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 30,
@@ -3572,6 +4483,11 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 5,
@@ -3596,6 +4512,11 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 12.5,
@@ -3620,6 +4541,11 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 30,
@@ -3640,6 +4566,11 @@
     "api": "ai-gateway",
     "contextWindow": 1050000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 0.2,
@@ -3665,6 +4596,11 @@
     "api": "ai-gateway",
     "contextWindow": 1050000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 0.4,
@@ -3690,6 +4626,11 @@
     "api": "ai-gateway",
     "contextWindow": 1050000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 4,
@@ -3716,6 +4657,11 @@
     "api": "ai-gateway",
     "contextWindow": 1050000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 8,
@@ -3742,6 +4688,11 @@
     "api": "ai-gateway",
     "contextWindow": 1050000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 2,
@@ -3768,6 +4719,11 @@
     "api": "ai-gateway",
     "contextWindow": 1050000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 4,
@@ -3794,6 +4750,11 @@
     "api": "ai-gateway",
     "contextWindow": 1050000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 10,
@@ -3818,6 +4779,11 @@
     "api": "ai-gateway",
     "contextWindow": 1050000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 20,
@@ -3842,6 +4808,11 @@
     "api": "ai-gateway",
     "contextWindow": 1050000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 0.1,
@@ -3867,6 +4838,11 @@
     "api": "ai-gateway",
     "contextWindow": 1050000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 0.2,
@@ -3892,6 +4868,11 @@
     "api": "ai-gateway",
     "contextWindow": 1050000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 2,
@@ -3917,6 +4898,11 @@
     "api": "ai-gateway",
     "contextWindow": 1050000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 4,
@@ -3942,6 +4928,11 @@
     "api": "ai-gateway",
     "contextWindow": 1050000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 2,
@@ -3966,6 +4957,11 @@
     "api": "ai-gateway",
     "contextWindow": 1050000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 4,
@@ -3990,6 +4986,11 @@
     "api": "ai-gateway",
     "contextWindow": 1050000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 1,
@@ -4015,6 +5016,11 @@
     "api": "ai-gateway",
     "contextWindow": 1050000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 2,
@@ -4040,6 +5046,9 @@
     "api": "ai-gateway",
     "contextWindow": 131072,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 0.1,
@@ -4061,6 +5070,9 @@
     "api": "ai-gateway",
     "contextWindow": 131072,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 8192,
     "cost": {
       "inputPerMillion": 0.03,
@@ -4081,6 +5093,9 @@
     "api": "ai-gateway",
     "contextWindow": 128000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 16000,
     "cost": {
       "inputPerMillion": 0.15,
@@ -4101,6 +5116,9 @@
     "api": "ai-gateway",
     "contextWindow": 128000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 16000,
     "cost": {
       "inputPerMillion": 0.07,
@@ -4121,6 +5139,11 @@
     "api": "ai-gateway",
     "contextWindow": 200000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 100000,
     "cost": {
       "inputPerMillion": 15,
@@ -4142,6 +5165,11 @@
     "api": "ai-gateway",
     "contextWindow": 200000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 100000,
     "cost": {
       "inputPerMillion": 2,
@@ -4163,6 +5191,11 @@
     "api": "ai-gateway",
     "contextWindow": 200000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 100000,
     "cost": {
       "inputPerMillion": 3.5,
@@ -4184,6 +5217,9 @@
     "api": "ai-gateway",
     "contextWindow": 200000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 100000,
     "cost": {
       "inputPerMillion": 1.1,
@@ -4205,6 +5241,11 @@
     "api": "ai-gateway",
     "contextWindow": 200000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 100000,
     "cost": {
       "inputPerMillion": 20,
@@ -4225,6 +5266,11 @@
     "api": "ai-gateway",
     "contextWindow": 200000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 100000,
     "cost": {
       "inputPerMillion": 1.1,
@@ -4246,6 +5292,10 @@
     "api": "ai-gateway",
     "contextWindow": 1048576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 0.125,
@@ -4268,6 +5318,9 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 0.09,
@@ -4284,6 +5337,10 @@
     "api": "ai-gateway",
     "contextWindow": 131072,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 4,
@@ -4307,6 +5364,10 @@
     "api": "ai-gateway",
     "contextWindow": 131072,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 6,
@@ -4330,6 +5391,9 @@
     "api": "ai-gateway",
     "contextWindow": 1048576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 0,
@@ -4352,6 +5416,9 @@
     "api": "ai-gateway",
     "contextWindow": 1048576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 0,
@@ -4374,6 +5441,10 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 1000000,
     "cost": {
       "inputPerMillion": 2,
@@ -4395,6 +5466,10 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 1000000,
     "cost": {
       "inputPerMillion": 5,
@@ -4416,6 +5491,10 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 1000000,
     "cost": {
       "inputPerMillion": 5,
@@ -4437,6 +5516,11 @@
     "api": "ai-gateway",
     "contextWindow": 256000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 256000,
     "cost": {
       "inputPerMillion": 0.95,
@@ -4462,6 +5546,11 @@
     "api": "ai-gateway",
     "contextWindow": 2000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 2000000,
     "cost": {
       "inputPerMillion": 1.25,
@@ -4484,6 +5573,11 @@
     "api": "ai-gateway",
     "contextWindow": 2000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 2000000,
     "cost": {
       "inputPerMillion": 1.25,
@@ -4506,6 +5600,11 @@
     "api": "ai-gateway",
     "contextWindow": 2000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 2000000,
     "cost": {
       "inputPerMillion": 1.25,
@@ -4528,6 +5627,11 @@
     "api": "ai-gateway",
     "contextWindow": 2000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 2000000,
     "cost": {
       "inputPerMillion": 1.25,
@@ -4550,6 +5654,11 @@
     "api": "ai-gateway",
     "contextWindow": 2000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 2000000,
     "cost": {
       "inputPerMillion": 1.25,
@@ -4572,6 +5681,11 @@
     "api": "ai-gateway",
     "contextWindow": 2000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 2000000,
     "cost": {
       "inputPerMillion": 1.25,
@@ -4594,6 +5708,11 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 1000000,
     "cost": {
       "inputPerMillion": 1.25,
@@ -4615,6 +5734,11 @@
     "api": "ai-gateway",
     "contextWindow": 500000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 500000,
     "cost": {
       "inputPerMillion": 2,
@@ -4636,6 +5760,10 @@
     "api": "ai-gateway",
     "contextWindow": 500000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 500000,
     "cost": {
       "inputPerMillion": 2,
@@ -4658,6 +5786,10 @@
     "api": "ai-gateway",
     "contextWindow": 500000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 500000,
     "cost": {
       "inputPerMillion": 2,
@@ -4680,6 +5812,10 @@
     "api": "ai-gateway",
     "contextWindow": 256000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 256000,
     "cost": {
       "inputPerMillion": 1,
@@ -4702,6 +5838,9 @@
     "api": "ai-gateway",
     "contextWindow": 256000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 256000,
     "cost": {
       "inputPerMillion": 0,
@@ -4723,6 +5862,10 @@
     "api": "ai-gateway",
     "contextWindow": 256000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 256000,
     "cost": {
       "inputPerMillion": 0.2,
@@ -4744,6 +5887,11 @@
     "api": "ai-gateway",
     "contextWindow": 1048576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "video"
+    ],
     "maxOutputTokens": 1048576,
     "cost": {
       "inputPerMillion": 1,
@@ -4765,6 +5913,9 @@
     "api": "ai-gateway",
     "contextWindow": 262144,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 262144,
     "cost": {
       "inputPerMillion": 0.14,
@@ -4786,6 +5937,10 @@
     "api": "ai-gateway",
     "contextWindow": 1024000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 64000,
     "cost": {
       "inputPerMillion": 0.417,
@@ -4806,6 +5961,9 @@
     "api": "ai-gateway",
     "contextWindow": 1024000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 64000,
     "cost": {
       "inputPerMillion": 0.834,
@@ -4826,6 +5984,11 @@
     "api": "ai-gateway",
     "contextWindow": 256000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 256000,
     "cost": {
       "inputPerMillion": 1,
@@ -4851,6 +6014,11 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 1000000,
     "cost": {
       "inputPerMillion": 0.45,
@@ -4876,6 +6044,12 @@
     "api": "ai-gateway",
     "contextWindow": 1048576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "audio",
+      "image",
+      "video"
+    ],
     "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 0.14,
@@ -4899,6 +6073,12 @@
     "api": "ai-gateway",
     "contextWindow": 1048576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "audio",
+      "image",
+      "video"
+    ],
     "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 0.435,
@@ -4922,6 +6102,12 @@
     "api": "ai-gateway",
     "contextWindow": 1048576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "audio",
+      "image",
+      "video"
+    ],
     "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 4.35,
@@ -4945,6 +6131,9 @@
     "api": "ai-gateway",
     "contextWindow": 128000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 96000,
     "cost": {
       "inputPerMillion": 0.6,
@@ -4961,6 +6150,9 @@
     "api": "ai-gateway",
     "contextWindow": 128000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 96000,
     "cost": {
       "inputPerMillion": 0.2,
@@ -4977,6 +6169,10 @@
     "api": "ai-gateway",
     "contextWindow": 66000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 16000,
     "cost": {
       "inputPerMillion": 0.6,
@@ -4993,6 +6189,9 @@
     "api": "ai-gateway",
     "contextWindow": 200000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 96000,
     "cost": {
       "inputPerMillion": 0.6,
@@ -5009,6 +6208,9 @@
     "api": "ai-gateway",
     "contextWindow": 200000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 120000,
     "cost": {
       "inputPerMillion": 0.6,
@@ -5030,6 +6232,9 @@
     "api": "ai-gateway",
     "contextWindow": 200000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 131000,
     "cost": {
       "inputPerMillion": 0.07,
@@ -5051,6 +6256,9 @@
     "api": "ai-gateway",
     "contextWindow": 200000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 0.06,
@@ -5073,6 +6281,9 @@
     "api": "ai-gateway",
     "contextWindow": 202800,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 131100,
     "cost": {
       "inputPerMillion": 1,
@@ -5094,6 +6305,9 @@
     "api": "ai-gateway",
     "contextWindow": 202800,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 131100,
     "cost": {
       "inputPerMillion": 1.2,
@@ -5116,6 +6330,9 @@
     "api": "ai-gateway",
     "contextWindow": 202800,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 64000,
     "cost": {
       "inputPerMillion": 1.4,
@@ -5138,6 +6355,9 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 1.4,
@@ -5159,6 +6379,9 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 2.8,
@@ -5181,6 +6404,9 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 1000000,
     "cost": {
       "inputPerMillion": 1.4,
@@ -5202,6 +6428,9 @@
     "api": "ai-gateway",
     "contextWindow": 1048576,
     "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
     "maxOutputTokens": 262144,
     "cost": {
       "inputPerMillion": 2.1,
@@ -5224,6 +6453,11 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "video"
+    ],
     "maxOutputTokens": 131000,
     "cost": {
       "inputPerMillion": 0.15,
@@ -5245,6 +6479,10 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 0.37,
@@ -5266,6 +6504,10 @@
     "api": "ai-gateway",
     "contextWindow": 1000000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
     "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 0.37,
@@ -5287,6 +6529,11 @@
     "api": "ai-gateway",
     "contextWindow": 200000,
     "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
     "maxOutputTokens": 128000,
     "cost": {
       "inputPerMillion": 1.2,

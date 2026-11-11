@@ -13,6 +13,7 @@ export enum ERunFailureKind {
   Delivery = 'delivery',
   ModelDenied = 'model-denied',
   ContextOverflow = 'context-overflow',
+  RequestTooLarge = 'request-too-large',
   ExchangeFault = 'exchange-fault',
   LoopGuard = 'loop-guard',
   ToolSettlement = 'tool-settlement',
@@ -70,6 +71,7 @@ const RUN_KIND_OF_PROVIDER_KIND: Readonly<Record<EProviderFailureKind, ERunFailu
   [EProviderFailureKind.Delivery]: ERunFailureKind.Delivery,
   [EProviderFailureKind.ModelDenied]: ERunFailureKind.ModelDenied,
   [EProviderFailureKind.ContextOverflow]: ERunFailureKind.ContextOverflow,
+  [EProviderFailureKind.RequestTooLarge]: ERunFailureKind.RequestTooLarge,
   [EProviderFailureKind.InvalidRequest]: ERunFailureKind.Other,
   [EProviderFailureKind.Cancelled]: ERunFailureKind.Other,
   [EProviderFailureKind.Other]: ERunFailureKind.Other,
@@ -125,6 +127,8 @@ export function remediesOf(kind: ERunFailureKind): readonly ERunRemedy[] {
       return [ERunRemedy.Retry, ERunRemedy.SwitchModel]
     case ERunFailureKind.ContextOverflow:
       return [ERunRemedy.Compact, ERunRemedy.SwitchModel]
+    case ERunFailureKind.RequestTooLarge:
+      return [ERunRemedy.Compact, ERunRemedy.Retry]
     case ERunFailureKind.AgentFailed:
       return [ERunRemedy.OpenAgent]
     case ERunFailureKind.Network:

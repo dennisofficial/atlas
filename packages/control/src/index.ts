@@ -5,6 +5,7 @@ export type { ControlPlaneParams, ReadEventsPage, TakeBackResult } from './contr
 export { LeaseConflictError, UnknownThreadError } from './errors'
 export { ControlStorePort, SeqConflictError } from './port'
 export type {
+  AdvanceRoutineParams,
   ControlDigestPullRequest,
   ControlDigestView,
   ControlSessionDigest,
@@ -17,12 +18,22 @@ export type {
   SessionViewRow,
   ControlSessionRow,
   ControlTx,
+  InsertRoutineRunParams,
+  ListDueRoutinesParams,
+  ListRoutineRunsParams,
+  ListRoutinesParams,
+  ReadRoutineForUserParams,
   ReadEventsParams,
+  RoutineRow,
+  RoutineRunOutcome,
+  RoutineRunRow,
   SessionListParams,
   StoredEvent,
   ThreadRow,
 } from './port'
 export type { BlobRow, BlobWrite } from './port'
+export { runRoutineIn } from './routine-ops'
+export type { RunRoutineParams, RunRoutineResult } from './routine-ops'
 export { unfinishedCommandIdsOf } from './command-rows'
 export { readSessionStatus, STATUS_EVENT_LIMIT } from './session-status'
 export { pricedView } from './session-view-pricing'

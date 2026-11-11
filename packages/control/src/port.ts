@@ -16,6 +16,7 @@ export type ControlSessionRow = {
   modelFast: boolean | null
   spawnedBySessionId: string | null
   podSessionId: string | null
+  routineId: string | null
 }
 
 export type SessionListParams = {
@@ -87,6 +88,64 @@ export type SubscriptionLease = {
 export const subscriptionSubjectKey = (subject: SubscriptionSubject): string =>
   subject.kind === 'pull-request' ? `#${subject.number}` : subject.selector
 
+export type RoutineRow = {
+  routineId: string
+  userId: string
+  projectId: string
+  name: string
+  prompt: string
+  cron: string
+  timezone: string
+  enabled: boolean
+  modelRef: string | null
+  modelEffort: string | null
+  modelFast: boolean | null
+  nextRunAt: string
+  lastRunAt: string | null
+  lastSessionId: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type RoutineRunOutcome = 'started' | 'skipped-busy' | 'skipped' | 'failed'
+
+export type AdvanceRoutineParams = {
+  routineId: string
+  expectedNextRunAt: string
+  nextRunAt: string
+  lastRunAt?: string | undefined
+  lastSessionId?: string | undefined
+  at: string
+}
+
+export type InsertRoutineRunParams = {
+  id: string
+  routineId: string
+  scheduledFor: string
+  outcome: RoutineRunOutcome
+  reason?: string | undefined
+  sessionId?: string | undefined
+  at: string
+}
+
+export type ListDueRoutinesParams = { now: string; limit: number }
+
+export type RoutineRunRow = {
+  id: string
+  routineId: string
+  scheduledFor: string
+  outcome: RoutineRunOutcome
+  reason: string | null
+  sessionId: string | null
+  at: string
+}
+
+export type ListRoutinesParams = { userId: string; projectId?: string | undefined }
+
+export type ReadRoutineForUserParams = { routineId: string; userId: string }
+
+export type ListRoutineRunsParams = { routineId: string; limit: number }
+
 export type ThreadRow = {
   threadId: string
   sessionId: string
@@ -143,6 +202,7 @@ export interface ControlTx {
     modelFast?: boolean | undefined
     spawnedBySessionId?: string | undefined
     podSessionId?: string | undefined
+    routineId?: string | undefined
     at: string
   }): Promise<void>
   readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined>
@@ -211,8 +271,19 @@ export interface ControlTx {
   upsertSubscriptionLease(params: SubscriptionLease & { expiresAt: string }): Promise<void>
   deleteSubscriptionLease(params: SubscriptionLease): Promise<boolean>
   hostPresent(hostId: number): Promise<boolean>
+  lockRoutine(routineId: string): Promise<RoutineRow | undefined>
+  readRoutine(routineId: string): Promise<RoutineRow | undefined>
+  advanceRoutine(params: AdvanceRoutineParams): Promise<boolean>
+  insertRoutineRun(params: InsertRoutineRunParams): Promise<void>
+  insertRoutine(row: RoutineRow): Promise<void>
+  updateRoutine(row: RoutineRow): Promise<void>
+  deleteRoutine(routineId: string): Promise<void>
 }
 
 export abstract class ControlStorePort {
   abstract transact<T>(work: (tx: ControlTx) => Promise<T>): Promise<T>
+  abstract listDueRoutines(params: ListDueRoutinesParams): Promise<RoutineRow[]>
+  abstract listRoutines(params: ListRoutinesParams): Promise<RoutineRow[]>
+  abstract readRoutineForUser(params: ReadRoutineForUserParams): Promise<RoutineRow | undefined>
+  abstract listRoutineRuns(params: ListRoutineRunsParams): Promise<RoutineRunRow[]>
 }

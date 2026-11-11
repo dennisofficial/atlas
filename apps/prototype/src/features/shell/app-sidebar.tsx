@@ -7,33 +7,46 @@ import {
   SidebarRail,
 } from '@dltech/atlas-ui/components/sidebar'
 
+import { RoutineSidebarList } from '@/features/routines/routine-sidebar-list'
+
 import type { AppThread } from './fixtures/app'
 import { AccountMenu } from './account-menu'
 import { ShellBottomNav } from './shell-bottom-nav'
 import { ShellTopBar } from './shell-top-bar'
 import { ThreadList } from './shell-thread-list'
-import type { EAppNav, ShellDemoState } from './shell-types'
+import { EAppNav, type ShellDemoState } from './shell-types'
 
 export interface AppSidebarProps {
   activeThreadId?: string
+  activeRoutineId?: string
   activeNav: EAppNav
   demo?: ShellDemoState
   pendingThread?: AppThread
 }
 
-export function AppSidebar({ activeThreadId, activeNav, demo, pendingThread }: AppSidebarProps) {
+export function AppSidebar({
+  activeThreadId,
+  activeRoutineId,
+  activeNav,
+  demo,
+  pendingThread,
+}: AppSidebarProps) {
   return (
     <Sidebar collapsible="icon">
-      <ShellTopBar />
+      <ShellTopBar nav={activeNav} />
       <SidebarContent className="group-data-[collapsible=icon]:hidden">
-        <ThreadList
-          activeThreadId={activeThreadId}
-          threadCardId={demo?.threadCardId}
-          projectCardId={demo?.projectCardId}
-          archivedThreadIds={demo?.archivedThreadIds}
-          archivedBucketOpen={demo?.archivedBucketOpen}
-          pendingThread={pendingThread}
-        />
+        {activeNav === EAppNav.Routines ? (
+          <RoutineSidebarList activeRoutineId={activeRoutineId} />
+        ) : (
+          <ThreadList
+            activeThreadId={activeThreadId}
+            threadCardId={demo?.threadCardId}
+            projectCardId={demo?.projectCardId}
+            archivedThreadIds={demo?.archivedThreadIds}
+            archivedBucketOpen={demo?.archivedBucketOpen}
+            pendingThread={pendingThread}
+          />
+        )}
       </SidebarContent>
       <SidebarFooter className="gap-1 border-t border-sidebar-border p-2 group-data-[collapsible=icon]:mt-auto">
         <ShellBottomNav activeNav={activeNav} />

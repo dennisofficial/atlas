@@ -7,10 +7,9 @@ export const logSummaryOf = (args: {
   acc: LogAccumulator
   events: readonly Event[]
 }): LogSummary => {
-  const { opening, tokens, treeMutations, worktree, home, repo } = args.acc
+  const { opening, treeMutations, worktree, home, repo } = args.acc
   return {
     opening,
-    tokens,
     treeMutations,
     worktree,
     home,

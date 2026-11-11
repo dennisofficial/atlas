@@ -6,7 +6,6 @@ import {
   type EExecutionLocation,
   type ERunner,
   type ProviderIdentity,
-  type PromptModel,
   type PromptPart,
 } from '@dltech/atlas-core'
 
@@ -19,7 +18,6 @@ export function subAgentPrompt({
   prompts,
   agentType,
   provider,
-  model,
   projectDirectory,
   groups = NO_PROMPT_GROUPS,
   placement,
@@ -28,7 +26,6 @@ export function subAgentPrompt({
   prompts: PromptRegistry
   agentType: AgentType
   provider: ProviderIdentity
-  model: PromptModel
   projectDirectory: string
   groups?: readonly EPromptGroup[] | undefined
   placement?: EExecutionLocation | undefined
@@ -38,7 +35,6 @@ export function subAgentPrompt({
     promptContextFor({
       groups,
       provider,
-      model,
       projectDirectory,
       placement,
       runner,

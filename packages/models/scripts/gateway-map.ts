@@ -76,6 +76,7 @@ function cardFor(model: GatewayModel): GeneratedCard | undefined {
     api: GATEWAY_API,
     contextWindow,
     imageTier: imageTierFor(vendorModelId(model.id)),
+    ...(model.modalities === undefined ? {} : { inputModalities: model.modalities.input }),
     ...(maxOutputTokens === undefined || maxOutputTokens <= 0 ? {} : { maxOutputTokens }),
     ...(cost === undefined ? {} : { cost }),
     ...(effort === undefined ? {} : { effort }),

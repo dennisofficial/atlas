@@ -26,6 +26,7 @@ export enum EProviderFailureKind {
   Delivery = 'delivery',
   ModelDenied = 'model-denied',
   ContextOverflow = 'context-overflow',
+  RequestTooLarge = 'request-too-large',
   InvalidRequest = 'invalid-request',
   Cancelled = 'cancelled',
   Other = 'other',
@@ -137,6 +138,10 @@ const CONTEXT_OVERFLOW = never({
   kind: EProviderFailureKind.ContextOverflow,
   scope: EProviderFailureScope.Request,
 })
+const REQUEST_TOO_LARGE = never({
+  kind: EProviderFailureKind.RequestTooLarge,
+  scope: EProviderFailureScope.Request,
+})
 const INVALID_REQUEST = never({
   kind: EProviderFailureKind.InvalidRequest,
   scope: EProviderFailureScope.Request,
@@ -186,9 +191,8 @@ function verdictOf(args: {
   if (named(MODEL_DENIED_IDENTIFIERS) || statusCode === FORBIDDEN || statusCode === NOT_FOUND) {
     return MODEL_DENIED
   }
-  if (named(CONTEXT_OVERFLOW_IDENTIFIERS) || statusCode === PAYLOAD_TOO_LARGE) {
-    return CONTEXT_OVERFLOW
-  }
+  if (named(CONTEXT_OVERFLOW_IDENTIFIERS)) return CONTEXT_OVERFLOW
+  if (statusCode === PAYLOAD_TOO_LARGE) return REQUEST_TOO_LARGE
   if (statusCode === UNAUTHENTICATED || statusCode === PAYMENT_REQUIRED) {
     return bareCredentialStatusVerdict({
       statusCode,

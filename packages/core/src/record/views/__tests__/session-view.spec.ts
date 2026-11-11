@@ -3,7 +3,7 @@ import fc from 'fast-check'
 
 import { pullRequestsOf } from '../../../workspace/pull-requests'
 import { normalizedPrRepo } from '../../../github/pr-repo'
-import { contextMeterOf, EMeterBasis, type ContextMeter } from '../../context-meter'
+import { contextMeterOf, type ContextMeter } from '../../context-meter'
 import type { V2Event } from '../../event'
 import { sessionStatusOf } from '../../session-status'
 import { visibleEvents } from '../../visibility'
@@ -41,9 +41,7 @@ const inputs = fc.record({
 
 const expectContext = (actual: ContextMeter | null, oracle: ContextMeter): void => {
   if (actual === null) {
-    expect(oracle.basis).toBe(EMeterBasis.Estimated)
-    expect(oracle.estimatedTokens).toBe(0)
-    expect(oracle.window).toBeNull()
+    expect(oracle).toEqual({ used: null, window: null, measuredThroughSeq: null })
     return
   }
   expect(actual).toEqual(oracle)
@@ -132,7 +130,9 @@ describe('session view fold against the whole-log oracles', () => {
         if (events.some(needsRebuild)) {
           const lastEdit = events.findLastIndex(needsRebuild)
           const stale = fold(events.slice(0, lastEdit + 1))
-          expect(sessionViewOf({ state: stale, now: NOW, ...live }).context).toBeNull()
+          expect(
+            sessionViewOf({ state: stale, now: NOW, ...live }).context?.used ?? null,
+          ).toBeNull()
         }
         expect(rebuilt.spend).toEqual(view.spend)
         expect(rebuilt.checkouts).toEqual(view.checkouts)
@@ -177,8 +177,8 @@ describe('history edits', () => {
     const after = sessionViewOf({ state: foldWithRebuilds(events), ...args })
     expect(after.spend).toEqual(before.spend)
     expect(after.spend).not.toEqual([])
-    expect(before.context?.basis).toBe(EMeterBasis.Measured)
-    expect(after.context?.used ?? 0).toBeLessThan(before.context?.used ?? 0)
+    expect(before.context?.used).not.toBeNull()
+    expect(after.context?.used ?? null).toBeNull()
   })
 
   it('flags only rewinds and summaries for rebuild', () => {
@@ -193,7 +193,7 @@ describe('history edits', () => {
 })
 
 describe('context meter nullability', () => {
-  it('is null with no reading and nothing to estimate', () => {
+  it('is null with no reading and no window', () => {
     const view = sessionViewOf({
       state: initialSessionViewState,
       live: true,
@@ -202,6 +202,43 @@ describe('context meter nullability', () => {
       now: NOW,
     })
     expect(view.context).toBeNull()
+  })
+
+  it("reports the last reading's numbers once a call reported them", () => {
+    const events = eventsOf([
+      { kind: 'user', a: 1, b: 1 },
+      { kind: 'assistant-usage', a: 40, b: 30 },
+    ])
+    const view = sessionViewOf({
+      state: foldWithRebuilds(events),
+      live: true,
+      unconsumedInbox: false,
+      messageAfterFailure: false,
+      now: NOW,
+    })
+
+    expect(view.context?.used).toBeGreaterThan(0)
+    expect(view.context?.measuredThroughSeq).toBe(2)
+    expect(view.context?.window).toBe(100_040)
+  })
+
+  it('goes null again once a summary voids the reading, keeping the window it ran in', () => {
+    const events = eventsOf([
+      { kind: 'user', a: 1, b: 1 },
+      { kind: 'assistant-usage', a: 40, b: 30 },
+      { kind: 'summarise', a: 0, b: 0 },
+    ])
+    const view = sessionViewOf({
+      state: foldWithRebuilds(events),
+      live: true,
+      unconsumedInbox: false,
+      messageAfterFailure: false,
+      now: NOW,
+    })
+
+    expect(view.context?.used).toBeNull()
+    expect(view.context?.measuredThroughSeq).toBeNull()
+    expect(view.context?.window).toBe(100_040)
   })
 })
 

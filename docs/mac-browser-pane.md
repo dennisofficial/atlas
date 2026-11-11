@@ -1,11 +1,23 @@
 # The Mac browser pane
 
-Design for ADR [0013](decisions/0013-host-owns-the-browser-pane.md). Not built: the engine change that followed this design fixed the reported failures, so it is deferred rather than cancelled — see the ADR's Outcome.
+Design for ADR [0013](decisions/0013-host-owns-the-browser-pane.md), built on Chromium as
+ADR [0028](decisions/0028-mac-shell-is-electron.md) chose the shell. Where it lives now:
+- `apps/mac/panes.js` — the registry: one `WebContentsView` per target (`show` re-uses the view,
+  `navigate` moves it), `validCommand` rejects malformed bodies, `PANE_TARGET_LIMIT` bounds it.
+- `apps/mac/main.js` — creates the views (`WebContentsView`, Chromium), serves the guarded
+  `/desktop/pane` route and forwards each event to the shell document.
+- `apps/mac/preload.cjs` — exposes `window.atlasDesktop` for the drag regions the web app asks for.
+- `apps/mac/src/host/pane-routes.ts` — the host half of the route family.
+
+The sections below that describe `apps/mac/src/main/*` and `pane-engine.ts` are the design history
+of the electrobun shell that ADR 0028 deleted; the contract, the lifecycle rules and the engine
+measurements still hold.
 
 ## The contract
 
-One browser view per window, owned by `apps/mac/src/main`. The web app never holds a native
-object; it sends commands over the desktop host's guarded route family and listens for events.
+One browser view per window, owned by the shell's main process (`apps/mac/main.js`). The web app
+never holds a native object; it sends commands over the desktop host's guarded route family and
+listens for events.
 
 Web → host, `POST /desktop/pane` (same `secret` guard as `/desktop/window`):
 

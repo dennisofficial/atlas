@@ -1,5 +1,7 @@
 export type SkillListingEntry = { name: string; description: string; whenToUse: string | undefined }
 
+export const SKILL_LISTING_BUDGET_CHARS = 16 * 1024
+
 export const SKILL_LISTING_MAX_DESCRIPTION_CHARS = 1536
 
 export const SKILL_LISTING_MIN_DESCRIPTION_CHARS = 96

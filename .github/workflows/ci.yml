@@ -335,20 +335,19 @@ jobs:
         env:
           ATLAS_LIVE_DOCKER: '1'
 
-  # Unsigned rehearsal of the mac build on PRs: proves the web export, main bundle and Hutch
-  # packaging still work without touching a secret, so fork PRs run it too and it gates merges.
-  # Main pushes skip it: the PR run already proved the merge commit and `mac-release` builds it
-  # for real, so a main push never waits on a second macOS runner before releasing. Signing and
-  # notarization happen only in `mac-release`. Hutch builds for the host only, so this runs on
-  # the arm64 mac runner.
-  # No bun cache on macOS: restoring the ~650 MB archive takes longer than a cold install. The
-  # Next cache is restore-only here and saved by `mac-release` on main, so PRs never upload one.
+  # Unsigned rehearsal of the mac build on PRs: proves the web export, the OTA payload, the host
+  # bundle and electron-builder packaging still work without touching a secret, so fork PRs run it
+  # too and it gates merges. Main pushes skip it: the PR run already proved the merge commit and
+  # `mac-release` builds it for real, so a main push never waits on a second macOS runner before
+  # releasing. Signing and notarization happen only in `mac-release`. No bun cache on macOS:
+  # restoring the ~650 MB archive takes longer than a cold install. The Next cache is restore-only
+  # here and saved by `mac-release` on main, so PRs never upload one.
   mac-app-rehearsal:
     if: github.event_name != 'push'
     runs-on: macos-latest
     timeout-minutes: 30
     env:
-      ATLAS_MAC_UNSIGNED: '1'
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
     steps:
       - uses: actions/checkout@v7
         with:
@@ -356,10 +355,9 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2.2.0
 
-      # Packaging the app is most of this job's minutes, and the Swift shell under apps/mac/swift is
-      # not part of what build:app produces. The gate is the dependency closure of apps/mac — the
-      # same question the release asks — rather than a list of path prefixes, so a change to a
-      # package the app does not import skips the build and no path list can go stale.
+      # Packaging the app is most of this job's minutes. The gate is the dependency closure of
+      # apps/mac — the same question the release asks — rather than a list of path prefixes, so a
+      # change to a package the app does not import skips the build and no path list can go stale.
       - name: did this change reach the app
         id: reach
         run: bun scripts/app-reach.ts --base "${{ github.event.pull_request.base.sha }}" --app apps/mac >> "$GITHUB_OUTPUT"
@@ -376,20 +374,19 @@ jobs:
             next-${{ runner.os }}-${{ hashFiles('bun.lock') }}-
             next-${{ runner.os }}-
 
-      - name: restore hutch
+      - name: fetch the electron binary
         if: steps.reach.outputs.run == 'true'
-        uses: actions/cache@v6
-        with:
-          path: ~/.hutch
-          key: hutch-${{ runner.os }}-${{ hashFiles('apps/mac/hutch.config.ts', 'apps/mac/package.json') }}
-
-      - name: install create-dmg
-        if: steps.reach.outputs.run == 'true'
-        run: command -v create-dmg >/dev/null || brew install create-dmg
+        run: node apps/mac/node_modules/electron/install.js
 
       - name: build unsigned app
         if: steps.reach.outputs.run == 'true'
-        run: bun run build:app
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          iconutil -c icns icon.iconset -o build/icon.icns
+          bun run bundle:payload
+          bun run pack:host
+          npx electron-builder --mac dmg --arm64
         working-directory: apps/mac
 
       - name: verify the built app server answers flight requests
@@ -397,26 +394,9 @@ jobs:
         run: bun test src/host/__tests__/built-app.spec.ts
         working-directory: apps/mac
 
-      - name: verify no Chromium helper claims a Dock tile
-        if: steps.reach.outputs.run == 'true'
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          app=$(find build -maxdepth 2 -path 'build/stable-macos-*/*.app' | head -1)
-          if [ -z "$app" ]; then echo "::error::no built app under build/stable-macos-*"; exit 1; fi
-          bundles=("$app"/Contents/Frameworks/*.app)
-          if [ "${#bundles[@]}" -eq 0 ]; then echo "the app carries no Chromium helpers"; exit 0; fi
-          for bundle in "${bundles[@]}"; do
-            if ! plutil -extract LSUIElement raw "$bundle/Contents/Info.plist" | grep -qx true; then
-              echo "::error::$bundle would put its own tile in the Dock; see apps/mac/README.md"
-              exit 1
-            fi
-          done
-        working-directory: apps/mac
-
       - name: list artifacts
         if: steps.reach.outputs.run == 'true'
-        run: ls -la artifacts
+        run: ls -la release
         working-directory: apps/mac
 
   # The jobs below spell out `!cancelled()` because an implicit success() also sees transitive
@@ -550,24 +530,22 @@ jobs:
   # Signed and notarized build, only for a release the `release` job actually cut and only when the
   # app itself changed (`release-version.ts` reports whether a change reached apps/mac or a package
   # it depends on). A merge that touches only the interface cuts the release for the binaries and
-  # lets web-ota.yml carry the UI, instead of paying thirteen minutes for an unchanged app. The app
-  # is stamped with that release's version and its files are attached to the same GitHub release.
+  # lets web-ota.yml carry the UI, instead of paying the mac runner for an unchanged app. The app is
+  # stamped with that release's version and its dmg is attached to the same GitHub release.
   # The release is created with --latest=false and only marked latest here, after the upload, so
-  # releases/latest/download/<file> (the Mac auto-updater's URL) never points at a release that
-  # lacks the Mac files. The TUI updater reads the releases list, so it is unaffected.
+  # releases/latest/download/macos-arm64-Atlas.dmg — the URL the site's download button and the Mac
+  # updater read — never points at a release that lacks the Mac file. The TUI updater reads the
+  # releases list, so it is unaffected.
   mac-release:
     runs-on: macos-latest
     needs: [release]
     if: ${{ !cancelled() && needs.release.result == 'success' && needs.release.outputs.tag != '' && needs.release.outputs.mac == 'true' }}
-    timeout-minutes: 45
+    timeout-minutes: 30
     permissions:
       contents: write
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       TAG: ${{ needs.release.outputs.tag }}
-      ELECTROBUN_DEVELOPER_ID: 'Developer ID Application: Dennis Lysenko (9H7HK25CVR)'
-      ELECTROBUN_APPLEAPIKEY: ${{ secrets.APPLE_API_KEY_ID }}
-      ELECTROBUN_APPLEAPIISSUER: ${{ secrets.APPLE_API_ISSUER }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -584,12 +562,6 @@ jobs:
           restore-keys: |
             next-${{ runner.os }}-${{ hashFiles('bun.lock') }}-
             next-${{ runner.os }}-
-
-      - name: restore hutch
-        uses: actions/cache@v6
-        with:
-          path: ~/.hutch
-          key: hutch-${{ runner.os }}-${{ hashFiles('apps/mac/hutch.config.ts', 'apps/mac/package.json') }}
 
       - name: import signing certificate
         env:
@@ -617,147 +589,67 @@ jobs:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         run: |
           echo "$APPLE_API_KEY_P8_BASE64" | base64 --decode > "$RUNNER_TEMP/AuthKey.p8"
-          echo "ELECTROBUN_APPLEAPIKEYPATH=$RUNNER_TEMP/AuthKey.p8" >> "$GITHUB_ENV"
           # electron-builder's notarize step reads these three names, and only these three.
           echo "APPLE_API_KEY=$RUNNER_TEMP/AuthKey.p8" >> "$GITHUB_ENV"
           echo "APPLE_API_KEY_ID=$APPLE_API_KEY_ID" >> "$GITHUB_ENV"
           echo "APPLE_API_ISSUER=$APPLE_API_ISSUER" >> "$GITHUB_ENV"
 
-      - name: install create-dmg
-        run: command -v create-dmg >/dev/null || brew install create-dmg
-
       - name: fetch the electron binary
-        run: node apps/mac-electron/node_modules/electron/install.js
+        run: node apps/mac/node_modules/electron/install.js
 
-      - name: build signed app
-        run: |
-          set -euo pipefail
-          ATLAS_VERSION="${TAG#tui-v}"
-          [ -n "$ATLAS_VERSION" ] && [ "$ATLAS_VERSION" != "$TAG" ] || { echo "::error::unexpected release tag '$TAG'"; exit 1; }
-          export ATLAS_VERSION
-          bun run build:app
-        working-directory: apps/mac
-
-      - name: upload to release
-        run: |
-          set -euo pipefail
-          ls -la artifacts
-          files=(artifacts/*)
-          [ -e "${files[0]}" ] || { echo "::error::apps/mac/artifacts is empty"; exit 1; }
-          for attempt in 1 2 3; do
-            gh release upload "$TAG" "${files[@]}" --clobber --repo "$GITHUB_REPOSITORY" && break
-            [ "$attempt" = 3 ] && exit 1
-            echo "::warning::upload attempt $attempt failed; retrying"
-            sleep $((attempt * 15))
-          done
-          gh release edit "$TAG" --latest --repo "$GITHUB_REPOSITORY"
-        working-directory: apps/mac
-
-      # The Electron shell rides the same release as the electrobun build: one version, two assets,
-      # until the operator says the Electron app replaces it. Its version comes from the tag rather
-      # than package.json, and the identity is named so signing never depends on keychain discovery.
+      # The app's version comes from the tag rather than package.json, the icon is built from the
+      # iconset the site installs, and the identity is named so signing never depends on keychain
+      # discovery.
       - name: build the electron dmg
-        working-directory: apps/mac-electron
+        working-directory: apps/mac
         env:
-          CSC_NAME: 'Developer ID Application: Dennis Lysenko (9H7HK25CVR)'
+          CSC_NAME: 'Dennis Lysenko (9H7HK25CVR)'
         run: |
           set -euo pipefail
           VERSION="${TAG#tui-v}"
           [ -n "$VERSION" ] && [ "$VERSION" != "$TAG" ] || { echo "::error::unexpected release tag '$TAG'"; exit 1; }
           mkdir -p build
-          iconutil -c icns ../mac/icon.iconset -o build/icon.icns
+          iconutil -c icns icon.iconset -o build/icon.icns
           bun run bundle:payload
           bun run pack:host
-          npx electron-builder --mac dmg --arm64 -c.extraMetadata.version="$VERSION"
+          npx electron-builder --mac dmg --arm64 --publish never -c.extraMetadata.version="$VERSION"
+
+      # A verification or upload that fails after the build should still leave a signed build to
+      # install by hand, which is how the Electron app reached a Mac before this job could sign one.
+      - name: keep the dmg for a hand install
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Atlas-${{ github.sha }}-mac-arm64
+          path: apps/mac/release/*.dmg
+          if-no-files-found: ignore
+          retention-days: 14
 
       # An installed app that refuses to launch looks like a signing bug long after this run, so the
       # nested runtime is checked here: deep verification plus the runtime flag bun must carry.
       - name: verify the electron signature
         run: |
           set -euo pipefail
-          app=$(find apps/mac-electron/release -maxdepth 2 -name '*.app' -type d | head -1)
-          [ -n "$app" ] || { echo "::error::no .app in apps/mac-electron/release"; exit 1; }
+          app=$(find apps/mac/release -maxdepth 2 -name '*.app' -type d | head -1)
+          [ -n "$app" ] || { echo "::error::no .app in apps/mac/release"; exit 1; }
           codesign --verify --deep --strict --verbose=2 "$app"
-          codesign -dv "$app/Contents/Resources/bin/bun" 2>&1 | tee "$RUNNER_TEMP/bun-signature.txt"
-          grep -q 'flags=0x10000(runtime)' "$RUNNER_TEMP/bun-signature.txt" || { echo "::error::the bun runtime is not signed with the hardened runtime"; exit 1; }
-          grep -q 'Authority=Developer ID Application' "$RUNNER_TEMP/bun-signature.txt" || { echo "::error::the bun runtime is not Developer ID signed"; exit 1; }
-          codesign -d --entitlements :- "$app/Contents/Resources/bin/bun" 2>/dev/null | grep -q 'com.apple.security.cs.allow-jit' || { echo "::error::the bun runtime cannot use the JIT"; exit 1; }
-          shasum -a 256 apps/mac-electron/release/*.dmg
+          bun apps/mac/scripts/verify-signature.ts "$app"
+          shasum -a 256 apps/mac/release/*.dmg
 
-      - name: upload the electron app to the release
+      - name: upload the app to the release
         run: |
           set -euo pipefail
-          ls -la apps/mac-electron/release/*.dmg
+          ls -la apps/mac/release/*.dmg
           for attempt in 1 2 3; do
-            if gh release upload "$TAG" apps/mac-electron/release/*.dmg --clobber --repo "$GITHUB_REPOSITORY"; then break; fi
+            if gh release upload "$TAG" apps/mac/release/*.dmg --clobber --repo "$GITHUB_REPOSITORY"; then break; fi
             if [ "$attempt" = 3 ]; then echo "::error::upload attempt $attempt failed"; exit 1; fi
             echo "::warning::upload attempt $attempt failed; retrying"
             sleep $((attempt * 15))
           done
+          gh release edit "$TAG" --latest --repo "$GITHUB_REPOSITORY"
 
       - name: remove signing material
         if: always()
         run: |
           [ -z "$KEYCHAIN_PATH" ] || security delete-keychain "$KEYCHAIN_PATH" || true
           rm -f "$RUNNER_TEMP/AuthKey.p8" "$RUNNER_TEMP/cert.p12"
-
-  mac-shell:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v7
-      - name: build the Swift shell
-        run: swift build --package-path apps/mac/swift
-      - name: test the Swift shell
-        run: swift test --package-path apps/mac/swift
-
-  # The throwaway CefPaneSpike app proved CEF loads in a signed bundle on macOS (2026-11-10). The shell
-  # owns the pane now, so this is compile coverage until cutover packages the shell with CEF's helper
-  # processes, which is when a launch assertion can return against the real app.
-  mac-cef-build:
-    runs-on: macos-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: did this change reach the CEF binding
-        id: reach
-        run: |
-          base="${{ github.event.pull_request.base.sha || github.event.before }}"
-          files=""
-          if [ -n "$base" ] && git rev-parse --quiet --verify "$base^{commit}" >/dev/null; then
-            files=$(git diff --name-only "$base...HEAD")
-          fi
-          if [ -z "$base" ] || echo "$files" | grep -qE '^(apps/mac/swift/|\.github/|bun\.lock|package\.json)'; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=false" >> "$GITHUB_OUTPUT"
-            echo "no change here reaches the CEF binding; nothing to build"
-          fi
-
-      - uses: oven-sh/setup-bun@v2.2.0
-        if: steps.reach.outputs.run == 'true'
-
-      - uses: actions/cache@v6
-        if: steps.reach.outputs.run == 'true'
-        with:
-          path: apps/mac/swift/.cef
-          key: cef-156.0.26-g8ea0c73-macosarm64-minimal
-
-      - name: fetch CEF
-        if: steps.reach.outputs.run == 'true'
-        run: bun apps/mac/swift/scripts/fetch-cef.ts
-
-      - name: build the CEF C++ wrapper
-        if: steps.reach.outputs.run == 'true'
-        run: |
-          cmake -S apps/mac/swift/.cef -B apps/mac/swift/.build/cef-wrapper \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_OSX_ARCHITECTURES=arm64 \
-            -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY="$PWD/apps/mac/swift/.build/cef-wrapper/lib"
-          cmake --build apps/mac/swift/.build/cef-wrapper --target libcef_dll_wrapper --parallel 4
-
-      - name: build the shell against CEF
-        if: steps.reach.outputs.run == 'true'
-        run: swift build -c release --package-path apps/mac/swift

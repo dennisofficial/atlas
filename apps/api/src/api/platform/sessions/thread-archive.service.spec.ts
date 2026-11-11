@@ -85,7 +85,7 @@ describe('ThreadArchiveService', () => {
     })
   })
 
-  it('stops the pod before the response when a session is archived', async () => {
+  it('leaves the pod park to the dispatched cleanup instead of the response', async () => {
     await seedSandboxRow({ threadId: 'thr_1' })
     const parked: string[] = []
     const sandboxes = {
@@ -103,11 +103,36 @@ describe('ThreadArchiveService', () => {
 
     await service.setArchived({ userId: USER_A, threadId: 'thr_1', archived: true })
 
-    expect(parked).toEqual(['atlas-thread-thr_1'])
+    expect(parked).toEqual([])
+    expect(dispatcher.calls).toHaveLength(1)
   })
 
-  it('keeps the archive when the pod cannot be parked', async () => {
+  it('parks the pod itself when the cleanup dispatch fails', async () => {
     await seedSandboxRow({ threadId: 'thr_1' })
+    dispatcher.failure = new Error('trigger is down')
+    const parked: string[] = []
+    const sandboxes = {
+      park: async (args: { row: { name: string } }) => {
+        parked.push(args.row.name)
+      },
+    } as unknown as SandboxesService
+    service = new ThreadArchiveService(
+      dispatcher,
+      inertSignals(),
+      inertTeammateStop(),
+      undefined,
+      sandboxes,
+    )
+
+    await service.setArchived({ userId: USER_A, threadId: 'thr_1', archived: true })
+
+    expect(parked).toEqual(['atlas-thread-thr_1'])
+    expect((await sessionOfThreadRow('thr_1'))?.archivedAt).toBeInstanceOf(Date)
+  })
+
+  it('keeps the archive when the dispatch fails and the pod cannot be parked', async () => {
+    await seedSandboxRow({ threadId: 'thr_1' })
+    dispatcher.failure = new Error('trigger is down')
     const sandboxes = {
       park: async () => {
         throw new Error('pod gone')

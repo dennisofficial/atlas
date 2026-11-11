@@ -11,7 +11,7 @@ export interface ContextBreakdownRow {
 }
 
 export interface ContextProps {
-  used: number
+  used: number | null
   limit: number
   breakdown?: ContextBreakdownRow[]
   trigger?: ReactNode
@@ -19,14 +19,16 @@ export interface ContextProps {
 }
 
 interface UsageInput {
-  used: number
+  used: number | null
   limit: number
 }
 
-export function contextPercent({ used, limit }: UsageInput): number {
-  if (limit <= 0) return 0
+export function contextPercent({ used, limit }: UsageInput): number | null {
+  if (used === null || limit <= 0) return null
   return Math.min(100, Math.round((used / limit) * 100))
 }
+
+const NOT_MEASURED = '—'
 
 export function formatTokens(tokens: number): string {
   if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(1)}M`
@@ -36,17 +38,26 @@ export function formatTokens(tokens: number): string {
 
 export function Context({ used, limit, breakdown = [], trigger, className }: ContextProps) {
   const percent = contextPercent({ used, limit })
+  const reading = percent === null ? NOT_MEASURED : `${percent}%`
 
   return (
     <HoverCard>
       <HoverCardTrigger
         delay={10}
         closeDelay={100}
-        render={<Button variant="ghost" size="sm" className={cn('tabular-nums', className)} />}
+        render={
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label={percent === null ? 'Context not measured yet' : undefined}
+            className={cn('tabular-nums', className)}
+          />
+        }
       >
         {trigger ?? (
           <>
-            {percent}%<span className="max-md:sr-only"> context</span>
+            {reading}
+            {percent === null ? null : <span className="max-md:sr-only"> context</span>}
           </>
         )}
       </HoverCardTrigger>
@@ -54,10 +65,10 @@ export function Context({ used, limit, breakdown = [], trigger, className }: Con
         <div className="flex items-center justify-between gap-3 text-sm">
           <span className="font-medium">Context</span>
           <span className="text-muted-foreground tabular-nums">
-            {formatTokens(used)} / {formatTokens(limit)}
+            {used === null ? 'not measured yet' : formatTokens(used)} / {formatTokens(limit)}
           </span>
         </div>
-        <Progress value={percent} aria-label="Context used" />
+        {percent === null ? null : <Progress value={percent} aria-label="Context used" />}
         {breakdown.length > 0 ? (
           <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
             {breakdown.map((row) => (

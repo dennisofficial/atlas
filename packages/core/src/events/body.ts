@@ -54,6 +54,7 @@ export enum EMessageOrigin {
   Operator = 'operator',
   ParentAgent = 'parent-agent',
   PeerAgent = 'peer-agent',
+  ChildAgent = 'child-agent',
 }
 
 export enum EPullRequestState {

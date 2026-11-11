@@ -1,4 +1,3 @@
-import { CONTEXT_WINDOW_WHEN_THE_MODEL_IS_UNKNOWN } from '@dltech/atlas-core'
 import { EMPTY_POD, type PodSlot } from '@dltech/atlas-plugin-sdk'
 
 import { skillsCatalogueHook, skillsListingHook, type SkillsPodOptions } from './hooks'
@@ -24,11 +23,9 @@ export const SKILL_TOOLS = ['skill', 'skill_install', 'skill_edit', 'skill_delet
 export const skillsPodOf = (args: {
   cloud: CloudSkillSource
   writes?: CloudSkillWriter | undefined
-  contextWindowTokens?: number
 }): PodSlot => {
   const options: SkillsPodOptions = {
     cloud: args.cloud,
-    contextWindowTokens: args.contextWindowTokens ?? CONTEXT_WINDOW_WHEN_THE_MODEL_IS_UNKNOWN,
     writes: args.writes,
   }
   return {

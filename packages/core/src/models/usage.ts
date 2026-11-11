@@ -1,90 +1,14 @@
-import { estimateMessageTokens } from '../assembly/tokens'
-import type { EventBody, StepReading } from '../events/body'
+import type { StepReading } from '../events/body'
 import type { Event } from '../events/envelope'
-import type { PluginEventBody } from '../events/plugin-registry'
-import type { Message } from '../message/message'
-import type { ToolCallPart, ToolResultOutput, ToolResultPart } from '../message/parts'
 import type { ModelUsage } from '../stream/chunk'
 
-const callPart = (args: { name: string; input: unknown }): ToolCallPart => ({
-  type: 'tool-call',
-  toolCallId: args.name,
-  toolName: args.name,
-  input: args.input,
-})
-
-const resultPart = (args: { name: string; output: ToolResultOutput }): ToolResultPart => ({
-  type: 'tool-result',
-  toolCallId: args.name,
-  toolName: args.name,
-  output: args.output,
-})
-
-function messageOfEvent(event: EventBody | PluginEventBody): Message | undefined {
-  if (event.type === 'user-said') {
-    return { role: 'user', content: [{ type: 'text', text: event.text }] }
-  }
-
-  if (event.type === 'assistant-said') {
-    if (event.parts.length === 0) return undefined
-    return { role: 'assistant', content: [...event.parts] }
-  }
-
-  if (event.type === 'tool-called') {
-    return { role: 'assistant', content: [callPart({ name: event.name, input: event.input })] }
-  }
-
-  if (event.type === 'tool-result') {
-    return {
-      role: 'tool',
-      content: [
-        resultPart({
-          name: event.name,
-          output: { type: 'text', value: JSON.stringify(event.output) },
-        }),
-      ],
-    }
-  }
-
-  if (event.type === 'tool-denied') {
-    return { role: 'user', content: [{ type: 'text', text: event.reason }] }
-  }
-
-  if (event.type === 'context-loaded') {
-    return { role: 'user', content: [{ type: 'text', text: event.content }] }
-  }
-
-  if (event.type === 'history-compacted') {
-    return { role: 'user', content: [{ type: 'text', text: event.summary }] }
-  }
-
-  return undefined
-}
-
 /**
- * What the next turn will carry, estimated from the thread alone. It deliberately leaves out the
- * system preamble, which the harness assembles and the reader cannot see.
+ * What the last request carried, as the provider counted it: everything it was sent plus everything
+ * it wrote. No model's tokenizer is ours to reproduce, so a call that reported nothing leaves the
+ * window unmeasured rather than guessed.
  */
-export function estimateEventTokens(events: readonly Event[]): number {
-  return events.reduce((total, event) => total + estimateBodyTokens(event), 0)
-}
-
-export function estimateBodyTokens(body: EventBody | PluginEventBody): number {
-  const message = messageOfEvent(body)
-  return message === undefined ? 0 : estimateMessageTokens(message)
-}
-
-/**
- * What the next request will carry, as the model itself counted it: everything it was sent plus
- * everything it just wrote. Reported usage beats the estimate because it includes the system
- * preamble and the provider's own tokenizer; until a step reports one, the estimate is all there is.
- */
-export function contextTokens(args: {
-  reported: ModelUsage | null
-  events: readonly Event[]
-}): number {
-  const { reported } = args
-  if (reported === null) return estimateEventTokens(args.events)
+export function contextTokens(reported: ModelUsage | null): number | null {
+  if (reported === null) return null
   return Math.max(0, reported.inputTokens) + Math.max(0, reported.outputTokens)
 }
 
@@ -104,8 +28,8 @@ export function lastStepUsage(events: readonly Event[]): StepReading | null {
   return null
 }
 
-export const contextTokensOf = (events: readonly Event[]): number =>
-  contextTokens({ reported: lastStepUsage(events), events })
+export const contextTokensOf = (events: readonly Event[]): number | null =>
+  contextTokens(lastStepUsage(events))
 
 export type BilledUsage = {
   inputTokens: number

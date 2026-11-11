@@ -13,6 +13,7 @@ export const createSessionIn = async (params: {
   modelFast?: boolean | undefined
   spawnedBySessionId?: string | undefined
   podSessionId?: string | undefined
+  routineId?: string | undefined
   at: string
 }): Promise<void> => {
   const { tx, ...session } = params

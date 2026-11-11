@@ -102,3 +102,5 @@ apps/mac/swift/.cef/
 
 apps/artifacts-host/.vercel/
 .vercel/
+# trigger.dev CLI scratch, written by `trigger deploy`
+.trigger/

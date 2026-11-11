@@ -4,11 +4,19 @@ import type { SessionChange } from '@dltech/atlas-protocol'
 
 import {
   ControlStorePort,
+  type AdvanceRoutineParams,
   type BlobRefWrite,
   type BlobRow,
   type BlobWrite,
   type ClaimedBatch,
   type ControlTx,
+  type InsertRoutineRunParams,
+  type ListDueRoutinesParams,
+  type ListRoutineRunsParams,
+  type ListRoutinesParams,
+  type ReadRoutineForUserParams,
+  type RoutineRow,
+  type RoutineRunRow,
   type ReadEventsParams,
   type StoredEvent,
   type ThreadRow,
@@ -57,6 +65,19 @@ import {
   sessionsLinkedToIn,
   writeSessionViewIn,
 } from './postgres-views'
+import {
+  advanceRoutineIn,
+  deleteRoutineIn,
+  dueRoutinesIn,
+  insertRoutineIn,
+  insertRoutineRunIn,
+  lockRoutineIn,
+  readRoutineIn,
+  routineRunsIn,
+  updateRoutineIn,
+  userRoutineIn,
+  userRoutinesIn,
+} from './postgres-routines'
 import { deleteSubscriptionLeaseIn, upsertSubscriptionLeaseIn } from './postgres-subscriptions'
 import { toLease, toThreadRow } from './postgres-rows'
 import { insertEventsIn, listSessionsIn, readEventsIn, writeThreadHeadIn } from './postgres-threads'
@@ -306,6 +327,34 @@ class PostgresTx implements ControlTx {
   async hostPresent(hostId: number): Promise<boolean> {
     return hostPresentIn({ tx: this.tx, hostId })
   }
+
+  async lockRoutine(routineId: string): Promise<RoutineRow | undefined> {
+    return lockRoutineIn({ tx: this.tx, routineId })
+  }
+
+  async readRoutine(routineId: string): Promise<RoutineRow | undefined> {
+    return readRoutineIn({ tx: this.tx, routineId })
+  }
+
+  async advanceRoutine(params: AdvanceRoutineParams): Promise<boolean> {
+    return advanceRoutineIn({ tx: this.tx, ...params })
+  }
+
+  async insertRoutineRun(params: InsertRoutineRunParams): Promise<void> {
+    await insertRoutineRunIn({ tx: this.tx, ...params })
+  }
+
+  async insertRoutine(row: RoutineRow): Promise<void> {
+    await insertRoutineIn({ tx: this.tx, row })
+  }
+
+  async updateRoutine(row: RoutineRow): Promise<void> {
+    await updateRoutineIn({ tx: this.tx, row })
+  }
+
+  async deleteRoutine(routineId: string): Promise<void> {
+    await deleteRoutineIn({ tx: this.tx, routineId })
+  }
 }
 
 export class PostgresControlStore extends ControlStorePort {
@@ -315,5 +364,29 @@ export class PostgresControlStore extends ControlStorePort {
 
   transact<T>(work: (tx: ControlTx) => Promise<T>): Promise<T> {
     return retryOnConnectionLoss(() => this.db.transaction((tx) => work(new PostgresTx(tx))))
+  }
+
+  listDueRoutines(params: ListDueRoutinesParams): Promise<RoutineRow[]> {
+    return retryOnConnectionLoss(() =>
+      this.db.transaction((tx) => dueRoutinesIn({ tx, ...params })),
+    )
+  }
+
+  listRoutines(params: ListRoutinesParams): Promise<RoutineRow[]> {
+    return retryOnConnectionLoss(() =>
+      this.db.transaction((tx) => userRoutinesIn({ tx, ...params })),
+    )
+  }
+
+  readRoutineForUser(params: ReadRoutineForUserParams): Promise<RoutineRow | undefined> {
+    return retryOnConnectionLoss(() =>
+      this.db.transaction((tx) => userRoutineIn({ tx, ...params })),
+    )
+  }
+
+  listRoutineRuns(params: ListRoutineRunsParams): Promise<RoutineRunRow[]> {
+    return retryOnConnectionLoss(() =>
+      this.db.transaction((tx) => routineRunsIn({ tx, ...params })),
+    )
   }
 }

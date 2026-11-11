@@ -57,10 +57,8 @@ function setup(port: SaidUploadsPort | undefined) {
       contextWindow: 1_000_000,
     } as unknown as ModelPort,
     assembly: { rules: [spy], annotators: [] },
-    countTokens: (_assembled: Assembled) => 1,
     hooks: undefined,
     uploads: port,
-    onContext: undefined,
   }
   return { deps, seen }
 }

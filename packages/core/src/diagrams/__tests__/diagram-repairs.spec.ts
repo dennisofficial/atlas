@@ -99,7 +99,6 @@ describe('the diagram-repaired event', () => {
         threadId: toThreadId('thread-1'),
         step: 0,
         provider: { id: 'anthropic', modelId: 'test' },
-        countTokens: () => 0,
       },
     )
     const rendered = JSON.stringify(assembled.messages)

@@ -2,12 +2,10 @@ import type { ProviderIdentity } from '../provider'
 import type { EExecutionLocation } from '../execution/location'
 import type { ERunner } from '../execution/runner'
 import type { EPromptGroup } from './group'
-import type { PromptModel } from './model'
 
 export type PromptContext = {
   groups: readonly EPromptGroup[]
   provider: ProviderIdentity
-  model: PromptModel
   projectDirectory: string
   /** Where this session executes. Volatile: it is not part of promptContextKey, so a placement
    *  change recompiles without busting the cached prefix. */
@@ -18,19 +16,17 @@ export type PromptContext = {
 export function promptContextFor({
   groups,
   provider,
-  model,
   projectDirectory,
   placement,
   runner,
 }: {
   groups: readonly EPromptGroup[]
   provider: ProviderIdentity
-  model: PromptModel
   projectDirectory: string
   placement?: EExecutionLocation | undefined
   runner?: ERunner | undefined
 }): PromptContext {
-  return { groups, provider, model, projectDirectory, placement, runner }
+  return { groups, provider, projectDirectory, placement, runner }
 }
 
 export function promptContextKey({ groups, provider, projectDirectory }: PromptContext): string {

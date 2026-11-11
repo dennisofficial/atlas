@@ -25,6 +25,10 @@ import {
   type ThreadRow,
   type ControlSessionDigest,
   type ControlSessionRow,
+  type ListRoutineRunsParams,
+  type ListRoutinesParams,
+  type RoutineRow,
+  type RoutineRunRow,
   type SessionDigestRow,
   type SessionListParams,
 } from './port'
@@ -32,6 +36,13 @@ import { claimNextIn, wakeIn } from './claim-ops'
 import { withDigestViews } from './session-digest-view'
 import { readSessionViewWithCatchUp, type SessionViewRead } from './session-view-read'
 import { readEventsIn, type ReadEventsPage } from './read-events'
+import { runRoutineIn, type RunRoutineParams, type RunRoutineResult } from './routine-ops'
+import {
+  createRoutineIn,
+  deleteRoutineIn,
+  updateRoutineIn,
+  type RoutinePatch,
+} from './routine-crud'
 import { AppendAbort, type AppendOutcome } from './refusal'
 import { archiveIn, createSessionIn, renameIn, titleUntitledIn } from './session-ops'
 import { EMPTY_VISIBILITY_TEXT } from './stored-event'
@@ -85,6 +96,7 @@ export class ControlPlane {
     modelRef?: string | undefined
     modelEffort?: string | undefined
     modelFast?: boolean | undefined
+    routineId?: string | undefined
   }): Promise<void> {
     await this.store.transact(async (tx) =>
       createSessionIn({ tx, ...params, at: await this.nowIn(tx) }),
@@ -100,6 +112,7 @@ export class ControlPlane {
     modelRef?: string | undefined
     modelEffort?: string | undefined
     modelFast?: boolean | undefined
+    routineId?: string | undefined
     message: { kind: string; payload: string }
   }): Promise<{ inboxId: number }> {
     const { message, ...session } = params
@@ -383,6 +396,51 @@ export class ControlPlane {
 
   async hostPresent(params: { hostId: number }): Promise<boolean> {
     return this.store.transact((tx) => tx.hostPresent(params.hostId))
+  }
+
+  async runRoutine(params: RunRoutineParams): Promise<RunRoutineResult> {
+    return this.store.transact((tx) =>
+      runRoutineIn({
+        tx,
+        leases: this.leases,
+        ...params,
+        eventSchema: this.eventSchema,
+        pluginViews: this.pluginViews,
+      }),
+    )
+  }
+
+  async createRoutine(row: RoutineRow): Promise<RoutineRow> {
+    return this.store.transact((tx) => createRoutineIn({ tx, row }))
+  }
+
+  async updateRoutine(params: {
+    routineId: string
+    userId: string
+    patch: RoutinePatch
+    nextRunAt?: string | undefined
+    at: string
+  }): Promise<RoutineRow | undefined> {
+    return this.store.transact((tx) => updateRoutineIn({ tx, ...params }))
+  }
+
+  async deleteRoutine(params: { routineId: string; userId: string }): Promise<boolean> {
+    return this.store.transact((tx) => deleteRoutineIn({ tx, ...params }))
+  }
+
+  async listRoutines(params: ListRoutinesParams): Promise<RoutineRow[]> {
+    return this.store.listRoutines(params)
+  }
+
+  async readRoutine(params: {
+    routineId: string
+    userId: string
+  }): Promise<RoutineRow | undefined> {
+    return this.store.readRoutineForUser(params)
+  }
+
+  async listRoutineRuns(params: ListRoutineRunsParams): Promise<RoutineRunRow[]> {
+    return this.store.listRoutineRuns(params)
   }
 
   private async requireThread(params: { tx: ControlTx; threadId: string }): Promise<ThreadRow> {

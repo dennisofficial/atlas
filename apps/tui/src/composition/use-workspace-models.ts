@@ -139,14 +139,15 @@ export function useWorkspaceModels(args: {
 
 const readoutOf = (args: {
   card: ModelCard | undefined
-  used: number
+  used: number | null
   meters: readonly FooterMeter[]
 }): FooterContext => {
-  const { card } = args
+  const { card, used } = args
 
   if (card === undefined) return { percent: 0, measured: false, meters: args.meters }
+  if (used === null) return { percent: null, meters: args.meters }
 
-  const pressure = contextPressure({ used: args.used, window: card.contextWindow })
+  const pressure = contextPressure({ used, window: card.contextWindow })
   return { percent: pressure.percent, tokensUsed: pressure.used, meters: args.meters }
 }
 

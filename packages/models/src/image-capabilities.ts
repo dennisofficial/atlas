@@ -3,7 +3,6 @@ import {
   MAX_INLINE_BYTES,
   OPENAI_COMPLETIONS_API,
   type ImageCapabilities,
-  type ModelCard,
 } from '@dltech/atlas-core'
 
 const MEGABYTE = 1024 * 1024
@@ -17,21 +16,14 @@ const BY_API: Readonly<Record<string, ImageCapabilities>> = {
   'ai-gateway': INLINE_ONLY,
 }
 
-const TEXT_ONLY_MODEL_IDS: readonly RegExp[] = [
-  /(?:^|\/)deepseek-(?:chat|r1|v3)/,
-  /(?:^|\/)llama-3\.[13]-/,
-  /(?:^|\/)codestral/,
-  /(?:^|\/)devstral/,
-]
-
-const hasNoVision = (modelId: string): boolean =>
-  TEXT_ONLY_MODEL_IDS.some((pattern) => pattern.test(modelId))
+const IMAGE_MODALITY = 'image'
 
 export function imageCapabilitiesOf(args: {
   api: string
-  ref: ModelCard['ref']
+  inputModalities?: readonly string[] | undefined
 }): ImageCapabilities {
   const byApi = BY_API[args.api] ?? INLINE_ONLY
-  if (args.api !== OPENAI_COMPLETIONS_API) return byApi
-  return hasNoVision(args.ref.modelId) ? { ...byApi, images: 'none' } : byApi
+  const seesImages = args.inputModalities?.includes(IMAGE_MODALITY)
+
+  return seesImages === false ? { ...byApi, images: 'none' } : byApi
 }

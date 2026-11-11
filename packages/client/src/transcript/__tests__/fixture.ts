@@ -109,6 +109,7 @@ export const fromTheModel = (model: TranscriptModel) =>
     ): entry is Exclude<
       TranscriptEntry,
       | { kind: EEntryKind.OperatorSaid }
+      | { kind: EEntryKind.AgentSaid }
       | { kind: EEntryKind.HistoryCompacted }
       | { kind: EEntryKind.BackgroundShellEnded }
       | { kind: EEntryKind.BackgroundShellAwaitingInput }
@@ -130,6 +131,7 @@ export const fromTheModel = (model: TranscriptModel) =>
       | { kind: EEntryKind.PrEvent }
     > =>
       entry.kind !== EEntryKind.OperatorSaid &&
+      entry.kind !== EEntryKind.AgentSaid &&
       entry.kind !== EEntryKind.HistoryCompacted &&
       entry.kind !== EEntryKind.BackgroundShellEnded &&
       entry.kind !== EEntryKind.BackgroundShellAwaitingInput &&

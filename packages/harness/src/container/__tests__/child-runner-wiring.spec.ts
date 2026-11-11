@@ -10,7 +10,6 @@ import {
   IdPort,
   ModelPort,
   promptContextFor,
-  type PromptModel,
   type ThreadId,
 } from '@dltech/atlas-core'
 
@@ -36,8 +35,6 @@ import {
 } from '../tokens'
 
 const ROOT = '/workspace/atlas'
-
-const CHILD_MODEL: PromptModel = { contextWindow: 1_000_000 }
 
 const CHILD_REPLY = 'The vault reads its key file exactly once.'
 
@@ -79,7 +76,6 @@ function bindChildRunner({ container }: { container: DependencyContainer }): voi
                 promptContextFor({
                   groups: ALL_PROMPT_GROUPS,
                   provider: modelPort.identity,
-                  model: CHILD_MODEL,
                   projectDirectory: '/w',
                 }),
               ),
@@ -100,7 +96,6 @@ function bindChildRunner({ container }: { container: DependencyContainer }): voi
                 prompts,
                 agentType,
                 provider: modelPort.identity,
-                model: CHILD_MODEL,
                 projectDirectory: '/w',
               }),
             launchDirectory: ROOT,

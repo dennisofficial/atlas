@@ -158,6 +158,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
         <SessionHeader
           sessionId={sessionId}
           state={headerStateOfSession(snapshot.status)}
+          routineId={listed?.routineId ?? null}
           title={listed?.title ?? null}
           naming={listed?.naming ?? false}
           branch={model.branch}

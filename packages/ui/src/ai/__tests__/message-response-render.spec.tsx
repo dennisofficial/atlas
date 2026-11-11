@@ -31,11 +31,23 @@ describe('MessageResponse on a real model reply', () => {
     expect(textOf(html)).not.toContain('**')
   })
 
-  it('renders inline and block math with KaTeX', () => {
-    const html = render('Inline: $E = mc^2$. Block:\n\n$$\n\\sum_{i=1}^{n} i\n$$')
+  it('renders double-dollar inline and block math with KaTeX', () => {
+    const html = render('Inline: $$E = mc^2$$. Block:\n\n$$\n\\sum_{i=1}^{n} i\n$$')
 
     expect(html.split('class="katex"').length - 1).toBe(2)
-    expect(html).not.toContain('$E = mc^2$')
+  })
+
+  it('keeps a dollar amount as money rather than math', () => {
+    for (const isAnimating of [false, true]) {
+      const html = render(
+        '1 high and 4 mediums for $21.94, ten times the surface coverage of the control. Kimi cost $54.80 to produce 26 items.',
+        isAnimating,
+      )
+
+      expect(html).not.toContain('katex')
+      expect(textOf(html)).toContain('for $21.94, ten times the surface coverage of the control.')
+      expect(textOf(html)).toContain('cost $54.80')
+    }
   })
 
   it('joins single newlines by default and breaks them when asked', () => {

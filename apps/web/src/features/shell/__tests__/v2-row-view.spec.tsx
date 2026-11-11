@@ -77,4 +77,10 @@ describe('v2 sidebar row', () => {
     expect(unknown).toContain('Checks unknown')
     expect(unknown).toContain('state unknown')
   })
+
+  it('tags the row of a session a routine produced, and only that row', () => {
+    const html = render({ routineId: 'rte-1' })
+    expect(html).toContain('data-engine-tag="routine"')
+    expect(render({})).not.toContain('data-engine-tag="routine"')
+  })
 })

@@ -80,15 +80,15 @@ export class InboxIntake implements AgentIntake {
           await this.consumeUnknown(entry)
           continue
         }
-        const { text } = parsed.data
+        const { text, via } = parsed.data
         const attachments = attachmentsOf(parsed.data)
         const sender = entry.senderSessionId
+        const origin = sender === null ? via : EMessageOrigin.PeerAgent
         drafts.push({
           type: 'user-said',
           text,
-          ...(sender === null
-            ? {}
-            : { sender: { session: sender }, via: EMessageOrigin.PeerAgent }),
+          ...(sender === null ? {} : { sender: { session: sender } }),
+          ...(origin === undefined ? {} : { via: origin }),
           ...(attachments.length === 0 ? {} : { attachments }),
           requestId: `inbox:${entry.inboxId}`,
           inboxId: entry.inboxId,

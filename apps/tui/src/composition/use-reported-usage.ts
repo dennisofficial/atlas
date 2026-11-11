@@ -6,17 +6,15 @@ type Reported = { threadId: ThreadId; usage: ModelUsage }
 export function useReportedUsage(args: { threadId: ThreadId }): {
   setReported: (next: Reported | null) => void
   forgetUsage: () => void
-  usedTokens: (logTokens: number) => number
+  usedTokens: () => number | null
   reported: Reported | null
 } {
   const { threadId } = args
   const [reported, setReported] = useState<Reported | null>(null)
   const forgetUsage = useCallback(() => setReported(null), [])
   const usedTokens = useCallback(
-    (logTokens: number): number =>
-      reported === null || reported.threadId !== threadId
-        ? logTokens
-        : contextTokens({ reported: reported.usage, events: [] }),
+    (): number | null =>
+      reported === null || reported.threadId !== threadId ? null : contextTokens(reported.usage),
     [reported, threadId],
   )
   return { setReported, forgetUsage, usedTokens, reported }

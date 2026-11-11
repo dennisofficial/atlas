@@ -1,42 +1,12 @@
-import { estimateTextTokens } from '../assembly/tokens'
-import { estimateBodyTokens } from '../models/usage'
 import type { V2Event } from './event'
 import { visibleEvents } from './visibility'
 import { stepReadingOf } from './views/step-reading'
 
-export enum EMeterBasis {
-  Measured = 'measured',
-  Estimated = 'estimated',
-}
-
 export type ContextMeter = {
-  used: number
+  used: number | null
   window: number | null
-  basis: EMeterBasis
   measuredThroughSeq: number | null
-  estimatedTokens: number
 }
-
-export const meterTokensOf = (event: V2Event): number => {
-  if (event.type === 'history-summarised') return estimateTextTokens(event.summary)
-  if (
-    event.type === 'history-rewound' ||
-    event.type === 'input-consumed' ||
-    event.type === 'input-refused' ||
-    event.type === 'fact-recorded' ||
-    event.type === 'retry-scheduled' ||
-    event.type === 'branches-observed' ||
-    event.type === 'workspace-prepared' ||
-    event.type === 'workspace-prepare-failed' ||
-    event.type === 'workspace-step' ||
-    event.type === 'session-start-failed'
-  )
-    return 0
-  return estimateBodyTokens(event)
-}
-
-const sum = (events: readonly V2Event[]): number =>
-  events.reduce((total, event) => total + meterTokensOf(event), 0)
 
 const lastWindowIn = (events: readonly V2Event[]): number | null => {
   for (let index = events.length - 1; index >= 0; index -= 1) {
@@ -47,20 +17,10 @@ const lastWindowIn = (events: readonly V2Event[]): number | null => {
 }
 
 /**
- * The rest of a step's tool calls share the reading on its first event, and its output tokens
- * already count them.
- */
-const afterOwnStep = (tail: readonly V2Event[]): readonly V2Event[] => {
-  const firstForeign = tail.findIndex((event) => event.type !== 'tool-called')
-  return firstForeign < 0 ? [] : tail.slice(firstForeign)
-}
-
-/**
- * How full the window of the model that last ran stands, read from the visible log alone: the last
- * call's reported input plus output, plus an estimate of what has landed since (tool results,
- * operator messages), so it rises between calls too. A rewound reading is invisible and so never
- * read; a summary after the reading voids it until the next call measures the shrunk context. The
- * window is the last call's, hidden or not: hiding history does not change which model ran.
+ * How full the window of the model that last ran stands, as that model reported it. A rewound
+ * reading is invisible and so never read; a summary after the reading voids it until the next call
+ * measures the shrunk context. The window is the last call's, hidden or not: hiding history does not
+ * change which model ran.
  */
 export function contextMeterOf(events: readonly V2Event[]): ContextMeter {
   const visible = visibleEvents(events)
@@ -70,23 +30,12 @@ export function contextMeterOf(events: readonly V2Event[]): ContextMeter {
 
   const reading = readingAt < 0 ? undefined : stepReadingOf(visible[readingAt] as V2Event)
   if (reading === undefined || summarisedAt > readingAt) {
-    const estimatedTokens = sum(visible)
-    return {
-      used: estimatedTokens,
-      window,
-      basis: EMeterBasis.Estimated,
-      measuredThroughSeq: null,
-      estimatedTokens,
-    }
+    return { used: null, window, measuredThroughSeq: null }
   }
 
-  const measured = Math.max(0, reading.inputTokens) + Math.max(0, reading.outputTokens)
-  const estimatedTokens = sum(afterOwnStep(visible.slice(readingAt + 1)))
   return {
-    used: measured + estimatedTokens,
+    used: Math.max(0, reading.inputTokens) + Math.max(0, reading.outputTokens),
     window,
-    basis: EMeterBasis.Measured,
     measuredThroughSeq: (visible[readingAt] as V2Event).seq,
-    estimatedTokens,
   }
 }

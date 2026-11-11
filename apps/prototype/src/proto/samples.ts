@@ -10,6 +10,11 @@ export const PROTO_SAMPLES: Record<string, ProtoSample[]> = {
     { label: 'Teammate', path: '/threads/tm-gutter-tokens' },
   ],
   '/sessions/[sessionId]': [{ label: 'v2 session', path: '/sessions/thr-ui-rebase' }],
+  '/routines/[routineId]': [
+    { label: 'Running', path: '/routines/rte-dead-code' },
+    { label: 'Skipped', path: '/routines/rte-dep-audit' },
+    { label: 'Paused', path: '/routines/rte-inbox-triage' },
+  ],
   '/projects/[projectId]/settings/overview': [
     { label: 'atlas', path: '/projects/atlas/settings/overview' },
     { label: 'rs-crm', path: '/projects/rs-crm/settings/overview' },

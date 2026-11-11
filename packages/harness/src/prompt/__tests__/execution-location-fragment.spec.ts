@@ -5,7 +5,6 @@ import {
   promptContextFor,
   ALL_PROMPT_GROUPS,
   type ProviderIdentity,
-  type PromptModel,
 } from '@dltech/atlas-core'
 
 import { ExecutionLocationFragment } from '../fragments/environment'
@@ -17,7 +16,6 @@ const ctx = (placement?: EExecutionLocation, runner?: ERunner) =>
       id: 'test',
       modelId: 'test-model',
     } as unknown as ProviderIdentity,
-    model: { contextWindow: 100000 } as unknown as PromptModel,
     projectDirectory: '/repo',
     placement,
     runner,

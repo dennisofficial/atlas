@@ -66,14 +66,12 @@ const imagesSent = async (found: boolean) => {
         traits: () => ({ image: servedHaiku }),
       } as unknown as ModelPort,
       assembly: { rules: [messagesFromEvents()], annotators: [] },
-      countTokens: (_assembled: Assembled) => 1,
       hooks: undefined,
       uploads: placed,
       mediaUrls: uploadMediaUrls({
         download: async () =>
           found ? { found: true, downloadUrl: SIGNED, size: 8 } : { found: false },
       }),
-      onContext: undefined,
     },
     {
       threadId,

@@ -10,6 +10,7 @@ export enum EAuthor {
 
 export enum EEntryKind {
   OperatorSaid = 'operator-said',
+  AgentSaid = 'agent-said',
   ModelSaid = 'model-said',
   ModelThought = 'model-thought',
   ToolsRan = 'tools-ran',
@@ -140,6 +141,14 @@ export type ServiceEndedEntry = {
   failed: boolean
 }
 
+export type AgentSaidEntry = {
+  kind: EEntryKind.AgentSaid
+  author: EAuthor.Model
+  key: string
+  text: string
+  sender: string
+}
+
 export type AgentEndedEntry = {
   kind: EEntryKind.AgentEnded
   author: EAuthor.Model
@@ -262,6 +271,7 @@ export type PrEventEntry = {
 
 export type TranscriptEntry =
   | OperatorSaidEntry
+  | AgentSaidEntry
   | ModelSaidEntry
   | ModelThoughtEntry
   | ToolsRanEntry

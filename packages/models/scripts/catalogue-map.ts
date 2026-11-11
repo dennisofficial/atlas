@@ -44,6 +44,7 @@ function cardFor({
     api,
     contextWindow,
     imageTier: imageTierFor(modelId),
+    ...(model.modalities === undefined ? {} : { inputModalities: model.modalities.input }),
     ...(maxOutputTokens === undefined ? {} : { maxOutputTokens }),
     ...(input === undefined || output === undefined
       ? {}

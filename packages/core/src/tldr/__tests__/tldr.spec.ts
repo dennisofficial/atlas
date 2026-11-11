@@ -153,7 +153,6 @@ describe('tldr-written in the loop and the prompt', () => {
           threadId: toThreadId('thread-1'),
           step: 0,
           provider: { id: 'anthropic', modelId: 'test' },
-          countTokens: () => 0,
         },
       ),
     }

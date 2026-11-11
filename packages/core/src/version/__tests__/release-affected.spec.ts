@@ -11,7 +11,16 @@ import {
 const manifests: readonly WorkspaceManifest[] = [
   { dir: 'apps/tui', name: '@dltech/atlas', dependencies: ['@dltech/atlas-harness'] },
   { dir: 'apps/serve', name: '@dltech/atlas-serve', dependencies: ['@dltech/atlas-harness'] },
-  { dir: 'apps/mac', name: '@dltech/atlas-mac', dependencies: ['@dltech/atlas-wire'] },
+  {
+    dir: 'apps/mac',
+    name: '@dltech/atlas-mac',
+    dependencies: [
+      '@dltech/atlas-api-router',
+      '@dltech/atlas-core',
+      '@dltech/atlas-harness',
+      '@dltech/atlas-wire',
+    ],
+  },
   { dir: 'apps/web', name: 'web', dependencies: ['@dltech/atlas-ui', '@dltech/atlas-wire'] },
   { dir: 'apps/api', name: '@dltech/atlas-api', dependencies: ['@dltech/atlas-db'] },
   {
@@ -58,7 +67,7 @@ describe('affectedApps', () => {
   })
 
   it('marks every app reaching a deep dependency', () => {
-    expect(affected(['packages/core/src/index.ts'])).toEqual(['apps/tui', 'apps/serve'])
+    expect(affected(['packages/core/src/index.ts'])).toEqual(['apps/tui', 'apps/serve', 'apps/mac'])
   })
 
   it('marks every app for a lockfile, root manifest or patch change', () => {

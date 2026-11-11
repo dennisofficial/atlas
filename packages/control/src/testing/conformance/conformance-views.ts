@@ -115,14 +115,14 @@ export function describeControlPlaneViews(params: ConformanceParams): void {
       expect(after?.checkouts).toEqual(freshAfter.checkouts)
     })
 
-    it('keeps spend through a rewind and rebuilds the meter in the same append', async () => {
+    it('keeps spend through a rewind and forgets a meter it can no longer measure', async () => {
       await appendBodies({ harness, epoch, bodies: [said('a'), reading(100), said('b')] })
       const before = await view()
       await appendBodies({ harness, epoch, bodies: [{ type: 'history-rewound', toSeq: 1 }] })
       const after = await view()
       expect(after.value.spend).toEqual(before.value.spend)
       expect(after.value.spend[0]?.inputTokens).toBe(100)
-      expect(after.value.context).not.toBeNull()
+      expect(after.value.context).toBeNull()
       expect(after.at).toBe(4)
     })
 

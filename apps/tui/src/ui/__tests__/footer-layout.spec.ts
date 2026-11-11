@@ -10,6 +10,7 @@ import {
   instrumentCells,
   readouts,
   UNMEASURED_CONTEXT,
+  UNMEASURED_READING,
   type FooterLayout,
 } from '../footer-layout'
 
@@ -386,5 +387,10 @@ describe('a context window nothing measured', () => {
   it('leaves an ordinary reading alone', () => {
     const forms = readouts({ percent: 42, tokensUsed: 1200, meters: [] })
     for (const form of forms) expect(form.text).not.toContain(UNMEASURED_CONTEXT)
+  })
+
+  it('shows an em dash while no call has reported usage', () => {
+    const forms = readouts({ percent: null, meters: [] })
+    for (const form of forms) expect(form.text).toBe(UNMEASURED_READING)
   })
 })

@@ -12,6 +12,7 @@ export class OutputShapeFragment extends PromptFragment {
       '```mermaid fence; the client renders it as a diagram. Wrap a node label in double quotes when it',
       'holds punctuation such as ()[]{}:;#, and keep sequence-message text to plain words, without',
       'semicolons, # or arrow-like sequences such as -> inside it.',
+      'Write math as $$…$$, inline or on its own line. A lone $ is read as a price and stays plain text.',
     ].join('\n')
   }
 }

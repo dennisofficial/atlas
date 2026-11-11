@@ -3,7 +3,6 @@ import { describe, expect, it } from 'bun:test'
 import type { Assembled, AssembledMessage } from '../../assembled'
 import { toEventId } from '../../../events/ids'
 import type { ImagePart } from '../../../message/parts'
-import { estimateTokens } from '../../tokens'
 import { contextFor, log } from '../../__tests__/log-fixture'
 import { MAX_IMAGE_BLOCKS, corruptImagesDropped, imagesInContext } from '../images'
 
@@ -185,13 +184,12 @@ describe('imagesInContext', () => {
     expect(imagesInContext({ limit: 0 })(input, ctx)).toBe(input)
   })
 
-  it('stops re-billing the pixels of what it retired', () => {
+  it('stops sending the pixels of what it retired', () => {
     const input = assembledOf(manyShownByUser(MAX_IMAGE_BLOCKS + 20))
+    const imagesIn = (assembled: Assembled): number =>
+      partsOf(assembled).filter((part) => part === 'image').length
 
-    const before = estimateTokens(input)
-    const after = estimateTokens(imagesInContext()(input, ctx))
-
-    expect(before).toBeGreaterThan(after)
+    expect(imagesIn(imagesInContext()(input, ctx))).toBeLessThan(imagesIn(input))
   })
 
   it('keeps the description when the bytes carry no readable header', () => {

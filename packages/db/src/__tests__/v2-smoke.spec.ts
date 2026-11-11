@@ -21,6 +21,7 @@ const sessionRow = () => ({
   podSessionId: null,
   podRetiredAt: null,
   lastSurface: 'web',
+  routineId: null,
 })
 
 describe('v2 namespace client', () => {

@@ -17,7 +17,6 @@ type Call = { method: string; args: unknown }
 const promptCtx: PromptContext = {
   groups: [],
   provider: { id: 'anthropic', modelId: 'claude-sonnet-4-5' },
-  model: { contextWindow: 200_000 },
   projectDirectory: '/work',
 }
 

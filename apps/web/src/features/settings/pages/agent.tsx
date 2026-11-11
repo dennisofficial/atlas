@@ -3,6 +3,8 @@
 import { FieldError } from '@dltech/atlas-ui/components/field'
 import { Input } from '@dltech/atlas-ui/components/input'
 
+import { RoutineTimezoneField } from '@/features/routines/routine-timezone-field'
+import { deviceTimezone } from '@/features/routines/routine-timezones'
 import type { SettingChanges, SettingValues } from '@/lib/cloud-settings'
 
 import {
@@ -12,6 +14,7 @@ import {
 } from '../data/personal/agent-settings'
 import { fieldChanges, fieldValuesFrom } from '../data/personal/setting-fields'
 import { QueryPage } from '../data/personal/query-boundary'
+import { routineSettingsChanges, routineSettingsFrom } from '../data/personal/routine-settings'
 import { AgentSkeleton } from '../skeletons/agent-skeletons'
 import { useAgentKeys } from '../data/personal/use-agent-keys'
 import { usePersonalSettings, useSettingsDraft } from '../data/personal/use-settings-draft'
@@ -33,6 +36,7 @@ const TITLE = 'Agent'
 const DESCRIPTION =
   'How the agent judges risky tool calls, searches the web, reads context and compacts. Every sandbox loads these when it starts.'
 const ENDPOINT_INPUT_ID = 'agent-decisions-url'
+const TIMEZONE_INPUT_ID = 'agent-routine-timezone'
 const MODEL_INPUT_ID = 'agent-decisions-model'
 const URL_ERROR = 'Enter an absolute http:// or https:// URL'
 
@@ -69,8 +73,15 @@ function AgentEditor({
     toChanges: fieldChanges,
     save,
   })
+  const routineDraft = useSettingsDraft({
+    values,
+    fromValues: routineSettingsFrom,
+    toChanges: routineSettingsChanges,
+    save,
+  })
   const { savedNames, handleSaveKey } = useAgentKeys()
   const { value, setValue } = draft
+  const routine = routineDraft.draft
   const custom = value.provider === EDecisionsProvider.Custom
   const urlValid = isValidDecisionsUrl(value.url)
   const pending = agentSettingsChanges({
@@ -79,15 +90,25 @@ function AgentEditor({
   })
   const agentDirty = Object.keys(pending).length > 0
   const fieldsDirty = fieldsDraft.draft.dirty
-  const dirty = (agentDirty || fieldsDirty) && !saving && !fieldsDraft.saving
+  const routineDirty =
+    Object.keys(
+      routineSettingsChanges({ saved: routineSettingsFrom(values), draft: routine.value }),
+    ).length > 0
+  const dirty =
+    (agentDirty || fieldsDirty || routineDirty) &&
+    !saving &&
+    !fieldsDraft.saving &&
+    !routineDraft.saving
   const canSave = dirty && (!custom || urlValid)
   const handleSaveAll = async () => {
     if (agentDirty) await handleSave()
     if (fieldsDirty) await fieldsDraft.handleSave()
+    if (routineDirty) await routineDraft.handleSave()
   }
   const handleDiscardAll = () => {
     draft.discard()
     fieldsDraft.draft.discard()
+    routine.discard()
   }
 
   return (
@@ -200,6 +221,27 @@ function AgentEditor({
             fields={CONTEXT_FIELDS}
             value={fieldsDraft.draft.value}
             onChange={fieldsDraft.draft.setValue}
+          />
+        </SettingsCard>
+      </SettingsSection>
+      <SettingsSection
+        title="Routines"
+        description="What a new routine starts with, whether you create it here or ask the agent to."
+      >
+        <SettingsCard>
+          <SettingsRow
+            title={<label htmlFor={TIMEZONE_INPUT_ID}>Default timezone</label>}
+            description="New routines open in this zone. A run keeps its wall-clock time in the routine's own zone, so travelling does not move it. Empty means this device's zone."
+            control={
+              <div className="w-72">
+                <RoutineTimezoneField
+                  id={TIMEZONE_INPUT_ID}
+                  value={routine.value.timezone}
+                  placeholder={deviceTimezone()}
+                  onChange={(timezone) => routine.setValue({ ...routine.value, timezone })}
+                />
+              </div>
+            }
           />
         </SettingsCard>
       </SettingsSection>

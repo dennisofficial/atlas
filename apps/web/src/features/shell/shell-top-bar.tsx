@@ -7,6 +7,7 @@ import { SidebarHeader } from '@dltech/atlas-ui/components/sidebar'
 
 import { AtlasMark } from './atlas-mark'
 import { ShellDisplayOptions } from './shell-display-options'
+import { EAppNav } from './shell-types'
 
 function DesktopWordmark() {
   return (
@@ -17,7 +18,26 @@ function DesktopWordmark() {
   )
 }
 
-export function ShellTopBar({ onSearch }: { onSearch: () => void }) {
+const COPY: Record<EAppNav, { search: string; create: string; href: string }> = {
+  [EAppNav.Threads]: {
+    search: 'Search threads and projects',
+    create: 'New thread',
+    href: '/threads/new',
+  },
+  [EAppNav.Routines]: {
+    search: 'Search routines and projects',
+    create: 'New routine',
+    href: '/routines?new=1',
+  },
+  [EAppNav.Projects]: {
+    search: 'Search threads and projects',
+    create: 'New thread',
+    href: '/threads/new',
+  },
+}
+
+export function ShellTopBar({ nav, onSearch }: { nav: EAppNav; onSearch: () => void }) {
+  const copy = COPY[nav]
   return (
     <SidebarHeader>
       <DesktopWordmark />
@@ -25,7 +45,7 @@ export function ShellTopBar({ onSearch }: { onSearch: () => void }) {
         <button
           type="button"
           onClick={onSearch}
-          aria-label="Search threads and projects"
+          aria-label={copy.search}
           className="flex h-7 min-w-0 flex-1 items-center gap-2 rounded-md border border-sidebar-border px-2 text-sm text-muted-foreground outline-hidden hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:flex-none group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:px-0"
         >
           <Search className="size-3.5 shrink-0" />
@@ -35,9 +55,9 @@ export function ShellTopBar({ onSearch }: { onSearch: () => void }) {
         <ShellDisplayOptions />
         <Button
           size="icon-sm"
-          aria-label="New thread"
+          aria-label={copy.create}
           nativeButton={false}
-          render={<Link href="/threads/new" />}
+          render={<Link href={copy.href} />}
           className="shrink-0"
         >
           <Plus />

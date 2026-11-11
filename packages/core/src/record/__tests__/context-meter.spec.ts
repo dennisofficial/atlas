@@ -1,11 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 
-import { estimateTextTokens } from '../../assembly/tokens'
-import { estimateBodyTokens } from '../../models/usage'
 import { ECompactionAnchor } from '../../events/body'
 import { toCallId } from '../../events/ids'
 import { chainEvents } from '../chain-events'
-import { contextMeterOf, EMeterBasis } from '../context-meter'
+import { contextMeterOf } from '../context-meter'
 import type { V2Body } from '../event'
 import { NOW, runId, threadId } from './support'
 
@@ -39,38 +37,19 @@ const result = (id: string, text: string): Extract<V2Body, { type: 'tool-result'
 })
 
 describe('the v2 context meter', () => {
-  it('estimates the visible log before any call reported', () => {
+  it('has no reading before any call reported one', () => {
     const meter = contextMeterOf(logOf([{ type: 'user-said', text: 'x'.repeat(400) }]))
-    expect(meter).toEqual({
-      used: 100,
-      window: null,
-      basis: EMeterBasis.Estimated,
-      measuredThroughSeq: null,
-      estimatedTokens: 100,
-    })
+    expect(meter).toEqual({ used: null, window: null, measuredThroughSeq: null })
   })
 
   it('reads input plus output of the last call against the window it ran in', () => {
     const meter = contextMeterOf(logOf([{ type: 'user-said', text: 'hi' }, said(40_000, 2_000)]))
-    expect(meter).toMatchObject({
-      used: 42_000,
-      window: WINDOW,
-      basis: EMeterBasis.Measured,
-      measuredThroughSeq: 2,
-      estimatedTokens: 0,
-    })
+    expect(meter).toEqual({ used: 42_000, window: WINDOW, measuredThroughSeq: 2 })
   })
 
-  it('rises between calls with what landed since the last reading', () => {
-    const landed = result('c1', 'y'.repeat(800))
-    const meter = contextMeterOf(logOf([called('c1', 10_000), landed]))
-    const landedTokens = estimateBodyTokens(landed)
-    expect(landedTokens).toBeGreaterThan(0)
-    expect(meter).toMatchObject({
-      basis: EMeterBasis.Measured,
-      estimatedTokens: landedTokens,
-      used: 10_050 + landedTokens,
-    })
+  it('holds the reading rather than guessing what landed after it', () => {
+    const meter = contextMeterOf(logOf([called('c1', 10_000), result('c1', 'y'.repeat(800))]))
+    expect(meter).toMatchObject({ used: 10_050, measuredThroughSeq: 1 })
   })
 
   it('does not count the sibling calls of the step that carries the reading', () => {
@@ -90,8 +69,7 @@ describe('the v2 context meter', () => {
     expect(meter).toMatchObject({ used: 10_100, measuredThroughSeq: 1 })
   })
 
-  it('voids the reading a later summary made stale and estimates the shrunk context', () => {
-    const summary = 's'.repeat(400)
+  it('voids the reading a later summary made stale, keeping the window it ran in', () => {
     const meter = contextMeterOf(
       logOf([
         { type: 'user-said', text: 'x'.repeat(4_000) },
@@ -101,15 +79,11 @@ describe('the v2 context meter', () => {
           fromSeq: 1,
           throughSeq: 2,
           anchor: ECompactionAnchor.Prefix,
-          summary,
+          summary: 's'.repeat(400),
         },
       ]),
     )
-    expect(meter).toMatchObject({
-      basis: EMeterBasis.Estimated,
-      used: estimateTextTokens(summary),
-      window: WINDOW,
-    })
+    expect(meter).toEqual({ used: null, window: WINDOW, measuredThroughSeq: null })
   })
 
   it('measures again once a call reports after the summary', () => {
@@ -126,6 +100,6 @@ describe('the v2 context meter', () => {
         said(5_000),
       ]),
     )
-    expect(meter).toMatchObject({ basis: EMeterBasis.Measured, used: 5_100, window: WINDOW })
+    expect(meter).toEqual({ used: 5_100, window: WINDOW, measuredThroughSeq: 3 })
   })
 })

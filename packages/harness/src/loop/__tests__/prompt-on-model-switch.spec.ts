@@ -3,14 +3,11 @@ import { describe, expect, it } from 'bun:test'
 import {
   assemble,
   defaultPipeline,
-  CONTEXT_WINDOW_WHEN_THE_MODEL_IS_UNKNOWN,
   ALL_PROMPT_GROUPS,
-  estimateTokens,
   PromptFragment,
   promptContextFor,
   toThreadId,
   type PromptContext,
-  type PromptModel,
   type ProviderIdentity,
 } from '@dltech/atlas-core'
 
@@ -26,15 +23,15 @@ class IdentityFragment extends PromptFragment {
   }
 }
 
-class NarrowContextFragment extends PromptFragment {
-  readonly id = 'fixture.narrow-context'
+class HaikuFragment extends PromptFragment {
+  readonly id = 'fixture.haiku'
 
   override applies(ctx: PromptContext): boolean {
-    return ctx.model.contextWindow <= CONTEXT_WINDOW_WHEN_THE_MODEL_IS_UNKNOWN
+    return ctx.provider.modelId === 'claude-haiku-4-5'
   }
 
   text(): string {
-    return 'Spend the window carefully; there is not much of it.'
+    return 'Spend the context carefully; Haiku has less of it.'
   }
 }
 
@@ -54,16 +51,14 @@ const ctxFor = (provider: ProviderIdentity) => ({
   threadId: toThreadId('thread-fixture'),
   step: 0,
   provider,
-  countTokens: estimateTokens,
 })
 
-const OPUS_WINDOW: PromptModel = { contextWindow: 1_000_000 }
-const HAIKU_WINDOW: PromptModel = { contextWindow: 200_000 }
+const OPUS: ProviderIdentity = { id: 'anthropic', modelId: 'claude-opus-5' }
+const HAIKU: ProviderIdentity = { id: 'anthropic', modelId: 'claude-haiku-4-5' }
 
 const systemFor = (args: {
   registry: InMemoryPromptRegistry
   provider: ProviderIdentity
-  model: PromptModel
 }): readonly string[] => {
   const pipeline = defaultPipeline({
     prompt: () =>
@@ -71,7 +66,6 @@ const systemFor = (args: {
         promptContextFor({
           groups: ALL_PROMPT_GROUPS,
           provider: args.provider,
-          model: args.model,
           projectDirectory: '/w',
         }),
       ),
@@ -86,15 +80,8 @@ const systemFor = (args: {
 
 describe('a model switch, seen through the pipeline the composition root built once', () => {
   it('emits the fragments the newly selected model calls for, without a new pipeline', () => {
-    const registry = new InMemoryPromptRegistry([
-      new IdentityFragment(),
-      new NarrowContextFragment(),
-    ])
-    let provider: ProviderIdentity = {
-      id: 'anthropic',
-      modelId: 'claude-opus-5',
-    }
-    let model: PromptModel = OPUS_WINDOW
+    const registry = new InMemoryPromptRegistry([new IdentityFragment(), new HaikuFragment()])
+    let provider: ProviderIdentity = OPUS
 
     const pipeline = defaultPipeline({
       prompt: ({ projectDirectory }) =>
@@ -102,7 +89,6 @@ describe('a model switch, seen through the pipeline the composition root built o
           promptContextFor({
             groups: ALL_PROMPT_GROUPS,
             provider,
-            model,
             projectDirectory,
           }),
         ),
@@ -110,35 +96,26 @@ describe('a model switch, seen through the pipeline the composition root built o
     })
 
     const onOpus = assemble({ ...pipeline, ctx: ctxFor(provider) }).assembled.system
-    provider = { id: 'anthropic', modelId: 'claude-haiku-4-5' }
-    model = HAIKU_WINDOW
+    provider = HAIKU
     const onHaiku = assemble({ ...pipeline, ctx: ctxFor(provider) }).assembled.system
 
     expect(onOpus.map((block) => block.text)).toEqual(['You are Atlas.'])
     expect(onHaiku.map((block) => block.text)).toEqual([
-      'You are Atlas.\n\nSpend the window carefully; there is not much of it.',
+      'You are Atlas.\n\nSpend the context carefully; Haiku has less of it.',
     ])
   })
 
   it('compiles once per model rather than once per assembly, so a turn is never a rebuild', () => {
     const counting = new CountingFragment()
     const registry = new InMemoryPromptRegistry([counting])
-    const opus: ProviderIdentity = {
-      id: 'anthropic',
-      modelId: 'claude-opus-5',
-    }
-    const haiku: ProviderIdentity = {
-      id: 'anthropic',
-      modelId: 'claude-haiku-4-5',
-    }
 
-    systemFor({ registry, provider: opus, model: OPUS_WINDOW })
-    systemFor({ registry, provider: opus, model: OPUS_WINDOW })
-    systemFor({ registry, provider: opus, model: OPUS_WINDOW })
+    systemFor({ registry, provider: OPUS })
+    systemFor({ registry, provider: OPUS })
+    systemFor({ registry, provider: OPUS })
 
     expect(counting.calls).toBe(1)
 
-    systemFor({ registry, provider: haiku, model: HAIKU_WINDOW })
+    systemFor({ registry, provider: HAIKU })
 
     expect(counting.calls).toBe(2)
   })

@@ -48,7 +48,7 @@ describe('workspace-step event', () => {
 
   it('counts no context tokens', () => {
     const events = log([step(EWorkspaceStep.Sandbox, EWorkspaceStepState.Started)])
-    expect(contextMeterOf(events).estimatedTokens).toBe(0)
+    expect(contextMeterOf(events).used).toBeNull()
   })
 })
 

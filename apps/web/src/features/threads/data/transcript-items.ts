@@ -109,6 +109,14 @@ function textItemOf(args: {
   switch (entry.kind) {
     case EEntryKind.OperatorSaid:
       return userItemOf(entry)
+    case EEntryKind.AgentSaid:
+      return {
+        kind: ETranscriptKind.Notice,
+        id: entry.key,
+        title: `Message from ${entry.sender}`,
+        body: entry.text,
+        tone: ENoticeTone.Quiet,
+      }
     case EEntryKind.ModelSaid:
       return entry.muted || entry.text.trim().length === 0
         ? null

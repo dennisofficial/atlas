@@ -1,6 +1,5 @@
 import {
   assemble,
-  contextWindowOf,
   ERunFailureKind,
   attachmentsOf,
   exchangeFaults,
@@ -28,9 +27,7 @@ import type { TrackedTurnDeps } from './tracked-turn-deps'
 
 export type PreparedFailure = { kind: 'exchange'; message: string; cause: unknown }
 
-export type PreparedStep =
-  | { ok: true; assembled: Assembled; tokens: number }
-  | ({ ok: false } & PreparedFailure)
+export type PreparedStep = { ok: true; assembled: Assembled } | ({ ok: false } & PreparedFailure)
 
 export function preparedFailureMessage(failure: PreparedFailure): {
   message: string
@@ -49,22 +46,18 @@ export function preparedFailureMessage(failure: PreparedFailure): {
 export type StepPrepareDeps = {
   model: ModelPort
   assembly: AssemblyPipeline
-  countTokens: (assembled: Assembled) => number
   hooks: HookChain | undefined
   uploads: SaidUploadsPort | undefined
   mediaUrls?: MediaUrlResolver | undefined
-  onContext: ((args: { tokens: number; window: number }) => void) | undefined
   trace?: TracePort | undefined
 }
 
 export const stepPrepareDepsOf = (deps: TrackedTurnDeps): StepPrepareDeps => ({
   model: deps.model,
   assembly: deps.assembly,
-  countTokens: deps.countTokens,
   hooks: deps.hooks,
   uploads: deps.uploads,
   mediaUrls: deps.mediaUrls,
-  onContext: deps.onContext,
   trace: deps.trace,
 })
 
@@ -145,7 +138,6 @@ async function assembleStep(deps: StepPrepareDeps, args: StepPrepareArgs): Promi
     threadId: args.threadId,
     step: args.step,
     provider: deps.model.identity,
-    countTokens: deps.countTokens,
     imageCapabilities: deps.model.traits?.().image,
     ...(mediaUrls === undefined ? {} : { mediaUrls }),
     ...(placements === undefined ? {} : { uploads: placements }),
@@ -160,14 +152,10 @@ async function assembleStep(deps: StepPrepareDeps, args: StepPrepareArgs): Promi
 
   const assembled = (await deps.hooks?.beforeStep({ assembled: projected, trace })) ?? projected
 
-  const tokens = deps.countTokens(assembled)
-  const window = contextWindowOf(deps.model)
-  deps.onContext?.({ tokens, window })
-
   const faults = exchangeFaults(assembled)
   if (faults.length > 0) {
     return { ok: false, kind: 'exchange', message: faultReport(faults), cause: faults }
   }
 
-  return { ok: true, assembled, tokens }
+  return { ok: true, assembled }
 }

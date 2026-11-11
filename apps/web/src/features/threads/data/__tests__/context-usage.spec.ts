@@ -54,9 +54,9 @@ describe('contextUsageOf', () => {
     })
   })
 
-  it('falls back to the event estimate before any step reported', () => {
+  it('leaves the reading unmeasured before any step reported', () => {
     expect(contextUsageOf({ events: [], selectedId: 'anthropic/opus', models })).toEqual({
-      used: 0,
+      used: null,
       limit: 200_000,
     })
   })

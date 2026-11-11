@@ -82,6 +82,7 @@ export const createSessionIn = (params: {
   modelFast?: boolean | undefined
   spawnedBySessionId?: string | undefined
   podSessionId?: string | undefined
+  routineId?: string | undefined
   at: string
 }): void => {
   const { state } = params
@@ -101,6 +102,7 @@ export const createSessionIn = (params: {
     modelFast: params.modelFast ?? null,
     spawnedBySessionId: params.spawnedBySessionId ?? null,
     podSessionId: params.podSessionId ?? null,
+    routineId: params.routineId ?? null,
   })
   state.leases.set(params.sessionId, {
     sessionId: params.sessionId,

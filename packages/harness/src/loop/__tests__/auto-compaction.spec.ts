@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import { EImageTier, estimateTextTokens, type ModelCard } from '@dltech/atlas-core'
+import { EImageTier, type ModelCard } from '@dltech/atlas-core'
 
 import { buildHarness, ETurnStatus, type AtlasHarness } from '..'
 import { scriptedModel } from '../../model/testing/scripted-model'
@@ -39,10 +39,8 @@ afterEach(async () => {
   }
 })
 
-describe('a prompt our own arithmetic prices past the window', () => {
+describe('a prompt far past the window we know about', () => {
   it('is still sent, because only the provider knows what its window holds', async () => {
-    expect(estimateTextTokens(HUGE)).toBeGreaterThan(HAIKU_WINDOW)
-
     const harness = await open()
     const thread = await harness.threads.create({})
 

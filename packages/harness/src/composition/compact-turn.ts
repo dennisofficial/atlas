@@ -31,14 +31,6 @@ export type Summariser = (args: {
 
 export { ECompactScope, scopeOfArgument }
 
-/**
- * An explicit request is not the automatic trigger and must not inherit its recency budget: keeping
- * 30% of the window in reserve means a request on any ordinary conversation would find no candidate
- * and quietly do nothing. Asked directly, compaction keeps the operator's most recent turn and takes
- * everything before it.
- */
-const KEEP_THE_LAST_TURN = 0
-
 async function watermarkFor({
   log,
   threadId,
@@ -51,7 +43,7 @@ async function watermarkFor({
   const events = await log.read({ threadId })
   if (scope === ECompactScope.Everything) return events.at(-1)?.seq
 
-  return planCompaction({ events, keepRecentTokens: KEEP_THE_LAST_TURN })?.throughSeq
+  return planCompaction({ events })?.throughSeq
 }
 
 export async function compactTurn(args: {

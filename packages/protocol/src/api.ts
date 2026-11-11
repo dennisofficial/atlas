@@ -1,7 +1,7 @@
 import {
   attachmentSchema,
   EAttachmentStore,
-  EMeterBasis,
+  EMessageOrigin,
   ESessionStatus,
   MAX_MESSAGE_UPLOADS,
   saidUploadSchema,
@@ -104,6 +104,7 @@ export type SessionStatusInput = z.infer<typeof sessionStatusInputSchema>
 
 export const inboxMessageSchema = z.strictObject({
   text: z.string(),
+  via: z.nativeEnum(EMessageOrigin).optional(),
   media: z.array(inboxMediaSchema).optional(),
   uploads: z.array(saidUploadSchema).optional(),
   attachments: z.array(attachmentSchema).optional(),
@@ -148,6 +149,7 @@ export const sessionSummarySchema = z.strictObject({
   updatedAt: z.string().min(1),
   archivedAt: z.string().nullable(),
   spawnedBy: z.string().min(1).nullable().optional(),
+  routineId: z.string().min(1).nullable().optional(),
   status: sessionRowStatusSchema.optional(),
   primaryBranch: z.string().nullable().optional(),
   pullRequest: sessionRowPullRequestSchema.nullable().optional(),
@@ -251,11 +253,9 @@ export const sessionSpendTallySchema = z.strictObject({
 })
 
 export const sessionContextMeterSchema = z.strictObject({
-  used: z.number().min(0),
+  used: z.number().min(0).nullable(),
   window: z.number().nullable(),
-  basis: z.enum(EMeterBasis),
   measuredThroughSeq: z.number().int().nullable(),
-  estimatedTokens: z.number().min(0),
 })
 
 export const sessionCheckoutsSchema = z.strictObject({
@@ -336,3 +336,89 @@ export const hostExposePortOutputSchema = z.strictObject({
 
 export type HostExposePortInput = z.infer<typeof hostExposePortInputSchema>
 export type HostExposePortOutput = z.infer<typeof hostExposePortOutputSchema>
+
+export const routineRunOutcomeSchema = z.enum(['started', 'skipped-busy', 'skipped', 'failed'])
+
+export const routineSchema = z.strictObject({
+  routineId: z.string().min(1),
+  projectId: z.string().min(1),
+  name: z.string().min(1),
+  prompt: z.string().min(1),
+  cron: z.string().min(1),
+  timezone: z.string().min(1),
+  enabled: z.boolean(),
+  model: z.string().nullable(),
+  effort: z.string().nullable(),
+  fast: z.boolean().nullable(),
+  nextRunAt: z.string().min(1),
+  lastRunAt: z.string().nullable(),
+  lastSessionId: z.string().nullable(),
+  createdAt: z.string().min(1),
+  updatedAt: z.string().min(1),
+})
+
+export const routineListInputSchema = z.strictObject({
+  projectId: z.string().min(1).optional(),
+})
+
+export const routineListOutputSchema = z.strictObject({
+  routines: z.array(routineSchema),
+})
+
+export const routineCreateInputSchema = z.strictObject({
+  projectId: z.string().min(1),
+  name: z.string().min(1).max(120),
+  prompt: z.string().min(1).max(20_000),
+  cron: z.string().min(1).max(120),
+  timezone: z.string().min(1).max(80),
+  enabled: z.boolean().optional(),
+  model: z.string().min(1).nullable().optional(),
+  effort: z.string().min(1).nullable().optional(),
+  fast: z.boolean().nullable().optional(),
+})
+
+export const routineUpdateInputSchema = z.strictObject({
+  routineId: z.string().min(1),
+  name: z.string().min(1).max(120).optional(),
+  prompt: z.string().min(1).max(20_000).optional(),
+  cron: z.string().min(1).max(120).optional(),
+  timezone: z.string().min(1).max(80).optional(),
+  enabled: z.boolean().optional(),
+  model: z.string().min(1).nullable().optional(),
+  effort: z.string().min(1).nullable().optional(),
+  fast: z.boolean().nullable().optional(),
+})
+
+export const routineIdInputSchema = z.strictObject({ routineId: z.string().min(1) })
+
+export const routineRemoveOutputSchema = z.strictObject({ removed: z.boolean() })
+
+export const routineRunOutputSchema = z.strictObject({ sessionId: z.string().min(1) })
+
+export const routineRunRowSchema = z.strictObject({
+  runId: z.string().min(1),
+  scheduledFor: z.string().min(1),
+  outcome: routineRunOutcomeSchema,
+  reason: z.string().nullable(),
+  sessionId: z.string().nullable(),
+  at: z.string().min(1),
+})
+
+export const routineRunsInputSchema = z.strictObject({
+  routineId: z.string().min(1),
+  limit: z.number().int().min(1).max(100).optional(),
+})
+
+export const routineRunsOutputSchema = z.strictObject({ runs: z.array(routineRunRowSchema) })
+
+export type Routine = z.infer<typeof routineSchema>
+export type RoutineListInput = z.infer<typeof routineListInputSchema>
+export type RoutineListOutput = z.infer<typeof routineListOutputSchema>
+export type RoutineCreateInput = z.infer<typeof routineCreateInputSchema>
+export type RoutineUpdateInput = z.infer<typeof routineUpdateInputSchema>
+export type RoutineIdInput = z.infer<typeof routineIdInputSchema>
+export type RoutineRemoveOutput = z.infer<typeof routineRemoveOutputSchema>
+export type RoutineRunOutput = z.infer<typeof routineRunOutputSchema>
+export type RoutineRunRow = z.infer<typeof routineRunRowSchema>
+export type RoutineRunsInput = z.infer<typeof routineRunsInputSchema>
+export type RoutineRunsOutput = z.infer<typeof routineRunsOutputSchema>
