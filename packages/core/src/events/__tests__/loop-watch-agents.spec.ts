@@ -74,13 +74,13 @@ describe('the loop watchdog reading agent events', () => {
 
   it('renders a report with its kind', () => {
     expect(stateAround(reported(EReportKind.Progress))).toContain(
-      'sub-agent "port the sidebar" reported (progress): CI is still running',
+      'agent "port the sidebar" reported (progress): CI is still running',
     )
   })
 
   it('renders a legacy report with no kind as before', () => {
     expect(stateAround(reported())).toContain(
-      'sub-agent "port the sidebar" reported: CI is still running',
+      'agent "port the sidebar" reported: CI is still running',
     )
   })
 })
