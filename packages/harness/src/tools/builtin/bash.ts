@@ -21,6 +21,7 @@ import {
 
 import { LocalFileSystemPort } from '../../execution/local-filesystem'
 import { LocalProcessPort } from '../../execution/local-process'
+import { sessionDirectoriesDescription } from '../../execution/session-environment'
 import {
   messageOf,
   readShell,
@@ -125,7 +126,8 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
         ...ceilingClause({ timeoutMs: args.timeoutMs }),
         'So do not wait on it: no sleeping, no polling, no idle loop, and no do-nothing command to pass the time - a tick only spins the turn. Take up other work, or end the turn and be woken.',
         `Use shell_output({ shellId: "${shellId}" }) for unread output, shell_input to send input, and shell_kill to stop it.`,
-        'ATLAS_SESSION_DIR and ATLAS_THREAD_DIR locate this agent’s session and thread data, ATLAS_CONTEXT_DIR the session’s shared context folder; ATLAS_SHELL_DIR locates this shell’s spool.',
+        sessionDirectoriesDescription,
+        'ATLAS_SHELL_DIR locates this shell’s spool.',
       ].join(' '),
     }
   }

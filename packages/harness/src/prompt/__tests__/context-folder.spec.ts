@@ -55,6 +55,12 @@ describe('the context folder contract', () => {
     expect(part?.text).toContain('compaction')
   })
 
+  it('names the directory the shell and the file tools resolve ATLAS_CONTEXT_DIR to', () => {
+    const part = compiled().parts.find((one) => one.id === 'environment.context-folder')
+    expect(part?.text).toContain('ATLAS_CONTEXT_DIR ($ATLAS_SESSION_DIR/context)')
+    expect(part?.text).toContain('outside the project tree')
+  })
+
   it('never compiles into a sub-agent prompt', () => {
     const prompt = registered().resolve(registeredPortToken(PromptRegistry)).compile(SUB)
     expect(prompt.parts.some((part) => part.id === 'environment.context-folder')).toBe(false)
