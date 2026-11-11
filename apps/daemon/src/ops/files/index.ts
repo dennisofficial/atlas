@@ -81,8 +81,7 @@ export const filesGroup =
       defineOp({
         op: 'writeFile',
         run: async ({ op }) => {
-          await writeFile(op.path, op.content, {
-            encoding: 'utf8',
+          await writeFile(op.path, Buffer.from(op.content, op.encoding ?? 'utf8'), {
             ...(op.mode === undefined ? {} : { mode: op.mode }),
           })
           return null

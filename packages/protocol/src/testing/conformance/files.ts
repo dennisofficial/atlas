@@ -150,6 +150,30 @@ export const describeFilesConformance = (target: DaemonConformanceTarget): void 
         },
       }))
 
+    it('writes bytes handed over as base64 byte for byte', () =>
+      withDaemon({
+        target,
+        body: async (handle) => {
+          const session = await connectAt({ handle })
+          const dir = workdir()
+          await run({ session, op: { op: 'mkdir', path: dir } })
+          await run({
+            session,
+            op: {
+              op: 'writeFile',
+              path: `${dir}/blob.bin`,
+              content: Buffer.from(FIXTURE).toString('base64'),
+              encoding: 'base64',
+            },
+          })
+          const read = await run({ session, op: { op: 'readBytes', path: `${dir}/blob.bin` } })
+          expect(Buffer.from(okValue({ result: read, op: 'readBytes' }), 'base64')).toEqual(
+            Buffer.from(FIXTURE),
+          )
+          await run({ session, op: { op: 'remove', path: dir } })
+        },
+      }))
+
     it('greps every match in a file, with a glob filter, case folding and a cap', () =>
       withDaemon({
         target,

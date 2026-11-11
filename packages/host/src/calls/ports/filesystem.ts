@@ -66,13 +66,21 @@ export class DaemonFileSystemPort extends FileSystemPort {
     })
   }
 
-  async writeFile(args: { path: string; content: string; mode?: number }): Promise<void> {
+  async writeFile(args: {
+    path: string
+    content: string | Uint8Array
+    mode?: number
+  }): Promise<void> {
+    const body =
+      typeof args.content === 'string'
+        ? { content: args.content }
+        : { content: Buffer.from(args.content).toString('base64'), encoding: 'base64' as const }
     await invoke({
       calls: this.args.calls,
       op: {
         op: 'writeFile',
         path: args.path,
-        content: args.content,
+        ...body,
         ...(args.mode === undefined ? {} : { mode: args.mode }),
       },
     })
