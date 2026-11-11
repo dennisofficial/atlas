@@ -18,6 +18,7 @@ import { writeFileAtomically } from './atomic-write'
 import { FileWriteGuardPort, SerializedWrites } from './write-guard'
 import { captureText, captureUnavailableFault, makeChange } from './capture-text'
 import { filePathSchema, pathEnvironmentNote, resolveToolPath, toLf } from './file-text'
+import type { PathEnvironment } from '../runtime/session-paths'
 import { replaceInContent } from './replace-text'
 import { renderUnifiedDiff } from './unified-diff'
 
@@ -175,6 +176,7 @@ export class EditTool extends SchemaTool<typeof inputSchema> {
   constructor(
     private readonly guard: FileWriteGuardPort = new SerializedWrites(),
     private readonly files: AgentFileSystemPort,
+    private readonly pathEnv: PathEnvironment | undefined = undefined,
   ) {
     super()
   }
@@ -185,7 +187,7 @@ export class EditTool extends SchemaTool<typeof inputSchema> {
     projectDirectory,
     captureFileChanges,
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
-    const resolved = resolveToolPath({ projectDirectory, path: input.path })
+    const resolved = resolveToolPath({ projectDirectory, path: input.path, env: this.pathEnv })
     if (!resolved.ok) return { ok: false, reason: resolved.reason }
     const path = resolved.path
     const { oldString, newString, replaceAll } = input

@@ -24,6 +24,7 @@ import { ReadTool } from '../agent-tools/read'
 import { SerializedWrites } from '../agent-tools/write-guard'
 import { WriteTool } from '../agent-tools/write'
 import { ForegroundOnlyShells } from './foreground-shells'
+import type { PathEnvironment } from './session-paths'
 
 const abortedWith = (signal: AbortSignal): Promise<true> =>
   new Promise((resolve) => {
@@ -83,17 +84,18 @@ export const daemonToolsOf = (args: {
   processes: DaemonProcessPort
   files: DaemonFileSystemPort
   agentFiles: DaemonAgentFileSystemPort
+  pathEnv: PathEnvironment
   setup: Promise<void>
   shellEnv?: (() => Record<string, string>) | undefined
 }): ToolDefinition[] => {
   const guard = new SerializedWrites()
   const tools: ToolDefinition[] = [
-    new ReadTool({ files: args.agentFiles }),
-    new WriteTool(guard, args.agentFiles),
-    new EditTool(guard, args.agentFiles),
-    new MultiEditTool(guard, args.agentFiles),
-    new GrepTool(args.processes, args.agentFiles),
-    new GlobTool(args.agentFiles),
+    new ReadTool({ files: args.agentFiles, pathEnv: args.pathEnv }),
+    new WriteTool(guard, args.agentFiles, args.pathEnv),
+    new EditTool(guard, args.agentFiles, args.pathEnv),
+    new MultiEditTool(guard, args.agentFiles, args.pathEnv),
+    new GrepTool(args.processes, args.agentFiles, args.pathEnv),
+    new GlobTool(args.agentFiles, args.pathEnv),
     new BashTool(new ForegroundOnlyShells(), args.files, args.processes, args.shellEnv),
   ]
   return tools.map((tool) => new SetupGatedTool(tool, args.setup))

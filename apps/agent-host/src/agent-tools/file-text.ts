@@ -3,11 +3,21 @@ import { isAbsolute, resolve } from 'node:path'
 import { z } from 'zod'
 
 import { SANDBOX_HOME_PATH } from '../sandbox/constants'
+import {
+  ATLAS_CONTEXT_DIR_ENV,
+  ATLAS_SESSION_DIR_ENV,
+  ATLAS_THREAD_DIR_ENV,
+  type PathEnvironment,
+} from '../runtime/session-paths'
 
 export const filePathSchema = z.string().min(1)
 
-export const pathEnvironmentNote =
-  'A path may reference $ATLAS_HOME, the Atlas home directory of the sandbox; any other variable, and a leading ~, is an error rather than a literal directory name.'
+export const pathEnvironmentNote = [
+  'A path may reference $ATLAS_HOME, the Atlas home directory of the sandbox, and',
+  `$${ATLAS_SESSION_DIR_ENV}, $${ATLAS_THREAD_DIR_ENV} and $${ATLAS_CONTEXT_DIR_ENV}, the session, thread and`,
+  'context directories of this session; any other variable, and a leading ~, is an error rather than a',
+  'literal directory name.',
+].join(' ')
 
 export type ToolPathResolution =
   | { ok: true; path: string; anchored: boolean }
@@ -21,7 +31,7 @@ const ENV_REFERENCE = /\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*
 
 export function expandPathEnvironment(args: {
   path: string
-  env?: Readonly<Record<string, string | undefined>>
+  env?: PathEnvironment | undefined
 }): EnvExpansion {
   const env = args.env ?? SANDBOX_PATH_ENV
   let path = args.path
@@ -61,7 +71,7 @@ export function expandPathEnvironment(args: {
 export function resolveToolPath(args: {
   projectDirectory: string
   path: string
-  env?: Readonly<Record<string, string | undefined>>
+  env?: PathEnvironment | undefined
 }): ToolPathResolution {
   const expanded = expandPathEnvironment({
     path: args.path,

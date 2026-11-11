@@ -21,6 +21,7 @@ import { filePathSchema, pathEnvironmentNote, resolveToolPath } from './file-tex
 import { missingPathReason } from './missing-path'
 import { readFile } from './read-file'
 import { readImage } from './read-image'
+import type { PathEnvironment } from '../runtime/session-paths'
 
 const MAX_READ_BYTES = 262_144
 
@@ -153,6 +154,7 @@ function noticeFor(args: { path: string; scan: Selection }): string | undefined 
 export type ReadToolArgs = {
   files: AgentFileSystemPort
   fileCapabilities?: FileCapabilitiesPort | undefined
+  pathEnv?: PathEnvironment | undefined
 }
 
 export class ReadTool extends SchemaTool<typeof inputSchema> {
@@ -180,11 +182,13 @@ export class ReadTool extends SchemaTool<typeof inputSchema> {
 
   private readonly files: AgentFileSystemPort
   private readonly fileCapabilities: FileCapabilitiesPort | undefined
+  private readonly pathEnv: PathEnvironment | undefined
 
   constructor(args: ReadToolArgs) {
     super()
     this.files = args.files
     this.fileCapabilities = args.fileCapabilities
+    this.pathEnv = args.pathEnv
   }
 
   protected override async run({
@@ -193,7 +197,7 @@ export class ReadTool extends SchemaTool<typeof inputSchema> {
     threadId,
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
     const rawPath = input.path
-    const resolved = resolveToolPath({ projectDirectory, path: rawPath })
+    const resolved = resolveToolPath({ projectDirectory, path: rawPath, env: this.pathEnv })
     if (!resolved.ok) return { ok: false, reason: resolved.reason }
     const path = resolved.path
     const { offset, limit } = input
