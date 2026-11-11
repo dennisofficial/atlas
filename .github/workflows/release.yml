@@ -18,6 +18,7 @@ jobs:
     outputs:
       deploy-trigger: ${{ steps.diff.outputs.deploy-trigger }}
       deploy-preview-worker: ${{ steps.diff.outputs.deploy-preview-worker }}
+      deploy-artifacts-worker: ${{ steps.diff.outputs.deploy-artifacts-worker }}
     steps:
       - uses: actions/checkout@v7
 
@@ -28,9 +29,11 @@ jobs:
         run: |
           trigger='^(apps/api/|packages/wire/|packages/db/|package\.json$|bun\.lock$|bunfig\.toml$|tsconfig\.base\.json$|\.github/workflows/release\.yml$)'
           worker='^(apps/preview-worker/|\.github/workflows/release\.yml$)'
+          artifacts='^(apps/artifacts-host/|packages/artifacts/|\.github/workflows/release\.yml$)'
           if [ "$EVENT" = "workflow_dispatch" ] || ! git fetch --no-tags --depth=1 origin "$BEFORE"; then
             echo "deploy-trigger=true" >> "$GITHUB_OUTPUT"
             echo "deploy-preview-worker=true" >> "$GITHUB_OUTPUT"
+            echo "deploy-artifacts-worker=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           changed=$(git diff --name-only "$BEFORE" "$GITHUB_SHA")
@@ -43,6 +46,11 @@ jobs:
             echo "deploy-preview-worker=true" >> "$GITHUB_OUTPUT"
           else
             echo "deploy-preview-worker=false" >> "$GITHUB_OUTPUT"
+          fi
+          if echo "$changed" | grep -Eq "$artifacts"; then
+            echo "deploy-artifacts-worker=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy-artifacts-worker=false" >> "$GITHUB_OUTPUT"
           fi
 
   migrate-production:
@@ -157,3 +165,36 @@ jobs:
         run: bun run deploy
         env:
           DOTENV_PRIVATE_KEY_PRODUCTION_ENC: ${{ secrets.PREVIEW_WORKER_DOTENV_PRIVATE_KEY }}
+
+  deploy-artifacts-worker:
+    needs: changes
+    if: needs.changes.outputs.deploy-artifacts-worker == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/artifacts-host
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2.2.0
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
+      - run: bun install --frozen-lockfile
+        working-directory: .
+
+      - run: bun test
+
+      - name: read the Cloudflare token from the preview worker tier
+        run: |
+          token=$(../../node_modules/.bin/dotenvx get CLOUDFLARE_API_TOKEN -f ../preview-worker/.env.production.enc)
+          echo "::add-mask::$token"
+          echo "CLOUDFLARE_API_TOKEN=$token" >> "$GITHUB_ENV"
+        env:
+          DOTENV_PRIVATE_KEY_PRODUCTION_ENC: ${{ secrets.PREVIEW_WORKER_DOTENV_PRIVATE_KEY }}
+
+      - name: deploy the worker in front of *.byatlas.site
+        run: bun run deploy

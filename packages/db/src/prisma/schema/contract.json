@@ -780,21 +780,7 @@
                   "kind": "scalar"
                 }
               },
-              "slug": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
               "subdomain": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "token": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
@@ -866,14 +852,8 @@
                 "name": {
                   "column": "name"
                 },
-                "slug": {
-                  "column": "slug"
-                },
                 "subdomain": {
                   "column": "subdomain"
-                },
-                "token": {
-                  "column": "token"
                 },
                 "updatedAt": {
                   "column": "updatedAt"
@@ -9974,17 +9954,7 @@
                   "dataType": "pg/text",
                   "nullable": false
                 },
-                "slug": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
                 "subdomain": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "token": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": false
@@ -10046,19 +10016,6 @@
                     "subdomain"
                   ],
                   "name": "Artifact_subdomain_key"
-                },
-                {
-                  "columns": [
-                    "token"
-                  ],
-                  "name": "Artifact_token_key"
-                },
-                {
-                  "columns": [
-                    "userId",
-                    "slug"
-                  ],
-                  "name": "Artifact_userId_slug_key"
                 }
               ]
             },
@@ -16588,7 +16545,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "a04df9006767473ac4a56cce0bc21d144268ba24e28d5e1982fc2e71496f36f2"
+    "storageHash": "1143c80ee8dbac2b5a381aa19f5806cfa71c9c3de8e53ffb5f82bd8eef4d80e1"
   },
   "execution": {
     "executionHash": "27a680d0d8367c03704617bfac2d0041e04bd5395fc473f9e021f03bd0d4c6fa",

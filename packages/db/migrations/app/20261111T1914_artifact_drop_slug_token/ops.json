@@ -1,0 +1,170 @@
+[
+  {
+    "id": "dropConstraint.Artifact.Artifact_token_key",
+    "label": "Drop constraint \"Artifact_token_key\" on \"Artifact\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "Artifact_token_key",
+        "table": "Artifact"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Artifact_token_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Artifact_token_key",
+          "public",
+          "\"public\".\"Artifact\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop constraint \"Artifact_token_key\"",
+        "sql": "ALTER TABLE \"public\".\"Artifact\" DROP CONSTRAINT \"Artifact_token_key\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"Artifact_token_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Artifact_token_key",
+          "public",
+          "\"public\".\"Artifact\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropColumn.Artifact.token",
+    "label": "Drop column \"token\" from \"Artifact\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "token",
+        "table": "Artifact"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"token\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Artifact",
+          "token"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"token\"",
+        "sql": "ALTER TABLE \"public\".\"Artifact\" DROP COLUMN \"token\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"token\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Artifact",
+          "token"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropConstraint.Artifact.Artifact_userId_slug_key",
+    "label": "Drop constraint \"Artifact_userId_slug_key\" on \"Artifact\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "Artifact_userId_slug_key",
+        "table": "Artifact"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Artifact_userId_slug_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Artifact_userId_slug_key",
+          "public",
+          "\"public\".\"Artifact\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop constraint \"Artifact_userId_slug_key\"",
+        "sql": "ALTER TABLE \"public\".\"Artifact\" DROP CONSTRAINT \"Artifact_userId_slug_key\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"Artifact_userId_slug_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Artifact_userId_slug_key",
+          "public",
+          "\"public\".\"Artifact\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropColumn.Artifact.slug",
+    "label": "Drop column \"slug\" from \"Artifact\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "slug",
+        "table": "Artifact"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"slug\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Artifact",
+          "slug"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"slug\"",
+        "sql": "ALTER TABLE \"public\".\"Artifact\" DROP COLUMN \"slug\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"slug\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Artifact",
+          "slug"
+        ]
+      }
+    ]
+  }
+]
