@@ -188,13 +188,13 @@ jobs:
 
       - run: bun test
 
-      - name: read the Cloudflare token from the preview worker tier
+      - name: read the Cloudflare token from this app's own tier
         run: |
-          token=$(../../node_modules/.bin/dotenvx get CLOUDFLARE_API_TOKEN -f ../preview-worker/.env.production.enc)
+          token=$(../../node_modules/.bin/dotenvx get CLOUDFLARE_API_TOKEN -f .env.production.enc)
           echo "::add-mask::$token"
           echo "CLOUDFLARE_API_TOKEN=$token" >> "$GITHUB_ENV"
         env:
-          DOTENV_PRIVATE_KEY_PRODUCTION_ENC: ${{ secrets.PREVIEW_WORKER_DOTENV_PRIVATE_KEY }}
+          DOTENV_PRIVATE_KEY_PRODUCTION_ENC: ${{ secrets.ARTIFACTS_HOST_DOTENV_PRIVATE_KEY }}
 
       - name: deploy the worker in front of *.byatlas.site
         run: bun run deploy
