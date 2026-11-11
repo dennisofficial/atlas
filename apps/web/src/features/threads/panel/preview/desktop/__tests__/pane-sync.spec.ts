@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import type { SlotEnvironment } from '../../placement'
 import type { PaneCommand } from '../pane-command'
 import type { SamplePoint } from '../pane-geometry'
+import { notePaneLocation } from '../pane-locations'
 import { createPaneSync, type PaneEnvironment, type PaneSender } from '../pane-sync'
 
 type Rect = { left: number; top: number; width: number; height: number }
@@ -250,6 +251,36 @@ describe('createPaneSync', () => {
     sync.apply('https://example.com/b')
     await settle()
     expect(sent.slice(1)).toEqual([{ kind: 'navigate', url: 'https://example.com/b' }])
+  })
+
+  it('leaves the pane alone when the tab follows the address the pane reported', async () => {
+    const { element } = slotAt(RECT)
+    const { sent, send } = recorder()
+    const { environment } = fakeEnvironment()
+    const id = 'pane:reported:tab-1'
+    const reported = 'https://example.com/reported'
+    notePaneLocation({ id, url: reported })
+    const sync = createPaneSync({ element, url: URL_A, send, environment, id })
+    sync.apply(reported)
+    await settle()
+    expect(sent.slice(1)).toEqual([])
+  })
+
+  it('navigates back to an address the pane reported before, once it has moved on', async () => {
+    const { element } = slotAt(RECT)
+    const { sent, send } = recorder()
+    const { environment } = fakeEnvironment()
+    const id = 'pane:reported-then-elsewhere:tab-1'
+    notePaneLocation({ id, url: URL_A })
+    const sync = createPaneSync({ element, url: URL_A, send, environment, id })
+    sync.apply('https://example.com/b')
+    await settle()
+    sync.apply(URL_A)
+    await settle()
+    expect(sent.slice(1)).toEqual([
+      { kind: 'navigate', url: 'https://example.com/b' },
+      { kind: 'navigate', url: URL_A },
+    ])
   })
 
   it('shows a remounted target without navigating when its url is unchanged', async () => {

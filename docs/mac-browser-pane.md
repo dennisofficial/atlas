@@ -30,7 +30,15 @@ Web → host, `POST /desktop/pane` (same `secret` guard as `/desktop/window`):
 | `back` / `forward` / `reload` / `stop` | `{}`                                            | history and loading                         |
 | `setObscured`                          | `{ obscured }`                                  | a popover or dialog covers the pane         |
 
-Host → web, one dispatched event on the shell document:
+Host → web today: the shell main process forwards each view's `did-navigate`, `did-navigate-in-page`
+and `page-title-updated` to the window, and `apps/mac/preload.cjs` hands them to the web app's
+`onPaneNavigated` / `onPaneTitled` listeners on the `window.atlasDesktop` bridge.
+`desktop/pane-reports.tsx` routes them into the tab reducer, so the address bar, the tab title and
+back/forward follow what the browser actually did. `desktop/pane-locations.ts` remembers the address
+each pane is known to be on, so the app never answers a report with a redundant `navigate`.
+
+The electrobun design below instead folded everything into one dispatched event on the shell
+document:
 
 ```ts
 window.dispatchEvent(new CustomEvent('atlas-pane:event', { detail: PaneEvent }))

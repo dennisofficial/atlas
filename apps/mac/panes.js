@@ -37,7 +37,21 @@ export function validCommand(command) {
   }
 }
 
-export function createPaneRegistry({ create, release, limit = PANE_TARGET_LIMIT }) {
+function watchNavigation({ id, webContents, onNavigate, onTitle }) {
+  webContents.on('did-navigate', (_event, url) => onNavigate({ id, url }))
+  webContents.on('did-navigate-in-page', (_event, url, isMainFrame) => {
+    if (isMainFrame) onNavigate({ id, url })
+  })
+  webContents.on('page-title-updated', (_event, title) => onTitle({ id, title }))
+}
+
+export function createPaneRegistry({
+  create,
+  release,
+  limit = PANE_TARGET_LIMIT,
+  onNavigate = () => undefined,
+  onTitle = () => undefined,
+}) {
   const held = new Map()
   let clock = 0
 
@@ -54,7 +68,9 @@ export function createPaneRegistry({ create, release, limit = PANE_TARGET_LIMIT 
   }
 
   const createFor = (id) => {
-    const entry = { id, view: create(id), shownAt: ++clock }
+    const view = create(id)
+    watchNavigation({ id, webContents: view.webContents, onNavigate, onTitle })
+    const entry = { id, view, shownAt: ++clock }
     held.set(id, entry)
     trim()
     return held.get(id) ?? entry

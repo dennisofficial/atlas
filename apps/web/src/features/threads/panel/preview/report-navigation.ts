@@ -18,16 +18,30 @@ export function reportedTitle(args: {
   return next === tab ? state : updateTab({ state, id: tabId, change: () => next })
 }
 
+export function reportedLocation(args: {
+  state: BrowserState
+  tabId: string
+  url: string
+}): BrowserState {
+  const { state, tabId, url } = args
+  if (parseWebUrl(url) === null) return state
+  const tab = state.tabs.find((held) => held.id === tabId)
+  if (tab === undefined) return state
+  const next = reconciled({ tab, url })
+  return next === tab ? state : updateTab({ state, id: tabId, change: () => next })
+}
+
 export function reportedState(args: {
   state: BrowserState
   tabId: string
   url: string
   title: string
 }): BrowserState {
-  const { state, tabId, url, title } = args
-  if (parseWebUrl(url) === null) return state
-  const tab = state.tabs.find((held) => held.id === tabId)
+  const { state, tabId, title } = args
+  if (parseWebUrl(args.url) === null) return state
+  const located = reportedLocation(args)
+  const tab = located.tabs.find((held) => held.id === tabId)
   if (tab === undefined) return state
-  const next = titled({ tab: reconciled({ tab, url }), title })
-  return next === tab ? state : updateTab({ state, id: tabId, change: () => next })
+  const next = titled({ tab, title })
+  return next === tab ? located : updateTab({ state: located, id: tabId, change: () => next })
 }

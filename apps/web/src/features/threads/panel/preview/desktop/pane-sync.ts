@@ -1,6 +1,7 @@
 import { browserSlotEnvironment, type SlotEnvironment } from '../placement'
 import type { PaneCommand, PaneRect } from './pane-command'
 import { coveredOf, sameRect, windowRectOf, type SamplePoint } from './pane-geometry'
+import { notePaneLocation, paneLocationOf } from './pane-locations'
 
 export type PaneSender = (command: PaneCommand) => Promise<boolean>
 
@@ -68,6 +69,14 @@ export function createPaneSync(args: {
       })
   }
 
+  const alreadyAt = (target: string): boolean => paneLocationOf(args.id) === target
+
+  const requestNavigation = (target: string): void => {
+    requestedUrlByTarget.set(args.id, target)
+    notePaneLocation({ id: args.id, url: target })
+    deliver({ kind: 'navigate', url: target })
+  }
+
   const probe = (): void => {
     if (stopped || !shown || sent === undefined) return
     const next = coveredOf({ slot: element, rect: sent, topAt: environment.topAt })
@@ -101,7 +110,8 @@ export function createPaneSync(args: {
       sent = rect
       const previous = requestedUrlByTarget.get(args.id)
       deliver({ kind: 'show', url, rect })
-      if (previous !== undefined && previous !== url) deliver({ kind: 'navigate', url })
+      const moved = previous !== undefined && previous !== url
+      if (moved && !alreadyAt(url)) requestNavigation(url)
       requestedUrlByTarget.set(args.id, url)
       probe()
       return
@@ -124,8 +134,11 @@ export function createPaneSync(args: {
       if (stopped || next === url) return
       url = next
       if (!shown) return
-      requestedUrlByTarget.set(args.id, next)
-      deliver({ kind: 'navigate', url: next })
+      if (alreadyAt(next)) {
+        requestedUrlByTarget.set(args.id, next)
+        return
+      }
+      requestNavigation(next)
     },
     stop: () => {
       if (stopped) return
