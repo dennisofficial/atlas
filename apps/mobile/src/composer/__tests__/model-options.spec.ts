@@ -62,14 +62,9 @@ const response: ModelsResponse = {
 }
 
 describe('modelOptionsOf', () => {
-  it('keeps every provider that is not expired, in the order served', () => {
+  it('keeps every provider that holds a key, in the order served', () => {
     const options = modelOptionsOf(response)
-    expect(options.map((option) => option.id)).toEqual([
-      'claude-opus-4',
-      'gpt-5',
-      'gpt-5-mini',
-      'openrouter/x/y',
-    ])
+    expect(options.map((option) => option.id)).toEqual(['claude-opus-4', 'gpt-5', 'gpt-5-mini'])
   })
 
   it('strips the Claude prefix and labels the context window', () => {
@@ -87,13 +82,9 @@ describe('modelOptionsOf', () => {
     expect(gpt?.rate).toBeNull()
   })
 
-  it('disables models whose provider is not connected and notes them', () => {
+  it('drops a provider with no key instead of listing its models', () => {
     const options = modelOptionsOf(response)
-    const unavailable = options.find((option) => option.id === 'openrouter/x/y')
-    expect(options[0]?.disabled).toBe(false)
-    expect(options[0]?.note).toBeNull()
-    expect(unavailable?.disabled).toBe(true)
-    expect(unavailable?.note).toBe('no key')
+    expect(options.some((option) => option.provider === 'OpenRouter')).toBe(false)
   })
 
   it('marks the models that offer fast mode', () => {
@@ -109,7 +100,6 @@ describe('modelGroupsOf', () => {
     expect(groups.map((group) => [group.provider, group.models.length])).toEqual([
       ['Anthropic', 1],
       ['OpenAI', 2],
-      ['OpenRouter', 1],
     ])
   })
 })
@@ -129,8 +119,9 @@ describe('searchModelsOf', () => {
   })
 
   it('matches a provider name', () => {
-    expect(searchModelsOf({ models, query: 'openrouter' }).map((model) => model.id)).toEqual([
-      'openrouter/x/y',
+    expect(searchModelsOf({ models, query: 'openai' }).map((model) => model.id)).toEqual([
+      'gpt-5',
+      'gpt-5-mini',
     ])
   })
 })

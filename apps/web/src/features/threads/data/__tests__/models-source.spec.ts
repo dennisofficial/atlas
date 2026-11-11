@@ -31,12 +31,11 @@ describe('loadModelsSource', () => {
 })
 
 describe('modelOptionsOfSource', () => {
-  it('builds the static catalogue options on the fallback path', () => {
+  it('builds the static catalogue options for the connected providers only', () => {
     const { models } = modelOptionsOfSource({ source: { kind: 'accounts', accounts } })
-    const connected = models.filter((model) => model.disabled !== true)
-    expect(connected.length).toBeGreaterThan(0)
-    expect(connected.every((model) => model.provider === 'Claude Plan')).toBe(true)
-    expect(new Set(models.map((model) => model.provider)).size).toBe(5)
+    expect(models.length).toBeGreaterThan(0)
+    expect(models.every((model) => model.provider === 'Claude Plan')).toBe(true)
+    expect(models.every((model) => model.disabled !== true)).toBe(true)
   })
 
   it('builds the live options on the live path', () => {

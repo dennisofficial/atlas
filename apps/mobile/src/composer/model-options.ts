@@ -7,8 +7,6 @@ export const DEFAULT_EFFORT = 'medium'
 
 export const NO_MODEL_LABEL = 'Default'
 
-const NO_KEY_NOTE = 'no key'
-
 const CLAUDE_PREFIX = 'Claude '
 
 const EFFORT_LABELS: Record<string, string> = {
@@ -34,8 +32,6 @@ export interface IModelOption {
   context: string
   rate: string | null
   fast: boolean
-  disabled: boolean
-  note: string | null
 }
 
 export interface IModelSelection {
@@ -71,24 +67,19 @@ const rateOf = (model: {
 
 export const modelOptionsOf = (response: ModelsResponse): IModelOption[] =>
   response.providers
-    .filter((provider) => provider.status !== 'expired')
+    .filter((provider) => provider.status === 'connected')
     .flatMap((provider) =>
-      provider.models.map((model) => {
-        const disabled = provider.status !== 'connected'
-        return {
-          id: model.id,
-          label: labelOf(model.label),
-          provider: provider.label,
-          providerId: provider.id,
-          monogram: provider.label.charAt(0).toUpperCase(),
-          efforts: model.efforts,
-          context: contextLabelOf(model.contextWindow),
-          rate: rateOf(model),
-          fast: model.fast === true,
-          disabled,
-          note: disabled ? NO_KEY_NOTE : null,
-        }
-      }),
+      provider.models.map((model) => ({
+        id: model.id,
+        label: labelOf(model.label),
+        provider: provider.label,
+        providerId: provider.id,
+        monogram: provider.label.charAt(0).toUpperCase(),
+        efforts: model.efforts,
+        context: contextLabelOf(model.contextWindow),
+        rate: rateOf(model),
+        fast: model.fast === true,
+      })),
     )
 
 export const modelGroupsOf = (models: readonly IModelOption[]): readonly IModelGroup[] => {

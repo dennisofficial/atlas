@@ -1450,7 +1450,10 @@ Credential decisions are pure and live in `core/credentials/`, tested with plain
 - The provider registry — what each provider supports, how one signs in to it, and which
   environment variable carries its key. Anthropic, OpenAI, OpenRouter and inference.net are all
   wired and answer `reachable: true`; a provider only dims to `⚠ no key` in the switcher once the
-  accounts say nothing holds a key for it.
+  accounts say nothing holds a key for it. The switcher dims the row but keeps it listed, since its
+  keyboard rows are a fixed ladder; the web and mobile pickers do not list a provider's models at
+  all until one of its accounts holds a key, and a thread already on such a provider keeps only its
+  own model, marked `no key` so it reads as the reason the turn cannot run rather than as a choice.
 
 **One provider OAuth grant has one refresh owner.** Before cloud handoff, the local vault owns
 renewal. Signing in to Atlas Cloud transfers Atlas-native Claude/Codex grants to dedicated encrypted

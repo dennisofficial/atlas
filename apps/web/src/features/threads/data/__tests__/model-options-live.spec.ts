@@ -65,6 +65,18 @@ describe('modelOptionsFromResponse', () => {
       models: [],
       reconnectProviders: [],
     })
+    const keyless = modelOptionsFromResponse({
+      response: response([
+        {
+          id: 'openrouter',
+          label: 'OpenRouter',
+          status: EModelProviderStatus.Unavailable,
+          live: false,
+          models: [{ id: 'openrouter/a/b', label: 'A B', contextWindow: 128_000, efforts: [] }],
+        },
+      ]),
+    })
+    expect(keyless.models).toEqual([])
   })
 
   it('turns an expired provider into a reconnect row with no models', () => {
@@ -84,7 +96,7 @@ describe('modelOptionsFromResponse', () => {
     expect(models).toEqual([])
   })
 
-  it('keeps an unavailable provider visible as disabled options, not a reconnect row', () => {
+  it('hides a provider with no key instead of offering its models', () => {
     const { models, reconnectProviders } = modelOptionsFromResponse({
       response: response([
         {
@@ -102,14 +114,33 @@ describe('modelOptionsFromResponse', () => {
     })
 
     expect(reconnectProviders).toEqual([])
+    expect(models.some((model) => model.provider === 'OpenRouter')).toBe(false)
+    expect(models.some((model) => model.disabled)).toBe(false)
+  })
+
+  it('keeps the thread\u2019s own model listed when its provider lost its key', () => {
+    const { models } = modelOptionsFromResponse({
+      response: response([
+        {
+          id: 'openrouter',
+          label: 'OpenRouter',
+          status: EModelProviderStatus.Unavailable,
+          live: false,
+          models: [
+            { id: 'openrouter/a/b', label: 'A B', contextWindow: 128_000, efforts: [] },
+            { id: 'openrouter/c/d', label: 'C D', contextWindow: 128_000, efforts: [] },
+          ],
+        },
+        ...openAi.providers,
+      ]),
+      currentId: 'openrouter/c/d',
+    })
+
     const dormant = models.filter((model) => model.provider === 'OpenRouter')
-    expect(dormant.map((model) => model.id)).toEqual(['openrouter/a/b', 'openrouter/c/d'])
-    expect(
-      dormant.every((model) => model.disabled === true && model.disabledNote === 'no key'),
-    ).toBe(true)
-    expect(models.filter((model) => model.provider === 'Codex Plan').some((m) => m.disabled)).toBe(
-      false,
-    )
+    expect(dormant.map((model) => model.id)).toEqual(['openrouter/c/d'])
+    expect(dormant[0]?.label).toBe('C D')
+    expect(dormant[0]?.disabled).toBe(true)
+    expect(dormant[0]?.disabledNote).toBe('no key')
   })
 
   it('labels every provider with the same name the TUI switcher uses', () => {

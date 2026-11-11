@@ -144,7 +144,9 @@ export function modelOptionsOf(args: {
   const offered = providers
     .filter((provider) => !reconnecting.includes(provider))
     .flatMap((provider) =>
-      provider.cards.map((card) => optionOf({ card, unavailable: !usable.has(provider.id) })),
+      provider.cards
+        .filter((card) => usable.has(provider.id) || refKey(card.ref) === args.currentId)
+        .map((card) => optionOf({ card, unavailable: !usable.has(provider.id) })),
     )
   return {
     models: withCurrent({ offered, cards, currentId: args.currentId }),
@@ -190,18 +192,15 @@ export function modelOptionsFromResponse(args: {
   response: ModelsResponse
   currentId?: string | undefined
 }): ModelOptions {
+  const currentId = args.currentId
   const offered = args.response.providers
     .filter((provider) => provider.status !== EModelProviderStatus.Expired)
-    .flatMap((provider) =>
-      provider.models.map((entry) =>
-        optionOfEntry({
-          providerId: provider.id,
-          entry,
-          unavailable: provider.status === EModelProviderStatus.Unavailable,
-        }),
-      ),
-    )
-  const currentId = args.currentId
+    .flatMap((provider) => {
+      const unavailable = provider.status === EModelProviderStatus.Unavailable
+      return provider.models
+        .filter((entry) => !unavailable || entry.id === currentId)
+        .map((entry) => optionOfEntry({ providerId: provider.id, entry, unavailable }))
+    })
   const models =
     currentId === undefined || offered.some((option) => option.id === currentId)
       ? offered
