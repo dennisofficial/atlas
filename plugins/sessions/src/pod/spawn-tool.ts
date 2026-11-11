@@ -13,25 +13,19 @@ import { sessionsRefusal } from './outcome'
 const inputSchema = z.strictObject({
   title: z.string().min(1).optional(),
   brief: z.string().min(1).optional(),
-  intoPod: z.boolean().optional(),
 })
 
 const description = [
-  'Create a new session of the operator’s. By default it is a session like one created in the UI:',
-  'its own sandbox and a fresh clone, appearing in their sidebar and running on its own, so',
-  '`brief` is its first message and the whole of what it knows of this conversation. `intoPod:',
-  'true` makes it a teammate instead, sharing your sandbox, workspace and context; a teammate',
-  'cannot create another teammate. Message it later with `message_session`.',
+  'Create a new session of the operator’s: its own sandbox, its own clone and its own',
+  'conversation, appearing in their sidebar and running on its own, so `brief` is its first',
+  'message and the whole of what it knows of this conversation. It can spawn sessions of its own',
+  'and report back to this one with `report_to_spawner`. Message it later with `message_session`.',
 ].join(' ')
 
-const modelTextOf = (args: { sessionId: string; briefed: boolean; intoPod: boolean }): string => {
-  const what = args.intoPod
-    ? `teammate ${args.sessionId} in your sandbox`
-    : `session ${args.sessionId}`
-  return args.briefed
-    ? `Started ${what}; your brief is its first message.`
-    : `Started ${what} with no brief, so it waits for a message.`
-}
+const modelTextOf = (args: { sessionId: string; briefed: boolean }): string =>
+  args.briefed
+    ? `Started session ${args.sessionId}; your brief is its first message.`
+    : `Started session ${args.sessionId} with no brief, so it waits for a message.`
 
 export class SpawnSessionTool extends SchemaTool<typeof inputSchema> {
   readonly name = 'spawn_session'
@@ -49,15 +43,16 @@ export class SpawnSessionTool extends SchemaTool<typeof inputSchema> {
       const spawned = await this.ctx.sessions.spawn({
         title: input.title,
         brief: input.brief,
-        intoPod: input.intoPod,
       })
       return {
         ok: true,
-        output: { sessionId: spawned.sessionId, mainThreadId: spawned.mainThreadId },
+        output: {
+          sessionId: spawned.sessionId,
+          mainThreadId: spawned.mainThreadId,
+        },
         modelText: modelTextOf({
           sessionId: spawned.sessionId,
           briefed: input.brief !== undefined && input.brief.trim() !== '',
-          intoPod: input.intoPod === true,
         }),
       }
     } catch (error) {

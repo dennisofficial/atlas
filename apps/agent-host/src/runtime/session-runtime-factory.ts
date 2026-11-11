@@ -79,13 +79,23 @@ export type SessionRuntimeFactoryArgs = {
   podPeers?: PodPeers | undefined
 }
 
-const UNCONFIGURED_REF: ModelRef = { providerId: 'anthropic', modelId: 'claude-sonnet-4-5' }
+const UNCONFIGURED_REF: ModelRef = {
+  providerId: 'anthropic',
+  modelId: 'claude-sonnet-4-5',
+}
 
 export const createSessionRuntimeFactory = (
   args: SessionRuntimeFactoryArgs,
 ): SessionRuntimeFactory => {
   const launchDirectory = args.launchDirectory ?? WORKSPACE_PATH
-  return async ({ sessionId, podSessionId: sandboxSessionId, threadId, epoch, signal }) => {
+  return async ({
+    sessionId,
+    podSessionId: sandboxSessionId,
+    threadId,
+    epoch,
+    signal,
+    spawner,
+  }) => {
     const config = await args.config.read({ sessionId, threadId })
     if (config.vercel.configured === false) {
       throw new SandboxNotConfiguredError(config.vercel.gap)
@@ -94,10 +104,17 @@ export const createSessionRuntimeFactory = (
     const sandboxName = sandboxNameOf(sandboxSessionId)
     const wake = () => args.sandbox.wake({ sandboxSessionId, credentials, signal })
     const steps = new PrepareSteps()
-    steps.report({ step: EWorkspaceStep.Sandbox, state: EWorkspaceStepState.Started })
+    steps.report({
+      step: EWorkspaceStep.Sandbox,
+      state: EWorkspaceStepState.Started,
+    })
     const endpoint = wake()
     endpoint.then(
-      () => steps.report({ step: EWorkspaceStep.Sandbox, state: EWorkspaceStepState.Done }),
+      () =>
+        steps.report({
+          step: EWorkspaceStep.Sandbox,
+          state: EWorkspaceStepState.Done,
+        }),
       (error: unknown) => steps.failOpen(error instanceof Error ? error.message : String(error)),
     )
     endpoint.catch((error: unknown) => {
@@ -110,7 +127,12 @@ export const createSessionRuntimeFactory = (
     const calls = new RemoteCalls({
       sessionId,
       token: daemonToken({ secret: args.daemonSecret, sandboxName }),
-      connector: rewakingConnector({ sessionId, first: endpoint, wake, signal }),
+      connector: rewakingConnector({
+        sessionId,
+        first: endpoint,
+        wake,
+        signal,
+      }),
       timers: args.timers,
       onFenced: () => {},
       ...(args.pingMs === undefined ? {} : { pingMs: args.pingMs }),
@@ -128,7 +150,10 @@ export const createSessionRuntimeFactory = (
     const attempt = (signal: AbortSignal): Promise<PrepareResult> =>
       abortable(calls.ready(), signal)
         .then(async () => {
-          steps.report({ step: EWorkspaceStep.Daemon, state: EWorkspaceStepState.Done })
+          steps.report({
+            step: EWorkspaceStep.Daemon,
+            state: EWorkspaceStepState.Done,
+          })
           const token = await abortable(args.github.read({ userId: config.userId }), signal)
           const signing = await prepareSigning({
             reader: args.signingKey,
@@ -161,7 +186,10 @@ export const createSessionRuntimeFactory = (
             message: `workspace setup for ${sessionId} failed`,
             ...logFieldsOf({ error }),
           })
-          return { ok: false, reason: error instanceof Error ? error.message : String(error) }
+          return {
+            ok: false,
+            reason: error instanceof Error ? error.message : String(error),
+          }
         })
     const deadlineMs = args.setupDeadlineMs ?? SETUP_DEADLINE_MS
     let failedAttempt: Promise<PrepareResult> | undefined
@@ -177,7 +205,10 @@ export const createSessionRuntimeFactory = (
           })
           controller.abort(new Error(`workspace setup did not finish within ${deadlineMs}ms`))
           steps.failOpen(`workspace setup did not finish within ${deadlineMs}ms`)
-          resolve({ ok: false, reason: `workspace setup did not finish within ${deadlineMs}ms` })
+          resolve({
+            ok: false,
+            reason: `workspace setup did not finish within ${deadlineMs}ms`,
+          })
         }, deadlineMs)
       })
       return Promise.race([running, expired]).then((outcome) => {
@@ -203,7 +234,10 @@ export const createSessionRuntimeFactory = (
       additionalRepos: config.workspace.additionalRepos,
       ...(args.log === undefined ? {} : { log: args.log }),
     })
-    const repoMap = workspaceRepoMap({ launchDirectory, workspace: config.workspace })
+    const repoMap = workspaceRepoMap({
+      launchDirectory,
+      workspace: config.workspace,
+    })
     const repoAt = (path: string) => repoMap.find((entry) => entry.path === path)
     const daemonToolList = daemonToolsOf({
       processes,
@@ -246,7 +280,10 @@ export const createSessionRuntimeFactory = (
       throw error
     }
 
-    const releaseSandbox = sandboxReleaseFor({ sandbox: args.sandbox, podPeers: args.podPeers })
+    const releaseSandbox = sandboxReleaseFor({
+      sandbox: args.sandbox,
+      podPeers: args.podPeers,
+    })
     const stopKeepAlive = startKeepAlive({
       sandbox: args.sandbox,
       sandboxSessionId,
@@ -266,6 +303,7 @@ export const createSessionRuntimeFactory = (
         prompt: agentHostPrompt({
           identity: model.identity,
           extraFragments: args.plugins?.pod.prompts,
+          spawner,
         }),
         launchDirectory,
       }),
@@ -282,7 +320,10 @@ export const createSessionRuntimeFactory = (
       baseBranchOf: (repoPath) => repoAt(repoPath)?.base ?? null,
       pullRequests: {
         repoOf: (repoPath) => repoAt(repoPath)?.repo ?? null,
-        finder: new GithubPullRequestFinder({ userId: config.userId, github: args.github }),
+        finder: new GithubPullRequestFinder({
+          userId: config.userId,
+          github: args.github,
+        }),
       },
       plugins: args.plugins,
       runningShells: () => countRunningShells({ calls }),

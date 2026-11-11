@@ -65,6 +65,9 @@ export function TeammateList({ sessions, parent, projectName, activeThreadId }: 
   }
   return (
     <SidebarMenuSub className="mr-0 ml-3.5 gap-0.5 pr-0 pl-2">
+      <span className="px-2 text-xs text-muted-foreground">
+        Created from {parent.title ?? 'this session'}
+      </span>
       {active.map(rowFor)}
       {done.length > 0 ? (
         <DoneToggle count={done.length} open={doneOpen} onToggle={handleDoneToggle} />

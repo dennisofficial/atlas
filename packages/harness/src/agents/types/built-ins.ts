@@ -8,7 +8,9 @@ Only your final message reaches the caller — your tool calls and reasoning are
 
 Complete the task fully, and nothing beyond it: no refactor, extra file, or documentation the task did not name.
 
-No human is watching you and you cannot ask the caller mid-task. Where the task is ambiguous, take the reading a careful colleague would, say which reading you took, and keep going. Say plainly what you could not do and why. You cannot spawn sub-agents of your own.`
+No human is watching you and you cannot ask the caller mid-task. Where the task is ambiguous, take the reading a careful colleague would, say which reading you took, and keep going. Say plainly what you could not do and why. You cannot spawn sub-agents of your own.
+
+When you work in a git worktree of your own, you may commit on its branch, push it and open a pull request with \`gh\`, and you must report the URL.`
 
 const REPORT_ONLY_CONTRACT = `Use your tools only to observe: read, search, run commands that change nothing. Where the work needs a change, name it in your report and leave it to the caller.`
 

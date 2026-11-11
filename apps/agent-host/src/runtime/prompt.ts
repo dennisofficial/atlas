@@ -5,6 +5,7 @@ import {
   promptContextFor,
   type PromptFragment,
   type PromptSource,
+  type PromptSpawner,
   type ProviderIdentity,
 } from '@dltech/atlas-core'
 
@@ -52,6 +53,7 @@ const registryOf = (extraFragments: readonly PromptFragment[]): PromptFragmentRe
 export const agentHostPrompt = (args: {
   identity: ProviderIdentity
   extraFragments?: readonly PromptFragment[] | undefined
+  spawner?: PromptSpawner | undefined
 }): PromptSource => {
   const registry = registryOf(args.extraFragments ?? [])
   return ({ projectDirectory }) =>
@@ -62,6 +64,7 @@ export const agentHostPrompt = (args: {
         projectDirectory,
         placement: EExecutionLocation.Cloud,
         runner: ERunner.Vercel,
+        spawner: args.spawner,
       }),
     )
 }

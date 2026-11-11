@@ -78,7 +78,10 @@ describe('v2RowOf', () => {
   })
 
   it('collects the ids of v2 rows only', () => {
-    const merged = withV2Sessions({ entries: entries(), sessions: [summary()] })
+    const merged = withV2Sessions({
+      entries: entries(),
+      sessions: [summary()],
+    })
     expect([...v2SessionIdsOf(merged)]).toEqual(['v2-a'])
     expect(v2SessionIdsOf(undefined).size).toBe(0)
   })
@@ -103,7 +106,10 @@ describe('withV2Sessions', () => {
   it('ignores sessions of unknown projects and returns the same entries when empty', () => {
     const base = entries()
     expect(withV2Sessions({ entries: base, sessions: [] })).toBe(base)
-    const merged = withV2Sessions({ entries: base, sessions: [summary({ projectId: 'gone' })] })
+    const merged = withV2Sessions({
+      entries: base,
+      sessions: [summary({ projectId: 'gone' })],
+    })
     expect(merged.map((e) => e.sessions.length)).toEqual([1, 0, 0])
   })
 
@@ -126,8 +132,16 @@ const childIdsOf = (sessions: readonly ShellSessionNode[], id: string): string[]
 
 describe('withV2Sessions nesting', () => {
   const root = summary({ sessionId: 'root', createdAt: agoIso(9) })
-  const peer = summary({ sessionId: 'peer', createdAt: agoIso(8), spawnedBy: 'root' })
-  const grandchild = summary({ sessionId: 'grand', createdAt: agoIso(7), spawnedBy: 'peer' })
+  const peer = summary({
+    sessionId: 'peer',
+    createdAt: agoIso(8),
+    spawnedBy: 'root',
+  })
+  const grandchild = summary({
+    sessionId: 'grand',
+    createdAt: agoIso(7),
+    spawnedBy: 'peer',
+  })
 
   it('nests a peer under its spawner instead of listing it as a root', () => {
     const rows = rowsOf([root, peer])
@@ -142,6 +156,13 @@ describe('withV2Sessions nesting', () => {
     expect(nestedPeer?.id).toBe('peer')
     expect(nestedPeer?.teammates.map((node) => node.id)).toEqual(['grand'])
     expect(nestedPeer?.teammates[0]?.v2).toBe(true)
+  })
+
+  it('labels the group by provenance and calls a spawned session a session', () => {
+    const rows = rowsOf([root, peer])
+    const html = render(rows.find((row) => row.id === 'root') as ShellSessionNode)
+    expect(html).toContain('Created from Fix login')
+    expect(html).not.toContain('teammate')
   })
 
   it('keeps an archived peer in teammates so the row shows it in its Done group', () => {
@@ -176,12 +197,18 @@ describe('withV2Sessions nesting', () => {
   })
 
   it('collects a nested peer and its children as v2 sessions', () => {
-    const merged = withV2Sessions({ entries: entries(), sessions: [root, peer, grandchild] })
+    const merged = withV2Sessions({
+      entries: entries(),
+      sessions: [root, peer, grandchild],
+    })
     expect([...v2SessionIdsOf(merged)].sort()).toEqual(['grand', 'peer', 'root'])
   })
 
   it('archives a nested peer through the v2 sessions route', async () => {
-    const merged = withV2Sessions({ entries: entries(), sessions: [root, peer] })
+    const merged = withV2Sessions({
+      entries: entries(),
+      sessions: [root, peer],
+    })
     const calls = fakeFetch(() => trpcOk({ archivedAt: null }))
     await archiveThread({
       threadId: 'peer',
@@ -198,8 +225,16 @@ describe('withV2Sessions nesting', () => {
   })
 
   it('orders siblings and roots by creation time however the list arrives', () => {
-    const early = summary({ sessionId: 'early', createdAt: agoIso(8), spawnedBy: 'root' })
-    const late = summary({ sessionId: 'late', createdAt: agoIso(3), spawnedBy: 'root' })
+    const early = summary({
+      sessionId: 'early',
+      createdAt: agoIso(8),
+      spawnedBy: 'root',
+    })
+    const late = summary({
+      sessionId: 'late',
+      createdAt: agoIso(3),
+      spawnedBy: 'root',
+    })
     const newerRoot = summary({ sessionId: 'newer', createdAt: agoIso(4) })
     const rows = rowsOf([late, newerRoot, root, early])
     expect(rows.map((row) => row.id)).toEqual(['ses_v1-old', 'root', 'newer'])

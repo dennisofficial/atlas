@@ -4,7 +4,7 @@ import type { ControlPlane } from '@dltech/atlas-control'
 import type { PodSessions } from '@dltech/atlas-plugin-sdk'
 
 export const podSessionsOf = (args: { plane: ControlPlane; sessionId: string }): PodSessions => ({
-  spawn: async ({ title, brief, intoPod }) => {
+  spawn: async ({ title, brief }) => {
     const sessionId = randomUUID()
     const mainThreadId = randomUUID()
     await args.plane.spawnPeer({
@@ -13,7 +13,6 @@ export const podSessionsOf = (args: { plane: ControlPlane; sessionId: string }):
       mainThreadId,
       title,
       brief,
-      intoPod,
     })
     return { sessionId, mainThreadId }
   },
@@ -21,6 +20,14 @@ export const podSessionsOf = (args: { plane: ControlPlane; sessionId: string }):
     const sent = await args.plane.messagePeer({
       fromSessionId: args.sessionId,
       toSessionId: sessionId,
+      text,
+    })
+    return 'refused' in sent ? { refused: sent.refused } : { queued: true }
+  },
+  report: async ({ kind, text }) => {
+    const sent = await args.plane.reportToSpawner({
+      sessionId: args.sessionId,
+      kind,
       text,
     })
     return 'refused' in sent ? { refused: sent.refused } : { queued: true }
@@ -33,6 +40,7 @@ export const podSessionsOf = (args: { plane: ControlPlane; sessionId: string }):
       spawnedBy: row.spawnedBySessionId,
       archivedAt: row.archivedAt,
       current: row.sessionId === args.sessionId,
+      status: row.view?.status ?? null,
     }))
   },
 })

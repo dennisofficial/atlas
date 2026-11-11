@@ -85,8 +85,8 @@ describe('hasAttentionTeammate', () => {
 })
 
 describe('teammateCountLabel', () => {
-  it('pluralises', () => {
-    expect(teammateCountLabel(1)).toBe('1 teammate')
-    expect(teammateCountLabel(6)).toBe('6 teammates')
+  it('counts sessions created here rather than teammates', () => {
+    expect(teammateCountLabel(1)).toBe('1 session created here')
+    expect(teammateCountLabel(6)).toBe('6 sessions created here')
   })
 })

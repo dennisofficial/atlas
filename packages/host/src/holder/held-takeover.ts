@@ -5,6 +5,7 @@ import type { SessionRuntime } from './ports'
 import type { LeaseLostError } from './record/lease-lost-error'
 import { SessionRecord } from './record/record-adapter'
 import { RecordCache } from './record/record-cache'
+import { spawnerOf } from './spawner-of'
 
 type Timed<T> = { value: T; ms: number }
 
@@ -37,7 +38,7 @@ export class TakeOver {
   }): Promise<{ runtime: SessionRuntime; record: SessionRecord }> {
     const { deps } = this
     const [runtime, cache] = await Promise.all([
-      timed(deps, () =>
+      timed(deps, async () =>
         deps.runtimeFor({
           sessionId: deps.sessionId,
           podSessionId: deps.podSessionId,
@@ -45,6 +46,10 @@ export class TakeOver {
           threadId: args.threadId,
           epoch: args.epoch,
           signal: args.signal,
+          spawner: await spawnerOf({
+            plane: deps.plane,
+            sessionId: deps.sessionId,
+          }),
         }),
       ).then((result) => {
         this.configMs = result.ms

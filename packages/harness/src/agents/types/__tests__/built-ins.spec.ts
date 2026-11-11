@@ -91,6 +91,14 @@ describe('the built-in agent types', () => {
     }
   })
 
+  it('tells every sub-agent it may commit, push and open a PR from its own worktree', async () => {
+    for (const agentType of await load()) {
+      if (agentType.name === 'teammate') continue
+      expect(agentType.prompt).toContain('open a pull request with `gh`')
+      expect(agentType.prompt).toContain('you must report the URL')
+    }
+  })
+
   it('tells the teammate to report deliberately, and which endings say nothing', async () => {
     const teammate = await named('teammate')
 
