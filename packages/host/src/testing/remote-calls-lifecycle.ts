@@ -5,6 +5,24 @@ import { ECallFailure, ECallStatus, EExecOutcome } from '@dltech/atlas-protocol'
 import { FencedError, SandboxUnavailableError } from '..'
 import { openCalls, uniqueKey, type RemoteCallsTarget } from './remote-calls-support'
 
+type Fence = { onFenced(): void; count(): number }
+
+const fenceCounting = (): Fence => {
+  let hits = 0
+  return {
+    onFenced: () => {
+      hits += 1
+    },
+    count: () => hits,
+  }
+}
+
+const waitForFence = async (fence: Fence): Promise<void> => {
+  for (let waited = 0; fence.count() === 0 && waited < 5_000; waited += 25) {
+    await new Promise((resolve) => setTimeout(resolve, 25))
+  }
+}
+
 export const describeRemoteCallsLifecycle = (target: RemoteCallsTarget): void => {
   describe(`remote calls lifecycle (${target.name})`, () => {
     it('streams exec output and returns the result', async () => {
@@ -156,20 +174,50 @@ export const describeRemoteCallsLifecycle = (target: RemoteCallsTarget): void =>
     it('fences the older holder when a second opens at a higher epoch', async () => {
       const handle = await target.start()
       try {
-        let fenced = 0
-        const first = openCalls({ handle, epoch: 1, onFenced: () => (fenced += 1) })
+        const fence = fenceCounting()
+        const first = openCalls({ handle, epoch: 1, onFenced: fence.onFenced })
         await first.ready()
         const second = openCalls({ handle, epoch: 2 })
         await second.ready()
-        for (let waited = 0; fenced === 0 && waited < 5_000; waited += 25) {
-          await new Promise((resolve) => setTimeout(resolve, 25))
-        }
+        await waitForFence(fence)
         await expect(
           first.invoke({ key: uniqueKey('fenced'), op: { op: 'stat', path: '/' } }),
         ).rejects.toBeInstanceOf(FencedError)
-        expect(fenced).toBe(1)
+        expect(fence.count()).toBe(1)
         const ok = await second.invoke({ key: uniqueKey('holder'), op: { op: 'stat', path: '/' } })
         expect(ok.status).toBe(ECallStatus.Ok)
+        first.close()
+        second.close()
+      } finally {
+        await handle.stop()
+      }
+    })
+
+    it('lets a superseded holder work again once it takes over at a still higher epoch', async () => {
+      const handle = await target.start()
+      try {
+        const older = fenceCounting()
+        const newer = fenceCounting()
+        const first = openCalls({ handle, epoch: 1, onFenced: older.onFenced })
+        await first.ready()
+        const second = openCalls({ handle, epoch: 2, onFenced: newer.onFenced })
+        await second.ready()
+        await waitForFence(older)
+        await expect(
+          first.invoke({ key: uniqueKey('stale'), op: { op: 'stat', path: '/' } }),
+        ).rejects.toBeInstanceOf(FencedError)
+
+        first.open({ epoch: 3 })
+        const taken = await first.invoke({
+          key: uniqueKey('taken-over'),
+          op: { op: 'stat', path: '/' },
+        })
+        expect(taken.status).toBe(ECallStatus.Ok)
+        await waitForFence(newer)
+        expect(newer.count()).toBe(1)
+        await expect(
+          second.invoke({ key: uniqueKey('superseded-again'), op: { op: 'stat', path: '/' } }),
+        ).rejects.toBeInstanceOf(FencedError)
         first.close()
         second.close()
       } finally {
