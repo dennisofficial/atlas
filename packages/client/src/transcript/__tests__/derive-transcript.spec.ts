@@ -433,6 +433,12 @@ describe('a message from another agent', () => {
           text: 'Sub-agent brn_1 reported done.',
           via: EMessageOrigin.ChildAgent,
         },
+        {
+          type: 'user-said',
+          text: 'second reply ok',
+          sender: { session: 'ses_2' },
+          via: EMessageOrigin.PeerAgent,
+        },
       ]),
       signals: [],
     })
@@ -443,6 +449,14 @@ describe('a message from another agent', () => {
         author: EAuthor.Model,
         text: 'Sub-agent brn_1 reported done.',
         sender: 'a sub-agent',
+        senderSessionId: null,
+      },
+      {
+        kind: EEntryKind.AgentSaid,
+        author: EAuthor.Model,
+        text: 'second reply ok',
+        sender: 'session ses_2',
+        senderSessionId: 'ses_2',
       },
     ])
   })
