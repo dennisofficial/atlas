@@ -17,7 +17,7 @@ export const ENVELOPE_AGENT_TAG = ELane.Agent
 
 const escapeAttribute = (value: string): string => value.replaceAll('"', '%22')
 
-function attributesOf(entries: Record<string, string | undefined>): string {
+function renderAttributes(entries: Record<string, string | undefined>): string {
   const rendered = Object.entries(entries).flatMap(([name, value]) =>
     value === undefined ? [] : [` ${name}="${escapeAttribute(value)}"`],
   )
@@ -49,7 +49,10 @@ export function neutraliseEnvelopeTags(body: string): string {
 
 export type Envelope = { lane: ELane; source?: string | undefined; body: string }
 
-const attributeOf = (args: { lane: ELane; source: string | undefined }): Record<string, string> => {
+const attributesFor = (args: {
+  lane: ELane
+  source: string | undefined
+}): Record<string, string> => {
   if (args.lane === ELane.Operator) return {}
   if (args.lane === ELane.Agent) return { from: args.source ?? '' }
   if (args.lane === ELane.Notice) return { kind: args.source ?? '' }
@@ -58,7 +61,7 @@ const attributeOf = (args: { lane: ELane; source: string | undefined }): Record<
 
 export function envelopeOf({ lane, source, body }: Envelope): string {
   return [
-    `<${lane}${attributesOf(attributeOf({ lane, source }))}>`,
+    `<${lane}${renderAttributes(attributesFor({ lane, source }))}>`,
     neutraliseEnvelopeTags(body),
     `</${lane}>`,
   ].join('\n')
