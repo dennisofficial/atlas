@@ -1,5 +1,7 @@
 import { EPromptGroup, PromptFragment, type PromptContext } from '@dltech/atlas-core'
 
+import { ATLAS_CONTEXT_DIR_ENV } from '../session-paths'
+
 export class ContextFolderFragment extends PromptFragment {
   readonly id = 'environment.context-folder'
 
@@ -9,7 +11,7 @@ export class ContextFolderFragment extends PromptFragment {
 
   text(): string {
     return [
-      'ATLAS_CONTEXT_DIR is the session’s shared source of truth. Every sub-agent, teammate, and thread in',
+      `${ATLAS_CONTEXT_DIR_ENV} is the session’s shared source of truth. Every sub-agent, teammate, and thread in`,
       'this session can read it, and it survives compaction — what you hold only in your head is the first',
       'thing lost when your window fills, so understanding belongs on disk the moment it settles.',
       '',

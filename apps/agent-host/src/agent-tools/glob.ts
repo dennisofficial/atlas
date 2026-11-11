@@ -16,6 +16,7 @@ import {
 
 import { nullUnlessInterrupted } from './interrupted'
 import { filePathSchema, pathEnvironmentNote, resolveToolPath } from './file-text'
+import type { PathEnvironment } from '../runtime/session-paths'
 
 const RESULT_LIMIT = 100
 
@@ -85,7 +86,10 @@ export class GlobTool extends SchemaTool<typeof inputSchema> {
     },
   ]
 
-  constructor(private readonly files: AgentFileSystemPort) {
+  constructor(
+    private readonly files: AgentFileSystemPort,
+    private readonly pathEnv: PathEnvironment | undefined = undefined,
+  ) {
     super()
   }
 
@@ -98,7 +102,7 @@ export class GlobTool extends SchemaTool<typeof inputSchema> {
     const { pattern, path } = input
     let from = projectDirectory
     if (path !== undefined) {
-      const resolved = resolveToolPath({ projectDirectory, path })
+      const resolved = resolveToolPath({ projectDirectory, path, env: this.pathEnv })
       if (!resolved.ok) return { ok: false, reason: resolved.reason }
       from = resolved.path
     }

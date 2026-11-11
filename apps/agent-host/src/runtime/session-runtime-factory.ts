@@ -52,6 +52,7 @@ import { watchWorkspaceRepos } from './git-watch'
 import { TaskWriteTool } from '../agent-tools/task-write'
 import { daemonToolsOf } from './tools'
 import { ShellEnvCell } from './shell-env'
+import { pathEnvironmentOf, sessionPathsOf, shellEnvironmentOf } from './session-paths'
 import { prepareSigning } from './signing-setup'
 import { ensureWorkspace } from './workspace-setup'
 import { workspaceRepoMap } from './workspace-repo-map'
@@ -102,6 +103,7 @@ export const createSessionRuntimeFactory = (
     }
     const credentials = config.vercel
     const sandboxName = sandboxNameOf(sandboxSessionId)
+    const paths = sessionPathsOf({ sessionId, threadId })
     const wake = () => args.sandbox.wake({ sandboxSessionId, credentials, signal })
     const steps = new PrepareSteps()
     steps.report({
@@ -243,8 +245,9 @@ export const createSessionRuntimeFactory = (
       processes,
       files,
       agentFiles,
+      pathEnv: pathEnvironmentOf(paths),
       setup: gate,
-      shellEnv: () => shellEnv.current(),
+      shellEnv: () => shellEnvironmentOf({ paths, base: shellEnv.current() }),
     })
     const tools = [...daemonToolList, new TaskWriteTool()]
     const registry = new InMemoryToolRegistry(tools)
