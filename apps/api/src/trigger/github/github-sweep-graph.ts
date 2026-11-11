@@ -28,7 +28,7 @@ import { GithubSandboxWakeService } from '../../api/cloud/github/github-sandbox-
 import { GithubUserReads } from '../../api/cloud/github/github-user-reads'
 import { GithubService } from '../../api/cloud/github/github.service'
 import { GithubObservationStore } from '../../api/cloud/github/github-observation.store'
-import { ThreadSandboxCredentialsService } from '../../api/cloud/sandbox-credentials/thread-sandbox-credentials.service'
+import { ScopedSandboxCredentialsService } from '../../api/cloud/sandbox-credentials/scoped-sandbox-credentials.service'
 import { buildScopedConfig } from '../../api/cloud/scoped-config/scoped-config.factory'
 import { DrainStateService } from '../../api/platform/health/drain-state.service'
 import { buildWorkerThreadSignals } from '../thread-signals-graph'
@@ -70,7 +70,7 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
   const wake = new GithubSandboxWakeService(
     env,
     cipher,
-    new ThreadSandboxCredentialsService(buildScopedConfig({ cipher, env }), env),
+    new ScopedSandboxCredentialsService(buildScopedConfig({ cipher, env }), env),
     sandboxWakeBootProvider.useFactory(),
     new ProcessBackgroundWork(),
     WAKE_DEBOUNCE_MS,

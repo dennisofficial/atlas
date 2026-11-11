@@ -198,6 +198,12 @@ export function serviceWith(args: {
   fanout?: GithubPrFanoutService
 }): GithubSandboxWakeService {
   const credentials: SandboxCredentials = {
+    forUser: async () => ({
+      token: 'vercel-token',
+      teamId: 'team-1',
+      projectId: 'proj-1',
+      userId: 'user-1',
+    }),
     forThread: async () => ({
       token: 'vercel-token',
       teamId: 'team-1',

@@ -2,7 +2,13 @@ import { describe, expect, it } from 'bun:test'
 
 import type { FileStat, FileSystemEntry, FileSystemPort } from '../filesystem.port'
 
-type Stored = { content: string; mode: number; mtimeMs: number }
+type Stored = { content: string | Uint8Array; mode: number; mtimeMs: number }
+
+const textOf = (content: string | Uint8Array): string =>
+  typeof content === 'string' ? content : new TextDecoder().decode(content)
+
+const sizeOf = (content: string | Uint8Array): number =>
+  typeof content === 'string' ? content.length : content.byteLength
 
 const parentOf = (path: string): string => {
   const parent = path.slice(0, path.lastIndexOf('/'))
@@ -23,7 +29,7 @@ const fakeFileSystem = (): FileSystemPort => {
     const file = files.get(path)
     if (file !== undefined) {
       return {
-        size: file.content.length,
+        size: sizeOf(file.content),
         mode: file.mode,
         mtimeMs: file.mtimeMs,
         isFile: () => true,
@@ -42,17 +48,20 @@ const fakeFileSystem = (): FileSystemPort => {
     readFile: async ({ path }) => {
       const file = files.get(path)
       if (file === undefined) throw enoent('open', path)
-      return file.content
+      return textOf(file.content)
     },
     readBytes: async ({ path }) => {
       const file = files.get(path)
       if (file === undefined) throw enoent('open', path)
-      return new TextEncoder().encode(file.content)
+      return typeof file.content === 'string'
+        ? new TextEncoder().encode(file.content)
+        : file.content
     },
     readTextForEdit: async ({ path }) => {
       const file = files.get(path)
       if (file === undefined) throw enoent('open', path)
-      return { text: file.content, strict: file.content }
+      const text = textOf(file.content)
+      return { text, strict: text }
     },
     writeFile: async ({ path, content, mode }) => {
       const existing = files.get(path)

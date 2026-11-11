@@ -5,7 +5,9 @@ import {
   type GithubBranchesInput,
   type GithubRepoSummary,
 } from '@dltech/atlas-wire'
-import { BadGatewayException, NotFoundException } from '@nestjs/common'
+import { HttpStatus, NotFoundException } from '@nestjs/common'
+
+import { UserFacingException } from '../../../_core/http/user-facing-exception'
 import { Ctx, Input, Query, Router, UseMiddlewares } from 'nestjs-trpc'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
 import { EGithubCallSource } from './github-call-log'
@@ -27,7 +29,7 @@ export class GithubReposRouter {
     try {
       return await this.reads.listRepos({ source: EGithubCallSource.RepoList, token })
     } catch {
-      throw new BadGatewayException('github could not list repositories')
+      throw new UserFacingException('github could not list repositories', HttpStatus.BAD_GATEWAY)
     }
   }
 
@@ -48,7 +50,7 @@ export class GithubReposRouter {
       if (failure instanceof GithubUserReadFailed && failure.status === 404) {
         throw new NotFoundException('repository not found')
       }
-      throw new BadGatewayException('github could not list branches')
+      throw new UserFacingException('github could not list branches', HttpStatus.BAD_GATEWAY)
     }
   }
 

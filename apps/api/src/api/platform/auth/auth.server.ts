@@ -3,6 +3,7 @@ import { createEmailSender } from '../../../_lib/email/email-sender'
 import { createAuthEmailHooks } from './auth-email-hooks'
 import { deletePushDevicesOfSession } from './auth-session-hooks'
 import { sessionStorageFromEnv } from './auth-session-storage'
+import { missingTrustedOrigins } from './trusted-origins'
 import { betterAuth } from 'better-auth'
 import { bearer, deviceAuthorization } from 'better-auth/plugins'
 
@@ -32,6 +33,13 @@ const trustedOrigins = (process.env.TRUSTED_ORIGINS ?? '')
   .filter((origin) => origin.length > 0)
 
 const webOrigin = process.env.WEB_ORIGIN ?? 'http://localhost:3001'
+
+const missingOrigins = missingTrustedOrigins({ trustedOrigins, webOrigin })
+if (missingOrigins.length > 0) {
+  console.error(
+    `[auth] BROWSER SIGN-IN WILL FAIL: WEB_ORIGIN "${webOrigin}" is not in TRUSTED_ORIGINS "${trustedOrigins.join(',') || '(unset)'}" — every browser sign-in answers "Invalid origin". Add "${webOrigin}" to TRUSTED_ORIGINS.`,
+  )
+}
 
 const emailHooks = createAuthEmailHooks({
   sendEmail: createEmailSender({

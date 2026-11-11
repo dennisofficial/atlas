@@ -6,7 +6,7 @@ export const artifactKeyOf = (ref: string): string => `artifact:${ref}`
 
 export const fetchArtifacts = () => cloudCall(api.artifacts.list.query())
 
-export const fetchArtifact = (ref: string) => cloudCall(api.artifacts.get.query({ slug: ref }))
+export const fetchArtifact = (ref: string) => cloudCall(api.artifacts.get.query({ subdomain: ref }))
 
 export const deleteArtifact = (ref: string) =>
-  cloudCall(api.artifacts.unpublish.mutate({ slug: ref }))
+  cloudCall(api.artifacts.unpublish.mutate({ subdomain: ref }))

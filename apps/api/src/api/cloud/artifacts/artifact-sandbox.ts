@@ -1,3 +1,5 @@
+import type { SandboxCredentials } from '../../../_core/ports/sandbox-credentials'
+
 export const ARTIFACT_BUILD_CLAMP_MS = 180_000
 
 export const ARTIFACT_WORKSPACE = '/workspace'
@@ -27,7 +29,7 @@ export interface ArtifactSandboxCommand {
 }
 
 export interface ArtifactSandboxRequest {
-  threadId: string
+  owner: ArtifactBuildOwner
   files: readonly ArtifactSandboxFile[]
   install: string | undefined
   cmd: string
@@ -41,6 +43,16 @@ export interface ArtifactSandboxResult {
   build: ArtifactSandboxCommand | null
   outDir: readonly ArtifactSandboxFile[]
 }
+
+export type ArtifactBuildOwner = { threadId: string } | { userId: string }
+
+export const buildCredentialsOf = (args: {
+  credentials: SandboxCredentials
+  owner: ArtifactBuildOwner
+}) =>
+  'threadId' in args.owner
+    ? args.credentials.forThread({ threadId: args.owner.threadId })
+    : args.credentials.forUser({ userId: args.owner.userId })
 
 export abstract class ArtifactSandbox {
   abstract run(request: ArtifactSandboxRequest): Promise<ArtifactSandboxResult>

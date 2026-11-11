@@ -75,7 +75,7 @@ export class CloudArtifactPort extends ArtifactPort {
   }
 
   async beginPublish(args: {
-    slug?: string | undefined
+    subdomain?: string | undefined
     name?: string | undefined
     entries: ArtifactEntryInput[]
   }): Promise<ArtifactPublishBegun> {
@@ -84,7 +84,7 @@ export class CloudArtifactPort extends ArtifactPort {
       cloudCall(
         client.artifacts.beginPublish.mutate({
           entries: args.entries,
-          ...(args.slug === undefined ? {} : { slug: args.slug }),
+          ...(args.subdomain === undefined ? {} : { subdomain: args.subdomain }),
           ...(args.name === undefined ? {} : { name: args.name }),
         }),
       ),
@@ -93,7 +93,7 @@ export class CloudArtifactPort extends ArtifactPort {
     if (!parsed.success) throw malformed('artifacts.beginPublish')
     return {
       artifactId: parsed.data.artifactId,
-      slug: parsed.data.slug,
+      subdomain: parsed.data.subdomain,
       version: parsed.data.version,
       uploads: parsed.data.uploads,
     }
@@ -127,19 +127,21 @@ export class CloudArtifactPort extends ArtifactPort {
     return parsed.data.artifacts
   }
 
-  async sourceExport(args: { slug: string }): Promise<ArtifactSourceExport> {
+  async sourceExport(args: { subdomain: string }): Promise<ArtifactSourceExport> {
     const client = this.client()
     const body = await this.attempted(() =>
-      cloudCall(client.artifacts.sourceExport.query({ slug: args.slug })),
+      cloudCall(client.artifacts.sourceExport.query({ subdomain: args.subdomain })),
     )
     const parsed = artifactSourceExportOutputSchema.safeParse(body)
     if (!parsed.success) throw malformed('artifacts.sourceExport')
     return { entries: parsed.data.entries }
   }
 
-  async unpublish(args: { slug: string }): Promise<void> {
+  async unpublish(args: { subdomain: string }): Promise<void> {
     const client = this.client()
-    await this.attempted(() => cloudCall(client.artifacts.unpublish.mutate({ slug: args.slug })))
+    await this.attempted(() =>
+      cloudCall(client.artifacts.unpublish.mutate({ subdomain: args.subdomain })),
+    )
   }
 
   private async attempted<T>(run: () => Promise<T>): Promise<T> {

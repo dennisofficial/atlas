@@ -62,10 +62,10 @@ describe('artifact_list', () => {
 })
 
 describe('artifact_unpublish', () => {
-  it('unpublishes the slug it was given and says the URL is gone', async () => {
+  it('unpublishes the subdomain it was given and says the URL is gone', async () => {
     const port = new FakeArtifactPort()
 
-    const text = modelTextOf(await invoke({ slug: 'demo' }, new UnpublishArtifactTool(port)))
+    const text = modelTextOf(await invoke({ subdomain: 'demo' }, new UnpublishArtifactTool(port)))
 
     expect(port.unpublishCalls).toEqual(['demo'])
     expect(text).toContain('demo is unpublished')
@@ -75,7 +75,7 @@ describe('artifact_unpublish', () => {
     const port = new FakeArtifactPort()
     port.failure = new ArtifactUnavailable('sign in to Atlas Cloud to unpublish an artifact')
 
-    const outcome = await invoke({ slug: 'demo' }, new UnpublishArtifactTool(port))
+    const outcome = await invoke({ subdomain: 'demo' }, new UnpublishArtifactTool(port))
 
     expect(outcome.ok).toBe(false)
     expect(outcome.ok ? '' : outcome.reason).toContain('sign in to Atlas Cloud')

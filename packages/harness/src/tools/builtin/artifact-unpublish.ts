@@ -10,12 +10,12 @@ import { z } from 'zod'
 import type { ArtifactPort } from '../../artifacts/artifact-port'
 
 const inputSchema = z.strictObject({
-  slug: z.string().min(1).max(120),
+  subdomain: z.string().min(1).max(120),
 })
 
 const description = [
   'Unpublish an artifact, which is destructive: its URL stops serving, every version of its source is deleted, and anyone holding the link gets nothing.',
-  'It takes the slug and asks for no confirmation, so call it only when the slug is certain.',
+  'It takes the subdomain and asks for no confirmation, so call it only when the subdomain is certain.',
 ].join(' ')
 
 const messageOf = (error: unknown): string =>
@@ -38,11 +38,11 @@ export class UnpublishArtifactTool extends SchemaTool<typeof inputSchema> {
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
     signal.throwIfAborted()
     try {
-      await this.port.unpublish({ slug: input.slug })
+      await this.port.unpublish({ subdomain: input.subdomain })
       return {
         ok: true,
-        output: { slug: input.slug, unpublished: true },
-        modelText: `${input.slug} is unpublished: its URL no longer serves and its source is gone. Publishing the same name again starts a new artifact.`,
+        output: { subdomain: input.subdomain, unpublished: true },
+        modelText: `${input.subdomain} is unpublished: its URL no longer serves and its source is gone. Publishing the same name again starts a new artifact.`,
       }
     } catch (error) {
       return { ok: false, reason: messageOf(error) }

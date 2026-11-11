@@ -25,7 +25,7 @@ const UPLOAD_CONCURRENCY = 8
 
 const inputSchema = z.strictObject({
   dir: filePathSchema.optional(),
-  slug: z.string().min(1).max(40).optional(),
+  subdomain: z.string().min(1).max(40).optional(),
   name: z.string().min(1).max(120).optional(),
 })
 
@@ -178,7 +178,7 @@ export class PublishArtifactTool extends SchemaTool<typeof inputSchema> {
       const plan = publishPlanOf({ specRaw, files: hashed })
       const begun = await this.deps.port.beginPublish({
         entries: plan.entries,
-        ...(input.slug === undefined ? {} : { slug: input.slug }),
+        ...(input.subdomain === undefined ? {} : { subdomain: input.subdomain }),
         ...(input.name === undefined ? {} : { name: input.name }),
       })
       await putUploads({
@@ -194,13 +194,13 @@ export class PublishArtifactTool extends SchemaTool<typeof inputSchema> {
       return {
         ok: true,
         output: {
-          slug: committed.slug,
+          subdomain: committed.subdomain,
           version: committed.version,
           url: committed.url,
           status: committed.status,
         },
         modelText: [
-          `Published ${plan.entries.length} files as ${committed.slug} version ${committed.version}; it serves at ${committed.url} with status ${committed.status}.`,
+          `Published ${plan.entries.length} files as ${committed.subdomain} version ${committed.version}; it serves at ${committed.url} with status ${committed.status}.`,
           'The build runs on the server, so fetching the URL before it reports ready answers from the build log rather than the artifact.',
         ].join('\n\n'),
       }

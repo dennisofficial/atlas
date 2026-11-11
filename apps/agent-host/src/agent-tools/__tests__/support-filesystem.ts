@@ -46,9 +46,13 @@ export class LocalFileSystemPort implements FileSystemPort {
     return { text: bytes.toString('utf8'), strict: decodeStrict({ bytes }) }
   }
 
-  async writeFile(args: { path: string; content: string; mode?: number }): Promise<void> {
+  async writeFile(args: {
+    path: string
+    content: string | Uint8Array
+    mode?: number
+  }): Promise<void> {
     await nodeWriteFile(args.path, args.content, {
-      encoding: 'utf8',
+      ...(typeof args.content === 'string' ? { encoding: 'utf8' as const } : {}),
       ...(args.mode === undefined ? {} : { mode: args.mode }),
     })
     if (args.mode !== undefined) await nodeChmod(args.path, args.mode)

@@ -3,6 +3,7 @@ import { EnvService } from '../../../_core/config/env/env.service'
 import {
   SandboxCredentials,
   type ThreadSandboxCredentials,
+  type UserSandboxCredentials,
 } from '../../../_core/ports/sandbox-credentials'
 import { db } from '@dltech/atlas-db'
 import { podSessionOf } from '../../platform/sessions/session-of-thread'
@@ -10,7 +11,7 @@ import { pinnedProjectOf } from '../../platform/sandboxes/pod-project'
 import { ScopedConfigService } from '../scoped-config/scoped-config.service'
 
 @Injectable()
-export class ThreadSandboxCredentialsService extends SandboxCredentials {
+export class ScopedSandboxCredentialsService extends SandboxCredentials {
   constructor(
     private readonly scoped: ScopedConfigService,
     private readonly env: EnvService,
@@ -36,6 +37,11 @@ export class ThreadSandboxCredentialsService extends SandboxCredentials {
       ownerCredential: true,
       userId: thread.userId,
     }
+  }
+
+  async forUser(args: { userId: string }): Promise<UserSandboxCredentials> {
+    const credentials = await this.scoped.vercelCredentials({ thread: { userId: args.userId } })
+    return { ...credentials, userId: args.userId }
   }
 
   private async apiProvisioned(threadId: string): Promise<boolean> {

@@ -29,7 +29,11 @@ export abstract class FileSystemPort {
    */
   abstract readTextForEdit(args: { path: string }): Promise<{ text: string; strict: string | null }>
 
-  abstract writeFile(args: { path: string; content: string; mode?: number }): Promise<void>
+  abstract writeFile(args: {
+    path: string
+    content: string | Uint8Array
+    mode?: number
+  }): Promise<void>
 
   abstract removeFile(args: { path: string }): Promise<void>
 

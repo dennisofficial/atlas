@@ -17,15 +17,15 @@ export async function ownedById(args: {
 
 export async function resolveArtifact(args: {
   userId: string
-  slug: string | undefined
+  subdomain: string | undefined
   name: string | undefined
 }): Promise<ArtifactRow> {
-  if (args.slug !== undefined) {
+  if (args.subdomain !== undefined) {
     const existing = await db.orm.public.Artifact.first({
       userId: args.userId,
-      subdomain: args.slug,
+      subdomain: args.subdomain,
     })
-    if (existing === null) throw new NotFoundException(`no artifact ${args.slug}`)
+    if (existing === null) throw new NotFoundException(`no artifact ${args.subdomain}`)
     return existing
   }
   return createArtifact({ userId: args.userId, name: args.name ?? 'artifact' })

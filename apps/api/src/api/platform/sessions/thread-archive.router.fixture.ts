@@ -52,6 +52,9 @@ export async function createArchiveRouterFixture() {
     async forThread() {
       throw new Error('unexpected Vercel credentials lookup')
     },
+    async forUser() {
+      throw new Error('unexpected Vercel credentials lookup')
+    },
   })
   const stop = spyOn(vercel, 'stop').mockResolvedValue(undefined)
   const notifyParked = spyOn(vercel, 'notifyParked').mockResolvedValue(undefined)

@@ -132,7 +132,7 @@ describe('operator input destination', () => {
 
   it('routes the spool and recipient process to the requesting thread and removes the spool', async () => {
     const { args, close } = await fixture()
-    const writes: { path: string; content: string; threadId: unknown }[] = []
+    const writes: { path: string; content: string | Uint8Array; threadId: unknown }[] = []
     const removals: string[] = []
     const streams = () => new ReadableStream<Uint8Array>({ start: (c) => c.close() })
     const handle: ProcessHandle = {

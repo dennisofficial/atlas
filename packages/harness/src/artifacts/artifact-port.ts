@@ -19,13 +19,13 @@ export type ArtifactEntryInput = ArtifactEntry
 
 export type ArtifactPublishBegun = {
   artifactId: string
-  slug: string
+  subdomain: string
   version: number
   uploads: ArtifactUpload[]
 }
 
 export type ArtifactPublishCommitted = {
-  slug: string
+  subdomain: string
   version: number
   url: string
   status: string
@@ -35,7 +35,7 @@ export type ArtifactSourceExport = { entries: { path: string; url: string }[] }
 
 export abstract class ArtifactPort {
   abstract beginPublish(args: {
-    slug?: string | undefined
+    subdomain?: string | undefined
     name?: string | undefined
     entries: ArtifactEntryInput[]
   }): Promise<ArtifactPublishBegun>
@@ -48,7 +48,7 @@ export abstract class ArtifactPort {
 
   abstract list(): Promise<readonly ArtifactSummary[]>
 
-  abstract sourceExport(args: { slug: string }): Promise<ArtifactSourceExport>
+  abstract sourceExport(args: { subdomain: string }): Promise<ArtifactSourceExport>
 
-  abstract unpublish(args: { slug: string }): Promise<void>
+  abstract unpublish(args: { subdomain: string }): Promise<void>
 }

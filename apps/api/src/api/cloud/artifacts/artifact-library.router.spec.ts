@@ -24,7 +24,7 @@ import {
   SOURCE_BODIES,
   publishArtifact,
   seedSources,
-  withSlug,
+  withSubdomain,
 } from './artifacts.router.fixture'
 
 describe('ArtifactsRouter library', () => {
@@ -33,11 +33,11 @@ describe('ArtifactsRouter library', () => {
   const blobs = new FakeArtifactBlobStore()
   const sandbox = new FakeArtifactSandbox()
 
-  const get = (token: string, slug: string) =>
-    trpcQuery({ app, path: 'artifacts.get', token, input: { slug } })
+  const get = (token: string, subdomain: string) =>
+    trpcQuery({ app, path: 'artifacts.get', token, input: { subdomain } })
   const list = (token: string) => trpcQuery({ app, path: 'artifacts.list', token })
-  const sourceExport = (token: string, slug: string) =>
-    trpcQuery({ app, path: 'artifacts.sourceExport', token, input: { slug } })
+  const sourceExport = (token: string, subdomain: string) =>
+    trpcQuery({ app, path: 'artifacts.sourceExport', token, input: { subdomain } })
   const publish = () => publishArtifact({ app, blobs })
 
   beforeEach(async () => {
@@ -58,7 +58,7 @@ describe('ArtifactsRouter library', () => {
             app,
             path: 'artifacts.beginPublish',
             token: 'sandbox-token-a',
-            input: withSlug(published.subdomain),
+            input: withSubdomain(published.subdomain),
           }).expect(200)
         ).body,
       ),
@@ -122,7 +122,7 @@ describe('ArtifactsRouter library', () => {
       expect(detail.build).toMatchObject({ failure: null, log: null, durationMs: null })
     })
 
-    it('answers 404 for an unknown slug and for another user', async () => {
+    it('answers 404 for an unknown subdomain and for another user', async () => {
       const published = await publish()
 
       expect((await get(OWNER, 'missing')).status).toBe(404)

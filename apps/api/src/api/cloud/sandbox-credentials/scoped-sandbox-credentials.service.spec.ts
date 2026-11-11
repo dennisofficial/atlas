@@ -8,7 +8,7 @@ import type { EnvService } from '../../../_core/config/env/env.service'
 import { VercelNotConfiguredError } from '../scoped-config/scoped-config.errors'
 import type { ScopedConfigService } from '../scoped-config/scoped-config.service'
 import { seedProject, seedSessionUsers } from '../../../test/web-settings.fake-db'
-import { ThreadSandboxCredentialsService } from './thread-sandbox-credentials.service'
+import { ScopedSandboxCredentialsService } from './scoped-sandbox-credentials.service'
 
 const envWith = (values: Record<string, string>): EnvService =>
   ({ get: (key: string) => values[key] }) as unknown as EnvService
@@ -46,7 +46,7 @@ const seedThreadWithProject = async (
   }
 }
 
-describe('ThreadSandboxCredentialsService', () => {
+describe('ScopedSandboxCredentialsService', () => {
   useTestDatabase()
 
   beforeEach(async () => {
@@ -61,7 +61,7 @@ describe('ThreadSandboxCredentialsService', () => {
       projectId: 'user-prj',
     }))
 
-    const credentials = await new ThreadSandboxCredentialsService(
+    const credentials = await new ScopedSandboxCredentialsService(
       scoped,
       envWith(LEGACY_ENV),
     ).forThread({ threadId: 'thr-1' })
@@ -82,7 +82,7 @@ describe('ThreadSandboxCredentialsService', () => {
       projectId: 'user-prj',
     }))
 
-    const credentials = await new ThreadSandboxCredentialsService(
+    const credentials = await new ScopedSandboxCredentialsService(
       scoped,
       envWith(LEGACY_ENV),
     ).forThread({ threadId: 'thr-1' })
@@ -98,7 +98,7 @@ describe('ThreadSandboxCredentialsService', () => {
     })
 
     await expect(
-      new ThreadSandboxCredentialsService(scoped, envWith(LEGACY_ENV)).forThread({
+      new ScopedSandboxCredentialsService(scoped, envWith(LEGACY_ENV)).forThread({
         threadId: 'thr-1',
       }),
     ).rejects.toMatchObject({ gap: EVercelCredentialGap.UserCredential })
@@ -111,7 +111,7 @@ describe('ThreadSandboxCredentialsService', () => {
     })
 
     await expect(
-      new ThreadSandboxCredentialsService(scoped, envWith(LEGACY_ENV)).forThread({
+      new ScopedSandboxCredentialsService(scoped, envWith(LEGACY_ENV)).forThread({
         threadId: 'thr-1',
       }),
     ).rejects.toBeInstanceOf(VercelNotConfiguredError)
@@ -123,7 +123,7 @@ describe('ThreadSandboxCredentialsService', () => {
       throw new Error('must not be called')
     })
 
-    const credentials = await new ThreadSandboxCredentialsService(
+    const credentials = await new ScopedSandboxCredentialsService(
       scoped,
       envWith(LEGACY_ENV),
     ).forThread({ threadId: 'thr-1' })
@@ -143,7 +143,7 @@ describe('ThreadSandboxCredentialsService', () => {
       throw new Error('must not be called')
     })
 
-    const credentials = await new ThreadSandboxCredentialsService(
+    const credentials = await new ScopedSandboxCredentialsService(
       scoped,
       envWith(LEGACY_ENV),
     ).forThread({ threadId: 'missing' })
@@ -175,7 +175,7 @@ describe('ThreadSandboxCredentialsService', () => {
       projectId: 'prj-sandboxes-new',
     }))
 
-    const credentials = await new ThreadSandboxCredentialsService(
+    const credentials = await new ScopedSandboxCredentialsService(
       scoped,
       envWith(LEGACY_ENV),
     ).forThread({ threadId: 'thr-1' })
@@ -188,7 +188,7 @@ describe('ThreadSandboxCredentialsService', () => {
     const { scoped } = scopedReturning(async () => {
       throw new Error('must not be called')
     })
-    const service = new ThreadSandboxCredentialsService(
+    const service = new ScopedSandboxCredentialsService(
       scoped,
       envWith({ VERCEL_TOKEN: 'env-token' }),
     )
@@ -199,5 +199,41 @@ describe('ThreadSandboxCredentialsService', () => {
     await expect(service.forThread({ threadId: 'thr-1' })).rejects.toThrow(
       'Atlas Cloud sandboxes are not configured on this deployment',
     )
+  })
+
+  it('resolves a build with no thread through the publisher’s own connection', async () => {
+    const { scoped, vercelCredentials } = scopedReturning(async () => ({
+      token: 'user-token',
+      teamId: 'user-team',
+      projectId: 'user-prj',
+    }))
+
+    const credentials = await new ScopedSandboxCredentialsService(
+      scoped,
+      envWith(LEGACY_ENV),
+    ).forUser({ userId: 'user-a' })
+
+    expect(credentials).toEqual({
+      token: 'user-token',
+      teamId: 'user-team',
+      projectId: 'user-prj',
+      userId: 'user-a',
+    })
+    expect(vercelCredentials).toHaveBeenCalledWith({ thread: { userId: 'user-a' } })
+  })
+
+  it('never answers a user-scoped build with the deployment env account', async () => {
+    const { scoped } = scopedReturning(async () => {
+      throw new VercelNotConfiguredError(EVercelCredentialGap.UserCredential)
+    })
+
+    const credentials = new ScopedSandboxCredentialsService(scoped, envWith(LEGACY_ENV)).forUser({
+      userId: 'user-a',
+    })
+
+    await expect(credentials).rejects.toBeInstanceOf(VercelNotConfiguredError)
+    await expect(credentials).rejects.toMatchObject({
+      gap: EVercelCredentialGap.UserCredential,
+    })
   })
 })
