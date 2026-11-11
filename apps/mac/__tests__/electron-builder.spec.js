@@ -36,8 +36,8 @@ describe('the release build', () => {
     expect(config.mac.notarize).toBe(true)
   })
 
-  test('names the asset after the version it was built from', () => {
-    expect(config.dmg.artifactName).toBe('Atlas-${version}-mac-arm64.dmg')
+  test('names the asset the download button fetches, which is why the version is not in the name', () => {
+    expect(config.dmg.artifactName).toBe('macos-arm64-Atlas.dmg')
     expect(config.dmg.title).toBe('Atlas ${version}')
   })
 

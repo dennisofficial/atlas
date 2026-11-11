@@ -157,16 +157,6 @@
         "zod": "^4.4.3",
       },
       "devDependencies": {
-        "@types/bun": "latest",
-        "@types/node": "^26.3.0",
-        "electrobun": "2.0.5",
-        "typescript": "6.0.3",
-      },
-    },
-    "apps/mac-electron": {
-      "name": "@dltech/atlas-mac-electron",
-      "version": "0.1.0",
-      "devDependencies": {
         "electron": "45.2.3",
         "electron-builder": "26.18.0",
       },
@@ -1406,8 +1396,6 @@
     "@dltech/atlas-jobs": ["@dltech/atlas-jobs@workspace:packages/jobs"],
 
     "@dltech/atlas-mac": ["@dltech/atlas-mac@workspace:apps/mac"],
-
-    "@dltech/atlas-mac-electron": ["@dltech/atlas-mac-electron@workspace:apps/mac-electron"],
 
     "@dltech/atlas-media": ["@dltech/atlas-media@workspace:packages/media"],
 
@@ -3376,8 +3364,6 @@
     "effect": ["effect@3.21.0", "", { "dependencies": { "@standard-schema/spec": "^1.0.0", "fast-check": "^3.23.1" } }, "sha512-PPN80qRokCd1f015IANNhrwOnLO7GrrMQfk4/lnZRE/8j7UPWrNNjPV0uBrZutI/nHzernbW+J0hdqQysHiSnQ=="],
 
     "ejs": ["ejs@3.1.10", "", { "dependencies": { "jake": "^10.8.5" }, "bin": { "ejs": "bin/cli.js" } }, "sha512-UeJmFfOrAQS8OJWPZ4qtgHyWExa088/MtK5UEyoJGFH67cDEXkZSviOiKRCZ4Xij0zxI3JECgYs3oKx+AizQBA=="],
-
-    "electrobun": ["electrobun@2.0.5", "", { "bin": { "electrobun": "bin/electrobun.cjs" } }, "sha512-/4Vp0p6LgdD7bySSblnoqM0rtcQT5uYsGeqZPhsOESeSxMGeiKsfQkBjNwMnjFI5z4StJKXfs386ay2mpif1BA=="],
 
     "electron": ["electron@45.2.3", "", { "dependencies": { "@electron-internal/extract-zip": "^1.0.1", "@electron/get": "^5.0.0", "@types/node": "^24.9.0" }, "bin": { "electron": "cli.js", "install-electron": "install.js" } }, "sha512-Vurzu5UOA5nTGT4LqIwXD16QFGrOZdiXxF+1UP4KNsAOo/YtDcT3/u0jhP4WSwNJ0iLrLDi85hzBJ0arnGDhyw=="],
 

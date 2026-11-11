@@ -3,22 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "main": "main.js",
   "scripts": {
-    "dev": "bun run build:web && bun run bundle:main && electrobun dev --watch",
-    "bundle:main": "bun scripts/bundle-main.ts",
-    "build:web": "ATLAS_STREAM_URL=wss://agent.byatlas.io/stream bun run --cwd ../web build && rm -rf web-standalone && cp -R ../web/.next/standalone web-standalone && bun scripts/flatten-web-deps.ts web-standalone && bun scripts/drop-native-web-deps.ts web-standalone && mkdir -p web-standalone/apps/web/.next && cp -R ../web/.next/static web-standalone/apps/web/.next/static && cp -R ../web/public web-standalone/apps/web/public",
-    "pack:web-payload": "bun scripts/pack-web-payload.ts web-standalone artifacts",
-    "build:app": "bun run build:web && bun run bundle:main && electrobun build --env=stable && bun run make:dmg",
-    "make:dmg": "bun scripts/make-dmg.ts",
-    "typecheck": "tsc --noEmit",
-    "typecheck:main": "electrobun prepare && tsc --noEmit -p tsconfig.main.json",
-    "test": "bun test"
-  },
-  "devDependencies": {
-    "@types/bun": "latest",
-    "@types/node": "^26.3.0",
-    "electrobun": "2.0.5",
-    "typescript": "6.0.3"
+    "start": "electron .",
+    "check": "node --check main.js && node --check host-paths.js && node --check host-process.js && node --check web-payload.js && node --check panes.js",
+    "bundle:payload": "bun scripts/bundle-payload.ts",
+    "pack:host": "bun scripts/pack-host.ts",
+    "test": "bun run bundle:payload && bun test",
+    "dist:mac": "bun run bundle:payload && bun run pack:host && electron-builder --mac dmg --arm64"
   },
   "dependencies": {
     "@dltech/atlas-api-router": "workspace:*",
@@ -26,5 +18,13 @@
     "@dltech/atlas-harness": "workspace:*",
     "@dltech/atlas-wire": "workspace:*",
     "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "electron": "45.2.3",
+    "electron-builder": "26.18.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dennisofficial/atlas.git"
   }
 }
