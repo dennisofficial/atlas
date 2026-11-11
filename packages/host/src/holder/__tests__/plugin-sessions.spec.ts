@@ -82,6 +82,37 @@ describe('podSessionsOf', () => {
     expect(first.mainThreadId).not.toBe(second.mainThreadId)
   })
 
+  it('lists only the sessions nested under this one as teammates', async () => {
+    const { sessions } = await rig()
+    const nested = await sessions.spawn({ title: 'nested', nested: true })
+    const flat = await sessions.spawn({ title: 'flat', nested: false })
+    const roster = await sessions.teammates()
+    expect(roster.map((row) => row.sessionId)).toEqual([nested.sessionId])
+    expect(roster[0]).toMatchObject({
+      spawnedBy: SPAWNER.sessionId,
+      nested: true,
+      current: false,
+    })
+    expect(roster.map((row) => row.sessionId)).not.toContain(flat.sessionId)
+  })
+
+  it('messages a nested teammate but refuses a flat spawn', async () => {
+    const { plane, sessions } = await rig()
+    await plane.createSession(OTHER)
+    const teammate = await sessions.spawn({ nested: true })
+    const flat = await sessions.spawn({ nested: false })
+    expect(
+      await sessions.messageTeammate({ sessionId: teammate.sessionId, text: 'how is it going' }),
+    ).toEqual({ queued: true })
+    expect(await inboxOf(plane, teammate.sessionId)).toHaveLength(1)
+    expect(await sessions.messageTeammate({ sessionId: flat.sessionId, text: 'hello' })).toEqual({
+      refused: `session ${flat.sessionId} is not one of this session’s nested teammates`,
+    })
+    expect(await sessions.messageTeammate({ sessionId: OTHER.sessionId, text: 'hello' })).toEqual({
+      refused: `session ${OTHER.sessionId} is not one of this session’s nested teammates`,
+    })
+  })
+
   it('delivers the brief as the peer first message, and nothing without one', async () => {
     const { plane, sessions } = await rig()
     const briefed = await sessions.spawn({ brief: 'read the port' })

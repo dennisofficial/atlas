@@ -25,6 +25,14 @@ export const podSessionsOf = (args: { plane: ControlPlane; sessionId: string }):
     })
     return 'refused' in sent ? { refused: sent.refused } : { queued: true }
   },
+  messageTeammate: async ({ sessionId, text }) => {
+    const sent = await args.plane.messageTeammate({
+      fromSessionId: args.sessionId,
+      toSessionId: sessionId,
+      text,
+    })
+    return 'refused' in sent ? { refused: sent.refused } : { queued: true }
+  },
   report: async ({ kind, text }) => {
     const sent = await args.plane.reportToSpawner({
       sessionId: args.sessionId,
@@ -44,5 +52,19 @@ export const podSessionsOf = (args: { plane: ControlPlane; sessionId: string }):
       current: row.sessionId === args.sessionId,
       status: row.view?.status ?? null,
     }))
+  },
+  teammates: async () => {
+    const roster = await args.plane.sessionsOf({ sessionId: args.sessionId })
+    return roster.sessions
+      .filter((row) => row.spawnedBySessionId === args.sessionId && row.nested)
+      .map((row) => ({
+        sessionId: row.sessionId,
+        title: row.title,
+        spawnedBy: row.spawnedBySessionId,
+        nested: row.nested,
+        archivedAt: row.archivedAt,
+        current: false,
+        status: row.view?.status ?? null,
+      }))
   },
 })

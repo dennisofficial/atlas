@@ -23,8 +23,10 @@ export type PodSessions = {
     nested?: boolean | undefined
   }): Promise<SpawnedSession>
   message(args: { sessionId: string; text: string }): Promise<SessionMessage>
+  messageTeammate(args: { sessionId: string; text: string }): Promise<SessionMessage>
   report(args: SessionReport): Promise<SessionMessage>
   list(): Promise<readonly SessionBrief[]>
+  teammates(): Promise<readonly SessionBrief[]>
 }
 
 export const EMPTY_SESSIONS: PodSessions = Object.freeze({
@@ -34,6 +36,10 @@ export const EMPTY_SESSIONS: PodSessions = Object.freeze({
   message: async () => ({
     refused: 'this session cannot message other sessions',
   }),
+  messageTeammate: async () => ({
+    refused: 'this session cannot message its teammates',
+  }),
   report: async () => ({ refused: 'this session cannot report to a spawner' }),
   list: async () => [],
+  teammates: async () => [],
 })

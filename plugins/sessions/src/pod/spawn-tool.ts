@@ -13,17 +13,13 @@ import { sessionsRefusal } from './outcome'
 const inputSchema = z.strictObject({
   title: z.string().min(1).optional(),
   brief: z.string().min(1).optional(),
-  nested: z.boolean().default(true),
 })
 
 const description = [
-  'Create a new session of the operator’s: its own sandbox, its own clone and its own',
-  'conversation, appearing in their sidebar and running on its own, so `brief` is its first',
-  'message and the whole of what it knows of this conversation. It can spawn sessions of its own',
-  'and report back to this one with `report_to_spawner`. Message it later with `message_session`.',
-  'A nested session appears indented under this one in the sidebar, which is the fan-out shape:',
-  'a workstream of sessions under the session that made them. A flat session appears beside this',
-  'one at the top level, the same as one the operator makes with the new-session button.',
+  'Create an independent session of the operator’s: its own sandbox, its own clone and its own',
+  'conversation, appearing at the top level of their sidebar beside this one, the same as one',
+  'made with the new-session button, so `brief` is its first message and the whole of what it',
+  'knows of this conversation. You are not responsible for it, and it reports to no one.',
 ].join(' ')
 
 const modelTextOf = (args: { sessionId: string; briefed: boolean }): string =>
@@ -47,7 +43,7 @@ export class SpawnSessionTool extends SchemaTool<typeof inputSchema> {
       const spawned = await this.ctx.sessions.spawn({
         title: input.title,
         brief: input.brief,
-        nested: input.nested,
+        nested: false,
       })
       return {
         ok: true,

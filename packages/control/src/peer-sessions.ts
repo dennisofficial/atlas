@@ -41,6 +41,35 @@ export const spawnPeerIn = async (params: {
   return { inboxId: posted.inboxId }
 }
 
+export const messageTeammateIn = async (params: {
+  tx: ControlTx
+  from: ControlSessionRow
+  toSessionId: string
+  text: string
+  at: string
+}): Promise<{ inboxId: number } | PeerRefusal> => {
+  const { tx, from } = params
+  const to = await tx.lockSession(params.toSessionId)
+  if (to === undefined || to.userId !== from.userId) {
+    return {
+      refused: `there is no session ${params.toSessionId} in this project`,
+    }
+  }
+  if (to.spawnedBySessionId !== from.sessionId || !to.nested) {
+    return {
+      refused: `session ${params.toSessionId} is not one of this session’s nested teammates`,
+    }
+  }
+  return postIn({
+    tx,
+    sessionId: to.sessionId,
+    kind: INBOX_KIND_MESSAGE,
+    payload: JSON.stringify({ text: params.text }),
+    at: params.at,
+    senderSessionId: from.sessionId,
+  })
+}
+
 export const reportToSpawnerIn = async (params: {
   tx: ControlTx
   session: ControlSessionRow
