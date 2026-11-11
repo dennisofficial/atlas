@@ -24,10 +24,26 @@ describe('the delegation fragment across the agent axis', () => {
     expect(new DelegationFragment().applies(contextFor(NO_PROMPT_GROUPS))).toBe(false)
   })
 
-  it('keeps coherent single-agent work with the agent doing it', () => {
+  it('delegates by default and names the context window as the reason', () => {
     const text = new DelegationFragment().text()
-    expect(text).toContain('one coherent change one agent can finish in a')
-    expect(text).toContain('cost more than they save')
+    expect(text).toContain('Delegate by default')
+    expect(text).toContain('context window is the scarce resource')
+  })
+
+  it('keeps only work smaller than its own brief, so anything with a plan goes out', () => {
+    const text = new DelegationFragment().text()
+    expect(text).toContain('smaller than the brief that would describe it')
+    expect(text).toContain('Anything you would write a plan file')
+    expect(text).toContain('not after you have built them yourself')
+  })
+
+  it('sends exploration out even when the task itself stays with the agent', () => {
+    const text = new DelegationFragment().text()
+    expect(text).toContain('Exploration is the clearest case')
+    expect(text).toContain('even')
+    expect(text).toContain('when the task itself stays yours')
+    expect(text).toContain('pay none of the')
+    expect(text).toContain('search in your own context')
   })
 
   it('cuts slices along seams and names the integration owner', () => {
@@ -39,7 +55,8 @@ describe('the delegation fragment across the agent axis', () => {
 
   it('sends a whole workstream to a teammate and bounded slices to sub-agents', () => {
     const text = new DelegationFragment().text()
-    expect(text).toContain('a teammate for a whole workstream')
+    expect(text).toContain('Bounded tasks go to sub-agents')
+    expect(text).toContain('beside you belongs to a teammate')
     expect(text).toContain('verify the assembled whole yourself')
   })
 })
