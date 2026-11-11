@@ -1,4 +1,5 @@
 import type { SessionListOutput } from '@dltech/atlas-protocol'
+import { nestPeers as nestPeerRows } from '@dltech/atlas-plugin-sessions/client'
 import type { WireThread } from '@dltech/atlas-wire/web'
 
 import { rowPullRequestEntryOf } from '@/features/sessions/data/session-view-model'
@@ -46,6 +47,7 @@ export function v2RowOf(summary: V2SessionSummary): ShellSessionNode {
     ...(summary.spawnedBy === null || summary.spawnedBy === undefined
       ? {}
       : { spawnedBy: summary.spawnedBy }),
+    nested: summary.nested ?? true,
   }
 }
 
@@ -57,8 +59,23 @@ const createdStampOf = (row: ShellSessionNode): number => {
 const byCreatedAt = (left: ShellSessionNode, right: ShellSessionNode): number =>
   createdStampOf(left) - createdStampOf(right)
 
-export const orderedRows = (rows: readonly ShellSessionNode[]): ShellSessionNode[] =>
-  [...rows].sort(byCreatedAt)
+type Childed = ShellSessionNode & {
+  sessionId: string
+  archivedAt: string | null
+  children: readonly Childed[]
+}
+
+const nodeOf = (row: Childed): ShellSessionNode => {
+  const { children, sessionId: _sessionId, archivedAt: _archivedAt, ...rest } = row
+  return { ...rest, teammates: children.map(nodeOf) }
+}
+
+export function nestPeers(rows: readonly ShellSessionNode[]): ShellSessionNode[] {
+  const ordered = [...rows]
+    .sort(byCreatedAt)
+    .map((row) => ({ ...row, sessionId: row.id, archivedAt: row.mainThread.archivedAt }))
+  return (nestPeerRows(ordered) as readonly Childed[]).map(nodeOf)
+}
 
 export function v2SessionIdsOf(
   entries: readonly ProjectThreads[] | undefined,
@@ -82,7 +99,7 @@ export function withV2Sessions(args: {
   return args.entries.map((entry) => {
     if (entry.project === null) return entry
     const projectId = entry.project.id
-    const rows = orderedRows(
+    const rows = nestPeers(
       args.sessions.filter((summary) => summary.projectId === projectId).map(v2RowOf),
     )
     return rows.length === 0 ? entry : { ...entry, sessions: [...entry.sessions, ...rows] }

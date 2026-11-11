@@ -14,6 +14,7 @@ export const spawnPeerIn = async (params: {
   mainThreadId: string
   title?: string | undefined
   brief?: string | undefined
+  nested?: boolean | undefined
   at: string
 }): Promise<{ inboxId: number | null }> => {
   const { tx, spawner } = params
@@ -25,6 +26,7 @@ export const spawnPeerIn = async (params: {
     ...(params.title === undefined ? {} : { title: params.title }),
     mainThreadId: params.mainThreadId,
     spawnedBySessionId: spawner.sessionId,
+    nested: params.nested,
     at: params.at,
   })
   if (params.brief === undefined || params.brief.trim() === '') return { inboxId: null }

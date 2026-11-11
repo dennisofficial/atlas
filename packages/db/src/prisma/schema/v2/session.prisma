@@ -14,6 +14,7 @@ namespace v2 {
     modelEffort  String?
     modelFast    Boolean?
     spawnedBySessionId String?
+    nested             Boolean               @default(true)
     podSessionId       String?
     podRetiredAt       TimestamptzJsDate(3)?
     routineId          String?

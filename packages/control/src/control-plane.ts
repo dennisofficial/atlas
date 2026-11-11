@@ -138,6 +138,7 @@ export class ControlPlane {
     mainThreadId: string
     title?: string | undefined
     brief?: string | undefined
+    nested?: boolean | undefined
   }): Promise<{ inboxId: number | null }> {
     return this.store.transact(async (tx) => {
       const spawner = await tx.readSession({

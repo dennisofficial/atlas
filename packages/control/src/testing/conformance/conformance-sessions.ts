@@ -87,6 +87,7 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
         modelEffort: null,
         modelFast: null,
         spawnedBySessionId: null,
+        nested: true,
         podSessionId: null,
         routineId: null,
       })

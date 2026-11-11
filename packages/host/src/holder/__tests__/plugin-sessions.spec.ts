@@ -57,9 +57,20 @@ describe('podSessionsOf', () => {
       mainThreadId: spawned.mainThreadId,
       title: 'the peer',
       spawnedBySessionId: SPAWNER.sessionId,
+      nested: true,
       podSessionId: null,
       userId: SPAWNER.userId,
       projectId: SPAWNER.projectId,
+    })
+  })
+
+  it('spawns a flat session at the top level when asked', async () => {
+    const { plane, sessions } = await rig()
+    const spawned = await sessions.spawn({ brief: 'work beside me', nested: false })
+    const row = await plane.readSession({ sessionId: spawned.sessionId })
+    expect(row).toMatchObject({
+      spawnedBySessionId: SPAWNER.sessionId,
+      nested: false,
     })
   })
 

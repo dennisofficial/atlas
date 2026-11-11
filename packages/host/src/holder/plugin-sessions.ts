@@ -4,7 +4,7 @@ import type { ControlPlane } from '@dltech/atlas-control'
 import type { PodSessions } from '@dltech/atlas-plugin-sdk'
 
 export const podSessionsOf = (args: { plane: ControlPlane; sessionId: string }): PodSessions => ({
-  spawn: async ({ title, brief }) => {
+  spawn: async ({ title, brief, nested }) => {
     const sessionId = randomUUID()
     const mainThreadId = randomUUID()
     await args.plane.spawnPeer({
@@ -13,6 +13,7 @@ export const podSessionsOf = (args: { plane: ControlPlane; sessionId: string }):
       mainThreadId,
       title,
       brief,
+      nested,
     })
     return { sessionId, mainThreadId }
   },
@@ -38,6 +39,7 @@ export const podSessionsOf = (args: { plane: ControlPlane; sessionId: string }):
       sessionId: row.sessionId,
       title: row.title,
       spawnedBy: row.spawnedBySessionId,
+      nested: row.nested,
       archivedAt: row.archivedAt,
       current: row.sessionId === args.sessionId,
       status: row.view?.status ?? null,

@@ -24,6 +24,7 @@ const briefOf = (overrides: Partial<SessionBrief> = {}): SessionBrief => ({
   sessionId: 'p1',
   title: 'one',
   spawnedBy: 's1',
+  nested: true,
   archivedAt: null,
   current: false,
   status: { state: ESessionStatus.Idle },
@@ -173,7 +174,7 @@ describe('spawn_session', () => {
     expect(sessions.calls).toEqual([
       {
         method: 'spawn',
-        args: { title: 'trace the port', brief: 'read the port and report' },
+        args: { title: 'trace the port', brief: 'read the port and report', nested: true },
       },
     ])
     expect(outcome.ok).toBe(true)
@@ -190,10 +191,20 @@ describe('spawn_session', () => {
     const { ctx } = rig(sessions.port)
     const outcome = await invoke({ ctx, name: 'spawn_session', input: {} })
     expect(sessions.calls).toEqual([
-      { method: 'spawn', args: { title: undefined, brief: undefined } },
+      { method: 'spawn', args: { title: undefined, brief: undefined, nested: true } },
     ])
     expect(textOf(outcome)).toContain('no brief')
     expect(textOf(outcome)).not.toContain('teammate')
+  })
+
+  it('spawns beside the caller when nested is false', async () => {
+    const sessions = fakeSessions()
+    const { ctx } = rig(sessions.port)
+    const outcome = await invoke({ ctx, name: 'spawn_session', input: { nested: false } })
+    expect(sessions.calls).toEqual([
+      { method: 'spawn', args: { title: undefined, brief: undefined, nested: false } },
+    ])
+    expect(outcome.ok).toBe(true)
   })
 
   it('refuses a field that would place the session on another pod', async () => {

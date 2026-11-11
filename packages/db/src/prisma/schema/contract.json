@@ -9115,6 +9115,13 @@
                   "kind": "scalar"
                 }
               },
+              "nested": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
               "nextInboxId": {
                 "nullable": false,
                 "type": {
@@ -9286,6 +9293,9 @@
                 },
                 "modelRef": {
                   "column": "modelRef"
+                },
+                "nested": {
+                  "column": "nested"
                 },
                 "nextInboxId": {
                   "column": "nextInboxId"
@@ -16303,6 +16313,15 @@
                   "dataType": "pg/text",
                   "nullable": true
                 },
+                "nested": {
+                  "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
+                  "default": {
+                    "kind": "literal",
+                    "value": true
+                  },
+                  "nullable": false
+                },
                 "nextInboxId": {
                   "codecId": "pg/int4@1",
                   "dataType": "pg/int4",
@@ -16588,7 +16607,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "a04df9006767473ac4a56cce0bc21d144268ba24e28d5e1982fc2e71496f36f2"
+    "storageHash": "961f0c49535f6d02a64b238b27b09be0595c93386a269e0609d9509917c8f24b"
   },
   "execution": {
     "executionHash": "27a680d0d8367c03704617bfac2d0041e04bd5395fc473f9e021f03bd0d4c6fa",
