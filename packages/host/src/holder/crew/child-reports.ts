@@ -2,6 +2,7 @@ import {
   agentEnding,
   EAgentStatus,
   EKilledBy,
+  EMessageOrigin,
   EReportKind,
   type EventDraft,
   type ThreadId,
@@ -36,15 +37,15 @@ export const wakeParent = async (parent: ChildParent, text: string): Promise<voi
   await parent.deps.plane.post({
     sessionId: parent.deps.sessionId,
     kind: INBOX_KIND_MESSAGE,
-    payload: JSON.stringify({ text }),
+    payload: JSON.stringify({ text, via: EMessageOrigin.ChildAgent }),
   })
 }
 
 const named = (parent: ChildParent): string =>
   `Sub-agent ${parent.agentId} (${parent.agentType}, "${parent.intent}")`
 
-export const reportTextOf = (parent: ChildParent, kind: EReportKind, text: string): string =>
-  [`${named(parent)} reported ${kind}.`, '', text].join('\n')
+export const reportTextOf = (parent: ChildParent, kind: EReportKind): string =>
+  `${named(parent)} reported ${kind}.`
 
 export const endingTextOf = (args: {
   parent: ChildParent
@@ -60,8 +61,5 @@ export const endingTextOf = (args: {
     ...(args.killedBy === undefined ? {} : { killedBy: args.killedBy }),
     ...(args.failure === undefined ? {} : { failureCause: args.failure }),
   })
-  return [
-    `${named(args.parent)} ${ending}.`,
-    ...(args.progress.prose === '' ? [] : ['', args.progress.prose]),
-  ].join('\n')
+  return `${named(args.parent)} ${ending}.`
 }

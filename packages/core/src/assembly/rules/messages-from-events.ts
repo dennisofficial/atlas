@@ -162,7 +162,10 @@ function saidContent({
 }
 
 function agentSenderOf(event: EventOfType<'user-said'>): string {
-  return saidBy(event) === EMessageOrigin.PeerAgent ? 'a peer agent' : 'the main agent'
+  const from = saidBy(event)
+  if (from === EMessageOrigin.PeerAgent) return 'a peer agent'
+  if (from === EMessageOrigin.ChildAgent) return 'a sub-agent'
+  return 'the main agent'
 }
 
 type Walk = { groups: readonly Group[]; settlements: ReadonlyMap<string, SettledCall> }

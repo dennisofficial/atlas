@@ -76,6 +76,24 @@ describe('messagesFromEvents', () => {
     })
   })
 
+  it('names a sub-agent in the agent-said lane when a child reports back', () => {
+    const events = log([
+      { type: 'user-said', text: 'Sub-agent brn_1 reported done.', via: EMessageOrigin.ChildAgent },
+    ])
+
+    const assembled = messagesFromEvents()(empty, contextFor({ events }))
+
+    expect(assembled.messages[0]?.message).toEqual({
+      role: 'user',
+      content: [
+        {
+          type: 'text',
+          text: agentSaidAs({ from: 'a sub-agent', text: 'Sub-agent brn_1 reported done.' }),
+        },
+      ],
+    })
+  })
+
   it('names the sending session when the message carries one', () => {
     const events = log([
       {
