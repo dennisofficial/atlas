@@ -21,7 +21,7 @@ mock.module('../artifacts-api', () => ({
     artifact: artifactSummary(),
     build: buildSummary(),
   }),
-  unpublishArtifact: async () => ({ ok: true }),
+  deleteArtifact: async () => ({ ok: true }),
 }))
 
 const { ArtifactsView } = await import('../artifacts-view')

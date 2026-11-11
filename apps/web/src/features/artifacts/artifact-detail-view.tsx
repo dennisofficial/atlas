@@ -9,6 +9,7 @@ import { useCloudQuery } from '@/lib/use-cloud-query'
 import { useArtifactActions } from './artifact-actions'
 import { ArtifactHeader } from './artifact-header'
 import { ArtifactBuildLog } from './artifact-logs'
+import { ArtifactPreview, EPreviewMode } from './artifact-preview'
 import { ArtifactDetailSkeleton } from './artifact-skeletons'
 import { artifactKeyOf, fetchArtifact } from './artifacts-api'
 
@@ -21,7 +22,13 @@ export function ArtifactDetail({ data }: { data: ArtifactGetOutput }) {
       <ArtifactHeader
         artifact={artifact}
         busy={actions.busy}
-        onUnpublish={() => void actions.handleUnpublish()}
+        onDelete={() => void actions.handleDelete()}
+      />
+      <ArtifactPreview
+        url={artifact.url}
+        name={artifact.name}
+        mode={EPreviewMode.Live}
+        className="aspect-[16/10] w-full"
       />
       <ArtifactBuildLog build={build} />
     </div>
