@@ -40,7 +40,7 @@ describe('a deployment that is not there', () => {
     expect(response.headers.get('Cache-Control')).toContain('no-store')
     expect(html).toContain('Artifact not found')
     expect(html).toContain('abc.byatlas.site')
-    expect(html).not.toContain('does not exist on this deployment')
+    expect(html).not.toContain('does not exist on this artifact')
   })
 
   test('answers the atlas artifact page for a host that names no subdomain', async () => {
@@ -73,7 +73,7 @@ describe('a missing path inside a deployment that exists', () => {
 
     const html = await response.text()
     expect(response.status).toBe(404)
-    expect(html).toContain('does not exist on this deployment')
+    expect(html).toContain('does not exist on this artifact')
     expect(html).not.toContain('Artifact not found')
   })
 

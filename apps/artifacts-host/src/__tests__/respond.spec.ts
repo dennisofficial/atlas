@@ -164,7 +164,7 @@ describe('respond', () => {
   test('answers the deployment not-found page', async () => {
     const response = await serveWith({ path: '/missing.js' })
     expect(response.status).toBe(404)
-    expect(await response.text()).toContain('does not exist on this deployment')
+    expect(await response.text()).toContain('does not exist on this artifact')
     expect(response.headers.get('cache-control')).toBe('no-store')
   })
 
