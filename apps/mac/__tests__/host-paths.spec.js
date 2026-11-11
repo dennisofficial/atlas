@@ -102,6 +102,12 @@ test('hostEnvironment sets the pane origin, web root and app version over the in
   })
 })
 
+test('hostEnvironment carries the app version the packaged app reports', () => {
+  const environment = hostEnvironment({ base: { PATH: '/bin' }, appVersion: '1.315.1' })
+  expect(environment.ATLAS_VERSION).toBe('1.315.1')
+  expect(hostEnvironment({ base: { PATH: '/bin' } }).ATLAS_VERSION).toBeUndefined()
+})
+
 test('hostEnvironment leaves the pane origin unset without a listener', () => {
   const environment = hostEnvironment({ base: { PATH: '/bin' }, webRoot: '/web' })
   expect(environment.ATLAS_PANE_ORIGIN).toBeUndefined()
