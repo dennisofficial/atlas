@@ -5,6 +5,7 @@ import { inertSignals } from './thread-signals.fixture'
 
 const neverLookedUp: SandboxCredentials = {
   forThread: () => Promise.reject(new Error('a spec never reaches Vercel credentials')),
+  forUser: () => Promise.reject(new Error('a spec never reaches Vercel credentials')),
 }
 
 /** A teammate stop wired to record its calls; the in-pod curl still runs against no sandbox. */
