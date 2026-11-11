@@ -1,3 +1,5 @@
+import { untrustedEnvelope } from '@dltech/atlas-core'
+
 import { countLineBreaks, render, type Tail } from './shell-process'
 
 export const MAXIMUM_OUTPUT_CHARACTERS = 30_000
@@ -66,7 +68,8 @@ export function renderModelText(args: {
   maximumTimeoutMs: number
 }): string {
   const sections: string[] = []
-  if (args.merged.length > 0) sections.push(args.merged)
+  if (args.merged.length > 0)
+    sections.push(untrustedEnvelope({ source: 'bash', body: args.merged }))
   if (args.timedOut) {
     sections.push(
       `The command was killed after exceeding its ${args.timeoutMs} ms timeout. If it needs longer than ${args.maximumTimeoutMs} ms, start it again with runInBackground and its ending will be delivered to you whenever it lands.`,

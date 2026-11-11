@@ -75,7 +75,10 @@ describe('BashTool', () => {
       truncated: false,
       timedOut: false,
     })
-    expect(outcome.ok && outcome.modelText).toBe('hello\ntrouble')
+    expect(outcome.ok && outcome.modelText).toBe(
+      '<system-untrusted source="bash">\nhello\ntrouble\n</system-untrusted>',
+    )
+    expect(outcome.ok && outcome.modelText).toStartWith('<system-untrusted source="bash">')
   }, 30_000)
 
   it('runs the command in the workspace root it was given', async () => {
@@ -90,7 +93,9 @@ describe('BashTool', () => {
     const outcome = await invoke({ command: 'echo partial; exit 3' })
 
     expect(outputOf(outcome)).toMatchObject({ exitCode: 3, stdout: 'partial\n' })
-    expect(outcome.ok && outcome.modelText).toBe('partial\n\nExit code: 3')
+    expect(outcome.ok && outcome.modelText).toBe(
+      '<system-untrusted source="bash">\npartial\n</system-untrusted>\n\nExit code: 3',
+    )
   }, 30_000)
 
   it('says so when a command produced nothing at all', async () => {

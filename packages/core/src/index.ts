@@ -108,6 +108,7 @@ export * from './assembly/rules/pr-event-block'
 export * from './assembly/rules/run-event-block'
 export * from './assembly/rules/system-prompt'
 
+export * from './context/envelope'
 export * from './context/slot'
 export * from './context/instruction-files'
 export * from './context/render'

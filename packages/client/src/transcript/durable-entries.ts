@@ -4,6 +4,7 @@ import {
   EKilledBy,
   EMessageOrigin,
   isNoticeArrival,
+  laneNameOf,
   latestTldrPerAnchor,
   saidBy,
   type Event,
@@ -20,13 +21,8 @@ import { EAuthor, EEntryKind, toolsRanEntry, type TranscriptEntry } from './tran
 import { turnEndedEntry, turnsBySeq } from './turn-rows'
 import type { TurnSpend } from './turn-spend'
 
-const agentSenderOf = (event: Event & { type: 'user-said' }): string => {
-  if (event.sender !== undefined) return `session ${event.sender.session}`
-  const from = saidBy(event)
-  if (from === EMessageOrigin.PeerAgent) return 'a peer agent'
-  if (from === EMessageOrigin.ChildAgent) return 'a sub-agent'
-  return 'the main agent'
-}
+const agentSenderOf = (event: Event & { type: 'user-said' }): string =>
+  laneNameOf({ origin: saidBy(event), sender: event.sender?.session }).phrase
 
 export function durableEntries(args: {
   events: readonly Event[]

@@ -1,6 +1,7 @@
 import { agentLabel } from '../agents/label'
 import { EReportKind } from '../agents/report'
-import { EMessageOrigin, saidBy } from '../events/body'
+import { laneNameOf } from '../context/envelope'
+import { saidBy } from '../events/body'
 import type { Event, EventOfType } from '../events/envelope'
 import { reachesModel } from '../events/notice-stage'
 import { EExecutionLocation } from '../execution/location'
@@ -126,16 +127,7 @@ function lineOf(event: Event, payloadLimit: number): string | undefined {
 }
 
 function saidLine(event: EventOfType<'user-said'>, limit: number): string {
-  const speaker =
-    event.sender !== undefined
-      ? `Session ${event.sender.session}`
-      : saidBy(event) === EMessageOrigin.Operator
-        ? 'Operator'
-        : saidBy(event) === EMessageOrigin.PeerAgent
-          ? 'Peer agent'
-          : saidBy(event) === EMessageOrigin.ChildAgent
-            ? 'Sub-agent'
-            : 'Main agent'
+  const speaker = laneNameOf({ origin: saidBy(event), sender: event.sender?.session }).heading
   return `${speaker}: ${clipped(event.text, limit)}`
 }
 

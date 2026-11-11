@@ -1,5 +1,5 @@
 import { EAgentRestart } from '../../agents/restart'
-import { agentSaid, operatorSaid } from '../../context/envelope'
+import { agentSaid, laneNameOf, operatorSaid } from '../../context/envelope'
 import { contextBlock } from '../../context/render'
 import { currentContextEvents } from '../../context/supersede'
 import { EMessageOrigin, saidBy, type AssistantPart } from '../../events/body'
@@ -141,11 +141,12 @@ function saidContent({
   const said = [event.text, ...named].join('\n')
   const from = saidBy(event)
   const text =
-    event.sender !== undefined
-      ? agentSaid({ from: `session ${event.sender.session}`, text: said })
-      : from === EMessageOrigin.Operator
-        ? operatorSaid({ text: said })
-        : agentSaid({ from: agentSenderOf(event), text: said })
+    from === EMessageOrigin.Operator && event.sender === undefined
+      ? operatorSaid({ text: said })
+      : agentSaid({
+          from: laneNameOf({ origin: from, sender: event.sender?.session }).phrase,
+          text: said,
+        })
 
   return [
     { type: 'text', text },
@@ -159,13 +160,6 @@ function saidContent({
         ]),
     ...shown,
   ]
-}
-
-function agentSenderOf(event: EventOfType<'user-said'>): string {
-  const from = saidBy(event)
-  if (from === EMessageOrigin.PeerAgent) return 'a peer agent'
-  if (from === EMessageOrigin.ChildAgent) return 'a sub-agent'
-  return 'the main agent'
 }
 
 type Walk = { groups: readonly Group[]; settlements: ReadonlyMap<string, SettledCall> }
