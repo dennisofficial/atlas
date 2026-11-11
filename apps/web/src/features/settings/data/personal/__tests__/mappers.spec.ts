@@ -5,7 +5,7 @@ import { EEffortLevel, EMemoryScope, EMemoryType, EMcpTransportKind } from '@dlt
 import { EAgentRole, EEffort, EPreset, PRESETS } from '../../../fixtures/settings-agent'
 import { EMcpTransport } from '../../../fixtures/settings-mcp'
 import { EDeviceKind } from '../../../fixtures/settings-security'
-import { apiKeyFor, subscriptionFor } from '../accounts-api'
+import { apiKeyFor } from '../accounts-api'
 import { deviceNameOf, toDevice } from '../auth-session-api'
 import { base64ToUtf8, encodeFileContent, utf8ToBase64 } from '../file-encoding'
 import { docOf } from '../instructions-api'
@@ -163,12 +163,11 @@ describe('accounts mapping', () => {
     status: 'active',
     createdAt: '2026-10-02T00:00:00Z',
   })
-  it('splits subscriptions and api keys per provider', () => {
+  it('finds the api key of one provider', () => {
     const accounts = [
       account({ id: '1', provider: 'anthropic', kind: 'oauth' }),
       account({ id: '2', provider: 'anthropic', kind: 'api-key' }),
     ]
-    expect(subscriptionFor({ accounts, provider: EProviderId.Anthropic })?.id).toBe('1')
     expect(apiKeyFor({ accounts, provider: EProviderId.Anthropic })).toEqual({
       id: '2',
       label: 'l',
