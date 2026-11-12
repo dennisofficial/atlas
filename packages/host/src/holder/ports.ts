@@ -42,8 +42,14 @@ export type HostTimers = {
   random(): number
 }
 
+export type BootNotice = { slot: string; content: string }
+
 export type PrepareResult =
-  | { ok: true; warnings?: readonly string[] | undefined }
+  | {
+      ok: true
+      warnings?: readonly string[] | undefined
+      notices?: readonly BootNotice[] | undefined
+    }
   | { ok: false; reason: string }
 
 export type FoundPullRequest = { number: number; url: string }

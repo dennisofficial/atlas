@@ -1,11 +1,20 @@
-import type { RunId, ThreadId, WorkspaceStepReport } from '@dltech/atlas-core'
+import type { EventDraft, RunId, ThreadId, WorkspaceStepReport } from '@dltech/atlas-core'
 import { logFieldsOf } from '@dltech/atlas-observability'
 import { setupOutputCallId } from '@dltech/atlas-protocol'
 
 import type { HeldSessionDeps } from './held-session-deps'
-import { fireLive, type PrepareResult, type SessionRuntime } from './ports'
+import { fireLive, type BootNotice, type PrepareResult, type SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
 import { setupWarningText } from './setup-warning'
+
+const BOOT_CONTEXT_KEY = 'boot'
+
+const bootDraftOf = (notice: BootNotice): EventDraft => ({
+  type: 'context-loaded',
+  slot: notice.slot,
+  key: BOOT_CONTEXT_KEY,
+  content: notice.content,
+})
 
 export class HeldPrepare {
   private active = false
@@ -114,13 +123,15 @@ export class HeldPrepare {
       return
     }
     const warnings = result.warnings ?? []
+    const notices = (result.notices ?? []).map(bootDraftOf)
     await args.record.append({
       threadId: args.threadId,
       runId,
       drafts:
         warnings.length === 0
-          ? [{ type: 'workspace-prepared' }]
+          ? [...notices, { type: 'workspace-prepared' }]
           : [
+              ...notices,
               { type: 'sandbox-setup-reported', text: setupWarningText(warnings), failed: true },
               { type: 'workspace-prepared', warnings: [...warnings] },
             ],

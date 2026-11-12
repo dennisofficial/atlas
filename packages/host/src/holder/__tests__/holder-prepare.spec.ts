@@ -71,6 +71,38 @@ describe('SessionHolder prepare', () => {
     expect(await typesOf(rig)).toEqual(['workspace-prepared'])
   })
 
+  it('records a boot notice as a context-loaded event before workspace-prepared', async () => {
+    const rig = await makeRig({
+      prepare: async () => ({
+        ok: true,
+        notices: [
+          { slot: 'project-file-mounts', content: 'Atlas wrote the project files: .env.keys.' },
+        ],
+      }),
+    })
+    await seedSession(rig)
+    await rig.holder.start()
+    await rig.wake()
+    const prepared = await flushUntil({
+      check: async () => (await typesOf(rig)).includes('workspace-prepared'),
+    })
+
+    expect(prepared).toBe(true)
+    expect(await typesOf(rig)).toEqual(['context-loaded', 'workspace-prepared'])
+    const page = await rig.plane.readEvents({
+      threadId: THREAD_ID,
+      afterSeq: 0,
+      limit: 10,
+      visible: true,
+    })
+    const noticed = page.events.find((event) => event.type === 'context-loaded')
+    expect(noticed).toMatchObject({
+      slot: 'project-file-mounts',
+      key: 'boot',
+      content: 'Atlas wrote the project files: .env.keys.',
+    })
+  })
+
   it('records a failure, starts no turn, and shows setup-failed', async () => {
     const rig = await makeRig({ prepare: async () => ({ ok: false, reason: 'clone failed' }) })
     await seedSession(rig)

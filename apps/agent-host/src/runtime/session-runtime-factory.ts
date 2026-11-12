@@ -10,6 +10,7 @@ import {
 } from '@dltech/atlas-core'
 import { InMemoryToolRegistry } from '@dltech/atlas-agent'
 import { daemonToken } from '@dltech/atlas-protocol/engine'
+import type { ScopedFileMount } from '@dltech/atlas-wire/web'
 import {
   DaemonAgentFileSystemPort,
   DaemonFileSystemPort,
@@ -37,6 +38,7 @@ import { signerUploadBlobs } from '../uploads/upload-blobs'
 import type { ConfigSource } from '../config/agent-host-config'
 import type { CloudConfigStore } from '../config/cloud-config-store'
 import type { EnvSecretsSource } from '../config/env-secrets'
+import type { ProjectFilesSource } from '../config/project-files'
 import { AgentHostCredentialPort } from '../config/agent-host-credential-port'
 import { SANDBOX_HOME_PATH, WORKSPACE_PATH } from '../sandbox/constants'
 import { SandboxProvider, sandboxNameOf } from '../sandbox/sandbox-provider'
@@ -85,6 +87,7 @@ export type SessionRuntimeFactoryArgs = {
   podPeers?: PodPeers | undefined
   configWrites?: CloudConfigStore | undefined
   envSecrets?: EnvSecretsSource | undefined
+  projectFiles?: ProjectFilesSource | undefined
 }
 
 const UNCONFIGURED_REF: ModelRef = {
@@ -164,6 +167,21 @@ export const createSessionRuntimeFactory = (
       sessionId,
       ...(args.log === undefined ? {} : { log: args.log }),
     })
+    const sessionProjectFiles = async (
+      signal: AbortSignal,
+    ): Promise<readonly ScopedFileMount[]> => {
+      if (args.projectFiles === undefined) return []
+      try {
+        return await abortable(args.projectFiles.read({ projectId: config.projectId }), signal)
+      } catch (error) {
+        args.log?.error({
+          source: 'runtime.project-files',
+          message: `reading project file mounts for ${sessionId} failed; the sandbox starts without them`,
+          ...logFieldsOf({ error }),
+        })
+        return []
+      }
+    }
     const attempt = (signal: AbortSignal): Promise<PrepareResult> =>
       abortable(calls.ready(), signal)
         .then(async () => {
@@ -183,7 +201,9 @@ export const createSessionRuntimeFactory = (
           })
           await shellEnv.refresh({ token, signing, launchDirectory, signal })
           await refreshSecrets(signal)
+          const mounts = await sessionProjectFiles(signal)
           return ensureWorkspace({
+            mounts,
             env: shellEnvironmentOf({ paths, base: shellEnv.current() }),
             calls,
             processes,
