@@ -206,3 +206,16 @@ An answer must reach the host whose process holds the await. The lease names the
 address (`host.prisma:3-7`), so the shape is: `V2Host` gains `address`, the host registers its own
 base URL at boot, and the route proxies one hop when it is not the receiving instance. Not built
 while production runs one instance; it is a column and a fetch, not a redesign.
+
+## 9. Live check
+
+**Merged 2026-11-12** as `59bdcbb19` (#2266). Against production:
+`api.byatlas.io/v1/health` answered `migrations: level` after the merge deploy, so the deployed
+contract matches the migration graph and `v2."V2OperatorRequest"` exists in production.
+
+**Not yet exercised live:** an operator answering a card and the model reading the file. Criterion 1
+needs a human to type a value, so it is the operator's run: a fresh v2 session asks for a value with
+`operator_input`, the card appears in the transcript, the value is submitted, and the tool result
+names the path. Everything up to that point is covered by specs — the registry, adapter and route for
+the host side, the fold and `transcript-request.spec.tsx` for the card — but no card has been clicked
+in a browser yet.
