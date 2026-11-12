@@ -1,3 +1,4 @@
+import { EAccountStatus } from '@dltech/atlas-wire'
 import { db, isUniqueViolation } from '@dltech/atlas-db'
 import { Injectable } from '@nestjs/common'
 import { EConnectionStatus, OauthConnectionStore } from './oauth-connections.types'
@@ -124,6 +125,19 @@ export class PrismaOauthConnectionStore implements OauthConnectionStore {
       ...CLEARED_ATTEMPT,
     })
     return count === 1
+  }
+
+  async sealedSecretsOf(args: { userId: string }): Promise<{ id: string; sealedSecret: string }[]> {
+    const rows = await db.orm.public.AgentAccount.where({ userId: args.userId })
+      .select('id', 'sealedSecret')
+      .all()
+    return [...rows]
+  }
+
+  async markExpired(args: { ids: string[] }): Promise<void> {
+    for (const id of args.ids) {
+      await db.orm.public.AgentAccount.where({ id }).update({ status: EAccountStatus.Expired })
+    }
   }
 
   async ownedSandboxId(args: { userId: string; threadId: string }): Promise<string | null> {

@@ -9208,6 +9208,13 @@
                   "kind": "scalar"
                 }
               },
+              "modelAccountId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "modelEffort": {
                 "nullable": true,
                 "type": {
@@ -9398,6 +9405,9 @@
                 },
                 "mainThreadId": {
                   "column": "mainThreadId"
+                },
+                "modelAccountId": {
+                  "column": "modelAccountId"
                 },
                 "modelEffort": {
                   "column": "modelEffort"
@@ -16483,6 +16493,11 @@
                   "dataType": "pg/text",
                   "nullable": false
                 },
+                "modelAccountId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
                 "modelEffort": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -16792,7 +16807,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "c6031259b2791244b5c7e8e2ee815047f27ee8417bdde6394dc7ad25e9fa3211"
+    "storageHash": "7ce0c6e07746aaadcecc5813280a9591cb44eef6894cd5d7cb28a8e9782c2d4e"
   },
   "execution": {
     "executionHash": "27a680d0d8367c03704617bfac2d0041e04bd5395fc473f9e021f03bd0d4c6fa",

@@ -48,6 +48,7 @@ export const toSessionRow = (row: {
   modelRef: string | null
   modelEffort: string | null
   modelFast: boolean | null
+  modelAccountId: string | null
   spawnedBySessionId: string | null
   nested: boolean
   podSessionId: string | null
@@ -63,6 +64,7 @@ export const toSessionRow = (row: {
   modelRef: row.modelRef,
   modelEffort: row.modelEffort,
   modelFast: row.modelFast,
+  modelAccountId: row.modelAccountId,
   spawnedBySessionId: row.spawnedBySessionId,
   nested: row.nested,
   podSessionId: row.podSessionId,

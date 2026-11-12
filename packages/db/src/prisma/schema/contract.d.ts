@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'c6031259b2791244b5c7e8e2ee815047f27ee8417bdde6394dc7ad25e9fa3211'>;
+  StorageHashBase<'7ce0c6e07746aaadcecc5813280a9591cb44eef6894cd5d7cb28a8e9782c2d4e'>;
 export type ExecutionHash =
   ExecutionHashBase<'27a680d0d8367c03704617bfac2d0041e04bd5395fc473f9e021f03bd0d4c6fa'>;
 export type ProfileHash =
@@ -1240,6 +1240,7 @@ export namespace Models {
     id: FieldOutputTypes['v2']['V2Session']['id'];
     lastSurface: FieldOutputTypes['v2']['V2Session']['lastSurface'];
     mainThreadId: FieldOutputTypes['v2']['V2Session']['mainThreadId'];
+    modelAccountId: FieldOutputTypes['v2']['V2Session']['modelAccountId'];
     modelEffort: FieldOutputTypes['v2']['V2Session']['modelEffort'];
     modelFast: FieldOutputTypes['v2']['V2Session']['modelFast'];
     modelRef: FieldOutputTypes['v2']['V2Session']['modelRef'];
@@ -7115,6 +7116,12 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly modelAccountId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
                   readonly many: false;
                 };
                 readonly modelEffort: {
@@ -13170,6 +13177,10 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly modelAccountId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly modelEffort: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -13289,6 +13300,7 @@ type ContractBase = Omit<
                 readonly id: { readonly column: 'id' };
                 readonly lastSurface: { readonly column: 'lastSurface' };
                 readonly mainThreadId: { readonly column: 'mainThreadId' };
+                readonly modelAccountId: { readonly column: 'modelAccountId' };
                 readonly modelEffort: { readonly column: 'modelEffort' };
                 readonly modelFast: { readonly column: 'modelFast' };
                 readonly modelRef: { readonly column: 'modelRef' };
