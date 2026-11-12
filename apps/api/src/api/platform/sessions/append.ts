@@ -6,6 +6,7 @@ import type { EventDto } from './sessions.types'
 import { toEventDto } from './rows'
 import { planSegments, type SessionReader } from './fork-chain'
 import { createSessionWithMainThread } from './create-session'
+import { toolNameOf } from './event-tool-name'
 import { advanceHead, lockThread } from './thread-head'
 
 export const nextEventId = (): string => `evt_${randomUUID()}`
@@ -195,6 +196,7 @@ export async function appendStoredWithin(
     contextSlot: draft.contextSlot ?? null,
     contextKey: draft.contextKey ?? null,
     contextDigest: draft.contextDigest ?? null,
+    toolName: toolNameOf(draft),
     userId: args.userId,
   }))
   await args.tx.orm.public.Event.createAndCount(rows)

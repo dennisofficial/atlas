@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'7ce0c6e07746aaadcecc5813280a9591cb44eef6894cd5d7cb28a8e9782c2d4e'>;
+  StorageHashBase<'db9883fc7594d4a56041e19c67ee2bc21db9bf9fd2e454a4e93a2de083606340'>;
 export type ExecutionHash =
   ExecutionHashBase<'27a680d0d8367c03704617bfac2d0041e04bd5395fc473f9e021f03bd0d4c6fa'>;
 export type ProfileHash =
@@ -473,6 +473,7 @@ export namespace Models {
     runId: FieldOutputTypes['public']['Event']['runId'];
     seq: FieldOutputTypes['public']['Event']['seq'];
     threadId: FieldOutputTypes['public']['Event']['threadId'];
+    toolName: FieldOutputTypes['public']['Event']['toolName'];
     type: FieldOutputTypes['public']['Event']['type'];
     userId: FieldOutputTypes['public']['Event']['userId'];
     thread: public_Thread;
@@ -2692,6 +2693,12 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly many: false;
                 };
+                readonly toolName: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
                 readonly type: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
@@ -2728,8 +2735,18 @@ type ContractBase = Omit<
                   readonly unique: false;
                 },
                 {
+                  readonly name: 'Event_userId_contextSlot_at_idx';
+                  readonly columns: readonly ['userId', 'contextSlot', 'at'];
+                  readonly unique: false;
+                },
+                {
                   readonly name: 'Event_userId_type_at_idx';
                   readonly columns: readonly ['userId', 'type', 'at'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'Event_userId_type_toolName_at_idx';
+                  readonly columns: readonly ['userId', 'type', 'toolName', 'at'];
                   readonly unique: false;
                 },
               ];
@@ -8729,6 +8746,10 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly toolName: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly type: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -8767,6 +8788,7 @@ type ContractBase = Omit<
                 readonly runId: { readonly column: 'runId' };
                 readonly seq: { readonly column: 'seq' };
                 readonly threadId: { readonly column: 'threadId' };
+                readonly toolName: { readonly column: 'toolName' };
                 readonly type: { readonly column: 'type' };
                 readonly userId: { readonly column: 'userId' };
               };

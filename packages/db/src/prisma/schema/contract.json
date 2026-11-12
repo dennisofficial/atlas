@@ -2138,6 +2138,13 @@
                   "kind": "scalar"
                 }
               },
+              "toolName": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "type": {
                 "nullable": false,
                 "type": {
@@ -2205,6 +2212,9 @@
                 },
                 "threadId": {
                   "column": "threadId"
+                },
+                "toolName": {
+                  "column": "toolName"
                 },
                 "type": {
                   "column": "type"
@@ -11222,6 +11232,11 @@
                   "dataType": "pg/text",
                   "nullable": false
                 },
+                "toolName": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
                 "type": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -11271,10 +11286,29 @@
                 {
                   "columns": [
                     "userId",
+                    "contextSlot",
+                    "at"
+                  ],
+                  "name": "Event_userId_contextSlot_at_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "userId",
                     "type",
                     "at"
                   ],
                   "name": "Event_userId_type_at_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "userId",
+                    "type",
+                    "toolName",
+                    "at"
+                  ],
+                  "name": "Event_userId_type_toolName_at_idx",
                   "unique": false
                 }
               ],
@@ -16807,7 +16841,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "7ce0c6e07746aaadcecc5813280a9591cb44eef6894cd5d7cb28a8e9782c2d4e"
+    "storageHash": "db9883fc7594d4a56041e19c67ee2bc21db9bf9fd2e454a4e93a2de083606340"
   },
   "execution": {
     "executionHash": "27a680d0d8367c03704617bfac2d0041e04bd5395fc473f9e021f03bd0d4c6fa",
