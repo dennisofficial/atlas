@@ -282,6 +282,29 @@ describe('agent report items', () => {
     expect(empty.some((row) => row.kind === ETranscriptKind.Report)).toBe(false)
   })
 
+  it('shows one report when a done report repeats the ending it sits beside', () => {
+    const doneReport = wire(6, {
+      type: 'agent-reported',
+      agentId: AGENT,
+      agentType: 'explore',
+      intent: 'vault audit',
+      prose: 'Found 3 issues',
+      kind: 'done',
+    })
+    const rows = rowsOf([said(1), spawned(2), ended(5), doneReport])
+    const reports = rows.filter((row) => row.kind === ETranscriptKind.Report)
+    expect(reports).toHaveLength(1)
+    expect(reports[0]).toMatchObject({ id: 'evt_6', report: 'Found 3 issues' })
+
+    const failed = rowsOf([
+      said(1),
+      spawned(2),
+      ended(5, { status: EAgentStatus.Failed, failureCause: 'boom' }),
+      doneReport,
+    ]).filter((row) => row.kind === ETranscriptKind.Report)
+    expect(failed).toHaveLength(2)
+  })
+
   it('splits the transcript into a report turn between agent turns', () => {
     const rows = rowsOf([
       said(1),

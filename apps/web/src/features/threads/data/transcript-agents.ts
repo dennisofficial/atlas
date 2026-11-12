@@ -3,6 +3,7 @@ import {
   formatElapsed,
   inputOf,
   outputOf,
+  redundantEndingIds,
   str,
   type ToolCall,
 } from '@dltech/atlas-client/transcript'
@@ -178,10 +179,12 @@ function reportItemOf(args: {
 
 export function reportItemsOf(events: readonly Event[]): Map<string, ReportItem> {
   const history = historyOf(events)
+  const repeated = redundantEndingIds(events)
   const reports = new Map<string, ReportItem>()
   for (const event of events) {
     if (event.type !== 'agent-reported' && event.type !== 'agent-ended') continue
     if (!reachesModel(event)) continue
+    if (repeated.has(event.id as string)) continue
     const item = reportItemOf({ event, history })
     if (item !== null) reports.set(item.id, item)
   }
