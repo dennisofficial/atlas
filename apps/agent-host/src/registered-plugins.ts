@@ -13,6 +13,10 @@ import { mcpClient } from '@dltech/atlas-plugin-mcp/client'
 import { mcpControl } from '@dltech/atlas-plugin-mcp/control'
 import { mcpCoreSlots } from '@dltech/atlas-plugin-mcp/core'
 import { mcpPod } from '@dltech/atlas-plugin-mcp/pod'
+import { operatorClient } from '@dltech/atlas-plugin-operator/client'
+import { operatorControl } from '@dltech/atlas-plugin-operator/control'
+import { operatorCoreSlots } from '@dltech/atlas-plugin-operator/core'
+import { operatorPod } from '@dltech/atlas-plugin-operator/pod'
 import { mcpServerPort } from './config/mcp-servers'
 import { skillCloudPort } from './config/skills'
 import { skillsPodOf } from '@dltech/atlas-plugin-skills/pod'
@@ -96,6 +100,14 @@ export const registeredPlugins: readonly Plugin[] = [
     control: mcpControl,
     client: mcpClient,
     transport: 'stream',
+  }),
+  definePlugin({
+    name: 'operator',
+    ...operatorCoreSlots,
+    pod: operatorPod,
+    control: operatorControl,
+    client: operatorClient,
+    transport: 'none',
   }),
   definePlugin({
     name: 'skills',

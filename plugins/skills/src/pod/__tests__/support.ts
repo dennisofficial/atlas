@@ -2,11 +2,12 @@ import { basename, dirname } from 'node:path'
 
 import { toThreadId, type Assembled } from '@dltech/atlas-core'
 import {
+  type PluginPodContext,
   EMPTY_CREW,
+  EMPTY_MCP_CONTROL,
+  EMPTY_OPERATOR_INPUT,
   EMPTY_SESSIONS,
   EMPTY_WORKTREES,
-  type PluginPodContext,
-  EMPTY_MCP_CONTROL,
 } from '@dltech/atlas-plugin-sdk'
 import { ECallStatus, type CallOp, type CallResult } from '@dltech/atlas-protocol'
 
@@ -113,6 +114,7 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
       exposePort: async () => {
         throw new Error('this rig exposes no port')
       },
+      operator: EMPTY_OPERATOR_INPUT,
       memory: {
         list: async () => ({ project: null, memories: [] }),
         read: async () => null,

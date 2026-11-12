@@ -124,6 +124,7 @@ export const fromTheModel = (model: TranscriptModel) =>
       | { kind: EEntryKind.AgentRestarted }
       | { kind: EEntryKind.AgentReported }
       | { kind: EEntryKind.OperatorInput }
+      | { kind: EEntryKind.OperatorRequest }
       | { kind: EEntryKind.SignIn }
       | { kind: EEntryKind.SystemContext }
       | { kind: EEntryKind.SystemNotice }
@@ -146,6 +147,7 @@ export const fromTheModel = (model: TranscriptModel) =>
       entry.kind !== EEntryKind.AgentRestarted &&
       entry.kind !== EEntryKind.AgentReported &&
       entry.kind !== EEntryKind.OperatorInput &&
+      entry.kind !== EEntryKind.OperatorRequest &&
       entry.kind !== EEntryKind.SignIn &&
       entry.kind !== EEntryKind.PrEvent,
   )

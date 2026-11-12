@@ -258,6 +258,7 @@ function DerivedEntryView(props: {
       )
 
     case EEntryKind.OperatorInput:
+    case EEntryKind.OperatorRequest:
       return (
         <box flexDirection="row" marginBottom={1} flexShrink={0}>
           <text fg={theme.dim}>{entry.text}</text>

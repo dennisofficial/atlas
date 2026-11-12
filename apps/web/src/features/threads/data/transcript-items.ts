@@ -4,6 +4,7 @@ import {
   EEntryKind,
   EThinkingVisibility,
   type InFlightStep,
+  type OperatorRequestState,
   type OperatorSaidEntry,
   type PrEventEntry,
   type RevealGate,
@@ -70,6 +71,7 @@ export type TranscriptItem = Timed &
       }
     | { kind: ETranscriptKind.Tools; id: string; calls: ToolCallItem[] }
     | SignInItem
+    | RequestItem
     | NoticeItem
   )
 
@@ -80,6 +82,21 @@ export type SignInItem = {
   subject: string
   url: string
   result?: 'connected' | 'failed' | undefined
+  reason?: string | undefined
+}
+
+export type RequestItem = {
+  kind: ETranscriptKind.Request
+  id: string
+  text: string
+  requestId: string
+  prompt: string
+  secret: boolean
+  state: OperatorRequestState
+  expiresAt: string
+  shellId?: string | undefined
+  path?: string | undefined
+  bytes?: number | undefined
   reason?: string | undefined
 }
 
@@ -142,6 +159,21 @@ function textItemOf(args: {
         subject: entry.subject,
         url: entry.url,
         ...(entry.result === undefined ? {} : { result: entry.result }),
+        ...(entry.reason === undefined ? {} : { reason: entry.reason }),
+      }
+    case EEntryKind.OperatorRequest:
+      return {
+        kind: ETranscriptKind.Request,
+        id: entry.key,
+        text: entry.text,
+        requestId: entry.requestId,
+        prompt: entry.prompt,
+        secret: entry.secret,
+        state: entry.state,
+        expiresAt: entry.expiresAt,
+        ...(entry.shellId === undefined ? {} : { shellId: entry.shellId }),
+        ...(entry.path === undefined ? {} : { path: entry.path }),
+        ...(entry.bytes === undefined ? {} : { bytes: entry.bytes }),
         ...(entry.reason === undefined ? {} : { reason: entry.reason }),
       }
     case EEntryKind.ModelThought:

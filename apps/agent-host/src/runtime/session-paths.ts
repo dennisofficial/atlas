@@ -29,13 +29,17 @@ export type SessionPaths = {
 
 export type PathEnvironment = Readonly<Record<string, string | undefined>>
 
+export function sessionDirOf(sessionId: string, home: string = SANDBOX_HOME_PATH): string {
+  return join(home, SESSIONS_DIRECTORY_NAME, sessionId)
+}
+
 export function sessionPathsOf(args: {
   sessionId: string
   threadId: ThreadId
   home?: string | undefined
 }): SessionPaths {
   const home = args.home ?? SANDBOX_HOME_PATH
-  const sessionDir = join(home, SESSIONS_DIRECTORY_NAME, args.sessionId)
+  const sessionDir = sessionDirOf(args.sessionId, home)
   return {
     home,
     sessionDir,
