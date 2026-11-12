@@ -101,6 +101,26 @@ describe('the operator request registry', () => {
     )
   })
 
+  it('settles abandoned, not cancelled, when the host drops the turn', async () => {
+    const { db } = testDb()
+    await seedSession(db, { id: 'ses_1', userId: 'user-1' })
+    const clock = clockOf()
+    const registry = registryOf({ db, clock })
+    const opened = await registry.open({
+      sessionId: 'ses_1',
+      threadId: 'thr_ses_1',
+      ask: askOf(),
+    })
+
+    opened.abandon('abandoned')
+    await tick()
+
+    expect(await opened.answered).toEqual({ ok: false, reason: 'abandoned' })
+    expect((await db.orm.v2.V2OperatorRequest.first({ id: opened.requestId }))?.status).toBe(
+      EOperatorRequestStatus.Abandoned,
+    )
+  })
+
   it('refuses a second pending request for the same session', async () => {
     const { db } = testDb()
     await seedSession(db, { id: 'ses_1', userId: 'user-1' })

@@ -106,6 +106,22 @@ describe('the operator request row', () => {
     expect(entry.text).toContain('no value arrived')
   })
 
+  it('reads an abandoned settlement as abandoned and says the session stopped waiting', () => {
+    const entry = entryOf([
+      asked(),
+      settled(2, {
+        outcome: EOperatorRequestOutcome.Abandoned,
+        path: undefined,
+        bytes: undefined,
+        reason: 'abandoned',
+      }),
+    ])
+
+    expect(entry.state).toBe('abandoned')
+    expect(entry.text).toContain('stopped waiting for the answer')
+    expect(entry.text).not.toContain('cancelled')
+  })
+
   it('reads an expired settlement as expired', () => {
     const entry = entryOf([
       asked(),

@@ -8,6 +8,7 @@ export enum EOperatorRequestKind {
 export enum EOperatorRequestOutcome {
   Delivered = 'delivered',
   Cancelled = 'cancelled',
+  Abandoned = 'abandoned',
   Expired = 'expired',
   Failed = 'failed',
 }

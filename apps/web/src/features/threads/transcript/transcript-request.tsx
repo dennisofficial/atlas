@@ -36,13 +36,14 @@ function TranscriptRequestSettled({ item }: { item: RequestItem }) {
       <TraceLine {...(failed ? { status: 'error' as const } : {})}>
         <TraceIcon>
           {item.state === 'delivered' ? <CircleCheckIcon /> : null}
-          {item.state === 'cancelled' ? <CircleSlashIcon /> : null}
+          {item.state === 'cancelled' || item.state === 'abandoned' ? <CircleSlashIcon /> : null}
           {item.state === 'expired' ? <ClockIcon /> : null}
           {failed ? <CircleXIcon /> : null}
         </TraceIcon>
         <TraceTitle>
           {item.state === 'delivered' ? 'The operator answered' : null}
           {item.state === 'cancelled' ? 'The operator cancelled the request' : null}
+          {item.state === 'abandoned' ? 'The session stopped waiting for your answer' : null}
           {item.state === 'expired' ? 'The request expired' : null}
           {failed ? "Could not deliver the operator's value" : null}
         </TraceTitle>

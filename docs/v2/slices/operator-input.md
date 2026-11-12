@@ -97,7 +97,7 @@ export type PodOperatorAsk =
 export type PodOperatorDelivery =
   | { ok: true; path: string; bytes: number } // kind: 'input'
   | { ok: true; shellId: string; bytes: number } // kind: 'shell'
-  | { ok: false; reason: string } // cancelled | expired | failed
+  | { ok: false; reason: string } // cancelled | abandoned | expired | failed
 
 export type PodOperatorInput = {
   ask(args: { ask: PodOperatorAsk; signal: AbortSignal }): Promise<PodOperatorDelivery>
@@ -115,7 +115,7 @@ Model text, mirroring v1's so a model behaves the same way:
   never paste it into a message.`
 - shell: `the operator's value was typed into the stdin of shell <shellId> (N bytes). Read the shell's
   output to see what the CLI did with it.`
-- cancelled/expired/failed: v1's sentence naming the reason, plus that no value arrived.
+- cancelled/abandoned/expired/failed: v1's sentence naming the reason, plus that no value arrived.
 
 ## 3. Where the value goes, and where it never goes
 
@@ -138,9 +138,15 @@ Model text, mirroring v1's so a model behaves the same way:
    `{requestId, expiresAt, answered, abandon}`, and arms the deadline (`expiresAt = now + 15 min`).
 3. The adapter appends `operator-input-asked` with that id and deadline, then awaits `answered`, raced
    against `signal`.
-4. An abort calls `abandon('cancelled')`; the deadline resolves `{ok: false, reason: 'expired'}` and
-   writes `status = expired`.
-5. On `{ok: true, value}` the adapter `mkdir`s `requests/`, writes the file (or the shell), appends
+4. The ask begins an operator wait on the session's stall guard (`AwaitingOperator`,
+   `packages/host/src/holder/operator-requests.ts`), so the 11-minute `StallGuard` clock is suspended
+   while a request is open; the request's own `expiresAt` is the only bound. It is released at the
+   settle, after an open failure too.
+5. An abort of the turn calls `abandon('abandoned')` and appends `outcome: 'abandoned'`, which reads
+   as "the session stopped waiting", not as the operator cancelling. The operator's own Cancel calls
+   `abandon('cancelled')` (or the route's cancel) and keeps `outcome: 'cancelled'`; the deadline
+   resolves `{ok: false, reason: 'expired'}` and writes `status = expired`.
+6. On `{ok: true, value}` the adapter `mkdir`s `requests/`, writes the file (or the shell), appends
    `operator-input-settled {outcome: 'delivered', path, bytes}` and returns the delivery. A failed
    write appends `outcome: 'failed'` with the reason and returns `{ok: false}`.
 
@@ -155,7 +161,7 @@ Model text, mirroring v1's so a model behaves the same way:
 **Card** (`apps/web`): `EEntryKind.OperatorRequest` (`packages/client/src/transcript/transcript-model.ts`)
 → `ETranscriptKind.Request` row → `transcript/transcript-request.tsx`: the prompt, an `Input`
 (`type="password"` when `secret`), Submit and Cancel, disabled while sending, and the delivered /
-expired / cancelled states. Submit posts to the route with `fetchStreamToken()`, and the row settles
+expired / cancelled / abandoned states. Submit posts to the route with `fetchStreamToken()`, and the row settles
 when the stream delivers `operator-input-settled`.
 
 **Fold** (`plugins/operator/src/client/request-entry.ts`): pair by `requestId`; an entry whose
@@ -169,15 +175,19 @@ card.
   value (the double answers a marked string; the test asserts it is absent from `modelText`);
   `childDeny` hides both from a sub-agent.
 - **Fold** (`plugins/operator/src/client/__tests__`): asked alone is pending; asked + settled is
-  delivered/expired/failed; a passed deadline with no settlement reads expired.
+  delivered/cancelled/abandoned/expired/failed; a passed deadline with no settlement reads expired.
 - **Registry** (`apps/agent-host/src/operator-input/__tests__`): `open` writes a `pending` row,
   `answer` resolves and marks it `answered` once, a second answer is `404`, expiry resolves and marks
-  `expired`, `abandon` marks `cancelled`.
+  `expired`, `abandon('cancelled')` marks `cancelled`, `abandon('abandoned')` marks `abandoned`.
 - **Adapter** (`packages/host/src/holder/__tests__`): asked then settled events in order, the file
   written at `<sessionDir>/requests/<id>` with `0600` and the value, `shells.write` for the shell
-  kind, abort → `cancelled`, expiry → `expired`, no event payload contains the value.
+  kind, abort → `abandoned`, the operator's cancel → `cancelled`, expiry → `expired`, the stall clock
+  held for the length of the wait, no event payload contains the value.
 - **Route** (`apps/agent-host/src/operator-input/__tests__`): bearer, ownership, unknown id,
   `409` off-holder, cancel, and the body cap.
+- **Status** (`packages/core/src/record/__tests__/session-status.spec.ts`): the asked/settled pair is
+  record-only, so a request settling after a `run-failed` leaves the session failed instead of
+  re-opening the turn.
 - **Control/db**: migration applies; `packages/db/src/__tests__/v2-smoke.spec.ts` covers the row.
 - **Web** (`apps/web/src/features/threads/__tests__/transcript-request.spec.tsx`): prompt, masked
   secret field, one submit then disabled, cancel, and the settled states.

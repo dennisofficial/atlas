@@ -134,6 +134,13 @@ describe('the operator request card', () => {
     expect(html).toContain('the turn was interrupted')
   })
 
+  it('reads an abandoned request as the session giving up, not the operator cancelling', () => {
+    const html = render({ state: 'abandoned', reason: 'abandoned' })
+
+    expect(html).toContain('The session stopped waiting for your answer')
+    expect(html).not.toContain('The operator cancelled the request')
+  })
+
   it('reads a failed delivery as an error', () => {
     const html = render({ state: 'failed', reason: 'the sandbox refused the write' })
 
