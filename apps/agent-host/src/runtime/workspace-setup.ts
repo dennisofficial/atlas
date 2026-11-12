@@ -51,6 +51,7 @@ const runSetupOnce = async (args: {
     cwd: launchDirectory,
     timeoutMs: SETUP_TIMEOUT_MS,
     signal: deps.signal,
+    ...(deps.env === undefined ? {} : { env: deps.env }),
     onOutput: (text) => args.onOutput?.(args.scrub(text)),
   })
   const output = args.scrub(outcome.output)
@@ -85,6 +86,7 @@ export const ensureWorkspace = async (args: {
   githubToken: string | null
   launchDirectory: string
   sandboxName: string
+  env?: Record<string, string> | undefined
   signal?: AbortSignal | undefined
   log?: LogPort | undefined
   onStep?: ((step: WorkspaceStepReport) => void) | undefined
@@ -96,6 +98,7 @@ export const ensureWorkspace = async (args: {
     files: args.files,
     warnings,
     signal: args.signal,
+    ...(args.env === undefined ? {} : { env: args.env }),
     ...(args.log === undefined ? {} : { log: args.log }),
   }
   const { workspace, launchDirectory, githubToken, onStep } = args

@@ -101,6 +101,30 @@ describe('a declared service start', () => {
     expect(setupCalls[0]).toMatchObject({ cwd: '/work', env: { MODE: 'dev' } })
   })
 
+  it('starts a declared service with the session env under the declaration env', async () => {
+    const harness = rig({ env: { API_KEY: 'project-secret', MODE: 'session' } })
+    writeDeclared(
+      harness,
+      [
+        'services:',
+        '  web:',
+        '    command: listen',
+        '    env:',
+        '      MODE: dev',
+        '    setup:',
+        '      - echo installing',
+      ].join('\n'),
+    )
+    await invoke({ ctx: harness.ctx, name: 'service_start', input: { name: 'web' } })
+
+    expect(startsOf(harness.calls)[0]).toMatchObject({
+      env: { API_KEY: 'project-secret', MODE: 'dev' },
+    })
+    expect(harness.calls.filter((call) => call.op === 'exec')[0]).toMatchObject({
+      env: { API_KEY: 'project-secret', MODE: 'dev' },
+    })
+  })
+
   it('stops and reports the output tail when setup fails', async () => {
     const harness = rig()
     writeDeclared(

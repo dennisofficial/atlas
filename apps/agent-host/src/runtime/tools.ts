@@ -86,7 +86,7 @@ export const daemonToolsOf = (args: {
   agentFiles: DaemonAgentFileSystemPort
   pathEnv: PathEnvironment
   setup: Promise<void>
-  shellEnv?: (() => Record<string, string>) | undefined
+  shellEnv?: (() => Promise<Record<string, string>>) | undefined
 }): ToolDefinition[] => {
   const guard = new SerializedWrites()
   const tools: ToolDefinition[] = [

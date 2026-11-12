@@ -36,6 +36,7 @@ import { SandboxSaidUploads } from '../uploads/sandbox-said-uploads'
 import { signerUploadBlobs } from '../uploads/upload-blobs'
 import type { ConfigSource } from '../config/agent-host-config'
 import type { CloudConfigStore } from '../config/cloud-config-store'
+import type { EnvSecretsSource } from '../config/env-secrets'
 import { AgentHostCredentialPort } from '../config/agent-host-credential-port'
 import { SANDBOX_HOME_PATH, WORKSPACE_PATH } from '../sandbox/constants'
 import { SandboxProvider, sandboxNameOf } from '../sandbox/sandbox-provider'
@@ -49,11 +50,13 @@ import { rewakingConnector } from './rewaking-connector'
 import { GithubPullRequestFinder, githubIdentityLookup } from '@dltech/atlas-plugin-github/pod'
 import type { ComposedPlugins } from '@dltech/atlas-plugin-sdk'
 import { agentHostPrompt } from './prompt'
+import { EnvSecretsFragment } from './prompt-fragments/secrets'
 import { watchWorkspaceRepos } from './git-watch'
 import { TaskWriteTool } from '../agent-tools/task-write'
 import { configToolsOf } from './config-tools'
 import { daemonToolsOf } from './tools'
 import { ShellEnvCell } from './shell-env'
+import { envSecretsRefresher } from './env-secrets-refresh'
 import { pathEnvironmentOf, sessionPathsOf, shellEnvironmentOf } from './session-paths'
 import { prepareSigning } from './signing-setup'
 import { ensureWorkspace } from './workspace-setup'
@@ -81,6 +84,7 @@ export type SessionRuntimeFactoryArgs = {
   plugins?: ComposedPlugins | undefined
   podPeers?: PodPeers | undefined
   configWrites?: CloudConfigStore | undefined
+  envSecrets?: EnvSecretsSource | undefined
 }
 
 const UNCONFIGURED_REF: ModelRef = {
@@ -152,6 +156,14 @@ export const createSessionRuntimeFactory = (
       identityOf: githubIdentityLookup({ fetch: args.githubFetch }),
       log: args.log,
     })
+    const refreshSecrets = envSecretsRefresher({
+      source: args.envSecrets,
+      cell: shellEnv,
+      userId: config.userId,
+      projectId: config.projectId,
+      sessionId,
+      ...(args.log === undefined ? {} : { log: args.log }),
+    })
     const attempt = (signal: AbortSignal): Promise<PrepareResult> =>
       abortable(calls.ready(), signal)
         .then(async () => {
@@ -170,7 +182,9 @@ export const createSessionRuntimeFactory = (
             log: args.log,
           })
           await shellEnv.refresh({ token, signing, launchDirectory, signal })
+          await refreshSecrets(signal)
           return ensureWorkspace({
+            env: shellEnvironmentOf({ paths, base: shellEnv.current() }),
             calls,
             processes,
             files,
@@ -244,13 +258,17 @@ export const createSessionRuntimeFactory = (
       workspace: config.workspace,
     })
     const repoAt = (path: string) => repoMap.find((entry) => entry.path === path)
+    const sessionShellEnv = async (): Promise<Record<string, string>> => {
+      await refreshSecrets()
+      return shellEnvironmentOf({ paths, base: shellEnv.current() })
+    }
     const daemonToolList = daemonToolsOf({
       processes,
       files,
       agentFiles,
       pathEnv: pathEnvironmentOf(paths),
       setup: gate,
-      shellEnv: () => shellEnvironmentOf({ paths, base: shellEnv.current() }),
+      shellEnv: sessionShellEnv,
     })
     const tools = [
       ...daemonToolList,
@@ -313,7 +331,10 @@ export const createSessionRuntimeFactory = (
       assembly: defaultPipeline({
         prompt: agentHostPrompt({
           identity: model.identity,
-          extraFragments: args.plugins?.pod.prompts,
+          extraFragments: [
+            ...(args.plugins?.pod.prompts ?? []),
+            new EnvSecretsFragment(() => shellEnv.exportedSecretNames()),
+          ],
           spawner,
         }),
         launchDirectory,
@@ -338,6 +359,7 @@ export const createSessionRuntimeFactory = (
       },
       plugins: args.plugins,
       runningShells: () => countRunningShells({ calls }),
+      env: sessionShellEnv,
       prepare,
       subscribePrepareOutput: (listener) => steps.subscribeOutput(listener),
       stop: async () => {
