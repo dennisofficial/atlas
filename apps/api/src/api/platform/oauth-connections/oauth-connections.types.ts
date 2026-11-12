@@ -70,6 +70,10 @@ export abstract class OauthConnectionStore {
   abstract complete(args: AttemptFence & { sealedTokens: string }): Promise<boolean>
   abstract release(args: AttemptFence): Promise<boolean>
   abstract reject(args: AttemptFence): Promise<boolean>
+  abstract sealedSecretsOf(args: {
+    userId: string
+  }): Promise<{ id: string; sealedSecret: string }[]>
+  abstract markExpired(args: { ids: string[] }): Promise<void>
   abstract ownedSandboxId(args: { userId: string; threadId: string }): Promise<string | null>
   abstract assign(args: { connectionId: string; sandboxId: string }): Promise<void>
   abstract isAssigned(args: { connectionId: string; sandboxId: string }): Promise<boolean>

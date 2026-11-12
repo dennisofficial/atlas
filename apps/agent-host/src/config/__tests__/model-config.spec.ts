@@ -122,11 +122,14 @@ describe('modelConfigOf', () => {
     expect(configOf({ accounts: [] })).toEqual({ configured: false, gap: 'no model account' })
   })
 
-  it('decodes effort and fast and falls back on invalid values', () => {
+  it('decodes effort and fast, clamps effort to the card and falls back on invalid values', () => {
     const accounts = [accountRow({ id: 'a', provider: 'anthropic' })]
     expect(
       configOf({ accounts, settings: { 'model.effort': 'xhigh', 'model.fast': true } }),
-    ).toMatchObject({ effort: EEffort.XHigh, fast: true })
+    ).toMatchObject({ effort: EEffort.High, fast: true })
+    expect(
+      configOf({ accounts, settings: { 'model.effort': 'low', 'model.fast': true } }),
+    ).toMatchObject({ effort: EEffort.Low, fast: true })
     expect(
       configOf({ accounts, settings: { 'model.effort': 'bogus', 'model.fast': 'yes' } }),
     ).toMatchObject({ effort: EEffort.Medium, fast: false })

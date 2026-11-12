@@ -1,3 +1,5 @@
+import { authorityOf, type AccountSecret } from '@dltech/atlas-core'
+
 import { CredentialError, ECredentialFailure } from '../model/credential-error'
 import type { SecretCipher } from '../config/secret-cipher'
 import { refreshAnthropicGrant, type TokenFetch } from './anthropic-token-endpoint'
@@ -112,6 +114,7 @@ export class ModelTokenService {
       if (await this.fenceLost(fence)) return undefined
       if (error instanceof ProviderRejectedError) {
         await this.args.store.reject(fence)
+        await this.expireAccounts({ id: args.row.id, userId: args.row.userId })
         throw failure(ECredentialFailure.Expired, 'the provider rejected the grant', true)
       }
       if (error instanceof ProviderRateLimitedError) await this.args.store.release(fence)
@@ -133,6 +136,19 @@ export class ModelTokenService {
       nowMs: args.nowMs,
       fetchFn: this.args.fetchFn,
     })
+  }
+
+  private async expireAccounts(row: Pick<ConnectionRow, 'id' | 'userId'>): Promise<void> {
+    const accounts = await this.args.store.sealedSecretsOf({ userId: row.userId })
+    const ids = accounts
+      .filter((account) => this.connectionOf(account.sealedSecret) === row.id)
+      .map((account) => account.id)
+    if (ids.length > 0) await this.args.store.markExpired({ ids })
+  }
+
+  private connectionOf(sealedSecret: string): string | undefined {
+    const secret = JSON.parse(this.args.cipher.decrypt(sealedSecret)) as AccountSecret
+    return authorityOf(secret)?.connectionId
   }
 
   private async fenceLost(fence: { id: string; attemptId: string }): Promise<boolean> {

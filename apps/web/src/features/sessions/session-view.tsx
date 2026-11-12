@@ -14,6 +14,7 @@ import {
   type ThreadPanelValue,
 } from '@/features/threads/panel/thread-panel-context'
 import { useComposerAttachments } from '@/features/threads/data/use-composer-attachments'
+import { ModelPickerControls } from '@/features/threads/model-picker'
 import { ThreadComposer } from '@/features/threads/thread-composer'
 import { ThreadTranscript } from '@/features/threads/thread-transcript'
 import { SummariseDialog } from '@/features/threads/transcript/summarise-dialog'
@@ -25,7 +26,10 @@ import { sessionCache, sessionStream } from './data/session-stream'
 import { requestRewind, rewoundDraftOf, seqByEventIdOf } from './data/session-rewind'
 import { sessionRefusalsOf } from './data/session-refusals'
 import { sessionBootViewOf } from './data/session-boot-view'
+import { sessionModelOf } from './data/session-model'
 import { sessionTranscriptOf } from './data/session-transcript'
+import { useSessionModelChoice } from './data/use-session-model-choice'
+import { useSessionRunFailure } from './data/use-session-run-failure'
 import { sessionViewModelOf, shellTailTextOf } from './data/session-view-model'
 import { retrySessionNow } from './data/use-retry-session'
 import { SessionUpdateCard } from './session-update-card'
@@ -136,6 +140,16 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const refusals = useMemo(() => sessionRefusalsOf(snapshot.events), [snapshot.events])
 
   const summarise = useSessionSummarise({ sessionId, events: snapshot.events })
+  const choice = useSessionModelChoice({
+    sessionId,
+    current: sessionModelOf(listed),
+  })
+  const failure = useSessionRunFailure({
+    sessionId,
+    events: snapshot.events,
+    working,
+    onSwitchModel: () => choice.setOpen(true),
+  })
 
   const rewoundDraft = rewoundDraftOf(snapshot.events)
 
@@ -181,8 +195,8 @@ export function SessionView({ sessionId }: { sessionId: string }) {
         <div className="min-h-0 flex-1">
           <ThreadTranscript
             items={view.items}
-            failureCard={null}
-            failedLabel={null}
+            failureCard={failure.card}
+            failedLabel={failure.failedLabel}
             pod={null}
             working={working}
             background={background}
@@ -218,6 +232,13 @@ export function SessionView({ sessionId }: { sessionId: string }) {
             working={working}
             placeholder="Message Atlas…"
           >
+            <ModelPickerControls
+              picker={choice.picker}
+              selection={choice.selection}
+              onSelectionChange={choice.onSelectionChange}
+              open={choice.open}
+              onOpenChange={choice.onOpenChange}
+            />
             <SessionContext context={model.context} spend={model.spend} />
           </ThreadComposer>
         </div>

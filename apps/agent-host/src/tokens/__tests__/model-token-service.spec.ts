@@ -63,6 +63,28 @@ const serviceOver = (fetchFn: ReturnType<typeof providerFake>['fetchFn']) =>
 
 const rowOf = () => testDb().db.orm.public.OauthConnection.first({ id: 'conn-1' })
 
+const seedAccount = async (args: { id: string; connectionId: string }): Promise<void> => {
+  await testDb().db.orm.public.AgentAccount.create({
+    id: args.id,
+    userId: 'user-1',
+    provider: 'anthropic',
+    kind: 'oauth',
+    origin: 'login',
+    label: args.id,
+    status: 'active',
+    sealedSecret: cipher.encrypt(
+      JSON.stringify({
+        kind: 'oauth',
+        tokens: { accessToken: 'at-1', refreshToken: '', expiresAt: iso(NOW + 600_000) },
+        authority: { url: 'https://api.byatlas.io', connectionId: args.connectionId },
+      }),
+    ),
+  })
+}
+
+const accountStatus = async (id: string): Promise<string | undefined> =>
+  (await testDb().db.orm.public.AgentAccount.select('status').first({ id }))?.status
+
 const unsealed = async (): Promise<StoredTokens> =>
   JSON.parse(cipher.decrypt((await rowOf())?.sealedTokens ?? '')) as StoredTokens
 
@@ -175,6 +197,18 @@ describe('ModelTokenService', () => {
     const row = await rowOf()
     expect(row?.status).toBe('expired')
     expect(row?.refreshAttempt).toBeNull()
+  })
+
+  it('expires every account whose authority points at the rejected connection', async () => {
+    await seedConnection({ db: testDb().db, tokens: dueTokens() })
+    await seedAccount({ id: 'acc-dead', connectionId: 'conn-1' })
+    await seedAccount({ id: 'acc-other', connectionId: 'conn-2' })
+    const provider = providerFake(() => new Response('{}', { status: 401 }))
+    await serviceOver(provider.fetchFn)
+      .issue({ userId: 'user-1', connectionId: 'conn-1' })
+      .catch(() => undefined)
+    expect(await accountStatus('acc-dead')).toBe('expired')
+    expect(await accountStatus('acc-other')).toBe('active')
   })
 
   it('releases the attempt and serves the cached token when the provider is down', async () => {

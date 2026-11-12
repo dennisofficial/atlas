@@ -11,6 +11,7 @@ import {
 } from '@dltech/atlas-wire'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { RefreshLock } from '../../../_lib/refresh-lock/refresh-lock'
+import { expireAccountsOf } from './oauth-account-expiry'
 import {
   EConnectionStatus,
   OauthClock,
@@ -250,6 +251,7 @@ export class OauthConnectionsService {
       if (await this.fenceLost(fence)) return undefined
       if (error instanceof OauthRejectedError) {
         await this.store.reject(fence)
+        await expireAccountsOf({ row: args.row, store: this.store, cipher: this.cipher })
         throw reauthorizationRequired()
       }
       if (error instanceof OauthRateLimitedError) await this.store.release(fence)

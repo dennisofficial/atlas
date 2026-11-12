@@ -7,6 +7,7 @@ import { ConfigReader, SessionNotFoundError } from '../config-reader'
 import {
   cipher,
   recordingDb,
+  sealed,
   seedApiKeyAccount,
   seedOwner,
   seedSetting,
@@ -210,5 +211,53 @@ describe('ConfigReader thread model', () => {
       configured: true,
       ref: { providerId: 'anthropic', modelId: 'claude-sonnet-4-5' },
     })
+  })
+})
+
+describe('ConfigReader session account', () => {
+  it('runs the account the session pins over the active pointer', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedApiKeyAccount(db)
+    await db.orm.public.AgentAccount.create({
+      id: 'acct-2',
+      userId: 'user-1',
+      provider: 'anthropic',
+      kind: 'oauth',
+      origin: 'login',
+      label: 'two',
+      status: 'active',
+      sealedSecret: sealed({
+        kind: 'oauth',
+        tokens: {
+          accessToken: 'two',
+          refreshToken: 'two-refresh',
+          expiresAt: '2026-11-06T12:00:00.000Z',
+        },
+        authority: { url: 'https://cloud.test', connectionId: 'conn-2' },
+      }),
+    })
+    await db.orm.v2.V2Session.where({ id: 's-1' }).updateAndCount({
+      modelRef: 'anthropic/claude-haiku-4-5',
+      modelAccountId: 'acct-2',
+    })
+    const config = await readerOver().read({ sessionId: 's-1' })
+    expect(config.model).toMatchObject({
+      configured: true,
+      accountId: 'acct-2',
+      credential: { kind: 'oauth', connectionId: 'conn-2' },
+    })
+  })
+
+  it('falls back to the active pointer when the pinned account is gone', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedApiKeyAccount(db)
+    await db.orm.v2.V2Session.where({ id: 's-1' }).updateAndCount({
+      modelRef: 'anthropic/claude-haiku-4-5',
+      modelAccountId: 'acct-gone',
+    })
+    const config = await readerOver().read({ sessionId: 's-1' })
+    expect(config.model).toMatchObject({ configured: true, accountId: 'acct-1' })
   })
 })
