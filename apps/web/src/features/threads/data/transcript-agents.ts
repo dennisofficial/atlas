@@ -8,6 +8,7 @@ import {
 } from '@dltech/atlas-client/transcript'
 import {
   EAgentStatus,
+  EReportKind,
   reachesModel,
   recordsLifecycle,
   type Event,
@@ -176,12 +177,33 @@ function reportItemOf(args: {
   return prose === undefined ? null : { ...base, failed: false, report: prose }
 }
 
+const answerKeyOf = (event: EventOfType<'agent-reported'> | EventOfType<'agent-ended'>): string =>
+  `${event.agentId}\u0000${proseOf(event.prose) ?? ''}`
+
+/** Logs written before 2026-11-12 hold a done report beside the ending that repeats it — one answer, two rows. */
+const reportedAnswers = (events: readonly Event[]): ReadonlySet<string> =>
+  new Set(
+    events.flatMap((event) =>
+      event.type === 'agent-reported' && event.kind !== EReportKind.Progress && reachesModel(event)
+        ? [answerKeyOf(event)]
+        : [],
+    ),
+  )
+
 export function reportItemsOf(events: readonly Event[]): Map<string, ReportItem> {
   const history = historyOf(events)
+  const answered = reportedAnswers(events)
   const reports = new Map<string, ReportItem>()
   for (const event of events) {
     if (event.type !== 'agent-reported' && event.type !== 'agent-ended') continue
     if (!reachesModel(event)) continue
+    if (
+      event.type === 'agent-ended' &&
+      event.status !== EAgentStatus.Failed &&
+      answered.has(answerKeyOf(event))
+    ) {
+      continue
+    }
     const item = reportItemOf({ event, history })
     if (item !== null) reports.set(item.id, item)
   }

@@ -171,9 +171,7 @@ describe('a sub-agent spawned with the crew port', () => {
     expect(parentEvents.filter((event) => event.type === 'agent-ended')).toMatchObject([
       { agentId: childId, status: 'finished', turns: 1, prose: 'child answer' },
     ])
-    expect(parentEvents.filter((event) => event.type === 'agent-reported')).toMatchObject([
-      { agentId: childId, kind: 'done', prose: 'child answer' },
-    ])
+    expect(parentEvents.filter((event) => event.type === 'agent-reported')).toEqual([])
 
     const childEvents = await eventsIn(rig, childId as typeof THREAD_ID)
     expect(childEvents.filter((event) => event.type === 'user-said')).toMatchObject([
