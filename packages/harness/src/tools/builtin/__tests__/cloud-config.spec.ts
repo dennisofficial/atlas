@@ -348,8 +348,26 @@ describe('CloudConfigTool', () => {
     expect(set.ok).toBe(true)
     const expectedHash = '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824'
     expect(calls).toEqual([
-      `skillsPut {"scope":"project","projectId":"p1","skill":"review","path":"SKILL.md","content":"aGVsbG8=","contentHash":"${expectedHash}"}`,
+      'skillsListFiles {"scope":"project","projectId":"p1","skill":"review"}',
+      `skillsPut {"scope":"project","projectId":"p1","skill":"review","path":"SKILL.md","content":"aGVsbG8=","contentHash":"${expectedHash}","baseRevision":1}`,
     ])
+  })
+
+  it('creates a file the skill does not hold yet at baseRevision 0', async () => {
+    calls.length = 0
+    const set = await invoke({
+      access: sandbox,
+      input: {
+        scope: 'personal',
+        kind: 'skill',
+        action: 'set',
+        path: 'review/new.md',
+        contents: 'x',
+      },
+    })
+    expect(set.ok).toBe(true)
+    expect(calls[1]).toContain('"path":"new.md"')
+    expect(calls[1]).toEndWith('"baseRevision":0}')
   })
 
   it('removes a whole skill with a one-segment path and a file with two', async () => {
@@ -366,7 +384,8 @@ describe('CloudConfigTool', () => {
     expect(file.ok && file.modelText).toBe('Removed file review/icon.png.')
     expect(calls).toEqual([
       'skillsRemoveSkill {"scope":"personal","skill":"review"}',
-      'skillsRemove {"scope":"personal","skill":"review","path":"icon.png","baseRevision":0}',
+      'skillsListFiles {"scope":"personal","skill":"review"}',
+      'skillsRemove {"scope":"personal","skill":"review","path":"icon.png","baseRevision":1}',
     ])
   })
 

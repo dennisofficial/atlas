@@ -49,7 +49,7 @@ Use it only when the operator asks for a change.
 - `list` without a path lists the scope's skills; `list` with path `<skill>` shows its files.
 - `read` and `set` need a two-segment path. `remove` with `<skill>` deletes the whole skill; with `<skill>/<file>` deletes one file.
 - `contents` is utf8 text only; binary files are refused (manage those on the web settings page).
-- `set` overwrites without tracking revisions: a "changed since baseRevision" conflict means someone else wrote it; read the file again and retry.
+- `set` and `remove` send the file's current revision, so they overwrite whatever is stored; a "changed since baseRevision" conflict means another writer landed between that lookup and the write, so retry.
 - In a cloud sandbox, personal skills land at `<atlas home>/skills` and project skills at `<atlas home>/project-skills`. At runtime repo skills win over project, project over personal (global), global over built-in.
 - Sandboxes overwrite these on-disk copies from Atlas Cloud at the next pod start — edit skills through the tool, never by writing the files. Edits apply to running sessions at the next turn.
 - Recipe — override a global skill for one project: `read` it from personal scope, then `set` the edited copy in project scope.
