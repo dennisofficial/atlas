@@ -113,6 +113,7 @@ export const pluginPodContextOf = (args: {
       return off
     },
     log: (message) => deps.log?.info({ source: 'holder.plugin', message }),
+    ...(runtime.env === undefined ? {} : { env: runtime.env }),
   }
 }
 

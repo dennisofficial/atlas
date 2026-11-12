@@ -101,6 +101,7 @@ export type PluginPodContext = {
   live(frame: LiveFrame): void
   onDaemonEvent(listener: (frame: DaemonEventFrame) => void): () => void
   log(message: string): void
+  env?(): Promise<Record<string, string>>
 }
 
 export type PodSlot = {

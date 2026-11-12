@@ -184,6 +184,7 @@ export const createSessionRuntimeFactory = (
           await shellEnv.refresh({ token, signing, launchDirectory, signal })
           await refreshSecrets(signal)
           return ensureWorkspace({
+            env: shellEnvironmentOf({ paths, base: shellEnv.current() }),
             calls,
             processes,
             files,
@@ -257,16 +258,17 @@ export const createSessionRuntimeFactory = (
       workspace: config.workspace,
     })
     const repoAt = (path: string) => repoMap.find((entry) => entry.path === path)
+    const sessionShellEnv = async (): Promise<Record<string, string>> => {
+      await refreshSecrets()
+      return shellEnvironmentOf({ paths, base: shellEnv.current() })
+    }
     const daemonToolList = daemonToolsOf({
       processes,
       files,
       agentFiles,
       pathEnv: pathEnvironmentOf(paths),
       setup: gate,
-      shellEnv: async () => {
-        await refreshSecrets()
-        return shellEnvironmentOf({ paths, base: shellEnv.current() })
-      },
+      shellEnv: sessionShellEnv,
     })
     const tools = [
       ...daemonToolList,
@@ -357,6 +359,7 @@ export const createSessionRuntimeFactory = (
       },
       plugins: args.plugins,
       runningShells: () => countRunningShells({ calls }),
+      env: sessionShellEnv,
       prepare,
       subscribePrepareOutput: (listener) => steps.subscribeOutput(listener),
       stop: async () => {

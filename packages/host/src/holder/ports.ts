@@ -79,6 +79,7 @@ export type SessionRuntime = {
   pullRequests?: PullRequestSource | undefined
   plugins?: ComposedPlugins | undefined
   runningShells(): Promise<number>
+  env?: (() => Promise<Record<string, string>>) | undefined
   prepare(onStep?: PrepareStepReporter): Promise<PrepareResult>
   subscribePrepareOutput?(listener: (text: string) => void): void
   stop(): Promise<void>
