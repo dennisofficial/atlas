@@ -87,6 +87,8 @@ should enforce a dependency rule.
 
 - Bun is the package manager and the runtime (OpenTUI needs Bun's FFI; `bun build --compile` makes
   the binary). `bun install` at the root; never npm, pnpm or yarn.
+- Biome formats and lints (`biome.json`); there is no Prettier. Format only the files you touched
+  with `bunx biome check --write <files>`, never `prettier` and never the whole tree.
 - The isolated linker means an undeclared dependency won't resolve. `typescript`, `react`,
   `react-dom` and their types are pinned in root `overrides`; never bump them in one package. A
   blocked postinstall goes in root `trustedDependencies` with the reason.
