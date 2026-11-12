@@ -7,6 +7,7 @@ export enum ETranscriptKind {
   Report = 'report',
   Notice = 'notice',
   SignIn = 'sign-in',
+  Request = 'request',
 }
 
 export enum ENoticeTone {

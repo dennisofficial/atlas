@@ -4,6 +4,7 @@ import type { HostTimers } from '@dltech/atlas-host'
 import type { LogPort } from '@dltech/atlas-observability'
 
 import { MCP_OAUTH_BEGIN_PATH, MCP_OAUTH_CALLBACK_PATH } from '../mcp-oauth'
+import { OPERATOR_ANSWER_PATH } from '../operator-input'
 import type { StreamAuthPort } from './stream-auth'
 import { StreamConnection, type StreamSocketData } from './stream-connection'
 import {
@@ -31,6 +32,7 @@ export type StreamServerArgs = {
   trustedOrigins: readonly string[]
   mcpOauthBegin?: ((request: Request) => Promise<Response | null>) | undefined
   mcpOauthCallback?: ((request: Request) => Promise<Response | null>) | undefined
+  operatorAnswer?: ((request: Request) => Promise<Response | null>) | undefined
   eventTypes?: readonly string[] | undefined
   maxConnectionsPerUser?: number
   subscriptions?: SubscriptionPort
@@ -81,6 +83,10 @@ export const startStreamServer = (args: StreamServerArgs): StreamServer => {
       const begin = args.mcpOauthBegin
       if (begin !== undefined && pathname === MCP_OAUTH_BEGIN_PATH) {
         return begin(request).then((answered) => answered ?? notFound())
+      }
+      const operator = args.operatorAnswer
+      if (operator !== undefined && pathname === OPERATOR_ANSWER_PATH) {
+        return operator(request).then((answered) => answered ?? notFound())
       }
       if (pathname !== '/stream') return notFound()
       if (!isUpgrade(request)) return new Response('upgrade required', { status: 426 })

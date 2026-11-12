@@ -39,6 +39,16 @@ export function isSameItem(args: { previous: TranscriptItem; next: TranscriptIte
       previous.result === next.result &&
       previous.reason === next.reason
     )
+  if (next.kind === ETranscriptKind.Request || previous.kind === ETranscriptKind.Request)
+    return (
+      previous.kind === ETranscriptKind.Request &&
+      next.kind === ETranscriptKind.Request &&
+      previous.state === next.state &&
+      previous.prompt === next.prompt &&
+      previous.path === next.path &&
+      previous.bytes === next.bytes &&
+      previous.reason === next.reason
+    )
   if (next.kind === ETranscriptKind.Notice || previous.kind === ETranscriptKind.Notice)
     return (
       previous.kind === ETranscriptKind.Notice &&

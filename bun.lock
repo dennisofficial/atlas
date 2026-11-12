@@ -37,6 +37,7 @@
         "@dltech/atlas-plugin-github": "workspace:*",
         "@dltech/atlas-plugin-mcp": "workspace:*",
         "@dltech/atlas-plugin-memory": "workspace:*",
+        "@dltech/atlas-plugin-operator": "workspace:*",
         "@dltech/atlas-plugin-sdk": "workspace:*",
         "@dltech/atlas-plugin-services": "workspace:*",
         "@dltech/atlas-plugin-sessions": "workspace:*",
@@ -82,6 +83,7 @@
         "@dltech/atlas-plugin-crew": "workspace:*",
         "@dltech/atlas-plugin-github": "workspace:*",
         "@dltech/atlas-plugin-mcp": "workspace:*",
+        "@dltech/atlas-plugin-operator": "workspace:*",
         "@dltech/atlas-plugin-sdk": "workspace:*",
         "@dltech/atlas-plugin-services": "workspace:*",
         "@dltech/atlas-plugin-sessions": "workspace:*",
@@ -379,6 +381,7 @@
         "@dltech/atlas-plugin-crew": "workspace:*",
         "@dltech/atlas-plugin-github": "workspace:*",
         "@dltech/atlas-plugin-mcp": "workspace:*",
+        "@dltech/atlas-plugin-operator": "workspace:*",
         "@dltech/atlas-plugin-sdk": "workspace:*",
         "@dltech/atlas-plugin-services": "workspace:*",
         "@dltech/atlas-plugin-sessions": "workspace:*",
@@ -636,6 +639,7 @@
         "@dltech/atlas-control": "workspace:*",
         "@dltech/atlas-core": "workspace:*",
         "@dltech/atlas-observability": "workspace:*",
+        "@dltech/atlas-plugin-operator": "workspace:*",
         "@dltech/atlas-plugin-sdk": "workspace:*",
         "@dltech/atlas-protocol": "workspace:*",
         "zod": "^4.4.3",
@@ -914,6 +918,19 @@
         "@dltech/atlas-core": "workspace:*",
         "@dltech/atlas-plugin-sdk": "workspace:*",
         "@dltech/atlas-wire": "workspace:*",
+        "zod": "^4.4.3",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
+    "plugins/operator": {
+      "name": "@dltech/atlas-plugin-operator",
+      "version": "0.1.0",
+      "dependencies": {
+        "@dltech/atlas-client": "workspace:*",
+        "@dltech/atlas-core": "workspace:*",
+        "@dltech/atlas-plugin-sdk": "workspace:*",
         "zod": "^4.4.3",
       },
       "devDependencies": {
@@ -1491,6 +1508,8 @@
     "@dltech/atlas-plugin-mcp": ["@dltech/atlas-plugin-mcp@workspace:plugins/mcp"],
 
     "@dltech/atlas-plugin-memory": ["@dltech/atlas-plugin-memory@workspace:plugins/memory"],
+
+    "@dltech/atlas-plugin-operator": ["@dltech/atlas-plugin-operator@workspace:plugins/operator"],
 
     "@dltech/atlas-plugin-sdk": ["@dltech/atlas-plugin-sdk@workspace:packages/plugin-sdk"],
 

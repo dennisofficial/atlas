@@ -52,6 +52,7 @@ export function isSameTurn(args: { previous: Turn; next: Turn }): boolean {
     case ETurnKind.User:
     case ETurnKind.Notice:
     case ETurnKind.SignIn:
+    case ETurnKind.Request:
       return next.kind === previous.kind && isSameItem({ previous: previous.item, next: next.item })
     case ETurnKind.Report:
       return next.kind === ETurnKind.Report && isShallowEqual(previous.item, next.item)

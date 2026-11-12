@@ -13,9 +13,18 @@ const repoRoot = join(import.meta.dir, '../../../../..')
 const v1Builtin = join(repoRoot, 'packages/harness/src/tools/builtin')
 const v2Directories = [
   join(repoRoot, 'apps/agent-host/src/agent-tools'),
-  ...['crew', 'github', 'mcp', 'memory', 'services', 'sessions', 'shells', 'skills', 'web'].map(
-    (name) => join(repoRoot, 'plugins', name, 'src', 'pod'),
-  ),
+  ...[
+    'crew',
+    'github',
+    'mcp',
+    'memory',
+    'operator',
+    'services',
+    'sessions',
+    'shells',
+    'skills',
+    'web',
+  ].map((name) => join(repoRoot, 'plugins', name, 'src', 'pod')),
 ]
 const constantDirectories = [
   join(repoRoot, 'packages/harness/src'),
@@ -37,10 +46,6 @@ export const EXCEPTIONS: Readonly<Record<string, string>> = {
     'artifacts are the v2 control plane’s, unpublished over its API, so a pod has no tool',
   execution_location:
     'a v2 pod never moves execution location; the control plane decides where a session runs',
-  operator_input:
-    'the v2 cloud loop has no live operator surface mid-tool, so there is nobody to ask',
-  operator_shell_input:
-    'the v2 cloud loop has no live operator surface mid-tool, so there is nobody to ask',
   routine_create:
     'routines are the v2 control plane’s, scheduled over its API, so a pod has no tool',
   routine_delete:

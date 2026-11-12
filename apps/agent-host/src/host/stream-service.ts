@@ -4,7 +4,9 @@ import { eventTypesOf } from '@dltech/atlas-plugin-sdk'
 
 import type { AgentHostEnv } from '../config/env'
 import { SecretCipher } from '../config/secret-cipher'
+import { operatorRequestRegistry } from '../config/operator-control'
 import { mcpOauthBeginOf, mcpOauthCallbackOf, mcpOauthGatewayOf } from '../mcp-oauth'
+import { operatorAnswerOf } from '../operator-input'
 import { registeredPlugins } from '../registered-plugins'
 import { createPgStreamAuth } from '../stream/pg-stream-auth'
 import type { SubscriptionPort } from '../stream/subscription-port'
@@ -47,6 +49,12 @@ export class StreamService {
         db,
         cipher,
         webOrigin: this.args.env.trustedOrigins[0] ?? WEB_ORIGIN_FALLBACK,
+      }),
+      operatorAnswer: operatorAnswerOf({
+        registry: operatorRequestRegistry(),
+        resolve: (bearer) => auth.resolve(bearer),
+        trustedOrigins: this.args.env.trustedOrigins,
+        log: this.args.log,
       }),
       port: this.args.env.port,
       auth,
