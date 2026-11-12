@@ -65,7 +65,7 @@ export class McpBridgeTool extends ToolDefinition {
       if (error instanceof McpUnauthorizedError)
         return {
           ok: false,
-          reason: `the '${this.server}' MCP server needs a sign-in; call mcp_sign_in to start one`,
+          reason: `the '${this.server}' MCP server needs a sign-in; call operator_mcp_sign_in to start one`,
         }
       return {
         ok: false,
