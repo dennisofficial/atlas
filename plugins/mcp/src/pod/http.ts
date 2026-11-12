@@ -117,7 +117,7 @@ export class HttpClient implements McpTransportClient {
     })
     if (response.status === 401)
       throw new McpUnauthorizedError(
-        `the '${this.args.serverId}' MCP server needs a sign-in; call server_sign_in to start one`,
+        `the '${this.args.serverId}' MCP server needs a sign-in; call operator_mcp_sign_in to start one`,
       )
     if (!response.ok)
       throw new McpTransportError(

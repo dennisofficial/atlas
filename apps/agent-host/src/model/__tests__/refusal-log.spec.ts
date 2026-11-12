@@ -43,7 +43,7 @@ describe('a refused provider call', () => {
         cause: refusalOf({ status: 400, type: 'invalid_request_error' }),
       }),
       prompt,
-      tools: [toolOf('read'), toolOf('server_sign_in')],
+      tools: [toolOf('read'), toolOf('operator_mcp_sign_in')],
     })
 
     expect(refusal?.status).toBe(400)
@@ -53,7 +53,7 @@ describe('a refused provider call', () => {
     expect(refusal?.systemBytes).toBeGreaterThan(0)
     expect(refusal?.messageBytes).toBeGreaterThan(0)
     expect(refusal?.toolBytes).toBeGreaterThan(0)
-    expect(refusal?.toolNames).toEqual(['read', 'server_sign_in'])
+    expect(refusal?.toolNames).toEqual(['read', 'operator_mcp_sign_in'])
   })
 
   it('records every client error, including the one that is a rate limit', () => {
@@ -80,14 +80,14 @@ describe('recording a refused provider call', () => {
       log,
       error: refusalOf({ status: 400, type: 'invalid_request_error' }),
       prompt,
-      tools: [toolOf('server_sign_in')],
+      tools: [toolOf('operator_mcp_sign_in')],
     })
 
     expect(log.entries).toHaveLength(1)
     expect(log.entries[0]?.severity).toBe(ELogSeverity.Warn)
     expect(log.entries[0]?.source).toBe('model')
     expect(log.entries[0]?.message).toContain('400')
-    expect(log.entries[0]?.data?.toolNames).toEqual(['server_sign_in'])
+    expect(log.entries[0]?.data?.toolNames).toEqual(['operator_mcp_sign_in'])
     expect(log.entries[0]?.data?.status).toBe(400)
   })
 

@@ -81,7 +81,7 @@ _Updated at the end of every slice. Last update: 2026-11-12._
 - **Spec written 2026-11-10: slice 7d, MCP sign-in from the transcript**
   ([spec](slices/07d-mcp-sign-in.md); open questions in its §7). Both cloud MCP servers sign in once from
   Settings and connect (#2168), but nothing in a session can start a sign-in: a server only the repo
-  names has no row to hold a grant, and v2 has no sign-in flow of its own. The slice adds `server_sign_in`
+  names has no row to hold a grant, and v2 has no sign-in flow of its own. The slice adds `operator_mcp_sign_in`
   to `plugins/mcp`, a host-owned OAuth flow ported from v1 (discovery, registration, PKCE, callback,
   sealed grant, refresh with a row claim instead of a Redis lock), a public callback on the agent host,
   and the same tool for a repo-only entry, which would create a user-scope row to hold its grant (its
