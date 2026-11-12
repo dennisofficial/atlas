@@ -13,7 +13,7 @@ import type { McpStore } from './store'
 const signInSchema = z.strictObject({ name: z.string().min(1) })
 
 export class McpSignInTool extends SchemaTool<typeof signInSchema> {
-  readonly name = 'mcp_sign_in'
+  readonly name = 'server_sign_in'
   readonly effect = EToolEffect.Write
   readonly inputSchema = signInSchema
   override readonly pathFields = TOUCHES_PATHS_IT_CANNOT_NAME

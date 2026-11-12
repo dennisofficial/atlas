@@ -279,6 +279,7 @@ export const createSessionRuntimeFactory = (
                 fast: () => chosen?.fast ?? false,
               }),
               card: () => findCard({ catalog: generatedCatalogue(), ref }),
+              ...(args.log === undefined ? {} : { log: args.log }),
               mediaSource:
                 args.media === undefined
                   ? undefined
