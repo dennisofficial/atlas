@@ -21,7 +21,7 @@ export class OperatorShellInputTool extends SchemaTool<typeof inputSchema> {
   readonly description = [
     'Ask the operator for a value only they have and type it straight into the stdin of a background shell this session already started, identified by shellId. Start the CLI with the `shell` tool and input set to true, read its output for the printed login URL or prompt, and pass that as the prompt.',
     'The tool waits while the question sits in the transcript for the operator to answer, then reports the byte count, never the value: it reaches the CLI’s stdin and nowhere else, so read the shell’s output with `shell_output` to see what the CLI did with it.',
-    'The call fails with a reason naming why no value arrived: the operator cancelled, the request expired unanswered, or the delivery failed. The operator is the only one who can answer, so a sub-agent asks the main session to run the login instead.',
+    'The call fails with a reason naming why no value arrived: the operator cancelled, the session stopped waiting for the answer, the request expired unanswered, or the delivery failed. The operator is the only one who can answer, so a sub-agent asks the main session to run the login instead.',
   ].join(' ')
   readonly effect = EToolEffect.Write
   readonly inputSchema = inputSchema

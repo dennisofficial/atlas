@@ -17,6 +17,7 @@ type RequestRun = { asked: Asked; settled: Settled | undefined }
 const STATE_OF_OUTCOME: Readonly<Record<EOperatorRequestOutcome, OperatorRequestState>> = {
   [EOperatorRequestOutcome.Delivered]: 'delivered',
   [EOperatorRequestOutcome.Cancelled]: 'cancelled',
+  [EOperatorRequestOutcome.Abandoned]: 'abandoned',
   [EOperatorRequestOutcome.Expired]: 'expired',
   [EOperatorRequestOutcome.Failed]: 'failed',
 }
@@ -55,6 +56,8 @@ const outcomeText = (settled: Settled | undefined): string => {
         : `the operator delivered a value to ${settled.path} (${settled.bytes ?? 0} bytes)`
     case EOperatorRequestOutcome.Cancelled:
       return `the operator cancelled it and ${NO_VALUE}`
+    case EOperatorRequestOutcome.Abandoned:
+      return `the session stopped waiting for the answer and ${NO_VALUE}`
     case EOperatorRequestOutcome.Failed:
       return settled.reason === undefined
         ? `the delivery failed and ${NO_VALUE}`

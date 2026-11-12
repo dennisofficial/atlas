@@ -36,6 +36,16 @@ export class StallGuard {
     })
   }
 
+  beginWait(): () => void {
+    this.watchdog.hold()
+    let released = false
+    return () => {
+      if (released) return
+      released = true
+      this.watchdog.release()
+    }
+  }
+
   startTurn(args: StartTurnArgs): void {
     this.threadId = args.threadId
     this.stalled = false

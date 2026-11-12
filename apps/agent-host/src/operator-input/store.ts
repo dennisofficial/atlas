@@ -4,6 +4,7 @@ export enum EOperatorRequestStatus {
   Pending = 'pending',
   Answered = 'answered',
   Cancelled = 'cancelled',
+  Abandoned = 'abandoned',
   Expired = 'expired',
   Failed = 'failed',
 }

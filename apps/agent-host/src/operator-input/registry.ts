@@ -107,11 +107,14 @@ export class OperatorRequestRegistry {
       requestId,
       expiresAt,
       answered,
-      abandon: () => {
+      abandon: (reason) => {
         void this.finish({
           requestId,
-          status: EOperatorRequestStatus.Cancelled,
-          answer: { ok: false, reason: 'cancelled' },
+          status:
+            reason === 'cancelled'
+              ? EOperatorRequestStatus.Cancelled
+              : EOperatorRequestStatus.Abandoned,
+          answer: { ok: false, reason },
         })
       },
     }

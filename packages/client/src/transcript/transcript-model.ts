@@ -225,7 +225,13 @@ export type OperatorInputEntry = {
   text: string
 }
 
-export type OperatorRequestState = 'pending' | 'delivered' | 'cancelled' | 'expired' | 'failed'
+export type OperatorRequestState =
+  | 'pending'
+  | 'delivered'
+  | 'cancelled'
+  | 'abandoned'
+  | 'expired'
+  | 'failed'
 
 export type OperatorRequestEntry = {
   kind: EEntryKind.OperatorRequest

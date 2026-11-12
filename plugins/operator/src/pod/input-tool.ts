@@ -21,7 +21,7 @@ export class OperatorInputTool extends SchemaTool<typeof inputSchema> {
   readonly description = [
     'Ask the operator for a value only they have — a login code, a token, a password — and read it from the file the operator session writes it to. The tool waits while the question sits in the transcript for the operator to answer, then reports the path of the file holding the value and never the value itself.',
     'Ask once for a value and reuse the file for everything that needs it: read it, pipe it into a command or hand it to a shell. Never paste the value into a message or echo it into the transcript.',
-    'The call fails with a reason naming why no value arrived: the operator cancelled, the request expired unanswered, or the delivery failed. The operator is the only one who can answer, so a sub-agent asks the main session to run the login instead.',
+    'The call fails with a reason naming why no value arrived: the operator cancelled, the session stopped waiting for the answer, the request expired unanswered, or the delivery failed. The operator is the only one who can answer, so a sub-agent asks the main session to run the login instead.',
   ].join(' ')
   readonly effect = EToolEffect.Write
   readonly inputSchema = inputSchema

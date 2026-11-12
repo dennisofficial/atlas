@@ -11,6 +11,7 @@ import { newKey } from '../calls/remote-calls'
 import { worktreesOf } from './checkouts'
 import type { HeldSessionDeps } from './held-session-deps'
 import { operatorInputOf } from './operator-input'
+import type { AwaitingOperator } from './operator-requests'
 import { fireLive } from './ports'
 import { MirrorPlanHook } from './plan-mirror'
 import { podControlOf } from './pod-control'
@@ -55,6 +56,8 @@ export class ComposedPodRegistry extends ToolRegistry {
   }
 }
 
+const NO_OPERATOR_WAIT: AwaitingOperator = { begin: () => () => undefined }
+
 const operatorInputFor = (args: {
   deps: HeldSessionDeps
   runtime: SessionRuntime
@@ -65,6 +68,7 @@ const operatorInputFor = (args: {
   if (requests === undefined) return EMPTY_OPERATOR_INPUT
   return operatorInputOf({
     requests,
+    awaiting: args.deps.awaitingOperator ?? NO_OPERATOR_WAIT,
     sessionId: args.deps.sessionId,
     threadId: args.threadId,
     sessionDir: args.deps.sessionDir,

@@ -1,3 +1,6 @@
+import { isTurnTakingType } from '../../agents/kind'
+import { CORE_EVENT_TYPES } from '../../events/schema'
+import { RECORD_ONLY_TYPES } from '../event'
 import { EWaitEpisodeKind } from '../../model-recovery/waiting'
 import { EFinishReason } from '../../stream/chunk'
 import { EInputConsumed, type V2Event, type V2EventType } from '../event'
@@ -56,6 +59,14 @@ const TURN_NEUTRAL_TYPES: ReadonlySet<V2EventType> = new Set<V2EventType>([
   'input-refused',
   'workspace-step',
 ])
+
+const KNOWN_TYPES: ReadonlySet<string> = new Set([...CORE_EVENT_TYPES, ...RECORD_ONLY_TYPES])
+
+const isTurnNeutral = (event: V2Event): boolean => {
+  if (TURN_NEUTRAL_TYPES.has(event.type)) return true
+  if (event.type === 'tool-result') return event.error !== undefined || event.interrupted === true
+  return !KNOWN_TYPES.has(event.type) && !isTurnTakingType(event.type)
+}
 
 const isTurnEnding = (event: V2Event): boolean =>
   TURN_ENDING_TYPES.has(event.type) ||
@@ -124,7 +135,7 @@ const stepWaits = (facts: StatusFacts, event: V2Event): StatusFacts => {
 }
 
 const stepTurn = (facts: StatusFacts, event: V2Event): StatusFacts => {
-  if (!TURN_NEUTRAL_TYPES.has(event.type)) {
+  if (!isTurnNeutral(event)) {
     return {
       ...facts,
       turn: turnOf(event),

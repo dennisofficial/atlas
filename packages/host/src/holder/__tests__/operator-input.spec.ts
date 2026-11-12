@@ -49,6 +49,7 @@ const rigOf = (options?: {
   const calls: CallOp[] = []
   const events: Event[] = []
   const abandoned: string[] = []
+  const waits: string[] = []
   let answer: ((answer: OperatorRequestAnswer) => void) | undefined
 
   const requests: OperatorRequestPort = {
@@ -83,6 +84,12 @@ const rigOf = (options?: {
 
   const input = operatorInputOf({
     requests,
+    awaiting: {
+      begin: () => {
+        waits.push('begin')
+        return () => waits.push('end')
+      },
+    },
     sessionId: SESSION,
     threadId: THREAD,
     sessionDir: SESSION_DIR,
@@ -96,6 +103,7 @@ const rigOf = (options?: {
     calls,
     events,
     abandoned,
+    waits,
     answer: (value: OperatorRequestAnswer) => answer?.(value),
   }
 }
@@ -186,7 +194,7 @@ describe('the operator input adapter', () => {
     expect(JSON.stringify(rig.events)).not.toContain(VALUE)
   })
 
-  it('abandons the request and settles it cancelled when the turn aborts', async () => {
+  it('abandons the request and settles it abandoned when the turn aborts', async () => {
     const rig = rigOf()
     const abort = new AbortController()
     const { asking } = await askedOf({
@@ -199,16 +207,56 @@ describe('the operator input adapter', () => {
     abort.abort()
     const delivery = await asking
 
-    expect(delivery).toEqual({ ok: false, reason: 'cancelled' })
-    expect(rig.abandoned).toEqual(['cancelled'])
+    expect(delivery).toEqual({ ok: false, reason: 'abandoned' })
+    expect(rig.abandoned).toEqual(['abandoned'])
     expect(rig.calls).toEqual([])
     expect(rig.events[1]).toEqual({
       type: OPERATOR_INPUT_SETTLED,
       requestId: REQUEST,
-      outcome: EOperatorRequestOutcome.Cancelled,
-      reason: 'cancelled',
+      outcome: EOperatorRequestOutcome.Abandoned,
+      reason: 'abandoned',
       sessionId: SESSION,
     })
+  })
+
+  it('holds the stall clock for the whole wait and releases it at the settle', async () => {
+    const rig = rigOf()
+    const { asking } = await askedOf({
+      input: rig.input,
+      events: rig.events,
+      ask: askOf('input'),
+      signal: new AbortController().signal,
+    })
+
+    expect(rig.waits).toEqual(['begin'])
+    rig.answer({ ok: true, value: VALUE })
+    await asking
+    expect(rig.waits).toEqual(['begin', 'end'])
+  })
+
+  it('releases the hold when the request cannot be opened', async () => {
+    const rig = rigOf({ openThrows: 'this session has no owner to ask for input' })
+
+    await rig.input.ask({ ask: askOf('input'), signal: new AbortController().signal })
+
+    expect(rig.waits).toEqual(['begin', 'end'])
+  })
+
+  it('settles cancelled, not abandoned, when the operator cancels', async () => {
+    const rig = rigOf()
+    const { asking } = await askedOf({
+      input: rig.input,
+      events: rig.events,
+      ask: askOf('input'),
+      signal: new AbortController().signal,
+    })
+
+    rig.answer({ ok: false, reason: 'cancelled' })
+    const delivery = await asking
+
+    expect(delivery).toEqual({ ok: false, reason: 'cancelled' })
+    expect(rig.abandoned).toEqual([])
+    expect(rig.events[1]).toMatchObject({ outcome: EOperatorRequestOutcome.Cancelled })
   })
 
   it('settles an expiry without writing anything', async () => {
