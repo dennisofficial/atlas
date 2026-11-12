@@ -18,6 +18,7 @@ const digest = (patch: Partial<ControlSessionDigest> = {}): ControlSessionDigest
   modelEffort: null,
   modelFast: null,
   spawnedBySessionId: null,
+  nested: true,
   podSessionId: null,
   routineId: null,
   lastEventAt: null,

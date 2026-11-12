@@ -12,6 +12,7 @@ export const createSessionIn = async (params: {
   modelEffort?: string | undefined
   modelFast?: boolean | undefined
   spawnedBySessionId?: string | undefined
+  nested?: boolean | undefined
   podSessionId?: string | undefined
   routineId?: string | undefined
   at: string

@@ -17,7 +17,7 @@ export const sessionDigestsIn = async (
   const rows = await params.tx.query(
     params.tx.raw
       .sql`SELECT s."id", s."userId", s."projectId", s."title", s."mainThreadId", s."createdAt", s."archivedAt",
-        s."modelRef", s."modelEffort", s."modelFast", s."spawnedBySessionId",
+        s."modelRef", s."modelEffort", s."modelFast", s."spawnedBySessionId", s."nested",
         s."podSessionId", s."routineId",
         (SELECT e."at" FROM "v2"."V2Event" e
           WHERE e."threadId" = s."mainThreadId" ORDER BY e."seq" DESC LIMIT 1) AS "lastEventAt",
@@ -47,6 +47,7 @@ export const sessionDigestsIn = async (
         modelEffort: { codecId: 'pg/text@1', nullable: true },
         modelFast: { codecId: 'pg/bool@1', nullable: true },
         spawnedBySessionId: { codecId: 'pg/text@1', nullable: true },
+        nested: 'pg/bool@1',
         podSessionId: { codecId: 'pg/text@1', nullable: true },
         routineId: { codecId: 'pg/text@1', nullable: true },
         lastEventAt: { codecId: 'pg/timestamptz-date@1', nullable: true },
@@ -67,6 +68,7 @@ export const sessionDigestsIn = async (
     modelEffort: row.modelEffort,
     modelFast: row.modelFast,
     spawnedBySessionId: row.spawnedBySessionId,
+    nested: row.nested,
     podSessionId: row.podSessionId,
     routineId: row.routineId,
     lastEventAt: row.lastEventAt === null ? null : iso(row.lastEventAt),

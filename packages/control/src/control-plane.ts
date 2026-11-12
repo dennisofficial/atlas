@@ -14,7 +14,13 @@ import { appendIn } from './append-ops'
 import { readBlobIn } from './blob-ops'
 import { UnknownThreadError } from './errors'
 import { postIn, takeBackIn, type TakeBackResult } from './inbox-ops'
-import { messagePeerIn, reportToSpawnerIn, sessionsOfIn, spawnPeerIn } from './peer-sessions'
+import {
+  messagePeerIn,
+  messageTeammateIn,
+  reportToSpawnerIn,
+  sessionsOfIn,
+  spawnPeerIn,
+} from './peer-sessions'
 import { LeaseOps } from './lease-ops'
 import {
   ControlStorePort,
@@ -138,6 +144,7 @@ export class ControlPlane {
     mainThreadId: string
     title?: string | undefined
     brief?: string | undefined
+    nested?: boolean | undefined
   }): Promise<{ inboxId: number | null }> {
     return this.store.transact(async (tx) => {
       const spawner = await tx.readSession({
@@ -157,6 +164,18 @@ export class ControlPlane {
       const from = await tx.readSession({ sessionId: params.fromSessionId })
       if (from === undefined) throw new Error(`unknown session ${params.fromSessionId}`)
       return messagePeerIn({ tx, from, ...params, at: await this.nowIn(tx) })
+    })
+  }
+
+  async messageTeammate(params: {
+    fromSessionId: string
+    toSessionId: string
+    text: string
+  }): Promise<{ inboxId: number } | { refused: string }> {
+    return this.store.transact(async (tx) => {
+      const from = await tx.readSession({ sessionId: params.fromSessionId })
+      if (from === undefined) throw new Error(`unknown session ${params.fromSessionId}`)
+      return messageTeammateIn({ tx, from, ...params, at: await this.nowIn(tx) })
     })
   }
 

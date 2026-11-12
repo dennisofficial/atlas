@@ -24,6 +24,7 @@ const briefOf = (overrides: Partial<SessionBrief> = {}): SessionBrief => ({
   sessionId: 'p1',
   title: 'one',
   spawnedBy: 's1',
+  nested: true,
   archivedAt: null,
   current: false,
   status: { state: ESessionStatus.Idle },
@@ -31,7 +32,11 @@ const briefOf = (overrides: Partial<SessionBrief> = {}): SessionBrief => ({
 })
 
 const fakeSessions = (
-  args: { refused?: string | undefined; briefs?: readonly SessionBrief[] | undefined } = {},
+  args: {
+    refused?: string | undefined
+    briefs?: readonly SessionBrief[] | undefined
+    teammateBriefs?: readonly SessionBrief[] | undefined
+  } = {},
 ) => {
   const calls: Call[] = []
   const port: PodSessions = {
@@ -43,6 +48,10 @@ const fakeSessions = (
       calls.push({ method: 'message', args: messageArgs })
       return args.refused === undefined ? { queued: true } : { refused: args.refused }
     },
+    messageTeammate: async (messageArgs) => {
+      calls.push({ method: 'messageTeammate', args: messageArgs })
+      return args.refused === undefined ? { queued: true } : { refused: args.refused }
+    },
     report: async (reportArgs) => {
       calls.push({ method: 'report', args: reportArgs })
       return args.refused === undefined ? { queued: true } : { refused: args.refused }
@@ -50,6 +59,10 @@ const fakeSessions = (
     list: async () => {
       calls.push({ method: 'list', args: {} })
       return args.briefs ?? []
+    },
+    teammates: async () => {
+      calls.push({ method: 'teammates', args: {} })
+      return args.teammateBriefs ?? []
     },
   }
   return { port, calls }
@@ -109,13 +122,16 @@ const textOf = (outcome: Awaited<ReturnType<typeof invoke>>): string =>
   outcome.ok ? outcome.modelText : outcome.reason
 
 describe('the sessions pod', () => {
-  it('declares its four tools and prompts a fragment, and denies a child none', () => {
+  it('declares its seven tools and prompts a fragment, and denies a child none', () => {
     const { ctx } = rig(fakeSessions().port)
     expect(sessionsPod.tools?.(ctx).map((tool) => tool.name)).toEqual([
       'spawn_session',
+      'spawn_teammate',
       'message_session',
+      'message_teammate',
       'report_to_spawner',
       'list_sessions',
+      'list_teammates',
     ])
     expect(sessionsPod.prompts.map((fragment) => fragment.id)).toEqual(['sessions.peers'])
     expect(sessionsPod.childDeny).toBeUndefined()
@@ -126,9 +142,12 @@ describe('the sessions pod', () => {
     const effects = (sessionsPod.tools?.(ctx) ?? []).map((tool) => [tool.name, tool.effect])
     expect(effects).toEqual([
       ['spawn_session', 'write'],
+      ['spawn_teammate', 'write'],
       ['message_session', 'write'],
+      ['message_teammate', 'write'],
       ['report_to_spawner', 'write'],
       ['list_sessions', 'read'],
+      ['list_teammates', 'read'],
     ])
   })
 
@@ -142,7 +161,7 @@ describe('the sessions pod', () => {
     }
     const text = sessionsPod.prompts[0]?.text(promptCtx) ?? ''
     expect(text).not.toContain('peer')
-    expect(text).not.toContain('teammate')
+    expect(text).toContain('spawn_teammate')
     expect(text).toContain('provenance')
     expect(text).toContain('own sandbox')
   })
@@ -173,7 +192,7 @@ describe('spawn_session', () => {
     expect(sessions.calls).toEqual([
       {
         method: 'spawn',
-        args: { title: 'trace the port', brief: 'read the port and report' },
+        args: { title: 'trace the port', brief: 'read the port and report', nested: false },
       },
     ])
     expect(outcome.ok).toBe(true)
@@ -190,10 +209,18 @@ describe('spawn_session', () => {
     const { ctx } = rig(sessions.port)
     const outcome = await invoke({ ctx, name: 'spawn_session', input: {} })
     expect(sessions.calls).toEqual([
-      { method: 'spawn', args: { title: undefined, brief: undefined } },
+      { method: 'spawn', args: { title: undefined, brief: undefined, nested: false } },
     ])
     expect(textOf(outcome)).toContain('no brief')
     expect(textOf(outcome)).not.toContain('teammate')
+  })
+
+  it('refuses to place a top-level session under the caller', async () => {
+    const sessions = fakeSessions()
+    const { ctx } = rig(sessions.port)
+    const outcome = await invoke({ ctx, name: 'spawn_session', input: { nested: true } })
+    expect(outcome.ok).toBe(false)
+    expect(sessions.calls).toEqual([])
   })
 
   it('refuses a field that would place the session on another pod', async () => {
@@ -206,6 +233,102 @@ describe('spawn_session', () => {
     })
     expect(outcome.ok).toBe(false)
     expect(sessions.calls).toEqual([])
+  })
+})
+
+describe('spawn_teammate', () => {
+  it('spawns a nested session by default and names it as a teammate', async () => {
+    const sessions = fakeSessions()
+    const { ctx } = rig(sessions.port)
+    const outcome = await invoke({
+      ctx,
+      name: 'spawn_teammate',
+      input: { title: 'the parser', brief: 'take the parser and report' },
+    })
+    expect(sessions.calls).toEqual([
+      {
+        method: 'spawn',
+        args: { title: 'the parser', brief: 'take the parser and report', nested: true },
+      },
+    ])
+    expect(outcome.ok).toBe(true)
+    expect(outcome.ok && outcome.output).toEqual({ sessionId: 'p1', mainThreadId: 't1' })
+    expect(textOf(outcome)).toContain('teammate')
+    expect(textOf(outcome)).toContain('first message')
+  })
+
+  it('spawns a teammate without a brief when none is given', async () => {
+    const sessions = fakeSessions()
+    const { ctx } = rig(sessions.port)
+    const outcome = await invoke({ ctx, name: 'spawn_teammate', input: {} })
+    expect(sessions.calls).toEqual([
+      { method: 'spawn', args: { title: undefined, brief: undefined, nested: true } },
+    ])
+    expect(textOf(outcome)).toContain('no brief')
+  })
+})
+
+describe('message_teammate', () => {
+  it('queues a message to a nested teammate and says so', async () => {
+    const sessions = fakeSessions()
+    const { ctx } = rig(sessions.port)
+    const outcome = await invoke({
+      ctx,
+      name: 'message_teammate',
+      input: { teammateId: 'p1', text: 'how is it going' },
+    })
+    expect(sessions.calls).toEqual([
+      { method: 'messageTeammate', args: { sessionId: 'p1', text: 'how is it going' } },
+    ])
+    expect(outcome.ok && outcome.output).toEqual({ ok: true })
+    expect(textOf(outcome)).toContain('queued')
+  })
+
+  it('turns a refusal for a non-teammate into the tool reason', async () => {
+    const sessions = fakeSessions({
+      refused: 'session p1 is not one of this session’s nested teammates',
+    })
+    const { ctx } = rig(sessions.port)
+    const outcome = await invoke({
+      ctx,
+      name: 'message_teammate',
+      input: { teammateId: 'p1', text: 'hello' },
+    })
+    expect(outcome).toEqual({
+      ok: false,
+      reason: 'session p1 is not one of this session’s nested teammates',
+    })
+  })
+})
+
+describe('list_teammates', () => {
+  it('lists only the caller’s nested teammates with their status', async () => {
+    const teammates = [
+      briefOf({ sessionId: 'p1', title: 'one', status: { state: ESessionStatus.Thinking } }),
+      briefOf({
+        sessionId: 'p2',
+        title: null,
+        archivedAt: '2026-11-09T10:00:00.000Z',
+        status: { state: ESessionStatus.Idle },
+      }),
+    ]
+    const sessions = fakeSessions({ teammateBriefs: teammates })
+    const { ctx } = rig(sessions.port)
+    const outcome = await invoke({ ctx, name: 'list_teammates', input: {} })
+    expect(sessions.calls).toEqual([{ method: 'teammates', args: {} }])
+    expect(outcome.ok && outcome.output).toEqual({ teammates })
+    const text = textOf(outcome)
+    expect(text).toContain('p1  one  working')
+    expect(text).toContain('p2  untitled  archived 2026-11-09T10:00:00.000Z')
+    expect(text).not.toContain('current')
+  })
+
+  it('says so when the caller has no teammates', async () => {
+    const sessions = fakeSessions()
+    const { ctx } = rig(sessions.port)
+    expect(textOf(await invoke({ ctx, name: 'list_teammates', input: {} }))).toBe(
+      'This session has no teammates.',
+    )
   })
 })
 

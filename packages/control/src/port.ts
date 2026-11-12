@@ -15,6 +15,7 @@ export type ControlSessionRow = {
   modelEffort: string | null
   modelFast: boolean | null
   spawnedBySessionId: string | null
+  nested: boolean
   podSessionId: string | null
   routineId: string | null
 }
@@ -201,6 +202,7 @@ export interface ControlTx {
     modelEffort?: string | undefined
     modelFast?: boolean | undefined
     spawnedBySessionId?: string | undefined
+    nested?: boolean | undefined
     podSessionId?: string | undefined
     routineId?: string | undefined
     at: string

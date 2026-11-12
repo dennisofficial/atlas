@@ -18,6 +18,7 @@ const sessionRow = () => ({
   modelEffort: null,
   modelFast: null,
   spawnedBySessionId: null,
+  nested: true,
   podSessionId: null,
   podRetiredAt: null,
   lastSurface: 'web',

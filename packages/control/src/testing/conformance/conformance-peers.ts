@@ -27,6 +27,7 @@ export function describeControlPlanePeers(params: ConformanceParams): void {
       sessionId: string
       mainThreadId: string
       brief?: string | undefined
+      nested?: boolean | undefined
       spawner?: string | undefined
     }) =>
       plane.spawnPeer({
@@ -35,6 +36,7 @@ export function describeControlPlanePeers(params: ConformanceParams): void {
         mainThreadId: args.mainThreadId,
         title: 'Peer session',
         ...(args.brief === undefined ? {} : { brief: args.brief }),
+        ...(args.nested === undefined ? {} : { nested: args.nested }),
       })
 
     it('links a spawned session to its spawner with no pod of its own', async () => {
@@ -63,6 +65,23 @@ export function describeControlPlanePeers(params: ConformanceParams): void {
       expect(JSON.parse(inbox[0]?.payload ?? '{}')).toEqual({
         text: 'Take the parser.',
       })
+    })
+
+    it('nests a spawned session by default and lets it be flat instead', async () => {
+      await plane.createSession(createSessionParams({ sessionId: SESSION, mainThreadId: THREAD }))
+      await spawn({ sessionId: 'peer-1', mainThreadId: 'peer-thread-1' })
+      await spawn({ sessionId: 'peer-2', mainThreadId: 'peer-thread-2', nested: false })
+      expect(await plane.readSession({ sessionId: 'peer-1' })).toMatchObject({
+        spawnedBySessionId: SESSION,
+        nested: true,
+      })
+      expect(await plane.readSession({ sessionId: 'peer-2' })).toMatchObject({
+        spawnedBySessionId: SESSION,
+        nested: false,
+      })
+      const roster = await plane.sessionsOf({ sessionId: SESSION })
+      expect(roster.sessions.find((row) => row.sessionId === 'peer-1')?.nested).toBe(true)
+      expect(roster.sessions.find((row) => row.sessionId === 'peer-2')?.nested).toBe(false)
     })
 
     it('gives two spawned sessions a pod each, never one shared', async () => {

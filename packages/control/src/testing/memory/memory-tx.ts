@@ -86,6 +86,7 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
     modelEffort?: string | undefined
     modelFast?: boolean | undefined
     spawnedBySessionId?: string | undefined
+    nested?: boolean | undefined
     podSessionId?: string | undefined
     at: string
   }): Promise<void> {
