@@ -24,6 +24,7 @@ import { Spinner } from '#components/spinner'
 import { useIsMobile } from '#hooks/use-mobile'
 import { cn } from '#lib/utils'
 import { handleLiteralHyphen } from './internal/literal-hyphen'
+import { useCoarsePointer } from './internal/use-coarse-pointer'
 
 import {
   EPromptAttachmentStatus,
@@ -125,6 +126,7 @@ export function PromptInput({
   children,
 }: PromptInputProps) {
   const isMobile = useIsMobile()
+  const coarsePointer = useCoarsePointer()
   const [draft, setDraft] = useState(defaultValue)
   const formRef = useRef<HTMLFormElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -182,6 +184,7 @@ export function PromptInput({
     if (event.defaultPrevented || event.nativeEvent.isComposing) return
     if (handleLiteralHyphen({ event, onValue: acceptValue })) return
     if (event.key !== 'Enter' || event.shiftKey) return
+    if (coarsePointer) return
     event.preventDefault()
     formRef.current?.requestSubmit()
   }
