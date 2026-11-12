@@ -371,7 +371,9 @@ jobs:
   # the PR run's (ortho-backend-v3 learned this on a promotion PR mergeable four seconds after
   # opening).
   ci:
-    name: ${{ github.event_name == 'pull_request' && 'ci' || 'ci (post-merge)' }}
+    # One constant name: the ci-watchdog re-dispatches a stalled pull-request run, and a dispatched
+    # run reports workflow_dispatch here, so an event-dependent name would never satisfy the required
+    # `ci` check on the pull request it was sent to rescue.
     runs-on: ubuntu-latest
     needs: [check, binaries, web-build, test, api-bundle, mac-app-rehearsal]
     if: always()
@@ -387,7 +389,7 @@ jobs:
               .value.result == "success"
               or (
                 .value.result == "skipped"
-                and $event == "push"
+                and ($event == "push" or $event == "workflow_dispatch")
                 and (.key == "mac-app-rehearsal" or .key == "web-build")
               )
             )' >/dev/null || { echo "::error::one or more CI checks did not pass"; exit 1; }
