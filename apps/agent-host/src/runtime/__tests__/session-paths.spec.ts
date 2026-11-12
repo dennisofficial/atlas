@@ -41,7 +41,7 @@ const spawnedEnvOf = async (args: {
     },
     which: (command) => processes.which(command),
   } as ProcessPort
-  const tool = new BashTool(new ForegroundOnlyShells(), files, recording, () => env)
+  const tool = new BashTool(new ForegroundOnlyShells(), files, recording, async () => env)
   await tool.invoke({
     input: { description: 'Print a word', command: 'echo hi' },
     signal: new AbortController().signal,
