@@ -3,6 +3,8 @@ import {
   EWorkspaceStep,
   EWorkspaceStepOutcome,
   EWorkspaceStepState,
+  EProcessOutcome,
+  outcomeOf,
   type FileSystemPort,
   type ProcessPort,
   type WorkspaceStepReport,
@@ -14,8 +16,13 @@ import {
   type RemoteCalls,
 } from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
+import type { ScopedFileMount } from '@dltech/atlas-wire/web'
 import type { WorkspaceConfig } from '../config/agent-host-config'
+import { SANDBOX_HOME_PATH } from '../sandbox/constants'
 
+import { EProjectFileState } from './project-files'
+import { projectFileNoticeOf } from './project-file-notice'
+import { writeProjectFiles } from './project-file-writer'
 import { materialize, run } from './workspace-clone'
 import { RepoProgress, repoNamesOf } from './workspace-repos'
 import {
@@ -72,8 +79,58 @@ const runSetupOnce = async (args: {
   return output
 }
 
-const resultOf = (warnings: readonly string[]): PrepareResult =>
-  warnings.length === 0 ? { ok: true } : { ok: true, warnings }
+const resultOf = (args: {
+  warnings: readonly string[]
+  notices: readonly string[]
+}): PrepareResult => ({
+  ok: true,
+  ...(args.warnings.length === 0 ? {} : { warnings: args.warnings }),
+  ...(args.notices.length === 0
+    ? {}
+    : {
+        notices: args.notices.map((content) => ({ slot: 'project-file-mounts', content })),
+      }),
+})
+
+const sandboxHomeOf = async (args: { processes: ProcessPort }): Promise<string | null> => {
+  const handle = args.processes.spawn({ cmd: ['sh', '-c', 'printf %s "$HOME"'], cwd: '/' })
+  const [outcome, home] = await Promise.all([
+    outcomeOf(handle),
+    new Response(handle.stdout).text(),
+    new Response(handle.stderr).text(),
+  ])
+  const path = home.trim()
+  return outcome.kind === EProcessOutcome.Exited && outcome.code === 0 && path !== '' ? path : null
+}
+
+const mountProjectFiles = async (args: {
+  deps: Deps
+  mounts: readonly ScopedFileMount[]
+  launchDirectory: string
+  notices: string[]
+}): Promise<void> => {
+  if (args.mounts.length === 0) return
+  const outcomes = await writeProjectFiles({
+    mounts: args.mounts,
+    files: args.deps.files,
+    processes: args.deps.processes,
+    roots: {
+      repositoryDir: args.launchDirectory,
+      home: await sandboxHomeOf({ processes: args.deps.processes }),
+      atlasHome: SANDBOX_HOME_PATH,
+    },
+    ...(args.deps.signal === undefined ? {} : { signal: args.deps.signal }),
+  })
+  for (const outcome of outcomes) {
+    if (outcome.state === EProjectFileState.Written) continue
+    args.deps.log?.warn({
+      source: 'runtime.workspace-setup',
+      message: `project file mount ${outcome.path} ended as ${outcome.state}`,
+    })
+  }
+  const notice = projectFileNoticeOf(outcomes)
+  if (notice !== null) args.notices.push(notice)
+}
 
 const scopeFor = (args: { sandboxName: string; phase: string }): string =>
   scopeKeyOf({ runId: 'setup', callId: `${args.sandboxName}:${args.phase}` })
@@ -86,6 +143,7 @@ export const ensureWorkspace = async (args: {
   githubToken: string | null
   launchDirectory: string
   sandboxName: string
+  mounts?: readonly ScopedFileMount[] | undefined
   env?: Record<string, string> | undefined
   signal?: AbortSignal | undefined
   log?: LogPort | undefined
@@ -93,6 +151,7 @@ export const ensureWorkspace = async (args: {
   onOutput?: ((text: string) => void) | undefined
 }): Promise<PrepareResult> => {
   const warnings: string[] = []
+  const notices: string[] = []
   const deps: Deps = {
     processes: args.processes,
     files: args.files,
@@ -106,7 +165,7 @@ export const ensureWorkspace = async (args: {
   const sentinels = sentinelsOf(stateDir)
   const scrub = (text: string): string =>
     githubToken === null ? text : text.split(githubToken).join('***')
-  const phases = ['check', 'clone', 'setup'].map((phase) =>
+  const phases = ['check', 'clone', 'files', 'setup'].map((phase) =>
     scopeFor({ sandboxName: args.sandboxName, phase }),
   )
   try {
@@ -153,7 +212,7 @@ export const ensureWorkspace = async (args: {
         if (workspace.setupScript.trim() !== '') {
           fail({ deps, message: 'setup script was skipped because the workspace clone failed' })
         }
-        return resultOf(warnings)
+        return resultOf({ warnings, notices })
       }
       onStep?.({
         step: EWorkspaceStep.Clone,
@@ -161,6 +220,17 @@ export const ensureWorkspace = async (args: {
         repos: progress.snapshot(),
       })
     }
+    args.signal?.throwIfAborted()
+    await runInCallScope({
+      scopeKey: phases[2] ?? 'setup:files',
+      body: () =>
+        mountProjectFiles({
+          deps,
+          mounts: args.mounts ?? [],
+          launchDirectory,
+          notices,
+        }),
+    })
     args.signal?.throwIfAborted()
     if (state.setupRan || workspace.setupScript.trim() === '') {
       onStep?.({
@@ -172,7 +242,7 @@ export const ensureWorkspace = async (args: {
       const command = workspace.setupScript
       onStep?.({ step: EWorkspaceStep.Setup, state: EWorkspaceStepState.Started, command })
       const output = await runInCallScope({
-        scopeKey: phases[2] ?? 'setup:setup',
+        scopeKey: phases[3] ?? 'setup:setup',
         body: () =>
           runSetupOnce({
             deps,
@@ -195,7 +265,7 @@ export const ensureWorkspace = async (args: {
             },
       )
     }
-    return resultOf(warnings)
+    return resultOf({ warnings, notices })
   } catch (error) {
     fail({ deps, message: 'workspace setup failed', detail: String(error) })
     deps.log?.error({

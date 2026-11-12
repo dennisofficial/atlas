@@ -9,6 +9,7 @@ import {
 import { nativeCommandHandlers, nativeCommands } from '@dltech/atlas-native-commands'
 import { cloudConfigStore } from './config/cloud-config-store'
 import { envSecretsReader } from './config/env-secrets'
+import { projectFilesSourceOf } from './config/project-files'
 import { mcpControlPort } from './config/mcp-control'
 import { operatorControlPort } from './config/operator-control'
 import { composedPlugins } from './registered-plugins'
@@ -77,6 +78,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
       podPeers,
       configWrites: cloudConfigStore(),
       envSecrets: envSecretsReader(),
+      projectFiles: projectFilesSourceOf(),
       ...(args.log === undefined ? {} : { log: args.log }),
     }),
     ids: new RandomIds(),
