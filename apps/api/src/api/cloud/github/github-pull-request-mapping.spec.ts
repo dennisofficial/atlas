@@ -57,6 +57,7 @@ describe('pullRequestCacheFieldsOf', () => {
         run({ name: 'f', conclusion: 'cancelled' }),
       ],
       statuses: [],
+      checksState: null,
     })
 
     expect(fields).toMatchObject({
@@ -76,6 +77,7 @@ describe('pullRequestCacheFieldsOf', () => {
         run({ conclusion: 'success', started_at: '2026-11-02T04:26:00Z' }),
       ],
       statuses: [],
+      checksState: null,
     })
 
     expect(fields).toMatchObject({
@@ -90,6 +92,7 @@ describe('pullRequestCacheFieldsOf', () => {
       pull: pull({}),
       checkRuns: [run({ name: 'release', conclusion: 'skipped' })],
       statuses: [],
+      checksState: null,
     })
 
     expect(fields).toMatchObject({
@@ -123,6 +126,7 @@ describe('pullRequestCacheFieldsOf', () => {
           updated_at: '2026-11-02T04:25:00Z',
         },
       ],
+      checksState: null,
     })
 
     expect(fields).toMatchObject({

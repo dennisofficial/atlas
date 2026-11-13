@@ -17,6 +17,7 @@ type RequestRun = { asked: Asked; settled: Settled | undefined }
 const STATE_OF_OUTCOME: Readonly<Record<EOperatorRequestOutcome, OperatorRequestState>> = {
   [EOperatorRequestOutcome.Delivered]: 'delivered',
   [EOperatorRequestOutcome.Cancelled]: 'cancelled',
+  [EOperatorRequestOutcome.Abandoned]: 'abandoned',
   [EOperatorRequestOutcome.Expired]: 'expired',
   [EOperatorRequestOutcome.Failed]: 'failed',
 }
@@ -43,6 +44,7 @@ const runsOf = (events: readonly (Event | V2Event)[]): ReadonlyMap<string, Reque
 const stateOf = (args: { run: RequestRun; now: number }): OperatorRequestState => {
   const { asked, settled } = args.run
   if (settled !== undefined) return STATE_OF_OUTCOME[settled.outcome]
+  if (asked.expiresAt === undefined) return 'pending'
   return Date.parse(asked.expiresAt) <= args.now ? 'expired' : 'pending'
 }
 
@@ -55,6 +57,8 @@ const outcomeText = (settled: Settled | undefined): string => {
         : `the operator delivered a value to ${settled.path} (${settled.bytes ?? 0} bytes)`
     case EOperatorRequestOutcome.Cancelled:
       return `the operator cancelled it and ${NO_VALUE}`
+    case EOperatorRequestOutcome.Abandoned:
+      return `the session stopped waiting for the answer and ${NO_VALUE}`
     case EOperatorRequestOutcome.Failed:
       return settled.reason === undefined
         ? `the delivery failed and ${NO_VALUE}`
@@ -81,7 +85,7 @@ const entryOfRun = (args: {
     secret: asked.secret,
     ...(asked.shellId === undefined ? {} : { shellId: asked.shellId }),
     state: args.state,
-    expiresAt: asked.expiresAt,
+    ...(asked.expiresAt === undefined ? {} : { expiresAt: asked.expiresAt }),
     ...(settled?.path === undefined ? {} : { path: settled.path }),
     ...(settled?.bytes === undefined ? {} : { bytes: settled.bytes }),
     ...(settled?.reason === undefined ? {} : { reason: settled.reason }),
@@ -100,6 +104,6 @@ export const requestEntriesAt = (args: {
   return entries
 }
 
-/** A request whose deadline passed with no settlement reads as expired, so a dead host leaves no card that looks live. */
+/** A request with no deadline stays pending until it settles; one whose deadline passed reads as expired. */
 export const operatorRequestEntries: TranscriptEntryFold = (events) =>
   requestEntriesAt({ events, now: Date.now() })

@@ -14,7 +14,6 @@ import { GithubDeliveryFillDeferred, type RestFill } from './github-delivery-fil
 import { normalizedRepo } from './github-pr-identity'
 import { stateFieldsOf } from './github-pr-state-fields'
 import type { GithubPrStateWriter, PrStateWrite } from './github-pr-state-writer'
-import { checkSuiteInputOf } from './github-check-suites'
 import { CheckAnnotationFetcher, type FetchAnnotations } from './github-check-annotations'
 import type {
   GithubCheckRunWebhookPayload,
@@ -43,13 +42,14 @@ export class GithubDeliveryChecks {
     })
   }
 
+  /**
+   * A suite is a container, never a check: its event re-reads the head's tally and can settle a
+   * ledger, but records nothing of its own.
+   */
   handleCheckSuite(payload: GithubCheckSuiteWebhookPayload): Promise<void> {
-    const { check_suite: suite } = payload
-    if (suite.id === undefined) return Promise.resolve()
     return this.ingest({
       repoFullName: payload.repository.full_name,
-      headSha: suite.head_sha,
-      check: checkSuiteInputOf({ ...suite, id: suite.id, status: suite.status ?? 'completed' }),
+      headSha: payload.check_suite.head_sha,
     })
   }
 
@@ -64,15 +64,20 @@ export class GithubDeliveryChecks {
   private async ingest(args: {
     repoFullName: string
     headSha: string
-    check: CommitCheckInput
+    check?: CommitCheckInput
   }): Promise<void> {
     const repoFullName = normalizedRepo(args.repoFullName)
     const { headSha } = args
-    const check = await this.annotations.attach({ repoFullName, headSha, check: args.check })
+    const check =
+      args.check === undefined
+        ? undefined
+        : await this.annotations.attach({ repoFullName, headSha, check: args.check })
 
     const decided = await db.transaction(async (tx) => {
       await lockCommit({ tx, repoFullName, headSha })
-      await recordCommitChecks({ tx, repoFullName, headSha, checks: [check] })
+      if (check !== undefined) {
+        await recordCommitChecks({ tx, repoFullName, headSha, checks: [check] })
+      }
       const affected = await affectedPrsBySha({ tx, repoFullName, sha: headSha })
       const tally = await commitChecksTally({ tx, repoFullName, headSha })
       const writes: PrStateWrite[] = []

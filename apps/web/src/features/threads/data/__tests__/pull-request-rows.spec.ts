@@ -47,7 +47,7 @@ describe('pullRequestListOf', () => {
       mergeable: false,
     }
     const row = pullRequestListOf({ thread, states: [live] }).rows[1]
-    expect(row?.checks).toEqual({ running: 0, passed: 1, failed: 2 })
+    expect(row?.checks).toEqual({ running: 0, passed: 1, failed: 2, waiting: false })
     expect(row?.conflicts).toBe(true)
   })
 

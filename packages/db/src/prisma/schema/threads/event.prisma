@@ -12,6 +12,7 @@ model Event {
   contextSlot   String?
   contextKey    String?
   contextDigest String?
+  toolName      String?
   userId        String
   thread        Thread               @relation(fields: [threadId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "Event_threadId_seq_key")
 
@@ -19,4 +20,6 @@ model Event {
   @@unique([threadId, contextSlot, contextKey, contextDigest], map: "Event_threadId_contextSlot_contextKey_contextDigest_key")
   @@index([threadId, type], map: "Event_threadId_type_idx")
   @@index([userId, type, at], map: "Event_userId_type_at_idx")
+  @@index([userId, type, toolName, at], map: "Event_userId_type_toolName_at_idx")
+  @@index([userId, contextSlot, at], map: "Event_userId_contextSlot_at_idx")
 }

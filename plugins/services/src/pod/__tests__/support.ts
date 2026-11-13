@@ -34,7 +34,7 @@ export const controlOf = (args: { url: string; tunnelToken?: string }): PodContr
   }),
 })
 
-export const rig = (options: { control?: PodControl } = {}) => {
+export const rig = (options: { control?: PodControl; env?: Record<string, string> } = {}) => {
   const log: V2Event[] = []
   const listeners = new Set<(frame: DaemonEventFrame) => void>()
   const calls: CallOp[] = []
@@ -97,6 +97,7 @@ export const rig = (options: { control?: PodControl } = {}) => {
       return () => listeners.delete(listener)
     },
     log: () => undefined,
+    ...(options.env === undefined ? {} : { env: async () => options.env ?? {} }),
   }
 
   return { ctx, log, calls, listeners, fs }

@@ -64,13 +64,10 @@ export type PodOperatorAsk =
   | { kind: 'input'; prompt: string; secret: boolean }
   | { kind: 'shell'; prompt: string; secret: boolean; shellId: string }
 
-export type PodOperatorDelivery =
-  | { ok: true; path: string; bytes: number }
-  | { ok: true; shellId: string; bytes: number }
-  | { ok: false; reason: string }
+export type PodOperatorOpened = { ok: true; requestId: string } | { ok: false; reason: string }
 
 export type PodOperatorInput = {
-  ask(args: { ask: PodOperatorAsk; signal: AbortSignal }): Promise<PodOperatorDelivery>
+  ask(args: { ask: PodOperatorAsk; signal: AbortSignal }): Promise<PodOperatorOpened>
 }
 
 export const EMPTY_OPERATOR_INPUT: PodOperatorInput = {
@@ -101,6 +98,7 @@ export type PluginPodContext = {
   live(frame: LiveFrame): void
   onDaemonEvent(listener: (frame: DaemonEventFrame) => void): () => void
   log(message: string): void
+  env?(): Promise<Record<string, string>>
 }
 
 export type PodSlot = {

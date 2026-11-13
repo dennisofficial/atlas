@@ -18,6 +18,7 @@ import { BackgroundWork } from '../../../_core/ports/background-work'
 import { NoSessionTitler } from '../../../_core/ports/session-titler'
 import { FakeMediaRegistry } from './media-registry.fake'
 import { SessionsService } from './sessions.service'
+import { FakeSessionModelChoice } from './sessions.service.fixture'
 import { ProjectAccess } from './project-access'
 
 class NoBackgroundWork extends BackgroundWork {
@@ -45,6 +46,7 @@ describe('SessionsService blob reads', () => {
       new FakeMediaRegistry(),
       new FakeMediaStore(),
       composeCommands([]),
+      new FakeSessionModelChoice(),
     )
     return { plane, service }
   }

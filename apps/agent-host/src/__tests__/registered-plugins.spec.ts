@@ -27,6 +27,13 @@ describe('the agent host plugin composition', () => {
     expect(eventTypesOf(registeredPlugins)).toEqual(eventTypesOf(without))
   })
 
+  it('keeps every pod tool off the mcp_ prefix Anthropic reserves for its own MCP tools', () => {
+    const names = composedPlugins.pod.tools(podContextOf('s-1')).map((tool) => tool.name)
+    const reserved = names.filter((name) => name.startsWith('mcp_') && !name.startsWith('mcp__'))
+
+    expect(reserved).toEqual([])
+  })
+
   it('registers the skills plugin with its four tools and both hooks', () => {
     const ctx = podContextOf('s-1')
     const names = composedPlugins.pod.tools(ctx).map((tool) => tool.name)

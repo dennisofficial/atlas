@@ -1,4 +1,5 @@
 import { findCard, toAccountId, type ModelPort } from '@dltech/atlas-core'
+import type { LogPort } from '@dltech/atlas-observability'
 import { generatedCatalogue } from '@dltech/atlas-models'
 
 import { AgentHostCredentialPort } from '../config/agent-host-credential-port'
@@ -14,6 +15,7 @@ export const modelPortOf = (args: {
   resolved: ResolvedRoleModel
   tokens: Pick<ModelTokenService, 'issue'>
   media?: MediaSigner | undefined
+  log?: LogPort | undefined
 }): ModelPort => {
   const { choice, config } = args.resolved
   const ref = config.configured === true ? config.ref : choice.ref
@@ -30,6 +32,7 @@ export const modelPortOf = (args: {
       fast: () => choice.fast,
     }),
     card: () => findCard({ catalog: generatedCatalogue(), ref }),
+    ...(args.log === undefined ? {} : { log: args.log }),
     mediaSource:
       args.media === undefined
         ? undefined

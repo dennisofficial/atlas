@@ -1,6 +1,6 @@
 import type { EventDraft } from './body'
 import type { Event, EventOfType } from './envelope'
-import { awaitsReply, outstandingApproval, pendingCalls } from './projections'
+import { awaitsReply, openParkedCall, outstandingApproval, pendingCalls } from './projections'
 
 export const RESUME_NUDGE =
   'You were interrupted mid-turn. Continue from exactly where you stopped: finish the thought you were in and carry on with the work. If a tool call was cut short, run it again. Do not restart, re-plan, or repeat what you already said, and do not ask what to do instead or remark on the interruption.'
@@ -9,6 +9,9 @@ const RESUME_LIFETIME_STEPS = 1
 
 export const APPROVAL_WAITING =
   'an approval is waiting for an answer, so answer it rather than resuming past it'
+
+export const TOOL_PARKED_WAITING =
+  'a tool call is parked until its result arrives from outside the turn, so there is nothing to resume'
 
 export enum EResume {
   Continue = 'continue',
@@ -41,6 +44,10 @@ export function resumePlan(events: readonly Event[]): ResumePlan {
 
   if (outstandingApproval(events) !== undefined) {
     return { kind: EResume.Blocked, reason: APPROVAL_WAITING }
+  }
+
+  if (openParkedCall(events) !== undefined) {
+    return { kind: EResume.Blocked, reason: TOOL_PARKED_WAITING }
   }
 
   if (pendingCalls(events).length > 0) return { kind: EResume.Continue, nudge: false }

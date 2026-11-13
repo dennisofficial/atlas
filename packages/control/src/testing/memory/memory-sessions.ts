@@ -80,6 +80,7 @@ export const createSessionIn = (params: {
   modelRef?: string | undefined
   modelEffort?: string | undefined
   modelFast?: boolean | undefined
+  modelAccountId?: string | undefined
   spawnedBySessionId?: string | undefined
   nested?: boolean | undefined
   podSessionId?: string | undefined
@@ -101,6 +102,7 @@ export const createSessionIn = (params: {
     modelRef: params.modelRef ?? null,
     modelEffort: params.modelEffort ?? null,
     modelFast: params.modelFast ?? null,
+    modelAccountId: params.modelAccountId ?? null,
     spawnedBySessionId: params.spawnedBySessionId ?? null,
     nested: params.nested ?? true,
     podSessionId: params.podSessionId ?? null,

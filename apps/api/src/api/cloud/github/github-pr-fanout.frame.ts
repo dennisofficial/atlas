@@ -31,9 +31,11 @@ const stateSchema = z.object({
   checksPassed: z.number(),
   checksFailed: z.number(),
   checksIgnored: z.number(),
+  checksState: z.string().nullable(),
   mergeable: z.boolean().nullable(),
   version: z.number(),
   updatedAt: z.string(),
+  polled: z.boolean().exactOptional(),
 })
 
 const checkAnnotationSchema = z.object({

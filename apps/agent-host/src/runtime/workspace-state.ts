@@ -18,6 +18,7 @@ export type Deps = {
   files: FileSystemPort
   log?: LogPort | undefined
   signal?: AbortSignal | undefined
+  env?: Record<string, string> | undefined
   warnings?: string[] | undefined
 }
 

@@ -42,6 +42,11 @@ const openTurnStatus = (args: {
     }
   }
 
+  const parked = Object.values(facts.parked)[0]
+  if (parked !== undefined) {
+    return { state: ESessionStatus.WaitingForOperator, reason: parked.name, since: parked.at }
+  }
+
   if (turn.type === 'tool-dispatched') {
     return { state: ESessionStatus.RunningTool, reason: turn.toolName ?? undefined, since: turn.at }
   }

@@ -62,7 +62,6 @@ export class ComposedPodRegistry extends ToolRegistry {
 
 const operatorInputFor = (args: {
   deps: HeldSessionDeps
-  runtime: SessionRuntime
   record: SessionRecord
   threadId: ThreadId
 }): PodOperatorInput => {
@@ -72,8 +71,6 @@ const operatorInputFor = (args: {
     requests,
     sessionId: args.deps.sessionId,
     threadId: args.threadId,
-    sessionDir: args.deps.sessionDir,
-    calls: args.runtime.remoteCalls,
     record: args.record,
     newRunId: () => args.deps.ids.nextRunId(),
   })
@@ -86,6 +83,7 @@ export const pluginPodContextOf = (args: {
   threadId: ThreadId
   signal: AbortSignal
   crew: PodCrew
+  operator?: PodOperatorInput | undefined
 }): PluginPodContext => {
   const { deps, runtime, record, threadId } = args
   return {
@@ -95,7 +93,7 @@ export const pluginPodContextOf = (args: {
       client: deps.control,
       threadId,
       ...(deps.mcp === undefined ? {} : { mcp: deps.mcp(deps.sessionId) }),
-      operator: operatorInputFor({ deps, runtime, record, threadId }),
+      operator: args.operator ?? operatorInputFor({ deps, record, threadId }),
     }),
     crew: args.crew,
     sessions: podSessionsOf({
@@ -125,6 +123,7 @@ export const pluginPodContextOf = (args: {
       return off
     },
     log: (message) => deps.log?.info({ source: 'holder.plugin', message }),
+    ...(runtime.env === undefined ? {} : { env: runtime.env }),
   }
 }
 
@@ -168,6 +167,7 @@ export const pluginPodOf = (args: {
   threadId: ThreadId
   signal: AbortSignal
   crew: PodCrew
+  operator?: PodOperatorInput | undefined
 }): PluginPod => {
   const { plugins } = args.runtime
   if (plugins === undefined) {

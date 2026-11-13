@@ -91,6 +91,7 @@ export const githubPrStateSchema = z.object({
   checksRunning: z.number().int(),
   checksPassed: z.number().int(),
   checksFailed: z.number().int(),
+  checksState: z.string().nullable().optional(),
   mergeable: z.boolean().nullable(),
   version: z.number().int(),
   updatedAt: z.string(),

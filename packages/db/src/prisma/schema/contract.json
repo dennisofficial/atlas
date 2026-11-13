@@ -2138,6 +2138,13 @@
                   "kind": "scalar"
                 }
               },
+              "toolName": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "type": {
                 "nullable": false,
                 "type": {
@@ -2205,6 +2212,9 @@
                 },
                 "threadId": {
                   "column": "threadId"
+                },
+                "toolName": {
+                  "column": "toolName"
                 },
                 "type": {
                   "column": "type"
@@ -3024,6 +3034,13 @@
                   "kind": "scalar"
                 }
               },
+              "checksState": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "headBranch": {
                 "nullable": false,
                 "type": {
@@ -3119,6 +3136,9 @@
                 },
                 "checksRunning": {
                   "column": "checksRunning"
+                },
+                "checksState": {
+                  "column": "checksState"
                 },
                 "headBranch": {
                   "column": "headBranch"
@@ -8777,16 +8797,6 @@
                   }
                 }
               },
-              "expiresAt": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "precision": 3
-                  }
-                }
-              },
               "id": {
                 "nullable": false,
                 "type": {
@@ -8859,9 +8869,6 @@
               "fields": {
                 "createdAt": {
                   "column": "createdAt"
-                },
-                "expiresAt": {
-                  "column": "expiresAt"
                 },
                 "id": {
                   "column": "id"
@@ -9208,6 +9215,13 @@
                   "kind": "scalar"
                 }
               },
+              "modelAccountId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "modelEffort": {
                 "nullable": true,
                 "type": {
@@ -9398,6 +9412,9 @@
                 },
                 "mainThreadId": {
                   "column": "mainThreadId"
+                },
+                "modelAccountId": {
+                  "column": "modelAccountId"
                 },
                 "modelEffort": {
                   "column": "modelEffort"
@@ -11212,6 +11229,11 @@
                   "dataType": "pg/text",
                   "nullable": false
                 },
+                "toolName": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
                 "type": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -11261,10 +11283,29 @@
                 {
                   "columns": [
                     "userId",
+                    "contextSlot",
+                    "at"
+                  ],
+                  "name": "Event_userId_contextSlot_at_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "userId",
                     "type",
                     "at"
                   ],
                   "name": "Event_userId_type_at_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "userId",
+                    "type",
+                    "toolName",
+                    "at"
+                  ],
+                  "name": "Event_userId_type_toolName_at_idx",
                   "unique": false
                 }
               ],
@@ -11942,6 +11983,11 @@
                     "value": 0
                   },
                   "nullable": false
+                },
+                "checksState": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
                 },
                 "headBranch": {
                   "codecId": "pg/text@1",
@@ -16173,14 +16219,6 @@
                     "precision": 3
                   }
                 },
-                "expiresAt": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "dataType": "pg/timestamptz",
-                  "nullable": false,
-                  "typeParams": {
-                    "precision": 3
-                  }
-                },
                 "id": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -16242,11 +16280,10 @@
                 },
                 {
                   "columns": [
-                    "status",
-                    "expiresAt"
+                    "status"
                   ],
-                  "name": "V2OperatorRequest_status_expiresAt_idx_c206f415",
-                  "prefix": "V2OperatorRequest_status_expiresAt_idx",
+                  "name": "V2OperatorRequest_status_idx_e98638ab",
+                  "prefix": "V2OperatorRequest_status_idx",
                   "unique": false
                 }
               ],
@@ -16482,6 +16519,11 @@
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": false
+                },
+                "modelAccountId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
                 },
                 "modelEffort": {
                   "codecId": "pg/text@1",
@@ -16792,7 +16834,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "c6031259b2791244b5c7e8e2ee815047f27ee8417bdde6394dc7ad25e9fa3211"
+    "storageHash": "a1d7da1e092b7832619e7438fc84a790bd3244eaf29625754bd2ee821901b4e2"
   },
   "execution": {
     "executionHash": "27a680d0d8367c03704617bfac2d0041e04bd5395fc473f9e021f03bd0d4c6fa",

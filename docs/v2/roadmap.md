@@ -24,8 +24,10 @@ Each slice is built in its own Atlas session and handed to a fresh session when 
 
 _Updated at the end of every slice. Last update: 2026-11-12._
 - **Built 2026-11-12: operator input from the transcript** ([spec](slices/operator-input.md)).
-  `plugins/operator` gives a session `operator_input` and `operator_shell_input`: the tool call parks,
-  a card appears in the transcript, and the operator's answer is written into the sandbox at
+  `plugins/operator` gives a session `operator_input` and `operator_shell_input`: the call parks as an
+  open `tool-parked` in the log (no promise, no deadline, the pod may sleep), the session reads
+  "Waiting for you", a card appears in the transcript, and the operator's answer wakes the pod and is
+  written into the sandbox at
   `$ATLAS_SESSION_DIR/requests/<id>` (`0600`) — or typed into a shell's stdin — with only the path
   reaching the model. A `v2.V2OperatorRequest` row records the request and its resolution, two events
   (`operator-input-asked`, `operator-input-settled`) draw the card, and `POST /operator-requests/answer`
@@ -81,7 +83,7 @@ _Updated at the end of every slice. Last update: 2026-11-12._
 - **Spec written 2026-11-10: slice 7d, MCP sign-in from the transcript**
   ([spec](slices/07d-mcp-sign-in.md); open questions in its §7). Both cloud MCP servers sign in once from
   Settings and connect (#2168), but nothing in a session can start a sign-in: a server only the repo
-  names has no row to hold a grant, and v2 has no sign-in flow of its own. The slice adds `mcp_sign_in`
+  names has no row to hold a grant, and v2 has no sign-in flow of its own. The slice adds `operator_mcp_sign_in`
   to `plugins/mcp`, a host-owned OAuth flow ported from v1 (discovery, registration, PKCE, callback,
   sealed grant, refresh with a row claim instead of a Redis lock), a public callback on the agent host,
   and the same tool for a repo-only entry, which would create a user-scope row to hold its grant (its
@@ -326,6 +328,13 @@ _Updated at the end of every slice. Last update: 2026-11-12._
   `model.id` (project over user) on Anthropic (key or Claude OAuth), OpenAI (key or ChatGPT OAuth),
   OpenRouter, Vercel AI Gateway and Inference.net (`apps/agent-host/src/model/providers/`). A model
   whose provider has no account is a `configured: false` gap, never a silent switch to another model.
+- **Built 2026-11-12: a session pins its model and account.** `sessions.create` fills
+  `V2Session.modelRef/modelEffort/modelFast/modelAccountId` from the user's defaults and the
+  `ActiveAccount` pointer, so editing defaults never moves a running session; the `model-set` command
+  changes all four from the v2 composer picker, which lists a model once per account when a provider
+  has several. Rows created earlier keep late resolution. The v2 transcript shows the run-failure card
+  (provider message, account, Retry, Switch model), and a provider refusing an OAuth refresh marks the
+  connection and every account on it `expired`.
 - **Open:** browsing the files of a parked sandbox (a workspace mirror kept by the control plane) is
   proposed, not scheduled. D2 (local control plane), needed only at slice 9. 0020 (sub-agent worktrees, peer
   sessions) proposed; teammates survive as the peer-session preset — placement, ownership and

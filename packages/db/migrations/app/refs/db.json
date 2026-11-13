@@ -1,4 +1,6 @@
 {
-  "hash": "c6031259b2791244b5c7e8e2ee815047f27ee8417bdde6394dc7ad25e9fa3211",
-  "invariants": []
+  "hash": "a1d7da1e092b7832619e7438fc84a790bd3244eaf29625754bd2ee821901b4e2",
+  "invariants": [
+    "pr-checks-tally-v1"
+  ]
 }

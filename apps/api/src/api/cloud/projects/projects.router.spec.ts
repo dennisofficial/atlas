@@ -1,4 +1,5 @@
 import type { INestApplication } from '@nestjs/common'
+import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { dataOf, trpcMutation, trpcQuery } from '../session-trpc-test-app'
@@ -70,6 +71,34 @@ describe('projects router', () => {
       token: 'session-a',
       input: { projectId: id },
     }).expect(404)
+  })
+
+  it('names the tracking state per repo binding on get and leaves it off list', async () => {
+    const id = await createProjectAs({ app, token: 'session-a', body: BODY })
+    await db.orm.public.GithubAppInstallation.create({
+      installationId: 21n,
+      accountLogin: 'dennisofficial',
+      accountType: 'User',
+      repos: ['dennisofficial/atlas'],
+      suspendedAt: null,
+    })
+
+    const read = await trpcQuery({
+      app,
+      path: 'projects.get',
+      token: 'session-a',
+      input: { projectId: id },
+    }).expect(200)
+    const project = dataOf(read.body) as { repos?: unknown }
+    expect(project.repos).toEqual([
+      { repo: 'dennisofficial/atlas', branch: 'main', tracking: 'app' },
+      { repo: 'octocat/Spoon-Knife', branch: 'test-branch', tracking: 'polled' },
+    ])
+
+    const listed = await trpcQuery({ app, path: 'projects.list', token: 'session-a' }).expect(200)
+    const projects = dataOf(listed.body) as Array<Record<string, unknown>>
+    expect(projects).toHaveLength(1)
+    expect(projects[0]).not.toHaveProperty('repos')
   })
 
   it('answers every project call uncached', async () => {

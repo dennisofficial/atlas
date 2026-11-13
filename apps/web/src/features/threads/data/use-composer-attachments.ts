@@ -121,7 +121,8 @@ export function useComposerAttachments() {
       handles.current.get(id)?.abort()
       handles.current.delete(id)
       commit(heldRef.current.filter((candidate) => candidate.id !== id))
-      if (entry?.status === EAttachmentStatus.Ready && entry.upload !== undefined) {
+      const owned = entry?.status === EAttachmentStatus.Ready && entry.sent !== true
+      if (owned && entry.upload !== undefined) {
         void discardUpload(entry.upload.pathname).catch(() => undefined)
       }
     },

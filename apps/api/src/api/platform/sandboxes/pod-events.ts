@@ -2,6 +2,7 @@ import { ConflictException } from '@nestjs/common'
 import { POD_EVENT_CONFLICT_CODE, type PodEvent, type PodEventsReply } from '@dltech/atlas-wire'
 import { db, type Row } from '@dltech/atlas-db'
 import { nextEventId } from '../sessions/append'
+import { toolNameOf } from '../sessions/event-tool-name'
 import { bumpHistoryRevision } from '../sessions/history-revision'
 import { toEventDto } from '../sessions/rows'
 import { lockThread } from '../sessions/thread-head'
@@ -81,6 +82,7 @@ export async function applyPodEvents(args: {
       contextSlot: event.contextSlot ?? null,
       contextKey: event.contextKey ?? null,
       contextDigest: event.contextDigest ?? null,
+      toolName: toolNameOf(event),
       userId: thread.userId,
     }))
     await tx.orm.public.Event.createAndCount(rows)

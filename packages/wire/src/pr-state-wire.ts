@@ -7,6 +7,14 @@ export enum EPullRequestStateWire {
   Closed = 'closed',
 }
 
+export enum EPullRequestChecksStateWire {
+  Expected = 'expected',
+  Pending = 'pending',
+  Success = 'success',
+  Failure = 'failure',
+  Error = 'error',
+}
+
 export const prStateWireSchema = z.object({
   repo: z.string().min(1),
   number: z.number().int().positive(),
@@ -17,7 +25,9 @@ export const prStateWireSchema = z.object({
   checksRunning: z.number().int().nonnegative(),
   checksPassed: z.number().int().nonnegative(),
   checksFailed: z.number().int().nonnegative(),
+  checksState: z.enum(EPullRequestChecksStateWire).nullable().optional(),
   mergeable: z.boolean().nullable(),
+  polled: z.boolean().optional(),
 })
 
 export type PrStateWire = z.infer<typeof prStateWireSchema>

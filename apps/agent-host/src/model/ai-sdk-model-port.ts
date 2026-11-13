@@ -17,6 +17,8 @@ import {
   type ToolDeclaration,
 } from '@dltech/atlas-core'
 
+import type { LogPort } from '@dltech/atlas-observability'
+
 import { createPartAccumulator } from './accumulator'
 import { toCoreChunk } from './chunk-conversion'
 import { reportsFastSpeed } from './fast-speed'
@@ -31,6 +33,7 @@ import {
   type MissingMedia,
 } from './message-conversion'
 import { isMediaUnavailable } from './media-unavailable'
+import { logProviderRefusal } from './refusal-log'
 import { toProviderPrompt } from './provider-prompt'
 import { toToolSet } from './tool-set'
 
@@ -174,6 +177,7 @@ export type AiSdkModelPortArgs = {
   identity?: ProviderIdentity | undefined
   card?: ModelCardSource | undefined
   mediaSource?: MediaSource | undefined
+  log?: LogPort | undefined
 }
 
 export class AiSdkModelPort extends ModelPort {
@@ -181,6 +185,7 @@ export class AiSdkModelPort extends ModelPort {
   private readonly declaredIdentity: ProviderIdentity | undefined
   private readonly card: ModelCardSource | undefined
   private readonly mediaSource: MediaSource | undefined
+  private readonly log: LogPort | undefined
   private readonly missingMedia = new Set<string>()
 
   constructor(args: AiSdkModelPortArgs) {
@@ -189,6 +194,7 @@ export class AiSdkModelPort extends ModelPort {
     this.declaredIdentity = args.identity
     this.card = args.card
     this.mediaSource = args.mediaSource
+    this.log = args.log
   }
 
   get identity(): ProviderIdentity {
@@ -231,6 +237,7 @@ export class AiSdkModelPort extends ModelPort {
     try {
       return await run()
     } catch (error) {
+      logProviderRefusal({ log: this.log, error, prompt, tools })
       const sent = [...mediaUrls.keys(), ...mediaBytes.keys()]
       if (!(await this.droppedMissingMedia({ error, hashes: sent }))) throw error
       return await run()

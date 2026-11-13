@@ -2,16 +2,29 @@
 
 import { CircleAlertIcon, XIcon } from 'lucide-react'
 
+import type { RunAttentionAction } from '@dltech/atlas-ui/ai/run-attention-strip'
 import { Button } from '@dltech/atlas-ui/components/button'
 
 export interface RunFailureCardProps {
   title: string
   detail: string
   meta?: string | undefined
+  actions?: readonly RunAttentionAction[] | undefined
   onDismiss?: (() => void) | undefined
 }
 
-export function RunFailureCard({ title, detail, meta, onDismiss }: RunFailureCardProps) {
+const ActionButton = ({ action }: { action: RunAttentionAction }) => (
+  <Button
+    size="sm"
+    variant={action.primary ? 'default' : 'outline'}
+    disabled={action.disabled || action.pending === true}
+    onClick={action.onSelect}
+  >
+    {action.pending === true ? (action.pendingLabel ?? action.label) : action.label}
+  </Button>
+)
+
+export function RunFailureCard({ title, detail, meta, actions, onDismiss }: RunFailureCardProps) {
   return (
     <section
       aria-label="Run failure"
@@ -23,6 +36,13 @@ export function RunFailureCard({ title, detail, meta, onDismiss }: RunFailureCar
         <span className="text-xs text-muted-foreground">{detail}</span>
         {meta === undefined ? null : (
           <span className="font-mono text-xs text-muted-foreground">{meta}</span>
+        )}
+        {actions === undefined || actions.length === 0 ? null : (
+          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+            {actions.map((action) => (
+              <ActionButton key={action.id} action={action} />
+            ))}
+          </div>
         )}
       </div>
       {onDismiss === undefined ? null : (

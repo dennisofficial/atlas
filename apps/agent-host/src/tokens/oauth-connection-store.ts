@@ -1,3 +1,4 @@
+import { EAccountStatus } from '@dltech/atlas-core'
 import type { Db } from '@dltech/atlas-db'
 
 import { EConnectionStatus, type AttemptFence, type ConnectionRow } from './oauth-types'
@@ -72,5 +73,22 @@ export class OauthConnectionStore {
       ...CLEARED_ATTEMPT,
     })
     return count === 1
+  }
+
+  async sealedSecretsOf({
+    userId,
+  }: {
+    userId: string
+  }): Promise<{ id: string; sealedSecret: string }[]> {
+    const rows = await this.db.orm.public.AgentAccount.where({ userId })
+      .select('id', 'sealedSecret')
+      .all()
+    return [...rows]
+  }
+
+  async markExpired({ ids }: { ids: string[] }): Promise<void> {
+    for (const id of ids) {
+      await this.db.orm.public.AgentAccount.where({ id }).update({ status: EAccountStatus.Expired })
+    }
   }
 }

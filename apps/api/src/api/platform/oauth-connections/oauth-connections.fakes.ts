@@ -1,3 +1,4 @@
+import { EAccountStatus } from '@dltech/atlas-wire'
 import {
   EConnectionStatus,
   OauthClock,
@@ -6,8 +7,16 @@ import {
 } from './oauth-connections.types'
 import type { AttemptFence, ConnectionRow, ProviderTokens } from './oauth-connections.types'
 
+export type FakeAccount = {
+  id: string
+  userId: string
+  status: string
+  sealedSecret: string
+}
+
 export class FakeStore implements OauthConnectionStore {
   readonly rows = new Map<string, ConnectionRow>()
+  readonly accounts = new Map<string, FakeAccount>()
   readonly sandboxes = new Map<string, { id: string; userId: string }>()
   readonly assignments = new Set<string>()
 
@@ -115,6 +124,19 @@ export class FakeStore implements OauthConnectionStore {
       refreshStartedAt: null,
     })
     return true
+  }
+
+  async markExpired(args: { ids: string[] }) {
+    for (const id of args.ids) {
+      const account = this.accounts.get(id)
+      if (account !== undefined) account.status = EAccountStatus.Expired
+    }
+  }
+
+  async sealedSecretsOf(args: { userId: string }) {
+    return [...this.accounts.values()]
+      .filter((account) => account.userId === args.userId)
+      .map((account) => ({ id: account.id, sealedSecret: account.sealedSecret }))
   }
 
   async ownedSandboxId(args: { userId: string; threadId: string }) {

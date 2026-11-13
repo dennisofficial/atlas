@@ -17,5 +17,6 @@ export const headerStateOfSession = (status: Status): EHeaderState => {
     return EHeaderState.Failed
   }
   if (status.state === ESessionStatus.WaitingForCredentials) return EHeaderState.NeedsYou
+  if (status.state === ESessionStatus.WaitingForOperator) return EHeaderState.NeedsYou
   return isSessionWorking(status) ? EHeaderState.Running : EHeaderState.Idle
 }

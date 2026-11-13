@@ -11,11 +11,22 @@ export const MAX_PROJECT_DESCRIPTION_LENGTH = 500
 export const githubRepoSchema = z.string().regex(GITHUB_REPO_PATTERN)
 export const gitBranchSchema = z.string().regex(GIT_BRANCH_PATTERN)
 
+export enum ERepoTracking {
+  App = 'app',
+  User = 'user',
+  Polled = 'polled',
+}
+
 export const projectRepoSchema = z.object({
   repo: githubRepoSchema,
   branch: gitBranchSchema.optional(),
 })
 export type ProjectRepo = z.infer<typeof projectRepoSchema>
+
+export const projectRepoTrackingSchema = projectRepoSchema.extend({
+  tracking: z.enum(ERepoTracking),
+})
+export type ProjectRepoTracking = z.infer<typeof projectRepoTrackingSchema>
 
 export const projectSchema = z.object({
   id: z.string().min(1),
@@ -23,6 +34,7 @@ export const projectSchema = z.object({
   repo: githubRepoSchema.nullable(),
   baseBranch: gitBranchSchema.nullable(),
   additionalRepos: z.array(projectRepoSchema),
+  repos: z.array(projectRepoTrackingSchema).optional(),
   description: z.string().default(''),
   shipBehavior: z.enum(EShipBehavior).default(EShipBehavior.OpenPullRequest),
   createdAt: z.string(),

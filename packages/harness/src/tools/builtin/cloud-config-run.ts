@@ -9,6 +9,7 @@ import { cloudCall } from '../../cloud/api-trpc-client'
 
 import { ECloudConfigAction, ECloudConfigKind, type CloudConfigInput } from './cloud-config-input'
 import { encodeToolSetting } from './cloud-config-setting'
+import { currentSkillFileRevision, type SkillScope } from './cloud-config-skill-revision'
 
 export const NOT_SIGNED_IN = 'Not signed in to Atlas Cloud'
 
@@ -220,9 +221,9 @@ const files = async ({ client, input, target }: Scoped): Promise<ToolOutcome> =>
 }
 
 const skills = async ({ client, input, target }: Scoped): Promise<ToolOutcome> => {
-  const scope = target.personal
-    ? ({ scope: ESkillScope.Personal } as const)
-    : ({ scope: ESkillScope.Project, projectId: target.projectId } as const)
+  const scope: SkillScope = target.personal
+    ? { scope: ESkillScope.Personal }
+    : { scope: ESkillScope.Project, projectId: target.projectId }
   const path = input.path
   if (input.action === ECloudConfigAction.List) {
     if (path === undefined) {
@@ -258,7 +259,8 @@ const skills = async ({ client, input, target }: Scoped): Promise<ToolOutcome> =
       const body = await cloudCall(client.skills.removeSkill.mutate({ ...scope, skill }))
       return done({ text: `Removed skill ${skill} (${body.removed} files).` })
     }
-    await cloudCall(client.skills.remove.mutate({ ...scope, skill, path: file, baseRevision: 0 }))
+    const baseRevision = await currentSkillFileRevision({ client, scope, skill, file })
+    await cloudCall(client.skills.remove.mutate({ ...scope, skill, path: file, baseRevision }))
     return done({ text: `Removed file ${path}.` })
   }
   if (file === undefined || file.length === 0) {
@@ -267,6 +269,7 @@ const skills = async ({ client, input, target }: Scoped): Promise<ToolOutcome> =
   const contents = need({ value: input.contents, field: 'contents' })
   if (isFailure(contents)) return contents
   const bytes = Buffer.from(contents, 'utf8')
+  const baseRevision = await currentSkillFileRevision({ client, scope, skill, file })
   await cloudCall(
     client.skills.put.mutate({
       ...scope,
@@ -274,6 +277,7 @@ const skills = async ({ client, input, target }: Scoped): Promise<ToolOutcome> =
       path: file,
       content: bytes.toString('base64'),
       contentHash: createHash('sha256').update(bytes).digest('hex'),
+      baseRevision,
     }),
   )
   return done({ text: `Set skill file ${path}.` })

@@ -2,13 +2,14 @@ import {
   EToolEffect,
   SchemaTool,
   TAKES_NO_PATHS,
+  parkedOutcomeOf,
   type ToolOutcome,
   type ToolRun,
 } from '@dltech/atlas-core'
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 import { z } from 'zod'
 
-import { refusalText } from './input-tool'
+import { parkedTextOf, refusalTextOf } from '../core/request'
 
 const inputSchema = z.strictObject({
   prompt: z.string().min(1),
@@ -20,8 +21,8 @@ export class OperatorShellInputTool extends SchemaTool<typeof inputSchema> {
   readonly name = 'operator_shell_input'
   readonly description = [
     'Ask the operator for a value only they have and type it straight into the stdin of a background shell this session already started, identified by shellId. Start the CLI with the `shell` tool and input set to true, read its output for the printed login URL or prompt, and pass that as the prompt.',
-    'The tool waits while the question sits in the transcript for the operator to answer, then reports the byte count, never the value: it reaches the CLI’s stdin and nowhere else, so read the shell’s output with `shell_output` to see what the CLI did with it.',
-    'The call fails with a reason naming why no value arrived: the operator cancelled, the request expired unanswered, or the delivery failed. The operator is the only one who can answer, so a sub-agent asks the main session to run the login instead.',
+    'The call parks: it ends the turn with no result while the question sits in the transcript, and its result arrives as the byte count once the operator answers, never the value: it reaches the CLI’s stdin and nowhere else, so read the shell’s output with `shell_output` to see what the CLI did with it. If the shell is gone by the time the operator answers, the call fails and names the shell.',
+    'The call fails with a reason naming why no value arrived: the operator cancelled, the session was stopped or took a message instead, the shell was gone, or the delivery failed. The operator is the only one who can answer, so a sub-agent asks the main session to run the login instead.',
   ].join(' ')
   readonly effect = EToolEffect.Write
   readonly inputSchema = inputSchema
@@ -35,7 +36,7 @@ export class OperatorShellInputTool extends SchemaTool<typeof inputSchema> {
     input,
     signal,
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
-    const delivery = await this.ctx.control.operator.ask({
+    const opened = await this.ctx.control.operator.ask({
       ask: {
         kind: 'shell',
         prompt: input.prompt,
@@ -44,14 +45,7 @@ export class OperatorShellInputTool extends SchemaTool<typeof inputSchema> {
       },
       signal,
     })
-    if (!delivery.ok) return { ok: false, reason: refusalText(delivery.reason) }
-    if (!('shellId' in delivery))
-      return { ok: false, reason: refusalText('the host answered a shell ask as a file ask') }
-
-    return {
-      ok: true,
-      output: { shellId: delivery.shellId, bytes: delivery.bytes },
-      modelText: `the operator's value was typed into the stdin of shell ${delivery.shellId} (${delivery.bytes} bytes). Read the shell's output to see what the CLI did with it.`,
-    }
+    if (!opened.ok) return { ok: false, reason: refusalTextOf(opened.reason) }
+    return parkedOutcomeOf(parkedTextOf(opened.requestId))
   }
 }

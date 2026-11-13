@@ -32,7 +32,7 @@ afterEach(() => {
   }
 })
 
-const spawnedEnvOf = async (shellEnv?: () => Record<string, string>) => {
+const spawnedEnvOf = async (shellEnv?: () => Promise<Record<string, string>>) => {
   const spawned: SpawnCommand[] = []
   const recording: ProcessPort = {
     spawn: (args) => {
@@ -54,7 +54,7 @@ const spawnedEnvOf = async (shellEnv?: () => Record<string, string>) => {
 
 describe('the env a shell is spawned with', () => {
   it('is exactly what the shell env source names, never the host process env', async () => {
-    const env = await spawnedEnvOf(() => ({ GH_TOKEN: 'gho_abc' }))
+    const env = await spawnedEnvOf(async () => ({ GH_TOKEN: 'gho_abc' }))
     expect(env).toEqual({ GH_TOKEN: 'gho_abc' })
   })
 

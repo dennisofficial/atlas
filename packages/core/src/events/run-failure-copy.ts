@@ -59,8 +59,8 @@ function wordsOf(args: {
       }
     case ERunFailureKind.Stalled:
       return {
-        title: `${subject} stopped responding`,
-        detail: `The reply from ${provider} went silent mid-stream and Atlas gave up waiting. Retry the run.`,
+        title: 'The run stalled',
+        detail: `${failure.message} Retry the run; if it repeats, report it.`,
       }
     case ERunFailureKind.Overloaded:
       return {

@@ -24,10 +24,15 @@ export type ToolOutputNotice = ToolOutputChunk & { callId: CallId }
 
 export type OnToolOutputNotice = (args: ToolOutputNotice) => void
 
+export type SettledPending = {
+  paused?: { callId: CallId; reason: string }
+  parked?: { callId: CallId; name: string }
+}
+
 export type SettlePending = (args: {
   threadId: ThreadId
   signal: AbortSignal
-}) => Promise<{ paused?: { callId: CallId; reason: string } }>
+}) => Promise<SettledPending>
 
 export function createSettlePending(deps: {
   record: AgentRecordPort
@@ -108,6 +113,9 @@ export function createSettlePending(deps: {
 
       activeWorktree = activeWorktreeAfter({ drafts, active: activeWorktree })
       homeDirectory = homeDirectoryAfter({ drafts, home: homeDirectory })
+
+      const parked = drafts.find((draft) => draft.type === 'tool-parked')
+      if (parked !== undefined) return { parked: { callId: parked.callId, name: parked.name } }
     }
 
     return {}

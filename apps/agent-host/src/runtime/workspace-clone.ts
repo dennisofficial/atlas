@@ -74,9 +74,14 @@ export const run = async (args: {
   cwd: string
   timeoutMs: number
   signal?: AbortSignal | undefined
+  env?: Record<string, string> | undefined
   onOutput?: ((text: string) => void) | undefined
 }): Promise<RunOutcome> => {
-  const handle = args.processes.spawn({ cmd: args.cmd, cwd: args.cwd })
+  const handle = args.processes.spawn({
+    cmd: args.cmd,
+    cwd: args.cwd,
+    ...(args.env === undefined ? {} : { env: args.env }),
+  })
   const terminate = (): void => handle.terminate()
   const timer = setTimeout(terminate, args.timeoutMs)
   args.signal?.addEventListener('abort', terminate, { once: true })

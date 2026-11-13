@@ -13,6 +13,7 @@ namespace v2 {
     modelRef     String?
     modelEffort  String?
     modelFast    Boolean?
+    modelAccountId String?
     spawnedBySessionId String?
     nested             Boolean               @default(true)
     podSessionId       String?

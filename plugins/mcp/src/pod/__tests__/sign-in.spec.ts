@@ -94,7 +94,7 @@ const startedCards = (appended: readonly Draft[]): Draft[] =>
 const resolutions = (appended: readonly Draft[]): Draft[] =>
   appended.filter((draft) => draft.type === 'mcp-sign-in-resolved')
 
-describe('mcp_sign_in drawing a card', () => {
+describe('operator_mcp_sign_in drawing a card', () => {
   it('answers in plain text and draws nothing when the session has no such server', async () => {
     const restore = stubFetch(unauthorized)
     try {
@@ -154,7 +154,7 @@ describe('mcp_sign_in drawing a card', () => {
   })
 })
 
-describe('mcp_sign_in resolving its card', () => {
+describe('operator_mcp_sign_in resolving its card', () => {
   it('says connected once the grant lands and the next turn connects the server', async () => {
     const restore401 = stubFetch(unauthorized)
     const begun = await start()

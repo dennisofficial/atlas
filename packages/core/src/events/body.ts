@@ -128,6 +128,7 @@ export type EventBody =
       usage?: StepReading | undefined
     }
   | { type: 'tool-dispatched'; callId: CallId; name: string; bootId?: string | undefined }
+  | { type: 'tool-parked'; callId: CallId; name: string }
   | {
       type: 'tool-result'
       callId: CallId

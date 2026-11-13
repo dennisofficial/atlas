@@ -100,16 +100,31 @@ const parsedAccountsOf = (rows: readonly AccountRow[]): readonly ParsedAccount[]
 const isProvider = (value: string): value is EAuthProvider =>
   Object.values(EAuthProvider).some((provider) => provider === value)
 
+const pinnedOf = (args: {
+  provider: EAuthProvider
+  parsed: readonly ParsedAccount[]
+  pinned: string | undefined
+}): string | undefined => {
+  if (args.pinned === undefined) return undefined
+  const found = args.parsed.find(
+    (entry) => entry.account.id === args.pinned && entry.account.provider === args.provider,
+  )
+  return found?.account.id
+}
+
 const chosenFor = (args: {
   provider: EAuthProvider
   parsed: readonly ParsedAccount[]
   activeAccounts: readonly ActiveAccountRow[]
+  pinned?: string | undefined
 }): ParsedAccount | undefined => {
+  const pinned = pinnedOf({ ...args, pinned: args.pinned })
   const active = args.activeAccounts.find((entry) => entry.provider === args.provider)
+  const preferred = pinned ?? active?.accountId
   const choice = chooseAccount({
     accounts: args.parsed.map((entry) => entry.account),
     provider: args.provider,
-    ...(active === undefined ? {} : { preferred: toAccountId(active.accountId) }),
+    ...(preferred === undefined ? {} : { preferred: toAccountId(preferred) }),
   })
   if (choice.type !== EAccountChoice.Chosen) return undefined
   return args.parsed.find((entry) => entry.account.id === choice.account.id)
@@ -138,11 +153,11 @@ const fallbackRefOf = (args: {
   return undefined
 }
 
-/** The model the thread itself runs, as the API recorded it when it was created or changed. */
 export type ThreadModelChoice = {
   ref: string
   effort?: string | undefined
   fast?: boolean | undefined
+  accountId?: string | undefined
 }
 
 export type ResolvedRoleModel = { choice: ResolvedModelChoice; config: ModelConfig }
@@ -175,6 +190,7 @@ const configuredWith = (args: {
   parsed: readonly ParsedAccount[]
   activeAccounts: readonly ActiveAccountRow[]
   choice: ResolvedModelChoice
+  pinned?: string | undefined
 }): ModelConfig => {
   const { ref } = args.choice
   if (args.parsed.length === 0) return { configured: false, gap: 'no model account' }
@@ -185,6 +201,7 @@ const configuredWith = (args: {
     provider: ref.providerId,
     parsed: args.parsed,
     activeAccounts: args.activeAccounts,
+    pinned: args.pinned,
   })
   if (chosen === undefined) return { configured: false, gap: `no ${ref.providerId} account` }
   const secret = accountSecretSchema.safeParse(
@@ -253,6 +270,7 @@ export const modelSourceOf = (args: ModelSourceArgs): ModelSource => {
       parsed,
       activeAccounts: args.activeAccounts,
       choice,
+      pinned: args.thread?.accountId,
     }),
   })
   const main = resolvedOf(mainChoice)

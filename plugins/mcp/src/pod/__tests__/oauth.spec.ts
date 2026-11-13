@@ -112,7 +112,8 @@ describe('a cloud http server with an oauth grant', () => {
           transport: 'http',
           status: EMcpServerStatus.NeedsAuth,
           tools: 0,
-          reason: "the 'posthog' MCP server needs a sign-in; call mcp_sign_in to start one",
+          reason:
+            "the 'posthog' MCP server needs a sign-in; call operator_mcp_sign_in to start one",
         },
       ])
     } finally {

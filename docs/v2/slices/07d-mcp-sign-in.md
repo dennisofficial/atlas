@@ -10,7 +10,7 @@ A session that finds an MCP server needing a sign-in can say so and hand the ope
 transcript, that finishes the sign-in — no token typed into the chat and none left in the sandbox.
 
 **Exit criterion:**
-1. In a live v2 session, `mcp_sign_in` on a server whose row has no grant returns a URL as its result;
+1. In a live v2 session, `operator_mcp_sign_in` on a server whose row has no grant returns a URL as its result;
    the operator opens it, approves at the provider, and the next turn's roster shows the server
    `connected` with its tools offered.
 2. The same works for a server only the repo names (a `.mcp.json` or `.atlas/mcp.json` entry with no
@@ -53,7 +53,7 @@ transcript, that finishes the sign-in — no token typed into the chat and none 
 ## 2. Shape
 
 Three pieces, each where it belongs:
-1. **A pod tool, `mcp_sign_in { name, url? }`** in `plugins/mcp`. It resolves the entry (cloud row or
+1. **A pod tool, `operator_mcp_sign_in { name, url? }`** in `plugins/mcp`. It resolves the entry (cloud row or
    repo file, by the same precedence the store already loads), asks the host for an authorize URL
    through a new `PodControl.mcpSignIn` port, and returns a sentence plus the URL as the tool's text.
    A URL is the one thing the operator has to act on, so it goes in the result the transcript shows;
@@ -105,7 +105,7 @@ request answers 401, the host refreshes it against `tokenEndpoint` and seals the
   `oauthGeneration`) claims the refresh; a host that loses the claim re-reads the row and uses the new
   token. `mcp-oauth-access.service.ts` is the reference for the semantics, not a dependency.
 - A refresh that fails terminally sets `oauthStatus = expired`, so the roster says `needs-auth` again
-  and `mcp_sign_in` is the way back.
+  and `operator_mcp_sign_in` is the way back.
 
 ## 5. Test plan
 
@@ -115,7 +115,7 @@ request answers 401, the host refreshes it against `tokenEndpoint` and seals the
 - **Host**: begin writes a sealed pending row and answers a URL; a callback with a bad state or a
   mismatched user refuses and seals nothing; a good callback seals the grant onto the row; a second
   refresh attempt during an in-flight one waits and then uses the winner's token.
-- **Pod**: `mcp_sign_in` names the entry, passes the name through the port, and returns the URL in its
+- **Pod**: `operator_mcp_sign_in` names the entry, passes the name through the port, and returns the URL in its
   text; an entry that does not exist, or one already connected, answers without a URL; a `needs-auth`
   row's roster reason points at the tool.
 - **Live**: criterion 1–4 above, in one fresh session, recorded in §8.
@@ -134,7 +134,7 @@ request answers 401, the host refreshes it against `tokenEndpoint` and seals the
 Run on the deploy of `7dc9805eb` (`agent.byatlas.io` live from 16:05Z), in a fresh v2 session
 (`7b68c42c…`) whose clone carried one repo-only http server in `.mcp.json`:
 `{"mcpServers":{"posthog-live":{"url":"https://mcp.posthog.com/mcp"}}}` — no cloud row for it at all.
-1. `mcp_sign_in {"name":"posthog-live"}` answered `Open this link to sign in to the posthog-live MCP
+1. `operator_mcp_sign_in {"name":"posthog-live"}` answered `Open this link to sign in to the posthog-live MCP
    server: https://oauth.posthog.com/oauth/authorize/?…` — a real authorize URL carrying a registered
    `client_id`, `code_challenge` with `S256`, `redirect_uri=https://agent.byatlas.io/mcp-oauth/callback`
    and a sealed `state`, plus Posthog's scope list.
@@ -146,7 +146,7 @@ Run on the deploy of `7dc9805eb` (`agent.byatlas.io` live from 16:05Z), in a fre
    and redirected — **to global Settings, not to the session**, which is the defect §9 records.
 4. The next turn's roster read `posthog-live | http | connected | 1 tool | layer project` beside
    `Posthog | connected | 1` and `wispr-flow | needs-auth | 0`, whose reason now reads `the
-   'wispr-flow' MCP server needs a sign-in; call mcp_sign_in to start one`.
+   'wispr-flow' MCP server needs a sign-in; call operator_mcp_sign_in to start one`.
 
 So the slice's exit criteria 1–2 and 5 hold for a repo-only server end to end, and the tool is what a
 model reaches for when the roster says `needs-auth`. Criterion 3 (refresh) is covered by specs only:
@@ -211,7 +211,7 @@ only tamper-proof record, since the vendor's redirect carries nothing of ours. T
 
 ### Two entry points, one begin
 
-- **The tool.** `mcp_sign_in` → `PodControl.mcp.begin({name, source, url})` → the adapter adds
+- **The tool.** `operator_mcp_sign_in` → `PodControl.mcp.begin({name, source, url})` → the adapter adds
   `{surface: lastSurface, screen: {kind:'session', id: sessionId}}`. The port signature did not change:
   `control.of(sessionId)` already scopes it to one session, so no pod fake moved.
 - **Settings.** `POST /mcp-oauth/begin` on the host, `{serverId, surface, screen}`, bearer = the same
@@ -263,7 +263,7 @@ user (removed afterwards):
 - A project screen the caller does not own answered `403`; a request with no bearer answered `401`.
 - A fresh v2 session in the atlas project was subscribed to over the stream with `surface: 'desktop'`;
   `v2."V2Session"."lastSurface"` then read `desktop`. Its roster showed `wispr-flow` as needs-auth, so
-  asking it to sign in made the model call `mcp_sign_in {name:'wispr-flow'}`; the tool result carried
+  asking it to sign in made the model call `operator_mcp_sign_in {name:'wispr-flow'}`; the tool result carried
   the authorize URL, and the pending row it wrote read `returnTo=/sessions/<that id>,
   returnSurface=desktop`. That state's callback opens `atlas://open/sessions/<that id>?…` (exercised
   without a code, so on the failure path). The session was archived and its token deleted.
@@ -275,7 +275,7 @@ roster flipping on the next turn; the Mac app opening the deep link; iOS on a si
 
 **Status, 2026-11-10.** The card half of the follow-up; the return target is §8.
 
-The tool no longer prints the authorize URL. `mcp_sign_in` emits `mcp-sign-in-started`
+The tool no longer prints the authorize URL. `operator_mcp_sign_in` emits `mcp-sign-in-started`
 (`{server, url, expiresAt?, sessionId}`) as it returns, and the session emits `mcp-sign-in-resolved`
 (`{server, result, sessionId, reason?}`) the next time its reconcile sees the row flip — connected, or
 failed with the row's reason, or failed because the link it handed out died first. Both events are
@@ -311,7 +311,7 @@ Against `agent.byatlas.io` and `api.byatlas.io` once `tui-v1.308.2` was cut and 
 `be94cdbc7`, with a temporary `AuthSession` for the operator's user (deleted afterwards; the session
 archived):
 - A fresh v2 session in the atlas project, asked to sign in to the `wispr-flow` row it saw as
-  needs-auth, called `mcp_sign_in {name:'wispr-flow'}`. The log then held `mcp-sign-in-started` with
+  needs-auth, called `operator_mcp_sign_in {name:'wispr-flow'}`. The log then held `mcp-sign-in-started` with
   `server: wispr-flow`, a real `https://mcp-auth.wisprflow.com/oauth2/authorize` URL carrying a
   registered `client_id`, an S256 challenge, `redirect_uri=https://agent.byatlas.io/mcp-oauth/callback`
   and a sealed `state`, `expiresAt: 18:43:07Z` and the session's own id.

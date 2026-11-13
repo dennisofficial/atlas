@@ -340,7 +340,6 @@ export class GithubSubscriptionsService {
         owner: args.owner,
         repo: args.repo,
         number: prNumber,
-        withSuites: true,
       })
       .catch((failure: unknown) => {
         if (isGithubBudgetParked(failure)) return null

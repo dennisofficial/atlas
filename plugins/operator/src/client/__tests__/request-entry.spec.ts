@@ -106,6 +106,22 @@ describe('the operator request row', () => {
     expect(entry.text).toContain('no value arrived')
   })
 
+  it('reads an abandoned settlement as abandoned and says the session stopped waiting', () => {
+    const entry = entryOf([
+      asked(),
+      settled(2, {
+        outcome: EOperatorRequestOutcome.Abandoned,
+        path: undefined,
+        bytes: undefined,
+        reason: 'abandoned',
+      }),
+    ])
+
+    expect(entry.state).toBe('abandoned')
+    expect(entry.text).toContain('stopped waiting for the answer')
+    expect(entry.text).not.toContain('cancelled')
+  })
+
   it('reads an expired settlement as expired', () => {
     const entry = entryOf([
       asked(),
@@ -153,5 +169,19 @@ describe('the operator request row', () => {
 
   it('ignores a settlement whose request nobody asked for', () => {
     expect([...requestEntriesAt({ events: [settled()], now: NOW }).values()]).toEqual([])
+  })
+
+  it('keeps a request with no deadline pending until it settles', () => {
+    const noDeadline = { ...JSON.parse(JSON.stringify(asked(1))) }
+    delete noDeadline.expiresAt
+
+    const open = requestEntriesAt({ events: [noDeadline as V2Event], now: NOW })
+    expect(open.get('e1')?.state).toBe('pending')
+
+    const closed = requestEntriesAt({
+      events: [noDeadline as V2Event, settled(2)],
+      now: NOW,
+    })
+    expect(closed.get('e1')?.state).toBe('delivered')
   })
 })

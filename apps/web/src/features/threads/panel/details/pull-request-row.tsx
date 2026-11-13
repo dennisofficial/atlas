@@ -113,14 +113,19 @@ export function PullRequestRowItem(props: {
         </span>
       </TableCell>
       <TableCell className={`${BODY_CELL} w-full max-w-0`}>
-        <a
-          href={row.url}
-          target="_blank"
-          rel="noreferrer"
-          className="block truncate rounded-sm text-sm font-medium tabular-nums outline-hidden hover:underline focus-visible:ring-2 focus-visible:ring-ring/50"
-        >
-          {row.label}
-        </a>
+        <div className="flex min-w-0 items-baseline gap-1.5">
+          <a
+            href={row.url}
+            target="_blank"
+            rel="noreferrer"
+            className="block truncate rounded-sm text-sm font-medium tabular-nums outline-hidden hover:underline focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            {row.label}
+          </a>
+          {row.polled ? (
+            <span className="shrink-0 text-xs text-muted-foreground">polled</span>
+          ) : null}
+        </div>
         {branchShown ? (
           <span className="block truncate font-mono text-xs text-muted-foreground">
             {row.branch}

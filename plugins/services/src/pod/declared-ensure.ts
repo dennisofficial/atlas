@@ -5,6 +5,7 @@ import { servicesOfEvents } from '../core'
 import { declaredOrder, type DeclaredServices } from '../core/declared'
 import { runCommand, stopService } from './daemon'
 import { launchTracked } from './launch'
+import { serviceEnvOf } from './service-env'
 import type { ServicePodState } from './state'
 
 const SETUP_TAIL_CHARACTERS = 2_000
@@ -24,12 +25,13 @@ const runSetup = async (args: {
   signal?: AbortSignal | undefined
 }): Promise<string | undefined> => {
   if (args.state.setupDone.has(args.name)) return undefined
+  const env = await serviceEnvOf({ ctx: args.ctx, env: args.env })
   for (const command of args.commands) {
     const ran = await runCommand({
       ctx: args.ctx,
       command,
       cwd: args.cwd,
-      env: args.env,
+      env,
       signal: args.signal,
     })
     if (!ran.ok) return `setup "${command}" could not run: ${ran.reason}`

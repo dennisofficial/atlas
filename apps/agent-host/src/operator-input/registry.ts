@@ -1,15 +1,24 @@
 import { randomUUID } from 'node:crypto'
 
+import { EOperatorRequestOutcome } from '@dltech/atlas-plugin-operator/core'
+import type { Tx } from '@dltech/atlas-db'
 import type {
-  OperatorRequestAnswer,
+  OperatorAnswer,
+  OperatorAnswerHandoff,
+  OperatorDeliveryResult,
   OperatorRequestOpen,
+  OperatorRequestSettle,
   OperatorRequestPort,
 } from '@dltech/atlas-host'
 import type { PodOperatorAsk } from '@dltech/atlas-plugin-sdk'
 
 import { EOperatorRequestStatus, type OperatorRequestStore } from './store'
 
-export const OPERATOR_REQUEST_TTL_MS = 15 * 60_000
+export const OPERATOR_ANSWER_KIND = 'operator-answer'
+
+export const OPERATOR_ANSWER_TIMEOUT_MS = 120_000
+
+export const ANSWER_TIMED_OUT = 'the session did not wake in time; try again'
 
 export type OperatorRegistryTimers = {
   setTimeout(handler: () => void, ms: number): unknown
@@ -25,35 +34,60 @@ export type OperatorRefusal = { ok: false; status: 404 | 403 | 409; reason: stri
 
 export type OperatorRequestOutcome = { ok: true } | OperatorRefusal
 
-type Pending = {
-  requestId: string
-  sessionId: string
-  userId: string
-  expiresAt: Date
-  answer(answer: OperatorRequestAnswer): void
-  timer: unknown
+type Waiter = (result: OperatorDeliveryResult) => void
+
+const STATUS_OF_OUTCOME: Readonly<Record<EOperatorRequestOutcome, EOperatorRequestStatus>> = {
+  [EOperatorRequestOutcome.Delivered]: EOperatorRequestStatus.Answered,
+  [EOperatorRequestOutcome.Cancelled]: EOperatorRequestStatus.Cancelled,
+  [EOperatorRequestOutcome.Abandoned]: EOperatorRequestStatus.Abandoned,
+  [EOperatorRequestOutcome.Expired]: EOperatorRequestStatus.Expired,
+  [EOperatorRequestOutcome.Failed]: EOperatorRequestStatus.Failed,
 }
 
 export type OperatorRequestRegistryArgs = {
   store: OperatorRequestStore
-  ttlMs?: number | undefined
+  post: (args: {
+    tx: Tx
+    sessionId: string
+    kind: string
+    payload: string
+    at: string
+  }) => Promise<{
+    inboxId: number
+  }>
+  withTx: <T>(run: (tx: Tx) => Promise<T>) => Promise<T>
+  answerTimeoutMs?: number | undefined
   now?: (() => number) | undefined
   timers?: OperatorRegistryTimers | undefined
 }
 
 export class OperatorRequestRegistry {
   private readonly store: OperatorRequestStore
-  private readonly ttlMs: number
+  private readonly answerTimeoutMs: number
   private readonly now: () => number
   private readonly timers: OperatorRegistryTimers
-  private readonly pending = new Map<string, Pending>()
-  private readonly waiting = new Map<string, string>()
+  private readonly values = new Map<string, OperatorAnswer>()
+  private readonly waiters = new Map<string, Waiter>()
 
-  constructor(args: OperatorRequestRegistryArgs) {
+  constructor(private readonly args: OperatorRequestRegistryArgs) {
     this.store = args.store
-    this.ttlMs = args.ttlMs ?? OPERATOR_REQUEST_TTL_MS
+    this.answerTimeoutMs = args.answerTimeoutMs ?? OPERATOR_ANSWER_TIMEOUT_MS
     this.now = args.now ?? (() => Date.now())
     this.timers = args.timers ?? systemTimers
+  }
+
+  readonly answers: OperatorAnswerHandoff = {
+    take: (requestId) => {
+      const value = this.values.get(requestId)
+      this.values.delete(requestId)
+      return value
+    },
+    resolve: (params) => {
+      const waiter = this.waiters.get(params.requestId)
+      this.waiters.delete(params.requestId)
+      this.values.delete(params.requestId)
+      waiter?.(params.result)
+    },
   }
 
   async open(args: {
@@ -61,14 +95,12 @@ export class OperatorRequestRegistry {
     threadId: string
     ask: PodOperatorAsk
   }): Promise<OperatorRequestOpen> {
-    if (this.waiting.has(args.sessionId))
-      throw new Error('this session is already waiting on an operator request')
     const userId = await this.store.sessionOwner(args.sessionId)
     if (userId === null) throw new Error('this session has no owner to ask for input')
+    if (await this.store.hasPending(args.sessionId))
+      throw new Error('this session is already waiting on an operator request')
 
     const requestId = `oreq_${randomUUID()}`
-    const createdAt = new Date(this.now())
-    const expiresAt = new Date(createdAt.getTime() + this.ttlMs)
     await this.store.insertPending({
       id: requestId,
       sessionId: args.sessionId,
@@ -77,44 +109,9 @@ export class OperatorRequestRegistry {
       prompt: args.ask.prompt,
       secret: args.ask.secret,
       ...(args.ask.kind === 'shell' ? { shellId: args.ask.shellId } : {}),
-      createdAt,
-      expiresAt,
+      createdAt: new Date(this.now()),
     })
-
-    let settle: (answer: OperatorRequestAnswer) => void = () => {}
-    const answered = new Promise<OperatorRequestAnswer>((resolve) => {
-      settle = resolve
-    })
-    const entry: Pending = {
-      requestId,
-      sessionId: args.sessionId,
-      userId,
-      expiresAt,
-      answer: settle,
-      timer: undefined,
-    }
-    entry.timer = this.timers.setTimeout(() => {
-      void this.finish({
-        requestId,
-        status: EOperatorRequestStatus.Expired,
-        answer: { ok: false, reason: 'expired' },
-      })
-    }, this.ttlMs)
-    this.pending.set(requestId, entry)
-    this.waiting.set(args.sessionId, requestId)
-
-    return {
-      requestId,
-      expiresAt,
-      answered,
-      abandon: () => {
-        void this.finish({
-          requestId,
-          status: EOperatorRequestStatus.Cancelled,
-          answer: { ok: false, reason: 'cancelled' },
-        })
-      },
-    }
+    return { requestId }
   }
 
   async answer(args: {
@@ -122,70 +119,66 @@ export class OperatorRequestRegistry {
     userId: string
     value: string
   }): Promise<OperatorRequestOutcome> {
-    const held = await this.held({ requestId: args.requestId, userId: args.userId })
-    if ('ok' in held) return held
-    const done = await this.finish({
-      requestId: args.requestId,
-      status: EOperatorRequestStatus.Answered,
-      answer: { ok: true, value: args.value },
-    })
-    return done ? { ok: true } : { ok: false, status: 404, reason: 'request' }
+    return await this.hand({ ...args, answer: { ok: true, value: args.value } })
   }
 
   async cancel(args: { requestId: string; userId: string }): Promise<OperatorRequestOutcome> {
-    const held = await this.held({ requestId: args.requestId, userId: args.userId })
-    if ('ok' in held) return held
-    const done = await this.finish({
-      requestId: args.requestId,
-      status: EOperatorRequestStatus.Cancelled,
-      answer: { ok: false, reason: 'cancelled' },
-    })
-    return done ? { ok: true } : { ok: false, status: 404, reason: 'request' }
+    return await this.hand({ ...args, answer: { ok: false, cancel: true } })
   }
 
-  private async held(args: {
+  private async hand(args: {
     requestId: string
     userId: string
-  }): Promise<Pending | OperatorRefusal> {
-    const entry = this.pending.get(args.requestId)
-    if (entry === undefined) return await this.absent(args.requestId)
-    if (entry.userId !== args.userId) return { ok: false, status: 403, reason: 'request' }
-    if (this.now() >= entry.expiresAt.getTime()) {
-      await this.finish({
-        requestId: args.requestId,
-        status: EOperatorRequestStatus.Expired,
-        answer: { ok: false, reason: 'expired' },
-      })
-      return { ok: false, status: 404, reason: 'request' }
-    }
-    return entry
+    answer: OperatorAnswer
+  }): Promise<OperatorRequestOutcome> {
+    const held = await this.store.held({ id: args.requestId, userId: args.userId })
+    if (held === 'absent') return { ok: false, status: 404, reason: 'request' }
+    if (held === 'forbidden') return { ok: false, status: 403, reason: 'request' }
+
+    this.values.set(args.requestId, args.answer)
+    const delivered = new Promise<OperatorDeliveryResult>((resolve) => {
+      this.waiters.set(args.requestId, resolve)
+    })
+    await this.args.withTx((tx) =>
+      this.args.post({
+        tx,
+        sessionId: held.sessionId,
+        kind: OPERATOR_ANSWER_KIND,
+        payload: JSON.stringify({ requestId: args.requestId }),
+        at: new Date(this.now()).toISOString(),
+      }),
+    )
+
+    const result = await this.awaited(delivered)
+    this.values.delete(args.requestId)
+    if (!result.ok) return { ok: false, status: 409, reason: result.reason }
+    return { ok: true }
   }
 
-  private async absent(requestId: string): Promise<OperatorRefusal> {
-    const status = await this.store.statusOf(requestId)
-    if (status !== EOperatorRequestStatus.Pending)
-      return { ok: false, status: 404, reason: 'request' }
-    return { ok: false, status: 409, reason: 'not_held_here' }
+  async settle(args: OperatorRequestSettle): Promise<boolean> {
+    return await this.store.settle({
+      id: args.requestId,
+      status: STATUS_OF_OUTCOME[args.outcome],
+      at: args.at ?? new Date(this.now()),
+    })
   }
 
-  private async finish(args: {
-    requestId: string
-    status: EOperatorRequestStatus
-    answer: OperatorRequestAnswer
-  }): Promise<boolean> {
-    const entry = this.pending.get(args.requestId)
-    if (entry === undefined) return false
-    this.pending.delete(args.requestId)
-    if (this.waiting.get(entry.sessionId) === args.requestId) this.waiting.delete(entry.sessionId)
-    this.timers.clearTimeout(entry.timer)
-    const settled = await this.store
-      .settle({ id: args.requestId, status: args.status, at: new Date(this.now()) })
-      .catch(() => false)
-    entry.answer(args.answer)
-    return settled
+  private async awaited(
+    delivered: Promise<OperatorDeliveryResult>,
+  ): Promise<OperatorDeliveryResult> {
+    const timedOut = new Promise<OperatorDeliveryResult>((resolve) => {
+      const timer = this.timers.setTimeout(
+        () => resolve({ ok: false, reason: ANSWER_TIMED_OUT }),
+        this.answerTimeoutMs,
+      )
+      void delivered.then(() => this.timers.clearTimeout(timer))
+    })
+    return await Promise.race([delivered, timedOut])
   }
 }
 
 export const operatorRequestPortOf = (registry: OperatorRequestRegistry): OperatorRequestPort => ({
   open: (args) => registry.open(args),
+  settle: (args) => registry.settle(args),
+  answers: registry.answers,
 })

@@ -1,3 +1,6 @@
+import { isTurnTakingType } from '../../agents/kind'
+import { CORE_EVENT_TYPES } from '../../events/schema'
+import { RECORD_ONLY_TYPES } from '../event'
 import { EWaitEpisodeKind } from '../../model-recovery/waiting'
 import { EFinishReason } from '../../stream/chunk'
 import { EInputConsumed, type V2Event, type V2EventType } from '../event'
@@ -15,6 +18,10 @@ export type TurnFact = {
 
 export type RetryFact = { notBefore: string; at: string }
 
+export type ParkedFact = { name: string; at: string }
+
+export type ParkedFacts = Readonly<Record<string, ParkedFact>>
+
 export type StatusFacts = {
   firstSeq: number | null
   prepared: boolean
@@ -25,6 +32,7 @@ export type StatusFacts = {
   unfinishedFailure: { message: string; at: string } | null
   credentialWait: { reason: string | null; at: string } | null
   retries: readonly RetryFact[]
+  parked: ParkedFacts
 }
 
 export const initialStatusFacts: StatusFacts = {
@@ -37,6 +45,7 @@ export const initialStatusFacts: StatusFacts = {
   unfinishedFailure: null,
   credentialWait: null,
   retries: [],
+  parked: {},
 }
 
 const TURN_ENDING_TYPES: ReadonlySet<V2EventType> = new Set([
@@ -56,6 +65,14 @@ const TURN_NEUTRAL_TYPES: ReadonlySet<V2EventType> = new Set<V2EventType>([
   'input-refused',
   'workspace-step',
 ])
+
+const KNOWN_TYPES: ReadonlySet<string> = new Set([...CORE_EVENT_TYPES, ...RECORD_ONLY_TYPES])
+
+const isTurnNeutral = (event: V2Event): boolean => {
+  if (TURN_NEUTRAL_TYPES.has(event.type)) return true
+  if (event.type === 'tool-result') return event.error !== undefined || event.interrupted === true
+  return !KNOWN_TYPES.has(event.type) && !isTurnTakingType(event.type)
+}
 
 const isTurnEnding = (event: V2Event): boolean =>
   TURN_ENDING_TYPES.has(event.type) ||
@@ -123,8 +140,24 @@ const stepWaits = (facts: StatusFacts, event: V2Event): StatusFacts => {
   return facts
 }
 
+const withoutParked = (parked: ParkedFacts, callId: string): ParkedFacts =>
+  Object.fromEntries(Object.entries(parked).filter(([id]) => id !== callId))
+
+const stepParked = (facts: StatusFacts, event: V2Event): StatusFacts => {
+  if (event.type === 'tool-parked') {
+    return {
+      ...facts,
+      parked: { ...facts.parked, [event.callId]: { name: event.name, at: event.at } },
+    }
+  }
+  if (event.type !== 'tool-called' && event.type !== 'tool-result' && event.type !== 'tool-denied')
+    return facts
+  if (!Object.hasOwn(facts.parked, event.callId)) return facts
+  return { ...facts, parked: withoutParked(facts.parked, event.callId) }
+}
+
 const stepTurn = (facts: StatusFacts, event: V2Event): StatusFacts => {
-  if (!TURN_NEUTRAL_TYPES.has(event.type)) {
+  if (!isTurnNeutral(event)) {
     return {
       ...facts,
       turn: turnOf(event),
@@ -139,7 +172,10 @@ const stepTurn = (facts: StatusFacts, event: V2Event): StatusFacts => {
 }
 
 export const stepStatusFacts = (facts: StatusFacts, event: V2Event): StatusFacts =>
-  stepTurn(
-    stepWaits(stepWorkspace({ ...facts, firstSeq: facts.firstSeq ?? event.seq }, event), event),
+  stepParked(
+    stepTurn(
+      stepWaits(stepWorkspace({ ...facts, firstSeq: facts.firstSeq ?? event.seq }, event), event),
+      event,
+    ),
     event,
   )

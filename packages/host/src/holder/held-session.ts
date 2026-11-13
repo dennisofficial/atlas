@@ -9,6 +9,7 @@ import {
 import { LoopTurnRunner, PauseSignal } from '@dltech/atlas-agent'
 
 import { FencedSettlement } from './fenced-settlement'
+import { settleOperatorOnStop } from './operator-stop'
 import type { SessionRuntime } from './ports'
 import type { BranchObserver } from './branch-observer'
 import { CrewRoom } from './crew'
@@ -239,6 +240,7 @@ export class HeldSession {
         return this.turns.abort('stop')
       case EHeldAction.ConsumeStop: {
         this.resumePending = false
+        await settleOperatorOnStop({ deps, record: this.record, runtime: this.runtime })
         await consumeStops({ deps, record: this.record, entries, onActivity: this.noteActivity })
         this.reconciler?.request()
         return

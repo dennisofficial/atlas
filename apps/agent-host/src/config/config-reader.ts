@@ -113,6 +113,7 @@ export class ConfigReader implements ConfigSource {
       modelRef: string | null
       modelEffort: string | null
       modelFast: boolean | null
+      modelAccountId?: string | null | undefined
     } | null,
   ): ThreadModelChoice | undefined {
     if (row === null || row.modelRef === null) return undefined
@@ -120,6 +121,9 @@ export class ConfigReader implements ConfigSource {
       ref: row.modelRef,
       ...(row.modelEffort === null ? {} : { effort: row.modelEffort }),
       ...(row.modelFast === null ? {} : { fast: row.modelFast }),
+      ...(row.modelAccountId === null || row.modelAccountId === undefined
+        ? {}
+        : { accountId: row.modelAccountId }),
     }
   }
 

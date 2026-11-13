@@ -12,6 +12,7 @@ model GithubPrState {
   checksPassed     Int                  @default(0)
   checksFailed     Int                  @default(0)
   checksIgnored    Int                  @default(0)
+  checksState      String?
   mergeable        Boolean?
   version          Int                  @default(0)
   updatedAt        TimestamptzJsDate(3)
