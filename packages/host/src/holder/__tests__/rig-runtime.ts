@@ -1,5 +1,6 @@
 import {
   defaultPipeline,
+  EEffort,
   EMPTY_PROMPT,
   EProviderFailureKind,
   EProviderFailureScope,
@@ -27,12 +28,20 @@ import type {
   PrepareResult,
   PrepareStepReporter,
   PullRequestSource,
+  RoleModelRequest,
   SessionRuntime,
 } from '../ports'
 import { SANDBOX, SECRET, type FakeClock } from './rig-fakes'
 
+export const RIG_MODEL_CHOICE = {
+  ref: { providerId: 'anthropic', modelId: 'claude-sonnet-4-5' },
+  effort: EEffort.Medium,
+  fast: false,
+}
+
 export type RigRuntime = SessionRuntime & {
   model: ModelPort
+  modelForCalls: RoleModelRequest[]
   stopped: boolean
   released: boolean
   ackedScopes: string[]
@@ -124,9 +133,17 @@ export const makeRuntimeFactory = (args: {
       await originalAckScope({ scopeKey, count })
       ackedScopes.push(scopeKey)
     }
+    const modelForCalls: RoleModelRequest[] = []
     const runtime: RigRuntime = {
       remoteCalls: calls,
       model,
+      modelChoice: RIG_MODEL_CHOICE,
+      modelForCalls,
+      modelFor: (request) => {
+        modelForCalls.push(request)
+        return model
+      },
+      choiceFor: () => RIG_MODEL_CHOICE,
       tools: fakeToolRegistry([new BashTool(calls)]),
       daemonTools: new Set(['bash']),
       ackedScopes,

@@ -82,15 +82,17 @@ export function SettingsCard({
   className,
   footer,
   tone,
+  size,
   children,
 }: {
   className?: string
   footer?: ReactNode
   tone?: 'default' | 'destructive'
+  size?: 'default' | 'sm'
   children: ReactNode
 }) {
   return (
-    <Card variant="list" tone={tone} className={className}>
+    <Card variant="list" tone={tone} size={size} className={className}>
       {children}
       {footer ? <CardFooter className="justify-end">{footer}</CardFooter> : null}
     </Card>

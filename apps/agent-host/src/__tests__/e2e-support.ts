@@ -14,7 +14,8 @@ import { SessionHolder, systemTimers } from '@dltech/atlas-host'
 
 import type { LocalSandboxProvider } from '../testing/local-sandbox-provider'
 import { createSessionRuntimeFactory } from '../runtime/session-runtime-factory'
-import type { AgentHostConfig, ConfigSource } from '../config/agent-host-config'
+import { fakeModelSourceOf } from '../testing/model-source'
+import type { ConfigSource } from '../config/agent-host-config'
 
 process.env.ATLAS_HOME = mkdtempSync(join(tmpdir(), 'atlas-agent-host-e2e-'))
 const E2E_WORKSPACE = mkdtempSync(join(tmpdir(), 'atlas-agent-host-e2e-workspace-'))
@@ -58,17 +59,21 @@ export const makeInMemoryBus = (): InMemoryBus => {
   }
 }
 
-export const sourceFor = (setupScript = ''): ConfigSource => {
-  const config: AgentHostConfig = {
-    userId: 'user-1',
-    projectId: 'proj-1',
-    model: { configured: false, gap: 'scripted model in test' },
-    vercel: { configured: true, token: '', teamId: '', projectId: '' },
-    workspace: { remoteUrl: null, baseBranch: null, additionalRepos: [], setupScript },
-    skills: [],
-  }
-  return { read: async () => config, model: async () => config.model }
-}
+export const sourceFor = (setupScript = ''): ConfigSource => ({
+  read: async () => {
+    const model = { configured: false as const, gap: 'scripted model in test' }
+    return {
+      userId: 'user-1',
+      projectId: 'proj-1',
+      model,
+      models: fakeModelSourceOf(model),
+      vercel: { configured: true, token: '', teamId: '', projectId: '' },
+      workspace: { remoteUrl: null, baseBranch: null, additionalRepos: [], setupScript },
+      skills: [],
+    }
+  },
+  models: async () => fakeModelSourceOf({ configured: false, gap: 'scripted model in test' }),
+})
 
 export const noGithub = (): { read(): Promise<string | null> } => ({ read: async () => null })
 

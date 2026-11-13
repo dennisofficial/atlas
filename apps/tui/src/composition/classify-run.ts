@@ -13,13 +13,12 @@ import {
   backendOf,
   EventLogPort,
   refKey,
-  textValueOf,
   toThreadId,
   WorkspaceFactsPort,
   type ClassifierPolicy,
   type CorpusFile,
   type Event,
-  type ModelRef,
+  type ModelChoice,
 } from '@dltech/atlas-core'
 import {
   createHarnessContainer,
@@ -45,7 +44,7 @@ import {
 
 import { replayLines } from './classify-report'
 import { CLASSIFY_USAGE, EClassifyTask, type ClassifyRequest } from './classify'
-import { judgeModel, judgeRefFor } from './judge-model'
+import { judgeChoiceFor, judgeModel } from './judge-model'
 import { loadSettings } from '@dltech/atlas-harness'
 
 const REFUSED = 1
@@ -68,7 +67,7 @@ const complain = (line: string): void => {
 
 type Bench = {
   container: DependencyContainer
-  judgeRef: ModelRef
+  judgeChoice: ModelChoice
   policy: ClassifierPolicy
   projectDirectory: string
   launchDirectory: string
@@ -89,9 +88,7 @@ async function openBench({
     id: ESettingId.WorktreeDirectory,
     fallback: DEFAULT_WORKTREE_DIRECTORY,
   })
-  const judgeRef = judgeRefFor({
-    override: textValueOf({ resolution: settled, id: ESettingId.QuickModel }),
-  })
+  const judgeChoice = judgeChoiceFor({ settled })
 
   container.register(WorkspaceRoot, { useValue: cwd })
   container.register(WorktreeDirectoryToken, { useValue: () => worktreeDirectory })
@@ -110,7 +107,7 @@ async function openBench({
 
   return {
     container,
-    judgeRef,
+    judgeChoice,
     projectDirectory: cwd,
     launchDirectory: workspace.repo ?? cwd,
     policy: {
@@ -137,7 +134,7 @@ const judgeOver = ({ bench }: { bench: Bench }): JudgeMemo => {
     judge: new HaikuJudge({
       model: createNotifyingModel({
         model: judgeModel({
-          ref: bench.judgeRef,
+          choice: bench.judgeChoice,
           credentials: bench.container.resolve(registeredPortToken(CredentialPort)),
         }),
         onFault: ({ providerId, modelId, fault }) => {
@@ -244,7 +241,7 @@ async function runCritique({ bench }: { bench: Bench }): Promise<number> {
 
   const critique = await critiqueConfiguration({
     model: judgeModel({
-      ref: bench.judgeRef,
+      choice: bench.judgeChoice,
       credentials: bench.container.resolve(registeredPortToken(CredentialPort)),
     }),
     policy: bench.policy,
@@ -252,7 +249,7 @@ async function runCritique({ bench }: { bench: Bench }): Promise<number> {
 
   if (critique.kind === ECritique.Unreachable) {
     complain(
-      `the judge model ${refKey(bench.judgeRef)} could not review the configuration: ${critique.fault}`,
+      `the judge model ${refKey(bench.judgeChoice.ref)} could not review the configuration: ${critique.fault}`,
     )
     return REFUSED
   }

@@ -50,10 +50,10 @@ import { daemonToolsOf } from './tools'
 import { ShellEnvCell } from './shell-env'
 import { envSecretsRefresher } from './env-secrets-refresh'
 import { pathEnvironmentOf, sessionPathsOf, shellEnvironmentOf } from './session-paths'
+import { fixedSessionModelsOf, liveSessionModelsOf, type SessionModels } from './model-port'
 import { prepareSigning } from './signing-setup'
 import { ensureWorkspace } from './workspace-setup'
 import { workspaceRepoMap } from './workspace-repo-map'
-import { sessionModelPort } from './session-model'
 
 export { SandboxNotConfiguredError }
 
@@ -266,19 +266,23 @@ export const createSessionRuntimeFactory = (
     const registry = new InMemoryToolRegistry(tools)
     const byName = new Map(tools.map((tool) => [tool.name, tool]))
 
-    let model: ModelPort
+    const overridden = args.modelFor
+    let models: SessionModels
     try {
-      model =
-        args.modelFor === undefined
-          ? sessionModelPort({
+      models =
+        overridden === undefined
+          ? liveSessionModelsOf({
               userId: config.userId,
-              initial: config.model,
-              read: () => args.config.model({ sessionId, threadId }),
+              initial: config.models,
+              read: () => args.config.models({ sessionId, threadId }),
               tokens: args.tokens,
               media: args.media,
               log: args.log,
             })
-          : args.modelFor({ sessionId })
+          : fixedSessionModelsOf({
+              port: () => overridden({ sessionId }),
+              source: config.models,
+            })
     } catch (error) {
       calls.close()
       throw error
@@ -299,13 +303,18 @@ export const createSessionRuntimeFactory = (
 
     return {
       remoteCalls: calls,
-      model,
+      model: models.main,
+      get modelChoice() {
+        return models.modelChoice()
+      },
+      modelFor: models.modelFor,
+      choiceFor: models.choiceFor,
       tools: registry,
       daemonTools: new Set(daemonToolList.map((tool) => tool.name)),
       effectOf: (name) => byName.get(name)?.effect,
       assembly: defaultPipeline({
         prompt: agentHostPrompt({
-          identity: () => model.identity,
+          identity: () => models.main.identity,
           extraFragments: [
             ...(args.plugins?.pod.prompts ?? []),
             new EnvSecretsFragment(() => shellEnv.exportedSecretNames()),

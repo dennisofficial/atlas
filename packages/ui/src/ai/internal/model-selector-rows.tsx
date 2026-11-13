@@ -1,5 +1,5 @@
 import type { KeyboardEvent, MouseEvent } from 'react'
-import { PinIcon, TriangleAlertIcon, ZapIcon } from 'lucide-react'
+import { CornerDownRightIcon, PinIcon, TriangleAlertIcon, ZapIcon } from 'lucide-react'
 import { cn } from 'cn'
 
 import { BrandMark } from '#components/brand-mark'
@@ -9,12 +9,14 @@ import { InputGroupButton } from '#components/input-group'
 import { Toggle } from '#components/toggle'
 
 import {
+  FOLLOW_VALUE,
   MODEL_FILTER_LABELS,
   reconnectItemValue,
   showAllItemValue,
   type EModelFilter,
   type ModelOption,
 } from '../model-selector-groups'
+import { EModelSelectorVariant } from '../model-selector-variant'
 
 export function ProviderMark({ model }: { model: ModelOption }) {
   if (model.brand) return <BrandMark brand={model.brand} size="sm" />
@@ -31,21 +33,53 @@ export function ProviderMark({ model }: { model: ModelOption }) {
 export function TriggerLabel({
   model,
   placeholder,
+  variant = EModelSelectorVariant.Composer,
+  follow,
 }: {
   model: ModelOption | undefined
   placeholder: string
+  variant?: EModelSelectorVariant
+  follow?: string
 }) {
   if (!model) return <span className="min-w-0 truncate">{placeholder}</span>
   return (
     <>
-      <span className="contents max-md:hidden">
+      {follow === undefined ? null : <span className="sr-only">{follow}</span>}
+      <span
+        className={cn('contents', variant === EModelSelectorVariant.Composer && 'max-md:hidden')}
+      >
         <ProviderMark model={model} />
       </span>
-      <span className="min-w-0 truncate">
+      {model.disabled === true ? (
+        <>
+          {follow === undefined ? (
+            <TriangleAlertIcon className="size-3.5 shrink-0 text-warning" aria-hidden />
+          ) : null}
+          <span className="sr-only">{model.disabledNote ?? 'Unavailable'}</span>
+        </>
+      ) : null}
+      <span className={cn('min-w-0 truncate', follow !== undefined && 'text-muted-foreground')}>
         {model.label}
         {model.route ? <span className="text-muted-foreground"> · {model.route}</span> : null}
       </span>
     </>
+  )
+}
+
+export function FollowRow({
+  label,
+  checked,
+  onSelect,
+}: {
+  label: string
+  checked: boolean
+  onSelect: () => void
+}) {
+  return (
+    <CommandItem value={FOLLOW_VALUE} data-checked={checked} onSelect={onSelect}>
+      <CornerDownRightIcon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+    </CommandItem>
   )
 }
 
@@ -226,24 +260,37 @@ export function NoProvidersState({
   )
 }
 
+const FAST_TITLE = 'Same model, faster output, higher price'
+
 export function FastToggle({
   pressed,
+  readOnly = false,
+  note,
+  variant = EModelSelectorVariant.Composer,
   onToggle,
 }: {
   pressed: boolean
-  onToggle: (fast: boolean) => void
+  readOnly?: boolean
+  note?: string
+  variant?: EModelSelectorVariant
+  onToggle?: (fast: boolean) => void
 }) {
-  const handleClick = () => onToggle(!pressed)
+  const handleClick = () => onToggle?.(!pressed)
   return (
     <InputGroupButton
       size="sm"
       data-slot="model-fast"
+      data-read-only={readOnly ? '' : undefined}
       aria-pressed={pressed}
-      title="Same model, faster output, higher price"
-      onClick={handleClick}
+      aria-disabled={readOnly ? true : undefined}
+      title={readOnly ? (note ?? FAST_TITLE) : FAST_TITLE}
+      className={readOnly ? 'text-muted-foreground' : undefined}
+      onClick={readOnly ? undefined : handleClick}
     >
       <ZapIcon className={cn(pressed && 'fill-current')} />
-      <span className="max-md:sr-only">Fast</span>
+      <span className={cn(variant === EModelSelectorVariant.Composer && 'max-md:sr-only')}>
+        Fast
+      </span>
     </InputGroupButton>
   )
 }

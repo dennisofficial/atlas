@@ -51,7 +51,11 @@ export function bindUtilityModels(args: {
     const card = models.cardFor(choice.ref)
     const adapter = models.adapterFor(choice.ref.providerId)
     if (card === undefined || adapter === undefined) return undefined
-    return adapter.model({ card, effort: () => model.choice().effort })
+    return adapter.model({
+      card,
+      effort: () => model.choice().effort,
+      fast: () => model.choice().fast === true,
+    })
   }
 
   const utility = (role: EUtilityModelRole): LanguageModelV4 =>

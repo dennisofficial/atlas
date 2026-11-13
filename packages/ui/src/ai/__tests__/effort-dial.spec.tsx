@@ -51,6 +51,18 @@ describe('effortNeedleDegrees', () => {
   })
 })
 
+describe('EffortDial', () => {
+  it('shows the effort word on the trigger only when asked', () => {
+    const plain = renderToStaticMarkup(<EffortDial efforts={EFFORTS} value={EEffort.High} />)
+    const labelled = renderToStaticMarkup(
+      <EffortDial efforts={EFFORTS} value={EEffort.High} showEffortLabel />,
+    )
+
+    expect(plain).not.toContain('>High<')
+    expect(labelled).toContain('>High<')
+  })
+})
+
 describe('effortTickLeft', () => {
   it('insets the first and last ticks by half a thumb', () => {
     expect(effortTickLeft({ index: 0, last: 4 })).toBe('calc(9px + (100% - 18px) * 0)')
@@ -98,5 +110,48 @@ describe('EffortDial', () => {
     const html = renderToStaticMarkup(<EffortDial efforts={EFFORTS} value={EEffort.High} />)
 
     expect(html).not.toContain('>High<')
+  })
+})
+
+describe('EffortDial labels', () => {
+  const NATIVE = {
+    [EEffort.Off]: 'None',
+    [EEffort.Low]: 'Low',
+    [EEffort.High]: 'High',
+    [EEffort.Max]: 'Max',
+  }
+
+  it("names the rung in the model's own words", () => {
+    const html = renderToStaticMarkup(
+      <EffortDial efforts={EFFORTS} value={EEffort.High} labels={NATIVE} />,
+    )
+
+    expect(html).toContain('aria-label="Effort: High"')
+    expect(html).toContain('title="Effort: High"')
+  })
+
+  it('falls back per rung to the Atlas label', () => {
+    const html = renderToStaticMarkup(
+      <EffortDial efforts={EFFORTS} value={EEffort.XHigh} labels={NATIVE} />,
+    )
+
+    expect(html).toContain('aria-label="Effort: Extra high"')
+  })
+})
+
+describe('EffortDial read-only', () => {
+  it('keeps the gauge but disables the slider without an onChange', () => {
+    const html = renderToStaticMarkup(<EffortDial efforts={EFFORTS} value={EEffort.High} />)
+
+    expect(html).toContain('data-slot="model-effort"')
+    expect(html).toContain('data-read-only')
+  })
+
+  it('leaves the trigger interactive when it can change effort', () => {
+    const html = renderToStaticMarkup(
+      <EffortDial efforts={EFFORTS} value={EEffort.High} onChange={() => undefined} />,
+    )
+
+    expect(html).not.toContain('data-read-only')
   })
 })

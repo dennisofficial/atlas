@@ -28,11 +28,11 @@ export type EffortMap = Partial<Record<EEffort, string | number>>
 export const supportedEfforts = (map: EffortMap | undefined): readonly EEffort[] =>
   map === undefined ? [] : EFFORT_LADDER.filter((effort) => map[effort] !== undefined)
 
-export function clampEffort(args: {
-  map: EffortMap | undefined
+export function clampToRungs(args: {
+  rungs: readonly EEffort[]
   effort: EEffort
 }): EEffort | undefined {
-  const offered = supportedEfforts(args.map)
+  const offered = EFFORT_LADDER.filter((rung) => args.rungs.includes(rung))
   if (offered.includes(args.effort)) return args.effort
 
   const asked = EFFORT_LADDER.indexOf(args.effort)
@@ -40,6 +40,13 @@ export function clampEffort(args: {
   if (above !== undefined) return above
 
   return offered[offered.length - 1]
+}
+
+export function clampEffort(args: {
+  map: EffortMap | undefined
+  effort: EEffort
+}): EEffort | undefined {
+  return clampToRungs({ rungs: supportedEfforts(args.map), effort: args.effort })
 }
 
 export function nextEffort(args: {

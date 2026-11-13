@@ -3,23 +3,32 @@ import {
   type ModelStepResult,
   type ModelTraits,
   type ProviderIdentity,
+  type ResolvedModelChoice,
 } from '@dltech/atlas-core'
 
 import type { ModelConfig } from '../config/agent-host-config'
+import type { ResolvedRoleModel } from '../config/model-config'
 import type { AiSdkModelPort } from './ai-sdk-model-port'
 
-const keyOf = (config: ModelConfig): string =>
+const configKeyOf = (config: ModelConfig): string =>
   config.configured === false
     ? `gap:${config.gap}`
     : [
-        `${config.ref.providerId}/${config.ref.modelId}`,
-        config.effort,
-        config.fast ? 'fast' : 'steady',
         config.accountId,
         config.credential.kind === 'api-key'
           ? `api-key:${config.credential.apiKey}`
           : `oauth:${config.credential.connectionId}`,
       ].join('|')
+
+const choiceKeyOf = (choice: ResolvedModelChoice): string =>
+  [
+    `${choice.ref.providerId}/${choice.ref.modelId}`,
+    choice.effort,
+    choice.fast ? 'fast' : 'steady',
+  ].join('|')
+
+const keyOf = (resolved: ResolvedRoleModel): string =>
+  `${choiceKeyOf(resolved.choice)}|${configKeyOf(resolved.config)}`
 
 export class LiveModelPort extends ModelPort {
   private inner: AiSdkModelPort
@@ -27,9 +36,9 @@ export class LiveModelPort extends ModelPort {
 
   constructor(
     private readonly args: {
-      initial: ModelConfig
-      read: () => Promise<ModelConfig>
-      build: (config: ModelConfig) => AiSdkModelPort
+      initial: ResolvedRoleModel
+      read: () => Promise<ResolvedRoleModel>
+      build: (resolved: ResolvedRoleModel) => AiSdkModelPort
       onReadFailure?: (error: unknown) => void
     },
   ) {
@@ -52,7 +61,7 @@ export class LiveModelPort extends ModelPort {
   }
 
   private async refresh(): Promise<void> {
-    let next: ModelConfig
+    let next: ResolvedRoleModel
     try {
       next = await this.args.read()
     } catch (error) {

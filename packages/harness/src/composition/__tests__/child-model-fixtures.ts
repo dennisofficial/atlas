@@ -58,9 +58,14 @@ const cardFor = (ref: ModelRef): ModelCard => ({
   imageTier: EImageTier.HighResolution,
   cost: { inputPerMillion: 1, outputPerMillion: 2 },
   effort: LADDER,
+  fast: true,
 })
 
-export type BuiltModel = { model: MockLanguageModelV4; effortAt: () => EffortValue }
+export type BuiltModel = {
+  model: MockLanguageModelV4
+  effortAt: () => EffortValue
+  fastAt: () => boolean
+}
 
 export type RecordingAdapter = ProviderAdapter & {
   built: BuiltModel[]
@@ -79,13 +84,13 @@ function recordingAdapter(args: {
     label: args.ref.providerId,
     built,
     cards: () => [cardFor(args.ref)],
-    model: ({ effort }) => {
+    model: ({ effort, fast }) => {
       const model = scriptedModel({
         script: args.steps ?? args.texts.map((text) => ({ text })),
         provider: args.ref.providerId,
         modelId: args.ref.modelId,
       })
-      built.push({ model, effortAt: () => effort() })
+      built.push({ model, effortAt: () => effort(), fastAt: () => fast?.() === true })
       return model
     },
     effortOptions: () => undefined,
@@ -164,6 +169,7 @@ export type ChildModelFixture = {
 export async function childModelFixture(args?: {
   parentRef?: ModelRef
   parentEffort?: EffortValue
+  parentFast?: boolean
   settings?: Record<string, string>
   anthropicSteps?: readonly ScriptedAdapterStep[]
   openaiSteps?: readonly ScriptedAdapterStep[]
@@ -194,7 +200,11 @@ export async function childModelFixture(args?: {
 
   const parent = selectableModel({
     catalogue: models,
-    initial: { ref: args?.parentRef ?? CLAUDE, effort: args?.parentEffort ?? EEffort.Medium },
+    initial: {
+      ref: args?.parentRef ?? CLAUDE,
+      effort: args?.parentEffort ?? EEffort.Medium,
+      fast: args?.parentFast ?? false,
+    },
   })
 
   const settings = createSettingsService({

@@ -26,7 +26,7 @@ export function useSessionModelChoice(args: {
   current: SessionModelChoice | null | undefined
 }): SessionModelChoiceView {
   const { sessionId, current } = args
-  const picker = useModelPicker({ currentId: current?.ref })
+  const picker = useModelPicker({ currentIds: current?.ref === undefined ? [] : [current.ref] })
   const [chosen, setChosen] = useState<ModelSelection | null>(null)
   const [open, setOpen] = useState(false)
 

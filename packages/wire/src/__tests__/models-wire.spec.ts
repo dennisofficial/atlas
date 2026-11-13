@@ -49,6 +49,24 @@ describe('modelsResponseSchema', () => {
     expect(parsed.providers[0]?.status).toBe(EModelProviderStatus.Unavailable)
   })
 
+  it('carries the model-owned effort labels alongside the rungs', () => {
+    const parsed = modelsResponseSchema.parse({
+      providers: [
+        {
+          ...connected,
+          models: [
+            { ...connected.models[0], effortLabels: { low: 'Low', high: 'High · 16k tokens' } },
+          ],
+        },
+      ],
+    })
+
+    expect(parsed.providers[0]?.models[0]?.effortLabels).toEqual({
+      low: 'Low',
+      high: 'High · 16k tokens',
+    })
+  })
+
   it('rejects an unknown status', () => {
     expect(
       modelsResponseSchema.safeParse({ providers: [{ ...connected, status: 'limited' }] }).success,

@@ -1,16 +1,16 @@
 import type { LanguageModelV4 } from '@ai-sdk/provider'
 
 import {
+  capabilitiesFromCatalog,
+  EModelRole,
   ENoticeTone,
+  EStalePolicy,
+  EUtilityModelRole,
   NOTICE_WARN_MS,
   refKey,
-  resolveUtilityModel,
-  textValueOf,
-  UTILITY_ROLE_EFFORT,
+  resolveModelChoice,
   UTILITY_ROLE_LABEL,
-  utilitySettingFor,
-  type EUtilityModelRole,
-  type ModelRef,
+  type ModelChoice,
   type NoticePort,
   type SettingsResolution,
 } from '@dltech/atlas-core'
@@ -19,10 +19,36 @@ import { createFallbackModel } from '../model/fallback-model'
 import { createNotifyingModel } from '../model/notifying-model'
 
 import { unanswerableRef, type ModelCatalogue } from './model-catalogue'
-import { defaultSelection } from './model-preference'
+import { defaultSelection, settingReaderOf } from './model-preference'
 
 const messageOf = (fault: unknown): string =>
   fault instanceof Error ? fault.message : String(fault)
+
+const modelRoleOf = (role: EUtilityModelRole): EModelRole =>
+  role === EUtilityModelRole.Compaction ? EModelRole.Compaction : EModelRole.Quick
+
+/**
+ * A quick call or a compaction carries no root of its own: with no model of its own it follows the
+ * settings' Main, model, effort and fast together. A role whose own model nobody can answer for
+ * follows Main too, rather than pinning a provider the operator may have left.
+ */
+export function utilityChoiceOf(args: {
+  role: EUtilityModelRole
+  settled: SettingsResolution
+  catalogue: ModelCatalogue
+}): ModelChoice {
+  const choice = resolveModelChoice({
+    role: modelRoleOf(args.role),
+    read: settingReaderOf(args.settled),
+    capabilitiesOf: capabilitiesFromCatalog({
+      catalog: args.catalogue.catalog,
+      reachable: args.catalogue.reachable,
+    }),
+    fallback: defaultSelection({ settled: args.settled, catalogue: args.catalogue }).ref,
+    stale: EStalePolicy.Follow,
+  })
+  return { ref: choice.ref, effort: choice.effort, fast: choice.fast }
+}
 
 export function notifyingUtilityFallback(args: {
   role: EUtilityModelRole
@@ -62,28 +88,22 @@ export function createUtilityModel(args: {
           fallback: args.fallback,
         })
 
-  const resolveRef = (): ModelRef => {
-    const settled = args.settled()
-    return resolveUtilityModel({
-      role: args.role,
-      override: textValueOf({ resolution: settled, id: utilitySettingFor(args.role) }),
-      followDefault: defaultSelection({ settled, catalogue: args.catalogue }).ref,
-      catalogue: args.catalogue.catalog,
-    })
-  }
-
   const current = (): LanguageModelV4 => {
-    const ref = resolveRef()
-    const key = refKey(ref)
+    const choice = utilityChoiceOf({
+      role: args.role,
+      settled: args.settled(),
+      catalogue: args.catalogue,
+    })
+    const key = `${refKey(choice.ref)}|${choice.effort}|${choice.fast}`
     const held = built.get(key)
     if (held !== undefined) return held
 
-    const card = args.catalogue.cardFor(ref)
-    const adapter = args.catalogue.adapterFor(ref.providerId)
-    if (card === undefined || adapter === undefined) throw unanswerableRef(key)
+    const card = args.catalogue.cardFor(choice.ref)
+    const adapter = args.catalogue.adapterFor(choice.ref.providerId)
+    if (card === undefined || adapter === undefined) throw unanswerableRef(refKey(choice.ref))
 
     const notifying = createNotifyingModel({
-      model: adapter.model({ card, effort: () => UTILITY_ROLE_EFFORT[args.role] }),
+      model: adapter.model({ card, effort: () => choice.effort, fast: () => choice.fast }),
       onFault: (fault) =>
         args.notice.notify({
           key: `utility-model:${args.role}:${fault.providerId}`,

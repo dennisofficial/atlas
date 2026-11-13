@@ -7,6 +7,7 @@ import {
   type ChoiceDefinition,
   type ModelDefinition,
   type SettingDefinition,
+  type ToggleDefinition,
 } from './definition'
 import { EFFORT_OPTIONS_WITH_INHERIT, INHERIT_EFFORT, withInherit } from './effort-rows'
 import { ESettingsLayer } from './layers'
@@ -18,6 +19,8 @@ export const agentTypeSettingId = (typeName: string): string => `agents.type.${t
 
 export const agentTypeEffortSettingId = (typeName: string): string =>
   `agents.type.${typeName}.effort`
+
+export const agentTypeFastSettingId = (typeName: string): string => `agents.type.${typeName}.fast`
 
 const AGENT_TYPE_MODEL_GROUPS: Readonly<Record<EDefinitionOrigin, string>> = {
   [EDefinitionOrigin.BuiltIn]: 'Built-in sub-agents',
@@ -105,12 +108,33 @@ const effortRow = (args: {
   }
 }
 
+const fastDescription = (type: AgentTypeModelSource, teammate: boolean): string =>
+  teammate
+    ? 'Run new teammates in fast mode on a model that offers it. The same model answers sooner at a higher price, and a model without a fast tier ignores it. Changes apply to new teammates only.'
+    : `Run new ${type.name} sub-agents in fast mode on a model that offers it. The same model answers sooner at a higher price, and a model without a fast tier ignores it. Changes apply to new sub-agents only.`
+
+const fastRow = (type: AgentTypeModelSource, parts: AgentTypeRowParts): ToggleDefinition => ({
+  id: agentTypeFastSettingId(type.name),
+  page: ESettingPage.Models,
+  group: parts.group,
+  label: parts.teammate ? 'Teammates fast mode' : `${type.name} fast mode`,
+  description: fastDescription(type, parts.teammate),
+  kind: ESettingKind.Toggle,
+  fallback: false,
+  writeLayer: parts.writeLayer,
+  agentType: type,
+})
+
 export function agentTypeDefinitions(args: {
   types: readonly AgentTypeModelSource[]
   effortRungsOf: (modelId: string) => readonly EEffort[] | undefined
 }): readonly SettingDefinition[] {
   return args.types.flatMap((type) => {
     const parts = rowParts(type)
-    return [modelRow(type, parts), effortRow({ type, parts, effortRungsOf: args.effortRungsOf })]
+    return [
+      modelRow(type, parts),
+      effortRow({ type, parts, effortRungsOf: args.effortRungsOf }),
+      fastRow(type, parts),
+    ]
   })
 }

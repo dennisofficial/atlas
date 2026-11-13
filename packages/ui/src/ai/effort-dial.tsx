@@ -117,15 +117,22 @@ function EffortTicks({ efforts, index }: { efforts: readonly EEffort[]; index: n
 export function EffortDial({
   efforts,
   value,
+  labels,
+  note,
+  showEffortLabel = false,
   onChange,
 }: {
   efforts: readonly EEffort[]
   value: EEffort
+  labels?: Partial<Record<EEffort, string>>
+  note?: string
+  showEffortLabel?: boolean
   onChange?: (effort: EEffort) => void
 }) {
-  const label = EFFORT_LABELS[value]
+  const label = labels?.[value] ?? EFFORT_LABELS[value]
   const index = Math.max(0, efforts.indexOf(value))
   const last = efforts.length - 1
+  const readOnly = onChange === undefined
   const handleValueChange = (next: number | readonly number[]) => {
     const picked = efforts[typeof next === 'number' ? next : (next[0] ?? 0)]
     if (picked !== undefined) onChange?.(picked)
@@ -138,17 +145,35 @@ export function EffortDial({
           <InputGroupButton
             size="sm"
             data-slot="model-effort"
+            data-read-only={readOnly ? '' : undefined}
             aria-label={`Effort: ${label}`}
             title={`Effort: ${label}`}
+            className={readOnly ? 'text-muted-foreground' : undefined}
           />
         }
       >
         <EffortGauge efforts={efforts} value={value} className="size-5" />
+        {showEffortLabel ? (
+          <span className={cn('min-w-0 truncate text-xs', readOnly && 'text-muted-foreground')}>
+            {label}
+          </span>
+        ) : null}
       </PopoverTrigger>
       <PopoverContent align="end" className="w-52">
         <div className="flex items-center gap-2">
-          <EffortGauge efforts={efforts} value={value} className="size-6 shrink-0 text-primary" />
-          <span className="min-w-0 truncate text-sm font-medium text-primary">{label}</span>
+          <EffortGauge
+            efforts={efforts}
+            value={value}
+            className={cn('size-6 shrink-0', readOnly ? 'text-muted-foreground' : 'text-primary')}
+          />
+          <span
+            className={cn(
+              'min-w-0 truncate text-sm font-medium',
+              readOnly ? 'text-muted-foreground' : 'text-primary',
+            )}
+          >
+            {label}
+          </span>
         </div>
         <div className="relative">
           <Slider
@@ -158,10 +183,12 @@ export function EffortDial({
             max={last}
             step={1}
             value={[index]}
+            disabled={readOnly}
             onValueChange={handleValueChange}
           />
           <EffortTicks efforts={efforts} index={index} />
         </div>
+        {note === undefined ? null : <p className="text-xs text-muted-foreground">{note}</p>}
       </PopoverContent>
     </Popover>
   )

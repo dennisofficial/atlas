@@ -13,8 +13,10 @@ import {
 } from '@dltech/atlas-core'
 
 import type { ModelConfig } from '../../config/agent-host-config'
+import type { ResolvedRoleModel } from '../../config/model-config'
 import { AgentHostCredentialPort } from '../../config/agent-host-credential-port'
 import type { IssuedModelToken } from '../../tokens/oauth-types'
+import { fakeModelSourceOf } from '../../testing/model-source'
 import { AiSdkModelPort } from '../ai-sdk-model-port'
 import { LiveModelPort } from '../live-model-port'
 
@@ -29,6 +31,8 @@ const configured = (over: Partial<Configured> = {}): Configured => ({
   credential: { kind: 'api-key', apiKey: 'sk-one' },
   ...over,
 })
+
+const resolvedOf = (config: ModelConfig): ResolvedRoleModel => fakeModelSourceOf(config).main
 
 const labelOf = (config: ModelConfig): string =>
   config.configured === true ? config.accountId : 'none'
@@ -107,9 +111,9 @@ describe('LiveModelPort', () => {
     const builds: string[] = []
     const config = configured()
     const port = new LiveModelPort({
-      initial: config,
-      read: async () => ({ ...config, ref: { ...config.ref } }),
-      build: (next) => innerFor({ config: next, answer: 'first', builds }),
+      initial: resolvedOf(config),
+      read: async () => resolvedOf({ ...config, ref: { ...config.ref } }),
+      build: (next) => innerFor({ config: next.config, answer: 'first', builds }),
     })
     expect(builds).toEqual(['first'])
     expect(textOf(await port.step(stepArgs))).toBe('first')
@@ -121,9 +125,9 @@ describe('LiveModelPort', () => {
     const builds: string[] = []
     let current = configured({ accountId: 'acct-1' })
     const port = new LiveModelPort({
-      initial: current,
-      read: async () => current,
-      build: (next) => innerFor({ config: next, answer: labelOf(next), builds }),
+      initial: resolvedOf(current),
+      read: async () => resolvedOf(current),
+      build: (next) => innerFor({ config: next.config, answer: labelOf(next.config), builds }),
     })
     expect(textOf(await port.step(stepArgs))).toBe('acct-1')
     current = configured({ accountId: 'acct-2' })
@@ -135,12 +139,12 @@ describe('LiveModelPort', () => {
     const builds: string[] = []
     let current: ModelConfig = configured()
     const port = new LiveModelPort({
-      initial: current,
-      read: async () => current,
+      initial: resolvedOf(current),
+      read: async () => resolvedOf(current),
       build: (next) =>
         innerFor({
-          config: next,
-          answer: next.configured === true ? next.ref.modelId : 'none',
+          config: next.config,
+          answer: next.choice.ref.modelId,
           builds,
         }),
     })
@@ -156,11 +160,11 @@ describe('LiveModelPort', () => {
     const builds: string[] = []
     const failures: unknown[] = []
     const port = new LiveModelPort({
-      initial: configured(),
+      initial: resolvedOf(configured()),
       read: async () => {
         throw new Error('database is restarting')
       },
-      build: (next) => innerFor({ config: next, answer: 'kept', builds }),
+      build: (next) => innerFor({ config: next.config, answer: 'kept', builds }),
       onReadFailure: (error) => failures.push(error),
     })
     expect(textOf(await port.step(stepArgs))).toBe('kept')
@@ -171,11 +175,11 @@ describe('LiveModelPort', () => {
 
   it('reports a failed read even without a failure handler', async () => {
     const port = new LiveModelPort({
-      initial: configured(),
+      initial: resolvedOf(configured()),
       read: async () => {
         throw new Error('database is restarting')
       },
-      build: (next) => innerFor({ config: next, answer: 'kept', builds: [] }),
+      build: (next) => innerFor({ config: next.config, answer: 'kept', builds: [] }),
     })
     expect(textOf(await port.step(stepArgs))).toBe('kept')
   })
@@ -195,7 +199,7 @@ describe('LiveModelPort', () => {
         return token(input.connectionId)
       },
     }
-    const build = (config: ModelConfig): AiSdkModelPort => {
+    const build = ({ config }: ResolvedRoleModel): AiSdkModelPort => {
       const credentials = new AgentHostCredentialPort({ userId: 'user-1', model: config, tokens })
       return innerFor({
         config: config.configured === true ? config : configured(),
@@ -208,7 +212,11 @@ describe('LiveModelPort', () => {
       })
     }
     let current: ModelConfig = oauthConfig('acct-1', 'conn-1')
-    const port = new LiveModelPort({ initial: current, read: async () => current, build })
+    const port = new LiveModelPort({
+      initial: resolvedOf(current),
+      read: async () => resolvedOf(current),
+      build,
+    })
     await port.step(stepArgs)
     expect(answers).toEqual(['token-conn-1'])
     current = oauthConfig('acct-2', 'conn-2')

@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { Command, CommandList } from '#components/command'
 
 import { ModelRow } from '../internal/model-selector-rows'
+import { EEffort, ModelSelector } from '../model-selector'
 import {
   EProviderGroupKind,
   firstItemValue,
@@ -22,6 +23,8 @@ const MODELS: ModelOption[] = [
   },
   { id: 'openai/o3', label: 'o3', provider: 'Codex Plan', disabled: true, disabledNote: 'no key' },
 ]
+
+const EFFORTS = [EEffort.Low, EEffort.Medium, EEffort.High]
 
 const renderRow = (model: ModelOption, canPin = true) =>
   renderToStaticMarkup(
@@ -97,5 +100,47 @@ describe('ModelRow disabled', () => {
     expect(html).toContain('aria-disabled="false"')
     expect(html).toContain('Pin Sonnet')
     expect(html).not.toContain('no key')
+  })
+})
+
+describe('ModelSelector on a disabled current model', () => {
+  const renderSelector = (model: ModelOption) =>
+    renderToStaticMarkup(
+      <ModelSelector
+        models={MODELS}
+        value={model.id}
+        effort={EEffort.High}
+        onEffortChange={() => undefined}
+        fast
+        onFastChange={() => undefined}
+      />,
+    )
+
+  it('renders no effort dial and no fast toggle', () => {
+    const html = renderSelector({ ...(MODELS[1] as ModelOption), efforts: EFFORTS, fast: true })
+
+    expect(html).not.toContain('data-slot="model-effort"')
+    expect(html).not.toContain('data-slot="model-fast"')
+  })
+
+  it('keeps the warning triangle on the trigger for the role that owns it', () => {
+    const html = renderSelector({ ...(MODELS[1] as ModelOption), efforts: EFFORTS, fast: true })
+
+    expect(html).toContain('text-warning')
+    expect(html).toContain('no key')
+  })
+
+  it('draws no triangle on a follower of a disabled model but keeps the sr-only note', () => {
+    const html = renderToStaticMarkup(
+      <ModelSelector
+        models={MODELS}
+        value={MODELS[1]?.id ?? ''}
+        effort={EEffort.High}
+        follow={{ label: 'Follow main agent', active: true, onFollow: () => undefined }}
+      />,
+    )
+
+    expect(html).not.toContain('text-warning')
+    expect(html).toContain('<span class="sr-only">no key</span>')
   })
 })

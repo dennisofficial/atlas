@@ -13,18 +13,22 @@ import {
 import type { AgentHostConfig, ConfigSource } from '../../config/agent-host-config'
 import { SandboxProvider, type DaemonEndpoint } from '../../sandbox/sandbox-provider'
 import { createSessionRuntimeFactory, SandboxNotConfiguredError } from '../session-runtime-factory'
+import { fakeModelSourceOf } from '../../testing/model-source'
+
+const CONFIGURED_MODEL = {
+  configured: true as const,
+  ref: { providerId: 'anthropic', modelId: 'claude-sonnet-4-5' },
+  effort: EEffort.Medium,
+  fast: false,
+  accountId: 'acct-1',
+  credential: { kind: 'api-key' as const, apiKey: 'sk-test' },
+}
 
 const configured = (over: Partial<AgentHostConfig> = {}): AgentHostConfig => ({
   userId: 'user-1',
   projectId: 'proj-1',
-  model: {
-    configured: true,
-    ref: { providerId: 'anthropic', modelId: 'claude-sonnet-4-5' },
-    effort: EEffort.Medium,
-    fast: false,
-    accountId: 'acct-1',
-    credential: { kind: 'api-key', apiKey: 'sk-test' },
-  },
+  model: CONFIGURED_MODEL,
+  models: fakeModelSourceOf(CONFIGURED_MODEL),
   vercel: { configured: true, token: 'vt', teamId: 'team', projectId: 'proj' },
   workspace: { remoteUrl: null, baseBranch: null, additionalRepos: [], setupScript: '' },
   skills: [],
@@ -94,7 +98,7 @@ const makeFakeTimers = (): { timers: HostTimers; fireScheduled: () => void } => 
 
 const apiOf = (output: AgentHostConfig): ConfigSource & { issue(): Promise<never> } => ({
   read: async () => output,
-  model: async () => output.model,
+  models: async () => output.models,
   issue: async () => {
     throw new Error('unused')
   },
@@ -217,6 +221,47 @@ describe('createSessionRuntimeFactory', () => {
       signal: new AbortController().signal,
     })
     expect(runtime.model).toBeDefined()
+    await runtime.stop()
+  })
+
+  it('builds a role’s port from the model the config resolved for it', async () => {
+    const sandbox = new FakeSandbox(true)
+    const factory = makeFactory({ api: apiOf(configured()), sandbox })
+    const runtime = await factory({
+      sessionId: 's-role',
+      podSessionId: 's-role',
+      threadId: toThreadId('t-role'),
+      epoch: 1,
+      signal: new AbortController().signal,
+    })
+    const port = runtime.modelFor({
+      role: { agentType: 'builder' },
+      root: runtime.modelChoice,
+    })
+    expect(port).toBeDefined()
+    expect(port).not.toBe(runtime.model)
+    expect(runtime.modelChoice).toMatchObject({
+      ref: CONFIGURED_MODEL.ref,
+      effort: EEffort.Medium,
+      fast: false,
+    })
+    expect(runtime.choiceFor({ role: { agentType: 'builder' } })).toEqual(runtime.modelChoice)
+    await runtime.stop()
+  })
+
+  it('serves the test override to every role', async () => {
+    const sandbox = new FakeSandbox(true)
+    const override = new ScriptedModel([{ text: 'done' }])
+    const factory = makeFactory({ api: apiOf(configured()), sandbox, modelFor: () => override })
+    const runtime = await factory({
+      sessionId: 's-override',
+      podSessionId: 's-override',
+      threadId: toThreadId('t-override'),
+      epoch: 1,
+      signal: new AbortController().signal,
+    })
+    expect(runtime.model).toBe(override)
+    expect(runtime.modelFor({ role: { agentType: 'builder' } })).toBe(override)
     await runtime.stop()
   })
 
@@ -345,7 +390,7 @@ describe('createSessionRuntimeFactory', () => {
   it("builds the model port with the thread model's image capability", async () => {
     const asked: { sessionId: string; threadId?: string | undefined }[] = []
     const api: ConfigSource & { issue(): Promise<never> } = {
-      model: async () => configured().model,
+      models: async () => configured().models,
       read: async (args) => {
         asked.push(args)
         return configured({

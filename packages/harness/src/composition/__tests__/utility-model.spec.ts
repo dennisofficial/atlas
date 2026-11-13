@@ -27,22 +27,38 @@ const LADDER: EffortMap = {
   [EEffort.High]: 'high',
 }
 
-const cardOf = (providerId: string, modelId: string): ModelCard => ({
-  ref: { providerId, modelId },
-  label: modelId,
+const cardOf = (args: {
+  providerId: string
+  modelId: string
+  fast?: true
+  effort?: EffortMap
+}): ModelCard => ({
+  ref: { providerId: args.providerId, modelId: args.modelId },
+  label: args.modelId,
   api: 'messages',
   contextWindow: 200_000,
   imageTier: EImageTier.Standard,
-  effort: LADDER,
+  effort: args.effort ?? LADDER,
+  ...(args.fast === undefined ? {} : { fast: args.fast }),
 })
 
-const HAIKU = cardOf('anthropic', 'claude-haiku-4-5')
-const SONNET = cardOf('anthropic', 'claude-sonnet-5')
-const GPT_MINI = cardOf('openai', 'gpt-5.1-codex-mini')
+const HAIKU = cardOf({ providerId: 'anthropic', modelId: 'claude-haiku-4-5' })
+const SONNET = cardOf({ providerId: 'anthropic', modelId: 'claude-sonnet-5', fast: true })
+const GPT_MINI = cardOf({ providerId: 'openai', modelId: 'gpt-5.1-codex-mini' })
+const PLAIN = cardOf({
+  providerId: 'openai',
+  modelId: 'gpt-5.1-plain',
+  effort: { [EEffort.Low]: 'low', [EEffort.High]: 'high' },
+})
 
-const CARDS = [HAIKU, SONNET, GPT_MINI]
+const CARDS = [HAIKU, SONNET, GPT_MINI, PLAIN]
 
-type BuiltModel = { ref: ModelRef; effort: () => EEffort; fails: boolean }
+type BuiltModel = {
+  ref: ModelRef
+  effortAt: () => EEffort
+  fastAt: () => boolean
+  fails: boolean
+}
 
 const stubLanguageModel = (built: BuiltModel): LanguageModelV4 => ({
   specificationVersion: 'v4',
@@ -66,8 +82,13 @@ const stubAdapter = (args: {
   id: args.providerId,
   label: args.providerId,
   cards: () => CARDS.filter((card) => card.ref.providerId === args.providerId),
-  model: ({ card, effort }) => {
-    const built: BuiltModel = { ref: card.ref, effort, fails: args.fails }
+  model: ({ card, effort, fast }) => {
+    const built: BuiltModel = {
+      ref: card.ref,
+      effortAt: () => effort(),
+      fastAt: () => fast?.() === true,
+      fails: args.fails,
+    }
     args.builds.push(built)
     return stubLanguageModel(built)
   },
@@ -80,7 +101,7 @@ function fakeCatalogue(args: { builds: BuiltModel[]; fails?: boolean }): ModelCa
   return {
     providers: [
       { id: 'anthropic', label: 'Claude', cards: [HAIKU, SONNET] },
-      { id: 'openai', label: 'OpenAI', cards: [GPT_MINI] },
+      { id: 'openai', label: 'OpenAI', cards: [GPT_MINI, PLAIN] },
     ],
     catalog,
     cardFor: (ref) => findCard({ catalog, ref }),
@@ -142,7 +163,7 @@ describe('createUtilityModel', () => {
     expect(builds.map((built) => built.ref.modelId)).toEqual(['claude-sonnet-5'])
   })
 
-  it('runs the role override when one is set, at the role effort', async () => {
+  it('runs the role override when one is set, at the effort it inherits from Main', async () => {
     const builds: BuiltModel[] = []
     const model = createUtilityModel({
       role: EUtilityModelRole.Tldr,
@@ -159,10 +180,49 @@ describe('createUtilityModel', () => {
     await call(model)
 
     expect(builds.map((built) => built.ref.modelId)).toEqual(['gpt-5.1-codex-mini'])
-    expect(builds[0]?.effort()).toBe(EEffort.Low)
+    expect(builds[0]?.effortAt()).toBe(EEffort.Medium)
   })
 
-  it('runs compaction at medium effort', async () => {
+  it('runs quick calls following Main at the effort Main runs', async () => {
+    const builds: BuiltModel[] = []
+    const model = createUtilityModel({
+      role: EUtilityModelRole.Tldr,
+      settled: settledOf(
+        settingsOver({
+          [ESettingId.ModelId]: 'anthropic/claude-sonnet-5',
+          [ESettingId.ModelEffort]: 'high',
+        }),
+      ),
+      catalogue: fakeCatalogue({ builds }),
+      notice: recordingNotices().port,
+    })
+
+    await call(model)
+
+    expect(builds[0]?.ref.modelId).toBe('claude-sonnet-5')
+    expect(builds[0]?.effortAt()).toBe(EEffort.High)
+  })
+
+  it('clamps a Main effort the card does not offer', async () => {
+    const builds: BuiltModel[] = []
+    const model = createUtilityModel({
+      role: EUtilityModelRole.Judge,
+      settled: settledOf(
+        settingsOver({
+          [ESettingId.ModelId]: 'openai/gpt-5.1-plain',
+          [ESettingId.ModelEffort]: 'max',
+        }),
+      ),
+      catalogue: fakeCatalogue({ builds }),
+      notice: recordingNotices().port,
+    })
+
+    await call(model)
+
+    expect(builds[0]?.effortAt()).toBe(EEffort.High)
+  })
+
+  it('runs compaction at the effort it inherits from Main', async () => {
     const builds: BuiltModel[] = []
     const model = createUtilityModel({
       role: EUtilityModelRole.Compaction,
@@ -173,7 +233,68 @@ describe('createUtilityModel', () => {
 
     await call(model)
 
-    expect(builds[0]?.effort()).toBe(EEffort.Medium)
+    expect(builds[0]?.effortAt()).toBe(EEffort.Medium)
+  })
+
+  it('honours an effort the quick-call row names for its own model', async () => {
+    const builds: BuiltModel[] = []
+    const model = createUtilityModel({
+      role: EUtilityModelRole.Titler,
+      settled: settledOf(
+        settingsOver({
+          [ESettingId.ModelId]: 'anthropic/claude-sonnet-5',
+          [ESettingId.ModelEffort]: 'high',
+          [ESettingId.QuickModel]: 'openai/gpt-5.1-codex-mini',
+          [ESettingId.QuickEffort]: 'low',
+        }),
+      ),
+      catalogue: fakeCatalogue({ builds }),
+      notice: recordingNotices().port,
+    })
+
+    await call(model)
+
+    expect(builds[0]?.ref.modelId).toBe('gpt-5.1-codex-mini')
+    expect(builds[0]?.effortAt()).toBe(EEffort.Low)
+  })
+
+  it('keeps the fast mode Main runs when the quick model offers it', async () => {
+    const builds: BuiltModel[] = []
+    const model = createUtilityModel({
+      role: EUtilityModelRole.Tldr,
+      settled: settledOf(
+        settingsOver({
+          [ESettingId.ModelId]: 'anthropic/claude-sonnet-5',
+          [ESettingId.ModelFast]: 'true',
+        }),
+      ),
+      catalogue: fakeCatalogue({ builds }),
+      notice: recordingNotices().port,
+    })
+
+    await call(model)
+
+    expect(builds[0]?.fastAt()).toBe(true)
+  })
+
+  it('drops compaction fast on a model that offers none', async () => {
+    const builds: BuiltModel[] = []
+    const model = createUtilityModel({
+      role: EUtilityModelRole.Compaction,
+      settled: settledOf(
+        settingsOver({
+          [ESettingId.CompactionModel]: 'openai/gpt-5.1-codex-mini',
+          [ESettingId.CompactionFast]: 'true',
+        }),
+      ),
+      catalogue: fakeCatalogue({ builds }),
+      notice: recordingNotices().port,
+    })
+
+    await call(model)
+
+    expect(builds[0]?.ref.modelId).toBe('gpt-5.1-codex-mini')
+    expect(builds[0]?.fastAt()).toBe(false)
   })
 
   it('re-reads the settings on every call, so a mid-session pick reaches the next call', async () => {

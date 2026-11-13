@@ -34,7 +34,7 @@ describe('teammate model settings', () => {
       expect(teammates).toBeLessThan(background)
       expect(background).toBeLessThan(subagents)
       expect(rowWith(rows, 'Teammates')).toContain('follow main agent')
-      expect(rowWith(rows, 'explore agents')).toContain('follow sub-agents')
+      expect(rowWith(rows, 'builder agents')).toContain('follow sub-agents')
       expect(rows[teammates]).toContain(glyph.selected)
     }
   })

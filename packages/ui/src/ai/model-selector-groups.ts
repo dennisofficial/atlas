@@ -30,8 +30,6 @@ export const EFFORT_LABELS: Record<EEffort, string> = {
   [EEffort.Max]: 'Max',
 }
 
-export const DEFAULT_EFFORTS: readonly EEffort[] = [EEffort.Low, EEffort.Medium, EEffort.High]
-
 export enum EModelFilter {
   Images = 'images',
   Reasoning = 'reasoning',
@@ -66,6 +64,7 @@ export interface ModelOption {
   brand?: EBrand
   monogram?: string
   efforts?: EEffort[]
+  effortLabels?: Partial<Record<EEffort, string>>
   images?: boolean
   fast?: boolean
   contextTokens?: number
@@ -107,6 +106,8 @@ export interface ModelSelectorGroups {
 }
 
 export const MANAGE_PROVIDERS_VALUE = 'manage-providers'
+
+export const FOLLOW_VALUE = 'follow'
 
 export const reconnectItemValue = (provider: string): string => `reconnect:${provider}`
 

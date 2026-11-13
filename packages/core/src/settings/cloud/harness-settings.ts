@@ -177,6 +177,36 @@ export const HARNESS_SETTING_ENTRIES = [
     consumer: ESettingConsumer.Harness,
   }),
   settingEntry({
+    key: 'model.quickEffort',
+    schema: effortOrInheritSchema,
+    fallback: '',
+    consumer: ESettingConsumer.Harness,
+  }),
+  settingEntry({
+    key: 'model.quickFast',
+    schema: z.boolean(),
+    fallback: false,
+    consumer: ESettingConsumer.Harness,
+  }),
+  settingEntry({
+    key: 'model.compactionEffort',
+    schema: effortOrInheritSchema,
+    fallback: '',
+    consumer: ESettingConsumer.Harness,
+  }),
+  settingEntry({
+    key: 'model.compactionFast',
+    schema: z.boolean(),
+    fallback: false,
+    consumer: ESettingConsumer.Harness,
+  }),
+  settingEntry({
+    key: 'agents.subagentFast',
+    schema: z.boolean(),
+    fallback: false,
+    consumer: ESettingConsumer.Harness,
+  }),
+  settingEntry({
     key: 'sandbox.image',
     schema: z.string(),
     fallback: 'atlas-sandbox:latest',
@@ -204,6 +234,13 @@ export const HARNESS_SETTING_PREFIXES = [
     suffix: '.effort',
     schema: effortOrInheritSchema,
     fallback: '',
+    consumer: ESettingConsumer.Harness,
+  }),
+  prefixEntry({
+    prefix: 'agents.type.',
+    suffix: '.fast',
+    schema: z.boolean(),
+    fallback: false,
     consumer: ESettingConsumer.Harness,
   }),
   prefixEntry({

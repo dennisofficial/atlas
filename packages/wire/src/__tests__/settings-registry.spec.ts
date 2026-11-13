@@ -34,6 +34,25 @@ describe('resolveCloudSetting', () => {
     ).toBe('medium')
   })
 
+  it('resolves a per-agent-type key through its prefix entry', () => {
+    const values = new Map<string, string | number | boolean>([
+      ['agents.type.builder', 'anthropic/claude-sonnet-5'],
+    ])
+
+    expect(resolveCloudSetting({ values, key: 'agents.type.builder', schema: z.string() })).toBe(
+      'anthropic/claude-sonnet-5',
+    )
+    expect(resolveCloudSetting({ values, key: 'agents.type.teammate', schema: z.string() })).toBe(
+      '',
+    )
+    expect(
+      resolveCloudSetting({ values, key: 'agents.type.builder.effort', schema: z.string() }),
+    ).toBe('')
+    expect(
+      resolveCloudSetting({ values, key: 'agents.type.builder.fast', schema: z.boolean() }),
+    ).toBe(false)
+  })
+
   it('refuses a key the registry does not know', () => {
     expect(() =>
       resolveCloudSetting({ values: new Map(), key: 'nobody.knows', schema: z.string() }),

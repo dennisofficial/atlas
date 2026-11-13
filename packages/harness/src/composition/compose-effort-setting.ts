@@ -63,15 +63,37 @@ export function effortSettingDefinition(args: { models: ModelCatalogue }): Choic
   })
 }
 
+const ownThenMain =
+  (own: ESettingId) =>
+  (resolution: SettingsResolution): readonly string[] => [
+    textValueOf({ resolution, id: own }),
+    textValueOf({ resolution, id: ESettingId.ModelId }),
+  ]
+
 export function subagentEffortSettingDefinition(args: {
   models: ModelCatalogue
 }): ChoiceDefinition {
   return catalogueAware({
     base: staticChoice(ESettingId.SubagentEffort),
     models: args.models,
-    modelIds: (resolution) => [
-      textValueOf({ resolution, id: ESettingId.SubagentModel }),
-      textValueOf({ resolution, id: ESettingId.ModelId }),
-    ],
+    modelIds: ownThenMain(ESettingId.SubagentModel),
+  })
+}
+
+export function quickEffortSettingDefinition(args: { models: ModelCatalogue }): ChoiceDefinition {
+  return catalogueAware({
+    base: staticChoice(ESettingId.QuickEffort),
+    models: args.models,
+    modelIds: ownThenMain(ESettingId.QuickModel),
+  })
+}
+
+export function compactionEffortSettingDefinition(args: {
+  models: ModelCatalogue
+}): ChoiceDefinition {
+  return catalogueAware({
+    base: staticChoice(ESettingId.CompactionEffort),
+    models: args.models,
+    modelIds: ownThenMain(ESettingId.CompactionModel),
   })
 }

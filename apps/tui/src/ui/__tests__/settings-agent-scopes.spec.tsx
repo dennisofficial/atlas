@@ -94,22 +94,29 @@ describe('the models page agent sections', () => {
     expect(held.groups[3]?.rows.map(nameOf)).toEqual([
       'explore agents',
       'explore effort',
+      'explore fast mode',
       'explore agents',
       'explore effort',
+      'explore fast mode',
     ])
     expect(held.groups[5]?.rows.map(nameOf)).toEqual([
       'auditor agents',
       'auditor effort',
+      'auditor fast mode',
       'reviewer agents',
       'reviewer effort',
+      'reviewer fast mode',
     ])
     expect(held.groups[4]?.rows.map(nameOf)).toEqual([
       'reviewer agents',
       'reviewer effort',
+      'reviewer fast mode',
       'reviewer agents',
       'reviewer effort',
+      'reviewer fast mode',
       'writer agents',
       'writer effort',
+      'writer fast mode',
     ])
   })
 
@@ -139,7 +146,7 @@ describe('the models page agent sections', () => {
     const { held } = modelPage()
     const resolution = resolveSettings({ definitions, layers: [] })
 
-    expect(held.rows.filter(isOverriddenSetting)).toHaveLength(6)
+    expect(held.rows.filter(isOverriddenSetting)).toHaveLength(9)
     expect(
       held.rows
         .filter((row) => !isOverriddenSetting(row))

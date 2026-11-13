@@ -40,7 +40,11 @@ export const resolveCloudSetting = <TValue extends SettingScalar>(args: {
   key: string
   schema: z.ZodType<TValue>
 }): TValue => {
-  const entry = CLOUD_SETTING_REGISTRY.get(args.key)
+  const entry = entryFor({
+    registry: CLOUD_SETTING_REGISTRY,
+    prefixes: HARNESS_SETTING_PREFIXES,
+    key: args.key,
+  })
   if (entry === undefined) throw new Error(`setting ${args.key} is not in the registry`)
   const stored = args.schema.safeParse(args.values.get(args.key))
   if (stored.success) return stored.data

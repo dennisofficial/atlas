@@ -7,7 +7,6 @@ export {
   EDensity,
   EDecisionsProviderWire,
   EEffortLevel,
-  EModelPreset,
   EPlacementChooserShape,
   ETheme,
   EVercelPlan,

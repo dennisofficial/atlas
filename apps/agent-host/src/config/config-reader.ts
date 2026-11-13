@@ -5,15 +5,14 @@ import type { Db } from '@dltech/atlas-db'
 import type {
   AgentHostConfig,
   ConfigSource,
-  ModelConfig,
   VercelConfig,
   WorkspaceConfig,
 } from './agent-host-config'
 import {
-  MODEL_SETTING_KEYS,
-  modelConfigOf,
+  modelSourceOf,
   type ActiveAccountRow,
   type AccountRow,
+  type ModelSource,
   type ThreadModelChoice,
 } from './model-config'
 import type { SecretCipher } from './secret-cipher'
@@ -95,30 +94,32 @@ export class ConfigReader implements ConfigSource {
         db.orm.public.UserVercelCredential.first({ userId }),
         db.orm.public.AgentAccount.where({ userId }).all(),
         db.orm.public.ActiveAccount.where({ userId }).all(),
-        this.modelSettings({ userId, projectId }),
+        this.settingsOf({ userId, projectId }),
         skillIndexOf({ db, userId, projectId }),
         threadId === undefined
           ? Promise.resolve(null)
           : db.orm.public.Thread.first({ id: threadId }),
       ],
     )
+    const models = this.modelSourceFor({ session, thread, accounts, activeAccounts, settings })
     return {
       userId,
       projectId,
-      model: this.modelFor({ session, thread, accounts, activeAccounts, settings }),
+      model: models.main.config,
+      models,
       workspace: workspaceOf(project),
       vercel: await this.vercelOf({ userId, row: vercel }),
       skills,
     }
   }
 
-  async model({
+  async models({
     sessionId,
     threadId,
   }: {
     sessionId: string
     threadId?: ThreadId | undefined
-  }): Promise<ModelConfig> {
+  }): Promise<ModelSource> {
     const { db } = this.args
     const session = await db.orm.v2.V2Session.first({ id: sessionId })
     if (session === null) throw new SessionNotFoundError(sessionId)
@@ -126,21 +127,21 @@ export class ConfigReader implements ConfigSource {
     const [accounts, activeAccounts, settings, thread] = await Promise.all([
       db.orm.public.AgentAccount.where({ userId }).all(),
       db.orm.public.ActiveAccount.where({ userId }).all(),
-      this.modelSettings({ userId, projectId }),
+      this.settingsOf({ userId, projectId }),
       threadId === undefined ? Promise.resolve(null) : db.orm.public.Thread.first({ id: threadId }),
     ])
-    return this.modelFor({ session, thread, accounts, activeAccounts, settings })
+    return this.modelSourceFor({ session, thread, accounts, activeAccounts, settings })
   }
 
-  private modelFor(args: {
+  private modelSourceFor(args: {
     session: ModelChoiceRow
     thread: ModelChoiceRow | null
     accounts: readonly AccountRow[]
     activeAccounts: readonly ActiveAccountRow[]
     settings: ReadonlyMap<string, string>
-  }): ModelConfig {
+  }): ModelSource {
     const named = this.modelChoiceOf(args.thread) ?? this.modelChoiceOf(args.session)
-    return modelConfigOf({
+    return modelSourceOf({
       cipher: this.args.cipher,
       accounts: args.accounts,
       activeAccounts: args.activeAccounts,
@@ -158,23 +159,17 @@ export class ConfigReader implements ConfigSource {
     }
   }
 
-  private async modelSettings(args: {
+  private async settingsOf(args: {
     userId: string
     projectId: string
   }): Promise<ReadonlyMap<string, string>> {
     const { db } = this.args
-    const keys = Object.values(MODEL_SETTING_KEYS)
     const [user, project] = await Promise.all([
-      Promise.all(keys.map((key) => db.orm.public.UserSetting.first({ userId: args.userId, key }))),
-      Promise.all(
-        keys.map((key) => db.orm.public.ProjectSetting.first({ projectId: args.projectId, key })),
-      ),
+      db.orm.public.UserSetting.where({ userId: args.userId }).all(),
+      db.orm.public.ProjectSetting.where({ projectId: args.projectId }).all(),
     ])
-    const settings = new Map<string, string>()
-    keys.forEach((key, index) => {
-      const value = project[index]?.value ?? user[index]?.value
-      if (value !== undefined) settings.set(key, value)
-    })
+    const settings = new Map(user.map((row) => [row.key, row.value]))
+    for (const row of project) settings.set(row.key, row.value)
     return settings
   }
 

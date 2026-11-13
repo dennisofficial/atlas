@@ -1,29 +1,30 @@
 import {
-  agentTypeEffortSettingId,
-  agentTypeSettingId,
+  capabilitiesFromCatalog,
   EFFORT_LADDER,
   ENoticeTone,
-  ESettingId,
-  effortRungOf,
+  EStalePolicy,
   NOTICE_WARN_MS,
   parseRef,
   refKey,
-  textValueOf,
+  resolveModelChoice,
+  type ModelChoice,
   type ModelPort,
   type ModelRef,
   type NoticePort,
   type ThreadId,
 } from '@dltech/atlas-core'
 
-import { isTeammateType, type AgentType } from '../agents/types'
+import type { AgentType } from '../agents/types'
 import type { HookChain } from '../hooks/registry'
 import { AiSdkModelPort } from '../model/ai-sdk-model-port'
 import type { SettingsService } from '../settings/service'
-import type { ThreadModel, ThreadStorePort } from '../store/thread-store'
+import type { ThreadModel, ThreadStorePort, ThreadSummary } from '../store/thread-store'
 import { childFallbackModel } from './child-fallback-model'
+import { DEFAULT_MODEL_REF } from './config'
 import { faultInjected } from './fault-injection'
-import { isRefReachable, unanswerableRef, type ModelCatalogue } from './model-catalogue'
-import type { SelectableModel } from './model-selection'
+import { unanswerableRef, type ModelCatalogue } from './model-catalogue'
+import { settingReaderOf } from './model-preference'
+import type { ModelSelection, SelectableModel } from './model-selection'
 import type { WakeSignal } from '../wake/wake-signals'
 
 export type ChildModelDeps = {
@@ -36,36 +37,45 @@ export type ChildModelDeps = {
   wake?: WakeSignal | undefined
 }
 
+/**
+ * A child spawned by an agent inherits that agent's frozen model, so nested children keep the
+ * chain; one spawned by the operator inherits the model answering right now.
+ */
+const rootChoice = (args: {
+  live: ModelSelection
+  spawner: ThreadSummary | undefined
+}): ModelChoice => {
+  const inherited = args.spawner?.agent === undefined ? undefined : args.spawner.model
+  const ref = parseRef(inherited?.ref ?? '')
+  const effort = EFFORT_LADDER.find((rung) => rung === inherited?.effort)
+  if (inherited === undefined || ref === undefined || effort === undefined)
+    return { ref: args.live.ref, effort: args.live.effort, fast: args.live.fast === true }
+
+  return { ref, effort, fast: (inherited.fast ?? args.live.fast) === true }
+}
+
 export function childModelSelection(
   args: ChildModelDeps,
 ): (request: { agentType: AgentType; spawnedBy: ThreadId }) => Promise<ThreadModel> {
-  const liveSetting = (id: string): string | undefined => {
-    const held = textValueOf({ resolution: args.settings.snapshot().resolution, id })
-    const ref = parseRef(held)
-    return ref !== undefined && isRefReachable({ catalogue: args.models, ref }) ? held : undefined
-  }
-
-  const chosenEffort = (id: string): ReturnType<typeof effortRungOf> =>
-    effortRungOf(textValueOf({ resolution: args.settings.snapshot().resolution, id }))
-
   return async ({ agentType, spawnedBy }) => {
-    const parent = args.model.choice()
-    const teammate = isTeammateType(agentType.name)
-    const pinned =
-      liveSetting(agentTypeSettingId(agentType.name)) ??
-      agentType.model ??
-      (teammate ? undefined : liveSetting(ESettingId.SubagentModel))
+    const live = args.model.choice()
     const spawner = await args.threads.find({ threadId: spawnedBy })
-    const inherited = spawner?.agent === undefined ? undefined : spawner.model
-    const effort =
-      chosenEffort(agentTypeEffortSettingId(agentType.name)) ??
-      (teammate ? undefined : chosenEffort(ESettingId.SubagentEffort)) ??
-      inherited?.effort ??
-      parent.effort
+    const choice = resolveModelChoice({
+      role: { agentType: agentType.name },
+      read: settingReaderOf(args.settings.snapshot().resolution),
+      capabilitiesOf: capabilitiesFromCatalog({
+        catalog: args.models.catalog,
+        reachable: args.models.reachable,
+      }),
+      fallback: DEFAULT_MODEL_REF,
+      root: rootChoice({ live, spawner }),
+      pinned: () => agentType.model,
+      stale: EStalePolicy.Follow,
+    })
     return {
-      ref: pinned ?? inherited?.ref ?? refKey(parent.ref),
-      effort,
-      ...((inherited?.fast ?? parent.fast) === true ? { fast: true } : {}),
+      ref: refKey(choice.ref),
+      effort: choice.effort,
+      ...(choice.fast ? { fast: true } : {}),
     }
   }
 }

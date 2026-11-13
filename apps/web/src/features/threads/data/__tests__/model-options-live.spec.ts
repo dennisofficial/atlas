@@ -133,14 +133,14 @@ describe('modelOptionsFromResponse', () => {
         },
         ...openAi.providers,
       ]),
-      currentId: 'openrouter/c/d',
+      currentIds: ['openrouter/c/d'],
     })
 
     const dormant = models.filter((model) => model.provider === 'OpenRouter')
     expect(dormant.map((model) => model.id)).toEqual(['openrouter/c/d'])
     expect(dormant[0]?.label).toBe('C D')
     expect(dormant[0]?.disabled).toBe(true)
-    expect(dormant[0]?.disabledNote).toBe('no key')
+    expect(dormant[0]?.disabledNote).toBe('OpenRouter not connected')
   })
 
   it('labels every provider with the same name the TUI switcher uses', () => {
@@ -161,9 +161,9 @@ describe('modelOptionsFromResponse', () => {
   })
 
   it('keeps a thread model the response no longer offers selectable', () => {
-    const { models } = modelOptionsFromResponse({ response: openAi, currentId: 'x/y' })
+    const { models } = modelOptionsFromResponse({ response: openAi, currentIds: ['x/y'] })
     expect(models.find((model) => model.id === 'x/y')?.label).toBe('x/y')
-    const offered = modelOptionsFromResponse({ response: openAi, currentId: 'openai/gpt-live' })
+    const offered = modelOptionsFromResponse({ response: openAi, currentIds: ['openai/gpt-live'] })
     expect(offered.models.filter((model) => model.id === 'openai/gpt-live')).toHaveLength(1)
   })
 })

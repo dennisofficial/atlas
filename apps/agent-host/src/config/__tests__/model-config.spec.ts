@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import { EEffort } from '@dltech/atlas-core'
 import { cardsForProvider } from '@dltech/atlas-models'
 
-import { modelConfigOf, type AccountRow } from '../model-config'
+import { modelConfigOf, modelSourceOf, type AccountRow } from '../model-config'
 import { cipher, sealed } from './config-reader.fixture'
 
 const NOW = new Date('2026-11-05T12:00:00.000Z')
@@ -122,18 +122,39 @@ describe('modelConfigOf', () => {
     expect(configOf({ accounts: [] })).toEqual({ configured: false, gap: 'no model account' })
   })
 
-  it('decodes effort and fast, clamps effort to the card and falls back on invalid values', () => {
+  it('clamps effort to the model’s rungs and keeps fast only where the model offers it', () => {
     const accounts = [accountRow({ id: 'a', provider: 'anthropic' })]
     expect(
       configOf({ accounts, settings: { 'model.effort': 'xhigh', 'model.fast': true } }),
-    ).toMatchObject({ effort: EEffort.High, fast: true })
+    ).toMatchObject({ effort: EEffort.High, fast: false })
     expect(
       configOf({ accounts, settings: { 'model.effort': 'low', 'model.fast': true } }),
-    ).toMatchObject({ effort: EEffort.Low, fast: true })
+    ).toMatchObject({ effort: EEffort.Low, fast: false })
     expect(
       configOf({ accounts, settings: { 'model.effort': 'bogus', 'model.fast': 'yes' } }),
     ).toMatchObject({ effort: EEffort.Medium, fast: false })
     expect(configOf({ accounts })).toMatchObject({ effort: EEffort.Medium, fast: false })
+    expect(
+      configOf({
+        accounts,
+        settings: { 'model.id': 'anthropic/claude-opus-5', 'model.fast': true },
+      }),
+    ).toMatchObject({ ref: { modelId: 'claude-opus-5' }, fast: true })
+  })
+
+  it('runs a model the catalogue does not list yet instead of refusing it', () => {
+    const accounts = [accountRow({ id: 'a', provider: 'anthropic' })]
+    expect(
+      configOf({
+        accounts,
+        settings: { 'model.id': 'anthropic/claude-next', 'model.effort': 'high' },
+      }),
+    ).toMatchObject({
+      configured: true,
+      ref: { providerId: 'anthropic', modelId: 'claude-next' },
+      effort: EEffort.High,
+      fast: false,
+    })
   })
 
   it('returns an oauth credential for any provider and a gap without a connection', () => {
@@ -158,5 +179,119 @@ describe('modelConfigOf', () => {
       settings: { 'model.id': 'openai/gpt-5' },
     })
     expect(without).toEqual({ configured: false, gap: 'oauth account has no cloud connection' })
+  })
+})
+
+const sourceOf = (args: {
+  accounts: AccountRow[]
+  settings?: Record<string, unknown>
+  thread?: { ref: string; effort?: string; fast?: boolean }
+}) =>
+  modelSourceOf({
+    cipher,
+    accounts: args.accounts,
+    activeAccounts: [],
+    settings: new Map(Object.entries(args.settings ?? {}).map(([k, v]) => [k, setting(v)])),
+    ...(args.thread === undefined ? {} : { thread: args.thread }),
+  })
+
+const OPENAI_AND_ANTHROPIC = [
+  accountRow({ id: 'a', provider: 'anthropic' }),
+  accountRow({ id: 'o', provider: 'openai' }),
+]
+
+describe('modelSourceOf', () => {
+  it('runs Main on the model the thread chose over the settings', () => {
+    const source = sourceOf({
+      accounts: OPENAI_AND_ANTHROPIC,
+      settings: { 'model.id': 'anthropic/claude-sonnet-4-5', 'model.effort': 'high' },
+      thread: { ref: 'openai/gpt-5', effort: 'low' },
+    })
+    expect(source.main.choice).toMatchObject({
+      ref: { providerId: 'openai', modelId: 'gpt-5' },
+      effort: EEffort.Low,
+      stale: false,
+    })
+    expect(source.main.config).toMatchObject({ configured: true, accountId: 'o' })
+  })
+
+  it('runs Main on the settings model when no thread chose one', () => {
+    const source = sourceOf({
+      accounts: OPENAI_AND_ANTHROPIC,
+      settings: { 'model.id': 'openai/gpt-5' },
+    })
+    expect(source.main.config).toMatchObject({
+      configured: true,
+      ref: { providerId: 'openai', modelId: 'gpt-5' },
+      accountId: 'o',
+      effort: EEffort.Medium,
+    })
+  })
+
+  it('gives a sub-agent type its own model, account and effort', () => {
+    const source = sourceOf({
+      accounts: OPENAI_AND_ANTHROPIC,
+      settings: {
+        'agents.type.builder': 'openai/gpt-5',
+        'agents.type.builder.effort': 'low',
+      },
+    })
+    const resolved = source.resolve({ role: { agentType: 'builder' } })
+    expect(resolved.config).toMatchObject({
+      configured: true,
+      ref: { providerId: 'openai', modelId: 'gpt-5' },
+      accountId: 'o',
+      effort: EEffort.Low,
+    })
+    expect(resolved.choice.follows).toBeUndefined()
+  })
+
+  it('makes a follower use the spawner’s choice, effort and account', () => {
+    const root = {
+      ref: { providerId: 'openai', modelId: 'gpt-5' },
+      effort: EEffort.High,
+      fast: false,
+    }
+    const source = sourceOf({
+      accounts: OPENAI_AND_ANTHROPIC,
+      settings: { 'agents.type.builder.effort': 'low' },
+    })
+    const resolved = source.resolve({ role: { agentType: 'builder' }, root })
+    expect(resolved.choice).toMatchObject({
+      ref: { providerId: 'openai', modelId: 'gpt-5' },
+      effort: EEffort.High,
+      follows: 'subagents',
+    })
+    expect(resolved.config).toMatchObject({ configured: true, accountId: 'o' })
+  })
+
+  it('follows Main, not Subagents, for the teammate type', () => {
+    const source = sourceOf({
+      accounts: OPENAI_AND_ANTHROPIC,
+      settings: {
+        'agents.subagentModel': 'openai/gpt-5',
+        'agents.type.teammate': 'anthropic/claude-sonnet-4-5',
+      },
+    })
+    const resolved = source.resolve({ role: { agentType: 'teammate' } })
+    expect(resolved.config).toMatchObject({
+      configured: true,
+      ref: { providerId: 'anthropic', modelId: 'claude-sonnet-4-5' },
+      accountId: 'a',
+    })
+  })
+
+  it('lets a role with an unreachable own model follow its parent instead of swapping', () => {
+    const source = sourceOf({
+      accounts: [accountRow({ id: 'a', provider: 'anthropic' })],
+      settings: { 'agents.type.builder': 'openai/gpt-5' },
+    })
+    const resolved = source.resolve({ role: { agentType: 'builder' } })
+    expect(resolved.choice).toMatchObject({
+      ref: { providerId: 'anthropic', modelId: 'claude-haiku-4-5' },
+      follows: 'subagents',
+      stale: true,
+    })
+    expect(resolved.config).toMatchObject({ configured: true, accountId: 'a' })
   })
 })

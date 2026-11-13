@@ -1,9 +1,12 @@
 import {
   ANTHROPIC_PROVIDER_ID,
   EImageTier,
+  effortLabelsOf,
   outputPriceLabel,
+  parseRef,
   refKey,
   supportedEfforts,
+  type EEffort as EEffortRung,
   type ModelCard,
 } from '@dltech/atlas-core'
 import {
@@ -30,7 +33,8 @@ export type ModelOptions = { models: ModelOption[]; reconnectProviders: string[]
 const EXPIRED = 'expired'
 const MILLION = 1_000_000
 
-const NO_KEY_NOTE = 'no key'
+const NO_KEY_NOTE = 'not connected'
+const EXPIRED_NOTE = 'Sign-in expired'
 
 const PROVIDER_NAMES: Record<string, string> = {
   [ANTHROPIC_PROVIDER_ID]: CLAUDE_PLAN_LABEL,
@@ -83,27 +87,41 @@ export function effortsOf(card: ModelCard): EEffort[] {
 const imagesOf = (tier: string | undefined): { images?: boolean } =>
   tier === undefined ? {} : { images: tier === EImageTier.HighResolution }
 
-const unavailableFields = (unavailable: boolean): Pick<ModelOption, 'disabled' | 'disabledNote'> =>
-  unavailable ? { disabled: true, disabledNote: NO_KEY_NOTE } : {}
+const unavailableFields = (
+  note: string | undefined,
+): Pick<ModelOption, 'disabled' | 'disabledNote'> =>
+  note === undefined ? {} : { disabled: true, disabledNote: note }
 
-function optionOf({
-  card,
-  unavailable = false,
-}: {
-  card: ModelCard
-  unavailable?: boolean
-}): ModelOption {
+const effortsFromNames = (names: readonly string[]): EEffort[] =>
+  names.flatMap((name) => {
+    const mapped = efforts.get(name)
+    return mapped === undefined ? [] : [mapped]
+  })
+
+const labelledEfforts = (
+  labels: Partial<Record<EEffortRung, string>> | undefined,
+): Pick<ModelOption, 'effortLabels'> => {
+  const mapped: Partial<Record<EEffort, string>> = {}
+  for (const [rung, label] of Object.entries(labels ?? {})) {
+    const known = efforts.get(rung)
+    if (known !== undefined && label !== undefined) mapped[known] = label
+  }
+  return Object.keys(mapped).length === 0 ? {} : { effortLabels: mapped }
+}
+
+function optionOf({ card, note }: { card: ModelCard; note?: string }): ModelOption {
   const brand = PROVIDER_BRANDS[card.ref.providerId]
   const rate = outputPriceLabel(card.cost)
   return {
     ...imagesOf(card.imageTier),
-    ...unavailableFields(unavailable),
+    ...unavailableFields(note),
     id: refKey(card.ref),
     label: modelLabelOf({ providerId: card.ref.providerId, label: card.label }),
     provider: providerNameOf(card.ref.providerId),
     context: contextLabelOf(card.contextWindow),
     contextTokens: card.contextWindow,
     efforts: effortsOf(card),
+    ...labelledEfforts(effortLabelsOf(card.effort)),
     fast: card.fast === true,
     monogram: providerNameOf(card.ref.providerId).slice(0, 1),
     ...(brand === undefined ? {} : { brand }),
@@ -111,23 +129,31 @@ function optionOf({
   }
 }
 
+const notConnectedNote = (providerId: string): string =>
+  `${providerNameOf(providerId)} ${NO_KEY_NOTE}`
+
+const unknownOption = ({ id, note }: { id: string; note: string | undefined }): ModelOption => ({
+  id,
+  label: id,
+  ...unavailableFields(note ?? EXPIRED_NOTE),
+})
+
 function withCurrent(args: {
   offered: ModelOption[]
-  cards: readonly ModelCard[]
-  currentId: string | undefined
+  currentIds: readonly string[]
+  optionFor: (id: string) => ModelOption
 }): ModelOption[] {
-  const { offered, currentId } = args
-  if (currentId === undefined || offered.some((option) => option.id === currentId)) return offered
-  const card = args.cards.find((candidate) => refKey(candidate.ref) === currentId)
-  const option: ModelOption =
-    card === undefined ? { id: currentId, label: currentId } : optionOf({ card })
-  return [...offered, option]
+  const extra = args.currentIds
+    .filter((id) => id !== '' && !args.offered.some((option) => option.id === id))
+    .map(args.optionFor)
+  return [...args.offered, ...extra]
 }
 
 export function modelOptionsOf(args: {
   accounts: readonly AccountSummary[]
-  currentId?: string | undefined
+  currentIds?: readonly string[]
 }): ModelOptions {
+  const currentIds = args.currentIds ?? []
   const usable = new Set<string>()
   const expired = new Set<string>()
   for (const account of args.accounts) {
@@ -138,6 +164,7 @@ export function modelOptionsOf(args: {
     cards: withoutDatedDuplicates(source.cards()),
   }))
   const cards = providers.flatMap((provider) => provider.cards)
+  const cardById = new Map(cards.map((card) => [refKey(card.ref), card]))
   const reconnecting = providers.filter(
     (provider) => expired.has(provider.id) && !usable.has(provider.id),
   )
@@ -145,11 +172,23 @@ export function modelOptionsOf(args: {
     .filter((provider) => !reconnecting.includes(provider))
     .flatMap((provider) =>
       provider.cards
-        .filter((card) => usable.has(provider.id) || refKey(card.ref) === args.currentId)
-        .map((card) => optionOf({ card, unavailable: !usable.has(provider.id) })),
+        .filter((card) => usable.has(provider.id) || currentIds.includes(refKey(card.ref)))
+        .map((card) =>
+          optionOf({
+            card,
+            ...(usable.has(provider.id) ? {} : { note: notConnectedNote(provider.id) }),
+          }),
+        ),
     )
+  const optionFor = (id: string): ModelOption => {
+    const card = cardById.get(id)
+    if (card === undefined) return unknownOption({ id, note: undefined })
+    const providerId = card.ref.providerId
+    const expiredHere = reconnecting.some((provider) => provider.id === providerId)
+    return optionOf({ card, note: expiredHere ? EXPIRED_NOTE : notConnectedNote(providerId) })
+  }
   return {
-    models: withCurrent({ offered, cards, currentId: args.currentId }),
+    models: withCurrent({ offered, currentIds, optionFor }),
     reconnectProviders: reconnecting.map((provider) => providerNameOf(provider.id)),
   }
 }
@@ -158,23 +197,17 @@ export type ModelsSource =
   | { kind: 'live'; response: ModelsResponse }
   | { kind: 'accounts'; accounts: readonly AccountSummary[] }
 
-const effortsFromNames = (names: readonly string[]): EEffort[] =>
-  names.flatMap((name) => {
-    const mapped = efforts.get(name)
-    return mapped === undefined ? [] : [mapped]
-  })
-
 function optionOfEntry(args: {
   providerId: string
   entry: ModelEntry
-  unavailable: boolean
+  note?: string
 }): ModelOption {
   const { providerId, entry } = args
   const brand = PROVIDER_BRANDS[providerId]
   const rate = rateOfEntry(entry)
   return {
     ...imagesOf(entry.imageTier),
-    ...unavailableFields(args.unavailable),
+    ...unavailableFields(args.note),
     id: entry.id,
     label: modelLabelOf({ providerId, label: entry.label }),
     provider: providerNameOf(providerId),
@@ -190,30 +223,48 @@ function optionOfEntry(args: {
 
 export function modelOptionsFromResponse(args: {
   response: ModelsResponse
-  currentId?: string | undefined
+  currentIds?: readonly string[]
 }): ModelOptions {
-  const currentId = args.currentId
+  const currentIds = args.currentIds ?? []
   const offered = args.response.providers
     .filter((provider) => provider.status !== EModelProviderStatus.Expired)
     .flatMap((provider) => {
       const unavailable = provider.status === EModelProviderStatus.Unavailable
       return provider.models
-        .filter((entry) => !unavailable || entry.id === currentId)
-        .map((entry) => optionOfEntry({ providerId: provider.id, entry, unavailable }))
+        .filter((entry) => !unavailable || currentIds.includes(entry.id))
+        .map((entry) =>
+          optionOfEntry({
+            providerId: provider.id,
+            entry,
+            ...(unavailable ? { note: notConnectedNote(provider.id) } : {}),
+          }),
+        )
     })
-  const models =
-    currentId === undefined || offered.some((option) => option.id === currentId)
-      ? offered
-      : [...offered, { id: currentId, label: currentId }]
+  const optionFor = (id: string): ModelOption => {
+    for (const provider of args.response.providers) {
+      const entry = provider.models.find((candidate) => candidate.id === id)
+      if (entry === undefined) continue
+      const note =
+        provider.status === EModelProviderStatus.Expired
+          ? EXPIRED_NOTE
+          : notConnectedNote(provider.id)
+      return optionOfEntry({ providerId: provider.id, entry, note })
+    }
+    const ref = parseRef(id)
+    return unknownOption({
+      id,
+      note: ref === undefined ? undefined : notConnectedNote(ref.providerId),
+    })
+  }
   const reconnectProviders = args.response.providers
     .filter((provider) => provider.status === EModelProviderStatus.Expired)
     .map((provider) => providerNameOf(provider.id))
-  return { models, reconnectProviders }
+  return { models: withCurrent({ offered, currentIds, optionFor }), reconnectProviders }
 }
 
 export function modelOptionsOfSource(args: {
   source: ModelsSource | undefined
-  currentId?: string | undefined
+  currentIds?: readonly string[]
 }): ModelOptions {
   const { source, ...rest } = args
   if (source === undefined) return { models: [], reconnectProviders: [] }

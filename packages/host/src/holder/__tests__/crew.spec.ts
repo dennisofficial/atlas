@@ -22,6 +22,7 @@ import {
 import { z } from 'zod'
 
 import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID } from './holder-rig'
+import { RIG_MODEL_CHOICE } from './rig-runtime'
 
 const CHILD_BRIEF = 'CHILD-BRIEF read the thing'
 const SPAWN_PROBE = 'crew_spawn_probe'
@@ -183,6 +184,10 @@ describe('a sub-agent spawned with the crew port', () => {
 
     expect(toolNamesOf(model.parent.requests[0])).toContain(SPAWN_PROBE)
     expect(toolNamesOf(model.child.requests[0])).not.toContain(SPAWN_PROBE)
+
+    expect(rig.runtimes.map((runtime) => runtime.modelForCalls)).toEqual([
+      [{ role: { agentType: 'general-purpose' }, root: RIG_MODEL_CHOICE }],
+    ])
 
     await rig.wake()
     await flushUntil({

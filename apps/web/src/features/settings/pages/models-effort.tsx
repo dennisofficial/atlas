@@ -1,42 +1,44 @@
 'use client'
 
-import { ToggleGroup, ToggleGroupItem } from '@dltech/atlas-ui/components/toggle-group'
+import { useMemo } from 'react'
+import { z } from 'zod'
 
-import { useModelPicker } from '@/features/threads/data/use-model-picker'
+import { refKey, roleKey, type EEffort, type ModelRole } from '@dltech/atlas-core'
+
+import { providerNameOf } from '@/features/threads/data/model-options'
+import { useModelPicker, type ModelPicker } from '@/features/threads/data/use-model-picker'
 import type { SettingChanges, SettingValues } from '@/lib/cloud-settings'
 
-import { activePresetOf, modelsChanges, modelsDraftFrom } from '../data/personal/models-settings'
-import { QueryPage } from '../data/personal/query-boundary'
-import { ModelsSkeleton } from '../skeletons/agent-skeletons'
-import { usePersonalSettings, useSettingsDraft } from '../data/personal/use-settings-draft'
+import { choiceOf, currentModelIds, resolveRoles, staleOwnerOf } from '../data/personal/model-roles'
 import {
-  BUILT_IN_AGENT_META,
-  BUILT_IN_AGENT_ORDER,
-  EAgentRole,
-  EPreset,
-  PRESETS,
-  PRESET_LABELS,
-  ROLE_META,
-  ROLE_ORDER,
-  TEAMMATE_META,
-  type EBuiltInAgentType,
-  type ModelsDraft,
-  type RoleSetting,
-} from '../fixtures/settings-agent'
+  effortDraft,
+  fastDraft,
+  followedDraft,
+  modelsChanges,
+  modelsDraftFrom,
+  pickedModelDraft,
+} from '../data/personal/models-settings'
+import { QueryPage } from '../data/personal/query-boundary'
+import { usePersonalSettings, useSettingsDraft } from '../data/personal/use-settings-draft'
+import { ModelsSkeleton } from '../skeletons/agent-skeletons'
 import { ConfigFooter } from '../parts/agent-config-footer'
-import { RoleCard } from '../parts/agent-role-card'
-import { SettingsPage, SettingsSection } from '../settings-layout'
+import { ProviderAlert } from '../parts/models/provider-alert'
+import { ProvidersEmpty } from '../parts/models/providers-empty'
+import { ROLE_GROUPS } from '../parts/models/role-groups'
+import { RoleRow } from '../parts/models/role-row'
+import { SettingsCard, SettingsPage, SettingsSection } from '../settings-layout'
 
-const PRESET_ORDER = [EPreset.Fast, EPreset.Balanced, EPreset.Thorough]
 const TITLE = 'Models & Effort'
 const DESCRIPTION = 'Choose which model each part of the agent runs on and how hard it thinks.'
 
-function isPreset(value: unknown): value is EPreset {
-  return PRESET_ORDER.some((preset) => preset === value)
-}
-
 export function ModelsEffortPage() {
   const settings = usePersonalSettings()
+  const { read } = settings
+  const currentIds = useMemo(
+    () => currentModelIds((args) => read({ ...args, schema: z.string() })),
+    [read],
+  )
+  const picker = useModelPicker({ currentIds })
   return (
     <QueryPage
       query={settings.query}
@@ -44,17 +46,19 @@ export function ModelsEffortPage() {
       description={DESCRIPTION}
       skeleton={<ModelsSkeleton />}
     >
-      {(values) => <ModelsEditor values={values} save={settings.save} />}
+      {(values) => <ModelsEditor values={values} save={settings.save} picker={picker} />}
     </QueryPage>
   )
 }
 
-function ModelsEditor({
+export function ModelsEditor({
   values,
   save,
+  picker,
 }: {
   values: SettingValues
   save: (changes: SettingChanges) => Promise<void>
+  picker: ModelPicker
 }) {
   const { draft, saving, handleSave } = useSettingsDraft({
     values,
@@ -62,109 +66,77 @@ function ModelsEditor({
     toChanges: modelsChanges,
     save,
   })
-  const picker = useModelPicker()
   const { value, setValue } = draft
-  const activePreset = activePresetOf(value.roles)
-
-  const handlePresetChange = (selected: unknown[]) => {
-    const next = selected[0]
-    if (isPreset(next)) setValue({ ...value, roles: PRESETS[next] })
-  }
-  const handleRoleChange = ({ role, setting }: { role: EAgentRole; setting: RoleSetting }) =>
-    setValue({ ...value, roles: { ...value.roles, [role]: setting } })
-  const handleTeammateChange = (setting: RoleSetting) => setValue({ ...value, teammate: setting })
-  const handleBuiltInChange = ({
-    type,
-    setting,
-  }: {
-    type: EBuiltInAgentType
-    setting: RoleSetting
-  }) => setValue({ ...value, builtIns: { ...value.builtIns, [type]: setting } })
+  const models = picker.options.models
+  const choices = useMemo(() => resolveRoles({ draft: value, models }), [value, models])
+  const owner = staleOwnerOf(choices)
   const dirty = draft.dirty && !saving
+  const expired =
+    owner !== undefined &&
+    picker.options.reconnectProviders.includes(providerNameOf(owner.choice.ref.providerId))
+
+  const handleChooseModel = ({ role, model }: { role: ModelRole; model: string }) =>
+    setValue(
+      pickedModelDraft({
+        draft: value,
+        role,
+        model,
+        option: models.find((candidate) => candidate.id === model),
+        inherited: choiceOf({ choices, role }),
+      }),
+    )
+  const handleChooseEffort = ({ role, effort }: { role: ModelRole; effort: EEffort }) =>
+    setValue(effortDraft({ draft: value, role, effort }))
+  const handleToggleFast = ({ role, fast }: { role: ModelRole; fast: boolean }) =>
+    setValue(fastDraft({ draft: value, role, fast }))
+  const handleFollow = ({ role }: { role: ModelRole }) =>
+    setValue(followedDraft({ draft: value, role }))
+
+  if (!picker.ready) return <ModelsSkeleton />
+  if (models.length === 0)
+    return (
+      <SettingsPage title={TITLE} description={DESCRIPTION}>
+        <ProvidersEmpty />
+      </SettingsPage>
+    )
+
+  const actions = {
+    chooseModel: handleChooseModel,
+    chooseEffort: handleChooseEffort,
+    toggleFast: handleToggleFast,
+    follow: handleFollow,
+  }
 
   return (
     <SettingsPage title={TITLE} description={DESCRIPTION}>
-      <PresetsSection activePreset={activePreset} onPresetChange={handlePresetChange} />
-      {ROLE_ORDER.map((role) => (
-        <RoleCard
-          key={role}
-          meta={ROLE_META[role]}
-          setting={value.roles[role]}
-          picker={picker}
-          onChange={(setting) => handleRoleChange({ role, setting })}
-          {...(role === EAgentRole.Main ? { fast: value.roles[role].fast ?? false } : {})}
+      {owner === undefined ? null : (
+        <ProviderAlert
+          owner={owner}
+          choices={choices}
+          label={
+            models.find((model) => model.id === refKey(owner.choice.ref))?.label ??
+            owner.choice.ref.modelId
+          }
+          expired={expired}
+          onChoose={() => setValue(followedDraft({ draft: value, role: owner.role }))}
         />
+      )}
+      {ROLE_GROUPS.map((group) => (
+        <SettingsSection key={group.title} title={group.title}>
+          <SettingsCard size="sm">
+            {group.roles.map((role) => (
+              <RoleRow
+                key={roleKey(role)}
+                role={role}
+                choice={choiceOf({ choices, role })}
+                picker={picker}
+                actions={actions}
+              />
+            ))}
+          </SettingsCard>
+        </SettingsSection>
       ))}
-      <RoleCard
-        meta={TEAMMATE_META}
-        setting={value.teammate}
-        picker={picker}
-        onChange={handleTeammateChange}
-      />
-      <BuiltInSections
-        builtIns={value.builtIns}
-        picker={picker}
-        onBuiltInChange={handleBuiltInChange}
-      />
       <ConfigFooter dirty={dirty} onDiscard={draft.discard} onSave={() => void handleSave()} />
     </SettingsPage>
-  )
-}
-
-function PresetsSection({
-  activePreset,
-  onPresetChange,
-}: {
-  activePreset: EPreset | null
-  onPresetChange: (selected: unknown[]) => void
-}) {
-  return (
-    <SettingsSection
-      title="Presets"
-      description="Set the main agent, subagents and background calls at once. Editing a role switches this to Custom."
-      actions={
-        activePreset ? null : (
-          <span className="font-mono text-xs text-muted-foreground">Custom</span>
-        )
-      }
-    >
-      <ToggleGroup
-        variant="outline"
-        size="sm"
-        spacing={0}
-        value={activePreset ? [activePreset] : []}
-        onValueChange={onPresetChange}
-      >
-        {PRESET_ORDER.map((preset) => (
-          <ToggleGroupItem key={preset} value={preset}>
-            {PRESET_LABELS[preset]}
-          </ToggleGroupItem>
-        ))}
-      </ToggleGroup>
-    </SettingsSection>
-  )
-}
-
-function BuiltInSections({
-  builtIns,
-  picker,
-  onBuiltInChange,
-}: {
-  builtIns: ModelsDraft['builtIns']
-  picker: ReturnType<typeof useModelPicker>
-  onBuiltInChange: (args: { type: EBuiltInAgentType; setting: RoleSetting }) => void
-}) {
-  return (
-    <>
-      {BUILT_IN_AGENT_ORDER.map((type) => (
-        <RoleCard
-          key={type}
-          meta={BUILT_IN_AGENT_META[type]}
-          setting={builtIns[type]}
-          picker={picker}
-          onChange={(setting) => onBuiltInChange({ type, setting })}
-        />
-      ))}
-    </>
   )
 }

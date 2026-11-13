@@ -3,10 +3,12 @@ import {
   EAccountStatus,
   EAuthKind,
   EAuthProvider,
+  effortLabelsOf,
   refKey,
   supportedEfforts,
   toAccountId,
   type Account,
+  type EEffort,
   type ModelCard,
 } from '@dltech/atlas-core'
 
@@ -21,6 +23,7 @@ export type ModelsViewModel = {
   contextWindow: number
   imageTier: string
   efforts: string[]
+  effortLabels?: Partial<Record<EEffort, string>>
   fast?: true
   inputPerMillion?: number
   outputPerMillion?: number
@@ -54,6 +57,7 @@ const toModel = (card: ModelCard): ModelsViewModel => ({
   contextWindow: card.contextWindow,
   imageTier: card.imageTier,
   efforts: [...supportedEfforts(card.effort)],
+  ...(card.effort === undefined ? {} : { effortLabels: effortLabelsOf(card.effort) }),
   ...(card.fast === true ? { fast: true } : {}),
   ...(card.cost === undefined
     ? {}

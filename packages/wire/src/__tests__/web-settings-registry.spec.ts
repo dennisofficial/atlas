@@ -71,8 +71,6 @@ describe('cloud setting registry', () => {
 
   it('accepts and rejects web-only values by kind', () => {
     const cases: Array<[string, unknown, boolean]> = [
-      ['web.models.preset', 'custom', true],
-      ['web.models.preset', 'turbo', false],
       ['web.appearance.codeFontSize', 14, true],
       ['web.appearance.codeFontSize', 15, false],
       ['web.appearance.theme', 'system', true],

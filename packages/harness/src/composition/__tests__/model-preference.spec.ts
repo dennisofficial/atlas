@@ -17,6 +17,7 @@ import {
   modelPinned,
   rememberSettingModel,
   settingModelRef,
+  settingReaderOf,
   storedModel,
   threadSelection,
 } from '../model-preference'
@@ -321,5 +322,22 @@ describe('the model a setting already holds', () => {
         catalogue,
       }),
     ).toBeUndefined()
+  })
+})
+
+describe('settingReaderOf', () => {
+  it('reads a text setting as the layers settled it', () => {
+    const read = settingReaderOf(
+      settled({ values: { [ESettingId.ModelId]: 'openai/gpt-5-codex' } }),
+    )
+
+    expect(read(ESettingId.ModelId)).toBe('openai/gpt-5-codex')
+  })
+
+  it('reads a toggle as a boolean and an unset row as nothing', () => {
+    const read = settingReaderOf(settled({ values: { [ESettingId.ModelFast]: 'true' } }))
+
+    expect(read(ESettingId.ModelFast)).toBe(true)
+    expect(read(ESettingId.QuickModel)).toBe(false)
   })
 })
