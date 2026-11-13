@@ -81,6 +81,18 @@ describe('SessionUpdateCard in the Mac app', () => {
     expect(button()?.textContent).toBe('Restart to update')
   })
 
+  it('offers the restart once a newer interface is downloaded', async () => {
+    Reflect.set(window, 'atlasDesktop', { vibrancy: false })
+    answerWith({
+      state: 'idle',
+      web: { state: 'ready', version: '1.324.3', hash: '718b0da5a142df20' },
+    })
+    await mount(<SessionUpdateCard skipped={2} writerAhead={false} />)
+    await settle()
+    expect(document.body.textContent).toContain('Restart to install 1.324.3.')
+    expect(button()?.textContent).toBe('Restart to update')
+  })
+
   it('reports a failed check rather than pretending to be current', async () => {
     Reflect.set(window, 'atlasDesktop', { vibrancy: false })
     globalThis.fetch = (async () => new Response('nope', { status: 500 })) as typeof fetch

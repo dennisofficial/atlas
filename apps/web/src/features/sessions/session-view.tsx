@@ -210,7 +210,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
           />
         </div>
         <div className="mx-auto flex w-full max-w-3xl shrink-0 flex-col gap-2 px-4 pb-4">
-          <OperatorRequestDock request={operatorRequest} />
+          <OperatorRequestDock sessionId={sessionId} request={operatorRequest} />
           {snapshot.skipped > 0 ? (
             <SessionUpdateCard skipped={snapshot.skipped} writerAhead={snapshot.writerAhead} />
           ) : null}

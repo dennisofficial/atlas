@@ -12,7 +12,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@dltech/atlas-ui/components/card'
-import { Input } from '@dltech/atlas-ui/components/input'
 import { Textarea } from '@dltech/atlas-ui/components/textarea'
 
 export const OPERATOR_INPUT_TITLE = 'Atlas needs you'
@@ -20,10 +19,9 @@ export const OPERATOR_INPUT_PRIVACY = 'The model never sees what you paste.'
 export const OPERATOR_INPUT_WAITING = 'Waiting for the session to confirm.'
 
 export type OperatorInputRequest = {
-  requestId: string
+  requestId?: string | undefined
   description: string
   url?: string | undefined
-  secret?: boolean | undefined
 }
 
 export type OperatorInputCardProps = OperatorInputRequest & {
@@ -34,7 +32,7 @@ export type OperatorInputCardProps = OperatorInputRequest & {
 }
 
 export function OperatorInputCard(props: OperatorInputCardProps) {
-  const { description, url, secret, submitting, error, onSubmit, onCancel } = props
+  const { description, url, submitting, error, onSubmit, onCancel } = props
   const [value, setValue] = useState('')
   const canSubmit = value.length > 0 && !submitting
 
@@ -93,7 +91,7 @@ export function OperatorInputCard(props: OperatorInputCardProps) {
               <ExternalLinkIcon aria-hidden className="size-3.5 shrink-0" />
             </a>
           )}
-          {secret === true ? <Input type="password" {...field} /> : <Textarea {...field} />}
+          <Textarea {...field} />
           {error === undefined ? null : (
             <p role="alert" className="text-xs text-destructive">
               {error}

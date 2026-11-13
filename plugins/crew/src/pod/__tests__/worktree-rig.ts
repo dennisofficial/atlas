@@ -8,7 +8,6 @@ import {
   type WorktreeState,
   EMPTY_CREW,
   EMPTY_MCP_CONTROL,
-  EMPTY_OPERATOR_INPUT,
   EMPTY_SESSIONS,
 } from '@dltech/atlas-plugin-sdk'
 
@@ -139,7 +138,6 @@ export const rig = (
     worktrees: args.worktrees ?? fakeWorktrees().port,
     control: {
       mcp: EMPTY_MCP_CONTROL,
-      operator: EMPTY_OPERATOR_INPUT,
       webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
       exposePort: async () => {
         throw new Error('this rig exposes no port')

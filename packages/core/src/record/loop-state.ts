@@ -167,6 +167,17 @@ const pendingCallOf = (event: EventOfType<'tool-called'>): PendingCall => ({
 
 export const pendingCallsOf = (state: LoopState): PendingCall[] => state.pending.map(pendingCallOf)
 
+export const settleablePendingOf = (state: LoopState): PendingCall[] =>
+  state.pending.filter((call) => !state.parked.has(call.callId)).map(pendingCallOf)
+
+export function openParkedCallOfState(state: LoopState): CallId | undefined {
+  let earliest: { callId: CallId; seq: number } | undefined
+  for (const [callId, seq] of state.parked) {
+    if (earliest === undefined || seq < earliest.seq) earliest = { callId, seq }
+  }
+  return earliest?.callId
+}
+
 export const crashedCallsOf = (state: LoopState): PendingCall[] =>
   state.dispatched.size === 0
     ? []

@@ -8,10 +8,18 @@ export const OPERATOR_ANSWER_PATH = '/operator-requests/answer'
 const MAX_VALUE_LENGTH = 64 * 1024
 
 const answerBodySchema = z.strictObject({
-  requestId: z.string().min(1),
-  value: z.string().max(MAX_VALUE_LENGTH).optional(),
-  cancel: z.literal(true).optional(),
+  sessionId: z.string().min(1),
+  callId: z.string().min(1),
+  value: z.string().max(MAX_VALUE_LENGTH),
 })
+
+const cancelBodySchema = z.strictObject({
+  sessionId: z.string().min(1),
+  callId: z.string().min(1),
+  cancel: z.literal(true),
+})
+
+const requestBodySchema = z.union([answerBodySchema, cancelBodySchema])
 
 export type OperatorAnswerRouteArgs = {
   registry: OperatorRequestRegistry
@@ -91,17 +99,20 @@ export const operatorAnswerOf = (args: OperatorAnswerRouteArgs) => {
     if (principal === undefined)
       return answerOf({ status: 401, body: { reason: 'bearer' }, origin })
 
-    const parsed = answerBodySchema.safeParse(await request.json().catch(() => null))
+    const parsed = requestBodySchema.safeParse(await request.json().catch(() => null))
     if (!parsed.success) return answerOf({ status: 400, body: { reason: 'body' }, origin })
     const body = parsed.data
-    if ((body.value !== undefined) === (body.cancel === true))
-      return answerOf({ status: 400, body: { reason: 'body' }, origin })
 
     const outcome =
-      body.value === undefined
-        ? await args.registry.cancel({ requestId: body.requestId, userId: principal.userId })
+      'cancel' in body
+        ? await args.registry.cancel({
+            sessionId: body.sessionId,
+            callId: body.callId,
+            userId: principal.userId,
+          })
         : await args.registry.answer({
-            requestId: body.requestId,
+            sessionId: body.sessionId,
+            callId: body.callId,
             userId: principal.userId,
             value: body.value,
           })

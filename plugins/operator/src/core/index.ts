@@ -1,9 +1,9 @@
-import { operatorInputAskedSchema, operatorInputSettledSchema } from './request'
+import { legacyOperatorEvents } from './request'
 
 export * from './request'
 
 export const operatorCoreSlots = {
-  events: [operatorInputAskedSchema, operatorInputSettledSchema],
+  events: legacyOperatorEvents,
   views: [],
   commands: [],
 } as const

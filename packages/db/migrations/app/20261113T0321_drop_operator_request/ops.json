@@ -1,0 +1,39 @@
+[
+  {
+    "id": "dropTable.V2OperatorRequest",
+    "label": "Drop table \"V2OperatorRequest\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2OperatorRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"V2OperatorRequest\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2OperatorRequest\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop table \"V2OperatorRequest\"",
+        "sql": "DROP TABLE \"v2\".\"V2OperatorRequest\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"V2OperatorRequest\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2OperatorRequest\""
+        ]
+      }
+    ]
+  }
+]

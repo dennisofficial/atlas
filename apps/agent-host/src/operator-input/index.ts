@@ -10,9 +10,4 @@ export {
   type OperatorRequestOutcome,
 } from './registry'
 export { OPERATOR_ANSWER_PATH, operatorAnswerOf, type OperatorAnswerRouteArgs } from './route'
-export {
-  EOperatorRequestStatus,
-  OperatorRequestStore,
-  type OperatorRequestHeld,
-  type OperatorRequestInsert,
-} from './store'
+export { OperatorSessionStore } from './store'

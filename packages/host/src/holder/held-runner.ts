@@ -11,7 +11,6 @@ import { ScopedToolDispatcher } from '../calls/call-scope'
 import { BranchObserver } from './branch-observer'
 import { PrLinker } from './pr-linker'
 import { pluginPodOf } from './plugin-pod'
-import { operatorInputOf } from './operator-input'
 import type { HeldSessionDeps } from './held-session-deps'
 import { LeaseLostError } from './record/record-adapter'
 import type { HeldTurns } from './held-turns'
@@ -183,17 +182,6 @@ export const createLoopRunner = (args: {
     threadId,
     signal: args.signal,
     crew: args.crew,
-    ...(requests === undefined
-      ? {}
-      : {
-          operator: operatorInputOf({
-            requests,
-            sessionId: deps.sessionId,
-            threadId,
-            record,
-            newRunId: () => deps.ids.nextRunId(),
-          }),
-        }),
   })
   const intake = new InboxIntake({
     plane: deps.plane,

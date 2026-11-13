@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'a1d7da1e092b7832619e7438fc84a790bd3244eaf29625754bd2ee821901b4e2'>;
+  StorageHashBase<'921b9a105ffcf31b97210047381d89edef0947f00b926e04a86124e6607ce08b'>;
 export type ExecutionHash =
   ExecutionHashBase<'27a680d0d8367c03704617bfac2d0041e04bd5395fc473f9e021f03bd0d4c6fa'>;
 export type ProfileHash =
@@ -1193,19 +1193,6 @@ export namespace Models {
     session: v2_V2Session;
     readonly [RelationKeys]?: 'session';
   };
-  export type v2_V2OperatorRequest = {
-    createdAt: FieldOutputTypes['v2']['V2OperatorRequest']['createdAt'];
-    id: FieldOutputTypes['v2']['V2OperatorRequest']['id'];
-    kind: FieldOutputTypes['v2']['V2OperatorRequest']['kind'];
-    prompt: FieldOutputTypes['v2']['V2OperatorRequest']['prompt'];
-    resolvedAt: FieldOutputTypes['v2']['V2OperatorRequest']['resolvedAt'];
-    secret: FieldOutputTypes['v2']['V2OperatorRequest']['secret'];
-    sessionId: FieldOutputTypes['v2']['V2OperatorRequest']['sessionId'];
-    shellId: FieldOutputTypes['v2']['V2OperatorRequest']['shellId'];
-    status: FieldOutputTypes['v2']['V2OperatorRequest']['status'];
-    threadId: FieldOutputTypes['v2']['V2OperatorRequest']['threadId'];
-    readonly [RelationKeys]?: never;
-  };
   export type v2_V2Routine = {
     createdAt: FieldOutputTypes['v2']['V2Routine']['createdAt'];
     cron: FieldOutputTypes['v2']['V2Routine']['cron'];
@@ -1356,7 +1343,6 @@ export declare const models: {
     V2Host: Models.v2_V2Host;
     V2InboxEntry: Models.v2_V2InboxEntry;
     V2Lease: Models.v2_V2Lease;
-    V2OperatorRequest: Models.v2_V2OperatorRequest;
     V2Routine: Models.v2_V2Routine;
     V2RoutineRun: Models.v2_V2RoutineRun;
     V2Session: Models.v2_V2Session;
@@ -6829,89 +6815,6 @@ type ContractBase = Omit<
                 },
               ];
             };
-            readonly V2OperatorRequest: {
-              columns: {
-                readonly createdAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly id: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly kind: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly prompt: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly resolvedAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: true;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly secret: {
-                  readonly dataType: 'pg/bool';
-                  readonly codecId: 'pg/bool@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly sessionId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly shellId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly status: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly threadId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-              };
-              primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [];
-              indexes: readonly [
-                {
-                  readonly name: 'V2OperatorRequest_sessionId_idx_29f415d4';
-                  readonly prefix: 'V2OperatorRequest_sessionId_idx';
-                  readonly columns: readonly ['sessionId'];
-                  readonly unique: false;
-                },
-                {
-                  readonly name: 'V2OperatorRequest_status_idx_e98638ab';
-                  readonly prefix: 'V2OperatorRequest_status_idx';
-                  readonly columns: readonly ['status'];
-                  readonly unique: false;
-                },
-              ];
-              foreignKeys: readonly [];
-            };
             readonly V2Routine: {
               columns: {
                 readonly createdAt: {
@@ -7600,10 +7503,6 @@ type ContractBase = Omit<
       readonly model: 'V2InboxEntry';
     };
     readonly V2Lease: { readonly namespace: 'v2' & NamespaceId; readonly model: 'V2Lease' };
-    readonly V2OperatorRequest: {
-      readonly namespace: 'v2' & NamespaceId;
-      readonly model: 'V2OperatorRequest';
-    };
     readonly V2Routine: { readonly namespace: 'v2' & NamespaceId; readonly model: 'V2Routine' };
     readonly V2RoutineRun: {
       readonly namespace: 'v2' & NamespaceId;
@@ -12931,75 +12830,6 @@ type ContractBase = Omit<
                 readonly retryAfter: { readonly column: 'retryAfter' };
                 readonly sessionId: { readonly column: 'sessionId' };
                 readonly wantsHolder: { readonly column: 'wantsHolder' };
-              };
-            };
-          };
-          readonly V2OperatorRequest: {
-            readonly fields: {
-              readonly createdAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly id: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly kind: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly prompt: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly resolvedAt: {
-                readonly nullable: true;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly secret: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
-              };
-              readonly sessionId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly shellId: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly status: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly threadId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-            };
-            readonly relations: Record<string, never>;
-            readonly storage: {
-              readonly table: 'V2OperatorRequest';
-              readonly namespaceId: 'v2';
-              readonly fields: {
-                readonly createdAt: { readonly column: 'createdAt' };
-                readonly id: { readonly column: 'id' };
-                readonly kind: { readonly column: 'kind' };
-                readonly prompt: { readonly column: 'prompt' };
-                readonly resolvedAt: { readonly column: 'resolvedAt' };
-                readonly secret: { readonly column: 'secret' };
-                readonly sessionId: { readonly column: 'sessionId' };
-                readonly shellId: { readonly column: 'shellId' };
-                readonly status: { readonly column: 'status' };
-                readonly threadId: { readonly column: 'threadId' };
               };
             };
           };

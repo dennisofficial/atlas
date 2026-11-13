@@ -240,10 +240,6 @@
       "model": "V2Lease",
       "namespace": "v2"
     },
-    "V2OperatorRequest": {
-      "model": "V2OperatorRequest",
-      "namespace": "v2"
-    },
     "V2Routine": {
       "model": "V2Routine",
       "namespace": "v2"
@@ -8785,123 +8781,6 @@
               "table": "V2Lease"
             }
           },
-          "V2OperatorRequest": {
-            "fields": {
-              "createdAt": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "precision": 3
-                  }
-                }
-              },
-              "id": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "kind": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "prompt": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "resolvedAt": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "kind": "scalar",
-                  "typeParams": {
-                    "precision": 3
-                  }
-                }
-              },
-              "secret": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/bool@1",
-                  "kind": "scalar"
-                }
-              },
-              "sessionId": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "shellId": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "status": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "threadId": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              }
-            },
-            "relations": {},
-            "storage": {
-              "fields": {
-                "createdAt": {
-                  "column": "createdAt"
-                },
-                "id": {
-                  "column": "id"
-                },
-                "kind": {
-                  "column": "kind"
-                },
-                "prompt": {
-                  "column": "prompt"
-                },
-                "resolvedAt": {
-                  "column": "resolvedAt"
-                },
-                "secret": {
-                  "column": "secret"
-                },
-                "sessionId": {
-                  "column": "sessionId"
-                },
-                "shellId": {
-                  "column": "shellId"
-                },
-                "status": {
-                  "column": "status"
-                },
-                "threadId": {
-                  "column": "threadId"
-                }
-              },
-              "namespaceId": "v2",
-              "table": "V2OperatorRequest"
-            }
-          },
           "V2Routine": {
             "fields": {
               "createdAt": {
@@ -16209,91 +16088,6 @@
               },
               "uniques": []
             },
-            "V2OperatorRequest": {
-              "columns": {
-                "createdAt": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "dataType": "pg/timestamptz",
-                  "nullable": false,
-                  "typeParams": {
-                    "precision": 3
-                  }
-                },
-                "id": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "kind": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "prompt": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "resolvedAt": {
-                  "codecId": "pg/timestamptz-date@1",
-                  "dataType": "pg/timestamptz",
-                  "nullable": true,
-                  "typeParams": {
-                    "precision": 3
-                  }
-                },
-                "secret": {
-                  "codecId": "pg/bool@1",
-                  "dataType": "pg/bool",
-                  "nullable": false
-                },
-                "sessionId": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "shellId": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
-                },
-                "status": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                },
-                "threadId": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false
-                }
-              },
-              "foreignKeys": [],
-              "indexes": [
-                {
-                  "columns": [
-                    "sessionId"
-                  ],
-                  "name": "V2OperatorRequest_sessionId_idx_29f415d4",
-                  "prefix": "V2OperatorRequest_sessionId_idx",
-                  "unique": false
-                },
-                {
-                  "columns": [
-                    "status"
-                  ],
-                  "name": "V2OperatorRequest_status_idx_e98638ab",
-                  "prefix": "V2OperatorRequest_status_idx",
-                  "unique": false
-                }
-              ],
-              "primaryKey": {
-                "columns": [
-                  "id"
-                ]
-              },
-              "uniques": []
-            },
             "V2Routine": {
               "columns": {
                 "createdAt": {
@@ -16834,7 +16628,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "a1d7da1e092b7832619e7438fc84a790bd3244eaf29625754bd2ee821901b4e2"
+    "storageHash": "921b9a105ffcf31b97210047381d89edef0947f00b926e04a86124e6607ce08b"
   },
   "execution": {
     "executionHash": "27a680d0d8367c03704617bfac2d0041e04bd5395fc473f9e021f03bd0d4c6fa",

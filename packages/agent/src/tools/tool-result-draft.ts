@@ -2,9 +2,22 @@ import {
   isParkedOutcome,
   type CodeQualityReviewedBody,
   type EventDraft,
+  type ParkedToolOutcome,
   type ToolCall,
   type ToolOutcome,
 } from '@dltech/atlas-core'
+
+export function parkedDraftOf(args: {
+  call: { callId: ToolCall['callId']; name: string }
+  result: ParkedToolOutcome
+}): EventDraft {
+  return {
+    type: 'tool-parked',
+    callId: args.call.callId,
+    name: args.call.name,
+    ...(args.result.request === undefined ? {} : { request: args.result.request }),
+  }
+}
 
 export function resultDraft(args: {
   call: ToolCall
@@ -12,9 +25,7 @@ export function resultDraft(args: {
   interrupted: boolean
   qualityReviews?: readonly CodeQualityReviewedBody[] | undefined
 }): EventDraft {
-  if (isParkedOutcome(args.result)) {
-    return { type: 'tool-parked', callId: args.call.callId, name: args.call.name }
-  }
+  if (isParkedOutcome(args.result)) return parkedDraftOf({ call: args.call, result: args.result })
 
   if (args.result.ok) {
     return {

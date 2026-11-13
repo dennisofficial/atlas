@@ -9,7 +9,6 @@ import {
 } from '../operator-input-card'
 
 const ask = {
-  requestId: 'opin_1',
   description: 'Paste the login code',
 }
 
@@ -33,16 +32,10 @@ describe('OperatorInputCard', () => {
     )
   })
 
-  it('keeps the plain textarea when the answer is not secret', () => {
-    const html = render({ secret: false })
+  it('always renders the plain textarea, never a masked field', () => {
+    const html = render()
     expect(html).toContain('<textarea')
     expect(html).not.toContain('type="password"')
-  })
-
-  it('masks the field when the answer is secret', () => {
-    const html = render({ secret: true })
-    expect(html).toContain('type="password"')
-    expect(html).not.toContain('<textarea')
   })
 
   it('starts with Send disabled and locks the field while submitting', () => {
