@@ -3034,6 +3034,13 @@
                   "kind": "scalar"
                 }
               },
+              "checksState": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "headBranch": {
                 "nullable": false,
                 "type": {
@@ -3129,6 +3136,9 @@
                 },
                 "checksRunning": {
                   "column": "checksRunning"
+                },
+                "checksState": {
+                  "column": "checksState"
                 },
                 "headBranch": {
                   "column": "headBranch"
@@ -11974,6 +11984,11 @@
                   },
                   "nullable": false
                 },
+                "checksState": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
                 "headBranch": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -16819,7 +16834,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "9a9bc38e125fa6c370aa35a91fe69c049cdd08a9d6440dd4fe679446a7e2e61f"
+    "storageHash": "a1d7da1e092b7832619e7438fc84a790bd3244eaf29625754bd2ee821901b4e2"
   },
   "execution": {
     "executionHash": "27a680d0d8367c03704617bfac2d0041e04bd5395fc473f9e021f03bd0d4c6fa",

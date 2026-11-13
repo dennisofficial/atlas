@@ -18,6 +18,7 @@ export type LockedPrState = {
   checksPassed: number
   checksFailed: number
   checksIgnored: number
+  checksState: string | null
   mergeable: boolean | null
   version: number
 }
@@ -76,6 +77,7 @@ export async function readPrStateForUpdate(args: {
       'checksPassed',
       'checksFailed',
       'checksIgnored',
+      'checksState',
       'mergeable',
       'version',
     )

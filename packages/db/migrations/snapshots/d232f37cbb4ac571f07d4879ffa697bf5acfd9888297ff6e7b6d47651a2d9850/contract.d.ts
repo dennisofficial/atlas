@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'9a9bc38e125fa6c370aa35a91fe69c049cdd08a9d6440dd4fe679446a7e2e61f'>;
+  StorageHashBase<'d232f37cbb4ac571f07d4879ffa697bf5acfd9888297ff6e7b6d47651a2d9850'>;
 export type ExecutionHash =
   ExecutionHashBase<'27a680d0d8367c03704617bfac2d0041e04bd5395fc473f9e021f03bd0d4c6fa'>;
 export type ProfileHash =
@@ -566,6 +566,7 @@ export namespace Models {
     checksIgnored: FieldOutputTypes['public']['GithubPrState']['checksIgnored'];
     checksPassed: FieldOutputTypes['public']['GithubPrState']['checksPassed'];
     checksRunning: FieldOutputTypes['public']['GithubPrState']['checksRunning'];
+    checksState: FieldOutputTypes['public']['GithubPrState']['checksState'];
     headBranch: FieldOutputTypes['public']['GithubPrState']['headBranch'];
     headRepoFullName: FieldOutputTypes['public']['GithubPrState']['headRepoFullName'];
     headSha: FieldOutputTypes['public']['GithubPrState']['headSha'];
@@ -1194,6 +1195,7 @@ export namespace Models {
   };
   export type v2_V2OperatorRequest = {
     createdAt: FieldOutputTypes['v2']['V2OperatorRequest']['createdAt'];
+    expiresAt: FieldOutputTypes['v2']['V2OperatorRequest']['expiresAt'];
     id: FieldOutputTypes['v2']['V2OperatorRequest']['id'];
     kind: FieldOutputTypes['v2']['V2OperatorRequest']['kind'];
     prompt: FieldOutputTypes['v2']['V2OperatorRequest']['prompt'];
@@ -3323,6 +3325,12 @@ type ContractBase = Omit<
                     readonly kind: 'literal';
                     readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
                   };
+                  readonly many: false;
+                };
+                readonly checksState: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
                   readonly many: false;
                 };
                 readonly headBranch: {
@@ -6831,6 +6839,13 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
+                readonly expiresAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
                 readonly id: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
@@ -6897,9 +6912,9 @@ type ContractBase = Omit<
                   readonly unique: false;
                 },
                 {
-                  readonly name: 'V2OperatorRequest_status_idx_e98638ab';
-                  readonly prefix: 'V2OperatorRequest_status_idx';
-                  readonly columns: readonly ['status'];
+                  readonly name: 'V2OperatorRequest_status_expiresAt_idx_c206f415';
+                  readonly prefix: 'V2OperatorRequest_status_expiresAt_idx';
+                  readonly columns: readonly ['status', 'expiresAt'];
                   readonly unique: false;
                 },
               ];
@@ -9288,6 +9303,10 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
+              readonly checksState: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly headBranch: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -9346,6 +9365,7 @@ type ContractBase = Omit<
                 readonly checksIgnored: { readonly column: 'checksIgnored' };
                 readonly checksPassed: { readonly column: 'checksPassed' };
                 readonly checksRunning: { readonly column: 'checksRunning' };
+                readonly checksState: { readonly column: 'checksState' };
                 readonly headBranch: { readonly column: 'headBranch' };
                 readonly headRepoFullName: { readonly column: 'headRepoFullName' };
                 readonly headSha: { readonly column: 'headSha' };
@@ -12932,6 +12952,14 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
+              readonly expiresAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
               readonly id: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -12979,6 +13007,7 @@ type ContractBase = Omit<
               readonly namespaceId: 'v2';
               readonly fields: {
                 readonly createdAt: { readonly column: 'createdAt' };
+                readonly expiresAt: { readonly column: 'expiresAt' };
                 readonly id: { readonly column: 'id' };
                 readonly kind: { readonly column: 'kind' };
                 readonly prompt: { readonly column: 'prompt' };

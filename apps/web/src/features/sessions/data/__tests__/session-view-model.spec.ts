@@ -71,7 +71,7 @@ describe('pullRequestEntryOf', () => {
       mergeable: false,
       current: true,
     })
-    expect(checksTallyOf(entry)).toEqual({ running: 2, passed: 3, failed: 0 })
+    expect(checksTallyOf(entry)).toEqual({ running: 2, passed: 3, failed: 0, waiting: false })
   })
 
   it('leaves everything unknown when the server has no state for the pull request', () => {

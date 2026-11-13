@@ -16,6 +16,7 @@ import {
   type PrCommentEditors,
 } from './data/pr-comment-editors'
 import { useProjectSettings } from './data/use-project-settings'
+import { RepoTrackingCard } from './repo-tracking-card'
 import {
   ERowLayout,
   SettingsCard,
@@ -88,8 +89,9 @@ function CommentEditorsForm({
 }
 
 export function PullRequestsPage() {
-  const { projectId } = useProjectContext()
+  const { projectId, project } = useProjectContext()
   const { query, save } = useProjectSettings(projectId)
+  const repos = project.repos ?? []
   return (
     <QueryGate query={query} label="pull request settings" skeleton={<PullRequestsSkeleton />}>
       {(values) => {
@@ -100,16 +102,26 @@ export function PullRequestsPage() {
             success: 'Pull request settings saved',
           })
         return (
-          <SettingsSection
-            title="Comment edits"
-            description="Which authors’ edits to pull request comments reach a conversation subscribed to the pull request, and how quickly."
-          >
-            <CommentEditorsForm
-              key={`${saved.muted}|${saved.urgent}`}
-              saved={saved}
-              onSave={handleSave}
-            />
-          </SettingsSection>
+          <>
+            {repos.length === 0 ? null : (
+              <SettingsSection
+                title="Tracking"
+                description="How GitHub events for each repository in this project reach Atlas. Atlas reports the transport in force; there is nothing to choose."
+              >
+                <RepoTrackingCard repos={repos} />
+              </SettingsSection>
+            )}
+            <SettingsSection
+              title="Comment edits"
+              description="Which authors’ edits to pull request comments reach a conversation subscribed to the pull request, and how quickly."
+            >
+              <CommentEditorsForm
+                key={`${saved.muted}|${saved.urgent}`}
+                saved={saved}
+                onSave={handleSave}
+              />
+            </SettingsSection>
+          </>
         )
       }}
     </QueryGate>

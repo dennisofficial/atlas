@@ -11,5 +11,6 @@ export enum EGithubCallSource {
   DeviceFlow = 'device-flow',
   SubscriptionResolve = 'subscription-resolve',
   CheckAnnotations = 'check-annotations',
+  ChecksState = 'checks-state',
   Unattributed = 'unattributed',
 }

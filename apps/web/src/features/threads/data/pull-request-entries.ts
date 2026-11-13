@@ -12,7 +12,9 @@ export type PullRequestEntry = {
   checksRunning: number | undefined
   checksPassed: number | undefined
   checksFailed: number | undefined
+  checksState: string | undefined
   mergeable: boolean | null | undefined
+  polled?: boolean | undefined
   current: boolean
   via: { threadId: string; title: string | null } | undefined
 }
@@ -52,7 +54,9 @@ function entryOf(args: {
   checksRunning?: number | undefined
   checksPassed?: number | undefined
   checksFailed?: number | undefined
+  checksState?: string | null | undefined
   mergeable?: boolean | null | undefined
+  polled?: boolean | undefined
   via?: { threadId: string; title: string | null } | undefined
   live: PrStateWire | undefined
   currentBranch: string | undefined
@@ -68,7 +72,9 @@ function entryOf(args: {
     checksRunning: live?.checksRunning ?? args.checksRunning,
     checksPassed: live?.checksPassed ?? args.checksPassed,
     checksFailed: live?.checksFailed ?? args.checksFailed,
+    checksState: live?.checksState ?? args.checksState ?? undefined,
     mergeable: live === undefined ? args.mergeable : live.mergeable,
+    polled: live?.polled ?? args.polled,
     current: currentBranch !== undefined && branch === currentBranch,
     via: args.via,
   }

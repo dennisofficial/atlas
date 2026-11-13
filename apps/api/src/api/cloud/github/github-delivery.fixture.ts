@@ -47,6 +47,7 @@ export const REST_FIELDS: PullRequestCacheFields = {
   checksPassed: 2,
   checksFailed: 0,
   checksIgnored: 0,
+  checksState: null,
   mergeable: true,
 }
 
@@ -79,6 +80,7 @@ export const FILLED_PR_STATE = {
   checksPassed: 2,
   checksFailed: 0,
   checksIgnored: 0,
+  checksState: null,
   mergeable: true,
   updatedAt: new Date(),
 }

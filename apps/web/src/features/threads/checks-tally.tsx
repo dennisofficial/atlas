@@ -1,11 +1,12 @@
-import { CheckIcon, XIcon } from 'lucide-react'
+import { CheckIcon, ClockIcon, XIcon } from 'lucide-react'
 
 import { Spinner } from '@dltech/atlas-ui/components/spinner'
 
 import type { ChecksTally as ChecksTallyValue } from './data/header-model'
 
 export function checksTallyLabelOf(checks: ChecksTallyValue): string {
-  return `${checks.running} running, ${checks.passed} passed, ${checks.failed} failed`
+  const counts = `${checks.running} running, ${checks.passed} passed, ${checks.failed} failed`
+  return checks.waiting ? `waiting for checks, ${counts}` : counts
 }
 
 export function ChecksTally({ checks }: { checks: ChecksTallyValue }) {
@@ -15,6 +16,11 @@ export function ChecksTally({ checks }: { checks: ChecksTallyValue }) {
       aria-label={checksTallyLabelOf(checks)}
       className="inline-flex items-center gap-1.5 tabular-nums"
     >
+      {checks.waiting ? (
+        <span className="inline-flex items-center text-muted-foreground">
+          <ClockIcon aria-hidden className="size-3" />
+        </span>
+      ) : null}
       {checks.running > 0 ? (
         <span className="inline-flex items-center gap-0.5 text-warning">
           <Spinner aria-hidden role="presentation" />

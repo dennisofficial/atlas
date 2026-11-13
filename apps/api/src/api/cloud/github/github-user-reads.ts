@@ -8,6 +8,7 @@ import { type CommitCheckInput, recordCheckCounts } from './github-commit-checks
 import type { RawCheckAnnotation } from './github-check-annotations'
 import { readHeadChecks } from './github-head-checks-read'
 import { pullRequestCacheFieldsOf } from './github-pull-request-mapping'
+import { readChecksState } from './github-checks-state'
 
 const GITHUB_API = 'https://api.github.com'
 const DETAIL_CAP = 300
@@ -65,7 +66,6 @@ export class GithubUserReads {
     repo: string
     number: number
     collectChecks?: (args: { headSha: string; checks: CommitCheckInput[] }) => void
-    withSuites?: boolean
   }): Promise<PullRequestCacheFields> {
     const pull = await this.get<RestPullRequest>({
       source: args.source,
@@ -77,12 +77,20 @@ export class GithubUserReads {
       owner: args.owner,
       repo: args.repo,
       headSha: pull.head.sha,
-      withSuites: args.collectChecks !== undefined || args.withSuites === true,
+    })
+    const checksState = await readChecksState({
+      source: args.source,
+      token: args.token,
+      owner: args.owner,
+      repo: args.repo,
+      number: args.number,
+      baseUrl: this.baseUrl,
     })
     const fields = pullRequestCacheFieldsOf({
       pull,
       checkRuns: head.checkRuns,
       statuses: head.statuses,
+      checksState,
     })
     if (args.collectChecks !== undefined) {
       args.collectChecks({ headSha: pull.head.sha, checks: head.checks })

@@ -98,6 +98,7 @@ export function dtoOf(row: Row<'GithubPrState'>): GithubPrStateDto {
     checksPassed: row.checksPassed,
     checksFailed: row.checksFailed,
     checksIgnored: row.checksIgnored,
+    checksState: row.checksState,
     mergeable: row.mergeable,
     version: row.version,
     updatedAt: row.updatedAt.toISOString(),
