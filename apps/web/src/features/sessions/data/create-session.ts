@@ -22,14 +22,12 @@ export async function createSessionWithMessage(args: {
   model?: string | undefined
   effort?: string | undefined
   fast?: boolean | undefined
-  accountId?: string | undefined
 }): Promise<string> {
   const { sessionId } = await args.api.create({
     projectId: args.projectId,
     ...(args.model === undefined ? {} : { model: args.model }),
     ...(args.effort === undefined ? {} : { effort: args.effort }),
     ...(args.fast === undefined ? {} : { fast: args.fast }),
-    ...(args.accountId === undefined ? {} : { accountId: args.accountId }),
     firstMessage: messageInputOf({
       text: args.text,
       media: args.media,

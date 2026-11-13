@@ -1,9 +1,5 @@
 import {
-  DEFAULT_EFFORT,
   defaultPipeline,
-  findCard,
-  toAccountId,
-  type ModelRef,
   EWorkspaceStep,
   EWorkspaceStepState,
   type ModelPort,
@@ -21,13 +17,10 @@ import {
   type PrepareStepReporter,
   type SessionRuntimeFactory,
 } from '@dltech/atlas-host'
-import { generatedCatalogue } from '@dltech/atlas-models'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
 import type { MediaSigner } from '../media/media-signer'
-import { attachmentUrlBinding, signerUrls } from '../media/media-urls'
-import { AiSdkModelPort } from '../model/ai-sdk-model-port'
-import { createProviderModel } from '../model/providers'
+import { attachmentUrlBinding } from '../media/media-urls'
 import { normalizeProviderFailure } from '../model/failure'
 import type { ModelTokenService } from '../tokens/model-token-service'
 import type { GithubTokenReader } from '../tokens/github-token-reader'
@@ -37,7 +30,6 @@ import { signerUploadBlobs } from '../uploads/upload-blobs'
 import type { ConfigSource } from '../config/agent-host-config'
 import type { CloudConfigStore } from '../config/cloud-config-store'
 import type { EnvSecretsSource } from '../config/env-secrets'
-import { AgentHostCredentialPort } from '../config/agent-host-credential-port'
 import { SANDBOX_HOME_PATH, WORKSPACE_PATH } from '../sandbox/constants'
 import { SandboxProvider, sandboxNameOf } from '../sandbox/sandbox-provider'
 import { abortable } from './abortable'
@@ -61,6 +53,7 @@ import { pathEnvironmentOf, sessionPathsOf, shellEnvironmentOf } from './session
 import { prepareSigning } from './signing-setup'
 import { ensureWorkspace } from './workspace-setup'
 import { workspaceRepoMap } from './workspace-repo-map'
+import { sessionModelPort } from './session-model'
 
 export { SandboxNotConfiguredError }
 
@@ -85,11 +78,6 @@ export type SessionRuntimeFactoryArgs = {
   podPeers?: PodPeers | undefined
   configWrites?: CloudConfigStore | undefined
   envSecrets?: EnvSecretsSource | undefined
-}
-
-const UNCONFIGURED_REF: ModelRef = {
-  providerId: 'anthropic',
-  modelId: 'claude-sonnet-4-5',
 }
 
 export const createSessionRuntimeFactory = (
@@ -279,29 +267,16 @@ export const createSessionRuntimeFactory = (
     const byName = new Map(tools.map((tool) => [tool.name, tool]))
 
     let model: ModelPort
-    const chosen = config.model.configured === true ? config.model : undefined
-    const ref = chosen?.ref ?? UNCONFIGURED_REF
     try {
       model =
         args.modelFor === undefined
-          ? new AiSdkModelPort({
-              model: createProviderModel({
-                ref,
-                credentials: new AgentHostCredentialPort({
-                  userId: config.userId,
-                  model: config.model,
-                  tokens: args.tokens,
-                }),
-                ...(chosen === undefined ? {} : { accountId: toAccountId(chosen.accountId) }),
-                effort: () => chosen?.effort ?? DEFAULT_EFFORT,
-                fast: () => chosen?.fast ?? false,
-              }),
-              card: () => findCard({ catalog: generatedCatalogue(), ref }),
-              ...(args.log === undefined ? {} : { log: args.log }),
-              mediaSource:
-                args.media === undefined
-                  ? undefined
-                  : signerUrls({ signer: args.media, userId: config.userId }),
+          ? sessionModelPort({
+              userId: config.userId,
+              initial: config.model,
+              read: () => args.config.model({ sessionId, threadId }),
+              tokens: args.tokens,
+              media: args.media,
+              log: args.log,
             })
           : args.modelFor({ sessionId })
     } catch (error) {
@@ -330,7 +305,7 @@ export const createSessionRuntimeFactory = (
       effectOf: (name) => byName.get(name)?.effect,
       assembly: defaultPipeline({
         prompt: agentHostPrompt({
-          identity: model.identity,
+          identity: () => model.identity,
           extraFragments: [
             ...(args.plugins?.pod.prompts ?? []),
             new EnvSecretsFragment(() => shellEnv.exportedSecretNames()),

@@ -90,31 +90,16 @@ const effortOf = (value: unknown): EEffort =>
 const isProvider = (value: string): value is EAuthProvider =>
   Object.values(EAuthProvider).some((provider) => provider === value)
 
-const pinnedOf = (args: {
-  provider: EAuthProvider
-  parsed: readonly ParsedAccount[]
-  pinned: string | undefined
-}): string | undefined => {
-  if (args.pinned === undefined) return undefined
-  const found = args.parsed.find(
-    (entry) => entry.account.id === args.pinned && entry.account.provider === args.provider,
-  )
-  return found?.account.id
-}
-
 const chosenFor = (args: {
   provider: EAuthProvider
   parsed: readonly ParsedAccount[]
   activeAccounts: readonly ActiveAccountRow[]
-  pinned?: string | undefined
 }): ParsedAccount | undefined => {
-  const pinned = pinnedOf({ ...args, pinned: args.pinned })
   const active = args.activeAccounts.find((entry) => entry.provider === args.provider)
-  const preferred = pinned ?? active?.accountId
   const choice = chooseAccount({
     accounts: args.parsed.map((entry) => entry.account),
     provider: args.provider,
-    ...(preferred === undefined ? {} : { preferred: toAccountId(preferred) }),
+    ...(active === undefined ? {} : { preferred: toAccountId(active.accountId) }),
   })
   if (choice.type !== EAccountChoice.Chosen) return undefined
   return args.parsed.find((entry) => entry.account.id === choice.account.id)
@@ -139,7 +124,6 @@ export type ThreadModelChoice = {
   ref: string
   effort?: string | undefined
   fast?: boolean | undefined
-  accountId?: string | undefined
 }
 
 type WantedModel = { ref: ModelRef; effort: unknown; fast: unknown }
@@ -157,7 +141,6 @@ const configuredWith = (args: {
   parsed: readonly ParsedAccount[]
   activeAccounts: readonly ActiveAccountRow[]
   wanted: WantedModel
-  pinned?: string | undefined
 }): ModelConfig | undefined => {
   const { ref } = args.wanted
   if (!isProvider(ref.providerId)) return undefined
@@ -165,7 +148,6 @@ const configuredWith = (args: {
     provider: ref.providerId,
     parsed: args.parsed,
     activeAccounts: args.activeAccounts,
-    pinned: args.pinned,
   })
   if (chosen === undefined) return undefined
   const secret = accountSecretSchema.safeParse(
@@ -212,7 +194,6 @@ export const modelConfigOf = (args: {
         effort: args.thread.effort ?? settingsEffort,
         fast: args.thread.fast ?? settingsFast,
       },
-      pinned: args.thread.accountId,
     })
     if (fromThread !== undefined) return fromThread
   }

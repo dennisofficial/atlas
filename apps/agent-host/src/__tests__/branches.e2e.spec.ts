@@ -17,7 +17,7 @@ import { SessionHolder, systemTimers } from '@dltech/atlas-host'
 
 import { LocalSandboxProvider } from '../testing/local-sandbox-provider'
 import { createSessionRuntimeFactory } from '../runtime/session-runtime-factory'
-import type { ConfigSource } from '../config/agent-host-config'
+import type { AgentHostConfig, ConfigSource } from '../config/agent-host-config'
 import {
   CollectingLog,
   E2E_SECRET,
@@ -51,16 +51,17 @@ const bareRepoUrl = (): string => {
   return `file://${bare}`
 }
 
-const sourceWithRepo = (remoteUrl: string): ConfigSource => ({
-  read: async () => ({
+const sourceWithRepo = (remoteUrl: string): ConfigSource => {
+  const config: AgentHostConfig = {
     userId: 'user-1',
     projectId: 'proj-1',
     model: { configured: false, gap: 'scripted model in test' },
     vercel: { configured: true, token: '', teamId: '', projectId: '' },
     workspace: { remoteUrl, baseBranch: null, additionalRepos: [], setupScript: '' },
     skills: [],
-  }),
-})
+  }
+  return { read: async () => config, model: async () => config.model }
+}
 
 const branchRecords = (events: readonly ReadEvent[]): ReadEvent[] =>
   events.filter((row) => row.type === 'branches-observed')

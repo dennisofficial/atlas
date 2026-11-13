@@ -17,7 +17,7 @@ import { ScriptedModel, type ScriptedModelStep } from '@dltech/atlas-agent/testi
 import { createHostBus } from '../bus/host-bus'
 import { startPgWakeListener } from '../bus/pg-wake-listener'
 import { createRedisLiveFrames } from '../bus/redis-live-frames'
-import type { ConfigSource } from '../config/agent-host-config'
+import type { AgentHostConfig, ConfigSource } from '../config/agent-host-config'
 import { createSessionRuntimeFactory } from '../runtime/session-runtime-factory'
 import { DEFAULT_DRAIN_MS } from '../config/env'
 import { FixedEndpointSandboxProvider } from './fixed-endpoint-sandbox-provider'
@@ -94,16 +94,17 @@ class JsonLog extends LogPort {
   }
 }
 
-const testSource = (): ConfigSource => ({
-  read: async () => ({
+const testSource = (): ConfigSource => {
+  const config: AgentHostConfig = {
     userId: 'user-1',
     projectId: 'proj-1',
     model: { configured: false, gap: 'scripted model in test' },
     vercel: { configured: true, token: '', teamId: '', projectId: '' },
     workspace: { remoteUrl: null, baseBranch: null, additionalRepos: [], setupScript: '' },
     skills: [],
-  }),
-})
+  }
+  return { read: async () => config, model: async () => config.model }
+}
 
 const testTokens = () => ({
   issue: async (): Promise<never> => {

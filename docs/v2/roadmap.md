@@ -330,11 +330,12 @@ _Updated at the end of every slice. Last update: 2026-11-13._
   `model.id` (project over user) on Anthropic (key or Claude OAuth), OpenAI (key or ChatGPT OAuth),
   OpenRouter, Vercel AI Gateway and Inference.net (`apps/agent-host/src/model/providers/`). A model
   whose provider has no account is a `configured: false` gap, never a silent switch to another model.
-- **Built 2026-11-12: a session pins its model and account.** `sessions.create` fills
-  `V2Session.modelRef/modelEffort/modelFast/modelAccountId` from the user's defaults and the
-  `ActiveAccount` pointer, so editing defaults never moves a running session; the `model-set` command
-  changes all four from the v2 composer picker, which lists a model once per account when a provider
-  has several. Rows created earlier keep late resolution. The v2 transcript shows the run-failure card
+- **Built 2026-11-13: a session pins its model only.** `sessions.create` fills
+  `V2Session.modelRef/modelEffort/modelFast` from the user's defaults, so editing defaults never moves
+  a running session, and the `model-set` command changes the three from the v2 composer picker. Which
+  account runs is always the provider's `ActiveAccount` pointer, re-read for every model call, so
+  switching accounts in Settings moves every running session on its next call and a mid-session
+  `model-set` lands there too. The v2 transcript shows the run-failure card
   (provider message, account, Retry, Switch model), and a provider refusing an OAuth refresh marks the
   connection and every account on it `expired`.
 - **Open:** browsing the files of a parked sandbox (a workspace mirror kept by the control plane) is

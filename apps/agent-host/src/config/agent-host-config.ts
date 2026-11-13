@@ -43,4 +43,5 @@ export type AgentHostConfig = {
 
 export type ConfigSource = {
   read(args: { sessionId: string; threadId?: ThreadId | undefined }): Promise<AgentHostConfig>
+  model(args: { sessionId: string; threadId?: ThreadId | undefined }): Promise<ModelConfig>
 }

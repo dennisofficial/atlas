@@ -5,10 +5,11 @@ import { PROBE_FRAGMENT_TEXT, ProbeFragment } from '@dltech/atlas-plugin-sdk/tes
 import { agentHostPrompt } from '../prompt'
 
 const identity = { id: 'anthropic', modelId: 'claude-sonnet-4-5' }
+const identityOf = () => identity
 
 describe('agentHostPrompt', () => {
   it('compiles the builtin fragments into a non-empty system prompt', () => {
-    const prompt = agentHostPrompt({ identity })
+    const prompt = agentHostPrompt({ identity: identityOf })
     const compiled = prompt({ projectDirectory: '/workspace' })
     const text = compiled.blocks.map((block) => block.text).join('\n\n')
     expect(text.length).toBeGreaterThan(0)
@@ -16,7 +17,7 @@ describe('agentHostPrompt', () => {
   })
 
   it('tells the model how to keep a mermaid diagram parseable', () => {
-    const prompt = agentHostPrompt({ identity })
+    const prompt = agentHostPrompt({ identity: identityOf })
     const text = prompt({ projectDirectory: '/workspace' })
       .blocks.map((block) => block.text)
       .join('\n\n')
@@ -25,15 +26,27 @@ describe('agentHostPrompt', () => {
   })
 
   it('memoizes the compiled prompt per project directory', () => {
-    const prompt = agentHostPrompt({ identity })
+    const prompt = agentHostPrompt({ identity: identityOf })
     const first = prompt({ projectDirectory: '/workspace' })
     expect(prompt({ projectDirectory: '/workspace' })).toBe(first)
+  })
+
+  it('reads the identity at compile time so a swapped model changes the fragments', () => {
+    let current = identity
+    const prompt = agentHostPrompt({ identity: () => current })
+    const textOf = (): string =>
+      prompt({ projectDirectory: '/workspace' })
+        .blocks.map((block) => block.text)
+        .join('\n\n')
+    expect(textOf()).not.toContain('Finish every turn in the text channel')
+    current = { id: 'openrouter', modelId: 'moonshotai/kimi-k2' }
+    expect(textOf()).toContain('Finish every turn in the text channel')
   })
 })
 
 describe('agentHostPrompt with plugin fragments', () => {
   it('joins a plugin fragment into the compiled prompt', () => {
-    const text = agentHostPrompt({ identity, extraFragments: [new ProbeFragment()] })({
+    const text = agentHostPrompt({ identity: identityOf, extraFragments: [new ProbeFragment()] })({
       projectDirectory: '/workspace',
     })
       .blocks.map((block) => block.text)
@@ -43,7 +56,10 @@ describe('agentHostPrompt with plugin fragments', () => {
 
   it('refuses two plugin fragments with one id', () => {
     const build = () =>
-      agentHostPrompt({ identity, extraFragments: [new ProbeFragment(), new ProbeFragment()] })
+      agentHostPrompt({
+        identity: identityOf,
+        extraFragments: [new ProbeFragment(), new ProbeFragment()],
+      })
     expect(build).toThrow('two prompt fragments are registered as "probe-fragment"')
   })
 })

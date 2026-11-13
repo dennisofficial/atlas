@@ -214,8 +214,8 @@ describe('ConfigReader thread model', () => {
   })
 })
 
-describe('ConfigReader session account', () => {
-  it('runs the account the session pins over the active pointer', async () => {
+describe('ConfigReader model read', () => {
+  it('follows an ActiveAccount move to another account of the same provider', async () => {
     const { db } = testDb()
     await seedOwner(db)
     await seedApiKeyAccount(db)
@@ -237,27 +237,47 @@ describe('ConfigReader session account', () => {
         authority: { url: 'https://cloud.test', connectionId: 'conn-2' },
       }),
     })
-    await db.orm.v2.V2Session.where({ id: 's-1' }).updateAndCount({
-      modelRef: 'anthropic/claude-haiku-4-5',
-      modelAccountId: 'acct-2',
+    expect(await readerOver().model({ sessionId: 's-1' })).toMatchObject({
+      configured: true,
+      accountId: 'acct-1',
+      credential: { kind: 'api-key', apiKey: 'sk-test' },
     })
-    const config = await readerOver().read({ sessionId: 's-1' })
-    expect(config.model).toMatchObject({
+    await db.orm.public.ActiveAccount.where({ userId: 'user-1', provider: 'anthropic' }).update({
+      accountId: 'acct-2',
+    })
+    expect(await readerOver().model({ sessionId: 's-1' })).toMatchObject({
       configured: true,
       accountId: 'acct-2',
       credential: { kind: 'oauth', connectionId: 'conn-2' },
     })
   })
 
-  it('falls back to the active pointer when the pinned account is gone', async () => {
+  it("follows a mid-session model change to the session's ref, effort and fast", async () => {
     const { db } = testDb()
     await seedOwner(db)
     await seedApiKeyAccount(db)
-    await db.orm.v2.V2Session.where({ id: 's-1' }).updateAndCount({
-      modelRef: 'anthropic/claude-haiku-4-5',
-      modelAccountId: 'acct-gone',
+    await seedApiKeyAccount({ db, id: 'acct-oa', provider: 'openai', apiKey: 'sk-oa' })
+    expect(await readerOver().model({ sessionId: 's-1' })).toMatchObject({
+      configured: true,
+      ref: { providerId: 'anthropic', modelId: 'claude-haiku-4-5' },
     })
-    const config = await readerOver().read({ sessionId: 's-1' })
-    expect(config.model).toMatchObject({ configured: true, accountId: 'acct-1' })
+    await db.orm.v2.V2Session.where({ id: 's-1' }).update({
+      modelRef: 'openai/gpt-5',
+      modelEffort: 'low',
+      modelFast: true,
+    })
+    expect(await readerOver().model({ sessionId: 's-1' })).toMatchObject({
+      configured: true,
+      ref: { providerId: 'openai', modelId: 'gpt-5' },
+      effort: EEffort.Low,
+      fast: true,
+      accountId: 'acct-oa',
+    })
+  })
+
+  it('throws a typed error for an unknown session', async () => {
+    await expect(readerOver().model({ sessionId: 'missing' })).rejects.toBeInstanceOf(
+      SessionNotFoundError,
+    )
   })
 })

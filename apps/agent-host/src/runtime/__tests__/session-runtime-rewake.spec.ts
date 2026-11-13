@@ -28,6 +28,7 @@ const config: AgentHostConfig = {
 
 const source: ConfigSource & { issue(): Promise<never> } = {
   read: async () => config,
+  model: async () => config.model,
   issue: async () => {
     throw new Error('unused')
   },
