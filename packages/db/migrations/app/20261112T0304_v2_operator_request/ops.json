@@ -1,0 +1,131 @@
+[
+  {
+    "id": "table.V2OperatorRequest",
+    "label": "Create table \"V2OperatorRequest\"",
+    "summary": "Creates table \"V2OperatorRequest\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2OperatorRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"V2OperatorRequest\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2OperatorRequest\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"V2OperatorRequest\"",
+        "sql": "CREATE TABLE \"v2\".\"V2OperatorRequest\" (\n  \"createdAt\" timestamptz(3) NOT NULL,\n  \"expiresAt\" timestamptz(3) NOT NULL,\n  \"id\" text NOT NULL,\n  \"kind\" text NOT NULL,\n  \"prompt\" text NOT NULL,\n  \"resolvedAt\" timestamptz(3),\n  \"secret\" bool NOT NULL,\n  \"sessionId\" text NOT NULL,\n  \"shellId\" text,\n  \"status\" text NOT NULL,\n  \"threadId\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"V2OperatorRequest\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2OperatorRequest\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.V2OperatorRequest.V2OperatorRequest_sessionId_idx_29f415d4",
+    "label": "Create index \"V2OperatorRequest_sessionId_idx_29f415d4\" on \"V2OperatorRequest\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "index",
+        "name": "V2OperatorRequest_sessionId_idx_29f415d4",
+        "table": "V2OperatorRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"V2OperatorRequest_sessionId_idx_29f415d4\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2OperatorRequest_sessionId_idx_29f415d4\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"V2OperatorRequest_sessionId_idx_29f415d4\"",
+        "sql": "CREATE INDEX \"V2OperatorRequest_sessionId_idx_29f415d4\" ON \"v2\".\"V2OperatorRequest\" (\"sessionId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"V2OperatorRequest_sessionId_idx_29f415d4\" exists on \"V2OperatorRequest\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2OperatorRequest_sessionId_idx_29f415d4\"",
+          "i",
+          "I",
+          "\"v2\".\"V2OperatorRequest\"",
+          "btree",
+          "[\"sessionId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.V2OperatorRequest.V2OperatorRequest_status_expiresAt_idx_c206f415",
+    "label": "Create index \"V2OperatorRequest_status_expiresAt_idx_c206f415\" on \"V2OperatorRequest\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "index",
+        "name": "V2OperatorRequest_status_expiresAt_idx_c206f415",
+        "table": "V2OperatorRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"V2OperatorRequest_status_expiresAt_idx_c206f415\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2OperatorRequest_status_expiresAt_idx_c206f415\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"V2OperatorRequest_status_expiresAt_idx_c206f415\"",
+        "sql": "CREATE INDEX \"V2OperatorRequest_status_expiresAt_idx_c206f415\" ON \"v2\".\"V2OperatorRequest\" (\"status\", \"expiresAt\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"V2OperatorRequest_status_expiresAt_idx_c206f415\" exists on \"V2OperatorRequest\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2OperatorRequest_status_expiresAt_idx_c206f415\"",
+          "i",
+          "I",
+          "\"v2\".\"V2OperatorRequest\"",
+          "btree",
+          "[\"status\",\"expiresAt\"]"
+        ]
+      }
+    ]
+  }
+]

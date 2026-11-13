@@ -1,4 +1,6 @@
-import { BadGatewayException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common'
+import { HttpStatus, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common'
+
+import { UserFacingException } from '../../../_core/http/user-facing-exception'
 import {
   EBootStep,
   EBootStepState,
@@ -208,5 +210,5 @@ export class PodLaunchService {
   }
 }
 
-export const dispatchFailure = (): BadGatewayException =>
-  new BadGatewayException(DISPATCH_FAILED_MESSAGE)
+export const dispatchFailure = (): UserFacingException =>
+  new UserFacingException(DISPATCH_FAILED_MESSAGE, HttpStatus.BAD_GATEWAY)

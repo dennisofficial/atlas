@@ -18,7 +18,7 @@ const description = [
   'setting covers Atlas setting keys only; kind secret is an environment variable (name like FOO_BAR) exported to the agent shells and services.',
   'list never returns secret or file values. read returns them: do not echo them to the user unless asked.',
   'Settings and secrets apply before the next turn. Files and mcp servers apply on the next sandbox start.',
-  'skill manages skill files at path <skill>/<file>: list with path <skill> shows one skill\'s files, remove with path <skill> deletes the whole skill, contents is utf8 text only and always overwrites (a "changed since" conflict means read the file again and retry). On-disk copies in sandboxes are overwritten from Atlas Cloud at the next pod start, so edit skills through this tool, never by writing the files. Skill edits apply to running sessions at the next turn.',
+  'skill manages skill files at path <skill>/<file>: list with path <skill> shows one skill\'s files, remove with path <skill> deletes the whole skill, contents is utf8 text only and always overwrites (a "changed since" conflict means another write raced it; retry). On-disk copies in sandboxes are overwritten from Atlas Cloud at the next pod start, so edit skills through this tool, never by writing the files. Skill edits apply to running sessions at the next turn.',
   'projectId defaults to the project of this session.',
 ].join(' ')
 

@@ -29,7 +29,7 @@ import {
   publishArtifact,
   seedSources,
   subdomainOf,
-  withSlug,
+  withSubdomain,
 } from './artifacts.router.fixture'
 
 describe('ArtifactsRouter', () => {
@@ -43,10 +43,10 @@ describe('ArtifactsRouter', () => {
   const commit = (token: string, input: unknown) =>
     trpcMutation({ app, path: 'artifacts.commitPublish', token, input })
   const list = (token: string) => trpcQuery({ app, path: 'artifacts.list', token })
-  const get = (token: string, slug: string) =>
-    trpcQuery({ app, path: 'artifacts.get', token, input: { slug } })
-  const sourceExport = (token: string, slug: string) =>
-    trpcQuery({ app, path: 'artifacts.sourceExport', token, input: { slug } })
+  const get = (token: string, subdomain: string) =>
+    trpcQuery({ app, path: 'artifacts.get', token, input: { subdomain } })
+  const sourceExport = (token: string, subdomain: string) =>
+    trpcQuery({ app, path: 'artifacts.sourceExport', token, input: { subdomain } })
 
   const keysUnder = (prefix: string): string[] =>
     [...blobs.stored.keys()].filter((key) => key.startsWith(prefix)).sort()
@@ -79,7 +79,7 @@ describe('ArtifactsRouter', () => {
 
       const grant = artifactBeginPublishOutputSchema.parse(dataOf(res.body))
       const subdomain = await subdomainOf(grant.artifactId)
-      expect(grant).toMatchObject({ slug: subdomain, version: 1 })
+      expect(grant).toMatchObject({ subdomain: subdomain, version: 1 })
       expect(grant.uploads.map((upload) => upload.path)).toEqual(['index.html', 'app.css'])
       expect(subdomain).toMatch(/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/)
       expect(grant.uploads[0]?.url).toBe(
@@ -90,7 +90,7 @@ describe('ArtifactsRouter', () => {
     it('accepts a sandbox token', async () => {
       const res = await begin('sandbox-token-a').expect(200)
       const grant = artifactBeginPublishOutputSchema.parse(dataOf(res.body))
-      expect(grant.slug).toBe(await subdomainOf(grant.artifactId))
+      expect(grant.subdomain).toBe(await subdomainOf(grant.artifactId))
     })
 
     it('rejects an over-limit publish and a path outside the tree', async () => {
@@ -109,11 +109,11 @@ describe('ArtifactsRouter', () => {
       )
     })
 
-    it("rejects an unknown slug and another user's slug", async () => {
+    it("rejects an unknown subdomain and another user's subdomain", async () => {
       const published = await publish()
 
-      expect((await begin(OWNER, withSlug('missing'))).status).toBe(404)
-      expect((await begin('session-b', withSlug(published.subdomain))).status).toBe(404)
+      expect((await begin(OWNER, withSubdomain('missing'))).status).toBe(404)
+      expect((await begin('session-b', withSubdomain(published.subdomain))).status).toBe(404)
     })
 
     it('requires a bearer', async () => {
@@ -141,7 +141,7 @@ describe('ArtifactsRouter', () => {
 
       blobs.seed({ pathname: `${route}stale.html`, body: 'stale' })
       blobs.seed({ pathname: `${source}stale.html`, body: 'stale' })
-      await publish({ input: withSlug(published.subdomain) })
+      await publish({ input: withSubdomain(published.subdomain) })
 
       expect(blobs.stored.has(`${route}stale.html`)).toBe(false)
       expect(blobs.stored.has(`${source}stale.html`)).toBe(false)
@@ -151,7 +151,9 @@ describe('ArtifactsRouter', () => {
     it('serves the built output when the spec builds', async () => {
       const published = await publish()
       const granted = artifactBeginPublishOutputSchema.parse(
-        dataOf((await begin('sandbox-token-a', withSlug(published.subdomain)).expect(200)).body),
+        dataOf(
+          (await begin('sandbox-token-a', withSubdomain(published.subdomain)).expect(200)).body,
+        ),
       )
       await seedGranted(granted)
       sandbox.scripted(
@@ -171,6 +173,7 @@ describe('ArtifactsRouter', () => {
       }).expect(200)
 
       expect(dataOf(res.body)).toMatchObject({ version: 2, status: 'ready' })
+      expect(sandbox.lastRequest.owner).toEqual({ threadId: 'thread-a' })
       const subdomain = await subdomainOf(granted.artifactId)
       const route = routePrefixOf({ id: subdomain })
       expect(keysUnder(route)).toEqual([`${route}assets/app.js`, `${route}index.html`])
@@ -191,7 +194,9 @@ describe('ArtifactsRouter', () => {
       const routeObjectBefore = blobs.stored.get(routePathOf({ id: published.subdomain }))?.body
 
       const granted = artifactBeginPublishOutputSchema.parse(
-        dataOf((await begin('sandbox-token-a', withSlug(published.subdomain)).expect(200)).body),
+        dataOf(
+          (await begin('sandbox-token-a', withSubdomain(published.subdomain)).expect(200)).body,
+        ),
       )
       await seedGranted(granted)
       sandbox.scripted(
@@ -238,23 +243,23 @@ describe('ArtifactsRouter', () => {
       })
     })
 
-    it('refuses a build published without a pod or sandbox token', async () => {
+    it('builds a UI publish on the publisher\u2019s own credentials', async () => {
       const granted = artifactBeginPublishOutputSchema.parse(
         dataOf((await begin(OWNER).expect(200)).body),
       )
       await seedGranted(granted)
+      sandbox.scripted(
+        sandboxResult({ outDir: builtFiles([{ path: 'index.html', body: '<h1>built</h1>' }]) }),
+      )
 
       const res = await commit(OWNER, {
         artifactId: granted.artifactId,
         version: granted.version,
         spec: { build: { cmd: 'bun run build', outDir: 'dist' } },
-      })
+      }).expect(200)
 
-      expect(res.status).toBe(400)
-      expect(Reflect.get(res.body, 'error')).toMatchObject({
-        message: expect.stringContaining('sandbox or pod token'),
-      })
-      expect(sandbox.requests).toHaveLength(0)
+      expect(dataOf(res.body)).toMatchObject({ status: 'ready' })
+      expect(sandbox.lastRequest.owner).toEqual({ userId: 'user-a' })
     })
 
     it("refuses another user's artifact", async () => {

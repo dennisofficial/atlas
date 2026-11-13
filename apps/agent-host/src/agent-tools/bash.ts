@@ -83,7 +83,7 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
     private readonly shells: ShellRegistryPort,
     private readonly files: FileSystemPort,
     private readonly processes: ProcessPort,
-    private readonly shellEnv?: (() => Record<string, string>) | undefined,
+    private readonly shellEnv?: (() => Promise<Record<string, string>>) | undefined,
   ) {
     super()
   }
@@ -199,11 +199,12 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
       return { ok: false, reason: watchRefusal() }
     }
 
+    const env = this.shellEnv === undefined ? {} : await this.shellEnv()
     const started = startShell({
       command,
       cwd,
       processes: this.processes,
-      env: this.shellEnv,
+      env: () => env,
       threadId,
     })
     if (!started.ok) return started

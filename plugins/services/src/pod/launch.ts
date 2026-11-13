@@ -5,6 +5,7 @@ import type { ServiceInfo } from '@dltech/atlas-protocol'
 import { newServiceId, startService } from './daemon'
 import { exposeService } from './expose'
 import { renderStarted } from './render'
+import { serviceEnvOf } from './service-env'
 import type { ServicePodState } from './state'
 
 export type LaunchArgs = {
@@ -50,7 +51,7 @@ export const launchTracked = async (
       serviceId,
       command: args.command,
       cwd: args.cwd,
-      env: args.env,
+      env: await serviceEnvOf({ ctx, env: args.env }),
       port: args.port,
       healthPath: args.healthPath,
       readyTimeoutMs: args.readyTimeoutMs,

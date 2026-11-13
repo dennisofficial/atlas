@@ -1,10 +1,11 @@
 'use client'
 
+import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
-import { unpublishArtifact } from './artifacts-api'
+import { ARTIFACTS_KEY, artifactKeyOf, deleteArtifact } from './artifacts-api'
 import { ARTIFACTS_PATH } from './artifacts-path'
 
 const messageOf = (error: unknown, fallback: string): string =>
@@ -12,19 +13,22 @@ const messageOf = (error: unknown, fallback: string): string =>
 
 export function useArtifactActions(args: { ref: string }) {
   const router = useRouter()
+  const client = useQueryClient()
   const [busy, setBusy] = useState(false)
 
-  const handleUnpublish = async () => {
+  const handleDelete = async () => {
     setBusy(true)
     try {
-      await unpublishArtifact(args.ref)
-      toast.success('Artifact unpublished')
+      await deleteArtifact(args.ref)
+      client.removeQueries({ queryKey: [artifactKeyOf(args.ref)] })
+      await client.invalidateQueries({ queryKey: [ARTIFACTS_KEY], refetchType: 'all' })
+      toast.success('Artifact deleted')
       router.push(ARTIFACTS_PATH)
     } catch (error) {
-      toast.error(messageOf(error, 'Could not unpublish this artifact'))
+      toast.error(messageOf(error, 'Could not delete this artifact'))
       setBusy(false)
     }
   }
 
-  return { busy, handleUnpublish }
+  return { busy, handleDelete }
 }

@@ -6,12 +6,15 @@ import { artifactUrlOf } from './artifact-url'
 export const urlOf = (args: { artifact: ArtifactRow; domain: string }): string =>
   artifactUrlOf({ subdomain: args.artifact.subdomain, domain: args.domain })
 
-export async function ownedArtifact(args: { userId: string; slug: string }): Promise<ArtifactRow> {
+export async function ownedArtifact(args: {
+  userId: string
+  subdomain: string
+}): Promise<ArtifactRow> {
   const artifact = await db.orm.public.Artifact.first({
     userId: args.userId,
-    subdomain: args.slug,
+    subdomain: args.subdomain,
   })
-  if (artifact === null) throw new NotFoundException(`no artifact ${args.slug}`)
+  if (artifact === null) throw new NotFoundException(`no artifact ${args.subdomain}`)
   return artifact
 }
 

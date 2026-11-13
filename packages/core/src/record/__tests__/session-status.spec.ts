@@ -61,6 +61,36 @@ const toolResult = (args: { interrupted?: boolean } = {}): V2Event => ({
   interrupted: args.interrupted,
 })
 
+const toolResultError = (): V2Event => ({
+  ...envelope(),
+  type: 'tool-result',
+  callId: CALL,
+  name: 'operator_input',
+  error: { message: 'the operator did not deliver a value' },
+})
+
+const operatorAsked = (): V2Event =>
+  ({
+    ...envelope(),
+    type: 'operator-input-asked',
+    requestId: 'oreq_1',
+    kind: 'input',
+    prompt: 'the login code',
+    secret: true,
+    expiresAt: '2026-11-03T12:15:00.000Z',
+    sessionId: 's1',
+  }) as unknown as V2Event
+
+const operatorSettled = (): V2Event =>
+  ({
+    ...envelope(),
+    type: 'operator-input-settled',
+    requestId: 'oreq_1',
+    outcome: 'abandoned',
+    reason: 'abandoned',
+    sessionId: 's1',
+  }) as unknown as V2Event
+
 const branchesObserved = (): V2Event => ({
   ...envelope(),
   type: 'branches-observed',
@@ -428,6 +458,34 @@ describe('sessionStatusOf record-only events after the turn', () => {
   it('keeps failed when record-only events follow the failure', () => {
     const result = status({
       events: [userSaid(), runFailed(), branchesObserved()],
+      live: true,
+    })
+    expect(result.state).toBe(ESessionStatus.Failed)
+  })
+
+  it('keeps running-tool while the request it asked the operator for settles', () => {
+    const result = status({
+      events: [
+        userSaid(),
+        toolDispatched({ name: 'operator_input' }),
+        operatorAsked(),
+        operatorSettled(),
+      ],
+      live: true,
+    })
+    expect(result.state).toBe(ESessionStatus.RunningTool)
+  })
+
+  it('keeps failed when an abandoned request and its erased tool result trail the failure', () => {
+    const result = status({
+      events: [
+        userSaid(),
+        toolDispatched({ name: 'operator_input' }),
+        operatorAsked(),
+        runFailed(),
+        operatorSettled(),
+        toolResultError(),
+      ],
       live: true,
     })
     expect(result.state).toBe(ESessionStatus.Failed)

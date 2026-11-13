@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { NotFoundException } from '@nestjs/common'
+import { BadRequestException, NotFoundException } from '@nestjs/common'
 import { chainEvents, toRunId, toThreadId } from '@dltech/atlas-core'
 import { EWithdrawRefusal } from '@dltech/atlas-protocol'
 import { NOW, setupSessionsService as setup } from './sessions.service.fixture'
@@ -191,6 +191,107 @@ describe('SessionsService', () => {
     const { service } = setup()
     await expect(service.create({ userId: 'user-b', projectId: 'proj-a' })).rejects.toBeInstanceOf(
       NotFoundException,
+    )
+  })
+})
+
+describe('SessionsService model choice', () => {
+  const seedAccounts = (choice: ReturnType<typeof setup>['choice']): void => {
+    choice.accounts.set('acct-a', { id: 'acct-a', provider: 'anthropic', userId: 'user-a' })
+    choice.accounts.set('acct-b', { id: 'acct-b', provider: 'openai', userId: 'user-a' })
+    choice.activeAccounts.set('anthropic', 'acct-a')
+  }
+
+  it("fills the session model from the user's settings and the active account", async () => {
+    const { plane, service, choice } = setup()
+    seedAccounts(choice)
+    choice.settings.set('model.id', 'anthropic/claude-sonnet-4-5')
+    choice.settings.set('model.effort', 'high')
+    choice.settings.set('model.fast', true)
+
+    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+
+    const row = await plane.readSession({ sessionId: created.sessionId })
+    expect(row?.modelRef).toBe('anthropic/claude-sonnet-4-5')
+    expect(row?.modelEffort).toBe('high')
+    expect(row?.modelFast).toBe(true)
+    expect(row?.modelAccountId).toBe('acct-a')
+  })
+
+  it('keeps the account the caller names and refuses one that is not theirs', async () => {
+    const { plane, service, choice } = setup()
+    seedAccounts(choice)
+
+    const created = await service.create({
+      userId: 'user-a',
+      projectId: 'proj-a',
+      model: 'openai/gpt-5',
+      accountId: 'acct-b',
+    })
+    const row = await plane.readSession({ sessionId: created.sessionId })
+    expect(row?.modelAccountId).toBe('acct-b')
+
+    await expect(
+      service.create({
+        userId: 'user-a',
+        projectId: 'proj-a',
+        model: 'openai/gpt-5',
+        accountId: 'acct-z',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException)
+    await expect(
+      service.create({
+        userId: 'user-a',
+        projectId: 'proj-a',
+        model: 'anthropic/claude-sonnet-4-5',
+        accountId: 'acct-b',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException)
+    expect((await service.list({ userId: 'user-a' })).sessions).toHaveLength(1)
+  })
+
+  it('model-set writes the chosen model and appends no inbox entry', async () => {
+    const { plane, service, choice } = setup()
+    seedAccounts(choice)
+    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+
+    const posted = await service.command({
+      userId: 'user-a',
+      sessionId: created.sessionId,
+      name: 'model-set',
+      args: { model: 'openai/gpt-5', effort: 'low', fast: true, accountId: 'acct-b' },
+    })
+
+    expect(posted).toEqual({})
+    expect(choice.writes).toEqual([
+      {
+        sessionId: created.sessionId,
+        modelRef: 'openai/gpt-5',
+        modelEffort: 'low',
+        modelFast: true,
+        modelAccountId: 'acct-b',
+      },
+    ])
+    const inbox = await plane.readInbox({ sessionId: created.sessionId, afterId: 0, limit: 10 })
+    expect(inbox).toEqual([])
+  })
+
+  it('refuses model-set arguments that name a foreign account and writes nothing', async () => {
+    const { plane, service, choice } = setup()
+    seedAccounts(choice)
+    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+
+    await expect(
+      service.command({
+        userId: 'user-a',
+        sessionId: created.sessionId,
+        name: 'model-set',
+        args: { model: 'openai/gpt-5', accountId: 'acct-foreign' },
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException)
+    expect(choice.writes).toEqual([])
+    expect(await plane.readInbox({ sessionId: created.sessionId, afterId: 0, limit: 10 })).toEqual(
+      [],
     )
   })
 })

@@ -279,18 +279,6 @@ export class ChildRun {
       },
     ])
     if (this.woke) return
-    if (args.status === EAgentStatus.Finished && progress.prose !== '') {
-      await this.appendToParent([
-        {
-          type: 'agent-reported',
-          agentId: this.agentId,
-          agentType: this.args.agentType,
-          intent: this.args.intent,
-          prose: progress.prose,
-          kind: EReportKind.Done,
-        },
-      ])
-    }
     await wakeParent(
       this.parent,
       endingTextOf({

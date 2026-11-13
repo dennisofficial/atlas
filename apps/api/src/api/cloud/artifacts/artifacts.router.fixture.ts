@@ -43,7 +43,7 @@ export const SRC_STYLE = {
 
 export const DEFAULT_INPUT = { name: 'demo', entries: [SRC_INDEX, SRC_STYLE] }
 
-export const withSlug = (slug: string) => ({ slug, entries: DEFAULT_INPUT.entries })
+export const withSubdomain = (subdomain: string) => ({ subdomain, entries: DEFAULT_INPUT.entries })
 
 export const buildArtifactsApp = (args: {
   blobs: FakeArtifactBlobStore
@@ -97,9 +97,8 @@ export async function publishArtifact(args: {
 }): Promise<{
   artifactId: string
   token: string
-  slug: string
-  version: number
   subdomain: string
+  version: number
 }> {
   const token = args.token ?? OWNER
   const begun = await trpcMutation({
@@ -120,5 +119,5 @@ export async function publishArtifact(args: {
     token,
     input: { artifactId: granted.artifactId, version: granted.version, spec: args.spec ?? {} },
   }).expect(200)
-  return { ...granted, subdomain: await subdomainOf(granted.artifactId) }
+  return granted
 }

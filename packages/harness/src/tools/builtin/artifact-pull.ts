@@ -18,7 +18,7 @@ import { ArtifactRefused, type ArtifactPort } from '../../artifacts/artifact-por
 import { filePathSchema, pathEnvironmentNote, resolveToolPath } from './file-text'
 
 const inputSchema = z.strictObject({
-  slug: z.string().min(1).max(120),
+  subdomain: z.string().min(1).max(120),
   dir: filePathSchema,
   force: z.boolean().optional(),
 })
@@ -45,25 +45,10 @@ async function occupied(args: { dir: string; files: FileSystemPort }): Promise<b
   }
 }
 
-async function fetchText(url: string, fetchFn: typeof fetch): Promise<string> {
+async function fetchBytes(url: string, fetchFn: typeof fetch): Promise<Uint8Array> {
   const response = await fetchFn(url)
   if (!response.ok) throw new Error(`downloading ${url} failed with HTTP ${response.status}`)
-  const bytes = new Uint8Array(await response.arrayBuffer())
-  try {
-    return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
-  } catch {
-    throw new ArtifactRefused(
-      `${redactedPath(url)} is not UTF-8 text, and the filesystem restores text files only. Pull the source directory that holds it instead.`,
-    )
-  }
-}
-
-const redactedPath = (url: string): string => {
-  try {
-    return new URL(url).pathname
-  } catch {
-    return url
-  }
+  return new Uint8Array(await response.arrayBuffer())
 }
 
 export class PullArtifactTool extends SchemaTool<typeof inputSchema> {
@@ -106,9 +91,9 @@ export class PullArtifactTool extends SchemaTool<typeof inputSchema> {
         )
       }
 
-      const exported = await this.deps.port.sourceExport({ slug: input.slug })
+      const exported = await this.deps.port.sourceExport({ subdomain: input.subdomain })
       if (exported.entries.length === 0) {
-        throw new ArtifactRefused(`${input.slug} has no published source to restore.`)
+        throw new ArtifactRefused(`${input.subdomain} has no published source to restore.`)
       }
 
       const fetchFn = this.deps.fetchFn ?? fetch
@@ -119,16 +104,16 @@ export class PullArtifactTool extends SchemaTool<typeof inputSchema> {
           )
         }
         const target = resolve(dir.path, entry.path)
-        const text = await fetchText(entry.url, fetchFn)
+        const bytes = await fetchBytes(entry.url, fetchFn)
         await this.deps.files.mkdir({ path: dirname(target) })
-        await this.deps.files.writeFile({ path: target, content: text })
+        await this.deps.files.writeFile({ path: target, content: bytes })
       }
 
       return {
         ok: true,
-        output: { slug: input.slug, dir: dir.path, files: exported.entries.length },
+        output: { subdomain: input.subdomain, dir: dir.path, files: exported.entries.length },
         modelText: [
-          `Restored ${exported.entries.length} source files of ${input.slug} into ${dir.path}.`,
+          `Restored ${exported.entries.length} source files of ${input.subdomain} into ${dir.path}.`,
           'This is the editable source, so publishing again from here ships what you change; dependencies are not part of it, so run bun install before the code runs.',
         ].join('\n\n'),
       }

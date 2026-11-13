@@ -11,6 +11,7 @@ import { TeammateArchiveStopService } from './teammate-archive-stop'
 
 const neverLookedUp: SandboxCredentials = {
   forThread: () => Promise.reject(new Error('the pod is never reached in these specs')),
+  forUser: () => Promise.reject(new Error('the pod is never reached in these specs')),
 }
 
 const serviceWith = (

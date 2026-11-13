@@ -20,6 +20,7 @@ export type ShellSessionNode = SessionNode & {
   naming?: boolean
   v2View?: V2RowView
   spawnedBy?: string
+  nested?: boolean
 }
 
 export interface ProjectThreads {

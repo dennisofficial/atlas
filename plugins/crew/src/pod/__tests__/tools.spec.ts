@@ -2,13 +2,14 @@ import { describe, expect, it } from 'bun:test'
 
 import { EAgentStatus, EReportKind, toThreadId } from '@dltech/atlas-core'
 import {
-  EMPTY_CREW,
-  EMPTY_SESSIONS,
-  EMPTY_WORKTREES,
   type PluginPodContext,
   type PodCrew,
   type SubagentSnapshot,
+  EMPTY_CREW,
   EMPTY_MCP_CONTROL,
+  EMPTY_OPERATOR_INPUT,
+  EMPTY_SESSIONS,
+  EMPTY_WORKTREES,
 } from '@dltech/atlas-plugin-sdk'
 
 import { CREW_AGENT_TYPES, crewAgentTypeOf } from '../../core'
@@ -61,6 +62,7 @@ const rig = (crew: PodCrew) => {
     worktrees: EMPTY_WORKTREES,
     control: {
       mcp: EMPTY_MCP_CONTROL,
+      operator: EMPTY_OPERATOR_INPUT,
       webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
       exposePort: async () => {
         throw new Error('this rig exposes no port')

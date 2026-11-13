@@ -22,7 +22,16 @@ Each slice is built in its own Atlas session and handed to a fresh session when 
 
 ## Current state
 
-_Updated at the end of every slice. Last update: 2026-11-10._
+_Updated at the end of every slice. Last update: 2026-11-12._
+- **Built 2026-11-12: operator input from the transcript** ([spec](slices/operator-input.md)).
+  `plugins/operator` gives a session `operator_input` and `operator_shell_input`: the tool call parks,
+  a card appears in the transcript, and the operator's answer is written into the sandbox at
+  `$ATLAS_SESSION_DIR/requests/<id>` (`0600`) — or typed into a shell's stdin — with only the path
+  reaching the model. A `v2.V2OperatorRequest` row records the request and its resolution, two events
+  (`operator-input-asked`, `operator-input-settled`) draw the card, and `POST /operator-requests/answer`
+  on the agent host is the only way a value enters. The value is never in Postgres, an event, a log line
+  or a tool result. Both capability-parity exceptions are gone. **No live v2 session has run it yet**;
+  the live check belongs in the spec's §9 and in §8 for multi-instance answer routing, which is deferred.
 - **Spec written 2026-11-11: one envelope path** ([spec](slices/envelope.md)), foundational and
   first. The envelope is a helper set each producer picks from rather than one path: bash output is
   the largest untrusted input and the only one not wrapped, the lane vocabulary is duplicated between
@@ -72,7 +81,7 @@ _Updated at the end of every slice. Last update: 2026-11-10._
 - **Spec written 2026-11-10: slice 7d, MCP sign-in from the transcript**
   ([spec](slices/07d-mcp-sign-in.md); open questions in its §7). Both cloud MCP servers sign in once from
   Settings and connect (#2168), but nothing in a session can start a sign-in: a server only the repo
-  names has no row to hold a grant, and v2 has no sign-in flow of its own. The slice adds `mcp_sign_in`
+  names has no row to hold a grant, and v2 has no sign-in flow of its own. The slice adds `operator_mcp_sign_in`
   to `plugins/mcp`, a host-owned OAuth flow ported from v1 (discovery, registration, PKCE, callback,
   sealed grant, refresh with a row claim instead of a Redis lock), a public callback on the agent host,
   and the same tool for a repo-only entry, which would create a user-scope row to hold its grant (its
@@ -86,11 +95,12 @@ _Updated at the end of every slice. Last update: 2026-11-10._
   every v2 session is told to keep a checklist it cannot write. `web_search`, `web_fetch` and
   `browser` shipped together as `plugins/web` (#2116), with one narrow `PodControl.webSearch` read of
   the operator's backend and `search.<backend>` secret — no general secret read, so a pod tool cannot
-  open the operator's account. Three are
-  **not ported with the reason on the record**: `operator_input`/`operator_shell_input` need a human
-  answer inside a running tool call, which v2 has no path for; `cloud_config` would give a session
+  open the operator's account. Two are
+  **not ported with the reason on the record**: `cloud_config` would give a session
   write authority over the operator's account that 0027 removed, and every row it manages has an
-  owner; `execution_location` has one location in v2. Two names in the handover were not tools at all
+  owner; `execution_location` has one location in v2. `operator_input`/`operator_shell_input` were
+  the third, and the [operator-input slice](slices/operator-input.md) built the human-answer seam they
+  needed on 2026-11-12. Two names in the handover were not tools at all
   (`worktree_adopt` is `enter_worktree`'s `path` branch, `agent_tokens` is a pair of DI tokens).
 - **Spec written 2026-11-09: slice 7b, MCP and skills** ([spec](slices/07b-mcp-skills.md); open questions in its §10). Slice 7 closed all six plugins and handed these two here. The one contract change is a live tool source: `ComposedPodRegistry` takes a supplier so a plugin's tools are re-read every step, which is what an MCP server whose tool list changes needs. `plugins/mcp` reads cloud rows (`public.McpServer`, unsealed with the host's `SecretCipher` as GitHub tokens already are) and the clone's `.mcp.json` / `.atlas/mcp.json`, spawns stdio servers through the daemon's existing `mcp.*` ops, and keeps v1's tool naming, effect mapping and instructions hook. `plugins/skills` turns the dead `skill-index.ts` read into the listing and adds `skill` over repo dirs
   (`.atlas/skills`, `.agents/skills`, symlinks followed), cloud rows and compiled built-ins, plus full
@@ -316,6 +326,13 @@ _Updated at the end of every slice. Last update: 2026-11-10._
   `model.id` (project over user) on Anthropic (key or Claude OAuth), OpenAI (key or ChatGPT OAuth),
   OpenRouter, Vercel AI Gateway and Inference.net (`apps/agent-host/src/model/providers/`). A model
   whose provider has no account is a `configured: false` gap, never a silent switch to another model.
+- **Built 2026-11-12: a session pins its model and account.** `sessions.create` fills
+  `V2Session.modelRef/modelEffort/modelFast/modelAccountId` from the user's defaults and the
+  `ActiveAccount` pointer, so editing defaults never moves a running session; the `model-set` command
+  changes all four from the v2 composer picker, which lists a model once per account when a provider
+  has several. Rows created earlier keep late resolution. The v2 transcript shows the run-failure card
+  (provider message, account, Retry, Switch model), and a provider refusing an OAuth refresh marks the
+  connection and every account on it `expired`.
 - **Open:** browsing the files of a parked sandbox (a workspace mirror kept by the control plane) is
   proposed, not scheduled. D2 (local control plane), needed only at slice 9. 0020 (sub-agent worktrees, peer
   sessions) proposed; teammates survive as the peer-session preset — placement, ownership and

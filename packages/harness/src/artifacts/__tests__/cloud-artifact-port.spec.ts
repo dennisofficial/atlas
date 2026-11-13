@@ -22,7 +22,7 @@ type Call = {
 const BEGINNED = {
   artifactId: 'art_1',
   token: 'artifact-token',
-  slug: 'demo',
+  subdomain: 'demo',
   version: 3,
   uploads: [
     {
@@ -91,22 +91,22 @@ describe('CloudArtifactPort', () => {
   it('begins a publish with the bearer token and answers without the upload token', async () => {
     const { port, calls } = portWith({ respond: () => trpcData(BEGINNED) })
 
-    const begun = await port.beginPublish({ slug: 'demo', name: 'Demo', entries: [entry] })
+    const begun = await port.beginPublish({ subdomain: 'demo', name: 'Demo', entries: [entry] })
 
     expect(calls[0]?.procedure).toBe('artifacts.beginPublish')
     expect(calls[0]?.method).toBe('POST')
     expect(calls[0]?.authorization).toBe('Bearer tok-1')
-    expect(calls[0]?.input).toEqual({ slug: 'demo', name: 'Demo', entries: [entry] })
+    expect(calls[0]?.input).toEqual({ subdomain: 'demo', name: 'Demo', entries: [entry] })
     expect(begun).toEqual({
       artifactId: 'art_1',
-      slug: 'demo',
+      subdomain: 'demo',
       version: 3,
       uploads: BEGINNED.uploads,
     })
     expect(Object.keys(begun)).not.toContain('token')
   })
 
-  it('omits a slug and a name it was not given', async () => {
+  it('omits a subdomain and a name it was not given', async () => {
     const { port, calls } = portWith({ respond: () => trpcData(BEGINNED) })
 
     await port.beginPublish({ entries: [entry] })
@@ -128,7 +128,7 @@ describe('CloudArtifactPort', () => {
     const { port, calls } = portWith({
       respond: () =>
         trpcData({
-          slug: 'demo',
+          subdomain: 'demo',
           version: 3,
           url: 'https://demo.artifacts.test',
           status: 'building',
@@ -143,7 +143,7 @@ describe('CloudArtifactPort', () => {
     expect(calls[0]?.method).toBe('POST')
     expect(calls[0]?.input).toEqual({ artifactId: 'art_1', version: 3, spec })
     expect(committed).toEqual({
-      slug: 'demo',
+      subdomain: 'demo',
       version: 3,
       url: 'https://demo.artifacts.test',
       status: 'building',
@@ -165,27 +165,27 @@ describe('CloudArtifactPort', () => {
     ]
     const { port, calls } = portWith({ respond: () => trpcData({ entries }) })
 
-    const exported = await port.sourceExport({ slug: 'demo' })
+    const exported = await port.sourceExport({ subdomain: 'demo' })
 
     expect(calls[0]?.procedure).toBe('artifacts.sourceExport')
-    expect(calls[0]?.input).toEqual({ slug: 'demo' })
+    expect(calls[0]?.input).toEqual({ subdomain: 'demo' })
     expect(exported.entries).toEqual(entries)
   })
 
-  it('unpublishes by slug', async () => {
+  it('unpublishes by subdomain', async () => {
     const { port, calls } = portWith({ respond: () => trpcData({ ok: true }) })
 
-    await port.unpublish({ slug: 'demo' })
+    await port.unpublish({ subdomain: 'demo' })
 
     expect(calls[0]?.procedure).toBe('artifacts.unpublish')
     expect(calls[0]?.method).toBe('POST')
-    expect(calls[0]?.input).toEqual({ slug: 'demo' })
+    expect(calls[0]?.input).toEqual({ subdomain: 'demo' })
   })
 
   it('accepts a void answer to an unpublish', async () => {
     const { port } = portWith({ respond: () => trpcVoid() })
 
-    await port.unpublish({ slug: 'demo' })
+    await port.unpublish({ subdomain: 'demo' })
   })
 
   it.each([
@@ -207,7 +207,9 @@ describe('CloudArtifactPort', () => {
   it('maps a 404 on a pull to ArtifactRefused', async () => {
     const { port } = portWith({ respond: () => failure({ status: 404, trpcCode: 'NOT_FOUND' }) })
 
-    expect(await failureOf(port.sourceExport({ slug: 'gone' }))).toBeInstanceOf(ArtifactRefused)
+    expect(await failureOf(port.sourceExport({ subdomain: 'gone' }))).toBeInstanceOf(
+      ArtifactRefused,
+    )
   })
 
   it.each([
@@ -218,7 +220,9 @@ describe('CloudArtifactPort', () => {
   ])('maps a $status on unpublish to ArtifactUnavailable', async (outage) => {
     const { port } = portWith({ respond: () => failure(outage) })
 
-    expect(await failureOf(port.unpublish({ slug: 'demo' }))).toBeInstanceOf(ArtifactUnavailable)
+    expect(await failureOf(port.unpublish({ subdomain: 'demo' }))).toBeInstanceOf(
+      ArtifactUnavailable,
+    )
   })
 
   it('maps an unreachable control plane to ArtifactUnavailable', async () => {
@@ -228,7 +232,7 @@ describe('CloudArtifactPort', () => {
       },
     })
 
-    const error = await failureOf(port.unpublish({ slug: 'demo' }))
+    const error = await failureOf(port.unpublish({ subdomain: 'demo' }))
 
     expect(error).toBeInstanceOf(ArtifactUnavailable)
     expect((error as Error).message).toContain('could not be reached')
@@ -237,7 +241,7 @@ describe('CloudArtifactPort', () => {
   it('tells the model to sign in when the session was refused', async () => {
     const { port } = portWith({ respond: () => failure({ status: 401, trpcCode: 'UNAUTHORIZED' }) })
 
-    const error = await failureOf(port.unpublish({ slug: 'demo' }))
+    const error = await failureOf(port.unpublish({ subdomain: 'demo' }))
 
     expect((error as Error).message).toContain('sign in again')
   })
@@ -255,9 +259,12 @@ describe('CloudArtifactPort', () => {
     },
     {
       method: 'sourceExport',
-      run: (port: CloudArtifactPort) => port.sourceExport({ slug: 'demo' }),
+      run: (port: CloudArtifactPort) => port.sourceExport({ subdomain: 'demo' }),
     },
-    { method: 'unpublish', run: (port: CloudArtifactPort) => port.unpublish({ slug: 'demo' }) },
+    {
+      method: 'unpublish',
+      run: (port: CloudArtifactPort) => port.unpublish({ subdomain: 'demo' }),
+    },
   ])('refuses $method before any request when signed out', async (invoke) => {
     const { port, calls } = portWith({ respond: () => trpcData({}), session: null })
 

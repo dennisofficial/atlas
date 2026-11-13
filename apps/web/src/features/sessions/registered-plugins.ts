@@ -11,6 +11,9 @@ import { githubClient } from '@dltech/atlas-plugin-github/client'
 import { githubCoreSlots } from '@dltech/atlas-plugin-github/core'
 import { mcpClient } from '@dltech/atlas-plugin-mcp/client'
 import { mcpCoreSlots } from '@dltech/atlas-plugin-mcp/core'
+import { operatorClient } from '@dltech/atlas-plugin-operator/client'
+import { operatorControl } from '@dltech/atlas-plugin-operator/control'
+import { operatorCoreSlots } from '@dltech/atlas-plugin-operator/core'
 import { servicesClient } from '@dltech/atlas-plugin-services/client'
 import { servicesCoreSlots } from '@dltech/atlas-plugin-services/core'
 import { shellsClient, shellsCoreSlots } from '@dltech/atlas-plugin-shells/client'
@@ -47,6 +50,14 @@ const registeredPlugins: readonly Plugin[] = [
     control: EMPTY_CONTROL,
     client: mcpClient,
     transport: 'stream',
+  }),
+  definePlugin({
+    name: 'operator',
+    ...operatorCoreSlots,
+    pod: EMPTY_POD,
+    control: operatorControl,
+    client: operatorClient,
+    transport: 'none',
   }),
   definePlugin({
     name: 'services',

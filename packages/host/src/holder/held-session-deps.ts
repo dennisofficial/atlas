@@ -5,6 +5,7 @@ import type { LogPort } from '@dltech/atlas-observability'
 import type { PodMcpControl } from '@dltech/atlas-plugin-sdk'
 
 import type { CommandHandlers } from './command-intake'
+import type { AwaitingOperator, OperatorRequestPort } from './operator-requests'
 import type { PodControlClient } from './pod-control'
 import type { HostBus, HostTimers, PodPeers, SessionRuntimeFactory } from './ports'
 
@@ -28,5 +29,8 @@ export type HeldSessionDeps = {
   commandHandlers?: CommandHandlers | undefined
   control?: PodControlClient | undefined
   mcp?: ((sessionId: string) => PodMcpControl) | undefined
+  operator?: ((sessionId: string) => OperatorRequestPort) | undefined
+  awaitingOperator?: AwaitingOperator | undefined
+  sessionDir: string
   log?: LogPort | undefined
 }

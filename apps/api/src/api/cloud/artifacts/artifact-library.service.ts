@@ -38,7 +38,7 @@ export class ArtifactLibraryService {
     return { artifacts }
   }
 
-  async get(args: { userId: string; slug: string }): Promise<ArtifactGetOutput> {
+  async get(args: { userId: string; subdomain: string }): Promise<ArtifactGetOutput> {
     const artifact = await ownedArtifact(args)
     const build = await buildRowOf(artifact)
     return {
@@ -47,7 +47,10 @@ export class ArtifactLibraryService {
     }
   }
 
-  async sourceExport(args: { userId: string; slug: string }): Promise<ArtifactSourceExportOutput> {
+  async sourceExport(args: {
+    userId: string
+    subdomain: string
+  }): Promise<ArtifactSourceExportOutput> {
     const artifact = await ownedArtifact(args)
     const prefix = sourcePrefixOf({ id: artifact.subdomain })
     const listed = await this.blobs.list({ prefix })
@@ -62,7 +65,8 @@ export class ArtifactLibraryService {
       })
     }
     const sorted = entries.sort((left, right) => (left.path < right.path ? -1 : 1))
-    if (sorted.length === 0) throw new NotFoundException(`${args.slug} has no published source`)
+    if (sorted.length === 0)
+      throw new NotFoundException(`${args.subdomain} has no published source`)
     return { entries: sorted }
   }
 

@@ -5,7 +5,7 @@ import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { InProcessRefreshLock } from '../../../_lib/refresh-lock/refresh-lock'
 import { FakeClock, FakeIssuer, FakeStore, grantOf } from './oauth-connections.fakes'
 import { OauthConnectionsService } from './oauth-connections.service'
-import { EOauthProvider } from '@dltech/atlas-wire'
+import { EOauthProvider, EAccountStatus } from '@dltech/atlas-wire'
 import { EConnectionStatus, OauthRejectedError } from './oauth-connections.types'
 
 const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
@@ -187,6 +187,44 @@ describe('OauthConnectionsService', () => {
     expect(store.rows.get(CONNECTION)?.status).toBe(EConnectionStatus.Expired)
     await expect(issue()).rejects.toBeInstanceOf(ConflictException)
     expect(issuer.calls).toHaveLength(1)
+  })
+
+  const accountSecret = (connectionId: string): string =>
+    cipher.encrypt(
+      JSON.stringify({
+        kind: 'oauth',
+        tokens: {
+          accessToken: 'access-0',
+          refreshToken: '',
+          expiresAt: new Date(START + HOUR).toISOString(),
+        },
+        authority: { url: 'https://api.byatlas.io', connectionId },
+      }),
+    )
+
+  const seedAccount = (args: { id: string; userId?: string; connectionId: string }) =>
+    store.accounts.set(args.id, {
+      id: args.id,
+      userId: args.userId ?? OWNER,
+      status: EAccountStatus.Active,
+      sealedSecret: accountSecret(args.connectionId),
+    })
+
+  it('expires every account whose authority points at the rejected connection', async () => {
+    await upload()
+    clock.current += HOUR
+    seedAccount({ id: 'acc-dead', connectionId: CONNECTION })
+    seedAccount({ id: 'acc-other', connectionId: 'conn-2' })
+    seedAccount({ id: 'acc-elsewhere', userId: 'user-b', connectionId: CONNECTION })
+    issuer.outcome = async () => {
+      throw new OauthRejectedError('invalid_grant')
+    }
+
+    await expect(issue()).rejects.toBeInstanceOf(ConflictException)
+
+    expect(store.accounts.get('acc-dead')?.status).toBe(EAccountStatus.Expired)
+    expect(store.accounts.get('acc-other')?.status).toBe(EAccountStatus.Active)
+    expect(store.accounts.get('acc-elsewhere')?.status).toBe(EAccountStatus.Active)
   })
 
   it('keeps the old refresh token when the issuer omits a replacement', async () => {

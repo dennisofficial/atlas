@@ -17,8 +17,17 @@ export function useOperatorInput(source: Pick<ThreadSource, 'channel' | 'operato
     if (notice !== null) toast.error(notice)
   }
 
+  const request =
+    operatorInput === null
+      ? null
+      : {
+          requestId: operatorInput.requestId,
+          description: operatorInput.description,
+          ...(operatorInput.url === undefined ? {} : { url: operatorInput.url }),
+        }
+
   return {
-    request: operatorInput,
+    request,
     submitting: operatorInput !== null && submittingId === operatorInput.requestId,
     handleSubmit,
   }

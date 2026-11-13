@@ -11,7 +11,7 @@ import {
 
 export class FakeArtifactPort extends ArtifactPort {
   readonly beginCalls: {
-    slug?: string | undefined
+    subdomain?: string | undefined
     name?: string | undefined
     entries: ArtifactEntryInput[]
   }[] = []
@@ -23,7 +23,7 @@ export class FakeArtifactPort extends ArtifactPort {
   failure: Error | null = null
 
   async beginPublish(args: {
-    slug?: string | undefined
+    subdomain?: string | undefined
     name?: string | undefined
     entries: ArtifactEntryInput[]
   }): Promise<ArtifactPublishBegun> {
@@ -31,7 +31,7 @@ export class FakeArtifactPort extends ArtifactPort {
     this.beginCalls.push(args)
     return {
       artifactId: 'art_1',
-      slug: args.slug ?? 'demo',
+      subdomain: args.subdomain ?? 'demo',
       version: 3,
       uploads:
         this.beginUploads.length > 0
@@ -53,7 +53,7 @@ export class FakeArtifactPort extends ArtifactPort {
     this.guard()
     this.commitCalls.push(args)
     return {
-      slug: 'demo',
+      subdomain: 'demo',
       version: args.version,
       url: 'https://demo.artifacts.test',
       status: 'building',
@@ -70,9 +70,9 @@ export class FakeArtifactPort extends ArtifactPort {
     return { entries: this.sourceEntries }
   }
 
-  async unpublish(args: { slug: string }): Promise<void> {
+  async unpublish(args: { subdomain: string }): Promise<void> {
     this.guard()
-    this.unpublishCalls.push(args.slug)
+    this.unpublishCalls.push(args.subdomain)
   }
 
   private guard(): void {
@@ -128,7 +128,7 @@ export class FakeFiles extends FileSystemPort {
     return { text, strict: text }
   }
 
-  async writeFile(args: { path: string; content: string }): Promise<void> {
+  async writeFile(args: { path: string; content: string | Uint8Array }): Promise<void> {
     this.put(args.path, args.content)
   }
 

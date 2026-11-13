@@ -1,5 +1,7 @@
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
+import type { ExportedEnvSecrets } from './env-secrets'
+
 export type GitIdentity = { name: string; email: string }
 
 export type IdentityLookup = (args: { token: string; signal: AbortSignal }) => Promise<GitIdentity>
@@ -84,6 +86,8 @@ export const shellEnvOf = (args: {
 
 export class ShellEnvCell {
   private env: Record<string, string> = {}
+  private secretEnv: Record<string, string> = {}
+  private secretNames: readonly string[] = []
 
   constructor(
     private readonly args: {
@@ -93,7 +97,16 @@ export class ShellEnvCell {
   ) {}
 
   current(): Record<string, string> {
-    return this.env
+    return { ...this.secretEnv, ...this.env }
+  }
+
+  exportedSecretNames(): readonly string[] {
+    return this.secretNames
+  }
+
+  setSecrets(secrets: ExportedEnvSecrets): void {
+    this.secretEnv = secrets.env
+    this.secretNames = secrets.names
   }
 
   async refresh(args: {

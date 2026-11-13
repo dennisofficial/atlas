@@ -10,7 +10,7 @@ import {
   launchWith,
   seedBase,
 } from '../sandbox-provisioning/sandbox-provisioning.fixture'
-import { ThreadSandboxCredentialsService } from './thread-sandbox-credentials.service'
+import { ScopedSandboxCredentialsService } from './scoped-sandbox-credentials.service'
 
 const LEGACY_ENV = {
   VERCEL_TOKEN: 'env-token',
@@ -22,9 +22,9 @@ const envWith = (values: Record<string, string>): EnvService =>
   ({ get: (key: string) => values[key] }) as unknown as EnvService
 
 const serviceWith = (scoped: ScopedConfigService) =>
-  new ThreadSandboxCredentialsService(scoped, envWith(LEGACY_ENV))
+  new ScopedSandboxCredentialsService(scoped, envWith(LEGACY_ENV))
 
-describe('ThreadSandboxCredentialsService provenance', () => {
+describe('ScopedSandboxCredentialsService provenance', () => {
   useTestDatabase()
 
   it('keeps a TUI-registered no-project thread on the env credential with ownerCredential false', async () => {

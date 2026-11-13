@@ -36,6 +36,7 @@ class FakeDispatcher extends JobDispatcher {
 
 const neverLookedUp: SandboxCredentials = {
   forThread: () => Promise.reject(new Error('a spec never reaches Vercel credentials')),
+  forUser: () => Promise.reject(new Error('a spec never reaches Vercel credentials')),
 }
 
 const teammateStopWith = (

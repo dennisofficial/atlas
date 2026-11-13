@@ -19,23 +19,23 @@ import type { ArtifactSummary } from '@dltech/atlas-wire/web'
 import { ArtifactStatusChip } from './artifact-status-chip'
 import { CopyButton } from './copy-button'
 
-export function UnpublishDialog({
+export function DeleteDialog({
   name,
   busy,
-  onUnpublish,
+  onDelete,
 }: {
   name: string
   busy: boolean
-  onUnpublish: () => void
+  onDelete: () => void
 }) {
   return (
     <AlertDialog>
       <AlertDialogTrigger render={<Button size="sm" variant="destructive" disabled={busy} />}>
-        Unpublish
+        Delete
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Unpublish {name}?</AlertDialogTitle>
+          <AlertDialogTitle>Delete {name}?</AlertDialogTitle>
           <AlertDialogDescription>
             The artifact, its source and its published build are deleted, and its URL stops serving.
             Files an agent kept in the thread are not touched.
@@ -43,8 +43,8 @@ export function UnpublishDialog({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction variant="destructive" disabled={busy} onClick={onUnpublish}>
-            Unpublish
+          <AlertDialogAction variant="destructive" disabled={busy} onClick={onDelete}>
+            Delete
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -55,11 +55,11 @@ export function UnpublishDialog({
 export function ArtifactHeader({
   artifact,
   busy,
-  onUnpublish,
+  onDelete,
 }: {
   artifact: ArtifactSummary
   busy: boolean
-  onUnpublish: () => void
+  onDelete: () => void
 }) {
   return (
     <header className="flex flex-col gap-3">
@@ -78,7 +78,7 @@ export function ArtifactHeader({
           Open
         </Button>
         <CopyButton value={artifact.url} label="Copy artifact URL" text="Copy URL" />
-        <UnpublishDialog name={artifact.name} busy={busy} onUnpublish={onUnpublish} />
+        <DeleteDialog name={artifact.name} busy={busy} onDelete={onDelete} />
       </div>
     </header>
   )

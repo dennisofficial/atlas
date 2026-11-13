@@ -15,13 +15,13 @@ mock.module('next/navigation', () => ({ useRouter: () => ({ push: () => undefine
 
 mock.module('../artifacts-api', () => ({
   ARTIFACTS_KEY: 'artifacts',
-  artifactKeyOf: (slug: string) => `artifact:${slug}`,
+  artifactKeyOf: (subdomain: string) => `artifact:${subdomain}`,
   fetchArtifacts: async () => ({ artifacts: state.artifacts }),
   fetchArtifact: async () => ({
     artifact: artifactSummary(),
     build: buildSummary(),
   }),
-  unpublishArtifact: async () => ({ ok: true }),
+  deleteArtifact: async () => ({ ok: true }),
 }))
 
 const { ArtifactsView } = await import('../artifacts-view')

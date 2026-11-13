@@ -11,6 +11,7 @@ import { mediaStoreProvider } from './media-store.provider'
 import { MediaRouter } from './media.router'
 import { MediaService } from './media.service'
 import { DbProjectAccess, ProjectAccess } from './project-access'
+import { DbSessionModelChoice, SessionModelChoice } from './session-model-choice'
 import { RoutinesRouter } from './routines.router'
 import { RoutinesService } from './routines.service'
 import { SessionsRouter } from './sessions.router'
@@ -31,6 +32,7 @@ export const controlPlaneProvider: Provider = {
   providers: [
     controlPlaneProvider,
     { provide: ProjectAccess, useClass: DbProjectAccess },
+    { provide: SessionModelChoice, useClass: DbSessionModelChoice },
     backgroundWorkProvider(),
     { provide: MediaRegistry, useClass: DbMediaRegistry },
     mediaStoreProvider,

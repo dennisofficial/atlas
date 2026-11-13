@@ -11,6 +11,12 @@ import { createLocalThread, newLocalThreadId } from '@/features/desktop/create-l
 import { ERunnerChoice, RunnerToggle } from '@/features/desktop/runner-toggle'
 import { useDesktop } from '@/features/desktop/use-desktop'
 import { createSessionWithMessage } from '@/features/sessions/data/create-session'
+import {
+  accountModelOptionsOf,
+  choiceOfOptionId,
+  sessionCreateFieldsOf,
+  plainSelectionOf,
+} from '@/features/sessions/data/session-model'
 import { sessionStream } from '@/features/sessions/data/session-stream'
 import { sessionsApi } from '@/features/sessions/data/sessions-api'
 import { useSessionAttachments } from '@/features/sessions/data/use-session-attachments'
@@ -31,6 +37,7 @@ import { NEW_THREAD_DRAFT_SCOPE } from './data/composer-drafts-api'
 import { useComposerAttachments } from './data/use-composer-attachments'
 import { useComposerDraft } from './data/use-composer-draft'
 import { useModelPicker } from './data/use-model-picker'
+import { useAccounts } from './data/use-account-label'
 import { isRetryOf, messageOf } from './data/use-send'
 import { ModelPickerControls } from './model-picker'
 import { ProjectSelect } from './project-select'
@@ -45,6 +52,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
   const [draft, setDraft] = useState('')
   const [chosen, setChosen] = useState<ModelSelection | null>(null)
   const picker = useModelPicker()
+  const accounts = useAccounts()
   const selection =
     chosen ??
     defaultSelectionOf({
@@ -79,6 +87,20 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
     desktop.present && desktop.docker && runner === ERunnerChoice.ThisMac && projectId !== null
   const onThisMac = desktop.present && runner === ERunnerChoice.ThisMac
   const v2 = engine === EEngine.V2 && !onThisMac
+  const picked = choiceOfOptionId(selection.id)
+  const modelOptions = {
+    ...picker.options,
+    models: v2
+      ? accountModelOptionsOf({
+          models: picker.options.models,
+          accounts,
+          current: {
+            ref: picked.ref,
+            ...(picked.accountId === undefined ? {} : { accountId: picked.accountId }),
+          },
+        })
+      : picker.options.models,
+  }
 
   const clearDraft = useCallback(() => setDraft(''), [])
   const commands = useNewThreadCommands({ projectId, clearDraft })
@@ -108,7 +130,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
         const id = await createLocalThread({
           threadId: newLocalThreadId(),
           projectId,
-          ...createFieldsOf(selection),
+          ...createFieldsOf(plainSelectionOf(selection)),
           text,
           sendId,
           attachments: held,
@@ -125,7 +147,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
           text,
           sendId,
           attachments: held,
-          ...createFieldsOf(selection),
+          ...createFieldsOf(plainSelectionOf(selection)),
         }),
       )
       attempt.current = null
@@ -158,7 +180,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
         text,
         media,
         uploads,
-        ...createFieldsOf(selection),
+        ...sessionCreateFieldsOf(selection),
       })
       session.clear()
       drafts.handleSent(text)
@@ -183,7 +205,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
       <RunnerToggle desktop={desktop} value={runner} onValueChange={setRunner} />
       {onThisMac ? null : <EngineToggle value={engine} onValueChange={setEngine} />}
       <ModelPickerControls
-        picker={picker}
+        picker={{ ...picker, options: modelOptions }}
         selection={selection}
         onSelectionChange={setChosen}
         open={commands.modelOpen}

@@ -29,6 +29,7 @@ import type {
 } from '@dltech/atlas-wire'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { ArtifactBuild } from './artifact-build'
+import type { ArtifactBuildOwner } from './artifact-sandbox'
 import { ArtifactBlobStore } from './artifact-blob-store'
 import type { ArtifactRow, BuildRow } from './artifact-rows'
 import { writeArtifactRoute } from './artifact-route'
@@ -69,14 +70,14 @@ export class ArtifactsService {
     await this.assertPublishQuota({ userId: args.userId, entries })
     const artifact = await resolveArtifact({
       userId: args.userId,
-      slug: args.body.slug,
+      subdomain: args.body.subdomain,
       name: args.body.name,
     })
     const version = await this.openBuild({ artifact, entries })
     return {
       artifactId: artifact.id,
       token: artifact.subdomain,
-      slug: artifact.subdomain,
+      subdomain: artifact.subdomain,
       version,
       uploads: await this.sourceUploads({ artifact, entries }),
     }
@@ -104,7 +105,7 @@ export class ArtifactsService {
       spec.build === undefined
         ? null
         : await this.build.run({
-            threadId: this.threadOf(args.threadId),
+            owner: this.buildOwnerOf({ userId: args.userId, threadId: args.threadId }),
             spec,
             files: source.files,
           })
@@ -116,7 +117,7 @@ export class ArtifactsService {
         log: built.log,
         durationMs: built.durationMs,
       })
-      return { slug: artifact.subdomain, version: row.version, url, status: 'failed' }
+      return { subdomain: artifact.subdomain, version: row.version, url, status: 'failed' }
     }
     const files = built === null ? source.files : built.files
     const keys = await writeRouteTree({ blobs: this.blobs, id: artifact.subdomain, files })
@@ -141,7 +142,7 @@ export class ArtifactsService {
       bytes: files.reduce((total, file) => total + file.content.length, 0),
       fileCount: files.length,
     })
-    return { slug: artifact.subdomain, version: row.version, url, status: 'ready' }
+    return { subdomain: artifact.subdomain, version: row.version, url, status: 'ready' }
   }
 
   private async recordBuild(args: {
@@ -216,13 +217,8 @@ export class ArtifactsService {
     }
   }
 
-  private threadOf(threadId: string | undefined): string {
-    if (threadId === undefined) {
-      throw new BadRequestException(
-        "a build runs on the publishing pod's Vercel credentials: publish it with a sandbox or pod token",
-      )
-    }
-    return threadId
+  private buildOwnerOf(args: { userId: string; threadId: string | undefined }): ArtifactBuildOwner {
+    return args.threadId === undefined ? { userId: args.userId } : { threadId: args.threadId }
   }
 
   private async openBuild(args: {

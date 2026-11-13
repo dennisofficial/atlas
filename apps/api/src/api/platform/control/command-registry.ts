@@ -9,11 +9,12 @@ import { nativeCommands, nativeControlHandlers } from '@dltech/atlas-native-comm
 import type { ControlPlane } from '@dltech/atlas-control'
 import type { SessionCommandOutput } from '@dltech/atlas-protocol'
 import { composedPlugins } from './registered-plugins'
+import { modelSet } from './model-set'
 
 export const COMMAND_REGISTRY = Symbol('COMMAND_REGISTRY')
 
 export const nativeCommandRegistry = (): CommandRegistry =>
-  composeCommands([...nativeCommands, ...composedPlugins.commands])
+  composeCommands([...nativeCommands, modelSet, ...composedPlugins.commands])
 
 export const controlCommandHandlers = (): ReadonlyMap<
   string,

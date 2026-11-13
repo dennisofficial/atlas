@@ -16,7 +16,11 @@ afterAll(async () => {
 const enter = (area: HTMLTextAreaElement) =>
   act(async () => {
     area.dispatchEvent(
-      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }),
+      new KeyboardEvent('keydown', {
+        key: 'Enter',
+        bubbles: true,
+        cancelable: true,
+      }),
     )
   })
 
@@ -29,6 +33,27 @@ const mount = async (element: React.ReactElement) => {
   const area = container.querySelector('textarea')
   if (area === null) throw new Error('no textarea')
   return { area, unmount: () => act(async () => root.unmount()) }
+}
+
+const withCoarsePointer = () => {
+  const original = window.matchMedia
+  const coarse = {
+    matches: true,
+    media: '(pointer: coarse)',
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  } as unknown as MediaQueryList
+  window.matchMedia = ((media: string) =>
+    media === '(pointer: coarse)'
+      ? coarse
+      : original.call(window, media)) as typeof window.matchMedia
+  return () => {
+    window.matchMedia = original
+  }
 }
 
 describe('PromptInput textarea key handler', () => {
@@ -54,5 +79,20 @@ describe('PromptInput textarea key handler', () => {
     await enter(area)
     expect(submitted).toEqual(['hi'])
     await unmount()
+  })
+
+  it('leaves Enter to the soft keyboard on a coarse pointer, so the send button sends', async () => {
+    const restore = withCoarsePointer()
+    const submitted: string[] = []
+    const { area, unmount } = await mount(
+      <PromptInput defaultValue="hi" onSubmit={(text) => void submitted.push(text)} />,
+    )
+    const prevented: boolean[] = []
+    area.addEventListener('keydown', (event) => void prevented.push(event.defaultPrevented))
+    await enter(area)
+    expect(submitted).toEqual([])
+    expect(prevented).toEqual([false])
+    await unmount()
+    restore()
   })
 })

@@ -1,4 +1,4 @@
-import type { SessionSummary } from '@dltech/atlas-protocol'
+import { sessionModelChoiceOf, type SessionSummary } from '@dltech/atlas-protocol'
 
 import type { ControlDigestView, ControlSessionDigest } from './port'
 
@@ -48,7 +48,9 @@ export const sessionSummaryOf = (args: {
     updatedAt: digest.lastEventAt ?? digest.createdAt,
     archivedAt: digest.archivedAt,
     spawnedBy: digest.spawnedBySessionId,
+    nested: digest.nested,
     routineId: digest.routineId ?? null,
+    model: sessionModelChoiceOf(digest),
     ...(view === null || view === undefined ? {} : rowViewOf(view)),
   }
 }

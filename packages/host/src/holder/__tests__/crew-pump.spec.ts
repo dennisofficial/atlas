@@ -289,7 +289,9 @@ describe('a sub-agent after its first turn', () => {
     const parentEvents = await eventsIn(rig, THREAD_ID)
     expect(parentEvents.filter((event) => event.type === 'agent-reported')).toMatchObject([
       { agentId: childId, kind: 'progress', prose: PROGRESS_TEXT },
-      { agentId: childId, kind: 'done', prose: 'child finished' },
+    ])
+    expect(parentEvents.filter((event) => event.type === 'agent-ended')).toMatchObject([
+      { agentId: childId, status: 'finished', prose: 'child finished' },
     ])
 
     const inbox = await rig.plane.readInbox({ sessionId: SESSION, afterId: 0, limit: 200 })

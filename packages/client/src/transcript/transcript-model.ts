@@ -28,6 +28,7 @@ export enum EEntryKind {
   SandboxNotice = 'sandbox-notice',
   Rotated = 'rotated',
   OperatorInput = 'operator-input',
+  OperatorRequest = 'operator-request',
   SignIn = 'sign-in',
   SystemContext = 'system-context',
   SystemNotice = 'system-notice',
@@ -224,6 +225,30 @@ export type OperatorInputEntry = {
   text: string
 }
 
+export type OperatorRequestState =
+  | 'pending'
+  | 'delivered'
+  | 'cancelled'
+  | 'abandoned'
+  | 'expired'
+  | 'failed'
+
+export type OperatorRequestEntry = {
+  kind: EEntryKind.OperatorRequest
+  author: EAuthor.Model
+  key: string
+  text: string
+  requestId: string
+  prompt: string
+  secret: boolean
+  shellId?: string | undefined
+  state: OperatorRequestState
+  expiresAt: string
+  path?: string | undefined
+  bytes?: number | undefined
+  reason?: string | undefined
+}
+
 export type SignInEntry = {
   kind: EEntryKind.SignIn
   author: EAuthor.Model
@@ -290,6 +315,7 @@ export type TranscriptEntry =
   | SandboxNoticeEntry
   | RotatedEntry
   | OperatorInputEntry
+  | OperatorRequestEntry
   | SignInEntry
   | SystemContextEntry
   | SystemNoticeEntry

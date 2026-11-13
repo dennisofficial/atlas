@@ -1,0 +1,49 @@
+name: ci-watchdog
+
+# GitHub occasionally accepts a pull_request run and never expands its jobs. On 2026-11-11 three
+# pull-request runs sat queued for over four hours with zero jobs created, while schedule and
+# workflow_dispatch runs on the same repository completed normally and a fresh push ran at once.
+# Waiting is the only thing the run itself can do, so this inspects the queue and re-dispatches.
+# It cannot loop: a dispatched run is event workflow_dispatch, and only event pull_request runs are
+# inspected.
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  requeue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancel and re-dispatch pull-request runs that never started
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          WORKFLOW: ci.yml
+          STALE_MINUTES: '15'
+        run: |
+          set -euo pipefail
+          cutoff=$(date -u -d "-${STALE_MINUTES} minutes" +%Y-%m-%dT%H:%M:%SZ)
+          gh api "repos/$REPO/actions/runs?status=queued&event=pull_request&per_page=100" \
+            --jq ".workflow_runs[] | select(.created_at < \"$cutoff\") | \"\(.id) \(.head_branch) \(.pull_requests[0].state // \"unknown\")\"" \
+            > /tmp/stuck.txt
+          count=$(grep -c . /tmp/stuck.txt || true)
+          echo "stale pull-request runs older than $cutoff: $count"
+          while read -r id branch state; do
+            [ -z "$id" ] && continue
+            echo "run $id on $branch queued past $cutoff (pull request: $state); cancelling"
+            gh api -X POST "repos/$REPO/actions/runs/$id/cancel" >/dev/null 2>&1 \
+              || echo "cancel of $id refused"
+            if [ "$state" != "open" ]; then
+              echo "not re-dispatching $branch: its pull request is not open"
+              continue
+            fi
+            echo "::warning::re-dispatching $branch after run $id stalled"
+            gh api -X POST "repos/$REPO/actions/workflows/$WORKFLOW/dispatches" -f "ref=$branch" >/dev/null \
+              || echo "::error::re-dispatch of $branch failed"
+          done < /tmp/stuck.txt

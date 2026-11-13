@@ -61,6 +61,7 @@ export const sessionCreateInputSchema = z.strictObject({
   model: z.string().min(1).optional(),
   effort: z.string().min(1).optional(),
   fast: z.boolean().optional(),
+  accountId: z.string().min(1).optional(),
   firstMessage: messageDraftSchema.optional(),
 })
 
@@ -139,6 +140,30 @@ export const sessionRowPullRequestSchema = z.strictObject({
   checks: prChecksSchema.nullable(),
 })
 
+export const sessionModelChoiceSchema = z.strictObject({
+  ref: z.string().min(1),
+  effort: z.string().min(1).optional(),
+  fast: z.boolean().optional(),
+  accountId: z.string().min(1).optional(),
+})
+
+export type SessionModelChoice = z.infer<typeof sessionModelChoiceSchema>
+
+export const sessionModelChoiceOf = (row: {
+  modelRef: string | null
+  modelEffort: string | null
+  modelFast: boolean | null
+  modelAccountId: string | null
+}): SessionModelChoice | null =>
+  row.modelRef === null
+    ? null
+    : {
+        ref: row.modelRef,
+        ...(row.modelEffort === null ? {} : { effort: row.modelEffort }),
+        ...(row.modelFast === null ? {} : { fast: row.modelFast }),
+        ...(row.modelAccountId === null ? {} : { accountId: row.modelAccountId }),
+      }
+
 export const sessionSummarySchema = z.strictObject({
   sessionId: z.string().min(1),
   projectId: z.string().min(1),
@@ -149,7 +174,9 @@ export const sessionSummarySchema = z.strictObject({
   updatedAt: z.string().min(1),
   archivedAt: z.string().nullable(),
   spawnedBy: z.string().min(1).nullable().optional(),
+  nested: z.boolean().optional(),
   routineId: z.string().min(1).nullable().optional(),
+  model: sessionModelChoiceSchema.nullable().optional(),
   status: sessionRowStatusSchema.optional(),
   primaryBranch: z.string().nullable().optional(),
   pullRequest: sessionRowPullRequestSchema.nullable().optional(),

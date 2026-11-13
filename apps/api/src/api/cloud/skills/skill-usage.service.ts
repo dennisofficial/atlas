@@ -10,12 +10,9 @@ const usageStatement = (args: { userId: string; projectId?: string }) => {
         WHERE e."userId" = ${args.userId} AND e.type = 'context-loaded' AND e."contextSlot" = 'skill'
           AND e.at > now() - interval '30 days'
       UNION ALL
-      SELECT e.body::jsonb -> 'input' ->> 'name', e.at FROM "Event" e
-        WHERE e."userId" = ${args.userId} AND e.type = 'tool-called'
+      SELECT CASE WHEN pg_input_is_valid(e.body, 'jsonb') THEN e.body::jsonb -> 'input' ->> 'name' END, e.at FROM "Event" e
+        WHERE e."userId" = ${args.userId} AND e.type = 'tool-called' AND e."toolName" = 'skill'
           AND e.at > now() - interval '30 days'
-          AND position('"name":"skill"' in e.body) > 0
-          AND pg_input_is_valid(e.body, 'jsonb')
-          AND e.body::jsonb ->> 'name' = 'skill'
     ) u GROUP BY u.key`
   }
   return db.raw
@@ -25,13 +22,10 @@ const usageStatement = (args: { userId: string; projectId?: string }) => {
       WHERE e."userId" = ${args.userId} AND e.type = 'context-loaded' AND e."contextSlot" = 'skill'
         AND e.at > now() - interval '30 days' AND s."projectId" = ${args.projectId}
     UNION ALL
-    SELECT e.body::jsonb -> 'input' ->> 'name', e.at FROM "Event" e
+    SELECT CASE WHEN pg_input_is_valid(e.body, 'jsonb') THEN e.body::jsonb -> 'input' ->> 'name' END, e.at FROM "Event" e
       JOIN "Thread" t ON t.id = e."threadId" JOIN "Session" s ON s.id = t."sessionId"
-      WHERE e."userId" = ${args.userId} AND e.type = 'tool-called'
+      WHERE e."userId" = ${args.userId} AND e.type = 'tool-called' AND e."toolName" = 'skill'
         AND e.at > now() - interval '30 days' AND s."projectId" = ${args.projectId}
-        AND position('"name":"skill"' in e.body) > 0
-        AND pg_input_is_valid(e.body, 'jsonb')
-        AND e.body::jsonb ->> 'name' = 'skill'
   ) u GROUP BY u.key`
 }
 

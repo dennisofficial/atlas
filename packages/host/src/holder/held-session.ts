@@ -78,6 +78,7 @@ export class HeldSession {
       onActivity: this.noteActivity,
       onStalled: () => this.reconciler?.request(),
     })
+    deps.awaitingOperator = { begin: () => this.stall.beginWait() }
     this.idle = new IdleDeadline({
       timers: deps.timers,
       idleMinutes: deps.idleMinutes,

@@ -5,7 +5,7 @@ import {
   artifactCommitPublishOutputSchema,
   artifactGetOutputSchema,
   artifactListOutputSchema,
-  artifactSlugInputSchema,
+  artifactSubdomainInputSchema,
   artifactSourceExportOutputSchema,
   artifactUnpublishOutputSchema,
   type ArtifactBeginPublishInput,
@@ -14,7 +14,7 @@ import {
   type ArtifactCommitPublishOutput,
   type ArtifactGetOutput,
   type ArtifactListOutput,
-  type ArtifactSlugInput,
+  type ArtifactSubdomainInput,
   type ArtifactSourceExportOutput,
   type ArtifactUnpublishOutput,
 } from '@dltech/atlas-wire'
@@ -74,38 +74,38 @@ export class ArtifactsRouter {
     return this.library.list({ userId: ctx.auth.userId })
   }
 
-  @Query({ input: artifactSlugInputSchema, output: artifactGetOutputSchema, meta: reachable })
+  @Query({ input: artifactSubdomainInputSchema, output: artifactGetOutputSchema, meta: reachable })
   @UseMiddlewares(SessionOrSandboxMiddleware)
   get(
-    @Input() input: ArtifactSlugInput,
+    @Input() input: ArtifactSubdomainInput,
     @Ctx() ctx: SessionOrSandboxTrpcCtx,
   ): Promise<ArtifactGetOutput> {
-    return this.library.get({ userId: ctx.auth.userId, slug: input.slug })
+    return this.library.get({ userId: ctx.auth.userId, subdomain: input.subdomain })
   }
 
   @Query({
-    input: artifactSlugInputSchema,
+    input: artifactSubdomainInputSchema,
     output: artifactSourceExportOutputSchema,
     meta: reachable,
   })
   @UseMiddlewares(SessionOrSandboxMiddleware)
   sourceExport(
-    @Input() input: ArtifactSlugInput,
+    @Input() input: ArtifactSubdomainInput,
     @Ctx() ctx: SessionOrSandboxTrpcCtx,
   ): Promise<ArtifactSourceExportOutput> {
-    return this.library.sourceExport({ userId: ctx.auth.userId, slug: input.slug })
+    return this.library.sourceExport({ userId: ctx.auth.userId, subdomain: input.subdomain })
   }
 
   @Mutation({
-    input: artifactSlugInputSchema,
+    input: artifactSubdomainInputSchema,
     output: artifactUnpublishOutputSchema,
     meta: reachable,
   })
   @UseMiddlewares(SessionOrSandboxMiddleware)
   unpublish(
-    @Input() input: ArtifactSlugInput,
+    @Input() input: ArtifactSubdomainInput,
     @Ctx() ctx: SessionOrSandboxTrpcCtx,
   ): Promise<ArtifactUnpublishOutput> {
-    return this.lifecycle.unpublish({ userId: ctx.auth.userId, slug: input.slug })
+    return this.lifecycle.unpublish({ userId: ctx.auth.userId, subdomain: input.subdomain })
   }
 }

@@ -136,6 +136,7 @@ describe('restoredAttachmentsOf', () => {
     ])
     expect(restored[0]?.image?.data).toBe('QUJD')
     expect(uploadsOf(restored).map((entry) => entry.uploadId)).toEqual([U1, U2])
+    expect(restored.map((entry) => entry.sent)).toEqual([true, true])
   })
 })
 

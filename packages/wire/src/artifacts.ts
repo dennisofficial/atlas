@@ -38,7 +38,7 @@ export const artifactRouteSchema = z.strictObject({
 export type ArtifactRoute = z.infer<typeof artifactRouteSchema>
 
 export const artifactBeginPublishInputSchema = z.strictObject({
-  slug: z.string().min(1).max(40).optional(),
+  subdomain: z.string().min(1).max(40).optional(),
   name: z.string().min(1).max(120).optional(),
   entries: z.array(artifactEntrySchema).min(1).max(10_000),
 })
@@ -55,7 +55,7 @@ export type ArtifactUpload = z.infer<typeof artifactUploadSchema>
 export const artifactBeginPublishOutputSchema = z.strictObject({
   artifactId: z.string().min(1),
   token: z.string().min(1),
-  slug: z.string().min(1),
+  subdomain: z.string().min(1),
   version: z.number().int().positive(),
   uploads: z.array(artifactUploadSchema),
 })
@@ -69,7 +69,7 @@ export const artifactCommitPublishInputSchema = z.strictObject({
 export type ArtifactCommitPublishInput = z.infer<typeof artifactCommitPublishInputSchema>
 
 export const artifactCommitPublishOutputSchema = z.strictObject({
-  slug: z.string().min(1),
+  subdomain: z.string().min(1),
   version: z.number().int().positive(),
   url: z.url(),
   status: artifactStatusSchema,
@@ -90,8 +90,10 @@ export const artifactListOutputSchema = z.strictObject({
 })
 export type ArtifactListOutput = z.infer<typeof artifactListOutputSchema>
 
-export const artifactSlugInputSchema = z.strictObject({ slug: z.string().min(1).max(120) })
-export type ArtifactSlugInput = z.infer<typeof artifactSlugInputSchema>
+export const artifactSubdomainInputSchema = z.strictObject({
+  subdomain: z.string().min(1).max(120),
+})
+export type ArtifactSubdomainInput = z.infer<typeof artifactSubdomainInputSchema>
 
 export const artifactBuildSchema = z.strictObject({
   status: artifactStatusSchema,

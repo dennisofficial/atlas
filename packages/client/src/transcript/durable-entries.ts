@@ -10,6 +10,7 @@ import {
   type Event,
 } from '@dltech/atlas-core'
 
+import { redundantEndingIds } from './agent-answers'
 import { entriesOfAssistantEvent, saidWhileToolsWereOutstanding } from './assistant-entries'
 import { contextLoadedWith, contextRuns, NOTHING_ATTACHED } from './context-entries'
 import { inOneBreath } from './entry-folds'
@@ -30,6 +31,7 @@ export function durableEntries(args: {
   pluginEntries?: readonly TranscriptEntryFold[] | undefined
 }): TranscriptEntry[] {
   const events = args.events.filter((event) => !isNoticeArrival(event))
+  const repeated = redundantEndingIds(events)
   const opened = new Map<string, ToolRun>(toolRuns(events).map((run) => [run.openedBy, run]))
   const steers = saidWhileToolsWereOutstanding(events)
   const { attached, folded } = contextLoadedWith(events)
@@ -92,6 +94,7 @@ export function durableEntries(args: {
 
   const entriesOfEvent = (event: Event): TranscriptEntry[] => {
     noteShellKill(event)
+    if (repeated.has(event.id as string)) return []
 
     if (event.type === 'background-shell-ended') {
       if (isRedundantEnding(event)) return []

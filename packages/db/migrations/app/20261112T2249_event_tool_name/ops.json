@@ -1,0 +1,163 @@
+[
+  {
+    "id": "column.public.Event.toolName",
+    "label": "Add column \"toolName\" to \"Event\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "toolName",
+        "table": "Event"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"toolName\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Event",
+          "toolName"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"toolName\"",
+        "sql": "ALTER TABLE \"public\".\"Event\" ADD COLUMN \"toolName\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"toolName\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Event",
+          "toolName"
+        ]
+      },
+      {
+        "description": "verify column \"toolName\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Event",
+          "toolName",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "data.event-tool-name-backfill",
+    "label": "Backfill Event.toolName from the body of recent tool-called events",
+    "operationClass": "data",
+    "target": {
+      "id": "table.Event",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Event"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Backfill Event.toolName from the body name of tool-called events",
+        "sql": "UPDATE \"Event\" SET \"toolName\" = CASE WHEN pg_input_is_valid(body, 'jsonb') THEN body::jsonb ->> 'name' END\nWHERE type = 'tool-called' AND \"toolName\" IS NULL AND at > now() - interval '31 days' AND pg_input_is_valid(body, 'jsonb')"
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "index.Event.Event_userId_contextSlot_at_idx",
+    "label": "Create index \"Event_userId_contextSlot_at_idx\" on \"Event\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Event_userId_contextSlot_at_idx",
+        "table": "Event"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Event_userId_contextSlot_at_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Event_userId_contextSlot_at_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Event_userId_contextSlot_at_idx\"",
+        "sql": "CREATE INDEX \"Event_userId_contextSlot_at_idx\" ON \"public\".\"Event\" (\"userId\", \"contextSlot\", \"at\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Event_userId_contextSlot_at_idx\" exists on \"Event\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"Event_userId_contextSlot_at_idx\"",
+          "i",
+          "I",
+          "\"public\".\"Event\"",
+          "btree",
+          "[\"userId\",\"contextSlot\",\"at\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Event.Event_userId_type_toolName_at_idx",
+    "label": "Create index \"Event_userId_type_toolName_at_idx\" on \"Event\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Event_userId_type_toolName_at_idx",
+        "table": "Event"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Event_userId_type_toolName_at_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Event_userId_type_toolName_at_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Event_userId_type_toolName_at_idx\"",
+        "sql": "CREATE INDEX \"Event_userId_type_toolName_at_idx\" ON \"public\".\"Event\" (\"userId\", \"type\", \"toolName\", \"at\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Event_userId_type_toolName_at_idx\" exists on \"Event\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"Event_userId_type_toolName_at_idx\"",
+          "i",
+          "I",
+          "\"public\".\"Event\"",
+          "btree",
+          "[\"userId\",\"type\",\"toolName\",\"at\"]"
+        ]
+      }
+    ]
+  }
+]

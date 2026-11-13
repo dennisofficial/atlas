@@ -9,6 +9,7 @@ import type {
 import { PrSubscriptionLinks } from '../../../_core/ports/pr-subscription-links'
 import { applyPodEvents } from '../sandboxes/pod-events'
 import { appendStoredWithin, nextEventId, readComposedRows, readOwnRows } from './append'
+import { toolNameOf } from './event-tool-name'
 import { SUBSCRIPTION_EVENT_TYPES } from './thread-subscriptions'
 import { bumpHistoryRevision } from './history-revision'
 import { ownedThread } from './ownership'
@@ -108,6 +109,7 @@ export class EventsService {
         contextSlot: draft.contextSlot ?? null,
         contextKey: draft.contextKey ?? null,
         contextDigest: draft.contextDigest ?? null,
+        toolName: toolNameOf(draft),
         userId: args.userId,
       }))
       await tx.orm.public.Event.createAndCount(rows)

@@ -126,11 +126,14 @@ export class DockerFileSystemPort extends AgentFileSystemPort {
 
   async writeFile(args: {
     path: string
-    content: string
+    content: string | Uint8Array
     mode?: number | undefined
     threadId?: ThreadId | undefined
   }): Promise<void> {
-    const bytes = Buffer.from(args.content, 'utf8')
+    const bytes =
+      typeof args.content === 'string'
+        ? Buffer.from(args.content, 'utf8')
+        : Buffer.from(args.content)
     const chunks: Buffer[] =
       bytes.length === 0
         ? [Buffer.alloc(0)]

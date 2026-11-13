@@ -118,6 +118,20 @@ describe('runFailureCopy', () => {
     expect(copy.remedies).toEqual([ERunRemedy.Retry, ERunRemedy.SwitchModel])
   })
 
+  it('does not blame the provider for a stalled run', () => {
+    const copy = runFailureCopy({
+      failure: {
+        kind: ERunFailureKind.Stalled,
+        message: 'no progress for 11 minutes: the call was abandoned and recorded as stalled',
+      },
+      providerLabel: 'Anthropic',
+    })
+    expect(copy.title).toBe('The run stalled')
+    expect(copy.detail).toContain('no progress for 11 minutes')
+    expect(`${copy.title} ${copy.detail}`).not.toContain('Anthropic')
+    expect(copy.detail).not.toContain('mid-stream')
+  })
+
   it('falls back gracefully without labels', () => {
     const copy = runFailureCopy({ failure: failure(ERunFailureKind.Auth) })
     expect(copy.detail).toContain('this account')

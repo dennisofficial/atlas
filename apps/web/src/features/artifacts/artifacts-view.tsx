@@ -15,15 +15,15 @@ import { QueryGate } from '@/features/settings/data/shared/query-gate'
 import { useCloudQuery } from '@/lib/use-cloud-query'
 
 import { artifactsNewestFirst } from './artifact-format'
-import { ArtifactRow } from './artifact-row'
-import { ARTIFACT_LIST_CLASS, ArtifactListSkeleton } from './artifact-skeletons'
+import { ArtifactCard } from './artifact-card'
+import { ARTIFACT_GRID_CLASS, ArtifactListSkeleton } from './artifact-skeletons'
 import { ARTIFACTS_KEY, fetchArtifacts } from './artifacts-api'
 
 export function ArtifactList({ artifacts }: { artifacts: readonly ArtifactSummary[] }) {
   return (
-    <ul className={ARTIFACT_LIST_CLASS}>
+    <ul className={ARTIFACT_GRID_CLASS}>
       {artifactsNewestFirst(artifacts).map((artifact) => (
-        <ArtifactRow key={artifact.subdomain} artifact={artifact} />
+        <ArtifactCard key={artifact.subdomain} artifact={artifact} />
       ))}
     </ul>
   )
@@ -51,7 +51,7 @@ export function ArtifactsView() {
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 py-16">
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-5 px-4 py-16">
         <header className="flex items-center justify-between gap-3">
           <h1 className="text-xl font-medium tracking-tight">Artifacts</h1>
         </header>

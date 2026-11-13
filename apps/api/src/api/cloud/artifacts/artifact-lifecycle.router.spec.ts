@@ -18,8 +18,8 @@ describe('ArtifactsRouter lifecycle', () => {
   let app: INestApplication
   const blobs = new FakeArtifactBlobStore()
 
-  const unpublish = (token: string, slug: string) =>
-    trpcMutation({ app, path: 'artifacts.unpublish', token, input: { slug } })
+  const unpublish = (token: string, subdomain: string) =>
+    trpcMutation({ app, path: 'artifacts.unpublish', token, input: { subdomain } })
 
   beforeEach(async () => {
     await seedSessionUsers()
@@ -73,7 +73,7 @@ describe('ArtifactsRouter lifecycle', () => {
       expect(await db.orm.public.Artifact.where((row) => row.id.neq('')).all()).toHaveLength(1)
     })
 
-    it('answers 404 for an unknown slug', async () => {
+    it('answers 404 for an unknown subdomain', async () => {
       expect((await unpublish(OWNER, 'missing')).status).toBe(404)
     })
   })

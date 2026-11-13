@@ -10,6 +10,7 @@ import {
 import { db } from '@dltech/atlas-db'
 import { ownedThread } from '../../platform/sessions/ownership'
 import { ComposerUploadBlobStore } from './composer-upload-blob-store'
+import { referencedBySentMessage } from './referenced-uploads'
 
 const prefixOf = (userId: string): string => `${COMPOSER_UPLOADS_PREFIX}${userId}/`
 
@@ -52,6 +53,12 @@ export class ComposerUploadsService {
 
   async discard(args: { userId: string; pathname: string }): Promise<void> {
     assertOwnPathname(args)
+    const referenced = await referencedBySentMessage({
+      reader: db,
+      userId: args.userId,
+      pathname: args.pathname,
+    })
+    if (referenced) return
     await this.blobs.delete({ pathnames: [args.pathname] })
   }
 
