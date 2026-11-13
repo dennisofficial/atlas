@@ -1,7 +1,12 @@
 import { createDb, createPool, type Db } from '@dltech/atlas-db'
+import { postInboxEntryIn } from '@dltech/atlas-control/postgres'
 import type { OperatorRequestPort } from '@dltech/atlas-host'
 
-import { OperatorRequestRegistry, operatorRequestPortOf } from '../operator-input'
+import {
+  OperatorRequestRegistry,
+  operatorRequestPortOf,
+  type OperatorRegistryTimers,
+} from '../operator-input'
 import { OperatorRequestStore } from '../operator-input/store'
 import { databaseUrlWithTls } from './database-url'
 import { readAgentHostEnv } from './env'
@@ -12,14 +17,18 @@ export type OperatorControlPort = { of(sessionId: string): OperatorRequestPort }
 
 export const operatorRegistryOf = (args: {
   db: Db
-  ttlMs?: number | undefined
+  answerTimeoutMs?: number | undefined
   now?: (() => number) | undefined
+  timers?: OperatorRegistryTimers | undefined
 }): OperatorRequestRegistry => {
   const store = new OperatorRequestStore(args.db)
   return new OperatorRequestRegistry({
     store,
-    ...(args.ttlMs === undefined ? {} : { ttlMs: args.ttlMs }),
+    post: postInboxEntryIn,
+    withTx: (run) => args.db.transaction(run),
+    ...(args.answerTimeoutMs === undefined ? {} : { answerTimeoutMs: args.answerTimeoutMs }),
     ...(args.now === undefined ? {} : { now: args.now }),
+    ...(args.timers === undefined ? {} : { timers: args.timers }),
   })
 }
 

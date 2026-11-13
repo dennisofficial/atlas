@@ -181,6 +181,33 @@ describe('history edits', () => {
     expect(after.context?.used ?? null).toBeNull()
   })
 
+  it('keeps the last call window when an edit hides that call', () => {
+    const cases: Op[][] = [
+      [
+        { kind: 'assistant-usage', a: 0, b: 0 },
+        { kind: 'tool-called-usage', a: 1, b: 0 },
+        { kind: 'rewind', a: 34, b: 0 },
+      ],
+      [
+        { kind: 'assistant-usage', a: 0, b: 0 },
+        { kind: 'assistant-usage', a: 1, b: 0 },
+        { kind: 'summarise', a: 50, b: 50 },
+      ],
+    ]
+    for (const ops of cases) {
+      const events = eventsOf(ops)
+      const view = sessionViewOf({
+        state: foldWithRebuilds(events),
+        live: false,
+        unconsumedInbox: false,
+        messageAfterFailure: undefined,
+        now: NOW,
+      })
+      expect(view.context).toEqual(contextMeterOf(events))
+      expect(view.context?.window).toBe(100_001)
+    }
+  })
+
   it('flags only rewinds and summaries for rebuild', () => {
     const events = eventsOf([
       { kind: 'user', a: 1, b: 1 },

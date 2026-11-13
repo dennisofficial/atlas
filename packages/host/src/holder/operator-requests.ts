@@ -1,14 +1,21 @@
+import type { EOperatorRequestOutcome } from '@dltech/atlas-plugin-operator/core'
 import type { PodOperatorAsk } from '@dltech/atlas-plugin-sdk'
 
-export type OperatorRequestAnswer = { ok: true; value: string } | { ok: false; reason: string }
+export type OperatorRequestOpen = { requestId: string }
 
-export type OperatorAbandonReason = 'cancelled' | 'abandoned'
-
-export type OperatorRequestOpen = {
+export type OperatorRequestSettle = {
   requestId: string
-  expiresAt: Date
-  answered: Promise<OperatorRequestAnswer>
-  abandon(reason: OperatorAbandonReason): void
+  outcome: EOperatorRequestOutcome
+  at?: Date | undefined
+}
+
+export type OperatorAnswer = { ok: true; value: string } | { ok: false; cancel: true }
+
+export type OperatorDeliveryResult = { ok: true } | { ok: false; reason: string }
+
+export type OperatorAnswerHandoff = {
+  take(requestId: string): OperatorAnswer | undefined
+  resolve(args: { requestId: string; result: OperatorDeliveryResult }): void
 }
 
 export type OperatorRequestPort = {
@@ -17,8 +24,6 @@ export type OperatorRequestPort = {
     threadId: string
     ask: PodOperatorAsk
   }): Promise<OperatorRequestOpen>
-}
-
-export type AwaitingOperator = {
-  begin(): () => void
+  settle(args: OperatorRequestSettle): Promise<boolean>
+  answers: OperatorAnswerHandoff
 }

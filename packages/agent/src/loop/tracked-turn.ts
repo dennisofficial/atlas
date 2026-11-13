@@ -93,6 +93,8 @@ export async function runTrackedTurn(
       return { status: ETurnStatus.Failed, runId, message: settled.message, cause: settled.cause }
     }
     if (settled.kind === 'interrupted') return interrupted()
+    if (settled.kind === 'parked')
+      return { status: ETurnStatus.Parked, runId, callId: settled.callId }
     if (settled.kind === 'settled') {
       position.settleAttempted = pendingBeforeDrain?.callId
       continue

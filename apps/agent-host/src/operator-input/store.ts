@@ -18,8 +18,9 @@ export type OperatorRequestInsert = {
   secret: boolean
   shellId?: string | undefined
   createdAt: Date
-  expiresAt: Date
 }
+
+export type OperatorRequestHeld = 'absent' | 'forbidden' | { sessionId: string }
 
 export class OperatorRequestStore {
   constructor(private readonly db: Db) {}
@@ -34,7 +35,6 @@ export class OperatorRequestStore {
       secret: row.secret,
       status: EOperatorRequestStatus.Pending,
       createdAt: row.createdAt,
-      expiresAt: row.expiresAt,
       resolvedAt: null,
       ...(row.shellId === undefined ? {} : { shellId: row.shellId }),
     })
@@ -45,9 +45,23 @@ export class OperatorRequestStore {
     return row?.userId ?? null
   }
 
-  async statusOf(id: string): Promise<string | null> {
-    const row = await this.db.orm.v2.V2OperatorRequest.select('status').first({ id })
-    return row?.status ?? null
+  async hasPending(sessionId: string): Promise<boolean> {
+    const row = await this.db.orm.v2.V2OperatorRequest.select('id').first({
+      sessionId,
+      status: EOperatorRequestStatus.Pending,
+    })
+    return row !== undefined && row !== null
+  }
+
+  async held(args: { id: string; userId: string }): Promise<OperatorRequestHeld> {
+    const row = await this.db.orm.v2.V2OperatorRequest.select('status', 'sessionId').first({
+      id: args.id,
+    })
+    if (row === null || row === undefined || row.status !== EOperatorRequestStatus.Pending)
+      return 'absent'
+    const owner = await this.db.orm.v2.V2Session.select('userId').first({ id: row.sessionId })
+    if (owner === null || owner === undefined || owner.userId !== args.userId) return 'forbidden'
+    return { sessionId: row.sessionId }
   }
 
   async settle(args: { id: string; status: EOperatorRequestStatus; at: Date }): Promise<boolean> {

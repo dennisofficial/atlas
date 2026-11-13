@@ -41,6 +41,7 @@ export const COMPACTION_DISPOSITION = {
   nudge: ECompactionDisposition.Summarise,
   'sandbox-setup-reported': ECompactionDisposition.Summarise,
   parked: ECompactionDisposition.Summarise,
+  'tool-parked': ECompactionDisposition.Drop,
   'tool-dispatched': ECompactionDisposition.Drop,
   'approval-requested': ECompactionDisposition.Drop,
   'approval-answered': ECompactionDisposition.Drop,

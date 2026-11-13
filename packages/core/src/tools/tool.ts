@@ -75,6 +75,8 @@ export type ToolCall = {
 
 export type ModelPart = UserContentPart
 
+export type ParkedToolOutcome = { ok: false; reason: string; parked: true }
+
 export type ToolOutcome =
   | {
       ok: true
@@ -84,7 +86,17 @@ export type ToolOutcome =
       fileChanges?: readonly CapturedFileChange[] | undefined
       fileChangeFaults?: readonly QualityCoverageDiagnostic[] | undefined
     }
-  | { ok: false; reason: string }
+  | { ok: false; reason: string; parked?: false | undefined }
+  | ParkedToolOutcome
+
+export const isParkedOutcome = (outcome: ToolOutcome): outcome is ParkedToolOutcome =>
+  !outcome.ok && outcome.parked === true
+
+export const parkedOutcomeOf = (reason: string): ParkedToolOutcome => ({
+  ok: false,
+  reason,
+  parked: true,
+})
 
 export type WorktreeEntry = {
   path: string

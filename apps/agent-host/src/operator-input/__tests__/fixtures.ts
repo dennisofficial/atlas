@@ -57,6 +57,7 @@ export const clockOf = () => {
         if (typeof handle === 'number') timers.delete(handle)
       },
     },
+    pending: () => timers.size,
     fire: (ms: number) => {
       now += ms
       const due = [...timers.values()]
@@ -66,12 +67,27 @@ export const clockOf = () => {
   }
 }
 
-export const registryOf = (args: { db: Db; clock: ReturnType<typeof clockOf> }) =>
-  new OperatorRequestRegistry({
+export type Posted = { sessionId: string; kind: string; payload: string }
+
+export const registryOf = (args: {
+  db: Db
+  clock: ReturnType<typeof clockOf>
+  posted?: Posted[] | undefined
+  answerTimeoutMs?: number | undefined
+}) => {
+  const posted = args.posted ?? []
+  return new OperatorRequestRegistry({
     store: new OperatorRequestStore(args.db),
+    post: async (params) => {
+      posted.push({ sessionId: params.sessionId, kind: params.kind, payload: params.payload })
+      return { inboxId: 1 }
+    },
+    withTx: async (run) => await run(undefined as never),
     now: args.clock.now,
     timers: args.clock.timers,
+    ...(args.answerTimeoutMs === undefined ? {} : { answerTimeoutMs: args.answerTimeoutMs }),
   })
+}
 
 export const routeOf = (args: {
   registry: OperatorRequestRegistry
@@ -103,3 +119,11 @@ export const postOf = (args: {
   })
 
 export const tick = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0))
+
+export const settle = async (): Promise<void> => {
+  for (let i = 0; i < 40; i += 1) await tick()
+}
+
+export const untilTimer = async (clock: { pending(): number }): Promise<void> => {
+  for (let i = 0; i < 200 && clock.pending() === 0; i += 1) await tick()
+}

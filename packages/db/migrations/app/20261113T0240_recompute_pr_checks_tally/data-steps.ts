@@ -3,7 +3,7 @@ import { rawSql } from '@prisma/orm-postgres/migration'
 const label =
   'Recompute open pull request check tallies from the stored check runs and statuses, so a queued suite no longer counts as a running check'
 
-const latestAttemptOutcomes = `WITH ranked AS (
+const tallyOfStoredChecks = `WITH ranked AS (
   SELECT
     c."repoFullName",
     c."headSha",
@@ -50,7 +50,7 @@ export const recomputeOpenPullRequestTallies = rawSql({
   execute: [
     {
       description: label,
-      sql: `${latestAttemptOutcomes}
+      sql: `${tallyOfStoredChecks}
       UPDATE "public"."GithubPrState" AS p
       SET "checksRunning" = tally.running,
           "checksPassed" = tally.passed,

@@ -71,10 +71,10 @@ without the value ever entering the transcript, the model's context or the datab
 
 1. **A row, `v2.V2OperatorRequest`** (`packages/db/src/prisma/schema/v2/operator-request.prisma`) —
    `id`, `sessionId`, `threadId`, `kind` (`input | shell`), `prompt`, `secret`, `shellId?`, `status`
-   (`pending | answered | cancelled | expired | failed`), `createdAt`, `expiresAt`, `resolvedAt?`.
-   **No value column exists and none may be added.**
+   (`pending | answered | cancelled | abandoned | failed`), `createdAt`, `resolvedAt?`. There is no
+   deadline column and no value column, and none may be added.
 2. **Two events** in `plugins/operator/src/core/request.ts`:
-   `operator-input-asked {requestId, kind, prompt, secret, shellId?, expiresAt, sessionId}` and
+   `operator-input-asked {requestId, kind, prompt, secret, shellId?, expiresAt?, sessionId}` and
    `operator-input-settled {requestId, outcome, path?, bytes?, reason?, sessionId}`. Distinct names
    from v1's `operator-input-requested/-resolved`, whose payloads and fold already exist. Neither
    carries the value.
@@ -96,20 +96,18 @@ export type PodOperatorAsk =
   | { kind: 'input'; prompt: string; secret: boolean }
   | { kind: 'shell'; prompt: string; secret: boolean; shellId: string }
 
-export type PodOperatorDelivery =
-  | { ok: true; path: string; bytes: number } // kind: 'input'
-  | { ok: true; shellId: string; bytes: number } // kind: 'shell'
-  | { ok: false; reason: string } // cancelled | abandoned | expired | failed
+export type PodOperatorOpened = { ok: true; requestId: string } | { ok: false; reason: string }
 
 export type PodOperatorInput = {
-  ask(args: { ask: PodOperatorAsk; signal: AbortSignal }): Promise<PodOperatorDelivery>
+  ask(args: { ask: PodOperatorAsk; signal: AbortSignal }): Promise<PodOperatorOpened>
 }
 ```
 
 `EMPTY_OPERATOR_INPUT` answers `{ok: false, reason: 'this session cannot ask the operator for
-input'}`, so every pod fake keeps compiling. **The value is never part of the answer**: the host
-adapter delivers it, so the tool's arguments and result — both recorded in the event log — cannot
-contain it. `childDeny: ['operator_input', 'operator_shell_input']` on the plugin's pod slot keeps
+input'}`, so every pod fake keeps compiling. A successful `ask` opens the request and the tool
+returns the parked outcome (`parkedOutcomeOf`), so the turn ends with no result. **The value is never
+part of the answer**: the host delivers it when it arrives, so neither the tool's arguments, its
+parked reason, nor the `tool-parked` event can contain it. `childDeny: ['operator_input', 'operator_shell_input']` on the plugin's pod slot keeps
 v1's rule that only the main session asks (`PodSlot.childDeny`, `packages/plugin-sdk/src/slots.ts:100`).
 
 Model text, mirroring v1's so a model behaves the same way:
@@ -136,29 +134,52 @@ Model text, mirroring v1's so a model behaves the same way:
 **Ask** (`packages/host/src/holder/operator-input.ts`, built from `plugin-pod.ts`):
 1. `control.operator.ask({ask, signal})` → `requests.open({sessionId, threadId, ask})`
    (`OperatorRequestPort`, `packages/host/src/holder/operator-requests.ts`).
-2. The registry (`apps/agent-host/src/operator-input/registry.ts`) inserts the `pending` row, returns
-   `{requestId, expiresAt, answered, abandon}`, and arms the deadline (`expiresAt = now + 15 min`).
-3. The adapter appends `operator-input-asked` with that id and deadline, then awaits `answered`, raced
-   against `signal`.
-4. The ask begins an operator wait on the session's stall guard (`AwaitingOperator`,
-   `packages/host/src/holder/operator-requests.ts`), so the 11-minute `StallGuard` clock is suspended
-   while a request is open; the request's own `expiresAt` is the only bound. It is released at the
-   settle, after an open failure too.
-5. An abort of the turn calls `abandon('abandoned')` and appends `outcome: 'abandoned'`, which reads
-   as "the session stopped waiting", not as the operator cancelling. The operator's own Cancel calls
-   `abandon('cancelled')` (or the route's cancel) and keeps `outcome: 'cancelled'`; the deadline
-   resolves `{ok: false, reason: 'expired'}` and writes `status = expired`.
-6. On `{ok: true, value}` the adapter `mkdir`s `requests/`, writes the file (or the shell), appends
-   `operator-input-settled {outcome: 'delivered', path, bytes}` and returns the delivery. A failed
-   write appends `outcome: 'failed'` with the reason and returns `{ok: false}`.
+2. The registry (`apps/agent-host/src/operator-input/registry.ts`) refuses a session that already has
+   a pending row, inserts the `pending` row and returns `{requestId}`. There is no deadline and no
+   in-memory promise: nothing about the request expires and nothing keeps the pod awake.
+3. The adapter appends `operator-input-asked` with that id and returns `{ok: true, requestId}`.
+4. The tool returns `parkedOutcomeOf(...)`, dispatch records `tool-parked {callId, name}` in place of
+   a `tool-result`, and the turn ends with `ETurnStatus.Parked`. `LoopState.parked` keeps the call in
+   `pending`, `crashedCallsOf` never interrupts it, `resumePlanOf` reads `Blocked` with
+   `TOOL_PARKED_WAITING`, and the session derives `ESessionStatus.WaitingForOperator` — "Waiting for
+   you" — instead of `RunningTool`. The holder has no running turn, so its ordinary 30-minute idle
+   rule releases the pod and the sandbox may stop. The stall guard is not involved: it only runs
+   while a turn is running, and a parked turn has already ended.
 
 **Answer** (`apps/agent-host/src/operator-input/route.ts`, mounted beside `mcpOauthBegin`):
 1. `POST /operator-requests/answer`, CORS as `begin-route.ts:29-50`, bearer → `resolve(bearer)`.
-2. `{requestId, value}` resolves the pending request only when `entry.userId === principal.userId`;
-   `{requestId, cancel: true}` cancels. Answers `200 {}`, `401 bearer`, `403 request`, `404 request`
-   (unknown or already settled), `400 body`, `409 not_held_here` when the waiting call is not in this
-   host's registry.
-3. `maxLength` 64 KiB on `value`; the body is never logged.
+2. The registry authorises from the row, not from memory: the request must be `pending` and its
+   session owned by the caller. Answers `200 {}`, `401 bearer`, `403 request`, `404 request`
+   (unknown or already settled), `400 body`, `409` with the wake or delivery reason.
+3. It stashes `{value}` or `{cancel: true}` in an in-memory **answer handoff** keyed by `requestId`,
+   posts an inbox entry of kind `operator-answer` with payload `{requestId}` only
+   (`postInboxEntryIn`, `packages/control/src/postgres/postgres-post.ts`), and awaits delivery for up
+   to 120 s. The entry rings a held session and makes an unheld one claimable, so the pod wakes.
+4. `InboxIntake.prepare` (`packages/host/src/holder/inbox-intake.ts`) takes the value from the
+   handoff (`operatorAnswers.handle`, `packages/host/src/holder/operator-answer.ts`) and delivers it:
+   `mkdir` + `writeFile` at `<sessionDir>/requests/<requestId>` with `mode: 0o600`, or `shells.write`
+   with `end: false`. On success it appends `operator-input-settled {delivered}` and the parked
+   call's `tool-result` (the path/shell sentence), resolves the handoff and wakes the turn, so the
+   next turn hands the result to the model.
+5. Cancel appends `cancelled` and a `tool-result` error. A file delivery failure leaves the request
+   open and answers the operator the reason, so the card stays and they retry. A shell whose process
+   is gone (`ECallFailure.NotFound`) settles `failed` and closes the call with an error naming it.
+6. A missing handoff — the waiter timed out or another host claimed the entry — consumes the entry,
+   leaves the request open and wakes nothing.
+
+**Restart and sleep.** The open call lives only in the event log, so a redeployed or slept agent host
+finds it on the next claim: the parked call is still open, the plan is `Blocked`, and the answer
+route writes to the database row rather than to process memory. Nothing is settled on restart. A
+`shells.write` request cannot survive the pod sleeping — the shell is gone — so it settles `failed`
+when the operator answers.
+
+**A message or a stop while parked** settles every open request `cancelled` and appends each parked
+call's `tool-result` error ("the operator sent a message instead of answering", "the session was
+stopped while the request was open"), so the conversation stays valid and no card is stuck at
+`pending`.
+
+**Multi-instance agent hosts** are out of scope: the answer handoff is process memory, so one agent
+host instance is assumed (true today).
 
 **Card** (`apps/web`): one component for v1 and v2, `threads/operator-input-card.tsx` — `Atlas needs
   you`, the question, a `Textarea` (an `Input type="password"` when `secret`), the privacy footer and
@@ -176,9 +197,9 @@ pending. The value is in the POST body only: the transcript draws nothing for a 
 `transcript/transcript-request.tsx` keeps only the delivered / expired / cancelled / abandoned /
 failed Trace rows.
 
-**Fold** (`plugins/operator/src/client/request-entry.ts`): pair by `requestId`; an entry whose
-`expiresAt` has passed with no settlement reads as `expired`, so a dead host leaves no live-looking
-card.
+**Fold** (`plugins/operator/src/client/request-entry.ts`): pair by `requestId`; an entry with no
+`expiresAt` stays `pending` until it settles, and one whose `expiresAt` has passed with no settlement
+reads as `expired` (old events keep that behaviour).
 
 ## 5. Test plan
 
@@ -222,9 +243,9 @@ card.
 1. **Should the row exist at all?** The event pair suffices for the card and the wait is in-memory;
    the row is kept because the brief asks for it and an id the control plane owns is what a stale
    request can be swept by. Dropping it removes one migration and one store with no other change.
-2. **Deadline**: 15 minutes is a guess. v1 gives a remote answer two minutes
-   (`packages/client/src/channel/request-timeout.ts:15-19`); a transcript card can stay open longer
-   without holding a terminal.
+2. **Deadline** — settled: there is none. The request is an open event and nothing holds it, so the
+   card can stay open across a redeploy and the pod sleeping. (v1's two-minute timeout,
+   `packages/client/src/channel/request-timeout.ts:15-19`, only exists to free a held terminal.)
 
 ## 8. Multi-instance answer routing (deferred shape)
 

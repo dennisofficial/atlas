@@ -10,10 +10,9 @@ namespace v2 {
     shellId    String?
     status     String
     createdAt  TimestamptzJsDate(3)
-    expiresAt  TimestamptzJsDate(3)
     resolvedAt TimestamptzJsDate(3)?
 
     @@index([sessionId])
-    @@index([status, expiresAt])
+    @@index([status])
   }
 }

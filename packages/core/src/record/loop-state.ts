@@ -9,6 +9,7 @@ import {
   EResume,
   isResumablePlan,
   nudgeDraftsFor,
+  TOOL_PARKED_WAITING,
   type ResumePlan,
 } from '../events/resume-plan'
 import { type ActiveWorktree, activeWorktreeOf } from '../workspace/worktree'
@@ -19,6 +20,7 @@ export type LoopState = {
   pending: readonly EventOfType<'tool-called'>[]
   dispatched: ReadonlySet<CallId>
   approvals: ReadonlyMap<CallId, number>
+  parked: ReadonlyMap<CallId, number>
   lastTurnType: EventType | undefined
   lastAssistant: EventOfType<'assistant-said'> | undefined
   cutShortSincePrompt: boolean
@@ -35,6 +37,7 @@ export const initialLoopState = (): LoopState => ({
   pending: [],
   dispatched: new Set(),
   approvals: new Map(),
+  parked: new Map(),
   lastTurnType: undefined,
   lastAssistant: undefined,
   cutShortSincePrompt: false,
@@ -93,6 +96,19 @@ const approvalsPatch = (state: LoopState, event: Event): Patch => {
   return { approvals }
 }
 
+const parkedPatch = (state: LoopState, event: Event): Patch => {
+  if (event.type === 'tool-parked') {
+    return { parked: new Map(state.parked).set(event.callId, event.seq) }
+  }
+  if (event.type !== 'tool-called' && event.type !== 'tool-result' && event.type !== 'tool-denied')
+    return {}
+  if (!state.parked.has(event.callId)) return {}
+
+  const parked = new Map(state.parked)
+  parked.delete(event.callId)
+  return { parked }
+}
+
 const promptPatch = (event: Event): Patch => {
   if (event.type === 'user-said') {
     return { lastUserSaidSeq: event.seq, cutShortSincePrompt: false }
@@ -129,6 +145,7 @@ export function stepLoopState(state: LoopState, event: Event): LoopState {
     lastSeq: event.seq,
     ...(isTurnTaking(event) ? { lastTurnType: event.type } : {}),
     ...callsPatch(state, event),
+    ...parkedPatch(state, event),
     ...approvalsPatch(state, event),
     ...promptPatch(event),
     ...locationPatch(event),
@@ -153,7 +170,9 @@ export const pendingCallsOf = (state: LoopState): PendingCall[] => state.pending
 export const crashedCallsOf = (state: LoopState): PendingCall[] =>
   state.dispatched.size === 0
     ? []
-    : state.pending.filter((call) => state.dispatched.has(call.callId)).map(pendingCallOf)
+    : state.pending
+        .filter((call) => state.dispatched.has(call.callId) && !state.parked.has(call.callId))
+        .map(pendingCallOf)
 
 export function outstandingApprovalOf(state: LoopState): CallId | undefined {
   let earliest: { callId: CallId; seq: number } | undefined
@@ -190,6 +209,7 @@ export function resumePlanOf(state: LoopState): ResumePlan {
   if (outstandingApprovalOf(state) !== undefined) {
     return { kind: EResume.Blocked, reason: APPROVAL_WAITING }
   }
+  if (state.parked.size > 0) return { kind: EResume.Blocked, reason: TOOL_PARKED_WAITING }
   if (state.pending.length > 0) return { kind: EResume.Continue, nudge: false }
   if (awaitsReplyOf(state)) {
     return { kind: EResume.Continue, nudge: state.cutShortSincePrompt }
