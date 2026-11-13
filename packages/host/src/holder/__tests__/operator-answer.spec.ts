@@ -1,164 +1,56 @@
-import { join } from 'node:path'
-
-import { toThreadId, type V2Event } from '@dltech/atlas-core'
-import {
-  EOperatorRequestKind,
-  EOperatorRequestOutcome,
-  OPERATOR_INPUT_ASKED,
-  OPERATOR_INPUT_SETTLED,
-} from '@dltech/atlas-plugin-operator/core'
-import { ECallFailure, ECallStatus, type CallOp, type CallResult } from '@dltech/atlas-protocol'
-import type { InboxEntry } from '@dltech/atlas-core'
+import { EOperatorRequestOutcome } from '@dltech/atlas-plugin-operator/core'
+import { ECallFailure } from '@dltech/atlas-protocol'
 import { describe, expect, it } from 'bun:test'
 
-import type { RemoteCalls } from '../../calls/remote-calls'
-import { operatorAnswersOf } from '../operator-answer'
-import type {
-  OperatorAnswer,
-  OperatorDeliveryResult,
-  OperatorRequestPort,
-} from '../operator-requests'
-import type { SessionRecord } from '../record/record-adapter'
-
-const SESSION = 'ses_1'
-const THREAD = toThreadId('thr_1')
-const SESSION_DIR = '/atlas/home/sessions/ses_1'
-const REQUEST = 'oreq_1'
-const CALL = 'call_1'
-const VALUE = 'marked-value-6f2a'
-const PATH = join(SESSION_DIR, 'requests', REQUEST)
-
-const envelope = { seq: 1, threadId: THREAD, runId: 'run_1', createdAt: '2026-11-12T03:00:00.000Z' }
-
-const eventsOf = (kind: 'input' | 'shell'): V2Event[] =>
-  [
-    { ...envelope, type: 'tool-called', callId: CALL, name: 'operator_input', input: {} },
-    { ...envelope, type: 'tool-dispatched', callId: CALL, name: 'operator_input' },
-    { ...envelope, type: 'tool-parked', callId: CALL, name: 'operator_input' },
-    {
-      ...envelope,
-      type: OPERATOR_INPUT_ASKED,
-      requestId: REQUEST,
-      kind: kind === 'shell' ? EOperatorRequestKind.Shell : EOperatorRequestKind.Input,
-      prompt: 'the login code',
-      secret: true,
-      ...(kind === 'shell' ? { shellId: 'shl_1' } : {}),
-      sessionId: SESSION,
-    },
-  ] as unknown as V2Event[]
-
-const entryOf = (requestId = REQUEST): InboxEntry => ({
-  inboxId: 7,
-  sessionId: SESSION,
-  kind: 'operator-answer',
-  payload: JSON.stringify({ requestId }),
-  postedAt: '2026-11-12T03:00:00.000Z',
-  consumedSeq: null,
-  senderSessionId: null,
-})
-
-const rigOf = (options?: {
-  kind?: 'input' | 'shell'
-  failure?: { code: ECallFailure; op: string } | undefined
-}) => {
-  const appended: unknown[] = []
-  const calls: CallOp[] = []
-  const settlements: { requestId: string; outcome: EOperatorRequestOutcome }[] = []
-  let answer: OperatorAnswer | undefined
-  const results: { requestId: string; result: OperatorDeliveryResult }[] = []
-
-  const requests: OperatorRequestPort = {
-    open: async () => ({ requestId: REQUEST }),
-    settle: async (args) => {
-      settlements.push({ requestId: args.requestId, outcome: args.outcome })
-      return true
-    },
-    answers: {
-      take: () => answer,
-      resolve: (params) => {
-        results.push(params)
-      },
-    },
-  }
-  const callsPort = {
-    invoke: async ({ op }: { op: CallOp }): Promise<CallResult> => {
-      calls.push(op)
-      if (options?.failure?.op === op.op)
-        return {
-          status: ECallStatus.Failed,
-          op: op.op,
-          error: { code: options.failure.code, message: `${op.op} refused` },
-        }
-      return { status: ECallStatus.Ok, op: op.op, value: null } as CallResult
-    },
-  } as unknown as RemoteCalls
-  const record = {
-    append: async ({ drafts }: { drafts: readonly unknown[] }): Promise<never[]> => {
-      appended.push(...drafts)
-      return []
-    },
-    eventCache: () => ({ eventsAfter: () => eventsOf(options?.kind ?? 'input') }),
-  } as unknown as SessionRecord
-
-  return {
-    intake: operatorAnswersOf({
-      requests,
-      calls: callsPort,
-      sessionId: SESSION,
-      threadId: THREAD,
-      sessionDir: SESSION_DIR,
-      record,
-      newRunId: () => 'run_2' as never,
-    }),
-    appended,
-    calls,
-    results,
-    settlements,
-    hand: (value: OperatorAnswer | undefined) => {
-      answer = value
-    },
-  }
-}
+import {
+  answerRigOf,
+  CALL,
+  entryOf,
+  inputRequest,
+  OTHER,
+  PATH,
+  SESSION,
+  VALUE,
+} from './operator-answer-rig'
 
 describe('the operator answer intake', () => {
-  it('writes the value to a 0600 file, settles the request and closes the parked call', async () => {
-    const rig = rigOf()
+  it('writes the value to a 0600 file and closes the parked call with one result', async () => {
+    const rig = answerRigOf()
     rig.hand({ ok: true, value: VALUE })
 
     const outcome = await rig.intake.handle(entryOf())
 
     expect(outcome.wakesTurn).toBe(true)
     expect(rig.calls.map((op) => op.op)).toEqual(['mkdir', 'writeFile'])
-    const written = rig.calls[1]
-    expect(written).toMatchObject({ path: PATH, content: VALUE, mode: 0o600 })
-    expect(rig.appended).toMatchObject([
-      {
-        type: OPERATOR_INPUT_SETTLED,
-        requestId: REQUEST,
-        outcome: EOperatorRequestOutcome.Delivered,
-        path: PATH,
-      },
-      { type: 'tool-result', callId: CALL, name: 'operator_input' },
-    ])
+    expect(rig.calls[1]).toMatchObject({ path: PATH, content: VALUE, mode: 0o600 })
+    expect(rig.appended).toHaveLength(1)
+    expect(rig.appended[0]).toMatchObject({
+      type: 'tool-result',
+      callId: CALL,
+      name: 'operator_input',
+      output: { outcome: EOperatorRequestOutcome.Delivered, path: PATH },
+    })
     expect(JSON.stringify(rig.appended)).not.toContain(VALUE)
-    expect(rig.settlements).toEqual([
-      { requestId: REQUEST, outcome: EOperatorRequestOutcome.Delivered },
+    expect(rig.results).toEqual([
+      { key: { sessionId: SESSION, callId: CALL }, result: { ok: true } },
     ])
-    expect(rig.results).toEqual([{ requestId: REQUEST, result: { ok: true } }])
   })
 
   it('types the value into the shell instead of a file', async () => {
-    const rig = rigOf({ kind: 'shell' })
+    const rig = answerRigOf({ kind: 'shell' })
     rig.hand({ ok: true, value: VALUE })
 
     await rig.intake.handle(entryOf())
 
     expect(rig.calls.map((op) => op.op)).toEqual(['shells.write'])
+    expect(rig.appended[0]).toMatchObject({
+      output: { outcome: EOperatorRequestOutcome.Delivered, bytes: VALUE.length },
+    })
     expect(JSON.stringify(rig.appended)).not.toContain(VALUE)
   })
 
-  it('cancels the parked call with a refusal when the operator cancels', async () => {
-    const rig = rigOf()
+  it('closes the call cancelled when the operator cancels', async () => {
+    const rig = answerRigOf()
     rig.hand({ ok: false, cancel: true })
 
     const outcome = await rig.intake.handle(entryOf())
@@ -166,32 +58,28 @@ describe('the operator answer intake', () => {
     expect(outcome.wakesTurn).toBe(true)
     expect(rig.calls).toEqual([])
     expect(rig.appended).toMatchObject([
-      { type: OPERATOR_INPUT_SETTLED, outcome: EOperatorRequestOutcome.Cancelled },
       {
         type: 'tool-result',
         callId: CALL,
+        output: { outcome: EOperatorRequestOutcome.Cancelled },
         error: { message: expect.stringContaining('cancelled') },
       },
     ])
-    expect(rig.settlements).toEqual([
-      { requestId: REQUEST, outcome: EOperatorRequestOutcome.Cancelled },
-    ])
   })
 
-  it('leaves the request open when the file cannot be written so the operator can retry', async () => {
-    const rig = rigOf({ failure: { code: ECallFailure.PermissionDenied, op: 'writeFile' } })
+  it('appends nothing and leaves the call open when the file cannot be written', async () => {
+    const rig = answerRigOf({ failure: { code: ECallFailure.PermissionDenied, op: 'writeFile' } })
     rig.hand({ ok: true, value: VALUE })
 
     const outcome = await rig.intake.handle(entryOf())
 
     expect(outcome.wakesTurn).toBe(false)
     expect(rig.appended).toEqual([])
-    expect(rig.settlements).toEqual([])
     expect(rig.results[0]?.result).toMatchObject({ ok: false })
   })
 
-  it('settles failed and closes the call when the shell is gone', async () => {
-    const rig = rigOf({
+  it('closes the call failed when the shell is gone', async () => {
+    const rig = answerRigOf({
       kind: 'shell',
       failure: { code: ECallFailure.NotFound, op: 'shells.write' },
     })
@@ -201,51 +89,86 @@ describe('the operator answer intake', () => {
 
     expect(outcome.wakesTurn).toBe(true)
     expect(rig.appended).toMatchObject([
-      { type: OPERATOR_INPUT_SETTLED, outcome: EOperatorRequestOutcome.Failed },
-      { type: 'tool-result', callId: CALL },
-    ])
-    expect(rig.settlements).toEqual([
-      { requestId: REQUEST, outcome: EOperatorRequestOutcome.Failed },
+      {
+        type: 'tool-result',
+        callId: CALL,
+        output: { outcome: EOperatorRequestOutcome.Failed },
+        error: { message: expect.stringContaining('shl_1') },
+      },
     ])
   })
 
-  it('consumes the entry and wakes nothing when the handoff has no value', async () => {
-    const rig = rigOf()
+  it('wakes nothing when the handoff holds no value', async () => {
+    const rig = answerRigOf()
 
     const outcome = await rig.intake.handle(entryOf())
 
     expect(outcome.wakesTurn).toBe(false)
     expect(rig.calls).toEqual([])
     expect(rig.appended).toEqual([])
-    expect(rig.settlements).toEqual([])
   })
 
-  it('wakes nothing and settles nothing when the payload is malformed', async () => {
-    const rig = rigOf()
+  it('wakes nothing and resolves nothing when the payload is malformed', async () => {
+    const rig = answerRigOf()
     rig.hand({ ok: true, value: VALUE })
 
-    const outcome = await rig.intake.handle({ ...entryOf(), payload: '{"requestId":""}' })
+    const empty = await rig.intake.handle({ ...entryOf(), payload: '{"callId":""}' })
     const garbage = await rig.intake.handle({ ...entryOf(), payload: 'not json' })
 
-    expect(outcome.wakesTurn).toBe(false)
+    expect(empty.wakesTurn).toBe(false)
     expect(garbage.wakesTurn).toBe(false)
     expect(rig.calls).toEqual([])
     expect(rig.appended).toEqual([])
-    expect(rig.settlements).toEqual([])
   })
 
-  it('settles the open request cancelled so a later message leaves no stuck card', async () => {
-    const rig = rigOf()
+  it('answers each of two parked calls with its own result', async () => {
+    const rig = answerRigOf()
+    await rig.park(OTHER, inputRequest)
+
+    rig.hand({ ok: true, value: VALUE })
+    await rig.intake.handle(entryOf(CALL))
+
+    expect(rig.appended).toHaveLength(1)
+    expect(rig.appended[0]).toMatchObject({ type: 'tool-result', callId: CALL })
+
+    rig.hand({ ok: true, value: 'second-value' })
+    await rig.intake.handle(entryOf(OTHER))
+
+    expect(rig.appended).toHaveLength(2)
+    expect(rig.appended[1]).toMatchObject({ type: 'tool-result', callId: OTHER })
+    expect(rig.calls.map((op) => op.op)).toEqual(['mkdir', 'writeFile', 'mkdir', 'writeFile'])
+  })
+
+  it('refuses an answer for a parked call that carried no request', async () => {
+    const rig = answerRigOf({ drafts: [] })
+    await rig.park(CALL, undefined)
+    rig.hand({ ok: true, value: VALUE })
+
+    const outcome = await rig.intake.handle(entryOf())
+
+    expect(outcome.wakesTurn).toBe(false)
+    expect(rig.appended).toEqual([])
+    expect(rig.results[0]?.result).toEqual({
+      ok: false,
+      reason: 'the request is no longer open',
+    })
+  })
+
+  it('closes every open operator call on a message, legacy ones included', async () => {
+    const rig = answerRigOf({ drafts: [] })
+    await rig.park(CALL, inputRequest)
+    await rig.park(OTHER, undefined)
 
     await rig.intake.cancelOpen({ reason: 'the operator sent a message instead of answering' })
 
     expect(rig.appended).toMatchObject([
-      { type: OPERATOR_INPUT_SETTLED, outcome: EOperatorRequestOutcome.Cancelled },
-      { type: 'tool-result', callId: CALL },
+      { type: 'tool-result', callId: CALL, error: { message: expect.stringContaining('message') } },
+      {
+        type: 'tool-result',
+        callId: OTHER,
+        error: { message: expect.stringContaining('message') },
+      },
     ])
-    expect(rig.settlements).toEqual([
-      { requestId: REQUEST, outcome: EOperatorRequestOutcome.Cancelled },
-    ])
-    expect(rig.results).toEqual([{ requestId: REQUEST, result: { ok: true } }])
+    expect(rig.results).toHaveLength(2)
   })
 })

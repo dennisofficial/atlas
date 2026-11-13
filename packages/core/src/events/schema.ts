@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { jsonValueSchema } from '../json/schema'
+
 import { attachmentSchema } from '../attachments/attachment-schema'
 import { diagramRepairedSchema } from '../diagrams/diagram-body'
 import { EExecutionLocation } from '../execution/location'
@@ -107,6 +109,7 @@ const coreEventBodySchema = z.discriminatedUnion('type', [
     type: z.literal('tool-parked'),
     callId: callIdSchema,
     name: z.string(),
+    request: jsonValueSchema.optional(),
   }),
   z.object({
     type: z.literal('tool-result'),

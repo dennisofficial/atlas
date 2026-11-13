@@ -5,7 +5,6 @@ import {
   type PluginPodContext,
   EMPTY_CREW,
   EMPTY_MCP_CONTROL,
-  EMPTY_OPERATOR_INPUT,
   EMPTY_SESSIONS,
   EMPTY_WORKTREES,
 } from '@dltech/atlas-plugin-sdk'
@@ -114,7 +113,6 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
       exposePort: async () => {
         throw new Error('this rig exposes no port')
       },
-      operator: EMPTY_OPERATOR_INPUT,
       memory: {
         list: async () => ({ project: null, memories: [] }),
         read: async () => null,

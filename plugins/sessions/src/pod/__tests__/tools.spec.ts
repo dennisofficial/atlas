@@ -7,7 +7,6 @@ import {
   type SessionBrief,
   EMPTY_CREW,
   EMPTY_MCP_CONTROL,
-  EMPTY_OPERATOR_INPUT,
   EMPTY_WORKTREES,
 } from '@dltech/atlas-plugin-sdk'
 
@@ -80,7 +79,6 @@ const rig = (sessions: PodSessions) => {
         throw new Error('this rig exposes no port')
       },
       mcp: EMPTY_MCP_CONTROL,
-      operator: EMPTY_OPERATOR_INPUT,
       webSearch: {
         config: async () => ({ backend: undefined, key: undefined }),
       },

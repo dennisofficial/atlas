@@ -1,7 +1,7 @@
 import {
   isConcurrencySafeCall,
   partitionToolCalls,
-  pendingCallsOf,
+  settleablePendingOf,
   activeWorktreeAfter,
   activeWorktreeOfState,
   homeDirectoryAfter,
@@ -80,7 +80,9 @@ export function createSettlePending(deps: {
     const events = await deps.record.composedEvents({ threadId })
     const state = await deps.record.loopState({ threadId })
 
-    const calls = [...pendingCallsOf(state)].sort((left, right) => left.ordinal - right.ordinal)
+    const calls = [...settleablePendingOf(state)].sort(
+      (left, right) => left.ordinal - right.ordinal,
+    )
 
     const runs = partitionToolCalls({ calls, isSafe })
 

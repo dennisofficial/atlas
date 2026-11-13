@@ -1,108 +1,45 @@
+import type { OperatorDeliveryResult } from '@dltech/atlas-host'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { describe, expect, it } from 'bun:test'
 
-import { EOperatorRequestOutcome } from '@dltech/atlas-plugin-operator/core'
-import type { OperatorDeliveryResult } from '@dltech/atlas-host'
-import { EOperatorRequestStatus } from '..'
-import {
-  askOf,
-  clockOf,
-  NOW_MS,
-  registryOf,
-  seedSession,
-  settle,
-  untilTimer,
-  VALUE,
-} from './fixtures'
+import { CALL, clockOf, registryOf, seedSession, settle, untilTimer, VALUE } from './fixtures'
 
 const testDb = useTestDatabase()
 
 const okay: OperatorDeliveryResult = { ok: true }
+const key = { sessionId: 'ses_1', callId: CALL }
 
-describe('the operator request registry', () => {
-  it('writes a pending row with the question and no deadline', async () => {
-    const { db } = testDb()
-    await seedSession(db, { id: 'ses_1', userId: 'user-1' })
-    const registry = registryOf({ db, clock: clockOf() })
-
-    const opened = await registry.open({
-      sessionId: 'ses_1',
-      threadId: 'thr_ses_1',
-      ask: askOf('shell'),
-    })
-
-    expect(opened).toEqual({ requestId: opened.requestId })
-    const row = await db.orm.v2.V2OperatorRequest.first({ id: opened.requestId })
-    expect(row).toMatchObject({
-      sessionId: 'ses_1',
-      threadId: 'thr_ses_1',
-      kind: 'shell',
-      prompt: 'the login code',
-      secret: true,
-      shellId: 'shl_1',
-      status: EOperatorRequestStatus.Pending,
-      resolvedAt: null,
-    })
-  })
-
-  it('rings the session with a requestId-only entry and leaves settling to the holder', async () => {
+describe('the operator answer registry', () => {
+  it('rings the session with a callId-only entry and hands the value to the holder', async () => {
     const { db } = testDb()
     await seedSession(db, { id: 'ses_1', userId: 'user-1' })
     const posted: { sessionId: string; kind: string; payload: string }[] = []
     const registry = registryOf({ db, clock: clockOf(), posted })
-    const opened = await registry.open({ sessionId: 'ses_1', threadId: 'thr_ses_1', ask: askOf() })
 
-    const answering = registry.answer({
-      requestId: opened.requestId,
-      userId: 'user-1',
-      value: VALUE,
-    })
+    const answering = registry.answer({ ...key, userId: 'user-1', value: VALUE })
     await settle()
 
     expect(posted).toEqual([
-      {
-        sessionId: 'ses_1',
-        kind: 'operator-answer',
-        payload: JSON.stringify({ requestId: opened.requestId }),
-      },
+      { sessionId: 'ses_1', kind: 'operator-answer', payload: JSON.stringify({ callId: CALL }) },
     ])
-    expect(registry.answers.take(opened.requestId)).toEqual({ ok: true, value: VALUE })
-    expect((await db.orm.v2.V2OperatorRequest.first({ id: opened.requestId }))?.status).toBe(
-      EOperatorRequestStatus.Pending,
-    )
-
-    await registry.settle({
-      requestId: opened.requestId,
-      outcome: EOperatorRequestOutcome.Delivered,
-    })
-    registry.answers.resolve({ requestId: opened.requestId, result: okay })
+    expect(registry.answers.take(key)).toEqual({ ok: true, value: VALUE })
+    registry.answers.resolve({ key, result: okay })
 
     expect(await answering).toEqual({ ok: true })
-    expect((await db.orm.v2.V2OperatorRequest.first({ id: opened.requestId }))?.status).toBe(
-      EOperatorRequestStatus.Answered,
-    )
   })
 
-  it('opens a new request after the holder settled the previous one cancelled', async () => {
+  it('hands a cancel with no value', async () => {
     const { db } = testDb()
     await seedSession(db, { id: 'ses_1', userId: 'user-1' })
     const registry = registryOf({ db, clock: clockOf() })
-    const opened = await registry.open({ sessionId: 'ses_1', threadId: 'thr_ses_1', ask: askOf() })
 
-    await registry.settle({
-      requestId: opened.requestId,
-      outcome: EOperatorRequestOutcome.Cancelled,
-    })
-    const reopened = await registry.open({
-      sessionId: 'ses_1',
-      threadId: 'thr_ses_1',
-      ask: askOf(),
-    })
+    const cancelling = registry.cancel({ ...key, userId: 'user-1' })
+    await settle()
 
-    expect(reopened.requestId).not.toBe(opened.requestId)
-    expect((await db.orm.v2.V2OperatorRequest.first({ id: opened.requestId }))?.status).toBe(
-      EOperatorRequestStatus.Cancelled,
-    )
+    expect(registry.answers.take(key)).toEqual({ ok: false, cancel: true })
+    registry.answers.resolve({ key, result: okay })
+
+    expect(await cancelling).toEqual({ ok: true })
   })
 
   it('drops the value and refuses when the session never wakes', async () => {
@@ -110,13 +47,8 @@ describe('the operator request registry', () => {
     await seedSession(db, { id: 'ses_1', userId: 'user-1' })
     const clock = clockOf()
     const registry = registryOf({ db, clock, answerTimeoutMs: 120_000 })
-    const opened = await registry.open({ sessionId: 'ses_1', threadId: 'thr_ses_1', ask: askOf() })
 
-    const answering = registry.answer({
-      requestId: opened.requestId,
-      userId: 'user-1',
-      value: VALUE,
-    })
+    const answering = registry.answer({ ...key, userId: 'user-1', value: VALUE })
     await untilTimer(clock)
     clock.fire(120_000)
     await settle()
@@ -126,67 +58,34 @@ describe('the operator request registry', () => {
       status: 409,
       reason: 'the session did not wake in time; try again',
     })
-    expect(registry.answers.take(opened.requestId)).toBeUndefined()
-    expect((await db.orm.v2.V2OperatorRequest.first({ id: opened.requestId }))?.status).toBe(
-      EOperatorRequestStatus.Pending,
-    )
+    expect(registry.answers.take(key)).toBeUndefined()
   })
 
-  it('cancels with no value and settles the row cancelled', async () => {
+  it('answers 404 for another user and for a session it never heard of', async () => {
     const { db } = testDb()
     await seedSession(db, { id: 'ses_1', userId: 'user-1' })
     const registry = registryOf({ db, clock: clockOf() })
-    const opened = await registry.open({ sessionId: 'ses_1', threadId: 'thr_ses_1', ask: askOf() })
 
-    const cancelling = registry.cancel({ requestId: opened.requestId, userId: 'user-1' })
-    await settle()
-
-    expect(registry.answers.take(opened.requestId)).toEqual({ ok: false, cancel: true })
-    await registry.settle({
-      requestId: opened.requestId,
-      outcome: EOperatorRequestOutcome.Cancelled,
+    expect(await registry.answer({ ...key, userId: 'user-2', value: VALUE })).toEqual({
+      ok: false,
+      status: 404,
+      reason: 'session',
     })
-    registry.answers.resolve({ requestId: opened.requestId, result: okay })
-
-    expect(await cancelling).toEqual({ ok: true })
-    expect((await db.orm.v2.V2OperatorRequest.first({ id: opened.requestId }))?.status).toBe(
-      EOperatorRequestStatus.Cancelled,
-    )
-  })
-
-  it('refuses a second pending request for the same session', async () => {
-    const { db } = testDb()
-    await seedSession(db, { id: 'ses_1', userId: 'user-1' })
-    const registry = registryOf({ db, clock: clockOf() })
-    await registry.open({ sessionId: 'ses_1', threadId: 'thr_ses_1', ask: askOf() })
-
-    await expect(
-      registry.open({ sessionId: 'ses_1', threadId: 'thr_ses_1', ask: askOf() }),
-    ).rejects.toThrow('already waiting on an operator request')
-  })
-
-  it('refuses an answer from a user who does not own the session', async () => {
-    const { db } = testDb()
-    await seedSession(db, { id: 'ses_1', userId: 'user-1' })
-    const registry = registryOf({ db, clock: clockOf() })
-    const opened = await registry.open({ sessionId: 'ses_1', threadId: 'thr_ses_1', ask: askOf() })
-
     expect(
-      await registry.answer({ requestId: opened.requestId, userId: 'user-2', value: VALUE }),
-    ).toEqual({ ok: false, status: 403, reason: 'request' })
-    expect((await db.orm.v2.V2OperatorRequest.first({ id: opened.requestId }))?.status).toBe(
-      EOperatorRequestStatus.Pending,
-    )
+      await registry.answer({
+        sessionId: 'ses_unknown',
+        callId: CALL,
+        userId: 'user-1',
+        value: VALUE,
+      }),
+    ).toEqual({ ok: false, status: 404, reason: 'session' })
   })
 
-  it('answers 404 for an id it never heard of', async () => {
+  it('exposes only the answer handoff on the port', () => {
     const { db } = testDb()
-    await seedSession(db, { id: 'ses_1', userId: 'user-1' })
     const registry = registryOf({ db, clock: clockOf() })
 
-    expect(
-      await registry.answer({ requestId: 'oreq_unknown', userId: 'user-1', value: VALUE }),
-    ).toEqual({ ok: false, status: 404, reason: 'request' })
-    expect(NOW_MS).toBe(Date.parse('2026-11-12T03:00:00.000Z'))
+    expect(Object.keys(registryOf({ db, clock: clockOf() }).answers)).toEqual(['take', 'resolve'])
+    expect(registry.answers.take(key)).toBeUndefined()
   })
 })

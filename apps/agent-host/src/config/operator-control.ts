@@ -7,7 +7,7 @@ import {
   operatorRequestPortOf,
   type OperatorRegistryTimers,
 } from '../operator-input'
-import { OperatorRequestStore } from '../operator-input/store'
+import { OperatorSessionStore } from '../operator-input/store'
 import { databaseUrlWithTls } from './database-url'
 import { readAgentHostEnv } from './env'
 
@@ -21,7 +21,7 @@ export const operatorRegistryOf = (args: {
   now?: (() => number) | undefined
   timers?: OperatorRegistryTimers | undefined
 }): OperatorRequestRegistry => {
-  const store = new OperatorRequestStore(args.db)
+  const store = new OperatorSessionStore(args.db)
   return new OperatorRequestRegistry({
     store,
     post: postInboxEntryIn,

@@ -1,10 +1,9 @@
 import type { Db } from '@dltech/atlas-db'
-import type { PodOperatorAsk } from '@dltech/atlas-plugin-sdk'
 
 import {
   OPERATOR_ANSWER_PATH,
   OperatorRequestRegistry,
-  OperatorRequestStore,
+  OperatorSessionStore,
   operatorAnswerOf,
 } from '..'
 
@@ -35,10 +34,8 @@ export const seedSession = async (db: Db, args: { id: string; userId: string }):
   })
 }
 
-export const askOf = (kind: 'input' | 'shell' = 'input'): PodOperatorAsk =>
-  kind === 'shell'
-    ? { kind: 'shell', prompt: 'the login code', secret: true, shellId: 'shl_1' }
-    : { kind: 'input', prompt: 'the login code', secret: true }
+export const SESSION = 'ses_1'
+export const CALL = 'call_1'
 
 export const clockOf = () => {
   let now = NOW_MS
@@ -77,7 +74,7 @@ export const registryOf = (args: {
 }) => {
   const posted = args.posted ?? []
   return new OperatorRequestRegistry({
-    store: new OperatorRequestStore(args.db),
+    store: new OperatorSessionStore(args.db),
     post: async (params) => {
       posted.push({ sessionId: params.sessionId, kind: params.kind, payload: params.payload })
       return { inboxId: 1 }

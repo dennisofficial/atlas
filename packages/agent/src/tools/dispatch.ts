@@ -32,7 +32,7 @@ import {
 import { observeAfterTool } from './dispatch-observe'
 import { NO_QUALITY_STAGE, type QualityStagePort } from './quality-stage'
 import type { ToolRegistry } from './registry'
-import { resultDraft } from './tool-result-draft'
+import { parkedDraftOf, resultDraft } from './tool-result-draft'
 import {
   ESpan,
   ESpanOutcome,
@@ -211,7 +211,7 @@ export class HookedToolDispatcher extends ToolDispatcher {
     })
 
     if (isParkedOutcome(result)) {
-      return [...drafts, { type: 'tool-parked', callId: call.callId, name: call.name }]
+      return [...drafts, parkedDraftOf({ call, result })]
     }
 
     const qualityOutcome = await spanWith(this.trace, {

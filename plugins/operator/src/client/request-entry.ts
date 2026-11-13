@@ -7,12 +7,25 @@ import {
   type TranscriptEntryFold,
 } from '@dltech/atlas-client/transcript'
 
-import { EOperatorRequestOutcome } from '../core/request'
+import {
+  EOperatorRequestKind,
+  EOperatorRequestOutcome,
+  OPERATOR_INPUT_TOOL,
+  OPERATOR_SHELL_INPUT_TOOL,
+  operatorOutcomeSchema,
+  operatorRequestSchema,
+  type OperatorOutcome,
+  type OperatorRequest,
+} from '../core/request'
 
-type Asked = Extract<V2Event, { type: 'operator-input-asked' }>
-type Settled = Extract<V2Event, { type: 'operator-input-settled' }>
+type Parked = {
+  callId: string
+  request: OperatorRequest
+  seq: number
+  outcome: OperatorOutcome | undefined
+}
 
-type RequestRun = { asked: Asked; settled: Settled | undefined }
+type Result = { output?: unknown; error?: { message: string } | undefined }
 
 const STATE_OF_OUTCOME: Readonly<Record<EOperatorRequestOutcome, OperatorRequestState>> = {
   [EOperatorRequestOutcome.Delivered]: 'delivered',
@@ -24,86 +37,98 @@ const STATE_OF_OUTCOME: Readonly<Record<EOperatorRequestOutcome, OperatorRequest
 
 const NO_VALUE = 'no value arrived'
 
-const runsOf = (events: readonly (Event | V2Event)[]): ReadonlyMap<string, RequestRun> => {
-  const runs = new Map<string, RequestRun>()
+const requestOf = (parked: { name: string; request?: unknown }): OperatorRequest | undefined => {
+  if (parked.name !== OPERATOR_INPUT_TOOL && parked.name !== OPERATOR_SHELL_INPUT_TOOL)
+    return undefined
+  const parsed = operatorRequestSchema.safeParse(parked.request)
+  return parsed.success ? parsed.data : undefined
+}
+
+const failedOf = (reason: string | undefined): OperatorOutcome => ({
+  outcome: EOperatorRequestOutcome.Failed,
+  reason: reason === undefined || reason === '' ? NO_VALUE : reason,
+})
+
+const outcomeOf = (event: Result): OperatorOutcome => {
+  const parsed = operatorOutcomeSchema.safeParse(event.output)
+  if (parsed.success) return parsed.data
+  return failedOf(event.error?.message)
+}
+
+const runsOf = (events: readonly (Event | V2Event)[]): ReadonlyMap<string, Parked> => {
+  const runs = new Map<string, Parked>()
 
   for (const event of events) {
-    if (event.type === 'operator-input-asked') {
-      runs.set(event.requestId, { asked: event, settled: undefined })
+    if (event.type === 'tool-parked') {
+      const request = requestOf({ name: event.name, request: event.request })
+      if (request === undefined) continue
+      runs.set(event.callId, { callId: event.callId, request, seq: event.seq, outcome: undefined })
       continue
     }
-    if (event.type !== 'operator-input-settled') continue
-    const run = runs.get(event.requestId)
+    if (event.type === 'tool-called') {
+      runs.delete(event.callId)
+      continue
+    }
+    if (event.type !== 'tool-result' && event.type !== 'tool-denied') continue
+    const run = runs.get(event.callId)
     if (run === undefined) continue
-    runs.set(event.requestId, { asked: run.asked, settled: event })
+    const outcome =
+      event.type === 'tool-result'
+        ? outcomeOf({ output: event.output, error: event.error })
+        : failedOf(event.reason)
+    runs.set(event.callId, { ...run, outcome })
   }
 
   return runs
 }
 
-const stateOf = (args: { run: RequestRun; now: number }): OperatorRequestState => {
-  const { asked, settled } = args.run
-  if (settled !== undefined) return STATE_OF_OUTCOME[settled.outcome]
-  if (asked.expiresAt === undefined) return 'pending'
-  return Date.parse(asked.expiresAt) <= args.now ? 'expired' : 'pending'
-}
-
-const outcomeText = (settled: Settled | undefined): string => {
-  if (settled === undefined) return `it expired unanswered and ${NO_VALUE}`
-  switch (settled.outcome) {
+const outcomeText = (outcome: OperatorOutcome | undefined): string => {
+  if (outcome === undefined) return `it is still waiting and ${NO_VALUE}`
+  switch (outcome.outcome) {
     case EOperatorRequestOutcome.Delivered:
-      return settled.path === undefined
+      return outcome.path === undefined
         ? 'the operator delivered a value'
-        : `the operator delivered a value to ${settled.path} (${settled.bytes ?? 0} bytes)`
+        : `the operator delivered a value to ${outcome.path} (${outcome.bytes ?? 0} bytes)`
     case EOperatorRequestOutcome.Cancelled:
       return `the operator cancelled it and ${NO_VALUE}`
     case EOperatorRequestOutcome.Abandoned:
       return `the session stopped waiting for the answer and ${NO_VALUE}`
     case EOperatorRequestOutcome.Failed:
-      return settled.reason === undefined
+      return outcome.reason === undefined
         ? `the delivery failed and ${NO_VALUE}`
-        : `the delivery failed and ${NO_VALUE}: ${settled.reason}`
+        : `the delivery failed and ${NO_VALUE}: ${outcome.reason}`
     case EOperatorRequestOutcome.Expired:
       return `it expired unanswered and ${NO_VALUE}`
   }
 }
 
-const entryOfRun = (args: {
-  run: RequestRun
-  state: OperatorRequestState
-}): OperatorRequestEntry => {
-  const { asked, settled } = args.run
-  const head = `asked the operator: ${asked.prompt}`
+const entryOf = (run: Parked): OperatorRequestEntry => {
+  const { request, outcome } = run
+  const head = `asked the operator: ${request.prompt}`
+  const state = outcome === undefined ? 'pending' : STATE_OF_OUTCOME[outcome.outcome]
 
   return {
     kind: EEntryKind.OperatorRequest,
     author: EAuthor.Model,
-    key: asked.id,
-    text: args.state === 'pending' ? head : `${head} — ${outcomeText(settled)}`,
-    requestId: asked.requestId,
-    prompt: asked.prompt,
-    secret: asked.secret,
-    ...(asked.shellId === undefined ? {} : { shellId: asked.shellId }),
-    state: args.state,
-    ...(asked.expiresAt === undefined ? {} : { expiresAt: asked.expiresAt }),
-    ...(settled?.path === undefined ? {} : { path: settled.path }),
-    ...(settled?.bytes === undefined ? {} : { bytes: settled.bytes }),
-    ...(settled?.reason === undefined ? {} : { reason: settled.reason }),
+    key: run.callId,
+    text: state === 'pending' ? head : `${head} — ${outcomeText(outcome)}`,
+    callId: run.callId,
+    prompt: request.prompt,
+    ...(request.kind === EOperatorRequestKind.Shell ? { shellId: request.shellId } : {}),
+    state,
+    ...(outcome?.path === undefined ? {} : { path: outcome.path }),
+    ...(outcome?.bytes === undefined ? {} : { bytes: outcome.bytes }),
+    ...(outcome?.reason === undefined ? {} : { reason: outcome.reason }),
   }
 }
 
-/** Two events per request: the row is keyed by the one that drew the card, so it redraws when the other lands. */
 export const requestEntriesAt = (args: {
   events: readonly (Event | V2Event)[]
-  now: number
 }): ReadonlyMap<string, OperatorRequestEntry> => {
   const entries = new Map<string, OperatorRequestEntry>()
-  for (const run of runsOf(args.events).values()) {
-    entries.set(run.asked.id, entryOfRun({ run, state: stateOf({ run, now: args.now }) }))
-  }
+  const runs = [...runsOf(args.events).values()].sort((left, right) => left.seq - right.seq)
+  for (const run of runs) entries.set(run.callId, entryOf(run))
   return entries
 }
 
-/** A request with no deadline stays pending until it settles; one whose deadline passed reads as expired. */
-export const operatorRequestEntries: TranscriptEntryFold = (events) =>
-  requestEntriesAt({ events, now: Date.now() })
+export const operatorRequestEntries: TranscriptEntryFold = (events) => requestEntriesAt({ events })

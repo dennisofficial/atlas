@@ -6,6 +6,7 @@ import {
   checkForUpdate,
   type DesktopUpdate,
   EDesktopUpdateState,
+  EWebPayloadState,
   restartForUpdate,
 } from '@/features/desktop/update-wire'
 import { useIsDesktop } from '@/features/desktop/use-is-desktop'
@@ -28,8 +29,14 @@ export type SessionUpdate = {
 export const phaseOfUpdate = (update: DesktopUpdate): ESessionUpdatePhase => {
   if (update.state === EDesktopUpdateState.Ready) return ESessionUpdatePhase.Ready
   if (update.state === EDesktopUpdateState.Restarting) return ESessionUpdatePhase.Restarting
+  if (update.web?.state === EWebPayloadState.Ready) return ESessionUpdatePhase.Ready
   return update.error === undefined ? ESessionUpdatePhase.Current : ESessionUpdatePhase.Failed
 }
+
+export const versionOfUpdate = (update: DesktopUpdate): string | undefined =>
+  update.state === EDesktopUpdateState.Ready
+    ? update.version
+    : (update.web?.version ?? update.version)
 
 export function useSessionUpdate(): SessionUpdate {
   const isDesktop = useIsDesktop()
@@ -42,7 +49,7 @@ export function useSessionUpdate(): SessionUpdate {
     checkForUpdate().then(
       (update) => {
         setPhase(phaseOfUpdate(update))
-        setVersion(update.version)
+        setVersion(versionOfUpdate(update))
       },
       () => setPhase(ESessionUpdatePhase.Failed),
     )
@@ -55,7 +62,7 @@ export function useSessionUpdate(): SessionUpdate {
       (update) => {
         if (!current) return
         setPhase(phaseOfUpdate(update))
-        setVersion(update.version)
+        setVersion(versionOfUpdate(update))
       },
       () => {
         if (current) setPhase(ESessionUpdatePhase.Failed)

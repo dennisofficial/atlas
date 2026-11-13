@@ -3,6 +3,7 @@ import { useState } from 'react'
 import {
   answerOperatorRequest,
   cancelOperatorRequest,
+  type OperatorAnswerKey,
   type OperatorAnswerResult,
 } from '@/features/threads/data/operator-answer'
 import {
@@ -20,25 +21,28 @@ export const pendingOperatorRequestOf = (items: readonly TranscriptRow[]): Reque
 type EAnswerPhase = 'sending' | 'sent' | 'failed'
 
 type AnswerState = {
-  requestId: string
+  callId: string
   phase: EAnswerPhase
   error?: string | undefined
 }
 
-export function useOperatorRequestAnswer(request: RequestItem | null) {
+export type OperatorRequestAnswerArgs = {
+  sessionId: string
+  request: RequestItem | null
+}
+
+export function useOperatorRequestAnswer(args: OperatorRequestAnswerArgs) {
   const [answer, setAnswer] = useState<AnswerState | null>(null)
-  const requestId = request?.requestId
-  const current = answer !== null && answer.requestId === requestId ? answer : null
+  const callId = args.request?.callId
+  const current = answer !== null && answer.callId === callId ? answer : null
   const submitting = current?.phase === 'sending' || current?.phase === 'sent'
 
-  const send = (work: (id: string) => Promise<OperatorAnswerResult>) => {
-    if (requestId === undefined) return
-    setAnswer({ requestId, phase: 'sending' })
-    void work(requestId).then((result) => {
+  const send = (work: (key: OperatorAnswerKey) => Promise<OperatorAnswerResult>) => {
+    if (callId === undefined) return
+    setAnswer({ callId, phase: 'sending' })
+    void work({ sessionId: args.sessionId, callId }).then((result) => {
       setAnswer(
-        result.ok
-          ? { requestId, phase: 'sent' }
-          : { requestId, phase: 'failed', error: result.reason },
+        result.ok ? { callId, phase: 'sent' } : { callId, phase: 'failed', error: result.reason },
       )
     })
   }
@@ -46,7 +50,7 @@ export function useOperatorRequestAnswer(request: RequestItem | null) {
   return {
     submitting,
     error: current?.phase === 'failed' ? current.error : undefined,
-    handleSubmit: (value: string) => send((id) => answerOperatorRequest({ requestId: id, value })),
-    handleCancel: () => send((id) => cancelOperatorRequest({ requestId: id })),
+    handleSubmit: (value: string) => send((key) => answerOperatorRequest({ ...key, value })),
+    handleCancel: () => send((key) => cancelOperatorRequest(key)),
   }
 }
