@@ -61,7 +61,6 @@ export const sessionCreateInputSchema = z.strictObject({
   model: z.string().min(1).optional(),
   effort: z.string().min(1).optional(),
   fast: z.boolean().optional(),
-  accountId: z.string().min(1).optional(),
   firstMessage: messageDraftSchema.optional(),
 })
 
@@ -144,7 +143,6 @@ export const sessionModelChoiceSchema = z.strictObject({
   ref: z.string().min(1),
   effort: z.string().min(1).optional(),
   fast: z.boolean().optional(),
-  accountId: z.string().min(1).optional(),
 })
 
 export type SessionModelChoice = z.infer<typeof sessionModelChoiceSchema>
@@ -153,7 +151,6 @@ export const sessionModelChoiceOf = (row: {
   modelRef: string | null
   modelEffort: string | null
   modelFast: boolean | null
-  modelAccountId: string | null
 }): SessionModelChoice | null =>
   row.modelRef === null
     ? null
@@ -161,7 +158,6 @@ export const sessionModelChoiceOf = (row: {
         ref: row.modelRef,
         ...(row.modelEffort === null ? {} : { effort: row.modelEffort }),
         ...(row.modelFast === null ? {} : { fast: row.modelFast }),
-        ...(row.modelAccountId === null ? {} : { accountId: row.modelAccountId }),
       }
 
 export const sessionSummarySchema = z.strictObject({

@@ -12,13 +12,12 @@ export const modelSetArgs = z.strictObject({
   model: z.string().min(1),
   effort: z.string().min(1).optional(),
   fast: z.boolean().optional(),
-  accountId: z.string().min(1).optional(),
 })
 
 export const modelSet = defineCommand({
   spec: {
     name: 'model-set',
-    summary: 'Run this session on another model, effort or account',
+    summary: 'Run this session on another model, effort or fast mode',
     group: ECommandGroup.Session,
     args: modelSetArgs,
     timing: ECommandTiming.Immediate,

@@ -1,0 +1,44 @@
+[
+  {
+    "id": "dropColumn.V2Session.modelAccountId",
+    "label": "Drop column \"modelAccountId\" from \"V2Session\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "column",
+        "name": "modelAccountId",
+        "table": "V2Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"modelAccountId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "modelAccountId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"modelAccountId\"",
+        "sql": "ALTER TABLE \"v2\".\"V2Session\" DROP COLUMN \"modelAccountId\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"modelAccountId\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "modelAccountId"
+        ]
+      }
+    ]
+  }
+]

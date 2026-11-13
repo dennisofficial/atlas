@@ -15,7 +15,6 @@ import {
   type PodPeers,
   type PrepareResult,
   type PrepareStepReporter,
-  type RoleModelChoice,
   type SessionRuntimeFactory,
 } from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
@@ -29,8 +28,6 @@ import type { SigningKeyReader } from '../tokens/signing-key-reader'
 import { SandboxSaidUploads } from '../uploads/sandbox-said-uploads'
 import { signerUploadBlobs } from '../uploads/upload-blobs'
 import type { ConfigSource } from '../config/agent-host-config'
-import type { ResolvedRoleModel } from '../config/model-config'
-import type { RoleModelRequest } from '@dltech/atlas-host'
 import type { CloudConfigStore } from '../config/cloud-config-store'
 import type { EnvSecretsSource } from '../config/env-secrets'
 import { SANDBOX_HOME_PATH, WORKSPACE_PATH } from '../sandbox/constants'
@@ -53,7 +50,7 @@ import { daemonToolsOf } from './tools'
 import { ShellEnvCell } from './shell-env'
 import { envSecretsRefresher } from './env-secrets-refresh'
 import { pathEnvironmentOf, sessionPathsOf, shellEnvironmentOf } from './session-paths'
-import { modelPortOf } from './model-port'
+import { fixedSessionModelsOf, liveSessionModelsOf, type SessionModels } from './model-port'
 import { modelLabelOf } from '../config/model-labels'
 import { prepareSigning } from './signing-setup'
 import { ensureWorkspace } from './workspace-setup'
@@ -270,23 +267,23 @@ export const createSessionRuntimeFactory = (
     const registry = new InMemoryToolRegistry(tools)
     const byName = new Map(tools.map((tool) => [tool.name, tool]))
 
-    const portOf = (resolved: ResolvedRoleModel): ModelPort =>
-      modelPortOf({
-        userId: config.userId,
-        resolved,
-        tokens: args.tokens,
-        ...(args.log === undefined ? {} : { log: args.log }),
-        ...(args.media === undefined ? {} : { media: args.media }),
-      })
     const overridden = args.modelFor
-    const modelFor = (request: RoleModelRequest): ModelPort =>
-      overridden === undefined ? portOf(config.models.resolve(request)) : overridden({ sessionId })
-    const choiceFor = (request: RoleModelRequest): RoleModelChoice =>
-      overridden === undefined ? config.models.resolve(request).choice : config.models.main.choice
-
-    let model: ModelPort
+    let models: SessionModels
     try {
-      model = overridden === undefined ? portOf(config.models.main) : overridden({ sessionId })
+      models =
+        overridden === undefined
+          ? liveSessionModelsOf({
+              userId: config.userId,
+              initial: config.models,
+              read: () => args.config.models({ sessionId, threadId }),
+              tokens: args.tokens,
+              media: args.media,
+              log: args.log,
+            })
+          : fixedSessionModelsOf({
+              port: () => overridden({ sessionId }),
+              source: config.models,
+            })
     } catch (error) {
       calls.close()
       throw error
@@ -307,17 +304,19 @@ export const createSessionRuntimeFactory = (
 
     return {
       remoteCalls: calls,
-      model,
-      modelChoice: config.models.main.choice,
-      modelFor,
-      choiceFor,
+      model: models.main,
+      get modelChoice() {
+        return models.modelChoice()
+      },
+      modelFor: models.modelFor,
+      choiceFor: models.choiceFor,
       modelLabelOf,
       tools: registry,
       daemonTools: new Set(daemonToolList.map((tool) => tool.name)),
       effectOf: (name) => byName.get(name)?.effect,
       assembly: defaultPipeline({
         prompt: agentHostPrompt({
-          identity: model.identity,
+          identity: () => models.main.identity,
           extraFragments: [
             ...(args.plugins?.pod.prompts ?? []),
             new EnvSecretsFragment(() => shellEnv.exportedSecretNames()),

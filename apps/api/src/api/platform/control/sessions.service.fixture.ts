@@ -10,11 +10,7 @@ import { FakeMediaRegistry } from './media-registry.fake'
 import { SessionsService } from './sessions.service'
 import { ProjectAccess } from './project-access'
 import { modelSet } from './model-set'
-import {
-  SessionModelChoice,
-  type AccountRef,
-  type SessionModelDefault,
-} from './session-model-choice'
+import { SessionModelChoice, type SessionModelDefault } from './session-model-choice'
 
 export const RENAME_ARGS = z.strictObject({ title: z.string().min(1) })
 
@@ -43,8 +39,6 @@ class NoBackgroundWork extends BackgroundWork {
 
 export class FakeSessionModelChoice extends SessionModelChoice {
   readonly settings = new Map<string, unknown>()
-  readonly accounts = new Map<string, AccountRef & { userId: string }>()
-  readonly activeAccounts = new Map<string, string>()
   readonly writes: ({ sessionId: string } & SessionModelDefault)[] = []
 
   protected async settingValue(args: {
@@ -53,22 +47,6 @@ export class FakeSessionModelChoice extends SessionModelChoice {
     key: string
   }): Promise<unknown> {
     return this.settings.get(args.key)
-  }
-
-  protected async accountOf(args: {
-    userId: string
-    accountId: string
-  }): Promise<AccountRef | undefined> {
-    const row = this.accounts.get(args.accountId)
-    if (row === undefined || row.userId !== args.userId) return undefined
-    return { id: row.id, provider: row.provider }
-  }
-
-  protected async activeAccountOf(args: {
-    userId: string
-    provider: string
-  }): Promise<string | undefined> {
-    return this.activeAccounts.get(args.provider)
   }
 
   async write(args: { sessionId: string } & SessionModelDefault): Promise<boolean> {

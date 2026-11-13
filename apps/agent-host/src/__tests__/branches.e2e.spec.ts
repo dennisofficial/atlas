@@ -65,6 +65,7 @@ const sourceWithRepo = (remoteUrl: string): ConfigSource => ({
       skills: [],
     }
   },
+  models: async () => fakeModelSourceOf({ configured: false, gap: 'scripted model in test' }),
 })
 
 const branchRecords = (events: readonly ReadEvent[]): ReadEvent[] =>

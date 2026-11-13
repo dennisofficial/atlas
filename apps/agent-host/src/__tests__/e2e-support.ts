@@ -72,6 +72,7 @@ export const sourceFor = (setupScript = ''): ConfigSource => ({
       skills: [],
     }
   },
+  models: async () => fakeModelSourceOf({ configured: false, gap: 'scripted model in test' }),
 })
 
 export const noGithub = (): { read(): Promise<string | null> } => ({ read: async () => null })

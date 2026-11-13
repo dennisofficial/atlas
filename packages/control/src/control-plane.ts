@@ -105,7 +105,6 @@ export class ControlPlane {
     modelRef?: string | undefined
     modelEffort?: string | undefined
     modelFast?: boolean | undefined
-    modelAccountId?: string | undefined
     routineId?: string | undefined
   }): Promise<void> {
     await this.store.transact(async (tx) =>
@@ -122,7 +121,6 @@ export class ControlPlane {
     modelRef?: string | undefined
     modelEffort?: string | undefined
     modelFast?: boolean | undefined
-    modelAccountId?: string | undefined
     routineId?: string | undefined
     message: { kind: string; payload: string }
   }): Promise<{ inboxId: number }> {

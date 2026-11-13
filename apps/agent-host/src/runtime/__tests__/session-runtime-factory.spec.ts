@@ -98,6 +98,7 @@ const makeFakeTimers = (): { timers: HostTimers; fireScheduled: () => void } => 
 
 const apiOf = (output: AgentHostConfig): ConfigSource & { issue(): Promise<never> } => ({
   read: async () => output,
+  models: async () => output.models,
   issue: async () => {
     throw new Error('unused')
   },
@@ -389,6 +390,7 @@ describe('createSessionRuntimeFactory', () => {
   it("builds the model port with the thread model's image capability", async () => {
     const asked: { sessionId: string; threadId?: string | undefined }[] = []
     const api: ConfigSource & { issue(): Promise<never> } = {
+      models: async () => configured().models,
       read: async (args) => {
         asked.push(args)
         return configured({

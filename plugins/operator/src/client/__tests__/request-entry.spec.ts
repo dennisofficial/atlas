@@ -13,13 +13,13 @@ const requestOf = (prompt = 'What is the login code?') => ({
 })
 
 describe('the operator request fold', () => {
-  it('draws a pending card keyed by the parked call id', () => {
+  it('draws a pending card keyed by the tool-parked event, carrying the call id', () => {
     const [entry] = [...requestEntriesAt({ events: [parkedOf(1)] }).values()]
 
     expect(entry).toEqual({
       kind: EEntryKind.OperatorRequest,
       author: EAuthor.Model,
-      key: 'call_1',
+      key: 'e1',
       text: 'asked the operator: What is the login code?',
       callId: 'call_1',
       prompt: 'What is the login code?',
@@ -43,7 +43,7 @@ describe('the operator request fold', () => {
         parkedOf(1),
         resultOf(2, { output: { outcome: 'delivered', path: PATH, bytes: 7 } }),
       ],
-    }).get('call_1')
+    }).get('e1')
     const cancelled = requestEntriesAt({
       events: [
         parkedOf(1),
@@ -52,7 +52,7 @@ describe('the operator request fold', () => {
           error: { message: 'the operator did not deliver a value: cancelled' },
         }),
       ],
-    }).get('call_1')
+    }).get('e1')
 
     expect(delivered).toMatchObject({ state: 'delivered', path: PATH, bytes: 7 })
     expect(cancelled).toMatchObject({
@@ -83,7 +83,8 @@ describe('the operator request fold', () => {
       ],
     })
 
-    expect([...both.keys()]).toEqual(['call_1', 'call_2'])
+    expect([...both.keys()]).toEqual(['e1', 'e2'])
+    expect([...both.values()].map((entry) => entry.callId)).toEqual(['call_1', 'call_2'])
     expect([...both.values()].map((entry) => entry.state)).toEqual(['pending', 'pending'])
     expect([...closed.values()].map((entry) => entry.state)).toEqual(['pending', 'delivered'])
   })

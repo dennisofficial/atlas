@@ -51,7 +51,7 @@ const registryOf = (extraFragments: readonly PromptFragment[]): PromptFragmentRe
   ])
 
 export const agentHostPrompt = (args: {
-  identity: ProviderIdentity
+  identity: () => ProviderIdentity
   extraFragments?: readonly PromptFragment[] | undefined
   spawner?: PromptSpawner | undefined
 }): PromptSource => {
@@ -60,7 +60,7 @@ export const agentHostPrompt = (args: {
     registry.compile(
       promptContextFor({
         groups: ALL_PROMPT_GROUPS,
-        provider: args.identity,
+        provider: args.identity(),
         projectDirectory,
         placement: EExecutionLocation.Cloud,
         runner: ERunner.Vercel,

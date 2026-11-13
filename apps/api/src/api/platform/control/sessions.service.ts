@@ -80,7 +80,6 @@ export class SessionsService {
     model?: string | undefined
     effort?: string | undefined
     fast?: boolean | undefined
-    accountId?: string | undefined
     firstMessage?: SessionMessageDraft | undefined
   }) {
     await this.accessibleProjectId({
@@ -93,7 +92,6 @@ export class SessionsService {
       model: args.model,
       effort: args.effort,
       fast: args.fast,
-      accountId: args.accountId,
     })
     const sessionId = randomUUID()
     const mainThreadId = randomUUID()

@@ -108,6 +108,7 @@ const testSource = (): ConfigSource => ({
       skills: [],
     }
   },
+  models: async () => fakeModelSourceOf({ configured: false, gap: 'scripted model in test' }),
 })
 
 const testTokens = () => ({
