@@ -20,6 +20,7 @@ import {
 } from './decisions-presets'
 import { EFFORT_OPTIONS_WITH_INHERIT, INHERIT_EFFORT } from './effort-rows'
 import { ESettingsLayer } from './layers'
+import { compactionRoleRows, quickRoleRows, subagentFastRow } from './model-role-rows'
 import { choiceValueOf, type SettingsResolution } from './resolve'
 import { ESettingKind, type SettingOption } from './value'
 
@@ -69,10 +70,15 @@ export enum ESettingId {
   ModelEffort = 'model.effort',
   ModelFast = 'model.fast',
   QuickModel = 'model.quickModel',
+  QuickEffort = 'model.quickEffort',
+  QuickFast = 'model.quickFast',
   CompactionModel = 'model.compactionModel',
+  CompactionEffort = 'model.compactionEffort',
+  CompactionFast = 'model.compactionFast',
   ModelFavourites = 'model.favourites',
   SubagentModel = 'agents.subagentModel',
   SubagentEffort = 'agents.subagentEffort',
+  SubagentFast = 'agents.subagentFast',
   ExecutionLocation = 'execution.location',
   LastBornPlacement = 'placement.lastBorn',
   ContainerCpus = 'container.cpus',
@@ -640,6 +646,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     fallback: '',
     unsetLabel: 'follow default',
   },
+  ...quickRoleRows(),
   {
     id: ESettingId.CompactionModel,
     page: ESettingPage.Models,
@@ -652,6 +659,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     fallback: '',
     unsetLabel: 'follow default',
   },
+  ...compactionRoleRows(),
   {
     id: ESettingId.SubagentModel,
     page: ESettingPage.Models,
@@ -676,6 +684,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     fallback: INHERIT_EFFORT,
     options: EFFORT_OPTIONS_WITH_INHERIT,
   },
+  subagentFastRow(),
   {
     id: ESettingId.DecisionsProvider,
     page: ESettingPage.Models,

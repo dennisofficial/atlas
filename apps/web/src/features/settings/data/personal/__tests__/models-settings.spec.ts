@@ -1,198 +1,99 @@
 import { describe, expect, it } from 'bun:test'
 
+import { EEffort } from '@dltech/atlas-core'
+
+import { MAIN_MODEL, optionsFixture, SMALL_MODEL } from './model-options-fixture'
+import { choiceOf, resolveRoles } from '../model-roles'
 import {
-  BUILT_IN_AGENT_ORDER,
-  EAgentRole,
-  EBuiltInAgentType,
-  EEffort,
-  EPreset,
-  PRESETS,
-} from '../../../fixtures/settings-agent'
-import {
-  BUILT_IN_EFFORT_KEYS,
-  BUILT_IN_MODEL_KEYS,
+  effortDraft,
+  fastDraft,
+  followedDraft,
   modelsChanges,
   modelsDraftFrom,
-  TEAMMATE_EFFORT_KEY,
-  TEAMMATE_MODEL_KEY,
+  pickedModelDraft,
 } from '../models-settings'
 
+const saved = () => modelsDraftFrom(new Map())
+
 describe('modelsDraftFrom', () => {
-  it('reads teammate and built-in overrides as follow when unset', () => {
-    const draft = modelsDraftFrom(new Map())
-    expect(draft.teammate).toEqual({ model: 'auto' })
-    for (const type of BUILT_IN_AGENT_ORDER) {
-      expect(draft.builtIns[type]).toEqual({ model: 'auto' })
-    }
+  it('reads unset roles as followers', () => {
+    const draft = saved()
+    expect(draft.main).toEqual({ model: '', effort: '', fast: false })
+    expect(draft['agent-type:teammate']).toEqual({ model: '', effort: '', fast: false })
+    expect(draft['agent-type:builder']).toEqual({ model: '', effort: '', fast: false })
   })
 
-  it('maps stored agent-type keys onto their cards', () => {
+  it('reads a stored model, effort and fast per role', () => {
     const draft = modelsDraftFrom(
-      new Map([
-        ['agents.type.teammate', 'anthropic/claude-opus-5'],
-        ['agents.type.builder', 'openai/gpt-5-mini'],
-        ['agents.type.reviewer', 'anthropic/claude-sonnet-5'],
+      new Map<string, string | boolean>([
+        ['model.id', MAIN_MODEL],
+        ['model.effort', 'high'],
+        ['model.fast', true],
+        ['agents.type.teammate', SMALL_MODEL],
       ]),
     )
-    expect(draft.teammate.model).toBe('anthropic/claude-opus-5')
-    expect(draft.builtIns[EBuiltInAgentType.Builder].model).toBe('openai/gpt-5-mini')
-    expect(draft.builtIns[EBuiltInAgentType.Reviewer].model).toBe('anthropic/claude-sonnet-5')
-  })
-
-  it('reads the main role fast toggle, defaulting off', () => {
-    expect(modelsDraftFrom(new Map()).roles[EAgentRole.Main].fast).toBe(false)
-    expect(modelsDraftFrom(new Map([['model.fast', true]])).roles[EAgentRole.Main].fast).toBe(true)
-    expect(modelsDraftFrom(new Map([['model.fast', true]])).roles[EAgentRole.Quick].fast).toBe(
-      undefined,
-    )
-  })
-})
-
-describe('modelsDraftFrom effort', () => {
-  it('reads inherit when no effort is stored, empty or unrecognised', () => {
-    const draft = modelsDraftFrom(
-      new Map([
-        ['agents.subagentEffort', ''],
-        [TEAMMATE_EFFORT_KEY, 'bogus'],
-      ]),
-    )
-    expect(draft.roles[EAgentRole.Subagents].effort).toBeUndefined()
-    expect(draft.teammate.effort).toBeUndefined()
-    expect(draft.builtIns[EBuiltInAgentType.Builder].effort).toBeUndefined()
-  })
-
-  it('reads stored rungs for subagents, teammate and built-in types', () => {
-    const draft = modelsDraftFrom(
-      new Map([
-        ['agents.subagentEffort', 'low'],
-        [TEAMMATE_EFFORT_KEY, 'max'],
-        [BUILT_IN_EFFORT_KEYS[EBuiltInAgentType.Explore], 'high'],
-      ]),
-    )
-    expect(draft.roles[EAgentRole.Subagents].effort).toBe(EEffort.Low)
-    expect(draft.teammate.effort).toBe(EEffort.Max)
-    expect(draft.builtIns[EBuiltInAgentType.Explore].effort).toBe(EEffort.High)
-    expect(draft.builtIns[EBuiltInAgentType.Builder].effort).toBeUndefined()
-  })
-
-  it('keeps the main agent defaulting to medium', () => {
-    expect(modelsDraftFrom(new Map()).roles[EAgentRole.Main].effort).toBe(EEffort.Medium)
+    expect(draft.main).toEqual({ model: MAIN_MODEL, effort: 'high', fast: true })
+    expect(draft['agent-type:teammate']?.model).toBe(SMALL_MODEL)
   })
 })
 
 describe('modelsChanges', () => {
-  const saved = modelsDraftFrom(new Map())
-
-  it('diffs the teammate model, with auto written back as empty', () => {
-    const draft = { ...saved, teammate: { model: 'anthropic/claude-opus-5' } }
-    expect(modelsChanges({ saved, draft })).toEqual({
-      [TEAMMATE_MODEL_KEY]: 'anthropic/claude-opus-5',
+  it('diffs only what changed', () => {
+    const base = saved()
+    expect(modelsChanges({ saved: base, draft: base })).toEqual({})
+    const changes = modelsChanges({
+      saved: base,
+      draft: effortDraft({ draft: base, role: 'main', effort: EEffort.High }),
     })
-    const set = modelsDraftFrom(new Map([[TEAMMATE_MODEL_KEY, 'anthropic/claude-opus-5']]))
-    expect(modelsChanges({ saved: set, draft: saved })).toEqual({
-      [TEAMMATE_MODEL_KEY]: '',
-    })
+    expect(changes).toEqual({ 'model.effort': 'high' })
   })
 
-  it('diffs a built-in sub-agent override without touching preset bookkeeping', () => {
-    const draft = {
-      ...saved,
-      builtIns: {
-        ...saved.builtIns,
-        [EBuiltInAgentType.Builder]: { model: 'openai/gpt-5-mini' },
-      },
-    }
-    expect(modelsChanges({ saved, draft })).toEqual({
-      [BUILT_IN_MODEL_KEYS[EBuiltInAgentType.Builder]]: 'openai/gpt-5-mini',
+  it('follow clears the role to empty values', () => {
+    const base = { ...saved(), main: { model: MAIN_MODEL, effort: 'high', fast: true } }
+    const cleared = followedDraft({ draft: base, role: 'main' })
+    expect(modelsChanges({ saved: base, draft: cleared })).toEqual({
+      'model.id': '',
+      'model.effort': '',
+      'model.fast': false,
     })
   })
 
-  it('writes an empty string when a built-in override returns to follow', () => {
-    const stored = new Map([[BUILT_IN_MODEL_KEYS[EBuiltInAgentType.Explore], 'openai/gpt-5']])
-    const before = modelsDraftFrom(stored)
-    const after = modelsDraftFrom(stored)
-    after.builtIns[EBuiltInAgentType.Explore] = { model: 'auto' }
-    expect(modelsChanges({ saved: before, draft: after })).toEqual({
-      [BUILT_IN_MODEL_KEYS[EBuiltInAgentType.Explore]]: '',
+  it('writes a fast change for a role that owns a model', () => {
+    const base = { ...saved(), main: { model: MAIN_MODEL, effort: 'high', fast: false } }
+    const changed = fastDraft({ draft: base, role: 'main', fast: true })
+    expect(modelsChanges({ saved: base, draft: changed })).toEqual({ 'model.fast': true })
+  })
+})
+
+describe('pickedModelDraft', () => {
+  it('clamps the effort to the new model rungs and drops unsupported fast', () => {
+    const models = optionsFixture()
+    const base = { ...saved(), main: { model: MAIN_MODEL, effort: 'max', fast: true } }
+    const choices = resolveRoles({ draft: base, models })
+    const picked = pickedModelDraft({
+      draft: base,
+      role: 'main',
+      model: SMALL_MODEL,
+      option: models.find((model) => model.id === SMALL_MODEL),
+      inherited: choiceOf({ choices, role: 'main' }),
     })
+    expect(picked.main).toEqual({ model: SMALL_MODEL, effort: 'medium', fast: false })
   })
 
-  it('writes the preset marker once when both roles and overrides change', () => {
-    const draft = {
-      roles: PRESETS[EPreset.Thorough],
-      teammate: { model: 'anthropic/claude-opus-5' },
-      builtIns: saved.builtIns,
-    }
-    const changes = modelsChanges({ saved, draft })
-    expect(changes['web.models.preset']).toBe('thorough')
-    expect(changes[TEAMMATE_MODEL_KEY]).toBe('anthropic/claude-opus-5')
-    expect(Object.keys(changes).filter((key) => key === 'web.models.preset')).toHaveLength(1)
-  })
-
-  it('writes the preset marker when only the effort rung changes', () => {
-    const draft = {
-      ...saved,
-      roles: {
-        ...saved.roles,
-        [EAgentRole.Main]: { model: 'auto', effort: EEffort.High },
-      },
-    }
-    expect(modelsChanges({ saved, draft })['web.models.preset']).toBe('custom')
-  })
-
-  it('writes model.fast as a boolean without touching the preset marker', () => {
-    const draft = {
-      ...saved,
-      roles: {
-        ...saved.roles,
-        [EAgentRole.Main]: { ...saved.roles[EAgentRole.Main], fast: true },
-      },
-    }
-    const changes = modelsChanges({ saved, draft })
-    expect(changes['model.fast']).toBe(true)
-    expect(changes['web.models.preset']).toBe('balanced')
-  })
-
-  it('writes a built-in effort rung and clears it back to an empty string', () => {
-    const set = {
-      ...saved,
-      builtIns: {
-        ...saved.builtIns,
-        [EBuiltInAgentType.Reviewer]: { model: 'auto', effort: EEffort.High },
-      },
-    }
-    const key = BUILT_IN_EFFORT_KEYS[EBuiltInAgentType.Reviewer]
-    expect(modelsChanges({ saved, draft: set })).toEqual({ [key]: 'high' })
-    expect(modelsChanges({ saved: set, draft: saved })).toEqual({ [key]: '' })
-  })
-
-  it('writes teammate and subagent inherit as an empty string', () => {
-    const stored = modelsDraftFrom(
-      new Map([
-        [TEAMMATE_EFFORT_KEY, 'low'],
-        ['agents.subagentEffort', 'low'],
-      ]),
-    )
-    const draft = {
-      ...stored,
-      teammate: { model: 'auto' },
-      roles: { ...stored.roles, [EAgentRole.Subagents]: { model: 'auto' } },
-    }
-    const changes = modelsChanges({ saved: stored, draft })
-    expect(changes[TEAMMATE_EFFORT_KEY]).toBe('')
-    expect(changes['agents.subagentEffort']).toBe('')
-  })
-
-  it('leaves the preset marker alone for a subagent effort-only change', () => {
-    const draft = {
-      ...saved,
-      roles: {
-        ...saved.roles,
-        [EAgentRole.Subagents]: { model: 'auto', effort: EEffort.Low },
-      },
-    }
-    const changes = modelsChanges({ saved, draft })
-    expect(changes['agents.subagentEffort']).toBe('low')
-    expect(changes['web.models.preset']).toBeUndefined()
+  it('starts a follower from the model, effort and fast it inherited', () => {
+    const models = optionsFixture()
+    const base = { ...saved(), main: { model: MAIN_MODEL, effort: 'high', fast: true } }
+    const choices = resolveRoles({ draft: base, models })
+    const inherited = choiceOf({ choices, role: 'subagents' })
+    expect(inherited.effort).toBe(EEffort.High)
+    expect(inherited.fast).toBe(true)
+    const picked = pickedModelDraft({
+      draft: base,
+      role: 'subagents',
+      model: MAIN_MODEL,
+      option: models.find((model) => model.id === MAIN_MODEL),
+      inherited,
+    })
+    expect(picked.subagents).toEqual({ model: MAIN_MODEL, effort: 'high', fast: true })
   })
 })

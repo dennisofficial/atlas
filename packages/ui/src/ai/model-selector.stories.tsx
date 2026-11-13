@@ -4,7 +4,7 @@ import type { Meta, StoryObj } from '@storybook/react'
 import { EEffort, ModelSelector, type ModelOption } from './model-selector'
 import { InputGroup, InputGroupAddon } from '#components/input-group'
 
-import { MODELS } from '../fixtures/agent'
+import { DEEPSEEK_FLASH, FOLLOWING, MODELS, NATIVE_MODEL } from '../fixtures/agent'
 import MODEL_CATALOGUE from '../fixtures/model-catalogue.json'
 import { PROVIDER_LABELS } from '../fixtures/settings-models'
 import {
@@ -268,3 +268,26 @@ export const WithUnavailableProviders: Story = {
     />
   ),
 }
+
+function NativeDemo({ follows = false }: { follows?: boolean }) {
+  const [model, setModel] = useState(DEEPSEEK_FLASH)
+  const [effort, setEffort] = useState(EEffort.High)
+  return (
+    <InputGroup className="w-96">
+      <InputGroupAddon align="block-end">
+        <ModelSelector
+          models={[NATIVE_MODEL, ...CATALOGUE]}
+          value={model}
+          onValueChange={setModel}
+          effort={effort}
+          onEffortChange={setEffort}
+          {...(follows ? { follow: FOLLOWING, defaultOpen: true } : {})}
+        />
+      </InputGroupAddon>
+    </InputGroup>
+  )
+}
+
+export const ModelNativeEffortLabels: Story = { render: () => <NativeDemo /> }
+
+export const FollowingMainAgent: Story = { render: () => <NativeDemo follows /> }

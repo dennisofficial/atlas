@@ -1,19 +1,26 @@
 import {
   accountSchema,
   accountSecretSchema,
+  capabilitiesFromCatalog,
   chooseAccount,
-  clampEffort,
   EAccountChoice,
   EAuthKind,
   EAuthProvider,
-  DEFAULT_EFFORT,
   EEffort,
+  EModelRole,
+  EStalePolicy,
   parseRef,
+  resolveModelChoice,
   toAccountId,
   type Account,
+  type CapabilitiesOf,
+  type ModelCapabilities,
+  type ModelChoice,
   type ModelRef,
+  type ModelRole,
+  type ResolvedModelChoice,
 } from '@dltech/atlas-core'
-import { cardsForProvider } from '@dltech/atlas-models'
+import { cardsForProvider, generatedCatalogue } from '@dltech/atlas-models'
 
 import type { ModelConfig } from './agent-host-config'
 import type { SecretCipher } from './secret-cipher'
@@ -27,12 +34,6 @@ const FALLBACK_PROVIDERS = [
   EAuthProvider.Gateway,
   EAuthProvider.Inference,
 ]
-
-export const MODEL_SETTING_KEYS = {
-  id: 'model.id',
-  effort: 'model.effort',
-  fast: 'model.fast',
-} as const
 
 export type ActiveAccountRow = { provider: string; accountId: string }
 
@@ -51,6 +52,8 @@ export type AccountRow = {
   updatedAt: Date
 }
 
+export type SettingReader = (settingId: string) => string | boolean | undefined
+
 const decodeSettingValue = (stored: string): unknown => {
   if (!stored.startsWith(SETTING_VALUE_PREFIX)) return stored
   try {
@@ -59,6 +62,15 @@ const decodeSettingValue = (stored: string): unknown => {
     return stored
   }
 }
+
+export const readOf =
+  (settings: ReadonlyMap<string, string>): SettingReader =>
+  (settingId) => {
+    const stored = settings.get(settingId)
+    if (stored === undefined) return undefined
+    const decoded = decodeSettingValue(stored)
+    return typeof decoded === 'string' || typeof decoded === 'boolean' ? decoded : undefined
+  }
 
 const accountOf = (row: AccountRow): Account | undefined => {
   const parsed = accountSchema.safeParse({
@@ -79,13 +91,11 @@ const accountOf = (row: AccountRow): Account | undefined => {
 
 type ParsedAccount = { account: Account; row: AccountRow }
 
-const settingOf = (args: { settings: ReadonlyMap<string, string>; key: string }): unknown => {
-  const stored = args.settings.get(args.key)
-  return stored === undefined ? undefined : decodeSettingValue(stored)
-}
-
-const effortOf = (value: unknown): EEffort =>
-  Object.values(EEffort).find((effort) => effort === value) ?? DEFAULT_EFFORT
+const parsedAccountsOf = (rows: readonly AccountRow[]): readonly ParsedAccount[] =>
+  rows.flatMap((row) => {
+    const account = accountOf(row)
+    return account === undefined ? [] : [{ account, row }]
+  })
 
 const isProvider = (value: string): value is EAuthProvider =>
   Object.values(EAuthProvider).some((provider) => provider === value)
@@ -120,6 +130,14 @@ const chosenFor = (args: {
   return args.parsed.find((entry) => entry.account.id === choice.account.id)
 }
 
+const reachableOf =
+  (args: {
+    parsed: readonly ParsedAccount[]
+    activeAccounts: readonly ActiveAccountRow[]
+  }): ((providerId: string) => boolean) =>
+  (providerId) =>
+    isProvider(providerId) && chosenFor({ provider: providerId, ...args }) !== undefined
+
 const fallbackRefOf = (args: {
   parsed: readonly ParsedAccount[]
   activeAccounts: readonly ActiveAccountRow[]
@@ -142,91 +160,48 @@ export type ThreadModelChoice = {
   accountId?: string | undefined
 }
 
-type WantedModel = { ref: ModelRef; effort: unknown; fast: unknown }
+export type ResolvedRoleModel = { choice: ResolvedModelChoice; config: ModelConfig }
 
-const effortOn = (args: { ref: ModelRef; wanted: unknown }): EEffort => {
-  const effort = effortOf(args.wanted)
-  const card = cardsForProvider(args.ref.providerId).find(
-    (entry) => entry.ref.modelId === args.ref.modelId,
-  )
-  return clampEffort({ map: card?.effort, effort }) ?? effort
+export type ModelSource = {
+  main: ResolvedRoleModel
+  resolve(args: { role: ModelRole; root?: ModelChoice | undefined }): ResolvedRoleModel
 }
 
-const configuredWith = (args: {
-  cipher: SecretCipher
-  parsed: readonly ParsedAccount[]
-  activeAccounts: readonly ActiveAccountRow[]
-  wanted: WantedModel
-  pinned?: string | undefined
-}): ModelConfig | undefined => {
-  const { ref } = args.wanted
-  if (!isProvider(ref.providerId)) return undefined
-  const chosen = chosenFor({
-    provider: ref.providerId,
-    parsed: args.parsed,
-    activeAccounts: args.activeAccounts,
-    pinned: args.pinned,
-  })
-  if (chosen === undefined) return undefined
-  const secret = accountSecretSchema.safeParse(
-    JSON.parse(args.cipher.decrypt(chosen.row.sealedSecret)),
-  )
-  if (!secret.success) return undefined
-  const base = {
-    configured: true,
-    ref,
-    effort: effortOn({ ref, wanted: args.wanted.effort }),
-    fast: args.wanted.fast === true,
-    accountId: chosen.row.id,
-  } as const
-  if (secret.data.kind === EAuthKind.ApiKey) {
-    return { ...base, credential: { kind: 'api-key', apiKey: secret.data.apiKey } }
-  }
-  const connectionId = secret.data.authority?.connectionId
-  return connectionId === undefined
-    ? undefined
-    : { ...base, credential: { kind: 'oauth', connectionId } }
-}
-
-export const modelConfigOf = (args: {
+export type ModelSourceArgs = {
   cipher: SecretCipher
   accounts: readonly AccountRow[]
   activeAccounts: readonly ActiveAccountRow[]
   settings: ReadonlyMap<string, string>
   thread?: ThreadModelChoice | undefined
+}
+
+const UNCATALOGUED: ModelCapabilities = { efforts: [], fast: false, runnable: true }
+
+const capabilitiesOver = (reachable: (providerId: string) => boolean): CapabilitiesOf => {
+  const fromCatalog = capabilitiesFromCatalog({ catalog: generatedCatalogue(), reachable })
+  return (ref) => fromCatalog(ref) ?? (reachable(ref.providerId) ? UNCATALOGUED : undefined)
+}
+
+const effortOf = (value: unknown): EEffort | undefined =>
+  Object.values(EEffort).find((effort) => effort === value)
+
+const configuredWith = (args: {
+  cipher: SecretCipher
+  parsed: readonly ParsedAccount[]
+  activeAccounts: readonly ActiveAccountRow[]
+  choice: ResolvedModelChoice
+  pinned?: string | undefined
 }): ModelConfig => {
-  const parsed = args.accounts.flatMap((row) => {
-    const account = accountOf(row)
-    return account === undefined ? [] : [{ account, row }]
-  })
-  const settingsEffort = settingOf({ settings: args.settings, key: MODEL_SETTING_KEYS.effort })
-  const settingsFast = settingOf({ settings: args.settings, key: MODEL_SETTING_KEYS.fast })
-  const threadRef = args.thread === undefined ? undefined : parseRef(args.thread.ref)
-  if (threadRef !== undefined && args.thread !== undefined) {
-    const fromThread = configuredWith({
-      cipher: args.cipher,
-      parsed,
-      activeAccounts: args.activeAccounts,
-      wanted: {
-        ref: threadRef,
-        effort: args.thread.effort ?? settingsEffort,
-        fast: args.thread.fast ?? settingsFast,
-      },
-      pinned: args.thread.accountId,
-    })
-    if (fromThread !== undefined) return fromThread
-  }
-  const idSetting = settingOf({ settings: args.settings, key: MODEL_SETTING_KEYS.id })
-  const named = typeof idSetting === 'string' ? parseRef(idSetting) : undefined
-  const ref = named ?? fallbackRefOf({ parsed, activeAccounts: args.activeAccounts })
-  if (ref === undefined) return { configured: false, gap: 'no model account' }
+  const { ref } = args.choice
+  if (args.parsed.length === 0) return { configured: false, gap: 'no model account' }
   if (!isProvider(ref.providerId)) {
     return { configured: false, gap: `no ${ref.providerId} account` }
   }
   const chosen = chosenFor({
     provider: ref.providerId,
-    parsed,
+    parsed: args.parsed,
     activeAccounts: args.activeAccounts,
+    pinned: args.pinned,
   })
   if (chosen === undefined) return { configured: false, gap: `no ${ref.providerId} account` }
   const secret = accountSecretSchema.safeParse(
@@ -236,15 +211,77 @@ export const modelConfigOf = (args: {
   const base = {
     configured: true,
     ref,
-    effort: effortOn({ ref, wanted: settingsEffort }),
-    fast: settingsFast === true,
+    effort: args.choice.effort,
+    fast: args.choice.fast,
     accountId: chosen.row.id,
   } as const
   if (secret.data.kind === EAuthKind.ApiKey) {
     return { ...base, credential: { kind: 'api-key', apiKey: secret.data.apiKey } }
   }
   const connectionId = secret.data.authority?.connectionId
-  if (connectionId === undefined)
+  if (connectionId === undefined) {
     return { configured: false, gap: 'oauth account has no cloud connection' }
+  }
   return { ...base, credential: { kind: 'oauth', connectionId } }
 }
+
+export const modelSourceOf = (args: ModelSourceArgs): ModelSource => {
+  const parsed = parsedAccountsOf(args.accounts)
+  const reachable = reachableOf({ parsed, activeAccounts: args.activeAccounts })
+  const capabilitiesOf = capabilitiesOver(reachable)
+  const read = readOf(args.settings)
+  const fallback =
+    fallbackRefOf({ parsed, activeAccounts: args.activeAccounts }) ?? SHIPPED_DEFAULT_REF
+
+  const choose = (request: {
+    role: ModelRole
+    stale: EStalePolicy
+    root?: ModelChoice | undefined
+  }): ResolvedModelChoice =>
+    resolveModelChoice({
+      role: request.role,
+      read,
+      capabilitiesOf,
+      fallback,
+      stale: request.stale,
+      ...(request.root === undefined ? {} : { root: request.root }),
+    })
+
+  const fromSettingsMain = choose({ role: EModelRole.Main, stale: EStalePolicy.Keep })
+  const named = args.thread === undefined ? undefined : parseRef(args.thread.ref)
+  const threadRef = named !== undefined && reachable(named.providerId) ? named : undefined
+  const root: ModelChoice | undefined =
+    threadRef === undefined || args.thread === undefined
+      ? undefined
+      : {
+          ref: threadRef,
+          effort: effortOf(args.thread.effort) ?? fromSettingsMain.effort,
+          fast: args.thread.fast ?? fromSettingsMain.fast,
+        }
+  const mainChoice =
+    root === undefined
+      ? fromSettingsMain
+      : choose({ role: EModelRole.Main, stale: EStalePolicy.Keep, root })
+
+  const resolvedOf = (choice: ResolvedModelChoice): ResolvedRoleModel => ({
+    choice,
+    config: configuredWith({
+      cipher: args.cipher,
+      parsed,
+      activeAccounts: args.activeAccounts,
+      choice,
+      pinned: args.thread?.accountId,
+    }),
+  })
+  const main = resolvedOf(mainChoice)
+
+  return {
+    main,
+    resolve: ({ role, root: spawner }) =>
+      role === EModelRole.Main
+        ? main
+        : resolvedOf(choose({ role, stale: EStalePolicy.Follow, root: spawner ?? main.choice })),
+  }
+}
+
+export const modelConfigOf = (args: ModelSourceArgs): ModelConfig => modelSourceOf(args).main.config

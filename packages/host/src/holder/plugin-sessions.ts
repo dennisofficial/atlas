@@ -1,9 +1,14 @@
 import { randomUUID } from 'node:crypto'
 
 import type { ControlPlane } from '@dltech/atlas-control'
+import { refKey, type ModelChoice } from '@dltech/atlas-core'
 import type { PodSessions } from '@dltech/atlas-plugin-sdk'
 
-export const podSessionsOf = (args: { plane: ControlPlane; sessionId: string }): PodSessions => ({
+export const podSessionsOf = (args: {
+  plane: ControlPlane
+  sessionId: string
+  model: ModelChoice
+}): PodSessions => ({
   spawn: async ({ title, brief, nested }) => {
     const sessionId = randomUUID()
     const mainThreadId = randomUUID()
@@ -11,6 +16,9 @@ export const podSessionsOf = (args: { plane: ControlPlane; sessionId: string }):
       spawnerSessionId: args.sessionId,
       sessionId,
       mainThreadId,
+      modelRef: refKey(args.model.ref),
+      modelEffort: args.model.effort,
+      modelFast: args.model.fast,
       title,
       brief,
       nested,

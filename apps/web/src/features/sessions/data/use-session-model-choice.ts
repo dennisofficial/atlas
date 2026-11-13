@@ -33,7 +33,7 @@ export function useSessionModelChoice(args: {
 }): SessionModelChoiceView {
   const { sessionId, current } = args
   const accounts = useAccounts()
-  const picker = useModelPicker({ currentId: current?.ref })
+  const picker = useModelPicker({ currentIds: current?.ref === undefined ? [] : [current.ref] })
   const [chosen, setChosen] = useState<ModelSelection | null>(null)
   const [open, setOpen] = useState(false)
 

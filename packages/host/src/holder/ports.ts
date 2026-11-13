@@ -1,7 +1,9 @@
 import type {
   AssemblyPipeline,
   MediaUrlResolver,
+  ModelChoice,
   ModelPort,
+  ModelRole,
   PromptSpawner,
   ThreadId,
   WorkspaceStepReport,
@@ -63,9 +65,14 @@ export type PullRequestSource = {
 
 export type PrepareStepReporter = (step: WorkspaceStepReport) => void
 
+export type RoleModelRequest = { role: ModelRole; root?: ModelChoice | undefined }
+
 export type SessionRuntime = {
   remoteCalls: RemoteCalls
   model: ModelPort
+  modelChoice: ModelChoice
+  choiceFor(request: RoleModelRequest): ModelChoice
+  modelFor(request: RoleModelRequest): ModelPort
   tools: ToolRegistry
   daemonTools: ReadonlySet<string>
   effectOf: ToolEffectResolver

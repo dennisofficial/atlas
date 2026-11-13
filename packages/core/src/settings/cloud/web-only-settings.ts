@@ -4,7 +4,6 @@ import type { CloudSettingEntry } from './setting-entry'
 import { ESettingConsumer, settingEntry } from './setting-entry'
 import {
   EDensity,
-  EModelPreset,
   ETheme,
   NOTIFY_CHANNEL_IDS,
   NOTIFY_EVENT_IDS,
@@ -48,11 +47,6 @@ const EXPERIMENTAL_DEFAULTS: ReadonlyArray<readonly [string, boolean]> = [
 ]
 
 export const WEB_ONLY_SETTING_ENTRIES = [
-  webEntry({
-    key: 'web.models.preset',
-    schema: z.enum(EModelPreset),
-    fallback: EModelPreset.Balanced,
-  }),
   ...EXPERIMENTAL_DEFAULTS.map(([name, fallback]) =>
     boolEntry({ key: `web.experimental.${name}`, fallback }),
   ),

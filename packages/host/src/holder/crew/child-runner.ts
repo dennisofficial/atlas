@@ -14,6 +14,7 @@ import type { SessionRuntime } from '../ports'
 import type { SessionRecord } from '../record/record-adapter'
 import { V2OnceLedger } from '../record/v2-once-ledger'
 import { retryDepsFromTimers } from '../timer-sleep'
+import { childModelOf } from './child-model'
 import { DeniedToolRegistry } from './child-tools'
 
 export const childRunnerOf = (args: {
@@ -21,6 +22,7 @@ export const childRunnerOf = (args: {
   runtime: SessionRuntime
   record: SessionRecord
   agentId: ThreadId
+  agentType: string
   signal: AbortSignal
   crew: PodCrew
   intake: AgentIntake
@@ -42,7 +44,7 @@ export const childRunnerOf = (args: {
   return new LoopTurnRunner({
     record,
     modelContext: record,
-    model: runtime.model,
+    model: childModelOf({ runtime, agentType: args.agentType }),
     ids: deps.ids,
     assembly: runtime.assembly,
     hooks,

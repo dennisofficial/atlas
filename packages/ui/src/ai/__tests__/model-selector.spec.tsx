@@ -381,6 +381,29 @@ describe('ModelSelector', () => {
     expect(unhandled).not.toContain('model-fast')
   })
 
+  it('shows the effort word on the trigger only when asked', () => {
+    const models: ModelOption[] = [{ id: 'a', label: 'Opus', efforts: [EEffort.Low, EEffort.High] }]
+    const plain = renderToStaticMarkup(
+      <ModelSelector models={models} value="a" effort={EEffort.High} />,
+    )
+    const labelled = renderToStaticMarkup(
+      <ModelSelector models={models} value="a" effort={EEffort.High} showEffortLabel />,
+    )
+
+    expect(plain).not.toContain('>High<')
+    expect(labelled).toContain('>High<')
+  })
+
+  it('marks a current model that cannot run and names the reason', () => {
+    const models: ModelOption[] = [
+      { id: 'opus', label: 'Opus 5', disabled: true, disabledNote: 'Anthropic not connected' },
+    ]
+    const html = renderToStaticMarkup(<ModelSelector models={models} value="opus" />)
+
+    expect(html).toContain('Anthropic not connected')
+    expect(html).toContain('text-warning')
+  })
+
   it('marks the fast toggle pressed while fast is on', () => {
     const html = renderToStaticMarkup(
       <ModelSelector
@@ -392,5 +415,39 @@ describe('ModelSelector', () => {
     )
 
     expect(html).toContain('aria-pressed="true"')
+  })
+})
+
+describe('ModelSelector effort ladder', () => {
+  it('shows no dial for a model with no effort list rather than a made-up ladder', () => {
+    const models: ModelOption[] = [
+      { id: 'plain', label: 'Plain' },
+      { id: 'empty', label: 'Empty', efforts: [] },
+      { id: 'one', label: 'One rung', efforts: [EEffort.High] },
+    ]
+
+    for (const model of models) {
+      const html = renderToStaticMarkup(
+        <ModelSelector models={models} value={model.id} effort={EEffort.High} />,
+      )
+
+      expect(html).not.toContain('Effort:')
+    }
+  })
+
+  it('names the rung in the model own words', () => {
+    const models: ModelOption[] = [
+      {
+        id: 'deepseek',
+        label: 'DeepSeek V4.1 Flash',
+        efforts: [EEffort.Off, EEffort.Low, EEffort.High, EEffort.Max],
+        effortLabels: { [EEffort.Off]: 'None' },
+      },
+    ]
+    const html = renderToStaticMarkup(
+      <ModelSelector models={models} value="deepseek" effort={EEffort.Off} />,
+    )
+
+    expect(html).toContain('Effort: None')
   })
 })

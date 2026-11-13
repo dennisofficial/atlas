@@ -113,14 +113,14 @@ describe('modelOptionsOf', () => {
     const id = `anthropic/${card?.ref.modelId}`
     const { models } = modelOptionsOf({
       accounts: [account('openai')],
-      currentId: id,
+      currentIds: [id],
     })
     expect(models.find((model) => model.id === id)?.label).toBe(card?.label.replace(/^Claude /, ''))
     expect(models.find((model) => model.id === id)?.disabled).toBe(true)
-    expect(models.find((model) => model.id === id)?.disabledNote).toBe('no key')
+    expect(models.find((model) => model.id === id)?.disabledNote).toBe('Claude Plan not connected')
     const unknown = modelOptionsOf({
       accounts: [account('openai')],
-      currentId: 'x/y',
+      currentIds: ['x/y'],
     })
     expect(unknown.models.find((model) => model.id === 'x/y')?.label).toBe('x/y')
   })
@@ -130,7 +130,7 @@ describe('modelOptionsOf', () => {
     const id = `anthropic/${card?.ref.modelId}`
     const { models } = modelOptionsOf({
       accounts: [account('anthropic')],
-      currentId: id,
+      currentIds: [id],
     })
     expect(models.filter((model) => model.id === id)).toHaveLength(1)
   })

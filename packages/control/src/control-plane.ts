@@ -144,6 +144,9 @@ export class ControlPlane {
     spawnerSessionId: string
     sessionId: string
     mainThreadId: string
+    modelRef?: string | undefined
+    modelEffort?: string | undefined
+    modelFast?: boolean | undefined
     title?: string | undefined
     brief?: string | undefined
     nested?: boolean | undefined

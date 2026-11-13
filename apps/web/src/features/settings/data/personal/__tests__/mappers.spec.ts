@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EEffortLevel, EMemoryScope, EMemoryType, EMcpTransportKind } from '@dltech/atlas-wire/web'
+import { EMemoryScope, EMemoryType, EMcpTransportKind } from '@dltech/atlas-wire/web'
 
-import { EAgentRole, EEffort, EPreset, PRESETS } from '../../../fixtures/settings-agent'
 import { EMcpTransport } from '../../../fixtures/settings-mcp'
 import { EDeviceKind } from '../../../fixtures/settings-security'
 import { apiKeyFor } from '../accounts-api'
@@ -18,12 +17,7 @@ import {
 import { splitCommandLine } from '../../command-line'
 import { toMcpServer, transportOf } from '../mcp-api'
 import { buildGroups, memoryKeyInput } from '../memory-api'
-import {
-  activePresetOf,
-  modelsChanges,
-  modelsConfigFrom,
-  modelsDraftFrom,
-} from '../models-settings'
+import { modelsChanges, modelsDraftFrom } from '../models-settings'
 import { relativeTime } from '../relative-time'
 import { splitSandboxes, ESandboxState } from '../sandboxes-api'
 import { toEnvSecretRow } from '../secrets-api'
@@ -183,65 +177,38 @@ describe('accounts mapping', () => {
 })
 
 describe('models settings', () => {
-  it('reads defaults as the Balanced preset', () => {
-    const config = modelsConfigFrom(new Map())
-    expect(activePresetOf(config)).toBe(EPreset.Balanced)
+  it('reads defaults as followers on the harness keys', () => {
+    const draft = modelsDraftFrom(new Map())
+    expect(draft.main).toEqual({ model: '', effort: '', fast: false })
+    expect(draft['agent-type:builder']).toEqual({ model: '', effort: '', fast: false })
   })
 
-  it('maps stored values onto the effort slider and auto model', () => {
-    const config = modelsConfigFrom(
+  it('maps stored values onto their role entries', () => {
+    const draft = modelsDraftFrom(
       new Map([
         ['model.effort', 'xhigh'],
         ['model.id', 'openai/gpt-5'],
+        ['model.quickModel', 'openai/gpt-5-mini'],
+        ['agents.type.teammate', 'anthropic/claude-opus-5'],
       ]),
     )
-    expect(config[EAgentRole.Main]).toEqual({
-      model: 'openai/gpt-5',
-      effort: EEffort.XHigh,
-      fast: false,
-    })
+    expect(draft.main).toEqual({ model: 'openai/gpt-5', effort: 'xhigh', fast: false })
+    expect(draft.quick?.model).toBe('openai/gpt-5-mini')
+    expect(draft['agent-type:teammate']?.model).toBe('anthropic/claude-opus-5')
   })
 
-  it('maps quick, compaction and subagent roles onto their harness keys', () => {
-    const config = modelsConfigFrom(
-      new Map([
-        ['model.quickModel', 'openai/gpt-5-mini'],
-        ['model.compactionModel', 'anthropic/claude-opus-5'],
-      ]),
-    )
-    expect(config[EAgentRole.Quick]).toEqual({ model: 'openai/gpt-5-mini' })
-    expect(config[EAgentRole.Compaction]).toEqual({ model: 'anthropic/claude-opus-5' })
-    expect(config[EAgentRole.Subagents]).toEqual({ model: 'auto' })
+  it('writes only changed keys', () => {
     const saved = modelsDraftFrom(new Map())
+    expect(modelsChanges({ saved, draft: saved })).toEqual({})
     const changes = modelsChanges({
       saved,
-      draft: {
-        ...saved,
-        roles: { ...saved.roles, [EAgentRole.Main]: { model: 'auto', effort: EEffort.Minimal } },
-      },
+      draft: { ...saved, main: { model: 'openai/gpt-5', effort: 'high', fast: true } },
     })
-    expect(changes['model.effort']).toBe('minimal')
-  })
-
-  it('writes only changed keys, with auto as empty and a preset marker', () => {
-    const saved = modelsDraftFrom(new Map())
-    const toThorough = { ...saved, roles: PRESETS[EPreset.Thorough] }
-    const changes = modelsChanges({ saved, draft: toThorough })
-    expect(changes['model.id']).toBe('anthropic/claude-opus-5')
-    expect(changes['model.effort']).toBe(EEffortLevel.Max)
-    expect(changes['web.models.preset']).toBe('thorough')
-    expect(modelsChanges({ saved, draft: saved })).toEqual({})
-    const custom = modelsChanges({
-      saved,
-      draft: {
-        ...saved,
-        roles: {
-          ...saved.roles,
-          [EAgentRole.Main]: { model: 'x/y', effort: EEffort.High },
-        },
-      },
+    expect(changes).toEqual({
+      'model.id': 'openai/gpt-5',
+      'model.effort': 'high',
+      'model.fast': true,
     })
-    expect(custom['web.models.preset']).toBe('custom')
   })
 })
 

@@ -1,13 +1,11 @@
 import type { LanguageModelV4 } from '@ai-sdk/provider'
 import {
   ATLAS_SETTINGS,
+  clampEffort,
   EEffort,
   ESettingsLayer,
   EUtilityModelRole,
   resolveSettings,
-  textValueOf,
-  utilitySettingFor,
-  resolveUtilityModel,
   type Account,
   type CredentialPort,
   type ModelRef,
@@ -22,8 +20,7 @@ import {
   providerAdapters,
   type ModelCatalogue,
 } from '../composition/model-catalogue'
-import { defaultSelection } from '../composition/model-preference'
-import { createUtilityModel } from '../composition/utility-model'
+import { createUtilityModel, utilityChoiceOf } from '../composition/utility-model'
 import { titleFor } from '../model/titler'
 
 export { namingTextOf } from '../model/naming-text'
@@ -80,12 +77,7 @@ export function titlerRefOf(args: {
 }): ModelRef {
   const settled = resolutionOf(args.settings)
   const catalogue = catalogueOf({ credentials: unreachable, accounts: args.accounts })
-  return resolveUtilityModel({
-    role: EUtilityModelRole.Titler,
-    override: textValueOf({ resolution: settled, id: utilitySettingFor(EUtilityModelRole.Titler) }),
-    followDefault: defaultSelection({ settled, catalogue }).ref,
-    catalogue: catalogue.catalog,
-  })
+  return utilityChoiceOf({ role: EUtilityModelRole.Titler, settled, catalogue }).ref
 }
 
 export type StandaloneTitler = (args: {
@@ -109,7 +101,14 @@ export function createStandaloneTitler(args: {
     const card = catalogue.cardFor(args.fallbackRef)
     const adapter = catalogue.adapterFor(args.fallbackRef.providerId)
     if (card === undefined || adapter === undefined) return undefined
-    return adapter.model({ card, effort: () => EEffort.Low })
+    return adapter.model({
+      card,
+      effort: () =>
+        clampEffort({
+          map: card.effort,
+          effort: utilityChoiceOf({ role: EUtilityModelRole.Titler, settled, catalogue }).effort,
+        }) ?? EEffort.Low,
+    })
   }
 
   const model = createUtilityModel({

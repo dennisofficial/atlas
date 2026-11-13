@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EMessageOrigin, EReportKind, toRunId, toThreadId } from '@dltech/atlas-core'
+import { EEffort, EMessageOrigin, EReportKind, toRunId, toThreadId } from '@dltech/atlas-core'
 import { ControlPlane } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 
@@ -28,6 +28,12 @@ const STRANGER = {
   projectId: 'p1',
 }
 
+const TEAMMATE_MODEL = {
+  ref: { providerId: 'openai', modelId: 'gpt-5' },
+  effort: EEffort.High,
+  fast: true,
+}
+
 const rig = async () => {
   const plane = new ControlPlane({
     store: new InMemoryControlStore({ clock: () => T0 }),
@@ -36,7 +42,11 @@ const rig = async () => {
   await plane.createSession(SPAWNER)
   return {
     plane,
-    sessions: podSessionsOf({ plane, sessionId: SPAWNER.sessionId }),
+    sessions: podSessionsOf({
+      plane,
+      sessionId: SPAWNER.sessionId,
+      model: TEAMMATE_MODEL,
+    }),
   }
 }
 
@@ -61,6 +71,16 @@ describe('podSessionsOf', () => {
       podSessionId: null,
       userId: SPAWNER.userId,
       projectId: SPAWNER.projectId,
+    })
+  })
+
+  it('creates a teammate on the model the pod resolved for the teammate type', async () => {
+    const { plane, sessions } = await rig()
+    const spawned = await sessions.spawn({ nested: true })
+    expect(await plane.readSession({ sessionId: spawned.sessionId })).toMatchObject({
+      modelRef: 'openai/gpt-5',
+      modelEffort: 'high',
+      modelFast: true,
     })
   })
 
@@ -210,6 +230,7 @@ describe('podSessionsOf', () => {
     const nested = await podSessionsOf({
       plane,
       sessionId: child.sessionId,
+      model: TEAMMATE_MODEL,
     }).spawn({})
     expect(await plane.readSession({ sessionId: nested.sessionId })).toMatchObject({
       spawnedBySessionId: child.sessionId,
@@ -223,6 +244,7 @@ describe('podSessionsOf', () => {
     const sent = await podSessionsOf({
       plane,
       sessionId: child.sessionId,
+      model: TEAMMATE_MODEL,
     }).report({
       kind: EReportKind.Done,
       text: 'the parser is green',
@@ -239,7 +261,7 @@ describe('podSessionsOf', () => {
   it('reaches the spawner’s intake in the agent lane', async () => {
     const { plane, sessions } = await rig()
     const child = await sessions.spawn({})
-    await podSessionsOf({ plane, sessionId: child.sessionId }).report({
+    await podSessionsOf({ plane, sessionId: child.sessionId, model: TEAMMATE_MODEL }).report({
       kind: EReportKind.NeedsDecision,
       text: 'which parser',
     })
@@ -305,6 +327,7 @@ describe('podSessionsOf', () => {
     const roster = await podSessionsOf({
       plane,
       sessionId: peer.sessionId,
+      model: TEAMMATE_MODEL,
     }).list()
     expect(roster.map((brief) => brief.sessionId)).toContain(SPAWNER.sessionId)
     expect(roster.find((brief) => brief.sessionId === peer.sessionId)).toMatchObject({

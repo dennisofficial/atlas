@@ -210,6 +210,7 @@ export class ChildRun {
         runtime: this.args.runtime,
         record: this.record,
         agentId: this.agentId,
+        agentType: this.args.agentType,
         signal: listeners.signal,
         crew: this.port(),
         intake: this.intake,

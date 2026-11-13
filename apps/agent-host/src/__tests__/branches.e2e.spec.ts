@@ -17,6 +17,7 @@ import { SessionHolder, systemTimers } from '@dltech/atlas-host'
 
 import { LocalSandboxProvider } from '../testing/local-sandbox-provider'
 import { createSessionRuntimeFactory } from '../runtime/session-runtime-factory'
+import { fakeModelSourceOf } from '../testing/model-source'
 import type { ConfigSource } from '../config/agent-host-config'
 import {
   CollectingLog,
@@ -52,14 +53,18 @@ const bareRepoUrl = (): string => {
 }
 
 const sourceWithRepo = (remoteUrl: string): ConfigSource => ({
-  read: async () => ({
-    userId: 'user-1',
-    projectId: 'proj-1',
-    model: { configured: false, gap: 'scripted model in test' },
-    vercel: { configured: true, token: '', teamId: '', projectId: '' },
-    workspace: { remoteUrl, baseBranch: null, additionalRepos: [], setupScript: '' },
-    skills: [],
-  }),
+  read: async () => {
+    const model = { configured: false as const, gap: 'scripted model in test' }
+    return {
+      userId: 'user-1',
+      projectId: 'proj-1',
+      model,
+      models: fakeModelSourceOf(model),
+      vercel: { configured: true, token: '', teamId: '', projectId: '' },
+      workspace: { remoteUrl, baseBranch: null, additionalRepos: [], setupScript: '' },
+      skills: [],
+    }
+  },
 })
 
 const branchRecords = (events: readonly ReadEvent[]): ReadEvent[] =>
