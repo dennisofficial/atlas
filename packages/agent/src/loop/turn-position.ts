@@ -56,12 +56,14 @@ export type SettledOutcome =
   | { kind: 'settled' }
   | { kind: 'interrupted' }
   | { kind: 'paused'; callId: CallId; reason: string }
+  | { kind: 'parked'; callId: CallId; name: string }
   | { kind: 'stalled'; message: string; cause: unknown }
 
 /**
  * Settles the log's first unanswered tool call, if any. `none-pending` leaves the turn to its
  * next step; `settled` restarts the iteration so the settled result is re-read; `paused` hands
- * the call to the operator; `stalled` fails the turn rather than retrying a call dispatch
+ * the call to the operator; `parked` ends the turn because the result arrives later from outside
+ * it; `stalled` fails the turn rather than retrying a call dispatch
  * already left pending; `interrupted` means the operator stopped the turn mid-settle.
  */
 export async function settlePendingCall({
@@ -94,5 +96,6 @@ export async function settlePendingCall({
   const settled = await settlePending({ threadId, signal })
   if (settled.paused !== undefined) return { kind: 'paused', ...settled.paused }
   if (signal.aborted) return { kind: 'interrupted' }
+  if (settled.parked !== undefined) return { kind: 'parked', ...settled.parked }
   return { kind: 'settled' }
 }

@@ -69,47 +69,6 @@ describe('ProgressWatchdog', () => {
     expect(stalls).toEqual([])
   })
 
-  it('a hold clears the timer and a release restarts the window', () => {
-    const clock = new FakeClock()
-    const { watchdog, stalls } = watchdogOf(clock)
-    watchdog.arm()
-    clock.advance(STALL_MS - 1)
-    watchdog.hold()
-    expect(clock.pendingCount()).toBe(0)
-    clock.advance(10 * STALL_MS)
-    expect(stalls).toEqual([])
-    watchdog.release()
-    clock.advance(STALL_MS - 1)
-    expect(stalls).toEqual([])
-    clock.advance(1)
-    expect(stalls).toEqual([STALL_MS])
-  })
-
-  it('an arm while held waits for the release', () => {
-    const clock = new FakeClock()
-    const { watchdog, stalls } = watchdogOf(clock)
-    watchdog.hold()
-    watchdog.arm()
-    expect(clock.pendingCount()).toBe(0)
-    watchdog.release()
-    clock.advance(STALL_MS)
-    expect(stalls.length).toBe(1)
-  })
-
-  it('nested holds and a repeated release leave one window', () => {
-    const clock = new FakeClock()
-    const { watchdog, stalls } = watchdogOf(clock)
-    watchdog.arm()
-    watchdog.hold()
-    watchdog.hold()
-    watchdog.release()
-    expect(clock.pendingCount()).toBe(0)
-    watchdog.release()
-    watchdog.release()
-    clock.advance(STALL_MS)
-    expect(stalls.length).toBe(1)
-  })
-
   it('arming again after a stall fires once more', () => {
     const clock = new FakeClock()
     const { watchdog, stalls } = watchdogOf(clock)

@@ -110,7 +110,6 @@ describe('v2 namespace client', () => {
       secret: true,
       status: 'pending',
       createdAt: NOW,
-      expiresAt: NOW,
       resolvedAt: null,
     })
     const { truncateAll } = await import('../testing')

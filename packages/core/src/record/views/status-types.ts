@@ -7,6 +7,7 @@ export enum ESessionStatus {
   RunningTool = 'running-tool',
   WaitingToRetry = 'waiting-to-retry',
   WaitingForCredentials = 'waiting-for-credentials',
+  WaitingForOperator = 'waiting-for-operator',
   Resuming = 'resuming',
   Idle = 'idle',
   Failed = 'failed',

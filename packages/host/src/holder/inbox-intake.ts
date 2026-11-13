@@ -18,10 +18,12 @@ import { unfinishedCommandIdsOf, type ControlPlane } from '@dltech/atlas-control
 import type { AgentIntake, PendingDrain } from '@dltech/atlas-agent'
 import type { CommandRegistry } from '@dltech/atlas-commands'
 import { INBOX_KIND_MESSAGE, inboxMessageSchema } from '@dltech/atlas-protocol'
+import { INBOX_KIND_OPERATOR_ANSWER } from '@dltech/atlas-plugin-operator/core'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
 import { INBOX_INTAKE_MAX_PAGES, readInboxPages } from './held-inbox'
 import { CommandIntake, isCommandKind, type CommandHandlers } from './command-intake'
+import type { OperatorAnswerIntake, OperatorAnswerOutcome } from './operator-answer'
 import type { SessionRecord } from './record/record-adapter'
 
 export { INBOX_KIND_STOP }
@@ -42,6 +44,7 @@ export type InboxIntakeArgs = {
   commands?: CommandRegistry | undefined
   handlers?: CommandHandlers | undefined
   model?: ModelPort | undefined
+  operatorAnswers?: OperatorAnswerIntake | undefined
   log?: LogPort | undefined
   now?: (() => number) | undefined
 }
@@ -69,6 +72,12 @@ export class InboxIntake implements AgentIntake {
     const drafts: EventDraft[] = []
     let wakesTurn = false
     for (const entry of entries) {
+      if (entry.kind === INBOX_KIND_OPERATOR_ANSWER) {
+        const answered = await this.answerOperator(entry)
+        if (answered.wakesTurn) wakesTurn = true
+        await this.consumeQuietly(entry)
+        continue
+      }
       if (entry.kind === INBOX_KIND_STOP) continue
       if (entry.kind === INBOX_KIND_RETRY) {
         await this.consumeQuietly(entry)
@@ -80,6 +89,7 @@ export class InboxIntake implements AgentIntake {
           await this.consumeUnknown(entry)
           continue
         }
+        await this.cancelOpenForMessage()
         const { text, via } = parsed.data
         const attachments = attachmentsOf(parsed.data)
         const sender = entry.senderSessionId
@@ -126,6 +136,18 @@ export class InboxIntake implements AgentIntake {
         })
       }
     }
+  }
+
+  private async answerOperator(entry: InboxEntry): Promise<OperatorAnswerOutcome> {
+    if (this.args.operatorAnswers === undefined) return { wakesTurn: false }
+    return await this.args.operatorAnswers.handle(entry)
+  }
+
+  private async cancelOpenForMessage(): Promise<void> {
+    if (this.args.operatorAnswers === undefined) return
+    await this.args.operatorAnswers.cancelOpen({
+      reason: 'the operator sent a message instead of answering',
+    })
   }
 
   private async runCommand(entry: InboxEntry): Promise<void> {

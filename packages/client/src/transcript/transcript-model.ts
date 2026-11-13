@@ -243,7 +243,7 @@ export type OperatorRequestEntry = {
   secret: boolean
   shellId?: string | undefined
   state: OperatorRequestState
-  expiresAt: string
+  expiresAt?: string | undefined
   path?: string | undefined
   bytes?: number | undefined
   reason?: string | undefined

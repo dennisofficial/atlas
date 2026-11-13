@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'d232f37cbb4ac571f07d4879ffa697bf5acfd9888297ff6e7b6d47651a2d9850'>;
+  StorageHashBase<'a1d7da1e092b7832619e7438fc84a790bd3244eaf29625754bd2ee821901b4e2'>;
 export type ExecutionHash =
   ExecutionHashBase<'27a680d0d8367c03704617bfac2d0041e04bd5395fc473f9e021f03bd0d4c6fa'>;
 export type ProfileHash =
@@ -1195,7 +1195,6 @@ export namespace Models {
   };
   export type v2_V2OperatorRequest = {
     createdAt: FieldOutputTypes['v2']['V2OperatorRequest']['createdAt'];
-    expiresAt: FieldOutputTypes['v2']['V2OperatorRequest']['expiresAt'];
     id: FieldOutputTypes['v2']['V2OperatorRequest']['id'];
     kind: FieldOutputTypes['v2']['V2OperatorRequest']['kind'];
     prompt: FieldOutputTypes['v2']['V2OperatorRequest']['prompt'];
@@ -6839,13 +6838,6 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
-                readonly expiresAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
                 readonly id: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
@@ -6912,9 +6904,9 @@ type ContractBase = Omit<
                   readonly unique: false;
                 },
                 {
-                  readonly name: 'V2OperatorRequest_status_expiresAt_idx_c206f415';
-                  readonly prefix: 'V2OperatorRequest_status_expiresAt_idx';
-                  readonly columns: readonly ['status', 'expiresAt'];
+                  readonly name: 'V2OperatorRequest_status_idx_e98638ab';
+                  readonly prefix: 'V2OperatorRequest_status_idx';
+                  readonly columns: readonly ['status'];
                   readonly unique: false;
                 },
               ];
@@ -12952,14 +12944,6 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
-              readonly expiresAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
               readonly id: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -13007,7 +12991,6 @@ type ContractBase = Omit<
               readonly namespaceId: 'v2';
               readonly fields: {
                 readonly createdAt: { readonly column: 'createdAt' };
-                readonly expiresAt: { readonly column: 'expiresAt' };
                 readonly id: { readonly column: 'id' };
                 readonly kind: { readonly column: 'kind' };
                 readonly prompt: { readonly column: 'prompt' };

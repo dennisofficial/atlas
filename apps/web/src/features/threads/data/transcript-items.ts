@@ -93,7 +93,7 @@ export type RequestItem = {
   prompt: string
   secret: boolean
   state: OperatorRequestState
-  expiresAt: string
+  expiresAt?: string | undefined
   shellId?: string | undefined
   path?: string | undefined
   bytes?: number | undefined
@@ -170,7 +170,7 @@ function textItemOf(args: {
         prompt: entry.prompt,
         secret: entry.secret,
         state: entry.state,
-        expiresAt: entry.expiresAt,
+        ...(entry.expiresAt === undefined ? {} : { expiresAt: entry.expiresAt }),
         ...(entry.shellId === undefined ? {} : { shellId: entry.shellId }),
         ...(entry.path === undefined ? {} : { path: entry.path }),
         ...(entry.bytes === undefined ? {} : { bytes: entry.bytes }),

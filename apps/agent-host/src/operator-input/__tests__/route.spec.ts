@@ -1,8 +1,9 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { EOperatorRequestOutcome } from '@dltech/atlas-plugin-operator/core'
 import { describe, expect, it } from 'bun:test'
 
 import { EOperatorRequestStatus } from '../store'
-import { askOf, clockOf, postOf, registryOf, routeOf, seedSession, VALUE } from './fixtures'
+import { askOf, clockOf, postOf, registryOf, routeOf, seedSession, settle, VALUE } from './fixtures'
 
 const testDb = useTestDatabase()
 
@@ -56,22 +57,29 @@ describe('the operator answer route', () => {
     expect((await db.orm.v2.V2OperatorRequest.first({ id: opened.requestId }))?.status).toBe(
       EOperatorRequestStatus.Pending,
     )
-    opened.abandon('cancelled')
   })
 
-  it('delivers a value to the waiting call and answers an empty body', async () => {
+  it('hands the value to the session and answers an empty body', async () => {
     const { db } = testDb()
     await seedSession(db, { id: 'ses_1', userId: 'user-1' })
     const registry = registryOf({ db, clock: clockOf() })
     const opened = await registry.open({ sessionId: 'ses_1', threadId: 'thr_ses_1', ask: askOf() })
 
-    const answer = await routeOf({ registry })(
+    const answering = routeOf({ registry })(
       postOf({ body: { requestId: opened.requestId, value: VALUE }, bearer: 'token-1' }),
     )
+    await settle()
 
+    expect(registry.answers.take(opened.requestId)).toEqual({ ok: true, value: VALUE })
+    await registry.settle({
+      requestId: opened.requestId,
+      outcome: EOperatorRequestOutcome.Delivered,
+    })
+    registry.answers.resolve({ requestId: opened.requestId, result: { ok: true } })
+
+    const answer = await answering
     expect(answer?.status).toBe(200)
     expect(await answer?.json()).toEqual({})
-    expect(await opened.answered).toEqual({ ok: true, value: VALUE })
     expect((await db.orm.v2.V2OperatorRequest.first({ id: opened.requestId }))?.status).toBe(
       EOperatorRequestStatus.Answered,
     )
@@ -83,7 +91,10 @@ describe('the operator answer route', () => {
     const registry = registryOf({ db, clock: clockOf() })
     const route = routeOf({ registry })
     const opened = await registry.open({ sessionId: 'ses_1', threadId: 'thr_ses_1', ask: askOf() })
-    await route(postOf({ body: { requestId: opened.requestId, value: VALUE }, bearer: 'token-1' }))
+    await db.orm.v2.V2OperatorRequest.where({ id: opened.requestId }).updateAndCount({
+      status: EOperatorRequestStatus.Answered,
+      resolvedAt: new Date(),
+    })
 
     expect(
       (
@@ -101,37 +112,26 @@ describe('the operator answer route', () => {
     ).toBe(404)
   })
 
-  it('answers 409 when the waiting call is not held by this host', async () => {
-    const { db } = testDb()
-    await seedSession(db, { id: 'ses_1', userId: 'user-1' })
-    const clock = clockOf()
-    const elsewhere = registryOf({ db, clock })
-    const opened = await elsewhere.open({
-      sessionId: 'ses_1',
-      threadId: 'thr_ses_1',
-      ask: askOf(),
-    })
-
-    const answer = await routeOf({ registry: registryOf({ db, clock }) })(
-      postOf({ body: { requestId: opened.requestId, value: VALUE }, bearer: 'token-1' }),
-    )
-
-    expect(answer?.status).toBe(409)
-    expect(await answer?.json()).toEqual({ reason: 'not_held_here' })
-  })
-
   it('cancels the waiting call and marks the row cancelled', async () => {
     const { db } = testDb()
     await seedSession(db, { id: 'ses_1', userId: 'user-1' })
     const registry = registryOf({ db, clock: clockOf() })
     const opened = await registry.open({ sessionId: 'ses_1', threadId: 'thr_ses_1', ask: askOf() })
 
-    const answer = await routeOf({ registry })(
+    const cancelling = routeOf({ registry })(
       postOf({ body: { requestId: opened.requestId, cancel: true }, bearer: 'token-1' }),
     )
+    await settle()
 
+    expect(registry.answers.take(opened.requestId)).toEqual({ ok: false, cancel: true })
+    await registry.settle({
+      requestId: opened.requestId,
+      outcome: EOperatorRequestOutcome.Cancelled,
+    })
+    registry.answers.resolve({ requestId: opened.requestId, result: { ok: true } })
+
+    const answer = await cancelling
     expect(answer?.status).toBe(200)
-    expect(await opened.answered).toEqual({ ok: false, reason: 'cancelled' })
     expect((await db.orm.v2.V2OperatorRequest.first({ id: opened.requestId }))?.status).toBe(
       EOperatorRequestStatus.Cancelled,
     )

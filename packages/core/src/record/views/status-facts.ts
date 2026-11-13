@@ -18,6 +18,10 @@ export type TurnFact = {
 
 export type RetryFact = { notBefore: string; at: string }
 
+export type ParkedFact = { name: string; at: string }
+
+export type ParkedFacts = Readonly<Record<string, ParkedFact>>
+
 export type StatusFacts = {
   firstSeq: number | null
   prepared: boolean
@@ -28,6 +32,7 @@ export type StatusFacts = {
   unfinishedFailure: { message: string; at: string } | null
   credentialWait: { reason: string | null; at: string } | null
   retries: readonly RetryFact[]
+  parked: ParkedFacts
 }
 
 export const initialStatusFacts: StatusFacts = {
@@ -40,6 +45,7 @@ export const initialStatusFacts: StatusFacts = {
   unfinishedFailure: null,
   credentialWait: null,
   retries: [],
+  parked: {},
 }
 
 const TURN_ENDING_TYPES: ReadonlySet<V2EventType> = new Set([
@@ -134,6 +140,22 @@ const stepWaits = (facts: StatusFacts, event: V2Event): StatusFacts => {
   return facts
 }
 
+const withoutParked = (parked: ParkedFacts, callId: string): ParkedFacts =>
+  Object.fromEntries(Object.entries(parked).filter(([id]) => id !== callId))
+
+const stepParked = (facts: StatusFacts, event: V2Event): StatusFacts => {
+  if (event.type === 'tool-parked') {
+    return {
+      ...facts,
+      parked: { ...facts.parked, [event.callId]: { name: event.name, at: event.at } },
+    }
+  }
+  if (event.type !== 'tool-called' && event.type !== 'tool-result' && event.type !== 'tool-denied')
+    return facts
+  if (!Object.hasOwn(facts.parked, event.callId)) return facts
+  return { ...facts, parked: withoutParked(facts.parked, event.callId) }
+}
+
 const stepTurn = (facts: StatusFacts, event: V2Event): StatusFacts => {
   if (!isTurnNeutral(event)) {
     return {
@@ -150,7 +172,10 @@ const stepTurn = (facts: StatusFacts, event: V2Event): StatusFacts => {
 }
 
 export const stepStatusFacts = (facts: StatusFacts, event: V2Event): StatusFacts =>
-  stepTurn(
-    stepWaits(stepWorkspace({ ...facts, firstSeq: facts.firstSeq ?? event.seq }, event), event),
+  stepParked(
+    stepTurn(
+      stepWaits(stepWorkspace({ ...facts, firstSeq: facts.firstSeq ?? event.seq }, event), event),
+      event,
+    ),
     event,
   )

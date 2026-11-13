@@ -24,8 +24,10 @@ Each slice is built in its own Atlas session and handed to a fresh session when 
 
 _Updated at the end of every slice. Last update: 2026-11-12._
 - **Built 2026-11-12: operator input from the transcript** ([spec](slices/operator-input.md)).
-  `plugins/operator` gives a session `operator_input` and `operator_shell_input`: the tool call parks,
-  a card appears in the transcript, and the operator's answer is written into the sandbox at
+  `plugins/operator` gives a session `operator_input` and `operator_shell_input`: the call parks as an
+  open `tool-parked` in the log (no promise, no deadline, the pod may sleep), the session reads
+  "Waiting for you", a card appears in the transcript, and the operator's answer wakes the pod and is
+  written into the sandbox at
   `$ATLAS_SESSION_DIR/requests/<id>` (`0600`) — or typed into a shell's stdin — with only the path
   reaching the model. A `v2.V2OperatorRequest` row records the request and its resolution, two events
   (`operator-input-asked`, `operator-input-settled`) draw the card, and `POST /operator-requests/answer`

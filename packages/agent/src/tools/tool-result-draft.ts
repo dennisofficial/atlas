@@ -1,4 +1,10 @@
-import type { CodeQualityReviewedBody, EventDraft, ToolCall, ToolOutcome } from '@dltech/atlas-core'
+import {
+  isParkedOutcome,
+  type CodeQualityReviewedBody,
+  type EventDraft,
+  type ToolCall,
+  type ToolOutcome,
+} from '@dltech/atlas-core'
 
 export function resultDraft(args: {
   call: ToolCall
@@ -6,6 +12,10 @@ export function resultDraft(args: {
   interrupted: boolean
   qualityReviews?: readonly CodeQualityReviewedBody[] | undefined
 }): EventDraft {
+  if (isParkedOutcome(args.result)) {
+    return { type: 'tool-parked', callId: args.call.callId, name: args.call.name }
+  }
+
   if (args.result.ok) {
     return {
       type: 'tool-result',
