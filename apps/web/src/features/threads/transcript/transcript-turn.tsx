@@ -266,7 +266,7 @@ function TurnViewBody({
     case ETurnKind.SignIn:
       return <TranscriptSignIn item={turn.item} />
     case ETurnKind.Request:
-      return <TranscriptRequest item={turn.item} sessionId={panel?.threadId} />
+      return <TranscriptRequest item={turn.item} />
     case ETurnKind.Agent:
       return <AgentTurnView turn={turn} now={now} models={models} actions={actions} />
   }

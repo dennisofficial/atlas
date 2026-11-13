@@ -32,11 +32,13 @@ import { useSessionModelChoice } from './data/use-session-model-choice'
 import { useSessionRunFailure } from './data/use-session-run-failure'
 import { sessionViewModelOf, shellTailTextOf } from './data/session-view-model'
 import { retrySessionNow } from './data/use-retry-session'
+import { OperatorRequestDock } from './operator-request-dock'
 import { SessionUpdateCard } from './session-update-card'
 import { useQueuedDock } from './data/use-queued-dock'
 import { useSessionAttachments } from './data/use-session-attachments'
 import { useSessionReveal } from './data/use-session-reveal'
 import { useSessionSummarise } from './data/use-session-summarise'
+import { pendingOperatorRequestOf } from './data/use-operator-request'
 import { useSessionStream } from './data/use-session-stream'
 import { CommandRows } from './command-rows'
 import { QueuedDock } from './queued-dock'
@@ -111,6 +113,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
       }),
     [snapshot.events, snapshot.status, snapshot.setupOutput],
   )
+  const operatorRequest = useMemo(() => pendingOperatorRequestOf(view.items), [view.items])
   const model = useMemo(() => sessionViewModelOf(snapshot.view), [snapshot.view])
   const background = useMemo(() => journalActivityOf(snapshot.events), [snapshot.events])
   const panel = useMemo(() => panelValueOf({ sessionId, working }), [sessionId, working])
@@ -207,6 +210,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
           />
         </div>
         <div className="mx-auto flex w-full max-w-3xl shrink-0 flex-col gap-2 px-4 pb-4">
+          <OperatorRequestDock request={operatorRequest} />
           {snapshot.skipped > 0 ? (
             <SessionUpdateCard skipped={snapshot.skipped} writerAhead={snapshot.writerAhead} />
           ) : null}

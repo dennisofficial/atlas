@@ -40,7 +40,9 @@ without the value ever entering the transcript, the model's context or the datab
   (`packages/client/src/transcript/notice-entries.ts:171-201`) and the web renders that as a quiet
   title (`apps/web/src/features/threads/data/transcript-notices.ts:89-93`). The v1 _card_ is drawn
   from a channel signal instead (`apps/web/src/features/threads/composer-footer.tsx:12-54`), so a v1
-  session in web shows the card above the composer, not in the transcript.
+  session in web shows the card above the composer, not in the transcript. That card is the one both
+  surfaces use: `apps/web/src/features/threads/operator-input-card.tsx` is presentational over
+  `{requestId, description, url?, secret?, submitting, error?, onSubmit, onCancel?}`.
 - **v2 has neither half.** `PodControl` has no way to ask a human
   (`packages/plugin-sdk/src/slots.ts:63-79`: `exposePort`, `memory`, `webSearch`, `mcp`), no inbox
   kind, event or card models a question, and the parity spec excepts the two tools with "the v2 cloud
@@ -158,11 +160,21 @@ Model text, mirroring v1's so a model behaves the same way:
    host's registry.
 3. `maxLength` 64 KiB on `value`; the body is never logged.
 
-**Card** (`apps/web`): `EEntryKind.OperatorRequest` (`packages/client/src/transcript/transcript-model.ts`)
-→ `ETranscriptKind.Request` row → `transcript/transcript-request.tsx`: the prompt, an `Input`
-(`type="password"` when `secret`), Submit and Cancel, disabled while sending, and the delivered /
-expired / cancelled / abandoned states. Submit posts to the route with `fetchStreamToken()`, and the row settles
-when the stream delivers `operator-input-settled`.
+**Card** (`apps/web`): one component for v1 and v2, `threads/operator-input-card.tsx` — `Atlas needs
+  you`, the question, a `Textarea` (an `Input type="password"` when `secret`), the privacy footer and
+Send, with an inline error and a Cancel button only when the caller passes them. v1 maps its channel
+signal into it in `threads/data/use-operator-input.ts` and docks it from `composer-footer.tsx`,
+unchanged in behaviour.
+
+v2 docks the same card above the composer: `sessions/data/use-operator-request.ts` picks the pending
+`ETranscriptKind.Request` row out of the transcript items (state `pending`), and
+`sessions/operator-request-dock.tsx` feeds its prompt to `description`, its `secret` to the masked
+field, and `answerOperatorRequest` / `cancelOperatorRequest` to `onSubmit` / `onCancel` with the
+result driving `submitting` and `error`. A successful answer stays submitting — `Waiting for the
+session to confirm.` — until the stream delivers `operator-input-settled` and the row stops being
+pending. The value is in the POST body only: the transcript draws nothing for a pending request and
+`transcript/transcript-request.tsx` keeps only the delivered / expired / cancelled / abandoned /
+failed Trace rows.
 
 **Fold** (`plugins/operator/src/client/request-entry.ts`): pair by `requestId`; an entry whose
 `expiresAt` has passed with no settlement reads as `expired`, so a dead host leaves no live-looking
@@ -189,8 +201,13 @@ card.
   record-only, so a request settling after a `run-failed` leaves the session failed instead of
   re-opening the turn.
 - **Control/db**: migration applies; `packages/db/src/__tests__/v2-smoke.spec.ts` covers the row.
-- **Web** (`apps/web/src/features/threads/__tests__/transcript-request.spec.tsx`): prompt, masked
-  secret field, one submit then disabled, cancel, and the settled states.
+- **Web**: `threads/__tests__/operator-input-card.spec.tsx` (masked secret field, plain textarea for
+  a non-secret answer, inline error, Cancel only when offered, locked while submitting);
+  `sessions/__tests__/operator-request-dock.spec.tsx` (the pending row is found among the transcript
+  rows, the post body is exactly `{requestId, value}` with the stream bearer, stays submitting until
+  the request settles, cancel and Escape, a refusal reads as a sentence);
+  `threads/__tests__/transcript-request.spec.tsx` (a pending request draws nothing, the settled rows
+  keep their Trace line and never render the value).
 - **Parity**: both `EXCEPTIONS` entries are deleted and the spec passes.
 
 ## 6. Out of scope
@@ -227,5 +244,7 @@ contract matches the migration graph and `v2."V2OperatorRequest"` exists in prod
 needs a human to type a value, so it is the operator's run: a fresh v2 session asks for a value with
 `operator_input`, the card appears in the transcript, the value is submitted, and the tool result
 names the path. Everything up to that point is covered by specs — the registry, adapter and route for
-the host side, the fold and `transcript-request.spec.tsx` for the card — but no card has been clicked
-in a browser yet.
+the host side, the fold and `operator-request-dock.spec.tsx` for the card — but no card has been
+clicked in a browser yet. **2026-11-12:** the card moved out of the transcript onto v1's card docked
+above the composer (the operator's call), and the answer body stopped carrying `sessionId`, which the
+strict route schema refused as `400 body`.
