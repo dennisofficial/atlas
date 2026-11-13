@@ -34,11 +34,6 @@ const entryOf = (event: V2Event): MeterEntry => {
   }
 }
 
-const windowed = (state: MeterState, event: V2Event): MeterState => {
-  const window = stepReadingOf(event)?.contextWindow ?? state.window
-  return { ...state, window }
-}
-
 const withEntry = (state: MeterState, entry: MeterEntry): MeterState => {
   if (entry.measured !== null) {
     return {
@@ -65,7 +60,7 @@ export const rebuildMeter = (args: {
   state: MeterState
   visibleTail: readonly V2Event[]
 }): MeterState =>
-  args.visibleTail.reduce((state, event) => withEntry(windowed(state, event), entryOf(event)), {
+  args.visibleTail.reduce((state, event) => withEntry(state, entryOf(event)), {
     ...initialMeterState,
     window: args.state.window,
   })
