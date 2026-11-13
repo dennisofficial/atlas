@@ -1,7 +1,7 @@
 'use client'
 
 import { NotConfiguredAlert } from './not-configured-alert'
-import { OperatorInputCard } from './operator-input-card'
+import { OperatorInputCard, type OperatorInputCardProps } from './operator-input-card'
 import { ComposerContext, ComposerDock } from './composer-dock'
 import { ModelPickerControls } from './model-picker'
 import { RunAttentionDock } from './run-attention-dock'
@@ -12,7 +12,7 @@ import { SummariseDialog } from './transcript/summarise-dialog'
 type Props = React.ComponentProps<typeof ThreadComposer> & {
   notConfigured: { error: string } | null
   operator: {
-    request: React.ComponentProps<typeof OperatorInputCard>['request'] | null
+    request: Omit<OperatorInputCardProps, 'submitting' | 'onSubmit'> | null
     submitting: boolean
     onSubmit: (value: string) => void
   }
@@ -47,7 +47,7 @@ export function ComposerFooter(props: Props) {
       {operator.request === null ? null : (
         <OperatorInputCard
           key={operator.request.requestId}
-          request={operator.request}
+          {...operator.request}
           submitting={operator.submitting}
           onSubmit={operator.onSubmit}
         />
