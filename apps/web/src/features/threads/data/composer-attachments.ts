@@ -32,6 +32,7 @@ export type HeldAttachment = {
   upload?: SaidUpload | undefined
   image?: SaidImageWire | undefined
   previewUrl?: string | undefined
+  sent?: boolean | undefined
 }
 
 export const OCTET_STREAM = 'application/octet-stream'
@@ -213,6 +214,7 @@ export function restoredAttachmentsOf(args: {
       status: EAttachmentStatus.Ready,
       progress: 1,
       upload,
+      sent: true,
     }
     return image === undefined
       ? held
