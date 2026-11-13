@@ -8,22 +8,11 @@ import { type CommitCheckInput, recordCheckCounts } from './github-commit-checks
 import type { RawCheckAnnotation } from './github-check-annotations'
 import { readHeadChecks } from './github-head-checks-read'
 import { pullRequestCacheFieldsOf } from './github-pull-request-mapping'
+import { readChecksState } from './github-checks-state'
 
 const GITHUB_API = 'https://api.github.com'
 const DETAIL_CAP = 300
 const GITHUB_REQUEST_TIMEOUT_MS = 8_000
-
-const CHECKS_STATE_QUERY = `query ($owner: String!, $repo: String!, $number: Int!) {
-  repository(owner: $owner, name: $repo) { pullRequest(number: $number) { statusCheckRollup { state } } }
-}`
-
-type ChecksStateBody = {
-  data?: {
-    repository?: {
-      pullRequest?: { statusCheckRollup?: { state?: string | null } | null } | null
-    } | null
-  } | null
-}
 
 export class GithubUserReadFailed extends Error {
   readonly rateLimited: boolean
@@ -89,12 +78,13 @@ export class GithubUserReads {
       repo: args.repo,
       headSha: pull.head.sha,
     })
-    const checksState = await this.readChecksState({
+    const checksState = await readChecksState({
       source: args.source,
       token: args.token,
       owner: args.owner,
       repo: args.repo,
       number: args.number,
+      baseUrl: this.baseUrl,
     })
     const fields = pullRequestCacheFieldsOf({
       pull,
@@ -269,27 +259,6 @@ export class GithubUserReads {
     )
   }
 
-  /**
-   * GitHub's own rollup state, display-only: a rollup is absent on many repos and any failure here
-   * must never fail a fill, so every unhappy path answers null and the writer keeps the stored one.
-   */
-  async readChecksState(args: {
-    source: EGithubCallSource
-    token: string
-    owner: string
-    repo: string
-    number: number
-  }): Promise<string | null> {
-    const body = await this.post<ChecksStateBody>({
-      source: args.source,
-      token: args.token,
-      query: CHECKS_STATE_QUERY,
-      variables: { owner: args.owner, repo: args.repo, number: args.number },
-    })
-    const state = body?.data?.repository?.pullRequest?.statusCheckRollup?.state
-    return typeof state === 'string' ? state.toLowerCase() : null
-  }
-
   private async findHookId(args: {
     source: EGithubCallSource
     token: string
@@ -327,31 +296,6 @@ export class GithubUserReads {
       )
     }
     return (await response.json()) as T
-  }
-
-  private async post<T>(args: {
-    source: EGithubCallSource
-    token: string
-    query: string
-    variables: Record<string, unknown>
-  }): Promise<T | null> {
-    try {
-      const response = await githubFetch({
-        source: args.source,
-        url: `${this.baseUrl}/graphql`,
-        init: {
-          method: 'POST',
-          headers: { ...this.headers({ token: args.token }), 'content-type': 'application/json' },
-          signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
-          body: JSON.stringify({ query: args.query, variables: args.variables }),
-        },
-      })
-      if (!response.ok) return null
-      const body = (await response.json()) as T & { errors?: unknown }
-      return body.errors === undefined ? body : null
-    } catch {
-      return null
-    }
   }
 
   private headers(args: { token: string }): Record<string, string> {

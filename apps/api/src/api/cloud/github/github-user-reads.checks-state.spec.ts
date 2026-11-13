@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
 import { EGithubCallSource } from './github-call-log'
-import { GithubUserReads } from './github-user-reads'
+import { readChecksState } from './github-checks-state'
 
 const ARGS = {
   source: EGithubCallSource.ChecksState,
@@ -26,7 +26,7 @@ describe('readChecksState', () => {
       })
     })
 
-    const state = await new GithubUserReads().readChecksState(ARGS)
+    const state = await readChecksState(ARGS)
 
     expect(state).toBe('expected')
     expect(urls[0]).toBe('https://api.github.com/graphql')
@@ -35,21 +35,21 @@ describe('readChecksState', () => {
   it('answers null for a non-2xx answer', async () => {
     respondWith({ data: {} }, 500)
 
-    expect(await new GithubUserReads().readChecksState(ARGS)).toBeNull()
+    expect(await readChecksState(ARGS)).toBeNull()
   })
 
   it('answers null for a GraphQL errors payload', async () => {
     respondWith({ errors: [{ message: 'Could not resolve to a Repository' }] })
 
-    expect(await new GithubUserReads().readChecksState(ARGS)).toBeNull()
+    expect(await readChecksState(ARGS)).toBeNull()
   })
 
   it('answers null when GitHub has no rollup or no pull request to report one for', async () => {
     respondWith({ data: { repository: { pullRequest: { statusCheckRollup: null } } } })
-    expect(await new GithubUserReads().readChecksState(ARGS)).toBeNull()
+    expect(await readChecksState(ARGS)).toBeNull()
 
     respondWith({ data: { repository: { pullRequest: null } } })
-    expect(await new GithubUserReads().readChecksState(ARGS)).toBeNull()
+    expect(await readChecksState(ARGS)).toBeNull()
   })
 
   it('answers null instead of throwing when the request fails', async () => {
@@ -57,6 +57,6 @@ describe('readChecksState', () => {
       throw new Error('socket hang up')
     })
 
-    expect(await new GithubUserReads().readChecksState(ARGS)).toBeNull()
+    expect(await readChecksState(ARGS)).toBeNull()
   })
 })
