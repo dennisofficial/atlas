@@ -1,0 +1,24 @@
+[
+  {
+    "id": "data.pr-checks-tally-recompute",
+    "invariantId": "pr-checks-tally-v1",
+    "label": "Recompute open pull request check tallies from the stored check runs and statuses, so a queued suite no longer counts as a running check",
+    "operationClass": "data",
+    "target": {
+      "id": "table.GithubPrState",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "GithubPrState"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Recompute open pull request check tallies from the stored check runs and statuses, so a queued suite no longer counts as a running check",
+        "sql": "WITH ranked AS (\n  SELECT\n    c.\"repoFullName\",\n    c.\"headSha\",\n    c.outcome,\n    row_number() OVER (\n      PARTITION BY c.\"repoFullName\", c.\"headSha\", c.name\n      ORDER BY (split_part(c.\"checkKey\", ':', 2))::bigint DESC\n    ) AS rn\n  FROM \"public\".\"GithubCommitCheck\" AS c\n  WHERE c.\"checkKey\" LIKE 'run:%'\n    AND c.name IS NOT NULL\n), kept AS (\n  SELECT \"repoFullName\", \"headSha\", outcome FROM ranked WHERE rn = 1\n  UNION ALL\n  SELECT \"repoFullName\", \"headSha\", outcome\n  FROM \"public\".\"GithubCommitCheck\"\n  WHERE \"checkKey\" LIKE 'run:%' AND name IS NULL\n  UNION ALL\n  SELECT \"repoFullName\", \"headSha\", outcome\n  FROM \"public\".\"GithubCommitCheck\"\n  WHERE \"checkKey\" LIKE 'status:%'\n), tally AS (\n  SELECT\n    \"repoFullName\",\n    \"headSha\",\n    (count(*) FILTER (WHERE outcome = 'running'))::int AS running,\n    (count(*) FILTER (WHERE outcome = 'passed'))::int AS passed,\n    (count(*) FILTER (WHERE outcome = 'failed'))::int AS failed,\n    (count(*) FILTER (WHERE outcome = 'ignored'))::int AS ignored\n  FROM kept\n  GROUP BY \"repoFullName\", \"headSha\"\n)\n      UPDATE \"public\".\"GithubPrState\" AS p\n      SET \"checksRunning\" = tally.running,\n          \"checksPassed\" = tally.passed,\n          \"checksFailed\" = tally.failed,\n          \"checksIgnored\" = tally.ignored\n      FROM tally\n      WHERE p.\"repoFullName\" = tally.\"repoFullName\"\n        AND p.\"headSha\" = tally.\"headSha\"\n        AND p.state IN ('open', 'draft')\n        AND (p.\"checksRunning\" IS DISTINCT FROM tally.running\n          OR p.\"checksPassed\" IS DISTINCT FROM tally.passed\n          OR p.\"checksFailed\" IS DISTINCT FROM tally.failed\n          OR p.\"checksIgnored\" IS DISTINCT FROM tally.ignored)"
+      }
+    ],
+    "postcheck": []
+  }
+]
