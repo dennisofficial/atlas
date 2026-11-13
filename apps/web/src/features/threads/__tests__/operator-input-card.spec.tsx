@@ -9,7 +9,6 @@ import {
 } from '../operator-input-card'
 
 const ask = {
-  requestId: 'opin_1',
   description: 'Paste the login code',
 }
 

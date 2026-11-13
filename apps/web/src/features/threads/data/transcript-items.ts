@@ -89,10 +89,9 @@ export type RequestItem = {
   kind: ETranscriptKind.Request
   id: string
   text: string
-  requestId: string
+  callId: string
   prompt: string
   state: OperatorRequestState
-  expiresAt?: string | undefined
   shellId?: string | undefined
   path?: string | undefined
   bytes?: number | undefined
@@ -165,10 +164,9 @@ function textItemOf(args: {
         kind: ETranscriptKind.Request,
         id: entry.key,
         text: entry.text,
-        requestId: entry.requestId,
+        callId: entry.callId,
         prompt: entry.prompt,
         state: entry.state,
-        ...(entry.expiresAt === undefined ? {} : { expiresAt: entry.expiresAt }),
         ...(entry.shellId === undefined ? {} : { shellId: entry.shellId }),
         ...(entry.path === undefined ? {} : { path: entry.path }),
         ...(entry.bytes === undefined ? {} : { bytes: entry.bytes }),

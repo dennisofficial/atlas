@@ -45,11 +45,13 @@ without the value ever entering the transcript, the model's context or the datab
   `{requestId, description, url?, submitting, error?, onSubmit, onCancel?}`, with a plain `Textarea`
   and no masked variant: nothing about an operator answer is a secret, and the value never reaches
   the model, the transcript or the database whatever the field looks like.
-- **v2 has neither half.** `PodControl` has no way to ask a human
-  (`packages/plugin-sdk/src/slots.ts:63-79`: `exposePort`, `memory`, `webSearch`, `mcp`), no inbox
-  kind, event or card models a question, and the parity spec excepts the two tools with "the v2 cloud
-  loop has no live operator surface mid-tool"
-  (`apps/agent-host/src/agent-tools/__tests__/capability-parity.spec.ts:40-42`).
+- **v2 asks by parking a tool call.** `operator_input` and `operator_shell_input` return a parked
+  outcome carrying the question, dispatch writes `tool-parked {callId, name, request}`
+  (`packages/agent/src/tools/dispatch.ts`), an `operator-answer` inbox entry wakes the pod, and the
+  holder closes the call with the ordinary `tool-result`
+  (`packages/host/src/holder/operator-answer.ts`). No row, no deadline and no second event exist:
+  §2 has the record, §3 where the value goes, §4 the mechanics. The capability-parity `EXCEPTIONS`
+  entries for the two tools are gone, so v2 registers them like any other tool.
 - **A turn can wait inside a tool call.** Dispatch has no timeout, only the turn's `AbortSignal`
   (`packages/agent/src/tools/dispatch.ts:268-277`), and the turn is driven fire-and-forget
   (`packages/host/src/holder/held-runner.ts:43`, `held-turns.ts:25-52`) while the holder returns to
@@ -202,33 +204,42 @@ parsable `output` is `failed`. A legacy pair and a request-less parked call draw
 
 ## 5. Test plan
 
-- **Pod** (`plugins/operator/src/pod/__tests__`): both tools pass the schema's values to the port,
-  return the path/shell sentence, turn a refusal into the reason sentence, and never echo the port's
-  value (the double answers a marked string; the test asserts it is absent from `modelText`);
-  `childDeny` hides both from a sub-agent.
-- **Fold** (`plugins/operator/src/client/__tests__`): asked alone is pending; asked + settled is
-  delivered/cancelled/abandoned/expired/failed; a passed deadline with no settlement reads expired.
-- **Registry** (`apps/agent-host/src/operator-input/__tests__`): `open` writes a `pending` row,
-  `answer` resolves and marks it `answered` once, a second answer is `404`, expiry resolves and marks
-  `expired`, `abandon('cancelled')` marks `cancelled`, `abandon('abandoned')` marks `abandoned`.
-- **Adapter** (`packages/host/src/holder/__tests__`): asked then settled events in order, the file
-  written at `<sessionDir>/requests/<id>` with `0600` and the value, `shells.write` for the shell
-  kind, abort → `abandoned`, the operator's cancel → `cancelled`, expiry → `expired`, the stall clock
-  held for the length of the wait, no event payload contains the value.
-- **Route** (`apps/agent-host/src/operator-input/__tests__`): bearer, ownership, unknown id,
-  `409` off-holder, cancel, and the body cap.
-- **Status** (`packages/core/src/record/__tests__/session-status.spec.ts`): the asked/settled pair is
-  record-only, so a request settling after a `run-failed` leaves the session failed instead of
-  re-opening the turn.
-- **Control/db**: migration applies; `packages/db/src/__tests__/v2-smoke.spec.ts` covers the row.
-- **Web**: `threads/__tests__/operator-input-card.spec.tsx` (always the plain textarea and never a
-  masked field, inline error, Cancel only when offered, locked while submitting);
-  `sessions/__tests__/operator-request-dock.spec.tsx` (the pending row is found among the transcript
-  rows, the post body is exactly `{requestId, value}` with the stream bearer, stays submitting until
-  the request settles, cancel and Escape, a refusal reads as a sentence);
-  `threads/__tests__/transcript-request.spec.tsx` (a pending request draws nothing, the settled rows
+- **Pod** (`plugins/operator/src/pod/__tests__/tools.spec.ts`): each tool parks with its request
+  (`{kind: 'input', prompt}`, `{kind: 'shell', prompt, shellId}`), a call with no question is
+  rejected, the descriptions say the wait has no deadline and where the value goes, and `childDeny`
+  keeps both away from a sub-agent.
+- **Fold** (`plugins/operator/src/client/__tests__/request-entry.spec.ts`): a parked call draws a
+  pending entry keyed by its call id and carrying the shell id; the closing `tool-result`'s `output`
+  decides delivered / cancelled / failed, and an error with no parsable `output` is failed; two
+  parked calls queue and each closes on its own result; a legacy asked/settled pair, a request-less
+  parked call from #2278 and a parked call that is not an operator tool all draw no card; only the
+  legacy schemas are registered.
+- **Host** (`packages/host/src/holder/__tests__/operator-answer*.spec.ts`): the answer writes the
+  value to a `0600` file and appends exactly one `tool-result`, or types it into the shell; cancel
+  closes the call `cancelled`, a failed write appends nothing and leaves the call open, a gone shell
+  closes it `failed`; no handoff and a malformed payload wake nothing; two parked calls each get
+  their own result; a parked call that carried no request is refused; a message closes every open
+  call, legacy ones included; a turn that parks is closed once and never re-runs the tool.
+- **Registry and route** (`apps/agent-host/src/operator-input/__tests__`): the inbox entry carries
+  the call id and nothing else, the handoff returns the value or a cancel with none and drops both
+  when the session never wakes, the port exposes only the handoff; the route refuses no bearer and an
+  unknown bearer, the `requestId` body the shipped interface used to send, a value together with a
+  cancel, a missing `callId` and an oversized value, answers the preflight with the cors headers, and
+  answers `404` for another user's session.
+- **Status** (`packages/core/src/record/__tests__/session-status.spec.ts`): a legacy asked/settled
+  pair is record-only, so a request settling after a `run-failed` leaves the session failed instead
+  of re-opening the turn.
+- **DB** (`packages/db`): the drop migration applies and the contract no longer has
+  `V2OperatorRequest`; `refs/db.json` keeps the PR-checks tallies.
+- **Web** (`apps/web`): `sessions/__tests__/operator-request-dock.spec.tsx` (the earliest pending
+  call is picked among the transcript rows, the body is exactly `{sessionId, callId, value}` with the
+  stream bearer and exactly `{sessionId, callId, cancel: true}` on Cancel or Escape, stays submitting
+  until the call settles, a `404 session` and a `400 body` refusal read as sentences);
+  `threads/__tests__/operator-input-card.spec.tsx` (always the plain textarea and never a masked
+  field, inline error, Cancel only when offered, locked while submitting);
+  `threads/__tests__/transcript-request.spec.tsx` (a pending call draws nothing, the settled rows
   keep their Trace line and never render the value).
-- **Parity**: both `EXCEPTIONS` entries are deleted and the spec passes.
+- **Parity**: the two `EXCEPTIONS` entries are deleted and the spec passes.
 
 ## 6. Out of scope
 
@@ -237,14 +248,21 @@ parsable `output` is `failed`. A legacy pair and a request-less parked call draw
 - Per-tool approval prompts, or a free-form "ask the user" tool.
 - Reading the value back out afterwards (`bash` does that).
 
-## 7. Open questions
+## 7. Settled questions
 
-1. **Should the row exist at all?** The event pair suffices for the card and the wait is in-memory;
-   the row is kept because the brief asks for it and an id the control plane owns is what a stale
-   request can be swept by. Dropping it removes one migration and one store with no other change.
-2. **Deadline** — settled: there is none. The request is an open event and nothing holds it, so the
-   card can stay open across a redeploy and the pod sleeping. (v1's two-minute timeout,
-   `packages/client/src/channel/request-timeout.ts:15-19`, only exists to free a held terminal.)
+1. **No row.** The parked call is the record: an answer names a `callId` and closes that call, so a
+   request cannot outlive its call, drift from it, or need a status column, a sweep or a TTL. The
+   row, its store and its migration were deleted rather than kept beside the event. A need for an id
+   the control plane owns — routing an answer to another instance, or a queue across sessions — would
+   bring a row back with a reason (§8).
+2. **No deadline.** Nothing holds the request, so the card stays open across a redeploy and the pod
+   sleeping, and an unanswered call closes only when the operator answers, cancels, or sends a
+   message instead. v1's two-minute timeout
+   (`packages/client/src/channel/request-timeout.ts:15-19`) exists to free a held terminal and has no
+   counterpart here.
+3. **The wake path stays operator-specific** — one inbox kind plus one in-memory handoff keyed by
+   `{sessionId, callId}` — until a second tool parks. Parking itself is core's and generic; a
+   resolver registry with one caller would be a seam, not a design.
 
 ## 8. Multi-instance answer routing (deferred shape)
 

@@ -19,7 +19,7 @@ export const OPERATOR_INPUT_PRIVACY = 'The model never sees what you paste.'
 export const OPERATOR_INPUT_WAITING = 'Waiting for the session to confirm.'
 
 export type OperatorInputRequest = {
-  requestId: string
+  requestId?: string | undefined
   description: string
   url?: string | undefined
 }

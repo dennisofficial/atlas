@@ -10,10 +10,9 @@ const itemOf = (extra: Partial<RequestItem> = {}): RequestItem => ({
   kind: ETranscriptKind.Request,
   id: 'evt_1',
   text: PROMPT,
-  requestId: 'req_1',
+  callId: 'call_1',
   prompt: PROMPT,
   state: 'pending',
-  expiresAt: '2026-11-12T10:15:00.000Z',
   ...extra,
 })
 
@@ -26,7 +25,7 @@ describe('the operator request row in the transcript', () => {
   })
 
   it('reads the operator answered, without the value', () => {
-    const html = render({ state: 'delivered', path: '/tmp/requests/req_1', bytes: 7 })
+    const html = render({ state: 'delivered', path: '/tmp/requests/call_1', bytes: 7 })
 
     expect(html).toContain('The operator answered')
     expect(html).toContain(PROMPT)
