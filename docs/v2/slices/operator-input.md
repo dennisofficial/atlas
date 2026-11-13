@@ -178,6 +178,22 @@ call's `tool-result` error ("the operator sent a message instead of answering", 
 stopped while the request was open"), so the conversation stays valid and no card is stuck at
 `pending`.
 
+**A parked call is never re-run.** The turn loop picks the call to settle from `settleablePendingOf`
+(`packages/core/src/record/loop-state.ts`), which leaves out everything in `LoopState.parked`, so a
+turn that starts while a call is parked runs the intake and nothing else: if the intake closed the
+call the model is called with its result, and if it did not the turn ends `Parked` again without
+calling the model (`packages/agent/src/loop/tracked-turn.ts`). Dispatch never sees the parked call,
+so `operator_input` cannot ask a second time and `registry.open` cannot refuse itself.
+
+**An orphaned request settles abandoned.** An operator request is open iff its parked call is open.
+A request that was asked, never settled and whose parked call is no longer open — an old session that
+re-ran the ask, a log rebuilt from a narrower view — is settled by `settleOperatorOrphans`
+(`packages/host/src/holder/operator-orphans.ts`) at the start of `handle`, at the start of
+`cancelOpen` (a message or a stop) and before `ask` opens a new request: it appends
+`operator-input-settled {abandoned, reason}` and settles the row, so the card clears and the session
+can ask again. While any parked call is still open no request is treated as an orphan, since the
+pairing is by order, not by `callId`.
+
 **Multi-instance agent hosts** are out of scope: the answer handoff is process memory, so one agent
 host instance is assumed (true today).
 

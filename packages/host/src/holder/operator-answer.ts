@@ -6,8 +6,6 @@ import {
   EOperatorRequestKind,
   EOperatorRequestOutcome,
   INBOX_KIND_OPERATOR_ANSWER,
-  OPERATOR_INPUT_SETTLED,
-  type OperatorInputSettled,
   deliveredTextOf,
   refusalTextOf,
 } from '@dltech/atlas-plugin-operator/core'
@@ -23,6 +21,7 @@ import {
 } from '@dltech/atlas-core'
 
 import type { RemoteCalls } from '../calls/remote-calls'
+import { openRequestsOf, settledOf, settleOperatorOrphans, type Asked } from './operator-orphans'
 import type { OperatorAnswerHandoff, OperatorRequestPort } from './operator-requests'
 import type { AppendBody, SessionRecord } from './record/record-adapter'
 
@@ -61,18 +60,7 @@ export type OperatorAnswersArgs = {
   newRunId: () => RunId
 }
 
-type Asked = Extract<V2Event, { type: 'operator-input-asked' }>
-
 type OpenRequest = { asked: Asked; callId: CallId; name: string }
-
-const openRequestsOf = (events: readonly V2Event[]): ReadonlyMap<string, Asked> => {
-  const open = new Map<string, Asked>()
-  for (const event of events) {
-    if (event.type === 'operator-input-asked') open.set(event.requestId, event)
-    if (event.type === 'operator-input-settled') open.delete(event.requestId)
-  }
-  return open
-}
 
 const nameOfCall = (args: { events: readonly V2Event[]; callId: CallId }): string | undefined => {
   let name: string | undefined
@@ -91,23 +79,6 @@ const pairedOf = (events: readonly V2Event[]): OpenRequest | undefined => {
   if (name === undefined) return undefined
   return { asked: asked.value, callId, name }
 }
-
-const settledOf = (args: {
-  requestId: string
-  sessionId: string
-  outcome: EOperatorRequestOutcome
-  path?: string | undefined
-  bytes?: number | undefined
-  reason?: string | undefined
-}): OperatorInputSettled => ({
-  type: OPERATOR_INPUT_SETTLED,
-  requestId: args.requestId,
-  outcome: args.outcome,
-  ...(args.path === undefined ? {} : { path: args.path }),
-  ...(args.bytes === undefined ? {} : { bytes: args.bytes }),
-  ...(args.reason === undefined ? {} : { reason: args.reason }),
-  sessionId: args.sessionId,
-})
 
 export const operatorAnswersOf = (args: OperatorAnswersArgs): OperatorAnswerIntake => {
   const handoff: OperatorAnswerHandoff = args.requests.answers
@@ -205,6 +176,7 @@ export const operatorAnswersOf = (args: OperatorAnswersArgs): OperatorAnswerInta
   }
 
   const handle = async (entry: InboxEntry): Promise<OperatorAnswerOutcome> => {
+    await settleOperatorOrphans(args)
     const requestId = requestIdOf(entry.payload)
     const open = pairedOf(args.record.eventCache().eventsAfter(0))
     if (requestId === undefined) return { wakesTurn: false }
@@ -244,6 +216,7 @@ export const operatorAnswersOf = (args: OperatorAnswersArgs): OperatorAnswerInta
   }
 
   const cancelOpen = async (params: { reason: string }): Promise<void> => {
+    await settleOperatorOrphans(args)
     const open = pairedOf(args.record.eventCache().eventsAfter(0))
     if (open === undefined) return
     const drafts = settleDrafts({

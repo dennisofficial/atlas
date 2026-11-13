@@ -7,6 +7,7 @@ import {
 import type { PodOperatorInput } from '@dltech/atlas-plugin-sdk'
 
 import type { OperatorRequestPort } from './operator-requests'
+import { settleOperatorOrphans } from './operator-orphans'
 import type { SessionRecord } from './record/record-adapter'
 
 export type OperatorInputArgs = {
@@ -24,6 +25,7 @@ export const operatorInputOf = (args: OperatorInputArgs): PodOperatorInput => ({
   ask: async (askArgs) => {
     let requestId: string
     try {
+      await settleOperatorOrphans(args)
       const opened = await args.requests.open({
         sessionId: args.sessionId,
         threadId: args.threadId,

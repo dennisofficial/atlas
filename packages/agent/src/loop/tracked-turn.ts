@@ -3,8 +3,9 @@ import {
   callIdsIn,
   dedupeCallIds,
   EMPTY_STEP_RAW_RETRIES,
-  pendingCallsOf,
+  openParkedCallOfState,
   projectDirectoryOfState,
+  settleablePendingOf,
   retriableEmptyStep,
   type ThreadId,
   type RunId,
@@ -78,7 +79,7 @@ export async function runTrackedTurn(
 
     const beforeDrain = await record.composedEvents({ threadId })
     const before = await record.loopState({ threadId })
-    const pendingBeforeDrain = pendingCallsOf(before)[0]
+    const pendingBeforeDrain = settleablePendingOf(before)[0]
 
     const settled = await settlePendingCall({
       pending: pendingBeforeDrain,
@@ -114,6 +115,10 @@ export async function runTrackedTurn(
     const changed = intake.drained || intake.wakesTurn
     const events = changed ? await record.composedEvents({ threadId }) : beforeDrain
     const state = changed ? await record.loopState({ threadId }) : before
+
+    const parkedCallId = openParkedCallOfState(state)
+    if (parkedCallId !== undefined)
+      return { status: ETurnStatus.Parked, runId, callId: parkedCallId }
 
     const guarded = await guardRepeatLoop({
       events: await tailForLoopGuard({ deps, threadId, state }),

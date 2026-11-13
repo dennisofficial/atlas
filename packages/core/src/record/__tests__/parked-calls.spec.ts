@@ -11,8 +11,10 @@ import {
   initialLoopState,
   loopStateOf,
   isResumableOf,
+  openParkedCallOfState,
   pendingCallsOf,
   resumePlanOf,
+  settleablePendingOf,
 } from '../loop-state'
 
 const CALL = toCallId('call-1')
@@ -47,6 +49,8 @@ describe('a parked call in the log', () => {
 
     expect([...state.parked.keys()]).toEqual([CALL])
     expect(pendingCallsOf(state).map((call) => call.callId)).toEqual([CALL])
+    expect(settleablePendingOf(state)).toEqual([])
+    expect(openParkedCallOfState(state)).toEqual(CALL)
     expect(state.dispatched.has(CALL)).toBe(true)
     expect(resumePlanOf(state)).toEqual({ kind: EResume.Blocked, reason: TOOL_PARKED_WAITING })
     expect(isResumableOf(state)).toBe(false)

@@ -37,6 +37,7 @@ const rigOf = (options?: { openThrows?: string | undefined }) => {
       events.push(...drafts)
       return []
     },
+    eventCache: () => ({ eventsAfter: () => events as unknown as V2Event[] }),
   } as unknown as SessionRecord
 
   return {
