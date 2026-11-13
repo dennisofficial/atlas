@@ -50,6 +50,7 @@ export interface PullRequestCacheFields {
   checksPassed: number
   checksFailed: number
   checksIgnored: number
+  checksState: string | null
   mergeable: boolean | null
 }
 
@@ -62,6 +63,7 @@ export function pullRequestCacheFieldsOf(args: {
   pull: RestPullRequest
   checkRuns: readonly RestCheckRun[]
   statuses: readonly RestCommitStatus[]
+  checksState: string | null
 }): PullRequestCacheFields {
   const latestByContext = new Map<string, RestCommitStatus>()
   for (const status of args.statuses) {
@@ -95,6 +97,7 @@ export function pullRequestCacheFieldsOf(args: {
     checksPassed: tally.passed,
     checksFailed: tally.failed,
     checksIgnored: tally.ignored,
+    checksState: args.checksState,
     mergeable: args.pull.mergeable,
   }
 }

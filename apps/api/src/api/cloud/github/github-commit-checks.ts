@@ -9,13 +9,7 @@ import {
   type ChecksCount,
 } from '@dltech/atlas-core'
 import { db, type Tx } from '@dltech/atlas-db'
-import {
-  RUN_KEY_PREFIX,
-  runOrderOfKey,
-  SUITE_KEY_PREFIX,
-  countsAsPendingSuite,
-  runnerAppSlugs,
-} from './github-check-suites'
+import { runOrderOfKey, SUITE_KEY_PREFIX } from './github-check-suites'
 import { normalizedRepo } from './github-pr-identity'
 import type { GithubPrCheckAnnotation } from './github-realtime.types'
 
@@ -204,21 +198,13 @@ export async function commitChecksTally(args: {
     repoFullName: normalizedRepo(args.repoFullName),
     headSha: args.headSha,
   }).all()
-  const runners = await runnerAppSlugs({ tx: args.tx, repoFullName: args.repoFullName })
   const attempts: CheckAttempt[] = rows
-    .filter(
-      (row) => !row.checkKey.startsWith(SUITE_KEY_PREFIX) || countsAsPendingSuite({ row, runners }),
-    )
+    .filter((row) => !row.checkKey.startsWith(SUITE_KEY_PREFIX))
     .map((row) => ({
       name: row.name,
       order: runOrderOfKey(row.checkKey),
       outcome: row.outcome as ECheckOutcome,
     }))
-  const awaitsFirstRun =
-    runners.size > 0 &&
-    rows.length > 0 &&
-    !rows.some((row) => row.checkKey.startsWith(RUN_KEY_PREFIX))
-  if (awaitsFirstRun) attempts.push({ name: null, order: null, outcome: ECheckOutcome.Running })
   return checksTally(latestAttemptOutcomes(attempts))
 }
 

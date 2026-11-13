@@ -20,7 +20,6 @@ describe('GithubUserReads settle confirmation', () => {
       paths.push(path)
       if (path.endsWith('/check-runs')) return Response.json({ check_runs: [] })
       if (path.endsWith('/status')) return Response.json({ statuses: [] })
-      if (path.endsWith('/check-suites')) return Response.json({ check_suites: [] })
       return Response.json({
         number: 1,
         head: { sha: 'abc', ref: 'b', repo: null },
@@ -30,18 +29,18 @@ describe('GithubUserReads settle confirmation', () => {
   })
   afterEach(() => restore())
 
-  it('reads pull, check-runs, status and check-suites when collecting checks', async () => {
+  it('reads the pull, its check-runs, its statuses and GitHub rollup state', async () => {
     await new GithubUserReads().readPullRequest({
       ...target,
       number: 1,
       collectChecks: () => undefined,
     })
     expect(paths).toHaveLength(4)
-    expect(paths.some((path) => path.endsWith('/commits/abc/check-suites'))).toBe(true)
+    expect(paths.some((path) => path.endsWith('/graphql'))).toBe(true)
   })
 
-  it('keeps three calls for callers that do not confirm settlement', async () => {
+  it('makes the same four calls whether or not the caller collects checks', async () => {
     await new GithubUserReads().readPullRequest({ ...target, number: 1 })
-    expect(paths).toHaveLength(3)
+    expect(paths).toHaveLength(4)
   })
 })

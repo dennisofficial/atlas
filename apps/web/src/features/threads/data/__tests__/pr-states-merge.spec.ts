@@ -110,6 +110,30 @@ describe('mergePrStates', () => {
     expect(states[0]?.title).toBe('Latest live title')
   })
 
+  it('keeps the api rollup state when the pod sends none', () => {
+    const api = prStateWireOfApi(apiState({ checksState: 'expected' }))
+    const states = mergePrStates({ live: [podState()], api: api === undefined ? [] : [api] })
+    expect(states[0]?.checksState).toBe('expected')
+  })
+
+  it('carries the api polled marker when the pod reports none', () => {
+    const api = prStateWireOfApi(apiState({ polled: true }))
+    const states = mergePrStates({ live: [podState()], api: api === undefined ? [] : [api] })
+    expect(states[0]?.polled).toBe(true)
+  })
+
+  it('leaves a pull request the api does not call polled unmarked', () => {
+    expect(prStateWireOfApi(apiState())?.polled).toBeUndefined()
+  })
+
+  it('prefers a rollup state the pod sends itself', () => {
+    const states = mergePrStates({
+      live: [podState({ checksState: 'success' })],
+      api: [podState({ checksState: 'expected' })],
+    })
+    expect(states[0]?.checksState).toBe('success')
+  })
+
   it('keeps a terminal api state over a stale non-terminal live state', () => {
     const merged = mergePrStates({
       live: [podState({ state: EPullRequestStateWire.Open })],
@@ -153,6 +177,6 @@ describe('parked pod pull request row', () => {
       api: [podState({ checksFailed: 2 })],
     })
     const list = pullRequestListOf({ thread, states })
-    expect(list.rows[0]?.checks).toEqual({ running: 0, passed: 9, failed: 2 })
+    expect(list.rows[0]?.checks).toEqual({ running: 0, passed: 9, failed: 2, waiting: false })
   })
 })

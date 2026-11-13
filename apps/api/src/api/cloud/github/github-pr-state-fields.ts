@@ -15,13 +15,14 @@ export function stateFieldsOf(row: Row<'GithubPrState'>): GithubPrStateFields & 
     checksPassed: row.checksPassed,
     checksFailed: row.checksFailed,
     checksIgnored: row.checksIgnored,
+    checksState: row.checksState,
     mergeable: row.mergeable,
   }
 }
 
 /**
- * Check tallies and mergeable describe a commit, not a PR, so they carry forward only while
- * the head sha is unchanged; a new head resets them until the next REST fill.
+ * Check tallies, GitHub's rollup state and mergeable describe a commit, not a PR, so they carry
+ * forward only while the head sha is unchanged; a new head resets them until the next REST fill.
  */
 export function carryChecks(args: {
   fields: GithubPrStateRecord
@@ -35,6 +36,7 @@ export function carryChecks(args: {
     checksPassed: args.prior.checksPassed,
     checksFailed: args.prior.checksFailed,
     checksIgnored: args.prior.checksIgnored,
+    checksState: args.prior.checksState,
     mergeable: args.prior.mergeable,
   }
 }

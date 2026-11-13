@@ -24,6 +24,7 @@ const SETTLED_FIELDS = {
   checksPassed: 4,
   checksFailed: 0,
   checksIgnored: 0,
+  checksState: null,
   mergeable: true,
 }
 
