@@ -12,6 +12,7 @@ import {
 } from '../session-trpc-test-app'
 import { GithubService } from '../github/github.service'
 import { ProjectsService } from '../projects/projects.service'
+import { appendStoredWithin } from '../../platform/sessions/append'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 import { SkillUsageService } from './skill-usage.service'
@@ -86,19 +87,25 @@ describe('SkillsRouter', () => {
         })
       }
       seq += 1
-      await db.orm.public.Event.create({
-        id: `evt-${args.userId}-${seq}-${event.contextKey ?? event.type}`,
-        threadId,
-        seq,
-        runId: `run-${seq}`,
-        depth: 0,
-        at: event.at ?? new Date(),
-        type: event.type,
-        body: event.body,
-        userId: args.userId,
-        ...(event.contextSlot === undefined ? {} : { contextSlot: event.contextSlot }),
-        ...(event.contextKey === undefined ? {} : { contextKey: event.contextKey }),
-      })
+      await db.transaction((tx) =>
+        appendStoredWithin({
+          tx,
+          threadId,
+          userId: args.userId,
+          runId: `run-${seq}`,
+          drafts: [
+            {
+              type: event.type,
+              body: event.body,
+              ...(event.contextSlot === undefined ? {} : { contextSlot: event.contextSlot }),
+              ...(event.contextKey === undefined ? {} : { contextKey: event.contextKey }),
+            },
+          ],
+        }),
+      )
+      if (event.at !== undefined) {
+        await db.orm.public.Event.where({ threadId }).update({ at: event.at })
+      }
     }
   }
 
@@ -392,6 +399,19 @@ describe('SkillsRouter', () => {
     const project = await list('session-a', { scope: 'project', projectId: 'proj-a' }).expect(200)
     const deploy = (dataOf(project.body) as { skills: { usage: unknown }[] }).skills[0]
     expect(deploy?.usage).toMatchObject({ usedCount30d: 1 })
+  })
+
+  it('denormalises the tool name onto an event appended through the writer', async () => {
+    await seedEvents({
+      userId: USER_A,
+      events: [
+        { type: 'tool-called', body: JSON.stringify({ name: 'skill', input: { name: 'review' } }) },
+        { type: 'tool-called', body: JSON.stringify({ name: 'bash', input: {} }) },
+      ],
+    })
+
+    const rows = await db.orm.public.Event.where({ userId: USER_A, type: 'tool-called' }).all()
+    expect(rows.map((row) => row.toolName).sort()).toEqual(['bash', 'skill'])
   })
 
   it('derives and persists an empty description from SKILL.md on list', async () => {
