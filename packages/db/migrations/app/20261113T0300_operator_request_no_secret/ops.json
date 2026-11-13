@@ -1,0 +1,44 @@
+[
+  {
+    "id": "dropColumn.V2OperatorRequest.secret",
+    "label": "Drop column \"secret\" from \"V2OperatorRequest\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "column",
+        "name": "secret",
+        "table": "V2OperatorRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"secret\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2OperatorRequest",
+          "secret"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"secret\"",
+        "sql": "ALTER TABLE \"v2\".\"V2OperatorRequest\" DROP COLUMN \"secret\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"secret\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2OperatorRequest",
+          "secret"
+        ]
+      }
+    ]
+  }
+]

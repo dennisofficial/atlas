@@ -10,7 +10,7 @@ import { answerRigOf, closedFromAsk, entryOf, parkedFromAsk, REQUEST } from './o
 const signal = new AbortController().signal
 
 const ask = (rig: ReturnType<typeof answerRigOf>) =>
-  rig.input.ask({ ask: { kind: 'input', prompt: 'the login code', secret: true }, signal })
+  rig.input.ask({ ask: { kind: 'input', prompt: 'the login code' }, signal })
 
 describe('an operator request whose parked call closed without an answer', () => {
   it('is settled abandoned when an answer arrives for it', async () => {

@@ -1,8 +1,8 @@
-import type { V2Event } from '@dltech/atlas-core'
+import { type V2Event, createV2EventSchema } from '@dltech/atlas-core'
 import { EAuthor, EEntryKind } from '@dltech/atlas-client/transcript'
 import { describe, expect, it } from 'bun:test'
 
-import { EOperatorRequestKind, EOperatorRequestOutcome } from '../../core/request'
+import { EOperatorRequestKind, EOperatorRequestOutcome, operatorCoreSlots } from '../../core'
 import { operatorRequestEntries, requestEntriesAt } from '../request-entry'
 
 const NOW = Date.now()
@@ -26,7 +26,6 @@ const asked = (n = 1, extra: Record<string, unknown> = {}): V2Event =>
       requestId: 'req_1',
       kind: EOperatorRequestKind.Input,
       prompt: 'What is the login code?',
-      secret: true,
       expiresAt: SOON,
       sessionId: 's1',
       ...extra,
@@ -63,7 +62,6 @@ describe('the operator request row', () => {
       text: 'asked the operator: What is the login code?',
       requestId: 'req_1',
       prompt: 'What is the login code?',
-      secret: true,
       state: 'pending',
       expiresAt: SOON,
     })
@@ -183,5 +181,30 @@ describe('the operator request row', () => {
       now: NOW,
     })
     expect(closed.get('e1')?.state).toBe('delivered')
+  })
+})
+
+describe('an asked event recorded back when the flag existed', () => {
+  it('drops the retired secret key and folds into the same row', () => {
+    const wire = {
+      ...JSON.parse(JSON.stringify(asked(1, { secret: true }))),
+      runId: 'r1',
+      depth: 0,
+      epoch: 1,
+      prevHash: '0'.repeat(64),
+    }
+    const parsed = createV2EventSchema({ pluginBodies: operatorCoreSlots.events }).parse(wire)
+
+    expect(parsed).not.toHaveProperty('secret')
+    expect(entryOf([parsed])).toEqual({
+      kind: EEntryKind.OperatorRequest,
+      author: EAuthor.Model,
+      key: 'e1',
+      text: 'asked the operator: What is the login code?',
+      requestId: 'req_1',
+      prompt: 'What is the login code?',
+      state: 'pending',
+      expiresAt: SOON,
+    })
   })
 })

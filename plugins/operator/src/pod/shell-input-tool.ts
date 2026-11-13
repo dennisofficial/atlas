@@ -13,7 +13,6 @@ import { parkedTextOf, refusalTextOf } from '../core/request'
 
 const inputSchema = z.strictObject({
   prompt: z.string().min(1),
-  secret: z.boolean().optional(),
   shellId: z.string().min(1),
 })
 
@@ -40,7 +39,6 @@ export class OperatorShellInputTool extends SchemaTool<typeof inputSchema> {
       ask: {
         kind: 'shell',
         prompt: input.prompt,
-        secret: input.secret ?? false,
         shellId: input.shellId,
       },
       signal,

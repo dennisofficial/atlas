@@ -8828,13 +8828,6 @@
                   }
                 }
               },
-              "secret": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/bool@1",
-                  "kind": "scalar"
-                }
-              },
               "sessionId": {
                 "nullable": false,
                 "type": {
@@ -8881,9 +8874,6 @@
                 },
                 "resolvedAt": {
                   "column": "resolvedAt"
-                },
-                "secret": {
-                  "column": "secret"
                 },
                 "sessionId": {
                   "column": "sessionId"
@@ -16242,11 +16232,6 @@
                     "precision": 3
                   }
                 },
-                "secret": {
-                  "codecId": "pg/bool@1",
-                  "dataType": "pg/bool",
-                  "nullable": false
-                },
                 "sessionId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -16834,7 +16819,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "a1d7da1e092b7832619e7438fc84a790bd3244eaf29625754bd2ee821901b4e2"
+    "storageHash": "3821d957264a300b689ea27e09e7806db77dd6015b5f3a6b39e93c36cb30b0f8"
   },
   "execution": {
     "executionHash": "27a680d0d8367c03704617bfac2d0041e04bd5395fc473f9e021f03bd0d4c6fa",

@@ -82,7 +82,6 @@ const entryOfRun = (args: {
     text: args.state === 'pending' ? head : `${head} — ${outcomeText(settled)}`,
     requestId: asked.requestId,
     prompt: asked.prompt,
-    secret: asked.secret,
     ...(asked.shellId === undefined ? {} : { shellId: asked.shellId }),
     state: args.state,
     ...(asked.expiresAt === undefined ? {} : { expiresAt: asked.expiresAt }),

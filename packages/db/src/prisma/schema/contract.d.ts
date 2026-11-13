@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'a1d7da1e092b7832619e7438fc84a790bd3244eaf29625754bd2ee821901b4e2'>;
+  StorageHashBase<'3821d957264a300b689ea27e09e7806db77dd6015b5f3a6b39e93c36cb30b0f8'>;
 export type ExecutionHash =
   ExecutionHashBase<'27a680d0d8367c03704617bfac2d0041e04bd5395fc473f9e021f03bd0d4c6fa'>;
 export type ProfileHash =
@@ -1199,7 +1199,6 @@ export namespace Models {
     kind: FieldOutputTypes['v2']['V2OperatorRequest']['kind'];
     prompt: FieldOutputTypes['v2']['V2OperatorRequest']['prompt'];
     resolvedAt: FieldOutputTypes['v2']['V2OperatorRequest']['resolvedAt'];
-    secret: FieldOutputTypes['v2']['V2OperatorRequest']['secret'];
     sessionId: FieldOutputTypes['v2']['V2OperatorRequest']['sessionId'];
     shellId: FieldOutputTypes['v2']['V2OperatorRequest']['shellId'];
     status: FieldOutputTypes['v2']['V2OperatorRequest']['status'];
@@ -6861,12 +6860,6 @@ type ContractBase = Omit<
                   readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: true;
                   readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly secret: {
-                  readonly dataType: 'pg/bool';
-                  readonly codecId: 'pg/bool@1';
-                  readonly nullable: false;
                   readonly many: false;
                 };
                 readonly sessionId: {
@@ -12964,10 +12957,6 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
-              readonly secret: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
-              };
               readonly sessionId: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -12995,7 +12984,6 @@ type ContractBase = Omit<
                 readonly kind: { readonly column: 'kind' };
                 readonly prompt: { readonly column: 'prompt' };
                 readonly resolvedAt: { readonly column: 'resolvedAt' };
-                readonly secret: { readonly column: 'secret' };
                 readonly sessionId: { readonly column: 'sessionId' };
                 readonly shellId: { readonly column: 'shellId' };
                 readonly status: { readonly column: 'status' };

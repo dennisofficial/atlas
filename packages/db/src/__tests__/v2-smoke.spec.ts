@@ -107,7 +107,6 @@ describe('v2 namespace client', () => {
       threadId: 'thr_1',
       kind: 'input',
       prompt: 'the login code',
-      secret: true,
       status: 'pending',
       createdAt: NOW,
       resolvedAt: null,

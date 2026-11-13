@@ -12,7 +12,7 @@ import { pendingOperatorRequestOf } from '../data/use-operator-request'
 import { OperatorRequestDock } from '../operator-request-dock'
 
 const PROMPT = 'Paste the login code from your email'
-const SECRET = 'hunter2'
+const ANSWER = 'hunter2'
 
 const itemOf = (extra: Partial<RequestItem> = {}): RequestItem => ({
   kind: ETranscriptKind.Request,
@@ -20,7 +20,6 @@ const itemOf = (extra: Partial<RequestItem> = {}): RequestItem => ({
   text: PROMPT,
   requestId: 'req_1',
   prompt: PROMPT,
-  secret: true,
   state: 'pending',
   expiresAt: '2026-11-12T10:15:00.000Z',
   ...extra,
@@ -69,14 +68,14 @@ const mount = async (element: ReactElement) => {
   })
 }
 
-const field = () => document.querySelector('input')
+const field = () => document.querySelector('textarea')
 const buttonNamed = (name: string) =>
   [...document.body.querySelectorAll('button')].find((button) => button.textContent?.includes(name))
 
 const type = async (text: string) => {
   const input = field()
-  if (input === null) throw new Error('no input')
-  const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
+  if (input === null) throw new Error('no field')
+  const setValue = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set
   await act(async () => {
     setValue?.call(input, text)
     input.dispatchEvent(new Event('input', { bubbles: true }))
@@ -112,19 +111,19 @@ describe('the operator request dock', () => {
   it('posts exactly the request id and the value, with the stream bearer', async () => {
     stubFetch()
     await mount(<OperatorRequestDock request={itemOf()} />)
-    await type(SECRET)
+    await type(ANSWER)
     await press('Enter')
 
     expect(answers()).toHaveLength(1)
-    expect(bodyOf(answers()[0])).toEqual({ requestId: 'req_1', value: SECRET })
+    expect(bodyOf(answers()[0])).toEqual({ requestId: 'req_1', value: ANSWER })
     expect(answers()[0]?.init?.headers).toMatchObject({ authorization: 'Bearer tok_1' })
-    expect(document.body.innerHTML).not.toContain(SECRET)
+    expect(document.body.innerHTML).not.toContain(ANSWER)
   })
 
   it('stays submitting until the transcript settles the request', async () => {
     stubFetch()
     await mount(<OperatorRequestDock request={itemOf()} />)
-    await type(SECRET)
+    await type(ANSWER)
     await press('Enter')
 
     expect(buttonNamed('Send')?.hasAttribute('disabled')).toBe(true)
@@ -142,7 +141,7 @@ describe('the operator request dock', () => {
   it('cancels on Escape', async () => {
     stubFetch()
     await mount(<OperatorRequestDock request={itemOf()} />)
-    await type(SECRET)
+    await type(ANSWER)
     await press('Escape')
 
     expect(bodyOf(answers()[0])).toEqual({ requestId: 'req_1', cancel: true })
@@ -151,12 +150,12 @@ describe('the operator request dock', () => {
   it('says the host refused the answer instead of echoing a wire code', async () => {
     stubFetch({ status: 400, body: { reason: 'body' } })
     await mount(<OperatorRequestDock request={itemOf()} />)
-    await type(SECRET)
+    await type(ANSWER)
     await press('Enter')
 
     expect(document.body.textContent).toContain('the agent host refused the answer (400)')
     expect(document.body.textContent).not.toContain('body (400)')
-    await type(SECRET)
+    await type(ANSWER)
     expect(buttonNamed('Send')?.hasAttribute('disabled')).toBe(false)
   })
 })

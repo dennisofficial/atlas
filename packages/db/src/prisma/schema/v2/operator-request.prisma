@@ -6,7 +6,6 @@ namespace v2 {
     threadId   String
     kind       String
     prompt     String
-    secret     Boolean
     shellId    String?
     status     String
     createdAt  TimestamptzJsDate(3)

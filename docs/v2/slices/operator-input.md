@@ -42,7 +42,9 @@ without the value ever entering the transcript, the model's context or the datab
   from a channel signal instead (`apps/web/src/features/threads/composer-footer.tsx:12-54`), so a v1
   session in web shows the card above the composer, not in the transcript. That card is the one both
   surfaces use: `apps/web/src/features/threads/operator-input-card.tsx` is presentational over
-  `{requestId, description, url?, secret?, submitting, error?, onSubmit, onCancel?}`.
+  `{requestId, description, url?, submitting, error?, onSubmit, onCancel?}`, with a plain `Textarea`
+  and no masked variant: nothing about an operator answer is a secret, and the value never reaches
+  the model, the transcript or the database whatever the field looks like.
 - **v2 has neither half.** `PodControl` has no way to ask a human
   (`packages/plugin-sdk/src/slots.ts:63-79`: `exposePort`, `memory`, `webSearch`, `mcp`), no inbox
   kind, event or card models a question, and the parity spec excepts the two tools with "the v2 cloud
@@ -70,11 +72,11 @@ without the value ever entering the transcript, the model's context or the datab
 ## 2. The shape: a row, an event pair, a plugin, one route
 
 1. **A row, `v2.V2OperatorRequest`** (`packages/db/src/prisma/schema/v2/operator-request.prisma`) —
-   `id`, `sessionId`, `threadId`, `kind` (`input | shell`), `prompt`, `secret`, `shellId?`, `status`
+   `id`, `sessionId`, `threadId`, `kind` (`input | shell`), `prompt`, `shellId?`, `status`
    (`pending | answered | cancelled | abandoned | failed`), `createdAt`, `resolvedAt?`. There is no
    deadline column and no value column, and none may be added.
 2. **Two events** in `plugins/operator/src/core/request.ts`:
-   `operator-input-asked {requestId, kind, prompt, secret, shellId?, expiresAt?, sessionId}` and
+   `operator-input-asked {requestId, kind, prompt, shellId?, expiresAt?, sessionId}` and
    `operator-input-settled {requestId, outcome, path?, bytes?, reason?, sessionId}`. Distinct names
    from v1's `operator-input-requested/-resolved`, whose payloads and fold already exist. Neither
    carries the value.
@@ -86,15 +88,15 @@ without the value ever entering the transcript, the model's context or the datab
 
 ### The tool contract
 
-`operator_input { prompt, secret? }` and `operator_shell_input { prompt, secret?, shellId }` — the
+`operator_input { prompt }` and `operator_shell_input { prompt, shellId }` — the
 question, not a destination: v2 picks the path, so nothing the model writes can choose to overwrite a
 file, and `appendNewline`/FIFO plumbing disappears (the value lands in a file; the model decides how
 to hand it on). Both ask through one port (`packages/plugin-sdk/src/slots.ts`, `PodControl.operator`):
 
 ```ts
 export type PodOperatorAsk =
-  | { kind: 'input'; prompt: string; secret: boolean }
-  | { kind: 'shell'; prompt: string; secret: boolean; shellId: string }
+  | { kind: 'input'; prompt: string }
+  | { kind: 'shell'; prompt: string; shellId: string }
 
 export type PodOperatorOpened = { ok: true; requestId: string } | { ok: false; reason: string }
 
@@ -198,15 +200,16 @@ pairing is by order, not by `callId`.
 host instance is assumed (true today).
 
 **Card** (`apps/web`): one component for v1 and v2, `threads/operator-input-card.tsx` — `Atlas needs
-  you`, the question, a `Textarea` (an `Input type="password"` when `secret`), the privacy footer and
+  you`, the question, v1's plain `Textarea` (no masked variant: an operator answer is not a secret,
+and the value never reaches the model, transcript or database regardless), the privacy footer and
 Send, with an inline error and a Cancel button only when the caller passes them. v1 maps its channel
 signal into it in `threads/data/use-operator-input.ts` and docks it from `composer-footer.tsx`,
 unchanged in behaviour.
 
 v2 docks the same card above the composer: `sessions/data/use-operator-request.ts` picks the pending
 `ETranscriptKind.Request` row out of the transcript items (state `pending`), and
-`sessions/operator-request-dock.tsx` feeds its prompt to `description`, its `secret` to the masked
-field, and `answerOperatorRequest` / `cancelOperatorRequest` to `onSubmit` / `onCancel` with the
+`sessions/operator-request-dock.tsx` feeds its prompt to `description` and
+`answerOperatorRequest` / `cancelOperatorRequest` to `onSubmit` / `onCancel` with the
 result driving `submitting` and `error`. A successful answer stays submitting — `Waiting for the
 session to confirm.` — until the stream delivers `operator-input-settled` and the row stops being
 pending. The value is in the POST body only: the transcript draws nothing for a pending request and
@@ -238,8 +241,8 @@ reads as `expired` (old events keep that behaviour).
   record-only, so a request settling after a `run-failed` leaves the session failed instead of
   re-opening the turn.
 - **Control/db**: migration applies; `packages/db/src/__tests__/v2-smoke.spec.ts` covers the row.
-- **Web**: `threads/__tests__/operator-input-card.spec.tsx` (masked secret field, plain textarea for
-  a non-secret answer, inline error, Cancel only when offered, locked while submitting);
+- **Web**: `threads/__tests__/operator-input-card.spec.tsx` (always the plain textarea and never a
+  masked field, inline error, Cancel only when offered, locked while submitting);
   `sessions/__tests__/operator-request-dock.spec.tsx` (the pending row is found among the transcript
   rows, the post body is exactly `{requestId, value}` with the stream bearer, stays submitting until
   the request settles, cancel and Escape, a refusal reads as a sentence);

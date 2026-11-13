@@ -41,7 +41,6 @@ export const operatorInputOf = (args: OperatorInputArgs): PodOperatorInput => ({
       requestId,
       kind: askArgs.ask.kind === 'shell' ? EOperatorRequestKind.Shell : EOperatorRequestKind.Input,
       prompt: askArgs.ask.prompt,
-      secret: askArgs.ask.secret,
       ...(askArgs.ask.kind === 'shell' ? { shellId: askArgs.ask.shellId } : {}),
       sessionId: args.sessionId,
     }

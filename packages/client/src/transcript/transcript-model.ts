@@ -240,7 +240,6 @@ export type OperatorRequestEntry = {
   text: string
   requestId: string
   prompt: string
-  secret: boolean
   shellId?: string | undefined
   state: OperatorRequestState
   expiresAt?: string | undefined

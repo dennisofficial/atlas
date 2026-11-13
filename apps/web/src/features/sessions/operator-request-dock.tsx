@@ -13,7 +13,6 @@ export function OperatorRequestDock({ request }: { request: RequestItem | null }
       key={request.requestId}
       requestId={request.requestId}
       description={request.prompt}
-      secret={request.secret}
       submitting={answer.submitting}
       {...(answer.error === undefined ? {} : { error: answer.error })}
       onSubmit={answer.handleSubmit}

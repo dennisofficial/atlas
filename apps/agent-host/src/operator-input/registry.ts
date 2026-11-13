@@ -107,7 +107,6 @@ export class OperatorRequestRegistry {
       threadId: args.threadId,
       kind: args.ask.kind,
       prompt: args.ask.prompt,
-      secret: args.ask.secret,
       ...(args.ask.kind === 'shell' ? { shellId: args.ask.shellId } : {}),
       createdAt: new Date(this.now()),
     })

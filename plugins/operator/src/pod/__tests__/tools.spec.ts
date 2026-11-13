@@ -72,18 +72,18 @@ const rig = (opened: PodOperatorOpened) => {
 }
 
 describe('operator_input', () => {
-  it('asks the operator with the schema values, defaulting secret to false', async () => {
+  it('asks the operator with the schema values', async () => {
     const harness = rig({ ok: true, requestId: REQUEST })
 
     await harness.invoke({ name: 'operator_input', input: { prompt: 'Login code?' } })
     await harness.invoke({
       name: 'operator_input',
-      input: { prompt: 'API token?', secret: true },
+      input: { prompt: 'API token?' },
     })
 
     expect(harness.asks).toEqual([
-      { kind: 'input', prompt: 'Login code?', secret: false },
-      { kind: 'input', prompt: 'API token?', secret: true },
+      { kind: 'input', prompt: 'Login code?' },
+      { kind: 'input', prompt: 'API token?' },
     ])
   })
 
@@ -91,7 +91,7 @@ describe('operator_input', () => {
     const harness = rig({ ok: true, requestId: REQUEST })
     const outcome = await harness.invoke({
       name: 'operator_input',
-      input: { prompt: 'Login code?', secret: true },
+      input: { prompt: 'Login code?' },
     })
 
     expect(isParkedOutcome(outcome)).toBe(true)
@@ -123,16 +123,14 @@ describe('operator_shell_input', () => {
       input: { prompt: 'Login code?', shellId: SHELL_ID },
     })
 
-    expect(harness.asks).toEqual([
-      { kind: 'shell', prompt: 'Login code?', secret: false, shellId: SHELL_ID },
-    ])
+    expect(harness.asks).toEqual([{ kind: 'shell', prompt: 'Login code?', shellId: SHELL_ID }])
   })
 
   it('parks the shell ask the same way', async () => {
     const harness = rig({ ok: true, requestId: REQUEST })
     const outcome = await harness.invoke({
       name: 'operator_shell_input',
-      input: { prompt: 'Login code?', shellId: SHELL_ID, secret: true },
+      input: { prompt: 'Login code?', shellId: SHELL_ID },
     })
 
     expect(isParkedOutcome(outcome)).toBe(true)

@@ -37,8 +37,8 @@ export const seedSession = async (db: Db, args: { id: string; userId: string }):
 
 export const askOf = (kind: 'input' | 'shell' = 'input'): PodOperatorAsk =>
   kind === 'shell'
-    ? { kind: 'shell', prompt: 'the login code', secret: true, shellId: 'shl_1' }
-    : { kind: 'input', prompt: 'the login code', secret: true }
+    ? { kind: 'shell', prompt: 'the login code', shellId: 'shl_1' }
+    : { kind: 'input', prompt: 'the login code' }
 
 export const clockOf = () => {
   let now = NOW_MS

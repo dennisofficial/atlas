@@ -63,7 +63,7 @@ describe('the operator input adapter', () => {
     const rig = rigOf()
 
     const opened = await rig.input.ask({
-      ask: { kind: 'input', prompt: 'the login code', secret: true },
+      ask: { kind: 'input', prompt: 'the login code' },
       signal,
     })
 
@@ -74,17 +74,17 @@ describe('the operator input adapter', () => {
       requestId: REQUEST,
       kind: EOperatorRequestKind.Input,
       prompt: 'the login code',
-      secret: true,
       sessionId: SESSION,
     })
     expect(rig.events[0]).not.toHaveProperty('expiresAt')
+    expect(rig.events[0]).not.toHaveProperty('secret')
   })
 
   it('carries the shell id a shell ask names', async () => {
     const rig = rigOf()
 
     await rig.input.ask({
-      ask: { kind: 'shell', prompt: 'the login code', secret: true, shellId: 'shl_1' },
+      ask: { kind: 'shell', prompt: 'the login code', shellId: 'shl_1' },
       signal,
     })
 
@@ -94,9 +94,7 @@ describe('the operator input adapter', () => {
   it('refuses when the request could not be opened and records nothing', async () => {
     const rig = rigOf({ openThrows: 'this session is already waiting on an operator request' })
 
-    expect(
-      await rig.input.ask({ ask: { kind: 'input', prompt: 'x', secret: false }, signal }),
-    ).toEqual({
+    expect(await rig.input.ask({ ask: { kind: 'input', prompt: 'x' }, signal })).toEqual({
       ok: false,
       reason: 'this session is already waiting on an operator request',
     })
@@ -107,14 +105,14 @@ describe('the operator input adapter', () => {
     const rig = rigOf()
     rig.hand({ ok: true, value: 'marked-value-6f2a' })
 
-    await rig.input.ask({ ask: { kind: 'input', prompt: 'x', secret: false }, signal })
+    await rig.input.ask({ ask: { kind: 'input', prompt: 'x' }, signal })
 
     expect(JSON.stringify(rig.events)).not.toContain('marked-value-6f2a')
   })
 
   it('exposes the handoff without touching it while asking', async () => {
     const rig = rigOf()
-    await rig.input.ask({ ask: { kind: 'input', prompt: 'x', secret: false }, signal })
+    await rig.input.ask({ ask: { kind: 'input', prompt: 'x' }, signal })
     expect(rig.resolved()).toBeUndefined()
   })
 })

@@ -12,7 +12,6 @@ import { z } from 'zod'
 
 const inputSchema = z.strictObject({
   prompt: z.string().min(1),
-  secret: z.boolean().optional(),
 })
 
 export class OperatorInputTool extends SchemaTool<typeof inputSchema> {
@@ -35,7 +34,7 @@ export class OperatorInputTool extends SchemaTool<typeof inputSchema> {
     signal,
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
     const opened = await this.ctx.control.operator.ask({
-      ask: { kind: 'input', prompt: input.prompt, secret: input.secret ?? false },
+      ask: { kind: 'input', prompt: input.prompt },
       signal,
     })
     if (!opened.ok) return { ok: false, reason: refusalTextOf(opened.reason) }

@@ -12,7 +12,6 @@ const itemOf = (extra: Partial<RequestItem> = {}): RequestItem => ({
   text: PROMPT,
   requestId: 'req_1',
   prompt: PROMPT,
-  secret: true,
   state: 'pending',
   expiresAt: '2026-11-12T10:15:00.000Z',
   ...extra,

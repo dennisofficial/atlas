@@ -91,7 +91,6 @@ export type RequestItem = {
   text: string
   requestId: string
   prompt: string
-  secret: boolean
   state: OperatorRequestState
   expiresAt?: string | undefined
   shellId?: string | undefined
@@ -168,7 +167,6 @@ function textItemOf(args: {
         text: entry.text,
         requestId: entry.requestId,
         prompt: entry.prompt,
-        secret: entry.secret,
         state: entry.state,
         ...(entry.expiresAt === undefined ? {} : { expiresAt: entry.expiresAt }),
         ...(entry.shellId === undefined ? {} : { shellId: entry.shellId }),

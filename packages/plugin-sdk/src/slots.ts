@@ -61,8 +61,8 @@ export const EMPTY_MCP_CONTROL: PodMcpControl = {
 }
 
 export type PodOperatorAsk =
-  | { kind: 'input'; prompt: string; secret: boolean }
-  | { kind: 'shell'; prompt: string; secret: boolean; shellId: string }
+  | { kind: 'input'; prompt: string }
+  | { kind: 'shell'; prompt: string; shellId: string }
 
 export type PodOperatorOpened = { ok: true; requestId: string } | { ok: false; reason: string }
 

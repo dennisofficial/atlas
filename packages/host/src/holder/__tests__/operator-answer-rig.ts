@@ -40,7 +40,6 @@ const asked = (kind: 'input' | 'shell'): OperatorInputAsked => ({
   requestId: REQUEST,
   kind: kind === 'shell' ? EOperatorRequestKind.Shell : EOperatorRequestKind.Input,
   prompt: 'the login code',
-  secret: true,
   ...(kind === 'shell' ? { shellId: 'shl_1' } : {}),
   sessionId: SESSION,
 })

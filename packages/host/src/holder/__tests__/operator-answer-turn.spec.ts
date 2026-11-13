@@ -10,7 +10,7 @@ describe('a turn that parks on an operator request and is answered', () => {
   it('writes the value, closes the call once and never re-runs the tool', async () => {
     const rig = answerRigOf({ events: [] })
     const opened = await rig.input.ask({
-      ask: { kind: 'input', prompt: 'the login code', secret: true },
+      ask: { kind: 'input', prompt: 'the login code' },
       signal,
     })
     expect(opened).toEqual({ ok: true, requestId: 'oreq_1' })

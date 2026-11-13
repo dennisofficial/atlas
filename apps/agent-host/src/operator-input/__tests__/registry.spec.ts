@@ -38,7 +38,6 @@ describe('the operator request registry', () => {
       threadId: 'thr_ses_1',
       kind: 'shell',
       prompt: 'the login code',
-      secret: true,
       shellId: 'shl_1',
       status: EOperatorRequestStatus.Pending,
       resolvedAt: null,

@@ -22,7 +22,6 @@ export type OperatorInputAsked = {
   requestId: string
   kind: EOperatorRequestKind
   prompt: string
-  secret: boolean
   shellId?: string | undefined
   expiresAt?: string | undefined
   sessionId: string
@@ -50,7 +49,6 @@ export const operatorInputAskedSchema: z.ZodType<OperatorInputAsked> = z.object(
   requestId: z.string().min(1),
   kind: z.enum(EOperatorRequestKind),
   prompt: z.string().min(1),
-  secret: z.boolean(),
   shellId: z.string().min(1).optional(),
   expiresAt: z.string().min(1).optional(),
   sessionId: z.string().min(1),

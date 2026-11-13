@@ -15,7 +15,6 @@ export type OperatorRequestInsert = {
   threadId: string
   kind: string
   prompt: string
-  secret: boolean
   shellId?: string | undefined
   createdAt: Date
 }
@@ -32,7 +31,6 @@ export class OperatorRequestStore {
       threadId: row.threadId,
       kind: row.kind,
       prompt: row.prompt,
-      secret: row.secret,
       status: EOperatorRequestStatus.Pending,
       createdAt: row.createdAt,
       resolvedAt: null,
