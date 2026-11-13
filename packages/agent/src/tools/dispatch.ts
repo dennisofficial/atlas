@@ -16,11 +16,10 @@ import {
   type ToolOutcome,
   type OnToolOutput,
   type WorkspacePort,
-  type HookOutcome,
 } from '@dltech/atlas-core'
 
 import { logFieldsOf } from '@dltech/atlas-observability'
-import { withinBudget, type OnHookMishap } from '../hooks/budget'
+import type { OnHookMishap } from '../hooks/budget'
 import type { HookChain } from '../hooks/registry'
 import type { OnceLedger } from '../loop/once-ledger.port'
 import { consultBeforeToolHooks } from './consult-before-tool'
@@ -30,6 +29,7 @@ import {
   markerFailureDraft,
   unknownToolDraft,
 } from './dispatch-drafts'
+import { observeAfterTool } from './dispatch-observe'
 import { NO_QUALITY_STAGE, type QualityStagePort } from './quality-stage'
 import type { ToolRegistry } from './registry'
 import { resultDraft } from './tool-result-draft'
@@ -67,8 +67,6 @@ export abstract class ToolDispatcher {
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
-
-const NO_OUTCOME: HookOutcome = {}
 
 const outcomeOf = (drafts: readonly EventDraft[]): ESpanOutcome => {
   if (drafts.some((draft) => draft.type === 'tool-denied')) return ESpanOutcome.Denied
@@ -230,7 +228,15 @@ export class HookedToolDispatcher extends ToolDispatcher {
     })
     const afterTool = await spanWith(this.trace, {
       name: ESpan.ToolAfterHooks,
-      run: () => this.observeAfterTool({ call: allowed, result, projectDirectory, signal }),
+      run: () =>
+        observeAfterTool({
+          hooks: this.hooks,
+          onMishap: this.onMishap,
+          call: allowed,
+          result,
+          projectDirectory,
+          signal,
+        }),
     })
 
     return [
@@ -281,33 +287,5 @@ export class HookedToolDispatcher extends ToolDispatcher {
       })
       return { ok: false, reason: `the ${args.call.name} tool threw: ${messageOf(error)}` }
     }
-  }
-
-  private async observeAfterTool(args: {
-    call: ToolCall
-    result: ToolOutcome
-    projectDirectory: string
-    signal: AbortSignal
-  }): Promise<EventDraft[]> {
-    const observed: EventDraft[] = []
-
-    for (const hook of this.hooks.afterTool) {
-      const outcome = await withinBudget({
-        label: hook.name,
-        run: () =>
-          hook.run({
-            call: args.call,
-            result: args.result,
-            projectDirectory: args.projectDirectory,
-            signal: args.signal,
-          }),
-        fallback: () => NO_OUTCOME,
-        budgetMs: this.hooks.bounds.budgetMs,
-        onMishap: this.onMishap,
-      })
-      observed.push(...hookOutcomeDrafts({ hookName: hook.name, outcome }))
-    }
-
-    return observed
   }
 }

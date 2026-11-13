@@ -11,10 +11,12 @@ import { ScopedToolDispatcher } from '../calls/call-scope'
 import { BranchObserver } from './branch-observer'
 import { PrLinker } from './pr-linker'
 import { pluginPodOf } from './plugin-pod'
+import { operatorInputOf } from './operator-input'
 import type { HeldSessionDeps } from './held-session-deps'
 import { LeaseLostError } from './record/record-adapter'
 import type { HeldTurns } from './held-turns'
 import { InboxIntake } from './inbox-intake'
+import { operatorAnswersOf } from './operator-answer'
 import type { PodCrew } from '@dltech/atlas-plugin-sdk'
 
 import type { SessionRuntime } from './ports'
@@ -161,6 +163,19 @@ export const createLoopRunner = (args: {
   isModelOnlyDrain(): boolean
 }): { runner: LoopTurnRunner; intake: InboxIntake } => {
   const { deps, runtime, record, threadId } = args
+  const requests = deps.operator?.(deps.sessionId)
+  const operatorAnswers =
+    requests === undefined
+      ? undefined
+      : operatorAnswersOf({
+          requests,
+          calls: runtime.remoteCalls,
+          sessionId: deps.sessionId,
+          threadId,
+          sessionDir: deps.sessionDir,
+          record,
+          newRunId: () => deps.ids.nextRunId(),
+        })
   const pod = pluginPodOf({
     deps,
     runtime,
@@ -168,6 +183,17 @@ export const createLoopRunner = (args: {
     threadId,
     signal: args.signal,
     crew: args.crew,
+    ...(requests === undefined
+      ? {}
+      : {
+          operator: operatorInputOf({
+            requests,
+            sessionId: deps.sessionId,
+            threadId,
+            record,
+            newRunId: () => deps.ids.nextRunId(),
+          }),
+        }),
   })
   const intake = new InboxIntake({
     plane: deps.plane,
@@ -178,6 +204,7 @@ export const createLoopRunner = (args: {
     commands: deps.commands,
     handlers: deps.commandHandlers,
     model: runtime.model,
+    ...(operatorAnswers === undefined ? {} : { operatorAnswers }),
     now: () => deps.timers.now(),
     ...(deps.log === undefined ? {} : { log: deps.log }),
   })

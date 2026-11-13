@@ -5,7 +5,7 @@ import { OperatorInputTool } from './input-tool'
 import { OperatorShellInputTool } from './shell-input-tool'
 
 export { OperatorInputFragment } from './fragment'
-export { OperatorInputTool, refusalText } from './input-tool'
+export { OperatorInputTool } from './input-tool'
 export { OperatorShellInputTool } from './shell-input-tool'
 
 export const OPERATOR_TOOLS = ['operator_input', 'operator_shell_input'] as const
