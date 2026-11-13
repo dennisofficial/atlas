@@ -15,6 +15,7 @@ import {
   type PodPeers,
   type PrepareResult,
   type PrepareStepReporter,
+  type RoleModelChoice,
   type SessionRuntimeFactory,
 } from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
@@ -27,7 +28,6 @@ import type { GithubTokenReader } from '../tokens/github-token-reader'
 import type { SigningKeyReader } from '../tokens/signing-key-reader'
 import { SandboxSaidUploads } from '../uploads/sandbox-said-uploads'
 import { signerUploadBlobs } from '../uploads/upload-blobs'
-import type { ModelChoice } from '@dltech/atlas-core'
 import type { ConfigSource } from '../config/agent-host-config'
 import type { ResolvedRoleModel } from '../config/model-config'
 import type { RoleModelRequest } from '@dltech/atlas-host'
@@ -54,6 +54,7 @@ import { ShellEnvCell } from './shell-env'
 import { envSecretsRefresher } from './env-secrets-refresh'
 import { pathEnvironmentOf, sessionPathsOf, shellEnvironmentOf } from './session-paths'
 import { modelPortOf } from './model-port'
+import { modelLabelOf } from '../config/model-labels'
 import { prepareSigning } from './signing-setup'
 import { ensureWorkspace } from './workspace-setup'
 import { workspaceRepoMap } from './workspace-repo-map'
@@ -280,7 +281,7 @@ export const createSessionRuntimeFactory = (
     const overridden = args.modelFor
     const modelFor = (request: RoleModelRequest): ModelPort =>
       overridden === undefined ? portOf(config.models.resolve(request)) : overridden({ sessionId })
-    const choiceFor = (request: RoleModelRequest): ModelChoice =>
+    const choiceFor = (request: RoleModelRequest): RoleModelChoice =>
       overridden === undefined ? config.models.resolve(request).choice : config.models.main.choice
 
     let model: ModelPort
@@ -310,6 +311,7 @@ export const createSessionRuntimeFactory = (
       modelChoice: config.models.main.choice,
       modelFor,
       choiceFor,
+      modelLabelOf,
       tools: registry,
       daemonTools: new Set(daemonToolList.map((tool) => tool.name)),
       effectOf: (name) => byName.get(name)?.effect,

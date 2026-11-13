@@ -195,7 +195,7 @@ const configuredWith = (args: {
   const { ref } = args.choice
   if (args.parsed.length === 0) return { configured: false, gap: 'no model account' }
   if (!isProvider(ref.providerId)) {
-    return { configured: false, gap: `no ${ref.providerId} account` }
+    return { configured: false, gap: `no ${ref.providerId} account`, unavailable: ref }
   }
   const chosen = chosenFor({
     provider: ref.providerId,
@@ -203,7 +203,9 @@ const configuredWith = (args: {
     activeAccounts: args.activeAccounts,
     pinned: args.pinned,
   })
-  if (chosen === undefined) return { configured: false, gap: `no ${ref.providerId} account` }
+  if (chosen === undefined) {
+    return { configured: false, gap: `no ${ref.providerId} account`, unavailable: ref }
+  }
   const secret = accountSecretSchema.safeParse(
     JSON.parse(args.cipher.decrypt(chosen.row.sealedSecret)),
   )
@@ -248,8 +250,7 @@ export const modelSourceOf = (args: ModelSourceArgs): ModelSource => {
     })
 
   const fromSettingsMain = choose({ role: EModelRole.Main, stale: EStalePolicy.Keep })
-  const named = args.thread === undefined ? undefined : parseRef(args.thread.ref)
-  const threadRef = named !== undefined && reachable(named.providerId) ? named : undefined
+  const threadRef = args.thread === undefined ? undefined : parseRef(args.thread.ref)
   const root: ModelChoice | undefined =
     threadRef === undefined || args.thread === undefined
       ? undefined

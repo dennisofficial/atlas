@@ -1,6 +1,8 @@
 import { HookChain, ToolRegistry, type HookChainArgs } from '@dltech/atlas-agent'
 import {
+  EModelFallbackReason,
   TEAMMATE_AGENT_TYPE,
+  type EventDraft,
   type ThreadId,
   type ToolDeclaration,
   type ToolDefinition,
@@ -14,7 +16,8 @@ import { fireLive } from './ports'
 import { MirrorPlanHook } from './plan-mirror'
 import { podControlOf } from './pod-control'
 import { podSessionsOf } from './plugin-sessions'
-import type { SessionRuntime } from './ports'
+import { modelFellBackDraft } from './crew/model-fell-back'
+import type { RoleModelChoice, SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
 
 export class ComposedPodRegistry extends ToolRegistry {
@@ -54,6 +57,28 @@ export class ComposedPodRegistry extends ToolRegistry {
   }
 }
 
+const teammateFallbackOf = (args: {
+  runtime: SessionRuntime
+  teammateChoice: RoleModelChoice
+  append: (drafts: readonly EventDraft[]) => Promise<void>
+}): Pick<Parameters<typeof podSessionsOf>[0], 'onFallback'> => {
+  const unavailable = args.teammateChoice.unavailable
+  if (unavailable === undefined) return {}
+  return {
+    onFallback: (agentId) =>
+      args.append([
+        modelFellBackDraft({
+          runtime: args.runtime,
+          role: TEAMMATE_AGENT_TYPE,
+          agentId,
+          from: unavailable,
+          to: args.teammateChoice.ref,
+          reason: EModelFallbackReason.ProviderNotConnected,
+        }),
+      ]),
+  }
+}
+
 export const pluginPodContextOf = (args: {
   deps: HeldSessionDeps
   runtime: SessionRuntime
@@ -63,6 +88,13 @@ export const pluginPodContextOf = (args: {
   crew: PodCrew
 }): PluginPodContext => {
   const { deps, runtime, record, threadId } = args
+  const teammateChoice = runtime.choiceFor({
+    role: { agentType: TEAMMATE_AGENT_TYPE },
+    root: runtime.modelChoice,
+  })
+  const append = async (drafts: readonly EventDraft[]): Promise<void> => {
+    await record.append({ threadId, runId: deps.ids.nextRunId(), drafts })
+  }
   return {
     sessionId: deps.sessionId,
     workspaceDirectory: runtime.launchDirectory,
@@ -75,15 +107,11 @@ export const pluginPodContextOf = (args: {
     sessions: podSessionsOf({
       plane: deps.plane,
       sessionId: deps.sessionId,
-      model: runtime.choiceFor({
-        role: { agentType: TEAMMATE_AGENT_TYPE },
-        root: runtime.modelChoice,
-      }),
+      model: teammateChoice,
+      ...teammateFallbackOf({ runtime, teammateChoice, append }),
     }),
     worktrees: worktreesOf({ calls: runtime.remoteCalls }),
-    append: async (drafts) => {
-      await record.append({ threadId, runId: deps.ids.nextRunId(), drafts })
-    },
+    append,
     events: () => record.eventCache().eventsAfter(0),
     call: (op, options) =>
       runtime.remoteCalls.invoke({

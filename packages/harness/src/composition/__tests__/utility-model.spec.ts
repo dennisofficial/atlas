@@ -6,6 +6,7 @@ import {
   catalogOf,
   EEffort,
   EImageTier,
+  ENoticeTone,
   ESettingId,
   EUtilityModelRole,
   findCard,
@@ -389,5 +390,58 @@ describe('createUtilityModel', () => {
     expect(notices.posts[0]?.key).toBe('utility-model:judge:anthropic')
     expect(notices.posts[0]?.text).toContain('judge model anthropic/claude-haiku-4-5 failed')
     expect(notices.posts[0]?.text).toContain('provider is down')
+  })
+})
+
+describe('a utility role whose own model has no account', () => {
+  const withoutOpenAi = (builds: BuiltModel[]): ModelCatalogue => ({
+    ...fakeCatalogue({ builds }),
+    reachable: (providerId) => providerId !== 'openai',
+  })
+
+  it("runs on the main agent's model and warns once per role and ref", async () => {
+    const builds: BuiltModel[] = []
+    const notices = recordingNotices()
+    const model = createUtilityModel({
+      role: EUtilityModelRole.Tldr,
+      settled: settledOf(
+        settingsOver({
+          [ESettingId.ModelId]: 'anthropic/claude-sonnet-5',
+          [ESettingId.QuickModel]: 'openai/gpt-5.1-codex-mini',
+        }),
+      ),
+      catalogue: withoutOpenAi(builds),
+      notice: notices.port,
+    })
+
+    await call(model)
+    await call(model)
+
+    expect(builds.map((built) => built.ref.modelId)).toEqual(['claude-sonnet-5'])
+    const warned = notices.posts.filter((post) => post.key === 'utility-model:tldr:unavailable')
+
+    expect(warned).toHaveLength(1)
+    expect(warned[0]?.tone).toBe(ENoticeTone.Warn)
+    expect(warned[0]?.text).toBe(
+      "tl;dr footer is running on claude-sonnet-5: OpenAI isn't connected.",
+    )
+  })
+
+  it('says nothing when the role runs the model it was given', async () => {
+    const builds: BuiltModel[] = []
+    const notices = recordingNotices()
+    const model = createUtilityModel({
+      role: EUtilityModelRole.Tldr,
+      settled: settledOf(settingsOver({ [ESettingId.QuickModel]: 'openai/gpt-5.1-codex-mini' })),
+      catalogue: fakeCatalogue({ builds }),
+      notice: notices.port,
+    })
+
+    await call(model)
+
+    expect(builds.map((built) => built.ref.modelId)).toEqual(['gpt-5.1-codex-mini'])
+    expect(
+      notices.posts.filter((post) => post.key?.endsWith(':unavailable') === true),
+    ).toHaveLength(0)
   })
 })

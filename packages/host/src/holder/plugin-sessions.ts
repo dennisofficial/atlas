@@ -1,13 +1,16 @@
 import { randomUUID } from 'node:crypto'
 
 import type { ControlPlane } from '@dltech/atlas-control'
-import { refKey, type ModelChoice } from '@dltech/atlas-core'
+import { refKey, toThreadId, type ThreadId } from '@dltech/atlas-core'
 import type { PodSessions } from '@dltech/atlas-plugin-sdk'
+
+import type { RoleModelChoice } from './ports'
 
 export const podSessionsOf = (args: {
   plane: ControlPlane
   sessionId: string
-  model: ModelChoice
+  model: RoleModelChoice
+  onFallback?: ((agentId: ThreadId) => Promise<void>) | undefined
 }): PodSessions => ({
   spawn: async ({ title, brief, nested }) => {
     const sessionId = randomUUID()
@@ -23,6 +26,7 @@ export const podSessionsOf = (args: {
       brief,
       nested,
     })
+    if (args.model.unavailable !== undefined) await args.onFallback?.(toThreadId(mainThreadId))
     return { sessionId, mainThreadId }
   },
   message: async ({ sessionId, text }) => {

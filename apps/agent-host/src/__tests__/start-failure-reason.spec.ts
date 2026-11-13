@@ -18,6 +18,19 @@ describe('startFailureReason', () => {
     )
   })
 
+  it('names the model and the missing provider, then says how to connect it', () => {
+    expect(
+      startFailureReason(
+        new CredentialsUnavailableError('no openai account', {
+          providerId: 'openai',
+          modelId: 'gpt-5',
+        }),
+      ),
+    ).toBe(
+      "Your main agent is set to GPT-5, but OpenAI isn't connected. Connect OpenAI in Settings → Providers, or pick another model in Settings → Models & Effort, then retry.",
+    )
+  })
+
   it('says a deleted session is gone', () => {
     expect(startFailureReason(new SessionNotFoundError('s-1'))).toBe(
       'This session no longer exists.',

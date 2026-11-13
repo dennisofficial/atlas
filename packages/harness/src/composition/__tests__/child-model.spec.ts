@@ -201,7 +201,7 @@ describe('childModelSelection', () => {
     fixture.parent.select({ ref: GPT, effort: EEffort.High })
     const settled = await inFlight
 
-    expect(settled).toEqual({ ref: keyOf(CLAUDE), effort: EEffort.Medium })
+    expect(settled.model).toEqual({ ref: keyOf(CLAUDE), effort: EEffort.Medium })
   })
 
   it("a teammate's saved choice passes to its new subagent", async () => {
@@ -213,7 +213,7 @@ describe('childModelSelection', () => {
 
     const inherited = await fixture.selection()({ agentType: childType(), spawnedBy: teammate })
 
-    expect(inherited).toEqual({ ref: keyOf(GPT), effort: 'high' })
+    expect(inherited.model).toEqual({ ref: keyOf(GPT), effort: 'high' })
   })
 
   it('a saved choice stays put when the supervisor persists it before the runner is built', async () => {
@@ -223,12 +223,12 @@ describe('childModelSelection', () => {
     const chosen = await select({ agentType: childType(), spawnedBy: fixture.threadId })
     fixture.parent.select({ ref: GPT, effort: EEffort.High })
 
-    const threadId = await fixture.newThread({ spawner: fixture.threadId, model: chosen })
+    const threadId = await fixture.newThread({ spawner: fixture.threadId, model: chosen.model })
     const child = await fixture.spawn({ threadId })
 
     expect(child.identity).toEqual({ id: 'anthropic', modelId: CLAUDE.modelId })
     expect(await askModel(child)).toBe('one')
-    expect(await fixture.savedModel(threadId)).toEqual(chosen)
+    expect(await fixture.savedModel(threadId)).toEqual(chosen.model)
   })
 
   describe('a child whose own credential is dead', () => {

@@ -2,6 +2,7 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { afterAll, afterEach, beforeAll, describe, expect, it, mock } from 'bun:test'
 import { act } from 'react'
 import type { Root } from 'react-dom/client'
+import * as realNavigation from 'next/navigation'
 
 import type { ArtifactSummary } from '@dltech/atlas-wire/web'
 
@@ -11,7 +12,10 @@ import { artifactSummary, buildSummary } from './fixtures'
 
 const state: { artifacts: ArtifactSummary[] } = { artifacts: [] }
 
-mock.module('next/navigation', () => ({ useRouter: () => ({ push: () => undefined }) }))
+mock.module('next/navigation', () => ({
+  ...realNavigation,
+  useRouter: () => ({ push: () => undefined }),
+}))
 
 mock.module('../artifacts-api', () => ({
   ARTIFACTS_KEY: 'artifacts',
@@ -35,6 +39,7 @@ beforeAll(() => {
 })
 
 afterAll(async () => {
+  mock.module('next/navigation', () => realNavigation)
   await GlobalRegistrator.unregister()
 })
 

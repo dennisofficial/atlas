@@ -5,11 +5,19 @@ import {
   type EExecutionLocation,
   type EventLogPort,
   type IdPort,
+  type ModelFellBackBody,
   type ThreadId,
 } from '@dltech/atlas-core'
 
 import type { ThreadModel, ThreadStorePort } from '../../store/thread-store'
 import type { AgentType } from '../types'
+
+export type ModelFallback = Omit<ModelFellBackBody, 'type' | 'agentId'>
+
+export type SpawnedModel = {
+  model: ThreadModel
+  fellBack?: ModelFallback | undefined
+}
 
 export async function openChildThread({
   threads,
@@ -20,6 +28,7 @@ export async function openChildThread({
   brief,
   intent,
   model,
+  fellBack,
 }: {
   threads: ThreadStorePort
   log: EventLogPort
@@ -29,6 +38,7 @@ export async function openChildThread({
   brief: string
   intent: string
   model?: ThreadModel | undefined
+  fellBack?: ModelFallback | undefined
 }): Promise<{ threadId: ThreadId; inheritedLocation: EExecutionLocation | undefined }> {
   const spawner = await threads.find({ threadId: spawnedBy })
   const { thread } = await threads.createWithFirstEvents({
@@ -55,6 +65,9 @@ export async function openChildThread({
         intent,
         mode: EAgentStart.Fresh,
       },
+      ...(fellBack === undefined
+        ? []
+        : [{ type: 'model-fell-back' as const, agentId: thread.id, ...fellBack }]),
     ],
   })
 

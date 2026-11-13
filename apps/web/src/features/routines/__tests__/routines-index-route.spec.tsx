@@ -2,6 +2,7 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { afterAll, afterEach, beforeAll, describe, expect, it, mock } from 'bun:test'
 import { act } from 'react'
 import type { Root } from 'react-dom/client'
+import * as realNavigation from 'next/navigation'
 
 import { fakeFetch, trpcOk } from '@/features/threads/data/__tests__/trpc-fake'
 
@@ -9,6 +10,7 @@ const replace = mock((_href: string) => {})
 let query = ''
 
 mock.module('next/navigation', () => ({
+  ...realNavigation,
   useRouter: () => ({ replace }),
   useSearchParams: () => new URLSearchParams(query),
 }))
@@ -68,6 +70,7 @@ beforeAll(() => {
 })
 
 afterAll(async () => {
+  mock.module('next/navigation', () => realNavigation)
   await GlobalRegistrator.unregister()
 })
 

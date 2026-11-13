@@ -26,7 +26,7 @@ describe('the model a teammate starts on', () => {
 
     const chosen = await fixture.selection()({ agentType: teammate, spawnedBy: fixture.threadId })
 
-    expect(chosen).toEqual({ ref: keyOf(CLAUDE), effort: EEffort.High })
+    expect(chosen.model).toEqual({ ref: keyOf(CLAUDE), effort: EEffort.High })
   })
 
   it('still sends a plain sub-agent to the sub-agent role model', async () => {
@@ -37,7 +37,7 @@ describe('the model a teammate starts on', () => {
       spawnedBy: fixture.threadId,
     })
 
-    expect(chosen.ref).toBe(keyOf(GPT))
+    expect(chosen.model.ref).toBe(keyOf(GPT))
   })
 
   it('takes the main agent model as it is when the teammate is spawned, not at launch', async () => {
@@ -46,7 +46,7 @@ describe('the model a teammate starts on', () => {
     fixture.parent.select({ ref: GPT, effort: EEffort.Low })
     const chosen = await fixture.selection()({ agentType: teammate, spawnedBy: fixture.threadId })
 
-    expect(chosen).toEqual({ ref: keyOf(GPT), effort: EEffort.Low })
+    expect(chosen.model).toEqual({ ref: keyOf(GPT), effort: EEffort.Low })
   })
 
   it('runs on the main agent provider with the main agent effort', async () => {
@@ -70,7 +70,7 @@ describe('a model a teammate is explicitly given', () => {
 
     const chosen = await fixture.selection()({ agentType: teammate, spawnedBy: fixture.threadId })
 
-    expect(chosen).toEqual({ ref: keyOf(GPT), effort: EEffort.Low })
+    expect(chosen.model).toEqual({ ref: keyOf(GPT), effort: EEffort.Low })
   })
 
   it('outranks the sub-agent role model', async () => {
@@ -90,7 +90,7 @@ describe('a model a teammate is explicitly given', () => {
       spawnedBy: fixture.threadId,
     })
 
-    expect(chosen.ref).toBe(keyOf(GPT))
+    expect(chosen.model.ref).toBe(keyOf(GPT))
   })
 
   it('is saved with the thread and survives later settings and main agent changes', async () => {

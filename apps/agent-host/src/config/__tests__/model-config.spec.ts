@@ -82,7 +82,11 @@ describe('modelConfigOf', () => {
       accounts: [accountRow({ id: 'a', provider: 'anthropic' })],
       settings: { 'model.id': 'openai/gpt-5' },
     })
-    expect(config).toEqual({ configured: false, gap: 'no openai account' })
+    expect(config).toEqual({
+      configured: false,
+      gap: 'no openai account',
+      unavailable: { providerId: 'openai', modelId: 'gpt-5' },
+    })
   })
 
   it('reports a gap for an unknown provider prefix', () => {
@@ -90,7 +94,11 @@ describe('modelConfigOf', () => {
       accounts: [accountRow({ id: 'a', provider: 'anthropic' })],
       settings: { 'model.id': 'mystery/model' },
     })
-    expect(config).toEqual({ configured: false, gap: 'no mystery account' })
+    expect(config).toEqual({
+      configured: false,
+      gap: 'no mystery account',
+      unavailable: { providerId: 'mystery', modelId: 'model' },
+    })
   })
 
   it('defaults to haiku when an anthropic account exists and the model is unset', () => {
@@ -281,7 +289,7 @@ describe('modelSourceOf', () => {
     })
   })
 
-  it('lets a role with an unreachable own model follow its parent instead of swapping', () => {
+  it('lets a role with an unreachable own model follow Main and reports it unavailable', () => {
     const source = sourceOf({
       accounts: [accountRow({ id: 'a', provider: 'anthropic' })],
       settings: { 'agents.type.builder': 'openai/gpt-5' },
@@ -289,9 +297,28 @@ describe('modelSourceOf', () => {
     const resolved = source.resolve({ role: { agentType: 'builder' } })
     expect(resolved.choice).toMatchObject({
       ref: { providerId: 'anthropic', modelId: 'claude-haiku-4-5' },
-      follows: 'subagents',
+      follows: 'main',
       stale: true,
+      unavailable: { providerId: 'openai', modelId: 'gpt-5' },
     })
     expect(resolved.config).toMatchObject({ configured: true, accountId: 'a' })
+  })
+
+  it('keeps a thread model whose provider has no account and reports it unavailable', () => {
+    const source = sourceOf({
+      accounts: [accountRow({ id: 'a', provider: 'anthropic' })],
+      settings: { 'model.id': 'anthropic/claude-sonnet-4-5' },
+      thread: { ref: 'openai/gpt-5', effort: 'low' },
+    })
+    expect(source.main.choice).toMatchObject({
+      ref: { providerId: 'openai', modelId: 'gpt-5' },
+      effort: EEffort.Low,
+      stale: false,
+    })
+    expect(source.main.config).toEqual({
+      configured: false,
+      gap: 'no openai account',
+      unavailable: { providerId: 'openai', modelId: 'gpt-5' },
+    })
   })
 })

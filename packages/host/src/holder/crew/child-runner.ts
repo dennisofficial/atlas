@@ -4,7 +4,7 @@ import {
   LoopTurnRunner,
   type AgentIntake,
 } from '@dltech/atlas-agent'
-import type { ThreadId } from '@dltech/atlas-core'
+import type { ThreadId, ModelRef } from '@dltech/atlas-core'
 import type { PodCrew } from '@dltech/atlas-plugin-sdk'
 
 import { ScopedToolDispatcher } from '../../calls/call-scope'
@@ -26,6 +26,7 @@ export const childRunnerOf = (args: {
   signal: AbortSignal
   crew: PodCrew
   intake: AgentIntake
+  onFallback?: ((refs: { from: ModelRef; to: ModelRef }) => void | Promise<void>) | undefined
 }): LoopTurnRunner => {
   const { deps, runtime, record } = args
   const ctx = pluginPodContextOf({
@@ -44,7 +45,11 @@ export const childRunnerOf = (args: {
   return new LoopTurnRunner({
     record,
     modelContext: record,
-    model: childModelOf({ runtime, agentType: args.agentType }),
+    model: childModelOf({
+      runtime,
+      agentType: args.agentType,
+      ...(args.onFallback === undefined ? {} : { onFallback: args.onFallback }),
+    }),
     ids: deps.ids,
     assembly: runtime.assembly,
     hooks,

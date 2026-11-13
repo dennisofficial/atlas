@@ -1,4 +1,5 @@
 import { providerLabelOf } from '../credentials/providers'
+import { connectProviderAdvice } from '../models/choice/unavailable-copy'
 import { ERunFailureKind, remediesOf, type ERunRemedy, type RunFailure } from './run-failure'
 
 export type RunFailureCopy = {
@@ -34,8 +35,8 @@ function wordsOf(args: {
       }
     case ERunFailureKind.MissingCredential:
       return {
-        title: `No ${provider} key available`,
-        detail: `Atlas has no usable credential for ${provider}. Add or refresh one in Settings → Providers (or /auth), then retry.`,
+        title: `${provider} isn't connected`,
+        detail: `${failure.message} ${connectProviderAdvice(provider)}`,
       }
     case ERunFailureKind.Delivery:
       return {

@@ -5,6 +5,7 @@ import { EAgentRestart } from '../agents/restart'
 import { EAgentStart } from '../agents/start'
 import { EAgentStatus } from '../agents/status'
 import { EKilledBy } from '../shells/status'
+import { EModelFallbackReason } from './agent-body'
 import { threadIdSchema } from './ids'
 import { ERunFailureKind } from './run-failure'
 import { noticeStampSchema } from './notice-stamp-schema'
@@ -56,5 +57,13 @@ export const agentEventSchemas = [
     prose: z.string(),
     kind: z.enum(EReportKind).optional(),
     notice: noticeStampSchema.optional(),
+  }),
+  z.object({
+    type: z.literal('model-fell-back'),
+    role: z.string().min(1),
+    agentId: threadIdSchema.optional(),
+    from: z.object({ ref: z.string().min(1), label: z.string().min(1) }),
+    to: z.object({ ref: z.string().min(1), label: z.string().min(1) }),
+    reason: z.enum(EModelFallbackReason),
   }),
 ] as const

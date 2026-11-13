@@ -126,12 +126,12 @@ describe('agent model scope across discovery, settings and child selection', () 
       hooks: () => new HookChain({}),
     })
     if (reviewer === undefined) throw new Error('reviewer did not load')
-    expect((await select({ agentType: reviewer, spawnedBy: fixture.threadId })).ref).toBe(
+    expect((await select({ agentType: reviewer, spawnedBy: fixture.threadId })).model.ref).toBe(
       'openai/gpt-5-codex',
     )
     expect(second.settings.clear({ id: 'agents.type.reviewer' })).toEqual({ ok: true })
     expect(await readFile(userFile, 'utf8')).toBe(original)
-    expect((await select({ agentType: reviewer, spawnedBy: fixture.threadId })).ref).toBe(
+    expect((await select({ agentType: reviewer, spawnedBy: fixture.threadId })).model.ref).toBe(
       'anthropic/claude-opus-5',
     )
   })

@@ -98,6 +98,20 @@ describe('runFailureCopy', () => {
     expect(copy.remedies[0]).toBe(ERunRemedy.FixCredential)
   })
 
+  it('names the missing provider and carries the model the run wanted', () => {
+    const copy = runFailureCopy({
+      failure: {
+        kind: ERunFailureKind.MissingCredential,
+        message: "Your main agent is set to GPT-5, but OpenAI isn't connected.",
+      },
+      providerLabel: 'OpenAI',
+    })
+    expect(copy.title).toBe("OpenAI isn't connected")
+    expect(copy.detail).toBe(
+      "Your main agent is set to GPT-5, but OpenAI isn't connected. Connect OpenAI in Settings → Providers, or pick another model in Settings → Models & Effort, then retry.",
+    )
+  })
+
   it('does not claim the key is invalid when a credential was never delivered', () => {
     const copy = runFailureCopy({
       failure: failure(ERunFailureKind.Delivery),

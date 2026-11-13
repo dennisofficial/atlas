@@ -56,6 +56,7 @@ export const COMPACTION_DISPOSITION = {
   'run-failure-dismissed': ECompactionDisposition.Drop,
   rotated: ECompactionDisposition.Drop,
   'agent-spawned': ECompactionDisposition.Drop,
+  'model-fell-back': ECompactionDisposition.Drop,
   'service-started': ECompactionDisposition.Drop,
   'background-shell-started': ECompactionDisposition.Drop,
 } as const satisfies Record<EventType, ECompactionDisposition>

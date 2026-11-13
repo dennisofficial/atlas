@@ -51,3 +51,18 @@ export type AgentEventBody =
       kind?: EReportKind | undefined
       notice?: NoticeStamp | undefined
     }
+  | {
+      type: 'model-fell-back'
+      role: string
+      agentId?: ThreadId | undefined
+      from: { ref: string; label: string }
+      to: { ref: string; label: string }
+      reason: EModelFallbackReason
+    }
+
+export enum EModelFallbackReason {
+  ProviderNotConnected = 'provider-not-connected',
+  CredentialFailed = 'credential-failed',
+}
+
+export type ModelFellBackBody = Extract<AgentEventBody, { type: 'model-fell-back' }>
