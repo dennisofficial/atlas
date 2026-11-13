@@ -12,6 +12,9 @@ export const spawnPeerIn = async (params: {
   spawner: ControlSessionRow
   sessionId: string
   mainThreadId: string
+  modelRef?: string | undefined
+  modelEffort?: string | undefined
+  modelFast?: boolean | undefined
   title?: string | undefined
   brief?: string | undefined
   nested?: boolean | undefined
@@ -23,6 +26,9 @@ export const spawnPeerIn = async (params: {
     sessionId: params.sessionId,
     userId: spawner.userId,
     projectId: spawner.projectId,
+    ...(params.modelRef === undefined ? {} : { modelRef: params.modelRef }),
+    ...(params.modelEffort === undefined ? {} : { modelEffort: params.modelEffort }),
+    ...(params.modelFast === undefined ? {} : { modelFast: params.modelFast }),
     ...(params.title === undefined ? {} : { title: params.title }),
     mainThreadId: params.mainThreadId,
     spawnedBySessionId: spawner.sessionId,

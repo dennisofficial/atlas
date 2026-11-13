@@ -9,6 +9,7 @@ import type { VercelCredentials } from '../../sandbox/constants'
 import { SandboxProvider, type DaemonEndpoint } from '../../sandbox/sandbox-provider'
 import { REWAKES_BEFORE_GIVING_UP } from '../rewaking-connector'
 import { createSessionRuntimeFactory } from '../session-runtime-factory'
+import { fakeModelSourceOf } from '../../testing/model-source'
 
 const config: AgentHostConfig = {
   userId: 'user-1',
@@ -21,6 +22,14 @@ const config: AgentHostConfig = {
     accountId: 'acct-1',
     credential: { kind: 'api-key', apiKey: 'sk-test' },
   },
+  models: fakeModelSourceOf({
+    configured: true,
+    ref: { providerId: 'anthropic', modelId: 'claude-sonnet-4-5' },
+    effort: EEffort.Medium,
+    fast: false,
+    accountId: 'acct-1',
+    credential: { kind: 'api-key', apiKey: 'sk-test' },
+  }),
   vercel: { configured: true, token: 'vt', teamId: 'team', projectId: 'proj' },
   workspace: { remoteUrl: null, baseBranch: null, additionalRepos: [], setupScript: '' },
   skills: [],

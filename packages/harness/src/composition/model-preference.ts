@@ -63,6 +63,14 @@ export function fallbackRef(args: { catalogue: ModelCatalogue }): ModelRef {
   return offered?.ref ?? DEFAULT_MODEL_REF
 }
 
+/** What core `resolveModelChoice` reads: a setting as the layers settled it. */
+export const settingReaderOf =
+  (resolution: SettingsResolution) =>
+  (id: string): string | boolean | undefined => {
+    const text = textValueOf({ resolution, id })
+    return text.length > 0 ? text : toggleValueOf({ resolution, id })
+  }
+
 /** The pair a conversation with no model of its own starts on, as the layers settled it. */
 export function defaultSelection(args: {
   settled: SettingsResolution

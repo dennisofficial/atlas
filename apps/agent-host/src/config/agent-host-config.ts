@@ -1,5 +1,7 @@
 import type { EEffort, ModelRef, ThreadId } from '@dltech/atlas-core'
 
+import type { ModelSource } from './model-config'
+
 export type ModelCredential =
   | { kind: 'oauth'; connectionId: string }
   | { kind: 'api-key'; apiKey: string }
@@ -36,6 +38,7 @@ export type AgentHostConfig = {
   userId: string
   projectId: string
   model: ModelConfig
+  models: ModelSource
   workspace: WorkspaceConfig
   vercel: VercelConfig
   skills: SkillIndexEntry[]

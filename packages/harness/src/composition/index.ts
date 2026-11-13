@@ -63,7 +63,7 @@ export {
   type ModelSettingProblem,
 } from './model-setting-checks'
 export { suggestedModelRef } from './model-suggestions'
-export { createUtilityModel } from './utility-model'
+export { createUtilityModel, utilityChoiceOf } from './utility-model'
 export {
   defaultSelection,
   fallbackRef,

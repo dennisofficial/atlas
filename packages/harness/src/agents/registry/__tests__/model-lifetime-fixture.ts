@@ -102,8 +102,8 @@ function lifetimeAdapter(args: { ref: ModelRef }): LifetimeAdapter {
       return { reached, release }
     },
     cards: () => [lifetimeCard(args.ref)],
-    model: ({ effort }) => {
-      built.push({ model: mock, effortAt: () => effort() })
+    model: ({ effort, fast }) => {
+      built.push({ model: mock, effortAt: () => effort(), fastAt: () => fast?.() === true })
       return mock
     },
     effortOptions: () => undefined,

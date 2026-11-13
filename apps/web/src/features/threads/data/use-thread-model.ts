@@ -13,7 +13,7 @@ export function useThreadModel(args: { threadId: string; stored: ThreadModelChoi
   const [chosen, setChosen] = useState<ModelSelection | null>(null)
   const selection = chosen ?? existingSelectionOf(args.stored)
   const picker = useModelPicker({
-    currentId: selection.id === UNSET_SELECTION.id ? undefined : selection.id,
+    currentIds: selection.id === UNSET_SELECTION.id ? [] : [selection.id],
   })
 
   const handleRemoteChange = (model: ThreadModelChoice) => setChosen(existingSelectionOf(model))

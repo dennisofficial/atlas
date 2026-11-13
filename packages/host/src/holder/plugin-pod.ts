@@ -1,5 +1,10 @@
 import { HookChain, ToolRegistry, type HookChainArgs } from '@dltech/atlas-agent'
-import type { ThreadId, ToolDeclaration, ToolDefinition } from '@dltech/atlas-core'
+import {
+  TEAMMATE_AGENT_TYPE,
+  type ThreadId,
+  type ToolDeclaration,
+  type ToolDefinition,
+} from '@dltech/atlas-core'
 import {
   EMPTY_OPERATOR_INPUT,
   type PluginPodContext,
@@ -93,7 +98,14 @@ export const pluginPodContextOf = (args: {
       operator: operatorInputFor({ deps, runtime, record, threadId }),
     }),
     crew: args.crew,
-    sessions: podSessionsOf({ plane: deps.plane, sessionId: deps.sessionId }),
+    sessions: podSessionsOf({
+      plane: deps.plane,
+      sessionId: deps.sessionId,
+      model: runtime.choiceFor({
+        role: { agentType: TEAMMATE_AGENT_TYPE },
+        root: runtime.modelChoice,
+      }),
+    }),
     worktrees: worktreesOf({ calls: runtime.remoteCalls }),
     append: async (drafts) => {
       await record.append({ threadId, runId: deps.ids.nextRunId(), drafts })

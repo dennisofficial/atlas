@@ -51,6 +51,7 @@ export type {
   PodPeers,
   PullRequestFinder,
   PullRequestSource,
+  RoleModelRequest,
   SessionRuntime,
   SessionRuntimeFactory,
 } from './holder/ports'

@@ -10,13 +10,6 @@ export enum EEffortLevel {
   Max = 'max',
 }
 
-export enum EModelPreset {
-  Fast = 'fast',
-  Balanced = 'balanced',
-  Thorough = 'thorough',
-  Custom = 'custom',
-}
-
 export enum EPlacementChooserShape {
   Chip = 'chip',
   Hero = 'hero',

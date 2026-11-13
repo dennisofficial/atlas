@@ -1,6 +1,6 @@
 import { EFileChange, type FileNode } from '../ai/file-tree'
 import type { DiffLine } from '../ai/diff-viewer'
-import type { ModelOption } from '../ai/model-selector'
+import { EEffort, type ModelOption } from '../ai/model-selector'
 import { EStepStatus, type PlanStep } from '../ai/plan'
 import type { QueueTodo } from '../ai/queue'
 import type { Source } from '../ai/sources'
@@ -219,3 +219,21 @@ export const THREADS = [
   { id: 't3', title: 'Storybook coverage spec', meta: 'yesterday' },
   { id: 't4', title: 'Sandbox image cache', meta: '2d ago' },
 ]
+
+export const DEEPSEEK_FLASH = 'gateway/deepseek/deepseek-v4.1-flash-1017'
+
+export const NATIVE_MODEL: ModelOption = {
+  id: DEEPSEEK_FLASH,
+  label: 'DeepSeek V4.1 Flash',
+  provider: 'AI Gateway',
+  efforts: [EEffort.Off, EEffort.Low, EEffort.High, EEffort.Max],
+  effortLabels: { [EEffort.Off]: 'None' },
+  fast: true,
+}
+
+export const FOLLOWING = {
+  label: 'Follow main agent',
+  active: true,
+  onFollow: () => undefined,
+  note: 'Follows main agent',
+}

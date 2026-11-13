@@ -23,7 +23,9 @@ export type ModelPicker = {
   onPinnedChange: (ids: string[]) => void
 }
 
-export function useModelPicker(args: { currentId?: string | undefined } = {}): ModelPicker {
+export function useModelPicker(
+  args: { currentIds?: readonly string[] | undefined } = {},
+): ModelPicker {
   const source = useCloudQuery({
     key: MODEL_PICKER_KEY,
     load: loadSource,
@@ -36,9 +38,9 @@ export function useModelPicker(args: { currentId?: string | undefined } = {}): M
     () =>
       modelOptionsOfSource({
         source: source.data,
-        currentId: args.currentId,
+        ...(args.currentIds === undefined ? {} : { currentIds: args.currentIds }),
       }),
-    [source.data, args.currentId],
+    [source.data, args.currentIds],
   )
 
   const stored = decodeModelFavourites(read({ key: 'model.favourites', schema: z.string() }))

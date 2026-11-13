@@ -72,10 +72,40 @@ describe('ConfigReader', () => {
       configured: true,
       ref: { providerId: 'openai', modelId: 'gpt-5' },
       effort: EEffort.Low,
-      fast: true,
+      fast: false,
       accountId: 'acct-2',
       credential: { kind: 'api-key', apiKey: 'sk-openai' },
     })
+  })
+
+  it('resolves every role from the same settings, project over user', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedVercel(db)
+    await seedApiKeyAccount(db)
+    await seedApiKeyAccount({ db, id: 'acct-2', provider: 'openai', apiKey: 'sk-openai' })
+    await seedSetting({
+      db,
+      scope: 'user',
+      key: 'agents.type.builder',
+      value: 'anthropic/claude-sonnet-4-5',
+    })
+    await seedSetting({ db, scope: 'project', key: 'agents.type.builder', value: 'openai/gpt-5' })
+    await seedSetting({ db, scope: 'user', key: 'agents.type.teammate', value: 'openai/gpt-5' })
+    const config = await readerOver().read({ sessionId: 's-1' })
+    expect(config.models.main.config).toMatchObject({
+      ref: { providerId: 'anthropic', modelId: 'claude-haiku-4-5' },
+      accountId: 'acct-1',
+    })
+    expect(config.models.resolve({ role: { agentType: 'builder' } }).config).toMatchObject({
+      configured: true,
+      ref: { providerId: 'openai', modelId: 'gpt-5' },
+      accountId: 'acct-2',
+    })
+    expect(
+      config.models.resolve({ role: { agentType: 'teammate' }, root: config.models.main.choice })
+        .config,
+    ).toMatchObject({ ref: { providerId: 'openai', modelId: 'gpt-5' }, accountId: 'acct-2' })
   })
 
   it('lets a project setting override the user model and falls back to the shipped default', async () => {
@@ -173,7 +203,7 @@ describe('ConfigReader', () => {
       configured: true,
       ref: { providerId: 'openai', modelId: 'gpt-5' },
       effort: EEffort.High,
-      fast: true,
+      fast: false,
       accountId: 'acct-oa',
       credential: { kind: 'api-key', apiKey: 'sk-oa' },
     })

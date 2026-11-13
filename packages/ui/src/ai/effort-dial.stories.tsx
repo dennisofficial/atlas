@@ -70,6 +70,33 @@ export const InComposer: Story = {
   },
 }
 
+export const VisibleLabel: Story = {
+  render: () => {
+    const [effort, setEffort] = useState(EEffort.High)
+    const models: ModelOption[] = [
+      {
+        id: 'anthropic/claude-opus-4.7',
+        label: 'Claude Opus 4.7',
+        provider: 'Anthropic',
+        efforts: EFFORTS,
+      },
+    ]
+    return (
+      <InputGroup className="w-96">
+        <InputGroupAddon>
+          <ModelSelector
+            models={models}
+            value="anthropic/claude-opus-4.7"
+            effort={effort}
+            onEffortChange={setEffort}
+            showEffortLabel
+          />
+        </InputGroupAddon>
+      </InputGroup>
+    )
+  },
+}
+
 export const EveryLadder: Story = {
   render: () => (
     <InputGroup className="w-96">

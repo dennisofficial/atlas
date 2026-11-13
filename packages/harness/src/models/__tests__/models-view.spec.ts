@@ -23,6 +23,15 @@ const providerOf = (view: ReturnType<typeof modelsView>, id: string) =>
   view.find((provider) => provider.id === id)
 
 describe('modelsView', () => {
+  it('sends each model\u2019s own effort words beside its rungs', () => {
+    const model = modelsView({ accounts: [] })
+      .flatMap((provider) => provider.models)
+      .find((entry) => entry.efforts.length > 0)
+
+    expect(model?.efforts.length).toBeGreaterThan(0)
+    expect(Object.keys(model?.effortLabels ?? {})).toEqual(model?.efforts ?? [])
+  })
+
   it('lists every catalogue provider as unavailable for a user holding no accounts', () => {
     const view = modelsView({ accounts: [] })
 

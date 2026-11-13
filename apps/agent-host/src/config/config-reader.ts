@@ -8,7 +8,7 @@ import type {
   VercelConfig,
   WorkspaceConfig,
 } from './agent-host-config'
-import { MODEL_SETTING_KEYS, modelConfigOf, type ThreadModelChoice } from './model-config'
+import { modelSourceOf, type ThreadModelChoice } from './model-config'
 import type { SecretCipher } from './secret-cipher'
 import { skillIndexOf } from './skill-index'
 import { VercelReconnectRequiredError } from '../tokens/vercel-token-refresher'
@@ -82,7 +82,7 @@ export class ConfigReader implements ConfigSource {
         db.orm.public.UserVercelCredential.first({ userId }),
         db.orm.public.AgentAccount.where({ userId }).all(),
         db.orm.public.ActiveAccount.where({ userId }).all(),
-        this.modelSettings({ userId, projectId }),
+        this.settingsOf({ userId, projectId }),
         skillIndexOf({ db, userId, projectId }),
         threadId === undefined
           ? Promise.resolve(null)
@@ -90,16 +90,18 @@ export class ConfigReader implements ConfigSource {
       ],
     )
     const named = this.modelChoiceOf(thread) ?? this.modelChoiceOf(session)
+    const models = modelSourceOf({
+      cipher: this.args.cipher,
+      accounts,
+      activeAccounts,
+      settings,
+      ...(named === undefined ? {} : { thread: named }),
+    })
     return {
       userId,
       projectId,
-      model: modelConfigOf({
-        cipher: this.args.cipher,
-        accounts,
-        activeAccounts,
-        settings,
-        ...(named === undefined ? {} : { thread: named }),
-      }),
+      model: models.main.config,
+      models,
       workspace: workspaceOf(project),
       vercel: await this.vercelOf({ userId, row: vercel }),
       skills,
@@ -121,23 +123,17 @@ export class ConfigReader implements ConfigSource {
     }
   }
 
-  private async modelSettings(args: {
+  private async settingsOf(args: {
     userId: string
     projectId: string
   }): Promise<ReadonlyMap<string, string>> {
     const { db } = this.args
-    const keys = Object.values(MODEL_SETTING_KEYS)
     const [user, project] = await Promise.all([
-      Promise.all(keys.map((key) => db.orm.public.UserSetting.first({ userId: args.userId, key }))),
-      Promise.all(
-        keys.map((key) => db.orm.public.ProjectSetting.first({ projectId: args.projectId, key })),
-      ),
+      db.orm.public.UserSetting.where({ userId: args.userId }).all(),
+      db.orm.public.ProjectSetting.where({ projectId: args.projectId }).all(),
     ])
-    const settings = new Map<string, string>()
-    keys.forEach((key, index) => {
-      const value = project[index]?.value ?? user[index]?.value
-      if (value !== undefined) settings.set(key, value)
-    })
+    const settings = new Map(user.map((row) => [row.key, row.value]))
+    for (const row of project) settings.set(row.key, row.value)
     return settings
   }
 

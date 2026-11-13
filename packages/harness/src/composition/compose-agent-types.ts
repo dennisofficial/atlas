@@ -6,7 +6,12 @@ import { agentTypeSources } from '../agents/types/roots'
 import type { DependencyContainer } from '../container/injection'
 import type { SettingsService } from '../settings/service'
 
-import { effortSettingDefinition, subagentEffortSettingDefinition } from './compose-effort-setting'
+import {
+  compactionEffortSettingDefinition,
+  effortSettingDefinition,
+  quickEffortSettingDefinition,
+  subagentEffortSettingDefinition,
+} from './compose-effort-setting'
 import { knownRefs, type ModelCatalogue } from './model-catalogue'
 
 export async function bindSessionAgentTypes(args: {
@@ -32,6 +37,8 @@ export async function bindSessionAgentTypes(args: {
   args.settings.register([
     effortSettingDefinition({ models }),
     subagentEffortSettingDefinition({ models }),
+    quickEffortSettingDefinition({ models }),
+    compactionEffortSettingDefinition({ models }),
     ...agentTypeDefinitions({
       types: agentTypes.types.map(({ name, origin, definedIn }) => ({ name, origin, definedIn })),
       effortRungsOf: (modelId) => {

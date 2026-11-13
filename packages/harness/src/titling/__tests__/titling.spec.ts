@@ -50,6 +50,15 @@ describe('titlerRefOf', () => {
     expect(ref.modelId).toBe('gpt-4.1-mini')
   })
 
+  it('follows the default when the provider of the quick model has no account', () => {
+    const ref = titlerRefOf({
+      settings: { [ESettingId.QuickModel]: 'openai/gpt-4.1-mini' },
+      accounts: [account(EAuthProvider.Anthropic)],
+    })
+
+    expect(ref.providerId).toBe('anthropic')
+  })
+
   it('ignores an unknown quick model and follows the default', () => {
     const ref = titlerRefOf({
       settings: { [ESettingId.QuickModel]: 'nowhere/none' },

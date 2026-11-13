@@ -18,6 +18,7 @@ import { createHostBus } from '../bus/host-bus'
 import { startPgWakeListener } from '../bus/pg-wake-listener'
 import { createRedisLiveFrames } from '../bus/redis-live-frames'
 import type { ConfigSource } from '../config/agent-host-config'
+import { fakeModelSourceOf } from './model-source'
 import { createSessionRuntimeFactory } from '../runtime/session-runtime-factory'
 import { DEFAULT_DRAIN_MS } from '../config/env'
 import { FixedEndpointSandboxProvider } from './fixed-endpoint-sandbox-provider'
@@ -95,14 +96,18 @@ class JsonLog extends LogPort {
 }
 
 const testSource = (): ConfigSource => ({
-  read: async () => ({
-    userId: 'user-1',
-    projectId: 'proj-1',
-    model: { configured: false, gap: 'scripted model in test' },
-    vercel: { configured: true, token: '', teamId: '', projectId: '' },
-    workspace: { remoteUrl: null, baseBranch: null, additionalRepos: [], setupScript: '' },
-    skills: [],
-  }),
+  read: async () => {
+    const model = { configured: false as const, gap: 'scripted model in test' }
+    return {
+      userId: 'user-1',
+      projectId: 'proj-1',
+      model,
+      models: fakeModelSourceOf(model),
+      vercel: { configured: true, token: '', teamId: '', projectId: '' },
+      workspace: { remoteUrl: null, baseBranch: null, additionalRepos: [], setupScript: '' },
+      skills: [],
+    }
+  },
 })
 
 const testTokens = () => ({
