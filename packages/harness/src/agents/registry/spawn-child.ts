@@ -82,9 +82,10 @@ export class ChildSpawner {
       if (caller?.agent !== undefined) return { ok: false, reason: TEAMMATE_FROM_MAIN_ONLY }
     }
 
-    const model = await this.deps.modelAtSpawn?.({ agentType: type, spawnedBy: threadId })
+    const spawned = await this.deps.modelAtSpawn?.({ agentType: type, spawnedBy: threadId })
     const { threadId: agentId, inheritedLocation } = await openChildThread({
-      model,
+      model: spawned?.model,
+      ...(spawned?.fellBack === undefined ? {} : { fellBack: spawned.fellBack }),
       threads: this.threads,
       log: this.log,
       ids: this.ids,
@@ -104,7 +105,7 @@ export class ChildSpawner {
       at: this.clock.now(),
       projectDirectory: await childDirectory({ deps: this.deps, threadId }),
     })
-    const ref = model === undefined ? undefined : parseRef(model.ref)
+    const ref = spawned?.model === undefined ? undefined : parseRef(spawned.model.ref)
     if (ref !== undefined) child.model = { id: ref.providerId, modelId: ref.modelId }
     this.roster.add(child)
 

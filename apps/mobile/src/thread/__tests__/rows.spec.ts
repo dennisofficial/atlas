@@ -147,6 +147,24 @@ describe('rowsOf', () => {
     })
   })
 
+  it('turns a model fallback into an attention row with its reason', () => {
+    const rows = rowsNow([
+      {
+        kind: EEntryKind.ModelFellBack,
+        author: EAuthor.Model,
+        key: 'f1',
+        text: 'builder is running on Claude Opus 5',
+        content: "GPT-5 can't run because OpenAI isn't connected.",
+      },
+    ])
+    expect(rows[0]).toMatchObject({
+      kind: ERowKind.Notice,
+      title: 'builder is running on Claude Opus 5',
+      body: "GPT-5 can't run because OpenAI isn't connected.",
+      tone: ENoticeTone.Attention,
+    })
+  })
+
   it('turns a system notice into quiet copy behind a prefix', () => {
     const rows = rowsNow([
       {

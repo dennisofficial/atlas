@@ -53,6 +53,7 @@ export type {
   PodPeers,
   PullRequestFinder,
   PullRequestSource,
+  RoleModelChoice,
   RoleModelRequest,
   SessionRuntime,
   SessionRuntimeFactory,

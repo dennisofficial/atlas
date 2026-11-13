@@ -6,6 +6,7 @@ import {
   EProviderFailureScope,
   EProviderRetry,
   EToolEffect,
+  refKey,
   ToolDefinition,
   type ModelPort,
   type ThreadId,
@@ -144,6 +145,7 @@ export const makeRuntimeFactory = (args: {
         return model
       },
       choiceFor: () => RIG_MODEL_CHOICE,
+      modelLabelOf: (ref) => refKey(ref),
       tools: fakeToolRegistry([new BashTool(calls)]),
       daemonTools: new Set(['bash']),
       ackedScopes,

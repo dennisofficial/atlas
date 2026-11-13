@@ -19,13 +19,30 @@ import { DEFAULT_MODEL_REF, type LaunchModel } from './config'
 import { isRefReachable, type ModelCatalogue } from './model-catalogue'
 import type { ModelSelection } from './model-selection'
 
+const parsedRefOf = (reference: string | undefined): ModelRef | undefined => {
+  if (reference === undefined || reference.length === 0) return undefined
+  return parseRef(reference)
+}
+
+/**
+ * What the operator picked: a ref the catalogue knows, whether or not its provider answers right
+ * now. The main agent never swaps such a ref on its own — an unreachable one stops the turn instead.
+ */
+export const chosenRef = (args: {
+  reference: string | undefined
+  catalogue: ModelCatalogue
+}): ModelRef | undefined => {
+  const ref = parsedRefOf(args.reference)
+  if (ref === undefined) return undefined
+
+  return args.catalogue.cardFor(ref) === undefined ? undefined : ref
+}
+
 const usableRef = (args: {
   reference: string | undefined
   catalogue: ModelCatalogue
 }): ModelRef | undefined => {
-  if (args.reference === undefined || args.reference.length === 0) return undefined
-
-  const ref = parseRef(args.reference)
+  const ref = chosenRef(args)
   if (ref === undefined) return undefined
 
   return isRefReachable({ catalogue: args.catalogue, ref }) ? ref : undefined
@@ -84,7 +101,7 @@ export function defaultSelection(args: {
   })
 
   return settled({
-    ref: usableRef({ reference, catalogue: args.catalogue }) ?? fallbackRef(args),
+    ref: chosenRef({ reference, catalogue: args.catalogue }) ?? fallbackRef(args),
     effort: usableEffort(effort) ?? DEFAULT_EFFORT,
     fast: toggleValueOf({ resolution: args.settled, id: ESettingId.ModelFast }),
     catalogue: args.catalogue,
@@ -100,7 +117,7 @@ export function launchSelection(args: {
   settled: SettingsResolution
   catalogue: ModelCatalogue
 }): ModelSelection {
-  const asked = usableRef({ reference: args.requested.model?.ref, catalogue: args.catalogue })
+  const asked = chosenRef({ reference: args.requested.model?.ref, catalogue: args.catalogue })
   const fallback = defaultSelection({ settled: args.settled, catalogue: args.catalogue })
   if (asked === undefined) return fallback
 
@@ -114,18 +131,18 @@ export const modelPinned = (args: {
   requested: { model: LaunchModel | undefined }
   catalogue: ModelCatalogue
 }): boolean =>
-  usableRef({ reference: args.requested.model?.ref, catalogue: args.catalogue }) !== undefined
+  chosenRef({ reference: args.requested.model?.ref, catalogue: args.catalogue }) !== undefined
 
 /**
- * A thread that names a model nobody can answer for — one that left the catalogue, or whose account
- * is gone — falls back whole rather than in halves, so the effort never outlives its model.
+ * A thread that names a model that left the catalogue falls back whole rather than in halves, so
+ * the effort never outlives its model. One whose account is simply gone keeps the thread's choice.
  */
 export function threadSelection(args: {
   stored: ThreadModel | undefined
   fallback: ModelSelection
   catalogue: ModelCatalogue
 }): ModelSelection {
-  const ref = usableRef({ reference: args.stored?.ref, catalogue: args.catalogue })
+  const ref = chosenRef({ reference: args.stored?.ref, catalogue: args.catalogue })
   if (ref === undefined) return args.fallback
 
   return settled({

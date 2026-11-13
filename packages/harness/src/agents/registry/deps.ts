@@ -10,7 +10,7 @@ import type {
 import type { ThreadStorePort } from '../../store'
 import type { MessageIntake } from '../../intake/message-intake'
 import type { ModelWaitState } from '../../model-recovery/wait-state'
-import type { ThreadModel } from '../../store/thread-store'
+import type { SpawnedModel } from './open-child'
 import type { AgentType } from '../types'
 import type { ChildRunnerSource } from './child-runner'
 import type { TelemetryPort } from '@dltech/atlas-observability'
@@ -48,7 +48,7 @@ export type SupervisorDeps = {
   agentTypes: readonly AgentType[]
   runners: ChildRunnerSource
   modelAtSpawn?:
-    | ((args: { agentType: AgentType; spawnedBy: ThreadId }) => Promise<ThreadModel | undefined>)
+    | ((args: { agentType: AgentType; spawnedBy: ThreadId }) => Promise<SpawnedModel | undefined>)
     | undefined
   launchDirectory: string
   sink?: ExecutionLocationSinkPort | undefined

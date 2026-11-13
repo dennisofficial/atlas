@@ -45,6 +45,7 @@ export const REWIND_DISPOSITION = {
   'agent-spawned': ERewindDisposition.Discard,
   'agent-restarted': ERewindDisposition.Discard,
   'agent-reported': ERewindDisposition.Discard,
+  'model-fell-back': ERewindDisposition.Discard,
   'service-started': ERewindDisposition.Discard,
   'background-shell-started': ERewindDisposition.Discard,
   'location-changed': ERewindDisposition.Keep,

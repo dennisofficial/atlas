@@ -6,6 +6,7 @@ import {
   isNoticeArrival,
   laneNameOf,
   latestTldrPerAnchor,
+  modelFallbackCopy,
   saidBy,
   type Event,
 } from '@dltech/atlas-core'
@@ -145,6 +146,19 @@ export function durableEntries(args: {
           key: event.id,
           text: 'nudge',
           content: event.text,
+        },
+      ]
+    }
+
+    if (event.type === 'model-fell-back') {
+      const copy = modelFallbackCopy(event)
+      return [
+        {
+          kind: EEntryKind.ModelFellBack,
+          author: EAuthor.Model,
+          key: event.id,
+          text: copy.title,
+          content: copy.detail,
         },
       ]
     }

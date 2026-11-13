@@ -3,6 +3,7 @@ import type {
   MediaUrlResolver,
   ModelChoice,
   ModelPort,
+  ModelRef,
   ModelRole,
   PromptSpawner,
   ThreadId,
@@ -67,11 +68,14 @@ export type PrepareStepReporter = (step: WorkspaceStepReport) => void
 
 export type RoleModelRequest = { role: ModelRole; root?: ModelChoice | undefined }
 
+export type RoleModelChoice = ModelChoice & { unavailable?: ModelRef | undefined }
+
 export type SessionRuntime = {
   remoteCalls: RemoteCalls
   model: ModelPort
   modelChoice: ModelChoice
-  choiceFor(request: RoleModelRequest): ModelChoice
+  choiceFor(request: RoleModelRequest): RoleModelChoice
+  modelLabelOf(ref: ModelRef): string
   modelFor(request: RoleModelRequest): ModelPort
   tools: ToolRegistry
   daemonTools: ReadonlySet<string>

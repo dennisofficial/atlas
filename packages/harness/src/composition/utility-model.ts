@@ -7,11 +7,12 @@ import {
   EStalePolicy,
   EUtilityModelRole,
   NOTICE_WARN_MS,
+  providerLabelOf,
   refKey,
   resolveModelChoice,
   UTILITY_ROLE_LABEL,
-  type ModelChoice,
   type NoticePort,
+  type ResolvedModelChoice,
   type SettingsResolution,
 } from '@dltech/atlas-core'
 
@@ -36,8 +37,8 @@ export function utilityChoiceOf(args: {
   role: EUtilityModelRole
   settled: SettingsResolution
   catalogue: ModelCatalogue
-}): ModelChoice {
-  const choice = resolveModelChoice({
+}): ResolvedModelChoice {
+  return resolveModelChoice({
     role: modelRoleOf(args.role),
     read: settingReaderOf(args.settled),
     capabilitiesOf: capabilitiesFromCatalog({
@@ -47,7 +48,6 @@ export function utilityChoiceOf(args: {
     fallback: defaultSelection({ settled: args.settled, catalogue: args.catalogue }).ref,
     stale: EStalePolicy.Follow,
   })
-  return { ref: choice.ref, effort: choice.effort, fast: choice.fast }
 }
 
 export function notifyingUtilityFallback(args: {
@@ -79,6 +79,7 @@ export function createUtilityModel(args: {
   fallback?: (() => LanguageModelV4 | undefined) | undefined
 }): LanguageModelV4 {
   const built = new Map<string, LanguageModelV4>()
+  const warned = new Set<string>()
   const fallback =
     args.fallback === undefined
       ? undefined
@@ -88,12 +89,31 @@ export function createUtilityModel(args: {
           fallback: args.fallback,
         })
 
+  const warnIfUnavailable = (choice: ResolvedModelChoice): void => {
+    if (choice.unavailable === undefined) return
+
+    const remembered = `${args.role}:${refKey(choice.unavailable)}`
+    if (warned.has(remembered)) return
+    warned.add(remembered)
+
+    const to = args.catalogue.cardFor(choice.ref)?.label ?? choice.ref.modelId
+    const provider = providerLabelOf(choice.unavailable.providerId) ?? choice.unavailable.providerId
+    args.notice.notify({
+      key: `utility-model:${args.role}:unavailable`,
+      tone: ENoticeTone.Warn,
+      ttlMs: NOTICE_WARN_MS,
+      text: `${UTILITY_ROLE_LABEL[args.role]} is running on ${to}: ${provider} isn't connected.`,
+    })
+  }
+
   const current = (): LanguageModelV4 => {
     const choice = utilityChoiceOf({
       role: args.role,
       settled: args.settled(),
       catalogue: args.catalogue,
     })
+    warnIfUnavailable(choice)
+
     const key = `${refKey(choice.ref)}|${choice.effort}|${choice.fast}`
     const held = built.get(key)
     if (held !== undefined) return held

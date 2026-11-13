@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { APICallError } from '@ai-sdk/provider'
 import {
+  ERunFailureKind,
   ModelPort,
   toAccountId,
   type Assembled,
@@ -12,6 +13,7 @@ import {
 
 import { CredentialError, ECredentialFailure } from '../../credentials/credential-error'
 import { ModelStreamError } from '../../model/errors'
+import { TurnFault } from '../../model/turn-fault'
 import { withFailureAccount } from '../../providers/failure-account'
 import { takeModelStepWithRetry } from '../retrying-step'
 
@@ -147,5 +149,29 @@ describe('consulting failover', () => {
     })
 
     expect(stepped.ok).toBe(true)
+  })
+})
+
+describe('a turn whose provider is not connected', () => {
+  it('fails once instead of retrying, because no backoff brings the account back', async () => {
+    const model = new AlwaysFailing(
+      () =>
+        new TurnFault({
+          kind: ERunFailureKind.MissingCredential,
+          message: "Your main agent is set to claude-opus-5, but Anthropic isn't connected.",
+        }),
+    )
+
+    const thrown = await takeModelStepWithRetry({
+      model,
+      tools: [],
+      onChunk: undefined,
+      assembled: ASSEMBLED,
+      signal: new AbortController().signal,
+      retry: { policy: POLICY, sleep: async () => {}, jitter: () => 1 },
+    }).catch((error: unknown) => error)
+
+    expect(thrown).toBeInstanceOf(TurnFault)
+    expect(model.steps).toBe(1)
   })
 })

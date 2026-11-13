@@ -130,15 +130,16 @@ describe('resolveModelChoice', () => {
     expect(choice.effort).toBe(EEffort.High)
   })
 
-  it('falls back for main under the follow policy', () => {
+  it('keeps a stale main under the follow policy too', () => {
     const choice = choiceOf({
       role: EModelRole.Main,
       values: { 'model.id': 'openai/ghost-model', 'model.effort': 'high' },
       stale: EStalePolicy.Follow,
     })
 
-    expect(choice.ref).toEqual(FALLBACK_REF)
+    expect(choice.ref).toEqual(GHOST_REF)
     expect(choice.stale).toBe(true)
+    expect(choice.unavailable).toBeUndefined()
   })
 
   it('keeps a stale own choice for a role under the keep policy', () => {
@@ -152,16 +153,53 @@ describe('resolveModelChoice', () => {
     expect(choice.follows).toBeUndefined()
   })
 
-  it('treats a stale own choice as following under the follow policy', () => {
+  it('falls a stale own choice back to main under the follow policy, not to its parent', () => {
     const choice = choiceOf({
       role: { agentType: 'builder' },
-      values: { ...main, 'agents.type.builder': 'openai/ghost-model' },
+      values: {
+        ...main,
+        'agents.subagentModel': 'anthropic/claude-sonnet-5',
+        'agents.type.builder': 'openai/ghost-model',
+      },
       stale: EStalePolicy.Follow,
     })
 
     expect(choice.ref).toEqual(MAIN_REF)
-    expect(choice.follows).toEqual(EModelRole.Subagents)
+    expect(choice.follows).toEqual(EModelRole.Main)
     expect(choice.stale).toBe(true)
+    expect(choice.unavailable).toEqual(GHOST_REF)
+  })
+
+  it('falls a stale own choice back to the root the spawner handed it', () => {
+    const root = { ref: PLAIN_REF, effort: EEffort.Low, fast: false }
+
+    const choice = choiceOf({
+      role: { agentType: 'builder' },
+      values: { ...main, 'agents.type.builder': 'openai/ghost-model' },
+      root,
+      stale: EStalePolicy.Follow,
+    })
+
+    expect(choice.ref).toEqual(PLAIN_REF)
+    expect(choice.follows).toEqual(EModelRole.Main)
+    expect(choice.unavailable).toEqual(GHOST_REF)
+  })
+
+  it('carries the unavailable ref down to an agent type that follows a stale sub-agent model', () => {
+    const choice = choiceOf({
+      role: { agentType: 'builder' },
+      values: { ...main, 'agents.subagentModel': 'openai/ghost-model' },
+      stale: EStalePolicy.Follow,
+    })
+
+    expect(choice.ref).toEqual(MAIN_REF)
+    expect(choice.unavailable).toEqual(GHOST_REF)
+  })
+
+  it('leaves the unavailable ref unset when nothing was replaced', () => {
+    const choice = choiceOf({ role: { agentType: 'builder' }, stale: EStalePolicy.Follow })
+
+    expect(choice.unavailable).toBeUndefined()
   })
 
   it('treats a model whose provider is unreachable as stale', () => {

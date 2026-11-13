@@ -15,7 +15,7 @@ export type ModelConfig =
       accountId: string
       credential: ModelCredential
     }
-  | { configured: false; gap: string }
+  | { configured: false; gap: string; unavailable?: ModelRef | undefined }
 
 export type WorkspaceRepo = { repo: string; branch?: string | undefined }
 

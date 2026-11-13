@@ -132,7 +132,7 @@ function noticeFieldsOf(entry: TranscriptEntry): {
         tone: ENoticeTone.Quiet,
       }
     case EEntryKind.SystemContext:
-      return { title: entry.text, body: '', tone: ENoticeTone.Quiet }
+    case EEntryKind.Rotated:
     case EEntryKind.AgentRestarted:
     case EEntryKind.OperatorInput:
     case EEntryKind.HistoryCompacted:
@@ -158,8 +158,8 @@ function noticeFieldsOf(entry: TranscriptEntry): {
       return { title: entry.text, body: entry.report, tone: toneOfFailed(entry.failed) }
     case EEntryKind.AgentReported:
       return { title: entry.text, body: entry.report, tone: ENoticeTone.Ok }
-    case EEntryKind.Rotated:
-      return { title: entry.text, body: '', tone: ENoticeTone.Quiet }
+    case EEntryKind.ModelFellBack:
+      return { title: entry.text, body: entry.content, tone: ENoticeTone.Attention }
     case EEntryKind.PrEvent:
       return { title: entry.text, body: entry.body, tone: toneOfFailed(entry.failed) }
     default:

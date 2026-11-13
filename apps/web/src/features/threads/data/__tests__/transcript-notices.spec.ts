@@ -43,6 +43,24 @@ describe('noticeItemOf', () => {
     })
   })
 
+  it('renders a model fallback as an attention notice naming the role', () => {
+    const entry: TranscriptEntry = {
+      kind: EEntryKind.ModelFellBack,
+      author: EAuthor.Model,
+      key: 'evt_2',
+      text: 'builder is running on Claude Opus 5',
+      content: "GPT-5 can't run because OpenAI isn't connected, so it uses the main agent's model.",
+    }
+
+    expect(noticeItemOf(entry)).toEqual({
+      kind: ETranscriptKind.Notice,
+      id: 'evt_2',
+      title: 'builder is running on Claude Opus 5',
+      body: "GPT-5 can't run because OpenAI isn't connected, so it uses the main agent's model.",
+      tone: ENoticeTone.Attention,
+    })
+  })
+
   it('keeps the first line of a sandbox notice as the title and the rest as the body', () => {
     const entry: TranscriptEntry = {
       kind: EEntryKind.SandboxNotice,

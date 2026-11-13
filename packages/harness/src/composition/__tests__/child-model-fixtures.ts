@@ -20,6 +20,8 @@ import {
   toRunId,
   type Assembled,
   type EEffort as EffortValue,
+  type EventLogPort,
+  type IdPort,
   type ModelCard,
   type ModelPort,
   type ModelRef,
@@ -37,7 +39,7 @@ import { JsonlEventLog } from '../../store/sessions/event-log'
 import { SessionRegistry } from '../../store/sessions/registry'
 import { JsonlThreadStore } from '../../store/sessions/thread-store'
 import type { ThreadModel, ThreadStorePort } from '../../store/thread-store'
-import { childModelSelection, childModelSource } from '../child-model'
+import { childModelSelection, childModelSource, type ChildSelection } from '../child-model'
 import type { ModelCatalogue } from '../model-catalogue'
 import { selectableModel, type SelectableModel } from '../model-selection'
 
@@ -154,6 +156,8 @@ export async function cleanupHomes(): Promise<void> {
 
 export type ChildModelFixture = {
   threads: ThreadStorePort
+  log: EventLogPort
+  ids: IdPort
   threadId: ThreadId
   parent: SelectableModel
   settings: SettingsService
@@ -162,7 +166,10 @@ export type ChildModelFixture = {
   newThread: (args?: { spawner?: ThreadId; model?: ThreadModel }) => Promise<ThreadId>
   spawn: (args?: { agentType?: AgentType; threadId?: ThreadId }) => Promise<ModelPort>
   respawn: () => (request: { agentType: AgentType; threadId: ThreadId }) => Promise<ModelPort>
-  selection: () => (request: { agentType: AgentType; spawnedBy: ThreadId }) => Promise<ThreadModel>
+  selection: () => (request: {
+    agentType: AgentType
+    spawnedBy: ThreadId
+  }) => Promise<ChildSelection>
   savedModel: (threadId: ThreadId) => Promise<ThreadModel | undefined>
 }
 
@@ -217,6 +224,8 @@ export async function childModelFixture(args?: {
 
   return {
     threads,
+    log,
+    ids,
     threadId: thread.id,
     parent,
     settings,

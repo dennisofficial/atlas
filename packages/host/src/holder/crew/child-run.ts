@@ -1,13 +1,4 @@
-import {
-  EAgentRestart,
-  EAgentStart,
-  EAgentStatus,
-  EKilledBy,
-  EReportKind,
-  reportWakesParent,
-  type EventDraft,
-  type ThreadId,
-} from '@dltech/atlas-core'
+import { EAgentStatus, EKilledBy, EReportKind, type ThreadId } from '@dltech/atlas-core'
 import { ETurnStatus, type LoopTurnRunner, type TurnOutcome } from '@dltech/atlas-agent'
 import type {
   PodCrew,
@@ -29,16 +20,9 @@ import {
   snapshotOf,
   statusOf,
   activeWorktreeSnapshotOf,
-  worktreeDraftOf,
 } from './child-progress'
-import {
-  appendOnParent,
-  endingTextOf,
-  reportTextOf,
-  wakeParent,
-  type ChildParent,
-} from './child-reports'
 import { childRunnerOf } from './child-runner'
+import { ChildTranscript } from './child-transcript'
 
 export type ChildRunArgs = {
   deps: HeldSessionDeps
@@ -58,13 +42,13 @@ export class ChildRun {
   readonly agentId: ThreadId
   readonly startedAt: string
   private readonly intake = new ChildIntake()
+  private readonly transcript: ChildTranscript
   private record!: SessionRecord
   private runner!: LoopTurnRunner
   private pump: Promise<void> | undefined
   private abort: AbortController | undefined
   private listeners: AbortController | undefined
   private stopping = false
-  private woke = false
   private ending: EAgentStatus | undefined
   private endedAt: string | undefined
   private killedBy: EKilledBy | undefined
@@ -76,6 +60,15 @@ export class ChildRun {
   ) {
     this.agentId = agentId
     this.startedAt = new Date(args.deps.timers.now()).toISOString()
+    this.transcript = new ChildTranscript({
+      deps: args.deps,
+      runtime: args.runtime,
+      parentRecord: args.parentRecord,
+      parentThreadId: args.parentThreadId,
+      agentId,
+      agentType: args.agentType,
+      intent: args.intent,
+    })
   }
 
   static async open(args: ChildRunArgs): Promise<ChildRun> {
@@ -98,16 +91,7 @@ export class ChildRun {
       ...(args.deps.log === undefined ? {} : { log: args.deps.log }),
     })
     if (args.worktree !== undefined) await run.seedWorktree(args.worktree)
-    await run.appendToParent([
-      {
-        type: 'agent-spawned',
-        agentId: run.agentId,
-        agentType: args.agentType,
-        intent: args.intent,
-        mode: EAgentStart.Fresh,
-        ...(args.worktree === undefined ? {} : { worktree: worktreeDraftOf(args.worktree) }),
-      },
-    ])
+    await run.transcript.spawned({ worktree: args.worktree })
     return run
   }
 
@@ -182,24 +166,12 @@ export class ChildRun {
     return childPortOf({ report: (report) => this.report(report) })
   }
 
-  private get parent(): ChildParent {
-    return {
-      deps: this.args.deps,
-      record: this.args.parentRecord,
-      threadId: this.args.parentThreadId,
-      agentId: this.agentId,
-      agentType: this.args.agentType,
-      intent: this.args.intent,
-    }
-  }
-
   private async drive(args: { text: string; restart: boolean }): Promise<void> {
     const listeners = new AbortController()
     const abort = new AbortController()
     this.listeners = listeners
     this.abort = abort
     this.stopping = false
-    this.woke = false
     this.ending = undefined
     this.endedAt = undefined
     this.killedBy = undefined
@@ -214,8 +186,9 @@ export class ChildRun {
         signal: listeners.signal,
         crew: this.port(),
         intake: this.intake,
+        onFallback: (refs) => this.transcript.fellBack(refs),
       })
-      if (args.restart) await this.announceRestart()
+      if (args.restart) await this.transcript.restarted()
       let outcome = await this.turn({ text: args.text, signal: abort.signal })
       while (
         outcome.status === ETurnStatus.Completed &&
@@ -265,64 +238,11 @@ export class ChildRun {
     this.endedAt = new Date(this.args.deps.timers.now()).toISOString()
     this.failure = args.failure
     this.killedBy = args.killedBy
-    await this.appendToParent([
-      {
-        type: 'agent-ended',
-        agentId: this.agentId,
-        agentType: this.args.agentType,
-        intent: this.args.intent,
-        status: args.status,
-        prose: progress.prose,
-        turns: progress.turns,
-        toolCalls: progress.toolCalls,
-        ...(args.killedBy === undefined ? {} : { killedBy: args.killedBy }),
-        ...(args.failure === undefined ? {} : { failureCause: args.failure }),
-      },
-    ])
-    if (this.woke) return
-    await wakeParent(
-      this.parent,
-      endingTextOf({
-        parent: this.parent,
-        progress,
-        status: args.status,
-        failure: args.failure,
-        killedBy: this.killedBy,
-      }),
-    )
+    await this.transcript.ended({ progress, ...args })
   }
 
   private async report(args: { kind: EReportKind; text: string }): Promise<SubagentSnapshot> {
-    await this.appendToParent([
-      {
-        type: 'agent-reported',
-        agentId: this.agentId,
-        agentType: this.args.agentType,
-        intent: this.args.intent,
-        prose: args.text,
-        kind: args.kind,
-      },
-    ])
-    if (reportWakesParent(args.kind)) {
-      await wakeParent(this.parent, reportTextOf(this.parent, args.kind))
-      this.woke = true
-    }
+    await this.transcript.reported(args)
     return this.snapshot()
-  }
-
-  private async announceRestart(): Promise<void> {
-    await this.appendToParent([
-      {
-        type: 'agent-restarted',
-        agentId: this.agentId,
-        agentType: this.args.agentType,
-        intent: this.args.intent,
-        via: EAgentRestart.Message,
-      },
-    ])
-  }
-
-  private async appendToParent(drafts: readonly EventDraft[]): Promise<void> {
-    await appendOnParent(this.parent, drafts)
   }
 }

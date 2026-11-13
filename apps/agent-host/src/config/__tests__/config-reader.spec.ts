@@ -230,16 +230,17 @@ describe('ConfigReader thread model', () => {
     })
   })
 
-  it('keeps the session model when the thread names a provider the user has no account for', async () => {
+  it('keeps the thread model, and reports it unavailable, when its provider has no account', async () => {
     const { db } = testDb()
     await seedOwner(db)
     await seedApiKeyAccount(db)
     await seedSetting({ db, scope: 'user', value: 'anthropic/claude-sonnet-4-5' })
     await seedThread(db, { modelRef: 'openai/gpt-5' })
     const config = await readerOver().read({ sessionId: 's-1', threadId: toThreadId('t-1') })
-    expect(config.model).toMatchObject({
-      configured: true,
-      ref: { providerId: 'anthropic', modelId: 'claude-sonnet-4-5' },
+    expect(config.model).toEqual({
+      configured: false,
+      gap: 'no openai account',
+      unavailable: { providerId: 'openai', modelId: 'gpt-5' },
     })
   })
 })

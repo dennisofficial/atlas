@@ -26,6 +26,7 @@ export enum EEntryKind {
   TldrWritten = 'tldr-written',
   TurnEnded = 'turn-ended',
   SandboxNotice = 'sandbox-notice',
+  ModelFellBack = 'model-fell-back',
   Rotated = 'rotated',
   OperatorInput = 'operator-input',
   OperatorRequest = 'operator-request',
@@ -179,6 +180,14 @@ export type AgentRestartedEntry = {
   agentId: string
 }
 
+export type ModelFellBackEntry = {
+  kind: EEntryKind.ModelFellBack
+  author: EAuthor.Model
+  key: string
+  text: string
+  content: string
+}
+
 export type TldrWrittenEntry = {
   kind: EEntryKind.TldrWritten
   author: EAuthor.Model
@@ -311,6 +320,7 @@ export type TranscriptEntry =
   | TldrWrittenEntry
   | TurnEndedEntry
   | SandboxNoticeEntry
+  | ModelFellBackEntry
   | RotatedEntry
   | OperatorInputEntry
   | OperatorRequestEntry

@@ -84,6 +84,8 @@ function fieldsOf(entry: TranscriptEntry): NoticeFields | null {
         body: entry.content,
         tone: ENoticeTone.Quiet,
       }
+    case EEntryKind.ModelFellBack:
+      return { title: entry.text, body: entry.content, tone: ENoticeTone.Attention }
     case EEntryKind.AgentRestarted:
       return { title: entry.text, body: '', tone: ENoticeTone.Ok }
     case EEntryKind.OperatorInput:

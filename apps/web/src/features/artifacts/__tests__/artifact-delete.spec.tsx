@@ -2,6 +2,7 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { afterAll, afterEach, beforeAll, describe, expect, it, mock } from 'bun:test'
 import { act } from 'react'
 import type { Root } from 'react-dom/client'
+import * as realNavigation from 'next/navigation'
 
 import type { ArtifactSummary } from '@dltech/atlas-wire/web'
 
@@ -14,6 +15,7 @@ const pushed: string[] = []
 const state: { artifacts: ArtifactSummary[] } = { artifacts: [] }
 
 mock.module('next/navigation', () => ({
+  ...realNavigation,
   useRouter: () => ({ push: (href: string) => pushed.push(href) }),
 }))
 
@@ -53,6 +55,7 @@ beforeAll(() => {
 })
 
 afterAll(async () => {
+  mock.module('next/navigation', () => realNavigation)
   await GlobalRegistrator.unregister()
 })
 
