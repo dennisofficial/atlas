@@ -126,9 +126,9 @@ describe('the default model pair', () => {
     ).toBe('anthropic/claude-sonnet-5')
   })
 
-  it('ignores a default model no provider has an account for', () => {
+  it('keeps a default model no provider has an account for, because the main agent never picks for you', () => {
     const selection = launched({ values: { [ESettingId.ModelId]: 'openai/gpt-5-codex' } })
-    expect(refKey(selection.ref)).toBe(refKey(DEFAULT_MODEL_REF))
+    expect(refKey(selection.ref)).toBe('openai/gpt-5-codex')
   })
 
   it('ignores a bare unqualified id, because a model is only ever a pair', () => {
@@ -178,7 +178,7 @@ describe('the pair a conversation carries', () => {
     expect(selection.effort).toBe(EEffort.High)
   })
 
-  it('falls back whole when the model went away, so the effort never outlives it', () => {
+  it('falls back whole when the model left the catalogue, but keeps one whose account is gone', () => {
     const settledHigh = defaultSelection({
       settled: settled({
         values: {
@@ -188,14 +188,21 @@ describe('the pair a conversation carries', () => {
       }),
       catalogue,
     })
-    const selection = threadSelection({
+    const gone = threadSelection({
       stored: { ref: 'anthropic/claude-opus-3', effort: EEffort.Max },
       fallback: settledHigh,
       catalogue,
     })
+    const unkeyed = threadSelection({
+      stored: { ref: 'openai/gpt-5-codex', effort: EEffort.Max },
+      fallback: settledHigh,
+      catalogue,
+    })
 
-    expect(refKey(selection.ref)).toBe('anthropic/claude-sonnet-5')
-    expect(selection.effort).toBe(EEffort.Low)
+    expect(refKey(gone.ref)).toBe('anthropic/claude-sonnet-5')
+    expect(gone.effort).toBe(EEffort.Low)
+    expect(refKey(unkeyed.ref)).toBe('openai/gpt-5-codex')
+    expect(unkeyed.effort).toBe(EEffort.High)
   })
 
   it('keeps the model and drops a junk effort back onto the default', () => {
@@ -228,13 +235,13 @@ describe('the pair a conversation carries', () => {
 })
 
 describe('a launch pinned to one model', () => {
-  it('is pinned only when the flag names a model something can answer for', () => {
+  it('is pinned even when the named model is unreachable', () => {
     expect(
       modelPinned({ requested: { model: { ref: 'anthropic/claude-opus-5' } }, catalogue }),
     ).toBe(true)
     expect(modelPinned({ requested: { model: undefined }, catalogue })).toBe(false)
     expect(modelPinned({ requested: { model: { ref: 'openai/gpt-5-codex' } }, catalogue })).toBe(
-      false,
+      true,
     )
     expect(modelPinned({ requested: { model: { ref: 'claude-opus-5' } }, catalogue })).toBe(false)
   })

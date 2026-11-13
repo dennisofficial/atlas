@@ -1,6 +1,7 @@
 import {
   EProviderFailureKind,
   EProviderFailureScope,
+  ERunFailureKind,
   ModelPort,
   type Assembled,
   type ChunkFilter,
@@ -10,9 +11,24 @@ import {
   type ToolDeclaration,
 } from '@dltech/atlas-core'
 
+import { CredentialError, ECredentialFailure } from '../credentials/credential-error'
+import { causeChainOf } from '../model/cause-chain'
 import { normalizeProviderFailure } from '../model/failure'
+import { TurnFault } from '../model/turn-fault'
+
+const providerWentAway = (fault: unknown): boolean =>
+  causeChainOf(fault).some(
+    (link) => link instanceof TurnFault && link.kind === ERunFailureKind.MissingCredential,
+  )
+
+const credentialRemoved = (fault: unknown): boolean =>
+  causeChainOf(fault).some(
+    (link) => link instanceof CredentialError && link.failure === ECredentialFailure.NotFound,
+  )
 
 export function isCredentialRejection(fault: unknown): boolean {
+  if (providerWentAway(fault) || credentialRemoved(fault)) return true
+
   const failure = normalizeProviderFailure({ cause: fault, nowMs: Date.now() })
   return (
     failure.scope === EProviderFailureScope.Credential &&

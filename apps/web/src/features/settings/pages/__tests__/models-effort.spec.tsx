@@ -1,9 +1,11 @@
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { afterAll, afterEach, describe, expect, it, mock } from 'bun:test'
+import * as realNavigation from 'next/navigation'
 import type { ReactElement } from 'react'
 import { act } from 'react'
 
 mock.module('next/navigation', () => ({
+  ...realNavigation,
   useRouter: () => ({ push: () => undefined }),
   usePathname: () => '/settings/models',
   useSearchParams: () => new URLSearchParams(),
@@ -19,6 +21,7 @@ const { settingsValuesOf, modelPickerOf, saveNothing, GPT_5 } = await import(
 const { EProviderId } = await import('../../fixtures/settings-agent')
 
 afterAll(async () => {
+  mock.module('next/navigation', () => realNavigation)
   await GlobalRegistrator.unregister()
 })
 
@@ -87,5 +90,12 @@ describe('ModelsEditor', () => {
     expect(triggerWarnings()).toHaveLength(1)
     const triggers = [...document.body.querySelectorAll('[data-slot="model-trigger"]')]
     expect(triggers[0]?.contains(triggerWarnings()[0] ?? null)).toBe(true)
+  })
+
+  it('says a stale non-main role runs on the main agent model instead of stopping', async () => {
+    await editorOn(ANTHROPIC_ONLY, { 'agents.type.builder': GPT_5 })
+    const text = bodyText()
+    expect(text).toContain("builder is running on the main agent's model")
+    expect(text).toContain("Codex Plan isn't connected, so builder uses the main agent's model")
   })
 })

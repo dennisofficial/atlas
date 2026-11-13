@@ -1,17 +1,30 @@
 import {
   CredentialPort,
   EAuthKind,
+  ERunFailureKind,
   toAccountId,
   type Credential,
   type CredentialRequest,
+  type ModelRef,
 } from '@dltech/atlas-core'
+import { TurnFault } from '@dltech/atlas-agent'
 
 import type { ModelTokenService } from '../tokens/model-token-service'
 import type { ModelConfig } from './agent-host-config'
+import { mainAgentUnavailableMessage } from './model-labels'
 
-export class CredentialsUnavailableError extends Error {
-  constructor(public readonly gap: string) {
-    super(`model credentials unavailable: ${gap}`)
+export class CredentialsUnavailableError extends TurnFault {
+  constructor(
+    public readonly gap: string,
+    public readonly unavailable?: ModelRef | undefined,
+  ) {
+    super({
+      kind: ERunFailureKind.MissingCredential,
+      message:
+        unavailable === undefined
+          ? `model credentials unavailable: ${gap}`
+          : mainAgentUnavailableMessage(unavailable),
+    })
     this.name = 'CredentialsUnavailableError'
   }
 }
@@ -38,7 +51,9 @@ export class AgentHostCredentialPort extends CredentialPort {
 
   async read(_request?: CredentialRequest): Promise<Credential> {
     const model = this.args.model
-    if (model.configured === false) throw new CredentialsUnavailableError(model.gap)
+    if (model.configured === false) {
+      throw new CredentialsUnavailableError(model.gap, model.unavailable)
+    }
     if (model.credential.kind === 'api-key') {
       return {
         kind: EAuthKind.ApiKey,

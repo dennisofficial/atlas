@@ -51,6 +51,7 @@ import { ShellEnvCell } from './shell-env'
 import { envSecretsRefresher } from './env-secrets-refresh'
 import { pathEnvironmentOf, sessionPathsOf, shellEnvironmentOf } from './session-paths'
 import { fixedSessionModelsOf, liveSessionModelsOf, type SessionModels } from './model-port'
+import { modelLabelOf } from '../config/model-labels'
 import { prepareSigning } from './signing-setup'
 import { ensureWorkspace } from './workspace-setup'
 import { workspaceRepoMap } from './workspace-repo-map'
@@ -309,6 +310,7 @@ export const createSessionRuntimeFactory = (
       },
       modelFor: models.modelFor,
       choiceFor: models.choiceFor,
+      modelLabelOf,
       tools: registry,
       daemonTools: new Set(daemonToolList.map((tool) => tool.name)),
       effectOf: (name) => byName.get(name)?.effect,

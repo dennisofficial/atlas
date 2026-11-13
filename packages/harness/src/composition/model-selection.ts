@@ -1,7 +1,17 @@
-import { refKey, type EEffort, type ModelRef } from '@dltech/atlas-core'
+import {
+  ERunFailureKind,
+  providerLabelOf,
+  refKey,
+  unavailableModelMessage,
+  type EEffort,
+  type ModelCard,
+  type ModelRef,
+} from '@dltech/atlas-core'
 import { createSwitchableModel, type Switchable } from '../model/switchable-model'
+import { TurnFault } from '../model/turn-fault'
 
 import { isRefReachable, unanswerableRef, type ModelCatalogue } from './model-catalogue'
+import { reachableModel } from '../model/reachable-model'
 
 export type ModelSelection = { ref: ModelRef; effort: EEffort; fast?: boolean | undefined }
 
@@ -16,6 +26,19 @@ export type ModelChoice = {
 export type SelectableModel = Switchable<ModelSelection> & Pick<ModelChoice, 'onFastRefused'>
 
 const unbuildable = (ref: ModelRef): Error => unanswerableRef(refKey(ref))
+
+const providerLabelOfRef = (ref: ModelRef): string =>
+  providerLabelOf(ref.providerId) ?? ref.providerId
+
+const unconnectedFault = (args: { ref: ModelRef; card: ModelCard }): TurnFault =>
+  new TurnFault({
+    kind: ERunFailureKind.MissingCredential,
+    message: unavailableModelMessage({
+      subject: 'Your main agent',
+      modelLabel: args.card.label,
+      providerLabel: providerLabelOfRef(args.ref),
+    }),
+  })
 
 export function selectableModel(args: {
   initial: ModelSelection
@@ -39,11 +62,17 @@ export function selectableModel(args: {
       const adapter = args.catalogue.adapterFor(choice.ref.providerId)
       if (card === undefined || adapter === undefined) throw unbuildable(choice.ref)
 
-      return adapter.model({
-        card,
-        effort: () => held.effort,
-        fast: () => held.fast === true,
-        onFastRefused: handleFastRefused,
+      return reachableModel({
+        model: adapter.model({
+          card,
+          effort: () => held.effort,
+          fast: () => held.fast === true,
+          onFastRefused: handleFastRefused,
+        }),
+        fault: () =>
+          isRefReachable({ catalogue: args.catalogue, ref: choice.ref })
+            ? undefined
+            : unconnectedFault({ ref: choice.ref, card }),
       })
     },
   })
@@ -51,7 +80,8 @@ export function selectableModel(args: {
   return {
     ...switchable,
     select: (next) => {
-      if (!isRefReachable({ catalogue: args.catalogue, ref: next.ref })) return
+      if (args.catalogue.cardFor(next.ref) === undefined) return
+      if (args.catalogue.adapterFor(next.ref.providerId) === undefined) return
 
       held = next
       switchable.select(next)

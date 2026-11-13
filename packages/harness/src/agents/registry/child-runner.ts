@@ -16,7 +16,7 @@ import type { ActivityLifecycle } from '../../activity/runtime-session-activity'
 import type { SteerMessage } from './child-state'
 import { composeIntake, type AgentIntake } from '@dltech/atlas-agent-v1'
 import type { MessageIntake } from '../../intake/message-intake'
-import type { ThreadModel } from '../../store/thread-store'
+import type { SpawnedModel } from './open-child'
 import type { DeltaChannel } from '../../channel/delta-channel'
 import { PublishingTurnRunner } from '../../channel/publishing-turn-runner'
 import { withoutSpawnableListing } from '../../tools/builtin/agent-spawn'
@@ -55,7 +55,7 @@ export type ChildRunnerDeps = {
     | ((args: { agentType: AgentType; threadId: ThreadId }) => ChildModel | Promise<ChildModel>)
     | undefined
   modelAtSpawn?:
-    | ((args: { agentType: AgentType; spawnedBy: ThreadId }) => Promise<ThreadModel>)
+    | ((args: { agentType: AgentType; spawnedBy: ThreadId }) => Promise<SpawnedModel | undefined>)
     | undefined
   telemetry?: TelemetryPort | undefined
   hydratePlacement?: ((args: { threadId: ThreadId }) => Promise<void>) | undefined

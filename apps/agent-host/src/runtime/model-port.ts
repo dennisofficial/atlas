@@ -1,5 +1,5 @@
 import { findCard, toAccountId, type ModelChoice, type ModelPort } from '@dltech/atlas-core'
-import type { RoleModelRequest } from '@dltech/atlas-host'
+import type { RoleModelChoice, RoleModelRequest } from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 import { generatedCatalogue } from '@dltech/atlas-models'
 
@@ -23,7 +23,7 @@ export type SessionModels = {
   main: ModelPort
   modelChoice(): ModelChoice
   modelFor(request: RoleModelRequest): ModelPort
-  choiceFor(request: RoleModelRequest): ModelChoice
+  choiceFor(request: RoleModelRequest): RoleModelChoice
 }
 
 export const modelPortOf = (args: PortDeps & { resolved: ResolvedRoleModel }): AiSdkModelPort => {

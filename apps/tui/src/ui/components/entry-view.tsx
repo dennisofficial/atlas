@@ -243,6 +243,20 @@ function DerivedEntryView(props: {
         />
       )
 
+    case EEntryKind.ModelFellBack:
+      return (
+        <NoticeBlock
+          text={entry.text}
+          body={entry.content}
+          failed={false}
+          attention
+          width={props.width}
+          openHint={CONTEXT_HINT}
+          expanded={props.expanded ?? false}
+          {...(onToggle ? { onToggle: () => onToggle(entry.key) } : {})}
+        />
+      )
+
     case EEntryKind.SandboxNotice:
       return (
         <box flexDirection="row" marginBottom={1} flexShrink={0}>

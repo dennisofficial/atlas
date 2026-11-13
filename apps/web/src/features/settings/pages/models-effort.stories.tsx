@@ -88,6 +88,12 @@ export const ProviderRemoved = {
   render: () => <Screen accounts={GATEWAY_ONLY_ACCOUNTS} stored={{ 'model.id': CLAUDE_OPUS_5 }} />,
 }
 
+export const SubagentProviderRemoved = {
+  render: () => (
+    <Screen accounts={GATEWAY_ONLY_ACCOUNTS} stored={{ 'agents.type.builder': GPT_5 }} />
+  ),
+}
+
 export const SignInExpired = {
   render: () => <Screen accounts={EXPIRED_ACCOUNTS} stored={{ 'model.id': CLAUDE_OPUS_5 }} />,
 }

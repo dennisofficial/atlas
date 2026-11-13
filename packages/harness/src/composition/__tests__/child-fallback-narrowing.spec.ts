@@ -71,7 +71,6 @@ describe('a child model whose fault is not a credential rejection', () => {
 
   describe('when the credential port fails before any request reaches the provider', () => {
     it.each([
-      ECredentialFailure.NotFound,
       ECredentialFailure.Expired,
       ECredentialFailure.Unreadable,
       ECredentialFailure.Unsupported,
@@ -88,7 +87,18 @@ describe('a child model whose fault is not a credential rejection', () => {
       expect(parent.steps).toBe(0)
     })
 
-    it('surfaces a credential error wrapped in a stream error cause', async () => {
+    it('falls back when the credential is gone, since there is nothing left to retry', async () => {
+      const fault = credentialFault(ECredentialFailure.NotFound)
+      const primary = new StubModel({ id: 'openai', modelId: 'gpt', fault })
+      const parent = new StubModel({ id: 'anthropic', modelId: 'claude-sonnet' })
+
+      const port = childFallbackModel({ primary, parentFor: () => parent, onFallback: () => {} })
+
+      await expect(stepping(port)).resolves.toBe(REPLIED)
+      expect(parent.steps).toBe(1)
+    })
+
+    it('falls back on a credential error wrapped in a stream error cause', async () => {
       const wrapped = new ModelStreamError({
         message: 'stream failed',
         cause: credentialFault(ECredentialFailure.NotFound),
@@ -98,8 +108,8 @@ describe('a child model whose fault is not a credential rejection', () => {
 
       const port = childFallbackModel({ primary, parentFor: () => parent, onFallback: () => {} })
 
-      await expect(stepping(port)).rejects.toBe(wrapped)
-      expect(parent.steps).toBe(0)
+      await expect(stepping(port)).resolves.toBe(REPLIED)
+      expect(parent.steps).toBe(1)
     })
   })
 })

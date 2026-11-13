@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EAuthKind, EEffort, toAccountId } from '@dltech/atlas-core'
+import { EAuthKind, EEffort, ERunFailureKind, toAccountId } from '@dltech/atlas-core'
 import type { IssuedModelToken } from '../../tokens/oauth-types'
 
 import { AgentHostCredentialPort, CredentialsUnavailableError } from '../agent-host-credential-port'
@@ -68,6 +68,27 @@ describe('AgentHostCredentialPort', () => {
     })
     await expect(port.read()).rejects.toBeInstanceOf(CredentialsUnavailableError)
     await expect(port.read()).rejects.toThrow('no anthropic account')
+  })
+
+  it('names the model and the missing provider when the model’s provider has no account', async () => {
+    const port = new AgentHostCredentialPort({
+      userId: 'u1',
+      model: {
+        configured: false,
+        gap: 'no openai account',
+        unavailable: { providerId: 'openai', modelId: 'gpt-5' },
+      },
+      tokens: fakeTokens([]),
+    })
+    const fault = await port.read().catch((error: unknown) => error)
+    expect(fault).toBeInstanceOf(CredentialsUnavailableError)
+    expect(fault).toMatchObject({
+      kind: ERunFailureKind.MissingCredential,
+      gap: 'no openai account',
+    })
+    expect((fault as Error).message).toBe(
+      "Your main agent is set to GPT-5, but OpenAI isn't connected.",
+    )
   })
 
   it('caches the oauth token until refreshAfter', async () => {

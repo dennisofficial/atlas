@@ -166,6 +166,8 @@ export function wireTurn<Command>(args: TurnSetup<Command>): TurnWiring {
     models,
     model,
     threads,
+    log,
+    ids,
     hooks: () => container.resolve(HookChainToken),
     settings: args.settings,
     notice,

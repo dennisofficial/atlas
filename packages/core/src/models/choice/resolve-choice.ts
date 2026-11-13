@@ -17,6 +17,7 @@ export type ResolvedModelChoice = ModelChoice & {
   source: ModelRole
   follows: ModelRole | undefined
   stale: boolean
+  unavailable?: ModelRef | undefined
 }
 
 export type ResolveModelChoiceArgs = {
@@ -84,7 +85,9 @@ const followedChoice = (args: {
   capabilitiesOf: CapabilitiesOf
   role: ModelRole
   parent: ResolvedModelChoice
+  follows: ModelRole | undefined
   stale: boolean
+  unavailable?: ModelRef | undefined
 }): ResolvedModelChoice => {
   const capabilities = args.capabilitiesOf(args.parent.ref)
   return {
@@ -93,8 +96,9 @@ const followedChoice = (args: {
     effort: clampedEffortOf({ capabilities, effort: args.parent.effort }),
     fast: offeredFastOf({ capabilities, fast: args.parent.fast }),
     source: args.parent.source,
-    follows: parentOf(args.role),
+    follows: args.follows,
     stale: args.stale,
+    unavailable: args.unavailable,
   }
 }
 
@@ -127,9 +131,6 @@ export function resolveModelChoice(args: ResolveModelChoiceArgs): ResolvedModelC
 
     const own = refOfValue(args.read(roleKeysOf(EModelRole.Main).model))
     if (own === undefined) return on(args.fallback, false)
-    if (policy === EStalePolicy.Follow && staleOf(args.capabilitiesOf(own))) {
-      return on(args.fallback, true)
-    }
     return on(own, staleOf(args.capabilitiesOf(own)))
   }
 
@@ -145,15 +146,19 @@ export function resolveModelChoice(args: ResolveModelChoiceArgs): ResolvedModelC
         capabilitiesOf: args.capabilitiesOf,
         role,
         parent: inherited,
+        follows: parentOf(role),
         stale: false,
+        ...(inherited.unavailable === undefined ? {} : { unavailable: inherited.unavailable }),
       })
     }
     if (policy === EStalePolicy.Follow && staleOf(args.capabilitiesOf(own))) {
       return followedChoice({
         capabilitiesOf: args.capabilitiesOf,
         role,
-        parent: inherited,
+        parent: mainChoice(),
+        follows: EModelRole.Main,
         stale: true,
+        unavailable: own,
       })
     }
 
