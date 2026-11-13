@@ -5,6 +5,7 @@ import { db, type Row } from '@dltech/atlas-db'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { GithubService } from '../github/github.service'
 import { assertProjectRules } from './projects.rules'
+import { withRepoTracking } from './project-repo-tracking'
 
 export const PROJECT_NOT_FOUND = 'project not found'
 
@@ -49,7 +50,7 @@ export class ProjectsService {
   }
 
   async read(args: { userId: string; projectId: string }): Promise<Project> {
-    return toProject(await this.editable(args))
+    return withRepoTracking({ project: toProject(await this.editable(args)) })
   }
 
   async replace(args: { userId: string; projectId: string; input: ProjectSave }): Promise<Project> {

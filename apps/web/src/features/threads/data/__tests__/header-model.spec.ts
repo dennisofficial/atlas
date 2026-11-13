@@ -5,6 +5,7 @@ import { threadOf } from '@/features/shell/__tests__/fixtures'
 import {
   EHeaderState,
   STATE_LABEL,
+  checksTallyOf,
   currentBranchOf,
   headerStateOf,
   sandboxSettingsHrefOf,
@@ -114,5 +115,56 @@ describe('sandboxSettingsHrefOf', () => {
   it('omits the link for a thread without a project', () => {
     expect(sandboxSettingsHrefOf({ projectId: null })).toBeUndefined()
     expect(sandboxSettingsHrefOf(undefined)).toBeUndefined()
+  })
+})
+
+describe('checksTallyOf', () => {
+  const entry = (over: Record<string, unknown>) =>
+    ({
+      repo: 'owner/atlas',
+      number: 1,
+      url: 'https://github.com/owner/atlas/pull/1',
+      branch: 'topic',
+      state: 'open',
+      checksRunning: 0,
+      checksPassed: 0,
+      checksFailed: 0,
+      checksState: undefined,
+      mergeable: true,
+      current: true,
+      via: undefined,
+      ...over,
+    }) as Parameters<typeof checksTallyOf>[0]
+
+  it('waits on GitHub rollup state before any check reports', () => {
+    expect(checksTallyOf(entry({ checksState: 'expected' }))).toEqual({
+      running: 0,
+      passed: 0,
+      failed: 0,
+      waiting: true,
+    })
+  })
+
+  it('does not wait once a check has reported', () => {
+    expect(checksTallyOf(entry({ checksState: 'pending', checksRunning: 1 }))).toEqual({
+      running: 1,
+      passed: 0,
+      failed: 0,
+      waiting: false,
+    })
+  })
+
+  it('still waits when GitHub expects a check beside the ones that reported', () => {
+    expect(checksTallyOf(entry({ checksState: 'expected', checksPassed: 2 }))).toEqual({
+      running: 0,
+      passed: 2,
+      failed: 0,
+      waiting: true,
+    })
+  })
+
+  it('has no tally at all without counts or rollup state', () => {
+    expect(checksTallyOf(entry({}))).toBeUndefined()
+    expect(checksTallyOf(entry({ checksState: 'success' }))).toBeUndefined()
   })
 })

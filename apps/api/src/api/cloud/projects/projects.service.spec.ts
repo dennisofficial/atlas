@@ -4,6 +4,7 @@ import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
 import type { GithubService } from '../github/github.service'
 import type { ProjectSave } from '@dltech/atlas-wire'
+import { ERepoTracking } from '@dltech/atlas-wire'
 import { EShipBehavior } from '@dltech/atlas-wire/web'
 import { liveSnapshot } from '../../platform/sessions/live-snapshot'
 import { DrainStateService } from '../../platform/health/drain-state.service'
@@ -60,7 +61,13 @@ describe('ProjectsService', () => {
       ],
     })
     expect(created.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/)
-    expect(await service.read({ userId: USER_A, projectId: created.id })).toEqual(created)
+    const { repos, ...snapshot } = await service.read({ userId: USER_A, projectId: created.id })
+    expect(repos?.map((entry) => entry.repo)).toEqual([
+      'dennisofficial/atlas',
+      'octocat/Spoon-Knife',
+      'octocat/docs',
+    ])
+    expect(snapshot).toEqual(created)
     expect(await service.list({ userId: USER_A })).toEqual([created])
 
     await tick()
@@ -168,9 +175,12 @@ describe('ProjectsService', () => {
       additionalRepos: { malformed: true },
       shipBehavior: 'unknown',
     })
-    const read = await service.read({ userId: USER_A, projectId: created.id })
+    const { repos, ...read } = await service.read({ userId: USER_A, projectId: created.id })
     expect(read.additionalRepos).toEqual([])
     expect(read.shipBehavior).toBe(EShipBehavior.OpenPullRequest)
+    expect(repos).toEqual([
+      { repo: 'dennisofficial/atlas', branch: 'main', tracking: ERepoTracking.Polled },
+    ])
     expect((await liveSnapshot({ userId: USER_A })).projects).toEqual([read])
   })
 

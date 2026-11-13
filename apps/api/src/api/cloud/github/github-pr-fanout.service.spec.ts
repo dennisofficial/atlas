@@ -26,6 +26,7 @@ const STATE: GithubPrStateDto = {
   checksPassed: 3,
   checksFailed: 0,
   checksIgnored: 0,
+  checksState: null,
   mergeable: true,
   version: 1,
   updatedAt: '2026-09-28T00:00:00.000Z',

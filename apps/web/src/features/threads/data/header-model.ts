@@ -1,4 +1,8 @@
-import { EPullRequestStateWire, type WireThread } from '@dltech/atlas-wire/web'
+import {
+  EPullRequestChecksStateWire,
+  EPullRequestStateWire,
+  type WireThread,
+} from '@dltech/atlas-wire/web'
 
 import type { PullRequestEntry } from './pull-request-entries'
 
@@ -9,7 +13,7 @@ export enum EHeaderState {
   Idle = 'idle',
 }
 
-export type ChecksTally = { running: number; passed: number; failed: number }
+export type ChecksTally = { running: number; passed: number; failed: number; waiting: boolean }
 
 export const STATE_LABEL: Record<EHeaderState, string> = {
   [EHeaderState.Failed]: 'Failed',
@@ -59,6 +63,7 @@ export function checksTallyOf(entry: PullRequestEntry): ChecksTally | undefined 
   const running = entry.checksRunning ?? 0
   const passed = entry.checksPassed ?? 0
   const failed = entry.checksFailed ?? 0
-  if (running + passed + failed === 0) return undefined
-  return { running, passed, failed }
+  const waiting = entry.checksState === EPullRequestChecksStateWire.Expected
+  if (running + passed + failed === 0 && !waiting) return undefined
+  return { running, passed, failed, waiting }
 }

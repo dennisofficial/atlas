@@ -36,6 +36,19 @@ export function terminalStateKept(args: {
   return TERMINAL_STATES.has(args.next) ? null : args.prior.state
 }
 
+/**
+ * GitHub's rollup state is display data with no second source, so a fill whose GraphQL read failed
+ * (null) keeps the stored value while the head is unchanged, and a new head resets it.
+ */
+export function checksStateKept(args: {
+  prior: { headSha: string; checksState: string | null } | null
+  next: GithubPrStateRecord
+}): string | null {
+  if (args.next.checksState !== null) return args.next.checksState
+  if (args.prior === null || args.prior.headSha !== args.next.headSha) return null
+  return args.prior.checksState
+}
+
 export class GithubPrStateWriter {
   constructor(
     private readonly deps: {
@@ -75,6 +88,7 @@ export class GithubPrStateWriter {
     const fields = {
       ...args.fields,
       state: keptState ?? args.fields.state,
+      checksState: checksStateKept({ prior: locked, next: args.fields }),
       headRepoFullName:
         args.fields.headRepoFullName === null ? null : normalizedRepo(args.fields.headRepoFullName),
     }

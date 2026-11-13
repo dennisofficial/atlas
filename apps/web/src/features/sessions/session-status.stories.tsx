@@ -26,6 +26,7 @@ const entry = (overrides: Partial<PullRequestEntry> = {}): PullRequestEntry => (
   checksRunning: 2,
   checksPassed: 5,
   checksFailed: 0,
+  checksState: undefined,
   mergeable: true,
   current: true,
   via: undefined,
