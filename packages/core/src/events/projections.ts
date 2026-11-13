@@ -85,7 +85,10 @@ export function dispatchedCalls(events: readonly Event[]): Set<CallId> {
 export function crashedCalls(events: readonly Event[]): PendingCall[] {
   const dispatched = dispatchedCalls(events)
   if (dispatched.size === 0) return []
-  return pendingCalls(events).filter((call) => dispatched.has(call.callId))
+  const parked = parkedCalls(events)
+  return pendingCalls(events).filter(
+    (call) => dispatched.has(call.callId) && !parked.has(call.callId),
+  )
 }
 
 export function answeredApproval({
@@ -122,6 +125,26 @@ export function outstandingApproval(events: readonly Event[]): CallId | undefine
   }
 
   return earliest?.callId
+}
+
+export function parkedCalls(events: readonly Event[]): ReadonlySet<CallId> {
+  const parked = new Map<CallId, number>()
+
+  for (const event of events) {
+    if (event.type === 'tool-parked') parked.set(event.callId, event.seq)
+    if (
+      event.type === 'tool-called' ||
+      event.type === 'tool-result' ||
+      event.type === 'tool-denied'
+    )
+      parked.delete(event.callId)
+  }
+
+  return new Set(parked.keys())
+}
+
+export function openParkedCall(events: readonly Event[]): CallId | undefined {
+  return parkedCalls(events).values().next().value
 }
 
 export function inputForCall({

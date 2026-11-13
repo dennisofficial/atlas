@@ -8,6 +8,7 @@ export enum ETurnStatus {
   HandoffPaused = 'relocation-paused',
   Failed = 'failed',
   WaitingForModel = 'waiting-for-model',
+  Parked = 'parked',
 }
 
 export type TurnOutcome =
@@ -17,6 +18,7 @@ export type TurnOutcome =
   | { status: ETurnStatus.Interrupted; runId: RunId; committed: boolean }
   | { status: ETurnStatus.HandoffPaused; runId: RunId }
   | { status: ETurnStatus.WaitingForModel; runId: RunId; waiting: WaitingForModel }
+  | { status: ETurnStatus.Parked; runId: RunId; callId: CallId }
   | {
       status: ETurnStatus.Failed
       runId: RunId

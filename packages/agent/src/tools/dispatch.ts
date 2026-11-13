@@ -2,6 +2,7 @@ import {
   CallInterruptedError,
   EBeforeToolDecision,
   hookOutcomeDrafts,
+  isParkedOutcome,
   parametersOf,
   resolveBeforeTool,
   type ActiveWorktree,
@@ -210,6 +211,10 @@ export class HookedToolDispatcher extends ToolDispatcher {
           captureFileChanges: this.quality.captureEnabled({ threadId: call.threadId }),
         }),
     })
+
+    if (isParkedOutcome(result)) {
+      return [...drafts, { type: 'tool-parked', callId: call.callId, name: call.name }]
+    }
 
     const qualityOutcome = await spanWith(this.trace, {
       name: ESpan.ToolQuality,

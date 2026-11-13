@@ -147,7 +147,9 @@ const FAILED_STATES: ReadonlySet<string> = new Set(['failed', 'setup-failed', 's
 const statusOfV2 = (summary: V2SessionSummary): ESessionStatus => {
   const state = summary.status?.state
   if (state === undefined) return ESessionStatus.Idle
-  if (state === 'waiting-for-credentials') return ESessionStatus.Awaiting
+  if (state === 'waiting-for-credentials' || state === 'waiting-for-operator') {
+    return ESessionStatus.Awaiting
+  }
   if (FAILED_STATES.has(state)) return ESessionStatus.Failed
   return RUNNING_STATES.has(state) ? ESessionStatus.Running : ESessionStatus.Idle
 }

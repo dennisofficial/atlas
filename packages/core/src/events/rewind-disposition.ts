@@ -11,6 +11,7 @@ export const REWIND_DISPOSITION = {
   'user-said': ERewindDisposition.Discard,
   'assistant-said': ERewindDisposition.Discard,
   'tool-called': ERewindDisposition.Discard,
+  'tool-parked': ERewindDisposition.Discard,
   'tool-dispatched': ERewindDisposition.Discard,
   'tool-result': ERewindDisposition.Discard,
   'tool-denied': ERewindDisposition.Discard,
