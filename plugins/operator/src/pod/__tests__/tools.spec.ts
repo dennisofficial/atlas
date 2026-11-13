@@ -8,22 +8,18 @@ import {
   EMPTY_WORKTREES,
   type PluginPodContext,
   type PodControl,
-  type PodOperatorAsk,
-  type PodOperatorOpened,
 } from '@dltech/atlas-plugin-sdk'
 
 import { operatorPod } from '..'
+import { EOperatorRequestKind, OPERATOR_INPUT_TOOL, OPERATOR_SHELL_INPUT_TOOL } from '../../core'
 
-const REQUEST = 'oreq_1'
 const SHELL_ID = 'shell-9f2c1a04'
 
 const unavailable = async (): Promise<never> => {
   throw new Error('this spec has no control plane')
 }
 
-const controlWith = (
-  ask: (args: { ask: PodOperatorAsk; signal: AbortSignal }) => Promise<PodOperatorOpened>,
-): PodControl => ({
+const control: PodControl = {
   exposePort: unavailable,
   mcp: EMPTY_MCP_CONTROL,
   webSearch: { config: unavailable },
@@ -34,116 +30,80 @@ const controlWith = (
     edit: unavailable,
     delete: unavailable,
   },
-  operator: { ask },
-})
-
-const rig = (opened: PodOperatorOpened) => {
-  const asks: PodOperatorAsk[] = []
-  const ctx: PluginPodContext = {
-    sessionId: 's1',
-    control: controlWith(async ({ ask }) => {
-      asks.push(ask)
-      return opened
-    }),
-    crew: EMPTY_CREW,
-    sessions: EMPTY_SESSIONS,
-    worktrees: EMPTY_WORKTREES,
-    append: async () => undefined,
-    events: () => [],
-    call: unavailable,
-    live: () => undefined,
-    onDaemonEvent: () => () => undefined,
-    log: () => undefined,
-  }
-
-  const invoke = async (args: { name: string; input: unknown }) => {
-    const tool = operatorPod.tools?.(ctx).find((candidate) => candidate.name === args.name)
-    if (tool === undefined) throw new Error(`no tool ${args.name}`)
-    return await tool.invoke({
-      input: args.input,
-      signal: new AbortController().signal,
-      idempotencyKey: 'k',
-      projectDirectory: '/work',
-      threadId: toThreadId('t1'),
-    })
-  }
-
-  return { asks, ctx, invoke }
 }
 
-describe('operator_input', () => {
-  it('asks the operator with the schema values', async () => {
-    const harness = rig({ ok: true, requestId: REQUEST })
+const ctx: PluginPodContext = {
+  sessionId: 's1',
+  control,
+  crew: EMPTY_CREW,
+  sessions: EMPTY_SESSIONS,
+  worktrees: EMPTY_WORKTREES,
+  append: async () => undefined,
+  events: () => [],
+  call: unavailable,
+  live: () => undefined,
+  onDaemonEvent: () => () => undefined,
+  log: () => undefined,
+}
 
-    await harness.invoke({ name: 'operator_input', input: { prompt: 'Login code?' } })
-    await harness.invoke({
-      name: 'operator_input',
-      input: { prompt: 'API token?' },
-    })
-
-    expect(harness.asks).toEqual([
-      { kind: 'input', prompt: 'Login code?' },
-      { kind: 'input', prompt: 'API token?' },
-    ])
+const invoke = async (args: { name: string; input: unknown }) => {
+  const tool = operatorPod.tools?.(ctx).find((candidate) => candidate.name === args.name)
+  if (tool === undefined) throw new Error(`${args.name} is not registered`)
+  return await tool.invoke({
+    input: args.input,
+    signal: new AbortController().signal,
+    idempotencyKey: 'k1',
+    projectDirectory: '/w',
+    threadId: toThreadId('t1'),
   })
+}
 
-  it('parks the call naming the open request instead of waiting', async () => {
-    const harness = rig({ ok: true, requestId: REQUEST })
-    const outcome = await harness.invoke({
-      name: 'operator_input',
-      input: { prompt: 'Login code?' },
+describe('the operator pod tools', () => {
+  it('parks operator_input with the question as its request', async () => {
+    const outcome = await invoke({
+      name: OPERATOR_INPUT_TOOL,
+      input: { prompt: 'What is the login code?' },
     })
 
     expect(isParkedOutcome(outcome)).toBe(true)
-    expect(outcome.ok).toBe(false)
-    expect(!outcome.ok && outcome.reason).toContain(REQUEST)
-    expect(!outcome.ok && outcome.reason).toContain("arrives as this call's result")
+    if (!isParkedOutcome(outcome)) return
+    expect(outcome.request).toEqual({
+      kind: EOperatorRequestKind.Input,
+      prompt: 'What is the login code?',
+    })
   })
 
-  it('turns a refusal into a sentence naming the reason and the missing value', async () => {
-    const harness = rig({ ok: false, reason: 'cancelled' })
-    const outcome = await harness.invoke({
-      name: 'operator_input',
-      input: { prompt: 'Login code?' },
+  it('parks operator_shell_input with the shell it types into', async () => {
+    const outcome = await invoke({
+      name: OPERATOR_SHELL_INPUT_TOOL,
+      input: { prompt: 'Paste the code at the prompt', shellId: SHELL_ID },
     })
 
-    expect(outcome.ok).toBe(false)
+    expect(isParkedOutcome(outcome)).toBe(true)
+    if (!isParkedOutcome(outcome)) return
+    expect(outcome.request).toEqual({
+      kind: EOperatorRequestKind.Shell,
+      prompt: 'Paste the code at the prompt',
+      shellId: SHELL_ID,
+    })
+  })
+
+  it('rejects a call with no question', async () => {
+    const outcome = await invoke({ name: OPERATOR_INPUT_TOOL, input: {} })
+
     expect(isParkedOutcome(outcome)).toBe(false)
-    expect(!outcome.ok && outcome.reason).toContain('cancelled')
-    expect(!outcome.ok && outcome.reason).toContain('No value arrived')
-  })
-})
-
-describe('operator_shell_input', () => {
-  it('asks the operator for a shell kind with the shellId it was given', async () => {
-    const harness = rig({ ok: true, requestId: REQUEST })
-
-    await harness.invoke({
-      name: 'operator_shell_input',
-      input: { prompt: 'Login code?', shellId: SHELL_ID },
-    })
-
-    expect(harness.asks).toEqual([{ kind: 'shell', prompt: 'Login code?', shellId: SHELL_ID }])
+    expect(outcome.ok).toBe(false)
   })
 
-  it('parks the shell ask the same way', async () => {
-    const harness = rig({ ok: true, requestId: REQUEST })
-    const outcome = await harness.invoke({
-      name: 'operator_shell_input',
-      input: { prompt: 'Login code?', shellId: SHELL_ID },
-    })
-
-    expect(isParkedOutcome(outcome)).toBe(true)
-    expect(!outcome.ok && outcome.reason).toContain(REQUEST)
+  it('keeps both tools away from a sub-agent', () => {
+    expect(operatorPod.childDeny).toEqual([OPERATOR_INPUT_TOOL, OPERATOR_SHELL_INPUT_TOOL])
   })
 
-  it('names the reason when the host could not open the request', async () => {
-    const harness = rig({ ok: false, reason: 'this session has no owner to ask for input' })
-    const outcome = await harness.invoke({
-      name: 'operator_shell_input',
-      input: { prompt: 'Login code?', shellId: SHELL_ID },
-    })
+  it('tells the model the wait has no deadline and where the value goes', () => {
+    const [input, shell] = operatorPod.tools?.(ctx) ?? []
 
-    expect(!outcome.ok && outcome.reason).toContain('no owner')
+    expect(input?.description).toContain('no deadline')
+    expect(input?.description).toContain('$ATLAS_SESSION_DIR/requests')
+    expect(shell?.description).toContain('no deadline')
   })
 })

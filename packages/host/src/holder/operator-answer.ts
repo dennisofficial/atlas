@@ -1,45 +1,42 @@
+import { createHash } from 'node:crypto'
 import { join } from 'node:path'
-import { z } from 'zod'
 
 import { ECallFailure, ECallStatus, type CallOp, type CallResult } from '@dltech/atlas-protocol'
 import {
   EOperatorRequestKind,
   EOperatorRequestOutcome,
   INBOX_KIND_OPERATOR_ANSWER,
+  OPERATOR_TOOL_NAMES,
   deliveredTextOf,
+  operatorAnswerPayloadSchema,
+  operatorRequestSchema,
   refusalTextOf,
+  type OperatorRequest,
 } from '@dltech/atlas-plugin-operator/core'
 import {
-  openParkedCall,
+  openParkedCallsOf,
   parkedResultDraft,
   type CallId,
-  type Event,
+  type EventDraft,
   type InboxEntry,
+  type JsonValue,
   type RunId,
   type ThreadId,
-  type V2Event,
 } from '@dltech/atlas-core'
 
 import type { RemoteCalls } from '../calls/remote-calls'
-import { openRequestsOf, settledOf, settleOperatorOrphans, type Asked } from './operator-orphans'
-import type { OperatorAnswerHandoff, OperatorRequestPort } from './operator-requests'
+import type {
+  OperatorAnswerHandoff,
+  OperatorAnswerKey,
+  OperatorRequestPort,
+} from './operator-requests'
 import type { AppendBody, SessionRecord } from './record/record-adapter'
 
 const REQUESTS_DIRECTORY = 'requests'
 const REQUESTS_FILE_MODE = 0o600
-
-const operatorAnswerSchema = z.strictObject({ requestId: z.string().min(1) })
-
-const requestIdOf = (payload: string): string | undefined => {
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(payload)
-  } catch {
-    return undefined
-  }
-  const answer = operatorAnswerSchema.safeParse(parsed)
-  return answer.success ? answer.data.requestId : undefined
-}
+const CALL_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/
+const NO_LONGER_OPEN = 'the request is no longer open'
+const CANCELLED_REASON = 'the operator cancelled the request'
 
 export const OPERATOR_ANSWER_KIND = INBOX_KIND_OPERATOR_ANSWER
 
@@ -60,70 +57,83 @@ export type OperatorAnswersArgs = {
   newRunId: () => RunId
 }
 
-type OpenRequest = { asked: Asked; callId: CallId; name: string }
+type OpenCall = { callId: CallId; name: string; request: OperatorRequest }
 
-const nameOfCall = (args: { events: readonly V2Event[]; callId: CallId }): string | undefined => {
-  let name: string | undefined
-  for (const event of args.events)
-    if (event.type === 'tool-called' && event.callId === args.callId)
-      name = (event as Extract<V2Event, { type: 'tool-called' }>).name
-  return name
+type Delivery =
+  | { ok: true; path?: string | undefined; shellId?: string | undefined; bytes: number }
+  | { ok: false; reason: string; gone?: boolean | undefined }
+
+const callIdOf = (payload: string): string | undefined => {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(payload)
+  } catch {
+    return undefined
+  }
+  const answer = operatorAnswerPayloadSchema.safeParse(parsed)
+  return answer.success ? answer.data.callId : undefined
 }
 
-const pairedOf = (events: readonly V2Event[]): OpenRequest | undefined => {
-  const callId = openParkedCall(events as readonly Event[])
-  if (callId === undefined) return undefined
-  const asked = openRequestsOf(events).values().next()
-  if (asked.done === true) return undefined
-  const name = nameOfCall({ events, callId })
-  if (name === undefined) return undefined
-  return { asked: asked.value, callId, name }
-}
+const fileNameOf = (callId: string): string =>
+  CALL_ID_PATTERN.test(callId) ? callId : createHash('sha256').update(callId).digest('hex')
 
 export const operatorAnswersOf = (args: OperatorAnswersArgs): OperatorAnswerIntake => {
   const handoff: OperatorAnswerHandoff = args.requests.answers
 
+  const keyOf = (callId: string): OperatorAnswerKey => ({ sessionId: args.sessionId, callId })
+
   const invoke = (op: CallOp): Promise<CallResult> =>
     args.calls.invoke({ key: `${args.sessionId}:${op.op}`, op })
+
+  const openCalls = () => openParkedCallsOf(args.record.eventCache().visibleLoopEvents())
+
+  const operatorCalls = (): readonly { callId: CallId; name: string }[] =>
+    openCalls().filter((open) => OPERATOR_TOOL_NAMES.includes(open.name))
+
+  const openCallOf = (callId: string): OpenCall | undefined => {
+    const open = operatorCalls().find((candidate) => candidate.callId === callId)
+    if (open === undefined) return undefined
+    const parked = openCalls().find((candidate) => candidate.callId === callId)
+    const parsed = operatorRequestSchema.safeParse(parked?.request)
+    if (!parsed.success) return undefined
+    return { callId: open.callId, name: open.name, request: parsed.data }
+  }
 
   const append = async (drafts: readonly AppendBody[]): Promise<void> => {
     if (drafts.length === 0) return
     await args.record.append({ threadId: args.threadId, runId: args.newRunId(), drafts })
   }
 
-  const settleRow = async (settled: {
-    requestId: string
-    outcome: EOperatorRequestOutcome
-  }): Promise<void> => {
-    await args.requests.settle(settled).catch(() => false)
-  }
+  const closingDraft = (
+    params: { call: { callId: CallId; name: string }; output: JsonValue } & (
+      | { modelText: string }
+      | { refusal: string }
+    ),
+  ): EventDraft =>
+    parkedResultDraft({
+      callId: params.call.callId,
+      name: params.call.name,
+      output: params.output,
+      ...('modelText' in params
+        ? { modelText: params.modelText }
+        : { error: { message: refusalTextOf(params.refusal) } }),
+    })
 
-  const deliver = async (params: {
-    asked: Asked
-    value: string
-  }): Promise<
-    | { ok: true; path?: string; shellId?: string; bytes: number }
-    | { ok: false; reason: string; gone?: boolean }
-  > => {
+  const deliver = async (params: { call: OpenCall; value: string }): Promise<Delivery> => {
     const bytes = Buffer.byteLength(params.value, 'utf8')
-    if (params.asked.kind === EOperatorRequestKind.Shell) {
-      const shellId = params.asked.shellId ?? ''
-      const written = await invoke({
-        op: 'shells.write',
-        shellId,
-        data: params.value,
-        end: false,
-      })
+    if (params.call.request.kind === EOperatorRequestKind.Shell) {
+      const shellId = params.call.request.shellId
+      const written = await invoke({ op: 'shells.write', shellId, data: params.value, end: false })
       if (written.status === ECallStatus.Failed)
         return {
           ok: false,
-          reason: `the value could not be typed into the shell: ${written.error.message}`,
+          reason: `the value could not be typed into shell ${shellId}: ${written.error.message}`,
           ...(written.error.code === ECallFailure.NotFound ? { gone: true } : {}),
         }
       return { ok: true, shellId, bytes }
     }
     const directory = join(args.sessionDir, REQUESTS_DIRECTORY)
-    const path = join(directory, params.asked.requestId)
+    const path = join(directory, fileNameOf(params.call.callId))
     const made = await invoke({ op: 'mkdir', path: directory })
     if (made.status === ECallStatus.Failed && made.error.code !== ECallFailure.AlreadyExists)
       return {
@@ -141,98 +151,73 @@ export const operatorAnswersOf = (args: OperatorAnswersArgs): OperatorAnswerInta
     return { ok: true, path, bytes }
   }
 
-  const settleDrafts = (params: {
-    open: OpenRequest
-    outcome: EOperatorRequestOutcome
-    reason?: string | undefined
-    path?: string | undefined
-    bytes?: number | undefined
-  }): readonly AppendBody[] => {
-    const refuse = params.outcome !== EOperatorRequestOutcome.Delivered
-    return [
-      settledOf({
-        requestId: params.open.asked.requestId,
-        sessionId: args.sessionId,
-        outcome: params.outcome,
-        ...(params.path === undefined ? {} : { path: params.path }),
-        ...(params.bytes === undefined ? {} : { bytes: params.bytes }),
-        ...(params.reason === undefined ? {} : { reason: params.reason }),
-      }),
-      parkedResultDraft({
-        callId: params.open.callId,
-        name: params.open.name,
-        ...(refuse
-          ? { error: { message: refusalTextOf(params.reason ?? params.outcome) } }
-          : {
-              modelText: deliveredTextOf({
-                kind: params.open.asked.kind,
-                path: params.path,
-                shellId: params.open.asked.shellId,
-                bytes: params.bytes ?? 0,
-              }),
-            }),
-      }),
-    ]
-  }
-
   const handle = async (entry: InboxEntry): Promise<OperatorAnswerOutcome> => {
-    await settleOperatorOrphans(args)
-    const requestId = requestIdOf(entry.payload)
-    const open = pairedOf(args.record.eventCache().eventsAfter(0))
-    if (requestId === undefined) return { wakesTurn: false }
-    if (open === undefined || open.asked.requestId !== requestId) {
-      handoff.resolve({ requestId, result: { ok: false, reason: 'the request is no longer open' } })
+    const callId = callIdOf(entry.payload)
+    if (callId === undefined) return { wakesTurn: false }
+    const key = keyOf(callId)
+    const call = openCallOf(callId)
+    if (call === undefined) {
+      handoff.resolve({ key, result: { ok: false, reason: NO_LONGER_OPEN } })
       return { wakesTurn: false }
     }
-    const answer = handoff.take(requestId)
+    const answer = handoff.take(key)
     if (answer === undefined) return { wakesTurn: false }
 
     if (!answer.ok) {
-      const reason = 'the operator cancelled the request'
-      await append(settleDrafts({ open, outcome: EOperatorRequestOutcome.Cancelled, reason }))
-      await settleRow({ requestId, outcome: EOperatorRequestOutcome.Cancelled })
-      handoff.resolve({ requestId, result: { ok: true } })
+      await append([
+        closingDraft({
+          call,
+          output: { outcome: EOperatorRequestOutcome.Cancelled, reason: CANCELLED_REASON },
+          refusal: CANCELLED_REASON,
+        }),
+      ])
+      handoff.resolve({ key, result: { ok: true } })
       return { wakesTurn: true }
     }
 
-    const delivery = await deliver({ asked: open.asked, value: answer.value })
+    const delivery = await deliver({ call, value: answer.value })
     if (!delivery.ok && delivery.gone !== true) {
-      handoff.resolve({ requestId, result: { ok: false, reason: delivery.reason } })
+      handoff.resolve({ key, result: { ok: false, reason: delivery.reason } })
       return { wakesTurn: false }
     }
-    const outcome = delivery.ok ? EOperatorRequestOutcome.Delivered : EOperatorRequestOutcome.Failed
-    const drafts = delivery.ok
-      ? settleDrafts({
-          open,
-          outcome,
+
+    const output: JsonValue = delivery.ok
+      ? {
+          outcome: EOperatorRequestOutcome.Delivered,
           ...(delivery.path === undefined ? {} : { path: delivery.path }),
           bytes: delivery.bytes,
+        }
+      : { outcome: EOperatorRequestOutcome.Failed, reason: delivery.reason }
+    const closing = delivery.ok
+      ? closingDraft({
+          call,
+          output,
+          modelText: deliveredTextOf({
+            kind: call.request.kind,
+            path: delivery.path,
+            shellId: delivery.shellId,
+            bytes: delivery.bytes,
+          }),
         })
-      : settleDrafts({ open, outcome, reason: delivery.reason })
-    await append(drafts)
-    await settleRow({ requestId, outcome })
-    handoff.resolve({ requestId, result: { ok: true } })
+      : closingDraft({ call, output, refusal: delivery.reason })
+    await append([closing])
+    handoff.resolve({ key, result: { ok: true } })
     return { wakesTurn: true }
   }
 
   const cancelOpen = async (params: { reason: string }): Promise<void> => {
-    await settleOperatorOrphans(args)
-    const open = pairedOf(args.record.eventCache().eventsAfter(0))
-    if (open === undefined) return
-    const drafts = settleDrafts({
-      open,
-      outcome: EOperatorRequestOutcome.Cancelled,
-      reason: params.reason,
-    })
-    await append(drafts)
-    await settleRow({
-      requestId: open.asked.requestId,
-      outcome: EOperatorRequestOutcome.Cancelled,
-    })
-    handoff.resolve({
-      requestId: open.asked.requestId,
-      result: { ok: true },
-    })
+    const open = operatorCalls()
+    if (open.length === 0) return
+    await append(
+      open.map((call) =>
+        closingDraft({
+          call,
+          output: { outcome: EOperatorRequestOutcome.Cancelled, reason: params.reason },
+          refusal: params.reason,
+        }),
+      ),
+    )
+    for (const call of open) handoff.resolve({ key: keyOf(call.callId), result: { ok: true } })
   }
 
   return { handle, cancelOpen }

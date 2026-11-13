@@ -60,26 +60,11 @@ export const EMPTY_MCP_CONTROL: PodMcpControl = {
   begin: async () => ({ ok: false, reason: 'this session cannot start an MCP sign-in' }),
 }
 
-export type PodOperatorAsk =
-  | { kind: 'input'; prompt: string }
-  | { kind: 'shell'; prompt: string; shellId: string }
-
-export type PodOperatorOpened = { ok: true; requestId: string } | { ok: false; reason: string }
-
-export type PodOperatorInput = {
-  ask(args: { ask: PodOperatorAsk; signal: AbortSignal }): Promise<PodOperatorOpened>
-}
-
-export const EMPTY_OPERATOR_INPUT: PodOperatorInput = {
-  ask: async () => ({ ok: false, reason: 'this session cannot ask the operator for input' }),
-}
-
 export type PodControl = {
   exposePort(args: { port: number }): Promise<{ url: string; tunnelToken: string }>
   memory: PodMemory
   webSearch: PodWebSearch
   mcp: PodMcpControl
-  operator: PodOperatorInput
 }
 
 export type PluginPodContext = {

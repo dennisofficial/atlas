@@ -1,4 +1,4 @@
-import { EMPTY_MCP_CONTROL, EMPTY_OPERATOR_INPUT } from '@dltech/atlas-plugin-sdk'
+import { EMPTY_MCP_CONTROL } from '@dltech/atlas-plugin-sdk'
 import { defineCommand } from '@dltech/atlas-commands'
 import {
   ECommandGroup,
@@ -185,7 +185,6 @@ const noControlPlane = async () => {
 export const podControlStub: PodControl = {
   exposePort: noControlPlane,
   mcp: EMPTY_MCP_CONTROL,
-  operator: EMPTY_OPERATOR_INPUT,
   webSearch: { config: noControlPlane },
   memory: {
     list: noControlPlane,

@@ -1,210 +1,135 @@
-import { type V2Event, createV2EventSchema } from '@dltech/atlas-core'
 import { EAuthor, EEntryKind } from '@dltech/atlas-client/transcript'
 import { describe, expect, it } from 'bun:test'
 
-import { EOperatorRequestKind, EOperatorRequestOutcome, operatorCoreSlots } from '../../core'
+import { operatorCoreSlots, operatorInputAskedSchema, operatorInputSettledSchema } from '../../core'
 import { operatorRequestEntries, requestEntriesAt } from '../request-entry'
+import { parkedOf, resultOf, stamp } from './fold-fixture'
 
-const NOW = Date.now()
-const SOON = new Date(NOW + 15 * 60_000).toISOString()
-const PAST = new Date(NOW - 60_000).toISOString()
-const PATH = '/atlas/sessions/s1/requests/req_1'
+const PATH = '/atlas/sessions/s1/requests/call_1'
 
-const stamp = (body: Record<string, unknown>, n: number): V2Event =>
-  ({
-    ...body,
-    seq: n,
-    at: `2026-11-12T11:5${n}:00.000Z`,
-    threadId: 't1',
-    id: `e${n}`,
-  }) as unknown as V2Event
-
-const asked = (n = 1, extra: Record<string, unknown> = {}): V2Event =>
-  stamp(
-    {
-      type: 'operator-input-asked',
-      requestId: 'req_1',
-      kind: EOperatorRequestKind.Input,
-      prompt: 'What is the login code?',
-      expiresAt: SOON,
-      sessionId: 's1',
-      ...extra,
-    },
-    n,
-  )
-
-const settled = (n = 2, extra: Record<string, unknown> = {}): V2Event =>
-  stamp(
-    {
-      type: 'operator-input-settled',
-      requestId: 'req_1',
-      outcome: EOperatorRequestOutcome.Delivered,
-      path: PATH,
-      bytes: 7,
-      sessionId: 's1',
-      ...extra,
-    },
-    n,
-  )
-
-const entryOf = (events: readonly V2Event[]) => {
-  const [entry] = [...requestEntriesAt({ events, now: NOW }).values()]
-  if (entry === undefined) throw new Error('no operator request entry was built')
-  return entry
-}
-
-describe('the operator request row', () => {
-  it('reads an unanswered request before its deadline as pending', () => {
-    expect(entryOf([asked()])).toEqual({
-      kind: EEntryKind.OperatorRequest,
-      author: EAuthor.Model,
-      key: 'e1',
-      text: 'asked the operator: What is the login code?',
-      requestId: 'req_1',
-      prompt: 'What is the login code?',
-      state: 'pending',
-      expiresAt: SOON,
-    })
-  })
-
-  it('pairs the settlement by requestId and keeps the id of the event that drew the card', () => {
-    const entry = entryOf([asked(), settled()])
-
-    expect(entry.key).toBe('e1')
-    expect(entry.state).toBe('delivered')
-    expect(entry.path).toBe(PATH)
-    expect(entry.bytes).toBe(7)
-    expect(entry.text).toBe(
-      `asked the operator: What is the login code? — the operator delivered a value to ${PATH} (7 bytes)`,
-    )
-  })
-
-  it('carries the shell a shell ask names', () => {
-    const entry = entryOf([
-      asked(1, { kind: EOperatorRequestKind.Shell, shellId: 'shell-9f2c1a04' }),
-      settled(2, { path: undefined, bytes: undefined, shellId: undefined }),
-    ])
-
-    expect(entry.shellId).toBe('shell-9f2c1a04')
-  })
-
-  it('reads a cancelled settlement as cancelled', () => {
-    const entry = entryOf([
-      asked(),
-      settled(2, {
-        outcome: EOperatorRequestOutcome.Cancelled,
-        path: undefined,
-        bytes: undefined,
-      }),
-    ])
-
-    expect(entry.state).toBe('cancelled')
-    expect(entry.path).toBeUndefined()
-    expect(entry.text).toContain('cancelled')
-    expect(entry.text).toContain('no value arrived')
-  })
-
-  it('reads an abandoned settlement as abandoned and says the session stopped waiting', () => {
-    const entry = entryOf([
-      asked(),
-      settled(2, {
-        outcome: EOperatorRequestOutcome.Abandoned,
-        path: undefined,
-        bytes: undefined,
-        reason: 'abandoned',
-      }),
-    ])
-
-    expect(entry.state).toBe('abandoned')
-    expect(entry.text).toContain('stopped waiting for the answer')
-    expect(entry.text).not.toContain('cancelled')
-  })
-
-  it('reads an expired settlement as expired', () => {
-    const entry = entryOf([
-      asked(),
-      settled(2, {
-        outcome: EOperatorRequestOutcome.Expired,
-        path: undefined,
-        bytes: undefined,
-      }),
-    ])
-
-    expect(entry.state).toBe('expired')
-    expect(entry.text).toContain('expired')
-  })
-
-  it('reads a failed settlement as failed with its reason', () => {
-    const entry = entryOf([
-      asked(),
-      settled(2, {
-        outcome: EOperatorRequestOutcome.Failed,
-        path: undefined,
-        bytes: undefined,
-        reason: 'the requests directory could not be created',
-      }),
-    ])
-
-    expect(entry.state).toBe('failed')
-    expect(entry.reason).toBe('the requests directory could not be created')
-    expect(entry.text).toContain('the requests directory could not be created')
-  })
-
-  it('reads a deadline that passed with no settlement as expired', () => {
-    const entry = entryOf([asked(1, { expiresAt: PAST })])
-
-    expect(entry.state).toBe('expired')
-    expect(entry.text).toContain('no value arrived')
-  })
-
-  it('leaves a card that looks live only while its deadline is ahead of the clock', () => {
-    const live = operatorRequestEntries([asked()]).get('e1')
-    const past = operatorRequestEntries([asked(1, { expiresAt: PAST })]).get('e1')
-
-    expect(live?.text).toBe('asked the operator: What is the login code?')
-    expect(past?.text).toContain('expired')
-  })
-
-  it('ignores a settlement whose request nobody asked for', () => {
-    expect([...requestEntriesAt({ events: [settled()], now: NOW }).values()]).toEqual([])
-  })
-
-  it('keeps a request with no deadline pending until it settles', () => {
-    const noDeadline = { ...JSON.parse(JSON.stringify(asked(1))) }
-    delete noDeadline.expiresAt
-
-    const open = requestEntriesAt({ events: [noDeadline as V2Event], now: NOW })
-    expect(open.get('e1')?.state).toBe('pending')
-
-    const closed = requestEntriesAt({
-      events: [noDeadline as V2Event, settled(2)],
-      now: NOW,
-    })
-    expect(closed.get('e1')?.state).toBe('delivered')
-  })
+const requestOf = (prompt = 'What is the login code?') => ({
+  kind: 'input',
+  prompt,
 })
 
-describe('an asked event recorded back when the flag existed', () => {
-  it('drops the retired secret key and folds into the same row', () => {
-    const wire = {
-      ...JSON.parse(JSON.stringify(asked(1, { secret: true }))),
-      runId: 'r1',
-      depth: 0,
-      epoch: 1,
-      prevHash: '0'.repeat(64),
-    }
-    const parsed = createV2EventSchema({ pluginBodies: operatorCoreSlots.events }).parse(wire)
+describe('the operator request fold', () => {
+  it('draws a pending card keyed by the parked call id', () => {
+    const [entry] = [...requestEntriesAt({ events: [parkedOf(1)] }).values()]
 
-    expect(parsed).not.toHaveProperty('secret')
-    expect(entryOf([parsed])).toEqual({
+    expect(entry).toEqual({
       kind: EEntryKind.OperatorRequest,
       author: EAuthor.Model,
-      key: 'e1',
+      key: 'call_1',
       text: 'asked the operator: What is the login code?',
-      requestId: 'req_1',
+      callId: 'call_1',
       prompt: 'What is the login code?',
       state: 'pending',
-      expiresAt: SOON,
     })
+  })
+
+  it('carries the shell id of a shell request', () => {
+    const [entry] = [
+      ...requestEntriesAt({
+        events: [parkedOf(1, { request: { kind: 'shell', prompt: 'paste', shellId: 'shl_1' } })],
+      }).values(),
+    ]
+
+    expect(entry).toMatchObject({ shellId: 'shl_1', state: 'pending' })
+  })
+
+  it('reads the outcome off the closing tool-result', () => {
+    const delivered = requestEntriesAt({
+      events: [
+        parkedOf(1),
+        resultOf(2, { output: { outcome: 'delivered', path: PATH, bytes: 7 } }),
+      ],
+    }).get('call_1')
+    const cancelled = requestEntriesAt({
+      events: [
+        parkedOf(1),
+        resultOf(2, {
+          output: { outcome: 'cancelled', reason: 'the operator cancelled the request' },
+          error: { message: 'the operator did not deliver a value: cancelled' },
+        }),
+      ],
+    }).get('call_1')
+
+    expect(delivered).toMatchObject({ state: 'delivered', path: PATH, bytes: 7 })
+    expect(cancelled).toMatchObject({
+      state: 'cancelled',
+      reason: 'the operator cancelled the request',
+    })
+  })
+
+  it('reads an error with no parsable output as failed', () => {
+    const [entry] = [
+      ...requestEntriesAt({
+        events: [parkedOf(1), resultOf(2, { error: { message: 'the shell was gone' } })],
+      }).values(),
+    ]
+
+    expect(entry).toMatchObject({ state: 'failed', reason: 'the shell was gone' })
+  })
+
+  it('queues two parked calls and closes each on its own result', () => {
+    const both = requestEntriesAt({
+      events: [parkedOf(1), parkedOf(2, { callId: 'call_2' })],
+    })
+    const closed = requestEntriesAt({
+      events: [
+        parkedOf(1),
+        parkedOf(2, { callId: 'call_2' }),
+        resultOf(3, { callId: 'call_2', output: { outcome: 'delivered', path: PATH, bytes: 7 } }),
+      ],
+    })
+
+    expect([...both.keys()]).toEqual(['call_1', 'call_2'])
+    expect([...both.values()].map((entry) => entry.state)).toEqual(['pending', 'pending'])
+    expect([...closed.values()].map((entry) => entry.state)).toEqual(['pending', 'delivered'])
+  })
+
+  it('draws no card for a legacy asked/settled pair', () => {
+    const events = [
+      stamp(1, {
+        type: 'operator-input-asked',
+        requestId: 'oreq_1',
+        kind: 'input',
+        prompt: 'the login code',
+        expiresAt: '2026-11-12T12:00:00.000Z',
+        secret: true,
+        sessionId: 's1',
+      }),
+      stamp(2, {
+        type: 'operator-input-settled',
+        requestId: 'oreq_1',
+        outcome: 'delivered',
+        path: PATH,
+        bytes: 7,
+        sessionId: 's1',
+      }),
+    ]
+
+    expect([...requestEntriesAt({ events }).values()]).toEqual([])
+    expect([...operatorRequestEntries(events).values()]).toEqual([])
+  })
+
+  it('draws no card for a request-less tool-parked from before the request existed', () => {
+    expect([
+      ...requestEntriesAt({ events: [parkedOf(1, { request: undefined })] }).values(),
+    ]).toEqual([])
+  })
+
+  it('draws no card for a parked call that is not an operator tool', () => {
+    expect([
+      ...requestEntriesAt({
+        events: [parkedOf(1, { name: 'read', request: requestOf() })],
+      }).values(),
+    ]).toEqual([])
+  })
+
+  it('registers only the legacy event schemas, so nothing new is written', () => {
+    expect(operatorCoreSlots.events).toHaveLength(2)
+    expect(operatorCoreSlots.events[0]).toBe(operatorInputAskedSchema)
+    expect(operatorCoreSlots.events[1]).toBe(operatorInputSettledSchema)
   })
 })

@@ -69,156 +69,136 @@ without the value ever entering the transcript, the model's context or the datab
 - **The session dir is a known constant.** `sessionPathsOf` builds it and `ATLAS_SESSION_DIR_ENV`
   names it (`apps/agent-host/src/runtime/session-paths.ts:14-46`).
 
-## 2. The shape: a row, an event pair, a plugin, one route
+## 2. The record: one parked call, keyed by its call id
 
-1. **A row, `v2.V2OperatorRequest`** (`packages/db/src/prisma/schema/v2/operator-request.prisma`) —
-   `id`, `sessionId`, `threadId`, `kind` (`input | shell`), `prompt`, `shellId?`, `status`
-   (`pending | answered | cancelled | abandoned | failed`), `createdAt`, `resolvedAt?`. There is no
-   deadline column and no value column, and none may be added.
-2. **Two events** in `plugins/operator/src/core/request.ts`:
-   `operator-input-asked {requestId, kind, prompt, shellId?, expiresAt?, sessionId}` and
-   `operator-input-settled {requestId, outcome, path?, bytes?, reason?, sessionId}`. Distinct names
-   from v1's `operator-input-requested/-resolved`, whose payloads and fold already exist. Neither
-   carries the value.
-3. **A plugin `plugins/operator`** — the two pod tools and the client fold that turns the pair into
-   one `EEntryKind.OperatorRequest` row.
-4. **One route, `POST /operator-requests/answer`** on the agent host — `{requestId, value}` or
-   `{requestId, cancel: true}` with the stream's bearer. It is the only writer of a value, and it
-   holds no value at rest.
+Pydantic AI, the Vercel AI SDK's UI parts and the OpenAI Agents SDK all keep a pending call and its
+payload in **one record keyed by the tool call id**; pi-durable parks a call as a slot with no output
+and wakes it on a signal. LangGraph splits them and has to match by position, and our own split — a
+`V2OperatorRequest` row plus an `operator-input-asked`/`operator-input-settled` pair — wedged two
+sessions (sections 08–09): the answer re-ran the tool, the row never settled, every later ask in that
+session was refused. One record cannot drift, so the row, the TTL and the second event are gone.
+1. **Open** — one core event, `tool-parked {callId, name, request?}`. `request` is opaque JSON owned
+   by the tool's plugin; core reads only `callId` and `name`. The operator plugin writes
+   `{kind: 'input', prompt}` or `{kind: 'shell', prompt, shellId}` (`operatorRequestSchema`,
+   `plugins/operator/src/core/request.ts`).
+2. **Close** — the ordinary `tool-result` for that `callId`. Its `output` carries the plugin's
+   outcome `{outcome, path?, bytes?, reason?}` (`operatorOutcomeSchema`); its `modelText` or `error`
+   is what the model reads.
+3. **Identity** — the call id. No `requestId`, no DB row, no second event, no deadline: a request is
+   open exactly when its parked call is open, so nothing can be orphaned and nothing needs cleanup.
+4. **Several parked calls queue.** The fold emits one entry per open call in call order, and the card
+   shows the earliest pending one; each answer closes its own call. There is no "one per session"
+   rule.
+
+**Reading it.** `openParkedCallsOf(events)` (`packages/core/src/events/parked-calls.ts`) returns the
+open calls earliest-first under the same rules as `LoopState`: a `tool-called`, `tool-result` or
+`tool-denied` for the id closes it, so a rewound call is not open.
+
+**Legacy events.** `operator-input-asked` and `operator-input-settled` stay registered as
+`legacyOperatorEvents` so old logs parse and the Mac and web do not show "could not be read";
+nothing writes them and the fold ignores them, so they draw no card. A #2278-era `tool-parked`
+carries no `request` and draws no card either.
 
 ### The tool contract
 
-`operator_input { prompt }` and `operator_shell_input { prompt, shellId }` — the
-question, not a destination: v2 picks the path, so nothing the model writes can choose to overwrite a
-file, and `appendNewline`/FIFO plumbing disappears (the value lands in a file; the model decides how
-to hand it on). Both ask through one port (`packages/plugin-sdk/src/slots.ts`, `PodControl.operator`):
-
-```ts
-export type PodOperatorAsk =
-  | { kind: 'input'; prompt: string }
-  | { kind: 'shell'; prompt: string; shellId: string }
-
-export type PodOperatorOpened = { ok: true; requestId: string } | { ok: false; reason: string }
-
-export type PodOperatorInput = {
-  ask(args: { ask: PodOperatorAsk; signal: AbortSignal }): Promise<PodOperatorOpened>
-}
-```
-
-`EMPTY_OPERATOR_INPUT` answers `{ok: false, reason: 'this session cannot ask the operator for
-input'}`, so every pod fake keeps compiling. A successful `ask` opens the request and the tool
-returns the parked outcome (`parkedOutcomeOf`), so the turn ends with no result. **The value is never
-part of the answer**: the host delivers it when it arrives, so neither the tool's arguments, its
-parked reason, nor the `tool-parked` event can contain it. `childDeny: ['operator_input', 'operator_shell_input']` on the plugin's pod slot keeps
-v1's rule that only the main session asks (`PodSlot.childDeny`, `packages/plugin-sdk/src/slots.ts:100`).
+`operator_input { prompt }` and `operator_shell_input { prompt, shellId }` — the question, not a
+destination. Neither `run` calls a port: each returns
+`parkedOutcomeOf({ reason, request: { kind, prompt, shellId? } })`, and dispatch records
+`tool-parked` with that request in place of a `tool-result`. The turn ends `ETurnStatus.Parked`:
+`LoopState.parked` keeps the call, `crashedCallsOf` never interrupts it, `resumePlanOf` reads
+`Blocked` with `TOOL_PARKED_WAITING`, the session derives `ESessionStatus.WaitingForOperator`
+("Waiting for you"), and the holder's ordinary idle rule releases the pod. The descriptions say the
+turn waits until the operator answers or cancels, with no deadline, and where the value goes.
+`childDeny: ['operator_input', 'operator_shell_input']` keeps v1's rule that only the main session
+asks.
 
 Model text, mirroring v1's so a model behaves the same way:
 - file: `the operator's value was written to <path> (N bytes, mode 0600). Read it from there and
   never paste it into a message.`
 - shell: `the operator's value was typed into the stdin of shell <shellId> (N bytes). Read the shell's
   output to see what the CLI did with it.`
-- cancelled/abandoned/expired/failed: v1's sentence naming the reason, plus that no value arrived.
+- cancelled/abandoned/failed: v1's sentence naming the reason, plus that no value arrived.
 
 ## 3. Where the value goes, and where it never goes
 
-- The host adapter writes the file with `writeFile` at `<sessionDir>/requests/<requestId>`,
-  `mode: 0o600`, after `mkdir`-ing `requests/`, and reports the absolute path it wrote.
+- The host writes the file with `writeFile` at `<sessionDir>/requests/<callId>`, `mode: 0o600`,
+  after `mkdir`-ing `requests/`, and reports the absolute path it wrote. A call id that fails
+  `/^[A-Za-z0-9_-]{1,128}$/` is written under its sha256 hex instead.
 - For a shell it issues `shells.write` with `end: false` — the op `shell_input` uses — and reports
   the shell id.
 - The value lives in one HTTP request body, the host's memory for the length of one await, and the
-  sandbox file or shell stdin. It is not in Postgres, not in a `V2Event`, not in a log line, not in
-  the model's context.
-- **The row is history, the event is the transcript.** The row gives the control plane an id it can
-  resolve and audit; the card still renders from the event pair, which is what surfaces compose.
+  sandbox file or shell stdin. It is not in Postgres, not in a `V2Event`, not in an inbox payload,
+  not in a log line, not in the model's context.
+- **Mechanism versus policy.** Core and the agent own parking, generically; the operator plugin owns
+  what its request means and how an answer closes it. The wake path — an inbox kind plus the
+  in-memory value handoff — stays operator-specific until a second tool parks.
 
-## 4. Mechanics: the tool call parks, the host answers it
+## 4. Mechanics: the tool parks, the host answers the call
 
-**Ask** (`packages/host/src/holder/operator-input.ts`, built from `plugin-pod.ts`):
-1. `control.operator.ask({ask, signal})` → `requests.open({sessionId, threadId, ask})`
-   (`OperatorRequestPort`, `packages/host/src/holder/operator-requests.ts`).
-2. The registry (`apps/agent-host/src/operator-input/registry.ts`) refuses a session that already has
-   a pending row, inserts the `pending` row and returns `{requestId}`. There is no deadline and no
-   in-memory promise: nothing about the request expires and nothing keeps the pod awake.
-3. The adapter appends `operator-input-asked` with that id and returns `{ok: true, requestId}`.
-4. The tool returns `parkedOutcomeOf(...)`, dispatch records `tool-parked {callId, name}` in place of
-   a `tool-result`, and the turn ends with `ETurnStatus.Parked`. `LoopState.parked` keeps the call in
-   `pending`, `crashedCallsOf` never interrupts it, `resumePlanOf` reads `Blocked` with
-   `TOOL_PARKED_WAITING`, and the session derives `ESessionStatus.WaitingForOperator` — "Waiting for
-   you" — instead of `RunningTool`. The holder has no running turn, so its ordinary 30-minute idle
-   rule releases the pod and the sandbox may stop. The stall guard is not involved: it only runs
-   while a turn is running, and a parked turn has already ended.
+**Ask** is dispatch. The tool returns the parked outcome, `packages/agent/src/tools/dispatch.ts`
+records `tool-parked {callId, name, request}`, and the turn ends. No host code runs, no row is
+written, and no deadline exists.
 
 **Answer** (`apps/agent-host/src/operator-input/route.ts`, mounted beside `mcpOauthBegin`):
-1. `POST /operator-requests/answer`, CORS as `begin-route.ts:29-50`, bearer → `resolve(bearer)`.
-2. The registry authorises from the row, not from memory: the request must be `pending` and its
-   session owned by the caller. Answers `200 {}`, `401 bearer`, `403 request`, `404 request`
-   (unknown or already settled), `400 body`, `409` with the wake or delivery reason.
-3. It stashes `{value}` or `{cancel: true}` in an in-memory **answer handoff** keyed by `requestId`,
-   posts an inbox entry of kind `operator-answer` with payload `{requestId}` only
+1. `POST /operator-requests/answer` with the stream's bearer. The body is exactly
+   `{sessionId, callId, value}` or `{sessionId, callId, cancel: true}`, with the value capped at
+   64 KiB.
+2. The registry authorises from the session, not a row: `store.sessionOwner(sessionId)` must be the
+   bearer's user, so a missing session and someone else's session are both `404`. Answers `200 {}`,
+   `401 bearer`, `404 session`, `400 body`, `409` with the wake or delivery reason.
+3. It stashes `{value}` or `{cancel: true}` in an in-memory **answer handoff** keyed by
+   `{sessionId, callId}`, posts an inbox entry of kind `operator-answer` with payload `{callId}` only
    (`postInboxEntryIn`, `packages/control/src/postgres/postgres-post.ts`), and awaits delivery for up
    to 120 s. The entry rings a held session and makes an unheld one claimable, so the pod wakes.
 4. `InboxIntake.prepare` (`packages/host/src/holder/inbox-intake.ts`) takes the value from the
-   handoff (`operatorAnswers.handle`, `packages/host/src/holder/operator-answer.ts`) and delivers it:
-   `mkdir` + `writeFile` at `<sessionDir>/requests/<requestId>` with `mode: 0o600`, or `shells.write`
-   with `end: false`. On success it appends `operator-input-settled {delivered}` and the parked
-   call's `tool-result` (the path/shell sentence), resolves the handoff and wakes the turn, so the
-   next turn hands the result to the model.
-5. Cancel appends `cancelled` and a `tool-result` error. A file delivery failure leaves the request
-   open and answers the operator the reason, so the card stays and they retry. A shell whose process
-   is gone (`ECallFailure.NotFound`) settles `failed` and closes the call with an error naming it.
-6. A missing handoff — the waiter timed out or another host claimed the entry — consumes the entry,
-   leaves the request open and wakes nothing.
+   handoff (`operatorAnswers.handle`, `packages/host/src/holder/operator-answer.ts`), reads the open
+   parked call with that callId and a parsable request, and delivers: `mkdir` + `writeFile` at
+   `<sessionDir>/requests/<callId>` with `mode: 0o600`, or `shells.write` with `end: false`. It
+   appends exactly one `tool-result` via `parkedResultDraft` — the delivered `output` and the
+   path/shell sentence, or a cancelled/failed `output` and an error — resolves the handoff and wakes
+   the turn, so the next turn hands the result to the model.
+5. A file delivery failure appends nothing, leaves the call open and answers the operator the
+   reason, so the card stays and they retry. A shell whose process is gone (`ECallFailure.NotFound`)
+   closes the call `failed` with an error naming the shell. Cancel closes it `cancelled`.
+6. A missing handoff — the waiter timed out, or another host claimed the entry — consumes the entry,
+   leaves the call open and wakes nothing. An answer for a call that is no longer open resolves
+   `the request is no longer open` and starts no turn.
 
 **Restart and sleep.** The open call lives only in the event log, so a redeployed or slept agent host
-finds it on the next claim: the parked call is still open, the plan is `Blocked`, and the answer
-route writes to the database row rather than to process memory. Nothing is settled on restart. A
-`shells.write` request cannot survive the pod sleeping — the shell is gone — so it settles `failed`
-when the operator answers.
+finds it on the next claim: the parked call is still open and the plan is `Blocked`. Nothing is
+settled on restart. A `shells.write` request cannot survive the pod sleeping — the shell is gone — so
+it settles `failed` when the operator answers.
 
-**A message or a stop while parked** settles every open request `cancelled` and appends each parked
-call's `tool-result` error ("the operator sent a message instead of answering", "the session was
-stopped while the request was open"), so the conversation stays valid and no card is stuck at
-`pending`.
+**A message or a stop while parked** closes **every** open parked operator call, legacy ones
+included, with an error result ("the operator sent a message instead of answering", "the session was
+stopped while the request was open"), then appends the `user-said` or performs the stop, so the
+conversation stays valid and no card is stuck.
 
 **A parked call is never re-run.** The turn loop picks the call to settle from `settleablePendingOf`
 (`packages/core/src/record/loop-state.ts`), which leaves out everything in `LoopState.parked`, so a
 turn that starts while a call is parked runs the intake and nothing else: if the intake closed the
 call the model is called with its result, and if it did not the turn ends `Parked` again without
-calling the model (`packages/agent/src/loop/tracked-turn.ts`). Dispatch never sees the parked call,
-so `operator_input` cannot ask a second time and `registry.open` cannot refuse itself.
-
-**An orphaned request settles abandoned.** An operator request is open iff its parked call is open.
-A request that was asked, never settled and whose parked call is no longer open — an old session that
-re-ran the ask, a log rebuilt from a narrower view — is settled by `settleOperatorOrphans`
-(`packages/host/src/holder/operator-orphans.ts`) at the start of `handle`, at the start of
-`cancelOpen` (a message or a stop) and before `ask` opens a new request: it appends
-`operator-input-settled {abandoned, reason}` and settles the row, so the card clears and the session
-can ask again. While any parked call is still open no request is treated as an orphan, since the
-pairing is by order, not by `callId`.
+calling the model (`packages/agent/src/loop/tracked-turn.ts`).
 
 **Multi-instance agent hosts** are out of scope: the answer handoff is process memory, so one agent
 host instance is assumed (true today).
 
 **Card** (`apps/web`): one component for v1 and v2, `threads/operator-input-card.tsx` — `Atlas needs
-  you`, the question, v1's plain `Textarea` (no masked variant: an operator answer is not a secret,
-and the value never reaches the model, transcript or database regardless), the privacy footer and
-Send, with an inline error and a Cancel button only when the caller passes them. v1 maps its channel
-signal into it in `threads/data/use-operator-input.ts` and docks it from `composer-footer.tsx`,
-unchanged in behaviour.
+you`, the question, v1's plain `Textarea` (no masked variant: an operator answer is not a secret),
+the privacy footer and Send, with an inline error and a Cancel button only when the caller passes
+them.
 
-v2 docks the same card above the composer: `sessions/data/use-operator-request.ts` picks the pending
-`ETranscriptKind.Request` row out of the transcript items (state `pending`), and
-`sessions/operator-request-dock.tsx` feeds its prompt to `description` and
-`answerOperatorRequest` / `cancelOperatorRequest` to `onSubmit` / `onCancel` with the
-result driving `submitting` and `error`. A successful answer stays submitting — `Waiting for the
-session to confirm.` — until the stream delivers `operator-input-settled` and the row stops being
-pending. The value is in the POST body only: the transcript draws nothing for a pending request and
-`transcript/transcript-request.tsx` keeps only the delivered / expired / cancelled / abandoned /
-failed Trace rows.
+v2 docks the same card above the composer: `sessions/data/use-operator-request.ts` picks the earliest
+pending request entry and passes its session id, and `sessions/operator-request-dock.tsx` feeds its
+prompt to `description` and the answer calls to `onSubmit` / `onCancel` with the result driving
+`submitting` and `error`. The value is in the POST body only.
 
-**Fold** (`plugins/operator/src/client/request-entry.ts`): pair by `requestId`; an entry with no
-`expiresAt` stays `pending` until it settles, and one whose `expiresAt` has passed with no settlement
-reads as `expired` (old events keep that behaviour).
+**Fold** (`plugins/operator/src/client/request-entry.ts`): one entry per `tool-parked` whose `name`
+is `operator_input` or `operator_shell_input` and whose `request` parses, keyed by `callId` with the
+entry's `callId` set to it. Its state is `pending` until a `tool-result` with the same callId arrives,
+then comes from that result's `output`: delivered / cancelled / abandoned / failed; an error with no
+parsable `output` is `failed`. A legacy pair and a request-less parked call draw no card.
+
 
 ## 5. Test plan
 

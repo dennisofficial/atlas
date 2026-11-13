@@ -22,18 +22,20 @@ Each slice is built in its own Atlas session and handed to a fresh session when 
 
 ## Current state
 
-_Updated at the end of every slice. Last update: 2026-11-12._
-- **Built 2026-11-12: operator input from the transcript** ([spec](slices/operator-input.md)).
-  `plugins/operator` gives a session `operator_input` and `operator_shell_input`: the call parks as an
-  open `tool-parked` in the log (no promise, no deadline, the pod may sleep), the session reads
-  "Waiting for you", a card appears in the transcript, and the operator's answer wakes the pod and is
-  written into the sandbox at
-  `$ATLAS_SESSION_DIR/requests/<id>` (`0600`) — or typed into a shell's stdin — with only the path
-  reaching the model. A `v2.V2OperatorRequest` row records the request and its resolution, two events
-  (`operator-input-asked`, `operator-input-settled`) draw the card, and `POST /operator-requests/answer`
-  on the agent host is the only way a value enters. The value is never in Postgres, an event, a log line
-  or a tool result. Both capability-parity exceptions are gone. **No live v2 session has run it yet**;
-  the live check belongs in the spec's §9 and in §8 for multi-instance answer routing, which is deferred.
+_Updated at the end of every slice. Last update: 2026-11-13._
+- **Built 2026-11-13: operator input is one parked call** ([spec](slices/operator-input.md)).
+  `plugins/operator` gives a session `operator_input` and `operator_shell_input`: the tool returns a
+  parked outcome, dispatch records one `tool-parked {callId, name, request}` in the log, and the turn
+  ends with no promise and no deadline, so the pod may sleep. The session reads "Waiting for you" and
+  a card appears in the transcript. `POST /operator-requests/answer` takes
+  `{sessionId, callId, value}` (or `cancel: true`), authorises the bearer against the session's
+  owner, posts an inbox `operator-answer {callId}`, and the holder writes the value into
+  `$ATLAS_SESSION_DIR/requests/<callId>` (`0600`) — or types it into a shell's stdin — then closes
+  the call with exactly one `tool-result`. There is no `V2OperatorRequest` row, no requestId and no
+  second event: a request is open exactly when its parked call is open, several queue, and a message
+  or a stop closes every open call. Legacy `operator-input-asked`/`-settled` stay registered so old
+  logs parse and draw no card. The value is never in Postgres, an event, an inbox payload, a log line
+  or a tool result. The answer handoff is process memory, so one agent-host instance is assumed.
 - **Spec written 2026-11-11: one envelope path** ([spec](slices/envelope.md)), foundational and
   first. The envelope is a helper set each producer picks from rather than one path: bash output is
   the largest untrusted input and the only one not wrapped, the lane vocabulary is duplicated between

@@ -238,11 +238,10 @@ export type OperatorRequestEntry = {
   author: EAuthor.Model
   key: string
   text: string
-  requestId: string
+  callId: string
   prompt: string
   shellId?: string | undefined
   state: OperatorRequestState
-  expiresAt?: string | undefined
   path?: string | undefined
   bytes?: number | undefined
   reason?: string | undefined

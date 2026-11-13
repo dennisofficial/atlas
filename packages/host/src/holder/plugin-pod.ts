@@ -1,16 +1,10 @@
 import { HookChain, ToolRegistry, type HookChainArgs } from '@dltech/atlas-agent'
 import type { ThreadId, ToolDeclaration, ToolDefinition } from '@dltech/atlas-core'
-import {
-  EMPTY_OPERATOR_INPUT,
-  type PluginPodContext,
-  type PodCrew,
-  type PodOperatorInput,
-} from '@dltech/atlas-plugin-sdk'
+import type { PluginPodContext, PodCrew } from '@dltech/atlas-plugin-sdk'
 
 import { newKey } from '../calls/remote-calls'
 import { worktreesOf } from './checkouts'
 import type { HeldSessionDeps } from './held-session-deps'
-import { operatorInputOf } from './operator-input'
 import { fireLive } from './ports'
 import { MirrorPlanHook } from './plan-mirror'
 import { podControlOf } from './pod-control'
@@ -55,22 +49,6 @@ export class ComposedPodRegistry extends ToolRegistry {
   }
 }
 
-const operatorInputFor = (args: {
-  deps: HeldSessionDeps
-  record: SessionRecord
-  threadId: ThreadId
-}): PodOperatorInput => {
-  const requests = args.deps.operator?.(args.deps.sessionId)
-  if (requests === undefined) return EMPTY_OPERATOR_INPUT
-  return operatorInputOf({
-    requests,
-    sessionId: args.deps.sessionId,
-    threadId: args.threadId,
-    record: args.record,
-    newRunId: () => args.deps.ids.nextRunId(),
-  })
-}
-
 export const pluginPodContextOf = (args: {
   deps: HeldSessionDeps
   runtime: SessionRuntime
@@ -78,7 +56,6 @@ export const pluginPodContextOf = (args: {
   threadId: ThreadId
   signal: AbortSignal
   crew: PodCrew
-  operator?: PodOperatorInput | undefined
 }): PluginPodContext => {
   const { deps, runtime, record, threadId } = args
   return {
@@ -88,7 +65,6 @@ export const pluginPodContextOf = (args: {
       client: deps.control,
       threadId,
       ...(deps.mcp === undefined ? {} : { mcp: deps.mcp(deps.sessionId) }),
-      operator: args.operator ?? operatorInputFor({ deps, record, threadId }),
     }),
     crew: args.crew,
     sessions: podSessionsOf({ plane: deps.plane, sessionId: deps.sessionId }),
@@ -155,7 +131,6 @@ export const pluginPodOf = (args: {
   threadId: ThreadId
   signal: AbortSignal
   crew: PodCrew
-  operator?: PodOperatorInput | undefined
 }): PluginPod => {
   const { plugins } = args.runtime
   if (plugins === undefined) {

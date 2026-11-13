@@ -1,5 +1,6 @@
 import { isTurnTaking } from '../agents/kind'
 import { EDecision, type EventType } from './body'
+import { openParkedCallsOf } from './parked-calls'
 import type { Event, EventOfType } from './envelope'
 import type { CallId, RunId, ThreadId } from './ids'
 
@@ -128,23 +129,11 @@ export function outstandingApproval(events: readonly Event[]): CallId | undefine
 }
 
 export function parkedCalls(events: readonly Event[]): ReadonlySet<CallId> {
-  const parked = new Map<CallId, number>()
-
-  for (const event of events) {
-    if (event.type === 'tool-parked') parked.set(event.callId, event.seq)
-    if (
-      event.type === 'tool-called' ||
-      event.type === 'tool-result' ||
-      event.type === 'tool-denied'
-    )
-      parked.delete(event.callId)
-  }
-
-  return new Set(parked.keys())
+  return new Set(openParkedCallsOf(events).map((open) => open.callId))
 }
 
 export function openParkedCall(events: readonly Event[]): CallId | undefined {
-  return parkedCalls(events).values().next().value
+  return openParkedCallsOf(events)[0]?.callId
 }
 
 export function inputForCall({

@@ -39,10 +39,9 @@ export { podControlOf, type PodControlClient } from './holder/pod-control'
 export type {
   OperatorAnswer,
   OperatorAnswerHandoff,
+  OperatorAnswerKey,
   OperatorDeliveryResult,
-  OperatorRequestOpen,
   OperatorRequestPort,
-  OperatorRequestSettle,
 } from './holder/operator-requests'
 export type {
   HostBus,

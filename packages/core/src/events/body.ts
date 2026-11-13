@@ -1,6 +1,7 @@
 import type { Attachment } from '../attachments/attachment'
 import type { DiagramRepairedBody } from '../diagrams/diagram-body'
 import type { EExecutionLocation } from '../execution/location'
+import type { JsonValue } from '../json/value'
 import type { ReasoningPart, TextPart, UserContentPart } from '../message/parts'
 import type { CodeQualityReviewedBody } from '../quality/schema'
 import type { EServiceStatus } from '../services/status'
@@ -128,7 +129,12 @@ export type EventBody =
       usage?: StepReading | undefined
     }
   | { type: 'tool-dispatched'; callId: CallId; name: string; bootId?: string | undefined }
-  | { type: 'tool-parked'; callId: CallId; name: string }
+  | {
+      type: 'tool-parked'
+      callId: CallId
+      name: string
+      request?: JsonValue | undefined
+    }
   | {
       type: 'tool-result'
       callId: CallId

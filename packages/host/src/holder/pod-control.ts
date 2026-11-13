@@ -1,5 +1,5 @@
 import type { ThreadId } from '@dltech/atlas-core'
-import { EMPTY_MCP_CONTROL, EMPTY_OPERATOR_INPUT } from '@dltech/atlas-plugin-sdk'
+import { EMPTY_MCP_CONTROL } from '@dltech/atlas-plugin-sdk'
 import type {
   MemoryAddress,
   MemoryEntry,
@@ -8,7 +8,6 @@ import type {
   MemorySummary,
   PodControl,
   PodMcpControl,
-  PodOperatorInput,
   WebSearchConfig,
 } from '@dltech/atlas-plugin-sdk'
 
@@ -42,7 +41,6 @@ export const podControlOf = (args: {
   client: PodControlClient | undefined
   threadId: ThreadId
   mcp?: PodMcpControl | undefined
-  operator?: PodOperatorInput | undefined
 }): PodControl => ({
   exposePort: async ({ port }) => {
     if (args.client === undefined) throw unreachable()
@@ -54,7 +52,6 @@ export const podControlOf = (args: {
     }
   },
   mcp: args.mcp ?? EMPTY_MCP_CONTROL,
-  operator: args.operator ?? EMPTY_OPERATOR_INPUT,
   webSearch: {
     config: async () => {
       if (args.client === undefined) throw unreachable()

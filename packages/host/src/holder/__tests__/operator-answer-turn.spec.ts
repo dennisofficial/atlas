@@ -1,24 +1,17 @@
-import { EOperatorRequestOutcome, OPERATOR_INPUT_SETTLED } from '@dltech/atlas-plugin-operator/core'
-import { loopStateOf, pendingCallsOf, settleablePendingOf, type Event } from '@dltech/atlas-core'
+import {
+  loopStateOf,
+  openParkedCallsOf,
+  pendingCallsOf,
+  settleablePendingOf,
+} from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
-import { answerRigOf, CALL, entryOf, PATH, VALUE } from './operator-answer-rig'
-
-const signal = new AbortController().signal
+import { answerRigOf, CALL, entryOf, VALUE } from './operator-answer-rig'
 
 describe('a turn that parks on an operator request and is answered', () => {
-  it('writes the value, closes the call once and never re-runs the tool', async () => {
-    const rig = answerRigOf({ events: [] })
-    const opened = await rig.input.ask({
-      ask: { kind: 'input', prompt: 'the login code' },
-      signal,
-    })
-    expect(opened).toEqual({ ok: true, requestId: 'oreq_1' })
-    await rig.appendToLog([
-      { type: 'tool-called', callId: CALL, name: 'operator_input', input: {} },
-      { type: 'tool-dispatched', callId: CALL, name: 'operator_input' },
-      { type: 'tool-parked', callId: CALL, name: 'operator_input' },
-    ])
+  it('closes the call once, leaves the parked set empty and never re-runs the tool', async () => {
+    const rig = answerRigOf()
+    expect(openParkedCallsOf(rig.events()).map((open) => open.callId)).toEqual([CALL])
 
     rig.hand({ ok: true, value: VALUE })
     const answered = await rig.intake.handle(entryOf())
@@ -26,25 +19,14 @@ describe('a turn that parks on an operator request and is answered', () => {
 
     expect(answered.wakesTurn).toBe(true)
     expect(repeated.wakesTurn).toBe(false)
-    expect(rig.calls.map((op) => op.op)).toEqual(['mkdir', 'writeFile'])
-    expect(rig.calls[1]).toMatchObject({ path: PATH, content: VALUE, mode: 0o600 })
-    const closing = rig.appended.slice(1)
-    expect(closing).toMatchObject([
-      {
-        type: OPERATOR_INPUT_SETTLED,
-        outcome: EOperatorRequestOutcome.Delivered,
-        path: PATH,
-      },
-      { type: 'tool-result', callId: CALL, name: 'operator_input' },
-    ])
-    expect(closing).toHaveLength(2)
-    expect(JSON.stringify(rig.log)).not.toContain(VALUE)
+    expect(rig.appended).toHaveLength(1)
 
-    const state = loopStateOf({ events: rig.log as unknown as Event[] })
+    const state = loopStateOf({ events: rig.events() })
     expect(pendingCallsOf(state)).toEqual([])
     expect(settleablePendingOf(state)).toEqual([])
     expect(state.parked.size).toBe(0)
-    expect(rig.log.filter((event) => event.type === 'tool-called')).toHaveLength(1)
-    expect(rig.opens()).toBe(1)
+    expect(openParkedCallsOf(rig.events())).toEqual([])
+    expect(rig.draftLog.filter((draft) => draft.type === 'tool-called')).toHaveLength(1)
+    expect(JSON.stringify(rig.draftLog)).not.toContain(VALUE)
   })
 })

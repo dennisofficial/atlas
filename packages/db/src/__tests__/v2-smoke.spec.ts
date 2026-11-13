@@ -101,26 +101,9 @@ describe('v2 namespace client', () => {
       hash: 'h1',
       canonical: '{}',
     })
-    await db.orm.v2.V2OperatorRequest.create({
-      id: 'oreq_1',
-      sessionId: 'ses_1',
-      threadId: 'thr_1',
-      kind: 'input',
-      prompt: 'the login code',
-      status: 'pending',
-      createdAt: NOW,
-      resolvedAt: null,
-    })
     const { truncateAll } = await import('../testing')
     await truncateAll()
-    for (const table of [
-      'V2Session',
-      'V2Thread',
-      'V2Event',
-      'V2InboxEntry',
-      'V2Lease',
-      'V2OperatorRequest',
-    ]) {
+    for (const table of ['V2Session', 'V2Thread', 'V2Event', 'V2InboxEntry', 'V2Lease']) {
       const count = await pool.query<{ n: string }>(`SELECT count(*) AS n FROM "v2"."${table}"`)
       expect(count.rows[0]?.n).toBe('0')
     }

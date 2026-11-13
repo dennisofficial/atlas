@@ -1,18 +1,7 @@
 import { z } from 'zod'
 
-import type { JsonValue } from '../json/value'
+import { jsonValueSchema } from '../json/schema'
 import { ESubscriptionActor, ESubscriptionEnd, ESubscriptionStatus } from './subscription'
-
-export const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
-  z.union([
-    z.string(),
-    z.number(),
-    z.boolean(),
-    z.null(),
-    z.array(jsonValueSchema),
-    z.record(z.string(), jsonValueSchema),
-  ]),
-)
 
 export const subscriptionCreatedSchema = z.object({
   type: z.literal('subscription-created'),

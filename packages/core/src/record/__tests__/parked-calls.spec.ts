@@ -4,6 +4,7 @@ import { log } from '../../assembly/__tests__/log-fixture'
 import type { EventDraft } from '../../events/body'
 import { toCallId } from '../../events/ids'
 import { parkedResultDraft } from '../../events/parked-result'
+import { openParkedCallsOf } from '../../events/parked-calls'
 import { crashedCalls, openParkedCall, pendingCalls } from '../../events/projections'
 import { EResume, resumePlan, TOOL_PARKED_WAITING } from '../../events/resume-plan'
 import {
@@ -147,6 +148,66 @@ describe('reading open parked calls straight off the log', () => {
     ])
 
     expect(resumePlan(events)).toEqual({ kind: EResume.Blocked, reason: TOOL_PARKED_WAITING })
+  })
+})
+
+describe('openParkedCallsOf', () => {
+  it('reports each open call with its request, earliest first', () => {
+    const open = openParkedCallsOf(
+      log([
+        ...promptThenCalls,
+        {
+          type: 'tool-parked',
+          callId: CALL,
+          name: 'operator_input',
+          request: { kind: 'input', prompt: 'the login code' },
+        },
+        called(OTHER, 'operator_shell_input', 1),
+        { type: 'tool-dispatched', callId: OTHER, name: 'operator_shell_input' },
+        { type: 'tool-parked', callId: OTHER, name: 'operator_shell_input' },
+      ]),
+    )
+
+    expect(open.map((call) => call.callId)).toEqual([CALL, OTHER])
+    expect(open[0]?.request).toEqual({ kind: 'input', prompt: 'the login code' })
+    expect(open[1]?.request).toBeUndefined()
+  })
+
+  it('drops a call its result closed and one a rewind called again', () => {
+    const closed = openParkedCallsOf(
+      log([
+        ...promptThenCalls,
+        { type: 'tool-parked', callId: CALL, name: 'operator_input' },
+        { type: 'tool-result', callId: CALL, name: 'operator_input', modelText: '' },
+      ]),
+    )
+    const rewound = openParkedCallsOf(
+      log([
+        ...promptThenCalls,
+        { type: 'tool-parked', callId: CALL, name: 'operator_input' },
+        called(CALL, 'operator_input', 0),
+      ]),
+    )
+
+    expect(closed).toEqual([])
+    expect(rewound).toEqual([])
+  })
+
+  it('closes it with the plugin output when one is given', () => {
+    expect(
+      parkedResultDraft({
+        callId: CALL,
+        name: 'operator_input',
+        output: { outcome: 'delivered', path: '/requests/call-1', bytes: 7 },
+        modelText: 'delivered',
+      }),
+    ).toEqual({
+      type: 'tool-result',
+      callId: CALL,
+      name: 'operator_input',
+      output: { outcome: 'delivered', path: '/requests/call-1', bytes: 7 },
+      modelText: 'delivered',
+    })
   })
 })
 

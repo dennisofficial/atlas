@@ -43,11 +43,29 @@ describe('drafting a parked tool outcome', () => {
   it('records the call as parked instead of writing a result', () => {
     const draft = resultDraft({
       call,
-      result: parkedOutcomeOf('waiting for the operator'),
+      result: parkedOutcomeOf({ reason: 'waiting for the operator' }),
       interrupted: false,
     })
 
     expect(draft).toEqual({ type: 'tool-parked', callId: CALL, name: 'operator_input' })
+  })
+
+  it('carries the request the tool parked with', () => {
+    const draft = resultDraft({
+      call,
+      result: parkedOutcomeOf({
+        reason: 'waiting for the operator',
+        request: { kind: 'input', prompt: 'the login code' },
+      }),
+      interrupted: false,
+    })
+
+    expect(draft).toEqual({
+      type: 'tool-parked',
+      callId: CALL,
+      name: 'operator_input',
+      request: { kind: 'input', prompt: 'the login code' },
+    })
   })
 })
 

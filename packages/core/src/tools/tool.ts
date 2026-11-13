@@ -2,6 +2,7 @@ import { z, type ZodType } from 'zod'
 
 import { EWorktreeExit } from '../events/body'
 import type { CallId, ThreadId } from '../events/ids'
+import type { JsonValue } from '../json/value'
 import type { UserContentPart } from '../message/parts'
 import type { CapturedFileChange } from '../quality/change'
 import type { QualityCoverageDiagnostic } from '../quality/policy'
@@ -75,7 +76,12 @@ export type ToolCall = {
 
 export type ModelPart = UserContentPart
 
-export type ParkedToolOutcome = { ok: false; reason: string; parked: true }
+export type ParkedToolOutcome = {
+  ok: false
+  reason: string
+  parked: true
+  request?: JsonValue | undefined
+}
 
 export type ToolOutcome =
   | {
@@ -92,10 +98,14 @@ export type ToolOutcome =
 export const isParkedOutcome = (outcome: ToolOutcome): outcome is ParkedToolOutcome =>
   !outcome.ok && outcome.parked === true
 
-export const parkedOutcomeOf = (reason: string): ParkedToolOutcome => ({
+export const parkedOutcomeOf = (args: {
+  reason: string
+  request?: JsonValue | undefined
+}): ParkedToolOutcome => ({
   ok: false,
-  reason,
+  reason: args.reason,
   parked: true,
+  ...(args.request === undefined ? {} : { request: args.request }),
 })
 
 export type WorktreeEntry = {
