@@ -1,0 +1,9 @@
+{
+  "from": "d232f37cbb4ac571f07d4879ffa697bf5acfd9888297ff6e7b6d47651a2d9850",
+  "to": "d232f37cbb4ac571f07d4879ffa697bf5acfd9888297ff6e7b6d47651a2d9850",
+  "providedInvariants": [
+    "pr-checks-tally-v1"
+  ],
+  "createdAt": "2026-11-13T02:36:43.633Z",
+  "migrationHash": "b03b4ede5befa73e296d2a84d0c5994a087742c1f61495fa7e5a06987f353f67"
+}
