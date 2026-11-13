@@ -264,6 +264,49 @@ describe('sessionTranscriptOf', () => {
     })
   })
 
+  it('draws a pending operator request where the call parked, closed by its result', () => {
+    const asked = [
+      { type: 'user-said', text: 'ask me' },
+      {
+        type: 'tool-called',
+        callId: call,
+        name: 'operator_input',
+        input: { prompt: 'the login code' },
+        ordinal: 0,
+      },
+      { type: 'tool-dispatched', callId: call, name: 'operator_input' },
+      {
+        type: 'tool-parked',
+        callId: call,
+        name: 'operator_input',
+        request: { kind: 'input', prompt: 'the login code' },
+      },
+    ] satisfies V2Body[]
+    const pending = sessionTranscriptOf(snapshotOf({ events: mint(asked) })).items
+    const answered = sessionTranscriptOf(
+      snapshotOf({
+        events: mint([
+          ...asked,
+          {
+            type: 'tool-result',
+            callId: call,
+            name: 'operator_input',
+            output: { outcome: 'delivered', path: '/requests/call-1', bytes: 4 },
+          },
+        ]),
+      }),
+    ).items
+
+    expect(pending.find((item) => item.kind === ETranscriptKind.Request)).toMatchObject({
+      callId: 'call-1',
+      prompt: 'the login code',
+      state: 'pending',
+    })
+    expect(answered.find((item) => item.kind === ETranscriptKind.Request)).toMatchObject({
+      state: 'delivered',
+    })
+  })
+
   it('keeps a sign-in row live until its resolution lands', () => {
     const events = mint([
       {

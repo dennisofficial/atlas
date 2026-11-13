@@ -19,6 +19,7 @@ import {
 } from '../core/request'
 
 type Parked = {
+  eventId: string
   callId: string
   request: OperatorRequest
   seq: number
@@ -62,7 +63,13 @@ const runsOf = (events: readonly (Event | V2Event)[]): ReadonlyMap<string, Parke
     if (event.type === 'tool-parked') {
       const request = requestOf({ name: event.name, request: event.request })
       if (request === undefined) continue
-      runs.set(event.callId, { callId: event.callId, request, seq: event.seq, outcome: undefined })
+      runs.set(event.callId, {
+        eventId: event.id,
+        callId: event.callId,
+        request,
+        seq: event.seq,
+        outcome: undefined,
+      })
       continue
     }
     if (event.type === 'tool-called') {
@@ -110,7 +117,7 @@ const entryOf = (run: Parked): OperatorRequestEntry => {
   return {
     kind: EEntryKind.OperatorRequest,
     author: EAuthor.Model,
-    key: run.callId,
+    key: run.eventId,
     text: state === 'pending' ? head : `${head} — ${outcomeText(outcome)}`,
     callId: run.callId,
     prompt: request.prompt,
@@ -127,7 +134,7 @@ export const requestEntriesAt = (args: {
 }): ReadonlyMap<string, OperatorRequestEntry> => {
   const entries = new Map<string, OperatorRequestEntry>()
   const runs = [...runsOf(args.events).values()].sort((left, right) => left.seq - right.seq)
-  for (const run of runs) entries.set(run.callId, entryOf(run))
+  for (const run of runs) entries.set(run.eventId, entryOf(run))
   return entries
 }
 
