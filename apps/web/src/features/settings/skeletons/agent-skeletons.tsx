@@ -137,7 +137,7 @@ export function ModelsSkeleton() {
     <>
       {ROLE_GROUPS.map((group) => (
         <SettingsSection key={group.title} title={group.title}>
-          <SettingsCard>
+          <SettingsCard size="sm">
             {group.roles.map((role) => (
               <RoleRowSkeleton key={roleKey(role)} />
             ))}

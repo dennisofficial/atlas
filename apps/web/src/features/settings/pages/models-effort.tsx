@@ -123,7 +123,7 @@ export function ModelsEditor({
       )}
       {ROLE_GROUPS.map((group) => (
         <SettingsSection key={group.title} title={group.title}>
-          <SettingsCard>
+          <SettingsCard size="sm">
             {group.roles.map((role) => (
               <RoleRow
                 key={roleKey(role)}

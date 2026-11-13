@@ -21,24 +21,25 @@ export type RoleRowActions = {
 }
 
 const ROW_CLASS = cn(
-  'grid grid-cols-1 gap-x-3 gap-y-2',
-  '@[30rem]:grid-cols-[0.875rem_minmax(0,1fr)_6.5rem_5rem]',
-  '@[38rem]:grid-cols-[minmax(0,8rem)_0.875rem_minmax(0,1fr)_6.5rem_5rem] @[38rem]:items-center',
+  'grid grid-cols-1 gap-x-3 gap-y-1.5',
+  '@[30rem]:grid-cols-[0.875rem_minmax(0,15rem)_6.5rem_5rem_minmax(0,1fr)]',
+  '@[40rem]:grid-cols-[minmax(0,1fr)_0.875rem_minmax(0,15rem)_6.5rem_5rem] @[40rem]:items-center',
 )
 
-const LABEL_CLASS = cn('flex min-w-0 items-center gap-1 @[30rem]:col-[1/-1] @[38rem]:col-[1]')
+const LABEL_CLASS = cn('flex min-w-0 items-center gap-1 @[30rem]:col-[1/-1] @[40rem]:col-[1]')
 
 const CONTROLS_CLASS = cn(
-  'grid grid-cols-[1rem_6.5rem_minmax(0,1fr)] items-center gap-x-2 gap-y-2',
+  'grid grid-cols-[1rem_auto_auto_minmax(0,1fr)] items-center gap-x-2 gap-y-1',
   '[&>[data-slot=model-follow]]:col-[1] [&>[data-slot=model-follow]]:row-[1]',
-  '[&>[data-slot=model-trigger]]:col-[2/span_2] [&>[data-slot=model-trigger]]:row-[1]',
+  '[&>[data-slot=model-trigger]]:col-[2/-1] [&>[data-slot=model-trigger]]:row-[1]',
+  '[&>[data-slot=model-trigger]]:max-w-full [&>[data-slot=model-trigger]]:justify-self-start',
   '[&>[data-slot=model-effort]]:col-[2] [&>[data-slot=model-effort]]:row-[2] [&>[data-slot=model-effort]]:justify-self-start',
   '[&>[data-slot=model-fast]]:col-[3] [&>[data-slot=model-fast]]:row-[2] [&>[data-slot=model-fast]]:justify-self-start',
   '@[30rem]:col-[1/-1] @[30rem]:grid-cols-subgrid @[30rem]:gap-x-3 @[30rem]:gap-y-0',
   '@[30rem]:[&>[data-slot=model-trigger]]:col-[2]',
   '@[30rem]:[&>[data-slot=model-effort]]:col-[3] @[30rem]:[&>[data-slot=model-effort]]:row-[1]',
   '@[30rem]:[&>[data-slot=model-fast]]:col-[4] @[30rem]:[&>[data-slot=model-fast]]:row-[1]',
-  '@[38rem]:col-[2/span_4] @[38rem]:row-[1]',
+  '@[40rem]:col-[2/-1] @[40rem]:row-[1]',
 )
 
 const idOf = (choice: ResolvedModelChoice): string =>
