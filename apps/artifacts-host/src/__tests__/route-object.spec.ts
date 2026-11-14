@@ -1,8 +1,15 @@
-import { describe, expect, spyOn, test } from 'bun:test'
+import { describe, expect, test } from 'bun:test'
 
-import { createObjectFetcher, createRouteFetcher, parseRouteObject } from '../route-object'
+import {
+  type ArtifactBucket,
+  createObjectFetcher,
+  createRouteFetcher,
+  parseRouteObject,
+} from '../route-object'
+import { fakeBucketOf } from './fake-bucket'
 
 const SUBDOMAIN = 'k7f2m9qxabcd'
+const ROUTE_KEY = `routes/${SUBDOMAIN}.json`
 
 const route = {
   artifactId: 'art_1',
@@ -11,14 +18,14 @@ const route = {
   serve: { spa: true, notFound: '404.html' },
 }
 
-const stubFetchOf = (body: () => Promise<Response>): typeof fetch =>
-  Object.assign((): Promise<Response> => body(), { preconnect: (): void => undefined })
+const failingBucket = (): ArtifactBucket => ({
+  get: async () => {
+    throw new Error('r2 unavailable')
+  },
+})
 
-const jsonResponse = (body: unknown, status = 200): Response =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { 'content-type': 'application/json' },
-  })
+const textOf = async (stream: ReadableStream<Uint8Array>): Promise<string> =>
+  new Response(stream).text()
 
 describe('parseRouteObject', () => {
   test('reads the serve rules from the route object', () => {
@@ -52,96 +59,52 @@ describe('parseRouteObject', () => {
 })
 
 describe('createRouteFetcher', () => {
-  const baseUrl = 'https://blob.example'
+  test('reads the route object of the subdomain from the bucket', async () => {
+    const bucket = fakeBucketOf({ [ROUTE_KEY]: JSON.stringify(route) })
 
-  test('fetches the route object by its subdomain', async () => {
-    const fetchSpy = spyOn(globalThis, 'fetch')
-    fetchSpy.mockImplementation(stubFetchOf(() => Promise.resolve(jsonResponse(route))))
-    try {
-      expect(await createRouteFetcher(baseUrl)(SUBDOMAIN)).toEqual(route)
-      expect(fetchSpy).toHaveBeenCalledTimes(1)
-      expect(fetchSpy.mock.calls[0]?.[0]).toBe(`https://blob.example/routes/${SUBDOMAIN}.json`)
-      expect(fetchSpy.mock.calls[0]?.[1]).toMatchObject({ cache: 'no-store' })
-    } finally {
-      fetchSpy.mockRestore()
-    }
+    expect(await createRouteFetcher(bucket)(SUBDOMAIN)).toEqual(route)
+    expect(bucket.gets).toEqual([ROUTE_KEY])
   })
 
   test('returns null when the route object is absent', async () => {
-    const fetchSpy = spyOn(globalThis, 'fetch')
-    fetchSpy.mockImplementation(
-      stubFetchOf(() => Promise.resolve(new Response('missing', { status: 404 }))),
-    )
-    try {
-      expect(await createRouteFetcher(baseUrl)(SUBDOMAIN)).toBeNull()
-    } finally {
-      fetchSpy.mockRestore()
-    }
+    expect(await createRouteFetcher(fakeBucketOf())(SUBDOMAIN)).toBeNull()
   })
 
   test('returns null when the body is not JSON', async () => {
-    const fetchSpy = spyOn(globalThis, 'fetch')
-    fetchSpy.mockImplementation(
-      stubFetchOf(() => Promise.resolve(new Response('not json', { status: 200 }))),
-    )
-    try {
-      expect(await createRouteFetcher(baseUrl)(SUBDOMAIN)).toBeNull()
-    } finally {
-      fetchSpy.mockRestore()
-    }
+    expect(
+      await createRouteFetcher(fakeBucketOf({ [ROUTE_KEY]: 'not json' }))(SUBDOMAIN),
+    ).toBeNull()
   })
 
-  test('returns null when the store is unreachable', async () => {
-    const fetchSpy = spyOn(globalThis, 'fetch')
-    fetchSpy.mockImplementation(stubFetchOf(() => Promise.reject(new Error('offline'))))
-    try {
-      expect(await createRouteFetcher(baseUrl)(SUBDOMAIN)).toBeNull()
-    } finally {
-      fetchSpy.mockRestore()
-    }
+  test('returns null when the bucket throws', async () => {
+    expect(await createRouteFetcher(failingBucket())(SUBDOMAIN)).toBeNull()
   })
 
   test('returns null when the object belongs to another subdomain', async () => {
-    const fetchSpy = spyOn(globalThis, 'fetch')
-    fetchSpy.mockImplementation(
-      stubFetchOf(() => Promise.resolve(jsonResponse({ ...route, subdomain: 'zzzzzzzzzzzz' }))),
-    )
-    try {
-      expect(await createRouteFetcher(baseUrl)(SUBDOMAIN)).toBeNull()
-    } finally {
-      fetchSpy.mockRestore()
-    }
+    const bucket = fakeBucketOf({
+      [ROUTE_KEY]: JSON.stringify({ ...route, subdomain: 'zzzzzzzzzzzz' }),
+    })
+
+    expect(await createRouteFetcher(bucket)(SUBDOMAIN)).toBeNull()
   })
 })
 
 describe('createObjectFetcher', () => {
-  test('fetches a stored object by its key', async () => {
-    const fetchSpy = spyOn(globalThis, 'fetch')
-    fetchSpy.mockImplementation(stubFetchOf(() => Promise.resolve(new Response('hello'))))
-    try {
-      const object = await createObjectFetcher('https://blob.example/')(
-        'artifacts/k7f2m9qxabcd/_route/index.html',
-      )
-      expect(await object?.text()).toBe('hello')
-      expect(fetchSpy.mock.calls[0]?.[0]).toBe(
-        'https://blob.example/artifacts/k7f2m9qxabcd/_route/index.html',
-      )
-    } finally {
-      fetchSpy.mockRestore()
-    }
+  const KEY = `artifacts/${SUBDOMAIN}/_route/index.html`
+
+  test('reads a stored object and its etag by key', async () => {
+    const object = await createObjectFetcher(fakeBucketOf({ [KEY]: 'hello' }))(KEY)
+
+    expect(object).not.toBeNull()
+    expect(object === null ? '' : await textOf(object.body)).toBe('hello')
+    expect(object?.etag).toBeString()
   })
 
   test('returns null for a missing object', async () => {
-    const fetchSpy = spyOn(globalThis, 'fetch')
-    fetchSpy.mockImplementation(
-      stubFetchOf(() => Promise.resolve(new Response('missing', { status: 404 }))),
-    )
-    try {
-      expect(
-        await createObjectFetcher('https://blob.example')('artifacts/x/_route/index.html'),
-      ).toBeNull()
-    } finally {
-      fetchSpy.mockRestore()
-    }
+    expect(await createObjectFetcher(fakeBucketOf())(KEY)).toBeNull()
+  })
+
+  test('returns null when the bucket throws', async () => {
+    expect(await createObjectFetcher(failingBucket())(KEY)).toBeNull()
   })
 })

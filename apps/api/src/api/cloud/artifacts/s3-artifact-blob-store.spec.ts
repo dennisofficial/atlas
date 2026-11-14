@@ -1,27 +1,23 @@
 import {
   DeleteObjectsCommand,
   GetObjectCommand,
+  PutObjectCommand,
+  S3ServiceException,
   type DeleteObjectsCommandOutput,
   type GetObjectCommandOutput,
-  type HeadObjectCommandOutput,
+  type ListObjectsV2Command,
   type ListObjectsV2CommandOutput,
   type PutObjectCommandOutput,
-  PutObjectCommand,
-  S3Client,
-  S3ServiceException,
-  type HeadObjectCommand,
-  type ListObjectsV2Command,
 } from '@aws-sdk/client-s3'
 import { describe, expect, it } from 'bun:test'
 import type { EnvService } from '../../../_core/config/env/env.service'
-import { artifactBlobStoreOf } from './artifact-blob-store.provider'
 import {
   AwsS3Gateway,
   S3ArtifactBlobStore,
   type S3Gateway,
   type S3Settings,
+  s3ClientOf,
 } from './s3-artifact-blob-store'
-import { VercelArtifactBlobStore } from './vercel-artifact-blob-store'
 
 const ROUTE_KEY = 'artifacts/at-1/_route/index.html'
 
@@ -31,7 +27,6 @@ const SETTINGS: Record<keyof S3Settings, string> = {
   bucket: 'atlas-artifacts',
   accessKeyId: 'key',
   secretAccessKey: 'secret',
-  baseUrl: 'https://objects.test',
 }
 
 const envOf = (values: Record<string, string>): EnvService =>
@@ -39,13 +34,11 @@ const envOf = (values: Record<string, string>): EnvService =>
 
 const s3EnvOf = (overrides: Record<string, string> = {}): EnvService =>
   envOf({
-    ARTIFACT_STORAGE: 's3',
     ARTIFACT_S3_ENDPOINT: SETTINGS.endpoint,
     ARTIFACT_S3_REGION: SETTINGS.region,
     ARTIFACT_S3_BUCKET: SETTINGS.bucket,
     ARTIFACT_S3_ACCESS_KEY_ID: SETTINGS.accessKeyId,
     ARTIFACT_S3_SECRET_ACCESS_KEY: SETTINGS.secretAccessKey,
-    ARTIFACT_BLOB_BASE_URL: SETTINGS.baseUrl,
     ...overrides,
   })
 
@@ -64,13 +57,11 @@ const bodyOf = (bytes: Buffer): NonNullable<GetObjectCommandOutput['Body']> =>
 
 class FakeS3Gateway implements S3Gateway {
   readonly puts: PutObjectCommand[] = []
-  readonly heads: HeadObjectCommand[] = []
   readonly reads: GetObjectCommand[] = []
   readonly removes: DeleteObjectsCommand[] = []
   readonly lists: ListObjectsV2Command[] = []
   readonly signedPuts: PutObjectCommand[] = []
   readonly signedGets: GetObjectCommand[] = []
-  headSize: number | null = 4096
   objects = new Map<string, Buffer>()
   pages: ListObjectsV2CommandOutput[] = []
 
@@ -78,12 +69,6 @@ class FakeS3Gateway implements S3Gateway {
     this.lists.push(command)
     const token = command.input.ContinuationToken
     return this.pages[token === undefined ? 0 : Number(token)] ?? { $metadata: {} }
-  }
-
-  async head(command: HeadObjectCommand): Promise<HeadObjectCommandOutput> {
-    this.heads.push(command)
-    if (this.headSize === null) throw missing()
-    return { $metadata: {}, ContentLength: this.headSize }
   }
 
   async put(command: PutObjectCommand): Promise<PutObjectCommandOutput> {
@@ -134,21 +119,6 @@ describe('S3ArtifactBlobStore', () => {
 
     expect(gateway.signedGets.map((command) => command.input.Key)).toEqual([ROUTE_KEY])
     expect(url).toBe(`https://objects.test/${ROUTE_KEY}?expires=60000`)
-  })
-
-  it('reports the public url and byte size of a stored object', async () => {
-    const gateway = new FakeS3Gateway()
-    const head = await storeWith(gateway).head({ pathname: ROUTE_KEY })
-
-    expect(gateway.heads[0]?.input).toMatchObject({ Bucket: SETTINGS.bucket, Key: ROUTE_KEY })
-    expect(head).toEqual({ url: `https://objects.test/${ROUTE_KEY}`, size: 4096 })
-  })
-
-  it('answers null for an object the bucket does not hold', async () => {
-    const gateway = new FakeS3Gateway()
-    gateway.headSize = null
-
-    expect(await storeWith(gateway).head({ pathname: ROUTE_KEY })).toBeNull()
   })
 
   it('puts at the artifact key and refuses to overwrite when the caller says so', async () => {
@@ -239,23 +209,16 @@ describe('S3ArtifactBlobStore', () => {
 
   it('fails when the s3 keys are missing', async () => {
     const store = new S3ArtifactBlobStore({
-      env: envOf({ ARTIFACT_STORAGE: 's3' }),
+      env: envOf({}),
       gateway: new FakeS3Gateway(),
     })
 
-    expect(store.list({ prefix: 'routes/' })).rejects.toThrow('artifact s3 storage is missing')
+    expect(store.list({ prefix: 'routes/' })).rejects.toThrow('artifact storage is missing')
   })
 })
 
 describe('AwsS3Gateway', () => {
-  const gateway = new AwsS3Gateway({
-    client: new S3Client({
-      region: SETTINGS.region,
-      endpoint: SETTINGS.endpoint,
-      credentials: { accessKeyId: SETTINGS.accessKeyId, secretAccessKey: SETTINGS.secretAccessKey },
-      forcePathStyle: true,
-    }),
-  })
+  const gateway = new AwsS3Gateway({ client: s3ClientOf(SETTINGS) })
 
   it('signs a path-style download url against the configured endpoint', async () => {
     const url = new URL(
@@ -283,16 +246,15 @@ describe('AwsS3Gateway', () => {
     expect(url.pathname).toBe(`/${SETTINGS.bucket}/${ROUTE_KEY}`)
     expect(url.searchParams.get('X-Amz-Signature')).toMatch(/^[0-9a-f]{64}$/)
   })
-})
 
-describe('artifactBlobStoreOf', () => {
-  it('binds the s3 adapter when the tier selects it', () => {
-    expect(artifactBlobStoreOf(s3EnvOf())).toBeInstanceOf(S3ArtifactBlobStore)
-  })
-
-  it('binds the vercel adapter otherwise', () => {
-    expect(artifactBlobStoreOf(envOf({ ARTIFACT_STORAGE: 'vercel' }))).toBeInstanceOf(
-      VercelArtifactBlobStore,
+  it('signs an upload url with no checksum parameters', async () => {
+    const url = new URL(
+      await gateway.signPut({
+        command: new PutObjectCommand({ Bucket: SETTINGS.bucket, Key: ROUTE_KEY }),
+        ttlMs: 900_000,
+      }),
     )
+
+    expect([...url.searchParams.keys()].filter((key) => /checksum/i.test(key))).toEqual([])
   })
 })

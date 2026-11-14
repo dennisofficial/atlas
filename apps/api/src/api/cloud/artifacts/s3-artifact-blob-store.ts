@@ -1,14 +1,12 @@
 import {
   DeleteObjectsCommand,
   GetObjectCommand,
-  HeadObjectCommand,
   ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
   S3ServiceException,
   type DeleteObjectsCommandOutput,
   type GetObjectCommandOutput,
-  type HeadObjectCommandOutput,
   type ListObjectsV2CommandOutput,
   type PutObjectCommandOutput,
 } from '@aws-sdk/client-s3'
@@ -17,7 +15,6 @@ import { ServiceUnavailableException } from '@nestjs/common'
 import { EnvService } from '../../../_core/config/env/env.service'
 import {
   ArtifactBlobStore,
-  type ArtifactBlobHead,
   type ArtifactBlobSummary,
   type PresignedUpload,
 } from './artifact-blob-store'
@@ -30,7 +27,6 @@ const REMOVE_BATCH_SIZE = 1000
 
 export interface S3Gateway {
   list(command: ListObjectsV2Command): Promise<ListObjectsV2CommandOutput>
-  head(command: HeadObjectCommand): Promise<HeadObjectCommandOutput>
   put(command: PutObjectCommand): Promise<PutObjectCommandOutput>
   read(command: GetObjectCommand): Promise<GetObjectCommandOutput>
   remove(command: DeleteObjectsCommand): Promise<DeleteObjectsCommandOutput>
@@ -44,12 +40,9 @@ export interface S3Settings {
   bucket: string
   accessKeyId: string
   secretAccessKey: string
-  baseUrl: string
 }
 
 const secondsOf = (ttlMs: number): number => Math.max(1, Math.floor(ttlMs / 1000))
-
-const trimmedTrailingSlash = (url: string): string => url.replace(/\/+$/, '')
 
 export class AwsS3Gateway implements S3Gateway {
   private readonly client: S3Client
@@ -59,10 +52,6 @@ export class AwsS3Gateway implements S3Gateway {
   }
 
   list(command: ListObjectsV2Command): Promise<ListObjectsV2CommandOutput> {
-    return this.client.send(command)
-  }
-
-  head(command: HeadObjectCommand): Promise<HeadObjectCommandOutput> {
     return this.client.send(command)
   }
 
@@ -89,7 +78,7 @@ export class AwsS3Gateway implements S3Gateway {
 
 const required = (env: EnvService, key: keyof S3SettingsMap): string => {
   const value = env.get(key)
-  if (!value) throw new ServiceUnavailableException(`artifact s3 storage is missing ${key}`)
+  if (!value) throw new ServiceUnavailableException(`artifact storage is missing ${key}`)
   return value
 }
 
@@ -99,7 +88,6 @@ type S3SettingsMap = {
   ARTIFACT_S3_BUCKET: string
   ARTIFACT_S3_ACCESS_KEY_ID: string
   ARTIFACT_S3_SECRET_ACCESS_KEY: string
-  ARTIFACT_BLOB_BASE_URL: string
 }
 
 export const s3SettingsOf = (env: EnvService): S3Settings => ({
@@ -108,15 +96,17 @@ export const s3SettingsOf = (env: EnvService): S3Settings => ({
   bucket: required(env, 'ARTIFACT_S3_BUCKET'),
   accessKeyId: required(env, 'ARTIFACT_S3_ACCESS_KEY_ID'),
   secretAccessKey: required(env, 'ARTIFACT_S3_SECRET_ACCESS_KEY'),
-  baseUrl: trimmedTrailingSlash(required(env, 'ARTIFACT_BLOB_BASE_URL')),
 })
 
-const clientOf = (settings: S3Settings): S3Client =>
+// Without WHEN_REQUIRED the SDK signs an x-amz-checksum-crc32 of the empty body into presigned PUT urls, so every upload of a real body fails. https://docs.aws.amazon.com/sdkref/latest/guide/feature-dataintegrity.html
+export const s3ClientOf = (settings: S3Settings): S3Client =>
   new S3Client({
     region: settings.region,
     endpoint: settings.endpoint,
     credentials: { accessKeyId: settings.accessKeyId, secretAccessKey: settings.secretAccessKey },
     forcePathStyle: true,
+    requestChecksumCalculation: 'WHEN_REQUIRED',
+    responseChecksumValidation: 'WHEN_REQUIRED',
   })
 
 const isMissing = (error: unknown): boolean =>
@@ -149,19 +139,6 @@ export class S3ArtifactBlobStore extends ArtifactBlobStore {
       command: new GetObjectCommand({ Bucket: settings.bucket, Key: args.pathname }),
       ttlMs: args.ttlMs,
     })
-  }
-
-  async head(args: { pathname: string }): Promise<ArtifactBlobHead | null> {
-    const { gateway, settings } = this.s3()
-    try {
-      const found = await gateway.head(
-        new HeadObjectCommand({ Bucket: settings.bucket, Key: args.pathname }),
-      )
-      return { url: `${settings.baseUrl}/${args.pathname}`, size: found.ContentLength ?? 0 }
-    } catch (error) {
-      if (isMissing(error)) return null
-      throw error
-    }
   }
 
   async put(args: {
@@ -245,7 +222,7 @@ export class S3ArtifactBlobStore extends ArtifactBlobStore {
       const settings = s3SettingsOf(this.env)
       this.resolved = {
         settings,
-        gateway: this.injected ?? new AwsS3Gateway({ client: clientOf(settings) }),
+        gateway: this.injected ?? new AwsS3Gateway({ client: s3ClientOf(settings) }),
       }
     }
     return this.resolved

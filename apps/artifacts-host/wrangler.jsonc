@@ -13,7 +13,12 @@
     }
   ],
   "vars": {
-    "ARTIFACT_DOMAIN": "byatlas.site",
-    "ARTIFACT_BLOB_BASE_URL": "https://dwngog0yynxtrkjc.public.blob.vercel-storage.com"
-  }
+    "ARTIFACT_DOMAIN": "byatlas.site"
+  },
+  "r2_buckets": [
+    {
+      "binding": "ARTIFACTS",
+      "bucket_name": "atlas-artifacts"
+    }
+  ]
 }

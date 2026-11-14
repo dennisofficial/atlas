@@ -1,6 +1,5 @@
 import {
   ArtifactBlobStore,
-  type ArtifactBlobHead,
   type ArtifactBlobSummary,
   type PresignedUpload,
 } from './artifact-blob-store'
@@ -36,12 +35,6 @@ export class FakeArtifactBlobStore extends ArtifactBlobStore {
 
   async presignDownload(args: { pathname: string; ttlMs: number }): Promise<string> {
     return `https://blob.test/get/${args.pathname}?ttl=${args.ttlMs}`
-  }
-
-  async head(args: { pathname: string }): Promise<ArtifactBlobHead | null> {
-    const blob = this.stored.get(args.pathname)
-    if (blob === undefined) return null
-    return { url: `https://blob.test/${args.pathname}`, size: blob.body.length }
   }
 
   async put(args: {

@@ -3,7 +3,7 @@ import { contentTypeOf, routeCandidatesOf, type RouteCandidate } from '@dltech/a
 import { cacheHeadersOf } from './cache-headers'
 import { subdomainOf } from './host-label'
 import { artifactNotFoundHtml, deploymentNotFoundHtml } from './pages'
-import type { ObjectFetcher, RouteObjectFetcher } from './route-object'
+import type { ObjectFetcher, RouteObjectFetcher, StoredObject } from './route-object'
 
 export type RespondArgs = {
   request: Request
@@ -56,34 +56,56 @@ const artifactNotFound = ({ request, host }: { request: Request; host: string })
 const deploymentNotFound = ({ request }: { request: Request }): Response =>
   htmlResponse({ request, html: deploymentNotFoundHtml(), status: 404 })
 
-const fileResponse = ({
+const fileHeadersOf = ({
+  candidate,
+  status,
+  etag,
+}: {
+  candidate: RouteCandidate
+  status: 200 | 404
+  etag: string | null
+}): Record<string, string> => ({
+  ...securityHeaders(),
+  ...cacheHeadersOf({ path: candidate.path, status }),
+  'Content-Type': contentTypeOf(candidate.path),
+  ...(etag === null ? {} : { ETag: etag }),
+})
+
+const normalizeEtag = (etag: string): string => etag.trim().replace(/^W\//, '')
+
+const etagMatches = ({ header, etag }: { header: string | null; etag: string }): boolean => {
+  if (header === null) return false
+  const wanted = normalizeEtag(etag)
+  return header.split(',').some((entry) => {
+    const candidate = normalizeEtag(entry)
+    return candidate === '*' || candidate === wanted
+  })
+}
+
+const storedResponse = async ({
   request,
   candidate,
-  body,
+  object,
   status,
 }: {
   request: Request
   candidate: RouteCandidate
-  body: ReadableStream<Uint8Array> | null
+  object: StoredObject
   status: 200 | 404
-}): Response =>
-  new Response(request.method === 'HEAD' ? null : body, {
-    status,
-    headers: {
-      ...securityHeaders(),
-      ...cacheHeadersOf({ path: candidate.path, status }),
-      'Content-Type': contentTypeOf(candidate.path),
-    },
-  })
-
-const drain = async ({
-  request,
-  object,
-}: {
-  request: Request
-  object: Response
-}): Promise<void> => {
-  if (request.method === 'HEAD') await object.body?.cancel()
+}): Promise<Response> => {
+  const headers = fileHeadersOf({ candidate, status, etag: status === 200 ? object.etag : null })
+  if (request.method === 'HEAD') {
+    await object.body.cancel()
+    return new Response(null, { status, headers })
+  }
+  const revalidates =
+    status === 200 &&
+    etagMatches({ header: request.headers.get('if-none-match'), etag: object.etag })
+  if (revalidates) {
+    await object.body.cancel()
+    return new Response(null, { status: 304, headers })
+  }
+  return new Response(object.body, { status, headers })
 }
 
 export async function respond({
@@ -111,20 +133,13 @@ export async function respond({
   for (const candidate of resolution.candidates) {
     const object = await fetchObject(candidate.key)
     if (object === null) continue
-    await drain({ request, object })
-    return fileResponse({ request, candidate, body: object.body, status: 200 })
+    return storedResponse({ request, candidate, object, status: 200 })
   }
 
   if (resolution.notFound !== null) {
     const object = await fetchObject(resolution.notFound.key)
     if (object !== null) {
-      await drain({ request, object })
-      return fileResponse({
-        request,
-        candidate: resolution.notFound,
-        body: object.body,
-        status: 404,
-      })
+      return storedResponse({ request, candidate: resolution.notFound, object, status: 404 })
     }
   }
 

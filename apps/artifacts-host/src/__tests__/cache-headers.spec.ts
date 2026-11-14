@@ -3,11 +3,9 @@ import { describe, expect, test } from 'bun:test'
 import {
   cacheHeadersOf,
   IMMUTABLE_CACHE_CONTROL,
-  IMMUTABLE_CDN_CACHE_CONTROL,
   isHashedPath,
+  NO_CACHE_CACHE_CONTROL,
   NO_STORE_CACHE_CONTROL,
-  REVALIDATE_CACHE_CONTROL,
-  REVALIDATE_CDN_CACHE_CONTROL,
 } from '../cache-headers'
 
 describe('isHashedPath', () => {
@@ -37,31 +35,33 @@ describe('isHashedPath', () => {
 })
 
 describe('cacheHeadersOf', () => {
-  test('caches a hashed path for a year, at the browser and the edge', () => {
+  test('caches a hashed path for a year, immutable', () => {
     expect(cacheHeadersOf({ path: 'assets/index-1a2b3c4d.js', status: 200 })).toEqual({
       'Cache-Control': IMMUTABLE_CACHE_CONTROL,
-      'CDN-Cache-Control': IMMUTABLE_CDN_CACHE_CONTROL,
     })
   })
 
-  test('revalidates an unhashed path after 60s, at the browser and the edge', () => {
+  test('revalidates an unhashed path on every load', () => {
     expect(cacheHeadersOf({ path: 'index.html', status: 200 })).toEqual({
-      'Cache-Control': REVALIDATE_CACHE_CONTROL,
-      'CDN-Cache-Control': REVALIDATE_CDN_CACHE_CONTROL,
+      'Cache-Control': NO_CACHE_CACHE_CONTROL,
     })
+  })
+
+  test('never names a CDN cache-control header', () => {
+    expect(Object.keys(cacheHeadersOf({ path: 'index.html', status: 200 }))).toEqual([
+      'Cache-Control',
+    ])
   })
 
   test('never caches a 404, even for a hashed path', () => {
     expect(cacheHeadersOf({ path: 'assets/index-1a2b3c4d.js', status: 404 })).toEqual({
       'Cache-Control': NO_STORE_CACHE_CONTROL,
-      'CDN-Cache-Control': NO_STORE_CACHE_CONTROL,
     })
   })
 
   test('never caches a 405', () => {
     expect(cacheHeadersOf({ path: '', status: 405 })).toEqual({
       'Cache-Control': NO_STORE_CACHE_CONTROL,
-      'CDN-Cache-Control': NO_STORE_CACHE_CONTROL,
     })
   })
 })
