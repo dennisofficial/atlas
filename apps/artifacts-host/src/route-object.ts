@@ -15,7 +15,18 @@ export type RouteObject = {
 }
 
 export type RouteObjectFetcher = (subdomain: HostSubdomain) => Promise<RouteObject | null>
-export type ObjectFetcher = (key: string) => Promise<Response | null>
+
+export type StoredObject = { body: ReadableStream<Uint8Array>; etag: string }
+
+export type BucketObject = {
+  body: ReadableStream<Uint8Array>
+  httpEtag: string
+  text(): Promise<string>
+}
+
+export type ArtifactBucket = { get(key: string): Promise<BucketObject | null> }
+
+export type ObjectFetcher = (key: string) => Promise<StoredObject | null>
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -41,18 +52,13 @@ export function parseRouteObject(raw: unknown): RouteObject | null {
   return { artifactId, subdomain: label, name, serve: parsedServe }
 }
 
-const objectUrlOf = ({ baseUrl, path }: { baseUrl: string; path: string }): string =>
-  `${baseUrl.replace(/\/+$/, '')}/${path}`
-
 export const createRouteFetcher =
-  (baseUrl: string): RouteObjectFetcher =>
+  (bucket: ArtifactBucket): RouteObjectFetcher =>
   async (subdomain) => {
     try {
-      const response = await fetch(objectUrlOf({ baseUrl, path: routePathOf({ id: subdomain }) }), {
-        cache: 'no-store',
-      })
-      if (!response.ok) return null
-      const route = parseRouteObject(await response.json())
+      const object = await bucket.get(routePathOf({ id: subdomain }))
+      if (object === null) return null
+      const route = parseRouteObject(JSON.parse(await object.text()))
       return route === null || route.subdomain !== subdomain ? null : route
     } catch {
       return null
@@ -60,11 +66,11 @@ export const createRouteFetcher =
   }
 
 export const createObjectFetcher =
-  (baseUrl: string): ObjectFetcher =>
+  (bucket: ArtifactBucket): ObjectFetcher =>
   async (key) => {
     try {
-      const response = await fetch(objectUrlOf({ baseUrl, path: key }))
-      return response.ok ? response : null
+      const object = await bucket.get(key)
+      return object === null ? null : { body: object.body, etag: object.httpEtag }
     } catch {
       return null
     }

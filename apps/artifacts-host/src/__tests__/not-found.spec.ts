@@ -4,6 +4,8 @@ import { subdomainOfLabel, type ArtifactSpec } from '@dltech/atlas-artifacts'
 import type { HostSubdomain } from '../host-label'
 import { artifactNotFoundHtml, deploymentNotFoundHtml } from '../pages'
 import { respond } from '../respond'
+import type { StoredObject } from '../route-object'
+import { storedObjectOf } from './fake-bucket'
 
 const DOMAIN = 'byatlas.site'
 
@@ -23,7 +25,7 @@ const routeOf = (serve: ArtifactSpec['serve']) => ({
 const requestOf = ({ path, method = 'GET' }: { path: string; method?: string }): Request =>
   new Request(`https://abc.${DOMAIN}${path}`, { method })
 
-const noObject = async (): Promise<Response | null> => null
+const noObject = async (): Promise<StoredObject | null> => null
 
 describe('a deployment that is not there', () => {
   test('answers the atlas artifact page when no route object exists', async () => {
@@ -107,7 +109,7 @@ describe('a missing path inside a deployment that exists', () => {
       domain: DOMAIN,
       fetchRoute: async () => routeOf({ spa: false, notFound: '404.html' }),
       fetchObject: async (key) =>
-        key.endsWith('404.html') ? new Response('<h1>custom missing</h1>') : null,
+        key.endsWith('404.html') ? storedObjectOf('<h1>custom missing</h1>') : null,
     })
 
     expect(response.status).toBe(404)
