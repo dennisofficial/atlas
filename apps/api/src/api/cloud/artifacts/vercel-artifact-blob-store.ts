@@ -10,8 +10,6 @@ import {
 
 const UPLOAD_TTL_MS = 15 * 60 * 1000
 
-const BLOB_CONTENT_TYPE = 'application/octet-stream'
-
 const LIST_PAGE_SIZE = 1000
 
 const DOWNLOAD_TTL_MS = 15 * 60 * 1000
@@ -27,10 +25,10 @@ export class VercelArtifactBlobStore extends ArtifactBlobStore {
   async presignUpload(args: { pathname: string; maxBytes: number }): Promise<PresignedUpload> {
     const token = this.token()
     const validUntil = Date.now() + UPLOAD_TTL_MS
-    const constraints = {
-      allowedContentTypes: [BLOB_CONTENT_TYPE],
-      maximumSizeInBytes: args.maxBytes,
-    }
+    // Vercel Blob types an upload from the pathname's extension and refuses any type outside
+    // allowedContentTypes, so pinning one refused every source file: index.html answered
+    // 403 "text/html is not allowed". The build reads these bytes and re-sets the type it serves.
+    const constraints = { maximumSizeInBytes: args.maxBytes }
     const signed = await issueSignedToken({
       token,
       pathname: args.pathname,
