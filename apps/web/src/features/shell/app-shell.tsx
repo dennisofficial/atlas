@@ -39,7 +39,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           activeRoutineId={activeRoutineIdOf(pathname)}
           activeNav={activeNavOf(pathname)}
         />
-        <SidebarInset className="h-svh min-h-0 overflow-hidden">
+        <SidebarInset className="h-full min-h-0 overflow-hidden">
           {shellBarOf(pathname) === EShellBar.Global ? <ShellMobileBar /> : null}
           {children}
         </SidebarInset>

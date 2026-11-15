@@ -74,7 +74,7 @@ expected.
 - `select.tsx`: the inset moved from the optional `SelectGroup` onto the internal `SelectPrimitive.List`, so ungrouped items are inset too. `SelectTrigger` gained `variant: 'default' | 'ghost'` (borderless, Button-ghost hover) so consumers never fake it with `border-0`.
 - `command.tsx`: `CommandGroup` lost its extra `p-1`, and items use the shared menu row (`rounded-md px-1.5 py-1 gap-1.5`), so Command rows match DropdownMenu.
 - `popover.tsx`: a popover whose direct child is a `Command` drops its own padding and gap, so consumers never pass `p-0 gap-0`.
-- `sheet.tsx`: `SheetContent` owns `p-4`; `SheetHeader`/`SheetFooter` carry no padding, and `SheetHeader` reserves `pr-8` for the close button.
+- `sheet.tsx`: `SheetContent` owns `p-4`; `SheetHeader`/`SheetFooter` carry no padding, and `SheetHeader` reserves `pr-8` for the close button. Its top, left and right edges sit inside the safe-area insets (`--safe-area-*` from `base.css`), so a sheet never opens under the iOS status bar; the bottom edge stays at 0.
 - `drawer.tsx`: `DrawerContent` owns `p-4 gap-4`; `DrawerHeader`/`DrawerFooter` carry no padding.
 - `attachment.tsx`: content padding sits on the base of each size instead of behind `has-data-[slot=attachment-content]`, with the media override kept.
 - `input.tsx`: `size: 'default' | 'lg'` (lg = `h-9`, matching Button `lg`).
@@ -95,7 +95,7 @@ expected.
 - `table.tsx`: header rows never take the body hover; `Table` `variant: 'default' | 'framed'` (bordered card container, `pl-4`/`pr-4` edge cells).
 - `empty.tsx`: `variant: 'default' | 'outline'`.
 - `avatar.tsx`: `size="xs"`; `AvatarFallback` text follows the avatar size.
-- `sidebar.tsx`: `collapsible="none"` draws the same side edge border as the other modes. `SidebarFooter` gained `variant: 'default' | 'bordered'` (top `border-sidebar-border` edge) and `SidebarMenuButton` gained `size="avatar"` (`h-10`, `px-1` when collapsed) for the account row.
+- `sidebar.tsx`: `collapsible="none"` draws the same side edge border as the other modes. `SidebarFooter` gained `variant: 'default' | 'bordered'` (top `border-sidebar-border` edge) and `SidebarMenuButton` gained `size="avatar"` (`h-10`, `px-1` when collapsed) for the account row. `SidebarProvider` pads its wrapper by the top, left and right safe-area insets, the fixed desktop container offsets by the side insets, and `sidebar-inner` pads the top so the sidebar surface runs under the status bar.
 - `card.tsx`: `CardFooter` owns `gap-2` between its buttons; `variant: 'default' | 'list'` and the `CardRow` part, for divided settings lists; a table directly inside a list card gets the card's edge inset; `tone: 'default' | 'destructive'` tints the ring for danger zones.
 - `button.tsx`: `ghost` shows the selected state for `aria-current="page"` / `"true"`, so nav and tree rows never add `bg-muted` themselves.
 - `button.tsx`: `variant="tree"` is `ghost` without the `aria-expanded` highlight, so open folder rows in the file tree stay unhighlighted (only hover and the selected `aria-current="true"` row take `bg-muted`).

@@ -8,7 +8,7 @@ import { AuthTerminal } from './auth-terminal'
 
 export function AuthShell({ children }: { children: ReactNode }) {
   return (
-    <div className="grid min-h-screen bg-background md:grid-cols-2">
+    <div className="grid min-h-screen bg-background pt-(--safe-area-top) pr-(--safe-area-right) pl-(--safe-area-left) md:grid-cols-2">
       <aside className="hidden flex-col justify-between gap-12 border-r bg-card p-12 md:flex">
         <AuthBrand />
         <div className="flex max-w-md flex-col gap-8">

@@ -29,10 +29,10 @@ export function ProjectSettingsShell({
   const backHref = useReturnPath()
   const fullBleed = /\/settings\/skills\/[^/]+$/.test(usePathname())
   return (
-    <div className="flex min-h-svh flex-col bg-background text-foreground">
+    <div className="flex min-h-svh flex-col bg-background pr-(--safe-area-right) pl-(--safe-area-left) text-foreground">
       <header
         data-chrome="titlebar-start"
-        className="sticky top-0 z-10 grid h-12 grid-cols-[auto_1fr] items-center gap-2 border-b bg-background px-3 md:grid-cols-[1fr_auto_1fr]"
+        className="sticky top-0 z-10 grid h-[calc(3rem+var(--safe-area-top))] grid-cols-[auto_1fr] items-center gap-2 border-b bg-background px-3 pt-(--safe-area-top) md:grid-cols-[1fr_auto_1fr]"
       >
         <Button
           variant="ghost"
@@ -62,7 +62,7 @@ export function ProjectSettingsShell({
         }
       >
         <nav aria-label="Project settings" className="shrink-0 md:w-44">
-          <ul className="flex gap-0.5 overflow-x-auto pb-1 md:sticky md:top-20 md:flex-col">
+          <ul className="flex gap-0.5 overflow-x-auto pb-1 md:sticky md:top-[calc(5rem+var(--safe-area-top))] md:flex-col">
             {PROJECT_NAV.map((item) => {
               const current = item.section === active
               const Icon = item.icon
