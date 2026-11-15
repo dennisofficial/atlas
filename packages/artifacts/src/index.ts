@@ -1,6 +1,7 @@
 export * from './content-type'
 export * from './hash'
 export * from './limits'
+export * from './link'
 export * from './manifest'
 export * from './request-path'
 export * from './resolve'

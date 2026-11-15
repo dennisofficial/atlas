@@ -8,6 +8,8 @@ import { PublishArtifactTool } from '../artifact-publish'
 
 import { FakeArtifactPort, FakeFiles, FakeProcesses } from './artifact-fakes'
 
+const LINKED = 'k7f2m9qxabcd'
+
 const indexHtml = '<!doctype html><title>demo</title>'
 const appJs = 'console.log("demo")'
 const exampleEnv = 'TOKEN='
@@ -67,6 +69,8 @@ const modelTextOf = (outcome: ToolOutcome): string => {
   if (!outcome.ok) throw new Error(outcome.reason)
   return outcome.modelText
 }
+
+const reasonOf = (outcome: ToolOutcome): string => (outcome.ok ? '' : outcome.reason)
 
 describe('artifact_publish', () => {
   it('sends exactly the selected entries with their hashes', async () => {
@@ -174,5 +178,89 @@ describe('artifact_publish', () => {
 
     expect(text).toContain('https://demo.artifacts.test')
     expect(text).toContain('version 3')
+  })
+})
+
+describe('artifact_publish keeps one URL per directory', () => {
+  it('links an unlinked directory to the artifact its first publish created', async () => {
+    const rig = rigOf()
+    const text = modelTextOf(await invoke({}, rig.tool))
+
+    expect(rig.port.beginCalls[0]?.subdomain).toBeUndefined()
+    expect(rig.files.text('/ws/artifact.json')).toBe('{\n  "subdomain": "demo"\n}\n')
+    expect(text).toContain('/ws/artifact.json')
+  })
+
+  it('keeps the settings of the artifact.json it links', async () => {
+    const rig = rigOf({ spec: { serve: { spa: true } } })
+    modelTextOf(await invoke({}, rig.tool))
+
+    expect(JSON.parse(rig.files.text('/ws/artifact.json') ?? '')).toEqual({
+      subdomain: 'demo',
+      serve: { spa: true },
+    })
+  })
+
+  it('republishes a linked directory to the artifact it links to', async () => {
+    const rig = rigOf({ spec: { subdomain: LINKED } })
+    modelTextOf(await invoke({}, rig.tool))
+
+    expect(rig.port.beginCalls[0]?.subdomain).toBe(LINKED)
+    expect(rig.files.text('/ws/artifact.json')).toBe(JSON.stringify({ subdomain: LINKED }))
+  })
+
+  it('never sends the link as an artifact setting', async () => {
+    const rig = rigOf({ spec: { subdomain: LINKED, serve: { spa: true } } })
+    modelTextOf(await invoke({}, rig.tool))
+
+    expect(rig.port.commitCalls[0]?.spec).not.toHaveProperty('subdomain')
+  })
+
+  it('reads the link from an artifact.json that git does not list', async () => {
+    const rig = rigOf({ spec: { subdomain: LINKED }, paths: ['index.html'] })
+    modelTextOf(await invoke({}, rig.tool))
+
+    expect(rig.port.beginCalls[0]?.subdomain).toBe(LINKED)
+  })
+
+  it('links an unlinked directory to the existing artifact it is told to publish to', async () => {
+    const rig = rigOf()
+    modelTextOf(await invoke({ subdomain: LINKED }, rig.tool))
+
+    expect(rig.port.beginCalls[0]?.subdomain).toBe(LINKED)
+    expect(JSON.parse(rig.files.text('/ws/artifact.json') ?? '')).toEqual({ subdomain: LINKED })
+  })
+
+  it('refuses a subdomain other than the one the directory links to', async () => {
+    const rig = rigOf({ spec: { subdomain: LINKED } })
+
+    const outcome = await invoke({ subdomain: 'zzzzzzzzzzzz' }, rig.tool)
+
+    expect(outcome.ok).toBe(false)
+    expect(reasonOf(outcome)).toContain(LINKED)
+    expect(rig.port.beginCalls).toHaveLength(0)
+  })
+
+  it('refuses a linked directory whose artifact is gone rather than creating a new URL', async () => {
+    const rig = rigOf({ spec: { subdomain: LINKED } })
+    rig.port.missing.add(LINKED)
+
+    const outcome = await invoke({}, rig.tool)
+
+    expect(outcome.ok).toBe(false)
+    expect(reasonOf(outcome)).toContain(LINKED)
+    expect(rig.port.beginCalls.map((call) => call.subdomain)).toEqual([LINKED])
+    expect(rig.port.commitCalls).toHaveLength(0)
+    expect(rig.files.text('/ws/artifact.json')).toBe(JSON.stringify({ subdomain: LINKED }))
+  })
+
+  it('refuses an artifact.json whose link is not a subdomain', async () => {
+    const rig = rigOf({ spec: { subdomain: 'Not A Subdomain' } })
+
+    const outcome = await invoke({}, rig.tool)
+
+    expect(outcome.ok).toBe(false)
+    expect(reasonOf(outcome)).toContain('subdomain')
+    expect(rig.port.beginCalls).toHaveLength(0)
   })
 })
