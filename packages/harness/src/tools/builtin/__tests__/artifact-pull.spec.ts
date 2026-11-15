@@ -12,6 +12,7 @@ const PNG_BYTES = new Uint8Array([0x00, 0xff, 0x89, 0x50, 0x4e, 0x47])
 const contents: Record<string, string> = {
   'https://download.test/src/main.ts': 'export const main = () => 1\n',
   'https://download.test/package.json': '{ "name": "demo" }\n',
+  'https://download.test/artifact.json': '{"serve":{"spa":true}}',
 }
 
 const binaryContents: Record<string, Uint8Array<ArrayBuffer>> = {
@@ -96,6 +97,32 @@ describe('artifact_pull', () => {
 
     expect(outcome.ok).toBe(true)
     expect(await rig.files.readBytes({ path: '/ws/out/assets/logo.png' })).toEqual(PNG_BYTES)
+  })
+
+  it('links the restored directory to the artifact it came from', async () => {
+    const rig = rigOf()
+
+    const outcome = await invoke({ subdomain: 'demo', dir: 'out' }, rig.tool)
+
+    expect(outcome.ok).toBe(true)
+    expect(rig.files.text('/ws/out/artifact.json')).toBe('{\n  "subdomain": "demo"\n}\n')
+    expect(outcome.ok ? outcome.modelText : '').toContain('artifact.json')
+  })
+
+  it('adds the link to a restored artifact.json and keeps its settings', async () => {
+    const rig = rigOf()
+    rig.port.sourceEntries.push({
+      path: 'artifact.json',
+      url: 'https://download.test/artifact.json',
+    })
+
+    const outcome = await invoke({ subdomain: 'demo', dir: 'out' }, rig.tool)
+
+    expect(outcome.ok).toBe(true)
+    expect(JSON.parse(rig.files.text('/ws/out/artifact.json') ?? '')).toEqual({
+      subdomain: 'demo',
+      serve: { spa: true },
+    })
   })
 
   it('turns a port error into prose rather than throwing', async () => {

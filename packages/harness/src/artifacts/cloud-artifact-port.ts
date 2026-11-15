@@ -14,6 +14,7 @@ import type { CloudSession } from '../cloud/cloud-session'
 import { CloudError } from '../cloud/cloud-transport'
 
 import {
+  ArtifactNotFound,
   ArtifactPort,
   ArtifactRefused,
   ArtifactUnavailable,
@@ -29,7 +30,8 @@ const SIGNED_OUT =
 const BEGIN_PUBLISH_TIMEOUT_MS = 30_000
 const COMMIT_PUBLISH_TIMEOUT_MS = 120_000
 
-const REFUSAL_STATUSES: readonly number[] = [400, 404, 409, 422]
+const NOT_FOUND_STATUS = 404
+const REFUSAL_STATUSES: readonly number[] = [400, 409, 422]
 const REJECTED_SESSION_STATUSES: readonly number[] = [401, 403]
 
 const malformed = (procedure: string): ArtifactUnavailable =>
@@ -42,6 +44,7 @@ const portFailureOf = (error: unknown): Error => {
   if (!(error instanceof CloudError)) {
     return error instanceof Error ? error : new Error(String(error))
   }
+  if (error.status === NOT_FOUND_STATUS) return new ArtifactNotFound(error.message)
   if (REFUSAL_STATUSES.includes(error.status)) return new ArtifactRefused(error.message)
   if (REJECTED_SESSION_STATUSES.includes(error.status)) {
     return new ArtifactUnavailable(

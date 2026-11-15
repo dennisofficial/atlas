@@ -5,7 +5,7 @@ import type { ArtifactSummary, ArtifactUpload } from '@dltech/atlas-wire'
 
 import { trpcCallOf, trpcData, trpcFailure, trpcVoid } from '../../cloud/__tests__/trpc-wire'
 import type { CloudSession } from '../../cloud/cloud-session'
-import { ArtifactRefused, ArtifactUnavailable } from '../artifact-port'
+import { ArtifactNotFound, ArtifactRefused, ArtifactUnavailable } from '../artifact-port'
 import { CloudArtifactPort } from '../cloud-artifact-port'
 
 const SESSION: CloudSession = { url: 'https://cloud.test', token: 'tok-1', email: null }
@@ -202,6 +202,27 @@ describe('CloudArtifactPort', () => {
 
     expect(error).toBeInstanceOf(ArtifactRefused)
     expect((error as Error).message).toContain('no published content for src/a.ts')
+  })
+
+  it('maps a 404 on a begin to ArtifactNotFound, so a vanished artifact is told apart', async () => {
+    const { port } = portWith({
+      respond: () => failure({ status: 404, trpcCode: 'NOT_FOUND', message: 'no artifact demo' }),
+    })
+
+    const error = await failureOf(port.beginPublish({ subdomain: 'demo', entries: [entry] }))
+
+    expect(error).toBeInstanceOf(ArtifactNotFound)
+    expect(error).toBeInstanceOf(ArtifactRefused)
+  })
+
+  it('keeps a 400 on a begin a plain refusal', async () => {
+    const { port } = portWith({
+      respond: () => failure({ status: 400, trpcCode: 'BAD_REQUEST', message: 'too big' }),
+    })
+
+    expect(await failureOf(port.beginPublish({ entries: [entry] }))).not.toBeInstanceOf(
+      ArtifactNotFound,
+    )
   })
 
   it('maps a 404 on a pull to ArtifactRefused', async () => {

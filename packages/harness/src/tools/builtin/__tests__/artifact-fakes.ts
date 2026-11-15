@@ -2,6 +2,7 @@ import { FileSystemPort, type FileStat, type FileSystemEntry } from '@dltech/atl
 import type { ArtifactSummary, ArtifactUpload } from '@dltech/atlas-wire'
 
 import {
+  ArtifactNotFound,
   ArtifactPort,
   type ArtifactEntryInput,
   type ArtifactPublishBegun,
@@ -20,6 +21,7 @@ export class FakeArtifactPort extends ArtifactPort {
   readonly beginUploads: ArtifactUpload[] = []
   artifacts: readonly ArtifactSummary[] = []
   sourceEntries: { path: string; url: string }[] = []
+  readonly missing = new Set<string>()
   failure: Error | null = null
 
   async beginPublish(args: {
@@ -29,6 +31,9 @@ export class FakeArtifactPort extends ArtifactPort {
   }): Promise<ArtifactPublishBegun> {
     this.guard()
     this.beginCalls.push(args)
+    if (args.subdomain !== undefined && this.missing.has(args.subdomain)) {
+      throw new ArtifactNotFound(`no artifact ${args.subdomain}`)
+    }
     return {
       artifactId: 'art_1',
       subdomain: args.subdomain ?? 'demo',
@@ -80,6 +85,9 @@ export class FakeArtifactPort extends ArtifactPort {
   }
 }
 
+const absent = (path: string): Error =>
+  Object.assign(new Error(`ENOENT: ${path}`), { code: 'ENOENT' })
+
 const statOf = (size: number): FileStat => ({
   size,
   mode: 0,
@@ -103,7 +111,7 @@ export class FakeFiles extends FileSystemPort {
 
   async stat(args: { path: string }): Promise<FileStat> {
     const bytes = this.files.get(args.path)
-    if (bytes === undefined) throw new Error(`ENOENT: ${args.path}`)
+    if (bytes === undefined) throw absent(args.path)
     return statOf(bytes.byteLength)
   }
 
@@ -113,13 +121,13 @@ export class FakeFiles extends FileSystemPort {
 
   async readFile(args: { path: string }): Promise<string> {
     const bytes = this.files.get(args.path)
-    if (bytes === undefined) throw new Error(`ENOENT: ${args.path}`)
+    if (bytes === undefined) throw absent(args.path)
     return new TextDecoder().decode(bytes)
   }
 
   async readBytes(args: { path: string }): Promise<Uint8Array> {
     const bytes = this.files.get(args.path)
-    if (bytes === undefined) throw new Error(`ENOENT: ${args.path}`)
+    if (bytes === undefined) throw absent(args.path)
     return bytes
   }
 

@@ -1,4 +1,4 @@
-import { dirname, join, resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
 
 import {
   EContentAccess,
@@ -13,6 +13,7 @@ import {
 } from '@dltech/atlas-core'
 import { z } from 'zod'
 
+import { readSpecFile, writeLink } from '../../artifacts/artifact-link'
 import { ArtifactRefused, type ArtifactPort } from '../../artifacts/artifact-port'
 
 import { filePathSchema, pathEnvironmentNote, resolveToolPath } from './file-text'
@@ -27,6 +28,7 @@ const description = [
   'Restore the source of a published artifact into a directory, so you can read, edit and publish it again.',
   'This writes the artifact source files as they were published at its current version; it is that source, not a copy of any built output.',
   'It refuses a directory that already holds files unless force is true, and force overwrites the files it restores.',
+  'The restored artifact.json links the directory to this artifact, so publishing from it keeps the same URL.',
   'Dependencies are not restored, so run bun install before the code will run.',
   pathEnvironmentNote,
 ].join(' ')
@@ -108,13 +110,15 @@ export class PullArtifactTool extends SchemaTool<typeof inputSchema> {
         await this.deps.files.mkdir({ path: dirname(target) })
         await this.deps.files.writeFile({ path: target, content: bytes })
       }
+      const file = await readSpecFile({ dir: dir.path, files: this.deps.files })
+      await writeLink({ file, subdomain: input.subdomain, files: this.deps.files })
 
       return {
         ok: true,
         output: { subdomain: input.subdomain, dir: dir.path, files: exported.entries.length },
         modelText: [
           `Restored ${exported.entries.length} source files of ${input.subdomain} into ${dir.path}.`,
-          'This is the editable source, so publishing again from here ships what you change; dependencies are not part of it, so run bun install before the code runs.',
+          `This is the editable source, and ${file.path} links it to ${input.subdomain}, so publishing again from here ships what you change to the same URL; dependencies are not part of it, so run bun install before the code runs.`,
         ].join('\n\n'),
       }
     } catch (error) {

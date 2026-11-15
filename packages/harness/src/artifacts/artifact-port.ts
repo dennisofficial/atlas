@@ -8,6 +8,13 @@ export class ArtifactRefused extends Error {
   }
 }
 
+export class ArtifactNotFound extends ArtifactRefused {
+  constructor(message: string) {
+    super(message)
+    this.name = 'ArtifactNotFound'
+  }
+}
+
 export class ArtifactUnavailable extends Error {
   constructor(message: string) {
     super(message)

@@ -12,12 +12,19 @@ import {
   type ToolOutcome,
   type ToolRun,
 } from '@dltech/atlas-core'
-import { SPEC_FILE_NAME, sha256Hex } from '@dltech/atlas-artifacts'
+import { linkedSubdomainOf, SPEC_FILE_NAME, sha256Hex } from '@dltech/atlas-artifacts'
 import type { ArtifactUpload } from '@dltech/atlas-wire'
 import { z } from 'zod'
 
-import type { ArtifactPort } from '../../artifacts/artifact-port'
-import { EMPTY_SPEC, publishPlanOf, type PlannedFile } from '../../artifacts/artifact-publish-plan'
+import { readSpecFile, writeLink, type SpecFile } from '../../artifacts/artifact-link'
+import {
+  ArtifactNotFound,
+  ArtifactRefused,
+  type ArtifactEntryInput,
+  type ArtifactPort,
+  type ArtifactPublishBegun,
+} from '../../artifacts/artifact-port'
+import { publishPlanOf, type PlannedFile } from '../../artifacts/artifact-publish-plan'
 
 import { filePathSchema, pathEnvironmentNote, resolveToolPath } from './file-text'
 
@@ -32,6 +39,8 @@ const inputSchema = z.strictObject({
 const description = [
   'Publish a directory as an Atlas artifact and answer with the version and the URL it serves at.',
   'dir defaults to the workspace root; point it at the subdirectory that holds artifact.json to publish that instead.',
+  'The URL belongs to the directory: its artifact.json carries the artifact subdomain, which the first publish writes and every later publish, from any session, reuses.',
+  'subdomain publishes a directory that is not linked yet to an existing artifact; a publish never moves a linked directory to another URL and never creates a new one for it.',
   'Only git-tracked files, plus untracked files git does not ignore, ship: .env files other than .env.example never ship, and neither do node_modules, .git or __pycache__.',
   'dist/ is built from the published source on the server, so a local build is not uploaded.',
   pathEnvironmentNote,
@@ -65,19 +74,26 @@ async function listGitPaths(args: { dir: string; processes: ProcessPort }): Prom
   return paths
 }
 
-async function specRawOf(args: {
-  dir: string
-  paths: readonly string[]
-  files: FileSystemPort
-}): Promise<unknown> {
-  if (!args.paths.includes(SPEC_FILE_NAME)) return EMPTY_SPEC
-  const text = await args.files.readFile({ path: join(args.dir, SPEC_FILE_NAME) })
-  try {
-    return JSON.parse(text)
-  } catch {
-    throw new Error(`${SPEC_FILE_NAME} is not valid JSON, so the artifact cannot be published.`)
+function targetOf(args: {
+  file: SpecFile
+  linked: string | null
+  requested: string | undefined
+}): string | undefined {
+  if (args.linked === null || args.requested === undefined || args.requested === args.linked) {
+    return args.linked ?? args.requested
   }
+  throw new ArtifactRefused(
+    `${args.file.path} links this directory to ${args.linked}, so it publishes only there and nothing was published. Moving it to ${args.requested} is a deliberate edit of "subdomain" in ${SPEC_FILE_NAME}, never part of a publish.`,
+  )
 }
+
+const goneLinkOf = (args: { file: SpecFile; linked: string }): ArtifactRefused =>
+  new ArtifactRefused(
+    `${args.file.path} links this directory to ${args.linked}, which Atlas Cloud no longer has, so nothing was published. A publish never gives a linked directory a new URL: whether it gets one is the developer's call, and removing "subdomain" from ${SPEC_FILE_NAME} is how the next publish would create it.`,
+  )
+
+const linkNoteOf = (args: { file: SpecFile; subdomain: string }): string =>
+  `Linked this directory to ${args.subdomain} in ${args.file.path}, so every later publish of it keeps this URL; commit artifact.json with the source so a fresh checkout publishes to the same URL.`
 
 async function hashOf(args: {
   dir: string
@@ -159,6 +175,27 @@ export class PublishArtifactTool extends SchemaTool<typeof inputSchema> {
     super()
   }
 
+  private async begin(args: {
+    file: SpecFile
+    linked: string | null
+    subdomain: string | undefined
+    name: string | undefined
+    entries: ArtifactEntryInput[]
+  }): Promise<ArtifactPublishBegun> {
+    try {
+      return await this.deps.port.beginPublish({
+        entries: args.entries,
+        ...(args.subdomain === undefined ? {} : { subdomain: args.subdomain }),
+        ...(args.name === undefined ? {} : { name: args.name }),
+      })
+    } catch (error) {
+      if (args.linked !== null && error instanceof ArtifactNotFound) {
+        throw goneLinkOf({ file: args.file, linked: args.linked })
+      }
+      throw error
+    }
+  }
+
   protected override async run({
     input,
     projectDirectory,
@@ -173,14 +210,21 @@ export class PublishArtifactTool extends SchemaTool<typeof inputSchema> {
 
     try {
       const paths = await listGitPaths({ dir: dir.path, processes: this.deps.processes })
-      const specRaw = await specRawOf({ dir: dir.path, paths, files: this.deps.files })
+      const file = await readSpecFile({ dir: dir.path, files: this.deps.files })
+      const linked = linkedSubdomainOf(file.raw)
+      const subdomain = targetOf({ file, linked, requested: input.subdomain })
       const hashed = await hashOf({ dir: dir.path, paths, files: this.deps.files })
-      const plan = publishPlanOf({ specRaw, files: hashed })
-      const begun = await this.deps.port.beginPublish({
+      const plan = publishPlanOf({ specRaw: file.raw, files: hashed })
+      const begun = await this.begin({
+        file,
+        linked,
+        subdomain,
+        name: input.name,
         entries: plan.entries,
-        ...(input.subdomain === undefined ? {} : { subdomain: input.subdomain }),
-        ...(input.name === undefined ? {} : { name: input.name }),
       })
+      if (linked === null) {
+        await writeLink({ file, subdomain: begun.subdomain, files: this.deps.files })
+      }
       await putUploads({
         uploads: begun.uploads,
         hashed,
@@ -202,6 +246,7 @@ export class PublishArtifactTool extends SchemaTool<typeof inputSchema> {
         modelText: [
           `Published ${plan.entries.length} files as ${committed.subdomain} version ${committed.version}; it serves at ${committed.url} with status ${committed.status}.`,
           'The build runs on the server, so fetching the URL before it reports ready answers from the build log rather than the artifact.',
+          ...(linked === null ? [linkNoteOf({ file, subdomain: begun.subdomain })] : []),
         ].join('\n\n'),
       }
     } catch (error) {
