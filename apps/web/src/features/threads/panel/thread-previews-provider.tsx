@@ -15,15 +15,15 @@ export function ThreadPreviewsProvider(props: {
   children: ReactNode
 }) {
   const { threadId, channel, rightPanel, children } = props
-  const { setTab, setSheetOpen } = rightPanel
+  const { setTab, openPanel } = rightPanel
   const { ports, loaded, openUrl } = usePreviews({ channel, threadId })
   const value = useMemo(() => {
     const handleOpenUrl = (url: string) => {
       openUrl(url)
       setTab(ERightTab.Preview)
-      setSheetOpen(true)
+      openPanel()
     }
     return { ports, loaded, openUrl: handleOpenUrl }
-  }, [ports, loaded, openUrl, setTab, setSheetOpen])
+  }, [ports, loaded, openUrl, setTab, openPanel])
   return <PreviewsProvider value={value}>{children}</PreviewsProvider>
 }

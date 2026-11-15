@@ -3,11 +3,6 @@
 import type { ReactNode } from 'react'
 
 import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from '@dltech/atlas-ui/components/resizable'
-import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -17,28 +12,35 @@ import {
 import { useIsMobile } from '@dltech/atlas-ui/hooks/use-mobile'
 
 import { RightPanel } from './panel/right-panel'
-import type { ERightTab } from './panel/right-tab'
-import type { PaneLayout } from './panel/pane-layout-memory'
+import type { RightPanelState } from './panel/use-right-panel'
+import { ThreadSplit } from './thread-split'
+
+export type ThreadLayoutPanel = Pick<
+  RightPanelState,
+  | 'tab'
+  | 'setTab'
+  | 'sheetOpen'
+  | 'setSheetOpen'
+  | 'layout'
+  | 'rememberLayout'
+  | 'collapsed'
+  | 'setCollapsed'
+>
 
 export type ThreadLayoutProps = {
   children: ReactNode
-  tab: ERightTab
-  onTabChange: (tab: ERightTab) => void
-  sheetOpen: boolean
-  onSheetOpenChange: (open: boolean) => void
-  layout?: PaneLayout
-  onLayoutChange?: (layout: PaneLayout) => void
+  rightPanel: ThreadLayoutPanel
 }
 
 export function ThreadLayout(props: ThreadLayoutProps) {
-  const { children, tab, onTabChange, sheetOpen, onSheetOpenChange, layout, onLayoutChange } = props
+  const { children, rightPanel } = props
   const isMobile = useIsMobile()
 
   if (isMobile) {
     return (
       <>
         <div className="flex min-h-0 flex-1 flex-col">{children}</div>
-        <Sheet open={sheetOpen} onOpenChange={onSheetOpenChange}>
+        <Sheet open={rightPanel.sheetOpen} onOpenChange={rightPanel.setSheetOpen}>
           <SheetContent side="right" className="gap-0 bg-card p-0">
             <div className="sr-only">
               <SheetHeader>
@@ -48,7 +50,11 @@ export function ThreadLayout(props: ThreadLayoutProps) {
                 </SheetDescription>
               </SheetHeader>
             </div>
-            <RightPanel tab={tab} onTabChange={onTabChange} tabBarClassName="pr-12" />
+            <RightPanel
+              tab={rightPanel.tab}
+              onTabChange={rightPanel.setTab}
+              tabBarClassName="pr-12"
+            />
           </SheetContent>
         </Sheet>
       </>
@@ -56,21 +62,15 @@ export function ThreadLayout(props: ThreadLayoutProps) {
   }
 
   return (
-    <ResizablePanelGroup
-      orientation="horizontal"
-      className="min-h-0 flex-1"
-      defaultLayout={layout}
-      onLayoutChanged={(next, meta) => {
-        if (meta.isUserInteraction) onLayoutChange?.(meta.requestedLayout ?? next)
-      }}
+    <ThreadSplit
+      tab={rightPanel.tab}
+      onTabChange={rightPanel.setTab}
+      layout={rightPanel.layout}
+      onLayoutChange={rightPanel.rememberLayout}
+      collapsed={rightPanel.collapsed}
+      onCollapsedChange={rightPanel.setCollapsed}
     >
-      <ResizablePanel id="transcript" minSize="25%">
-        <div className="flex h-full min-w-0 flex-col">{children}</div>
-      </ResizablePanel>
-      <ResizableHandle />
-      <ResizablePanel id="right-panel" defaultSize="50%" minSize="26%" maxSize="75%">
-        <RightPanel tab={tab} onTabChange={onTabChange} />
-      </ResizablePanel>
-    </ResizablePanelGroup>
+      {children}
+    </ThreadSplit>
   )
 }

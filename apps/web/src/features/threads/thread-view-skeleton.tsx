@@ -2,6 +2,7 @@ import { SidebarTrigger } from '@dltech/atlas-ui/components/sidebar'
 import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
 
 import { TranscriptLoading } from './panel/agents/agents-skeletons'
+import { useRightPanelCollapsed } from './panel/right-panel-collapsed'
 
 const TAB_COUNT = 5
 
@@ -43,6 +44,7 @@ function PanelSkeleton() {
 }
 
 export function ThreadViewSkeleton() {
+  const { collapsed } = useRightPanelCollapsed()
   return (
     <div role="status" aria-label="Loading thread" className="flex min-h-0 flex-1 flex-col">
       <HeaderSkeleton />
@@ -53,7 +55,7 @@ export function ThreadViewSkeleton() {
           </div>
           <ComposerSkeleton />
         </div>
-        <PanelSkeleton />
+        {collapsed ? null : <PanelSkeleton />}
       </div>
     </div>
   )
