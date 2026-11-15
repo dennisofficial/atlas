@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import type { ReactNode } from 'react'
 
 import { DesktopChrome } from '@/features/desktop/desktop-chrome'
@@ -8,6 +8,11 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'Atlas Cloud',
   description: 'Atlas Cloud',
+  appleWebApp: { statusBarStyle: 'black-translucent' },
+}
+
+export const viewport: Viewport = {
+  viewportFit: 'cover',
 }
 
 export default function RootLayout({ children }: { children: ReactNode }) {
