@@ -12,6 +12,7 @@ import { EPreviewGate } from '@/features/desktop/use-preview-origins'
 import { useHasNativeBrowser } from '@/features/desktop/use-has-native-browser'
 
 import { liveKeyOf } from '../../data/preview-browser/live-tabs'
+import { usePanelCollapsed } from '../panel-collapsed-context'
 import { PaneSlot } from './desktop/pane-slot'
 import { paneTargetIdOf } from './desktop/pane-target'
 import { EPaneMode, usePaneMode } from './desktop/use-pane-mode'
@@ -81,6 +82,7 @@ export function PreviewTabBody(props: {
   const { gate } = useFrameRegistry()
   const nativeBrowser = useHasNativeBrowser()
   const paneMode = usePaneMode()
+  const collapsed = usePanelCollapsed()
   // The shell draws a real browser view under the slot, so neither the embedded-frame fallbacks nor
   // the "this site blocks embedding" bar describe what is on screen.
   const inShell = paneMode === EPaneMode.Shell
@@ -104,7 +106,7 @@ export function PreviewTabBody(props: {
         <OutsideSessionBar url={url} />
       ) : null}
       <div className="min-h-0 flex-1">
-        {paneMode === EPaneMode.Shell ? (
+        {collapsed ? null : paneMode === EPaneMode.Shell ? (
           <PaneSlot id={paneTargetIdOf({ threadId, tabId })} url={url} />
         ) : (
           <PreviewSlot threadId={threadId} tabId={tabId} />

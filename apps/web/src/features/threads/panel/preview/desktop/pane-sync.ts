@@ -154,7 +154,8 @@ export function createPaneSync(args: {
       if (frame !== undefined) environment.cancelFrame(frame)
       frame = undefined
       for (const stop of stops) stop()
-      deliver({ kind: 'hide' })
+      queued = undefined
+      void send({ kind: 'hide' }).catch(() => false)
     },
   }
 }

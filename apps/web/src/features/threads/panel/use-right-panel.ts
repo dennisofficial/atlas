@@ -2,11 +2,14 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { ERightTab } from './right-tab'
 import { type PaneLayout, recallPaneLayout, rememberPaneLayout } from './pane-layout-memory'
+import { samePaneLayout } from './pane-split'
 import { recallThreadPanel, rememberThreadPanel } from './thread-panel-memory'
+import { useRightPanelCollapsed } from './right-panel-collapsed'
 
 export type RightPanelState = {
   tab: ERightTab
   sheetOpen: boolean
+  collapsed: boolean
   changesPath: string | undefined
   agentId: string | undefined
   contextPath: string | undefined
@@ -15,6 +18,9 @@ export type RightPanelState = {
   rememberLayout: (layout: PaneLayout) => void
   setTab: (tab: ERightTab) => void
   setSheetOpen: (open: boolean) => void
+  setCollapsed: (collapsed: boolean) => void
+  toggleCollapsed: () => void
+  openPanel: () => void
   openChanges: (path?: string) => void
   openAgent: (id: string) => void
   openDetails: () => void
@@ -29,12 +35,16 @@ export type RightPanelState = {
 export function useRightPanel(threadId: string): RightPanelState {
   const [remembered] = useState(() => recallThreadPanel(threadId))
   const [tab, setTab] = useState(remembered.tab ?? ERightTab.Details)
-  const [layout] = useState(() => recallPaneLayout(threadId))
+  const [layout, setLayout] = useState(() => recallPaneLayout(threadId))
   const rememberLayout = useCallback(
-    (next: PaneLayout) => rememberPaneLayout({ threadId, layout: next }),
+    (next: PaneLayout) => {
+      rememberPaneLayout({ threadId, layout: next })
+      setLayout((held) => (samePaneLayout(held, next) ? held : next))
+    },
     [threadId],
   )
   const [sheetOpen, setSheetOpen] = useState(false)
+  const { collapsed, setCollapsed } = useRightPanelCollapsed()
   const [changesPath, setChangesPath] = useState<string | undefined>(undefined)
   const [agentId, setAgentId] = useState(remembered.agentId)
   const [contextPath, setContextPath] = useState(remembered.contextPath)
@@ -48,23 +58,36 @@ export function useRightPanel(threadId: string): RightPanelState {
     [threadId, tab, agentId, contextPath, filePath],
   )
 
-  const openChanges = useCallback((path?: string) => {
-    setChangesPath(path)
-    setFilePath(undefined)
-    setTab(ERightTab.Changes)
+  const openPanel = useCallback(() => {
     setSheetOpen(true)
-  }, [])
+    setCollapsed(false)
+  }, [setCollapsed])
 
-  const openAgent = useCallback((id: string) => {
-    setAgentId(id)
-    setTab(ERightTab.Details)
-    setSheetOpen(true)
-  }, [])
+  const toggleCollapsed = useCallback(() => setCollapsed(!collapsed), [collapsed, setCollapsed])
+
+  const openChanges = useCallback(
+    (path?: string) => {
+      setChangesPath(path)
+      setFilePath(undefined)
+      setTab(ERightTab.Changes)
+      openPanel()
+    },
+    [openPanel],
+  )
+
+  const openAgent = useCallback(
+    (id: string) => {
+      setAgentId(id)
+      setTab(ERightTab.Details)
+      openPanel()
+    },
+    [openPanel],
+  )
 
   const openDetails = useCallback(() => {
     setTab(ERightTab.Details)
-    setSheetOpen(true)
-  }, [])
+    openPanel()
+  }, [openPanel])
 
   const clearAgent = useCallback(() => setAgentId(undefined), [])
 
@@ -93,6 +116,7 @@ export function useRightPanel(threadId: string): RightPanelState {
   return {
     tab,
     sheetOpen,
+    collapsed,
     changesPath,
     agentId,
     contextPath,
@@ -101,6 +125,9 @@ export function useRightPanel(threadId: string): RightPanelState {
     rememberLayout,
     setTab,
     setSheetOpen,
+    setCollapsed,
+    toggleCollapsed,
+    openPanel,
     openChanges,
     openAgent,
     openDetails,

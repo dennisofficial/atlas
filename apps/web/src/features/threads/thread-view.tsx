@@ -231,7 +231,9 @@ export function ThreadView({ threadId }: { threadId: string }) {
       })}
       parent={spawnerId === undefined ? undefined : { id: spawnerId, title: parentTitle }}
       local={backend.local}
-      onOpenPanel={() => rightPanel.setSheetOpen(true)}
+      panelCollapsed={rightPanel.collapsed}
+      onOpenPanel={rightPanel.openPanel}
+      onTogglePanel={rightPanel.toggleCollapsed}
     />
   )
 
@@ -240,14 +242,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
       <ThreadPreviewsProvider threadId={threadId} channel={channel} rightPanel={rightPanel}>
         <div className="flex min-h-0 flex-1 flex-col">
           {header}
-          <ThreadLayout
-            tab={rightPanel.tab}
-            onTabChange={rightPanel.setTab}
-            sheetOpen={rightPanel.sheetOpen}
-            onSheetOpenChange={rightPanel.setSheetOpen}
-            layout={rightPanel.layout}
-            onLayoutChange={rightPanel.rememberLayout}
-          >
+          <ThreadLayout rightPanel={rightPanel}>
             {error !== null && !loaded ? <ThreadLoadError error={error} /> : null}
             <ThreadMainSlot
               footer={

@@ -23,7 +23,9 @@ export type ThreadHeaderProps = {
   state: EHeaderState
   parent?: HeaderParent | undefined
   local?: boolean | undefined
+  panelCollapsed: boolean
   onOpenPanel: () => void
+  onTogglePanel: () => void
 }
 
 const BADGE_VARIANT: Record<EHeaderState, 'destructive' | 'default' | 'secondary'> = {
@@ -74,7 +76,16 @@ export function LocalPodIcon() {
 }
 
 export function ThreadHeader(props: ThreadHeaderProps) {
-  const { title, naming = false, state, parent, local = false, onOpenPanel } = props
+  const {
+    title,
+    naming = false,
+    state,
+    parent,
+    local = false,
+    panelCollapsed,
+    onOpenPanel,
+    onTogglePanel,
+  } = props
   return (
     <header
       data-chrome="titlebar"
@@ -94,6 +105,16 @@ export function ThreadHeader(props: ThreadHeaderProps) {
       <div className="flex shrink-0 items-center gap-2">
         {local ? <LocalPodIcon /> : null}
         <Badge variant={BADGE_VARIANT[state]}>{STATE_LABEL[state]}</Badge>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={panelCollapsed ? 'Expand panel' : 'Collapse panel'}
+          aria-expanded={!panelCollapsed}
+          className="hidden md:inline-flex"
+          onClick={onTogglePanel}
+        >
+          <PanelRightIcon />
+        </Button>
         <Button
           variant="ghost"
           size="icon-lg"

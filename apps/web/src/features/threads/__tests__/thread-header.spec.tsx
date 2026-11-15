@@ -12,7 +12,9 @@ const render = (props: Partial<ThreadHeaderProps>): string =>
       <ThreadHeader
         title="Fix the build"
         state={EHeaderState.Idle}
+        panelCollapsed={false}
         onOpenPanel={() => undefined}
+        onTogglePanel={() => undefined}
         {...props}
       />
     </SidebarProvider>,
@@ -45,5 +47,15 @@ describe('ThreadHeader', () => {
   it('keeps the mobile panel button', () => {
     const html = render({})
     expect(html).toContain('aria-label="Open panel"')
+  })
+
+  it('offers a desktop toggle that names what it will do', () => {
+    const expanded = render({ panelCollapsed: false })
+    expect(expanded).toContain('aria-label="Collapse panel"')
+    expect(expanded).toContain('aria-expanded="true"')
+    const collapsed = render({ panelCollapsed: true })
+    expect(collapsed).toContain('aria-label="Expand panel"')
+    expect(collapsed).toContain('aria-expanded="false"')
+    expect(collapsed).toContain('md:inline-flex')
   })
 })

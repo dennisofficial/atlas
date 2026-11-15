@@ -1,7 +1,9 @@
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'bun:test'
 import { act } from 'react'
+import type { Root } from 'react-dom/client'
 
+import { RIGHT_PANEL_COLLAPSED_KEY } from '../right-panel-collapsed'
 import { ERightTab } from '../right-tab'
 import { THREAD_PANELS_KEY } from '../thread-panel-memory'
 import { type RightPanelState, useRightPanel } from '../use-right-panel'
@@ -15,11 +17,24 @@ afterAll(async () => {
   await GlobalRegistrator.unregister()
 })
 
+const roots = new Set<Root>()
+
+afterEach(async () => {
+  for (const root of roots) await act(async () => root.unmount())
+  roots.clear()
+})
+
+function resetCollapsed() {
+  window.localStorage.removeItem(RIGHT_PANEL_COLLAPSED_KEY)
+  window.dispatchEvent(new StorageEvent('storage', { key: null }))
+}
+
 let mounts = 0
 
 async function mount(threadId = `thread-${++mounts}`) {
   const { createRoot } = await import('react-dom/client')
   const root = createRoot(document.createElement('div'))
+  roots.add(root)
   let latest: RightPanelState | null = null
   function Probe() {
     latest = useRightPanel(threadId)
@@ -30,7 +45,10 @@ async function mount(threadId = `thread-${++mounts}`) {
     if (latest === null) throw new Error('the probe never rendered')
     return latest
   }
-  state.unmount = () => act(async () => root.unmount())
+  state.unmount = () => {
+    roots.delete(root)
+    return act(async () => root.unmount())
+  }
   return state
 }
 
@@ -39,6 +57,35 @@ describe('useRightPanel', () => {
     const state = await mount()
     expect(state().tab).toBe(ERightTab.Details)
     expect(state().sheetOpen).toBe(false)
+  })
+
+  it('toggles the collapse and keeps it across a remount', async () => {
+    resetCollapsed()
+    const first = await mount('collapsed')
+    expect(first().collapsed).toBe(false)
+    await act(async () => first().toggleCollapsed())
+    expect(first().collapsed).toBe(true)
+    expect(window.localStorage.getItem(RIGHT_PANEL_COLLAPSED_KEY)).toBe('true')
+    await first.unmount()
+    const again = await mount('collapsed')
+    expect(again().collapsed).toBe(true)
+  })
+
+  it('expands a collapsed panel whenever something asks to open it', async () => {
+    resetCollapsed()
+    const state = await mount()
+    const openings = [
+      () => state().openChanges('src/a.ts'),
+      () => state().openAgent('agent-1'),
+      () => state().openDetails(),
+      () => state().openPanel(),
+    ]
+    for (const open of openings) {
+      await act(async () => state().setCollapsed(true))
+      expect(state().collapsed).toBe(true)
+      await act(async () => open())
+      expect(state().collapsed).toBe(false)
+    }
   })
 
   it('openChanges switches to Changes, remembers the path and opens the sheet', async () => {
@@ -138,6 +185,20 @@ describe('useRightPanel', () => {
     await first.unmount()
     const again = await mount('sized')
     expect(again().layout).toEqual({ transcript: 70, 'right-panel': 30 })
+  })
+
+  it('follows the layout it remembers, so a remount starts from the latest width', async () => {
+    const state = await mount()
+    await act(async () => state().rememberLayout({ transcript: 40, 'right-panel': 60 }))
+    expect(state().layout).toEqual({ transcript: 40, 'right-panel': 60 })
+  })
+
+  it('keeps the same layout object when a commit changes nothing', async () => {
+    const state = await mount()
+    await act(async () => state().rememberLayout({ transcript: 40, 'right-panel': 60 }))
+    const held = state().layout
+    await act(async () => state().rememberLayout({ transcript: 40, 'right-panel': 60 }))
+    expect(state().layout).toBe(held)
   })
 
   it('keeps each thread on its own pane layout', async () => {

@@ -18,7 +18,7 @@ export function useThreadCommands(args: {
   live: boolean
   projectId: string | null | undefined
   working: boolean
-  rightPanel: Pick<RightPanelState, 'setTab' | 'setSheetOpen'>
+  rightPanel: Pick<RightPanelState, 'setTab' | 'openPanel'>
   retryBoot: (threadId: string) => Promise<void>
   refresh: () => void
 }) {
@@ -30,12 +30,12 @@ export function useThreadCommands(args: {
     projectId: args.projectId,
   })
   const { channel, threadId, retryBoot, refresh } = args
-  const { setTab, setSheetOpen } = args.rightPanel
+  const { setTab, openPanel } = args.rightPanel
   const openModelPicker = useCallback(() => setModelOpen(true), [])
   const openDetails = useCallback(() => {
     setTab(ERightTab.Details)
-    setSheetOpen(true)
-  }, [setTab, setSheetOpen])
+    openPanel()
+  }, [setTab, openPanel])
   const wake = useCallback(async () => {
     await retryBoot(threadId)
     refresh()
