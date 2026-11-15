@@ -90,6 +90,27 @@ html {
   background: transparent;
 }
 
+/* iOS Safari zooms the page into any focused field whose font-size is under 16px:
+   https://css-tricks.com/16px-or-larger-text-prevents-ios-form-zoom/ */
+@media (pointer: coarse) {
+  input:not(
+    [type="checkbox"],
+    [type="radio"],
+    [type="range"],
+    [type="file"],
+    [type="color"],
+    [type="button"],
+    [type="submit"],
+    [type="reset"],
+    [type="image"]
+  ),
+  textarea,
+  select,
+  [contenteditable]:not([contenteditable="false"]) {
+    font-size: 16px;
+  }
+}
+
 @keyframes preview-loading {
   from {
     transform: translateX(-100%);
