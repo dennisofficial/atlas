@@ -110,6 +110,26 @@ const deferred = () => {
 
 const settle = () => new Promise<void>((done) => setTimeout(done, 0))
 
+const orderedSender = () => {
+  const sent: PaneCommand[] = []
+  const releases: Array<() => void> = []
+  let tail: Promise<boolean> = Promise.resolve(true)
+  const send: PaneSender = (command) => {
+    sent.push(command)
+    const held = sent.length === 1
+    const delivered = tail.then(async () => {
+      if (held) await new Promise<void>((done) => releases.push(done))
+      return true
+    })
+    tail = delivered
+    return delivered
+  }
+  const releaseFirst = () => {
+    for (const release of releases.splice(0)) release()
+  }
+  return { sent, send, releaseFirst }
+}
+
 const URL_A = 'https://example.com/a'
 const RECT: Rect = { left: 512, top: 64, width: 704, height: 832 }
 
@@ -385,6 +405,35 @@ describe('createPaneSync', () => {
       { kind: 'show', url: URL_A, rect: { x: 512, y: 64, width: 704, height: 832 } },
       { kind: 'setRect', rect: { x: 512, y: 64, width: 500, height: 700 } },
     ])
+  })
+
+  it('sends a stopped sync hide before its replacement shows', async () => {
+    const { element } = slotAt(RECT)
+    const { sent, send, releaseFirst } = orderedSender()
+    const id = 'pane:collapse:tab-1'
+    const sync = createPaneSync({
+      element,
+      url: URL_A,
+      send,
+      environment: fakeEnvironment().environment,
+    })
+    await settle()
+    sync.stop()
+
+    const replacement = slotAt(RECT)
+    createPaneSync({
+      element: replacement.element,
+      id,
+      url: URL_A,
+      send,
+      environment: fakeEnvironment().environment,
+    })
+    releaseFirst()
+    await settle()
+    await settle()
+    await settle()
+
+    expect(sent.map((command) => command.kind)).toEqual(['show', 'hide', 'show'])
   })
 
   it('still hides after a command is left in flight', async () => {
