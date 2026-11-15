@@ -187,6 +187,20 @@ describe('useRightPanel', () => {
     expect(again().layout).toEqual({ transcript: 70, 'right-panel': 30 })
   })
 
+  it('follows the layout it remembers, so a remount starts from the latest width', async () => {
+    const state = await mount()
+    await act(async () => state().rememberLayout({ transcript: 40, 'right-panel': 60 }))
+    expect(state().layout).toEqual({ transcript: 40, 'right-panel': 60 })
+  })
+
+  it('keeps the same layout object when a commit changes nothing', async () => {
+    const state = await mount()
+    await act(async () => state().rememberLayout({ transcript: 40, 'right-panel': 60 }))
+    const held = state().layout
+    await act(async () => state().rememberLayout({ transcript: 40, 'right-panel': 60 }))
+    expect(state().layout).toBe(held)
+  })
+
   it('keeps each thread on its own pane layout', async () => {
     const a = await mount('sized-a')
     await act(async () => a().rememberLayout({ transcript: 40, 'right-panel': 60 }))

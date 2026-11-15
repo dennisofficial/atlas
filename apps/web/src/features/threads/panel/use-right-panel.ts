@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { ERightTab } from './right-tab'
 import { type PaneLayout, recallPaneLayout, rememberPaneLayout } from './pane-layout-memory'
+import { samePaneLayout } from './pane-split'
 import { recallThreadPanel, rememberThreadPanel } from './thread-panel-memory'
 import { useRightPanelCollapsed } from './right-panel-collapsed'
 
@@ -34,9 +35,12 @@ export type RightPanelState = {
 export function useRightPanel(threadId: string): RightPanelState {
   const [remembered] = useState(() => recallThreadPanel(threadId))
   const [tab, setTab] = useState(remembered.tab ?? ERightTab.Details)
-  const [layout] = useState(() => recallPaneLayout(threadId))
+  const [layout, setLayout] = useState(() => recallPaneLayout(threadId))
   const rememberLayout = useCallback(
-    (next: PaneLayout) => rememberPaneLayout({ threadId, layout: next }),
+    (next: PaneLayout) => {
+      rememberPaneLayout({ threadId, layout: next })
+      setLayout((held) => (samePaneLayout(held, next) ? held : next))
+    },
     [threadId],
   )
   const [sheetOpen, setSheetOpen] = useState(false)

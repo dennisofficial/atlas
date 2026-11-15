@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 
 import {
   ResizableHandle,
@@ -17,6 +17,7 @@ import {
   RIGHT_PANE,
   TRANSCRIPT_PANE,
 } from './panel/pane-split'
+import { PanelCollapsedProvider } from './panel/panel-collapsed-context'
 import { RightPanel } from './panel/right-panel'
 import type { ERightTab } from './panel/right-tab'
 
@@ -34,20 +35,27 @@ export function ThreadSplit(props: ThreadSplitProps) {
   const { children, tab, onTabChange, layout, onLayoutChange, collapsed, onCollapsedChange } = props
   const groupRef = useGroupRef()
   const expandedRef = useRef(layout)
+  const collapsedRef = useRef(collapsed)
   const [initialLayout] = useState<PaneLayout | undefined>(() =>
     collapsed ? COLLAPSED_PANE_LAYOUT : layout,
   )
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    collapsedRef.current = collapsed
+  }, [collapsed])
+
+  const reconcile = useCallback(() => {
     const group = groupRef.current
     if (group === null) return
     const next = layoutForCollapse({
       current: group.getLayout(),
-      collapsed,
+      collapsed: collapsedRef.current,
       expanded: expandedRef.current,
     })
     if (next) group.setLayout(next)
-  }, [collapsed, groupRef])
+  }, [groupRef])
+
+  useEffect(() => reconcile(), [collapsed, reconcile])
 
   return (
     <ResizablePanelGroup
@@ -68,6 +76,7 @@ export function ThreadSplit(props: ThreadSplitProps) {
         if (commit.collapsed !== undefined && commit.collapsed !== collapsed) {
           onCollapsedChange(commit.collapsed)
         }
+        if (!meta.isUserInteraction) queueMicrotask(reconcile)
       }}
     >
       <ResizablePanel id={TRANSCRIPT_PANE} minSize="25%">
@@ -82,7 +91,9 @@ export function ThreadSplit(props: ThreadSplitProps) {
         collapsible
         inert={collapsed}
       >
-        <RightPanel tab={tab} onTabChange={onTabChange} />
+        <PanelCollapsedProvider value={collapsed}>
+          <RightPanel tab={tab} onTabChange={onTabChange} />
+        </PanelCollapsedProvider>
       </ResizablePanel>
     </ResizablePanelGroup>
   )

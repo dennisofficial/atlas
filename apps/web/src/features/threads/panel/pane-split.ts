@@ -11,6 +11,13 @@ export type PaneCommit = {
   collapsed: boolean | undefined
 }
 
+export function samePaneLayout(a: PaneLayout | undefined, b: PaneLayout): boolean {
+  if (a === undefined) return false
+  const keys = Object.keys(b)
+  if (Object.keys(a).length !== keys.length) return false
+  return keys.every((key) => a[key] === b[key])
+}
+
 function usableExpanded(layout: PaneLayout | undefined): PaneLayout | undefined {
   if (layout === undefined) return undefined
   if (Object.keys(layout).length !== 2) return undefined

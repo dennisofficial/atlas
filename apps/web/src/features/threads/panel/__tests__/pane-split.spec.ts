@@ -6,6 +6,7 @@ import {
   layoutForCollapse,
   paneCommitOf,
   RIGHT_PANE,
+  samePaneLayout,
   TRANSCRIPT_PANE,
 } from '../pane-split'
 
@@ -113,5 +114,21 @@ describe('layoutForCollapse', () => {
         expanded: { [TRANSCRIPT_PANE]: 100, [RIGHT_PANE]: 0 },
       }),
     ).toEqual(DEFAULT_PANE_LAYOUT)
+  })
+})
+
+describe('samePaneLayout', () => {
+  it('matches the same panes at the same sizes', () => {
+    expect(samePaneLayout(DEFAULT_PANE_LAYOUT, { [TRANSCRIPT_PANE]: 50, [RIGHT_PANE]: 50 })).toBe(
+      true,
+    )
+  })
+
+  it('separates different sizes, different panes and an absent layout', () => {
+    expect(samePaneLayout(DEFAULT_PANE_LAYOUT, { [TRANSCRIPT_PANE]: 60, [RIGHT_PANE]: 40 })).toBe(
+      false,
+    )
+    expect(samePaneLayout(DEFAULT_PANE_LAYOUT, { [RIGHT_PANE]: 50 })).toBe(false)
+    expect(samePaneLayout(undefined, DEFAULT_PANE_LAYOUT)).toBe(false)
   })
 })
