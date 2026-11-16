@@ -282,6 +282,7 @@ describe('the container with nothing bound over it', () => {
       'teammate',
       'general-purpose',
       'explore',
+      'researcher',
       'builder',
       'reviewer',
       'preview',

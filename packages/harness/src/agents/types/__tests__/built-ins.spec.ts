@@ -25,7 +25,7 @@ const CAPABILITY_CLAIMS = [
 ]
 
 describe('the built-in agent types', () => {
-  it('ships general-purpose, explore, builder, reviewer and preview, all marked built-in', async () => {
+  it('ships general-purpose, explore, researcher, builder, reviewer and preview, all marked built-in', async () => {
     const loaded = await load()
 
     expect(loaded.map((agentType) => agentType.name)).toEqual([
@@ -33,6 +33,7 @@ describe('the built-in agent types', () => {
       'explore',
       'general-purpose',
       'preview',
+      'researcher',
       'reviewer',
       'teammate',
     ])
@@ -111,6 +112,15 @@ describe('the built-in agent types', () => {
     expect(preview.prompt).toContain('Verify before you report')
   })
 
+  it('sends the researcher to primary sources, with citations and versions', async () => {
+    const researcher = await named('researcher')
+
+    expect(researcher.prompt).toContain('primary sources')
+    expect(researcher.prompt).toContain('Cite every claim with the URL')
+    expect(researcher.prompt).toContain('Pin the version')
+    expect(researcher.whenToUse).toContain('Use explore for how this codebase works')
+  })
+
   it('directs the teammate to manage its workstream in its own repository worktree', async () => {
     const teammate = await named('teammate')
 
@@ -144,8 +154,8 @@ describe('the built-in agent types', () => {
     }
   })
 
-  it('tells explore and reviewer to report rather than change, as an instruction not a limit', async () => {
-    for (const name of ['explore', 'reviewer']) {
+  it('tells explore, researcher and reviewer to report rather than change, as an instruction not a limit', async () => {
+    for (const name of ['explore', 'researcher', 'reviewer']) {
       const agentType = await named(name)
       expect(agentType.prompt).toContain('only to observe')
       expect(agentType.whenToUse).toContain('briefed to report')
