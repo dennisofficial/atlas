@@ -18,7 +18,6 @@ const noticeOf = (event: EventDraft): NoticeStamp | undefined => {
     case 'background-shell-awaiting-input':
     case 'pr-event':
     case 'run-event':
-    case 'artifact-build-event':
       return event.notice
     default:
       return undefined
@@ -35,7 +34,6 @@ const withNotice = ({ draft, notice }: { draft: EventDraft; notice: NoticeStamp 
     case 'background-shell-awaiting-input':
     case 'pr-event':
     case 'run-event':
-    case 'artifact-build-event':
       return { ...draft, notice }
     default:
       return draft

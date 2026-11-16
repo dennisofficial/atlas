@@ -35,11 +35,12 @@ const run = (args: {
   input?: unknown
   result?: ToolOutcome
   effect?: EToolEffect
+  projectDirectory?: string
 }) =>
   hook.run({
     call: callOf({ name: args.name ?? 'write', input: args.input ?? {}, effect: args.effect }),
     result: args.result ?? OK,
-    projectDirectory: PROJECT,
+    projectDirectory: args.projectDirectory ?? PROJECT,
     signal: NEVER_ABORTED,
   })
 
@@ -70,6 +71,29 @@ describe('OutsideProjectHook', () => {
     ]) {
       expect(await run({ input: { path } })).toEqual({})
     }
+  })
+
+  it('stays silent for a write under the pod artifacts folder', async () => {
+    for (const path of [
+      '/atlas/workspaces/artifacts/todo-app/src/main.ts',
+      '/atlas/workspaces/artifacts/todo-app/artifact.json',
+    ]) {
+      const outcome = await run({
+        input: { path },
+        projectDirectory: '/atlas/workspaces/workspace',
+      })
+
+      expect(outcome).toEqual({})
+    }
+  })
+
+  it('still nudges beside the pod artifacts folder', async () => {
+    const outcome = await run({
+      input: { path: '/atlas/workspaces/workspace-notes/x.md' },
+      projectDirectory: '/atlas/workspaces/workspace',
+    })
+
+    expect(outcome.additionalContext).toContain('/atlas/workspaces/workspace-notes/x.md')
   })
 
   it('nudges on edit and multi_edit too, not only write', async () => {

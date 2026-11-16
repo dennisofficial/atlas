@@ -1,8 +1,6 @@
 import {
   artifactBeginPublishInputSchema,
   artifactBeginPublishOutputSchema,
-  artifactBuildStatusInputSchema,
-  artifactBuildStatusOutputSchema,
   artifactCommitPublishInputSchema,
   artifactCommitPublishOutputSchema,
   artifactGetOutputSchema,
@@ -12,8 +10,6 @@ import {
   artifactUnpublishOutputSchema,
   type ArtifactBeginPublishInput,
   type ArtifactBeginPublishOutput,
-  type ArtifactBuildStatusInput,
-  type ArtifactBuildStatusOutput,
   type ArtifactCommitPublishInput,
   type ArtifactCommitPublishOutput,
   type ArtifactGetOutput,
@@ -65,11 +61,7 @@ export class ArtifactsRouter {
     @Input() input: ArtifactCommitPublishInput,
     @Ctx() ctx: SessionOrSandboxTrpcCtx,
   ): Promise<ArtifactCommitPublishOutput> {
-    return this.artifacts.commitPublish({
-      userId: ctx.auth.userId,
-      threadId: ctx.sandbox?.threadId ?? ctx.pod?.threadId,
-      body: input,
-    })
+    return this.artifacts.commitPublish({ userId: ctx.auth.userId, body: input })
   }
 
   @Query({ output: artifactListOutputSchema, meta: reachable })
@@ -85,23 +77,6 @@ export class ArtifactsRouter {
     @Ctx() ctx: SessionOrSandboxTrpcCtx,
   ): Promise<ArtifactGetOutput> {
     return this.library.get({ userId: ctx.auth.userId, subdomain: input.subdomain })
-  }
-
-  @Query({
-    input: artifactBuildStatusInputSchema,
-    output: artifactBuildStatusOutputSchema,
-    meta: reachable,
-  })
-  @UseMiddlewares(SessionOrSandboxMiddleware)
-  buildStatus(
-    @Input() input: ArtifactBuildStatusInput,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
-  ): Promise<ArtifactBuildStatusOutput> {
-    return this.library.buildStatus({
-      userId: ctx.auth.userId,
-      subdomain: input.subdomain,
-      version: input.version,
-    })
   }
 
   @Query({

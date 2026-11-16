@@ -1,10 +1,9 @@
 import { FileSystemPort, type FileStat, type FileSystemEntry } from '@dltech/atlas-core'
-import type { ArtifactBuildOutcome, ArtifactSummary, ArtifactUpload } from '@dltech/atlas-wire'
+import type { ArtifactSummary, ArtifactUpload } from '@dltech/atlas-wire'
 
 import {
   ArtifactNotFound,
   ArtifactPort,
-  type ArtifactBuildStatus,
   type ArtifactEntryInput,
   type ArtifactPublishBegun,
   type ArtifactPublishCommitted,
@@ -16,14 +15,13 @@ export class FakeArtifactPort extends ArtifactPort {
     name?: string | undefined
     entries: ArtifactEntryInput[]
   }[] = []
-  readonly commitCalls: { artifactId: string; version: number }[] = []
-  readonly buildStatusCalls: { subdomain: string; version: number }[] = []
-  buildOutcome: ArtifactBuildOutcome = 'building'
-  buildFailure: string | null = null
-  buildLog: string | null = null
-  buildDurationMs: number | null = 1_000
-  buildSupersededBy: number | null = null
-  buildStatusFailure: Error | null = null
+  readonly commitCalls: {
+    artifactId: string
+    version: number
+    log?: string | undefined
+    durationMs?: number | undefined
+  }[] = []
+  commitFailure: Error | null = null
   readonly unpublishCalls: string[] = []
   readonly beginUploads: ArtifactUpload[] = []
   artifacts: readonly ArtifactSummary[] = []
@@ -46,46 +44,24 @@ export class FakeArtifactPort extends ArtifactPort {
       subdomain: args.subdomain ?? 'demo',
       version: 3,
       uploads:
-        this.beginUploads.length > 0
-          ? this.beginUploads
-          : args.entries.map((entry) => ({
-              path: entry.path,
-              tree: entry.tree,
-              sha256: entry.sha256,
-              url: `https://upload.test/${entry.path}`,
-            })),
+        this.beginUploads.length > 0 ? this.beginUploads : uploadsOf({ entries: args.entries }),
     }
   }
-
-  commitStatus: 'building' | 'failed' = 'building'
 
   async commitPublish(args: {
     artifactId: string
     version: number
+    log?: string | undefined
+    durationMs?: number | undefined
   }): Promise<ArtifactPublishCommitted> {
     this.guard()
     this.commitCalls.push(args)
+    if (this.commitFailure !== null) throw this.commitFailure
     return {
       subdomain: 'demo',
       version: args.version,
       url: 'https://demo.artifacts.test',
-      status: this.commitStatus,
-    }
-  }
-
-  async buildStatus(args: { subdomain: string; version: number }): Promise<ArtifactBuildStatus> {
-    this.guard()
-    this.buildStatusCalls.push(args)
-    if (this.buildStatusFailure !== null) throw this.buildStatusFailure
-    return {
-      subdomain: args.subdomain,
-      version: args.version,
-      url: 'https://demo.artifacts.test',
-      outcome: this.buildOutcome,
-      failure: this.buildFailure,
-      log: this.buildLog,
-      durationMs: this.buildDurationMs,
-      supersededBy: this.buildSupersededBy,
+      status: 'ready',
     }
   }
 
@@ -108,6 +84,26 @@ export class FakeArtifactPort extends ArtifactPort {
     if (this.failure !== null) throw this.failure
   }
 }
+
+const uploadsOf = (args: { entries: readonly ArtifactEntryInput[] }): ArtifactUpload[] => {
+  const uploads = args.entries.map((entry) =>
+    uploadOf({ path: entry.path, tree: entry.tree, sha256: entry.sha256 }),
+  )
+  if (args.entries.some((entry) => entry.tree === 'dist')) return uploads
+  return [
+    ...uploads,
+    ...args.entries.map((entry) =>
+      uploadOf({ path: entry.path, tree: 'dist', sha256: entry.sha256 }),
+    ),
+  ]
+}
+
+const uploadOf = (args: { path: string; tree: string; sha256: string }): ArtifactUpload => ({
+  path: args.path,
+  tree: args.tree === 'dist' ? 'dist' : 'src',
+  sha256: args.sha256,
+  url: `https://upload.test/${args.tree}/${args.path}`,
+})
 
 const absent = (path: string): Error =>
   Object.assign(new Error(`ENOENT: ${path}`), { code: 'ENOENT' })
@@ -190,11 +186,16 @@ export class FakeFiles extends FileSystemPort {
     }
     if (names.size === 0 && !this.directories.has(args.path))
       throw new Error(`ENOENT: ${args.path}`)
-    return [...names].map((name) => ({
-      name,
-      isFile: () => true,
-      isDirectory: () => false,
-    }))
+    return [...names].map((name) => {
+      const path = `${prefix}${name}`
+      const nested = [...this.files.keys()].some((file) => file.startsWith(`${path}/`))
+      const directory = nested || this.directories.has(path)
+      return {
+        name,
+        isFile: () => !directory,
+        isDirectory: () => directory,
+      }
+    })
   }
 
   async glob(): Promise<readonly string[]> {
@@ -202,14 +203,41 @@ export class FakeFiles extends FileSystemPort {
   }
 }
 
+const exitCodeOf = (args: { cmd: readonly string[]; processes: FakeProcesses }): number => {
+  if (args.cmd[0] !== 'git') return args.processes.exitCode
+  if (args.cmd.includes('rev-parse')) return args.processes.insideWorktree ? 0 : 128
+  if (args.cmd.includes('init')) return args.processes.gitInitExitCode
+  return args.processes.gitExitCode
+}
+
 export class FakeProcesses {
   readonly commands: (readonly string[])[] = []
+  readonly spawns: {
+    cmd: readonly string[]
+    cwd: string
+    env?: Record<string, string | undefined> | undefined
+    threadId?: string | undefined
+  }[] = []
   stdout = ''
   exitCode = 0
+  gitExitCode = 0
+  gitInitExitCode = 0
+  insideWorktree = true
   stderr = ''
 
-  spawn(args: { cmd: readonly string[] }) {
+  spawn(args: {
+    cmd: readonly string[]
+    cwd?: string
+    env?: Record<string, string | undefined> | undefined
+    threadId?: string | undefined
+  }) {
     this.commands.push(args.cmd)
+    this.spawns.push({
+      cmd: args.cmd,
+      cwd: args.cwd ?? '',
+      ...(args.env === undefined ? {} : { env: args.env }),
+      ...(args.threadId === undefined ? {} : { threadId: args.threadId }),
+    })
     const encode = (text: string): ReadableStream<Uint8Array> =>
       new ReadableStream({
         start(controller) {
@@ -217,10 +245,11 @@ export class FakeProcesses {
           controller.close()
         },
       })
+    const code = exitCodeOf({ cmd: args.cmd, processes: this })
     return {
       stdout: encode(this.stdout),
       stderr: encode(this.stderr),
-      exited: Promise.resolve(this.exitCode),
+      exited: Promise.resolve(code),
       terminate: () => undefined,
     }
   }

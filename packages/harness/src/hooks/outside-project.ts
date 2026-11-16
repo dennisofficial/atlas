@@ -9,6 +9,8 @@ import {
 } from '@dltech/atlas-core'
 
 import { ATLAS_SESSION_DIR_ENV } from '../execution/session-environment'
+import { artifactsRootOf } from '../artifacts/artifacts-root'
+import { atlasDirectory } from '../store/paths'
 import type { ThreadEnvironmentResolver } from './thread-environment'
 
 const declaredPath = (input: unknown): string | undefined => {
@@ -35,7 +37,16 @@ export class OutsideProjectHook extends AfterToolHook {
     if (path === undefined) return {}
 
     const sessionDirectory = await this.sessionDirectoryOf({ threadId: call.threadId })
-    const notice = outsideProjectNotice({ path, projectDirectory, sessionDirectory })
+    const artifactsDirectory = artifactsRootOf({
+      projectDirectory,
+      atlasHome: atlasDirectory(),
+    })
+    const notice = outsideProjectNotice({
+      path,
+      projectDirectory,
+      sessionDirectory,
+      artifactsDirectory,
+    })
     if (notice === undefined) return {}
 
     return { additionalContext: notice }

@@ -1,6 +1,5 @@
 import {
   artifactBeginPublishOutputSchema,
-  artifactBuildStatusOutputSchema,
   artifactCommitPublishOutputSchema,
   artifactListOutputSchema,
   artifactSourceExportOutputSchema,
@@ -17,8 +16,8 @@ import {
   ArtifactNotFound,
   ArtifactPort,
   ArtifactRefused,
+  ArtifactSuperseded,
   ArtifactUnavailable,
-  type ArtifactBuildStatus,
   type ArtifactEntryInput,
   type ArtifactPublishBegun,
   type ArtifactPublishCommitted,
@@ -26,11 +25,12 @@ import {
 } from './artifact-port'
 
 const SIGNED_OUT =
-  'signing in to Atlas Cloud is what publishes an artifact: Atlas Cloud serves the URL and builds dist/ on its own machines, so a session that runs only on this machine has nowhere to publish to'
+  'signing in to Atlas Cloud is what publishes an artifact: Atlas Cloud serves the URL, so a session that runs only on this machine has nowhere to publish to'
 
 const BEGIN_PUBLISH_TIMEOUT_MS = 30_000
 
 const NOT_FOUND_STATUS = 404
+const SUPERSEDED_STATUS = 409
 const REFUSAL_STATUSES: readonly number[] = [400, 409, 422]
 const REJECTED_SESSION_STATUSES: readonly number[] = [401, 403]
 
@@ -105,30 +105,22 @@ export class CloudArtifactPort extends ArtifactPort {
   async commitPublish(args: {
     artifactId: string
     version: number
+    log?: string | undefined
+    durationMs?: number | undefined
   }): Promise<ArtifactPublishCommitted> {
     const client = this.client()
-    const body = await this.attempted(() =>
+    const body = await this.commitAttempted(() =>
       cloudCall(
         client.artifacts.commitPublish.mutate({
           artifactId: args.artifactId,
           version: args.version,
+          ...(args.log === undefined ? {} : { log: args.log }),
+          ...(args.durationMs === undefined ? {} : { durationMs: args.durationMs }),
         }),
       ),
     )
     const parsed = artifactCommitPublishOutputSchema.safeParse(body)
     if (!parsed.success) throw malformed('artifacts.commitPublish')
-    return parsed.data
-  }
-
-  async buildStatus(args: { subdomain: string; version: number }): Promise<ArtifactBuildStatus> {
-    const client = this.client()
-    const body = await this.attempted(() =>
-      cloudCall(
-        client.artifacts.buildStatus.query({ subdomain: args.subdomain, version: args.version }),
-      ),
-    )
-    const parsed = artifactBuildStatusOutputSchema.safeParse(body)
-    if (!parsed.success) throw malformed('artifacts.buildStatus')
     return parsed.data
   }
 
@@ -155,6 +147,17 @@ export class CloudArtifactPort extends ArtifactPort {
     await this.attempted(() =>
       cloudCall(client.artifacts.unpublish.mutate({ subdomain: args.subdomain })),
     )
+  }
+
+  private async commitAttempted<T>(run: () => Promise<T>): Promise<T> {
+    try {
+      return await run()
+    } catch (error) {
+      if (error instanceof CloudError && error.status === SUPERSEDED_STATUS) {
+        throw new ArtifactSuperseded(error.message)
+      }
+      throw portFailureOf(error)
+    }
   }
 
   private async attempted<T>(run: () => Promise<T>): Promise<T> {
