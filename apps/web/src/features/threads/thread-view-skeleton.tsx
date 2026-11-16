@@ -25,7 +25,7 @@ function HeaderSkeleton() {
 
 function ComposerSkeleton() {
   return (
-    <div className="mx-auto flex w-full max-w-3xl shrink-0 flex-col gap-2 px-4 pb-4">
+    <div className="mx-auto flex w-full max-w-4xl shrink-0 flex-col gap-2 px-4 pb-4">
       <Skeleton className="h-24 w-full rounded-xl" />
     </div>
   )
