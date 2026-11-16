@@ -2,12 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { EDefinitionOrigin } from '@dltech/atlas-core'
 
-import {
-  AGENT_SPAWN_TOOL_NAME,
-  EAgentTypeRefusal,
-  parseAgentType,
-  TEAMMATE_AGENT_TYPE,
-} from '../agent-type'
+import { EAgentTypeRefusal, parseAgentType, TEAMMATE_AGENT_TYPE } from '../agent-type'
 import { EmbeddedAgentTypeSource } from '../embedded-source'
 import { loadAgentTypes } from '../registry'
 import { DirectoryAgentTypeSource } from '../directory-source'
@@ -27,7 +22,7 @@ describe('the teammate type', () => {
     const teammate = types.find((agentType) => agentType.name === TEAMMATE_AGENT_TYPE)
     expect(teammate).toBeDefined()
     expect(teammate?.origin).toBe(EDefinitionOrigin.BuiltIn)
-    expect(teammate?.disallowedTools ?? []).not.toContain(AGENT_SPAWN_TOOL_NAME)
+    expect(Object.keys(teammate ?? {})).not.toContain('tools')
   })
 
   it('is a reserved name: no user or project definition may wear it', () => {

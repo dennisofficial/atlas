@@ -276,6 +276,7 @@ describe("a teammate's session", () => {
     ])
     const tools = new InMemoryToolRegistry([
       toolNamed('read'),
+      toolNamed('operator_input'),
       new AgentSpawnTool(() => {
         throw new Error('the listing never resolves the registry')
       }, [TEAMMATE, BUILDER]),
@@ -356,6 +357,12 @@ describe("a teammate's session", () => {
       'edit_memory',
       'delete_memory',
     ])
+  })
+
+  it('loses operator_input, the one tool no teammate may hold', async () => {
+    const { model } = await spawnTeammate({ script: [{ text: 'done' }] })
+
+    expect(model.doStreamCalls[0]?.tools?.map((tool) => tool.name)).not.toContain('operator_input')
   })
 
   it('is shown a spawn listing that never mentions the teammate type', async () => {

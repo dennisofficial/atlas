@@ -92,7 +92,7 @@ describe('a model pinned by an agent type file', () => {
     expect(refusals[0]?.detail).not.toContain(ANOTHER_VENDOR.concat(','))
   })
 
-  it('takes the whole agent type with it, the way a bad max-effect does', async () => {
+  it('takes the whole agent type with it, rather than falling back to the parent model', async () => {
     const { types } = await load([
       typeOf({ name: 'quick', model: TYPO }),
       typeOf({ name: 'sound' }),

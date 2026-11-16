@@ -79,10 +79,17 @@ not proof of tool restrictions or model switching; verify behavior before promis
 ## Agent types
 
 Add flat `<agents-root>/<name>.md` files; subdirectories are not scanned. Frontmatter uses `name`,
-required `description`, and optionally `tools`, `disallowed-tools`, `model`, `max-effect`. The body
-is the agent prompt. Names match `^[a-z][a-z0-9-]*$`; `teammate` is reserved. An unusable model or
-invalid definition refuses the type. Project overrides user overrides built-in. Restart after edits;
-`/agents types` reports loaded, refused, and shadowed definitions.
+required `description`, and optionally `model`. The body is the agent prompt. Names match
+`^[a-z][a-z0-9-]*$`; `teammate` is reserved. An unusable model or invalid definition refuses the
+type. Project overrides user overrides built-in. Restart after edits; `/agents types` reports loaded,
+refused, and shadowed definitions.
+
+An agent type changes the prompt and the model, never the tools: every agent type gets the same tool
+set, minus the denials that follow what an agent is (a sub-agent cannot spawn, subscribe or talk to
+the operator; a teammate loses only `operator_input`). Other frontmatter fields, including Claude
+Code's `tools`, `disallowed-tools` and `max-effect`, are ignored, so a Claude Code agent file loads
+unchanged — a `tools: Read, Grep` line does not restrict the agent, and prose that promises a
+read-only or shell-less agent is a briefing rather than an enforced limit.
 
 ## MCP servers
 

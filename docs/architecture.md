@@ -495,8 +495,9 @@ exit guard are the same machinery over a thread instead of a process. When a que
 answer, the answer is almost always whatever `ShellRegistryPort` does.
 
 **Two things distinguish a child from the main agent, and there are no others.** Its tool group:
-`toolRegistryFor` narrows the registry to the agent type's own allow/deny lists, and
-`withoutAgentTools` then denies all five of `AGENT_TOOL_NAMES` on top. Its system prompt:
+`buildChildRunner` filters the parent's registry through `SUB_AGENT_DENIED`, which withholds the
+`agent_*` tools, `subscribe`, `operator_input` and the memory writes — and nothing else, since the
+agent type it was spawned as never narrows tools. Its system prompt:
 `subAgentPrompt` compiles the fragment registry with `EPromptAgent.Sub` and prepends the agent
 type's own prose, which stands in place of the identity fragment — `AtlasIdentityFragment` is the
 only fragment that reads the axis, and it is Main-only, so a child never reads "You are Atlas" and
@@ -548,11 +549,10 @@ a speech path that deliberate-report agents do not have.
 
 **There are no read-only agent types, and that is a decision rather than an omission.** `explore`
 and `reviewer` are briefed by `REPORT_ONLY_CONTRACT` not to change anything, and nothing enforces
-it: `maxEffect` is plumbed all the way through `filteredToolRegistry` and deliberately left unset on
-every built-in. The read-only guarantee is a **briefing, not a mechanism** — say so out loud,
-because the plumbing's existence otherwise reads as enforcement. What it buys is that a reviewer
-which finds a one-line fix can simply be told to make it, instead of reporting a fix somebody else
-has to apply.
+it: an agent type narrows no tools, so the read-only guarantee is a **briefing, not a mechanism** —
+say so out loud, because `filteredToolRegistry` accepting a `maxEffect` ceiling otherwise reads as
+enforcement. What it buys is that a reviewer which finds a one-line fix can simply be told to make
+it, instead of reporting a fix somebody else has to apply.
 
 **Coordination between parallel children is a briefing too.** Builders running in parallel share
 one working tree, and nothing arbitrates which one may touch a file — the contract lives in the
@@ -721,10 +721,12 @@ teammates get pods of their own it runs in the manager's pod, and pod lookups wa
 ### Agent types
 
 An agent type is a name, the `whenToUse` prose that teaches `agent_spawn` when to choose it, the
-system prompt the child runs under, and optional `tools` / `disallowedTools` / `model` /
-`maxEffect` narrowings. Four ship embedded — `general-purpose`, `explore`, `builder`, `reviewer` —
-and `agent_spawn`'s description is generated from the registered set rather than written, because a
-type the model cannot see is a type that does not exist.
+system prompt the child runs under, and an optional `model` pin — never a tool set, because the
+tools an agent holds follow what it _is_, not which type spawned it. Frontmatter lines that would
+narrow tools (`tools`, `disallowed-tools`, `max-effect`) are ignored rather than refused, so a
+Claude Code agent file drops in unchanged. Four ship embedded — `general-purpose`, `explore`,
+`builder`, `reviewer` — and `agent_spawn`'s description is generated from the registered set rather
+than written, because a type the model cannot see is a type that does not exist.
 
 Discovery is the shape `harness/src/skills/` already uses, sharing `splitFrontmatter` and
 `resolveShadowing` with it: embedded built-ins, then `~/.atlas/agents/*.md`, then
@@ -733,7 +735,7 @@ Discovery is the shape `harness/src/skills/` already uses, sharing `splitFrontma
 **A definition that will not load is refused, not dropped.** A malformed file must not stop Atlas
 booting, but silence is the wrong other extreme: the operator writes an agent type, it never
 appears, and nothing anywhere says why. So `parseAgentType` returns an `EAgentTypeRefusal` —
-empty, bad name, no description, no prompt, bad `max-effect`, unusable model, unreadable — and
+empty, bad name, no description, no prompt, unusable model, unreadable — and
 `AgentTypeSource.load` returns `{ types, refusals }` rather than a bare list. `AgentTypeCatalog`
 also reports what was `shadowed`, because a project type silently overriding a user type is the
 other way to be confused about which prose is running. A _missing_ directory stays silent, since
@@ -743,12 +745,13 @@ not having written any agent types is not a mistake; an unreadable one is a refu
 deferred it — `modelIsReachable` hard-codes Anthropic, so pinning is pointless — confused two
 things: `compose.ts` already pins the titler and the summariser, so pinning works and the
 constraint is only which vendor answers. A pin that cannot resolve takes the whole agent type as a
-refusal, the same as a bad `max-effect`, rather than silently falling back to the parent's model.
+refusal rather than silently falling back to the parent's model.
 
-`loadAgentTypes` maps `withoutSelfSpawn` over the result, which strips `agent_spawn` from a type's
-allow-list and unions it into the deny-list. That is belt to `withoutAgentTools`' braces: the
-resolver refuses it so no definition can grant it, and the child's registry refuses it so no
-resolver bug can leak it.
+**The only tool denials are structural.** `buildChildRunner` filters every registry through
+`SUB_AGENT_DENIED` — the `agent_*` tools, `subscribe`, `operator_input` and the memory writes —
+because those are the parent's instruments, not because of the type that asked for the child. A
+teammate keeps them — it runs sub-agents of its own — and loses only `operator_input`. Nothing a
+definition writes adds to or subtracts from either list.
 
 ### The supervisor
 

@@ -10,6 +10,7 @@ import {
   EMPTY_SESSIONS,
   EMPTY_WORKTREES,
 } from '@dltech/atlas-plugin-sdk'
+import { ECallStatus, type CallResult } from '@dltech/atlas-protocol'
 
 import { CREW_AGENT_TYPES, crewAgentTypeOf } from '../../core'
 import { crewPod } from '..'
@@ -79,9 +80,12 @@ const rig = (crew: PodCrew) => {
     },
     append: async () => undefined,
     events: () => [],
-    call: async () => {
-      throw new Error('this rig calls no daemon')
-    },
+    call: async () =>
+      ({
+        status: ECallStatus.Failed,
+        op: 'readDirectory',
+        error: { code: 'not-found', message: 'this rig has no repository' },
+      }) as CallResult,
     live: () => undefined,
     onDaemonEvent: () => () => undefined,
     log: () => undefined,

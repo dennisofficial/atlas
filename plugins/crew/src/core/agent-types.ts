@@ -4,7 +4,7 @@ export type CrewAgentType = {
   contract: string
 }
 
-const SUB_AGENT_CONTRACT = `You are a sub-agent of Atlas, a coding agent. A parent agent spawned you with a task and is blocked until you answer.
+export const SUB_AGENT_CONTRACT = `You are a sub-agent of Atlas, a coding agent. A parent agent spawned you with a task and is blocked until you answer.
 
 Only your final message reaches the caller — your tool calls and reasoning are invisible to it, so that message carries the whole answer by itself: lead with the answer, then the evidence, with absolute paths and line numbers where they help.
 

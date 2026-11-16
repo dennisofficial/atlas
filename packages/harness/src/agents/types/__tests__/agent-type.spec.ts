@@ -1,4 +1,4 @@
-import { EDefinitionOrigin, EToolEffect } from '@dltech/atlas-core'
+import { EDefinitionOrigin } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
 import { EAgentTypeRefusal, parseAgentType, type AgentType } from '../agent-type'
@@ -32,10 +32,7 @@ describe('parseAgentType', () => {
       name: 'reviewer',
       whenToUse: 'Use me to review',
       prompt: 'Review the diff.',
-      tools: undefined,
-      disallowedTools: undefined,
       model: undefined,
-      maxEffect: undefined,
       origin: EDefinitionOrigin.Project,
       definedIn: undefined,
     })
@@ -49,39 +46,28 @@ describe('parseAgentType', () => {
     expect(parse(frontmatter(['name: Deep-Review', 'description: d']))?.name).toBe('deep-review')
   })
 
-  it('splits tools and disallowed-tools on commas', () => {
+  it('loads a Claude Code agent file unchanged, ignoring the tool lines it carries', () => {
     const parsed = parse(
-      frontmatter(['description: d', 'tools: read, grep , glob', 'disallowed-tools: write,edit']),
+      frontmatter(
+        [
+          'name: security-reviewer',
+          'description: Reviews the diff for security bugs',
+          'tools: Read, Grep, Glob, Bash',
+          'disallowed-tools: Write',
+          'max-effect: readonly',
+        ],
+        'Review the diff.',
+      ),
     )
 
-    expect(parsed?.tools).toEqual(['read', 'grep', 'glob'])
-    expect(parsed?.disallowedTools).toEqual(['write', 'edit'])
-  })
-
-  it('reads a star tool list as inheriting every tool', () => {
-    expect(parse(frontmatter(['description: d', 'tools: "*"']))?.tools).toBeUndefined()
-  })
-
-  it('reads an empty tool list as inheriting every tool rather than none', () => {
-    expect(parse(frontmatter(['description: d', 'tools: " , "']))?.tools).toBeUndefined()
-  })
-
-  it('reads max-effect as the ceiling on what the agent type may do', () => {
-    expect(parse(frontmatter(['description: d', 'max-effect: read']))?.maxEffect).toBe(
-      EToolEffect.Read,
-    )
-    expect(parse(frontmatter(['description: d', 'max-effect: destructive']))?.maxEffect).toBe(
-      EToolEffect.Destructive,
-    )
-  })
-
-  it('skips a definition whose max-effect is not an effect, rather than silently uncapping it', () => {
-    expect(parse(frontmatter(['description: d', 'max-effect: readonly']))).toBeUndefined()
-    expect(parse(frontmatter(['description: d', 'max-effect: READ']))).toBeUndefined()
-  })
-
-  it('leaves the ceiling off when max-effect is absent', () => {
-    expect(parse(frontmatter(['description: d']))?.maxEffect).toBeUndefined()
+    expect(parsed).toEqual({
+      name: 'security-reviewer',
+      whenToUse: 'Reviews the diff for security bugs',
+      prompt: 'Review the diff.',
+      model: undefined,
+      origin: EDefinitionOrigin.Project,
+      definedIn: undefined,
+    })
   })
 
   it('carries a pinned model through', () => {
@@ -130,9 +116,6 @@ describe('parseAgentType', () => {
 
 describe('what parseAgentType says when it refuses', () => {
   it('names the reason rather than handing back a bare nothing', () => {
-    expect(refusalOf(frontmatter(['description: d', 'max-effect: readonly']))).toBe(
-      EAgentTypeRefusal.BadMaxEffect,
-    )
     expect(refusalOf(frontmatter(['name: My Agent', 'description: d']))).toBe(
       EAgentTypeRefusal.BadName,
     )
@@ -142,9 +125,6 @@ describe('what parseAgentType says when it refuses', () => {
   })
 
   it('quotes the offending value, so the operator can find it in the file', () => {
-    expect(detailOf(frontmatter(['description: d', 'max-effect: readonly']))).toContain(
-      'max-effect: "readonly"',
-    )
     expect(detailOf(frontmatter(['name: My Agent', 'description: d']))).toContain('"my agent"')
   })
 
