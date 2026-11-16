@@ -76,7 +76,7 @@ describe.skipIf(REDIS_URL === undefined)(
       const status = sessionStatusOf({
         events: v2EventsOf(before),
         live: false,
-        unconsumedInbox: false,
+        queuedSince: null,
         now: new Date().toISOString(),
       })
       expect(status.state).toBe(ESessionStatus.Resuming)

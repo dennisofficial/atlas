@@ -163,7 +163,7 @@ export const rebuildEditSensitive: (args: { state: SessionViewState; visibleTail
 export const sessionViewOf: (args: {
   state: SessionViewState
   live: boolean
-  unconsumedInbox: boolean
+  queuedSince: string | null
   messageAfterFailure: boolean
   queued: readonly SessionQueuedMessage[]   // or core's own type; protocol stays out of core
   lease: Lease

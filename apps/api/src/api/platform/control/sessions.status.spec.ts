@@ -12,7 +12,7 @@ import { inboxMessageSchema } from '@dltech/atlas-protocol'
 import { NOW, setupSessionsService as setup } from './sessions.service.fixture'
 
 describe('SessionsService status and events', () => {
-  it('maps an unconsumed post to sent and a consumed one past it', async () => {
+  it('maps an unconsumed post to queued and a consumed one past it', async () => {
     const { plane, service } = setup()
     const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
     const seeded = await plane.grant({
@@ -34,9 +34,9 @@ describe('SessionsService status and events', () => {
     await plane.revoke({ sessionId: created.sessionId, wantsHolder: false })
     await service.post({ userId: 'user-a', sessionId: created.sessionId, text: 'hi' })
 
-    const sent = await service.status({ userId: 'user-a', sessionId: created.sessionId })
-    expect(sent.state).toBe(ESessionStatus.Sent)
-    expect(sent.lease.live).toBe(false)
+    const queued = await service.status({ userId: 'user-a', sessionId: created.sessionId })
+    expect(queued.state).toBe(ESessionStatus.Queued)
+    expect(queued.lease.live).toBe(false)
 
     const granted = await plane.grant({
       sessionId: created.sessionId,
@@ -212,7 +212,7 @@ describe('SessionsService status and events', () => {
     expect(retrying.state).toBe(ESessionStatus.Preparing)
   })
 
-  it('retry posts a retry entry that moves a failed session to sent, and refuses strangers', async () => {
+  it('retry posts a retry entry that moves a failed session to queued, and refuses strangers', async () => {
     const { plane, service } = setup()
     const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
     const granted = await plane.grant({ sessionId: created.sessionId, hostId: 9001 })
@@ -238,8 +238,8 @@ describe('SessionsService status and events', () => {
     const { inboxId } = await service.retry({ userId: 'user-a', sessionId: created.sessionId })
     const entry = await plane.readInboxEntry({ sessionId: created.sessionId, inboxId })
     expect(entry).toMatchObject({ kind: 'retry', payload: '{}' })
-    const sent = await service.status({ userId: 'user-a', sessionId: created.sessionId })
-    expect(sent.state).toBe(ESessionStatus.Sent)
+    const queued = await service.status({ userId: 'user-a', sessionId: created.sessionId })
+    expect(queued.state).toBe(ESessionStatus.Queued)
 
     await expect(service.retry({ userId: 'user-b', sessionId: created.sessionId })).rejects.toThrow(
       'session not found',

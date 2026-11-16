@@ -32,6 +32,7 @@ import { useSessionPrObservation } from './data/use-session-pr-observation'
 const BADGE_VARIANT: Record<EHeaderState, 'destructive' | 'default' | 'secondary'> = {
   [EHeaderState.Failed]: 'destructive',
   [EHeaderState.NeedsYou]: 'default',
+  [EHeaderState.Queued]: 'secondary',
   [EHeaderState.Running]: 'secondary',
   [EHeaderState.Idle]: 'secondary',
 }

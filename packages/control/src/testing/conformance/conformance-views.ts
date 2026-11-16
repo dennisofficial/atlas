@@ -236,11 +236,12 @@ export function describeControlPlaneViews(params: ConformanceParams): void {
       expect(await storedState()).toEqual(before)
     })
 
-    it('shows queued messages and sent status from the inbox', async () => {
+    it('shows queued messages and queued status from the inbox', async () => {
       await appendBodies({ harness, epoch, bodies: [{ type: 'workspace-prepared' }] })
       await harness.plane.post({ sessionId: SESSION, kind: 'message', payload: '{"text":"hi"}' })
       const read = await view()
-      expect(read.value.status.state).toBe(ESessionStatus.Sent)
+      expect(read.value.status.state).toBe(ESessionStatus.Queued)
+      expect(read.value.status.since).toBe(read.value.status.queued?.[0]?.postedAt)
       expect(read.value.status.queued?.[0]?.text).toBe('hi')
     })
 

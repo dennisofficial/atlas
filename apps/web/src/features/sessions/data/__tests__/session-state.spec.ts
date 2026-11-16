@@ -32,7 +32,6 @@ describe('isSessionWorking', () => {
   it('is true while the agent is busy', () => {
     for (const state of [
       ESessionStatus.Preparing,
-      ESessionStatus.Sent,
       ESessionStatus.Thinking,
       ESessionStatus.RunningTool,
       ESessionStatus.WaitingToRetry,
@@ -42,8 +41,9 @@ describe('isSessionWorking', () => {
     }
   })
 
-  it('is false when idle, failed, blocked or unknown', () => {
+  it('is false when idle, failed, blocked, queued or unknown', () => {
     for (const state of [
+      ESessionStatus.Queued,
       ESessionStatus.Idle,
       ESessionStatus.Failed,
       ESessionStatus.SetupFailed,
@@ -85,6 +85,12 @@ describe('sessionStateLineOf', () => {
   it('asks for credentials', () => {
     expect(sessionStateLineOf(snapshotOf({ state: ESessionStatus.WaitingForCredentials }))).toBe(
       'Waiting for model credentials',
+    )
+  })
+
+  it('says a queued message is waiting for the agent', () => {
+    expect(sessionStateLineOf(snapshotOf({ state: ESessionStatus.Queued }))).toBe(
+      'Queued — waiting for the agent to pick it up',
     )
   })
 
@@ -145,6 +151,9 @@ describe('headerStateOfSession', () => {
     expect(
       headerStateOfSession(snapshotOf({ state: ESessionStatus.WaitingForCredentials }).status),
     ).toBe(EHeaderState.NeedsYou)
+    expect(headerStateOfSession(snapshotOf({ state: ESessionStatus.Queued }).status)).toBe(
+      EHeaderState.Queued,
+    )
     expect(headerStateOfSession(snapshotOf({ state: ESessionStatus.Idle }).status)).toBe(
       EHeaderState.Idle,
     )

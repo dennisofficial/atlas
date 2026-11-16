@@ -77,7 +77,7 @@ describe('status while steps are recorded', () => {
     const status = sessionStatusOf({
       events: log([step(EWorkspaceStep.Sandbox, EWorkspaceStepState.Done)]),
       live: true,
-      unconsumedInbox: false,
+      queuedSince: null,
       messageAfterFailure: false,
       now: NOW,
     })
@@ -91,7 +91,7 @@ describe('status while steps are recorded', () => {
         { type: 'workspace-prepared' },
       ]),
       live: true,
-      unconsumedInbox: false,
+      queuedSince: null,
       messageAfterFailure: false,
       now: NOW,
     })

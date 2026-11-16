@@ -15,7 +15,7 @@ const eventsOf = (bodies: readonly V2Body[]): readonly V2Event[] =>
   chainEvents({ threadId: THREAD, runId: RUN, epoch: 1, at: NOW, bodies })
 
 const statusOf = (bodies: readonly V2Body[]) =>
-  sessionStatusOf({ events: eventsOf(bodies), live: true, unconsumedInbox: false, now: NOW })
+  sessionStatusOf({ events: eventsOf(bodies), live: true, queuedSince: null, now: NOW })
 
 const ASKED: readonly V2Body[] = [
   { type: 'user-said', text: 'ask for the secret' },
@@ -61,7 +61,7 @@ describe('a session waiting on a parked call', () => {
     const status = sessionStatusOf({
       events: eventsOf([...ASKED, { type: 'tool-parked', callId: CALL, name: 'operator_input' }]),
       live: false,
-      unconsumedInbox: false,
+      queuedSince: null,
       now: NOW,
     })
 

@@ -58,7 +58,7 @@ describe('the session follower', () => {
 
   it('keeps the latest accepted view and replaces it with a newer one', () => {
     const { follower } = setup()
-    follower.handleMessage(statusView({ at: 0, state: ESessionStatus.Sent }))
+    follower.handleMessage(statusView({ at: 0, state: ESessionStatus.Queued }))
     follower.handleMessage(statusView({ at: 3, state: ESessionStatus.Idle }))
     expect(follower.getSnapshot().status?.state).toBe(ESessionStatus.Idle)
   })

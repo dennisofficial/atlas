@@ -135,7 +135,6 @@ export const toSessionEntry = ({
 
 const RUNNING_STATES: ReadonlySet<string> = new Set([
   'preparing',
-  'sent',
   'thinking',
   'running-tool',
   'waiting-to-retry',
