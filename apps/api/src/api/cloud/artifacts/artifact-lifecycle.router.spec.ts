@@ -6,9 +6,11 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { seedSessionUsers } from '../../../test/web-settings.fake-db'
 import { dataOf, trpcMutation } from '../session-trpc-test-app'
 import { FakeArtifactBlobStore } from './artifact-blob-store.fakes'
+import { FakeArtifactSandbox } from './artifact-sandbox.fakes'
 import {
   buildArtifactsApp,
   DEFAULT_INPUT,
+  FakeArtifactJobDispatcher,
   OWNER,
   publishArtifact,
 } from './artifacts.router.fixture'
@@ -17,6 +19,8 @@ describe('ArtifactsRouter lifecycle', () => {
   useTestDatabase()
   let app: INestApplication
   const blobs = new FakeArtifactBlobStore()
+  const sandbox = new FakeArtifactSandbox()
+  const jobs = new FakeArtifactJobDispatcher()
 
   const unpublish = (token: string, subdomain: string) =>
     trpcMutation({ app, path: 'artifacts.unpublish', token, input: { subdomain } })
@@ -24,14 +28,16 @@ describe('ArtifactsRouter lifecycle', () => {
   beforeEach(async () => {
     await seedSessionUsers()
     blobs.reset()
-    app = await buildArtifactsApp({ blobs })
+    sandbox.reset()
+    jobs.reset()
+    app = await buildArtifactsApp({ blobs, jobs })
   })
 
   afterEach(() => app.close())
 
   describe('artifacts.unpublish', () => {
     it('removes the route object first, then both trees of that artifact', async () => {
-      const published = await publishArtifact({ app, blobs })
+      const published = await publishArtifact({ app, blobs, sandbox, jobs })
       const route = routePrefixOf({ id: published.subdomain })
       const source = sourcePrefixOf({ id: published.subdomain })
 
@@ -39,7 +45,7 @@ describe('ArtifactsRouter lifecycle', () => {
 
       expect(dataOf(res.body)).toEqual({ ok: true })
       expect(blobs.deleted[0]).toBe(routePathOf({ id: published.subdomain }))
-      expect(blobs.deleted).toContain(`${route}index.html`)
+      expect(blobs.deleted).toContain(`${route}v1/index.html`)
       expect(blobs.deleted).toContain(`${source}index.html`)
       expect([...blobs.stored.keys()].filter((key) => key.startsWith(route))).toEqual([])
       expect([...blobs.stored.keys()].filter((key) => key.startsWith(source))).toEqual([])
@@ -50,10 +56,12 @@ describe('ArtifactsRouter lifecycle', () => {
     })
 
     it('keeps the bytes of another artifact under a different id', async () => {
-      const published = await publishArtifact({ app, blobs })
+      const published = await publishArtifact({ app, blobs, sandbox, jobs })
       const other = await publishArtifact({
         app,
         blobs,
+        sandbox,
+        jobs,
         input: { ...DEFAULT_INPUT, name: 'other' },
       })
 
@@ -67,7 +75,7 @@ describe('ArtifactsRouter lifecycle', () => {
     })
 
     it("refuses another user's artifact", async () => {
-      const published = await publishArtifact({ app, blobs })
+      const published = await publishArtifact({ app, blobs, sandbox, jobs })
 
       expect((await unpublish('session-b', published.subdomain)).status).toBe(404)
       expect(await db.orm.public.Artifact.where((row) => row.id.neq('')).all()).toHaveLength(1)

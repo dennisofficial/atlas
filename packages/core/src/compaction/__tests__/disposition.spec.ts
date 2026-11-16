@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { EAgentRestart } from '../../agents/restart'
 import { EReportKind } from '../../agents/report'
 import { EAgentStatus } from '../../agents/status'
+import { EArtifactBuildOutcome } from '../../events/artifact-build-body'
 import { ECompactionAnchor, EPrEventKind, EPrVerdict, type EventType } from '../../events/body'
 import { toCallId, toThreadId } from '../../events/ids'
 import { EExecutionLocation } from '../../execution/location'
@@ -135,6 +136,14 @@ const SURVIVOR_MINIMAL = {
     url: 'https://github.com/dltech/atlas/actions/runs/33522901117',
     status: 'completed',
     conclusion: 'success',
+  },
+  'artifact-build-event': {
+    type: 'artifact-build-event',
+    subdomain: 'demo',
+    version: 4,
+    url: 'https://demo.byatlas.site',
+    outcome: EArtifactBuildOutcome.Ready,
+    durationMs: 41_000,
   },
   nudge: { type: 'nudge', text: 'wrap up soon', lifetimeSteps: 2 },
   'sandbox-setup-reported': {

@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common'
 import { routePathOf, routePrefixOf, sourcePrefixOf } from '@dltech/atlas-artifacts'
-import { db } from '@dltech/atlas-db'
 import type { ArtifactUnpublishOutput } from '@dltech/atlas-wire'
 import { ArtifactBlobStore } from './artifact-blob-store'
+import { withArtifactLock } from './artifact-lock'
 import { ownedArtifact } from './artifact-repository'
 import { removeTree } from './artifact-tree'
 
@@ -12,10 +12,15 @@ export class ArtifactLifecycleService {
 
   async unpublish(args: { userId: string; subdomain: string }): Promise<ArtifactUnpublishOutput> {
     const artifact = await ownedArtifact(args)
-    await this.blobs.delete({ pathname: routePathOf({ id: artifact.subdomain }) })
+    await withArtifactLock({
+      artifactId: artifact.id,
+      work: async (tx) => {
+        await this.blobs.delete({ pathname: routePathOf({ id: artifact.subdomain }) })
+        await tx.orm.public.Artifact.where({ id: artifact.id }).deleteAndCount()
+      },
+    })
     await removeTree({ blobs: this.blobs, prefix: routePrefixOf({ id: artifact.subdomain }) })
     await removeTree({ blobs: this.blobs, prefix: sourcePrefixOf({ id: artifact.subdomain }) })
-    await db.orm.public.Artifact.where({ id: artifact.id }).deleteAndCount()
     return { ok: true }
   }
 }

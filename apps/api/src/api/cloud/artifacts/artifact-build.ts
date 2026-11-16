@@ -6,7 +6,6 @@ import {
   type ArtifactSpec,
 } from '@dltech/atlas-artifacts'
 import {
-  ARTIFACT_BUILD_CLAMP_MS,
   ArtifactSandbox,
   artifactBuildEnv,
   type ArtifactBuildOwner,
@@ -137,11 +136,7 @@ export class ArtifactBuild {
     const build = args.spec.build
     if (build === undefined) throw new Error('ArtifactBuild.run needs a spec with a build block')
     const startedAt = Date.now()
-    const timeoutMs = Math.min(build.timeoutSec * 1000, ARTIFACT_BUILD_CLAMP_MS)
-    const header =
-      build.timeoutSec * 1000 > ARTIFACT_BUILD_CLAMP_MS
-        ? `artifact build clamped to ${Math.round(ARTIFACT_BUILD_CLAMP_MS / 1000)}s (spec.build.timeoutSec is ${build.timeoutSec})`
-        : null
+    const timeoutMs = build.timeoutSec * 1000
     const result = await this.sandbox.run({
       owner: args.owner,
       files: args.files,
@@ -151,7 +146,11 @@ export class ArtifactBuild {
       env: artifactBuildEnv(),
       timeoutMs,
     })
-    const log = capArtifactLog({ log: sectionsOf(result), header, exitCode: exitCodeOf(result) })
+    const log = capArtifactLog({
+      log: sectionsOf(result),
+      header: null,
+      exitCode: exitCodeOf(result),
+    })
     const durationMs = Date.now() - startedAt
     const failure = failureOf({ result, outDir: build.outDir, timeoutMs })
     if (failure !== null) return { status: 'failed', failure, log, durationMs }

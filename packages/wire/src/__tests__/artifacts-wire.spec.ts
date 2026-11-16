@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
+  ARTIFACT_BUILD_OUTCOMES,
   artifactBuildSchema,
+  artifactBuildOutcomeSchema,
+  artifactBuildStatusInputSchema,
+  artifactBuildStatusOutputSchema,
+  artifactCommitPublishInputSchema,
   artifactGetOutputSchema,
   artifactRouteSchema,
   artifactSummarySchema,
@@ -11,6 +16,7 @@ const ROUTE = {
   artifactId: 'art_1',
   subdomain: 'k7f2m9qxabcd',
   name: 'Dashboard',
+  version: 3,
   serve: { spa: true, notFound: '404.html' },
 }
 
@@ -41,11 +47,21 @@ describe('artifactRouteSchema', () => {
     expect(artifactRouteSchema.parse(route)).toEqual(route)
   })
 
-  it('carries no manifest and no version', () => {
+  it('carries the live version and no manifest', () => {
     const parsed = artifactRouteSchema.parse(ROUTE) as Record<string, unknown>
 
+    expect(parsed.version).toBe(3)
     expect(parsed.manifest).toBeUndefined()
-    expect(parsed.version).toBeUndefined()
+  })
+
+  it('requires the live version', () => {
+    const { version: _version, ...withoutVersion } = ROUTE
+
+    expect(artifactRouteSchema.safeParse(withoutVersion).success).toBe(false)
+  })
+
+  it.each([0, -1, 1.5])('rejects the version %p', (version) => {
+    expect(artifactRouteSchema.safeParse({ ...ROUTE, version }).success).toBe(false)
   })
 
   it('rejects a route without serve rules', () => {
@@ -111,5 +127,76 @@ describe('artifactGetOutputSchema', () => {
     const legacy = { artifact: SUMMARY, versions: [], current: [] }
 
     expect(artifactGetOutputSchema.safeParse(legacy).success).toBe(false)
+  })
+})
+
+describe('artifactCommitPublishInputSchema', () => {
+  it('accepts a commit without a spec', () => {
+    const input = { artifactId: 'art_1', version: 3 }
+
+    expect(artifactCommitPublishInputSchema.parse(input)).toEqual(input)
+  })
+
+  it('accepts a commit carrying the spec an older client still sends', () => {
+    const input = { artifactId: 'art_1', version: 3, spec: { build: { command: 'bun run build' } } }
+
+    expect(artifactCommitPublishInputSchema.parse(input)).toEqual(input)
+  })
+})
+
+describe('artifactBuildStatusInputSchema', () => {
+  it('names the artifact and the version being built', () => {
+    const input = { subdomain: 'k7f2m9qxabcd', version: 3 }
+
+    expect(artifactBuildStatusInputSchema.parse(input)).toEqual(input)
+  })
+
+  it.each([0, -1, 1.5])('rejects the version %p', (version) => {
+    expect(
+      artifactBuildStatusInputSchema.safeParse({ subdomain: 'k7f2m9qxabcd', version }).success,
+    ).toBe(false)
+  })
+})
+
+describe('artifactBuildStatusOutputSchema', () => {
+  const STATUS = {
+    subdomain: 'k7f2m9qxabcd',
+    version: 3,
+    url: 'https://k7f2m9qxabcd.byatlas.site',
+    outcome: 'ready' as const,
+    failure: null,
+    log: 'bun run build\nbuilt in 4.2s',
+    durationMs: 4200,
+    supersededBy: null,
+  }
+
+  it('round-trips the outcome of a finished build', () => {
+    expect(artifactBuildStatusOutputSchema.parse(STATUS)).toEqual(STATUS)
+  })
+
+  it('carries the version that superseded a build', () => {
+    const superseded = {
+      ...STATUS,
+      outcome: 'superseded' as const,
+      durationMs: null,
+      supersededBy: 4,
+    }
+
+    expect(artifactBuildStatusOutputSchema.parse(superseded)).toEqual(superseded)
+  })
+
+  it.each(ARTIFACT_BUILD_OUTCOMES)('accepts the outcome %p', (outcome) => {
+    expect(artifactBuildOutcomeSchema.parse(outcome)).toBe(outcome)
+  })
+
+  it.each(['queued', 'done', 'READY', ''])('rejects the outcome %p', (outcome) => {
+    expect(artifactBuildOutcomeSchema.safeParse(outcome).success).toBe(false)
+    expect(artifactBuildStatusOutputSchema.safeParse({ ...STATUS, outcome }).success).toBe(false)
+  })
+
+  it('rejects a build that is not there at all', () => {
+    expect(
+      artifactBuildStatusOutputSchema.safeParse({ subdomain: 'k7f2m9qxabcd', version: 3 }).success,
+    ).toBe(false)
   })
 })

@@ -1,6 +1,6 @@
-import type { ArtifactSpec } from '@dltech/atlas-artifacts'
 import {
   artifactBeginPublishOutputSchema,
+  artifactBuildStatusOutputSchema,
   artifactCommitPublishOutputSchema,
   artifactListOutputSchema,
   artifactSourceExportOutputSchema,
@@ -18,6 +18,7 @@ import {
   ArtifactPort,
   ArtifactRefused,
   ArtifactUnavailable,
+  type ArtifactBuildStatus,
   type ArtifactEntryInput,
   type ArtifactPublishBegun,
   type ArtifactPublishCommitted,
@@ -28,7 +29,6 @@ const SIGNED_OUT =
   'signing in to Atlas Cloud is what publishes an artifact: Atlas Cloud serves the URL and builds dist/ on its own machines, so a session that runs only on this machine has nowhere to publish to'
 
 const BEGIN_PUBLISH_TIMEOUT_MS = 30_000
-const COMMIT_PUBLISH_TIMEOUT_MS = 120_000
 
 const NOT_FOUND_STATUS = 404
 const REFUSAL_STATUSES: readonly number[] = [400, 409, 422]
@@ -105,20 +105,30 @@ export class CloudArtifactPort extends ArtifactPort {
   async commitPublish(args: {
     artifactId: string
     version: number
-    spec: ArtifactSpec
   }): Promise<ArtifactPublishCommitted> {
-    const client = this.client({ timeoutMs: COMMIT_PUBLISH_TIMEOUT_MS })
+    const client = this.client()
     const body = await this.attempted(() =>
       cloudCall(
         client.artifacts.commitPublish.mutate({
           artifactId: args.artifactId,
           version: args.version,
-          spec: args.spec,
         }),
       ),
     )
     const parsed = artifactCommitPublishOutputSchema.safeParse(body)
     if (!parsed.success) throw malformed('artifacts.commitPublish')
+    return parsed.data
+  }
+
+  async buildStatus(args: { subdomain: string; version: number }): Promise<ArtifactBuildStatus> {
+    const client = this.client()
+    const body = await this.attempted(() =>
+      cloudCall(
+        client.artifacts.buildStatus.query({ subdomain: args.subdomain, version: args.version }),
+      ),
+    )
+    const parsed = artifactBuildStatusOutputSchema.safeParse(body)
+    if (!parsed.success) throw malformed('artifacts.buildStatus')
     return parsed.data
   }
 

@@ -1,11 +1,11 @@
 import type { INestApplication } from '@nestjs/common'
 import { MAX_BYTES_PER_USER, MAX_BYTES_PER_VERSION } from '@dltech/atlas-artifacts'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
+import { afterEach, beforeEach, describe, it } from 'bun:test'
 import { seedSessionUsers } from '../../../test/web-settings.fake-db'
 import { trpcMutation } from '../session-trpc-test-app'
 import { FakeArtifactBlobStore } from './artifact-blob-store.fakes'
-import { buildArtifactsApp, OWNER } from './artifacts.router.fixture'
+import { buildArtifactsApp, FakeArtifactJobDispatcher, OWNER } from './artifacts.router.fixture'
 
 const fullVersion = {
   path: 'index.html',
@@ -21,6 +21,7 @@ describe('ArtifactsRouter per-user ceiling', () => {
   useTestDatabase()
   let app: INestApplication
   const blobs = new FakeArtifactBlobStore()
+  const jobs = new FakeArtifactJobDispatcher()
 
   const begin = (name: string) =>
     trpcMutation({
@@ -33,7 +34,8 @@ describe('ArtifactsRouter per-user ceiling', () => {
   beforeEach(async () => {
     await seedSessionUsers()
     blobs.reset()
-    app = await buildArtifactsApp({ blobs })
+    jobs.reset()
+    app = await buildArtifactsApp({ blobs, jobs })
   })
 
   afterEach(() => app.close())

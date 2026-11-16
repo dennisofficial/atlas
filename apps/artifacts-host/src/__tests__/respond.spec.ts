@@ -39,6 +39,30 @@ describe('respond', () => {
     expect(response.headers.get('content-type')).toBe('text/css; charset=utf-8')
   })
 
+  test('serves the version folder the route object names', async () => {
+    const response = await serveWith({
+      route: routeOf({ version: 7 }),
+      files: [fixtureOf({ path: 'index.html', body: HTML, version: 7 })],
+    })
+
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe(HTML)
+  })
+
+  test('does not read a file left in another version folder', async () => {
+    const stale = fixtureOf({ path: 'index.html', body: '<!doctype html><title>stale</title>' })
+    const stubbed = stubs({ files: [{ ...stale, version: 2 }] })
+    const response = await respond({
+      request: requestOf(),
+      domain: DOMAIN,
+      fetchRoute: stubbed.fetchRoute,
+      fetchObject: stubbed.fetchObject,
+    })
+
+    expect(response.status).toBe(404)
+    expect(stubbed.keys).toEqual([keyOf('index.html')])
+  })
+
   test('serves a hashed asset', async () => {
     const response = await serveWith({ path: '/assets/app-1a2b3c4d.js' })
     expect(response.status).toBe(200)
@@ -178,6 +202,6 @@ describe('respond', () => {
       fetchRoute: stubbed.fetchRoute,
       fetchObject: stubbed.fetchObject,
     })
-    expect(stubbed.keys.every((key) => key.startsWith(`artifacts/${ID}/_route/`))).toBe(true)
+    expect(stubbed.keys.every((key) => key.startsWith(keyOf('')))).toBe(true)
   })
 })

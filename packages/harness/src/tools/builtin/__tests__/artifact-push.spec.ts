@@ -1,78 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
-import { toThreadId, type ToolDefinition, type ToolOutcome } from '@dltech/atlas-core'
 import { sha256Hex } from '@dltech/atlas-artifacts'
 
 import { ArtifactUnavailable } from '../../../artifacts/artifact-port'
-import { PublishArtifactTool } from '../artifact-publish'
 
-import { FakeArtifactPort, FakeFiles, FakeProcesses } from './artifact-fakes'
+import { LINKED, indexHtml, invoke, modelTextOf, reasonOf, rigOf } from './artifact-push-rig'
 
-const LINKED = 'k7f2m9qxabcd'
-
-const indexHtml = '<!doctype html><title>demo</title>'
-const appJs = 'console.log("demo")'
-const exampleEnv = 'TOKEN='
-
-type FetchCall = { url: string; method: string | undefined }
-
-const rigOf = (args?: { paths?: readonly string[]; spec?: unknown; prefix?: string }) => {
-  const prefix = args?.prefix ?? '/ws'
-  const port = new FakeArtifactPort()
-  const files = new FakeFiles()
-  const processes = new FakeProcesses()
-  const calls: FetchCall[] = []
-  const contents = new Map<string, string>([
-    ['/ws/index.html', indexHtml],
-    ['/ws/app.js', appJs],
-    ['/ws/.env', 'SECRET=hunter2'],
-    ['/ws/.env.local', 'SECRET=hunter2'],
-    ['/ws/.env.example', exampleEnv],
-    ['/ws/node_modules/dep/index.js', 'module.exports = 1'],
-    ['/ws/.git/config', '[core]'],
-    ['/ws/untracked-but-present.txt', 'not shipped'],
-  ])
-  for (const [path, content] of contents) {
-    files.put(`${prefix}${path.slice('/ws'.length)}`, content)
-  }
-  if (args?.spec !== undefined) files.put(`${prefix}/artifact.json`, JSON.stringify(args.spec))
-  processes.gitListing(
-    args?.paths ?? [
-      ...(args?.spec === undefined ? [] : ['artifact.json']),
-      'index.html',
-      'app.js',
-      '.env',
-      '.env.local',
-      '.env.example',
-      'node_modules/dep/index.js',
-      '.git/config',
-    ],
-  )
-  const fetchFn = (async (input: string | URL | Request, init?: RequestInit) => {
-    calls.push({ url: String(input), method: init?.method })
-    return new Response(null, { status: 200 })
-  }) as unknown as typeof fetch
-  const tool = new PublishArtifactTool({ port, processes, files, fetchFn })
-  return { port, files, processes, calls, tool }
-}
-
-const invoke = async (input: Record<string, unknown>, tool: ToolDefinition) =>
-  await tool.invoke({
-    input,
-    signal: new AbortController().signal,
-    idempotencyKey: 'k',
-    projectDirectory: '/ws',
-    threadId: toThreadId('thr_1'),
-  } as never)
-
-const modelTextOf = (outcome: ToolOutcome): string => {
-  if (!outcome.ok) throw new Error(outcome.reason)
-  return outcome.modelText
-}
-
-const reasonOf = (outcome: ToolOutcome): string => (outcome.ok ? '' : outcome.reason)
-
-describe('artifact_publish', () => {
+describe('artifact_push', () => {
   it('sends exactly the selected entries with their hashes', async () => {
     const rig = rigOf()
     modelTextOf(await invoke({}, rig.tool))
@@ -131,7 +65,6 @@ describe('artifact_publish', () => {
 
     const paths = rig.port.beginCalls[0]?.entries.map((entry) => entry.path) ?? []
     expect(paths).not.toContain('app.js')
-    expect(rig.port.commitCalls[0]?.spec).toMatchObject({ serve: { spa: true } })
   })
 
   it('asks git for tracked and unignored files in the chosen directory', async () => {
@@ -181,7 +114,7 @@ describe('artifact_publish', () => {
   })
 })
 
-describe('artifact_publish keeps one URL per directory', () => {
+describe('artifact_push keeps one URL per directory', () => {
   it('links an unlinked directory to the artifact its first publish created', async () => {
     const rig = rigOf()
     const text = modelTextOf(await invoke({}, rig.tool))
@@ -209,11 +142,11 @@ describe('artifact_publish keeps one URL per directory', () => {
     expect(rig.files.text('/ws/artifact.json')).toBe(JSON.stringify({ subdomain: LINKED }))
   })
 
-  it('never sends the link as an artifact setting', async () => {
+  it('never sends the spec, because the server reads artifact.json from the pushed source', async () => {
     const rig = rigOf({ spec: { subdomain: LINKED, serve: { spa: true } } })
     modelTextOf(await invoke({}, rig.tool))
 
-    expect(rig.port.commitCalls[0]?.spec).not.toHaveProperty('subdomain')
+    expect(rig.port.commitCalls[0]).toEqual({ artifactId: 'art_1', version: 3 })
   })
 
   it('reads the link from an artifact.json that git does not list', async () => {

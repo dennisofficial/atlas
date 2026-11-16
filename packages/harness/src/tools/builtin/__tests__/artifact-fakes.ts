@@ -1,22 +1,29 @@
 import { FileSystemPort, type FileStat, type FileSystemEntry } from '@dltech/atlas-core'
-import type { ArtifactSummary, ArtifactUpload } from '@dltech/atlas-wire'
+import type { ArtifactBuildOutcome, ArtifactSummary, ArtifactUpload } from '@dltech/atlas-wire'
 
 import {
   ArtifactNotFound,
   ArtifactPort,
+  type ArtifactBuildStatus,
   type ArtifactEntryInput,
   type ArtifactPublishBegun,
   type ArtifactPublishCommitted,
   type ArtifactSourceExport,
 } from '../../../artifacts/artifact-port'
-
 export class FakeArtifactPort extends ArtifactPort {
   readonly beginCalls: {
     subdomain?: string | undefined
     name?: string | undefined
     entries: ArtifactEntryInput[]
   }[] = []
-  readonly commitCalls: { artifactId: string; version: number; spec: unknown }[] = []
+  readonly commitCalls: { artifactId: string; version: number }[] = []
+  readonly buildStatusCalls: { subdomain: string; version: number }[] = []
+  buildOutcome: ArtifactBuildOutcome = 'building'
+  buildFailure: string | null = null
+  buildLog: string | null = null
+  buildDurationMs: number | null = 1_000
+  buildSupersededBy: number | null = null
+  buildStatusFailure: Error | null = null
   readonly unpublishCalls: string[] = []
   readonly beginUploads: ArtifactUpload[] = []
   artifacts: readonly ArtifactSummary[] = []
@@ -50,10 +57,11 @@ export class FakeArtifactPort extends ArtifactPort {
     }
   }
 
+  commitStatus: 'building' | 'failed' = 'building'
+
   async commitPublish(args: {
     artifactId: string
     version: number
-    spec: unknown
   }): Promise<ArtifactPublishCommitted> {
     this.guard()
     this.commitCalls.push(args)
@@ -61,7 +69,23 @@ export class FakeArtifactPort extends ArtifactPort {
       subdomain: 'demo',
       version: args.version,
       url: 'https://demo.artifacts.test',
-      status: 'building',
+      status: this.commitStatus,
+    }
+  }
+
+  async buildStatus(args: { subdomain: string; version: number }): Promise<ArtifactBuildStatus> {
+    this.guard()
+    this.buildStatusCalls.push(args)
+    if (this.buildStatusFailure !== null) throw this.buildStatusFailure
+    return {
+      subdomain: args.subdomain,
+      version: args.version,
+      url: 'https://demo.artifacts.test',
+      outcome: this.buildOutcome,
+      failure: this.buildFailure,
+      log: this.buildLog,
+      durationMs: this.buildDurationMs,
+      supersededBy: this.buildSupersededBy,
     }
   }
 

@@ -17,6 +17,7 @@ export type BuildRow = {
   version: number
   status: string
   manifest: unknown
+  spec: unknown
   bytes: number
   fileCount: number
   log: string | null

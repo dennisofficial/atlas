@@ -6,12 +6,19 @@ export const ID = 'k7f2m9qxabcd'
 export const HOST = `${ID}.byatlas.site`
 export const DOMAIN = 'byatlas.site'
 
-export type Fixture = { path: string; body: string }
+export const VERSION = 3
 
-export const fixtureOf = ({ path, body }: { path: string; body: string }): Fixture => ({
+export type Fixture = { path: string; body: string; version: number }
+
+export const fixtureOf = ({
   path,
   body,
-})
+  version = VERSION,
+}: {
+  path: string
+  body: string
+  version?: number
+}): Fixture => ({ path, body, version })
 
 export const HTML = '<!doctype html><title>dashboard</title>'
 export const APP_JS = 'console.log("app")'
@@ -27,16 +34,22 @@ const FIXTURES: Fixture[] = [
   fixtureOf({ path: 'style.css', body: STYLE_CSS }),
 ]
 
-export const keyOf = (path: string): string => `artifacts/${ID}/_route/${path}`
+export const keyOf = (path: string): string => keyOfVersion({ path, version: VERSION })
+
+export const keyOfVersion = ({ path, version }: { path: string; version: number }): string =>
+  `artifacts/${ID}/_route/v${version}/${path}`
 
 export const routeOf = ({
   serve = { spa: false },
+  version = VERSION,
 }: {
   serve?: RouteObject['serve']
+  version?: number
 } = {}): RouteObject => ({
   artifactId: 'art_1',
   subdomain: ID,
   name: 'Dashboard',
+  version,
   serve,
 })
 
@@ -52,7 +65,12 @@ export const stubs = ({
   labels: string[]
   keys: string[]
 } => {
-  const store = new Map(files.map((fixture) => [keyOf(fixture.path), fixture.body]))
+  const store = new Map(
+    files.map((fixture) => [
+      keyOfVersion({ path: fixture.path, version: fixture.version }),
+      fixture.body,
+    ]),
+  )
   const labels: string[] = []
   const keys: string[] = []
   const resolved = route === undefined ? routeOf() : route

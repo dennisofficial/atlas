@@ -25,10 +25,10 @@ const inputSchema = z.strictObject({
 })
 
 const description = [
-  'Restore the source of a published artifact into a directory, so you can read, edit and publish it again.',
-  'This writes the artifact source files as they were published at its current version; it is that source, not a copy of any built output.',
+  'Restore the source last pushed to an artifact into a directory, so you can read, edit and push it again.',
+  "This writes the source as it was pushed and never the artifact's build output: the server makes that from artifact.json's build block, which says how to reproduce it.",
   'It refuses a directory that already holds files unless force is true, and force overwrites the files it restores.',
-  'The restored artifact.json links the directory to this artifact, so publishing from it keeps the same URL.',
+  'The restored artifact.json links the directory to this artifact, so pushing from it keeps the same URL.',
   'Dependencies are not restored, so run bun install before the code will run.',
   pathEnvironmentNote,
 ].join(' ')
@@ -118,7 +118,7 @@ export class PullArtifactTool extends SchemaTool<typeof inputSchema> {
         output: { subdomain: input.subdomain, dir: dir.path, files: exported.entries.length },
         modelText: [
           `Restored ${exported.entries.length} source files of ${input.subdomain} into ${dir.path}.`,
-          `This is the editable source, and ${file.path} links it to ${input.subdomain}, so publishing again from here ships what you change to the same URL; dependencies are not part of it, so run bun install before the code runs.`,
+          `This is the editable source, and ${file.path} links it to ${input.subdomain}, so pushing again from here ships what you change to the same URL; it is never the build output, which the server makes from the build block in artifact.json. Dependencies are not part of it, so run bun install before the code runs.`,
         ].join('\n\n'),
       }
     } catch (error) {

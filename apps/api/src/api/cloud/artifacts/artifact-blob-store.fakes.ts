@@ -8,11 +8,17 @@ export class FakeArtifactBlobStore extends ArtifactBlobStore {
   readonly stored = new Map<string, { body: string | Buffer; contentType: string }>()
   readonly requestedUploads: string[] = []
   readonly deleted: string[] = []
+  private putHook: ((args: { pathname: string }) => Promise<void>) | null = null
 
   reset(): void {
     this.stored.clear()
     this.requestedUploads.length = 0
     this.deleted.length = 0
+    this.putHook = null
+  }
+
+  beforePut(hook: (args: { pathname: string }) => Promise<void>): void {
+    this.putHook = hook
   }
 
   seed(args: { pathname: string; body?: string }): void {
@@ -43,6 +49,7 @@ export class FakeArtifactBlobStore extends ArtifactBlobStore {
     contentType: string
     allowOverwrite: boolean
   }): Promise<void> {
+    if (this.putHook !== null) await this.putHook({ pathname: args.pathname })
     if (!args.allowOverwrite && this.stored.has(args.pathname)) {
       throw new Error(`blob already exists: ${args.pathname}`)
     }

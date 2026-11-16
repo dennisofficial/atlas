@@ -88,6 +88,9 @@ const lineOf = (event: Event): string | undefined => {
   if (event.type === 'run-event') {
     return `workflow run #${event.workflowRunId}: ${event.conclusion}`
   }
+  if (event.type === 'artifact-build-event') {
+    return `artifact ${event.subdomain} v${event.version}: ${event.outcome}`
+  }
   return undefined
 }
 

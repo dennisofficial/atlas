@@ -1,8 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { sourcePrefixOf } from '@dltech/atlas-artifacts'
 import { db } from '@dltech/atlas-db'
-import type {
-  ArtifactGetOutput,
+import {
+  artifactBuildOutcomeSchema,
+  type ArtifactBuildOutcome,
+  type ArtifactBuildStatusOutput,
+  type ArtifactGetOutput,
   ArtifactListOutput,
   ArtifactSourceExportOutput,
   ArtifactSummary,
@@ -10,9 +13,21 @@ import type {
 import { EnvService } from '../../../_core/config/env/env.service'
 import { ArtifactBlobStore } from './artifact-blob-store'
 import { buildOf, summaryOf, type ArtifactRow } from './artifact-rows'
-import { buildRowOf, ownedArtifact, urlOf } from './artifact-repository'
+import { buildRowOf, buildRowOfVersion, ownedArtifact, urlOf } from './artifact-repository'
 
 export const DOWNLOAD_TTL_MS = 60 * 60 * 1000
+
+export const ARTIFACT_BUILD_STALE_MS = 40 * 60 * 1000
+
+export const STALE_BUILD_FAILURE = 'the build job stopped without reporting a result'
+
+const isStale = (row: { status: string; createdAt: Date }): boolean =>
+  row.status === 'building' && Date.now() - row.createdAt.getTime() > ARTIFACT_BUILD_STALE_MS
+
+const outcomeOf = (status: string): ArtifactBuildOutcome => {
+  const parsed = artifactBuildOutcomeSchema.safeParse(status)
+  return parsed.success ? parsed.data : 'failed'
+}
 
 @Injectable()
 export class ArtifactLibraryService {
@@ -44,6 +59,49 @@ export class ArtifactLibraryService {
     return {
       artifact: summaryOf({ artifact, build, url: this.urlOf(artifact) }),
       build: buildOf({ artifact, build }),
+    }
+  }
+
+  async buildStatus(args: {
+    userId: string
+    subdomain: string
+    version: number
+  }): Promise<ArtifactBuildStatusOutput> {
+    const artifact = await ownedArtifact(args)
+    const row = await buildRowOfVersion({ artifactId: artifact.id, version: args.version })
+    const newer = artifact.currentVersion > args.version ? artifact.currentVersion : null
+    const base = { subdomain: artifact.subdomain, version: args.version, url: this.urlOf(artifact) }
+    if (row === null) {
+      if (newer === null) {
+        throw new NotFoundException(`${args.subdomain} has no version ${args.version}`)
+      }
+      return {
+        ...base,
+        outcome: 'superseded',
+        failure: null,
+        log: null,
+        durationMs: null,
+        supersededBy: newer,
+      }
+    }
+    if (isStale(row)) {
+      return {
+        ...base,
+        outcome: 'failed',
+        failure: STALE_BUILD_FAILURE,
+        log: row.log,
+        durationMs: null,
+        supersededBy: null,
+      }
+    }
+    const outcome = outcomeOf(row.status)
+    return {
+      ...base,
+      outcome,
+      failure: row.failure,
+      log: row.log,
+      durationMs: row.durationMs,
+      supersededBy: outcome === 'superseded' ? newer : null,
     }
   }
 

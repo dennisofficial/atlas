@@ -35,7 +35,7 @@ describe('artifact_list', () => {
   it('renders an empty state rather than an empty table', async () => {
     const text = modelTextOf(await invoke({}, new ListArtifactsTool(new FakeArtifactPort())))
 
-    expect(text).toContain('published no artifacts')
+    expect(text).toContain('pushed no artifacts')
     expect(text).not.toContain('|')
   })
 

@@ -1,7 +1,5 @@
 import type { SandboxCredentials } from '../../../_core/ports/sandbox-credentials'
 
-export const ARTIFACT_BUILD_CLAMP_MS = 180_000
-
 export const ARTIFACT_WORKSPACE = '/workspace'
 
 export const ARTIFACT_SANDBOX_STOP_TIMEOUT_MS = 30_000

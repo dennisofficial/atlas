@@ -13,6 +13,7 @@ import type { CallId, ThreadId } from './ids'
 import type { NoticeStamp } from './notice-stage'
 import type { RunFailure } from './run-failure'
 import type { AgentEventBody } from './agent-body'
+import type { ArtifactBuildEventBody } from './artifact-build-body'
 import type { PolicyEventBody } from './policy-body'
 import type { PrEventBody } from './pr-body'
 import type { RunEventBody } from './run-body'
@@ -232,6 +233,7 @@ export type EventBody =
   | SubscriptionEventBody
   | PrEventBody
   | RunEventBody
+  | ArtifactBuildEventBody
   | DiagramRepairedBody
   | {
       type: 'service-started'

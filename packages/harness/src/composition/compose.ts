@@ -16,6 +16,8 @@ import { AgentRegistryPort } from '../agents/registry/port'
 import { OperatorInputPort } from '../operator-input/port'
 import { createDeltaChannel } from '../channel/delta-channel'
 import { createHarnessContainer } from '../container/create-harness-container'
+import { createArtifactBuildProvider } from '../artifacts/artifact-build-provider'
+import { ArtifactPort } from '../artifacts/artifact-port'
 import { registeredPortToken, type DependencyContainer } from '../container/injection'
 import {
   ClientVersionToken,
@@ -264,9 +266,16 @@ export async function composeHarness<
     log,
     projections: plugins.projections,
   })
+  const artifactBuildProviders = container.isRegistered(registeredPortToken(ArtifactPort), true)
+    ? [
+        createArtifactBuildProvider({
+          port: container.resolve(registeredPortToken(ArtifactPort)),
+        }),
+      ]
+    : []
   const subscriptions = await bindSubscriptions({
     container,
-    providers: plugins.subscriptionProviders,
+    providers: [...plugins.subscriptionProviders, ...artifactBuildProviders],
     launchThreadId: launch.threadId,
   })
   const ids = container.resolve(registeredPortToken(IdPort))
