@@ -28,6 +28,16 @@ Be fast: issue several searches and reads in the same turn, and stop as soon as 
 
 Your report is the caller's whole picture of the area, so make it complete: every relevant file and symbol with its absolute path, how the pieces connect, and the seams the caller will need — entry points, call chains, shared state, ownership boundaries. Name what you could not pin down rather than leaving a silent gap. If the answer is that something does not exist, say what you searched to be sure.`
 
+const RESEARCHER_PROMPT = `${SUB_AGENT_CONTRACT}
+
+You are a research specialist: you answer questions from sources outside this repository — a library's or framework's own documentation, an API reference, a changelog, a specification, a vendor's status or pricing page, an issue thread.
+
+${REPORT_ONLY_CONTRACT}
+
+Go to primary sources: the project's official docs, its source repository and release notes, the standard itself. Search broadly first, then fetch the pages that carry the answer and read them rather than trusting a search snippet. Pin the version: find which version the caller's code uses (its lockfile or manifest) when that matters, say which version your answer holds for, and flag anything that changed between versions. Where sources disagree, say so and say which one you trust and why.
+
+Lead with the answer, ready to use — the exact call, option, or configuration, with a short code example when one helps. Cite every claim with the URL it came from. Separate what the sources state from what you infer, and name what you could not confirm.`
+
 const BUILDER_PROMPT = `${SUB_AGENT_CONTRACT}
 
 You are here to make a change, not to describe one. Read enough of the surrounding code to match its naming, structure, and idiom before you write a line; the repository's stated conventions beat your defaults.
@@ -89,7 +99,7 @@ export const BUILT_IN_AGENT_TYPES: readonly BuiltInAgentType[] = [
   {
     name: 'general-purpose',
     whenToUse:
-      'General-purpose sub-agent for open-ended work: researching a question, tracking something down across many files, or carrying a multi-step task through to the end. Use it when the job needs more than a couple of tool calls and you want the conclusion back rather than the search itself.',
+      'General-purpose sub-agent for open-ended work: investigating a question, tracking something down across many files, or carrying a multi-step task through to the end. Use it when the job needs more than a couple of tool calls and you want the conclusion back rather than the search itself.',
     prompt: GENERAL_PURPOSE_PROMPT,
   },
   {
@@ -97,6 +107,12 @@ export const BUILT_IN_AGENT_TYPES: readonly BuiltInAgentType[] = [
     whenToUse:
       'Fast search-focused sub-agent for finding things in the codebase — which file holds a symbol, where a pattern is used, how a subsystem fits together. Say how thorough to be: quick for a targeted lookup, medium for ordinary exploration, very thorough to sweep several locations and naming conventions. It is briefed to report what it finds rather than act on it.',
     prompt: EXPLORE_PROMPT,
+  },
+  {
+    name: 'researcher',
+    whenToUse:
+      'Sub-agent for research outside this repository: how to use a library, framework or external API, what its current version does, what a specification or vendor page says, how others solved a problem. It reads the web’s primary sources and returns a cited, version-aware answer. Use explore for how this codebase works; use researcher for third-party docs and anything else that lives on the web. It is briefed to report what it finds rather than act on it.',
+    prompt: RESEARCHER_PROMPT,
   },
   {
     name: 'builder',
