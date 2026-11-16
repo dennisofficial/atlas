@@ -873,6 +873,7 @@
         "zod": "^4.4.3",
       },
       "devDependencies": {
+        "@dltech/atlas-protocol": "workspace:*",
         "@types/bun": "latest",
       },
     },

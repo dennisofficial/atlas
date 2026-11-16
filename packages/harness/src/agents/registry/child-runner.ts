@@ -28,13 +28,7 @@ import { ObservingToolDispatcher } from '../../tools/observing-dispatcher'
 import { HookedToolDispatcher } from '../../tools/dispatch'
 import { QualityStage } from '../../tools/quality-dispatch'
 import { filteredToolRegistry, type ToolRegistry } from '../../tools/registry'
-import {
-  AGENT_TOOL_NAMES,
-  isTeammateType,
-  TEAMMATE_AGENT_TYPE,
-  toolRegistryFor,
-  type AgentType,
-} from '../types'
+import { AGENT_TOOL_NAMES, isTeammateType, TEAMMATE_AGENT_TYPE, type AgentType } from '../types'
 import type { TelemetryPort } from '@dltech/atlas-observability'
 
 export type ChildRunnerDeps = {
@@ -199,10 +193,7 @@ export async function buildChildRunner({
   steering,
 }: ChildRunnerRequest & { deps: ChildRunnerDeps }): Promise<TurnRunner> {
   await deps.hydratePlacement?.({ threadId })
-  const narrowed = filteredToolRegistry({
-    registry: toolRegistryFor({ registry: deps.tools, agentType }),
-    deny: deniedFor(agentType),
-  })
+  const narrowed = filteredToolRegistry({ registry: deps.tools, deny: deniedFor(agentType) })
   const registry = isTeammateType(agentType.name)
     ? withoutSpawnableListing({ registry: narrowed, hidden: [TEAMMATE_AGENT_TYPE] })
     : narrowed

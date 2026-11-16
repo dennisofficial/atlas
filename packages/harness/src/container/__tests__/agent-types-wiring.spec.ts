@@ -6,7 +6,6 @@ import { AgentRegistryPort } from '../../agents/registry/port'
 import {
   AGENT_SPAWN_TOOL_NAME,
   EAgentTypeRefusal,
-  TEAMMATE_AGENT_TYPE,
   type AgentType,
   type AgentTypeSource,
 } from '../../agents/types'
@@ -152,7 +151,7 @@ describe('agent types loaded from a directory', () => {
     expect(spawnDescription(container)).toContain('- explore: search the way I like it')
   })
 
-  it('cannot grant itself agent_spawn, however the file asks', async () => {
+  it('loads a file that asks for tools, ignoring the lines rather than narrowing to them', async () => {
     const container = await harnessContainer()
 
     await bindAgentTypes({
@@ -174,15 +173,10 @@ describe('agent types loaded from a directory', () => {
       ],
     })
 
-    const types = spawnableTypes(container)
-    const recursive = types.find((agentType) => agentType.name === 'recursive')
-    expect(recursive?.tools).toEqual(['read'])
-    expect(recursive?.disallowedTools).toEqual([AGENT_SPAWN_TOOL_NAME])
-
-    for (const agentType of types) {
-      if (agentType.name === TEAMMATE_AGENT_TYPE) continue
-      expect(agentType.disallowedTools).toContain(AGENT_SPAWN_TOOL_NAME)
-    }
+    const recursive = spawnableTypes(container).find((agentType) => agentType.name === 'recursive')
+    expect(recursive?.prompt).toBe('Prompt.')
+    expect(Object.keys(recursive ?? {})).not.toContain('tools')
+    expect(Object.keys(recursive ?? {})).not.toContain('disallowedTools')
   })
 
   it('reaches nothing once the agent registry has already been resolved', async () => {

@@ -1,7 +1,7 @@
 import { EDefinitionOrigin } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
-import { AGENT_SPAWN_TOOL_NAME, type AgentType } from '../agent-type'
+import type { AgentType } from '../agent-type'
 import { EmbeddedAgentTypeSource } from '../embedded-source'
 import { loadAgentTypes } from '../registry'
 
@@ -54,32 +54,11 @@ describe('the built-in agent types', () => {
     }
   })
 
-  it('denies agent_spawn to every built-in sub-agent, so a child cannot spawn its own children', async () => {
+  it('carries no tool narrowing: every built-in runs on the child runner’s structural denies', async () => {
     for (const agentType of await load()) {
-      if (agentType.name === 'teammate') continue
-      expect(agentType.disallowedTools).toContain(AGENT_SPAWN_TOOL_NAME)
-      expect(agentType.tools ?? []).not.toContain(AGENT_SPAWN_TOOL_NAME)
-    }
-  })
-
-  it('denies nothing to the teammate: it runs sub-agents of its own, and the spawn listing it is shown never mentions teammates', async () => {
-    const teammate = await named('teammate')
-
-    expect(teammate.disallowedTools).toBeUndefined()
-    expect(teammate.tools).toBeUndefined()
-  })
-
-  it('narrows no built-in, so every one has the capabilities of the agent that spawned it', async () => {
-    for (const agentType of await load()) {
-      expect(agentType.tools).toBeUndefined()
-      expect(agentType.maxEffect).toBeUndefined()
-    }
-  })
-
-  it('denies nothing but the spawn tool to the sub-agents', async () => {
-    for (const agentType of await load()) {
-      if (agentType.name === 'teammate') continue
-      expect(agentType.disallowedTools).toEqual([AGENT_SPAWN_TOOL_NAME])
+      expect(Object.keys(agentType)).not.toContain('tools')
+      expect(Object.keys(agentType)).not.toContain('disallowedTools')
+      expect(Object.keys(agentType)).not.toContain('maxEffect')
     }
   })
 

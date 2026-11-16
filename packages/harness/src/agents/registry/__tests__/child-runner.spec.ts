@@ -6,6 +6,7 @@ import { z } from 'zod'
 import {
   defaultPipeline,
   EAgentStatus,
+  EDefinitionOrigin,
   EAssistantPlaceholder,
   EMPTY_PROMPT,
   EToolEffect,
@@ -24,7 +25,7 @@ import { scriptedModel, type ScriptedStep } from '../../../model/testing/scripte
 import { AtlasIdentityFragment } from '../../../prompt/fragments/identity'
 import { InMemoryPromptRegistry } from '../../../prompt/registry'
 import { InMemoryToolRegistry } from '../../../tools/registry'
-import { AGENT_TOOL_NAMES, WORKTREE_TOOL_NAMES, toolRegistryFor, type AgentType } from '../../types'
+import { AGENT_TOOL_NAMES, WORKTREE_TOOL_NAMES, parseAgentType, type AgentType } from '../../types'
 import { childRunnerSource } from '../child-runner'
 import { subAgentPrompt } from '../child-prompt'
 import { AgentSupervisor } from '../supervisor'
@@ -226,14 +227,6 @@ describe('a child whose model keeps dropping its replies', () => {
 describe("a child's tools", () => {
   it('refuses agent_spawn by name for a type built in code, which the loader never saw', async () => {
     const agentType = agentTypeNamed({ name: 'builder' })
-    expect(agentType.disallowedTools).toBeUndefined()
-    expect(
-      toolRegistryFor({
-        registry: new InMemoryToolRegistry([toolNamed('agent_spawn')]),
-        agentType,
-      }).find('agent_spawn'),
-    ).toBeDefined()
-
     const spawned = await spawn({
       script: [
         { calls: [{ callId: 'call_spawn', name: 'agent_spawn', input: {} }] },
@@ -316,7 +309,7 @@ describe("a child's tools", () => {
     ])
   })
 
-  it('is otherwise the whole set, narrowed by the type and by nothing else', async () => {
+  it('is the whole set minus the denials, since a type narrows nothing', async () => {
     const spawned = await spawn({
       script: [{ text: 'nothing to do' }],
       agentType: agentTypeNamed({ name: 'builder' }),
@@ -329,14 +322,34 @@ describe("a child's tools", () => {
     ])
   })
 
-  it('honours the allow-list its type declares', async () => {
+  it('hands a Claude Code style file every tool, ignoring the tool lines it carries', async () => {
+    const parsed = parseAgentType({
+      text: [
+        '---',
+        'name: security-reviewer',
+        'description: reviews the diff for security bugs',
+        'tools: Read, Grep, Glob, Bash',
+        'disallowed-tools: Write',
+        'max-effect: readonly',
+        '---',
+        'Review the diff.',
+      ].join('\n'),
+      fallbackName: 'security-reviewer',
+      origin: EDefinitionOrigin.Project,
+    })
+    if (!parsed.ok) throw new Error(parsed.detail)
+
     const spawned = await spawn({
       script: [{ text: 'nothing to do' }],
-      agentType: agentTypeNamed({ name: 'explore', tools: ['read'] }),
-      tools: [toolNamed('agent_spawn'), toolNamed('read'), toolNamed('write')],
+      agentType: parsed.agentType,
+      tools: [toolNamed('read'), toolNamed('bash'), toolNamed('write')],
     })
 
-    expect(spawned.model.doStreamCalls[0]?.tools?.map((tool) => tool.name)).toEqual(['read'])
+    expect(spawned.model.doStreamCalls[0]?.tools?.map((tool) => tool.name)).toEqual([
+      'read',
+      'bash',
+      'write',
+    ])
   })
 })
 

@@ -24,7 +24,6 @@ export {
   type MarkdownFile,
   type UnreadableMarkdown,
 } from './directory-source'
-export { toolRegistryFor } from './tool-access'
 export {
   EMPTY_AGENT_TYPE_CATALOG,
   loadAgentTypes,

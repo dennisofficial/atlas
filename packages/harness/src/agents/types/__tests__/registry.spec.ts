@@ -35,14 +35,10 @@ const sourceOf = (args: {
   files: readonly { name: string; text: string }[]
 }): AgentTypeSource => new FakeAgentTypeSource(args)
 
-const definition = (args: { description?: string; tools?: string; body?: string }): string =>
-  [
-    '---',
-    `description: ${args.description ?? 'do things'}`,
-    ...(args.tools === undefined ? [] : [`tools: ${args.tools}`]),
-    '---',
-    args.body ?? 'Prompt.',
-  ].join('\n')
+const definition = (args: { description?: string; body?: string }): string =>
+  ['---', `description: ${args.description ?? 'do things'}`, '---', args.body ?? 'Prompt.'].join(
+    '\n',
+  )
 
 describe('loadAgentTypes', () => {
   it('merges every source when no name collides', async () => {
@@ -96,63 +92,25 @@ describe('loadAgentTypes', () => {
     expect(loaded[0]?.prompt).toBe('user prompt')
   })
 
-  it('never grants agent_spawn, however a definition asks for it', async () => {
-    const { types: loaded } = await loadAgentTypes({
-      sources: [
-        sourceOf({
-          origin: EDefinitionOrigin.Project,
-          files: [
-            { name: 'recursive.md', text: definition({ tools: `read, ${AGENT_SPAWN_TOOL_NAME}` }) },
-          ],
-        }),
-      ],
-    })
-
-    expect(loaded[0]?.tools).toEqual(['read'])
-    expect(loaded[0]?.disallowedTools).toEqual([AGENT_SPAWN_TOOL_NAME])
-  })
-
-  it('denies agent_spawn to an agent type that inherits every tool', async () => {
-    const { types: loaded } = await loadAgentTypes({
-      sources: [
-        sourceOf({
-          origin: EDefinitionOrigin.Project,
-          files: [{ name: 'wide.md', text: definition({ tools: '*' }) }],
-        }),
-      ],
-    })
-
-    expect(loaded[0]?.tools).toBeUndefined()
-    expect(loaded[0]?.disallowedTools).toEqual([AGENT_SPAWN_TOOL_NAME])
-  })
-
-  it('leaves an agent type asking only for agent_spawn with no tools at all', async () => {
-    const { types: loaded } = await loadAgentTypes({
-      sources: [
-        sourceOf({
-          origin: EDefinitionOrigin.Project,
-          files: [{ name: 'greedy.md', text: definition({ tools: AGENT_SPAWN_TOOL_NAME }) }],
-        }),
-      ],
-    })
-
-    expect(loaded[0]?.tools).toEqual([])
-  })
-
-  it('keeps a declared denial alongside the agent_spawn denial, without duplicating it', async () => {
+  it('ignores the tool lines a definition carries, since a type never narrows a tool set', async () => {
     const text = [
       '---',
       'description: do things',
-      `disallowed-tools: write, ${AGENT_SPAWN_TOOL_NAME}`,
+      `tools: read, ${AGENT_SPAWN_TOOL_NAME}`,
+      'disallowed-tools: write',
+      'max-effect: read',
       '---',
       'Prompt.',
     ].join('\n')
 
     const { types: loaded } = await loadAgentTypes({
-      sources: [sourceOf({ origin: EDefinitionOrigin.User, files: [{ name: 'safe.md', text }] })],
+      sources: [sourceOf({ origin: EDefinitionOrigin.User, files: [{ name: 'narrow.md', text }] })],
     })
 
-    expect(loaded[0]?.disallowedTools).toEqual(['write', AGENT_SPAWN_TOOL_NAME])
+    expect(loaded[0]?.prompt).toBe('Prompt.')
+    expect(Object.keys(loaded[0] ?? {})).not.toContain('tools')
+    expect(Object.keys(loaded[0] ?? {})).not.toContain('disallowedTools')
+    expect(Object.keys(loaded[0] ?? {})).not.toContain('maxEffect')
   })
 
   it('records which definition a winner displaced, so a shadow is visible rather than a mystery', async () => {
