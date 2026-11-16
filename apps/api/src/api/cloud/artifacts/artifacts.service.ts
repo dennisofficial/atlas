@@ -50,7 +50,7 @@ const EMPTY_SPEC_HASH = specHash(parseSpec({}))
 const logger = new Logger('ArtifactsService')
 
 export const SERVER_BUILD_GONE =
-  'This Atlas version pushes without building. Restart the session to update Atlas, then push again; the new artifact_push builds in the session.'
+  'This Atlas version pushes without building, and a session keeps the Atlas version it started with. Start a new session and push from there; its artifact_push builds in the session. artifact_pull works from this session.'
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
