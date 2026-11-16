@@ -1,11 +1,12 @@
 import { createServer } from 'node:http'
 import { join } from 'node:path'
 
-import { app, BrowserWindow, ipcMain, WebContentsView, shell } from 'electron'
+import { app, BrowserWindow, clipboard, ipcMain, Menu, WebContentsView, shell } from 'electron'
 // electron-updater ships CommonJS and builds `autoUpdater` behind a getter, so it is read here
 // rather than destructured by the ESM loader.
 import electronUpdater from 'electron-updater'
 
+import { contextMenuTemplate } from './context-menu.js'
 import { hostEnvironment, resolveBun, resolveHostScript, webRootAt } from './host-paths.js'
 import { externalUrlOf, sameOrigin } from './links.js'
 import { startHost } from './host-process.js'
@@ -121,6 +122,21 @@ function denyWindow(url) {
   return { action: 'deny' }
 }
 
+function attachContextMenu({ win, contents }) {
+  contents.on('context-menu', (_event, params) => {
+    const template = contextMenuTemplate({
+      params,
+      openLink: openInBrowser,
+      copyText: (text) => clipboard.writeText(text),
+      copyImage: ({ x, y }) => contents.copyImageAt(x, y),
+      replaceMisspelling: (word) => contents.replaceMisspelling(word),
+      learnSpelling: (word) => contents.session.addWordToSpellCheckerDictionary(word),
+    })
+    if (template.length === 0) return
+    Menu.buildFromTemplate(template).popup({ window: win })
+  })
+}
+
 async function createWindow() {
   const win = new BrowserWindow({
     width: WINDOW_WIDTH,
@@ -138,6 +154,7 @@ async function createWindow() {
   win.on('enter-full-screen', () => win.webContents.send(FULLSCREEN_STATE, true))
   win.on('leave-full-screen', () => win.webContents.send(FULLSCREEN_STATE, false))
   win.webContents.setWindowOpenHandler(({ url }) => denyWindow(url))
+  attachContextMenu({ win, contents: win.webContents })
 
   const panes = createPaneRegistry({
     create: () => {
@@ -149,6 +166,7 @@ async function createWindow() {
         void view.webContents.loadURL(url)
         return { action: 'deny' }
       })
+      attachContextMenu({ win, contents: view.webContents })
       win.contentView.addChildView(view)
       view.setVisible(false)
       return view
