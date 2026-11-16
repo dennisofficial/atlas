@@ -35,7 +35,7 @@ const foldWithRebuilds = (events: readonly V2Event[]): SessionViewState => {
 
 const inputs = fc.record({
   live: fc.boolean(),
-  unconsumedInbox: fc.boolean(),
+  queuedSince: fc.constantFrom(null, NOW),
   messageAfterFailure: fc.constantFrom(undefined, true, false),
 })
 
@@ -149,7 +149,7 @@ describe('session view fold against the whole-log oracles', () => {
         const split = eventsOf(head).length
         const state = foldWithRebuilds(events.slice(0, split))
         const restored: SessionViewState = JSON.parse(JSON.stringify(state))
-        const args = { live: true, unconsumedInbox: false, messageAfterFailure: false, now: NOW }
+        const args = { live: true, queuedSince: null, messageAfterFailure: false, now: NOW }
         expect(sessionViewOf({ state: restored, ...args })).toEqual(
           sessionViewOf({ state, ...args }),
         )
@@ -172,7 +172,7 @@ describe('history edits', () => {
 
   it('leaves spend unchanged by a rewind to seq 0 while the meter drops', () => {
     const events = eventsOf(ops)
-    const args = { live: true, unconsumedInbox: false, messageAfterFailure: false, now: NOW }
+    const args = { live: true, queuedSince: null, messageAfterFailure: false, now: NOW }
     const before = sessionViewOf({ state: foldWithRebuilds(events.slice(0, 2)), ...args })
     const after = sessionViewOf({ state: foldWithRebuilds(events), ...args })
     expect(after.spend).toEqual(before.spend)
@@ -199,7 +199,7 @@ describe('history edits', () => {
       const view = sessionViewOf({
         state: foldWithRebuilds(events),
         live: false,
-        unconsumedInbox: false,
+        queuedSince: null,
         messageAfterFailure: undefined,
         now: NOW,
       })
@@ -224,7 +224,7 @@ describe('context meter nullability', () => {
     const view = sessionViewOf({
       state: initialSessionViewState,
       live: true,
-      unconsumedInbox: false,
+      queuedSince: null,
       messageAfterFailure: false,
       now: NOW,
     })
@@ -239,7 +239,7 @@ describe('context meter nullability', () => {
     const view = sessionViewOf({
       state: foldWithRebuilds(events),
       live: true,
-      unconsumedInbox: false,
+      queuedSince: null,
       messageAfterFailure: false,
       now: NOW,
     })
@@ -258,7 +258,7 @@ describe('context meter nullability', () => {
     const view = sessionViewOf({
       state: foldWithRebuilds(events),
       live: true,
-      unconsumedInbox: false,
+      queuedSince: null,
       messageAfterFailure: false,
       now: NOW,
     })

@@ -45,7 +45,7 @@ Severity key: **S** = stuck session (no progress and no way out for the user unt
 - `sessionsNeedingHolder` only returns sessions whose holder presence lock is absent, or with no holder (`packages/control/src/postgres/postgres-needing-holder.ts:11-16`). A live host is never "absent".
 - Nothing audits "leases I hold versus sessions I run".
 
-**What the user sees.** A `run-failed` event gives the status "failed". The next message flips it to "sent" (`sessionStatusOf`, `packages/core/src/record/session-status.ts:~87-155`, the `unconsumedInbox` branch), and it stays there. It is freed only by a deploy or host death (presence loss), at which point the ring wakes it.
+**What the user sees.** A `run-failed` event gives the status "failed". The next message flips it to "queued" (`sessionStatusOf`, `packages/core/src/record/session-status.ts:~87-155`, the `queuedSince` branch), and it stays there. It is freed only by a deploy or host death (presence loss), at which point the ring wakes it.
 
 **Not covered by an existing test.** The `holder-*.spec.ts` files cover a late read failing (`holder-idle.spec.ts:67`) and startup failure, not a turn throw or a failed `revoke` or `sandbox.stop`.
 

@@ -12,7 +12,7 @@ const EXPECTED: Record<ESessionStatus, EThreadStatus> = {
   [ESessionStatus.WaitingForCredentials]: EThreadStatus.Awaiting,
   [ESessionStatus.WaitingForOperator]: EThreadStatus.Awaiting,
   [ESessionStatus.Preparing]: EThreadStatus.Starting,
-  [ESessionStatus.Sent]: EThreadStatus.Running,
+  [ESessionStatus.Queued]: EThreadStatus.Idle,
   [ESessionStatus.Thinking]: EThreadStatus.Running,
   [ESessionStatus.RunningTool]: EThreadStatus.Running,
   [ESessionStatus.WaitingToRetry]: EThreadStatus.Running,

@@ -2,7 +2,7 @@ export enum ESessionStatus {
   Preparing = 'preparing',
   SetupFailed = 'setup-failed',
   StartFailed = 'start-failed',
-  Sent = 'sent',
+  Queued = 'queued',
   Thinking = 'thinking',
   RunningTool = 'running-tool',
   WaitingToRetry = 'waiting-to-retry',

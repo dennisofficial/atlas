@@ -75,14 +75,14 @@ export const rebuildEditSensitive = (args: {
 export const sessionViewOf = (args: {
   state: SessionViewState
   live: boolean
-  unconsumedInbox: boolean
+  queuedSince: string | null
   messageAfterFailure?: boolean | undefined
   now: string
 }): SessionViewValue => ({
   status: deriveStatus({
     facts: args.state.facts,
     live: args.live,
-    unconsumedInbox: args.unconsumedInbox,
+    queuedSince: args.queuedSince,
     messageAfterFailure: args.messageAfterFailure,
     now: args.now,
   }),

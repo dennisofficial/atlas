@@ -60,15 +60,20 @@ const openTurnStatus = (args: {
 export function deriveStatus(args: {
   facts: StatusFacts
   live: boolean
-  unconsumedInbox: boolean
+  queuedSince: string | null
   messageAfterFailure?: boolean | undefined
   now: string
 }): SessionStatus {
   const { facts } = args
 
+  const queued: SessionStatus =
+    args.queuedSince === null
+      ? { state: ESessionStatus.Queued }
+      : { state: ESessionStatus.Queued, since: args.queuedSince }
+
   const startFailure = facts.startFailure
   if (startFailure !== null) {
-    if (args.messageAfterFailure === true) return { state: ESessionStatus.Sent }
+    if (args.messageAfterFailure === true) return queued
     return {
       state: ESessionStatus.StartFailed,
       reason: startFailure.reason,
@@ -82,7 +87,7 @@ export function deriveStatus(args: {
       : workspaceStatusOf({ facts, messageAfterFailure: args.messageAfterFailure })
   if (workspace !== undefined) return workspace
 
-  if (args.unconsumedInbox) return { state: ESessionStatus.Sent }
+  if (args.queuedSince !== null) return queued
 
   const failed = facts.unfinishedFailure
   if (failed !== null) {

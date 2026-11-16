@@ -73,12 +73,12 @@ describe('readSessionStatus', () => {
     expect(status.value.lease).toEqual({ epoch: lease.epoch, holderHostId: 7, live: true })
   })
 
-  it('reads an unconsumed inbox entry as sent', async () => {
+  it('reads an unconsumed inbox entry as queued', async () => {
     const { plane, append, read } = await setup()
     const lease = await plane.grant({ sessionId: SESSION, hostId: 7 })
     await append({ epoch: lease.epoch, bodies: [{ type: 'workspace-prepared' }] })
     await plane.post({ sessionId: SESSION, kind: 'message', payload: '{"text":"hi"}' })
-    expect((await read()).value.state).toBe(ESessionStatus.Sent)
+    expect((await read()).value.state).toBe(ESessionStatus.Queued)
   })
 
   it('lists pending message entries oldest first and drops withdrawn and consumed ones', async () => {
@@ -207,7 +207,7 @@ describe('readSessionStatus', () => {
       reason: 'sandbox is not configured',
     })
     await plane.post({ sessionId: SESSION, kind: 'message', payload: '{"text":"b"}' })
-    expect((await read()).value.state).toBe(ESessionStatus.Sent)
+    expect((await read()).value.state).toBe(ESessionStatus.Queued)
   })
 })
 
@@ -291,6 +291,6 @@ describe('readSessionStatus under a concurrent consume', () => {
       threadId: THREAD,
     })
 
-    expect(status.value.state === ESessionStatus.Sent && status.at > 1).toBe(false)
+    expect(status.value.state === ESessionStatus.Queued && status.at > 1).toBe(false)
   })
 })

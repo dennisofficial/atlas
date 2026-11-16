@@ -181,20 +181,21 @@ const waitCleared = (waiting: Extract<V2Event, { type: 'model-waiting' }>): V2Ev
 const status = (args: {
   events?: readonly V2Event[]
   live?: boolean
-  unconsumedInbox?: boolean
+  queuedSince?: string | null
   now?: string
 }) =>
   sessionStatusOf({
     events: args.events ?? [],
     live: args.live ?? false,
-    unconsumedInbox: args.unconsumedInbox ?? false,
+    queuedSince: args.queuedSince ?? null,
     now: args.now ?? NOW,
   })
 
 describe('sessionStatusOf', () => {
-  it('reports sent while an inbox entry is unconsumed, even mid-turn', () => {
-    expect(status({ events: [userSaid()], unconsumedInbox: true })).toEqual({
-      state: ESessionStatus.Sent,
+  it('reports queued with the instant it was posted while an inbox entry is unconsumed, even mid-turn', () => {
+    expect(status({ events: [userSaid()], queuedSince: NOW })).toEqual({
+      state: ESessionStatus.Queued,
+      since: NOW,
     })
   })
 
@@ -504,7 +505,7 @@ describe('sessionStatusOf workspace preparation', () => {
     sessionStatusOf({
       events: chained(args.bodies),
       live: true,
-      unconsumedInbox: (args.pending ?? []).length > 0,
+      queuedSince: (args.pending ?? []).length > 0 ? NOW : null,
       messageAfterFailure: args.retry ?? false,
       now: NOW,
     })
@@ -528,7 +529,7 @@ describe('sessionStatusOf workspace preparation', () => {
   it('leaves a prepared session to the ordinary rules', () => {
     const bodies: V2Body[] = [{ type: 'workspace-prepared' }]
     expect(tracked({ bodies }).state).toBe(ESessionStatus.Idle)
-    expect(tracked({ bodies, pending: [1] }).state).toBe(ESessionStatus.Sent)
+    expect(tracked({ bodies, pending: [1] }).state).toBe(ESessionStatus.Queued)
   })
 
   it('is idle, not failed, after a prepare that finished with warnings', () => {
@@ -537,7 +538,7 @@ describe('sessionStatusOf workspace preparation', () => {
       { type: 'workspace-prepared', warnings: ['clone failed'] },
     ]
     expect(tracked({ bodies }).state).toBe(ESessionStatus.Idle)
-    expect(tracked({ bodies, pending: [1] }).state).toBe(ESessionStatus.Sent)
+    expect(tracked({ bodies, pending: [1] }).state).toBe(ESessionStatus.Queued)
   })
 
   it('treats a session with turns but no prepare event as prepared', () => {

@@ -20,7 +20,7 @@ const status = (args: { bodies: V2Body[]; messageAfterFailure?: boolean; pending
   sessionStatusOf({
     events: log(args.bodies),
     live: false,
-    unconsumedInbox: args.pending ?? false,
+    queuedSince: args.pending === true ? NOW : null,
     messageAfterFailure: args.messageAfterFailure ?? false,
     now: NOW,
   })
@@ -90,9 +90,9 @@ describe('sessionStatusOf with a start failure', () => {
     expect(result.state).toBe(ESessionStatus.StartFailed)
   })
 
-  it('reports sent once a newer message arrived', () => {
+  it('reports queued once a newer message arrived', () => {
     expect(status({ bodies: [failed(1)], messageAfterFailure: true, pending: true }).state).toBe(
-      ESessionStatus.Sent,
+      ESessionStatus.Queued,
     )
   })
 

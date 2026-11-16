@@ -118,7 +118,7 @@ export const liveViewIn = async (args: {
   const value = sessionViewOf({
     state,
     live,
-    unconsumedInbox: pending.length > 0,
+    queuedSince: pending[0]?.postedAt ?? null,
     messageAfterFailure: await messageAfterFailureIn(args),
     now: args.now,
   })

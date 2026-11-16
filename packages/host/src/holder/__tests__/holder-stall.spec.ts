@@ -79,7 +79,7 @@ describe('SessionHolder progress watchdog', () => {
     const status = sessionStatusOf({
       events,
       live: true,
-      unconsumedInbox: false,
+      queuedSince: null,
       now: new Date(rig.clock.now()).toISOString(),
     })
     expect(status.state).toBe(ESessionStatus.Failed)

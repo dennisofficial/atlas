@@ -8,14 +8,14 @@ export { ESessionStatus, type SessionStatus } from './views/status-types'
 export function sessionStatusOf(params: {
   events: readonly V2Event[]
   live: boolean
-  unconsumedInbox: boolean
+  queuedSince: string | null
   messageAfterFailure?: boolean | undefined
   now: string
 }): SessionStatus {
   return deriveStatus({
     facts: params.events.reduce(stepStatusFacts, initialStatusFacts),
     live: params.live,
-    unconsumedInbox: params.unconsumedInbox,
+    queuedSince: params.queuedSince,
     messageAfterFailure: params.messageAfterFailure,
     now: params.now,
   })
