@@ -1,4 +1,5 @@
 import { reportWakesParent, type EReportKind } from '@dltech/atlas-core'
+import type { SessionModelAsk } from '@dltech/atlas-models'
 import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
 
 import { postIn } from './inbox-ops'
@@ -12,9 +13,7 @@ export const spawnPeerIn = async (params: {
   spawner: ControlSessionRow
   sessionId: string
   mainThreadId: string
-  modelRef?: string | undefined
-  modelEffort?: string | undefined
-  modelFast?: boolean | undefined
+  model?: SessionModelAsk | undefined
   title?: string | undefined
   brief?: string | undefined
   nested?: boolean | undefined
@@ -26,9 +25,7 @@ export const spawnPeerIn = async (params: {
     sessionId: params.sessionId,
     userId: spawner.userId,
     projectId: spawner.projectId,
-    ...(params.modelRef === undefined ? {} : { modelRef: params.modelRef }),
-    ...(params.modelEffort === undefined ? {} : { modelEffort: params.modelEffort }),
-    ...(params.modelFast === undefined ? {} : { modelFast: params.modelFast }),
+    ...(params.model === undefined ? {} : { model: params.model }),
     ...(params.title === undefined ? {} : { title: params.title }),
     mainThreadId: params.mainThreadId,
     spawnedBySessionId: spawner.sessionId,

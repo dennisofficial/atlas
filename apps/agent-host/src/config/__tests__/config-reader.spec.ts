@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { EEffort, toThreadId } from '@dltech/atlas-core'
+import { EEffort } from '@dltech/atlas-core'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 
 import { VercelReconnectRequiredError } from '../../tokens/vercel-token-refresher'
@@ -12,7 +12,6 @@ import {
   seedOwner,
   seedSetting,
   seedSkill,
-  seedThread,
   seedVercel,
 } from './config-reader.fixture'
 
@@ -48,7 +47,7 @@ describe('ConfigReader', () => {
     })
     expect(config.model).toEqual({
       configured: true,
-      ref: { providerId: 'anthropic', modelId: 'claude-sonnet-4-5' },
+      ref: { providerId: 'anthropic', modelId: 'claude-haiku-4-5' },
       effort: EEffort.Medium,
       fast: false,
       accountId: 'acct-1',
@@ -107,20 +106,6 @@ describe('ConfigReader', () => {
       config.models.resolve({ role: { agentType: 'teammate' }, root: config.models.main.choice })
         .config,
     ).toMatchObject({ ref: { providerId: 'openai', modelId: 'gpt-5' }, accountId: 'acct-2' })
-  })
-
-  it('lets a project setting override the user model and falls back to the shipped default', async () => {
-    const { db } = testDb()
-    await seedOwner(db)
-    await seedApiKeyAccount(db)
-    expect((await readerOver().read({ sessionId: 's-1' })).model).toMatchObject({
-      ref: { providerId: 'anthropic', modelId: 'claude-haiku-4-5' },
-    })
-    await seedSetting({ db, scope: 'user', value: 'anthropic/claude-sonnet-4-5' })
-    await seedSetting({ db, scope: 'project', value: 'anthropic/claude-opus-4-1' })
-    expect((await readerOver().read({ sessionId: 's-1' })).model).toMatchObject({
-      ref: { providerId: 'anthropic', modelId: 'claude-opus-4-1' },
-    })
   })
 
   it('reports gaps when nothing is connected', async () => {
@@ -192,55 +177,22 @@ describe('ConfigReader', () => {
     expect(recording.sql.some((text) => text.includes('"Skill"'))).toBe(true)
   })
 
-  it('reads every provider account, the effort and the fast setting', async () => {
+  it('reads a role model, its effort and its fast setting, project over user', async () => {
     const { db } = testDb()
     await seedOwner(db)
     await seedApiKeyAccount(db)
     await seedApiKeyAccount({ db, id: 'acct-oa', provider: 'openai', apiKey: 'sk-oa' })
-    await seedSetting({ db, scope: 'user', value: 'openai/gpt-5' })
-    await seedSetting({ db, scope: 'user', key: 'model.effort', value: 'high' })
-    await seedSetting({ db, scope: 'project', key: 'model.fast', value: true })
-    expect((await readerOver().read({ sessionId: 's-1' })).model).toEqual({
+    await seedSetting({ db, scope: 'user', key: 'agents.type.builder', value: 'openai/gpt-5' })
+    await seedSetting({ db, scope: 'user', key: 'agents.type.builder.effort', value: 'high' })
+    await seedSetting({ db, scope: 'project', key: 'agents.type.builder.fast', value: true })
+    const config = await readerOver().read({ sessionId: 's-1' })
+    expect(config.models.resolve({ role: { agentType: 'builder' } }).config).toEqual({
       configured: true,
       ref: { providerId: 'openai', modelId: 'gpt-5' },
       effort: EEffort.High,
       fast: false,
       accountId: 'acct-oa',
       credential: { kind: 'api-key', apiKey: 'sk-oa' },
-    })
-  })
-})
-
-describe('ConfigReader thread model', () => {
-  it("runs the model the thread names over the user's default", async () => {
-    const { db } = testDb()
-    await seedOwner(db)
-    await seedApiKeyAccount(db)
-    await seedApiKeyAccount({ db, id: 'acct-gw', provider: 'gateway', apiKey: 'gw-key' })
-    await seedSetting({ db, scope: 'user', value: 'gateway/deepseek/deepseek-v3' })
-    await seedThread(db)
-    const config = await readerOver().read({ sessionId: 's-1', threadId: toThreadId('t-1') })
-    expect(config.model).toEqual({
-      configured: true,
-      ref: { providerId: 'anthropic', modelId: 'claude-haiku-4-5' },
-      effort: EEffort.High,
-      fast: false,
-      accountId: 'acct-1',
-      credential: { kind: 'api-key', apiKey: 'sk-test' },
-    })
-  })
-
-  it('keeps the thread model, and reports it unavailable, when its provider has no account', async () => {
-    const { db } = testDb()
-    await seedOwner(db)
-    await seedApiKeyAccount(db)
-    await seedSetting({ db, scope: 'user', value: 'anthropic/claude-sonnet-4-5' })
-    await seedThread(db, { modelRef: 'openai/gpt-5' })
-    const config = await readerOver().read({ sessionId: 's-1', threadId: toThreadId('t-1') })
-    expect(config.model).toEqual({
-      configured: false,
-      gap: 'no openai account',
-      unavailable: { providerId: 'openai', modelId: 'gpt-5' },
     })
   })
 })
@@ -310,6 +262,28 @@ describe('ConfigReader model read', () => {
       configured: true,
       ref: { providerId: 'anthropic', modelId: 'claude-opus-5' },
       fast: true,
+      accountId: 'acct-1',
+    })
+  })
+
+  it('keeps an existing session on its model after the default setting changes', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedApiKeyAccount(db)
+    await seedApiKeyAccount({ db, id: 'acct-oa', provider: 'openai', apiKey: 'sk-oa' })
+    await db.orm.v2.V2Session.where({ id: 's-1' }).update({
+      modelRef: 'anthropic/claude-opus-5',
+      modelEffort: 'low',
+      modelFast: false,
+    })
+    await seedSetting({ db, scope: 'user', value: 'anthropic/claude-sonnet-4-5' })
+    await seedSetting({ db, scope: 'user', key: 'model.effort', value: 'high' })
+    await seedSetting({ db, scope: 'user', key: 'model.fast', value: true })
+    expect((await readerOver().models({ sessionId: 's-1' })).main.config).toMatchObject({
+      configured: true,
+      ref: { providerId: 'anthropic', modelId: 'claude-opus-5' },
+      effort: EEffort.Low,
+      fast: false,
       accountId: 'acct-1',
     })
   })

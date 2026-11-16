@@ -5,7 +5,7 @@ import { childFallbackModel } from './child-fallback-model'
 
 export type ChildModelRuntime = Pick<
   SessionRuntime,
-  'modelChoice' | 'modelFor' | 'choiceFor' | 'model' | 'normalizeFailure'
+  'modelChoice' | 'modelOf' | 'model' | 'normalizeFailure'
 >
 
 export const childChoiceOf = (args: {
@@ -16,20 +16,16 @@ export const childChoiceOf = (args: {
 
 export const childModelOf = (args: {
   runtime: ChildModelRuntime
-  agentType: string
+  model: RoleModelChoice
   onFallback?: ((refs: { from: ModelRef; to: ModelRef }) => void | Promise<void>) | undefined
 }): ModelPort => {
-  const choice = childChoiceOf(args)
-  const primary = args.runtime.modelFor({
-    role: { agentType: args.agentType },
-    root: args.runtime.modelChoice,
-  })
+  const primary = args.runtime.modelOf(args.model)
   const to = args.runtime.modelChoice.ref
-  if (refKey(choice.ref) === refKey(to) || args.onFallback === undefined) return primary
+  if (refKey(args.model.ref) === refKey(to) || args.onFallback === undefined) return primary
   return childFallbackModel({
     primary,
     main: args.runtime.model,
     normalizeFailure: args.runtime.normalizeFailure,
-    onFallback: () => args.onFallback?.({ from: choice.ref, to }),
+    onFallback: () => args.onFallback?.({ from: args.model.ref, to }),
   })
 }

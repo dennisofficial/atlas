@@ -45,9 +45,9 @@ export const toSessionRow = (row: {
   mainThreadId: string
   createdAt: Date
   archivedAt: Date | null
-  modelRef: string | null
-  modelEffort: string | null
-  modelFast: boolean | null
+  modelRef: string
+  modelEffort: string
+  modelFast: boolean
   spawnedBySessionId: string | null
   nested: boolean
   podSessionId: string | null

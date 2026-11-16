@@ -140,9 +140,11 @@ export const runRoutineIn = async (
     userId: routine.userId,
     projectId: routine.projectId,
     title: routine.name,
-    modelRef: routine.modelRef ?? undefined,
-    modelEffort: routine.modelEffort ?? undefined,
-    modelFast: routine.modelFast ?? undefined,
+    model: {
+      ref: routine.modelRef ?? undefined,
+      effort: routine.modelEffort ?? undefined,
+      fast: routine.modelFast ?? undefined,
+    },
     routineId,
     at: now,
   })

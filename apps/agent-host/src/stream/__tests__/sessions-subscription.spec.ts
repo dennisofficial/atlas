@@ -5,11 +5,10 @@ import { ESessionStatus } from '@dltech/atlas-core'
 import {
   EStreamErrorCode,
   EStreamSubscribeKind,
-  parseServerMessage,
   STREAM_MAX_SESSION_SUBSCRIPTIONS,
-  type SessionSummary,
 } from '@dltech/atlas-protocol'
 
+import type { SessionRow } from '../session-entry'
 import type { SubscriptionSession } from '../subscription-port'
 import { FollowRig, OWNER, SESSION } from './follow-rig'
 import { until } from './test-client'
@@ -32,7 +31,7 @@ describe('sessions subscription', () => {
     })
   }
 
-  const onlyRow = (): SessionSummary => {
+  const onlyRow = (): SessionRow => {
     const [row] = rig.frames('snapshot')[0]?.rows ?? []
     if (row === undefined) throw new Error('no snapshot row')
     return row
@@ -65,7 +64,7 @@ describe('sessions subscription', () => {
       archivedAt: null,
       spawnedBy: null,
       routineId: null,
-      model: null,
+      model: { ref: 'anthropic/claude-haiku-4-5', effort: 'medium', fast: false },
       status: { state: ESessionStatus.Preparing },
       primaryBranch: null,
       pullRequest: null,
@@ -92,8 +91,8 @@ describe('sessions subscription', () => {
     const upserts = rig.frames('upsert')
     expect(upserts.length).toBeGreaterThan(0)
     for (const upsert of upserts) {
-      expect(parseServerMessage(JSON.parse(JSON.stringify(upsert))).ok).toBe(true)
       expect(Object.keys(upsert.row)).not.toContain('status')
+      expect(Object.keys(upsert.row)).not.toContain('model')
     }
   })
 

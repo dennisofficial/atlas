@@ -30,6 +30,7 @@ const session = (overrides: Partial<SessionSummary> = {}): SessionSummary => ({
   title: null,
   naming: false,
   mainThreadId: 'thr-2',
+  model: { ref: 'anthropic/claude-opus-5-5', effort: 'high', fast: false },
   createdAt: '2026-11-10T07:00:00Z',
   updatedAt: '2026-11-10T07:00:00Z',
   archivedAt: null,

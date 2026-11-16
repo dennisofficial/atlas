@@ -236,13 +236,15 @@ export function SessionView({ sessionId }: { sessionId: string }) {
             working={working}
             placeholder="Message Atlas…"
           >
-            <ModelPickerControls
-              picker={choice.picker}
-              selection={choice.selection}
-              onSelectionChange={choice.onSelectionChange}
-              open={choice.open}
-              onOpenChange={choice.onOpenChange}
-            />
+            {listed === undefined ? null : (
+              <ModelPickerControls
+                picker={choice.picker}
+                selection={choice.selection}
+                onSelectionChange={choice.onSelectionChange}
+                open={choice.open}
+                onOpenChange={choice.onOpenChange}
+              />
+            )}
             <SessionContext context={model.context} spend={model.spend} />
           </ThreadComposer>
         </div>

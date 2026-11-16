@@ -57,27 +57,29 @@ export class ComposedPodRegistry extends ToolRegistry {
   }
 }
 
+const teammateModelOf =
+  (runtime: SessionRuntime): (() => RoleModelChoice) =>
+  () =>
+    runtime.choiceFor({ role: { agentType: TEAMMATE_AGENT_TYPE }, root: runtime.modelChoice })
+
 const teammateFallbackOf = (args: {
   runtime: SessionRuntime
-  teammateChoice: RoleModelChoice
   append: (drafts: readonly EventDraft[]) => Promise<void>
-}): Pick<Parameters<typeof podSessionsOf>[0], 'onFallback'> => {
-  const unavailable = args.teammateChoice.unavailable
-  if (unavailable === undefined) return {}
-  return {
-    onFallback: (agentId) =>
-      args.append([
-        modelFellBackDraft({
-          runtime: args.runtime,
-          role: TEAMMATE_AGENT_TYPE,
-          agentId,
-          from: unavailable,
-          to: args.teammateChoice.ref,
-          reason: EModelFallbackReason.ProviderNotConnected,
-        }),
-      ]),
-  }
-}
+}): Pick<Parameters<typeof podSessionsOf>[0], 'onFallback'> => ({
+  onFallback: async ({ agentId, model }) => {
+    if (model.unavailable === undefined) return
+    await args.append([
+      modelFellBackDraft({
+        runtime: args.runtime,
+        role: TEAMMATE_AGENT_TYPE,
+        agentId,
+        from: model.unavailable,
+        to: model.ref,
+        reason: EModelFallbackReason.ProviderNotConnected,
+      }),
+    ])
+  },
+})
 
 export const pluginPodContextOf = (args: {
   deps: HeldSessionDeps
@@ -88,10 +90,6 @@ export const pluginPodContextOf = (args: {
   crew: PodCrew
 }): PluginPodContext => {
   const { deps, runtime, record, threadId } = args
-  const teammateChoice = runtime.choiceFor({
-    role: { agentType: TEAMMATE_AGENT_TYPE },
-    root: runtime.modelChoice,
-  })
   const append = async (drafts: readonly EventDraft[]): Promise<void> => {
     await record.append({ threadId, runId: deps.ids.nextRunId(), drafts })
   }
@@ -107,8 +105,8 @@ export const pluginPodContextOf = (args: {
     sessions: podSessionsOf({
       plane: deps.plane,
       sessionId: deps.sessionId,
-      model: teammateChoice,
-      ...teammateFallbackOf({ runtime, teammateChoice, append }),
+      model: teammateModelOf(runtime),
+      ...teammateFallbackOf({ runtime, append }),
     }),
     worktrees: worktreesOf({ calls: runtime.remoteCalls }),
     append,

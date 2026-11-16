@@ -34,6 +34,12 @@ const TEAMMATE_MODEL = {
   fast: true,
 }
 
+const LATER_TEAMMATE_MODEL = {
+  ref: { providerId: 'anthropic', modelId: 'claude-sonnet-4-5' },
+  effort: EEffort.Low,
+  fast: false,
+}
+
 const rig = async () => {
   const plane = new ControlPlane({
     store: new InMemoryControlStore({ clock: () => T0 }),
@@ -45,7 +51,7 @@ const rig = async () => {
     sessions: podSessionsOf({
       plane,
       sessionId: SPAWNER.sessionId,
-      model: TEAMMATE_MODEL,
+      model: () => TEAMMATE_MODEL,
     }),
   }
 }
@@ -80,7 +86,27 @@ describe('podSessionsOf', () => {
     expect(await plane.readSession({ sessionId: spawned.sessionId })).toMatchObject({
       modelRef: 'openai/gpt-5',
       modelEffort: 'high',
-      modelFast: true,
+    })
+  })
+
+  it('reads the teammate model when it spawns, not when the pod was built', async () => {
+    const { plane } = await rig()
+    let model = TEAMMATE_MODEL
+    const sessions = podSessionsOf({
+      plane,
+      sessionId: SPAWNER.sessionId,
+      model: () => model,
+    })
+    const first = await sessions.spawn({ nested: true })
+    model = LATER_TEAMMATE_MODEL
+    const second = await sessions.spawn({ nested: true })
+    expect(await plane.readSession({ sessionId: first.sessionId })).toMatchObject({
+      modelRef: 'openai/gpt-5',
+      modelEffort: 'high',
+    })
+    expect(await plane.readSession({ sessionId: second.sessionId })).toMatchObject({
+      modelRef: 'anthropic/claude-sonnet-4-5',
+      modelEffort: 'low',
     })
   })
 
@@ -230,7 +256,7 @@ describe('podSessionsOf', () => {
     const nested = await podSessionsOf({
       plane,
       sessionId: child.sessionId,
-      model: TEAMMATE_MODEL,
+      model: () => TEAMMATE_MODEL,
     }).spawn({})
     expect(await plane.readSession({ sessionId: nested.sessionId })).toMatchObject({
       spawnedBySessionId: child.sessionId,
@@ -244,7 +270,7 @@ describe('podSessionsOf', () => {
     const sent = await podSessionsOf({
       plane,
       sessionId: child.sessionId,
-      model: TEAMMATE_MODEL,
+      model: () => TEAMMATE_MODEL,
     }).report({
       kind: EReportKind.Done,
       text: 'the parser is green',
@@ -261,7 +287,7 @@ describe('podSessionsOf', () => {
   it('reaches the spawner’s intake in the agent lane', async () => {
     const { plane, sessions } = await rig()
     const child = await sessions.spawn({})
-    await podSessionsOf({ plane, sessionId: child.sessionId, model: TEAMMATE_MODEL }).report({
+    await podSessionsOf({ plane, sessionId: child.sessionId, model: () => TEAMMATE_MODEL }).report({
       kind: EReportKind.NeedsDecision,
       text: 'which parser',
     })
@@ -327,7 +353,7 @@ describe('podSessionsOf', () => {
     const roster = await podSessionsOf({
       plane,
       sessionId: peer.sessionId,
-      model: TEAMMATE_MODEL,
+      model: () => TEAMMATE_MODEL,
     }).list()
     expect(roster.map((brief) => brief.sessionId)).toContain(SPAWNER.sessionId)
     expect(roster.find((brief) => brief.sessionId === peer.sessionId)).toMatchObject({

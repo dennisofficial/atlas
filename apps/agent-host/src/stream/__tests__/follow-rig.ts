@@ -14,13 +14,16 @@ import {
   EStreamSubscribeKind,
   EStreamSurface,
   STREAM_PROTOCOL_VERSION,
-  type StreamServerMessage,
 } from '@dltech/atlas-protocol'
 
 import { createFollowSubscriptions, type FollowSubscriptions } from '../follow-port'
 import type { FollowPlane } from '../follow-types'
 import type { LiveSource } from '../live-source'
-import type { StreamSubscriptionMessage, SubscriptionSession } from '../subscription-port'
+import type {
+  OutgoingFrame,
+  StreamSubscriptionMessage,
+  SubscriptionSession,
+} from '../subscription-port'
 import { FakeTimers } from './fake-timers'
 import { until } from './test-client'
 
@@ -35,7 +38,7 @@ export class FollowRig {
   readonly store = new InMemoryControlStore()
   readonly plane = new ControlPlane({ store: this.store, clock: () => AT })
   readonly timers = new FakeTimers()
-  readonly sent: StreamServerMessage[] = []
+  readonly sent: OutgoingFrame[] = []
   readonly closedWith: number[] = []
   buffered = 0
   reads = 0
@@ -149,11 +152,9 @@ export class FollowRig {
     await args.session.handle(message)
   }
 
-  frames<T extends StreamServerMessage['type']>(
-    type: T,
-  ): Extract<StreamServerMessage, { type: T }>[] {
+  frames<T extends OutgoingFrame['type']>(type: T): Extract<OutgoingFrame, { type: T }>[] {
     return this.sent.filter(
-      (message): message is Extract<StreamServerMessage, { type: T }> => message.type === type,
+      (message): message is Extract<OutgoingFrame, { type: T }> => message.type === type,
     )
   }
 

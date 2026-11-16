@@ -29,7 +29,7 @@ import type {
   PrepareResult,
   PrepareStepReporter,
   PullRequestSource,
-  RoleModelRequest,
+  RoleModelChoice,
   SessionRuntime,
 } from '../ports'
 import { SANDBOX, SECRET, type FakeClock } from './rig-fakes'
@@ -42,7 +42,7 @@ export const RIG_MODEL_CHOICE = {
 
 export type RigRuntime = SessionRuntime & {
   model: ModelPort
-  modelForCalls: RoleModelRequest[]
+  modelOfCalls: RoleModelChoice[]
   stopped: boolean
   released: boolean
   ackedScopes: string[]
@@ -134,17 +134,17 @@ export const makeRuntimeFactory = (args: {
       await originalAckScope({ scopeKey, count })
       ackedScopes.push(scopeKey)
     }
-    const modelForCalls: RoleModelRequest[] = []
+    const modelOfCalls: RoleModelChoice[] = []
     const runtime: RigRuntime = {
       remoteCalls: calls,
       model,
       modelChoice: RIG_MODEL_CHOICE,
-      modelForCalls,
-      modelFor: (request) => {
-        modelForCalls.push(request)
+      modelOfCalls,
+      modelOf: (choice) => {
+        modelOfCalls.push(choice)
         return model
       },
-      choiceFor: () => RIG_MODEL_CHOICE,
+      choiceFor: (request) => request.root ?? RIG_MODEL_CHOICE,
       modelLabelOf: (ref) => refKey(ref),
       tools: fakeToolRegistry([new BashTool(calls)]),
       daemonTools: new Set(['bash']),

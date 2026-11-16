@@ -11,6 +11,7 @@ const rowOf = (sessionId: string): StreamSessionRow => ({
   title: null,
   naming: true,
   mainThreadId: 'thr',
+  model: { ref: 'anthropic/claude-opus-5-5', effort: 'high', fast: false },
   createdAt: '2026-11-05T10:00:00.000Z',
   updatedAt: '2026-11-05T10:00:00.000Z',
   archivedAt: null,

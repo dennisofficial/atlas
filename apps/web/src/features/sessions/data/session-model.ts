@@ -13,8 +13,4 @@ export const sessionSelectionOf = (
 ): ModelSelection =>
   choice === undefined || choice === null
     ? existingSelectionOf(undefined)
-    : existingSelectionOf({
-        ref: choice.ref,
-        effort: choice.effort ?? '',
-        fast: choice.fast,
-      })
+    : existingSelectionOf({ ref: choice.ref, effort: choice.effort, fast: choice.fast })

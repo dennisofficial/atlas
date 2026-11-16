@@ -1,56 +1,26 @@
-import type { Hash, InboxEntry, Lease, SessionStatus } from '@dltech/atlas-core'
+import type { Hash, InboxEntry, Lease, ModelChoice } from '@dltech/atlas-core'
+import type { SessionModelAsk } from '@dltech/atlas-models'
 import type { SessionChange } from '@dltech/atlas-protocol'
 
+import type {
+  ControlSessionRow,
+  SessionDigestRow,
+  SessionListParams,
+  SessionModelRow,
+} from './session-rows'
+
+export type {
+  ControlDigestPullRequest,
+  ControlDigestView,
+  ControlSessionDigest,
+  ControlSessionRow,
+  PrChecks,
+  SessionDigestRow,
+  SessionListParams,
+  SessionModelRow,
+} from './session-rows'
+
 export type ClaimedBatch = { leases: Lease[]; nextRetryAt: string | null }
-
-export type ControlSessionRow = {
-  sessionId: string
-  userId: string
-  projectId: string
-  title: string | null
-  mainThreadId: string
-  createdAt: string
-  archivedAt: string | null
-  modelRef: string | null
-  modelEffort: string | null
-  modelFast: boolean | null
-  spawnedBySessionId: string | null
-  nested: boolean
-  podSessionId: string | null
-  routineId: string | null
-}
-
-export type SessionListParams = {
-  userId: string
-  projectId?: string | undefined
-  sessionId?: string | undefined
-  spawnedBySessionId?: string | undefined
-  limit: number
-}
-
-export type SessionDigestRow = ControlSessionRow & {
-  lastEventAt: string | null
-  firstMessageText: string | null
-  firstMessageAt: string | null
-}
-
-export type PrChecks = { running: number; passed: number; failed: number }
-
-export type ControlDigestPullRequest = {
-  repo: string
-  number: number
-  url: string
-  state: string | null
-  checks: PrChecks | null
-}
-
-export type ControlDigestView = {
-  status: SessionStatus
-  primaryBranch: string | null
-  pullRequest: ControlDigestPullRequest | null
-}
-
-export type ControlSessionDigest = SessionDigestRow & { view: ControlDigestView | null }
 
 export type SessionViewRow = {
   sessionId: string
@@ -192,21 +162,28 @@ export class SeqConflictError extends Error {
 export interface ControlTx {
   now(): Promise<string>
   useSnapshot(): Promise<void>
+  resolveSessionModel(params: {
+    userId: string
+    projectId: string
+    ask: SessionModelAsk
+    current?: ModelChoice | undefined
+  }): Promise<SessionModelRow>
   createSession(params: {
     sessionId: string
     userId: string
     projectId: string
     title?: string | undefined
     mainThreadId: string
-    modelRef?: string | undefined
-    modelEffort?: string | undefined
-    modelFast?: boolean | undefined
+    modelRef: string
+    modelEffort: string
+    modelFast: boolean
     spawnedBySessionId?: string | undefined
     nested?: boolean | undefined
     podSessionId?: string | undefined
     routineId?: string | undefined
     at: string
   }): Promise<void>
+  setSessionModel(params: { sessionId: string } & SessionModelRow): Promise<boolean>
   readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined>
   lockSession(sessionId: string): Promise<ControlSessionRow | undefined>
   setSessionArchived(params: { sessionId: string; archivedAt: string | null }): Promise<boolean>

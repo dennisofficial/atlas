@@ -185,9 +185,7 @@ describe('a sub-agent spawned with the crew port', () => {
     expect(toolNamesOf(model.parent.requests[0])).toContain(SPAWN_PROBE)
     expect(toolNamesOf(model.child.requests[0])).not.toContain(SPAWN_PROBE)
 
-    expect(rig.runtimes.map((runtime) => runtime.modelForCalls)).toEqual([
-      [{ role: { agentType: 'general-purpose' }, root: RIG_MODEL_CHOICE }],
-    ])
+    expect(rig.runtimes.map((runtime) => runtime.modelOfCalls)).toEqual([[RIG_MODEL_CHOICE]])
 
     await rig.wake()
     await flushUntil({

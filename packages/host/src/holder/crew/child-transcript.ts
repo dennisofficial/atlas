@@ -13,9 +13,8 @@ import {
 import type { WorktreeEntryInfo } from '@dltech/atlas-plugin-sdk'
 
 import type { HeldSessionDeps } from '../held-session-deps'
-import type { SessionRuntime } from '../ports'
+import type { RoleModelChoice, SessionRuntime } from '../ports'
 import type { SessionRecord } from '../record/record-adapter'
-import { childChoiceOf } from './child-model'
 import { worktreeDraftOf, type Progress } from './child-progress'
 import {
   appendOnParent,
@@ -34,7 +33,8 @@ type ChildFallback = {
 
 export type ChildTranscriptArgs = {
   deps: HeldSessionDeps
-  runtime: Pick<SessionRuntime, 'modelChoice' | 'choiceFor' | 'modelLabelOf'>
+  runtime: Pick<SessionRuntime, 'modelLabelOf'>
+  model: RoleModelChoice
   parentRecord: SessionRecord
   parentThreadId: ThreadId
   agentId: ThreadId
@@ -140,12 +140,12 @@ export class ChildTranscript {
   }
 
   private unavailableDrafts(): readonly EventDraft[] {
-    const choice = childChoiceOf({ runtime: this.args.runtime, agentType: this.args.agentType })
-    if (choice.unavailable === undefined) return []
+    const unavailable = this.args.model.unavailable
+    if (unavailable === undefined) return []
     return [
       this.fellBackDraft({
-        from: choice.unavailable,
-        to: choice.ref,
+        from: unavailable,
+        to: this.args.model.ref,
         reason: EModelFallbackReason.ProviderNotConnected,
       }),
     ]

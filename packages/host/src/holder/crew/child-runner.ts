@@ -10,7 +10,7 @@ import type { PodCrew } from '@dltech/atlas-plugin-sdk'
 import { ScopedToolDispatcher } from '../../calls/call-scope'
 import type { HeldSessionDeps } from '../held-session-deps'
 import { pluginHooksOf, pluginPodContextOf, pluginToolsOf } from '../plugin-pod'
-import type { SessionRuntime } from '../ports'
+import type { RoleModelChoice, SessionRuntime } from '../ports'
 import type { SessionRecord } from '../record/record-adapter'
 import { V2OnceLedger } from '../record/v2-once-ledger'
 import { retryDepsFromTimers } from '../timer-sleep'
@@ -22,7 +22,7 @@ export const childRunnerOf = (args: {
   runtime: SessionRuntime
   record: SessionRecord
   agentId: ThreadId
-  agentType: string
+  model: RoleModelChoice
   signal: AbortSignal
   crew: PodCrew
   intake: AgentIntake
@@ -47,7 +47,7 @@ export const childRunnerOf = (args: {
     modelContext: record,
     model: childModelOf({
       runtime,
-      agentType: args.agentType,
+      model: args.model,
       ...(args.onFallback === undefined ? {} : { onFallback: args.onFallback }),
     }),
     ids: deps.ids,

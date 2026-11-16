@@ -77,9 +77,9 @@ export const createSessionIn = (params: {
   projectId: string
   title?: string | undefined
   mainThreadId: string
-  modelRef?: string | undefined
-  modelEffort?: string | undefined
-  modelFast?: boolean | undefined
+  modelRef: string
+  modelEffort: string
+  modelFast: boolean
   spawnedBySessionId?: string | undefined
   nested?: boolean | undefined
   podSessionId?: string | undefined
@@ -98,9 +98,9 @@ export const createSessionIn = (params: {
     archivedAt: null,
     nextInboxId: 1,
     titledFromInboxId: null,
-    modelRef: params.modelRef ?? null,
-    modelEffort: params.modelEffort ?? null,
-    modelFast: params.modelFast ?? null,
+    modelRef: params.modelRef,
+    modelEffort: params.modelEffort,
+    modelFast: params.modelFast,
     spawnedBySessionId: params.spawnedBySessionId ?? null,
     nested: params.nested ?? true,
     podSessionId: params.podSessionId ?? null,

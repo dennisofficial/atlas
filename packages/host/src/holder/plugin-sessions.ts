@@ -9,24 +9,27 @@ import type { RoleModelChoice } from './ports'
 export const podSessionsOf = (args: {
   plane: ControlPlane
   sessionId: string
-  model: RoleModelChoice
-  onFallback?: ((agentId: ThreadId) => Promise<void>) | undefined
+  model: () => RoleModelChoice
+  onFallback?: ((args: { agentId: ThreadId; model: RoleModelChoice }) => Promise<void>) | undefined
 }): PodSessions => ({
   spawn: async ({ title, brief, nested }) => {
+    const model = args.model()
     const sessionId = randomUUID()
     const mainThreadId = randomUUID()
     await args.plane.spawnPeer({
       spawnerSessionId: args.sessionId,
       sessionId,
       mainThreadId,
-      modelRef: refKey(args.model.ref),
-      modelEffort: args.model.effort,
-      modelFast: args.model.fast,
+      modelRef: refKey(model.ref),
+      modelEffort: model.effort,
+      modelFast: model.fast,
       title,
       brief,
       nested,
     })
-    if (args.model.unavailable !== undefined) await args.onFallback?.(toThreadId(mainThreadId))
+    if (model.unavailable !== undefined) {
+      await args.onFallback?.({ agentId: toThreadId(mainThreadId), model })
+    }
     return { sessionId, mainThreadId }
   },
   message: async ({ sessionId, text }) => {

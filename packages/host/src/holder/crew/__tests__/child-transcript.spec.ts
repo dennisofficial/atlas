@@ -51,7 +51,8 @@ const transcriptOf = (
   } as unknown as SessionRecord
   const transcript = new ChildTranscript({
     deps,
-    runtime: { modelChoice: MAIN, choiceFor: () => choice, modelLabelOf: label },
+    runtime: { modelLabelOf: label },
+    model: choice,
     parentRecord: record,
     parentThreadId: PARENT,
     agentId: CHILD,

@@ -10,7 +10,6 @@ import { FakeMediaRegistry } from './media-registry.fake'
 import { SessionsService } from './sessions.service'
 import { ProjectAccess } from './project-access'
 import { modelSet } from './model-set'
-import { SessionModelChoice, type SessionModelDefault } from './session-model-choice'
 
 export const RENAME_ARGS = z.strictObject({ title: z.string().min(1) })
 
@@ -37,31 +36,12 @@ class NoBackgroundWork extends BackgroundWork {
   keepAlive(): void {}
 }
 
-export class FakeSessionModelChoice extends SessionModelChoice {
-  readonly settings = new Map<string, unknown>()
-  readonly writes: ({ sessionId: string } & SessionModelDefault)[] = []
-
-  protected async settingValue(args: {
-    userId: string
-    projectId: string
-    key: string
-  }): Promise<unknown> {
-    return this.settings.get(args.key)
-  }
-
-  async write(args: { sessionId: string } & SessionModelDefault): Promise<boolean> {
-    this.writes.push(args)
-    return true
-  }
-}
-
 export const setupSessionsService = () => {
   const store = new InMemoryControlStore({ clock: () => NOW })
   store.markHostPresent(9001)
   const plane = new ControlPlane({ store })
   const registry = new FakeMediaRegistry()
   const mediaStore = new FakeMediaStore()
-  const choice = new FakeSessionModelChoice()
   const service = new SessionsService(
     plane,
     new FakeProjectAccess(),
@@ -70,7 +50,6 @@ export const setupSessionsService = () => {
     registry,
     mediaStore,
     composeCommands([TEST_COMMAND, modelSet]),
-    choice,
   )
-  return { plane, service, registry, mediaStore, choice }
+  return { plane, service, registry, mediaStore }
 }

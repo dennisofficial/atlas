@@ -36,6 +36,9 @@ async function refusalOf(params: { race: (tx: ControlTx) => Promise<void> }) {
       userId: 'user-1',
       projectId: 'project-1',
       mainThreadId: 'thread-1',
+      modelRef: 'anthropic/claude-haiku-4-5',
+      modelEffort: 'medium',
+      modelFast: false,
       at: entry.postedAt,
     })
     await tx.insertInboxEntry(entry)

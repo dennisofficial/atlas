@@ -207,9 +207,11 @@ export class RoutinesService {
       userId: args.userId,
       projectId: row.projectId,
       title: row.name,
-      modelRef: row.modelRef ?? undefined,
-      modelEffort: row.modelEffort ?? undefined,
-      modelFast: row.modelFast ?? undefined,
+      model: {
+        ref: row.modelRef ?? undefined,
+        effort: row.modelEffort ?? undefined,
+        fast: row.modelFast ?? undefined,
+      },
       routineId: row.routineId,
       message: {
         kind: INBOX_KIND_MESSAGE,

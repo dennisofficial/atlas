@@ -15,7 +15,7 @@ import {
 } from '@dltech/atlas-core'
 import { TurnFault, type NormalizeFailure } from '@dltech/atlas-agent'
 
-import type { RoleModelRequest } from '../../ports'
+import type { RoleModelChoice } from '../../ports'
 import { childChoiceOf, childModelOf } from '../child-model'
 
 const MAIN: ModelChoice = {
@@ -76,14 +76,14 @@ const runtimeOver = (args: {
   child?: ModelPort | undefined
   normalizeFailure?: NormalizeFailure | undefined
 }) => {
-  const calls: RoleModelRequest[] = []
+  const calls: RoleModelChoice[] = []
   const child = args.child ?? new FakeModel('child')
   const main = new FakeModel('main')
   const runtime = {
     modelChoice: MAIN,
     model: main,
-    modelFor: (request: RoleModelRequest) => {
-      calls.push(request)
+    modelOf: (choice: RoleModelChoice) => {
+      calls.push(choice)
       return child
     },
     choiceFor: () => args.choice ?? MAIN,
@@ -92,24 +92,20 @@ const runtimeOver = (args: {
   return { calls, runtime, child, main }
 }
 
-const request = { role: { agentType: 'builder' }, root: MAIN } as const
 const signal = new AbortController().signal
 
 describe('childModelOf', () => {
-  it('asks the runtime for the agent type’s model, rooted at the session’s choice', () => {
+  it('builds the child’s port from the choice it was handed, without resolving it', () => {
     const { calls, runtime, child } = runtimeOver({})
-    expect(childModelOf({ runtime, agentType: 'builder' })).toBe(child)
-    expect(calls).toEqual([request])
+    expect(childModelOf({ runtime, model: OWN })).toBe(child)
+    expect(calls).toEqual([OWN])
   })
 
-  it('asks once per child and names only the child’s own agent type', () => {
+  it('builds a port per spawn from the model that spawn carried', () => {
     const { calls, runtime } = runtimeOver({})
-    childModelOf({ runtime, agentType: 'builder' })
-    childModelOf({ runtime, agentType: 'reviewer' })
-    expect(calls.map((call) => call.role)).toEqual([
-      { agentType: 'builder' },
-      { agentType: 'reviewer' },
-    ])
+    childModelOf({ runtime, model: OWN })
+    childModelOf({ runtime, model: MAIN })
+    expect(calls).toEqual([OWN, MAIN])
   })
 
   it('carries the model a stale child was moved off as unavailable', () => {
@@ -127,7 +123,7 @@ describe('childModelOf', () => {
       new TurnFault({ kind: ERunFailureKind.MissingCredential, message: 'x' }),
     )
     const { runtime } = runtimeOver({ child, normalizeFailure: credentialFailure })
-    const model = childModelOf({ runtime, agentType: 'builder', onFallback: () => {} })
+    const model = childModelOf({ runtime, model: MAIN, onFallback: () => {} })
     expect(model).toBe(child)
     await expect(model.step({ assembled: ASSEMBLED, tools: [], signal })).rejects.toBeInstanceOf(
       TurnFault,
@@ -140,14 +136,10 @@ describe('childModelOf', () => {
       'child',
       new TurnFault({ kind: ERunFailureKind.MissingCredential, message: 'no openai account' }),
     )
-    const { runtime, main } = runtimeOver({
-      choice: OWN,
-      child,
-      normalizeFailure: credentialFailure,
-    })
+    const { runtime, main } = runtimeOver({ child, normalizeFailure: credentialFailure })
     const model = childModelOf({
       runtime,
-      agentType: 'builder',
+      model: OWN,
       onFallback: (refs) => {
         fellBack.push(refs)
       },
@@ -164,12 +156,8 @@ describe('childModelOf', () => {
       'child',
       new TurnFault({ kind: ERunFailureKind.MissingCredential, message: 'no openai account' }),
     )
-    const { runtime, main } = runtimeOver({
-      choice: OWN,
-      child,
-      normalizeFailure: credentialFailure,
-    })
-    const model = childModelOf({ runtime, agentType: 'builder', onFallback: () => {} })
+    const { runtime, main } = runtimeOver({ child, normalizeFailure: credentialFailure })
+    const model = childModelOf({ runtime, model: OWN, onFallback: () => {} })
     await model.step({ assembled: ASSEMBLED, tools: [], signal })
     await model.step({ assembled: ASSEMBLED, tools: [], signal })
     expect(child.calls).toBe(1)
@@ -179,10 +167,10 @@ describe('childModelOf', () => {
   it('rethrows a non-credential failure without falling back or reporting', async () => {
     const fellBack: unknown[] = []
     const child = new FakeModel('child', new Error('network down'))
-    const { runtime, main } = runtimeOver({ choice: OWN, child })
+    const { runtime, main } = runtimeOver({ child })
     const model = childModelOf({
       runtime,
-      agentType: 'builder',
+      model: OWN,
       onFallback: (refs) => {
         fellBack.push(refs)
       },
@@ -201,12 +189,8 @@ describe('childModelOf', () => {
       'child',
       new TurnFault({ kind: ERunFailureKind.MissingCredential, message: 'no openai account' }),
     )
-    const { runtime, main } = runtimeOver({
-      choice: OWN,
-      child,
-      normalizeFailure: credentialFailure,
-    })
-    const model = childModelOf({ runtime, agentType: 'builder', onFallback: () => {} })
+    const { runtime, main } = runtimeOver({ child, normalizeFailure: credentialFailure })
+    const model = childModelOf({ runtime, model: OWN, onFallback: () => {} })
     await expect(
       model.step({ assembled: ASSEMBLED, tools: [], signal: aborted.signal }),
     ).rejects.toBeInstanceOf(TurnFault)
@@ -221,12 +205,8 @@ describe('childModelOf', () => {
       message,
     })
     const child = new FakeModel('child', new Error('429 out of credits'))
-    const { runtime, main } = runtimeOver({
-      choice: OWN,
-      child,
-      normalizeFailure: alwaysCredential,
-    })
-    const model = childModelOf({ runtime, agentType: 'builder', onFallback: () => {} })
+    const { runtime, main } = runtimeOver({ child, normalizeFailure: alwaysCredential })
+    const model = childModelOf({ runtime, model: OWN, onFallback: () => {} })
     await model.step({ assembled: ASSEMBLED, tools: [], signal })
     expect(main.calls).toBe(1)
   })

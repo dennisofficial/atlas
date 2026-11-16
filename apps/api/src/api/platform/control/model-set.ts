@@ -1,12 +1,10 @@
 import type { ControlCommandHandler } from '@dltech/atlas-commands'
-import type { ControlPlane } from '@dltech/atlas-control'
-import type { ControlSessionRow } from '@dltech/atlas-control'
+import type { ControlPlane, ControlSessionRow } from '@dltech/atlas-control'
 import { defineCommand } from '@dltech/atlas-commands'
 import { ECommandGroup, ECommandTiming } from '@dltech/atlas-core'
 import { z } from 'zod'
 
 import { controlCommandHandlers } from './command-registry'
-import type { SessionModelChoice } from './session-model-choice'
 
 export const modelSetArgs = z.strictObject({
   model: z.string().min(1),
@@ -26,20 +24,14 @@ export const modelSet = defineCommand({
 })
 
 export const modelSetHandlers = (args: {
-  choice: SessionModelChoice
+  plane: ControlPlane
   session: ControlSessionRow
 }): ReadonlyMap<string, ControlCommandHandler<ControlPlane, unknown>> => {
   const handler: ControlCommandHandler<ControlPlane, unknown> = async ({ args: raw }) => {
-    const model = await args.choice.resolve({
-      userId: args.session.userId,
-      projectId: args.session.projectId,
-      ...modelSetArgs.parse(raw),
-    })
-    if (model.modelRef === undefined) throw new Error('model-set resolved no model')
-    await args.choice.write({
+    const parsed = modelSetArgs.parse(raw)
+    await args.plane.setSessionModel({
       sessionId: args.session.sessionId,
-      ...model,
-      modelRef: model.modelRef,
+      ask: { ref: parsed.model, effort: parsed.effort, fast: parsed.fast },
     })
   }
   return new Map([...controlCommandHandlers(), [modelSet.spec.name, handler]])

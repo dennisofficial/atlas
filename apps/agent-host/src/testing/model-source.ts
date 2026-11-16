@@ -29,5 +29,6 @@ export const fakeModelSourceOf = (config: ModelConfig): ModelSource => {
   return {
     main: { choice, config },
     resolve: () => ({ choice, config }),
+    pinned: () => ({ choice, config }),
   }
 }

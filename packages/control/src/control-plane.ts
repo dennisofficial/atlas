@@ -8,6 +8,7 @@ import {
   type V2Event,
   type V2EventType,
 } from '@dltech/atlas-core'
+import type { SessionModelAsk } from '@dltech/atlas-models'
 import type { z } from 'zod'
 import type { AppendHook } from './append-hooks'
 import { appendIn } from './append-ops'
@@ -37,6 +38,7 @@ import {
   type RoutineRow,
   type RoutineRunRow,
   type SessionListParams,
+  type SessionModelRow,
 } from './port'
 import { claimNextIn, wakeIn } from './claim-ops'
 import { withDigestViews } from './session-digest-view'
@@ -50,7 +52,13 @@ import {
   type RoutinePatch,
 } from './routine-crud'
 import { AppendAbort, type AppendOutcome } from './refusal'
-import { archiveIn, createSessionIn, renameIn, titleUntitledIn } from './session-ops'
+import {
+  archiveIn,
+  createSessionIn,
+  renameIn,
+  setSessionModelIn,
+  titleUntitledIn,
+} from './session-ops'
 import { EMPTY_VISIBILITY_TEXT } from './stored-event'
 
 export const MAX_READ_LIMIT = 1000
@@ -102,12 +110,10 @@ export class ControlPlane {
     projectId: string
     title?: string | undefined
     mainThreadId: string
-    modelRef?: string | undefined
-    modelEffort?: string | undefined
-    modelFast?: boolean | undefined
+    model?: SessionModelAsk | undefined
     routineId?: string | undefined
-  }): Promise<void> {
-    await this.store.transact(async (tx) =>
+  }): Promise<SessionModelRow> {
+    return this.store.transact(async (tx) =>
       createSessionIn({ tx, ...params, at: await this.nowIn(tx) }),
     )
   }
@@ -118,24 +124,30 @@ export class ControlPlane {
     projectId: string
     title?: string | undefined
     mainThreadId: string
-    modelRef?: string | undefined
-    modelEffort?: string | undefined
-    modelFast?: boolean | undefined
+    model?: SessionModelAsk | undefined
     routineId?: string | undefined
     message: { kind: string; payload: string }
-  }): Promise<{ inboxId: number }> {
+  }): Promise<{ inboxId: number } & SessionModelRow> {
     const { message, ...session } = params
     return this.store.transact(async (tx) => {
       const at = await this.nowIn(tx)
-      await createSessionIn({ tx, ...session, at })
-      return postIn({
+      const model = await createSessionIn({ tx, ...session, at })
+      const { inboxId } = await postIn({
         tx,
         sessionId: params.sessionId,
         kind: message.kind,
         payload: message.payload,
         at,
       })
+      return { inboxId, ...model }
     })
+  }
+
+  async setSessionModel(params: {
+    sessionId: string
+    ask: SessionModelAsk
+  }): Promise<SessionModelRow> {
+    return this.store.transact((tx) => setSessionModelIn({ tx, ...params }))
   }
 
   async spawnPeer(params: {
@@ -154,7 +166,14 @@ export class ControlPlane {
         sessionId: params.spawnerSessionId,
       })
       if (spawner === undefined) throw new Error(`unknown session ${params.spawnerSessionId}`)
-      return spawnPeerIn({ tx, spawner, ...params, at: await this.nowIn(tx) })
+      const { modelRef, modelEffort, modelFast, ...rest } = params
+      return spawnPeerIn({
+        tx,
+        spawner,
+        ...rest,
+        model: { ref: modelRef, effort: modelEffort, fast: modelFast },
+        at: await this.nowIn(tx),
+      })
     })
   }
 

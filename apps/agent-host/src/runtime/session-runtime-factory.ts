@@ -93,7 +93,7 @@ export const createSessionRuntimeFactory = (
     signal,
     spawner,
   }) => {
-    const config = await args.config.read({ sessionId, threadId })
+    const config = await args.config.read({ sessionId })
     if (config.vercel.configured === false) {
       throw new SandboxNotConfiguredError(config.vercel.gap)
     }
@@ -275,7 +275,7 @@ export const createSessionRuntimeFactory = (
           ? liveSessionModelsOf({
               userId: config.userId,
               initial: config.models,
-              read: () => args.config.models({ sessionId, threadId }),
+              read: () => args.config.models({ sessionId }),
               tokens: args.tokens,
               media: args.media,
               log: args.log,
@@ -308,7 +308,7 @@ export const createSessionRuntimeFactory = (
       get modelChoice() {
         return models.modelChoice()
       },
-      modelFor: models.modelFor,
+      modelOf: models.modelOf,
       choiceFor: models.choiceFor,
       modelLabelOf,
       tools: registry,

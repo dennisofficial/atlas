@@ -9095,21 +9095,21 @@
                 }
               },
               "modelEffort": {
-                "nullable": true,
+                "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
               "modelFast": {
-                "nullable": true,
+                "nullable": false,
                 "type": {
                   "codecId": "pg/bool@1",
                   "kind": "scalar"
                 }
               },
               "modelRef": {
-                "nullable": true,
+                "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -16307,17 +16307,17 @@
                 "modelEffort": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
-                  "nullable": true
+                  "nullable": false
                 },
                 "modelFast": {
                   "codecId": "pg/bool@1",
                   "dataType": "pg/bool",
-                  "nullable": true
+                  "nullable": false
                 },
                 "modelRef": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
-                  "nullable": true
+                  "nullable": false
                 },
                 "nested": {
                   "codecId": "pg/bool@1",
@@ -16613,7 +16613,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "798163a5e9fca8b08d9dd7a0622cee13a366ccfb761ff472c91f3721e959bd5a"
+    "storageHash": "dd5251132749ee6f04164c0340a18da57bd5f862bc07c913bcba4eff8d2aed34"
   },
   "execution": {
     "executionHash": "27a680d0d8367c03704617bfac2d0041e04bd5395fc473f9e021f03bd0d4c6fa",

@@ -4,6 +4,7 @@ import {
   EMessageOrigin,
   ESessionStatus,
   MAX_MESSAGE_UPLOADS,
+  parseRef,
   saidUploadSchema,
 } from '@dltech/atlas-core'
 import { z } from 'zod'
@@ -141,24 +142,21 @@ export const sessionRowPullRequestSchema = z.strictObject({
 
 export const sessionModelChoiceSchema = z.strictObject({
   ref: z.string().min(1),
-  effort: z.string().min(1).optional(),
-  fast: z.boolean().optional(),
+  effort: z.string().min(1),
+  fast: z.boolean(),
 })
 
 export type SessionModelChoice = z.infer<typeof sessionModelChoiceSchema>
 
 export const sessionModelChoiceOf = (row: {
-  modelRef: string | null
-  modelEffort: string | null
-  modelFast: boolean | null
-}): SessionModelChoice | null =>
-  row.modelRef === null
-    ? null
-    : {
-        ref: row.modelRef,
-        ...(row.modelEffort === null ? {} : { effort: row.modelEffort }),
-        ...(row.modelFast === null ? {} : { fast: row.modelFast }),
-      }
+  modelRef: string
+  modelEffort: string
+  modelFast: boolean
+}): SessionModelChoice => ({
+  ref: row.modelRef,
+  effort: row.modelEffort,
+  fast: row.modelFast,
+})
 
 export const sessionSummarySchema = z.strictObject({
   sessionId: z.string().min(1),
@@ -172,7 +170,7 @@ export const sessionSummarySchema = z.strictObject({
   spawnedBy: z.string().min(1).nullable().optional(),
   nested: z.boolean().optional(),
   routineId: z.string().min(1).nullable().optional(),
-  model: sessionModelChoiceSchema.nullable().optional(),
+  model: sessionModelChoiceSchema,
   status: sessionRowStatusSchema.optional(),
   primaryBranch: z.string().nullable().optional(),
   pullRequest: sessionRowPullRequestSchema.nullable().optional(),
@@ -388,6 +386,14 @@ export const routineListOutputSchema = z.strictObject({
   routines: z.array(routineSchema),
 })
 
+const routineModelRefSchema = z
+  .string()
+  .min(1)
+  .refine(
+    (reference) => parseRef(reference) !== undefined,
+    'model must be a provider/model ref such as anthropic/claude-opus-5-5',
+  )
+
 export const routineCreateInputSchema = z.strictObject({
   projectId: z.string().min(1),
   name: z.string().min(1).max(120),
@@ -395,7 +401,7 @@ export const routineCreateInputSchema = z.strictObject({
   cron: z.string().min(1).max(120),
   timezone: z.string().min(1).max(80),
   enabled: z.boolean().optional(),
-  model: z.string().min(1).nullable().optional(),
+  model: routineModelRefSchema.nullable().optional(),
   effort: z.string().min(1).nullable().optional(),
   fast: z.boolean().nullable().optional(),
 })
@@ -407,7 +413,7 @@ export const routineUpdateInputSchema = z.strictObject({
   cron: z.string().min(1).max(120).optional(),
   timezone: z.string().min(1).max(80).optional(),
   enabled: z.boolean().optional(),
-  model: z.string().min(1).nullable().optional(),
+  model: routineModelRefSchema.nullable().optional(),
   effort: z.string().min(1).nullable().optional(),
   fast: z.boolean().nullable().optional(),
 })

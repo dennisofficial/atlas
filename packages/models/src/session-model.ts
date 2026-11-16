@@ -1,0 +1,235 @@
+import {
+  accountSchema,
+  capabilitiesFromCatalog,
+  chooseAccount,
+  EAccountChoice,
+  EAuthProvider,
+  EEffort,
+  EModelRole,
+  EStalePolicy,
+  effortRungOf,
+  parseRef,
+  resolveModelChoice,
+  toAccountId,
+  type Account,
+  type CapabilitiesOf,
+  type ModelCapabilities,
+  type ModelChoice,
+  type ModelRef,
+} from '@dltech/atlas-core'
+
+import { cardsForProvider, generatedCatalogue } from './generated-catalogue'
+
+export const SHIPPED_DEFAULT_REF: ModelRef = {
+  providerId: 'anthropic',
+  modelId: 'claude-haiku-4-5',
+}
+
+const SETTING_VALUE_PREFIX = 'atlas-setting:v1:'
+const FALLBACK_PROVIDERS = [
+  EAuthProvider.Anthropic,
+  EAuthProvider.OpenAI,
+  EAuthProvider.OpenRouter,
+  EAuthProvider.Gateway,
+  EAuthProvider.Inference,
+]
+
+export type ActiveAccountRowLike = { provider: string; accountId: string }
+
+export type AccountRowLike = {
+  id: string
+  provider: string
+  kind: string
+  origin: string
+  label: string
+  status: string
+  email: string | null
+  subscription: string | null
+  importedFrom: string | null
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type SessionModelInputs = {
+  settings: ReadonlyMap<string, string>
+  accounts: readonly AccountRowLike[]
+  activeAccounts: readonly ActiveAccountRowLike[]
+}
+
+export type SessionModelAsk = {
+  ref?: string | undefined
+  effort?: string | undefined
+  fast?: boolean | undefined
+}
+
+export type SettingReader = (settingId: string) => string | boolean | undefined
+
+const decodeSettingValue = (stored: string): unknown => {
+  if (!stored.startsWith(SETTING_VALUE_PREFIX)) return stored
+  try {
+    return JSON.parse(stored.slice(SETTING_VALUE_PREFIX.length))
+  } catch {
+    return stored
+  }
+}
+
+export const readOf =
+  (settings: ReadonlyMap<string, string>): SettingReader =>
+  (settingId) => {
+    const stored = settings.get(settingId)
+    if (stored === undefined) return undefined
+    const decoded = decodeSettingValue(stored)
+    return typeof decoded === 'string' || typeof decoded === 'boolean' ? decoded : undefined
+  }
+
+export const settingsWithProjectOverUser = (args: {
+  user: ReadonlyMap<string, string>
+  project: ReadonlyMap<string, string>
+}): ReadonlyMap<string, string> => new Map([...args.user, ...args.project])
+
+const accountOf = (row: AccountRowLike): Account | undefined => {
+  const parsed = accountSchema.safeParse({
+    id: row.id,
+    provider: row.provider,
+    kind: row.kind,
+    origin: row.origin,
+    label: row.label,
+    status: row.status,
+    ...(row.email === null ? {} : { email: row.email }),
+    ...(row.subscription === null ? {} : { subscription: row.subscription }),
+    ...(row.importedFrom === null ? {} : { importedFrom: row.importedFrom }),
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  })
+  return parsed.success ? parsed.data : undefined
+}
+
+export type ParsedAccount<Row extends AccountRowLike> = { account: Account; row: Row }
+
+export const parsedAccountsOf = <Row extends AccountRowLike>(
+  rows: readonly Row[],
+): readonly ParsedAccount<Row>[] =>
+  rows.flatMap((row) => {
+    const account = accountOf(row)
+    return account === undefined ? [] : [{ account, row }]
+  })
+
+const isProvider = (value: string): value is EAuthProvider =>
+  Object.values(EAuthProvider).some((provider) => provider === value)
+
+export const chosenFor = <Row extends AccountRowLike>(args: {
+  provider: EAuthProvider
+  parsed: readonly ParsedAccount<Row>[]
+  activeAccounts: readonly ActiveAccountRowLike[]
+}): ParsedAccount<Row> | undefined => {
+  const active = args.activeAccounts.find((entry) => entry.provider === args.provider)
+  const preferred = active?.accountId
+  const choice = chooseAccount({
+    accounts: args.parsed.map((entry) => entry.account),
+    provider: args.provider,
+    ...(preferred === undefined ? {} : { preferred: toAccountId(preferred) }),
+  })
+  if (choice.type !== EAccountChoice.Chosen) return undefined
+  return args.parsed.find((entry) => entry.account.id === choice.account.id)
+}
+
+export const reachableOf =
+  (args: {
+    parsed: readonly ParsedAccount<AccountRowLike>[]
+    activeAccounts: readonly ActiveAccountRowLike[]
+  }): ((providerId: string) => boolean) =>
+  (providerId) =>
+    isProvider(providerId) && chosenFor({ provider: providerId, ...args }) !== undefined
+
+export const fallbackRefOf = (args: {
+  parsed: readonly ParsedAccount<AccountRowLike>[]
+  activeAccounts: readonly ActiveAccountRowLike[]
+}): ModelRef | undefined => {
+  if (chosenFor({ ...args, provider: EAuthProvider.Anthropic }) !== undefined) {
+    return SHIPPED_DEFAULT_REF
+  }
+  for (const provider of FALLBACK_PROVIDERS) {
+    if (chosenFor({ ...args, provider }) === undefined) continue
+    const card = cardsForProvider(provider)[0]
+    if (card !== undefined) return card.ref
+  }
+  return undefined
+}
+
+const UNCATALOGUED: ModelCapabilities = { efforts: [], fast: false, runnable: true }
+
+export const capabilitiesOver = (reachable: (providerId: string) => boolean): CapabilitiesOf => {
+  const fromCatalog = capabilitiesFromCatalog({ catalog: generatedCatalogue(), reachable })
+  return (ref) => fromCatalog(ref) ?? (reachable(ref.providerId) ? UNCATALOGUED : undefined)
+}
+
+const effortOf = (value: string | undefined): EEffort | undefined =>
+  value === undefined ? undefined : effortRungOf(value)
+
+type Resolution = {
+  read: SettingReader
+  capabilitiesOf: CapabilitiesOf
+  fallback: ModelRef
+}
+
+const resolutionOf = (inputs: SessionModelInputs): Resolution => {
+  const parsed = parsedAccountsOf(inputs.accounts)
+  const reachable = reachableOf({ parsed, activeAccounts: inputs.activeAccounts })
+  return {
+    read: readOf(inputs.settings),
+    capabilitiesOf: capabilitiesOver(reachable),
+    fallback:
+      fallbackRefOf({ parsed, activeAccounts: inputs.activeAccounts }) ?? SHIPPED_DEFAULT_REF,
+  }
+}
+
+const choiceOf = (args: { resolution: Resolution; root: ModelChoice }): ModelChoice => {
+  const resolved = resolveModelChoice({
+    role: EModelRole.Main,
+    read: args.resolution.read,
+    capabilitiesOf: args.resolution.capabilitiesOf,
+    fallback: args.resolution.fallback,
+    stale: EStalePolicy.Keep,
+    root: args.root,
+  })
+  return { ref: resolved.ref, effort: resolved.effort, fast: resolved.fast }
+}
+
+export const defaultMainModelOf = (inputs: SessionModelInputs): ModelChoice => {
+  const resolution = resolutionOf(inputs)
+  const resolved = resolveModelChoice({
+    role: EModelRole.Main,
+    read: resolution.read,
+    capabilitiesOf: resolution.capabilitiesOf,
+    fallback: resolution.fallback,
+    stale: EStalePolicy.Keep,
+  })
+  return { ref: resolved.ref, effort: resolved.effort, fast: resolved.fast }
+}
+
+export const sessionModelOf = (
+  args: SessionModelInputs & { ask: SessionModelAsk; current?: ModelChoice | undefined },
+): ModelChoice => {
+  const resolution = resolutionOf(args)
+  const fallback = defaultMainModelOf(args)
+  if (args.ask.ref === undefined) {
+    return choiceOf({
+      resolution,
+      root: {
+        ref: fallback.ref,
+        effort: effortOf(args.ask.effort) ?? fallback.effort,
+        fast: args.ask.fast ?? fallback.fast,
+      },
+    })
+  }
+  const ref = parseRef(args.ask.ref)
+  if (ref === undefined) throw new Error(`unknown model ${args.ask.ref}`)
+  return choiceOf({
+    resolution,
+    root: {
+      ref,
+      effort: effortOf(args.ask.effort) ?? args.current?.effort ?? fallback.effort,
+      fast: args.ask.fast ?? false,
+    },
+  })
+}

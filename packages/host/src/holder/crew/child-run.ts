@@ -9,11 +9,12 @@ import type {
 } from '@dltech/atlas-plugin-sdk'
 
 import type { HeldSessionDeps } from '../held-session-deps'
-import type { SessionRuntime } from '../ports'
+import type { RoleModelChoice, SessionRuntime } from '../ports'
 import type { LeaseLostError, SessionRecord } from '../record/record-adapter'
 import { SessionRecord as RecordAdapter } from '../record/record-adapter'
 import { ChildIntake } from './child-intake'
 import { childPortOf } from './child-port'
+import { childChoiceOf } from './child-model'
 import {
   failureOf,
   progressOf,
@@ -57,12 +58,14 @@ export class ChildRun {
   private constructor(
     private readonly args: ChildRunArgs,
     agentId: ThreadId,
+    private readonly model: RoleModelChoice,
   ) {
     this.agentId = agentId
     this.startedAt = new Date(args.deps.timers.now()).toISOString()
     this.transcript = new ChildTranscript({
       deps: args.deps,
       runtime: args.runtime,
+      model: this.model,
       parentRecord: args.parentRecord,
       parentThreadId: args.parentThreadId,
       agentId,
@@ -72,7 +75,11 @@ export class ChildRun {
   }
 
   static async open(args: ChildRunArgs): Promise<ChildRun> {
-    const run = new ChildRun(args, args.deps.ids.nextThreadId())
+    const run = new ChildRun(
+      args,
+      args.deps.ids.nextThreadId(),
+      childChoiceOf({ runtime: args.runtime, agentType: args.agentType }),
+    )
     await args.deps.plane.createThread({ threadId: run.agentId, sessionId: args.deps.sessionId })
     run.record = await RecordAdapter.open({
       plane: args.deps.plane,
@@ -182,7 +189,7 @@ export class ChildRun {
         runtime: this.args.runtime,
         record: this.record,
         agentId: this.agentId,
-        agentType: this.args.agentType,
+        model: this.model,
         signal: listeners.signal,
         crew: this.port(),
         intake: this.intake,

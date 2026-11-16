@@ -234,10 +234,7 @@ describe('createSessionRuntimeFactory', () => {
       epoch: 1,
       signal: new AbortController().signal,
     })
-    const port = runtime.modelFor({
-      role: { agentType: 'builder' },
-      root: runtime.modelChoice,
-    })
+    const port = runtime.modelOf(runtime.modelChoice)
     expect(port).toBeDefined()
     expect(port).not.toBe(runtime.model)
     expect(runtime.modelChoice).toMatchObject({
@@ -261,7 +258,7 @@ describe('createSessionRuntimeFactory', () => {
       signal: new AbortController().signal,
     })
     expect(runtime.model).toBe(override)
-    expect(runtime.modelFor({ role: { agentType: 'builder' } })).toBe(override)
+    expect(runtime.modelOf(runtime.modelChoice)).toBe(override)
     await runtime.stop()
   })
 
@@ -415,7 +412,7 @@ describe('createSessionRuntimeFactory', () => {
       epoch: 1,
       signal: new AbortController().signal,
     })
-    expect(asked).toEqual([{ sessionId: 's-7', threadId: 't-7' }])
+    expect(asked).toEqual([{ sessionId: 's-7' }])
     expect(runtime.model.traits?.().image).toEqual({
       images: 'both',
       maxInlineBytes: 5_242_880,

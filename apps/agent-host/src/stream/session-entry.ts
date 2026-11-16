@@ -5,6 +5,13 @@ import {
 } from '@dltech/atlas-control'
 import { STREAM_SESSION_VIEW_VERSION, type SessionSummary } from '@dltech/atlas-protocol'
 
+export type LegacySessionRow = Omit<
+  SessionSummary,
+  'status' | 'primaryBranch' | 'pullRequest' | 'spawnedBy' | 'routineId' | 'model'
+>
+
+export type SessionRow = SessionSummary | LegacySessionRow
+
 export type SessionEntry = {
   row: SessionSummary
   userId: string
@@ -12,7 +19,7 @@ export type SessionEntry = {
   namingEndsAt: number | undefined
 }
 
-export const rowForVersion = (args: { row: SessionSummary; version: number }): SessionSummary => {
+export const rowForVersion = (args: { row: SessionSummary; version: number }): SessionRow => {
   if (args.version >= STREAM_SESSION_VIEW_VERSION) return args.row
   const {
     status: _status,

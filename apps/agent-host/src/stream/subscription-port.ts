@@ -5,6 +5,14 @@ import {
   type StreamServerMessage,
 } from '@dltech/atlas-protocol'
 
+import type { LegacySessionRow } from './session-entry'
+
+export type LegacySessionsFrame =
+  | { type: 'snapshot'; id: string; rows: readonly LegacySessionRow[] }
+  | { type: 'upsert'; id: string; row: LegacySessionRow }
+
+export type OutgoingFrame = StreamServerMessage | LegacySessionsFrame
+
 export type StreamSubscriptionMessage = Extract<
   StreamClientMessage,
   { type: 'subscribe' | 'unsubscribe' | 'resnap' }
@@ -14,7 +22,7 @@ export type SubscriptionConnection = {
   userId: string
   version: number
   surface: EStreamSurface
-  send(message: StreamServerMessage): void
+  send(message: OutgoingFrame): void
   bufferedAmount(): number
   close(code: number): void
 }
