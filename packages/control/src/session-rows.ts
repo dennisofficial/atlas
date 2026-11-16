@@ -8,6 +8,7 @@ export type ControlSessionRow = {
   mainThreadId: string
   createdAt: string
   archivedAt: string | null
+  deletedAt: string | null
   modelRef: string
   modelEffort: string
   modelFast: boolean

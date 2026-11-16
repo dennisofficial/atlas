@@ -42,7 +42,18 @@ export class TeammateArchiveStopService {
     if (sandbox === null) return
     if (!(await hasBootSteps({ threadId }))) return
 
-    if (sandboxStateOf(sandbox) === ESandboxState.Running && !parkedOf(sandbox)) {
+    const lead = await db.orm.public.Session.where({ id: podSessionId })
+      .select('mainThreadId', 'archivedAt', 'deletedAt')
+      .first()
+    if (lead === null) return
+    const leadRetired = lead.archivedAt !== null || lead.deletedAt !== null
+    const podRunning =
+      sandboxStateOf(sandbox) === ESandboxState.Running &&
+      !parkedOf(sandbox) &&
+      sandbox.retiredAt === null &&
+      !leadRetired
+
+    if (podRunning) {
       // A live pod is the only writer of its threads' logs; the ending must be written by the pod
       // (its own stop records it through the registry), never appended here, or the pod's next
       // write-behind flush at that seq conflicts. The archive therefore stands or falls with the
@@ -62,10 +73,7 @@ export class TeammateArchiveStopService {
 
     // Parked, absent or failed: nothing is running, so the pod writes nothing — the ending is
     // recorded here, into the log the pod mirrors up at boot, so the teammate is never resumed.
-    const lead = await db.orm.public.Session.where({ id: podSessionId })
-      .select('mainThreadId')
-      .first()
-    if (lead?.mainThreadId != null)
+    if (lead.mainThreadId !== null)
       await this.recordEnding({ userId, leadThreadId: lead.mainThreadId, threadId })
   }
 

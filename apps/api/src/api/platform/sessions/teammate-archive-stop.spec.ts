@@ -4,7 +4,13 @@ import { beforeEach, describe, expect, it } from 'bun:test'
 import { db } from '@dltech/atlas-db'
 import { EAgentStatus, EKilledBy } from '@dltech/atlas-core'
 import type { SandboxCredentials } from '../../../_core/ports/sandbox-credentials'
-import { seedSandboxRow, seedThreadRow, seedUsers, USER_A } from '../../../../test/session-seed'
+import {
+  seedSandboxRow,
+  seedThreadRow,
+  seedUsers,
+  STAMP,
+  USER_A,
+} from '../../../../test/session-seed'
 import { VercelSandboxClient } from '../sandboxes/vercel-sandbox.client'
 import { inertSignals } from './thread-signals.fixture'
 import { TeammateArchiveStopService } from './teammate-archive-stop'
@@ -143,5 +149,36 @@ describe('TeammateArchiveStopService', () => {
       "Couldn't stop the teammate, so it wasn't marked done. Try again.",
     )
     expect(await leadEndings()).toHaveLength(0)
+  })
+
+  it('records the ending without stopping the pod when the lead session is archived', async () => {
+    await seedManagedTeammate({})
+    await db.orm.public.Session.where({ id: 'ses_brn_lead' }).update({ archivedAt: STAMP })
+    let stopped = 0
+    const service = serviceWith(async () => {
+      stopped += 1
+    })
+
+    await service.stopIfManaged({ userId: USER_A, sessionId: 'ses_brn_mate', threadId: 'brn_mate' })
+
+    expect(stopped).toBe(0)
+    const [ending] = await leadEndings()
+    expect(ending?.body).toContain('brn_mate')
+  })
+
+  it('records the ending without stopping a pod whose row is already retired', async () => {
+    await seedManagedTeammate({})
+    await db.orm.public.CloudSandbox.where({ sessionId: 'ses_brn_lead' }).update({
+      retiredAt: STAMP,
+    })
+    let stopped = 0
+    const service = serviceWith(async () => {
+      stopped += 1
+    })
+
+    await service.stopIfManaged({ userId: USER_A, sessionId: 'ses_brn_mate', threadId: 'brn_mate' })
+
+    expect(stopped).toBe(0)
+    expect(await leadEndings()).toHaveLength(1)
   })
 })

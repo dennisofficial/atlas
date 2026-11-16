@@ -33,9 +33,10 @@ export { WAKE_DEBOUNCE_MS }
 export { WAKE_FAILURE_BACKOFF_MS }
 
 export type { SandboxWakeBoot, WakeBootArgs, WakeBootResult } from './github-sandbox-wake-boot'
-async function archivedThread(args: { threadId: string }): Promise<boolean> {
+async function retiredThread(args: { threadId: string }): Promise<boolean> {
   const session = await sessionOfThread({ reader: db, threadId: args.threadId }).catch(() => null)
-  return session?.archivedAt !== null && session?.archivedAt !== undefined
+  if (session === null) return false
+  return session.archivedAt !== null || session.deletedAt !== null
 }
 
 const subjectOf = (notice: WakeEventNotice): string =>
@@ -220,8 +221,8 @@ export class GithubSandboxWakeService {
       this.logger.log(`wake of thread ${args.threadId} skipped — the row is no longer parked`)
       return
     }
-    if (await archivedThread({ threadId: args.threadId })) {
-      this.logger.log(`wake of thread ${args.threadId} skipped — the thread is archived`)
+    if (await retiredThread({ threadId: args.threadId })) {
+      this.logger.log(`wake of thread ${args.threadId} skipped — the thread is archived or deleted`)
       return
     }
     // The intent is durable before the boot dedupe: append it regardless of whether this event

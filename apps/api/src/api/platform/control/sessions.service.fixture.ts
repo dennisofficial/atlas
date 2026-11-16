@@ -51,5 +51,5 @@ export const setupSessionsService = () => {
     mediaStore,
     composeCommands([TEST_COMMAND, modelSet]),
   )
-  return { plane, service, registry, mediaStore }
+  return { plane, service, registry, mediaStore, store }
 }

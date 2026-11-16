@@ -12,5 +12,11 @@ export async function ownedThread(args: {
     userId: args.userId,
   }).first()
   if (row === null) throw new NotFoundException('thread not found')
+  const session = await args.reader.orm.public.Session.where({ id: row.sessionId })
+    .select('deletedAt')
+    .first()
+  if (session !== null && session.deletedAt !== null) {
+    throw new NotFoundException('thread not found')
+  }
   return row
 }

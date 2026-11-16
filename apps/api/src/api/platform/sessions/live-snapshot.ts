@@ -23,6 +23,7 @@ export async function liveSnapshot(args: {
 }): Promise<LiveSnapshot> {
   const sessions = await db.orm.public.Session.where({ userId: args.userId })
     .where((session) => session.mainThreadId.isNotNull())
+    .where((session) => session.deletedAt.isNull())
     .orderBy((session) => session.updatedAt.desc())
     .all()
   const buckets = bucketSessions({ sessions, now: args.now ?? Date.now() })

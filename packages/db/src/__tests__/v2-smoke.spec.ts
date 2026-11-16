@@ -14,6 +14,7 @@ const sessionRow = () => ({
   nextInboxId: 1,
   createdAt: NOW,
   archivedAt: null,
+  deletedAt: null,
   modelRef: 'anthropic/claude-haiku-4-5',
   modelEffort: 'medium',
   modelFast: false,

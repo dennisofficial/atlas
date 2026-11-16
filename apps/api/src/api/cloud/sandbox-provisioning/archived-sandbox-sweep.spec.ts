@@ -22,6 +22,8 @@ const WITHIN_GRACE = new Date(NOW.getTime() - 2 * 60 * 60 * 1_000)
 
 const sandboxRows = () => db.orm.public.CloudSandbox.all()
 
+const sessionById = (id: string) => db.orm.public.Session.where({ id }).first()
+
 describe('sweepArchivedSandboxes', () => {
   useTestDatabase()
 
@@ -39,13 +41,16 @@ describe('sweepArchivedSandboxes', () => {
 
     const summary = await sweepArchivedSandboxes({ now: NOW, deps })
 
-    expect(summary).toEqual({ scanned: 1, retired: 1, skipped: 0, failed: 0 })
+    expect(summary).toEqual({ scanned: 1, retired: 1, skipped: 0, failed: 0, deleted: 1 })
     expect(deleted).toEqual([{ threadId: 'thr-1', name: 'atlas-thread-thr-1' }])
     const [row] = await sandboxRows()
     expect(row?.name).toBe('atlas-thread-thr-1')
     expect(row?.retiredAt).not.toBeNull()
     expect(row?.serveUrl).toBeNull()
     expect(announced).toEqual(['thr-1'])
+    const session = await sessionById('ses_thr-1')
+    expect(session?.deletedAt).not.toBeNull()
+    expect(session?.archivedAt?.getTime()).toBe(PAST_GRACE.getTime())
   })
 
   it('leaves a session archived within the grace untouched', async () => {
@@ -54,7 +59,7 @@ describe('sweepArchivedSandboxes', () => {
 
     const summary = await sweepArchivedSandboxes({ now: NOW, deps })
 
-    expect(summary).toEqual({ scanned: 0, retired: 0, skipped: 0, failed: 0 })
+    expect(summary).toEqual({ scanned: 0, retired: 0, skipped: 0, failed: 0, deleted: 0 })
     expect(deleted).toHaveLength(0)
     expect(await sandboxRows()).toHaveLength(1)
     expect(announced).toHaveLength(0)
@@ -68,7 +73,7 @@ describe('sweepArchivedSandboxes', () => {
 
     const summary = await sweepArchivedSandboxes({ now: NOW, deps })
 
-    expect(summary).toEqual({ scanned: 0, retired: 0, skipped: 0, failed: 0 })
+    expect(summary).toEqual({ scanned: 0, retired: 0, skipped: 0, failed: 0, deleted: 0 })
     expect(deleted).toHaveLength(0)
     expect(await sandboxRows()).toHaveLength(1)
   })
@@ -79,7 +84,7 @@ describe('sweepArchivedSandboxes', () => {
 
     const summary = await sweepArchivedSandboxes({ now: NOW, deps })
 
-    expect(summary).toEqual({ scanned: 1, retired: 0, skipped: 1, failed: 0 })
+    expect(summary).toEqual({ scanned: 1, retired: 0, skipped: 1, failed: 0, deleted: 0 })
     expect(deleted).toHaveLength(0)
     expect(await sandboxRows()).toHaveLength(1)
   })
@@ -90,7 +95,7 @@ describe('sweepArchivedSandboxes', () => {
 
     const summary = await sweepArchivedSandboxes({ now: NOW, deps })
 
-    expect(summary).toEqual({ scanned: 1, retired: 0, skipped: 1, failed: 0 })
+    expect(summary).toEqual({ scanned: 1, retired: 0, skipped: 1, failed: 0, deleted: 0 })
     expect(deleted).toHaveLength(0)
     expect(await sandboxRows()).toHaveLength(1)
   })
@@ -105,7 +110,7 @@ describe('sweepArchivedSandboxes', () => {
 
     const summary = await sweepArchivedSandboxes({ now: NOW, deps })
 
-    expect(summary).toEqual({ scanned: 1, retired: 0, skipped: 1, failed: 0 })
+    expect(summary).toEqual({ scanned: 1, retired: 0, skipped: 1, failed: 0, deleted: 0 })
     expect(deleted).toHaveLength(0)
     expect(await sandboxRows()).toHaveLength(1)
   })
@@ -120,7 +125,7 @@ describe('sweepArchivedSandboxes', () => {
 
     const summary = await sweepArchivedSandboxes({ now: NOW, deps })
 
-    expect(summary).toEqual({ scanned: 1, retired: 1, skipped: 0, failed: 0 })
+    expect(summary).toEqual({ scanned: 1, retired: 1, skipped: 0, failed: 0, deleted: 2 })
     expect(deleted).toEqual([{ threadId: 'thr-1', name: 'atlas-thread-thr-1' }])
     const [row] = await sandboxRows()
     expect(row?.retiredAt).not.toBeNull()
@@ -147,7 +152,7 @@ describe('sweepArchivedSandboxes', () => {
 
     const summary = await sweepArchivedSandboxes({ now: NOW, deps })
 
-    expect(summary).toEqual({ scanned: 1, retired: 0, skipped: 0, failed: 1 })
+    expect(summary).toEqual({ scanned: 1, retired: 0, skipped: 0, failed: 1, deleted: 0 })
     expect(deleted).toHaveLength(0)
     expect(announced).toHaveLength(0)
     expect(logged).toHaveLength(1)
@@ -157,7 +162,7 @@ describe('sweepArchivedSandboxes', () => {
     expect(row?.wakeClaim).toBeNull()
 
     const retry = await sweepArchivedSandboxes({ now: NOW, deps: recordingSweepDeps().deps })
-    expect(retry).toEqual({ scanned: 1, retired: 1, skipped: 0, failed: 0 })
+    expect(retry).toEqual({ scanned: 1, retired: 1, skipped: 0, failed: 0, deleted: 1 })
     expect((await sandboxRows())[0]?.retiredAt).not.toBeNull()
   })
 
@@ -176,7 +181,7 @@ describe('sweepArchivedSandboxes', () => {
 
     const summary = await sweepArchivedSandboxes({ now: NOW, deps: reactivating })
 
-    expect(summary).toEqual({ scanned: 2, retired: 1, skipped: 1, failed: 0 })
+    expect(summary).toEqual({ scanned: 2, retired: 1, skipped: 1, failed: 0, deleted: 1 })
     expect(deleted).toHaveLength(1)
     const remaining = await sandboxRows()
     expect(remaining).toHaveLength(2)
@@ -198,5 +203,79 @@ describe('sweepArchivedSandboxes', () => {
 
     expect(summary.scanned).toBe(0)
     expect(await sandboxRows()).toHaveLength(1)
+  })
+
+  it('soft-deletes an archived session that owns no pod', async () => {
+    await seedArchivedApiSession({ archivedAt: PAST_GRACE, withSandbox: false })
+    const { deps, deleted } = recordingSweepDeps()
+
+    const summary = await sweepArchivedSandboxes({ now: NOW, deps })
+
+    expect(summary).toEqual({ scanned: 0, retired: 0, skipped: 0, failed: 0, deleted: 1 })
+    expect(deleted).toHaveLength(0)
+    const session = await sessionById('ses_thr-1')
+    expect(session?.deletedAt).not.toBeNull()
+    expect(session?.archivedAt?.getTime()).toBe(PAST_GRACE.getTime())
+  })
+
+  it('soft-deletes an archived session whose pod was retired by an earlier run', async () => {
+    await seedArchivedApiSession({ archivedAt: PAST_GRACE })
+    await db.orm.public.CloudSandbox.where({ id: 'sbx_thr-1' }).update({ retiredAt: PAST_GRACE })
+
+    const summary = await sweepArchivedSandboxes({ now: NOW, deps: recordingSweepDeps().deps })
+
+    expect(summary).toEqual({ scanned: 0, retired: 0, skipped: 0, failed: 0, deleted: 1 })
+    expect((await sessionById('ses_thr-1'))?.deletedAt).not.toBeNull()
+  })
+
+  it('soft-deletes an archived teammate session and leaves its live lead alone', async () => {
+    await seedThreadRow({ id: 'thr-lead', userId: 'usr-1' })
+    await seedArchivedApiSession({
+      threadId: 'thr-mate',
+      archivedAt: PAST_GRACE,
+      withSandbox: false,
+    })
+    await db.orm.public.Session.where({ id: 'ses_thr-mate' }).update({
+      managedBySessionId: 'ses_thr-lead',
+    })
+
+    const summary = await sweepArchivedSandboxes({ now: NOW, deps: recordingSweepDeps().deps })
+
+    expect(summary.deleted).toBe(1)
+    expect((await sessionById('ses_thr-mate'))?.deletedAt).not.toBeNull()
+    expect((await sessionById('ses_thr-lead'))?.deletedAt).toBeNull()
+  })
+
+  it('leaves an archived session inside the grace undeleted', async () => {
+    await seedArchivedApiSession({ archivedAt: WITHIN_GRACE, withSandbox: false })
+
+    const summary = await sweepArchivedSandboxes({ now: NOW, deps: recordingSweepDeps().deps })
+
+    expect(summary.deleted).toBe(0)
+    expect((await sessionById('ses_thr-1'))?.deletedAt).toBeNull()
+  })
+
+  it('leaves a lead undeleted while a live teammate keeps its pod', async () => {
+    await seedArchivedApiSession({ archivedAt: PAST_GRACE })
+    await seedThreadRow({ id: 'thr-live', userId: 'usr-1' })
+    await db.orm.public.Session.where({ id: 'ses_thr-live' }).update({
+      managedBySessionId: 'ses_thr-1',
+    })
+
+    const summary = await sweepArchivedSandboxes({ now: NOW, deps: recordingSweepDeps().deps })
+
+    expect(summary.deleted).toBe(0)
+    expect((await sessionById('ses_thr-1'))?.deletedAt).toBeNull()
+    expect((await sessionById('ses_thr-live'))?.deletedAt).toBeNull()
+  })
+
+  it('leaves a session undeleted when its pod delete failed', async () => {
+    await seedArchivedApiSession({ archivedAt: PAST_GRACE })
+    const { deps } = recordingSweepDeps({ deleteFails: new Error('vercel is down') })
+
+    const summary = await sweepArchivedSandboxes({ now: NOW, deps })
+
+    expect(summary.deleted).toBe(0)
+    expect((await sessionById('ses_thr-1'))?.deletedAt).toBeNull()
   })
 })

@@ -65,6 +65,7 @@ export const listSessionsIn = (params: {
 }): ControlSessionRow[] =>
   [...params.state.sessions.values()]
     .filter((row) => row.userId === params.userId)
+    .filter((row) => row.deletedAt === null)
     .filter((row) => params.projectId === undefined || row.projectId === params.projectId)
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
     .slice(0, params.limit)
@@ -96,6 +97,7 @@ export const createSessionIn = (params: {
     mainThreadId: params.mainThreadId,
     createdAt: params.at,
     archivedAt: null,
+    deletedAt: null,
     nextInboxId: 1,
     titledFromInboxId: null,
     modelRef: params.modelRef,

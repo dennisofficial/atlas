@@ -10,6 +10,7 @@ namespace v2 {
     nextInboxId  Int
     createdAt    TimestamptzJsDate(3)
     archivedAt   TimestamptzJsDate(3)?
+    deletedAt    TimestamptzJsDate(3)?
     modelRef     String
     modelEffort  String
     modelFast    Boolean

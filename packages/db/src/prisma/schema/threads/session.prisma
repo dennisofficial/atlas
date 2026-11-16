@@ -9,6 +9,7 @@ model Session {
   title              String?
   pinnedAt           TimestamptzJsDate(3)?
   archivedAt         TimestamptzJsDate(3)?
+  deletedAt          TimestamptzJsDate(3)?
   createdAt          TimestamptzJsDate(3)
   updatedAt          TimestamptzJsDate(3)
   mainThreadId       String?

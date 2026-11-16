@@ -33,6 +33,7 @@ export const sessionDigestsIn = (
 ): SessionDigestRow[] =>
   [...params.state.sessions.values()]
     .filter((row) => row.userId === params.userId)
+    .filter((row) => row.deletedAt === null)
     .filter((row) => params.projectId === undefined || row.projectId === params.projectId)
     .filter((row) => params.sessionId === undefined || row.sessionId === params.sessionId)
     .filter(

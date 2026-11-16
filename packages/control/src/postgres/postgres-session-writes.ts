@@ -29,6 +29,7 @@ export const createSessionIn = async (params: {
     nextInboxId: 1,
     createdAt: new Date(params.at),
     archivedAt: null,
+    deletedAt: null,
     modelRef: params.modelRef,
     modelEffort: params.modelEffort,
     modelFast: params.modelFast,
@@ -55,6 +56,28 @@ export const readSessionIn = async (params: {
   const query = params.tx.orm.v2.V2Session.where({ id: params.sessionId })
   const row = await (params.lock ? query.forNoKeyUpdate() : query).first()
   return row === null ? undefined : toSessionRow(row)
+}
+
+export const softDeleteArchivedSessionsIn = async (params: {
+  tx: Tx
+  cutoff: Date
+  at: Date
+}): Promise<number> => {
+  const rows = await params.tx.query(
+    params.tx.raw.sql`UPDATE "v2"."V2Session" s
+        SET "deletedAt" = ${params.at.toISOString()}::timestamptz
+        WHERE s."archivedAt" < ${params.cutoff.toISOString()}::timestamptz
+          AND s."deletedAt" IS NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM "v2"."V2Session" peer
+            WHERE COALESCE(peer."podSessionId", peer."id") = COALESCE(s."podSessionId", s."id")
+              AND peer."archivedAt" IS NULL
+          )
+        RETURNING s."id"`
+      .returnsRow({ id: 'pg/text@1' })
+      .build(),
+  )
+  return rows.length
 }
 
 export const setSessionModelIn = async (params: {

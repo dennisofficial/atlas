@@ -82,4 +82,20 @@ describe('liveSnapshot', () => {
       'ses_pinned_old',
     ])
   })
+
+  it('drops soft-deleted sessions from the rows and the counts', async () => {
+    const now = STAMP.getTime()
+    await seedThreadRow({ id: 'kept_active', userId: USER_A, updatedAt: new Date(now - HOUR_MS) })
+    await seedThreadRow({
+      id: 'deleted_active',
+      userId: USER_A,
+      deletedAt: STAMP,
+      updatedAt: new Date(now - HOUR_MS),
+    })
+
+    const { rows, counts } = await archivedRowsOf({ now })
+
+    expect(rows.map((row) => row.sessionId)).toEqual(['ses_kept_active'])
+    expect(counts).toEqual({ active: 1, inactive: 0, archived: 0 })
+  })
 })
