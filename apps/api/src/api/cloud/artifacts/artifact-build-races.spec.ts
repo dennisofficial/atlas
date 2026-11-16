@@ -7,18 +7,11 @@ import {
 import { db } from '@dltech/atlas-db'
 import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
-import {
-  EArtifactBuildOutcome,
-  type ArtifactBuildPayload,
-} from '../../api/cloud/artifacts/artifact-build.contract'
-import { failArtifactBuild, runArtifactBuild } from '../../api/cloud/artifacts/artifact-build-run'
-import { FakeArtifactBlobStore } from '../../api/cloud/artifacts/artifact-blob-store.fakes'
-import { ArtifactLifecycleService } from '../../api/cloud/artifacts/artifact-lifecycle.service'
-import {
-  FakeArtifactSandbox,
-  builtFiles,
-  sandboxResult,
-} from '../../api/cloud/artifacts/artifact-sandbox.fakes'
+import { EArtifactBuildOutcome, type ArtifactBuildPayload } from './artifact-build.contract'
+import { failArtifactBuild, runArtifactBuild } from './artifact-build-run'
+import { FakeArtifactBlobStore } from './artifact-blob-store.fakes'
+import { ArtifactLifecycleService } from './artifact-lifecycle.service'
+import { FakeArtifactSandbox, builtFiles, sandboxResult } from './artifact-sandbox.fakes'
 import {
   USER_ID,
   depsOf,
