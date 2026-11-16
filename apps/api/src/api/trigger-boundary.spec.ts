@@ -7,6 +7,7 @@ const TRIGGER_ROOT = path.join(SRC_ROOT, 'trigger')
 const SDK_SCOPES = ['api', '_lib'].map((dir) => path.join(SRC_ROOT, dir))
 const SDK_ADAPTER = path.join(SRC_ROOT, '_lib', 'trigger', 'trigger-job-dispatcher.ts')
 const SPECIFIER_PATTERN = /(?:from\s+|import\s*\(\s*|import\s+)['"]([^'"]+)['"]/g
+const TEST_SUPPORT = /(?:\.fixtures?|\.fakes?|-fixtures?|-fakes?|-rig)\.ts$/
 
 function listTsFiles({ dir }: { dir: string }): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -42,6 +43,13 @@ describe('trigger.dev boundary', () => {
           .map((specifier) => `${relative({ file })} -> ${specifier}`),
       )
     expect(offenders, 'API code reaches tasks through a contract and JobDispatcher').toEqual([])
+  })
+
+  it('keeps test fixtures and fakes out of src/trigger, which deploys every non-spec file', () => {
+    const offenders = listTsFiles({ dir: TRIGGER_ROOT })
+      .filter((file) => TEST_SUPPORT.test(file))
+      .map((file) => relative({ file }))
+    expect(offenders, 'put test support beside the code it tests, outside src/trigger').toEqual([])
   })
 
   it('lets only the dispatcher adapter import the trigger.dev SDK in src/api and src/_lib', () => {
