@@ -221,7 +221,7 @@ export function ChatItem({ id, children }: ChatItemProps) {
     <div
       data-slot="chat-item"
       data-chat-item-id={id}
-      className="mx-auto w-full max-w-3xl min-w-0 px-4 py-3"
+      className="mx-auto w-full max-w-4xl min-w-0 px-4 py-3"
     >
       {children}
     </div>
