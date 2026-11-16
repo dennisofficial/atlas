@@ -97,20 +97,6 @@ export function SettingsRow({
   )
 }
 
-export function MonogramTile({ label, className }: { label: string; className?: string }) {
-  return (
-    <span
-      aria-hidden
-      className={cn(
-        'flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-sm font-semibold text-foreground uppercase ring-1 ring-foreground/10',
-        className,
-      )}
-    >
-      {label.slice(0, 1)}
-    </span>
-  )
-}
-
 export function FileChip({ children }: { children: ReactNode }) {
   return (
     <code className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground">
