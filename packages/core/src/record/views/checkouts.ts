@@ -81,7 +81,7 @@ const listedBranches = (observation: RepoObservation): CheckoutBranch[] => {
     }))
 }
 
-const primaryBranchOf = (observation: RepoObservation): string | null => {
+const workBranchOf = (observation: RepoObservation): string | null => {
   if (observation.base === null) return null
   if (observation.head !== null && observation.head !== observation.base) return observation.head
   let latest: { name: string; seq: number } | null = null
@@ -92,14 +92,23 @@ const primaryBranchOf = (observation: RepoObservation): string | null => {
   return latest?.name ?? null
 }
 
-export const checkoutsOf = (state: CheckoutsState): CheckoutsView => {
-  let primary: CheckoutsView['primary'] = null
-  for (const observation of state.repos) {
-    const branch = primaryBranchOf(observation)
-    if (branch === null) continue
-    primary = { repo: observation.repo, branch }
-    break
+const firstBranchOf = (args: {
+  repos: readonly RepoObservation[]
+  branchOf: (observation: RepoObservation) => string | null
+}): CheckoutsView['primary'] => {
+  for (const observation of args.repos) {
+    const branch = args.branchOf(observation)
+    if (branch !== null) return { repo: observation.repo, branch }
   }
+  return null
+}
+
+const primaryOf = (repos: readonly RepoObservation[]): CheckoutsView['primary'] =>
+  firstBranchOf({ repos, branchOf: workBranchOf }) ??
+  firstBranchOf({ repos, branchOf: (observation) => observation.head })
+
+export const checkoutsOf = (state: CheckoutsState): CheckoutsView => {
+  const primary = primaryOf(state.repos)
   return {
     repos: state.repos.map((observation) => ({
       repo: observation.repo,

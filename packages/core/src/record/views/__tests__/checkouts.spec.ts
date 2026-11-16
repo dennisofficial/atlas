@@ -54,7 +54,7 @@ describe('checkoutsOf', () => {
     expect(view.repos[0]?.branches.map((branch) => branch.name)).toEqual(['feat'])
   })
 
-  it('lists no branches and names no primary when the base is unknown', () => {
+  it('lists no branches and falls back to the head when the base is unknown', () => {
     for (const base of [undefined, null]) {
       const view = viewOf([
         {
@@ -65,7 +65,7 @@ describe('checkoutsOf', () => {
       ])
       expect(view.repos[0]?.base).toBeNull()
       expect(view.repos[0]?.branches).toEqual([])
-      expect(view.primary).toBeNull()
+      expect(view.primary).toEqual({ repo: '/work', branch: 'feat' })
     }
   })
 
@@ -117,9 +117,30 @@ describe('checkoutsOf', () => {
     expect(view.primary).toEqual({ repo: '/work', branch: 'new' })
   })
 
-  it('has no primary when only the base exists', () => {
+  it('names the checked-out base as primary when no work branch exists', () => {
     const view = viewOf([{ head: 'main', base: 'main', branches: [{ name: 'main', sha: 'a' }] }])
+    expect(view.primary).toEqual({ repo: '/work', branch: 'main' })
+  })
+
+  it('has no primary when the head is detached and only the base exists', () => {
+    const view = viewOf([{ head: null, base: 'main', branches: [{ name: 'main', sha: 'a' }] }])
     expect(view.primary).toBeNull()
+  })
+
+  it('prefers a later repo with a work branch over an earlier repo on its base', () => {
+    const view = viewOf([
+      { repo: '/b', head: 'main', base: 'main', branches: [{ name: 'main', sha: 'a' }] },
+      {
+        repo: '/a',
+        head: 'feat',
+        base: 'main',
+        branches: [
+          { name: 'main', sha: 'a' },
+          { name: 'feat', sha: 'b' },
+        ],
+      },
+    ])
+    expect(view.primary).toEqual({ repo: '/a', branch: 'feat' })
   })
 
   it('takes repos in first-observed order and links worktrees', () => {
