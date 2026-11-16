@@ -45,7 +45,7 @@ export class ListArtifactsTool extends SchemaTool<typeof inputSchema> {
           ok: true,
           output: { artifacts: [] },
           modelText:
-            'You have published no artifacts. Publish one with artifact_publish and it will appear here with its URL.',
+            'You have pushed no artifacts. Push one with artifact_push and it will appear here with its URL.',
         }
       }
 

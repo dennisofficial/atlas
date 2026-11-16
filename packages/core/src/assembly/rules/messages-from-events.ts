@@ -24,6 +24,7 @@ import { agentRestartedBlock } from './agent-restarted-block'
 import { nudgeBlock } from './nudge-block'
 import { prEventBlock } from './pr-event-block'
 import { runEventBlock } from './run-event-block'
+import { artifactBuildEventBlock } from './artifact-build-event-block'
 import { sandboxSetupBlock } from './sandbox-setup-block'
 import { serviceEndedBlock } from './service-ended-block'
 import { subscriptionBlock, type SubscriptionLabels } from './subscription-block'
@@ -343,6 +344,17 @@ function walkEvents({
     if (event.type === 'run-event') {
       groups.push({
         message: { role: 'user', content: [{ type: 'text', text: runEventBlock(event) }] },
+        origin: originOf(event),
+      })
+      continue
+    }
+
+    if (event.type === 'artifact-build-event') {
+      groups.push({
+        message: {
+          role: 'user',
+          content: [{ type: 'text', text: artifactBuildEventBlock(event) }],
+        },
         origin: originOf(event),
       })
       continue

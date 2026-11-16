@@ -1,6 +1,8 @@
 import {
   artifactBeginPublishInputSchema,
   artifactBeginPublishOutputSchema,
+  artifactBuildStatusInputSchema,
+  artifactBuildStatusOutputSchema,
   artifactCommitPublishInputSchema,
   artifactCommitPublishOutputSchema,
   artifactGetOutputSchema,
@@ -10,6 +12,8 @@ import {
   artifactUnpublishOutputSchema,
   type ArtifactBeginPublishInput,
   type ArtifactBeginPublishOutput,
+  type ArtifactBuildStatusInput,
+  type ArtifactBuildStatusOutput,
   type ArtifactCommitPublishInput,
   type ArtifactCommitPublishOutput,
   type ArtifactGetOutput,
@@ -81,6 +85,23 @@ export class ArtifactsRouter {
     @Ctx() ctx: SessionOrSandboxTrpcCtx,
   ): Promise<ArtifactGetOutput> {
     return this.library.get({ userId: ctx.auth.userId, subdomain: input.subdomain })
+  }
+
+  @Query({
+    input: artifactBuildStatusInputSchema,
+    output: artifactBuildStatusOutputSchema,
+    meta: reachable,
+  })
+  @UseMiddlewares(SessionOrSandboxMiddleware)
+  buildStatus(
+    @Input() input: ArtifactBuildStatusInput,
+    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+  ): Promise<ArtifactBuildStatusOutput> {
+    return this.library.buildStatus({
+      userId: ctx.auth.userId,
+      subdomain: input.subdomain,
+      version: input.version,
+    })
   }
 
   @Query({

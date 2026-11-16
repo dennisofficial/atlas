@@ -1,6 +1,6 @@
 import { parseSpec } from '@dltech/atlas-artifacts'
 import { beforeEach, describe, expect, it } from 'bun:test'
-import { ARTIFACT_BUILD_CLAMP_MS, ARTIFACT_WORKSPACE } from './artifact-sandbox'
+import { ARTIFACT_WORKSPACE } from './artifact-sandbox'
 import { ARTIFACT_LOG_CAP_BYTES, ArtifactBuild, capArtifactLog } from './artifact-build'
 import {
   FakeArtifactSandbox,
@@ -75,10 +75,10 @@ describe('ArtifactBuild', () => {
     })
   })
 
-  it('clamps a build timeout to the sandbox ceiling and says so in the log', async () => {
+  it('runs for the whole timeout the spec allows', async () => {
     await run({ spec: { build: { ...BUILD, timeoutSec: 900 } }, result: sandboxResult({}) })
 
-    expect(sandbox.lastRequest.timeoutMs).toBe(ARTIFACT_BUILD_CLAMP_MS)
+    expect(sandbox.lastRequest.timeoutMs).toBe(900_000)
     expect(sandbox.lastRequest.env.HOME).toBe(ARTIFACT_WORKSPACE)
   })
 })

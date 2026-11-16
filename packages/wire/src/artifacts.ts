@@ -33,6 +33,7 @@ export const artifactRouteSchema = z.strictObject({
   artifactId: z.string().min(1),
   subdomain: artifactSubdomainSchema,
   name: z.string().min(1),
+  version: z.number().int().positive(),
   serve: artifactServeSchema,
 })
 export type ArtifactRoute = z.infer<typeof artifactRouteSchema>
@@ -64,7 +65,7 @@ export type ArtifactBeginPublishOutput = z.infer<typeof artifactBeginPublishOutp
 export const artifactCommitPublishInputSchema = z.strictObject({
   artifactId: z.string().min(1),
   version: z.number().int().positive(),
-  spec: artifactSpecInputSchema,
+  spec: artifactSpecInputSchema.optional(),
 })
 export type ArtifactCommitPublishInput = z.infer<typeof artifactCommitPublishInputSchema>
 
@@ -114,6 +115,29 @@ export const artifactSourceExportOutputSchema = z.strictObject({
   entries: z.array(z.strictObject({ path: z.string().min(1), url: z.url() })),
 })
 export type ArtifactSourceExportOutput = z.infer<typeof artifactSourceExportOutputSchema>
+
+export const ARTIFACT_BUILD_OUTCOMES = ['building', 'ready', 'failed', 'superseded'] as const
+
+export const artifactBuildOutcomeSchema = z.enum(ARTIFACT_BUILD_OUTCOMES)
+export type ArtifactBuildOutcome = z.infer<typeof artifactBuildOutcomeSchema>
+
+export const artifactBuildStatusInputSchema = z.strictObject({
+  subdomain: z.string().min(1).max(120),
+  version: z.number().int().positive(),
+})
+export type ArtifactBuildStatusInput = z.infer<typeof artifactBuildStatusInputSchema>
+
+export const artifactBuildStatusOutputSchema = z.strictObject({
+  subdomain: z.string().min(1),
+  version: z.number().int().positive(),
+  url: z.url(),
+  outcome: artifactBuildOutcomeSchema,
+  failure: z.string().nullable(),
+  log: z.string().nullable(),
+  durationMs: z.number().int().nonnegative().nullable(),
+  supersededBy: z.number().int().positive().nullable(),
+})
+export type ArtifactBuildStatusOutput = z.infer<typeof artifactBuildStatusOutputSchema>
 
 export const artifactUnpublishOutputSchema = z.strictObject({ ok: z.literal(true) })
 export type ArtifactUnpublishOutput = z.infer<typeof artifactUnpublishOutputSchema>

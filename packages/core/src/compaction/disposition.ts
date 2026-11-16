@@ -38,6 +38,7 @@ export const COMPACTION_DISPOSITION = {
   'service-ended': ECompactionDisposition.Summarise,
   'pr-event': ECompactionDisposition.Summarise,
   'run-event': ECompactionDisposition.Summarise,
+  'artifact-build-event': ECompactionDisposition.Summarise,
   nudge: ECompactionDisposition.Summarise,
   'sandbox-setup-reported': ECompactionDisposition.Summarise,
   parked: ECompactionDisposition.Summarise,

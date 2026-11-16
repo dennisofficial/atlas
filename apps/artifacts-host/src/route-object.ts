@@ -11,6 +11,7 @@ export type RouteObject = {
   artifactId: string
   subdomain: HostSubdomain
   name: string
+  version: number
   serve: ArtifactSpec['serve']
 }
 
@@ -33,6 +34,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const isFilled = (value: unknown): value is string => typeof value === 'string' && value.length > 0
 
+const isRouteVersion = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isSafeInteger(value) && value >= 1
+
 const parseServe = (raw: unknown): ArtifactSpec['serve'] | null => {
   try {
     return parseSpec({ serve: raw }).serve
@@ -43,13 +47,14 @@ const parseServe = (raw: unknown): ArtifactSpec['serve'] | null => {
 
 export function parseRouteObject(raw: unknown): RouteObject | null {
   if (!isRecord(raw)) return null
-  const { artifactId, subdomain, name, serve } = raw
+  const { artifactId, subdomain, name, serve, version } = raw
   if (!isFilled(artifactId) || !isFilled(name)) return null
+  if (!isRouteVersion(version)) return null
   const label = typeof subdomain === 'string' ? subdomainOfLabel(subdomain) : null
   if (label === null) return null
   const parsedServe = parseServe(serve)
   if (parsedServe === null) return null
-  return { artifactId, subdomain: label, name, serve: parsedServe }
+  return { artifactId, subdomain: label, name, version, serve: parsedServe }
 }
 
 export const createRouteFetcher =

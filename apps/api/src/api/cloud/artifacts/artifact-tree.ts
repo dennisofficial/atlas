@@ -1,6 +1,8 @@
 import {
   contentTypeOf,
   routeFilePathOf,
+  routePrefixOf,
+  routeVersionOfKey,
   sourcePathOf,
   type ManifestEntry,
 } from '@dltech/atlas-artifacts'
@@ -29,11 +31,12 @@ export async function sourceFilesOf(args: {
 export async function writeRouteTree(args: {
   blobs: ArtifactBlobStore
   id: string
+  version: number
   files: readonly ArtifactSandboxFile[]
 }): Promise<string[]> {
   const keys: string[] = []
   for (const file of args.files) {
-    const pathname = routeFilePathOf({ id: args.id, path: file.path })
+    const pathname = routeFilePathOf({ id: args.id, version: args.version, path: file.path })
     await args.blobs.put({
       pathname,
       body: file.content,
@@ -55,6 +58,22 @@ export async function pruneTree(args: {
   const doomed = stored
     .map((blob) => blob.pathname)
     .filter((pathname) => pathname.startsWith(args.prefix) && !kept.has(pathname))
+  await args.blobs.remove(doomed)
+  return doomed
+}
+
+export async function pruneRoutesBelow(args: {
+  blobs: ArtifactBlobStore
+  id: string
+  version: number
+}): Promise<string[]> {
+  const stored = await args.blobs.list({ prefix: routePrefixOf({ id: args.id }) })
+  const doomed = stored
+    .map((blob) => blob.pathname)
+    .filter((pathname) => {
+      const key = routeVersionOfKey({ id: args.id, key: pathname })
+      return key === null || key < args.version
+    })
   await args.blobs.remove(doomed)
   return doomed
 }

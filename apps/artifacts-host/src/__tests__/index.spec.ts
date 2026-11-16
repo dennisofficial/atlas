@@ -11,14 +11,16 @@ const HTML = '<!doctype html><title>dashboard</title>'
 const APP_JS = 'console.log("app")'
 
 const routeKey = `routes/${ID}.json`
-const indexKey = `artifacts/${ID}/_route/index.html`
-const appKey = `artifacts/${ID}/_route/assets/app-1a2b3c4d.js`
+const VERSION = 3
+const indexKey = `artifacts/${ID}/_route/v${VERSION}/index.html`
+const appKey = `artifacts/${ID}/_route/v${VERSION}/assets/app-1a2b3c4d.js`
 
 const routeBodyOf = ({ spa = false }: { spa?: boolean } = {}): string =>
   JSON.stringify({
     artifactId: 'art_1',
     subdomain: ID,
     name: 'Dashboard',
+    version: VERSION,
     serve: { spa },
   })
 
@@ -121,6 +123,22 @@ describe('artifact host worker', () => {
     expect(after.status).toBe(200)
     expect(await after.text()).toBe(republished)
     expect(after.headers.get('cache-control')).toBe('no-cache')
+  })
+
+  test('answers the atlas not-found page when the route object names no version', async () => {
+    const legacy = JSON.stringify({
+      artifactId: 'art_1',
+      subdomain: ID,
+      name: 'Dashboard',
+      serve: { spa: false },
+    })
+    const response = await worker.fetch(
+      requestOf({ path: '/legacy.html' }),
+      envOf({ [routeKey]: legacy, [indexKey]: HTML }),
+    )
+
+    expect(response.status).toBe(404)
+    expect(await response.text()).toContain('Artifact not found')
   })
 
   test('answers the atlas not-found page with no-store for an unknown artifact', async () => {

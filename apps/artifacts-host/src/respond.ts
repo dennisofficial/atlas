@@ -125,6 +125,7 @@ export async function respond({
 
   const resolution = routeCandidatesOf({
     id: subdomain,
+    version: route.version,
     pathname: new URL(request.url).pathname,
     serve: route.serve,
   })

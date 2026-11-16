@@ -16,6 +16,7 @@ const route = {
   subdomain: SUBDOMAIN,
   name: 'Dashboard',
   serve: { spa: true, notFound: '404.html' },
+  version: 3,
 }
 
 const failingBucket = (): ArtifactBucket => ({
@@ -49,6 +50,14 @@ describe('parseRouteObject', () => {
     expect(parseRouteObject({ ...route, name: '' })).toBeNull()
     expect(parseRouteObject({ ...route, subdomain: undefined })).toBeNull()
     expect(parseRouteObject({ ...route, subdomain: 'Not A Label' })).toBeNull()
+  })
+
+  test('rejects a missing or unusable version', () => {
+    expect(parseRouteObject({ ...route, version: undefined })).toBeNull()
+    expect(parseRouteObject({ ...route, version: 0 })).toBeNull()
+    expect(parseRouteObject({ ...route, version: -1 })).toBeNull()
+    expect(parseRouteObject({ ...route, version: 1.5 })).toBeNull()
+    expect(parseRouteObject({ ...route, version: '3' })).toBeNull()
   })
 
   test('rejects unparsable serve rules', () => {
@@ -90,7 +99,7 @@ describe('createRouteFetcher', () => {
 })
 
 describe('createObjectFetcher', () => {
-  const KEY = `artifacts/${SUBDOMAIN}/_route/index.html`
+  const KEY = `artifacts/${SUBDOMAIN}/_route/v${route.version}/index.html`
 
   test('reads a stored object and its etag by key', async () => {
     const object = await createObjectFetcher(fakeBucketOf({ [KEY]: 'hello' }))(KEY)

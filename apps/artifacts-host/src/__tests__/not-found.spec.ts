@@ -19,6 +19,7 @@ const routeOf = (serve: ArtifactSpec['serve']) => ({
   artifactId: 'a1',
   subdomain: labelOf('abc'),
   name: 'Atlas landing',
+  version: 1,
   serve,
 })
 

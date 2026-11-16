@@ -33,14 +33,20 @@ export const sandboxResult = (args: {
 export class FakeArtifactSandbox extends ArtifactSandbox {
   readonly requests: ArtifactSandboxRequest[] = []
   private readonly script: ArtifactSandboxResult[] = []
+  private before: (() => Promise<void>) | null = null
 
   reset(): void {
     this.requests.length = 0
     this.script.length = 0
+    this.before = null
   }
 
   scripted(...results: ArtifactSandboxResult[]): void {
     this.script.push(...results)
+  }
+
+  beforeRun(before: () => Promise<void>): void {
+    this.before = before
   }
 
   get lastRequest(): ArtifactSandboxRequest {
@@ -51,6 +57,7 @@ export class FakeArtifactSandbox extends ArtifactSandbox {
 
   async run(request: ArtifactSandboxRequest): Promise<ArtifactSandboxResult> {
     this.requests.push(request)
+    if (this.before !== null) await this.before()
     const next = this.script.shift()
     if (next === undefined) throw new Error('the fake sandbox has no scripted result left')
     return next

@@ -52,6 +52,7 @@ export const REWIND_DISPOSITION = {
   'checkout-observed': ERewindDisposition.Keep,
   'pr-event': ERewindDisposition.Keep,
   'run-event': ERewindDisposition.Keep,
+  'artifact-build-event': ERewindDisposition.Keep,
   'model-waiting': ERewindDisposition.Keep,
   'model-wait-cleared': ERewindDisposition.Keep,
   'agent-ended': ERewindDisposition.KeepUnlessCreatorCut,

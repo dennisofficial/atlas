@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
@@ -12,11 +13,8 @@ import {
   manifestHash,
   parseManifest,
   parseSpec,
-  routePrefixOf,
   sourcePathOf,
-  sourcePrefixOf,
   specHash,
-  type ArtifactSpec,
   type ManifestEntry,
 } from '@dltech/atlas-artifacts'
 import { db, violatedConstraint } from '@dltech/atlas-db'
@@ -28,28 +26,25 @@ import type {
   ArtifactUpload,
 } from '@dltech/atlas-wire'
 import { EnvService } from '../../../_core/config/env/env.service'
-import { ArtifactBuild } from './artifact-build'
-import type { ArtifactBuildOwner } from './artifact-sandbox'
+import { JobDispatcher } from '../../../_core/ports/job-dispatcher'
+import { artifactBuildIdempotencyKey, artifactBuildTaskContract } from './artifact-build.contract'
 import { ArtifactBlobStore } from './artifact-blob-store'
-import type { ArtifactRow, BuildRow } from './artifact-rows'
-import { writeArtifactRoute } from './artifact-route'
+import { assertUploaded, pruneSource, pushedSpec } from './artifact-push'
 import { ownedById, resolveArtifact } from './artifact-record'
+import type { ArtifactRow } from './artifact-rows'
 import { buildRowOfVersion, urlOf } from './artifact-repository'
-import { pruneTree, sourceFilesOf, sourceKeysOf, writeRouteTree } from './artifact-tree'
+import {
+  recordBuild,
+  storeBuildSpec,
+  supersedeBuildingBelow,
+  EBuildStatus,
+} from './artifact-versions'
 
 const VERSION_COLLISION = 'ArtifactVersion_artifactId_version_key'
 
 const ATTEMPTS = 3
 
 const EMPTY_SPEC_HASH = specHash(parseSpec({}))
-
-const storedSpecOf = (spec: ArtifactSpec) => ({
-  serve:
-    spec.serve.notFound === undefined
-      ? { spa: spec.serve.spa }
-      : { spa: spec.serve.spa, notFound: spec.serve.notFound },
-  publish: { include: [...spec.publish.include], exclude: [...spec.publish.exclude] },
-})
 
 const totalBytesOf = (entries: readonly ManifestEntry[]): number =>
   entries.reduce((total, entry) => total + entry.size, 0)
@@ -59,7 +54,7 @@ export class ArtifactsService {
   constructor(
     private readonly blobs: ArtifactBlobStore,
     private readonly env: EnvService,
-    private readonly build: ArtifactBuild,
+    @Inject(JobDispatcher) private readonly jobs: JobDispatcher,
   ) {}
 
   async beginPublish(args: {
@@ -88,7 +83,6 @@ export class ArtifactsService {
     threadId: string | undefined
     body: ArtifactCommitPublishInput
   }): Promise<ArtifactCommitPublishOutput> {
-    const spec = this.readSpec(args.body.spec)
     const artifact = await ownedById({ userId: args.userId, artifactId: args.body.artifactId })
     const row = await buildRowOfVersion({
       artifactId: artifact.id,
@@ -96,85 +90,38 @@ export class ArtifactsService {
     })
     if (row === null) throw new NotFoundException(`no version ${args.body.version}`)
     const entries = parseManifest(row.manifest)
-    const source = await sourceFilesOf({ blobs: this.blobs, id: artifact.subdomain, entries })
-    if ('missing' in source) {
-      throw new BadRequestException(`no uploaded source for ${source.missing}`)
-    }
+    const id = artifact.subdomain
+    await assertUploaded({ blobs: this.blobs, id, entries })
+    await pruneSource({ blobs: this.blobs, id, entries })
+    const spec = await pushedSpec({ blobs: this.blobs, id, entries })
+    await storeBuildSpec({ rowId: row.id, spec })
+    await supersedeBuildingBelow({ artifactId: artifact.id, version: row.version })
     const url = urlOf({ artifact, domain: this.env.get('ARTIFACT_DOMAIN') })
-    const built =
-      spec.build === undefined
-        ? null
-        : await this.build.run({
-            owner: this.buildOwnerOf({ userId: args.userId, threadId: args.threadId }),
-            spec,
-            files: source.files,
-          })
-    if (built !== null && built.status === 'failed') {
-      await this.recordBuild({
-        row,
-        status: 'failed',
-        failure: built.failure,
-        log: built.log,
-        durationMs: built.durationMs,
-      })
-      return { subdomain: artifact.subdomain, version: row.version, url, status: 'failed' }
+    const payload = {
+      artifactId: artifact.id,
+      version: row.version,
+      userId: args.userId,
+      ...(args.threadId === undefined ? {} : { threadId: args.threadId }),
     }
-    const files = built === null ? source.files : built.files
-    const keys = await writeRouteTree({ blobs: this.blobs, id: artifact.subdomain, files })
-    await writeArtifactRoute({ blobs: this.blobs, artifact, spec })
-    await pruneTree({
-      blobs: this.blobs,
-      prefix: routePrefixOf({ id: artifact.subdomain }),
-      keep: keys,
-    })
-    await pruneTree({
-      blobs: this.blobs,
-      prefix: sourcePrefixOf({ id: artifact.subdomain }),
-      keep: sourceKeysOf({ id: artifact.subdomain, entries }),
-    })
-    await this.recordBuild({
-      row,
-      status: 'ready',
-      failure: null,
-      log: built?.log ?? null,
-      durationMs: built?.durationMs ?? null,
-      spec,
-      bytes: files.reduce((total, file) => total + file.content.length, 0),
-      fileCount: files.length,
-    })
-    return { subdomain: artifact.subdomain, version: row.version, url, status: 'ready' }
-  }
-
-  private async recordBuild(args: {
-    row: BuildRow
-    status: 'ready' | 'failed'
-    failure: string | null
-    log: string | null
-    durationMs: number | null
-    spec?: ArtifactSpec
-    bytes?: number
-    fileCount?: number
-  }): Promise<void> {
-    await db.transaction(async (tx) => {
-      await tx.orm.public.ArtifactVersion.where({ id: args.row.id }).update({
-        status: args.status,
-        failure: args.failure,
-        log: args.log,
-        durationMs: args.durationMs,
-        ...(args.spec === undefined
-          ? {}
-          : { spec: storedSpecOf(args.spec), specHash: specHash(args.spec) }),
-        ...(args.bytes === undefined ? {} : { bytes: args.bytes }),
-        ...(args.fileCount === undefined ? {} : { fileCount: args.fileCount }),
+    try {
+      await this.jobs.dispatch({
+        task: artifactBuildTaskContract,
+        payload,
+        idempotencyKey: artifactBuildIdempotencyKey(payload),
+        tags: [`artifact:${id}`],
       })
-      const previous = await tx.orm.public.ArtifactVersion.where({
-        artifactId: args.row.artifactId,
-      }).all()
-      for (const older of previous) {
-        if (older.version === args.row.version) continue
-        await tx.orm.public.ArtifactVersion.where({ id: older.id }).deleteAndCount()
-      }
-    })
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error)
+      await recordBuild({
+        row,
+        status: EBuildStatus.Failed,
+        failure: `could not start the build: ${reason}`,
+        log: null,
+        durationMs: null,
+      })
+      return { subdomain: id, version: row.version, url, status: 'failed' }
+    }
+    return { subdomain: id, version: row.version, url, status: 'building' }
   }
 
   private async assertPublishQuota(args: {
@@ -209,18 +156,6 @@ export class ArtifactsService {
     return entries
   }
 
-  private readSpec(raw: unknown): ArtifactSpec {
-    try {
-      return parseSpec(raw)
-    } catch (error) {
-      throw new BadRequestException(error instanceof Error ? error.message : 'spec is invalid')
-    }
-  }
-
-  private buildOwnerOf(args: { userId: string; threadId: string | undefined }): ArtifactBuildOwner {
-    return args.threadId === undefined ? { userId: args.userId } : { threadId: args.threadId }
-  }
-
   private async openBuild(args: {
     artifact: ArtifactRow
     entries: readonly ManifestEntry[]
@@ -234,7 +169,7 @@ export class ArtifactsService {
             id: randomUUID(),
             artifactId: args.artifact.id,
             version,
-            status: 'building',
+            status: EBuildStatus.Building,
             manifest: args.entries,
             spec: {},
             sourceHash: manifestHash(args.entries),

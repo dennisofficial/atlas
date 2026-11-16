@@ -39,8 +39,7 @@ const SESSION_VARIABLE = /^ATLAS_(?:SESSION|CONTEXT|THREAD)_DIR$/
 
 export const EXCEPTIONS: Readonly<Record<string, string>> = {
   artifact_list: 'artifacts are the v2 control plane’s, listed over its API, so a pod has no tool',
-  artifact_publish:
-    'artifacts are the v2 control plane’s, published over its API, so a pod has no tool',
+  artifact_push: 'artifacts are the v2 control plane’s, pushed over its API, so a pod has no tool',
   artifact_pull: 'artifacts are the v2 control plane’s, fetched over its API, so a pod has no tool',
   artifact_unpublish:
     'artifacts are the v2 control plane’s, unpublished over its API, so a pod has no tool',

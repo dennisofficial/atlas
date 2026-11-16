@@ -1,91 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 
-import { artifactSpecSchema } from '@dltech/atlas-artifacts'
-import type { ArtifactSummary, ArtifactUpload } from '@dltech/atlas-wire'
-
-import { trpcCallOf, trpcData, trpcFailure, trpcVoid } from '../../cloud/__tests__/trpc-wire'
-import type { CloudSession } from '../../cloud/cloud-session'
+import { trpcData, trpcVoid } from '../../cloud/__tests__/trpc-wire'
 import { ArtifactNotFound, ArtifactRefused, ArtifactUnavailable } from '../artifact-port'
 import { CloudArtifactPort } from '../cloud-artifact-port'
-
-const SESSION: CloudSession = { url: 'https://cloud.test', token: 'tok-1', email: null }
-
-type Call = {
-  url: string
-  method: string
-  procedure: string
-  authorization: string | null
-  input: unknown
-  signalled: boolean
-}
-
-const BEGINNED = {
-  artifactId: 'art_1',
-  token: 'artifact-token',
-  subdomain: 'demo',
-  version: 3,
-  uploads: [
-    {
-      path: 'index.html',
-      tree: 'src',
-      sha256: 'a'.repeat(64),
-      url: 'https://upload.test/index.html',
-    },
-  ] satisfies ArtifactUpload[],
-}
-
-const SUMMARY: ArtifactSummary = {
-  subdomain: 'demo',
-  name: 'Demo',
-  url: 'https://demo.artifacts.test',
-  status: 'ready',
-  updatedAt: '2026-11-01T00:00:00.000Z',
-}
-
-const portWith = (args: { respond: (call: Call) => Response; session?: CloudSession | null }) => {
-  const calls: Call[] = []
-  const fetchFn = (async (input: string | URL | Request, init?: RequestInit) => {
-    const headers = new Headers(init?.headers)
-    const traced = trpcCallOf({ input, init })
-    const call: Call = {
-      url: String(input),
-      method: traced.method,
-      procedure: traced.procedure,
-      authorization: headers.get('authorization'),
-      input: traced.input,
-      signalled: init?.signal !== null && init?.signal !== undefined,
-    }
-    calls.push(call)
-    return args.respond(call)
-  }) as typeof fetch
-  const port = new CloudArtifactPort({
-    session: () => (args.session === undefined ? SESSION : args.session),
-    clientVersion: '1.0.0',
-    fetchFn,
-  })
-  return { port, calls }
-}
-
-const failure = (args: { status: number; trpcCode: string; message?: string }): Response =>
-  trpcFailure({
-    status: args.status,
-    message: args.message ?? 'refused',
-    trpcCode: args.trpcCode,
-  })
-
-const entry = {
-  path: 'index.html',
-  tree: 'src' as const,
-  sha256: 'a'.repeat(64),
-  size: 12,
-  type: 'text/html',
-}
-
-const failureOf = async (run: Promise<unknown>): Promise<unknown> =>
-  run.then(
-    () => null,
-    (error: unknown) => error,
-  )
+import { BEGINNED, SUMMARY, entry, failure, failureOf, portWith } from './cloud-artifact-port-rig'
 
 describe('CloudArtifactPort', () => {
   it('begins a publish with the bearer token and answers without the upload token', async () => {
@@ -124,7 +42,7 @@ describe('CloudArtifactPort', () => {
     expect(error).toBeInstanceOf(ArtifactUnavailable)
   })
 
-  it('commits the version with the spec it was planned with', async () => {
+  it('commits the version without a spec, so the server reads artifact.json from the source', async () => {
     const { port, calls } = portWith({
       respond: () =>
         trpcData({
@@ -135,13 +53,11 @@ describe('CloudArtifactPort', () => {
         }),
     })
 
-    const spec = artifactSpecSchema.parse({})
-
-    const committed = await port.commitPublish({ artifactId: 'art_1', version: 3, spec })
+    const committed = await port.commitPublish({ artifactId: 'art_1', version: 3 })
 
     expect(calls[0]?.procedure).toBe('artifacts.commitPublish')
     expect(calls[0]?.method).toBe('POST')
-    expect(calls[0]?.input).toEqual({ artifactId: 'art_1', version: 3, spec })
+    expect(calls[0]?.input).toEqual({ artifactId: 'art_1', version: 3 })
     expect(committed).toEqual({
       subdomain: 'demo',
       version: 3,
@@ -275,8 +191,11 @@ describe('CloudArtifactPort', () => {
     },
     {
       method: 'commitPublish',
-      run: (port: CloudArtifactPort) =>
-        port.commitPublish({ artifactId: 'art_1', version: 3, spec: artifactSpecSchema.parse({}) }),
+      run: (port: CloudArtifactPort) => port.commitPublish({ artifactId: 'art_1', version: 3 }),
+    },
+    {
+      method: 'buildStatus',
+      run: (port: CloudArtifactPort) => port.buildStatus({ subdomain: 'demo', version: 3 }),
     },
     {
       method: 'sourceExport',

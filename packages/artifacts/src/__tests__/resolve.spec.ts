@@ -4,13 +4,18 @@ import { routeCandidatesOf, type RouteResolution } from '../resolve'
 import type { ArtifactSpec } from '../spec'
 
 const ID = 'k7f2m9qxabcd'
+const VERSION = 3
+
+const prefixOf = (version: number = VERSION): string => `artifacts/${ID}/_route/v${version}/`
 
 const resolveOf = (args: {
   pathname: string
   serve?: Partial<ArtifactSpec['serve']>
+  version?: number
 }): RouteResolution | null =>
   routeCandidatesOf({
     id: ID,
+    version: args.version ?? VERSION,
     pathname: args.pathname,
     serve: { spa: false, ...args.serve },
   })
@@ -26,7 +31,21 @@ describe('routeCandidatesOf', () => {
     const resolution = resolveOf({ pathname: '/' })
 
     expect(pathsOf(resolution)).toEqual(['index.html'])
-    expect(resolution?.candidates[0]?.key).toBe(`artifacts/${ID}/_route/index.html`)
+    expect(resolution?.candidates[0]?.key).toBe(`${prefixOf()}index.html`)
+  })
+
+  it('reads every key from the version folder it is given', () => {
+    const resolution = resolveOf({
+      pathname: '/docs',
+      version: 12,
+      serve: { spa: true, notFound: '404.html' },
+    })
+    const keys = [
+      ...(resolution?.candidates.map((candidate) => candidate.key) ?? []),
+      resolution?.notFound?.key ?? '',
+    ]
+
+    for (const key of keys) expect(key.startsWith(prefixOf(12))).toBe(true)
   })
 
   it('tries the exact path before its index', () => {
@@ -59,7 +78,7 @@ describe('routeCandidatesOf', () => {
     const resolution = resolveOf({ pathname: '/missing', serve: { notFound: '404.html' } })
 
     expect(notFoundOf(resolution)).toBe('404.html')
-    expect(resolution?.notFound?.key).toBe(`artifacts/${ID}/_route/404.html`)
+    expect(resolution?.notFound?.key).toBe(`${prefixOf()}404.html`)
   })
 
   it('does not repeat the SPA shell as the custom 404', () => {
@@ -69,7 +88,7 @@ describe('routeCandidatesOf', () => {
     })
 
     expect(pathsOf(resolution)).toEqual(['missing', 'missing/index.html', 'index.html'])
-    expect(resolution?.notFound?.key).toBe(`artifacts/${ID}/_route/index.html`)
+    expect(resolution?.notFound?.key).toBe(`${prefixOf()}index.html`)
   })
 
   it('orders every key under the artifact route prefix', () => {
@@ -79,7 +98,7 @@ describe('routeCandidatesOf', () => {
       resolution?.notFound?.key ?? '',
     ]
 
-    for (const key of keys) expect(key.startsWith(`artifacts/${ID}/_route/`)).toBe(true)
+    for (const key of keys) expect(key.startsWith(prefixOf())).toBe(true)
   })
 
   it.each(['/..', '/%2e%2e/x', '/%2f/..', '/..%2fsecret', '/a\\b', '/index.html%00.js', '/./'])(

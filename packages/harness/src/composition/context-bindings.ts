@@ -27,8 +27,9 @@ import { LoadMemoryIndexHook } from '../hooks/load-memory'
 import { NestedInstructionsHook } from '../hooks/nested-instructions'
 import { MemoryFragment } from '../prompt/fragments/memory'
 import type { SettingsService } from '../settings/service'
+import { SubscriptionRegistryPort } from '../subscriptions/port'
 import { ListArtifactsTool } from '../tools/builtin/artifact-list'
-import { PublishArtifactTool } from '../tools/builtin/artifact-publish'
+import { PushArtifactTool } from '../tools/builtin/artifact-push'
 import { PullArtifactTool } from '../tools/builtin/artifact-pull'
 import { UnpublishArtifactTool } from '../tools/builtin/artifact-unpublish'
 import { DeleteMemoryTool } from '../tools/builtin/memory-delete'
@@ -121,10 +122,14 @@ export async function bindInstructionsAndMemory(args: {
 
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) =>
-      new PublishArtifactTool({
+      new PushArtifactTool({
         port: resolver.resolve(registeredPortToken(ArtifactPort)),
         processes: resolver.resolve(registeredPortToken(ProcessPort)),
         files: resolver.resolve(registeredPortToken(AgentFileSystemPort)),
+        registry: () =>
+          resolver.isRegistered(registeredPortToken(SubscriptionRegistryPort), true)
+            ? resolver.resolve(registeredPortToken(SubscriptionRegistryPort))
+            : null,
       }),
   })
   container.register(portToken(ToolDefinition), {
