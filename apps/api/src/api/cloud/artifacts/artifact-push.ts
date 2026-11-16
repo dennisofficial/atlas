@@ -2,70 +2,14 @@ import { BadRequestException } from '@nestjs/common'
 import {
   SPEC_FILE_NAME,
   parseSpec,
-  sha256Hex,
-  sourcePathOf,
-  sourcePrefixOf,
+  routeVersionPrefixOf,
+  sourceFilePathOf,
+  sourceVersionPrefixOf,
   type ArtifactSpec,
   type ManifestEntry,
 } from '@dltech/atlas-artifacts'
 import type { ArtifactBlobStore } from './artifact-blob-store'
-import type { ArtifactSandboxFile } from './artifact-sandbox'
-import { pruneTree, sourceKeysOf } from './artifact-tree'
-
-export async function assertUploaded(args: {
-  blobs: ArtifactBlobStore
-  id: string
-  entries: readonly ManifestEntry[]
-}): Promise<void> {
-  const stored = await args.blobs.list({ prefix: sourcePrefixOf({ id: args.id }) })
-  const present = new Set(stored.map((blob) => blob.pathname))
-  const missing = args.entries.find(
-    (entry) => !present.has(sourcePathOf({ id: args.id, path: entry.path })),
-  )
-  if (missing !== undefined) {
-    throw new BadRequestException(`no uploaded source for ${missing.path}`)
-  }
-}
-
-export async function pruneSource(args: {
-  blobs: ArtifactBlobStore
-  id: string
-  entries: readonly ManifestEntry[]
-}): Promise<string[]> {
-  return pruneTree({
-    blobs: args.blobs,
-    prefix: sourcePrefixOf({ id: args.id }),
-    keep: sourceKeysOf({ id: args.id, entries: args.entries }),
-  })
-}
-
-export async function pushedSpec(args: {
-  blobs: ArtifactBlobStore
-  id: string
-  entries: readonly ManifestEntry[]
-}): Promise<ArtifactSpec> {
-  const pushed = args.entries.find((entry) => entry.path === SPEC_FILE_NAME)
-  if (pushed === undefined) return parseSpec({})
-  const content = await args.blobs.read({
-    pathname: sourcePathOf({ id: args.id, path: SPEC_FILE_NAME }),
-  })
-  if (content === null) {
-    throw new BadRequestException(`the pushed source has no readable ${SPEC_FILE_NAME}`)
-  }
-  return parseSpecOrThrow(content)
-}
-
-export const specOfFiles = (
-  files: readonly ArtifactSandboxFile[],
-): { spec: ArtifactSpec } | { failure: string } => {
-  const pushed = files.find((file) => file.path === SPEC_FILE_NAME)
-  if (pushed === undefined) return { spec: parseSpec({}) }
-  try {
-    return { spec: parseSpecOrThrow(pushed.content) }
-  } catch (error) {
-    return { failure: error instanceof Error ? error.message : `${SPEC_FILE_NAME} is invalid` }
-  }
-}
+import { uploadsOf } from './artifact-uploads'
 
 const parseSpecOrThrow = (content: Buffer): ArtifactSpec => {
   let raw: unknown
@@ -83,18 +27,38 @@ const parseSpecOrThrow = (content: Buffer): ArtifactSpec => {
   }
 }
 
-export const verifiedSourceOf = async (args: {
+export async function assertUploaded(args: {
   blobs: ArtifactBlobStore
   id: string
+  version: number
   entries: readonly ManifestEntry[]
-}): Promise<{ files: ArtifactSandboxFile[] } | { changed: true }> => {
-  const files: ArtifactSandboxFile[] = []
-  for (const entry of args.entries) {
-    const content = await args.blobs.read({
-      pathname: sourcePathOf({ id: args.id, path: entry.path }),
-    })
-    if (content === null || sha256Hex(content) !== entry.sha256) return { changed: true }
-    files.push({ path: entry.path, content })
+}): Promise<void> {
+  const present = new Set<string>()
+  for (const prefix of [
+    sourceVersionPrefixOf({ id: args.id, version: args.version }),
+    routeVersionPrefixOf({ id: args.id, version: args.version }),
+  ]) {
+    for (const blob of await args.blobs.list({ prefix })) present.add(blob.pathname)
   }
-  return { files }
+  const missing = uploadsOf(args).find((grant) => !present.has(grant.pathname))
+  if (missing !== undefined) {
+    throw new BadRequestException(`no uploaded file for ${missing.tree}/${missing.path}`)
+  }
+}
+
+export async function pushedSpec(args: {
+  blobs: ArtifactBlobStore
+  id: string
+  version: number
+  entries: readonly ManifestEntry[]
+}): Promise<ArtifactSpec> {
+  const pushed = args.entries.some((entry) => entry.tree === 'src' && entry.path === SPEC_FILE_NAME)
+  if (!pushed) return parseSpec({})
+  const content = await args.blobs.read({
+    pathname: sourceFilePathOf({ id: args.id, version: args.version, path: SPEC_FILE_NAME }),
+  })
+  if (content === null) {
+    throw new BadRequestException(`the pushed source has no readable ${SPEC_FILE_NAME}`)
+  }
+  return parseSpecOrThrow(content)
 }

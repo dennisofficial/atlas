@@ -2,33 +2,32 @@ import {
   EContentAccess,
   EPathForm,
   EPathPresence,
-  ESubscriptionActor,
   EToolEffect,
   SchemaTool,
   type DeclaredPathField,
   type ProcessPort,
   type FileSystemPort,
-  type ThreadId,
   type ToolOutcome,
   type ToolRun,
 } from '@dltech/atlas-core'
-import { linkedSubdomainOf, SPEC_FILE_NAME } from '@dltech/atlas-artifacts'
+import { linkedSubdomainOf, parseSpec, SPEC_FILE_NAME } from '@dltech/atlas-artifacts'
 import { z } from 'zod'
 
-import { ARTIFACT_BUILD_PROVIDER_KIND } from '../../artifacts/artifact-build-provider'
+import { runLocalBuild, type LocalBuild } from '../../artifacts/artifact-local-build'
 import { readSpecFile, writeLink, type SpecFile } from '../../artifacts/artifact-link'
 import {
   ArtifactNotFound,
   ArtifactRefused,
+  ArtifactSuperseded,
   type ArtifactEntryInput,
   type ArtifactPort,
   type ArtifactPublishBegun,
 } from '../../artifacts/artifact-port'
-import { publishPlanOf } from '../../artifacts/artifact-publish-plan'
-import type { SubscriptionRegistryPort } from '../../subscriptions/port'
+import { countsOf, publishPlanOf } from '../../artifacts/artifact-publish-plan'
 
 import { filePathSchema, pathEnvironmentNote, resolveToolPath } from './file-text'
 import {
+  collectOutput,
   defaultUploadFetch,
   hashOf,
   listGitPaths,
@@ -36,8 +35,7 @@ import {
   type ArtifactUploadFetch,
 } from './artifact-upload'
 
-const BUILDING = 'building'
-const FAILED = 'failed'
+const LOG_TAIL_CHARS = 4_000
 
 const inputSchema = z.strictObject({
   dir: filePathSchema.optional(),
@@ -46,14 +44,16 @@ const inputSchema = z.strictObject({
 })
 
 const description = [
-  "Push a directory's source to an Atlas artifact, and the server builds it and serves the built site at the artifact's URL.",
-  'dir defaults to the workspace root; point it at the subdirectory that holds artifact.json to push that instead.',
+  "Push a directory's source to an Atlas artifact and make it live at the artifact's URL at once.",
+  'dir defaults to the workspace root; point it at the subdirectory that holds artifact.json to push that instead, and keep each artifact project in its own folder under the artifacts folder (/atlas/workspaces/artifacts/<name> in a cloud session), which artifact_pull uses.',
   'The source is what git tracks plus untracked files git does not ignore: .env files other than .env.example never ship, and neither do node_modules, .git or __pycache__.',
-  "The server builds that source by artifact.json's build block ({ install, cmd, outDir, timeoutSec up to 900 }) and serves outDir; without a build block it serves the pushed files as they are.",
-  'Never push a build folder: push the project and declare in the build block how the server builds it.',
+  'When artifact.json declares build ({ install, cmd, outDir, timeoutSec up to 900 }), the push first runs install and then cmd in that directory with the same environment bash gets - Bun and Node are available, so prefer bun install and bun run build - uploads the source and everything in outDir, and the URL serves outDir.',
+  'Without a build block the pushed files are served as they are.',
+  'A failed build pushes nothing and returns the build log.',
+  'Never point it at a build folder: push the project and let the build block produce outDir.',
   'The URL belongs to the directory: its artifact.json carries the artifact subdomain, which the first push writes and every later push, from any session, reuses, so the URL never changes.',
   'subdomain pushes a directory that is not linked yet to an existing artifact; a push never moves a linked directory to another URL and never creates a new one for it.',
-  'The push returns at once and subscribes the conversation to the build, so its result arrives as a notice rather than by polling.',
+  'Another session can artifact_pull the source and push again: the last push wins.',
   pathEnvironmentNote,
 ].join(' ')
 
@@ -81,7 +81,24 @@ const goneLinkOf = (args: { file: SpecFile; linked: string }): ArtifactRefused =
 const linkNoteOf = (args: { file: SpecFile; subdomain: string }): string =>
   `Linked this directory to ${args.subdomain} in ${args.file.path}, so every later push of it keeps this URL; commit artifact.json with the source so a fresh checkout pushes to the same URL.`
 
-type Subscribed = { id: string } | { error: string } | null
+const initNoteOf = (dir: string): string =>
+  `Initialised git in ${dir} so the push could list its files.`
+
+const untouchedOf = (linked: string | null): string =>
+  linked === null
+    ? 'Nothing was pushed, and no artifact was created.'
+    : `Nothing was pushed; ${linked} still serves the last version.`
+
+const failureNoteOf = (args: {
+  build: Extract<LocalBuild, { ok: false }>
+  linked: string | null
+}): string =>
+  [`${args.build.failure}. ${untouchedOf(args.linked)}`, args.build.log.slice(-LOG_TAIL_CHARS)]
+    .filter((part) => part.length > 0)
+    .join('\n\n')
+
+const supersededNoteOf = (detail: string): string =>
+  `A newer version of that artifact is already live, so this push changed nothing (${detail}). Run artifact_pull to read the live source, reapply your changes on top of it and push again.`
 
 export class PushArtifactTool extends SchemaTool<typeof inputSchema> {
   readonly name = 'artifact_push'
@@ -102,7 +119,6 @@ export class PushArtifactTool extends SchemaTool<typeof inputSchema> {
       port: ArtifactPort
       processes: ProcessPort
       files: FileSystemPort
-      registry?: (() => SubscriptionRegistryPort | null) | undefined
       fetchFn?: ArtifactUploadFetch | undefined
     },
   ) {
@@ -130,26 +146,6 @@ export class PushArtifactTool extends SchemaTool<typeof inputSchema> {
     }
   }
 
-  private async subscribe(args: {
-    threadId: ThreadId
-    projectDirectory: string
-    subdomain: string
-    version: number
-  }): Promise<Subscribed> {
-    const registry = this.deps.registry?.() ?? null
-    if (registry === null) return null
-
-    const outcome = await registry.subscribe({
-      threadId: args.threadId,
-      provider: ARTIFACT_BUILD_PROVIDER_KIND,
-      input: `${args.subdomain}@${args.version}`,
-      projectDirectory: args.projectDirectory,
-      by: ESubscriptionActor.Agent,
-    })
-    if (!outcome.ok) return { error: outcome.error }
-    return { id: outcome.subscription.id }
-  }
-
   protected override async run({
     input,
     projectDirectory,
@@ -164,12 +160,44 @@ export class PushArtifactTool extends SchemaTool<typeof inputSchema> {
     if (!dir.ok) return { ok: false, reason: dir.reason }
 
     try {
-      const paths = await listGitPaths({ dir: dir.path, processes: this.deps.processes })
+      const listing = await listGitPaths({ dir: dir.path, processes: this.deps.processes })
+      const paths = listing.paths
       const file = await readSpecFile({ dir: dir.path, files: this.deps.files })
       const linked = linkedSubdomainOf(file.raw)
       const subdomain = targetOf({ file, linked, requested: input.subdomain })
-      const hashed = await hashOf({ dir: dir.path, paths, files: this.deps.files })
-      const plan = publishPlanOf({ specRaw: file.raw, files: hashed })
+      const spec = parseSpec(file.raw)
+      const source = await hashOf({ dir: dir.path, paths, files: this.deps.files })
+
+      const build =
+        spec.build === undefined
+          ? null
+          : await runLocalBuild({
+              dir: dir.path,
+              build: spec.build,
+              processes: this.deps.processes,
+              threadId,
+              signal,
+            })
+      if (build !== null && !build.ok) {
+        return { ok: false, reason: failureNoteOf({ build, linked }) }
+      }
+
+      const output =
+        spec.build === undefined
+          ? []
+          : await collectOutput({
+              dir: dir.path,
+              outDir: spec.build.outDir,
+              files: this.deps.files,
+            })
+      if (spec.build !== undefined && output.length === 0) {
+        return {
+          ok: false,
+          reason: `build.outDir ${spec.build.outDir} is missing or empty after the build. ${untouchedOf(linked)}`,
+        }
+      }
+
+      const plan = publishPlanOf({ spec, source, output })
       const begun = await this.begin({
         file,
         linked,
@@ -182,30 +210,16 @@ export class PushArtifactTool extends SchemaTool<typeof inputSchema> {
       }
       await putUploads({
         uploads: begun.uploads,
-        hashed,
+        files: [...source, ...output],
         fetchFn: this.deps.fetchFn ?? defaultUploadFetch,
       })
       const committed = await this.deps.port.commitPublish({
         artifactId: begun.artifactId,
         version: begun.version,
+        ...(build === null ? {} : { log: build.log, durationMs: build.durationMs }),
       })
-      if (committed.status === FAILED) {
-        return {
-          ok: false,
-          reason: `the source of ${committed.subdomain} version ${committed.version} is stored, but the server could not start its build, so ${committed.url} still serves the last good build.`,
-        }
-      }
 
-      const subscribed =
-        committed.status === BUILDING
-          ? await this.subscribe({
-              threadId,
-              projectDirectory,
-              subdomain: committed.subdomain,
-              version: committed.version,
-            })
-          : null
-
+      const counts = countsOf(plan)
       return {
         ok: true,
         output: {
@@ -213,29 +227,20 @@ export class PushArtifactTool extends SchemaTool<typeof inputSchema> {
           version: committed.version,
           url: committed.url,
           status: committed.status,
-          subscriptionId: subscribed === null || 'error' in subscribed ? null : subscribed.id,
         },
         modelText: [
-          `Pushed ${plan.entries.length} source files to ${committed.subdomain} as version ${committed.version}; the build runs on the server.`,
-          resultNoteOf({ committed, subscribed }),
+          build === null
+            ? `Pushed ${counts.source} files to ${committed.subdomain} as version ${committed.version}; they are served as they are and are live at ${committed.url}.`
+            : `Built and pushed ${counts.source} source files and ${counts.output} built files to ${committed.subdomain} as version ${committed.version}; it is live at ${committed.url}.`,
+          ...(listing.initialised ? [initNoteOf(dir.path)] : []),
           ...(linked === null ? [linkNoteOf({ file, subdomain: begun.subdomain })] : []),
         ].join('\n\n'),
       }
     } catch (error) {
+      if (error instanceof ArtifactSuperseded) {
+        return { ok: false, reason: supersededNoteOf(messageOf(error)) }
+      }
       return { ok: false, reason: messageOf(error) }
     }
   }
-}
-
-function resultNoteOf(args: {
-  committed: { url: string; status: string }
-  subscribed: Subscribed
-}): string {
-  if (args.subscribed !== null && 'id' in args.subscribed) {
-    return `Subscribed to it (id ${args.subscribed.id}): you will be woken with the result — the live URL ${args.committed.url} when it is ready, or the failure and build log. End your turn rather than polling.`
-  }
-  if (args.subscribed !== null) {
-    return `Could not subscribe to the build (${args.subscribed.error}), so call artifact_list later to see whether ${args.committed.url} serves it.`
-  }
-  return `This session has no subscription registry, so call artifact_list later to see whether ${args.committed.url} serves it.`
 }

@@ -172,4 +172,46 @@ describe('outsideProjectNotice', () => {
       }
     })
   })
+
+  describe('with an artifacts directory', () => {
+    const ARTIFACTS = '/atlas/workspaces/artifacts'
+
+    const notice = (path: string) =>
+      outsideProjectNotice({ path, projectDirectory: PROJECT, artifactsDirectory: ARTIFACTS })
+
+    it('stays silent for the artifacts root, a folder under it and a deep file', () => {
+      for (const path of [
+        ARTIFACTS,
+        `${ARTIFACTS}/todo-app/artifact.json`,
+        `${ARTIFACTS}/x/src/a.ts`,
+      ]) {
+        expect(notice(path)).toBeUndefined()
+      }
+    })
+
+    it('stays silent when the write is spelled relative to a pod project', () => {
+      expect(
+        outsideProjectNotice({
+          path: '../artifacts/todo-app/src/main.ts',
+          projectDirectory: '/atlas/workspaces/workspace',
+          artifactsDirectory: ARTIFACTS,
+        }),
+      ).toBeUndefined()
+    })
+
+    it('nudges on a prefix-colliding sibling and on traversal out of the root', () => {
+      expect(notice(`${ARTIFACTS}-other/todo/src/main.ts`)).toBeDefined()
+      expect(notice(`${ARTIFACTS}/todo/../../../workspace/notes.md`)).toBeDefined()
+    })
+
+    it('leaves other outside-project writes nudging', () => {
+      expect(notice('/Users/dennis/Developer/comp-v3/.env')).toBeDefined()
+      expect(
+        outsideProjectNotice({
+          path: '/Users/dennis/Developer/comp-v3/x.ts',
+          projectDirectory: PROJECT,
+        }),
+      ).toBeDefined()
+    })
+  })
 })

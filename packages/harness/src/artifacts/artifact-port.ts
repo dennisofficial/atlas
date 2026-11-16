@@ -1,9 +1,4 @@
-import type {
-  ArtifactBuildStatusOutput,
-  ArtifactEntry,
-  ArtifactSummary,
-  ArtifactUpload,
-} from '@dltech/atlas-wire'
+import type { ArtifactEntry, ArtifactSummary, ArtifactUpload } from '@dltech/atlas-wire'
 
 export class ArtifactRefused extends Error {
   constructor(message: string) {
@@ -16,6 +11,13 @@ export class ArtifactNotFound extends ArtifactRefused {
   constructor(message: string) {
     super(message)
     this.name = 'ArtifactNotFound'
+  }
+}
+
+export class ArtifactSuperseded extends ArtifactRefused {
+  constructor(message: string) {
+    super(message)
+    this.name = 'ArtifactSuperseded'
   }
 }
 
@@ -42,8 +44,6 @@ export type ArtifactPublishCommitted = {
   status: string
 }
 
-export type ArtifactBuildStatus = ArtifactBuildStatusOutput
-
 export type ArtifactSourceExport = { entries: { path: string; url: string }[] }
 
 export abstract class ArtifactPort {
@@ -56,9 +56,9 @@ export abstract class ArtifactPort {
   abstract commitPublish(args: {
     artifactId: string
     version: number
+    log?: string | undefined
+    durationMs?: number | undefined
   }): Promise<ArtifactPublishCommitted>
-
-  abstract buildStatus(args: { subdomain: string; version: number }): Promise<ArtifactBuildStatus>
 
   abstract list(): Promise<readonly ArtifactSummary[]>
 

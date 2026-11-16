@@ -3,7 +3,6 @@ import { toThreadId, type ToolDefinition, type ToolOutcome } from '@dltech/atlas
 import { PushArtifactTool } from '../artifact-push'
 
 import { FakeArtifactPort, FakeFiles, FakeProcesses } from './artifact-fakes'
-import { FakeSubscriptionRegistry } from './subscription-fakes'
 
 export const LINKED = 'k7f2m9qxabcd'
 
@@ -11,13 +10,13 @@ export const indexHtml = '<!doctype html><title>demo</title>'
 const appJs = 'console.log("demo")'
 const exampleEnv = 'TOKEN='
 
-type FetchCall = { url: string; method: string | undefined }
+type FetchCall = { url: string; method: string | undefined; body: Uint8Array }
 
 export const rigOf = (args?: {
   paths?: readonly string[]
   spec?: unknown
   prefix?: string
-  registry?: boolean
+  output?: Record<string, string>
 }) => {
   const prefix = args?.prefix ?? '/ws'
   const port = new FakeArtifactPort()
@@ -51,18 +50,18 @@ export const rigOf = (args?: {
     ],
   )
   const fetchFn = (async (input: string | URL | Request, init?: RequestInit) => {
-    calls.push({ url: String(input), method: init?.method })
+    calls.push({
+      url: String(input),
+      method: init?.method,
+      body: init?.body instanceof Uint8Array ? init.body : new Uint8Array(),
+    })
     return new Response(null, { status: 200 })
   }) as unknown as typeof fetch
-  const registry = new FakeSubscriptionRegistry()
-  const tool = new PushArtifactTool({
-    port,
-    processes,
-    files,
-    fetchFn,
-    ...(args?.registry === false ? {} : { registry: () => registry }),
-  })
-  return { port, files, processes, calls, registry, tool }
+  for (const [path, content] of Object.entries(args?.output ?? {})) {
+    files.put(`${prefix}/${path}`, content)
+  }
+  const tool = new PushArtifactTool({ port, processes, files, fetchFn })
+  return { port, files, processes, calls, tool }
 }
 
 export const invoke = async (input: Record<string, unknown>, tool: ToolDefinition) =>

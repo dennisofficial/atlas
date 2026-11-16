@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
 import { trpcData, trpcVoid } from '../../cloud/__tests__/trpc-wire'
-import { ArtifactNotFound, ArtifactRefused, ArtifactUnavailable } from '../artifact-port'
+import {
+  ArtifactNotFound,
+  ArtifactRefused,
+  ArtifactSuperseded,
+  ArtifactUnavailable,
+} from '../artifact-port'
 import { CloudArtifactPort } from '../cloud-artifact-port'
 import { BEGINNED, SUMMARY, entry, failure, failureOf, portWith } from './cloud-artifact-port-rig'
 
@@ -49,7 +54,7 @@ describe('CloudArtifactPort', () => {
           subdomain: 'demo',
           version: 3,
           url: 'https://demo.artifacts.test',
-          status: 'building',
+          status: 'ready',
         }),
     })
 
@@ -62,8 +67,45 @@ describe('CloudArtifactPort', () => {
       subdomain: 'demo',
       version: 3,
       url: 'https://demo.artifacts.test',
-      status: 'building',
+      status: 'ready',
     })
+  })
+
+  it('sends the build log and how long it took with the commit', async () => {
+    const { port, calls } = portWith({
+      respond: () =>
+        trpcData({
+          subdomain: 'demo',
+          version: 3,
+          url: 'https://demo.artifacts.test',
+          status: 'ready',
+        }),
+    })
+
+    await port.commitPublish({
+      artifactId: 'art_1',
+      version: 3,
+      log: '==> build (exit 0)',
+      durationMs: 41_000,
+    })
+
+    expect(calls[0]?.input).toEqual({
+      artifactId: 'art_1',
+      version: 3,
+      log: '==> build (exit 0)',
+      durationMs: 41_000,
+    })
+  })
+
+  it('tells an older version apart from a plain refusal, so a push can point at artifact_pull', async () => {
+    const { port } = portWith({
+      respond: () => failure({ status: 409, trpcCode: 'CONFLICT', message: 'version 3 is old' }),
+    })
+
+    const error = await failureOf(port.commitPublish({ artifactId: 'art_1', version: 3 }))
+
+    expect(error).toBeInstanceOf(ArtifactSuperseded)
+    expect((error as Error).message).toContain('version 3 is old')
   })
 
   it('lists artifacts from artifacts.list', async () => {
@@ -192,10 +234,6 @@ describe('CloudArtifactPort', () => {
     {
       method: 'commitPublish',
       run: (port: CloudArtifactPort) => port.commitPublish({ artifactId: 'art_1', version: 3 }),
-    },
-    {
-      method: 'buildStatus',
-      run: (port: CloudArtifactPort) => port.buildStatus({ subdomain: 'demo', version: 3 }),
     },
     {
       method: 'sourceExport',

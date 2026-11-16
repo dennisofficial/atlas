@@ -9,16 +9,22 @@ export class FakeArtifactBlobStore extends ArtifactBlobStore {
   readonly requestedUploads: string[] = []
   readonly deleted: string[] = []
   private putHook: ((args: { pathname: string }) => Promise<void>) | null = null
+  private removeHook: ((args: { pathnames: readonly string[] }) => Promise<void>) | null = null
 
   reset(): void {
     this.stored.clear()
     this.requestedUploads.length = 0
     this.deleted.length = 0
     this.putHook = null
+    this.removeHook = null
   }
 
   beforePut(hook: (args: { pathname: string }) => Promise<void>): void {
     this.putHook = hook
+  }
+
+  beforeRemove(hook: (args: { pathnames: readonly string[] }) => Promise<void>): void {
+    this.removeHook = hook
   }
 
   seed(args: { pathname: string; body?: string }): void {
@@ -68,6 +74,7 @@ export class FakeArtifactBlobStore extends ArtifactBlobStore {
   }
 
   async remove(pathnames: readonly string[]): Promise<void> {
+    if (this.removeHook !== null) await this.removeHook({ pathnames })
     for (const pathname of pathnames) await this.delete({ pathname })
   }
 

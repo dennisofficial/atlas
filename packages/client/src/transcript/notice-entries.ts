@@ -2,7 +2,6 @@ import {
   EOperatorInputOutcome,
   prEventContent,
   runEventContent,
-  artifactBuildEventContent,
   type Event,
 } from '@dltech/atlas-core'
 
@@ -141,18 +140,6 @@ export function noticeEntriesOf(event: Event): TranscriptEntry[] | null {
         key: event.id,
         text: `${event.workflow} #${event.workflowRunId} ${event.conclusion}`,
         content: runEventContent(event),
-      },
-    ]
-  }
-
-  if (event.type === 'artifact-build-event') {
-    return [
-      {
-        kind: EEntryKind.SystemNotice,
-        author: EAuthor.Model,
-        key: event.id,
-        text: `artifact ${event.subdomain} v${event.version} ${event.outcome}`,
-        content: artifactBuildEventContent(event),
       },
     ]
   }

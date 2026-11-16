@@ -2,19 +2,22 @@ import { randomUUID } from 'node:crypto'
 import {
   BadRequestException,
   ConflictException,
-  Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common'
 import {
-  MAX_BYTES_PER_USER,
   MAX_BYTES_PER_VERSION,
   exceededBy,
   manifestHash,
   parseManifest,
   parseSpec,
-  sourcePathOf,
+  routePrefixOf,
+  routeVersionOfKey,
+  sourcePrefixOf,
+  sourceVersionOfKey,
   specHash,
+  type ArtifactSpec,
   type ManifestEntry,
 } from '@dltech/atlas-artifacts'
 import { db, violatedConstraint } from '@dltech/atlas-db'
@@ -26,19 +29,17 @@ import type {
   ArtifactUpload,
 } from '@dltech/atlas-wire'
 import { EnvService } from '../../../_core/config/env/env.service'
-import { JobDispatcher } from '../../../_core/ports/job-dispatcher'
-import { artifactBuildIdempotencyKey, artifactBuildTaskContract } from './artifact-build.contract'
 import { ArtifactBlobStore } from './artifact-blob-store'
-import { assertUploaded, pruneSource, pushedSpec } from './artifact-push'
+import { assertPublishQuota, storedBytesOf } from './artifact-quota'
+import { withArtifactLock } from './artifact-lock'
+import { assertUploaded, pushedSpec } from './artifact-push'
 import { ownedById, resolveArtifact } from './artifact-record'
 import type { ArtifactRow } from './artifact-rows'
 import { buildRowOfVersion, urlOf } from './artifact-repository'
-import {
-  recordBuild,
-  storeBuildSpec,
-  supersedeBuildingBelow,
-  EBuildStatus,
-} from './artifact-versions'
+import { liveVersionOf, writeArtifactRoute } from './artifact-route'
+import { pruneBelow, removeTree } from './artifact-tree'
+import { uploadsOf } from './artifact-uploads'
+import { EBuildStatus, markFailed, markReadyWithin, type VersionRow } from './artifact-versions'
 
 const VERSION_COLLISION = 'ArtifactVersion_artifactId_version_key'
 
@@ -46,15 +47,28 @@ const ATTEMPTS = 3
 
 const EMPTY_SPEC_HASH = specHash(parseSpec({}))
 
-const totalBytesOf = (entries: readonly ManifestEntry[]): number =>
-  entries.reduce((total, entry) => total + entry.size, 0)
+const logger = new Logger('ArtifactsService')
+
+export const SERVER_BUILD_GONE =
+  'This Atlas version pushes without building. Restart the session to update Atlas, then push again; the new artifact_push builds in the session.'
+
+const messageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
+
+const conflictOf = (args: {
+  version: number
+  live: number
+  subdomain: string
+}): ConflictException =>
+  new ConflictException(
+    `version ${args.version} is older than the live version ${args.live} of ${args.subdomain}; pull it, reapply your change and push again`,
+  )
 
 @Injectable()
 export class ArtifactsService {
   constructor(
     private readonly blobs: ArtifactBlobStore,
     private readonly env: EnvService,
-    @Inject(JobDispatcher) private readonly jobs: JobDispatcher,
   ) {}
 
   async beginPublish(args: {
@@ -62,7 +76,7 @@ export class ArtifactsService {
     body: ArtifactBeginPublishInput
   }): Promise<ArtifactBeginPublishOutput> {
     const entries = this.parseEntries(args.body.entries)
-    await this.assertPublishQuota({ userId: args.userId, entries })
+    await assertPublishQuota({ userId: args.userId, entries })
     const artifact = await resolveArtifact({
       userId: args.userId,
       subdomain: args.body.subdomain,
@@ -74,74 +88,141 @@ export class ArtifactsService {
       token: artifact.subdomain,
       subdomain: artifact.subdomain,
       version,
-      uploads: await this.sourceUploads({ artifact, entries }),
+      uploads: await this.presignedUploads({ artifact, entries, version }),
     }
   }
 
   async commitPublish(args: {
     userId: string
-    threadId: string | undefined
     body: ArtifactCommitPublishInput
   }): Promise<ArtifactCommitPublishOutput> {
     const artifact = await ownedById({ userId: args.userId, artifactId: args.body.artifactId })
-    const row = await buildRowOfVersion({
-      artifactId: artifact.id,
-      version: args.body.version,
-    })
-    if (row === null) throw new NotFoundException(`no version ${args.body.version}`)
-    const entries = parseManifest(row.manifest)
     const id = artifact.subdomain
-    await assertUploaded({ blobs: this.blobs, id, entries })
-    await pruneSource({ blobs: this.blobs, id, entries })
-    const spec = await pushedSpec({ blobs: this.blobs, id, entries })
-    await storeBuildSpec({ rowId: row.id, spec })
-    await supersedeBuildingBelow({ artifactId: artifact.id, version: row.version })
-    const url = urlOf({ artifact, domain: this.env.get('ARTIFACT_DOMAIN') })
-    const payload = {
-      artifactId: artifact.id,
-      version: row.version,
-      userId: args.userId,
-      ...(args.threadId === undefined ? {} : { threadId: args.threadId }),
+    const row = await buildRowOfVersion({ artifactId: artifact.id, version: args.body.version })
+    if (row === null) {
+      const live = await liveVersionOf({ blobs: this.blobs, id })
+      if (live === args.body.version) return this.readyOf({ artifact, version: args.body.version })
+      if (live < args.body.version) throw new NotFoundException(`no version ${args.body.version}`)
+      await this.removeVersionFolders({ id, version: args.body.version })
+      throw conflictOf({ version: args.body.version, live, subdomain: id })
     }
+    const entries = parseManifest(row.manifest)
+    await assertUploaded({ blobs: this.blobs, id, version: row.version, entries })
+    const spec = await pushedSpec({ blobs: this.blobs, id, version: row.version, entries })
+    const log = args.body.log ?? null
+    const durationMs = args.body.durationMs ?? null
+    await this.refuseServerBuild({ row, spec, entries, log, durationMs })
+    await this.switchLive({ artifact, row, spec, entries, log, durationMs })
+    await this.pruneBelow({ id, version: row.version })
+    return this.readyOf({ artifact, version: row.version })
+  }
+
+  private readyOf(args: { artifact: ArtifactRow; version: number }): ArtifactCommitPublishOutput {
+    return {
+      subdomain: args.artifact.subdomain,
+      version: args.version,
+      url: urlOf({ artifact: args.artifact, domain: this.env.get('ARTIFACT_DOMAIN') }),
+      status: 'ready',
+    }
+  }
+
+  private async refuseServerBuild(args: {
+    row: { id: string }
+    spec: ArtifactSpec
+    entries: readonly ManifestEntry[]
+    log: string | null
+    durationMs: number | null
+  }): Promise<void> {
+    if (args.spec.build === undefined) return
+    if (args.entries.some((entry) => entry.tree === 'dist')) return
+    await markFailed({
+      rowId: args.row.id,
+      failure: SERVER_BUILD_GONE,
+      log: args.log,
+      durationMs: args.durationMs,
+    })
+    throw new BadRequestException(SERVER_BUILD_GONE)
+  }
+
+  private async switchLive(args: {
+    artifact: ArtifactRow
+    row: VersionRow
+    spec: ArtifactSpec
+    entries: readonly ManifestEntry[]
+    log: string | null
+    durationMs: number | null
+  }): Promise<void> {
     try {
-      await this.jobs.dispatch({
-        task: artifactBuildTaskContract,
-        payload,
-        idempotencyKey: artifactBuildIdempotencyKey(payload),
-        tags: [`artifact:${id}`],
+      await withArtifactLock({
+        artifactId: args.artifact.id,
+        work: async (tx) => {
+          const current = await tx.orm.public.Artifact.first({ id: args.artifact.id })
+          if (current === null) throw new NotFoundException('no such artifact')
+          const live = await liveVersionOf({ blobs: this.blobs, id: current.subdomain })
+          if (live === args.row.version) return
+          if (live > args.row.version) {
+            throw conflictOf({
+              version: args.row.version,
+              live,
+              subdomain: current.subdomain,
+            })
+          }
+          await markReadyWithin({
+            tx,
+            row: args.row,
+            spec: args.spec,
+            log: args.log,
+            durationMs: args.durationMs,
+            bytes: storedBytesOf(args.entries),
+            fileCount: args.entries.length,
+          })
+          await writeArtifactRoute({
+            blobs: this.blobs,
+            artifact: current,
+            spec: args.spec,
+            version: args.row.version,
+          })
+        },
       })
     } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error)
-      await recordBuild({
-        row,
-        status: EBuildStatus.Failed,
-        failure: `could not start the build: ${reason}`,
-        log: null,
-        durationMs: null,
-      })
-      return { subdomain: id, version: row.version, url, status: 'failed' }
+      if (!(error instanceof ConflictException)) throw error
+      await this.removeVersionFolders({ id: args.artifact.subdomain, version: args.row.version })
+      throw error
     }
-    return { subdomain: id, version: row.version, url, status: 'building' }
   }
 
-  private async assertPublishQuota(args: {
-    userId: string
-    entries: readonly ManifestEntry[]
-  }): Promise<void> {
-    const stored = await this.storedBytesOf(args.userId)
-    if (stored + totalBytesOf(args.entries) <= MAX_BYTES_PER_USER) return
-    throw new BadRequestException(
-      `this publish would take you past the ${MAX_BYTES_PER_USER} byte ceiling for artifacts; unpublish one to make room`,
-    )
+  private async pruneBelow(args: { id: string; version: number }): Promise<void> {
+    try {
+      await pruneBelow({
+        blobs: this.blobs,
+        prefix: routePrefixOf({ id: args.id }),
+        version: args.version,
+        versionOfKey: (key) => routeVersionOfKey({ id: args.id, key }),
+      })
+      await pruneBelow({
+        blobs: this.blobs,
+        prefix: sourcePrefixOf({ id: args.id }),
+        version: args.version,
+        versionOfKey: (key) => sourceVersionOfKey({ id: args.id, key }),
+      })
+    } catch (error) {
+      logger.warn(`could not prune the version folders of ${args.id}: ${messageOf(error)}`)
+    }
   }
 
-  private async storedBytesOf(userId: string): Promise<number> {
-    const artifacts = await db.orm.public.Artifact.where({ userId }).all()
-    if (artifacts.length === 0) return 0
-    const rows = await db.orm.public.ArtifactVersion.where((row) =>
-      row.artifactId.in(artifacts.map((artifact) => artifact.id)),
-    ).all()
-    return rows.reduce((total, row) => total + row.bytes, 0)
+  private async removeVersionFolders(args: { id: string; version: number }): Promise<void> {
+    try {
+      await removeTree({
+        blobs: this.blobs,
+        prefix: `${sourcePrefixOf({ id: args.id })}v${args.version}/`,
+      })
+      await removeTree({
+        blobs: this.blobs,
+        prefix: `${routePrefixOf({ id: args.id })}v${args.version}/`,
+      })
+    } catch (error) {
+      logger.warn(`could not remove version ${args.version} of ${args.id}: ${messageOf(error)}`)
+    }
   }
 
   private parseEntries(raw: readonly ManifestEntry[]): ManifestEntry[] {
@@ -174,7 +255,7 @@ export class ArtifactsService {
             spec: {},
             sourceHash: manifestHash(args.entries),
             specHash: EMPTY_SPEC_HASH,
-            bytes: totalBytesOf(args.entries),
+            bytes: storedBytesOf(args.entries),
             fileCount: args.entries.length,
           })
           await tx.orm.public.Artifact.where({ id: args.artifact.id }).update({
@@ -189,18 +270,23 @@ export class ArtifactsService {
     throw new ConflictException('could not open a build for this artifact')
   }
 
-  private async sourceUploads(args: {
+  private async presignedUploads(args: {
     artifact: ArtifactRow
     entries: readonly ManifestEntry[]
+    version: number
   }): Promise<ArtifactUpload[]> {
     const uploads: ArtifactUpload[] = []
-    for (const entry of args.entries) {
-      const pathname = sourcePathOf({ id: args.artifact.subdomain, path: entry.path })
+    const grants = uploadsOf({
+      id: args.artifact.subdomain,
+      version: args.version,
+      entries: args.entries,
+    })
+    for (const grant of grants) {
       const { url } = await this.blobs.presignUpload({
-        pathname,
+        pathname: grant.pathname,
         maxBytes: MAX_BYTES_PER_VERSION,
       })
-      uploads.push({ path: entry.path, tree: entry.tree, sha256: entry.sha256, url })
+      uploads.push({ path: grant.path, tree: grant.tree, sha256: grant.sha256, url })
     }
     return uploads
   }

@@ -120,8 +120,11 @@ Publishing writes through `ArtifactBlobStore`
 `ARTIFACT_S3_REGION`, `ARTIFACT_S3_BUCKET`, `ARTIFACT_S3_ACCESS_KEY_ID`,
 `ARTIFACT_S3_SECRET_ACCESS_KEY`; a missing key answers 503 at use). `apps/artifacts-host` reads the
 same bucket through its `ARTIFACTS` R2 binding, which is strongly consistent, so a publish is live
-when it reports ready. Object keys are the artifact pathnames unchanged —
-`artifacts/<id>/_route/<path>` and `routes/<id>.json`.
+when it reports ready. Each version keeps its source under `artifacts/<id>/_source/v<N>/<path>`
+and its served files under `artifacts/<id>/_route/v<N>/<path>`; `routes/<id>.json` names the live
+version. Nothing builds on the server: `artifact_push` builds in the session's pod and uploads both
+trees, and `commitPublish` switches the live version under a per-artifact advisory lock. See
+`docs/artifacts.md`.
 
 ## Layout
 

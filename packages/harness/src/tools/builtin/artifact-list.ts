@@ -14,7 +14,7 @@ const inputSchema = z.strictObject({})
 
 const description = [
   'List the artifacts you have published, one row each: name, URL, status and when it was last published.',
-  'Status is building while the server compiles the source, ready when the URL serves it, and failed when the build did not.',
+  'Status is ready when the URL serves the last push, building while a push is uploading, and failed when a push was refused.',
 ].join(' ')
 
 const messageOf = (error: unknown): string =>

@@ -52,9 +52,12 @@ describe('artifact_push', () => {
     modelTextOf(await invoke({}, rig.tool))
 
     expect(rig.calls.map((call) => call.url).sort()).toEqual([
-      'https://upload.test/.env.example',
-      'https://upload.test/app.js',
-      'https://upload.test/index.html',
+      'https://upload.test/dist/.env.example',
+      'https://upload.test/dist/app.js',
+      'https://upload.test/dist/index.html',
+      'https://upload.test/src/.env.example',
+      'https://upload.test/src/app.js',
+      'https://upload.test/src/index.html',
     ])
     expect(rig.calls.every((call) => call.method === 'PUT')).toBe(true)
   })
@@ -71,7 +74,7 @@ describe('artifact_push', () => {
     const rig = rigOf({ prefix: '/ws/site' })
     modelTextOf(await invoke({ dir: 'site' }, rig.tool))
 
-    expect(rig.processes.commands[0]).toEqual([
+    expect(rig.processes.commands).toContainEqual([
       'git',
       '-C',
       '/ws/site',
@@ -83,15 +86,42 @@ describe('artifact_push', () => {
     ])
   })
 
-  it('reports a directory that git cannot list as prose', async () => {
+  it('initialises git in a directory outside a worktree and says so', async () => {
     const rig = rigOf()
-    rig.processes.exitCode = 128
-    rig.processes.stderr = 'fatal: not a git repository'
+    rig.processes.insideWorktree = false
+
+    const text = modelTextOf(await invoke({}, rig.tool))
+
+    expect(rig.processes.commands).toContainEqual([
+      'git',
+      '-C',
+      '/ws',
+      'rev-parse',
+      '--is-inside-work-tree',
+    ])
+    expect(rig.processes.commands).toContainEqual(['git', '-C', '/ws', 'init', '-q'])
+    expect(text).toContain('Initialised git in /ws so the push could list its files.')
+    expect(rig.port.commitCalls).toHaveLength(1)
+  })
+
+  it('leaves a directory already inside a worktree alone', async () => {
+    const rig = rigOf()
+
+    const text = modelTextOf(await invoke({}, rig.tool))
+
+    expect(rig.processes.commands.some((cmd) => cmd.includes('init'))).toBe(false)
+    expect(text).not.toContain('Initialised git')
+  })
+
+  it('reports a directory git cannot list as prose', async () => {
+    const rig = rigOf()
+    rig.processes.gitExitCode = 128
+    rig.processes.stderr = 'fatal: unable to read directory'
 
     const outcome = await invoke({}, rig.tool)
 
     expect(outcome.ok).toBe(false)
-    expect(outcome.ok ? '' : outcome.reason).toContain('git worktree')
+    expect(reasonOf(outcome)).toContain('could not list the files in /ws')
   })
 
   it('turns a port error into prose rather than throwing', async () => {

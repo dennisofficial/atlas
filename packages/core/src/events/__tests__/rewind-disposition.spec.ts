@@ -11,7 +11,6 @@ const typesWith = (disposition: ERewindDisposition): string[] =>
 describe('rewindDisposition', () => {
   it('keeps the notices of things that happened outside the conversation', () => {
     expect(typesWith(ERewindDisposition.Keep)).toEqual([
-      'artifact-build-event',
       'checkout-observed',
       'location-changed',
       'model-wait-cleared',

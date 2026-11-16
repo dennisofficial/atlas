@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, it } from 'bun:test'
 import { seedSessionUsers } from '../../../test/web-settings.fake-db'
 import { trpcMutation } from '../session-trpc-test-app'
 import { FakeArtifactBlobStore } from './artifact-blob-store.fakes'
-import { buildArtifactsApp, FakeArtifactJobDispatcher, OWNER } from './artifacts.router.fixture'
+import { buildArtifactsApp, OWNER } from './artifacts.router.fixture'
 
 const fullVersion = {
   path: 'index.html',
@@ -15,13 +15,12 @@ const fullVersion = {
   type: 'text/html',
 }
 
-const versionsThatFit = Math.floor(MAX_BYTES_PER_USER / MAX_BYTES_PER_VERSION)
+const versionsThatFit = Math.floor(MAX_BYTES_PER_USER / (2 * MAX_BYTES_PER_VERSION))
 
 describe('ArtifactsRouter per-user ceiling', () => {
   useTestDatabase()
   let app: INestApplication
   const blobs = new FakeArtifactBlobStore()
-  const jobs = new FakeArtifactJobDispatcher()
 
   const begin = (name: string) =>
     trpcMutation({
@@ -34,13 +33,12 @@ describe('ArtifactsRouter per-user ceiling', () => {
   beforeEach(async () => {
     await seedSessionUsers()
     blobs.reset()
-    jobs.reset()
-    app = await buildArtifactsApp({ blobs, jobs })
+    app = await buildArtifactsApp({ blobs })
   })
 
   afterEach(() => app.close())
 
-  it('accepts every version up to the ceiling and refuses the one past it', async () => {
+  it('counts a source-only push twice and refuses the one past the ceiling', async () => {
     for (let index = 0; index < versionsThatFit; index++) {
       await begin(`bulk-${index}`).expect(200)
     }

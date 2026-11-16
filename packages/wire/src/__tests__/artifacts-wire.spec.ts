@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
+import * as wire from '../artifacts'
 import {
-  ARTIFACT_BUILD_OUTCOMES,
+  ARTIFACT_LOG_MAX_CHARS,
   artifactBuildSchema,
-  artifactBuildOutcomeSchema,
-  artifactBuildStatusInputSchema,
-  artifactBuildStatusOutputSchema,
   artifactCommitPublishInputSchema,
+  artifactCommitPublishOutputSchema,
   artifactGetOutputSchema,
   artifactRouteSchema,
   artifactSummarySchema,
@@ -142,61 +141,55 @@ describe('artifactCommitPublishInputSchema', () => {
 
     expect(artifactCommitPublishInputSchema.parse(input)).toEqual(input)
   })
-})
 
-describe('artifactBuildStatusInputSchema', () => {
-  it('names the artifact and the version being built', () => {
-    const input = { subdomain: 'k7f2m9qxabcd', version: 3 }
-
-    expect(artifactBuildStatusInputSchema.parse(input)).toEqual(input)
-  })
-
-  it.each([0, -1, 1.5])('rejects the version %p', (version) => {
-    expect(
-      artifactBuildStatusInputSchema.safeParse({ subdomain: 'k7f2m9qxabcd', version }).success,
-    ).toBe(false)
-  })
-})
-
-describe('artifactBuildStatusOutputSchema', () => {
-  const STATUS = {
-    subdomain: 'k7f2m9qxabcd',
-    version: 3,
-    url: 'https://k7f2m9qxabcd.byatlas.site',
-    outcome: 'ready' as const,
-    failure: null,
-    log: 'bun run build\nbuilt in 4.2s',
-    durationMs: 4200,
-    supersededBy: null,
-  }
-
-  it('round-trips the outcome of a finished build', () => {
-    expect(artifactBuildStatusOutputSchema.parse(STATUS)).toEqual(STATUS)
-  })
-
-  it('carries the version that superseded a build', () => {
-    const superseded = {
-      ...STATUS,
-      outcome: 'superseded' as const,
-      durationMs: null,
-      supersededBy: 4,
+  it('accepts the pushed log and duration the pod measures', () => {
+    const input = {
+      artifactId: 'art_1',
+      version: 3,
+      log: 'bun install\nbun run build',
+      durationMs: 4200,
     }
 
-    expect(artifactBuildStatusOutputSchema.parse(superseded)).toEqual(superseded)
+    expect(artifactCommitPublishInputSchema.parse(input)).toEqual(input)
   })
 
-  it.each(ARTIFACT_BUILD_OUTCOMES)('accepts the outcome %p', (outcome) => {
-    expect(artifactBuildOutcomeSchema.parse(outcome)).toBe(outcome)
+  it('caps the log at 64 KiB', () => {
+    expect(ARTIFACT_LOG_MAX_CHARS).toBe(65536)
+    const atCap = { artifactId: 'art_1', version: 3, log: 'x'.repeat(ARTIFACT_LOG_MAX_CHARS) }
+    const pastCap = { ...atCap, log: 'x'.repeat(ARTIFACT_LOG_MAX_CHARS + 1) }
+
+    expect(artifactCommitPublishInputSchema.safeParse(atCap).success).toBe(true)
+    expect(artifactCommitPublishInputSchema.safeParse(pastCap).success).toBe(false)
   })
 
-  it.each(['queued', 'done', 'READY', ''])('rejects the outcome %p', (outcome) => {
-    expect(artifactBuildOutcomeSchema.safeParse(outcome).success).toBe(false)
-    expect(artifactBuildStatusOutputSchema.safeParse({ ...STATUS, outcome }).success).toBe(false)
-  })
-
-  it('rejects a build that is not there at all', () => {
+  it.each([-1, 1.5])('rejects the duration %p', (durationMs) => {
     expect(
-      artifactBuildStatusOutputSchema.safeParse({ subdomain: 'k7f2m9qxabcd', version: 3 }).success,
+      artifactCommitPublishInputSchema.safeParse({ artifactId: 'art_1', version: 3, durationMs })
+        .success,
     ).toBe(false)
+  })
+})
+
+describe('artifactCommitPublishOutputSchema', () => {
+  it('answers ready for a switched version', () => {
+    const output = {
+      subdomain: 'k7f2m9qxabcd',
+      version: 3,
+      url: 'https://k7f2m9qxabcd.byatlas.site',
+      status: 'ready' as const,
+    }
+
+    expect(artifactCommitPublishOutputSchema.parse(output)).toEqual(output)
+  })
+})
+
+describe('removed build-status schemas', () => {
+  it.each([
+    'artifactBuildStatusInputSchema',
+    'artifactBuildStatusOutputSchema',
+    'artifactBuildOutcomeSchema',
+    'ARTIFACT_BUILD_OUTCOMES',
+  ])('no longer exports %p', (name) => {
+    expect(Object.keys(wire)).not.toContain(name)
   })
 })

@@ -10,7 +10,7 @@ const READ_GRACE_MS = 1_000
 
 const localProcesses = new LocalProcessPort()
 
-const withShellEnv = (): Record<string, string | undefined> => ({
+export const shellEnvironment = (): Record<string, string | undefined> => ({
   ...process.env,
   PATH: `${atlasBinDirectory()}:${process.env.PATH ?? ''}`,
   [LOGIN_ENV_MARKER]: '1',
@@ -46,7 +46,7 @@ export function startShell(args: {
       shell: processes.spawn({
         cmd: ['bash', '-c', args.command],
         cwd: args.cwd,
-        env: withShellEnv(),
+        env: shellEnvironment(),
         threadId: args.threadId,
       }),
     }

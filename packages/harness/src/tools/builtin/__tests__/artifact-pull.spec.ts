@@ -33,7 +33,7 @@ const rigOf = () => {
     const body = contents[url] ?? binaryContents[url]
     return new Response(body ?? 'missing', { status: body === undefined ? 404 : 200 })
   }) as unknown as typeof fetch
-  const tool = new PullArtifactTool({ port, files, fetchFn })
+  const tool = new PullArtifactTool({ port, files, fetchFn, atlasHome: '/atlas/home' })
   return { port, files, requested, tool }
 }
 
@@ -83,7 +83,7 @@ describe('artifact_pull', () => {
     const outcome = await invoke({ subdomain: 'demo', dir: 'out' }, rig.tool)
 
     expect(outcome.ok).toBe(true)
-    expect(outcome.ok ? outcome.modelText : '').toContain('bun install')
+    expect(outcome.ok ? outcome.modelText : '').toContain('install')
     expect(rig.files.text('/ws/out/package.json')).toBe(
       contents['https://download.test/package.json'],
     )
@@ -123,6 +123,131 @@ describe('artifact_pull', () => {
       subdomain: 'demo',
       serve: { spa: true },
     })
+  })
+
+  describe('with no dir', () => {
+    const listed = (name: string) => [
+      {
+        subdomain: 'demo',
+        name,
+        url: 'https://demo.artifacts.test',
+        status: 'ready' as const,
+        updatedAt: '2026-11-16T00:00:00.000Z',
+      },
+    ]
+
+    it('restores into the artifacts folder named after the artifact', async () => {
+      const rig = rigOf()
+      rig.port.artifacts = listed('Todo App')
+
+      const outcome = await invoke({ subdomain: 'demo' }, rig.tool)
+
+      expect(outcome.ok).toBe(true)
+      expect(rig.files.text('/atlas/home/artifacts/todo-app/package.json')).toBe(
+        contents['https://download.test/package.json'],
+      )
+      expect(rig.files.directories.has('/atlas/home/artifacts/todo-app')).toBe(true)
+      expect(outcome.ok ? outcome.modelText : '').toContain('/atlas/home/artifacts/todo-app')
+    })
+
+    it('uses the pod workspaces tree when the project lives there', async () => {
+      const rig = rigOf()
+      rig.port.artifacts = listed('Todo App')
+      rig.port.sourceEntries = [{ path: 'package.json', url: 'https://download.test/package.json' }]
+
+      const outcome = await rig.tool.invoke({
+        input: { subdomain: 'demo' },
+        signal: new AbortController().signal,
+        idempotencyKey: 'k',
+        projectDirectory: '/atlas/workspaces/workspace',
+        threadId: toThreadId('thr_1'),
+      } as never)
+
+      expect(outcome.ok).toBe(true)
+      expect(rig.files.text('/atlas/workspaces/artifacts/todo-app/package.json')).toBe(
+        contents['https://download.test/package.json'],
+      )
+    })
+
+    it('updates the folder already linked to the same artifact in place and keeps other files', async () => {
+      const rig = rigOf()
+      rig.port.artifacts = listed('Todo App')
+      rig.files.put('/atlas/home/artifacts/todo-app/artifact.json', '{"subdomain":"demo"}')
+      rig.files.put('/atlas/home/artifacts/todo-app/notes.md', 'mine')
+
+      const outcome = await invoke({ subdomain: 'demo' }, rig.tool)
+
+      expect(outcome.ok).toBe(true)
+      expect(rig.files.text('/atlas/home/artifacts/todo-app/package.json')).toBe(
+        contents['https://download.test/package.json'],
+      )
+      expect(rig.files.text('/atlas/home/artifacts/todo-app/notes.md')).toBe('mine')
+    })
+
+    it('falls back to a folder suffixed with the subdomain when the name is taken', async () => {
+      const rig = rigOf()
+      rig.port.artifacts = listed('Todo App')
+      rig.files.put('/atlas/home/artifacts/todo-app/artifact.json', '{"subdomain":"other"}')
+
+      const outcome = await invoke({ subdomain: 'demo' }, rig.tool)
+
+      expect(outcome.ok).toBe(true)
+      expect(rig.files.text('/atlas/home/artifacts/todo-app-demo/package.json')).toBe(
+        contents['https://download.test/package.json'],
+      )
+    })
+
+    it('uses the suffixed folder when the plain one holds unrelated files', async () => {
+      const rig = rigOf()
+      rig.port.artifacts = listed('Todo App')
+      rig.files.put('/atlas/home/artifacts/todo-app/src/main.ts', 'export {}')
+
+      const outcome = await invoke({ subdomain: 'demo' }, rig.tool)
+
+      expect(outcome.ok).toBe(true)
+      expect(rig.files.text('/atlas/home/artifacts/todo-app-demo/src/main.ts')).toBe(
+        contents['https://download.test/src/main.ts'],
+      )
+    })
+
+    it('refuses when both candidate folders belong to other work', async () => {
+      const rig = rigOf()
+      rig.port.artifacts = listed('Todo App')
+      rig.files.put('/atlas/home/artifacts/todo-app/artifact.json', '{"subdomain":"other"}')
+      rig.files.put('/atlas/home/artifacts/todo-app-demo/artifact.json', '{"subdomain":"third"}')
+
+      const outcome = await invoke({ subdomain: 'demo' }, rig.tool)
+
+      expect(outcome.ok).toBe(false)
+      expect(reasonOf(outcome)).toContain('Pass dir')
+      expect(rig.requested).toHaveLength(0)
+    })
+
+    it('refuses a subdomain that is not the caller’s', async () => {
+      const rig = rigOf()
+      rig.port.artifacts = listed('Todo App')
+
+      const outcome = await invoke({ subdomain: 'ghost' }, rig.tool)
+
+      expect(outcome.ok).toBe(false)
+      expect(reasonOf(outcome)).toContain('ghost')
+      expect(rig.requested).toHaveLength(0)
+    })
+  })
+
+  it('updates an explicit directory already linked to the same artifact without force', async () => {
+    const rig = rigOf()
+    rig.files.put('/ws/out/artifact.json', '{"subdomain":"demo"}')
+    rig.files.put('/ws/out/notes.md', 'mine')
+
+    const outcome = await invoke({ subdomain: 'demo', dir: 'out' }, rig.tool)
+
+    expect(outcome.ok).toBe(true)
+    expect(rig.files.text('/ws/out/package.json')).toBe(
+      contents['https://download.test/package.json'],
+    )
+    expect(rig.files.text('/ws/out/notes.md')).toBe('mine')
+    expect(outcome.ok ? outcome.modelText : '').toContain('other files there alone')
   })
 
   it('turns a port error into prose rather than throwing', async () => {
