@@ -7,15 +7,15 @@ import {
   MessageFooter,
   Text,
 } from '@dltech/atlas-ui-native'
+import { messageTimeOf } from '@dltech/atlas-client/transcript'
 import { space } from '@dltech/atlas-ui/tokens'
 import { StyleSheet, View } from 'react-native'
 
-import { clockTimeOf } from '../../lib/clock-time'
 import { EMessageAuthor, type MessageRow } from '../rows'
 import { MessageAttachments } from './message-attachments'
 
 const SentAt = ({ at, align }: { at: string | undefined; align?: 'start' | 'end' }) => {
-  const clock = clockTimeOf(at)
+  const clock = messageTimeOf({ at, now: Date.now() })
   if (clock === undefined) return null
   return (
     <MessageFooter align={align ?? 'start'}>

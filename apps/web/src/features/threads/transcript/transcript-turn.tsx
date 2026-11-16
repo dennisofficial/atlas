@@ -7,9 +7,9 @@ import { AgentMessage, UserMessage } from '@dltech/atlas-ui/ai/message'
 import { EMessageImageSize, MessageImageThumb } from '@dltech/atlas-ui/ai/message-images'
 import { Reasoning } from '@dltech/atlas-ui/ai/reasoning'
 import { WorkSummary } from '@dltech/atlas-ui/ai/work-summary'
-import { formatElapsed } from '@dltech/atlas-client/transcript'
+import { formatElapsed, messageTimeOf } from '@dltech/atlas-client/transcript'
 
-import { clockTimeOf, spanMsOf } from '../data/clock-time'
+import { spanMsOf } from '../data/clock-time'
 import type { RepairDiagramAction } from '../data/diagram-repair'
 import { useAttachmentViews } from '../data/use-attachment-views'
 import { useOptionalThreadPanel } from '../panel/thread-panel-context'
@@ -171,7 +171,7 @@ function SegmentView({
     return (
       <AgentMessage
         author={AGENT_AUTHOR}
-        timestamp={clockTimeOf(item.at)}
+        timestamp={messageTimeOf({ at: item.at, now })}
         streaming={item.streaming}
         caret={false}
         copyText={item.text}
@@ -237,7 +237,7 @@ function TurnViewBody({
       return (
         <UserMessage
           author={userName}
-          timestamp={clockTimeOf(turn.item.at)}
+          timestamp={messageTimeOf({ at: turn.item.at, now })}
           copyText={turn.item.text}
           attachments={attachments}
           onRewind={
