@@ -84,6 +84,7 @@ describe('pushedSessionStateOf', () => {
       title: null,
       naming: false,
       mainThreadId: 'thr-1',
+      model: { ref: 'anthropic/claude-opus-5-5', effort: 'high', fast: false },
       createdAt: '2026-11-10T07:00:00Z',
       updatedAt: '2026-11-10T07:00:00Z',
       archivedAt: null,

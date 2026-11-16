@@ -1,5 +1,8 @@
+import { effortRungOf, parseRef, type ModelChoice } from '@dltech/atlas-core'
+import type { SessionModelAsk } from '@dltech/atlas-models'
+
 import { EMPTY_VISIBILITY_TEXT } from './stored-event'
-import type { ControlTx } from './port'
+import type { ControlSessionRow, ControlTx, SessionModelRow } from './port'
 
 export const createSessionIn = async (params: {
   tx: ControlTx
@@ -8,18 +11,21 @@ export const createSessionIn = async (params: {
   projectId: string
   title?: string | undefined
   mainThreadId: string
-  modelRef?: string | undefined
-  modelEffort?: string | undefined
-  modelFast?: boolean | undefined
+  model?: SessionModelAsk | undefined
   spawnedBySessionId?: string | undefined
   nested?: boolean | undefined
   podSessionId?: string | undefined
   routineId?: string | undefined
   at: string
-}): Promise<void> => {
-  const { tx, ...session } = params
+}): Promise<SessionModelRow> => {
+  const { tx, model, ...session } = params
   const { at } = session
-  await tx.createSession(session)
+  const resolved = await tx.resolveSessionModel({
+    userId: params.userId,
+    projectId: params.projectId,
+    ask: model ?? {},
+  })
+  await tx.createSession({ ...session, ...resolved })
   await tx.createThread({
     threadId: params.mainThreadId,
     sessionId: params.sessionId,
@@ -28,6 +34,34 @@ export const createSessionIn = async (params: {
   })
   await tx.notifyWake(params.sessionId)
   await tx.announce({ sessionId: params.sessionId, threadId: params.mainThreadId, headSeq: 0 })
+  return resolved
+}
+
+const currentChoiceOf = (row: ControlSessionRow): ModelChoice | undefined => {
+  const ref = parseRef(row.modelRef)
+  const effort = effortRungOf(row.modelEffort)
+  if (ref === undefined || effort === undefined) return undefined
+  return { ref, effort, fast: row.modelFast }
+}
+
+export const setSessionModelIn = async (params: {
+  tx: ControlTx
+  sessionId: string
+  ask: SessionModelAsk
+}): Promise<SessionModelRow> => {
+  const { tx, sessionId } = params
+  const session = await tx.lockSession(sessionId)
+  if (session === undefined) throw new Error(`unknown session ${sessionId}`)
+  const current = currentChoiceOf(session)
+  const model = await tx.resolveSessionModel({
+    userId: session.userId,
+    projectId: session.projectId,
+    ask: params.ask,
+    ...(current === undefined ? {} : { current }),
+  })
+  await tx.setSessionModel({ sessionId, ...model })
+  await tx.announce({ sessionId })
+  return model
 }
 
 export const archiveIn = async (params: {

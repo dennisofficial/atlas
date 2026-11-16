@@ -30,6 +30,9 @@ export function describeControlPlaneWakes(params: ConformanceParams): void {
         store.transact(async (tx) => {
           await tx.createSession({
             ...createSessionParams({ sessionId: WAKE_SESSION, mainThreadId: WAKE_THREAD }),
+            modelRef: 'anthropic/claude-haiku-4-5',
+            modelEffort: 'medium',
+            modelFast: false,
             at: T0,
           })
           await tx.notifyWake(WAKE_SESSION)

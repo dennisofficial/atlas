@@ -1,6 +1,6 @@
 import { EStreamErrorCode, type SessionSummary } from '@dltech/atlas-protocol'
 
-import { rowForVersion, type SessionEntry } from './session-entry'
+import { rowForVersion, type SessionEntry, type SessionRow } from './session-entry'
 import type { SessionsListIndex } from './sessions-list'
 import type { SubscriptionConnection } from './subscription-port'
 
@@ -102,7 +102,7 @@ export class SessionsSubscription {
     this.args.onEnded(this)
   }
 
-  private rowOf(row: SessionSummary): SessionSummary {
+  private rowOf(row: SessionSummary): SessionRow {
     return rowForVersion({ row, version: this.args.connection.version })
   }
 

@@ -10,9 +10,9 @@ export const createSessionIn = async (params: {
   projectId: string
   title?: string | undefined
   mainThreadId: string
-  modelRef?: string | undefined
-  modelEffort?: string | undefined
-  modelFast?: boolean | undefined
+  modelRef: string
+  modelEffort: string
+  modelFast: boolean
   spawnedBySessionId?: string | undefined
   nested?: boolean | undefined
   podSessionId?: string | undefined
@@ -29,9 +29,9 @@ export const createSessionIn = async (params: {
     nextInboxId: 1,
     createdAt: new Date(params.at),
     archivedAt: null,
-    modelRef: params.modelRef ?? null,
-    modelEffort: params.modelEffort ?? null,
-    modelFast: params.modelFast ?? null,
+    modelRef: params.modelRef,
+    modelEffort: params.modelEffort,
+    modelFast: params.modelFast,
     spawnedBySessionId: params.spawnedBySessionId ?? null,
     nested: params.nested ?? true,
     podSessionId: params.podSessionId ?? null,
@@ -55,6 +55,23 @@ export const readSessionIn = async (params: {
   const query = params.tx.orm.v2.V2Session.where({ id: params.sessionId })
   const row = await (params.lock ? query.forNoKeyUpdate() : query).first()
   return row === null ? undefined : toSessionRow(row)
+}
+
+export const setSessionModelIn = async (params: {
+  tx: Tx
+  sessionId: string
+  modelRef: string
+  modelEffort: string
+  modelFast: boolean
+}): Promise<boolean> => {
+  const changed = await params.tx.orm.v2.V2Session.where({
+    id: params.sessionId,
+  }).updateAndCount({
+    modelRef: params.modelRef,
+    modelEffort: params.modelEffort,
+    modelFast: params.modelFast,
+  })
+  return changed === 1
 }
 
 export const setSessionArchivedIn = async (params: {

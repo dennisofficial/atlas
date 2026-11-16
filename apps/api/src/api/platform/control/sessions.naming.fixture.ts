@@ -7,7 +7,6 @@ import { SessionTitler } from '../../../_core/ports/session-titler'
 import { FakeMediaRegistry } from './media-registry.fake'
 import { ProjectAccess } from './project-access'
 import { SessionsService } from './sessions.service'
-import { FakeSessionModelChoice } from './sessions.service.fixture'
 
 class FakeProjectAccess extends ProjectAccess {
   async ownerOf(args: { projectId: string }): Promise<string | undefined> {
@@ -54,7 +53,6 @@ export const setupNaming = () => {
     registry,
     mediaStore,
     composeCommands([]),
-    new FakeSessionModelChoice(),
   )
   return { service, titler, background, registry, mediaStore }
 }

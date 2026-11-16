@@ -25,7 +25,7 @@ const routineOf = (params: {
   cron: '0 * * * *',
   timezone: 'UTC',
   enabled: params.enabled ?? true,
-  modelRef: 'claude-sonnet-4-6',
+  modelRef: 'anthropic/claude-sonnet-4-6',
   modelEffort: 'high',
   modelFast: false,
   nextRunAt: params.nextRunAt,
@@ -80,7 +80,7 @@ describe('ControlPlane.runRoutine', () => {
       userId: 'user-1',
       projectId: 'project-1',
       title: 'Inbox digest',
-      modelRef: 'claude-sonnet-4-6',
+      modelRef: 'anthropic/claude-sonnet-4-6',
       modelEffort: 'high',
       modelFast: false,
     })

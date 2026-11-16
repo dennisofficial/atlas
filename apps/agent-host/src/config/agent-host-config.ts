@@ -1,4 +1,4 @@
-import type { EEffort, ModelRef, ThreadId } from '@dltech/atlas-core'
+import type { EEffort, ModelRef } from '@dltech/atlas-core'
 
 import type { ModelSource } from './model-config'
 
@@ -45,6 +45,6 @@ export type AgentHostConfig = {
 }
 
 export type ConfigSource = {
-  read(args: { sessionId: string; threadId?: ThreadId | undefined }): Promise<AgentHostConfig>
-  models(args: { sessionId: string; threadId?: ThreadId | undefined }): Promise<ModelSource>
+  read(args: { sessionId: string }): Promise<AgentHostConfig>
+  models(args: { sessionId: string }): Promise<ModelSource>
 }

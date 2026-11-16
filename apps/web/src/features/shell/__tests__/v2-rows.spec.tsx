@@ -30,6 +30,7 @@ const summary = (overrides: Partial<V2SessionSummary> = {}): V2SessionSummary =>
   title: 'Fix login',
   naming: false,
   mainThreadId: 'thr-a',
+  model: { ref: 'anthropic/claude-opus-5-5', effort: 'high', fast: false },
   createdAt: agoIso(5),
   updatedAt: agoIso(2),
   archivedAt: null,

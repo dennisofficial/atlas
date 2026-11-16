@@ -53,13 +53,13 @@ describe('SessionsService', () => {
     const created = await service.create({
       userId: 'user-a',
       projectId: 'proj-a',
-      model: 'openai/gpt-5',
-      effort: 'high',
+      model: 'anthropic/claude-opus-5-5',
+      effort: 'low',
       fast: true,
     })
     const row = await plane.readSession({ sessionId: created.sessionId })
-    expect(row?.modelRef).toBe('openai/gpt-5')
-    expect(row?.modelEffort).toBe('high')
+    expect(row?.modelRef).toBe('anthropic/claude-opus-5-5')
+    expect(row?.modelEffort).toBe('low')
     expect(row?.modelFast).toBe(true)
   })
 
@@ -196,47 +196,54 @@ describe('SessionsService', () => {
 })
 
 describe('SessionsService model choice', () => {
-  it("fills the session model from the user's settings", async () => {
-    const { plane, service, choice } = setup()
-    choice.settings.set('model.id', 'anthropic/claude-sonnet-4-5')
-    choice.settings.set('model.effort', 'high')
-    choice.settings.set('model.fast', true)
+  it('pins a complete model when the caller names none', async () => {
+    const { plane, service } = setup()
 
     const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
 
     const row = await plane.readSession({ sessionId: created.sessionId })
-    expect(row?.modelRef).toBe('anthropic/claude-sonnet-4-5')
-    expect(row?.modelEffort).toBe('high')
-    expect(row?.modelFast).toBe(true)
-    expect(choice.writes).toEqual([])
+    expect(row?.modelRef).toBe('anthropic/claude-haiku-4-5')
+    expect(row?.modelEffort).toBe('medium')
+    expect(row?.modelFast).toBe(false)
   })
 
-  it('model-set writes the chosen model and appends no inbox entry', async () => {
-    const { plane, service, choice } = setup()
+  it('fills the effort and fast of a named model from the default', async () => {
+    const { plane, service } = setup()
+
+    const created = await service.create({
+      userId: 'user-a',
+      projectId: 'proj-a',
+      model: 'anthropic/claude-opus-5-5',
+    })
+
+    const row = await plane.readSession({ sessionId: created.sessionId })
+    expect(row?.modelRef).toBe('anthropic/claude-opus-5-5')
+    expect(row?.modelEffort).toBe('medium')
+    expect(row?.modelFast).toBe(false)
+  })
+
+  it('model-set writes ref, effort and fast and appends no inbox entry', async () => {
+    const { plane, service } = setup()
     const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
 
     const posted = await service.command({
       userId: 'user-a',
       sessionId: created.sessionId,
       name: 'model-set',
-      args: { model: 'openai/gpt-5', effort: 'low', fast: true },
+      args: { model: 'anthropic/claude-opus-5-5', effort: 'low', fast: true },
     })
 
     expect(posted).toEqual({})
-    expect(choice.writes).toEqual([
-      {
-        sessionId: created.sessionId,
-        modelRef: 'openai/gpt-5',
-        modelEffort: 'low',
-        modelFast: true,
-      },
-    ])
+    const row = await plane.readSession({ sessionId: created.sessionId })
+    expect(row?.modelRef).toBe('anthropic/claude-opus-5-5')
+    expect(row?.modelEffort).toBe('low')
+    expect(row?.modelFast).toBe(true)
     const inbox = await plane.readInbox({ sessionId: created.sessionId, afterId: 0, limit: 10 })
     expect(inbox).toEqual([])
   })
 
-  it('refuses model-set arguments that name an account and writes nothing', async () => {
-    const { plane, service, choice } = setup()
+  it('refuses model-set arguments that name an account and leaves the row alone', async () => {
+    const { plane, service } = setup()
     const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
 
     await expect(
@@ -244,10 +251,11 @@ describe('SessionsService model choice', () => {
         userId: 'user-a',
         sessionId: created.sessionId,
         name: 'model-set',
-        args: { model: 'openai/gpt-5', accountId: 'acct-b' },
+        args: { model: 'anthropic/claude-opus-5-5', accountId: 'acct-b' },
       }),
     ).rejects.toBeInstanceOf(BadRequestException)
-    expect(choice.writes).toEqual([])
+    const row = await plane.readSession({ sessionId: created.sessionId })
+    expect(row?.modelRef).toBe('anthropic/claude-haiku-4-5')
     expect(await plane.readInbox({ sessionId: created.sessionId, afterId: 0, limit: 10 })).toEqual(
       [],
     )

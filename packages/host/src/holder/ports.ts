@@ -76,7 +76,7 @@ export type SessionRuntime = {
   modelChoice: ModelChoice
   choiceFor(request: RoleModelRequest): RoleModelChoice
   modelLabelOf(ref: ModelRef): string
-  modelFor(request: RoleModelRequest): ModelPort
+  modelOf(choice: ModelChoice): ModelPort
   tools: ToolRegistry
   daemonTools: ReadonlySet<string>
   effectOf: ToolEffectResolver

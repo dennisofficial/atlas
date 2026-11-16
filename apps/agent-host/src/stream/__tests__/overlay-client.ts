@@ -1,8 +1,10 @@
-import type { StreamServerMessage, StreamStepKey } from '@dltech/atlas-protocol'
+import type { StreamStepKey } from '@dltech/atlas-protocol'
+
+import type { OutgoingFrame } from '../subscription-port'
 
 export type ClientView = { key: StreamStepKey | undefined; text: string }
 
-export const clientViewOf = (sent: readonly StreamServerMessage[]): ClientView => {
+export const clientViewOf = (sent: readonly OutgoingFrame[]): ClientView => {
   const view: ClientView = { key: undefined, text: '' }
   for (const message of sent) {
     if (message.type === 'overlay') {
@@ -24,7 +26,7 @@ export class ClientOverlay {
   key: StreamStepKey | undefined
   gaps = 0
 
-  apply(message: StreamServerMessage): void {
+  apply(message: OutgoingFrame): void {
     if (message.type === 'overlay') {
       this.key = message.key
       this.blocks = new Map(message.blocks.map((block) => [block.block, block.text]))

@@ -22,7 +22,7 @@ type PortDeps = {
 export type SessionModels = {
   main: ModelPort
   modelChoice(): ModelChoice
-  modelFor(request: RoleModelRequest): ModelPort
+  modelOf(choice: ModelChoice): ModelPort
   choiceFor(request: RoleModelRequest): RoleModelChoice
 }
 
@@ -79,7 +79,7 @@ export const liveSessionModelsOf = (
   return {
     main: liveFor((source) => source.main),
     modelChoice: () => latest.main.choice,
-    modelFor: (request) => liveFor((source) => source.resolve(request)),
+    modelOf: (choice) => liveFor((source) => source.pinned(choice)),
     choiceFor: (request) => latest.resolve(request).choice,
   }
 }
@@ -90,6 +90,6 @@ export const fixedSessionModelsOf = (args: {
 }): SessionModels => ({
   main: args.port(),
   modelChoice: () => args.source.main.choice,
-  modelFor: () => args.port(),
+  modelOf: () => args.port(),
   choiceFor: () => args.source.main.choice,
 })

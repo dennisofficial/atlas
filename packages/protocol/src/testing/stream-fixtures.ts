@@ -46,6 +46,7 @@ const sessionRowFixture = {
   createdAt: '2026-11-05T09:00:00.000Z',
   updatedAt: '2026-11-05T10:00:00.000Z',
   archivedAt: null,
+  model: { ref: 'anthropic/claude-haiku-4-5', effort: 'medium', fast: false },
 }
 
 export const sessionViewFixture = {

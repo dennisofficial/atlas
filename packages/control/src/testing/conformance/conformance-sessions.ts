@@ -83,9 +83,9 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
         mainThreadId: THREAD,
         createdAt: T0,
         archivedAt: null,
-        modelRef: null,
-        modelEffort: null,
-        modelFast: null,
+        modelRef: 'anthropic/claude-haiku-4-5',
+        modelEffort: 'medium',
+        modelFast: false,
         spawnedBySessionId: null,
         nested: true,
         podSessionId: null,
@@ -95,20 +95,40 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
       expect(await plane.readSession({ sessionId: 'unknown' })).toBeUndefined()
     })
 
-    it('remembers the model the session was created with', async () => {
-      await plane.createSession({
+    it('pins the complete model the session was created with', async () => {
+      const created = await plane.createSession({
         sessionId: SESSION,
         userId: USER,
         projectId: PROJECT,
         mainThreadId: THREAD,
-        modelRef: 'openai/gpt-5',
-        modelEffort: 'high',
+        model: { ref: 'anthropic/claude-opus-5-5', effort: 'low', fast: true },
+      })
+      expect(created).toEqual({
+        modelRef: 'anthropic/claude-opus-5-5',
+        modelEffort: 'low',
         modelFast: true,
       })
       const row = await plane.readSession({ sessionId: SESSION })
-      expect(row?.modelRef).toBe('openai/gpt-5')
-      expect(row?.modelEffort).toBe('high')
+      expect(row?.modelRef).toBe('anthropic/claude-opus-5-5')
+      expect(row?.modelEffort).toBe('low')
       expect(row?.modelFast).toBe(true)
+    })
+
+    it('sets a complete model on an existing session', async () => {
+      await plane.createSession(createSessionParams({ sessionId: SESSION, mainThreadId: THREAD }))
+      const written = await plane.setSessionModel({
+        sessionId: SESSION,
+        ask: { ref: 'anthropic/claude-opus-5-5', fast: true },
+      })
+      expect(written).toEqual({
+        modelRef: 'anthropic/claude-opus-5-5',
+        modelEffort: 'medium',
+        modelFast: true,
+      })
+      expect(await plane.readSession({ sessionId: SESSION })).toMatchObject(written)
+      await expect(
+        plane.setSessionModel({ sessionId: 'unknown', ask: { ref: 'anthropic/claude-opus-5-5' } }),
+      ).rejects.toThrow('unknown session unknown')
     })
 
     it('lists sessions newest first per user with the limit clamped', async () => {

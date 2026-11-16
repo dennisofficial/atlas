@@ -53,6 +53,7 @@ import {
   setSessionTitleIn,
 } from './memory-sessions'
 import { refKey, type State } from './memory-state'
+import { resolveSessionModelIn, setSessionModelIn } from './memory-session-model'
 import { MemoryTxViews } from './memory-tx-views'
 
 export class MemoryTx extends MemoryTxViews implements ControlTx {
@@ -76,21 +77,19 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
     return this.clock()
   }
 
-  async createSession(params: {
-    sessionId: string
-    userId: string
-    projectId: string
-    title?: string | undefined
-    mainThreadId: string
-    modelRef?: string | undefined
-    modelEffort?: string | undefined
-    modelFast?: boolean | undefined
-    spawnedBySessionId?: string | undefined
-    nested?: boolean | undefined
-    podSessionId?: string | undefined
-    at: string
-  }): Promise<void> {
+  async resolveSessionModel(params: Parameters<ControlTx['resolveSessionModel']>[0]) {
+    return resolveSessionModelIn(params)
+  }
+
+  async createSession(params: Parameters<ControlTx['createSession']>[0]): Promise<void> {
     createSessionIn({ state: this.state, ...params })
+  }
+
+  async setSessionModel(params: Parameters<ControlTx['setSessionModel']>[0]) {
+    const row = this.state.sessions.get(params.sessionId)
+    if (row === undefined) return false
+    setSessionModelIn({ row, model: params })
+    return true
   }
 
   async readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined> {

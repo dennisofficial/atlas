@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import type { ThreadId } from '@dltech/atlas-core'
 import type { Db } from '@dltech/atlas-db'
 
 import type {
@@ -13,7 +12,6 @@ import {
   type ActiveAccountRow,
   type AccountRow,
   type ModelSource,
-  type ThreadModelChoice,
 } from './model-config'
 import type { SecretCipher } from './secret-cipher'
 import { skillIndexOf } from './skill-index'
@@ -22,9 +20,9 @@ import { VercelReconnectRequiredError } from '../tokens/vercel-token-refresher'
 const OAUTH_EXPIRY_MARGIN_MS = 60_000
 
 type ModelChoiceRow = {
-  modelRef: string | null
-  modelEffort: string | null
-  modelFast: boolean | null
+  modelRef: string
+  modelEffort: string
+  modelFast: boolean
 }
 
 const repoSchema = z.object({ repo: z.string().min(1), branch: z.string().min(1).optional() })
@@ -77,31 +75,20 @@ export class ConfigReader implements ConfigSource {
     this.now = args.now ?? Date.now
   }
 
-  async read({
-    sessionId,
-    threadId,
-  }: {
-    sessionId: string
-    threadId?: ThreadId | undefined
-  }): Promise<AgentHostConfig> {
+  async read({ sessionId }: { sessionId: string }): Promise<AgentHostConfig> {
     const { db } = this.args
     const session = await db.orm.v2.V2Session.first({ id: sessionId })
     if (session === null) throw new SessionNotFoundError(sessionId)
     const { userId, projectId } = session
-    const [project, vercel, accounts, activeAccounts, settings, skills, thread] = await Promise.all(
-      [
-        db.orm.public.Project.first({ id: projectId }),
-        db.orm.public.UserVercelCredential.first({ userId }),
-        db.orm.public.AgentAccount.where({ userId }).all(),
-        db.orm.public.ActiveAccount.where({ userId }).all(),
-        this.settingsOf({ userId, projectId }),
-        skillIndexOf({ db, userId, projectId }),
-        threadId === undefined
-          ? Promise.resolve(null)
-          : db.orm.public.Thread.first({ id: threadId }),
-      ],
-    )
-    const models = this.modelSourceFor({ session, thread, accounts, activeAccounts, settings })
+    const [project, vercel, accounts, activeAccounts, settings, skills] = await Promise.all([
+      db.orm.public.Project.first({ id: projectId }),
+      db.orm.public.UserVercelCredential.first({ userId }),
+      db.orm.public.AgentAccount.where({ userId }).all(),
+      db.orm.public.ActiveAccount.where({ userId }).all(),
+      this.settingsOf({ userId, projectId }),
+      skillIndexOf({ db, userId, projectId }),
+    ])
+    const models = this.modelSourceFor({ session, accounts, activeAccounts, settings })
     return {
       userId,
       projectId,
@@ -113,50 +100,33 @@ export class ConfigReader implements ConfigSource {
     }
   }
 
-  async models({
-    sessionId,
-    threadId,
-  }: {
-    sessionId: string
-    threadId?: ThreadId | undefined
-  }): Promise<ModelSource> {
+  async models({ sessionId }: { sessionId: string }): Promise<ModelSource> {
     const { db } = this.args
     const session = await db.orm.v2.V2Session.first({ id: sessionId })
     if (session === null) throw new SessionNotFoundError(sessionId)
     const { userId, projectId } = session
-    const [accounts, activeAccounts, settings, thread] = await Promise.all([
+    const [accounts, activeAccounts, settings] = await Promise.all([
       db.orm.public.AgentAccount.where({ userId }).all(),
       db.orm.public.ActiveAccount.where({ userId }).all(),
       this.settingsOf({ userId, projectId }),
-      threadId === undefined ? Promise.resolve(null) : db.orm.public.Thread.first({ id: threadId }),
     ])
-    return this.modelSourceFor({ session, thread, accounts, activeAccounts, settings })
+    return this.modelSourceFor({ session, accounts, activeAccounts, settings })
   }
 
   private modelSourceFor(args: {
     session: ModelChoiceRow
-    thread: ModelChoiceRow | null
     accounts: readonly AccountRow[]
     activeAccounts: readonly ActiveAccountRow[]
     settings: ReadonlyMap<string, string>
   }): ModelSource {
-    const named = this.modelChoiceOf(args.thread) ?? this.modelChoiceOf(args.session)
+    const { session } = args
     return modelSourceOf({
       cipher: this.args.cipher,
       accounts: args.accounts,
       activeAccounts: args.activeAccounts,
       settings: args.settings,
-      ...(named === undefined ? {} : { thread: named }),
+      session: { ref: session.modelRef, effort: session.modelEffort, fast: session.modelFast },
     })
-  }
-
-  private modelChoiceOf(row: ModelChoiceRow | null): ThreadModelChoice | undefined {
-    if (row === null || row.modelRef === null) return undefined
-    return {
-      ref: row.modelRef,
-      ...(row.modelEffort === null ? {} : { effort: row.modelEffort }),
-      ...(row.modelFast === null ? {} : { fast: row.modelFast }),
-    }
   }
 
   private async settingsOf(args: {

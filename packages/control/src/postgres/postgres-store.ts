@@ -39,6 +39,7 @@ import {
 import { writeLeaseIn } from './postgres-leases'
 import { announceIn, notifyWakeIn } from './postgres-notify'
 import { hostPresentIn } from './postgres-presence'
+import { resolveSessionModelIn } from './postgres-session-model'
 import { sessionDigestsIn } from './postgres-digests'
 import { podPeersPlacedIn } from './postgres-peers'
 import {
@@ -46,6 +47,7 @@ import {
   createSessionIn,
   readSessionIn,
   setSessionArchivedIn,
+  setSessionModelIn,
   setSessionTitleIfUntitledIn,
   setSessionTitleIn,
 } from './postgres-session-writes'
@@ -101,18 +103,16 @@ class PostgresTx implements ControlTx {
     )
   }
 
-  async createSession(params: {
-    sessionId: string
-    userId: string
-    projectId: string
-    title?: string | undefined
-    mainThreadId: string
-    modelRef?: string | undefined
-    modelEffort?: string | undefined
-    modelFast?: boolean | undefined
-    at: string
-  }): Promise<void> {
+  async resolveSessionModel(params: Parameters<ControlTx['resolveSessionModel']>[0]) {
+    return resolveSessionModelIn({ tx: this.tx, ...params })
+  }
+
+  async createSession(params: Parameters<ControlTx['createSession']>[0]): Promise<void> {
     await createSessionIn({ tx: this.tx, ...params })
+  }
+
+  async setSessionModel(params: Parameters<ControlTx['setSessionModel']>[0]) {
+    return setSessionModelIn({ tx: this.tx, ...params })
   }
 
   async readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined> {

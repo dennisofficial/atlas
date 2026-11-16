@@ -16,6 +16,7 @@ const rowOf = (overrides: Partial<StreamSessionRow> = {}): StreamSessionRow => (
   title: 'Fix login',
   naming: false,
   mainThreadId: 'thr-a',
+  model: { ref: 'anthropic/claude-opus-5-5', effort: 'high', fast: false },
   createdAt: '2026-11-05T10:00:00.000Z',
   updatedAt: '2026-11-05T10:00:00.000Z',
   archivedAt: null,

@@ -12,7 +12,6 @@ import {
   STREAM_MAX_CLIENT_FRAME_BYTES,
   STREAM_PROTOCOL_VERSION,
   type StreamClientMessage,
-  type StreamServerMessage,
 } from '@dltech/atlas-protocol'
 
 import { decodeFrame, frameBytes } from './decode-frame'
@@ -24,7 +23,7 @@ import {
   STREAM_AUTH_RECHECK_MS,
   STREAM_HEARTBEAT_MS,
 } from './stream-limits'
-import type { SubscriptionPort, SubscriptionSession } from './subscription-port'
+import type { OutgoingFrame, SubscriptionPort, SubscriptionSession } from './subscription-port'
 
 enum EPhase {
   AwaitingHello,
@@ -239,7 +238,7 @@ export class StreamConnection {
     )
   }
 
-  private send(message: StreamServerMessage): void {
+  private send(message: OutgoingFrame): void {
     if (this.phase === EPhase.Closed) return
     this.socket.send(JSON.stringify(message))
   }

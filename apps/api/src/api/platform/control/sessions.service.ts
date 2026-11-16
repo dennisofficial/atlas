@@ -34,7 +34,6 @@ import { SessionTitler } from '../../../_core/ports/session-titler'
 import { pageSessions, type PageBucket } from '../sessions/session-pages'
 import { COMMAND_REGISTRY, postCommand } from './command-registry'
 import { modelSetHandlers } from './model-set'
-import { SessionModelChoice } from './session-model-choice'
 import { MediaRegistry } from './media-registry'
 import { ProjectAccess } from './project-access'
 import { nameSession } from './session-naming'
@@ -64,7 +63,6 @@ export class SessionsService {
     @Inject(MediaRegistry) private readonly media: MediaRegistry,
     @Inject(MediaStore) private readonly store: MediaStore,
     @Inject(COMMAND_REGISTRY) private readonly commands: CommandRegistry,
-    @Inject(SessionModelChoice) private readonly modelChoice: SessionModelChoice,
   ) {}
 
   async accessibleProjectId(args: { userId: string; projectId: string }): Promise<string> {
@@ -86,13 +84,6 @@ export class SessionsService {
       userId: args.userId,
       projectId: args.projectId,
     })
-    const model = await this.modelChoice.resolve({
-      userId: args.userId,
-      projectId: args.projectId,
-      model: args.model,
-      effort: args.effort,
-      fast: args.fast,
-    })
     const sessionId = randomUUID()
     const mainThreadId = randomUUID()
     const session = {
@@ -101,14 +92,14 @@ export class SessionsService {
       projectId: args.projectId,
       title: args.title,
       mainThreadId,
-      ...model,
+      model: { ref: args.model, effort: args.effort, fast: args.fast },
     }
     if (args.firstMessage === undefined) {
       await this.plane.createSession(session)
       return { sessionId, mainThreadId }
     }
     const message = await this.messageOf({ userId: args.userId, draft: args.firstMessage })
-    const { inboxId } = await this.plane.createSessionWithMessage({
+    const { inboxId, modelRef } = await this.plane.createSessionWithMessage({
       ...session,
       message: { kind: INBOX_KIND_MESSAGE, payload: message.payload },
     })
@@ -120,7 +111,7 @@ export class SessionsService {
       text: args.firstMessage.text,
       attachments: message.attachments,
       inboxId,
-      modelRef: model.modelRef ?? null,
+      modelRef,
     })
     return { sessionId, mainThreadId }
   }
@@ -350,7 +341,7 @@ export class SessionsService {
     return postCommand({
       plane: this.plane,
       registry: this.commands,
-      controlHandlers: modelSetHandlers({ choice: this.modelChoice, session }),
+      controlHandlers: modelSetHandlers({ plane: this.plane, session }),
       ...args,
     })
   }

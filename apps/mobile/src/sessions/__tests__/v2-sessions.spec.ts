@@ -24,6 +24,7 @@ const summaryOf = (
   title: null,
   naming: false,
   mainThreadId: 'thr',
+  model: { ref: 'anthropic/claude-opus-5-5', effort: 'high', fast: false },
   createdAt: hoursAgo(100),
   updatedAt: hoursAgo(1),
   archivedAt: null,

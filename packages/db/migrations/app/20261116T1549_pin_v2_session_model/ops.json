@@ -1,0 +1,188 @@
+[
+  {
+    "id": "data.v2-session-model-backfill",
+    "label": "Backfill V2Session modelRef, modelEffort and modelFast from the project and user model settings",
+    "operationClass": "data",
+    "target": {
+      "id": "table.V2Session",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2Session"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Backfill V2Session modelRef, modelEffort and modelFast from the project and user model settings",
+        "sql": "WITH setting AS (\n  SELECT 'user' AS scope, \"userId\" AS owner, \"key\" AS key,\n    CASE\n      WHEN \"value\" LIKE 'atlas-setting:v1:%' AND jsonb_typeof((substr(\"value\", 18))::jsonb) = 'string'\n        THEN btrim((substr(\"value\", 18))::jsonb #>> '{}')\n      WHEN \"value\" LIKE 'atlas-setting:v1:%' THEN NULL\n      ELSE btrim(\"value\")\n    END AS value\n  FROM \"public\".\"CloudSetting\"\n  UNION ALL\n  SELECT 'project', \"projectId\", \"key\",\n    CASE\n      WHEN \"value\" LIKE 'atlas-setting:v1:%' AND jsonb_typeof((substr(\"value\", 18))::jsonb) = 'string'\n        THEN btrim((substr(\"value\", 18))::jsonb #>> '{}')\n      WHEN \"value\" LIKE 'atlas-setting:v1:%' THEN NULL\n      ELSE btrim(\"value\")\n    END\n  FROM \"public\".\"ProjectSetting\"\n), picked AS (\n  SELECT s.\"id\",\n    (SELECT value FROM setting WHERE scope = 'project' AND owner = s.\"projectId\" AND key = 'model.id') AS project_ref,\n    (SELECT value FROM setting WHERE scope = 'user' AND owner = s.\"userId\" AND key = 'model.id') AS user_ref,\n    (SELECT value FROM setting WHERE scope = 'project' AND owner = s.\"projectId\" AND key = 'model.effort') AS project_effort,\n    (SELECT value FROM setting WHERE scope = 'user' AND owner = s.\"userId\" AND key = 'model.effort') AS user_effort\n  FROM \"v2\".\"V2Session\" AS s\n  WHERE s.\"modelRef\" IS NULL OR s.\"modelEffort\" IS NULL OR s.\"modelFast\" IS NULL\n)\nUPDATE \"v2\".\"V2Session\" AS s\nSET \"modelRef\" = COALESCE(s.\"modelRef\", nullif(p.project_ref, ''), nullif(p.user_ref, ''), 'anthropic/claude-haiku-4-5'),\n    \"modelEffort\" = COALESCE(s.\"modelEffort\", nullif(p.project_effort, ''), nullif(p.user_effort, ''), 'medium'),\n    \"modelFast\" = COALESCE(s.\"modelFast\", false)\nFROM picked AS p\nWHERE p.\"id\" = s.\"id\""
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "alterNullability.setNotNull.V2Session.modelEffort",
+    "label": "Set NOT NULL on \"V2Session\".\"modelEffort\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "column",
+        "name": "modelEffort",
+        "table": "V2Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"modelEffort\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "modelEffort"
+        ]
+      },
+      {
+        "description": "ensure no NULL values in \"modelEffort\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"v2\".\"V2Session\" WHERE \"modelEffort\" IS NULL) AS \"result\"",
+        "params": [],
+        "meta": {
+          "requiredColumn": {
+            "table": "V2Session",
+            "column": "modelEffort",
+            "reason": "nullValues"
+          }
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "set NOT NULL on \"modelEffort\"",
+        "sql": "ALTER TABLE \"v2\".\"V2Session\" ALTER COLUMN \"modelEffort\" SET NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"modelEffort\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "modelEffort",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "alterNullability.setNotNull.V2Session.modelFast",
+    "label": "Set NOT NULL on \"V2Session\".\"modelFast\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "column",
+        "name": "modelFast",
+        "table": "V2Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"modelFast\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "modelFast"
+        ]
+      },
+      {
+        "description": "ensure no NULL values in \"modelFast\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"v2\".\"V2Session\" WHERE \"modelFast\" IS NULL) AS \"result\"",
+        "params": [],
+        "meta": {
+          "requiredColumn": {
+            "table": "V2Session",
+            "column": "modelFast",
+            "reason": "nullValues"
+          }
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "set NOT NULL on \"modelFast\"",
+        "sql": "ALTER TABLE \"v2\".\"V2Session\" ALTER COLUMN \"modelFast\" SET NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"modelFast\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "modelFast",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "alterNullability.setNotNull.V2Session.modelRef",
+    "label": "Set NOT NULL on \"V2Session\".\"modelRef\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "column",
+        "name": "modelRef",
+        "table": "V2Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"modelRef\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "modelRef"
+        ]
+      },
+      {
+        "description": "ensure no NULL values in \"modelRef\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"v2\".\"V2Session\" WHERE \"modelRef\" IS NULL) AS \"result\"",
+        "params": [],
+        "meta": {
+          "requiredColumn": {
+            "table": "V2Session",
+            "column": "modelRef",
+            "reason": "nullValues"
+          }
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "set NOT NULL on \"modelRef\"",
+        "sql": "ALTER TABLE \"v2\".\"V2Session\" ALTER COLUMN \"modelRef\" SET NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"modelRef\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "modelRef",
+          "NO"
+        ]
+      }
+    ]
+  }
+]

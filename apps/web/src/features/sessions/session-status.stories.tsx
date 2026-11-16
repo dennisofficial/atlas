@@ -98,6 +98,7 @@ const summary = (overrides: Partial<V2SessionSummary>): V2SessionSummary => ({
   createdAt: '2026-11-07T10:00:00.000Z',
   updatedAt: '2026-11-07T11:00:00.000Z',
   archivedAt: null,
+  model: { ref: 'anthropic/claude-haiku-4-5', effort: 'medium', fast: false },
   ...overrides,
 })
 
