@@ -11,6 +11,8 @@ import {
   InputGroupText,
 } from '@dltech/atlas-ui/components/input-group'
 
+import { ProjectAvatar } from '@/features/projects/project-avatar'
+
 import { useProjectContext } from './data/project-context'
 import {
   draftsEqual,
@@ -22,7 +24,6 @@ import { DangerZone } from './overview-danger-zone'
 import { AdditionalRepositories, RepositoryControls } from './overview-repositories'
 import {
   ERowLayout,
-  MonogramTile,
   SettingsCard,
   SettingsRow,
   SettingsSection,
@@ -97,11 +98,15 @@ export function OverviewPage() {
               />
             </InputGroup>
           </SettingsRow>
-          <SettingsRow title="Project icon" description="Icons aren't supported yet.">
-            <MonogramTile label={draft.name || identity.name} />
-            <Button variant="outline" size="sm" disabled>
-              Set icon
-            </Button>
+          <SettingsRow
+            title="Project icon"
+            description={
+              identity.repo === null
+                ? 'The first letter of the project name.'
+                : `The GitHub avatar of ${identity.owner}.`
+            }
+          >
+            <ProjectAvatar name={draft.name || identity.name} repo={identity.repo} />
           </SettingsRow>
           <SettingsRow title="Description" htmlFor="project-description">
             <Input

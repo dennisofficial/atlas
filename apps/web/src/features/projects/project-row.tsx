@@ -10,6 +10,8 @@ import {
 } from '@/features/project-settings/project-settings-nav'
 import { relativeTime } from '@/features/settings/data/personal/relative-time'
 
+import { ProjectAvatar } from './project-avatar'
+
 export const NO_REPOSITORY_LABEL = 'No repository'
 
 export function ProjectRow({ project }: { project: Project }) {
@@ -21,13 +23,16 @@ export function ProjectRow({ project }: { project: Project }) {
     <li className="flex items-center gap-2 pr-3 transition-colors focus-within:bg-muted/50 hover:bg-muted/50">
       <Link
         href={`/threads/new?project=${encodeURIComponent(project.id)}`}
-        className="flex min-w-0 flex-1 flex-col gap-0.5 px-4 py-3 outline-none"
+        className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 outline-none"
       >
-        <span className="truncate text-sm font-medium">{project.name}</span>
-        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <span className="truncate font-mono">{project.repo ?? NO_REPOSITORY_LABEL}</span>
-          <span aria-hidden>·</span>
-          <span className="shrink-0">Updated {relativeTime({ from: project.updatedAt })}</span>
+        <ProjectAvatar name={project.name} repo={project.repo} />
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <span className="truncate text-sm font-medium">{project.name}</span>
+          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="truncate font-mono">{project.repo ?? NO_REPOSITORY_LABEL}</span>
+            <span aria-hidden>·</span>
+            <span className="shrink-0">Updated {relativeTime({ from: project.updatedAt })}</span>
+          </span>
         </span>
       </Link>
       <Button
