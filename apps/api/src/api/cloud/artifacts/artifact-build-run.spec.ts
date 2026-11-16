@@ -2,15 +2,15 @@ import { routePathOf, routeVersionPrefixOf, sourcePathOf } from '@dltech/atlas-a
 import { db } from '@dltech/atlas-db'
 import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
-import { EArtifactBuildOutcome } from '../../api/cloud/artifacts/artifact-build.contract'
-import { failArtifactBuild, runArtifactBuild } from '../../api/cloud/artifacts/artifact-build-run'
-import { FakeArtifactBlobStore } from '../../api/cloud/artifacts/artifact-blob-store.fakes'
+import { EArtifactBuildOutcome } from './artifact-build.contract'
+import { failArtifactBuild, runArtifactBuild } from './artifact-build-run'
+import { FakeArtifactBlobStore } from './artifact-blob-store.fakes'
 import {
   FakeArtifactSandbox,
   builtFiles,
   finishedCommand,
   sandboxResult,
-} from '../../api/cloud/artifacts/artifact-sandbox.fakes'
+} from './artifact-sandbox.fakes'
 import { USER_ID, depsOf, keysUnder, routeOf, rowOf, seedVersion } from './artifact-build.fixture'
 
 describe('artifact-build task', () => {

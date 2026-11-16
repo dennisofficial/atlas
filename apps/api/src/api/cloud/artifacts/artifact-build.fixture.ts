@@ -8,11 +8,11 @@ import {
 } from '@dltech/atlas-artifacts'
 import { db } from '@dltech/atlas-db'
 import { artifactRouteSchema } from '@dltech/atlas-wire'
-import { ArtifactBuild } from '../../api/cloud/artifacts/artifact-build'
-import type { ArtifactBuildPayload } from '../../api/cloud/artifacts/artifact-build.contract'
-import { FakeArtifactBlobStore } from '../../api/cloud/artifacts/artifact-blob-store.fakes'
-import { FakeArtifactSandbox } from '../../api/cloud/artifacts/artifact-sandbox.fakes'
-import { recordBuild, EBuildStatus } from '../../api/cloud/artifacts/artifact-versions'
+import { ArtifactBuild } from './artifact-build'
+import type { ArtifactBuildPayload } from './artifact-build.contract'
+import { FakeArtifactBlobStore } from './artifact-blob-store.fakes'
+import { FakeArtifactSandbox } from './artifact-sandbox.fakes'
+import { recordBuild, EBuildStatus } from './artifact-versions'
 
 export const USER_ID = 'user-a'
 
