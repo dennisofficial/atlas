@@ -9,7 +9,6 @@ import { PG_CHANGE_CHANNEL } from '@dltech/atlas-protocol'
 import pg from 'pg'
 import { advanceTimersByTimeAsync } from '../../../../test/fake-timers'
 import { prepareDelivery, REST_FIELDS } from './github-delivery.fixture'
-import { localObservations } from './github-observation.fixture'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
@@ -25,7 +24,6 @@ function writerRig() {
     mailbox: new GithubPrEventMailboxService(fanout, wake),
     fanout,
     signals: inertSignals(),
-    observations: localObservations(),
     logger: new Logger('github-pr-state-writer.spec'),
   })
   return { writer, fanout }

@@ -14,6 +14,8 @@ const { privateKey, publicKey } = generateKeyPairSync('rsa', {
 
 export const TEST_APP_PUBLIC_KEY = publicKey
 
+export const FAKE_TOKEN_LIFETIME_MS = 60 * 60 * 1_000
+
 export type FakeInstallation = {
   id: number
   login: string
@@ -41,7 +43,11 @@ export function fakeGithubApp(args: { installations: FakeInstallation[] }) {
       )
     }
     const minted = url.pathname.match(/^\/app\/installations\/(\d+)\/access_tokens$/)
-    if (minted !== null) return Response.json({ token: `inst-${minted[1]}` })
+    if (minted !== null)
+      return Response.json({
+        token: `inst-${minted[1]}`,
+        expires_at: new Date(Date.now() + FAKE_TOKEN_LIFETIME_MS).toISOString(),
+      })
     if (url.pathname === '/installation/repositories') {
       const id = new Headers(init?.headers).get('authorization')?.replace('Bearer inst-', '')
       const found = state.installations.find((item) => String(item.id) === id)

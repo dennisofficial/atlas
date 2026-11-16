@@ -3,7 +3,7 @@ import { expect, it, spyOn } from 'bun:test'
 import { EnvService } from '../../_core/config/env/env.service'
 import { buildGithubSweepGraph } from './github-sweep-graph'
 
-it('reports that a worker without Redis cannot share API observation leases', async () => {
+it('reports that a worker without Redis cannot share the API request budget', async () => {
   const warning = spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined)
   try {
     const graph = buildGithubSweepGraph({
@@ -11,7 +11,7 @@ it('reports that a worker without Redis cannot share API observation leases', as
     })
     try {
       expect(warning).toHaveBeenCalledWith(
-        'GitHub observation leases are same-process only without Redis; a separate worker cannot share API view leases',
+        'Without Redis the GitHub request budget and PR frames stay in this process; the API and this worker cannot share them',
       )
     } finally {
       await graph.dispose()

@@ -5,7 +5,7 @@ import { ensureUsers, prEventRows } from '../../../../test/github-seed'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import type { GithubAppInstallNoticeService } from './github-app-install-notice.service'
 import type { GithubHookLifecycleService } from './github-hook-lifecycle.service'
-import { localObservations } from './github-observation.fixture'
+import { localCoordinator } from './github-request-coordinator.fixture'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import type { RestCheckRun, RestCommitStatus } from './github-pull-request-mapping'
@@ -91,7 +91,7 @@ function subscriptionsService(): GithubSubscriptionsService {
     new GithubUserReads(),
     hooks,
     installNotice,
-    localObservations(github),
+    localCoordinator(github),
     new GithubPrEventMailboxService(fanout, wake),
     { coversRepo: async () => false } as never,
   )

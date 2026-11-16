@@ -11,6 +11,7 @@ import {
 } from './github-pr-fanout.delivery'
 import { EPrFrameKind, type PrFrame, parsePrFrame } from './github-pr-fanout.frame'
 import { LocalPrFrameBus, PrFrameBus } from './github-pr-fanout.transport'
+import { PrKeyWatchers, type PrKeyWatch } from './github-pr-fanout.watchers'
 import type { GithubPrEventDto, GithubPrStateDto } from './github-realtime.types'
 
 type EventDeliveredHandler = (args: {
@@ -40,6 +41,7 @@ export class GithubPrFanoutService implements OnModuleDestroy {
   private readonly lastSent = new Map<string, number>()
   private readonly timers = new Map<string, NodeJS.Timeout>()
   private readonly deliveredHandlers = new Set<EventDeliveredHandler>()
+  private readonly watchers = new PrKeyWatchers()
   private subscribed = false
 
   constructor(
@@ -86,6 +88,12 @@ export class GithubPrFanoutService implements OnModuleDestroy {
     }
   }
 
+  watchPrKeys(args: { handler: PrStateHandler; onClosed?: () => void }): PrKeyWatch {
+    const watch = this.watchers.watch(args)
+    this.ensureSubscribed()
+    return watch
+  }
+
   private ensureSubscribed(): void {
     if (this.subscribed) return
     this.subscribed = true
@@ -100,6 +108,7 @@ export class GithubPrFanoutService implements OnModuleDestroy {
     this.pending.clear()
     this.lastSent.clear()
     this.subscribed = false
+    this.watchers.closeAll({ logger: this.logger })
     void this.bus.close().catch((failure: unknown) => {
       this.logger.warn(`closing the pr frame subscriber failed: ${String(failure)}`)
     })
@@ -197,13 +206,13 @@ export class GithubPrFanoutService implements OnModuleDestroy {
   }
 
   private deliver(args: { frame: PrFrame }): void {
+    if (args.frame.kind === EPrFrameKind.State) {
+      this.deliverState({ userIds: args.frame.userIds, state: args.frame.payload })
+      return
+    }
     for (const userId of args.frame.userIds) {
       const handlers = this.streams.get(userId)
       if (handlers === undefined) continue
-      if (args.frame.kind === EPrFrameKind.State) {
-        deliverState({ logger: this.logger, userId, handlers, state: args.frame.payload })
-        continue
-      }
       if (args.frame.kind === EPrFrameKind.Wake) {
         deliverWake({
           logger: this.logger,
@@ -223,6 +232,17 @@ export class GithubPrFanoutService implements OnModuleDestroy {
       if (!delivered.userStream && delivered.threadIds.length === 0) continue
       this.acknowledge({ ackId: args.frame.ackId, userId, ...delivered })
     }
+  }
+
+  private deliverState(args: { userIds: readonly string[]; state: GithubPrStateDto }): void {
+    const handled = new Set<PrStateHandler>()
+    for (const userId of args.userIds) {
+      const handlers = this.streams.get(userId)
+      if (handlers === undefined) continue
+      deliverState({ logger: this.logger, userId, handlers, state: args.state })
+      for (const entry of handlers) handled.add(entry.handler)
+    }
+    this.watchers.deliver({ state: args.state, skip: handled, logger: this.logger })
   }
 
   private acknowledge(args: Parameters<EventDeliveredHandler>[0]): void {

@@ -7,7 +7,7 @@ import { seedRepoHook } from '../../../../test/github-seed'
 import { GithubHookController } from './github-hook.controller'
 import { GithubWebhookInboxService } from './github-webhook-inbox.service'
 import { PULL_REQUEST_PAYLOAD } from './github-delivery.fixture'
-import { mockGithubHttp, realObservationGraph } from './github-observation-http.fixture'
+import { mockGithubHttp, realGithubGraph } from './github-realtime-http.fixture'
 import type { GithubPrWebhookRequest } from './github-webhook.types'
 
 describe('legacy mixed-case hook identity', () => {
@@ -16,7 +16,7 @@ describe('legacy mixed-case hook identity', () => {
     const redis = await createRealRedisService()
     const http = mockGithubHttp()
     http.allowHooks()
-    const graph = realObservationGraph({
+    const graph = realGithubGraph({
       redis,
       prefix: `test:hook-case:${randomUUID()}:`,
       tokens: { 'usr-owner': 'owner' },

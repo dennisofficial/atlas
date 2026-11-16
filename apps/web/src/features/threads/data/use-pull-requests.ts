@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, type RefCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 
 import { ESubscriptionStatusWire, type WireThread } from '@dltech/atlas-wire/web'
 
@@ -17,14 +17,12 @@ import { sessionCheckoutsOf, type CheckoutView } from './session-checkouts'
 import { mergePrStates } from './pr-states-merge'
 import { useApiPrStates } from './use-api-pr-states'
 import { usePrStates } from './use-pr-states'
-import { usePrObservationRef, usePrObservationRegistry } from './use-pr-observation'
 import { useSubscriptions } from './use-subscriptions'
 
 export type PullRequestsView = {
   rows: PullRequestRow[]
   bells: Record<string, PullRequestBell>
   handleToggle: (key: string) => void
-  observationRef?: RefCallback<HTMLElement>
   checkouts: CheckoutView[]
   looseKeys: string[]
 }
@@ -38,13 +36,8 @@ export function usePullRequests(args: {
 }): PullRequestsView {
   const { threadId, channel, thread, family } = args
   const liveStates = usePrStates(channel)
-  const { registry, observe } = usePrObservationRegistry()
   const cloud = thread !== undefined && thread.runner !== 'local'
-  const observationRef = usePrObservationRef({
-    registry,
-    targets: cloud ? (thread.pullRequests ?? []).filter((entry) => entry.via === undefined) : [],
-  })
-  const apiStates = useApiPrStates({ observe, subscribe: args.subscribe, enabled: cloud })
+  const apiStates = useApiPrStates({ subscribe: args.subscribe, enabled: cloud })
   const states = useMemo(
     () => mergePrStates({ live: liveStates, api: apiStates }),
     [liveStates, apiStates],
@@ -77,7 +70,7 @@ export function usePullRequests(args: {
   )
 
   return useMemo(
-    () => ({ rows: list.rows, bells, handleToggle, observationRef, ...grouped }),
-    [list, bells, handleToggle, observationRef, grouped],
+    () => ({ rows: list.rows, bells, handleToggle, ...grouped }),
+    [list, bells, handleToggle, grouped],
   )
 }

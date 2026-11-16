@@ -1,30 +1,25 @@
-import { prIdentity } from './github-linked-prs'
 import {
   GITHUB_HTTP_BUDGET_PER_MINUTE,
   GITHUB_AUTH_HTTP_BUDGET_PER_MINUTE,
   GITHUB_REFRESH_HTTP_BUDGET_PER_MINUTE,
   EGithubHttpCategory,
-  type ObservationAuthorization,
-  type ObservationAdapter,
-  type ObservationAttempt,
-  type ObservationLease,
+  type RepoAccessProof,
+  type CoordinatorAdapter,
+  type RefreshAttempt,
   type GithubRequestIdentity,
-} from './github-observation.types'
+} from './github-request-coordinator.types'
 
-export class LocalObservationAdapter implements ObservationAdapter {
-  private readonly leases = new Map<string, ObservationLease>()
-  private readonly authorizations = new Map<string, ObservationAuthorization>()
+export class LocalCoordinatorAdapter implements CoordinatorAdapter {
+  private readonly authorizations = new Map<string, RepoAccessProof>()
   private readonly versions = new Map<string, { value: number; expiresAt: number }>()
   private readonly categorySpent = new Map<string, number>()
   private readonly sourceSpent = new Map<string, number>()
-  private readonly index = new Map<string, Set<string>>()
-  private readonly attempts = new Map<string, ObservationAttempt & { expiresAt: number }>()
+  private readonly attempts = new Map<string, RefreshAttempt & { expiresAt: number }>()
   private minute = 0
   private spent = 0
   private readonly blockedUntil = new Map<string, number>()
-  private cursor = 0
 
-  private authorizationState(key: string): ObservationAuthorization | undefined {
+  private authorizationState(key: string): RepoAccessProof | undefined {
     const state = this.authorizations.get(key)
     if (state === undefined) return undefined
     if (Math.max(state.authorizedUntil, state.deniedUntil) <= Date.now()) {
@@ -34,7 +29,7 @@ export class LocalObservationAdapter implements ObservationAdapter {
     return state
   }
 
-  async readAuthorization(key: string): Promise<ObservationAuthorization | undefined> {
+  async readAuthorization(key: string): Promise<RepoAccessProof | undefined> {
     const state = this.authorizationState(key)
     return state === undefined ? undefined : { ...state }
   }
@@ -49,8 +44,8 @@ export class LocalObservationAdapter implements ObservationAdapter {
 
   async writeAuthorization(args: {
     key: string
-    state: ObservationAuthorization
-  }): Promise<ObservationAuthorization> {
+    state: RepoAccessProof
+  }): Promise<RepoAccessProof> {
     const held = this.authorizationState(args.key)
     const current = this.versions.get(args.key)?.value ?? 0
     if (
@@ -74,61 +69,6 @@ export class LocalObservationAdapter implements ObservationAdapter {
     for (const key of this.authorizations.keys()) this.authorizationState(key)
     this.authorizations.set(args.key, { ...args.state })
     return { ...args.state }
-  }
-
-  async read(id: string): Promise<ObservationLease | undefined> {
-    const held = this.leases.get(id)
-    if (held === undefined) return undefined
-    if (held.expiresAt > Date.now()) return held
-    await this.remove(id)
-    return undefined
-  }
-
-  async write(lease: ObservationLease): Promise<void> {
-    await this.remove(lease.id)
-    for (const held of [...this.leases.values()]) {
-      if (held.expiresAt <= Date.now()) await this.remove(held.id)
-    }
-    this.leases.set(lease.id, lease)
-    for (const key of lease.keys) {
-      for (const identity of [key.repoFullName, prIdentity(key)]) {
-        const ids = this.index.get(identity) ?? new Set<string>()
-        ids.add(lease.id)
-        this.index.set(identity, ids)
-      }
-    }
-  }
-
-  async remove(id: string): Promise<void> {
-    const lease = this.leases.get(id)
-    if (lease === undefined) return
-    this.leases.delete(id)
-    for (const key of lease.keys) {
-      for (const identity of [key.repoFullName, prIdentity(key)]) {
-        const ids = this.index.get(identity)
-        ids?.delete(id)
-        if (ids?.size === 0) this.index.delete(identity)
-      }
-    }
-  }
-
-  async entries(filter?: { repoFullName: string; prNumber?: number }): Promise<ObservationLease[]> {
-    const ids =
-      filter === undefined
-        ? [...this.leases.keys()]
-        : [
-            ...(this.index.get(
-              filter.prNumber === undefined
-                ? filter.repoFullName
-                : prIdentity({ ...filter, prNumber: filter.prNumber }),
-            ) ?? []),
-          ]
-    const offset = filter === undefined ? this.cursor % Math.max(ids.length, 1) : 0
-    const selected =
-      filter === undefined ? [...ids.slice(offset), ...ids.slice(0, offset)].slice(0, 128) : ids
-    if (filter === undefined) this.cursor += selected.length
-    const leases = await Promise.all(selected.map((id) => this.read(id)))
-    return leases.filter((lease): lease is ObservationLease => lease !== undefined)
   }
 
   async takeHttpSlot(identity?: GithubRequestIdentity): Promise<boolean> {
@@ -172,7 +112,7 @@ export class LocalObservationAdapter implements ObservationAdapter {
     return `${identity?.credentialFingerprint ?? 'unattributed'}:${identity?.resource ?? 'core'}`
   }
 
-  async attempt(key: string): Promise<ObservationAttempt> {
+  async attempt(key: string): Promise<RefreshAttempt> {
     const held = this.attempts.get(key)
     if (held === undefined || held.expiresAt <= Date.now()) {
       this.attempts.delete(key)
@@ -195,4 +135,4 @@ export class LocalObservationAdapter implements ObservationAdapter {
   }
 }
 
-export const localObservationAdapter = new LocalObservationAdapter()
+export const localCoordinatorAdapter = new LocalCoordinatorAdapter()

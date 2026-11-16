@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, mock, setSystemTime, spyOn } from 'bun:test'
 import { Logger } from '@nestjs/common'
 import { EGithubCallSource } from './github-call-log'
-import { EGithubHttpCategory } from './github-observation.types'
+import { EGithubHttpCategory } from './github-request-coordinator.types'
 import {
   EGithubBudgetRefusal,
   GithubCredentialCooldown,

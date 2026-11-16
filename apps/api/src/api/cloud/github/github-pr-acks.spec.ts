@@ -6,8 +6,9 @@ import { waitFor } from '../../../../test/fake-timers'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import type { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
 import { prepareDelivery, serviceWith } from './github-delivery.fixture'
-import { localObservations } from './github-observation.fixture'
-import { fakeSubscriptions, sandboxCtxFor } from './github-pr-stream.fixture'
+import { localCoordinator } from './github-request-coordinator.fixture'
+import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
+import { fakeGithub, fakeSubscriptions, sandboxCtxFor } from './github-pr-stream.fixture'
 import { GithubPrStreamRouter } from './github-pr-stream.router'
 import type { GithubSubscriptionsService } from './github-subscriptions.service'
 
@@ -92,8 +93,10 @@ describe('github pr-event deliveries', () => {
       fakeSubscriptions() as unknown as GithubSubscriptionsService,
       new DrainStateService(),
       mailbox,
-      localObservations(),
+      localCoordinator(),
       familySandboxes as unknown as SandboxesService,
+      fakeGithub(),
+      inertSignals(),
     )
 
     const outcome = await router.ackEvents(

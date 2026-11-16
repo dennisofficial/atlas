@@ -14,7 +14,7 @@ import type {
  */
 @Injectable()
 export class GithubAppInstallationsService {
-  async coversRepo(args: { repoFullName: string }): Promise<boolean> {
+  async installationForRepo(args: { repoFullName: string }): Promise<bigint | null> {
     const match = await db.orm.public.GithubAppInstallation.select('installationId')
       .where({ suspendedAt: null })
       .where((installation, { fns }) =>
@@ -23,7 +23,11 @@ export class GithubAppInstallationsService {
         ),
       )
       .first()
-    return match !== null
+    return match?.installationId ?? null
+  }
+
+  async coversRepo(args: { repoFullName: string }): Promise<boolean> {
+    return (await this.installationForRepo(args)) !== null
   }
 
   async read(args: { installationId: bigint }): Promise<{ accountLogin: string } | null> {

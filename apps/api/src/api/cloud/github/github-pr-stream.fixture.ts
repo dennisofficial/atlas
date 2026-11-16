@@ -1,6 +1,6 @@
 import { request } from 'express'
-import { localObservations } from './github-observation.fixture'
-import type { GithubObservationStore } from './github-observation.store'
+import { localCoordinator } from './github-request-coordinator.fixture'
+import type { GithubRequestCoordinator } from './github-request-coordinator'
 import type { GithubPrEventDto, GithubPrStateDto } from './github-realtime.types'
 import { EPrEventKind } from './github-realtime.types'
 import { DrainStateService } from '../../platform/health/drain-state.service'
@@ -9,7 +9,14 @@ import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { GithubPrStreamRouter } from './github-pr-stream.router'
 import type { GithubSubscriptionsService } from './github-subscriptions.service'
+import type { GithubService } from './github.service'
 import type { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
+import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
+
+export const fakeGithub = (tokens: Record<string, string> = { usr_1: 'ghu_1' }) =>
+  ({
+    findToken: async ({ userId }: { userId: string }) => tokens[userId],
+  }) as unknown as GithubService
 
 export const STATE: GithubPrStateDto = {
   repoFullName: 'compai/app',
@@ -85,6 +92,8 @@ type StreamFakes = {
   states?: GithubPrStateDto[] | Error
   undelivered?: GithubPrEventDto[] | Error
   threadMissed?: GithubPrEventDto[]
+  github?: GithubService
+  signals?: ThreadSignalsService
 }
 
 export const fakeSubscriptions = (states: StreamFakes['states'] = []) => ({
@@ -127,7 +136,9 @@ export function routerWith(fakes: StreamFakes = {}): {
   fanout: GithubPrFanoutService
   drain: DrainStateService
   mailbox: GithubPrEventMailboxService
-  observations: GithubObservationStore
+  coordinator: GithubRequestCoordinator
+  github: GithubService
+  signals: ThreadSignalsService
 } {
   const drain = new DrainStateService()
   const fanout = new GithubPrFanoutService(drain)
@@ -135,14 +146,18 @@ export function routerWith(fakes: StreamFakes = {}): {
     fakes.undelivered,
     fakes.threadMissed,
   ) as unknown as GithubPrEventMailboxService
-  const observations = localObservations()
+  const github = fakes.github ?? fakeGithub()
+  const signals = fakes.signals ?? new ThreadSignalsService(new DrainStateService())
+  const coordinator = localCoordinator(github)
   const router = new GithubPrStreamRouter(
     fanout,
     fakeSubscriptions(fakes.states) as unknown as GithubSubscriptionsService,
     drain,
     mailbox,
-    observations,
+    coordinator,
     fakeSandboxes({ root: 'thr_1' }) as unknown as SandboxesService,
+    github,
+    signals,
   )
-  return { router, fanout, drain, mailbox, observations }
+  return { router, fanout, drain, mailbox, coordinator, github, signals }
 }

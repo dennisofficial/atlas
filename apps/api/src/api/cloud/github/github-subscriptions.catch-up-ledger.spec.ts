@@ -1,7 +1,7 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { ensureUsers, prEventRows } from '../../../../test/github-seed'
-import { localObservations } from './github-observation.fixture'
+import { localCoordinator } from './github-request-coordinator.fixture'
 import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
@@ -52,7 +52,7 @@ function serviceWith(args: {
     reads,
     hooks,
     installNotice,
-    localObservations(github),
+    localCoordinator(github),
     new GithubPrEventMailboxService(fanout, wake),
     { coversRepo: async () => false } as never,
   )

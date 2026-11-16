@@ -6,8 +6,8 @@ import { ThreadSignalsService } from '../../platform/sessions/thread-signals.ser
 import { threadActivityAt } from './github-thread-activity'
 import { dtoOf, liveUntilOf, subscriberWhereOf } from './github-delivery-routing'
 import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
-import { normalizedRepo, repoPattern } from './github-pr-identity'
-import { GithubObservationStore } from './github-observation.store'
+import { normalizedRepo } from './github-pr-identity'
+import { GithubRequestCoordinator } from './github-request-coordinator'
 import { readRepoCoverage } from './github-repo-coverage'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
@@ -34,17 +34,17 @@ export class GithubPollSweeperService {
     private readonly mailbox: GithubPrEventMailboxService,
     private readonly signals: ThreadSignalsService,
     private readonly hooks: GithubHookLifecycleService,
-    private readonly observations: GithubObservationStore,
+    private readonly coordinator: GithubRequestCoordinator,
   ) {}
 
   async handlePoll(): Promise<void> {
     await this.refreshLiveUntil()
     try {
       await withGithubRequestBudget({
-        store: this.observations,
+        store: this.coordinator,
         run: async () =>
           refreshGithubQueue({
-            observations: this.observations,
+            coordinator: this.coordinator,
             hooks: this.hooks,
             coverage: await readRepoCoverage(),
             logger: this.logger,
@@ -123,7 +123,7 @@ export class GithubPollSweeperService {
       if (failure instanceof GithubHttpBudgetUnavailable) return 'rate-limited'
       if (failure instanceof GithubUserReadFailed) {
         if (!failure.rateLimited) return 'skipped'
-        await this.observations.blockHttpUntil({
+        await this.coordinator.blockHttpUntil({
           until: Date.now() + 60_000,
           credentialFingerprint: credentialFingerprint(token),
           resource: 'core',
@@ -175,9 +175,7 @@ export class GithubPollSweeperService {
       })
       return { row, userIds }
     })
-    const observers = await this.observations.owners({ repoFullName, prNumber: args.prNumber })
-    const stateUserIds = [...new Set([...userIds, ...observers])]
-    if (stateUserIds.length > 0) this.fanout.push({ userIds: stateUserIds, state: dtoOf(row) })
+    this.fanout.push({ userIds, state: dtoOf(row) })
     if (userIds.length === 0) return 'polled'
     const subscribers = await db.orm.public.GithubSubscription.where(
       subscriberWhereOf({

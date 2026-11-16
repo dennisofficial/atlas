@@ -17,11 +17,14 @@ import { ETokenPrincipalKind } from '../../platform/sandboxes/token-principal'
 import { SessionOrSandboxMiddleware } from '../../platform/sessions/session-or-sandbox.middleware'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
-import { fakeMailbox, fakeSubscriptions, STATE } from './github-pr-stream.fixture'
+import { fakeGithub, fakeMailbox, fakeSubscriptions, STATE } from './github-pr-stream.fixture'
+import { GithubService } from './github.service'
+import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
+import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { GithubPrStreamRouter } from './github-pr-stream.router'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
-import { GithubObservationStore } from './github-observation.store'
-import { localObservations } from './github-observation.fixture'
+import { GithubRequestCoordinator } from './github-request-coordinator'
+import { localCoordinator } from './github-request-coordinator.fixture'
 
 const SANDBOX_TOKEN = 'sandbox-token'
 const HEARTBEAT: GithubPrStreamFrame = { type: EGithubPrStreamFrame.Heartbeat }
@@ -91,8 +94,10 @@ describe('githubPrs.stream over a real http server', () => {
         { provide: DrainStateService, useValue: drain },
         { provide: GithubPrFanoutService, useValue: fanout },
         { provide: GithubSubscriptionsService, useValue: fakeSubscriptions([STATE]) },
-        { provide: GithubObservationStore, useValue: localObservations() },
+        { provide: GithubRequestCoordinator, useValue: localCoordinator() },
         { provide: GithubPrEventMailboxService, useValue: fakeMailbox() },
+        { provide: GithubService, useValue: fakeGithub() },
+        { provide: ThreadSignalsService, useValue: inertSignals() },
         { provide: SESSION_VERIFIER, useValue: { verify: async () => null } },
         {
           provide: SandboxesService,

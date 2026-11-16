@@ -1,27 +1,13 @@
 import { afterEach, describe, expect, it, setSystemTime } from 'bun:test'
-import { LocalObservationAdapter } from './github-observation.local'
-import { EGithubHttpCategory, type ObservationLease } from './github-observation.types'
+import { localCoordinator } from './github-request-coordinator.fixture'
+import { LocalCoordinatorAdapter } from './github-request-coordinator.local'
+import { EGithubHttpCategory } from './github-request-coordinator.types'
+import type { GithubService } from './github.service'
 
-const lease = (id: number): ObservationLease => ({
-  id: `local-${id}`,
-  userId: `user-${id}`,
-  keys: [{ repoFullName: 'compai/app', prNumber: 42 }],
-  credentialFingerprint: `credential-${id}`,
-  authorizedUntil: { 'compai/app': Date.now() + 120_000 },
-  expiresAt: Date.now() + 120_000,
-})
-
-describe('same-process observation adapter', () => {
+describe('same-process request coordinator adapter', () => {
   afterEach(() => setSystemTime())
-  it('returns complete filtered recipient sets but samples bounded worker batches', async () => {
-    const adapter = new LocalObservationAdapter()
-    for (let index = 0; index < 140; index += 1) await adapter.write(lease(index))
-    expect(await adapter.entries({ repoFullName: 'compai/app', prNumber: 42 })).toHaveLength(140)
-    expect(await adapter.entries({ repoFullName: 'compai/app' })).toHaveLength(140)
-    expect(await adapter.entries()).toHaveLength(128)
-  })
   it('isolates provider cooldowns by credential and resource without splitting the global HTTP allowance', async () => {
-    const adapter = new LocalObservationAdapter()
+    const adapter = new LocalCoordinatorAdapter()
     const identity = { credentialFingerprint: 'one', resource: 'core' }
     await adapter.blockHttpUntil({ ...identity, until: Date.now() + 3_600_000 })
     expect(await adapter.takeHttpSlot(identity)).toBe(false)
@@ -35,7 +21,7 @@ describe('same-process observation adapter', () => {
     expect(await adapter.takeHttpSlot()).toBe(false)
   })
   it('preserves reserved authorization/refresh capacity inside one global request allowance', async () => {
-    const adapter = new LocalObservationAdapter()
+    const adapter = new LocalCoordinatorAdapter()
     const identity = { credentialFingerprint: 'one', resource: 'core' }
     for (let index = 0; index < 12; index += 1)
       expect(
@@ -50,8 +36,8 @@ describe('same-process observation adapter', () => {
       ).toBe(true)
     expect(await adapter.takeHttpSlot()).toBe(false)
   })
-  it('shares versioned grants and denials without allowing an older success to overwrite denial', async () => {
-    const adapter = new LocalObservationAdapter()
+  it('does not let an older in-flight success overwrite a newer denial', async () => {
+    const adapter = new LocalCoordinatorAdapter()
     const first = await adapter.beginAuthorization('user:repo:fingerprint')
     const grant = {
       version: first,
@@ -74,10 +60,26 @@ describe('same-process observation adapter', () => {
     expect(await adapter.readAuthorization('user:repo:fingerprint')).toEqual(denial)
   })
   it('expires retry attempts after twenty minutes', async () => {
-    const adapter = new LocalObservationAdapter()
+    const adapter = new LocalCoordinatorAdapter()
     await adapter.recordAttempt({ key: 'compai/app#42', failed: true })
     expect((await adapter.attempt('compai/app#42')).failures).toBe(1)
     setSystemTime(new Date(Date.now() + 1_200_001))
     expect(await adapter.attempt('compai/app#42')).toEqual({ nextAttemptAt: 0, failures: 0 })
+  })
+})
+
+describe('request coordinator access proofs', () => {
+  const github = { findToken: async () => 'token' } as unknown as GithubService
+  afterEach(() => setSystemTime())
+
+  it('flips proven access off on a denial and back on a later recordAccess', async () => {
+    const coordinator = localCoordinator(github)
+    const repo = { userId: 'usr_1', repoFullName: 'compai/app' }
+    await coordinator.recordDenial({ ...repo, message: 'no access' })
+    expect(await coordinator.deniedAccess(repo)).toBe(true)
+    expect(await coordinator.provenAccess(repo)).toBe(false)
+    await coordinator.recordAccess(repo)
+    expect(await coordinator.deniedAccess(repo)).toBe(false)
+    expect(await coordinator.provenAccess(repo)).toBe(true)
   })
 })

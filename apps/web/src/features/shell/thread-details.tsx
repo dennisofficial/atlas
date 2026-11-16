@@ -12,7 +12,6 @@ import {
 import { currentBranchOf, isOutsideGit } from '@/features/threads/data/header-model'
 import { sessionCheckoutsOf } from '@/features/threads/data/session-checkouts'
 import { UNTITLED } from '@/features/threads/data/untitled'
-import { useSidebarPrObservation } from './shell-pr-observations'
 import { ThreadStatusIcon } from './shell-status-icon'
 import { useThreadFamily } from './shell-thread-family'
 import { threadPullRequestsOf } from './thread-pull-requests'
@@ -122,12 +121,8 @@ export function ThreadDetails({
         family,
       }).filter((entry) => !represented.has(pullRequestKeyOf(entry)))
     : []
-  const observationRef = useSidebarPrObservation(
-    thread.runner === 'local' ? [] : [...own, ...teammateEntries, ...borrowed],
-  )
   return (
     <section
-      ref={observationRef}
       aria-label="Scrollable thread details"
       className="flex max-h-96 flex-col gap-2.5 overflow-y-auto outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring"
     >

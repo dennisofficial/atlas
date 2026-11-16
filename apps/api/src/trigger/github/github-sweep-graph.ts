@@ -6,6 +6,7 @@ import { SecretCipherService } from '../../_lib/crypto/secret-cipher.service'
 import { RedisService } from '../../_lib/redis/redis.service'
 import { GithubAppInstallationsService } from '../../api/cloud/github/github-app-installations.service'
 import { GithubAppClient } from '../../api/cloud/github/github-app-client'
+import { GithubInstallationTokens } from '../../api/cloud/github/github-installation-tokens'
 import { GithubAppSyncGate } from '../../api/cloud/github/github-app-sync-gate'
 import { GithubAppSyncService } from '../../api/cloud/github/github-app-sync.service'
 import { GithubHookSweepService } from '../../api/cloud/github/github-hook-sweep.service'
@@ -27,7 +28,7 @@ import { WAKE_DEBOUNCE_MS } from '../../api/cloud/github/github-sandbox-wake-deb
 import { GithubSandboxWakeService } from '../../api/cloud/github/github-sandbox-wake.service'
 import { GithubUserReads } from '../../api/cloud/github/github-user-reads'
 import { GithubService } from '../../api/cloud/github/github.service'
-import { GithubObservationStore } from '../../api/cloud/github/github-observation.store'
+import { GithubRequestCoordinator } from '../../api/cloud/github/github-request-coordinator'
 import { ScopedSandboxCredentialsService } from '../../api/cloud/sandbox-credentials/scoped-sandbox-credentials.service'
 import { buildScopedConfig } from '../../api/cloud/scoped-config/scoped-config.factory'
 import { DrainStateService } from '../../api/platform/health/drain-state.service'
@@ -58,13 +59,13 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
   const redis = new RedisService(env)
   if (!redis.isConfigured()) {
     new Logger('GithubSweepGraph').warn(
-      'GitHub observation leases are same-process only without Redis; a separate worker cannot share API view leases',
+      'Without Redis the GitHub request budget and PR frames stay in this process; the API and this worker cannot share them',
     )
   }
   const bus: PrFrameBus = redis.isConfigured() ? new RedisPrFrameBus(redis) : new LocalPrFrameBus()
   const github = new GithubService(cipher, env, new GithubDeviceClient({}))
   const reads = new GithubUserReads()
-  const observations = new GithubObservationStore(redis, github)
+  const coordinator = new GithubRequestCoordinator(redis, github)
   const fanout = new GithubPrFanoutService(new DrainStateService(), bus)
   const workerSignals = buildWorkerThreadSignals({ env })
   const wake = new GithubSandboxWakeService(
@@ -85,11 +86,13 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
     cipher,
     env,
     installations,
-    observations,
+    coordinator,
   )
   const syncGate = new GithubAppSyncGate(redis)
+  const appClient = new GithubAppClient(env)
+  const appTokens = new GithubInstallationTokens(appClient, installations)
   const hookSweep = new GithubHookSweepService(
-    new GithubAppSyncService(new GithubAppClient(env), installations, syncGate),
+    new GithubAppSyncService(appClient, installations, syncGate),
     hookLifecycle,
     installations,
     github,
@@ -106,7 +109,7 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
       mailbox,
       workerSignals.signals,
       hookLifecycle,
-      observations,
+      coordinator,
     ),
     hookLifecycle,
     hookSweep,
@@ -119,7 +122,8 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
       mailbox,
       new GithubPrDiscussionDeliveryService(mailbox),
       workerSignals.signals,
-      observations,
+      coordinator,
+      appTokens,
     ),
     dispose: async () => {
       await wake.settle()
