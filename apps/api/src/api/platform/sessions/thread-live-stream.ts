@@ -106,6 +106,16 @@ function deliver(args: {
   }
   if (!isThreadChangedSignal(signal)) return
   if (signal.session.mainThreadId !== signal.threadId) return
+  if (signal.session.deletedAt != null) {
+    args.snapshotRows.delete(signal.threadId)
+    sink.push({
+      type: EThreadLiveFrame.Remove,
+      sessionId: signal.session.id,
+      threadId: signal.threadId,
+      rev: signal.rev,
+    })
+    return
+  }
   const held = args.snapshotRows.get(signal.threadId)
   if (held !== undefined && signal.rev <= held) return
   args.snapshotRows.set(signal.threadId, signal.rev)

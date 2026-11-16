@@ -14,6 +14,7 @@ const digest = (patch: Partial<ControlSessionDigest> = {}): ControlSessionDigest
   mainThreadId: 't-1',
   createdAt: '2026-11-06T11:59:00.000Z',
   archivedAt: null,
+  deletedAt: null,
   modelRef: 'anthropic/claude-haiku-4-5',
   modelEffort: 'medium',
   modelFast: false,

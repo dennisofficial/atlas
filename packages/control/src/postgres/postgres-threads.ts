@@ -68,6 +68,7 @@ export const listSessionsIn = async (params: {
       ? { userId: params.userId }
       : { userId: params.userId, projectId: params.projectId }
   const rows = await params.tx.orm.v2.V2Session.where(where)
+    .where((session) => session.deletedAt.isNull())
     .orderBy((s) => s.createdAt.desc())
     .limit(params.limit)
     .all()

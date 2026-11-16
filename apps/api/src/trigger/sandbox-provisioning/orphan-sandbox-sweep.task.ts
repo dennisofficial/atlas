@@ -1,7 +1,9 @@
 import { Logger } from '@nestjs/common'
 import { schedules } from '@trigger.dev/sdk'
 import { db } from '@dltech/atlas-db'
+import { softDeleteArchivedSessionsIn } from '@dltech/atlas-control/postgres'
 import { ESandboxState } from '../../api/platform/sandboxes/sandboxes.types'
+import { ARCHIVED_SANDBOX_GRACE_MS } from '../../api/cloud/sandbox-provisioning/archived-sandbox-sweep'
 import { SecretCipherService } from '../../_lib/crypto/secret-cipher.service'
 import { openSecretValue } from '../../api/cloud/secrets/sealed-secret'
 import {
@@ -99,20 +101,21 @@ export const orphanSandboxSweepTask = schedules.task({
   run: async () => {
     const logger = new Logger('OrphanSandboxSweep')
     const cipher = new SecretCipherService(workerEnvService())
-    const pods = await v2PodNames()
     const now = new Date()
+    const cutoff = new Date(now.getTime() - ARCHIVED_SANDBOX_GRACE_MS)
+    const pods = await v2PodNames({ now })
     const reconcile: SandboxStateReconciler = async ({ projectId, sandboxes }) =>
       reconcileStates({ projectId, sandboxes, now })
-    return sweepOrphanSandboxes({
+    const summary = await sweepOrphanSandboxes({
       stores: await storesOf({ cipher }),
-      liveNames: liveSandboxNames,
-      retirableNames: retirableSandboxNames,
+      liveNames: () => liveSandboxNames({ now }),
+      retirableNames: () => retirableSandboxNames({ now }),
       onRetired: async ({ name }) => {
         const sessionIds = pods.sessionIdsByName.get(name) ?? []
         if (sessionIds.length === 0) return
         await db.orm.v2.V2Session.where((session) => session.id.in(sessionIds))
           .where((session) => session.archivedAt.isNotNull())
-          .update({ podRetiredAt: new Date() })
+          .updateAndCount({ podRetiredAt: new Date() })
       },
       onStopped: async ({ name }) => {
         await db.orm.public.CloudSandbox.where({ name }).update({
@@ -127,5 +130,10 @@ export const orphanSandboxSweepTask = schedules.task({
       dryRun: false,
       log: (line) => logger.log(line),
     })
+    const softDeleted = await db.transaction((tx) =>
+      softDeleteArchivedSessionsIn({ tx, cutoff, at: now }),
+    )
+    logger.log(`soft-deleted ${softDeleted} v2 sessions archived past the grace`)
+    return { ...summary, softDeleted }
   },
 })

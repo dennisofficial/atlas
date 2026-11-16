@@ -83,6 +83,7 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
         mainThreadId: THREAD,
         createdAt: T0,
         archivedAt: null,
+        deletedAt: null,
         modelRef: 'anthropic/claude-haiku-4-5',
         modelEffort: 'medium',
         modelFast: false,

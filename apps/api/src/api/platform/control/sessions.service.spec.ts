@@ -102,6 +102,23 @@ describe('SessionsService', () => {
     ).rejects.toBeInstanceOf(NotFoundException)
   })
 
+  it('hides a soft-deleted session and answers NOT_FOUND for every interaction with it', async () => {
+    const { service, store } = setup()
+    const created = await service.create({ userId: 'user-a', projectId: 'proj-a', title: 'gone' })
+    store.softDeleteSession(created.sessionId)
+
+    expect((await service.list({ userId: 'user-a' })).sessions).toEqual([])
+    await expect(
+      service.post({ userId: 'user-a', sessionId: created.sessionId, text: 'hi' }),
+    ).rejects.toBeInstanceOf(NotFoundException)
+    await expect(
+      service.archive({ userId: 'user-a', sessionId: created.sessionId, archived: false }),
+    ).rejects.toBeInstanceOf(NotFoundException)
+    await expect(
+      service.view({ userId: 'user-a', sessionId: created.sessionId }),
+    ).rejects.toBeInstanceOf(NotFoundException)
+  })
+
   it('withdraws a pending message for the owner and removes it from status', async () => {
     const { service } = setup()
     const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })

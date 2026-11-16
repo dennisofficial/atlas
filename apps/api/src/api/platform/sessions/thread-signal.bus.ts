@@ -27,6 +27,7 @@ export type ThreadChangedSession = {
   managedBySessionId: string | null
   mainThreadId: string | null
   updatedAt: string
+  deletedAt: string | null
 }
 export type ProjectChangedSignal = { userId: string; project: Project }
 export type ProjectRemovedSignal = { userId: string; projectId: string; removed: true }
@@ -46,6 +47,7 @@ const threadChangedSessionSchema = z.strictObject({
   managedBySessionId: z.string().nullable(),
   mainThreadId: z.string().nullable(),
   updatedAt: z.string(),
+  deletedAt: z.string().nullable().default(null),
 })
 const threadChangedSignalSchema = z.strictObject({
   userId: z.string().min(1),

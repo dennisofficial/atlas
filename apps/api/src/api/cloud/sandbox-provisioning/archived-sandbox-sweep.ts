@@ -15,6 +15,7 @@ export type ArchivedSandboxSweepSummary = {
   retired: number
   skipped: number
   failed: number
+  deleted: number
 }
 
 type SweepTarget = {
@@ -96,8 +97,43 @@ async function retireOne(args: {
     runtimeCheckpointRevision: null,
     updatedAt: at,
   })
+  await softDelete({ sessionId: target.session.id, at })
   await deps.podChanged({ threadId: fresh.mainThreadId })
   return 'retired'
+}
+
+async function softDelete(args: { sessionId: string; at: Date }): Promise<void> {
+  await db.orm.public.Session.where({ id: args.sessionId }).updateAndCount({
+    deletedAt: args.at,
+  })
+}
+
+async function expiredSessions(args: { cutoff: Date }): Promise<Array<{ id: string }>> {
+  const archived = await db.orm.public.Session.where((session) =>
+    session.archivedAt.lt(args.cutoff),
+  )
+    .where((session) => session.deletedAt.isNull())
+    .select('id')
+    .all()
+  if (archived.length === 0) return []
+  const podded = await db.orm.public.CloudSandbox.where((sandbox) =>
+    sandbox.sessionId.in(archived.map((session) => session.id)),
+  )
+    .where((sandbox) => sandbox.retiredAt.isNull())
+    .select('sessionId')
+    .all()
+  const held = new Set(podded.map((sandbox) => sandbox.sessionId))
+  return archived.filter((session) => !held.has(session.id))
+}
+
+/**
+ * A session whose pod is gone — a teammate, a BYO or an already-retired main session — keeps its
+ * rows for stats but stops existing for the user once its archive grace has run out.
+ */
+async function softDeleteExpired(args: { cutoff: Date; at: Date }): Promise<number> {
+  const expired = await expiredSessions({ cutoff: args.cutoff })
+  for (const session of expired) await softDelete({ sessionId: session.id, at: args.at })
+  return expired.length
 }
 
 export async function sweepArchivedSandboxes(args: {
@@ -112,6 +148,7 @@ export async function sweepArchivedSandboxes(args: {
     retired: 0,
     skipped: 0,
     failed: 0,
+    deleted: 0,
   }
   for (const target of targets) {
     if (await liveTeammateExists({ sessionId: target.session.id })) {
@@ -125,6 +162,7 @@ export async function sweepArchivedSandboxes(args: {
     try {
       const outcome = await retireOne({ target, deps })
       summary[outcome] += 1
+      if (outcome === 'retired') summary.deleted += 1
     } catch (failure) {
       summary.failed += 1
       deps.log(
@@ -132,5 +170,6 @@ export async function sweepArchivedSandboxes(args: {
       )
     }
   }
+  summary.deleted += await softDeleteExpired({ cutoff, at: now })
   return summary
 }

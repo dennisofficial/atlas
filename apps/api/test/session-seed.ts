@@ -24,6 +24,7 @@ type SessionPartial = Partial<
     | 'title'
     | 'pinnedAt'
     | 'archivedAt'
+    | 'deletedAt'
     | 'managedBySessionId'
   >
 >
@@ -39,6 +40,7 @@ export async function seedThreadRow(
     title,
     pinnedAt,
     archivedAt,
+    deletedAt,
     managedBySessionId,
     ...threadColumns
   } = partial
@@ -58,6 +60,7 @@ export async function seedThreadRow(
       ...(title === undefined ? {} : { title }),
       ...(pinnedAt === undefined ? {} : { pinnedAt }),
       ...(archivedAt === undefined ? {} : { archivedAt }),
+      ...(deletedAt === undefined ? {} : { deletedAt }),
       ...(managedBySessionId === undefined ? {} : { managedBySessionId }),
     })
   }

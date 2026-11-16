@@ -28,6 +28,11 @@ export class MemoryTestControls {
     return this.feed.onGap(listener)
   }
 
+  setSessionDeleted(sessionId: string): void {
+    const row = this.stateOf().sessions.get(sessionId)
+    if (row !== undefined) row.deletedAt = new Date().toISOString()
+  }
+
   setPrState(row: PrStateRow): void {
     this.stateOf().prStates.set(prKey(row), { ...row })
   }

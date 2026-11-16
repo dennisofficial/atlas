@@ -3,7 +3,7 @@ import { EShipBehavior } from '@dltech/atlas-wire/web'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterEach, beforeEach, describe, expect, it, jest } from 'bun:test'
-import { seedThreadRow, seedUsers, USER_A } from '../../../../test/session-seed'
+import { seedThreadRow, seedUsers, STAMP, USER_A } from '../../../../test/session-seed'
 import { DrainStateService } from '../health/drain-state.service'
 import { liveSnapshot } from './live-snapshot'
 import { InProcessThreadSignalBus, type ThreadChangedSignal } from './thread-signal.bus'
@@ -268,5 +268,31 @@ describe('attachLiveStream', () => {
     } finally {
       jest.useRealTimers()
     }
+  })
+
+  it('emits a remove frame instead of an upsert once the session is soft-deleted', async () => {
+    await seedThreadRow({ id: 'thr-gone', userId: USER_A })
+    const frames: ThreadLiveFrame[] = []
+    attachLiveStream({
+      signals,
+      userId: USER_A,
+      readSnapshot: () => liveSnapshot({ userId: USER_A }),
+      sink: { push: (frame) => frames.push(frame), close: () => {} },
+    })
+    await until(() => frames.some((frame) => frame.type === EThreadLiveFrame.Snapshot))
+
+    const changed = await changedOf('thr-gone')
+    expect(changed.session.deletedAt).toBeNull()
+    await signals.publish({
+      ...changed,
+      session: { ...changed.session, deletedAt: STAMP.toISOString() },
+    })
+    await until(() => frames.some((frame) => frame.type === EThreadLiveFrame.Remove))
+
+    const removed = frames.findIndex((frame) => frame.type === EThreadLiveFrame.Remove)
+    expect(frames[removed]).toMatchObject({ sessionId: 'ses_thr-gone', threadId: 'thr-gone' })
+    expect(frames.slice(removed).filter((frame) => frame.type === EThreadLiveFrame.Upsert)).toEqual(
+      [],
+    )
   })
 })

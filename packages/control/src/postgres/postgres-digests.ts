@@ -17,7 +17,7 @@ export const sessionDigestsIn = async (
   const rows = await params.tx.query(
     params.tx.raw
       .sql`SELECT s."id", s."userId", s."projectId", s."title", s."mainThreadId", s."createdAt", s."archivedAt",
-        s."modelRef", s."modelEffort", s."modelFast", s."spawnedBySessionId", s."nested",
+        s."deletedAt", s."modelRef", s."modelEffort", s."modelFast", s."spawnedBySessionId", s."nested",
         s."podSessionId", s."routineId",
         (SELECT e."at" FROM "v2"."V2Event" e
           WHERE e."threadId" = s."mainThreadId" ORDER BY e."seq" DESC LIMIT 1) AS "lastEventAt",
@@ -30,6 +30,7 @@ export const sessionDigestsIn = async (
           ORDER BY i."inboxId" ASC LIMIT 1
       ) first ON true
       WHERE s."userId" = ${params.userId}
+        AND s."deletedAt" IS NULL
         AND (${anyProject}::boolean OR s."projectId" = ${projectId})
         AND (${anySession}::boolean OR s."id" = ${sessionId})
         AND (${anySpawner}::boolean OR s."spawnedBySessionId" = ${spawnedBySessionId})
@@ -43,6 +44,7 @@ export const sessionDigestsIn = async (
         mainThreadId: 'pg/text@1',
         createdAt: 'pg/timestamptz-date@1',
         archivedAt: { codecId: 'pg/timestamptz-date@1', nullable: true },
+        deletedAt: { codecId: 'pg/timestamptz-date@1', nullable: true },
         modelRef: 'pg/text@1',
         modelEffort: 'pg/text@1',
         modelFast: 'pg/bool@1',
@@ -64,6 +66,7 @@ export const sessionDigestsIn = async (
     mainThreadId: row.mainThreadId,
     createdAt: iso(row.createdAt),
     archivedAt: row.archivedAt === null ? null : iso(row.archivedAt),
+    deletedAt: row.deletedAt === null ? null : iso(row.deletedAt),
     modelRef: row.modelRef,
     modelEffort: row.modelEffort,
     modelFast: row.modelFast,

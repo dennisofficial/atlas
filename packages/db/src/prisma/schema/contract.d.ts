@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'dd5251132749ee6f04164c0340a18da57bd5f862bc07c913bcba4eff8d2aed34'>;
+  StorageHashBase<'ab8069b1ee7441e95c7917a1484722a72243195dfc53a703b0574f017d1e41cd'>;
 export type ExecutionHash =
   ExecutionHashBase<'27a680d0d8367c03704617bfac2d0041e04bd5395fc473f9e021f03bd0d4c6fa'>;
 export type ProfileHash =
@@ -835,6 +835,7 @@ export namespace Models {
   export type public_Session = {
     archivedAt: FieldOutputTypes['public']['Session']['archivedAt'];
     createdAt: FieldOutputTypes['public']['Session']['createdAt'];
+    deletedAt: FieldOutputTypes['public']['Session']['deletedAt'];
     executionLocation: FieldOutputTypes['public']['Session']['executionLocation'];
     id: FieldOutputTypes['public']['Session']['id'];
     mainThreadId: FieldOutputTypes['public']['Session']['mainThreadId'];
@@ -1225,6 +1226,7 @@ export namespace Models {
   export type v2_V2Session = {
     archivedAt: FieldOutputTypes['v2']['V2Session']['archivedAt'];
     createdAt: FieldOutputTypes['v2']['V2Session']['createdAt'];
+    deletedAt: FieldOutputTypes['v2']['V2Session']['deletedAt'];
     id: FieldOutputTypes['v2']['V2Session']['id'];
     lastSurface: FieldOutputTypes['v2']['V2Session']['lastSurface'];
     mainThreadId: FieldOutputTypes['v2']['V2Session']['mainThreadId'];
@@ -5174,6 +5176,13 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
+                readonly deletedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
                 readonly executionLocation: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
@@ -7011,6 +7020,13 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/timestamptz';
                   readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly deletedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
@@ -10780,6 +10796,14 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
+              readonly deletedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
               readonly executionLocation: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -10931,6 +10955,7 @@ type ContractBase = Omit<
               readonly fields: {
                 readonly archivedAt: { readonly column: 'archivedAt' };
                 readonly createdAt: { readonly column: 'createdAt' };
+                readonly deletedAt: { readonly column: 'deletedAt' };
                 readonly executionLocation: { readonly column: 'executionLocation' };
                 readonly id: { readonly column: 'id' };
                 readonly mainThreadId: { readonly column: 'mainThreadId' };
@@ -13005,6 +13030,14 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
+              readonly deletedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
               readonly id: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -13133,6 +13166,7 @@ type ContractBase = Omit<
               readonly fields: {
                 readonly archivedAt: { readonly column: 'archivedAt' };
                 readonly createdAt: { readonly column: 'createdAt' };
+                readonly deletedAt: { readonly column: 'deletedAt' };
                 readonly id: { readonly column: 'id' };
                 readonly lastSurface: { readonly column: 'lastSurface' };
                 readonly mainThreadId: { readonly column: 'mainThreadId' };

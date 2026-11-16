@@ -10,7 +10,9 @@ export async function listMainThreads(args: {
   scope: MainThreadScope
   limit: number
 }): Promise<ThreadWithSession[]> {
-  const owned = db.orm.public.Session.where({ userId: args.userId })
+  const owned = db.orm.public.Session.where({ userId: args.userId }).where((session) =>
+    session.deletedAt.isNull(),
+  )
   const { scope } = args
   const scoped =
     'projectId' in scope

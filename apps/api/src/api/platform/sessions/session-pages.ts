@@ -36,9 +36,9 @@ function cursorOf(cursor: string): PageCursor {
 }
 
 function ownedSessions(args: { userId: string; search: string }) {
-  const owned = db.orm.public.Session.where({ userId: args.userId }).where((session) =>
-    session.mainThreadId.isNotNull(),
-  )
+  const owned = db.orm.public.Session.where({ userId: args.userId })
+    .where((session) => session.mainThreadId.isNotNull())
+    .where((session) => session.deletedAt.isNull())
   if (args.search.length === 0) return owned
   return owned.where((session) => session.title.ilike(likePatternOf(args.search)))
 }

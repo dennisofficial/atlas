@@ -95,6 +95,10 @@ export class InMemoryControlStore extends ControlStorePort implements ChangeFeed
     this.controls.setPrState(row)
   }
 
+  softDeleteSession(sessionId: string): void {
+    this.controls.setSessionDeleted(sessionId)
+  }
+
   subscriptionLeases(): Array<SubscriptionLease & { expiresAt: string }> {
     return this.controls.subscriptionLeases()
   }

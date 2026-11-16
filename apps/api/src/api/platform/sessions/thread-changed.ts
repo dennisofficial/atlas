@@ -39,6 +39,7 @@ export function bumpAndEnrichThread(args: {
         managedBySessionId: session.managedBySessionId,
         mainThreadId: session.mainThreadId,
         updatedAt: session.updatedAt.toISOString(),
+        deletedAt: session.deletedAt?.toISOString() ?? null,
       },
     }
   })

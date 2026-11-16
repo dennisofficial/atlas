@@ -351,7 +351,7 @@ export class SessionsService {
     sessionId: string
   }): Promise<ControlSessionRow> {
     const session = await this.plane.readSession({ sessionId: args.sessionId })
-    if (session === undefined || session.userId !== args.userId) {
+    if (session === undefined || session.userId !== args.userId || session.deletedAt !== null) {
       throw new NotFoundException('session not found')
     }
     return session

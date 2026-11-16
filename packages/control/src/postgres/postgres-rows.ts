@@ -45,6 +45,7 @@ export const toSessionRow = (row: {
   mainThreadId: string
   createdAt: Date
   archivedAt: Date | null
+  deletedAt: Date | null
   modelRef: string
   modelEffort: string
   modelFast: boolean
@@ -60,6 +61,7 @@ export const toSessionRow = (row: {
   mainThreadId: row.mainThreadId,
   createdAt: iso(row.createdAt),
   archivedAt: row.archivedAt === null ? null : iso(row.archivedAt),
+  deletedAt: row.deletedAt === null ? null : iso(row.deletedAt),
   modelRef: row.modelRef,
   modelEffort: row.modelEffort,
   modelFast: row.modelFast,
