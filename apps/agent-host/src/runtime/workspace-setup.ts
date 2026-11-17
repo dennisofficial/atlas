@@ -88,6 +88,7 @@ const startSetupInBackground = (args: {
   onOutput?: ((text: string) => void) | undefined
   onStep?: ((step: WorkspaceStepReport) => void) | undefined
   onSetup?: ((lifecycle: SetupLifecycle) => void) | undefined
+  ackScope(): Promise<void>
 }): void => {
   const { deps, command } = args
   const startedAt = Date.now()
@@ -121,6 +122,7 @@ const startSetupInBackground = (args: {
         ...logFieldsOf({ error }),
       })
     })
+    .finally(() => args.ackScope().catch(() => undefined))
 }
 
 const resultOf = (warnings: readonly string[]): PrepareResult =>
@@ -161,6 +163,8 @@ export const ensureWorkspace = async (args: {
   const phases = ['check', 'clone', 'setup'].map((phase) =>
     scopeFor({ sandboxName: args.sandboxName, phase }),
   )
+  const setupScope = phases[2] ?? 'setup:setup'
+  let setupInBackground = false
   try {
     const state = await runInCallScope({
       scopeKey: phases[0] ?? 'setup:check',
@@ -226,16 +230,18 @@ export const ensureWorkspace = async (args: {
         state: EWorkspaceStepState.Started,
         command: workspace.setupScript,
       })
+      setupInBackground = true
       startSetupInBackground({
         deps,
         command: workspace.setupScript,
         launchDirectory,
         sentinels,
         scrub,
-        scopeKey: phases[2] ?? 'setup:setup',
+        scopeKey: setupScope,
         onOutput: args.onOutput,
         onStep,
         onSetup: args.onSetup,
+        ackScope: () => args.calls.ackScope({ scopeKey: setupScope }),
       })
     }
     return resultOf(warnings)
@@ -249,6 +255,7 @@ export const ensureWorkspace = async (args: {
     return { ok: false, reason: warnings.join('\n') }
   } finally {
     for (const scopeKey of phases) {
+      if (setupInBackground && scopeKey === setupScope) continue
       await args.calls.ackScope({ scopeKey }).catch(() => undefined)
     }
   }
