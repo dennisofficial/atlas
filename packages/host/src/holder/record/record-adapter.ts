@@ -3,38 +3,28 @@ import {
   chainEvents,
   chainHash,
   toLoopEvent,
-  type BlobPayload,
   type Event,
   type LoopState,
   type RunId,
   type ThreadId,
   type V2Body,
-  type V2Event,
 } from '@dltech/atlas-core'
-import {
-  RecordCorruptError,
-  UnknownThreadError,
-  type AppendOutcome,
-  type ControlPlane,
-} from '@dltech/atlas-control'
+import type { ControlPlane } from '@dltech/atlas-control'
 import type { AgentRecordPort, ModelContextPort } from '@dltech/atlas-agent'
 import type { LogPort } from '@dltech/atlas-observability'
 
 import type { RemoteCalls } from '../../calls/remote-calls'
 import type { HostTimers } from '../ports'
+import { AppendRetry } from './append-retry'
 import { LeaseLostError } from './lease-lost-error'
 import { RecordCache } from './record-cache'
-import { appendRetryDeadline } from './retry-deadline'
 import { spillForAppend } from './record-spill'
 import { abortedOnHandoff, inboxIdOf, toRecordBody, type AppendBody } from './append-drafts'
 import { RecordCorruptionError } from './append-drafts'
-import { ackDaemonScope, ackRecordedDaemonResults, prepareDraft, resyncHead } from './record-commit'
+import { ackRecordedDaemonResults, prepareDraft } from './record-commit'
 
 export { LeaseLostError, RecordCorruptionError }
 export type { AppendBody }
-
-const messageOf = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error)
 
 export const BLOB_SPILL_BYTES = 256 * 1024
 
@@ -55,16 +45,29 @@ export type SessionRecordArgs = {
 
 export class SessionRecord implements AgentRecordPort, ModelContextPort {
   private readonly cache: RecordCache
+  private readonly retry: AppendRetry
   private tail: Promise<void> = Promise.resolve()
   private draining = false
   private fenced = false
-  private wakeSleep: (() => void) | undefined
 
   constructor(
     private readonly args: SessionRecordArgs,
     cache: RecordCache,
   ) {
     this.cache = cache
+    this.retry = new AppendRetry({
+      plane: args.plane,
+      threadId: args.threadId,
+      epoch: args.epoch,
+      cache,
+      daemonTools: args.daemonTools,
+      remoteCalls: args.remoteCalls,
+      timers: args.timers,
+      ...(args.appendRetryMs === undefined ? {} : { appendRetryMs: args.appendRetryMs }),
+      ...(args.log === undefined ? {} : { log: args.log }),
+      isFenced: () => this.fenced,
+      ...(args.onLeaseLost === undefined ? {} : { onLeaseLost: args.onLeaseLost }),
+    })
   }
 
   static async open(args: SessionRecordArgs): Promise<SessionRecord> {
@@ -90,7 +93,7 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
 
   fence(): void {
     this.fenced = true
-    this.wakeSleep?.()
+    this.retry.wake()
   }
 
   eventCache(): RecordCache {
@@ -172,7 +175,7 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
       })
       const last = events[events.length - 1]
       if (last !== undefined) head = { seq: last.seq, hash: chainHash(last) }
-      await this.commitWithRetry({
+      await this.retry.commit({
         threadId: args.threadId,
         events,
         blobs: spilled.blobs,
@@ -187,122 +190,5 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
       }
     }
     return committed
-  }
-
-  private async commitWithRetry(args: {
-    threadId: ThreadId
-    events: V2Event[]
-    blobs: readonly BlobPayload[]
-    resolved: ReadonlyMap<string, unknown>
-    ackDaemon?: { callId: string; name: string; runId: RunId } | undefined
-  }): Promise<void> {
-    let delayMs = 100
-    let failingSince: number | undefined
-    for (;;) {
-      if (this.fenced) {
-        throw new LeaseLostError('the holder self-fenced; no append is attempted', 'self-fenced')
-      }
-      const deadline = failingSince === undefined ? undefined : this.retryDeadline(failingSince)
-      if (deadline !== undefined && this.args.timers.now() >= deadline) {
-        this.lost(new LeaseLostError('the record store never answered in time', 'retry-exhausted'))
-      }
-      const outcome = await this.tryAppend({
-        threadId: args.threadId,
-        events: args.events,
-        blobs: args.blobs,
-        resolved: args.resolved,
-      })
-      if (outcome === 'committed') {
-        if (args.ackDaemon !== undefined) {
-          await ackDaemonScope({
-            ...args.ackDaemon,
-            daemonTools: this.args.daemonTools,
-            remoteCalls: this.args.remoteCalls,
-            ...(this.args.log === undefined ? {} : { log: this.args.log }),
-          })
-        }
-        await this.cache.refillIfRevealed()
-        return
-      }
-      failingSince ??= this.args.timers.now()
-      await this.sleep({ ms: delayMs, until: this.retryDeadline(failingSince) })
-      delayMs = Math.min(delayMs * 2, 2_000)
-    }
-  }
-
-  private retryDeadline(failingSince: number): number {
-    return appendRetryDeadline({
-      failingSince,
-      appendRetryMs: this.args.appendRetryMs,
-    })
-  }
-
-  private async tryAppend(args: {
-    threadId: ThreadId
-    events: V2Event[]
-    blobs: readonly BlobPayload[]
-    resolved: ReadonlyMap<string, unknown>
-  }): Promise<'committed' | 'retry'> {
-    let outcome: AppendOutcome
-    try {
-      outcome = await this.args.plane.append({
-        threadId: args.threadId,
-        epoch: this.args.epoch,
-        events: args.events,
-        blobs: args.blobs,
-      })
-    } catch (error) {
-      if (error instanceof UnknownThreadError || error instanceof RecordCorruptError) {
-        throw new RecordCorruptionError(`append failed permanently: ${messageOf(error)}`)
-      }
-      return 'retry'
-    }
-    if (outcome.ok) {
-      this.cache.extend({ events: args.events, head: outcome.head, resolved: args.resolved })
-      return 'committed'
-    }
-    const refusal = outcome.refusal
-    if (refusal.kind === 'stale-epoch') {
-      this.lost(new LeaseLostError(`the lease was lost: ${refusal.kind}`, refusal.kind))
-    }
-    if (refusal.kind !== 'seq-mismatch') {
-      throw new RecordCorruptionError(`append refused: ${JSON.stringify(refusal)}`)
-    }
-    await resyncHead({ plane: this.args.plane, threadId: args.threadId }, this.cache)
-    if (this.replyLost({ events: args.events })) return 'committed'
-    throw new RecordCorruptionError(
-      `append refused with seq-mismatch at ${args.events[0]?.seq ?? -1} and the recorded chain differs`,
-    )
-  }
-
-  private replyLost(args: { events: V2Event[] }): boolean {
-    if (args.events.length === 0) return false
-    return args.events.every(
-      (event) => this.cache.committedHashAtSeq(event.seq) === chainHash(event),
-    )
-  }
-
-  private lost(error: unknown): never {
-    const lost =
-      error instanceof LeaseLostError
-        ? error
-        : new LeaseLostError(`the record store failed: ${messageOf(error)}`, 'store-error')
-    if (lost.refusal === 'retry-exhausted') {
-      this.args.log?.warn({ source: 'holder.append', message: 'append retry exhausted' })
-    }
-    this.args.onLeaseLost?.(lost)
-    throw lost
-  }
-
-  private async sleep(args: { ms: number; until: number }): Promise<void> {
-    const jittered = args.ms * (0.5 + this.args.timers.random())
-    const capped = Math.min(jittered, Math.max(0, args.until - this.args.timers.now()))
-    await new Promise<void>((resolve) => {
-      this.wakeSleep = resolve
-      this.args.timers.setTimeout(() => {
-        this.wakeSleep = undefined
-        resolve()
-      }, capped)
-    })
   }
 }
