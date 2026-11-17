@@ -33,7 +33,6 @@ export class SessionHolder {
   private readonly maxSessions: number
   private readonly appendRetryMs: number
   private readonly idleMinutes: number
-  private readonly stallAfterMs: number | undefined
   private readonly isPermanentStartError: (error: unknown) => boolean
   private readonly reasonOfStartError: ((error: unknown) => string) | undefined
   private readonly commands: CommandRegistry | undefined
@@ -71,7 +70,6 @@ export class SessionHolder {
     this.maxSessions = args.maxSessions
     this.appendRetryMs = args.appendRetryMs ?? DEFAULTS.appendRetryMs
     this.idleMinutes = args.idleMinutes ?? DEFAULTS.idleMinutes
-    this.stallAfterMs = args.stallAfterMs
     this.isPermanentStartError = args.isPermanentStartError ?? (() => false)
     this.reasonOfStartError = args.reasonOfStartError
     this.commands = args.commands
@@ -254,7 +252,6 @@ export class SessionHolder {
       ids: this.ids,
       appendRetryMs: this.appendRetryMs,
       idleMinutes: this.idleMinutes,
-      stallAfterMs: this.stallAfterMs,
       runtimeFor: this.runtimes,
       judgeStartFailure: (error) =>
         startVerdict({

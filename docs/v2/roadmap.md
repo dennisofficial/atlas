@@ -277,8 +277,9 @@ _Updated at the end of every slice. Last update: 2026-11-17._
   script continues with the model told. A hard kill of the host could not be tried live: Render exposes no
   kill and no shell, and its suspend freezes the instance rather than killing it
   ([live-exit-tests](research/slice-3/live-exit-tests.md)). Audit steps 4–5 landed 2026-11-08: deadlines at
-  the daemon ready wait, `sandbox.wake()`, the drain and the LISTEN connection (#2016), and a per-turn
-  progress watchdog that records `run-failed{kind:'stalled'}` after 11 minutes of silence (#2019).
+  the daemon ready wait, `sandbox.wake()`, the drain and the LISTEN connection (#2016). The per-turn
+  progress watchdog from #2019 was removed: it capped every turn at 11 minutes, and turns may run for
+  hours; hangs are bounded by the model stream and tool timeouts instead.
   Crash-loop quarantine is built — `crashLooped` (`packages/core/src/record/lease.ts`) and its fault
   row (`f37-crash-quarantine.fault.spec.ts`) — and the Stop route landed with this update. Still open
   from the audit: the fault-rig invariant.

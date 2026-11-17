@@ -57,7 +57,6 @@ export const makeRig = async (args: {
   appendRetryMs?: number | undefined
   idleMinutes?: number | undefined
   sweepMs?: number | undefined
-  stallAfterMs?: number | undefined
   watchedRepos?: (() => Promise<readonly string[]>) | undefined
   runningShells?: (() => Promise<number>) | undefined
   model?: (() => ModelPort) | undefined
@@ -140,7 +139,6 @@ export const makeRig = async (args: {
     ...(args.appendRetryMs === undefined ? {} : { appendRetryMs: args.appendRetryMs }),
     idleMinutes: args.idleMinutes ?? 30,
     sweepMs: args.sweepMs ?? 0,
-    stallAfterMs: args.stallAfterMs,
     ...(args.isPermanentStartError === undefined
       ? {}
       : { isPermanentStartError: args.isPermanentStartError }),
