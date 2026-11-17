@@ -171,6 +171,26 @@ describe('SessionsRouter', () => {
     expect(badView.status).toBe(400)
   })
 
+  it('wires stop to the owner-scoped service', async () => {
+    sessions.stop.mockResolvedValue({ inboxId: 5 })
+    const stopped = await request(app.getHttpServer())
+      .post('/v1/trpc/sessions.stop')
+      .set(as('session-a'))
+      .send({ sessionId: 's1' })
+    expect(stopped.status).toBe(200)
+    expect(stopped.body.result.data).toEqual({ inboxId: 5 })
+    expect(sessions.stop).toHaveBeenCalledWith({ userId: 'user-a', sessionId: 's1' })
+    const unauthenticated = await request(app.getHttpServer())
+      .post('/v1/trpc/sessions.stop')
+      .send({ sessionId: 's1' })
+    expect(unauthenticated.status).toBe(401)
+    const missing = await request(app.getHttpServer())
+      .post('/v1/trpc/sessions.stop')
+      .set(as('session-a'))
+      .send({})
+    expect(missing.status).toBe(400)
+  })
+
   it('wires command to the owner-scoped service and validates its input shape', async () => {
     sessions.command.mockResolvedValue({ inboxId: 4 })
     const posted = await request(app.getHttpServer())

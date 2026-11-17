@@ -1,6 +1,6 @@
 # Slice 7d spec: MCP sign-in from the transcript
 
-Status: **spec, 2026-11-10.** Nothing is built. Anchors are `path:line` at `a066c30b5`; re-check
+Status: **built, 2026-11-10** (#2180; #2186, #2188). Anchors are `path:line` at `a066c30b5`; re-check
 before relying on one. Prior slice: [07b-mcp-skills.md](07b-mcp-skills.md) — its §9 records the two
 cloud servers this slice is about.
 

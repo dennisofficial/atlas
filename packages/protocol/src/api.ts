@@ -238,6 +238,10 @@ export const sessionRetryInputSchema = z.strictObject({
   sessionId: z.string().min(1),
 })
 
+export const sessionStopInputSchema = z.strictObject({
+  sessionId: z.string().min(1),
+})
+
 export const sessionCommandInputSchema = z.strictObject({
   sessionId: z.string().min(1),
   name: z.string().min(1),
@@ -249,6 +253,8 @@ export const sessionViewInputSchema = z.strictObject({
 })
 
 export const sessionRetryOutputSchema = z.strictObject({ inboxId: z.number().int().min(1) })
+
+export const sessionStopOutputSchema = z.strictObject({ inboxId: z.number().int().min(1) })
 
 export const sessionCommandOutputSchema = z.strictObject({
   inboxId: z.number().int().min(1).optional(),
@@ -329,6 +335,8 @@ export const sessionViewOutputSchema = z.strictObject({
 
 export type SessionRetryInput = z.infer<typeof sessionRetryInputSchema>
 export type SessionRetryOutput = z.infer<typeof sessionRetryOutputSchema>
+export type SessionStopInput = z.infer<typeof sessionStopInputSchema>
+export type SessionStopOutput = z.infer<typeof sessionStopOutputSchema>
 export type SessionCommandInput = z.infer<typeof sessionCommandInputSchema>
 export type SessionCommandOutput = z.infer<typeof sessionCommandOutputSchema>
 export type SessionViewInput = z.infer<typeof sessionViewInputSchema>

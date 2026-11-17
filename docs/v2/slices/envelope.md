@@ -1,6 +1,6 @@
 # Spec: one envelope path for everything the model reads
 
-Status: **spec, 2026-11-11**, for operator approval. Anchors at `6a99b42`. Foundational: the
+Status: **built, 2026-11-11** (#2226); the guard is partial. Anchors at `6a99b42`. Foundational: the
 sessions slice ([sessions-link.md](sessions-link.md)) reports through it, so this comes first.
 
 ## Goal

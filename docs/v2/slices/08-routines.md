@@ -1,8 +1,9 @@
-# Slice 8 spec: routines (cron-scheduled sessions)
+# Routines spec: cron-scheduled sessions
 
-Status: **spec, 2026-11-10.** Approved by the operator in conversation on 2026-11-10 (fresh session
-per run; skip while the previous run works; `apps/trigger` built first; a five-minute floor on
-frequency). Anchors are `path:line` at `627681376`; re-check before relying on one.
+Status: **built, 2026-11-10** (#2215, #2219; agent-managed routines in #2222). Approved by the
+operator in conversation on 2026-11-10 (fresh session per run; skip while the previous run works;
+`apps/trigger` built first; a five-minute floor on frequency). Anchors are `path:line` at `627681376`;
+re-check before relying on one.
 
 Contract: [0022](../decisions/0022-v2-background-jobs-in-apps-trigger.md) (v2 schedules run on
 trigger.dev in `apps/trigger`), [0026](../decisions/0026-v2-hosts-pull-sessions.md) (hosts pull work

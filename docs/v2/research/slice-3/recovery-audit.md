@@ -23,7 +23,7 @@ Severity key: **S** = stuck session (no progress and no way out for the user unt
 | F-10 | D            | A failed turn or failed prepare leaves the keep-alive timer running                                                                             | Cost leak; a dead session keeps its sandbox alive                                                                                            | `stop()` must run on every teardown path                                                                       |
 | F-11 | D            | `hold()` rejects "past its guard", or `drive` faults after start                                                                                | Same orphan as F-01                                                                                                                          | Same fix as F-01                                                                                               |
 | F-12 | D            | Drain `await this.done` is unbounded                                                                                                            | A hung session stops the host's drain until Render SIGKILLs at 300 s                                                                         | Hard exit timer inside `main.ts`; a bounded `await done`                                                       |
-| F-13 | S (no route) | User wants to stop a session                                                                                                                    | There is no API route for stop (the live-test doc says the script posts to the inbox directly; I grepped `apps/api` and found no stop route) | Ship the route before anything depends on Stop as an escape hatch                                              |
+| F-13 | S (no route) | User wants to stop a session                                                                                                                    | There is no API route for stop (the live-test doc says the script posts to the inbox directly; I grepped `apps/api` and found no stop route) | Ship the route before anything depends on Stop as an escape hatch — **closed 2026-11-17, `sessions.stop`**     |
 | F-14 | C            | Backoffs without jitter, retries without a cap, fire-and-forget promises                                                                        | Retry synchronisation after an outage; whole host can die on one stray rejection (unverified)                                                | Jitter everywhere; a process-level handler that logs and exits deliberately                                    |
 | F-15 | D            | Inbox read error swallowed in `InboxIntake.fetch`                                                                                               | A turn can start with no new input while the DB is flaky                                                                                     | Throw, and let the reconciler retry                                                                            |
 
@@ -150,6 +150,9 @@ In `releaseIdleAndRewake` (`held-idle.ts:149-173`): revoke commits with `wantsHo
 
 `docs/v2/research/slice-3/live-exit-tests.md` (Test 9) says "there is no API route for stop yet". My grep of `apps/api/src`, `packages/api-router` and `packages/client` found no stop handler (only sandbox stop calls). Until a route exists, the user's only recovery from a wedged turn is another message.
 
+**Closed 2026-11-17.** `sessions.stop` posts a `stop` inbox entry, and the v2 composer has a Stop
+button while a turn runs.
+
 ### F-14 (C): hygiene
 
 - Jitter exists on the link backoff (`link.ts:119`) and append retry (`record-adapter.ts:287`). It is missing in `reconcileBackoffMs` (`reconciler.ts:3-4`), `StartBackoff` (`start-backoff.ts:20`), `HolderPresence.scheduleRetry` (`holder-presence.ts:75`), `scheduleResyncRetry` (`session-holder.ts:180`), `pg-listener.ts:48`, `pg-host-watch.ts:91`.
@@ -258,6 +261,8 @@ Every new row should also assert the §3 invariant: within a stated bound, the r
 The watchdog reuses `ERunFailureKind.Stalled`, so no record-union change was needed and the existing
 remedies table already offers Retry.
 
-Still open from this audit: a Stop API route (F-13), crash-loop quarantine (§3 item 7), the fault-rig
-invariant (§3 item 9), jitter and process-level handlers (F-14), and a deadline on the public
-`RemoteCalls.ready()` (only the waits inside `invoke` and `ackKey` are bounded).
+Since closed: a Stop API route (F-13, `sessions.stop`, 2026-11-17) and crash-loop quarantine (§3 item
+7, `crashLooped` in `packages/core/src/record/lease.ts`, fault row `f37-crash-quarantine.fault.spec.ts`).
+Still open from this audit: the fault-rig invariant (§3 item 9), jitter and process-level handlers
+(F-14), and a deadline on the public `RemoteCalls.ready()` (only the waits inside `invoke` and
+`ackKey` are bounded).
