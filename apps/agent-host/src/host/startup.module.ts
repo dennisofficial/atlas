@@ -12,8 +12,7 @@ import type { HostWatchService } from './host-watch-service'
 import { RuntimeModule } from './runtime.module'
 import { HostShutdownSequence } from './shutdown-sequence'
 import { HostStartupService } from './startup.service'
-import type { StreamService } from '../stream/stream-service'
-import { StreamModule } from './stream.module'
+import type { SessionStream } from '../stream/session-stream'
 import {
   FOLLOW_STACK,
   HOLDER,
@@ -22,9 +21,9 @@ import {
   LOG,
   POOL,
   PRESENCE,
+  SESSION_STREAM,
   SHUTDOWN,
   STARTUP,
-  STREAM,
   WAKE_LISTENER,
 } from './tokens'
 
@@ -34,9 +33,9 @@ const startupProvider: Provider = {
     holder: SessionHolder,
     watch: HostWatchService,
     follow: FollowStack,
-    stream: StreamService,
+    stream: SessionStream,
   ): HostStartupService => new HostStartupService({ holder, watch, follow, stream }),
-  inject: [HOLDER, HOST_WATCH, FOLLOW_STACK, STREAM],
+  inject: [HOLDER, HOST_WATCH, FOLLOW_STACK, SESSION_STREAM],
 }
 
 const shutdownProvider: Provider = {
@@ -46,7 +45,7 @@ const shutdownProvider: Provider = {
     presence: HostPresence,
     wakes: PgWakeListener,
     liveFrames: RedisLiveFrames,
-    stream: StreamService,
+    stream: SessionStream,
     follow: FollowStack,
     pool: Pool,
     holder: SessionHolder,
@@ -68,7 +67,7 @@ const shutdownProvider: Provider = {
     PRESENCE,
     WAKE_LISTENER,
     LIVE_FRAMES,
-    STREAM,
+    SESSION_STREAM,
     FOLLOW_STACK,
     POOL,
     HOLDER,
@@ -77,7 +76,7 @@ const shutdownProvider: Provider = {
 }
 
 @Module({
-  imports: [ControlModule, RuntimeModule, HolderModule, StreamModule],
+  imports: [ControlModule, RuntimeModule, HolderModule],
   providers: [startupProvider, shutdownProvider],
 })
 export class StartupModule {}

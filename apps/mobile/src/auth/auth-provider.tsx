@@ -21,7 +21,7 @@ import { EHandoffResult, runHandoffSignIn } from './sign-in-flow'
 import { createPendingRevokeStorage, createTokenStore } from './token-store'
 import { clearSettingsCache } from '../settings/settings-storage'
 import { clearSessionCache } from '../thread/v2/session-cache'
-import { setStreamToken } from '../thread/v2/stream-token'
+import { setStreamClient } from '../thread/v2/stream-token'
 
 export interface IAuthContextValue extends IAuthSnapshot {
   api: ApiClient | undefined
@@ -110,8 +110,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   )
 
   useEffect(() => {
-    setStreamToken(snapshot.token)
-  }, [snapshot.token])
+    setStreamClient(api)
+  }, [api])
 
   useEffect(() => {
     if (snapshot.state !== EAuthState.SignedIn || api === undefined) return

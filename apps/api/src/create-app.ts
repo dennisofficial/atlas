@@ -3,6 +3,7 @@ import { HttpAdapterHost, NestFactory } from '@nestjs/core'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import helmet from 'helmet'
 import { GlobalExceptionFilter } from './api/global-exception.filter'
+import { hostRootModule } from './api/host-root.module'
 import { trustedOriginsOf } from './api/platform/desktop-auth/trusted-origins'
 import { EnvService } from './_core/config/env/env.service'
 import { JSON_BODY_LIMIT } from './_lib/body-limits'
@@ -15,17 +16,27 @@ const VALIDATION_PIPE_OPTIONS = {
   transformOptions: { enableImplicitConversion: true },
 }
 
-export async function createApp(): Promise<NestExpressApplication> {
+export async function createApp(
+  args: { withHost?: boolean } = {},
+): Promise<NestExpressApplication> {
   const { AppModule } = await import('./api/app.module.js')
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true })
+  const host = args.withHost === true ? await import('@dltech/atlas-agent-host') : undefined
+  const hostEnv = host?.readAgentHostEnv()
+  const rootModule =
+    host === undefined || hostEnv === undefined
+      ? AppModule
+      : hostRootModule({ appModule: AppModule, hostModule: host.HostModule.forRoot(hostEnv) })
+  const app = await NestFactory.create<NestExpressApplication>(rootModule, { rawBody: true })
 
   app.use(helmet())
   const trustedOrigins = trustedOriginsOf(app.get(EnvService))
+  const hostOrigins = hostEnv?.trustedOrigins ?? []
   // The Expo web test build calls the API cross-origin with a bearer header, so no credentials
-  // and no blanket origin: only TRUSTED_ORIGINS ∪ WEB_ORIGIN.
+  // and no blanket origin: only TRUSTED_ORIGINS ∪ WEB_ORIGIN, plus the agent host's own list.
   app.enableCors({
     origin: (origin, allow) => {
-      if (origin === undefined || trustedOrigins.has(origin)) allow(null, true)
+      if (origin === undefined || trustedOrigins.has(origin) || hostOrigins.includes(origin))
+        allow(null, true)
       else allow(null, false)
     },
     credentials: false,
@@ -40,6 +51,8 @@ export async function createApp(): Promise<NestExpressApplication> {
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' })
   app.useGlobalPipes(new ValidationPipe(VALIDATION_PIPE_OPTIONS))
   app.useGlobalFilters(new GlobalExceptionFilter(app.get(HttpAdapterHost).httpAdapter))
+
+  if (host !== undefined) app.enableShutdownHooks([], { useProcessExit: true })
 
   await app.init()
   return app

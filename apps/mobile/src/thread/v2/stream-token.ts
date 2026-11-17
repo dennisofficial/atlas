@@ -1,10 +1,12 @@
-let held: string | undefined
+import type { ApiClient } from '@dltech/atlas-api-router'
 
-export const setStreamToken = (token: string | undefined): void => {
-  held = token
+let held: ApiClient | undefined
+
+export const setStreamClient = (client: ApiClient | undefined): void => {
+  held = client
 }
 
-export const getStreamToken = async (): Promise<string> => {
+export const getStreamClient = (): ApiClient => {
   if (held === undefined) throw new Error('signed out')
   return held
 }

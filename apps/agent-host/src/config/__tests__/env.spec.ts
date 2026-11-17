@@ -87,6 +87,13 @@ describe('readAgentHostEnv', () => {
     ])
   })
 
+  it('takes DIRECT_URL when DATABASE_DIRECT_URL is absent', () => {
+    const { DATABASE_DIRECT_URL: _direct, ...withoutDirect } = complete
+    const env = readAgentHostEnv({ ...withoutDirect, DIRECT_URL: 'postgres://api-direct' })
+
+    expect(env.databaseDirectUrl).toBe('postgres://api-direct')
+  })
+
   it('defaults the stream port and origins, and reads PORT and TRUSTED_ORIGINS', () => {
     const defaults = readAgentHostEnv(complete)
     expect(defaults.port).toBe(10_000)

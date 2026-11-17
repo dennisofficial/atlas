@@ -1,55 +1,12 @@
-import {
-  All,
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  Inject,
-  Post,
-  Req,
-  Res,
-  UseGuards,
-} from '@nestjs/common'
+import { Controller, Get, Inject, Req, Res, VERSION_NEUTRAL } from '@nestjs/common'
 
-import {
-  MCP_OAUTH_BEGIN_PATH,
-  McpOauthBeginService,
-  mcpOauthBeginRequestSchema,
-  type McpOauthBeginRequest,
-} from '../mcp-oauth/begin-service'
 import { MCP_OAUTH_CALLBACK_PATH, type CallbackHandler } from '../mcp-oauth/callback'
-import { MCP_OAUTH_BEGIN, MCP_OAUTH_CALLBACK } from '../host/tokens'
-import { BearerAuthGuard } from './bearer-auth.guard'
-import { CurrentUserId } from './current-user.decorator'
+import { MCP_OAUTH_CALLBACK } from '../host/tokens'
 import type { HostReply, HostRequest } from './host-request'
-import { OriginGuard } from './origin.guard'
-import { ZodBodyPipe } from './zod-body.pipe'
 
-@Controller()
-export class McpOauthController {
-  constructor(
-    @Inject(MCP_OAUTH_BEGIN) private readonly begins: McpOauthBeginService,
-    @Inject(MCP_OAUTH_CALLBACK) private readonly callback: CallbackHandler,
-  ) {}
-
-  @Post(MCP_OAUTH_BEGIN_PATH)
-  @UseGuards(OriginGuard, BearerAuthGuard)
-  async handleBegin(
-    @CurrentUserId() userId: string,
-    @Body(new ZodBodyPipe(mcpOauthBeginRequestSchema)) body: McpOauthBeginRequest,
-    @Res() response: HostReply,
-  ): Promise<void> {
-    const answer = await this.begins.begin({ userId, body })
-    response.status(answer.status)
-    response.setHeader('cache-control', 'no-store')
-    response.json(answer.body)
-  }
-
-  @All(MCP_OAUTH_BEGIN_PATH)
-  @HttpCode(405)
-  handleOtherMethod(): { reason: string } {
-    return { reason: 'method' }
-  }
+@Controller({ version: VERSION_NEUTRAL })
+export class McpOauthCallbackController {
+  constructor(@Inject(MCP_OAUTH_CALLBACK) private readonly callback: CallbackHandler) {}
 
   @Get(MCP_OAUTH_CALLBACK_PATH)
   async handleCallback(@Req() request: HostRequest, @Res() response: HostReply): Promise<void> {

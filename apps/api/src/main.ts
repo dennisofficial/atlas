@@ -1,17 +1,13 @@
 import { createApp } from './create-app'
-import { registerGracefulShutdown } from './api/graceful-shutdown'
 import { hydrateEnvFromTierFile } from './api/hydrate-env'
-import { DrainStateService } from './api/platform/health/drain-state.service'
+import { assertHostBoot } from './api/host-boot'
 import { validateEnvironment } from './api/validate-environment'
 
 hydrateEnvFromTierFile()
 validateEnvironment()
 
-const app = await createApp()
+await assertHostBoot()
 
-registerGracefulShutdown({
-  beginDrain: () => app.get(DrainStateService).beginDrain(),
-  closeApp: () => app.close(),
-})
+const app = await createApp({ withHost: true })
 
 await app.listen(Number(process.env.PORT ?? 3400))

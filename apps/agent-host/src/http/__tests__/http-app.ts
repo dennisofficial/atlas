@@ -5,56 +5,22 @@ import { NestFactory } from '@nestjs/core'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import type { AddressInfo } from 'node:net'
 
-import { FakeTimers } from '../../stream/__tests__/fake-timers'
-import { MemoryStreamAuth } from '../../stream/memory-stream-auth'
-import { StreamService } from '../../stream/stream-service'
-import {
-  AGENT_HOST_ENV,
-  MCP_OAUTH_BEGIN,
-  MCP_OAUTH_CALLBACK,
-  OPERATOR_ANSWERS,
-  STREAM,
-  STREAM_AUTH,
-} from '../../host/tokens'
+import { MCP_OAUTH_CALLBACK, SESSION_STREAM } from '../../host/tokens'
 import type { CallbackHandler } from '../../mcp-oauth/callback'
-import { BearerAuthGuard } from '../bearer-auth.guard'
+import { createSessionStream, type SessionStream } from '../../stream/session-stream'
+import { FakeTimers } from '../../stream/__tests__/fake-timers'
+import { createUserSlots } from '../../stream/user-slots'
 import { configureHttp } from '../configure-http'
 import { HealthController } from '../health.controller'
-import { McpOauthController } from '../mcp-oauth.controller'
-import { OperatorRequestsController } from '../operator-requests.controller'
-import { OriginGuard } from '../origin.guard'
-import { StreamUpgradeController } from '../stream-upgrade.controller'
+import { McpOauthCallbackController } from '../mcp-oauth.controller'
 
-export const TOKEN = 'tok-a'
-export const USER = 'user-a'
 export const TRUSTED_ORIGIN = 'https://byatlas.io'
-export const AUTHORIZE_URL = 'https://auth.example.com/authorize?state=1'
-
-export type HttpFakes = {
-  answered: Array<{ userId: string; body: unknown }>
-  begun: Array<{ userId: string; body: unknown }>
-}
 
 export type RunningHttpApp = {
   url: string
-  fakes: HttpFakes
-  drain(): Promise<void>
+  stream: SessionStream
   close(): Promise<void>
 }
-
-const answersOf = (fakes: HttpFakes) => ({
-  answer: async (input: { userId: string; body: unknown }) => {
-    fakes.answered.push({ userId: input.userId, body: input.body })
-    return { status: 200, body: {} }
-  },
-})
-
-const beginsOf = (fakes: HttpFakes) => ({
-  begin: async (input: { userId: string; body: unknown }) => {
-    fakes.begun.push({ userId: input.userId, body: input.body })
-    return { status: 200, body: { url: AUTHORIZE_URL } }
-  },
-})
 
 const callbackOf: CallbackHandler = async (query) =>
   query.get('state') === null
@@ -63,29 +29,13 @@ const callbackOf: CallbackHandler = async (query) =>
 
 @Module({})
 class HttpTestModule {
-  static forEnv(args: {
-    trustedOrigins: string[]
-    fakes: HttpFakes
-    stream: StreamService
-    streamAuth: MemoryStreamAuth
-  }): DynamicModule {
+  static forEnv(args: { trustedOrigins: string[]; stream: SessionStream }): DynamicModule {
     return {
       module: HttpTestModule,
-      controllers: [
-        HealthController,
-        StreamUpgradeController,
-        OperatorRequestsController,
-        McpOauthController,
-      ],
+      controllers: [HealthController, McpOauthCallbackController],
       providers: [
-        { provide: AGENT_HOST_ENV, useValue: { trustedOrigins: args.trustedOrigins } },
-        { provide: STREAM, useValue: args.stream },
-        { provide: STREAM_AUTH, useValue: args.streamAuth },
-        { provide: OPERATOR_ANSWERS, useValue: answersOf(args.fakes) },
-        { provide: MCP_OAUTH_BEGIN, useValue: beginsOf(args.fakes) },
+        { provide: SESSION_STREAM, useValue: args.stream },
         { provide: MCP_OAUTH_CALLBACK, useValue: callbackOf },
-        OriginGuard,
-        BearerAuthGuard,
       ],
     }
   }
@@ -98,26 +48,22 @@ const portOf = (app: NestExpressApplication): number => {
   return address.port
 }
 
-export const startHttpApp = async (args: { trustedOrigins: string[] }): Promise<RunningHttpApp> => {
-  const fakes: HttpFakes = { answered: [], begun: [] }
-  const streamAuth = new MemoryStreamAuth({ now: () => 0 })
-  streamAuth.grant({ token: TOKEN, userId: USER, expiresAt: 3_600_000 })
-  const stream = new StreamService({
-    auth: streamAuth,
-    trustedOrigins: args.trustedOrigins,
+export const startHttpApp = async (): Promise<RunningHttpApp> => {
+  const stream = createSessionStream({
+    users: createUserSlots({ limit: 4 }),
     timers: new FakeTimers(),
     eventTypes: [],
+    log: undefined,
   })
   const app = await NestFactory.create<NestExpressApplication>(
-    HttpTestModule.forEnv({ trustedOrigins: args.trustedOrigins, fakes, stream, streamAuth }),
+    HttpTestModule.forEnv({ trustedOrigins: [TRUSTED_ORIGIN], stream }),
     { logger: false },
   )
-  configureHttp(app, { trustedOrigins: args.trustedOrigins })
+  configureHttp(app, { trustedOrigins: [TRUSTED_ORIGIN] })
   await app.listen(0)
   return {
     url: `http://127.0.0.1:${portOf(app)}`,
-    fakes,
-    drain: () => stream.drain({}),
+    stream,
     close: async () => {
       await app.close()
     },

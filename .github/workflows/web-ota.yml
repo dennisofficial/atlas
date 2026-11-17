@@ -30,7 +30,6 @@ jobs:
     timeout-minutes: 20
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      ATLAS_STREAM_URL: wss://agent.byatlas.io/stream
     steps:
       - uses: actions/checkout@v7
         with:

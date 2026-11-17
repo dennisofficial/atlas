@@ -1,20 +1,17 @@
+import { sessionStreamTransport } from '@dltech/atlas-api-router'
 import {
   browserSessionCache,
-  browserStreamSocket,
   createStreamConnection,
   systemStreamScheduler,
   type SessionCache,
   type StreamConnection,
 } from '@dltech/atlas-client/stream'
-import { EStreamSurface } from '@dltech/atlas-protocol'
 
-import { isDesktopHost } from '@/features/desktop/desktop-attributes'
-import { AuthApiError } from '@/lib/auth-api'
+import { api } from '@/lib/api-client'
 import { sharedQueryClient } from '@/lib/query-client'
 import { SESSION_QUERY_KEY } from '@/lib/use-session-query'
 
 import { sessionEventSchema, sessionEventTypes } from '../registered-plugins'
-import { fetchStreamToken, SIGNED_OUT_CODE } from './stream-token'
 
 let connection: StreamConnection | undefined
 let cache: SessionCache | undefined
@@ -24,17 +21,6 @@ export function sessionCache(): SessionCache {
   return cache
 }
 
-export const tokenSourceOf =
-  ({ fetchToken, onSignedOut }: { fetchToken: () => Promise<string>; onSignedOut: () => void }) =>
-  async (): Promise<string> => {
-    try {
-      return await fetchToken()
-    } catch (failure) {
-      if (failure instanceof AuthApiError && failure.code === SIGNED_OUT_CODE) onSignedOut()
-      throw failure
-    }
-  }
-
 const handleSignedOut = (): void => {
   void sharedQueryClient().invalidateQueries({ queryKey: [SESSION_QUERY_KEY] })
 }
@@ -42,10 +28,7 @@ const handleSignedOut = (): void => {
 export function sessionStream(): StreamConnection {
   if (connection !== undefined) return connection
   connection = createStreamConnection({
-    url: process.env.ATLAS_STREAM_URL ?? '',
-    surface: isDesktopHost(window) ? EStreamSurface.Desktop : EStreamSurface.Web,
-    getToken: tokenSourceOf({ fetchToken: fetchStreamToken, onSignedOut: handleSignedOut }),
-    socket: browserStreamSocket,
+    transport: sessionStreamTransport({ client: api, handleUnauthorized: handleSignedOut }),
     scheduler: systemStreamScheduler,
     eventSchema: sessionEventSchema,
     knownEventTypes: sessionEventTypes,

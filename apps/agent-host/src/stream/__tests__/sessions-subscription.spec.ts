@@ -11,7 +11,7 @@ import {
 import type { SessionRow } from '../session-entry'
 import type { SubscriptionSession } from '../subscription-port'
 import { FollowRig, OWNER, SESSION } from './follow-rig'
-import { until } from './test-client'
+import { until } from './until'
 
 const AT = '2026-11-02T12:00:00.000Z'
 const ARCHIVED = '2026-11-02T13:00:00.000Z'

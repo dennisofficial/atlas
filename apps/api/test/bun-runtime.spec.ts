@@ -1,16 +1,35 @@
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
+import { contractStorageHash, sharedPool } from '@dltech/atlas-db'
+import { ensureTestDatabase } from '@dltech/atlas-db/testing'
 
 const API_ROOT = import.meta.dirname + '/..'
 const BOOT_TIMEOUT_MS = 60_000
+const TEST_DATABASE_URL = process.env.ATLAS_TEST_DATABASE_URL
+const TEST_REDIS_URL = process.env.ATLAS_TEST_REDIS_URL
 
-function probeEnv({ port }: { port: number }): NodeJS.ProcessEnv {
+const daemonBundleStub = (): string => {
+  const dir = mkdtempSync(join(tmpdir(), 'atlas-api-probe-'))
+  const path = join(dir, 'daemon.js')
+  writeFileSync(path, '')
+  return path
+}
+
+function probeEnv({ port, databaseUrl }: { port: number; databaseUrl: string }): NodeJS.ProcessEnv {
   return {
     ...process.env,
     APP_TIER: 'local',
     PORT: String(port),
-    DATABASE_URL: 'postgresql://atlas:atlas@127.0.0.1:1/atlas',
+    DATABASE_URL: databaseUrl,
+    DATABASE_DIRECT_URL: databaseUrl,
+    REDIS_URL: TEST_REDIS_URL,
+    DAEMON_SECRET: 'test-daemon-secret',
+    ATLAS_API_ORIGIN: `http://127.0.0.1:${port}`,
+    ATLAS_DAEMON_BUNDLE: daemonBundleStub(),
     SECRET_KEY: 'test-secret-key-with-at-least-32-characters',
     WEB_ORIGIN: 'http://localhost:3001',
     BETTER_AUTH_URL: `http://localhost:${port}`,
@@ -25,6 +44,19 @@ function probeEnv({ port }: { port: number }): NodeJS.ProcessEnv {
     NODE_ENV: 'development',
     DOTENV_PRIVATE_KEY_LOCAL_ENC: undefined,
   }
+}
+
+async function signTestDatabase(): Promise<void> {
+  const pool = sharedPool()
+  await pool.query('CREATE SCHEMA IF NOT EXISTS prisma_contract')
+  await pool.query(
+    'CREATE TABLE IF NOT EXISTS prisma_contract.marker (space text PRIMARY KEY, core_hash text NOT NULL, profile_hash text NOT NULL)',
+  )
+  await pool.query(
+    `INSERT INTO prisma_contract.marker (space, core_hash, profile_hash) VALUES ('app', $1, '')
+     ON CONFLICT (space) DO UPDATE SET core_hash = excluded.core_hash`,
+    [contractStorageHash],
+  )
 }
 
 function freePort(): Promise<number> {
@@ -52,22 +84,31 @@ async function waitForHealth({ base }: { base: string }): Promise<void> {
   throw new Error('api did not answer /v1/health under bun in time')
 }
 
-describe('api under the bun runtime', () => {
+const describeWithHost =
+  TEST_DATABASE_URL === undefined || TEST_REDIS_URL === undefined ? describe.skip : describe
+
+describeWithHost('api under the bun runtime', () => {
   let child: ChildProcess
   let port: number
   let base: string
   let output = ''
+  let databaseUrl = ''
 
   beforeAll(async () => {
+    await ensureTestDatabase()
+    await signTestDatabase()
+    const assigned = process.env.DATABASE_URL
+    if (assigned === undefined) throw new Error('DATABASE_URL is unset')
+    databaseUrl = assigned
     port = await freePort()
     base = `http://127.0.0.1:${port}`
-    child = spawn('bun', ['src/main.ts'], { cwd: API_ROOT, env: probeEnv({ port }) })
+    child = spawn('bun', ['src/main.ts'], { cwd: API_ROOT, env: probeEnv({ port, databaseUrl }) })
     child.stdout?.on('data', (chunk: Buffer) => (output += chunk.toString()))
     child.stderr?.on('data', (chunk: Buffer) => (output += chunk.toString()))
     await waitForHealth({ base }).catch((failure: unknown) => {
       throw new Error(`${String(failure)}\n${output}`)
     })
-  }, BOOT_TIMEOUT_MS + 5_000)
+  }, BOOT_TIMEOUT_MS + 120_000)
 
   afterAll(() => {
     child.kill('SIGKILL')
@@ -115,7 +156,7 @@ describe('api under the bun runtime', () => {
     () => {
       const probe = spawnSync('bun', ['test/fixtures/bun-di-probe.ts'], {
         cwd: API_ROOT,
-        env: probeEnv({ port }),
+        env: probeEnv({ port, databaseUrl }),
         encoding: 'utf8',
         timeout: BOOT_TIMEOUT_MS,
       })

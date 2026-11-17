@@ -70,6 +70,14 @@ the subpath `@dltech/atlas-harness/models`. The API may import only the harness 
 `src/api/harness-boundary.spec.ts` and `architecture.spec.ts` enforce it, and harness's own subpath guard spec
 keeps `node:*`, Bun and the provider SDKs out of everything reachable from it.
 
+## One process with the agent host
+
+`main.ts` mounts `@dltech/atlas-agent-host`'s `HostModule` next to `AppModule` (`src/api/host-root.module.ts`),
+so the long-lived entry serves the agent host's stream, health and MCP OAuth callback in the same Nest
+app. The host's own tokens (`@dltech/atlas-agent-host/host/tokens`) are global providers in that graph:
+`operatorRequests.answer` and `mcpOauth.begin` inject them, and answer 503 when the host is absent, which
+is the Vercel entry's shape. `vercel.ts` stays host-free.
+
 ## Runtime and tests
 
 This package runs on **Bun** (`bun src/main.ts`, ESM, no build step) and tests with `bun test`.
@@ -140,7 +148,8 @@ src/
               enforced by src/api/architecture.spec.ts.
   create-app.ts  composes the Nest app (parsers, pipes, filters) and inits it; never listens.
   main.ts     the long-lived server — hydrates env from the tier file when a DOTENV_PRIVATE_KEY
-              is present, validates env, createApp(), graceful shutdown, listen.
+              is present, validates env, asserts the agent host can boot, createApp({ withHost: true }),
+              graceful shutdown, listen.
   vercel.ts   the Vercel function entry — decrypts the shipped tier (vercel-tier-env.ts),
               validates env, createApp(), default-exports the Express instance.
 build.ts      bundles vercel.ts into a Build Output API v3 directory (see "Vercel bundle").
@@ -337,9 +346,10 @@ parks budgeted GitHub work until it recovers, while cached replay and live strea
 budget covers access checks, subscription/hook setup, refreshes and webhook REST fills. Foreground
 repository/branch pickers, OAuth device flow and SSH signing-key management retain their existing
 procedure/provider controls and do not depend on the coordinator.
-Local dev runs without it:
-`REDIS_URL` is unset in the local tier, `isConfigured()` is `false`, and callers
-choose local-only behaviour; `client()` and `duplicate()` throw rather than reach for localhost.
+Local dev needs it: the long-lived entry boots the agent host in-process, and the host refuses to
+start without `REDIS_URL`. `isConfigured()` is `false` on Vercel, where `REDIS_URL` is unset, and
+callers choose local-only behaviour there; `client()` and `duplicate()` throw rather than reach for
+localhost.
 
 ## Background jobs
 
@@ -389,9 +399,10 @@ one exact version; bump all three at once.
   and ioredis bundle; Prisma 8 has no query engine or wasm to keep external, and its
   `TimestamptzJsDate` columns need no `Temporal`, which Node 24 lacks. `bun run trigger:deploy -- --dry-run` proves the build but not the runtime;
   the smoke step is what proves the runtime. `src/vercel.ts` must never import `src/trigger/`.
-- **Timers run only in local dev.** `GithubSweepSchedulerService` owns the 30 s and 60 s
-  `@Interval`s and `ScheduleModule` is imported only when `VERCEL !== '1'`, so `bun run dev` keeps
-  sweeping while Vercel instances never run timers. Prod sweeps are trigger.dev schedules.
+- **Timers run only where asked.** `GithubSweepSchedulerService` owns the 30 s and 60 s
+  `@Interval`s and `ScheduleModule` is imported only when `GITHUB_SWEEPS_IN_PROCESS=1` (set by the
+  `dev` script), so `bun run dev` keeps sweeping while Vercel, Render and trigger.dev instances
+  never run timers. Prod sweeps are trigger.dev schedules.
 
 ## Rules that differ from the rest of the repo
 

@@ -134,8 +134,6 @@ jobs:
   web-build:
     if: github.event_name != 'push'
     runs-on: ubuntu-latest
-    env:
-      ATLAS_STREAM_URL: wss://agent.byatlas.io/stream
     steps:
       - uses: actions/checkout@v7
         with:

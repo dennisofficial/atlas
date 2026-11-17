@@ -3,13 +3,13 @@ import type { SessionHolder } from '@dltech/atlas-host'
 
 import type { FollowStack } from './follow-stack'
 import type { HostWatchService } from './host-watch-service'
-import type { StreamService } from '../stream/stream-service'
+import type { SessionStream } from '../stream/session-stream'
 
 export type HostStartupServiceArgs = {
   holder: Pick<SessionHolder, 'start' | 'hostId' | 'ring'>
   watch: Pick<HostWatchService, 'start'>
   follow: Pick<FollowStack, 'open'>
-  stream: Pick<StreamService, 'start'>
+  stream: Pick<SessionStream, 'start'>
 }
 
 export class HostStartupService implements OnApplicationBootstrap {

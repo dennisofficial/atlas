@@ -1,45 +1,45 @@
 import 'reflect-metadata'
 import { afterEach, describe, expect, it } from 'bun:test'
 
-const SAVED_VERCEL = process.env.VERCEL
+const SAVED_FLAG = process.env.GITHUB_SWEEPS_IN_PROCESS
 let freshLoads = 0
 
 afterEach(() => {
-  if (SAVED_VERCEL === undefined) delete process.env.VERCEL
-  else process.env.VERCEL = SAVED_VERCEL
+  if (SAVED_FLAG === undefined) delete process.env.GITHUB_SWEEPS_IN_PROCESS
+  else process.env.GITHUB_SWEEPS_IN_PROCESS = SAVED_FLAG
 })
 
 async function loadRealtimeModuleProviders(args: {
-  vercel: string | undefined
+  sweeps: string | undefined
 }): Promise<unknown[]> {
-  if (args.vercel === undefined) delete process.env.VERCEL
-  else process.env.VERCEL = args.vercel
+  if (args.sweeps === undefined) delete process.env.GITHUB_SWEEPS_IN_PROCESS
+  else process.env.GITHUB_SWEEPS_IN_PROCESS = args.sweeps
   freshLoads += 1
   const { GithubRealtimeModule } = await import(`./github-realtime.module.ts?fresh=${freshLoads}`)
   return Reflect.getMetadata('providers', GithubRealtimeModule) as unknown[]
 }
 
 describe('github sweep scheduler gating', () => {
-  it('registers the scheduler service off Vercel', async () => {
-    const providers = await loadRealtimeModuleProviders({ vercel: undefined })
+  it('registers the scheduler service when sweeps are opt-in', async () => {
+    const providers = await loadRealtimeModuleProviders({ sweeps: '1' })
     const { GithubSweepSchedulerService } = await import('./github-sweep-scheduler')
 
     expect(providers).toContain(GithubSweepSchedulerService)
   })
 
-  it('leaves the scheduler service out on Vercel', async () => {
-    const providers = await loadRealtimeModuleProviders({ vercel: '1' })
+  it('leaves the scheduler service out by default', async () => {
+    const providers = await loadRealtimeModuleProviders({ sweeps: undefined })
     const { GithubSweepSchedulerService } = await import('./github-sweep-scheduler')
 
     expect(providers).not.toContain(GithubSweepSchedulerService)
   })
 
-  it('imports the schedule module only off Vercel', async () => {
-    delete process.env.VERCEL
+  it('imports the schedule module only when sweeps are opt-in', async () => {
+    process.env.GITHUB_SWEEPS_IN_PROCESS = '1'
     const { sweepScheduleImports } = await import('./github-sweep-scheduler')
     expect(sweepScheduleImports()).toHaveLength(1)
 
-    process.env.VERCEL = '1'
+    delete process.env.GITHUB_SWEEPS_IN_PROCESS
     expect(sweepScheduleImports()).toHaveLength(0)
   })
 

@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@dltech/atlas-core": "workspace:*",
+    "@dltech/atlas-protocol": "workspace:*",
     "@vercel/sandbox": "^3.3.0",
     "zod": "^4.4.3"
   },

@@ -33,17 +33,28 @@ const responseOf = (status: number, body: unknown): Response =>
 
 let calls: FetchCall[] = []
 
-const stubFetch = (answer: { status: number; body: unknown } = { status: 200, body: {} }) => {
+const tRPCAnswer = (answer: { status: number; httpStatus?: number }) =>
+  answer.status < 400
+    ? { result: { data: null } }
+    : {
+        error: {
+          message: 'refused',
+          code: -32603,
+          data: { code: 'REFUSED', httpStatus: answer.httpStatus ?? answer.status },
+        },
+      }
+
+const stubFetch = (answer: { status: number; httpStatus?: number } = { status: 200 }) => {
   calls = []
   globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
     calls.push({ url, init })
     if (url === '/api/auth/get-session') return responseOf(200, { session: { token: 'tok_1' } })
-    return responseOf(answer.status, answer.body)
+    return responseOf(answer.status, tRPCAnswer(answer))
   }) as typeof fetch
 }
 
-const answers = () => calls.filter((call) => call.url.endsWith('/operator-requests/answer'))
+const answers = () => calls.filter((call) => call.url.endsWith('/v1/trpc/operatorRequests.answer'))
 const bodyOf = (call: FetchCall | undefined) => JSON.parse(String(call?.init?.body))
 
 beforeAll(() => {
@@ -113,15 +124,15 @@ describe('the operator request dock', () => {
     expect(document.body.textContent).not.toContain('Atlas needs you')
   })
 
-  it('posts exactly the session, the call and the value, with the stream bearer', async () => {
+  it('posts exactly the session, the call and the value over trpc', async () => {
     stubFetch()
     await mount(<OperatorRequestDock sessionId={SESSION} request={itemOf()} />)
     await type(ANSWER)
     await press('Enter')
 
     expect(answers()).toHaveLength(1)
+    expect(answers()[0]?.init?.method).toBe('POST')
     expect(bodyOf(answers()[0])).toEqual({ sessionId: SESSION, callId: 'call_1', value: ANSWER })
-    expect(answers()[0]?.init?.headers).toMatchObject({ authorization: 'Bearer tok_1' })
     expect(document.body.innerHTML).not.toContain(ANSWER)
   })
 
@@ -153,7 +164,7 @@ describe('the operator request dock', () => {
   })
 
   it('says the host does not know the session instead of echoing the wire code', async () => {
-    stubFetch({ status: 404, body: { reason: 'session' } })
+    stubFetch({ status: 404 })
     await mount(<OperatorRequestDock sessionId={SESSION} request={itemOf()} />)
     await type(ANSWER)
     await press('Enter')
@@ -163,7 +174,7 @@ describe('the operator request dock', () => {
   })
 
   it('says the host refused the answer instead of echoing a wire code', async () => {
-    stubFetch({ status: 400, body: { reason: 'body' } })
+    stubFetch({ status: 400 })
     await mount(<OperatorRequestDock sessionId={SESSION} request={itemOf()} />)
     await type(ANSWER)
     await press('Enter')

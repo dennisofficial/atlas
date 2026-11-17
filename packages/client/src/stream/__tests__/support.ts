@@ -7,13 +7,14 @@ import {
   type V2Body,
   type V2Event,
 } from '@dltech/atlas-core'
-import {
-  parseClientMessage,
-  type StreamClientMessage,
-  type StreamServerMessage,
-} from '@dltech/atlas-protocol'
+import type { StreamServerMessage } from '@dltech/atlas-protocol'
 
-import type { StreamScheduler, StreamSocketFactory, StreamSocketHandlers } from '../stream-ports'
+import type {
+  StreamFollowInput,
+  StreamScheduler,
+  StreamSubscriptionHandlers,
+  StreamTransport,
+} from '../stream-ports'
 
 const NOW = '2026-11-05T10:00:00.000Z'
 
@@ -100,49 +101,37 @@ export const createFakeScheduler = () => {
   }
 }
 
-export type FakeSocket = {
-  url: string
-  sent: StreamClientMessage[]
-  closedWith: (number | undefined)[]
-  open(): void
-  receive(message: StreamServerMessage): void
-  receiveRaw(data: string): void
-  drop(code: number): void
+export type FakeSubscription = {
+  input: StreamFollowInput | undefined
+  handlers: StreamSubscriptionHandlers
+  closed: boolean
 }
 
-export const createFakeSockets = () => {
-  const sockets: FakeSocket[] = []
-
-  const factory: StreamSocketFactory = ({ url, handlers }) => {
-    const socket = fakeSocketOf({ url, handlers })
-    sockets.push(socket.fake)
-    return socket.port
+export const createFakeTransport = () => {
+  const follows: FakeSubscription[] = []
+  const lists: FakeSubscription[] = []
+  const open = (input: StreamFollowInput | undefined, handlers: StreamSubscriptionHandlers) => {
+    const subscription: FakeSubscription = { input, handlers, closed: false }
+    return {
+      subscription,
+      port: { close: () => void (subscription.closed = true) },
+    }
   }
 
-  return { factory, sockets }
-}
-
-const fakeSocketOf = (params: { url: string; handlers: StreamSocketHandlers }) => {
-  const { url, handlers } = params
-  const fake: FakeSocket = {
-    url,
-    sent: [],
-    closedWith: [],
-    open: () => handlers.handleOpen(),
-    receive: (message) => handlers.handleMessage(JSON.stringify(message)),
-    receiveRaw: (data) => handlers.handleMessage(data),
-    drop: (code) => handlers.handleClose(code),
-  }
-  const port = {
-    send: (data: string) => {
-      const parsed = parseClientMessage(JSON.parse(data))
-      if (parsed.ok) fake.sent.push(parsed.message)
+  const transport: StreamTransport = {
+    follow: (input, handlers) => {
+      const opened = open(input, handlers)
+      follows.push(opened.subscription)
+      return opened.port
     },
-    close: (code?: number) => {
-      fake.closedWith.push(code)
+    list: (handlers) => {
+      const opened = open(undefined, handlers)
+      lists.push(opened.subscription)
+      return opened.port
     },
   }
-  return { fake, port }
+
+  return { transport, follows, lists }
 }
 
 export const settle = async (): Promise<void> => {

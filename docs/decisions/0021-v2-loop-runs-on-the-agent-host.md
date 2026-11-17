@@ -1,6 +1,8 @@
 # 0021. v2 runs the agent loop on the agent host, not in the sandbox
 
-Proposed 2026-11-02; accepted when the operator merges the PR that adds it. Amends D1 wording of
+Proposed 2026-11-02; accepted when the operator merges the PR that adds it. The API no longer stays
+on Vercel, and the loop runs beside it in one Render service: see
+[0030](0030-api-and-agent-host-are-one-render-service.md). Amends D1 wording of
 [0018](0018-v2-pod-first-architecture.md) ("holder pod" becomes "holder": the lease holder is a
 agent host, not a pod) and the `pod` package of [0019](0019-v2-package-map.md) (it becomes the agent
 host plus the sandbox daemon; the rename is decided in the slice 3 spec).

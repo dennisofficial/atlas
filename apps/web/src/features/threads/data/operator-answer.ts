@@ -1,5 +1,6 @@
-import { fetchStreamToken } from '@/features/sessions/data/stream-token'
-import { hostOrigin } from '@/lib/host-url'
+import { httpStatusOf } from '@dltech/atlas-api-router'
+
+import { api } from '@/lib/api-client'
 
 export type OperatorAnswerResult = { ok: true } | { ok: false; reason: string }
 
@@ -13,54 +14,33 @@ type AnswerBody = (OperatorAnswerKey & { value: string }) | (OperatorAnswerKey &
 
 const UNREACHABLE = 'the agent host could not be reached'
 const NOT_SIGNED_IN = 'this session is not signed in'
+const SESSION_UNKNOWN = 'this session is unknown to the agent host'
 const REFUSED = 'the agent host refused the answer'
 
-const REFUSAL_SENTENCES: Record<string, string> = {
-  bearer: NOT_SIGNED_IN,
-  body: REFUSED,
-  session: 'this session is unknown to the agent host',
+const reasonOf = ({ status }: { status: number }): string => {
+  if (status === 401) return NOT_SIGNED_IN
+  if (status === 404) return `${SESSION_UNKNOWN} (${status})`
+  return `${REFUSED} (${status})`
 }
 
-const reasonOf = (body: unknown, status: number): string => {
-  if (typeof body === 'object' && body !== null) {
-    const reason = Reflect.get(body, 'reason')
-    if (typeof reason === 'string' && reason.length > 0) {
-      return `${REFUSAL_SENTENCES[reason] ?? REFUSED} (${status})`
-    }
-  }
-  return `the agent host answered ${status}`
-}
-
-const tokenOrNull = async (): Promise<string | null> => {
+const answerOf = async (body: AnswerBody): Promise<OperatorAnswerResult> => {
   try {
-    return await fetchStreamToken()
-  } catch {
-    return null
+    await api.operatorRequests.answer.mutate(body)
+    return { ok: true }
+  } catch (failure) {
+    const status = httpStatusOf(failure)
+    return { ok: false, reason: status === undefined ? UNREACHABLE : reasonOf({ status }) }
   }
-}
-
-const postAnswer = async (body: AnswerBody): Promise<OperatorAnswerResult> => {
-  const token = await tokenOrNull()
-  if (token === null) return { ok: false, reason: NOT_SIGNED_IN }
-  const response = await fetch(`${hostOrigin()}/operator-requests/answer`, {
-    method: 'POST',
-    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  }).catch(() => null)
-  if (response === null) return { ok: false, reason: UNREACHABLE }
-  const answer: unknown = await response.json().catch(() => null)
-  if (!response.ok) return { ok: false, reason: reasonOf(answer, response.status) }
-  return { ok: true }
 }
 
 export async function answerOperatorRequest(
   args: AnswerOperatorRequestArgs,
 ): Promise<OperatorAnswerResult> {
-  return postAnswer({ sessionId: args.sessionId, callId: args.callId, value: args.value })
+  return answerOf({ sessionId: args.sessionId, callId: args.callId, value: args.value })
 }
 
 export async function cancelOperatorRequest(
   args: CancelOperatorRequestArgs,
 ): Promise<OperatorAnswerResult> {
-  return postAnswer({ sessionId: args.sessionId, callId: args.callId, cancel: true })
+  return answerOf({ sessionId: args.sessionId, callId: args.callId, cancel: true })
 }

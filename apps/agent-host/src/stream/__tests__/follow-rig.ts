@@ -25,7 +25,7 @@ import type {
   SubscriptionSession,
 } from '../subscription-port'
 import { FakeTimers } from './fake-timers'
-import { until } from './test-client'
+import { until } from './until'
 
 export const SESSION = 'session-1'
 export const THREAD = 'thread-1'
