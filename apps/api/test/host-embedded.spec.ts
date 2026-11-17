@@ -6,13 +6,35 @@ import type { AddressInfo } from 'node:net'
 const REDIS_URL = process.env.ATLAS_TEST_REDIS_URL
 const WEB_ORIGIN = 'http://localhost:3001'
 
-const applyHostEnv = (): void => {
+const HOST_ENV_KEYS = [
+  'DATABASE_DIRECT_URL',
+  'REDIS_URL',
+  'RATE_LIMIT_PER_MINUTE',
+  'DAEMON_SECRET',
+  'ATLAS_API_ORIGIN',
+  'TRUSTED_ORIGINS',
+] as const
+
+type SavedEnv = Partial<Record<(typeof HOST_ENV_KEYS)[number], string | undefined>>
+
+const applyHostEnv = (): SavedEnv => {
+  const saved: SavedEnv = {}
+  for (const key of HOST_ENV_KEYS) saved[key] = process.env[key]
   process.env.DATABASE_DIRECT_URL = process.env.DATABASE_URL
   process.env.REDIS_URL = REDIS_URL
   process.env.RATE_LIMIT_PER_MINUTE = '2'
   process.env.DAEMON_SECRET = 'test-daemon-secret'
   process.env.ATLAS_API_ORIGIN = 'https://api.byatlas.io'
   process.env.TRUSTED_ORIGINS = WEB_ORIGIN
+  return saved
+}
+
+const restoreHostEnv = (saved: SavedEnv): void => {
+  for (const key of HOST_ENV_KEYS) {
+    const value = saved[key]
+    if (value === undefined) delete process.env[key]
+    else process.env[key] = value
+  }
 }
 
 type Booted = { app: NestExpressApplication; base: string }
@@ -29,15 +51,17 @@ const describeWithHost = REDIS_URL === undefined ? describe.skip : describe
 
 describeWithHost('api and agent host in one process', () => {
   let booted: Booted
+  let savedEnv: SavedEnv
 
   beforeAll(async () => {
     await ensureTestDatabase()
-    applyHostEnv()
+    savedEnv = applyHostEnv()
     booted = await boot()
   }, 180_000)
 
   afterAll(async () => {
     await booted.app.close()
+    restoreHostEnv(savedEnv)
   })
 
   it('serves the versioned api health route', async () => {
