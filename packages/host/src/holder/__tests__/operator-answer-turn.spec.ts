@@ -13,7 +13,6 @@ describe('a turn that parks on an operator request and is answered', () => {
     const rig = answerRigOf()
     expect(openParkedCallsOf(rig.events()).map((open) => open.callId)).toEqual([CALL])
 
-    rig.hand({ ok: true, value: VALUE })
     const answered = await rig.intake.handle(entryOf())
     const repeated = await rig.intake.handle(entryOf())
 

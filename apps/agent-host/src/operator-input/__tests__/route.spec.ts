@@ -1,7 +1,8 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { describe, expect, it } from 'bun:test'
 
-import { CALL, clockOf, postOf, registryOf, routeOf, seedSession, settle, VALUE } from './fixtures'
+import type { Posted } from './fixtures'
+import { CALL, postOf, registryOf, routeOf, seedSession, VALUE } from './fixtures'
 
 const testDb = useTestDatabase()
 
@@ -12,14 +13,14 @@ const cancel = { sessionId: 'ses_1', callId: CALL, cancel: true }
 describe('the operator answer route', () => {
   it('leaves every other path to the stream server', async () => {
     const { db } = testDb()
-    const registry = registryOf({ db, clock: clockOf() })
+    const registry = registryOf({ db })
 
     expect(await routeOf({ registry })(postOf({ body: {}, path: '/healthz' }))).toBeNull()
   })
 
   it('answers the preflight with the cors headers', async () => {
     const { db } = testDb()
-    const registry = registryOf({ db, clock: clockOf() })
+    const registry = registryOf({ db })
 
     const answer = await routeOf({ registry, trusted: ['https://byatlas.io'] })(
       postOf({ body: {}, method: 'OPTIONS', origin: 'https://byatlas.io' }),
@@ -32,7 +33,7 @@ describe('the operator answer route', () => {
 
   it('refuses a request with no bearer and one with an unknown bearer', async () => {
     const { db } = testDb()
-    const route = routeOf({ registry: registryOf({ db, clock: clockOf() }) })
+    const route = routeOf({ registry: registryOf({ db }) })
 
     expect((await route(postOf({ body })))?.status).toBe(401)
     expect((await route(postOf({ body, bearer: 'token-2' })))?.status).toBe(401)
@@ -41,7 +42,7 @@ describe('the operator answer route', () => {
   it('refuses the requestId body the shipped interface used to send', async () => {
     const { db } = testDb()
     await seedSession(db, { id: 'ses_1', userId: 'user-1' })
-    const route = routeOf({ registry: registryOf({ db, clock: clockOf() }) })
+    const route = routeOf({ registry: registryOf({ db }) })
 
     const answer = await route(
       postOf({ body: { requestId: 'oreq_1', value: VALUE }, bearer: 'token-1' }),
@@ -53,7 +54,7 @@ describe('the operator answer route', () => {
   it('refuses a value and a cancel together, a missing callId and an oversized value', async () => {
     const { db } = testDb()
     await seedSession(db, { id: 'ses_1', userId: 'user-1' })
-    const route = routeOf({ registry: registryOf({ db, clock: clockOf() }) })
+    const route = routeOf({ registry: registryOf({ db }) })
 
     const both = await route(postOf({ body: { ...body, cancel: true }, bearer: 'token-1' }))
     const noCall = await route(
@@ -68,22 +69,28 @@ describe('the operator answer route', () => {
     expect(huge?.status).toBe(400)
   })
 
-  it("answers 404 for another user's session and accepts the owner's", async () => {
+  it("answers 200 straight away for the owner's session, with the value in the inbox", async () => {
     const { db } = testDb()
     await seedSession(db, { id: 'ses_1', userId: 'user-1' })
-    const registry = registryOf({ db, clock: clockOf() })
+    const posted: Posted[] = []
+    const registry = registryOf({ db, posted })
 
     const refused = await routeOf({ registry, userId: 'user-2' })(
       postOf({ body, bearer: 'token-1' }),
     )
     expect(refused?.status).toBe(404)
 
-    const answering = routeOf({ registry, userId: 'user-1' })(
+    const answered = await routeOf({ registry, userId: 'user-1' })(
       postOf({ body: cancel, bearer: 'token-1' }),
     )
-    await settle()
-    registry.answers.resolve({ key: { sessionId: 'ses_1', callId: CALL }, result: { ok: true } })
 
-    expect((await answering)?.status).toBe(200)
+    expect(answered?.status).toBe(200)
+    expect(posted).toEqual([
+      {
+        sessionId: 'ses_1',
+        kind: 'operator-answer',
+        payload: JSON.stringify({ callId: CALL, cancel: true }),
+      },
+    ])
   })
 })

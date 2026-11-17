@@ -9,7 +9,7 @@ slices:
 ## Goal
 
 A v2 session can ask the operator for a value it cannot know — a login code, a token — and get it
-without the value ever entering the transcript, the model's context or the database.
+without the value ever entering the transcript or the model's context.
 
 **Exit criteria**
 1. In a live v2 session, `operator_input` shows a card in the transcript with the question; the
@@ -20,8 +20,9 @@ without the value ever entering the transcript, the model's context or the datab
 3. Only the operator can answer: a session, a sub-agent or another user's token cannot. A cancelled
    request ends the tool call with a reason the model can act on, and an unanswered one expires on
    its deadline without leaving a card that looks live.
-4. The value lands at `$ATLAS_SESSION_DIR/requests/<id>` (`0600`) and nowhere else: not in the DB,
-   not in the event log, not in the tool result, not in the session view.
+4. The value lands at `$ATLAS_SESSION_DIR/requests/<id>` (`0600`) and nowhere else the model or a
+   transcript reads: not in the event log, not in the tool result, not in the session view. The
+   answer itself is stored plainly in the inbox entry, which is how any host can deliver it.
 5. v1 is unchanged; the capability-parity spec loses its two `EXCEPTIONS` entries.
 
 ## 1. What exists today
@@ -129,12 +130,14 @@ Model text, mirroring v1's so a model behaves the same way:
   `/^[A-Za-z0-9_-]{1,128}$/` is written under its sha256 hex instead.
 - For a shell it issues `shells.write` with `end: false` — the op `shell_input` uses — and reports
   the shell id.
-- The value lives in one HTTP request body, the host's memory for the length of one await, and the
-  sandbox file or shell stdin. It is not in Postgres, not in a `V2Event`, not in an inbox payload,
-  not in a log line, not in the model's context.
+- The value lives in one HTTP request body, the `operator-answer` inbox entry, and the sandbox file
+  or shell stdin. It is ordinary data, stored plainly — no encryption, no sealing, no `secret` flag
+  and no masked input — because it is a login code the model already could not know, not a
+  credential the harness must protect from itself. It is not in a `V2Event`, not in a log line, not
+  in the model's context.
 - **Mechanism versus policy.** Core and the agent own parking, generically; the operator plugin owns
-  what its request means and how an answer closes it. The wake path — an inbox kind plus the
-  in-memory value handoff — stays operator-specific until a second tool parks.
+  what its request means and how an answer closes it. The wake path — one inbox kind whose payload
+  carries the value — stays operator-specific until a second tool parks.
 
 ## 4. Mechanics: the tool parks, the host answers the call
 
@@ -148,24 +151,25 @@ written, and no deadline exists.
    64 KiB.
 2. The registry authorises from the session, not a row: `store.sessionOwner(sessionId)` must be the
    bearer's user, so a missing session and someone else's session are both `404`. Answers `200 {}`,
-   `401 bearer`, `404 session`, `400 body`, `409` with the wake or delivery reason.
-3. It stashes `{value}` or `{cancel: true}` in an in-memory **answer handoff** keyed by
-   `{sessionId, callId}`, posts an inbox entry of kind `operator-answer` with payload `{callId}` only
-   (`postInboxEntryIn`, `packages/control/src/postgres/postgres-post.ts`), and awaits delivery for up
-   to 120 s. The entry rings a held session and makes an unheld one claimable, so the pod wakes.
-4. `InboxIntake.prepare` (`packages/host/src/holder/inbox-intake.ts`) takes the value from the
-   handoff (`operatorAnswers.handle`, `packages/host/src/holder/operator-answer.ts`), reads the open
-   parked call with that callId and a parsable request, and delivers: `mkdir` + `writeFile` at
-   `<sessionDir>/requests/<callId>` with `mode: 0o600`, or `shells.write` with `end: false`. It
-   appends exactly one `tool-result` via `parkedResultDraft` — the delivered `output` and the
-   path/shell sentence, or a cancelled/failed `output` and an error — resolves the handoff and wakes
-   the turn, so the next turn hands the result to the model.
-5. A file delivery failure appends nothing, leaves the call open and answers the operator the
-   reason, so the card stays and they retry. A shell whose process is gone (`ECallFailure.NotFound`)
-   closes the call `failed` with an error naming the shell. Cancel closes it `cancelled`.
-6. A missing handoff — the waiter timed out, or another host claimed the entry — consumes the entry,
-   leaves the call open and wakes nothing. An answer for a call that is no longer open resolves
-   `the request is no longer open` and starts no turn.
+   `401 bearer`, `404 session`, `400 body`.
+3. It posts an inbox entry of kind `operator-answer` whose payload is the answer itself —
+   `{callId, value}` or `{callId, cancel: true}` (`postInboxEntryIn`,
+   `packages/control/src/postgres/postgres-post.ts`) — in one transaction, and returns `200` at once.
+   Nothing in the route waits on a holder. The entry rings a held session and makes an unheld one
+   claimable, so the pod wakes whenever it wakes.
+4. `InboxIntake.prepare` (`packages/host/src/holder/inbox-intake.ts`) reads the value or the cancel
+   from the entry payload (`operatorAnswers.handle`,
+   `packages/host/src/holder/operator-answer.ts`) — no state is shared with the route, so any host
+   can serve it — reads the open parked call with that callId and a parsable request, and delivers:
+   `mkdir` + `writeFile` at `<sessionDir>/requests/<callId>` with `mode: 0o600`, or `shells.write`
+   with `end: false`. It appends exactly one `tool-result` via `parkedResultDraft` — the delivered
+   `output` and the path/shell sentence, or a cancelled/failed `output` and an error — and wakes the
+   turn, so the next turn hands the result to the model.
+5. Any delivery failure closes the call `failed` with the reason in the error, so the model reads
+   why nothing arrived and can ask again; the refusal sentence carries no value. A shell whose
+   process is gone (`ECallFailure.NotFound`) names the shell. Cancel closes it `cancelled`.
+6. A malformed payload, or an answer for a call that is no longer open, consumes the entry and wakes
+   nothing: the call it names is already closed, so there is nothing to answer.
 
 **Restart and sleep.** The open call lives only in the event log, so a redeployed or slept agent host
 finds it on the next claim: the parked call is still open and the plan is `Blocked`. Nothing is
@@ -183,8 +187,10 @@ turn that starts while a call is parked runs the intake and nothing else: if the
 call the model is called with its result, and if it did not the turn ends `Parked` again without
 calling the model (`packages/agent/src/loop/tracked-turn.ts`).
 
-**Multi-instance agent hosts** are out of scope: the answer handoff is process memory, so one agent
-host instance is assumed (true today).
+**Any instance, any time.** The answer is in the entry, so the instance that receives the POST and
+the instance that holds the session need not be the same, and a host that restarts before the
+intake runs loses nothing: the next claim reads the same payload. No host holds the answer in
+memory and no request waits on delivery.
 
 **Card** (`apps/web`): one component for v1 and v2, `threads/operator-input-card.tsx` — `Atlas needs
 you`, the question, v1's plain `Textarea` (no masked variant: an operator answer is not a secret),
@@ -215,18 +221,18 @@ parsable `output` is `failed`. A legacy pair and a request-less parked call draw
   parked calls queue and each closes on its own result; a legacy asked/settled pair, a request-less
   parked call from #2278 and a parked call that is not an operator tool all draw no card; only the
   legacy schemas are registered.
-- **Host** (`packages/host/src/holder/__tests__/operator-answer*.spec.ts`): the answer writes the
-  value to a `0600` file and appends exactly one `tool-result`, or types it into the shell; cancel
-  closes the call `cancelled`, a failed write appends nothing and leaves the call open, a gone shell
-  closes it `failed`; no handoff and a malformed payload wake nothing; two parked calls each get
-  their own result; a parked call that carried no request is refused; a message closes every open
-  call, legacy ones included; a turn that parks is closed once and never re-runs the tool.
-- **Registry and route** (`apps/agent-host/src/operator-input/__tests__`): the inbox entry carries
-  the call id and nothing else, the handoff returns the value or a cancel with none and drops both
-  when the session never wakes, the port exposes only the handoff; the route refuses no bearer and an
-  unknown bearer, the `requestId` body the shipped interface used to send, a value together with a
-  cancel, a missing `callId` and an oversized value, answers the preflight with the cors headers, and
-  answers `404` for another user's session.
+- **Host** (`packages/host/src/holder/__tests__/operator-answer*.spec.ts`): an answer is delivered
+  from the entry payload alone, with nothing held in memory, writing the value to a `0600` file and
+  appending exactly one `tool-result`, or typing it into the shell; cancel closes the call
+  `cancelled`, a failed write and a gone shell both close it `failed` with the reason; a malformed
+  payload wakes nothing; two parked calls each get their own payload; a parked call that carried no
+  request is ignored; a message closes every open call, legacy ones included; a turn that parks is
+  closed once and never re-runs the tool.
+- **Registry and route** (`apps/agent-host/src/operator-input/__tests__`): the posted entry carries
+  the call id with the value, or the call id with `cancel: true`, and the call returns without a
+  holder; the route refuses no bearer and an unknown bearer, the `requestId` body the shipped
+  interface used to send, a value together with a cancel, a missing `callId` and an oversized value,
+  answers the preflight with the cors headers, and answers `404` for another user's session.
 - **Status** (`packages/core/src/record/__tests__/session-status.spec.ts`): a legacy asked/settled
   pair is record-only, so a request settling after a `run-failed` leaves the session failed instead
   of re-opening the turn.
@@ -245,7 +251,6 @@ parsable `output` is `failed`. A legacy pair and a request-less parked call draw
 ## 6. Out of scope
 
 - v1 sessions, and the TUI/mobile surfaces.
-- Multi-instance routing (§8).
 - Per-tool approval prompts, or a free-form "ask the user" tool.
 - Reading the value back out afterwards (`bash` does that).
 
@@ -261,17 +266,20 @@ parsable `output` is `failed`. A legacy pair and a request-less parked call draw
    message instead. v1's two-minute timeout
    (`packages/client/src/channel/request-timeout.ts:15-19`) exists to free a held terminal and has no
    counterpart here.
-3. **The wake path stays operator-specific** — one inbox kind plus one in-memory handoff keyed by
-   `{sessionId, callId}` — until a second tool parks. Parking itself is core's and generic; a
-   resolver registry with one caller would be a seam, not a design.
+3. **The wake path stays operator-specific** — one inbox kind whose payload is the answer — until a
+   second tool parks. Parking itself is core's and generic; a resolver registry with one caller
+   would be a seam, not a design.
+4. **The value is data, not a secret.** It is stored plainly in the inbox entry, with no encryption,
+   no `secret` flag on the request and no masked input on the card. What the harness must keep out
+   is the transcript, the event log, the tool result and the model's context — not the control
+   plane's own inbox.
 
-## 8. Multi-instance answer routing (deferred shape)
+## 8. Multi-instance answer routing (void)
 
-An answer must reach the host whose process holds the await. The lease names the holder
-(`V2Lease.holderHostId`, `packages/db/src/prisma/schema/v2/lease.prisma:3-11`) and `V2Host` has no
-address (`host.prisma:3-7`), so the shape is: `V2Host` gains `address`, the host registers its own
-base URL at boot, and the route proxies one hop when it is not the receiving instance. Not built
-while production runs one instance; it is a column and a fetch, not a redesign.
+Nothing holds an await, so nothing has to be routed: the answer is an ordinary inbox entry, and
+whichever host holds or next claims the session delivers it. An answer received by instance A for a
+session held by instance B simply wakes it through the inbox ring, the same way a message does. No
+`V2Host.address` column, no proxy hop, no instance assumption.
 
 ## 9. Live check
 

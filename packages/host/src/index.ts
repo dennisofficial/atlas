@@ -37,13 +37,6 @@ export {
 export { SessionHolder, type SessionHolderArgs } from './holder/session-holder'
 export { podControlOf, type PodControlClient } from './holder/pod-control'
 export type {
-  OperatorAnswer,
-  OperatorAnswerHandoff,
-  OperatorAnswerKey,
-  OperatorDeliveryResult,
-  OperatorRequestPort,
-} from './holder/operator-requests'
-export type {
   HostBus,
   HostPresence,
   HostTimers,

@@ -97,7 +97,6 @@ describe('the operator request fold', () => {
         kind: 'input',
         prompt: 'the login code',
         expiresAt: '2026-11-12T12:00:00.000Z',
-        secret: true,
         sessionId: 's1',
       }),
       stamp(2, {

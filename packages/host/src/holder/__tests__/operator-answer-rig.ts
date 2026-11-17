@@ -17,13 +17,6 @@ import { ECallFailure, ECallStatus, type CallOp, type CallResult } from '@dltech
 
 import type { RemoteCalls } from '../../calls/remote-calls'
 import { operatorAnswersOf } from '../operator-answer'
-import type {
-  OperatorAnswer,
-  OperatorAnswerHandoff,
-  OperatorAnswerKey,
-  OperatorDeliveryResult,
-  OperatorRequestPort,
-} from '../operator-requests'
 import type { SessionRecord } from '../record/record-adapter'
 
 export const SESSION = 'ses_1'
@@ -75,15 +68,23 @@ export const parkDrafts = (args: {
   ]
 }
 
-export const entryOf = (callId: string = CALL): InboxEntry => ({
+const answerEntryOf = (payload: JsonValue): InboxEntry => ({
   inboxId: 7,
   sessionId: SESSION,
   kind: 'operator-answer',
-  payload: JSON.stringify({ callId }),
+  payload: JSON.stringify(payload),
   postedAt: '2026-11-12T03:00:00.000Z',
   consumedSeq: null,
   senderSessionId: null,
 })
+
+export const entryOf = (args?: {
+  callId?: string | undefined
+  value?: string | undefined
+}): InboxEntry => answerEntryOf({ callId: args?.callId ?? CALL, value: args?.value ?? VALUE })
+
+export const cancelEntryOf = (callId: string = CALL): InboxEntry =>
+  answerEntryOf({ callId, cancel: true })
 
 export type AnswerRigOptions = {
   kind?: 'input' | 'shell' | undefined
@@ -96,16 +97,6 @@ export const answerRigOf = (options?: AnswerRigOptions) => {
   const drafts: EventDraft[] = [...(options?.drafts ?? parkDrafts({ callId: CALL, request }))]
   const appended: EventDraft[] = []
   const calls: CallOp[] = []
-  const results: { key: OperatorAnswerKey; result: OperatorDeliveryResult }[] = []
-  let answer: OperatorAnswer | undefined
-
-  const answers: OperatorAnswerHandoff = {
-    take: () => answer,
-    resolve: (params) => {
-      results.push(params)
-    },
-  }
-  const requests: OperatorRequestPort = { answers }
   const callsPort = {
     invoke: async ({ op }: { op: CallOp }): Promise<CallResult> => {
       calls.push(op)
@@ -129,7 +120,6 @@ export const answerRigOf = (options?: AnswerRigOptions) => {
 
   return {
     intake: operatorAnswersOf({
-      requests,
       calls: callsPort,
       sessionId: SESSION,
       threadId: THREAD,
@@ -140,13 +130,9 @@ export const answerRigOf = (options?: AnswerRigOptions) => {
     appended,
     draftLog: drafts,
     calls,
-    results,
     events: () => eventsOf(drafts),
     park: async (callId: typeof CALL | typeof OTHER, parkedRequest: JsonValue | undefined) => {
       drafts.push(...parkDrafts({ callId, request: parkedRequest }))
-    },
-    hand: (value: OperatorAnswer | undefined) => {
-      answer = value
     },
   }
 }

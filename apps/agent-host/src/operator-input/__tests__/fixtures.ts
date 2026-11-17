@@ -37,41 +37,9 @@ export const seedSession = async (db: Db, args: { id: string; userId: string }):
 export const SESSION = 'ses_1'
 export const CALL = 'call_1'
 
-export const clockOf = () => {
-  let now = NOW_MS
-  const timers = new Map<number, () => void>()
-  let next = 1
-  return {
-    now: () => now,
-    timers: {
-      setTimeout: (handler: () => void) => {
-        const handle = next
-        next += 1
-        timers.set(handle, handler)
-        return handle
-      },
-      clearTimeout: (handle: unknown) => {
-        if (typeof handle === 'number') timers.delete(handle)
-      },
-    },
-    pending: () => timers.size,
-    fire: (ms: number) => {
-      now += ms
-      const due = [...timers.values()]
-      timers.clear()
-      for (const handler of due) handler()
-    },
-  }
-}
-
 export type Posted = { sessionId: string; kind: string; payload: string }
 
-export const registryOf = (args: {
-  db: Db
-  clock: ReturnType<typeof clockOf>
-  posted?: Posted[] | undefined
-  answerTimeoutMs?: number | undefined
-}) => {
+export const registryOf = (args: { db: Db; posted?: Posted[] | undefined }) => {
   const posted = args.posted ?? []
   return new OperatorRequestRegistry({
     store: new OperatorSessionStore(args.db),
@@ -80,9 +48,7 @@ export const registryOf = (args: {
       return { inboxId: 1 }
     },
     withTx: async (run) => await run(undefined as never),
-    now: args.clock.now,
-    timers: args.clock.timers,
-    ...(args.answerTimeoutMs === undefined ? {} : { answerTimeoutMs: args.answerTimeoutMs }),
+    now: () => NOW_MS,
   })
 }
 
@@ -114,13 +80,3 @@ export const postOf = (args: {
     },
     ...(args.method === 'OPTIONS' ? {} : { body: JSON.stringify(args.body) }),
   })
-
-export const tick = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0))
-
-export const settle = async (): Promise<void> => {
-  for (let i = 0; i < 40; i += 1) await tick()
-}
-
-export const untilTimer = async (clock: { pending(): number }): Promise<void> => {
-  for (let i = 0; i < 200 && clock.pending() === 0; i += 1) await tick()
-}
