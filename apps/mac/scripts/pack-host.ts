@@ -8,7 +8,6 @@ const REPO_ROOT = resolve(APP_ROOT, '..', '..')
 const HOST_ENTRY = join(APP_ROOT, 'src', 'desktop-host', 'index.ts')
 export const WEB_STANDALONE = join(APP_ROOT, 'web-standalone')
 export const DIST = join(APP_ROOT, 'dist')
-const STREAM_URL = 'wss://agent.byatlas.io/stream'
 
 export function hostBuildArgs({ entry, outdir }) {
   return ['build', entry, '--target=bun', `--outdir=${outdir}`]
@@ -39,7 +38,7 @@ export async function buildWebStandalone({ bun, root = REPO_ROOT, standalone = W
   await run({
     args: [bun, 'run', '--cwd', 'apps/web', 'build'],
     cwd: root,
-    env: { ATLAS_STREAM_URL: STREAM_URL },
+    env: {},
   })
   rmSync(standalone, { recursive: true, force: true })
   // Bun's isolated linker leaves node_modules full of symlinks into its store. Copying them as

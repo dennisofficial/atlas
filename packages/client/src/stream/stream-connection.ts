@@ -1,11 +1,6 @@
 import type { V2Event } from '@dltech/atlas-core'
+import type { StreamServerMessage } from '@dltech/atlas-protocol'
 import type { z } from 'zod'
-import {
-  EStreamSubscribeKind,
-  type EStreamSurface,
-  type StreamClientMessage,
-  type StreamServerMessage,
-} from '@dltech/atlas-protocol'
 
 import {
   EConnectionTimer,
@@ -23,15 +18,12 @@ import {
   browserNetworkSignal,
   type StreamNetworkSignal,
   type StreamScheduler,
-  type StreamSocket,
-  type StreamSocketFactory,
+  type StreamSubscription,
+  type StreamTransport,
 } from './stream-ports'
 
 export type StreamConnectionArgs = {
-  url: string
-  surface?: EStreamSurface | undefined
-  getToken(): Promise<string>
-  socket: StreamSocketFactory
+  transport: StreamTransport
   scheduler: StreamScheduler
   networkSignal?: StreamNetworkSignal | undefined
   eventSchema?: z.ZodType<V2Event> | undefined
@@ -42,98 +34,136 @@ export type FollowedSession = SessionFollower & { close(): void }
 
 export type StreamConnection = {
   follow(args: { sessionId: string; cache?: SessionCache | undefined }): FollowedSession
-  followSessions(args?: { projectId?: string | undefined }): FollowedSessionList
+  followSessions(): FollowedSessionList
   connect(): void
   close(): void
   state(): EStreamConnectionState
 }
 
-type Followed = { id: string; sessionId: string; follower: SessionFollower }
+type Followed = {
+  id: string
+  sessionId: string
+  follower: SessionFollower
+  subscription: StreamSubscription | undefined
+  epoch: number
+}
+
+type Listed = {
+  list: SessionsList
+  subscription: StreamSubscription | undefined
+  epoch: number
+}
 
 export const createStreamConnection = (args: StreamConnectionArgs): StreamConnection => {
   const { scheduler } = args
   let machine: ConnectionState = initialConnectionState()
-  let socket: StreamSocket | undefined
   let generation = 0
   let nextId = 0
-  let nextListId = 0
   let unsubscribeNetwork: (() => void) | undefined
   const timers = new Map<EConnectionTimer, unknown>()
   const followed = new Map<string, Followed>()
-  const lists = new Map<string, SessionsList>()
+  const lists = new Set<Listed>()
 
-  const sendMessage = (message: StreamClientMessage): void => {
-    socket?.send(JSON.stringify(message))
+  const stopSubscription = (holder: Followed | Listed): void => {
+    holder.epoch += 1
+    holder.subscription?.close()
+    holder.subscription = undefined
   }
 
-  const subscribeMessageOf = (entry: Followed): StreamClientMessage => {
+  function dispatch(input: ConnectionInput): void {
+    const before = machine.phase
+    const step = reduceConnection({ state: machine, input, random: scheduler.random() })
+    machine = step.state
+    if (machine.phase !== before) {
+      for (const entry of followed.values()) entry.follower.setConnection(machine.phase)
+      watchNetwork(machine.phase)
+    }
+    for (const effect of step.effects) run(effect)
+  }
+
+  const lifecycle = (entry: Followed | Listed, frame: StreamServerMessage): boolean => {
+    if (frame.type === 'ready') {
+      dispatch({ type: 'opened' })
+      return true
+    }
+    if (frame.type === 'going-away') {
+      dispatch({ type: 'going-away', reconnectAfterMs: frame.reconnectAfterMs })
+      return true
+    }
+    return false
+  }
+
+  const handlersOf = (holder: Followed | Listed, onFrame: (frame: StreamServerMessage) => void) => {
+    const epoch = holder.epoch
+    const current = (): boolean => epoch === holder.epoch
+    return {
+      handleFrame: (frame: StreamServerMessage): void => {
+        if (current() && !lifecycle(holder, frame)) onFrame(frame)
+      },
+      handleFailure: (status: number | undefined): void => {
+        if (current()) dispatch({ type: 'failure', status })
+      },
+      handleEnd: (): void => {
+        if (current()) dispatch({ type: 'ended' })
+      },
+    }
+  }
+
+  const subscribeFollow = (entry: Followed): void => {
+    stopSubscription(entry)
     const cursor = entry.follower.cursor()
-    const base = {
-      type: 'subscribe',
-      id: entry.id,
-      kind: EStreamSubscribeKind.Session,
-      sessionId: entry.sessionId,
-    } as const
-    if (cursor === undefined) return base
-    return { ...base, afterSeq: cursor.seq, afterHash: cursor.hash }
+    entry.subscription = args.transport.follow(
+      {
+        sessionId: entry.sessionId,
+        ...(cursor === undefined ? {} : { afterSeq: cursor.seq, afterHash: cursor.hash }),
+      },
+      handlersOf(entry, (frame) => entry.follower.handleMessage(frame)),
+    )
   }
+
+  const live = (): boolean =>
+    machine.phase === EStreamConnectionState.Connecting ||
+    machine.phase === EStreamConnectionState.Open
 
   const subscribeWhenHydrated = (entry: Followed): void => {
     const born = generation
     void entry.follower.hydrated.then(() => {
-      const current = followed.get(entry.id) === entry
-      if (!current || born !== generation || machine.phase !== EStreamConnectionState.Open) return
-      sendMessage(subscribeMessageOf(entry))
+      if (!live() || born !== generation || followed.get(entry.id) !== entry) return
+      subscribeFollow(entry)
     })
   }
 
-  const dropSocket = (): void => {
-    generation += 1
-    socket = undefined
+  const subscribeList = (entry: Listed): void => {
+    stopSubscription(entry)
+    entry.subscription = args.transport.list(
+      handlersOf(entry, (frame) => {
+        if (frame.type === 'snapshot' || frame.type === 'upsert' || frame.type === 'remove') {
+          entry.list.handleMessage(frame)
+        }
+      }),
+    )
   }
 
-  const openSocket = (): void => {
+  const subscribeAll = (): void => {
     generation += 1
-    const born = generation
-    const isCurrent = (): boolean => born === generation
-    socket = args.socket({
-      url: args.url,
-      handlers: {
-        handleOpen: () => {
-          if (!isCurrent()) return
-          args
-            .getToken()
-            .then(
-              (token) =>
-                isCurrent() &&
-                dispatch({
-                  type: 'socket-opened',
-                  token,
-                  ...(args.surface === undefined ? {} : { surface: args.surface }),
-                }),
-            )
-            .catch(() => isCurrent() && dispatch({ type: 'token-failed' }))
-        },
-        handleMessage: (data) => {
-          if (isCurrent()) dispatch({ type: 'message', data })
-        },
-        handleClose: (code) => {
-          if (!isCurrent()) return
-          dropSocket()
-          dispatch({ type: 'socket-closed', code })
-        },
-      },
-    })
+    for (const entry of followed.values()) subscribeWhenHydrated(entry)
+    for (const entry of lists) subscribeList(entry)
   }
 
-  const schedule = (args: { timer: EConnectionTimer; ms: number }): void => {
-    cancel(args.timer)
+  const abortAll = (): void => {
+    generation += 1
+    for (const entry of followed.values()) stopSubscription(entry)
+    for (const entry of lists) stopSubscription(entry)
+  }
+
+  const schedule = (request: { timer: EConnectionTimer; ms: number }): void => {
+    cancel(request.timer)
     timers.set(
-      args.timer,
+      request.timer,
       scheduler.setTimeout(() => {
-        timers.delete(args.timer)
-        dispatch({ type: 'timer-fired', timer: args.timer })
-      }, args.ms),
+        timers.delete(request.timer)
+        dispatch({ type: 'timer-fired', timer: request.timer })
+      }, request.ms),
     )
   }
 
@@ -143,55 +173,11 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
     timers.delete(timer)
   }
 
-  const stopFollowing = (entry: Followed): boolean => {
-    if (followed.get(entry.id) !== entry) return false
-    followed.delete(entry.id)
-    if (machine.phase === EStreamConnectionState.Open) {
-      sendMessage({ type: 'unsubscribe', id: entry.id })
-    }
-    return true
-  }
-
-  const stopListing = (list: SessionsList): void => {
-    if (lists.get(list.id) !== list) return
-    lists.delete(list.id)
-    if (machine.phase === EStreamConnectionState.Open) {
-      sendMessage({ type: 'unsubscribe', id: list.id })
-    }
-  }
-
-  const deliver = (message: StreamServerMessage): void => {
-    if (message.type === 'ready') {
-      for (const list of lists.values()) sendMessage(list.subscribeMessage())
-      for (const entry of followed.values()) {
-        entry.follower.setServerEventTypes(message.eventTypes)
-        entry.follower.markResubscribing()
-        subscribeWhenHydrated(entry)
-      }
-      return
-    }
-    if (!('id' in message) || message.id === undefined) return
-    const list = lists.get(message.id)
-    if (list !== undefined) {
-      if (message.type === 'snapshot' || message.type === 'upsert' || message.type === 'remove') {
-        list.handleMessage(message)
-      }
-      return
-    }
-    const entry = followed.get(message.id)
-    if (entry === undefined) return
-    entry.follower.handleMessage(message)
-  }
-
   const run = (effect: ConnectionEffect): void => {
-    if (effect.type === 'openSocket') openSocket()
-    else if (effect.type === 'closeSocket') {
-      socket?.close()
-      dropSocket()
-    } else if (effect.type === 'send') sendMessage(effect.message)
+    if (effect.type === 'subscribe') subscribeAll()
+    else if (effect.type === 'abort') abortAll()
     else if (effect.type === 'schedule') schedule(effect)
-    else if (effect.type === 'cancel') cancel(effect.timer)
-    else deliver(effect.message)
+    else cancel(effect.timer)
   }
 
   const watchNetwork = (phase: EStreamConnectionState): void => {
@@ -205,55 +191,58 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
     )
   }
 
-  const dispatch = (input: ConnectionInput): void => {
-    const before = machine.phase
-    const step = reduceConnection({
-      state: machine,
-      input,
-      now: scheduler.now(),
-      random: scheduler.random(),
-    })
-    machine = step.state
-    if (machine.phase !== before) {
-      for (const entry of followed.values()) entry.follower.setConnection(machine.phase)
-      watchNetwork(machine.phase)
-    }
-    for (const effect of step.effects) run(effect)
+  const resnap = (entry: Followed): void => {
+    entry.follower.markResubscribing()
+    subscribeFollow(entry)
   }
 
   const follow: StreamConnection['follow'] = ({ sessionId, cache }) => {
     nextId += 1
     const id = `s${nextId}`
-    const follower = createSessionFollower({
+    const entry: Followed = {
+      id,
       sessionId,
-      cache: cache ?? memorySessionCache(),
-      scheduler,
-      onResnap: () => sendMessage({ type: 'resnap', id }),
-      eventSchema: args.eventSchema,
-      knownEventTypes: args.knownEventTypes,
-    })
-    const entry: Followed = { id, sessionId, follower }
-    followed.set(id, entry)
-    follower.setConnection(machine.phase)
-    if (machine.phase === EStreamConnectionState.Open) subscribeWhenHydrated(entry)
+      follower: createSessionFollower({
+        sessionId,
+        cache: cache ?? memorySessionCache(),
+        scheduler,
+        onResnap: () => resnap(entry),
+        eventSchema: args.eventSchema,
+        knownEventTypes: args.knownEventTypes,
+      }),
+      subscription: undefined,
+      epoch: 0,
+    }
     if (machine.phase === EStreamConnectionState.Closed && machine.reason === undefined) {
       dispatch({ type: 'connect' })
     }
+    followed.set(id, entry)
+    entry.follower.setConnection(machine.phase)
+    if (live()) subscribeWhenHydrated(entry)
     return {
-      ...follower,
-      close: () => void stopFollowing(entry),
+      ...entry.follower,
+      close: () => {
+        if (followed.get(id) !== entry) return
+        followed.delete(id)
+        stopSubscription(entry)
+      },
     }
   }
 
-  const followSessions: StreamConnection['followSessions'] = (listArgs) => {
-    nextListId += 1
-    const list = createSessionsList({ id: `l${nextListId}`, projectId: listArgs?.projectId })
-    lists.set(list.id, list)
-    if (machine.phase === EStreamConnectionState.Open) sendMessage(list.subscribeMessage())
+  const followSessions: StreamConnection['followSessions'] = () => {
+    const entry: Listed = { list: createSessionsList(), subscription: undefined, epoch: 0 }
     if (machine.phase === EStreamConnectionState.Closed && machine.reason === undefined) {
       dispatch({ type: 'connect' })
     }
-    return { ...list.view, close: () => stopListing(list) }
+    lists.add(entry)
+    if (live()) subscribeList(entry)
+    return {
+      ...entry.list.view,
+      close: () => {
+        lists.delete(entry)
+        stopSubscription(entry)
+      },
+    }
   }
 
   return {

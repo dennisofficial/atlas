@@ -7,3 +7,10 @@ export {
   detailsOf,
   httpStatusOf,
 } from './client'
+export {
+  type SessionStreamFollowInput,
+  type SessionStreamHandlers,
+  type SessionStreamSubscription,
+  type SessionStreamTransport,
+  sessionStreamTransport,
+} from './stream'

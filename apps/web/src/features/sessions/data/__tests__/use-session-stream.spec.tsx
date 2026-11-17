@@ -9,7 +9,7 @@ import {
 } from '@dltech/atlas-client/stream'
 import {
   createFakeScheduler,
-  createFakeSockets,
+  createFakeTransport,
   eventsMessage,
   mintEvents,
   settle,
@@ -29,14 +29,12 @@ afterAll(async () => {
 
 const setup = () => {
   const clock = createFakeScheduler()
-  const fakes = createFakeSockets()
+  const fakes = createFakeTransport()
   const connection = createStreamConnection({
-    url: 'wss://stream.test/stream',
-    getToken: () => Promise.resolve('token-1'),
-    socket: fakes.factory,
+    transport: fakes.transport,
     scheduler: clock.scheduler,
   })
-  return { connection, sockets: fakes.sockets }
+  return { connection, follows: fakes.follows }
 }
 
 const mount = async (params: {
@@ -64,57 +62,42 @@ const mount = async (params: {
     )
   }
   await act(async () => root.render(<Probe />))
+  await settle()
   return { host, root }
 }
 
 describe('useSessionStream', () => {
-  it('subscribes on mount, renders events and unsubscribes on unmount', async () => {
-    const { connection, sockets } = setup()
+  it('subscribes on mount, renders events and aborts on unmount', async () => {
+    const { connection, follows } = setup()
     const { host, root } = await mount({ connection, sessionId: 'session-1' })
 
-    const socket = sockets[0]
-    if (socket === undefined) throw new Error('no socket')
-    await act(async () => {
-      socket.open()
-      await settle()
-      socket.receive({ type: 'ready', v: STREAM_PROTOCOL_VERSION, connectionId: 'c1' })
-      await settle()
-    })
-    const subscribe = socket.sent.find((message) => message.type === 'subscribe')
-    expect(subscribe).toMatchObject({ sessionId: 'session-1' })
-    const id = subscribe?.type === 'subscribe' ? subscribe.id : ''
-
+    const subscription = follows[0]
+    if (subscription === undefined) throw new Error('no subscription')
+    expect(subscription.input).toEqual({ sessionId: 'session-1' })
     const events = mintEvents({ bodies: [{ type: 'user-said', text: 'hello' }] })
     await act(async () => {
-      socket.receive(eventsMessage({ id, events, live: true }))
+      subscription.handlers.handleFrame({
+        type: 'ready',
+        v: STREAM_PROTOCOL_VERSION,
+        connectionId: 'c1',
+      })
+      subscription.handlers.handleFrame(eventsMessage({ id: 's1', events, live: true }))
       await settle()
     })
     expect(host.textContent).toBe(`${ESessionConnection.Live}|hello`)
 
     await act(async () => root.unmount())
-    expect(socket.sent[socket.sent.length - 1]).toEqual({ type: 'unsubscribe', id })
+    expect(subscription.closed).toBe(true)
   })
 
   it('follows the new session when the id changes', async () => {
-    const { connection, sockets } = setup()
+    const { connection, follows } = setup()
     const first = await mount({ connection, sessionId: 'session-1' })
-    const socket = sockets[0]
-    if (socket === undefined) throw new Error('no socket')
-    await act(async () => {
-      socket.open()
-      await settle()
-      socket.receive({ type: 'ready', v: STREAM_PROTOCOL_VERSION, connectionId: 'c1' })
-      await settle()
-    })
     await act(async () => first.root.unmount())
     const second = await mount({ connection, sessionId: 'session-2' })
     await act(async () => settle())
 
-    const subscribed = socket.sent.flatMap((message) =>
-      message.type === 'subscribe' ? [message.sessionId] : [],
-    )
-    expect(subscribed).toEqual(['session-1', 'session-2'])
-    expect(sockets).toHaveLength(1)
+    expect(follows.map((entry) => entry.input?.sessionId)).toEqual(['session-1', 'session-2'])
     await act(async () => second.root.unmount())
   })
 })
