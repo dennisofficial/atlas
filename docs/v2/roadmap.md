@@ -42,16 +42,19 @@ _Updated at the end of every slice. Last update: 2026-11-17._
   ends with no promise and no deadline, so the pod may sleep. The session reads "Waiting for you" and
   a card appears in the transcript. `POST /operator-requests/answer` takes
   `{sessionId, callId, value}` (or `cancel: true`), authorises the bearer against the session's
-  owner, posts an inbox `operator-answer {callId, value}` (or `{callId, cancel: true}`) and answers
-  at once; a holder — any instance, including one that claims the session after a restart — writes
-  the value into `$ATLAS_SESSION_DIR/requests/<callId>` (`0600`) — or types it into a shell's stdin —
-  then closes the call with exactly one `tool-result`, or closes it `failed` with the reason so the
+  owner, seals the value with the agent host's secrets key, posts an inbox
+  `operator-answer {callId, sealedValue}` (or `{callId, cancel: true}`) and answers at once; a holder
+  — any instance, including one that claims the session after a restart — writes the value into
+  `$ATLAS_SESSION_DIR/requests/<callId>` (`0600`) — or types it into a shell's stdin — then closes
+  the call with exactly one `tool-result`, or closes it `failed` with the reason so the
   model can ask again. There is no `V2OperatorRequest` row, no requestId and no second event: a
   request is open exactly when its parked call is open, several queue, and a message or a stop closes
   every open call. Legacy `operator-input-asked`/`-settled` stay registered so old logs parse and
-  draw no card. The value is ordinary data, stored plainly in the inbox entry: no event, log line or
-  tool result carries it, and no host holds it in memory. The live check is partial: the deploy and
-  the schema are verified against production, but no card has been answered in a browser yet
+  draw no card. The value is stored in the inbox entry encrypted with the agent host's secrets key,
+  like credentials, so Postgres never holds the plaintext; the holder decrypts it on delivery, and no
+  event, log line or tool result carries it, and no host holds it in memory. The live check is
+  partial: the deploy and the schema are verified against production, but no card has been answered
+  in a browser yet
   (#2267).
 - **Built 2026-11-11: one envelope path** ([spec](slices/envelope.md), #2226). `envelopeOf`
   (`packages/core/src/context/envelope.ts`) renders every string the model reads, and one lane table

@@ -22,6 +22,7 @@ export type OperatorRequestRegistryArgs = {
     at: string
   }) => Promise<{ inboxId: number }>
   withTx: <T>(run: (tx: Tx) => Promise<T>) => Promise<T>
+  seal: (value: string) => string
   now?: (() => number) | undefined
 }
 
@@ -31,7 +32,10 @@ export class OperatorRequestRegistry {
   constructor(private readonly args: OperatorRequestRegistryArgs) {}
 
   async answer(args: AnswerArgs & { value: string }): Promise<OperatorRequestOutcome> {
-    return await this.post({ ...args, payload: { callId: args.callId, value: args.value } })
+    return await this.post({
+      ...args,
+      payload: { callId: args.callId, sealedValue: this.args.seal(args.value) },
+    })
   }
 
   async cancel(args: AnswerArgs): Promise<OperatorRequestOutcome> {

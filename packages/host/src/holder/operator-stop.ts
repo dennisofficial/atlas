@@ -9,13 +9,14 @@ export const settleOperatorOnStop = async (args: {
   runtime: SessionRuntime | undefined
 }): Promise<void> => {
   const { deps, record, runtime } = args
-  const sessionDir = deps.operator?.sessionDir
-  if (record === undefined || runtime === undefined || sessionDir === undefined) return
+  const operator = deps.operator
+  if (record === undefined || runtime === undefined || operator === undefined) return
   await operatorAnswersOf({
     calls: runtime.remoteCalls,
     sessionId: deps.sessionId,
     threadId: record.threadId,
-    sessionDir,
+    sessionDir: operator.sessionDir,
+    openValue: operator.openValue,
     record,
     newRunId: () => deps.ids.nextRunId(),
   }).cancelOpen({ reason: 'the session was stopped while the request was open' })

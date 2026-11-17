@@ -32,6 +32,7 @@ const REQUESTS_DIRECTORY = 'requests'
 const REQUESTS_FILE_MODE = 0o600
 const CALL_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/
 const CANCELLED_REASON = 'the operator cancelled the request'
+const UNDECRYPTABLE_REASON = 'the stored answer could not be decrypted'
 
 export const OPERATOR_ANSWER_KIND = INBOX_KIND_OPERATOR_ANSWER
 
@@ -47,6 +48,7 @@ export type OperatorAnswersArgs = {
   sessionId: string
   threadId: ThreadId
   sessionDir: string
+  openValue: (sealed: string) => string
   record: SessionRecord
   newRunId: () => RunId
 }
@@ -56,6 +58,8 @@ type OpenCall = { callId: CallId; name: string; request: OperatorRequest }
 type Delivery =
   | { ok: true; path?: string | undefined; shellId?: string | undefined; bytes: number }
   | { ok: false; reason: string }
+
+type Opened = { ok: true; value: string } | { ok: false; reason: string }
 
 const payloadOf = (payload: string): OperatorAnswerPayload | undefined => {
   let parsed: unknown
@@ -140,6 +144,17 @@ export const operatorAnswersOf = (args: OperatorAnswersArgs): OperatorAnswerInta
     return { ok: true, path, bytes }
   }
 
+  const openOf = (sealed: string): Opened => {
+    try {
+      return { ok: true, value: args.openValue(sealed) }
+    } catch (error) {
+      return {
+        ok: false,
+        reason: `${UNDECRYPTABLE_REASON}: ${error instanceof Error ? error.message : String(error)}`,
+      }
+    }
+  }
+
   const handle = async (entry: InboxEntry): Promise<OperatorAnswerOutcome> => {
     const payload = payloadOf(entry.payload)
     if (payload === undefined) return { wakesTurn: false }
@@ -157,7 +172,8 @@ export const operatorAnswersOf = (args: OperatorAnswersArgs): OperatorAnswerInta
       return { wakesTurn: true }
     }
 
-    const delivery = await deliver({ call, value: payload.value })
+    const opened = openOf(payload.sealedValue)
+    const delivery: Delivery = opened.ok ? await deliver({ call, value: opened.value }) : opened
     const output: JsonValue = delivery.ok
       ? {
           outcome: EOperatorRequestOutcome.Delivered,

@@ -1,8 +1,9 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { operatorAnswerPayloadSchema } from '@dltech/atlas-plugin-operator/core'
 import { describe, expect, it } from 'bun:test'
 
 import type { Posted } from './fixtures'
-import { CALL, postOf, registryOf, routeOf, seedSession, VALUE } from './fixtures'
+import { CALL, cipher, postOf, registryOf, routeOf, seedSession, VALUE } from './fixtures'
 
 const testDb = useTestDatabase()
 
@@ -69,7 +70,7 @@ describe('the operator answer route', () => {
     expect(huge?.status).toBe(400)
   })
 
-  it("answers 200 straight away for the owner's session, with the value in the inbox", async () => {
+  it("answers 200 straight away for the owner's session, with the value sealed in the inbox", async () => {
     const { db } = testDb()
     await seedSession(db, { id: 'ses_1', userId: 'user-1' })
     const posted: Posted[] = []
@@ -81,16 +82,26 @@ describe('the operator answer route', () => {
     expect(refused?.status).toBe(404)
 
     const answered = await routeOf({ registry, userId: 'user-1' })(
+      postOf({ body, bearer: 'token-1' }),
+    )
+
+    expect(answered?.status).toBe(200)
+    const stored = operatorAnswerPayloadSchema.parse(JSON.parse(posted[0]?.payload ?? 'null'))
+    expect(stored.callId).toBe(CALL)
+    expect('sealedValue' in stored ? cipher.decrypt(stored.sealedValue) : undefined).toBe(VALUE)
+    expect(posted[0]?.payload).not.toContain(VALUE)
+  })
+
+  it('stores a cancel with no value at all', async () => {
+    const { db } = testDb()
+    await seedSession(db, { id: 'ses_1', userId: 'user-1' })
+    const posted: Posted[] = []
+
+    const answered = await routeOf({ registry: registryOf({ db, posted }), userId: 'user-1' })(
       postOf({ body: cancel, bearer: 'token-1' }),
     )
 
     expect(answered?.status).toBe(200)
-    expect(posted).toEqual([
-      {
-        sessionId: 'ses_1',
-        kind: 'operator-answer',
-        payload: JSON.stringify({ callId: CALL, cancel: true }),
-      },
-    ])
+    expect(posted[0]?.payload).toBe(JSON.stringify({ callId: CALL, cancel: true }))
   })
 })

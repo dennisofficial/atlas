@@ -22,7 +22,8 @@ without the value ever entering the transcript or the model's context.
    its deadline without leaving a card that looks live.
 4. The value lands at `$ATLAS_SESSION_DIR/requests/<id>` (`0600`) and nowhere else the model or a
    transcript reads: not in the event log, not in the tool result, not in the session view. The
-   answer itself is stored plainly in the inbox entry, which is how any host can deliver it.
+   answer itself is stored in the inbox entry sealed with the agent host's secrets key, which is how
+   any host can deliver it without Postgres ever holding the plaintext.
 5. v1 is unchanged; the capability-parity spec loses its two `EXCEPTIONS` entries.
 
 ## 1. What exists today
@@ -131,10 +132,12 @@ Model text, mirroring v1's so a model behaves the same way:
 - For a shell it issues `shells.write` with `end: false` — the op `shell_input` uses — and reports
   the shell id.
 - The value lives in one HTTP request body, the `operator-answer` inbox entry, and the sandbox file
-  or shell stdin. It is ordinary data, stored plainly — no encryption, no sealing, no `secret` flag
-  and no masked input — because it is a login code the model already could not know, not a
-  credential the harness must protect from itself. It is not in a `V2Event`, not in a log line, not
-  in the model's context.
+  or shell stdin. In the entry it is ciphertext: the route seals it with the agent host's
+  `SecretCipher` (AES-256-GCM under `SECRETS_ENCRYPTION_KEY`, the cipher that protects credentials),
+  so a database dump does not hand over every code an operator typed, and the holder reopens it with
+  the same key. There is still no `secret` flag and no masked input, because it is a login code the
+  model already could not know and masking is about shoulders, not storage. It is not in a
+  `V2Event`, not in a log line, not in the model's context.
 - **Mechanism versus policy.** Core and the agent own parking, generically; the operator plugin owns
   what its request means and how an answer closes it. The wake path — one inbox kind whose payload
   carries the value — stays operator-specific until a second tool parks.
@@ -152,21 +155,25 @@ written, and no deadline exists.
 2. The registry authorises from the session, not a row: `store.sessionOwner(sessionId)` must be the
    bearer's user, so a missing session and someone else's session are both `404`. Answers `200 {}`,
    `401 bearer`, `404 session`, `400 body`.
-3. It posts an inbox entry of kind `operator-answer` whose payload is the answer itself —
-   `{callId, value}` or `{callId, cancel: true}` (`postInboxEntryIn`,
-   `packages/control/src/postgres/postgres-post.ts`) — in one transaction, and returns `200` at once.
-   Nothing in the route waits on a holder. The entry rings a held session and makes an unheld one
-   claimable, so the pod wakes whenever it wakes.
-4. `InboxIntake.prepare` (`packages/host/src/holder/inbox-intake.ts`) reads the value or the cancel
-   from the entry payload (`operatorAnswers.handle`,
+3. It seals the value with the agent host's `SecretCipher` and posts an inbox entry of kind
+   `operator-answer` whose payload is `{callId, sealedValue}` or `{callId, cancel: true}`
+   (`postInboxEntryIn`, `packages/control/src/postgres/postgres-post.ts`) — in one transaction, and
+   returns `200` at once. Plaintext never reaches the row. Nothing in the route waits on a holder.
+   The entry rings a held session and makes an unheld one claimable, so the pod wakes whenever it
+   wakes.
+4. `InboxIntake.prepare` (`packages/host/src/holder/inbox-intake.ts`) reads the sealed value or the
+   cancel from the entry payload (`operatorAnswers.handle`,
    `packages/host/src/holder/operator-answer.ts`) — no state is shared with the route, so any host
-   can serve it — reads the open parked call with that callId and a parsable request, and delivers:
+   can serve it — reopens the value with the `openValue` its `operator` dep carries (the
+   `SecretCipher`'s decrypt, wired in `apps/agent-host/src/compose.ts`, since `packages/host` may not
+   import the app), reads the open parked call with that callId and a parsable request, and delivers:
    `mkdir` + `writeFile` at `<sessionDir>/requests/<callId>` with `mode: 0o600`, or `shells.write`
    with `end: false`. It appends exactly one `tool-result` via `parkedResultDraft` — the delivered
    `output` and the path/shell sentence, or a cancelled/failed `output` and an error — and wakes the
    turn, so the next turn hands the result to the model.
-5. Any delivery failure closes the call `failed` with the reason in the error, so the model reads
-   why nothing arrived and can ask again; the refusal sentence carries no value. A shell whose
+5. Any delivery failure, and a sealed value that will not decrypt (a rotated or foreign
+   `SECRETS_ENCRYPTION_KEY`), closes the call `failed` with the reason in the error, so the model
+   reads why nothing arrived and can ask again; the refusal sentence carries no value. A shell whose
    process is gone (`ECallFailure.NotFound`) names the shell. Cancel closes it `cancelled`.
 6. A malformed payload, or an answer for a call that is no longer open, consumes the entry and wakes
    nothing: the call it names is already closed, so there is nothing to answer.
@@ -193,7 +200,8 @@ intake runs loses nothing: the next claim reads the same payload. No host holds 
 memory and no request waits on delivery.
 
 **Card** (`apps/web`): one component for v1 and v2, `threads/operator-input-card.tsx` — `Atlas needs
-you`, the question, v1's plain `Textarea` (no masked variant: an operator answer is not a secret),
+you`, the question, v1's plain `Textarea` (no masked variant: the value is sealed at rest and never
+model-facing, so masking would only hide it from the operator),
 the privacy footer and Send, with an inline error and a Cancel button only when the caller passes
 them.
 
@@ -222,9 +230,10 @@ parsable `output` is `failed`. A legacy pair and a request-less parked call draw
   parked call from #2278 and a parked call that is not an operator tool all draw no card; only the
   legacy schemas are registered.
 - **Host** (`packages/host/src/holder/__tests__/operator-answer*.spec.ts`): an answer is delivered
-  from the entry payload alone, with nothing held in memory, writing the value to a `0600` file and
-  appending exactly one `tool-result`, or typing it into the shell; cancel closes the call
-  `cancelled`, a failed write and a gone shell both close it `failed` with the reason; a malformed
+  from the sealed entry payload alone, with nothing held in memory, reopening it through `openValue`
+  and writing the value to a `0600` file and appending exactly one `tool-result`, or typing it into
+  the shell; cancel closes the call `cancelled`, a failed write, a gone shell and a sealed value that
+  will not decrypt all close it `failed` with the reason; a malformed
   payload wakes nothing; two parked calls each get their own payload; a parked call that carried no
   request is ignored; a message closes every open call, legacy ones included; a turn that parks is
   closed once and never re-runs the tool.
@@ -266,11 +275,13 @@ parsable `output` is `failed`. A legacy pair and a request-less parked call draw
    message instead. v1's two-minute timeout
    (`packages/client/src/channel/request-timeout.ts:15-19`) exists to free a held terminal and has no
    counterpart here.
-3. **The wake path stays operator-specific** — one inbox kind whose payload is the answer — until a
-   second tool parks. Parking itself is core's and generic; a resolver registry with one caller
-   would be a seam, not a design.
-4. **The value is data, not a secret.** It is stored plainly in the inbox entry, with no encryption,
-   no `secret` flag on the request and no masked input on the card. What the harness must keep out
+3. **The wake path stays operator-specific** — one inbox kind whose payload is the sealed answer —
+   until a second tool parks. Parking itself is core's and generic; a resolver registry with one
+   caller would be a seam, not a design.
+4. **Sealed in the row, plain on the card.** The value is stored in the inbox entry encrypted with
+   the agent host's secrets key, the `SecretCipher` that protects credentials, so a database dump
+   hands over no code an operator typed; the request carries no `secret` flag and the card no masked
+   input, because the threat is the row at rest, not the operator's own screen. What the harness must keep out
    is the transcript, the event log, the tool result and the model's context — not the control
    plane's own inbox.
 

@@ -28,7 +28,12 @@ export type SessionHolderArgs = {
   commandHandlers?: CommandHandlers | undefined
   control?: PodControlClient | undefined
   mcp?: ((sessionId: string) => PodMcpControl) | undefined
-  operator?: { sessionDir: (sessionId: string) => string } | undefined
+  operator?:
+    | {
+        sessionDir: (sessionId: string) => string
+        openValue: (sealed: string) => string
+      }
+    | undefined
   log?: LogPort | undefined
   onHostIdChanged?: (() => void) | undefined
 }

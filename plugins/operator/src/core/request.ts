@@ -25,7 +25,7 @@ export const OPERATOR_INPUT_SETTLED = 'operator-input-settled'
 export const INBOX_KIND_OPERATOR_ANSWER = 'operator-answer'
 
 export const operatorAnswerPayloadSchema = z.union([
-  z.strictObject({ callId: z.string().min(1), value: z.string() }),
+  z.strictObject({ callId: z.string().min(1), sealedValue: z.string().min(1) }),
   z.strictObject({ callId: z.string().min(1), cancel: z.literal(true) }),
 ])
 

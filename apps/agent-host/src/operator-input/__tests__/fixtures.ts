@@ -1,5 +1,6 @@
 import type { Db } from '@dltech/atlas-db'
 
+import { SecretCipher } from '../../config/secret-cipher'
 import {
   OPERATOR_ANSWER_PATH,
   OperatorRequestRegistry,
@@ -36,6 +37,7 @@ export const seedSession = async (db: Db, args: { id: string; userId: string }):
 
 export const SESSION = 'ses_1'
 export const CALL = 'call_1'
+export const cipher = new SecretCipher('f'.repeat(64))
 
 export type Posted = { sessionId: string; kind: string; payload: string }
 
@@ -48,6 +50,7 @@ export const registryOf = (args: { db: Db; posted?: Posted[] | undefined }) => {
       return { inboxId: 1 }
     },
     withTx: async (run) => await run(undefined as never),
+    seal: (value) => cipher.encrypt(value),
     now: () => NOW_MS,
   })
 }

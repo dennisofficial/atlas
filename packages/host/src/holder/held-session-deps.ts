@@ -28,6 +28,6 @@ export type HeldSessionDeps = {
   commandHandlers?: CommandHandlers | undefined
   control?: PodControlClient | undefined
   mcp?: ((sessionId: string) => PodMcpControl) | undefined
-  operator?: { sessionDir: string } | undefined
+  operator?: { sessionDir: string; openValue: (sealed: string) => string } | undefined
   log?: LogPort | undefined
 }

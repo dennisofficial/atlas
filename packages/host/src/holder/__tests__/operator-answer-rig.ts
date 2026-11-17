@@ -27,6 +27,16 @@ export const OTHER = toCallId('call_2')
 export const VALUE = 'marked-value-6f2a'
 export const PATH = join(SESSION_DIR, 'requests', 'call_1')
 
+const SEAL_MARK = 'sealed.'
+
+export const sealedOf = (value: string): string =>
+  `${SEAL_MARK}${Buffer.from(value, 'utf8').toString('base64')}`
+
+export const openValue = (sealed: string): string => {
+  if (!sealed.startsWith(SEAL_MARK)) throw new Error('malformed sealed value')
+  return Buffer.from(sealed.slice(SEAL_MARK.length), 'base64').toString('utf8')
+}
+
 const envelopeAt = (index: number): EventEnvelope => ({
   id: toEventId(`evt_${index + 1}`),
   seq: index + 1,
@@ -81,7 +91,8 @@ const answerEntryOf = (payload: JsonValue): InboxEntry => ({
 export const entryOf = (args?: {
   callId?: string | undefined
   value?: string | undefined
-}): InboxEntry => answerEntryOf({ callId: args?.callId ?? CALL, value: args?.value ?? VALUE })
+}): InboxEntry =>
+  answerEntryOf({ callId: args?.callId ?? CALL, sealedValue: sealedOf(args?.value ?? VALUE) })
 
 export const cancelEntryOf = (callId: string = CALL): InboxEntry =>
   answerEntryOf({ callId, cancel: true })
@@ -124,6 +135,7 @@ export const answerRigOf = (options?: AnswerRigOptions) => {
       sessionId: SESSION,
       threadId: THREAD,
       sessionDir: SESSION_DIR,
+      openValue,
       record,
       newRunId: () => toRunId('run_2'),
     }),

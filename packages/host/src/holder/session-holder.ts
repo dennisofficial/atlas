@@ -268,7 +268,12 @@ export class SessionHolder {
       mcp: this.mcp,
       ...(this.operator === undefined
         ? {}
-        : { operator: { sessionDir: this.operator.sessionDir(args.lease.sessionId) } }),
+        : {
+            operator: {
+              sessionDir: this.operator.sessionDir(args.lease.sessionId),
+              openValue: this.operator.openValue,
+            },
+          }),
       log: this.log,
     }
   }

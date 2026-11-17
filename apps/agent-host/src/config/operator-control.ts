@@ -5,11 +5,13 @@ import { OperatorRequestRegistry } from '../operator-input'
 import { OperatorSessionStore } from '../operator-input/store'
 import { databaseUrlWithTls } from './database-url'
 import { readAgentHostEnv } from './env'
+import { SecretCipher } from './secret-cipher'
 
 const QUERY_TIMEOUT_MS = 10_000
 
 export const operatorRegistryOf = (args: {
   db: Db
+  cipher: SecretCipher
   now?: (() => number) | undefined
 }): OperatorRequestRegistry => {
   const store = new OperatorSessionStore(args.db)
@@ -17,6 +19,7 @@ export const operatorRegistryOf = (args: {
     store,
     post: postInboxEntryIn,
     withTx: (run) => args.db.transaction(run),
+    seal: (value) => args.cipher.encrypt(value),
     ...(args.now === undefined ? {} : { now: args.now }),
   })
 }
@@ -29,7 +32,10 @@ export const operatorRequestRegistry = (): OperatorRequestRegistry => {
     const db = createDb(
       createPool(databaseUrlWithTls(env.databaseUrl), { queryTimeoutMs: QUERY_TIMEOUT_MS }),
     )
-    registry = operatorRegistryOf({ db })
+    registry = operatorRegistryOf({
+      db,
+      cipher: new SecretCipher(env.secretsEncryptionKey),
+    })
   }
   return registry
 }

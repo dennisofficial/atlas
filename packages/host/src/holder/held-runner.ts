@@ -170,6 +170,7 @@ export const createLoopRunner = (args: {
           sessionId: deps.sessionId,
           threadId,
           sessionDir: deps.operator.sessionDir,
+          openValue: deps.operator.openValue,
           record,
           newRunId: () => deps.ids.nextRunId(),
         })

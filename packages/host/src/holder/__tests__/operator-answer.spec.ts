@@ -14,8 +14,10 @@ import {
 } from './operator-answer-rig'
 
 describe('the operator answer intake', () => {
-  it('delivers the value the inbox payload carries and closes the call with one result', async () => {
+  it('delivers the value the inbox payload seals and closes the call with one result', async () => {
     const rig = answerRigOf()
+
+    expect(entryOf().payload).not.toContain(VALUE)
 
     const outcome = await rig.intake.handle(entryOf())
 
@@ -110,6 +112,27 @@ describe('the operator answer intake', () => {
         callId: CALL,
         output: { outcome: EOperatorRequestOutcome.Failed },
         error: { message: expect.stringContaining('shl_1') },
+      },
+    ])
+  })
+
+  it('closes the call failed when the sealed value cannot be decrypted', async () => {
+    const rig = answerRigOf()
+    const tampered = {
+      ...entryOf(),
+      payload: JSON.stringify({ callId: CALL, sealedValue: 'not-a-sealed-value' }),
+    }
+
+    const outcome = await rig.intake.handle(tampered)
+
+    expect(outcome.wakesTurn).toBe(true)
+    expect(rig.calls).toEqual([])
+    expect(rig.appended).toMatchObject([
+      {
+        type: 'tool-result',
+        callId: CALL,
+        output: { outcome: EOperatorRequestOutcome.Failed },
+        error: { message: expect.stringContaining('could not be decrypted') },
       },
     ])
   })
