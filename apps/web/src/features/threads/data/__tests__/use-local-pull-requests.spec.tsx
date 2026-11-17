@@ -10,7 +10,7 @@ import { ELocalPodState } from '@/features/desktop/desktop-wire'
 import { localThreadOf } from '@/features/desktop/local-thread'
 
 import { usePullRequests } from '../use-pull-requests'
-import { installObservationIntersections, observationSourceRig } from './pr-observation.fixture'
+import { prStatesSourceRig } from './api-pr-states.fixture'
 
 beforeAll(() => {
   GlobalRegistrator.register()
@@ -36,8 +36,7 @@ const link = {
 
 describe('local Details PR states', () => {
   it('does not call Cloud while metadata is loading or local, but keeps live pod state and rendered checks usable', async () => {
-    const source = observationSourceRig()
-    const intersections = installObservationIntersections()
+    const source = prStatesSourceRig()
     const serve = readied()
     const { createRoot } = await import('react-dom/client')
     const container = document.createElement('div')
@@ -50,7 +49,7 @@ describe('local Details PR states', () => {
         subscribe: source.subscribe,
       })
       return (
-        <section ref={result.observationRef}>
+        <section>
           {result.rows.map((row) => (
             <p key={row.key}>
               {row.label}:{row.checks?.passed ?? 'unknown'}
@@ -64,9 +63,6 @@ describe('local Details PR states', () => {
       await act(async () => root.render(<Probe thread={undefined} />))
       expect(source.connections).toHaveLength(0)
       await act(async () => root.render(<Probe thread={{ ...local, pullRequests: [link] }} />))
-      const section = container.querySelector('section')
-      if (section === null) throw new Error('Missing local Details section')
-      await act(async () => intersections.emit([{ element: section, visible: true }]))
       expect(source.connections).toHaveLength(0)
       await act(async () =>
         serve.receive({
@@ -90,7 +86,6 @@ describe('local Details PR states', () => {
     } finally {
       await act(async () => root.unmount())
       serve.channel.close()
-      intersections.restore()
     }
   })
 })

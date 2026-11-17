@@ -21,6 +21,7 @@ import { createMixedApp } from '../../platform/accounts/accounts.router.fixture'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
 import { SessionOrSandboxMiddleware } from '../../platform/sessions/session-or-sandbox.middleware'
+import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import type { GithubAppInstallNoticeService } from './github-app-install-notice.service'
 import { PULL_REQUEST_PAYLOAD } from './github-delivery.fixture'
 import { GithubDeliveryService } from './github-delivery.service'
@@ -28,11 +29,12 @@ import { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import { GithubHookController } from './github-hook.controller'
 import { GithubWebhookInboxService } from './github-webhook-inbox.service'
 import { seedLinkedPr } from './github-linked-pr.fixture'
-import { mockGithubHttp, realObservationGraph } from './github-observation-http.fixture'
-import { GithubObservationStore } from './github-observation.store'
+import { mockGithubHttp, realGithubGraph } from './github-realtime-http.fixture'
+import { GithubRequestCoordinator } from './github-request-coordinator'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { GithubPrStreamRouter } from './github-pr-stream.router'
+import { GithubService } from './github.service'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
 
 const OWNER = 'usr-owner'
@@ -40,13 +42,13 @@ const OTHER = 'usr-other'
 const states = (frames: GithubPrStatesFrame[]) =>
   frames.filter((frame) => frame.type === EGithubPrStatesFrame.PrState)
 
-describe('authorized linked PR observation across real HTTP, Redis and Postgres', () => {
+describe('linked PR states across real HTTP, Redis and Postgres', () => {
   useTestDatabase()
   let redis: RedisService
   let remote: RedisService
   let app: NestExpressApplication
-  let api: ReturnType<typeof realObservationGraph>
-  let delivery: ReturnType<typeof realObservationGraph>
+  let api: ReturnType<typeof realGithubGraph>
+  let delivery: ReturnType<typeof realGithubGraph>
   let http: ReturnType<typeof mockGithubHttp>
   let url: string
   let hookSecret: string
@@ -59,10 +61,7 @@ describe('authorized linked PR observation across real HTTP, Redis and Postgres'
     await redis.onModuleDestroy()
     await remote.onModuleDestroy()
   })
-  const subscribe = (
-    userId: string,
-    observe = [{ repo: 'compai/app', number: userId === OWNER ? 42 : 99 }],
-  ) => {
+  const subscribe = (userId: string) => {
     const frames: GithubPrStatesFrame[] = []
     const client = createTRPCClient<AppRouter>({
       links: [
@@ -82,10 +81,9 @@ describe('authorized linked PR observation across real HTTP, Redis and Postgres'
         }),
       ],
     })
-    const subscription = client.githubPrs.states.subscribe(
-      { observe },
-      { onData: (frame) => frames.push(frame) },
-    )
+    const subscription = client.githubPrs.states.subscribe(undefined, {
+      onData: (frame) => frames.push(frame),
+    })
     closes.push(() => subscription.unsubscribe())
     return { frames, close: () => subscription.unsubscribe() }
   }
@@ -108,10 +106,10 @@ describe('authorized linked PR observation across real HTTP, Redis and Postgres'
     await seedLinkedPr()
     await seedLinkedPr({ threadId: 'teammate', repo: 'COMPAI/APP' })
     await seedLinkedPr({ userId: OTHER, number: 99 })
-    const prefix = `test:observe:http:${randomUUID()}:`
+    const prefix = `test:states:http:${randomUUID()}:`
     const tokens = { [OWNER]: 'owner', [OTHER]: 'other' }
-    api = realObservationGraph({ redis, prefix, tokens })
-    delivery = realObservationGraph({
+    api = realGithubGraph({ redis, prefix, tokens })
+    delivery = realGithubGraph({
       redis: remote,
       prefix,
       tokens,
@@ -131,7 +129,7 @@ describe('authorized linked PR observation across real HTTP, Redis and Postgres'
       api.reads,
       api.hooks,
       {} as GithubAppInstallNoticeService,
-      api.observations,
+      api.coordinator,
       { record: async () => undefined } as never,
       { coversRepo: async () => false } as never,
     )
@@ -153,10 +151,12 @@ describe('authorized linked PR observation across real HTTP, Redis and Postgres'
         SessionOrSandboxMiddleware,
         { provide: DrainStateService, useValue: new DrainStateService() },
         { provide: GithubPrFanoutService, useValue: api.fanout },
-        { provide: GithubObservationStore, useValue: api.observations },
+        { provide: GithubRequestCoordinator, useValue: api.coordinator },
         { provide: GithubDeliveryService, useValue: delivery.delivery },
         { provide: GithubSubscriptionsService, useValue: subscriptions },
         { provide: GithubPrEventMailboxService, useValue: api.mailbox },
+        { provide: GithubService, useValue: api.github },
+        { provide: ThreadSignalsService, useValue: api.signals },
         { provide: SecretCipherService, useValue: delivery.cipher },
         GithubWebhookInboxService,
         {
@@ -187,7 +187,7 @@ describe('authorized linked PR observation across real HTTP, Redis and Postgres'
     http.restore()
   })
   for (const expired of [false, true]) {
-    it(`delivers CI and cached reconnect replay with ${expired ? 'expired' : 'zero'} agent subscriptions, isolates another active observer, and releases on cancel`, async () => {
+    it(`delivers CI and cached reconnect replay with ${expired ? 'expired' : 'zero'} agent subscriptions, without reaching another user`, async () => {
       if (expired) {
         await seedSubscription({
           userId: OWNER,
@@ -202,18 +202,13 @@ describe('authorized linked PR observation across real HTTP, Redis and Postgres'
       }
       const owner = subscribe(OWNER)
       const other = subscribe(OTHER)
-      await waitFor(() => {
-        expect(
-          owner.frames.some(
-            (frame) => frame.type === EGithubPrStatesFrame.ObservationStatus && frame.available,
-          ),
-        ).toBe(true)
-        expect(
-          other.frames.some(
-            (frame) => frame.type === EGithubPrStatesFrame.ObservationStatus && frame.available,
-          ),
-        ).toBe(true)
-      })
+      await waitFor(() =>
+        expect(owner.frames).toContainEqual({ type: EGithubPrStatesFrame.Heartbeat }),
+      )
+      await waitFor(() =>
+        expect(other.frames).toContainEqual({ type: EGithubPrStatesFrame.Heartbeat }),
+      )
+
       await deliver('pull_request', {
         ...PULL_REQUEST_PAYLOAD,
         repository: { full_name: 'CompAI/App' },
@@ -222,20 +217,13 @@ describe('authorized linked PR observation across real HTTP, Redis and Postgres'
         expect(states(owner.frames).some((frame) => frame.state.checksPassed === 1)).toBe(true),
       )
       expect(states(other.frames)).toEqual([])
-      owner.close()
-      await waitFor(async () =>
-        expect(
-          await delivery.observations.owners({
-            repoFullName: 'compai/app',
-            prNumber: 42,
-          }),
-        ).toEqual([]),
-      )
+
       const reconnect = subscribe(OWNER)
       await waitFor(() => expect(states(reconnect.frames)).toHaveLength(1))
       expect(states(reconnect.frames)[0]).toMatchObject({
         state: { repoFullName: 'compai/app', prNumber: 42, checksPassed: 1 },
       })
+
       http.failChecks()
       await deliver('check_run', {
         repository: { full_name: 'COMPAI/APP' },
@@ -259,20 +247,16 @@ describe('authorized linked PR observation across real HTTP, Redis and Postgres'
       expect(states(other.frames)).toEqual([])
     })
   }
-  it('refuses arbitrary caller identities even when private cached metadata exists', async () => {
+  it('never sends a caller the cached state of a PR no thread of theirs links', async () => {
+    await seedPrState({ prNumber: 42, checksPassed: 2, version: 1 })
     await seedPrState({ prNumber: 7, title: 'private unrelated PR' })
-    const owner = subscribe(OWNER, [{ repo: 'compai/app', number: 7 }])
+
+    const owner = subscribe(OWNER)
     await waitFor(() =>
-      expect(
-        owner.frames.some((frame) => frame.type === EGithubPrStatesFrame.ObservationStatus),
-      ).toBe(true),
+      expect(owner.frames).toContainEqual({ type: EGithubPrStatesFrame.Heartbeat }),
     )
-    expect(states(owner.frames)).toEqual([])
-    expect(
-      await delivery.observations.owners({
-        repoFullName: 'compai/app',
-        prNumber: 7,
-      }),
-    ).toEqual([])
+    await waitFor(() => expect(states(owner.frames)).toHaveLength(1))
+
+    expect(states(owner.frames).map((frame) => frame.state.prNumber)).toEqual([42])
   })
 })

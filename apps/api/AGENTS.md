@@ -298,7 +298,10 @@ inline review comments never arrive. The Atlas GitHub App (`GITHUB_APP_SLUG`, ow
 `dennisofficial`) fixes that: any org admin installs it once, GitHub delivers the app's webhook to
 `POST /v1/github/app/hook` (verified with `GITHUB_APP_WEBHOOK_SECRET`), and the delivery routes to
 subscribers exactly like a per-repo hook. Routing precedence per repo: app installation > personal
-hook > poll-backed. User auth stays OAuth — the app is transport only, and the two never mix.
+hook > poll-backed. User auth stays OAuth and never uses the app. The app also reads: a webhook's
+REST fill of an App-covered repo uses the installation token (`GithubInstallationTokens`, minted
+and cached per installation), so webhook handling needs no user; only a personal-hook repo borrows
+the hook creator's or a subscriber's token, and only uncovered repos are polled.
 
 ## Env
 
@@ -324,14 +327,16 @@ Migrations run through `db:migrate` (dotenvx-injected); in deployed tiers they r
 `src/_lib/redis` (`RedisService`, `RedisModule`) is the one Redis seam: nothing else constructs an
 ioredis client. `client()` is the shared, lazy command connection; a subscriber takes its own
 connection from `duplicate()` (a subscribed connection answers only pub/sub commands) and owns
-its teardown. Postgres remains the durable source of truth. Redis carries notifications plus ephemeral GitHub
-observation leases, bounded repository-authorization proofs, request-budget windows and retry
-cursors. These expire and can be reconstructed; Redis eviction never deletes durable PR state.
-Configured Redis outages suspend new observation/fetch work with retry diagnostics, while
-already authorized cached replay and legitimate agent streams remain usable. The GitHub tracking
-budget covers observation authorization, subscription/hook setup, refreshes and webhook REST fills.
-Foreground repository/branch pickers, OAuth device flow and SSH signing-key management retain their
-existing procedure/provider controls and do not depend on the observation-budget coordinator.
+its teardown. Postgres remains the durable source of truth. Redis carries notifications plus the
+GitHub request coordinator (`GithubRequestCoordinator`): request-budget windows, refresh retry
+cursors and repository-access proofs (one per user, repo and token, an hour long). These expire and
+can be reconstructed; Redis eviction never deletes durable PR state. There are no per-connection
+leases: `githubPrs.states` replays the cached states of the user's subscribed and linked PRs and
+forwards fanout frames, checking a linked repo's access once per proof. A configured Redis outage
+parks budgeted GitHub work until it recovers, while cached replay and live streams stay usable. The
+budget covers access checks, subscription/hook setup, refreshes and webhook REST fills. Foreground
+repository/branch pickers, OAuth device flow and SSH signing-key management retain their existing
+procedure/provider controls and do not depend on the coordinator.
 Local dev runs without it:
 `REDIS_URL` is unset in the local tier, `isConfigured()` is `false`, and callers
 choose local-only behaviour; `client()` and `duplicate()` throw rather than reach for localhost.

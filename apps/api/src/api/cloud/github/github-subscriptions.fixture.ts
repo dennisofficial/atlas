@@ -1,5 +1,5 @@
 import { vi } from 'bun:test'
-import { localObservations } from './github-observation.fixture'
+import { localCoordinator } from './github-request-coordinator.fixture'
 import { stubGlobal } from '@dltech/bun-test-shims'
 import { GithubAppInstallationsService } from './github-app-installations.service'
 import type { GithubAppInstallNoticeService } from './github-app-install-notice.service'
@@ -60,7 +60,7 @@ export function serviceWith(args: {
     reads,
     hooks,
     installNotice,
-    localObservations(github),
+    localCoordinator(github),
     mailbox,
     args.coversRepo === undefined
       ? new GithubAppInstallationsService()

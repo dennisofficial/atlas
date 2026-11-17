@@ -6,10 +6,7 @@ import { SidebarProvider } from '@dltech/atlas-ui/components/sidebar'
 
 import { ELocalPodState, type LocalPod } from '@/features/desktop/desktop-wire'
 import { localThreadOf, withLocalPods } from '@/features/desktop/local-thread'
-import {
-  installObservationIntersections,
-  observationSourceRig,
-} from '@/features/threads/data/__tests__/pr-observation.fixture'
+import { prStatesSourceRig } from '@/features/threads/data/__tests__/api-pr-states.fixture'
 
 import { ThreadList } from '../shell-thread-list'
 import { ThreadActionsContext } from '../thread-actions-context'
@@ -48,7 +45,7 @@ function elementIn(args: { container: Element; selector: string }): HTMLElement 
 
 describe('Mac sidebar app-level cloud isolation', () => {
   it('renders actual withLocalPods/localThreadOf data and empty lists without opening a cloud PR stream', async () => {
-    const source = observationSourceRig()
+    const source = prStatesSourceRig()
     const { createRoot } = await import('react-dom/client')
     const container = document.createElement('div')
     document.body.append(container)
@@ -79,9 +76,8 @@ describe('Mac sidebar app-level cloud isolation', () => {
     }
   })
 
-  it('shares one cloud stream for mixed rows but never observes the local row or its shown card', async () => {
-    const source = observationSourceRig()
-    const intersections = installObservationIntersections()
+  it('shares one cloud stream for mixed rows and closes it when only local rows remain', async () => {
+    const source = prStatesSourceRig()
     const { createRoot } = await import('react-dom/client')
     const container = document.createElement('div')
     document.body.append(container)
@@ -103,7 +99,6 @@ describe('Mac sidebar app-level cloud isolation', () => {
           : session,
       ),
     }))
-    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' })
     try {
       await act(async () =>
         root.render(
@@ -116,14 +111,7 @@ describe('Mac sidebar app-level cloud isolation', () => {
       )
       expect(source.connections).toHaveLength(1)
       const local = elementIn({ container, selector: 'a[href="/threads/brn_local"]' })
-      const remote = elementIn({ container, selector: 'a[href="/threads/cloud"]' })
-      await act(async () =>
-        intersections.emit([
-          { element: local, visible: true },
-          { element: remote, visible: true },
-        ]),
-      )
-      expect(source.observations()).toEqual([{ repo: 'owner/repo', number: 1 }])
+      expect(elementIn({ container, selector: 'a[href="/threads/cloud"]' })).toBeDefined()
       const details = local.parentElement?.querySelector<HTMLButtonElement>(
         'button[aria-label="Thread details"]',
       )
@@ -134,8 +122,6 @@ describe('Mac sidebar app-level cloud isolation', () => {
         selector: '[data-slot="popover-content"] section[aria-label="Scrollable thread details"]',
       })
       expect(card.textContent).toContain('owner/repo#901')
-      await act(async () => intersections.emit([{ element: card, visible: true }]))
-      expect(source.observations()).toEqual([{ repo: 'owner/repo', number: 1 }])
       expect(source.active()).toBe(1)
       expect(source.peak()).toBe(1)
       const connections = source.connections.length
@@ -161,7 +147,6 @@ describe('Mac sidebar app-level cloud isolation', () => {
     } finally {
       await act(async () => root.unmount())
       container.remove()
-      intersections.restore()
     }
     expect(source.active()).toBe(0)
   })

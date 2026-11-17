@@ -38,8 +38,9 @@ export interface HookConfig {
 }
 
 /**
- * Every GitHub call in the realtime flow is made as a specific user's OAuth token — the API
- * holds no credential of its own. Injectable so the base URL is test-overridable.
+ * Every GitHub read in the realtime flow uses whichever token its caller passes: a user's OAuth
+ * token, or the GitHub App installation token for a repo the app covers. Injectable so the base
+ * URL is test-overridable.
  */
 @Injectable()
 export class GithubUserReads {

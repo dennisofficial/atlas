@@ -6,12 +6,10 @@ import { cn } from '@dltech/atlas-ui/lib/utils'
 import type { WireThread } from '@dltech/atlas-wire/web'
 import { relativeTime } from '@/features/settings/data/personal/relative-time'
 import { currentBranchOf } from '@/features/threads/data/header-model'
-import { EPrObservationPriority } from '@/features/threads/data/pr-observation-targets'
 import { LocalPodIcon } from '@/features/threads/thread-header'
 import { RenameAction } from './rename-action'
 import { rowNamingOf, useThreadNaming } from './active-naming'
 import { ESidebarDensity, useSidebarDensity } from './shell-density'
-import { useSidebarPrObservation } from './shell-pr-observations'
 import { RowAction } from './shell-row-action'
 import { useSidebarPrStates } from './shell-sidebar-pr-states'
 import { ThreadStatusIcon } from './shell-status-icon'
@@ -63,17 +61,6 @@ export function ThreadRowBody({
   const branch = v2 ? v2View?.branch : currentBranchOf(thread)
   const working = v2 ? statusIcon === EThreadStatus.Running : isWorking(thread)
   const latest = latestThreadPullRequestOf(entries)
-  const observationRef = useSidebarPrObservation(
-    thread.runner !== 'local' && latest
-      ? [
-          {
-            repo: latest.repo,
-            number: latest.number,
-            priority: EPrObservationPriority.Inline,
-          },
-        ]
-      : [],
-  )
   const pinned = thread.pinnedAt !== null && thread.pinnedAt !== undefined
   const archived = thread.archivedAt !== null && thread.archivedAt !== undefined
   const unread = isUnread({ thread, active })
@@ -133,7 +120,6 @@ export function ThreadRowBody({
       )}
     >
       <Link
-        ref={observationRef}
         href={v2 ? v2SessionHref(thread.id) : `/threads/${encodeURIComponent(thread.id)}`}
         aria-current={active ? 'page' : undefined}
         data-density={density}

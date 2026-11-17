@@ -1,6 +1,6 @@
 import { Logger } from '@nestjs/common'
 import { EGithubCallSource } from './github-call-log'
-import { EGithubHttpCategory } from './github-observation.types'
+import { EGithubHttpCategory } from './github-request-coordinator.types'
 import {
   takeGithubRequestSlot,
   blockGithubRequests,

@@ -3,7 +3,6 @@ import { announceSessionChangesIn, sessionsLinkedToIn } from '@dltech/atlas-cont
 import { db, type Row, type Tx } from '@dltech/atlas-db'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { announceSubscriberThreads } from './github-list-signals'
-import { GithubObservationStore } from './github-observation.store'
 import { normalizedRepo } from './github-pr-identity'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
@@ -55,7 +54,6 @@ export class GithubPrStateWriter {
       mailbox: GithubPrEventMailboxService
       fanout: GithubPrFanoutService
       signals: ThreadSignalsService
-      observations: GithubObservationStore
       logger: Logger
     },
   ) {}
@@ -150,14 +148,7 @@ export class GithubPrStateWriter {
     const { row, userIds } = write
     const repoFullName = normalizedRepo(row.repoFullName)
     const prNumber = row.prNumber
-    const observers = await this.deps.observations
-      .owners({ repoFullName, prNumber })
-      .catch((failure: unknown) => {
-        this.deps.logger.warn(`observational PR routing unavailable: ${String(failure)}`)
-        return []
-      })
-    const stateUserIds = [...new Set([...userIds, ...observers])]
-    if (stateUserIds.length > 0) this.deps.fanout.push({ userIds: stateUserIds, state: dtoOf(row) })
+    this.deps.fanout.push({ userIds, state: dtoOf(row) })
     if (userIds.length === 0) return
     const subscribers = await db.orm.public.GithubSubscription.where(
       subscriberWhereOf({

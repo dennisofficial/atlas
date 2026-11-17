@@ -1,6 +1,6 @@
 import { vi } from 'bun:test'
-import { localObservations } from './github-observation.fixture'
-import type { GithubObservationStore } from './github-observation.store'
+import { localCoordinator } from './github-request-coordinator.fixture'
+import type { GithubRequestCoordinator } from './github-request-coordinator'
 import {
   ensureUsers,
   seedRepoHook,
@@ -10,6 +10,7 @@ import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.ser
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { GithubDeliveryService } from './github-delivery.service'
+import type { GithubInstallationTokens } from './github-installation-tokens'
 import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
@@ -125,7 +126,8 @@ export const prepareDelivery = async (): Promise<void> => {
 
 export function serviceWith(args: {
   tokens?: Record<string, string>
-  observations?: GithubObservationStore
+  coordinator?: GithubRequestCoordinator
+  appTokens?: GithubInstallationTokens
   readPullRequest?: GithubUserReads['readPullRequest']
   readCheckAnnotations?: GithubUserReads['readCheckAnnotations']
 }): {
@@ -156,7 +158,8 @@ export function serviceWith(args: {
       mailbox,
       discussion,
       inertSignals(),
-      args.observations ?? localObservations(github),
+      args.coordinator ?? localCoordinator(github),
+      args.appTokens,
     ),
     fanout,
     mailbox,

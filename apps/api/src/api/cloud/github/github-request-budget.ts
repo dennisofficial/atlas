@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { createHash } from 'node:crypto'
-import type { GithubRequestIdentity } from './github-observation.types'
+import type { GithubRequestIdentity } from './github-request-coordinator.types'
 export const credentialFingerprint = (token: string): string =>
   createHash('sha256').update(token).digest('hex')
 import { HttpException, HttpStatus, Logger } from '@nestjs/common'

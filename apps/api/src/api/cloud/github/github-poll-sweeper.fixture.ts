@@ -1,6 +1,6 @@
 import type { Row } from '@dltech/atlas-db'
 import { vi } from 'bun:test'
-import { localObservations } from './github-observation.fixture'
+import { localCoordinator } from './github-request-coordinator.fixture'
 import {
   ensureUsers,
   seedPrState as seedPrStateRow,
@@ -61,7 +61,7 @@ export function serviceWith(args: {
       mailbox,
       inertSignals(),
       hooks,
-      localObservations(github),
+      localCoordinator(github),
     ),
     fanout,
   }

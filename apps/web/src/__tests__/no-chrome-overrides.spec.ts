@@ -122,6 +122,13 @@ const ALLOWED: AllowedOverride[] = [
     reason:
       'the update card stacks its error line above the restart button and the card content has no stack gap of its own (#1671)',
   },
+  ...['Avatar', 'AvatarImage', 'AvatarFallback'].map((component) => ({
+    file: 'features/projects/project-avatar.tsx',
+    component,
+    token: 'rounded-md',
+    reason:
+      "a project icon is the repository owner's avatar drawn as a rounded square, so it reads as a project rather than a person (#2302)",
+  })),
 ]
 
 const WEB_SRC = join(import.meta.dir, '..')

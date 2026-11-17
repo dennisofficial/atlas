@@ -4,10 +4,11 @@ import type { EnvService } from '../../../_core/config/env/env.service'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
+import type { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import type { GithubAppInstallationsService } from './github-app-installations.service'
 import { GithubDeliveryService } from './github-delivery.service'
 import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
-import { GithubObservationStore } from './github-observation.store'
+import { GithubRequestCoordinator } from './github-request-coordinator'
 import { GithubPollSweeperService } from './github-poll-sweeper.service'
 import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
@@ -130,7 +131,7 @@ export function mockGithubHttp() {
   }
 }
 
-export function realObservationGraph(args: {
+export function realGithubGraph(args: {
   redis: RedisService
   prefix: string
   tokens: Record<string, string>
@@ -139,7 +140,7 @@ export function realObservationGraph(args: {
   const github = {
     findToken: async ({ userId }: { userId: string }) => args.tokens[userId],
   } as unknown as GithubService
-  const observations = new GithubObservationStore(args.redis, github, args.prefix)
+  const coordinator = new GithubRequestCoordinator(args.redis, github, args.prefix)
   const fanout = new GithubPrFanoutService(new DrainStateService(), new RedisPrFrameBus(args.redis))
   const reads = new GithubUserReads()
   const cipher = {
@@ -156,8 +157,9 @@ export function realObservationGraph(args: {
     cipher,
     env,
     installations,
-    observations,
+    coordinator,
   )
+  const signals: ThreadSignalsService = inertSignals()
   const wakes: unknown[] = []
   const mailbox = new GithubPrEventMailboxService(fanout, {
     notifyEvent: (wake: unknown) => wakes.push(wake),
@@ -170,21 +172,21 @@ export function realObservationGraph(args: {
     cipher,
     mailbox,
     discussion,
-    inertSignals(),
-    observations,
+    signals,
+    coordinator,
   )
   const poll = new GithubPollSweeperService(
     github,
     reads,
     fanout,
     mailbox,
-    inertSignals(),
+    signals,
     hooks,
-    observations,
+    coordinator,
   )
   return {
     github,
-    observations,
+    coordinator,
     fanout,
     reads,
     cipher,
@@ -192,6 +194,7 @@ export function realObservationGraph(args: {
     mailbox,
     delivery,
     poll,
+    signals,
     wakes,
   }
 }

@@ -3,7 +3,7 @@ import { GithubDeliveryChecks } from './github-delivery-checks'
 import { GithubDeliveryFillDeferred, tryRestFill, type RestFill } from './github-delivery-fill'
 import { EGithubCallSource } from './github-call-log'
 import { normalizedRepo, repoPattern } from './github-pr-identity'
-import { GithubObservationStore } from './github-observation.store'
+import { GithubRequestCoordinator } from './github-request-coordinator'
 import { withGithubRequestBudget } from './github-request-budget'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { db } from '@dltech/atlas-db'
@@ -13,6 +13,7 @@ import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { payloadFieldsOf } from './github-pr-payload'
 import { GithubPrStateWriter } from './github-pr-state-writer'
+import { GithubInstallationTokens } from './github-installation-tokens'
 import { carryChecks, stateFieldsOf } from './github-pr-state-fields'
 import { subscriptionLiveWhere } from './github-delivery-routing'
 import { GithubUserReads } from './github-user-reads'
@@ -55,13 +56,13 @@ export class GithubDeliveryService {
     mailbox: GithubPrEventMailboxService,
     private readonly discussion: GithubPrDiscussionDeliveryService,
     signals: ThreadSignalsService,
-    private readonly observations: GithubObservationStore,
+    private readonly coordinator: GithubRequestCoordinator,
+    private readonly appTokens?: GithubInstallationTokens,
   ) {
     this.writer = new GithubPrStateWriter({
       mailbox,
       fanout,
       signals,
-      observations,
       logger: this.logger,
     })
     this.checks = new GithubDeliveryChecks({
@@ -95,7 +96,7 @@ export class GithubDeliveryService {
     replay?: boolean
   }): Promise<{ handled: boolean }> {
     return withGithubRequestBudget({
-      store: this.observations,
+      store: this.coordinator,
       run: () => this.handleWithinBudget(args),
     })
   }
@@ -188,6 +189,9 @@ export class GithubDeliveryService {
   }
 
   private async findFillToken(args: { repoFullName: string }): Promise<string | undefined> {
+    const appToken = await this.appTokens?.tokenForRepo(args)
+    if (appToken !== undefined) return appToken
+
     const hook = await db.orm.public.GithubRepoHook.where((hook) =>
       hook.repoFullName.ilike(repoPattern(args.repoFullName)),
     ).first()
@@ -205,10 +209,6 @@ export class GithubDeliveryService {
       .all()
     for (const subscriber of subscribers) {
       const token = await this.github.findToken({ userId: subscriber.userId })
-      if (token !== undefined) return token
-    }
-    for (const userId of await this.observations.repoOwners(args).catch(() => [])) {
-      const token = await this.github.findToken({ userId })
       if (token !== undefined) return token
     }
     return undefined

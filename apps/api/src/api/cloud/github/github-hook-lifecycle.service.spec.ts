@@ -1,5 +1,5 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { localObservations } from './github-observation.fixture'
+import { localCoordinator } from './github-request-coordinator.fixture'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { ensureUsers, repoHookRows, seedRepoHook } from '../../../../test/github-seed'
 import type { EnvService } from '../../../_core/config/env/env.service'
@@ -70,7 +70,7 @@ function serviceWith(args: {
       CIPHER,
       ENV,
       installations,
-      localObservations(github),
+      localCoordinator(github),
     ),
     created,
     deleted,

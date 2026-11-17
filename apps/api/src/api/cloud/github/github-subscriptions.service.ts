@@ -14,7 +14,7 @@ import type {
   GithubSubscriptionDto,
   GithubSubscribeArgs,
 } from './github-realtime.types'
-import { GithubObservationStore } from './github-observation.store'
+import { GithubRequestCoordinator } from './github-request-coordinator'
 import { deliverPrTransitions } from './github-pr-transition-push'
 import { nextVersionOf, readPrStateForUpdate, snapshotOfLocked } from './github-pr-head-checks'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
@@ -32,14 +32,14 @@ export class GithubSubscriptionsService {
     private readonly reads: GithubUserReads,
     private readonly hooks: GithubHookLifecycleService,
     private readonly installNotice: GithubAppInstallNoticeService,
-    private readonly observations: GithubObservationStore,
+    private readonly coordinator: GithubRequestCoordinator,
     private readonly mailbox: GithubPrEventMailboxService,
     private readonly installations: GithubAppInstallationsService,
   ) {}
 
   subscribe(args: GithubSubscribeArgs): Promise<GithubSubscriptionDto> {
     return withGithubRequestBudget({
-      store: this.observations,
+      store: this.coordinator,
       run: () =>
         this.subscribeAuthorized({ ...args, repoFullName: normalizedRepo(args.repoFullName) }),
     })
@@ -242,7 +242,7 @@ export class GithubSubscriptionsService {
     covered: boolean
   }): Promise<void> {
     const { covered, ...proof } = args
-    if (await this.observations.provenAccess(proof)) return
+    if (await this.coordinator.provenAccess(proof)) return
     try {
       await this.access.require({
         source: EGithubCallSource.RepoAccess,
@@ -254,7 +254,7 @@ export class GithubSubscriptionsService {
       if (!isGithubBudgetParked(failure) || !covered) throw failure
       return
     }
-    await this.observations.recordAccess(proof)
+    await this.coordinator.recordAccess(proof)
   }
 
   private async resolvePrNumber(args: {

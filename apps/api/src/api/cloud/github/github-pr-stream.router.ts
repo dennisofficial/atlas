@@ -5,8 +5,6 @@ import {
   githubPrAckEventsOutputSchema,
   type GithubPrAckEventsInput,
   githubPrStatesOutputSchema,
-  githubPrStatesInputSchema,
-  type GithubPrStatesInput,
   githubPrStreamOutputSchema,
   githubWakeStreamOutputSchema,
   type GithubPrStatesFrame,
@@ -35,8 +33,11 @@ import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { type PrFrameSink, prStreamFrames } from './github-pr-stream.frames'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
-import { GithubObservationStore } from './github-observation.store'
-import { attachObservedStates } from './github-observation.stream'
+import { GithubRequestCoordinator } from './github-request-coordinator'
+import { GithubService } from './github.service'
+import { LinkedPrAccess } from './github-linked-pr-access'
+import { attachPrStates } from './github-pr-states.stream'
+import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 
 export const PR_STREAM_HEARTBEAT_INTERVAL_MS = 30_000
 
@@ -44,15 +45,20 @@ export const PR_STREAM_HEARTBEAT_INTERVAL_MS = 30_000
 @UseMiddlewares(SessionOrSandboxMiddleware)
 export class GithubPrStreamRouter {
   private readonly logger = new Logger(GithubPrStreamRouter.name)
+  private readonly linkedAccess: LinkedPrAccess
 
   constructor(
     private readonly fanout: GithubPrFanoutService,
     private readonly subscriptions: GithubSubscriptionsService,
     private readonly drain: DrainStateService,
     private readonly mailbox: GithubPrEventMailboxService,
-    private readonly observations: GithubObservationStore,
+    coordinator: GithubRequestCoordinator,
     private readonly sandboxes: SandboxesService,
-  ) {}
+    github: GithubService,
+    private readonly signals: ThreadSignalsService,
+  ) {
+    this.linkedAccess = new LinkedPrAccess({ coordinator, github })
+  }
 
   @Subscription({
     output: githubPrStreamOutputSchema,
@@ -139,11 +145,10 @@ export class GithubPrStreamRouter {
     }
   }
 
-  @Subscription({ input: githubPrStatesInputSchema, output: githubPrStatesOutputSchema })
+  @Subscription({ output: githubPrStatesOutputSchema })
   states(
     @Ctx() ctx: SessionOrSandboxTrpcCtx,
     @Options() opts: ProcedureOptions,
-    @Input() input?: GithubPrStatesInput,
   ): AsyncGenerator<GithubPrStatesFrame> {
     if (this.drain.isDraining()) {
       throw new ServiceUnavailableException('the api is restarting — retry the stream')
@@ -152,14 +157,14 @@ export class GithubPrStreamRouter {
     return prStreamFrames<GithubPrStatesFrame>({
       signal: opts.signal,
       attach: (sink) =>
-        attachObservedStates({
+        attachPrStates({
           userId,
           signal: opts.signal,
-          observe: input?.observe ?? [],
           sink,
-          observations: this.observations,
+          access: this.linkedAccess,
           subscriptions: this.subscriptions,
           fanout: this.fanout,
+          signals: this.signals,
           logger: this.logger,
         }),
     })

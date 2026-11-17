@@ -27,7 +27,6 @@ import {
 import { RenameAction } from '@/features/shell/rename-action'
 
 import { HeaderCrew } from './crew-panel'
-import { useSessionPrObservation } from './data/use-session-pr-observation'
 
 const BADGE_VARIANT: Record<EHeaderState, 'destructive' | 'default' | 'secondary'> = {
   [EHeaderState.Failed]: 'destructive',
@@ -236,11 +235,9 @@ export function SessionHeader({
   crewRows: readonly CrewRow[]
   previews: readonly PreviewItem[]
 }) {
-  const observationRef = useSessionPrObservation(entries)
   const pinned = pinnedPullRequestOf(entries)
   return (
     <header
-      ref={observationRef}
       data-chrome="titlebar"
       className="flex h-12 shrink-0 items-center justify-between gap-3 border-b px-2 md:px-4"
     >

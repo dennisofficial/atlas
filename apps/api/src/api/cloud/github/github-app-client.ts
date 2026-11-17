@@ -70,13 +70,22 @@ export class GithubAppClient {
     }))
   }
 
-  async installationRepos(args: { installationId: bigint }): Promise<string[]> {
+  async mintInstallationToken(args: {
+    installationId: bigint
+  }): Promise<{ token: string; expiresAt: number }> {
     const response = await this.request({
       method: 'POST',
       path: `/app/installations/${args.installationId}/access_tokens`,
       token: this.signJwt(),
     })
-    const { token } = (await response.json()) as { token: string }
+    const body = (await response.json()) as { token: string; expires_at: string }
+    return { token: body.token, expiresAt: new Date(body.expires_at).getTime() }
+  }
+
+  async installationRepos(args: { installationId: bigint }): Promise<string[]> {
+    const { token } = await this.mintInstallationToken({
+      installationId: args.installationId,
+    })
     const repos = await this.paginate<{ full_name: string }>({
       path: '/installation/repositories',
       token,

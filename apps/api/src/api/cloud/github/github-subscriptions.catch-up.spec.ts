@@ -1,5 +1,5 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { localObservations } from './github-observation.fixture'
+import { localCoordinator } from './github-request-coordinator.fixture'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { ensureUsers, prStateRows, subscriptionRows } from '../../../../test/github-seed'
 import type { GithubAppInstallNoticeService } from './github-app-install-notice.service'
@@ -50,7 +50,7 @@ function serviceWith(args: {
     reads,
     hooks,
     installNotice,
-    localObservations(github),
+    localCoordinator(github),
     { record: async () => undefined } as never,
     { coversRepo: async () => false } as never,
   )

@@ -60,7 +60,7 @@ export function GithubSection() {
       ))
 
   return (
-    <DetailsSection title="GitHub" ref={pullRequests.observationRef}>
+    <DetailsSection title="GitHub">
       <Table>
         <TableBody>
           {checkouts.map((checkout) => (

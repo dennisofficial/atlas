@@ -206,19 +206,6 @@ export const nestedSessions = [
   ),
 ]
 
-export const observationCapSessions = [
-  sessionOf(
-    threadOf({
-      id: 'observation-cap',
-      title: 'Bound visible observations to 128 targets',
-      worktree: { path: '/workspace/observation-cap', branch: 'dennis/observation-cap' },
-      pullRequests: Array.from({ length: 140 }, (_, index) =>
-        pullRequestOf({ number: 2001 + index, branch: 'dennis/observation-cap' }),
-      ),
-    }),
-  ),
-]
-
 export const project: Project = {
   id: 'sidebar-atlas',
   name: 'atlas',

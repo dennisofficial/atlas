@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import { RedisService } from '../../../_lib/redis/redis.service'
-import { GithubObservationStore } from './github-observation.store'
+import { GithubRequestCoordinator } from './github-request-coordinator'
 import type { GithubService } from './github.service'
 
-export function localObservations(
+export function localCoordinator(
   github: GithubService = { findToken: async () => undefined } as unknown as GithubService,
-): GithubObservationStore {
-  return new GithubObservationStore(
+): GithubRequestCoordinator {
+  return new GithubRequestCoordinator(
     { isConfigured: () => false } as RedisService,
     github,
     `test:${randomUUID()}:`,

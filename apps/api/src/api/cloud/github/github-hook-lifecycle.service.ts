@@ -12,7 +12,8 @@ import { GithubUserReads } from './github-user-reads'
 import { GithubService } from './github.service'
 import { isUniqueViolation } from './unique-violation'
 import { normalizedRepo, repoPattern } from './github-pr-identity'
-import { GithubObservationStore } from './github-observation.store'
+import { subscriptionLiveWhere } from './github-delivery-routing'
+import { GithubRequestCoordinator } from './github-request-coordinator'
 import { withGithubRequestBudget } from './github-request-budget'
 
 export const HOOK_EVENTS = GITHUB_HOOK_EVENTS
@@ -35,14 +36,14 @@ export class GithubHookLifecycleService {
     private readonly cipher: SecretCipherService,
     private readonly env: EnvService,
     private readonly installations: GithubAppInstallationsService,
-    private readonly observations: GithubObservationStore,
+    private readonly coordinator: GithubRequestCoordinator,
   ) {
     this.teardown = new GithubHookTeardown(github, reads)
   }
 
   ensureHook(args: { userId: string; repoFullName: string }): Promise<EnsureHookResult> {
     return withGithubRequestBudget({
-      store: this.observations,
+      store: this.coordinator,
       run: () =>
         this.ensureWithinBudget({ ...args, repoFullName: normalizedRepo(args.repoFullName) }),
     })
@@ -82,9 +83,19 @@ export class GithubHookLifecycleService {
 
   handleSweep(): Promise<void> {
     return withGithubRequestBudget({
-      store: this.observations,
+      store: this.coordinator,
       run: () => this.sweepWithinBudget(),
     })
+  }
+
+  private async hasLiveSubscription(repoFullName: string): Promise<boolean> {
+    return (
+      (await db.orm.public.GithubSubscription.where((subscription) =>
+        subscription.repoFullName.ilike(repoPattern(repoFullName)),
+      )
+        .where(subscriptionLiveWhere({ now: new Date() }))
+        .first()) !== null
+    )
   }
 
   private async sweepWithinBudget(): Promise<void> {
@@ -96,16 +107,7 @@ export class GithubHookLifecycleService {
       .where({ status: ERepoHookStatus.Active })
       .all()
     for (const candidate of candidates) {
-      if (
-        await this.observations
-          .hasRepo({ repoFullName: candidate.repoFullName })
-          .catch((failure: unknown) => {
-            this.logger.warn(
-              `PR observation presence unavailable during hook cleanup: ${String(failure)}`,
-            )
-            return true
-          })
-      ) {
+      if (await this.hasLiveSubscription(candidate.repoFullName)) {
         await db.orm.public.GithubRepoHook.where({
           repoFullName: candidate.repoFullName,
         }).updateAndCount({ idleSince: null })

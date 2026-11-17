@@ -3,7 +3,7 @@ import type { Logger } from '@nestjs/common'
 import { cachedPrStates, normalizedRepo, prIdentity, repoPattern } from './github-linked-prs'
 import { subscriptionLiveWhere } from './github-delivery-routing'
 import type { GithubHookLifecycleService } from './github-hook-lifecycle.service'
-import type { GithubObservationStore } from './github-observation.store'
+import type { GithubRequestCoordinator } from './github-request-coordinator'
 import type { RepoCoverage } from './github-repo-coverage'
 import { GithubHttpBudgetUnavailable, GithubCredentialCooldown } from './github-request-budget'
 import { GithubUserReadFailed } from './github-user-reads'
@@ -14,10 +14,9 @@ type Target = {
   prNumber: number
   userIds: string[]
   pollBacked: boolean
-  observed: boolean
 }
 type QueueDeps = {
-  observations: GithubObservationStore
+  coordinator: GithubRequestCoordinator
   hooks: GithubHookLifecycleService
   coverage: RepoCoverage
   logger: Logger
@@ -42,15 +41,12 @@ export async function refreshGithubQueue(deps: QueueDeps): Promise<void> {
       repoFullName: normalizedRepo(target.repoFullName),
       userIds: [...new Set([...(prior?.userIds ?? []), ...target.userIds])],
       pollBacked: target.pollBacked || prior?.pollBacked === true,
-      observed: target.observed || prior?.observed === true,
     })
   }
-  for (const observer of await deps.observations.targets())
-    add({ ...observer, pollBacked: false, observed: true })
   const branches = new Map<string, Row<'GithubSubscription'>[]>()
   for (const row of subscriptions) {
     if (row.prNumber !== null) {
-      add({ ...row, prNumber: row.prNumber, userIds: [row.userId], observed: false })
+      add({ ...row, prNumber: row.prNumber, userIds: [row.userId] })
       continue
     }
     if (!row.pollBacked || deps.coverage.covers(row.repoFullName)) continue
@@ -58,7 +54,7 @@ export async function refreshGithubQueue(deps: QueueDeps): Promise<void> {
     branches.set(key, [...(branches.get(key) ?? []), row])
   }
   for (const [key, rows] of rotated([...branches.entries()])) {
-    if ((await deps.observations.attempt({ key })).nextAttemptAt > Date.now()) continue
+    if ((await deps.coordinator.attempt({ key })).nextAttemptAt > Date.now()) continue
     let failed = true
     try {
       for (const row of rows) {
@@ -80,14 +76,13 @@ export async function refreshGithubQueue(deps: QueueDeps): Promise<void> {
             ...subscription,
             prNumber: number,
             userIds: [subscription.userId],
-            observed: false,
           })
         }
         failed = false
         break
       }
     } finally {
-      await deps.observations.recordAttempt({ key, failed })
+      await deps.coordinator.recordAttempt({ key, failed })
     }
   }
   const states = new Map(
@@ -112,10 +107,10 @@ export async function refreshGithubQueue(deps: QueueDeps): Promise<void> {
   for (const target of rotated(ordered)) {
     if (deps.coverage.covers(target.repoFullName)) continue
     const key = prIdentity(target)
-    if ((await deps.observations.attempt({ key })).nextAttemptAt > Date.now()) continue
+    if ((await deps.coordinator.attempt({ key })).nextAttemptAt > Date.now()) continue
     const state = states.get(key)
     const age = state === undefined ? Infinity : Date.now() - Date.parse(state.updatedAt)
-    if (!target.pollBacked && age < (target.observed ? 60_000 : 600_000)) continue
+    if (!target.pollBacked && age < 600_000) continue
     let failed = true
     try {
       for (const userId of target.userIds) {
@@ -159,17 +154,13 @@ export async function refreshGithubQueue(deps: QueueDeps): Promise<void> {
         return
       deps.logger.warn(`refreshing ${key} failed: ${String(failure)}`)
     } finally {
-      await deps.observations.recordAttempt({ key, failed })
+      await deps.coordinator.recordAttempt({ key, failed })
     }
   }
   const activeRepos = new Set(subscriptions.map((row) => normalizedRepo(row.repoFullName)))
   const held = await db.orm.public.GithubRepoHook.where({ idleSince: null }).all()
   for (const hook of held) {
-    if (
-      activeRepos.has(normalizedRepo(hook.repoFullName)) ||
-      (await deps.observations.hasRepo({ repoFullName: hook.repoFullName }))
-    )
-      continue
+    if (activeRepos.has(normalizedRepo(hook.repoFullName))) continue
     await db.orm.public.GithubRepoHook.where({ repoFullName: hook.repoFullName }).updateAndCount({
       idleSince: new Date(),
     })

@@ -236,7 +236,7 @@ the agent can subscribe to a PR and be told when it moves.
   registered plugin handlers; no host file names GitHub.
 - **Control:** subscribe/unsubscribe transport leases (`GithubSubscription`, living until the
   subscription's own expiry; no heartbeat in v2), the
-  observation lease and budget (Redis), PR state reads, the wake of a linked session (one inbox
+  GitHub request budget and repo-access proofs (Redis), PR state reads, the wake of a linked session (one inbox
   `message` per live subscription, deduped and acked by the `GithubPrEventDelivery` row),
   and the PR state join into the view (replacing `postgres-views.ts:74`'s direct dependency on the v1
   table, or reading it through a CP port until cutover).

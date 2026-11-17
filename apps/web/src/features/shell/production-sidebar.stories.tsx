@@ -17,11 +17,9 @@ import {
   archiveFixtureSessions,
   interactiveSessions,
   nestedSessions,
-  observationCapSessions,
   project,
 } from './production-sidebar-fixtures'
 import { MacWindowSimulation } from './production-sidebar-mac-window'
-import { FixtureObservationControls } from './production-sidebar-observation-controls'
 import { ThreadList } from './shell-thread-list'
 import { ShellTopBar } from './shell-top-bar'
 import { ThreadActionsContext } from './thread-actions-context'
@@ -30,26 +28,18 @@ import type { ProjectThreads } from './thread-partition'
 function ProductionSidebar({
   desktopWidth = '18rem',
   nested = false,
-  observationCap = false,
   mac,
 }: {
   desktopWidth?: string
   nested?: boolean
-  observationCap?: boolean
   mac?: { fullscreen: boolean }
 }) {
-  const fixtureSessions = observationCap
-    ? observationCapSessions
-    : nested
-      ? nestedSessions
-      : interactiveSessions
+  const fixtureSessions = nested ? nestedSessions : interactiveSessions
   const fixtureSource = useMemo(() => createFixtureSource(fixtureSessions), [fixtureSessions])
   const [checksFailed, setChecksFailed] = useState(false)
   const [activeThreadId, setActiveThreadId] = useState<string | null>(
-    observationCap ? 'observation-cap' : nested ? 'nested-leaf' : 'sidebar-main',
+    nested ? 'nested-leaf' : 'sidebar-main',
   )
-  const [paneHidden, setPaneHidden] = useState(false)
-  const [rowsMounted, setRowsMounted] = useState(true)
   const [archived, setArchived] = useState<string[]>(['sidebar-done'])
   const [searches, setSearches] = useState(0)
   const entries: ProjectThreads[] = [
@@ -81,26 +71,20 @@ function ProductionSidebar({
       >
         <div
           data-fixture={
-            observationCap
-              ? 'production-sidebar-observation-cap'
-              : nested
-                ? 'production-sidebar-nested-shared-branch-own2-middle3-leaf1'
-                : 'production-sidebar-own2-mate3-mate1'
+            nested
+              ? 'production-sidebar-nested-shared-branch-own2-middle3-leaf1'
+              : 'production-sidebar-own2-mate3-mate1'
           }
           className="flex min-h-svh w-full bg-background"
         >
           <Sidebar collapsible="icon">
             <ShellTopBar nav={EAppNav.Threads} onSearch={() => setSearches((count) => count + 1)} />
-            <SidebarContent
-              className={paneHidden ? 'hidden' : 'group-data-[collapsible=icon]:hidden'}
-            >
-              {rowsMounted ? (
-                <ThreadList
-                  entries={entries}
-                  activeThreadId={activeThreadId}
-                  subscribe={fixtureSource.subscribe}
-                />
-              ) : null}
+            <SidebarContent>
+              <ThreadList
+                entries={entries}
+                activeThreadId={activeThreadId}
+                subscribe={fixtureSource.subscribe}
+              />
             </SidebarContent>
             <SidebarFooter className="group-data-[collapsible=icon]:hidden">
               <Button variant="outline" onClick={() => setChecksFailed(fixtureSource.toggle())}>
@@ -112,21 +96,12 @@ function ProductionSidebar({
             <SidebarTrigger />
             <h1 className="text-xl font-semibold">Production sidebar</h1>
             <p className="max-w-lg text-sm text-muted-foreground">
-              {observationCap
-                ? 'This thread owns 140 PRs. Its visible row observes only the latest PR. Opening Details adds its rendered PR entries, bounded to 128 targets on the shared channel.'
-                : nested
-                  ? 'Recursive root → middle → leaf on the same repository and branch, always expanded. Own PR counts: 2, 3, 1. Neither may steal PR ownership from the shared live branch.'
-                  : 'Real ThreadList, ThreadRow, ShellTopBar and hover cards. Fixtures are isolated to this story. Main owns two PRs; teammates stay expanded below it, and the done teammate sits behind the Done toggle. Mark a teammate row as done to watch it move into Done.'}
+              {nested
+                ? 'Recursive root → middle → leaf on the same repository and branch, always expanded. Own PR counts: 2, 3, 1. Neither may steal PR ownership from the shared live branch.'
+                : 'Real ThreadList, ThreadRow, ShellTopBar and hover cards. Fixtures are isolated to this story. Main owns two PRs; teammates stay expanded below it, and the done teammate sits behind the Done toggle. Mark a teammate row as done to watch it move into Done.'}
             </p>
             <p className="text-sm">Selected: {activeThreadId ?? 'none'}</p>
             <p className="text-sm">Search activations: {searches}</p>
-            <FixtureObservationControls
-              source={fixtureSource}
-              paneHidden={paneHidden}
-              rowsMounted={rowsMounted}
-              onTogglePane={() => setPaneHidden((current) => !current)}
-              onToggleRows={() => setRowsMounted((current) => !current)}
-            />
             <Button variant="outline" onClick={() => setActiveThreadId(null)}>
               Clear selection
             </Button>
@@ -148,9 +123,6 @@ export default {
 export const Interactive = { args: { desktopWidth: '18rem' } }
 export const NarrowDefault256 = { args: { desktopWidth: '16rem' } }
 export const NestedFamilies = { args: { desktopWidth: '18rem', nested: true } }
-export const ObservationCap = {
-  args: { desktopWidth: '18rem', observationCap: true },
-}
 export const MacWindow = {
   args: { desktopWidth: '18rem', mac: { fullscreen: false } },
 }

@@ -11,6 +11,7 @@ import { GithubAppSyncGate } from './github-app-sync-gate'
 import { GithubAppSyncService } from './github-app-sync.service'
 import { GithubHookSweepService } from './github-hook-sweep.service'
 import { GithubAppInstallationsService } from './github-app-installations.service'
+import { GithubInstallationTokens } from './github-installation-tokens'
 import { GithubDeliveryService } from './github-delivery.service'
 import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
@@ -30,7 +31,7 @@ import { GithubSubscriptionsService } from './github-subscriptions.service'
 import { GithubUserReads } from './github-user-reads'
 import { GithubWebhookInboxService } from './github-webhook-inbox.service'
 import { GithubModule } from './github.module'
-import { GithubObservationStore } from './github-observation.store'
+import { GithubRequestCoordinator } from './github-request-coordinator'
 
 @Module({
   imports: [GithubModule, HealthModule, RedisModule, SessionsModule],
@@ -41,7 +42,7 @@ import { GithubObservationStore } from './github-observation.store'
     GithubSubscriptionsService,
     GithubPrSubscriptionLinks,
     { provide: PrSubscriptionLinks, useExisting: GithubPrSubscriptionLinks },
-    GithubObservationStore,
+    GithubRequestCoordinator,
     GithubHookLifecycleService,
     GithubPollSweeperService,
     ...sweepSchedulerProviders(),
@@ -54,6 +55,7 @@ import { GithubObservationStore } from './github-observation.store'
     GithubSandboxWakeService,
     GithubAppInstallationsService,
     GithubAppClient,
+    GithubInstallationTokens,
     GithubAppSyncGate,
     GithubAppSyncService,
     GithubHookSweepService,
