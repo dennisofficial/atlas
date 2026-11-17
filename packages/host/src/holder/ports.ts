@@ -1,5 +1,6 @@
 import type {
   AssemblyPipeline,
+  ESetupPhase,
   MediaUrlResolver,
   ModelChoice,
   ModelPort,
@@ -49,6 +50,16 @@ export type PrepareResult =
   | { ok: true; warnings?: readonly string[] | undefined }
   | { ok: false; reason: string }
 
+export type SetupLifecycle =
+  | { phase: ESetupPhase.Started; script: string }
+  | {
+      phase: ESetupPhase.Finished
+      script: string
+      ok: boolean
+      durationMs: number
+      output: string
+    }
+
 export type FoundPullRequest = { number: number; url: string }
 
 export type PullRequestFinder = {
@@ -93,6 +104,7 @@ export type SessionRuntime = {
   env?: (() => Promise<Record<string, string>>) | undefined
   prepare(onStep?: PrepareStepReporter): Promise<PrepareResult>
   subscribePrepareOutput?(listener: (text: string) => void): void
+  subscribeSetup?(listener: (lifecycle: SetupLifecycle) => void): void
   stop(): Promise<void>
   release(): Promise<void>
 }

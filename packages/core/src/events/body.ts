@@ -9,6 +9,7 @@ import type { EModelWaitCause, WaitEpisodeRef, WaitingForModel } from '../model-
 import type { EKilledBy } from '../shells/status'
 import type { EFinishReason, ModelUsage } from '../stream/chunk'
 import type { ETldrStatus } from '../tldr/status'
+import type { ESetupPhase } from '../workspace/setup-notice'
 import type { CallId, ThreadId } from './ids'
 import type { NoticeStamp } from './notice-stage'
 import type { RunFailure } from './run-failure'
@@ -164,7 +165,12 @@ export type EventBody =
       triggeredBy?: string | undefined
     }
   | { type: 'nudge'; text: string; lifetimeSteps: number }
-  | { type: 'sandbox-setup-reported'; text: string; failed: boolean }
+  | {
+      type: 'sandbox-setup-reported'
+      text: string
+      failed: boolean
+      phase?: ESetupPhase | undefined
+    }
   | {
       type: 'turn-failed'
       message: string

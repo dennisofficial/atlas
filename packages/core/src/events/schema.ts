@@ -7,6 +7,7 @@ import { diagramRepairedSchema } from '../diagrams/diagram-body'
 import { EExecutionLocation } from '../execution/location'
 import { EFinishReason } from '../stream/chunk'
 import { ETldrStatus } from '../tldr/status'
+import { ESetupPhase } from '../workspace/setup-notice'
 import {
   EAssistantPlaceholder,
   ECompactionAnchor,
@@ -157,6 +158,7 @@ const coreEventBodySchema = z.discriminatedUnion('type', [
     type: z.literal('sandbox-setup-reported'),
     text: z.string(),
     failed: z.boolean(),
+    phase: z.enum(ESetupPhase).optional(),
   }),
   z.object({
     type: z.literal('turn-failed'),

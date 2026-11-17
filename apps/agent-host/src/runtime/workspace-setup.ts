@@ -1,4 +1,5 @@
 import {
+  ESetupPhase,
   EWorkspaceRepoState,
   EWorkspaceStep,
   EWorkspaceStepOutcome,
@@ -12,6 +13,7 @@ import {
   scopeKeyOf,
   type PrepareResult,
   type RemoteCalls,
+  type SetupLifecycle,
 } from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 import type { WorkspaceConfig } from '../config/agent-host-config'
@@ -42,9 +44,10 @@ const runSetupOnce = async (args: {
   sentinels: Sentinels
   scrub: (text: string) => string
   onOutput?: ((text: string) => void) | undefined
-}): Promise<string> => {
+  onStep?: ((step: WorkspaceStepReport) => void) | undefined
+}): Promise<{ ok: boolean; output: string }> => {
   const { deps, setupScript, launchDirectory } = args
-  if (setupScript.trim() === '') return ''
+  const command = setupScript.trim()
   const outcome = await run({
     processes: deps.processes,
     cmd: ['sh', '-c', setupScript],
@@ -55,25 +58,75 @@ const runSetupOnce = async (args: {
     onOutput: (text) => args.onOutput?.(args.scrub(text)),
   })
   const output = args.scrub(outcome.output)
+  const recorded = { command, output: output.slice(-SETUP_OUTPUT_TAIL_CHARS) }
   if (!outcome.ok) {
     report({ deps, message: 'workspace setup script failed', detail: output })
-    fail({
-      deps,
-      message: `workspace setup script failed (command: ${setupScript.trim().slice(0, COMMAND_CHARS)})`,
-      detail: output,
+    args.onStep?.({
+      step: EWorkspaceStep.Setup,
+      state: EWorkspaceStepState.Failed,
+      reason: `workspace setup script failed (command: ${command.slice(0, COMMAND_CHARS)})`,
+      ...recorded,
     })
-    return output
+    return { ok: false, output }
   }
   await writeSentinel({
     deps,
     path: args.sentinels.setupRan,
     message: 'setup sentinel write failed; setup is not done',
   })
-  return output
+  args.onStep?.({ step: EWorkspaceStep.Setup, state: EWorkspaceStepState.Done, ...recorded })
+  return { ok: true, output }
+}
+
+const startSetupInBackground = (args: {
+  deps: Deps
+  command: string
+  launchDirectory: string
+  sentinels: Sentinels
+  scrub: (text: string) => string
+  scopeKey: string
+  onOutput?: ((text: string) => void) | undefined
+  onStep?: ((step: WorkspaceStepReport) => void) | undefined
+  onSetup?: ((lifecycle: SetupLifecycle) => void) | undefined
+  ackScope(): Promise<void>
+}): void => {
+  const { deps, command } = args
+  const startedAt = Date.now()
+  args.onSetup?.({ phase: ESetupPhase.Started, script: command })
+  void runInCallScope({
+    scopeKey: args.scopeKey,
+    body: () =>
+      runSetupOnce({
+        deps,
+        setupScript: command,
+        launchDirectory: args.launchDirectory,
+        sentinels: args.sentinels,
+        scrub: args.scrub,
+        onOutput: args.onOutput,
+        onStep: args.onStep,
+      }),
+  })
+    .then((outcome) => {
+      args.onSetup?.({
+        phase: ESetupPhase.Finished,
+        script: command,
+        ok: outcome.ok,
+        durationMs: Date.now() - startedAt,
+        output: outcome.output,
+      })
+    })
+    .catch((error: unknown) => {
+      deps.log?.error({
+        source: 'runtime.workspace-setup',
+        message: 'the background setup script failed',
+        ...logFieldsOf({ error }),
+      })
+    })
+    .finally(() => args.ackScope().catch(() => undefined))
 }
 
 const resultOf = (warnings: readonly string[]): PrepareResult =>
-  warnings.length === 0 ? { ok: true } : { ok: true, warnings }
+  warnings.length === 0 ? { ok: true } : { ok: true, warnings: [...warnings] }
 
 const scopeFor = (args: { sandboxName: string; phase: string }): string =>
   scopeKeyOf({ runId: 'setup', callId: `${args.sandboxName}:${args.phase}` })
@@ -91,6 +144,7 @@ export const ensureWorkspace = async (args: {
   log?: LogPort | undefined
   onStep?: ((step: WorkspaceStepReport) => void) | undefined
   onOutput?: ((text: string) => void) | undefined
+  onSetup?: ((lifecycle: SetupLifecycle) => void) | undefined
 }): Promise<PrepareResult> => {
   const warnings: string[] = []
   const deps: Deps = {
@@ -109,6 +163,8 @@ export const ensureWorkspace = async (args: {
   const phases = ['check', 'clone', 'setup'].map((phase) =>
     scopeFor({ sandboxName: args.sandboxName, phase }),
   )
+  const setupScope = phases[2] ?? 'setup:setup'
+  let setupInBackground = false
   try {
     const state = await runInCallScope({
       scopeKey: phases[0] ?? 'setup:check',
@@ -169,31 +225,24 @@ export const ensureWorkspace = async (args: {
         outcome: EWorkspaceStepOutcome.Skipped,
       })
     } else {
-      const command = workspace.setupScript
-      onStep?.({ step: EWorkspaceStep.Setup, state: EWorkspaceStepState.Started, command })
-      const output = await runInCallScope({
-        scopeKey: phases[2] ?? 'setup:setup',
-        body: () =>
-          runSetupOnce({
-            deps,
-            setupScript: workspace.setupScript,
-            launchDirectory,
-            sentinels,
-            scrub,
-            onOutput: args.onOutput,
-          }),
+      onStep?.({
+        step: EWorkspaceStep.Setup,
+        state: EWorkspaceStepState.Started,
+        command: workspace.setupScript,
       })
-      const recorded = { command, output: output.slice(-SETUP_OUTPUT_TAIL_CHARS) }
-      onStep?.(
-        warnings.length === 0
-          ? { step: EWorkspaceStep.Setup, state: EWorkspaceStepState.Done, ...recorded }
-          : {
-              step: EWorkspaceStep.Setup,
-              state: EWorkspaceStepState.Failed,
-              reason: warnings.join('\n'),
-              ...recorded,
-            },
-      )
+      setupInBackground = true
+      startSetupInBackground({
+        deps,
+        command: workspace.setupScript,
+        launchDirectory,
+        sentinels,
+        scrub,
+        scopeKey: setupScope,
+        onOutput: args.onOutput,
+        onStep,
+        onSetup: args.onSetup,
+        ackScope: () => args.calls.ackScope({ scopeKey: setupScope }),
+      })
     }
     return resultOf(warnings)
   } catch (error) {
@@ -206,6 +255,7 @@ export const ensureWorkspace = async (args: {
     return { ok: false, reason: warnings.join('\n') }
   } finally {
     for (const scopeKey of phases) {
+      if (setupInBackground && scopeKey === setupScope) continue
       await args.calls.ackScope({ scopeKey }).catch(() => undefined)
     }
   }

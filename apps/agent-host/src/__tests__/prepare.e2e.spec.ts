@@ -54,7 +54,7 @@ describe('agent-host prepares a new session before its first turn', () => {
     return mainThreadId
   }
 
-  it('runs the setup script and records workspace-prepared before the first user-said', async () => {
+  it('answers the first message before the background setup script ends', async () => {
     const sessionId = 'prepare-e2e-1'
     const mainThreadId = await newSession({ sessionId, text: 'hello' })
     const launchDirectory = join(mkdtempSync(join(tmpdir(), 'atlas-prepare-e2e-')), 'workspace')
@@ -63,8 +63,8 @@ describe('agent-host prepares a new session before its first turn', () => {
       plane,
       bus,
       sandbox,
-      scripts: { [sessionId]: [{ text: 'hi there' }] },
-      setupScript: 'echo ready > prepared.txt',
+      scripts: { [sessionId]: [{ text: 'hi there' }, { text: 'noted the setup' }] },
+      setupScript: 'sleep 3 && echo ready > prepared.txt',
       launchDirectory,
     })
     await holder.start()
@@ -73,19 +73,31 @@ describe('agent-host prepares a new session before its first turn', () => {
     const events = await waitForSeq({
       plane,
       threadId: mainThreadId,
-      want: (rows) => rows.some((row) => row.type === 'assistant-said'),
-      timeoutMs: 60_000,
+      want: (rows) =>
+        rows.filter((row) => row.type === 'sandbox-setup-reported').length === 2 &&
+        rows.filter((row) => row.type === 'assistant-said').length === 2,
+      timeoutMs: 90_000,
     })
     const types = typesOf(events)
-    const prepared = types.indexOf('workspace-prepared')
-    expect(prepared).toBeGreaterThan(0)
-    expect(types.slice(0, prepared).every((type) => type === 'workspace-step')).toBe(true)
-    expect(prepared).toBeLessThan(types.indexOf('user-said'))
+    const notices = events.filter((row) => row.type === 'sandbox-setup-reported')
+    expect(notices[0]?.event).toMatchObject({ phase: 'started', failed: false })
+    expect(notices[1]?.event).toMatchObject({ phase: 'finished', failed: false })
+    expect(types.indexOf('sandbox-setup-reported')).toBeLessThan(
+      types.indexOf('workspace-prepared'),
+    )
+    expect(types.indexOf('workspace-prepared')).toBeLessThan(types.indexOf('user-said'))
+
+    const startedSeq = notices[0]?.seq ?? 0
+    const finishedSeq = notices[1]?.seq ?? 0
+    const answers = events.filter((row) => row.type === 'assistant-said')
+    expect(answers[0]?.seq).toBeGreaterThan(startedSeq)
+    expect(answers[0]?.seq).toBeLessThan(finishedSeq)
+    expect(answers[1]?.seq).toBeGreaterThan(finishedSeq)
     expect(existsSync(join(launchDirectory, 'prepared.txt'))).toBe(true)
     holder.discard()
   }, 90_000)
 
-  it('continues past a failed setup script, tells the model, and answers the first message', async () => {
+  it('tells the model when the background setup script failed, and answers again', async () => {
     const sessionId = 'prepare-e2e-2'
     const mainThreadId = await newSession({ sessionId, text: 'first' })
     const root = mkdtempSync(join(tmpdir(), 'atlas-prepare-e2e-'))
@@ -94,8 +106,8 @@ describe('agent-host prepares a new session before its first turn', () => {
       plane,
       bus,
       sandbox,
-      scripts: { [sessionId]: [{ text: 'recovered' }] },
-      setupScript: 'echo missing-marker >&2; exit 1',
+      scripts: { [sessionId]: [{ text: 'recovered' }, { text: 'noted the failure' }] },
+      setupScript: 'sleep 3 && echo missing-marker >&2; exit 1',
       launchDirectory: join(root, 'workspace'),
     })
     await holder.start()
@@ -104,24 +116,26 @@ describe('agent-host prepares a new session before its first turn', () => {
     const events = await waitForSeq({
       plane,
       threadId: mainThreadId,
-      want: (rows) => rows.some((row) => row.type === 'assistant-said'),
-      timeoutMs: 60_000,
+      want: (rows) =>
+        rows.filter((row) => row.type === 'sandbox-setup-reported').length === 2 &&
+        rows.filter((row) => row.type === 'assistant-said').length === 2,
+      timeoutMs: 90_000,
     })
     const types = typesOf(events)
     expect(types).not.toContain('workspace-prepare-failed')
-    const reported = events.find((row) => row.type === 'sandbox-setup-reported')
-    expect(reported?.event).toMatchObject({ failed: true })
-    expect(String((reported?.event as { text?: string } | undefined)?.text)).toContain(
+    const notices = events.filter((row) => row.type === 'sandbox-setup-reported')
+    expect(notices[1]?.event).toMatchObject({ phase: 'finished', failed: true })
+    expect(String((notices[1]?.event as { text?: string } | undefined)?.text)).toContain(
       'missing-marker',
     )
     const prepared = events.find((row) => row.type === 'workspace-prepared')
-    expect(prepared?.event).toMatchObject({ warnings: [expect.stringContaining('missing-marker')] })
-    expect(types.indexOf('sandbox-setup-reported')).toBeLessThan(
-      types.indexOf('workspace-prepared'),
-    )
+    expect(prepared).toBeDefined()
+    expect((prepared?.event as { warnings?: unknown } | undefined)?.warnings).toBeUndefined()
     expect(types.indexOf('workspace-prepared')).toBeLessThan(types.indexOf('user-said'))
-    expect(types.indexOf('user-said')).toBeLessThan(types.indexOf('assistant-said'))
     expect(types.filter((type) => type === 'user-said')).toHaveLength(1)
+    const answers = events.filter((row) => row.type === 'assistant-said')
+    expect(answers[0]?.seq).toBeLessThan(notices[1]?.seq ?? 0)
+    expect(answers[1]?.seq).toBeGreaterThan(notices[1]?.seq ?? 0)
     holder.discard()
   }, 90_000)
 

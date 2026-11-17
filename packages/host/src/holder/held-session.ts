@@ -1,6 +1,7 @@
 import {
   crashLooped,
   EHeldAction,
+  isResumableOf,
   EHeldOutcome,
   type HeldOutcome,
   type Lease,
@@ -55,6 +56,7 @@ export class HeldSession {
   private outcome: EHeldOutcome | undefined
   private released = false
   private resumePending = false
+  private setupEnded = false
   private takeOver: TakeOver | undefined
 
   constructor(deps: HeldSessionDeps) {
@@ -69,6 +71,11 @@ export class HeldSession {
         this.noteActivity()
         if (failed) this.finish(EHeldOutcome.Idle)
         else this.reconciler?.request()
+      },
+      onSetupEnded: () => {
+        this.setupEnded = true
+        this.noteActivity()
+        this.reconciler?.request()
       },
     })
     this.fenced = new FencedSettlement(deps)
@@ -223,6 +230,12 @@ export class HeldSession {
     const deps = this.deps
     const turnRunning = this.turns.turnRunning
     if (this.draining) return turnRunning ? undefined : this.finish(EHeldOutcome.Drained)
+    if (this.setupEnded) {
+      this.setupEnded = false
+      if (!turnRunning && this.record !== undefined) {
+        this.resumePending = isResumableOf(await this.record.loopState({ threadId: args.threadId }))
+      }
+    }
     const { entries, action, inboxHead, shellsRunning } = await readHeldAction({
       deps,
       draining: this.draining,
@@ -232,6 +245,7 @@ export class HeldSession {
       runtime: this.runtime,
       workspace: this.record?.eventCache().bookkeeping().workspace(),
       preparing: this.prepare.running,
+      setupRunning: this.prepare.hasSetupRunning,
       childrenRunning: this.crew?.runningCount() ?? 0,
     })
     if (shellsRunning) this.noteActivity()
@@ -265,7 +279,7 @@ export class HeldSession {
         return
       }
       case EHeldAction.Wait: {
-        if (turnRunning || this.prepare.running) return
+        if (turnRunning || this.prepare.running || this.prepare.hasSetupRunning) return
         this.idle.arm({ lastActivityAt: this.lastActivityAt })
       }
     }

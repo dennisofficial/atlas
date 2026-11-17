@@ -126,6 +126,7 @@ export * from './workspace/worktree-lock'
 export * from './workspace/worktree-files'
 export * from './workspace/identity'
 export * from './workspace/atlas-home'
+export * from './workspace/setup-notice'
 
 export * from './agents/kind'
 export * from './agents/report'

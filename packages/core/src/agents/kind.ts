@@ -1,5 +1,6 @@
 import type { EventDraft } from '../events/body'
 import { isNoticeArrival } from '../events/notice-stage'
+import { ESetupPhase } from '../workspace/setup-notice'
 import { reportWakesParent } from './report'
 
 export const TEAMMATE_AGENT_TYPE = 'teammate'
@@ -28,6 +29,8 @@ export const isTurnTaking = (event: EventDraft): boolean => {
       return event.relayed !== false
     case 'background-shell-ended':
       return true
+    case 'sandbox-setup-reported':
+      return event.phase === ESetupPhase.Finished
     default:
       return false
   }

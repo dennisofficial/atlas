@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
+  ESetupPhase,
   EWorkspaceRepoState,
   EWorkspaceStep,
   EWorkspaceStepState,
   type WorkspaceStepReport,
 } from '@dltech/atlas-core'
+import type { SetupLifecycle } from '@dltech/atlas-host'
 
 import { ensureWorkspace } from '../workspace-setup'
 import { RecordingProcessPort, StubFileSystemPort } from './workspace-fakes'
@@ -20,6 +22,11 @@ const prepare = async (args: {
 }) => {
   const steps: WorkspaceStepReport[] = []
   const output: string[] = []
+  const setups: SetupLifecycle[] = []
+  let finish: () => void = () => {}
+  const settled = new Promise<void>((resolve) => {
+    finish = resolve
+  })
   const result = await ensureWorkspace({
     calls: { ackScope: () => Promise.resolve() },
     processes: args.processes,
@@ -35,8 +42,13 @@ const prepare = async (args: {
     sandboxName: 'sandbox-progress',
     onStep: (step) => steps.push(step),
     onOutput: (text) => output.push(text),
+    onSetup: (lifecycle) => {
+      setups.push(lifecycle)
+      if (lifecycle.phase === ESetupPhase.Finished) finish()
+    },
   })
-  return { result, steps, output }
+  if (setups.length > 0) await settled
+  return { result, steps, output, setups }
 }
 
 const reposOf = (step: WorkspaceStepReport | undefined) =>
@@ -93,13 +105,23 @@ describe('workspace setup output', () => {
     const processes = new RecordingProcessPort({
       chunks: ['installing\n', `token ${TOKEN}\n`, 'done\n'],
     })
-    const { result, steps, output } = await prepare({
+    const { result, steps, output, setups } = await prepare({
       processes,
       remoteUrl: null,
       setupScript: 'bun install',
     })
-    expect(result.ok).toBe(true)
+    expect(result).toEqual({ ok: true })
     expect(output).toEqual(['installing\n', 'token ***\n', 'done\n'])
+    expect(setups).toEqual([
+      { phase: ESetupPhase.Started, script: 'bun install' },
+      {
+        phase: ESetupPhase.Finished,
+        script: 'bun install',
+        ok: true,
+        durationMs: expect.any(Number),
+        output: 'installing\ntoken ***\ndone\n',
+      },
+    ])
     const setup = steps.filter((step) => step.step === EWorkspaceStep.Setup)
     expect(setup[0]).toMatchObject({ state: EWorkspaceStepState.Started, command: 'bun install' })
     expect(setup[1]).toMatchObject({
@@ -109,16 +131,25 @@ describe('workspace setup output', () => {
     })
   })
 
-  it('records the failing output on the failed step', async () => {
+  it('records the failing output on the failed step and in the finished lifecycle', async () => {
     const processes = new RecordingProcessPort({
       chunks: ['boom\n'],
       exitCodeOf: () => 2,
     })
-    const { result, steps } = await prepare({ processes, remoteUrl: null, setupScript: 'exit 2' })
-    expect(result).toMatchObject({ ok: true, warnings: [expect.stringContaining('boom')] })
+    const { result, steps, setups } = await prepare({
+      processes,
+      remoteUrl: null,
+      setupScript: 'exit 2',
+    })
+    expect(result).toEqual({ ok: true })
     expect(steps.at(-1)).toMatchObject({
       state: EWorkspaceStepState.Failed,
       command: 'exit 2',
+      output: 'boom\n',
+    })
+    expect(setups.at(-1)).toMatchObject({
+      phase: ESetupPhase.Finished,
+      ok: false,
       output: 'boom\n',
     })
   })
