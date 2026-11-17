@@ -84,6 +84,7 @@ const coreEventBodySchema = z.discriminatedUnion('type', [
     interrupted: z.boolean().optional(),
     placeholder: z.enum(EAssistantPlaceholder).optional(),
     aborted: z.literal('handoff').optional(),
+    stopped: z.literal(true).optional(),
     fast: z.literal(true).optional(),
     finish: z.enum(EFinishReason).optional(),
     usage: stepUsageSchema.optional(),

@@ -61,6 +61,7 @@ export type TranscriptItem = Timed &
         text: string
         streaming: boolean
         fast?: true
+        stopped?: true
       }
     | {
         kind: ETranscriptKind.Thought
@@ -68,6 +69,7 @@ export type TranscriptItem = Timed &
         text: string
         streaming: boolean
         heldOpen: boolean
+        stopped?: true
       }
     | { kind: ETranscriptKind.Tools; id: string; calls: ToolCallItem[] }
     | SignInItem
@@ -148,6 +150,7 @@ function textItemOf(args: {
             }),
             streaming: entry.streaming,
             ...(fastEvents.has(eventIdOf(entry.key)) ? { fast: true as const } : {}),
+            ...(entry.stopped === true ? { stopped: true as const } : {}),
           }
     case EEntryKind.SignIn:
       return {
@@ -181,6 +184,7 @@ function textItemOf(args: {
             text: entry.text,
             streaming: entry.streaming,
             heldOpen: entry.heldOpen,
+            ...(entry.stopped === true ? { stopped: true as const } : {}),
           }
     default:
       return noticeItemOf(entry)

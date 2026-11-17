@@ -57,6 +57,8 @@ const openTurnStatus = (args: {
   return { state: ESessionStatus.Thinking, since: turn.at }
 }
 
+const idleSinceOf = (facts: StatusFacts): string | undefined => facts.stoppedAt ?? facts.turn?.at
+
 export function deriveStatus(args: {
   facts: StatusFacts
   live: boolean
@@ -96,5 +98,5 @@ export function deriveStatus(args: {
 
   const open = openTurnStatus({ facts, live: args.live, nowMs: Date.parse(args.now) })
   if (open !== undefined) return open
-  return { state: ESessionStatus.Idle, since: facts.turn?.at }
+  return { state: ESessionStatus.Idle, since: idleSinceOf(facts) }
 }

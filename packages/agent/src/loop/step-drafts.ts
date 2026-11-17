@@ -73,11 +73,18 @@ export function draftsFor(step: StepDraftsArgs): EventDraft[] {
   return withStepUsage({ drafts, step })
 }
 
-export function interruptedDrafts(step: StepDraftsArgs): EventDraft[] {
+export const OPERATOR_STOP_REASON = 'stop'
+
+export function interruptedDrafts(step: StepDraftsArgs & { stopped?: boolean }): EventDraft[] {
   const { result } = step
   const drafts: EventDraft[] = []
   if (result.parts.length > 0)
-    drafts.push({ type: 'assistant-said', parts: result.parts, interrupted: true })
+    drafts.push({
+      type: 'assistant-said',
+      parts: result.parts,
+      interrupted: true,
+      ...(step.stopped === true ? { stopped: true } : {}),
+    })
 
   result.toolCalls.forEach((call, ordinal) => {
     drafts.push(calledDraft({ call, ordinal }))

@@ -116,6 +116,7 @@ export type EventBody =
       interrupted?: boolean | undefined
       placeholder?: EAssistantPlaceholder | undefined
       aborted?: 'handoff' | undefined
+      stopped?: true | undefined
       fast?: true | undefined
       finish?: EFinishReason | undefined
       usage?: StepReading | undefined

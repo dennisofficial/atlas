@@ -29,6 +29,7 @@ export type StatusFacts = {
   startFailure: TimedReason | null
   turn: TurnFact | null
   stopAfterTurn: boolean
+  stoppedAt: string | null
   unfinishedFailure: { message: string; at: string } | null
   credentialWait: { reason: string | null; at: string } | null
   retries: readonly RetryFact[]
@@ -42,6 +43,7 @@ export const initialStatusFacts: StatusFacts = {
   startFailure: null,
   turn: null,
   stopAfterTurn: false,
+  stoppedAt: null,
   unfinishedFailure: null,
   credentialWait: null,
   retries: [],
@@ -162,11 +164,12 @@ const stepTurn = (facts: StatusFacts, event: V2Event): StatusFacts => {
       ...facts,
       turn: turnOf(event),
       stopAfterTurn: false,
+      stoppedAt: null,
       unfinishedFailure: unfinishedFailureAfter({ facts, event }),
     }
   }
   if (event.type === 'input-consumed' && event.consumed === EInputConsumed.Stop) {
-    return { ...facts, stopAfterTurn: true }
+    return { ...facts, stopAfterTurn: true, stoppedAt: event.at }
   }
   return facts
 }

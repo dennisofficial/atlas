@@ -32,6 +32,7 @@ import { TranscriptRequest } from './transcript-request'
 import { TranscriptSignIn } from './transcript-sign-in'
 import { TranscriptMarkdown } from './transcript-markdown'
 import { ToolRow } from './transcript-tool-row'
+import { StoppedLine, workStopped } from './stopped-line'
 
 export type TranscriptRewind = {
   points: ReadonlySet<string>
@@ -169,22 +170,25 @@ function SegmentView({
   if (segment.kind === ESegmentKind.Message) {
     const { item } = segment
     return (
-      <AgentMessage
-        author={AGENT_AUTHOR}
-        timestamp={messageTimeOf({ at: item.at, now })}
-        streaming={item.streaming}
-        caret={false}
-        copyText={item.text}
-      >
-        <TranscriptMarkdown
-          isAnimating={item.streaming}
-          onRepairDiagram={
-            repairDiagram === null || item.streaming ? undefined : handleRepairDiagram
-          }
+      <>
+        <AgentMessage
+          author={AGENT_AUTHOR}
+          timestamp={messageTimeOf({ at: item.at, now })}
+          streaming={item.streaming}
+          caret={false}
+          copyText={item.text}
         >
-          {item.text}
-        </TranscriptMarkdown>
-      </AgentMessage>
+          <TranscriptMarkdown
+            isAnimating={item.streaming}
+            onRepairDiagram={
+              repairDiagram === null || item.streaming ? undefined : handleRepairDiagram
+            }
+          >
+            {item.text}
+          </TranscriptMarkdown>
+        </AgentMessage>
+        {item.stopped === true ? <StoppedLine /> : null}
+      </>
     )
   }
   if (segment.kind === ESegmentKind.Images) {
@@ -205,11 +209,14 @@ function SegmentView({
     }),
   )
   return (
-    <WorkSummary duration={duration} running={segment.running} stepCount={segment.stepCount}>
-      {segment.items.map((item) => (
-        <WorkItem key={item.id} item={item} onOpenChanges={onOpenChanges} />
-      ))}
-    </WorkSummary>
+    <>
+      <WorkSummary duration={duration} running={segment.running} stepCount={segment.stepCount}>
+        {segment.items.map((item) => (
+          <WorkItem key={item.id} item={item} onOpenChanges={onOpenChanges} />
+        ))}
+      </WorkSummary>
+      {workStopped(segment.items) ? <StoppedLine /> : null}
+    </>
   )
 }
 

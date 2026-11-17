@@ -39,6 +39,7 @@ export function entriesOfAssistantEvent(event: EventOfType<'assistant-said'>): T
     })),
     streaming: false,
     interruptedAtEnd: event.interrupted === true,
+    stoppedAtEnd: event.stopped === true,
   })
 }
 

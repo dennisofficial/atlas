@@ -21,6 +21,7 @@ export async function recordAbandonedStep({
   result,
   events,
   seenThrough,
+  stopped,
 }: {
   deps: TrackedTurnDeps
   threadId: ThreadId
@@ -28,10 +29,11 @@ export async function recordAbandonedStep({
   result: ModelStepResult
   events: readonly Event[]
   seenThrough: number | undefined
+  stopped: boolean
 }): Promise<void> {
   const { record } = deps
   const abandoned = dedupeCallIds({
-    drafts: interruptedDrafts({ result, model: deps.model }),
+    drafts: interruptedDrafts({ result, model: deps.model, stopped }),
     taken: callIdsIn(events),
   })
   if (abandoned.length > 0) await record.append({ threadId, runId, drafts: abandoned })
