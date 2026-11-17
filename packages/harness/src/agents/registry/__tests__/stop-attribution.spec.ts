@@ -147,7 +147,7 @@ describe('a sub-agent still stepping when the session closes', () => {
     const ending = await lastEnding(open)
     expect(ending.status).toBe(EAgentStatus.Stopped)
     expect(ending.killedBy).toBe(EKilledBy.SessionEnd)
-    expect(agentEnding(ending)).toContain('was stopped when the session closed')
+    expect(agentEnding(ending)).toContain('was stopped when the sandbox went to sleep')
   })
 
   it('keeps an operator stop that was already in flight', async () => {

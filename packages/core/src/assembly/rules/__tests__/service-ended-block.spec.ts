@@ -79,6 +79,24 @@ describe('handing an ended service to the model', () => {
     expect(block).not.toContain('do not restart it')
   })
 
+  it('tells the model the service went down with the sleeping sandbox and is its to start again', () => {
+    for (const killedBy of [EKilledBy.SessionEnd, EKilledBy.IdlePark]) {
+      const block = serviceEndedBlock(
+        ended({ status: EServiceStatus.Killed, killedBy, exitCode: undefined }),
+      )
+
+      expect(block).toContain('Start it again')
+    }
+  })
+
+  it('does not invite a restart when the user stopped the service', () => {
+    const block = serviceEndedBlock(
+      ended({ status: EServiceStatus.Killed, killedBy: EKilledBy.User, exitCode: undefined }),
+    )
+
+    expect(block).not.toContain('Start it again')
+  })
+
   it('wraps the block so the model can tell it from something a human typed', () => {
     const block = serviceEndedBlock(ended())
 

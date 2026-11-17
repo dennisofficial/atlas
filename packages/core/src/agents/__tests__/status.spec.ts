@@ -71,7 +71,7 @@ describe('the sentence a parent reads about a delegate that stopped', () => {
   it('says teardown stopped it, so a reopened session does not read it as a decision', () => {
     expect(
       agentEnding(ending({ status: EAgentStatus.Stopped, killedBy: EKilledBy.SessionEnd })),
-    ).toBe('was stopped when the session closed, after 4 turns and 11 tool calls')
+    ).toBe('was stopped when the sandbox went to sleep, after 4 turns and 11 tool calls')
   })
 
   it('lets an unattributed stop stay unattributed', () => {

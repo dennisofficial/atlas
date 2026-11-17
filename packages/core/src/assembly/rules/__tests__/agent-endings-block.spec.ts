@@ -366,7 +366,7 @@ describe('an agent the operator stopped', () => {
   it('says nothing extra when teardown stopped it', () => {
     const block = stoppedBy(EKilledBy.SessionEnd)
 
-    expect(block).toContain('was stopped when the session closed, after')
+    expect(block).toContain('was stopped when the sandbox went to sleep, after')
     expect(block).not.toContain('The user stopped this agent deliberately')
   })
 

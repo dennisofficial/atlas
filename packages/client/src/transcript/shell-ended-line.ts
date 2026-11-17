@@ -18,7 +18,7 @@ const named = (shell: NamedShell): string => {
 const killedOutcome = (killedBy: EKilledBy | undefined): string => {
   if (killedBy === EKilledBy.User) return 'was killed by you'
   if (killedBy === EKilledBy.Model) return 'was killed by atlas'
-  if (killedBy === EKilledBy.SessionEnd) return 'was killed when the session closed'
+  if (killedBy === EKilledBy.SessionEnd) return 'was killed when the sandbox went to sleep'
   if (killedBy === EKilledBy.Timeout) return 'ran past its timeout'
   if (killedBy === EKilledBy.Rewind) return 'was killed by a rewind'
   if (killedBy === EKilledBy.LostContact) return 'was killed after atlas lost contact with it'
