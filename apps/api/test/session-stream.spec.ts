@@ -1,6 +1,6 @@
 import { SESSION_STREAM } from '@dltech/atlas-agent-host/host/tokens'
 import { createSessionStream } from '@dltech/atlas-agent-host'
-import { sessionStreamFrameSchema, type SessionStreamFrame } from '@dltech/atlas-wire'
+import { type StreamServerMessage, streamServerMessageSchema } from '@dltech/atlas-protocol'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { SESSION_VERIFIER } from '../src/_core/ports/session-verifier'
@@ -72,7 +72,7 @@ const verifierOf = () => ({
 const followUrl = ({ base, input }: { base: string; input: unknown }): string =>
   `${base}/v1/trpc/sessionStream.follow?input=${encodeURIComponent(JSON.stringify(input))}`
 
-const sseFrames = async (args: { base: string }): Promise<SessionStreamFrame[]> => {
+const sseFrames = async (args: { base: string }): Promise<StreamServerMessage[]> => {
   const response = await fetch(
     followUrl({ base: args.base, input: { sessionId: SESSION, afterSeq: 0 } }),
     {
@@ -99,7 +99,7 @@ const sseFrames = async (args: { base: string }): Promise<SessionStreamFrame[]> 
     .split('\n')
     .filter((line) => line.startsWith('data: '))
     .flatMap((line) => {
-      const parsed = sessionStreamFrameSchema.safeParse(JSON.parse(line.slice(6)))
+      const parsed = streamServerMessageSchema.safeParse(JSON.parse(line.slice(6)))
       return parsed.success ? [parsed.data] : []
     })
 }

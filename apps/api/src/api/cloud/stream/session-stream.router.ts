@@ -1,9 +1,9 @@
 import { Inject, Optional, ServiceUnavailableException } from '@nestjs/common'
 import type { SessionStream } from '@dltech/atlas-agent-host'
+import type { StreamServerMessage } from '@dltech/atlas-protocol'
 import { SESSION_STREAM } from '../../host-call-tokens'
 import {
   type SessionStreamFollowInput,
-  type SessionStreamFrame,
   sessionStreamFollowInputSchema,
   sessionStreamOutputSchema,
 } from '@dltech/atlas-wire'
@@ -47,7 +47,7 @@ export class SessionStreamRouter {
     @Input() input: SessionStreamFollowInput,
     @Ctx() ctx: SessionTrpcCtx,
     @Options() opts: ProcedureOptions,
-  ): AsyncGenerator<SessionStreamFrame> {
+  ): AsyncGenerator<StreamServerMessage> {
     return streamOf({ host: this.stream, drain: this.drain }).follow({
       userId: ctx.auth.userId,
       sessionId: input.sessionId,
@@ -61,7 +61,7 @@ export class SessionStreamRouter {
   list(
     @Ctx() ctx: SessionTrpcCtx,
     @Options() opts: ProcedureOptions,
-  ): AsyncGenerator<SessionStreamFrame> {
+  ): AsyncGenerator<StreamServerMessage> {
     return streamOf({ host: this.stream, drain: this.drain }).list({
       userId: ctx.auth.userId,
       signal: opts.signal,
