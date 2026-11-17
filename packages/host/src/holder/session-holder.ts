@@ -165,7 +165,7 @@ export class SessionHolder {
     this.settler.clear()
     this.lostRetries = [...this.retryAt.values()]
     this.retryAt.clear()
-    for (const session of sessions) session.loseLease()
+    for (const session of sessions) session.losePresence()
   }
 
   private onWake(sessionId: string): void {

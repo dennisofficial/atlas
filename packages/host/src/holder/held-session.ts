@@ -52,6 +52,7 @@ export class HeldSession {
   private readonly fenced: FencedSettlement
   private readonly ending: HeldEnding
   private resumePending = false
+  private settleFence = true
   private setupEnded = false
   private takeOver: TakeOver | undefined
 
@@ -157,6 +158,7 @@ export class HeldSession {
       turnRunning: this.turns.turnRunning,
       kind: this.ending.outcome ?? EHeldOutcome.Faulted,
       released: this.ending.released,
+      settleFence: this.settleFence,
       epoch: this.ending.epoch,
       fenced: this.fenced,
     })
@@ -291,7 +293,8 @@ export class HeldSession {
     })
   }
 
-  loseLease(kind: EHeldOutcome = EHeldOutcome.Fenced): void {
-    this.ending.lose(kind)
+  losePresence(): void {
+    this.settleFence = false
+    this.ending.lose()
   }
 }
