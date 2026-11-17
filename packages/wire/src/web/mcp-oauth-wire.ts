@@ -48,9 +48,21 @@ const returnToSchema = z
 export const mcpOauthServerRefSchema = z.strictObject({ serverId: z.string().min(1) })
 export type McpOauthServerRef = z.infer<typeof mcpOauthServerRefSchema>
 
+export const mcpOauthScreenSchema = z.union([
+  z.strictObject({ kind: z.literal('session'), id: z.string().min(1) }),
+  z.strictObject({ kind: z.literal('settings'), scope: z.literal('user') }),
+  z.strictObject({
+    kind: z.literal('settings'),
+    scope: z.literal('project'),
+    id: z.string().min(1),
+  }),
+])
+export type McpOauthScreen = z.infer<typeof mcpOauthScreenSchema>
+
 export const mcpOauthBeginInputSchema = mcpOauthServerRefSchema.extend({
   returnTo: returnToSchema.optional(),
   surface: z.enum(EMcpOauthReturnSurface).optional(),
+  screen: mcpOauthScreenSchema.optional(),
 })
 export type McpOauthBeginInput = z.infer<typeof mcpOauthBeginInputSchema>
 

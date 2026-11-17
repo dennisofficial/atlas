@@ -1,6 +1,7 @@
 import { Module, type DynamicModule } from '@nestjs/common'
 
 import type { AgentHostEnv } from '../config/env'
+import { HostCallsModule } from './calls.module'
 import { ControlModule } from './control.module'
 import { CoreModule } from './core.module'
 import { HolderModule } from './holder.module'
@@ -19,6 +20,7 @@ export class HostModule {
         ControlModule,
         RuntimeModule,
         HolderModule,
+        HostCallsModule,
         HttpModule,
         StreamModule,
         StartupModule,

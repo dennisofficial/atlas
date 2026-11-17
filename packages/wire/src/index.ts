@@ -48,6 +48,8 @@ export * from './terminal-wire.js'
 export * from './memory-wire.js'
 export * from './web/mcp-wire.js'
 export * from './web/mcp-oauth-wire.js'
+export * from './web/operator-requests-wire.js'
+
 export * from './web/secrets-wire.js'
 export * from './web/settings-wire.js'
 export * from './web/scoped-config-wire.js'

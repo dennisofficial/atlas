@@ -30,7 +30,8 @@ const headersOf = ({ token, clientVersion }: ApiClientOptions): Record<string, s
 
 export const createApiClient = (options: ApiClientOptions) => {
   const url = trpcUrlOf(options.baseUrl)
-  const fetchFn = options.fetchFn ?? fetch
+  const fetchFn = (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) =>
+    (options.fetchFn ?? globalThis.fetch)(input, init)
   const subscriptionLink =
     options.EventSource === undefined
       ? httpSubscriptionLink({ url })

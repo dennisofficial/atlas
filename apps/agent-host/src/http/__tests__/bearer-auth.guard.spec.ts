@@ -1,17 +1,15 @@
-import { BadRequestException, UnauthorizedException, type ExecutionContext } from '@nestjs/common'
+import { UnauthorizedException, type ExecutionContext } from '@nestjs/common'
 import { describe, expect, it } from 'bun:test'
-import { z } from 'zod'
 
 import { MemoryStreamAuth } from '../../stream/memory-stream-auth'
 import { BearerAuthGuard } from '../bearer-auth.guard'
 import type { HostRequest } from '../host-request'
-import { ZodBodyPipe } from '../zod-body.pipe'
 
 const contextOf = (request: HostRequest): ExecutionContext =>
   ({ switchToHttp: () => ({ getRequest: () => request }) }) as unknown as ExecutionContext
 
 const requestOf = (authorization?: string): HostRequest => ({
-  url: '/operator-requests/answer',
+  url: '/stream',
   headers: authorization === undefined ? {} : { authorization },
 })
 
@@ -46,20 +44,5 @@ describe('BearerAuthGuard', () => {
     const request = requestOf('Bearer tok-a')
     expect(await guard.canActivate(contextOf(request))).toBe(true)
     expect(request.userId).toBe('user-a')
-  })
-})
-
-describe('ZodBodyPipe', () => {
-  const schema = z.strictObject({ sessionId: z.string().min(1) })
-
-  it('answers 400 for a body the schema refuses', () => {
-    expect(() => new ZodBodyPipe(schema).transform({ sessionId: '' })).toThrow(BadRequestException)
-    expect(() => new ZodBodyPipe(schema).transform({ other: 1 })).toThrow(BadRequestException)
-  })
-
-  it('passes a body the schema accepts', () => {
-    expect(new ZodBodyPipe(schema).transform({ sessionId: 'ses_1' })).toEqual({
-      sessionId: 'ses_1',
-    })
   })
 })

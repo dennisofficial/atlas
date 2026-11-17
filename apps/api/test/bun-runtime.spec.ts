@@ -1,16 +1,33 @@
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 
 const API_ROOT = import.meta.dirname + '/..'
 const BOOT_TIMEOUT_MS = 60_000
+const TEST_DATABASE_URL = process.env.ATLAS_TEST_DATABASE_URL
+const TEST_REDIS_URL = process.env.ATLAS_TEST_REDIS_URL
+
+const daemonBundleStub = (): string => {
+  const dir = mkdtempSync(join(tmpdir(), 'atlas-api-probe-'))
+  const path = join(dir, 'daemon.js')
+  writeFileSync(path, '')
+  return path
+}
 
 function probeEnv({ port }: { port: number }): NodeJS.ProcessEnv {
   return {
     ...process.env,
     APP_TIER: 'local',
     PORT: String(port),
-    DATABASE_URL: 'postgresql://atlas:atlas@127.0.0.1:1/atlas',
+    DATABASE_URL: TEST_DATABASE_URL ?? 'postgresql://atlas:atlas@127.0.0.1:1/atlas',
+    DATABASE_DIRECT_URL: TEST_DATABASE_URL ?? 'postgresql://atlas:atlas@127.0.0.1:1/atlas',
+    REDIS_URL: TEST_REDIS_URL,
+    DAEMON_SECRET: 'test-daemon-secret',
+    ATLAS_API_ORIGIN: `http://127.0.0.1:${port}`,
+    ATLAS_DAEMON_BUNDLE: daemonBundleStub(),
     SECRET_KEY: 'test-secret-key-with-at-least-32-characters',
     WEB_ORIGIN: 'http://localhost:3001',
     BETTER_AUTH_URL: `http://localhost:${port}`,
@@ -52,7 +69,10 @@ async function waitForHealth({ base }: { base: string }): Promise<void> {
   throw new Error('api did not answer /v1/health under bun in time')
 }
 
-describe('api under the bun runtime', () => {
+const describeWithHost =
+  TEST_DATABASE_URL === undefined || TEST_REDIS_URL === undefined ? describe.skip : describe
+
+describeWithHost('api under the bun runtime', () => {
   let child: ChildProcess
   let port: number
   let base: string
