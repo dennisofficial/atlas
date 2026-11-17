@@ -1,4 +1,4 @@
-import { agentLabel, type ThreadId } from '@dltech/atlas-core'
+import { childThreadTitle, type ThreadId } from '@dltech/atlas-core'
 import type { DeltaChannel } from '@dltech/atlas-harness'
 import { isApiProvisioned, mirrorsThreadState } from '@dltech/atlas-wire'
 
@@ -113,7 +113,7 @@ export function bindServeWriteBehind(args: {
           threadId: agent.agentId,
           spawnedBy: agent.spawnedBy,
           agentType: agent.agentType,
-          title: agentLabel({ agentType: agent.agentType, intent: agent.intent }),
+          title: childThreadTitle({ agentType: agent.agentType, intent: agent.intent }),
         })
       }
       if (app.threads === undefined) return
