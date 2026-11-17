@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 
+import type { SubscriptionPort } from '../../stream/subscription-port'
 import { unimplementedSubscriptions } from '../../stream/subscription-port'
 import { HostStartupService } from '../startup.service'
-import type { StreamStartArgs } from '../../stream/stream-service'
 
 const hostWatch = () => ({ recompute: () => undefined, close: async () => undefined })
 
@@ -13,7 +13,7 @@ describe('HostStartupService', () => {
     let hostId: number | undefined = 7
     let selfId: (() => number | undefined) | undefined
     let ring: (() => void) | undefined
-    let started: StreamStartArgs | undefined
+    let started: { subscriptions: SubscriptionPort } | undefined
 
     const service = new HostStartupService({
       holder: {
@@ -43,12 +43,6 @@ describe('HostStartupService', () => {
         start: (args) => {
           calls.push('stream.start')
           started = args
-          return {
-            port: 10_000,
-            connections: () => 0,
-            drain: async () => undefined,
-            stop: async () => undefined,
-          }
         },
       },
     })
@@ -92,12 +86,6 @@ describe('HostStartupService', () => {
       stream: {
         start: () => {
           calls.push('stream.start')
-          return {
-            port: 10_000,
-            connections: () => 0,
-            drain: async () => undefined,
-            stop: async () => undefined,
-          }
         },
       },
     })

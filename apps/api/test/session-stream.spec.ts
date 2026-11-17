@@ -26,9 +26,20 @@ const EVENT = {
   body: '{"type":"user-said","text":"hello"}',
 }
 
-const hostStream = () =>
-  createSessionStream({
-    subscriptions: () => ({
+const hostStream = () => {
+  const stream = createSessionStream({
+    users: { acquire: () => true, release: () => undefined },
+    timers: {
+      now: () => Date.now(),
+      setTimeout: (handler: () => void, ms: number) => setTimeout(handler, ms),
+      clearTimeout: (handle: unknown) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+      random: () => 0.5,
+    },
+    eventTypes: ['user-said'],
+    log: undefined,
+  })
+  stream.start({
+    subscriptions: {
       open: (connection) => ({
         handle: (message) => {
           connection.send({
@@ -42,17 +53,10 @@ const hostStream = () =>
         drain: () => undefined,
         close: () => undefined,
       }),
-    }),
-    users: { acquire: () => true, release: () => undefined },
-    timers: {
-      now: () => Date.now(),
-      setTimeout: (handler: () => void, ms: number) => setTimeout(handler, ms),
-      clearTimeout: (handle: unknown) => clearTimeout(handle as ReturnType<typeof setTimeout>),
-      random: () => 0.5,
     },
-    eventTypes: ['user-said'],
-    log: undefined,
   })
+  return stream
+}
 
 type Verified = { userId: string; sessionId: string; email: string }
 

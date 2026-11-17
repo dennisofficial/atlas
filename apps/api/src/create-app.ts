@@ -52,10 +52,7 @@ export async function createApp(
   app.useGlobalPipes(new ValidationPipe(VALIDATION_PIPE_OPTIONS))
   app.useGlobalFilters(new GlobalExceptionFilter(app.get(HttpAdapterHost).httpAdapter))
 
-  if (host !== undefined) {
-    app.useWebSocketAdapter(host.createStreamWsAdapter(app))
-    app.enableShutdownHooks([], { useProcessExit: true })
-  }
+  if (host !== undefined) app.enableShutdownHooks([], { useProcessExit: true })
 
   await app.init()
   return app

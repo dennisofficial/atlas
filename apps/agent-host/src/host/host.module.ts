@@ -8,7 +8,6 @@ import { HolderModule } from './holder.module'
 import { HttpModule } from './http.module'
 import { RuntimeModule } from './runtime.module'
 import { StartupModule } from './startup.module'
-import { StreamModule } from './stream.module'
 
 @Module({})
 export class HostModule {
@@ -22,7 +21,6 @@ export class HostModule {
         HolderModule,
         HostCallsModule,
         HttpModule,
-        StreamModule,
         StartupModule,
       ],
     }

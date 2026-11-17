@@ -33,7 +33,6 @@ export { ForegroundOnlyShells } from './runtime/foreground-shells'
 export { createHostBus } from './bus/host-bus'
 export { startPgWakeListener, type PgWakeListener } from './bus/pg-wake-listener'
 export { createRedisLiveFrames, type RedisLiveFrames } from './bus/redis-live-frames'
-export { createStreamWsAdapter, StreamWsAdapter } from './stream/stream-ws-adapter'
 export {
   createSessionStream,
   SessionStreamLimitError,

@@ -32,14 +32,16 @@ describe('session stream adapters', () => {
     rig.dispose()
   })
 
-  const streamOf = (args: { limit?: number; eventTypes?: readonly string[] } = {}) =>
-    createSessionStream({
-      subscriptions: () => rig.follow,
+  const streamOf = (args: { limit?: number; eventTypes?: readonly string[] } = {}) => {
+    const stream = createSessionStream({
       users: createUserSlots({ limit: args.limit ?? 4 }),
       timers: rig.timers,
       eventTypes: args.eventTypes ?? ['user-said'],
       log: undefined,
     })
+    stream.start({ subscriptions: rig.follow })
+    return stream
+  }
 
   it('greets with ready and resumes live after the requested cursor', async () => {
     await rig.seed({ events: 10 })

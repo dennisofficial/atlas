@@ -8,7 +8,7 @@ describe('the agent host http surface', () => {
   let app: RunningHttpApp
 
   beforeAll(async () => {
-    app = await startHttpApp({ trustedOrigins: ['https://byatlas.io'] })
+    app = await startHttpApp()
   })
 
   afterAll(async () => {
@@ -26,11 +26,19 @@ describe('the agent host http surface', () => {
     expect(await page.text()).toContain('<p>connected</p>')
   })
 
-  it('refuses a plain get on the stream path with 426', async () => {
-    const response = await fetch(`${app.url}/stream`)
+  it('answers the retired websocket stream path with 404', async () => {
+    const plain = await fetch(`${app.url}/stream`)
+    const upgrade = await fetch(`${app.url}/stream`, {
+      headers: {
+        Upgrade: 'websocket',
+        Connection: 'Upgrade',
+        'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==',
+        'Sec-WebSocket-Version': '13',
+      },
+    })
 
-    expect(response.status).toBe(426)
-    expect(await response.text()).toBe('upgrade required')
+    expect(plain.status).toBe(404)
+    expect(upgrade.status).toBe(404)
   })
 
   it('answers an unknown path with 404', async () => {
@@ -44,7 +52,7 @@ describe('the agent host http surface', () => {
     expect(before.status).toBe(200)
     expect(await before.json()).toEqual({ ok: true, connections: 0 })
 
-    await app.drain()
+    app.stream.drain()
 
     const during = await fetch(`${app.url}/healthz`)
     expect(during.status).toBe(503)

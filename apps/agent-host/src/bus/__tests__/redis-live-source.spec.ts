@@ -6,7 +6,7 @@ import { EStreamBlockKind, type StreamServerMessage } from '@dltech/atlas-protoc
 
 import { LiveOverlay } from '../../stream/overlay/live-overlay'
 import { systemHostTimers } from '../../stream/system-timers'
-import { until } from '../../stream/__tests__/test-client'
+import { until } from '../../stream/__tests__/until'
 import { createRedisLiveFrames, type RedisLiveFrames } from '../redis-live-frames'
 import { createRedisLiveSource } from '../redis-live-source'
 import type { LiveSource } from '../../stream/live-source'

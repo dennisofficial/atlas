@@ -113,23 +113,9 @@ describeWithHost('api and agent host in one process', () => {
     expect(response.headers.get('access-control-allow-headers')).toContain('authorization')
   })
 
-  it('refuses a plain GET on the stream route', async () => {
+  it('answers the retired websocket stream route with 404', async () => {
     const response = await fetch(`${booted.base}/stream`)
 
-    expect(response.status).toBe(426)
-  })
-
-  it('accepts the stream websocket upgrade', async () => {
-    const opened = await new Promise<boolean>((resolve) => {
-      const socket = new WebSocket(`${booted.base.replace('http', 'ws')}/stream`)
-      const settle = (accepted: boolean): void => {
-        socket.close()
-        resolve(accepted)
-      }
-      socket.addEventListener('open', () => settle(true))
-      socket.addEventListener('error', () => settle(false))
-    })
-
-    expect(opened).toBe(true)
+    expect(response.status).toBe(404)
   })
 })

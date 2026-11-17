@@ -1,4 +1,7 @@
-import type { UserSlots } from './stream-connection'
+export type UserSlots = {
+  acquire(userId: string): boolean
+  release(userId: string): void
+}
 
 export const createUserSlots = (args: { limit: number }): UserSlots => {
   const held = new Map<string, number>()

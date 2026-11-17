@@ -1,18 +1,20 @@
 import { Global, Module, type Provider } from '@nestjs/common'
 import type { Db } from '@dltech/atlas-db'
 import type { LogPort } from '@dltech/atlas-observability'
+import { eventTypesOf } from '@dltech/atlas-plugin-sdk'
 
 import type { AgentHostEnv } from '../config/env'
 import { operatorRequestRegistry } from '../config/operator-control'
 import { McpOauthBeginService } from '../mcp-oauth/begin-service'
 import { mcpOauthGatewayOf } from '../mcp-oauth/gateway'
 import { OperatorAnswerService } from '../operator-input/answer-service'
+import { registeredPlugins } from '../registered-plugins'
 import type { SecretCipher } from '../config/secret-cipher'
 import { createSessionStream, type SessionStream } from '../stream/session-stream'
-import type { StreamService } from '../stream/stream-service'
+import { STREAM_MAX_CONNECTIONS_PER_USER } from '../stream/stream-limits'
 import { systemHostTimers } from '../stream/system-timers'
+import { createUserSlots } from '../stream/user-slots'
 import { CoreModule } from './core.module'
-import { StreamModule } from './stream.module'
 import {
   AGENT_HOST_ENV,
   CIPHER,
@@ -21,7 +23,6 @@ import {
   MCP_OAUTH_BEGIN,
   OPERATOR_ANSWERS,
   SESSION_STREAM,
-  STREAM,
 } from './tokens'
 
 const operatorAnswersProvider: Provider = {
@@ -44,23 +45,19 @@ const mcpOauthBeginProvider: Provider = {
 
 const sessionStreamProvider: Provider = {
   provide: SESSION_STREAM,
-  useFactory: (stream: StreamService, log: LogPort): SessionStream => {
-    const sessionStream = createSessionStream({
-      subscriptions: () => stream.subscriptionsPort(),
-      users: stream.slots(),
+  useFactory: (log: LogPort): SessionStream =>
+    createSessionStream({
+      users: createUserSlots({ limit: STREAM_MAX_CONNECTIONS_PER_USER }),
       timers: systemHostTimers,
-      eventTypes: stream.eventTypes(),
+      eventTypes: eventTypesOf(registeredPlugins),
       log,
-    })
-    stream.onDrain(() => sessionStream.drain())
-    return sessionStream
-  },
-  inject: [STREAM, LOG],
+    }),
+  inject: [LOG],
 }
 
 @Global()
 @Module({
-  imports: [CoreModule, StreamModule],
+  imports: [CoreModule],
   providers: [operatorAnswersProvider, mcpOauthBeginProvider, sessionStreamProvider],
   exports: [OPERATOR_ANSWERS, MCP_OAUTH_BEGIN, SESSION_STREAM],
 })

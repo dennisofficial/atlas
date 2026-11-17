@@ -14,12 +14,13 @@ import {
 import { readyFrameOf } from './ready-frame'
 import { StreamFrameQueue } from './session-stream-frames'
 import { STREAM_DRAIN_RECONNECT_SPREAD_MS } from './stream-limits'
-import type { UserSlots } from './stream-connection'
-import type {
-  OutgoingFrame,
-  StreamSubscriptionMessage,
-  SubscriptionPort,
+import {
+  unimplementedSubscriptions,
+  type OutgoingFrame,
+  type StreamSubscriptionMessage,
+  type SubscriptionPort,
 } from './subscription-port'
+import type { UserSlots } from './user-slots'
 
 export class SessionStreamLimitError extends Error {
   constructor() {
@@ -28,7 +29,6 @@ export class SessionStreamLimitError extends Error {
 }
 
 export type SessionStreamDeps = {
-  subscriptions(): SubscriptionPort
   users: UserSlots
   timers: HostTimers
   eventTypes: readonly string[] | undefined
@@ -49,9 +49,13 @@ export type SessionStreamListArgs = {
 }
 
 export type SessionStream = {
+  start(args: { subscriptions: SubscriptionPort }): void
   follow(args: SessionStreamFollowArgs): AsyncGenerator<StreamServerMessage>
   list(args: SessionStreamListArgs): AsyncGenerator<StreamServerMessage>
+  connections(): number
+  isDraining(): boolean
   drain(): void
+  stop(): void
 }
 
 type OpenSubscription = {
@@ -66,12 +70,14 @@ const messageOf = (frame: OutgoingFrame): StreamServerMessage =>
 
 export const createSessionStream = (deps: SessionStreamDeps): SessionStream => {
   const open = new Set<StreamFrameQueue>()
+  let subscriptions: SubscriptionPort = unimplementedSubscriptions
+  let draining = false
 
   async function* frames(args: OpenSubscription): AsyncGenerator<StreamServerMessage> {
     if (!deps.users.acquire(args.userId)) throw new SessionStreamLimitError()
     const { queue } = args
     const id = randomUUID()
-    const session = deps.subscriptions().open({
+    const session = subscriptions.open({
       userId: args.userId,
       version: STREAM_PROTOCOL_VERSION,
       surface: EStreamSurface.Web,
@@ -117,7 +123,15 @@ export const createSessionStream = (deps: SessionStreamDeps): SessionStream => {
     }
   }
 
+  const endAll = (end: (queue: StreamFrameQueue) => void): void => {
+    draining = true
+    for (const queue of [...open]) end(queue)
+  }
+
   return {
+    start: (args) => {
+      subscriptions = args.subscriptions
+    },
     follow: (args) =>
       frames({
         userId: args.userId,
@@ -139,10 +153,12 @@ export const createSessionStream = (deps: SessionStreamDeps): SessionStream => {
         queue: new StreamFrameQueue(),
         subscribe: (id) => ({ type: 'subscribe', id, kind: EStreamSubscribeKind.Sessions }),
       }),
-    drain: () => {
-      for (const queue of [...open]) {
-        queue.drain(Math.floor(deps.timers.random() * STREAM_DRAIN_RECONNECT_SPREAD_MS))
-      }
-    },
+    connections: () => open.size,
+    isDraining: () => draining,
+    drain: () =>
+      endAll((queue) =>
+        queue.drain(Math.floor(deps.timers.random() * STREAM_DRAIN_RECONNECT_SPREAD_MS)),
+      ),
+    stop: () => endAll((queue) => queue.end()),
   }
 }

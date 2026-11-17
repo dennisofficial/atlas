@@ -4,7 +4,7 @@ import type { LogPort } from '@dltech/atlas-observability'
 
 import type { PgWakeListener } from '../bus/pg-wake-listener'
 import type { RedisLiveFrames } from '../bus/redis-live-frames'
-import type { StreamService } from '../stream/stream-service'
+import type { SessionStream } from '../stream/session-stream'
 import type { FollowStack } from './follow-stack'
 import type { HostWatchService } from './host-watch-service'
 
@@ -13,7 +13,7 @@ export type HostShutdownSequenceArgs = {
   presence: Pick<HostPresence, 'close'>
   wakes: Pick<PgWakeListener, 'close'>
   liveFrames: Pick<RedisLiveFrames, 'close'>
-  stream: Pick<StreamService, 'drain' | 'stop'>
+  stream: Pick<SessionStream, 'drain' | 'stop'>
   holder: { drain(): Promise<void> }
   follow: Pick<FollowStack, 'close'>
   pool: { end(): Promise<void> }
@@ -60,7 +60,7 @@ export class HostShutdownSequence implements BeforeApplicationShutdown, OnApplic
       const timer = setTimeout(() => resolve(false), ms)
       clear = () => clearTimeout(timer)
     })
-    const drained = Promise.all([this.args.stream.drain({}), this.args.holder.drain()]).then(
+    const drained = Promise.all([this.args.stream.drain(), this.args.holder.drain()]).then(
       () => true,
     )
     return Promise.race([drained, deadline]).finally(clear)

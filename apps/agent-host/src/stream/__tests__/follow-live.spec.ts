@@ -18,23 +18,19 @@ import {
   type VisibilityState,
 } from '@dltech/atlas-core'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import {
-  EStreamSubscribeKind,
-  STREAM_PROTOCOL_VERSION,
-  type StreamServerMessage,
-} from '@dltech/atlas-protocol'
+import type { StreamServerMessage } from '@dltech/atlas-protocol'
 
 import { startPgChangeFeed, type PgChangeFeed } from '../../bus/pg-change-feed'
 import { createFollowSubscriptions, type FollowSubscriptions } from '../follow-port'
-import { MemoryStreamAuth } from '../memory-stream-auth'
-import { startStreamApp, type RunningStream } from './stream-app'
+import { createSessionStream, type SessionStream } from '../session-stream'
 import { systemHostTimers } from '../system-timers'
-import { TestClient } from './test-client'
+import { createUserSlots } from '../user-slots'
 
 const testDb = useTestDatabase()
 
 const SESSION = 'live-session'
 const THREAD = 'live-thread'
+const OWNER = 'user-a'
 const AT = '2026-11-02T12:00:00.000Z'
 
 const said = (text: string): V2Body => ({ type: 'user-said', text })
@@ -43,11 +39,16 @@ class ClientWindow {
   private state: VisibilityState = EMPTY_VISIBILITY
   private window: V2Event[] = []
   lastLive = false
+  received: number[] = []
 
-  constructor(readonly client: TestClient) {}
+  constructor(readonly frames: AsyncGenerator<StreamServerMessage>) {}
 
   async followUntil(seq: number): Promise<void> {
-    while (this.maxSeq() < seq) this.apply(await this.client.next())
+    while (this.maxSeq() < seq) this.apply(await this.nextFrame())
+  }
+
+  close(): void {
+    void this.frames.return(undefined)
   }
 
   apply(frame: StreamServerMessage): void {
@@ -67,10 +68,15 @@ class ClientWindow {
     this.received = [...this.received, ...frame.events.map((raw) => Number(raw.seq))]
   }
 
-  received: number[] = []
-
   seqs(): number[] {
     return this.window.map((event) => event.seq)
+  }
+
+  nextFrame(): Promise<StreamServerMessage> {
+    return this.frames.next().then((step) => {
+      if (step.done === true) throw new Error('the stream ended')
+      return step.value
+    })
   }
 
   private maxSeq(): number {
@@ -82,10 +88,10 @@ describe('follow a session over a real stream', () => {
   let plane: ControlPlane
   let feed: PgChangeFeed
   let follow: FollowSubscriptions
-  let server: RunningStream
+  let stream: SessionStream
   let epoch = 0
   let head: LogHead = { seq: 0, hash: GENESIS_HASH }
-  const clients: TestClient[] = []
+  const clients: ClientWindow[] = []
 
   const append = async (bodies: readonly V2Body[]): Promise<V2Event[]> => {
     const events = chainEvents({
@@ -103,18 +109,16 @@ describe('follow a session over a real stream', () => {
   }
 
   const connect = async (afterSeq?: { seq: number; hash: string }): Promise<ClientWindow> => {
-    const client = new TestClient({ url: `ws://127.0.0.1:${server.port}/stream` })
-    clients.push(client)
-    client.send({ type: 'hello', v: STREAM_PROTOCOL_VERSION, token: 'tok-a' })
-    expect((await client.next()).type).toBe('ready')
-    client.send({
-      type: 'subscribe',
-      id: 'sub-1',
-      kind: EStreamSubscribeKind.Session,
-      sessionId: SESSION,
-      ...(afterSeq === undefined ? {} : { afterSeq: afterSeq.seq, afterHash: afterSeq.hash }),
-    })
-    return new ClientWindow(client)
+    const window = new ClientWindow(
+      stream.follow({
+        userId: OWNER,
+        sessionId: SESSION,
+        ...(afterSeq === undefined ? {} : { afterSeq: afterSeq.seq, afterHash: afterSeq.hash }),
+      }),
+    )
+    clients.push(window)
+    expect((await window.nextFrame()).type).toBe('ready')
+    return window
   }
 
   beforeEach(async () => {
@@ -133,12 +137,16 @@ describe('follow a session over a real stream', () => {
       timers: systemHostTimers,
       log: undefined,
     })
-    const auth = new MemoryStreamAuth()
-    auth.grant({ token: 'tok-a', userId: 'user-a', expiresAt: Date.now() + 3_600_000 })
-    server = await startStreamApp({ auth, trustedOrigins: [], subscriptions: follow })
+    stream = createSessionStream({
+      users: createUserSlots({ limit: 20 }),
+      timers: systemHostTimers,
+      eventTypes: [],
+      log: undefined,
+    })
+    stream.start({ subscriptions: follow })
     await plane.createSession({
       sessionId: SESSION,
-      userId: 'user-a',
+      userId: OWNER,
       projectId: 'project-1',
       mainThreadId: THREAD,
     })
@@ -148,7 +156,7 @@ describe('follow a session over a real stream', () => {
 
   afterEach(async () => {
     for (const client of clients.splice(0)) client.close()
-    await server.stop()
+    stream.stop()
     follow.close()
     await feed.close()
   })
@@ -169,7 +177,7 @@ describe('follow a session over a real stream', () => {
     const first = await connect()
     const events = await append([said('a'), said('b'), said('c')])
     await first.followUntil(3)
-    first.client.close()
+    first.close()
     await append([said('d'), said('e')])
     const second = await connect({ seq: 3, hash: chainHash(events[2] as V2Event) })
     await second.followUntil(5)
