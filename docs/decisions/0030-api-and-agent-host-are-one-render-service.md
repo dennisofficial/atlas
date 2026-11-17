@@ -2,9 +2,8 @@
 
 Accepted 2026-11-17. Supersedes the "a new `apps/agent-host` service … with the API staying on
 Vercel" clause of [0021](0021-v2-loop-runs-on-the-agent-host.md) and its rejection of moving the
-whole API to Render. Reading its last consequence against
-[0029](0029-agent-host-is-a-nest-http-app.md), the stream and the operator routes are now that one
-module of `apps/api`.
+whole API to Render. It carries out what [0029](0029-agent-host-is-a-nest-http-app.md) left open: the
+stream and the operator routes become that one module of `apps/api`.
 
 ## Context
 
