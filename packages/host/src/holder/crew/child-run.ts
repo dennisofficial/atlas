@@ -36,7 +36,6 @@ export type ChildRunArgs = {
   worktree?: WorktreeEntryInfo | undefined
   signal: AbortSignal
   onLeaseLost(error: LeaseLostError): void
-  drainDeadline(): number | undefined
 }
 
 export class ChildRun {
@@ -89,7 +88,6 @@ export class ChildRun {
       remoteCalls: args.runtime.remoteCalls,
       daemonTools: args.runtime.daemonTools,
       appendRetryMs: args.deps.appendRetryMs,
-      drainDeadline: args.drainDeadline,
       onLeaseLost: (error) => {
         args.onLeaseLost(error)
         run.abort?.abort('lease_lost')

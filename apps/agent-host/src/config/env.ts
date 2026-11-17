@@ -19,7 +19,6 @@ export type AgentHostEnv = {
   vercelOauth: { clientId: string; clientSecret: string } | null
   mediaBlobToken: string | null
   maxSessions: number
-  drainMs: number
   sandboxImage: string
   daemonBundlePath: string
   port: number
@@ -32,7 +31,6 @@ const DEFAULT_SANDBOX_IMAGE = 'atlas-sandbox:latest'
 const DEFAULT_PORT = 10_000
 const DEFAULT_PREVIEW_DOMAIN = 'byatlas.dev'
 const DEFAULT_PUBLIC_URL = 'https://agent.byatlas.io'
-export const DEFAULT_DRAIN_MS = 270_000
 
 const defaultDaemonBundlePath = (): string => join(import.meta.dir, '../../../daemon/bin/daemon.js')
 
@@ -48,15 +46,6 @@ const parseMaxSessions = (raw: string | undefined): number => {
     throw new AgentHostEnvError([
       `AGENT_HOST_MAX_SESSIONS must be a positive integer, got "${raw}"`,
     ])
-  }
-  return parsed
-}
-
-const parseDrainMs = (raw: string | undefined): number => {
-  if (raw === undefined) return DEFAULT_DRAIN_MS
-  const parsed = Number(raw)
-  if (!Number.isInteger(parsed) || parsed < 1) {
-    throw new AgentHostEnvError([`AGENT_HOST_DRAIN_MS must be a positive integer, got "${raw}"`])
   }
   return parsed
 }
@@ -123,7 +112,6 @@ export const readAgentHostEnv = (
     vercelOauth: vercelOauthOf(env),
     mediaBlobToken: take(env, 'BLOB_READ_WRITE_TOKEN') ?? null,
     maxSessions: parseMaxSessions(take(env, 'AGENT_HOST_MAX_SESSIONS')),
-    drainMs: parseDrainMs(take(env, 'AGENT_HOST_DRAIN_MS')),
     sandboxImage: take(env, 'ATLAS_SANDBOX_IMAGE') ?? DEFAULT_SANDBOX_IMAGE,
     daemonBundlePath: take(env, 'ATLAS_DAEMON_BUNDLE') ?? defaultDaemonBundlePath(),
     port: parsePort(take(env, 'PORT')),

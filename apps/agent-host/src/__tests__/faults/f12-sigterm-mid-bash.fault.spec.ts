@@ -67,7 +67,6 @@ describe.skipIf(REDIS_URL === undefined)('F12 SIGTERM during a 5-minute bash', (
     const hostA = await rig.spawnHost({
       label: 'host-a',
       daemonUrl: daemon.url,
-      knobs: { drainMs: 500 },
       scripts: {
         [sessionId]: [
           {

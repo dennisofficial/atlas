@@ -159,7 +159,7 @@ export const createLoopRunner = (args: {
   epoch: number
   signal: AbortSignal
   crew: PodCrew
-  isModelOnlyDrain(): boolean
+  isDraining(): boolean
 }): { runner: LoopTurnRunner; intake: InboxIntake } => {
   const { deps, runtime, record, threadId } = args
   const operator =
@@ -216,7 +216,7 @@ export const createLoopRunner = (args: {
       headSeq: () => record.eventCache().currentHead().seq,
       epoch: args.epoch,
     }),
-    detachTool: (tool) => args.isModelOnlyDrain() && runtime.daemonTools.has(tool),
+    detachTool: (tool) => args.isDraining() && runtime.daemonTools.has(tool),
     launchDirectory: runtime.launchDirectory,
     normalizeFailure: runtime.normalizeFailure,
     retry: retryDepsFromTimers(deps.timers),
@@ -239,7 +239,7 @@ export const wireHeldLoop = (args: {
   signal: AbortSignal
   epoch: number
   crew: PodCrew
-  isModelOnlyDrain(): boolean
+  isDraining(): boolean
 }): { runner: LoopTurnRunner; branches: BranchObserver; recoverCommands(): Promise<void> } => {
   const { runner, intake } = createLoopRunner(args)
   const branches = createBranchObserver(args)

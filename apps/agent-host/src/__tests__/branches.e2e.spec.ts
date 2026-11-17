@@ -87,7 +87,7 @@ describe('branches-observed e2e', () => {
   })
 
   afterAll(async () => {
-    for (const held of holders) await held.drain({ deadline: Date.now() + 2_000 })
+    for (const held of holders) await held.drain()
     await sandbox.stopAll()
   })
 

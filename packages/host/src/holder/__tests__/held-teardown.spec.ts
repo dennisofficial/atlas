@@ -25,7 +25,7 @@ const fencedRig = async (): Promise<{
   fenced: FencedSettlement
   calls: RevokeParams[]
   lease(): Promise<Lease>
-  teardown(epoch: number): Promise<void>
+  teardown(args: { epoch: number; settleFence?: boolean }): Promise<void>
 }> => {
   const store = new InMemoryControlStore({ clock: () => new Date(0).toISOString() })
   const plane = new ControlPlane({ store })
@@ -53,7 +53,7 @@ const fencedRig = async (): Promise<{
     fenced,
     calls,
     lease: async () => (await plane.currentLease({ sessionId: SESSION })).lease,
-    teardown: async (epoch) => {
+    teardown: async (args) => {
       await teardownHeld({
         deps,
         runtime: undefined,
@@ -61,7 +61,8 @@ const fencedRig = async (): Promise<{
         turnRunning: false,
         kind: EHeldOutcome.Fenced,
         released: false,
-        epoch,
+        settleFence: args.settleFence ?? true,
+        epoch: args.epoch,
         fenced,
       })
     },
@@ -73,7 +74,7 @@ describe('teardownHeld on a fence', () => {
     const rig = await fencedRig()
     const held = await rig.lease()
 
-    await rig.teardown(held.epoch)
+    await rig.teardown({ epoch: held.epoch })
 
     expect(rig.calls).toEqual([{ sessionId: SESSION, epoch: held.epoch, wantsHolder: true }])
     expect(await rig.lease()).toMatchObject({
@@ -88,9 +89,9 @@ describe('teardownHeld on a fence', () => {
     const rig = await fencedRig()
     const held = await rig.lease()
 
-    await rig.teardown(held.epoch)
+    await rig.teardown({ epoch: held.epoch })
     const settled = await rig.lease()
-    await rig.teardown(held.epoch)
+    await rig.teardown({ epoch: held.epoch })
 
     expect(rig.calls).toHaveLength(1)
     expect(await rig.lease()).toEqual(settled)
@@ -106,13 +107,23 @@ describe('teardownHeld on a fence', () => {
     })
     expect(successor.ok).toBe(true)
 
-    await rig.teardown(held.epoch)
+    await rig.teardown({ epoch: held.epoch })
 
     expect(rig.calls).toHaveLength(2)
     expect((await rig.lease()).wantsHolder).toBe(false)
     expect(rig.log.entries).toMatchObject([
       { severity: ELogSeverity.Warn, source: 'holder.settle' },
     ])
+  })
+
+  it('leaves the lease to the claim loop when the presence is gone, so the epoch moves once', async () => {
+    const rig = await fencedRig()
+    const held = await rig.lease()
+
+    await rig.teardown({ epoch: held.epoch, settleFence: false })
+
+    expect(rig.calls).toEqual([])
+    expect(await rig.lease()).toEqual(held)
   })
 
   it('logs a warn rather than throwing when the control plane is unreachable', async () => {
@@ -122,7 +133,7 @@ describe('teardownHeld on a fence', () => {
       throw new Error('control plane down')
     }) as typeof rig.plane.revoke
 
-    await rig.teardown(held.epoch)
+    await rig.teardown({ epoch: held.epoch })
 
     expect(rig.log.entries).toMatchObject([
       { severity: ELogSeverity.Warn, source: 'holder.settle' },

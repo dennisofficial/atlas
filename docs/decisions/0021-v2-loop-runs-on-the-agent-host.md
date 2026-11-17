@@ -47,16 +47,18 @@ rarely and hands off leases within the grace.
 sessions on agent hosts.
 
 **An agent host restart is a clean handoff.** On SIGTERM an agent host takes no new sessions and pauses
-every loop it holds. A loop between steps pauses at once. A loop waiting on the model aborts the
-stream when the drain deadline (inside Render's 300 s grace) nears; the partial output is
-discarded and the new holder asks again. A loop waiting on a tool does not abort it: the tool runs
+every loop it holds. The handoff is near-instant: it never waits for a running turn, because a turn
+lasts minutes to hours and everything but the in-flight provider request is durable. A loop between
+steps pauses at once. A loop waiting on the model has its stream aborted immediately; the partial
+output is discarded and the new holder asks again. A loop waiting on a tool does not abort it: the tool runs
 in the sandbox daemon, which keeps it running and keeps its result under the call's idempotency key
 (`runId:callId`) until a holder confirms receipt. The agent host then releases its leases, and a new
 holder resumes from the record at the next epoch and collects any pending result instead of
 re-running the call. Only an in-flight model stream is lost. "Dispatched, effects unknown" (v1
 dispatch recovery) remains only for a sandbox that dies. The `agent` loop's existing pause
 (`PauseSignal`, checked at every step boundary) becomes a general handoff pause, and its
-`RelocationPaused` outcome is renamed for that purpose in slice 3.
+`RelocationPaused` outcome is renamed for that purpose in slice 3. A hard-exit timer (`5_000` ms in
+`main.ts`) bounds a drain that never settles, so a stuck handoff cannot hang the process.
 
 **Input wake and live deltas go through the CP.** The API writes the inbox; the holder is
 notified through pub/sub (Redis, which v1 already runs). Render's load balancer assigns a
@@ -141,18 +143,15 @@ work.
 fails on an import across the split. Its allowlist of known offenders is empty and may only shrink. v1 is
 deleted at cutover, not refactored.
 
-**Partial output on a handoff is kept, not discarded.** The decision said a model stream aborted at the
-drain deadline has its partial output discarded and the new holder asks again. The guarantee table above
+**Partial output on a handoff is kept, not discarded.** The decision says a model stream aborted on a
+handoff has its partial output discarded and the new holder asks again. The guarantee table above
 already said "kept"; the code keeps it:
-- At the drain deadline, `HeldSession.handoff` first detaches running daemon calls
-  (`remoteCalls.handoff()`), then aborts the turn with reason `'handoff'`. The turn ends as
-  `HandoffPaused`, never `run-failed`.
+- On drain, `HeldSession.handoff` first detaches running daemon calls (`remoteCalls.handoff()`), then
+  aborts the turn with reason `'handoff'`, at once. The turn ends as `HandoffPaused`, never `run-failed`.
 - The model port returns the step accumulated so far on abort instead of throwing. The loop appends it as
   an `assistant-said` with `interrupted: true`, and while the host is draining the record adapter marks it
   `aborted: 'handoff'` (`abortedOnHandoff`). The next holder resumes from the record and asks again.
-- The append has a grace past the deadline. Its retry limit is
-  `min(drainDeadline + 10 s, fenceDeadline)` (`LeaseRenewal.appendDeadline`,
-  `DRAIN_APPEND_GRACE_MS = 10_000`), where `fenceDeadline` is the last successful renewal plus the TTL minus
-  the fence margin. Before this, the limit was the drain deadline itself, which is when the abort fires, so
-  every append after it was refused, tripped lease loss and dropped the session without a revoke, leaving
-  the lease to expire on its TTL.
+- There is no drain deadline left to cut the append short: the record adapter retries on its own budget
+  (`appendRetryMs`, 30 s by default). A record store that never answers is bounded by the hard-exit timer
+  in `main.ts` (`HANDOFF_HARD_EXIT_MS = 5_000`), after which the lease expires on its TTL instead of being
+  revoked.

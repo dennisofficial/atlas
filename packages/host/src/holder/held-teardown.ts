@@ -17,13 +17,14 @@ export const teardownHeld = async (args: {
   turnRunning: boolean
   kind: EHeldOutcome
   released: boolean
+  settleFence: boolean
   epoch: number
   fenced: FencedSettlement
 }): Promise<HeldOutcome> => {
   const { deps, runtime, kind } = args
   if (kind === EHeldOutcome.Fenced) {
     runtime?.remoteCalls.close()
-    await args.fenced.settle(args.epoch)
+    if (args.settleFence) await args.fenced.settle(args.epoch)
     return { kind, needsHolder: false }
   }
   if (runtime !== undefined && !args.released) {

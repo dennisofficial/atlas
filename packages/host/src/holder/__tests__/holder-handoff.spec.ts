@@ -20,9 +20,7 @@ const startedExec = async (rig: HolderRig): Promise<boolean> =>
   })
 
 const drainA = async (a: HolderRig): Promise<void> => {
-  const drain = a.holder.drain({ deadline: a.clock.now() + 1_000 })
-  a.clock.advance(1_100)
-  await drain
+  await a.holder.drain()
   await new Promise((resolve) => setTimeout(resolve, 1_000))
 }
 
@@ -82,7 +80,7 @@ describe('SessionHolder handoff (F12/F15)', () => {
     expect(b.runtimes.length).toBe(1)
   }, 15_000)
 
-  it('past the deadline a daemon tool wait detaches: no cancel, no record by A; B collects the successful result', async () => {
+  it('a drain mid-tool-call detaches at once: no cancel, no record by A; B collects the successful result', async () => {
     const a = await makeRig({ script: longExecScript })
     await seedSession(a)
     await a.holder.start()
@@ -138,8 +136,7 @@ describe('SessionHolder handoff (F12/F15)', () => {
       })
     }) as typeof plane.revoke
 
-    const drain = a.holder.drain({ deadline: a.clock.now() + 1_000 })
-    a.clock.advance(1_100)
+    const drain = a.holder.drain()
     await new Promise((resolve) => setTimeout(resolve, 1_000))
     expect(firstRevoke).toBeDefined()
 
@@ -186,7 +183,7 @@ describe('SessionHolder drain while idle', () => {
     expect(saw).toBe(true)
 
     rig.plane.readInbox = () => Promise.reject(new Error('inbox down'))
-    const draining = rig.holder.drain({ deadline: rig.clock.now() + 30_000 })
+    const draining = rig.holder.drain()
     const ended = await flushUntil({
       check: () => rig.holder.heldIds().length === 0,
       clock: rig.clock,

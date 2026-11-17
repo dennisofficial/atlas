@@ -117,8 +117,7 @@ describe('SessionHolder claim', () => {
     })
     expect(a.runtimes.length).toBe(1)
 
-    const drain = a.holder.drain({ deadline: a.clock.now() + 1_000 })
-    a.clock.advance(1_100)
+    const drain = a.holder.drain()
     await a.bus.wake(SESSION)
     await drain
     await a.flush()

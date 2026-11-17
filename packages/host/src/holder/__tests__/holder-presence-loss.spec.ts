@@ -65,7 +65,7 @@ describe('SessionHolder presence loss', () => {
     })
     expect(answered).toBe(true)
     expect(a.hostId()).not.toBe(oldId)
-    expect(await currentEpoch(a)).toBeGreaterThan(oldEpoch)
+    expect(await currentEpoch(a)).toBe(oldEpoch + 1)
     const stale = (await a.events()).filter(
       (event) => event.epoch === oldEpoch && event.seq > lastSeq,
     )
@@ -116,7 +116,7 @@ describe('SessionHolder presence loss', () => {
     const registers = countRegisters()
     const a = await makeRig({ beforeRegister: registers.gate })
     await a.holder.start()
-    const drained = a.holder.drain({ deadline: a.clock.now() + 1_000 })
+    const drained = a.holder.drain()
     a.presence.lose()
     await drained
     await a.flush()
@@ -161,7 +161,7 @@ describe('SessionHolder presence loss', () => {
       advanceMs: 1_000,
     })
     expect(answered).toBe(true)
-    expect(await currentEpoch(a)).toBeGreaterThan(epoch)
+    expect(await currentEpoch(a)).toBe(epoch + 1)
   }, 15_000)
 
   it('drain cancels the pending register retry', async () => {
@@ -178,7 +178,7 @@ describe('SessionHolder presence loss', () => {
     expect(calls).toBe(2)
     expect(a.clock.pendingCount()).toBe(1)
 
-    await a.holder.drain({ deadline: a.clock.now() + 1_000 })
+    await a.holder.drain()
     expect(a.clock.pendingWithin(60_000)).toBe(false)
     a.clock.advance(60_000)
     await a.flush()

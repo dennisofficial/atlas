@@ -57,7 +57,7 @@ const assistantSaids = async (rig: HolderRig) => {
 }
 
 describe('SessionHolder handoff with an open model step (exit 3b)', () => {
-  it('appends the partial output aborted at the drain deadline, then revokes and wakes at once', async () => {
+  it('aborts the stream and revokes at once, without waiting on the turn or a timer', async () => {
     const a = await makeRig({ model: () => new StreamingModel() })
     await seedSession(a)
     await a.holder.start()
@@ -69,9 +69,9 @@ describe('SessionHolder handoff with an open model step (exit 3b)', () => {
     })
     expect(stepped).toBe(true)
 
-    const drain = a.holder.drain({ deadline: a.clock.now() + 1_000 })
-    a.clock.advance(1_100)
-    await drain
+    const startedAt = a.clock.now()
+    await a.holder.drain()
+    expect(a.clock.now()).toBe(startedAt)
 
     const saids = await assistantSaids(a)
     expect(saids.length).toBe(1)

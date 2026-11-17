@@ -167,7 +167,7 @@ describe('agent-host e2e', () => {
     })
     await hostB.start()
 
-    await hostA.drain({ deadline: Date.now() + 500 })
+    await hostA.drain()
     await bus.wake(sessionId)
 
     const events = await waitForSeq({

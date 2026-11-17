@@ -110,14 +110,14 @@ export class SessionHolder {
     this.loop.start()
   }
 
-  async drain(args: { deadline: number }): Promise<void> {
+  async drain(): Promise<void> {
     this.draining = true
     this.stopTriggers()
     const sessions = [...this.held.values()]
     for (const session of sessions) session.beginDrain()
     await Promise.all(
       sessions.map((session) =>
-        session.handoff({ deadline: args.deadline }).catch((error) => {
+        session.handoff().catch((error) => {
           this.log?.error({
             source: 'holder.drain',
             message: `handing off ${session.sessionId} failed`,
@@ -165,7 +165,7 @@ export class SessionHolder {
     this.settler.clear()
     this.lostRetries = [...this.retryAt.values()]
     this.retryAt.clear()
-    for (const session of sessions) session.loseLease()
+    for (const session of sessions) session.losePresence()
   }
 
   private onWake(sessionId: string): void {
