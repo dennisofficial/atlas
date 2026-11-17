@@ -9,6 +9,8 @@ import { RowAction } from './shell-row-action'
 import { ThreadRow } from './shell-thread-row'
 import { projectNameOf, type ProjectThreads } from './thread-partition'
 
+const COUNT_CLASS = 'font-mono text-xs text-muted-foreground tabular-nums'
+
 const HEADER_CLASS =
   'group/project flex h-7 items-center gap-1.5 rounded-md px-2 hover:bg-sidebar-accent data-popup-open:bg-sidebar-accent'
 
@@ -48,6 +50,16 @@ export function ProjectGroup({ entry, open, onOpenChange, activeThreadId }: Proj
           <span className="truncate">{projectNameOf(project)}</span>
         </button>
         <span className="h-px min-w-3 flex-1 bg-sidebar-border" />
+        {!open && (
+          <span
+            className={cn(
+              COUNT_CLASS,
+              'shrink-0 group-hover/project:hidden group-data-popup-open/project:hidden pointer-coarse:hidden',
+            )}
+          >
+            {sessions.length}
+          </span>
+        )}
         <div className="hidden shrink-0 items-center gap-1 group-hover/project:flex group-data-popup-open/project:flex pointer-coarse:flex">
           {project !== null && (
             <RowAction
@@ -57,9 +69,7 @@ export function ProjectGroup({ entry, open, onOpenChange, activeThreadId }: Proj
               <SquarePen />
             </RowAction>
           )}
-          <span className="font-mono text-xs text-muted-foreground tabular-nums">
-            {sessions.length}
-          </span>
+          <span className={COUNT_CLASS}>{sessions.length}</span>
           <button
             type="button"
             onClick={handleToggle}
