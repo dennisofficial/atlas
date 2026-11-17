@@ -17,7 +17,7 @@ import {
 } from '@dltech/atlas-wire'
 import { Inject, Optional, ServiceUnavailableException } from '@nestjs/common'
 import type { McpOauthBeginService } from '@dltech/atlas-agent-host'
-import { MCP_OAUTH_BEGIN } from '@dltech/atlas-agent-host/host/tokens'
+import { MCP_OAUTH_BEGIN } from '../../host-call-tokens'
 import { Ctx, Input, Mutation, Query, Router, UseMiddlewares } from 'nestjs-trpc'
 import { z } from 'zod'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
