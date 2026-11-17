@@ -34,6 +34,7 @@ daemon — exec, files, grep, background shells, services, stdio MCP, terminal, 
 
 **Agent host: Render, Virginia region, in the operator's company org (the Comp AI workspace).**
 The operator confirmed the shape on 2026-11-02: a new `apps/agent-host` service (plain Bun, no Nest
+(see [0029](0029-agent-host-is-a-nest-http-app.md), which supersedes that clause)
 or tRPC; a Render Background Worker named `atlas-agent-host`), with the API staying on Vercel. The
 agent host runs the cloud agent loop and nothing else; it is not a general worker. Background jobs
 and schedules run on trigger.dev in `apps/trigger` ([0022](0022-v2-background-jobs-in-apps-trigger.md)),
