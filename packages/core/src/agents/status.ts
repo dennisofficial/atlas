@@ -35,7 +35,7 @@ export const attributedStop = ({
 function stopped(killedBy: EKilledBy | undefined): string {
   if (killedBy === EKilledBy.User) return 'was stopped by the user after'
   if (killedBy === EKilledBy.Model) return 'was stopped at your request after'
-  if (killedBy === EKilledBy.SessionEnd) return 'was stopped when the session closed, after'
+  if (killedBy === EKilledBy.SessionEnd) return 'was stopped when the sandbox went to sleep, after'
   if (killedBy === EKilledBy.Unrecorded) {
     return 'was lost before anything recorded how it ended, after'
   }

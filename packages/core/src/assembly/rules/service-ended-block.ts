@@ -9,6 +9,13 @@ const PRINTED_NOTHING = 'Its log is empty.'
 const USER_KILLED =
   'The user stopped this service deliberately. Nothing is wrong; do not restart it or work around it unless the user asks.'
 
+const SLEPT_THROUGH: ReadonlySet<EKilledBy | undefined> = new Set([
+  EKilledBy.SessionEnd,
+  EKilledBy.IdlePark,
+])
+
+const WOKE_UP = 'Start it again if you still need it.'
+
 const NOT_WORK =
   'This was infrastructure you work against, not work you were waiting on. Its full log is at the path above; read it with the read tool if you need more than the tail.'
 
@@ -21,6 +28,7 @@ export function serviceEndedBlock(event: EventOfType<'service-ended'>): string {
   const sections = [headline]
 
   if (event.killedBy === EKilledBy.User) sections.push(USER_KILLED)
+  if (SLEPT_THROUGH.has(event.killedBy)) sections.push(WOKE_UP)
 
   sections.push(event.tail.trimEnd() === '' ? PRINTED_NOTHING : event.tail.trimEnd())
 

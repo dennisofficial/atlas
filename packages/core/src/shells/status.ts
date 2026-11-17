@@ -35,7 +35,7 @@ export function shellFailed(ending: ShellEnding): boolean {
 function killEnding(killedBy: EKilledBy | undefined): string {
   if (killedBy === EKilledBy.User) return 'was killed by the user'
   if (killedBy === EKilledBy.Model) return 'was killed at your request'
-  if (killedBy === EKilledBy.SessionEnd) return 'was killed because the session was closing'
+  if (killedBy === EKilledBy.SessionEnd) return 'was killed when the sandbox went to sleep'
   if (killedBy === EKilledBy.Timeout) return 'was killed for outliving its timeout'
   if (killedBy === EKilledBy.Rewind) return 'was killed by a rewind'
   if (killedBy === EKilledBy.Rotation) return 'was killed because the sandbox was being replaced'
