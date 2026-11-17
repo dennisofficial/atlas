@@ -35,6 +35,13 @@ export { startPgWakeListener, type PgWakeListener } from './bus/pg-wake-listener
 export { createRedisLiveFrames, type RedisLiveFrames } from './bus/redis-live-frames'
 export { createStreamWsAdapter, StreamWsAdapter } from './stream/stream-ws-adapter'
 export {
+  createSessionStream,
+  SessionStreamLimitError,
+  type SessionStream,
+  type SessionStreamFollowArgs,
+  type SessionStreamListArgs,
+} from './stream/session-stream'
+export {
   createSessionRuntimeFactory,
   SandboxNotConfiguredError,
   type SessionRuntimeFactoryArgs,

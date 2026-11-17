@@ -34,6 +34,7 @@ export class StreamService {
   private readonly timers: HostTimers
   private readonly users: UserSlots
   private readonly sockets = new Set<StreamConnection>()
+  private readonly drainListeners = new Set<() => void>()
   private draining = false
   private emptied: (() => void) | undefined
 
@@ -50,6 +51,22 @@ export class StreamService {
 
   connections(): number {
     return this.sockets.size
+  }
+
+  subscriptionsPort(): SubscriptionPort {
+    return this.subscriptions
+  }
+
+  slots(): UserSlots {
+    return this.users
+  }
+
+  eventTypes(): readonly string[] | undefined {
+    return this.args.eventTypes
+  }
+
+  onDrain(listener: () => void): void {
+    this.drainListeners.add(listener)
   }
 
   isDraining(): boolean {
@@ -78,6 +95,7 @@ export class StreamService {
 
   async drain(args: { reconnectAfterMs?: number }): Promise<void> {
     this.draining = true
+    for (const listener of this.drainListeners) listener()
     for (const connection of [...this.sockets]) {
       connection.goAway(
         args.reconnectAfterMs ??
