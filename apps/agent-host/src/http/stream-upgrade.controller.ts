@@ -1,8 +1,8 @@
-import { Controller, Get, Res } from '@nestjs/common'
+import { Controller, Get, Res, VERSION_NEUTRAL } from '@nestjs/common'
 
 import type { HostReply } from './host-request'
 
-@Controller()
+@Controller({ version: VERSION_NEUTRAL })
 export class StreamUpgradeController {
   @Get('stream')
   handlePlainRequest(@Res() response: HostReply): void {

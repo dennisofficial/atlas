@@ -13,7 +13,9 @@ const TIER_FILE = '.env.production.enc'
 const MAX_DURATION_SECONDS = 300
 
 // Lazy imports of NestJS and its libraries (the NestJS bundling guide's list) that this API never installs.
+// The agent host is imported only by the long-lived entry (src/main.ts); a Vercel function never embeds it.
 const OPTIONAL_IMPORTS = [
+  '@dltech/atlas-agent-host',
   '@nestjs/graphql',
   '@nestjs/microservices',
   '@nestjs/microservices/microservices-module',

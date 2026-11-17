@@ -9,10 +9,12 @@ export { AgentHostEnvError, readAgentHostEnv, type AgentHostEnv } from './config
 export { daemonPaths, launchDaemon, type DaemonBundle } from './sandbox/daemon-launch'
 export { SandboxProvider, sandboxNameOf, type DaemonEndpoint } from './sandbox/sandbox-provider'
 export { VercelSandboxProvider } from './sandbox/vercel-sandbox-provider'
+export { HostModule } from './host/host.module'
 export { ForegroundOnlyShells } from './runtime/foreground-shells'
 export { createHostBus } from './bus/host-bus'
 export { startPgWakeListener, type PgWakeListener } from './bus/pg-wake-listener'
 export { createRedisLiveFrames, type RedisLiveFrames } from './bus/redis-live-frames'
+export { createStreamWsAdapter, StreamWsAdapter } from './stream/stream-ws-adapter'
 export {
   createSessionRuntimeFactory,
   SandboxNotConfiguredError,

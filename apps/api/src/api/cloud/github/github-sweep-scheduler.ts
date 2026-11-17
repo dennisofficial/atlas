@@ -9,8 +9,8 @@ export const POLL_SWEEP_INTERVAL_MS = 30_000
 export const HOOK_SWEEP_INTERVAL_MS = 60_000
 export const WEBHOOK_RECONCILE_INTERVAL_MS = 60_000
 
-export function runsOffVercel(): boolean {
-  return process.env.VERCEL !== '1'
+export function githubSweepsInProcess(): boolean {
+  return process.env.GITHUB_SWEEPS_IN_PROCESS === '1'
 }
 
 @Injectable()
@@ -41,9 +41,9 @@ export class GithubSweepSchedulerService {
 }
 
 export function sweepSchedulerProviders(): Provider[] {
-  return runsOffVercel() ? [GithubSweepSchedulerService] : []
+  return githubSweepsInProcess() ? [GithubSweepSchedulerService] : []
 }
 
 export function sweepScheduleImports(): DynamicModule[] {
-  return runsOffVercel() ? [ScheduleModule.forRoot()] : []
+  return githubSweepsInProcess() ? [ScheduleModule.forRoot()] : []
 }

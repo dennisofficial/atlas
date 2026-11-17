@@ -43,9 +43,31 @@ describe('background work providers', () => {
     expect(waitUntil).toHaveBeenCalledWith(work)
   })
 
-  it('does nothing in the process implementation', () => {
-    new ProcessBackgroundWork().keepAlive()
+  it('keeps no work waiting for shutdown once it settles', async () => {
+    const work = Promise.resolve()
+    const background = new ProcessBackgroundWork()
+
+    background.keepAlive(work)
+    await work
+    await new Promise((resolve) => setTimeout(resolve, 0))
 
     expect(waitUntil).not.toHaveBeenCalled()
+    expect(background['running'].size).toBe(0)
+  })
+
+  it('waits for tracked work before the process leaves', async () => {
+    let finish = (): void => undefined
+    const background = new ProcessBackgroundWork()
+
+    background.keepAlive(
+      new Promise<void>((resolve) => {
+        finish = resolve
+      }),
+    )
+    const shutdown = background.onApplicationShutdown()
+    finish()
+
+    await shutdown
+    expect(background['running'].size).toBe(0)
   })
 })

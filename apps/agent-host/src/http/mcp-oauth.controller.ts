@@ -9,6 +9,7 @@ import {
   Req,
   Res,
   UseGuards,
+  VERSION_NEUTRAL,
 } from '@nestjs/common'
 
 import {
@@ -25,7 +26,7 @@ import type { HostReply, HostRequest } from './host-request'
 import { OriginGuard } from './origin.guard'
 import { ZodBodyPipe } from './zod-body.pipe'
 
-@Controller()
+@Controller({ version: VERSION_NEUTRAL })
 export class McpOauthController {
   constructor(
     @Inject(MCP_OAUTH_BEGIN) private readonly begins: McpOauthBeginService,

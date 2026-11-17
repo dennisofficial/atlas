@@ -2,7 +2,8 @@ import type { INestApplicationContext } from '@nestjs/common'
 import { WsAdapter } from '@nestjs/platform-ws'
 import type { IncomingMessage } from 'node:http'
 
-import type { StreamRefusal } from './stream-service'
+import { STREAM } from '../host/tokens'
+import type { StreamRefusal, StreamService } from './stream-service'
 
 type UpgradeInfo = { req: IncomingMessage }
 
@@ -28,4 +29,9 @@ export class StreamWsAdapter extends WsAdapter {
       },
     })
   }
+}
+
+export const createStreamWsAdapter = (app: INestApplicationContext): StreamWsAdapter => {
+  const stream = app.get<StreamService>(STREAM)
+  return new StreamWsAdapter(app, (input) => stream.refusal(input))
 }

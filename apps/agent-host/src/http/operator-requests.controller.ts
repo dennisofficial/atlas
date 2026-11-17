@@ -1,4 +1,14 @@
-import { All, Body, Controller, HttpCode, Inject, Post, Res, UseGuards } from '@nestjs/common'
+import {
+  All,
+  Body,
+  Controller,
+  HttpCode,
+  Inject,
+  Post,
+  Res,
+  UseGuards,
+  VERSION_NEUTRAL,
+} from '@nestjs/common'
 
 import {
   OPERATOR_ANSWER_PATH,
@@ -13,7 +23,7 @@ import type { HostReply } from './host-request'
 import { OriginGuard } from './origin.guard'
 import { ZodBodyPipe } from './zod-body.pipe'
 
-@Controller()
+@Controller({ version: VERSION_NEUTRAL })
 export class OperatorRequestsController {
   constructor(@Inject(OPERATOR_ANSWERS) private readonly answers: OperatorAnswerService) {}
 
