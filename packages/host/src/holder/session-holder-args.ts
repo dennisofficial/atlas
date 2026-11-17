@@ -20,7 +20,6 @@ export type SessionHolderArgs = {
   maxSessions: number
   appendRetryMs?: number | undefined
   idleMinutes?: number | undefined
-  stallAfterMs?: number | undefined
   sweepMs?: number | undefined
   isPermanentStartError?: ((error: unknown) => boolean) | undefined
   reasonOfStartError?: ((error: unknown) => string) | undefined

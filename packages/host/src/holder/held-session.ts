@@ -14,7 +14,13 @@ import { settleOperatorOnStop } from './operator-stop'
 import type { SessionRuntime } from './ports'
 import type { BranchObserver } from './branch-observer'
 import { CrewRoom } from './crew'
-import { logDriveFault, logReconcileFault, settleAndCheckResume, wireHeldLoop } from './held-runner'
+import {
+  logDriveFault,
+  logReconcileFault,
+  settleAndCheckResume,
+  startHeldTurn,
+  wireHeldLoop,
+} from './held-runner'
 import { teardownHeld } from './held-teardown'
 import { HeldPrepare } from './held-prepare'
 import { readHeldAction } from './held-snapshot'
@@ -26,7 +32,6 @@ import type { SessionRecord } from './record/record-adapter'
 import type { HeldSessionDeps } from './held-session-deps'
 import { HeldTurns } from './held-turns'
 import { TakeOver } from './held-takeover'
-import { StallGuard } from './stall-guard'
 import { quarantineOutcome } from './start-failure-record'
 import { HeldEnding } from './held-ending'
 
@@ -39,7 +44,6 @@ export class HeldSession {
   private readonly pause = new PauseSignal()
   private readonly turns: HeldTurns
   private readonly prepare: HeldPrepare
-  private readonly stall: StallGuard
   private draining = false
   private done: Promise<HeldOutcome> | undefined
   private lastActivityAt: number
@@ -76,13 +80,6 @@ export class HeldSession {
       },
     })
     this.fenced = new FencedSettlement(deps)
-    this.stall = new StallGuard({
-      deps,
-      turns: this.turns,
-      record: () => this.record,
-      onActivity: this.noteActivity,
-      onStalled: () => this.reconciler?.request(),
-    })
     this.idle = new IdleDeadline({
       timers: deps.timers,
       idleMinutes: deps.idleMinutes,
@@ -281,9 +278,12 @@ export class HeldSession {
 
   private startTurn(args: { runner: LoopTurnRunner; threadId: ThreadId; resume: boolean }): void {
     this.idle.disarm()
-    this.stall.startTurn({
+    startHeldTurn({
       ...args,
+      deps: this.deps,
+      turns: this.turns,
       pause: this.pause,
+      onActivity: this.noteActivity,
       refreshBranches: () => {
         if (this.draining || this.ending.outcome !== undefined) return
         void this.branches?.refresh().catch((error) => logDriveFault({ deps: this.deps, error }))
