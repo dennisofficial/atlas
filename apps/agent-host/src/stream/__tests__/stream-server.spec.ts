@@ -21,20 +21,20 @@ describe('stream server http surface', () => {
   })
 
   it('answers healthz with the connection count', async () => {
-    harness = new StreamHarness()
+    harness = await StreamHarness.create()
     const response = await fetch(`${harness.httpUrl}/healthz`)
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ ok: true, connections: 0 })
   })
 
   it('404s unknown paths and 426s a plain GET on /stream', async () => {
-    harness = new StreamHarness()
+    harness = await StreamHarness.create()
     expect((await fetch(`${harness.httpUrl}/nope`)).status).toBe(404)
     expect((await fetch(`${harness.httpUrl}/stream`)).status).toBe(426)
   })
 
   it('refuses a listed-origin mismatch with 403 and admits a listed origin', async () => {
-    harness = new StreamHarness({ trustedOrigins: ['https://app.byatlas.io'] })
+    harness = await StreamHarness.create({ trustedOrigins: ['https://app.byatlas.io'] })
     const refused = await harness.upgradeAttempt({ headers: { Origin: 'https://evil.example' } })
     expect(refused.status).toBe(403)
     const client = harness.connect({ headers: { Origin: 'https://app.byatlas.io' } })
@@ -43,31 +43,10 @@ describe('stream server http surface', () => {
   })
 
   it('admits any origin when none are listed', async () => {
-    harness = new StreamHarness()
+    harness = await StreamHarness.create()
     const client = harness.connect({ headers: { Origin: 'https://anything.example' } })
     client.send({ type: 'hello', v: STREAM_PROTOCOL_VERSION, token: 'tok-a' })
     expect((await client.next()).type).toBe('ready')
-  })
-
-  it('asks the oauth callback only on its own path and routes the rest itself', async () => {
-    const asked: string[] = []
-    harness = new StreamHarness({
-      mcpOauthCallback: async (request) => {
-        asked.push(new URL(request.url).pathname)
-        return new Response('signed in', { status: 302 })
-      },
-    })
-    expect((await fetch(`${harness.httpUrl}/healthz`)).status).toBe(200)
-    expect((await fetch(`${harness.httpUrl}/stream`)).status).toBe(426)
-    expect((await fetch(`${harness.httpUrl}/nope`)).status).toBe(404)
-    expect(asked).toEqual([])
-    expect((await fetch(`${harness.httpUrl}/mcp-oauth/callback?code=c&state=s`)).status).toBe(302)
-    expect(asked).toEqual(['/mcp-oauth/callback'])
-  })
-
-  it('404s the oauth callback path the callback leaves alone', async () => {
-    harness = new StreamHarness({ mcpOauthCallback: async () => null })
-    expect((await fetch(`${harness.httpUrl}/mcp-oauth/callback?code=c`)).status).toBe(404)
   })
 })
 
@@ -79,7 +58,7 @@ describe('stream server connection', () => {
   })
 
   it('answers hello with ready and counts the connection', async () => {
-    harness = new StreamHarness()
+    harness = await StreamHarness.create()
     const client = await harness.ready()
     expect(harness.server.connections()).toBe(1)
     client.close()
@@ -87,21 +66,21 @@ describe('stream server connection', () => {
   })
 
   it('talks down to our version when the client is newer', async () => {
-    harness = new StreamHarness()
+    harness = await StreamHarness.create()
     const client = harness.connect()
     client.send({ type: 'hello', v: STREAM_PROTOCOL_VERSION + 4, token: 'tok-a' })
     expect(await client.next()).toMatchObject({ type: 'ready', v: STREAM_PROTOCOL_VERSION })
   })
 
   it('answers a version 1 hello with a version 1 ready', async () => {
-    harness = new StreamHarness()
+    harness = await StreamHarness.create()
     const client = harness.connect()
     client.send({ type: 'hello', v: STREAM_PROTOCOL_MIN_VERSION, token: 'tok-a' })
     expect(await client.next()).toMatchObject({ type: 'ready', v: STREAM_PROTOCOL_MIN_VERSION })
   })
 
   it('closes 4401 when no hello arrives in time and owns no timer afterwards', async () => {
-    harness = new StreamHarness()
+    harness = await StreamHarness.create()
     const client = harness.connect()
     await until(() => harness.timers.pendingCount() > 0, 'the hello timer')
     harness.timers.advance(STREAM_HELLO_TIMEOUT_MS)
@@ -110,35 +89,35 @@ describe('stream server connection', () => {
   })
 
   it('stops the hello timer once hello arrives', async () => {
-    harness = new StreamHarness()
+    harness = await StreamHarness.create()
     const client = await harness.ready()
     harness.timers.advance(STREAM_HELLO_TIMEOUT_MS * 2)
     expect(client.isClosed).toBe(false)
   })
 
   it('closes 4401 on an unknown token', async () => {
-    harness = new StreamHarness()
+    harness = await StreamHarness.create()
     const client = harness.connect()
     client.send({ type: 'hello', v: STREAM_PROTOCOL_VERSION, token: 'nobody' })
     expect(await client.waitClosed()).toBe(EStreamClose.Unauthenticated)
   })
 
   it('closes 4401 when the first frame is not hello', async () => {
-    harness = new StreamHarness()
+    harness = await StreamHarness.create()
     const client = harness.connect()
     client.send({ type: 'ping' })
     expect(await client.waitClosed()).toBe(EStreamClose.Unauthenticated)
   })
 
   it('answers ping with pong', async () => {
-    harness = new StreamHarness()
+    harness = await StreamHarness.create()
     const client = await harness.ready()
     client.send({ type: 'ping' })
     expect(await client.next()).toEqual({ type: 'pong' })
   })
 
   it('rejects an oversize frame with bad-frame then 1009', async () => {
-    harness = new StreamHarness()
+    harness = await StreamHarness.create()
     const client = await harness.ready()
     client.send('x'.repeat(STREAM_MAX_CLIENT_FRAME_BYTES + 1))
     expect(await client.next()).toEqual({ type: 'error', code: EStreamErrorCode.BadFrame })
@@ -146,7 +125,7 @@ describe('stream server connection', () => {
   })
 
   it('answers malformed frames with bad-frame and stays open', async () => {
-    harness = new StreamHarness()
+    harness = await StreamHarness.create()
     const client = await harness.ready()
     client.send('{not json')
     expect(await client.next()).toEqual({ type: 'error', code: EStreamErrorCode.BadFrame })
@@ -157,7 +136,7 @@ describe('stream server connection', () => {
   })
 
   it('ignores an unknown frame kind', async () => {
-    harness = new StreamHarness()
+    harness = await StreamHarness.create()
     const client = await harness.ready()
     client.send({ type: 'teleport', id: 'x' })
     client.send({ type: 'ping' })
@@ -165,7 +144,7 @@ describe('stream server connection', () => {
   })
 
   it('routes subscription frames to the stub, which answers internal', async () => {
-    harness = new StreamHarness()
+    harness = await StreamHarness.create()
     const client = await harness.ready()
     client.send({ type: 'subscribe', id: 'sub-1', kind: 'session', sessionId: 's1' })
     expect(await client.next()).toEqual({

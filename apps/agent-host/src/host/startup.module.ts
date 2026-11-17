@@ -47,9 +47,10 @@ const shutdownProvider: Provider = {
     stream: StreamService,
     follow: FollowStack,
     pool: Pool,
+    holder: SessionHolder,
   ): HostShutdownSequence =>
-    new HostShutdownSequence({ watch, presence, wakes, liveFrames, stream, follow, pool }),
-  inject: [HOST_WATCH, PRESENCE, WAKE_LISTENER, LIVE_FRAMES, STREAM, FOLLOW_STACK, POOL],
+    new HostShutdownSequence({ watch, presence, wakes, liveFrames, stream, follow, pool, holder }),
+  inject: [HOST_WATCH, PRESENCE, WAKE_LISTENER, LIVE_FRAMES, STREAM, FOLLOW_STACK, POOL, HOLDER],
 }
 
 @Module({

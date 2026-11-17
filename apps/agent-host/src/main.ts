@@ -1,16 +1,8 @@
-import 'reflect-metadata'
-
-import { NestFactory } from '@nestjs/core'
-import type { SessionHolder } from '@dltech/atlas-host'
 import type { LogPort } from '@dltech/atlas-observability'
 
 import { AgentHostEnvError, readAgentHostEnv } from './config/env'
-import { HostModule } from './host/host.module'
-import type { StreamService } from './host/stream-service'
-import { HOLDER, LOG, STREAM } from './host/tokens'
-import { createGracefulShutdown } from './shutdown/graceful-shutdown'
-
-const HANDOFF_HARD_EXIT_MS = 5_000
+import { createApp } from './create-app'
+import { LOG } from './host/tokens'
 
 const main = async (): Promise<void> => {
   const env = readAgentHostEnv()
@@ -18,26 +10,11 @@ const main = async (): Promise<void> => {
     console.error(`agent-host refuses to start; daemon bundle not found at ${env.daemonBundlePath}`)
     process.exit(78)
   }
-  const app = await NestFactory.createApplicationContext(HostModule.forRoot(env), { logger: false })
+  const app = await createApp(env)
+  await app.listen(env.port)
   const log = app.get<LogPort>(LOG)
-  const holder = app.get<SessionHolder>(HOLDER)
-  const stream = app.get<StreamService>(STREAM).running()
-  log.info({ source: 'main', message: 'stream listening', data: { port: stream.port } })
+  log.info({ source: 'main', message: 'stream listening', data: { port: env.port } })
   log.info({ source: 'main', message: 'agent-host started' })
-
-  const handleSignal = createGracefulShutdown({
-    hardExitAfterMs: HANDOFF_HARD_EXIT_MS,
-    setTimeout: (fn, ms) => setTimeout(fn, ms),
-    clearTimeout: (timer) => clearTimeout(timer as ReturnType<typeof setTimeout>),
-    drain: async () => {
-      await Promise.all([stream.drain({}), holder.drain()])
-      await app.close()
-    },
-    exit: (code) => process.exit(code),
-    log,
-  })
-  process.on('SIGTERM', handleSignal)
-  process.on('SIGINT', handleSignal)
 }
 
 main().catch((error: unknown) => {

@@ -13,7 +13,7 @@ describe('stream close reason', () => {
   })
 
   it('sends closing with the code before closing a bad token', async () => {
-    harness = new StreamHarness()
+    harness = await StreamHarness.create()
     const client = harness.connect()
     client.send({ type: 'hello', v: STREAM_PROTOCOL_VERSION, token: 'not-granted' })
     expect(await client.next()).toEqual({ type: 'closing', code: EStreamClose.Unauthenticated })
@@ -21,7 +21,7 @@ describe('stream close reason', () => {
   })
 
   it('sends closing after going-away on drain', async () => {
-    harness = new StreamHarness()
+    harness = await StreamHarness.create()
     const client = await harness.ready()
     await harness.server.drain({ reconnectAfterMs: 0 })
     expect(await client.next()).toEqual({ type: 'going-away', reconnectAfterMs: 0 })
@@ -29,7 +29,7 @@ describe('stream close reason', () => {
   })
 
   it('sends closing with the policy code past the per-user cap', async () => {
-    harness = new StreamHarness()
+    harness = await StreamHarness.create()
     for (let index = 0; index < STREAM_MAX_CONNECTIONS_PER_USER; index += 1) await harness.ready()
     const over = harness.connect()
     over.send({ type: 'hello', v: STREAM_PROTOCOL_VERSION, token: 'tok-a' })

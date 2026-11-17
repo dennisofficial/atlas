@@ -27,7 +27,7 @@ import {
 import { startPgChangeFeed, type PgChangeFeed } from '../../bus/pg-change-feed'
 import { createFollowSubscriptions, type FollowSubscriptions } from '../follow-port'
 import { MemoryStreamAuth } from '../memory-stream-auth'
-import { startStreamServer, type StreamServer } from '../stream-server'
+import { startStreamApp, type RunningStream } from './stream-app'
 import { systemHostTimers } from '../system-timers'
 import { TestClient } from './test-client'
 
@@ -82,7 +82,7 @@ describe('follow a session over a real stream', () => {
   let plane: ControlPlane
   let feed: PgChangeFeed
   let follow: FollowSubscriptions
-  let server: StreamServer
+  let server: RunningStream
   let epoch = 0
   let head: LogHead = { seq: 0, hash: GENESIS_HASH }
   const clients: TestClient[] = []
@@ -135,12 +135,7 @@ describe('follow a session over a real stream', () => {
     })
     const auth = new MemoryStreamAuth()
     auth.grant({ token: 'tok-a', userId: 'user-a', expiresAt: Date.now() + 3_600_000 })
-    server = startStreamServer({
-      port: 0,
-      auth,
-      trustedOrigins: [],
-      subscriptions: follow,
-    })
+    server = await startStreamApp({ auth, trustedOrigins: [], subscriptions: follow })
     await plane.createSession({
       sessionId: SESSION,
       userId: 'user-a',

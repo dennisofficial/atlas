@@ -12,6 +12,8 @@ export const STREAM_DRAIN_RECONNECT_SPREAD_MS = 5_000
 
 export const STREAM_SOCKET_IDLE_SECONDS = 120
 
+export const STREAM_SOCKET_PING_MS = 60_000
+
 export const STREAM_SOCKET_MAX_PAYLOAD_BYTES = 1_048_576
 
 export enum EStreamServerClose {

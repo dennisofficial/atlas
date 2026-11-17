@@ -1,5 +1,5 @@
-export { MCP_OAUTH_BEGIN_PATH, mcpOauthBeginOf } from './begin-route'
-export { MCP_OAUTH_CALLBACK_PATH, mcpOauthCallbackOf } from './callback'
+export { MCP_OAUTH_BEGIN_PATH, McpOauthBeginService } from './begin-service'
+export { MCP_OAUTH_CALLBACK_PATH, mcpOauthCallbackOf, type CallbackHandler } from './callback'
 export type { McpOauthCallbackArgs } from './callback'
 export { mcpOauthGatewayOf } from './gateway'
 export { surfaceOf } from './redirect'

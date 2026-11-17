@@ -5,5 +5,10 @@ export {
   type OperatorRefusal,
   type OperatorRequestOutcome,
 } from './registry'
-export { OPERATOR_ANSWER_PATH, operatorAnswerOf, type OperatorAnswerRouteArgs } from './route'
+export {
+  OPERATOR_ANSWER_PATH,
+  OperatorAnswerService,
+  operatorAnswerRequestSchema,
+  type OperatorAnswerRequest,
+} from './answer-service'
 export { OperatorSessionStore } from './store'

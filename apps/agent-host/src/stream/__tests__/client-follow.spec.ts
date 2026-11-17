@@ -22,7 +22,7 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { startPgChangeFeed, type PgChangeFeed } from '../../bus/pg-change-feed'
 import { createFollowSubscriptions, type FollowSubscriptions } from '../follow-port'
 import { MemoryStreamAuth } from '../memory-stream-auth'
-import { startStreamServer, type StreamServer } from '../stream-server'
+import { startStreamApp, type RunningStream } from './stream-app'
 import { systemHostTimers } from '../system-timers'
 import { until } from './test-client'
 
@@ -47,7 +47,7 @@ describe('the client SDK following a session over a real stream', () => {
   let plane: ControlPlane
   let feed: PgChangeFeed
   let follow: FollowSubscriptions
-  let server: StreamServer
+  let server: RunningStream
   let port = 0
   let epoch = 0
   let head: LogHead = { seq: 0, hash: GENESIS_HASH }
@@ -68,10 +68,13 @@ describe('the client SDK following a session over a real stream', () => {
     head = outcome.head
   }
 
-  const startServer = (atPort: number): StreamServer => {
+  const startServer = async (atPort: number): Promise<RunningStream> => {
     const auth = new MemoryStreamAuth()
     auth.grant({ token: 'tok-a', userId: 'user-a', expiresAt: Date.now() + 3_600_000 })
-    return startStreamServer({ port: atPort, auth, trustedOrigins: [], subscriptions: follow })
+    return await startStreamApp(
+      { auth, trustedOrigins: [], subscriptions: follow },
+      { port: atPort },
+    )
   }
 
   beforeEach(async () => {
@@ -100,7 +103,7 @@ describe('the client SDK following a session over a real stream', () => {
       timers: systemHostTimers,
       log: undefined,
     })
-    server = startServer(0)
+    server = await startServer(0)
     port = server.port
     await plane.createSession({
       sessionId: SESSION,
@@ -154,7 +157,7 @@ describe('the client SDK following a session over a real stream', () => {
     await server.stop()
     hashChecksAt.length = 0
     await append([{ type: 'user-said', text: 'three' }])
-    server = startServer(port)
+    server = await startServer(port)
     await append([{ type: 'user-said', text: 'four' }])
     await until(() => session.getSnapshot().cursor?.seq === 4, 'events after the restart')
     expect(session.getSnapshot().events.map((event) => event.seq)).toEqual([1, 2, 3, 4])

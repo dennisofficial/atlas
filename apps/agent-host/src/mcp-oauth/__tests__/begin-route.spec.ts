@@ -3,7 +3,7 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { describe, expect, it } from 'bun:test'
 
 import { seedOwner } from '../../config/__tests__/config-reader.fixture'
-import { mcpOauthBeginOf } from '../begin-route'
+import { McpOauthBeginService, mcpOauthBeginRequestSchema } from '../begin-service'
 import type { McpOauthBeginArgs, McpOauthGateway } from '../types'
 import { cipher, seedCloudServer } from './fixtures'
 
@@ -17,20 +17,45 @@ const gatewayOf = (calls: McpOauthBeginArgs[]): McpOauthGateway => ({
   refresh: async () => ({ ok: false, reason: 'unused' }),
 })
 
+type RouteAnswer = {
+  status: number
+  json(): Promise<unknown>
+  headers: { get(name: string): string | null }
+}
+
+const routeAnswer = (status: number, body: unknown): RouteAnswer => ({
+  status,
+  json: async () => body,
+  headers: { get: () => null },
+})
+
 const routeOver = (args: {
   db: Db
   calls?: McpOauthBeginArgs[]
   userId?: string
   trusted?: readonly string[]
-}) =>
-  mcpOauthBeginOf({
+}) => {
+  const service = new McpOauthBeginService({
     db: args.db,
     cipher,
     gateway: gatewayOf(args.calls ?? []),
-    resolve: async (bearer) =>
-      bearer === 'token-1' ? { userId: args.userId ?? 'user-1' } : undefined,
-    trustedOrigins: args.trusted ?? [],
   })
+  const trusted = args.trusted ?? []
+  return async (request: Request): Promise<RouteAnswer> => {
+    const origin = request.headers.get('origin')
+    if (trusted.length > 0 && (origin === null || !trusted.includes(origin)))
+      return routeAnswer(403, { reason: 'origin' })
+    const header = request.headers.get('authorization')
+    const bearer =
+      header?.toLowerCase().startsWith('bearer ') === true ? header.slice(7) : undefined
+    const userId = bearer === 'token-1' ? (args.userId ?? 'user-1') : undefined
+    if (userId === undefined) return routeAnswer(401, { reason: 'bearer' })
+    const parsed = mcpOauthBeginRequestSchema.safeParse(await request.json().catch(() => null))
+    if (!parsed.success) return routeAnswer(400, { reason: 'body' })
+    const answer = await service.begin({ userId, body: parsed.data })
+    return routeAnswer(answer.status, answer.body)
+  }
+}
 
 const postOf = (args: {
   body: unknown
@@ -59,23 +84,6 @@ const bodyOf = (args: { serverId: string; scope?: 'user' | 'project' }) => ({
 })
 
 describe('the mcp oauth begin route', () => {
-  it('leaves every other path and method to the stream server', async () => {
-    const { db } = testDb()
-    expect(await routeOver({ db })(postOf({ body: {}, path: '/healthz' }))).toBeNull()
-  })
-
-  it('answers the preflight with the cors headers', async () => {
-    const { db } = testDb()
-
-    const answer = await routeOver({ db, trusted: ['https://byatlas.io'] })(
-      postOf({ body: {}, method: 'OPTIONS', origin: 'https://byatlas.io' }),
-    )
-
-    expect(answer?.status).toBe(204)
-    expect(answer?.headers.get('access-control-allow-origin')).toBe('https://byatlas.io')
-    expect(answer?.headers.get('access-control-allow-headers')).toContain('authorization')
-  })
-
   it('refuses an origin the host does not trust', async () => {
     const { db } = testDb()
 

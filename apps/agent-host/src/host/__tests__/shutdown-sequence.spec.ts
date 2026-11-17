@@ -19,7 +19,8 @@ describe('HostShutdownSequence', () => {
       presence: { close: record('presence.close') },
       wakes: { close: record('wakes.close') },
       liveFrames: { close: record('liveFrames.close') },
-      stream: { stop: record('stream.stop') },
+      stream: { drain: record('stream.drain'), stop: record('stream.stop') },
+      holder: { drain: record('holder.drain') },
       follow: { close: record('follow.close') },
       pool: { end: record('pool.end') },
     }).onApplicationShutdown()
@@ -49,7 +50,8 @@ describe('HostShutdownSequence', () => {
       presence: { close: record('presence.close') },
       wakes: { close: record('wakes.close') },
       liveFrames: { close: record('liveFrames.close') },
-      stream: { stop: record('stream.stop') },
+      stream: { drain: record('stream.drain'), stop: record('stream.stop') },
+      holder: { drain: record('holder.drain') },
       follow: { close: record('follow.close') },
       pool: { end: record('pool.end') },
     })

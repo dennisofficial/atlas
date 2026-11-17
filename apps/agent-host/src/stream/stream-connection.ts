@@ -1,7 +1,5 @@
 import { randomUUID } from 'node:crypto'
 
-import type { ServerWebSocket } from 'bun'
-
 import type { HostTimers } from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 import {
@@ -15,6 +13,7 @@ import {
 } from '@dltech/atlas-protocol'
 
 import { decodeFrame, frameBytes } from './decode-frame'
+import type { StreamSocketPort } from './socket-port'
 import { readyFrameOf } from './ready-frame'
 import type { StreamAuthPort } from './stream-auth'
 import {
@@ -31,8 +30,6 @@ enum EPhase {
   Ready,
   Closed,
 }
-
-export type StreamSocketData = { connection: StreamConnection | undefined }
 
 export type UserSlots = {
   acquire(userId: string): boolean
@@ -62,7 +59,7 @@ export class StreamConnection {
   private heartbeatTimer: unknown
 
   constructor(
-    private readonly socket: ServerWebSocket<StreamSocketData>,
+    private readonly socket: StreamSocketPort,
     private readonly deps: StreamConnectionDeps,
   ) {
     this.helloTimer = deps.timers.setTimeout(
@@ -170,7 +167,7 @@ export class StreamConnection {
           version,
           surface: this.surface,
           send: (m) => this.send(m),
-          bufferedAmount: () => this.socket.getBufferedAmount(),
+          bufferedAmount: () => this.socket.bufferedAmount(),
           close: (code) => this.close(code),
         })
         this.send(

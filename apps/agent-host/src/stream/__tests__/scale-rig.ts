@@ -21,7 +21,7 @@ import type { TestDatabase } from '@dltech/atlas-db/testing'
 import { startPgChangeFeed, type PgChangeFeed } from '../../bus/pg-change-feed'
 import { createFollowSubscriptions, type FollowSubscriptions } from '../follow-port'
 import { MemoryStreamAuth } from '../memory-stream-auth'
-import { startStreamServer, type StreamServer } from '../stream-server'
+import { startStreamApp, type RunningStream } from './stream-app'
 import { systemHostTimers } from '../system-timers'
 
 const AT = '2026-11-07T12:00:00.000Z'
@@ -86,8 +86,7 @@ export const startScaleRig = async (args: {
   })
   const auth = new MemoryStreamAuth()
   auth.grant({ token: 'tok-a', userId: 'user-a', expiresAt: Date.now() + 3_600_000 })
-  const server: StreamServer = startStreamServer({
-    port: 0,
+  const server: RunningStream = await startStreamApp({
     auth,
     trustedOrigins: [],
     subscriptions: follow,
