@@ -108,7 +108,7 @@ describe('shared real HTTP budget for API fills, authorization and worker queue'
     const beforeFill = http.calls.length
     await api.delivery.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
     expect(http.calls.slice(beforeFill).map((call) => call.path)).toContain('/graphql')
-    expect(http.calls.length).toBe(beforeFill + 4)
+    expect(http.calls.length).toBe(beforeFill + 6)
     await worker.poll.handlePoll()
     expect(http.calls.length).toBe(GITHUB_REFRESH_HTTP_BUDGET_PER_MINUTE + 1)
     for (let index = 1; index < GITHUB_AUTH_HTTP_BUDGET_PER_MINUTE; index += 1)

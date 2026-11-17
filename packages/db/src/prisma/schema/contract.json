@@ -3058,6 +3058,13 @@
                   "kind": "scalar"
                 }
               },
+              "mergeClean": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
               "mergeable": {
                 "nullable": true,
                 "type": {
@@ -3073,6 +3080,16 @@
                 }
               },
               "repoFullName": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "requiredCheckContexts": {
+                "many": {
+                  "elementNullable": false
+                },
                 "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
@@ -3145,6 +3162,9 @@
                 "headSha": {
                   "column": "headSha"
                 },
+                "mergeClean": {
+                  "column": "mergeClean"
+                },
                 "mergeable": {
                   "column": "mergeable"
                 },
@@ -3153,6 +3173,9 @@
                 },
                 "repoFullName": {
                   "column": "repoFullName"
+                },
+                "requiredCheckContexts": {
+                  "column": "requiredCheckContexts"
                 },
                 "state": {
                   "column": "state"
@@ -11842,6 +11865,13 @@
               "uniques": []
             },
             "GithubPrState": {
+              "checks": [
+                {
+                  "expression": "array_position(\"requiredCheckContexts\", NULL) IS NULL",
+                  "name": "GithubPrState_requiredCheckContexts_elem_not_null_eafd55ca",
+                  "prefix": "GithubPrState_requiredCheckContexts_elem_not_null"
+                }
+              ],
               "columns": {
                 "checksFailed": {
                   "codecId": "pg/int4@1",
@@ -11899,6 +11929,11 @@
                   "dataType": "pg/text",
                   "nullable": false
                 },
+                "mergeClean": {
+                  "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
+                  "nullable": true
+                },
                 "mergeable": {
                   "codecId": "pg/bool@1",
                   "dataType": "pg/bool",
@@ -11912,6 +11947,18 @@
                 "repoFullName": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
+                  "nullable": false
+                },
+                "requiredCheckContexts": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "default": {
+                    "kind": "literal",
+                    "value": []
+                  },
+                  "many": {
+                    "elementNullable": false
+                  },
                   "nullable": false
                 },
                 "state": {
@@ -16655,7 +16702,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "73043ecb817e914770efa0109aa9b44ce9f3c62f02ed74ccecd857a958e1b5ce"
+    "storageHash": "e10afd6f04a655c4be2c0eafdcb177d67f2441abf67ede2e9888844edd9e68ef"
   },
   "execution": {
     "executionHash": "27a680d0d8367c03704617bfac2d0041e04bd5395fc473f9e021f03bd0d4c6fa",

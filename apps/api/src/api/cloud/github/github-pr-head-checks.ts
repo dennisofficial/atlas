@@ -1,6 +1,7 @@
-import { db, or, type Tx } from '@dltech/atlas-db'
+import { db, or, type Row, type Tx } from '@dltech/atlas-db'
 
-import type { PrTransitionSnapshot } from './github-pr-event-transitions'
+import { missingRequiredContexts } from './github-required-checks'
+import { headSettled, type PrTransitionSnapshot } from './github-pr-event-transitions'
 
 export enum EHeadVerdict {
   Green = 'green',
@@ -20,6 +21,8 @@ export type LockedPrState = {
   checksIgnored: number
   checksState: string | null
   mergeable: boolean | null
+  mergeClean: boolean | null
+  requiredCheckContexts: readonly string[]
   version: number
 }
 
@@ -79,6 +82,8 @@ export async function readPrStateForUpdate(args: {
       'checksIgnored',
       'checksState',
       'mergeable',
+      'mergeClean',
+      'requiredCheckContexts',
       'version',
     )
       .where((f, fns) =>
@@ -100,6 +105,7 @@ export function snapshotOfLocked(row: {
   checksFailed: number
   checksIgnored: number
   mergeable: boolean | null
+  mergeClean: boolean | null
 }): PrTransitionSnapshot {
   return {
     state: row.state,
@@ -109,7 +115,26 @@ export function snapshotOfLocked(row: {
     checksFailed: row.checksFailed,
     checksIgnored: row.checksIgnored,
     mergeable: row.mergeable,
+    mergeClean: row.mergeClean,
   }
+}
+
+/**
+ * The observed row plus the one fact the row cannot hold: which of the base branch's required
+ * status checks GitHub has not reported on this head yet. Every path that discharges a verdict or
+ * diffs a transition builds its `next` here, so a missing required check gates all of them.
+ */
+export async function settlementSnapshotOf(args: {
+  tx?: Tx
+  row: Row<'GithubPrState'>
+}): Promise<PrTransitionSnapshot> {
+  const missing = await missingRequiredContexts({
+    ...(args.tx === undefined ? {} : { tx: args.tx }),
+    repoFullName: args.row.repoFullName,
+    headSha: args.row.headSha,
+    requiredContexts: args.row.requiredCheckContexts,
+  })
+  return { ...snapshotOfLocked(args.row), missingRequiredChecks: missing.length }
 }
 
 /**
@@ -131,8 +156,7 @@ export async function dischargeHeadVerdict(args: {
   emitVerdict: (verdict: EHeadVerdict, eventKey: string) => Promise<void>
 }): Promise<void> {
   const running = args.next.checksRunning > 0
-  const completed = args.next.checksPassed + args.next.checksFailed + args.next.checksIgnored > 0
-  const settled = !running && completed
+  const settled = headSettled(args.next)
   const orm = args.tx === undefined ? db.orm : args.tx.orm
 
   const ledger = await orm.public.GithubPrHeadCheck.upsert({

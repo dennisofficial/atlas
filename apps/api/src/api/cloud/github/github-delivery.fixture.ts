@@ -50,6 +50,7 @@ export const REST_FIELDS: PullRequestCacheFields = {
   checksIgnored: 0,
   checksState: null,
   mergeable: true,
+  mergeClean: true,
 }
 
 const USERS = [

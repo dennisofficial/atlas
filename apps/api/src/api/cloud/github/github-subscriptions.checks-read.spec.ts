@@ -36,6 +36,7 @@ const pullOf = () => ({
   mergeable: true,
   mergeable_state: 'clean',
   head: { ref: 'dennis/drop-label', sha: SHA, repo: { full_name: 'compai/app' } },
+  base: { ref: 'main' },
 })
 
 const completedRun = (id: number): RestCheckRun => ({

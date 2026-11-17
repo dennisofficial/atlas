@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'73043ecb817e914770efa0109aa9b44ce9f3c62f02ed74ccecd857a958e1b5ce'>;
+  StorageHashBase<'e10afd6f04a655c4be2c0eafdcb177d67f2441abf67ede2e9888844edd9e68ef'>;
 export type ExecutionHash =
   ExecutionHashBase<'27a680d0d8367c03704617bfac2d0041e04bd5395fc473f9e021f03bd0d4c6fa'>;
 export type ProfileHash =
@@ -570,9 +570,11 @@ export namespace Models {
     headBranch: FieldOutputTypes['public']['GithubPrState']['headBranch'];
     headRepoFullName: FieldOutputTypes['public']['GithubPrState']['headRepoFullName'];
     headSha: FieldOutputTypes['public']['GithubPrState']['headSha'];
+    mergeClean: FieldOutputTypes['public']['GithubPrState']['mergeClean'];
     mergeable: FieldOutputTypes['public']['GithubPrState']['mergeable'];
     prNumber: FieldOutputTypes['public']['GithubPrState']['prNumber'];
     repoFullName: FieldOutputTypes['public']['GithubPrState']['repoFullName'];
+    requiredCheckContexts: FieldOutputTypes['public']['GithubPrState']['requiredCheckContexts'];
     state: FieldOutputTypes['public']['GithubPrState']['state'];
     title: FieldOutputTypes['public']['GithubPrState']['title'];
     updatedAt: FieldOutputTypes['public']['GithubPrState']['updatedAt'];
@@ -3337,6 +3339,12 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly many: false;
                 };
+                readonly mergeClean: {
+                  readonly dataType: 'pg/bool';
+                  readonly codecId: 'pg/bool@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
                 readonly mergeable: {
                   readonly dataType: 'pg/bool';
                   readonly codecId: 'pg/bool@1';
@@ -3354,6 +3362,16 @@ type ContractBase = Omit<
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
                   readonly many: false;
+                };
+                readonly requiredCheckContexts: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', readonly []>;
+                  };
+                  readonly many: { readonly elementNullable: false };
                 };
                 readonly state: {
                   readonly dataType: 'pg/text';
@@ -9219,6 +9237,10 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly mergeClean: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
+              };
               readonly mergeable: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
@@ -9230,6 +9252,11 @@ type ContractBase = Omit<
               readonly repoFullName: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly requiredCheckContexts: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+                readonly many: { readonly elementNullable: false };
               };
               readonly state: {
                 readonly nullable: false;
@@ -9269,9 +9296,11 @@ type ContractBase = Omit<
                 readonly headBranch: { readonly column: 'headBranch' };
                 readonly headRepoFullName: { readonly column: 'headRepoFullName' };
                 readonly headSha: { readonly column: 'headSha' };
+                readonly mergeClean: { readonly column: 'mergeClean' };
                 readonly mergeable: { readonly column: 'mergeable' };
                 readonly prNumber: { readonly column: 'prNumber' };
                 readonly repoFullName: { readonly column: 'repoFullName' };
+                readonly requiredCheckContexts: { readonly column: 'requiredCheckContexts' };
                 readonly state: { readonly column: 'state' };
                 readonly title: { readonly column: 'title' };
                 readonly updatedAt: { readonly column: 'updatedAt' };

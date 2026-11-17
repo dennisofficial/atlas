@@ -16,7 +16,12 @@ import type {
 } from './github-realtime.types'
 import { GithubRequestCoordinator } from './github-request-coordinator'
 import { deliverPrTransitions } from './github-pr-transition-push'
-import { nextVersionOf, readPrStateForUpdate, snapshotOfLocked } from './github-pr-head-checks'
+import {
+  nextVersionOf,
+  readPrStateForUpdate,
+  settlementSnapshotOf,
+  snapshotOfLocked,
+} from './github-pr-head-checks'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { withGithubRequestBudget, isGithubBudgetParked } from './github-request-budget'
 import { normalizedRepo } from './github-pr-identity'
@@ -364,7 +369,7 @@ export class GithubSubscriptionsService {
       await deliverPrTransitions({
         writes: { mailbox: this.mailbox, repoFullName: args.repoFullName, prNumber, url: row.url },
         prior: priorRow === null ? null : snapshotOfLocked(priorRow),
-        next: snapshotOfLocked(row),
+        next: await settlementSnapshotOf({ tx, row }),
         userIds: [args.userId],
         tx,
       })
