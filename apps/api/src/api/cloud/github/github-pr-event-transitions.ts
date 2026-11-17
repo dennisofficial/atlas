@@ -8,6 +8,8 @@ export type PrTransitionSnapshot = {
   checksFailed: number
   checksIgnored: number
   mergeable: boolean | null
+  mergeClean?: boolean | null
+  missingRequiredChecks?: number
 }
 
 export type PrTransitionEvent = {
@@ -41,11 +43,26 @@ function hasChecks(snapshot: PrTransitionSnapshot): boolean {
 }
 
 /**
+ * A head is settled only when nothing runs, something completed, and every status check the base
+ * branch requires has reported on this head: GitHub opens a commit status stream and its check-run
+ * stream separately, so a Vercel status landing first reads "nothing running" while the required
+ * `ci` check run has not appeared yet. REST `mergeable` says only that the PR has no conflicts;
+ * GitHub's `mergeable_state` is what separates a mergeable PR from a blocked one.
+ */
+export function headSettled(snapshot: PrTransitionSnapshot): boolean {
+  return (
+    snapshot.checksRunning === 0 &&
+    completedCount(snapshot) > 0 &&
+    (snapshot.missingRequiredChecks ?? 0) === 0
+  )
+}
+
+/**
  * A green verdict closing CI is where "mergeable" belongs, so the two arrive as one notice: a PR
  * that turns mergeable while checks run, or after they settled, never gets a second line saying so.
  */
 export function verdictMergeability(next: PrTransitionSnapshot): { mergeable?: true } {
-  return next.mergeable === true ? { mergeable: true } : {}
+  return next.mergeClean === true ? { mergeable: true } : {}
 }
 
 export function transitionsOf(args: {
@@ -57,7 +74,7 @@ export function transitionsOf(args: {
 
   const verdictTiming = args.options?.verdictTiming ?? 'fail-fast'
   const events: PrTransitionEvent[] = []
-  const checksSettled = args.next.checksRunning === 0 && completedCount(args.next) > 0
+  const checksSettled = headSettled(args.next)
   const settledFromRunning = checksSettled && args.prior.checksRunning > 0
   const completedMore = completedCount(args.next) > completedCount(args.prior)
   const failureAlreadyAnnounced = args.next.checksFailed > 0 && args.prior.checksFailed > 0

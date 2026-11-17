@@ -86,8 +86,10 @@ export function mockGithubHttp() {
           sha: 'abc123',
           repo: { full_name: 'CompAI/App' },
         },
+        base: { ref: 'main' },
       })
     }
+    if (url.pathname.includes('/rules/branches/')) return Response.json([])
     if (url.pathname.includes('/check-runs'))
       return Response.json({
         check_runs: [

@@ -16,6 +16,7 @@ export interface RestPullRequest {
   mergeable: boolean | null
   mergeable_state: string
   head: { ref: string; sha: string; repo: { full_name: string } | null }
+  base: { ref: string }
 }
 
 export interface RestCheckRun {
@@ -52,6 +53,18 @@ export interface PullRequestCacheFields {
   checksIgnored: number
   checksState: string | null
   mergeable: boolean | null
+  mergeClean?: boolean | null
+  requiredCheckContexts?: readonly string[]
+}
+
+/**
+ * REST `mergeable` is only "no conflicts"; `mergeable_state` is GitHub's own verdict, and `clean`
+ * (or `has_hooks`, which adds no blocker of its own) is the only state a green notice may call a
+ * PR mergeable in. Anything else — `blocked` on a required check or a review, `unknown` before
+ * GitHub has computed it — stays unsaid.
+ */
+export function mergeCleanOf(mergeableState: string | null | undefined): boolean {
+  return mergeableState === 'clean' || mergeableState === 'has_hooks'
 }
 
 export function pullRequestStateOf(pull: RestPullRequest): string {
@@ -64,6 +77,7 @@ export function pullRequestCacheFieldsOf(args: {
   checkRuns: readonly RestCheckRun[]
   statuses: readonly RestCommitStatus[]
   checksState: string | null
+  requiredCheckContexts: readonly string[]
 }): PullRequestCacheFields {
   const latestByContext = new Map<string, RestCommitStatus>()
   for (const status of args.statuses) {
@@ -99,5 +113,7 @@ export function pullRequestCacheFieldsOf(args: {
     checksIgnored: tally.ignored,
     checksState: args.checksState,
     mergeable: args.pull.mergeable,
+    mergeClean: mergeCleanOf(args.pull.mergeable_state),
+    requiredCheckContexts: [...args.requiredCheckContexts],
   }
 }

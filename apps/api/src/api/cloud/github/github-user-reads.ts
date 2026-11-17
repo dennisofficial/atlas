@@ -2,13 +2,12 @@ import { Injectable } from '@nestjs/common'
 import type { EGithubCallSource } from './github-call-log'
 import { githubFetch } from './github-fetch'
 import { rateLimitOf } from './github-rate-limit'
-import type { PullRequestCacheFields, RestPullRequest } from './github-pull-request-mapping'
+import type { PullRequestCacheFields } from './github-pull-request-mapping'
 import { HOOK_EVENTS } from './github-hook-events'
 import { type CommitCheckInput, recordCheckCounts } from './github-commit-checks'
 import type { RawCheckAnnotation } from './github-check-annotations'
-import { readHeadChecks } from './github-head-checks-read'
-import { pullRequestCacheFieldsOf } from './github-pull-request-mapping'
-import { readChecksState } from './github-checks-state'
+import { readPullRequestFill } from './github-pull-request-read'
+import { GithubRequiredChecksRead } from './github-required-checks-read'
 
 const GITHUB_API = 'https://api.github.com'
 const DETAIL_CAP = 300
@@ -45,6 +44,7 @@ export interface HookConfig {
 @Injectable()
 export class GithubUserReads {
   private readonly baseUrl = process.env.GITHUB_API_URL ?? GITHUB_API
+  private readonly requiredChecks = new GithubRequiredChecksRead()
 
   readCheckAnnotations(args: {
     source: EGithubCallSource
@@ -68,42 +68,28 @@ export class GithubUserReads {
     number: number
     collectChecks?: (args: { headSha: string; checks: CommitCheckInput[] }) => void
   }): Promise<PullRequestCacheFields> {
-    const pull = await this.get<RestPullRequest>({
-      source: args.source,
-      token: args.token,
-      path: `/repos/${args.owner}/${args.repo}/pulls/${args.number}`,
-    })
-    const head = await readHeadChecks({
-      get: <T>(path: string) => this.get<T>({ source: args.source, token: args.token, path }),
-      owner: args.owner,
-      repo: args.repo,
-      headSha: pull.head.sha,
-    })
-    const checksState = await readChecksState({
+    const read = await readPullRequestFill({
+      get: <T>(request: { source: EGithubCallSource; token: string; path: string }) =>
+        this.get<T>(request),
+      requiredChecks: this.requiredChecks,
+      baseUrl: this.baseUrl,
       source: args.source,
       token: args.token,
       owner: args.owner,
       repo: args.repo,
       number: args.number,
-      baseUrl: this.baseUrl,
-    })
-    const fields = pullRequestCacheFieldsOf({
-      pull,
-      checkRuns: head.checkRuns,
-      statuses: head.statuses,
-      checksState,
     })
     if (args.collectChecks !== undefined) {
-      args.collectChecks({ headSha: pull.head.sha, checks: head.checks })
-      return fields
+      args.collectChecks({ headSha: read.headSha, checks: read.checks })
+      return read.fields
     }
-    if (head.checks.length === 0) return fields
+    if (read.checks.length === 0) return read.fields
     const counts = await recordCheckCounts({
       repoFullName: `${args.owner}/${args.repo}`,
-      headSha: pull.head.sha,
-      checks: head.checks,
+      headSha: read.headSha,
+      checks: read.checks,
     })
-    return { ...fields, ...counts }
+    return { ...read.fields, ...counts }
   }
 
   /**

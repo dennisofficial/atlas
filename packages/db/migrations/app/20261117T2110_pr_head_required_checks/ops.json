@@ -1,0 +1,159 @@
+[
+  {
+    "id": "column.public.GithubPrState.mergeClean",
+    "label": "Add column \"mergeClean\" to \"GithubPrState\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "mergeClean",
+        "table": "GithubPrState"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"mergeClean\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "mergeClean"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"mergeClean\"",
+        "sql": "ALTER TABLE \"public\".\"GithubPrState\" ADD COLUMN \"mergeClean\" bool"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"mergeClean\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "mergeClean"
+        ]
+      },
+      {
+        "description": "verify column \"mergeClean\" has type \"boolean\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "mergeClean",
+          "boolean"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.GithubPrState.requiredCheckContexts",
+    "label": "Add column \"requiredCheckContexts\" to \"GithubPrState\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "requiredCheckContexts",
+        "table": "GithubPrState"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"requiredCheckContexts\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "requiredCheckContexts"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"requiredCheckContexts\"",
+        "sql": "ALTER TABLE \"public\".\"GithubPrState\" ADD COLUMN \"requiredCheckContexts\" text[] DEFAULT '{}' NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"requiredCheckContexts\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "requiredCheckContexts"
+        ]
+      },
+      {
+        "description": "verify column \"requiredCheckContexts\" has type \"text[]\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "requiredCheckContexts",
+          "text[]"
+        ]
+      },
+      {
+        "description": "verify column \"requiredCheckContexts\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "requiredCheckContexts",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.GithubPrState.GithubPrState_requiredCheckContexts_elem_not_null_eafd55ca",
+    "label": "Add check constraint \"GithubPrState_requiredCheckContexts_elem_not_null_eafd55ca\" on \"GithubPrState\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "GithubPrState_requiredCheckContexts_elem_not_null_eafd55ca",
+        "table": "GithubPrState"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"GithubPrState_requiredCheckContexts_elem_not_null_eafd55ca\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "GithubPrState_requiredCheckContexts_elem_not_null_eafd55ca",
+          "public",
+          "\"public\".\"GithubPrState\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"GithubPrState_requiredCheckContexts_elem_not_null_eafd55ca\"",
+        "sql": "ALTER TABLE \"public\".\"GithubPrState\" ADD CONSTRAINT \"GithubPrState_requiredCheckContexts_elem_not_null_eafd55ca\" CHECK (array_position(\"requiredCheckContexts\", NULL) IS NULL)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify check constraint \"GithubPrState_requiredCheckContexts_elem_not_null_eafd55ca\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4)) AS \"result\"",
+        "params": [
+          "GithubPrState_requiredCheckContexts_elem_not_null_eafd55ca",
+          "public",
+          "\"public\".\"GithubPrState\"",
+          "c"
+        ]
+      }
+    ]
+  }
+]

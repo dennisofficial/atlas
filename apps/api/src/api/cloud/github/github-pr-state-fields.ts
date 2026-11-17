@@ -1,8 +1,16 @@
 import type { Row } from '@dltech/atlas-db'
 import type { GithubPrStateFields, GithubPrStateRecord } from './github-realtime.types'
 
+type CarriedPrStateFields = GithubPrStateFields & {
+  headRepoFullName: string | null
+  mergeClean?: boolean | null
+  requiredCheckContexts?: readonly string[]
+}
+
 export function stateFieldsOf(row: Row<'GithubPrState'>): GithubPrStateFields & {
   headRepoFullName: string | null
+  mergeClean: boolean | null
+  requiredCheckContexts: readonly string[]
 } {
   return {
     title: row.title,
@@ -17,6 +25,8 @@ export function stateFieldsOf(row: Row<'GithubPrState'>): GithubPrStateFields & 
     checksIgnored: row.checksIgnored,
     checksState: row.checksState,
     mergeable: row.mergeable,
+    mergeClean: row.mergeClean,
+    requiredCheckContexts: row.requiredCheckContexts,
   }
 }
 
@@ -26,7 +36,7 @@ export function stateFieldsOf(row: Row<'GithubPrState'>): GithubPrStateFields & 
  */
 export function carryChecks(args: {
   fields: GithubPrStateRecord
-  prior: (GithubPrStateFields & { headRepoFullName: string | null }) | null
+  prior: CarriedPrStateFields | null
 }): GithubPrStateRecord {
   if (args.prior === null) return args.fields
   if (args.prior.headSha !== args.fields.headSha) return args.fields
@@ -38,5 +48,7 @@ export function carryChecks(args: {
     checksIgnored: args.prior.checksIgnored,
     checksState: args.prior.checksState,
     mergeable: args.prior.mergeable,
+    mergeClean: args.prior.mergeClean ?? null,
+    requiredCheckContexts: args.prior.requiredCheckContexts ?? [],
   }
 }

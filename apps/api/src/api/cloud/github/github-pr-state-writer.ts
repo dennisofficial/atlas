@@ -10,6 +10,7 @@ import {
   type LockedPrState,
   nextVersionOf,
   readPrStateForUpdate,
+  settlementSnapshotOf,
   snapshotOfLocked,
 } from './github-pr-head-checks'
 import { deliverPrTransitions } from './github-pr-transition-push'
@@ -127,7 +128,7 @@ export class GithubPrStateWriter {
         url: row.url,
       },
       prior,
-      next: snapshotOfLocked(row),
+      next: await settlementSnapshotOf({ tx, row }),
       userIds,
       tx,
     })

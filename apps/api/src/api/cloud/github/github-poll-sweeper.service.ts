@@ -12,7 +12,12 @@ import { readRepoCoverage } from './github-repo-coverage'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { deliverPrTransitions } from './github-pr-transition-push'
-import { nextVersionOf, readPrStateForUpdate, snapshotOfLocked } from './github-pr-head-checks'
+import {
+  nextVersionOf,
+  readPrStateForUpdate,
+  settlementSnapshotOf,
+  snapshotOfLocked,
+} from './github-pr-head-checks'
 import { refreshGithubQueue } from './github-refresh-queue'
 import {
   GithubHttpBudgetUnavailable,
@@ -169,7 +174,7 @@ export class GithubPollSweeperService {
       await deliverPrTransitions({
         writes: { mailbox: this.mailbox, repoFullName, prNumber: args.prNumber, url: row.url },
         prior,
-        next: snapshotOfLocked(row),
+        next: await settlementSnapshotOf({ tx, row }),
         userIds,
         tx,
       })

@@ -235,10 +235,12 @@ describe('GithubDeliveryService check rows', () => {
         mergeable: true,
         mergeable_state: 'clean',
         head: { ref: 'b', sha: 'abc123', repo: null },
+        base: { ref: 'main' },
       },
       checkRuns,
       statuses,
       checksState: null,
+      requiredCheckContexts: [],
     })
 
     expect(await tallyOf('abc123')).toEqual({
