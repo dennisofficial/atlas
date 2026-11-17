@@ -81,7 +81,7 @@ export class ConfigReader implements ConfigSource {
     if (session === null) throw new SessionNotFoundError(sessionId)
     const { userId, projectId } = session
     const [project, vercel, accounts, activeAccounts, settings, skills] = await Promise.all([
-      db.orm.public.Project.first({ id: projectId }),
+      this.projectOf(projectId),
       db.orm.public.UserVercelCredential.first({ userId }),
       db.orm.public.AgentAccount.where({ userId }).all(),
       db.orm.public.ActiveAccount.where({ userId }).all(),
@@ -129,16 +129,20 @@ export class ConfigReader implements ConfigSource {
     })
   }
 
+  private async projectOf(projectId: string | null): Promise<ProjectRow | null> {
+    if (projectId === null) return null
+    return await this.args.db.orm.public.Project.first({ id: projectId })
+  }
+
   private async settingsOf(args: {
     userId: string
-    projectId: string
+    projectId: string | null
   }): Promise<ReadonlyMap<string, string>> {
     const { db } = this.args
-    const [user, project] = await Promise.all([
-      db.orm.public.UserSetting.where({ userId: args.userId }).all(),
-      db.orm.public.ProjectSetting.where({ projectId: args.projectId }).all(),
-    ])
+    const user = await db.orm.public.UserSetting.where({ userId: args.userId }).all()
     const settings = new Map(user.map((row) => [row.key, row.value]))
+    if (args.projectId === null) return settings
+    const project = await db.orm.public.ProjectSetting.where({ projectId: args.projectId }).all()
     for (const row of project) settings.set(row.key, row.value)
     return settings
   }

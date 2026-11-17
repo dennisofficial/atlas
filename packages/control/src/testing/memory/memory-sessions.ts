@@ -75,7 +75,7 @@ export const createSessionIn = (params: {
   state: State
   sessionId: string
   userId: string
-  projectId: string
+  projectId: string | null
   title?: string | undefined
   mainThreadId: string
   modelRef: string

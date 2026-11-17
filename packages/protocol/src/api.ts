@@ -57,7 +57,7 @@ export const sessionPostInputSchema = z
   .refine(withinAttachmentLimit, `a message carries at most ${MAX_MESSAGE_UPLOADS} attachments`)
 
 export const sessionCreateInputSchema = z.strictObject({
-  projectId: z.string().min(1),
+  projectId: z.string().min(1).nullish(),
   title: z.string().optional(),
   model: z.string().min(1).optional(),
   effort: z.string().min(1).optional(),
@@ -160,7 +160,7 @@ export const sessionModelChoiceOf = (row: {
 
 export const sessionSummarySchema = z.strictObject({
   sessionId: z.string().min(1),
-  projectId: z.string().min(1),
+  projectId: z.string().min(1).nullable(),
   title: z.string().nullable(),
   naming: z.boolean(),
   mainThreadId: z.string().min(1),

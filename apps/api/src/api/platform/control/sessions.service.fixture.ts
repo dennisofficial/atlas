@@ -26,8 +26,11 @@ export const TEST_COMMAND = defineCommand({
 
 export const NOW = '2026-11-03T12:00:00.000Z'
 
-class FakeProjectAccess extends ProjectAccess {
+class RecordingProjectAccess extends ProjectAccess {
+  readonly ownerLookups: string[] = []
+
   async ownerOf(args: { projectId: string }): Promise<string | undefined> {
+    this.ownerLookups.push(args.projectId)
     return args.projectId === 'proj-a' ? 'user-a' : undefined
   }
 }
@@ -42,14 +45,15 @@ export const setupSessionsService = () => {
   const plane = new ControlPlane({ store })
   const registry = new FakeMediaRegistry()
   const mediaStore = new FakeMediaStore()
+  const projects = new RecordingProjectAccess()
   const service = new SessionsService(
     plane,
-    new FakeProjectAccess(),
+    projects,
     new NoSessionTitler(),
     new NoBackgroundWork(),
     registry,
     mediaStore,
     composeCommands([TEST_COMMAND, modelSet]),
   )
-  return { plane, service, registry, mediaStore, store }
+  return { plane, service, registry, mediaStore, store, projects }
 }

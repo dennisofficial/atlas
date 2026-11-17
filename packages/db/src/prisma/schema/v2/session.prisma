@@ -3,7 +3,7 @@ namespace v2 {
   model V2Session {
     id           String                @id
     userId       String
-    projectId    String
+    projectId    String?
     title             String?
     titledFromInboxId Int?
     mainThreadId String

@@ -177,6 +177,43 @@ describe('ConfigReader', () => {
     expect(recording.sql.some((text) => text.includes('"Skill"'))).toBe(true)
   })
 
+  it('runs a session with no project in an empty scratch workspace', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedApiKeyAccount(db)
+    await seedApiKeyAccount({ db, id: 'acct-oa', provider: 'openai', apiKey: 'sk-oa' })
+    await seedSetting({
+      db,
+      scope: 'user',
+      key: 'agents.type.builder',
+      value: 'anthropic/claude-sonnet-4-5',
+    })
+    await seedSetting({ db, scope: 'project', key: 'agents.type.builder', value: 'openai/gpt-5' })
+    await seedSkill({ db, name: 'user-one', scope: 'user' })
+    await seedSkill({ db, name: 'project-one', scope: 'project' })
+    await db.orm.v2.V2Session.where({ id: 's-1' }).update({ projectId: null })
+    const recording = recordingDb({ url: testDb().url })
+    const config = await readerOver(recording.db).read({ sessionId: 's-1' })
+    await recording.end()
+    expect(config.projectId).toBeNull()
+    expect(config.workspace).toEqual({
+      remoteUrl: null,
+      baseBranch: null,
+      additionalRepos: [],
+      setupScript: '',
+    })
+    expect(config.skills).toEqual([
+      { name: 'user-one', description: 'user-one description', scope: 'user' },
+    ])
+    expect(config.models.resolve({ role: { agentType: 'builder' } }).config).toMatchObject({
+      configured: true,
+      ref: { providerId: 'anthropic', modelId: 'claude-sonnet-4-5' },
+      accountId: 'acct-1',
+    })
+    expect(recording.sql.some((text) => text.includes('"Project"'))).toBe(false)
+    expect(recording.sql.some((text) => text.includes('"ProjectSetting"'))).toBe(false)
+  })
+
   it('reads a role model, its effort and its fast setting, project over user', async () => {
     const { db } = testDb()
     await seedOwner(db)

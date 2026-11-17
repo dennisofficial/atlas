@@ -3,7 +3,7 @@ import type { SessionStatus } from '@dltech/atlas-core'
 export type ControlSessionRow = {
   sessionId: string
   userId: string
-  projectId: string
+  projectId: string | null
   title: string | null
   mainThreadId: string
   createdAt: string

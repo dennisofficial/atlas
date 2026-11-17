@@ -8,7 +8,7 @@ import { fakeFetch, mutationUrl, trpcOk } from '@/features/threads/data/__tests_
 import { archiveThread } from '../archive-thread'
 import { searchHrefOf, searchItemsOf } from '../search-items'
 import { ThreadRow } from '../shell-thread-row'
-import { partitionThreads, type ShellSessionNode } from '../thread-partition'
+import { partitionThreads, projectNameOf, type ShellSessionNode } from '../thread-partition'
 import { ThreadActionsContext } from '../thread-actions-context'
 import {
   v2RowOf,
@@ -112,6 +112,38 @@ describe('withV2Sessions', () => {
       sessions: [summary({ projectId: 'gone' })],
     })
     expect(merged.map((e) => e.sessions.length)).toEqual([1, 0, 0])
+  })
+
+  it('files a session with no project under the no-project group', () => {
+    const base = entries()
+    const merged = withV2Sessions({
+      entries: base,
+      sessions: [summary({ sessionId: 'loose', projectId: null })],
+    })
+    expect(merged[0]?.sessions.map((s) => s.id)).toEqual(['ses_v1-old'])
+    expect(merged[1]?.sessions).toEqual([])
+    expect(merged[2]?.sessions.map((s) => s.id)).toEqual(['loose'])
+    const partition = partitionThreads({ entries: merged, now: NOW })
+    expect(partition.groups.map((entry) => projectNameOf(entry.project))).toEqual([
+      'project-p1',
+      'No project',
+    ])
+    expect(partition.groups[1]?.sessions.map((s) => s.id)).toEqual(['loose'])
+  })
+
+  it('nests a projectless peer under its projectless creator', () => {
+    const loose = (sessionId: string, overrides: Partial<V2SessionSummary> = {}) =>
+      summary({ sessionId, projectId: null, ...overrides })
+    const merged = withV2Sessions({
+      entries: entries(),
+      sessions: [
+        loose('loose-root', { createdAt: agoIso(9) }),
+        loose('loose-peer', { createdAt: agoIso(8), spawnedBy: 'loose-root' }),
+      ],
+    })
+    const rows = merged[2]?.sessions ?? []
+    expect(rows.map((row) => row.id)).toEqual(['loose-root'])
+    expect(rows[0]?.teammates.map((peer) => peer.id)).toEqual(['loose-peer'])
   })
 
   it('orders v2 sessions with v1 threads and buckets them by recency', () => {

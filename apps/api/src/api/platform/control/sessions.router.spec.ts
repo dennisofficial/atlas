@@ -104,8 +104,20 @@ describe('SessionsRouter', () => {
     expect((await archive('session-a', { sessionId: 's1', archived: 'yes' })).status).toBe(400)
   })
 
+  it('creates a projectless session and passes the missing project through unchanged', async () => {
+    sessions.create.mockResolvedValue({ sessionId: 's3', mainThreadId: 't3' })
+
+    const response = await create('session-a', { title: 'hi' })
+
+    expect(response.status).toBe(200)
+    expect(response.body.result.data).toEqual({ sessionId: 's3', mainThreadId: 't3' })
+    expect(sessions.create).toHaveBeenCalledWith({ userId: 'user-a', title: 'hi' })
+
+    await create('session-a', { projectId: null })
+    expect(sessions.create).toHaveBeenLastCalledWith({ userId: 'user-a', projectId: null })
+  })
+
   it('validates the input', async () => {
-    expect((await create('session-a', {})).status).toBe(400)
     expect((await create('session-a', { projectId: '' })).status).toBe(400)
     expect((await create('session-a', { projectId: 'p', extra: 1 })).status).toBe(400)
     expect(sessions.create).not.toHaveBeenCalled()

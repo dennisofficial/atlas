@@ -8,7 +8,7 @@ export const createSessionIn = async (params: {
   tx: ControlTx
   sessionId: string
   userId: string
-  projectId: string
+  projectId: string | null
   title?: string | undefined
   mainThreadId: string
   model?: SessionModelAsk | undefined

@@ -15,7 +15,7 @@ export type SessionsApi = {
 
 export async function createSessionWithMessage(args: {
   api: SessionsApi
-  projectId: string
+  projectId?: string | null
   text: string
   media: readonly Attachment[]
   uploads: readonly SaidUpload[]
@@ -24,7 +24,9 @@ export async function createSessionWithMessage(args: {
   fast?: boolean | undefined
 }): Promise<string> {
   const { sessionId } = await args.api.create({
-    projectId: args.projectId,
+    ...(args.projectId === null || args.projectId === undefined
+      ? {}
+      : { projectId: args.projectId }),
     ...(args.model === undefined ? {} : { model: args.model }),
     ...(args.effort === undefined ? {} : { effort: args.effort }),
     ...(args.fast === undefined ? {} : { fast: args.fast }),

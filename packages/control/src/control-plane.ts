@@ -107,7 +107,7 @@ export class ControlPlane {
   async createSession(params: {
     sessionId: string
     userId: string
-    projectId: string
+    projectId: string | null
     title?: string | undefined
     mainThreadId: string
     model?: SessionModelAsk | undefined
@@ -121,7 +121,7 @@ export class ControlPlane {
   async createSessionWithMessage(params: {
     sessionId: string
     userId: string
-    projectId: string
+    projectId: string | null
     title?: string | undefined
     mainThreadId: string
     model?: SessionModelAsk | undefined

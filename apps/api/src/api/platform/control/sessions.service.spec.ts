@@ -210,6 +210,34 @@ describe('SessionsService', () => {
       NotFoundException,
     )
   })
+
+  it('creates a session with no project and lists it as projectless', async () => {
+    const { plane, service } = setup()
+
+    const created = await service.create({ userId: 'user-a' })
+
+    expect(created.sessionId).toBeDefined()
+    expect(created.mainThreadId).toBeDefined()
+    expect((await plane.readSession({ sessionId: created.sessionId }))?.projectId).toBeNull()
+    const listed = await service.list({ userId: 'user-a' })
+    expect(listed.sessions).toHaveLength(1)
+    expect(listed.sessions[0]?.sessionId).toBe(created.sessionId)
+    expect(listed.sessions[0]?.projectId).toBeNull()
+  })
+
+  it('keeps a projectless session owned by its user alone', async () => {
+    const { service, projects } = setup()
+
+    const created = await service.create({ userId: 'user-a' })
+    const explicit = await service.create({ userId: 'user-a', projectId: null })
+
+    expect(projects.ownerLookups).toEqual([])
+    for (const sessionId of [created.sessionId, explicit.sessionId]) {
+      await expect(
+        service.post({ userId: 'user-b', sessionId, text: 'hi' }),
+      ).rejects.toBeInstanceOf(NotFoundException)
+    }
+  })
 })
 
 describe('SessionsService model choice', () => {

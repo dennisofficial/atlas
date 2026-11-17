@@ -71,7 +71,7 @@ export default function NewSessionScreen() {
     text: string
     attachments: Attachment[]
   }): Promise<boolean> => {
-    if (api === undefined || projectId === null) return false
+    if (api === undefined) return false
     try {
       const id = await createSession({
         api,
@@ -97,7 +97,7 @@ export default function NewSessionScreen() {
         <Composer
           autoFocus
           working={false}
-          sendable={projectId !== null}
+          sendable={api !== undefined}
           placeholder="Describe a task for Atlas…"
           onSend={handleSend}
         >

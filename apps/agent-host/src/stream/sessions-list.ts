@@ -8,7 +8,7 @@ import type { SessionsSubscription } from './sessions-subscription'
 const SNAPSHOT_LIMIT = 100
 const OWNER_CACHE_MAX = 10_000
 
-type Owner = { userId: string; projectId: string }
+type Owner = { userId: string; projectId: string | null }
 type Deadline = { userId: string; handle: unknown }
 
 export class SessionsListIndex {

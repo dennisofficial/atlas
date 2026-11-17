@@ -164,14 +164,14 @@ export interface ControlTx {
   useSnapshot(): Promise<void>
   resolveSessionModel(params: {
     userId: string
-    projectId: string
+    projectId: string | null
     ask: SessionModelAsk
     current?: ModelChoice | undefined
   }): Promise<SessionModelRow>
   createSession(params: {
     sessionId: string
     userId: string
-    projectId: string
+    projectId: string | null
     title?: string | undefined
     mainThreadId: string
     modelRef: string

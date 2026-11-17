@@ -141,10 +141,6 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
   }
 
   const handleSubmitV2 = async (text: string) => {
-    if (projectId === null) {
-      toast.error('Pick a project for a v2 session')
-      return
-    }
     if (!session.checkSendable()) return
     const { media, uploads } = session
     if (text.trim().length === 0 && media.length === 0 && uploads.length === 0) return

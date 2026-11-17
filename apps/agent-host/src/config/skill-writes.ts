@@ -49,8 +49,15 @@ const TEXT_EXTENSIONS: readonly string[] = [
   'css',
 ]
 
-const ownerWhere = (args: { owner: SkillOwner; scope: SkillScopeName }): Record<string, string> =>
-  args.scope === 'project' ? { projectId: args.owner.projectId } : { userId: args.owner.userId }
+const NO_PROJECT_SKILLS = 'this session has no project, so it has no project skills'
+
+const ownerWhere = (args: {
+  owner: SkillOwner
+  scope: SkillScopeName
+}): Record<string, string> | null => {
+  if (args.scope === 'user') return { userId: args.owner.userId }
+  return args.owner.projectId === null ? null : { projectId: args.owner.projectId }
+}
 
 const hashOf = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex')
 
@@ -79,8 +86,10 @@ const rowOf = async (args: {
   scope: SkillScopeName
   name: string
 }): Promise<{ id: string; name: string; description: string } | null> => {
+  const where = ownerWhere({ owner: args.owner, scope: args.scope })
+  if (where === null) return null
   const row = await args.db.orm.public.Skill.first({
-    ...ownerWhere({ owner: args.owner, scope: args.scope }),
+    ...where,
     name: args.name,
   })
   return row === null || row === undefined ? null : row
@@ -106,8 +115,9 @@ const createSkill = async (args: {
   scope: SkillScopeName
   name: string
   description: string
-}): Promise<string> => {
+}): Promise<string | null> => {
   const where = ownerWhere({ owner: args.owner, scope: args.scope })
+  if (where === null) return null
   try {
     const created = await args.db.orm.public.Skill.create({
       ...where,
@@ -134,7 +144,7 @@ const skillIdFor = async (args: {
   scope: SkillScopeName
   name: string
   description: string
-}): Promise<string> => {
+}): Promise<string | null> => {
   const existing = await rowOf(args)
   if (existing !== null) return existing.id
   return await createSkill(args)
@@ -228,6 +238,7 @@ const writeSkill = async (args: {
     name: request.name,
     description: request.description ?? '',
   })
+  if (skillId === null) return refusal({ reason: NO_PROJECT_SKILLS, current: null })
   const stored = await storeFile({ db: args.db, skillId, request, baseRevision })
   if (!stored.ok) return stored
 
@@ -252,7 +263,13 @@ const removeSkill = async (args: {
     name: args.name,
   })
   if (row === null)
-    return refusal({ reason: `no ${args.scope} skill is named ${args.name}`, current: null })
+    return refusal({
+      reason:
+        args.scope === 'project' && args.owner.projectId === null
+          ? NO_PROJECT_SKILLS
+          : `no ${args.scope} skill is named ${args.name}`,
+      current: null,
+    })
 
   await args.db.orm.public.SkillFile.where({ skillId: row.id }).deleteAndCount()
   await args.db.orm.public.Skill.where({ id: row.id }).delete()

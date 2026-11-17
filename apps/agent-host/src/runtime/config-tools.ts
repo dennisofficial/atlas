@@ -6,9 +6,9 @@ import type { CloudConfigStore } from '../config/cloud-config-store'
 
 export const configToolsOf = (args: {
   store: CloudConfigStore | undefined
-  projectId: string
+  projectId: string | null
 }): readonly ToolDefinition[] => {
-  if (args.store === undefined) return []
+  if (args.store === undefined || args.projectId === null) return []
   const client = args.store.for(args.projectId)
   const access = { client, projectId: args.projectId }
   return [new CloudConfigTool(access), new McpEditTool(access)]

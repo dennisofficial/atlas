@@ -52,6 +52,22 @@ describe('createSessionWithMessage', () => {
     expect(calls).toEqual([['create', { projectId: 'proj-1', firstMessage: { text: 'hello' } }]])
   })
 
+  it('creates the session with no project when none is picked', async () => {
+    const { api, calls } = fakeApi()
+
+    await createSessionWithMessage({
+      api,
+      projectId: null,
+      text: 'hello',
+      media: [],
+      uploads: [],
+    })
+    expect(calls[0]).toEqual(['create', { firstMessage: { text: 'hello' } }])
+
+    await createSessionWithMessage({ api, text: 'hello', media: [], uploads: [] })
+    expect(calls[1]).toEqual(['create', { firstMessage: { text: 'hello' } }])
+  })
+
   it('posts the images with the first message, text or not', async () => {
     const { api, calls } = fakeApi()
 

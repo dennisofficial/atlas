@@ -8,6 +8,7 @@ import {
   INACTIVE_AFTER_MS,
   NO_PROJECT_NAME,
   partitionSessions,
+  type V2SessionSummary,
 } from '../session-groups'
 import { ESessionStatus, isUnread, sessionStatusOf } from '../session-status'
 
@@ -29,6 +30,20 @@ const projects = [
   { id: 'atlas', name: 'atlas', createdAt: hoursAgo(900) },
   { id: 'rcp', name: 'RCP', createdAt: hoursAgo(100) },
 ]
+
+const summaryOf = (
+  overrides: Partial<V2SessionSummary> & { sessionId: string },
+): V2SessionSummary => ({
+  projectId: 'atlas',
+  title: null,
+  naming: false,
+  mainThreadId: 'thr',
+  model: { ref: 'anthropic/claude-opus-5-5', effort: 'high', fast: false },
+  createdAt: hoursAgo(100),
+  updatedAt: hoursAgo(1),
+  archivedAt: null,
+  ...overrides,
+})
 
 describe('partitionSessions', () => {
   it('orders projects by creation and sessions pinned-first then oldest-created first', () => {
@@ -60,6 +75,26 @@ describe('partitionSessions', () => {
       threads: [threadOf({ id: 'loose', projectId: null })],
     })
     expect(loose.groups.at(-1)).toMatchObject({ name: NO_PROJECT_NAME, projectId: null })
+  })
+
+  it('files a v2 session with no project under the No project group', () => {
+    const partition = partitionSessions({
+      projects,
+      now: NOW,
+      threads: [],
+      sessions: [
+        summaryOf({ sessionId: 'loose', projectId: null }),
+        summaryOf({ sessionId: 'atl', projectId: 'atlas' }),
+        summaryOf({ sessionId: 'gone', projectId: 'deleted' }),
+      ],
+    })
+    expect(partition.groups.map((group) => [group.name, group.sessions.map((s) => s.id)])).toEqual([
+      ['atlas', ['atl']],
+      ['comp-neo', []],
+      ['RCP', []],
+      [NO_PROJECT_NAME, ['loose']],
+    ])
+    expect(partition.groups.at(-1)).toMatchObject({ projectId: null })
   })
 
   it('splits stale and archived sessions into per-project buckets', () => {

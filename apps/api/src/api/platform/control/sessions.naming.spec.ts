@@ -37,6 +37,26 @@ describe('SessionsService naming', () => {
     ])
   })
 
+  it('names a session that has no project, handing the titler a null project', async () => {
+    const { service, titler, background } = setup()
+    titler.next = async () => 'Build Fix'
+    const created = await service.create({ userId: 'user-a' })
+
+    await service.post({
+      userId: 'user-a',
+      sessionId: created.sessionId,
+      text: 'fix the build',
+    })
+    await background.settle()
+
+    expect(titler.calls).toMatchObject([
+      { userId: 'user-a', projectId: null, text: 'fix the build' },
+    ])
+    const after = await titleOf({ service, sessionId: created.sessionId })
+    expect(after?.title).toBe('Build Fix')
+    expect(after?.projectId).toBeNull()
+  })
+
   it('stores the fallback title when the titler answers nothing', async () => {
     const { service, background } = setup()
     const text = `${'word '.repeat(40)}end`

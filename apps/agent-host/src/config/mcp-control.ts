@@ -20,7 +20,7 @@ const grantSchema = z.object({
   tokens: z.object({ accessToken: z.string(), expiresAt: z.string().optional() }),
 })
 
-type Owner = { userId: string; projectId: string; surface: McpReturnSurface }
+type Owner = { userId: string; projectId: string | null; surface: McpReturnSurface }
 
 type ServerRow = {
   name: string
@@ -78,12 +78,13 @@ export const mcpControlOf = (args: {
     name: string
   }): Promise<readonly ServerRow[]> => {
     const servers = args.db.orm.public.McpServer
-    const [user, project] = await Promise.all([
-      servers.where({ userId: args2.owner.userId, source: args2.source, name: args2.name }).all(),
-      servers
-        .where({ projectId: args2.owner.projectId, source: args2.source, name: args2.name })
-        .all(),
-    ])
+    const user = await servers
+      .where({ userId: args2.owner.userId, source: args2.source, name: args2.name })
+      .all()
+    if (args2.owner.projectId === null) return user
+    const project = await servers
+      .where({ projectId: args2.owner.projectId, source: args2.source, name: args2.name })
+      .all()
     return [...user, ...project]
   }
 
@@ -103,7 +104,7 @@ export const mcpControlOf = (args: {
     if (fresh !== undefined) return fresh
     const refreshed = await args.gateway.refresh({
       userId: args2.owner.userId,
-      projectId: args2.owner.projectId,
+      ...(args2.owner.projectId === null ? {} : { projectId: args2.owner.projectId }),
       source: args2.source,
       name: args2.name,
       url: args2.url,
@@ -123,7 +124,7 @@ export const mcpControlOf = (args: {
         return { ok: false, reason: 'this session has no owner to sign a server in for' }
       const begun = await args.gateway.begin({
         userId: owner.userId,
-        projectId: owner.projectId,
+        ...(owner.projectId === null ? {} : { projectId: owner.projectId }),
         source: request.source,
         name: request.name,
         url: request.url,

@@ -36,7 +36,7 @@ export type SkillIndexEntry = { name: string; description: string; scope: SkillS
 
 export type AgentHostConfig = {
   userId: string
-  projectId: string
+  projectId: string | null
   model: ModelConfig
   models: ModelSource
   workspace: WorkspaceConfig

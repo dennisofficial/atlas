@@ -35,7 +35,7 @@ export class SessionsSubscription {
     return this.resnap()
   }
 
-  matches(projectId: string): boolean {
+  matches(projectId: string | null): boolean {
     return this.projectId === undefined || this.projectId === projectId
   }
 

@@ -97,10 +97,9 @@ export function withV2Sessions(args: {
 }): ProjectThreads[] {
   if (args.sessions.length === 0) return args.entries
   return args.entries.map((entry) => {
-    if (entry.project === null) return entry
-    const projectId = entry.project.id
+    const projectId = entry.project?.id ?? null
     const rows = nestPeers(
-      args.sessions.filter((summary) => summary.projectId === projectId).map(v2RowOf),
+      args.sessions.filter((summary) => (summary.projectId ?? null) === projectId).map(v2RowOf),
     )
     return rows.length === 0 ? entry : { ...entry, sessions: [...entry.sessions, ...rows] }
   })

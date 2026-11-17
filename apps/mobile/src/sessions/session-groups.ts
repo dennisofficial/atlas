@@ -70,6 +70,17 @@ enum EBucket {
 
 const isSet = (stamp: string | null | undefined): boolean => stamp !== null && stamp !== undefined
 
+const placementOf = ({
+  projectId,
+  nameOf,
+}: {
+  projectId: string | null
+  nameOf: ReadonlyMap<string, string>
+}): { key: string; name: string } | undefined => {
+  const name = projectId === null ? NO_PROJECT_NAME : nameOf.get(projectId)
+  return name === undefined ? undefined : { key: projectId ?? NO_PROJECT_KEY, name }
+}
+
 const timeOf = (stamp: string): number => {
   const parsed = Date.parse(stamp)
   return Number.isNaN(parsed) ? 0 : parsed
@@ -218,20 +229,21 @@ export const partitionSessions = ({
     [EBucket.Archived]: new Map(),
   }
   for (const thread of threads.filter(isMainSession)) {
-    const projectId = thread.projectId ?? null
-    const projectName = projectId === null ? NO_PROJECT_NAME : nameOf.get(projectId)
-    if (projectName === undefined) continue
-    const key = projectId ?? NO_PROJECT_KEY
+    const placement = placementOf({ projectId: thread.projectId ?? null, nameOf })
+    if (placement === undefined) continue
     const bucket = buckets[bucketOf({ thread, now })]
-    bucket.set(key, [...(bucket.get(key) ?? []), toSessionEntry({ thread, projectName })])
+    bucket.set(placement.key, [
+      ...(bucket.get(placement.key) ?? []),
+      toSessionEntry({ thread, projectName: placement.name }),
+    ])
   }
   for (const summary of sessions ?? []) {
-    const projectName = nameOf.get(summary.projectId)
-    if (projectName === undefined) continue
+    const placement = placementOf({ projectId: summary.projectId, nameOf })
+    if (placement === undefined) continue
     const bucket = buckets[v2BucketOf({ summary, now })]
-    bucket.set(summary.projectId, [
-      ...(bucket.get(summary.projectId) ?? []),
-      v2EntryOf({ summary, projectName }),
+    bucket.set(placement.key, [
+      ...(bucket.get(placement.key) ?? []),
+      v2EntryOf({ summary, projectName: placement.name }),
     ])
   }
   const groupsOf = (bucket: EBucket): IProjectGroup[] => [

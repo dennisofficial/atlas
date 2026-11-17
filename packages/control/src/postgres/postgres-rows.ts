@@ -40,7 +40,7 @@ export const toInbox = (row: {
 export const toSessionRow = (row: {
   id: string
   userId: string
-  projectId: string
+  projectId: string | null
   title: string | null
   mainThreadId: string
   createdAt: Date
