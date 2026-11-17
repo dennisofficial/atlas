@@ -31,7 +31,6 @@ export class OperatorRequestsController {
   }
 
   @All(OPERATOR_ANSWER_PATH)
-  @UseGuards(OriginGuard)
   @HttpCode(405)
   handleOtherMethod(): { reason: string } {
     return { reason: 'method' }

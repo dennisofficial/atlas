@@ -46,7 +46,6 @@ export class McpOauthController {
   }
 
   @All(MCP_OAUTH_BEGIN_PATH)
-  @UseGuards(OriginGuard)
   @HttpCode(405)
   handleOtherMethod(): { reason: string } {
     return { reason: 'method' }

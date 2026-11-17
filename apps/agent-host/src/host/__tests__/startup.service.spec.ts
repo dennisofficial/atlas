@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { unimplementedSubscriptions } from '../../stream/subscription-port'
 import { HostStartupService } from '../startup.service'
-import type { StreamStartArgs } from '../stream-service'
+import type { StreamStartArgs } from '../../stream/stream-service'
 
 const hostWatch = () => ({ recompute: () => undefined, close: async () => undefined })
 

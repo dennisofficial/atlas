@@ -1,4 +1,10 @@
-import { Inject, Injectable, type CanActivate, type ExecutionContext } from '@nestjs/common'
+import {
+  ForbiddenException,
+  Inject,
+  Injectable,
+  type CanActivate,
+  type ExecutionContext,
+} from '@nestjs/common'
 
 import type { AgentHostEnv } from '../config/env'
 import { AGENT_HOST_ENV } from '../host/tokens'
@@ -12,6 +18,7 @@ export class OriginGuard implements CanActivate {
     const trusted = this.env.trustedOrigins
     if (trusted.length === 0) return true
     const origin = headerOf(context.switchToHttp().getRequest<HostRequest>(), 'origin')
-    return origin !== undefined && trusted.includes(origin)
+    if (origin !== undefined && trusted.includes(origin)) return true
+    throw new ForbiddenException({ reason: 'origin' })
   }
 }

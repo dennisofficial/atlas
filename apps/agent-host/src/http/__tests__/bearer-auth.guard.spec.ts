@@ -1,4 +1,4 @@
-import { BadRequestException, type ExecutionContext } from '@nestjs/common'
+import { BadRequestException, UnauthorizedException, type ExecutionContext } from '@nestjs/common'
 import { describe, expect, it } from 'bun:test'
 import { z } from 'zod'
 
@@ -24,8 +24,21 @@ const authWithToken = (): MemoryStreamAuth => {
 describe('BearerAuthGuard', () => {
   it('refuses a request without a bearer and one with an unknown bearer', async () => {
     const guard = new BearerAuthGuard(authWithToken())
-    expect(await guard.canActivate(contextOf(requestOf()))).toBe(false)
-    expect(await guard.canActivate(contextOf(requestOf('Bearer nobody')))).toBe(false)
+    const refusalOf = async (authorization?: string): Promise<unknown> => {
+      try {
+        await guard.canActivate(contextOf(requestOf(authorization)))
+        return undefined
+      } catch (error) {
+        return error
+      }
+    }
+
+    const missing = await refusalOf()
+    const unknown = await refusalOf('Bearer nobody')
+
+    expect(missing).toBeInstanceOf(UnauthorizedException)
+    expect(unknown).toBeInstanceOf(UnauthorizedException)
+    expect((missing as UnauthorizedException).getResponse()).toEqual({ reason: 'bearer' })
   })
 
   it('puts the resolved user on the request', async () => {
