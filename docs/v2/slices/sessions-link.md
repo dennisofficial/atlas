@@ -1,8 +1,9 @@
 # Spec: sessions own their pods
 
-Status: **built, 2026-11-11** (spec approved 2026-11-11). Anchors are at `e237d950`; re-check
-before relying on one. Predecessor work: [#2223](https://github.com/dennisofficial/atlas/pull/2223), which
-put a sub-agent's report in the agent lane and stopped a peer message rendering as the operator's.
+Status: **built, 2026-11-11**, live check outstanding (spec approved 2026-11-11). Anchors are at
+`e237d950`; re-check before relying on one. Predecessor work:
+[#2223](https://github.com/dennisofficial/atlas/pull/2223), which put a sub-agent's report in the agent
+lane and stopped a peer message rendering as the operator's.
 
 ## Goal
 

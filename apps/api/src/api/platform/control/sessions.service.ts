@@ -9,7 +9,12 @@ import {
   STATUS_EVENT_LIMIT,
 } from '@dltech/atlas-control'
 import type { ControlSessionRow } from '@dltech/atlas-control'
-import { INBOX_KIND_RETRY, type Attachment, type SaidUpload } from '@dltech/atlas-core'
+import {
+  INBOX_KIND_RETRY,
+  INBOX_KIND_STOP,
+  type Attachment,
+  type SaidUpload,
+} from '@dltech/atlas-core'
 import { MediaStore } from '@dltech/atlas-media'
 import {
   EWithdrawRefusal,
@@ -25,6 +30,7 @@ import {
   type SessionPostMedia,
   type SessionRetryOutput,
   type SessionStatusOutput,
+  type SessionStopOutput,
   type SessionViewOutput,
   type SessionWithdrawOutput,
 } from '@dltech/atlas-protocol'
@@ -334,6 +340,11 @@ export class SessionsService {
   async retry(args: { userId: string; sessionId: string }): Promise<SessionRetryOutput> {
     await this.requireOwnedSession(args)
     return this.plane.post({ sessionId: args.sessionId, kind: INBOX_KIND_RETRY, payload: '{}' })
+  }
+
+  async stop(args: { userId: string; sessionId: string }): Promise<SessionStopOutput> {
+    await this.requireOwnedSession(args)
+    return this.plane.post({ sessionId: args.sessionId, kind: INBOX_KIND_STOP, payload: '{}' })
   }
 
   async command(args: { userId: string } & SessionCommandInput): Promise<SessionCommandOutput> {

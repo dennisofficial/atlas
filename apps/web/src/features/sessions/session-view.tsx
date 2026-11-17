@@ -21,6 +21,7 @@ import { SummariseDialog } from '@/features/threads/transcript/summarise-dialog'
 
 import { postInputOf } from './data/session-media'
 import { sessionsApi } from './data/sessions-api'
+import { stopSession } from './data/stop-session'
 import { headerStateOfSession, isSessionWorking, sessionStateLineOf } from './data/session-state'
 import { sessionCache, sessionStream } from './data/session-stream'
 import { requestRewind, rewoundDraftOf, seqByEventIdOf } from './data/session-rewind'
@@ -126,6 +127,12 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   })
 
   const handleRetry = () => retrySessionNow(sessionId)
+  const handleStop = () =>
+    void stopSession({
+      api: sessionsApi,
+      sessionId,
+      notify: (message) => toast.error(message),
+    })
 
   const rewind = useMemo(() => {
     const seqs = seqByEventIdOf(snapshot.events)
@@ -234,6 +241,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
             {...attachments.composerProps}
             sendsAttachmentsAlone
             working={working}
+            onStop={handleStop}
             placeholder="Message Atlas…"
           >
             {listed === undefined ? null : (

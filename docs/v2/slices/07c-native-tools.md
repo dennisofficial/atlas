@@ -1,7 +1,8 @@
 # Slice 7c spec: the v1 tools v2 still lacks
 
-Status: **spec, 2026-11-09.** Written after slice 7 closed all six plugins and slice 7b took MCP and
-skills. Anchors are `path:line` at `f480c5771`; re-check before relying on one. Prior slices:
+Status: **built, 2026-11-09** (#2116, #2121), live check outstanding. Written after slice 7 closed
+all six plugins and slice 7b took MCP and skills. Anchors are `path:line` at `f480c5771`; re-check
+before relying on one. Prior slices:
 [07-plugins.md](07-plugins.md), [07b-mcp-skills.md](07b-mcp-skills.md).
 
 Contract: [architecture.md](../architecture.md) §4 P8, [0019](../decisions/0019-v2-package-map.md),
@@ -37,8 +38,8 @@ brief I was handed were not tools at all, and two real tools were missing from i
 | `web_fetch` (`web-fetch.ts:95`)                       | none                                                      | port → `plugins/web` (§2.2)                |
 | `browser` (`browser.ts:101`)                          | none                                                      | port → `plugins/web` (§3)                  |
 | `task_write` (`packages/core/src/plan/plan.ts:9`)     | the prompt advertises it, no tool exists (§4.1)           | port → a core tool (§4)                    |
-| `operator_input` (`operator-input.ts:23`)             | none                                                      | **not ported** (§5)                        |
-| `operator_shell_input` (`operator-shell-input.ts:21`) | none                                                      | **not ported** (§5)                        |
+| `operator_input` (`operator-input.ts:23`)             | `plugins/operator`                                        | **ported** (§5)                            |
+| `operator_shell_input` (`operator-shell-input.ts:21`) | `plugins/operator`                                        | **ported** (§5)                            |
 | `cloud_config` (`cloud-config.ts:26`)                 | none                                                      | **not ported** (§6)                        |
 | `execution_location` (`execution-location.ts:37`)     | none                                                      | **not ported**: v2 has one location (§7.3) |
 | `worktree_adopt` (named in the brief)                 | no such v1 tool exists; `enter_worktree` adopts by `path` | **nothing to port** (§7.1)                 |
@@ -186,10 +187,12 @@ A dedicated plan panel in web is **out of scope** — the plan fold in core is w
 (§1.1), and adding one is a view change (core version bump, wire schema, web panel) that belongs with
 slice 8's daily-use work.
 
-## 5. `operator_input` and `operator_shell_input` — not ported
+## 5. `operator_input` and `operator_shell_input` — not ported here
 
-**Verdict: v2 does not port these, because the seam they need does not exist and the situation they
-serve does not occur in v2 yet.**
+**Verdict: this slice does not port these, because the seam they need does not exist and the situation
+they serve does not occur in v2 yet. Superseded the next day: the
+[operator-input slice](operator-input.md) built the seam and both tools in `plugins/operator`
+(2026-11-12).**
 
 What they do in v1 is block a tool call until a human pastes a value: into a file, or into a running
 shell's stdin (`operator-input.ts:41-80`, `operator-shell-input.ts:41-77`). The only real use is an

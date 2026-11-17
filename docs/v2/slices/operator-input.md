@@ -1,7 +1,8 @@
 # Slice spec: operator input from the transcript
 
-Status: **building, 2026-11-12.** Direction approved by the operator (2026-11-11 handoff). Anchors are
-`path:line` at `8eb91a861`; re-check before relying on one. Prior slices:
+Status: **built, 2026-11-12**, live check partial (#2267). Direction approved by the operator
+(2026-11-11 handoff). Anchors are `path:line` at `8eb91a861`; re-check before relying on one. Prior
+slices:
 [07c-native-tools.md](07c-native-tools.md) §5 names this seam and declines to smuggle it in;
 [07d-mcp-sign-in.md](07d-mcp-sign-in.md) §10 is the card this one copies.
 

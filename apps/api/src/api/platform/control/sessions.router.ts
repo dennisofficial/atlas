@@ -21,6 +21,8 @@ import {
   sessionViewOutputSchema,
   sessionStatusInputSchema,
   sessionStatusOutputSchema,
+  sessionStopInputSchema,
+  sessionStopOutputSchema,
   sessionWithdrawInputSchema,
   sessionWithdrawOutputSchema,
   type SessionArchiveInput,
@@ -43,6 +45,8 @@ import {
   type SessionViewOutput,
   type SessionStatusInput,
   type SessionStatusOutput,
+  type SessionStopInput,
+  type SessionStopOutput,
   type SessionWithdrawInput,
   type SessionWithdrawOutput,
 } from '@dltech/atlas-protocol'
@@ -134,6 +138,11 @@ export class SessionsRouter {
     @Ctx() ctx: SessionTrpcCtx,
   ): Promise<SessionRetryOutput> {
     return this.sessions.retry({ userId: ctx.auth.userId, sessionId: input.sessionId })
+  }
+
+  @Mutation({ input: sessionStopInputSchema, output: sessionStopOutputSchema })
+  stop(@Input() input: SessionStopInput, @Ctx() ctx: SessionTrpcCtx): Promise<SessionStopOutput> {
+    return this.sessions.stop({ userId: ctx.auth.userId, sessionId: input.sessionId })
   }
 
   @Mutation({ input: sessionCommandInputSchema, output: sessionCommandOutputSchema })

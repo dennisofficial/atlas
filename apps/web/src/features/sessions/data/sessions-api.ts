@@ -5,6 +5,7 @@ import { api, cloudCall } from '@/lib/api-client'
 import type { SessionsApi } from './create-session'
 import type { RetryApi } from './retry-session'
 import type { RewindApi } from './session-rewind'
+import type { StopApi } from './stop-session'
 import type { WithdrawApi } from './withdraw-queued'
 
 const V2_SESSIONS_LIMIT = 100
@@ -18,10 +19,11 @@ export const archiveV2Session = (args: { sessionId: string; archived: boolean })
 export const fetchSessionPage = (input: SessionPageInput) =>
   cloudCall(api.sessions.page.query(input))
 
-export const sessionsApi: SessionsApi & WithdrawApi & RetryApi & RewindApi = {
+export const sessionsApi: SessionsApi & WithdrawApi & RetryApi & StopApi & RewindApi = {
   create: (input) => cloudCall(api.sessions.create.mutate(input)),
   post: (input) => cloudCall(api.sessions.post.mutate(input)),
   withdraw: (input) => cloudCall(api.sessions.withdraw.mutate(input)),
   retry: (input) => cloudCall(api.sessions.retry.mutate(input)),
+  stop: (input) => cloudCall(api.sessions.stop.mutate(input)),
   command: (input) => cloudCall(api.sessions.command.mutate(input)),
 }
