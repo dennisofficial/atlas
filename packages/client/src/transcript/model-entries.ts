@@ -6,6 +6,7 @@ export function modelEntries(args: {
   runs: readonly ModelRun[]
   streaming: boolean
   interruptedAtEnd: boolean
+  stoppedAtEnd?: boolean
 }): TranscriptEntry[] {
   return args.runs.map((run, index) => {
     const last = index === args.runs.length - 1
@@ -15,6 +16,7 @@ export function modelEntries(args: {
       text: run.text,
       streaming: args.streaming && last,
       interrupted: args.interruptedAtEnd && last,
+      ...(args.stoppedAtEnd === true && last ? { stopped: true as const } : {}),
     } as const
 
     return run.isReasoning

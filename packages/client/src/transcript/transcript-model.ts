@@ -55,6 +55,7 @@ export type ModelSaidEntry = {
   text: string
   streaming: boolean
   interrupted: boolean
+  stopped?: true
   muted: boolean
 }
 
@@ -66,6 +67,7 @@ export type ModelThoughtEntry = {
   streaming: boolean
   heldOpen: boolean
   interrupted: boolean
+  stopped?: true
 }
 
 export type ToolsRanEntry = {

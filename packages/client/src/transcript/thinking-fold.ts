@@ -29,6 +29,7 @@ function foldedThought(args: {
   rest: readonly ModelThoughtEntry[]
 }): ModelThoughtEntry {
   const run = [args.first, ...args.rest]
+  const stopped = run[run.length - 1]?.stopped === true
 
   return {
     kind: EEntryKind.ModelThought,
@@ -41,6 +42,7 @@ function foldedThought(args: {
     streaming: run.some((entry) => entry.streaming),
     heldOpen: false,
     interrupted: run[run.length - 1]?.interrupted ?? false,
+    ...(stopped ? { stopped: true as const } : {}),
   }
 }
 

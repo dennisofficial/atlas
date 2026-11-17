@@ -21,7 +21,7 @@ import { stepRetryDeps } from './step-retry-deps'
 import { stepStreamerFor } from './streamed-chunks'
 import type { TurnSpendTally } from '../ledger/record-turn-spend'
 import { recordAbandonedStep, watchTurnStep } from './turn-step-helpers'
-import { draftsFor } from './step-drafts'
+import { draftsFor, OPERATOR_STOP_REASON } from './step-drafts'
 import { prepareStepAssembly, stepPrepareDepsOf, preparedFailureMessage } from './step-prepare'
 import { idleOrSwallowed } from './swallowed-outcome'
 import { waitingIfBlocked } from './waiting-outcome'
@@ -257,6 +257,7 @@ export async function runTrackedTurn(
         result: stepped.result,
         events,
         seenThrough: position.seenThrough,
+        stopped: abortSignal.reason === OPERATOR_STOP_REASON,
       })
       return interrupted()
     }

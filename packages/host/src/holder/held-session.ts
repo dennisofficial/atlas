@@ -6,7 +6,7 @@ import {
   type Lease,
   type ThreadId,
 } from '@dltech/atlas-core'
-import { LoopTurnRunner, PauseSignal } from '@dltech/atlas-agent'
+import { LoopTurnRunner, OPERATOR_STOP_REASON, PauseSignal } from '@dltech/atlas-agent'
 
 import { FencedSettlement } from './fenced-settlement'
 import { settleOperatorOnStop } from './operator-stop'
@@ -237,7 +237,7 @@ export class HeldSession {
     if (shellsRunning) this.noteActivity()
     switch (action) {
       case EHeldAction.AbortTurn:
-        return this.turns.abort('stop')
+        return this.turns.abort(OPERATOR_STOP_REASON)
       case EHeldAction.ConsumeStop: {
         this.resumePending = false
         await settleOperatorOnStop({ deps, record: this.record, runtime: this.runtime })
