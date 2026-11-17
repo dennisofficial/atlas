@@ -80,7 +80,7 @@ describe('SessionHolder sweep', () => {
     const rig = await makeRig({ sweepMs: SWEEP_MS })
     await seedSession(rig)
     await rig.holder.start()
-    await rig.holder.drain({ deadline: rig.clock.now() + 1_000 })
+    await rig.holder.drain()
     await rig.post('hello')
     rig.clock.advance(60_000)
     await rig.flush()

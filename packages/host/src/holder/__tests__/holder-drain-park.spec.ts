@@ -33,7 +33,7 @@ describe('SessionHolder drain of an idle session', () => {
     await b.holder.start()
     const wakesBefore = a.wakeCount(SESSION)
 
-    await a.holder.drain({ deadline: a.clock.now() + 30_000 })
+    await a.holder.drain()
     await a.flush()
 
     const { lease } = await a.plane.currentLease({ sessionId: SESSION })
@@ -51,7 +51,7 @@ describe('SessionHolder drain of an idle session', () => {
     const a = await idleRig()
     const b = await makeB(a)
     await b.holder.start()
-    await a.holder.drain({ deadline: a.clock.now() + 30_000 })
+    await a.holder.drain()
 
     await a.post('after the deploy')
     await a.wake()
@@ -75,7 +75,7 @@ describe('SessionHolder drain of an idle session', () => {
       return originalRevoke(params)
     }) as typeof a.plane.revoke
 
-    await a.holder.drain({ deadline: a.clock.now() + 30_000 })
+    await a.holder.drain()
     await a.flush()
 
     const answered = await flushUntil({

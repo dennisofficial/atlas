@@ -44,8 +44,7 @@ describe('SessionHolder OnceLedger', () => {
     const scheduled = (await a.events()).filter((event) => event.type === 'retry-scheduled')
     expect(scheduled.length).toBe(1)
 
-    const drain = a.holder.drain({ deadline: a.clock.now() + 1_000 })
-    a.clock.advance(1_100)
+    const drain = a.holder.drain()
     await drain
 
     const b = await makeRig({

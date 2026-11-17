@@ -130,7 +130,6 @@ describe.skipIf(REDIS_URL === undefined)(
       const hostA = await rig.spawnHost({
         label: 'host-a',
         daemonUrl: daemon.url,
-        knobs: { drainMs: 800 },
         scripts: { [sessionId]: [{ text: streamed, streamMs: 15_000, gateFile }] },
       })
       await rig.claim({ sessionId, label: 'host-a' })

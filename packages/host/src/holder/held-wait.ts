@@ -33,18 +33,3 @@ export const consumeStops = async (args: {
     }
   }
 }
-
-export const raceDeadline = (args: {
-  deps: HeldSessionDeps
-  done: Promise<unknown>
-  deadlineMs: number
-}): Promise<'done' | 'late'> => {
-  const late = new Promise<'late'>((resolve) => {
-    const timer = args.deps.timers.setTimeout(() => resolve('late'), args.deadlineMs)
-    void args.done.then(
-      () => args.deps.timers.clearTimeout(timer),
-      () => args.deps.timers.clearTimeout(timer),
-    )
-  })
-  return Promise.race([args.done.then(() => 'done' as const), late])
-}

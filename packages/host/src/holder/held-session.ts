@@ -20,7 +20,7 @@ import { HeldPrepare } from './held-prepare'
 import { readHeldAction } from './held-snapshot'
 import { IdleDeadline } from './idle-deadline'
 import { lostOutcome } from './lost-outcome'
-import { consumeStops, raceDeadline } from './held-wait'
+import { consumeStops } from './held-wait'
 import { Reconciler } from './reconciler'
 import type { SessionRecord } from './record/record-adapter'
 import type { HeldSessionDeps } from './held-session-deps'
@@ -40,7 +40,6 @@ export class HeldSession {
   private readonly prepare: HeldPrepare
   private readonly stall: StallGuard
   private draining = false
-  private drainDeadline: number | undefined
   private done: Promise<HeldOutcome> | undefined
   private lastActivityAt: number
   private runtime: SessionRuntime | undefined
@@ -52,7 +51,6 @@ export class HeldSession {
   private readonly idle: IdleDeadline
   private readonly fenced: FencedSettlement
   private leaseEpoch = 0
-  private drainModelOnly = false
   private outcome: EHeldOutcome | undefined
   private released = false
   private resumePending = false
@@ -122,17 +120,10 @@ export class HeldSession {
     this.loseLease()
   }
 
-  async handoff(args: { deadline: number }): Promise<void> {
+  async handoff(): Promise<void> {
     this.beginDrain()
-    this.drainDeadline = args.deadline
-    if (this.done === undefined) return
-    const remaining = Math.max(0, args.deadline - this.deps.timers.now())
-    const winner = await raceDeadline({ deps: this.deps, done: this.done, deadlineMs: remaining })
-    if (winner === 'late') {
-      this.drainModelOnly = true
-      this.runtime?.remoteCalls.handoff()
-      this.turns.abort('handoff')
-    }
+    this.runtime?.remoteCalls.handoff()
+    this.turns.abort('handoff')
     await this.done
   }
 
@@ -179,7 +170,6 @@ export class HeldSession {
       threadId,
       epoch: lease.epoch,
       signal: this.lifetimeAbort.signal,
-      drainDeadline: () => this.drainDeadline,
       onLeaseLost: (error) => this.loseLease(lostOutcome(error)),
       onRuntime: (opened) => {
         this.runtime = opened
@@ -196,7 +186,6 @@ export class HeldSession {
       epoch: lease.epoch,
       signal: this.lifetimeAbort.signal,
       onLeaseLost: (error) => this.loseLease(lostOutcome(error)),
-      drainDeadline: () => this.drainDeadline,
     })
     this.crew = crew
     const { runner, branches, recoverCommands } = wireHeldLoop({
@@ -208,7 +197,7 @@ export class HeldSession {
       signal: this.lifetimeAbort.signal,
       epoch: lease.epoch,
       crew: crew.port(),
-      isModelOnlyDrain: () => this.drainModelOnly,
+      isDraining: () => this.draining,
     })
     this.branches = branches
     this.resumePending = await settleAndCheckResume({ deps, runtime, record, threadId })

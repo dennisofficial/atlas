@@ -32,7 +32,6 @@ export class TakeOver {
     threadId: ThreadId
     epoch: number
     signal: AbortSignal
-    drainDeadline(): number | undefined
     onLeaseLost(error: LeaseLostError): void
     onRuntime(runtime: SessionRuntime): void
   }): Promise<{ runtime: SessionRuntime; record: SessionRecord }> {
@@ -75,7 +74,6 @@ export class TakeOver {
       remoteCalls: runtime.remoteCalls,
       daemonTools: runtime.daemonTools,
       appendRetryMs: deps.appendRetryMs,
-      drainDeadline: args.drainDeadline,
       nowIso: () => new Date(deps.timers.now()).toISOString(),
       onLeaseLost: args.onLeaseLost,
       preloaded: cache,

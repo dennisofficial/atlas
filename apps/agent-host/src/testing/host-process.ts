@@ -20,7 +20,6 @@ import { createRedisLiveFrames } from '../bus/redis-live-frames'
 import type { ConfigSource } from '../config/agent-host-config'
 import { fakeModelSourceOf } from './model-source'
 import { createSessionRuntimeFactory } from '../runtime/session-runtime-factory'
-import { DEFAULT_DRAIN_MS } from '../config/env'
 import { FixedEndpointSandboxProvider } from './fixed-endpoint-sandbox-provider'
 import { faultedPlane, faultSandbox, hostFaultOf } from './host-faults'
 
@@ -210,9 +209,7 @@ const main = async (): Promise<void> => {
     if (shuttingDown) process.exit(1)
     shuttingDown = true
     log.info({ source: 'host-process', message: 'draining' })
-    await holder.drain({
-      deadline: Date.now() + numberEnv('AGENT_HOST_DRAIN_MS', DEFAULT_DRAIN_MS),
-    })
+    await holder.drain()
     await watch?.close()
     await pgPresence.close()
     await wakes.close()

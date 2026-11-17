@@ -116,7 +116,7 @@ describe('SessionHolder presence loss', () => {
     const registers = countRegisters()
     const a = await makeRig({ beforeRegister: registers.gate })
     await a.holder.start()
-    const drained = a.holder.drain({ deadline: a.clock.now() + 1_000 })
+    const drained = a.holder.drain()
     a.presence.lose()
     await drained
     await a.flush()
@@ -178,7 +178,7 @@ describe('SessionHolder presence loss', () => {
     expect(calls).toBe(2)
     expect(a.clock.pendingCount()).toBe(1)
 
-    await a.holder.drain({ deadline: a.clock.now() + 1_000 })
+    await a.holder.drain()
     expect(a.clock.pendingWithin(60_000)).toBe(false)
     a.clock.advance(60_000)
     await a.flush()

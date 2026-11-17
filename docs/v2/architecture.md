@@ -468,7 +468,9 @@ backoff is not an in-memory timer: it is a recorded deadline (0021).
 - **Deploy drain keeps idle sessions parked.** On SIGTERM a host hands off the sessions that have work: a
   running turn, a resumable thread, an actionable inbox entry, or a workspace that is unprepared, preparing
   or failed with a retry pending. An idle, prepared session is released without a wake. The next message
-  wakes it through `NOTIFY`, so a deploy no longer wakes every sandbox and restarts every idle clock.
+  wakes it through `NOTIFY`, so a deploy no longer wakes every sandbox and restarts every idle clock. The
+  handoff never waits for a turn: it detaches the daemon calls that keep running, aborts the model stream
+  immediately and settles the lease, so only the in-flight provider request is lost.
 
 **Connection-bound leases (accepted in [0025](../decisions/0025-v2-connection-bound-leases.md)).** Renewal
 and the reconcile task exist because liveness is something the control plane has to infer from a clock.

@@ -13,11 +13,9 @@ const longExecScript = [
 
 const PROMPT_HANDOFF_MS = 2_000
 
-const drainLate = async (rig: HolderRig): Promise<void> => {
+const handoffPromptly = async (rig: HolderRig): Promise<void> => {
   const startedAt = Date.now()
-  const drain = rig.holder.drain({ deadline: rig.clock.now() + 1_000 })
-  rig.clock.advance(1_100)
-  await drain
+  await rig.holder.drain()
   expect(Date.now() - startedAt).toBeLessThan(PROMPT_HANDOFF_MS)
 }
 
@@ -43,7 +41,7 @@ describe('branch observer lifecycle on handoff', () => {
     expect(runtime).toBeDefined()
     if (runtime !== undefined) runtime.watched = ['/w']
 
-    await drainLate(rig)
+    await handoffPromptly(rig)
     await expectRevoked(rig, { wantsHolder: true })
     rig.holder.discard()
   }, 15_000)
@@ -62,7 +60,7 @@ describe('branch observer lifecycle on handoff', () => {
     })
     expect(said).toBe(true)
 
-    await drainLate(rig)
+    await handoffPromptly(rig)
     await expectRevoked(rig, { wantsHolder: false })
     rig.holder.discard()
   }, 15_000)

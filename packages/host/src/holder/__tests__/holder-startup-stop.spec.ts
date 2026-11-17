@@ -44,8 +44,7 @@ describe('SessionHolder startup stop', () => {
     })
     expect(dispatched).toBe(true)
 
-    const drain = a.holder.drain({ deadline: a.clock.now() + 1_000 })
-    a.clock.advance(1_100)
+    const drain = a.holder.drain()
     await drain
     await new Promise((resolve) => setTimeout(resolve, 1_000))
 

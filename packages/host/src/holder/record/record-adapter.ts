@@ -48,7 +48,6 @@ export type SessionRecordArgs = {
   blobSpillBytes?: number | undefined
   preloaded?: RecordCache | undefined
   appendRetryMs?: number | undefined
-  drainDeadline?: (() => number | undefined) | undefined
   onLeaseLost?: ((error: LeaseLostError) => void) | undefined
   log?: LogPort | undefined
   nowIso(): string
@@ -235,7 +234,6 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
     return appendRetryDeadline({
       failingSince,
       appendRetryMs: this.args.appendRetryMs,
-      drainDeadline: this.args.drainDeadline?.(),
     })
   }
 

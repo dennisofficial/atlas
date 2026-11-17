@@ -61,7 +61,7 @@ describe('SessionHolder claim retry', () => {
     await rig.flush()
     const before = scan.calls()
 
-    await rig.holder.drain({ deadline: rig.clock.now() + 1_000 })
+    await rig.holder.drain()
     expect(rig.clock.pendingWithin(60_000)).toBe(false)
     rig.clock.advance(60_000)
     await rig.flush()

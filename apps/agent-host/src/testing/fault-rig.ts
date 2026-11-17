@@ -37,7 +37,6 @@ export type ReadEvent = { seq: number; type: string; event: unknown }
 export type HostKnobs = {
   appendRetryMs?: number
   pingMs?: number
-  drainMs?: number
   maxSessions?: number
   poolMax?: number
   noRing?: boolean
