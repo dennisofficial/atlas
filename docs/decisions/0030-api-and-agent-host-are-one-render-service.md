@@ -35,8 +35,11 @@ draining `/healthz`, and the `/mcp-oauth/callback` redirect that a provider open
 
 **D3. Background work stays off the service.** Schedules and jobs stay on trigger.dev in
 `apps/trigger` ([0022](0022-v2-background-jobs-in-apps-trigger.md)). The `@Interval` GitHub sweeps
-that ran when `VERCEL !== '1'` are deleted rather than re-enabled on Render, because the trigger.dev
-schedules already run the same sweeps; an in-process flag keeps them for local dev only.
+that ran when `VERCEL !== '1'` never run on Render: `GithubSweepSchedulerService` and its
+`ScheduleModule` are registered only when `GITHUB_SWEEPS_IN_PROCESS=1`, which no deploy target sets,
+because the trigger.dev schedules already run the same sweeps. The rendered service and the Vercel
+function both boot without them; `bun run dev` and `dev:no-trigger` in `apps/api` set the flag so a
+local machine keeps sweeping.
 
 **D4. Vercel keeps the API until the DNS cutover.** The Vercel deployment stays up, on the same
 Postgres, as the rollback. `api.byatlas.io` moves to Render only after TLS on the Render origin is

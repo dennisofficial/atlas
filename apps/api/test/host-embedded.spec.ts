@@ -9,7 +9,7 @@ const WEB_ORIGIN = 'http://localhost:3001'
 const applyHostEnv = (): void => {
   process.env.DATABASE_DIRECT_URL = process.env.DATABASE_URL
   process.env.REDIS_URL = REDIS_URL
-  process.env.RATE_LIMIT_PER_MINUTE = '6000'
+  process.env.RATE_LIMIT_PER_MINUTE = '2'
   process.env.DAEMON_SECRET = 'test-daemon-secret'
   process.env.ATLAS_API_ORIGIN = 'https://api.byatlas.io'
   process.env.TRUSTED_ORIGINS = WEB_ORIGIN
@@ -62,6 +62,16 @@ describeWithHost('api and agent host in one process', () => {
     expect(health.status).toBe(200)
     expect(await health.json()).toMatchObject({ ok: true })
     expect(versioned.status).toBe(404)
+  })
+
+  it('never rate limits the host health route', async () => {
+    const statuses: number[] = []
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      const response = await fetch(`${booted.base}/healthz`)
+      statuses.push(response.status)
+    }
+
+    expect(statuses).toEqual([200, 200, 200, 200, 200, 200])
   })
 
   it('answers the operator answer preflight on the api cors allowlist', async () => {

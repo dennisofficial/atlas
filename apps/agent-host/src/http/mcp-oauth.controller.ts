@@ -20,6 +20,7 @@ import {
 } from '../mcp-oauth/begin-service'
 import { MCP_OAUTH_CALLBACK_PATH, type CallbackHandler } from '../mcp-oauth/callback'
 import { MCP_OAUTH_BEGIN, MCP_OAUTH_CALLBACK } from '../host/tokens'
+import { SkipThrottle } from '@nestjs/throttler'
 import { BearerAuthGuard } from './bearer-auth.guard'
 import { CurrentUserId } from './current-user.decorator'
 import type { HostReply, HostRequest } from './host-request'
@@ -27,6 +28,7 @@ import { OriginGuard } from './origin.guard'
 import { ZodBodyPipe } from './zod-body.pipe'
 
 @Controller({ version: VERSION_NEUTRAL })
+@SkipThrottle()
 export class McpOauthController {
   constructor(
     @Inject(MCP_OAUTH_BEGIN) private readonly begins: McpOauthBeginService,

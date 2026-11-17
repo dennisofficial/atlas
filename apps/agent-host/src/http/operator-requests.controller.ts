@@ -16,6 +16,7 @@ import {
   operatorAnswerRequestSchema,
   type OperatorAnswerRequest,
 } from '../operator-input/answer-service'
+import { SkipThrottle } from '@nestjs/throttler'
 import { OPERATOR_ANSWERS } from '../host/tokens'
 import { BearerAuthGuard } from './bearer-auth.guard'
 import { CurrentUserId } from './current-user.decorator'
@@ -24,6 +25,7 @@ import { OriginGuard } from './origin.guard'
 import { ZodBodyPipe } from './zod-body.pipe'
 
 @Controller({ version: VERSION_NEUTRAL })
+@SkipThrottle()
 export class OperatorRequestsController {
   constructor(@Inject(OPERATOR_ANSWERS) private readonly answers: OperatorAnswerService) {}
 

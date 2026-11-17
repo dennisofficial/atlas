@@ -1,10 +1,12 @@
 import { Controller, Get, Inject, Res, VERSION_NEUTRAL } from '@nestjs/common'
+import { SkipThrottle } from '@nestjs/throttler'
 
 import { STREAM } from '../host/tokens'
 import type { HostReply } from './host-request'
 import { StreamService } from '../stream/stream-service'
 
 @Controller({ version: VERSION_NEUTRAL })
+@SkipThrottle()
 export class HealthController {
   constructor(@Inject(STREAM) private readonly stream: StreamService) {}
 
