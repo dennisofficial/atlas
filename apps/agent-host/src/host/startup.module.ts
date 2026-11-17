@@ -1,6 +1,7 @@
 import { Module, type Provider } from '@nestjs/common'
 import type { Pool } from '@dltech/atlas-db'
 import type { HostPresence, SessionHolder } from '@dltech/atlas-host'
+import type { LogPort } from '@dltech/atlas-observability'
 
 import type { PgWakeListener } from '../bus/pg-wake-listener'
 import type { RedisLiveFrames } from '../bus/redis-live-frames'
@@ -11,13 +12,14 @@ import type { HostWatchService } from './host-watch-service'
 import { RuntimeModule } from './runtime.module'
 import { HostShutdownSequence } from './shutdown-sequence'
 import { HostStartupService } from './startup.service'
+import type { StreamService } from '../stream/stream-service'
 import { StreamModule } from './stream.module'
-import type { StreamService } from './stream-service'
 import {
   FOLLOW_STACK,
   HOLDER,
   HOST_WATCH,
   LIVE_FRAMES,
+  LOG,
   POOL,
   PRESENCE,
   SHUTDOWN,
@@ -47,9 +49,31 @@ const shutdownProvider: Provider = {
     stream: StreamService,
     follow: FollowStack,
     pool: Pool,
+    holder: SessionHolder,
+    log: LogPort,
   ): HostShutdownSequence =>
-    new HostShutdownSequence({ watch, presence, wakes, liveFrames, stream, follow, pool }),
-  inject: [HOST_WATCH, PRESENCE, WAKE_LISTENER, LIVE_FRAMES, STREAM, FOLLOW_STACK, POOL],
+    new HostShutdownSequence({
+      watch,
+      presence,
+      wakes,
+      liveFrames,
+      stream,
+      follow,
+      pool,
+      holder,
+      log,
+    }),
+  inject: [
+    HOST_WATCH,
+    PRESENCE,
+    WAKE_LISTENER,
+    LIVE_FRAMES,
+    STREAM,
+    FOLLOW_STACK,
+    POOL,
+    HOLDER,
+    LOG,
+  ],
 }
 
 @Module({

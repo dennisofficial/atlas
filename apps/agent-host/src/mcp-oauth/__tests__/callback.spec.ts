@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'bun:test'
 
 import { McpServerReader } from '../../config/mcp-servers'
 import { seedOwner } from '../../config/__tests__/config-reader.fixture'
-import { mcpOauthCallbackOf } from '../callback'
+import { mcpOauthCallbackOf, type CallbackHandler } from '../callback'
 import { returnPathOf } from '../redirect'
 import type { McpReturnTarget } from '../types'
 import type { Db } from '@dltech/atlas-db'
@@ -64,8 +64,24 @@ const seedPending = async (args: {
   })
 }
 
-const handlerOver = (db: Db) =>
-  mcpOauthCallbackOf({ db, cipher, webOrigin: WEB_ORIGIN, allowLocalTargets: true })
+const respondOf = (answer: Awaited<ReturnType<CallbackHandler>>): Response =>
+  answer.kind === 'redirect'
+    ? new Response(null, { status: 302, headers: { location: answer.location } })
+    : new Response(answer.html, {
+        status: 200,
+        headers: { 'content-type': 'text/html; charset=utf-8' },
+      })
+
+const handlerOver = (db: Db) => {
+  const callback: CallbackHandler = mcpOauthCallbackOf({
+    db,
+    cipher,
+    webOrigin: WEB_ORIGIN,
+    allowLocalTargets: true,
+  })
+  return async (request: Request): Promise<Response> =>
+    respondOf(await callback(new URL(request.url).searchParams))
+}
 
 const callOf = async (args: {
   db: Db
@@ -104,13 +120,6 @@ const tokenFetch = () =>
   )
 
 describe('the mcp oauth callback', () => {
-  it('leaves every other path to the stream server', async () => {
-    const { db } = testDb()
-    await seedOwner(db)
-    expect(await handlerOver(db)(new Request('https://agent.byatlas.io/healthz'))).toBeNull()
-    expect(await handlerOver(db)(new Request('https://agent.byatlas.io/stream'))).toBeNull()
-  })
-
   it('seals nothing and reports an unknown state', async () => {
     const { db } = testDb()
     await seedOwner(db)

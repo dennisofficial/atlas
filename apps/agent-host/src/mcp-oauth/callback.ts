@@ -18,6 +18,10 @@ import {
 
 export const MCP_OAUTH_CALLBACK_PATH = '/mcp-oauth/callback'
 
+export type QueryParams = { get(name: string): string | null | undefined }
+
+export type CallbackHandler = (query: QueryParams) => Promise<CallbackAnswer>
+
 export type McpOauthCallbackArgs = {
   db: Db
   cipher: SecretCipher
@@ -27,14 +31,6 @@ export type McpOauthCallbackArgs = {
   allowLocalTargets?: boolean | undefined
   resolveHost?: HostResolver | undefined
 }
-
-const respond = (answer: CallbackAnswer): Response =>
-  answer.kind === 'redirect'
-    ? new Response(null, { status: 302, headers: { location: answer.location } })
-    : new Response(answer.html, {
-        status: 200,
-        headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' },
-      })
 
 const ownsRow = async (args: {
   store: McpOauthStore
@@ -69,17 +65,17 @@ export const mcpOauthCallbackOf = (args: McpOauthCallbackArgs) => {
     }
   }
 
-  const failedOf = (pending: PendingRow | null) => (reason: string, serverUrl?: string) =>
-    respond(
+  const failedOf =
+    (pending: PendingRow | null) =>
+    (reason: string, serverUrl?: string): CallbackAnswer =>
       callbackAnswerOf({
         webOrigin: args.webOrigin,
         target: targetOf(pending),
         serverUrl: serverUrl ?? pending?.serverUrl,
         reason,
-      }),
-    )
+      })
 
-  const exchange = async (pending: PendingRow, code: string): Promise<Response> => {
+  const exchange = async (pending: PendingRow, code: string): Promise<CallbackAnswer> => {
     const sealed = unsealJson({
       cipher: args.cipher,
       sealed: pending.sealed,
@@ -113,20 +109,16 @@ export const mcpOauthCallbackOf = (args: McpOauthCallbackArgs) => {
       sealed: sealJson({ cipher: args.cipher, value: grant }),
     })
     return written
-      ? respond(
-          callbackAnswerOf({
-            webOrigin: args.webOrigin,
-            target: sealed.returnTarget,
-            serverUrl: pending.serverUrl,
-          }),
-        )
+      ? callbackAnswerOf({
+          webOrigin: args.webOrigin,
+          target: sealed.returnTarget,
+          serverUrl: pending.serverUrl,
+        })
       : failedOf(pending)('server_changed')
   }
 
-  return async (request: Request): Promise<Response | null> => {
-    const url = new URL(request.url)
-    if (url.pathname !== MCP_OAUTH_CALLBACK_PATH || request.method !== 'GET') return null
-    const param = (name: string): string | undefined => url.searchParams.get(name) ?? undefined
+  return async (query: QueryParams): Promise<CallbackAnswer> => {
+    const param = (name: string): string | undefined => query.get(name) ?? undefined
     const state = param('state')
     const pending =
       state === undefined || state === '' ? null : await store.takePending({ id: state })

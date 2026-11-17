@@ -1,8 +1,8 @@
 import { STREAM_PROTOCOL_VERSION } from '@dltech/atlas-protocol'
 
 import { MemoryStreamAuth } from '../memory-stream-auth'
-import { startStreamServer, type StreamServer } from '../stream-server'
 import { FakeTimers } from './fake-timers'
+import { startStreamApp, type RunningStream } from './stream-app'
 import { TestClient } from './test-client'
 
 export const upgradeHeaders = {
@@ -15,24 +15,28 @@ export const upgradeHeaders = {
 export class StreamHarness {
   readonly timers = new FakeTimers()
   readonly auth = new MemoryStreamAuth({ now: () => this.timers.now() })
-  server: StreamServer
+  server: RunningStream
   private readonly clients: TestClient[] = []
 
-  constructor(
-    args: {
-      trustedOrigins?: string[]
-      mcpOauthCallback?: (request: Request) => Promise<Response | null>
-    } = {},
-  ) {
-    this.auth.grant({ token: 'tok-a', userId: 'user-a', expiresAt: 3_600_000 })
-    this.auth.grant({ token: 'tok-b', userId: 'user-b', expiresAt: 3_600_000 })
-    this.server = startStreamServer({
+  private constructor(args: { trustedOrigins?: string[] }, server: RunningStream) {
+    this.server = server
+  }
+
+  static async create(args: { trustedOrigins?: string[] } = {}): Promise<StreamHarness> {
+    const harness: StreamHarness = new StreamHarness(args, {
       port: 0,
-      auth: this.auth,
-      trustedOrigins: args.trustedOrigins ?? [],
-      timers: this.timers,
-      ...(args.mcpOauthCallback === undefined ? {} : { mcpOauthCallback: args.mcpOauthCallback }),
+      connections: () => 0,
+      drain: async () => undefined,
+      stop: async () => undefined,
     })
+    harness.auth.grant({ token: 'tok-a', userId: 'user-a', expiresAt: 3_600_000 })
+    harness.auth.grant({ token: 'tok-b', userId: 'user-b', expiresAt: 3_600_000 })
+    harness.server = await startStreamApp({
+      auth: harness.auth,
+      trustedOrigins: args.trustedOrigins ?? [],
+      timers: harness.timers,
+    })
+    return harness
   }
 
   get httpUrl(): string {

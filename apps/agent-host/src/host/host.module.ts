@@ -4,6 +4,7 @@ import type { AgentHostEnv } from '../config/env'
 import { ControlModule } from './control.module'
 import { CoreModule } from './core.module'
 import { HolderModule } from './holder.module'
+import { HttpModule } from './http.module'
 import { RuntimeModule } from './runtime.module'
 import { StartupModule } from './startup.module'
 import { StreamModule } from './stream.module'
@@ -18,6 +19,7 @@ export class HostModule {
         ControlModule,
         RuntimeModule,
         HolderModule,
+        HttpModule,
         StreamModule,
         StartupModule,
       ],

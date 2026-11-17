@@ -3,9 +3,10 @@ import type { Db } from '@dltech/atlas-db'
 import { SecretCipher } from '../../config/secret-cipher'
 import {
   OPERATOR_ANSWER_PATH,
+  OperatorAnswerService,
   OperatorRequestRegistry,
   OperatorSessionStore,
-  operatorAnswerOf,
+  operatorAnswerRequestSchema,
 } from '..'
 
 export const NOW_MS = Date.parse('2026-11-12T03:00:00.000Z')
@@ -55,17 +56,40 @@ export const registryOf = (args: { db: Db; posted?: Posted[] | undefined }) => {
   })
 }
 
+export type RouteAnswer = {
+  status: number
+  headers: { get(name: string): string | null }
+  json(): Promise<unknown>
+}
+
+const routeAnswer = (status: number, body: unknown): RouteAnswer => ({
+  status,
+  headers: { get: () => null },
+  json: async () => body,
+})
+
 export const routeOf = (args: {
   registry: OperatorRequestRegistry
   userId?: string
   trusted?: readonly string[]
-}) =>
-  operatorAnswerOf({
-    registry: args.registry,
-    resolve: async (bearer) =>
-      bearer === 'token-1' ? { userId: args.userId ?? 'user-1' } : undefined,
-    trustedOrigins: args.trusted ?? [],
-  })
+}) => {
+  const service = new OperatorAnswerService({ registry: args.registry })
+  const trusted = args.trusted ?? []
+  return async (request: Request): Promise<RouteAnswer> => {
+    const origin = request.headers.get('origin')
+    if (trusted.length > 0 && (origin === null || !trusted.includes(origin)))
+      return routeAnswer(403, { reason: 'origin' })
+    const header = request.headers.get('authorization')
+    const bearer =
+      header?.toLowerCase().startsWith('bearer ') === true ? header.slice(7) : undefined
+    const userId = bearer === 'token-1' ? (args.userId ?? 'user-1') : undefined
+    if (userId === undefined) return routeAnswer(401, { reason: 'bearer' })
+    const parsed = operatorAnswerRequestSchema.safeParse(await request.json().catch(() => null))
+    if (!parsed.success) return routeAnswer(400, { reason: 'body' })
+    const answer = await service.answer({ userId, body: parsed.data })
+    return routeAnswer(answer.status, answer.body)
+  }
+}
 
 export const postOf = (args: {
   body: unknown

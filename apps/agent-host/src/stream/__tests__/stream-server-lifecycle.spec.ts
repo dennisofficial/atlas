@@ -19,7 +19,7 @@ describe('stream server lifecycle', () => {
   })
 
   it('refuses the connection past the per-user cap and keeps other users out of the count', async () => {
-    harness = new StreamHarness()
+    harness = await StreamHarness.create()
     for (let index = 0; index < STREAM_MAX_CONNECTIONS_PER_USER; index += 1) await harness.ready()
     const over = harness.connect()
     over.send({ type: 'hello', v: STREAM_PROTOCOL_VERSION, token: 'tok-a' })
@@ -30,7 +30,7 @@ describe('stream server lifecycle', () => {
   })
 
   it('frees a slot when a connection closes', async () => {
-    harness = new StreamHarness()
+    harness = await StreamHarness.create()
     const first = await harness.ready()
     for (let index = 1; index < STREAM_MAX_CONNECTIONS_PER_USER; index += 1) await harness.ready()
     first.close()
@@ -42,7 +42,7 @@ describe('stream server lifecycle', () => {
   })
 
   it('re-checks auth on a timer, keeps a valid session and closes a revoked one with 4401', async () => {
-    harness = new StreamHarness()
+    harness = await StreamHarness.create()
     const kept = await harness.ready({ token: 'tok-b' })
     const revoked = await harness.ready({ token: 'tok-a' })
     harness.timers.advance(STREAM_AUTH_RECHECK_MS)
@@ -60,7 +60,7 @@ describe('stream server lifecycle', () => {
   })
 
   it('drain sends going-away, closes 1001, then healthz and upgrades answer 503', async () => {
-    harness = new StreamHarness()
+    harness = await StreamHarness.create()
     harness.timers.randomValue = 0.4
     const clients = [await harness.ready(), await harness.ready({ token: 'tok-b' })]
     await harness.server.drain({})
@@ -76,13 +76,13 @@ describe('stream server lifecycle', () => {
   })
 
   it('drain with no connections resolves at once', async () => {
-    harness = new StreamHarness()
+    harness = await StreamHarness.create()
     await harness.server.drain({})
     expect(harness.timers.pendingCount()).toBe(0)
   })
 
   it('stop closes every socket and leaves no timer behind', async () => {
-    harness = new StreamHarness()
+    harness = await StreamHarness.create()
     const client = await harness.ready()
     const pending = harness.connect()
     await until(() => harness.server.connections() === 2, 'both sockets to open')
@@ -93,7 +93,7 @@ describe('stream server lifecycle', () => {
   })
 
   it('closes 4401 once the session expires while rechecks keep failing', async () => {
-    harness = new StreamHarness()
+    harness = await StreamHarness.create()
     harness.auth.grant({ token: 'tok-short', userId: 'user-s', expiresAt: 60_000 })
     const client = await harness.ready({ token: 'tok-short' })
     harness.auth.failing = true
@@ -102,7 +102,7 @@ describe('stream server lifecycle', () => {
   })
 
   it('a failed recheck before expiry keeps the connection and tries again', async () => {
-    harness = new StreamHarness()
+    harness = await StreamHarness.create()
     const client = await harness.ready({ token: 'tok-b' })
     harness.auth.failing = true
     harness.timers.advance(STREAM_AUTH_RECHECK_MS)
@@ -111,7 +111,7 @@ describe('stream server lifecycle', () => {
   })
 
   it('pings an idle connection every heartbeat', async () => {
-    harness = new StreamHarness()
+    harness = await StreamHarness.create()
     const client = await harness.ready({ token: 'tok-b' })
     harness.timers.advance(STREAM_HEARTBEAT_MS)
     expect(await client.next()).toEqual({ type: 'pong' })
@@ -120,7 +120,7 @@ describe('stream server lifecycle', () => {
   })
 
   it('closes 4401 when the auth lookup never settles', async () => {
-    harness = new StreamHarness()
+    harness = await StreamHarness.create()
     harness.auth.hanging = true
     const client = harness.connect()
     client.send({ type: 'hello', v: STREAM_PROTOCOL_VERSION, token: 'tok-a' })

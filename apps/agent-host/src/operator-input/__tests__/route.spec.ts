@@ -12,24 +12,15 @@ const body = { sessionId: 'ses_1', callId: CALL, value: VALUE }
 const cancel = { sessionId: 'ses_1', callId: CALL, cancel: true }
 
 describe('the operator answer route', () => {
-  it('leaves every other path to the stream server', async () => {
-    const { db } = testDb()
-    const registry = registryOf({ db })
-
-    expect(await routeOf({ registry })(postOf({ body: {}, path: '/healthz' }))).toBeNull()
-  })
-
-  it('answers the preflight with the cors headers', async () => {
+  it('refuses an origin the host does not trust', async () => {
     const { db } = testDb()
     const registry = registryOf({ db })
 
     const answer = await routeOf({ registry, trusted: ['https://byatlas.io'] })(
-      postOf({ body: {}, method: 'OPTIONS', origin: 'https://byatlas.io' }),
+      postOf({ body, origin: 'https://evil.example', bearer: 'token-1' }),
     )
 
-    expect(answer?.status).toBe(204)
-    expect(answer?.headers.get('access-control-allow-origin')).toBe('https://byatlas.io')
-    expect(answer?.headers.get('access-control-allow-headers')).toContain('authorization')
+    expect(answer?.status).toBe(403)
   })
 
   it('refuses a request with no bearer and one with an unknown bearer', async () => {
