@@ -79,23 +79,25 @@ export class SessionsService {
 
   async create(args: {
     userId: string
-    projectId: string
+    projectId?: string | null | undefined
     title?: string | undefined
     model?: string | undefined
     effort?: string | undefined
     fast?: boolean | undefined
     firstMessage?: SessionMessageDraft | undefined
   }) {
-    await this.accessibleProjectId({
-      userId: args.userId,
-      projectId: args.projectId,
-    })
+    if (args.projectId !== null && args.projectId !== undefined) {
+      await this.accessibleProjectId({
+        userId: args.userId,
+        projectId: args.projectId,
+      })
+    }
     const sessionId = randomUUID()
     const mainThreadId = randomUUID()
     const session = {
       sessionId,
       userId: args.userId,
-      projectId: args.projectId,
+      projectId: args.projectId ?? null,
       title: args.title,
       mainThreadId,
       model: { ref: args.model, effort: args.effort, fast: args.fast },
@@ -112,7 +114,7 @@ export class SessionsService {
     this.nameIfUntitled({
       userId: args.userId,
       sessionId,
-      projectId: args.projectId,
+      projectId: args.projectId ?? null,
       title: args.title,
       text: args.firstMessage.text,
       attachments: message.attachments,
@@ -203,7 +205,7 @@ export class SessionsService {
   private nameIfUntitled(args: {
     userId: string
     sessionId: string
-    projectId: string
+    projectId: string | null
     title: string | null | undefined
     text: string
     attachments: readonly Attachment[]

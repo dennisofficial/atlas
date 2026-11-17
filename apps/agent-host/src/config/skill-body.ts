@@ -1,13 +1,18 @@
 import type { Db } from '@dltech/atlas-db'
 
-export type SkillOwner = { userId: string; projectId: string }
+export type SkillOwner = { userId: string; projectId: string | null }
 
 export type SkillScopeName = 'user' | 'project'
 
 const ENTRY_PATH = 'SKILL.md'
 
-const ownerWhere = (args: { owner: SkillOwner; scope: SkillScopeName }): Record<string, string> =>
-  args.scope === 'project' ? { projectId: args.owner.projectId } : { userId: args.owner.userId }
+const ownerWhere = (args: {
+  owner: SkillOwner
+  scope: SkillScopeName
+}): Record<string, string> | null => {
+  if (args.scope === 'user') return { userId: args.owner.userId }
+  return args.owner.projectId === null ? null : { projectId: args.owner.projectId }
+}
 
 export type SkillBody = { text: string; revision: number; hash: string }
 
@@ -18,8 +23,10 @@ export const skillTextOf = async (args: {
   name: string
   path?: string | undefined
 }): Promise<SkillBody | null> => {
+  const where = ownerWhere({ owner: args.owner, scope: args.scope })
+  if (where === null) return null
   const skill = await args.db.orm.public.Skill.first({
-    ...ownerWhere({ owner: args.owner, scope: args.scope }),
+    ...where,
     name: args.name,
   })
   if (skill === null || skill === undefined) return null
@@ -43,10 +50,11 @@ const skillRowsOf = async (args: {
   owner: SkillOwner
 }): Promise<readonly { id: string; name: string; scope: SkillScopeName }[]> => {
   const skills = args.db.orm.public.Skill
-  const [user, project] = await Promise.all([
-    skills.where({ userId: args.owner.userId }).select('id', 'name').all(),
-    skills.where({ projectId: args.owner.projectId }).select('id', 'name').all(),
-  ])
+  const user = await skills.where({ userId: args.owner.userId }).select('id', 'name').all()
+  const project =
+    args.owner.projectId === null
+      ? []
+      : await skills.where({ projectId: args.owner.projectId }).select('id', 'name').all()
   return [
     ...user.map((row) => ({ id: row.id, name: row.name, scope: 'user' as const })),
     ...project.map((row) => ({ id: row.id, name: row.name, scope: 'project' as const })),

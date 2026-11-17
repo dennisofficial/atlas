@@ -3,7 +3,7 @@ import type { SaidImage } from '@dltech/atlas-core'
 export abstract class SessionTitler {
   abstract nameOf(args: {
     userId: string
-    projectId: string
+    projectId: string | null
     text: string
     images?: readonly SaidImage[] | undefined
     modelRef?: string | undefined

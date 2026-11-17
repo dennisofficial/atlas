@@ -26,7 +26,7 @@ const ACCOUNT_FIELDS = [
 export const resolveSessionModelIn = async (params: {
   tx: Tx
   userId: string
-  projectId: string
+  projectId: string | null
   ask: SessionModelAsk
   current?: ModelChoice | undefined
 }): Promise<SessionModelRow> => {
@@ -34,9 +34,12 @@ export const resolveSessionModelIn = async (params: {
   const userRows = await tx.orm.public.UserSetting.where({ userId: params.userId })
     .select('key', 'value')
     .all()
-  const projectRows = await tx.orm.public.ProjectSetting.where({ projectId: params.projectId })
-    .select('key', 'value')
-    .all()
+  const projectRows =
+    params.projectId === null
+      ? []
+      : await tx.orm.public.ProjectSetting.where({ projectId: params.projectId })
+          .select('key', 'value')
+          .all()
   const accountRows = await tx.orm.public.AgentAccount.where({ userId: params.userId })
     .select(...ACCOUNT_FIELDS)
     .all()

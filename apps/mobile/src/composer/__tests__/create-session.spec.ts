@@ -48,6 +48,19 @@ describe('createSession', () => {
     ])
   })
 
+  it('creates a session with no project by omitting the project id', async () => {
+    const fake = fakeApi()
+    const sessionId = await createSession({
+      api: fake.api,
+      projectId: null,
+      text: 'hello',
+      model: 'claude-opus-4',
+    })
+    expect(sessionId).toBe('ses_1')
+    expect(fake.created).toEqual([{ model: 'claude-opus-4', firstMessage: { text: 'hello' } }])
+    expect('projectId' in (fake.created[0] ?? {})).toBe(false)
+  })
+
   it('sends no model fields when the composer stays on Default', async () => {
     const fake = fakeApi()
     await createSession({

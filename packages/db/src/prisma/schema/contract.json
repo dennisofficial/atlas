@@ -9170,7 +9170,7 @@
                 }
               },
               "projectId": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -16391,7 +16391,7 @@
                 "projectId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
-                  "nullable": false
+                  "nullable": true
                 },
                 "routineId": {
                   "codecId": "pg/text@1",
@@ -16655,7 +16655,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "ab8069b1ee7441e95c7917a1484722a72243195dfc53a703b0574f017d1e41cd"
+    "storageHash": "73043ecb817e914770efa0109aa9b44ce9f3c62f02ed74ccecd857a958e1b5ce"
   },
   "execution": {
     "executionHash": "27a680d0d8367c03704617bfac2d0041e04bd5395fc473f9e021f03bd0d4c6fa",

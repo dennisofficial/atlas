@@ -8,7 +8,7 @@ export const FIRST_MESSAGE_CHARS = 400
 export const sessionDigestsIn = async (
   params: { tx: Tx } & SessionListParams,
 ): Promise<SessionDigestRow[]> => {
-  const anyProject = params.projectId === undefined
+  const anyProject = params.projectId == null
   const projectId = params.projectId ?? ''
   const anySession = params.sessionId === undefined
   const sessionId = params.sessionId ?? ''
@@ -39,7 +39,7 @@ export const sessionDigestsIn = async (
       .returnsRow({
         id: 'pg/text@1',
         userId: 'pg/text@1',
-        projectId: 'pg/text@1',
+        projectId: { codecId: 'pg/text@1', nullable: true },
         title: { codecId: 'pg/text@1', nullable: true },
         mainThreadId: 'pg/text@1',
         createdAt: 'pg/timestamptz-date@1',

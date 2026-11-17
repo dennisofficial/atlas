@@ -15,7 +15,7 @@ export type SessionRow = SessionSummary | LegacySessionRow
 export type SessionEntry = {
   row: SessionSummary
   userId: string
-  projectId: string
+  projectId: string | null
   namingEndsAt: number | undefined
 }
 

@@ -46,6 +46,22 @@ describe('readEnvSecrets', () => {
     expect(exported.env).toEqual({ API_KEY: 'project' })
   })
 
+  it('reads only the user secrets when the session has no project', async () => {
+    const asked: unknown[] = []
+    const rows: EnvSecretRows = {
+      userSecrets: async () => [row('PERSONAL_TOKEN', 'personal')],
+      projectSecrets: async (lookup) => {
+        asked.push(lookup)
+        return []
+      },
+    }
+
+    const exported = await readEnvSecrets({ rows, cipher, userId: 'usr-1', projectId: null })
+
+    expect(exported.env).toEqual({ PERSONAL_TOKEN: 'personal' })
+    expect(asked).toEqual([])
+  })
+
   it('skips a row that does not open and keeps the rest', async () => {
     const exported = await read(
       rowsOf({

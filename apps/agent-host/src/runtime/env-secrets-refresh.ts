@@ -10,7 +10,7 @@ export const envSecretsRefresher = (args: {
   source?: EnvSecretsSource | undefined
   cell: ShellEnvCell
   userId: string
-  projectId: string
+  projectId: string | null
   sessionId: string
   log?: LogPort | undefined
 }): SecretsRefresher => {

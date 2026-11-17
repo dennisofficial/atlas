@@ -1,0 +1,45 @@
+[
+  {
+    "id": "alterNullability.dropNotNull.V2Session.projectId",
+    "label": "Drop NOT NULL on \"V2Session\".\"projectId\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "column",
+        "name": "projectId",
+        "table": "V2Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"projectId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "projectId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop NOT NULL on \"projectId\"",
+        "sql": "ALTER TABLE \"v2\".\"V2Session\" ALTER COLUMN \"projectId\" DROP NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"projectId\" is nullable",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "projectId",
+          "YES"
+        ]
+      }
+    ]
+  }
+]

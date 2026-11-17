@@ -46,11 +46,13 @@ export const webSearchConfigOf = async (args: {
   rows: WebSearchRows
   cipher: SecretCipher
   userId: string
-  projectId: string
+  projectId: string | null
 }): Promise<WebSearchConfig> => {
   const [userSetting, projectSetting] = await Promise.all([
     args.rows.userSetting({ userId: args.userId, key: BACKEND_KEY }),
-    args.rows.projectSetting({ projectId: args.projectId, key: BACKEND_KEY }),
+    args.projectId === null
+      ? null
+      : args.rows.projectSetting({ projectId: args.projectId, key: BACKEND_KEY }),
   ])
 
   const stored = projectSetting?.value ?? userSetting?.value ?? null
@@ -60,7 +62,7 @@ export const webSearchConfigOf = async (args: {
   const name = `${SECRET_PREFIX}${backend}`
   const [userSecret, projectSecret] = await Promise.all([
     args.rows.userSecret({ userId: args.userId, name }),
-    args.rows.projectSecret({ projectId: args.projectId, name }),
+    args.projectId === null ? null : args.rows.projectSecret({ projectId: args.projectId, name }),
   ])
 
   return {

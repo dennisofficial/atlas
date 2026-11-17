@@ -12,7 +12,7 @@ export async function nameSession(args: {
   logger: Logger
   userId: string
   sessionId: string
-  projectId: string
+  projectId: string | null
   text: string
   attachments: readonly Attachment[]
   inboxId: number

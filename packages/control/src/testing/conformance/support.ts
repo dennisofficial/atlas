@@ -61,7 +61,7 @@ export const createSessionParams = (params: {
 }): {
   sessionId: string
   userId: string
-  projectId: string
+  projectId: string | null
   title?: string
   mainThreadId: string
 } => ({

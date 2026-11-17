@@ -19,7 +19,7 @@ export type EnvSecretRows = {
 }
 
 export type EnvSecretsSource = {
-  read(args: { userId: string; projectId: string }): Promise<ExportedEnvSecrets>
+  read(args: { userId: string; projectId: string | null }): Promise<ExportedEnvSecrets>
 }
 
 const openedSecret = (args: {
@@ -47,11 +47,11 @@ export const readEnvSecrets = async (args: {
   rows: EnvSecretRows
   cipher: SecretCipher
   userId: string
-  projectId: string
+  projectId: string | null
 }): Promise<ExportedEnvSecrets> => {
   const [user, project] = await Promise.all([
     args.rows.userSecrets({ userId: args.userId }),
-    args.rows.projectSecrets({ projectId: args.projectId }),
+    args.projectId === null ? [] : args.rows.projectSecrets({ projectId: args.projectId }),
   ])
   return exportEnvSecretsOf({
     user: openedSecrets({ cipher: args.cipher, rows: user }),

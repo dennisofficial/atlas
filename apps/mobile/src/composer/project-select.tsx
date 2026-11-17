@@ -1,10 +1,16 @@
-import { ETextRole, ETextTone, Icon, Text, useTheme, withAlpha } from '@dltech/atlas-ui-native'
+import { ETextRole, Icon, Text, useTheme, withAlpha } from '@dltech/atlas-ui-native'
 import { radius, space } from '@dltech/atlas-ui/tokens'
 import { Check, ChevronDown, FolderGit2, FolderX } from 'lucide-react-native'
 import { useState } from 'react'
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 
-import { type IProjectOption, projectLabelOf } from './project-options'
+import {
+  type IProjectOption,
+  projectChoiceOf,
+  projectChoicesOf,
+  projectIdOfChoice,
+  projectLabelOf,
+} from './project-options'
 
 const ProjectRow = ({
   label,
@@ -42,13 +48,15 @@ export const ProjectSelect = ({
 }: {
   projects: readonly IProjectOption[]
   projectId: string | null
-  onProjectChange: (id: string) => void
+  onProjectChange: (id: string | null) => void
 }) => {
   const theme = useTheme()
   const [open, setOpen] = useState(false)
+  const choices = projectChoicesOf(projects)
+  const selected = projectChoiceOf(projectId)
   const label = projectLabelOf({ projects, projectId })
-  const handleSelect = (id: string) => {
-    onProjectChange(id)
+  const handleSelect = (value: string) => {
+    onProjectChange(projectIdOfChoice(value))
     setOpen(false)
   }
   return (
@@ -88,22 +96,16 @@ export const ProjectSelect = ({
               },
             ]}
           >
-            {projects.length === 0 ? (
-              <Text size={ETextRole.Sm} tone={ETextTone.Muted} style={styles.empty}>
-                No projects yet
-              </Text>
-            ) : (
-              <ScrollView keyboardShouldPersistTaps="handled">
-                {projects.map((project) => (
-                  <ProjectRow
-                    key={project.id}
-                    label={project.name}
-                    selected={project.id === projectId}
-                    onPress={() => handleSelect(project.id)}
-                  />
-                ))}
-              </ScrollView>
-            )}
+            <ScrollView keyboardShouldPersistTaps="handled">
+              {choices.map((choice) => (
+                <ProjectRow
+                  key={choice.value}
+                  label={choice.label}
+                  selected={choice.value === selected}
+                  onPress={() => handleSelect(choice.value)}
+                />
+              ))}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -154,9 +156,5 @@ const styles = StyleSheet.create({
   },
   rowLabel: {
     flex: 1,
-  },
-  empty: {
-    paddingHorizontal: space(2),
-    paddingVertical: space(2),
   },
 })
