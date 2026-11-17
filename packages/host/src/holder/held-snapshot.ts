@@ -22,6 +22,7 @@ export const readHeldAction = async (args: {
   runtime: SessionRuntime | undefined
   workspace: WorkspaceRecord | undefined
   preparing: boolean
+  setupRunning: boolean
   childrenRunning: number
 }): Promise<{
   entries: InboxEntry[]
@@ -62,7 +63,7 @@ export const readHeldAction = async (args: {
     messagePending: messagePending || args.resumePending,
     workspace: workspace.state,
     retryPending: workspace.retryPending,
-    idleDue: quiet && runningShells === 0 && args.childrenRunning === 0,
+    idleDue: quiet && runningShells === 0 && args.childrenRunning === 0 && !args.setupRunning,
   })
   return {
     entries,

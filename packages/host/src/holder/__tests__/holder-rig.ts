@@ -67,6 +67,7 @@ export const makeRig = async (args: {
   uploads?: SaidUploadsPort | undefined
   prepare?: ((onStep?: PrepareStepReporter) => Promise<PrepareResult>) | undefined
   subscribePrepareOutput?: ((listener: (text: string) => void) => void) | undefined
+  subscribeSetup?: Parameters<typeof makeRuntimeFactory>[0]['subscribeSetup']
   connectGate?: Promise<void> | undefined
   runtimeGate?: Promise<void> | undefined
   beforeRuntime?: (() => Promise<void>) | undefined
@@ -120,6 +121,7 @@ export const makeRig = async (args: {
     uploads: args.uploads,
     prepare: args.prepare,
     subscribePrepareOutput: args.subscribePrepareOutput,
+    subscribeSetup: args.subscribeSetup,
     connectGate: args.connectGate,
     runtimeGate: args.runtimeGate,
     beforeRuntime: args.beforeRuntime,

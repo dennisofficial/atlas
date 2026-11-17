@@ -57,6 +57,7 @@ export type {
   RoleModelRequest,
   SessionRuntime,
   SessionRuntimeFactory,
+  SetupLifecycle,
 } from './holder/ports'
 export {
   LIVE_FLUSH_BYTES,

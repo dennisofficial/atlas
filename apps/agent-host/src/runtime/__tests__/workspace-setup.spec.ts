@@ -16,8 +16,11 @@ import {
   RemoteCalls,
   systemTimers,
   webSocketConnector,
+  type SetupLifecycle,
 } from '@dltech/atlas-host'
 import { daemonToken } from '@dltech/atlas-protocol/engine'
+
+import { ESetupPhase } from '@dltech/atlas-core'
 
 import { CollectingLog } from '../../__tests__/e2e-support'
 import { sandboxNameOf } from '../../sandbox/sandbox-provider'
@@ -81,7 +84,7 @@ const openPorts = async (args: { sessionId: string }) => {
   }
 }
 
-const setupFor = (args: {
+const setupFor = async (args: {
   sessionId: string
   calls: RemoteCalls
   processes: DaemonProcessPort
@@ -95,8 +98,13 @@ const setupFor = (args: {
   githubToken?: string | null
   launchDirectory: string
   log?: CollectingLog
-}) =>
-  ensureWorkspace({
+}) => {
+  const setups: FinishedSetup[] = []
+  let finish: () => void = () => {}
+  const settled = new Promise<void>((resolve) => {
+    finish = resolve
+  })
+  const result = await ensureWorkspace({
     calls: args.calls,
     processes: args.processes,
     files: args.files,
@@ -105,7 +113,15 @@ const setupFor = (args: {
     launchDirectory: args.launchDirectory,
     sandboxName: sandboxNameOf(args.sessionId),
     ...(args.log === undefined ? {} : { log: args.log }),
+    onSetup: (lifecycle) => {
+      if (lifecycle.phase === ESetupPhase.Finished) {
+        setups.push(lifecycle)
+        finish()
+      }
+    },
   })
+  return { result, setups, settled }
+}
 
 const filesUnder = (dir: string): string[] => {
   if (!existsSync(dir)) return []
@@ -118,6 +134,18 @@ const daemonHomeFiles = (): string[] =>
   readdirSync(tmpdir())
     .filter((entry) => entry.startsWith('atlas-agent-host-local-'))
     .flatMap((entry) => filesUnder(join(tmpdir(), entry, 'daemon')))
+
+type FinishedSetup = Extract<SetupLifecycle, { phase: ESetupPhase.Finished }>
+
+const settledOf = async (setups: readonly FinishedSetup[]): Promise<FinishedSetup> => {
+  const deadline = Date.now() + 15_000
+  while (Date.now() < deadline) {
+    const finished = setups.find((lifecycle) => lifecycle.phase === ESetupPhase.Finished)
+    if (finished !== undefined) return finished
+    await new Promise((resolve) => setTimeout(resolve, 20))
+  }
+  throw new Error('timed out waiting for the setup script to finish')
+}
 
 const waitFor = async (want: () => boolean): Promise<void> => {
   const deadline = Date.now() + 15_000
@@ -141,7 +169,7 @@ describe('ensureWorkspace', () => {
       setupScript: 'echo ran >> setup-ran.txt',
     }
 
-    await setupFor({
+    const first = await setupFor({
       sessionId: 'setup-session-1',
       calls,
       processes,
@@ -149,6 +177,7 @@ describe('ensureWorkspace', () => {
       workspace,
       launchDirectory,
     })
+    await first.settled
 
     const stateDir = join(root, WORKSPACE_STATE_DIR)
     expect(await files.readFile({ path: join(launchDirectory, 'hello.txt') })).toBe(
@@ -173,7 +202,7 @@ describe('ensureWorkspace', () => {
   it('reports ok after a clean clone and setup', async () => {
     const root = mkdtempSync(join(tmpdir(), 'atlas-workspace-ok-'))
     const { calls, processes, files } = await openPorts({ sessionId: 'setup-session-ok' })
-    const result = await setupFor({
+    const { result } = await setupFor({
       sessionId: 'setup-session-ok',
       calls,
       processes,
@@ -190,11 +219,11 @@ describe('ensureWorkspace', () => {
     calls.close()
   }, 60_000)
 
-  it('warns about a failing setup script with its command and output tail, and writes no sentinel', async () => {
+  it('reports a failing setup script in the background with its command and output tail', async () => {
     const root = mkdtempSync(join(tmpdir(), 'atlas-workspace-badsetup-'))
     const launchDirectory = join(root, 'workspace')
     const { calls, processes, files } = await openPorts({ sessionId: 'setup-session-bad' })
-    const result = await setupFor({
+    const { result, setups } = await setupFor({
       sessionId: 'setup-session-bad',
       calls,
       processes,
@@ -207,12 +236,11 @@ describe('ensureWorkspace', () => {
       },
       launchDirectory,
     })
-    expect(result.ok).toBe(true)
-    const warnings = result.ok ? (result.warnings ?? []) : []
-    expect(warnings).toHaveLength(1)
-    expect(warnings[0]).toContain('workspace setup script failed')
-    expect(warnings[0]).toContain('exit 3')
-    expect(warnings[0]).toContain('boom-marker')
+    expect(result).toEqual({ ok: true })
+    const finished = await settledOf(setups)
+    expect(finished).toMatchObject({ phase: ESetupPhase.Finished, ok: false })
+    expect(finished.script).toContain('exit 3')
+    expect(finished.output).toContain('boom-marker')
     expect(existsSync(join(root, WORKSPACE_STATE_DIR, SETUP_SENTINEL))).toBe(false)
     calls.close()
   }, 60_000)
@@ -227,7 +255,7 @@ describe('ensureWorkspace', () => {
       additionalRepos: [],
       setupScript: '',
     }
-    const failed = await setupFor({
+    const { result: failed } = await setupFor({
       sessionId: 'setup-session-clone',
       calls,
       processes,
@@ -241,7 +269,7 @@ describe('ensureWorkspace', () => {
     expect(warnings.join('\n')).toContain('workspace clone failed')
     expect(warnings.join('\n')).not.toContain(TOKEN)
     const remoteUrl = makeRemote(root)
-    const retried = await setupFor({
+    const { result: retried } = await setupFor({
       sessionId: 'setup-session-clone',
       calls,
       processes,
@@ -276,12 +304,12 @@ describe('ensureWorkspace', () => {
         launchDirectory,
       })
 
-    const failed = await run()
+    const { result: failed } = await run()
     expect(failed.ok && (failed.warnings ?? []).length > 0).toBe(true)
     expect(existsSync(join(root, WORKSPACE_STATE_DIR, MATERIALIZED_SENTINEL))).toBe(false)
     writeFileSync(join(launchDirectory, 'marker.txt'), 'primary stays\n')
 
-    const retried = await run()
+    const { result: retried } = await run()
     expect(retried.ok).toBe(true)
     if (retried.ok) {
       expect((retried.warnings ?? []).join('\n')).toContain('additional repo nobody/missing-extra')
@@ -386,7 +414,7 @@ describe('ensureWorkspace', () => {
     const launchDirectory = join(root, 'workspace')
     const { calls, processes, files } = await openPorts({ sessionId: 'setup-session-5' })
 
-    await setupFor({
+    const { settled } = await setupFor({
       sessionId: 'setup-session-5',
       calls,
       processes,
@@ -399,6 +427,7 @@ describe('ensureWorkspace', () => {
       },
       launchDirectory,
     })
+    await settled
 
     expect(await files.readFile({ path: join(launchDirectory, 'out.txt') })).toBe('provisioned\n')
     const stateDir = join(root, WORKSPACE_STATE_DIR)
@@ -433,7 +462,7 @@ describe('ensureWorkspace', () => {
     hostA.calls.close()
 
     const hostB = await openPorts({ sessionId })
-    await setupFor({
+    const second = await setupFor({
       sessionId,
       calls: hostB.calls,
       processes: hostB.processes,
@@ -441,6 +470,7 @@ describe('ensureWorkspace', () => {
       workspace,
       launchDirectory,
     })
+    await second.settled
     await dropped
 
     expect(await hostB.files.readFile({ path: join(launchDirectory, 'setup-ran.txt') })).toBe(

@@ -16,6 +16,7 @@ import {
   type PrepareResult,
   type PrepareStepReporter,
   type SessionRuntimeFactory,
+  type SetupLifecycle,
 } from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
@@ -153,6 +154,7 @@ export const createSessionRuntimeFactory = (
       sessionId,
       ...(args.log === undefined ? {} : { log: args.log }),
     })
+    let setupListener: ((lifecycle: SetupLifecycle) => void) | undefined
     const attempt = (signal: AbortSignal): Promise<PrepareResult> =>
       abortable(calls.ready(), signal)
         .then(async () => {
@@ -184,6 +186,7 @@ export const createSessionRuntimeFactory = (
             signal,
             onStep: (step) => steps.report(step),
             onOutput: (text) => steps.output(text),
+            onSetup: (lifecycle) => setupListener?.(lifecycle),
             ...(args.log === undefined ? {} : { log: args.log }),
           })
         })
@@ -348,6 +351,9 @@ export const createSessionRuntimeFactory = (
       env: sessionShellEnv,
       prepare,
       subscribePrepareOutput: (listener) => steps.subscribeOutput(listener),
+      subscribeSetup: (listener) => {
+        setupListener = listener
+      },
       stop: async () => {
         stopKeepAlive()
         calls.close()

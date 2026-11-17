@@ -31,6 +31,7 @@ import type {
   PullRequestSource,
   RoleModelChoice,
   SessionRuntime,
+  SetupLifecycle,
 } from '../ports'
 import { SANDBOX, SECRET, type FakeClock } from './rig-fakes'
 
@@ -99,6 +100,7 @@ export const makeRuntimeFactory = (args: {
   runningShells?: (() => Promise<number>) | undefined
   prepare?: ((onStep?: PrepareStepReporter) => Promise<PrepareResult>) | undefined
   subscribePrepareOutput?: ((listener: (text: string) => void) => void) | undefined
+  subscribeSetup?: ((listener: (lifecycle: SetupLifecycle) => void) => void) | undefined
   model?: (() => ModelPort) | undefined
   baseBranches?: Readonly<Record<string, string>> | undefined
   pullRequests?: PullRequestSource | undefined
@@ -172,6 +174,7 @@ export const makeRuntimeFactory = (args: {
       ...(args.subscribePrepareOutput === undefined
         ? {}
         : { subscribePrepareOutput: args.subscribePrepareOutput }),
+      ...(args.subscribeSetup === undefined ? {} : { subscribeSetup: args.subscribeSetup }),
       stopped: false,
       released: false,
       stop: async () => {
