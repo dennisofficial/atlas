@@ -134,7 +134,6 @@ jobs:
   web-build:
     if: github.event_name != 'push'
     runs-on: ubuntu-latest
-    env:
     steps:
       - uses: actions/checkout@v7
         with:
