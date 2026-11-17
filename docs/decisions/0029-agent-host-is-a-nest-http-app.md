@@ -1,7 +1,8 @@
 # 0029. The agent host is a Nest HTTP app (Express + ws)
 
 Accepted 2026-11-17. Supersedes the "plain Bun, no Nest" clause of
-[0021](0021-agent-host-is-a-long-lived-service.md).
+[0021](0021-v2-loop-runs-on-the-agent-host.md); the move into `apps/api` this makes possible is
+[0030](0030-api-and-agent-host-are-one-render-service.md).
 
 ## Context
 

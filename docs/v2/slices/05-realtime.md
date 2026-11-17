@@ -23,11 +23,13 @@ goes to 100 before this slice ships; lease transitions announce (0025). The agen
    `events where seq > cursor`. The notification carries no data, so the 8,000-byte `NOTIFY` limit
    and a 2.9 MB event do not matter. Logical replication stays out; the seam
    (`ChangeFeed`, below) keeps the door open.
-2. **Where it runs: a module inside the agent host (`apps/agent-host/src/stream/`), served at
-   `agent.byatlas.io`.** The agent host becomes a web service with one public port. The module owns
-   its own `LISTEN` connection and read pool and shares nothing with the loop but the process, so it
-   can move to its own service later without a rewrite. Not `apps/api` (Vercel cannot hold sockets).
-   Stream state is per socket and per node: any instance serves any client.
+2. **Where it runs: a module of the API app, served by the same Render service as the rest of
+   tRPC.** The API is a long-lived process with one public port, so the stream needs no service of
+   its own
+   ([0030](../../decisions/0030-api-and-agent-host-are-one-render-service.md)); the agent hostname
+   keeps resolving here. The module owns its own `LISTEN` connection and read pool and shares nothing
+   with the loop but the process. Stream state is per socket and per node: any instance serves any
+   client.
 3. **Transport: one WebSocket per client, multiplexing subscriptions** (open sessions and the
    sidebar), JSON text frames, no socket.io. Commands stay tRPC mutations into the inbox (P7).
 4. **Fan-out across instances: none between instances.** Every node `LISTEN`s the same channel and
