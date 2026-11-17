@@ -11,6 +11,7 @@ import {
   operatorAnswerPayloadSchema,
   operatorRequestSchema,
   refusalTextOf,
+  type OperatorAnswerPayload,
   type OperatorRequest,
 } from '@dltech/atlas-plugin-operator/core'
 import {
@@ -25,18 +26,13 @@ import {
 } from '@dltech/atlas-core'
 
 import type { RemoteCalls } from '../calls/remote-calls'
-import type {
-  OperatorAnswerHandoff,
-  OperatorAnswerKey,
-  OperatorRequestPort,
-} from './operator-requests'
 import type { AppendBody, SessionRecord } from './record/record-adapter'
 
 const REQUESTS_DIRECTORY = 'requests'
 const REQUESTS_FILE_MODE = 0o600
 const CALL_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/
-const NO_LONGER_OPEN = 'the request is no longer open'
 const CANCELLED_REASON = 'the operator cancelled the request'
+const UNDECRYPTABLE_REASON = 'the stored answer could not be decrypted'
 
 export const OPERATOR_ANSWER_KIND = INBOX_KIND_OPERATOR_ANSWER
 
@@ -48,11 +44,11 @@ export type OperatorAnswerIntake = {
 }
 
 export type OperatorAnswersArgs = {
-  requests: OperatorRequestPort
   calls: RemoteCalls
   sessionId: string
   threadId: ThreadId
   sessionDir: string
+  openValue: (sealed: string) => string
   record: SessionRecord
   newRunId: () => RunId
 }
@@ -61,9 +57,11 @@ type OpenCall = { callId: CallId; name: string; request: OperatorRequest }
 
 type Delivery =
   | { ok: true; path?: string | undefined; shellId?: string | undefined; bytes: number }
-  | { ok: false; reason: string; gone?: boolean | undefined }
+  | { ok: false; reason: string }
 
-const callIdOf = (payload: string): string | undefined => {
+type Opened = { ok: true; value: string } | { ok: false; reason: string }
+
+const payloadOf = (payload: string): OperatorAnswerPayload | undefined => {
   let parsed: unknown
   try {
     parsed = JSON.parse(payload)
@@ -71,17 +69,13 @@ const callIdOf = (payload: string): string | undefined => {
     return undefined
   }
   const answer = operatorAnswerPayloadSchema.safeParse(parsed)
-  return answer.success ? answer.data.callId : undefined
+  return answer.success ? answer.data : undefined
 }
 
 const fileNameOf = (callId: string): string =>
   CALL_ID_PATTERN.test(callId) ? callId : createHash('sha256').update(callId).digest('hex')
 
 export const operatorAnswersOf = (args: OperatorAnswersArgs): OperatorAnswerIntake => {
-  const handoff: OperatorAnswerHandoff = args.requests.answers
-
-  const keyOf = (callId: string): OperatorAnswerKey => ({ sessionId: args.sessionId, callId })
-
   const invoke = (op: CallOp): Promise<CallResult> =>
     args.calls.invoke({ key: `${args.sessionId}:${op.op}`, op })
 
@@ -128,7 +122,6 @@ export const operatorAnswersOf = (args: OperatorAnswersArgs): OperatorAnswerInta
         return {
           ok: false,
           reason: `the value could not be typed into shell ${shellId}: ${written.error.message}`,
-          ...(written.error.code === ECallFailure.NotFound ? { gone: true } : {}),
         }
       return { ok: true, shellId, bytes }
     }
@@ -151,19 +144,24 @@ export const operatorAnswersOf = (args: OperatorAnswersArgs): OperatorAnswerInta
     return { ok: true, path, bytes }
   }
 
-  const handle = async (entry: InboxEntry): Promise<OperatorAnswerOutcome> => {
-    const callId = callIdOf(entry.payload)
-    if (callId === undefined) return { wakesTurn: false }
-    const key = keyOf(callId)
-    const call = openCallOf(callId)
-    if (call === undefined) {
-      handoff.resolve({ key, result: { ok: false, reason: NO_LONGER_OPEN } })
-      return { wakesTurn: false }
+  const openOf = (sealed: string): Opened => {
+    try {
+      return { ok: true, value: args.openValue(sealed) }
+    } catch (error) {
+      return {
+        ok: false,
+        reason: `${UNDECRYPTABLE_REASON}: ${error instanceof Error ? error.message : String(error)}`,
+      }
     }
-    const answer = handoff.take(key)
-    if (answer === undefined) return { wakesTurn: false }
+  }
 
-    if (!answer.ok) {
+  const handle = async (entry: InboxEntry): Promise<OperatorAnswerOutcome> => {
+    const payload = payloadOf(entry.payload)
+    if (payload === undefined) return { wakesTurn: false }
+    const call = openCallOf(payload.callId)
+    if (call === undefined) return { wakesTurn: false }
+
+    if ('cancel' in payload) {
       await append([
         closingDraft({
           call,
@@ -171,16 +169,11 @@ export const operatorAnswersOf = (args: OperatorAnswersArgs): OperatorAnswerInta
           refusal: CANCELLED_REASON,
         }),
       ])
-      handoff.resolve({ key, result: { ok: true } })
       return { wakesTurn: true }
     }
 
-    const delivery = await deliver({ call, value: answer.value })
-    if (!delivery.ok && delivery.gone !== true) {
-      handoff.resolve({ key, result: { ok: false, reason: delivery.reason } })
-      return { wakesTurn: false }
-    }
-
+    const opened = openOf(payload.sealedValue)
+    const delivery: Delivery = opened.ok ? await deliver({ call, value: opened.value }) : opened
     const output: JsonValue = delivery.ok
       ? {
           outcome: EOperatorRequestOutcome.Delivered,
@@ -201,7 +194,6 @@ export const operatorAnswersOf = (args: OperatorAnswersArgs): OperatorAnswerInta
         })
       : closingDraft({ call, output, refusal: delivery.reason })
     await append([closing])
-    handoff.resolve({ key, result: { ok: true } })
     return { wakesTurn: true }
   }
 
@@ -217,7 +209,6 @@ export const operatorAnswersOf = (args: OperatorAnswersArgs): OperatorAnswerInta
         }),
       ),
     )
-    for (const call of open) handoff.resolve({ key: keyOf(call.callId), result: { ok: true } })
   }
 
   return { handle, cancelOpen }

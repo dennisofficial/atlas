@@ -11,52 +11,16 @@ import {
 import type { ControlPlane } from '@dltech/atlas-control'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
-import type { HostBus, HostPresence, HostTimers, PodPeers, SessionRuntimeFactory } from './ports'
+import type { HostBus, HostTimers, PodPeers, SessionRuntimeFactory } from './ports'
 import type { PodControlClient } from './pod-control'
 import { ClaimLoop } from './claim-loop'
 import type { CommandHandlers } from './command-intake'
 import { HeldSession, type HeldSessionDeps } from './held-session'
 import { HolderPresence } from './holder-presence'
-import type { OperatorRequestPort } from './operator-requests'
 import { auditOwnLeases } from './own-lease-audit'
 import { runHeld } from './run-held'
 import { LeaseSettler } from './settle'
-import { DEFAULT_APPEND_RETRY_MS } from './record/retry-deadline'
-
-export type SessionHolderArgs = {
-  presence: HostPresence
-  plane: ControlPlane
-  bus: HostBus
-  timers: HostTimers
-  runtimes: SessionRuntimeFactory
-  ids: IdPort
-  podPeers?: PodPeers | undefined
-  maxSessions: number
-  appendRetryMs?: number | undefined
-  idleMinutes?: number | undefined
-  stallAfterMs?: number | undefined
-  sweepMs?: number | undefined
-  isPermanentStartError?: ((error: unknown) => boolean) | undefined
-  reasonOfStartError?: ((error: unknown) => string) | undefined
-  commands?: CommandRegistry | undefined
-  commandHandlers?: CommandHandlers | undefined
-  control?: PodControlClient | undefined
-  mcp?: ((sessionId: string) => PodMcpControl) | undefined
-  operator?:
-    | {
-        port: (sessionId: string) => OperatorRequestPort
-        sessionDir: (sessionId: string) => string
-      }
-    | undefined
-  log?: LogPort | undefined
-  onHostIdChanged?: (() => void) | undefined
-}
-
-const DEFAULTS = {
-  appendRetryMs: DEFAULT_APPEND_RETRY_MS,
-  idleMinutes: 30,
-  sweepMs: 20_000,
-} as const
+import { SESSION_HOLDER_DEFAULTS as DEFAULTS, type SessionHolderArgs } from './session-holder-args'
 
 export class SessionHolder {
   private readonly presence: HolderPresence
@@ -302,8 +266,14 @@ export class SessionHolder {
       commandHandlers: this.commandHandlers,
       control: this.control,
       mcp: this.mcp,
-      operator: this.operator?.port,
-      sessionDir: this.operator?.sessionDir(args.lease.sessionId) ?? '',
+      ...(this.operator === undefined
+        ? {}
+        : {
+            operator: {
+              sessionDir: this.operator.sessionDir(args.lease.sessionId),
+              openValue: this.operator.openValue,
+            },
+          }),
       log: this.log,
     }
   }

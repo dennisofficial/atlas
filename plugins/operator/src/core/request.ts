@@ -24,7 +24,12 @@ export const OPERATOR_INPUT_ASKED = 'operator-input-asked'
 export const OPERATOR_INPUT_SETTLED = 'operator-input-settled'
 export const INBOX_KIND_OPERATOR_ANSWER = 'operator-answer'
 
-export const operatorAnswerPayloadSchema = z.strictObject({ callId: z.string().min(1) })
+export const operatorAnswerPayloadSchema = z.union([
+  z.strictObject({ callId: z.string().min(1), sealedValue: z.string().min(1) }),
+  z.strictObject({ callId: z.string().min(1), cancel: z.literal(true) }),
+])
+
+export type OperatorAnswerPayload = z.output<typeof operatorAnswerPayloadSchema>
 
 export const operatorRequestSchema = z.discriminatedUnion('kind', [
   z.strictObject({
@@ -56,7 +61,6 @@ export type OperatorInputAsked = {
   prompt: string
   shellId?: string | undefined
   expiresAt?: string | undefined
-  secret?: boolean | undefined
   sessionId: string
 }
 
@@ -84,7 +88,6 @@ export const operatorInputAskedSchema: z.ZodType<OperatorInputAsked> = z.object(
   prompt: z.string().min(1),
   shellId: z.string().min(1).optional(),
   expiresAt: z.string().min(1).optional(),
-  secret: z.boolean().optional(),
   sessionId: z.string().min(1),
 })
 

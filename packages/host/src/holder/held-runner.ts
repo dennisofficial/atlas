@@ -162,16 +162,15 @@ export const createLoopRunner = (args: {
   isModelOnlyDrain(): boolean
 }): { runner: LoopTurnRunner; intake: InboxIntake } => {
   const { deps, runtime, record, threadId } = args
-  const requests = deps.operator?.(deps.sessionId)
-  const operatorAnswers =
-    requests === undefined
+  const operator =
+    deps.operator === undefined
       ? undefined
       : operatorAnswersOf({
-          requests,
           calls: runtime.remoteCalls,
           sessionId: deps.sessionId,
           threadId,
-          sessionDir: deps.sessionDir,
+          sessionDir: deps.operator.sessionDir,
+          openValue: deps.operator.openValue,
           record,
           newRunId: () => deps.ids.nextRunId(),
         })
@@ -192,7 +191,7 @@ export const createLoopRunner = (args: {
     commands: deps.commands,
     handlers: deps.commandHandlers,
     model: runtime.model,
-    ...(operatorAnswers === undefined ? {} : { operatorAnswers }),
+    ...(operator === undefined ? {} : { operatorAnswers: operator }),
     now: () => deps.timers.now(),
     ...(deps.log === undefined ? {} : { log: deps.log }),
   })
