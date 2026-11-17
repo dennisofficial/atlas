@@ -1,4 +1,4 @@
-import { EMcpOauthBeginOutcome, EMcpOauthReturnSurface } from '@dltech/atlas-wire'
+import { EMcpOauthBeginOutcome, EMcpOauthReturnSurface } from '@dltech/atlas-wire/web'
 
 import { api } from '@/lib/api-client'
 
