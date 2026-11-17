@@ -1,5 +1,3 @@
-import { isTeammateType } from './kind'
-
 const QUOTED_INTENT_CHARACTERS = 120
 
 const ELLIPSIS = '…'
@@ -22,6 +20,5 @@ export function agentLabel(args: { agentType: string; intent: string }): string 
 }
 
 export function childThreadTitle(args: { agentType: string; intent: string }): string {
-  if (!isTeammateType(args.agentType)) return agentLabel(args)
   return clippedIntent(args.intent) || args.agentType
 }

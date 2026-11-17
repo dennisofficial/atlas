@@ -9,10 +9,8 @@ describe('titling a child thread', () => {
     )
   })
 
-  it('keeps the type label for a sub-agent', () => {
-    expect(childThreadTitle({ agentType: 'explore', intent: 'find callers' })).toBe(
-      'explore "find callers"',
-    )
+  it('titles a sub-agent with its intent alone', () => {
+    expect(childThreadTitle({ agentType: 'explore', intent: 'find callers' })).toBe('find callers')
   })
 
   it('falls back to the type when a teammate has no intent', () => {

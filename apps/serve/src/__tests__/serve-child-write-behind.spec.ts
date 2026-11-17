@@ -120,13 +120,13 @@ describe('child write-behind', () => {
     expect(h.posted).toContainEqual({ threadId: undefined, seqs: [1] })
   })
 
-  it('registers a child with its agent label as the title', async () => {
+  it('registers a child with its intent alone as the title', async () => {
     const h = harness({ counts: { [childA]: 1 } })
     h.spawn(childA)
 
     await h.behind?.flush()
 
-    expect(h.titles).toEqual(['explore "look"'])
+    expect(h.titles).toEqual(['look'])
   })
 
   it('keeps independent seq spaces for two children', async () => {
