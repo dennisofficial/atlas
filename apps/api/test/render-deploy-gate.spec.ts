@@ -79,6 +79,31 @@ describe('judgeDeploy', () => {
   })
 })
 
+describe('image deploys', () => {
+  it('reads the commit from the image tag of an image-backed deploy', async () => {
+    const { fetcher } = fakeRender({ lists: [], health: [200] })
+    const imageFetcher = async (url: string, init: RequestInit): Promise<Response> => {
+      if (!url.includes('/deploys')) return fetcher(url, init)
+      return Response.json([
+        {
+          deploy: {
+            id: 'dep_1',
+            status: 'live',
+            commit: null,
+            image: { ref: 'ghcr.io/o/atlas-api:abc123', sha: 'sha256:1' },
+          },
+        },
+      ])
+    }
+    const result = await runDeployGate({
+      config: { token: 't', serviceId: 'srv', sha: 'abc123' },
+      fetcher: imageFetcher,
+      clock: { now: () => 0, sleep: async () => undefined },
+    })
+    expect(result.verdict).toBe(EGateVerdict.Live)
+  })
+})
+
 describe('runDeployGate', () => {
   it('passes the deploy of this commit once it is live and healthz answers 200', async () => {
     const render = fakeRender({ lists: [[{ id: 'dep_1', status: 'live' }]], health: [200] })
