@@ -3,7 +3,8 @@ import { randomUUID } from 'node:crypto'
 import { isUniqueViolation, type Db } from '@dltech/atlas-db'
 
 import { surfaceOf } from './redirect'
-import type { AttemptFence, McpServerGrantRow, PendingRow } from './types'
+import { sameServerUrl } from './seal'
+import type { AttemptFence, McpServerGrantRow, PendingClaim, PendingRow } from './types'
 
 const REPO_SEEN_BUMP_MS = 3_600_000
 
@@ -15,6 +16,39 @@ const fenceWhere = (fence: AttemptFence) => ({
   id: fence.id,
   oauthGeneration: fence.generation,
   oauthRefreshAttempt: fence.attemptId,
+})
+
+const PENDING_COLUMNS = [
+  'id',
+  'userId',
+  'serverUrl',
+  'sealed',
+  'returnTo',
+  'returnSurface',
+  'expiresAt',
+  'mcpServerId',
+] as const
+
+type PendingSelect = {
+  id: string
+  userId: string
+  serverUrl: string
+  sealed: string
+  returnTo: string
+  returnSurface: string
+  expiresAt: Date
+  mcpServerId: string | null
+}
+
+const pendingOf = (row: PendingSelect): PendingRow => ({
+  id: row.id,
+  userId: row.userId,
+  serverUrl: row.serverUrl,
+  sealed: row.sealed,
+  returnTo: row.returnTo,
+  surface: surfaceOf(row.returnSurface),
+  expiresAt: row.expiresAt,
+  mcpServerId: row.mcpServerId,
 })
 
 const SERVER_COLUMNS = [
@@ -42,6 +76,10 @@ export class McpOauthStore {
   constructor(private readonly db: Db) {}
 
   async insertPending(row: PendingRow): Promise<void> {
+    const expired = this.db.raw.sql`DELETE FROM "McpOauthPending" WHERE "expiresAt" < now()`
+      .affectedCount()
+      .build()
+    await this.db.execute(expired)
     await this.db.orm.public.McpOauthPending.create({
       id: row.id,
       userId: row.userId,
@@ -54,24 +92,32 @@ export class McpOauthStore {
     })
   }
 
-  async takePending(args: { id: string }): Promise<PendingRow | null> {
+  async claimPending(args: { id: string }): Promise<PendingClaim> {
     const row = await this.db.orm.public.McpOauthPending.select(
-      'id',
-      'userId',
-      'serverUrl',
-      'sealed',
-      'returnTo',
-      'returnSurface',
-      'expiresAt',
-      'mcpServerId',
+      ...PENDING_COLUMNS,
+      'completedAt',
     ).first({ id: args.id })
-    if (row === null) return null
-    const count = await this.db.orm.public.McpOauthPending.where({
-      id: args.id,
-    }).deleteAndCount()
-    if (count !== 1) return null
-    const { returnSurface, ...rest } = row
-    return { ...rest, surface: surfaceOf(returnSurface) }
+    if (row === null) return { kind: 'missing' }
+    if (row.completedAt !== null) return { kind: 'completed', pending: pendingOf(row) }
+    const statement = this.db.raw.sql`UPDATE "McpOauthPending"
+      SET "completedAt" = now()
+      WHERE "id" = ${args.id}
+        AND "completedAt" IS NULL`
+      .affectedCount()
+      .build()
+    const { affectedRows } = await this.db.execute(statement)
+    if (affectedRows === 1) return { kind: 'claimed', pending: pendingOf(row) }
+    const again = await this.db.orm.public.McpOauthPending.select(
+      ...PENDING_COLUMNS,
+      'completedAt',
+    ).first({ id: args.id })
+    return again === null || again.completedAt === null
+      ? { kind: 'missing' }
+      : { kind: 'completed', pending: pendingOf(again) }
+  }
+
+  async deletePending(args: { id: string }): Promise<void> {
+    await this.db.orm.public.McpOauthPending.where({ id: args.id }).deleteAndCount()
   }
 
   find({ id }: { id: string }): Promise<McpServerGrantRow | null> {
@@ -121,7 +167,7 @@ export class McpOauthStore {
       existing.lastSeenAt !== null &&
       existing.lastSeenAt.getTime() < args.now.getTime() - REPO_SEEN_BUMP_MS
     const update = {
-      ...(existing.repoUrl === args.url ? {} : { repoUrl: args.url }),
+      ...(sameServerUrl(existing.repoUrl, args.url) ? {} : { repoUrl: args.url }),
       ...(seenStale ? { lastSeenAt: args.now } : {}),
     }
     if (Object.keys(update).length > 0) {

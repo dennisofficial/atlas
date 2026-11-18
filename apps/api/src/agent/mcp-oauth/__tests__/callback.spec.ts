@@ -198,7 +198,9 @@ describe('the mcp oauth callback', () => {
     expect(calls.find((call) => call.url === TOKEN_ENDPOINT)?.body).toContain(
       'code_verifier=verifier-1',
     )
-    expect(await db.orm.public.McpOauthPending.all()).toEqual([])
+    expect(await db.orm.public.McpOauthPending.all()).toMatchObject([
+      { id: 'state-good', completedAt: expect.any(Date) },
+    ])
     const row = await db.orm.public.McpServer.first({ id: 'srv-posthog' })
     expect(row?.oauthStatus).toBe('active')
     expect(row?.oauthServerUrl).toBe(SERVER_URL)
@@ -351,6 +353,43 @@ describe('the mcp oauth callback', () => {
     expect(location.pathname).toBe('/sessions/ses_1')
     expect(location.searchParams.get('mcpOauth')).toBe('failed')
     expect(location.searchParams.get('mcpReason')).toBe('expired')
+  })
+
+  it('answers a repeated callback with the same success and re-exchanges nothing', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedCloudServer({ db, name: 'posthog' })
+    await seedPending({ db, id: 'state-repeat', mcpServerId: 'srv-posthog' })
+    const { calls } = tokenFetch()
+
+    const first = await callOf({ db, query: 'state=state-repeat&code=code-1' })
+    const second = await callOf({ db, query: 'state=state-repeat&code=code-2' })
+
+    expect(first?.params.get('mcpOauth')).toBe('connected')
+    expect(second?.status).toBe(302)
+    expect(second?.params.get('mcpOauth')).toBe('connected')
+    expect(second?.params.get('mcpServer')).toBe(SERVER_URL)
+    expect(calls.filter((call) => call.url === TOKEN_ENDPOINT)).toHaveLength(1)
+    const row = await db.orm.public.McpServer.first({ id: 'srv-posthog' })
+    expect(row?.oauthGeneration).toBe(1)
+  })
+
+  it('still fails a repeated callback whose first attempt exchanged nothing', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedCloudServer({ db, name: 'posthog' })
+    await seedPending({ db, id: 'state-redo', mcpServerId: 'srv-posthog' })
+    const { calls } = stubFetch((call) =>
+      call.url === TOKEN_ENDPOINT
+        ? json({ error: 'invalid_grant' }, { status: 400 })
+        : new Response('not found', { status: 404 }),
+    )
+
+    expect(await failingReason({ db, query: 'state=state-redo&code=code-1' })).toBe(
+      'exchange_failed',
+    )
+    expect(await failingReason({ db, query: 'state=state-redo&code=code-2' })).toBe('unknown_state')
+    expect(calls.filter((call) => call.url === TOKEN_ENDPOINT)).toHaveLength(1)
   })
 
   it('reports an unknown state on the settings page', async () => {
