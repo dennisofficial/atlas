@@ -1,20 +1,19 @@
-import { saidBody } from '@dltech/atlas-core'
 import type { AgentIntake, PendingDrain } from '@dltech/atlas-agent'
 
 export class ChildIntake implements AgentIntake {
-  private queue: string[] = []
+  private queued = 0
 
-  push(text: string): void {
-    this.queue.push(text)
+  accept(): void {
+    this.queued += 1
   }
 
   get pending(): number {
-    return this.queue.length
+    return this.queued
   }
 
   async prepare(): Promise<PendingDrain> {
-    const texts = this.queue
-    this.queue = []
-    return { drafts: texts.map((text) => saidBody({ text })), wakesTurn: texts.length > 0 }
+    const wakesTurn = this.queued > 0
+    this.queued = 0
+    return { drafts: [], wakesTurn }
   }
 }
