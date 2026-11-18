@@ -20,6 +20,12 @@ export {
   type ShadowedSkill,
 } from './precedence'
 export {
+  skillListRowSchema,
+  skillsChangedSchema,
+  type SkillListRow,
+  type SkillsChanged,
+} from './skill-events'
+export {
   ESkillOrigin,
   ESkillWarning,
   KNOWN_FIELDS,
@@ -29,3 +35,11 @@ export {
   type SkillWarning,
 } from './spec'
 export { validateSkill } from './validate'
+
+import { skillsChangedSchema } from './skill-events'
+
+export const skillsCoreSlots = {
+  events: [skillsChangedSchema],
+  views: [],
+  commands: [],
+} as const
