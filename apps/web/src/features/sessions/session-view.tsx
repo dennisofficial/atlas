@@ -171,10 +171,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const refusals = useMemo(() => sessionRefusalsOf(snapshot.events), [snapshot.events])
 
   const summarise = useSessionSummarise({ sessionId, events: snapshot.events })
-  const skillSpecs = useSessionSkills({
-    events: snapshot.events,
-    projectId: listed?.projectId,
-  })
+  const skillSpecs = useSessionSkills({ events: snapshot.events })
   const choice = useSessionModelChoice({
     sessionId,
     current: sessionModelOf(listed),

@@ -1,4 +1,10 @@
-import { composePlugins, definePlugin, EMPTY_POD, type Plugin } from '@dltech/atlas-plugin-sdk'
+import {
+  composePlugins,
+  definePlugin,
+  EMPTY_CONTROL,
+  EMPTY_POD,
+  type Plugin,
+} from '@dltech/atlas-plugin-sdk'
 import { githubControl } from '@dltech/atlas-plugin-github/control'
 import { crewControl } from '@dltech/atlas-plugin-crew/control'
 import { crewCoreSlots } from '@dltech/atlas-plugin-crew/core'
@@ -17,6 +23,8 @@ import { servicesCoreSlots } from '@dltech/atlas-plugin-services/core'
 import { shellsClient } from '@dltech/atlas-plugin-shells/client'
 import { shellsControl } from '@dltech/atlas-plugin-shells/control'
 import { shellsCoreSlots } from '@dltech/atlas-plugin-shells/core'
+import { skillsClient } from '@dltech/atlas-plugin-skills/client'
+import { skillsCoreSlots } from '@dltech/atlas-plugin-skills/core'
 
 export const registeredPlugins: readonly Plugin[] = [
   definePlugin({
@@ -66,6 +74,14 @@ export const registeredPlugins: readonly Plugin[] = [
     control: operatorControl,
     client: operatorClient,
     transport: 'none',
+  }),
+  definePlugin({
+    name: 'skills',
+    ...skillsCoreSlots,
+    pod: EMPTY_POD,
+    control: EMPTY_CONTROL,
+    client: skillsClient,
+    transport: 'stream',
   }),
   definePlugin({
     name: 'sessions',
