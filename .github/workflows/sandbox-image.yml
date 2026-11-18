@@ -3,6 +3,9 @@ name: sandbox-image
 on:
   push:
     branches: [main]
+    # Only the image's own bytes matter: a merge that touches neither the context nor this
+    # workflow would republish the identical image under a new sha tag.
+    paths: ['apps/serve/sandbox-image/**', '.github/workflows/sandbox-image.yml']
   # The retag job runs by dispatch, not on the release event: the release job in ci.yml
   # creates the release with GITHUB_TOKEN, and GitHub never starts workflow runs from events
   # that token caused. https://docs.github.com/actions/using-workflows/triggering-a-workflow
@@ -53,6 +56,9 @@ jobs:
         run: echo "sha_tag=sha-$(git rev-parse HEAD | cut -c1-7)" >> "$GITHUB_OUTPUT"
 
       - uses: docker/build-push-action@v7
+        env:
+          # Build records are ~7,000 tiny artifacts that count against Actions storage.
+          DOCKER_BUILD_RECORD_UPLOAD: false
         with:
           context: apps/serve/sandbox-image
           push: true
@@ -93,6 +99,8 @@ jobs:
       - name: publish the latest VCR image
         if: vars.VERCEL_VCR_ENABLED == 'true'
         uses: docker/build-push-action@v7
+        env:
+          DOCKER_BUILD_RECORD_UPLOAD: false
         with:
           context: apps/serve/sandbox-image
           platforms: linux/amd64
