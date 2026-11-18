@@ -43,17 +43,19 @@ export class GithubSubscribeStateWriter {
     if (fields === null) return held === null ? null : dtoOf(held)
     if (fields.headRepoFullName !== null)
       fields.headRepoFullName = normalizedRepo(fields.headRepoFullName)
-    const { row } = await db.transaction((tx) =>
+    const write = await db.transaction((tx) =>
       this.deps.writer.writeState({
         tx,
         repoFullName: args.repoFullName,
         prNumber,
         fields: { ...fields, updatedAt: new Date() },
         authoritative: true,
+        seenVersion: held?.version ?? 0,
         recipients: [args.userId],
       }),
     )
-    return dtoOf(row)
+    if (write === null) return held === null ? null : dtoOf(held)
+    return dtoOf(write.row)
   }
 
   private prState(args: {

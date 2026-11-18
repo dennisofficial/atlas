@@ -29,8 +29,8 @@ function writerRig() {
   return { writer, fanout }
 }
 
-const write = (args: { writer: GithubPrStateWriter; checksPassed: number }) =>
-  db.transaction((tx) =>
+const write = async (args: { writer: GithubPrStateWriter; checksPassed: number }) => {
+  const write = await db.transaction((tx) =>
     args.writer.writeState({
       tx,
       repoFullName: 'compai/app',
@@ -38,6 +38,9 @@ const write = (args: { writer: GithubPrStateWriter; checksPassed: number }) =>
       fields: { ...REST_FIELDS, checksPassed: args.checksPassed, updatedAt: new Date() },
     }),
   )
+  if (write === null) throw new Error('the write was dropped')
+  return write
+}
 
 describe('GithubPrStateWriter versions', () => {
   useTestDatabase()

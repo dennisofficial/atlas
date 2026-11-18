@@ -104,14 +104,13 @@ export class GithubDeliveryChecks {
           continue
         }
         if (countsMatch({ tally, pr })) continue
-        writes.push(
-          await this.deps.writer.writeState({
-            tx,
-            repoFullName,
-            prNumber: pr.prNumber,
-            fields: withTally({ pr, tally }),
-          }),
-        )
+        const write = await this.deps.writer.writeState({
+          tx,
+          repoFullName,
+          prNumber: pr.prNumber,
+          fields: withTally({ pr, tally }),
+        })
+        if (write !== null) writes.push(write)
       }
       return { writes, confirm }
     })
@@ -153,7 +152,7 @@ export class GithubDeliveryChecks {
             : withTally({ pr: await currentRow({ tx, repoFullName, prNumber }), tally })
         return this.deps.writer.writeState({ tx, repoFullName, prNumber, fields })
       })
-      await this.deps.writer.publish(write)
+      if (write !== null) await this.deps.writer.publish(write)
     }
 
     if (deferred.length > 0) {

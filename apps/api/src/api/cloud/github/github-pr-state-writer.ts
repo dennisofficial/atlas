@@ -26,6 +26,18 @@ const TERMINAL_STATES = new Set(['merged', 'closed'])
  * of order. A merged or closed row stays terminal unless the PR itself reopened: a stale `opened`
  * or `edited` payload replayed afterwards must not move it back to open or draft.
  */
+/**
+ * A REST fill reads GitHub outside the write transaction, so a webhook delivery can commit a newer
+ * row in between. The fill then describes a state GitHub has already left (a merge, a close), so it
+ * is dropped rather than written as `authoritative` and reopening the PR.
+ */
+export function fillSuperseded(args: {
+  seenVersion: number | undefined
+  storedVersion: number
+}): boolean {
+  return args.seenVersion !== undefined && args.seenVersion !== args.storedVersion
+}
+
 export function terminalStateKept(args: {
   prior: LockedPrState | null
   next: string
@@ -72,8 +84,9 @@ export class GithubPrStateWriter {
     fields: GithubPrStateRecord
     reopens?: boolean
     authoritative?: boolean
+    seenVersion?: number
     recipients?: readonly string[]
-  }): Promise<PrStateWrite> {
+  }): Promise<PrStateWrite | null> {
     const { tx } = args
     const repoFullName = normalizedRepo(args.repoFullName)
     const locked = await readPrStateForUpdate({
@@ -81,6 +94,8 @@ export class GithubPrStateWriter {
       repoFullName,
       prNumber: args.prNumber,
     })
+    if (fillSuperseded({ seenVersion: args.seenVersion, storedVersion: locked?.version ?? 0 }))
+      return null
     const keptState = terminalStateKept({
       prior: locked,
       next: args.fields.state,
@@ -154,7 +169,7 @@ export class GithubPrStateWriter {
     reopens?: boolean
   }): Promise<void> {
     const write = await db.transaction((tx) => this.writeState({ tx, ...args }))
-    await this.publish(write)
+    if (write !== null) await this.publish(write)
   }
 
   async publish(write: PrStateWrite): Promise<void> {

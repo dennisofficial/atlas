@@ -197,6 +197,13 @@ export class GithubPollSweeperService {
     if (token === undefined) return 'skipped'
     const repoFullName = normalizedRepo(args.repoFullName)
     const [owner, repo] = repoFullName.split('/') as [string, string]
+    const seenVersion =
+      (
+        await db.orm.public.GithubPrState.where({
+          repoFullName,
+          prNumber: args.prNumber,
+        }).first()
+      )?.version ?? 0
     let fields: PullRequestCacheFields
     try {
       fields = await this.reads.readPullRequest({
@@ -227,9 +234,10 @@ export class GithubPollSweeperService {
         prNumber: args.prNumber,
         fields: { ...fields, updatedAt: new Date() },
         authoritative: true,
+        seenVersion,
       }),
     )
-    await this.writer.publish(write)
+    if (write !== null) await this.writer.publish(write)
     return 'polled'
   }
 }
