@@ -155,6 +155,7 @@ export const createSessionRuntimeFactory = (
       ...(args.log === undefined ? {} : { log: args.log }),
     })
     let setupListener: ((lifecycle: SetupLifecycle) => void) | undefined
+    const setupLifecycles: SetupLifecycle[] = []
     const attempt = (signal: AbortSignal): Promise<PrepareResult> =>
       abortable(calls.ready(), signal)
         .then(async () => {
@@ -186,7 +187,10 @@ export const createSessionRuntimeFactory = (
             signal,
             onStep: (step) => steps.report(step),
             onOutput: (text) => steps.output(text),
-            onSetup: (lifecycle) => setupListener?.(lifecycle),
+            onSetup: (lifecycle) => {
+              setupLifecycles.push(lifecycle)
+              setupListener?.(lifecycle)
+            },
             ...(args.log === undefined ? {} : { log: args.log }),
           })
         })
@@ -351,8 +355,10 @@ export const createSessionRuntimeFactory = (
       env: sessionShellEnv,
       prepare,
       subscribePrepareOutput: (listener) => steps.subscribeOutput(listener),
+      // the setup script may start, or finish, before a replacement host subscribes: replay it
       subscribeSetup: (listener) => {
         setupListener = listener
+        for (const lifecycle of setupLifecycles) listener(lifecycle)
       },
       stop: async () => {
         stopKeepAlive()

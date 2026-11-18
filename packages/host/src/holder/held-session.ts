@@ -288,6 +288,7 @@ export class HeldSession {
     switch (action) {
       case EHeldAction.ConsumeStop: {
         await settleOperatorOnStop({ deps, record: this.record, runtime: this.runtime })
+        await this.prepare.failStopped()
         await consumeStops({ deps, record: this.record, entries, onActivity: this.noteActivity })
         this.resumeAfterSeq = this.headSeq()
         this.reconciler?.request()

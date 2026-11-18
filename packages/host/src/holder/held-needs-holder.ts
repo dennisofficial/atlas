@@ -3,6 +3,7 @@ import {
   drainWantsHolder,
   initialLoopState,
   isResumableOf,
+  setupInFlightOf,
   workspaceStateFrom,
 } from '@dltech/atlas-core'
 
@@ -27,7 +28,9 @@ export const drainNeedsHolder = async (args: {
     const entries = (await readFullInbox(args.deps)).filter((entry) =>
       understandsCommand(args.deps, entry),
     )
-    const logIds = logPendingMessageIdsOf(cache?.eventsAfter(0) ?? [])
+    const events = cache?.eventsAfter(0) ?? []
+    if (setupInFlightOf(events)) return true
+    const logIds = logPendingMessageIdsOf(events)
     const workspace = workspaceStateFrom({
       record: cache?.bookkeeping().workspace() ?? NO_WORKSPACE_RECORD,
       preparing: false,

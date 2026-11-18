@@ -88,6 +88,7 @@ export class RemoteCalls {
     signal?: AbortSignal | undefined
     onOutput?: ((bytes: Uint8Array) => void) | undefined
     dispatchedBootId?: string | undefined
+    attachOnly?: boolean | undefined
   }): Promise<CallResult> {
     return this.state.invoke(args)
   }

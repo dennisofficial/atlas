@@ -1,10 +1,11 @@
 import {
+  EHeldAction,
   NO_WORKSPACE_RECORD,
   decideHeldAction,
   isResumableOf,
   loopStateOf,
+  setupInFlightOf,
   workspaceStateFrom,
-  type EHeldAction,
   type InboxEntry,
 } from '@dltech/atlas-core'
 
@@ -21,6 +22,26 @@ import {
 import type { HeldSessionDeps } from './held-session-deps'
 import type { SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
+
+const IDLE_WHILE_SETUP_RUNS: readonly EHeldAction[] = [
+  EHeldAction.StartTurn,
+  EHeldAction.Wait,
+  EHeldAction.Release,
+]
+
+/**
+ * A setup script that started before the last handoff is still running on the pod: the holder
+ * has to re-join it (Prepare) before it may start a turn, wait, or release the pod — releasing
+ * would take the sandbox away under the running script.
+ */
+const resumeSetupIn = (args: {
+  decided: EHeldAction
+  setupInFlight: boolean
+  preparing: boolean
+}): EHeldAction =>
+  args.setupInFlight && !args.preparing && IDLE_WHILE_SETUP_RUNS.includes(args.decided)
+    ? EHeldAction.Prepare
+    : args.decided
 
 export const readHeldAction = async (args: {
   deps: HeldSessionDeps
@@ -76,15 +97,19 @@ export const readHeldAction = async (args: {
       ? await countRunningShells({ deps, runtime: args.runtime })
       : 0
   const resumable = isResumableOf(loopStateOf({ events: resumeEvents }))
-  const action = decideHeldAction({
-    draining: args.draining,
-    turn: args.turnRunning ? 'running' : 'idle',
-    stopPending: actionable.some(isStop),
-    messagePending,
-    resumable,
-    workspace: workspace.state,
-    retryPending: workspace.retryPending,
-    idleDue: quiet && runningShells === 0 && args.childrenRunning === 0 && !args.setupRunning,
+  const action = resumeSetupIn({
+    decided: decideHeldAction({
+      draining: args.draining,
+      turn: args.turnRunning ? 'running' : 'idle',
+      stopPending: actionable.some(isStop),
+      messagePending,
+      resumable,
+      workspace: workspace.state,
+      retryPending: workspace.retryPending,
+      idleDue: quiet && runningShells === 0 && args.childrenRunning === 0 && !args.setupRunning,
+    }),
+    setupInFlight: setupInFlightOf(events),
+    preparing: args.preparing,
   })
   return {
     entries,
