@@ -2,7 +2,13 @@ import { afterEach, describe, expect, it, setSystemTime } from 'bun:test'
 import { credentialFingerprint } from './github-request-budget'
 import { localCoordinator } from './github-request-coordinator.fixture'
 import { LocalCoordinatorAdapter } from './github-request-coordinator.local'
-import { ACCESS_PROOF_DENIAL_TTL_MS, EGithubHttpCategory } from './github-request-coordinator.types'
+import {
+  ACCESS_PROOF_DENIAL_TTL_MS,
+  EGithubHttpCategory,
+  GITHUB_AUTH_HTTP_BUDGET_PER_MINUTE,
+  GITHUB_LOOKUP_HTTP_BUDGET_PER_MINUTE,
+  GITHUB_REFRESH_HTTP_BUDGET_PER_MINUTE,
+} from './github-request-coordinator.types'
 import type { GithubService } from './github.service'
 
 describe('same-process request coordinator adapter', () => {
@@ -40,6 +46,24 @@ describe('same-process request coordinator adapter', () => {
         await adapter.takeHttpSlot({ ...identity, category: EGithubHttpCategory.Refresh }),
       ).toBe(true)
     expect(await adapter.takeHttpSlot(identity)).toBe(false)
+  })
+  it('spends lookups from the refresh allowance so authorization keeps its own share', async () => {
+    const adapter = new LocalCoordinatorAdapter()
+    const identity = { credentialFingerprint: 'one', resource: 'core' }
+    const take = (category: EGithubHttpCategory) => adapter.takeHttpSlot({ ...identity, category })
+    for (let index = 0; index < GITHUB_LOOKUP_HTTP_BUDGET_PER_MINUTE; index += 1)
+      expect(await take(EGithubHttpCategory.Lookup)).toBe(true)
+    for (
+      let index = 0;
+      index < GITHUB_REFRESH_HTTP_BUDGET_PER_MINUTE - GITHUB_LOOKUP_HTTP_BUDGET_PER_MINUTE;
+      index += 1
+    )
+      expect(await take(EGithubHttpCategory.Refresh)).toBe(true)
+    expect(await take(EGithubHttpCategory.Refresh)).toBe(false)
+    expect(await take(EGithubHttpCategory.Lookup)).toBe(false)
+    for (let index = 0; index < GITHUB_AUTH_HTTP_BUDGET_PER_MINUTE; index += 1)
+      expect(await take(EGithubHttpCategory.Authorization)).toBe(true)
+    expect(await take(EGithubHttpCategory.Authorization)).toBe(false)
   })
   it('holds a low-quota reserve per credential and resource until it expires', async () => {
     const adapter = new LocalCoordinatorAdapter()

@@ -2,6 +2,7 @@ import type { Redis } from 'ioredis'
 import {
   GITHUB_HTTP_BUDGET_PER_MINUTE,
   githubHttpBudgetOf,
+  githubHttpParentOf,
   repoAccessProofSchema,
   type RepoAccessProof,
   type CoordinatorAdapter,
@@ -17,8 +18,14 @@ local spent = tonumber(redis.call('GET', KEYS[1]) or '0')
 if spent >= tonumber(ARGV[2]) then return 0 end
 local category = tonumber(redis.call('GET', KEYS[3]) or '0')
 if category >= tonumber(ARGV[3]) then return 0 end
+local parentBudget = tonumber(ARGV[4])
+if parentBudget > 0 and tonumber(redis.call('GET', KEYS[5]) or '0') >= parentBudget then return 0 end
 redis.call('INCR', KEYS[3])
 redis.call('PEXPIRE', KEYS[3], 125000)
+if parentBudget > 0 then
+  redis.call('INCR', KEYS[5])
+  redis.call('PEXPIRE', KEYS[5], 125000)
+end
 redis.call('INCR', KEYS[4])
 redis.call('PEXPIRE', KEYS[4], 125000)
 redis.call('INCR', KEYS[1])
@@ -98,16 +105,19 @@ export class RedisCoordinatorAdapter implements CoordinatorAdapter {
 
   async takeHttpSlot(identity?: GithubRequestIdentity): Promise<boolean> {
     const window = `${this.prefix}http:${Math.floor(Date.now() / 60_000)}:${this.credentialOf(identity)}`
+    const parent = githubHttpParentOf(identity?.category)
     const result = await this.client.eval(
       BUDGET,
-      4,
+      5,
       window,
       this.cooldownKey(identity),
       `${window}:${identity?.category ?? 'unclassified'}`,
       `${window}:src:${identity?.source ?? 'unattributed'}`,
+      `${window}:${parent ?? 'unclassified'}`,
       Date.now(),
       GITHUB_HTTP_BUDGET_PER_MINUTE,
       githubHttpBudgetOf(identity?.category),
+      parent === undefined ? 0 : githubHttpBudgetOf(parent),
     )
     return result === 1
   }

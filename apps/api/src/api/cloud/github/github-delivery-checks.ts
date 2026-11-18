@@ -14,6 +14,7 @@ import { GithubDeliveryFillDeferred, type RestFill } from './github-delivery-fil
 import { normalizedRepo } from './github-pr-identity'
 import { stateFieldsOf } from './github-pr-state-fields'
 import type { GithubPrStateWriter, PrStateWrite } from './github-pr-state-writer'
+import type { GithubPrStateRecord } from './github-realtime.types'
 import { CheckAnnotationFetcher, type FetchAnnotations } from './github-check-annotations'
 import type {
   GithubCheckRunWebhookPayload,
@@ -145,12 +146,15 @@ export class GithubDeliveryChecks {
           await recordCommitChecks({ tx, repoFullName, headSha: restHead, checks: restChecks })
         }
         const tally = await commitChecksTally({ tx, repoFullName, headSha: restHead })
-        const fields =
-          rest.kind === 'filled'
-            ? rest.checks === null
-              ? rest.fields
-              : { ...rest.fields, ...checkCountFieldsOf(tally) }
-            : withTally({ pr: await currentRow({ tx, repoFullName, prNumber }), tally })
+        const stored = await currentRow({ tx, repoFullName, prNumber })
+        const fields = settleFieldsOf({
+          kind: rest.kind,
+          sameHead: rest.kind === 'filled' && rest.fields.headSha === pr.headSha,
+          fill: rest.kind === 'filled' ? rest.fields : null,
+          hasChecks: rest.kind === 'filled' && rest.checks !== null,
+          stored,
+          tally,
+        })
         return this.deps.writer.writeState({
           tx,
           repoFullName,
@@ -195,6 +199,31 @@ async function currentRow(args: {
     repoFullName: args.repoFullName,
     prNumber: args.prNumber,
   }).first() as Promise<Row<'GithubPrState'>>
+}
+
+function settleFieldsOf(args: {
+  kind: RestFill['kind']
+  sameHead: boolean
+  fill: GithubPrStateRecord | null
+  hasChecks: boolean
+  stored: Row<'GithubPrState'>
+  tally: ChecksCount
+}): GithubPrStateRecord {
+  if (args.fill === null) return withTally({ pr: args.stored, tally: args.tally })
+  if (!args.sameHead) {
+    return args.hasChecks ? { ...args.fill, ...checkCountFieldsOf(args.tally) } : args.fill
+  }
+  return {
+    ...stateFieldsOf(args.stored),
+    checksRunning: args.fill.checksRunning,
+    checksPassed: args.fill.checksPassed,
+    checksFailed: args.fill.checksFailed,
+    checksIgnored: args.fill.checksIgnored,
+    checksState: args.fill.checksState,
+    requiredCheckContexts: args.fill.requiredCheckContexts,
+    ...(args.hasChecks ? checkCountFieldsOf(args.tally) : {}),
+    updatedAt: new Date(),
+  }
 }
 
 async function awaitsSettleConfirmation(args: {

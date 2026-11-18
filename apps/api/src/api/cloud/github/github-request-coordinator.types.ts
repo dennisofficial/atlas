@@ -14,6 +14,11 @@ export enum EGithubHttpCategory {
   Lookup = 'lookup',
 }
 
+export const githubHttpParentOf = (
+  category?: EGithubHttpCategory,
+): EGithubHttpCategory | undefined =>
+  category === EGithubHttpCategory.Lookup ? EGithubHttpCategory.Refresh : undefined
+
 export const githubHttpBudgetOf = (category?: EGithubHttpCategory): number => {
   if (category === EGithubHttpCategory.Authorization) return GITHUB_AUTH_HTTP_BUDGET_PER_MINUTE
   if (category === EGithubHttpCategory.Lookup) return GITHUB_LOOKUP_HTTP_BUDGET_PER_MINUTE

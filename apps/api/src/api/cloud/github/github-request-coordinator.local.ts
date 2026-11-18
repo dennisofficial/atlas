@@ -1,6 +1,7 @@
 import {
   GITHUB_HTTP_BUDGET_PER_MINUTE,
   githubHttpBudgetOf,
+  githubHttpParentOf,
   type RepoAccessProof,
   type CoordinatorAdapter,
   type RefreshAttempt,
@@ -82,9 +83,14 @@ export class LocalCoordinatorAdapter implements CoordinatorAdapter {
     const window = this.windowOf(this.credentialOf(identity))
     if (window.spent >= GITHUB_HTTP_BUDGET_PER_MINUTE) return false
     const category = identity?.category ?? 'unclassified'
-    const spent = window.categories.get(category) ?? 0
-    if (spent >= githubHttpBudgetOf(identity?.category)) return false
-    window.categories.set(category, spent + 1)
+    const parent = githubHttpParentOf(identity?.category)
+    if ((window.categories.get(category) ?? 0) >= githubHttpBudgetOf(identity?.category))
+      return false
+    if (parent !== undefined && (window.categories.get(parent) ?? 0) >= githubHttpBudgetOf(parent))
+      return false
+    window.categories.set(category, (window.categories.get(category) ?? 0) + 1)
+    if (parent !== undefined)
+      window.categories.set(parent, (window.categories.get(parent) ?? 0) + 1)
     window.spent += 1
     return true
   }

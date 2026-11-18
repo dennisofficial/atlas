@@ -92,9 +92,36 @@ describe('GithubDeliveryService check rows concurrency', () => {
     expect((await prStateRows())[0]).toMatchObject({
       checksRunning: 1,
       checksPassed: 1,
-      mergeable: true,
-      title: 'rest title',
+      mergeable: null,
+      title: 'add the thing',
     })
     expect(await db.orm.public.GithubCommitCheck.all()).toHaveLength(2)
+  })
+
+  it('keeps the non-check fields a newer write landed during the settle read', async () => {
+    const readPullRequest = vi.fn(async () => {
+      await db.orm.public.GithubPrState.where({
+        repoFullName: 'compai/app',
+        prNumber: 42,
+      }).update({ title: 'renamed mid-read', mergeable: false })
+      return {
+        ...REST_FIELDS,
+        checksRunning: 0,
+        checksPassed: 1,
+        title: 'stale rest title',
+        mergeable: true,
+      }
+    })
+    const { service } = await setupTrackedPr(readPullRequest)
+
+    await service.handle({ event: 'check_run', payload: checkRunPayload({ id: 1 }) })
+
+    expect(readPullRequest).toHaveBeenCalledTimes(1)
+    expect((await prStateRows())[0]).toMatchObject({
+      title: 'renamed mid-read',
+      mergeable: false,
+      checksRunning: 0,
+      checksPassed: 1,
+    })
   })
 })
