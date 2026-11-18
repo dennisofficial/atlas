@@ -271,7 +271,11 @@ export function registerBuiltinTools({ container }: { container: DependencyConta
       ),
   })
   container.register(portToken(ToolDefinition), {
-    useFactory: (resolver) => new BrowserTool(resolver.resolve(registeredPortToken(ProcessPort))),
+    useFactory: (resolver) =>
+      new BrowserTool(
+        resolver.resolve(registeredPortToken(ProcessPort)),
+        resolver.resolve(registeredPortToken(AgentFileSystemPort)),
+      ),
   })
 
   container.register(registeredPortToken(ToolRegistry), {

@@ -297,6 +297,20 @@ during a deploy, recorded here with its session id.
   mirror hook producing the reminder for the next step.
 - **Live:** §8.
 
+## 9b. Follow-ups found in live use (2026-11-18)
+
+A v1 session hit three avoidable `browser` failures in a row. The first two are fixed in both v1 and
+`plugins/web` (the tool description now teaches `screenshot <file>` instead of a nonexistent
+`--path` flag, and the tool creates a screenshot's folder before running). Still open for v2:
+- [ ] **Nothing creates `$ATLAS_SESSION_DIR/scratch` in a v2 pod.** The bash and file-tool prose
+  (`apps/api/src/agent/agent-tools/bash-prose.ts`, `file-text.ts`) send agents there, but the
+  folder never exists, so the first write into it fails. v1 now creates it in
+  `SessionEnvironmentProcessPort.prepare`; v2 needs the same at session prepare, beside the context
+  and images folders.
+- [ ] **`service_start` can return before the service accepts connections.** The browser's first
+  `open` right after it got `ERR_CONNECTION_REFUSED`. Check that the v2 services plugin's health
+  wait gates the reply on a fresh start.
+
 ## 10. Out of scope
 
 - **`operator_input` / `operator_shell_input`** and the elicitation seam they would need (§5).
