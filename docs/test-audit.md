@@ -68,8 +68,19 @@ Slowest individual tests measured in `packages/harness`, and what each one is pa
 | plugin-type fixture typecheck                                                    | 4.8s     | `tsc` over a materialised fixture — the point of the test                                                                                                                                                                                                                                                                                                                          |
 | `src/cloud/__tests__/*` "cloud is answering badly" cluster                       | ~2s each | **not** a fetch timeout: the stub throws synchronously (`account-store-proxy.spec.ts:190-197`), so the time is spent before the call — `signIn`/`seedLocal` writing the encrypted vault per test. Hypothesis to confirm before optimising: a per-test key derivation. If so, cache the derived key rather than lowering the KDF cost, so the tests keep exercising the real vault. |
 
-No test in the run took between 500 ms and 1 s: the distribution is milliseconds or seconds, which
-is what a suite with a clear unit/integration split looks like.
+No test in the sampled run took between 500 ms and 1 s: the distribution is milliseconds or seconds,
+which is what a suite with a clear unit/integration split looks like.
+
+**An environment-dependent deadlock, not slowness.** Four specs in
+`packages/harness/src/services/__tests__/declared-reality.spec.ts` hang past the 5 s default timeout in
+a nested cloud sandbox: "references > fails dependents of a failed dependency" and three under
+"setup" ("runs once per registry lifetime", "runs setup with the session PATH", "blocks the start
+when setup fails"). They are not slow — raising the timeout to 30 s still fails — and they are not new:
+they reproduce identically on clean `main` (`48651233b`). CI on `main` is green (`ci` success,
+2026-11-18T06:03Z), so whatever they await resolves on GitHub's runners and not here. What is
+certain: they cost ~20 s of a local harness run and they hide any real regression in that file.
+Next step, not today's: run that one file on a rented runner or a macOS host and watch which await
+never settles before changing anything.
 
 ### Fixed today
 
@@ -115,10 +126,13 @@ Ordered by value; each entry is one sitting.
    `packages/harness/src/channel/__tests__/lockstep-stream.spec.ts:82`, `persistedRead` in
    `packages/harness/src/shells/__tests__/shell-registry-release.spec.ts:17` (up to 400 × 25 ms),
    and `footerWithin` in the new `turn-wiring.spec.ts` (2 × ~430 ms for the absence cases).
-5. **Duplicates in `apps/*`**: 16 near-identical pairs, the prototype mirror of the web feature
+5. **`declared-reality.spec.ts` deadlock** (see Measurements): 4 specs hang in a nested sandbox and
+   pass on CI. Find the await that never settles before touching the specs — the tests are probably
+   right about the behaviour and wrong about the environment.
+6. **Duplicates in `apps/*`**: 16 near-identical pairs, the prototype mirror of the web feature
    specs is the largest group — merge each pair to one, keeping the copy nearest the source.
-6. **Assertion-free specs**: the 21 dead/tautological specs in `packages/*` and the 11 in
+7. **Assertion-free specs**: the 21 dead/tautological specs in `packages/*` and the 11 in
    `apps/*`/`plugins/*` (anchors in the audit reports of this run) — each is either a real assertion
    or a deletion.
-7. **Over-300-line specs**: 212 files; split as they are touched, starting with
+8. **Over-300-line specs**: 212 files; split as they are touched, starting with
    `packages/client/src/channel/__tests__/remote-delta-channel.spec.ts` (976).
