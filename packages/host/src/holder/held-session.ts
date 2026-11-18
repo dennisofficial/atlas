@@ -8,6 +8,9 @@ import {
 } from '@dltech/atlas-core'
 import { LoopTurnRunner, OPERATOR_STOP_REASON, PauseSignal } from '@dltech/atlas-agent'
 
+import { DaemonProcessPort } from '../calls/ports/process'
+import { type ChangesCheckout, ChangesSnapshotter } from './changes/snapshotter'
+import { runGit } from './checkouts/git'
 import { FencedSettlement } from './fenced-settlement'
 import { settleOperatorOnStop } from './operator-stop'
 import type { SessionRuntime } from './ports'
@@ -49,6 +52,7 @@ export class HeldSession {
   private runtime: SessionRuntime | undefined
   private record: SessionRecord | undefined
   private branches: BranchObserver | undefined
+  private changes: ChangesSnapshotter | undefined
   private crew: CrewRoom | undefined
   private reconciler: Reconciler | undefined
   private readonly idle: IdleDeadline
@@ -64,6 +68,9 @@ export class HeldSession {
     this.sessionId = deps.sessionId
     this.lastActivityAt = deps.timers.now()
     this.turns = new HeldTurns(deps)
+    this.turns.onTurnEnd = () => {
+      void this.changes?.snapshotNow()
+    }
     this.prepare = new HeldPrepare({
       deps,
       abandoned: () => this.draining || this.ending.outcome !== undefined,
@@ -113,6 +120,7 @@ export class HeldSession {
   beginDrain(): void {
     this.draining = true
     this.branches?.stop()
+    void this.changes?.stop()
     this.pause.pause()
     this.record?.markDraining()
     this.reconciler?.request()
@@ -147,6 +155,8 @@ export class HeldSession {
       if (this.ending.outcome === undefined) await this.ending.settleFault({ ...args, error })
     }
     this.branches?.stop()
+    if (this.changes !== undefined)
+      await this.changes.stop().catch((error: unknown) => logDriveFault({ deps: this.deps, error }))
     await this.crew?.stopAll().catch((error: unknown) => logDriveFault({ deps: this.deps, error }))
     return teardownHeld({
       deps: this.deps,
@@ -203,6 +213,8 @@ export class HeldSession {
     })
     this.branches = branches
     this.logStaged = logStaged
+    this.changes = this.changesOf({ runtime, record })
+    this.changes?.start()
     await settleAndCheckResume({ deps, runtime, record, threadId })
     await recoverCommands()
     const completion = this.ending.waitForDrive()
@@ -215,6 +227,42 @@ export class HeldSession {
     this.reconciler = reconciler
     reconciler.request()
     await completion
+  }
+
+  private changesOf(args: {
+    runtime: SessionRuntime
+    record: SessionRecord
+  }): ChangesSnapshotter | undefined {
+    const content = this.deps.changes?.content
+    if (content === undefined) return undefined
+    const { deps } = this
+    const processes = new DaemonProcessPort({ calls: args.runtime.remoteCalls })
+    return new ChangesSnapshotter({
+      sessionId: deps.sessionId,
+      plane: deps.plane,
+      content,
+      remoteCalls: args.runtime.remoteCalls,
+      checkouts: async () => {
+        if (!args.record.eventCache().bookkeeping().workspace().prepared) return []
+        const repos = await args.runtime.watchedRepos()
+        const found: ChangesCheckout[] = []
+        for (const repoPath of repos) {
+          const origin = await runGit({
+            processes,
+            cwd: repoPath,
+            argv: ['remote', 'get-url', 'origin'],
+          })
+          found.push({
+            repoPath,
+            originUrl: origin.ok ? origin.stdout.trim() : '',
+            base: args.runtime.baseBranchOf(repoPath),
+          })
+        }
+        return found
+      },
+      ...(deps.log === undefined ? {} : { log: deps.log }),
+      now: () => deps.timers.now(),
+    })
   }
 
   private async step(args: { runner: LoopTurnRunner; threadId: ThreadId }): Promise<void> {
