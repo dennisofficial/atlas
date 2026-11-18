@@ -12,7 +12,8 @@ to providers. Cloud MCP OAuth grants are personal and API-held (`src/api/cloud/m
 Every Atlas-owned client calls the API through tRPC under `/v1/trpc` (`threads.create`,
 `sandboxSelf.*`, `models.list` and the rest of the generated `AppRouter`). Only the GitHub webhook
 controllers (`POST /v1/github/hooks/:repo`, `POST /v1/github/app/hook`, `GET /v1/github/app/callback`),
-`GET /v1/health` and better-auth's `/api/auth/*` remain REST.
+`GET /v1/health`, the agent's `GET /healthz` and `GET /mcp-oauth/callback`, and better-auth's
+`/api/auth/*` remain REST.
 
 **The API provisions Atlas Cloud sandboxes on the thread owner's own Vercel credentials.**
 `threads.create` with a `firstMessage` writes the Thread, its first `user-said` Event and the
@@ -70,13 +71,16 @@ the subpath `@dltech/atlas-harness/models`. The API may import only the harness 
 `src/api/harness-boundary.spec.ts` and `architecture.spec.ts` enforce it, and harness's own subpath guard spec
 keeps `node:*`, Bun and the provider SDKs out of everything reachable from it.
 
-## One process with the agent host
+## One app: `src/api` and `src/agent`
 
-`main.ts` mounts `@dltech/atlas-agent-host`'s `HostModule` next to `AppModule` (`src/api/host-root.module.ts`),
-so the long-lived entry serves the agent host's stream, health and MCP OAuth callback in the same Nest
-app. The host's own tokens (`@dltech/atlas-agent-host/host/tokens`) are global providers in that graph:
-`operatorRequests.answer` and `mcpOauth.begin` inject them, and answer 503 when the host is absent, which
-is the Vercel entry's shape. `vercel.ts` stays host-free.
+`main.ts` is the only entry: it hydrates the tier, validates env, asserts the agent can boot, then
+`createApp()` and `listen`. `create-app.ts` always mounts the root `AppModule` (`src/app.module.ts`) —
+`ApiModule` (`src/api/api.module.ts`), `AgentModule` (`src/agent/agent.module.ts`) and `HealthModule`,
+plus the drain hook that pauses held loops on shutdown. There is no host-free build and no flag: the
+one service answers `api.byatlas.io` and `agent.byatlas.io` on one port.
+
+`src/api` reaches the agent only through `src/agent/index.ts`, and `src/agent` never imports `src/api`;
+a boundary spec fails either direction.
 
 ## Runtime and tests
 
@@ -95,8 +99,8 @@ dynamic-imports the fake hangs the file under bun. Fake-timer helpers `advanceTi
 
 ## Adding a route
 
-Routes are nestjs-trpc routers, not controllers (the only controllers left are health and the
-GitHub webhooks).
+Routes are nestjs-trpc routers, not controllers (the only controllers left are health, the
+GitHub webhooks, and the agent's `/healthz` and `/mcp-oauth/callback`).
 - Write a `@Router({ alias })` class in the feature module and list it as a provider. Each method is a
   `@Query`, `@Mutation` or `@Subscription` that declares both `input` and `output` as zod schemas
   from `@dltech/atlas-wire`; the generated file may import only `@trpc/server`, `zod` and wire, and
@@ -141,18 +145,19 @@ src/
   _core/      kernel: env module, decorators, ports, types. Imports nothing from slices.
   _lib/       infra adapters (crypto). Framework-light.
   _module/    shared injectable modules (session middleware + verifier port, tRPC middlewares).
-  api/        the deployable app: app.module.ts + feature modules in two layers —
+  api/        the v1 app: api.module.ts + feature modules in two layers —
               platform/ (auth, accounts, sessions, sandboxes, health) and cloud/ (secrets,
               mcp-servers, user-context, github). One-way rule:
               cloud may import platform, platform never imports cloud;
               enforced by src/api/architecture.spec.ts.
-  create-app.ts  composes the Nest app (parsers, pipes, filters) and inits it; never listens.
-  main.ts     the long-lived server — hydrates env from the tier file when a DOTENV_PRIVATE_KEY
-              is present, validates env, asserts the agent host can boot, createApp({ withHost: true }),
+  agent/      v2 sessions at runtime: claims them, wakes their sandboxes, drives the loop and
+              publishes live frames. agent.module.ts is its Nest module, index.ts the only
+              entry src/api may import.
+  app.module.ts  the root — ApiModule + AgentModule + HealthModule + the drain hook.
+  create-app.ts  composes the Nest app (CORS, parsers, pipes, filters) and inits it; never listens.
+  main.ts     the only entry — hydrates env from the tier file when a DOTENV_PRIVATE_KEY
+              is present, validates env, asserts the agent can boot, createApp(),
               graceful shutdown, listen.
-  vercel.ts   the Vercel function entry — decrypts the shipped tier (vercel-tier-env.ts),
-              validates env, createApp(), default-exports the Express instance.
-build.ts      bundles vercel.ts into a Build Output API v3 directory (see "Vercel bundle").
 .env.<tier>.enc  dotenvx tier files at the app root (committed; .env.keys, never).
 test/         cross-cutting specs (env alignment).
 ```
@@ -165,35 +170,31 @@ them at least once; relative imports work everywhere. Do not reintroduce them.
 
 The API stores no context archives: context goes straight into the sandbox from the client, and
 the old upload endpoints are gone. The global JSON body cap is 4 MB (`JSON_BODY_LIMIT` in
-`src/_lib/body-limits.ts`) because Vercel rejects requests over 4.5 MB before the app sees them,
-so no route gets a larger parser. User-layer uploads fit because the harness skips files over
-3,000,000 bytes (`MAX_USER_LAYER_FILE_BYTES`), whose base64 body is 4,000,000 bytes.
+`src/_lib/body-limits.ts`) for every route. User-layer uploads fit because the harness skips files
+over 3,000,000 bytes (`MAX_USER_LAYER_FILE_BYTES`), whose base64 body is 4,000,000 bytes.
 
 ## Deploy
 
-Production is the comp-ai Vercel project `atlas-api` (`api.byatlas.io`, root `apps/api`, production
-branch `main`, `vercel.json`) over PlanetScale `atlas/main`. Background jobs run on trigger.dev.
-Nothing else hosts Atlas.
+Production is the Render web service `atlas-api` (`srv-dbmaj7ajnfac738tg30g`, renamed from
+`atlas-agent`) over PlanetScale `atlas/main`; it autodeploys `main`. Background jobs run on
+trigger.dev. Nothing else hosts Atlas.
+- Build: `bun install --frozen-lockfile && bun run --cwd apps/daemon build`.
+- Pre-deploy: `bun run --cwd apps/api db:migrate:predeploy` migrates with the same three-try retry as
+  `scripts/migrate-deploy.mjs`, then runs `prisma db verify --strict` against PlanetScale. A failure
+  aborts the deploy, so the previous instance keeps serving and the schema never half-applies.
+- Start: `bun run --cwd apps/api start`. Render's health check is `/healthz`.
+- Render env: `DOTENV_PRIVATE_KEY_PRODUCTION_ENC`, `APP_TIER=production`, `BUN_VERSION`, `NODE_ENV`.
 
-**A merge to main builds a production deployment at once, but `api.byatlas.io` moves only after
-the `migrate-production` Deployment Check passes.** `.github/workflows/release.yml` runs on every
-push to main (no path filter, because Vercel requires the check on every production deployment).
-Its `migrate-production` job runs `bun run db:migrate:deploy` and then `prisma db verify --strict`
-against PlanetScale with `MIGRATE_TIER=production`; Vercel holds the aliasing until that job is
-green, so a failed migration leaves the previous deploy serving and the schema never half-applied.
-The job name is the Deployment Check name, so keep it unique across workflows.
+`api.byatlas.io` is a proxied Cloudflare CNAME in front of the Worker `atlas-api-render-proxy` (route
+`api.byatlas.io/*`), which forwards to `atlas-agent-epee.onrender.com`; the Worker exists because the
+plan cannot override the Host header. `agent.byatlas.io` is an unproxied CNAME to the same origin and
+must stay: the MCP `redirect_uri` is sealed into pending rows as
+`https://agent.byatlas.io/mcp-oauth/callback`.
 
-**`api-health` is the second Deployment Check: it holds the alias until the new build answers
-`GET /v1/health` with 200.** It runs after `migrate-production` (so a build that expects a new
-migration is probed against the migrated schema) and calls `scripts/deployment-health-gate.ts`, which
-finds the production deployment of `GITHUB_SHA` through the Vercel API, waits for it to settle, and
-probes its `*.vercel.app` URL with the `VERCEL_AUTOMATION_BYPASS_SECRET` repo secret (the project's
-automation bypass) six times, 10 s apart. A deployment Vercel canceled through `ignoreCommand` passes
-unprobed; one that errors, never settles or never answers 200 fails the check, and `api.byatlas.io`
-stays on the previous build. A build passing CI but crashing on cold start (#1782 read `SECRET_KEY`
-at module load, before `vercel-tier-env.ts` decrypted it) is exactly what this catches. `deploy-trigger`
-(see Background jobs) needs `migrate-production` and runs only when the push touched the API's
-build closure. Locally the same migration is `MIGRATE_TIER=production bun run db:migrate:deploy`.
+`.github/workflows/release.yml` runs on every push to main. Its `render-live` job waits for the Render
+deploy of `GITHUB_SHA` to go live, or to be superseded by a newer deploy, then probes
+`https://api.byatlas.io/healthz`. `deploy-trigger` (see Background jobs) needs it, so trigger tasks
+never run ahead of the migrated schema.
 
 The migration is the only thing that applies schema in a deployed tier, never the app, which holds
 no DDL rights by design. It connects through `DIRECT_URL` (PlanetScale's direct endpoint, :5432;
@@ -201,7 +202,8 @@ no DDL rights by design. It connects through `DIRECT_URL` (PlanetScale's direct 
 `DATABASE_URL` (`packages/db/prisma.config.ts`): a migration's session-level lock does not survive
 the pooler, and a killed job once left the lock pinned on a pooled backend so every later run timed
 out acquiring it (P1002). `scripts/migrate-deploy.mjs` retries the deploy three times with a 20 s
-backoff. The verify step sets `DATABASE_URL` to `DIRECT_URL` for the same reason.
+backoff, and the pre-deploy runs it before the verify step. The verify step sets `DATABASE_URL` to
+`DIRECT_URL` for the same reason.
 
 **Fix forward, never roll back.** A bad deploy is repaired by the next merge, so a migration may
 drop or rename in the same deploy as the code that stops using it. Prisma 8 has no down-migrations
@@ -219,61 +221,15 @@ migration graph than the one this build was emitted against (`contractStorageHas
 shows up on the health check instead of as 500s. A database it cannot reach is reported as
 `unknown` and stays healthy: a cold start is not drift.
 
-## Vercel bundle
+## Background work
 
-`bun run build` (`build.ts`) writes `.vercel/output`: `Bun.build` bundles
-`src/vercel.ts` into one `index.js` (`target: 'bun'`, ESM), plus `config.json` routing everything to
-the function and `.vc-config.json` (`runtime: bun1.x`, `launcherType: Nodejs`). The committed
-`.env.production.enc` is copied into the function; Vercel holds only
-`DOTENV_PRIVATE_KEY_PRODUCTION_ENC`, and `DOTENVX_ENVS_DIR=.` in `.vc-config.json` makes
-`vercel-tier-env.ts` decrypt it at boot (fatal if the file is missing or any value stays
-`encrypted:`). The migration graph's contract hashes are inlined at build time as
-`__ATLAS_MIGRATION_GRAPH__`, because the bundle has no `packages/db/migrations` directory to read.
-
-The build follows comp-neo's pattern. `OPTIONAL_IMPORTS` in `build.ts` stays external: the lazy
-imports of NestJS and its libraries (the NestJS bundling guide's list) that this API never installs.
-`class-validator` and `class-transformer` stay bundled. `@thallesp/nestjs-better-auth` loads express
-with `createRequire()`, which `Bun.build` cannot follow, so `RUNTIME_PACKAGES = ['express']` is
-external too and is installed beside the bundle: `build-runtime-packages.ts`
-(`lockedRuntimePackages`) pins express and its full dependency graph from the repo `bun.lock`
-(`lockfileVersion` 3), `build.ts` writes that as `index.func/package.json` and a trimmed `bun.lock`,
-then runs `bun install --production --linker hoisted --frozen-lockfile --os=* --cpu=*` in the
-function directory. Any other unresolved import fails the build.
-
-`src/vercel-bundle.integration.spec.ts` builds the real output and serves the function directory
-from a `docker run --read-only` container of the same Bun image Vercel runs
-(`BUN_IMAGE` in `test/bundle-container.ts`), with HOME on the read-only mount — the way Vercel's filesystem sees
-it, so a package the bundle left out fails the spec instead of resolving from `node_modules`. A
-host-side run cannot stand in for this: `bun --no-install` hides auto-install, and a read-only HOME
-on macOS still finds a writable cache. The container gets no app secrets as plain env: the spec
-encrypts them into a throwaway `.env.production.enc` in the function directory with a freshly minted
-keypair (`test/bundle-tier.ts`) and passes only the private key plus `.vc-config.json`'s
-`environment`, so the bundle boots through `vercel-tier-env.ts` the way Vercel boots it and a module
-that reads a secret at load time fails the spec. It runs against a throwaway `postgres:17-alpine` container on
-a spec-owned network and hits health, 401, bearer-authenticated, tRPC input validation, better-auth and the
-HMAC webhook. Only the `api-bundle` CI job sets `ATLAS_LIVE_DOCKER=1` for it; elsewhere it is skipped. It
-migrates the throwaway database the way `scripts/migrate-deploy.mjs` does (`db migrate --to db`).
-Run it after adding any module or dependency: it catches an import the bundle misses.
-
-Bun auto-installs any package it cannot resolve at import time, and on a read-only filesystem that
-write kills the process instead of throwing a catchable resolve error. The function ships no
-`bunfig.toml`: with a `node_modules` next to the bundle Bun does not auto-install, and the read-only
-spec passes 8/8 without one, so the lazily imported externals fail as ordinary, caught resolve errors.
-
-Work that must outlive the response goes to `BackgroundWork.keepAlive` (`src/_core/ports/background-work.ts`),
-because a Vercel instance can freeze once the response is sent. `backgroundWorkProvider()` binds
-`waitUntil` from `@vercel/functions` when `VERCEL === '1'` and a no-op otherwise. GitHub wake boots
-ride it; web-thread provisioning runs in the `pod-provision` trigger.dev task instead. Both share
-`VercelSandboxWakeBoot`, which mounts, launches serve and rolls back a sandbox it created when the
-boot fails. A boot can outlive one
-response: a sandbox create plus the serve download can approach the function's `maxDuration`.
-`GithubSandboxWakeService` hands every tracked lookup and boot to `keepAlive`, and the
-wake debounce is 0 on Vercel (the `wakeClaim` CAS dedupes events and instances), so the boot starts
-inside the kept-alive lookup chain. The trigger.dev worker passes `ProcessBackgroundWork` and the
-5 s debounce and relies on `settle()`.
-
-The Vercel project `atlas-api` sits behind Comp AI's SSO on its `*.vercel.app` URLs, so smoke-test
-those with the project's protection bypass header. `api.byatlas.io` is the production alias.
+Work that must outlive the request goes to `BackgroundWork.keepAlive`
+(`src/_core/ports/background-work.ts`), bound to `ProcessBackgroundWork`: it tracks every promise and
+waits for them at shutdown, capped at 5 s (`BACKGROUND_WORK_SHUTDOWN_CAP_MS`). GitHub wake boots ride
+it — `GithubSandboxWakeService` hands every tracked lookup and boot to `keepAlive`, debounced by
+`WAKE_DEBOUNCE_MS` — while web-thread provisioning runs in the `pod-provision` trigger.dev task
+instead. Both paths share `VercelSandboxWakeBoot`, which mounts, launches serve and rolls back a
+sandbox it created when the boot fails.
 
 ## Auth
 
@@ -328,8 +284,8 @@ a tier does not supply it), then `dotenvx set` to fill values in place. Typed ac
 Local boot: `bun run db:up` (docker Postgres on 5433), `bun run db:migrate`, `bun run db:seed`,
 `bun run dev`. An existing local database migrated by Prisma 7 first needs a one-off
 `bun run env:inject -- bun run --cwd ../../packages/db prisma db sign 20261022T0209_baseline --no-advance-ref` (see `packages/db/AGENTS.md`).
-Migrations run through `db:migrate` (dotenvx-injected); in deployed tiers they run via
-`db:migrate:deploy` with `MIGRATE_TIER` set, never from the app container.
+Migrations run through `db:migrate` (dotenvx-injected); in production they run as the Render
+pre-deploy command, `db:migrate:predeploy`, never from the app process.
 
 ## Redis
 
@@ -346,10 +302,9 @@ parks budgeted GitHub work until it recovers, while cached replay and live strea
 budget covers access checks, subscription/hook setup, refreshes and webhook REST fills. Foreground
 repository/branch pickers, OAuth device flow and SSH signing-key management retain their existing
 procedure/provider controls and do not depend on the coordinator.
-Local dev needs it: the long-lived entry boots the agent host in-process, and the host refuses to
-start without `REDIS_URL`. `isConfigured()` is `false` on Vercel, where `REDIS_URL` is unset, and
-callers choose local-only behaviour there; `client()` and `duplicate()` throw rather than reach for
-localhost.
+Local dev needs it: the app boots the agent in-process, and the agent refuses to start without
+`REDIS_URL`. `isConfigured()` is `false` when `REDIS_URL` is unset and callers choose local-only
+behaviour there; `client()` and `duplicate()` throw rather than reach for localhost.
 
 ## Background jobs
 
@@ -387,7 +342,7 @@ one exact version; bump all three at once.
   `bun run dev:no-trigger` is the API alone, for work that dispatches nothing.
   `trigger:dev` runs only the worker.
 - **Deploy is automatic.** The `deploy-trigger` job in `.github/workflows/release.yml` deploys to
-  prod after `migrate-production` passes, on every merge to main that touches the API's build
+  prod after `render-live` passes, on every merge to main that touches the API's build
   closure, serialized and never cancelled. The CLI authenticates with the `TRIGGER_ACCESS_TOKEN` repo secret (a `tr_pat_` personal token) and takes
   the project from `trigger.config.ts`. The job then decrypts the prod `TRIGGER_SECRET_KEY` and runs
   `scripts/trigger-smoke.ts`, which dispatches `atlas-smoke` (`SELECT 1` through the worker's db)
@@ -398,11 +353,11 @@ one exact version; bump all three at once.
   `trigger.config.ts` sets `conditions: ['bun']`. `@dltech/atlas-db`, `@prisma/orm-postgres`, `pg`
   and ioredis bundle; Prisma 8 has no query engine or wasm to keep external, and its
   `TimestamptzJsDate` columns need no `Temporal`, which Node 24 lacks. `bun run trigger:deploy -- --dry-run` proves the build but not the runtime;
-  the smoke step is what proves the runtime. `src/vercel.ts` must never import `src/trigger/`.
+  the smoke step is what proves the runtime.
 - **Timers run only where asked.** `GithubSweepSchedulerService` owns the 30 s and 60 s
   `@Interval`s and `ScheduleModule` is imported only when `GITHUB_SWEEPS_IN_PROCESS=1` (set by the
-  `dev` script), so `bun run dev` keeps sweeping while Vercel, Render and trigger.dev instances
-  never run timers. Prod sweeps are trigger.dev schedules.
+  `dev` script), so `bun run dev` keeps sweeping while the Render service and trigger.dev
+  instances never run timers. Prod sweeps are trigger.dev schedules.
 
 ## Rules that differ from the rest of the repo
 

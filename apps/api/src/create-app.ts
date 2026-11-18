@@ -2,8 +2,8 @@ import { ValidationPipe, VersioningType } from '@nestjs/common'
 import { HttpAdapterHost, NestFactory } from '@nestjs/core'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import helmet from 'helmet'
+import type { AgentHostEnv } from './agent'
 import { GlobalExceptionFilter } from './api/global-exception.filter'
-import { hostRootModule } from './api/host-root.module'
 import { trustedOriginsOf } from './api/platform/desktop-auth/trusted-origins'
 import { EnvService } from './_core/config/env/env.service'
 import { JSON_BODY_LIMIT } from './_lib/body-limits'
@@ -16,29 +16,31 @@ const VALIDATION_PIPE_OPTIONS = {
   transformOptions: { enableImplicitConversion: true },
 }
 
+export const originAllowed = (args: {
+  origin: string | undefined
+  trustedOrigins: ReadonlySet<string>
+  agentOrigins: readonly string[]
+}): boolean =>
+  args.origin === undefined ||
+  args.trustedOrigins.has(args.origin) ||
+  args.agentOrigins.includes(args.origin)
+
 export async function createApp(
-  args: { withHost?: boolean } = {},
+  args: { agentEnv?: AgentHostEnv } = {},
 ): Promise<NestExpressApplication> {
-  const { AppModule } = await import('./api/app.module.js')
-  const host = args.withHost === true ? await import('@dltech/atlas-agent-host') : undefined
-  const hostEnv = host?.readAgentHostEnv()
-  const rootModule =
-    host === undefined || hostEnv === undefined
-      ? AppModule
-      : hostRootModule({ appModule: AppModule, hostModule: host.HostModule.forRoot(hostEnv) })
-  const app = await NestFactory.create<NestExpressApplication>(rootModule, { rawBody: true })
+  const { AppModule } = await import('./app.module.js')
+  const agentEnv = args.agentEnv ?? (await import('./agent/index.js')).readAgentHostEnv()
+  const app = await NestFactory.create<NestExpressApplication>(AppModule.forRoot(agentEnv), {
+    rawBody: true,
+  })
 
   app.use(helmet())
   const trustedOrigins = trustedOriginsOf(app.get(EnvService))
-  const hostOrigins = hostEnv?.trustedOrigins ?? []
   // The Expo web test build calls the API cross-origin with a bearer header, so no credentials
-  // and no blanket origin: only TRUSTED_ORIGINS ∪ WEB_ORIGIN, plus the agent host's own list.
+  // and no blanket origin: only TRUSTED_ORIGINS ∪ WEB_ORIGIN, plus the agent's own list.
   app.enableCors({
-    origin: (origin, allow) => {
-      if (origin === undefined || trustedOrigins.has(origin) || hostOrigins.includes(origin))
-        allow(null, true)
-      else allow(null, false)
-    },
+    origin: (origin, allow) =>
+      allow(null, originAllowed({ origin, trustedOrigins, agentOrigins: agentEnv.trustedOrigins })),
     credentials: false,
     allowedHeaders: ['authorization', 'content-type', 'atlas-client-version', 'trpc-accept'],
     exposedHeaders: ['set-auth-token'],
@@ -52,7 +54,7 @@ export async function createApp(
   app.useGlobalPipes(new ValidationPipe(VALIDATION_PIPE_OPTIONS))
   app.useGlobalFilters(new GlobalExceptionFilter(app.get(HttpAdapterHost).httpAdapter))
 
-  if (host !== undefined) app.enableShutdownHooks([], { useProcessExit: true })
+  app.enableShutdownHooks([], { useProcessExit: true })
 
   await app.init()
   return app

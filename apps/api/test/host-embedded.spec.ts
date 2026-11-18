@@ -41,7 +41,7 @@ type Booted = { app: NestExpressApplication; base: string }
 
 const boot = async (): Promise<Booted> => {
   const { createApp } = await import('../src/create-app')
-  const app = await createApp({ withHost: true })
+  const app = await createApp()
   await app.listen(0)
   const address = app.getHttpServer().address() as AddressInfo
   return { app, base: `http://127.0.0.1:${address.port}` }

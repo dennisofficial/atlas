@@ -21,7 +21,7 @@ export function nativeBinaryPath(): string {
 }
 
 export function generateArgs({ command, output }: { command: string; output: string }): string[] {
-  return [command, '-e', 'src/api/app.module.ts', '-o', output, '--import-extension', 'none']
+  return [command, '-e', 'src/api/api.module.ts', '-o', output, '--import-extension', 'none']
 }
 
 if (import.meta.main) {

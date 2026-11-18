@@ -276,26 +276,6 @@ jobs:
           path: .cache/incremental-tests
           key: incremental-tests-${{ github.ref }}-${{ github.run_id }}-${{ github.run_attempt }}
 
-  api-bundle:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: oven-sh/setup-bun@v2.2.0
-
-      - uses: actions/cache@v6
-        with:
-          path: ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-
-      - run: bun install --frozen-lockfile
-
-      - name: vercel bundle spec
-        run: bun test src/vercel-bundle.integration.spec.ts
-        working-directory: apps/api
-        env:
-          ATLAS_LIVE_DOCKER: '1'
-
   # Unsigned rehearsal of the mac build on PRs: proves the web export, the OTA payload, the host
   # bundle and electron-builder packaging still work without touching a secret, so fork PRs run it
   # too and it gates merges. Main pushes skip it: the PR run already proved the merge commit and
@@ -373,7 +353,7 @@ jobs:
     # run reports workflow_dispatch here, so an event-dependent name would never satisfy the required
     # `ci` check on the pull request it was sent to rescue.
     runs-on: ubuntu-latest
-    needs: [check, binaries, web-build, test, api-bundle, mac-app-rehearsal]
+    needs: [check, binaries, web-build, test, mac-app-rehearsal]
     if: always()
     steps:
       - name: Fail unless every check passed

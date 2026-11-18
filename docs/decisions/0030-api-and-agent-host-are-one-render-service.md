@@ -68,3 +68,31 @@ constraints the design worked around rather than needing a second runtime to sat
   stops shaping the protocol; cursors stay, because a deploy or a dropped socket still reconnects.
 - The API's 4 MB body limit, versioning and exception filter apply to host routes now, and the host
   routes stay unversioned, so no client path changes at the flip.
+
+## Update 2026-11-18: one source tree, and the Vercel path is gone
+
+The merge is finished; D4's rollback is retired.
+- `apps/agent-host/src` is `apps/api/src/agent`, history preserved. `src/api` reaches it only through
+  `src/agent/index.ts`, and `src/agent` imports nothing from `src/api`; a boundary spec enforces both.
+  The root `src/app.module.ts` always mounts `ApiModule` + `AgentModule` + `HealthModule` + the drain
+  hook, and `src/main.ts` is the only entry. There is no build flag and no host-free graph.
+- The Vercel deploy path is deleted: `src/vercel.ts`, `vercel-tier-env.ts`, `build.ts`,
+  `build-runtime-packages.ts`, the read-only bundle spec, the `api-bundle` CI job and
+  `scripts/deployment-health-gate.ts`. `BackgroundWork` is `ProcessBackgroundWork` only, tracking
+  background promises and waiting for them at shutdown, capped at 5 s.
+- The Render service was renamed `atlas-agent` → `atlas-api` (`srv-dbmaj7ajnfac738tg30g`); it
+  autodeploys `main`. Migrations run as its pre-deploy command
+  (`bun run --cwd apps/api db:migrate:predeploy`: migrate with retry, then `prisma db verify
+  --strict`), so a failed migration aborts the deploy and the previous instance keeps serving.
+  `/healthz` is the health check. Render env: `DOTENV_PRIVATE_KEY_PRODUCTION_ENC`,
+  `APP_TIER=production`, `BUN_VERSION`, `NODE_ENV`.
+- `release.yml` replaced the `migrate-production` and `api-health` Deployment Checks with one
+  `render-live` job: it waits for the Render deploy of `GITHUB_SHA` to go live or be superseded by a
+  newer deploy, then probes `https://api.byatlas.io/healthz`. `deploy-trigger` needs it, so trigger
+  tasks never run ahead of the migrated schema.
+- `api.byatlas.io` is a proxied Cloudflare CNAME to the Worker `atlas-api-render-proxy` (route
+  `api.byatlas.io/*`), which forwards to `atlas-agent-epee.onrender.com` because the plan cannot
+  override the Host header. `agent.byatlas.io` is an unproxied CNAME to the same origin and must
+  stay: the MCP `redirect_uri` is sealed into pending rows as
+  `https://agent.byatlas.io/mcp-oauth/callback`.
+- The Vercel `atlas-api` project is deleted, so recovery is the next merge.

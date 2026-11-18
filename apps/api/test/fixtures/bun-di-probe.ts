@@ -9,13 +9,13 @@ function injectedField({ instance, field }: { instance: object; field: string })
 // The app graph is imported only after @nestjs/common and @nestjs/core finish loading: the CJS
 // @nestjs/throttler require()s them while Bun may still be fetching them as ESM, which throws
 // "require() async module ... is unsupported" (https://github.com/oven-sh/bun/issues/33180).
-const { AppModule } = await import('../../src/api/app.module')
+const { ApiModule } = await import('../../src/api/api.module')
 const { GithubSandboxWakeService } = await import(
   '../../src/api/cloud/github/github-sandbox-wake.service'
 )
 const { SessionMiddleware } = await import('../../src/_module/session/session.middleware')
 
-const context = await NestFactory.createApplicationContext(AppModule, { logger: false })
+const context = await NestFactory.createApplicationContext(ApiModule, { logger: false })
 
 const result = {
   sessionMiddlewareVerifier: injectedField({

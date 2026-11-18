@@ -110,8 +110,9 @@ describeWithHost('api under the bun runtime', () => {
     })
   }, BOOT_TIMEOUT_MS + 120_000)
 
-  afterAll(() => {
+  afterAll(async () => {
     child.kill('SIGKILL')
+    await sharedPool().query('DROP TABLE IF EXISTS prisma_contract.marker')
   })
 
   it('answers health', async () => {

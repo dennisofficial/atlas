@@ -2,7 +2,14 @@ import { spawn } from 'node:child_process'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-const DB_PACKAGE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'packages', 'db')
+export const DB_PACKAGE = join(
+  dirname(fileURLToPath(import.meta.url)),
+  '..',
+  '..',
+  '..',
+  'packages',
+  'db',
+)
 
 const DEFAULT_ATTEMPTS = 3
 const DEFAULT_BACKOFF_MS = 20_000
@@ -27,7 +34,7 @@ export async function migrateDeployWithRetry({
   return 1
 }
 
-function runPrismaDbMigrate() {
+export function runPrismaDbMigrate() {
   return new Promise((resolve) => {
     const child = spawn('bun', ['run', '--bun', 'prisma', 'db', 'migrate', '--to', 'db'], {
       cwd: DB_PACKAGE,

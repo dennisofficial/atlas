@@ -1,13 +1,10 @@
-import { readdirSync, readFileSync } from 'node:fs'
+import { readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'bun:test'
 
 const SRC_ROOT = import.meta.dirname
 const ENTRY = path.join(SRC_ROOT, 'create-app.ts')
 const AUTH_SERVER = path.join(SRC_ROOT, 'api', 'platform', 'auth', 'auth.server.ts')
-// Only static (`from`) imports are followed. `import()` is deferred and runs after
-// vercel.ts's injectEncryptedTierEnv(), so it is the sanctioned way to reach code that
-// reads process.env at module load.
 const SPECIFIER_PATTERN = /(?:from\s+)['"]([^'"]+)['"]/g
 
 function specifiersOf({ file }: { file: string }): string[] {
@@ -32,7 +29,7 @@ function resolveLocal({ file, specifier }: { file: string; specifier: string }):
 
 function exists(file: string): boolean {
   try {
-    return readdirSync(path.dirname(file)).includes(path.basename(file))
+    return statSync(file).isFile()
   } catch {
     return false
   }
@@ -54,14 +51,14 @@ function reachableFrom({ entry }: { entry: string }): Set<string> {
 }
 
 describe('create-app import boundary', () => {
-  it('never statically reaches auth.server.ts, whose top-level env throw runs before injectEncryptedTierEnv', () => {
+  it('never statically reaches auth.server.ts, whose top-level env throw runs before main.ts hydrates the tier', () => {
     const reachable = reachableFrom({ entry: ENTRY })
     const offenders = [...reachable]
       .filter((file) => file === AUTH_SERVER)
       .map((file) => path.relative(SRC_ROOT, file))
     expect(
       offenders,
-      'create-app must not statically import auth.server: it throws on env at module load, before vercel.ts decrypts the tier',
+      'create-app must not statically import auth.server: it throws on env at module load, before main.ts hydrates the tier',
     ).toEqual([])
   })
 })

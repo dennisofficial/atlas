@@ -31,7 +31,7 @@ export const SPLIT_RULES: readonly SplitRule[] = [
       'packages/host',
       'packages/control',
       'packages/protocol',
-      'apps/agent-host',
+      'apps/api/src/agent',
       'apps/api/src/api/cloud/agent-host',
       'apps/daemon',
     ],

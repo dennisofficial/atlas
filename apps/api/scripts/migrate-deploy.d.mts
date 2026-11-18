@@ -1,3 +1,5 @@
+export declare const DB_PACKAGE: string
+
 export interface MigrateDeployRetryOptions {
   run: () => Promise<number>
   sleep: (ms: number) => Promise<void>
@@ -7,3 +9,5 @@ export interface MigrateDeployRetryOptions {
 }
 
 export declare function migrateDeployWithRetry(options: MigrateDeployRetryOptions): Promise<number>
+
+export declare function runPrismaDbMigrate(): Promise<number>
