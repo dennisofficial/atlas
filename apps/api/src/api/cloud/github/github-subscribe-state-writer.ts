@@ -43,17 +43,19 @@ export class GithubSubscribeStateWriter {
       })
     if (read === null) return held === null ? null : dtoOf(held)
     const observedAt = new Date().toISOString()
+    const observation = pullObservationOfRest({
+      repoFullName: args.repoFullName,
+      pull: read.pull,
+      updatedAt: read.pull.updated_at,
+      observedAt,
+      source: EPrSource.SubscribePull,
+    })
+    if (observation === null) return held === null ? null : dtoOf(held)
     const applied = await this.deps.store.apply({
       repoFullName: args.repoFullName,
       prNumber,
       observations: [
-        pullObservationOfRest({
-          repoFullName: args.repoFullName,
-          pull: read.pull,
-          updatedAt: read.pull.updated_at,
-          observedAt,
-          source: EPrSource.SubscribePull,
-        }),
+        observation,
         mergeabilityObservationOf({
           pull: read.pull,
           observedAt,

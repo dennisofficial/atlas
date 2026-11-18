@@ -148,18 +148,25 @@ export class GithubPollSweeperService {
     source: EPrSource
   }): Promise<unknown> {
     const observedAt = new Date().toISOString()
+    const observation = pullObservationOfRest({
+      repoFullName: args.repoFullName,
+      pull: args.pull,
+      updatedAt: args.pull.updated_at,
+      observedAt,
+      source: args.source,
+    })
+    if (observation === null) {
+      this.logger.warn(
+        `skipping the pull for ${args.repoFullName}#${args.pull.number}: incomplete fields`,
+      )
+      return Promise.resolve()
+    }
 
     return this.store.apply({
       repoFullName: args.repoFullName,
       prNumber: args.pull.number,
       observations: [
-        pullObservationOfRest({
-          repoFullName: args.repoFullName,
-          pull: args.pull,
-          updatedAt: args.pull.updated_at,
-          observedAt,
-          source: args.source,
-        }),
+        observation,
         mergeabilityObservationOf({ pull: args.pull, observedAt, source: args.source }),
       ],
     })

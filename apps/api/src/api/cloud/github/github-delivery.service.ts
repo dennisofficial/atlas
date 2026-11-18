@@ -192,20 +192,26 @@ export class GithubDeliveryService {
       })
     }
     if (rest.kind === 'skipped') return
+    const restObservedAt = new Date().toISOString()
+    const restObservation = pullObservationOfRest({
+      repoFullName,
+      pull: rest.pull,
+      updatedAt: rest.pull.updated_at,
+      observedAt: restObservedAt,
+      source: EPrSource.DeliveryFill,
+    })
+    if (restObservation === null) {
+      this.logger.warn(`skipping the REST pull for ${repoFullName}#${prNumber}: incomplete fields`)
+      return
+    }
     await this.store.apply({
       repoFullName,
       prNumber,
       observations: [
-        pullObservationOfRest({
-          repoFullName,
-          pull: rest.pull,
-          updatedAt: rest.pull.updated_at,
-          observedAt: new Date().toISOString(),
-          source: EPrSource.DeliveryFill,
-        }),
+        restObservation,
         mergeabilityObservationOf({
           pull: rest.pull,
-          observedAt: new Date().toISOString(),
+          observedAt: restObservedAt,
           source: EPrSource.DeliveryFill,
         }),
       ],

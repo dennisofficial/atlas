@@ -8,12 +8,20 @@ import {
 
 import type { RestPullRequest } from './github-pull-request-mapping'
 
+const sampleIsComplete = (sample: PullSample): boolean =>
+  [sample.repoFullName, sample.url, sample.headBranch, sample.headSha, sample.baseBranch].every(
+    (field) => typeof field === 'string' && field !== '',
+  ) &&
+  Number.isInteger(sample.prNumber) &&
+  typeof sample.pullUpdatedAt === 'string' &&
+  !Number.isNaN(Date.parse(sample.pullUpdatedAt))
+
 export function pullObservationOfWebhook(args: {
   payload: unknown
   observedAt: string
 }): PrObservation | null {
   const sample = pullSampleOfPayload(args.payload)
-  if (sample === null) return null
+  if (sample === null || !sampleIsComplete(sample)) return null
 
   return {
     kind: 'pull',
@@ -38,16 +46,16 @@ export function pullSampleOfRest(args: {
   return {
     repoFullName: args.repoFullName,
     prNumber: pull.number,
-    title: pull.title,
-    url: pull.html_url,
+    title: pull.title ?? '',
+    url: pull.html_url ?? '',
     state,
-    headBranch: pull.head.ref,
-    headSha: pull.head.sha,
-    headRepoFullName: pull.head.repo?.full_name ?? null,
-    baseBranch: pull.base.ref,
+    headBranch: pull.head?.ref ?? '',
+    headSha: pull.head?.sha ?? '',
+    headRepoFullName: pull.head?.repo?.full_name ?? null,
+    baseBranch: pull.base?.ref ?? '',
     pullUpdatedAt: args.updatedAt,
     closedAt: null,
-    mergedAt: pull.merged_at,
+    mergedAt: pull.merged_at ?? null,
   }
 }
 
@@ -57,12 +65,16 @@ export function pullObservationOfRest(args: {
   updatedAt: string
   observedAt: string
   source: EPrSource
-}): PrObservation {
+}): PrObservation | null {
+  if (typeof args.updatedAt !== 'string' || Number.isNaN(Date.parse(args.updatedAt))) return null
+  const sample = pullSampleOfRest(args)
+  if (!sampleIsComplete(sample)) return null
+
   return {
     kind: 'pull',
     source: args.source,
     observedAt: args.observedAt,
-    sample: pullSampleOfRest(args),
+    sample,
   }
 }
 
