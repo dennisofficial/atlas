@@ -169,7 +169,7 @@ export const makeRig = async (args: {
       plane.post({
         sessionId: SESSION,
         kind: 'message',
-        payload: JSON.stringify({ text }),
+        payload: JSON.stringify({ text, via: 'operator' }),
       }),
     postStop: () => plane.post({ sessionId: SESSION, kind: 'stop', payload: '{}' }),
     wake: () => bus.wake(SESSION),

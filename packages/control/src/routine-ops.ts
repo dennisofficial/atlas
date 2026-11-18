@@ -1,6 +1,11 @@
 import { randomUUID } from 'node:crypto'
 
-import { ESessionStatus, type PluginViewFold, type V2Event } from '@dltech/atlas-core'
+import {
+  EMessageOrigin,
+  ESessionStatus,
+  type PluginViewFold,
+  type V2Event,
+} from '@dltech/atlas-core'
 import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
 import type { z } from 'zod'
 
@@ -152,7 +157,7 @@ export const runRoutineIn = async (
     tx,
     sessionId,
     kind: INBOX_KIND_MESSAGE,
-    payload: JSON.stringify({ text: routine.prompt }),
+    payload: JSON.stringify({ text: routine.prompt, via: EMessageOrigin.Routine }),
     at: now,
   })
   await tx.insertRoutineRun({

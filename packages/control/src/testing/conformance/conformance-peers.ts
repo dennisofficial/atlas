@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
-import { EReportKind } from '@dltech/atlas-core'
+import { EMessageOrigin, EReportKind, inboxEventOf, toThreadId } from '@dltech/atlas-core'
 
 import { ControlPlane } from '../../control-plane'
 import type { ConformanceParams } from './conformance'
@@ -64,6 +64,7 @@ export function describeControlPlanePeers(params: ConformanceParams): void {
       expect(inbox[0]?.senderSessionId).toBe(SESSION)
       expect(JSON.parse(inbox[0]?.payload ?? '{}')).toEqual({
         text: 'Take the parser.',
+        via: EMessageOrigin.PeerAgent,
       })
     })
 
@@ -134,8 +135,15 @@ export function describeControlPlanePeers(params: ConformanceParams): void {
       })
       expect(inbox).toHaveLength(1)
       expect(inbox[0]?.senderSessionId).toBe('peer-1')
-      expect(JSON.parse(inbox[0]?.payload ?? '{}')).toEqual({
-        text: 'the parser is green',
+      expect(inbox[0]?.kind).toBe('event')
+      const reported = inboxEventOf(inbox[0]?.payload ?? '')
+      expect(
+        reported.ok && reported.event.type === 'agent-reported' && reported.event,
+      ).toMatchObject({
+        agentId: toThreadId('peer-thread-1'),
+        agentType: 'teammate',
+        prose: 'the parser is green',
+        kind: EReportKind.Done,
       })
       expect(await params.wakes(SESSION)).toBe(before + 1)
     })
@@ -184,7 +192,10 @@ export function describeControlPlanePeers(params: ConformanceParams): void {
       })
       expect(inbox.length).toBe(1)
       expect(inbox[0]?.senderSessionId).toBe(SESSION)
-      expect(JSON.parse(inbox[0]?.payload ?? '{}')).toEqual({ text: 'm0' })
+      expect(JSON.parse(inbox[0]?.payload ?? '{}')).toEqual({
+        text: 'm0',
+        via: EMessageOrigin.PeerAgent,
+      })
     })
 
     it('lets two sessions of one user message each other with no spawn link', async () => {
@@ -207,7 +218,10 @@ export function describeControlPlanePeers(params: ConformanceParams): void {
         limit: 10,
       })
       expect(inbox[0]?.senderSessionId).toBe(SESSION)
-      expect(JSON.parse(inbox[0]?.payload ?? '{}')).toEqual({ text: 'hello' })
+      expect(JSON.parse(inbox[0]?.payload ?? '{}')).toEqual({
+        text: 'hello',
+        via: EMessageOrigin.PeerAgent,
+      })
     })
 
     it('refuses a message to a session another user owns', async () => {

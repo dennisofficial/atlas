@@ -460,4 +460,27 @@ describe('a message from another agent', () => {
       },
     ])
   })
+
+  it('renders a routine prompt as its own prompt rather than the operator speaking', () => {
+    const model = deriveTranscript({
+      events: log([
+        {
+          type: 'user-said',
+          text: 'Summarise what happened overnight',
+          via: EMessageOrigin.Routine,
+        },
+      ]),
+      signals: [],
+    })
+
+    expect(model.entries).toMatchObject([
+      {
+        kind: EEntryKind.AgentSaid,
+        author: EAuthor.Model,
+        text: 'Summarise what happened overnight',
+        sender: 'a routine',
+        senderSessionId: null,
+      },
+    ])
+  })
 })

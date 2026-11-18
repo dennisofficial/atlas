@@ -1,5 +1,12 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
-import { chainEvents, toRunId, toThreadId, type V2Body, type V2Event } from '@dltech/atlas-core'
+import {
+  chainEvents,
+  EMessageOrigin,
+  toRunId,
+  toThreadId,
+  type V2Body,
+  type V2Event,
+} from '@dltech/atlas-core'
 
 import { ControlPlane } from '../src/control-plane'
 import type { RoutineRow } from '../src/port'
@@ -89,6 +96,7 @@ describe('ControlPlane.runRoutine', () => {
     expect(inbox[0]?.kind).toBe('message')
     expect(JSON.parse(inbox[0]?.payload ?? '{}')).toEqual({
       text: 'Summarise what happened overnight',
+      via: EMessageOrigin.Routine,
     })
 
     expect(await routineNow()).toMatchObject({

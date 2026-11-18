@@ -1,7 +1,10 @@
 import {
   INBOX_KIND_AGENT_NOTICE,
+  INBOX_KIND_EVENT,
   INBOX_KIND_RETRY,
   INBOX_KIND_STOP,
+  inboxEventOf,
+  isTurnTaking,
   visibleEvents,
   type EventDraft,
   type InboxEntry,
@@ -124,6 +127,18 @@ export class InboxIntake implements AgentIntake {
       if (entry.kind === INBOX_KIND_AGENT_NOTICE) {
         await consumeQuietly({ ...glue, entry })
         wakesTurn = true
+        continue
+      }
+      if (entry.kind === INBOX_KIND_EVENT) {
+        const read = inboxEventOf(entry.payload)
+        if (!read.ok) {
+          await this.appendDrafts([
+            { type: 'input-refused', inboxId: entry.inboxId, reason: read.reason },
+          ])
+          continue
+        }
+        await this.appendDrafts([read.event, { type: 'input-consumed', inboxId: entry.inboxId }])
+        if (isTurnTaking(read.event)) wakesTurn = true
         continue
       }
       if (entry.kind === INBOX_KIND_MESSAGE) {

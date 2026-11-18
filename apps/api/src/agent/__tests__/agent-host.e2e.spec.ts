@@ -5,7 +5,7 @@ import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { createDb } from '@dltech/atlas-db'
 import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
-import { GENESIS_HASH, verifySuffix, type V2Event } from '@dltech/atlas-core'
+import { EMessageOrigin, GENESIS_HASH, verifySuffix, type V2Event } from '@dltech/atlas-core'
 
 import { LocalSandboxProvider } from '../testing/local-sandbox-provider'
 import {
@@ -57,7 +57,7 @@ describe('agent-host e2e', () => {
     await plane.post({
       sessionId: args.sessionId,
       kind: INBOX_KIND_MESSAGE,
-      payload: JSON.stringify({ text: args.text }),
+      payload: JSON.stringify({ text: args.text, via: EMessageOrigin.Operator }),
     })
     return mainThreadId
   }

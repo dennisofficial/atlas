@@ -262,6 +262,29 @@ describe('agent report items', () => {
     })
   })
 
+  it('shows a teammate report whose spawn happened in another session', () => {
+    const rows = rowsOf([
+      said(1),
+      wire(5, {
+        type: 'agent-reported',
+        agentId: 'thr_teammate',
+        agentType: 'teammate',
+        intent: 'Lexer rewrite',
+        prose: 'the lexer is rewritten',
+        kind: 'done',
+      }),
+    ])
+    expect(rows.filter((row) => row.kind === ETranscriptKind.Report)).toMatchObject([
+      {
+        agentId: 'thr_teammate',
+        agentType: 'teammate',
+        intent: 'Lexer rewrite',
+        report: 'the lexer is rewritten',
+        failed: false,
+      },
+    ])
+  })
+
   it('turns a relayed ending into a report and a failed one into an error', () => {
     const done = rowsOf([said(1), spawned(2), ended(5)]).find(
       (row) => row.kind === ETranscriptKind.Report,

@@ -16,7 +16,7 @@ import { until } from './until'
 const AT = '2026-11-02T12:00:00.000Z'
 const ARCHIVED = '2026-11-02T13:00:00.000Z'
 
-const asMessage = (text: string): string => JSON.stringify({ text })
+const asMessage = (text: string): string => JSON.stringify({ text, via: 'operator' })
 
 describe('sessions subscription', () => {
   let rig: FollowRig

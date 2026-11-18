@@ -1,6 +1,12 @@
 import type { PrFailedCheck } from '../github/failed-check'
-import type { EPrEventKind, EPrReviewState, EPrVerdict } from './body'
+import type { EMergeQueueMove, EPrEventKind, EPrReviewState, EPrVerdict } from './body'
 import type { NoticeStamp } from './notice-stage'
+
+export type PrChecksTally = {
+  passed: number
+  failed: number
+  running: number
+}
 
 export type PrEventBody =
   | {
@@ -27,6 +33,8 @@ export type PrEventBody =
       failedChecks?: readonly PrFailedCheck[] | undefined
       mergeable?: boolean | undefined
       state?: string | undefined
+      queue?: EMergeQueueMove | undefined
+      checks?: PrChecksTally | undefined
       reviewState?: EPrReviewState | undefined
       path?: string | undefined
       line?: number | undefined

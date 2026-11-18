@@ -1,4 +1,5 @@
 import { ControlPlane, RecordCorruptError } from '@dltech/atlas-control'
+import { EMessageOrigin } from '@dltech/atlas-core'
 import type { LogPort } from '@dltech/atlas-observability'
 import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
 
@@ -74,7 +75,7 @@ const postDuringRevoke = (args: { plane: ControlPlane; log: LogPort }): Revoke =
       await args.plane.post({
         sessionId: params.sessionId,
         kind: INBOX_KIND_MESSAGE,
-        payload: JSON.stringify({ text: 'late message' }),
+        payload: JSON.stringify({ text: 'late message', via: EMessageOrigin.Operator }),
       })
       announce({ log: args.log, message: 'fault: posted during revoke' })
     }

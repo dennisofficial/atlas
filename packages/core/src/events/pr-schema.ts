@@ -1,8 +1,15 @@
 import { z } from 'zod'
 
 import { prFailedCheckSchema } from '../github/failed-check'
-import { EPrEventKind, EPrReviewState, EPrVerdict } from './body'
+import { EMergeQueueMove, EPrEventKind, EPrReviewState, EPrVerdict } from './body'
+import type { PrChecksTally } from './pr-body'
 import { noticeStampSchema } from './notice-stamp-schema'
+
+const prChecksTallySchema: z.ZodType<PrChecksTally> = z.object({
+  passed: z.number().int().nonnegative(),
+  failed: z.number().int().nonnegative(),
+  running: z.number().int().nonnegative(),
+})
 
 export const prEventSchemas = [
   z.object({
@@ -29,6 +36,8 @@ export const prEventSchemas = [
     failedChecks: z.array(prFailedCheckSchema).optional(),
     mergeable: z.boolean().optional(),
     state: z.string().optional(),
+    queue: z.enum(EMergeQueueMove).optional(),
+    checks: prChecksTallySchema.optional(),
     reviewState: z.enum(EPrReviewState).optional(),
     path: z.string().optional(),
     line: z.number().int().positive().optional(),

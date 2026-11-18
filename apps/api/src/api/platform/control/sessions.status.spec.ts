@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import {
   chainEvents,
   EFinishReason,
+  EMessageOrigin,
   ERunFailureKind,
   ESessionStatus,
   toRunId,
@@ -194,6 +195,7 @@ describe('SessionsService status and events', () => {
     const inbox = await plane.readInbox({ sessionId: created.sessionId, afterId: 0, limit: 10 })
     expect(inboxMessageSchema.parse(JSON.parse(inbox[0]?.payload ?? ''))).toEqual({
       text: 'run the tests',
+      via: EMessageOrigin.Operator,
     })
   })
 

@@ -5,6 +5,7 @@ import {
   type RoutineRow,
   type RoutineRunRow as ControlRoutineRunRow,
 } from '@dltech/atlas-control'
+import { EMessageOrigin } from '@dltech/atlas-core'
 import {
   INBOX_KIND_MESSAGE,
   type Routine,
@@ -215,7 +216,7 @@ export class RoutinesService {
       routineId: row.routineId,
       message: {
         kind: INBOX_KIND_MESSAGE,
-        payload: JSON.stringify({ text: row.prompt }),
+        payload: JSON.stringify({ text: row.prompt, via: EMessageOrigin.Routine }),
       },
     })
     return { sessionId }

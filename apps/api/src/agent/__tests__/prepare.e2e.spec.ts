@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { afterAll, beforeEach, describe, expect, it } from 'bun:test'
 
 import { ControlPlane } from '@dltech/atlas-control'
+import { EMessageOrigin } from '@dltech/atlas-core'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { createDb } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
@@ -49,7 +50,7 @@ describe('agent-host prepares a new session before its first turn', () => {
     await plane.post({
       sessionId: args.sessionId,
       kind: INBOX_KIND_MESSAGE,
-      payload: JSON.stringify({ text: args.text }),
+      payload: JSON.stringify({ text: args.text, via: EMessageOrigin.Operator }),
     })
     return mainThreadId
   }

@@ -5,6 +5,7 @@ import {
   attachmentsOf,
   EMessageOrigin,
   INBOX_KIND_AGENT_NOTICE,
+  INBOX_KIND_EVENT,
   INBOX_KIND_RETRY,
   INBOX_KIND_STOP,
   pendingInputsOf,
@@ -101,6 +102,7 @@ export const postedDraftsOf = (params: {
   const { entry } = params
   if (entry.kind === INBOX_KIND_STOP || entry.kind === INBOX_KIND_RETRY) return []
   if (entry.kind === INBOX_KIND_AGENT_NOTICE) return []
+  if (entry.kind === INBOX_KIND_EVENT) return []
   if (entry.kind === INBOX_KIND_WITHDRAW) return []
   if (entry.kind === INBOX_KIND_MESSAGE) {
     const parsed = inboxMessageSchema.safeParse(jsonOf(entry.payload))

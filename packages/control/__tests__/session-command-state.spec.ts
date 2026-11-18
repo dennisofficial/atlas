@@ -126,7 +126,7 @@ describe('session command state', () => {
     const { inboxId } = await plane.post({
       sessionId: SESSION,
       kind: 'message',
-      payload: '{"text":"hi"}',
+      payload: '{"text":"hi","via":"operator"}',
     })
     await append([{ type: 'input-consumed', inboxId }])
     expect(await commands()).toBeUndefined()

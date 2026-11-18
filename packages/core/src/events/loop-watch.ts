@@ -33,6 +33,11 @@ const prEventLabel = (event: Event & { type: 'pr-event' }): string => {
     if (event.mergeable === undefined) return 'mergeability unknown'
     return event.mergeable ? 'now mergeable' : 'now has merge conflicts'
   }
+  if (event.kind === EPrEventKind.MergeQueue) {
+    return event.queue === undefined
+      ? 'merge queue membership changed'
+      : `${event.queue} the merge queue`
+  }
   return `state ${event.state ?? 'changed'}`
 }
 

@@ -116,7 +116,11 @@ describe('follow pump', () => {
     await rig.untilSeq(2)
     const frames = rig.sent.length
     const reads = rig.reads
-    await rig.plane.post({ sessionId: SESSION, kind: 'message', payload: 'hi' })
+    await rig.plane.post({
+      sessionId: SESSION,
+      kind: 'message',
+      payload: JSON.stringify({ text: 'hi', via: 'operator' }),
+    })
     await rig.settled()
     expect(rig.sent.length).toBe(frames)
     expect(rig.reads).toBe(reads)

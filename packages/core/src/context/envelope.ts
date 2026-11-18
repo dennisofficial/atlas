@@ -133,6 +133,7 @@ const LANE_NAMES: Record<EMessageOrigin, LaneName> = {
   [EMessageOrigin.ParentAgent]: { phrase: 'the main agent', heading: 'Main agent' },
   [EMessageOrigin.PeerAgent]: { phrase: 'a peer agent', heading: 'Peer agent' },
   [EMessageOrigin.ChildAgent]: { phrase: 'a sub-agent', heading: 'Sub-agent' },
+  [EMessageOrigin.Routine]: { phrase: 'a routine', heading: 'Routine' },
 }
 
 export function laneNameOf(args: {

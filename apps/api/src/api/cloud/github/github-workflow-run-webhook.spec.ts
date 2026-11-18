@@ -1,9 +1,8 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
-import { createV2EventSchema } from '@dltech/atlas-core'
+import { createV2EventSchema, INBOX_KIND_EVENT, inboxEventOf } from '@dltech/atlas-core'
 import { db } from '@dltech/atlas-db'
-import { INBOX_KIND_MESSAGE, inboxMessageSchema } from '@dltech/atlas-protocol'
 import { beforeEach, describe, expect, it } from 'bun:test'
 
 import { ensureUsers, seedSubscription } from '../../../../test/github-seed'
@@ -29,12 +28,15 @@ const seedV2Thread = async () => {
   })
 }
 
-const inboxTexts = async (sessionId: string) => {
+const inboxEvents = async (sessionId: string) => {
   const entries = await db.orm.v2.V2InboxEntry.where({ sessionId }).all()
-  return entries.map((entry) => ({
-    kind: entry.kind,
-    text: inboxMessageSchema.parse(JSON.parse(entry.payload)).text,
-  }))
+  return entries.map((entry) => ({ kind: entry.kind, read: inboxEventOf(entry.payload) }))
+}
+
+const runEventOf = (entry: Awaited<ReturnType<typeof inboxEvents>>[number]) => {
+  if (!entry.read.ok) throw new Error(entry.read.reason)
+  if (entry.read.event.type !== 'run-event') throw new Error(`expected a run-event`)
+  return entry.read.event
 }
 
 const payloadOf = (
@@ -101,12 +103,20 @@ describe('recordWorkflowRunFinished', () => {
     expect(await recordWorkflowRunFinished({ payload: payloadOf(), wake })).toBe(1)
     expect(await recordWorkflowRunFinished({ payload: payloadOf(), wake })).toBe(0)
 
-    expect(await inboxTexts(V2_SESSION)).toEqual([
-      {
-        kind: INBOX_KIND_MESSAGE,
-        text: 'Workflow run ci #9001 in compai/app on main: completed, all jobs passed. https://github.com/compai/app/actions/runs/9001',
-      },
-    ])
+    const [entry] = await inboxEvents(V2_SESSION)
+    if (entry === undefined) throw new Error('no inbox entry')
+    expect(entry.kind).toBe(INBOX_KIND_EVENT)
+    expect(runEventOf(entry)).toMatchObject({
+      type: 'run-event',
+      repo: 'compai/app',
+      workflowRunId: 9001,
+      workflow: 'ci',
+      branch: 'main',
+      url: 'https://github.com/compai/app/actions/runs/9001',
+      status: 'completed',
+      conclusion: 'success',
+      failedJobs: [],
+    })
     expect(notices).toEqual([{ userId: USER, repoFullName: 'compai/app', kind: 'workflow-run' }])
     const [row] = await rows()
     expect(row?.deliveredRunId).toBe('9001')
@@ -155,7 +165,7 @@ describe('recordWorkflowRunFinished', () => {
       }),
     ).toBe(0)
 
-    expect(await inboxTexts(V2_SESSION)).toEqual([])
+    expect(await inboxEvents(V2_SESSION)).toEqual([])
     expect(notices).toHaveLength(0)
   })
 

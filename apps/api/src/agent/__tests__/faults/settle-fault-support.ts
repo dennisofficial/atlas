@@ -1,4 +1,5 @@
 import type { ScriptedModelStep } from '@dltech/atlas-agent/testing'
+import { EMessageOrigin } from '@dltech/atlas-core'
 import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
 
 import type { FaultRig, HostProcess, ReadEvent } from '../../testing/fault-rig'
@@ -19,7 +20,7 @@ export const postMessage = async (args: {
   await args.rig.plane.post({
     sessionId: args.sessionId,
     kind: INBOX_KIND_MESSAGE,
-    payload: JSON.stringify({ text: args.text }),
+    payload: JSON.stringify({ text: args.text, via: EMessageOrigin.Operator }),
   })
 }
 

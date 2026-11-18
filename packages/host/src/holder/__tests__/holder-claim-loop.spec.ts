@@ -72,7 +72,7 @@ describe('SessionHolder claim loop', () => {
     await rig.plane.post({
       sessionId: SECOND,
       kind: 'message',
-      payload: JSON.stringify({ text: 'second' }),
+      payload: JSON.stringify({ text: 'second', via: 'operator' }),
     })
     await rig.bus.wake(SESSION)
     await rig.bus.wake(SECOND)

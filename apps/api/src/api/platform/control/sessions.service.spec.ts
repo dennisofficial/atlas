@@ -33,7 +33,7 @@ describe('SessionsService', () => {
     const inbox = await plane.readInbox({ sessionId: created.sessionId, afterId: 0, limit: 10 })
     expect(inbox).toHaveLength(1)
     expect(inbox[0]?.kind).toBe('message')
-    expect(JSON.parse(inbox[0]?.payload ?? '')).toEqual({ text: 'hello' })
+    expect(JSON.parse(inbox[0]?.payload ?? '')).toEqual({ text: 'hello', via: 'operator' })
 
     const events = await service.events({ userId: 'user-a', sessionId: created.sessionId })
     expect(events.events).toEqual([])
@@ -51,7 +51,10 @@ describe('SessionsService', () => {
     const inbox = await plane.readInbox({ sessionId: created.sessionId, afterId: 0, limit: 10 })
     expect(inbox).toHaveLength(1)
     expect(inbox[0]?.kind).toBe('message')
-    expect(JSON.parse(inbox[0]?.payload ?? '')).toEqual({ text: 'build me a thing' })
+    expect(JSON.parse(inbox[0]?.payload ?? '')).toEqual({
+      text: 'build me a thing',
+      via: 'operator',
+    })
   })
 
   it('creates the session on the model the caller names', async () => {

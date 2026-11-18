@@ -47,6 +47,28 @@ const viewOf = (args: { events: WireEvent[]; signals?: StepSignal[] }) => {
   })
 }
 
+describe('a routine prompt', () => {
+  it('reads as a prompt from a routine rather than the operator bubble', () => {
+    const view = viewOf({
+      events: [
+        wire(1, {
+          type: 'user-said',
+          text: 'Summarise what happened overnight',
+          via: 'routine',
+        }),
+      ],
+    })
+
+    expect(view.items).toMatchObject([
+      {
+        kind: ETranscriptKind.Notice,
+        title: 'Message from a routine',
+        body: 'Summarise what happened overnight',
+      },
+    ])
+  })
+})
+
 describe('transcriptViewOf', () => {
   it('shows streaming text as a streaming agent item after the user message', () => {
     const view = viewOf({

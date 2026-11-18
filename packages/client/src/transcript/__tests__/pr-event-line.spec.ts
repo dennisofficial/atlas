@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EPrEventKind, EPrVerdict, type EventOfType } from '@dltech/atlas-core'
+import { EMergeQueueMove, EPrEventKind, EPrVerdict, type EventOfType } from '@dltech/atlas-core'
 
 import { prEventLine } from '../pr-event-line'
 
@@ -104,5 +104,19 @@ describe('a review comment line', () => {
         }),
       ),
     ).toBe('PR #794: octocat commented — ### Codex Review')
+  })
+})
+
+describe('a merge queue line', () => {
+  it('says the PR entered or left the queue', () => {
+    expect(
+      prEventLine(verdict({ kind: EPrEventKind.MergeQueue, queue: EMergeQueueMove.Entered })),
+    ).toBe('PR #794: entered the merge queue')
+    expect(
+      prEventLine(verdict({ kind: EPrEventKind.MergeQueue, queue: EMergeQueueMove.Left })),
+    ).toBe('PR #794: left the merge queue')
+    expect(prEventLine(verdict({ kind: EPrEventKind.MergeQueue }))).toBe(
+      'PR #794: merge queue membership changed',
+    )
   })
 })
