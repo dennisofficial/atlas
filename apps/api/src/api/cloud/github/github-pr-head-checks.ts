@@ -8,28 +8,6 @@ export enum EHeadVerdict {
   Failed = 'failed',
 }
 
-export type LockedPrState = {
-  repoFullName: string
-  prNumber: number
-  state: string
-  headSha: string
-  headBranch: string
-  headRepoFullName: string | null
-  checksRunning: number
-  checksPassed: number
-  checksFailed: number
-  checksIgnored: number
-  checksState: string | null
-  mergeable: boolean | null
-  mergeClean: boolean | null
-  requiredCheckContexts: readonly string[]
-  version: number
-}
-
-export function nextVersionOf(prior: { version: number } | null): number {
-  return (prior?.version ?? 0) + 1
-}
-
 export function verdictEventKeyOf(args: {
   repoFullName: string
   prNumber: number
@@ -38,63 +16,6 @@ export function verdictEventKeyOf(args: {
   settlement: string
 }): string {
   return `${args.repoFullName}:${args.prNumber}:${args.headSha}:verdict:${args.verdict}:${args.settlement}`
-}
-
-export function eventDedupeKeyOf(args: {
-  repoFullName: string
-  prNumber: number
-  headSha: string
-  kind: string
-  verdictKey: string
-  userId: string
-}): string {
-  return [
-    args.repoFullName,
-    args.prNumber,
-    args.headSha,
-    args.kind,
-    args.verdictKey,
-    args.userId,
-  ].join(':')
-}
-
-/**
- * One transaction on the state row serializes concurrent writers (webhook fills and polls race
- * for the same PR), so the row-lock read below, the upsert, and the event inserts it gates on
- * all observe the same prior.
- */
-export async function readPrStateForUpdate(args: {
-  tx: Tx
-  repoFullName: string
-  prNumber: number
-}): Promise<LockedPrState | null> {
-  const rows = await args.tx.query(
-    args.tx.sql.public.GithubPrState.select(
-      'repoFullName',
-      'prNumber',
-      'state',
-      'headSha',
-      'headBranch',
-      'headRepoFullName',
-      'checksRunning',
-      'checksPassed',
-      'checksFailed',
-      'checksIgnored',
-      'checksState',
-      'mergeable',
-      'mergeClean',
-      'requiredCheckContexts',
-      'version',
-    )
-      .where((f, fns) =>
-        fns.and(fns.eq(f.repoFullName, args.repoFullName), fns.eq(f.prNumber, args.prNumber)),
-      )
-      .forUpdate()
-      .build(),
-  )
-  let found: LockedPrState | null = null
-  for await (const row of rows) found = row
-  return found
 }
 
 export function snapshotOfLocked(row: {

@@ -186,7 +186,7 @@ describe('GithubPollSweeperService tracking targets', () => {
     expect(head.pullsByHead).not.toHaveBeenCalled()
   })
 
-  it('announces a session that only tracks the polled head', async () => {
+  it('announces the session tracking the applied head and no other', async () => {
     const heard: string[] = []
     const listener = new pg.Client(process.env.DATABASE_URL)
     await listener.connect()
@@ -199,6 +199,7 @@ describe('GithubPollSweeperService tracking targets', () => {
       const head = fakeHeadReads({ pulls: { 'compai/app': [REST_PULL] } })
       const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, headReads: head.reads })
       await trackHead({ sessionId: 'ses_head_only', branch: 'dennis/feature' })
+      await trackHead({ sessionId: 'ses_elsewhere', branch: 'dennis/other' })
       await seedTarget()
       await new Promise((resolve) => setTimeout(resolve, 200))
       heard.length = 0
@@ -206,7 +207,7 @@ describe('GithubPollSweeperService tracking targets', () => {
       await service.handlePoll()
       await new Promise((resolve) => setTimeout(resolve, 200))
 
-      expect(heard).toContain('ses_head_only')
+      expect(heard).toEqual(['ses_head_only'])
     } finally {
       await listener.end()
     }

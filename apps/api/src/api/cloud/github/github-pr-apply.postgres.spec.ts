@@ -215,6 +215,15 @@ describe('GithubPrStore.apply', () => {
     expect(tally.running).toBe(4)
   })
 
+  it('numbers each committed apply of a PR one higher than the last', async () => {
+    const { store } = rig()
+
+    const first = await store.apply(applyArgs([pull()]))
+    const second = await store.apply(applyArgs([pull({ title: 'add the other thing' })]))
+
+    expect([first.row?.version, second.row?.version]).toEqual([1, 2])
+  })
+
   it('never reopens a merge from a REST sample older than the stored one', async () => {
     const { store } = rig()
     await store.apply(

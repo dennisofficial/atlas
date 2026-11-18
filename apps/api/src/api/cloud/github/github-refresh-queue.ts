@@ -26,8 +26,8 @@ type Target = {
   userIds: string[]
   pollBacked: boolean
 }
-type LookupOutcome = 'looked-up' | 'superseded' | 'skipped' | 'rate-limited' | 'credential-limited'
-type RefreshOutcome = 'polled' | 'superseded' | 'skipped' | 'rate-limited' | 'credential-limited'
+type LookupOutcome = 'looked-up' | 'skipped' | 'rate-limited' | 'credential-limited'
+type RefreshOutcome = 'polled' | 'skipped' | 'rate-limited' | 'credential-limited'
 
 type QueueDeps = {
   coordinator: GithubRequestCoordinator
@@ -184,7 +184,7 @@ export async function refreshGithubQueue(deps: QueueDeps): Promise<void> {
         })
         if (result === 'rate-limited') return
         if (result === 'credential-limited') continue
-        if (result === 'polled' || result === 'superseded') {
+        if (result === 'polled') {
           failed = false
           break
         }
@@ -223,7 +223,7 @@ async function lookUpEach(args: {
       try {
         const result = await args.deps.lookUp(target)
         if (result === 'rate-limited') return
-        failed = result !== 'looked-up' && result !== 'superseded'
+        failed = result !== 'looked-up'
       } finally {
         await args.deps.coordinator.recordAttempt({ key, failed })
       }

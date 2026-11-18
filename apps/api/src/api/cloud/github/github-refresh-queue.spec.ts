@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { Logger } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { beforeEach, describe, expect, it, setSystemTime, vi } from 'bun:test'
+import { beforeEach, describe, expect, it, vi } from 'bun:test'
 import { createRealRedisService } from '../../../../test/real-redis.fixture'
 import { ensureUsers, seedSubscription } from '../../../../test/github-seed'
 import type { GithubHookLifecycleService } from './github-hook-lifecycle.service'
@@ -93,27 +93,6 @@ describe('refreshGithubQueue ordering', () => {
       repoFullName: 'compai/app',
       prNumber: 42,
     })
-  })
-
-  it('keeps retrying a superseded lookup without charging it a failure', async () => {
-    const lookUp = vi.fn<QueueDeps['lookUp']>(async () => 'superseded')
-    const refresh = vi.fn<QueueDeps['refresh']>(async () => 'polled')
-    await seedHead(0)
-    const deps = queueDeps({ lookUp, refresh })
-
-    const startedAt = Date.now()
-    await refreshGithubQueue(deps)
-    setSystemTime(new Date(startedAt + 31_000))
-    try {
-      await refreshGithubQueue(deps)
-    } finally {
-      setSystemTime()
-    }
-
-    expect(lookUp).toHaveBeenCalledTimes(2)
-    expect(await deps.coordinator.attempt({ key: `head:${POLLED_REPO}#dennis/head-0` })).toEqual(
-      expect.objectContaining({ failures: 0 }),
-    )
   })
 })
 

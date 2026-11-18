@@ -83,7 +83,7 @@ export class GithubPollSweeperService {
 
   private async lookUp(
     target: Row<'GithubTrackingTarget'>,
-  ): Promise<'looked-up' | 'superseded' | 'skipped' | 'rate-limited' | 'credential-limited'> {
+  ): Promise<'looked-up' | 'skipped' | 'rate-limited' | 'credential-limited'> {
     await this.stampAttempt(target.id)
     const token = await this.github.findToken({ userId: target.userId })
     if (token === undefined) return 'skipped'
@@ -200,7 +200,7 @@ export class GithubPollSweeperService {
     userId: string
     repoFullName: string
     prNumber: number
-  }): Promise<'polled' | 'superseded' | 'skipped' | 'rate-limited' | 'credential-limited'> {
+  }): Promise<'polled' | 'skipped' | 'rate-limited' | 'credential-limited'> {
     const token = await this.github.findToken({ userId: args.userId })
     if (token === undefined) return 'skipped'
     const repoFullName = normalizedRepo(args.repoFullName)
