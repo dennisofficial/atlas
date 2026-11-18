@@ -1,7 +1,9 @@
 import { CP_POD_OPS, ELiveOpFailure, type CallOp } from '@dltech/atlas-protocol'
 import type { PodCallOutcome, SessionHolder } from '@dltech/atlas-host'
 
-export const POD_OPS = Symbol('POD_OPS')
+import { POD_OPS } from './tokens'
+
+export { POD_OPS }
 
 export type PodOps = {
   invoke(args: {

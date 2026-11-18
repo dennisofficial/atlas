@@ -1,11 +1,12 @@
-import { Module, type Provider } from '@nestjs/common'
+import { Global, Module, type Provider } from '@nestjs/common'
 import { ChangeContentStore, type ControlPlane } from '@dltech/atlas-control'
 import type { HostBus, HostPresence, PodControlClient, SessionHolder } from '@dltech/atlas-host'
 import type { LogPort } from '@dltech/atlas-observability'
 
 import type { PgWakeListener } from '../bus/pg-wake-listener'
 import { composeAgentHost } from '../compose'
-import { POD_OPS, podOpsOf } from '../../api/platform/control/pod-ops'
+import { podOpsOf } from './pod-ops'
+import { POD_OPS } from './tokens'
 import type { ConfigSource } from '../config/agent-host-config'
 import type { AgentHostEnv } from '../config/env'
 import type { SandboxProvider } from '../sandbox/sandbox-provider'
@@ -100,6 +101,7 @@ const podOpsProvider: Provider = {
   inject: [HOLDER],
 }
 
+@Global()
 @Module({
   imports: [ControlModule, RuntimeModule],
   providers: [hostWatchProvider, holderProvider, podOpsProvider],

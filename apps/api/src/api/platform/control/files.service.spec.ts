@@ -3,7 +3,7 @@ import { ECallStatus, ELiveOpFailure, type CallOp, type CallResult } from '@dlte
 
 import { FilesService } from './files.service'
 import { PodParkedError } from './pod-parked.error'
-import type { PodOps } from './pod-ops'
+import type { PodOps } from '../../../agent'
 import { setupSessionsService as setup } from './sessions.service.fixture'
 
 const ok = (result: CallResult): Awaited<ReturnType<PodOps['invoke']>> => ({

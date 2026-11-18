@@ -3,7 +3,6 @@ import { db } from '@dltech/atlas-db'
 import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { eventSchemaOf } from '@dltech/atlas-plugin-sdk'
-import { HolderModule } from '../../../agent/host/holder.module'
 import { changeContentStoreProvider } from '../../../_lib/changes/change-content.provider'
 import { backgroundWorkProvider } from '../../../_lib/background-work/background-work.providers'
 import { COMMAND_REGISTRY, nativeCommandRegistry } from './command-registry'
@@ -33,7 +32,6 @@ export const controlPlaneProvider: Provider = {
 }
 
 @Module({
-  imports: [HolderModule],
   providers: [
     controlPlaneProvider,
     { provide: ProjectAccess, useClass: DbProjectAccess },

@@ -12,8 +12,8 @@ import {
   type FilesSearchOutput,
   type FilesTreeOutput,
 } from '@dltech/atlas-protocol'
+import { POD_OPS, type PodOps } from '../../../agent'
 import { PodParkedError } from './pod-parked.error'
-import { POD_OPS, type PodOps } from './pod-ops'
 import { SessionsService } from './sessions.service'
 
 const HIDDEN_NAMES: ReadonlySet<string> = new Set(['.git', 'node_modules'])

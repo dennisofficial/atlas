@@ -14,7 +14,7 @@ import {
 import { api, cloudCall } from '@/lib/api-client'
 import { nodesOf } from '@/features/threads/data/file-tree-nodes'
 import { pathWithin } from '@/features/threads/data/file-tree-source'
-import { v2FileSource } from '@/features/threads/data/file-source'
+import { v2FileSource, type FileSource } from '@/features/threads/data/file-source'
 import { EFileSearchStatus, useFileSearch } from '@/features/threads/data/use-file-search'
 import { EFileTreeStatus, useFileTree } from '@/features/threads/data/use-file-tree'
 import { useWorkspaceFile } from '@/features/threads/data/use-workspace-file'
@@ -27,8 +27,8 @@ import { recallSelectedFile, rememberSelectedFile } from './files-memory'
 
 const requestWake = (sessionId: string) => cloudCall(api.sessions.wake.mutate({ sessionId }))
 
-function FilesBody(props: { sessionId: string; podAwake: boolean }) {
-  const source = useMemo(() => v2FileSource({ sessionId: props.sessionId }), [props.sessionId])
+function FilesBody(props: { sessionId: string; source: FileSource; podAwake: boolean }) {
+  const { source } = props
   const [selected, setSelectedState] = useState(() => recallSelectedFile(props.sessionId))
   const [query, setQuery] = useState('')
   const {
@@ -114,8 +114,10 @@ function FilesBody(props: { sessionId: string; podAwake: boolean }) {
   )
 }
 
-export function FilesTab() {
+export function FilesTab(props: { sourceOf?: (sessionId: string) => FileSource } = {}) {
   const { sessionId, status } = useSessionPaneValue()
+  const sourceOf = props.sourceOf ?? ((id: string) => v2FileSource({ sessionId: id }))
+  const source = useMemo(() => sourceOf(sessionId), [sourceOf, sessionId])
   const live = status?.lease.live ?? false
   const { state, wakePod } = usePodWake({
     sessionId,
@@ -123,7 +125,7 @@ export function FilesTab() {
     wake: () => requestWake(sessionId).then(() => undefined),
   })
   if (!live) return <PodDisconnected tab="Files" state={state} onWake={wakePod} />
-  return <FilesBody sessionId={sessionId} podAwake={live} />
+  return <FilesBody sessionId={sessionId} source={source} podAwake={live} />
 }
 
 export const FILES_TAB_ICON = <FolderTreeIcon />
