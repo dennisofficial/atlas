@@ -148,6 +148,11 @@ describe('branches-observed e2e', () => {
     })
     holders.push(holder)
     await holder.start()
+    await waitForSeq({
+      plane,
+      threadId: mainThreadId,
+      want: (rows) => branchRecords(rows).length > 0,
+    })
     await bus.wake(sessionId)
 
     const first = await waitForSeq({
