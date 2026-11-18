@@ -16,6 +16,7 @@ export const hostEnv = (args: {
   workspace: string
   knobs: HostKnobs | undefined
   firstChunkFile: string | undefined
+  setupScript: string | undefined
 }): Record<string, string> => {
   const { knobs } = args
   return {
@@ -29,6 +30,7 @@ export const hostEnv = (args: {
     DAEMON_SECRET: RIG_SECRET,
     SCRIPT_FILE: args.scriptFile,
     WORKSPACE_DIR: args.workspace,
+    ...(args.setupScript === undefined ? {} : { SETUP_SCRIPT: args.setupScript }),
     APPEND_RETRY_MS: String(knobs?.appendRetryMs ?? 2_500),
     PING_MS: String(knobs?.pingMs ?? 10_000),
     ...(args.daemonUrls === undefined ? {} : { DAEMON_URLS: JSON.stringify(args.daemonUrls) }),

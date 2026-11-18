@@ -73,6 +73,8 @@ export type FaultRig = {
     redisUrl?: string
     firstChunkFile?: string
     directPresence?: boolean
+    workspace?: string
+    setupScript?: string
   }): Promise<HostProcess>
   stop(): Promise<void>
 }
@@ -80,6 +82,7 @@ export type FaultRig = {
 export const startRig = async (args: {
   databaseUrl: string
   redisUrl: string
+  setupScript?: string
 }): Promise<FaultRig> => {
   const target = new URL(args.databaseUrl)
   const dbProxy = await FaultProxy.start({
@@ -172,12 +175,15 @@ export const startRig = async (args: {
       redisUrl,
       firstChunkFile,
       directPresence,
+      workspace: sharedWorkspace,
+      setupScript,
     }) {
       const dir = mkdtempSync(join(tmpdir(), `atlas-fault-rig-host-${label}-`))
       closers.push(async () => {
         rmSync(dir, { recursive: true, force: true })
       })
-      const workspace = join(dir, 'workspace')
+      // a second host that takes the session over sees the same workspace the first one used
+      const workspace = sharedWorkspace ?? join(dir, 'workspace')
       mkdirSync(workspace, { recursive: true })
       const scriptFile = join(dir, 'scripts.json')
       writeFileSync(scriptFile, JSON.stringify(scripts))
@@ -220,6 +226,7 @@ export const startRig = async (args: {
             workspace,
             knobs,
             firstChunkFile,
+            setupScript: setupScript ?? args.setupScript,
           }),
         },
         stdin: 'ignore',

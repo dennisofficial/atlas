@@ -1,0 +1,95 @@
+import { EWorkspaceStep, EWorkspaceStepState } from '@dltech/atlas-core'
+import { expect } from 'bun:test'
+
+import { SETUP_INTERRUPTED_REASON } from '../../runtime/workspace-setup'
+import { describeHandoff, waitUntil, type HandoffContext } from '../../testing/handoff-suite'
+import type { HostProcess } from '../../testing/fault-rig'
+
+const SETUP_SCRIPT = 'touch started; echo run >> runs; cat gate; echo end'
+
+type Step = { step: string; state: string; reason?: string; command?: string; output?: string }
+
+const setupStepsOf = async (ctx: HandoffContext): Promise<Step[]> =>
+  (await ctx.record())
+    .filter((row) => row.type === 'workspace-step')
+    .map((row) => row.event as Step)
+    .filter((step) => step.step === EWorkspaceStep.Setup)
+
+const startedCount = (steps: readonly Step[]): number =>
+  steps.filter((step) => step.state === EWorkspaceStepState.Started).length
+
+const expectRunning = async (ctx: HandoffContext): Promise<void> => {
+  const steps = await setupStepsOf(ctx)
+  expect(startedCount(steps)).toBe(1)
+  expect(steps.filter((step) => step.state === EWorkspaceStepState.Done)).toHaveLength(0)
+  expect(steps.filter((step) => step.state === EWorkspaceStepState.Failed)).toHaveLength(0)
+}
+
+describeHandoff({
+  name: 'a setup script that runs in the background',
+  prompt: 'say hello',
+  prepared: false,
+  setupScript: SETUP_SCRIPT,
+
+  async start(ctx): Promise<HostProcess> {
+    ctx.path('started')
+    ctx.path('runs')
+    ctx.gate('gate')
+    const hostA = await ctx.rig.spawnHost({
+      label: 'host-a',
+      daemonUrl: ctx.daemon.url,
+      workspace: ctx.workspace,
+      scripts: { [ctx.sessionId]: [{ text: 'host a started the setup' }] },
+      setupScript: SETUP_SCRIPT,
+    })
+    await ctx.rig.claim({ sessionId: ctx.sessionId, label: 'host-a', timeoutMs: 30_000 })
+    await ctx.waitFor('started', 30_000)
+    await waitUntil({
+      what: 'the setup script to be recorded as started',
+      check: async () => startedCount(await setupStepsOf(ctx)) === 1,
+    })
+    await expectRunning(ctx)
+    return hostA
+  },
+
+  async inFlight(ctx) {
+    await expectRunning(ctx)
+  },
+
+  async release(ctx) {
+    await ctx.release('gate')
+  },
+
+  async settled(ctx) {
+    await waitUntil({
+      what: 'the setup script to report its end',
+      check: async () =>
+        (await setupStepsOf(ctx)).some((step) => step.state === EWorkspaceStepState.Done),
+    })
+    const steps = await setupStepsOf(ctx)
+    expect(startedCount(steps)).toBe(1)
+    expect(steps.filter((step) => step.state === EWorkspaceStepState.Failed)).toHaveLength(0)
+    const done = steps.filter((step) => step.state === EWorkspaceStepState.Done)
+    expect(done).toHaveLength(1)
+    expect(done[0]?.command).toBe(SETUP_SCRIPT)
+    expect(done[0]?.output).toContain('end')
+  },
+
+  async runs(ctx) {
+    return ctx.runCount('runs')
+  },
+
+  async interrupted(ctx) {
+    await waitUntil({
+      what: 'the setup script to be reported interrupted',
+      check: async () =>
+        (await setupStepsOf(ctx)).some((step) => step.state === EWorkspaceStepState.Failed),
+    })
+    const steps = await setupStepsOf(ctx)
+    expect(startedCount(steps)).toBe(1)
+    expect(steps.filter((step) => step.state === EWorkspaceStepState.Done)).toHaveLength(0)
+    expect(steps.filter((step) => step.state === EWorkspaceStepState.Failed)).toEqual([
+      expect.objectContaining({ reason: SETUP_INTERRUPTED_REASON }),
+    ])
+  },
+})
