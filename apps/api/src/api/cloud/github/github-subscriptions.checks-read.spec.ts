@@ -1,19 +1,15 @@
+import { storeFixture } from './github-pr-store.fixture'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
 import { ensureUsers, prEventRows } from '../../../../test/github-seed'
-import { DrainStateService } from '../../platform/health/drain-state.service'
 import type { GithubAppInstallNoticeService } from './github-app-install-notice.service'
 import type { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import { localCoordinator } from './github-request-coordinator.fixture'
-import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
-import { GithubPrFanoutService } from './github-pr-fanout.service'
 import type { RestCheckRun, RestCommitStatus } from './github-pull-request-mapping'
-import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
 import { GithubUserReads } from './github-user-reads'
 import type { GithubService } from './github.service'
-import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 
 const SHA = 'abc123'
 const ACTIONS = { slug: 'github-actions' }
@@ -86,18 +82,14 @@ function subscriptionsService(): GithubSubscriptionsService {
     shouldRecommend: async () => false,
     dismiss: async () => undefined,
   } as unknown as GithubAppInstallNoticeService
-  const fanout = new GithubPrFanoutService(new DrainStateService())
-  const wake = { notifyEvent: () => undefined } as unknown as GithubSandboxWakeService
   return new GithubSubscriptionsService(
     github,
     new GithubUserReads(),
     hooks,
     installNotice,
     localCoordinator(github),
-    new GithubPrEventMailboxService(fanout, wake),
     { coversRepo: async () => false } as never,
-    new GithubPrFanoutService(new DrainStateService()),
-    inertSignals(),
+    storeFixture(),
   )
 }
 

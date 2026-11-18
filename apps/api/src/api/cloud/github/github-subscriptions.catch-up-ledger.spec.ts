@@ -1,18 +1,15 @@
+import { observationReadOf } from './github-pr-read.fixture'
+import { storeFixture } from './github-pr-store.fixture'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { ensureUsers, prEventRows } from '../../../../test/github-seed'
 import { localCoordinator } from './github-request-coordinator.fixture'
 import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
-import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
-import { GithubPrFanoutService } from './github-pr-fanout.service'
-import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
-import { DrainStateService } from '../../platform/health/drain-state.service'
 import type { GithubAppInstallNoticeService } from './github-app-install-notice.service'
 import type { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import type { GithubUserReads } from './github-user-reads'
 import type { GithubService } from './github.service'
-import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 
 const SETTLED_FIELDS = {
   title: 'add the thing',
@@ -38,6 +35,11 @@ function serviceWith(args: {
   } as unknown as GithubHookLifecycleService
   const reads = {
     readPullRequest: args.readPullRequest ?? (async () => SETTLED_FIELDS),
+    readPullRequestObservation: async (input: { number: number }) =>
+      observationReadOf({
+        fields: await (args.readPullRequest ?? (async () => SETTLED_FIELDS))(input as never),
+        number: input.number,
+      }),
     findOpenPrForBranch: async () => ({ number: 42 }),
   } as unknown as GithubUserReads
   const installNotice = {
@@ -46,18 +48,14 @@ function serviceWith(args: {
     dismiss: async () => undefined,
   } as unknown as GithubAppInstallNoticeService
   stubGlobal('fetch', async () => new Response('{}', { status: 200 }))
-  const fanout = new GithubPrFanoutService(new DrainStateService())
-  const wake = { notifyEvent: () => undefined } as unknown as GithubSandboxWakeService
   return new GithubSubscriptionsService(
     github,
     reads,
     hooks,
     installNotice,
     localCoordinator(github),
-    new GithubPrEventMailboxService(fanout, wake),
     { coversRepo: async () => false } as never,
-    new GithubPrFanoutService(new DrainStateService()),
-    inertSignals(),
+    storeFixture(),
   )
 }
 

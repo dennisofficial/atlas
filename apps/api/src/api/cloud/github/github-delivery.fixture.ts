@@ -10,6 +10,8 @@ import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.ser
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { GithubDeliveryService } from './github-delivery.service'
+import { observationReadOf } from './github-pr-read.fixture'
+import { storeFixture } from './github-pr-store.fixture'
 import type { GithubInstallationTokens } from './github-installation-tokens'
 import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
@@ -28,6 +30,11 @@ export const PULL_REQUEST_PAYLOAD = {
     state: 'open',
     draft: false,
     merged_at: null,
+    closed_at: null,
+    updated_at: '2026-11-18T00:00:00Z',
+    mergeable: null,
+    mergeable_state: 'unknown',
+    base: { ref: 'main', repo: { full_name: 'compai/app' } },
     head: {
       ref: 'dennis/add-the-thing',
       sha: 'abc123',
@@ -139,8 +146,11 @@ export function serviceWith(args: {
   const github = {
     findToken: async ({ userId }: { userId: string }) => args.tokens?.[userId],
   } as unknown as GithubService
+  const readPullRequest = args.readPullRequest ?? (async () => REST_FIELDS)
   const reads = {
-    readPullRequest: args.readPullRequest ?? (async () => REST_FIELDS),
+    readPullRequest,
+    readPullRequestObservation: async (input: { number: number }) =>
+      observationReadOf({ fields: await readPullRequest(input as never), number: input.number }),
     readCheckAnnotations: args.readCheckAnnotations ?? (async () => []),
   } as unknown as GithubUserReads
   const fanout = new GithubPrFanoutService(new DrainStateService())
@@ -160,6 +170,7 @@ export function serviceWith(args: {
       discussion,
       inertSignals(),
       args.coordinator ?? localCoordinator(github),
+      storeFixture({ fanout }),
       args.appTokens,
     ),
     fanout,

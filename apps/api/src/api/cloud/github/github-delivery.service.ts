@@ -1,7 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { GithubDeliveryChecks } from './github-delivery-checks'
-import { GithubDeliveryFillDeferred, tryRestFill, type RestFill } from './github-delivery-fill'
+import {
+  GithubDeliveryFillDeferred,
+  tryRestFill,
+  tryRestPull,
+  type RestFill,
+  type RestPull,
+} from './github-delivery-fill'
 import { EGithubCallSource } from './github-call-log'
+import { EPrSource } from '@dltech/atlas-core'
 import { normalizedRepo, repoPattern } from './github-pr-identity'
 import { GithubRequestCoordinator } from './github-request-coordinator'
 import { withGithubRequestBudget } from './github-request-budget'
@@ -11,10 +18,14 @@ import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
-import { payloadFieldsOf } from './github-pr-payload'
+import {
+  pullObservationOfRest,
+  mergeabilityObservationOf,
+  pullObservationOfWebhook,
+} from './github-pr-observations'
 import { GithubPrStateWriter } from './github-pr-state-writer'
+import { GithubPrStore } from './github-pr-store'
 import { GithubInstallationTokens } from './github-installation-tokens'
-import { carryChecks, stateFieldsOf } from './github-pr-state-fields'
 import { subscriptionLiveWhere } from './github-delivery-routing'
 import { GithubUserReads } from './github-user-reads'
 import { GithubService } from './github.service'
@@ -62,6 +73,7 @@ export class GithubDeliveryService {
     private readonly discussion: GithubPrDiscussionDeliveryService,
     signals: ThreadSignalsService,
     private readonly coordinator: GithubRequestCoordinator,
+    private readonly store: GithubPrStore,
     private readonly appTokens?: GithubInstallationTokens,
   ) {
     this.writer = new GithubPrStateWriter({
@@ -162,32 +174,17 @@ export class GithubDeliveryService {
   ): Promise<void> {
     const repoFullName = normalizedRepo(payload.repository.full_name)
     const prNumber = payload.pull_request.number
-    const [prior, token] = await Promise.all([
-      db.orm.public.GithubPrState.where((pr) => pr.repoFullName.ilike(repoPattern(repoFullName)))
-        .where({ prNumber })
-        .orderBy((pr) => pr.updatedAt.desc())
-        .first(),
-      this.findFillToken({ repoFullName, installationId }),
-    ])
-
-    const headMoves = HEAD_ACTIONS.has(payload.action)
-    const payloadFields = payloadFieldsOf({ pull: payload.pull_request })
-    const recordPayload = this.writer.recordAndPush({
-      repoFullName,
-      prNumber,
-      fields: carryChecks({
-        fields: payloadFields,
-        prior: prior === null ? null : stateFieldsOf(prior),
-      }),
-      reopens: payload.action === 'reopened',
-    })
-
-    const payloadWrite = await recordPayload
-    if (token === undefined || !headMoves) return
+    const observedAt = new Date().toISOString()
+    const observation = pullObservationOfWebhook({ payload, observedAt })
+    if (observation !== null) {
+      await this.store.apply({ repoFullName, prNumber, observations: [observation] })
+    }
+    if (!HEAD_ACTIONS.has(payload.action)) return
+    const token = await this.findFillToken({ repoFullName, installationId })
+    if (token === undefined) return
 
     const [owner, repo] = repoFullName.split('/') as [string, string]
-    const seenVersion = payloadWrite?.row.version ?? 0
-    const rest = await this.restFill({ token, owner, repo, prNumber })
+    const rest = await this.restPull({ token, owner, repo, prNumber })
     if (rest.kind === 'deferred') {
       throw new GithubDeliveryFillDeferred({
         repoFullName,
@@ -195,11 +192,23 @@ export class GithubDeliveryService {
       })
     }
     if (rest.kind === 'skipped') return
-    await this.writer.recordAndPush({
+    await this.store.apply({
       repoFullName,
       prNumber,
-      fields: rest.fields,
-      seenVersion,
+      observations: [
+        pullObservationOfRest({
+          repoFullName,
+          pull: rest.pull,
+          updatedAt: rest.pull.updated_at,
+          observedAt: new Date().toISOString(),
+          source: EPrSource.DeliveryFill,
+        }),
+        mergeabilityObservationOf({
+          pull: rest.pull,
+          observedAt: new Date().toISOString(),
+          source: EPrSource.DeliveryFill,
+        }),
+      ],
     })
   }
 
@@ -250,5 +259,14 @@ export class GithubDeliveryService {
     collect?: boolean
   }): Promise<RestFill> {
     return tryRestFill({ reads: this.reads, logger: this.logger, ...args })
+  }
+
+  private restPull(args: {
+    token: string
+    owner: string
+    repo: string
+    prNumber: number
+  }): Promise<RestPull> {
+    return tryRestPull({ reads: this.reads, logger: this.logger, ...args })
   }
 }

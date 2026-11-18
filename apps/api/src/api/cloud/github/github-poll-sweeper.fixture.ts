@@ -9,9 +9,10 @@ import {
   seedPrState as seedPrStateRow,
   seedSubscription as seedSubscriptionRow,
 } from '../../../../test/github-seed'
-import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { GithubHeadReads } from './github-head-reads'
+import { observationReadOf } from './github-pr-read.fixture'
+import { storeFixture } from './github-pr-store.fixture'
 import { GithubPollSweeperService } from './github-poll-sweeper.service'
 import type { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
@@ -51,24 +52,25 @@ export function serviceWith(args: {
   const github = {
     findToken: async ({ userId }: { userId: string }) => args.tokens?.[userId],
   } as unknown as GithubService
+  const readPullRequest = args.readPullRequest ?? (async () => REST_FIELDS)
   const reads = {
-    readPullRequest: args.readPullRequest ?? (async () => REST_FIELDS),
+    readPullRequest,
+    readPullRequestObservation: async (input: { number: number }) =>
+      observationReadOf({ fields: await readPullRequest(input as never), number: input.number }),
     findOpenPrForBranch: args.findOpenPrForBranch ?? (async () => null),
   } as unknown as GithubUserReads
   const fanout = new GithubPrFanoutService(new DrainStateService())
   const wake = { notifyEvent: () => undefined } as unknown as GithubSandboxWakeService
-  const mailbox = new GithubPrEventMailboxService(fanout, wake)
+  const _mailbox = new GithubPrEventMailboxService(fanout, wake)
   const hooks = { ensureHook: async () => 'poll-backed' } as unknown as GithubHookLifecycleService
   return {
     service: new GithubPollSweeperService(
       github,
       reads,
-      fanout,
-      mailbox,
-      inertSignals(),
       hooks,
       localCoordinator(github),
       args.headReads ?? (new GithubHeadReads() as unknown as GithubHeadReads),
+      storeFixture({ fanout }),
     ),
     fanout,
   }
@@ -93,6 +95,7 @@ export const REST_PULL: RestPullRequest = {
   state: 'open',
   draft: false,
   merged_at: null,
+  updated_at: '2026-11-18T00:00:00Z',
   mergeable: null,
   mergeable_state: 'unknown',
   head: { ref: 'dennis/feature', sha: 'abc123', repo: { full_name: 'compai/app' } },

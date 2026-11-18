@@ -1,3 +1,4 @@
+import { storeFixture } from './github-pr-store.fixture'
 import { createHmac, randomUUID } from 'node:crypto'
 import type { IncomingMessage } from 'node:http'
 import { db } from '@dltech/atlas-db'
@@ -37,7 +38,6 @@ import { GithubPrStreamRouter } from './github-pr-stream.router'
 import { GithubService } from './github.service'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
 
-import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 const OWNER = 'usr-owner'
 const OTHER = 'usr-other'
 const states = (frames: GithubPrStatesFrame[]) =>
@@ -131,10 +131,8 @@ describe('linked PR states across real HTTP, Redis and Postgres', () => {
       api.hooks,
       {} as GithubAppInstallNoticeService,
       api.coordinator,
-      { record: async () => undefined } as never,
       { coversRepo: async () => false } as never,
-      new GithubPrFanoutService(new DrainStateService()),
-      inertSignals(),
+      storeFixture(),
     )
     app = await createMixedApp({
       controllers: [GithubHookController],

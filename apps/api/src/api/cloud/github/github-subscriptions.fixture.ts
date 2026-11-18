@@ -1,3 +1,5 @@
+import { observationReadOf } from './github-pr-read.fixture'
+import { storeFixture } from './github-pr-store.fixture'
 import { vi } from 'bun:test'
 import { localCoordinator } from './github-request-coordinator.fixture'
 import { stubGlobal } from '@dltech/bun-test-shims'
@@ -9,9 +11,6 @@ import { GithubSubscriptionsService } from './github-subscriptions.service'
 import type { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import type { GithubUserReads } from './github-user-reads'
 import type { GithubService } from './github.service'
-import { GithubPrFanoutService } from './github-pr-fanout.service'
-import { DrainStateService } from '../../platform/health/drain-state.service'
-import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 
 export const REST_FIELDS: PullRequestCacheFields = {
   title: 'add the thing',
@@ -46,8 +45,11 @@ export function serviceWith(args: {
   const hooks = {
     ensureHook: vi.fn(async () => args.ensureHook ?? 'created'),
   } as unknown as GithubHookLifecycleService
+  const readPullRequest = args.readPullRequest ?? (async () => REST_FIELDS)
   const reads = {
-    readPullRequest: args.readPullRequest ?? (async () => REST_FIELDS),
+    readPullRequest,
+    readPullRequestObservation: async (input: { number: number }) =>
+      observationReadOf({ fields: await readPullRequest(input as never), number: input.number }),
     findOpenPrForBranch: args.findOpenPrForBranch ?? (async () => ({ number: 42 })),
   } as unknown as GithubUserReads
   const installNotice = {
@@ -56,19 +58,15 @@ export function serviceWith(args: {
     dismiss: async () => undefined,
   } as unknown as GithubAppInstallNoticeService
   stubGlobal('fetch', args.fetchImpl ?? okFetch)
-  const mailbox =
-    args.mailbox ?? ({ record: async () => undefined } as unknown as GithubPrEventMailboxService)
   return new GithubSubscriptionsService(
     github,
     reads,
     hooks,
     installNotice,
     localCoordinator(github),
-    mailbox,
     args.coversRepo === undefined
       ? new GithubAppInstallationsService()
       : ({ coversRepo: args.coversRepo } as never),
-    new GithubPrFanoutService(new DrainStateService()),
-    inertSignals(),
+    storeFixture(),
   )
 }

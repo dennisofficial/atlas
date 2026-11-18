@@ -2,11 +2,12 @@ import { Injectable } from '@nestjs/common'
 import type { EGithubCallSource } from './github-call-log'
 import { githubFetch } from './github-fetch'
 import { rateLimitOf } from './github-rate-limit'
-import type { PullRequestCacheFields } from './github-pull-request-mapping'
+import type { MergeabilitySample } from '@dltech/atlas-core'
+import type { PullRequestCacheFields, RestPullRequest } from './github-pull-request-mapping'
 import { HOOK_EVENTS } from './github-hook-events'
 import { type CommitCheckInput, recordCheckCounts } from './github-commit-checks'
 import type { RawCheckAnnotation } from './github-check-annotations'
-import { readPullRequestFill } from './github-pull-request-read'
+import { readPullRequestFill, type PullRequestRead } from './github-pull-request-read'
 import { GithubRequiredChecksRead } from './github-required-checks-read'
 
 const GITHUB_API = 'https://api.github.com'
@@ -30,6 +31,8 @@ export type CreateHookResult =
   | { outcome: 'created'; hookId: number }
   | { outcome: 'adopted'; hookId: number | undefined }
   | { outcome: 'forbidden' }
+
+export type PullObservationRead = { pull: RestPullRequest; mergeability: MergeabilitySample }
 
 export interface HookConfig {
   url: string
@@ -68,17 +71,7 @@ export class GithubUserReads {
     number: number
     collectChecks?: (args: { headSha: string; checks: CommitCheckInput[] }) => void
   }): Promise<PullRequestCacheFields> {
-    const read = await readPullRequestFill({
-      get: <T>(request: { source: EGithubCallSource; token: string; path: string }) =>
-        this.get<T>(request),
-      requiredChecks: this.requiredChecks,
-      baseUrl: this.baseUrl,
-      source: args.source,
-      token: args.token,
-      owner: args.owner,
-      repo: args.repo,
-      number: args.number,
-    })
+    const read = await this.readPullRequestFillOf(args)
     if (args.collectChecks !== undefined) {
       args.collectChecks({ headSha: read.headSha, checks: read.checks })
       return read.fields
@@ -90,6 +83,40 @@ export class GithubUserReads {
       checks: read.checks,
     })
     return { ...read.fields, ...counts }
+  }
+
+  readPullRequestObservation(args: {
+    source: EGithubCallSource
+    token: string
+    owner: string
+    repo: string
+    number: number
+  }): Promise<PullObservationRead> {
+    return this.readPullRequestFillOf({ ...args, observedAt: new Date().toISOString() }).then(
+      (read) => ({ pull: read.pull, mergeability: read.mergeability }),
+    )
+  }
+
+  private readPullRequestFillOf(args: {
+    source: EGithubCallSource
+    token: string
+    owner: string
+    repo: string
+    number: number
+    observedAt?: string
+  }): Promise<PullRequestRead> {
+    return readPullRequestFill({
+      get: <T>(request: { source: EGithubCallSource; token: string; path: string }) =>
+        this.get<T>(request),
+      requiredChecks: this.requiredChecks,
+      baseUrl: this.baseUrl,
+      source: args.source,
+      token: args.token,
+      owner: args.owner,
+      repo: args.repo,
+      number: args.number,
+      observedAt: args.observedAt ?? new Date().toISOString(),
+    })
   }
 
   /**

@@ -118,12 +118,10 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
     pollSweeper: new GithubPollSweeperService(
       github,
       reads,
-      fanout,
-      mailbox,
-      workerSignals.signals,
       hookLifecycle,
       coordinator,
       new GithubHeadReads(),
+      store,
     ),
     hookLifecycle,
     hookSweep,
@@ -137,6 +135,7 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
       new GithubPrDiscussionDeliveryService(mailbox),
       workerSignals.signals,
       coordinator,
+      store,
       appTokens,
     ),
     dispose: async () => {

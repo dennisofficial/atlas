@@ -1,19 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { db, type Row } from '@dltech/atlas-db'
-import { GithubHeadReads, pullStateOf } from './github-head-reads'
-import { GithubPrStateWriter } from './github-pr-state-writer'
+import { EPrSource } from '@dltech/atlas-core'
+import { GithubHeadReads } from './github-head-reads'
+import { GithubPrStore } from './github-pr-store'
+import { mergeabilityObservationOf, pullObservationOfRest } from './github-pr-observations'
 import { TransportSelector } from './github-transport-selector'
 import type { RestPullRequest } from './github-pull-request-mapping'
 import { EGithubCallSource } from './github-call-log'
-import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { threadActivityAt } from './github-thread-activity'
 import { liveUntilOf } from './github-delivery-routing'
 import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import { normalizedRepo } from './github-pr-identity'
 import { GithubRequestCoordinator } from './github-request-coordinator'
 import { readRepoTracking } from './github-repo-coverage'
-import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
-import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { renewTrackedHeadTargets } from './github-tracked-head-renewal'
 import { refreshGithubQueue } from './github-refresh-queue'
 import {
@@ -22,31 +21,24 @@ import {
   withGithubRequestBudget,
   credentialFingerprint,
 } from './github-request-budget'
-import { GithubUserReadFailed, GithubUserReads } from './github-user-reads'
-import type { PullRequestCacheFields } from './github-pull-request-mapping'
+import {
+  GithubUserReadFailed,
+  GithubUserReads,
+  type PullObservationRead,
+} from './github-user-reads'
 import { GithubService } from './github.service'
 
 @Injectable()
 export class GithubPollSweeperService {
   private readonly logger = new Logger(GithubPollSweeperService.name)
-  private readonly writer: GithubPrStateWriter
   constructor(
     private readonly github: GithubService,
     private readonly reads: GithubUserReads,
-    private readonly fanout: GithubPrFanoutService,
-    private readonly mailbox: GithubPrEventMailboxService,
-    private readonly signals: ThreadSignalsService,
     private readonly hooks: GithubHookLifecycleService,
     private readonly coordinator: GithubRequestCoordinator,
     private readonly headReads: GithubHeadReads,
-  ) {
-    this.writer = new GithubPrStateWriter({
-      mailbox: this.mailbox,
-      fanout: this.fanout,
-      signals: this.signals,
-      logger: this.logger,
-    })
-  }
+    private readonly store: GithubPrStore,
+  ) {}
 
   async handlePoll(): Promise<void> {
     await this.refreshLiveUntil()
@@ -143,25 +135,33 @@ export class GithubPollSweeperService {
   }
 
   private async recordPull(args: { repoFullName: string; pull: RestPullRequest }): Promise<void> {
-    await this.writer.recordAndPush({
+    await this.applyPull({
+      repoFullName: args.repoFullName,
+      pull: args.pull,
+      source: EPrSource.HeadDiscovery,
+    })
+  }
+
+  private applyPull(args: {
+    repoFullName: string
+    pull: RestPullRequest
+    source: EPrSource
+  }): Promise<unknown> {
+    const observedAt = new Date().toISOString()
+
+    return this.store.apply({
       repoFullName: args.repoFullName,
       prNumber: args.pull.number,
-      seenVersion: 0,
-      fields: {
-        title: args.pull.title,
-        url: args.pull.html_url,
-        state: pullStateOf(args.pull),
-        headBranch: args.pull.head.ref,
-        headSha: args.pull.head.sha,
-        headRepoFullName: args.pull.head.repo?.full_name ?? null,
-        checksRunning: 0,
-        checksPassed: 0,
-        checksFailed: 0,
-        checksIgnored: 0,
-        checksState: null,
-        mergeable: args.pull.mergeable,
-        updatedAt: new Date(),
-      },
+      observations: [
+        pullObservationOfRest({
+          repoFullName: args.repoFullName,
+          pull: args.pull,
+          updatedAt: args.pull.updated_at,
+          observedAt,
+          source: args.source,
+        }),
+        mergeabilityObservationOf({ pull: args.pull, observedAt, source: args.source }),
+      ],
     })
   }
 
@@ -198,16 +198,9 @@ export class GithubPollSweeperService {
     if (token === undefined) return 'skipped'
     const repoFullName = normalizedRepo(args.repoFullName)
     const [owner, repo] = repoFullName.split('/') as [string, string]
-    const seenVersion =
-      (
-        await db.orm.public.GithubPrState.where({
-          repoFullName,
-          prNumber: args.prNumber,
-        }).first()
-      )?.version ?? 0
-    let fields: PullRequestCacheFields
+    let read: PullObservationRead
     try {
-      fields = await this.reads.readPullRequest({
+      read = await this.reads.readPullRequestObservation({
         source: EGithubCallSource.PollSweep,
         token,
         owner,
@@ -228,17 +221,8 @@ export class GithubPollSweeperService {
       }
       throw failure
     }
-    const write = await db.transaction((tx) =>
-      this.writer.writeState({
-        tx,
-        repoFullName,
-        prNumber: args.prNumber,
-        fields: { ...fields, updatedAt: new Date() },
-        authoritative: true,
-        seenVersion,
-      }),
-    )
-    if (write !== null) await this.writer.publish(write)
-    return write === null ? 'superseded' : 'polled'
+    await this.applyPull({ repoFullName, pull: read.pull, source: EPrSource.Poll })
+
+    return 'polled'
   }
 }

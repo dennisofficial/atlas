@@ -1,3 +1,4 @@
+import type { MergeabilitySample } from '@dltech/atlas-core'
 import type { EGithubCallSource } from './github-call-log'
 import type { CommitCheckInput } from './github-commit-checks'
 import { readChecksState } from './github-checks-state'
@@ -7,9 +8,12 @@ import {
   type PullRequestCacheFields,
   type RestPullRequest,
 } from './github-pull-request-mapping'
+import { mergeabilitySampleOfRest } from './github-pr-observations'
 import type { GithubRequiredChecksRead } from './github-required-checks-read'
 
 export type PullRequestRead = {
+  pull: RestPullRequest
+  mergeability: MergeabilitySample
   headSha: string
   fields: PullRequestCacheFields
   checks: CommitCheckInput[]
@@ -24,6 +28,7 @@ export async function readPullRequestFill(args: {
   owner: string
   repo: string
   number: number
+  observedAt: string
 }): Promise<PullRequestRead> {
   const pull = await args.get<RestPullRequest>({
     source: args.source,
@@ -52,6 +57,8 @@ export async function readPullRequestFill(args: {
     baseUrl: args.baseUrl,
   })
   return {
+    pull,
+    mergeability: mergeabilitySampleOfRest({ pull, observedAt: args.observedAt }),
     headSha: pull.head.sha,
     checks: head.checks,
     fields: pullRequestCacheFieldsOf({

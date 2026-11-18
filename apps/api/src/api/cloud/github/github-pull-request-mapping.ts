@@ -13,6 +13,7 @@ export interface RestPullRequest {
   state: string
   draft: boolean
   merged_at: string | null
+  updated_at: string
   mergeable: boolean | null
   mergeable_state: string
   head: { ref: string; sha: string; repo: { full_name: string } | null }

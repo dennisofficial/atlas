@@ -14,6 +14,7 @@ const pull = {
   state: 'open',
   draft: false,
   merged_at: null,
+  updated_at: '2026-01-01T00:00:03Z',
   mergeable: true,
   mergeable_state: 'clean',
   head: { ref: 'feat', sha: 'sha-1', repo: { full_name: 'dennis/api' } },

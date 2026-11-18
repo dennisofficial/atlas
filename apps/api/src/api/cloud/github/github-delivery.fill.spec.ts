@@ -45,8 +45,8 @@ describe('GithubDeliveryService fill', () => {
     expect((await prStateRows())[0]).toMatchObject({
       repoFullName: 'compai/app',
       prNumber: 42,
-      checksPassed: 2,
       mergeable: true,
+      mergeClean: true,
     })
   })
 
@@ -202,16 +202,19 @@ describe('GithubDeliveryService fill', () => {
     })
   })
 
-  it('drops a pull_request fill whose read a newer delivery overtook', async () => {
-    const readPullRequest = vi.fn(async () => {
-      await overtakeWithMergedHead()
-      return REST_FIELDS
-    })
+  it('drops a pull_request fill whose sample an older clock cannot reopen a merge with', async () => {
+    const readPullRequest = vi.fn(async () => REST_FIELDS)
     const { service } = serviceWith({
       tokens: { 'usr-creator': 'ghu_creator' },
       readPullRequest,
     })
     await seedHook({ createdBy: 'usr-creator' })
+    await seedPrState({
+      ...FILLED_PR_STATE,
+      state: 'merged',
+      headSha: 'webhook-head',
+      pullUpdatedAt: new Date(Date.now() + 60_000),
+    })
 
     await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
 
@@ -271,5 +274,10 @@ async function overtakeWithMergedHead(): Promise<void> {
   await db.orm.public.GithubPrState.where({
     repoFullName: 'compai/app',
     prNumber: 42,
-  }).update({ state: 'merged', headSha: 'webhook-head', version: (held?.version ?? 0) + 1 })
+  }).update({
+    state: 'merged',
+    headSha: 'webhook-head',
+    pullUpdatedAt: new Date(Date.now() + 60_000),
+    version: (held?.version ?? 0) + 1,
+  })
 }

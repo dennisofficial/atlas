@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common'
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { threadActivityAt } from './github-thread-activity'
 import { liveUntilOf, nextExpiry, subscriptionLiveWhere } from './github-delivery-routing'
@@ -13,14 +13,11 @@ import type {
   GithubSubscribeArgs,
 } from './github-realtime.types'
 import { GithubRequestCoordinator } from './github-request-coordinator'
-import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { withGithubRequestBudget } from './github-request-budget'
 import { normalizedRepo } from './github-pr-identity'
 import { GithubSubscribedPrResolver } from './github-subscribed-pr-resolver'
-import { GithubPrStateWriter } from './github-pr-state-writer'
-import { GithubPrFanoutService } from './github-pr-fanout.service'
+import { GithubPrStore } from './github-pr-store'
 import { GithubSubscribeStateWriter } from './github-subscribe-state-writer'
-import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { GithubUserReads } from './github-user-reads'
 import { GithubService } from './github.service'
 
@@ -35,21 +32,11 @@ export class GithubSubscriptionsService {
     private readonly hooks: GithubHookLifecycleService,
     private readonly installNotice: GithubAppInstallNoticeService,
     private readonly coordinator: GithubRequestCoordinator,
-    mailbox: GithubPrEventMailboxService,
     private readonly installations: GithubAppInstallationsService,
-    fanout: GithubPrFanoutService,
-    signals: ThreadSignalsService,
+    store: GithubPrStore,
   ) {
     this.prs = new GithubSubscribedPrResolver({ reads, coordinator })
-    this.stateWriter = new GithubSubscribeStateWriter({
-      prs: this.prs,
-      writer: new GithubPrStateWriter({
-        mailbox,
-        fanout,
-        signals,
-        logger: new Logger(GithubSubscriptionsService.name),
-      }),
-    })
+    this.stateWriter = new GithubSubscribeStateWriter({ prs: this.prs, store })
   }
 
   subscribe(args: GithubSubscribeArgs): Promise<GithubSubscriptionDto> {

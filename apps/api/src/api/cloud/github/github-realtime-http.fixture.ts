@@ -1,3 +1,4 @@
+import { storeFixture } from './github-pr-store.fixture'
 import { spyOn } from 'bun:test'
 import type { RedisService } from '../../../_lib/redis/redis.service'
 import type { EnvService } from '../../../_core/config/env/env.service'
@@ -177,16 +178,15 @@ export function realGithubGraph(args: {
     discussion,
     signals,
     coordinator,
+    storeFixture({ fanout }),
   )
   const poll = new GithubPollSweeperService(
     github,
     reads,
-    fanout,
-    mailbox,
-    signals,
     hooks,
     coordinator,
     new GithubHeadReads(),
+    storeFixture({ fanout }),
   )
   return {
     github,

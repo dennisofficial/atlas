@@ -1,16 +1,17 @@
 import { db, type Row } from '@dltech/atlas-db'
+import { EPrSource } from '@dltech/atlas-core'
 import { dtoOf } from './github-delivery-routing'
-import { normalizedRepo } from './github-pr-identity'
-import type { GithubPrStateWriter } from './github-pr-state-writer'
+import { mergeabilityObservationOf, pullObservationOfRest } from './github-pr-observations'
 import { isGithubBudgetParked } from './github-request-budget'
 import type { GithubPrStateDto } from './github-realtime.types'
+import type { GithubPrStore } from './github-pr-store'
 import type { GithubSubscribedPrResolver } from './github-subscribed-pr-resolver'
 
 export class GithubSubscribeStateWriter {
   constructor(
     private readonly deps: {
       prs: GithubSubscribedPrResolver
-      writer: GithubPrStateWriter
+      store: GithubPrStore
     },
   ) {}
 
@@ -27,8 +28,8 @@ export class GithubSubscribeStateWriter {
     const prNumber = args.prNumber
     const held = await this.prState({ repoFullName: args.repoFullName, prNumber })
     if (args.covered && held !== null) return dtoOf(held)
-    const fields = await this.deps.prs
-      .readPullRequest({
+    const read = await this.deps.prs
+      .readPullRequestObservation({
         userId: args.userId,
         token: args.token,
         owner: args.owner,
@@ -40,22 +41,30 @@ export class GithubSubscribeStateWriter {
         if (isGithubBudgetParked(failure)) return null
         throw failure
       })
-    if (fields === null) return held === null ? null : dtoOf(held)
-    if (fields.headRepoFullName !== null)
-      fields.headRepoFullName = normalizedRepo(fields.headRepoFullName)
-    const write = await db.transaction((tx) =>
-      this.deps.writer.writeState({
-        tx,
-        repoFullName: args.repoFullName,
-        prNumber,
-        fields: { ...fields, updatedAt: new Date() },
-        authoritative: true,
-        seenVersion: held?.version ?? 0,
-        recipients: [args.userId],
-      }),
-    )
-    if (write === null) return held === null ? null : dtoOf(held)
-    return dtoOf(write.row)
+    if (read === null) return held === null ? null : dtoOf(held)
+    const observedAt = new Date().toISOString()
+    const applied = await this.deps.store.apply({
+      repoFullName: args.repoFullName,
+      prNumber,
+      observations: [
+        pullObservationOfRest({
+          repoFullName: args.repoFullName,
+          pull: read.pull,
+          updatedAt: read.pull.updated_at,
+          observedAt,
+          source: EPrSource.SubscribePull,
+        }),
+        mergeabilityObservationOf({
+          pull: read.pull,
+          observedAt,
+          source: EPrSource.SubscribePull,
+        }),
+      ],
+      recipients: [args.userId],
+    })
+    if (!applied.applied || applied.row === null) return held === null ? null : dtoOf(held)
+
+    return dtoOf(applied.row)
   }
 
   private prState(args: {

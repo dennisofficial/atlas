@@ -3,7 +3,11 @@ import { db } from '@dltech/atlas-db'
 import { EGithubCallSource } from './github-call-log'
 import type { PullRequestCacheFields } from './github-pull-request-mapping'
 import { GithubRequestCoordinator } from './github-request-coordinator'
-import { GithubUserReads, GithubUserReadFailed } from './github-user-reads'
+import {
+  GithubUserReads,
+  GithubUserReadFailed,
+  type PullObservationRead,
+} from './github-user-reads'
 
 export class GithubSubscribedPrResolver {
   constructor(
@@ -48,6 +52,28 @@ export class GithubSubscribedPrResolver {
       repoFullName: args.repoFullName,
       read: () =>
         this.deps.reads.readPullRequest({
+          source: EGithubCallSource.SubscriptionResolve,
+          token: args.token,
+          owner: args.owner,
+          repo: args.repo,
+          number: args.number,
+        }),
+    })
+  }
+
+  readPullRequestObservation(args: {
+    userId: string
+    token: string
+    repoFullName: string
+    owner: string
+    repo: string
+    number: number
+  }): Promise<PullObservationRead> {
+    return this.proveRead({
+      userId: args.userId,
+      repoFullName: args.repoFullName,
+      read: () =>
+        this.deps.reads.readPullRequestObservation({
           source: EGithubCallSource.SubscriptionResolve,
           token: args.token,
           owner: args.owner,

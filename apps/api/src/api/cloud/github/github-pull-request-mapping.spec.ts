@@ -13,6 +13,7 @@ const pull = (over: Partial<RestPullRequest>): RestPullRequest => ({
   state: 'open',
   draft: false,
   merged_at: null,
+  updated_at: '2026-11-18T00:00:00Z',
   mergeable: null,
   mergeable_state: 'unknown',
   head: {

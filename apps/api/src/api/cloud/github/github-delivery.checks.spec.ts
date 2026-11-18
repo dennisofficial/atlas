@@ -1,22 +1,14 @@
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
-import { prStateRows, seedPrState } from '../../../../test/github-seed'
+import { prStateRows } from '../../../../test/github-seed'
 import { pullRequestCacheFieldsOf } from './github-pull-request-mapping'
 import {
   pruneCommitChecks,
   recordCommitChecksLocked,
   restCommitChecksOf,
 } from './github-commit-checks'
-import {
-  checkRunPayload,
-  FILLED_PR_STATE,
-  prepareDelivery,
-  REST_FIELDS,
-  seedHook,
-  seedSubscription,
-  serviceWith,
-} from './github-delivery.fixture'
+import { checkRunPayload, prepareDelivery, REST_FIELDS } from './github-delivery.fixture'
 import { RUNNING, setupTrackedPr, tallyOf } from './github-delivery.checks.fixture'
 import { HOOK_EVENTS } from './github-hook-events'
 
@@ -232,6 +224,7 @@ describe('GithubDeliveryService check rows', () => {
         state: 'open',
         draft: false,
         merged_at: null,
+        updated_at: '2026-11-02T04:26:00Z',
         mergeable: true,
         mergeable_state: 'clean',
         head: { ref: 'b', sha: 'abc123', repo: null },
