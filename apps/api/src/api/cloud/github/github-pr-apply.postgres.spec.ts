@@ -158,9 +158,12 @@ describe('GithubPrStore.apply', () => {
     await store.apply(applyArgs([pull()]))
 
     const pending = await db.orm.public.GithubPrOutbox.all()
-    expect(pending.map((row) => row.kind)).toEqual(['fanout', 'thread-signal'])
-    expect(pending[0]).toMatchObject({ dispatchedAt: null, attempts: 1 })
-    expect(pending[1]?.dispatchedAt).not.toBeNull()
+    const kinds = pending.map((row) => row.kind).sort()
+    expect(kinds).toEqual(['fanout', 'thread-signal'])
+    const fanoutRow = pending.find((row) => row.kind === 'fanout')
+    const signalRow = pending.find((row) => row.kind === 'thread-signal')
+    expect(fanoutRow).toMatchObject({ dispatchedAt: null, attempts: 1 })
+    expect(signalRow?.dispatchedAt).not.toBeNull()
 
     const received: unknown[] = []
     const healthy = new GithubPrOutboxDispatcher({
