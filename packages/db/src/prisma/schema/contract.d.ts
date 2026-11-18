@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'fe7026b0bafb2b5365ea4cb7162f26f4060d11115bc29bee8787d1f3d102a2e1'>;
+  StorageHashBase<'b880c65f607b166b6d4bc082fb39f8fbf8db741dd330ddafee93a35a0f7c01c0'>;
 export type ExecutionHash =
   ExecutionHashBase<'27a680d0d8367c03704617bfac2d0041e04bd5395fc473f9e021f03bd0d4c6fa'>;
 export type ProfileHash =
@@ -634,6 +634,7 @@ export namespace Models {
     readonly [RelationKeys]?: 'user';
   };
   export type public_McpOauthPending = {
+    completedAt: FieldOutputTypes['public']['McpOauthPending']['completedAt'];
     createdAt: FieldOutputTypes['public']['McpOauthPending']['createdAt'];
     expiresAt: FieldOutputTypes['public']['McpOauthPending']['expiresAt'];
     id: FieldOutputTypes['public']['McpOauthPending']['id'];
@@ -3847,6 +3848,13 @@ type ContractBase = Omit<
             };
             readonly McpOauthPending: {
               columns: {
+                readonly completedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
                 readonly createdAt: {
                   readonly dataType: 'pg/timestamptz';
                   readonly codecId: 'pg/timestamptz-date@1';
@@ -9867,6 +9875,14 @@ type ContractBase = Omit<
           };
           readonly McpOauthPending: {
             readonly fields: {
+              readonly completedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
               readonly createdAt: {
                 readonly nullable: false;
                 readonly type: {
@@ -9939,6 +9955,7 @@ type ContractBase = Omit<
               readonly table: 'McpOauthPending';
               readonly namespaceId: 'public';
               readonly fields: {
+                readonly completedAt: { readonly column: 'completedAt' };
                 readonly createdAt: { readonly column: 'createdAt' };
                 readonly expiresAt: { readonly column: 'expiresAt' };
                 readonly id: { readonly column: 'id' };

@@ -3705,6 +3705,16 @@
           },
           "McpOauthPending": {
             "fields": {
+              "completedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
               "createdAt": {
                 "nullable": false,
                 "type": {
@@ -3811,6 +3821,9 @@
             },
             "storage": {
               "fields": {
+                "completedAt": {
+                  "column": "completedAt"
+                },
                 "createdAt": {
                   "column": "createdAt"
                 },
@@ -12795,6 +12808,14 @@
             },
             "McpOauthPending": {
               "columns": {
+                "completedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
                 "createdAt": {
                   "codecId": "pg/timestamptz-date@1",
                   "dataType": "pg/timestamptz",
@@ -17240,7 +17261,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "fe7026b0bafb2b5365ea4cb7162f26f4060d11115bc29bee8787d1f3d102a2e1"
+    "storageHash": "b880c65f607b166b6d4bc082fb39f8fbf8db741dd330ddafee93a35a0f7c01c0"
   },
   "execution": {
     "executionHash": "27a680d0d8367c03704617bfac2d0041e04bd5395fc473f9e021f03bd0d4c6fa",

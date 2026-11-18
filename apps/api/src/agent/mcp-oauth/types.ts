@@ -119,6 +119,11 @@ export type PendingRow = {
   mcpServerId: string | null
 }
 
+export type PendingClaim =
+  | { kind: 'missing' }
+  | { kind: 'claimed'; pending: PendingRow }
+  | { kind: 'completed'; pending: PendingRow }
+
 export type AttemptFence = { id: string; attemptId: string; generation: number }
 
 export type McpOauthBegin =
