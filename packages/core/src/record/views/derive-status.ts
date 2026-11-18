@@ -1,4 +1,5 @@
 import type { StatusFacts } from './status-facts'
+import { queuedSinceOf, type PendingInputsState } from '../pending-inputs'
 import { ESessionStatus, type SessionStatus } from './status-types'
 
 const workspaceStatusOf = (args: {
@@ -63,15 +64,18 @@ export function deriveStatus(args: {
   facts: StatusFacts
   live: boolean
   queuedSince: string | null
+  pending?: PendingInputsState | undefined
   messageAfterFailure?: boolean | undefined
   now: string
 }): SessionStatus {
   const { facts } = args
+  const logQueuedSince = args.pending === undefined ? null : queuedSinceOf(args.pending)
+  const queuedSince = logQueuedSince ?? args.queuedSince
 
   const queued: SessionStatus =
-    args.queuedSince === null
+    queuedSince === null
       ? { state: ESessionStatus.Queued }
-      : { state: ESessionStatus.Queued, since: args.queuedSince }
+      : { state: ESessionStatus.Queued, since: queuedSince }
 
   const startFailure = facts.startFailure
   if (startFailure !== null) {
@@ -89,7 +93,7 @@ export function deriveStatus(args: {
       : workspaceStatusOf({ facts, messageAfterFailure: args.messageAfterFailure })
   if (workspace !== undefined) return workspace
 
-  if (args.queuedSince !== null) return queued
+  if (queuedSince !== null) return queued
 
   const failed = facts.unfinishedFailure
   if (failed !== null) {

@@ -116,4 +116,49 @@ describe('v2EventSchema', () => {
     expect(v2EventSchema.safeParse({ ...refused, reason: undefined }).success).toBe(false)
     expect(RECORD_ONLY_TYPES.has('input-refused')).toBe(true)
   })
+
+  it('accepts the input log bodies and rejects malformed ones', () => {
+    const [plain] = mint({ count: 1 })
+    const withoutText = <T extends object>(body: T): T => {
+      delete (body as { text?: string }).text
+      return body
+    }
+    const posted = withoutText({
+      ...plain,
+      type: 'input-posted',
+      inboxId: 4,
+      kind: 'command:compact',
+      postedAt: NOW,
+    })
+    const withdrawn = withoutText({ ...plain, type: 'input-withdrawn', inboxId: 4 })
+    const restored = withoutText({
+      ...plain,
+      type: 'input-refused',
+      inboxId: 4,
+      reason: 'already-sent',
+      targetInboxId: 4,
+      clientId: 'c-1',
+    })
+
+    for (const body of [posted, withdrawn, restored]) {
+      expect(v2EventSchema.safeParse(body).success).toBe(true)
+    }
+    for (const type of ['input-posted', 'input-withdrawn'] as const) {
+      expect(RECORD_ONLY_TYPES.has(type)).toBe(true)
+    }
+    expect(v2EventSchema.parse({ ...posted, clientId: 'c-1', text: 'go' })).toMatchObject({
+      clientId: 'c-1',
+      kind: 'command:compact',
+      postedAt: NOW,
+    })
+    expect(v2EventSchema.safeParse({ ...posted, postedAt: undefined }).success).toBe(false)
+    expect(v2EventSchema.safeParse({ ...posted, kind: '' }).success).toBe(false)
+    expect(v2EventSchema.safeParse({ ...withdrawn, inboxId: 0 }).success).toBe(false)
+    expect(v2EventSchema.safeParse({ ...restored, targetInboxId: 0 }).success).toBe(false)
+  })
+
+  it('keeps a clientId on user-said so a dimmed bubble can be matched to its log event', () => {
+    const [plain] = mint({ count: 1 })
+    expect(v2EventSchema.parse({ ...plain, clientId: 'c-1' })).toMatchObject({ clientId: 'c-1' })
+  })
 })
