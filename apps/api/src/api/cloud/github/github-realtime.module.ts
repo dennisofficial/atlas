@@ -31,7 +31,6 @@ import { GithubSubscriptionsService } from './github-subscriptions.service'
 import { GithubUserReads } from './github-user-reads'
 import { GithubWebhookInboxService } from './github-webhook-inbox.service'
 import { GithubModule } from './github.module'
-import { GithubRequestCoordinator } from './github-request-coordinator'
 
 @Module({
   imports: [GithubModule, HealthModule, RedisModule, SessionsModule],
@@ -42,7 +41,6 @@ import { GithubRequestCoordinator } from './github-request-coordinator'
     GithubSubscriptionsService,
     GithubPrSubscriptionLinks,
     { provide: PrSubscriptionLinks, useExisting: GithubPrSubscriptionLinks },
-    GithubRequestCoordinator,
     GithubHookLifecycleService,
     GithubPollSweeperService,
     ...sweepSchedulerProviders(),

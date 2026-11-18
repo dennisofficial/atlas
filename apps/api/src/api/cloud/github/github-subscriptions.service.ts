@@ -1,46 +1,43 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
-import { EGithubCallSource } from './github-call-log'
-import { db, type Row } from '@dltech/atlas-db'
+import { db } from '@dltech/atlas-db'
 import { threadActivityAt } from './github-thread-activity'
-import { dtoOf, liveUntilOf, nextExpiry, subscriptionLiveWhere } from './github-delivery-routing'
+import { liveUntilOf, nextExpiry, subscriptionLiveWhere } from './github-delivery-routing'
 import { cachedPrStates } from './github-linked-prs'
 import { GithubAppInstallNoticeService } from './github-app-install-notice.service'
 import { GithubAppInstallationsService } from './github-app-installations.service'
 import { parseRepo, subscriptionDtoOf } from './github-subscriptions-dto'
 import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
-import { RepoAccessChecker } from './github-repo-access'
 import type {
   GithubPrStateDto,
   GithubSubscriptionDto,
   GithubSubscribeArgs,
 } from './github-realtime.types'
 import { GithubRequestCoordinator } from './github-request-coordinator'
-import { deliverPrTransitions } from './github-pr-transition-push'
-import {
-  nextVersionOf,
-  readPrStateForUpdate,
-  settlementSnapshotOf,
-  snapshotOfLocked,
-} from './github-pr-head-checks'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
-import { withGithubRequestBudget, isGithubBudgetParked } from './github-request-budget'
+import { withGithubRequestBudget } from './github-request-budget'
 import { normalizedRepo } from './github-pr-identity'
+import { GithubSubscribedPrResolver } from './github-subscribed-pr-resolver'
+import { GithubSubscribeStateWriter } from './github-subscribe-state-writer'
 import { GithubUserReads } from './github-user-reads'
 import { GithubService } from './github.service'
 
 @Injectable()
 export class GithubSubscriptionsService {
-  private readonly access = new RepoAccessChecker((args) => this.requireToken(args))
+  private readonly prs: GithubSubscribedPrResolver
+  private readonly stateWriter: GithubSubscribeStateWriter
 
   constructor(
     private readonly github: GithubService,
-    private readonly reads: GithubUserReads,
+    reads: GithubUserReads,
     private readonly hooks: GithubHookLifecycleService,
     private readonly installNotice: GithubAppInstallNoticeService,
     private readonly coordinator: GithubRequestCoordinator,
-    private readonly mailbox: GithubPrEventMailboxService,
+    mailbox: GithubPrEventMailboxService,
     private readonly installations: GithubAppInstallationsService,
-  ) {}
+  ) {
+    this.prs = new GithubSubscribedPrResolver({ reads, coordinator })
+    this.stateWriter = new GithubSubscribeStateWriter({ prs: this.prs, mailbox })
+  }
 
   subscribe(args: GithubSubscribeArgs): Promise<GithubSubscriptionDto> {
     return withGithubRequestBudget({
@@ -52,17 +49,12 @@ export class GithubSubscriptionsService {
 
   private async subscribeAuthorized(args: GithubSubscribeArgs): Promise<GithubSubscriptionDto> {
     const { owner, repo } = parseRepo({ repoFullName: args.repoFullName })
+    const token = await this.requireToken({ userId: args.userId })
     const covered = await this.installations.coversRepo({ repoFullName: args.repoFullName })
-    await this.ensureAccess({
-      userId: args.userId,
-      repoFullName: args.repoFullName,
-      owner,
-      repo,
-      covered,
-    })
 
-    const prNumber = await this.resolvePrNumber({
+    const prNumber = await this.prs.resolvePrNumber({
       userId: args.userId,
+      token,
       repoFullName: args.repoFullName,
       owner,
       repo,
@@ -88,6 +80,16 @@ export class GithubSubscriptionsService {
     const threadId = args.threadId ?? ''
     const expiresAt = nextExpiry()
     const liveUntil = await this.liveCeiling({ threadId, expiresAt })
+
+    const state = await this.stateWriter.pullOnSubscribe({
+      userId: args.userId,
+      token,
+      owner,
+      repo,
+      repoFullName: args.repoFullName,
+      prNumber,
+      covered,
+    })
 
     const subscription = await db.orm.public.GithubSubscription.upsert({
       create: {
@@ -115,15 +117,6 @@ export class GithubSubscriptionsService {
     })
     await db.orm.public.GithubRepoHook.where({ repoFullName: args.repoFullName }).updateAndCount({
       idleSince: null,
-    })
-
-    const state = await this.pullOnSubscribe({
-      userId: args.userId,
-      owner,
-      repo,
-      repoFullName: args.repoFullName,
-      prNumber,
-      covered,
     })
 
     return subscriptionDtoOf({ subscription, state, recommendAppInstall })
@@ -237,156 +230,6 @@ export class GithubSubscriptionsService {
           }
         : state,
     )
-  }
-
-  private async ensureAccess(args: {
-    userId: string
-    repoFullName: string
-    owner: string
-    repo: string
-    covered: boolean
-  }): Promise<void> {
-    const { covered, ...proof } = args
-    if (await this.coordinator.provenAccess(proof)) return
-    try {
-      await this.access.require({
-        source: EGithubCallSource.RepoAccess,
-        userId: args.userId,
-        owner: args.owner,
-        repo: args.repo,
-      })
-    } catch (failure) {
-      if (!isGithubBudgetParked(failure) || !covered) throw failure
-      return
-    }
-    await this.coordinator.recordAccess(proof)
-  }
-
-  private async resolvePrNumber(args: {
-    userId: string
-    repoFullName: string
-    owner: string
-    repo: string
-    prNumber?: number
-    branch?: string
-    threadId?: string
-  }): Promise<number | null> {
-    if (args.prNumber !== undefined) return args.prNumber
-    const branch = args.branch
-    if (branch === undefined) return null
-
-    const remembered = await this.rememberedPr({ ...args, branch })
-    if (remembered !== null && (await this.stillOpen({ ...args, prNumber: remembered }))) {
-      return remembered
-    }
-
-    const token = await this.requireToken({ userId: args.userId })
-    const found = await this.reads.findOpenPrForBranch({
-      source: EGithubCallSource.SubscriptionResolve,
-      token,
-      owner: args.owner,
-      repo: args.repo,
-      branch,
-    })
-    return found === null ? remembered : found.number
-  }
-
-  /**
-   * Re-subscribing to a branch the thread already follows must cost no REST lookup while that pull
-   * request is still open; once it merged or closed, only a fresh lookup can say whether the branch
-   * opened another one.
-   */
-  private async rememberedPr(args: {
-    userId: string
-    repoFullName: string
-    branch: string
-    threadId?: string
-  }): Promise<number | null> {
-    const held = await db.orm.public.GithubSubscription.where({
-      userId: args.userId,
-      repoFullName: args.repoFullName,
-      branch: args.branch,
-      threadId: args.threadId ?? '',
-    }).first()
-    return held === null ? null : held.prNumber
-  }
-
-  private async stillOpen(args: { repoFullName: string; prNumber: number }): Promise<boolean> {
-    const state = await db.orm.public.GithubPrState.where({
-      repoFullName: args.repoFullName,
-      prNumber: args.prNumber,
-    }).first()
-    return state !== null && state.state === 'open'
-  }
-
-  /**
-   * Subscribe's immediate fetch is a state writer like any other, so it runs the same
-   * transactional transition path: prior captured under the row lock, upsert, verdict obligation
-   * discharged. The ledger's first-settled-observation rule is the baseline policy — subscribing
-   * to an already-green PR announces that verdict once, to the subscribing user.
-   */
-  private async pullOnSubscribe(args: {
-    userId: string
-    owner: string
-    repo: string
-    repoFullName: string
-    prNumber: number | null
-    covered: boolean
-  }): Promise<GithubPrStateDto | null> {
-    if (args.prNumber === null) return null
-    const prNumber = args.prNumber
-    const held = await this.prState({ repoFullName: args.repoFullName, prNumber })
-    if (args.covered && held !== null) return dtoOf(held)
-    const token = await this.requireToken({ userId: args.userId })
-    const fields = await this.reads
-      .readPullRequest({
-        source: EGithubCallSource.SubscriptionResolve,
-        token,
-        owner: args.owner,
-        repo: args.repo,
-        number: prNumber,
-      })
-      .catch((failure: unknown) => {
-        if (isGithubBudgetParked(failure)) return null
-        throw failure
-      })
-    if (fields === null) return held === null ? null : dtoOf(held)
-    if (fields.headRepoFullName !== null)
-      fields.headRepoFullName = normalizedRepo(fields.headRepoFullName)
-    const row = await db.transaction(async (tx) => {
-      const priorRow = await readPrStateForUpdate({ tx, repoFullName: args.repoFullName, prNumber })
-      const row = await tx.orm.public.GithubPrState.upsert({
-        conflictOn: { repoFullName: args.repoFullName, prNumber },
-        create: {
-          repoFullName: args.repoFullName,
-          prNumber,
-          ...fields,
-          version: nextVersionOf(priorRow),
-          updatedAt: new Date(),
-        },
-        update: { ...fields, version: nextVersionOf(priorRow), updatedAt: new Date() },
-      })
-      await deliverPrTransitions({
-        writes: { mailbox: this.mailbox, repoFullName: args.repoFullName, prNumber, url: row.url },
-        prior: priorRow === null ? null : snapshotOfLocked(priorRow),
-        next: await settlementSnapshotOf({ tx, row }),
-        userIds: [args.userId],
-        tx,
-      })
-      return row
-    })
-    return dtoOf(row)
-  }
-
-  /** Webhooks keep the row current, so a fresh row is the truth and the REST read is redundant. */
-  private prState(args: {
-    repoFullName: string
-    prNumber: number
-  }): Promise<Row<'GithubPrState'> | null> {
-    return db.orm.public.GithubPrState.where({
-      repoFullName: args.repoFullName,
-      prNumber: args.prNumber,
-    }).first()
   }
 
   async markIdleWhenDrained(args: { repoFullName?: string }): Promise<void> {

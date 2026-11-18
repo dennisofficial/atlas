@@ -9,13 +9,10 @@ import { dispatchSubmission, EDispatch } from './dispatch'
 import { newThreadCommandHandlers } from './new-thread-command-handlers'
 import { useCatalogueSkills } from './use-catalogue-skills'
 
-export function useNewThreadCommands(args: {
-  projectId: string | null | undefined
-  clearDraft: () => void
-}) {
+export function useNewThreadCommands(args: { clearDraft: () => void }) {
   const [modelOpen, setModelOpen] = useState(false)
   const router = useRouter()
-  const catalogue = useCatalogueSkills(args.projectId)
+  const catalogue = useCatalogueSkills()
   const { clearDraft } = args
   const { reload } = catalogue
 

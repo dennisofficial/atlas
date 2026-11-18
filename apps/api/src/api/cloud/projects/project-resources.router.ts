@@ -45,6 +45,8 @@ import {
 } from '../../platform/sessions/session-or-sandbox.middleware'
 import { EGithubCallSource } from '../github/github-call-log'
 import { GithubRepoReads } from '../github/github-repo-reads'
+import { isGithubBudgetParked, withGithubRequestBudget } from '../github/github-request-budget'
+import { GithubRequestCoordinator } from '../github/github-request-coordinator'
 import { GithubUserReadFailed } from '../github/github-user-reads'
 import { ProjectFileMountsService } from './project-file-mounts.service'
 import { ProjectResourcesService } from './project-resources.service'
@@ -61,6 +63,7 @@ export class ProjectResourcesRouter {
     private readonly fileMounts: ProjectFileMountsService,
     private readonly projects: ProjectsService,
     private readonly githubReads: GithubRepoReads,
+    private readonly githubBudget: GithubRequestCoordinator,
   ) {}
 
   @Query({
@@ -221,18 +224,24 @@ export class ProjectResourcesRouter {
   ): Promise<ProjectRepoTree> {
     const workspace = await this.projects.workspace({ userId: ctx.auth.userId, ...input })
     const [owner, repo] = workspace.repo?.split('/') ?? []
-    if (owner === undefined || repo === undefined || workspace.githubToken === null) {
+    const token = workspace.githubToken
+    if (owner === undefined || repo === undefined || token === null) {
       return { entries: [], truncated: false }
     }
     try {
-      return await this.githubReads.listTree({
-        source: EGithubCallSource.RepoTree,
-        token: workspace.githubToken,
-        owner,
-        repo,
-        ref: workspace.baseBranch ?? 'HEAD',
+      return await withGithubRequestBudget({
+        store: this.githubBudget,
+        run: () =>
+          this.githubReads.listTree({
+            source: EGithubCallSource.RepoTree,
+            token,
+            owner,
+            repo,
+            ref: workspace.baseBranch ?? 'HEAD',
+          }),
       })
     } catch (failure) {
+      if (isGithubBudgetParked(failure)) throw failure
       if (failure instanceof GithubUserReadFailed && failure.status === 404) {
         throw new NotFoundException('repository not found')
       }

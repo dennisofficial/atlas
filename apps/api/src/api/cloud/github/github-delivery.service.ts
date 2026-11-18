@@ -30,6 +30,11 @@ import type {
 
 const HEAD_ACTIONS = new Set(['opened', 'reopened', 'synchronize'])
 
+const installationIdOf = (payload: unknown): bigint | undefined => {
+  const id = (payload as { installation?: { id?: unknown } }).installation?.id
+  return typeof id === 'number' ? BigInt(id) : undefined
+}
+
 const HANDLED_EVENTS = new Set([
   'pull_request',
   'check_suite',
@@ -70,13 +75,17 @@ export class GithubDeliveryService {
       restFill: async (args) => {
         const token = await this.findFillToken({
           repoFullName: args.repoFullName,
+          installationId: args.installationId,
         })
         if (token === undefined) return { kind: 'skipped' }
         const [owner, repo] = args.repoFullName.split('/') as [string, string]
         return this.restFill({ token, owner, repo, prNumber: args.prNumber, collect: true })
       },
       fetchAnnotations: async (args) => {
-        const token = await this.findFillToken({ repoFullName: args.repoFullName })
+        const token = await this.findFillToken({
+          repoFullName: args.repoFullName,
+          installationId: args.installationId,
+        })
         if (token === undefined) return null
         const [owner, repo] = args.repoFullName.split('/') as [string, string]
         return this.reads.readCheckAnnotations({
@@ -109,8 +118,10 @@ export class GithubDeliveryService {
     if (!HANDLED_EVENTS.has(args.event)) return { handled: false }
     if (args.event === 'ping') return { handled: true }
 
+    const installationId = installationIdOf(args.payload)
+
     if (args.event === 'pull_request') {
-      await this.handlePullRequest(args.payload as GithubPullRequestWebhookPayload)
+      await this.handlePullRequest(args.payload as GithubPullRequestWebhookPayload, installationId)
       return { handled: true }
     }
     if (args.event === 'issue_comment') {
@@ -131,18 +142,24 @@ export class GithubDeliveryService {
     }
 
     if (args.event === 'check_run') {
-      await this.checks.handleCheckRun(args.payload as GithubCheckRunWebhookPayload)
+      await this.checks.handleCheckRun(args.payload as GithubCheckRunWebhookPayload, installationId)
     }
     if (args.event === 'check_suite') {
-      await this.checks.handleCheckSuite(args.payload as GithubCheckSuiteWebhookPayload)
+      await this.checks.handleCheckSuite(
+        args.payload as GithubCheckSuiteWebhookPayload,
+        installationId,
+      )
     }
     if (args.event === 'status') {
-      await this.checks.handleStatus(args.payload as GithubStatusWebhookPayload)
+      await this.checks.handleStatus(args.payload as GithubStatusWebhookPayload, installationId)
     }
     return { handled: true }
   }
 
-  private async handlePullRequest(payload: GithubPullRequestWebhookPayload): Promise<void> {
+  private async handlePullRequest(
+    payload: GithubPullRequestWebhookPayload,
+    installationId: bigint | undefined,
+  ): Promise<void> {
     const repoFullName = normalizedRepo(payload.repository.full_name)
     const prNumber = payload.pull_request.number
     const [prior, token] = await Promise.all([
@@ -150,7 +167,7 @@ export class GithubDeliveryService {
         .where({ prNumber })
         .orderBy((pr) => pr.updatedAt.desc())
         .first(),
-      this.findFillToken({ repoFullName }),
+      this.findFillToken({ repoFullName, installationId }),
     ])
 
     const headMoves = HEAD_ACTIONS.has(payload.action)
@@ -188,8 +205,11 @@ export class GithubDeliveryService {
     })
   }
 
-  private async findFillToken(args: { repoFullName: string }): Promise<string | undefined> {
-    const appToken = await this.appTokens?.tokenForRepo(args)
+  private async findFillToken(args: {
+    repoFullName: string
+    installationId: bigint | undefined
+  }): Promise<string | undefined> {
+    const appToken = await this.appInstallationToken(args)
     if (appToken !== undefined) return appToken
 
     const hook = await db.orm.public.GithubRepoHook.where((hook) =>
@@ -212,6 +232,16 @@ export class GithubDeliveryService {
       if (token !== undefined) return token
     }
     return undefined
+  }
+
+  private appInstallationToken(args: {
+    repoFullName: string
+    installationId: bigint | undefined
+  }): Promise<string | undefined> {
+    if (this.appTokens === undefined) return Promise.resolve(undefined)
+    return args.installationId === undefined
+      ? this.appTokens.tokenForRepo({ repoFullName: args.repoFullName })
+      : this.appTokens.tokenForInstallation({ installationId: args.installationId })
   }
 
   private restFill(args: {

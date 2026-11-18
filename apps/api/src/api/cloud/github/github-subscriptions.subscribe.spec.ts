@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { ensureUsers, prStateRows, subscriptionRows } from '../../../../test/github-seed'
 import { unstubAllGlobals } from '@dltech/bun-test-shims'
 import { serviceWith } from './github-subscriptions.fixture'
+import { GithubUserReadFailed } from './github-user-reads'
 
 describe('GithubSubscriptionsService subscribe', () => {
   useTestDatabase()
@@ -165,12 +166,46 @@ describe('GithubSubscriptionsService subscribe', () => {
     expect(branches).toEqual(['#42', '#87'])
   })
 
-  it('refuses a repo the user cannot read on github', async () => {
-    const denied = async () => new Response('{}', { status: 404 })
-    const service = serviceWith({ token: 'ghu_1', fetchImpl: denied as unknown as typeof fetch })
+  it('proves access with the pull request read and spends no /repos call of its own', async () => {
+    const calls: string[] = []
+    const service = serviceWith({
+      token: 'ghu_1',
+      fetchImpl: (async (target: Parameters<typeof fetch>[0]) => {
+        calls.push(String(target))
+        return Response.json({})
+      }) as unknown as typeof fetch,
+    })
+
+    await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
+    await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
+
+    expect(calls).toEqual([])
+  })
+
+  it('refuses a repo whose pull request read github answers 404 for', async () => {
+    const service = serviceWith({
+      token: 'ghu_1',
+      readPullRequest: async () => {
+        throw new GithubUserReadFailed('no such pull request', 404)
+      },
+    })
 
     await expect(
       service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 }),
+    ).rejects.toBeInstanceOf(ForbiddenException)
+    expect(await subscriptionRows()).toHaveLength(0)
+  })
+
+  it('refuses a repo whose branch lookup github answers 403 for', async () => {
+    const service = serviceWith({
+      token: 'ghu_1',
+      findOpenPrForBranch: async () => {
+        throw new GithubUserReadFailed('forbidden', 403)
+      },
+    })
+
+    await expect(
+      service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', branch: 'dennis/x' }),
     ).rejects.toBeInstanceOf(ForbiddenException)
     expect(await subscriptionRows()).toHaveLength(0)
   })

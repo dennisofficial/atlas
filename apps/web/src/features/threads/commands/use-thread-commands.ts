@@ -16,7 +16,6 @@ export function useThreadCommands(args: {
   threadId: string
   channel: RemoteDeltaChannel | null
   live: boolean
-  projectId: string | null | undefined
   working: boolean
   rightPanel: Pick<RightPanelState, 'setTab' | 'openPanel'>
   retryBoot: (threadId: string) => Promise<void>
@@ -24,11 +23,7 @@ export function useThreadCommands(args: {
 }) {
   const [modelOpen, setModelOpen] = useState(false)
   const router = useRouter()
-  const list = useCommandList({
-    channel: args.channel,
-    live: args.live,
-    projectId: args.projectId,
-  })
+  const list = useCommandList({ channel: args.channel, live: args.live })
   const { channel, threadId, retryBoot, refresh } = args
   const { setTab, openPanel } = args.rightPanel
   const openModelPicker = useCallback(() => setModelOpen(true), [])

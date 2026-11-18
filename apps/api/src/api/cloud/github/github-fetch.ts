@@ -1,12 +1,19 @@
 import { Logger } from '@nestjs/common'
-import { EGithubCallSource } from './github-call-log'
+import {
+  EGithubCallLane,
+  EGithubCallSource,
+  githubCallLane,
+  githubCredentialKind,
+} from './github-call-log'
 import { EGithubHttpCategory } from './github-request-coordinator.types'
 import {
   takeGithubRequestSlot,
   blockGithubRequests,
   credentialFingerprint,
+  recordGithubRateHeadroom,
+  revokeGithubAccessGrant,
 } from './github-request-budget'
-import { rateLimitOf } from './github-rate-limit'
+import { rateLimitOfResponse } from './github-rate-limit'
 
 const logger = new Logger('GithubCall')
 
@@ -34,6 +41,31 @@ function emit(line: Record<string, unknown>): void {
   }
 }
 
+function repoOf(path: string): string | undefined {
+  const [, owner, repo] = /^\/repos\/([\w.-]+)\/([\w.-]+)(?:\/|$)/.exec(path) ?? []
+  return owner === undefined || repo === undefined ? undefined : `${owner}/${repo}`
+}
+
+/**
+ * GitHub answers 401 when the user's token expired and revoked it, and 403/404 on a repo the user
+ * cannot read. Both end the access proof bought with that token; a rate-limit 403 does not.
+ */
+async function revokeOnCredentialFailure(args: {
+  credentialFingerprint: string
+  path: string
+  status: number
+}): Promise<void> {
+  if (args.status === 401)
+    return revokeGithubAccessGrant({ credentialFingerprint: args.credentialFingerprint })
+  if (args.status !== 403 && args.status !== 404) return
+  const repoFullName = repoOf(args.path)
+  if (repoFullName === undefined) return
+  await revokeGithubAccessGrant({
+    credentialFingerprint: args.credentialFingerprint,
+    repoFullName,
+  })
+}
+
 export async function githubFetch(args: {
   source: EGithubCallSource
   url: string
@@ -54,6 +86,7 @@ export async function githubFetch(args: {
         ? EGithubHttpCategory.Authorization
         : EGithubHttpCategory.Refresh,
     source,
+    essential: githubCallLane(source) === EGithubCallLane.Essential,
   }
   init?.signal?.throwIfAborted()
   await takeGithubRequestSlot(identity)
@@ -63,6 +96,8 @@ export async function githubFetch(args: {
     source,
     method: init?.method ?? 'GET',
     path: pathOf(url),
+    credentialFingerprint: identity.credentialFingerprint,
+    credentialKind: githubCredentialKind(token),
   }
   let response: Response
   try {
@@ -76,14 +111,29 @@ export async function githubFetch(args: {
     })
     throw failure
   }
-  const limited = rateLimitOf(response)
+  const headers = response.headers
+  const observed = {
+    ...identity,
+    resource: headers.get('x-ratelimit-resource') ?? identity.resource,
+  }
+  await recordGithubRateHeadroom({
+    identity: observed,
+    remaining: numberHeader(headers, 'x-ratelimit-remaining'),
+    limit: numberHeader(headers, 'x-ratelimit-limit'),
+    reset: numberHeader(headers, 'x-ratelimit-reset'),
+  })
+  const limited = await rateLimitOfResponse(response)
   if (limited !== null)
     await blockGithubRequests({
-      ...identity,
-      resource: response.headers.get('x-ratelimit-resource') ?? identity.resource,
+      ...observed,
       until: Date.now() + limited.retryAfterSeconds * 1_000,
     })
-  const headers = response.headers
+  if (limited === null)
+    await revokeOnCredentialFailure({
+      credentialFingerprint: identity.credentialFingerprint,
+      path: pathOf(url),
+      status: response.status,
+    })
   emit({
     ...base,
     status: response.status,

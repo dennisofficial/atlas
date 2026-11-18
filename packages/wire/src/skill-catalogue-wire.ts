@@ -5,12 +5,9 @@ import { commandSkillWireSchema } from './request-wire'
 export enum ESkillCatalogueOrigin {
   BuiltIn = 'builtin',
   User = 'user',
-  Project = 'project',
 }
 
-export const skillCatalogueRequestSchema = z.strictObject({
-  projectId: z.string().min(1).optional(),
-})
+export const skillCatalogueRequestSchema = z.strictObject({})
 export type SkillCatalogueRequest = z.infer<typeof skillCatalogueRequestSchema>
 
 export const skillCatalogueEntrySchema = commandSkillWireSchema.extend({

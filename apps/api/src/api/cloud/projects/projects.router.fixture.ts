@@ -1,5 +1,7 @@
 import type { INestApplication, Provider } from '@nestjs/common'
 import { GithubRepoReads } from '../github/github-repo-reads'
+import { localCoordinator } from '../github/github-request-coordinator.fixture'
+import { GithubRequestCoordinator } from '../github/github-request-coordinator'
 import { GithubService } from '../github/github.service'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
@@ -26,13 +28,17 @@ export const PROJECT_BODY = {
   additionalRepos: [],
 }
 
-export const projectProviders = (githubTokens: Record<string, string> = {}): Provider[] => [
+export const projectProviders = (
+  githubTokens: Record<string, string> = {},
+  coordinator: GithubRequestCoordinator = localCoordinator(),
+): Provider[] => [
   ProjectsService,
   { provide: ThreadSignalsService, useValue: inertSignals() },
   ProjectResourcesService,
   { provide: VercelPlanService, useValue: unknownPlanService() },
   ProjectFileMountsService,
   GithubRepoReads,
+  { provide: GithubRequestCoordinator, useValue: coordinator },
   ProjectSettingsService,
   ProjectsRouter,
   ProjectResourcesRouter,
@@ -45,11 +51,12 @@ export const projectProviders = (githubTokens: Record<string, string> = {}): Pro
 
 export const buildProjectsApp = (args: {
   githubTokens?: Record<string, string>
+  coordinator?: GithubRequestCoordinator
   sandboxTokens?: Record<string, PrincipalFixture>
   podTokens?: Record<string, PrincipalFixture>
 }): Promise<INestApplication> =>
   buildSessionTrpcApp({
-    providers: projectProviders(args.githubTokens),
+    providers: projectProviders(args.githubTokens, args.coordinator),
     ...(args.sandboxTokens === undefined ? {} : { sandboxTokens: args.sandboxTokens }),
     ...(args.podTokens === undefined ? {} : { podTokens: args.podTokens }),
   })

@@ -22,9 +22,14 @@ export class RedisCoordinatorFixture {
   }
 
   identity(credentialFingerprint: string): GithubRequestIdentity {
-    this.key(`http:${Math.floor(Date.now() / 60_000)}`)
+    const window = `http:${Math.floor(Date.now() / 60_000)}:${credentialFingerprint}`
+    this.key(window)
+    this.key(`${window}:authorization`)
+    this.key(`${window}:refresh`)
+    this.key(`${window}:unclassified`)
     this.key('blocked')
     this.key(`blocked:${credentialFingerprint}:core`)
+    this.key(`reserve:${credentialFingerprint}:core`)
     return { credentialFingerprint, resource: 'core' }
   }
 

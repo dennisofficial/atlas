@@ -1,20 +1,21 @@
 import { afterEach, describe, expect, it, mock, setSystemTime, spyOn } from 'bun:test'
 import { Logger } from '@nestjs/common'
 import { EGithubCallSource } from './github-call-log'
-import { EGithubHttpCategory } from './github-request-coordinator.types'
+import { EGithubHttpCategory, type GithubRequestIdentity } from './github-request-coordinator.types'
 import {
   EGithubBudgetRefusal,
   GithubCredentialCooldown,
   GithubHttpBudgetUnavailable,
   blockGithubRequests,
   isGithubBudgetParked,
+  recordGithubRateHeadroom,
   takeGithubRequestSlot,
   withGithubRequestBudget,
   type GithubHttpBudget,
 } from './github-request-budget'
 
 const NOW = new Date('2026-11-11T17:43:00.000Z')
-const identity = {
+const identity: GithubRequestIdentity = {
   credentialFingerprint: 'fp',
   resource: 'core',
   category: EGithubHttpCategory.Refresh,
@@ -123,6 +124,82 @@ describe('takeGithubRequestSlot', () => {
     )
 
     expect((failure as GithubHttpBudgetUnavailable).refusal).toBe(EGithubBudgetRefusal.Coordinator)
+  })
+})
+
+describe('recordGithubRateHeadroom', () => {
+  afterEach(() => {
+    mock.restore()
+    setSystemTime()
+  })
+
+  const refused = async (args: GithubHttpBudget, call = identity): Promise<unknown> =>
+    withGithubRequestBudget({ store: args, run: () => takeGithubRequestSlot(call) }).catch(
+      (failure: unknown) => failure,
+    )
+
+  it('holds background calls until reset once GitHub reports the credential near its limit', async () => {
+    setSystemTime(NOW)
+    const warnings = captureWarnings()
+    const until = NOW.getTime() + 120_000
+    const held: number[] = []
+    const budget = store({
+      takeHttpSlot: async () => false,
+      httpReserveUntil: async () => until,
+      holdHttpReserve: async (args) => {
+        held.push(args.until)
+      },
+    })
+    await withGithubRequestBudget({
+      store: budget,
+      run: () =>
+        recordGithubRateHeadroom({
+          identity: { ...identity, essential: false },
+          remaining: 2,
+          limit: 60,
+          reset: Math.floor(until / 1_000),
+        }),
+    })
+
+    expect(held).toEqual([until])
+    expect(JSON.parse(warnings[0] ?? '')).toMatchObject({
+      reserve: 'low-water',
+      resource: 'core',
+      remaining: 2,
+      limit: 60,
+    })
+    const failure = (await refused(budget, {
+      ...identity,
+      essential: false,
+    })) as GithubHttpBudgetUnavailable
+    expect(failure.refusal).toBe(EGithubBudgetRefusal.Quota)
+    expect(failure.until).toBe(until)
+    expect(failure.message).toContain('almost no quota left')
+    expect(isGithubBudgetParked(failure)).toBe(true)
+    const allowed = (await refused(budget, {
+      ...identity,
+      essential: true,
+    })) as GithubHttpBudgetUnavailable
+    expect(allowed.refusal).toBe(EGithubBudgetRefusal.Window)
+  })
+
+  it('holds nothing while the credential still has comfortable headroom', async () => {
+    const held: number[] = []
+    await withGithubRequestBudget({
+      store: store({
+        holdHttpReserve: async (args) => {
+          held.push(args.until)
+        },
+      }),
+      run: () =>
+        recordGithubRateHeadroom({
+          identity: { ...identity, essential: false },
+          remaining: 4_993,
+          limit: 5_000,
+          reset: Math.floor(NOW.getTime() / 1_000) + 600,
+        }),
+    })
+    expect(held).toEqual([])
   })
 })
 

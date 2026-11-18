@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, setSystemTime, vi } from '
 import { seedPrState } from '../../../../test/github-seed'
 import { EGithubCallSource } from './github-call-log'
 import {
+  checkRunPayload,
   prepareDelivery,
   PULL_REQUEST_PAYLOAD,
   REST_FIELDS,
@@ -25,6 +26,39 @@ const seedAppCoverage = (): Promise<unknown> =>
 const appTokensOver = (): GithubInstallationTokens => {
   const { client, installations } = syncServiceWith()
   return new GithubInstallationTokens(client, installations)
+}
+
+const asAppDelivery = <T extends object>(payload: T): T & { installation: { id: number } } => ({
+  ...payload,
+  installation: { id: 11 },
+})
+
+const seedOpenPr = (): Promise<unknown> =>
+  seedPrState({
+    repoFullName: 'compai/app',
+    prNumber: 42,
+    title: 'add the thing',
+    url: 'https://github.com/compai/app/pull/42',
+    state: 'open',
+    headBranch: 'dennis/add-the-thing',
+    headSha: 'abc123',
+    headRepoFullName: 'compai/app',
+    checksRunning: 0,
+    checksPassed: 0,
+    checksFailed: 0,
+    mergeable: null,
+    updatedAt: new Date(),
+  })
+
+const failingRun = () => {
+  const base = checkRunPayload({ id: 7, name: 'typecheck', conclusion: 'failure' })
+  return {
+    ...base,
+    check_run: {
+      ...base.check_run,
+      output: { title: null, summary: null, annotations_count: 2 },
+    },
+  }
 }
 
 const stubMintFailure = (): { restore: () => void; calls: () => number } => {
@@ -88,21 +122,7 @@ describe('GithubDeliveryService fill credential', () => {
       readPullRequest,
     })
     await seedAppCoverage()
-    await seedPrState({
-      repoFullName: 'compai/app',
-      prNumber: 42,
-      title: 'add the thing',
-      url: 'https://github.com/compai/app/pull/42',
-      state: 'open',
-      headBranch: 'dennis/add-the-thing',
-      headSha: 'abc123',
-      headRepoFullName: 'compai/app',
-      checksRunning: 0,
-      checksPassed: 0,
-      checksFailed: 0,
-      mergeable: null,
-      updatedAt: new Date(),
-    })
+    await seedOpenPr()
 
     await service.handle({
       event: 'check_run',
@@ -125,6 +145,60 @@ describe('GithubDeliveryService fill credential', () => {
     expect(readPullRequest).toHaveBeenCalledWith(
       expect.objectContaining({ token: 'inst-11', number: 42 }),
     )
+  })
+
+  it('fills an app delivery on the payload installation with no coverage row', async () => {
+    github = fakeGithubApp({ installations: [] })
+    const readPullRequest = vi.fn(async () => REST_FIELDS)
+    const { service } = serviceWith({ tokens: {}, appTokens: appTokensOver(), readPullRequest })
+
+    await service.handle({ event: 'pull_request', payload: asAppDelivery(PULL_REQUEST_PAYLOAD) })
+
+    expect(readPullRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ token: 'inst-11', number: 42 }),
+    )
+    expect(github.calls).toEqual(['POST /app/installations/11/access_tokens'])
+  })
+
+  it('fills a check settle on the payload installation with no coverage row', async () => {
+    github = fakeGithubApp({ installations: [] })
+    const readPullRequest = vi.fn(async () => REST_FIELDS)
+    const { service } = serviceWith({ tokens: {}, appTokens: appTokensOver(), readPullRequest })
+    await seedOpenPr()
+
+    await service.handle({ event: 'check_run', payload: asAppDelivery(checkRunPayload()) })
+
+    expect(readPullRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ token: 'inst-11', number: 42 }),
+    )
+  })
+
+  it('annotates a failed check on the payload installation with no coverage row', async () => {
+    github = fakeGithubApp({ installations: [] })
+    const readCheckAnnotations = vi.fn(async () => [])
+    const { service } = serviceWith({
+      tokens: {},
+      appTokens: appTokensOver(),
+      readCheckAnnotations,
+    })
+    await seedOpenPr()
+
+    await service.handle({ event: 'check_run', payload: asAppDelivery(failingRun()) })
+
+    expect(readCheckAnnotations).toHaveBeenCalledWith(
+      expect.objectContaining({ token: 'inst-11', checkRunId: 7 }),
+    )
+  })
+
+  it('reuses one minted installation token across two app deliveries', async () => {
+    github = fakeGithubApp({ installations: [] })
+    const { service } = serviceWith({ tokens: {}, appTokens: appTokensOver() })
+    const payload = asAppDelivery(PULL_REQUEST_PAYLOAD)
+
+    await service.handle({ event: 'pull_request', payload })
+    await service.handle({ event: 'pull_request', payload })
+
+    expect(github.calls).toEqual(['POST /app/installations/11/access_tokens'])
   })
 
   it('keeps the user token for a repository no installation covers', async () => {

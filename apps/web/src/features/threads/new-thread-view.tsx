@@ -81,7 +81,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
   const v2 = engine === EEngine.V2 && !onThisMac
 
   const clearDraft = useCallback(() => setDraft(''), [])
-  const commands = useNewThreadCommands({ projectId, clearDraft })
+  const commands = useNewThreadCommands({ clearDraft })
 
   const handleProjectChange = (next: string | null) => setSelected(next)
 
