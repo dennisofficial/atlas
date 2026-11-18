@@ -86,3 +86,5 @@ export const sessionEntryFolds = registeredPlugins.flatMap(
 )
 
 export const sessionEventTypes: ReadonlySet<string> = new Set(eventTypesOf(registeredPlugins))
+
+export const sessionViews = registeredPlugins.flatMap((plugin) => plugin.views)

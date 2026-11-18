@@ -1,45 +1,64 @@
 import {
   NO_WORKSPACE_RECORD,
   decideHeldAction,
+  isResumableOf,
+  loopStateOf,
   workspaceStateFrom,
   type EHeldAction,
   type InboxEntry,
-  type WorkspaceRecord,
 } from '@dltech/atlas-core'
 
 import { idleReleaseDue } from './held-idle'
 import { countRunningShells } from './held-shells'
-import { actionableEntries, isStop, readFullInbox, understandsCommand } from './held-inbox'
+import {
+  actionableEntries,
+  isStop,
+  logPendingMessageIdsOf,
+  readFullInbox,
+  understandsCommand,
+  waitingInputIdsOf,
+} from './held-inbox'
 import type { HeldSessionDeps } from './held-session-deps'
 import type { SessionRuntime } from './ports'
+import type { SessionRecord } from './record/record-adapter'
 
 export const readHeldAction = async (args: {
   deps: HeldSessionDeps
   draining: boolean
   turnRunning: boolean
-  resumePending: boolean
+  resumeAfterSeq: number
   lastActivityAt: number
   runtime: SessionRuntime | undefined
-  workspace: WorkspaceRecord | undefined
+  record: SessionRecord | undefined
   preparing: boolean
   setupRunning: boolean
   childrenRunning: number
 }): Promise<{
   entries: InboxEntry[]
   action: EHeldAction
+  resumable: boolean
   inboxHead: number
   shellsRunning: boolean
 }> => {
   const { deps } = args
+  const cache = args.record?.eventCache()
+  const events = cache?.eventsAfter(0) ?? []
+  const resumeEvents = cache?.loopEventsAfter(args.resumeAfterSeq) ?? []
   const entries = await readFullInbox(deps)
   const resolvable = entries.filter((entry) => understandsCommand(deps, entry))
+  const logIds = logPendingMessageIdsOf(events)
   const workspace = workspaceStateFrom({
-    record: args.workspace ?? NO_WORKSPACE_RECORD,
+    record: args.record?.eventCache().bookkeeping().workspace() ?? NO_WORKSPACE_RECORD,
     preparing: args.preparing,
-    pendingMessageIds: resolvable.filter((entry) => !isStop(entry)).map((entry) => entry.inboxId),
+    pendingMessageIds: [
+      ...resolvable.filter((entry) => !isStop(entry)).map((entry) => entry.inboxId),
+      ...logIds,
+    ],
   })
   const actionable = actionableEntries({ entries: resolvable, failure: workspace.failure })
-  const messagePending = actionable.some((entry) => !isStop(entry))
+  const messagePending =
+    actionable.some((entry) => !isStop(entry)) ||
+    waitingInputIdsOf({ ids: logIds, failure: workspace.failure }).length > 0
   const idleArgs = {
     deps,
     turnRunning: args.turnRunning,
@@ -56,11 +75,13 @@ export const readHeldAction = async (args: {
     quiet && args.runtime !== undefined
       ? await countRunningShells({ deps, runtime: args.runtime })
       : 0
+  const resumable = isResumableOf(loopStateOf({ events: resumeEvents }))
   const action = decideHeldAction({
     draining: args.draining,
     turn: args.turnRunning ? 'running' : 'idle',
     stopPending: actionable.some(isStop),
-    messagePending: messagePending || args.resumePending,
+    messagePending,
+    resumable,
     workspace: workspace.state,
     retryPending: workspace.retryPending,
     idleDue: quiet && runningShells === 0 && args.childrenRunning === 0 && !args.setupRunning,
@@ -68,6 +89,7 @@ export const readHeldAction = async (args: {
   return {
     entries,
     action,
+    resumable,
     inboxHead: Math.max(0, ...entries.map((entry) => entry.inboxId)),
     shellsRunning: runningShells > 0,
   }

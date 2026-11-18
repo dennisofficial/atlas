@@ -30,8 +30,11 @@ export const queuedMediaHashesOf = (args: {
   staged: readonly StagedMessage[]
 }): string[] => [
   ...new Set(
-    [...pendingOf(args.pending), ...args.staged].flatMap((input) =>
-      (input.attachments ?? []).flatMap((attachment) => {
+    [
+      ...pendingOf(args.pending).map((input) => input.message?.attachments),
+      ...args.staged.map((input) => input.attachments),
+    ].flatMap((attachments) =>
+      (attachments ?? []).flatMap((attachment) => {
         const hash = storedHashOf(attachment)
         return hash === undefined ? [] : [hash]
       }),
@@ -72,7 +75,11 @@ export const visibleQueuedOf = (args: {
   urls?: ReadonlyMap<string, string> | undefined
 }): QueuedMessageEntry[] =>
   pendingOf(args.pending).map((input) =>
-    entryOf({ id: String(input.inboxId), input, urls: args.urls ?? NO_URLS }),
+    entryOf({
+      id: String(input.inboxId),
+      input: input.message ?? { text: '' },
+      urls: args.urls ?? NO_URLS,
+    }),
   )
 
 export const stagedQueuedOf = (args: {

@@ -14,6 +14,7 @@ import {
 import { readyFrameOf } from './ready-frame'
 import { StreamFrameQueue } from './session-stream-frames'
 import { STREAM_DRAIN_RECONNECT_SPREAD_MS } from './stream-limits'
+import { createTrailingFlush } from './trailing-flush'
 import {
   unimplementedSubscriptions,
   type OutgoingFrame,
@@ -77,11 +78,15 @@ export const createSessionStream = (deps: SessionStreamDeps): SessionStream => {
     if (!deps.users.acquire(args.userId)) throw new SessionStreamLimitError()
     const { queue } = args
     const id = randomUUID()
+    const flush = createTrailingFlush({ send: (frame) => queue.push(frame) })
     const session = subscriptions.open({
       userId: args.userId,
       version: STREAM_PROTOCOL_VERSION,
       surface: EStreamSurface.Web,
-      send: (frame) => queue.push(frame),
+      send: (frame) => {
+        queue.push(frame)
+        flush.afterSend()
+      },
       bufferedAmount: () => queue.bufferedAmount(),
       close: () => queue.end(),
     })
@@ -95,6 +100,7 @@ export const createSessionStream = (deps: SessionStreamDeps): SessionStream => {
         connectionId: id,
         eventTypes: deps.eventTypes,
       })
+      flush.afterSend()
       Promise.resolve(session.handle(args.subscribe(id))).catch((error: unknown) => {
         deps.log?.error({
           source: 'stream',

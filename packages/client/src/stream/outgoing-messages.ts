@@ -31,8 +31,8 @@ export type StagedSplit<TStaged extends StagedInput> = {
 const clientIdByInbox = (events: readonly V2Event[]): ReadonlyMap<number, string> =>
   new Map(
     events.flatMap((event) =>
-      event.type === 'input-posted' && event.clientId !== undefined
-        ? [[event.inboxId, event.clientId] as const]
+      event.type === 'input-posted' && event.message?.clientId !== undefined
+        ? [[event.inboxId, event.message.clientId] as const]
         : [],
     ),
   )
@@ -51,8 +51,9 @@ const outcomeOf = (args: {
   const { event, byInbox } = args
   switch (event.type) {
     case 'input-posted': {
-      if (event.clientId === undefined) return undefined
-      return { clientId: event.clientId, outcome: EStagedOutcome.Posted }
+      const clientId = event.message?.clientId
+      if (clientId === undefined) return undefined
+      return { clientId, outcome: EStagedOutcome.Posted }
     }
     case 'user-said': {
       const clientId = event.clientId ?? byInbox.get(event.inboxId ?? 0)
@@ -75,11 +76,12 @@ const outcomeOf = (args: {
         (event.targetInboxId === undefined ? undefined : byInbox.get(event.targetInboxId)) ??
         byInbox.get(event.inboxId)
       if (clientId === undefined) return undefined
+      const text = event.message?.text ?? event.text
       return {
         clientId,
         outcome: EStagedOutcome.Refused,
         reason: event.reason,
-        ...(event.text === undefined ? {} : { text: event.text }),
+        ...(text === undefined ? {} : { text }),
       }
     }
     default:

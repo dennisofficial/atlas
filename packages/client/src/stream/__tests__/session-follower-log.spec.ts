@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'bun:test'
-import { EMPTY_PENDING, EMPTY_VISIBILITY, type V2Body, type V2Event } from '@dltech/atlas-core'
+import {
+  EMPTY_PENDING,
+  EMPTY_VISIBILITY,
+  initialFailureMessage,
+  initialSessionViewState,
+  type V2Body,
+  type V2Event,
+} from '@dltech/atlas-core'
 import { EStreamResetReason } from '@dltech/atlas-protocol'
 
 import { memorySessionLog, SESSION_LOG_STRUCTURE_VERSION, type SessionLog } from '../session-log'
@@ -43,6 +50,9 @@ const seedSnapshot = async (args: { log: SessionLog; events: V2Event[]; throughS
       cursor: window.cursor,
       visibility: window.visibility,
       pending: window.pending,
+      view: window.view,
+      failureMessage: window.failureMessage,
+      commandLog: window.commandLog,
       throughSeq: args.throughSeq,
     },
   })
@@ -203,6 +213,9 @@ describe('the session follower over the local log', () => {
         cursor: { seq: 1, hash: 'h' },
         visibility: EMPTY_VISIBILITY,
         pending: EMPTY_PENDING,
+        view: initialSessionViewState,
+        failureMessage: initialFailureMessage,
+        commandLog: [],
         throughSeq: 1,
       },
     })

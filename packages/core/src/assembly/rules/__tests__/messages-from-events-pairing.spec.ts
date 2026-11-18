@@ -2,6 +2,8 @@ import { describe, expect, it } from 'bun:test'
 
 import { EDecision, type EventDraft } from '../../../events/body'
 import { toCallId, toEventId } from '../../../events/ids'
+import { ENoticeStage } from '../../../events/notice-stage'
+import { EShellStatus } from '../../../shells/status'
 import type { Assembled } from '../../assembled'
 import { exchangeFaults } from '../../exchange-shape'
 import { contextFor, log, operatorSaidAs } from '../../__tests__/log-fixture'
@@ -289,6 +291,17 @@ describe('messagesFromEvents pairing every call with a result', () => {
       { type: 'approval-requested', callId: toCallId('call-1'), reason: 'destructive' },
       { type: 'approval-answered', callId: toCallId('call-1'), decision: EDecision.Allow },
       { type: 'user-said', text: 'actually stop' },
+      {
+        type: 'background-shell-ended',
+        shellId: 'shell-1',
+        command: 'bun test',
+        status: EShellStatus.Exited,
+        exitCode: 0,
+        output: 'green',
+        droppedCharacters: 0,
+        remainingCharacters: 0,
+        notice: { id: 'notice-1', stage: ENoticeStage.Delivered },
+      },
     ]
 
     for (const interloper of interlopers) {

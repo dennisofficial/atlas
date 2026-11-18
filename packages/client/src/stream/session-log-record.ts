@@ -1,4 +1,10 @@
-import type { PendingInputsState, VisibilityState } from '@dltech/atlas-core'
+import type {
+  FailureMessageState,
+  PendingInputsState,
+  SessionViewState,
+  V2Event,
+  VisibilityState,
+} from '@dltech/atlas-core'
 
 import { SESSION_LOG_STRUCTURE_VERSION, type SessionLogSnapshot } from './session-log'
 import type { SessionCursor } from './session-window'
@@ -24,10 +30,33 @@ const isPending = (value: unknown): value is PendingInputsState =>
   Array.isArray(value.pending) &&
   value.pending.every((entry) => isRecord(entry) && typeof entry.inboxId === 'number')
 
+const isView = (value: unknown): value is SessionViewState =>
+  isRecord(value) &&
+  typeof value.version === 'number' &&
+  typeof value.at === 'number' &&
+  isRecord(value.facts) &&
+  isRecord(value.meter) &&
+  isRecord(value.checkouts) &&
+  isRecord(value.pullRequests) &&
+  isRecord(value.spend) &&
+  isPending(value.pending) &&
+  isRecord(value.pluginViews)
+
+const isFailureMessage = (value: unknown): value is FailureMessageState =>
+  isRecord(value) &&
+  (value.failureHead === null || typeof value.failureHead === 'number') &&
+  typeof value.prepared === 'boolean' &&
+  typeof value.afterFailure === 'boolean'
+
+const isCommandLog = (value: unknown): value is readonly V2Event[] =>
+  Array.isArray(value) && value.every((event) => isRecord(event) && typeof event.seq === 'number')
+
 const snapshotOfValue = (value: unknown): SessionLogSnapshot | undefined => {
   if (!isRecord(value)) return undefined
   if (value.version !== SESSION_LOG_STRUCTURE_VERSION) return undefined
   if (!isVisibility(value.visibility) || !isPending(value.pending)) return undefined
+  if (!isView(value.view) || !isFailureMessage(value.failureMessage)) return undefined
+  if (!isCommandLog(value.commandLog)) return undefined
   if (typeof value.throughSeq !== 'number') return undefined
   if (value.cursor !== undefined && !isCursor(value.cursor)) return undefined
   return {
@@ -35,6 +64,9 @@ const snapshotOfValue = (value: unknown): SessionLogSnapshot | undefined => {
     cursor: value.cursor,
     visibility: value.visibility,
     pending: value.pending,
+    view: value.view,
+    failureMessage: value.failureMessage,
+    commandLog: value.commandLog,
     throughSeq: value.throughSeq,
   }
 }

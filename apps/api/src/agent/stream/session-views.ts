@@ -70,11 +70,18 @@ export class SessionViews {
     if (
       change.headSeq !== undefined &&
       entry.last !== undefined &&
-      change.headSeq <= entry.last.at
+      change.headSeq < entry.last.at
     ) {
       return
     }
     this.request({ sessionId: change.sessionId, entry })
+  }
+
+  handleHead(args: { sessionId: string; headSeq: number }): void {
+    const entry = this.entries.get(args.sessionId)
+    if (entry === undefined) return
+    if (entry.last !== undefined && entry.last.at >= args.headSeq) return
+    this.request({ sessionId: args.sessionId, entry })
   }
 
   recheck(sessionId: string): void {

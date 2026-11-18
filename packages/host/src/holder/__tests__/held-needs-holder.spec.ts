@@ -2,10 +2,15 @@ import { describe, expect, it } from 'bun:test'
 
 import { composeCommands, defineCommand } from '@dltech/atlas-commands'
 import {
+  chainEvents,
   ECommandGroup,
   ECommandTiming,
   initialLoopState,
+  toRunId,
+  toThreadId,
   type InboxEntry,
+  type V2Body,
+  type V2Event,
 } from '@dltech/atlas-core'
 import type { ControlPlane } from '@dltech/atlas-control'
 import { z } from 'zod'
@@ -13,6 +18,26 @@ import { z } from 'zod'
 import { drainNeedsHolder } from '../held-needs-holder'
 import type { HeldSessionDeps } from '../held-session-deps'
 import type { SessionRecord } from '../record/record-adapter'
+
+const THREAD = toThreadId('thr_1')
+const RUN = toRunId('run_1')
+
+const eventsOf = (bodies: readonly V2Body[]): V2Event[] =>
+  chainEvents({
+    threadId: THREAD,
+    runId: RUN,
+    epoch: 1,
+    at: '2026-11-12T03:00:00.000Z',
+    bodies,
+  })
+
+const posted = (): V2Body => ({
+  type: 'input-posted',
+  inboxId: 4,
+  kind: 'message',
+  postedAt: '2026-11-12T03:00:00.000Z',
+  text: 'm4',
+})
 
 const ping = defineCommand({
   spec: {
@@ -35,14 +60,20 @@ const entry = (params: { inboxId: number; kind: string }): InboxEntry => ({
   senderSessionId: null,
 })
 
-const preparedRecord = {
-  eventCache: () => ({
-    bookkeeping: () => ({ workspace: () => ({ prepared: true, failure: undefined }) }),
-    loopState: () => initialLoopState(),
-  }),
-} as unknown as SessionRecord
+const preparedRecord = (events: readonly V2Event[]): SessionRecord =>
+  ({
+    eventCache: () => ({
+      bookkeeping: () => ({ workspace: () => ({ prepared: true, failure: undefined }) }),
+      loopState: () => initialLoopState(),
+      eventsAfter: () => [...events],
+    }),
+  }) as unknown as SessionRecord
 
-const needsHolder = (params: { entries: InboxEntry[]; knowsPing: boolean }): Promise<boolean> => {
+const needsHolder = (params: {
+  entries: InboxEntry[]
+  knowsPing: boolean
+  events?: readonly V2Event[]
+}): Promise<boolean> => {
   const deps = {
     sessionId: 'session-1',
     plane: { readInbox: async () => params.entries } as unknown as ControlPlane,
@@ -51,7 +82,7 @@ const needsHolder = (params: { entries: InboxEntry[]; knowsPing: boolean }): Pro
       ? new Map([[ping.inboxKind, async () => ({ kind: 'done' as const })]])
       : new Map(),
   } as unknown as HeldSessionDeps
-  return drainNeedsHolder({ deps, record: preparedRecord, turnRunning: false })
+  return drainNeedsHolder({ deps, record: preparedRecord(params.events ?? []), turnRunning: false })
 }
 
 describe('drainNeedsHolder with commands', () => {
@@ -76,5 +107,17 @@ describe('drainNeedsHolder with commands', () => {
       entry({ inboxId: 2, kind: 'message' }),
     ]
     expect(await needsHolder({ entries, knowsPing: true })).toBe(true)
+  })
+})
+
+describe('drainNeedsHolder over the pending log', () => {
+  it('wants a holder for a message posted in the log with no staging row', async () => {
+    const events = eventsOf([posted()])
+    expect(await needsHolder({ entries: [], knowsPing: true, events })).toBe(true)
+  })
+
+  it('does not want a holder once the log has said its only message', async () => {
+    const events = eventsOf([posted(), { type: 'user-said', text: 'm4', inboxId: 4 }])
+    expect(await needsHolder({ entries: [], knowsPing: true, events })).toBe(false)
   })
 })

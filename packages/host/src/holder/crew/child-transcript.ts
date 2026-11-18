@@ -16,13 +16,7 @@ import type { HeldSessionDeps } from '../held-session-deps'
 import type { RoleModelChoice, SessionRuntime } from '../ports'
 import type { SessionRecord } from '../record/record-adapter'
 import { worktreeDraftOf, type Progress } from './child-progress'
-import {
-  appendOnParent,
-  endingTextOf,
-  reportTextOf,
-  wakeParent,
-  type ChildParent,
-} from './child-reports'
+import { appendOnParent, wakeParent, type ChildParent } from './child-reports'
 import { modelFellBackDraft } from './model-fell-back'
 
 type ChildFallback = {
@@ -102,7 +96,7 @@ export class ChildTranscript {
       },
     ])
     if (!reportWakesParent(args.kind)) return
-    await wakeParent(this.parent, reportTextOf(this.parent, args.kind))
+    await wakeParent(this.parent)
     this.woke = true
   }
 
@@ -127,16 +121,7 @@ export class ChildTranscript {
       },
     ])
     if (this.woke) return
-    await wakeParent(
-      this.parent,
-      endingTextOf({
-        parent: this.parent,
-        progress: args.progress,
-        status: args.status,
-        failure: args.failure,
-        killedBy: args.killedBy,
-      }),
-    )
+    await wakeParent(this.parent)
   }
 
   private unavailableDrafts(): readonly EventDraft[] {

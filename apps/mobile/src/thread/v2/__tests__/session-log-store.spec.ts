@@ -1,6 +1,11 @@
 import { Database } from 'bun:sqlite'
 import { describe, expect, it } from 'bun:test'
-import { EMPTY_PENDING, EMPTY_VISIBILITY } from '@dltech/atlas-core'
+import {
+  EMPTY_PENDING,
+  EMPTY_VISIBILITY,
+  initialFailureMessage,
+  initialSessionViewState,
+} from '@dltech/atlas-core'
 import { SESSION_LOG_STRUCTURE_VERSION, type SessionLogSnapshot } from '@dltech/atlas-client/stream'
 import { headOf, mintEvents, userSaid } from '@dltech/atlas-client/stream-fixture'
 
@@ -42,6 +47,9 @@ const snapshotAt = (args: { throughSeq: number; cursorSeq?: number }): SessionLo
   cursor: { seq: args.cursorSeq ?? args.throughSeq, hash: 'h' },
   visibility: EMPTY_VISIBILITY,
   pending: EMPTY_PENDING,
+  view: initialSessionViewState,
+  failureMessage: initialFailureMessage,
+  commandLog: [],
   throughSeq: args.throughSeq,
 })
 

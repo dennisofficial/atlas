@@ -48,6 +48,7 @@ export class FollowRig {
   private head: LogHead = { seq: 0, hash: GENESIS_HASH }
 
   statusReads = 0
+  readonly scriptedViewAt: number[] = []
   digestReads = 0
   digestFailure: Error | undefined
   private readonly gapListeners = new Set<() => void>()
@@ -62,9 +63,11 @@ export class FollowRig {
         await this.onRead?.()
         return page
       },
-      readSessionView: (params) => {
+      readSessionView: async (params) => {
         this.statusReads += 1
-        return this.plane.readSessionView(params)
+        const read = await this.plane.readSessionView(params)
+        const at = this.scriptedViewAt.shift()
+        return at === undefined ? read : { ...read, at }
       },
       listSessionDigests: (params) => {
         this.digestReads += 1

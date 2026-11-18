@@ -22,6 +22,9 @@ CREATE TABLE IF NOT EXISTS session_log_snapshots (
   cursor TEXT NOT NULL,
   visibility TEXT NOT NULL,
   pending TEXT NOT NULL,
+  view TEXT NOT NULL,
+  failure_message TEXT NOT NULL,
+  command_log TEXT NOT NULL,
   through_seq INTEGER NOT NULL,
   head TEXT
 );`
@@ -50,6 +53,9 @@ const snapshotRowOf = (row: Record<string, unknown>): unknown => ({
     cursor: parse(row.cursor),
     visibility: parse(row.visibility),
     pending: parse(row.pending),
+    view: parse(row.view),
+    failureMessage: parse(row.failure_message),
+    commandLog: parse(row.command_log),
     throughSeq: row.through_seq,
   },
   head: parse(row.head),
@@ -96,8 +102,8 @@ export const createSqliteSessionLog = (args: {
           )
         }
         await db.runAsync(
-          `INSERT INTO session_log_snapshots (session_id, version, cursor, visibility, pending, through_seq, head)
-           VALUES (?, 0, 'null', '{}', '{}', 0, ?)
+          `INSERT INTO session_log_snapshots (session_id, version, cursor, visibility, pending, view, failure_message, command_log, through_seq, head)
+           VALUES (?, 0, 'null', '{}', '{}', '{}', '{}', '[]', 0, ?)
            ON CONFLICT(session_id) DO UPDATE SET head = excluded.head`,
           sessionId,
           JSON.stringify(head),
@@ -135,19 +141,25 @@ export const createSqliteSessionLog = (args: {
     },
     saveSnapshot: ({ sessionId, snapshot }) =>
       db.runAsync(
-        `INSERT INTO session_log_snapshots (session_id, version, cursor, visibility, pending, through_seq, head)
-         VALUES (?, ?, ?, ?, ?, ?, NULL)
+        `INSERT INTO session_log_snapshots (session_id, version, cursor, visibility, pending, view, failure_message, command_log, through_seq, head)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
          ON CONFLICT(session_id) DO UPDATE SET
            version = excluded.version,
            cursor = excluded.cursor,
            visibility = excluded.visibility,
            pending = excluded.pending,
+           view = excluded.view,
+           failure_message = excluded.failure_message,
+           command_log = excluded.command_log,
            through_seq = excluded.through_seq`,
         sessionId,
         snapshot.version,
         JSON.stringify(snapshot.cursor ?? null),
         JSON.stringify(snapshot.visibility),
         JSON.stringify(snapshot.pending),
+        JSON.stringify(snapshot.view),
+        JSON.stringify(snapshot.failureMessage),
+        JSON.stringify(snapshot.commandLog),
         snapshot.throughSeq,
       ),
     deleteSession: dropSession,

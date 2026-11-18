@@ -1,8 +1,8 @@
 import { z } from 'zod'
 
 import { attachmentSchema } from '../attachments/attachment-schema'
-import type { Attachment } from '../attachments/attachment'
 import { EMessageOrigin } from '../events/body'
+import { inputMessageSchema, type InputMessage, type InputMessageRowFields } from './input-message'
 
 export const INPUT_KIND_COMMAND_PREFIX = 'command:'
 
@@ -28,14 +28,10 @@ export type InputPosted = {
   inboxId: number
   kind: string
   postedAt: string
-  clientId?: string | undefined
-  text?: string | undefined
-  attachments?: readonly Attachment[] | undefined
-  sender?: { session: string } | undefined
-  via?: EMessageOrigin | undefined
+  message?: InputMessage | undefined
   callId?: string | undefined
   sealedValue?: string | undefined
-}
+} & InputMessageRowFields
 
 export type InputWithdrawn = {
   type: 'input-withdrawn'
@@ -49,24 +45,28 @@ export type InputRefused = {
   reason: string
   clientId?: string | undefined
   targetInboxId?: number | undefined
-  text?: string | undefined
-  attachments?: readonly Attachment[] | undefined
-}
+  message?: InputMessage | undefined
+} & InputMessageRowFields
 
 const inboxIdSchema = z.number().int().min(1)
+
+const legacyMessageFields = {
+  text: z.string().optional(),
+  attachments: z.array(attachmentSchema).optional(),
+  via: z.enum(EMessageOrigin).optional(),
+  sender: z.object({ session: z.string().min(1) }).optional(),
+}
 
 export const inputPostedSchema = z.object({
   type: z.literal('input-posted'),
   inboxId: inboxIdSchema,
   kind: z.string().min(1),
   postedAt: z.string().min(1),
+  message: inputMessageSchema.optional(),
   clientId: z.string().min(1).optional(),
-  text: z.string().optional(),
-  attachments: z.array(attachmentSchema).optional(),
-  sender: z.object({ session: z.string().min(1) }).optional(),
-  via: z.enum(EMessageOrigin).optional(),
   callId: z.string().min(1).optional(),
   sealedValue: z.string().min(1).optional(),
+  ...legacyMessageFields,
 })
 
 export const inputWithdrawnSchema = z.object({
@@ -81,6 +81,6 @@ export const inputRefusedSchema = z.object({
   reason: z.string(),
   clientId: z.string().min(1).optional(),
   targetInboxId: inboxIdSchema.optional(),
-  text: z.string().optional(),
-  attachments: z.array(attachmentSchema).optional(),
+  message: inputMessageSchema.optional(),
+  ...legacyMessageFields,
 })

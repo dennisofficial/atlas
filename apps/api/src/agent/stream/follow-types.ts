@@ -15,6 +15,7 @@ export type FollowDeps = {
   timers: HostTimers
   log: LogPort | undefined
   recordSurface?: ((args: SurfaceRecord) => void) | undefined
+  viewHead?: ((args: { sessionId: string; headSeq: number }) => void) | undefined
 }
 
 export type SurfaceRecord = {

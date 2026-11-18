@@ -47,7 +47,7 @@ describe('SessionHolder prepare', () => {
     await rig.wake()
     await rig.flush()
 
-    expect(await typesOf(rig)).toEqual([])
+    expect(await typesOf(rig)).toEqual(['input-posted'])
 
     pending.settle({ ok: true })
     const answered = await flushUntil({
@@ -82,14 +82,14 @@ describe('SessionHolder prepare', () => {
     })
     expect(failed).toBe(true)
     await rig.flush()
-    expect(await typesOf(rig)).toEqual(['workspace-prepare-failed'])
+    expect(await typesOf(rig)).toEqual(['input-posted', 'workspace-prepare-failed'])
     const events = await rig.plane.readEvents({
       threadId: THREAD_ID,
       afterSeq: 0,
       limit: 10,
       visible: false,
     })
-    expect(events.events[0]).toMatchObject({ reason: 'clone failed', inboxHead: 1 })
+    expect(events.events[1]).toMatchObject({ reason: 'clone failed', inboxHead: 1 })
   })
 
   it('still records a failure when the prepare itself throws', async () => {
@@ -107,7 +107,7 @@ describe('SessionHolder prepare', () => {
     })
     expect(failed).toBe(true)
     await rig.flush()
-    expect(await typesOf(rig)).toEqual(['workspace-prepare-failed'])
+    expect(await typesOf(rig)).toEqual(['input-posted', 'workspace-prepare-failed'])
   })
 
   it('retries the prepare on the next message and then runs the turn', async () => {
@@ -205,6 +205,7 @@ describe('SessionHolder prepare', () => {
     expect(reads - readsAtStart).toBeLessThan(10)
     expect((await typesOf(rig)).filter((type) => type !== 'input-consumed')).toEqual([
       'workspace-prepare-failed',
+      'input-posted',
     ])
   })
 

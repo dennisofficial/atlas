@@ -1,4 +1,5 @@
 import { ValidationPipe, VersioningType } from '@nestjs/common'
+import type { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface'
 import { HttpAdapterHost, NestFactory } from '@nestjs/core'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import helmet from 'helmet'
@@ -25,6 +26,24 @@ export const originAllowed = (args: {
   args.trustedOrigins.has(args.origin) ||
   args.agentOrigins.includes(args.origin)
 
+export const corsOptionsFor = (args: {
+  trustedOrigins: ReadonlySet<string>
+  agentOrigins: readonly string[]
+}): CorsOptions => ({
+  origin: (origin, allow) =>
+    allow(
+      null,
+      originAllowed({
+        origin,
+        trustedOrigins: args.trustedOrigins,
+        agentOrigins: args.agentOrigins,
+      }),
+    ),
+  credentials: true,
+  allowedHeaders: ['authorization', 'content-type', 'atlas-client-version', 'trpc-accept'],
+  exposedHeaders: ['set-auth-token'],
+})
+
 export async function createApp(
   args: { agentEnv?: AgentHostEnv } = {},
 ): Promise<NestExpressApplication> {
@@ -36,15 +55,9 @@ export async function createApp(
 
   app.use(helmet())
   const trustedOrigins = trustedOriginsOf(app.get(EnvService))
-  // The Expo web test build calls the API cross-origin with a bearer header, so no credentials
-  // and no blanket origin: only TRUSTED_ORIGINS ∪ WEB_ORIGIN, plus the agent's own list.
-  app.enableCors({
-    origin: (origin, allow) =>
-      allow(null, originAllowed({ origin, trustedOrigins, agentOrigins: agentEnv.trustedOrigins })),
-    credentials: false,
-    allowedHeaders: ['authorization', 'content-type', 'atlas-client-version', 'trpc-accept'],
-    exposedHeaders: ['set-auth-token'],
-  })
+  // The web app calls api.byatlas.io cross-origin with the session cookie, so credentialed CORS
+  // needs a specific echoed origin: TRUSTED_ORIGINS ∪ WEB_ORIGIN, plus the agent's own list.
+  app.enableCors(corsOptionsFor({ trustedOrigins, agentOrigins: agentEnv.trustedOrigins }))
   // Unauthenticated webhook routes get tight body caps well under the global limit: the HMAC is
   // verified only after buffering, so anything bigger must be refused before it is read.
   app.use('/v1/github/hooks', webhookJsonParser({ limit: GITHUB_WEBHOOK_BODY_LIMIT }))

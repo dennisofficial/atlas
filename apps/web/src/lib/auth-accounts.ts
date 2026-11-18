@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { AuthApiError, failWith, postJson, readBody, UNREACHABLE } from './auth-api'
+import { AuthApiError, authFetch, failWith, postJson, readBody } from './auth-api'
 
 const CREDENTIAL_PROVIDER = 'credential'
 const GOOGLE_PROVIDER = 'google'
@@ -13,12 +13,7 @@ export type SignInMethodIds = {
 }
 
 export async function listSignInMethods(): Promise<SignInMethodIds> {
-  let response: Response
-  try {
-    response = await fetch('/api/auth/list-accounts', { credentials: 'same-origin' })
-  } catch {
-    throw new AuthApiError(UNREACHABLE)
-  }
+  const response = await authFetch('/api/auth/list-accounts')
   if (!response.ok) await failWith(response, 'Could not load your sign-in methods')
   const parsed = accountsSchema.safeParse(await response.json().catch(() => null))
   if (!parsed.success) throw new AuthApiError('Could not load your sign-in methods')

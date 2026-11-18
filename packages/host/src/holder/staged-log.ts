@@ -3,13 +3,15 @@ import { z } from 'zod'
 import {
   attachmentSchema,
   attachmentsOf,
+  EMessageOrigin,
+  INBOX_KIND_AGENT_NOTICE,
   INBOX_KIND_RETRY,
   INBOX_KIND_STOP,
   pendingInputsOf,
-  type Attachment,
-  type EMessageOrigin,
+  userSaidOf,
   type EventDraft,
   type InboxEntry,
+  type InputMessage,
   type PluginEventBody,
   type RecordBody,
   type V2Event,
@@ -27,13 +29,6 @@ export type AppendDrafts = (
 
 type ResolvedCommand = { command: Command; handler: CommandHandler<unknown> } | undefined
 
-type MessageFields = {
-  text?: string | undefined
-  clientId?: string | undefined
-  attachments?: readonly Attachment[] | undefined
-  via?: EMessageOrigin | undefined
-}
-
 export const jsonOf = (payload: string): unknown => {
   try {
     return JSON.parse(payload)
@@ -42,17 +37,28 @@ export const jsonOf = (payload: string): unknown => {
   }
 }
 
-export const messageFieldsOf = (message: InboxMessage): MessageFields => {
-  const attachments = attachmentsOf(message)
+export const inputMessageOf = (params: {
+  entry: InboxEntry
+  message: InboxMessage
+}): InputMessage => {
+  const attachments = attachmentsOf(params.message)
+  const sender = params.entry.senderSessionId
+  const origin = sender === null ? params.message.via : EMessageOrigin.PeerAgent
   return {
-    text: message.text,
-    ...(message.clientId === undefined ? {} : { clientId: message.clientId }),
+    text: params.message.text,
     ...(attachments.length === 0 ? {} : { attachments }),
-    ...(message.via === undefined ? {} : { via: message.via }),
+    ...(params.message.clientId === undefined ? {} : { clientId: params.message.clientId }),
+    ...(origin === undefined ? {} : { via: origin }),
+    ...(sender === null ? {} : { sender: { session: sender } }),
   }
 }
 
-export const salvagedFieldsOf = (payload: string): MessageFields => {
+export const salvagedOf = (
+  payload: string,
+): {
+  message?: InputMessage | undefined
+  clientId?: string | undefined
+} => {
   const raw = jsonOf(payload)
   if (typeof raw !== 'object' || raw === null) return {}
   const record = raw as Record<string, unknown>
@@ -60,20 +66,33 @@ export const salvagedFieldsOf = (payload: string): MessageFields => {
   const clientId =
     typeof record.clientId === 'string' && record.clientId.length > 0 ? record.clientId : undefined
   const attachments = z.array(attachmentSchema).safeParse(record.attachments)
+  const kept = attachments.success && attachments.data.length > 0 ? attachments.data : undefined
   return {
-    ...(text === undefined ? {} : { text }),
+    ...(text === undefined
+      ? {}
+      : { message: { text, ...(kept === undefined ? {} : { attachments: kept }) } }),
     ...(clientId === undefined ? {} : { clientId }),
-    ...(attachments.success ? { attachments: attachments.data } : {}),
   }
 }
 
-const postedDraft = (params: { entry: InboxEntry; fields: MessageFields }): RecordBody => ({
+export const postedDraftOf = (params: {
+  entry: InboxEntry
+  message: InputMessage
+}): RecordBody => ({
   type: 'input-posted',
   inboxId: params.entry.inboxId,
   kind: params.entry.kind,
   postedAt: params.entry.postedAt,
-  ...params.fields,
+  message: params.message,
 })
+
+export const postedAndSaidOf = (params: {
+  entry: InboxEntry
+  message: InputMessage
+}): (RecordBody | EventDraft)[] => [
+  postedDraftOf(params),
+  userSaidOf({ inboxId: params.entry.inboxId, message: params.message }),
+]
 
 export const postedDraftsOf = (params: {
   entry: InboxEntry
@@ -81,14 +100,22 @@ export const postedDraftsOf = (params: {
 }): RecordBody[] => {
   const { entry } = params
   if (entry.kind === INBOX_KIND_STOP || entry.kind === INBOX_KIND_RETRY) return []
+  if (entry.kind === INBOX_KIND_AGENT_NOTICE) return []
   if (entry.kind === INBOX_KIND_WITHDRAW) return []
   if (entry.kind === INBOX_KIND_MESSAGE) {
     const parsed = inboxMessageSchema.safeParse(jsonOf(entry.payload))
     if (!parsed.success) return []
-    return [postedDraft({ entry, fields: messageFieldsOf(parsed.data) })]
+    return [postedDraftOf({ entry, message: inputMessageOf({ entry, message: parsed.data }) })]
   }
   if (isCommandKind(entry.kind) && params.resolveCommand(entry) === undefined) return []
-  return [postedDraft({ entry, fields: {} })]
+  return [
+    {
+      type: 'input-posted',
+      inboxId: entry.inboxId,
+      kind: entry.kind,
+      postedAt: entry.postedAt,
+    },
+  ]
 }
 
 export const postedInboxIdsOf = (params: { events: readonly V2Event[] }): ReadonlySet<number> => {
@@ -96,18 +123,56 @@ export const postedInboxIdsOf = (params: { events: readonly V2Event[] }): Readon
   return new Set(pending.map((entry) => entry.inboxId))
 }
 
+export type Drainable = {
+  entry?: InboxEntry | undefined
+  inboxId: number
+  message: InputMessage
+  posted: boolean
+}
+
+export type LoggedMessage = { inboxId: number; message: InputMessage }
+
+export const drainOrderOf = (params: {
+  staged: readonly { entry: InboxEntry; message: InputMessage }[]
+  logged: readonly LoggedMessage[]
+  posted: ReadonlySet<number>
+}): Drainable[] => {
+  const known = new Set(params.staged.map((item) => item.entry.inboxId))
+  const logged = params.logged.flatMap((item) =>
+    known.has(item.inboxId) ? [] : [{ ...item, posted: true }],
+  )
+  const staged = params.staged.map((item) => ({
+    entry: item.entry,
+    inboxId: item.entry.inboxId,
+    message: item.message,
+    posted: params.posted.has(item.entry.inboxId),
+  }))
+  return [...staged, ...logged].sort((left, right) => left.inboxId - right.inboxId)
+}
+
+export const loggedMessagesOf = (events: readonly V2Event[]): LoggedMessage[] =>
+  pendingInputsOf(events).pending.flatMap((pending) =>
+    pending.kind !== INBOX_KIND_MESSAGE || pending.message === undefined
+      ? []
+      : [{ inboxId: pending.inboxId, message: pending.message }],
+  )
+
 export const logStagedInputs = async (params: {
   fetch: () => Promise<InboxEntry[]>
   resolveWithdraws: (entries: readonly InboxEntry[]) => Promise<ReadonlySet<number>>
   postedDraftsOf: (entry: InboxEntry) => RecordBody[]
   appendDrafts: AppendDrafts
+  willDrain?: (() => boolean) | undefined
+  prepared?: (() => boolean) | undefined
   log?: LogPort | undefined
 }): Promise<void> => {
   try {
     const entries = await params.fetch()
+    if (params.willDrain?.() === true) return
     const resolved = await params.resolveWithdraws(entries)
     const drafts = entries
       .filter((entry) => !resolved.has(entry.inboxId))
+      .filter((entry) => params.prepared?.() !== false || entry.kind === INBOX_KIND_MESSAGE)
       .flatMap((entry) => params.postedDraftsOf(entry))
     if (drafts.length === 0) return
     await params.appendDrafts(drafts)

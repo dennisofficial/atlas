@@ -13,15 +13,21 @@ type SubscriptionEventSource = NonNullable<
 
 type StreamFetchInit = Omit<RequestInit, 'headers'> & { headers?: Record<string, string> }
 
+export type ApiCredentials = 'omit' | 'same-origin' | 'include'
+
 export type ApiClientOptions = {
   baseUrl: string
   token?: string | undefined
   clientVersion?: string | undefined
+  credentials?: ApiCredentials | undefined
   fetchFn?: typeof fetch | undefined
   EventSource?: SubscriptionEventSource | undefined
 }
 
 const trpcUrlOf = (baseUrl: string): string => `${baseUrl.replace(/\/+$/, '')}/v1/trpc`
+
+const credentialsOf = (options: ApiClientOptions): ApiCredentials =>
+  options.credentials ?? 'same-origin'
 
 const headersOf = ({ token, clientVersion }: ApiClientOptions): Record<string, string> => ({
   ...(token === undefined ? {} : { authorization: `Bearer ${token}` }),
@@ -32,15 +38,24 @@ export const createApiClient = (options: ApiClientOptions) => {
   const url = trpcUrlOf(options.baseUrl)
   const fetchFn = (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) =>
     (options.fetchFn ?? globalThis.fetch)(input, init)
+  const credentials = credentialsOf(options)
   const subscriptionLink =
     options.EventSource === undefined
-      ? httpSubscriptionLink({ url })
+      ? httpSubscriptionLink({
+          url,
+          ...(credentials === 'include' ? { eventSourceOptions: { withCredentials: true } } : {}),
+        })
       : httpSubscriptionLink({
           url,
           EventSource: options.EventSource,
           eventSourceOptions: () => ({
+            credentials,
             fetch: (target: string | URL, init?: StreamFetchInit) =>
-              fetchFn(target, { ...init, headers: { ...init?.headers, ...headersOf(options) } }),
+              fetchFn(target, {
+                credentials,
+                ...init,
+                headers: { ...init?.headers, ...headersOf(options) },
+              }),
           }),
         })
   return createTRPCClient<AppRouter>({
@@ -53,7 +68,7 @@ export const createApiClient = (options: ApiClientOptions) => {
           fetch: async (input, init) => {
             const response = await fetchFn(input, {
               ...init,
-              credentials: 'same-origin',
+              credentials,
               signal: init?.signal ?? null,
             })
             return { ok: response.ok, json: () => response.json() }

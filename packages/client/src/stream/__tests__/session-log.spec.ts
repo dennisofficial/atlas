@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'bun:test'
-import { EMPTY_PENDING, EMPTY_VISIBILITY } from '@dltech/atlas-core'
+import {
+  EMPTY_PENDING,
+  EMPTY_VISIBILITY,
+  initialFailureMessage,
+  initialSessionViewState,
+} from '@dltech/atlas-core'
 
 import { logSnapshotOf } from '../session-log-record'
 import { memorySessionLog, SESSION_LOG_STRUCTURE_VERSION } from '../session-log'
@@ -11,6 +16,9 @@ const snapshotAt = (args: { throughSeq: number; cursorSeq?: number | undefined }
   cursor: { seq: args.cursorSeq ?? args.throughSeq, hash: 'h' },
   visibility: EMPTY_VISIBILITY,
   pending: EMPTY_PENDING,
+  view: initialSessionViewState,
+  failureMessage: initialFailureMessage,
+  commandLog: [],
   throughSeq: args.throughSeq,
 })
 

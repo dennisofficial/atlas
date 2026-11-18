@@ -23,6 +23,35 @@ const statusView = (params: { at: number; state?: ESessionStatus }): StreamServe
   },
 })
 
+const sessionView = (params: { at: number; live: boolean }): StreamServerMessage => ({
+  type: 'view',
+  id: 's1',
+  name: 'session',
+  at: params.at,
+  value: {
+    at: params.at,
+    status: {
+      state: ESessionStatus.Idle,
+      lease: { epoch: 1, holderHostId: 7, live: params.live },
+    },
+    context: null,
+    spend: {
+      rows: [],
+      tally: {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+        uncachedInputTokens: 0,
+        costUsd: null,
+      },
+    },
+    checkouts: { repos: [], primary: null },
+    pullRequests: [],
+    pluginViews: {},
+  },
+})
+
 const setup = (log: SessionLog = memorySessionLog()) => {
   const clock = createFakeScheduler()
   const resnaps: string[] = []
@@ -45,22 +74,28 @@ describe('the session follower', () => {
     expect(snapshot.cursor).toEqual(headOf(events))
   })
 
-  it('discards a view whose position is behind the cursor', () => {
+  it('keeps the log-derived status when a status frame disagrees', () => {
+    const { follower } = setup()
+    follower.handleMessage(
+      eventsMessage({ id: 's1', events: mintUserEvents({ count: 3 }), live: true }),
+    )
+    follower.handleMessage(statusView({ at: 3, state: ESessionStatus.Idle }))
+    const status = follower.getSnapshot().status
+    expect(status?.state).toBe(ESessionStatus.Resuming)
+    expect(status?.lease).toEqual({ epoch: 0, holderHostId: null, live: false })
+  })
+
+  it('discards a session view behind the cursor and takes the newest one', () => {
     const { follower } = setup()
     follower.handleMessage(
       eventsMessage({ id: 's1', events: mintUserEvents({ count: 20 }), live: true }),
     )
-    follower.handleMessage(statusView({ at: 5, state: ESessionStatus.Thinking }))
-    expect(follower.getSnapshot().status).toBeUndefined()
-    follower.handleMessage(statusView({ at: 20, state: ESessionStatus.Thinking }))
-    expect(follower.getSnapshot().status?.state).toBe(ESessionStatus.Thinking)
-  })
-
-  it('keeps the latest accepted view and replaces it with a newer one', () => {
-    const { follower } = setup()
-    follower.handleMessage(statusView({ at: 0, state: ESessionStatus.Queued }))
-    follower.handleMessage(statusView({ at: 3, state: ESessionStatus.Idle }))
-    expect(follower.getSnapshot().status?.state).toBe(ESessionStatus.Idle)
+    follower.handleMessage(sessionView({ at: 5, live: true }))
+    expect(follower.getSnapshot().view?.status.lease.live).toBe(false)
+    follower.handleMessage(sessionView({ at: 20, live: true }))
+    expect(follower.getSnapshot().view?.status.lease.live).toBe(true)
+    follower.handleMessage(sessionView({ at: 20, live: false }))
+    expect(follower.getSnapshot().view?.status.lease.live).toBe(false)
   })
 
   it('sends a resnap request on a delta gap', () => {
@@ -84,7 +119,7 @@ describe('the session follower', () => {
     follower.handleMessage(
       eventsMessage({ id: 's1', events: mintUserEvents({ count: 3 }), live: true }),
     )
-    follower.handleMessage(statusView({ at: 3 }))
+    follower.handleMessage(sessionView({ at: 3, live: true }))
     follower.handleMessage({
       type: 'reset',
       id: 's1',

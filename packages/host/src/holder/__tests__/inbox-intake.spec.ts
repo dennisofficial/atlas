@@ -8,6 +8,7 @@ import {
 } from '@dltech/atlas-commands'
 import type { ControlPlane } from '@dltech/atlas-control'
 import {
+  type InputMessage,
   ECommandGroup,
   ECommandTiming,
   EInputConsumed,
@@ -95,12 +96,19 @@ const rigOf = (entries: readonly InboxEntry[], options: RigOptions = {}) => {
   return { intake, appended, appends, warnings, infos }
 }
 
-const posted = (inboxId: number, extra: Record<string, unknown> = {}): AppendBody => ({
+const posted = (inboxId: number, message?: object): AppendBody => ({
   type: 'input-posted',
   inboxId,
   kind: 'message',
   postedAt: new Date(NOW).toISOString(),
-  ...extra,
+  ...(message === undefined ? {} : { message: message as InputMessage }),
+})
+
+const postedCommand = (inboxId: number, kind: string): AppendBody => ({
+  type: 'input-posted',
+  inboxId,
+  kind,
+  postedAt: new Date(NOW).toISOString(),
 })
 
 const said = (inboxId: number, extra: Record<string, unknown> = {}): AppendBody => ({
@@ -191,15 +199,11 @@ describe('InboxIntake idle send', () => {
     ])
   })
 
-  it('marks a peer session message as a peer agent', async () => {
+  it('marks a peer session message as a peer agent on both events', async () => {
     const rig = rigOf([{ ...entry(9), senderSessionId: 'ses_2' }])
     await rig.intake.prepare()
-    expect(rig.appends).toEqual([
-      [
-        posted(9, { text: 'm9' }),
-        said(9, { sender: { session: 'ses_2' }, via: EMessageOrigin.PeerAgent }),
-      ],
-    ])
+    const peer = { text: 'm9', sender: { session: 'ses_2' }, via: EMessageOrigin.PeerAgent }
+    expect(rig.appends).toEqual([[posted(9, peer), said(9, peer)]])
   })
 
   it('marks an origin in the payload as that origin', async () => {
@@ -240,9 +244,8 @@ describe('InboxIntake idle send', () => {
           type: 'input-refused',
           inboxId: 12,
           reason: 'unreadable message',
-          text: 'a steer',
           clientId: 'c12',
-          attachments: [attachment],
+          message: { text: 'a steer', attachments: [attachment] },
         },
       ],
     ])
@@ -277,7 +280,7 @@ describe('InboxIntake logStaged', () => {
       },
     )
     await rig.intake.logStaged()
-    expect(rig.appends).toEqual([[posted(1, { text: 'm1' }), posted(2, { kind: 'command:ping' })]])
+    expect(rig.appends).toEqual([[posted(1, { text: 'm1' }), postedCommand(2, 'command:ping')]])
   })
 
   const unresolvable = [
@@ -512,5 +515,66 @@ describe('InboxIntake unresolvable commands', () => {
     })
     await rig.intake.prepare()
     expect(reads).toBe(10)
+  })
+})
+
+describe('InboxIntake already-logged messages', () => {
+  it('says a message already posted in the log without posting it again', async () => {
+    const rig = rigOf([], { source: async () => [entry(4)] })
+    rig.appended.push(posted(4, { text: 'm4' }))
+    const drain = await rig.intake.prepare()
+    expect(rig.appends).toEqual([[said(4)]])
+    expect(drain.wakesTurn).toBe(true)
+  })
+
+  it('posts a message once when logging it and draining it race', async () => {
+    const rig = rigOf([entry(1)])
+    await Promise.all([rig.intake.logStaged(), rig.intake.prepare()])
+    const posts = rig.appended.filter(
+      (draft) => draft.type === 'input-posted' && draft.inboxId === 1,
+    )
+    expect(posts).toHaveLength(1)
+    expect(rig.appended.filter((draft) => draft.type === 'user-said')).toHaveLength(1)
+  })
+
+  it('says pending messages in queue order, not in the order the staging read returned', async () => {
+    const rig = rigOf([], { source: async () => [entry(4)] })
+    rig.appended.push(posted(3, { text: 'm3' }), posted(4, { text: 'm4' }))
+    await rig.intake.prepare()
+    expect(rig.appends).toEqual([[said(3)], [said(4)]])
+  })
+
+  it('drains an unlogged message ahead of a logged one that arrived later', async () => {
+    const rig = rigOf([entry(3)], { source: async () => [entry(3)] })
+    rig.appended.push(posted(4, { text: 'm4' }))
+    await rig.intake.prepare()
+    expect(rig.appends).toEqual([[posted(3, { text: 'm3' }), said(3)], [said(4)]])
+  })
+})
+
+describe('InboxIntake staged logging against the drain', () => {
+  it('logs a staged message alone while no drain can happen', async () => {
+    const rig = rigOf([entry(1)])
+    await rig.intake.logStaged({ willDrain: () => false })
+    expect(rig.appends).toEqual([[posted(1, { text: 'm1' })]])
+  })
+
+  it('keeps a child agent origin when a message logged mid-turn is drained', async () => {
+    const rig = rigOf([entry(1, { text: 'done', via: 'child-agent' })])
+    await rig.intake.logStaged({ willDrain: () => false })
+    await rig.intake.prepare()
+    expect(rig.appends).toEqual([
+      [posted(1, { text: 'done', via: EMessageOrigin.ChildAgent })],
+      [said(1, { text: 'done', via: EMessageOrigin.ChildAgent })],
+    ])
+  })
+
+  it('logs nothing alone once a drain is due, so the idle drain is one commit', async () => {
+    const rig = rigOf([entry(1)])
+    await rig.intake.logStaged({ willDrain: () => true })
+    expect(rig.appends).toEqual([])
+    const drain = await rig.intake.prepare()
+    expect(rig.appends).toEqual([[posted(1, { text: 'm1' }), said(1)]])
+    expect(drain.wakesTurn).toBe(true)
   })
 })

@@ -4,7 +4,7 @@ import { ESessionStatus } from '@dltech/atlas-core'
 import { parseServerMessage } from '@dltech/atlas-protocol'
 
 import { VIEW_COALESCE_MS } from '../session-views'
-import { FollowRig, said, SESSION } from './follow-rig'
+import { FollowRig, said, SESSION, THREAD } from './follow-rig'
 
 describe('session view', () => {
   let rig: FollowRig
@@ -91,6 +91,33 @@ describe('session view', () => {
     expect(views()[1]?.value.status.state).toBe(
       views()[0]?.value.status.state ?? ESessionStatus.Idle,
     )
+  })
+
+  it('re-reads a change for the head its stored view claims when that view was read early', async () => {
+    await rig.seed({ events: 2 })
+    rig.scriptedViewAt.push(1)
+    await rig.subscribe({ session: rig.open() })
+    await rig.settled()
+    expect(views().map((view) => view.at)).toEqual([1])
+    await rig.store.transact((tx) =>
+      tx.announce({ sessionId: SESSION, threadId: THREAD, headSeq: 1 }),
+    )
+    rig.timers.advance(VIEW_COALESCE_MS)
+    await rig.settled()
+    expect(rig.statusReads).toBe(2)
+    expect(views().map((view) => view.at)).toEqual([1, 2])
+  })
+
+  it('refreshes the view when an events page advances past the view it delivered', async () => {
+    await rig.seed({ events: 2 })
+    rig.scriptedViewAt.push(1)
+    await rig.subscribe({ session: rig.open() })
+    await rig.untilSeq(2)
+    expect(rig.statusReads).toBe(1)
+    rig.timers.advance(VIEW_COALESCE_MS)
+    await rig.settled()
+    expect(rig.statusReads).toBe(2)
+    expect(views().map((view) => view.at)).toEqual([1, 2])
   })
 
   it('gives a second subscriber the cached view without another read', async () => {

@@ -1,3 +1,5 @@
+import { apiUrl } from './api-base-url'
+
 export enum EAuthErrorCode {
   InvalidToken = 'INVALID_TOKEN',
   UserAlreadyExists = 'USER_ALREADY_EXISTS',
@@ -25,6 +27,14 @@ const HTTP_UNAUTHORIZED = 401
 const HTTP_FORBIDDEN = 403
 const SESSION_CHECK_FAILED = 'Session check failed — Atlas Cloud returned an error.'
 export const UNREACHABLE = 'Could not reach Atlas Cloud — check your connection and retry.'
+
+export const authFetch = async (path: string, init: RequestInit = {}): Promise<Response> => {
+  try {
+    return await fetch(apiUrl(path), { credentials: 'include', ...init })
+  } catch {
+    throw new AuthApiError(UNREACHABLE)
+  }
+}
 
 export function normalizeUserCode(raw: string | null): string {
   return (raw ?? '').trim().replace(/-/g, '').toUpperCase()
@@ -54,12 +64,7 @@ export const failWith = async (response: Response, fallback: string): Promise<ne
 }
 
 export async function sessionUserPresent(): Promise<boolean> {
-  let response: Response
-  try {
-    response = await fetch('/api/auth/get-session')
-  } catch {
-    throw new AuthApiError(UNREACHABLE)
-  }
+  const response = await authFetch('/api/auth/get-session')
   if (!response.ok) return false
 
   const body = (await response.json().catch(() => null)) as SessionBody
@@ -67,16 +72,11 @@ export async function sessionUserPresent(): Promise<boolean> {
 }
 
 export async function signIn(args: { email: string; password: string }): Promise<void> {
-  let response: Response
-  try {
-    response = await fetch('/api/auth/sign-in/email', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ email: args.email, password: args.password }),
-    })
-  } catch {
-    throw new AuthApiError(UNREACHABLE)
-  }
+  const response = await authFetch('/api/auth/sign-in/email', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: args.email, password: args.password }),
+  })
   if (!response.ok) await failWith(response, 'Invalid email or password')
 }
 
@@ -85,44 +85,29 @@ export async function signUp(args: {
   email: string
   password: string
 }): Promise<void> {
-  let response: Response
-  try {
-    response = await fetch('/api/auth/sign-up/email', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name: args.name, email: args.email, password: args.password }),
-    })
-  } catch {
-    throw new AuthApiError(UNREACHABLE)
-  }
+  const response = await authFetch('/api/auth/sign-up/email', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ name: args.name, email: args.email, password: args.password }),
+  })
   if (!response.ok) await failWith(response, 'Sign-up failed')
 }
 
 export async function claimDeviceCode(userCode: string): Promise<void> {
-  let response: Response
-  try {
-    response = await fetch(`/api/auth/device?user_code=${encodeURIComponent(userCode)}`, {
-      headers: { accept: 'application/json' },
-    })
-  } catch {
-    throw new AuthApiError(UNREACHABLE)
-  }
+  const response = await authFetch(`/api/auth/device?user_code=${encodeURIComponent(userCode)}`, {
+    headers: { accept: 'application/json' },
+  })
   if (!response.ok) await failWith(response, 'Unknown or expired device code')
 }
 
 export type DeviceAction = 'approve' | 'deny'
 
 export async function actOnDevice(args: { action: DeviceAction; userCode: string }): Promise<void> {
-  let response: Response
-  try {
-    response = await fetch(`/api/auth/device/${args.action}`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ userCode: args.userCode }),
-    })
-  } catch {
-    throw new AuthApiError(UNREACHABLE)
-  }
+  const response = await authFetch(`/api/auth/device/${args.action}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ userCode: args.userCode }),
+  })
   if (!response.ok) await failWith(response, 'Request failed')
 }
 
@@ -137,12 +122,7 @@ type SessionUserBody = {
 } | null
 
 export async function sessionUser(): Promise<SessionUser | null> {
-  let response: Response
-  try {
-    response = await fetch('/api/auth/get-session')
-  } catch {
-    throw new AuthApiError(UNREACHABLE)
-  }
+  const response = await authFetch('/api/auth/get-session')
   if (response.status === HTTP_UNAUTHORIZED || response.status === HTTP_FORBIDDEN) return null
   if (!response.ok) throw new AuthApiError(SESSION_CHECK_FAILED)
 
@@ -154,17 +134,12 @@ export async function sessionUser(): Promise<SessionUser | null> {
   return { name, email, image: typeof user.image === 'string' ? user.image : null }
 }
 
-export const postJson = async (args: { path: string; body: unknown }): Promise<Response> => {
-  try {
-    return await fetch(args.path, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(args.body),
-    })
-  } catch {
-    throw new AuthApiError(UNREACHABLE)
-  }
-}
+export const postJson = (args: { path: string; body: unknown }): Promise<Response> =>
+  authFetch(args.path, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(args.body),
+  })
 
 export async function googleSignInUrl(args: {
   origin: string

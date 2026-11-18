@@ -207,6 +207,7 @@ describe('a sub-agent after its first turn', () => {
     await rig.flush()
     const childId = childIdOf(await eventsIn(rig, THREAD_ID))
 
+    await rig.post('say again')
     await rig.wake()
     const answeredAgain = await flushUntil({
       check: async () => saidTexts(await eventsIn(rig, childId)).length === 2,
@@ -297,9 +298,10 @@ describe('a sub-agent after its first turn', () => {
     const inbox = await rig.plane.readInbox({ sessionId: SESSION, afterId: 0, limit: 200 })
     const payloads = inbox.filter((entry) => entry.kind === 'message').map((entry) => entry.payload)
     expect(payloads.filter((payload) => payload.includes(PROGRESS_TEXT))).toEqual([])
-    const wakes = payloads.filter((payload) => payload.includes(`Sub-agent ${childId}`))
-    expect(wakes).toHaveLength(1)
-    expect(JSON.parse(wakes[0] ?? '{}')).toMatchObject({ via: 'child-agent' })
+    expect(payloads.filter((payload) => payload.includes(childId))).toEqual([])
+    expect(inbox.filter((entry) => entry.kind === 'agent-notice')).toHaveLength(1)
+    const said = parentEvents.filter((event) => event.type === 'user-said')
+    expect(said.filter((event) => event.via === 'child-agent')).toEqual([])
     expect(payloads.some((payload) => payload.includes('child finished'))).toBe(false)
   })
 })
