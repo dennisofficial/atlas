@@ -24,6 +24,7 @@ import {
   describeControlPlaneSessionTitles,
   describeControlPlaneViews,
   describeControlPlaneWakes,
+  describeControlPlaneWorktreeChanges,
 } from '../src/testing/conformance'
 import { ControlPlane } from '../src/control-plane'
 import type { PrStateRow, RoutineRow } from '../src/port'
@@ -128,6 +129,7 @@ describeControlPlaneBlobs(conformanceParams)
 describeControlPlaneWakes(conformanceParams)
 describeControlPlaneChanges(conformanceParams)
 describeControlPlaneViews(conformanceParams)
+describeControlPlaneWorktreeChanges(conformanceParams)
 
 describeControlPlaneRoutines({
   ...conformanceParams,

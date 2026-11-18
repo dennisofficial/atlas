@@ -4,6 +4,10 @@ import {
   sessionArchiveInputSchema,
   sessionArchiveOutputSchema,
   sessionBlobInputSchema,
+  sessionChangeContentInputSchema,
+  sessionChangeContentOutputSchema,
+  sessionChangesInputSchema,
+  sessionChangesOutputSchema,
   sessionBlobOutputSchema,
   sessionCommandInputSchema,
   sessionCommandOutputSchema,
@@ -28,6 +32,10 @@ import {
   type SessionArchiveInput,
   type SessionArchiveOutput,
   type SessionBlobInput,
+  type SessionChangeContentInput,
+  type SessionChangeContentOutput,
+  type SessionChangesInput,
+  type SessionChangesOutput,
   type SessionBlobOutput,
   type SessionCommandInput,
   type SessionCommandOutput,
@@ -57,12 +65,16 @@ import {
   type SessionPageOutput,
 } from '@dltech/atlas-wire'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
+import { ChangesService } from './changes.service'
 import { SessionsService } from './sessions.service'
 
 @Router({ alias: 'sessions' })
 @UseMiddlewares(SessionMiddleware)
 export class SessionsRouter {
-  constructor(private readonly sessions: SessionsService) {}
+  constructor(
+    private readonly sessions: SessionsService,
+    private readonly changesService: ChangesService,
+  ) {}
 
   private refuseBatched(ctx: SessionTrpcCtx): void {
     if (ctx.req.query.batch === '1') {
@@ -151,6 +163,22 @@ export class SessionsRouter {
     @Ctx() ctx: SessionTrpcCtx,
   ): Promise<SessionCommandOutput> {
     return this.sessions.command({ userId: ctx.auth.userId, ...input })
+  }
+
+  @Query({ input: sessionChangesInputSchema, output: sessionChangesOutputSchema })
+  changes(
+    @Input() input: SessionChangesInput,
+    @Ctx() ctx: SessionTrpcCtx,
+  ): Promise<SessionChangesOutput> {
+    return this.changesService.changes({ userId: ctx.auth.userId, ...input })
+  }
+
+  @Query({ input: sessionChangeContentInputSchema, output: sessionChangeContentOutputSchema })
+  changeContent(
+    @Input() input: SessionChangeContentInput,
+    @Ctx() ctx: SessionTrpcCtx,
+  ): Promise<SessionChangeContentOutput> {
+    return this.changesService.content({ userId: ctx.auth.userId, ...input })
   }
 
   @Query({ input: sessionViewInputSchema, output: sessionViewOutputSchema })

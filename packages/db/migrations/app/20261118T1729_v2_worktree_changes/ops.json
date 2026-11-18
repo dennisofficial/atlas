@@ -1,0 +1,397 @@
+[
+  {
+    "id": "table.V2ChangeBlob",
+    "label": "Create table \"V2ChangeBlob\"",
+    "summary": "Creates table \"V2ChangeBlob\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2ChangeBlob"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"V2ChangeBlob\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2ChangeBlob\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"V2ChangeBlob\"",
+        "sql": "CREATE TABLE \"v2\".\"V2ChangeBlob\" (\n  \"createdAt\" timestamptz(3) NOT NULL,\n  \"hash\" text NOT NULL,\n  \"size\" int4 NOT NULL,\n  PRIMARY KEY (\"hash\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"V2ChangeBlob\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2ChangeBlob\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.V2WorktreeChangedFile",
+    "label": "Create table \"V2WorktreeChangedFile\"",
+    "summary": "Creates table \"V2WorktreeChangedFile\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2WorktreeChangedFile"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"V2WorktreeChangedFile\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2WorktreeChangedFile\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"V2WorktreeChangedFile\"",
+        "sql": "CREATE TABLE \"v2\".\"V2WorktreeChangedFile\" (\n  \"additions\" int4 NOT NULL,\n  \"baseHash\" text,\n  \"binary\" bool NOT NULL,\n  \"checkoutId\" text NOT NULL,\n  \"currentHash\" text,\n  \"deletions\" int4 NOT NULL,\n  \"oldPath\" text,\n  \"path\" text NOT NULL,\n  \"size\" int4,\n  \"status\" text NOT NULL,\n  CONSTRAINT \"V2WorktreeChangedFile_pkey\" PRIMARY KEY (\"checkoutId\", \"path\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"V2WorktreeChangedFile\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2WorktreeChangedFile\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.V2WorktreeChanges",
+    "label": "Create table \"V2WorktreeChanges\"",
+    "summary": "Creates table \"V2WorktreeChanges\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2WorktreeChanges"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"V2WorktreeChanges\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2WorktreeChanges\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"V2WorktreeChanges\"",
+        "sql": "CREATE TABLE \"v2\".\"V2WorktreeChanges\" (\n  \"base\" text,\n  \"fingerprint\" text NOT NULL,\n  \"id\" text NOT NULL,\n  \"repo\" text NOT NULL,\n  \"sessionId\" text NOT NULL,\n  \"updatedAt\" timestamptz(3) NOT NULL,\n  \"worktreePath\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"V2WorktreeChanges\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2WorktreeChanges\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.V2ChangeBlob.V2ChangeBlob_createdAt_idx_9575dbd7",
+    "label": "Create index \"V2ChangeBlob_createdAt_idx_9575dbd7\" on \"V2ChangeBlob\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "index",
+        "name": "V2ChangeBlob_createdAt_idx_9575dbd7",
+        "table": "V2ChangeBlob"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"V2ChangeBlob_createdAt_idx_9575dbd7\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2ChangeBlob_createdAt_idx_9575dbd7\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"V2ChangeBlob_createdAt_idx_9575dbd7\"",
+        "sql": "CREATE INDEX \"V2ChangeBlob_createdAt_idx_9575dbd7\" ON \"v2\".\"V2ChangeBlob\" (\"createdAt\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"V2ChangeBlob_createdAt_idx_9575dbd7\" exists on \"V2ChangeBlob\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2ChangeBlob_createdAt_idx_9575dbd7\"",
+          "i",
+          "I",
+          "\"v2\".\"V2ChangeBlob\"",
+          "btree",
+          "[\"createdAt\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.V2WorktreeChangedFile.V2WorktreeChangedFile_baseHash_idx_4f00325f",
+    "label": "Create index \"V2WorktreeChangedFile_baseHash_idx_4f00325f\" on \"V2WorktreeChangedFile\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "index",
+        "name": "V2WorktreeChangedFile_baseHash_idx_4f00325f",
+        "table": "V2WorktreeChangedFile"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"V2WorktreeChangedFile_baseHash_idx_4f00325f\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2WorktreeChangedFile_baseHash_idx_4f00325f\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"V2WorktreeChangedFile_baseHash_idx_4f00325f\"",
+        "sql": "CREATE INDEX \"V2WorktreeChangedFile_baseHash_idx_4f00325f\" ON \"v2\".\"V2WorktreeChangedFile\" (\"baseHash\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"V2WorktreeChangedFile_baseHash_idx_4f00325f\" exists on \"V2WorktreeChangedFile\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2WorktreeChangedFile_baseHash_idx_4f00325f\"",
+          "i",
+          "I",
+          "\"v2\".\"V2WorktreeChangedFile\"",
+          "btree",
+          "[\"baseHash\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.V2WorktreeChangedFile.V2WorktreeChangedFile_currentHash_idx_4da01d65",
+    "label": "Create index \"V2WorktreeChangedFile_currentHash_idx_4da01d65\" on \"V2WorktreeChangedFile\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "index",
+        "name": "V2WorktreeChangedFile_currentHash_idx_4da01d65",
+        "table": "V2WorktreeChangedFile"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"V2WorktreeChangedFile_currentHash_idx_4da01d65\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2WorktreeChangedFile_currentHash_idx_4da01d65\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"V2WorktreeChangedFile_currentHash_idx_4da01d65\"",
+        "sql": "CREATE INDEX \"V2WorktreeChangedFile_currentHash_idx_4da01d65\" ON \"v2\".\"V2WorktreeChangedFile\" (\"currentHash\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"V2WorktreeChangedFile_currentHash_idx_4da01d65\" exists on \"V2WorktreeChangedFile\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2WorktreeChangedFile_currentHash_idx_4da01d65\"",
+          "i",
+          "I",
+          "\"v2\".\"V2WorktreeChangedFile\"",
+          "btree",
+          "[\"currentHash\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.V2WorktreeChanges.V2WorktreeChanges_sessionId_idx",
+    "label": "Create index \"V2WorktreeChanges_sessionId_idx\" on \"V2WorktreeChanges\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "index",
+        "name": "V2WorktreeChanges_sessionId_idx",
+        "table": "V2WorktreeChanges"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"V2WorktreeChanges_sessionId_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2WorktreeChanges_sessionId_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"V2WorktreeChanges_sessionId_idx\"",
+        "sql": "CREATE INDEX \"V2WorktreeChanges_sessionId_idx\" ON \"v2\".\"V2WorktreeChanges\" (\"sessionId\", \"updatedAt\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"V2WorktreeChanges_sessionId_idx\" exists on \"V2WorktreeChanges\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2WorktreeChanges_sessionId_idx\"",
+          "i",
+          "I",
+          "\"v2\".\"V2WorktreeChanges\"",
+          "btree",
+          "[\"sessionId\",\"updatedAt\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.V2WorktreeChangedFile.V2WorktreeChangedFile_checkoutId_fkey",
+    "label": "Add foreign key \"V2WorktreeChangedFile_checkoutId_fkey\" on \"V2WorktreeChangedFile\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "foreignKey",
+        "name": "V2WorktreeChangedFile_checkoutId_fkey",
+        "table": "V2WorktreeChangedFile"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"V2WorktreeChangedFile_checkoutId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "V2WorktreeChangedFile_checkoutId_fkey",
+          "v2",
+          "\"v2\".\"V2WorktreeChangedFile\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"V2WorktreeChangedFile_checkoutId_fkey\"",
+        "sql": "ALTER TABLE \"v2\".\"V2WorktreeChangedFile\"\nADD CONSTRAINT \"V2WorktreeChangedFile_checkoutId_fkey\"\nFOREIGN KEY (\"checkoutId\")\nREFERENCES \"v2\".\"V2WorktreeChanges\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"V2WorktreeChangedFile_checkoutId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "V2WorktreeChangedFile_checkoutId_fkey",
+          "v2",
+          "\"v2\".\"V2WorktreeChangedFile\"",
+          "f",
+          "[\"checkoutId\"]",
+          "\"v2\".\"V2WorktreeChanges\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.V2WorktreeChanges.V2WorktreeChanges_sessionId_fkey",
+    "label": "Add foreign key \"V2WorktreeChanges_sessionId_fkey\" on \"V2WorktreeChanges\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "foreignKey",
+        "name": "V2WorktreeChanges_sessionId_fkey",
+        "table": "V2WorktreeChanges"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"V2WorktreeChanges_sessionId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "V2WorktreeChanges_sessionId_fkey",
+          "v2",
+          "\"v2\".\"V2WorktreeChanges\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"V2WorktreeChanges_sessionId_fkey\"",
+        "sql": "ALTER TABLE \"v2\".\"V2WorktreeChanges\"\nADD CONSTRAINT \"V2WorktreeChanges_sessionId_fkey\"\nFOREIGN KEY (\"sessionId\")\nREFERENCES \"v2\".\"V2Session\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"V2WorktreeChanges_sessionId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "V2WorktreeChanges_sessionId_fkey",
+          "v2",
+          "\"v2\".\"V2WorktreeChanges\"",
+          "f",
+          "[\"sessionId\"]",
+          "\"v2\".\"V2Session\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  }
+]

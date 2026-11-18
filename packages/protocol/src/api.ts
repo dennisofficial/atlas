@@ -9,6 +9,7 @@ import {
 } from '@dltech/atlas-core'
 import { z } from 'zod'
 
+import { changeFileStatusSchema, changeSideSchema } from './changes-state'
 import { sessionCommandRowSchema } from './command-row'
 import { inboxMediaSchema, sessionPostMediaListSchema } from './media'
 
@@ -342,6 +343,53 @@ export type SessionStopInput = z.infer<typeof sessionStopInputSchema>
 export type SessionStopOutput = z.infer<typeof sessionStopOutputSchema>
 export type SessionCommandInput = z.infer<typeof sessionCommandInputSchema>
 export type SessionCommandOutput = z.infer<typeof sessionCommandOutputSchema>
+export const changedFileSchema = z.strictObject({
+  path: z.string().min(1),
+  oldPath: z.string().min(1).nullable(),
+  status: changeFileStatusSchema,
+  additions: z.number().int().min(0),
+  deletions: z.number().int().min(0),
+  binary: z.boolean(),
+  size: z.number().int().min(0).nullable(),
+  baseHash: z.string().min(1).nullable(),
+  currentHash: z.string().min(1).nullable(),
+})
+
+export const sessionChangesInputSchema = z.strictObject({ sessionId: z.string().min(1) })
+
+export const sessionChangesOutputSchema = z.strictObject({
+  checkouts: z.array(
+    z.strictObject({
+      checkoutId: z.string().min(1),
+      repo: z.string().min(1),
+      worktreePath: z.string().min(1),
+      base: z.string().min(1).nullable(),
+      updatedAt: z.number().int().min(0),
+      files: z.array(changedFileSchema),
+    }),
+  ),
+})
+
+export const sessionChangeContentInputSchema = z.strictObject({
+  sessionId: z.string().min(1),
+  checkoutId: z.string().min(1),
+  path: z.string().min(1),
+  side: changeSideSchema,
+})
+
+export const sessionChangeContentOutputSchema = z.strictObject({
+  url: z.string().min(1),
+  hash: z.string().min(1),
+  size: z.number().int().min(0),
+  validUntil: z.number().int().min(0),
+})
+
+export type ChangedFile = z.infer<typeof changedFileSchema>
+export type SessionChangesInput = z.infer<typeof sessionChangesInputSchema>
+export type SessionChangesOutput = z.infer<typeof sessionChangesOutputSchema>
+export type SessionChangeContentInput = z.infer<typeof sessionChangeContentInputSchema>
+export type SessionChangeContentOutput = z.infer<typeof sessionChangeContentOutputSchema>
+
 export type SessionViewInput = z.infer<typeof sessionViewInputSchema>
 export type SessionViewOutput = z.infer<typeof sessionViewOutputSchema>
 export type SessionCreateOutput = z.infer<typeof sessionCreateOutputSchema>
