@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common'
+import { Inject, Injectable, Optional, ServiceUnavailableException } from '@nestjs/common'
 import { TRPCError } from '@trpc/server'
 import { ControlPlane } from '@dltech/atlas-control'
 import {
@@ -50,13 +50,14 @@ export class FilesService {
   constructor(
     @Inject(ControlPlane) private readonly plane: ControlPlane,
     @Inject(SessionsService) private readonly sessions: SessionsService,
-    @Inject(POD_OPS) private readonly ops: PodOps,
+    @Optional() @Inject(POD_OPS) private readonly ops: PodOps | null = null,
   ) {}
 
   private async invoke(args: {
     sessionId: string
     op: Parameters<PodOps['invoke']>[0]['op']
   }): Promise<CallResult> {
+    if (this.ops === null) throw new ServiceUnavailableException('pod access is not running')
     const outcome = await this.ops.invoke(args)
     if (outcome.state === 'unavailable') {
       if (outcome.reason === ELiveOpFailure.Asleep) throw new PodParkedError()
