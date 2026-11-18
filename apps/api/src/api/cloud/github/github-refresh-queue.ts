@@ -12,7 +12,12 @@ import {
 } from './github-request-budget'
 import { GithubUserReadFailed } from './github-user-reads'
 import { unsettledHeadExists } from './github-pr-head-checks'
-import { lookupKey, oldestAttemptFirst, statesOnPolledHeads } from './github-refresh-targets'
+import {
+  liveTrackingTargets,
+  lookupKey,
+  oldestAttemptFirst,
+  statesOnPolledHeads,
+} from './github-refresh-targets'
 import { EGithubHttpCategory } from './github-request-coordinator.types'
 
 type Target = {
@@ -40,9 +45,7 @@ type QueueDeps = {
 
 export async function refreshGithubQueue(deps: QueueDeps): Promise<void> {
   const now = new Date()
-  const tracked = await db.orm.public.GithubTrackingTarget.where((target) =>
-    target.liveUntil.gt(now),
-  ).all()
+  const tracked = await liveTrackingTargets(now)
   const polls = new Map<string, boolean>()
   const pollsIn = async (repoFullName: string): Promise<boolean> => {
     const repo = normalizedRepo(repoFullName)

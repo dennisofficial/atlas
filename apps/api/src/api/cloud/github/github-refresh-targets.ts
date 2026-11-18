@@ -12,6 +12,24 @@ export const oldestAttemptFirst = (
   return left.attemptedAt.getTime() - right.attemptedAt.getTime()
 }
 
+export const TARGET_BATCH = 200
+export const HEAD_STATE_BATCH = 64
+
+export async function liveTrackingTargets(now: Date): Promise<Row<'GithubTrackingTarget'>[]> {
+  const unattempted = await db.orm.public.GithubTrackingTarget.where((target) =>
+    and(target.liveUntil.gt(now), target.attemptedAt.isNull()),
+  )
+    .limit(TARGET_BATCH)
+    .all()
+  const attempted = await db.orm.public.GithubTrackingTarget.where((target) =>
+    and(target.liveUntil.gt(now), target.attemptedAt.isNotNull()),
+  )
+    .orderBy((target) => target.attemptedAt.asc())
+    .limit(TARGET_BATCH)
+    .all()
+  return [...unattempted, ...attempted]
+}
+
 export async function statesOnPolledHeads(
   heads: readonly Row<'GithubTrackingTarget'>[],
 ): Promise<{ state: Row<'GithubPrState'>; userId: string }[]> {
@@ -19,7 +37,17 @@ export async function statesOnPolledHeads(
   const userIds = new Map<string, string>()
   for (const head of heads)
     userIds.set(`${normalizedRepo(head.repoFullName)}#${head.branch}`, head.userId)
-  const states = await db.orm.public.GithubPrState.where((state) =>
+  const states: Row<'GithubPrState'>[] = []
+  for (const batch of chunks(heads, HEAD_STATE_BATCH)) states.push(...(await statesOnHeads(batch)))
+  return states.flatMap((state) => {
+    const key = `${normalizedRepo(state.headRepoFullName ?? '')}#${state.headBranch}`
+    const userId = userIds.get(key)
+    return userId === undefined ? [] : [{ state, userId }]
+  })
+}
+
+async function statesOnHeads(heads: readonly Row<'GithubTrackingTarget'>[]) {
+  return db.orm.public.GithubPrState.where((state) =>
     or(
       ...heads.map((head) =>
         and(
@@ -29,11 +57,13 @@ export async function statesOnPolledHeads(
       ),
     ),
   ).all()
-  return states.flatMap((state) => {
-    const key = `${normalizedRepo(state.headRepoFullName ?? '')}#${state.headBranch}`
-    const userId = userIds.get(key)
-    return userId === undefined ? [] : [{ state, userId }]
-  })
+}
+
+function chunks<T>(items: readonly T[], size: number): T[][] {
+  const batches: T[][] = []
+  for (let start = 0; start < items.length; start += size)
+    batches.push(items.slice(start, start + size))
+  return batches
 }
 
 export const lookupKey = (target: Row<'GithubTrackingTarget'>): string =>
