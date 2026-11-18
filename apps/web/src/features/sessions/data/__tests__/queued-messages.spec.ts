@@ -30,9 +30,11 @@ const pendingOf = (seeds: readonly PendingSeed[]): PendingInputsState => ({
     seq: seed.inboxId,
     at: '2026-11-18T10:00:00.000Z',
     kind: 'message',
-    clientId: `client-${seed.inboxId}`,
-    ...(seed.text === undefined ? {} : { text: seed.text }),
-    ...(seed.attachments === undefined ? {} : { attachments: seed.attachments as never }),
+    message: {
+      text: seed.text ?? '',
+      clientId: `client-${seed.inboxId}`,
+      ...(seed.attachments === undefined ? {} : { attachments: seed.attachments as never }),
+    },
   })),
 })
 

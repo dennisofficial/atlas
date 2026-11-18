@@ -169,6 +169,7 @@ describe('a sub-agent’s spawn model', () => {
     if (runtime === undefined) throw new Error('no runtime')
     runtime.modelChoice = LATER_MODEL_CHOICE
 
+    await rig.post('say again')
     await rig.wake()
     const answeredAgain = await flushUntil({
       check: async () => saidTexts(await eventsIn(rig, childId)).length === 2,

@@ -1,6 +1,5 @@
-import type { Attachment } from '../attachments/attachment'
-import type { EMessageOrigin } from '../events/body'
 import type { V2Event } from './event'
+import { inputMessageOfRow, type InputMessage } from './input-message'
 import { isMessageInputKind } from './input-events'
 
 export type PendingInput = {
@@ -8,11 +7,7 @@ export type PendingInput = {
   seq: number
   at: string
   kind: string
-  clientId?: string | undefined
-  text?: string | undefined
-  attachments?: readonly Attachment[] | undefined
-  via?: EMessageOrigin | undefined
-  sender?: { session: string } | undefined
+  message?: InputMessage | undefined
 }
 
 export type PendingInputsState = { pending: readonly PendingInput[] }
@@ -28,17 +23,16 @@ const withoutInbox = (
   return { pending: state.pending.filter((entry) => entry.inboxId !== inboxId) }
 }
 
-const postedEntry = (event: Extract<V2Event, { type: 'input-posted' }>): PendingInput => ({
-  inboxId: event.inboxId,
-  seq: event.seq,
-  at: event.postedAt,
-  kind: event.kind,
-  ...(event.clientId === undefined ? {} : { clientId: event.clientId }),
-  ...(event.text === undefined ? {} : { text: event.text }),
-  ...(event.attachments === undefined ? {} : { attachments: event.attachments }),
-  ...(event.via === undefined ? {} : { via: event.via }),
-  ...(event.sender === undefined ? {} : { sender: event.sender }),
-})
+const postedEntry = (event: Extract<V2Event, { type: 'input-posted' }>): PendingInput => {
+  const message = inputMessageOfRow(event)
+  return {
+    inboxId: event.inboxId,
+    seq: event.seq,
+    at: event.postedAt,
+    kind: event.kind,
+    ...(message === undefined ? {} : { message }),
+  }
+}
 
 const withPosted = (
   state: PendingInputsState,

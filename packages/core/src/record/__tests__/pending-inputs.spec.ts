@@ -118,7 +118,7 @@ describe('stepPending', () => {
       posted({ inboxId: 3, text: 'third' }),
       said({ inboxId: 2 }),
     ])
-    expect(pendingMessagesOf(pendingInputsOf(events)).map((entry) => entry.text)).toEqual([
+    expect(pendingMessagesOf(pendingInputsOf(events)).map((entry) => entry.message?.text)).toEqual([
       'first',
       'third',
     ])
@@ -126,9 +126,11 @@ describe('stepPending', () => {
 
   it('keeps the clientId and the posted time on a pending input', () => {
     const [entry] = pendingMessagesOf(
-      pendingInputsOf(log([posted({ inboxId: 4, clientId: 'c-1', postedAt: EARLIER })])),
+      pendingInputsOf(
+        log([posted({ inboxId: 4, text: 'four', clientId: 'c-1', postedAt: EARLIER })]),
+      ),
     )
-    expect(entry).toMatchObject({ clientId: 'c-1', at: EARLIER, seq: 1 })
+    expect(entry).toMatchObject({ message: { clientId: 'c-1' }, at: EARLIER, seq: 1 })
   })
 
   it('folds the whole log the same as it folds it in chunks', () => {

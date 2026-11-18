@@ -8,7 +8,7 @@ import type {
 
 import type { SessionCursor } from './session-window'
 
-export const SESSION_LOG_STRUCTURE_VERSION = 3
+export const SESSION_LOG_STRUCTURE_VERSION = 4
 
 export type SessionLogSnapshot = {
   version: number

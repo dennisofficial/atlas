@@ -150,6 +150,11 @@ const childIdOf = (events: readonly V2Event[]): string => {
 const toolNamesOf = (request: ModelRequest | undefined): readonly string[] =>
   request === undefined ? [] : request.tools.map((tool: ToolDeclaration) => tool.name)
 
+const answeredAfterEnding = (events: readonly V2Event[]): boolean => {
+  const ending = events.findIndex((event) => event.type === 'agent-ended')
+  return ending >= 0 && events.slice(ending).some((event) => event.type === 'assistant-said')
+}
+
 describe('a sub-agent spawned with the crew port', () => {
   it('runs on its own thread, reports to the parent and is denied the tools it may not use', async () => {
     const { rig, model } = await crewRig()
@@ -189,18 +194,14 @@ describe('a sub-agent spawned with the crew port', () => {
 
     await rig.wake()
     await flushUntil({
-      check: async () =>
-        (await eventsIn(rig, THREAD_ID)).some(
-          (event) => event.type === 'user-said' && event.text.includes(`Sub-agent ${childId}`),
-        ),
+      check: async () => answeredAfterEnding(await eventsIn(rig, THREAD_ID)),
       clock: rig.clock,
     })
     const afterReport = await eventsIn(rig, THREAD_ID)
+    expect(answeredAfterEnding(afterReport)).toBe(true)
     expect(
-      afterReport.some(
-        (event) => event.type === 'user-said' && event.text.includes(`Sub-agent ${childId}`),
-      ),
-    ).toBe(true)
+      afterReport.filter((event) => event.type === 'user-said' && event.via !== undefined),
+    ).toEqual([])
     expect((await rig.plane.readSession({ sessionId: SESSION }))?.mainThreadId).toBe(THREAD_ID)
   })
 

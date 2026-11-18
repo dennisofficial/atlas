@@ -1,6 +1,5 @@
 import {
-  attachmentsOf,
-  EMessageOrigin,
+  INBOX_KIND_AGENT_NOTICE,
   INBOX_KIND_RETRY,
   INBOX_KIND_STOP,
   visibleEvents,
@@ -9,13 +8,15 @@ import {
   type ModelPort,
   type PluginEventBody,
   type RecordBody,
+  type InputMessage,
   type RunId,
   type ThreadId,
+  userSaidOf,
 } from '@dltech/atlas-core'
 import { unfinishedCommandIdsOf, type ControlPlane } from '@dltech/atlas-control'
 import type { AgentIntake, PendingDrain } from '@dltech/atlas-agent'
 import type { CommandRegistry } from '@dltech/atlas-commands'
-import { INBOX_KIND_MESSAGE, inboxMessageSchema, type InboxMessage } from '@dltech/atlas-protocol'
+import { INBOX_KIND_MESSAGE, inboxMessageSchema } from '@dltech/atlas-protocol'
 import { INBOX_KIND_OPERATOR_ANSWER } from '@dltech/atlas-plugin-operator/core'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
@@ -33,12 +34,14 @@ import type { OperatorAnswerIntake, OperatorAnswerOutcome } from './operator-ans
 import type { SessionRecord } from './record/record-adapter'
 import {
   drainOrderOf,
+  inputMessageOf,
   jsonOf,
   logStagedInputs,
+  loggedMessagesOf,
+  postedAndSaidOf,
   postedDraftsOf as postedDraftsFor,
   postedInboxIdsOf,
-  salvagedFieldsOf,
-  stagedMessagesOf,
+  salvagedOf,
   type Drainable,
 } from './staged-log'
 import { resolveWithdraws as applyWithdraws, type WithdrawLookup } from './withdraw-plan'
@@ -103,7 +106,7 @@ export class InboxIntake implements AgentIntake {
     const entries = await this.fetch()
     const resolved = await this.resolveWithdraws(entries)
     const glue = this.commandGlue()
-    const drainable: Drainable[] = []
+    const drainable: { entry: InboxEntry; message: InputMessage }[] = []
     let wakesTurn = false
     for (const entry of entries) {
       if (resolved.has(entry.inboxId)) continue
@@ -118,6 +121,11 @@ export class InboxIntake implements AgentIntake {
         await consumeQuietly({ ...glue, entry })
         continue
       }
+      if (entry.kind === INBOX_KIND_AGENT_NOTICE) {
+        await consumeQuietly({ ...glue, entry })
+        wakesTurn = true
+        continue
+      }
       if (entry.kind === INBOX_KIND_MESSAGE) {
         const parsed = inboxMessageSchema.safeParse(jsonOf(entry.payload))
         if (!parsed.success) {
@@ -126,12 +134,15 @@ export class InboxIntake implements AgentIntake {
               type: 'input-refused',
               inboxId: entry.inboxId,
               reason: 'unreadable message',
-              ...salvagedFieldsOf(entry.payload),
+              ...salvagedOf(entry.payload),
             },
           ])
           continue
         }
-        drainable.push({ entry, message: parsed.data, posted: false })
+        drainable.push({
+          entry,
+          message: inputMessageOf({ entry, message: parsed.data }),
+        })
         continue
       }
       if (isCommandKind(entry.kind)) {
@@ -142,15 +153,12 @@ export class InboxIntake implements AgentIntake {
     }
     const order = drainOrderOf({
       staged: drainable,
-      logged: this.stagedMessages(),
+      logged: loggedMessagesOf(this.args.record.eventCache().eventsAfter(0)),
       posted: postedInboxIdsOf({ events: this.args.record.eventCache().eventsAfter(0) }),
     })
     if (order.length > 0) await this.cancelOpenForMessage()
     for (const item of order) {
-      await this.appendDrafts([
-        ...(item.posted ? [] : this.postedDraftsOf(item.entry)),
-        this.saidDraft(item.entry, item.message),
-      ])
+      await this.appendDrafts(this.drainDraftsOf(item))
       wakesTurn = true
     }
     await runLoggedCommands({
@@ -225,28 +233,11 @@ export class InboxIntake implements AgentIntake {
     }
   }
 
-  private saidDraft(entry: InboxEntry, message: InboxMessage): EventDraft {
-    const { text, via } = message
-    const attachments = attachmentsOf(message)
-    const sender = entry.senderSessionId
-    const origin = sender === null ? via : EMessageOrigin.PeerAgent
-    return {
-      type: 'user-said',
-      text,
-      ...(sender === null ? {} : { sender: { session: sender } }),
-      ...(origin === undefined ? {} : { via: origin }),
-      ...(attachments.length === 0 ? {} : { attachments }),
-      ...(message.clientId === undefined ? {} : { clientId: message.clientId }),
-      requestId: `inbox:${entry.inboxId}`,
-      inboxId: entry.inboxId,
+  private drainDraftsOf(item: Drainable): (EventDraft | RecordBody | PluginEventBody)[] {
+    if (item.posted || item.entry === undefined) {
+      return [userSaidOf({ inboxId: item.inboxId, message: item.message })]
     }
-  }
-
-  private stagedMessages(): { entry: InboxEntry; message: InboxMessage }[] {
-    return stagedMessagesOf({
-      events: this.args.record.eventCache().eventsAfter(0),
-      sessionId: this.args.sessionId,
-    })
+    return postedAndSaidOf({ entry: item.entry, message: item.message })
   }
 
   private async answerOperator(entry: InboxEntry): Promise<OperatorAnswerOutcome> {

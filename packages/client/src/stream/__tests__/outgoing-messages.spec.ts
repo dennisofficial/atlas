@@ -50,7 +50,13 @@ describe('stagedOutcomesOf', () => {
 
   it('removes a staged message on input-posted, user-said, input-refused and input-withdrawn', () => {
     const cases: readonly PartialEvent[] = [
-      { type: 'input-posted', inboxId: 1, kind: 'message', postedAt: 'now', clientId: 'client-a' },
+      {
+        type: 'input-posted',
+        inboxId: 1,
+        kind: 'message',
+        postedAt: 'now',
+        message: { text: 'first', clientId: 'client-a' },
+      },
       { type: 'user-said', text: 'first', clientId: 'client-a', inboxId: 1 },
       { type: 'input-refused', inboxId: 1, reason: 'unreadable', clientId: 'client-a' },
       { type: 'input-withdrawn', inboxId: 1 },
@@ -70,7 +76,7 @@ describe('stagedOutcomesOf', () => {
                 inboxId: 1,
                 kind: 'message',
                 postedAt: 'now',
-                clientId: 'client-a',
+                message: { text: 'first', clientId: 'client-a' },
               },
             ])
           : eventsOf([])
@@ -91,7 +97,7 @@ describe('stagedOutcomesOf', () => {
           inboxId: 7,
           kind: 'message',
           postedAt: 'now',
-          clientId: 'client-a',
+          message: { text: 'first', clientId: 'client-a' },
         },
         { type: 'input-refused', inboxId: 8, targetInboxId: 7, reason: 'already-sent' },
       ]),
@@ -109,7 +115,7 @@ describe('stagedOutcomesOf', () => {
           inboxId: 3,
           kind: 'message',
           postedAt: 'now',
-          clientId: 'client-b',
+          message: { text: 'second', clientId: 'client-b' },
         },
       ]),
       clientIds: ['client-a'],
@@ -121,7 +127,13 @@ describe('stagedOutcomesOf', () => {
 describe('pendingStagedOf', () => {
   it('drops every staged message the log has settled and keeps the rest in order', () => {
     const events = eventsOf([
-      { type: 'input-posted', inboxId: 1, kind: 'message', postedAt: 'now', clientId: 'client-a' },
+      {
+        type: 'input-posted',
+        inboxId: 1,
+        kind: 'message',
+        postedAt: 'now',
+        message: { text: 'first', clientId: 'client-a' },
+      },
     ])
     expect(pendingStagedOf({ staged: STAGED, events }).map((entry) => entry.clientId)).toEqual([
       'client-b',
@@ -161,7 +173,13 @@ describe('stagedPlacementOf', () => {
 describe('restorableStagedOf', () => {
   it('returns the text of a refused staged message with its reason', () => {
     const events = eventsOf([
-      { type: 'input-refused', inboxId: 1, reason: 'attachment unreadable', clientId: 'client-a' },
+      {
+        type: 'input-refused',
+        inboxId: 1,
+        reason: 'attachment unreadable',
+        clientId: 'client-a',
+        message: { text: 'first' },
+      },
     ])
     const restorable = restorableStagedOf({
       staged: [{ clientId: 'client-a', text: 'first' }],
@@ -169,11 +187,20 @@ describe('restorableStagedOf', () => {
     })
     expect(restorable).toHaveLength(1)
     expect(restorable[0]?.reason).toBe('attachment unreadable')
+    expect(stagedOutcomesOf({ events, clientIds: ['client-a'] }).get('client-a')?.text).toBe(
+      'first',
+    )
   })
 
   it('returns the text of a withdrawn message and nothing for a posted one', () => {
     const events = eventsOf([
-      { type: 'input-posted', inboxId: 1, kind: 'message', postedAt: 'now', clientId: 'client-a' },
+      {
+        type: 'input-posted',
+        inboxId: 1,
+        kind: 'message',
+        postedAt: 'now',
+        message: { text: 'first', clientId: 'client-a' },
+      },
       { type: 'input-withdrawn', inboxId: 1 },
     ])
     const restorable = restorableStagedOf({

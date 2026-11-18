@@ -8,6 +8,7 @@ import {
 } from '@dltech/atlas-commands'
 import type { ControlPlane } from '@dltech/atlas-control'
 import {
+  type InputMessage,
   ECommandGroup,
   ECommandTiming,
   EInputConsumed,
@@ -95,12 +96,19 @@ const rigOf = (entries: readonly InboxEntry[], options: RigOptions = {}) => {
   return { intake, appended, appends, warnings, infos }
 }
 
-const posted = (inboxId: number, extra: Record<string, unknown> = {}): AppendBody => ({
+const posted = (inboxId: number, message?: object): AppendBody => ({
   type: 'input-posted',
   inboxId,
   kind: 'message',
   postedAt: new Date(NOW).toISOString(),
-  ...extra,
+  ...(message === undefined ? {} : { message: message as InputMessage }),
+})
+
+const postedCommand = (inboxId: number, kind: string): AppendBody => ({
+  type: 'input-posted',
+  inboxId,
+  kind,
+  postedAt: new Date(NOW).toISOString(),
 })
 
 const said = (inboxId: number, extra: Record<string, unknown> = {}): AppendBody => ({
@@ -191,15 +199,11 @@ describe('InboxIntake idle send', () => {
     ])
   })
 
-  it('marks a peer session message as a peer agent', async () => {
+  it('marks a peer session message as a peer agent on both events', async () => {
     const rig = rigOf([{ ...entry(9), senderSessionId: 'ses_2' }])
     await rig.intake.prepare()
-    expect(rig.appends).toEqual([
-      [
-        posted(9, { text: 'm9' }),
-        said(9, { sender: { session: 'ses_2' }, via: EMessageOrigin.PeerAgent }),
-      ],
-    ])
+    const peer = { text: 'm9', sender: { session: 'ses_2' }, via: EMessageOrigin.PeerAgent }
+    expect(rig.appends).toEqual([[posted(9, peer), said(9, peer)]])
   })
 
   it('marks an origin in the payload as that origin', async () => {
@@ -240,9 +244,8 @@ describe('InboxIntake idle send', () => {
           type: 'input-refused',
           inboxId: 12,
           reason: 'unreadable message',
-          text: 'a steer',
           clientId: 'c12',
-          attachments: [attachment],
+          message: { text: 'a steer', attachments: [attachment] },
         },
       ],
     ])
@@ -277,7 +280,7 @@ describe('InboxIntake logStaged', () => {
       },
     )
     await rig.intake.logStaged()
-    expect(rig.appends).toEqual([[posted(1, { text: 'm1' }), posted(2, { kind: 'command:ping' })]])
+    expect(rig.appends).toEqual([[posted(1, { text: 'm1' }), postedCommand(2, 'command:ping')]])
   })
 
   const unresolvable = [
