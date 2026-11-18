@@ -3,17 +3,19 @@ import {
   checksTally,
   ECheckOutcome,
   EChecksState,
+  ECheckSource,
   EPrSource,
   EPrState,
   latestAttemptOutcomes,
   type CheckAttempt,
+  type CheckIdentity,
   type DerivedChecks,
   type MergeabilitySample,
   type PrFoldState,
 } from '@dltech/atlas-core'
 import type { Row } from '@dltech/atlas-db'
 
-import { SUITE_KEY_PREFIX, runOrderOfKey } from './github-check-suites'
+import { RUN_KEY_PREFIX, SUITE_KEY_PREFIX, runOrderOfKey } from './github-check-suites'
 import type { PrScopeTx } from './github-pr-lock'
 
 export function foldStateOfRow(row: Row<'GithubPrState'> | null): PrFoldState | null {
@@ -71,12 +73,26 @@ function mergeabilityOfRow(row: Row<'GithubPrState'>): MergeabilitySample | null
   }
 }
 
-export async function checksDerivedOf(args: {
+export function checkIdentitiesOf(rows: readonly Row<'GithubCommitCheck'>[]): CheckIdentity[] {
+  return rows
+    .filter((row) => !row.checkKey.startsWith(SUITE_KEY_PREFIX))
+    .map((row) => ({
+      appSlug: row.appSlug,
+      checkKey: row.checkKey,
+      name: row.name ?? '',
+      outcome: row.outcome as ECheckOutcome,
+      source: row.checkKey.startsWith(RUN_KEY_PREFIX) ? ECheckSource.Run : ECheckSource.Status,
+      sourceCreatedAt: row.sourceUpdatedAt.toISOString(),
+      sourceId: row.checkKey.slice(row.checkKey.indexOf(':') + 1),
+    }))
+}
+
+export async function headChecksOf(args: {
   tx: PrScopeTx
   repoFullName: string
   headSha: string
   baseBranch: string
-}): Promise<DerivedChecks> {
+}): Promise<{ derived: DerivedChecks; identities: CheckIdentity[] }> {
   const requiredContexts =
     args.baseBranch === ''
       ? []
@@ -101,12 +117,15 @@ export async function checksDerivedOf(args: {
   const tally = checksTally(outcomes)
 
   return {
-    headSha: args.headSha,
-    running: tally.running,
-    passed: tally.passed,
-    failed: tally.failed,
-    ignored: tally.ignored,
-    rollup: outcomes.length === 0 ? null : checksRollup(outcomes),
-    requiredContexts,
+    derived: {
+      headSha: args.headSha,
+      running: tally.running,
+      passed: tally.passed,
+      failed: tally.failed,
+      ignored: tally.ignored,
+      rollup: outcomes.length === 0 ? null : checksRollup(outcomes),
+      requiredContexts,
+    },
+    identities: checkIdentitiesOf(rows),
   }
 }

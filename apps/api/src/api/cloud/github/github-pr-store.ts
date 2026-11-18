@@ -20,7 +20,8 @@ import {
   type PrOutboxEffect,
 } from './github-pr-outbox'
 import { settlementSnapshotOf, snapshotOfLocked } from './github-pr-head-checks'
-import { checksDerivedOf, foldStateOfRow } from './github-pr-row-fold'
+import { reconcileOutboxEffectsOf } from './github-pr-reconcile-effects'
+import { foldStateOfRow, headChecksOf } from './github-pr-row-fold'
 import { deliverPrTransitions } from './github-pr-transition-push'
 
 export type PrApplyArgs = {
@@ -70,19 +71,32 @@ export class GithubPrStore {
     if (folded.state === null || folded.state.pull === null) {
       return { applied: false, row: stored, changed: [], outboxIds: [] }
     }
-    const derived = await checksDerivedOf({
-      tx,
-      repoFullName: args.repoFullName,
-      headSha: folded.state.pull.headSha,
-      baseBranch: folded.state.pull.baseBranch,
-    })
-    const checked = withDerivedChecks({ derived, state: folded.state })
+    const { headSha, baseBranch } = folded.state.pull
+    const head = await headChecksOf({ tx, repoFullName: args.repoFullName, headSha, baseBranch })
+    const checked = withDerivedChecks({ derived: head.derived, state: folded.state })
     const state = checked.state
     if (state === null) return { applied: false, row: stored, changed: [], outboxIds: [] }
+    const rechecks = reconcileOutboxEffectsOf({
+      attempts: head.identities,
+      repoFullName: args.repoFullName,
+      headSha,
+    })
     const changed = [...new Set([...folded.changed, ...checked.changed])]
-    if (changed.length === 0) return { applied: false, row: stored, changed: [], outboxIds: [] }
+    if (changed.length === 0) {
+      return {
+        applied: false,
+        row: stored,
+        changed: [],
+        outboxIds: await GithubPrOutboxWriter.write({
+          tx,
+          repoFullName: args.repoFullName,
+          prNumber: args.prNumber,
+          effects: rechecks,
+        }),
+      }
+    }
 
-    const row = await this.writeRow({ ...args, tx, state, derived, stored })
+    const row = await this.writeRow({ ...args, tx, state, derived: head.derived, stored })
     const subscribers = await this.subscribersOf({ ...args, tx, row })
     const effects = new PrEffectCollector()
     await deliverPrTransitions({
@@ -102,7 +116,7 @@ export class GithubPrStore {
       tx,
       repoFullName: args.repoFullName,
       prNumber: args.prNumber,
-      effects: this.outboxEffectsOf({ args, row, subscribers, effects }),
+      effects: this.outboxEffectsOf({ args, row, subscribers, effects, rechecks }),
     })
 
     return { applied: true, row, changed, outboxIds }
@@ -200,6 +214,7 @@ export class GithubPrStore {
     row: Row<'GithubPrState'>
     subscribers: readonly Row<'GithubSubscription'>[]
     effects: PrEffectCollector
+    rechecks: readonly PrOutboxEffect[]
   }): readonly PrOutboxEffect[] {
     const frame = `${args.args.repoFullName}#${args.args.prNumber}:${args.row.version}`
     const threads = [...new Set(args.subscribers.map((held) => held.threadId))].filter(
@@ -221,6 +236,7 @@ export class GithubPrStore {
         dedupeKey: `thread-signal:${frame}:${threadId}`,
       })),
       ...args.effects.all(),
+      ...args.rechecks,
     ]
   }
 }
