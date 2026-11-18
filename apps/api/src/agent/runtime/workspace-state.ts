@@ -55,8 +55,14 @@ export const report = (args: { deps: Deps; message: string; detail: string }): v
   })
 }
 
-export const checkSentinels = async (args: { deps: Deps; sentinels: Sentinels }) => ({
-  materialized: await exists({ files: args.deps.files, path: args.sentinels.materialized }),
+export const checkSentinels = async (args: {
+  deps: Deps
+  sentinels: Sentinels
+  launchDirectory: string
+}) => ({
+  materialized:
+    (await exists({ files: args.deps.files, path: args.sentinels.materialized })) &&
+    (await exists({ files: args.deps.files, path: args.launchDirectory })),
   setupRan: await exists({ files: args.deps.files, path: args.sentinels.setupRan }),
 })
 

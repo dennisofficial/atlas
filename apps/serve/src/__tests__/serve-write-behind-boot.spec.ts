@@ -14,6 +14,7 @@ import { fakeServeApp } from './fakes'
 import { trpcFailure, trpcOk, trpcUrl } from './trpc-fake'
 import { inMemoryContextFiles } from './serve-spec-fixture'
 import { scratchTranscriptStore } from './transcript-store-fixture'
+import { withNoRepoSpec } from './spec-home'
 
 const threadId = toThreadId('thread-write-behind')
 const controlPlaneUrl = 'https://api.example.com'
@@ -102,7 +103,7 @@ const answers = async (store: ReturnType<typeof start>['store']) =>
 
 describe('serve write-behind', () => {
   it('runs a message the API appended while the pod was parked once the pod wakes', async () => {
-    const home = mkdtempSync(join(tmpdir(), 'atlas-serve-write-behind-'))
+    const home = withNoRepoSpec(mkdtempSync(join(tmpdir(), 'atlas-serve-write-behind-')))
     homes.push(home)
     heldAtlasHome = process.env.ATLAS_HOME
     process.env.ATLAS_HOME = home

@@ -14,6 +14,7 @@ import { fakeServeApp } from './fakes'
 import { trpcFailure, trpcOk, trpcUrl } from './trpc-fake'
 import { inMemoryContextFiles } from './serve-spec-fixture'
 import { scratchTranscriptStore } from './transcript-store-fixture'
+import { withNoRepoSpec } from './spec-home'
 
 const threadId = toThreadId('thread-boot-turn-failed')
 const controlPlaneUrl = 'https://api.example.com'
@@ -73,7 +74,7 @@ const eventually = async (check: () => Promise<boolean> | boolean): Promise<void
 
 describe('a boot-resumed turn whose model step fails', () => {
   it('ships a run-failed event to Postgres and never an assistant-said one', async () => {
-    const home = mkdtempSync(join(tmpdir(), 'atlas-serve-boot-failed-'))
+    const home = withNoRepoSpec(mkdtempSync(join(tmpdir(), 'atlas-serve-boot-failed-')))
     homes.push(home)
     heldAtlasHome = process.env.ATLAS_HOME
     process.env.ATLAS_HOME = home

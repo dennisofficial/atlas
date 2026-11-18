@@ -27,6 +27,7 @@ import {
   threadId,
   TOKEN,
 } from './serve-spec-fixture'
+import { withNoRepoSpec } from './spec-home'
 
 const scratchHomes: string[] = []
 const handles: ServeHandle[] = []
@@ -45,7 +46,7 @@ const boot = async (over: { holdTurn?: Promise<void>; failChildPause?: boolean }
   const order: string[] = []
   const endings: string[] = []
   let exitCode: number | undefined
-  const home = mkdtempSync(join(tmpdir(), 'atlas-serve-drain-spec-'))
+  const home = withNoRepoSpec(mkdtempSync(join(tmpdir(), 'atlas-serve-drain-spec-')))
   scratchHomes.push(home)
   heldAtlasHome ??= process.env.ATLAS_HOME
   process.env.ATLAS_HOME = home

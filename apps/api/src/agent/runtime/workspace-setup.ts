@@ -168,7 +168,7 @@ export const ensureWorkspace = async (args: {
   try {
     const state = await runInCallScope({
       scopeKey: phases[0] ?? 'setup:check',
-      body: () => checkSentinels({ deps, sentinels }),
+      body: () => checkSentinels({ deps, sentinels, launchDirectory }),
     })
     args.signal?.throwIfAborted()
     const progress = new RepoProgress({

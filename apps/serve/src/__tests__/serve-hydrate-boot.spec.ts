@@ -20,6 +20,7 @@ import { fakeServeApp } from './fakes'
 import { trpcFailure, trpcOk, trpcQueryUrl, trpcUrl } from './trpc-fake'
 import { inMemoryContextFiles } from './serve-spec-fixture'
 import { scratchTranscriptStore } from './transcript-store-fixture'
+import { withNoRepoSpec } from './spec-home'
 
 const threadId = toThreadId('thread-hydrate-boot')
 const controlPlaneUrl = 'https://api.example.com'
@@ -51,7 +52,7 @@ const boot = async (args: {
   eventsReply: () => Response
   bootStepsReply?: (steps: BootStepEvent[]) => Response
 }) => {
-  const home = mkdtempSync(join(tmpdir(), 'atlas-serve-hydrate-boot-'))
+  const home = withNoRepoSpec(mkdtempSync(join(tmpdir(), 'atlas-serve-hydrate-boot-')))
   homes.push(home)
   heldAtlasHome = process.env.ATLAS_HOME
   process.env.ATLAS_HOME = home

@@ -199,6 +199,42 @@ describe('ensureWorkspace', () => {
     calls.close()
   }, 60_000)
 
+  it('clones again when the materialized sentinel outlives its directory', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'atlas-workspace-stale-sentinel-'))
+    const remoteUrl = makeRemote(root)
+    const launchDirectory = join(root, 'comp-neo')
+    const { calls, processes, files } = await openPorts({ sessionId: 'setup-session-stale' })
+    const workspace = {
+      remoteUrl,
+      baseBranch: null,
+      additionalRepos: [],
+      setupScript: 'echo ran >> setup-ran.txt',
+    }
+    const args = {
+      sessionId: 'setup-session-stale',
+      calls,
+      processes,
+      files,
+      workspace,
+      launchDirectory,
+    }
+
+    const first = await setupFor(args)
+    await first.settled
+    await files.removeFile({ path: launchDirectory })
+
+    await setupFor(args)
+
+    expect(await files.readFile({ path: join(launchDirectory, 'hello.txt') })).toBe(
+      'hello from the repo\n',
+    )
+    expect(
+      await files.readFile({ path: join(root, WORKSPACE_STATE_DIR, MATERIALIZED_SENTINEL) }),
+    ).toContain('at')
+    expect(existsSync(join(launchDirectory, 'setup-ran.txt'))).toBe(false)
+    calls.close()
+  }, 60_000)
+
   it('reports ok after a clean clone and setup', async () => {
     const root = mkdtempSync(join(tmpdir(), 'atlas-workspace-ok-'))
     const { calls, processes, files } = await openPorts({ sessionId: 'setup-session-ok' })
