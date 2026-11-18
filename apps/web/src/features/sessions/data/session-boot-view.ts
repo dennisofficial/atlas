@@ -58,11 +58,12 @@ const REPO_STATE: Record<EWorkspaceRepoState, EBootStepState> = {
   [EWorkspaceRepoState.Failed]: EBootStepState.Error,
 }
 
-type Phase = 'live' | 'failed' | 'settled'
+type Phase = 'live' | 'failed' | 'catching-up' | 'settled'
 
-const phaseOf = (status: SessionSnapshot['status']): Phase => {
-  if (status?.state === ESessionStatus.Preparing) return 'live'
-  if (status?.state === ESessionStatus.SetupFailed) return 'failed'
+const phaseOf = (args: { status: SessionSnapshot['status']; catchingUp: boolean }): Phase => {
+  if (args.status?.state === ESessionStatus.Preparing) return 'live'
+  if (args.status?.state === ESessionStatus.SetupFailed) return 'failed'
+  if (args.catchingUp) return 'catching-up'
   return 'settled'
 }
 
@@ -75,8 +76,11 @@ const stateOf = (args: {
   if (recorded?.state === EWorkspaceStepState.Done) return EBootStepState.Done
   if (recorded?.state === EWorkspaceStepState.Failed) return EBootStepState.Error
   if (recorded?.state === EWorkspaceStepState.Started) {
-    return phase === 'live' ? EBootStepState.Running : EBootStepState.Error
+    return phase === 'live' || phase === 'catching-up'
+      ? EBootStepState.Running
+      : EBootStepState.Error
   }
+  if (phase === 'catching-up') return EBootStepState.Pending
   if (phase === 'settled') {
     return args.previousDone ? EBootStepState.Done : EBootStepState.Pending
   }
@@ -160,11 +164,13 @@ export const sessionBootViewOf = (args: {
   events: readonly V2Event[]
   status: SessionSnapshot['status']
   setupOutput?: string | undefined
+  catchingUp?: boolean
 }): BootView | null => {
   const folded = workspaceStepsOf(args.events)
   const recordedSteps = WORKSPACE_STEP_ORDER.map((step) => folded[step])
-  const phase = phaseOf(args.status)
-  if (phase === 'settled' && recordedSteps.every((step) => step === undefined)) return null
+  const phase = phaseOf({ status: args.status, catchingUp: args.catchingUp === true })
+  const settling = phase === 'settled' || phase === 'catching-up'
+  if (settling && recordedSteps.every((step) => step === undefined)) return null
   if (phase === 'settled' && args.status === undefined) return null
 
   let previousDone = true
