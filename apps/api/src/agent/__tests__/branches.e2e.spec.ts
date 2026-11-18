@@ -164,7 +164,9 @@ describe('branches-observed e2e', () => {
       const bodies = rows.events.map((row) => JSON.stringify(row)).join('\n')
       throw new Error(`${String(error)}\n${log.dump('branches-e2e')}\n${bodies}`)
     })
-    expect(branchRecords(first)).toHaveLength(1)
+    // docs/v2/slices/pr-tracking.md D10: the boot repo is observed at runtime start, before the
+    // turn creates the branch, so the watch appends the second record and not the only one.
+    expect(branchRecords(first).map((row) => hasBranch(row, 'feat-x'))).toEqual([false, true])
 
     await plane.post({
       sessionId,
@@ -183,6 +185,6 @@ describe('branches-observed e2e', () => {
       threadId: mainThreadId,
       want: (rows) => rows.filter((row) => row.type === 'assistant-said').length >= 2,
     })
-    expect(branchRecords(after)).toHaveLength(1)
+    expect(branchRecords(after).map((row) => hasBranch(row, 'feat-x'))).toEqual([false, true])
   }, 60_000)
 })

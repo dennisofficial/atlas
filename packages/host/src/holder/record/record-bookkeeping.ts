@@ -47,6 +47,8 @@ export class RecordBookkeeping {
           base: event.base,
           branches: event.branches,
           worktrees: event.worktrees,
+          remotes: event.remotes,
+          checkouts: event.checkouts,
         })
         return
       case 'workspace-prepared':
