@@ -53,10 +53,57 @@ jobs:
             echo "deploy-artifacts-worker=false" >> "$GITHUB_OUTPUT"
           fi
 
-  # Render runs the migration as the service's pre-deploy command, so a failed migration aborts the
-  # deploy and the previous instance keeps serving. This job only waits for the deploy of this
-  # commit to be live before trigger.dev tasks reach the migrated schema.
+  # With RENDER_DEPLOY_FROM_CI set, Render's auto-deploy and pre-deploy command are off and this
+  # workflow drives the API release: migrate, then deploy this commit. The release concurrency group
+  # keeps one run pending, so a burst of merges deploys only the newest commit. A failed migration
+  # stops the deploy and the previous instance keeps serving.
+  migrate:
+    if: vars.RENDER_DEPLOY_FROM_CI == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2.2.0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
+      - run: bun install --frozen-lockfile
+
+      - name: migrate the production database and verify it matches the contract
+        run: bun run --cwd apps/api db:migrate:predeploy
+        env:
+          APP_TIER: production
+          DOTENV_PRIVATE_KEY_PRODUCTION_ENC: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION_ENC }}
+
+  render-deploy:
+    needs: migrate
+    runs-on: ubuntu-latest
+    steps:
+      - name: deploy this commit on Render
+        run: |
+          set -euo pipefail
+          curl -fsS -X POST "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys" \
+            -H "authorization: Bearer $RENDER_API_KEY" \
+            -H 'content-type: application/json' \
+            -d "{\"commitId\":\"$GITHUB_SHA\",\"clearCache\":\"do_not_clear\"}"
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: srv-dbmaj7ajnfac738tg30g
+
+  # Without RENDER_DEPLOY_FROM_CI, Render deploys every push itself and runs the migration as its
+  # pre-deploy command. Either way this job waits for the deploy of this commit to be live before
+  # trigger.dev tasks and the web reach it.
   render-live:
+    needs: render-deploy
+    if: ${{ !cancelled() && !failure() }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -76,7 +123,7 @@ jobs:
   # talks to is live. Unset VERCEL_WEB_PROJECT and the job is skipped.
   web-live:
     needs: render-live
-    if: vars.VERCEL_WEB_PROJECT != ''
+    if: ${{ !cancelled() && !failure() && vars.VERCEL_WEB_PROJECT != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -94,7 +141,7 @@ jobs:
 
   deploy-trigger:
     needs: [changes, render-live]
-    if: needs.changes.outputs.deploy-trigger == 'true'
+    if: ${{ !cancelled() && !failure() && needs.changes.outputs.deploy-trigger == 'true' }}
     runs-on: ubuntu-latest
     defaults:
       run:
