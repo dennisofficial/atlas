@@ -233,3 +233,8 @@ export const resumeDraftsOf = (state: LoopState): readonly EventDraft[] =>
   nudgeDraftsFor(resumePlanOf(state))
 
 export const isResumableOf = (state: LoopState): boolean => isResumablePlan(resumePlanOf(state))
+
+export const finishedTurnOf = (state: LoopState): boolean =>
+  state.lastAssistant !== undefined &&
+  state.lastAssistant.interrupted !== true &&
+  resumePlanOf(state).kind === EResume.Nothing

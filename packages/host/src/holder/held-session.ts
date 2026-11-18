@@ -142,6 +142,7 @@ export class HeldSession {
 
   async handoff(): Promise<void> {
     this.beginDrain()
+    this.crew?.pauseAll()
     this.runtime?.remoteCalls.handoff()
     this.turns.abort('handoff')
     await this.done

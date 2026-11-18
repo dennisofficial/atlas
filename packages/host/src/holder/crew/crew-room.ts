@@ -89,9 +89,10 @@ export class CrewRoom {
   }
 
   async stopAll(): Promise<void> {
-    const running = [...this.runs.values()]
-    for (const run of running) run.stop(EKilledBy.SessionEnd)
-    await Promise.all(running.map((run) => run.done))
+    const all = [...this.runs.values()]
+    for (const run of all) run.stop(EKilledBy.SessionEnd)
+    await Promise.all(all.map((run) => run.done))
+    await Promise.all(all.map((run) => run.endIdle(EKilledBy.SessionEnd)))
     this.disposeAll()
   }
 

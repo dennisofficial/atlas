@@ -1,17 +1,13 @@
 import {
-  EAgentRestart,
   EAgentStatus,
   EKilledBy,
   EReportKind,
+  finishedTurnOf,
   isResumableOf,
+  saidBody,
   type ThreadId,
 } from '@dltech/atlas-core'
-import {
-  ETurnStatus,
-  PauseSignal,
-  type LoopTurnRunner,
-  type TurnOutcome,
-} from '@dltech/atlas-agent'
+import { PauseSignal, type LoopTurnRunner, type TurnOutcome } from '@dltech/atlas-agent'
 import { logFieldsOf } from '@dltech/atlas-observability'
 import type {
   PodCrew,
@@ -34,6 +30,7 @@ import {
 } from './child-progress'
 import { childRunnerOf } from './child-runner'
 import { ChildTranscript } from './child-transcript'
+import { driveTurns, type DriveArgs } from './child-turns'
 import {
   adoptRecordOf,
   childRecordOf,
@@ -43,8 +40,6 @@ import {
 } from './child-record'
 
 export type { AdoptedChildArgs, ChildRunArgs }
-
-type DriveArgs = { text: string; restart: boolean } | { resume: true }
 
 export class ChildRun {
   readonly agentId: ThreadId
@@ -122,6 +117,7 @@ export class ChildRun {
     })
     if (record === undefined) return undefined
     run.record = record
+    await run.endSettledTurn()
     return run
   }
 
@@ -131,7 +127,12 @@ export class ChildRun {
 
   async say(text: string): Promise<SubagentSaid> {
     if (this.pump !== undefined) {
-      this.intake.push(text)
+      await this.record.append({
+        threadId: this.agentId,
+        runId: this.args.deps.ids.nextRunId(),
+        drafts: [saidBody({ text })],
+      })
+      this.intake.accept()
       return { queued: true, snapshot: this.snapshot() }
     }
     this.begin({ text, restart: this.ending !== undefined })
@@ -152,6 +153,11 @@ export class ChildRun {
     this.killedBy = by
     this.abort?.abort('agent_stop')
     return this.snapshot()
+  }
+
+  async endIdle(by: EKilledBy): Promise<void> {
+    if (this.ending !== undefined || this.pump !== undefined) return
+    await this.end({ status: EAgentStatus.Stopped, failure: undefined, killedBy: by })
   }
 
   pause(): void {
@@ -208,7 +214,7 @@ export class ChildRun {
     })
   }
 
-  private async drive(args: DriveArgs): Promise<void> {
+  private async drive(drive: DriveArgs): Promise<void> {
     const listeners = new AbortController()
     const abort = new AbortController()
     this.listeners = listeners
@@ -228,16 +234,19 @@ export class ChildRun {
         signal: listeners.signal,
         crew: this.port(),
         intake: this.intake,
+        isDraining: () => this.handingOff,
         onFallback: (refs) => this.transcript.fellBack(refs),
       })
-      let outcome = await this.firstTurn({ args, signal: abort.signal })
-      while (
-        outcome.status === ETurnStatus.Completed &&
-        !this.stopping &&
-        this.intake.pending > 0
-      ) {
-        outcome = await this.turn({ text: undefined, signal: abort.signal })
-      }
+      const outcome = await driveTurns({
+        drive,
+        runner: this.runner,
+        intake: this.intake,
+        pause: this.pauseSignal,
+        threadId: this.agentId,
+        signal: abort.signal,
+        stopped: () => this.stopping,
+        restarted: (via) => this.transcript.restarted({ via }),
+      })
       await this.settle(outcome)
     } catch (error) {
       await this.settleFailure(error)
@@ -247,27 +256,6 @@ export class ChildRun {
       this.listeners = undefined
       listeners.abort()
     }
-  }
-
-  private async firstTurn(args: { args: DriveArgs; signal: AbortSignal }): Promise<TurnOutcome> {
-    const drive = args.args
-    if ('resume' in drive) {
-      await this.transcript.restarted({ via: EAgentRestart.Relocation })
-      return this.runner.resume({
-        threadId: this.agentId,
-        signal: args.signal,
-        pause: this.pauseSignal,
-      })
-    }
-    if (drive.restart) await this.transcript.restarted({ via: EAgentRestart.Message })
-    return this.turn({ text: drive.text, signal: args.signal })
-  }
-
-  private turn(args: { text: string | undefined; signal: AbortSignal }): Promise<TurnOutcome> {
-    const request = { threadId: this.agentId, signal: args.signal, pause: this.pauseSignal }
-    return args.text === undefined
-      ? this.runner.runTurn(request)
-      : this.runner.say({ ...request, text: args.text })
   }
 
   private async settle(outcome: TurnOutcome): Promise<void> {
@@ -283,6 +271,11 @@ export class ChildRun {
     if (this.handingOff) return
     const message = error instanceof Error ? error.message : String(error)
     await this.end({ status: EAgentStatus.Failed, failure: message, killedBy: undefined })
+  }
+
+  private async endSettledTurn(): Promise<void> {
+    if (!finishedTurnOf(this.record.eventCache().loopState())) return
+    await this.end({ status: EAgentStatus.Finished, failure: undefined, killedBy: undefined })
   }
 
   private async end(args: {

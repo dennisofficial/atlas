@@ -26,6 +26,7 @@ export const childRunnerOf = (args: {
   signal: AbortSignal
   crew: PodCrew
   intake: AgentIntake
+  isDraining(): boolean
   onFallback?: ((refs: { from: ModelRef; to: ModelRef }) => void | Promise<void>) | undefined
 }): LoopTurnRunner => {
   const { deps, runtime, record } = args
@@ -56,6 +57,7 @@ export const childRunnerOf = (args: {
     tools: () => registry.declarations(),
     dispatch: new ScopedToolDispatcher(new HookedToolDispatcher({ registry, hooks })),
     intake: args.intake,
+    detachTool: (tool) => args.isDraining() && runtime.daemonTools.has(tool),
     launchDirectory: runtime.launchDirectory,
     normalizeFailure: runtime.normalizeFailure,
     retry: retryDepsFromTimers(deps.timers),

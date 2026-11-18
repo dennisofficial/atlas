@@ -162,21 +162,18 @@ const saidTexts = (events: readonly V2Event[]): string[] =>
   )
 
 describe('ChildIntake', () => {
-  it('holds a pushed message until the next step boundary', async () => {
+  it('wakes the next step for a message already made durable at accept time', async () => {
     const intake = new ChildIntake()
     expect(intake.pending).toBe(0)
 
-    intake.push('first')
-    intake.push('second')
+    intake.accept()
+    intake.accept()
     expect(intake.pending).toBe(2)
 
     const drained = await intake.prepare()
     expect(intake.pending).toBe(0)
     expect(drained.wakesTurn).toBe(true)
-    expect(drained.drafts).toMatchObject([
-      { type: 'user-said', text: 'first' },
-      { type: 'user-said', text: 'second' },
-    ])
+    expect(drained.drafts).toEqual([])
 
     const idle = await intake.prepare()
     expect(idle.drafts).toEqual([])

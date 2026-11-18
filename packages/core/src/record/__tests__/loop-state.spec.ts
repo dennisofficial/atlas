@@ -19,6 +19,7 @@ import {
   activeWorktreeOfState,
   awaitsReplyOf,
   crashedCallsOf,
+  finishedTurnOf,
   homeDirectoryOfState,
   initialLoopState,
   isResumableOf,
@@ -222,5 +223,28 @@ describe('LoopState named cases', () => {
     const nudged = fold([...interruptedReply, { type: 'nudge', text: 'n', lifetimeSteps: 1 }])
     expect(resumePlanOf(nudged)).toEqual({ kind: EResume.Continue, nudge: false })
     expect(resumeDraftsOf(nudged)).toEqual([])
+  })
+
+  it('calls a completed last reply a finished turn and nothing else', () => {
+    const finished = fold([
+      { type: 'user-said', text: 'go' },
+      { type: 'assistant-said', parts: [{ type: 'text', text: 'done' }] },
+    ])
+    expect(finishedTurnOf(finished)).toBe(true)
+
+    const interrupted = fold([
+      { type: 'user-said', text: 'go' },
+      { type: 'assistant-said', parts: [], interrupted: true },
+    ])
+    expect(finishedTurnOf(interrupted)).toBe(false)
+
+    const pending = fold([
+      { type: 'user-said', text: 'go' },
+      { type: 'assistant-said', parts: [{ type: 'text', text: 'working' }] },
+      { type: 'tool-called', callId: id, name: 'bash', input: 1, ordinal: 0 },
+    ])
+    expect(finishedTurnOf(pending)).toBe(false)
+
+    expect(finishedTurnOf(initialLoopState())).toBe(false)
   })
 })

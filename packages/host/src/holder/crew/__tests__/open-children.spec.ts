@@ -32,13 +32,16 @@ const FIRST = toThreadId('thread-child-1')
 const SECOND = toThreadId('thread-child-2')
 const AT = '2026-01-01T00:00:00.000Z'
 
-const spawned = (agentId: ThreadId, worktree?: { path: string; branch: string }): V2Body => ({
+const spawned = (args: {
+  agentId: ThreadId
+  worktree?: { path: string; branch: string } | undefined
+}): V2Body => ({
+  agentId: args.agentId,
   type: 'agent-spawned',
-  agentId,
   agentType: 'builder',
   intent: 'build it',
   mode: EAgentStart.Fresh,
-  ...(worktree === undefined ? {} : { worktree }),
+  ...(args.worktree === undefined ? {} : { worktree: args.worktree }),
 })
 
 const ended = (agentId: ThreadId): V2Body => ({
@@ -114,8 +117,8 @@ const crewOf = (args: { record: SessionRecord; plane: undefined }): CrewRoom =>
 describe('adopting the children a takeover finds open', () => {
   it('names every spawn with no ending, worktree and spawn time included', async () => {
     const children = await childrenOf([
-      spawned(FIRST, { path: '/work/tree', branch: 'dennis/tree' }),
-      spawned(SECOND),
+      spawned({ agentId: FIRST, worktree: { path: '/work/tree', branch: 'dennis/tree' } }),
+      spawned({ agentId: SECOND }),
     ])
 
     expect(children).toEqual([
@@ -137,14 +140,14 @@ describe('adopting the children a takeover finds open', () => {
   })
 
   it('leaves a child that already ended out', async () => {
-    expect(await childrenOf([spawned(FIRST), ended(FIRST)])).toEqual([])
+    expect(await childrenOf([spawned({ agentId: FIRST }), ended(FIRST)])).toEqual([])
   })
 
   it('keeps a child that was restarted after an ending', async () => {
     const children = await childrenOf([
-      spawned(FIRST),
+      spawned({ agentId: FIRST }),
       ended(FIRST),
-      spawned(FIRST),
+      spawned({ agentId: FIRST }),
       {
         type: 'agent-restarted',
         agentId: FIRST,
@@ -160,10 +163,10 @@ describe('adopting the children a takeover finds open', () => {
 
 describe('a child whose thread cannot be read', () => {
   it('gets the lost ending instead of a resumed turn', async () => {
-    const log = parentRecordOf([spawned(FIRST)])
+    const log = parentRecordOf([spawned({ agentId: FIRST })])
     const crew = crewOf({ record: log.record, plane: undefined })
 
-    await crew.adoptAll(await childrenOf([spawned(FIRST)]))
+    await crew.adoptAll(await childrenOf([spawned({ agentId: FIRST })]))
 
     expect(log.appends).toEqual([
       [
