@@ -1,6 +1,6 @@
 # Spec: one envelope path for everything the model reads
 
-Status: **built, 2026-11-11** (#2226); the guard is partial. Anchors at `6a99b42`. Foundational: the
+Status: **built, 2026-11-11** (#2226); every core event type guarded since 2026-11-18. Anchors at `6a99b42`. Foundational: the
 sessions slice ([sessions-link.md](sessions-link.md)) reports through it, so this comes first.
 
 ## Goal
@@ -83,11 +83,17 @@ export const envelopeOf = (args: Envelope): string => …
 
 ## 4. The guard
 
-- `packages/core` exports `RESERVED_TAGS`; a spec walks every assembly rule's output and asserts each
-  message body begins with a reserved tag or is assistant text.
+- `packages/core/src/assembly/__tests__/envelope-coverage.spec.ts` holds one sample per core event
+  type in a table typed over `EventType`, so a new event type does not compile until it has a
+  sample, and asserts every user message part the type renders opens with a reserved tag or is
+  assistant text. It also checks the table against `CORE_EVENT_TYPES` at runtime, checks a combined
+  log of every sample, and checks the agent lane for a sub-agent and a sibling session.
 - A script (in the shape of `scripts/check-package-split.ts`) fails when a module outside
   `packages/core/src/context/` contains a reserved tag literal.
 - Tool specs assert each tool's `modelText` lane, so a new tool without a lane fails.
+
+The spec runs in `bun test`, which CI runs. It covers the event-to-message path only: plugin prompt
+fragments, hook slots and each tool's own `modelText` are still unchecked by anything structural.
 
 ## 5. Out of scope
 
