@@ -143,14 +143,10 @@ export class GithubPollSweeperService {
   }
 
   private async recordPull(args: { repoFullName: string; pull: RestPullRequest }): Promise<void> {
-    const held = await db.orm.public.GithubPrState.where({
-      repoFullName: args.repoFullName,
-      prNumber: args.pull.number,
-    }).first()
-    if (held !== null) return
     await this.writer.recordAndPush({
       repoFullName: args.repoFullName,
       prNumber: args.pull.number,
+      seenVersion: 0,
       fields: {
         title: args.pull.title,
         url: args.pull.html_url,
