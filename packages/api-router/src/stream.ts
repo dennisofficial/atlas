@@ -24,14 +24,10 @@ export type SessionStreamTransport = {
   list(handlers: SessionStreamHandlers): SessionStreamSubscription
 }
 
-type SubscriptionOptions = {
-  next?(value: unknown): void
-  error?(failure: unknown): void
-  complete?(): void
-}
-
-type SubscriptionProcedure<Input> = {
-  subscribe(input: Input, options: SubscriptionOptions): { unsubscribe(): void }
+type StreamObserver = {
+  onData(frame: StreamServerMessage): void
+  onError(failure: unknown): void
+  onComplete(): void
 }
 
 const isFrameStream = (value: unknown): value is AsyncIterable<unknown> =>
@@ -41,7 +37,7 @@ const isFrameStream = (value: unknown): value is AsyncIterable<unknown> =>
 const openSubscription = (args: {
   handlers: SessionStreamHandlers
   handleUnauthorized: (() => void) | undefined
-  run(observer: SubscriptionOptions): { unsubscribe(): void }
+  run(observer: StreamObserver): { unsubscribe(): void }
 }): SessionStreamSubscription => {
   let closed = false
   const handleFrame = (value: unknown): void => {
@@ -57,14 +53,14 @@ const openSubscription = (args: {
     })()
   }
   const subscription = args.run({
-    next: (value) => (isFrameStream(value) ? pump(value) : handleFrame(value)),
-    error: (failure) => {
+    onData: (value) => (isFrameStream(value) ? pump(value) : handleFrame(value)),
+    onError: (failure) => {
       if (closed) return
       const status = httpStatusOf(failure)
       if (status === 401) args.handleUnauthorized?.()
       args.handlers.handleFailure(status)
     },
-    complete: () => {
+    onComplete: () => {
       if (!closed) args.handlers.handleEnd()
     },
   })
@@ -81,9 +77,7 @@ export const sessionStreamTransport = (args: {
   client: ApiClient
   handleUnauthorized?: (() => void) | undefined
 }): SessionStreamTransport => {
-  const follow = args.client.sessionStream
-    .follow as unknown as SubscriptionProcedure<SessionStreamFollowInput>
-  const list = args.client.sessionStream.list as unknown as SubscriptionProcedure<undefined>
+  const { follow, list } = args.client.sessionStream
   return {
     follow: (input, handlers) =>
       openSubscription({

@@ -53,6 +53,7 @@ something, it can do it itself.
   explicit: a Cloudflare zone-write token now lives in two places.
 - Preview teardown still runs from the API's thread-archive cleanup (trigger.dev); it calls the same
   `@dltech/atlas-previews` code.
-- The stream's session check and better-auth are still two implementations with the same source of
-  truth. The port (`StreamAuthPort`) is the seam the merge binds to the API's `SESSION_VERIFIER`.
+- The stream's session check and better-auth were two implementations with the same source of
+  truth. Since #2318 the stream is the tRPC `sessionStream` subscription behind `SessionMiddleware`,
+  so it authenticates through the API's `SESSION_VERIFIER` and the host's own check is gone.
 - The v1 exception is unaffected: sandboxes (`apps/serve`, `ATLAS_CLOUD_URL`) still call the API.

@@ -2,7 +2,8 @@ import pg from 'pg'
 import { sharedPool } from '../client'
 import { runDatabaseName, runPidOf } from './database-url'
 import { databaseUrl, laneUrl, quoteIdent } from './lane'
-import { applyMigrations, migrationSetHash } from './migrations'
+import { applyMigrations, templateHash } from './migrations'
+import { signDatabase } from './sign'
 
 const LANE_LOCK = 4_242_001
 
@@ -42,23 +43,23 @@ function processAlive(pid: number): boolean {
 
 async function buildTemplate({ client, name }: { client: pg.Client; name: string }): Promise<void> {
   const building = `${name}_build`
+  const buildingUrl = databaseUrl({ lane: laneUrl(), name: building })
   await client.query(`DROP DATABASE IF EXISTS ${quoteIdent(building)}`)
   await client.query(`CREATE DATABASE ${quoteIdent(building)}`)
-  const target = new pg.Client({
-    connectionString: databaseUrl({ lane: laneUrl(), name: building }),
-  })
+  const target = new pg.Client({ connectionString: buildingUrl })
   await target.connect()
   try {
     await applyMigrations(target)
   } finally {
     await target.end()
   }
+  signDatabase({ url: buildingUrl })
   await client.query(`ALTER DATABASE ${quoteIdent(building)} RENAME TO ${quoteIdent(name)}`)
   await client.query(`ALTER DATABASE ${quoteIdent(name)} IS_TEMPLATE true`)
 }
 
 async function createRunDatabase(): Promise<void> {
-  const template = `atlas_test_tpl_${migrationSetHash()}`
+  const template = `atlas_test_tpl_${templateHash()}`
   const name = runDatabaseName()
   await withLaneLock(async (client) => {
     const existing = await databaseNames(client)
