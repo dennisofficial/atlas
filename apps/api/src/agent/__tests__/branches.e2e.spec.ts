@@ -118,11 +118,6 @@ describe('branches-observed e2e', () => {
       projectId: 'proj-1',
       mainThreadId,
     })
-    await plane.post({
-      sessionId,
-      kind: INBOX_KIND_MESSAGE,
-      payload: JSON.stringify({ text: 'make a branch', via: EMessageOrigin.Operator }),
-    })
     const timers = { now: () => Date.now(), ...systemTimers }
     const log = new CollectingLog()
     const holder = new SessionHolder({
@@ -148,10 +143,17 @@ describe('branches-observed e2e', () => {
     })
     holders.push(holder)
     await holder.start()
-    await waitForSeq({
+    const boot = await waitForSeq({
       plane,
       threadId: mainThreadId,
       want: (rows) => branchRecords(rows).length > 0,
+    })
+    expect(branchRecords(boot).map((row) => hasBranch(row, 'feat-x'))).toEqual([false])
+
+    await plane.post({
+      sessionId,
+      kind: INBOX_KIND_MESSAGE,
+      payload: JSON.stringify({ text: 'make a branch', via: EMessageOrigin.Operator }),
     })
     await bus.wake(sessionId)
 

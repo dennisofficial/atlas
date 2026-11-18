@@ -8,9 +8,12 @@ import {
 import type { BranchSet } from '@dltech/atlas-protocol'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
-import { newKey, type RemoteCalls } from '../calls/remote-calls'
+import { newKey, systemTimers, type RemoteCalls } from '../calls/remote-calls'
+import type { HostTimers } from './ports'
 
 const REFRESH_TIMEOUT_MS = 10_000
+
+type ObserverTimers = Pick<HostTimers, 'setTimeout' | 'clearTimeout'>
 
 export type BranchRecorder = {
   append(args: { threadId: ThreadId; runId: RunId; body: BranchesObserved }): Promise<unknown>
@@ -34,6 +37,7 @@ export type BranchObserverArgs = {
   baseOf(repo: string): string | null
   afterRefresh?: (() => Promise<void>) | undefined
   runId(): RunId
+  timers?: ObserverTimers | undefined
   log?: LogPort | undefined
 }
 
@@ -52,9 +56,13 @@ export class BranchObserver {
   private unsubscribe: (() => void) | undefined
   private unsubscribeRepos: (() => void) | undefined
 
-  constructor(private readonly args: BranchObserverArgs) {}
+  private readonly timers: ObserverTimers
 
-  start(): void {
+  constructor(private readonly args: BranchObserverArgs) {
+    this.timers = args.timers ?? systemTimers
+  }
+
+  start(): Promise<void> {
     this.unsubscribe = this.args.remoteCalls.onEvent((frame) => {
       if (frame.event.type !== 'git.branches') return
       const set = frame.event.set
@@ -63,7 +71,7 @@ export class BranchObserver {
     this.unsubscribeRepos = this.args.onRepo?.((repoPath) => {
       void this.enqueue(() => this.readRepo(repoPath))
     })
-    void this.refreshRepos()
+    return this.refreshRepos()
   }
 
   stop(): void {
@@ -110,14 +118,14 @@ export class BranchObserver {
     const signals = [this.args.signal, this.stopped.signal]
     return new Promise<void>((resolve) => {
       const cleanup = (): void => {
-        clearTimeout(timer)
+        this.timers.clearTimeout(timer)
         for (const signal of signals) signal.removeEventListener('abort', finish)
       }
       const finish = (): void => {
         cleanup()
         resolve()
       }
-      const timer = setTimeout(finish, REFRESH_TIMEOUT_MS)
+      const timer = this.timers.setTimeout(finish, REFRESH_TIMEOUT_MS)
       if (this.isStopped || signals.some((signal) => signal.aborted)) {
         finish()
         return

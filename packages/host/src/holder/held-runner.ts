@@ -130,6 +130,7 @@ export const createBranchObserver = (args: {
     baseOf: (repo) => runtime.baseBranchOf(repo),
     runId,
     signal: args.signal,
+    timers: deps.timers,
     ...(deps.log === undefined ? {} : { log: deps.log }),
   })
 }
@@ -227,16 +228,18 @@ export const wireHeldLoop = (args: {
 }): {
   runner: LoopTurnRunner
   branches: BranchObserver
+  branchesStarted: Promise<void>
   recoverCommands(): Promise<void>
   logStaged(): Promise<void>
 } => {
   const { runner, intake } = createLoopRunner(args)
   const branches = createBranchObserver(args)
   const prepared = () => args.record.eventCache().bookkeeping().workspace().prepared
-  branches.start()
+  const branchesStarted = branches.start()
   return {
     runner,
     branches,
+    branchesStarted,
     recoverCommands: () => intake.recoverUnfinished(),
     logStaged: () =>
       intake.logStaged({ willDrain: () => !args.turns.turnRunning && prepared(), prepared }),
