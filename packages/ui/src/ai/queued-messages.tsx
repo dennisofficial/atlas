@@ -70,7 +70,10 @@ export function QueuedMessages({
     <ul
       ref={listRef}
       aria-label="Queued messages"
-      className={cn('flex max-h-[40vh] flex-col items-stretch gap-3 overflow-y-auto', className)}
+      className={cn(
+        'scroll-fade-y flex max-h-[40vh] flex-col items-stretch gap-3 overflow-y-auto',
+        className,
+      )}
     >
       {messages.map((message) => (
         <QueuedMessageRow
