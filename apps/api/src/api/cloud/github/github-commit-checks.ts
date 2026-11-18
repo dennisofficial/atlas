@@ -11,6 +11,7 @@ import {
 import { db, type Row, type Tx } from '@dltech/atlas-db'
 import { runOrderOfKey, SUITE_KEY_PREFIX } from './github-check-suites'
 import { normalizedRepo } from './github-pr-identity'
+import { lockPrScope } from './github-pr-lock'
 import type { GithubPrCheckAnnotation } from './github-realtime.types'
 
 export const COMMIT_CHECK_RETENTION_MS = 14 * 24 * 60 * 60 * 1_000
@@ -96,17 +97,6 @@ export function commitStatusInputOf(status: CommitStatusShape): CommitCheckInput
   }
 }
 
-export async function lockCommit(args: {
-  tx: Tx
-  repoFullName: string
-  headSha: string
-}): Promise<void> {
-  const key = `${normalizedRepo(args.repoFullName)}@${args.headSha}`
-  await args.tx.execute(
-    args.tx.raw.sql`SELECT pg_advisory_xact_lock(hashtext(${key}))`.affectedCount().build(),
-  )
-}
-
 export async function recordCommitChecksLocked(args: {
   repoFullName: string
   headSha: string
@@ -114,8 +104,8 @@ export async function recordCommitChecksLocked(args: {
 }): Promise<void> {
   if (args.checks.length === 0) return
   await db.transaction(async (tx) => {
-    await lockCommit({ tx, ...args })
-    await recordCommitChecks({ tx, ...args })
+    const scope = await lockPrScope({ tx, repoFullName: args.repoFullName })
+    await recordCommitChecks({ tx: scope, ...args })
   })
 }
 
@@ -126,13 +116,6 @@ function newerThanHeld(args: { held: Row<'GithubCommitCheck'>; check: CommitChec
 
   return Number(args.held.sourceId ?? '') > Number(args.check.sourceId ?? '')
 }
-
-export const checkCountFieldsOf = (tally: ChecksCount) => ({
-  checksRunning: tally.running,
-  checksPassed: tally.passed,
-  checksFailed: tally.failed,
-  checksIgnored: tally.ignored,
-})
 
 export async function recordCommitChecks(args: {
   tx: Tx

@@ -2,14 +2,21 @@ import {
   foldPrObservations,
   provenanceAdvancedBetween,
   withDerivedChecks,
+  type ChecksCount,
   type PrFoldChange,
   type PrObservation,
 } from '@dltech/atlas-core'
-import { db, type Row, type Tx } from '@dltech/atlas-db'
+import { db, type Row } from '@dltech/atlas-db'
 
 import { branchRoutingOf, dtoOf, subscriberWhereOf } from './github-delivery-routing'
 import type { BranchProtectionRead } from './github-branch-protection'
 import { rememberBranchProtection } from './github-branch-protection'
+import {
+  commitChecksTally,
+  recordCommitChecks,
+  type CommitCheckInput,
+} from './github-commit-checks'
+import { affectedPrsBySha } from './github-delivery-affected'
 import type { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { normalizedRepo } from './github-pr-identity'
 import { lockPrScope, type PrScopeTx } from './github-pr-lock'
@@ -39,7 +46,30 @@ export type PrApplyResult = {
   changed: readonly PrFoldChange[]
 }
 
-type PrApplyWrite = PrApplyResult & { outboxIds: readonly string[] }
+export type PrScopeApplyResult = PrApplyResult & { outboxIds: readonly string[] }
+
+export type PrChecksApplyResult = {
+  tally: ChecksCount
+  awaitingSettle: readonly number[]
+  outboxIds: readonly string[]
+}
+
+async function settlesSoon(args: {
+  tx: PrScopeTx
+  tally: ChecksCount
+  pr: { repoFullName: string; prNumber: number }
+  headSha: string
+}): Promise<boolean> {
+  if (args.tally.running > 0) return false
+  if (args.tally.passed + args.tally.failed + args.tally.ignored === 0) return false
+  const ledger = await args.tx.orm.public.GithubPrHeadCheck.where({
+    repoFullName: args.pr.repoFullName,
+    prNumber: args.pr.prNumber,
+    headSha: args.headSha,
+  }).first()
+
+  return ledger?.settledAt == null
+}
 
 export class GithubPrStore {
   constructor(
@@ -50,18 +80,67 @@ export class GithubPrStore {
   ) {}
 
   async apply(args: PrApplyArgs): Promise<PrApplyResult> {
-    const write = await db.transaction((tx) =>
-      this.writeWithin({ ...args, tx, repoFullName: normalizedRepo(args.repoFullName) }),
+    const write = await db.transaction(async (tx) =>
+      this.applyWithin({
+        ...args,
+        tx: await lockPrScope({ tx, repoFullName: normalizedRepo(args.repoFullName) }),
+      }),
     )
-    await this.deps.dispatcher.dispatch(write.outboxIds)
+    await this.dispatch(write.outboxIds)
 
     return { applied: write.applied, row: write.row, changed: write.changed }
   }
 
+  async applyWithin(args: PrApplyArgs & { tx: PrScopeTx }): Promise<PrScopeApplyResult> {
+    return await this.writeWithin({ ...args, repoFullName: normalizedRepo(args.repoFullName) })
+  }
+
+  async dispatch(outboxIds: readonly string[]): Promise<void> {
+    await this.deps.dispatcher.dispatch(outboxIds)
+  }
+
+  async applyChecks(args: {
+    repoFullName: string
+    headSha: string
+    checks: readonly CommitCheckInput[]
+  }): Promise<PrChecksApplyResult> {
+    const repoFullName = normalizedRepo(args.repoFullName)
+    const write = await db.transaction(async (tx) => {
+      const scope = await lockPrScope({ tx, repoFullName })
+      await recordCommitChecks({
+        tx: scope,
+        repoFullName,
+        headSha: args.headSha,
+        checks: args.checks,
+      })
+      const tally = await commitChecksTally({ tx: scope, repoFullName, headSha: args.headSha })
+      const affected = await affectedPrsBySha({ tx: scope, repoFullName, sha: args.headSha })
+      const outboxIds: string[] = []
+      const awaitingSettle: number[] = []
+      for (const pr of affected) {
+        if (await settlesSoon({ tx: scope, tally, pr, headSha: args.headSha })) {
+          awaitingSettle.push(pr.prNumber)
+          continue
+        }
+        const applied = await this.writeWithin({
+          tx: scope,
+          repoFullName,
+          prNumber: pr.prNumber,
+          observations: [],
+        })
+        outboxIds.push(...applied.outboxIds)
+      }
+      return { tally, awaitingSettle, outboxIds }
+    })
+    await this.dispatch(write.outboxIds)
+
+    return write
+  }
+
   private async writeWithin(
-    args: PrApplyArgs & { tx: Tx; repoFullName: string },
-  ): Promise<PrApplyWrite> {
-    const tx = await lockPrScope({ tx: args.tx, repoFullName: args.repoFullName })
+    args: PrApplyArgs & { tx: PrScopeTx; repoFullName: string },
+  ): Promise<PrScopeApplyResult> {
+    const tx = args.tx
     if (args.protection !== undefined) {
       await rememberBranchProtection({
         tx,

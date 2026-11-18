@@ -7,7 +7,7 @@ import type { CommitCheckInput } from './github-commit-checks'
 import type { PullRequestCacheFields, RestPullRequest } from './github-pull-request-mapping'
 import { GithubUserReadFailed, type GithubUserReads } from './github-user-reads'
 
-export type FillFields = PullRequestCacheFields & { updatedAt: Date }
+export type FillFields = PullRequestCacheFields & { updatedAt: Date; baseBranch: string }
 
 export type RestFill =
   | {
@@ -88,7 +88,8 @@ export async function tryRestFill(args: {
   prNumber: number
 }): Promise<RestFill> {
   let collected: CommitCheckInput[] = []
-  let protection: BranchProtectionRead | null = null
+  const held: { protection: BranchProtectionRead | null } = { protection: null }
+  const protectionOf = (): BranchProtectionRead | null => held.protection
   try {
     const fields = await args.reads.readPullRequest({
       source: EGithubCallSource.DeliveryFill,
@@ -99,15 +100,19 @@ export async function tryRestFill(args: {
       collectChecks: ({ checks }) => {
         collected = [...checks]
       },
-      collectRequiredContexts: (held) => {
-        protection = held
+      collectRequiredContexts: (value) => {
+        held.protection = value
       },
     })
     return {
       kind: 'filled',
-      fields: { ...fields, updatedAt: new Date() },
+      fields: {
+        ...fields,
+        baseBranch: protectionOf()?.baseBranch ?? '',
+        updatedAt: new Date(),
+      },
       checks: collected,
-      protection,
+      protection: protectionOf(),
     }
   } catch (failure) {
     return failureOutcomeOf({

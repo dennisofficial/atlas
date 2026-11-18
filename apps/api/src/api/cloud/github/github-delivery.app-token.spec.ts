@@ -103,13 +103,15 @@ describe('GithubDeliveryService fill credential', () => {
 
     await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
 
-    expect(readPullRequest).toHaveBeenCalledWith({
-      source: EGithubCallSource.DeliveryFill,
-      token: 'inst-11',
-      owner: 'compai',
-      repo: 'app',
-      number: 42,
-    })
+    expect(readPullRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: EGithubCallSource.DeliveryFill,
+        token: 'inst-11',
+        owner: 'compai',
+        repo: 'app',
+        number: 42,
+      }),
+    )
     expect((await db.orm.public.GithubPrState.first({ prNumber: 42 }))?.mergeable).toBe(true)
   })
 

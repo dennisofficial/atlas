@@ -1,9 +1,10 @@
 import { db } from '@dltech/atlas-db'
 
 import { EGithubCallSource } from './github-call-log'
-import { lockCommit, recordCommitChecks } from './github-commit-checks'
+import { recordCommitChecks } from './github-commit-checks'
 import { affectedPrsBySha } from './github-delivery-affected'
 import { normalizedRepo } from './github-pr-identity'
+import { lockPrScope } from './github-pr-lock'
 import type { GithubPrStore } from './github-pr-store'
 import type { GithubUserReads } from './github-user-reads'
 import { withGithubRequestBudget, type GithubHttpBudget } from './github-request-budget'
@@ -41,14 +42,24 @@ export class GithubPrReconcile {
           headSha: args.headSha,
         }),
     })
-    const affected = await db.transaction(async (tx) => {
-      await lockCommit({ tx, repoFullName, headSha: args.headSha })
-      await recordCommitChecks({ tx, repoFullName, headSha: args.headSha, checks })
+    const applied = await db.transaction(async (tx) => {
+      const scope = await lockPrScope({ tx, repoFullName })
+      await recordCommitChecks({ tx: scope, repoFullName, headSha: args.headSha, checks })
+      const affected = await affectedPrsBySha({ tx: scope, repoFullName, sha: args.headSha })
+      const store = this.deps.store()
+      const outboxIds: string[] = []
+      for (const pr of affected) {
+        const result = await store.applyWithin({
+          tx: scope,
+          repoFullName,
+          prNumber: pr.prNumber,
+          observations: [],
+        })
+        outboxIds.push(...result.outboxIds)
+      }
 
-      return affectedPrsBySha({ tx, repoFullName, sha: args.headSha })
+      return { store, outboxIds }
     })
-    for (const pr of affected) {
-      await this.deps.store().apply({ repoFullName, prNumber: pr.prNumber, observations: [] })
-    }
+    await applied.store.dispatch(applied.outboxIds)
   }
 }

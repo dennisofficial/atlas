@@ -147,6 +147,28 @@ export const checkRunPayload = (
 
 export const SETTLING_CHECK_RUN_PAYLOAD = checkRunPayload()
 
+const withBaseBranch =
+  (read: GithubUserReads['readPullRequest']): GithubUserReads['readPullRequest'] =>
+  async (args) => {
+    let collected = false
+    const fields = await read({
+      ...args,
+      collectRequiredContexts: (held) => {
+        collected = true
+        args.collectRequiredContexts?.(held)
+      },
+    })
+    if (!collected) {
+      args.collectRequiredContexts?.({
+        acquiredAt: new Date(),
+        baseBranch: 'main',
+        requiredContexts: [],
+      })
+    }
+
+    return fields
+  }
+
 export const prepareDelivery = async (): Promise<void> => {
   vi.useRealTimers()
   await ensureUsers(...USERS)
@@ -166,7 +188,7 @@ export function serviceWith(args: {
   const github = {
     findToken: async ({ userId }: { userId: string }) => args.tokens?.[userId],
   } as unknown as GithubService
-  const readPullRequest = args.readPullRequest ?? (async () => REST_FIELDS)
+  const readPullRequest = withBaseBranch(args.readPullRequest ?? (async () => REST_FIELDS))
   const reads = {
     readPullRequest,
     readPullRequestObservation: async (input: { number: number }) =>

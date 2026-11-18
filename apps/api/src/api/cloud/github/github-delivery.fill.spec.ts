@@ -36,13 +36,15 @@ describe('GithubDeliveryService fill', () => {
     })
 
     expect(outcome.handled).toBe(true)
-    expect(readPullRequest).toHaveBeenCalledWith({
-      source: EGithubCallSource.DeliveryFill,
-      token: 'ghu_creator',
-      owner: 'compai',
-      repo: 'app',
-      number: 42,
-    })
+    expect(readPullRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: EGithubCallSource.DeliveryFill,
+        token: 'ghu_creator',
+        owner: 'compai',
+        repo: 'app',
+        number: 42,
+      }),
+    )
     expect((await prStateRows())[0]).toMatchObject({
       repoFullName: 'compai/app',
       prNumber: 42,

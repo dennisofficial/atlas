@@ -180,12 +180,16 @@ describe('GithubPrStore.apply', () => {
     expect(await healthy.drain()).toBe(0)
   })
 
-  it('keeps the stored tally equal to the commit ledger while a check write races an apply', async () => {
+  it('serializes a check write against an apply so the row never disagrees with the ledger and no green verdict lands while an attempt runs', async () => {
     const { store } = rig()
     await store.apply(applyArgs([pull()]))
+    const tallyOf = () =>
+      db.transaction((tx) =>
+        commitChecksTally({ tx, repoFullName: 'compai/app', headSha: 'abc123' }),
+      )
     for (let round = 0; round < 4; round += 1) {
       await Promise.all([
-        recordCommitChecksLocked({
+        store.applyChecks({
           repoFullName: 'compai/app',
           headSha: 'abc123',
           checks: [
@@ -200,20 +204,19 @@ describe('GithubPrStore.apply', () => {
         }),
         store.apply(applyArgs([])),
       ])
+      const tally = await tallyOf()
+      expect((await db.orm.public.GithubPrState.all())[0]).toMatchObject({
+        checksRunning: tally.running,
+        checksPassed: tally.passed,
+        checksFailed: tally.failed,
+        checksIgnored: tally.ignored,
+      })
+      expect(tally).toMatchObject({ running: round + 1, passed: 0 })
     }
-    await store.apply(applyArgs([]))
-
-    const tally = await db.transaction((tx) =>
-      commitChecksTally({ tx, repoFullName: 'compai/app', headSha: 'abc123' }),
+    const verdicts = (await db.orm.public.GithubPrEvent.all()).filter(
+      (event) => event.kind === 'verdict',
     )
-    const rows = await db.orm.public.GithubPrState.all()
-    expect(rows[0]).toMatchObject({
-      checksRunning: tally.running,
-      checksPassed: tally.passed,
-      checksFailed: tally.failed,
-      checksIgnored: tally.ignored,
-    })
-    expect(tally.running).toBe(4)
+    expect(verdicts).toHaveLength(0)
   })
 
   it('stores expected until a required check reports, then the tally rollup', async () => {
