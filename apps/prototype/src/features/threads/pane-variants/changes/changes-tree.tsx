@@ -27,6 +27,7 @@ export interface ChangesTreeProps {
 
 interface NodesProps extends ChangesTreeProps {
   nodes: ChangeTreeNode[]
+  depth: number
   closed: string[]
   onToggleDir: (path: string) => void
 }
@@ -34,6 +35,7 @@ interface NodesProps extends ChangesTreeProps {
 interface FileRowProps {
   entry: ChangeEntry
   name: string
+  depth: number
   inline?: boolean
   open: boolean
   active: boolean
@@ -44,6 +46,7 @@ interface FileRowProps {
 function FileRow({
   entry,
   name,
+  depth,
   inline = true,
   open,
   active,
@@ -87,7 +90,12 @@ function FileRow({
         <ChangeMark mark={mark} />
       </button>
       {inline && open && renderDetail ? (
-        <div className="ml-4 flex flex-col border-l py-1 pr-2 pl-2">{renderDetail(entry)}</div>
+        <div
+          className="relative flex flex-col bg-card px-2 py-1"
+          style={{ marginLeft: `calc(${-depth} * (1.25rem + 1px))` }}
+        >
+          {renderDetail(entry)}
+        </div>
       ) : null}
     </div>
   )
@@ -123,7 +131,13 @@ function DirRow({
       </button>
       {open ? (
         <div className={GUIDE_CLASS}>
-          <TreeNodes {...rest} closed={closed} onToggleDir={onToggleDir} nodes={node.children} />
+          <TreeNodes
+            {...rest}
+            depth={rest.depth + 1}
+            closed={closed}
+            onToggleDir={onToggleDir}
+            nodes={node.children}
+          />
         </div>
       ) : null}
     </div>
@@ -141,6 +155,7 @@ function TreeNodes({ nodes, ...rest }: NodesProps) {
             key={node.file.path}
             entry={node.file}
             name={node.name}
+            depth={rest.depth}
             open={rest.openFiles?.includes(node.file.path) ?? false}
             active={rest.activePath === node.file.path}
             inline={rest.inline}
@@ -166,6 +181,7 @@ export function ChangesTree({ entries, ...rest }: ChangesTreeProps) {
       <TreeNodes
         entries={entries}
         nodes={nodes}
+        depth={0}
         closed={closed}
         onToggleDir={handleToggleDir}
         {...rest}
