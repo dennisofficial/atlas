@@ -2,15 +2,7 @@ import { beforeEach, describe, expect, it } from 'bun:test'
 
 import type { ConformanceParams } from './conformance'
 import { branches, prStateOf } from './conformance-views.fixture'
-import {
-  appendBodies,
-  makeHarness,
-  said,
-  seedGranted,
-  SESSION,
-  THREAD,
-  type Harness,
-} from './support'
+import { appendBodies, makeHarness, said, seedGranted, type Harness } from './support'
 
 export function describeControlPlaneDigests(params: ConformanceParams): void {
   describe(`ControlPlane session digests (${params.name})`, () => {
