@@ -47,6 +47,7 @@ const headerOf = (args: {
       paneCollapsed={args.paneCollapsed}
       onTogglePane={args.onTogglePane}
       onOpenPane={args.onOpenPane}
+      onOpenPreview={() => undefined}
     />
   </SidebarProvider>
 )

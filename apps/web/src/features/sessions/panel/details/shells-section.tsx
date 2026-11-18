@@ -2,7 +2,7 @@
 
 import { DetailsSection } from '@/features/threads/panel/details/section'
 
-import { ShellTails } from '../../session-header'
+import { ShellTails } from '../../shell-tails'
 import { useSessionPaneValue } from '../pane-value'
 
 export function SessionShellsSection() {

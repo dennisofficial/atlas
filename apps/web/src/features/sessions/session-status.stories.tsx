@@ -49,6 +49,7 @@ const header = (args: { entries: PullRequestEntry[]; branch: string | undefined 
         crew={{ running: 0, total: 0 }}
         crewRows={[]}
         previews={[]}
+        onOpenPreview={() => undefined}
       />
     </div>
   </SidebarProvider>
