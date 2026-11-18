@@ -71,6 +71,27 @@ jobs:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_SERVICE_ID: srv-dbmaj7ajnfac738tg30g
 
+  # Vercel builds every main push as a staged production deployment (the web project's "Auto-assign
+  # Custom Production Domains" is off), so byatlas.io moves to a commit only once the API that commit
+  # talks to is live. Unset VERCEL_WEB_PROJECT and the job is skipped.
+  web-live:
+    needs: render-live
+    if: vars.VERCEL_WEB_PROJECT != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2.2.0
+
+      - name: promote this commit's staged web build
+        run: bun scripts/vercel-promote-gate.ts
+        working-directory: apps/web
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
+          VERCEL_WEB_PROJECT: ${{ vars.VERCEL_WEB_PROJECT }}
+
   deploy-trigger:
     needs: [changes, render-live]
     if: needs.changes.outputs.deploy-trigger == 'true'
