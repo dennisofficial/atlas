@@ -2,11 +2,11 @@ import type { Redis } from 'ioredis'
 import {
   GITHUB_HTTP_BUDGET_PER_MINUTE,
   githubHttpBudgetOf,
+  githubHttpCeilingOf,
   githubHttpParentOf,
   repoAccessProofSchema,
   type RepoAccessProof,
   type CoordinatorAdapter,
-  type RefreshAttempt,
   type GithubRequestIdentity,
 } from './github-request-coordinator.types'
 
@@ -117,7 +117,7 @@ export class RedisCoordinatorAdapter implements CoordinatorAdapter {
       Date.now(),
       GITHUB_HTTP_BUDGET_PER_MINUTE,
       githubHttpBudgetOf(identity?.category),
-      parent === undefined ? 0 : githubHttpBudgetOf(parent),
+      parent === undefined ? 0 : githubHttpCeilingOf(identity?.category),
     )
     return result === 1
   }
@@ -164,25 +164,5 @@ export class RedisCoordinatorAdapter implements CoordinatorAdapter {
 
   private reserveKey(identity?: Partial<GithubRequestIdentity>): string {
     return `${this.prefix}reserve:${this.credentialOf(identity)}:${identity?.resource ?? 'core'}`
-  }
-
-  async attempt(key: string): Promise<RefreshAttempt> {
-    const raw = await this.client.get(`${this.prefix}attempt:${key}`)
-    if (raw === null) return { nextAttemptAt: 0, failures: 0 }
-    const parsed = JSON.parse(raw) as RefreshAttempt
-    return { nextAttemptAt: parsed.nextAttemptAt, failures: parsed.failures }
-  }
-
-  async recordAttempt(args: { key: string; failed: boolean }): Promise<void> {
-    const prior = await this.attempt(args.key)
-    const failures = args.failed ? Math.min(prior.failures + 1, 8) : 0
-    const nextAttemptAt =
-      Date.now() + (args.failed ? Math.min(30_000 * 2 ** failures, 600_000) : 30_000)
-    await this.client.set(
-      `${this.prefix}attempt:${args.key}`,
-      JSON.stringify({ nextAttemptAt, failures }),
-      'PX',
-      1_200_000,
-    )
   }
 }

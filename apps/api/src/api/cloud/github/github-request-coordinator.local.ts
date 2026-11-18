@@ -1,10 +1,10 @@
 import {
   GITHUB_HTTP_BUDGET_PER_MINUTE,
   githubHttpBudgetOf,
+  githubHttpCeilingOf,
   githubHttpParentOf,
   type RepoAccessProof,
   type CoordinatorAdapter,
-  type RefreshAttempt,
   type GithubRequestIdentity,
 } from './github-request-coordinator.types'
 
@@ -14,7 +14,6 @@ export class LocalCoordinatorAdapter implements CoordinatorAdapter {
   private readonly authorizations = new Map<string, RepoAccessProof>()
   private readonly versions = new Map<string, { value: number; expiresAt: number }>()
   private readonly windows = new Map<string, HttpWindow>()
-  private readonly attempts = new Map<string, RefreshAttempt & { expiresAt: number }>()
   private readonly blockedUntil = new Map<string, number>()
   private readonly reservedUntil = new Map<string, number>()
 
@@ -86,7 +85,10 @@ export class LocalCoordinatorAdapter implements CoordinatorAdapter {
     const parent = githubHttpParentOf(identity?.category)
     if ((window.categories.get(category) ?? 0) >= githubHttpBudgetOf(identity?.category))
       return false
-    if (parent !== undefined && (window.categories.get(parent) ?? 0) >= githubHttpBudgetOf(parent))
+    if (
+      parent !== undefined &&
+      (window.categories.get(parent) ?? 0) >= githubHttpCeilingOf(identity?.category)
+    )
       return false
     window.categories.set(category, (window.categories.get(category) ?? 0) + 1)
     if (parent !== undefined)
@@ -138,28 +140,6 @@ export class LocalCoordinatorAdapter implements CoordinatorAdapter {
 
   private reserveKey(identity?: Partial<GithubRequestIdentity>): string {
     return `${this.credentialOf(identity)}:${identity?.resource ?? 'core'}`
-  }
-
-  async attempt(key: string): Promise<RefreshAttempt> {
-    const held = this.attempts.get(key)
-    if (held === undefined || held.expiresAt <= Date.now()) {
-      this.attempts.delete(key)
-      return { nextAttemptAt: 0, failures: 0 }
-    }
-    return { nextAttemptAt: held.nextAttemptAt, failures: held.failures }
-  }
-
-  async recordAttempt(args: { key: string; failed: boolean }): Promise<void> {
-    const prior = await this.attempt(args.key)
-    const failures = args.failed ? Math.min(prior.failures + 1, 8) : 0
-    for (const [key, attempt] of this.attempts)
-      if (attempt.expiresAt <= Date.now()) this.attempts.delete(key)
-    this.attempts.set(args.key, {
-      failures,
-      expiresAt: Date.now() + 1_200_000,
-      nextAttemptAt:
-        Date.now() + (args.failed ? Math.min(30_000 * 2 ** failures, 600_000) : 30_000),
-    })
   }
 }
 

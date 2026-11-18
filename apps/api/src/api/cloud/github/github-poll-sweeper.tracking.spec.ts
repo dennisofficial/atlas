@@ -54,7 +54,6 @@ describe('GithubPollSweeperService tracking targets', () => {
       return { ...REST_FIELDS, state: 'open' }
     })
     const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
-    await covered()
     await seedPrState({ prNumber: 42, state: 'open', updatedAt: new Date(Date.now() - 60_000) })
     const target = await seedTarget({ kind: 'pull-request', prNumber: 42 })
 
@@ -152,7 +151,8 @@ describe('GithubPollSweeperService tracking targets', () => {
 
     expect(head.pullsByHead).toHaveBeenCalledTimes(1)
     const rows = await db.orm.public.GithubTrackingTarget.where({ userId: 'usr_1' }).all()
-    expect(rows).toHaveLength(1)
+    expect(rows.filter((row) => row.kind === 'head')).toHaveLength(1)
+    expect(rows.filter((row) => row.kind === 'pull-request')).toHaveLength(1)
   })
 
   it('finds the upstream PR of a fork head', async () => {

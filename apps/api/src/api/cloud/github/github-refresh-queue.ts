@@ -1,36 +1,25 @@
 import { db, type Row } from '@dltech/atlas-db'
 import type { Logger } from '@nestjs/common'
-import { cachedPrStates, normalizedRepo, prIdentity, repoPattern } from './github-linked-prs'
+import { ETargetOutcome, ETrackingTransport } from '@dltech/atlas-core'
+import { ERepoTracking } from '@dltech/atlas-wire'
+import { normalizedRepo, repoPattern } from './github-linked-prs'
 import { subscriptionLiveWhere } from './github-delivery-routing'
 import type { GithubHookLifecycleService } from './github-hook-lifecycle.service'
-import type { GithubRequestCoordinator } from './github-request-coordinator'
 import type { TransportSelector } from './github-transport-selector'
+import { CLAIM_BATCH, claimedTargets, settleTarget } from './github-due-scheduler'
 import {
-  GithubHttpBudgetUnavailable,
   GithubCredentialCooldown,
+  GithubHttpBudgetUnavailable,
+  isGithubBudgetParked,
   withGithubCallCategory,
 } from './github-request-budget'
 import { GithubUserReadFailed } from './github-user-reads'
 import { unsettledHeadExists } from './github-pr-head-checks'
-import {
-  liveTrackingTargets,
-  lookupKey,
-  oldestAttemptFirst,
-  statesOnPolledHeads,
-} from './github-refresh-targets'
 import { EGithubHttpCategory } from './github-request-coordinator.types'
 
-type Target = {
-  repoFullName: string
-  prNumber: number
-  userIds: string[]
-  pollBacked: boolean
-}
-type LookupOutcome = 'looked-up' | 'skipped' | 'rate-limited' | 'credential-limited'
-type RefreshOutcome = 'polled' | 'skipped' | 'rate-limited' | 'credential-limited'
+export type TargetAttempt = { outcome: ETargetOutcome; retryAtMs?: number | undefined }
 
-type QueueDeps = {
-  coordinator: GithubRequestCoordinator
+export type QueueDeps = {
   hooks: GithubHookLifecycleService
   transport: TransportSelector
   logger: Logger
@@ -39,230 +28,305 @@ type QueueDeps = {
     userId: string
     repoFullName: string
     prNumber: number
-  }) => Promise<RefreshOutcome>
-  lookUp: (target: Row<'GithubTrackingTarget'>) => Promise<LookupOutcome>
+  }) => Promise<TargetAttempt>
+  lookUp: (
+    target: Row<'GithubTrackingTarget'>,
+    transport: ETrackingTransport,
+  ) => Promise<TargetAttempt>
 }
 
-export async function refreshGithubQueue(deps: QueueDeps): Promise<void> {
-  const now = new Date()
-  const tracked = await liveTrackingTargets(now)
-  const polls = new Map<string, boolean>()
-  const pollsIn = async (repoFullName: string): Promise<boolean> => {
-    const repo = normalizedRepo(repoFullName)
-    const held = polls.get(repo)
-    if (held !== undefined) return held
-    const answer = await deps.transport.polls(repo)
-    polls.set(repo, answer)
-    return answer
-  }
-  const polledHeads: Row<'GithubTrackingTarget'>[] = []
-  const firstLookups: Row<'GithubTrackingTarget'>[] = []
-  for (const target of tracked) {
-    if (target.kind === 'head' && (await pollsIn(target.repoFullName))) {
-      polledHeads.push(target)
-      continue
+const transportOf = async (
+  transport: TransportSelector,
+  repoFullName: string,
+): Promise<ETrackingTransport> => {
+  const tracking = await transport.transportOf(repoFullName)
+  if (tracking === ERepoTracking.Polled) return ETrackingTransport.Polled
+  if (tracking === ERepoTracking.App) return ETrackingTransport.AppWebhook
+  return ETrackingTransport.UserWebhook
+}
+
+export const parkedAttemptOf = (failure: unknown, logger: Logger): TargetAttempt => {
+  if (failure instanceof GithubCredentialCooldown)
+    return { outcome: ETargetOutcome.CredentialLimited, retryAtMs: failure.until }
+  if (isGithubBudgetParked(failure) || failure instanceof GithubHttpBudgetUnavailable)
+    return {
+      outcome: ETargetOutcome.BudgetRefused,
+      retryAtMs: failure instanceof GithubHttpBudgetUnavailable ? failure.until : undefined,
     }
-    if (target.lookedUpAt === null) firstLookups.push(target)
-  }
-  await lookUpEach({ deps, targets: [...firstLookups, ...polledHeads].sort(oldestAttemptFirst) })
-  const subscriptions = await db.orm.public.GithubSubscription.where(
-    subscriptionLiveWhere({ now }),
-  ).all()
-  const targets = new Map<string, Target>()
-  const add = (target: Target) => {
-    const key = prIdentity(target)
-    const prior = targets.get(key)
-    targets.set(key, {
-      ...target,
-      repoFullName: normalizedRepo(target.repoFullName),
-      userIds: [...new Set([...(prior?.userIds ?? []), ...target.userIds])],
-      pollBacked: target.pollBacked || prior?.pollBacked === true,
+  if (failure instanceof GithubUserReadFailed)
+    return {
+      outcome: failure.rateLimited ? ETargetOutcome.CredentialLimited : ETargetOutcome.Failed,
+    }
+  logger.warn(`tracking target failed; retrying on its own backoff: ${String(failure)}`)
+  return { outcome: ETargetOutcome.Failed }
+}
+
+export async function refreshGithubQueue(args: {
+  deps: QueueDeps
+  now: Date
+  limit?: number | undefined
+}): Promise<void> {
+  await seedSubscriptionTargets({ deps: args.deps, now: args.now })
+  const claimed = await claimedTargets({ now: args.now, limit: args.limit ?? CLAIM_BATCH })
+  const attempted = new Set<string>()
+  for (const target of claimed) {
+    const identity = `${normalizedRepo(target.repoFullName)}#${target.prNumber}`
+    const duplicate = target.prNumber > 0 && attempted.has(identity)
+    if (target.prNumber > 0) attempted.add(identity)
+    const { attempt, transport } = duplicate
+      ? { attempt: { outcome: ETargetOutcome.LookedUp }, transport: ETrackingTransport.Polled }
+      : await attemptOf({ deps: args.deps, target })
+    const verdict = await verdictOutcomeOf({ attempt, target })
+    await settleTarget({
+      target,
+      now: args.now,
+      transport,
+      outcome: verdict?.outcome ?? attempt.outcome,
+      retryAtMs: attempt.retryAtMs,
+      mergedAtMs: verdict?.mergedAtMs,
     })
   }
+  await releaseIdleHooks()
+}
+
+async function attemptOf(args: {
+  deps: QueueDeps
+  target: Row<'GithubTrackingTarget'>
+}): Promise<{ attempt: TargetAttempt; transport: ETrackingTransport }> {
+  let transport = ETrackingTransport.Polled
+  try {
+    transport = await transportOf(args.deps.transport, args.target.repoFullName)
+    const settled = await settledMergeOf(args.target)
+    if (settled !== undefined) return { attempt: settled, transport }
+    if (await restingOnWebhook(args.target, transport))
+      return { attempt: { outcome: ETargetOutcome.LookedUp }, transport }
+    const firstFill = args.target.kind === 'head' || !(await subscribed(args.target))
+    if (firstFill && args.target.lookedUpAt === null)
+      return {
+        attempt: await withGithubCallCategory(EGithubHttpCategory.Lookup, () =>
+          args.deps.lookUp(args.target, transport),
+        ),
+        transport,
+      }
+    if (transport !== ETrackingTransport.Polled) {
+      await coverTarget({ deps: args.deps, target: args.target })
+      return { attempt: { outcome: ETargetOutcome.LookedUp }, transport }
+    }
+    if (args.target.kind === 'head')
+      return {
+        attempt: await withGithubCallCategory(EGithubHttpCategory.Lookup, () =>
+          args.deps.lookUp(args.target, transport),
+        ),
+        transport,
+      }
+    return {
+      attempt: await args.deps.refresh({
+        userId: args.target.userId,
+        repoFullName: normalizedRepo(args.target.repoFullName),
+        prNumber: args.target.prNumber,
+      }),
+      transport,
+    }
+  } catch (failure) {
+    return { attempt: parkedAttemptOf(failure, args.deps.logger), transport }
+  }
+}
+
+const COVERED_RECHECK_MS = 10 * 60 * 1_000
+
+async function coverTarget(args: {
+  deps: QueueDeps
+  target: Row<'GithubTrackingTarget'>
+}): Promise<void> {
+  const result = await args.deps.hooks.ensureHook({
+    userId: args.target.userId,
+    repoFullName: args.target.repoFullName,
+  })
+  if (result === undefined) return
+  await db.orm.public.GithubRepoHook.where((hook) =>
+    hook.repoFullName.ilike(repoPattern(args.target.repoFullName)),
+  ).updateAndCount({ idleSince: null })
+}
+
+async function settledMergeOf(
+  target: Row<'GithubTrackingTarget'>,
+): Promise<TargetAttempt | undefined> {
+  if (target.prNumber <= 0) return undefined
+  const state = await stateOf(target)
+  if (state === null || state === undefined || state.state !== 'merged') return undefined
+  const settled = !(await unsettledHeadExists({
+    repoFullName: normalizedRepo(target.repoFullName),
+    prNumber: target.prNumber,
+    headSha: state.headSha,
+  }))
+  const withinWindow = Date.now() - new Date(state.updatedAt).getTime() <= MERGED_SETTLE_WINDOW_MS
+  if (!settled && withinWindow) return undefined
+  return { outcome: ETargetOutcome.TerminalSettled }
+}
+
+async function subscribed(target: Row<'GithubTrackingTarget'>): Promise<boolean> {
+  if (target.prNumber <= 0) return false
+  const row = await db.orm.public.GithubSubscription.where({ prNumber: target.prNumber }).first()
+  if (row === null || row === undefined) return false
+  return normalizedRepo(row.repoFullName) === normalizedRepo(target.repoFullName)
+}
+
+async function restingOnWebhook(
+  target: Row<'GithubTrackingTarget'>,
+  transport: ETrackingTransport,
+): Promise<boolean> {
+  if (transport !== ETrackingTransport.Polled || target.prNumber <= 0) return false
+  const subscription = await db.orm.public.GithubSubscription.where({
+    prNumber: target.prNumber,
+  }).first()
+  if (subscription === null || subscription === undefined || subscription.pollBacked) return false
+  if (normalizedRepo(subscription.repoFullName) !== normalizedRepo(target.repoFullName))
+    return false
+  return !(await stateIsStale(target))
+}
+
+const stateOf = (target: Row<'GithubTrackingTarget'>) =>
+  db.orm.public.GithubPrState.where({
+    repoFullName: normalizedRepo(target.repoFullName),
+    prNumber: target.prNumber,
+  }).first()
+
+export const MERGED_SETTLE_WINDOW_MS = 30 * 60 * 1_000
+
+async function stateIsStale(target: Row<'GithubTrackingTarget'>): Promise<boolean> {
+  if (target.prNumber <= 0) return true
+  const state = await stateOf(target)
+  if (state === null || state === undefined) return true
+  return Date.now() - new Date(state.updatedAt).getTime() > COVERED_RECHECK_MS
+}
+
+async function verdictOutcomeOf(args: {
+  attempt: TargetAttempt
+  target: Row<'GithubTrackingTarget'>
+}): Promise<{ outcome: ETargetOutcome; mergedAtMs: number } | undefined> {
+  if (
+    args.target.prNumber <= 0 ||
+    (args.attempt.outcome !== ETargetOutcome.Polled &&
+      args.attempt.outcome !== ETargetOutcome.LookedUp)
+  )
+    return undefined
+  const state = await stateOf(args.target)
+  if (state === undefined || state === null || state.state !== 'merged') return undefined
+  const mergedAtMs = new Date(state.updatedAt).getTime()
+  const unsettled = await unsettledHeadExists({
+    repoFullName: normalizedRepo(args.target.repoFullName),
+    prNumber: args.target.prNumber,
+    headSha: state.headSha,
+  })
+  return {
+    outcome: unsettled ? ETargetOutcome.MergedUnsettled : ETargetOutcome.TerminalSettled,
+    mergedAtMs,
+  }
+}
+
+async function seedSubscriptionTargets(args: { deps: QueueDeps; now: Date }): Promise<void> {
+  const subscriptions = await db.orm.public.GithubSubscription.where(
+    subscriptionLiveWhere({ now: args.now }),
+  ).all()
   const branches = new Map<string, Row<'GithubSubscription'>[]>()
   for (const row of subscriptions) {
     if (row.prNumber !== null) {
-      add({ ...row, prNumber: row.prNumber, userIds: [row.userId] })
+      await dueTarget({ row, number: row.prNumber, now: args.now })
       continue
     }
-    if (!row.pollBacked || !(await pollsIn(row.repoFullName))) continue
+    if (!row.pollBacked) continue
+    if (!(await args.deps.transport.polls(row.repoFullName))) continue
     const key = `${normalizedRepo(row.repoFullName)}:${row.branch}`
     branches.set(key, [...(branches.get(key) ?? []), row])
   }
-  for (const [key, rows] of rotated([...branches.entries()])) {
-    if ((await deps.coordinator.attempt({ key })).nextAttemptAt > Date.now()) continue
-    let failed = true
-    try {
-      for (const row of rows) {
-        const number = await deps
-          .resolve({
-            ...row,
-            repoFullName: normalizedRepo(row.repoFullName),
-          })
-          .catch((failure: unknown) => {
-            if (credentialLimited(failure)) return null
-            throw failure
-          })
-        if (number === null) continue
-        for (const subscription of rows) {
-          await db.orm.public.GithubSubscription.where({ id: subscription.id }).update({
-            prNumber: number,
-          })
-          add({
-            ...subscription,
-            prNumber: number,
-            userIds: [subscription.userId],
-          })
-        }
-        failed = false
-        break
-      }
-    } finally {
-      await deps.coordinator.recordAttempt({ key, failed })
+  for (const rows of branches.values()) {
+    const number = await resolvedNumber({ deps: args.deps, rows })
+    if (number === null) continue
+    for (const row of rows) {
+      await db.orm.public.GithubSubscription.where({ id: row.id }).update({ prNumber: number })
+      await dueTarget({ row, number, now: args.now })
     }
   }
-  for (const found of await statesOnPolledHeads(polledHeads)) {
-    add({
-      repoFullName: found.state.repoFullName,
-      prNumber: found.state.prNumber,
-      userIds: [found.userId],
-      pollBacked: true,
-    })
-  }
-  const states = new Map(
-    (await cachedPrStates([...targets.values()])).map((state) => [prIdentity(state), state]),
-  )
-  const ordered = (
-    await Promise.all(
-      [...targets.values()].map(async (target) => {
-        const state = states.get(prIdentity(target))
-        if (state === undefined || state.state !== 'merged') return target
-        return (await mergedAwaitingVerdict(state)) ? target : null
-      }),
-    )
-  )
-    .filter((target) => target !== null)
-    .sort(
-      (a, b) =>
-        Date.parse(states.get(prIdentity(a))?.updatedAt ?? '1970-01-01') -
-        Date.parse(states.get(prIdentity(b))?.updatedAt ?? '1970-01-01'),
-    )
-  const hooks = new Map<string, boolean>()
-  for (const target of rotated(ordered)) {
-    if (!(await pollsIn(target.repoFullName))) continue
-    const key = prIdentity(target)
-    if ((await deps.coordinator.attempt({ key })).nextAttemptAt > Date.now()) continue
-    const state = states.get(key)
-    const age = state === undefined ? Infinity : Date.now() - Date.parse(state.updatedAt)
-    if (!target.pollBacked && age < 600_000) continue
-    let failed = true
+}
+
+async function resolvedNumber(args: {
+  deps: QueueDeps
+  rows: readonly Row<'GithubSubscription'>[]
+}): Promise<number | null> {
+  for (const row of args.rows) {
     try {
-      for (const userId of target.userIds) {
-        let hookBacked = hooks.get(target.repoFullName)
-        if (hookBacked === undefined) {
-          const result = await deps.hooks
-            .ensureHook({ userId, repoFullName: target.repoFullName })
-            .catch((failure: unknown) => {
-              if (credentialLimited(failure)) return undefined
-              throw failure
-            })
-          if (result === undefined) continue
-          hookBacked = result !== 'poll-backed'
-          hooks.set(target.repoFullName, hookBacked)
-          await db.orm.public.GithubRepoHook.where((hook) =>
-            hook.repoFullName.ilike(repoPattern(target.repoFullName)),
-          ).updateAndCount({ idleSince: null })
-        }
-        if (hookBacked && !target.pollBacked && age < 600_000) {
-          failed = false
-          break
-        }
-        const result = await deps.refresh({
-          userId,
-          repoFullName: target.repoFullName,
-          prNumber: target.prNumber,
-        })
-        if (result === 'rate-limited') return
-        if (result === 'credential-limited') continue
-        if (result === 'polled') {
-          failed = false
-          break
-        }
-      }
+      const number = await args.deps.resolve({
+        ...row,
+        repoFullName: normalizedRepo(row.repoFullName),
+      })
+      if (number !== null) return number
     } catch (failure) {
-      if (credentialLimited(failure)) continue
-      if (
-        failure instanceof GithubHttpBudgetUnavailable ||
-        (failure instanceof GithubUserReadFailed && failure.rateLimited)
-      )
-        return
-      deps.logger.warn(`refreshing ${key} failed: ${String(failure)}`)
-    } finally {
-      await deps.coordinator.recordAttempt({ key, failed })
+      if (failure instanceof GithubCredentialCooldown) continue
+      if (isGithubBudgetParked(failure)) continue
+      throw failure
     }
   }
-  const activeRepos = new Set(subscriptions.map((row) => normalizedRepo(row.repoFullName)))
+  return null
+}
+
+export const ensurePullTarget = async (args: {
+  userId: string
+  repoFullName: string
+  prNumber: number
+  liveUntil: Date
+  now: Date
+}): Promise<void> => {
+  await db.orm.public.GithubTrackingTarget.upsert({
+    conflictOn: {
+      userId: args.userId,
+      kind: 'pull-request',
+      repoFullName: normalizedRepo(args.repoFullName),
+      branch: '',
+      prNumber: args.prNumber,
+    },
+    create: {
+      userId: args.userId,
+      kind: 'pull-request',
+      repoFullName: normalizedRepo(args.repoFullName),
+      branch: '',
+      prNumber: args.prNumber,
+      liveUntil: args.liveUntil,
+      nextDueAt: args.now,
+    },
+    update: { liveUntil: args.liveUntil },
+  })
+}
+
+async function dueTarget(args: {
+  row: Row<'GithubSubscription'>
+  number: number
+  now: Date
+}): Promise<void> {
+  const key = {
+    userId: args.row.userId,
+    kind: 'pull-request' as const,
+    repoFullName: normalizedRepo(args.row.repoFullName),
+    branch: '',
+    prNumber: args.number,
+  }
+  await db.orm.public.GithubTrackingTarget.upsert({
+    conflictOn: key,
+    create: { ...key, liveUntil: args.row.liveUntil, nextDueAt: args.now },
+    update: { liveUntil: args.row.liveUntil },
+  })
+}
+
+async function releaseIdleHooks(): Promise<void> {
+  const active = new Set(
+    (
+      await db.orm.public.GithubSubscription.where(subscriptionLiveWhere({ now: new Date() })).all()
+    ).map((row) => normalizedRepo(row.repoFullName)),
+  )
   const held = await db.orm.public.GithubRepoHook.where({ idleSince: null }).all()
   for (const hook of held) {
-    if (activeRepos.has(normalizedRepo(hook.repoFullName))) continue
+    if (active.has(normalizedRepo(hook.repoFullName))) continue
     await db.orm.public.GithubRepoHook.where({ repoFullName: hook.repoFullName }).updateAndCount({
       idleSince: new Date(),
     })
   }
-}
-
-async function lookUpEach(args: {
-  deps: QueueDeps
-  targets: readonly Row<'GithubTrackingTarget'>[]
-}): Promise<void> {
-  await withGithubCallCategory(EGithubHttpCategory.Lookup, async () => {
-    for (const target of args.targets) {
-      const key = lookupKey(target)
-      if ((await args.deps.coordinator.attempt({ key })).nextAttemptAt > Date.now()) continue
-      let failed = true
-      try {
-        const result = await args.deps.lookUp(target)
-        if (result === 'rate-limited') return
-        failed = result !== 'looked-up'
-      } finally {
-        await args.deps.coordinator.recordAttempt({ key, failed })
-      }
-    }
-  })
-}
-
-/**
- * A merged PR keeps a refresh slot while its head still owes a verdict, for a short window after
- * the merge: the final CI result commonly lands post-merge, and dropping the target the moment it
- * merges closes the only repair path (#1635). Once the verdict obligation is discharged or the
- * window passes, the PR leaves the queue for good.
- */
-export const MERGED_UNSETTLED_WINDOW_MS = 30 * 60 * 1_000
-
-async function mergedAwaitingVerdict(state: {
-  repoFullName: string
-  prNumber: number
-  headSha: string
-  updatedAt: string
-}): Promise<boolean> {
-  if (Date.now() - Date.parse(state.updatedAt) > MERGED_UNSETTLED_WINDOW_MS) return false
-  return unsettledHeadExists({
-    repoFullName: normalizedRepo(state.repoFullName),
-    prNumber: state.prNumber,
-    headSha: state.headSha,
-  })
-}
-
-function credentialLimited(failure: unknown): boolean {
-  return (
-    failure instanceof GithubCredentialCooldown ||
-    (failure instanceof GithubUserReadFailed &&
-      (failure.rateLimited || [401, 403, 404].includes(failure.status)))
-  )
-}
-
-function rotated<T>(items: T[]): T[] {
-  if (items.length === 0) return []
-  const offset = (Math.floor(Date.now() / 60_000) * 128) % items.length
-  return [...items.slice(offset), ...items.slice(0, offset)].slice(0, 128)
 }

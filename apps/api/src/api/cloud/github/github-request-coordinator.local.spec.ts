@@ -6,10 +6,12 @@ import {
   ACCESS_PROOF_DENIAL_TTL_MS,
   EGithubHttpCategory,
   GITHUB_AUTH_HTTP_BUDGET_PER_MINUTE,
-  GITHUB_LOOKUP_HTTP_BUDGET_PER_MINUTE,
   GITHUB_REFRESH_HTTP_BUDGET_PER_MINUTE,
+  GITHUB_REFRESH_RESERVED_FOR_REFRESH,
 } from './github-request-coordinator.types'
 import type { GithubService } from './github.service'
+
+const LOOKUP_SHARE = GITHUB_REFRESH_HTTP_BUDGET_PER_MINUTE - GITHUB_REFRESH_RESERVED_FOR_REFRESH
 
 describe('same-process request coordinator adapter', () => {
   afterEach(() => setSystemTime())
@@ -51,13 +53,9 @@ describe('same-process request coordinator adapter', () => {
     const adapter = new LocalCoordinatorAdapter()
     const identity = { credentialFingerprint: 'one', resource: 'core' }
     const take = (category: EGithubHttpCategory) => adapter.takeHttpSlot({ ...identity, category })
-    for (let index = 0; index < GITHUB_LOOKUP_HTTP_BUDGET_PER_MINUTE; index += 1)
+    for (let index = 0; index < LOOKUP_SHARE; index += 1)
       expect(await take(EGithubHttpCategory.Lookup)).toBe(true)
-    for (
-      let index = 0;
-      index < GITHUB_REFRESH_HTTP_BUDGET_PER_MINUTE - GITHUB_LOOKUP_HTTP_BUDGET_PER_MINUTE;
-      index += 1
-    )
+    for (let index = 0; index < GITHUB_REFRESH_HTTP_BUDGET_PER_MINUTE - LOOKUP_SHARE; index += 1)
       expect(await take(EGithubHttpCategory.Refresh)).toBe(true)
     expect(await take(EGithubHttpCategory.Refresh)).toBe(false)
     expect(await take(EGithubHttpCategory.Lookup)).toBe(false)
@@ -98,13 +96,6 @@ describe('same-process request coordinator adapter', () => {
       await adapter.writeAuthorization({ key: 'fingerprint:compai/app', state: grant }),
     ).toEqual(denial)
     expect(await adapter.readAuthorization('fingerprint:compai/app')).toEqual(denial)
-  })
-  it('expires retry attempts after twenty minutes', async () => {
-    const adapter = new LocalCoordinatorAdapter()
-    await adapter.recordAttempt({ key: 'compai/app#42', failed: true })
-    expect((await adapter.attempt('compai/app#42')).failures).toBe(1)
-    setSystemTime(new Date(Date.now() + 1_200_001))
-    expect(await adapter.attempt('compai/app#42')).toEqual({ nextAttemptAt: 0, failures: 0 })
   })
 })
 

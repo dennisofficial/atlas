@@ -135,9 +135,12 @@ describe('shared real HTTP budget for API fills, authorization and worker queue'
     await seedPrState({ prNumber: 44, state: 'merged', updatedAt: new Date(0) })
     http.failures.add(42)
     await worker.poll.handlePoll()
-    expect(
-      (await worker.coordinator.attempt({ key: 'compai/app#42' })).nextAttemptAt,
-    ).toBeGreaterThan(Date.now())
+    const parked = await db.orm.public.GithubTrackingTarget.first({
+      repoFullName: 'compai/app',
+      prNumber: 42,
+    })
+    expect(parked?.failures).toBe(1)
+    expect(parked?.nextDueAt.getTime()).toBeGreaterThan(Date.now())
     expect(
       await db.orm.public.GithubPrState.first({ repoFullName: 'compai/app', prNumber: 43 }),
     ).not.toBeNull()

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { db, type Row } from '@dltech/atlas-db'
-import { EPrSource } from '@dltech/atlas-core'
+import { EPrSource, ETargetOutcome, ETrackingTransport } from '@dltech/atlas-core'
 import { GithubHeadReads } from './github-head-reads'
 import { GithubPrStore } from './github-pr-store'
 import { mergeabilityObservationOf, pullObservationOfRest } from './github-pr-observations'
@@ -14,13 +14,14 @@ import { normalizedRepo } from './github-pr-identity'
 import { GithubRequestCoordinator } from './github-request-coordinator'
 import { readRepoTracking } from './github-repo-coverage'
 import { renewTrackedHeadTargets } from './github-tracked-head-renewal'
-import { refreshGithubQueue } from './github-refresh-queue'
 import {
-  GithubHttpBudgetUnavailable,
-  GithubCredentialCooldown,
-  withGithubRequestBudget,
-  credentialFingerprint,
-} from './github-request-budget'
+  ensurePullTarget,
+  parkedAttemptOf,
+  refreshGithubQueue,
+  type TargetAttempt,
+} from './github-refresh-queue'
+import { CLAIM_BATCH } from './github-due-scheduler'
+import { withGithubRequestBudget, credentialFingerprint } from './github-request-budget'
 import {
   GithubUserReadFailed,
   GithubUserReads,
@@ -40,7 +41,7 @@ export class GithubPollSweeperService {
     private readonly store: GithubPrStore,
   ) {}
 
-  async handlePoll(): Promise<void> {
+  async handlePoll(args: { limit?: number } = {}): Promise<void> {
     await this.refreshLiveUntil()
     await renewTrackedHeadTargets({})
     try {
@@ -48,13 +49,16 @@ export class GithubPollSweeperService {
         store: this.coordinator,
         run: async () =>
           refreshGithubQueue({
-            coordinator: this.coordinator,
-            hooks: this.hooks,
-            transport: new TransportSelector(readRepoTracking),
-            logger: this.logger,
-            resolve: (row) => this.resolvePrNumber(row),
-            refresh: (target) => this.pollOne(target),
-            lookUp: (target) => this.lookUp(target),
+            deps: {
+              hooks: this.hooks,
+              transport: new TransportSelector(readRepoTracking),
+              logger: this.logger,
+              resolve: (row) => this.resolvePrNumber(row),
+              refresh: (target) => this.pollOne(target),
+              lookUp: (target, transport) => this.lookUp({ target, transport }),
+            },
+            now: new Date(),
+            limit: args.limit ?? CLAIM_BATCH,
           }),
       })
     } catch (failure) {
@@ -81,48 +85,47 @@ export class GithubPollSweeperService {
     }
   }
 
-  private async lookUp(
-    target: Row<'GithubTrackingTarget'>,
-  ): Promise<'looked-up' | 'skipped' | 'rate-limited' | 'credential-limited'> {
-    await this.stampAttempt(target.id)
+  private async lookUp(args: {
+    target: Row<'GithubTrackingTarget'>
+    transport: ETrackingTransport
+  }): Promise<TargetAttempt> {
+    const { target } = args
     const token = await this.github.findToken({ userId: target.userId })
-    if (token === undefined) return 'skipped'
+    if (token === undefined) return { outcome: ETargetOutcome.CredentialLimited }
     try {
       if (target.kind === 'head') {
-        await this.recordHeadPulls({ target, token })
+        const held = await this.recordHeadPulls({
+          target,
+          token,
+          refreshFound: args.transport === ETrackingTransport.Polled,
+        })
+        if (held !== undefined) return held
       } else if (target.prNumber > 0) {
         const result = await this.pollOne({
           userId: target.userId,
           repoFullName: target.repoFullName,
           prNumber: target.prNumber,
         })
-        if (result !== 'polled') return result
+        if (result.outcome !== ETargetOutcome.Polled) return result
       }
     } catch (failure) {
-      if (failure instanceof GithubCredentialCooldown) return 'credential-limited'
-      if (failure instanceof GithubHttpBudgetUnavailable) return 'rate-limited'
-      if (failure instanceof GithubUserReadFailed) {
-        return failure.rateLimited ? 'rate-limited' : 'skipped'
-      }
-      throw failure
+      return parkedAttemptOf(failure, this.logger)
     }
     await db.orm.public.GithubTrackingTarget.where({ id: target.id }).update({
       lookedUpAt: new Date(),
     })
-    return 'looked-up'
-  }
-
-  private async stampAttempt(id: string): Promise<void> {
-    await db.orm.public.GithubTrackingTarget.where({ id }).update({ attemptedAt: new Date() })
+    return { outcome: ETargetOutcome.LookedUp }
   }
 
   private async recordHeadPulls(args: {
     target: Row<'GithubTrackingTarget'>
     token: string
-  }): Promise<void> {
+    refreshFound: boolean
+  }): Promise<TargetAttempt | undefined> {
     const headRepo = normalizedRepo(args.target.repoFullName)
     const parent = await this.headReads.parentOf({ token: args.token, repoFullName: headRepo })
     const repos = parent === null ? [headRepo] : [headRepo, parent]
+    let held: TargetAttempt | undefined
     for (const repoFullName of repos) {
       const pulls = await this.headReads.pullsByHead({
         token: args.token,
@@ -130,8 +133,25 @@ export class GithubPollSweeperService {
         headRepoFullName: headRepo,
         branch: args.target.branch,
       })
-      for (const pull of pulls) await this.recordPull({ repoFullName, pull })
+      for (const pull of pulls) {
+        await this.recordPull({ repoFullName, pull })
+        if (!args.refreshFound) continue
+        await ensurePullTarget({
+          userId: args.target.userId,
+          repoFullName,
+          prNumber: pull.number,
+          liveUntil: args.target.liveUntil,
+          now: new Date(),
+        })
+        const attempt = await this.pollOne({
+          userId: args.target.userId,
+          repoFullName: args.target.repoFullName,
+          prNumber: pull.number,
+        })
+        if (attempt.outcome !== ETargetOutcome.Polled) held = attempt
+      }
     }
+    return held
   }
 
   private async recordPull(args: { repoFullName: string; pull: RestPullRequest }): Promise<void> {
@@ -200,9 +220,9 @@ export class GithubPollSweeperService {
     userId: string
     repoFullName: string
     prNumber: number
-  }): Promise<'polled' | 'skipped' | 'rate-limited' | 'credential-limited'> {
+  }): Promise<TargetAttempt> {
     const token = await this.github.findToken({ userId: args.userId })
-    if (token === undefined) return 'skipped'
+    if (token === undefined) return { outcome: ETargetOutcome.CredentialLimited }
     const repoFullName = normalizedRepo(args.repoFullName)
     const [owner, repo] = repoFullName.split('/') as [string, string]
     let read: PullObservationRead
@@ -215,21 +235,19 @@ export class GithubPollSweeperService {
         number: args.prNumber,
       })
     } catch (failure) {
-      if (failure instanceof GithubCredentialCooldown) return 'credential-limited'
-      if (failure instanceof GithubHttpBudgetUnavailable) return 'rate-limited'
-      if (failure instanceof GithubUserReadFailed) {
-        if (!failure.rateLimited) return 'skipped'
+      if (failure instanceof GithubUserReadFailed && failure.rateLimited) {
+        const until = Date.now() + 60_000
         await this.coordinator.blockHttpUntil({
-          until: Date.now() + 60_000,
+          until,
           credentialFingerprint: credentialFingerprint(token),
           resource: 'core',
         })
-        return 'credential-limited'
+        return { outcome: ETargetOutcome.CredentialLimited, retryAtMs: until }
       }
-      throw failure
+      return parkedAttemptOf(failure, this.logger)
     }
     await this.applyPull({ repoFullName, pull: read.pull, source: EPrSource.Poll })
 
-    return 'polled'
+    return { outcome: ETargetOutcome.Polled }
   }
 }

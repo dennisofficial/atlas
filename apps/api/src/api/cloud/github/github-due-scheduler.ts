@@ -1,4 +1,5 @@
 import { and, db, or, type Row } from '@dltech/atlas-db'
+import { ETargetKind, ETargetOutcome, ETrackingTransport, nextDueOf } from '@dltech/atlas-core'
 
 export const CLAIM_BATCH = 200
 export const CLAIM_LEASE_MS = 2 * 60 * 1_000
@@ -33,3 +34,35 @@ export const releaseTarget = (args: {
     failures: args.failures,
     leaseUntil: null,
   })
+
+export const settleTarget = (args: {
+  target: Row<'GithubTrackingTarget'>
+  now: Date
+  transport: ETrackingTransport
+  outcome: ETargetOutcome
+  retryAtMs?: number | undefined
+  mergedAtMs?: number | undefined
+}): Promise<number> => {
+  const due = nextDueOf({
+    nowMs: args.now.getTime(),
+    kind: args.target.kind === 'head' ? ETargetKind.Head : ETargetKind.PullRequest,
+    transport: args.transport,
+    lookedUp: args.target.lookedUpAt !== null,
+    outcome: args.outcome,
+    failures: args.target.failures,
+    retryAtMs: args.retryAtMs,
+    liveUntilMs: args.target.liveUntil.getTime(),
+    mergedAtMs: args.mergedAtMs,
+  })
+  return releaseTarget({
+    id: args.target.id,
+    attemptedAt: args.now,
+    nextDueAt: new Date(due.nextDueAt),
+    failures: due.failures,
+  })
+}
+
+export const markRepoTargetsDue = (args: { repoFullName: string; now: Date }): Promise<number> =>
+  db.orm.public.GithubTrackingTarget.where((target) =>
+    target.repoFullName.ilike(args.repoFullName.toLowerCase()),
+  ).updateAndCount({ nextDueAt: args.now })
