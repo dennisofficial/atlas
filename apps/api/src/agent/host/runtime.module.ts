@@ -1,11 +1,13 @@
 import { hostname } from 'node:os'
 
 import { Module, type Provider } from '@nestjs/common'
+import { ChangeContentStore } from '@dltech/atlas-control'
 import type { Db } from '@dltech/atlas-db'
 import type { HostPresence, PodControlClient } from '@dltech/atlas-host'
 import type { LogPort } from '@dltech/atlas-observability'
 import { CloudflareTunnelClient, PreviewTunnels } from '@dltech/atlas-previews'
 
+import { changeContentStoreProvider } from '../../_lib/changes/change-content.provider'
 import type { ConfigSource } from '../config/agent-host-config'
 import { ConfigReader } from '../config/config-reader'
 import { databaseUrlWithTls } from '../config/database-url'
@@ -138,6 +140,7 @@ export const runtimeProviders: readonly Provider[] = [
   signingKeysProvider,
   modelTokensProvider,
   mediaSignerProvider,
+  changeContentStoreProvider,
   presenceProvider,
 ]
 
@@ -155,6 +158,6 @@ export const runtimeExports: readonly symbol[] = [
 
 @Module({
   providers: [...runtimeProviders],
-  exports: [...runtimeExports],
+  exports: [...runtimeExports, ChangeContentStore],
 })
 export class RuntimeModule {}

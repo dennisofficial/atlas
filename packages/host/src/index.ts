@@ -59,6 +59,10 @@ export {
   LIVE_STEP_CAP_BYTES,
   LiveStepBuffer,
 } from './holder/live-step-buffer'
+export { ChangesSnapshotter } from './holder/changes/snapshotter'
+export type { ChangesCheckout, ChangesSnapshotterArgs } from './holder/changes/snapshotter'
+export { changeCheckoutId, changeRepoOf } from './holder/changes/identity'
+export { fingerprintOf } from './holder/changes/fingerprint'
 export { InboxIntake, INBOX_KIND_STOP } from './holder/inbox-intake'
 export {
   LeaseLostError,

@@ -12,7 +12,7 @@ import { envSecretsReader } from './config/env-secrets'
 import { mcpControlPort } from './config/mcp-control'
 import { SecretCipher } from './config/secret-cipher'
 import { composedPlugins } from './registered-plugins'
-import type { ControlPlane } from '@dltech/atlas-control'
+import type { ChangeContentStore, ControlPlane } from '@dltech/atlas-control'
 import type { LogPort } from '@dltech/atlas-observability'
 
 import type { ModelTokenService } from './tokens/model-token-service'
@@ -49,6 +49,7 @@ export type ComposeAgentHostArgs = {
   timers?: HostTimers | undefined
   log?: LogPort | undefined
   media?: MediaSigner | undefined
+  changes?: { content: ChangeContentStore } | undefined
   presence: HostPresence
   control: PodControlClient
   onHostIdChanged?: (() => void) | undefined
@@ -92,6 +93,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
       sessionDir: sessionDirOf,
       openValue: (sealed) => cipher.decrypt(sealed),
     },
+    ...(args.changes === undefined ? {} : { changes: args.changes }),
     onHostIdChanged: args.onHostIdChanged,
     ...(args.log === undefined ? {} : { log: args.log }),
   })
