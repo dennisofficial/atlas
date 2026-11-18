@@ -109,3 +109,9 @@ export const streamServerMessageSchema = z.discriminatedUnion('type', [
 export type StreamStepKey = z.infer<typeof streamStepKeySchema>
 export type StreamSessionRow = z.infer<typeof streamSessionRowSchema>
 export type StreamServerMessage = z.infer<typeof streamServerMessageSchema>
+
+const isAsyncIterable = (value: unknown): value is AsyncIterable<unknown> =>
+  typeof (value as { [Symbol.asyncIterator]?: unknown })[Symbol.asyncIterator] === 'function'
+
+export const sessionStreamOutputSchema =
+  z.custom<AsyncIterable<StreamServerMessage>>(isAsyncIterable)

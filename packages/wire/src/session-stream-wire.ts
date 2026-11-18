@@ -1,4 +1,3 @@
-import { streamServerMessageSchema } from '@dltech/atlas-protocol'
 import { z } from 'zod'
 
 export const sessionStreamFollowInputSchema = z
@@ -13,9 +12,3 @@ export const sessionStreamFollowInputSchema = z
   })
 
 export type SessionStreamFollowInput = z.infer<typeof sessionStreamFollowInputSchema>
-
-const isAsyncIterable = (value: unknown): value is AsyncIterable<unknown> =>
-  typeof (value as { [Symbol.asyncIterator]?: unknown })[Symbol.asyncIterator] === 'function'
-
-export const sessionStreamOutputSchema =
-  z.custom<AsyncIterable<z.infer<typeof streamServerMessageSchema>>>(isAsyncIterable)
