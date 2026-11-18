@@ -4,6 +4,7 @@ import type { SpendRow } from '../../models/spend-tally'
 import { checkoutsOf, initialCheckoutsState, stepCheckouts } from './checkouts'
 import type { CheckoutsState, CheckoutsView } from './checkouts'
 import { deriveStatus } from './derive-status'
+import { EMPTY_PENDING, stepPending, type PendingInputsState } from '../pending-inputs'
 import { initialMeterState, meterOf, rebuildMeter, stepMeter, type MeterState } from './meter-state'
 import {
   initialPullRequestLinks,
@@ -15,7 +16,7 @@ import { initialSpendState, stepSpend, type SpendState } from './spend'
 import { initialStatusFacts, stepStatusFacts, type StatusFacts } from './status-facts'
 import type { SessionStatus } from './status-types'
 
-export const SESSION_VIEW_VERSION = 4
+export const SESSION_VIEW_VERSION = 5
 
 export type SessionViewState = {
   version: number
@@ -25,6 +26,7 @@ export type SessionViewState = {
   checkouts: CheckoutsState
   pullRequests: PullRequestLinksState
   spend: SpendState
+  pending: PendingInputsState
   pluginViews: Readonly<Record<string, unknown>>
 }
 
@@ -45,6 +47,7 @@ export const initialSessionViewState: SessionViewState = {
   checkouts: initialCheckoutsState,
   pullRequests: initialPullRequestLinks,
   spend: initialSpendState,
+  pending: EMPTY_PENDING,
   pluginViews: {},
 }
 
@@ -57,6 +60,7 @@ export const stepSessionView = (state: SessionViewState, event: V2Event): Sessio
     event.type === 'branches-observed' ? stepCheckouts(state.checkouts, event) : state.checkouts,
   pullRequests: stepPullRequestLinks(state.pullRequests, event),
   spend: stepSpend(state.spend, event),
+  pending: stepPending(state.pending, event),
   pluginViews: state.pluginViews,
 })
 
@@ -83,6 +87,7 @@ export const sessionViewOf = (args: {
     facts: args.state.facts,
     live: args.live,
     queuedSince: args.queuedSince,
+    pending: args.state.pending,
     messageAfterFailure: args.messageAfterFailure,
     now: args.now,
   }),

@@ -13,9 +13,10 @@ import {
   withAlpha,
 } from '@dltech/atlas-ui-native'
 import { ArrowUp, Plus, Square } from 'lucide-react-native'
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 
+import { mergeIntoDraft } from '../v2/staged-send'
 import { AttachmentChips } from './attachment-chips'
 import { AttachMenu } from './attach-menu'
 import { REMOVE_FAILED_FILES, sendableOf } from './attachment-plan'
@@ -31,6 +32,8 @@ export const Composer = ({
   sendable = true,
   placeholder = PLACEHOLDER,
   autoFocus = false,
+  restored,
+  refusal,
   children,
 }: {
   working: boolean
@@ -40,6 +43,8 @@ export const Composer = ({
   sendable?: boolean
   placeholder?: string
   autoFocus?: boolean
+  restored?: { token: number; text: string } | undefined
+  refusal?: string | undefined
   children?: ReactNode
 }) => {
   const theme = useTheme()
@@ -50,6 +55,11 @@ export const Composer = ({
   const [choosing, setChoosing] = useState(false)
 
   const canSend = sendableOf({ text: draft, held: attachments?.held ?? [] }) && !sending
+
+  useEffect(() => {
+    if (restored === undefined) return
+    setDraft((current) => mergeIntoDraft({ withdrawn: restored.text, draft: current }))
+  }, [restored])
 
   const handleSend = async () => {
     if (!canSend) return
@@ -69,7 +79,9 @@ export const Composer = ({
     ? draft.trim().length === 0
       ? "Attachments couldn't go on their own. Add a caption to queue them for later."
       : 'That message could not be sent.'
-    : (attachments?.notice ?? (attachments?.failed === true ? REMOVE_FAILED_FILES : null))
+    : (refusal ??
+      attachments?.notice ??
+      (attachments?.failed === true ? REMOVE_FAILED_FILES : null))
 
   const handlePick = (pick: () => Promise<void>) => {
     setChoosing(false)
@@ -92,6 +104,11 @@ export const Composer = ({
           {notice}
         </Text>
       )}
+      {sending ? (
+        <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={styles.notice}>
+          Sending…
+        </Text>
+      ) : null}
       <View
         style={[
           styles.field,
@@ -106,6 +123,7 @@ export const Composer = ({
           multiline
           accessibilityLabel="Message Atlas"
           autoFocus={autoFocus}
+          editable={!sending}
           placeholder={placeholder}
           value={draft}
           onChangeText={setDraft}
@@ -134,7 +152,7 @@ export const Composer = ({
             />
           ) : (
             <Button
-              label="Send"
+              label={sending ? 'Sending…' : 'Send'}
               icon={ArrowUp}
               size={EButtonSize.Icon}
               round

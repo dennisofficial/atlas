@@ -19,6 +19,7 @@ import {
   said,
   seedGranted,
   SESSION,
+  T0,
   THREAD,
   type Harness,
 } from './support'
@@ -169,7 +170,7 @@ export function describeControlPlaneViews(params: ConformanceParams): void {
       await appendBodies({ harness, epoch, bodies: [said('a')] })
       const head = await harness.plane.head({ threadId: THREAD })
       const events = mint({
-        bodies: [linked(9), said('x'), { type: 'input-consumed', inboxId: 99 }],
+        bodies: [linked(9), said('x'), { type: 'input-withdrawn', inboxId: 0 }],
         epoch,
         from: head,
       })
@@ -236,9 +237,18 @@ export function describeControlPlaneViews(params: ConformanceParams): void {
       expect(await storedState()).toEqual(before)
     })
 
-    it('shows queued messages and queued status from the inbox', async () => {
+    it('shows queued messages and queued status folded from the log', async () => {
       await appendBodies({ harness, epoch, bodies: [{ type: 'workspace-prepared' }] })
-      await harness.plane.post({ sessionId: SESSION, kind: 'message', payload: '{"text":"hi"}' })
+      const { inboxId } = await harness.plane.post({
+        sessionId: SESSION,
+        kind: 'message',
+        payload: '{"text":"hi"}',
+      })
+      await appendBodies({
+        harness,
+        epoch,
+        bodies: [{ type: 'input-posted', inboxId, kind: 'message', postedAt: T0, text: 'hi' }],
+      })
       const read = await view()
       expect(read.value.status.state).toBe(ESessionStatus.Queued)
       expect(read.value.status.since).toBe(read.value.status.queued?.[0]?.postedAt)

@@ -15,11 +15,11 @@ describe('follow pump', () => {
     rig.dispose()
   })
 
-  it('opens at the tail: the last 1000 events in pages, live only after the last', async () => {
+  it('opens a cold subscription at seq 0 and replays the whole log before going live', async () => {
     await rig.seed({ events: 1200 })
     await rig.subscribe({ session: rig.open() })
     await rig.untilSeq(1200)
-    expect(rig.seqs()).toEqual(Array.from({ length: 1000 }, (_, n) => 201 + n))
+    expect(rig.seqs()).toEqual(Array.from({ length: 1200 }, (_, n) => 1 + n))
     const live = rig.frames('events').map((frame) => frame.live)
     expect(live.slice(0, -1).every((flag) => !flag)).toBe(true)
     expect(live.at(-1)).toBe(true)
@@ -63,7 +63,7 @@ describe('follow pump', () => {
     expect(rig.seqs()).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
   })
 
-  it('resets too-far-behind past 1500 events and streams the tail', async () => {
+  it('resumes from a cursor far behind the head without a reset', async () => {
     await rig.seed({ events: 1600 })
     const row = await rig.plane.readEvents({
       threadId: THREAD,
@@ -77,10 +77,9 @@ describe('follow pump', () => {
       afterHash: rig.hashAt(row.events, 10),
     })
     await rig.untilSeq(1600)
-    expect(rig.frames('reset')).toEqual([
-      { type: 'reset', id: 'sub-1', reason: EStreamResetReason.TooFarBehind, tailFrom: 600 },
-    ])
-    expect(rig.seqs()[0]).toBe(601)
+    expect(rig.frames('reset')).toEqual([])
+    expect(rig.seqs()[0]).toBe(11)
+    expect(rig.seqs().at(-1)).toBe(1600)
   })
 
   it('delivers an append made during the first read', async () => {

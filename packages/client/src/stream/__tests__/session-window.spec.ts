@@ -7,7 +7,7 @@ import {
   applyPageOutcome,
   EMPTY_WINDOW,
   resetWindow,
-  WINDOW_LIMIT,
+  RENDER_LIMIT,
   type SessionWindow,
 } from '../session-window'
 import { headOf, mintEvents, mintUserEvents } from './support'
@@ -98,11 +98,11 @@ describe('applyPage', () => {
   })
 
   it('keeps only the last 3,000 visible events', () => {
-    const events = mintUserEvents({ count: WINDOW_LIMIT + 50 })
+    const events = mintUserEvents({ count: RENDER_LIMIT + 50 })
     const window = applyPage({ window: EMPTY_WINDOW, page: page(events) })
-    expect(window.events).toHaveLength(WINDOW_LIMIT)
+    expect(window.events).toHaveLength(RENDER_LIMIT)
     expect(window.events[0]?.seq).toBe(51)
-    expect(window.cursor?.seq).toBe(WINDOW_LIMIT + 50)
+    expect(window.cursor?.seq).toBe(RENDER_LIMIT + 50)
   })
 
   it('resets to an empty window with no cursor', () => {

@@ -240,6 +240,7 @@ export interface ControlTx {
     limit: number
     excludeKind?: string | undefined
   }): Promise<InboxEntry[]>
+  recentInboxEntries(params: { sessionId: string; limit: number }): Promise<InboxEntry[]>
   notifyWake(sessionId: string): Promise<void>
   announce(change: SessionChange): Promise<void>
   readSessionView(sessionId: string): Promise<SessionViewRow | undefined>

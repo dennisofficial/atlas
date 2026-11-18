@@ -1,59 +1,43 @@
-import { COMMAND_INBOX_PREFIX } from '@dltech/atlas-commands'
-import type { InboxEntry } from '@dltech/atlas-core'
 import {
-  INBOX_KIND_MESSAGE,
-  inboxMessageSchema,
-  QUEUED_MESSAGES_LIMIT,
-  type InboxMessage,
+  commandInputName,
+  pendingMessagesOf,
+  type PendingInput,
+  type PendingInputsState,
+} from '@dltech/atlas-core'
+import {
   ECommandState,
+  QUEUED_MESSAGES_LIMIT,
   type SessionCommandRow,
   type SessionQueuedMessage,
 } from '@dltech/atlas-protocol'
 
-const attachmentsOf = (
-  message: InboxMessage,
-): Pick<SessionQueuedMessage, 'media' | 'uploads' | 'attachments'> => ({
-  ...(message.media === undefined || message.media.length === 0 ? {} : { media: message.media }),
-  ...(message.uploads === undefined || message.uploads.length === 0
+const attachmentsOf = (entry: PendingInput): Pick<SessionQueuedMessage, 'attachments'> =>
+  entry.attachments === undefined || entry.attachments.length === 0
     ? {}
-    : { uploads: message.uploads }),
-  ...(message.attachments === undefined || message.attachments.length === 0
-    ? {}
-    : { attachments: message.attachments }),
-})
+    : { attachments: [...entry.attachments] }
 
-export const queuedOf = (inbox: readonly InboxEntry[]): SessionQueuedMessage[] =>
-  inbox
-    .filter((entry) => entry.kind === INBOX_KIND_MESSAGE)
+export const queuedOf = (state: PendingInputsState): SessionQueuedMessage[] =>
+  pendingMessagesOf(state)
+    .flatMap((entry) =>
+      entry.text === undefined
+        ? []
+        : [
+            {
+              inboxId: entry.inboxId,
+              text: entry.text,
+              postedAt: entry.at,
+              ...attachmentsOf(entry),
+              ...(entry.clientId === undefined ? {} : { clientId: entry.clientId }),
+            },
+          ],
+    )
+    .slice(0, QUEUED_MESSAGES_LIMIT)
+
+export const commandsOf = (state: PendingInputsState): SessionCommandRow[] =>
+  state.pending
     .flatMap((entry) => {
-      const parsed = inboxMessageSchema.safeParse(safeJson(entry.payload))
-      if (!parsed.success) return []
-      return [
-        {
-          inboxId: entry.inboxId,
-          text: parsed.data.text,
-          postedAt: entry.postedAt,
-          ...attachmentsOf(parsed.data),
-        },
-      ]
+      const name = commandInputName(entry.kind)
+      if (name === undefined) return []
+      return [{ inboxId: entry.inboxId, name, postedAt: entry.at, state: ECommandState.Queued }]
     })
     .slice(0, QUEUED_MESSAGES_LIMIT)
-
-export const commandsOf = (inbox: readonly InboxEntry[]): SessionCommandRow[] =>
-  inbox
-    .filter((entry) => entry.kind.startsWith(COMMAND_INBOX_PREFIX))
-    .map((entry) => ({
-      inboxId: entry.inboxId,
-      name: entry.kind.slice(COMMAND_INBOX_PREFIX.length),
-      postedAt: entry.postedAt,
-      state: ECommandState.Queued,
-    }))
-    .slice(0, QUEUED_MESSAGES_LIMIT)
-
-const safeJson = (payload: string): unknown => {
-  try {
-    return JSON.parse(payload)
-  } catch {
-    return undefined
-  }
-}

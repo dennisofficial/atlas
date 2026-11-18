@@ -1,5 +1,6 @@
 import {
   isSessionWorking,
+  stagedPlacementOf,
   transcriptEventsOf,
   type SessionSnapshot,
 } from '@dltech/atlas-client/stream'
@@ -14,6 +15,40 @@ export type V2ThreadView = {
   failure: string | null
   lastUserRowId: string | null
 }
+
+const stagedRowOf = (entry: { clientId: string; text: string }): ThreadRow => ({
+  kind: ERowKind.Message,
+  id: entry.clientId,
+  author: EMessageAuthor.You,
+  at: undefined,
+  text: entry.text,
+  streaming: false,
+  steer: false,
+  attachments: [],
+  staged: true,
+})
+
+const stagedSplitOf = (args: {
+  snapshot: SessionSnapshot
+  staged: readonly { clientId: string; text: string }[]
+}) =>
+  stagedPlacementOf({
+    staged: args.staged,
+    events: args.snapshot.events,
+    working: isSessionWorking(args.snapshot.status),
+  })
+
+export const stagedRowsOf = (args: {
+  snapshot: SessionSnapshot
+  staged: readonly { clientId: string; text: string }[]
+  now: number
+}): ThreadRow[] => stagedSplitOf(args).transcript.map(stagedRowOf)
+
+export const stagedQueueRowsOf = (args: {
+  snapshot: SessionSnapshot
+  staged: readonly { clientId: string; text: string }[]
+  now: number
+}): ThreadRow[] => stagedSplitOf(args).queue.map(stagedRowOf)
 
 export const v2ViewOf = (args: { snapshot: SessionSnapshot; now: number }): V2ThreadView => {
   const working = isSessionWorking(args.snapshot.status)

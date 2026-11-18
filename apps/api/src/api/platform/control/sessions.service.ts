@@ -52,6 +52,7 @@ import { postedAttachmentsOf } from './post-attachments'
 
 type MessageDraftInput = {
   text: string
+  clientId?: string | undefined
   media?: readonly SessionPostMedia[] | undefined
   uploads?: readonly SaidUpload[] | undefined
   attachments?: readonly Attachment[] | undefined
@@ -195,6 +196,7 @@ export class SessionsService {
       payload: JSON.stringify(
         inboxMessageSchema.parse({
           text: args.draft.text,
+          ...(args.draft.clientId === undefined ? {} : { clientId: args.draft.clientId }),
           ...(attachments.length === 0 ? {} : { attachments }),
         }),
       ),
@@ -243,18 +245,8 @@ export class SessionsService {
     if (entry === undefined || entry.kind !== INBOX_KIND_MESSAGE) {
       return { ok: false, reason: EWithdrawRefusal.Unknown }
     }
-    const result = await this.plane.takeBack({
-      sessionId: args.sessionId,
-      inboxId: args.inboxId,
-    })
-    if (result.ok) return { ok: true }
-    return {
-      ok: false,
-      reason:
-        result.refusal.kind === 'already-consumed'
-          ? EWithdrawRefusal.AlreadyConsumed
-          : EWithdrawRefusal.Unknown,
-    }
+    await this.plane.withdraw({ sessionId: args.sessionId, inboxId: args.inboxId })
+    return { ok: true }
   }
 
   async archive(args: {

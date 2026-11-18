@@ -266,3 +266,32 @@ describe('ThreadTranscript harness notices', () => {
     expect(text).toContain('It merged')
   })
 })
+
+describe('ThreadTranscript staged rows', () => {
+  const staged = [
+    {
+      id: 'client-a',
+      text: 'ship the dimmer',
+      attachments: [],
+    },
+  ]
+
+  it('renders a staged message inside the scrolling transcript at 45% opacity', async () => {
+    await mountWith({ rewind: null, staged })
+
+    const viewport = document.body.querySelector('[data-slot="chat-viewport"]')
+    const row = viewport?.querySelector('[aria-busy="true"]')
+    expect(row?.className).toContain('opacity-45')
+    expect(row?.textContent).toContain('ship the dimmer')
+  })
+
+  it('keeps the staged row after the last logged turn', async () => {
+    await mountWith({ rewind: null, staged })
+
+    const ids = [...document.body.querySelectorAll('[data-slot="chat-item"]')].map((item) =>
+      item.getAttribute('data-chat-item-id'),
+    )
+    const stagedIndex = ids.indexOf('client-a')
+    expect(stagedIndex).toBeGreaterThan(ids.indexOf('evt_2'))
+  })
+})

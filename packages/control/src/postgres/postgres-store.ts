@@ -58,6 +58,7 @@ import {
   insertInboxEntryIn,
   markInboxConsumedIn,
   readInboxEntriesIn,
+  recentInboxEntriesIn,
   readInboxEntryIn,
 } from './postgres-inbox'
 import {
@@ -277,6 +278,10 @@ class PostgresTx implements ControlTx {
 
   async deleteInboxEntry(params: { sessionId: string; inboxId: number }): Promise<boolean> {
     return deleteInboxEntryIn({ tx: this.tx, ...params })
+  }
+
+  async recentInboxEntries(params: { sessionId: string; limit: number }) {
+    return recentInboxEntriesIn({ tx: this.tx, ...params })
   }
 
   async readInboxEntries(params: {

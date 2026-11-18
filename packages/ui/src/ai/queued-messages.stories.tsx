@@ -28,6 +28,10 @@ type Story = StoryObj<typeof meta>
 
 export const Two: Story = {}
 
+export const Staged: Story = {
+  args: { messages: TWO_QUEUED, stagedIds: new Set(['q2']) },
+}
+
 export const One: Story = { args: { messages: TWO_QUEUED.slice(0, 1) } }
 
 export const Many: Story = { args: { messages: MANY_QUEUED } }

@@ -1,12 +1,21 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EEffort, EMessageOrigin, EReportKind, toRunId, toThreadId } from '@dltech/atlas-core'
+import {
+  EEffort,
+  EMessageOrigin,
+  EReportKind,
+  initialLoopState,
+  toRunId,
+  toThreadId,
+  type EventDraft,
+} from '@dltech/atlas-core'
 import { ControlPlane } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 
 import { InboxIntake } from '../inbox-intake'
+import { eventsOf } from './operator-answer-rig'
 import { podSessionsOf } from '../plugin-sessions'
-import type { SessionRecord } from '../record/record-adapter'
+import type { AppendBody, SessionRecord } from '../record/record-adapter'
 
 const T0 = '2026-11-09T10:00:00.000Z'
 const SPAWNER = {
@@ -21,6 +30,30 @@ const OTHER = {
   userId: 'u1',
   projectId: 'p1',
 }
+
+const saidDraftsOf = async (
+  plane: ControlPlane,
+  sessionId: string,
+  mainThreadId: string,
+): Promise<AppendBody[]> => {
+  const appended: AppendBody[] = []
+  const record = {
+    append: async ({ drafts }: { drafts: readonly AppendBody[] }) => {
+      appended.push(...drafts)
+    },
+    eventCache: () => ({ eventsAfter: () => eventsOf(appended as unknown as EventDraft[]) }),
+    loopState: async () => initialLoopState(),
+  } as unknown as SessionRecord
+  await new InboxIntake({
+    plane,
+    sessionId,
+    record,
+    threadId: toThreadId(mainThreadId),
+    runId: () => toRunId('run-1'),
+  }).prepare()
+  return appended.filter((draft) => draft.type === 'user-said')
+}
+
 const STRANGER = {
   sessionId: 'stranger',
   mainThreadId: 't8',
@@ -187,14 +220,8 @@ describe('podSessionsOf', () => {
   it('reaches the spawned session’s intake as a draft sent by the spawner', async () => {
     const { plane, sessions } = await rig()
     const spawned = await sessions.spawn({ brief: 'read the port' })
-    const drain = await new InboxIntake({
-      plane,
-      sessionId: spawned.sessionId,
-      record: {} as SessionRecord,
-      threadId: toThreadId(spawned.mainThreadId),
-      runId: () => toRunId('run-1'),
-    }).prepare()
-    expect(drain.drafts).toEqual([
+    const drafts = await saidDraftsOf(plane, spawned.sessionId, spawned.mainThreadId)
+    expect(drafts).toEqual([
       {
         type: 'user-said',
         text: 'read the port',
@@ -291,14 +318,8 @@ describe('podSessionsOf', () => {
       kind: EReportKind.NeedsDecision,
       text: 'which parser',
     })
-    const drain = await new InboxIntake({
-      plane,
-      sessionId: SPAWNER.sessionId,
-      record: {} as SessionRecord,
-      threadId: toThreadId(SPAWNER.mainThreadId),
-      runId: () => toRunId('run-1'),
-    }).prepare()
-    expect(drain.drafts).toEqual([
+    const drafts = await saidDraftsOf(plane, SPAWNER.sessionId, SPAWNER.mainThreadId)
+    expect(drafts).toEqual([
       {
         type: 'user-said',
         text: 'which parser',

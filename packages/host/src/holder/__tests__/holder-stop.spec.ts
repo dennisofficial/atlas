@@ -21,7 +21,7 @@ const fullLog = async (rig: Awaited<ReturnType<typeof makeRig>>): Promise<V2Even
 }
 
 describe('SessionHolder stop', () => {
-  it('a stop inbox entry mid-exec aborts the turn, cancels the daemon call and consumes the entry', async () => {
+  it('a stop inbox entry mid-exec aborts the turn, cancels the daemon call and consumes the stop', async () => {
     const rig = await makeRig({
       script: [
         {
@@ -59,7 +59,7 @@ describe('SessionHolder stop', () => {
     expect(settled).toBe(true)
     const consumed = await flushUntil({
       check: async () =>
-        (await rig.events()).filter((event) => event.type === 'input-consumed').length >= 2,
+        (await rig.events()).filter((event) => event.type === 'input-consumed').length >= 1,
       attempts: 200,
       clock: rig.clock,
       advanceMs: 2_000,
@@ -72,7 +72,8 @@ describe('SessionHolder stop', () => {
     if (result?.type === 'tool-result') {
       expect(result.error?.message ?? '').toContain('cancelled')
     }
-    expect(log.filter((event) => event.type === 'input-consumed').length).toBe(2)
+    expect(log.filter((event) => event.type === 'input-consumed').length).toBe(1)
+    expect(log.filter((event) => event.type === 'input-posted').length).toBe(1)
     expect(await rig.plane.readInbox({ sessionId: SESSION, afterId: 0, limit: 10 })).toEqual([])
     expect(rig.runCount()).toBe(runsBeforeStop)
     const afterResult = log.filter((event) => event.seq > (result?.seq ?? 0))
@@ -155,7 +156,7 @@ describe('SessionHolder stop', () => {
 
     const consumed = await flushUntil({
       check: async () =>
-        (await rig.events()).filter((event) => event.type === 'input-consumed').length >= 2,
+        (await rig.events()).filter((event) => event.type === 'input-consumed').length >= 1,
       attempts: 100,
     })
     expect(consumed).toBe(true)

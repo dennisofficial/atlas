@@ -105,6 +105,7 @@ export type EventBody =
       via?: EMessageOrigin | undefined
       requestId?: string | undefined
       inboxId?: number | undefined
+      clientId?: string | undefined
       images?: readonly SaidImage[] | undefined
       files?: readonly SaidFile[] | undefined
       uploads?: readonly SaidUpload[] | undefined

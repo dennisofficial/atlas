@@ -11,7 +11,7 @@ import {
   type ConnectionInput,
   type ConnectionState,
 } from './connection-machine'
-import { memorySessionCache, type SessionCache } from './session-cache'
+import { memorySessionLog, type SessionLog } from './session-log'
 import { createSessionFollower, type SessionFollower } from './session-follower'
 import { createSessionsList, type FollowedSessionList, type SessionsList } from './sessions-list'
 import {
@@ -33,7 +33,7 @@ export type StreamConnectionArgs = {
 export type FollowedSession = SessionFollower & { close(): void }
 
 export type StreamConnection = {
-  follow(args: { sessionId: string; cache?: SessionCache | undefined }): FollowedSession
+  follow(args: { sessionId: string; log?: SessionLog | undefined }): FollowedSession
   followSessions(): FollowedSessionList
   connect(): void
   close(): void
@@ -196,7 +196,7 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
     subscribeFollow(entry)
   }
 
-  const follow: StreamConnection['follow'] = ({ sessionId, cache }) => {
+  const follow: StreamConnection['follow'] = ({ sessionId, log }) => {
     nextId += 1
     const id = `s${nextId}`
     const entry: Followed = {
@@ -204,7 +204,7 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
       sessionId,
       follower: createSessionFollower({
         sessionId,
-        cache: cache ?? memorySessionCache(),
+        log: log ?? memorySessionLog(),
         scheduler,
         onResnap: () => resnap(entry),
         eventSchema: args.eventSchema,

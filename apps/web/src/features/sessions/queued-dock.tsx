@@ -12,6 +12,7 @@ export function QueuedDock({ dock }: { dock: QueuedDockState }) {
   return (
     <QueuedMessages
       messages={dock.entries}
+      stagedIds={dock.stagedIds}
       onSave={noop}
       onRemove={dock.handleRemove}
       editingId={undefined}

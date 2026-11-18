@@ -7,6 +7,11 @@ import { decodeStoredEvent, decodeVisibility } from './stored-event'
 
 export type ReadEventsPage = { events: V2Event[]; next?: number }
 
+export const INPUT_POSTED = 'input-posted'
+
+const endsCommit = (events: readonly V2Event[]): boolean =>
+  events[events.length - 1]?.type !== INPUT_POSTED
+
 const boundRowsByBytes = (
   rows: readonly StoredEvent[],
   maxBytes: number,
@@ -49,6 +54,32 @@ export const withHiddenTypes = (params: {
     segments.push({ fromSeq: next, throughSeq: params.throughSeq, onlyTypes: [...params.types] })
   }
   return segments
+}
+
+const extendPastCommit = async (params: {
+  tx: ControlTx
+  row: ThreadRow
+  events: V2Event[]
+  eventSchema?: z.ZodType<V2Event> | undefined
+}): Promise<V2Event[]> => {
+  const { tx, row } = params
+  const kept = [...params.events]
+  while (!endsCommit(kept)) {
+    const last = kept[kept.length - 1]
+    if (last === undefined || last.seq >= row.headSeq) return kept
+    const page = await readEventsIn({
+      tx,
+      row,
+      afterSeq: last.seq,
+      limit: 1,
+      visible: false,
+      ...(params.eventSchema === undefined ? {} : { eventSchema: params.eventSchema }),
+    })
+    const next = page.events[0]
+    if (next === undefined) return kept
+    kept.push(next)
+  }
+  return kept
 }
 
 const segmentsOf = (params: {
@@ -102,9 +133,15 @@ export const readEventsIn = async (params: {
       ? { kept: rows, stoppedEarly: false }
       : boundRowsByBytes(rows, params.maxBytes)
   const events = bounded.kept.map((stored) => decodeStoredEvent(stored, params.eventSchema))
-  const last = events[events.length - 1]
+  const extended = await extendPastCommit({
+    tx,
+    row,
+    events,
+    eventSchema: params.eventSchema,
+  })
+  const last = extended[extended.length - 1]
   const more =
     last !== undefined &&
-    (bounded.stoppedEarly || (events.length === params.limit && last.seq < row.headSeq))
-  return more ? { events, next: last.seq } : { events }
+    (bounded.stoppedEarly || (extended.length >= params.limit && last.seq < row.headSeq))
+  return more ? { events: extended, next: last.seq } : { events: extended }
 }

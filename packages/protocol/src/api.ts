@@ -24,6 +24,7 @@ const storedAttachmentSchema = attachmentSchema.refine(
 
 const messageDraftFields = {
   text: z.string().max(1_000_000),
+  clientId: z.string().min(1).max(200).optional(),
   media: sessionPostMediaListSchema.optional(),
   uploads: z.array(saidUploadSchema).max(MAX_MESSAGE_UPLOADS).optional(),
   attachments: z.array(storedAttachmentSchema).max(MAX_MESSAGE_UPLOADS).optional(),
@@ -105,6 +106,7 @@ export type SessionStatusInput = z.infer<typeof sessionStatusInputSchema>
 
 export const inboxMessageSchema = z.strictObject({
   text: z.string(),
+  clientId: z.string().min(1).max(200).optional(),
   via: z.nativeEnum(EMessageOrigin).optional(),
   media: z.array(inboxMediaSchema).optional(),
   uploads: z.array(saidUploadSchema).optional(),
@@ -204,6 +206,7 @@ export const QUEUED_MESSAGES_LIMIT = 20
 export const sessionQueuedMessageSchema = z.strictObject({
   inboxId: z.number().int().min(1),
   text: z.string(),
+  clientId: z.string().min(1).optional(),
   postedAt: z.string().min(1),
   media: z.array(inboxMediaSchema).optional(),
   uploads: z.array(saidUploadSchema).optional(),

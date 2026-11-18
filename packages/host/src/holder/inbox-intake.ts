@@ -1,39 +1,47 @@
 import {
   attachmentsOf,
-  awaitsReplyOf,
-  EInputConsumed,
   EMessageOrigin,
   INBOX_KIND_RETRY,
   INBOX_KIND_STOP,
+  pendingInputsOf,
+  visibleEvents,
   type EventDraft,
   type InboxEntry,
   type ModelPort,
   type PluginEventBody,
   type RecordBody,
-  visibleEvents,
   type RunId,
   type ThreadId,
 } from '@dltech/atlas-core'
 import { unfinishedCommandIdsOf, type ControlPlane } from '@dltech/atlas-control'
 import type { AgentIntake, PendingDrain } from '@dltech/atlas-agent'
 import type { CommandRegistry } from '@dltech/atlas-commands'
-import { INBOX_KIND_MESSAGE, inboxMessageSchema } from '@dltech/atlas-protocol'
+import { INBOX_KIND_MESSAGE, inboxMessageSchema, type InboxMessage } from '@dltech/atlas-protocol'
 import { INBOX_KIND_OPERATOR_ANSWER } from '@dltech/atlas-plugin-operator/core'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
-import { INBOX_INTAKE_MAX_PAGES, readInboxPages } from './held-inbox'
+import {
+  consumeQuietly,
+  consumeUnknown,
+  runCommand,
+  runLoggedCommands,
+  turnOpenOf,
+  type CommandGlue,
+} from './command-intake-glue'
 import { CommandIntake, isCommandKind, type CommandHandlers } from './command-intake'
+import { INBOX_INTAKE_MAX_PAGES, readInboxPages } from './held-inbox'
 import type { OperatorAnswerIntake, OperatorAnswerOutcome } from './operator-answer'
 import type { SessionRecord } from './record/record-adapter'
+import {
+  jsonOf,
+  logStagedInputs,
+  postedDraftsOf as postedDraftsFor,
+  postedInboxIdsOf,
+  salvagedFieldsOf,
+} from './staged-log'
+import { resolveWithdraws as applyWithdraws, type WithdrawLookup } from './withdraw-plan'
 
 export { INBOX_KIND_STOP }
-
-export const UNKNOWN_COMMAND_MAX_AGE_MS = 60 * 60 * 1000
-
-const overAge = (params: { postedAt: string; now: number }): boolean => {
-  const posted = Date.parse(params.postedAt)
-  return Number.isNaN(posted) || params.now - posted > UNKNOWN_COMMAND_MAX_AGE_MS
-}
 
 export type InboxIntakeArgs = {
   plane: ControlPlane
@@ -51,6 +59,7 @@ export type InboxIntakeArgs = {
 
 export class InboxIntake implements AgentIntake {
   private readonly commandIntake: CommandIntake | undefined
+  private staged = new Map<number, InboxEntry>()
 
   constructor(private readonly args: InboxIntakeArgs) {
     this.commandIntake =
@@ -67,51 +76,69 @@ export class InboxIntake implements AgentIntake {
           })
   }
 
+  async logStaged(): Promise<void> {
+    await logStagedInputs({
+      fetch: () => this.fetch(),
+      resolveWithdraws: (entries) => this.resolveWithdraws(entries),
+      postedDraftsOf: (entry) => this.postedDraftsOf(entry),
+      appendDrafts: (drafts) => this.appendDrafts(drafts),
+      log: this.args.log,
+    })
+  }
+
   async prepare(): Promise<PendingDrain> {
     const entries = await this.fetch()
+    const resolved = await this.resolveWithdraws(entries)
+    const glue = this.commandGlue()
     const drafts: EventDraft[] = []
     let wakesTurn = false
     for (const entry of entries) {
+      if (resolved.has(entry.inboxId)) continue
       if (entry.kind === INBOX_KIND_OPERATOR_ANSWER) {
         const answered = await this.answerOperator(entry)
         if (answered.wakesTurn) wakesTurn = true
-        await this.consumeQuietly(entry)
+        await consumeQuietly({ ...glue, entry })
         continue
       }
       if (entry.kind === INBOX_KIND_STOP) continue
       if (entry.kind === INBOX_KIND_RETRY) {
-        await this.consumeQuietly(entry)
+        await consumeQuietly({ ...glue, entry })
         continue
       }
       if (entry.kind === INBOX_KIND_MESSAGE) {
-        const parsed = inboxMessageSchema.safeParse(JSON.parse(entry.payload))
+        const parsed = inboxMessageSchema.safeParse(jsonOf(entry.payload))
         if (!parsed.success) {
-          await this.consumeUnknown(entry)
+          await this.appendDrafts([
+            {
+              type: 'input-refused',
+              inboxId: entry.inboxId,
+              reason: 'unreadable message',
+              ...salvagedFieldsOf(entry.payload),
+            },
+          ])
           continue
         }
         await this.cancelOpenForMessage()
-        const { text, via } = parsed.data
-        const attachments = attachmentsOf(parsed.data)
-        const sender = entry.senderSessionId
-        const origin = sender === null ? via : EMessageOrigin.PeerAgent
-        drafts.push({
-          type: 'user-said',
-          text,
-          ...(sender === null ? {} : { sender: { session: sender } }),
-          ...(origin === undefined ? {} : { via: origin }),
-          ...(attachments.length === 0 ? {} : { attachments }),
-          requestId: `inbox:${entry.inboxId}`,
-          inboxId: entry.inboxId,
-        })
+        await this.appendDrafts([...this.postedDraftsOf(entry), this.saidDraft(entry, parsed.data)])
         wakesTurn = true
         continue
       }
       if (isCommandKind(entry.kind)) {
-        await this.runCommand(entry)
+        await runCommand({ ...glue, entry })
         continue
       }
-      await this.consumeUnknown(entry)
+      await consumeUnknown({ ...glue, entry })
     }
+    for (const pending of this.stagedMessages()) {
+      await this.appendDrafts([this.saidDraft(pending.entry, pending.message)])
+      wakesTurn = true
+    }
+    await runLoggedCommands({
+      ...glue,
+      events: this.args.record.eventCache().eventsAfter(0),
+      readEntry: (inboxId) =>
+        this.args.plane.readInboxEntry({ sessionId: this.args.sessionId, inboxId }),
+    })
     return { drafts, wakesTurn }
   }
 
@@ -138,6 +165,85 @@ export class InboxIntake implements AgentIntake {
     }
   }
 
+  private commandGlue(): CommandGlue {
+    return {
+      commandIntake: this.commandIntake,
+      appendDrafts: (drafts) => this.appendDrafts(drafts),
+      turnOpen: () => turnOpenOf({ record: this.args.record, threadId: this.args.threadId }),
+      now: this.args.now ?? Date.now,
+      log: this.args.log,
+    }
+  }
+
+  private postedDraftsOf(entry: InboxEntry): RecordBody[] {
+    return postedDraftsFor({
+      entry,
+      resolveCommand: (target) => this.commandIntake?.resolve(target),
+    })
+  }
+
+  private async resolveWithdraws(entries: readonly InboxEntry[]): Promise<ReadonlySet<number>> {
+    return await applyWithdraws({
+      entries,
+      lookup: this.withdrawLookup(),
+      appendDrafts: (drafts) => this.appendDrafts(drafts),
+    })
+  }
+
+  private withdrawLookup(): WithdrawLookup {
+    return {
+      stagedOf: (inboxId) => this.staged.get(inboxId),
+      postedInboxIds: () =>
+        postedInboxIdsOf({ events: this.args.record.eventCache().eventsAfter(0) }),
+      postedDraftsOf: (entry) => this.postedDraftsOf(entry),
+    }
+  }
+
+  private saidDraft(entry: InboxEntry, message: InboxMessage): EventDraft {
+    const { text, via } = message
+    const attachments = attachmentsOf(message)
+    const sender = entry.senderSessionId
+    const origin = sender === null ? via : EMessageOrigin.PeerAgent
+    return {
+      type: 'user-said',
+      text,
+      ...(sender === null ? {} : { sender: { session: sender } }),
+      ...(origin === undefined ? {} : { via: origin }),
+      ...(attachments.length === 0 ? {} : { attachments }),
+      ...(message.clientId === undefined ? {} : { clientId: message.clientId }),
+      requestId: `inbox:${entry.inboxId}`,
+      inboxId: entry.inboxId,
+    }
+  }
+
+  private stagedMessages(): { entry: InboxEntry; message: InboxMessage }[] {
+    const posted = pendingInputsOf(this.args.record.eventCache().eventsAfter(0))
+    return posted.pending.flatMap((pending) => {
+      if (pending.kind !== INBOX_KIND_MESSAGE || pending.text === undefined) return []
+      return [
+        {
+          entry: {
+            sessionId: this.args.sessionId,
+            inboxId: pending.inboxId,
+            kind: pending.kind,
+            payload: JSON.stringify({
+              text: pending.text,
+              ...(pending.attachments === undefined ? {} : { attachments: pending.attachments }),
+            }),
+            postedAt: pending.at,
+            consumedSeq: pending.seq,
+            senderSessionId: null,
+          },
+          message: {
+            text: pending.text,
+            ...(pending.clientId === undefined ? {} : { clientId: pending.clientId }),
+            ...(pending.attachments === undefined ? {} : { attachments: [...pending.attachments] }),
+          },
+        },
+      ]
+    })
+  }
+
   private async answerOperator(entry: InboxEntry): Promise<OperatorAnswerOutcome> {
     if (this.args.operatorAnswers === undefined) return { wakesTurn: false }
     return await this.args.operatorAnswers.handle(entry)
@@ -150,33 +256,6 @@ export class InboxIntake implements AgentIntake {
     })
   }
 
-  private async runCommand(entry: InboxEntry): Promise<void> {
-    const resolved = this.commandIntake?.resolve(entry)
-    if (this.commandIntake === undefined || resolved === undefined) {
-      await this.leaveUnknownCommand(entry)
-      return
-    }
-    if (await this.turnOpen()) return
-    await this.commandIntake.run({ entry, ...resolved })
-  }
-
-  private async leaveUnknownCommand(entry: InboxEntry): Promise<void> {
-    const now = (this.args.now ?? Date.now)()
-    if (overAge({ postedAt: entry.postedAt, now })) {
-      await this.consumeUnknown(entry)
-      return
-    }
-    this.args.log?.info({
-      source: 'holder.intake',
-      message: `inbox entry ${entry.inboxId} of kind "${entry.kind}" is left for a holder that knows the kind`,
-    })
-  }
-
-  private async turnOpen(): Promise<boolean> {
-    const state = await this.args.record.loopState({ threadId: this.args.threadId })
-    return awaitsReplyOf(state)
-  }
-
   private async appendDrafts(
     drafts: readonly (EventDraft | RecordBody | PluginEventBody)[],
   ): Promise<void> {
@@ -187,35 +266,15 @@ export class InboxIntake implements AgentIntake {
     })
   }
 
-  private async consumeUnknown(entry: InboxEntry): Promise<void> {
-    this.args.log?.warn({
-      source: 'holder.intake',
-      message: `inbox entry ${entry.inboxId} of kind "${entry.kind}" is consumed without a draft`,
-    })
-    await this.consumeQuietly(entry)
-  }
-
-  private async consumeQuietly(entry: InboxEntry): Promise<void> {
-    await this.args.record.append({
-      threadId: this.args.threadId,
-      runId: this.args.runId(),
-      drafts: [
-        {
-          type: 'input-consumed',
-          inboxId: entry.inboxId,
-          consumed: EInputConsumed.Discarded,
-        },
-      ],
-    })
-  }
-
   private async fetch(): Promise<InboxEntry[]> {
     try {
-      return await readInboxPages({
+      const entries = await readInboxPages({
         plane: this.args.plane,
         sessionId: this.args.sessionId,
         maxPages: INBOX_INTAKE_MAX_PAGES,
       })
+      this.staged = new Map(entries.map((entry) => [entry.inboxId, entry]))
+      return entries
     } catch (error) {
       this.args.log?.error({
         source: 'holder.intake',

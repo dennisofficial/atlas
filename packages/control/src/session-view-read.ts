@@ -1,10 +1,9 @@
 import {
   activeFailure,
   activeStartFailure,
-  INBOX_KIND_STOP,
   sessionViewOf,
-  type InboxEntry,
   type Lease,
+  type PendingInputsState,
   type PluginViewFold,
   type PullRequestLink,
   type SessionViewState,
@@ -21,8 +20,6 @@ import { runningCommandsIn } from './command-rows'
 import { commandsOf, queuedOf } from './queued-messages'
 import { readEventsIn } from './read-events'
 import { ensureSessionViewIn, usableState, VIEW_TAIL_LIMIT } from './session-view-ops'
-
-export const PENDING_INBOX_READ_LIMIT = 100
 
 export type ControlPullRequestState = {
   title: string
@@ -83,20 +80,18 @@ const messageAfterFailureIn = async (args: {
   })
   const failure = activeStartFailure(page.events) ?? activeFailure(page.events)
   if (failure === undefined) return false
-  const later = await tx.readInboxEntries({
-    sessionId: args.sessionId,
-    afterId: failure.inboxHead,
-    limit: 1,
-    excludeKind: INBOX_KIND_STOP,
-  })
-  return later.length > 0
+  return page.events.some(
+    (event) =>
+      (event.type === 'user-said' || event.type === 'input-posted') &&
+      event.inboxId !== undefined &&
+      event.inboxId > failure.inboxHead,
+  )
 }
 
 export type LiveView = {
   value: SessionViewValue
   lease: Lease
   live: boolean
-  pending: InboxEntry[]
 }
 
 export const liveViewIn = async (args: {
@@ -109,20 +104,15 @@ export const liveViewIn = async (args: {
   eventSchema?: z.ZodType<V2Event> | undefined
 }): Promise<LiveView> => {
   const { tx, sessionId, state } = args
-  const pending = await tx.readInboxEntries({
-    sessionId,
-    afterId: 0,
-    limit: PENDING_INBOX_READ_LIMIT,
-  })
   const { lease, live } = await args.leases.currentLeaseIn({ tx, sessionId })
   const value = sessionViewOf({
     state,
     live,
-    queuedSince: pending[0]?.postedAt ?? null,
+    queuedSince: null,
     messageAfterFailure: await messageAfterFailureIn(args),
     now: args.now,
   })
-  return { value, lease, live, pending }
+  return { value, lease, live }
 }
 
 const stateOfRow = (row: PrStateRow): ControlPullRequestState => ({
@@ -148,12 +138,13 @@ export const pullRequestsWithState = async (args: {
 
 export const statusOutputOf = (args: {
   live: LiveView
+  pending: PendingInputsState
   running: readonly SessionCommandRow[]
 }): SessionStatusOutput => {
   const { live } = args
   const { status } = live.value
-  const queued = queuedOf(live.pending)
-  const commands = [...args.running, ...commandsOf(live.pending)]
+  const queued = queuedOf(args.pending)
+  const commands = [...args.running, ...commandsOf(args.pending)]
   return {
     state: status.state,
     ...(status.reason === undefined ? {} : { reason: status.reason }),
@@ -184,6 +175,7 @@ export const readSessionViewIn = async (args: {
       ...live.value,
       status: statusOutputOf({
         live,
+        pending: state.pending,
         running: await runningCommandsIn({
           tx,
           sessionId,

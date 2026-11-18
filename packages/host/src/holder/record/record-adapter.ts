@@ -1,5 +1,4 @@
 import {
-  EInputConsumed,
   chainEvents,
   chainHash,
   toLoopEvent,
@@ -9,7 +8,7 @@ import {
   type ThreadId,
   type V2Body,
 } from '@dltech/atlas-core'
-import type { ControlPlane } from '@dltech/atlas-control'
+import type { BlobWrite, ControlPlane } from '@dltech/atlas-control'
 import type { AgentRecordPort, ModelContextPort } from '@dltech/atlas-agent'
 import type { LogPort } from '@dltech/atlas-observability'
 
@@ -19,7 +18,7 @@ import { AppendRetry } from './append-retry'
 import { LeaseLostError } from './lease-lost-error'
 import { RecordCache } from './record-cache'
 import { spillForAppend } from './record-spill'
-import { abortedOnHandoff, inboxIdOf, toRecordBody, type AppendBody } from './append-drafts'
+import { abortedOnHandoff, draftGroups, toRecordBody, type AppendBody } from './append-drafts'
 import { RecordCorruptionError } from './append-drafts'
 import { ackRecordedDaemonResults, prepareDraft } from './record-commit'
 
@@ -144,26 +143,30 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
     }
     const committed: Event[] = []
     let head = this.cache.currentHead()
-    for (const raw of args.drafts) {
-      const draft = await prepareDraft(
-        {
-          cache: this.cache,
-          daemonTools: this.args.daemonTools,
-          remoteCalls: this.args.remoteCalls,
-        },
-        abortedOnHandoff(raw, this.draining),
-      )
-      if (draft === undefined) continue
+    for (const group of draftGroups(args.drafts)) {
       const bodies: V2Body[] = []
-      const inboxId = inboxIdOf(draft)
-      if (inboxId !== undefined)
-        bodies.push({ type: 'input-consumed', inboxId, consumed: EInputConsumed.Message })
-      const spilled = spillForAppend({
-        body: toRecordBody(draft),
-        thresholdBytes: this.args.blobSpillBytes ?? BLOB_SPILL_BYTES,
-        ...(this.args.log === undefined ? {} : { log: this.args.log }),
-      })
-      bodies.push(spilled.body)
+      const blobs: BlobWrite[] = []
+      const resolved = new Map<string, unknown>()
+      for (const raw of group) {
+        const draft = await prepareDraft(
+          {
+            cache: this.cache,
+            daemonTools: this.args.daemonTools,
+            remoteCalls: this.args.remoteCalls,
+          },
+          abortedOnHandoff(raw, this.draining),
+        )
+        if (draft === undefined) continue
+        const spilled = spillForAppend({
+          body: toRecordBody(draft),
+          thresholdBytes: this.args.blobSpillBytes ?? BLOB_SPILL_BYTES,
+          ...(this.args.log === undefined ? {} : { log: this.args.log }),
+        })
+        bodies.push(spilled.body)
+        blobs.push(...spilled.blobs)
+        for (const [hash, value] of spilled.resolved) resolved.set(hash, value)
+      }
+      if (bodies.length === 0) continue
       const events = chainEvents({
         threadId: args.threadId,
         runId: args.runId,
@@ -175,14 +178,15 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
       })
       const last = events[events.length - 1]
       if (last !== undefined) head = { seq: last.seq, hash: chainHash(last) }
+      const daemon = group.find((draft) => draft.type === 'tool-result')
       await this.retry.commit({
         threadId: args.threadId,
         events,
-        blobs: spilled.blobs,
-        resolved: spilled.resolved,
-        ...(draft.type === 'tool-result'
-          ? { ackDaemon: { callId: draft.callId, name: draft.name, runId: args.runId } }
-          : {}),
+        blobs,
+        resolved,
+        ...(daemon === undefined || daemon.type !== 'tool-result'
+          ? {}
+          : { ackDaemon: { callId: daemon.callId, name: daemon.name, runId: args.runId } }),
       })
       for (const event of events) {
         const loop = toLoopEvent({ event: this.cache.resolvedEvent(event) })

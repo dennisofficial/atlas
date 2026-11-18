@@ -2,7 +2,13 @@ import { describe, expect, it } from 'bun:test'
 import { BadRequestException, NotFoundException } from '@nestjs/common'
 import { chainEvents, toRunId, toThreadId } from '@dltech/atlas-core'
 import { EWithdrawRefusal } from '@dltech/atlas-protocol'
-import { NOW, setupSessionsService as setup } from './sessions.service.fixture'
+import {
+  appendBodies,
+  logWithdrawn,
+  NOW,
+  postedBody,
+  setupSessionsService as setup,
+} from './sessions.service.fixture'
 
 describe('SessionsService', () => {
   it('creates, lists, posts and reads events for the owner', async () => {
@@ -119,13 +125,20 @@ describe('SessionsService', () => {
     ).rejects.toBeInstanceOf(NotFoundException)
   })
 
-  it('withdraws a pending message for the owner and removes it from status', async () => {
-    const { service } = setup()
+  it('withdraws a pending message for the owner and drops it from the log queue', async () => {
+    const { plane, service } = setup()
     const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+    const lease = await plane.grant({ sessionId: created.sessionId, hostId: 9001 })
     const { inboxId } = await service.post({
       userId: 'user-a',
       sessionId: created.sessionId,
       text: 'hi',
+    })
+    await appendBodies({
+      plane,
+      threadId: created.mainThreadId,
+      epoch: lease.epoch,
+      bodies: [postedBody({ inboxId, text: 'hi' })],
     })
     const before = await service.status({ userId: 'user-a', sessionId: created.sessionId })
     expect(before.queued?.map((entry) => entry.text)).toEqual(['hi'])
@@ -133,11 +146,22 @@ describe('SessionsService', () => {
     expect(
       await service.withdraw({ userId: 'user-a', sessionId: created.sessionId, inboxId }),
     ).toEqual({ ok: true })
+    const staged = await service.status({ userId: 'user-a', sessionId: created.sessionId })
+    expect(staged.queued?.map((entry) => entry.text)).toEqual(['hi'])
+
+    await logWithdrawn({
+      plane,
+      sessionId: created.sessionId,
+      threadId: created.mainThreadId,
+      epoch: lease.epoch,
+      inboxId,
+      text: 'hi',
+    })
     const after = await service.status({ userId: 'user-a', sessionId: created.sessionId })
     expect(after.queued).toBeUndefined()
   })
 
-  it('refuses to withdraw a consumed entry', async () => {
+  it('stages a withdraw for a consumed entry and leaves the refusal to the holder', async () => {
     const { plane, service } = setup()
     const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
     const { inboxId } = await service.post({
@@ -161,7 +185,13 @@ describe('SessionsService', () => {
 
     expect(
       await service.withdraw({ userId: 'user-a', sessionId: created.sessionId, inboxId }),
-    ).toEqual({ ok: false, reason: EWithdrawRefusal.AlreadyConsumed })
+    ).toEqual({ ok: true })
+    const staged = await plane.readInbox({
+      sessionId: created.sessionId,
+      afterId: 0,
+      limit: 10,
+    })
+    expect(staged.map((entry) => entry.kind)).toEqual(['withdraw'])
   })
 
   it('answers unknown for a missing entry and refuses non-owners', async () => {

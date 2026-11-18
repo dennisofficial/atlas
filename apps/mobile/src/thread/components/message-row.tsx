@@ -47,6 +47,19 @@ export const MessageRowView = ({
     )
   }
 
+  if (row.staged === true) {
+    return (
+      <View style={[styles.you, styles.staged]}>
+        <MessageAttachments threadId={threadId} attachments={row.attachments} />
+        {row.text.trim().length > 0 ? (
+          <Bubble>
+            <Markdown value={row.text} breaks selectable />
+          </Bubble>
+        ) : null}
+      </View>
+    )
+  }
+
   return (
     <View style={styles.you}>
       <MessageAttachments threadId={threadId} attachments={row.attachments} />
@@ -61,6 +74,9 @@ export const MessageRowView = ({
 }
 
 const styles = StyleSheet.create({
+  staged: {
+    opacity: 0.45,
+  },
   message: {
     gap: space(2),
   },

@@ -1,12 +1,6 @@
-import { EWorkspaceStep, EWorkspaceStepState, type V2Event } from '@dltech/atlas-core'
+import type { V2Event } from '@dltech/atlas-core'
 import type { z } from 'zod'
-import {
-  isSetupOutputCallId,
-  type EStreamErrorCode,
-  type SessionStatusOutput,
-  type SessionViewOutput,
-  type StreamServerMessage,
-} from '@dltech/atlas-protocol'
+import { isSetupOutputCallId, type StreamServerMessage } from '@dltech/atlas-protocol'
 
 import { EStreamConnectionState } from './connection-machine'
 import {
@@ -15,21 +9,19 @@ import {
   snapshotOf,
   type SessionSnapshot,
 } from './follower-state'
-import {
-  applyOverlayMessage,
-  closeOverlayForEvents,
-  EMPTY_OVERLAY_STATE,
-  type OpenOverlay,
-  type OverlayState,
-} from './overlay-store'
-import type { SessionCache } from './session-cache'
-import { applyShellOutput, withoutEndedShells, type ShellTail } from './shell-tails'
+import { acceptsView, settlesSetup } from './follower-views'
+import { applyOverlayMessage, closeOverlayForEvents, EMPTY_OVERLAY_STATE } from './overlay-store'
+import { olderVisibleOf, restoredWindowOf } from './session-log-restore'
+import type { SessionLog } from './session-log'
+import { createSessionLogWriter } from './session-log-writer'
+import { applyShellOutput, withoutEndedShells } from './shell-tails'
 import {
   applyPageOutcome,
   EMPTY_WINDOW,
+  OLDER_PAGE,
+  RENDER_LIMIT,
   resetWindow,
   type SessionCursor,
-  type SessionWindow,
 } from './session-window'
 import { defaultKnownEventTypes } from './known-event-types'
 import type { StreamScheduler } from './stream-ports'
@@ -49,35 +41,28 @@ export type SessionFollower = {
   setConnection(phase: EStreamConnectionState): void
   setServerEventTypes(types: readonly string[] | undefined): void
   markResubscribing(): void
+  loadOlder(): Promise<number>
   cursor(): SessionCursor | undefined
   hydrated: Promise<void>
 }
 
 export type SessionFollowerArgs = {
   sessionId: string
-  cache: SessionCache
+  log: SessionLog
   scheduler: StreamScheduler
   onResnap(): void
   eventSchema?: z.ZodType<V2Event> | undefined
   knownEventTypes?: ReadonlySet<string> | undefined
+  renderLimit?: number | undefined
 }
 
 type Inner = FollowedState
 
-const settlesSetup = (events: readonly Record<string, unknown>[]): boolean =>
-  events.some(
-    (event) =>
-      event.type === 'workspace-step' &&
-      event.step === EWorkspaceStep.Setup &&
-      event.state !== EWorkspaceStepState.Started,
-  )
-
-const acceptsView = (args: { inner: Inner; at: number }): boolean =>
-  args.at >= (args.inner.window.cursor?.seq ?? 0)
-
 export const createSessionFollower = (args: SessionFollowerArgs): SessionFollower => {
-  const { sessionId, cache, scheduler } = args
+  const { sessionId, log, scheduler } = args
   const knownEventTypes = args.knownEventTypes ?? defaultKnownEventTypes
+  const baseRenderLimit = args.renderLimit ?? RENDER_LIMIT
+  let renderLimit = baseRenderLimit
   let inner: Inner = {
     window: EMPTY_WINDOW,
     overlay: EMPTY_OVERLAY_STATE,
@@ -96,6 +81,8 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
   const listeners = new Set<() => void>()
   let lastSavedAt: number | undefined
   let saveTimer: unknown
+  let olderInFlight: Promise<number> | undefined
+  const writer = createSessionLogWriter({ log, sessionId })
 
   const commit = (next: Inner): void => {
     inner = next
@@ -106,7 +93,7 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
   const save = (): void => {
     saveTimer = undefined
     lastSavedAt = scheduler.now()
-    void cache.save({ sessionId, window: inner.window }).catch(() => undefined)
+    writer.save(inner.window)
   }
 
   const saveThrottled = (): void => {
@@ -120,11 +107,13 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
   }
 
   const handleEvents = (message: Extract<StreamServerMessage, { type: 'events' }>): void => {
-    const { window, skipped, issue } = applyPageOutcome({
+    const { window, fresh, skipped, issue } = applyPageOutcome({
       window: inner.window,
       page: { events: message.events, head: message.head },
       eventSchema: args.eventSchema,
+      renderLimit,
     })
+    if (fresh.length > 0) writer.append({ events: fresh, head: message.head })
     const overlay = closeOverlayForEvents({ state: inner.overlay, events: window.events })
     if (skipped > 0) {
       console.warn(
@@ -181,23 +170,28 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
     if (applied.needsResnap) args.onResnap()
   }
 
+  const handleReset = (): void => {
+    renderLimit = baseRenderLimit
+    writer.drop()
+    commit({
+      ...inner,
+      window: resetWindow(),
+      status: undefined,
+      view: undefined,
+      setupOutput: '',
+      shells: {},
+      live: false,
+      skipped: 0,
+      fromCache: false,
+    })
+  }
+
   const handleMessage = (message: StreamServerMessage): void => {
     if (message.type === 'events') handleEvents(message)
     else if (message.type === 'view') handleView(message)
     else if (message.type === 'error') commit({ ...inner, error: message.code })
-    else if (message.type === 'reset') {
-      commit({
-        ...inner,
-        window: resetWindow(),
-        status: undefined,
-        view: undefined,
-        setupOutput: '',
-        shells: {},
-        live: false,
-        skipped: 0,
-        fromCache: false,
-      })
-    } else if (
+    else if (message.type === 'reset') handleReset()
+    else if (
       message.type === 'frame' &&
       message.frame.type === 'tool-output' &&
       isSetupOutputCallId(message.frame.callId)
@@ -215,6 +209,29 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
     }
   }
 
+  const loadOlder = (): Promise<number> => {
+    if (olderInFlight !== undefined) return olderInFlight
+    const run = olderVisibleOf({ log, sessionId, window: inner.window, count: OLDER_PAGE })
+      .then((visible) => {
+        if (visible.length === 0) return 0
+        renderLimit += visible.length
+        commit({
+          ...inner,
+          window: {
+            ...inner.window,
+            events: [...visible, ...inner.window.events].slice(-renderLimit),
+          },
+        })
+        return visible.length
+      })
+      .catch(() => 0)
+    olderInFlight = run
+    void run.finally(() => {
+      if (olderInFlight === run) olderInFlight = undefined
+    })
+    return run
+  }
+
   const hydrated = new Promise<void>((resolve) => {
     let settled = false
     const settle = (): boolean => {
@@ -225,8 +242,7 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
       return true
     }
     const timer = scheduler.setTimeout(settle, HYDRATE_TIMEOUT_MS)
-    cache
-      .load(sessionId)
+    restoredWindowOf({ log, sessionId, renderLimit })
       .then((window) => {
         if (!settle() || window === undefined || inner.window.cursor !== undefined) return
         commit({ ...inner, window, fromCache: window.cursor !== undefined })
@@ -253,6 +269,7 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
     markResubscribing: () => {
       commit({ ...inner, live: false, overlay: { ...inner.overlay, open: undefined } })
     },
+    loadOlder,
     cursor: () => inner.window.cursor,
     hydrated,
   }

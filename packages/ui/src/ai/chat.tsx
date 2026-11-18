@@ -19,6 +19,7 @@ import { VList, type VListHandle } from 'virtua'
 import { Button } from '#components/button'
 import { cn } from '#lib/utils'
 
+import { useLoadOlder } from './chat-load-older'
 import {
   EChatFollow,
   EFollowEvent,
@@ -35,6 +36,7 @@ export interface ChatProps {
   children: ReactNode
   jumpKey?: string | null
   className?: string
+  onLoadOlder?: () => Promise<number>
 }
 
 export interface ChatItemProps {
@@ -53,8 +55,9 @@ function isEditableTarget(target: EventTarget): boolean {
   )
 }
 
-export function Chat({ children, jumpKey, className }: ChatProps) {
+export function Chat({ children, jumpKey, className, onLoadOlder }: ChatProps) {
   const listRef = useRef<VListHandle>(null)
+  const loadOlderIfNearTop = useLoadOlder({ onLoadOlder })
   const followRef = useRef(EChatFollow.Attached)
   const lastInputAtRef = useRef(Number.NEGATIVE_INFINITY)
   const touchYRef = useRef<number | null>(null)
@@ -156,6 +159,7 @@ export function Chat({ children, jumpKey, className }: ChatProps) {
   const handleScroll = (offset: number) => {
     const list = listRef.current
     if (!list) return
+    loadOlderIfNearTop(offset)
     const now = Date.now()
     const userDriven = isUserDriven({
       now,
@@ -199,6 +203,7 @@ export function Chat({ children, jumpKey, className }: ChatProps) {
         onTouchCancel={handleTouchEnd}
         onKeyDown={handleKeyDown}
         onPointerDown={handlePointerDown}
+        shift={onLoadOlder !== undefined}
       >
         {items}
       </VList>

@@ -3,6 +3,7 @@ import { Logger } from '@nestjs/common'
 import { fallbackTitleOf } from '@dltech/atlas-control'
 import type { SessionsService } from './sessions.service'
 import { listedSession, setupNaming as setup } from './sessions.naming.fixture'
+import { appendBodies, logWithdrawn, postedBody } from './sessions.service.fixture'
 
 describe('SessionsService naming', () => {
   const titleOf = (args: { service: SessionsService; sessionId: string }) => listedSession(args)
@@ -176,7 +177,7 @@ describe('SessionsService naming', () => {
   })
 
   it('renames from the resent message after the titled one is withdrawn', async () => {
-    const { service, titler, background } = setup()
+    const { plane, service, titler, background } = setup()
     titler.next = async () => 'First Name'
     const created = await service.create({
       userId: 'user-a',
@@ -188,11 +189,27 @@ describe('SessionsService naming', () => {
       text: 'a',
     })
     await background.settle()
+    const lease = await plane.grant({ sessionId: created.sessionId, hostId: 9001 })
+    await appendBodies({
+      plane,
+      threadId: created.mainThreadId,
+      epoch: lease.epoch,
+      bodies: [postedBody({ inboxId: first.inboxId, text: 'a' })],
+    })
 
     await service.withdraw({
       userId: 'user-a',
       sessionId: created.sessionId,
       inboxId: first.inboxId,
+    })
+    expect((await titleOf({ service, sessionId: created.sessionId }))?.title).toBe('First Name')
+    await logWithdrawn({
+      plane,
+      sessionId: created.sessionId,
+      threadId: created.mainThreadId,
+      epoch: lease.epoch,
+      inboxId: first.inboxId,
+      text: 'a',
     })
     expect((await titleOf({ service, sessionId: created.sessionId }))?.title).toBeNull()
 
@@ -209,7 +226,7 @@ describe('SessionsService naming', () => {
   })
 
   it('drops a name that lands after its message was withdrawn', async () => {
-    const { service, titler, background } = setup()
+    const { plane, service, titler, background } = setup()
     let answer: (title: string) => void = () => undefined
     titler.next = () => new Promise((resolve) => (answer = resolve))
     const created = await service.create({
@@ -226,6 +243,15 @@ describe('SessionsService naming', () => {
       userId: 'user-a',
       sessionId: created.sessionId,
       inboxId: posted.inboxId,
+    })
+    const lease = await plane.grant({ sessionId: created.sessionId, hostId: 9001 })
+    await logWithdrawn({
+      plane,
+      sessionId: created.sessionId,
+      threadId: created.mainThreadId,
+      epoch: lease.epoch,
+      inboxId: posted.inboxId,
+      text: 'a',
     })
     answer('Stale Name')
     await background.settle()

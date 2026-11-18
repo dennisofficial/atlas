@@ -14,6 +14,7 @@ import {
   seedGranted,
   SESSION,
   THREAD,
+  T0,
   createSessionParams,
   type Harness,
 } from './support'
@@ -71,9 +72,8 @@ export function describeControlPlaneConformance(params: ConformanceParams): void
       expect(await harness.plane.readInbox({ sessionId: SESSION, afterId: 0, limit: 10 })).toEqual(
         [],
       )
-      expect(await harness.plane.takeBack({ sessionId: SESSION, inboxId: 1 })).toEqual({
-        ok: false,
-        refusal: { kind: 'already-consumed' },
+      expect(await harness.plane.readInboxEntry({ sessionId: SESSION, inboxId: 1 })).toMatchObject({
+        consumedSeq: 466,
       })
     })
 
@@ -139,28 +139,46 @@ export function describeControlPlaneConformance(params: ConformanceParams): void
       expect(outcome).toMatchObject({ ok: false, refusal: { kind: 'malformed', atSeq: 1 } })
     })
 
-    it('take-back boundary: unconsumed deletes, taken-back consume rolls the append back', async () => {
-      const gone = await harness.plane.post({ sessionId: SESSION, kind: 'user', payload: '"a"' })
-      expect(await harness.plane.takeBack({ sessionId: SESSION, inboxId: gone.inboxId })).toEqual({
-        ok: true,
+    it('withdraw boundary: a staged target posts and withdraws in one append, clearing its title', async () => {
+      const gone = await harness.plane.post({
+        sessionId: SESSION,
+        kind: 'message',
+        payload: '{"text":"a"}',
       })
-      expect(await harness.plane.takeBack({ sessionId: SESSION, inboxId: gone.inboxId })).toEqual({
-        ok: false,
-        refusal: { kind: 'unknown-inbox-entry' },
+      await harness.plane.titleUntitledSession({
+        sessionId: SESSION,
+        title: 'Build Fix',
+        fromInboxId: gone.inboxId,
       })
-      const keep = await harness.plane.post({ sessionId: SESSION, kind: 'user', payload: '"b"' })
+      const { requestInboxId } = await harness.plane.withdraw({
+        sessionId: SESSION,
+        inboxId: gone.inboxId,
+      })
+      expect(requestInboxId).toBeGreaterThan(gone.inboxId)
       const head = await harness.plane.head({ threadId: THREAD })
       const events = mint({
-        bodies: [said('x'), consumed(keep.inboxId), consumed(gone.inboxId)],
+        bodies: [
+          {
+            type: 'input-posted',
+            inboxId: gone.inboxId,
+            kind: 'message',
+            postedAt: T0,
+            text: 'a',
+          },
+          { type: 'input-withdrawn', inboxId: gone.inboxId, requestInboxId },
+        ],
         epoch,
         from: head,
       })
       const outcome = await harness.plane.append({ threadId: THREAD, epoch, events })
-      expect(outcome).toMatchObject({ ok: false, refusal: { kind: 'unknown-inbox-entry' } })
-      expect(await harness.plane.head({ threadId: THREAD })).toEqual(head)
-      expect(await readAll({ harness, visible: false })).toEqual([])
-      const inbox = await harness.plane.readInbox({ sessionId: SESSION, afterId: 0, limit: 10 })
-      expect(inbox.map((entry) => entry.inboxId)).toEqual([keep.inboxId])
+      expect(outcome.ok).toBe(true)
+      expect((await harness.plane.readSession({ sessionId: SESSION }))?.title).toBeNull()
+      expect(await harness.plane.readInbox({ sessionId: SESSION, afterId: 0, limit: 10 })).toEqual(
+        [],
+      )
+      expect(
+        await harness.plane.readInboxEntry({ sessionId: SESSION, inboxId: gone.inboxId }),
+      ).toBe(undefined)
     })
 
     it('round-trips NUL and lone surrogate bodies with identical hashes', async () => {

@@ -1,9 +1,9 @@
 import { sessionStreamTransport } from '@dltech/atlas-api-router'
 import {
-  browserSessionCache,
+  browserSessionLog,
   createStreamConnection,
   systemStreamScheduler,
-  type SessionCache,
+  type SessionLog,
   type StreamConnection,
 } from '@dltech/atlas-client/stream'
 
@@ -14,11 +14,23 @@ import { SESSION_QUERY_KEY } from '@/lib/use-session-query'
 import { sessionEventSchema, sessionEventTypes } from '../registered-plugins'
 
 let connection: StreamConnection | undefined
-let cache: SessionCache | undefined
+let log: SessionLog | undefined
+let persisted = false
 
-export function sessionCache(): SessionCache {
-  cache ??= browserSessionCache(sessionEventSchema)
-  return cache
+const persistStorage = (): void => {
+  if (persisted) return
+  persisted = true
+  const storage = (globalThis as { navigator?: { storage?: { persist?: () => Promise<boolean> } } })
+    .navigator?.storage
+  void storage?.persist?.().catch(() => undefined)
+}
+
+export function sessionLog(): SessionLog {
+  if (log === undefined) {
+    persistStorage()
+    log = browserSessionLog(sessionEventSchema)
+  }
+  return log
 }
 
 const handleSignedOut = (): void => {

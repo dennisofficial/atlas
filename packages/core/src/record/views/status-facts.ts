@@ -64,6 +64,8 @@ const TURN_NEUTRAL_TYPES: ReadonlySet<V2EventType> = new Set<V2EventType>([
   'fact-recorded',
   'retry-scheduled',
   'input-consumed',
+  'input-posted',
+  'input-withdrawn',
   'input-refused',
   'workspace-step',
 ])

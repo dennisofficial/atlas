@@ -1,6 +1,7 @@
 import { act } from 'react'
 import type { QueryClient } from '@tanstack/react-query'
 
+import type { QueuedMessageEntry } from '@dltech/atlas-ui/ai/queued-messages'
 import { NOTHING_IN_BACKGROUND, type BackgroundWork } from '@dltech/atlas-client/crew'
 
 import { createTestQueryClient, TestQueryProvider } from '@/lib/__tests__/query-test-provider'
@@ -56,6 +57,8 @@ export const mountWith = async (args: {
   failedLabel?: string | null
   working?: boolean
   background?: BackgroundWork
+  staged?: readonly QueuedMessageEntry[]
+  onLoadOlder?: () => Promise<number>
 }) => {
   const { createRoot } = await import('react-dom/client')
   const container = document.createElement('div')
@@ -75,6 +78,8 @@ export const mountWith = async (args: {
             onRetryBoot={() => undefined}
             rewind={args.rewind}
             summarise={args.summarise ?? null}
+            {...(args.staged === undefined ? {} : { staged: args.staged })}
+            {...(args.onLoadOlder === undefined ? {} : { onLoadOlder: args.onLoadOlder })}
           />
         </ThreadPanelProvider>
       </TestQueryProvider>,

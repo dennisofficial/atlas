@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EInputConsumed, type V2Event } from '@dltech/atlas-core'
+import type { V2Event } from '@dltech/atlas-core'
 
 import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID } from './holder-rig'
 
-const consumedKinds = async (
-  rig: Awaited<ReturnType<typeof makeRig>>,
-): Promise<(EInputConsumed | undefined)[]> => {
+const fullLog = async (rig: Awaited<ReturnType<typeof makeRig>>): Promise<V2Event[]> => {
   const events: V2Event[] = []
   let afterSeq = 0
   for (;;) {
@@ -17,14 +15,13 @@ const consumedKinds = async (
       visible: false,
     })
     events.push(...page.events)
-    if (page.next === undefined) break
+    if (page.next === undefined) return events
     afterSeq = page.next
   }
-  return events.flatMap((event) => (event.type === 'input-consumed' ? [event.consumed] : []))
 }
 
-describe('SessionHolder input-consumed kind', () => {
-  it('writes Message for a consumed message and Discarded for a malformed entry', async () => {
+describe('SessionHolder input events', () => {
+  it('posts and says a message and refuses a malformed entry', async () => {
     const rig = await makeRig({ script: [{ text: 'hello back' }] })
     await seedSession(rig)
     await rig.holder.start()
@@ -36,46 +33,41 @@ describe('SessionHolder input-consumed kind', () => {
     })
     expect(settled).toBe(true)
 
-    const kinds = await consumedKinds(rig)
-    expect(kinds).toContain(EInputConsumed.Discarded)
-    expect(kinds).toContain(EInputConsumed.Message)
-    expect(kinds).not.toContain(undefined)
+    const log = await fullLog(rig)
+    const said = log.filter((event) => event.type === 'user-said')
+    expect(said).toHaveLength(1)
+    expect(said[0]).toMatchObject({ text: 'hello' })
+    const consumed = log.filter((event) => event.type === 'input-consumed')
+    expect(consumed).toHaveLength(1)
+    expect(consumed[0]).toMatchObject({ consumed: 'discarded' })
+    expect(consumed[0]).not.toMatchObject({ inboxId: (said[0] as { inboxId?: number }).inboxId })
   })
 
-  it('writes Stop for a stop entry', async () => {
-    const rig = await makeRig({
-      script: [
-        {
-          calls: [
-            {
-              callId: 'call-1',
-              name: 'bash',
-              input: { command: 'echo started; sleep 600; echo late' },
-            },
-          ],
-        },
-        { text: 'never reached' },
-      ],
-    })
+  it('never consumes a posted message when a stop entry arrives', async () => {
+    const rig = await makeRig({ script: [{ text: 'done' }] })
     await seedSession(rig)
     await rig.holder.start()
-    await rig.post('long exec')
+    const posted = await rig.post('hello')
     await rig.wake()
-    const dispatched = await flushUntil({
-      check: async () => (await rig.events()).some((event) => event.type === 'tool-dispatched'),
+    const settled = await flushUntil({
+      check: async () => (await rig.events()).some((event) => event.type === 'assistant-said'),
     })
-    expect(dispatched).toBe(true)
+    expect(settled).toBe(true)
 
     await rig.postStop()
     await rig.wake()
     await rig.flush()
-    const consumed = await flushUntil({
-      check: async () => (await consumedKinds(rig)).length >= 2,
+    await flushUntil({
+      check: async () => (await rig.events()).some((event) => event.type === 'input-consumed'),
       attempts: 200,
       clock: rig.clock,
       advanceMs: 2_000,
     })
-    expect(consumed).toBe(true)
-    expect(await consumedKinds(rig)).toEqual([EInputConsumed.Message, EInputConsumed.Stop])
+    const log = await fullLog(rig)
+    const consumedIds = log.flatMap((event) =>
+      event.type === 'input-consumed' ? [event.inboxId] : [],
+    )
+    expect(log.filter((event) => event.type === 'user-said')).toHaveLength(1)
+    expect(consumedIds).not.toContain(posted.inboxId)
   }, 15_000)
 })

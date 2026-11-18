@@ -47,9 +47,6 @@ const statusLineOf = (status: Status): string | null => {
     return status.reason === undefined ? 'Setup failed' : `Setup failed: ${status.reason}`
   }
   if (status?.state === ESessionStatus.WaitingForCredentials) return 'Waiting for model credentials'
-  if (status?.state === ESessionStatus.Queued) {
-    return 'Queued — waiting for the agent to pick it up'
-  }
   return null
 }
 

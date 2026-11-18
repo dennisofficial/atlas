@@ -59,6 +59,7 @@ export class HeldSession {
   private settleFence = true
   private setupEnded = false
   private takeOver: TakeOver | undefined
+  private logStaged: (() => Promise<void>) | undefined
 
   constructor(deps: HeldSessionDeps) {
     this.deps = deps
@@ -190,7 +191,7 @@ export class HeldSession {
       onLeaseLost: (error) => this.ending.lose(lostOutcome(error)),
     })
     this.crew = crew
-    const { runner, branches, recoverCommands } = wireHeldLoop({
+    const { runner, branches, recoverCommands, logStaged } = wireHeldLoop({
       deps,
       runtime,
       record,
@@ -202,6 +203,7 @@ export class HeldSession {
       isDraining: () => this.draining,
     })
     this.branches = branches
+    this.logStaged = logStaged
     this.resumePending = await settleAndCheckResume({ deps, runtime, record, threadId })
     await recoverCommands()
     const completion = this.ending.waitForDrive()
@@ -240,9 +242,9 @@ export class HeldSession {
       childrenRunning: this.crew?.runningCount() ?? 0,
     })
     if (shellsRunning) this.noteActivity()
+    if (action === EHeldAction.AbortTurn) return this.turns.abort(OPERATOR_STOP_REASON)
+    if (turnRunning) await this.logStaged?.()
     switch (action) {
-      case EHeldAction.AbortTurn:
-        return this.turns.abort(OPERATOR_STOP_REASON)
       case EHeldAction.ConsumeStop: {
         this.resumePending = false
         await settleOperatorOnStop({ deps, record: this.record, runtime: this.runtime })

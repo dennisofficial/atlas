@@ -1,4 +1,4 @@
-import type { V2Event } from '@dltech/atlas-core'
+import type { PendingInputsState, V2Event } from '@dltech/atlas-core'
 import type {
   EStreamErrorCode,
   SessionStatusOutput,
@@ -19,6 +19,7 @@ export enum ESessionConnection {
 
 export type SessionSnapshot = {
   events: readonly V2Event[]
+  pending: PendingInputsState
   cursor: SessionCursor | undefined
   status: SessionStatusOutput | undefined
   view?: SessionViewOutput | undefined
@@ -55,6 +56,7 @@ export const connectionOf = (inner: Pick<FollowedState, 'phase' | 'live'>): ESes
 
 export const snapshotOf = (inner: FollowedState): SessionSnapshot => ({
   events: inner.window.events,
+  pending: inner.window.pending,
   cursor: inner.window.cursor,
   status: inner.status,
   view: inner.view,

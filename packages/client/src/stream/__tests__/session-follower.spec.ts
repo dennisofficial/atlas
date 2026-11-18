@@ -8,7 +8,7 @@ import {
 } from '@dltech/atlas-protocol'
 
 import { EStreamConnectionState } from '../connection-machine'
-import { memorySessionCache, type SessionCache } from '../session-cache'
+import { memorySessionLog, type SessionLog } from '../session-log'
 import { createSessionFollower, ESessionConnection } from '../session-follower'
 import { createFakeScheduler, eventsMessage, headOf, mintUserEvents } from './support'
 
@@ -23,16 +23,16 @@ const statusView = (params: { at: number; state?: ESessionStatus }): StreamServe
   },
 })
 
-const setup = (cache: SessionCache = memorySessionCache()) => {
+const setup = (log: SessionLog = memorySessionLog()) => {
   const clock = createFakeScheduler()
   const resnaps: string[] = []
   const follower = createSessionFollower({
     sessionId: 'session-1',
-    cache,
+    log,
     scheduler: clock.scheduler,
     onResnap: () => resnaps.push('resnap'),
   })
-  return { follower, clock, resnaps, cache }
+  return { follower, clock, resnaps, log }
 }
 
 describe('the session follower', () => {

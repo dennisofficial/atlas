@@ -241,7 +241,7 @@ export function PromptInput({
           className={cn('max-md:min-h-10', sending && 'text-muted-foreground')}
           aria-label="Message"
         />
-        <InputGroupAddon align="block-end">
+        <InputGroupAddon align="block-end" className="flex-wrap">
           <input
             ref={fileRef}
             type="file"
@@ -255,6 +255,7 @@ export function PromptInput({
             variant="outline"
             shape="round"
             aria-label="Attach files"
+            disabled={sending}
             onClick={handleAttachClick}
           >
             <PlusIcon />
@@ -282,6 +283,11 @@ export function PromptInput({
               {sending ? <Spinner aria-hidden="true" /> : <ArrowUpIcon />}
             </InputGroupButton>
           )}
+          {sending ? (
+            <span role="status" className="basis-full text-xs text-muted-foreground">
+              Sending…
+            </span>
+          ) : null}
         </InputGroupAddon>
       </InputGroup>
     </form>

@@ -6,6 +6,14 @@ import type { EventId, RunId, ThreadId } from '../events/ids'
 import { createEventBodySchema, type EventBodySchemaArgs } from '../events/create-schema'
 import type { PluginEventBody } from '../events/plugin-registry'
 import { branchesObservedSchema, type BranchesObserved } from './branches'
+import {
+  inputPostedSchema,
+  inputRefusedSchema,
+  inputWithdrawnSchema,
+  type InputPosted,
+  type InputRefused,
+  type InputWithdrawn,
+} from './input-events'
 import { retryScheduledSchema, type RetryScheduled } from './retry-scheduled'
 import { sessionStartFailedSchema, type SessionStartFailed } from './start-failure'
 import {
@@ -54,7 +62,9 @@ export type RecordBody =
       inboxId?: number | undefined
     }
   | { type: 'input-consumed'; inboxId: number; consumed?: EInputConsumed | undefined }
-  | { type: 'input-refused'; inboxId: number; reason: string }
+  | InputPosted
+  | InputWithdrawn
+  | InputRefused
   | { type: 'fact-recorded'; key: string; kind: string; value?: unknown }
   | RetryScheduled
   | BranchesObserved
@@ -117,11 +127,9 @@ const recordBodySchema: z.ZodType<RecordBody> = z.discriminatedUnion('type', [
     inboxId: z.number().int().min(1),
     consumed: z.enum(EInputConsumed).optional(),
   }),
-  z.object({
-    type: z.literal('input-refused'),
-    inboxId: z.number().int().min(1),
-    reason: z.string(),
-  }),
+  inputPostedSchema,
+  inputWithdrawnSchema,
+  inputRefusedSchema,
   z.object({
     type: z.literal('fact-recorded'),
     key: z.string().min(1),
@@ -140,6 +148,8 @@ const RECORD_TYPE_TABLE = {
   'history-rewound': true,
   'history-summarised': true,
   'input-consumed': true,
+  'input-posted': true,
+  'input-withdrawn': true,
   'input-refused': true,
   'fact-recorded': true,
   'retry-scheduled': true,

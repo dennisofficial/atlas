@@ -42,8 +42,15 @@ const setup = async () => {
     if (!outcome.ok) throw new Error('append refused')
   }
   await append([{ type: 'workspace-prepared' }])
-  const post = (name: string) =>
-    plane.post({ sessionId: SESSION, kind: `command:${name}`, payload: '{}' })
+  const post = async (name: string) => {
+    const { inboxId } = await plane.post({
+      sessionId: SESSION,
+      kind: `command:${name}`,
+      payload: '{}',
+    })
+    await append([{ type: 'input-posted', inboxId, kind: `command:${name}`, postedAt: NOW }])
+    return { inboxId }
+  }
   const commands = async () =>
     (await readSessionStatus({ plane, sessionId: SESSION, threadId: THREAD })).value.commands
   const consume = (inboxId: number): V2Body => ({

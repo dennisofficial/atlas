@@ -73,6 +73,7 @@ const coreEventBodySchema = z.discriminatedUnion('type', [
     via: z.enum(EMessageOrigin).optional(),
     requestId: z.string().min(1).optional(),
     inboxId: z.number().int().min(1).optional(),
+    clientId: z.string().min(1).optional(),
     images: z.array(saidImageSchema).optional(),
     files: z.array(saidFileSchema).optional(),
     uploads: z.array(saidUploadSchema).optional(),

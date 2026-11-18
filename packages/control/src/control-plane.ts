@@ -14,7 +14,7 @@ import type { AppendHook } from './append-hooks'
 import { appendIn } from './append-ops'
 import { readBlobIn } from './blob-ops'
 import { UnknownThreadError } from './errors'
-import { postIn, takeBackIn, type TakeBackResult } from './inbox-ops'
+import { postIn, withdrawIn } from './inbox-ops'
 import {
   messagePeerIn,
   messageTeammateIn,
@@ -73,7 +73,6 @@ export type ControlPlaneParams = {
 }
 
 export type { ReadEventsPage } from './read-events'
-export type { TakeBackResult } from './inbox-ops'
 
 const clampLimit = (limit: number): number => Math.max(1, Math.min(limit, MAX_READ_LIMIT))
 const clampSessionLimit = (limit: number): number =>
@@ -413,8 +412,13 @@ export class ControlPlane {
     return this.store.transact(async (tx) => postIn({ tx, ...params, at: await this.nowIn(tx) }))
   }
 
-  async takeBack(params: { sessionId: string; inboxId: number }): Promise<TakeBackResult> {
-    return this.store.transact((tx) => takeBackIn({ tx, ...params }))
+  async withdraw(params: {
+    sessionId: string
+    inboxId: number
+  }): Promise<{ requestInboxId: number }> {
+    return this.store.transact(async (tx) =>
+      withdrawIn({ tx, ...params, at: await this.nowIn(tx) }),
+    )
   }
 
   async readInboxEntry(params: {
@@ -432,15 +436,6 @@ export class ControlPlane {
     return this.store.transact((tx) =>
       tx.readInboxEntries({ ...params, limit: clampLimit(params.limit) }),
     )
-  }
-
-  async hasMessageAfter(params: {
-    sessionId: string
-    afterId: number
-    excludeKind: string
-  }): Promise<boolean> {
-    const found = await this.store.transact((tx) => tx.readInboxEntries({ ...params, limit: 1 }))
-    return found.length > 0
   }
 
   async grant(params: { sessionId: string; hostId: number }): Promise<Lease> {

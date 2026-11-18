@@ -37,10 +37,11 @@ export default function SessionScreen() {
       {session.loaded ? (
         <>
           <Transcript
-            rows={session.rows}
+            rows={[...session.rows, ...session.stagedRows]}
             working={session.working}
             now={session.now}
             threadId={id}
+            onLoadOlder={session.loadOlder}
           />
           {session.failure === null ? null : (
             <View style={styles.failure}>
@@ -71,7 +72,13 @@ export default function SessionScreen() {
                 </Text>
               </View>
             )}
-            <Composer working={session.working} onSend={session.send} onStop={session.stop} />
+            <Composer
+              working={session.working}
+              onSend={session.send}
+              onStop={session.stop}
+              restored={session.restored}
+              refusal={session.notice}
+            />
           </KeyboardDock>
         </>
       ) : null}
