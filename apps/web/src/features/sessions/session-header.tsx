@@ -1,6 +1,6 @@
 'use client'
 
-import { Bell, GitBranch, Globe, Terminal } from 'lucide-react'
+import { Bell, GitBranch, Globe, PanelRightIcon, Terminal } from 'lucide-react'
 
 import type { CrewRoster, CrewRow } from '@dltech/atlas-plugin-crew/client'
 import type { SubscribedPullRequest } from '@dltech/atlas-plugin-github/client'
@@ -220,6 +220,9 @@ export function SessionHeader({
   crew,
   crewRows,
   previews,
+  paneCollapsed = false,
+  onTogglePane,
+  onOpenPane,
 }: {
   sessionId: string
   state: EHeaderState
@@ -234,6 +237,9 @@ export function SessionHeader({
   crew: CrewRoster
   crewRows: readonly CrewRow[]
   previews: readonly PreviewItem[]
+  paneCollapsed?: boolean
+  onTogglePane?: () => void
+  onOpenPane?: () => void
 }) {
   const pinned = pinnedPullRequestOf(entries)
   return (
@@ -267,6 +273,25 @@ export function SessionHeader({
         {crew.total === 0 ? null : <HeaderCrew roster={crew} rows={crewRows} />}
         {previews.length === 0 ? null : <HeaderPreviews previews={previews} />}
         <Badge variant={BADGE_VARIANT[state]}>{STATE_LABEL[state]}</Badge>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={paneCollapsed ? 'Expand panel' : 'Collapse panel'}
+          aria-expanded={!paneCollapsed}
+          className="hidden md:inline-flex"
+          onClick={onTogglePane}
+        >
+          <PanelRightIcon />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Open panel"
+          className="md:hidden"
+          onClick={onOpenPane}
+        >
+          <PanelRightIcon />
+        </Button>
       </div>
     </header>
   )

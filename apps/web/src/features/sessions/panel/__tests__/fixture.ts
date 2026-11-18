@@ -1,0 +1,127 @@
+import { EAgentStatus, ESessionStatus, type SpendTally } from '@dltech/atlas-core'
+import type { CrewRow } from '@dltech/atlas-plugin-crew/client'
+import type { SubscribedPullRequest } from '@dltech/atlas-plugin-github/client'
+import type { PreviewItem } from '@dltech/atlas-plugin-services/client'
+import type { SessionStatusOutput, SessionViewOutput } from '@dltech/atlas-protocol'
+
+import type { PullRequestEntry } from '@/features/threads/data/pull-request-entries'
+
+import type { SessionViewModel } from '../../data/session-view-model'
+import type { SessionPaneValue } from '../pane-value'
+
+export const statusFixture: SessionStatusOutput = {
+  state: ESessionStatus.Thinking,
+  lease: { epoch: 1, holderHostId: 7, live: true },
+}
+
+export const spendFixture: SpendTally = {
+  inputTokens: 4_000,
+  outputTokens: 1_200,
+  cacheReadTokens: 2_000,
+  cacheWriteTokens: 0,
+  uncachedInputTokens: 2_000,
+  costUsd: 0.5,
+}
+
+export const pullRequestFixture: PullRequestEntry = {
+  repo: 'owner/atlas',
+  number: 7,
+  url: 'https://github.com/owner/atlas/pull/7',
+  branch: 'dennis/v2-session-pane',
+  state: 'open',
+  title: 'Add the session pane',
+  checksRunning: 1,
+  checksPassed: 3,
+  checksFailed: 0,
+  checksState: undefined,
+  mergeable: true,
+  current: true,
+  via: undefined,
+}
+
+export const subscriptionFixture: SubscribedPullRequest = {
+  number: 31,
+  label: 'owner/atlas#31',
+  url: 'https://github.com/owner/atlas/pull/31',
+}
+
+export const previewFixture: PreviewItem = {
+  serviceId: 'svc-web',
+  label: 'web',
+  port: 4321,
+  url: 'https://4321-abc.byatlas.dev',
+}
+
+export const crewRowFixture = (overrides: Partial<CrewRow> = {}): CrewRow => ({
+  agentId: 'agent-1',
+  agentType: 'general-purpose',
+  intent: 'work the branch',
+  status: EAgentStatus.Running,
+  turns: 1,
+  toolCalls: 2,
+  startedAt: '2026-11-18T10:00:00.000Z',
+  ...overrides,
+})
+
+export const viewModelFixture = (overrides: Partial<SessionViewModel> = {}): SessionViewModel => ({
+  branch: undefined,
+  entries: [],
+  subscriptions: [],
+  shells: { running: 0, awaitingInput: false, labels: [], rows: [] },
+  crew: { running: 0, total: 0 },
+  crewRows: [],
+  previews: [],
+  context: null,
+  spend: null,
+  ...overrides,
+})
+
+export const checkoutsFixture = (
+  overrides: Partial<SessionViewOutput['checkouts']> = {},
+): SessionViewOutput['checkouts'] => ({ repos: [], primary: null, ...overrides })
+
+export const paneValueFixture = (overrides: Partial<SessionPaneValue> = {}): SessionPaneValue => ({
+  sessionId: 'ses-1',
+  view: viewModelFixture(),
+  checkouts: checkoutsFixture(),
+  status: statusFixture,
+  shellTails: {},
+  openTab: () => undefined,
+  openBrowser: () => undefined,
+  ...overrides,
+})
+
+export const populatedPaneValue = (): SessionPaneValue =>
+  paneValueFixture({
+    view: viewModelFixture({
+      branch: 'dennis/v2-session-pane',
+      entries: [pullRequestFixture],
+      subscriptions: [subscriptionFixture],
+      shells: {
+        running: 1,
+        awaitingInput: false,
+        labels: ['dev server'],
+        rows: [{ shellId: 'sh1', name: 'dev server' }],
+      },
+      crew: { running: 1, total: 2 },
+      crewRows: [
+        crewRowFixture(),
+        crewRowFixture({ agentId: 'agent-2', agentType: 'explore', intent: 'map the seam' }),
+      ],
+      previews: [previewFixture],
+      context: { used: 1_200, limit: 200_000 },
+      spend: spendFixture,
+    }),
+    checkouts: checkoutsFixture({
+      repos: [
+        {
+          repo: 'owner/atlas',
+          base: 'main',
+          head: 'dennis/v2-session-pane',
+          branches: [{ name: 'dennis/v2-session-pane', sha: 'abc123', worktreePath: '/work/wt' }],
+        },
+      ],
+      primary: { repo: 'owner/atlas', branch: 'dennis/v2-session-pane' },
+    }),
+    shellTails: { sh1: 'tick 1' },
+  })

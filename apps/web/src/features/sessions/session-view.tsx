@@ -9,11 +9,7 @@ import { ESessionConnection } from '@dltech/atlas-client/stream'
 
 import { useV2Sessions } from '@/features/shell/use-v2-sessions'
 import { messageOf } from '@/features/threads/data/use-send'
-import { EMPTY_DETAILS } from '@/features/threads/panel/details/details-input'
-import {
-  ThreadPanelProvider,
-  type ThreadPanelValue,
-} from '@/features/threads/panel/thread-panel-context'
+import { ThreadPanelProvider } from '@/features/threads/panel/thread-panel-context'
 import { useComposerAttachments } from '@/features/threads/data/use-composer-attachments'
 import { ModelPickerControls } from '@/features/threads/model-picker'
 import { ThreadComposer } from '@/features/threads/thread-composer'
@@ -22,6 +18,7 @@ import { SummariseDialog } from '@/features/threads/transcript/summarise-dialog'
 
 import { attachmentsOf } from '@dltech/atlas-core'
 
+import { panelValueOf } from './data/panel-value'
 import { postInputOf } from './data/session-media'
 import { sessionsApi } from './data/sessions-api'
 import { stopSession } from './data/stop-session'
@@ -49,36 +46,12 @@ import { useSessionStream } from './data/use-session-stream'
 import { CommandRows } from './command-rows'
 import { QueuedDock } from './queued-dock'
 import { RefusalRows } from './refusal-rows'
+import { useSessionPane } from './panel/pane-state'
+import { SessionPaneProvider, type SessionPaneValue } from './panel/pane-value'
+import { SessionPaneLayout } from './panel/session-pane-layout'
 import { SessionContext } from './session-context'
 import { SessionHeader } from './session-header'
 import { StartFailedCard } from './start-failed-card'
-
-const noop = () => undefined
-
-const panelValueOf = (args: { sessionId: string; working: boolean }): ThreadPanelValue => ({
-  threadId: args.sessionId,
-  channel: null,
-  pod: null,
-  details: EMPTY_DETAILS,
-  loaded: true,
-  error: null,
-  working: args.working,
-  changesPath: undefined,
-  agentId: undefined,
-  contextPath: undefined,
-  filePath: undefined,
-  openChanges: noop,
-  openAgent: noop,
-  openDetails: noop,
-  clearAgent: noop,
-  openContextFile: noop,
-  toggleContextFile: noop,
-  closeContextFile: noop,
-  openFile: noop,
-  closeFile: noop,
-  closePanel: noop,
-  refreshPod: noop,
-})
 
 export function SessionView({ sessionId }: { sessionId: string }) {
   const { snapshot, loadOlder } = useSessionStream({
@@ -132,6 +105,19 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     [snapshot.events, snapshot.connection],
   )
   const panel = useMemo(() => panelValueOf({ sessionId, working }), [sessionId, working])
+  const pane = useSessionPane(sessionId)
+  const paneValue = useMemo<SessionPaneValue>(
+    () => ({
+      sessionId,
+      view: model,
+      checkouts: snapshot.view?.checkouts ?? { repos: [], primary: null },
+      status: snapshot.status,
+      shellTails: shellTailTextOf(snapshot.shells),
+      openTab: pane.openTab,
+      openBrowser: () => undefined,
+    }),
+    [sessionId, model, snapshot.view, snapshot.status, snapshot.shells, pane.openTab],
+  )
   const stateLine = sessionStateLineOf(snapshot)
   const stagedRun = useStagedMessages({
     events: snapshot.events,
@@ -216,81 +202,97 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   }
 
   return (
-    <ThreadPanelProvider value={panel}>
-      <div className="flex min-h-0 flex-1 flex-col">
-        <SessionHeader
-          sessionId={sessionId}
-          state={headerStateOfSession(snapshot.status)}
-          routineId={listed?.routineId ?? null}
-          title={listed?.title ?? null}
-          naming={listed?.naming ?? false}
-          branch={model.branch}
-          entries={model.entries}
-          subscriptions={model.subscriptions}
-          shells={model.shells}
-          shellTails={shellTailTextOf(snapshot.shells)}
-          crew={model.crew}
-          crewRows={model.crewRows}
-          previews={model.previews}
-        />
-        <div className="min-h-0 flex-1">
-          <ThreadTranscript
-            items={view.items}
-            failureCard={failure.card}
-            failedLabel={failure.failedLabel}
-            pod={null}
-            working={working}
-            background={background}
-            onRetryBoot={() => void handleRetry()}
-            rewind={rewind}
-            summarise={summarise.transcript}
-            boot={boot}
-            staged={queuedDock.transcriptEntries}
-            onLoadOlder={loadOlder}
+    <SessionPaneProvider value={paneValue}>
+      <ThreadPanelProvider value={panel}>
+        <div className="flex min-h-0 flex-1 flex-col">
+          <SessionHeader
+            sessionId={sessionId}
+            state={headerStateOfSession(snapshot.status)}
+            routineId={listed?.routineId ?? null}
+            title={listed?.title ?? null}
+            naming={listed?.naming ?? false}
+            branch={model.branch}
+            entries={model.entries}
+            subscriptions={model.subscriptions}
+            shells={model.shells}
+            shellTails={shellTailTextOf(snapshot.shells)}
+            crew={model.crew}
+            crewRows={model.crewRows}
+            previews={model.previews}
+            paneCollapsed={pane.collapsed}
+            onTogglePane={pane.toggleCollapsed}
+            onOpenPane={pane.openPane}
           />
-        </div>
-        <div className="mx-auto flex w-full max-w-4xl shrink-0 flex-col gap-2 px-4 pb-4">
-          <OperatorRequestDock sessionId={sessionId} request={operatorRequest} />
-          {snapshot.skipped > 0 ? (
-            <SessionUpdateCard skipped={snapshot.skipped} writerAhead={snapshot.writerAhead} />
-          ) : null}
-          {stateLine === null ? null : (
-            <p role="status" className="truncate px-1 text-xs text-muted-foreground">
-              {stateLine}
-            </p>
-          )}
-          {snapshot.status?.state === ESessionStatus.StartFailed ? (
-            <StartFailedCard reason={snapshot.status.reason} onRetry={handleRetry} />
-          ) : null}
-          <RefusalRows refusals={refusals} />
-          <SummariseDialog {...summarise.dialog} />
-          <CommandRows rows={snapshot.status?.commands} />
-          <QueuedDock dock={queuedDock} />
-          <ThreadComposer
-            value={draft}
-            onValueChange={setDraft}
-            onSubmit={(text) => void handleSubmit(text)}
-            commandSpecs={skillSpecs}
-            sending={sending || attachments.uploading}
-            {...attachments.composerProps}
-            sendsAttachmentsAlone
-            working={working}
-            onStop={handleStop}
-            placeholder="Message Atlas…"
+          <SessionPaneLayout
+            tab={pane.tab}
+            setTab={pane.setTab}
+            sheetOpen={pane.sheetOpen}
+            setSheetOpen={pane.setSheetOpen}
+            layout={pane.layout}
+            rememberLayout={pane.rememberLayout}
+            collapsed={pane.collapsed}
+            setCollapsed={pane.setCollapsed}
           >
-            {listed === undefined ? null : (
-              <ModelPickerControls
-                picker={choice.picker}
-                selection={choice.selection}
-                onSelectionChange={choice.onSelectionChange}
-                open={choice.open}
-                onOpenChange={choice.onOpenChange}
+            <div className="min-h-0 flex-1">
+              <ThreadTranscript
+                items={view.items}
+                failureCard={failure.card}
+                failedLabel={failure.failedLabel}
+                pod={null}
+                working={working}
+                background={background}
+                onRetryBoot={() => void handleRetry()}
+                rewind={rewind}
+                summarise={summarise.transcript}
+                boot={boot}
+                staged={queuedDock.transcriptEntries}
+                onLoadOlder={loadOlder}
               />
-            )}
-            <SessionContext context={model.context} spend={model.spend} />
-          </ThreadComposer>
+            </div>
+            <div className="mx-auto flex w-full max-w-4xl shrink-0 flex-col gap-2 px-4 pb-4">
+              <OperatorRequestDock sessionId={sessionId} request={operatorRequest} />
+              {snapshot.skipped > 0 ? (
+                <SessionUpdateCard skipped={snapshot.skipped} writerAhead={snapshot.writerAhead} />
+              ) : null}
+              {stateLine === null ? null : (
+                <p role="status" className="truncate px-1 text-xs text-muted-foreground">
+                  {stateLine}
+                </p>
+              )}
+              {snapshot.status?.state === ESessionStatus.StartFailed ? (
+                <StartFailedCard reason={snapshot.status.reason} onRetry={handleRetry} />
+              ) : null}
+              <RefusalRows refusals={refusals} />
+              <SummariseDialog {...summarise.dialog} />
+              <CommandRows rows={snapshot.status?.commands} />
+              <QueuedDock dock={queuedDock} />
+              <ThreadComposer
+                value={draft}
+                onValueChange={setDraft}
+                onSubmit={(text) => void handleSubmit(text)}
+                commandSpecs={skillSpecs}
+                sending={sending || attachments.uploading}
+                {...attachments.composerProps}
+                sendsAttachmentsAlone
+                working={working}
+                onStop={handleStop}
+                placeholder="Message Atlas…"
+              >
+                {listed === undefined ? null : (
+                  <ModelPickerControls
+                    picker={choice.picker}
+                    selection={choice.selection}
+                    onSelectionChange={choice.onSelectionChange}
+                    open={choice.open}
+                    onOpenChange={choice.onOpenChange}
+                  />
+                )}
+                <SessionContext context={model.context} spend={model.spend} />
+              </ThreadComposer>
+            </div>
+          </SessionPaneLayout>
         </div>
-      </div>
-    </ThreadPanelProvider>
+      </ThreadPanelProvider>
+    </SessionPaneProvider>
   )
 }
