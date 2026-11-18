@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
 import { CloudError, DEFAULT_RETRY_MAX_ATTEMPTS } from '../cloud-transport'
 import { PrSubscriptionClient } from '../pr-subscription-client'
+import { instantSleep } from './instant-sleep'
 import { inputOf, trpcFailure, trpcOk } from './trpc-fakes'
 
 const SESSION = { url: 'https://api.test', token: 'tok', email: null }
@@ -38,7 +39,11 @@ describe('PrSubscriptionClient', () => {
   it('parses a subscribe response that carries fields the client does not read', async () => {
     globalThis.fetch = (async () => trpcOk(liveSubscribeBody)) as unknown as typeof fetch
 
-    const client = new PrSubscriptionClient({ session: SESSION, clientVersion: 'test' })
+    const client = new PrSubscriptionClient({
+      session: SESSION,
+      clientVersion: 'test',
+      sleep: instantSleep,
+    })
     const outcome = await client.subscribe({
       repoFullName: 'dennisofficial/atlas',
       branch: 'dennis/realtime-smoke',
@@ -52,7 +57,11 @@ describe('PrSubscriptionClient', () => {
     globalThis.fetch = (async () =>
       trpcOk({ ...liveSubscribeBody, branch: 'dennis/realtime-smoke' })) as unknown as typeof fetch
 
-    const client = new PrSubscriptionClient({ session: SESSION, clientVersion: 'test' })
+    const client = new PrSubscriptionClient({
+      session: SESSION,
+      clientVersion: 'test',
+      sleep: instantSleep,
+    })
     const outcome = await client.subscribe({
       repoFullName: 'dennisofficial/atlas',
       branch: 'dennis/realtime-smoke',
@@ -64,7 +73,11 @@ describe('PrSubscriptionClient', () => {
   it('treats a legacy response with no branch field as branch null', async () => {
     globalThis.fetch = (async () => trpcOk(liveSubscribeBody)) as unknown as typeof fetch
 
-    const client = new PrSubscriptionClient({ session: SESSION, clientVersion: 'test' })
+    const client = new PrSubscriptionClient({
+      session: SESSION,
+      clientVersion: 'test',
+      sleep: instantSleep,
+    })
     const outcome = await client.subscribe({
       repoFullName: 'dennisofficial/atlas',
       branch: 'dennis/realtime-smoke',
@@ -85,7 +98,11 @@ describe('PrSubscriptionClient', () => {
         state: null,
       })) as unknown as typeof fetch
 
-    const client = new PrSubscriptionClient({ session: SESSION, clientVersion: 'test' })
+    const client = new PrSubscriptionClient({
+      session: SESSION,
+      clientVersion: 'test',
+      sleep: instantSleep,
+    })
     const outcome = await client.subscribe({
       repoFullName: 'dennisofficial/atlas',
       branch: 'dennis/realtime-smoke',
@@ -102,7 +119,11 @@ describe('PrSubscriptionClient', () => {
       return trpcOk({ ...liveSubscribeBody, state: null })
     }) as unknown as typeof fetch
 
-    const client = new PrSubscriptionClient({ session: SESSION, clientVersion: 'test' })
+    const client = new PrSubscriptionClient({
+      session: SESSION,
+      clientVersion: 'test',
+      sleep: instantSleep,
+    })
     await client.subscribe({ repoFullName: 'dennisofficial/atlas', number: 837 })
 
     expect(seen).toMatchObject({ repoFullName: 'dennisofficial/atlas', prNumber: 837 })
@@ -126,7 +147,11 @@ describe('PrSubscriptionClient heartbeat', () => {
         : trpcFailure({ status, message: 'sick' })
     }) as unknown as typeof fetch
 
-    const client = new PrSubscriptionClient({ session: SESSION, clientVersion: 'test' })
+    const client = new PrSubscriptionClient({
+      session: SESSION,
+      clientVersion: 'test',
+      sleep: instantSleep,
+    })
     await client.heartbeat({ id: 'sub_1' })
 
     expect(calls).toBe(2)
@@ -139,7 +164,11 @@ describe('PrSubscriptionClient heartbeat', () => {
       return trpcFailure({ status: 404, message: 'gone' })
     }) as unknown as typeof fetch
 
-    const client = new PrSubscriptionClient({ session: SESSION, clientVersion: 'test' })
+    const client = new PrSubscriptionClient({
+      session: SESSION,
+      clientVersion: 'test',
+      sleep: instantSleep,
+    })
     await expect(client.heartbeat({ id: 'sub_1' })).rejects.toMatchObject({ status: 404 })
     expect(calls).toBe(1)
   })
@@ -169,7 +198,11 @@ describe('PrSubscriptionClient subscribe retry', () => {
       return subscribeResponse()
     }) as unknown as typeof fetch
 
-    const client = new PrSubscriptionClient({ session: SESSION, clientVersion: 'test' })
+    const client = new PrSubscriptionClient({
+      session: SESSION,
+      clientVersion: 'test',
+      sleep: instantSleep,
+    })
     const outcome = await client.subscribe(target)
 
     expect(outcome.id).toBe('sub_1')
@@ -183,7 +216,11 @@ describe('PrSubscriptionClient subscribe retry', () => {
       throw new TypeError('fetch failed')
     }) as unknown as typeof fetch
 
-    const client = new PrSubscriptionClient({ session: SESSION, clientVersion: 'test' })
+    const client = new PrSubscriptionClient({
+      session: SESSION,
+      clientVersion: 'test',
+      sleep: instantSleep,
+    })
     const failure = await client.subscribe(target).then(
       () => undefined,
       (error: unknown) => error,
@@ -202,7 +239,11 @@ describe('PrSubscriptionClient subscribe retry', () => {
         return trpcFailure({ status, message: 'refused' })
       }) as unknown as typeof fetch
 
-      const client = new PrSubscriptionClient({ session: SESSION, clientVersion: 'test' })
+      const client = new PrSubscriptionClient({
+        session: SESSION,
+        clientVersion: 'test',
+        sleep: instantSleep,
+      })
 
       await expect(client.subscribe(target)).rejects.toMatchObject({ status })
       expect(calls).toBe(1)
@@ -219,7 +260,11 @@ describe('PrSubscriptionClient subscribe retry', () => {
       return subscribeResponse()
     }) as unknown as typeof fetch
 
-    const client = new PrSubscriptionClient({ session: SESSION, clientVersion: 'test' })
+    const client = new PrSubscriptionClient({
+      session: SESSION,
+      clientVersion: 'test',
+      sleep: instantSleep,
+    })
     const outcome = await client.subscribe(target)
 
     expect(outcome.id).toBe('sub_1')
@@ -238,7 +283,11 @@ describe('PrSubscriptionClient subscribe retry', () => {
         },
       })) as unknown as typeof fetch
 
-    const client = new PrSubscriptionClient({ session: SESSION, clientVersion: 'test' })
+    const client = new PrSubscriptionClient({
+      session: SESSION,
+      clientVersion: 'test',
+      sleep: instantSleep,
+    })
     const outcome = await client.subscribe({ repoFullName: 'dennisofficial/atlas', branch: 'b' })
 
     expect(outcome.pollBacked).toBe(true)
@@ -251,7 +300,11 @@ describe('PrSubscriptionClient subscribe retry', () => {
   it('omits the recommendation when the response carries none', async () => {
     globalThis.fetch = (async () => trpcOk(liveSubscribeBody)) as unknown as typeof fetch
 
-    const client = new PrSubscriptionClient({ session: SESSION, clientVersion: 'test' })
+    const client = new PrSubscriptionClient({
+      session: SESSION,
+      clientVersion: 'test',
+      sleep: instantSleep,
+    })
     const outcome = await client.subscribe({ repoFullName: 'dennisofficial/atlas', branch: 'b' })
 
     expect('recommendAppInstall' in outcome).toBe(false)

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { CloudClient, CloudError } from '../cloud-client'
 import { RemoteSecretsStore } from '../remote-secrets-store'
+import { instantSleep } from './instant-sleep'
 import { trpcCallOf, trpcData, trpcFailure, trpcVoid } from './trpc-wire'
 
 type Recorded = { url: string; method: string; body: unknown; procedure: string }
@@ -40,7 +41,12 @@ const storeWith = (
     return answerResponse(answer)
   }) as typeof fetch
 
-  const client = new CloudClient({ url: 'http://cloud.test/', token: 'sess_test', fetchFn })
+  const client = new CloudClient({
+    url: 'http://cloud.test/',
+    token: 'sess_test',
+    fetchFn,
+    sleep: instantSleep,
+  })
   return { store: new RemoteSecretsStore({ client }), calls }
 }
 
@@ -61,7 +67,12 @@ const noticedStoreWith = (
   }) as typeof fetch
 
   return new RemoteSecretsStore({
-    client: new CloudClient({ url: 'http://cloud.test/', token: 'sess_test', fetchFn }),
+    client: new CloudClient({
+      url: 'http://cloud.test/',
+      token: 'sess_test',
+      fetchFn,
+      sleep: instantSleep,
+    }),
     onWriteFailure,
   })
 }

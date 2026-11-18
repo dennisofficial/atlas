@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
+import { watch } from 'node:fs'
 import { dirname, join } from 'node:path'
 
 import { loadCursor, ENDED_READ_BYTES } from '../output-preview'
@@ -18,11 +19,31 @@ import {
 afterEach(closeRegistries)
 
 async function persistedRead({ path, read }: { path: string; read: number }): Promise<void> {
-  for (let attempt = 0; attempt < 400; attempt += 1) {
-    if ((await loadCursor({ path })).cursor.read === read) return
-    await Bun.sleep(25)
+  const watcher = watch(dirname(path))
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const deadline = setTimeout(
+        () => reject(new Error(`the cursor at ${path} never recorded read ${read}`)),
+        5_000,
+      )
+      const check = (): void => {
+        void loadCursor({ path }).then(({ cursor }) => {
+          if (cursor.read !== read) return
+          clearTimeout(deadline)
+          resolve()
+        })
+      }
+      watcher.on('change', check)
+      watcher.on('rename', check)
+      watcher.on('error', (error) => {
+        clearTimeout(deadline)
+        reject(error)
+      })
+      check()
+    })
+  } finally {
+    watcher.close()
   }
-  expect((await loadCursor({ path })).cursor.read).toBe(read)
 }
 
 for (const adapter of shellAdapters) {

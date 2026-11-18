@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { MemorySettingsStore } from '../../settings/memory-store'
 import { CloudClient, CloudError } from '../cloud-client'
 import { downloadRemoteSettings, uploadLocalSettings } from '../sync-settings'
+import { instantSleep } from './instant-sleep'
 import { trpcCallOf, trpcData, trpcFailure, trpcVoid } from './trpc-wire'
 
 type SettingsFake = {
@@ -45,7 +46,7 @@ const settingsFake = (): SettingsFake => {
 }
 
 const clientOver = (fetchFn: typeof fetch) =>
-  new CloudClient({ url: 'http://cloud.test', token: 't', fetchFn })
+  new CloudClient({ url: 'http://cloud.test', token: 't', fetchFn, sleep: instantSleep })
 
 describe('uploadLocalSettings', () => {
   it('envelope-encodes every local setting, empty strings included', async () => {

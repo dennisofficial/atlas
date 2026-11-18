@@ -8,6 +8,7 @@ import type { ClockPort } from '@dltech/atlas-core'
 import { CloudError } from '../cloud-client'
 import { CloudSessionStore } from '../cloud-session'
 import { CLOUD_SETTINGS_TTL_MS, CloudSettingsStore } from '../cloud-settings-store'
+import { instantSleep } from './instant-sleep'
 import { trpcCallOf, trpcData, trpcFailure, trpcVoid } from './trpc-wire'
 
 const URL = 'http://cloud.test'
@@ -73,7 +74,7 @@ beforeEach(() => {
     keyFile: join(directory, 'key'),
   })
   fake = settingsFake()
-  store = new CloudSettingsStore({ sessions, clock, fetchFn: fake.fetchFn })
+  store = new CloudSettingsStore({ sessions, clock, fetchFn: fake.fetchFn, sleep: instantSleep })
 })
 
 afterEach(() => {

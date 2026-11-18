@@ -12,6 +12,7 @@ import {
 
 import { CloudClient, CloudError, cloudClientFor } from '../cloud-client'
 import { isTrpcUrl, trpcCallOf, trpcData, trpcError } from './accounts-trpc-fake'
+import { instantSleep } from './instant-sleep'
 
 const TOKEN = 'sess_test_token'
 
@@ -80,6 +81,7 @@ const clientWith = (
     token: TOKEN,
     ...(clientVersion === undefined ? {} : { clientVersion }),
     fetchFn,
+    sleep: instantSleep,
   })
   return { client, calls }
 }
@@ -172,6 +174,7 @@ describe('CloudClient', () => {
       url: 'http://cloud.test',
       token: TOKEN,
       fetchFn: (() => Promise.reject(new Error('connection refused'))) as unknown as typeof fetch,
+      sleep: instantSleep,
     })
     expect(await down.health()).toBe(false)
   })
@@ -370,6 +373,7 @@ describe('CloudClient', () => {
       url: 'http://cloud.test',
       token: TOKEN,
       fetchFn: (() => Promise.reject(new Error('connection refused'))) as unknown as typeof fetch,
+      sleep: instantSleep,
     })
 
     const failure = await client.listAccounts().catch((error: unknown) => error)
@@ -510,7 +514,7 @@ describe('cloudClientFor', () => {
       return trpcData([])
     }) as typeof fetch
 
-    const client = cloudClientFor({ session, clientVersion: '3.1.4', fetchFn })
+    const client = cloudClientFor({ session, clientVersion: '3.1.4', fetchFn, sleep: instantSleep })
     await client.listAccounts()
 
     expect(client.baseUrl).toBe('http://cloud.test')
@@ -532,7 +536,7 @@ describe('cloudClientFor', () => {
       return trpcData([])
     }) as typeof fetch
 
-    const client = cloudClientFor({ session, fetchFn })
+    const client = cloudClientFor({ session, fetchFn, sleep: instantSleep })
     await client.listAccounts()
 
     expect(new Headers(calls[0]?.headers).get('atlas-client-version')).toBe('dev')

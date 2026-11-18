@@ -45,6 +45,7 @@ export class CloudService {
   private readonly defaultUrl: string
   private readonly clientVersion: string | undefined
   private readonly fetchFn: typeof fetch
+  private readonly sleep: ((ms: number) => Promise<void>) | undefined
   private readonly signInOffer: SignInOffer
   private readonly sessionsClientFor: SessionsClientFor | undefined
   private readonly handoffOauth: OauthHandoffCallback | undefined
@@ -62,6 +63,7 @@ export class CloudService {
     localSettings?: SettingsStorePort
     clientVersion?: string
     fetchFn?: typeof fetch
+    sleep?: ((ms: number) => Promise<void>) | undefined
     signInOffer?: SignInOffer
     sessionsClientFor?: SessionsClientFor
     handoffOauth?: OauthHandoffCallback
@@ -76,6 +78,7 @@ export class CloudService {
     this.defaultUrl = args.defaultUrl
     this.clientVersion = args.clientVersion
     this.fetchFn = args.fetchFn ?? fetch
+    this.sleep = args.sleep
     this.signInOffer = args.signInOffer ?? fileSignInOffer()
     this.sessionsClientFor = args.sessionsClientFor
     this.handoffOauth = args.handoffOauth
@@ -88,6 +91,7 @@ export class CloudService {
       session: args.session,
       ...(this.clientVersion === undefined ? {} : { clientVersion: this.clientVersion }),
       fetchFn: this.fetchFn,
+      ...(this.sleep === undefined ? {} : { sleep: this.sleep }),
     })
   }
 

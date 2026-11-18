@@ -25,6 +25,7 @@ export class CloudSettingsStore {
   private readonly clock: ClockPort
   private readonly clientVersion: string | undefined
   private readonly fetchFn: typeof fetch | undefined
+  private readonly sleep: ((ms: number) => Promise<void>) | undefined
   private readonly listeners = new Set<() => void>()
   private held: HeldSettings | undefined
   private inFlight: Promise<void> | null = null
@@ -36,11 +37,13 @@ export class CloudSettingsStore {
     clock: ClockPort
     clientVersion?: string
     fetchFn?: typeof fetch
+    sleep?: ((ms: number) => Promise<void>) | undefined
   }) {
     this.sessions = args.sessions
     this.clock = args.clock
     this.clientVersion = args.clientVersion
     this.fetchFn = args.fetchFn
+    this.sleep = args.sleep
     this.sessions.onCleared(() => {
       this.held = undefined
       this.client = undefined
@@ -149,6 +152,7 @@ export class CloudSettingsStore {
           session: args.session,
           ...(this.clientVersion === undefined ? {} : { clientVersion: this.clientVersion }),
           ...(this.fetchFn === undefined ? {} : { fetchFn: this.fetchFn }),
+          ...(this.sleep === undefined ? {} : { sleep: this.sleep }),
         }),
       }
     }

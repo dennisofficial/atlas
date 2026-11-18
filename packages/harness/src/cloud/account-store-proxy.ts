@@ -26,6 +26,7 @@ export class AccountStoreProxy extends AccountStorePort {
   private readonly sessions: CloudSessionStore
   private readonly clientVersion: string | undefined
   private readonly clock: ClockPort | undefined
+  private readonly sleep: ((ms: number) => Promise<void>) | undefined
   private remote: { token: string; store: AccountStorePort } | undefined
 
   constructor(args: {
@@ -33,12 +34,14 @@ export class AccountStoreProxy extends AccountStorePort {
     sessions: CloudSessionStore
     clientVersion?: string
     clock?: ClockPort
+    sleep?: ((ms: number) => Promise<void>) | undefined
   }) {
     super()
     this.local = args.local
     this.sessions = args.sessions
     this.clientVersion = args.clientVersion
     this.clock = args.clock
+    this.sleep = args.sleep
     this.sessions.onCleared(() => {
       this.remote = undefined
     })
@@ -89,6 +92,7 @@ export class AccountStoreProxy extends AccountStorePort {
         client: cloudClientFor({
           session,
           ...(this.clientVersion === undefined ? {} : { clientVersion: this.clientVersion }),
+          sleep: this.sleep,
         }),
       })
       const cloud =
