@@ -1,3 +1,4 @@
+import type { CapturedBase } from '@dltech/atlas-host'
 import type { WorkspaceConfig } from '../config/agent-host-config'
 import { run } from './workspace-clone'
 import { workspaceRepoMap } from './workspace-repo-map'
@@ -24,14 +25,18 @@ export const captureCheckedOut = async (args: {
   workspace: WorkspaceConfig
   launchDirectory: string
   onCheckedOut: CheckoutReport | undefined
-}): Promise<void> => {
-  if (args.onCheckedOut === undefined) return
+}): Promise<readonly CapturedBase[]> => {
+  const captured: CapturedBase[] = []
+  if (args.onCheckedOut === undefined) return captured
   const repos = workspaceRepoMap({
     launchDirectory: args.launchDirectory,
     workspace: args.workspace,
   })
   for (const { path } of repos) {
     const branch = await checkedOutBranchOf({ deps: args.deps, path })
-    if (branch !== null) args.onCheckedOut({ path, branch })
+    if (branch === null) continue
+    captured.push({ repoPath: path, base: branch })
+    args.onCheckedOut({ path, branch })
   }
+  return captured
 }

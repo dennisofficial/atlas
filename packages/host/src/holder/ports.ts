@@ -46,8 +46,10 @@ export type HostTimers = {
   random(): number
 }
 
+export type CapturedBase = { repoPath: string; base: string }
+
 export type PrepareResult =
-  | { ok: true; warnings?: readonly string[] | undefined }
+  | { ok: true; warnings?: readonly string[] | undefined; bases?: readonly CapturedBase[] }
   | { ok: false; reason: string }
 
 export type SetupLifecycle =

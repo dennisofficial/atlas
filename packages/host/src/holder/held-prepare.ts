@@ -14,6 +14,7 @@ import {
 import { logFieldsOf } from '@dltech/atlas-observability'
 import { setupOutputCallId } from '@dltech/atlas-protocol'
 
+import { baseFactDraftsOf } from './held-prepare-bases'
 import type { HeldSessionDeps } from './held-session-deps'
 import { fireLive, type PrepareResult, type SessionRuntime, type SetupLifecycle } from './ports'
 import type { AppendBody } from './record/append-drafts'
@@ -261,7 +262,7 @@ export class HeldPrepare {
       return
     }
     const warnings = result.warnings ?? []
-    const drafts: AppendBody[] = [...started]
+    const drafts: AppendBody[] = [...started, ...baseFactDraftsOf(result.bases)]
     if (warnings.length > 0) {
       drafts.push({
         type: 'sandbox-setup-reported',

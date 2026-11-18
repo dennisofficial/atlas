@@ -11,6 +11,7 @@ import {
 import {
   runInCallScope,
   scopeKeyOf,
+  type CapturedBase,
   type PrepareResult,
   type RemoteCalls,
   type SetupLifecycle,
@@ -144,7 +145,7 @@ const startSetupInBackground = (args: {
     .finally(() => args.ackScope().catch(() => undefined))
 }
 
-const resultOf = (warnings: readonly string[]): PrepareResult =>
+const resultOf = (warnings: readonly string[]): Extract<PrepareResult, { ok: true }> =>
   warnings.length === 0 ? { ok: true } : { ok: true, warnings: [...warnings] }
 
 const scopeFor = (args: { sandboxName: string; phase: string }): string =>
@@ -185,6 +186,7 @@ export const ensureWorkspace = async (args: {
   )
   const setupScope = phases[2] ?? 'setup:setup'
   let setupInBackground = false
+  let captured: readonly CapturedBase[] = []
   try {
     const state = await runInCallScope({
       scopeKey: phases[0] ?? 'setup:check',
@@ -236,7 +238,7 @@ export const ensureWorkspace = async (args: {
         state: EWorkspaceStepState.Done,
         repos: progress.snapshot(),
       })
-      await captureCheckedOut({ deps, workspace, launchDirectory, onCheckedOut })
+      captured = await captureCheckedOut({ deps, workspace, launchDirectory, onCheckedOut })
       // the workspace was rebuilt, so a setup script started in the old one says nothing about it
       await clearSetupStarted({ deps, path: sentinels.setupStarted })
     }
@@ -279,7 +281,7 @@ export const ensureWorkspace = async (args: {
         ackScope: () => args.calls.ackScope({ scopeKey: setupScope }),
       })
     }
-    return resultOf(warnings)
+    return { ...resultOf(warnings), ...(captured.length === 0 ? {} : { bases: captured }) }
   } catch (error) {
     fail({ deps, message: 'workspace setup failed', detail: String(error) })
     deps.log?.error({
