@@ -50,6 +50,17 @@ export const TreeFolderCollapsed: Story = {
 
 export const NoChanges: Story = { args: { files: [] } }
 
+export const CustomDiffBody: Story = {
+  args: {
+    defaultExpanded: ['packages/ui/src/ai/task-dock.tsx'],
+    renderDiff: (file) => (
+      <p className="rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground">
+        {file.path} is diffed by the host app.
+      </p>
+    ),
+  },
+}
+
 function InteractivePanel(args: ChangesPanelProps) {
   const [scope, setScope] = useState(args.scope)
   const [layout, setLayout] = useState<ChangesLayout>('flat')

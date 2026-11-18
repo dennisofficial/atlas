@@ -1,9 +1,11 @@
 import { ChevronRightIcon, FolderIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
 
 import { cn } from '#lib/utils'
 import { Counts } from './changes-format'
 import { FileRow, ROW_INDENT_REM } from './changes-file-row'
 import type { ChangeDirNode, ChangeTreeNode } from './changes-tree'
+import type { ChangedFile } from './changes-types'
 
 interface TreeViewProps {
   nodes: ChangeTreeNode[]
@@ -11,6 +13,7 @@ interface TreeViewProps {
   collapsed: string[]
   onToggleFile: (path: string) => void
   onToggleFolder: (path: string) => void
+  renderDiff?: (file: ChangedFile) => ReactNode
   depth?: number
 }
 
@@ -58,6 +61,7 @@ export function ChangesTreeView({
   collapsed,
   onToggleFile,
   onToggleFolder,
+  renderDiff,
   depth = 0,
 }: TreeViewProps) {
   return (
@@ -71,6 +75,7 @@ export function ChangesTreeView({
             collapsed={collapsed}
             onToggleFile={onToggleFile}
             onToggleFolder={onToggleFolder}
+            renderDiff={renderDiff}
             depth={depth}
           />
         ) : (
@@ -81,6 +86,7 @@ export function ChangesTreeView({
             onToggle={onToggleFile}
             showDir={false}
             depth={depth}
+            renderDiff={renderDiff}
           />
         ),
       )}

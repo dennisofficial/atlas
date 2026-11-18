@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 
 import { Button } from '#components/button'
 import { cn } from '#lib/utils'
@@ -38,6 +38,7 @@ export interface ChangesPanelProps {
   onCommit?: () => void
   onReview?: () => void
   onOpenPullRequest?: () => void
+  renderDiff?: (file: ChangedFile) => ReactNode
   className?: string
 }
 
@@ -56,6 +57,7 @@ export function ChangesPanel({
   onCommit,
   onReview,
   onOpenPullRequest,
+  renderDiff,
   className,
 }: ChangesPanelProps) {
   const openFiles = useToggled({
@@ -116,6 +118,7 @@ export function ChangesPanel({
               collapsed={folders.current}
               onToggleFile={openFiles.toggle}
               onToggleFolder={folders.toggle}
+              renderDiff={renderDiff}
             />
           </div>
         ) : (
@@ -126,6 +129,7 @@ export function ChangesPanel({
                 file={file}
                 open={openFiles.current.includes(file.path)}
                 onToggle={openFiles.toggle}
+                renderDiff={renderDiff}
               />
             ))}
           </ul>
