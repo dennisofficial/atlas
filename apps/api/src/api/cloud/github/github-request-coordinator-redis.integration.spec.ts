@@ -64,6 +64,61 @@ describe('RedisCoordinatorAdapter over independent real Redis connections', () =
     expect(await fixture.second.takeHttpSlot(fixture.identity('limited'))).toBe(true)
   })
 
+  it('keeps a grant with no expiry, a denial for thirty seconds, and revokes by credential', async () => {
+    const now = new Date('2035-01-01T00:00:00.000Z').getTime()
+    setSystemTime(new Date(now))
+    const repo = (fingerprint: string, full: string) =>
+      fixture.key(`authorization:${fingerprint}:${full}`)
+    const grant = async (adapter: typeof fixture.first, fingerprint: string, full: string) => {
+      const key = `${fingerprint}:${full}`
+      const version = await adapter.beginAuthorization(key)
+      await adapter.writeAuthorization({
+        key,
+        state: { version, checkedAt: now, granted: true, deniedUntil: 0 },
+      })
+    }
+    await grant(fixture.first, 'print_a', 'compai/app')
+    await grant(fixture.second, 'print_a', 'compai/other')
+    await grant(fixture.first, 'print_b', 'compai/app')
+    expect(await fixture.second.readAuthorization('print_a:compai/app')).toMatchObject({
+      granted: true,
+    })
+    expect(await fixture.services.first.client().pttl(repo('print_a', 'compai/app'))).toBe(-1)
+    setSystemTime(new Date(now + 365 * 24 * 3_600_000))
+    expect(await fixture.second.readAuthorization('print_a:compai/other')).toMatchObject({
+      granted: true,
+    })
+
+    await fixture.first.revokeAuthorization('print_a:compai/app')
+    expect(await fixture.second.readAuthorization('print_a:compai/app')).toBeUndefined()
+    expect(await fixture.second.readAuthorization('print_a:compai/other')).toMatchObject({
+      granted: true,
+    })
+
+    await fixture.second.revokeAuthorizations('print_a:')
+    expect(await fixture.first.readAuthorization('print_a:compai/other')).toBeUndefined()
+    expect(await fixture.first.readAuthorization('print_b:compai/app')).toMatchObject({
+      granted: true,
+    })
+  })
+
+  it('expires a denial from the record itself', async () => {
+    const now = new Date('2035-01-01T00:00:00.000Z').getTime()
+    setSystemTime(new Date(now))
+    const key = 'print_denied:compai/app'
+    const version = await fixture.first.beginAuthorization(key)
+    await fixture.first.writeAuthorization({
+      key,
+      state: { version, checkedAt: now, granted: false, deniedUntil: now + 30_000 },
+    })
+    expect(await fixture.second.readAuthorization(key)).toMatchObject({ granted: false })
+    const ttl = await fixture.services.second.client().pttl(fixture.key(`authorization:${key}`))
+    expect(ttl).toBeGreaterThan(0)
+    expect(ttl).toBeLessThanOrEqual(30_000)
+    setSystemTime(new Date(now + 30_001))
+    expect(await fixture.second.readAuthorization(key)).toBeUndefined()
+  })
+
   it('shares bounded exponential attempt backoff, resets success, and leaves unrelated targets untouched', async () => {
     const now = new Date('2035-01-01T00:00:00.000Z').getTime()
     setSystemTime(new Date(now))

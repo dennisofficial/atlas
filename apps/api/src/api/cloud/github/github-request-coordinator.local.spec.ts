@@ -1,11 +1,8 @@
 import { afterEach, describe, expect, it, setSystemTime } from 'bun:test'
+import { credentialFingerprint } from './github-request-budget'
 import { localCoordinator } from './github-request-coordinator.fixture'
 import { LocalCoordinatorAdapter } from './github-request-coordinator.local'
-import {
-  ACCESS_PROOF_DENIAL_TTL_MS,
-  ACCESS_PROOF_TTL_MS,
-  EGithubHttpCategory,
-} from './github-request-coordinator.types'
+import { ACCESS_PROOF_DENIAL_TTL_MS, EGithubHttpCategory } from './github-request-coordinator.types'
 import type { GithubService } from './github.service'
 
 describe('same-process request coordinator adapter', () => {
@@ -57,26 +54,26 @@ describe('same-process request coordinator adapter', () => {
   })
   it('does not let an older in-flight success overwrite a newer denial', async () => {
     const adapter = new LocalCoordinatorAdapter()
-    const first = await adapter.beginAuthorization('user:repo:fingerprint')
+    const first = await adapter.beginAuthorization('fingerprint:compai/app')
     const grant = {
       version: first,
       checkedAt: Date.now(),
-      authorizedUntil: Date.now() + 120_000,
+      granted: true,
       deniedUntil: 0,
     }
-    await adapter.writeAuthorization({ key: 'user:repo:fingerprint', state: grant })
-    const second = await adapter.beginAuthorization('user:repo:fingerprint')
+    await adapter.writeAuthorization({ key: 'fingerprint:compai/app', state: grant })
+    const second = await adapter.beginAuthorization('fingerprint:compai/app')
     const denial = {
       version: second,
       checkedAt: Date.now(),
-      authorizedUntil: 0,
+      granted: false,
       deniedUntil: Date.now() + 120_000,
     }
-    await adapter.writeAuthorization({ key: 'user:repo:fingerprint', state: denial })
+    await adapter.writeAuthorization({ key: 'fingerprint:compai/app', state: denial })
     expect(
-      await adapter.writeAuthorization({ key: 'user:repo:fingerprint', state: grant }),
+      await adapter.writeAuthorization({ key: 'fingerprint:compai/app', state: grant }),
     ).toEqual(denial)
-    expect(await adapter.readAuthorization('user:repo:fingerprint')).toEqual(denial)
+    expect(await adapter.readAuthorization('fingerprint:compai/app')).toEqual(denial)
   })
   it('expires retry attempts after twenty minutes', async () => {
     const adapter = new LocalCoordinatorAdapter()
@@ -102,20 +99,37 @@ describe('request coordinator access proofs', () => {
     expect(await coordinator.provenAccess(repo)).toBe(true)
   })
 
-  it('holds a grant for ten minutes and a denial for thirty seconds', async () => {
+  it('keeps a grant with no expiry and a denial for thirty seconds', async () => {
     const coordinator = localCoordinator(github)
     const repo = { userId: 'usr_1', repoFullName: 'compai/app' }
 
     await coordinator.recordAccess(repo)
-    setSystemTime(new Date(Date.now() + ACCESS_PROOF_TTL_MS - 1))
+    setSystemTime(new Date(Date.now() + 365 * 24 * 3_600_000))
     expect(await coordinator.provenAccess(repo)).toBe(true)
-    setSystemTime(new Date(Date.now() + 1))
-    expect(await coordinator.provenAccess(repo)).toBe(false)
 
     await coordinator.recordDenial({ ...repo, message: 'no access' })
     setSystemTime(new Date(Date.now() + ACCESS_PROOF_DENIAL_TTL_MS - 1))
     expect(await coordinator.deniedAccess(repo)).toBe(true)
     setSystemTime(new Date(Date.now() + 1))
     expect(await coordinator.deniedAccess(repo)).toBe(false)
+  })
+
+  it('drops one repository grant on a repo signal and every grant on a token signal', async () => {
+    const coordinator = localCoordinator(github)
+    const fingerprint = credentialFingerprint('token')
+    const app = { userId: 'usr_1', repoFullName: 'compai/app' }
+    const other = { userId: 'usr_1', repoFullName: 'compai/other' }
+    await coordinator.recordAccess(app)
+    await coordinator.recordAccess(other)
+
+    await coordinator.revokeAccessGrant({
+      credentialFingerprint: fingerprint,
+      repoFullName: 'CompAI/App',
+    })
+    expect(await coordinator.provenAccess(app)).toBe(false)
+    expect(await coordinator.provenAccess(other)).toBe(true)
+
+    await coordinator.revokeAccessGrant({ credentialFingerprint: fingerprint })
+    expect(await coordinator.provenAccess(other)).toBe(false)
   })
 })

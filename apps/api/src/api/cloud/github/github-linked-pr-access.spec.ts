@@ -1,5 +1,5 @@
 import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
-import { afterEach, describe, expect, it, vi } from 'bun:test'
+import { afterEach, describe, expect, it, setSystemTime, vi } from 'bun:test'
 import { ELinkedPrAccess, LinkedPrAccess } from './github-linked-pr-access'
 import { credentialFingerprint } from './github-request-budget'
 import { localCoordinator } from './github-request-coordinator.fixture'
@@ -35,6 +35,7 @@ const accessWith = () => {
 
 describe('LinkedPrAccess', () => {
   afterEach(() => {
+    setSystemTime()
     unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -50,6 +51,17 @@ describe('LinkedPrAccess', () => {
     await expect(access.check(REPO)).resolves.toBe(ELinkedPrAccess.Allowed)
     expect(calls).toHaveLength(1)
     expect(await coordinator.deniedAccess(REPO)).toBe(false)
+  })
+
+  it('serves a granted repo without an access call however long the grant is held', async () => {
+    const calls = stubFetch(200)
+    const { access } = accessWith()
+
+    await expect(access.check(REPO)).resolves.toBe(ELinkedPrAccess.Allowed)
+    setSystemTime(new Date(Date.now() + 365 * 24 * 3_600_000))
+    await expect(access.check(REPO)).resolves.toBe(ELinkedPrAccess.Allowed)
+
+    expect(calls).toHaveLength(1)
   })
 
   it('denies a repo github answers 404 for and caches the denial', async () => {

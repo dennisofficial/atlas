@@ -1,8 +1,6 @@
 import { z } from 'zod'
 
-export const ACCESS_PROOF_TTL_MS = 600_000
 export const ACCESS_PROOF_DENIAL_TTL_MS = 30_000
-export const ACCESS_PROOF_RECHECK_MS = ACCESS_PROOF_TTL_MS / 2
 export const GITHUB_HTTP_BUDGET_PER_MINUTE = 60
 export const GITHUB_AUTH_HTTP_BUDGET_PER_MINUTE = 12
 export const GITHUB_REFRESH_HTTP_BUDGET_PER_MINUTE = 48
@@ -24,7 +22,7 @@ export type GithubRequestIdentity = {
 export const repoAccessProofSchema = z.object({
   version: z.number().int().positive(),
   checkedAt: z.number(),
-  authorizedUntil: z.number(),
+  granted: z.boolean(),
   deniedUntil: z.number(),
   message: z.string().optional(),
 })
@@ -34,6 +32,8 @@ export interface CoordinatorAdapter {
   readAuthorization(key: string): Promise<RepoAccessProof | undefined>
   beginAuthorization(key: string): Promise<number>
   writeAuthorization(args: { key: string; state: RepoAccessProof }): Promise<RepoAccessProof>
+  revokeAuthorization(key: string): Promise<void>
+  revokeAuthorizations(prefix: string): Promise<void>
   takeHttpSlot(identity?: GithubRequestIdentity): Promise<boolean>
   httpCooldownUntil(identity: GithubRequestIdentity): Promise<number>
   httpReserveUntil(identity: GithubRequestIdentity): Promise<number>

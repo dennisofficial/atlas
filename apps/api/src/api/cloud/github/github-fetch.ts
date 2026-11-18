@@ -11,6 +11,7 @@ import {
   blockGithubRequests,
   credentialFingerprint,
   recordGithubRateHeadroom,
+  revokeGithubAccessGrant,
 } from './github-request-budget'
 import { rateLimitOfResponse } from './github-rate-limit'
 
@@ -38,6 +39,31 @@ function emit(line: Record<string, unknown>): void {
   } catch {
     return
   }
+}
+
+function repoOf(path: string): string | undefined {
+  const [, owner, repo] = /^\/repos\/([\w.-]+)\/([\w.-]+)(?:\/|$)/.exec(path) ?? []
+  return owner === undefined || repo === undefined ? undefined : `${owner}/${repo}`
+}
+
+/**
+ * GitHub answers 401 when the user's token expired and revoked it, and 403/404 on a repo the user
+ * cannot read. Both end the access proof bought with that token; a rate-limit 403 does not.
+ */
+async function revokeOnCredentialFailure(args: {
+  credentialFingerprint: string
+  path: string
+  status: number
+}): Promise<void> {
+  if (args.status === 401)
+    return revokeGithubAccessGrant({ credentialFingerprint: args.credentialFingerprint })
+  if (args.status !== 403 && args.status !== 404) return
+  const repoFullName = repoOf(args.path)
+  if (repoFullName === undefined) return
+  await revokeGithubAccessGrant({
+    credentialFingerprint: args.credentialFingerprint,
+    repoFullName,
+  })
 }
 
 export async function githubFetch(args: {
@@ -101,6 +127,12 @@ export async function githubFetch(args: {
     await blockGithubRequests({
       ...observed,
       until: Date.now() + limited.retryAfterSeconds * 1_000,
+    })
+  if (limited === null)
+    await revokeOnCredentialFailure({
+      credentialFingerprint: identity.credentialFingerprint,
+      path: pathOf(url),
+      status: response.status,
     })
   emit({
     ...base,

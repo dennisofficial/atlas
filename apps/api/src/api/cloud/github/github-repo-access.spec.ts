@@ -4,7 +4,7 @@ import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
 import { advanceTimersByTimeAsync } from '../../../../test/fake-timers'
 import { EGithubCallSource } from './github-call-log'
 import { RepoAccessChecker } from './github-repo-access'
-import { ACCESS_PROOF_DENIAL_TTL_MS, ACCESS_PROOF_TTL_MS } from './github-request-coordinator.types'
+import { ACCESS_PROOF_DENIAL_TTL_MS } from './github-request-coordinator.types'
 import { hangingFetch, stubAbortSignalTimeout } from './github-timeout.fakes'
 
 describe('RepoAccessChecker outbound timeout', () => {
@@ -139,7 +139,7 @@ describe('RepoAccessChecker rate limits', () => {
   })
 })
 
-describe('RepoAccessChecker proof cache', () => {
+describe('RepoAccessChecker denial cache', () => {
   const args = {
     source: EGithubCallSource.RepoAccess,
     userId: 'u',
@@ -165,23 +165,11 @@ describe('RepoAccessChecker proof cache', () => {
     return fetched
   }
 
-  it('serves a second require inside the proof window without calling github', async () => {
+  it('holds no grant of its own: the coordinator proof is the only one', async () => {
     const fetched = answering(200)
     const subject = new RepoAccessChecker(async () => 't')
 
     await expect(subject.require(args)).resolves.toBe(true)
-    setSystemTime(new Date(Date.now() + ACCESS_PROOF_TTL_MS - 1))
-    await expect(subject.require(args)).resolves.toBe(true)
-
-    expect(fetched).toHaveBeenCalledTimes(1)
-  })
-
-  it('asks github again once the proof expires', async () => {
-    const fetched = answering(200)
-    const subject = new RepoAccessChecker(async () => 't')
-
-    await expect(subject.require(args)).resolves.toBe(true)
-    setSystemTime(new Date(Date.now() + ACCESS_PROOF_TTL_MS))
     await expect(subject.require(args)).resolves.toBe(true)
 
     expect(fetched).toHaveBeenCalledTimes(2)

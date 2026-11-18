@@ -2,7 +2,7 @@ import { ForbiddenException, HttpException, HttpStatus } from '@nestjs/common'
 import type { EGithubCallSource } from './github-call-log'
 import { githubFetch } from './github-fetch'
 import { rateLimitOf } from './github-rate-limit'
-import { ACCESS_PROOF_DENIAL_TTL_MS, ACCESS_PROOF_TTL_MS } from './github-request-coordinator.types'
+import { ACCESS_PROOF_DENIAL_TTL_MS } from './github-request-coordinator.types'
 
 const GITHUB_REQUEST_TIMEOUT_MS = 8_000
 
@@ -23,7 +23,6 @@ type AccessArgs = {
 
 export class RepoAccessChecker {
   private readonly inFlight = new Map<string, Promise<boolean>>()
-  private readonly grants = new Map<string, number>()
   private readonly denials = new Map<string, HeldDenial>()
 
   constructor(private readonly findToken: (args: { userId: string }) => Promise<string>) {}
@@ -31,11 +30,8 @@ export class RepoAccessChecker {
   require(args: AccessArgs): Promise<boolean> {
     args.signal?.throwIfAborted()
     const key = `${args.userId}:${args.owner}/${args.repo}`
-    const grantedUntil = this.grants.get(key)
-    if (grantedUntil !== undefined && grantedUntil > Date.now()) return Promise.resolve(true)
     const denial = this.denials.get(key)
     if (denial !== undefined && denial.expiresAt > Date.now()) return Promise.reject(denial.failure)
-    this.grants.delete(key)
     this.denials.delete(key)
 
     const asking = this.inFlight.get(key)
@@ -43,10 +39,7 @@ export class RepoAccessChecker {
 
     const asked = this.check(args).then((outcome) => {
       this.inFlight.delete(key)
-      if (outcome.verdict === 'granted') {
-        this.grants.set(key, Date.now() + ACCESS_PROOF_TTL_MS)
-        return true
-      }
+      if (outcome.verdict === 'granted') return true
       if (outcome.verdict === 'denied') {
         this.denials.set(key, {
           failure: outcome.failure,

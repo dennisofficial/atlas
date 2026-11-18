@@ -2,7 +2,11 @@ import { afterAll, afterEach, describe, expect, it, mock, spyOn } from 'bun:test
 import { Logger } from '@nestjs/common'
 import { EGithubCallSource } from './github-call-log'
 import { githubFetch } from './github-fetch'
-import { withGithubRequestBudget, type GithubHttpBudget } from './github-request-budget'
+import {
+  credentialFingerprint,
+  withGithubRequestBudget,
+  type GithubHttpBudget,
+} from './github-request-budget'
 
 const rateHeaders = {
   'x-ratelimit-resource': 'core',
@@ -33,19 +37,40 @@ const fakeGithub = Bun.serve({
         status: 403,
         headers: { 'x-ratelimit-resource': 'core', 'x-ratelimit-remaining': '40' },
       })
+    if (path === '/repos/expired/app/pulls/1') return new Response('{}', { status: 401 })
+    if (path === '/repos/private/app/pulls/1') return new Response('{}', { status: 404 })
+    if (path === '/repos/hidden/app/pulls/1')
+      return new Response('{}', { status: 403, headers: { 'x-ratelimit-remaining': '4999' } })
+    if (path === '/repos/limited/app/pulls/1')
+      return new Response('{}', {
+        status: 403,
+        headers: { 'retry-after': '30', 'x-ratelimit-remaining': '10' },
+      })
     return new Response('{}')
   },
 })
 
 const urlOf = (path: string): string => `http://localhost:${fakeGithub.port}${path}`
 
-const recordingBudget = (): { budget: GithubHttpBudget; blocked: number[]; reserved: number[] } => {
+type Revocation = { credentialFingerprint: string; repoFullName?: string | undefined }
+
+const recordingBudget = (): {
+  budget: GithubHttpBudget
+  blocked: number[]
+  reserved: number[]
+  revoked: Revocation[]
+} => {
   const blocked: number[] = []
   const reserved: number[] = []
+  const revoked: Revocation[] = []
   return {
     blocked,
     reserved,
+    revoked,
     budget: {
+      revokeAccessGrant: async (args) => {
+        revoked.push(args)
+      },
       takeHttpSlot: async () => true,
       httpCooldownUntil: async () => 0,
       httpReserveUntil: async () => 0,
@@ -161,6 +186,43 @@ describe('githubFetch', () => {
     expect(blocked).toHaveLength(1)
     expect((blocked[0] ?? 0) - Date.now()).toBeGreaterThan(59_000)
     expect((blocked[0] ?? 0) - Date.now()).toBeLessThanOrEqual(60_000)
+  })
+
+  it('drops every grant of the credential when github rejects the user token', async () => {
+    captureLines()
+    const { budget, revoked } = recordingBudget()
+    await withGithubRequestBudget({
+      store: budget,
+      run: () =>
+        githubFetch({
+          source: EGithubCallSource.SubscriptionResolve,
+          url: urlOf('/repos/expired/app/pulls/1'),
+          init: { headers: { authorization: 'Bearer ghu_expired' } },
+        }),
+    })
+    expect(revoked).toEqual([{ credentialFingerprint: credentialFingerprint('ghu_expired') }])
+  })
+
+  it('drops only that repository grant on a repo 403 or 404', async () => {
+    captureLines()
+    const { budget, revoked } = recordingBudget()
+    const call = (path: string) =>
+      withGithubRequestBudget({
+        store: budget,
+        run: () =>
+          githubFetch({
+            source: EGithubCallSource.SubscriptionResolve,
+            url: urlOf(path),
+            init: { headers: { authorization: 'Bearer ghu_owner' } },
+          }),
+      })
+    await call('/repos/private/app/pulls/1')
+    await call('/repos/hidden/app/pulls/1')
+    await call('/repos/limited/app/pulls/1')
+    expect(revoked).toEqual([
+      { credentialFingerprint: credentialFingerprint('ghu_owner'), repoFullName: 'private/app' },
+      { credentialFingerprint: credentialFingerprint('ghu_owner'), repoFullName: 'hidden/app' },
+    ])
   })
 
   it('logs an error status and rethrows', async () => {

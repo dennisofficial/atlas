@@ -22,7 +22,7 @@ export class LocalCoordinatorAdapter implements CoordinatorAdapter {
   private authorizationState(key: string): RepoAccessProof | undefined {
     const state = this.authorizations.get(key)
     if (state === undefined) return undefined
-    if (Math.max(state.authorizedUntil, state.deniedUntil) <= Date.now()) {
+    if (!state.granted && state.deniedUntil <= Date.now()) {
       this.authorizations.delete(key)
       return undefined
     }
@@ -53,22 +53,30 @@ export class LocalCoordinatorAdapter implements CoordinatorAdapter {
       (held.version > args.state.version ||
         (held.version === args.state.version &&
           held.deniedUntil > Date.now() &&
-          args.state.authorizedUntil > 0))
+          args.state.granted))
     )
       return { ...held }
-    if (args.state.authorizedUntil > 0 && current > args.state.version)
+    if (args.state.granted && current > args.state.version)
       return held === undefined
         ? {
             version: current,
             checkedAt: Date.now(),
-            authorizedUntil: 0,
+            granted: false,
             deniedUntil: 0,
             message: 'Authorization superseded; retrying',
           }
         : { ...held }
-    for (const key of this.authorizations.keys()) this.authorizationState(key)
     this.authorizations.set(args.key, { ...args.state })
     return { ...args.state }
+  }
+
+  async revokeAuthorization(key: string): Promise<void> {
+    this.authorizations.delete(key)
+  }
+
+  async revokeAuthorizations(prefix: string): Promise<void> {
+    for (const key of [...this.authorizations.keys()])
+      if (key.startsWith(prefix)) this.authorizations.delete(key)
   }
 
   async takeHttpSlot(identity?: GithubRequestIdentity): Promise<boolean> {

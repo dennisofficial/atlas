@@ -14,6 +14,10 @@ export type GithubHttpBudget = {
   httpReserveUntil?(identity: GithubRequestIdentity): Promise<number>
   blockHttpUntil(args: { until: number } & Partial<GithubRequestIdentity>): Promise<void>
   holdHttpReserve?(args: { until: number } & Partial<GithubRequestIdentity>): Promise<void>
+  revokeAccessGrant?(args: {
+    credentialFingerprint: string
+    repoFullName?: string | undefined
+  }): Promise<void>
 }
 const scope = new AsyncLocalStorage<GithubHttpBudget>()
 const logger = new Logger('GithubBudget')
@@ -189,4 +193,15 @@ export async function blockGithubRequests(
     }),
   )
   await scope.getStore()?.blockHttpUntil(args)
+}
+
+export async function revokeGithubAccessGrant(args: {
+  credentialFingerprint: string
+  repoFullName?: string | undefined
+}): Promise<void> {
+  try {
+    await scope.getStore()?.revokeAccessGrant?.(args)
+  } catch (failure) {
+    logger.warn(JSON.stringify({ revoke: 'failed', detail: detailOf(failure) }))
+  }
 }

@@ -8,7 +8,6 @@ import { GithubAppInstallNoticeService } from './github-app-install-notice.servi
 import { GithubAppInstallationsService } from './github-app-installations.service'
 import { parseRepo, subscriptionDtoOf } from './github-subscriptions-dto'
 import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
-import { RepoAccessChecker } from './github-repo-access'
 import type {
   GithubPrStateDto,
   GithubSubscriptionDto,
@@ -25,13 +24,11 @@ import {
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { withGithubRequestBudget, isGithubBudgetParked } from './github-request-budget'
 import { normalizedRepo } from './github-pr-identity'
-import { GithubUserReads } from './github-user-reads'
+import { GithubUserReads, GithubUserReadFailed } from './github-user-reads'
 import { GithubService } from './github.service'
 
 @Injectable()
 export class GithubSubscriptionsService {
-  private readonly access = new RepoAccessChecker((args) => this.requireToken(args))
-
   constructor(
     private readonly github: GithubService,
     private readonly reads: GithubUserReads,
@@ -52,17 +49,12 @@ export class GithubSubscriptionsService {
 
   private async subscribeAuthorized(args: GithubSubscribeArgs): Promise<GithubSubscriptionDto> {
     const { owner, repo } = parseRepo({ repoFullName: args.repoFullName })
+    const token = await this.requireToken({ userId: args.userId })
     const covered = await this.installations.coversRepo({ repoFullName: args.repoFullName })
-    await this.ensureAccess({
-      userId: args.userId,
-      repoFullName: args.repoFullName,
-      owner,
-      repo,
-      covered,
-    })
 
     const prNumber = await this.resolvePrNumber({
       userId: args.userId,
+      token,
       repoFullName: args.repoFullName,
       owner,
       repo,
@@ -88,6 +80,16 @@ export class GithubSubscriptionsService {
     const threadId = args.threadId ?? ''
     const expiresAt = nextExpiry()
     const liveUntil = await this.liveCeiling({ threadId, expiresAt })
+
+    const state = await this.pullOnSubscribe({
+      userId: args.userId,
+      token,
+      owner,
+      repo,
+      repoFullName: args.repoFullName,
+      prNumber,
+      covered,
+    })
 
     const subscription = await db.orm.public.GithubSubscription.upsert({
       create: {
@@ -115,15 +117,6 @@ export class GithubSubscriptionsService {
     })
     await db.orm.public.GithubRepoHook.where({ repoFullName: args.repoFullName }).updateAndCount({
       idleSince: null,
-    })
-
-    const state = await this.pullOnSubscribe({
-      userId: args.userId,
-      owner,
-      repo,
-      repoFullName: args.repoFullName,
-      prNumber,
-      covered,
     })
 
     return subscriptionDtoOf({ subscription, state, recommendAppInstall })
@@ -239,31 +232,33 @@ export class GithubSubscriptionsService {
     )
   }
 
-  private async ensureAccess(args: {
+  /**
+   * A subscribe proves the user can read the repo with one of the REST reads it was already making,
+   * and that proof is kept: no `/repos/{owner}/{repo}` call of its own, and nothing to expire while
+   * a user-token 401 or a repo 403/404 has yet to revoke it.
+   */
+  private async proveRead<T>(args: {
     userId: string
     repoFullName: string
-    owner: string
-    repo: string
-    covered: boolean
-  }): Promise<void> {
-    const { covered, ...proof } = args
-    if (await this.coordinator.provenAccess(proof)) return
+    read: () => Promise<T>
+  }): Promise<T> {
     try {
-      await this.access.require({
-        source: EGithubCallSource.RepoAccess,
-        userId: args.userId,
-        owner: args.owner,
-        repo: args.repo,
-      })
+      const value = await args.read()
+      await this.coordinator.recordAccess({ userId: args.userId, repoFullName: args.repoFullName })
+      return value
     } catch (failure) {
-      if (!isGithubBudgetParked(failure) || !covered) throw failure
-      return
+      if (
+        failure instanceof GithubUserReadFailed &&
+        (failure.status === 403 || failure.status === 404)
+      )
+        throw new ForbiddenException(`no access to ${args.repoFullName}`)
+      throw failure
     }
-    await this.coordinator.recordAccess(proof)
   }
 
   private async resolvePrNumber(args: {
     userId: string
+    token: string
     repoFullName: string
     owner: string
     repo: string
@@ -280,13 +275,17 @@ export class GithubSubscriptionsService {
       return remembered
     }
 
-    const token = await this.requireToken({ userId: args.userId })
-    const found = await this.reads.findOpenPrForBranch({
-      source: EGithubCallSource.SubscriptionResolve,
-      token,
-      owner: args.owner,
-      repo: args.repo,
-      branch,
+    const found = await this.proveRead({
+      userId: args.userId,
+      repoFullName: args.repoFullName,
+      read: () =>
+        this.reads.findOpenPrForBranch({
+          source: EGithubCallSource.SubscriptionResolve,
+          token: args.token,
+          owner: args.owner,
+          repo: args.repo,
+          branch,
+        }),
     })
     return found === null ? remembered : found.number
   }
@@ -327,6 +326,7 @@ export class GithubSubscriptionsService {
    */
   private async pullOnSubscribe(args: {
     userId: string
+    token: string
     owner: string
     repo: string
     repoFullName: string
@@ -337,19 +337,21 @@ export class GithubSubscriptionsService {
     const prNumber = args.prNumber
     const held = await this.prState({ repoFullName: args.repoFullName, prNumber })
     if (args.covered && held !== null) return dtoOf(held)
-    const token = await this.requireToken({ userId: args.userId })
-    const fields = await this.reads
-      .readPullRequest({
-        source: EGithubCallSource.SubscriptionResolve,
-        token,
-        owner: args.owner,
-        repo: args.repo,
-        number: prNumber,
-      })
-      .catch((failure: unknown) => {
-        if (isGithubBudgetParked(failure)) return null
-        throw failure
-      })
+    const fields = await this.proveRead({
+      userId: args.userId,
+      repoFullName: args.repoFullName,
+      read: () =>
+        this.reads.readPullRequest({
+          source: EGithubCallSource.SubscriptionResolve,
+          token: args.token,
+          owner: args.owner,
+          repo: args.repo,
+          number: prNumber,
+        }),
+    }).catch((failure: unknown) => {
+      if (isGithubBudgetParked(failure)) return null
+      throw failure
+    })
     if (fields === null) return held === null ? null : dtoOf(held)
     if (fields.headRepoFullName !== null)
       fields.headRepoFullName = normalizedRepo(fields.headRepoFullName)

@@ -8,7 +8,6 @@ import { ELinkedPrAccess, type LinkedPrAccess } from './github-linked-pr-access'
 import { cachedPrStates, type LinkedPr, linkedPrs } from './github-linked-prs'
 import { normalizedRepo, prIdentity } from './github-pr-identity'
 import type { PrFrameSink } from './github-pr-stream.frames'
-import { ACCESS_PROOF_RECHECK_MS } from './github-request-coordinator.types'
 import type { GithubPrStateDto } from './github-realtime.types'
 import type { GithubSubscriptionsService } from './github-subscriptions.service'
 
@@ -164,18 +163,6 @@ export function attachPrStates(args: {
     }
   }
 
-  const recheckAccess = async (): Promise<void> => {
-    if (disposed || linked.size === 0) return
-    for (const repoFullName of [...new Set([...linked.values()].map((pr) => pr.repoFullName))]) {
-      const verdict = await args.access.check({ userId: args.userId, repoFullName })
-      if (disposed) return
-      verdicts.set(repoFullName, verdict)
-      if (verdict !== ELinkedPrAccess.Denied) continue
-      for (const [key, pr] of linked) if (pr.repoFullName === repoFullName) linked.delete(key)
-    }
-    watch.setKeys([...linked.keys()])
-  }
-
   args.sink.push({ type: EGithubPrStatesFrame.Heartbeat })
   const closeStream = args.fanout.openStream({
     userId: args.userId,
@@ -190,17 +177,11 @@ export function attachPrStates(args: {
   const heartbeat = setInterval(() => {
     args.sink.push({ type: EGithubPrStatesFrame.Heartbeat })
   }, PR_STATES_HEARTBEAT_MS)
-  const recheck = setInterval(() => {
-    void recheckAccess().catch((failure: unknown) =>
-      args.logger.warn(`re-checking linked PR access failed: ${String(failure)}`),
-    )
-  }, ACCESS_PROOF_RECHECK_MS)
 
   const detach = (): void => {
     if (disposed) return
     disposed = true
     clearInterval(heartbeat)
-    clearInterval(recheck)
     if (pendingRetry !== undefined) clearTimeout(pendingRetry)
     unwatchThreads()
     watch.close()
