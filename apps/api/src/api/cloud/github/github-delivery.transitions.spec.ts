@@ -6,6 +6,7 @@ import {
   seedPrState,
   seedUserSetting,
 } from '../../../../test/github-seed'
+import { seedHeadChecks } from './github-pr-checks.fixture'
 import {
   checkRunPayload,
   SETTLING_CHECK_RUN_PAYLOAD,
@@ -163,6 +164,7 @@ describe('GithubDeliveryService transition events', () => {
     })
     await seedHook({ createdBy: 'usr-creator' })
     await seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    await seedHeadChecks({ headSha: 'abc123', passed: 3 })
     await seedPrState({
       ...FILLED_PR_STATE,
       checksRunning: 0,

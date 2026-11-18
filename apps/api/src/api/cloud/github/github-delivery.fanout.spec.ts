@@ -10,6 +10,7 @@ import {
   seedSubscription,
   serviceWith,
 } from './github-delivery.fixture'
+import { seedHeadChecks } from './github-pr-checks.fixture'
 import type { PullRequestCacheFields } from './github-pull-request-mapping'
 import type { GithubPrStateDto } from './github-realtime.types'
 
@@ -64,6 +65,7 @@ describe('GithubDeliveryService fanout', () => {
     })
     await seedHook({ createdBy: 'usr-creator' })
     await seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    await seedHeadChecks({ headSha: 'abc123', passed: 2 })
 
     const received: GithubPrStateDto[] = []
     fanout.openStream({ userId: 'usr-a', handler: (state) => received.push(state) })
@@ -78,7 +80,7 @@ describe('GithubDeliveryService fanout', () => {
       prNumber: 42,
       mergeable: null,
       checksRunning: 0,
-      checksPassed: 0,
+      checksPassed: 2,
     })
 
     releaseFill(REST_FIELDS)

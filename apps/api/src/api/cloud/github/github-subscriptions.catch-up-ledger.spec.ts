@@ -1,3 +1,4 @@
+import { seedHeadChecks } from './github-pr-checks.fixture'
 import { observationReadOf } from './github-pr-read.fixture'
 import { storeFixture } from './github-pr-store.fixture'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
@@ -71,6 +72,7 @@ describe('GithubSubscriptionsService subscribe catch-up', () => {
 
   it('announces the current settled verdict once on first subscribe', async () => {
     const service = serviceWith({})
+    await seedHeadChecks({ headSha: 'abc123', passed: 4 })
 
     await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
 
@@ -85,6 +87,7 @@ describe('GithubSubscriptionsService subscribe catch-up', () => {
   it('does not re-announce when a second subscription observes the same settled head', async () => {
     await ensureUsers('usr_2')
     const service = serviceWith({})
+    await seedHeadChecks({ headSha: 'abc123', passed: 4 })
 
     await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
     await service.subscribe({ userId: 'usr_2', repoFullName: 'compai/app', prNumber: 42 })
@@ -98,6 +101,7 @@ describe('GithubSubscriptionsService subscribe catch-up', () => {
     const service = serviceWith({
       readPullRequest: async () => ({ ...SETTLED_FIELDS, checksRunning: 2, checksPassed: 1 }),
     })
+    await seedHeadChecks({ headSha: 'abc123', passed: 1, running: 2 })
 
     await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
 

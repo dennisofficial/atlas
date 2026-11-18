@@ -91,6 +91,7 @@ export const FILLED_PR_STATE = {
   checksIgnored: 0,
   checksState: null,
   mergeable: true,
+  pullUpdatedAt: new Date('2026-11-17T00:00:00Z'),
   updatedAt: new Date(),
 }
 

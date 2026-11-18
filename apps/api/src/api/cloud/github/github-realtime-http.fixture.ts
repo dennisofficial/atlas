@@ -81,6 +81,7 @@ export function mockGithubHttp() {
         state,
         draft: false,
         merged_at: null,
+        updated_at: '2026-11-18T06:00:00Z',
         mergeable: true,
         mergeable_state: 'clean',
         head: {
@@ -165,9 +166,10 @@ export function realGithubGraph(args: {
   )
   const signals: ThreadSignalsService = inertSignals()
   const wakes: unknown[] = []
-  const mailbox = new GithubPrEventMailboxService(fanout, {
-    notifyEvent: (wake: unknown) => wakes.push(wake),
-  } as unknown as GithubSandboxWakeService)
+  const wake = {
+    notifyEvent: (notice: unknown) => wakes.push(notice),
+  } as unknown as GithubSandboxWakeService
+  const mailbox = new GithubPrEventMailboxService(fanout, wake)
   const discussion = new GithubPrDiscussionDeliveryService(mailbox)
   const delivery = new GithubDeliveryService(
     github,
@@ -178,7 +180,7 @@ export function realGithubGraph(args: {
     discussion,
     signals,
     coordinator,
-    storeFixture({ fanout }),
+    storeFixture({ fanout, wake }),
   )
   const poll = new GithubPollSweeperService(
     github,
@@ -186,7 +188,7 @@ export function realGithubGraph(args: {
     hooks,
     coordinator,
     new GithubHeadReads(),
-    storeFixture({ fanout }),
+    storeFixture({ fanout, wake }),
   )
   return {
     github,

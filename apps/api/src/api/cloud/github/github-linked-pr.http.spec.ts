@@ -215,14 +215,14 @@ describe('linked PR states across real HTTP, Redis and Postgres', () => {
         repository: { full_name: 'CompAI/App' },
       })
       await waitFor(() =>
-        expect(states(owner.frames).some((frame) => frame.state.checksPassed === 1)).toBe(true),
+        expect(states(owner.frames).some((frame) => frame.state.mergeable === true)).toBe(true),
       )
       expect(states(other.frames)).toEqual([])
 
       const reconnect = subscribe(OWNER)
       await waitFor(() => expect(states(reconnect.frames)).toHaveLength(1))
       expect(states(reconnect.frames)[0]).toMatchObject({
-        state: { repoFullName: 'compai/app', prNumber: 42, checksPassed: 1 },
+        state: { repoFullName: 'compai/app', prNumber: 42, mergeable: true },
       })
 
       http.failChecks()

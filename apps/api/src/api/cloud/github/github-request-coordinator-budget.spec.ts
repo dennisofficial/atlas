@@ -13,6 +13,7 @@ import {
 } from 'bun:test'
 import { createRealRedisService } from '../../../../test/real-redis.fixture'
 import { seedPrState, seedSubscription } from '../../../../test/github-seed'
+import { seedHeadChecks } from './github-pr-checks.fixture'
 import type { RedisService } from '../../../_lib/redis/redis.service'
 import { PULL_REQUEST_PAYLOAD } from './github-delivery.fixture'
 import { mockGithubHttp, realGithubGraph } from './github-realtime-http.fixture'
@@ -64,6 +65,7 @@ describe('shared real HTTP budget for API fills, authorization and worker queue'
     })
 
   it('polls a subscribed PR from closed to open and leaves a PR no subscription names alone', async () => {
+    await seedHeadChecks({ headSha: 'abc123', passed: 1 })
     await seedPrState({ state: 'closed', updatedAt: new Date(0) })
     await seedPrState({ prNumber: 77, state: 'open', updatedAt: new Date(0) })
     await seedSubscription({

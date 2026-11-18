@@ -10,9 +10,11 @@ export function inertWake(): GithubSandboxWakeService {
   return { notifyEvent: () => undefined } as unknown as GithubSandboxWakeService
 }
 
-export function storeFixture(args: { fanout?: GithubPrFanoutService } = {}): GithubPrStore {
+export function storeFixture(
+  args: { fanout?: GithubPrFanoutService; wake?: GithubSandboxWakeService } = {},
+): GithubPrStore {
   const fanout = args.fanout ?? new GithubPrFanoutService(new DrainStateService())
-  const wake = inertWake()
+  const wake = args.wake ?? inertWake()
 
   return new GithubPrStore({
     mailbox: new GithubPrEventMailboxService(fanout, wake),

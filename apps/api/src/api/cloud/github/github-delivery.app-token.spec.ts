@@ -110,7 +110,7 @@ describe('GithubDeliveryService fill credential', () => {
       repo: 'app',
       number: 42,
     })
-    expect((await db.orm.public.GithubPrState.first({ prNumber: 42 }))?.checksPassed).toBe(2)
+    expect((await db.orm.public.GithubPrState.first({ prNumber: 42 }))?.mergeable).toBe(true)
   })
 
   it('fills a check event on the installation token', async () => {

@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { ensureUsers, prStateRows, subscriptionRows } from '../../../../test/github-seed'
 import { unstubAllGlobals } from '@dltech/bun-test-shims'
 import { serviceWith } from './github-subscriptions.fixture'
+import { seedHeadChecks } from './github-pr-checks.fixture'
 import { GithubUserReadFailed } from './github-user-reads'
 
 describe('GithubSubscriptionsService subscribe', () => {
@@ -17,6 +18,7 @@ describe('GithubSubscriptionsService subscribe', () => {
 
   it('validates access, ensures the hook, upserts the subscription and pulls the current state', async () => {
     const service = serviceWith({ token: 'ghu_1' })
+    await seedHeadChecks({ headSha: 'abc123', passed: 2 })
 
     const dto = await service.subscribe({
       userId: 'usr_1',

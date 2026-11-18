@@ -162,6 +162,11 @@ describe('GithubDeliveryService check rows', () => {
           state: 'open',
           draft: false,
           merged_at: null,
+          closed_at: null,
+          updated_at: '2026-11-18T06:00:00Z',
+          mergeable: null,
+          mergeable_state: 'unknown',
+          base: { ref: 'main', repo: { full_name: 'compai/app' } },
           head: {
             ref: 'dennis/add-the-thing',
             sha: 'abc123',

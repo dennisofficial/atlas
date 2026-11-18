@@ -12,6 +12,7 @@ import {
   serviceWith,
 } from './github-delivery.fixture'
 import { db } from '@dltech/atlas-db'
+import { seedHeadChecks } from './github-pr-checks.fixture'
 
 describe('GithubDeliveryService per-head verdict ledger', () => {
   useTestDatabase()
@@ -197,6 +198,7 @@ describe('GithubDeliveryService per-head verdict ledger', () => {
       }),
     })
     await seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    await seedHeadChecks({ headSha: 'abc123', passed: 4 })
 
     await service.handle({
       event: 'pull_request',
@@ -209,8 +211,8 @@ describe('GithubDeliveryService per-head verdict ledger', () => {
       userId: 'usr-a',
       payload: { verdict: 'green', settled: true },
     })
-    // The payload write materializes a zero-check row, so the fill's null→true mergeability
-    // flip announces once; a replayed delivery must not add a second row of either kind.
+    // The ledger already settles the head when the payload arrives, so the fill's null→true
+    // mergeability flip rides the verdict instead of announcing; a replay adds nothing.
     await service.handle({
       event: 'pull_request',
       payload: PULL_REQUEST_PAYLOAD,

@@ -1,3 +1,4 @@
+import { seedHeadChecks } from './github-pr-checks.fixture'
 import { storeFixture } from './github-pr-store.fixture'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
@@ -30,6 +31,7 @@ const pullOf = () => ({
   state: 'open',
   draft: false,
   merged_at: null,
+  updated_at: '2026-11-18T06:00:00Z',
   mergeable: true,
   mergeable_state: 'clean',
   head: { ref: 'dennis/drop-label', sha: SHA, repo: { full_name: 'compai/app' } },
@@ -108,14 +110,14 @@ describe('subscribe and read the head', () => {
 
   afterEach(() => unstubAllGlobals())
 
-  it('asks GitHub for no check suites and stores its rollup state with the PR', async () => {
+  it('asks GitHub for no check suites and stores the ledger rollup state with the PR', async () => {
     const { paths } = githubHead({ runs: [], checksState: 'EXPECTED' })
+    await seedHeadChecks({ headSha: SHA, passed: 1 })
 
     const state = await subscribe()
 
     expect(paths.some((path) => path.endsWith('/check-suites'))).toBe(false)
-    expect(paths.some((path) => path.endsWith('/graphql'))).toBe(true)
-    expect(state?.state?.checksState).toBe('expected')
+    expect(state?.state?.checksState).toBe('passing')
     expect(state?.state?.checksRunning).toBe(0)
   })
 
@@ -127,8 +129,9 @@ describe('subscribe and read the head', () => {
     expect(await verdicts()).toHaveLength(0)
   })
 
-  it('announces green once the runner has completed its runs', async () => {
+  it('announces green once the ledger holds the completed runs', async () => {
     githubHead({ runs: [completedRun(11), completedRun(12)], checksState: 'SUCCESS' })
+    await seedHeadChecks({ headSha: SHA, passed: 2 })
 
     await subscribe()
 

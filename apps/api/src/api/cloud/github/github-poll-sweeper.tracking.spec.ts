@@ -1,6 +1,6 @@
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { beforeEach, describe, expect, it, setSystemTime, vi } from 'bun:test'
+import { beforeEach, describe, expect, it, vi } from 'bun:test'
 import { PG_CHANGE_CHANNEL } from '@dltech/atlas-protocol'
 import pg from 'pg'
 import {
@@ -42,33 +42,27 @@ describe('GithubPollSweeperService tracking targets', () => {
     expect(row?.lookedUpAt).not.toBeNull()
   })
 
-  it('retries a superseded first lookup on the next sweep, then stamps it', async () => {
-    let overtaken = true
+  it('stamps a first lookup whose sample is older than the row it raced, without retrying', async () => {
     const readPullRequest = vi.fn(async () => {
-      if (overtaken) {
-        const held = await db.orm.public.GithubPrState.where({
-          repoFullName: 'compai/app',
-          prNumber: 42,
-        }).first()
-        await db.orm.public.GithubPrState.where({
-          repoFullName: 'compai/app',
-          prNumber: 42,
-        }).update({ state: 'merged', version: (held?.version ?? 0) + 1 })
-        return { ...REST_FIELDS, state: 'open' }
-      }
-      return REST_FIELDS
+      await db.orm.public.GithubPrState.where({
+        repoFullName: 'compai/app',
+        prNumber: 42,
+      }).update({
+        state: 'merged',
+        pullUpdatedAt: new Date(Date.now() + 60_000),
+      })
+      return { ...REST_FIELDS, state: 'open' }
     })
     const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
     await covered()
     await seedPrState({ prNumber: 42, state: 'open', updatedAt: new Date(Date.now() - 60_000) })
     const target = await seedTarget({ kind: 'pull-request', prNumber: 42 })
-    const startedAt = Date.now()
 
     await service.handlePoll()
 
-    const overtakenRow = await db.orm.public.GithubTrackingTarget.where({ id: target.id }).first()
-    expect(overtakenRow?.lookedUpAt).toBeNull()
-    expect(overtakenRow?.attemptedAt).not.toBeNull()
+    const stamped = await db.orm.public.GithubTrackingTarget.where({ id: target.id }).first()
+    expect(stamped?.lookedUpAt).not.toBeNull()
+    expect(stamped?.attemptedAt).not.toBeNull()
     expect(
       (
         await db.orm.public.GithubPrState.where({
@@ -78,17 +72,8 @@ describe('GithubPollSweeperService tracking targets', () => {
       )?.state,
     ).toBe('merged')
 
-    overtaken = false
-    setSystemTime(new Date(startedAt + 31_000))
-    try {
-      await service.handlePoll()
-    } finally {
-      setSystemTime()
-    }
+    await service.handlePoll()
 
-    const landed = await db.orm.public.GithubTrackingTarget.where({ id: target.id }).first()
-    expect(landed?.lookedUpAt).not.toBeNull()
-    expect(readPullRequest).toHaveBeenCalledTimes(2)
     expect(
       (
         await db.orm.public.GithubPrState.where({
@@ -96,7 +81,7 @@ describe('GithubPollSweeperService tracking targets', () => {
           prNumber: 42,
         }).first()
       )?.state,
-    ).toBe('open')
+    ).toBe('merged')
   })
 
   it('polls an uncovered repo on every sweep once the first lookup is spent', async () => {

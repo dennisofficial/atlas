@@ -14,12 +14,16 @@ describe('GithubPollSweeperService stale fills', () => {
 
   beforeEach(preparePollSweeper)
 
-  it('keeps a merge that lands while the poll is reading', async () => {
+  it('keeps a merge whose pull updated_at is newer than the poll sample', async () => {
     const readPullRequest = vi.fn(async () => {
       await db.orm.public.GithubPrState.where({
         repoFullName: 'compai/app',
         prNumber: 7,
-      }).update({ state: 'merged', version: 1 })
+      }).update({
+        state: 'merged',
+        version: 1,
+        pullUpdatedAt: new Date(Date.now() + 60_000),
+      })
       return { ...REST_FIELDS, state: 'open' }
     })
     const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
