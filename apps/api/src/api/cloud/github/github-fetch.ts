@@ -1,12 +1,18 @@
 import { Logger } from '@nestjs/common'
-import { EGithubCallSource } from './github-call-log'
+import {
+  EGithubCallLane,
+  EGithubCallSource,
+  githubCallLane,
+  githubCredentialKind,
+} from './github-call-log'
 import { EGithubHttpCategory } from './github-request-coordinator.types'
 import {
   takeGithubRequestSlot,
   blockGithubRequests,
   credentialFingerprint,
+  recordGithubRateHeadroom,
 } from './github-request-budget'
-import { rateLimitOf } from './github-rate-limit'
+import { rateLimitOfResponse } from './github-rate-limit'
 
 const logger = new Logger('GithubCall')
 
@@ -54,6 +60,7 @@ export async function githubFetch(args: {
         ? EGithubHttpCategory.Authorization
         : EGithubHttpCategory.Refresh,
     source,
+    essential: githubCallLane(source) === EGithubCallLane.Essential,
   }
   init?.signal?.throwIfAborted()
   await takeGithubRequestSlot(identity)
@@ -63,6 +70,8 @@ export async function githubFetch(args: {
     source,
     method: init?.method ?? 'GET',
     path: pathOf(url),
+    credentialFingerprint: identity.credentialFingerprint,
+    credentialKind: githubCredentialKind(token),
   }
   let response: Response
   try {
@@ -76,14 +85,23 @@ export async function githubFetch(args: {
     })
     throw failure
   }
-  const limited = rateLimitOf(response)
+  const headers = response.headers
+  const observed = {
+    ...identity,
+    resource: headers.get('x-ratelimit-resource') ?? identity.resource,
+  }
+  await recordGithubRateHeadroom({
+    identity: observed,
+    remaining: numberHeader(headers, 'x-ratelimit-remaining'),
+    limit: numberHeader(headers, 'x-ratelimit-limit'),
+    reset: numberHeader(headers, 'x-ratelimit-reset'),
+  })
+  const limited = await rateLimitOfResponse(response)
   if (limited !== null)
     await blockGithubRequests({
-      ...identity,
-      resource: response.headers.get('x-ratelimit-resource') ?? identity.resource,
+      ...observed,
       until: Date.now() + limited.retryAfterSeconds * 1_000,
     })
-  const headers = response.headers
   emit({
     ...base,
     status: response.status,

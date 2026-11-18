@@ -10,6 +10,8 @@ import {
   UNTHROTTLED_RATE_LIMIT,
 } from '../../../_module/trpc/trpc-middleware.fixture'
 import { GithubRepoReads } from './github-repo-reads'
+import { takeGithubRequestSlot } from './github-request-budget'
+import { GithubRequestCoordinator } from './github-request-coordinator'
 import { GithubUserReadFailed } from './github-user-reads'
 import { GithubReposRouter } from './github-repos.router'
 import { GithubService } from './github.service'
@@ -36,6 +38,13 @@ const branchesInput = (input: { owner: string; repo: string }): string =>
 describe('GithubReposRouter', () => {
   let app: INestApplication
   const reads = { listRepos: vi.fn(), listBranches: vi.fn() }
+  const budget = {
+    takeHttpSlot: vi.fn(async () => true),
+    httpCooldownUntil: async () => 0,
+    httpReserveUntil: async () => 0,
+    blockHttpUntil: async () => undefined,
+    holdHttpReserve: async () => undefined,
+  }
 
   const list = (token?: string) => {
     const call = request(app.getHttpServer()).get('/v1/trpc/githubRepos.list')
@@ -55,6 +64,7 @@ describe('GithubReposRouter', () => {
         GithubReposRouter,
         SessionMiddleware,
         { provide: GithubRepoReads, useValue: reads },
+        { provide: GithubRequestCoordinator, useValue: budget },
         {
           provide: GithubService,
           useValue: { findToken: async (args: { userId: string }) => GITHUB_TOKENS[args.userId] },
@@ -80,6 +90,8 @@ describe('GithubReposRouter', () => {
   beforeEach(() => {
     reads.listRepos.mockReset()
     reads.listBranches.mockReset()
+    budget.takeHttpSlot.mockReset()
+    budget.takeHttpSlot.mockResolvedValue(true)
   })
 
   describe('githubRepos.list', () => {
@@ -128,6 +140,39 @@ describe('GithubReposRouter', () => {
       const reply = await list('session-a')
 
       expect(reply.status).toBe(502)
+    })
+  })
+
+  describe('request budget', () => {
+    const paced = (repos: unknown[]) =>
+      reads.listRepos.mockImplementation(async () => {
+        await takeGithubRequestSlot({
+          credentialFingerprint: 'fp',
+          resource: 'core',
+          source: EGithubCallSource.RepoList,
+        })
+        return repos
+      })
+
+    it('paces the repository list inside the shared budget under the repo-list lane', async () => {
+      paced(REPOS)
+
+      const reply = await list('session-a')
+
+      expect(reply.status).toBe(200)
+      expect(budget.takeHttpSlot).toHaveBeenCalledWith(
+        expect.objectContaining({ source: EGithubCallSource.RepoList, resource: 'core' }),
+      )
+    })
+
+    it('answers 429 and never reads github when the budget is spent', async () => {
+      paced(REPOS)
+      budget.takeHttpSlot.mockResolvedValue(false)
+
+      const reply = await list('session-a')
+
+      expect(reply.status).toBe(429)
+      expect(reply.body.error.message).toContain('budget is spent')
     })
   })
 

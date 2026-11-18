@@ -82,14 +82,14 @@ export class RedisCoordinatorAdapter implements CoordinatorAdapter {
   }
 
   async takeHttpSlot(identity?: GithubRequestIdentity): Promise<boolean> {
-    const minute = Math.floor(Date.now() / 60_000)
+    const window = `${this.prefix}http:${Math.floor(Date.now() / 60_000)}:${this.credentialOf(identity)}`
     const result = await this.client.eval(
       BUDGET,
       4,
-      `${this.prefix}http:${minute}`,
+      window,
       this.cooldownKey(identity),
-      `${this.prefix}http:${minute}:${identity?.category ?? 'unclassified'}`,
-      `${this.prefix}http:${minute}:src:${identity?.source ?? 'unattributed'}`,
+      `${window}:${identity?.category ?? 'unclassified'}`,
+      `${window}:src:${identity?.source ?? 'unattributed'}`,
       Date.now(),
       GITHUB_HTTP_BUDGET_PER_MINUTE,
       identity?.category === EGithubHttpCategory.Authorization
@@ -105,6 +105,22 @@ export class RedisCoordinatorAdapter implements CoordinatorAdapter {
     return Number((await this.client.get(this.cooldownKey(identity))) ?? 0)
   }
 
+  async httpReserveUntil(identity: GithubRequestIdentity): Promise<number> {
+    return Number((await this.client.get(this.reserveKey(identity))) ?? 0)
+  }
+
+  async holdHttpReserve(args: { until: number } & Partial<GithubRequestIdentity>): Promise<void> {
+    await this.client.eval(
+      `local held = tonumber(redis.call('GET', KEYS[1]) or '0')
+      if tonumber(ARGV[1]) > held then redis.call('SET', KEYS[1], ARGV[1], 'PX', ARGV[2]) end
+      return 1`,
+      1,
+      this.reserveKey(args),
+      args.until,
+      Math.max(1, args.until - Date.now()),
+    )
+  }
+
   async blockHttpUntil(args: { until: number } & Partial<GithubRequestIdentity>): Promise<void> {
     await this.client.eval(
       `local held = tonumber(redis.call('GET', KEYS[1]) or '0')
@@ -117,8 +133,16 @@ export class RedisCoordinatorAdapter implements CoordinatorAdapter {
     )
   }
 
+  private credentialOf(identity?: Partial<GithubRequestIdentity>): string {
+    return identity?.credentialFingerprint ?? 'unattributed'
+  }
+
   private cooldownKey(identity?: Partial<GithubRequestIdentity>): string {
-    return `${this.prefix}blocked:${identity?.credentialFingerprint ?? 'unattributed'}:${identity?.resource ?? 'core'}`
+    return `${this.prefix}blocked:${this.credentialOf(identity)}:${identity?.resource ?? 'core'}`
+  }
+
+  private reserveKey(identity?: Partial<GithubRequestIdentity>): string {
+    return `${this.prefix}reserve:${this.credentialOf(identity)}:${identity?.resource ?? 'core'}`
   }
 
   async attempt(key: string): Promise<RefreshAttempt> {

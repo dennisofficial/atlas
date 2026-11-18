@@ -2,6 +2,7 @@ import { afterAll, afterEach, describe, expect, it, mock, spyOn } from 'bun:test
 import { Logger } from '@nestjs/common'
 import { EGithubCallSource } from './github-call-log'
 import { githubFetch } from './github-fetch'
+import { withGithubRequestBudget, type GithubHttpBudget } from './github-request-budget'
 
 const rateHeaders = {
   'x-ratelimit-resource': 'core',
@@ -17,11 +18,46 @@ const fakeGithub = Bun.serve({
     const path = new URL(request.url).pathname
     if (path === '/hang') return new Promise<Response>(() => undefined)
     if (path === '/rated') return new Response('{"secret":"body"}', { headers: rateHeaders })
+    if (path === '/low')
+      return new Response('{}', {
+        headers: {
+          ...rateHeaders,
+          'x-ratelimit-limit': '60',
+          'x-ratelimit-used': '58',
+          'x-ratelimit-remaining': '2',
+          'x-ratelimit-reset': String(Math.floor(Date.now() / 1_000) + 120),
+        },
+      })
+    if (path === '/secondary')
+      return new Response('{"message":"You have exceeded a secondary rate limit."}', {
+        status: 403,
+        headers: { 'x-ratelimit-resource': 'core', 'x-ratelimit-remaining': '40' },
+      })
     return new Response('{}')
   },
 })
 
 const urlOf = (path: string): string => `http://localhost:${fakeGithub.port}${path}`
+
+const recordingBudget = (): { budget: GithubHttpBudget; blocked: number[]; reserved: number[] } => {
+  const blocked: number[] = []
+  const reserved: number[] = []
+  return {
+    blocked,
+    reserved,
+    budget: {
+      takeHttpSlot: async () => true,
+      httpCooldownUntil: async () => 0,
+      httpReserveUntil: async () => 0,
+      blockHttpUntil: async (args) => {
+        blocked.push(args.until)
+      },
+      holdHttpReserve: async (args) => {
+        reserved.push(args.until)
+      },
+    },
+  }
+}
 
 function captureLines(): string[] {
   const lines: string[] = []
@@ -70,6 +106,61 @@ describe('githubFetch', () => {
     await githubFetch({ source: EGithubCallSource.RepoAccess, url: urlOf('/user') })
     expect(JSON.parse(lines[0] ?? '').source).toBe('repo-access')
     expect(JSON.parse(lines[0] ?? '').rateRemaining).toBeNull()
+  })
+
+  it('names the credential fingerprint and its kind without logging the token', async () => {
+    const lines = captureLines()
+    await githubFetch({
+      source: EGithubCallSource.DeliveryFill,
+      url: urlOf('/rated'),
+      init: { headers: { authorization: 'Bearer ghs_installation' } },
+    })
+    await githubFetch({
+      source: EGithubCallSource.RepoList,
+      url: urlOf('/rated'),
+      init: { headers: { authorization: 'Bearer gho_user' } },
+    })
+    const installation = JSON.parse(lines[0] ?? '')
+    const user = JSON.parse(lines[1] ?? '')
+    expect(installation.credentialKind).toBe('installation')
+    expect(user.credentialKind).toBe('user')
+    expect(installation.credentialFingerprint).toBeString()
+    expect(installation.credentialFingerprint).not.toBe(user.credentialFingerprint)
+    expect(lines.join('')).not.toContain('ghs_installation')
+    expect(lines.join('')).not.toContain('gho_user')
+  })
+
+  it('feeds a low remaining header back as a reserve on the credential', async () => {
+    captureLines()
+    const { budget, reserved } = recordingBudget()
+    await withGithubRequestBudget({
+      store: budget,
+      run: () =>
+        githubFetch({
+          source: EGithubCallSource.PollSweep,
+          url: urlOf('/low'),
+          init: { headers: { authorization: 'Bearer gho_user' } },
+        }),
+    })
+    expect(reserved).toHaveLength(1)
+    expect((reserved[0] ?? 0) - Date.now()).toBeGreaterThan(100_000)
+  })
+
+  it('treats a 403 secondary rate limit as a cooldown even with remaining quota', async () => {
+    captureLines()
+    const { budget, blocked } = recordingBudget()
+    await withGithubRequestBudget({
+      store: budget,
+      run: () =>
+        githubFetch({
+          source: EGithubCallSource.PollSweep,
+          url: urlOf('/secondary'),
+          init: { headers: { authorization: 'Bearer gho_user' } },
+        }),
+    })
+    expect(blocked).toHaveLength(1)
+    expect((blocked[0] ?? 0) - Date.now()).toBeGreaterThan(59_000)
+    expect((blocked[0] ?? 0) - Date.now()).toBeLessThanOrEqual(60_000)
   })
 
   it('logs an error status and rethrows', async () => {

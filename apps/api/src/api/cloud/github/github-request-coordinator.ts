@@ -8,6 +8,7 @@ import {
 import { RedisCoordinatorAdapter } from './github-request-coordinator.redis'
 import { accessProofAllows, accessProofKey } from './github-repo-access-proof'
 import {
+  ACCESS_PROOF_DENIAL_TTL_MS,
   ACCESS_PROOF_TTL_MS,
   type CoordinatorAdapter,
   type GithubRequestIdentity,
@@ -38,8 +39,14 @@ export class GithubRequestCoordinator {
   httpCooldownUntil(identity: GithubRequestIdentity): Promise<number> {
     return this.coordinated(this.adapter.httpCooldownUntil(identity))
   }
+  httpReserveUntil(identity: GithubRequestIdentity): Promise<number> {
+    return this.coordinated(this.adapter.httpReserveUntil(identity))
+  }
   blockHttpUntil(args: { until: number } & Partial<GithubRequestIdentity>): Promise<void> {
     return this.coordinated(this.adapter.blockHttpUntil(args))
+  }
+  holdHttpReserve(args: { until: number } & Partial<GithubRequestIdentity>): Promise<void> {
+    return this.coordinated(this.adapter.holdHttpReserve(args))
   }
   attempt(args: { key: string }) {
     return this.coordinated(this.adapter.attempt(args.key))
@@ -91,7 +98,7 @@ export class GithubRequestCoordinator {
   }): Promise<void> {
     const key = await this.proofKey(args)
     if (key === undefined) return
-    const until = Date.now() + ACCESS_PROOF_TTL_MS
+    const until = Date.now() + (args.granted ? ACCESS_PROOF_TTL_MS : ACCESS_PROOF_DENIAL_TTL_MS)
     try {
       const version = await this.coordinated(this.adapter.beginAuthorization(key))
       await this.coordinated(

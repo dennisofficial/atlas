@@ -9,15 +9,15 @@ import {
   type GithubRequestIdentity,
 } from './github-request-coordinator.types'
 
+type HttpWindow = { minute: number; spent: number; categories: Map<string, number> }
+
 export class LocalCoordinatorAdapter implements CoordinatorAdapter {
   private readonly authorizations = new Map<string, RepoAccessProof>()
   private readonly versions = new Map<string, { value: number; expiresAt: number }>()
-  private readonly categorySpent = new Map<string, number>()
-  private readonly sourceSpent = new Map<string, number>()
+  private readonly windows = new Map<string, HttpWindow>()
   private readonly attempts = new Map<string, RefreshAttempt & { expiresAt: number }>()
-  private minute = 0
-  private spent = 0
   private readonly blockedUntil = new Map<string, number>()
+  private readonly reservedUntil = new Map<string, number>()
 
   private authorizationState(key: string): RepoAccessProof | undefined {
     const state = this.authorizations.get(key)
@@ -73,14 +73,8 @@ export class LocalCoordinatorAdapter implements CoordinatorAdapter {
 
   async takeHttpSlot(identity?: GithubRequestIdentity): Promise<boolean> {
     if (Date.now() < (this.blockedUntil.get(this.cooldownKey(identity)) ?? 0)) return false
-    const minute = Math.floor(Date.now() / 60_000)
-    if (minute !== this.minute) {
-      this.minute = minute
-      this.spent = 0
-      this.categorySpent.clear()
-      this.sourceSpent.clear()
-    }
-    if (this.spent >= GITHUB_HTTP_BUDGET_PER_MINUTE) return false
+    const window = this.windowOf(this.credentialOf(identity))
+    if (window.spent >= GITHUB_HTTP_BUDGET_PER_MINUTE) return false
     const category = identity?.category ?? 'unclassified'
     const limit =
       category === EGithubHttpCategory.Authorization
@@ -88,13 +82,33 @@ export class LocalCoordinatorAdapter implements CoordinatorAdapter {
         : category === EGithubHttpCategory.Refresh
           ? GITHUB_REFRESH_HTTP_BUDGET_PER_MINUTE
           : GITHUB_HTTP_BUDGET_PER_MINUTE
-    const spent = this.categorySpent.get(category) ?? 0
+    const spent = window.categories.get(category) ?? 0
     if (spent >= limit) return false
-    this.categorySpent.set(category, spent + 1)
-    const source = identity?.source ?? 'unattributed'
-    this.sourceSpent.set(source, (this.sourceSpent.get(source) ?? 0) + 1)
-    this.spent += 1
+    window.categories.set(category, spent + 1)
+    window.spent += 1
     return true
+  }
+
+  private windowOf(credential: string): HttpWindow {
+    const minute = Math.floor(Date.now() / 60_000)
+    for (const [held, window] of this.windows)
+      if (window.minute !== minute) this.windows.delete(held)
+    const held = this.windows.get(credential)
+    if (held !== undefined && held.minute === minute) return held
+    const window: HttpWindow = { minute, spent: 0, categories: new Map() }
+    this.windows.set(credential, window)
+    return window
+  }
+
+  async httpReserveUntil(identity: GithubRequestIdentity): Promise<number> {
+    return this.reservedUntil.get(this.reserveKey(identity)) ?? 0
+  }
+
+  async holdHttpReserve(args: { until: number } & Partial<GithubRequestIdentity>): Promise<void> {
+    for (const [key, until] of this.reservedUntil)
+      if (until <= Date.now()) this.reservedUntil.delete(key)
+    const key = this.reserveKey(args)
+    this.reservedUntil.set(key, Math.max(this.reservedUntil.get(key) ?? 0, args.until))
   }
 
   async httpCooldownUntil(identity: GithubRequestIdentity): Promise<number> {
@@ -108,8 +122,16 @@ export class LocalCoordinatorAdapter implements CoordinatorAdapter {
     this.blockedUntil.set(key, Math.max(this.blockedUntil.get(key) ?? 0, args.until))
   }
 
+  private credentialOf(identity?: Partial<GithubRequestIdentity>): string {
+    return identity?.credentialFingerprint ?? 'unattributed'
+  }
+
   private cooldownKey(identity?: Partial<GithubRequestIdentity>): string {
-    return `${identity?.credentialFingerprint ?? 'unattributed'}:${identity?.resource ?? 'core'}`
+    return `${this.credentialOf(identity)}:${identity?.resource ?? 'core'}`
+  }
+
+  private reserveKey(identity?: Partial<GithubRequestIdentity>): string {
+    return `${this.credentialOf(identity)}:${identity?.resource ?? 'core'}`
   }
 
   async attempt(key: string): Promise<RefreshAttempt> {

@@ -7,6 +7,7 @@ import { normalizedRepo } from './github-pr-identity'
 
 const GITHUB_API = 'https://api.github.com'
 const PAGE_SIZE = 100
+const MAX_PAGES = 50
 const REQUEST_TIMEOUT_MS = 15_000
 const JWT_BACKDATE_SECONDS = 60
 const JWT_LIFETIME_SECONDS = 540
@@ -100,7 +101,7 @@ export class GithubAppClient {
     pick: (body: unknown) => T[]
   }): Promise<T[]> {
     const all: T[] = []
-    for (let page = 1; ; page += 1) {
+    for (let page = 1; page <= MAX_PAGES; page += 1) {
       const response = await this.request({
         method: 'GET',
         path: `${args.path}?per_page=${PAGE_SIZE}&page=${page}`,
@@ -110,6 +111,7 @@ export class GithubAppClient {
       all.push(...items)
       if (items.length < PAGE_SIZE) return all
     }
+    throw new Error(`github pagination for ${args.path} exceeded ${MAX_PAGES} pages`)
   }
 
   private async request(args: {

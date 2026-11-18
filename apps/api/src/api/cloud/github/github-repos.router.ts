@@ -12,6 +12,8 @@ import { Ctx, Input, Query, Router, UseMiddlewares } from 'nestjs-trpc'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
 import { EGithubCallSource } from './github-call-log'
 import { GithubRepoReads } from './github-repo-reads'
+import { isGithubBudgetParked, withGithubRequestBudget } from './github-request-budget'
+import { GithubRequestCoordinator } from './github-request-coordinator'
 import { GithubUserReadFailed } from './github-user-reads'
 import { GithubService } from './github.service'
 
@@ -21,14 +23,19 @@ export class GithubReposRouter {
   constructor(
     private readonly github: GithubService,
     private readonly reads: GithubRepoReads,
+    private readonly coordinator: GithubRequestCoordinator,
   ) {}
 
   @Query({ output: githubRepoListSchema })
   async list(@Ctx() ctx: SessionTrpcCtx): Promise<GithubRepoSummary[]> {
     const token = await this.tokenOf(ctx)
     try {
-      return await this.reads.listRepos({ source: EGithubCallSource.RepoList, token })
-    } catch {
+      return await withGithubRequestBudget({
+        store: this.coordinator,
+        run: () => this.reads.listRepos({ source: EGithubCallSource.RepoList, token }),
+      })
+    } catch (failure) {
+      if (isGithubBudgetParked(failure)) throw failure
       throw new UserFacingException('github could not list repositories', HttpStatus.BAD_GATEWAY)
     }
   }
@@ -40,13 +47,18 @@ export class GithubReposRouter {
   ): Promise<string[]> {
     const token = await this.tokenOf(ctx)
     try {
-      return await this.reads.listBranches({
-        source: EGithubCallSource.RepoList,
-        token,
-        owner: input.owner,
-        repo: input.repo,
+      return await withGithubRequestBudget({
+        store: this.coordinator,
+        run: () =>
+          this.reads.listBranches({
+            source: EGithubCallSource.RepoList,
+            token,
+            owner: input.owner,
+            repo: input.repo,
+          }),
       })
     } catch (failure) {
+      if (isGithubBudgetParked(failure)) throw failure
       if (failure instanceof GithubUserReadFailed && failure.status === 404) {
         throw new NotFoundException('repository not found')
       }

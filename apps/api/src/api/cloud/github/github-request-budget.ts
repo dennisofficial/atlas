@@ -1,6 +1,9 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { createHash } from 'node:crypto'
-import type { GithubRequestIdentity } from './github-request-coordinator.types'
+import {
+  GITHUB_HTTP_LOW_WATER_RATIO,
+  type GithubRequestIdentity,
+} from './github-request-coordinator.types'
 export const credentialFingerprint = (token: string): string =>
   createHash('sha256').update(token).digest('hex')
 import { HttpException, HttpStatus, Logger } from '@nestjs/common'
@@ -8,7 +11,9 @@ import { HttpException, HttpStatus, Logger } from '@nestjs/common'
 export type GithubHttpBudget = {
   takeHttpSlot(identity?: GithubRequestIdentity): Promise<boolean>
   httpCooldownUntil?(identity: GithubRequestIdentity): Promise<number>
+  httpReserveUntil?(identity: GithubRequestIdentity): Promise<number>
   blockHttpUntil(args: { until: number } & Partial<GithubRequestIdentity>): Promise<void>
+  holdHttpReserve?(args: { until: number } & Partial<GithubRequestIdentity>): Promise<void>
 }
 const scope = new AsyncLocalStorage<GithubHttpBudget>()
 const logger = new Logger('GithubBudget')
@@ -16,6 +21,7 @@ const logger = new Logger('GithubBudget')
 export enum EGithubBudgetRefusal {
   Window = 'window',
   Cooldown = 'cooldown',
+  Quota = 'quota',
   Coordinator = 'coordinator',
 }
 
@@ -28,6 +34,10 @@ const messageOf = (args: { refusal: EGithubBudgetRefusal; until?: number | undef
   if (args.refusal === EGithubBudgetRefusal.Cooldown) {
     const until = args.until ?? Date.now()
     return `GitHub rate-limited this connection: Atlas holds GitHub calls for ${minutesUntil(until)} more minutes (until ${clockOf(until)} UTC).`
+  }
+  if (args.refusal === EGithubBudgetRefusal.Quota) {
+    const until = args.until ?? Date.now()
+    return `GitHub has almost no quota left for this connection: Atlas holds background calls for ${minutesUntil(until)} more minutes (until ${clockOf(until)} UTC) so deliveries still arrive.`
   }
   if (args.refusal === EGithubBudgetRefusal.Coordinator)
     return 'Atlas could not reach its GitHub request coordinator, so it is holding GitHub calls. Retry in a moment.'
@@ -91,9 +101,10 @@ const refuse = (args: {
       ...(args.detail === undefined ? {} : { detail: args.detail }),
     }),
   )
-  return args.until === undefined
-    ? new GithubHttpBudgetUnavailable(args.refusal)
-    : new GithubCredentialCooldown(args.until)
+  if (args.until === undefined) return new GithubHttpBudgetUnavailable(args.refusal)
+  return args.refusal === EGithubBudgetRefusal.Cooldown
+    ? new GithubCredentialCooldown(args.until)
+    : new GithubHttpBudgetUnavailable(args.refusal, args.until)
 }
 
 export async function takeGithubRequestSlot(identity: GithubRequestIdentity): Promise<void> {
@@ -121,7 +132,49 @@ export async function takeGithubRequestSlot(identity: GithubRequestIdentity): Pr
     })
   }
   if (until > Date.now()) throw refuse({ refusal: EGithubBudgetRefusal.Cooldown, identity, until })
+  const reserved = await reservedUntil({ budget, identity })
+  if (reserved > Date.now())
+    throw refuse({ refusal: EGithubBudgetRefusal.Quota, identity, until: reserved })
   throw refuse({ refusal: EGithubBudgetRefusal.Window, identity })
+}
+
+async function reservedUntil(args: {
+  budget: GithubHttpBudget
+  identity: GithubRequestIdentity
+}): Promise<number> {
+  if (args.identity.essential !== false) return 0
+  try {
+    return (await args.budget.httpReserveUntil?.(args.identity)) ?? 0
+  } catch (failure) {
+    throw refuse({
+      refusal: EGithubBudgetRefusal.Coordinator,
+      identity: args.identity,
+      detail: detailOf(failure),
+    })
+  }
+}
+
+export async function recordGithubRateHeadroom(args: {
+  identity: GithubRequestIdentity
+  remaining: number | null
+  limit: number | null
+  reset: number | null
+}): Promise<void> {
+  const { remaining, limit, reset } = args
+  if (remaining === null || limit === null || limit <= 0) return
+  if (remaining > limit * GITHUB_HTTP_LOW_WATER_RATIO) return
+  const until = reset === null ? Date.now() + 60_000 : reset * 1_000
+  if (until <= Date.now()) return
+  logger.warn(
+    JSON.stringify({
+      reserve: 'low-water',
+      resource: args.identity.resource,
+      remaining,
+      limit,
+      until: new Date(until).toISOString(),
+    }),
+  )
+  await scope.getStore()?.holdHttpReserve?.({ ...args.identity, until })
 }
 
 export async function blockGithubRequests(

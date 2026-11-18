@@ -8,7 +8,7 @@ import { ELinkedPrAccess, type LinkedPrAccess } from './github-linked-pr-access'
 import { cachedPrStates, type LinkedPr, linkedPrs } from './github-linked-prs'
 import { normalizedRepo, prIdentity } from './github-pr-identity'
 import type { PrFrameSink } from './github-pr-stream.frames'
-import { ACCESS_PROOF_TTL_MS } from './github-request-coordinator.types'
+import { ACCESS_PROOF_RECHECK_MS } from './github-request-coordinator.types'
 import type { GithubPrStateDto } from './github-realtime.types'
 import type { GithubSubscriptionsService } from './github-subscriptions.service'
 
@@ -194,7 +194,7 @@ export function attachPrStates(args: {
     void recheckAccess().catch((failure: unknown) =>
       args.logger.warn(`re-checking linked PR access failed: ${String(failure)}`),
     )
-  }, ACCESS_PROOF_TTL_MS)
+  }, ACCESS_PROOF_RECHECK_MS)
 
   const detach = (): void => {
     if (disposed) return

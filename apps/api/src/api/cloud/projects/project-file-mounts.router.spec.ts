@@ -5,9 +5,18 @@ import type { INestApplication } from '@nestjs/common'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { dataOf, trpcMutation, trpcQuery } from '../session-trpc-test-app'
 import { seedSessionUsers } from '../../../test/web-settings.fake-db'
+import type { GithubRequestCoordinator } from '../github/github-request-coordinator'
 import { buildProjectsApp, createProjectAs } from './projects.router.fixture'
 
 const CONTENTS = 'TOKEN=super-secret\n'
+
+const spentCoordinator = {
+  takeHttpSlot: async () => false,
+  httpCooldownUntil: async () => 0,
+  httpReserveUntil: async () => 0,
+  blockHttpUntil: async () => undefined,
+  holdHttpReserve: async () => undefined,
+} as unknown as GithubRequestCoordinator
 
 describe('project file mounts router', () => {
   useTestDatabase()
@@ -155,6 +164,19 @@ describe('project file mounts router', () => {
     const [url, init] = fetchStub.mock.calls[0] as [string, RequestInit]
     expect(url).toBe('https://api.github.com/repos/dennisofficial/atlas/git/trees/main?recursive=1')
     expect(init.headers).toMatchObject({ authorization: 'Bearer gho_a' })
+  })
+
+  it('answers 429 without calling github when the request budget parks the read', async () => {
+    await app.close()
+    app = await buildProjectsApp({
+      coordinator: spentCoordinator,
+      githubTokens: { 'user-a': 'gho_a' },
+    })
+    const projectId = await createProjectAs({ app, token: 'session-a' })
+    const fetchStub = vi.fn().mockResolvedValue(new Response('{}'))
+    stubGlobal('fetch', fetchStub)
+    await query({ path: 'repoTree', input: { projectId } }).expect(429)
+    expect(fetchStub).not.toHaveBeenCalled()
   })
 
   it('returns an empty tree without a repo or a github token and maps failures', async () => {
