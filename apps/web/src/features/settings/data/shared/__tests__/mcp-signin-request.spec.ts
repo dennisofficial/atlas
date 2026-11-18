@@ -1,11 +1,13 @@
-import { beforeEach, describe, expect, it } from 'bun:test'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
+
+import { createApiClient } from '@dltech/atlas-api-router'
 
 type Call = { url: string; method: string; body: string }
 
 const calls: Call[] = []
 let answer: () => Response = () => Response.json({})
 
-globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+const recordingFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
   calls.push({
     url: String(input),
     method: init?.method ?? 'GET',
@@ -13,6 +15,10 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
   })
   return answer()
 }) as typeof fetch
+
+mock.module('@/lib/api-client', () => ({
+  api: createApiClient({ baseUrl: '', fetchFn: recordingFetch }),
+}))
 
 const { beginMcpSignIn } = await import('../mcp-signin-request')
 
