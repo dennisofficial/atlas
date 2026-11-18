@@ -283,11 +283,6 @@ export function PromptInput({
               {sending ? <Spinner aria-hidden="true" /> : <ArrowUpIcon />}
             </InputGroupButton>
           )}
-          {sending ? (
-            <span role="status" className="basis-full text-xs text-muted-foreground">
-              Sending…
-            </span>
-          ) : null}
         </InputGroupAddon>
       </InputGroup>
     </form>

@@ -104,11 +104,6 @@ export const Composer = ({
           {notice}
         </Text>
       )}
-      {sending ? (
-        <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={styles.notice}>
-          Sending…
-        </Text>
-      ) : null}
       <View
         style={[
           styles.field,
