@@ -26,7 +26,9 @@ export class GithubPrReconcile {
   async run(args: PrReconcileArgs): Promise<void> {
     const repoFullName = normalizedRepo(args.repoFullName)
     const token = await this.deps.fillTokenOf({ repoFullName, installationId: undefined })
-    if (token === undefined) return
+    if (token === undefined) {
+      throw new Error(`github reconcile has no installation token for ${repoFullName}`)
+    }
     const [owner, repo] = repoFullName.split('/') as [string, string]
     const checks = await withGithubRequestBudget({
       store: this.deps.budget,

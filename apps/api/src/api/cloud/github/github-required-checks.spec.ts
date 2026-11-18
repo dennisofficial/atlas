@@ -102,8 +102,11 @@ describe('required context cache', () => {
     const cache: RequiredContextsCache = new Map()
     const key = requiredContextsKey({ owner: 'compai', repo: 'app', branch: 'main' })
     expect(recalledRequiredContexts({ cache, key, now: 1_000 })).toBeUndefined()
-    rememberRequiredContexts({ cache, key, now: 1_000, contexts: ['ci'] })
-    expect(recalledRequiredContexts({ cache, key, now: 60_999 })).toEqual(['ci'])
+    rememberRequiredContexts({ cache, key, acquiredAt: 1_000, contexts: ['ci'] })
+    expect(recalledRequiredContexts({ cache, key, now: 60_999 })).toEqual({
+      acquiredAt: 1_000,
+      contexts: ['ci'],
+    })
     expect(recalledRequiredContexts({ cache, key, now: 61_001 })).toBeUndefined()
   })
 })

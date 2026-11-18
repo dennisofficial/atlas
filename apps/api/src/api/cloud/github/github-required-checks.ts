@@ -12,7 +12,7 @@ export type GithubClassicRequiredChecks = {
 
 export type GithubPathRead = { status: number; body: unknown }
 
-export type RequiredContextsCache = Map<string, { at: number; contexts: string[] }>
+export type RequiredContextsCache = Map<string, { acquiredAt: number; contexts: string[] }>
 
 function asArray<T>(value: readonly T[] | T | null | undefined): readonly T[] {
   if (value === null || value === undefined) return []
@@ -88,18 +88,19 @@ export function recalledRequiredContexts(args: {
   cache: RequiredContextsCache
   key: string
   now: number
-}): string[] | undefined {
+}): { acquiredAt: number; contexts: string[] } | undefined {
   const held = args.cache.get(args.key)
   if (held === undefined) return undefined
-  return args.now - held.at < REQUIRED_CHECKS_TTL_MS ? held.contexts : undefined
+  return args.now - held.acquiredAt < REQUIRED_CHECKS_TTL_MS ? held : undefined
 }
 
 export function rememberRequiredContexts(args: {
   cache: RequiredContextsCache
-  key: string
-  now: number
+  acquiredAt: number
   contexts: string[]
+  key: string
 }): string[] {
-  args.cache.set(args.key, { at: args.now, contexts: args.contexts })
+  args.cache.set(args.key, { acquiredAt: args.acquiredAt, contexts: args.contexts })
+
   return args.contexts
 }

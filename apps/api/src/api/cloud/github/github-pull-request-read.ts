@@ -41,7 +41,7 @@ export async function readPullRequestFill(args: {
     repo: args.repo,
     headSha: pull.head.sha,
   })
-  const requiredContexts = await args.requiredChecks.read({
+  const protection = await args.requiredChecks.read({
     source: args.source,
     token: args.token,
     owner: args.owner,
@@ -53,7 +53,7 @@ export async function readPullRequestFill(args: {
     mergeability: mergeabilitySampleOfRest({ pull, observedAt: args.observedAt }),
     headSha: pull.head.sha,
     checks: head.checks,
-    protection: { baseBranch: pull.base.ref, requiredContexts },
+    protection: { baseBranch: pull.base.ref, ...protection },
     fields: pullRequestCacheFieldsOf({
       pull,
       checkRuns: head.checkRuns,

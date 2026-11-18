@@ -55,6 +55,8 @@ describe('GithubUserReads settle confirmation', () => {
     })
     expect(paths).toHaveLength(5)
     expect(collected).toEqual([{ headSha: 'abc', checks: [] }])
-    expect(protection).toEqual([{ baseBranch: 'release', requiredContexts: [] }])
+    expect(protection).toEqual([
+      { acquiredAt: expect.any(Date), baseBranch: 'release', requiredContexts: [] },
+    ])
   })
 })

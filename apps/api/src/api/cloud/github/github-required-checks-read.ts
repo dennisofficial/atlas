@@ -12,6 +12,11 @@ import {
 const GITHUB_API = 'https://api.github.com'
 const GITHUB_REQUEST_TIMEOUT_MS = 8_000
 
+export type GithubRequiredContextsRead = {
+  acquiredAt: Date
+  requiredContexts: readonly string[] | null
+}
+
 export class GithubRequiredChecksRead {
   private readonly baseUrl = process.env.GITHUB_API_URL ?? GITHUB_API
   private readonly known: RequiredContextsCache = new Map()
@@ -26,23 +31,32 @@ export class GithubRequiredChecksRead {
     owner: string
     repo: string
     branch: string
-  }): Promise<string[] | null> {
+  }): Promise<GithubRequiredContextsRead> {
     const key = requiredContextsKey(args)
-    const held = recalledRequiredContexts({ cache: this.known, key, now: Date.now() })
-    if (held !== undefined) return held
+    const startedAt = Date.now()
+    const held = recalledRequiredContexts({ cache: this.known, key, now: startedAt })
+    if (held !== undefined) {
+      return { acquiredAt: new Date(held.acquiredAt), requiredContexts: held.contexts }
+    }
     const contexts = await requiredContextsFrom({
       read: (path: string) => this.readPath({ source: args.source, token: args.token, path }),
       owner: args.owner,
       repo: args.repo,
       branch: args.branch,
     })
-    if (contexts === null) return null
-    return rememberRequiredContexts({
-      cache: this.known,
-      key,
-      now: Date.now(),
-      contexts,
-    })
+    if (contexts === null) {
+      return { acquiredAt: new Date(startedAt), requiredContexts: null }
+    }
+
+    return {
+      acquiredAt: new Date(startedAt),
+      requiredContexts: rememberRequiredContexts({
+        cache: this.known,
+        acquiredAt: startedAt,
+        contexts,
+        key,
+      }),
+    }
   }
 
   private async readPath(args: {

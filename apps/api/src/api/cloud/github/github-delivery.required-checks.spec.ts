@@ -54,7 +54,11 @@ const requireContexts = (fields: PullRequestCacheFields, requiredContexts: strin
   (async (input: {
     collectRequiredContexts?: (protection: BranchProtectionRead) => void
   }): Promise<PullRequestCacheFields> => {
-    input.collectRequiredContexts?.({ baseBranch: 'main', requiredContexts })
+    input.collectRequiredContexts?.({
+      acquiredAt: new Date(),
+      baseBranch: 'main',
+      requiredContexts,
+    })
     return fields
   }) as GithubUserReads['readPullRequest']
 
