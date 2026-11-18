@@ -3,6 +3,7 @@ import {
   ESetupPhase,
   EWorkspaceStep,
   EWorkspaceStepState,
+  setupInFlightOf,
   type WorkspaceStepReport,
 } from '@dltech/atlas-core'
 import { ScriptedModel } from '@dltech/atlas-agent/testing'
@@ -243,6 +244,17 @@ describe('a setup script that runs in the background', () => {
     await a.bus.wake(SESSION)
     const joined = await flushUntil({ check: () => prepared > 0, attempts: 200 })
     expect(joined).toBe(true)
+
+    // the new holder joined the script the pod is still running: the record says started exactly
+    // once and has no end yet, which is the whole of what the boot view needs to show it Running
+    const inFlight = await setupStepsOf(b)
+    expect(inFlight.filter((step) => step.state === EWorkspaceStepState.Started)).toHaveLength(1)
+    expect(inFlight.filter((step) => step.state === EWorkspaceStepState.Done)).toHaveLength(0)
+    expect(inFlight.filter((step) => step.state === EWorkspaceStepState.Failed)).toHaveLength(0)
+    const inFlightEvents = (
+      await b.plane.readEvents({ threadId: THREAD_ID, afterSeq: 0, limit: 100, visible: false })
+    ).events
+    expect(setupInFlightOf(inFlightEvents)).toBe(true)
 
     b.clock.advance(120_000)
     await b.flush()

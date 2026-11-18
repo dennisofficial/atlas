@@ -65,6 +65,9 @@ should enforce a dependency rule.
   in CI) only specs whose inputs changed run, and failures are never cached. Never add path filters
   or sharding to CI; the nightly runs everything.
 - Live Docker specs run only with `ATLAS_LIVE_DOCKER=1`, which CI doesn't set (several need repair).
+- Any v2 feature whose work outlives a turn or a prepare (a background setup script, a bash call)
+  ships a `describeHandoff` scenario in `apps/api/src/agent/__tests__/faults/`: it must survive a
+  host draining, a host being SIGKILLed, and a pod restart, and run exactly once.
 - Context assembly, hook resolution and policy decisions are pure `core` code: test them with plain
   data, never a live model, terminal or database.
 

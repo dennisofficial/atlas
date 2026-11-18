@@ -103,7 +103,12 @@ const testSource = (): ConfigSource => ({
       model,
       models: fakeModelSourceOf(model),
       vercel: { configured: true, token: '', teamId: '', projectId: '' },
-      workspace: { remoteUrl: null, baseBranch: null, additionalRepos: [], setupScript: '' },
+      workspace: {
+        remoteUrl: null,
+        baseBranch: null,
+        additionalRepos: [],
+        setupScript: process.env.SETUP_SCRIPT ?? '',
+      },
       skills: [],
     }
   },
