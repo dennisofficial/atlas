@@ -41,19 +41,17 @@ describe('PromptInput', () => {
     expect(html).toContain('data-slot="spinner"')
   })
 
-  it('states Sending… under the disabled field until the post returns', () => {
+  it('disables attaching while sending, with no extra status line', () => {
     const html = renderToStaticMarkup(<PromptInput defaultValue="fix the build" sending />)
     const attach = html.match(/<button[^>]*aria-label="Attach files"[^>]*>/)?.[0] ?? ''
-    const status = html.match(/<span role="status"[^>]*>([^<]*)<\/span>/)?.[1]
 
-    expect(status).toBe('Sending…')
     expect(attach).toContain(' disabled=""')
+    expect(html).not.toContain('Sending…')
   })
 
-  it('drops the Sending… line once the field takes input again', () => {
+  it('takes input again once not sending', () => {
     const html = renderToStaticMarkup(<PromptInput defaultValue="fix the build" />)
 
-    expect(html).not.toContain('Sending…')
     expect(html.match(/<textarea[^>]*>/)?.[0]).not.toContain('readOnly=""')
   })
 

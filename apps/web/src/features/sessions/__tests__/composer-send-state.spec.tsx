@@ -67,7 +67,6 @@ function SendHarness({ post }: { post: () => Promise<void> }) {
 const field = () => document.body.querySelector<HTMLTextAreaElement>('textarea')
 const buttonLabelled = (label: string) =>
   document.body.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)
-const sendsLine = () => document.body.querySelector('span[role="status"]')?.textContent?.trim()
 const errorLine = () => document.body.querySelector('[data-slot="error"]')?.textContent
 
 const submitDraft = async () => {
@@ -79,14 +78,13 @@ const submitDraft = async () => {
 }
 
 describe('composer send state', () => {
-  it('disables the composer with Sending… while the post is in flight', async () => {
+  it('disables the composer while the post is in flight', async () => {
     const post = deferred()
     const unmount = await mount(<SendHarness post={() => post.promise} />)
 
     await submitDraft()
 
     expect(field()?.readOnly).toBe(true)
-    expect(sendsLine()).toBe('Sending…')
     expect(buttonLabelled('Sending')?.disabled).toBe(true)
     expect(buttonLabelled('Attach files')?.disabled).toBe(true)
     expect(field()?.value).toBe(DRAFT)
@@ -98,7 +96,7 @@ describe('composer send state', () => {
     const unmount = await mount(<SendHarness post={() => post.promise} />)
 
     await submitDraft()
-    expect(sendsLine()).toBe('Sending…')
+    expect(buttonLabelled('Sending')?.disabled).toBe(true)
 
     await act(async () => {
       post.settle(new Error('network unreachable'))
@@ -107,7 +105,6 @@ describe('composer send state', () => {
 
     expect(field()?.readOnly).toBe(false)
     expect(field()?.value).toBe(DRAFT)
-    expect(sendsLine()).toBeUndefined()
     expect(buttonLabelled('Send')?.disabled).toBe(false)
     expect(buttonLabelled('Attach files')?.disabled).toBe(false)
     expect(errorLine()).toBe('network unreachable')
