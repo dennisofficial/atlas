@@ -222,6 +222,43 @@ describe('runDeployGate', () => {
     expect(result.detail).toContain('no deploy of abc123')
   })
 
+  it('passes a commit that got no deploy once a live deploy contains it', async () => {
+    const render = fakeRender({
+      lists: [[{ id: 'dep_2', status: 'live', commitId: 'def456' }]],
+      health: [200],
+    })
+    const asked: { liveCommit: string; sha: string }[] = []
+
+    const result = await runDeployGate({
+      config,
+      fetcher: render.fetcher,
+      clock: fakeClock(),
+      liveContains: async (args) => {
+        asked.push(args)
+        return true
+      },
+    })
+
+    expect(result.verdict).toBe(EGateVerdict.Superseded)
+    expect(asked).toEqual([{ liveCommit: 'def456', sha: 'abc123' }])
+  })
+
+  it('keeps waiting when the live deploy does not contain the commit', async () => {
+    const render = fakeRender({
+      lists: [[{ id: 'dep_0', status: 'live', commitId: 'old000' }]],
+      health: [200],
+    })
+
+    const result = await runDeployGate({
+      config,
+      fetcher: render.fetcher,
+      clock: fakeClock(),
+      liveContains: async () => false,
+    })
+
+    expect(result.verdict).toBe(EGateVerdict.TimedOut)
+  })
+
   it('fails a live deploy that never answers healthz 200', async () => {
     const render = fakeRender({ lists: [[{ id: 'dep_1', status: 'live' }]], health: [500] })
 

@@ -27,7 +27,7 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
@@ -95,6 +95,17 @@ jobs:
 
       - name: pack
         run: bun apps/mac/scripts/pack-web-payload.ts apps/mac/web-standalone "$RUNNER_TEMP/payload"
+
+      # The payload talks to api.byatlas.io, so it waits for the Render deploy of this commit just as
+      # the hosted web does in release.yml, or for a newer live commit that contains it when a burst
+      # of merges deployed only the newest.
+      - name: wait for the API serving this commit to go live
+        run: bun scripts/render-deploy-gate.ts
+        working-directory: apps/api
+        env:
+          ACCEPT_NEWER_LIVE_COMMIT: '1'
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: srv-dbmaj7ajnfac738tg30g
 
       - name: publish the manifest and the artifact
         run: |

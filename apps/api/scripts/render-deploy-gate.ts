@@ -198,20 +198,53 @@ async function probeSettled({
   return { verdict, detail: `${judgement.detail}; ${probe.detail}` }
 }
 
+export type LiveContains = (args: { liveCommit: string; sha: string }) => Promise<boolean>
+
+async function withNewerLive({
+  judgement,
+  deploys,
+  sha,
+  liveContains,
+}: {
+  judgement: DeployJudgement
+  deploys: readonly RenderDeploy[]
+  sha: string
+  liveContains: LiveContains | undefined
+}): Promise<DeployJudgement> {
+  if (judgement.verdict !== EDeployJudgement.Waiting || liveContains === undefined) return judgement
+  if (deploys.some((deploy) => deploy.commitId === sha)) return judgement
+  const live = deploys.find((deploy) => deploy.status === EDeployStatus.Live)
+  if (live === undefined || !(await liveContains({ liveCommit: live.commitId, sha }))) {
+    return judgement
+  }
+  return {
+    verdict: EDeployJudgement.Superseded,
+    detail: `${sha} got no deploy of its own; ${live.commitId}, which contains it, is live`,
+  }
+}
+
 export async function runDeployGate({
   config,
   fetcher,
   clock,
+  liveContains,
 }: {
   config: GateConfig
   fetcher: Fetcher
   clock: GateClock
+  liveContains?: LiveContains | undefined
 }): Promise<GateResult> {
   const deadline = clock.now() + SETTLE_TIMEOUT_MS
   let judgement: DeployJudgement = { verdict: EDeployJudgement.Waiting, detail: 'nothing listed' }
 
   while (clock.now() < deadline) {
-    judgement = judgeDeploy({ deploys: await listDeploys({ config, fetcher }), sha: config.sha })
+    const deploys = await listDeploys({ config, fetcher })
+    judgement = await withNewerLive({
+      judgement: judgeDeploy({ deploys, sha: config.sha }),
+      deploys,
+      sha: config.sha,
+      liveContains,
+    })
     if (judgement.verdict === EDeployJudgement.Failed) {
       return { verdict: EGateVerdict.Failed, detail: judgement.detail }
     }
@@ -236,6 +269,12 @@ function requireEnv(name: string): string {
   return value
 }
 
+async function gitContains({ liveCommit, sha }: { liveCommit: string; sha: string }) {
+  await Bun.spawn(['git', 'fetch', '--quiet', 'origin', liveCommit]).exited
+  const ancestry = Bun.spawn(['git', 'merge-base', '--is-ancestor', sha, liveCommit])
+  return (await ancestry.exited) === 0
+}
+
 if (import.meta.main) {
   const result = await runDeployGate({
     config: {
@@ -245,6 +284,7 @@ if (import.meta.main) {
     },
     fetcher: fetch,
     clock: { now: Date.now, sleep: (ms) => Bun.sleep(ms) },
+    liveContains: process.env.ACCEPT_NEWER_LIVE_COMMIT === '1' ? gitContains : undefined,
   })
   if (!PASSING_VERDICTS.includes(result.verdict)) {
     console.error(`::error::${result.verdict}: ${result.detail}`)
