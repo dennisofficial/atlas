@@ -88,6 +88,9 @@ export class ShellEnvCell {
   private env: Record<string, string> = {}
   private secretEnv: Record<string, string> = {}
   private secretNames: readonly string[] = []
+  private token: string | null = null
+  private signing: SigningConfig | null = null
+  private launchDirectory: string | null = null
 
   constructor(
     private readonly args: {
@@ -116,6 +119,9 @@ export class ShellEnvCell {
     signal: AbortSignal
   }): Promise<void> {
     const { token, signing, launchDirectory, signal } = args
+    this.token = token
+    this.signing = signing
+    this.launchDirectory = launchDirectory
     this.env = shellEnvOf({ githubToken: token, identity: null, signing, launchDirectory })
     if (!hasToken(token) || signing !== null) return
     try {
@@ -128,5 +134,19 @@ export class ShellEnvCell {
         ...logFieldsOf({ error }),
       })
     }
+  }
+
+  async updateToken(args: {
+    token: string | null
+    launchDirectory: string
+    signal: AbortSignal
+  }): Promise<void> {
+    if (args.token === this.token && this.launchDirectory !== null) return
+    await this.refresh({
+      token: args.token,
+      signing: this.signing,
+      launchDirectory: args.launchDirectory,
+      signal: args.signal,
+    })
   }
 }
