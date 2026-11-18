@@ -20,7 +20,8 @@ describe('better-auth sessions over Redis with Postgres kept', () => {
 
   beforeAll(async () => {
     redis = await createRealRedisService()
-    ;({ auth: plain } = await import('./auth.server'))
+    delete process.env.REDIS_URL
+    ;({ auth: plain } = await import(`./auth.server?plain=${Date.now()}`))
     process.env.REDIS_URL = `${(await import('../../../../test/real-redis.fixture')).testRedisUrl}`
     ;({ auth: cached } = await import(`./auth.server?redis=${Date.now()}`))
   })
