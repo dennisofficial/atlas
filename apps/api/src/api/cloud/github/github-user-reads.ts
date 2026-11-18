@@ -1,7 +1,14 @@
 import { Injectable } from '@nestjs/common'
 import type { EGithubCallSource } from './github-call-log'
 import { githubFetch } from './github-fetch'
-import { rateLimitOf } from './github-rate-limit'
+import {
+  DETAIL_CAP,
+  GithubUserReadFailed,
+  GITHUB_REQUEST_TIMEOUT_MS,
+  githubApiBaseUrlOf,
+  githubHeadersOf,
+  githubJsonGet,
+} from './github-user-http'
 import type { MergeabilitySample } from '@dltech/atlas-core'
 import type { BranchProtectionRead } from './github-branch-protection'
 import type { PullRequestCacheFields, RestPullRequest } from './github-pull-request-mapping'
@@ -12,22 +19,7 @@ import { readPullRequestFill, type PullRequestRead } from './github-pull-request
 import { readHeadChecks } from './github-head-checks-read'
 import { GithubRequiredChecksRead } from './github-required-checks-read'
 
-const GITHUB_API = 'https://api.github.com'
-const DETAIL_CAP = 300
-const GITHUB_REQUEST_TIMEOUT_MS = 8_000
-
-export class GithubUserReadFailed extends Error {
-  readonly rateLimited: boolean
-
-  constructor(
-    message: string,
-    readonly status: number,
-    rateLimited?: boolean,
-  ) {
-    super(message)
-    this.rateLimited = rateLimited ?? status === 429
-  }
-}
+export { GithubUserReadFailed } from './github-user-http'
 
 export type CreateHookResult =
   | { outcome: 'created'; hookId: number }
@@ -48,7 +40,7 @@ export interface HookConfig {
  */
 @Injectable()
 export class GithubUserReads {
-  private readonly baseUrl = process.env.GITHUB_API_URL ?? GITHUB_API
+  private readonly baseUrl = githubApiBaseUrlOf()
   private readonly requiredChecks = new GithubRequiredChecksRead()
 
   readCheckAnnotations(args: {
@@ -162,7 +154,7 @@ export class GithubUserReads {
       url: `${this.baseUrl}/repos/${args.owner}/${args.repo}/hooks`,
       init: {
         method: 'POST',
-        headers: this.headers({ token: args.token }),
+        headers: githubHeadersOf({ token: args.token }),
         signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
         body: JSON.stringify({
           name: 'web',
@@ -201,7 +193,7 @@ export class GithubUserReads {
       source: args.source,
       url: `${this.baseUrl}/repos/${args.owner}/${args.repo}/hooks/${args.hookId}`,
       init: {
-        headers: this.headers({ token: args.token }),
+        headers: githubHeadersOf({ token: args.token }),
         signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
       },
     })
@@ -243,7 +235,7 @@ export class GithubUserReads {
       url: `${this.baseUrl}/repos/${args.owner}/${args.repo}/hooks/${args.hookId}`,
       init: {
         method: 'PATCH',
-        headers: this.headers({ token: args.token }),
+        headers: githubHeadersOf({ token: args.token }),
         signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
         body: JSON.stringify({ events: args.events }),
       },
@@ -269,7 +261,7 @@ export class GithubUserReads {
       url: `${this.baseUrl}/repos/${args.owner}/${args.repo}/hooks/${args.hookId}`,
       init: {
         method: 'DELETE',
-        headers: this.headers({ token: args.token }),
+        headers: githubHeadersOf({ token: args.token }),
         signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
       },
     })
@@ -297,35 +289,7 @@ export class GithubUserReads {
     return hooks.find((hook) => hook.config?.url === args.config.url)?.id
   }
 
-  private async get<T>(args: {
-    source: EGithubCallSource
-    token: string
-    path: string
-  }): Promise<T> {
-    const response = await githubFetch({
-      source: args.source,
-      url: `${this.baseUrl}${args.path}`,
-      init: {
-        headers: this.headers({ token: args.token }),
-        signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
-      },
-    })
-    if (!response.ok) {
-      const detail = (await response.text()).slice(0, DETAIL_CAP)
-      throw new GithubUserReadFailed(
-        `github answered ${response.status} for ${args.path}: ${detail}`,
-        response.status,
-        rateLimitOf(response) !== null,
-      )
-    }
-    return (await response.json()) as T
-  }
-
-  private headers(args: { token: string }): Record<string, string> {
-    return {
-      authorization: `Bearer ${args.token}`,
-      accept: 'application/vnd.github+json',
-      'x-github-api-version': '2022-11-28',
-    }
+  private get<T>(args: { source: EGithubCallSource; token: string; path: string }): Promise<T> {
+    return githubJsonGet({ baseUrl: this.baseUrl, ...args })
   }
 }
