@@ -117,8 +117,9 @@ export function SessionView({ sessionId }: { sessionId: string }) {
         events: snapshot.events,
         status: snapshot.status,
         setupOutput: snapshot.setupOutput,
+        catchingUp: snapshot.connection === ESessionConnection.CatchingUp,
       }),
-    [snapshot.events, snapshot.status, snapshot.setupOutput],
+    [snapshot.events, snapshot.status, snapshot.setupOutput, snapshot.connection],
   )
   const operatorRequest = useMemo(() => pendingOperatorRequestOf(view.items), [view.items])
   const model = useMemo(() => sessionViewModelOf(snapshot.view), [snapshot.view])

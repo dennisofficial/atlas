@@ -156,6 +156,25 @@ describe('sessionBootViewOf', () => {
     })
   })
 
+  it('shows a half-replayed boot as running, not failed, while catching up', () => {
+    const view = sessionBootViewOf({
+      events: eventsOf([
+        step(EWorkspaceStep.Sandbox, EWorkspaceStepState.Done),
+        step(EWorkspaceStep.Daemon, EWorkspaceStepState.Done),
+        step(EWorkspaceStep.Clone, EWorkspaceStepState.Started),
+      ]),
+      status: statusOf(ESessionStatus.Idle),
+      catchingUp: true,
+    })
+    expect(statesOf(view)).toEqual([
+      EBootStepState.Done,
+      EBootStepState.Done,
+      EBootStepState.Running,
+      EBootStepState.Pending,
+    ])
+    expect(view?.state).toBe(EBootStepState.Running)
+  })
+
   it('marks the first unfinished step failed when no step recorded the failure', () => {
     const view = sessionBootViewOf({
       events: eventsOf([step(EWorkspaceStep.Sandbox, EWorkspaceStepState.Done)]),
