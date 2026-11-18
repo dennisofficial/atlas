@@ -20,6 +20,7 @@ import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { GithubPrOutboxDispatcher } from './github-pr-outbox'
 import { GithubPrStore } from './github-pr-store'
+import { inertReconcile } from './github-pr-store.fixture'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 
 const SAMPLE: PullSample = {
@@ -63,6 +64,7 @@ function rig(
     fanout: overrides.fanout ?? fanout,
     signals,
     wake,
+    reconcile: inertReconcile(),
   })
   const mailbox = overrides.mailbox ?? new GithubPrEventMailboxService(fanout, dispatcher)
 
@@ -170,6 +172,7 @@ describe('GithubPrStore.apply', () => {
       fanout: { push: (args) => void received.push(args), pushEvent: vi.fn() },
       signals: recordingSignals().signals,
       wake: { notifyEvent: vi.fn() } as unknown as GithubSandboxWakeService,
+      reconcile: inertReconcile(),
     })
     expect(await healthy.drain()).toBe(1)
     expect(received).toHaveLength(1)

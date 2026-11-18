@@ -11,6 +11,7 @@ import { advanceTimersByTimeAsync } from '../../../../test/fake-timers'
 import { prepareDelivery, REST_FIELDS } from './github-delivery.fixture'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
+import { inertReconcile } from './github-pr-store.fixture'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { GithubPrOutboxDispatcher } from './github-pr-outbox'
@@ -22,7 +23,12 @@ function writerRig() {
   const fanout = new GithubPrFanoutService(new DrainStateService())
   const wake = { notifyEvent: () => undefined } as unknown as GithubSandboxWakeService
   const signals = inertSignals()
-  const dispatcher = new GithubPrOutboxDispatcher({ fanout, signals, wake })
+  const dispatcher = new GithubPrOutboxDispatcher({
+    fanout,
+    signals,
+    wake,
+    reconcile: inertReconcile(),
+  })
   const writer = new GithubPrStateWriter({
     mailbox: new GithubPrEventMailboxService(fanout, dispatcher),
     fanout,

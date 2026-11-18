@@ -14,7 +14,6 @@ import { GithubAppInstallationsService } from './github-app-installations.servic
 import { GithubInstallationTokens } from './github-installation-tokens'
 import { GithubDeliveryService } from './github-delivery.service'
 import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
-import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubHookController } from './github-hook.controller'
 import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import { GithubHeadReads } from './github-head-reads'
@@ -32,7 +31,12 @@ import { GithubSubscriptionsService } from './github-subscriptions.service'
 import { GithubUserReads } from './github-user-reads'
 import { GithubWebhookInboxService } from './github-webhook-inbox.service'
 import { GithubModule } from './github.module'
-import { outboxDispatcherProvider, prStoreProvider } from './github-pr-apply.providers'
+import {
+  mailboxProvider,
+  outboxDispatcherProvider,
+  prApplyWiringProvider,
+  prStoreProvider,
+} from './github-pr-apply.providers'
 
 @Module({
   imports: [GithubModule, HealthModule, RedisModule, SessionsModule],
@@ -49,7 +53,8 @@ import { outboxDispatcherProvider, prStoreProvider } from './github-pr-apply.pro
     ...sweepSchedulerProviders(),
     GithubDeliveryService,
     GithubPrDiscussionDeliveryService,
-    GithubPrEventMailboxService,
+    prApplyWiringProvider,
+    mailboxProvider,
     outboxDispatcherProvider,
     prStoreProvider,
     GithubWebhookInboxService,

@@ -9,11 +9,10 @@ import {
 } from './github-delivery-fill'
 import { EGithubCallSource } from './github-call-log'
 import { EPrSource } from '@dltech/atlas-core'
-import { normalizedRepo, repoPattern } from './github-pr-identity'
+import { normalizedRepo } from './github-pr-identity'
 import { GithubRequestCoordinator } from './github-request-coordinator'
 import { withGithubRequestBudget } from './github-request-budget'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
-import { db } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
@@ -25,7 +24,7 @@ import {
 } from './github-pr-observations'
 import { GithubPrStore } from './github-pr-store'
 import { GithubInstallationTokens } from './github-installation-tokens'
-import { subscriptionLiveWhere } from './github-delivery-routing'
+import { GithubFillTokens } from './github-fill-token'
 import { GithubUserReads } from './github-user-reads'
 import { GithubService } from './github.service'
 import type {
@@ -61,6 +60,7 @@ const HANDLED_EVENTS = new Set([
 export class GithubDeliveryService {
   private readonly logger = new Logger(GithubDeliveryService.name)
   private readonly checks: GithubDeliveryChecks
+  private readonly fillTokens: GithubFillTokens
 
   constructor(
     private readonly github: GithubService,
@@ -74,6 +74,7 @@ export class GithubDeliveryService {
     private readonly store: GithubPrStore,
     private readonly appTokens?: GithubInstallationTokens,
   ) {
+    this.fillTokens = new GithubFillTokens({ github, appTokens })
     this.checks = new GithubDeliveryChecks({
       store: this.store,
       restFill: async (args) => {
@@ -210,43 +211,11 @@ export class GithubDeliveryService {
     })
   }
 
-  private async findFillToken(args: {
+  private findFillToken(args: {
     repoFullName: string
     installationId: bigint | undefined
   }): Promise<string | undefined> {
-    const appToken = await this.appInstallationToken(args)
-    if (appToken !== undefined) return appToken
-
-    const hook = await db.orm.public.GithubRepoHook.where((hook) =>
-      hook.repoFullName.ilike(repoPattern(args.repoFullName)),
-    ).first()
-    if (hook !== null) {
-      const createdByToken = await this.github.findToken({
-        userId: hook.createdBy,
-      })
-      if (createdByToken !== undefined) return createdByToken
-    }
-
-    const subscribers = await db.orm.public.GithubSubscription.where((subscription) =>
-      subscription.repoFullName.ilike(repoPattern(args.repoFullName)),
-    )
-      .where(subscriptionLiveWhere({ now: new Date() }))
-      .all()
-    for (const subscriber of subscribers) {
-      const token = await this.github.findToken({ userId: subscriber.userId })
-      if (token !== undefined) return token
-    }
-    return undefined
-  }
-
-  private appInstallationToken(args: {
-    repoFullName: string
-    installationId: bigint | undefined
-  }): Promise<string | undefined> {
-    if (this.appTokens === undefined) return Promise.resolve(undefined)
-    return args.installationId === undefined
-      ? this.appTokens.tokenForRepo({ repoFullName: args.repoFullName })
-      : this.appTokens.tokenForInstallation({ installationId: args.installationId })
+    return this.fillTokens.find(args)
   }
 
   private restFill(args: {

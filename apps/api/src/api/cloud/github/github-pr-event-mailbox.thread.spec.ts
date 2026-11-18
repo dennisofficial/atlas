@@ -16,11 +16,17 @@ import { GithubPrOutboxDispatcher } from './github-pr-outbox'
 import { EPrEventKind } from './github-realtime.types'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
+import { inertReconcile } from './github-pr-store.fixture'
 
 function serviceWith(): { mailbox: GithubPrEventMailboxService; fanout: GithubPrFanoutService } {
   const fanout = new GithubPrFanoutService(new DrainStateService())
   const wake = { notifyEvent: () => undefined } as unknown as GithubSandboxWakeService
-  const dispatcher = new GithubPrOutboxDispatcher({ fanout, signals: inertSignals(), wake })
+  const dispatcher = new GithubPrOutboxDispatcher({
+    fanout,
+    signals: inertSignals(),
+    wake,
+    reconcile: inertReconcile(),
+  })
   return { mailbox: new GithubPrEventMailboxService(fanout, dispatcher), fanout }
 }
 

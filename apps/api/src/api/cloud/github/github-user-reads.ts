@@ -8,6 +8,7 @@ import { HOOK_EVENTS } from './github-hook-events'
 import type { CommitCheckInput } from './github-commit-checks'
 import type { RawCheckAnnotation } from './github-check-annotations'
 import { readPullRequestFill, type PullRequestRead } from './github-pull-request-read'
+import { readHeadChecks } from './github-head-checks-read'
 import { GithubRequiredChecksRead } from './github-required-checks-read'
 
 const GITHUB_API = 'https://api.github.com'
@@ -61,6 +62,21 @@ export class GithubUserReads {
       token: args.token,
       path: `/repos/${args.owner}/${args.repo}/check-runs/${args.checkRunId}/annotations?per_page=50`,
     })
+  }
+
+  readHeadChecksOf(args: {
+    source: EGithubCallSource
+    token: string
+    owner: string
+    repo: string
+    headSha: string
+  }): Promise<CommitCheckInput[]> {
+    return readHeadChecks({
+      get: <T>(path: string) => this.get<T>({ source: args.source, token: args.token, path }),
+      owner: args.owner,
+      repo: args.repo,
+      headSha: args.headSha,
+    }).then((read) => read.checks)
   }
 
   async readPullRequest(args: {

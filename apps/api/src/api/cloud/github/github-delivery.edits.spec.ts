@@ -9,6 +9,7 @@ import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { GithubPrOutboxDispatcher } from './github-pr-outbox'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
+import { inertReconcile } from './github-pr-store.fixture'
 
 function discussionWith(): {
   discussion: GithubPrDiscussionDeliveryService
@@ -21,7 +22,12 @@ function discussionWith(): {
   const fanout = new GithubPrFanoutService(new DrainStateService())
   const mailbox = new GithubPrEventMailboxService(
     fanout,
-    new GithubPrOutboxDispatcher({ fanout, signals: inertSignals(), wake }),
+    new GithubPrOutboxDispatcher({
+      fanout,
+      signals: inertSignals(),
+      wake,
+      reconcile: inertReconcile(),
+    }),
   )
   return { discussion: new GithubPrDiscussionDeliveryService(mailbox), wakes }
 }

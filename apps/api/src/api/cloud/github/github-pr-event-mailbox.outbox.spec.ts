@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from 'bun:test'
 import { ensureUsers, prEventRows, seedSubscription } from '../../../../test/github-seed'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
+import { inertReconcile } from './github-pr-store.fixture'
 import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
@@ -23,7 +24,12 @@ function rig(): {
   const wake = {
     notifyEvent: (notice: unknown) => wakes.push(notice),
   } as unknown as GithubSandboxWakeService
-  const dispatcher = new GithubPrOutboxDispatcher({ fanout, signals: inertSignals(), wake })
+  const dispatcher = new GithubPrOutboxDispatcher({
+    fanout,
+    signals: inertSignals(),
+    wake,
+    reconcile: inertReconcile(),
+  })
   return {
     fanout,
     wake,
@@ -120,7 +126,12 @@ describe('GithubPrEventMailboxService outbox', () => {
     expect((await outboxRows()).every((row) => row.dispatchedAt === null)).toBe(true)
     expect(wakes).toHaveLength(0)
 
-    const dispatcher = new GithubPrOutboxDispatcher({ fanout, signals: inertSignals(), wake })
+    const dispatcher = new GithubPrOutboxDispatcher({
+      fanout,
+      signals: inertSignals(),
+      wake,
+      reconcile: inertReconcile(),
+    })
     expect(await dispatcher.drain()).toBe(3)
     expect(wakes).toHaveLength(1)
     expect(await dispatcher.drain()).toBe(0)

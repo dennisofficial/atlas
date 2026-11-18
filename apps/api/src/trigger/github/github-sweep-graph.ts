@@ -17,10 +17,11 @@ import { GithubPollSweeperService } from '../../api/cloud/github/github-poll-swe
 import { GithubDeliveryService } from '../../api/cloud/github/github-delivery.service'
 import { GithubPrDiscussionDeliveryService } from '../../api/cloud/github/github-pr-discussion-delivery.service'
 import { GithubWebhookInboxService } from '../../api/cloud/github/github-webhook-inbox.service'
-import { GithubPrEventMailboxService } from '../../api/cloud/github/github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from '../../api/cloud/github/github-pr-fanout.service'
-import { GithubPrOutboxDispatcher } from '../../api/cloud/github/github-pr-outbox'
-import { GithubPrStore } from '../../api/cloud/github/github-pr-store'
+import { buildPrApplyWiring } from '../../api/cloud/github/github-pr-apply-wiring'
+import { GithubFillTokens } from '../../api/cloud/github/github-fill-token'
+import type { GithubPrOutboxDispatcher } from '../../api/cloud/github/github-pr-outbox'
+import type { GithubPrStore } from '../../api/cloud/github/github-pr-store'
 import {
   LocalPrFrameBus,
   RedisPrFrameBus,
@@ -83,14 +84,22 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
     workerSignals.signals,
     fanout,
   )
-  const outbox = new GithubPrOutboxDispatcher({
+  const installations = new GithubAppInstallationsService()
+  const appClient = new GithubAppClient(env)
+  const appTokens = new GithubInstallationTokens(appClient, installations)
+  const fillTokens = new GithubFillTokens({ github, appTokens })
+  const {
+    store,
+    dispatcher: outbox,
+    mailbox,
+  } = buildPrApplyWiring({
     fanout,
     signals: workerSignals.signals,
     wake,
+    reads,
+    budget: coordinator,
+    fillTokenOf: (args) => fillTokens.find(args),
   })
-  const mailbox = new GithubPrEventMailboxService(fanout, outbox)
-  const store = new GithubPrStore({ mailbox, dispatcher: outbox })
-  const installations = new GithubAppInstallationsService()
   const hookLifecycle = new GithubHookLifecycleService(
     github,
     reads,
@@ -100,8 +109,6 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
     coordinator,
   )
   const syncGate = new GithubAppSyncGate(redis)
-  const appClient = new GithubAppClient(env)
-  const appTokens = new GithubInstallationTokens(appClient, installations)
   const hookSweep = new GithubHookSweepService(
     new GithubAppSyncService(appClient, installations, syncGate),
     hookLifecycle,

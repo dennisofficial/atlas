@@ -24,6 +24,13 @@ export type PrOutboxEffect =
   | { kind: 'thread-signal'; payload: { threadId: string }; dedupeKey: string }
   | { kind: 'wake'; payload: WakePayload; dedupeKey: string }
   | { kind: 'v2-notice'; payload: { eventId: string }; dedupeKey: string }
+  | {
+      kind: 'reconcile-checks'
+      payload: { repoFullName: string; headSha: string }
+      dedupeKey: string
+    }
+
+export type PrReconcileRun = (args: { repoFullName: string; headSha: string }) => Promise<void>
 
 /**
  * The pushes an apply owes the outside world, gathered while its transaction is still open so
@@ -82,6 +89,7 @@ export class GithubPrOutboxDispatcher {
       fanout: Pick<GithubPrFanoutService, 'push' | 'pushEvent'>
       signals: Pick<ThreadSignalsService, 'threadChanged'>
       wake: Pick<GithubSandboxWakeService, 'notifyEvent'>
+      reconcile: PrReconcileRun
       logger?: { warn(message: string): void }
     },
   ) {
@@ -167,6 +175,10 @@ export class GithubPrOutboxDispatcher {
       if (event === null) return
       await db.transaction((tx) => noticeV2Sessions({ tx, event }))
 
+      return
+    }
+    if (row.kind === 'reconcile-checks') {
+      await this.deps.reconcile(row.payload as { repoFullName: string; headSha: string })
       return
     }
     if (row.kind === 'fanout') {

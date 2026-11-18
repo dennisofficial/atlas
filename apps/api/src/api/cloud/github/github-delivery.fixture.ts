@@ -8,6 +8,7 @@ import {
 } from '../../../../test/github-seed'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
+import { inertReconcile } from './github-pr-store.fixture'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { GithubDeliveryService } from './github-delivery.service'
 import { observationReadOf } from './github-pr-read.fixture'
@@ -180,7 +181,12 @@ export function serviceWith(args: {
   } as unknown as GithubSandboxWakeService
   const mailbox = new GithubPrEventMailboxService(
     fanout,
-    new GithubPrOutboxDispatcher({ fanout, signals: inertSignals(), wake }),
+    new GithubPrOutboxDispatcher({
+      fanout,
+      signals: inertSignals(),
+      wake,
+      reconcile: inertReconcile(),
+    }),
   )
   const discussion = new GithubPrDiscussionDeliveryService(mailbox)
   return {
