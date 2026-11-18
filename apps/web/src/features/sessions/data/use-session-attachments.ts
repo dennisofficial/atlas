@@ -4,7 +4,10 @@ import { toast } from 'sonner'
 import { TOAST_TOO_MANY_FILES } from '@/features/threads/data/composer-attachments'
 import type { useComposerAttachments } from '@/features/threads/data/use-composer-attachments'
 
+import type { Attachment } from '@dltech/atlas-core'
+
 import { routeAttachments } from './session-attachments'
+import { restorePlanOf } from './session-rewind'
 import { useSessionMedia } from './use-session-media'
 
 export function useSessionAttachments({
@@ -41,6 +44,18 @@ export function useSessionAttachments({
     files.clear()
   }, [media.clear, files.clear])
 
+  const restore = useCallback(
+    (args: {
+      attachments: readonly Attachment[]
+      previewOf: (hash: string) => Promise<string>
+    }) => {
+      const plan = restorePlanOf(args.attachments)
+      media.restore({ media: plan.media, previewOf: args.previewOf })
+      files.restore({ uploads: plan.uploads, images: plan.images })
+    },
+    [media.restore, files.restore],
+  )
+
   const attachments = useMemo(() => [...mediaChips, ...fileChips], [mediaChips, fileChips])
 
   const checkSendable = (): boolean => media.checkSendable() && files.checkSendable()
@@ -52,6 +67,7 @@ export function useSessionAttachments({
     attach,
     remove,
     clear,
+    restore,
     checkSendable,
     composerProps: {
       attachments,

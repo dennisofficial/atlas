@@ -19,6 +19,7 @@ import {
   mediaChipOf,
   planImageAttach,
   readyAttachmentsOf,
+  restoredMediaOf,
   startedMedia,
   storeImage,
   supportedMediaTypeOf,
@@ -30,6 +31,7 @@ import {
   type HeldMedia,
   type MediaUploadApi,
 } from './session-media'
+import type { RestoredMedia } from './session-rewind'
 
 const mediaApi: MediaUploadApi = {
   presign: (input) => cloudCall(api.media.presign.mutate(input)),
@@ -146,6 +148,30 @@ export function useSessionMedia({
     commit([])
   }, [commit])
 
+  const restore = useCallback(
+    (args: {
+      media: readonly RestoredMedia[]
+      previewOf: (hash: string) => Promise<string>
+    }): void => {
+      const added = args.media.map((item) => restoredMediaOf({ item, id: crypto.randomUUID() }))
+      if (added.length === 0) return
+      update((current) => [...current, ...added])
+      for (const entry of added) {
+        if (entry.previewUrl !== undefined || entry.hash === undefined) continue
+        const { id } = entry
+        args
+          .previewOf(entry.hash)
+          .then((previewUrl) =>
+            update((current) =>
+              current.map((held) => (held.id === id ? { ...held, previewUrl } : held)),
+            ),
+          )
+          .catch(() => undefined)
+      }
+    },
+    [update],
+  )
+
   const attachments = useMemo(() => held.map(mediaChipOf), [held])
   const failed = hasMediaFailed(held)
 
@@ -160,6 +186,7 @@ export function useSessionMedia({
     attach,
     remove,
     clear,
+    restore,
     checkSendable,
     composerProps: {
       attachments,
