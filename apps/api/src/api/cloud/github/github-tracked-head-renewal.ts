@@ -1,47 +1,34 @@
-import { and, db, or } from '@dltech/atlas-db'
+import { db } from '@dltech/atlas-db'
 import { TRACKING_TARGET_TTL_MS } from '@dltech/atlas-plugin-github/control'
 
-import { normalizedRepo } from './github-pr-identity'
+export const RENEWAL_WINDOW_MS = 24 * 60 * 60_000
+export const RENEWAL_BATCH = 500
 
-const headKey = (args: { repoFullName: string; branch: string }): string =>
-  `${normalizedRepo(args.repoFullName)}#${args.branch}`
-
-export async function renewTrackedHeadTargets(args: { now?: Date }): Promise<void> {
+export async function renewTrackedHeadTargets(args: { now?: Date } = {}): Promise<void> {
   const now = args.now ?? new Date()
   const renewedUntil = new Date(now.getTime() + TRACKING_TARGET_TTL_MS)
-  const held = await db.orm.public.GithubTrackingTarget.where((target) =>
-    target.liveUntil.gt(now),
-  ).all()
-  const heads = held.filter((target) => target.kind === 'head')
-  if (heads.length === 0) return
-  const tracked = await db.orm.v2.V2SessionBranch.where((branch) =>
-    or(
-      ...heads.map((head) =>
-        and(branch.headRepo.eq(normalizedRepo(head.repoFullName)), branch.branch.eq(head.branch)),
-      ),
-    ),
-  ).all()
-  if (tracked.length === 0) return
-  const sessionIds = [...new Set(tracked.map((row) => row.sessionId))]
-  const sessions = await db.orm.v2.V2Session.where((session) =>
-    and(
-      session.archivedAt.isNull(),
-      or(...sessionIds.map((sessionId) => session.id.eq(sessionId))),
-    ),
+  const nearExpiry = new Date(now.getTime() + RENEWAL_WINDOW_MS)
+  await db.execute(
+    db.raw.sql`
+      UPDATE "GithubTrackingTarget" AS target
+      SET "liveUntil" = ${renewedUntil.toISOString()}::timestamptz
+      WHERE target.id IN (
+        SELECT due.id
+        FROM "GithubTrackingTarget" AS due
+        JOIN "v2"."V2Session" AS session
+          ON session."userId" = due."userId" AND session."archivedAt" IS NULL
+        JOIN "v2"."V2SessionBranch" AS branch
+          ON branch."sessionId" = session.id
+         AND branch."headRepo" = lower(due."repoFullName")
+         AND branch."branch" = due."branch"
+        WHERE due.kind = 'head'
+          AND due."liveUntil" > ${now.toISOString()}::timestamptz
+          AND due."liveUntil" < ${nearExpiry.toISOString()}::timestamptz
+        ORDER BY due."liveUntil"
+        LIMIT ${RENEWAL_BATCH}::int
+      )
+    `
+      .affectedCount()
+      .build(),
   )
-    .select('id')
-    .all()
-  const alive = new Set(sessions.map((session) => session.id))
-  const live = new Set(
-    tracked
-      .filter((row) => alive.has(row.sessionId))
-      .map((row) => headKey({ repoFullName: row.headRepo, branch: row.branch })),
-  )
-  for (const head of heads) {
-    if (!live.has(headKey(head))) continue
-    if (head.liveUntil.getTime() >= renewedUntil.getTime()) continue
-    await db.orm.public.GithubTrackingTarget.where({ id: head.id }).update({
-      liveUntil: renewedUntil,
-    })
-  }
 }
