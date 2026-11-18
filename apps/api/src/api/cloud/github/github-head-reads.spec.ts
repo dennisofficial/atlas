@@ -1,8 +1,9 @@
-import { afterAll, describe, expect, it } from 'bun:test'
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 
 import { GithubHeadReads } from './github-head-reads'
 
 const requests: string[] = []
+const prior = process.env.GITHUB_API_URL
 
 const fakeGitHub = Bun.serve({
   port: 0,
@@ -13,9 +14,13 @@ const fakeGitHub = Bun.serve({
   },
 })
 
-process.env.GITHUB_API_URL = `http://127.0.0.1:${fakeGitHub.port}`
+beforeAll(() => {
+  process.env.GITHUB_API_URL = `http://127.0.0.1:${fakeGitHub.port}`
+})
 
 afterAll(() => {
+  if (prior === undefined) delete process.env.GITHUB_API_URL
+  else process.env.GITHUB_API_URL = prior
   fakeGitHub.stop(true)
 })
 

@@ -71,6 +71,8 @@ export class GithubPrStateWriter {
     prNumber: number
     fields: GithubPrStateRecord
     reopens?: boolean
+    authoritative?: boolean
+    recipients?: readonly string[]
   }): Promise<PrStateWrite> {
     const { tx } = args
     const repoFullName = normalizedRepo(args.repoFullName)
@@ -82,7 +84,7 @@ export class GithubPrStateWriter {
     const keptState = terminalStateKept({
       prior: locked,
       next: args.fields.state,
-      reopens: args.reopens === true,
+      reopens: args.reopens === true || args.authoritative === true,
     })
     const fields = {
       ...args.fields,
@@ -124,7 +126,12 @@ export class GithubPrStateWriter {
         }),
       }),
     ).all()
-    const userIds = [...new Set(subscribers.map((subscriber) => subscriber.userId))]
+    const userIds = [
+      ...new Set([
+        ...(args.recipients ?? []),
+        ...subscribers.map((subscriber) => subscriber.userId),
+      ]),
+    ]
     await deliverPrTransitions({
       writes: {
         mailbox: this.deps.mailbox,

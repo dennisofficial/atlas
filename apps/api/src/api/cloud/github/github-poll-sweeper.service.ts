@@ -226,6 +226,7 @@ export class GithubPollSweeperService {
         repoFullName,
         prNumber: args.prNumber,
         fields: { ...fields, updatedAt: new Date() },
+        authoritative: true,
       }),
     )
     await this.writer.publish(write)

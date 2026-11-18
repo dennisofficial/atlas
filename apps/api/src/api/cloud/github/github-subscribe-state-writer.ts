@@ -49,6 +49,8 @@ export class GithubSubscribeStateWriter {
         repoFullName: args.repoFullName,
         prNumber,
         fields: { ...fields, updatedAt: new Date() },
+        authoritative: true,
+        recipients: [args.userId],
       }),
     )
     return dtoOf(row)
