@@ -6,6 +6,9 @@ import {
   type BlobRefWrite,
   type BlobRow,
   type BlobWrite,
+  type ChangeBlobRow,
+  type ChangeBlobWrite,
+  type ChangedFileWrite,
   type ClaimedBatch,
   type ControlTx,
   type SubscriptionLease,
@@ -18,6 +21,8 @@ import {
   type InsertRoutineRunParams,
   type RoutineRow,
   type SessionListParams,
+  type WorktreeChangesRead,
+  type WorktreeChangesWrite,
 } from '../../port'
 import {
   allocateInboxIdIn,
@@ -39,6 +44,14 @@ import {
 } from './memory-routines'
 import { subscriptionLeaseKey, trackingTargetKey } from './memory-state'
 import { blobHashesPresent, insertBlobRows, readBlobRow } from './memory-blobs'
+import {
+  changeBlobsUnreferencedIn,
+  changesUpdatedAtIn,
+  deleteChangeBlobRowsIn,
+  readChangeFileIn,
+  readChangesIn,
+  upsertChangesIn,
+} from './memory-changes'
 import { insertEventsIn, readEventsIn } from './memory-events'
 import { claimNeedingIn } from './memory-claim-next'
 import { leasesHeldByIn, writeLeaseIn } from './memory-leases'
@@ -187,6 +200,55 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
 
   async blobReferencedBy(params: { sessionId: string; hash: string }): Promise<boolean> {
     return this.state.blobRefs.has(refKey(params))
+  }
+
+  async changeBlobsPresent(hashes: readonly string[]): Promise<ReadonlySet<string>> {
+    return new Set(hashes.filter((hash) => this.state.changeBlobs.has(hash)))
+  }
+
+  async upsertChanges(params: {
+    sessionId: string
+    write: WorktreeChangesWrite
+    blobs: readonly ChangeBlobWrite[]
+  }): Promise<void> {
+    upsertChangesIn({
+      state: this.state,
+      write: params.write,
+      blobs: params.blobs,
+      at: Date.parse(this.clock()),
+    })
+    this.pending.push({ sessionId: params.sessionId })
+  }
+
+  async readChanges(params: { sessionId: string }): Promise<WorktreeChangesRead[]> {
+    return readChangesIn({ state: this.state, ...params })
+  }
+
+  async readChangeFile(params: {
+    sessionId: string
+    checkoutId: string
+    path: string
+  }): Promise<ChangedFileWrite | undefined> {
+    return readChangeFileIn({ state: this.state, ...params })
+  }
+
+  async changesUpdatedAt(params: { sessionId: string }): Promise<number | null> {
+    return changesUpdatedAtIn({ state: this.state, ...params })
+  }
+
+  async changeBlobsUnreferenced(params: {
+    olderThanMs: number
+    limit: number
+  }): Promise<readonly ChangeBlobRow[]> {
+    return changeBlobsUnreferencedIn({
+      state: this.state,
+      now: Date.parse(this.clock()),
+      ...params,
+    })
+  }
+
+  async deleteChangeBlobs(params: { hashes: readonly string[] }): Promise<void> {
+    deleteChangeBlobRowsIn({ state: this.state, ...params })
   }
 
   async readEvents(params: ReadEventsParams): Promise<StoredEvent[]> {

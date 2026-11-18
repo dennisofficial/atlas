@@ -8,6 +8,9 @@ import {
   type BlobRefWrite,
   type BlobRow,
   type BlobWrite,
+  type ChangeBlobRow,
+  type ChangeBlobWrite,
+  type ChangedFileWrite,
   type ClaimedBatch,
   type ControlTx,
   type InsertRoutineRunParams,
@@ -29,7 +32,18 @@ import {
   type SessionBranchRow,
   type SessionViewRow,
   type TrackedPullRequestRow,
+  type WorktreeChangesRead,
+  type WorktreeChangesWrite,
 } from '../port'
+import {
+  changeBlobHashesPresentIn,
+  changeBlobsUnreferencedIn,
+  changesUpdatedAtIn,
+  deleteChangeBlobRowsIn,
+  readChangeFileIn,
+  readChangesIn,
+  upsertChangesIn,
+} from './postgres-changes'
 import {
   blobHashesPresent,
   blobReferencedIn,
@@ -217,6 +231,45 @@ class PostgresTx implements ControlTx {
 
   async blobReferencedBy(params: { sessionId: string; hash: string }): Promise<boolean> {
     return blobReferencedIn(this.tx, params)
+  }
+
+  async changeBlobsPresent(hashes: readonly string[]): Promise<ReadonlySet<string>> {
+    return changeBlobHashesPresentIn(this.tx, hashes)
+  }
+
+  async upsertChanges(params: {
+    sessionId: string
+    write: WorktreeChangesWrite
+    blobs: readonly ChangeBlobWrite[]
+  }): Promise<void> {
+    await upsertChangesIn({ tx: this.tx, ...params })
+  }
+
+  async readChanges(params: { sessionId: string }): Promise<WorktreeChangesRead[]> {
+    return readChangesIn({ tx: this.tx, ...params })
+  }
+
+  async readChangeFile(params: {
+    sessionId: string
+    checkoutId: string
+    path: string
+  }): Promise<ChangedFileWrite | undefined> {
+    return readChangeFileIn({ tx: this.tx, ...params })
+  }
+
+  async changesUpdatedAt(params: { sessionId: string }): Promise<number | null> {
+    return changesUpdatedAtIn({ tx: this.tx, ...params })
+  }
+
+  async changeBlobsUnreferenced(params: {
+    olderThanMs: number
+    limit: number
+  }): Promise<readonly ChangeBlobRow[]> {
+    return changeBlobsUnreferencedIn({ tx: this.tx, ...params })
+  }
+
+  async deleteChangeBlobs(params: { hashes: readonly string[] }): Promise<void> {
+    await deleteChangeBlobRowsIn({ tx: this.tx, ...params })
   }
 
   async readEvents(params: ReadEventsParams): Promise<StoredEvent[]> {

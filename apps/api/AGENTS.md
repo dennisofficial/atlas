@@ -175,18 +175,20 @@ over 3,000,000 bytes (`MAX_USER_LAYER_FILE_BYTES`), whose base64 body is 4,000,0
 
 ## Deploy
 
-Production is the Render web service `atlas-api` (`srv-dbmaj7ajnfac738tg30g`, renamed from
-`atlas-agent`) over PlanetScale `atlas/main`; it autodeploys `main`. Background jobs run on
-trigger.dev. Nothing else hosts Atlas.
-- Build: `bun install --frozen-lockfile && bun run --cwd apps/daemon build`.
-- Pre-deploy: `bun run --cwd apps/api db:migrate:predeploy` migrates with the same three-try retry as
-  `scripts/migrate-deploy.mjs`, then runs `prisma db verify --strict` against PlanetScale. A failure
-  aborts the deploy, so the previous instance keeps serving and the schema never half-applies.
-- Start: `bun run --cwd apps/api start`. Render's health check is `/healthz`.
+Production is the image-backed Render web service `atlas-api-image` (`srv-dbuu4tui0phs73ercifg`)
+over PlanetScale `atlas/main`. Render builds nothing (the workspace has no build minutes to spare):
+`.github/workflows/release.yml` builds `apps/api/docker/Dockerfile` on every push to main, pushes
+the public `ghcr.io/dennisofficial/atlas-api:<sha>`, migrates, then deploys that image. Render's
+auto-deploy is off. Background jobs run on trigger.dev. Nothing else hosts Atlas.
+- Image: `oven/bun` with only `@dltech/atlas-api` and `@dltech/atlas-daemon` installed and the daemon
+  bundle built. Start: `bun run --cwd apps/api start`. Render's health check is `/healthz`.
+- Migrate: the `migrate` job runs `bun run --cwd apps/api db:migrate:predeploy` (three-try retry,
+  then `prisma db verify --strict`). A failure stops the deploy, so the previous instance keeps
+  serving and the schema never half-applies.
 - Render env: `DOTENV_PRIVATE_KEY_PRODUCTION_ENC`, `APP_TIER=production`, `BUN_VERSION`, `NODE_ENV`.
 
 `api.byatlas.io` is a Render custom domain on the service, reached through an unproxied Cloudflare
-CNAME to `atlas-agent-epee.onrender.com`. The MCP OAuth `redirect_uri` is
+CNAME to `atlas-api-image.onrender.com`. The MCP OAuth `redirect_uri` is
 `https://api.byatlas.io/mcp-oauth/callback`.
 
 `.github/workflows/release.yml` runs on every push to main. Its `render-live` job waits for the Render

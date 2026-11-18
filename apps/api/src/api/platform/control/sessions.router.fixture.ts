@@ -6,6 +6,7 @@ import {
   createMiddlewareApp,
   UNTHROTTLED_RATE_LIMIT,
 } from '../../../_module/trpc/trpc-middleware.fixture'
+import { ChangesService } from './changes.service'
 import { SessionsRouter } from './sessions.router'
 import { SessionsService } from './sessions.service'
 
@@ -23,7 +24,11 @@ export const sessions = {
   stop: vi.fn(),
   command: vi.fn(),
   view: vi.fn(),
+  changes: vi.fn(),
+  changeContent: vi.fn(),
 }
+
+export const changes = { changes: vi.fn(), content: vi.fn() }
 
 export const createSessionsApp = (): Promise<NestExpressApplication> =>
   createMiddlewareApp({
@@ -32,6 +37,7 @@ export const createSessionsApp = (): Promise<NestExpressApplication> =>
       SessionsRouter,
       SessionMiddleware,
       { provide: SessionsService, useValue: sessions },
+      { provide: ChangesService, useValue: changes },
       {
         provide: SESSION_VERIFIER,
         useValue: {

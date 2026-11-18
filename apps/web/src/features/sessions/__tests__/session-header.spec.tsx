@@ -1,4 +1,7 @@
-import { describe, expect, it } from 'bun:test'
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
+import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { act } from 'react'
+import { createRoot } from 'react-dom/client'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 import type { CrewRow } from '@dltech/atlas-plugin-crew/client'
@@ -11,7 +14,8 @@ import { EHeaderState } from '@/features/threads/data/header-model'
 import type { PullRequestEntry } from '@/features/threads/data/pull-request-entries'
 
 import { CrewPanel } from '../crew-panel'
-import { PreviewLinks, SessionHeader, ShellTails } from '../session-header'
+import { PreviewLinks, SessionHeader } from '../session-header'
+import { ShellTails } from '../shell-tails'
 
 const entry = (overrides: Partial<PullRequestEntry> = {}): PullRequestEntry => ({
   repo: 'owner/atlas',
@@ -53,7 +57,7 @@ const crewRow = (overrides: Partial<CrewRow> = {}): CrewRow => ({
   ...overrides,
 })
 
-const render = (props: {
+type HeaderProps = {
   branch?: string
   routineId?: string | null
   entries: PullRequestEntry[]
@@ -62,29 +66,49 @@ const render = (props: {
   shellTails?: Readonly<Record<string, string>>
   crewRows?: readonly CrewRow[]
   previews?: readonly PreviewItem[]
-}) =>
-  renderToStaticMarkup(
-    <SidebarProvider>
-      <SessionHeader
-        sessionId="s1"
-        state={EHeaderState.Idle}
-        routineId={props.routineId ?? null}
-        title="Fix login"
-        naming={false}
-        branch={props.branch}
-        entries={props.entries}
-        subscriptions={props.subscriptions ?? []}
-        shells={props.shells ?? { running: 0, awaitingInput: false, labels: [], rows: [] }}
-        shellTails={props.shellTails ?? {}}
-        crew={{
-          running: (props.crewRows ?? []).filter((row) => row.status === 'running').length,
-          total: (props.crewRows ?? []).length,
-        }}
-        crewRows={props.crewRows ?? []}
-        previews={props.previews ?? []}
-      />
-    </SidebarProvider>,
-  )
+  paneCollapsed?: boolean
+  onTogglePane?: () => void
+  onOpenPane?: () => void
+  onOpenPreview?: (url: string) => void
+}
+
+const headerOf = (props: HeaderProps) => (
+  <SidebarProvider>
+    <SessionHeader
+      sessionId="s1"
+      state={EHeaderState.Idle}
+      routineId={props.routineId ?? null}
+      title="Fix login"
+      naming={false}
+      branch={props.branch}
+      entries={props.entries}
+      subscriptions={props.subscriptions ?? []}
+      shells={props.shells ?? { running: 0, awaitingInput: false, labels: [], rows: [] }}
+      shellTails={props.shellTails ?? {}}
+      crew={{
+        running: (props.crewRows ?? []).filter((row) => row.status === 'running').length,
+        total: (props.crewRows ?? []).length,
+      }}
+      crewRows={props.crewRows ?? []}
+      previews={props.previews ?? []}
+      paneCollapsed={props.paneCollapsed}
+      onTogglePane={props.onTogglePane}
+      onOpenPane={props.onOpenPane}
+      onOpenPreview={props.onOpenPreview ?? (() => undefined)}
+    />
+  </SidebarProvider>
+)
+
+const render = (props: HeaderProps) => renderToStaticMarkup(headerOf(props))
+
+beforeAll(() => {
+  GlobalRegistrator.register()
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true
+})
+
+afterAll(async () => {
+  await GlobalRegistrator.unregister()
+})
 
 describe('SessionHeader', () => {
   it('shows the branch and an open pull request with running checks linking to its url', () => {
@@ -201,6 +225,15 @@ describe('SessionHeader', () => {
     expect(render({ entries: [], routineId: 'rte-1' })).toContain('data-session-routine')
     expect(render({ entries: [] })).not.toContain('data-session-routine')
   })
+
+  it('offers a pane toggle that reports whether the pane is collapsed', () => {
+    const expanded = render({ entries: [], paneCollapsed: false })
+    expect(expanded).toContain('aria-label="Collapse panel"')
+    expect(expanded).toContain('aria-expanded="true"')
+    const collapsed = render({ entries: [], paneCollapsed: true })
+    expect(collapsed).toContain('aria-label="Expand panel"')
+    expect(collapsed).toContain('aria-expanded="false"')
+  })
 })
 
 describe('CrewPanel', () => {
@@ -228,12 +261,36 @@ describe('CrewPanel', () => {
 })
 
 describe('PreviewLinks', () => {
-  it('links each preview to its public url, labelled and ported', () => {
-    const html = renderToStaticMarkup(<PreviewLinks previews={[preview()]} />)
-    expect(html).toContain('href="https://4321-abc.byatlas.dev"')
+  it('opens each preview in the pane, labelled, ported and titled with its url', () => {
+    const html = renderToStaticMarkup(
+      <PreviewLinks previews={[preview()]} onOpenPreview={() => undefined} />,
+    )
+    expect(html).toContain('<button type="button"')
     expect(html).toContain('title="https://4321-abc.byatlas.dev"')
     expect(html).toContain('>web<')
     expect(html).toContain(':4321')
+    expect(html).not.toContain('target="_blank"')
+  })
+
+  it('hands the preview url of the clicked chip to the pane', () => {
+    const opened: string[] = []
+    const container = document.createElement('div')
+    const root = createRoot(container)
+    act(() =>
+      root.render(
+        <PreviewLinks
+          previews={[preview()]}
+          onOpenPreview={(url) => {
+            opened.push(url)
+          }}
+        />,
+      ),
+    )
+    const chip = container.querySelector('button')
+    if (chip === null) throw new Error('the chip is not a button')
+    act(() => chip.click())
+    act(() => root.unmount())
+    expect(opened).toEqual(['https://4321-abc.byatlas.dev'])
   })
 })
 

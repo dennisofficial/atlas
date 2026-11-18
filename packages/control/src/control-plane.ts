@@ -29,8 +29,13 @@ import {
   type BlobRow,
   type ClaimedBatch,
   type BlobWrite,
+  type ChangeBlobRow,
+  type ChangeBlobWrite,
+  type ChangedFileWrite,
   type ControlTx,
   type ThreadRow,
+  type WorktreeChangesRead,
+  type WorktreeChangesWrite,
   type ControlSessionDigest,
   type ControlSessionRow,
   type ListRoutineRunsParams,
@@ -402,6 +407,45 @@ export class ControlPlane {
 
   async blobReferencedBy(params: { sessionId: string; hash: string }): Promise<boolean> {
     return this.store.transact((tx) => tx.blobReferencedBy(params))
+  }
+
+  async changeBlobsPresent(params: { hashes: readonly string[] }): Promise<ReadonlySet<string>> {
+    return this.store.transact((tx) => tx.changeBlobsPresent(params.hashes))
+  }
+
+  async upsertChanges(params: {
+    sessionId: string
+    write: WorktreeChangesWrite
+    blobs: readonly ChangeBlobWrite[]
+  }): Promise<void> {
+    await this.store.transact((tx) => tx.upsertChanges(params))
+  }
+
+  async readChanges(params: { sessionId: string }): Promise<readonly WorktreeChangesRead[]> {
+    return this.store.transact((tx) => tx.readChanges(params))
+  }
+
+  async readChangeFile(params: {
+    sessionId: string
+    checkoutId: string
+    path: string
+  }): Promise<ChangedFileWrite | undefined> {
+    return this.store.transact((tx) => tx.readChangeFile(params))
+  }
+
+  async changesUpdatedAt(params: { sessionId: string }): Promise<number | null> {
+    return this.store.transact((tx) => tx.changesUpdatedAt(params))
+  }
+
+  async changeBlobsUnreferenced(params: {
+    olderThanMs: number
+    limit: number
+  }): Promise<readonly ChangeBlobRow[]> {
+    return this.store.transact((tx) => tx.changeBlobsUnreferenced(params))
+  }
+
+  async deleteChangeBlobs(params: { hashes: readonly string[] }): Promise<void> {
+    await this.store.transact((tx) => tx.deleteChangeBlobs(params))
   }
 
   async post(params: {

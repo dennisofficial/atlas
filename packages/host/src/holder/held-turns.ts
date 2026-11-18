@@ -15,6 +15,7 @@ const TURN_EXITED = new Set<ETurnStatus>([ETurnStatus.Failed, ETurnStatus.Interr
 export class HeldTurns {
   private turnAbort: AbortController | undefined
   turnRunning = false
+  onTurnEnd: (() => void) | undefined
 
   constructor(private readonly deps: HeldSessionDeps) {}
 
@@ -48,6 +49,7 @@ export class HeldTurns {
       this.turnRunning = false
       this.turnAbort = undefined
       args.onActivity()
+      this.onTurnEnd?.()
     }
   }
 

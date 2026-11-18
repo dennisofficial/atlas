@@ -1,6 +1,6 @@
 'use client'
 
-import { Bell, GitBranch, Globe, Terminal } from 'lucide-react'
+import { Bell, GitBranch, Globe, PanelRightIcon } from 'lucide-react'
 
 import type { CrewRoster, CrewRow } from '@dltech/atlas-plugin-crew/client'
 import type { SubscribedPullRequest } from '@dltech/atlas-plugin-github/client'
@@ -27,6 +27,7 @@ import {
 import { RenameAction } from '@/features/shell/rename-action'
 
 import { HeaderCrew } from './crew-panel'
+import { HeaderShells } from './shell-tails'
 
 const BADGE_VARIANT: Record<EHeaderState, 'destructive' | 'default' | 'secondary'> = {
   [EHeaderState.Failed]: 'destructive',
@@ -86,94 +87,25 @@ function HeaderSubscriptions({
   )
 }
 
-const SHELL_TAIL_LINES = 20
-
-const SHELL_TAIL_CHARACTERS = 4_000
-
-export function shellTailOf(text: string | undefined): string {
-  if (text === undefined) return ''
-  const tail = text.split('\n').slice(-SHELL_TAIL_LINES).join('\n')
-  return tail.slice(-SHELL_TAIL_CHARACTERS)
-}
-
-export function ShellTails({
-  shells,
-  tails,
+export function PreviewLinks({
+  previews,
+  onOpenPreview,
 }: {
-  shells: ShellRoster
-  tails: Readonly<Record<string, string>>
+  previews: readonly PreviewItem[]
+  onOpenPreview: (url: string) => void
 }) {
-  return (
-    <ul data-shell-tails className="flex flex-col gap-2.5">
-      {shells.rows.map((row) => {
-        const tail = shellTailOf(tails[row.shellId])
-        return (
-          <li key={row.shellId} className="flex min-w-0 flex-col gap-1">
-            <span className="truncate font-mono text-xs text-muted-foreground" title={row.name}>
-              {row.name}
-            </span>
-            {tail === '' ? (
-              <span className="text-xs text-muted-foreground italic">No output yet</span>
-            ) : (
-              <pre
-                data-shell-tail={row.shellId}
-                className="max-h-40 overflow-auto rounded-md bg-muted/40 p-2 font-mono text-[11px] leading-relaxed whitespace-pre-wrap break-words"
-              >
-                {tail}
-              </pre>
-            )}
-          </li>
-        )
-      })}
-    </ul>
-  )
-}
-
-function HeaderShells({
-  shells,
-  tails,
-}: {
-  shells: ShellRoster
-  tails: Readonly<Record<string, string>>
-}) {
-  return (
-    <Popover>
-      <PopoverTrigger
-        data-session-shells
-        aria-label={`Running shells: ${shells.running}`}
-        title={shells.labels.join(', ')}
-        render={
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-xs text-muted-foreground tabular-nums"
-          />
-        }
-      >
-        <Terminal className="size-3" aria-hidden />
-        <span className="font-mono">{shells.running}</span>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-[32rem] max-w-[calc(100vw-2rem)]">
-        <ShellTails shells={shells} tails={tails} />
-      </PopoverContent>
-    </Popover>
-  )
-}
-
-export function PreviewLinks({ previews }: { previews: readonly PreviewItem[] }) {
   return (
     <ul data-preview-links className="flex flex-col gap-1.5">
       {previews.map((preview) => (
         <li key={preview.serviceId} className="flex min-w-0 items-baseline gap-2">
-          <a
-            href={preview.url}
-            target="_blank"
-            rel="noreferrer"
+          <button
+            type="button"
             title={preview.url}
-            className="min-w-0 flex-1 truncate underline-offset-2 hover:underline"
+            className="min-w-0 flex-1 cursor-pointer truncate text-left underline-offset-2 hover:underline"
+            onClick={() => onOpenPreview(preview.url)}
           >
             {preview.label}
-          </a>
+          </button>
           <span className="shrink-0 font-mono text-xs text-muted-foreground">:{preview.port}</span>
         </li>
       ))}
@@ -181,7 +113,13 @@ export function PreviewLinks({ previews }: { previews: readonly PreviewItem[] })
   )
 }
 
-function HeaderPreviews({ previews }: { previews: readonly PreviewItem[] }) {
+function HeaderPreviews({
+  previews,
+  onOpenPreview,
+}: {
+  previews: readonly PreviewItem[]
+  onOpenPreview: (url: string) => void
+}) {
   return (
     <Popover>
       <PopoverTrigger
@@ -200,7 +138,7 @@ function HeaderPreviews({ previews }: { previews: readonly PreviewItem[] }) {
         <span className="font-mono">{previews.length}</span>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80">
-        <PreviewLinks previews={previews} />
+        <PreviewLinks previews={previews} onOpenPreview={onOpenPreview} />
       </PopoverContent>
     </Popover>
   )
@@ -220,6 +158,10 @@ export function SessionHeader({
   crew,
   crewRows,
   previews,
+  paneCollapsed = false,
+  onTogglePane,
+  onOpenPane,
+  onOpenPreview,
 }: {
   sessionId: string
   state: EHeaderState
@@ -234,6 +176,10 @@ export function SessionHeader({
   crew: CrewRoster
   crewRows: readonly CrewRow[]
   previews: readonly PreviewItem[]
+  paneCollapsed?: boolean
+  onTogglePane?: () => void
+  onOpenPane?: () => void
+  onOpenPreview: (url: string) => void
 }) {
   const pinned = pinnedPullRequestOf(entries)
   return (
@@ -265,8 +211,29 @@ export function SessionHeader({
         {subscriptions.length === 0 ? null : <HeaderSubscriptions subscriptions={subscriptions} />}
         {shells.running === 0 ? null : <HeaderShells shells={shells} tails={shellTails} />}
         {crew.total === 0 ? null : <HeaderCrew roster={crew} rows={crewRows} />}
-        {previews.length === 0 ? null : <HeaderPreviews previews={previews} />}
+        {previews.length === 0 ? null : (
+          <HeaderPreviews previews={previews} onOpenPreview={onOpenPreview} />
+        )}
         <Badge variant={BADGE_VARIANT[state]}>{STATE_LABEL[state]}</Badge>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={paneCollapsed ? 'Expand panel' : 'Collapse panel'}
+          aria-expanded={!paneCollapsed}
+          className="hidden md:inline-flex"
+          onClick={onTogglePane}
+        >
+          <PanelRightIcon />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Open panel"
+          className="md:hidden"
+          onClick={onOpenPane}
+        >
+          <PanelRightIcon />
+        </Button>
       </div>
     </header>
   )

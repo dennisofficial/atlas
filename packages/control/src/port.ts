@@ -1,6 +1,6 @@
 import type { Hash, InboxEntry, Lease, ModelChoice } from '@dltech/atlas-core'
 import type { SessionModelAsk } from '@dltech/atlas-models'
-import type { SessionChange } from '@dltech/atlas-protocol'
+import type { EChangeFileStatus, SessionChange } from '@dltech/atlas-protocol'
 
 import type {
   AdvanceRoutineParams,
@@ -134,6 +134,37 @@ export type BlobRow = { size: number; bytes: Uint8Array }
 
 export type BlobRefWrite = { sessionId: string; hash: string }
 
+export type ChangeBlobWrite = { hash: string; size: number }
+
+export type ChangeBlobRow = { hash: string; size: number; createdAt: number }
+
+export type ChangedFileWrite = {
+  path: string
+  oldPath: string | null
+  status: EChangeFileStatus
+  additions: number
+  deletions: number
+  binary: boolean
+  baseHash: string | null
+  currentHash: string | null
+  size: number | null
+}
+
+export type WorktreeChangesWrite = {
+  checkoutId: string
+  sessionId: string
+  repo: string
+  worktreePath: string
+  base: string | null
+  fingerprint: string
+  updatedAt: number
+  files: readonly ChangedFileWrite[]
+}
+
+export type WorktreeChangesRead = Omit<WorktreeChangesWrite, 'files'> & {
+  files: readonly ChangedFileWrite[]
+}
+
 export type StoredEvent = {
   threadId: string
   seq: number
@@ -226,6 +257,24 @@ export interface ControlTx {
   blobsExist(hashes: readonly string[]): Promise<ReadonlySet<string>>
   blobReferencedBy(params: { sessionId: string; hash: string }): Promise<boolean>
   readEvents(params: ReadEventsParams): Promise<StoredEvent[]>
+  changeBlobsPresent(hashes: readonly string[]): Promise<ReadonlySet<string>>
+  upsertChanges(params: {
+    sessionId: string
+    write: WorktreeChangesWrite
+    blobs: readonly ChangeBlobWrite[]
+  }): Promise<void>
+  readChanges(params: { sessionId: string }): Promise<WorktreeChangesRead[]>
+  readChangeFile(params: {
+    sessionId: string
+    checkoutId: string
+    path: string
+  }): Promise<ChangedFileWrite | undefined>
+  changesUpdatedAt(params: { sessionId: string }): Promise<number | null>
+  changeBlobsUnreferenced(params: {
+    olderThanMs: number
+    limit: number
+  }): Promise<readonly ChangeBlobRow[]>
+  deleteChangeBlobs(params: { hashes: readonly string[] }): Promise<void>
   readLease(sessionId: string): Promise<Lease | undefined>
   leasesHeldBy(params: { hostId: number; limit: number }): Promise<Lease[]>
   lockLease(sessionId: string): Promise<Lease | undefined>

@@ -3,11 +3,13 @@ import { db } from '@dltech/atlas-db'
 import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { eventSchemaOf } from '@dltech/atlas-plugin-sdk'
+import { changeContentStoreProvider } from '../../../_lib/changes/change-content.provider'
 import { backgroundWorkProvider } from '../../../_lib/background-work/background-work.providers'
 import { COMMAND_REGISTRY, nativeCommandRegistry } from './command-registry'
 import { composedPlugins, registeredPlugins } from './registered-plugins'
 import { DbMediaRegistry, MediaRegistry } from './media-registry'
 import { mediaStoreProvider } from './media-store.provider'
+import { ChangesService } from './changes.service'
 import { MediaRouter } from './media.router'
 import { MediaService } from './media.service'
 import { DbProjectAccess, ProjectAccess } from './project-access'
@@ -34,9 +36,11 @@ export const controlPlaneProvider: Provider = {
     backgroundWorkProvider(),
     { provide: MediaRegistry, useClass: DbMediaRegistry },
     mediaStoreProvider,
+    changeContentStoreProvider,
     { provide: COMMAND_REGISTRY, useFactory: nativeCommandRegistry },
     SessionsService,
     SessionsRouter,
+    ChangesService,
     MediaService,
     MediaRouter,
     RoutinesService,

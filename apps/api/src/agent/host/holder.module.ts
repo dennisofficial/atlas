@@ -1,5 +1,5 @@
 import { Module, type Provider } from '@nestjs/common'
-import type { ControlPlane } from '@dltech/atlas-control'
+import { ChangeContentStore, type ControlPlane } from '@dltech/atlas-control'
 import type { HostBus, HostPresence, PodControlClient, SessionHolder } from '@dltech/atlas-host'
 import type { LogPort } from '@dltech/atlas-observability'
 
@@ -11,6 +11,7 @@ import type { SandboxProvider } from '../sandbox/sandbox-provider'
 import type { GithubTokenReader } from '../tokens/github-token-reader'
 import type { ModelTokenService } from '../tokens/model-token-service'
 import type { SigningKeyReader } from '../tokens/signing-key-reader'
+import { UnavailableChangeContentStore } from '../../_lib/changes/change-content.provider'
 import { ControlModule } from './control.module'
 import { HostWatchService } from './host-watch-service'
 import type { MediaSignerSource } from './media-signer-source'
@@ -54,6 +55,7 @@ const holderProvider: Provider = {
     media: MediaSignerSource,
     presence: HostPresence,
     control: PodControlClient,
+    content: ChangeContentStore,
     log: LogPort,
     watch: HostWatchService,
   ): SessionHolder =>
@@ -71,6 +73,7 @@ const holderProvider: Provider = {
       log,
       onHostIdChanged: () => watch.recompute(),
       ...(media.signer === undefined ? {} : { media: media.signer }),
+      ...(content instanceof UnavailableChangeContentStore ? {} : { changes: { content } }),
     }),
   inject: [
     AGENT_HOST_ENV,
@@ -84,6 +87,7 @@ const holderProvider: Provider = {
     MEDIA_SIGNER,
     PRESENCE,
     POD_CONTROL,
+    ChangeContentStore,
     LOG,
     HOST_WATCH,
   ],

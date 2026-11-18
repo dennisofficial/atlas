@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { changesOpSchemas, changesResultSchemas } from './changes'
 import { execEventSchemas, execOpSchemas, execResultSchemas } from './exec'
 import { filesEventSchemas, filesOpSchemas, filesResultSchemas } from './files'
 import { gitEventSchemas, gitOpSchemas, gitResultSchemas } from './git'
@@ -12,6 +13,7 @@ import { shellsEventSchemas, shellsOpSchemas, shellsResultSchemas } from './shel
 import { watchEventSchemas, watchOpSchemas, watchResultSchemas } from './watch'
 
 export const callOpSchema = z.discriminatedUnion('op', [
+  ...changesOpSchemas,
   ...execOpSchemas,
   ...filesOpSchemas,
   ...gitOpSchemas,
@@ -24,6 +26,7 @@ export const callOpSchema = z.discriminatedUnion('op', [
 ])
 
 export const okCallResultSchema = z.discriminatedUnion('op', [
+  ...changesResultSchemas,
   ...execResultSchemas,
   ...filesResultSchemas,
   ...gitResultSchemas,
@@ -56,6 +59,7 @@ export type OpValue<K extends OpName> = Extract<OkCallResult, { op: K }>['value'
 export type CallResult = z.infer<typeof callResultSchema>
 export type DaemonEvent = z.infer<typeof daemonEventSchema>
 
+export * from './changes'
 export * from './exec'
 export * from './files'
 export * from './git'

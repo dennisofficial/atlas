@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'2541e5aede31bb479c8314cd6e503481445a1d16dc7a737c3db677498d1a76bc'>;
+  StorageHashBase<'0177afbe1032f67b7454ea77afa20d9c0d29afca2914e1ad06a2604ce3af37e8'>;
 export type ExecutionHash =
   ExecutionHashBase<'f0070f067d5f975ffd666627e7d83dff8b80fcaa2204df163480c1b9274350d2'>;
 export type ProfileHash =
@@ -1183,6 +1183,12 @@ export namespace Models {
     sessionId: FieldOutputTypes['v2']['V2BlobRef']['sessionId'];
     readonly [RelationKeys]?: never;
   };
+  export type v2_V2ChangeBlob = {
+    createdAt: FieldOutputTypes['v2']['V2ChangeBlob']['createdAt'];
+    hash: FieldOutputTypes['v2']['V2ChangeBlob']['hash'];
+    size: FieldOutputTypes['v2']['V2ChangeBlob']['size'];
+    readonly [RelationKeys]?: never;
+  };
   export type v2_V2Event = {
     at: FieldOutputTypes['v2']['V2Event']['at'];
     canonical: FieldOutputTypes['v2']['V2Event']['canonical'];
@@ -1278,7 +1284,9 @@ export namespace Models {
     lease: v2_V2Lease | null;
     threads: v2_V2Thread[];
     view: v2_V2SessionView | null;
-    readonly [RelationKeys]?: 'branches' | 'inbox' | 'lease' | 'threads' | 'view';
+    worktreeChanges: v2_V2WorktreeChanges[];
+    readonly [RelationKeys]?:
+      'branches' | 'inbox' | 'lease' | 'threads' | 'view' | 'worktreeChanges';
   };
   export type v2_V2SessionBranch = {
     branch: FieldOutputTypes['v2']['V2SessionBranch']['branch'];
@@ -1308,6 +1316,32 @@ export namespace Models {
     events: v2_V2Event[];
     session: v2_V2Session;
     readonly [RelationKeys]?: 'events' | 'session';
+  };
+  export type v2_V2WorktreeChangedFile = {
+    additions: FieldOutputTypes['v2']['V2WorktreeChangedFile']['additions'];
+    baseHash: FieldOutputTypes['v2']['V2WorktreeChangedFile']['baseHash'];
+    binary: FieldOutputTypes['v2']['V2WorktreeChangedFile']['binary'];
+    checkoutId: FieldOutputTypes['v2']['V2WorktreeChangedFile']['checkoutId'];
+    currentHash: FieldOutputTypes['v2']['V2WorktreeChangedFile']['currentHash'];
+    deletions: FieldOutputTypes['v2']['V2WorktreeChangedFile']['deletions'];
+    oldPath: FieldOutputTypes['v2']['V2WorktreeChangedFile']['oldPath'];
+    path: FieldOutputTypes['v2']['V2WorktreeChangedFile']['path'];
+    size: FieldOutputTypes['v2']['V2WorktreeChangedFile']['size'];
+    status: FieldOutputTypes['v2']['V2WorktreeChangedFile']['status'];
+    changes: v2_V2WorktreeChanges;
+    readonly [RelationKeys]?: 'changes';
+  };
+  export type v2_V2WorktreeChanges = {
+    base: FieldOutputTypes['v2']['V2WorktreeChanges']['base'];
+    fingerprint: FieldOutputTypes['v2']['V2WorktreeChanges']['fingerprint'];
+    id: FieldOutputTypes['v2']['V2WorktreeChanges']['id'];
+    repo: FieldOutputTypes['v2']['V2WorktreeChanges']['repo'];
+    sessionId: FieldOutputTypes['v2']['V2WorktreeChanges']['sessionId'];
+    updatedAt: FieldOutputTypes['v2']['V2WorktreeChanges']['updatedAt'];
+    worktreePath: FieldOutputTypes['v2']['V2WorktreeChanges']['worktreePath'];
+    files: v2_V2WorktreeChangedFile[];
+    session: v2_V2Session;
+    readonly [RelationKeys]?: 'files' | 'session';
   };
 }
 
@@ -1372,6 +1406,7 @@ export declare const models: {
     MediaSigningWindow: Models.v2_MediaSigningWindow;
     V2Blob: Models.v2_V2Blob;
     V2BlobRef: Models.v2_V2BlobRef;
+    V2ChangeBlob: Models.v2_V2ChangeBlob;
     V2Event: Models.v2_V2Event;
     V2Host: Models.v2_V2Host;
     V2InboxEntry: Models.v2_V2InboxEntry;
@@ -1382,6 +1417,8 @@ export declare const models: {
     V2SessionBranch: Models.v2_V2SessionBranch;
     V2SessionView: Models.v2_V2SessionView;
     V2Thread: Models.v2_V2Thread;
+    V2WorktreeChangedFile: Models.v2_V2WorktreeChangedFile;
+    V2WorktreeChanges: Models.v2_V2WorktreeChanges;
   };
 };
 
@@ -6735,6 +6772,40 @@ type ContractBase = Omit<
               indexes: readonly [];
               foreignKeys: readonly [];
             };
+            readonly V2ChangeBlob: {
+              columns: {
+                readonly createdAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly hash: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly size: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['hash'] };
+              uniques: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'V2ChangeBlob_createdAt_idx_9575dbd7';
+                  readonly prefix: 'V2ChangeBlob_createdAt_idx';
+                  readonly columns: readonly ['createdAt'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [];
+            };
             readonly V2Event: {
               columns: {
                 readonly at: {
@@ -7502,6 +7573,173 @@ type ContractBase = Omit<
                 },
               ];
             };
+            readonly V2WorktreeChangedFile: {
+              columns: {
+                readonly additions: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly baseHash: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly binary: {
+                  readonly dataType: 'pg/bool';
+                  readonly codecId: 'pg/bool@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly checkoutId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly currentHash: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly deletions: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly oldPath: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly path: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly size: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly status: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+              };
+              primaryKey: {
+                readonly columns: readonly ['checkoutId', 'path'];
+                readonly name: 'V2WorktreeChangedFile_pkey';
+              };
+              uniques: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'V2WorktreeChangedFile_baseHash_idx_4f00325f';
+                  readonly prefix: 'V2WorktreeChangedFile_baseHash_idx';
+                  readonly columns: readonly ['baseHash'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'V2WorktreeChangedFile_currentHash_idx_4da01d65';
+                  readonly prefix: 'V2WorktreeChangedFile_currentHash_idx';
+                  readonly columns: readonly ['currentHash'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'v2' & NamespaceId;
+                    readonly tableName: 'V2WorktreeChangedFile';
+                    readonly columns: readonly ['checkoutId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'v2' & NamespaceId;
+                    readonly tableName: 'V2WorktreeChanges';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
+            readonly V2WorktreeChanges: {
+              columns: {
+                readonly base: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly fingerprint: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly id: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly repo: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly sessionId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly updatedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly worktreePath: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'V2WorktreeChanges_sessionId_idx';
+                  readonly columns: readonly ['sessionId', 'updatedAt'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'v2' & NamespaceId;
+                    readonly tableName: 'V2WorktreeChanges';
+                    readonly columns: readonly ['sessionId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'v2' & NamespaceId;
+                    readonly tableName: 'V2Session';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
           };
         };
       };
@@ -7689,6 +7927,10 @@ type ContractBase = Omit<
     };
     readonly V2Blob: { readonly namespace: 'v2' & NamespaceId; readonly model: 'V2Blob' };
     readonly V2BlobRef: { readonly namespace: 'v2' & NamespaceId; readonly model: 'V2BlobRef' };
+    readonly V2ChangeBlob: {
+      readonly namespace: 'v2' & NamespaceId;
+      readonly model: 'V2ChangeBlob';
+    };
     readonly V2Event: { readonly namespace: 'v2' & NamespaceId; readonly model: 'V2Event' };
     readonly V2Host: { readonly namespace: 'v2' & NamespaceId; readonly model: 'V2Host' };
     readonly V2InboxEntry: {
@@ -7711,6 +7953,14 @@ type ContractBase = Omit<
       readonly model: 'V2SessionView';
     };
     readonly V2Thread: { readonly namespace: 'v2' & NamespaceId; readonly model: 'V2Thread' };
+    readonly V2WorktreeChangedFile: {
+      readonly namespace: 'v2' & NamespaceId;
+      readonly model: 'V2WorktreeChangedFile';
+    };
+    readonly V2WorktreeChanges: {
+      readonly namespace: 'v2' & NamespaceId;
+      readonly model: 'V2WorktreeChanges';
+    };
     readonly Verification: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'Verification';
@@ -12929,6 +13179,36 @@ type ContractBase = Omit<
               };
             };
           };
+          readonly V2ChangeBlob: {
+            readonly fields: {
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly hash: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly size: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+            };
+            readonly relations: Record<string, never>;
+            readonly storage: {
+              readonly table: 'V2ChangeBlob';
+              readonly namespaceId: 'v2';
+              readonly fields: {
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly hash: { readonly column: 'hash' };
+                readonly size: { readonly column: 'size' };
+              };
+            };
+          };
           readonly V2Event: {
             readonly fields: {
               readonly at: {
@@ -13463,6 +13743,17 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['sessionId'];
                 };
               };
+              readonly worktreeChanges: {
+                readonly to: {
+                  readonly namespace: 'v2' & NamespaceId;
+                  readonly model: 'V2WorktreeChanges';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['sessionId'];
+                };
+              };
             };
             readonly storage: {
               readonly table: 'V2Session';
@@ -13655,6 +13946,154 @@ type ContractBase = Omit<
                 readonly id: { readonly column: 'id' };
                 readonly sessionId: { readonly column: 'sessionId' };
                 readonly visibility: { readonly column: 'visibility' };
+              };
+            };
+          };
+          readonly V2WorktreeChangedFile: {
+            readonly fields: {
+              readonly additions: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly baseHash: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly binary: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
+              };
+              readonly checkoutId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly currentHash: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly deletions: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly oldPath: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly path: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly size: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly status: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: {
+              readonly changes: {
+                readonly to: {
+                  readonly namespace: 'v2' & NamespaceId;
+                  readonly model: 'V2WorktreeChanges';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['checkoutId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'V2WorktreeChangedFile';
+              readonly namespaceId: 'v2';
+              readonly fields: {
+                readonly additions: { readonly column: 'additions' };
+                readonly baseHash: { readonly column: 'baseHash' };
+                readonly binary: { readonly column: 'binary' };
+                readonly checkoutId: { readonly column: 'checkoutId' };
+                readonly currentHash: { readonly column: 'currentHash' };
+                readonly deletions: { readonly column: 'deletions' };
+                readonly oldPath: { readonly column: 'oldPath' };
+                readonly path: { readonly column: 'path' };
+                readonly size: { readonly column: 'size' };
+                readonly status: { readonly column: 'status' };
+              };
+            };
+          };
+          readonly V2WorktreeChanges: {
+            readonly fields: {
+              readonly base: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly fingerprint: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly repo: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly sessionId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly worktreePath: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: {
+              readonly files: {
+                readonly to: {
+                  readonly namespace: 'v2' & NamespaceId;
+                  readonly model: 'V2WorktreeChangedFile';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['checkoutId'];
+                };
+              };
+              readonly session: {
+                readonly to: {
+                  readonly namespace: 'v2' & NamespaceId;
+                  readonly model: 'V2Session';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['sessionId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'V2WorktreeChanges';
+              readonly namespaceId: 'v2';
+              readonly fields: {
+                readonly base: { readonly column: 'base' };
+                readonly fingerprint: { readonly column: 'fingerprint' };
+                readonly id: { readonly column: 'id' };
+                readonly repo: { readonly column: 'repo' };
+                readonly sessionId: { readonly column: 'sessionId' };
+                readonly updatedAt: { readonly column: 'updatedAt' };
+                readonly worktreePath: { readonly column: 'worktreePath' };
               };
             };
           };

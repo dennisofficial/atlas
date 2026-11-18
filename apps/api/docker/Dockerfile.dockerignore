@@ -1,0 +1,15 @@
+**/node_modules
+**/.git
+.atlas
+deprecated
+evals
+**/.env
+**/.env.local
+**/.env.keys
+**/.env.personal
+**/.next
+**/.turbo
+**/*.tsbuildinfo
+apps/mac/release
+apps/mobile/ios
+apps/mobile/android

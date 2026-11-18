@@ -1,0 +1,16 @@
+// use prisma-8
+namespace v2 {
+  model V2WorktreeChanges {
+    id           String   @id
+    sessionId    String
+    repo         String
+    worktreePath String
+    base         String?
+    fingerprint  String
+    updatedAt    TimestamptzJsDate(3)
+    session      V2Session            @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "V2WorktreeChanges_sessionId_idx")
+    files        V2WorktreeChangedFile[]
+
+    @@index([sessionId, updatedAt], map: "V2WorktreeChanges_sessionId_idx")
+  }
+}
