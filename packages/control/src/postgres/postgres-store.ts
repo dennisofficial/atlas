@@ -21,7 +21,6 @@ import {
   type StoredEvent,
   type ThreadRow,
   type ControlSessionRow,
-  type PrStateRow,
   type SubscriptionLease,
   type TrackingTarget,
   type SessionDigestRow,
