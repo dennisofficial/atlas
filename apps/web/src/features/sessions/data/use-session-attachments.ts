@@ -12,7 +12,8 @@ export function useSessionAttachments({
 }: {
   files: ReturnType<typeof useComposerAttachments>
 }) {
-  const media = useSessionMedia()
+  const attachAsFile = useCallback((file: File) => files.attach([file]), [files.attach])
+  const media = useSessionMedia({ onUnreadable: attachAsFile })
   const mediaChips = media.composerProps.attachments
   const fileChips = files.composerProps.attachments
   const heldCount = mediaChips.length + fileChips.length

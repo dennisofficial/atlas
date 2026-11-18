@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EAttachmentStore, type Attachment } from '../../../attachments/attachment'
+import { imagePathLine, missingImageLine } from '../../../images/attached'
 import { EUploadState } from '../../../uploads/placement'
 import type { Assembled } from '../../assembled'
 import { contextFor, log, operatorSaidAs } from '../../__tests__/log-fixture'
@@ -93,6 +94,66 @@ describe('a message carrying attachments', () => {
     }
     const content = contentOf([both])
     expect(content?.map((part) => part.type)).toEqual(['text', 'text', 'image'])
+  })
+
+  it('names a heic upload at its placed path instead of inlining bytes nobody can read', () => {
+    const heic: Attachment = {
+      id: 'u3',
+      name: 'IMG_0042.HEIC',
+      mediaType: 'image/heic',
+      size: 4_096,
+      content: {
+        store: EAttachmentStore.Upload,
+        uploadId: 'u3',
+        pathname: 'composer-uploads/u/u3/IMG_0042.HEIC',
+      },
+    }
+    const content = contentOf(
+      [heic],
+      new Map([['u3', { state: EUploadState.Ready, path: '/s/uploads/u3/IMG_0042.HEIC' }]]),
+    )
+
+    expect(content?.some((part) => part.type === 'image')).toBe(false)
+    expect(content?.[0]).toEqual({
+      type: 'text',
+      text: operatorSaidAs(`look\n${imagePathLine({ path: '/s/uploads/u3/IMG_0042.HEIC' })}`),
+    })
+  })
+
+  it('names an svg it was handed as bytes, having no path to give the model', () => {
+    const svg: Attachment = {
+      ...inlinePicture,
+      id: 'svg',
+      name: 'logo.svg',
+      mediaType: 'image/svg+xml',
+    }
+    const content = contentOf([svg])
+
+    expect(content?.some((part) => part.type === 'image')).toBe(false)
+    expect(content?.[0]).toEqual({
+      type: 'text',
+      text: operatorSaidAs(`look\n${missingImageLine('logo.svg')}`),
+    })
+  })
+
+  it('inlines a png that has a placed path too, so the guard turns on the type alone', () => {
+    const png: Attachment = {
+      ...inlinePicture,
+      id: 'u4',
+      content: {
+        store: EAttachmentStore.Upload,
+        uploadId: 'u4',
+        pathname: 'p',
+        inline: 'iVBORw0KGgo=',
+      },
+    }
+    const content = contentOf(
+      [png],
+      new Map([['u4', { state: EUploadState.Ready, path: '/s/uploads/u4/shot.png' }]]),
+    )
+
+    expect(content?.map((part) => part.type)).toEqual(['text', 'text', 'image'])
+    expect(JSON.stringify(content)).not.toContain('[image /s/uploads/u4/shot.png]')
   })
 
   it('hands a media attachment on as the reference the host fetches from', () => {

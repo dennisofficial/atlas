@@ -2,6 +2,7 @@ import {
   EAttachmentStore,
   inlineData,
   isImage,
+  isModelImage,
   type Attachment,
 } from '../../attachments/attachment'
 import {
@@ -103,6 +104,18 @@ function placeImage({
   const source = sourceOf(attachment)
   const capabilities = delivery.capabilities ?? NEUTRAL_IMAGE_CAPABILITIES
 
+  const nameIt = (): void => {
+    const path = readablePathOf({ attachment, placements: delivery.placements })
+    parts.named.push(
+      path === undefined ? missingImageLine(source) : imagePathLine({ path, ...size }),
+    )
+  }
+
+  if (!isModelImage(attachment)) {
+    nameIt()
+    return
+  }
+
   const plan = planDelivery({
     facts: { byteLength: data === undefined ? attachment.size : base64Bytes(data), ...size },
     capabilities,
@@ -140,8 +153,7 @@ function placeImage({
     return
   }
 
-  const path = readablePathOf({ attachment, placements: delivery.placements })
-  parts.named.push(path === undefined ? missingImageLine(source) : imagePathLine({ path, ...size }))
+  nameIt()
 }
 
 export function attachmentPartsOf({
