@@ -48,19 +48,27 @@ const emailHooks = createAuthEmailHooks({
   }),
 })
 
-// better-auth defaults the callback to BETTER_AUTH_URL (api.byatlas.io), but browsers reach auth only
-// through the web app's /api/* rewrite, so the OAuth state and session cookies live on WEB_ORIGIN.
+// better-auth defaults the callback to BETTER_AUTH_URL (api.byatlas.io), but Google redirects to the
+// web app's /api/auth/callback rewrite, so the OAuth state cookie is minted on WEB_ORIGIN.
 const googleRedirectUri = `${webOrigin}/api/auth/callback/google`
 
 // The native app signs in with an ID token only, so no client secret (which would build the web
 // authorization URL) is configured; audience verification goes through appBundleIdentifier.
 const appleBundleIdentifier = process.env.APPLE_APP_BUNDLE_IDENTIFIER
 
+// Unset outside production: a host-only cookie is what the web app and the local API share on localhost.
+const cookieDomain = process.env.AUTH_COOKIE_DOMAIN
+
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL ?? 'http://localhost:3400',
   secret,
   database: sharedPool(),
-  advanced: { database: { validateSchema: false } },
+  advanced: {
+    database: { validateSchema: false },
+    ...(cookieDomain === undefined || cookieDomain.length === 0
+      ? {}
+      : { crossSubDomainCookies: { enabled: true, domain: cookieDomain } }),
+  },
   user: { modelName: 'User' },
   secondaryStorage: sessionStorageFromEnv(process.env.REDIS_URL),
   session: {

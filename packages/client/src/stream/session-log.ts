@@ -1,14 +1,23 @@
-import type { PendingInputsState, V2Event, VisibilityState } from '@dltech/atlas-core'
+import type {
+  FailureMessageState,
+  PendingInputsState,
+  SessionViewState,
+  V2Event,
+  VisibilityState,
+} from '@dltech/atlas-core'
 
 import type { SessionCursor } from './session-window'
 
-export const SESSION_LOG_STRUCTURE_VERSION = 2
+export const SESSION_LOG_STRUCTURE_VERSION = 3
 
 export type SessionLogSnapshot = {
   version: number
   cursor: SessionCursor | undefined
   visibility: VisibilityState
   pending: PendingInputsState
+  view: SessionViewState
+  failureMessage: FailureMessageState
+  commandLog: readonly V2Event[]
   throughSeq: number
 }
 

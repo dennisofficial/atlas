@@ -168,6 +168,7 @@ export class FollowSubscription implements FollowTarget {
         head: { seq: head.seq, hash: head.hash },
         live,
       })
+      this.args.deps.viewHead?.({ sessionId: this.sessionId, headSeq: head.seq })
       if (live) {
         this.announcedLive = true
         return

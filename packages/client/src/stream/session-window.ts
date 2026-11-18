@@ -2,11 +2,21 @@ import {
   chainHash,
   EMPTY_PENDING,
   EMPTY_VISIBILITY,
+  initialFailureMessage,
+  initialSessionViewState,
+  isCommandLogEvent,
   isVisible,
+  needsRebuild,
+  rebuildEditSensitive,
+  stepFailureMessage,
   stepPending,
+  stepSessionViewWith,
   stepVisibility,
   v2EventSchema,
+  type FailureMessageState,
   type PendingInputsState,
+  type PluginViewFold,
+  type SessionViewState,
   type V2Event,
   type VisibilityState,
 } from '@dltech/atlas-core'
@@ -22,6 +32,9 @@ export type SessionWindow = {
   events: V2Event[]
   visibility: VisibilityState
   pending: PendingInputsState
+  view: SessionViewState
+  failureMessage: FailureMessageState
+  commandLog: readonly V2Event[]
   cursor: SessionCursor | undefined
 }
 
@@ -31,6 +44,9 @@ export const EMPTY_WINDOW: SessionWindow = {
   events: [],
   visibility: EMPTY_VISIBILITY,
   pending: EMPTY_PENDING,
+  view: initialSessionViewState,
+  failureMessage: initialFailureMessage,
+  commandLog: [],
   cursor: undefined,
 }
 
@@ -95,25 +111,43 @@ export const applyPageOutcome = (args: {
   page: EventsPage
   eventSchema?: z.ZodType<V2Event> | undefined
   renderLimit?: number | undefined
+  views?: readonly PluginViewFold[] | undefined
 }): PageOutcome => {
   const { window, page } = args
+  const views = args.views ?? []
   const { fresh, last, skipped, issue } = readPage({
     raw: page.events,
     after: window.cursor?.seq ?? 0,
     eventSchema: args.eventSchema ?? v2EventSchema,
   })
   if (last === undefined) return { window, fresh: [], skipped, issue }
+  const events = fresh.map(({ event }) => event)
   const visibility = fresh.reduce(
     (state, { event }) => stepVisibility(state, event),
     window.visibility,
   )
   const pending = fresh.reduce((state, { event }) => stepPending(state, event), window.pending)
-  const events = [...window.events, ...fresh.map(({ event }) => event)]
+  const folded = events.reduce(
+    (state, event) => stepSessionViewWith({ state, views, event }),
+    window.view,
+  )
+  const failureMessage = events.reduce(stepFailureMessage, window.failureMessage)
+  const visible = [...window.events, ...events]
     .filter((event) => isVisible(visibility, event))
     .slice(-(args.renderLimit ?? RENDER_LIMIT))
   return {
-    window: { events, visibility, pending, cursor: cursorAfter({ page, last }) },
-    fresh: fresh.map(({ event }) => event),
+    window: {
+      events: visible,
+      visibility,
+      pending,
+      view: events.some(needsRebuild)
+        ? rebuildEditSensitive({ state: folded, visibleTail: visible })
+        : folded,
+      failureMessage,
+      commandLog: [...window.commandLog, ...events.filter(isCommandLogEvent)],
+      cursor: cursorAfter({ page, last }),
+    },
+    fresh: events,
     skipped,
     issue,
   }

@@ -34,6 +34,7 @@ const sharedConfig: NextConfig = {
   allowedDevOrigins: devOrigins,
   output: 'standalone',
   env: {
+    ATLAS_API_ORIGIN: resolveApiOrigin(process.env),
     ATLAS_WEB_COMMIT: webCommit,
     ATLAS_WEB_VERSION: process.env.ATLAS_VERSION ?? '',
   },
@@ -55,8 +56,11 @@ const nextConfig: NextConfig = {
   async rewrites() {
     const apiOrigin = resolveApiOrigin(process.env)
     return [
-      { source: '/api/:path*', destination: `${apiOrigin}/api/:path*` },
-      { source: '/v1/:path*', destination: `${apiOrigin}/v1/:path*` },
+      {
+        source: '/api/auth/callback/:path*',
+        destination: `${apiOrigin}/api/auth/callback/:path*`,
+      },
+      { source: '/v1/mcp/oauth/callback', destination: `${apiOrigin}/v1/mcp/oauth/callback` },
     ]
   },
 }

@@ -8,6 +8,7 @@ const base: HeldSnapshot = {
   turn: 'idle',
   stopPending: false,
   messagePending: false,
+  resumable: false,
   idleDue: false,
   workspace: EWorkspaceState.Prepared,
   retryPending: false,
@@ -44,6 +45,41 @@ const cases: { name: string; snapshot: HeldSnapshot; action: EHeldAction }[] = [
     name: 'an idle-due session releases',
     snapshot: { ...base, idleDue: true },
     action: EHeldAction.Release,
+  },
+  {
+    name: 'a resumable idle session starts a turn',
+    snapshot: { ...base, resumable: true },
+    action: EHeldAction.StartTurn,
+  },
+  {
+    name: 'a resumable session waits for its own running turn',
+    snapshot: { ...base, resumable: true, turn: 'running' },
+    action: EHeldAction.Wait,
+  },
+  {
+    name: 'a resumable session starts a turn before the idle release',
+    snapshot: { ...base, resumable: true, idleDue: true },
+    action: EHeldAction.StartTurn,
+  },
+  {
+    name: 'a stop beats a resumable log',
+    snapshot: { ...base, resumable: true, stopPending: true },
+    action: EHeldAction.ConsumeStop,
+  },
+  {
+    name: 'a resumable log never resumes a drained session',
+    snapshot: { ...base, resumable: true, draining: true },
+    action: EHeldAction.Wait,
+  },
+  {
+    name: 'a resumable log is prepared before it can resume',
+    snapshot: { ...base, resumable: true, workspace: EWorkspaceState.Unprepared },
+    action: EHeldAction.Prepare,
+  },
+  {
+    name: 'a failed session does not resume its own log',
+    snapshot: { ...base, resumable: true, workspace: EWorkspaceState.Failed },
+    action: EHeldAction.Wait,
   },
   {
     name: 'a pending message beats the idle release',

@@ -14,6 +14,15 @@ const pull = async (
   return step.value
 }
 
+const nextPayload = async (
+  generator: AsyncGenerator<StreamServerMessage>,
+): Promise<StreamServerMessage> => {
+  for (;;) {
+    const frame = await pull(generator)
+    if (frame.type !== 'pong') return frame
+  }
+}
+
 const liveSeqs = async (generator: AsyncGenerator<StreamServerMessage>): Promise<number[]> => {
   for (;;) {
     const frame = await pull(generator)
@@ -68,6 +77,20 @@ describe('session stream adapters', () => {
     await generator.return(undefined)
   })
 
+  it('follows every burst with a trailing pong so a buffering proxy releases it', async () => {
+    await rig.seed({ events: 2 })
+    const generator = streamOf().follow({ userId: OWNER, sessionId: SESSION })
+    expect((await pull(generator)).type).toBe('ready')
+
+    let frame = await pull(generator)
+    for (let seen = 0; frame.type !== 'events'; seen += 1) {
+      if (seen >= 10) throw new Error('the stream never sent an events frame')
+      frame = await pull(generator)
+    }
+    expect((await pull(generator)).type).toBe('pong')
+    await generator.return(undefined)
+  })
+
   it('refuses a subscription past the per user slot limit until one is given back', async () => {
     await rig.seed({ events: 0 })
     const stream = streamOf({ limit: 1 })
@@ -119,7 +142,7 @@ describe('session stream adapters', () => {
     await rig.seed({ events: 0 })
     const generator = streamOf().list({ userId: OWNER })
     expect((await pull(generator)).type).toBe('ready')
-    expect((await pull(generator)).type).toBe('snapshot')
+    expect((await nextPayload(generator)).type).toBe('snapshot')
     await generator.return(undefined)
   })
 })

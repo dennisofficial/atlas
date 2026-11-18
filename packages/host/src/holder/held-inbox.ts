@@ -1,6 +1,9 @@
 import {
   actionableInboxIds,
   INBOX_KIND_STOP,
+  pendingInputsOf,
+  pendingMessagesOf,
+  type V2Event,
   type InboxEntry,
   type PrepareFailure,
 } from '@dltech/atlas-core'
@@ -36,6 +39,14 @@ export const readInboxPages = async (args: {
 
 export const readFullInbox = (deps: HeldSessionDeps): Promise<InboxEntry[]> =>
   readInboxPages({ plane: deps.plane, sessionId: deps.sessionId })
+
+export const logPendingMessageIdsOf = (events: readonly V2Event[]): number[] =>
+  pendingMessagesOf(pendingInputsOf(events)).map((entry) => entry.inboxId)
+
+export const waitingInputIdsOf = (args: {
+  ids: readonly number[]
+  failure: PrepareFailure | undefined
+}): number[] => args.ids.filter((id) => args.failure === undefined || id > args.failure.inboxHead)
 
 export const actionableEntries = (args: {
   entries: readonly InboxEntry[]

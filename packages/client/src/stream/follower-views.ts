@@ -12,3 +12,6 @@ export const settlesSetup = (events: readonly Record<string, unknown>[]): boolea
 
 export const acceptsView = (args: { inner: FollowedState; at: number }): boolean =>
   args.at >= (args.inner.window.cursor?.seq ?? 0)
+
+export const viewSettlesCatchUp = (args: { inner: FollowedState; at: number }): boolean =>
+  args.inner.window.cursor !== undefined && args.at <= args.inner.window.cursor.seq

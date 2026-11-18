@@ -1,6 +1,7 @@
 import type { z } from 'zod'
 
 import { UNREACHABLE } from './auth-api'
+import { apiUrl } from './api-base-url'
 
 export class CloudApiError extends Error {
   readonly status: number
@@ -33,9 +34,9 @@ const messageOf = (body: Record<string, unknown>, fallback: string): string => {
 async function send(args: CloudRequest): Promise<Response> {
   let response: Response
   try {
-    response = await fetch(args.path, {
+    response = await fetch(apiUrl(args.path), {
       method: args.method,
-      credentials: 'same-origin',
+      credentials: 'include',
       cache: 'no-store',
       headers: args.body === undefined ? undefined : { 'content-type': 'application/json' },
       body: args.body === undefined ? undefined : JSON.stringify(args.body),

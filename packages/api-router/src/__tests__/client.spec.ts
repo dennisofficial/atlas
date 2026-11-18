@@ -33,7 +33,10 @@ const failingFetch = (): typeof fetch =>
     { preconnect: fetch.preconnect },
   )
 
-type FakeInit = { fetch?: (target: string | URL, init: RequestInit) => Promise<Response> }
+type FakeInit = {
+  withCredentials?: boolean
+  fetch?: (target: string | URL, init: RequestInit) => Promise<Response>
+}
 type Constructed = { url: string; init: FakeInit | undefined }
 
 const fakeEventSource = (constructed: Constructed[]) =>
@@ -129,6 +132,55 @@ describe('createApiClient', () => {
 
     expect(constructed).toHaveLength(1)
     expect(constructed[0]?.init).toBeUndefined()
+  })
+
+  it('sends credentials with an include-configured call', async () => {
+    const seen: Seen[] = []
+    const client = createApiClient({
+      baseUrl: 'https://api.atlas.test',
+      credentials: 'include',
+      fetchFn: recordingFetch(seen),
+    })
+
+    await client.sandboxSelf.events.mutate({ events: [] }).catch(() => undefined)
+
+    expect(seen[0]?.credentials).toBe('include')
+  })
+
+  it('lets a credentialed client send cookies with the native EventSource', async () => {
+    const constructed: Constructed[] = []
+    const original: unknown = Reflect.get(globalThis, 'EventSource')
+    Reflect.set(globalThis, 'EventSource', fakeEventSource(constructed))
+    try {
+      const client = createApiClient({ baseUrl: 'https://api.atlas.test', credentials: 'include' })
+      const subscription = client.threadEvents.stream.subscribe({ threadId: 'thr_1' }, {})
+      await untilConstructed(constructed)
+      subscription.unsubscribe()
+    } finally {
+      Reflect.set(globalThis, 'EventSource', original)
+    }
+
+    expect(constructed[0]?.init).toEqual({ withCredentials: true })
+  })
+
+  it('sends credentials through a supplied EventSource', async () => {
+    const seen: Seen[] = []
+    const constructed: Constructed[] = []
+    const client = createApiClient({
+      baseUrl: 'https://api.atlas.test',
+      credentials: 'include',
+      fetchFn: recordingFetch(seen),
+      EventSource: fakeEventSource(constructed),
+    })
+    const subscription = client.threadEvents.stream.subscribe({ threadId: 'thr_1' }, {})
+
+    await untilConstructed(constructed)
+    const [source] = constructed
+    await source?.init?.fetch?.(source.url, { headers: { Accept: 'text/event-stream' } })
+    subscription.unsubscribe()
+
+    expect(source?.init?.withCredentials).toBeUndefined()
+    expect(seen[0]?.credentials).toBe('include')
   })
 
   it('exposes the status, details and a control-plane error for a failed call', async () => {

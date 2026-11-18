@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { apiUrl } from '@/lib/api-base-url'
 import { UNREACHABLE } from '@/lib/auth-api'
 import { CloudApiError } from '@/lib/cloud-api'
 
@@ -29,9 +30,9 @@ export type CurrentSession = z.infer<typeof currentSchema>
 async function authRequest(args: { path: string; body?: unknown }): Promise<unknown> {
   let response: Response
   try {
-    response = await fetch(args.path, {
+    response = await fetch(apiUrl(args.path), {
       method: args.body === undefined ? 'GET' : 'POST',
-      credentials: 'same-origin',
+      credentials: 'include',
       cache: 'no-store',
       headers: args.body === undefined ? undefined : { 'content-type': 'application/json' },
       body: args.body === undefined ? undefined : JSON.stringify(args.body),

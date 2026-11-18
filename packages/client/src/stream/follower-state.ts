@@ -6,6 +6,7 @@ import type {
 } from '@dltech/atlas-protocol'
 
 import { EStreamConnectionState } from './connection-machine'
+import type { DerivedView, FrameFacts } from './derived-session-view'
 import type { OpenOverlay, OverlayState } from './overlay-store'
 import type { SessionCursor, SessionWindow } from './session-window'
 import type { ShellTail } from './shell-tails'
@@ -36,8 +37,8 @@ export type SessionSnapshot = {
 export type FollowedState = {
   window: SessionWindow
   overlay: OverlayState
-  status: SessionStatusOutput | undefined
-  view: SessionViewOutput | undefined
+  frame: FrameFacts
+  derived: DerivedView
   setupOutput: string
   shells: Readonly<Record<string, ShellTail>>
   phase: EStreamConnectionState
@@ -58,8 +59,8 @@ export const snapshotOf = (inner: FollowedState): SessionSnapshot => ({
   events: inner.window.events,
   pending: inner.window.pending,
   cursor: inner.window.cursor,
-  status: inner.status,
-  view: inner.view,
+  status: inner.derived.status,
+  view: inner.derived.view,
   overlay: inner.overlay.open,
   setupOutput: inner.setupOutput,
   shells: inner.shells,

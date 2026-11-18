@@ -1,7 +1,6 @@
 import {
   crashLooped,
   EHeldAction,
-  isResumableOf,
   EHeldOutcome,
   type HeldOutcome,
   type Lease,
@@ -55,9 +54,8 @@ export class HeldSession {
   private readonly idle: IdleDeadline
   private readonly fenced: FencedSettlement
   private readonly ending: HeldEnding
-  private resumePending = false
+  private resumeAfterSeq = 0
   private settleFence = true
-  private setupEnded = false
   private takeOver: TakeOver | undefined
   private logStaged: (() => Promise<void>) | undefined
 
@@ -75,7 +73,6 @@ export class HeldSession {
         else this.reconciler?.request()
       },
       onSetupEnded: () => {
-        this.setupEnded = true
         this.noteActivity()
         this.reconciler?.request()
       },
@@ -104,6 +101,10 @@ export class HeldSession {
     this.lastActivityAt = this.deps.timers.now()
   }
 
+  private headSeq(): number {
+    return this.record?.eventCache().currentHead().seq ?? this.resumeAfterSeq
+  }
+
   notifyWake(): void {
     if (this.draining || this.ending.outcome !== undefined) return
     this.reconciler?.request()
@@ -119,9 +120,7 @@ export class HeldSession {
 
   run(args: { lease: Lease; threadId: ThreadId; claimMs?: number }): Promise<HeldOutcome> {
     this.ending.begin(args.lease.epoch)
-    const done = this.drive(args)
-    this.done = done
-    return done
+    return (this.done = this.drive(args))
   }
 
   discard(): void {
@@ -204,7 +203,7 @@ export class HeldSession {
     })
     this.branches = branches
     this.logStaged = logStaged
-    this.resumePending = await settleAndCheckResume({ deps, runtime, record, threadId })
+    await settleAndCheckResume({ deps, runtime, record, threadId })
     await recoverCommands()
     const completion = this.ending.waitForDrive()
     if (this.lifetimeAbort.signal.aborted || this.ending.outcome !== undefined) return
@@ -223,32 +222,26 @@ export class HeldSession {
     const deps = this.deps
     const turnRunning = this.turns.turnRunning
     if (this.draining) return turnRunning ? undefined : this.ending.finish(EHeldOutcome.Drained)
-    if (this.setupEnded) {
-      this.setupEnded = false
-      if (!turnRunning && this.record !== undefined) {
-        this.resumePending = isResumableOf(await this.record.loopState({ threadId: args.threadId }))
-      }
-    }
-    const { entries, action, inboxHead, shellsRunning } = await readHeldAction({
+    const { entries, action, resumable, inboxHead, shellsRunning } = await readHeldAction({
       deps,
       draining: this.draining,
       turnRunning,
-      resumePending: this.resumePending,
+      resumeAfterSeq: this.resumeAfterSeq,
       lastActivityAt: this.lastActivityAt,
       runtime: this.runtime,
-      workspace: this.record?.eventCache().bookkeeping().workspace(),
+      record: this.record,
       preparing: this.prepare.running,
       setupRunning: this.prepare.hasSetupRunning,
       childrenRunning: this.crew?.runningCount() ?? 0,
     })
     if (shellsRunning) this.noteActivity()
     if (action === EHeldAction.AbortTurn) return this.turns.abort(OPERATOR_STOP_REASON)
-    if (turnRunning) await this.logStaged?.()
+    if (action !== EHeldAction.StartTurn) await this.logStaged?.()
     switch (action) {
       case EHeldAction.ConsumeStop: {
-        this.resumePending = false
         await settleOperatorOnStop({ deps, record: this.record, runtime: this.runtime })
         await consumeStops({ deps, record: this.record, entries, onActivity: this.noteActivity })
+        this.resumeAfterSeq = this.headSeq()
         this.reconciler?.request()
         return
       }
@@ -261,10 +254,24 @@ export class HeldSession {
       }
       case EHeldAction.StartTurn: {
         this.takeOver?.firstStep()
-        const resume = this.resumePending
-        this.resumePending = false
+        this.resumeAfterSeq = this.headSeq()
         this.noteActivity()
-        this.startTurn({ runner: args.runner, threadId: args.threadId, resume })
+        this.idle.disarm()
+        startHeldTurn({
+          deps,
+          turns: this.turns,
+          pause: this.pause,
+          runner: args.runner,
+          threadId: args.threadId,
+          resume: resumable,
+          onActivity: this.noteActivity,
+          refreshBranches: () => {
+            if (this.draining || this.ending.outcome !== undefined) return
+            void this.branches?.refresh().catch((error) => logDriveFault({ deps, error }))
+          },
+          onFault: () => this.ending.finish(EHeldOutcome.Faulted),
+          onSettled: () => this.reconciler?.request(),
+        })
         return
       }
       case EHeldAction.Release: {
@@ -276,23 +283,6 @@ export class HeldSession {
         this.idle.arm({ lastActivityAt: this.lastActivityAt })
       }
     }
-  }
-
-  private startTurn(args: { runner: LoopTurnRunner; threadId: ThreadId; resume: boolean }): void {
-    this.idle.disarm()
-    startHeldTurn({
-      ...args,
-      deps: this.deps,
-      turns: this.turns,
-      pause: this.pause,
-      onActivity: this.noteActivity,
-      refreshBranches: () => {
-        if (this.draining || this.ending.outcome !== undefined) return
-        void this.branches?.refresh().catch((error) => logDriveFault({ deps: this.deps, error }))
-      },
-      onFault: () => this.ending.finish(EHeldOutcome.Faulted),
-      onSettled: () => this.reconciler?.request(),
-    })
   }
 
   losePresence(): void {

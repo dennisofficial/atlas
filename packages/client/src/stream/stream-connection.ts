@@ -1,4 +1,4 @@
-import type { V2Event } from '@dltech/atlas-core'
+import type { PluginViewFold, V2Event } from '@dltech/atlas-core'
 import type { StreamServerMessage } from '@dltech/atlas-protocol'
 import type { z } from 'zod'
 
@@ -28,6 +28,7 @@ export type StreamConnectionArgs = {
   networkSignal?: StreamNetworkSignal | undefined
   eventSchema?: z.ZodType<V2Event> | undefined
   knownEventTypes?: ReadonlySet<string> | undefined
+  views?: readonly PluginViewFold[] | undefined
 }
 
 export type FollowedSession = SessionFollower & { close(): void }
@@ -209,6 +210,7 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
         onResnap: () => resnap(entry),
         eventSchema: args.eventSchema,
         knownEventTypes: args.knownEventTypes,
+        views: args.views,
       }),
       subscription: undefined,
       epoch: 0,

@@ -14,6 +14,7 @@ export type HeldSnapshot = {
   turn: 'idle' | 'running'
   stopPending: boolean
   messagePending: boolean
+  resumable: boolean
   idleDue: boolean
   workspace: EWorkspaceState
   retryPending: boolean
@@ -25,7 +26,7 @@ const afterFailure = (snapshot: HeldSnapshot): EHeldAction => {
 }
 
 const prepared = (snapshot: HeldSnapshot): EHeldAction => {
-  if (snapshot.messagePending) return EHeldAction.StartTurn
+  if (snapshot.messagePending || snapshot.resumable) return EHeldAction.StartTurn
   return snapshot.idleDue ? EHeldAction.Release : EHeldAction.Wait
 }
 

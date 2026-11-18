@@ -1,9 +1,10 @@
 import { createApiClient, detailsOf, httpStatusOf } from '@dltech/atlas-api-router'
 
+import { apiBaseUrl } from './api-base-url'
 import { UNREACHABLE } from './auth-api'
 import { CloudApiError } from './cloud-api'
 
-export const api = createApiClient({ baseUrl: '' })
+export const api = createApiClient({ baseUrl: apiBaseUrl(), credentials: 'include' })
 
 const stringOf = (value: unknown): string | undefined =>
   typeof value === 'string' && value.length > 0 ? value : undefined

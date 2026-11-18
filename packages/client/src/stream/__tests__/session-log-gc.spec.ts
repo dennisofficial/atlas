@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { initialFailureMessage, initialSessionViewState } from '@dltech/atlas-core'
 
 import { memorySessionLog } from '../session-log'
 import { gcSessionLog, sessionLogDeletionsOf } from '../session-log-gc'
@@ -46,9 +47,12 @@ describe('session log garbage collection', () => {
 })
 
 const snapshotOf = () => ({
-  version: 2,
+  version: 3,
   cursor: { seq: 1, hash: 'h' },
   visibility: { spans: [] },
   pending: { pending: [] },
+  view: initialSessionViewState,
+  failureMessage: initialFailureMessage,
+  commandLog: [],
   throughSeq: 1,
 })

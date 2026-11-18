@@ -164,3 +164,39 @@ describe('post with a clientId', () => {
     ])
   })
 })
+
+describe('staging rows once logged', () => {
+  it('hides a staged row as soon as its input-posted commit lands', async () => {
+    const { plane, append } = await setup()
+    const { inboxId } = await plane.post({
+      sessionId: SESSION,
+      kind: 'message',
+      payload: messageOf('c-1', 'hi'),
+    })
+    await append({
+      bodies: [
+        {
+          type: 'input-posted',
+          inboxId,
+          kind: 'message',
+          postedAt: NOW,
+          text: 'hi',
+          clientId: 'c-1',
+        },
+      ],
+    })
+    expect(await plane.readInbox({ sessionId: SESSION, afterId: 0, limit: 10 })).toEqual([])
+    expect((await plane.readInboxEntry({ sessionId: SESSION, inboxId }))?.consumedSeq).toBe(1)
+  })
+
+  it('keeps an input-posted row out of the inbox when the same commit says it', async () => {
+    const { plane, append } = await setup()
+    const { inboxId } = await plane.post({
+      sessionId: SESSION,
+      kind: 'message',
+      payload: messageOf('c-2', 'hi'),
+    })
+    await append({ bodies: [posted(inboxId, 'hi'), said(inboxId, 'hi')] })
+    expect(await plane.readInbox({ sessionId: SESSION, afterId: 0, limit: 10 })).toEqual([])
+  })
+})

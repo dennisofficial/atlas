@@ -96,18 +96,70 @@ export const postedInboxIdsOf = (params: { events: readonly V2Event[] }): Readon
   return new Set(pending.map((entry) => entry.inboxId))
 }
 
+export type Drainable = { entry: InboxEntry; message: InboxMessage; posted: boolean }
+
+export const drainOrderOf = (params: {
+  staged: readonly { entry: InboxEntry; message: InboxMessage }[]
+  logged: readonly { entry: InboxEntry; message: InboxMessage }[]
+  posted: ReadonlySet<number>
+}): Drainable[] => {
+  const known = new Set(params.staged.map((item) => item.entry.inboxId))
+  const logged = params.logged.flatMap((item) =>
+    known.has(item.entry.inboxId) ? [] : [{ ...item, posted: true }],
+  )
+  const staged = params.staged.map((item) => ({
+    ...item,
+    posted: params.posted.has(item.entry.inboxId),
+  }))
+  return [...staged, ...logged].sort((left, right) => left.entry.inboxId - right.entry.inboxId)
+}
+
+export const stagedMessagesOf = (params: {
+  events: readonly V2Event[]
+  sessionId: string
+}): { entry: InboxEntry; message: InboxMessage }[] =>
+  pendingInputsOf(params.events).pending.flatMap((pending) => {
+    if (pending.kind !== INBOX_KIND_MESSAGE || pending.text === undefined) return []
+    return [
+      {
+        entry: {
+          sessionId: params.sessionId,
+          inboxId: pending.inboxId,
+          kind: pending.kind,
+          payload: JSON.stringify({
+            text: pending.text,
+            ...(pending.attachments === undefined ? {} : { attachments: pending.attachments }),
+          }),
+          postedAt: pending.at,
+          consumedSeq: pending.seq,
+          senderSessionId: pending.sender?.session ?? null,
+        },
+        message: {
+          text: pending.text,
+          ...(pending.via === undefined ? {} : { via: pending.via }),
+          ...(pending.clientId === undefined ? {} : { clientId: pending.clientId }),
+          ...(pending.attachments === undefined ? {} : { attachments: [...pending.attachments] }),
+        },
+      },
+    ]
+  })
+
 export const logStagedInputs = async (params: {
   fetch: () => Promise<InboxEntry[]>
   resolveWithdraws: (entries: readonly InboxEntry[]) => Promise<ReadonlySet<number>>
   postedDraftsOf: (entry: InboxEntry) => RecordBody[]
   appendDrafts: AppendDrafts
+  willDrain?: (() => boolean) | undefined
+  prepared?: (() => boolean) | undefined
   log?: LogPort | undefined
 }): Promise<void> => {
   try {
     const entries = await params.fetch()
+    if (params.willDrain?.() === true) return
     const resolved = await params.resolveWithdraws(entries)
     const drafts = entries
       .filter((entry) => !resolved.has(entry.inboxId))
+      .filter((entry) => params.prepared?.() !== false || entry.kind === INBOX_KIND_MESSAGE)
       .flatMap((entry) => params.postedDraftsOf(entry))
     if (drafts.length === 0) return
     await params.appendDrafts(drafts)

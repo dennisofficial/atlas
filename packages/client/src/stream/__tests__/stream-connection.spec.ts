@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 
+import type { PluginViewFold } from '@dltech/atlas-core'
+
 import { EStreamConnectionState } from '../connection-machine'
-import { createStreamConnection } from '../stream-connection'
+import { createStreamConnection, type StreamConnectionArgs } from '../stream-connection'
 import {
   createFakeScheduler,
   createFakeTransport,
@@ -13,14 +15,21 @@ import {
 
 const READY = { type: 'ready', v: 1, connectionId: 'c1' } as const
 
-const setup = () => {
+const setup = (extra: { views?: StreamConnectionArgs['views'] } = {}) => {
   const clock = createFakeScheduler()
   const fakes = createFakeTransport()
   const connection = createStreamConnection({
     transport: fakes.transport,
     scheduler: clock.scheduler,
+    ...extra,
   })
   return { connection, clock, ...fakes }
+}
+
+const probeView: PluginViewFold<readonly number[]> = {
+  name: 'probe',
+  initial: [],
+  fold: (state, event) => [...state, Number(event.seq)],
 }
 
 const rows = [
@@ -65,6 +74,16 @@ describe('the stream connection', () => {
     })
     follows[1]?.handlers.handleFrame(eventsMessage({ id: 's2', events, live: true }))
     expect(followed.getSnapshot().events).toHaveLength(3)
+  })
+
+  it('folds the plugin views it is handed into every followed session', async () => {
+    const { connection, follows } = setup({ views: [probeView] })
+    const followed = connection.follow({ sessionId: 'session-1' })
+    await settle()
+    follows[0]?.handlers.handleFrame(
+      eventsMessage({ id: 's1', events: mintUserEvents({ count: 2 }), live: true }),
+    )
+    expect(followed.getSnapshot().view?.pluginViews).toEqual({ probe: [1, 2] })
   })
 
   it('aborts a subscription when the follower closes', async () => {

@@ -514,3 +514,64 @@ describe('InboxIntake unresolvable commands', () => {
     expect(reads).toBe(10)
   })
 })
+
+describe('InboxIntake already-logged messages', () => {
+  it('says a message already posted in the log without posting it again', async () => {
+    const rig = rigOf([], { source: async () => [entry(4)] })
+    rig.appended.push(posted(4, { text: 'm4' }))
+    const drain = await rig.intake.prepare()
+    expect(rig.appends).toEqual([[said(4)]])
+    expect(drain.wakesTurn).toBe(true)
+  })
+
+  it('posts a message once when logging it and draining it race', async () => {
+    const rig = rigOf([entry(1)])
+    await Promise.all([rig.intake.logStaged(), rig.intake.prepare()])
+    const posts = rig.appended.filter(
+      (draft) => draft.type === 'input-posted' && draft.inboxId === 1,
+    )
+    expect(posts).toHaveLength(1)
+    expect(rig.appended.filter((draft) => draft.type === 'user-said')).toHaveLength(1)
+  })
+
+  it('says pending messages in queue order, not in the order the staging read returned', async () => {
+    const rig = rigOf([], { source: async () => [entry(4)] })
+    rig.appended.push(posted(3, { text: 'm3' }), posted(4, { text: 'm4' }))
+    await rig.intake.prepare()
+    expect(rig.appends).toEqual([[said(3)], [said(4)]])
+  })
+
+  it('drains an unlogged message ahead of a logged one that arrived later', async () => {
+    const rig = rigOf([entry(3)], { source: async () => [entry(3)] })
+    rig.appended.push(posted(4, { text: 'm4' }))
+    await rig.intake.prepare()
+    expect(rig.appends).toEqual([[posted(3, { text: 'm3' }), said(3)], [said(4)]])
+  })
+})
+
+describe('InboxIntake staged logging against the drain', () => {
+  it('logs a staged message alone while no drain can happen', async () => {
+    const rig = rigOf([entry(1)])
+    await rig.intake.logStaged({ willDrain: () => false })
+    expect(rig.appends).toEqual([[posted(1, { text: 'm1' })]])
+  })
+
+  it('keeps a child agent origin when a message logged mid-turn is drained', async () => {
+    const rig = rigOf([entry(1, { text: 'done', via: 'child-agent' })])
+    await rig.intake.logStaged({ willDrain: () => false })
+    await rig.intake.prepare()
+    expect(rig.appends).toEqual([
+      [posted(1, { text: 'done', via: EMessageOrigin.ChildAgent })],
+      [said(1, { text: 'done', via: EMessageOrigin.ChildAgent })],
+    ])
+  })
+
+  it('logs nothing alone once a drain is due, so the idle drain is one commit', async () => {
+    const rig = rigOf([entry(1)])
+    await rig.intake.logStaged({ willDrain: () => true })
+    expect(rig.appends).toEqual([])
+    const drain = await rig.intake.prepare()
+    expect(rig.appends).toEqual([[posted(1, { text: 'm1' }), said(1)]])
+    expect(drain.wakesTurn).toBe(true)
+  })
+})

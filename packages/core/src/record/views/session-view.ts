@@ -14,6 +14,7 @@ import {
 } from './pull-request-links'
 import { initialSpendState, stepSpend, type SpendState } from './spend'
 import { initialStatusFacts, stepStatusFacts, type StatusFacts } from './status-facts'
+import type { PluginViewFold } from './plugin-view'
 import type { SessionStatus } from './status-types'
 
 export const SESSION_VIEW_VERSION = 5
@@ -63,6 +64,32 @@ export const stepSessionView = (state: SessionViewState, event: V2Event): Sessio
   pending: stepPending(state.pending, event),
   pluginViews: state.pluginViews,
 })
+
+export const foldPluginViews = (args: {
+  bag: Readonly<Record<string, unknown>>
+  views: readonly PluginViewFold[]
+  event: V2Event
+}): Readonly<Record<string, unknown>> => {
+  let bag = args.bag
+  for (const view of args.views) {
+    const current = Object.hasOwn(bag, view.name) ? bag[view.name] : view.initial
+    bag = { ...bag, [view.name]: view.fold(current, args.event) }
+  }
+  return bag
+}
+
+export const stepSessionViewWith = (args: {
+  state: SessionViewState
+  views: readonly PluginViewFold[]
+  event: V2Event
+}): SessionViewState => {
+  const state = stepSessionView(args.state, args.event)
+  if (args.views.length === 0) return state
+  return {
+    ...state,
+    pluginViews: foldPluginViews({ bag: state.pluginViews, views: args.views, event: args.event }),
+  }
+}
 
 export const needsRebuild = (event: V2Event): boolean =>
   event.type === 'history-rewound' || event.type === 'history-summarised'

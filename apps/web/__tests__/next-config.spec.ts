@@ -35,7 +35,7 @@ describe('next.config', () => {
 })
 
 describe('next.config rewrites', () => {
-  it('proxies /api to ATLAS_API_ORIGIN when set', async () => {
+  it('proxies only the provider callbacks that redirect to the web host', async () => {
     process.env.ATLAS_API_ORIGIN = 'https://api.byatlas.io'
 
     const rewrites = nextConfig.rewrites
@@ -43,8 +43,14 @@ describe('next.config rewrites', () => {
     const result = await rewrites!()
 
     expect(result).toEqual([
-      { source: '/api/:path*', destination: 'https://api.byatlas.io/api/:path*' },
-      { source: '/v1/:path*', destination: 'https://api.byatlas.io/v1/:path*' },
+      {
+        source: '/api/auth/callback/:path*',
+        destination: 'https://api.byatlas.io/api/auth/callback/:path*',
+      },
+      {
+        source: '/v1/mcp/oauth/callback',
+        destination: 'https://api.byatlas.io/v1/mcp/oauth/callback',
+      },
     ])
   })
 
@@ -54,33 +60,24 @@ describe('next.config rewrites', () => {
 
     const result = await nextConfig.rewrites!()
 
-    expect(result).toEqual([
-      { source: '/api/:path*', destination: 'http://localhost:3400/api/:path*' },
-      { source: '/v1/:path*', destination: 'http://localhost:3400/v1/:path*' },
-    ])
+    expect(result[0]?.destination).toBe('http://localhost:3400/api/auth/callback/:path*')
   })
 
-  it('defaults to the production API origin on Vercel when the var is unset', async () => {
+  it('keeps no generic /api or /v1 proxy for the browser to hop through', async () => {
     delete process.env.ATLAS_API_ORIGIN
-    process.env.VERCEL_ENV = 'production'
+    delete process.env.VERCEL_ENV
 
     const result = await nextConfig.rewrites!()
 
-    expect(result).toEqual([
-      { source: '/api/:path*', destination: 'https://api.byatlas.io/api/:path*' },
-      { source: '/v1/:path*', destination: 'https://api.byatlas.io/v1/:path*' },
+    expect(result.map((rewrite) => rewrite.source)).toEqual([
+      '/api/auth/callback/:path*',
+      '/v1/mcp/oauth/callback',
     ])
   })
+})
 
-  it('treats an empty ATLAS_API_ORIGIN as unset', async () => {
-    process.env.ATLAS_API_ORIGIN = ''
-    process.env.VERCEL_ENV = 'production'
-
-    const result = await nextConfig.rewrites!()
-
-    expect(result).toEqual([
-      { source: '/api/:path*', destination: 'https://api.byatlas.io/api/:path*' },
-      { source: '/v1/:path*', destination: 'https://api.byatlas.io/v1/:path*' },
-    ])
+describe('next.config env', () => {
+  it('inlines the API origin for browser bundles', () => {
+    expect(nextConfig.env?.ATLAS_API_ORIGIN).toBeString()
   })
 })

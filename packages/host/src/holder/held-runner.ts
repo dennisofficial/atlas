@@ -250,11 +250,13 @@ export const wireHeldLoop = (args: {
 } => {
   const { runner, intake } = createLoopRunner(args)
   const branches = createBranchObserver(args)
+  const prepared = () => args.record.eventCache().bookkeeping().workspace().prepared
   branches.start()
   return {
     runner,
     branches,
     recoverCommands: () => intake.recoverUnfinished(),
-    logStaged: () => intake.logStaged(),
+    logStaged: () =>
+      intake.logStaged({ willDrain: () => !args.turns.turnRunning && prepared(), prepared }),
   }
 }

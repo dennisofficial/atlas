@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { ESessionStatus } from '@dltech/atlas-core'
+import { ESessionStatus, type LogHead, type SpendTally } from '@dltech/atlas-core'
 import {
   EStreamResetReason,
   type SessionStatusOutput,
@@ -7,46 +7,61 @@ import {
 } from '@dltech/atlas-protocol'
 
 import { memorySessionLog } from '../session-log'
-import { createSessionFollower } from '../session-follower'
-import { createFakeScheduler, eventsMessage, mintUserEvents } from './support'
+import { EStreamConnectionState } from '../connection-machine'
+import { createSessionFollower, ESessionConnection } from '../session-follower'
+import { createFakeScheduler, eventsMessage, headOf, mintEvents, userSaid } from './support'
 
-const statusOf = (state: ESessionStatus): SessionStatusOutput => ({
-  state,
-  lease: { epoch: 1, holderHostId: 7, live: true },
-})
-
-const viewBase = {
-  context: null,
-  spend: {
-    rows: [],
-    tally: {
-      inputTokens: 0,
-      outputTokens: 0,
-      cacheReadTokens: 0,
-      cacheWriteTokens: 0,
-      uncachedInputTokens: 0,
-      costUsd: null,
-    },
-  },
-  checkouts: { repos: [], primary: null },
-  pullRequests: [],
-  pluginViews: {},
+const tally: SpendTally = {
+  inputTokens: 9,
+  outputTokens: 4,
+  cacheReadTokens: 1,
+  cacheWriteTokens: 0,
+  uncachedInputTokens: 8,
+  costUsd: 0.5,
 }
 
-const sessionView = (params: { at: number; state?: ESessionStatus }): StreamServerMessage => ({
+const statusOf = (state: ESessionStatus, live: boolean): SessionStatusOutput => ({
+  state,
+  lease: { epoch: 1, holderHostId: 7, live },
+})
+
+const sessionView = (params: {
+  at: number
+  state?: ESessionStatus
+  live?: boolean
+  pullRequestState?: string
+}): StreamServerMessage => ({
   type: 'view',
   id: 's1',
   name: 'session',
   at: params.at,
-  value: { ...viewBase, at: params.at, status: statusOf(params.state ?? ESessionStatus.Idle) },
-})
-
-const statusView = (params: { at: number; state?: ESessionStatus }): StreamServerMessage => ({
-  type: 'view',
-  id: 's1',
-  name: 'status',
-  at: params.at,
-  value: statusOf(params.state ?? ESessionStatus.Idle),
+  value: {
+    at: params.at,
+    status: statusOf(params.state ?? ESessionStatus.Idle, params.live ?? true),
+    context: null,
+    spend: { rows: [], tally },
+    checkouts: { repos: [], primary: null },
+    pullRequests: [
+      {
+        repo: 'acme/atlas',
+        number: 7,
+        url: 'https://github.com/acme/atlas/pull/7',
+        branch: 'fix',
+        state:
+          params.pullRequestState === undefined
+            ? null
+            : {
+                title: 'Fix',
+                state: params.pullRequestState,
+                headSha: 'abc',
+                checks: { running: 0, passed: 2, failed: 0 },
+                mergeable: true,
+                updatedAt: '2026-11-18T10:00:00.000Z',
+              },
+      },
+    ],
+    pluginViews: {},
+  },
 })
 
 const setup = () =>
@@ -57,38 +72,101 @@ const setup = () =>
     onResnap: () => undefined,
   })
 
-describe('the session follower view', () => {
-  it('keeps the whole view and its status from a session view frame', () => {
+const seed = (follower: ReturnType<typeof setup>): LogHead => {
+  const events = mintEvents({
+    bodies: [userSaid('hi'), { type: 'assistant-said', parts: [{ type: 'text', text: 'done' }] }],
+  })
+  follower.handleMessage(eventsMessage({ id: 's1', events, live: true }))
+  return headOf(events)
+}
+
+const linked = (follower: ReturnType<typeof setup>, from: LogHead): void => {
+  follower.handleMessage(
+    eventsMessage({
+      id: 's1',
+      events: mintEvents({
+        from,
+        bodies: [
+          {
+            type: 'pull-request-linked',
+            repo: 'acme/atlas',
+            number: 7,
+            url: 'https://github.com/acme/atlas/pull/7',
+            branch: 'fix',
+          },
+        ],
+      }),
+      live: true,
+    }),
+  )
+}
+
+describe('the session follower frame facts', () => {
+  it('never lets a frame status override the log-derived one', () => {
     const follower = setup()
-    follower.handleMessage(sessionView({ at: 0, state: ESessionStatus.Thinking }))
+    seed(follower)
+    follower.handleMessage(sessionView({ at: 2, state: ESessionStatus.Failed, live: true }))
     const snapshot = follower.getSnapshot()
-    expect(snapshot.status?.state).toBe(ESessionStatus.Thinking)
+    expect(snapshot.status?.state).toBe(ESessionStatus.Idle)
     expect(snapshot.view?.status).toEqual(snapshot.status)
-    expect(snapshot.view?.spend.rows).toEqual([])
+    expect(snapshot.view?.at).toBe(2)
+  })
+
+  it('takes only lease liveness, spend tally and pull request state from a frame', () => {
+    const follower = setup()
+    const from = seed(follower)
+    linked(follower, from)
+    follower.handleMessage(sessionView({ at: 3, pullRequestState: 'open' }))
+    const view = follower.getSnapshot().view
+    expect(view?.spend).toEqual({ rows: [], tally })
+    expect(view?.status.lease).toEqual({ epoch: 1, holderHostId: 7, live: true })
+    expect(view?.pullRequests[0]?.state?.state).toBe('open')
+    expect(view?.pluginViews).toEqual({})
   })
 
   it('discards a session view whose position is behind the cursor', () => {
     const follower = setup()
-    follower.handleMessage(
-      eventsMessage({ id: 's1', events: mintUserEvents({ count: 20 }), live: true }),
-    )
-    follower.handleMessage(sessionView({ at: 5, state: ESessionStatus.Thinking }))
-    expect(follower.getSnapshot().view).toBeUndefined()
-    expect(follower.getSnapshot().status).toBeUndefined()
-    follower.handleMessage(sessionView({ at: 20, state: ESessionStatus.Thinking }))
-    expect(follower.getSnapshot().view?.at).toBe(20)
+    seed(follower)
+    follower.handleMessage(sessionView({ at: 1, live: false }))
+    expect(follower.getSnapshot().view?.status.lease).toEqual({
+      epoch: 0,
+      holderHostId: null,
+      live: false,
+    })
+    follower.handleMessage(sessionView({ at: 2 }))
+    expect(follower.getSnapshot().view?.status.lease.live).toBe(true)
   })
 
-  it('serves a version 1 server: a status frame sets status and leaves the view empty', () => {
+  it('clears catching up when a session view is already at the window cursor', () => {
     const follower = setup()
-    follower.handleMessage(statusView({ at: 0, state: ESessionStatus.Thinking }))
-    expect(follower.getSnapshot().status?.state).toBe(ESessionStatus.Thinking)
-    expect(follower.getSnapshot().view).toBeUndefined()
+    follower.setConnection(EStreamConnectionState.Open)
+    const events = mintEvents({
+      bodies: [userSaid('hi'), { type: 'assistant-said', parts: [{ type: 'text', text: 'done' }] }],
+    })
+    follower.handleMessage(eventsMessage({ id: 's1', events, live: false }))
+    expect(follower.getSnapshot().connection).toBe(ESessionConnection.CatchingUp)
+
+    follower.handleMessage(sessionView({ at: 2 }))
+    expect(follower.getSnapshot().connection).toBe(ESessionConnection.Live)
   })
 
-  it('clears the view on a reset', () => {
+  it('stays catching up while a view arrives before the log has a cursor', () => {
+    const follower = setup()
+    follower.setConnection(EStreamConnectionState.Open)
+    follower.handleMessage(sessionView({ at: 0 }))
+    expect(follower.getSnapshot().connection).toBe(ESessionConnection.CatchingUp)
+  })
+
+  it('has no status before the log has a cursor', () => {
     const follower = setup()
     follower.handleMessage(sessionView({ at: 0 }))
+    expect(follower.getSnapshot().status).toBeUndefined()
+    expect(follower.getSnapshot().view).toBeUndefined()
+  })
+
+  it('clears the derived view on a reset', () => {
+    const follower = setup()
+    seed(follower)
     follower.handleMessage({
       type: 'reset',
       id: 's1',
@@ -96,5 +174,6 @@ describe('the session follower view', () => {
       tailFrom: 0,
     })
     expect(follower.getSnapshot().view).toBeUndefined()
+    expect(follower.getSnapshot().status).toBeUndefined()
   })
 })

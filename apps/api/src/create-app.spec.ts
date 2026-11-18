@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'bun:test'
-import { originAllowed } from './create-app'
+import type { INestApplication } from '@nestjs/common'
+import { Test } from '@nestjs/testing'
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
+import request from 'supertest'
+import { corsOptionsFor, originAllowed } from './create-app'
 
 const trustedOrigins = new Set([
   'http://localhost:8081',
@@ -30,5 +33,53 @@ describe('createApp CORS allowlist', () => {
 
   it('allows a request without an origin', () => {
     expect(allowed(undefined)).toBe(true)
+  })
+})
+
+const corsOptions = corsOptionsFor({ trustedOrigins, agentOrigins })
+
+describe('createApp credentialed CORS', () => {
+  let app: INestApplication
+
+  beforeAll(async () => {
+    const module = await Test.createTestingModule({}).compile()
+    app = module.createNestApplication()
+    app.enableCors(corsOptions)
+    await app.init()
+  })
+
+  afterAll(async () => {
+    await app.close()
+  })
+
+  const preflight = (origin: string) =>
+    request(app.getHttpServer())
+      .options('/v1/trpc/threads.list')
+      .set('Origin', origin)
+      .set('Access-Control-Request-Method', 'POST')
+
+  it('answers a credentialed preflight from the web origin with its own origin', async () => {
+    const response = await preflight('http://localhost:3001')
+
+    expect(response.headers['access-control-allow-origin']).toBe('http://localhost:3001')
+    expect(response.headers['access-control-allow-credentials']).toBe('true')
+  })
+
+  it('credentials a preflight from the agent origin', async () => {
+    const response = await preflight('https://api.byatlas.io')
+
+    expect(response.headers['access-control-allow-origin']).toBe('https://api.byatlas.io')
+    expect(response.headers['access-control-allow-credentials']).toBe('true')
+  })
+
+  it('never echoes an untrusted origin, so its credentialed call is refused', async () => {
+    const response = await preflight('https://evil.test')
+
+    expect(response.headers['access-control-allow-origin']).not.toBe('https://evil.test')
+  })
+
+  it('resolves the allowed origin per request rather than sending a wildcard', () => {
+    expect(corsOptions.credentials).toBe(true)
+    expect(corsOptions.origin).toBeFunction()
   })
 })

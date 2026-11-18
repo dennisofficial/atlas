@@ -5,6 +5,7 @@ export interface IAuthEnv {
   BETTER_AUTH_URL: string
   TRUSTED_ORIGINS?: string
   WEB_ORIGIN: string
+  AUTH_COOKIE_DOMAIN?: string
   GOOGLE_CLIENT_ID: string
   GOOGLE_CLIENT_SECRET: string
   APPLE_APP_BUNDLE_IDENTIFIER?: string
@@ -15,6 +16,7 @@ export const authEnvSchema = {
   BETTER_AUTH_URL: Joi.string().uri().default('http://localhost:3400'),
   TRUSTED_ORIGINS: Joi.string().optional(),
   WEB_ORIGIN: Joi.string().uri().default('http://localhost:3001'),
+  AUTH_COOKIE_DOMAIN: Joi.string().optional(),
   GOOGLE_CLIENT_ID: Joi.string().required(),
   GOOGLE_CLIENT_SECRET: Joi.string().required(),
   APPLE_APP_BUNDLE_IDENTIFIER: Joi.string().optional(),

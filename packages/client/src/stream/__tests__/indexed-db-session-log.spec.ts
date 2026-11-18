@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'bun:test'
-import { EMPTY_PENDING, EMPTY_VISIBILITY } from '@dltech/atlas-core'
+import {
+  EMPTY_PENDING,
+  EMPTY_VISIBILITY,
+  initialFailureMessage,
+  initialSessionViewState,
+} from '@dltech/atlas-core'
 import { IDBFactory, IDBKeyRange } from 'fake-indexeddb'
 
 import {
@@ -26,6 +31,9 @@ const snapshotAt = (throughSeq: number) => ({
   cursor: { seq: throughSeq, hash: 'h' },
   visibility: EMPTY_VISIBILITY,
   pending: EMPTY_PENDING,
+  view: initialSessionViewState,
+  failureMessage: initialFailureMessage,
+  commandLog: [],
   throughSeq,
 })
 

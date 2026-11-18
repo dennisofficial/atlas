@@ -11,7 +11,7 @@ import { api } from '@/lib/api-client'
 import { sharedQueryClient } from '@/lib/query-client'
 import { SESSION_QUERY_KEY } from '@/lib/use-session-query'
 
-import { sessionEventSchema, sessionEventTypes } from '../registered-plugins'
+import { sessionEventSchema, sessionEventTypes, sessionViews } from '../registered-plugins'
 
 let connection: StreamConnection | undefined
 let log: SessionLog | undefined
@@ -44,6 +44,7 @@ export function sessionStream(): StreamConnection {
     scheduler: systemStreamScheduler,
     eventSchema: sessionEventSchema,
     knownEventTypes: sessionEventTypes,
+    views: sessionViews,
   })
   connection.connect()
   return connection

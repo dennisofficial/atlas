@@ -1,4 +1,5 @@
 import type { Attachment } from '../attachments/attachment'
+import type { EMessageOrigin } from '../events/body'
 import type { V2Event } from './event'
 import { isMessageInputKind } from './input-events'
 
@@ -10,6 +11,8 @@ export type PendingInput = {
   clientId?: string | undefined
   text?: string | undefined
   attachments?: readonly Attachment[] | undefined
+  via?: EMessageOrigin | undefined
+  sender?: { session: string } | undefined
 }
 
 export type PendingInputsState = { pending: readonly PendingInput[] }
@@ -33,6 +36,8 @@ const postedEntry = (event: Extract<V2Event, { type: 'input-posted' }>): Pending
   ...(event.clientId === undefined ? {} : { clientId: event.clientId }),
   ...(event.text === undefined ? {} : { text: event.text }),
   ...(event.attachments === undefined ? {} : { attachments: event.attachments }),
+  ...(event.via === undefined ? {} : { via: event.via }),
+  ...(event.sender === undefined ? {} : { sender: event.sender }),
 })
 
 const withPosted = (

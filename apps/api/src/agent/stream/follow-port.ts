@@ -69,6 +69,7 @@ export const createFollowSubscriptions = (
     timers,
     log,
     ...(args.recordSurface === undefined ? {} : { recordSurface: args.recordSurface }),
+    viewHead: (head) => sessionViews.handleHead(head),
   }
   return {
     open: (connection) => new FollowSession({ connection, deps, index, sessions }),
