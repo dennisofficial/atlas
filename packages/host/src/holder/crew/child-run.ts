@@ -1,5 +1,6 @@
 import { EAgentStatus, EKilledBy, EReportKind, type ThreadId } from '@dltech/atlas-core'
 import { ETurnStatus, type LoopTurnRunner, type TurnOutcome } from '@dltech/atlas-agent'
+import { logFieldsOf } from '@dltech/atlas-observability'
 import type {
   PodCrew,
   SubagentSaid,
@@ -110,7 +111,13 @@ export class ChildRun {
       return { queued: true, snapshot: this.snapshot() }
     }
     const restart = this.ending !== undefined
-    const pump = this.drive({ text, restart }).catch(() => undefined)
+    const pump = this.drive({ text, restart }).catch((error: unknown) => {
+      this.args.deps.log?.error({
+        source: 'holder.crew',
+        message: `sub-agent ${this.agentId} faulted`,
+        ...logFieldsOf({ error }),
+      })
+    })
     this.pump = pump
     return { queued: false, snapshot: this.snapshot() }
   }

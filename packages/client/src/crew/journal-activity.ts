@@ -32,3 +32,11 @@ export function journalActivityOf(events: readonly V2Event[]): BackgroundWork {
   if (shells.size === 0 && agents.size === 0) return NOTHING_IN_BACKGROUND
   return { subagents: agents.size, shells: shells.size }
 }
+
+export function liveBackgroundOf(args: {
+  events: readonly V2Event[]
+  live: boolean
+}): BackgroundWork {
+  if (!args.live) return NOTHING_IN_BACKGROUND
+  return journalActivityOf(args.events)
+}

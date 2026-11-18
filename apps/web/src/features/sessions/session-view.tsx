@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
 import { ESessionStatus } from '@dltech/atlas-core'
-import { journalActivityOf } from '@dltech/atlas-client/crew'
+import { liveBackgroundOf } from '@dltech/atlas-client/crew'
+import { ESessionConnection } from '@dltech/atlas-client/stream'
 
 import { useV2Sessions } from '@/features/shell/use-v2-sessions'
 import { messageOf } from '@/features/threads/data/use-send'
@@ -116,7 +117,14 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   )
   const operatorRequest = useMemo(() => pendingOperatorRequestOf(view.items), [view.items])
   const model = useMemo(() => sessionViewModelOf(snapshot.view), [snapshot.view])
-  const background = useMemo(() => journalActivityOf(snapshot.events), [snapshot.events])
+  const background = useMemo(
+    () =>
+      liveBackgroundOf({
+        events: snapshot.events,
+        live: snapshot.connection === ESessionConnection.Live,
+      }),
+    [snapshot.events, snapshot.connection],
+  )
   const panel = useMemo(() => panelValueOf({ sessionId, working }), [sessionId, working])
   const stateLine = sessionStateLineOf(snapshot)
   const queuedDock = useQueuedDock({
