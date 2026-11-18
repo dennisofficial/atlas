@@ -24,7 +24,7 @@ no tiers of its own. A service holds only `DOTENV_PRIVATE_KEY_PRODUCTION_ENC`. A
 | `CLOUDFLARE_ZONE_ID`                 | yes      | —                                    |
 | `PREVIEW_DOMAIN`                     | no       | `byatlas.dev`                        |
 | `AGENT_HOST_MAX_SESSIONS`            | no       | 25                                   |
-| `AGENT_HOST_PUBLIC_URL`              | no       | `https://agent.byatlas.io`           |
+| `AGENT_HOST_PUBLIC_URL`              | no       | `https://api.byatlas.io`             |
 | `ATLAS_SANDBOX_IMAGE`                | no       | `atlas-sandbox:latest`               |
 | `ATLAS_DAEMON_BUNDLE`                | no       | `apps/daemon/bin/daemon.js`          |
 | `BLOB_READ_WRITE_TOKEN`              | no       | —                                    |
@@ -35,7 +35,7 @@ no tiers of its own. A service holds only `DOTENV_PRIVATE_KEY_PRODUCTION_ENC`. A
 `ATLAS_API_ORIGIN` is handed to each sandbox as `ATLAS_CLOUD_URL` (the v1 serve inside it still calls
 the API); the agent itself calls the API for nothing. `CLOUDFLARE_*` is what it uses to mint preview
 tunnels and DNS routes for `exposePort`. `AGENT_HOST_PUBLIC_URL` seals the MCP OAuth `redirect_uri`,
-so production keeps it at `https://agent.byatlas.io`.
+so production keeps it at `https://api.byatlas.io`.
 
 Missing required vars exit 78 with the names on stderr.
 

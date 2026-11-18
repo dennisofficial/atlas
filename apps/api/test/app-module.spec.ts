@@ -19,7 +19,7 @@ const agentEnv: AgentHostEnv = {
   sandboxImage: 'atlas-sandbox:latest',
   daemonBundlePath: 'daemon.js',
   port: 3400,
-  publicUrl: 'https://agent.byatlas.io',
+  publicUrl: 'https://api.byatlas.io',
   trustedOrigins: [],
 }
 

@@ -29,7 +29,7 @@ const beginUrlOf = (result: McpOauthBegin): URL => {
 }
 
 const gatewayOver = (db = testDb().db) =>
-  mcpOauthGatewayOf({ db, cipher, publicUrl: 'https://agent.byatlas.io', allowLocalTargets: true })
+  mcpOauthGatewayOf({ db, cipher, publicUrl: 'https://api.byatlas.io', allowLocalTargets: true })
 
 const RETURN_TARGET = {
   surface: 'web' as const,

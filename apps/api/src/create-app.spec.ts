@@ -6,7 +6,7 @@ const trustedOrigins = new Set([
   'https://app.byatlas.io',
   'http://localhost:3001',
 ])
-const agentOrigins = ['https://agent.byatlas.io']
+const agentOrigins = ['https://api.byatlas.io']
 
 const allowed = (origin: string | undefined): boolean =>
   originAllowed({ origin, trustedOrigins, agentOrigins })
@@ -21,7 +21,7 @@ describe('createApp CORS allowlist', () => {
   })
 
   it('allows an origin the agent lists', () => {
-    expect(allowed('https://agent.byatlas.io')).toBe(true)
+    expect(allowed('https://api.byatlas.io')).toBe(true)
   })
 
   it('does not allow an untrusted origin', () => {

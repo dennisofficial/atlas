@@ -98,7 +98,7 @@ export const postOf = (args: {
   method?: string
   path?: string
 }): Request =>
-  new Request(`https://agent.byatlas.io${args.path ?? OPERATOR_ANSWER_PATH}`, {
+  new Request(`https://api.byatlas.io${args.path ?? OPERATOR_ANSWER_PATH}`, {
     method: args.method ?? 'POST',
     headers: {
       ...(args.bearer === undefined ? {} : { authorization: `Bearer ${args.bearer}` }),
