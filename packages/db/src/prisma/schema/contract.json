@@ -3754,6 +3754,13 @@
                   }
                 }
               },
+              "failures": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
               "id": {
                 "nullable": false,
                 "type": {
@@ -3774,6 +3781,16 @@
                   "plane": "domain"
                 }
               },
+              "leaseUntil": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
               "liveUntil": {
                 "nullable": false,
                 "type": {
@@ -3786,6 +3803,16 @@
               },
               "lookedUpAt": {
                 "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "nextDueAt": {
+                "nullable": false,
                 "type": {
                   "codecId": "pg/timestamptz-date@1",
                   "kind": "scalar",
@@ -3845,17 +3872,26 @@
                 "createdAt": {
                   "column": "createdAt"
                 },
+                "failures": {
+                  "column": "failures"
+                },
                 "id": {
                   "column": "id"
                 },
                 "kind": {
                   "column": "kind"
                 },
+                "leaseUntil": {
+                  "column": "leaseUntil"
+                },
                 "liveUntil": {
                   "column": "liveUntil"
                 },
                 "lookedUpAt": {
                   "column": "lookedUpAt"
+                },
+                "nextDueAt": {
+                  "column": "nextDueAt"
                 },
                 "prNumber": {
                   "column": "prNumber"
@@ -13225,6 +13261,15 @@
                     "precision": 3
                   }
                 },
+                "failures": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nullable": false
+                },
                 "id": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -13241,6 +13286,14 @@
                     "plane": "storage"
                   }
                 },
+                "leaseUntil": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
                 "liveUntil": {
                   "codecId": "pg/timestamptz-date@1",
                   "dataType": "pg/timestamptz",
@@ -13253,6 +13306,18 @@
                   "codecId": "pg/timestamptz-date@1",
                   "dataType": "pg/timestamptz",
                   "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "nextDueAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false,
                   "typeParams": {
                     "precision": 3
                   }
@@ -13312,6 +13377,21 @@
                     "liveUntil"
                   ],
                   "name": "GithubTrackingTarget_liveUntil_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "liveUntil",
+                    "nextDueAt"
+                  ],
+                  "name": "GithubTrackingTarget_liveUntil_nextDueAt_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "nextDueAt"
+                  ],
+                  "name": "GithubTrackingTarget_nextDueAt_idx",
                   "unique": false
                 },
                 {
@@ -17985,7 +18065,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "04bc31236a81dff5e209b163f3961960d73bc56f23b5f7453ebc8f10d2a0605f"
+    "storageHash": "4a7a57f07ec50876323470f922e0a33d7f89707c70d7f6e8e91c38cc52875f71"
   },
   "execution": {
     "executionHash": "4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45",

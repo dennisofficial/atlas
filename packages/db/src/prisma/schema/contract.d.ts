@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'04bc31236a81dff5e209b163f3961960d73bc56f23b5f7453ebc8f10d2a0605f'>;
+  StorageHashBase<'4a7a57f07ec50876323470f922e0a33d7f89707c70d7f6e8e91c38cc52875f71'>;
 export type ExecutionHash =
   ExecutionHashBase<'4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45'>;
 export type ProfileHash =
@@ -650,10 +650,13 @@ export namespace Models {
     attemptedAt: FieldOutputTypes['public']['GithubTrackingTarget']['attemptedAt'];
     branch: FieldOutputTypes['public']['GithubTrackingTarget']['branch'];
     createdAt: FieldOutputTypes['public']['GithubTrackingTarget']['createdAt'];
+    failures: FieldOutputTypes['public']['GithubTrackingTarget']['failures'];
     id: FieldOutputTypes['public']['GithubTrackingTarget']['id'];
     kind: FieldOutputTypes['public']['GithubTrackingTarget']['kind'];
+    leaseUntil: FieldOutputTypes['public']['GithubTrackingTarget']['leaseUntil'];
     liveUntil: FieldOutputTypes['public']['GithubTrackingTarget']['liveUntil'];
     lookedUpAt: FieldOutputTypes['public']['GithubTrackingTarget']['lookedUpAt'];
+    nextDueAt: FieldOutputTypes['public']['GithubTrackingTarget']['nextDueAt'];
     prNumber: FieldOutputTypes['public']['GithubTrackingTarget']['prNumber'];
     repoFullName: FieldOutputTypes['public']['GithubTrackingTarget']['repoFullName'];
     userId: FieldOutputTypes['public']['GithubTrackingTarget']['userId'];
@@ -3920,6 +3923,16 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
+                readonly failures: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
+                  };
+                  readonly many: false;
+                };
                 readonly id: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
@@ -3930,6 +3943,13 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly leaseUntil: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
                 readonly liveUntil: {
@@ -3943,6 +3963,14 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/timestamptz';
                   readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly nextDueAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
@@ -3986,6 +4014,16 @@ type ContractBase = Omit<
                 {
                   readonly name: 'GithubTrackingTarget_liveUntil_idx';
                   readonly columns: readonly ['liveUntil'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'GithubTrackingTarget_liveUntil_nextDueAt_idx';
+                  readonly columns: readonly ['liveUntil', 'nextDueAt'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'GithubTrackingTarget_nextDueAt_idx';
+                  readonly columns: readonly ['nextDueAt'];
                   readonly unique: false;
                 },
                 {
@@ -10223,6 +10261,10 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
+              readonly failures: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
               readonly id: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -10230,6 +10272,14 @@ type ContractBase = Omit<
               readonly kind: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly leaseUntil: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
               };
               readonly liveUntil: {
                 readonly nullable: false;
@@ -10241,6 +10291,14 @@ type ContractBase = Omit<
               };
               readonly lookedUpAt: {
                 readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly nextDueAt: {
+                readonly nullable: false;
                 readonly type: {
                   readonly kind: 'scalar';
                   readonly codecId: 'pg/timestamptz-date@1';
@@ -10278,10 +10336,13 @@ type ContractBase = Omit<
                 readonly attemptedAt: { readonly column: 'attemptedAt' };
                 readonly branch: { readonly column: 'branch' };
                 readonly createdAt: { readonly column: 'createdAt' };
+                readonly failures: { readonly column: 'failures' };
                 readonly id: { readonly column: 'id' };
                 readonly kind: { readonly column: 'kind' };
+                readonly leaseUntil: { readonly column: 'leaseUntil' };
                 readonly liveUntil: { readonly column: 'liveUntil' };
                 readonly lookedUpAt: { readonly column: 'lookedUpAt' };
+                readonly nextDueAt: { readonly column: 'nextDueAt' };
                 readonly prNumber: { readonly column: 'prNumber' };
                 readonly repoFullName: { readonly column: 'repoFullName' };
                 readonly userId: { readonly column: 'userId' };

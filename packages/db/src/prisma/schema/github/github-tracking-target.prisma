@@ -15,10 +15,15 @@ model GithubTrackingTarget {
   lookedUpAt   TimestamptzJsDate(3)?
   attemptedAt  TimestamptzJsDate(3)?
   liveUntil    TimestamptzJsDate(3)
+  nextDueAt    TimestamptzJsDate(3) @default(now())
+  leaseUntil   TimestamptzJsDate(3)?
+  failures     Int                  @default(0)
   createdAt    TimestamptzJsDate(3) @default(now())
   user         User              @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "GithubTrackingTarget_userId_kind_repoFullName_branch_prNumber_key")
 
   @@unique([userId, kind, repoFullName, branch, prNumber], map: "GithubTrackingTarget_userId_kind_repoFullName_branch_prNumber_key")
   @@index([liveUntil], map: "GithubTrackingTarget_liveUntil_idx")
+  @@index([nextDueAt], map: "GithubTrackingTarget_nextDueAt_idx")
+  @@index([liveUntil, nextDueAt], map: "GithubTrackingTarget_liveUntil_nextDueAt_idx")
   @@index([repoFullName, branch], map: "GithubTrackingTarget_repoFullName_branch_idx")
 }
