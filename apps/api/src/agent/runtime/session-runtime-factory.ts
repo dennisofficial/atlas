@@ -31,7 +31,7 @@ import { signerUploadBlobs } from '../uploads/upload-blobs'
 import type { ConfigSource } from '../config/agent-host-config'
 import type { CloudConfigStore } from '../config/cloud-config-store'
 import type { EnvSecretsSource } from '../config/env-secrets'
-import { SANDBOX_HOME_PATH, WORKSPACE_PATH } from '../sandbox/constants'
+import { SANDBOX_HOME_PATH, workspaceDirectoryOf } from '../sandbox/constants'
 import { SandboxProvider, sandboxNameOf } from '../sandbox/sandbox-provider'
 import { abortable } from './abortable'
 import { SandboxNotConfiguredError } from './sandbox-not-configured-error'
@@ -85,7 +85,6 @@ export type SessionRuntimeFactoryArgs = {
 export const createSessionRuntimeFactory = (
   args: SessionRuntimeFactoryArgs,
 ): SessionRuntimeFactory => {
-  const launchDirectory = args.launchDirectory ?? WORKSPACE_PATH
   return async ({
     sessionId,
     podSessionId: sandboxSessionId,
@@ -95,6 +94,8 @@ export const createSessionRuntimeFactory = (
     spawner,
   }) => {
     const config = await args.config.read({ sessionId })
+    const launchDirectory =
+      args.launchDirectory ?? workspaceDirectoryOf({ remoteUrl: config.workspace.remoteUrl })
     if (config.vercel.configured === false) {
       throw new SandboxNotConfiguredError(config.vercel.gap)
     }

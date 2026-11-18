@@ -10,6 +10,7 @@ import { EWorkspaceState, startServe, type ServeHandle } from '../index'
 
 import { connect, type TestClient } from './client'
 import { fakeServeApp, type FakeServeApp } from './fakes'
+import { withNoRepoSpec } from './spec-home'
 
 const TOKEN = 'session-token'
 const threadId = toThreadId('thread-send-commit')
@@ -44,7 +45,7 @@ const start = async (
     expandContext?: FakeServeApp['expandContext']
   } = {},
 ): Promise<{ app: FakeServeApp; client: TestClient }> => {
-  const home = mkdtempSync(join(tmpdir(), 'atlas-serve-send-commit-'))
+  const home = withNoRepoSpec(mkdtempSync(join(tmpdir(), 'atlas-serve-send-commit-')))
   homes.push(home)
   heldAtlasHome = process.env.ATLAS_HOME
   process.env.ATLAS_HOME = home

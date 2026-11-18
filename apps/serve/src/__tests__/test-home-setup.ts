@@ -6,13 +6,17 @@ import { afterEach, beforeEach } from 'bun:test'
 
 import { ATLAS_HOME_ENV } from '@dltech/atlas-core'
 
+import { withNoRepoSpec } from './spec-home'
+
 // Loaded via `bun test --preload` so every spec in the process runs against a throwaway Atlas home
 // instead of the operator's real one. The home lives under os.tmpdir(), which the atlas-home test
 // guard accepts; a spec that needs the real home opts out with ATLAS_ALLOW_REAL_HOME=1.
 const previous = process.env[ATLAS_HOME_ENV]
 
 beforeEach(() => {
-  process.env[ATLAS_HOME_ENV] = mkdtempSync(join(tmpdir(), 'atlas-serve-spec-home-'))
+  process.env[ATLAS_HOME_ENV] = withNoRepoSpec(
+    mkdtempSync(join(tmpdir(), 'atlas-serve-spec-home-')),
+  )
 })
 
 afterEach(() => {

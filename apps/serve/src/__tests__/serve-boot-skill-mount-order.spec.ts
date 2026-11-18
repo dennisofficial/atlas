@@ -10,6 +10,7 @@ import { EWorkspaceState } from '../materialize-workspace'
 import { bootServeFiles } from '../serve-boot'
 
 import { trpcFailure, trpcOk, trpcProcedureOf } from './trpc-fake'
+import { withNoRepoSpec } from './spec-home'
 
 const homes: string[] = []
 
@@ -18,7 +19,7 @@ afterEach(() => {
 })
 
 const tempHome = (): string => {
-  const dir = mkdtempSync(join(tmpdir(), 'atlas-boot-skill-order-'))
+  const dir = withNoRepoSpec(mkdtempSync(join(tmpdir(), 'atlas-boot-skill-order-')))
   homes.push(dir)
   return dir
 }

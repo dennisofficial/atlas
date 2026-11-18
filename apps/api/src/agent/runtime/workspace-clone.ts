@@ -245,7 +245,10 @@ export const materialize = async (args: {
     }
     if (workspace.remoteUrl === null) {
       await deps.files.mkdir({ path: launchDirectory })
-    } else if (await exists({ files: deps.files, path: args.sentinels.primary })) {
+    } else if (
+      (await exists({ files: deps.files, path: args.sentinels.primary })) &&
+      (await exists({ files: deps.files, path: launchDirectory }))
+    ) {
       progress.set({ repo: repoOfRemoteUrl(workspace.remoteUrl), state: EWorkspaceRepoState.Done })
     } else {
       const primary = repoOfRemoteUrl(workspace.remoteUrl)

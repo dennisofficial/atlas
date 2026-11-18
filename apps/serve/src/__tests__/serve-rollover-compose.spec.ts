@@ -25,6 +25,7 @@ import {
   threadId,
   TOKEN,
 } from './serve-spec-fixture'
+import { withNoRepoSpec } from './spec-home'
 
 const HOUR = 60 * 60_000
 const BOOT = 1_000_000
@@ -43,7 +44,7 @@ afterEach(async () => {
 
 describe('serve composes the 24h rollover', () => {
   it('a family working at the session cap drains, hands off to the API, then exits', async () => {
-    const home = mkdtempSync(join(tmpdir(), 'atlas-serve-rollover-spec-'))
+    const home = withNoRepoSpec(mkdtempSync(join(tmpdir(), 'atlas-serve-rollover-spec-')))
     homes.push(home)
     heldHome ??= process.env.ATLAS_HOME
     process.env.ATLAS_HOME = home

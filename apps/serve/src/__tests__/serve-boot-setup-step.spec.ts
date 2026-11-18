@@ -15,6 +15,7 @@ import {
 import { EContainerSetupResult, type ContainerSetup } from '../container-setup'
 import { EWorkspaceState } from '../materialize-workspace'
 import { bootServeFiles } from '../serve-boot'
+import { withNoRepoSpec } from './spec-home'
 
 const homes: string[] = []
 
@@ -23,7 +24,7 @@ afterEach(() => {
 })
 
 const boot = async (containerSetup: ContainerSetup | undefined) => {
-  const atlasHome = mkdtempSync(join(tmpdir(), 'atlas-boot-setup-step-'))
+  const atlasHome = withNoRepoSpec(mkdtempSync(join(tmpdir(), 'atlas-boot-setup-step-')))
   homes.push(atlasHome)
   const events: BootStepEvent[] = []
   const reporter = createBootReporter({

@@ -18,6 +18,7 @@ import {
   threadId,
   TOKEN,
 } from './serve-spec-fixture'
+import { withNoRepoSpec } from './spec-home'
 
 type BootingProbe = {
   port: Promise<number>
@@ -89,7 +90,7 @@ const failingServe = (args: { reason: string }): BootingProbe => {
   const crashGate = gate()
   const lines: string[] = []
   const heldAtlasHome = process.env.ATLAS_HOME
-  const home = mkdtempSync(join(tmpdir(), 'atlas-handshake-home-'))
+  const home = withNoRepoSpec(mkdtempSync(join(tmpdir(), 'atlas-handshake-home-')))
   homes.push(home)
   process.env.ATLAS_HOME = home
   const handle = startServe({

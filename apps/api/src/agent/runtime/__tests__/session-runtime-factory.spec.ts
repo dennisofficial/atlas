@@ -2,7 +2,7 @@ import { EEffort } from '@dltech/atlas-core'
 import { describe, expect, it, spyOn } from 'bun:test'
 import { EToolEffect, toThreadId } from '@dltech/atlas-core'
 import { ScriptedModel } from '@dltech/atlas-agent/testing'
-import { WORKSPACE_PATH, type VercelCredentials } from '../../sandbox/constants'
+import { NO_REPO_WORKSPACE_PATH, type VercelCredentials } from '../../sandbox/constants'
 import {
   RemoteCalls,
   SandboxUnavailableError,
@@ -110,6 +110,7 @@ const makeFactory = (args: {
   api: ConfigSource & { issue(): Promise<never> }
   sandbox: FakeSandbox
   modelFor?: Parameters<typeof createSessionRuntimeFactory>[0]['modelFor']
+  launchDirectory?: string | undefined
 }) =>
   createSessionRuntimeFactory({
     config: args.api,
@@ -119,6 +120,7 @@ const makeFactory = (args: {
     daemonSecret: 'secret-1',
     timers: testTimers,
     ...(args.modelFor === undefined ? {} : { modelFor: args.modelFor }),
+    ...(args.launchDirectory === undefined ? {} : { launchDirectory: args.launchDirectory }),
   })
 
 describe('createSessionRuntimeFactory', () => {
@@ -181,10 +183,65 @@ describe('createSessionRuntimeFactory', () => {
     expect(runtime.effectOf('grep')).toBe(EToolEffect.Read)
     expect(runtime.effectOf('glob')).toBe(EToolEffect.Read)
     expect(runtime.effectOf('nope')).toBeUndefined()
-    expect(runtime.launchDirectory).toBe(WORKSPACE_PATH)
+    expect(runtime.launchDirectory).toBe(NO_REPO_WORKSPACE_PATH)
     expect(runtime.tools.find('bash')).toBeDefined()
     expect(runtime.tools.find('task_write')).toBeDefined()
     expect(runtime.daemonTools.has('task_write')).toBe(false)
+    await runtime.stop()
+  })
+
+  it('launches in the directory named after the project repo', async () => {
+    const sandbox = new FakeSandbox(true)
+    const factory = makeFactory({
+      api: apiOf(
+        configured({
+          workspace: {
+            remoteUrl: 'https://github.com/dltech/comp-neo.git',
+            baseBranch: 'main',
+            additionalRepos: [],
+            setupScript: '',
+          },
+        }),
+      ),
+      sandbox,
+      modelFor: () => new ScriptedModel([{ text: 'done' }]),
+    })
+    const runtime = await factory({
+      sessionId: 's-repo',
+      podSessionId: 's-repo',
+      threadId: toThreadId('t-repo'),
+      epoch: 1,
+      signal: new AbortController().signal,
+    })
+    expect(runtime.launchDirectory).toBe('/atlas/workspaces/comp-neo')
+    await runtime.stop()
+  })
+
+  it('keeps an explicit launch directory over the repo-named one', async () => {
+    const sandbox = new FakeSandbox(true)
+    const factory = makeFactory({
+      api: apiOf(
+        configured({
+          workspace: {
+            remoteUrl: 'https://github.com/dltech/comp-neo.git',
+            baseBranch: null,
+            additionalRepos: [],
+            setupScript: '',
+          },
+        }),
+      ),
+      sandbox,
+      launchDirectory: '/tmp/elsewhere',
+      modelFor: () => new ScriptedModel([{ text: 'done' }]),
+    })
+    const runtime = await factory({
+      sessionId: 's-launch-override',
+      podSessionId: 's-launch-override',
+      threadId: toThreadId('t-launch-override'),
+      epoch: 1,
+      signal: new AbortController().signal,
+    })
+    expect(runtime.launchDirectory).toBe('/tmp/elsewhere')
     await runtime.stop()
   })
 
