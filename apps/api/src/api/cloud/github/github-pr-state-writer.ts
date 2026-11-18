@@ -21,21 +21,15 @@ export type PrStateWrite = { row: Row<'GithubPrState'>; userIds: string[] }
 
 const TERMINAL_STATES = new Set(['merged', 'closed'])
 
-/**
- * GitHub delivers a hook and retries it later after a deferral, so an observation can arrive out
- * of order. A merged or closed row stays terminal unless the PR itself reopened: a stale `opened`
- * or `edited` payload replayed afterwards must not move it back to open or draft.
- */
-/**
- * A REST fill reads GitHub outside the write transaction, so a webhook delivery can commit a newer
- * row in between. The fill then describes a state GitHub has already left (a merge, a close), so it
- * is dropped rather than written as `authoritative` and reopening the PR.
- */
 export function fillSuperseded(args: {
   seenVersion: number | undefined
+  seenHeadSha: string | undefined
   storedVersion: number
+  storedHeadSha: string | null
 }): boolean {
-  return args.seenVersion !== undefined && args.seenVersion !== args.storedVersion
+  if (args.seenVersion !== undefined) return args.seenVersion !== args.storedVersion
+  if (args.seenHeadSha === undefined || args.storedHeadSha === null) return false
+  return args.seenHeadSha !== args.storedHeadSha
 }
 
 export function terminalStateKept(args: {
@@ -71,12 +65,6 @@ export class GithubPrStateWriter {
     },
   ) {}
 
-  /**
-   * One transaction per observation: the locked state row is the prior, the upsert and the
-   * dedupe-keyed event rows commit together, so a crash between the state write and event
-   * creation no longer consumes a boundary — the retry replays the same observation and its
-   * dedupe keys make the event inserts idempotent.
-   */
   async writeState(args: {
     tx: Tx
     repoFullName: string
@@ -84,7 +72,8 @@ export class GithubPrStateWriter {
     fields: GithubPrStateRecord
     reopens?: boolean
     authoritative?: boolean
-    seenVersion?: number
+    seenVersion?: number | undefined
+    seenHeadSha?: string | undefined
     recipients?: readonly string[]
   }): Promise<PrStateWrite | null> {
     const { tx } = args
@@ -94,7 +83,14 @@ export class GithubPrStateWriter {
       repoFullName,
       prNumber: args.prNumber,
     })
-    if (fillSuperseded({ seenVersion: args.seenVersion, storedVersion: locked?.version ?? 0 }))
+    if (
+      fillSuperseded({
+        seenVersion: args.seenVersion,
+        seenHeadSha: args.seenHeadSha,
+        storedVersion: locked?.version ?? 0,
+        storedHeadSha: locked?.headSha ?? null,
+      })
+    )
       return null
     const keptState = terminalStateKept({
       prior: locked,
@@ -167,9 +163,11 @@ export class GithubPrStateWriter {
     prNumber: number
     fields: GithubPrStateRecord
     reopens?: boolean
-  }): Promise<void> {
+    seenVersion?: number
+  }): Promise<PrStateWrite | null> {
     const write = await db.transaction((tx) => this.writeState({ tx, ...args }))
     if (write !== null) await this.publish(write)
+    return write
   }
 
   async publish(write: PrStateWrite): Promise<void> {

@@ -182,15 +182,12 @@ export class GithubDeliveryService {
       reopens: payload.action === 'reopened',
     })
 
-    if (token === undefined || !headMoves) {
-      await recordPayload
-      return
-    }
+    const payloadWrite = await recordPayload
+    if (token === undefined || !headMoves) return
 
     const [owner, repo] = repoFullName.split('/') as [string, string]
-    const fill = this.restFill({ token, owner, repo, prNumber })
-    await recordPayload
-    const rest = await fill
+    const seenVersion = payloadWrite?.row.version ?? 0
+    const rest = await this.restFill({ token, owner, repo, prNumber })
     if (rest.kind === 'deferred') {
       throw new GithubDeliveryFillDeferred({
         repoFullName,
@@ -202,6 +199,7 @@ export class GithubDeliveryService {
       repoFullName,
       prNumber,
       fields: rest.fields,
+      seenVersion,
     })
   }
 

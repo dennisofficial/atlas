@@ -97,10 +97,10 @@ export class GithubDeliveryChecks {
       const affected = await affectedPrsBySha({ tx, repoFullName, sha: headSha })
       const tally = await commitChecksTally({ tx, repoFullName, headSha })
       const writes: PrStateWrite[] = []
-      const confirm: number[] = []
+      const confirm: Row<'GithubPrState'>[] = []
       for (const pr of affected) {
         if (await awaitsSettleConfirmation({ tx, pr, tally })) {
-          confirm.push(pr.prNumber)
+          confirm.push(pr)
           continue
         }
         if (countsMatch({ tally, pr })) continue
@@ -118,7 +118,8 @@ export class GithubDeliveryChecks {
     for (const write of decided.writes) await this.deps.writer.publish(write)
 
     const deferred: number[] = []
-    for (const prNumber of decided.confirm) {
+    for (const pr of decided.confirm) {
+      const prNumber = pr.prNumber
       const rest = await this.deps.restFill({
         repoFullName,
         prNumber,
@@ -150,7 +151,13 @@ export class GithubDeliveryChecks {
               ? rest.fields
               : { ...rest.fields, ...checkCountFieldsOf(tally) }
             : withTally({ pr: await currentRow({ tx, repoFullName, prNumber }), tally })
-        return this.deps.writer.writeState({ tx, repoFullName, prNumber, fields })
+        return this.deps.writer.writeState({
+          tx,
+          repoFullName,
+          prNumber,
+          fields,
+          seenHeadSha: rest.kind === 'filled' ? pr.headSha : undefined,
+        })
       })
       if (write !== null) await this.deps.writer.publish(write)
     }

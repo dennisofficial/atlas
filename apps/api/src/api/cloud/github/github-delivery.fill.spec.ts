@@ -1,3 +1,4 @@
+import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { EGithubCallSource } from './github-call-log'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
@@ -201,6 +202,52 @@ describe('GithubDeliveryService fill', () => {
     })
   })
 
+  it('drops a pull_request fill whose read a newer delivery overtook', async () => {
+    const readPullRequest = vi.fn(async () => {
+      await overtakeWithMergedHead()
+      return REST_FIELDS
+    })
+    const { service } = serviceWith({
+      tokens: { 'usr-creator': 'ghu_creator' },
+      readPullRequest,
+    })
+    await seedHook({ createdBy: 'usr-creator' })
+
+    await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
+
+    expect((await prStateRows())[0]).toMatchObject({
+      prNumber: 42,
+      state: 'merged',
+      headSha: 'webhook-head',
+    })
+  })
+
+  it('drops a settle fill whose read a newer delivery overtook', async () => {
+    const readPullRequest = vi.fn(async () => {
+      await overtakeWithMergedHead()
+      return REST_FIELDS
+    })
+    const { service } = serviceWith({ tokens: { 'usr-sub': 'ghu_sub' }, readPullRequest })
+    await seedHook({ createdBy: 'usr-gone' })
+    await seedSubscription({ userId: 'usr-sub', prNumber: 42 })
+    await seedPrState({
+      ...FILLED_PR_STATE,
+      checksRunning: 0,
+      checksPassed: 0,
+      checksFailed: 0,
+      mergeable: null,
+      updatedAt: new Date(),
+    })
+
+    await service.handle({ event: 'check_run', payload: checkRunPayload() })
+
+    expect((await prStateRows())[0]).toMatchObject({
+      prNumber: 42,
+      state: 'merged',
+      headSha: 'webhook-head',
+    })
+  })
+
   it('ignores unknown events and handles ping without touching state', async () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
     const { service } = serviceWith({ tokens: {}, readPullRequest })
@@ -215,3 +262,14 @@ describe('GithubDeliveryService fill', () => {
     expect(await prStateRows()).toHaveLength(0)
   })
 })
+
+async function overtakeWithMergedHead(): Promise<void> {
+  const held = await db.orm.public.GithubPrState.where({
+    repoFullName: 'compai/app',
+    prNumber: 42,
+  }).first()
+  await db.orm.public.GithubPrState.where({
+    repoFullName: 'compai/app',
+    prNumber: 42,
+  }).update({ state: 'merged', headSha: 'webhook-head', version: (held?.version ?? 0) + 1 })
+}
