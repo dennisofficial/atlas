@@ -4,10 +4,21 @@ export const ACCESS_PROOF_DENIAL_TTL_MS = 30_000
 export const GITHUB_HTTP_BUDGET_PER_MINUTE = 60
 export const GITHUB_AUTH_HTTP_BUDGET_PER_MINUTE = 12
 export const GITHUB_REFRESH_HTTP_BUDGET_PER_MINUTE = 48
+export const GITHUB_LOOKUP_HTTP_BUDGET_PER_MINUTE = Math.floor(
+  GITHUB_REFRESH_HTTP_BUDGET_PER_MINUTE / 4,
+)
 export const GITHUB_HTTP_LOW_WATER_RATIO = 0.05
 export enum EGithubHttpCategory {
   Authorization = 'authorization',
   Refresh = 'refresh',
+  Lookup = 'lookup',
+}
+
+export const githubHttpBudgetOf = (category?: EGithubHttpCategory): number => {
+  if (category === EGithubHttpCategory.Authorization) return GITHUB_AUTH_HTTP_BUDGET_PER_MINUTE
+  if (category === EGithubHttpCategory.Lookup) return GITHUB_LOOKUP_HTTP_BUDGET_PER_MINUTE
+  if (category === EGithubHttpCategory.Refresh) return GITHUB_REFRESH_HTTP_BUDGET_PER_MINUTE
+  return GITHUB_HTTP_BUDGET_PER_MINUTE
 }
 
 export type RefreshAttempt = { nextAttemptAt: number; failures: number }

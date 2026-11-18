@@ -91,7 +91,8 @@ export class GithubPollSweeperService {
 
   private async lookUp(
     target: Row<'GithubTrackingTarget'>,
-  ): Promise<'looked-up' | 'skipped' | 'rate-limited' | 'credential-limited'> {
+  ): Promise<'looked-up' | 'superseded' | 'skipped' | 'rate-limited' | 'credential-limited'> {
+    await this.stampAttempt(target.id)
     const token = await this.github.findToken({ userId: target.userId })
     if (token === undefined) return 'skipped'
     try {
@@ -117,6 +118,10 @@ export class GithubPollSweeperService {
       lookedUpAt: new Date(),
     })
     return 'looked-up'
+  }
+
+  private async stampAttempt(id: string): Promise<void> {
+    await db.orm.public.GithubTrackingTarget.where({ id }).update({ attemptedAt: new Date() })
   }
 
   private async recordHeadPulls(args: {
@@ -192,7 +197,7 @@ export class GithubPollSweeperService {
     userId: string
     repoFullName: string
     prNumber: number
-  }): Promise<'polled' | 'skipped' | 'rate-limited' | 'credential-limited'> {
+  }): Promise<'polled' | 'superseded' | 'skipped' | 'rate-limited' | 'credential-limited'> {
     const token = await this.github.findToken({ userId: args.userId })
     if (token === undefined) return 'skipped'
     const repoFullName = normalizedRepo(args.repoFullName)
@@ -238,6 +243,6 @@ export class GithubPollSweeperService {
       }),
     )
     if (write !== null) await this.writer.publish(write)
-    return 'polled'
+    return write === null ? 'superseded' : 'polled'
   }
 }

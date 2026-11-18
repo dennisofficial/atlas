@@ -5,11 +5,12 @@ import {
   githubCallLane,
   githubCredentialKind,
 } from './github-call-log'
-import { EGithubHttpCategory } from './github-request-coordinator.types'
+import { EGithubHttpCategory, type GithubRequestIdentity } from './github-request-coordinator.types'
 import {
   takeGithubRequestSlot,
   blockGithubRequests,
   credentialFingerprint,
+  githubCallCategory,
   recordGithubRateHeadroom,
   revokeGithubAccessGrant,
 } from './github-request-budget'
@@ -66,6 +67,25 @@ async function revokeOnCredentialFailure(args: {
   })
 }
 
+export function githubCallIdentity(args: {
+  source: EGithubCallSource
+  url: string
+  token: string
+}): GithubRequestIdentity {
+  const path = pathOf(args.url)
+  return {
+    credentialFingerprint: credentialFingerprint(args.token),
+    resource: path.startsWith('/search/') ? 'search' : path === '/graphql' ? 'graphql' : 'core',
+    category: githubCallCategory(
+      args.source === EGithubCallSource.RepoAccess
+        ? EGithubHttpCategory.Authorization
+        : EGithubHttpCategory.Refresh,
+    ),
+    source: args.source,
+    essential: githubCallLane(args.source) === EGithubCallLane.Essential,
+  }
+}
+
 export async function githubFetch(args: {
   source: EGithubCallSource
   url: string
@@ -74,20 +94,7 @@ export async function githubFetch(args: {
   const { source, url, init } = args
   const token =
     new Headers(init?.headers).get('authorization')?.replace(/^Bearer\s+/i, '') ?? 'anonymous'
-  const identity = {
-    credentialFingerprint: credentialFingerprint(token),
-    resource: pathOf(url).startsWith('/search/')
-      ? 'search'
-      : pathOf(url) === '/graphql'
-        ? 'graphql'
-        : 'core',
-    category:
-      source === EGithubCallSource.RepoAccess
-        ? EGithubHttpCategory.Authorization
-        : EGithubHttpCategory.Refresh,
-    source,
-    essential: githubCallLane(source) === EGithubCallLane.Essential,
-  }
+  const identity = githubCallIdentity({ source, url, token })
   init?.signal?.throwIfAborted()
   await takeGithubRequestSlot(identity)
   init?.signal?.throwIfAborted()

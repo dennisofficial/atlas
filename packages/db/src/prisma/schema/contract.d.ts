@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'88f225cca0b604786460cbaa120b91f0620bb6a929d5a1bafd679674ecc0dd41'>;
+  StorageHashBase<'2541e5aede31bb479c8314cd6e503481445a1d16dc7a737c3db677498d1a76bc'>;
 export type ExecutionHash =
   ExecutionHashBase<'f0070f067d5f975ffd666627e7d83dff8b80fcaa2204df163480c1b9274350d2'>;
 export type ProfileHash =
@@ -623,6 +623,7 @@ export namespace Models {
     readonly [RelationKeys]?: 'user';
   };
   export type public_GithubTrackingTarget = {
+    attemptedAt: FieldOutputTypes['public']['GithubTrackingTarget']['attemptedAt'];
     branch: FieldOutputTypes['public']['GithubTrackingTarget']['branch'];
     createdAt: FieldOutputTypes['public']['GithubTrackingTarget']['createdAt'];
     id: FieldOutputTypes['public']['GithubTrackingTarget']['id'];
@@ -3687,6 +3688,13 @@ type ContractBase = Omit<
             };
             readonly GithubTrackingTarget: {
               columns: {
+                readonly attemptedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
                 readonly branch: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
@@ -9635,6 +9643,14 @@ type ContractBase = Omit<
           };
           readonly GithubTrackingTarget: {
             readonly fields: {
+              readonly attemptedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
               readonly branch: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -9699,6 +9715,7 @@ type ContractBase = Omit<
               readonly table: 'GithubTrackingTarget';
               readonly namespaceId: 'public';
               readonly fields: {
+                readonly attemptedAt: { readonly column: 'attemptedAt' };
                 readonly branch: { readonly column: 'branch' };
                 readonly createdAt: { readonly column: 'createdAt' };
                 readonly id: { readonly column: 'id' };

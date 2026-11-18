@@ -182,7 +182,8 @@ with the base owner (`plugins/github/src/pod/finder.ts:41-42`), so fork PRs are 
 
 **Change.**
 - Prisma: `GithubTrackingTarget { id, userId, kind: EGithubTargetKind (Head | PullRequest),
-  repoFullName, branch String @default(""), prNumber Int?, lookedUpAt DateTime?, liveUntil,
+  repoFullName, branch String @default(""), prNumber Int?, lookedUpAt DateTime?, attemptedAt DateTime?,
+  liveUntil,
   @@unique([userId, kind, repoFullName, branch, prNumber]) }`.
 - Plugin control append hook `trackingTargetHook` in `plugins/github/src/control/`, registered beside
   `subscriptionLeaseHook` (`plugins/github/src/control/index.ts:10-13`): on `branches-observed`,

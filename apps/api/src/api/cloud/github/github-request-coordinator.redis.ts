@@ -1,9 +1,7 @@
 import type { Redis } from 'ioredis'
 import {
   GITHUB_HTTP_BUDGET_PER_MINUTE,
-  GITHUB_AUTH_HTTP_BUDGET_PER_MINUTE,
-  GITHUB_REFRESH_HTTP_BUDGET_PER_MINUTE,
-  EGithubHttpCategory,
+  githubHttpBudgetOf,
   repoAccessProofSchema,
   type RepoAccessProof,
   type CoordinatorAdapter,
@@ -109,11 +107,7 @@ export class RedisCoordinatorAdapter implements CoordinatorAdapter {
       `${window}:src:${identity?.source ?? 'unattributed'}`,
       Date.now(),
       GITHUB_HTTP_BUDGET_PER_MINUTE,
-      identity?.category === EGithubHttpCategory.Authorization
-        ? GITHUB_AUTH_HTTP_BUDGET_PER_MINUTE
-        : identity?.category === EGithubHttpCategory.Refresh
-          ? GITHUB_REFRESH_HTTP_BUDGET_PER_MINUTE
-          : GITHUB_HTTP_BUDGET_PER_MINUTE,
+      githubHttpBudgetOf(identity?.category),
     )
     return result === 1
   }

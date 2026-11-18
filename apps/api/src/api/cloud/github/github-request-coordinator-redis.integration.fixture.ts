@@ -26,6 +26,7 @@ export class RedisCoordinatorFixture {
     this.key(window)
     this.key(`${window}:authorization`)
     this.key(`${window}:refresh`)
+    this.key(`${window}:lookup`)
     this.key(`${window}:unclassified`)
     this.key('blocked')
     this.key(`blocked:${credentialFingerprint}:core`)

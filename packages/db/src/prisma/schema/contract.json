@@ -3490,6 +3490,16 @@
           },
           "GithubTrackingTarget": {
             "fields": {
+              "attemptedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
               "branch": {
                 "nullable": false,
                 "type": {
@@ -3589,6 +3599,9 @@
             },
             "storage": {
               "fields": {
+                "attemptedAt": {
+                  "column": "attemptedAt"
+                },
                 "branch": {
                   "column": "branch"
                 },
@@ -12486,6 +12499,14 @@
                 }
               ],
               "columns": {
+                "attemptedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
                 "branch": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -17044,7 +17065,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "88f225cca0b604786460cbaa120b91f0620bb6a929d5a1bafd679674ecc0dd41"
+    "storageHash": "2541e5aede31bb479c8314cd6e503481445a1d16dc7a737c3db677498d1a76bc"
   },
   "execution": {
     "executionHash": "f0070f067d5f975ffd666627e7d83dff8b80fcaa2204df163480c1b9274350d2",

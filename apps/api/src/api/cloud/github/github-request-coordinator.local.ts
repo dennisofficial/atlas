@@ -1,8 +1,6 @@
 import {
   GITHUB_HTTP_BUDGET_PER_MINUTE,
-  GITHUB_AUTH_HTTP_BUDGET_PER_MINUTE,
-  GITHUB_REFRESH_HTTP_BUDGET_PER_MINUTE,
-  EGithubHttpCategory,
+  githubHttpBudgetOf,
   type RepoAccessProof,
   type CoordinatorAdapter,
   type RefreshAttempt,
@@ -84,14 +82,8 @@ export class LocalCoordinatorAdapter implements CoordinatorAdapter {
     const window = this.windowOf(this.credentialOf(identity))
     if (window.spent >= GITHUB_HTTP_BUDGET_PER_MINUTE) return false
     const category = identity?.category ?? 'unclassified'
-    const limit =
-      category === EGithubHttpCategory.Authorization
-        ? GITHUB_AUTH_HTTP_BUDGET_PER_MINUTE
-        : category === EGithubHttpCategory.Refresh
-          ? GITHUB_REFRESH_HTTP_BUDGET_PER_MINUTE
-          : GITHUB_HTTP_BUDGET_PER_MINUTE
     const spent = window.categories.get(category) ?? 0
-    if (spent >= limit) return false
+    if (spent >= githubHttpBudgetOf(identity?.category)) return false
     window.categories.set(category, spent + 1)
     window.spent += 1
     return true

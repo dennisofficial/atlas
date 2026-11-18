@@ -3,6 +3,10 @@ import {
   realRedisCoordinators,
   type RedisCoordinatorFixture,
 } from './github-request-coordinator-redis.integration.fixture'
+import {
+  EGithubHttpCategory,
+  GITHUB_LOOKUP_HTTP_BUDGET_PER_MINUTE,
+} from './github-request-coordinator.types'
 
 describe('RedisCoordinatorAdapter over independent real Redis connections', () => {
   let fixture: RedisCoordinatorFixture
@@ -31,6 +35,26 @@ describe('RedisCoordinatorAdapter over independent real Redis connections', () =
     setSystemTime(new Date('2035-01-01T00:01:00.000Z'))
     expect(await fixture.second.takeHttpSlot(fixture.identity('owner'))).toBe(true)
     expect(await fixture.first.takeHttpSlot(fixture.identity('agent'))).toBe(true)
+  })
+
+  it('caps the lookup share of the minute and leaves the refresh share for refreshes', async () => {
+    setSystemTime(new Date('2035-01-01T00:00:00.000Z'))
+    const credential = fixture.identity('shared')
+    const lookups = await Promise.all(
+      Array.from({ length: 40 }, (_, index) =>
+        (index % 2 === 0 ? fixture.first : fixture.second).takeHttpSlot({
+          ...credential,
+          category: EGithubHttpCategory.Lookup,
+        }),
+      ),
+    )
+    expect(lookups.filter(Boolean)).toHaveLength(GITHUB_LOOKUP_HTTP_BUDGET_PER_MINUTE)
+    const refreshes = await Promise.all(
+      Array.from({ length: 48 }, () =>
+        fixture.second.takeHttpSlot({ ...credential, category: EGithubHttpCategory.Refresh }),
+      ),
+    )
+    expect(refreshes.every(Boolean)).toBe(true)
   })
 
   it('shares a low-quota reserve only with the credential it belongs to', async () => {
