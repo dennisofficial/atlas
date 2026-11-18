@@ -6,11 +6,8 @@ import { useCatalogueSkills } from '@/features/threads/commands/use-catalogue-sk
 
 import { skillMenuSpecs } from './session-skills'
 
-export function useSessionSkills(args: {
-  events: readonly V2Event[]
-  projectId: string | null | undefined
-}): readonly CommandSpec[] {
-  const catalogue = useCatalogueSkills(args.projectId)
+export function useSessionSkills(args: { events: readonly V2Event[] }): readonly CommandSpec[] {
+  const catalogue = useCatalogueSkills()
   return useMemo(
     () => skillMenuSpecs({ catalogue: catalogue.skills, events: args.events }),
     [catalogue.skills, args.events],
