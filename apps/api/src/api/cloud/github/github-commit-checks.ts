@@ -8,7 +8,7 @@ import {
   type CheckAttempt,
   type ChecksCount,
 } from '@dltech/atlas-core'
-import { db, type Tx } from '@dltech/atlas-db'
+import { db, type Row, type Tx } from '@dltech/atlas-db'
 import { runOrderOfKey, SUITE_KEY_PREFIX } from './github-check-suites'
 import { normalizedRepo } from './github-pr-identity'
 import type { GithubPrCheckAnnotation } from './github-realtime.types'
@@ -17,6 +17,7 @@ export const COMMIT_CHECK_RETENTION_MS = 14 * 24 * 60 * 60 * 1_000
 
 export type CommitCheckInput = {
   checkKey: string
+  sourceId?: string | null
   name: string
   startedAt: string | null
   outcome: ECheckOutcome
@@ -48,6 +49,7 @@ export type CheckRunShape = {
 }
 
 export type CommitStatusShape = {
+  id?: number
   context: string
   state: string
   created_at: string | null
@@ -62,6 +64,7 @@ const timeOf = (iso: string | null | undefined): Date | null =>
 export function checkRunInputOf(run: CheckRunShape): CommitCheckInput {
   return {
     checkKey: `run:${run.id}`,
+    sourceId: String(run.id),
     name: run.name,
     startedAt: run.started_at,
     outcome: checkRunOutcomeOf({
@@ -82,6 +85,7 @@ export function checkRunInputOf(run: CheckRunShape): CommitCheckInput {
 export function commitStatusInputOf(status: CommitStatusShape): CommitCheckInput {
   return {
     checkKey: `status:${status.context}`,
+    sourceId: status.id === undefined ? null : String(status.id),
     name: status.context,
     startedAt: status.created_at,
     outcome: statusContextOutcomeOf(status.state),
@@ -115,6 +119,14 @@ export async function recordCommitChecksLocked(args: {
   })
 }
 
+function newerThanHeld(args: { held: Row<'GithubCommitCheck'>; check: CommitCheckInput }): boolean {
+  const heldAt = args.held.sourceUpdatedAt.getTime()
+  const checkAt = args.check.sourceUpdatedAt.getTime()
+  if (heldAt !== checkAt) return heldAt > checkAt
+
+  return Number(args.held.sourceId ?? '') > Number(args.check.sourceId ?? '')
+}
+
 export const checkCountFieldsOf = (tally: ChecksCount) => ({
   checksRunning: tally.running,
   checksPassed: tally.passed,
@@ -141,11 +153,12 @@ export async function recordCommitChecks(args: {
       const held = byKey.get(check.checkKey)
       if (held !== undefined) {
         const heldCompleted = held.outcome !== ECheckOutcome.Running
-        const heldNewer = held.sourceUpdatedAt.getTime() > check.sourceUpdatedAt.getTime()
+        const heldNewer = newerThanHeld({ held, check })
         const staleRun = heldCompleted && (check.outcome === ECheckOutcome.Running || heldNewer)
         if (check.isRun ? staleRun : heldNewer) continue
       }
       const fields = {
+        sourceId: check.sourceId ?? null,
         name: check.name,
         startedAt: check.startedAt,
         outcome: check.outcome,

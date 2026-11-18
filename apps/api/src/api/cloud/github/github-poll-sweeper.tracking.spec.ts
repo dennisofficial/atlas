@@ -160,7 +160,12 @@ describe('GithubPollSweeperService tracking targets', () => {
       parent: { 'dennis/fork': 'compai/app' },
       pulls: { 'compai/app': [REST_PULL] },
     })
-    const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, headReads: head.reads })
+    const readPullRequest = vi.fn(async () => ({ ...REST_FIELDS, headBranch: 'dennis/feature' }))
+    const { service } = serviceWith({
+      tokens: { usr_1: 'ghu_1' },
+      headReads: head.reads,
+      readPullRequest,
+    })
     await seedTarget({ repoFullName: 'dennis/fork' })
 
     await service.handlePoll()
@@ -174,6 +179,63 @@ describe('GithubPollSweeperService tracking targets', () => {
     }).first()
     expect(row?.headBranch).toBe('dennis/feature')
     expect(row?.headRepoFullName).toBe('compai/app')
+  })
+
+  it('refreshes the upstream pull request rather than the fork row sharing its number', async () => {
+    const head = fakeHeadReads({
+      parent: { 'dennis/fork': 'compai/app' },
+      pulls: { 'compai/app': [REST_PULL] },
+    })
+    const readPullRequest = vi.fn(async () => ({
+      ...REST_FIELDS,
+      state: 'merged',
+      mergeable: true,
+    }))
+    const { service } = serviceWith({
+      tokens: { usr_1: 'ghu_1' },
+      headReads: head.reads,
+      readPullRequest,
+    })
+    const stale = new Date(Date.now() - 3_600_000)
+    await seedPrState({
+      repoFullName: 'dennis/fork',
+      prNumber: 7,
+      headBranch: 'dennis/other',
+      state: 'open',
+      updatedAt: stale,
+      pullUpdatedAt: stale,
+    })
+    await seedPrState({
+      repoFullName: 'compai/app',
+      prNumber: 7,
+      headBranch: 'dennis/feature',
+      state: 'open',
+      updatedAt: stale,
+      pullUpdatedAt: stale,
+    })
+    await seedTarget({ repoFullName: 'dennis/fork' })
+
+    await service.handlePoll()
+
+    expect(readPullRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ repo: 'app', number: 7 }),
+    )
+    expect(
+      (
+        await db.orm.public.GithubPrState.where({
+          repoFullName: 'compai/app',
+          prNumber: 7,
+        }).first()
+      )?.state,
+    ).toBe('merged')
+    expect(
+      (
+        await db.orm.public.GithubPrState.where({
+          repoFullName: 'dennis/fork',
+          prNumber: 7,
+        }).first()
+      )?.state,
+    ).toBe('open')
   })
 
   it('leaves a target past liveUntil alone', async () => {

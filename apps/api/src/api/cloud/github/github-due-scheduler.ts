@@ -1,8 +1,11 @@
+import { randomUUID } from 'node:crypto'
 import { and, db, or, type Row } from '@dltech/atlas-db'
 import { ETargetKind, ETargetOutcome, ETrackingTransport, nextDueOf } from '@dltech/atlas-core'
 
 export const CLAIM_BATCH = 200
 export const CLAIM_LEASE_MS = 2 * 60 * 1_000
+
+export type ClaimedTarget = Row<'GithubTrackingTarget'> & { leaseToken: string }
 
 export const claimedTargets = (args: { now: Date; limit: number }) =>
   db.transaction(async (tx) => {
@@ -16,27 +19,39 @@ export const claimedTargets = (args: { now: Date; limit: number }) =>
       .all()
     if (due.length === 0) return []
     const leaseUntil = new Date(args.now.getTime() + CLAIM_LEASE_MS)
+    const leaseToken = randomUUID()
     await tx.orm.public.GithubTrackingTarget.where((target) =>
       target.id.in(due.map((row) => row.id)),
-    ).updateAndCount({ leaseUntil })
-    return due.map((row): Row<'GithubTrackingTarget'> => ({ ...row, leaseUntil }))
+    ).updateAndCount({ leaseUntil, leaseToken })
+    return due.map((row): ClaimedTarget => ({ ...row, leaseUntil, leaseToken }))
   })
+
+export const renewClaim = (args: { id: string; leaseToken: string; now: Date }): Promise<number> =>
+  db.orm.public.GithubTrackingTarget.where({
+    id: args.id,
+    leaseToken: args.leaseToken,
+  }).updateAndCount({ leaseUntil: new Date(args.now.getTime() + CLAIM_LEASE_MS) })
 
 export const releaseTarget = (args: {
   id: string
+  leaseToken: string
   attemptedAt: Date
   nextDueAt: Date
   failures: number
 }): Promise<number> =>
-  db.orm.public.GithubTrackingTarget.where({ id: args.id }).updateAndCount({
+  db.orm.public.GithubTrackingTarget.where({
+    id: args.id,
+    leaseToken: args.leaseToken,
+  }).updateAndCount({
     attemptedAt: args.attemptedAt,
     nextDueAt: args.nextDueAt,
     failures: args.failures,
     leaseUntil: null,
+    leaseToken: null,
   })
 
 export const settleTarget = (args: {
-  target: Row<'GithubTrackingTarget'>
+  target: ClaimedTarget
   now: Date
   transport: ETrackingTransport
   outcome: ETargetOutcome
@@ -56,6 +71,7 @@ export const settleTarget = (args: {
   })
   return releaseTarget({
     id: args.target.id,
+    leaseToken: args.target.leaseToken,
     attemptedAt: args.now,
     nextDueAt: new Date(due.nextDueAt),
     failures: due.failures,

@@ -34,7 +34,7 @@ export const pullSampleSchema = z.object({
   headSha: z.string().min(1),
   headRepoFullName: z.string().min(1).nullable(),
   baseBranch: z.string().min(1),
-  pullUpdatedAt: timestamp,
+  pullUpdatedAt: timestamp.nullable(),
   closedAt: timestamp.nullable(),
   mergedAt: timestamp.nullable(),
 })

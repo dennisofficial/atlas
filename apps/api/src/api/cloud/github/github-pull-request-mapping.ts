@@ -33,6 +33,7 @@ export interface RestCheckRun {
 }
 
 export interface RestCommitStatus {
+  id: number
   context: string
   state: string
   created_at: string | null
@@ -76,10 +77,6 @@ export function pullRequestCacheFieldsOf(args: {
   checkRuns: readonly RestCheckRun[]
   statuses: readonly RestCommitStatus[]
 }): PullRequestCacheFields {
-  const latestByContext = new Map<string, RestCommitStatus>()
-  for (const status of args.statuses) {
-    if (!latestByContext.has(status.context)) latestByContext.set(status.context, status)
-  }
   const attempts: CheckAttempt[] = [
     ...args.checkRuns.map((run) => ({
       name: run.name,
@@ -89,9 +86,9 @@ export function pullRequestCacheFieldsOf(args: {
         conclusion: run.conclusion,
       }),
     })),
-    ...[...latestByContext.values()].map((status) => ({
+    ...args.statuses.map((status) => ({
       name: status.context,
-      order: null,
+      order: status.id,
       outcome: statusContextOutcomeOf(status.state),
     })),
   ]

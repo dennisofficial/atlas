@@ -186,7 +186,7 @@
     "execute": [
       {
         "description": "create table \"GithubPrOutbox\"",
-        "sql": "CREATE TABLE \"public\".\"GithubPrOutbox\" (\n  \"attempts\" int4 DEFAULT 0 NOT NULL,\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"dedupeKey\" text,\n  \"dispatchedAt\" timestamptz(3),\n  \"id\" text NOT NULL,\n  \"kind\" text NOT NULL,\n  \"lastError\" text,\n  \"payload\" jsonb NOT NULL,\n  \"prNumber\" int4 NOT NULL,\n  \"repoFullName\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "sql": "CREATE TABLE \"public\".\"GithubPrOutbox\" (\n  \"attempts\" int4 DEFAULT 0 NOT NULL,\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"deadLetteredAt\" timestamptz(3),\n  \"dedupeKey\" text,\n  \"dispatchedAt\" timestamptz(3),\n  \"id\" text NOT NULL,\n  \"kind\" text NOT NULL,\n  \"lastError\" text,\n  \"leaseOwner\" text,\n  \"leaseUntil\" timestamptz(3),\n  \"nextAttemptAt\" timestamptz(3),\n  \"payload\" jsonb NOT NULL,\n  \"prNumber\" int4 NOT NULL,\n  \"repoFullName\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
         "params": []
       }
     ],
@@ -227,7 +227,7 @@
     "execute": [
       {
         "description": "create table \"GithubTrackingTarget\"",
-        "sql": "CREATE TABLE \"public\".\"GithubTrackingTarget\" (\n  \"attemptedAt\" timestamptz(3),\n  \"branch\" text DEFAULT '' NOT NULL,\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"failures\" int4 DEFAULT 0 NOT NULL,\n  \"id\" text NOT NULL,\n  \"kind\" text NOT NULL,\n  \"leaseUntil\" timestamptz(3),\n  \"liveUntil\" timestamptz(3) NOT NULL,\n  \"lookedUpAt\" timestamptz(3),\n  \"nextDueAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"prNumber\" int4 DEFAULT 0 NOT NULL,\n  \"repoFullName\" text NOT NULL,\n  \"userId\" text NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"GithubTrackingTarget_kind_check_3307deca\" CHECK (\"kind\" IN ('head', 'pull-request'))\n)",
+        "sql": "CREATE TABLE \"public\".\"GithubTrackingTarget\" (\n  \"attemptedAt\" timestamptz(3),\n  \"branch\" text DEFAULT '' NOT NULL,\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"failures\" int4 DEFAULT 0 NOT NULL,\n  \"id\" text NOT NULL,\n  \"kind\" text NOT NULL,\n  \"leaseToken\" text,\n  \"leaseUntil\" timestamptz(3),\n  \"liveUntil\" timestamptz(3) NOT NULL,\n  \"lookedUpAt\" timestamptz(3),\n  \"nextDueAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"prNumber\" int4 DEFAULT 0 NOT NULL,\n  \"repoFullName\" text NOT NULL,\n  \"userId\" text NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"GithubTrackingTarget_kind_check_3307deca\" CHECK (\"kind\" IN ('head', 'pull-request'))\n)",
         "params": []
       }
     ],
@@ -280,6 +280,58 @@
           "\"v2\".\"V2SessionBranch\"",
           "r",
           "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.GithubCommitCheck.sourceId",
+    "label": "Add column \"sourceId\" to \"GithubCommitCheck\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "sourceId",
+        "table": "GithubCommitCheck"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"sourceId\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubCommitCheck",
+          "sourceId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"sourceId\"",
+        "sql": "ALTER TABLE \"public\".\"GithubCommitCheck\" ADD COLUMN \"sourceId\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"sourceId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubCommitCheck",
+          "sourceId"
+        ]
+      },
+      {
+        "description": "verify column \"sourceId\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "GithubCommitCheck",
+          "sourceId",
+          "text"
         ]
       }
     ]
@@ -342,6 +394,58 @@
           "GithubPrState",
           "baseBranch",
           "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.GithubPrState.closedAt",
+    "label": "Add column \"closedAt\" to \"GithubPrState\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "closedAt",
+        "table": "GithubPrState"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"closedAt\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "closedAt"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"closedAt\"",
+        "sql": "ALTER TABLE \"public\".\"GithubPrState\" ADD COLUMN \"closedAt\" timestamptz(3)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"closedAt\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "closedAt"
+        ]
+      },
+      {
+        "description": "verify column \"closedAt\" has type \"timestamp(3) with time zone\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "closedAt",
+          "timestamp(3) with time zone"
         ]
       }
     ]
@@ -503,6 +607,58 @@
     ]
   },
   {
+    "id": "column.public.GithubPrState.mergedAt",
+    "label": "Add column \"mergedAt\" to \"GithubPrState\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "mergedAt",
+        "table": "GithubPrState"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"mergedAt\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "mergedAt"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"mergedAt\"",
+        "sql": "ALTER TABLE \"public\".\"GithubPrState\" ADD COLUMN \"mergedAt\" timestamptz(3)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"mergedAt\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "mergedAt"
+        ]
+      },
+      {
+        "description": "verify column \"mergedAt\" has type \"timestamp(3) with time zone\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "mergedAt",
+          "timestamp(3) with time zone"
+        ]
+      }
+    ]
+  },
+  {
     "id": "column.public.GithubPrState.pullUpdatedAt",
     "label": "Add column \"pullUpdatedAt\" to \"GithubPrState\"",
     "operationClass": "additive",
@@ -553,27 +709,6 @@
         ]
       }
     ]
-  },
-  {
-    "id": "data.pr-state-pull-updated-at",
-    "label": "Backfill GithubPrState.pullUpdatedAt from the row clock",
-    "operationClass": "data",
-    "target": {
-      "id": "table.GithubPrState",
-      "details": {
-        "schema": "public",
-        "objectType": "table",
-        "name": "GithubPrState"
-      }
-    },
-    "precheck": [],
-    "execute": [
-      {
-        "description": "Backfill GithubPrState.pullUpdatedAt from the row clock",
-        "sql": "UPDATE \"public\".\"GithubPrState\" SET \"pullUpdatedAt\" = \"updatedAt\" WHERE \"pullUpdatedAt\" IS NULL"
-      }
-    ],
-    "postcheck": []
   },
   {
     "id": "data.tracking-target-next-due-at",

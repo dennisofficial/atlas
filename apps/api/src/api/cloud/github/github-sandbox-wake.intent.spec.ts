@@ -87,6 +87,34 @@ describe('GithubSandboxWakeService durable intent', () => {
     expect(await prEventRows()).toHaveLength(0)
   })
 
+  it('appends one intent when two dispatchers race the same event', async () => {
+    await seedParkedSandbox()
+    await seedSubscription()
+    const signals = inertSignals()
+
+    await Promise.all([
+      appendWakeIntent({ threadId: 'thr-1', event: VERDICT, signals }),
+      appendWakeIntent({ threadId: 'thr-1', event: VERDICT, signals }),
+    ])
+
+    expect(await prEventRows()).toHaveLength(1)
+  })
+
+  it('rejects when the intent cannot be made durable', async () => {
+    await seedParkedSandbox()
+    await seedSubscription()
+    const { calls } = fakeBoot()
+
+    await expect(
+      serviceWith({ boot: fakeBoot().boot }).notifyEvent(PR_EVENT, {
+        ...VERDICT,
+        userId: 'usr-missing',
+      }),
+    ).rejects.toThrow()
+
+    expect(calls).toHaveLength(0)
+  })
+
   it('never double-appends the same event when the delivery retries', async () => {
     await seedParkedSandbox()
     await seedSubscription()

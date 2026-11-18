@@ -2543,6 +2543,13 @@
                   "kind": "scalar"
                 }
               },
+              "sourceId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "sourceUpdatedAt": {
                 "nullable": false,
                 "type": {
@@ -2617,6 +2624,9 @@
                 },
                 "repoFullName": {
                   "column": "repoFullName"
+                },
+                "sourceId": {
+                  "column": "sourceId"
                 },
                 "sourceUpdatedAt": {
                   "column": "sourceUpdatedAt"
@@ -3113,6 +3123,16 @@
                   }
                 }
               },
+              "deadLetteredAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
               "dedupeKey": {
                 "nullable": true,
                 "type": {
@@ -3151,6 +3171,33 @@
                   "kind": "scalar"
                 }
               },
+              "leaseOwner": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "leaseUntil": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "nextAttemptAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
               "payload": {
                 "nullable": false,
                 "type": {
@@ -3182,6 +3229,9 @@
                 "createdAt": {
                   "column": "createdAt"
                 },
+                "deadLetteredAt": {
+                  "column": "deadLetteredAt"
+                },
                 "dedupeKey": {
                   "column": "dedupeKey"
                 },
@@ -3196,6 +3246,15 @@
                 },
                 "lastError": {
                   "column": "lastError"
+                },
+                "leaseOwner": {
+                  "column": "leaseOwner"
+                },
+                "leaseUntil": {
+                  "column": "leaseUntil"
+                },
+                "nextAttemptAt": {
+                  "column": "nextAttemptAt"
                 },
                 "payload": {
                   "column": "payload"
@@ -3255,6 +3314,16 @@
                   "kind": "scalar"
                 }
               },
+              "closedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
               "headBranch": {
                 "nullable": false,
                 "type": {
@@ -3305,6 +3374,16 @@
                 }
               },
               "mergeableObservedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "mergedAt": {
                 "nullable": true,
                 "type": {
                   "codecId": "pg/timestamptz-date@1",
@@ -3398,6 +3477,9 @@
                 "checksState": {
                   "column": "checksState"
                 },
+                "closedAt": {
+                  "column": "closedAt"
+                },
                 "headBranch": {
                   "column": "headBranch"
                 },
@@ -3421,6 +3503,9 @@
                 },
                 "mergeableObservedAt": {
                   "column": "mergeableObservedAt"
+                },
+                "mergedAt": {
+                  "column": "mergedAt"
                 },
                 "prNumber": {
                   "column": "prNumber"
@@ -3781,6 +3866,13 @@
                   "plane": "domain"
                 }
               },
+              "leaseToken": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "leaseUntil": {
                 "nullable": true,
                 "type": {
@@ -3880,6 +3972,9 @@
                 },
                 "kind": {
                   "column": "kind"
+                },
+                "leaseToken": {
+                  "column": "leaseToken"
                 },
                 "leaseUntil": {
                   "column": "leaseUntil"
@@ -12255,6 +12350,11 @@
                   "dataType": "pg/text",
                   "nullable": false
                 },
+                "sourceId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
                 "sourceUpdatedAt": {
                   "codecId": "pg/timestamptz-date@1",
                   "dataType": "pg/timestamptz",
@@ -12714,6 +12814,14 @@
                     "precision": 3
                   }
                 },
+                "deadLetteredAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
                 "dedupeKey": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -12741,6 +12849,27 @@
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": true
+                },
+                "leaseOwner": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "leaseUntil": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "nextAttemptAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
                 },
                 "payload": {
                   "codecId": "pg/jsonb@1",
@@ -12834,6 +12963,14 @@
                   "dataType": "pg/text",
                   "nullable": true
                 },
+                "closedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
                 "headBranch": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -12870,6 +13007,14 @@
                   "nullable": true
                 },
                 "mergeableObservedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "mergedAt": {
                   "codecId": "pg/timestamptz-date@1",
                   "dataType": "pg/timestamptz",
                   "nullable": true,
@@ -13298,6 +13443,11 @@
                     "namespaceId": "public",
                     "plane": "storage"
                   }
+                },
+                "leaseToken": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
                 },
                 "leaseUntil": {
                   "codecId": "pg/timestamptz-date@1",
@@ -18086,7 +18236,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "916e4d5f0c34282e16660055aa2a2631889fb7bd5ebe103fcc15822b71209876"
+    "storageHash": "820192810d0d976067a2872e941e6fd46fc3816345fc594b98d069c7533574b3"
   },
   "execution": {
     "executionHash": "4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45",

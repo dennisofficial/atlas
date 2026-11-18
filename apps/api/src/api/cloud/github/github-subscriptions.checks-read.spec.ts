@@ -16,7 +16,8 @@ const SHA = 'abc123'
 const ACTIONS = { slug: 'github-actions' }
 
 const VERCEL_STATUSES: RestCommitStatus[] = ['Vercel – atlas-api', 'Vercel – atlas-storybook'].map(
-  (context) => ({
+  (context, index) => ({
+    id: index + 1,
     context,
     state: 'success',
     created_at: '2026-11-04T21:50:45Z',

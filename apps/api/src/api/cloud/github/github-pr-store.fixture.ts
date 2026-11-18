@@ -7,7 +7,7 @@ import { GithubPrStore } from './github-pr-store'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 
 export function inertWake(): GithubSandboxWakeService {
-  return { notifyEvent: () => undefined } as unknown as GithubSandboxWakeService
+  return { notifyEvent: async () => undefined } as unknown as GithubSandboxWakeService
 }
 
 export function inertReconcile(): PrReconcileRun {

@@ -76,6 +76,7 @@ function rig(args: { refusals?: number } = {}) {
   const fanout = new GithubPrFanoutService(new DrainStateService())
   const wake = { notifyEvent: vi.fn() } as unknown as GithubSandboxWakeService
   const reads: string[] = []
+  let clock = Date.now()
   let refusals = args.refusals ?? 0
   let store: GithubPrStore | null = null
   const reconcile = new GithubPrReconcile({
@@ -101,13 +102,18 @@ function rig(args: { refusals?: number } = {}) {
     signals: inertSignals(),
     wake,
     reconcile: (request) => reconcile.run(request),
+    now: () => new Date(clock),
   })
   store = new GithubPrStore({
     mailbox: new GithubPrEventMailboxService(fanout, dispatcher),
     dispatcher,
   })
 
-  return { store, dispatcher, reads }
+  const advance = (ms: number): void => {
+    clock += ms
+  }
+
+  return { store, dispatcher, reads, advance }
 }
 
 const outboxRows = () => db.orm.public.GithubPrOutbox.all()
@@ -144,13 +150,14 @@ describe('a rerun that GitHub re-creates without a delivery', () => {
     it('parks the row when the budget refuses the read and drains it once the window opens', async () => {
       await seedCheck({ id: 1, name: 'ci' })
       await seedCheck({ id: 2, name: 'ci' })
-      const { store, dispatcher, reads } = rig({ refusals: 1 })
+      const { store, dispatcher, reads, advance } = rig({ refusals: 1 })
 
       await store.apply(applyArgs([pull()]))
 
       const parked = (await outboxRows()).find((row) => row.kind === 'reconcile-checks')
       expect(parked).toMatchObject({ dispatchedAt: null, attempts: 1 })
 
+      advance(60_000)
       expect(await dispatcher.drain()).toBe(1)
 
       expect(reads).toEqual([HEAD, HEAD])

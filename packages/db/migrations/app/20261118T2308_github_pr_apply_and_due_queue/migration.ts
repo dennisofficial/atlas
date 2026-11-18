@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node
-import type { Contract as End } from '../../snapshots/916e4d5f0c34282e16660055aa2a2631889fb7bd5ebe103fcc15822b71209876/contract';
-import endContract from '../../snapshots/916e4d5f0c34282e16660055aa2a2631889fb7bd5ebe103fcc15822b71209876/contract.json' with { type: 'json' };
+import type { Contract as End } from '../../snapshots/820192810d0d976067a2872e941e6fd46fc3816345fc594b98d069c7533574b3/contract';
+import endContract from '../../snapshots/820192810d0d976067a2872e941e6fd46fc3816345fc594b98d069c7533574b3/contract.json' with { type: 'json' };
 import type { Contract as Start } from '../../snapshots/b880c65f607b166b6d4bc082fb39f8fbf8db741dd330ddafee93a35a0f7c01c0/contract';
 import startContract from '../../snapshots/b880c65f607b166b6d4bc082fb39f8fbf8db741dd330ddafee93a35a0f7c01c0/contract.json' with { type: 'json' };
 import {
@@ -13,7 +13,7 @@ import {
   primaryKey,
   sql,
 } from '@prisma/orm-postgres/migration';
-import { backfillNextDueAt, backfillPullUpdatedAt } from './data-steps';
+import { backfillNextDueAt } from './data-steps';
 
 export default class M extends Migration<Start, End> {
   override readonly startContractJson = startContract;
@@ -70,6 +70,9 @@ export default class M extends Migration<Start, End> {
             default: fn(sql`now()`),
             codecRef: { codecId: 'pg/timestamptz-date@1', typeParams: { precision: 3 } },
           }),
+          col('deadLetteredAt', 'timestamptz(3)', {
+            codecRef: { codecId: 'pg/timestamptz-date@1', typeParams: { precision: 3 } },
+          }),
           col('dedupeKey', 'text', { codecRef: { codecId: 'pg/text@1' } }),
           col('dispatchedAt', 'timestamptz(3)', {
             codecRef: { codecId: 'pg/timestamptz-date@1', typeParams: { precision: 3 } },
@@ -77,6 +80,13 @@ export default class M extends Migration<Start, End> {
           col('id', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
           col('kind', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
           col('lastError', 'text', { codecRef: { codecId: 'pg/text@1' } }),
+          col('leaseOwner', 'text', { codecRef: { codecId: 'pg/text@1' } }),
+          col('leaseUntil', 'timestamptz(3)', {
+            codecRef: { codecId: 'pg/timestamptz-date@1', typeParams: { precision: 3 } },
+          }),
+          col('nextAttemptAt', 'timestamptz(3)', {
+            codecRef: { codecId: 'pg/timestamptz-date@1', typeParams: { precision: 3 } },
+          }),
           col('payload', 'jsonb', { notNull: true, codecRef: { codecId: 'pg/jsonb@1' } }),
           col('prNumber', 'int4', { notNull: true, codecRef: { codecId: 'pg/int4@1' } }),
           col('repoFullName', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
@@ -107,6 +117,7 @@ export default class M extends Migration<Start, End> {
           }),
           col('id', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
           col('kind', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
+          col('leaseToken', 'text', { codecRef: { codecId: 'pg/text@1' } }),
           col('leaseUntil', 'timestamptz(3)', {
             codecRef: { codecId: 'pg/timestamptz-date@1', typeParams: { precision: 3 } },
           }),
@@ -151,11 +162,23 @@ export default class M extends Migration<Start, End> {
       }),
       this.addColumn({
         schema: 'public',
+        table: 'GithubCommitCheck',
+        column: col('sourceId', 'text', { codecRef: { codecId: 'pg/text@1' } }),
+      }),
+      this.addColumn({
+        schema: 'public',
         table: 'GithubPrState',
         column: col('baseBranch', 'text', {
           notNull: true,
           default: lit(''),
           codecRef: { codecId: 'pg/text@1' },
+        }),
+      }),
+      this.addColumn({
+        schema: 'public',
+        table: 'GithubPrState',
+        column: col('closedAt', 'timestamptz(3)', {
+          codecRef: { codecId: 'pg/timestamptz-date@1', typeParams: { precision: 3 } },
         }),
       }),
       this.addColumn({
@@ -178,11 +201,17 @@ export default class M extends Migration<Start, End> {
       this.addColumn({
         schema: 'public',
         table: 'GithubPrState',
+        column: col('mergedAt', 'timestamptz(3)', {
+          codecRef: { codecId: 'pg/timestamptz-date@1', typeParams: { precision: 3 } },
+        }),
+      }),
+      this.addColumn({
+        schema: 'public',
+        table: 'GithubPrState',
         column: col('pullUpdatedAt', 'timestamptz(3)', {
           codecRef: { codecId: 'pg/timestamptz-date@1', typeParams: { precision: 3 } },
         }),
       }),
-      backfillPullUpdatedAt,
       backfillNextDueAt,
       this.addUnique({
         schema: 'public',

@@ -3,10 +3,16 @@ import type { Logger } from '@nestjs/common'
 import { ETargetOutcome, ETrackingTransport } from '@dltech/atlas-core'
 import { ERepoTracking } from '@dltech/atlas-wire'
 import { normalizedRepo, repoPattern } from './github-linked-prs'
-import { subscriptionLiveWhere } from './github-delivery-routing'
 import type { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import type { TransportSelector } from './github-transport-selector'
-import { CLAIM_BATCH, claimedTargets, settleTarget } from './github-due-scheduler'
+import {
+  CLAIM_BATCH,
+  claimedTargets,
+  type ClaimedTarget,
+  renewClaim,
+  settleTarget,
+} from './github-due-scheduler'
+import { releaseIdleHooks, seedSubscriptionTargets } from './github-refresh-seed'
 import {
   GithubCredentialCooldown,
   GithubHttpBudgetUnavailable,
@@ -23,7 +29,6 @@ export type QueueDeps = {
   hooks: GithubHookLifecycleService
   transport: TransportSelector
   logger: Logger
-  resolve: (subscription: Row<'GithubSubscription'>) => Promise<number | null>
   refresh: (args: {
     userId: string
     repoFullName: string
@@ -66,10 +71,12 @@ export async function refreshGithubQueue(args: {
   now: Date
   limit?: number | undefined
 }): Promise<void> {
-  await seedSubscriptionTargets({ deps: args.deps, now: args.now })
+  await seedSubscriptionTargets({ transport: args.deps.transport, now: args.now })
   const claimed = await claimedTargets({ now: args.now, limit: args.limit ?? CLAIM_BATCH })
   const attempted = new Set<string>()
   for (const target of claimed) {
+    const held = await renewClaim({ id: target.id, leaseToken: target.leaseToken, now: new Date() })
+    if (held === 0) continue
     const identity = `${normalizedRepo(target.repoFullName)}#${target.prNumber}`
     const duplicate = target.prNumber > 0 && attempted.has(identity)
     if (target.prNumber > 0) attempted.add(identity)
@@ -79,19 +86,19 @@ export async function refreshGithubQueue(args: {
     const verdict = await verdictOutcomeOf({ attempt, target })
     await settleTarget({
       target,
-      now: args.now,
+      now: new Date(),
       transport,
       outcome: verdict?.outcome ?? attempt.outcome,
       retryAtMs: attempt.retryAtMs,
       mergedAtMs: verdict?.mergedAtMs,
     })
   }
-  await releaseIdleHooks()
+  await releaseIdleHooks(new Date())
 }
 
 async function attemptOf(args: {
   deps: QueueDeps
-  target: Row<'GithubTrackingTarget'>
+  target: ClaimedTarget
 }): Promise<{ attempt: TargetAttempt; transport: ETrackingTransport }> {
   let transport = ETrackingTransport.Polled
   try {
@@ -221,112 +228,5 @@ async function verdictOutcomeOf(args: {
   return {
     outcome: unsettled ? ETargetOutcome.MergedUnsettled : ETargetOutcome.TerminalSettled,
     mergedAtMs,
-  }
-}
-
-async function seedSubscriptionTargets(args: { deps: QueueDeps; now: Date }): Promise<void> {
-  const subscriptions = await db.orm.public.GithubSubscription.where(
-    subscriptionLiveWhere({ now: args.now }),
-  ).all()
-  const branches = new Map<string, Row<'GithubSubscription'>[]>()
-  for (const row of subscriptions) {
-    if (row.prNumber !== null) {
-      await dueTarget({ row, number: row.prNumber, now: args.now })
-      continue
-    }
-    if (!row.pollBacked) continue
-    if (!(await args.deps.transport.polls(row.repoFullName))) continue
-    const key = `${normalizedRepo(row.repoFullName)}:${row.branch}`
-    branches.set(key, [...(branches.get(key) ?? []), row])
-  }
-  for (const rows of branches.values()) {
-    const number = await resolvedNumber({ deps: args.deps, rows })
-    if (number === null) continue
-    for (const row of rows) {
-      await db.orm.public.GithubSubscription.where({ id: row.id }).update({ prNumber: number })
-      await dueTarget({ row, number, now: args.now })
-    }
-  }
-}
-
-async function resolvedNumber(args: {
-  deps: QueueDeps
-  rows: readonly Row<'GithubSubscription'>[]
-}): Promise<number | null> {
-  for (const row of args.rows) {
-    try {
-      const number = await args.deps.resolve({
-        ...row,
-        repoFullName: normalizedRepo(row.repoFullName),
-      })
-      if (number !== null) return number
-    } catch (failure) {
-      if (failure instanceof GithubCredentialCooldown) continue
-      if (isGithubBudgetParked(failure)) continue
-      throw failure
-    }
-  }
-  return null
-}
-
-export const ensurePullTarget = async (args: {
-  userId: string
-  repoFullName: string
-  prNumber: number
-  liveUntil: Date
-  now: Date
-}): Promise<void> => {
-  await db.orm.public.GithubTrackingTarget.upsert({
-    conflictOn: {
-      userId: args.userId,
-      kind: 'pull-request',
-      repoFullName: normalizedRepo(args.repoFullName),
-      branch: '',
-      prNumber: args.prNumber,
-    },
-    create: {
-      userId: args.userId,
-      kind: 'pull-request',
-      repoFullName: normalizedRepo(args.repoFullName),
-      branch: '',
-      prNumber: args.prNumber,
-      liveUntil: args.liveUntil,
-      nextDueAt: args.now,
-    },
-    update: { liveUntil: args.liveUntil },
-  })
-}
-
-async function dueTarget(args: {
-  row: Row<'GithubSubscription'>
-  number: number
-  now: Date
-}): Promise<void> {
-  const key = {
-    userId: args.row.userId,
-    kind: 'pull-request' as const,
-    repoFullName: normalizedRepo(args.row.repoFullName),
-    branch: '',
-    prNumber: args.number,
-  }
-  await db.orm.public.GithubTrackingTarget.upsert({
-    conflictOn: key,
-    create: { ...key, liveUntil: args.row.liveUntil, nextDueAt: args.now },
-    update: { liveUntil: args.row.liveUntil },
-  })
-}
-
-async function releaseIdleHooks(): Promise<void> {
-  const active = new Set(
-    (
-      await db.orm.public.GithubSubscription.where(subscriptionLiveWhere({ now: new Date() })).all()
-    ).map((row) => normalizedRepo(row.repoFullName)),
-  )
-  const held = await db.orm.public.GithubRepoHook.where({ idleSince: null }).all()
-  for (const hook of held) {
-    if (active.has(normalizedRepo(hook.repoFullName))) continue
-    await db.orm.public.GithubRepoHook.where({ repoFullName: hook.repoFullName }).updateAndCount({
-      idleSince: new Date(),
-    })
   }
 }

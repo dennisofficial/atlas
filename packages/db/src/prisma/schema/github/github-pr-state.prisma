@@ -10,6 +10,8 @@ model GithubPrState {
   headRepoFullName String?
   baseBranch       String               @default("")
   pullUpdatedAt    TimestamptzJsDate(3)?
+  closedAt         TimestamptzJsDate(3)?
+  mergedAt         TimestamptzJsDate(3)?
   checksRunning    Int                  @default(0)
   checksPassed     Int                  @default(0)
   checksFailed     Int                  @default(0)

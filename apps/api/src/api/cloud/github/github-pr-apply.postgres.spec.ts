@@ -173,6 +173,7 @@ describe('GithubPrStore.apply', () => {
       signals: recordingSignals().signals,
       wake: { notifyEvent: vi.fn() } as unknown as GithubSandboxWakeService,
       reconcile: inertReconcile(),
+      now: () => new Date(Date.now() + 60_000),
     })
     expect(await healthy.drain()).toBe(1)
     expect(received).toHaveLength(1)
@@ -241,7 +242,9 @@ describe('GithubPrStore.apply', () => {
     const { store } = rig()
 
     const first = await store.apply(applyArgs([pull()]))
-    const second = await store.apply(applyArgs([pull({ title: 'add the other thing' })]))
+    const second = await store.apply(
+      applyArgs([pull({ title: 'add the other thing', pullUpdatedAt: '2026-11-18T10:00:01Z' })]),
+    )
 
     expect([first.row?.version, second.row?.version]).toEqual([1, 2])
   })

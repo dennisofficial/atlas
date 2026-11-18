@@ -1,10 +1,8 @@
-import { announceSessionChangesIn, sessionsTrackingHeadIn } from '@dltech/atlas-control/postgres'
 import {
   foldPrObservations,
+  provenanceAdvancedBetween,
   withDerivedChecks,
-  type EStoredChecksState,
   type PrFoldChange,
-  type PrFoldState,
   type PrObservation,
 } from '@dltech/atlas-core'
 import { db, type Row, type Tx } from '@dltech/atlas-db'
@@ -24,6 +22,7 @@ import {
 import { settlementSnapshotOf, snapshotOfLocked } from './github-pr-head-checks'
 import { reconcileOutboxEffectsOf } from './github-pr-reconcile-effects'
 import { foldStateOfRow, headChecksOf } from './github-pr-row-fold'
+import { writePrProvenance, writePrStateRow } from './github-pr-state-row-write'
 import { deliverPrTransitions } from './github-pr-transition-push'
 
 export type PrApplyArgs = {
@@ -74,8 +73,9 @@ export class GithubPrStore {
       repoFullName: args.repoFullName,
       prNumber: args.prNumber,
     }).first()
+    const storedState = foldStateOfRow(stored)
     const folded = foldPrObservations({
-      state: foldStateOfRow(stored),
+      state: storedState,
       observations: args.observations,
     })
     if (folded.state === null || folded.state.pull === null) {
@@ -100,20 +100,15 @@ export class GithubPrStore {
       ]),
     ]
     if (changed.length === 0) {
-      return {
-        applied: false,
-        row: stored,
-        changed: [],
-        outboxIds: await GithubPrOutboxWriter.write({
-          tx,
-          repoFullName: args.repoFullName,
-          prNumber: args.prNumber,
-          effects: rechecks,
-        }),
+      if (!provenanceAdvancedBetween({ from: storedState, to: state })) {
+        return { applied: false, row: stored, changed: [], outboxIds: [] }
       }
+      const row = await writePrProvenance({ ...args, tx, state })
+
+      return { applied: false, row: row ?? stored, changed: [], outboxIds: [] }
     }
 
-    const row = await this.writeRow({
+    const row = await writePrStateRow({
       ...args,
       tx,
       state,
@@ -152,64 +147,6 @@ export class GithubPrStore {
     return [
       ...new Set([...(args.recipients ?? []), ...args.subscribers.map((held) => held.userId)]),
     ]
-  }
-
-  private async writeRow(args: {
-    tx: PrScopeTx
-    repoFullName: string
-    prNumber: number
-    state: PrFoldState
-    checksState: EStoredChecksState | null
-    stored: Row<'GithubPrState'> | null
-  }): Promise<Row<'GithubPrState'> & { headRepoFullName: string | null }> {
-    const pull = args.state.pull
-    if (pull === null) throw new Error('an applied fold always holds a pull')
-    const held = args.state.mergeability
-    const mergeability =
-      held !== null && held.headSha === pull.headSha && held.baseBranch === pull.baseBranch
-        ? held
-        : null
-    const checks = args.state.checks
-    const fields = {
-      title: pull.title,
-      url: pull.url,
-      state: pull.state,
-      headBranch: pull.headBranch,
-      headSha: pull.headSha,
-      headRepoFullName:
-        pull.headRepoFullName === null ? null : normalizedRepo(pull.headRepoFullName),
-      baseBranch: pull.baseBranch,
-      pullUpdatedAt: new Date(pull.pullUpdatedAt),
-      mergeable: mergeability?.mergeable ?? null,
-      mergeClean: mergeability?.mergeClean ?? null,
-      mergeableHeadSha: mergeability?.headSha ?? null,
-      mergeableBaseRef: mergeability?.baseBranch ?? null,
-      mergeableObservedAt: mergeability === null ? null : new Date(mergeability.observedAt),
-      checksRunning: checks?.running ?? 0,
-      checksPassed: checks?.passed ?? 0,
-      checksFailed: checks?.failed ?? 0,
-      checksIgnored: checks?.ignored ?? 0,
-      checksState: args.checksState,
-      updatedAt: new Date(),
-      version: (args.stored?.version ?? 0) + 1,
-    }
-    const row = await args.tx.orm.public.GithubPrState.upsert({
-      conflictOn: { repoFullName: args.repoFullName, prNumber: args.prNumber },
-      create: { repoFullName: args.repoFullName, prNumber: args.prNumber, ...fields },
-      update: fields,
-    })
-    if (row.headRepoFullName !== null) {
-      await announceSessionChangesIn({
-        tx: args.tx,
-        sessionIds: await sessionsTrackingHeadIn({
-          tx: args.tx,
-          headRepo: row.headRepoFullName,
-          branch: row.headBranch,
-        }),
-      })
-    }
-
-    return row
   }
 
   private async subscribersOf(args: {

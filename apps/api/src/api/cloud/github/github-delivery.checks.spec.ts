@@ -180,7 +180,6 @@ describe('GithubDeliveryService check rows', () => {
     expect(readPullRequest).not.toHaveBeenCalled()
     expect((await prStateRows())[0]).toMatchObject({ title: 'renamed' })
   })
-
   it('seeds rows from REST attempts and the row tally equals the REST-written counts', async () => {
     const checkRuns = [
       {
@@ -210,6 +209,7 @@ describe('GithubDeliveryService check rows', () => {
     ]
     const statuses = [
       {
+        id: 900,
         context: 'vercel',
         state: 'success',
         created_at: '2026-11-02T04:25:00Z',

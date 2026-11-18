@@ -1,4 +1,4 @@
-import { ECheckOutcome } from './checks'
+import { ECheckOutcome, EChecksState } from './checks'
 
 export enum EStoredChecksState {
   Expected = 'expected',
@@ -31,4 +31,17 @@ export function storedChecksStateOf(args: {
   if (args.outcomes.length === 0) return null
 
   return EStoredChecksState.Success
+}
+
+export function rollupOfStoredChecksState(name: string | null): EChecksState | null {
+  switch (name) {
+    case EStoredChecksState.Success:
+      return EChecksState.Passing
+    case EStoredChecksState.Failure:
+      return EChecksState.Failing
+    case EStoredChecksState.Pending:
+      return EChecksState.Running
+    default:
+      return null
+  }
 }

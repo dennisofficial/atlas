@@ -23,6 +23,7 @@ export type WakeEventNotice =
   | { kind: 'workflow-run'; userId: string; repoFullName: string }
 
 const GITHUB_PREFIX = 'github.com/'
+const WAKE_LOCK_NAMESPACE = 'gh-wake:'
 
 /**
  * Stable per (thread, mailbox event): a duplicate webhook delivery never double-appends, and two
@@ -61,6 +62,7 @@ export async function appendWakeIntent(args: {
   })
   const key = wakeEventKeyOf({ threadId: args.threadId, event: args.event })
   const { appended } = await db.transaction(async (tx) => {
+    await lockThreadWake({ tx, threadId: args.threadId })
     if (await wakeIntentExists({ tx, threadId: args.threadId, key })) {
       return { appended: undefined }
     }
@@ -105,6 +107,15 @@ export async function appendWakeIntent(args: {
   if (appended !== undefined) {
     await args.signals.eventsAppended({ threadId: args.threadId, ...appended })
   }
+}
+
+async function lockThreadWake(args: { tx: Tx; threadId: string }): Promise<void> {
+  const key = `${WAKE_LOCK_NAMESPACE}${args.threadId}`
+  await args.tx.execute(
+    args.tx.raw.sql`SELECT pg_advisory_xact_lock(hashtextextended(${key}, 0))`
+      .affectedCount()
+      .build(),
+  )
 }
 
 async function wakeIntentExists(args: { tx: Tx; threadId: string; key: string }): Promise<boolean> {

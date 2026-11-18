@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'916e4d5f0c34282e16660055aa2a2631889fb7bd5ebe103fcc15822b71209876'>;
+  StorageHashBase<'820192810d0d976067a2872e941e6fd46fc3816345fc594b98d069c7533574b3'>;
 export type ExecutionHash =
   ExecutionHashBase<'4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45'>;
 export type ProfileHash =
@@ -526,6 +526,7 @@ export namespace Models {
     name: FieldOutputTypes['public']['GithubCommitCheck']['name'];
     outcome: FieldOutputTypes['public']['GithubCommitCheck']['outcome'];
     repoFullName: FieldOutputTypes['public']['GithubCommitCheck']['repoFullName'];
+    sourceId: FieldOutputTypes['public']['GithubCommitCheck']['sourceId'];
     sourceUpdatedAt: FieldOutputTypes['public']['GithubCommitCheck']['sourceUpdatedAt'];
     startedAt: FieldOutputTypes['public']['GithubCommitCheck']['startedAt'];
     summary: FieldOutputTypes['public']['GithubCommitCheck']['summary'];
@@ -583,11 +584,15 @@ export namespace Models {
   export type public_GithubPrOutbox = {
     attempts: FieldOutputTypes['public']['GithubPrOutbox']['attempts'];
     createdAt: FieldOutputTypes['public']['GithubPrOutbox']['createdAt'];
+    deadLetteredAt: FieldOutputTypes['public']['GithubPrOutbox']['deadLetteredAt'];
     dedupeKey: FieldOutputTypes['public']['GithubPrOutbox']['dedupeKey'];
     dispatchedAt: FieldOutputTypes['public']['GithubPrOutbox']['dispatchedAt'];
     id: FieldOutputTypes['public']['GithubPrOutbox']['id'];
     kind: FieldOutputTypes['public']['GithubPrOutbox']['kind'];
     lastError: FieldOutputTypes['public']['GithubPrOutbox']['lastError'];
+    leaseOwner: FieldOutputTypes['public']['GithubPrOutbox']['leaseOwner'];
+    leaseUntil: FieldOutputTypes['public']['GithubPrOutbox']['leaseUntil'];
+    nextAttemptAt: FieldOutputTypes['public']['GithubPrOutbox']['nextAttemptAt'];
     payload: FieldOutputTypes['public']['GithubPrOutbox']['payload'];
     prNumber: FieldOutputTypes['public']['GithubPrOutbox']['prNumber'];
     repoFullName: FieldOutputTypes['public']['GithubPrOutbox']['repoFullName'];
@@ -600,6 +605,7 @@ export namespace Models {
     checksPassed: FieldOutputTypes['public']['GithubPrState']['checksPassed'];
     checksRunning: FieldOutputTypes['public']['GithubPrState']['checksRunning'];
     checksState: FieldOutputTypes['public']['GithubPrState']['checksState'];
+    closedAt: FieldOutputTypes['public']['GithubPrState']['closedAt'];
     headBranch: FieldOutputTypes['public']['GithubPrState']['headBranch'];
     headRepoFullName: FieldOutputTypes['public']['GithubPrState']['headRepoFullName'];
     headSha: FieldOutputTypes['public']['GithubPrState']['headSha'];
@@ -608,6 +614,7 @@ export namespace Models {
     mergeableBaseRef: FieldOutputTypes['public']['GithubPrState']['mergeableBaseRef'];
     mergeableHeadSha: FieldOutputTypes['public']['GithubPrState']['mergeableHeadSha'];
     mergeableObservedAt: FieldOutputTypes['public']['GithubPrState']['mergeableObservedAt'];
+    mergedAt: FieldOutputTypes['public']['GithubPrState']['mergedAt'];
     prNumber: FieldOutputTypes['public']['GithubPrState']['prNumber'];
     pullUpdatedAt: FieldOutputTypes['public']['GithubPrState']['pullUpdatedAt'];
     repoFullName: FieldOutputTypes['public']['GithubPrState']['repoFullName'];
@@ -653,6 +660,7 @@ export namespace Models {
     failures: FieldOutputTypes['public']['GithubTrackingTarget']['failures'];
     id: FieldOutputTypes['public']['GithubTrackingTarget']['id'];
     kind: FieldOutputTypes['public']['GithubTrackingTarget']['kind'];
+    leaseToken: FieldOutputTypes['public']['GithubTrackingTarget']['leaseToken'];
     leaseUntil: FieldOutputTypes['public']['GithubTrackingTarget']['leaseUntil'];
     liveUntil: FieldOutputTypes['public']['GithubTrackingTarget']['liveUntil'];
     lookedUpAt: FieldOutputTypes['public']['GithubTrackingTarget']['lookedUpAt'];
@@ -3051,6 +3059,12 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly many: false;
                 };
+                readonly sourceId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
                 readonly sourceUpdatedAt: {
                   readonly dataType: 'pg/timestamptz';
                   readonly codecId: 'pg/timestamptz-date@1';
@@ -3427,6 +3441,13 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
+                readonly deadLetteredAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
                 readonly dedupeKey: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
@@ -3456,6 +3477,26 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly leaseOwner: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly leaseUntil: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly nextAttemptAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
                 readonly payload: {
@@ -3546,6 +3587,13 @@ type ContractBase = Omit<
                   readonly nullable: true;
                   readonly many: false;
                 };
+                readonly closedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
                 readonly headBranch: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
@@ -3589,6 +3637,13 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly mergeableObservedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly mergedAt: {
                   readonly dataType: 'pg/timestamptz';
                   readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: true;
@@ -3944,6 +3999,12 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly leaseToken: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
                   readonly many: false;
                 };
                 readonly leaseUntil: {
@@ -9536,6 +9597,10 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly sourceId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly sourceUpdatedAt: {
                 readonly nullable: false;
                 readonly type: {
@@ -9580,6 +9645,7 @@ type ContractBase = Omit<
                 readonly name: { readonly column: 'name' };
                 readonly outcome: { readonly column: 'outcome' };
                 readonly repoFullName: { readonly column: 'repoFullName' };
+                readonly sourceId: { readonly column: 'sourceId' };
                 readonly sourceUpdatedAt: { readonly column: 'sourceUpdatedAt' };
                 readonly startedAt: { readonly column: 'startedAt' };
                 readonly summary: { readonly column: 'summary' };
@@ -9893,6 +9959,14 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
+              readonly deadLetteredAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
               readonly dedupeKey: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -9917,6 +9991,26 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly leaseOwner: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly leaseUntil: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly nextAttemptAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
               readonly payload: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
@@ -9937,11 +10031,15 @@ type ContractBase = Omit<
               readonly fields: {
                 readonly attempts: { readonly column: 'attempts' };
                 readonly createdAt: { readonly column: 'createdAt' };
+                readonly deadLetteredAt: { readonly column: 'deadLetteredAt' };
                 readonly dedupeKey: { readonly column: 'dedupeKey' };
                 readonly dispatchedAt: { readonly column: 'dispatchedAt' };
                 readonly id: { readonly column: 'id' };
                 readonly kind: { readonly column: 'kind' };
                 readonly lastError: { readonly column: 'lastError' };
+                readonly leaseOwner: { readonly column: 'leaseOwner' };
+                readonly leaseUntil: { readonly column: 'leaseUntil' };
+                readonly nextAttemptAt: { readonly column: 'nextAttemptAt' };
                 readonly payload: { readonly column: 'payload' };
                 readonly prNumber: { readonly column: 'prNumber' };
                 readonly repoFullName: { readonly column: 'repoFullName' };
@@ -9974,6 +10072,14 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly closedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
               readonly headBranch: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -10003,6 +10109,14 @@ type ContractBase = Omit<
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
               readonly mergeableObservedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly mergedAt: {
                 readonly nullable: true;
                 readonly type: {
                   readonly kind: 'scalar';
@@ -10062,6 +10176,7 @@ type ContractBase = Omit<
                 readonly checksPassed: { readonly column: 'checksPassed' };
                 readonly checksRunning: { readonly column: 'checksRunning' };
                 readonly checksState: { readonly column: 'checksState' };
+                readonly closedAt: { readonly column: 'closedAt' };
                 readonly headBranch: { readonly column: 'headBranch' };
                 readonly headRepoFullName: { readonly column: 'headRepoFullName' };
                 readonly headSha: { readonly column: 'headSha' };
@@ -10070,6 +10185,7 @@ type ContractBase = Omit<
                 readonly mergeableBaseRef: { readonly column: 'mergeableBaseRef' };
                 readonly mergeableHeadSha: { readonly column: 'mergeableHeadSha' };
                 readonly mergeableObservedAt: { readonly column: 'mergeableObservedAt' };
+                readonly mergedAt: { readonly column: 'mergedAt' };
                 readonly prNumber: { readonly column: 'prNumber' };
                 readonly pullUpdatedAt: { readonly column: 'pullUpdatedAt' };
                 readonly repoFullName: { readonly column: 'repoFullName' };
@@ -10281,6 +10397,10 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly leaseToken: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly leaseUntil: {
                 readonly nullable: true;
                 readonly type: {
@@ -10347,6 +10467,7 @@ type ContractBase = Omit<
                 readonly failures: { readonly column: 'failures' };
                 readonly id: { readonly column: 'id' };
                 readonly kind: { readonly column: 'kind' };
+                readonly leaseToken: { readonly column: 'leaseToken' };
                 readonly leaseUntil: { readonly column: 'leaseUntil' };
                 readonly liveUntil: { readonly column: 'liveUntil' };
                 readonly lookedUpAt: { readonly column: 'lookedUpAt' };

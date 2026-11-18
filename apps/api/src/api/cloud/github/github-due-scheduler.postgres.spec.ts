@@ -2,7 +2,7 @@ import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { ensureUsers } from '../../../../test/github-seed'
-import { CLAIM_LEASE_MS, claimedTargets, releaseTarget } from './github-due-scheduler'
+import { CLAIM_LEASE_MS, claimedTargets, releaseTarget, renewClaim } from './github-due-scheduler'
 
 const NOW = Date.parse('2026-11-18T12:00:00Z')
 const LIVE_UNTIL = new Date(NOW + 6 * 60 * 60 * 1_000)
@@ -66,7 +66,13 @@ describe('claimedTargets', () => {
       for (const row of claimed) served.add(row.branch)
       const nextDueAt = new Date(NOW + 60_000)
       for (const row of claimed)
-        await releaseTarget({ id: row.id, attemptedAt: new Date(NOW), nextDueAt, failures: 0 })
+        await releaseTarget({
+          id: row.id,
+          leaseToken: row.leaseToken,
+          attemptedAt: new Date(NOW),
+          nextDueAt,
+          failures: 0,
+        })
     }
 
     expect(served.size).toBe(500)
@@ -87,6 +93,41 @@ describe('claimedTargets', () => {
 
     expect(reclaimed.map((row) => row.id)).toEqual([target.id])
     expect(reclaimed[0]?.failures).toBe(2)
+  })
+
+  it('writes nothing back from a stale worker whose claim was taken over', async () => {
+    const target = await seedTarget({ branch: 'taken', nextDueAt: new Date(NOW - 1) })
+    const [stale] = await claimedTargets({ now: new Date(NOW), limit: 1 })
+    const [fresh] = await claimedTargets({ now: new Date(NOW + CLAIM_LEASE_MS + 1), limit: 1 })
+    expect(fresh?.id).toBe(target.id)
+
+    const released = await releaseTarget({
+      id: target.id,
+      leaseToken: stale?.leaseToken ?? '',
+      attemptedAt: new Date(NOW),
+      nextDueAt: new Date(NOW + 60_000),
+      failures: 3,
+    })
+
+    expect(released).toBe(0)
+    const held = await db.orm.public.GithubTrackingTarget.where({ id: target.id }).first()
+    expect(held?.failures).toBe(0)
+    expect(held?.leaseToken).toBe(fresh?.leaseToken ?? '')
+    expect(held?.leaseUntil?.getTime()).toBe(NOW + CLAIM_LEASE_MS + 1 + CLAIM_LEASE_MS)
+  })
+
+  it('renews only the claim whose token still holds the target', async () => {
+    await seedTarget({ branch: 'renewed', nextDueAt: new Date(NOW - 1) })
+    const [claimed] = await claimedTargets({ now: new Date(NOW), limit: 1 })
+    const id = claimed?.id ?? ''
+
+    expect(await renewClaim({ id, leaseToken: 'stale', now: new Date(NOW) })).toBe(0)
+    expect(
+      await renewClaim({ id, leaseToken: claimed?.leaseToken ?? '', now: new Date(NOW + 60_000) }),
+    ).toBe(1)
+
+    const held = await db.orm.public.GithubTrackingTarget.where({ id }).first()
+    expect(held?.leaseUntil?.getTime()).toBe(NOW + 60_000 + CLAIM_LEASE_MS)
   })
 
   it('never hands one target to two concurrent sweeps', async () => {

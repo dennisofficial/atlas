@@ -14,12 +14,8 @@ import { normalizedRepo } from './github-pr-identity'
 import { GithubRequestCoordinator } from './github-request-coordinator'
 import { readRepoTracking } from './github-repo-coverage'
 import { renewTrackedHeadTargets } from './github-tracked-head-renewal'
-import {
-  ensurePullTarget,
-  parkedAttemptOf,
-  refreshGithubQueue,
-  type TargetAttempt,
-} from './github-refresh-queue'
+import { parkedAttemptOf, refreshGithubQueue, type TargetAttempt } from './github-refresh-queue'
+import { ensurePullTarget } from './github-refresh-seed'
 import { CLAIM_BATCH } from './github-due-scheduler'
 import { withGithubRequestBudget, credentialFingerprint } from './github-request-budget'
 import {
@@ -53,7 +49,6 @@ export class GithubPollSweeperService {
               hooks: this.hooks,
               transport: new TransportSelector(readRepoTracking),
               logger: this.logger,
-              resolve: (row) => this.resolvePrNumber(row),
               refresh: (target) => this.pollOne(target),
               lookUp: (target, transport) => this.lookUp({ target, transport }),
             },
@@ -145,7 +140,7 @@ export class GithubPollSweeperService {
         })
         const attempt = await this.pollOne({
           userId: args.target.userId,
-          repoFullName: args.target.repoFullName,
+          repoFullName,
           prNumber: pull.number,
         })
         if (attempt.outcome !== ETargetOutcome.Polled) held = attempt
@@ -190,30 +185,6 @@ export class GithubPollSweeperService {
         mergeabilityObservationOf({ pull: args.pull, observedAt, source: args.source }),
       ],
     })
-  }
-
-  private async resolvePrNumber(args: Row<'GithubSubscription'>): Promise<number | null> {
-    if (args.prNumber !== null || args.branch === '' || args.branch.startsWith('#'))
-      return args.prNumber
-    const token = await this.github.findToken({ userId: args.userId })
-    if (token === undefined) return null
-    const [owner, repo] = args.repoFullName.split('/') as [string, string]
-    try {
-      return (
-        (
-          await this.reads.findOpenPrForBranch({
-            source: EGithubCallSource.PollSweep,
-            token,
-            owner,
-            repo,
-            branch: args.branch,
-          })
-        )?.number ?? null
-      )
-    } catch (failure) {
-      if (failure instanceof GithubUserReadFailed && !failure.rateLimited) return null
-      throw failure
-    }
   }
 
   private async pollOne(args: {

@@ -3,6 +3,7 @@ model GithubCommitCheck {
   repoFullName    String
   headSha         String
   checkKey        String
+  sourceId        String?
   name            String?
   startedAt       String?
   outcome         String

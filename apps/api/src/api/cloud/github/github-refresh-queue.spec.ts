@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'bun:test'
 import { ETargetOutcome } from '@dltech/atlas-core'
 import { ERepoTracking } from '@dltech/atlas-wire'
 import { createRealRedisService } from '../../../../test/real-redis.fixture'
-import { ensureUsers } from '../../../../test/github-seed'
+import { ensureUsers, seedSubscription as seedSubscriptionRow } from '../../../../test/github-seed'
 import type { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import { refreshGithubQueue, type QueueDeps, type TargetAttempt } from './github-refresh-queue'
 import { EGithubCallSource } from './github-call-log'
@@ -30,6 +30,15 @@ const COVERED_REPO = 'compai/covered'
 const POLLED_REPO = 'compai/polled'
 const LOOKUP_SHARE = GITHUB_REFRESH_HTTP_BUDGET_PER_MINUTE - GITHUB_REFRESH_RESERVED_FOR_REFRESH
 const NUMBERED_LOOKUP_CALLS = 5
+
+const seedSubscription = (index: number) =>
+  seedSubscriptionRow({
+    userId: 'usr_1',
+    repoFullName: POLLED_REPO,
+    branch: `dennis/head-${index}`,
+    prNumber: null,
+    pollBacked: true,
+  })
 
 const seedTarget = (index: number, overrides: Record<string, unknown> = {}) =>
   db.orm.public.GithubTrackingTarget.create({
@@ -55,7 +64,6 @@ const queueDeps = (args: {
     polls: async (repo: string) => repo !== COVERED_REPO,
   } as unknown as TransportSelector,
   logger: new Logger('refresh-queue-spec'),
-  resolve: async () => null,
   refresh: args.refresh,
   lookUp: args.lookUp,
 })
@@ -104,6 +112,53 @@ describe('refreshGithubQueue claims by due time', () => {
     const row = await db.orm.public.GithubTrackingTarget.where({ id: parked.id }).first()
     expect(row?.nextDueAt.getTime()).toBe(retryAtMs)
     expect(row?.failures).toBe(0)
+    expect(row?.leaseUntil).toBeNull()
+  })
+
+  it('turns an unresolved branch subscription into a durable head target', async () => {
+    const lookUp = vi.fn<QueueDeps['lookUp']>(async () => ({ outcome: ETargetOutcome.LookedUp }))
+    const refresh = vi.fn<QueueDeps['refresh']>(async () => ({ outcome: ETargetOutcome.Polled }))
+    const subscription = await seedSubscriptionRow({
+      userId: 'usr_1',
+      repoFullName: POLLED_REPO,
+      branch: 'dennis/unresolved',
+      prNumber: null,
+      pollBacked: true,
+    })
+
+    await sweep(queueDeps({ lookUp, refresh }))
+
+    const target = await db.orm.public.GithubTrackingTarget.where({
+      repoFullName: POLLED_REPO,
+      branch: 'dennis/unresolved',
+      kind: 'head',
+    }).first()
+    expect(target?.attemptedAt).not.toBeNull()
+    expect(target?.leaseUntil).toBeNull()
+    expect(lookUp).toHaveBeenCalledTimes(1)
+    expect(refresh).not.toHaveBeenCalled()
+    const row = await db.orm.public.GithubSubscription.where({ id: subscription.id }).first()
+    expect(row?.prNumber).toBeNull()
+  })
+
+  it('settles one target that threw and keeps sweeping the rest', async () => {
+    const failing = await seedTarget(0, { repoFullName: 'compai/broken' })
+    const lookUp = vi.fn<QueueDeps['lookUp']>(async (target) => {
+      if (target.id === failing.id) throw new Error('socket hang up')
+      return { outcome: ETargetOutcome.LookedUp }
+    })
+    const refresh = vi.fn<QueueDeps['refresh']>(async () => ({ outcome: ETargetOutcome.Polled }))
+    const others = [await seedTarget(1), await seedTarget(2)]
+
+    await sweep(queueDeps({ lookUp, refresh }))
+
+    expect(lookUp.mock.calls.map((call) => call[0].id)).toEqual([
+      failing.id,
+      ...others.map((row) => row.id),
+    ])
+    const row = await db.orm.public.GithubTrackingTarget.where({ id: failing.id }).first()
+    expect(row?.failures).toBe(1)
+    expect(row?.nextDueAt.getTime()).toBeGreaterThan(Date.now())
     expect(row?.leaseUntil).toBeNull()
   })
 
@@ -198,6 +253,49 @@ describe('refreshGithubQueue lookup share of the refresh window', () => {
           resource: 'core',
         }),
       ).toBe(true)
+    } finally {
+      await redis.onModuleDestroy()
+    }
+  })
+
+  it('serves a known refresh behind 48 unresolved branches, charging each branch to Lookup', async () => {
+    const redis = await createRealRedisService()
+    try {
+      const coordinator = new GithubRequestCoordinator(
+        redis,
+        { findToken: async () => undefined } as unknown as GithubService,
+        `spec:${randomUUID()}:`,
+      )
+      const token = 'ghu_branches'
+      const lookUp = numberedLookUp(token)
+      const refresh = numberedRefresh(token, 42)
+      for (let index = 0; index < 48; index += 1) {
+        await seedSubscription(index)
+        await seedTarget(index)
+      }
+      await seedTarget(48, {
+        kind: 'pull-request',
+        prNumber: 42,
+        branch: '',
+        lookedUpAt: new Date(),
+        nextDueAt: new Date(Date.now() - 1),
+      })
+
+      await withGithubRequestBudget({
+        store: coordinator,
+        run: () => sweep(queueDeps({ lookUp, refresh })),
+      })
+
+      const outcomes = await Promise.all(
+        lookUp.mock.results.map((result) => result.value as Promise<TargetAttempt>),
+      )
+      expect(lookUp).toHaveBeenCalledTimes(48)
+      expect(
+        outcomes.filter((outcome) => outcome.outcome === ETargetOutcome.LookedUp),
+      ).toHaveLength(Math.floor(LOOKUP_SHARE / NUMBERED_LOOKUP_CALLS))
+      expect(refresh).toHaveBeenCalledTimes(1)
+      const subscriptions = await db.orm.public.GithubSubscription.all()
+      expect(subscriptions.map((row) => row.prNumber)).toEqual(Array(48).fill(null))
     } finally {
       await redis.onModuleDestroy()
     }

@@ -107,18 +107,21 @@ describe('pullRequestCacheFieldsOf', () => {
       checkRuns: [],
       statuses: [
         {
+          id: 300,
           context: 'ci/build',
           state: 'success',
           created_at: '2026-11-02T04:25:00Z',
           updated_at: '2026-11-02T04:25:00Z',
         },
         {
+          id: 200,
           context: 'ci/build',
           state: 'pending',
           created_at: '2026-11-02T04:20:00Z',
           updated_at: '2026-11-02T04:20:00Z',
         },
         {
+          id: 400,
           context: 'deploy',
           state: 'failure',
           created_at: '2026-11-02T04:25:00Z',
@@ -131,6 +134,26 @@ describe('pullRequestCacheFieldsOf', () => {
       checksRunning: 0,
       checksPassed: 1,
       checksFailed: 1,
+    })
+  })
+
+  it('ranks two statuses one context posted in the same second by their id', () => {
+    const status = (over: { id: number; state: string }) => ({
+      context: 'ci/build',
+      created_at: '2026-11-02T04:25:00Z',
+      updated_at: '2026-11-02T04:25:00Z',
+      ...over,
+    })
+    const fields = pullRequestCacheFieldsOf({
+      pull: pull({}),
+      checkRuns: [],
+      statuses: [status({ id: 7, state: 'failure' }), status({ id: 9, state: 'success' })],
+    })
+
+    expect(fields).toMatchObject({
+      checksRunning: 0,
+      checksPassed: 1,
+      checksFailed: 0,
     })
   })
 })

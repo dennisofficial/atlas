@@ -6,35 +6,69 @@ type MergeabilityObservation = Extract<PrObservation, { kind: 'mergeability' }>
 
 type FieldValues = readonly (number | string | null)[]
 
-const STATE_RANK: Record<EPrState, string> = {
-  [EPrState.Merged]: '3',
-  [EPrState.Closed]: '2',
-  [EPrState.Draft]: '1',
-  [EPrState.Open]: '0',
+type OrderKey = readonly (number | string)[]
+
+const STATE_RANK: Record<EPrState, number> = {
+  [EPrState.Merged]: 3,
+  [EPrState.Closed]: 2,
+  [EPrState.Draft]: 1,
+  [EPrState.Open]: 0,
 }
 
-function pullOrderKeyOf(sample: PullSample): readonly string[] {
+export function instantOf(iso: string | null): number | null {
+  if (iso === null) return null
+  const ms = Date.parse(iso)
+
+  return Number.isNaN(ms) ? null : ms
+}
+
+function pullOrderKeyOf(sample: PullSample): OrderKey {
   return [
-    sample.pullUpdatedAt,
+    instantOf(sample.pullUpdatedAt) ?? 0,
     STATE_RANK[sample.state],
-    sample.mergedAt ?? '',
-    sample.closedAt ?? '',
+    instantOf(sample.mergedAt) ?? 0,
+    instantOf(sample.closedAt) ?? 0,
     sample.headSha,
     sample.baseBranch,
     sample.title,
   ]
 }
 
-function compareKeys(left: readonly string[], right: readonly string[]): number {
+function compareKeys(left: OrderKey, right: OrderKey): number {
   for (let index = 0; index < left.length; index += 1) {
     const a = left[index] ?? ''
     const b = right[index] ?? ''
     if (a === b) continue
+    if (typeof a === 'number' && typeof b === 'number') return a < b ? -1 : 1
 
-    return a < b ? -1 : 1
+    return String(a) < String(b) ? -1 : 1
   }
 
   return 0
+}
+
+function provenanceOf(state: PrFoldState | null): readonly number[] | null {
+  const pull = state?.pull ?? null
+  if (pull === null) return null
+
+  return [
+    instantOf(pull.pullUpdatedAt) ?? 0,
+    instantOf(pull.closedAt) ?? 0,
+    instantOf(pull.mergedAt) ?? 0,
+    instantOf(state?.mergeability?.observedAt ?? null) ?? 0,
+  ]
+}
+
+export function provenanceAdvancedBetween(args: {
+  from: PrFoldState | null
+  to: PrFoldState | null
+}): boolean {
+  const from = provenanceOf(args.from)
+  const to = provenanceOf(args.to)
+  if (to === null) return false
+  if (from === null) return true
+
+  return to.some((value, index) => value > (from[index] ?? 0))
 }
 
 export function comparePullSamples(args: { a: PullSample; b: PullSample }): number {
@@ -156,7 +190,12 @@ function applyMergeability(args: {
   if (sample.mergeable === null) {
     return stored === null ? { ...state, mergeability: sample } : state
   }
-  if (stored !== null && stored.mergeable !== null && sample.observedAt <= stored.observedAt) {
+  const observedAt = instantOf(sample.observedAt) ?? 0
+  if (
+    stored !== null &&
+    stored.mergeable !== null &&
+    observedAt <= (instantOf(stored.observedAt) ?? 0)
+  ) {
     return state
   }
 

@@ -44,6 +44,12 @@ export function checksIdentityOf(args: { sample: CheckSample }): CheckIdentity {
   }
 }
 
+function instantOf(iso: string | null): number {
+  const ms = iso === null ? Number.NaN : Date.parse(iso)
+
+  return Number.isNaN(ms) ? 0 : ms
+}
+
 function finalityOf(identity: CheckIdentity): number {
   return identity.outcome === ECheckOutcome.Running ? 0 : 1
 }
@@ -56,10 +62,12 @@ export function compareCheckAttempts(args: { a: CheckIdentity; b: CheckIdentity 
 
     return finalityOf(args.a) - finalityOf(args.b)
   }
-  const byCreatedAt = (args.a.sourceCreatedAt ?? '').localeCompare(args.b.sourceCreatedAt ?? '')
+  const byCreatedAt = instantOf(args.a.sourceCreatedAt) - instantOf(args.b.sourceCreatedAt)
   if (byCreatedAt !== 0) return byCreatedAt
 
-  return Number(args.a.sourceId) - Number(args.b.sourceId)
+  const bySourceId = Number(args.a.sourceId) - Number(args.b.sourceId)
+
+  return Number.isNaN(bySourceId) ? 0 : bySourceId
 }
 
 function checkGroupKeyOf(identity: CheckIdentity): string {

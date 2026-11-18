@@ -1,24 +1,23 @@
 import {
-  checksRollup,
-  checksTally,
+  derivedChecksOf,
   ECheckOutcome,
-  EChecksState,
   ECheckSource,
   EPrSource,
   EPrState,
   EStoredChecksState,
-  latestAttemptOutcomes,
+  latestCheckAttempts,
   missingRequiredContextsOf,
+  rollupOfStoredChecksState,
   storedChecksStateOf,
-  type CheckAttempt,
   type CheckIdentity,
   type DerivedChecks,
   type MergeabilitySample,
+  type PrChecksSummary,
   type PrFoldState,
 } from '@dltech/atlas-core'
 import type { Row } from '@dltech/atlas-db'
 
-import { RUN_KEY_PREFIX, SUITE_KEY_PREFIX, runOrderOfKey } from './github-check-suites'
+import { RUN_KEY_PREFIX, SUITE_KEY_PREFIX } from './github-check-suites'
 import type { PrScopeTx } from './github-pr-lock'
 
 export function foldStateOfRow(row: Row<'GithubPrState'> | null): PrFoldState | null {
@@ -27,34 +26,47 @@ export function foldStateOfRow(row: Row<'GithubPrState'> | null): PrFoldState | 
   return {
     repoFullName: row.repoFullName,
     prNumber: row.prNumber,
-    pull: {
-      repoFullName: row.repoFullName,
-      prNumber: row.prNumber,
-      title: row.title,
-      url: row.url,
-      state: row.state as EPrState,
-      headBranch: row.headBranch,
-      headSha: row.headSha,
-      headRepoFullName: row.headRepoFullName,
-      baseBranch: row.baseBranch,
-      pullUpdatedAt: (row.pullUpdatedAt ?? row.updatedAt).toISOString(),
-      closedAt: null,
-      mergedAt: null,
-      source: EPrSource.WebhookPull,
-    },
+    pull: pullOfRow({ row, pullUpdatedAt: row.pullUpdatedAt }),
     mergeability: mergeabilityOfRow(row),
-    checks:
-      row.checksState === null || row.checksState === EStoredChecksState.Expected
-        ? null
-        : {
-            headSha: row.headSha,
-            running: row.checksRunning,
-            passed: row.checksPassed,
-            failed: row.checksFailed,
-            ignored: row.checksIgnored,
-            rollup: row.checksState as EChecksState,
-          },
+    checks: checksOfRow(row),
     version: row.version,
+  }
+}
+
+function pullOfRow(args: {
+  row: Row<'GithubPrState'>
+  pullUpdatedAt: Date | null
+}): PrFoldState['pull'] {
+  const row = args.row
+
+  return {
+    repoFullName: row.repoFullName,
+    prNumber: row.prNumber,
+    title: row.title,
+    url: row.url,
+    state: row.state as EPrState,
+    headBranch: row.headBranch,
+    headSha: row.headSha,
+    headRepoFullName: row.headRepoFullName,
+    baseBranch: row.baseBranch,
+    pullUpdatedAt: args.pullUpdatedAt?.toISOString() ?? null,
+    closedAt: row.closedAt?.toISOString() ?? null,
+    mergedAt: row.mergedAt?.toISOString() ?? null,
+    source: EPrSource.WebhookPull,
+  }
+}
+
+function checksOfRow(row: Row<'GithubPrState'>): PrChecksSummary | null {
+  const rollup = rollupOfStoredChecksState(row.checksState)
+  if (rollup === null) return null
+
+  return {
+    headSha: row.headSha,
+    running: row.checksRunning,
+    passed: row.checksPassed,
+    failed: row.checksFailed,
+    ignored: row.checksIgnored,
+    rollup,
   }
 }
 
@@ -86,7 +98,7 @@ export function checkIdentitiesOf(rows: readonly Row<'GithubCommitCheck'>[]): Ch
       outcome: row.outcome as ECheckOutcome,
       source: row.checkKey.startsWith(RUN_KEY_PREFIX) ? ECheckSource.Run : ECheckSource.Status,
       sourceCreatedAt: row.sourceUpdatedAt.toISOString(),
-      sourceId: row.checkKey.slice(row.checkKey.indexOf(':') + 1),
+      sourceId: row.sourceId ?? row.checkKey.slice(row.checkKey.indexOf(':') + 1),
     }))
 }
 
@@ -114,31 +126,16 @@ export async function headChecksOf(args: {
     repoFullName: args.repoFullName,
     headSha: args.headSha,
   }).all()
-  const attempts: CheckAttempt[] = rows
-    .filter((row) => !row.checkKey.startsWith(SUITE_KEY_PREFIX))
-    .map((row) => ({
-      name: row.name,
-      order: runOrderOfKey(row.checkKey),
-      outcome: row.outcome as ECheckOutcome,
-    }))
-  const outcomes = latestAttemptOutcomes(attempts)
-  const tally = checksTally(outcomes)
   const identities = checkIdentitiesOf(rows)
+  const derived = derivedChecksOf({ attempts: identities, headSha: args.headSha, requiredContexts })
   const missing = missingRequiredContextsOf({
     requiredContexts,
     reportedContexts: identities.map((identity) => identity.name),
   })
+  const outcomes = latestCheckAttempts({ attempts: identities }).map((attempt) => attempt.outcome)
 
   return {
-    derived: {
-      headSha: args.headSha,
-      running: tally.running,
-      passed: tally.passed,
-      failed: tally.failed,
-      ignored: tally.ignored,
-      rollup: outcomes.length === 0 ? null : checksRollup(outcomes),
-      requiredContexts,
-    },
+    derived,
     identities,
     checksState: storedChecksStateOf({ outcomes, missingRequiredContexts: missing }),
     missingRequiredContexts: missing.length,

@@ -1,8 +1,15 @@
 import { randomUUID } from 'node:crypto'
+import { Logger } from '@nestjs/common'
 import { db, type Row, type Tx } from '@dltech/atlas-db'
 
 import type { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import type { GithubPrFanoutService } from './github-pr-fanout.service'
+import {
+  claimPrOutboxRows,
+  completePrOutboxRow,
+  failPrOutboxRow,
+  prOutboxOwnerOf,
+} from './github-pr-outbox-lease'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import type { WakeEventNotice, WakePrEvent } from './github-sandbox-wake-intent'
 import { noticeV2Sessions } from './github-v2-notice'
@@ -10,6 +17,8 @@ import type { GithubPrEventDto, GithubPrStateDto } from './github-realtime.types
 
 export const PR_OUTBOX_BATCH = 32
 export const PR_OUTBOX_RETENTION_MS = 24 * 60 * 60 * 1_000
+
+export type PrOutboxLogger = { warn(message: string): void }
 
 type OutboxPayload = Row<'GithubPrOutbox'>['payload']
 type WakePayload = { notice: WakeEventNotice; event: WakePrEvent }
@@ -32,10 +41,6 @@ export type PrOutboxEffect =
 
 export type PrReconcileRun = (args: { repoFullName: string; headSha: string }) => Promise<void>
 
-/**
- * The pushes an apply owes the outside world, gathered while its transaction is still open so
- * nothing leaves the process before the rows are committed.
- */
 export class PrEffectCollector {
   private readonly effects: PrOutboxEffect[] = []
 
@@ -76,13 +81,10 @@ export class GithubPrOutboxWriter {
   }
 }
 
-/**
- * Runs committed outbox rows. A row is stamped `dispatchedAt` only after its effect returned, so a
- * crash mid-dispatch leaves it pending for the reconcile drain, and a failure is recorded without
- * losing the row. The dedupe key keeps a retried row from waking or notifying twice.
- */
 export class GithubPrOutboxDispatcher {
-  private readonly logger: { warn(message: string): void }
+  private readonly owner = prOutboxOwnerOf()
+  private readonly logger: PrOutboxLogger
+  private readonly now: () => Date
 
   constructor(
     private readonly deps: {
@@ -90,38 +92,42 @@ export class GithubPrOutboxDispatcher {
       signals: Pick<ThreadSignalsService, 'threadChanged'>
       wake: Pick<GithubSandboxWakeService, 'notifyEvent'>
       reconcile: PrReconcileRun
-      logger?: { warn(message: string): void }
+      logger?: PrOutboxLogger
+      now?: () => Date
     },
   ) {
-    this.logger = deps.logger ?? { warn: () => undefined }
+    this.logger = deps.logger ?? new Logger(GithubPrOutboxDispatcher.name)
+    this.now = deps.now ?? (() => new Date())
   }
 
   async dispatch(ids: readonly string[]): Promise<void> {
     if (ids.length === 0) return
-    const rows = await db.orm.public.GithubPrOutbox.where((row) => row.id.in([...ids])).all()
-    for (const row of rows) {
-      if (row.dispatchedAt !== null) continue
-      await this.run(row)
-    }
+    await this.runClaim(
+      await claimPrOutboxRows({ now: this.now(), owner: this.owner, limit: ids.length, ids }),
+    )
   }
 
   async drain(): Promise<number> {
-    const claimed = await db.transaction(async (tx) => {
-      const due = await tx.orm.public.GithubPrOutbox.where({ dispatchedAt: null })
-        .orderBy((row) => row.createdAt.asc())
-        .limit(PR_OUTBOX_BATCH)
-        .forUpdate({ skipLocked: true })
-        .all()
-      if (due.length === 0) return []
-      await tx.orm.public.GithubPrOutbox.where((row) =>
-        row.id.in(due.map((held) => held.id)),
-      ).updateAndCount({ dispatchedAt: new Date() })
-
-      return due
+    const claimed = await claimPrOutboxRows({
+      now: this.now(),
+      owner: this.owner,
+      limit: PR_OUTBOX_BATCH,
     })
-    for (const row of claimed) await this.run(row)
+    await this.runClaim(claimed)
 
-    return claimed.length
+    return claimed.rows.length
+  }
+
+  private async runClaim(claimed: {
+    rows: readonly Row<'GithubPrOutbox'>[]
+    deadLettered: readonly Row<'GithubPrOutbox'>[]
+  }): Promise<void> {
+    for (const row of claimed.deadLettered) {
+      this.logger.warn(
+        `github pr outbox ${row.kind} ${row.id} dead-lettered after ${row.attempts} attempts: ${row.lastError ?? 'no error recorded'}`,
+      )
+    }
+    for (const row of claimed.rows) await this.run(row)
   }
 
   prune(args: { now: Date }): Promise<number> {
@@ -130,29 +136,21 @@ export class GithubPrOutboxDispatcher {
     ).deleteAndCount()
   }
 
-  private async run(row: Row<'GithubPrOutbox'>): Promise<boolean> {
+  private async run(row: Row<'GithubPrOutbox'>): Promise<void> {
     try {
       await this.perform(row)
     } catch (failure) {
-      await this.release({ row, failure })
-      return false
+      const record = await failPrOutboxRow({ row, owner: this.owner, failure, now: this.now() })
+      this.logger.warn(
+        `github pr outbox ${row.kind} ${row.id} failed on attempt ${record.attempts}${record.deadLettered ? ' and was dead-lettered' : ''}: ${record.lastError}`,
+      )
+      return
     }
-    await db.orm.public.GithubPrOutbox.where({ id: row.id }).updateAndCount({
-      dispatchedAt: new Date(),
-      lastError: null,
-    })
-
-    return true
-  }
-
-  private async release(args: { row: Row<'GithubPrOutbox'>; failure: unknown }): Promise<void> {
-    const lastError = String(args.failure).slice(0, 1000)
-    await db.orm.public.GithubPrOutbox.where({ id: args.row.id }).updateAndCount({
-      dispatchedAt: null,
-      attempts: args.row.attempts + 1,
-      lastError,
-    })
-    this.logger.warn(`github pr outbox ${args.row.kind} ${args.row.id} failed: ${lastError}`)
+    if (!(await completePrOutboxRow({ id: row.id, owner: this.owner, now: this.now() }))) {
+      this.logger.warn(
+        `github pr outbox ${row.kind} ${row.id} lost its lease before its effect finished; it will run again`,
+      )
+    }
   }
 
   private async perform(row: Row<'GithubPrOutbox'>): Promise<void> {
@@ -164,7 +162,7 @@ export class GithubPrOutboxDispatcher {
     }
     if (row.kind === 'wake') {
       const payload = row.payload as WakePayload
-      this.deps.wake.notifyEvent(payload.notice, payload.event)
+      await this.deps.wake.notifyEvent(payload.notice, payload.event)
 
       return
     }
