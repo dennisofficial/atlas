@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 import { ESessionStatus } from '@dltech/atlas-core'
@@ -24,7 +24,8 @@ import { sessionsApi } from './data/sessions-api'
 import { stopSession } from './data/stop-session'
 import { headerStateOfSession, isSessionWorking, sessionStateLineOf } from './data/session-state'
 import { sessionLog, sessionStream } from './data/session-stream'
-import { requestRewind, rewoundDraftOf, seqByEventIdOf } from './data/session-rewind'
+import { mergedDraftOf } from './data/session-rewind'
+import { useSessionRewind } from './data/use-session-rewind'
 import { sessionRefusalsOf } from './data/session-refusals'
 import { sessionBootViewOf } from './data/session-boot-view'
 import { sessionModelOf } from './data/session-model'
@@ -128,19 +129,15 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const handleRetry = () => retrySessionNow(sessionId)
   const handleStop = () => void stopSession({ api: sessionsApi, sessionId, notify: toast.error })
 
-  const rewind = useMemo(() => {
-    const seqs = seqByEventIdOf(snapshot.events)
-    return {
-      points: new Set(seqs.keys()),
-      onRewind: ({ eventId }: { eventId: string; text: string }) => {
-        const toSeq = seqs.get(eventId)
-        if (toSeq === undefined) return
-        requestRewind({ api: sessionsApi, sessionId, toSeq }).catch((failure) =>
-          toast.error(messageOf(failure)),
-        )
-      },
-    }
-  }, [snapshot.events, sessionId])
+  const rewind = useSessionRewind({
+    sessionId,
+    events: snapshot.events,
+    api: sessionsApi,
+    onRestore: (restored) => {
+      setDraft((current) => mergedDraftOf({ rewound: restored.text, current }))
+      attachments.restore({ attachments: restored.attachments, previewOf: restored.previewOf })
+    },
+  })
   const refusals = useMemo(() => sessionRefusalsOf(snapshot.events), [snapshot.events])
 
   const summarise = useSessionSummarise({ sessionId, events: snapshot.events })
@@ -155,13 +152,6 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     working,
     onSwitchModel: () => choice.setOpen(true),
   })
-
-  const rewoundDraft = rewoundDraftOf(snapshot.events)
-
-  useEffect(() => {
-    if (rewoundDraft === undefined) return
-    setDraft((current) => (current === '' ? rewoundDraft : current))
-  }, [rewoundDraft])
 
   const handleSubmit = async (text: string) => {
     if (!attachments.checkSendable()) return

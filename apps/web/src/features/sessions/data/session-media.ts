@@ -101,6 +101,23 @@ export const startedMedia = (args: { id: string; file: File }): HeldMedia => ({
   progress: 0,
 })
 
+/** A media image already stored by hash, put back in the composer ready to send again. */
+export const restoredMediaOf = (args: {
+  item: { hash: string; name: string; mediaType: string; size: number; inline?: string | undefined }
+  id: string
+}): HeldMedia => ({
+  id: args.id,
+  name: args.item.name,
+  status: EAttachmentStatus.Ready,
+  progress: 1,
+  hash: args.item.hash,
+  mediaType: args.item.mediaType,
+  size: args.item.size,
+  ...(args.item.inline === undefined
+    ? {}
+    : { previewUrl: `data:${args.item.mediaType};base64,${args.item.inline}` }),
+})
+
 const mapEntry = (args: {
   held: readonly HeldMedia[]
   id: string

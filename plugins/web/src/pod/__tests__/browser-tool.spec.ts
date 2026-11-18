@@ -66,6 +66,29 @@ const invoke = (
   }) as Promise<{ ok: boolean; [key: string]: unknown }>
 
 describe('BrowserTool', () => {
+  it('creates the folder of an absolute screenshot path before the exec', async () => {
+    const seen: CallOp[] = []
+    const tool = new BrowserTool(ctxOf({ result: execOk(0), seen }))
+
+    const outcome = await invoke(tool, {
+      commands: [
+        ['open', 'example.com'],
+        ['screenshot', '--full', '/sessions/s1/scratch/long.png'],
+      ],
+    })
+
+    expect(outcome.ok).toBe(true)
+    expect(seen[0]).toEqual({ op: 'mkdir', path: '/sessions/s1/scratch' })
+    expect(seen[1]?.op).toBe('exec')
+  })
+
+  it('describes screenshot with a positional path, never a --path flag', () => {
+    const { description } = new BrowserTool(ctxOf({ result: execOk(0) }))
+
+    expect(description).toContain('["screenshot", "<absolute file>"]')
+    expect(description).not.toContain('--path')
+  })
+
   it('runs the whole script in one exec that ends by closing the browser', async () => {
     const seen: CallOp[] = []
     const tool = new BrowserTool(ctxOf({ result: execOk(0), output: 'atlas', seen }))

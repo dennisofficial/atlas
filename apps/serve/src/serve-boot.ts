@@ -29,6 +29,7 @@ import {
   type ApplyEnvironmentProfile,
 } from './environment-profile'
 import { createContainerSetup, type ContainerSetup } from './container-setup'
+import { messageOf } from './context-readiness'
 import { applyCloudInstructions, startInstructionsFetch } from './cloud-instructions'
 import { startCloudStateFetch } from './cloud-state-fetch'
 import { createCloudStateRefresh } from './cloud-state-refresh'
@@ -36,6 +37,7 @@ import { applyGitAccessEnv } from './git-access-env'
 import {
   createEnsureWorkspace,
   EWorkspaceState,
+  EWorkspaceStep,
   type EnsureWorkspace,
   type WorkspaceReadiness,
 } from './materialize-workspace'
@@ -47,10 +49,28 @@ import { trackContainerSetup } from './serve-boot-setup-step'
 import { EServeEvent, type ServeLog } from './serve-log'
 import { resolveWorkspaceDir, writeRecordedWorkspaceDir } from './workspace-dir'
 import type { WorkspaceFiles } from './workspace-files'
+import type { FetchWorkspaceSpec } from './workspace-spec'
 
 const lazy = <T>(fetch: () => Promise<T>): (() => Promise<T>) => {
   let held: Promise<T> | undefined
-  return () => (held ??= fetch())
+  return () => {
+    held ??= fetch().catch((error: unknown) => {
+      held = undefined
+      throw error
+    })
+    return held
+  }
+}
+
+const resolveOrReport = async (args: {
+  atlasHome: string
+  fetchSpec: FetchWorkspaceSpec
+}): Promise<{ workspaceDir: string | null; reason: string | null }> => {
+  try {
+    return { workspaceDir: await resolveWorkspaceDir(args), reason: null }
+  } catch (error) {
+    return { workspaceDir: null, reason: messageOf(error) }
+  }
 }
 
 export async function bootServeFiles(args: {
@@ -97,16 +117,17 @@ export async function bootServeFiles(args: {
   prefetchedCloudState.catch(() => undefined)
 
   const workspaceStartedAt = Date.now()
-  const cwd = await resolveWorkspaceDir({
-    atlasHome,
-    fetchSpec: fetchSpecOnce,
-  })
+  const resolved = await resolveOrReport({ atlasHome, fetchSpec: fetchSpecOnce })
+  const cwd = resolved.workspaceDir ?? args.cwd
   const profile = args.profile ?? createEnvironmentProfile({ env })
   const ensureWorkspace = args.ensureWorkspace ?? createEnsureWorkspace({ profile })
-  const workspace: WorkspaceReadiness = await trackClone({
-    reporter,
-    work: (progress) => ensureWorkspace({ cwd, fetchSpec: fetchSpecOnce, progress }),
-  })
+  const workspace: WorkspaceReadiness =
+    resolved.reason === null
+      ? await trackClone({
+          reporter,
+          work: (progress) => ensureWorkspace({ cwd, fetchSpec: fetchSpecOnce, progress }),
+        })
+      : { state: EWorkspaceState.Failed, step: EWorkspaceStep.Fetch, reason: resolved.reason }
   const workspaceMs = Date.now() - workspaceStartedAt
   log({ event: EServeEvent.BootPhase, phase: 'clone', ms: workspaceMs })
 

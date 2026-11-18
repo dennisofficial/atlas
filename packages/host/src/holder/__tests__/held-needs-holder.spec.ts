@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { composeCommands, defineCommand } from '@dltech/atlas-commands'
 import {
   chainEvents,
+  EAgentStart,
   ECommandGroup,
   ECommandTiming,
   initialLoopState,
@@ -66,6 +67,7 @@ const preparedRecord = (events: readonly V2Event[]): SessionRecord =>
       bookkeeping: () => ({ workspace: () => ({ prepared: true, failure: undefined }) }),
       loopState: () => initialLoopState(),
       eventsAfter: () => [...events],
+      visibleLoopEvents: () => [...events],
     }),
   }) as unknown as SessionRecord
 
@@ -73,16 +75,24 @@ const needsHolder = (params: {
   entries: InboxEntry[]
   knowsPing: boolean
   events?: readonly V2Event[]
+  childEvents?: readonly V2Event[]
 }): Promise<boolean> => {
   const deps = {
     sessionId: 'session-1',
-    plane: { readInbox: async () => params.entries } as unknown as ControlPlane,
+    plane: {
+      readInbox: async () => params.entries,
+      readEvents: async () => ({ events: [...(params.childEvents ?? [])], next: undefined }),
+    } as unknown as ControlPlane,
     commands: composeCommands([ping]),
     commandHandlers: params.knowsPing
       ? new Map([[ping.inboxKind, async () => ({ kind: 'done' as const })]])
       : new Map(),
   } as unknown as HeldSessionDeps
-  return drainNeedsHolder({ deps, record: preparedRecord(params.events ?? []), turnRunning: false })
+  return drainNeedsHolder({
+    deps,
+    record: preparedRecord(params.events ?? []),
+    turnRunning: false,
+  })
 }
 
 describe('drainNeedsHolder with commands', () => {
@@ -119,5 +129,67 @@ describe('drainNeedsHolder over the pending log', () => {
   it('does not want a holder once the log has said its only message', async () => {
     const events = eventsOf([posted(), { type: 'user-said', text: 'm4', inboxId: 4 }])
     expect(await needsHolder({ entries: [], knowsPing: true, events })).toBe(false)
+  })
+})
+
+const CHILD = toThreadId('thr_child')
+
+const spawnedChild = (): V2Body => ({
+  type: 'agent-spawned',
+  agentId: CHILD,
+  agentType: 'builder',
+  intent: 'takeover',
+  mode: EAgentStart.Fresh,
+})
+
+const childEventsOf = (bodies: readonly V2Body[]): V2Event[] =>
+  chainEvents({
+    threadId: CHILD,
+    runId: RUN,
+    epoch: 1,
+    at: '2026-11-12T03:00:00.000Z',
+    bodies,
+  })
+
+describe('drainNeedsHolder over the children a takeover left open', () => {
+  it('wants a holder for a child whose last turn finished without an ending', async () => {
+    const events = eventsOf([spawnedChild()])
+    const childEvents = childEventsOf([
+      { type: 'user-said', text: 'go' },
+      { type: 'assistant-said', parts: [{ type: 'text', text: 'done' }] },
+    ])
+    expect(await needsHolder({ entries: [], knowsPing: true, events, childEvents })).toBe(true)
+  })
+
+  it('does not want a holder for a child that never started its turn', async () => {
+    const events = eventsOf([spawnedChild()])
+    const childEvents = childEventsOf([
+      { type: 'worktree-entered', path: '/work/tree', branch: 'dennis/tree', adopted: false },
+    ])
+    expect(await needsHolder({ entries: [], knowsPing: true, events, childEvents })).toBe(false)
+  })
+
+  it('wants a holder for a child whose turn can still be resumed', async () => {
+    const events = eventsOf([spawnedChild()])
+    const childEvents = childEventsOf([{ type: 'user-said', text: 'go' }])
+    expect(await needsHolder({ entries: [], knowsPing: true, events, childEvents })).toBe(true)
+  })
+
+  it('wants a holder for a child whose thread cannot be read', async () => {
+    const events = eventsOf([spawnedChild()])
+    const deps = {
+      sessionId: 'session-1',
+      plane: {
+        readInbox: async () => [],
+        readEvents: async () => {
+          throw new Error('thread missing')
+        },
+      } as unknown as ControlPlane,
+      commands: composeCommands([ping]),
+      commandHandlers: new Map(),
+    } as unknown as HeldSessionDeps
+    expect(
+      await drainNeedsHolder({ deps, record: preparedRecord(events), turnRunning: false }),
+    ).toBe(true)
   })
 })

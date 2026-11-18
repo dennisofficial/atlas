@@ -9,6 +9,7 @@ import {
 import type { McpCloudRead, McpConfigPort } from '@dltech/atlas-plugin-mcp/pod'
 import { z } from 'zod'
 
+import { sameServerUrl } from '../mcp-oauth/seal'
 import { databaseUrlWithTls } from './database-url'
 import { readAgentHostEnv } from './env'
 import { SecretCipher } from './secret-cipher'
@@ -69,7 +70,7 @@ const accessTokenOf = (args: {
   if (oauthSealed === null || oauthServerUrl === null) return undefined
   const parsed = mcpSpecSchema.safeParse(args.spec)
   const transport = parsed.success ? parsed.data.transport : undefined
-  if (transport?.kind !== 'http' || transport.url !== oauthServerUrl) return undefined
+  if (transport?.kind !== 'http' || !sameServerUrl(transport.url, oauthServerUrl)) return undefined
 
   const grant = grantSchema.safeParse(unsealed({ cipher: args.cipher, sealed: oauthSealed }))
   if (!grant.success) return undefined

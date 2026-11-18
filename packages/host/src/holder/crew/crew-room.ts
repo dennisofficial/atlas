@@ -1,4 +1,4 @@
-import { EKilledBy, type ThreadId } from '@dltech/atlas-core'
+import { EKilledBy, lostAgentEnding, type ThreadId } from '@dltech/atlas-core'
 import type {
   PodCrew,
   SubagentSaid,
@@ -7,6 +7,7 @@ import type {
 } from '@dltech/atlas-plugin-sdk'
 
 import { ChildRun, type ChildRunArgs } from './child-run'
+import type { OpenChild } from './open-children'
 
 export type CrewRoomArgs = Omit<ChildRunArgs, 'agentType' | 'intent'>
 
@@ -30,6 +31,27 @@ export class CrewRoom {
     this.runs.set(run.agentId, run)
     void run.say(args.prompt)
     return run.snapshot()
+  }
+
+  async adoptAll(children: readonly OpenChild[]): Promise<void> {
+    for (const child of children) await this.adopt(child)
+  }
+
+  async adopt(child: OpenChild): Promise<void> {
+    const run = await ChildRun.adopt({
+      ...this.args,
+      agentType: child.agentType,
+      intent: child.intent,
+      agentId: child.agentId,
+      spawnedAt: child.spawnedAt,
+      ...(child.worktree === undefined ? {} : { worktree: child.worktree }),
+    })
+    if (run === undefined) {
+      await this.lose(child)
+      return
+    }
+    this.runs.set(run.agentId, run)
+    run.continueTurn()
   }
 
   say(args: { agentId: string; text: string }): Promise<SubagentSaid> {
@@ -67,14 +89,41 @@ export class CrewRoom {
   }
 
   async stopAll(): Promise<void> {
-    const running = [...this.runs.values()]
-    for (const run of running) run.stop(EKilledBy.SessionEnd)
-    await Promise.all(running.map((run) => run.done))
+    const all = [...this.runs.values()]
+    for (const run of all) run.stop(EKilledBy.SessionEnd)
+    await Promise.all(all.map((run) => run.done))
+    await Promise.all(all.map((run) => run.endIdle(EKilledBy.SessionEnd)))
+    this.disposeAll()
+  }
+
+  async close(args: { draining: boolean }): Promise<void> {
+    if (args.draining) {
+      this.pauseAll()
+      return
+    }
+    await this.stopAll()
+  }
+
+  pauseAll(): void {
+    for (const run of this.runs.values()) run.pause()
     this.disposeAll()
   }
 
   disposeAll(): void {
     for (const run of this.runs.values()) run.dispose()
+  }
+
+  private async lose(child: OpenChild): Promise<void> {
+    await this.args.parentRecord.append({
+      threadId: this.args.parentThreadId,
+      runId: this.args.deps.ids.nextRunId(),
+      drafts: [
+        lostAgentEnding({
+          agent: child,
+          progress: { turns: 0, toolCalls: 0, prose: '' },
+        }),
+      ],
+    })
   }
 
   private find(agentId: string): ChildRun {

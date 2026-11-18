@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 
 import { Button } from '#components/button'
 import { cn } from '#lib/utils'
@@ -38,6 +38,8 @@ export interface ChangesPanelProps {
   onCommit?: () => void
   onReview?: () => void
   onOpenPullRequest?: () => void
+  renderDiff?: (file: ChangedFile) => ReactNode
+  hideActions?: boolean
   className?: string
 }
 
@@ -56,6 +58,8 @@ export function ChangesPanel({
   onCommit,
   onReview,
   onOpenPullRequest,
+  renderDiff,
+  hideActions = false,
   className,
 }: ChangesPanelProps) {
   const openFiles = useToggled({
@@ -92,15 +96,19 @@ export function ChangesPanel({
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           <LayoutToggle layout={activeLayout} onLayoutChange={handleLayoutChange} />
-          <Button variant="ghost" size="sm" onClick={onCommit}>
-            Commit
-          </Button>
-          <Button variant="outline" size="sm" onClick={onReview}>
-            Review
-          </Button>
-          <Button size="sm" onClick={onOpenPullRequest}>
-            Open PR
-          </Button>
+          {hideActions ? null : (
+            <>
+              <Button variant="ghost" size="sm" onClick={onCommit}>
+                Commit
+              </Button>
+              <Button variant="outline" size="sm" onClick={onReview}>
+                Review
+              </Button>
+              <Button size="sm" onClick={onOpenPullRequest}>
+                Open PR
+              </Button>
+            </>
+          )}
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-auto">
@@ -116,6 +124,7 @@ export function ChangesPanel({
               collapsed={folders.current}
               onToggleFile={openFiles.toggle}
               onToggleFolder={folders.toggle}
+              renderDiff={renderDiff}
             />
           </div>
         ) : (
@@ -126,14 +135,17 @@ export function ChangesPanel({
                 file={file}
                 open={openFiles.current.includes(file.path)}
                 onToggle={openFiles.toggle}
+                renderDiff={renderDiff}
               />
             ))}
           </ul>
         )}
       </div>
-      <div className="shrink-0 border-t border-border p-1.5">
-        <ScopeSwitcher scopes={scopes} scope={scope} onScopeChange={onScopeChange} />
-      </div>
+      {hideActions ? null : (
+        <div className="shrink-0 border-t border-border p-1.5">
+          <ScopeSwitcher scopes={scopes} scope={scope} onScopeChange={onScopeChange} />
+        </div>
+      )}
     </div>
   )
 }

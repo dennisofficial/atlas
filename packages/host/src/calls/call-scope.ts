@@ -12,6 +12,7 @@ type CallScope = {
   scopeKey: string
   next: number
   dispatchedBootId?: string | undefined
+  attachOnly?: boolean | undefined
 }
 
 const storage = new AsyncLocalStorage<CallScope>()
@@ -30,8 +31,21 @@ export const markDispatched = (args: { bootId: string }): void => {
 
 export const scopeDispatchedBootId = (): string | undefined => storage.getStore()?.dispatchedBootId
 
-export const runInCallScope = <T>(args: { scopeKey: string; body(): T }): T =>
-  storage.run({ scopeKey: args.scopeKey, next: 0 }, args.body)
+export const runInCallScope = <T>(args: {
+  scopeKey: string
+  attachOnly?: boolean | undefined
+  body(): T
+}): T =>
+  storage.run(
+    {
+      scopeKey: args.scopeKey,
+      next: 0,
+      ...(args.attachOnly === undefined ? {} : { attachOnly: args.attachOnly }),
+    },
+    args.body,
+  )
+
+export const scopeAttachOnly = (): boolean => storage.getStore()?.attachOnly === true
 
 export const nextKey = (): string => {
   const scope = storage.getStore()

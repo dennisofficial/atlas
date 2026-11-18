@@ -12,6 +12,7 @@ export {
   markDispatched,
   nextKey,
   runInCallScope,
+  scopeAttachOnly,
   scopeDispatchedBootId,
   scopeKeyOf,
 } from './calls/call-scope'
@@ -34,6 +35,7 @@ export {
   DaemonProcessPort,
   DEFAULT_SANDBOX_COMMANDS,
 } from './calls/ports/process'
+export { PodCalls, type PodCallOutcome } from './holder/pod-calls'
 export { SessionHolder } from './holder/session-holder'
 export type { SessionHolderArgs } from './holder/session-holder-args'
 export { podControlOf, type PodControlClient } from './holder/pod-control'

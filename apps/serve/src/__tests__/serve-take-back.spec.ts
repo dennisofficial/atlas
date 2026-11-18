@@ -10,6 +10,7 @@ import { EWorkspaceState, startServe, type ServeHandle } from '../index'
 
 import { connect, type TestClient } from './client'
 import { fakeServeApp, type FakeServeApp } from './fakes'
+import { withNoRepoSpec } from './spec-home'
 
 const TOKEN = 'session-token'
 const threadId = toThreadId('thread-take-back')
@@ -49,7 +50,7 @@ const start = async (
     intake?: boolean
   } = {},
 ): Promise<{ handle: ServeHandle; app: FakeServeApp; client: TestClient }> => {
-  const home = mkdtempSync(join(tmpdir(), 'atlas-serve-take-back-'))
+  const home = withNoRepoSpec(mkdtempSync(join(tmpdir(), 'atlas-serve-take-back-')))
   homes.push(home)
   heldAtlasHome = process.env.ATLAS_HOME
   process.env.ATLAS_HOME = home

@@ -22,6 +22,7 @@ import { SERVE_BUILD_VERSION } from '../serve-version'
 
 import { fakeServeApp } from './fakes'
 import { trpcOk, trpcUrl } from './trpc-fake'
+import { withNoRepoSpec } from './spec-home'
 
 const threadId = toThreadId('thread-boot-report')
 const controlPlaneUrl = 'https://api.example.com'
@@ -52,7 +53,7 @@ const boot = async (args: {
   env: Record<string, string | undefined>
   ensureWorkspace?: EnsureWorkspace
 }) => {
-  const atlasHome = mkdtempSync(join(tmpdir(), 'atlas-boot-report-'))
+  const atlasHome = withNoRepoSpec(mkdtempSync(join(tmpdir(), 'atlas-boot-report-')))
   homes.push(atlasHome)
   const recorded = recordingFetch()
   const reporter = bootReporterFor({
@@ -154,7 +155,7 @@ describe('serve boot reporting', () => {
 
 describe('startServe boot reporting', () => {
   it('reports every boot step through the real boot path when api-provisioned', async () => {
-    const home = mkdtempSync(join(tmpdir(), 'atlas-boot-report-start-'))
+    const home = withNoRepoSpec(mkdtempSync(join(tmpdir(), 'atlas-boot-report-start-')))
     homes.push(home)
     const previous = process.env.ATLAS_HOME
     process.env.ATLAS_HOME = home

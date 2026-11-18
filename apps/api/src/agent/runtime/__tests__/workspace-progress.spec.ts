@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
+  EProcessOutcome,
   ESetupPhase,
   EWorkspaceRepoState,
   EWorkspaceStep,
@@ -9,7 +10,7 @@ import {
 } from '@dltech/atlas-core'
 import type { SetupLifecycle } from '@dltech/atlas-host'
 
-import { ensureWorkspace } from '../workspace-setup'
+import { ensureWorkspace, SETUP_INTERRUPTED_REASON } from '../workspace-setup'
 import { RecordingProcessPort, StubFileSystemPort } from './workspace-fakes'
 
 const TOKEN = 'ghp_progress-secret'
@@ -178,6 +179,26 @@ describe('workspace steps that fail without blocking', () => {
     expect(warnings.join('\n')).toContain('setup script was skipped')
     expect(processes.spawned.some((call) => call.cmd[0] === 'sh')).toBe(false)
     expect(steps.some((step) => step.step === EWorkspaceStep.Setup)).toBe(false)
+  })
+
+  it('records a setup the pod no longer holds as interrupted, and never runs it a second time', async () => {
+    const processes = new RecordingProcessPort({
+      outcomeOf: (call) =>
+        call.cmd[0] === 'sh' ? { kind: EProcessOutcome.Interrupted } : undefined,
+    })
+    const { result, steps, setups } = await prepare({
+      processes,
+      remoteUrl: null,
+      setupScript: 'bun install',
+    })
+    expect(result).toEqual({ ok: true })
+    expect(steps.at(-1)).toMatchObject({
+      step: EWorkspaceStep.Setup,
+      state: EWorkspaceStepState.Failed,
+      reason: SETUP_INTERRUPTED_REASON,
+    })
+    expect(setups.at(-1)).toMatchObject({ phase: ESetupPhase.Finished, ok: false })
+    expect(processes.spawned.filter((call) => call.cmd[0] === 'sh')).toHaveLength(1)
   })
 
   it('still fails the prepare when the sandbox cannot be reached', async () => {

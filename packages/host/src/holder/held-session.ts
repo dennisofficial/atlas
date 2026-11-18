@@ -59,6 +59,10 @@ export class HeldSession {
   private readonly idle: IdleDeadline
   private readonly fenced: FencedSettlement
   private readonly ending: HeldEnding
+  runtimeOf(): SessionRuntime | undefined {
+    return this.runtime
+  }
+
   private resumeAfterSeq = 0
   private settleFence = true
   private takeOver: TakeOver | undefined
@@ -139,6 +143,7 @@ export class HeldSession {
 
   async handoff(): Promise<void> {
     this.beginDrain()
+    this.crew?.pauseAll()
     this.runtime?.remoteCalls.handoff()
     this.turns.abort('handoff')
     await this.done
@@ -158,7 +163,9 @@ export class HeldSession {
     this.branches?.stop()
     if (this.changes !== undefined)
       await this.changes.stop().catch((error: unknown) => logDriveFault({ deps: this.deps, error }))
-    await this.crew?.stopAll().catch((error: unknown) => logDriveFault({ deps: this.deps, error }))
+    await this.crew
+      ?.close({ draining: this.draining })
+      .catch((error: unknown) => logDriveFault({ deps: this.deps, error }))
     return teardownHeld({
       deps: this.deps,
       runtime: this.runtime,
@@ -216,7 +223,7 @@ export class HeldSession {
     this.logStaged = logStaged
     this.changes = this.changesOf({ runtime, record })
     this.changes?.start()
-    await settleAndCheckResume({ deps, runtime, record, threadId })
+    await settleAndCheckResume({ deps, runtime, record, threadId, crew })
     await recoverCommands()
     this.branchesReady = branchesStarted
     const completion = this.ending.waitForDrive()
@@ -290,6 +297,7 @@ export class HeldSession {
     switch (action) {
       case EHeldAction.ConsumeStop: {
         await settleOperatorOnStop({ deps, record: this.record, runtime: this.runtime })
+        await this.prepare.failStopped()
         await consumeStops({ deps, record: this.record, entries, onActivity: this.noteActivity })
         this.resumeAfterSeq = this.headSeq()
         this.reconciler?.request()

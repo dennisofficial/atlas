@@ -15,7 +15,7 @@ import {
   type ExecResult,
 } from '@dltech/atlas-protocol'
 
-import { nextKey } from '../call-scope'
+import { nextKey, scopeAttachOnly } from '../call-scope'
 import type { RemoteCalls } from '../remote-calls'
 
 export const DEFAULT_SANDBOX_COMMANDS: Readonly<Record<string, string>> = {
@@ -94,6 +94,7 @@ export class DaemonProcessPort extends ProcessPort {
           ...(args.env === undefined ? {} : { env: definedEnv(args.env) }),
         },
         signal: controller.signal,
+        ...(scopeAttachOnly() ? { attachOnly: true } : {}),
         onOutput: (bytes) => void writer.write(bytes),
       })
       .then((result) =>

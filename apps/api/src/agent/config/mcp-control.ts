@@ -8,6 +8,7 @@ import {
   type McpOauthGateway,
   type McpReturnSurface,
 } from '../mcp-oauth'
+import { sameServerUrl } from '../mcp-oauth/seal'
 import { databaseUrlWithTls } from './database-url'
 import { readAgentHostEnv } from './env'
 import { SecretCipher } from './secret-cipher'
@@ -96,7 +97,9 @@ export const mcpControlOf = (args: {
   }): Promise<string | undefined> => {
     const rows = await rowsFor(args2)
     const row = rows.find(
-      (candidate) => (candidate.repoUrl ?? candidate.oauthServerUrl) === args2.url,
+      (candidate) =>
+        sameServerUrl(candidate.repoUrl, args2.url) ||
+        sameServerUrl(candidate.oauthServerUrl, args2.url),
     )
     if (row === undefined || row.oauthStatus !== 'active' || row.oauthSealed === null)
       return undefined

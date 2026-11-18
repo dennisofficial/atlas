@@ -164,6 +164,33 @@ describe('the cloud oauth grant', () => {
     ])
   })
 
+  it('carries the token when the row url differs from the spec url only by a trailing slash', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedServer({
+      db,
+      id: 'srv-posthog',
+      name: 'posthog',
+      scope: { projectId: 'proj-1' },
+      spec: { name: 'posthog', transport: { kind: 'http', url: 'https://mcp.paper.design' } },
+      over: {
+        oauthStatus: 'active',
+        oauthServerUrl: 'https://mcp.paper.design/',
+        oauthSealed: sealed(grantOf()),
+      },
+    })
+
+    const cloud = await readerOver(db).read({ sessionId: 's-1' })
+
+    expect(cloud.rows).toEqual([
+      {
+        source: 'project',
+        spec: { name: 'posthog', transport: { kind: 'http', url: 'https://mcp.paper.design' } },
+        accessToken: 'at-1',
+      },
+    ])
+  })
+
   it('leaves a grant made for another url without a token', async () => {
     const { db } = testDb()
     await seedOwner(db)

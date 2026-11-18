@@ -1,7 +1,11 @@
 import {
   ESetupPhase,
+  EWorkspaceStep,
+  EWorkspaceStepState,
   setupFinishedText,
   setupStartedText,
+  setupInFlightOf,
+  workspaceStepsOf,
   type EventDraft,
   type RunId,
   type ThreadId,
@@ -12,12 +16,19 @@ import { setupOutputCallId } from '@dltech/atlas-protocol'
 
 import type { HeldSessionDeps } from './held-session-deps'
 import { fireLive, type PrepareResult, type SessionRuntime, type SetupLifecycle } from './ports'
+import type { AppendBody } from './record/append-drafts'
 import type { SessionRecord } from './record/record-adapter'
 import { setupWarningText } from './setup-warning'
+
+const SETUP_STOPPED_REASON = 'setup was stopped with the session'
 
 export class HeldPrepare {
   private active = false
   private setupRunning = false
+  private resuming = false
+  private joined = false
+  private script: string | undefined
+  private setupStartedAt: number | undefined
   private startedText: string | undefined
   private finished: { text: string; failed: boolean } | undefined
   private target: { record: SessionRecord; threadId: ThreadId } | undefined
@@ -46,13 +57,20 @@ export class HeldPrepare {
     threadId: ThreadId
     inboxHead: number
   }): void {
-    if (this.active) return
+    // a setup left running by an earlier host is joined once, not on every reconciler step
+    if (this.active || this.joined) return
     this.active = true
     this.settled = false
     this.startedText = undefined
     this.finished = undefined
-    this.setupRunning = false
     this.target = { record: args.record, threadId: args.threadId }
+    const recorded = args.record.eventCache().eventsAfter(0)
+    const setup = workspaceStepsOf(recorded)[EWorkspaceStep.Setup]
+    this.resuming = setupInFlightOf(recorded)
+    this.joined = this.resuming
+    this.script = setup?.command
+    this.setupStartedAt = setup === undefined ? undefined : Date.parse(setup.at)
+    this.setupRunning = this.resuming
     const { deps } = this.args
     const runId: RunId = deps.ids.nextRunId()
     let failed = false
@@ -101,21 +119,73 @@ export class HeldPrepare {
   private onSetup(lifecycle: SetupLifecycle): void {
     if (this.args.abandoned()) return
     if (lifecycle.phase === ESetupPhase.Started) {
-      this.startedText = setupStartedText({ script: lifecycle.script })
+      this.script = lifecycle.script
+      if (!this.resuming) this.startedText = setupStartedText({ script: lifecycle.script })
       this.setupRunning = true
       return
     }
     this.setupRunning = false
+    this.joined = false
     this.finished = {
       text: setupFinishedText({
         script: lifecycle.script,
         ok: lifecycle.ok,
-        durationMs: lifecycle.durationMs,
+        durationMs: Math.max(lifecycle.durationMs, this.elapsedMs()),
         output: lifecycle.output,
       }),
       failed: !lifecycle.ok,
     }
     void this.flushSetupEnd()
+  }
+
+  /**
+   * The session was stopped (or archived) while the setup script was still running on the pod:
+   * nothing will report its end now, so the record has to say that it did not finish.
+   */
+  async failStopped(): Promise<void> {
+    const target = this.target
+    if (target === undefined || !this.setupRunning) return
+    const script = this.script ?? ''
+    this.setupRunning = false
+    this.joined = false
+    this.finished = undefined
+    await target.record
+      .append({
+        threadId: target.threadId,
+        runId: this.args.deps.ids.nextRunId(),
+        drafts: [
+          {
+            type: 'workspace-step',
+            step: EWorkspaceStep.Setup,
+            state: EWorkspaceStepState.Failed,
+            reason: SETUP_STOPPED_REASON,
+            ...(script === '' ? {} : { command: script }),
+          },
+          {
+            type: 'sandbox-setup-reported',
+            text: setupFinishedText({
+              script,
+              ok: false,
+              durationMs: this.elapsedMs(),
+              output: '',
+            }),
+            failed: true,
+            phase: ESetupPhase.Finished,
+          },
+        ],
+      })
+      .catch((error) => {
+        this.args.deps.log?.error({
+          source: 'holder.prepare',
+          message: `recording the stop of the setup of ${this.args.deps.sessionId} failed`,
+          ...logFieldsOf({ error }),
+        })
+      })
+  }
+
+  private elapsedMs(): number {
+    const since = this.setupStartedAt
+    return since === undefined ? 0 : Math.max(0, this.args.deps.timers.now() - since)
   }
 
   private async flushSetupEnd(): Promise<void> {
@@ -191,23 +261,25 @@ export class HeldPrepare {
       return
     }
     const warnings = result.warnings ?? []
-    await args.record.append({
-      threadId: args.threadId,
-      runId,
-      drafts: [
-        ...started,
-        ...(warnings.length === 0
-          ? [{ type: 'workspace-prepared' } as const]
-          : [
-              {
-                type: 'sandbox-setup-reported' as const,
-                text: setupWarningText(warnings),
-                failed: true,
-              },
-              { type: 'workspace-prepared' as const, warnings: [...warnings] },
-            ]),
-      ],
-    })
+    const drafts: AppendBody[] = [...started]
+    if (warnings.length > 0) {
+      drafts.push({
+        type: 'sandbox-setup-reported',
+        text: setupWarningText(warnings),
+        failed: true,
+      })
+    }
+    // a resumed prepare of an already prepared workspace has its own notice to report, and must
+    // not claim the workspace was prepared a second time
+    if (!this.resuming) {
+      drafts.push(
+        warnings.length === 0
+          ? { type: 'workspace-prepared' }
+          : { type: 'workspace-prepared', warnings: [...warnings] },
+      )
+    }
+    if (drafts.length === 0) return
+    await args.record.append({ threadId: args.threadId, runId, drafts })
   }
 
   private takeStarted(): EventDraft[] {

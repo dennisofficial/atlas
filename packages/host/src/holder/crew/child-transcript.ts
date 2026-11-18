@@ -66,14 +66,14 @@ export class ChildTranscript {
     ])
   }
 
-  async restarted(): Promise<void> {
+  async restarted(args: { via: EAgentRestart }): Promise<void> {
     await this.append([
       {
         type: 'agent-restarted',
         agentId: this.args.agentId,
         agentType: this.args.agentType,
         intent: this.args.intent,
-        via: EAgentRestart.Message,
+        via: args.via,
       },
     ])
   }

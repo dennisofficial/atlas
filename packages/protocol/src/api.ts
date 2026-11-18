@@ -252,6 +252,16 @@ export const sessionCommandInputSchema = z.strictObject({
   args: z.unknown(),
 })
 
+export const sessionWakeInputSchema = z.strictObject({
+  sessionId: z.string().min(1),
+})
+
+export const sessionWakeOutputSchema = z.strictObject({
+  state: z.enum(['awake', 'waking', 'elsewhere']),
+})
+export type SessionWakeInput = z.infer<typeof sessionWakeInputSchema>
+export type SessionWakeOutput = z.infer<typeof sessionWakeOutputSchema>
+
 export const sessionViewInputSchema = z.strictObject({
   sessionId: z.string().min(1),
 })

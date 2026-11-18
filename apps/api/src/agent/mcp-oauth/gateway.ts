@@ -8,7 +8,7 @@ import { discoverOauthEndpoints } from './discovery'
 import { OAuthError } from './errors'
 import { generatePkce } from './pkce'
 import { returnPathOf } from './redirect'
-import { normalizeServerUrl, sealJson, unsealJson } from './seal'
+import { normalizeServerUrl, sameServerUrl, sealJson, unsealJson } from './seal'
 import { serverUrlOf } from './server-url'
 import { guardedFetch, SsrfRejectedError, type HostResolver } from './ssrf'
 import { McpOauthStore } from './store'
@@ -205,7 +205,7 @@ export class McpOauthService implements McpOauthGateway {
       row.oauthStatus !== 'active' ||
       row.oauthSealed === null ||
       args.serverUrl === undefined ||
-      row.oauthServerUrl !== args.serverUrl
+      !sameServerUrl(row.oauthServerUrl, args.serverUrl)
     ) {
       return null
     }

@@ -31,7 +31,7 @@ import { signerUploadBlobs } from '../uploads/upload-blobs'
 import type { ConfigSource } from '../config/agent-host-config'
 import type { CloudConfigStore } from '../config/cloud-config-store'
 import type { EnvSecretsSource } from '../config/env-secrets'
-import { SANDBOX_HOME_PATH, WORKSPACE_PATH } from '../sandbox/constants'
+import { SANDBOX_HOME_PATH, workspaceDirectoryOf } from '../sandbox/constants'
 import { SandboxProvider, sandboxNameOf } from '../sandbox/sandbox-provider'
 import { abortable } from './abortable'
 import { SandboxNotConfiguredError } from './sandbox-not-configured-error'
@@ -50,6 +50,7 @@ import { configToolsOf } from './config-tools'
 import { daemonToolsOf } from './tools'
 import { ShellEnvCell } from './shell-env'
 import { envSecretsRefresher } from './env-secrets-refresh'
+import { githubTokenRefresher } from './github-token-refresh'
 import { pathEnvironmentOf, sessionPathsOf, shellEnvironmentOf } from './session-paths'
 import { fixedSessionModelsOf, liveSessionModelsOf, type SessionModels } from './model-port'
 import { modelLabelOf } from '../config/model-labels'
@@ -85,7 +86,6 @@ export type SessionRuntimeFactoryArgs = {
 export const createSessionRuntimeFactory = (
   args: SessionRuntimeFactoryArgs,
 ): SessionRuntimeFactory => {
-  const launchDirectory = args.launchDirectory ?? WORKSPACE_PATH
   return async ({
     sessionId,
     podSessionId: sandboxSessionId,
@@ -95,6 +95,8 @@ export const createSessionRuntimeFactory = (
     spawner,
   }) => {
     const config = await args.config.read({ sessionId })
+    const launchDirectory =
+      args.launchDirectory ?? workspaceDirectoryOf({ remoteUrl: config.workspace.remoteUrl })
     if (config.vercel.configured === false) {
       throw new SandboxNotConfiguredError(config.vercel.gap)
     }
@@ -154,7 +156,16 @@ export const createSessionRuntimeFactory = (
       sessionId,
       ...(args.log === undefined ? {} : { log: args.log }),
     })
+    const refreshGithubToken = githubTokenRefresher({
+      reader: args.github,
+      cell: shellEnv,
+      userId: config.userId,
+      sessionId,
+      launchDirectory,
+      log: args.log,
+    })
     let setupListener: ((lifecycle: SetupLifecycle) => void) | undefined
+    const setupLifecycles: SetupLifecycle[] = []
     const attempt = (signal: AbortSignal): Promise<PrepareResult> =>
       abortable(calls.ready(), signal)
         .then(async () => {
@@ -186,7 +197,10 @@ export const createSessionRuntimeFactory = (
             signal,
             onStep: (step) => steps.report(step),
             onOutput: (text) => steps.output(text),
-            onSetup: (lifecycle) => setupListener?.(lifecycle),
+            onSetup: (lifecycle) => {
+              setupLifecycles.push(lifecycle)
+              setupListener?.(lifecycle)
+            },
             ...(args.log === undefined ? {} : { log: args.log }),
           })
         })
@@ -251,7 +265,7 @@ export const createSessionRuntimeFactory = (
     })
     const repoAt = (path: string) => repoMap.find((entry) => entry.path === path)
     const sessionShellEnv = async (): Promise<Record<string, string>> => {
-      await refreshSecrets()
+      await Promise.all([refreshSecrets(), refreshGithubToken()])
       return shellEnvironmentOf({ paths, base: shellEnv.current() })
     }
     const daemonToolList = daemonToolsOf({
@@ -345,8 +359,10 @@ export const createSessionRuntimeFactory = (
       env: sessionShellEnv,
       prepare,
       subscribePrepareOutput: (listener) => steps.subscribeOutput(listener),
+      // the setup script may start, or finish, before a replacement host subscribes: replay it
       subscribeSetup: (listener) => {
         setupListener = listener
+        for (const lifecycle of setupLifecycles) listener(lifecycle)
       },
       stop: async () => {
         stopKeepAlive()

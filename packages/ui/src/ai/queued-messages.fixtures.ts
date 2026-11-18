@@ -51,6 +51,18 @@ export const WITH_IMAGES: QueuedMessageEntry[] = [
   },
 ]
 
+export const LONG_QUEUED: QueuedMessageEntry[] = [
+  {
+    id: 'l1',
+    text: Array.from(
+      { length: 12 },
+      (_, index) =>
+        `Paragraph ${index + 1}: explain what the change means in practice, who gains or loses access, and what the approver has to consciously accept before merging.`,
+    ).join('\n\n'),
+    attachments: [],
+  },
+]
+
 export const FILE_ONLY: QueuedMessageEntry[] = [{ id: 'f1', text: '', attachments: [SPEC_PDF] }]
 
 export const MANY_QUEUED: QueuedMessageEntry[] = Array.from({ length: 8 }, (_, index) => ({

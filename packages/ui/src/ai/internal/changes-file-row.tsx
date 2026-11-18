@@ -1,4 +1,5 @@
 import { ChevronRightIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
 
 import { cn } from '#lib/utils'
 import { DiffViewer } from '../diff-viewer'
@@ -24,9 +25,17 @@ interface FileRowProps {
   onToggle: (path: string) => void
   showDir?: boolean
   depth?: number
+  renderDiff?: (file: ChangedFile) => ReactNode
 }
 
-export function FileRow({ file, open, onToggle, showDir = true, depth = 0 }: FileRowProps) {
+export function FileRow({
+  file,
+  open,
+  onToggle,
+  showDir = true,
+  depth = 0,
+  renderDiff,
+}: FileRowProps) {
   const { name, dir } = splitPath(file.path)
   const mark = CHANGE_MARK[file.change]
   const handleToggle = () => onToggle(file.path)
@@ -66,7 +75,9 @@ export function FileRow({ file, open, onToggle, showDir = true, depth = 0 }: Fil
       </button>
       {open ? (
         <div className="px-3 pt-1 pb-2">
-          {file.lines ? (
+          {renderDiff ? (
+            renderDiff(file)
+          ) : file.lines ? (
             <DiffViewer
               path={file.path}
               lines={file.lines}

@@ -16,6 +16,7 @@ import { EWorkspaceState } from '../materialize-workspace'
 import { bootServeFiles } from '../serve-boot'
 
 import { trpcFailure, trpcOk, trpcProcedureOf } from './trpc-fake'
+import { withNoRepoSpec } from './spec-home'
 
 const homes: string[] = []
 
@@ -41,7 +42,7 @@ const cloudFetch = (async (input: string | URL | Request) => {
 
 describe('serve boot setup order', () => {
   it('applies settings before setup and finishes context while setup is still running', async () => {
-    const atlasHome = mkdtempSync(join(tmpdir(), 'atlas-boot-setup-order-'))
+    const atlasHome = withNoRepoSpec(mkdtempSync(join(tmpdir(), 'atlas-boot-setup-order-')))
     homes.push(atlasHome)
     const env: Record<string, string | undefined> = {}
     const events: BootStepEvent[] = []

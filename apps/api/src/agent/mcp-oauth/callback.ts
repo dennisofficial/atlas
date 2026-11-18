@@ -2,7 +2,7 @@ import type { Db } from '@dltech/atlas-db'
 
 import type { SecretCipher } from '../config/secret-cipher'
 import { callbackAnswerOf, DEFAULT_RETURN_TARGET, type CallbackAnswer } from './redirect'
-import { sealJson, unsealJson } from './seal'
+import { sameServerUrl, sealJson, unsealJson } from './seal'
 import { serverUrlOf } from './server-url'
 import { guardedFetch, type HostResolver } from './ssrf'
 import { McpOauthStore } from './store'
@@ -75,7 +75,11 @@ export const mcpOauthCallbackOf = (args: McpOauthCallbackArgs) => {
         reason,
       })
 
-  const exchange = async (pending: PendingRow, code: string): Promise<CallbackAnswer> => {
+  const exchange = async (
+    pending: PendingRow,
+    code: string,
+    refuse: (reason: string) => Promise<CallbackAnswer>,
+  ): Promise<CallbackAnswer> => {
     const sealed = unsealJson({
       cipher: args.cipher,
       sealed: pending.sealed,
@@ -101,7 +105,7 @@ export const mcpOauthCallbackOf = (args: McpOauthCallbackArgs) => {
       ...(sealed.resource === undefined ? {} : { resource: sealed.resource }),
     }
     const row = await store.find({ id: pending.mcpServerId ?? '' })
-    if (row === null) return failedOf(pending)('server_changed')
+    if (row === null) return await refuse('server_changed')
     const written = await store.writeGrant({
       id: row.id,
       generation: row.oauthGeneration,
@@ -114,36 +118,52 @@ export const mcpOauthCallbackOf = (args: McpOauthCallbackArgs) => {
           target: sealed.returnTarget,
           serverUrl: pending.serverUrl,
         })
-      : failedOf(pending)('server_changed')
+      : await refuse('server_changed')
   }
 
   return async (query: QueryParams): Promise<CallbackAnswer> => {
     const param = (name: string): string | undefined => query.get(name) ?? undefined
     const state = param('state')
-    const pending =
-      state === undefined || state === '' ? null : await store.takePending({ id: state })
-    const failed = failedOf(pending)
-    if (pending === null) return failed('unknown_state')
-    if (pending.mcpServerId === null) return failed('unknown_state')
+    const claim =
+      state === undefined || state === '' ? null : await store.claimPending({ id: state })
+    if (claim === null || claim.kind === 'missing') return failedOf(null)('unknown_state')
+    const pending = claim.pending
+    const refused = async (reason: string, serverUrl?: string): Promise<CallbackAnswer> => {
+      await store.deletePending({ id: pending.id })
+      return failedOf(pending)(reason, serverUrl)
+    }
+    if (pending.mcpServerId === null) return await refused('unknown_state')
     const row = await store.find({ id: pending.mcpServerId })
-    if (row === null) return failed('server_changed')
-    if (!(await ownsRow({ store, row, userId: pending.userId }))) return failed('session_mismatch')
-    if (pending.expiresAt.getTime() < now()) return failed('expired')
+    if (row === null) return await refused('server_changed')
+    if (!(await ownsRow({ store, row, userId: pending.userId })))
+      return await refused('session_mismatch')
+    if (pending.expiresAt.getTime() < now()) return await refused('expired')
+    if (claim.kind === 'completed') {
+      const active =
+        row.oauthStatus === 'active' && sameServerUrl(row.oauthServerUrl, pending.serverUrl)
+      return active
+        ? callbackAnswerOf({
+            webOrigin: args.webOrigin,
+            target: targetOf(pending),
+            serverUrl: pending.serverUrl,
+          })
+        : await refused('server_changed')
+    }
     const error = param('error')
-    if (error !== undefined) return failed(param('error_description') ?? error)
+    if (error !== undefined) return await refused(param('error_description') ?? error)
     const code = param('code')
-    if (code === undefined || code === '') return failed('missing_code')
+    if (code === undefined || code === '') return await refused('missing_code')
     let serverUrl: string | undefined
     try {
       serverUrl = serverUrlOf({ cipher: args.cipher, row })
     } catch {
       serverUrl = undefined
     }
-    if (serverUrl !== pending.serverUrl) return failed('server_changed')
+    if (!sameServerUrl(serverUrl, pending.serverUrl)) return await refused('server_changed')
     try {
-      return await exchange(pending, code)
+      return await exchange(pending, code, refused)
     } catch {
-      return failed('exchange_failed')
+      return await refused('exchange_failed')
     }
   }
 }

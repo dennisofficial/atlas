@@ -11,6 +11,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { AnalyticsProvider } from '../analytics/analytics-provider'
 import { AuthProvider, useAuth } from '../auth/auth-provider'
 import { EAuthState } from '../auth/auth-reducer'
+import { CrashScreen } from '../errors/crash-screen'
 import { destinationOfUrl, type TDestination } from '../navigation/destination'
 import { installBackgroundNotifications } from '../push/background-notifications'
 import {
@@ -23,6 +24,8 @@ import { fontAssets } from '../theme/fonts'
 import { navigationThemeOf } from '../theme/navigation-theme'
 import { installWebReset } from '../theme/web-reset'
 import { UpdateCard } from '../updates/update-card'
+
+export const ErrorBoundary = CrashScreen
 
 installNotificationHandler()
 installBackgroundNotifications()

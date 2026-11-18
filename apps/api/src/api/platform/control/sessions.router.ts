@@ -22,6 +22,8 @@ import {
   sessionRetryInputSchema,
   sessionRetryOutputSchema,
   sessionViewInputSchema,
+  sessionWakeInputSchema,
+  sessionWakeOutputSchema,
   sessionViewOutputSchema,
   sessionStatusInputSchema,
   sessionStatusOutputSchema,
@@ -51,6 +53,8 @@ import {
   type SessionRetryOutput,
   type SessionViewInput,
   type SessionViewOutput,
+  type SessionWakeInput,
+  type SessionWakeOutput,
   type SessionStatusInput,
   type SessionStatusOutput,
   type SessionStopInput,
@@ -179,6 +183,12 @@ export class SessionsRouter {
     @Ctx() ctx: SessionTrpcCtx,
   ): Promise<SessionChangeContentOutput> {
     return this.changesService.content({ userId: ctx.auth.userId, ...input })
+  }
+
+  @Mutation({ input: sessionWakeInputSchema, output: sessionWakeOutputSchema })
+  wake(@Input() input: SessionWakeInput, @Ctx() ctx: SessionTrpcCtx): Promise<SessionWakeOutput> {
+    this.refuseBatched(ctx)
+    return this.sessions.wake({ userId: ctx.auth.userId, sessionId: input.sessionId })
   }
 
   @Query({ input: sessionViewInputSchema, output: sessionViewOutputSchema })

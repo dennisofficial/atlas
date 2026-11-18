@@ -110,6 +110,44 @@ const runWith = (
   })
 
 describe('BrowserTool', () => {
+  it('creates the folder of a screenshot path before running, resolving it against the project', async () => {
+    const processes = new FakeProcesses('/usr/local/bin/agent-browser')
+    const made: { path: string; threadId?: ThreadId | undefined }[] = []
+    const files = {
+      mkdir: async (args: { path: string; threadId?: ThreadId | undefined }) =>
+        void made.push(args),
+    }
+
+    const absolute = await new BrowserTool(processes, files).invoke({
+      input: { args: ['screenshot', '--full', '/tmp/shots/long.png'] },
+      signal: new AbortController().signal,
+      idempotencyKey: 'browser-tool',
+      projectDirectory: '/work',
+      threadId: THREAD,
+    })
+    const relative = await new BrowserTool(processes, files).invoke({
+      input: { args: ['screenshot', 'out/page.png'] },
+      signal: new AbortController().signal,
+      idempotencyKey: 'browser-tool',
+      projectDirectory: '/work',
+      threadId: THREAD,
+    })
+
+    expect(absolute.ok).toBe(true)
+    expect(relative.ok).toBe(true)
+    expect(made).toEqual([
+      { path: '/tmp/shots', threadId: THREAD },
+      { path: '/work/out', threadId: THREAD },
+    ])
+  })
+
+  it('describes screenshot with a positional path, never a --path flag', () => {
+    const { description } = new BrowserTool(new FakeProcesses(null))
+
+    expect(description).toContain('screenshot <file>')
+    expect(description).not.toContain('--path')
+  })
+
   it('spawns the found binary under this thread session, with the arguments as given', async () => {
     const processes = new FakeProcesses('/usr/local/bin/agent-browser', 'opened')
 

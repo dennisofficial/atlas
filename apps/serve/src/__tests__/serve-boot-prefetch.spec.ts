@@ -14,6 +14,7 @@ import { bootServeFiles } from '../serve-boot'
 import { fakeServeApp } from './fakes'
 import { inMemoryContextFiles } from './serve-spec-fixture'
 import { trpcFailure, trpcOk, trpcProcedureOf } from './trpc-fake'
+import { withNoRepoSpec } from './spec-home'
 
 const API = 'https://api.example.com'
 const threadId = toThreadId('thread-prefetch')
@@ -26,7 +27,7 @@ afterEach(async () => {
 })
 
 const scratchHome = (): string => {
-  const home = mkdtempSync(join(tmpdir(), 'atlas-prefetch-'))
+  const home = withNoRepoSpec(mkdtempSync(join(tmpdir(), 'atlas-prefetch-')))
   homes.push(home)
   return home
 }

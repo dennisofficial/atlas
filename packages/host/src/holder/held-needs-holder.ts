@@ -3,6 +3,7 @@ import {
   drainWantsHolder,
   initialLoopState,
   isResumableOf,
+  setupInFlightOf,
   workspaceStateFrom,
 } from '@dltech/atlas-core'
 
@@ -14,6 +15,7 @@ import {
   understandsCommand,
   waitingInputIdsOf,
 } from './held-inbox'
+import { childrenAtWorkOf, openChildrenOf } from './crew/open-children'
 import type { HeldSessionDeps } from './held-session-deps'
 import type { SessionRecord } from './record/record-adapter'
 
@@ -27,7 +29,9 @@ export const drainNeedsHolder = async (args: {
     const entries = (await readFullInbox(args.deps)).filter((entry) =>
       understandsCommand(args.deps, entry),
     )
-    const logIds = logPendingMessageIdsOf(cache?.eventsAfter(0) ?? [])
+    const events = cache?.eventsAfter(0) ?? []
+    if (setupInFlightOf(events)) return true
+    const logIds = logPendingMessageIdsOf(events)
     const workspace = workspaceStateFrom({
       record: cache?.bookkeeping().workspace() ?? NO_WORKSPACE_RECORD,
       preparing: false,
@@ -36,8 +40,10 @@ export const drainNeedsHolder = async (args: {
         ...logIds,
       ],
     })
+    const children = openChildrenOf(cache?.visibleLoopEvents() ?? [])
     return drainWantsHolder({
       turn: args.turnRunning ? 'running' : 'idle',
+      childrenRunning: (await childrenAtWorkOf({ plane: args.deps.plane, children })) > 0,
       resumable: isResumableOf(cache?.loopState() ?? initialLoopState()),
       messagePending:
         actionableEntries({ entries, failure: workspace.failure }).length > 0 ||

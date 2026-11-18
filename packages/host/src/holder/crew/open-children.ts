@@ -1,24 +1,79 @@
-import { lostAgentEnding, unendedSpawns, type IdPort, type ThreadId } from '@dltech/atlas-core'
+import {
+  loopStateOf,
+  owesEndingOf,
+  toLoopEvent,
+  unendedSpawns,
+  type Event,
+  type ThreadId,
+  type V2Event,
+} from '@dltech/atlas-core'
+import type { ControlPlane } from '@dltech/atlas-control'
+import type { WorktreeEntryInfo } from '@dltech/atlas-plugin-sdk'
 
 import type { SessionRecord } from '../record/record-adapter'
 
-export const settleOpenChildren = async (args: {
+const READ_LIMIT = 1000
+
+export type OpenChild = {
+  agentId: ThreadId
+  agentType: string
+  intent: string
+  spawnedAt: string
+  worktree: WorktreeEntryInfo | undefined
+}
+
+export const openChildrenOf = (events: readonly Event[]): readonly OpenChild[] =>
+  unendedSpawns(events).map((spawn) => ({
+    agentId: spawn.agentId,
+    agentType: spawn.agentType,
+    intent: spawn.intent,
+    spawnedAt: spawn.at,
+    worktree: spawn.worktree,
+  }))
+
+export const openChildren = async (args: {
   record: SessionRecord
-  ids: IdPort
   threadId: ThreadId
-}): Promise<number> => {
-  const open = unendedSpawns(await args.record.ownEvents({ threadId: args.threadId }))
-  for (const spawn of open) {
-    await args.record.append({
+}): Promise<readonly OpenChild[]> =>
+  openChildrenOf(await args.record.ownEvents({ threadId: args.threadId }))
+
+const loopEventsOf = (events: readonly V2Event[]): Event[] =>
+  events.flatMap((event) => {
+    const loop = toLoopEvent({ event })
+    return loop === undefined ? [] : [loop]
+  })
+
+const threadEventsOf = async (args: {
+  plane: ControlPlane
+  threadId: ThreadId
+}): Promise<V2Event[]> => {
+  const events: V2Event[] = []
+  let afterSeq = 0
+  for (;;) {
+    const page = await args.plane.readEvents({
       threadId: args.threadId,
-      runId: args.ids.nextRunId(),
-      drafts: [
-        lostAgentEnding({
-          agent: { agentId: spawn.agentId, agentType: spawn.agentType, intent: spawn.intent },
-          progress: { turns: 0, toolCalls: 0, prose: '' },
-        }),
-      ],
+      afterSeq,
+      limit: READ_LIMIT,
+      visible: true,
     })
+    events.push(...page.events)
+    if (page.next === undefined) return events
+    afterSeq = page.next
   }
-  return open.length
+}
+
+const childOwesEnding = async (args: { plane: ControlPlane; child: OpenChild }): Promise<boolean> =>
+  threadEventsOf({ plane: args.plane, threadId: args.child.agentId })
+    .then((events) => owesEndingOf(loopStateOf({ events: loopEventsOf(events) })))
+    .catch(() => true)
+
+export const childrenAtWorkOf = async (args: {
+  plane: ControlPlane
+  children: readonly OpenChild[]
+}): Promise<number> => {
+  let atWork = 0
+  for (const child of args.children) {
+    if (await childOwesEnding({ plane: args.plane, child })) atWork += 1
+  }
+  return atWork
 }

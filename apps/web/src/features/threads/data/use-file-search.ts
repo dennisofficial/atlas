@@ -3,11 +3,8 @@
 import { useEffect, useState } from 'react'
 
 import { messageOfFailure } from './git-changes-load'
-import {
-  isSearchUnsupported,
-  searchWorkspaceFiles,
-  type FileSearchChannel,
-} from './file-search-source'
+import { isSearchUnsupported } from './file-search-source'
+import type { FileSource } from './file-source'
 
 export const SEARCH_DEBOUNCE_MS = 120
 
@@ -30,34 +27,33 @@ export type FileSearchView =
   | { status: EFileSearchStatus.Unsupported }
   | { status: EFileSearchStatus.Failed; message: string }
 
-type Settled = { query: string; refreshKey: number; view: FileSearchView }
+type Settled = { query: string; view: FileSearchView }
 
 export function useFileSearch(args: {
-  channel: FileSearchChannel
+  source: FileSource | null
   query: string
-  refreshKey: number
+  refreshKey?: number
 }): FileSearchView {
-  const { channel, refreshKey } = args
+  const { source } = args
+  const refreshKey = args.refreshKey ?? 0
   const query = args.query.trim()
   const [settled, setSettled] = useState<Settled | null>(null)
 
   useEffect(() => {
-    if (query === '') return undefined
+    if (query === '' || source === null) return undefined
     let active = true
     const timer = setTimeout(() => {
-      searchWorkspaceFiles({ channel, query }).then(
+      source.search({ query }).then(
         (reply) =>
           active &&
           setSettled({
             query,
-            refreshKey,
             view: { status: EFileSearchStatus.Ready, ...reply },
           }),
         (failure: unknown) =>
           active &&
           setSettled({
             query,
-            refreshKey,
             view: isSearchUnsupported(failure)
               ? { status: EFileSearchStatus.Unsupported }
               : { status: EFileSearchStatus.Failed, message: messageOfFailure(failure) },
@@ -68,7 +64,7 @@ export function useFileSearch(args: {
       active = false
       clearTimeout(timer)
     }
-  }, [channel, query, refreshKey])
+  }, [source, query, refreshKey])
 
   if (query === '') return { status: EFileSearchStatus.Idle }
   if (settled === null || settled.query !== query) return { status: EFileSearchStatus.Loading }

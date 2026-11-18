@@ -14,7 +14,7 @@ import type { HeldSessionDeps } from './held-session-deps'
 import { LeaseLostError } from './record/record-adapter'
 import type { HeldTurns } from './held-turns'
 import { InboxIntake } from './inbox-intake'
-import { settleOpenChildren } from './crew/open-children'
+import { openChildren, type OpenChild } from './crew/open-children'
 import { operatorAnswersOf } from './operator-answer'
 import type { PodCrew } from '@dltech/atlas-plugin-sdk'
 
@@ -78,6 +78,7 @@ export const settleAndCheckResume = async (args: {
   runtime: SessionRuntime
   record: SessionRecord
   threadId: ThreadId
+  crew: { adoptAll(children: readonly OpenChild[]): Promise<void> }
 }): Promise<boolean> => {
   const { deps, runtime, record, threadId } = args
   await settleCrashedCalls({
@@ -86,7 +87,7 @@ export const settleAndCheckResume = async (args: {
     threadId,
     effectOf: (name) => (runtime.daemonTools.has(name) ? EToolEffect.Read : runtime.effectOf(name)),
   })
-  await settleOpenChildren({ record, ids: deps.ids, threadId })
+  await args.crew.adoptAll(await openChildren({ record, threadId }))
   return isResumableOf(await record.loopState({ threadId }))
 }
 

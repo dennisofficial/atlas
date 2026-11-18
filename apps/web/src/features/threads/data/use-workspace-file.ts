@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 
 import type { WorkspaceFileWire } from '@dltech/atlas-wire/web'
 
-import { readWorkspaceFile, type WorkspaceFileChannel } from './workspace-file-source'
+import type { FileSource } from './file-source'
 
 export type LoadedWorkspaceFile =
   | { state: 'loading' }
@@ -12,27 +12,30 @@ export type LoadedWorkspaceFile =
   | { state: 'ready'; file: WorkspaceFileWire }
 
 export function useWorkspaceFile(args: {
-  channel: WorkspaceFileChannel | null
+  source: FileSource | null
   path: string
-  refreshKey: number
+  refreshKey?: number
+  podAwake?: boolean
 }): LoadedWorkspaceFile {
-  const { channel, path, refreshKey } = args
+  const { source, path } = args
+  const podAwake = args.podAwake ?? true
+  const refreshKey = args.refreshKey ?? 0
   const [settled, setSettled] = useState<{
     path: string
     result: LoadedWorkspaceFile
   } | null>(null)
 
   useEffect(() => {
-    if (channel === null) return undefined
+    if (source === null || !podAwake) return undefined
     let active = true
-    readWorkspaceFile({ channel, path }).then(
+    source.read({ path }).then(
       (file) => active && setSettled({ path, result: { state: 'ready', file } }),
       () => active && setSettled({ path, result: { state: 'failed' } }),
     )
     return () => {
       active = false
     }
-  }, [channel, path, refreshKey])
+  }, [source, path, refreshKey, podAwake])
 
   if (settled === null || settled.path !== path) return { state: 'loading' }
   return settled.result
