@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
+import type { ApiClient } from '@dltech/atlas-api-router'
 import {
   ESessionConnection,
   type FollowedSession,
@@ -24,15 +25,18 @@ const NOT_FOLLOWING: SessionSnapshot = {
 
 const notFollowingSnapshot = (): SessionSnapshot => NOT_FOLLOWING
 
-export function useV2Session(sessionId: string): {
+export function useV2Session(args: { sessionId: string; api: ApiClient | undefined }): {
   snapshot: SessionSnapshot
   loadOlder: () => Promise<number>
 } {
   const [followed, setFollowed] = useState<FollowedSession | undefined>(undefined)
   const followedRef = useRef<FollowedSession | undefined>(undefined)
 
+  const { sessionId, api } = args
+
   useEffect(() => {
-    const session = sessionStream().follow({ sessionId, log: sessionLog() })
+    if (api === undefined) return undefined
+    const session = sessionStream(api).follow({ sessionId, log: sessionLog() })
     followedRef.current = session
     setFollowed(session)
     return () => {
@@ -40,7 +44,7 @@ export function useV2Session(sessionId: string): {
       session.close()
       setFollowed(undefined)
     }
-  }, [sessionId])
+  }, [sessionId, api])
 
   const subscribe = useCallback(
     (listener: () => void) => followed?.subscribe(listener) ?? (() => undefined),

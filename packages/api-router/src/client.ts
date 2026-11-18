@@ -50,6 +50,7 @@ export const createApiClient = (options: ApiClientOptions) => {
           EventSource: options.EventSource,
           eventSourceOptions: () => ({
             credentials,
+            headers: headersOf(options),
             fetch: (target: string | URL, init?: StreamFetchInit) =>
               fetchFn(target, {
                 credentials,
