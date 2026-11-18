@@ -1,3 +1,5 @@
+import { INBOX_KIND_MESSAGE, inboxMessageSchema } from '@dltech/atlas-protocol'
+
 import type { ControlTx } from './port'
 
 export const INBOX_KIND_WITHDRAW = 'withdraw'
@@ -30,6 +32,30 @@ const clientIdOfPayload = (payload: string): string | undefined => {
   }
 }
 
+const parsedPayloadOf = (payload: string): unknown => {
+  try {
+    return JSON.parse(payload)
+  } catch {
+    return undefined
+  }
+}
+
+const messageNamesItsOrigin = (params: {
+  payload: string
+  senderSessionId: string | undefined
+}): boolean => {
+  if (params.senderSessionId !== undefined) return true
+  const message = inboxMessageSchema.safeParse(parsedPayloadOf(params.payload))
+  return message.success && message.data.via !== undefined
+}
+
+export class MessageOriginRequiredError extends Error {
+  constructor() {
+    super('a message must name its origin: post it with a via, or from a session with a sender')
+    this.name = 'MessageOriginRequiredError'
+  }
+}
+
 const alreadyPosted = async (params: {
   tx: ControlTx
   sessionId: string
@@ -55,6 +81,12 @@ export const postIn = async (params: {
   senderSessionId?: string | undefined
   wake?: boolean | undefined
 }): Promise<{ inboxId: number }> => {
+  if (
+    params.kind === INBOX_KIND_MESSAGE &&
+    !messageNamesItsOrigin({ payload: params.payload, senderSessionId: params.senderSessionId })
+  ) {
+    throw new MessageOriginRequiredError()
+  }
   const existing = await alreadyPosted({
     tx: params.tx,
     sessionId: params.sessionId,

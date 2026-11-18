@@ -1,9 +1,14 @@
 import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
-import { createV2EventSchema } from '@dltech/atlas-core'
+import {
+  INBOX_KIND_EVENT,
+  createV2EventSchema,
+  inboxEventOf,
+  prEventContent,
+  type EventBody,
+} from '@dltech/atlas-core'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { INBOX_KIND_MESSAGE, inboxMessageSchema } from '@dltech/atlas-protocol'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { prEventRows, seedPrState, seedSubscription } from '../../../../test/github-seed'
 import {
@@ -21,10 +26,14 @@ const THREAD = 'thr_v2'
 
 const inboxOf = async (sessionId: string) => {
   const rows = await db.orm.v2.V2InboxEntry.where({ sessionId }).all()
-  return rows.map((row) => ({
-    kind: row.kind,
-    text: inboxMessageSchema.parse(JSON.parse(row.payload)).text,
-  }))
+  return rows.map((row) => ({ kind: row.kind, read: inboxEventOf(row.payload) }))
+}
+
+const prEventOf = (entry: Awaited<ReturnType<typeof inboxOf>>[number]) => {
+  if (!entry.read.ok) throw new Error(entry.read.reason)
+  const event: EventBody = entry.read.event
+  if (event.type !== 'pr-event') throw new Error(`expected a pr-event, got ${event.type}`)
+  return event
 }
 
 describe('v2 session notice for a PR event', () => {
@@ -67,21 +76,34 @@ describe('v2 session notice for a PR event', () => {
     await seedPrState({ ...FILLED_PR_STATE, checksRunning: 1, checksPassed: 0 })
   }
 
-  it('posts one inbox message naming the PR, its checks tally and its mergeability', async () => {
+  it('posts one event naming the PR, its checks tally and its mergeability', async () => {
     const { service } = settledGreen()
     await seedWatchedPr()
 
     await service.handle({ event: 'check_run', payload: SETTLING_CHECK_RUN_PAYLOAD })
 
-    expect(await inboxOf(SESSION)).toEqual([
-      {
-        kind: INBOX_KIND_MESSAGE,
-        text: 'GitHub: PR #42 (https://github.com/compai/app/pull/42): checks passed (3 passed, 0 failed, 0 running), and the PR is mergeable.',
-      },
-    ])
-    const [event] = await prEventRows()
+    const [entry] = await inboxOf(SESSION)
+    if (entry === undefined) throw new Error('no inbox entry')
+    expect(entry.kind).toBe(INBOX_KIND_EVENT)
+    const event = prEventOf(entry)
+    expect(event).toMatchObject({
+      type: 'pr-event',
+      repo: 'github.com/compai/app',
+      prNumber: 42,
+      kind: 'verdict',
+      url: 'https://github.com/compai/app/pull/42',
+      verdict: 'green',
+      settled: true,
+      mergeable: true,
+      checks: { passed: 3, failed: 0, running: 0 },
+    })
+    expect(prEventContent(event)).toContain(
+      'all checks passed (3 passed, 0 failed, 0 running) and the PR is mergeable.',
+    )
+    const [row] = await prEventRows()
+    expect(event.eventId).toBe(row?.id ?? '')
     const deliveries = await db.orm.public.GithubPrEventDelivery.where({
-      eventId: event?.id ?? '',
+      eventId: row?.id ?? '',
     }).all()
     expect(deliveries).toHaveLength(1)
     expect(deliveries[0]).toMatchObject({ threadId: THREAD })

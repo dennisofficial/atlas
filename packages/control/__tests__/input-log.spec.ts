@@ -53,7 +53,8 @@ const said = (inboxId: number, text: string): V2Body => ({
   inboxId,
 })
 
-const messageOf = (clientId: string, text: string): string => JSON.stringify({ text, clientId })
+const messageOf = (clientId: string, text: string): string =>
+  JSON.stringify({ text, clientId, via: 'operator' })
 
 describe('readEvents at a commit boundary', () => {
   it('never ends a page on an input-posted, even when that overruns the limit', async () => {

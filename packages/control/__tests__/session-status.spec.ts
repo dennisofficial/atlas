@@ -13,7 +13,7 @@ import {
 
 import { ECommandState } from '@dltech/atlas-protocol'
 
-import { ControlPlane, readSessionStatus } from '../src'
+import { ControlPlane, MessageOriginRequiredError, readSessionStatus } from '../src'
 import type { ControlTx } from '../src/port'
 import { InMemoryControlStore } from '../src/testing/memory'
 
@@ -96,7 +96,7 @@ describe('readSessionStatus', () => {
     const { inboxId } = await plane.post({
       sessionId: SESSION,
       kind: 'message',
-      payload: '{"text":"hi"}',
+      payload: '{"text":"hi","via":"operator"}',
     })
     await append({ epoch: lease.epoch, bodies: [posted({ inboxId, text: 'hi' })] })
     expect((await read()).value.state).toBe(ESessionStatus.Queued)
@@ -106,11 +106,25 @@ describe('readSessionStatus', () => {
     const { plane, append, read } = await setup()
     const lease = await plane.grant({ sessionId: SESSION, hostId: 7 })
     await append({ epoch: lease.epoch, bodies: [{ type: 'workspace-prepared' }] })
-    const a = await plane.post({ sessionId: SESSION, kind: 'message', payload: '{"text":"a"}' })
-    const b = await plane.post({ sessionId: SESSION, kind: 'message', payload: '{"text":"b"}' })
+    const a = await plane.post({
+      sessionId: SESSION,
+      kind: 'message',
+      payload: '{"text":"a","via":"operator"}',
+    })
+    const b = await plane.post({
+      sessionId: SESSION,
+      kind: 'message',
+      payload: '{"text":"b","via":"operator"}',
+    })
     const stop = await plane.post({ sessionId: SESSION, kind: 'stop', payload: '{}' })
-    await plane.post({ sessionId: SESSION, kind: 'message', payload: 'not json' })
-    const c = await plane.post({ sessionId: SESSION, kind: 'message', payload: '{"text":"c"}' })
+    await expect(
+      plane.post({ sessionId: SESSION, kind: 'message', payload: 'not json' }),
+    ).rejects.toThrow(MessageOriginRequiredError)
+    const c = await plane.post({
+      sessionId: SESSION,
+      kind: 'message',
+      payload: '{"text":"c","via":"operator"}',
+    })
     await append({
       epoch: lease.epoch,
       bodies: [
@@ -169,12 +183,12 @@ describe('readSessionStatus', () => {
     const look = await plane.post({
       sessionId: SESSION,
       kind: 'message',
-      payload: JSON.stringify({ text: 'look' }),
+      payload: JSON.stringify({ text: 'look', via: 'operator' }),
     })
     const plain = await plane.post({
       sessionId: SESSION,
       kind: 'message',
-      payload: '{"text":"plain"}',
+      payload: '{"text":"plain","via":"operator"}',
     })
     await append({
       epoch: lease.epoch,
@@ -196,7 +210,7 @@ describe('readSessionStatus', () => {
     const message = await plane.post({
       sessionId: SESSION,
       kind: 'message',
-      payload: '{"text":"hi"}',
+      payload: '{"text":"hi","via":"operator"}',
     })
     const command = await plane.post({
       sessionId: SESSION,
@@ -253,7 +267,11 @@ describe('readSessionStatus', () => {
     const { plane, append, read } = await setup()
     const lease = await plane.grant({ sessionId: SESSION, hostId: 7 })
     await append({ epoch: lease.epoch, bodies: [{ type: 'workspace-prepared' }] })
-    const first = await plane.post({ sessionId: SESSION, kind: 'message', payload: '{"text":"a"}' })
+    const first = await plane.post({
+      sessionId: SESSION,
+      kind: 'message',
+      payload: '{"text":"a","via":"operator"}',
+    })
     await append({
       epoch: lease.epoch,
       bodies: [
@@ -272,7 +290,7 @@ describe('readSessionStatus', () => {
     const second = await plane.post({
       sessionId: SESSION,
       kind: 'message',
-      payload: '{"text":"b"}',
+      payload: '{"text":"b","via":"operator"}',
     })
     await append({ epoch: lease.epoch, bodies: [posted({ inboxId: second.inboxId, text: 'b' })] })
     expect((await read()).value.state).toBe(ESessionStatus.Queued)
@@ -341,7 +359,7 @@ describe('readSessionStatus under a concurrent consume', () => {
     const posted = await plane.post({
       sessionId: SESSION,
       kind: 'message',
-      payload: '{"text":"hi"}',
+      payload: '{"text":"hi","via":"operator"}',
     })
     store.arm({
       deferred: 2,

@@ -33,7 +33,7 @@ export type {
 } from './port'
 export type { BlobRow, BlobWrite } from './port'
 export { runRoutineIn } from './routine-ops'
-export { INBOX_KIND_WITHDRAW, withdrawPayloadOf } from './inbox-ops'
+export { INBOX_KIND_WITHDRAW, MessageOriginRequiredError, withdrawPayloadOf } from './inbox-ops'
 export type { RunRoutineParams, RunRoutineResult } from './routine-ops'
 export { unfinishedCommandIdsOf } from './command-rows'
 export { readSessionStatus, STATUS_EVENT_LIMIT } from './session-status'

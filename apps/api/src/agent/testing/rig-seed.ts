@@ -1,4 +1,4 @@
-import { chainEvents, toRunId, toThreadId } from '@dltech/atlas-core'
+import { chainEvents, EMessageOrigin, toRunId, toThreadId } from '@dltech/atlas-core'
 import {
   ControlPlane,
   ControlStorePort,
@@ -88,7 +88,7 @@ export const seedSession = async (args: {
     await plane.post({
       sessionId: args.sessionId,
       kind: INBOX_KIND_MESSAGE,
-      payload: JSON.stringify({ text: args.text }),
+      payload: JSON.stringify({ text: args.text, via: EMessageOrigin.Operator }),
     })
   })
   return mainThreadId

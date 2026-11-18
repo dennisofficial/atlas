@@ -61,6 +61,7 @@ describe('SessionsService.post uploads', () => {
     const inbox = await plane.readInbox({ sessionId, afterId: 0, limit: 10 })
     expect(JSON.parse(inbox[0]?.payload ?? '')).toEqual({
       text: 'see file',
+      via: 'operator',
       attachments: [
         {
           id: upload.uploadId,

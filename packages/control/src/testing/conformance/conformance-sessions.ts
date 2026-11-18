@@ -163,8 +163,16 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
     it('digests each session with its last event time and first posted message', async () => {
       await seedSession({ sessionId: 's-a', offsetMs: 0, prepared: false })
       await seedSession({ sessionId: 's-b', offsetMs: 1000 })
-      await plane.post({ sessionId: 's-a', kind: 'message', payload: '{"text":"first"}' })
-      await plane.post({ sessionId: 's-a', kind: 'message', payload: '{"text":"second"}' })
+      await plane.post({
+        sessionId: 's-a',
+        kind: 'message',
+        payload: '{"text":"first","via":"operator"}',
+      })
+      await plane.post({
+        sessionId: 's-a',
+        kind: 'message',
+        payload: '{"text":"second","via":"operator"}',
+      })
       await plane.post({ sessionId: 's-a', kind: 'stop', payload: '{}' })
       const digests = await plane.listSessionDigests({ userId: USER, limit: 10 })
       expect(digests.map((row) => row.sessionId)).toEqual(['s-b', 's-a'])
@@ -293,7 +301,11 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
       setNow(T0)
       await plane.createSession(createSessionParams({ sessionId: SESSION, mainThreadId: THREAD }))
       const { epoch } = await plane.grant({ sessionId: SESSION, hostId: HOLDER_HOST })
-      const { inboxId } = await plane.post({ sessionId: SESSION, kind: 'user', payload: '"a"' })
+      const { inboxId } = await plane.post({
+        sessionId: SESSION,
+        kind: 'user',
+        payload: '{"text":"a","via":"operator"}',
+      })
       const outcome = await plane.append({
         threadId: THREAD,
         epoch,
@@ -310,7 +322,11 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
     it('does not claim a failed session whose only pending message is covered, until a newer one arrives', async () => {
       setNow(T0)
       await plane.createSession(createSessionParams({ sessionId: SESSION, mainThreadId: THREAD }))
-      await plane.post({ sessionId: SESSION, kind: 'message', payload: '"a"' })
+      await plane.post({
+        sessionId: SESSION,
+        kind: 'message',
+        payload: '{"text":"a","via":"operator"}',
+      })
       const { epoch } = await plane.grant({ sessionId: SESSION, hostId: HOLDER_HOST })
       const outcome = await plane.append({
         threadId: THREAD,
@@ -323,7 +339,11 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
       if (!outcome.ok) throw new Error(JSON.stringify(outcome.refusal))
       await plane.revoke({ sessionId: SESSION, wantsHolder: false })
       expect(await claimable()).toEqual([])
-      await plane.post({ sessionId: SESSION, kind: 'message', payload: '"b"' })
+      await plane.post({
+        sessionId: SESSION,
+        kind: 'message',
+        payload: '{"text":"b","via":"operator"}',
+      })
       expect(await claimable()).toEqual([SESSION])
     })
 

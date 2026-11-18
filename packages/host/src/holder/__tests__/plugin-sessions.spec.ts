@@ -4,6 +4,8 @@ import {
   EEffort,
   EMessageOrigin,
   EReportKind,
+  INBOX_KIND_EVENT,
+  inboxEventOf,
   initialLoopState,
   toRunId,
   toThreadId,
@@ -214,6 +216,7 @@ describe('podSessionsOf', () => {
     expect(inbox[0]?.senderSessionId).toBe(SPAWNER.sessionId)
     expect(JSON.parse(inbox[0]?.payload ?? '{}')).toEqual({
       text: 'how is it going',
+      via: EMessageOrigin.PeerAgent,
     })
   })
 
@@ -306,29 +309,31 @@ describe('podSessionsOf', () => {
     const inbox = await inboxOf(plane, SPAWNER.sessionId)
     expect(inbox).toHaveLength(1)
     expect(inbox[0]?.senderSessionId).toBe(child.sessionId)
-    expect(JSON.parse(inbox[0]?.payload ?? '{}')).toEqual({
-      text: 'the parser is green',
+    expect(inbox[0]?.kind).toBe(INBOX_KIND_EVENT)
+    expect(inboxEventOf(inbox[0]?.payload ?? '')).toMatchObject({
+      ok: true,
+      event: { type: 'agent-reported', prose: 'the parser is green' },
     })
   })
 
-  it('reaches the spawner’s intake in the agent lane', async () => {
+  it('reaches the spawner as an event, never as a draft the operator could have written', async () => {
     const { plane, sessions } = await rig()
     const child = await sessions.spawn({})
     await podSessionsOf({ plane, sessionId: child.sessionId, model: () => TEAMMATE_MODEL }).report({
       kind: EReportKind.NeedsDecision,
       text: 'which parser',
     })
-    const drafts = await saidDraftsOf(plane, SPAWNER.sessionId, SPAWNER.mainThreadId)
-    expect(drafts).toEqual([
-      {
-        type: 'user-said',
-        text: 'which parser',
-        sender: { session: child.sessionId },
-        via: EMessageOrigin.PeerAgent,
-        requestId: 'inbox:1',
-        inboxId: 1,
+    const inbox = await inboxOf(plane, SPAWNER.sessionId)
+    expect(inbox[0]?.kind).toBe(INBOX_KIND_EVENT)
+    expect(inboxEventOf(inbox[0]?.payload ?? '')).toMatchObject({
+      ok: true,
+      event: {
+        type: 'agent-reported',
+        prose: 'which parser',
+        kind: EReportKind.NeedsDecision,
       },
-    ])
+    })
+    expect(await saidDraftsOf(plane, SPAWNER.sessionId, SPAWNER.mainThreadId)).toEqual([])
   })
 
   it('refuses a report from a session it did not spawn, and posts nothing', async () => {

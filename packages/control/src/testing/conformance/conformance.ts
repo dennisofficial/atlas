@@ -57,8 +57,16 @@ export function describeControlPlaneConformance(params: ConformanceParams): void
 
     it('seq-466 interleaving: posts, holder consumes, second writer refused', async () => {
       await seedTo(465)
-      const first = await harness.plane.post({ sessionId: SESSION, kind: 'user', payload: '"a"' })
-      const second = await harness.plane.post({ sessionId: SESSION, kind: 'user', payload: '"b"' })
+      const first = await harness.plane.post({
+        sessionId: SESSION,
+        kind: 'user',
+        payload: '{"text":"a","via":"operator"}',
+      })
+      const second = await harness.plane.post({
+        sessionId: SESSION,
+        kind: 'user',
+        payload: '{"text":"b","via":"operator"}',
+      })
       expect([first.inboxId, second.inboxId]).toEqual([1, 2])
       const head = await harness.plane.head({ threadId: THREAD })
       const holder = mint({ bodies: [consumed(1), consumed(2)], epoch, from: head })
@@ -143,7 +151,7 @@ export function describeControlPlaneConformance(params: ConformanceParams): void
       const gone = await harness.plane.post({
         sessionId: SESSION,
         kind: 'message',
-        payload: '{"text":"a"}',
+        payload: '{"text":"a","via":"operator"}',
       })
       await harness.plane.titleUntitledSession({
         sessionId: SESSION,

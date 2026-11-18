@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EPrEventKind, EPrReviewState, EPrVerdict, type EventDraft } from '../../../events/body'
+import {
+  EMergeQueueMove,
+  EPrEventKind,
+  EPrReviewState,
+  EPrVerdict,
+  type EventDraft,
+} from '../../../events/body'
 import type { EventOfType } from '../../../events/envelope'
 import { contextFor, log } from '../../__tests__/log-fixture'
 import type { Assembled } from '../../assembled'
@@ -209,6 +215,35 @@ describe('handing a PR event to the model', () => {
     expect(reopened).toContain('state is now open.')
   })
 
+  it('says a PR entered or left the merge queue', () => {
+    const entered = prEventBlock(
+      eventOf({ kind: EPrEventKind.MergeQueue, queue: EMergeQueueMove.Entered }),
+    )
+    const left = prEventBlock(
+      eventOf({ kind: EPrEventKind.MergeQueue, queue: EMergeQueueMove.Left }),
+    )
+    const unknown = prEventBlock(eventOf({ kind: EPrEventKind.MergeQueue }))
+
+    expect(entered).toContain('entered the merge queue.')
+    expect(left).toContain('left the merge queue.')
+    expect(unknown).toContain('merge queue membership changed.')
+  })
+
+  it('carries the checks tally a verdict was taken from', () => {
+    const block = prEventBlock(
+      eventOf({
+        kind: EPrEventKind.Verdict,
+        verdict: EPrVerdict.Green,
+        mergeable: true,
+        checks: { passed: 3, failed: 0, running: 0 },
+      }),
+    )
+
+    expect(block).toContain(
+      'CI finished, all checks passed (3 passed, 0 failed, 0 running) and the PR is mergeable.',
+    )
+  })
+
   it('clips a long body', () => {
     const block = prEventBlock(eventOf({ authorLogin: 'octocat', body: 'x'.repeat(5000) }))
 
@@ -223,6 +258,7 @@ describe('handing a PR event to the model', () => {
       eventOf({ kind: EPrEventKind.Verdict, verdict: EPrVerdict.Failed }),
       eventOf({ kind: EPrEventKind.Mergeability, mergeable: false }),
       eventOf({ kind: EPrEventKind.State, state: 'merged' }),
+      eventOf({ kind: EPrEventKind.MergeQueue, queue: EMergeQueueMove.Entered }),
     ].map(prEventBlock)
 
     for (const block of blocks) {

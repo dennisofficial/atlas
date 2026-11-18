@@ -1,4 +1,12 @@
-import { reportWakesParent, type EReportKind } from '@dltech/atlas-core'
+import {
+  EMessageOrigin,
+  INBOX_KIND_EVENT,
+  inboxEventPayloadOf,
+  reportWakesParent,
+  TEAMMATE_AGENT_TYPE,
+  toThreadId,
+  type EReportKind,
+} from '@dltech/atlas-core'
 import type { SessionModelAsk } from '@dltech/atlas-models'
 import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
 
@@ -37,7 +45,7 @@ export const spawnPeerIn = async (params: {
     tx,
     sessionId: params.sessionId,
     kind: INBOX_KIND_MESSAGE,
-    payload: JSON.stringify({ text: params.brief }),
+    payload: JSON.stringify({ text: params.brief, via: EMessageOrigin.PeerAgent }),
     at: params.at,
     senderSessionId: spawner.sessionId,
   })
@@ -67,7 +75,7 @@ export const messageTeammateIn = async (params: {
     tx,
     sessionId: to.sessionId,
     kind: INBOX_KIND_MESSAGE,
-    payload: JSON.stringify({ text: params.text }),
+    payload: JSON.stringify({ text: params.text, via: EMessageOrigin.PeerAgent }),
     at: params.at,
     senderSessionId: from.sessionId,
   })
@@ -95,8 +103,15 @@ export const reportToSpawnerIn = async (params: {
   return postIn({
     tx: params.tx,
     sessionId: spawner.sessionId,
-    kind: INBOX_KIND_MESSAGE,
-    payload: JSON.stringify({ text: params.text }),
+    kind: INBOX_KIND_EVENT,
+    payload: inboxEventPayloadOf({
+      type: 'agent-reported',
+      agentId: toThreadId(params.session.mainThreadId),
+      agentType: TEAMMATE_AGENT_TYPE,
+      intent: params.session.title ?? `session ${params.session.sessionId}`,
+      prose: params.text,
+      kind: params.kind,
+    }),
     at: params.at,
     senderSessionId: params.session.sessionId,
     wake: reportWakesParent(params.kind),
@@ -121,7 +136,7 @@ export const messagePeerIn = async (params: {
     tx,
     sessionId: to.sessionId,
     kind: INBOX_KIND_MESSAGE,
-    payload: JSON.stringify({ text: params.text }),
+    payload: JSON.stringify({ text: params.text, via: EMessageOrigin.PeerAgent }),
     at: params.at,
     senderSessionId: from.sessionId,
   })

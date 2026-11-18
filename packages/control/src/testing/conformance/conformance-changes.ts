@@ -93,7 +93,12 @@ export function describeControlPlaneChanges(params: ConformanceParams): void {
     it('post announces the session once per post, for a message and a stop', async () => {
       await seeded()
       const message = await announced({
-        work: () => harness.plane.post({ sessionId: SESSION, kind: 'user', payload: '"a"' }),
+        work: () =>
+          harness.plane.post({
+            sessionId: SESSION,
+            kind: 'user',
+            payload: '{"text":"a","via":"operator"}',
+          }),
       })
       expect(message).toEqual([{ sessionId: SESSION }])
       const stop = await announced({
@@ -107,7 +112,7 @@ export function describeControlPlaneChanges(params: ConformanceParams): void {
       const { inboxId } = await harness.plane.post({
         sessionId: SESSION,
         kind: 'message',
-        payload: '{"text":"hi"}',
+        payload: '{"text":"hi","via":"operator"}',
       })
       const notices = await announced({
         work: () => harness.plane.withdraw({ sessionId: SESSION, inboxId }),
@@ -211,7 +216,13 @@ export function describeControlPlaneChanges(params: ConformanceParams): void {
           await expect(
             store.transact(async (tx) => {
               await tx.announce({ sessionId: SESSION })
-              await postIn({ tx, sessionId: SESSION, kind: 'user', payload: '"a"', at: T0 })
+              await postIn({
+                tx,
+                sessionId: SESSION,
+                kind: 'user',
+                payload: '{"text":"a","via":"operator"}',
+                at: T0,
+              })
               throw new Error('forced rollback')
             }),
           ).rejects.toThrow('forced rollback')

@@ -3,7 +3,7 @@ import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { createV2EventSchema } from '@dltech/atlas-core'
 import { db } from '@dltech/atlas-db'
-import { INBOX_KIND_MESSAGE, inboxMessageSchema } from '@dltech/atlas-protocol'
+import { EMergeQueueMove, EPrEventKind, INBOX_KIND_EVENT, inboxEventOf } from '@dltech/atlas-core'
 import { beforeEach, describe, expect, it } from 'bun:test'
 
 import { ensureUsers, seedPrState, seedSubscription } from '../../../../test/github-seed'
@@ -30,12 +30,20 @@ const seedV2Thread = async (args: { sessionId: string; threadId: string; userId:
   })
 }
 
-const inboxTexts = async (sessionId: string) => {
+const inboxEvents = async (sessionId: string) => {
   const entries = await db.orm.v2.V2InboxEntry.where({ sessionId }).all()
-  return entries.map((entry) => ({
-    kind: entry.kind,
-    text: inboxMessageSchema.parse(JSON.parse(entry.payload)).text,
-  }))
+  return entries.map((entry) => ({ kind: entry.kind, payload: inboxEventOf(entry.payload) }))
+}
+
+const eventOf = (read: Awaited<ReturnType<typeof inboxEvents>>[number]) => {
+  if (!read.payload.ok) throw new Error(read.payload.reason)
+  return read.payload.event
+}
+
+const queueMoveOf = (read: Awaited<ReturnType<typeof inboxEvents>>[number]) => {
+  const event = eventOf(read)
+  if (event.type !== 'pr-event') throw new Error(`expected a pr-event, got ${event.type}`)
+  return { kind: read.kind, event }
 }
 
 const payloadOf = (
@@ -74,9 +82,19 @@ describe('recordMergeQueueEntry', () => {
 
     expect(await recordMergeQueueEntry({ payload: payloadOf() })).toBe(1)
 
-    expect(await inboxTexts(V2_SESSION)).toEqual([
-      { kind: INBOX_KIND_MESSAGE, text: '#42 entered the merge queue' },
-    ])
+    const [entry] = await inboxEvents(V2_SESSION)
+    if (entry === undefined) throw new Error('no inbox entry')
+    expect(queueMoveOf(entry)).toEqual({
+      kind: INBOX_KIND_EVENT,
+      event: {
+        type: 'pr-event',
+        repo: 'github.com/compai/app',
+        prNumber: 42,
+        kind: EPrEventKind.MergeQueue,
+        url: 'https://github.com/compai/app/pull/42',
+        queue: EMergeQueueMove.Entered,
+      },
+    })
   })
 
   it('says the PR left the queue on a removal', async () => {
@@ -85,9 +103,12 @@ describe('recordMergeQueueEntry', () => {
 
     expect(await recordMergeQueueEntry({ payload: payloadOf({ action: 'removed' }) })).toBe(1)
 
-    expect(await inboxTexts(V2_SESSION)).toEqual([
-      { kind: INBOX_KIND_MESSAGE, text: '#42 left the merge queue' },
-    ])
+    const [entry] = await inboxEvents(V2_SESSION)
+    if (entry === undefined) throw new Error('no inbox entry')
+    expect(queueMoveOf(entry).event).toMatchObject({
+      kind: EPrEventKind.MergeQueue,
+      queue: EMergeQueueMove.Left,
+    })
   })
 
   it('notifies every subscribed thread of the PR once', async () => {
@@ -102,8 +123,8 @@ describe('recordMergeQueueEntry', () => {
 
     expect(await recordMergeQueueEntry({ payload: payloadOf() })).toBe(2)
 
-    expect(await inboxTexts(V2_SESSION)).toHaveLength(1)
-    expect(await inboxTexts(OTHER_SESSION)).toHaveLength(1)
+    expect(await inboxEvents(V2_SESSION)).toHaveLength(1)
+    expect(await inboxEvents(OTHER_SESSION)).toHaveLength(1)
   })
 
   it('reaches a branch subscriber whose branch is the PR head', async () => {
@@ -116,7 +137,7 @@ describe('recordMergeQueueEntry', () => {
     })
 
     expect(await recordMergeQueueEntry({ payload: payloadOf() })).toBe(1)
-    expect(await inboxTexts(V2_SESSION)).toHaveLength(1)
+    expect(await inboxEvents(V2_SESSION)).toHaveLength(1)
   })
 
   it('writes nothing for a PR it has no state row for', async () => {
@@ -124,7 +145,7 @@ describe('recordMergeQueueEntry', () => {
     await seedSubscription({ userId: USER, prNumber: 42, threadId: V2_THREAD })
 
     expect(await recordMergeQueueEntry({ payload: payloadOf({ prNumber: 43 }) })).toBe(0)
-    expect(await inboxTexts(V2_SESSION)).toEqual([])
+    expect(await inboxEvents(V2_SESSION)).toEqual([])
   })
 
   it('writes nothing for an action that is not an entry or an exit', async () => {
@@ -132,7 +153,7 @@ describe('recordMergeQueueEntry', () => {
     await seedSubscription({ userId: USER, prNumber: 42, threadId: V2_THREAD })
 
     expect(await recordMergeQueueEntry({ payload: payloadOf({ action: 'destroyed' }) })).toBe(0)
-    expect(await inboxTexts(V2_SESSION)).toEqual([])
+    expect(await inboxEvents(V2_SESSION)).toEqual([])
   })
 
   it('reads the PR number out of the queue head ref when the payload omits the pull request', async () => {
@@ -141,9 +162,19 @@ describe('recordMergeQueueEntry', () => {
 
     expect(mergeQueuePrNumberOf(payloadOf({ prNumber: undefined }))).toBe(42)
     expect(await recordMergeQueueEntry({ payload: payloadOf({ prNumber: undefined }) })).toBe(1)
-    expect(await inboxTexts(V2_SESSION)).toEqual([
-      { kind: INBOX_KIND_MESSAGE, text: '#42 entered the merge queue' },
-    ])
+    const [entry] = await inboxEvents(V2_SESSION)
+    if (entry === undefined) throw new Error('no inbox entry')
+    expect(queueMoveOf(entry)).toEqual({
+      kind: INBOX_KIND_EVENT,
+      event: {
+        type: 'pr-event',
+        repo: 'github.com/compai/app',
+        prNumber: 42,
+        kind: EPrEventKind.MergeQueue,
+        url: 'https://github.com/compai/app/pull/42',
+        queue: EMergeQueueMove.Entered,
+      },
+    })
   })
 
   it('reads no PR number from a head ref that names none', () => {

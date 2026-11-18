@@ -46,7 +46,7 @@ const holdBothSessions = async (rig: HolderRig): Promise<void> => {
   await rig.plane.post({
     sessionId: OTHER,
     kind: 'message',
-    payload: JSON.stringify({ text: 'first' }),
+    payload: JSON.stringify({ text: 'first', via: 'operator' }),
   })
   await rig.wake()
   await rig.bus.wake(OTHER)

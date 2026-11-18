@@ -10,6 +10,7 @@ import {
 } from '@dltech/atlas-control'
 import type { ControlSessionRow } from '@dltech/atlas-control'
 import {
+  EMessageOrigin,
   INBOX_KIND_RETRY,
   INBOX_KIND_STOP,
   type Attachment,
@@ -196,6 +197,7 @@ export class SessionsService {
       payload: JSON.stringify(
         inboxMessageSchema.parse({
           text: args.draft.text,
+          via: EMessageOrigin.Operator,
           ...(args.draft.clientId === undefined ? {} : { clientId: args.draft.clientId }),
           ...(attachments.length === 0 ? {} : { attachments }),
         }),

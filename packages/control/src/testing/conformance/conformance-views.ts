@@ -242,7 +242,7 @@ export function describeControlPlaneViews(params: ConformanceParams): void {
       const { inboxId } = await harness.plane.post({
         sessionId: SESSION,
         kind: 'message',
-        payload: '{"text":"hi"}',
+        payload: '{"text":"hi","via":"operator"}',
       })
       await appendBodies({
         harness,

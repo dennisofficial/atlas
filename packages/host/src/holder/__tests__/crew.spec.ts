@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
+  EMessageOrigin,
   EToolEffect,
   ToolDefinition,
   type ModelPort,
@@ -200,7 +201,12 @@ describe('a sub-agent spawned with the crew port', () => {
     const afterReport = await eventsIn(rig, THREAD_ID)
     expect(answeredAfterEnding(afterReport)).toBe(true)
     expect(
-      afterReport.filter((event) => event.type === 'user-said' && event.via !== undefined),
+      afterReport.filter(
+        (event) =>
+          event.type === 'user-said' &&
+          event.via !== undefined &&
+          event.via !== EMessageOrigin.Operator,
+      ),
     ).toEqual([])
     expect((await rig.plane.readSession({ sessionId: SESSION }))?.mainThreadId).toBe(THREAD_ID)
   })

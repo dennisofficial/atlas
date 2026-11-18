@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { afterAll, beforeEach, describe, expect, it } from 'bun:test'
 
 import { ControlPlane } from '@dltech/atlas-control'
+import { EMessageOrigin } from '@dltech/atlas-core'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { createDb } from '@dltech/atlas-db'
@@ -120,7 +121,7 @@ describe('branches-observed e2e', () => {
     await plane.post({
       sessionId,
       kind: INBOX_KIND_MESSAGE,
-      payload: JSON.stringify({ text: 'make a branch' }),
+      payload: JSON.stringify({ text: 'make a branch', via: EMessageOrigin.Operator }),
     })
     const timers = { now: () => Date.now(), ...systemTimers }
     const log = new CollectingLog()
@@ -168,7 +169,7 @@ describe('branches-observed e2e', () => {
     await plane.post({
       sessionId,
       kind: INBOX_KIND_MESSAGE,
-      payload: JSON.stringify({ text: 'just reply' }),
+      payload: JSON.stringify({ text: 'just reply', via: EMessageOrigin.Operator }),
     })
     await bus.wake(sessionId)
     await waitForSeq({

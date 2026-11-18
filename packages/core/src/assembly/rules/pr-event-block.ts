@@ -1,5 +1,5 @@
 import { systemNotice } from '../../context/envelope'
-import { EPrEventKind, EPrVerdict } from '../../events/body'
+import { EMergeQueueMove, EPrEventKind, EPrVerdict } from '../../events/body'
 import type { DraftOfType } from '../../events/envelope'
 import { stripHtmlComments } from '../../github/comment-text'
 import {
@@ -29,6 +29,12 @@ const withBody = ({ lead, event }: { lead: string; event: PrEvent }): string => 
 
 const SHORT_SHA_LENGTH = 7
 
+const tallySuffix = (event: PrEvent): string => {
+  const checks = event.checks
+  if (checks === undefined) return ''
+  return ` (${checks.passed} passed, ${checks.failed} failed, ${checks.running} running)`
+}
+
 const tipSuffix = (event: PrEvent): string =>
   event.headSha === undefined || event.headSha.length < SHORT_SHA_LENGTH
     ? ''
@@ -38,19 +44,19 @@ const failedVerdictSentence = (event: PrEvent): string => {
   const failed = event.failedChecks ?? []
   if (event.settled === true) {
     const lead = failed.length === 0 ? 'checks failed' : failedChecksCountPhrase(failed)
-    return `CI finished, ${lead}${tipSuffix(event)}. ${event.url}`
+    return `CI finished, ${lead}${tallySuffix(event)}${tipSuffix(event)}. ${event.url}`
   }
   if (event.settled === false) {
     const lead = failed.length === 0 ? 'a check failed' : failedChecksCountPhrase(failed)
-    return `${lead}${tipSuffix(event)} while CI is still running; another notice follows when CI finishes. ${event.url}`
+    return `${lead}${tallySuffix(event)}${tipSuffix(event)} while CI is still running; another notice follows when CI finishes. ${event.url}`
   }
-  return `checks failed${tipSuffix(event)}. ${event.url}`
+  return `checks failed${tallySuffix(event)}${tipSuffix(event)}. ${event.url}`
 }
 
 const verdictSentence = (event: PrEvent): string => {
   if (event.verdict === EPrVerdict.Green) {
     const mergeable = event.mergeable === true ? ' and the PR is mergeable' : ''
-    return `CI finished, all checks passed${tipSuffix(event)}${mergeable}.`
+    return `CI finished, all checks passed${tallySuffix(event)}${tipSuffix(event)}${mergeable}.`
   }
   if (event.verdict === EPrVerdict.Failed) {
     return `${failedVerdictSentence(event)}${failedChecksBlock({ checks: event.failedChecks, repo: event.repo })}`
@@ -70,6 +76,12 @@ const stateSentence = (event: PrEvent): string => {
   return `state is now ${event.state}.`
 }
 
+const mergeQueueSentence = (event: PrEvent): string => {
+  if (event.queue === EMergeQueueMove.Entered) return 'entered the merge queue.'
+  if (event.queue === EMergeQueueMove.Left) return 'left the merge queue.'
+  return 'merge queue membership changed.'
+}
+
 const reviewLead = (event: PrEvent): string => {
   const review = fromAuthor({ noun: 'review', event })
   return event.reviewState === undefined ? review : `${review} (${event.reviewState})`
@@ -86,6 +98,7 @@ const sentenceOf = (event: PrEvent): string => {
   if (event.kind === EPrEventKind.Review) return withBody({ lead: reviewLead(event), event })
   if (event.kind === EPrEventKind.Verdict) return verdictSentence(event)
   if (event.kind === EPrEventKind.Mergeability) return mergeabilitySentence(event)
+  if (event.kind === EPrEventKind.MergeQueue) return mergeQueueSentence(event)
   return stateSentence(event)
 }
 

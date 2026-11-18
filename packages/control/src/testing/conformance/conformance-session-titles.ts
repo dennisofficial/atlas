@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
 
-import { chainEvents, toRunId, toThreadId } from '@dltech/atlas-core'
+import { chainEvents, EMessageOrigin, toRunId, toThreadId } from '@dltech/atlas-core'
 
 import { ControlPlane } from '../../control-plane'
 import type { ConformanceParams } from './conformance'
@@ -66,7 +66,7 @@ export function describeControlPlaneSessionTitles(params: ConformanceParams): vo
         await plane.post({
           sessionId: SESSION,
           kind: 'message',
-          payload: JSON.stringify({ text }),
+          payload: JSON.stringify({ text, via: EMessageOrigin.Operator }),
         })
       ).inboxId
 
@@ -178,7 +178,7 @@ export function describeControlPlaneSessionTitles(params: ConformanceParams): vo
       const { inboxId } = await plane.post({
         sessionId: 'titled',
         kind: 'message',
-        payload: '{"text":"hi"}',
+        payload: '{"text":"hi","via":"operator"}',
       })
 
       await withdrawLogged({ sessionId: 'titled', threadId: 't-titled', inboxId })
@@ -241,7 +241,7 @@ export function describeControlPlaneSessionTitles(params: ConformanceParams): vo
       await plane.post({
         sessionId: SESSION,
         kind: 'message',
-        payload: '{"text":"hello"}',
+        payload: '{"text":"hello","via":"operator"}',
       })
       const one = await plane.listSessionDigests({
         userId: USER,

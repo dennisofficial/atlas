@@ -54,7 +54,7 @@ export function describeControlPlaneStartFailures(params: ConformanceParams): vo
       plane.post({
         sessionId: SESSION,
         kind,
-        payload: kind === 'stop' ? '{}' : '"m"',
+        payload: kind === 'stop' ? '{}' : JSON.stringify({ text: 'm', via: 'operator' }),
       })
 
     const claimable = (): Promise<string[]> => hosts.claimedByFreshHost({ plane, limit: 100 })

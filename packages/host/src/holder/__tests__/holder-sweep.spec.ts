@@ -36,7 +36,7 @@ describe('SessionHolder sweep', () => {
     await rig.plane.post({
       sessionId: second,
       kind: 'message',
-      payload: JSON.stringify({ text: 'second' }),
+      payload: JSON.stringify({ text: 'second', via: 'operator' }),
     })
     await rig.bus.wake(SESSION)
     await rig.bus.wake(second)

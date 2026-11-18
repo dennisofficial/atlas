@@ -272,7 +272,7 @@ describe('MediaService', () => {
         afterId: 0,
         limit: 10,
       })
-      expect(JSON.parse(entry?.payload ?? '')).toEqual({ text: 'hi' })
+      expect(JSON.parse(entry?.payload ?? '')).toEqual({ text: 'hi', via: 'operator' })
     })
   })
 })

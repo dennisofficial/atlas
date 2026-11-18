@@ -57,6 +57,7 @@ export enum EMessageOrigin {
   ParentAgent = 'parent-agent',
   PeerAgent = 'peer-agent',
   ChildAgent = 'child-agent',
+  Routine = 'routine',
 }
 
 export enum EPullRequestState {
@@ -73,6 +74,12 @@ export enum EPrEventKind {
   Verdict = 'verdict',
   Mergeability = 'mergeability',
   State = 'state',
+  MergeQueue = 'merge-queue',
+}
+
+export enum EMergeQueueMove {
+  Entered = 'entered',
+  Left = 'left',
 }
 
 export enum EPrReviewState {

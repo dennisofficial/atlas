@@ -1,7 +1,12 @@
 import { Logger } from '@nestjs/common'
+import {
+  EMergeQueueMove,
+  EPrEventKind,
+  INBOX_KIND_EVENT,
+  inboxEventPayloadOf,
+} from '@dltech/atlas-core'
 import { postInboxEntryIn } from '@dltech/atlas-control/postgres'
 import { db } from '@dltech/atlas-db'
-import { INBOX_KIND_MESSAGE, inboxMessageSchema } from '@dltech/atlas-protocol'
 
 import { branchRoutingOf, subscriberWhereOf } from './github-delivery-routing'
 import { repoPattern } from './github-pr-identity'
@@ -11,9 +16,9 @@ const logger = new Logger('GithubMergeQueueWebhook')
 
 const QUEUED_PR_IN_HEAD_REF = /\/pr-(\d+)-/
 
-const verbOf = (action: string): string | null => {
-  if (action === 'added') return 'entered'
-  if (action === 'removed') return 'left'
+const moveOf = (action: string): EMergeQueueMove | null => {
+  if (action === 'added') return EMergeQueueMove.Entered
+  if (action === 'removed') return EMergeQueueMove.Left
   return null
 }
 
@@ -27,8 +32,19 @@ export function mergeQueuePrNumberOf(payload: GithubMergeQueueEntryWebhookPayloa
   return Number.isSafeInteger(number) && number > 0 ? number : null
 }
 
-export const mergeQueueNoticeText = (args: { prNumber: number; verb: string }): string =>
-  `#${args.prNumber} ${args.verb} the merge queue`
+export const mergeQueueEventOf = (args: {
+  repoFullName: string
+  prNumber: number
+  move: EMergeQueueMove
+}): string =>
+  inboxEventPayloadOf({
+    type: 'pr-event',
+    repo: `github.com/${args.repoFullName}`,
+    prNumber: args.prNumber,
+    kind: EPrEventKind.MergeQueue,
+    url: `https://github.com/${args.repoFullName}/pull/${args.prNumber}`,
+    queue: args.move,
+  })
 
 async function subscribedThreadIds(args: {
   repoFullName: string
@@ -59,8 +75,8 @@ async function subscribedThreadIds(args: {
 export async function recordMergeQueueEntry(args: {
   payload: GithubMergeQueueEntryWebhookPayload
 }): Promise<number> {
-  const verb = verbOf(args.payload.action)
-  if (verb === null) return 0
+  const move = moveOf(args.payload.action)
+  if (move === null) return 0
   const prNumber = mergeQueuePrNumberOf(args.payload)
   if (prNumber === null) return 0
   const repoFullName = args.payload.repository.full_name
@@ -68,23 +84,21 @@ export async function recordMergeQueueEntry(args: {
   if (threadIds.length === 0) return 0
   const threads = await db.orm.v2.V2Thread.where((thread) => thread.id.in(threadIds)).all()
   if (threads.length === 0) return 0
-  const payload = JSON.stringify(
-    inboxMessageSchema.parse({ text: mergeQueueNoticeText({ prNumber, verb }) }),
-  )
+  const payload = mergeQueueEventOf({ repoFullName, prNumber, move })
   const at = new Date().toISOString()
   await db.transaction(async (tx) => {
     for (const thread of threads) {
       await postInboxEntryIn({
         tx,
         sessionId: thread.sessionId,
-        kind: INBOX_KIND_MESSAGE,
+        kind: INBOX_KIND_EVENT,
         payload,
         at,
       })
     }
   })
   logger.log(
-    `notified ${threads.length} thread(s) that ${repoFullName}#${prNumber} ${verb} the merge queue`,
+    `notified ${threads.length} thread(s) that ${repoFullName}#${prNumber} ${move} the merge queue`,
   )
   return threads.length
 }

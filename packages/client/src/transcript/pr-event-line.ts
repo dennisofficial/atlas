@@ -1,4 +1,5 @@
 import {
+  EMergeQueueMove,
   EPrEventKind,
   EPrReviewState,
   EPrVerdict,
@@ -87,6 +88,12 @@ const stateLine = (event: PrEvent): string => {
   return `${prefix(event)}: state changed to ${event.state ?? 'unknown'}`
 }
 
+const mergeQueueLine = (event: PrEvent): string => {
+  if (event.queue === EMergeQueueMove.Entered) return `${prefix(event)}: entered the merge queue`
+  if (event.queue === EMergeQueueMove.Left) return `${prefix(event)}: left the merge queue`
+  return `${prefix(event)}: merge queue membership changed`
+}
+
 const prefix = (event: PrEvent): string => `PR #${event.prNumber}`
 
 export const prEventLine = (event: PrEvent): string => {
@@ -95,6 +102,7 @@ export const prEventLine = (event: PrEvent): string => {
   if (event.kind === EPrEventKind.ReviewComment) return reviewCommentLine(event)
   if (event.kind === EPrEventKind.Verdict) return verdictLine(event)
   if (event.kind === EPrEventKind.Mergeability) return mergeabilityLine(event)
+  if (event.kind === EPrEventKind.MergeQueue) return mergeQueueLine(event)
   return stateLine(event)
 }
 
