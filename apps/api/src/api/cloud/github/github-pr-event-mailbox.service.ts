@@ -4,6 +4,7 @@ import { db, or, type Row, type Tx } from '@dltech/atlas-db'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { noticeV2Sessions } from './github-v2-notice'
 import { GithubSandboxWakeService } from './github-sandbox-wake.service'
+import type { PrEffectCollector } from './github-pr-outbox'
 import { replayThreadEvents } from './github-pr-event-thread-replay'
 import type { EPrEventKind, GithubPrEventDto, GithubPrEventPayload } from './github-realtime.types'
 
@@ -68,6 +69,7 @@ export class GithubPrEventMailboxService {
     dedupeKey?: string | undefined
     tx?: Tx | undefined
     wake?: boolean
+    effects?: PrEffectCollector | undefined
   }): Promise<void> {
     const orm = args.tx === undefined ? db.orm : args.tx.orm
     for (const userId of args.userIds) {
@@ -104,6 +106,34 @@ export class GithubPrEventMailboxService {
         consumedAt: null,
         createdAt,
       }
+      const notice = {
+        userId,
+        repoFullName: args.repoFullName,
+        prNumber: args.prNumber,
+      }
+      const wakeEvent = { ...notice, kind: args.kind, payload: args.payload, eventId: row.id }
+      if (args.effects !== undefined) {
+        if (args.wake !== false) {
+          args.effects.add({
+            kind: 'v2-notice',
+            payload: { eventId: row.id },
+            dedupeKey: `v2-notice:${row.id}`,
+          })
+        }
+        args.effects.add({
+          kind: 'fanout',
+          payload: { userIds: [userId], event: eventDtoOf(row), ackId: row.id },
+          dedupeKey: `fanout-event:${row.id}`,
+        })
+        if (args.wake !== false) {
+          args.effects.add({
+            kind: 'wake',
+            payload: { notice, event: wakeEvent },
+            dedupeKey: `wake:${row.id}`,
+          })
+        }
+        continue
+      }
       if (args.wake !== false) await this.noticeV2({ tx: args.tx, event: row })
       this.fanout.pushEvent({
         userIds: [userId],
@@ -111,21 +141,7 @@ export class GithubPrEventMailboxService {
         ackId: row.id,
       })
       if (args.wake === false) continue
-      this.wake.notifyEvent(
-        {
-          userId,
-          repoFullName: args.repoFullName,
-          prNumber: args.prNumber,
-        },
-        {
-          userId,
-          repoFullName: args.repoFullName,
-          prNumber: args.prNumber,
-          kind: args.kind,
-          payload: args.payload,
-          eventId: row.id,
-        },
-      )
+      this.wake.notifyEvent(notice, wakeEvent)
     }
   }
 

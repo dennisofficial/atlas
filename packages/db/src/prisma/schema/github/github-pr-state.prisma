@@ -8,6 +8,8 @@ model GithubPrState {
   headBranch       String
   headSha          String
   headRepoFullName String?
+  baseBranch       String               @default("")
+  pullUpdatedAt    TimestamptzJsDate(3)?
   checksRunning    Int                  @default(0)
   checksPassed     Int                  @default(0)
   checksFailed     Int                  @default(0)
@@ -15,6 +17,9 @@ model GithubPrState {
   checksState      String?
   mergeable        Boolean?
   mergeClean       Boolean?
+  mergeableHeadSha    String?
+  mergeableBaseRef    String?
+  mergeableObservedAt TimestamptzJsDate(3)?
   requiredCheckContexts String[]        @default([])
   version          Int                  @default(0)
   updatedAt        TimestamptzJsDate(3)

@@ -1,0 +1,463 @@
+[
+  {
+    "id": "table.GithubBranchProtection",
+    "label": "Create table \"GithubBranchProtection\"",
+    "summary": "Creates table \"GithubBranchProtection\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "GithubBranchProtection"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"GithubBranchProtection\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GithubBranchProtection\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"GithubBranchProtection\"",
+        "sql": "CREATE TABLE \"public\".\"GithubBranchProtection\" (\n  \"baseBranch\" text NOT NULL,\n  \"fetchedAt\" timestamptz(3) NOT NULL,\n  \"repoFullName\" text NOT NULL,\n  \"requiredContexts\" text[] DEFAULT '{}' NOT NULL,\n  PRIMARY KEY (\"repoFullName\", \"baseBranch\"),\n  CONSTRAINT \"GithubBranchProtection_requiredContexts_elem_not_null_83effcc3\" CHECK (array_position(\"requiredContexts\", NULL) IS NULL)\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"GithubBranchProtection\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"GithubBranchProtection\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.GithubPrOutbox",
+    "label": "Create table \"GithubPrOutbox\"",
+    "summary": "Creates table \"GithubPrOutbox\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "GithubPrOutbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"GithubPrOutbox\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GithubPrOutbox\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"GithubPrOutbox\"",
+        "sql": "CREATE TABLE \"public\".\"GithubPrOutbox\" (\n  \"attempts\" int4 DEFAULT 0 NOT NULL,\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"dedupeKey\" text,\n  \"dispatchedAt\" timestamptz(3),\n  \"id\" text NOT NULL,\n  \"kind\" text NOT NULL,\n  \"lastError\" text,\n  \"payload\" jsonb NOT NULL,\n  \"prNumber\" int4 NOT NULL,\n  \"repoFullName\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"GithubPrOutbox\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"GithubPrOutbox\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.GithubPrState.baseBranch",
+    "label": "Add column \"baseBranch\" to \"GithubPrState\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "baseBranch",
+        "table": "GithubPrState"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"baseBranch\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "baseBranch"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"baseBranch\"",
+        "sql": "ALTER TABLE \"public\".\"GithubPrState\" ADD COLUMN \"baseBranch\" text DEFAULT '' NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"baseBranch\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "baseBranch"
+        ]
+      },
+      {
+        "description": "verify column \"baseBranch\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "baseBranch",
+          "text"
+        ]
+      },
+      {
+        "description": "verify column \"baseBranch\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "baseBranch",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.GithubPrState.mergeableBaseRef",
+    "label": "Add column \"mergeableBaseRef\" to \"GithubPrState\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "mergeableBaseRef",
+        "table": "GithubPrState"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"mergeableBaseRef\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "mergeableBaseRef"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"mergeableBaseRef\"",
+        "sql": "ALTER TABLE \"public\".\"GithubPrState\" ADD COLUMN \"mergeableBaseRef\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"mergeableBaseRef\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "mergeableBaseRef"
+        ]
+      },
+      {
+        "description": "verify column \"mergeableBaseRef\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "mergeableBaseRef",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.GithubPrState.mergeableHeadSha",
+    "label": "Add column \"mergeableHeadSha\" to \"GithubPrState\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "mergeableHeadSha",
+        "table": "GithubPrState"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"mergeableHeadSha\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "mergeableHeadSha"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"mergeableHeadSha\"",
+        "sql": "ALTER TABLE \"public\".\"GithubPrState\" ADD COLUMN \"mergeableHeadSha\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"mergeableHeadSha\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "mergeableHeadSha"
+        ]
+      },
+      {
+        "description": "verify column \"mergeableHeadSha\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "mergeableHeadSha",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.GithubPrState.mergeableObservedAt",
+    "label": "Add column \"mergeableObservedAt\" to \"GithubPrState\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "mergeableObservedAt",
+        "table": "GithubPrState"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"mergeableObservedAt\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "mergeableObservedAt"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"mergeableObservedAt\"",
+        "sql": "ALTER TABLE \"public\".\"GithubPrState\" ADD COLUMN \"mergeableObservedAt\" timestamptz(3)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"mergeableObservedAt\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "mergeableObservedAt"
+        ]
+      },
+      {
+        "description": "verify column \"mergeableObservedAt\" has type \"timestamp(3) with time zone\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "mergeableObservedAt",
+          "timestamp(3) with time zone"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.GithubPrState.pullUpdatedAt",
+    "label": "Add column \"pullUpdatedAt\" to \"GithubPrState\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "pullUpdatedAt",
+        "table": "GithubPrState"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"pullUpdatedAt\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "pullUpdatedAt"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"pullUpdatedAt\"",
+        "sql": "ALTER TABLE \"public\".\"GithubPrState\" ADD COLUMN \"pullUpdatedAt\" timestamptz(3)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"pullUpdatedAt\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "pullUpdatedAt"
+        ]
+      },
+      {
+        "description": "verify column \"pullUpdatedAt\" has type \"timestamp(3) with time zone\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "pullUpdatedAt",
+          "timestamp(3) with time zone"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.GithubPrOutbox.GithubPrOutbox_dedupeKey_key",
+    "label": "Add unique constraint on \"GithubPrOutbox\" (dedupeKey)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "GithubPrOutbox_dedupeKey_key",
+        "table": "GithubPrOutbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"GithubPrOutbox_dedupeKey_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "GithubPrOutbox_dedupeKey_key",
+          "public",
+          "\"public\".\"GithubPrOutbox\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"GithubPrOutbox_dedupeKey_key\"",
+        "sql": "ALTER TABLE \"public\".\"GithubPrOutbox\" ADD CONSTRAINT \"GithubPrOutbox_dedupeKey_key\" UNIQUE (\"dedupeKey\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"GithubPrOutbox_dedupeKey_key\" exists on (dedupeKey)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "GithubPrOutbox_dedupeKey_key",
+          "public",
+          "\"public\".\"GithubPrOutbox\"",
+          "u",
+          "[\"dedupeKey\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.GithubPrOutbox.GithubPrOutbox_pending_idx",
+    "label": "Create index \"GithubPrOutbox_pending_idx\" on \"GithubPrOutbox\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "GithubPrOutbox_pending_idx",
+        "table": "GithubPrOutbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"GithubPrOutbox_pending_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GithubPrOutbox_pending_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"GithubPrOutbox_pending_idx\"",
+        "sql": "CREATE INDEX \"GithubPrOutbox_pending_idx\" ON \"public\".\"GithubPrOutbox\" (\"dispatchedAt\", \"createdAt\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"GithubPrOutbox_pending_idx\" exists on \"GithubPrOutbox\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"GithubPrOutbox_pending_idx\"",
+          "i",
+          "I",
+          "\"public\".\"GithubPrOutbox\"",
+          "btree",
+          "[\"dispatchedAt\",\"createdAt\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "data.pr-state-pull-updated-at",
+    "label": "Backfill GithubPrState.pullUpdatedAt from the row clock",
+    "operationClass": "data",
+    "target": {
+      "id": "table.GithubPrState",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "GithubPrState"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Backfill GithubPrState.pullUpdatedAt from the row clock",
+        "sql": "UPDATE \"public\".\"GithubPrState\" SET \"pullUpdatedAt\" = \"updatedAt\" WHERE \"pullUpdatedAt\" IS NULL"
+      }
+    ],
+    "postcheck": []
+  }
+]

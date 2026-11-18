@@ -64,6 +64,10 @@
       "model": "GithubAppNoticeDismissal",
       "namespace": "public"
     },
+    "GithubBranchProtection": {
+      "model": "GithubBranchProtection",
+      "namespace": "public"
+    },
     "GithubCommitCheck": {
       "model": "GithubCommitCheck",
       "namespace": "public"
@@ -82,6 +86,10 @@
     },
     "GithubPrHeadCheck": {
       "model": "GithubPrHeadCheck",
+      "namespace": "public"
+    },
+    "GithubPrOutbox": {
+      "model": "GithubPrOutbox",
       "namespace": "public"
     },
     "GithubPrState": {
@@ -2406,6 +2414,63 @@
               "table": "GithubAppNoticeDismissal"
             }
           },
+          "GithubBranchProtection": {
+            "fields": {
+              "baseBranch": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "fetchedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "repoFullName": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "requiredContexts": {
+                "many": {
+                  "elementNullable": false
+                },
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {},
+            "storage": {
+              "fields": {
+                "baseBranch": {
+                  "column": "baseBranch"
+                },
+                "fetchedAt": {
+                  "column": "fetchedAt"
+                },
+                "repoFullName": {
+                  "column": "repoFullName"
+                },
+                "requiredContexts": {
+                  "column": "requiredContexts"
+                }
+              },
+              "namespaceId": "public",
+              "table": "GithubBranchProtection"
+            }
+          },
           "GithubCommitCheck": {
             "fields": {
               "annotations": {
@@ -3029,8 +3094,132 @@
               "table": "GithubPrHeadCheck"
             }
           },
+          "GithubPrOutbox": {
+            "fields": {
+              "attempts": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "dedupeKey": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "dispatchedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "kind": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "lastError": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "payload": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/jsonb@1",
+                  "kind": "scalar"
+                }
+              },
+              "prNumber": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "repoFullName": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {},
+            "storage": {
+              "fields": {
+                "attempts": {
+                  "column": "attempts"
+                },
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "dedupeKey": {
+                  "column": "dedupeKey"
+                },
+                "dispatchedAt": {
+                  "column": "dispatchedAt"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "kind": {
+                  "column": "kind"
+                },
+                "lastError": {
+                  "column": "lastError"
+                },
+                "payload": {
+                  "column": "payload"
+                },
+                "prNumber": {
+                  "column": "prNumber"
+                },
+                "repoFullName": {
+                  "column": "repoFullName"
+                }
+              },
+              "namespaceId": "public",
+              "table": "GithubPrOutbox"
+            }
+          },
           "GithubPrState": {
             "fields": {
+              "baseBranch": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "checksFailed": {
                 "nullable": false,
                 "type": {
@@ -3101,11 +3290,45 @@
                   "kind": "scalar"
                 }
               },
+              "mergeableBaseRef": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "mergeableHeadSha": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "mergeableObservedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
               "prNumber": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/int4@1",
                   "kind": "scalar"
+                }
+              },
+              "pullUpdatedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
                 }
               },
               "repoFullName": {
@@ -3167,6 +3390,9 @@
             "relations": {},
             "storage": {
               "fields": {
+                "baseBranch": {
+                  "column": "baseBranch"
+                },
                 "checksFailed": {
                   "column": "checksFailed"
                 },
@@ -3197,8 +3423,20 @@
                 "mergeable": {
                   "column": "mergeable"
                 },
+                "mergeableBaseRef": {
+                  "column": "mergeableBaseRef"
+                },
+                "mergeableHeadSha": {
+                  "column": "mergeableHeadSha"
+                },
+                "mergeableObservedAt": {
+                  "column": "mergeableObservedAt"
+                },
                 "prNumber": {
                   "column": "prNumber"
+                },
+                "pullUpdatedAt": {
+                  "column": "pullUpdatedAt"
                 },
                 "repoFullName": {
                   "column": "repoFullName"
@@ -11879,6 +12117,56 @@
               },
               "uniques": []
             },
+            "GithubBranchProtection": {
+              "checks": [
+                {
+                  "expression": "array_position(\"requiredContexts\", NULL) IS NULL",
+                  "name": "GithubBranchProtection_requiredContexts_elem_not_null_83effcc3",
+                  "prefix": "GithubBranchProtection_requiredContexts_elem_not_null"
+                }
+              ],
+              "columns": {
+                "baseBranch": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "fetchedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "repoFullName": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "requiredContexts": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "default": {
+                    "kind": "literal",
+                    "value": []
+                  },
+                  "many": {
+                    "elementNullable": false
+                  },
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [],
+              "indexes": [],
+              "primaryKey": {
+                "columns": [
+                  "repoFullName",
+                  "baseBranch"
+                ]
+              },
+              "uniques": []
+            },
             "GithubCommitCheck": {
               "columns": {
                 "annotations": {
@@ -12367,6 +12655,97 @@
               },
               "uniques": []
             },
+            "GithubPrOutbox": {
+              "columns": {
+                "attempts": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nullable": false
+                },
+                "createdAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "dedupeKey": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "dispatchedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "kind": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "lastError": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "payload": {
+                  "codecId": "pg/jsonb@1",
+                  "dataType": "pg/jsonb",
+                  "nullable": false
+                },
+                "prNumber": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": false
+                },
+                "repoFullName": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [],
+              "indexes": [
+                {
+                  "columns": [
+                    "dispatchedAt",
+                    "createdAt"
+                  ],
+                  "name": "GithubPrOutbox_pending_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "dedupeKey"
+                  ]
+                }
+              ]
+            },
             "GithubPrState": {
               "checks": [
                 {
@@ -12376,6 +12755,15 @@
                 }
               ],
               "columns": {
+                "baseBranch": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "default": {
+                    "kind": "literal",
+                    "value": ""
+                  },
+                  "nullable": false
+                },
                 "checksFailed": {
                   "codecId": "pg/int4@1",
                   "dataType": "pg/int4",
@@ -12442,10 +12830,36 @@
                   "dataType": "pg/bool",
                   "nullable": true
                 },
+                "mergeableBaseRef": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "mergeableHeadSha": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "mergeableObservedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
                 "prNumber": {
                   "codecId": "pg/int4@1",
                   "dataType": "pg/int4",
                   "nullable": false
+                },
+                "pullUpdatedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
                 },
                 "repoFullName": {
                   "codecId": "pg/text@1",
@@ -17603,10 +18017,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "0177afbe1032f67b7454ea77afa20d9c0d29afca2914e1ad06a2604ce3af37e8"
+    "storageHash": "440aade754b29db78c71837295de8d12133fae48cc9290e2cb2570999e2a38ba"
   },
   "execution": {
-    "executionHash": "f0070f067d5f975ffd666627e7d83dff8b80fcaa2204df163480c1b9274350d2",
+    "executionHash": "4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45",
     "mutations": {
       "defaults": [
         {
@@ -17808,6 +18222,17 @@
           "ref": {
             "entry": "GithubPrHeadCheck",
             "field": "updatedAt",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "cuid2",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "GithubPrOutbox",
+            "field": "id",
             "namespace": "public"
           }
         },

@@ -1,0 +1,15 @@
+// use prisma-8
+model GithubPrOutbox {
+  id           String               @id @onCreate(cuid(2))
+  kind         String
+  repoFullName String
+  prNumber     Int
+  payload      Jsonb
+  dedupeKey    String?              @unique
+  createdAt    TimestamptzJsDate(3) @default(now())
+  dispatchedAt TimestamptzJsDate(3)?
+  attempts     Int                  @default(0)
+  lastError    String?
+
+  @@index([dispatchedAt, createdAt], map: "GithubPrOutbox_pending_idx")
+}

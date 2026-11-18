@@ -1,0 +1,9 @@
+// use prisma-8
+model GithubBranchProtection {
+  repoFullName     String
+  baseBranch       String
+  requiredContexts String[]           @default([])
+  fetchedAt        TimestamptzJsDate(3)
+
+  @@id([repoFullName, baseBranch])
+}
