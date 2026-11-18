@@ -66,11 +66,10 @@ describeWithHost('api and agent host in one process', () => {
 
   it('serves the versioned api health route', async () => {
     const response = await fetch(`${booted.base}/v1/health`)
-    const body = (await response.json()) as { status?: string; service?: string; message?: string }
+    const body = (await response.json()) as { status?: string; service?: string }
 
-    expect([200, 503]).toContain(response.status)
-    if (response.status === 200) expect(body).toMatchObject({ status: 'ok', service: 'api' })
-    else expect(body.message).toContain('migration')
+    expect(response.status).toBe(200)
+    expect(body).toMatchObject({ status: 'ok', service: 'api' })
   })
 
   it('keeps tRPC mounted under /v1/trpc', async () => {

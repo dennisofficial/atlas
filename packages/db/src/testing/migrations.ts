@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import type pg from 'pg'
 
 const MIGRATIONS_DIR = join(import.meta.dirname, '..', '..', 'migrations', 'app')
+const TEMPLATE_SCHEME = 'signed-contract-marker-v1'
 
 type Step = { sql: string; params?: unknown[] }
 type Operation = { execute: Step[] }
@@ -15,8 +16,9 @@ function opsFiles(): string[] {
     .sort()
 }
 
-export function migrationSetHash(): string {
+export function templateHash(): string {
   const hash = createHash('sha256')
+  hash.update(TEMPLATE_SCHEME)
   for (const file of opsFiles()) hash.update(readFileSync(file))
   return hash.digest('hex').slice(0, 12)
 }

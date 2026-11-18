@@ -4,7 +4,6 @@ import { createServer } from 'node:net'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
-import { contractStorageHash, sharedPool } from '@dltech/atlas-db'
 import { ensureTestDatabase } from '@dltech/atlas-db/testing'
 
 const API_ROOT = import.meta.dirname + '/..'
@@ -46,19 +45,6 @@ function probeEnv({ port, databaseUrl }: { port: number; databaseUrl: string }):
   }
 }
 
-async function signTestDatabase(): Promise<void> {
-  const pool = sharedPool()
-  await pool.query('CREATE SCHEMA IF NOT EXISTS prisma_contract')
-  await pool.query(
-    'CREATE TABLE IF NOT EXISTS prisma_contract.marker (space text PRIMARY KEY, core_hash text NOT NULL, profile_hash text NOT NULL)',
-  )
-  await pool.query(
-    `INSERT INTO prisma_contract.marker (space, core_hash, profile_hash) VALUES ('app', $1, '')
-     ON CONFLICT (space) DO UPDATE SET core_hash = excluded.core_hash`,
-    [contractStorageHash],
-  )
-}
-
 function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const server = createServer()
@@ -96,7 +82,6 @@ describeWithHost('api under the bun runtime', () => {
 
   beforeAll(async () => {
     await ensureTestDatabase()
-    await signTestDatabase()
     const assigned = process.env.DATABASE_URL
     if (assigned === undefined) throw new Error('DATABASE_URL is unset')
     databaseUrl = assigned
@@ -112,7 +97,6 @@ describeWithHost('api under the bun runtime', () => {
 
   afterAll(async () => {
     child.kill('SIGKILL')
-    await sharedPool().query('DROP TABLE IF EXISTS prisma_contract.marker')
   })
 
   it('answers health', async () => {

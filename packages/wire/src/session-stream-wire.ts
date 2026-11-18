@@ -12,8 +12,3 @@ export const sessionStreamFollowInputSchema = z
   })
 
 export type SessionStreamFollowInput = z.infer<typeof sessionStreamFollowInputSchema>
-
-const isAsyncIterable = (value: unknown): value is AsyncIterable<unknown> =>
-  typeof (value as { [Symbol.asyncIterator]?: unknown })[Symbol.asyncIterator] === 'function'
-
-export const sessionStreamOutputSchema = z.custom<AsyncIterable<unknown>>(isAsyncIterable)
