@@ -77,6 +77,9 @@ const hasBranch = (row: ReadEvent, name: string): boolean => {
   return body.branches?.some((branch) => branch.name === name) ?? false
 }
 
+const baseOf = (row: ReadEvent): string | null =>
+  (row.event as { base?: string | null }).base ?? null
+
 describe('branches-observed e2e', () => {
   const sandbox = new LocalSandboxProvider({ daemonSecret: E2E_SECRET })
   let plane: ControlPlane
@@ -149,6 +152,7 @@ describe('branches-observed e2e', () => {
       want: (rows) => branchRecords(rows).length > 0,
     })
     expect(branchRecords(boot).map((row) => hasBranch(row, 'feat-x'))).toEqual([false])
+    expect(branchRecords(boot).map(baseOf)).toEqual(['main'])
 
     await plane.post({
       sessionId,
@@ -172,6 +176,7 @@ describe('branches-observed e2e', () => {
       throw new Error(`${String(error)}\n${log.dump('branches-e2e')}\n${bodies}`)
     })
     expect(branchRecords(first).map((row) => hasBranch(row, 'feat-x'))).toEqual([false, true])
+    expect(branchRecords(first).map(baseOf)).toEqual(['main', 'main'])
 
     await plane.post({
       sessionId,
@@ -191,5 +196,6 @@ describe('branches-observed e2e', () => {
       want: (rows) => rows.filter((row) => row.type === 'assistant-said').length >= 2,
     })
     expect(branchRecords(after).map((row) => hasBranch(row, 'feat-x'))).toEqual([false, true])
+    expect(branchRecords(after).map(baseOf)).toEqual(['main', 'main'])
   }, 60_000)
 })

@@ -92,9 +92,6 @@ const fakeRecord = (): BranchRecorder & {
     appended,
     facts,
     recordedBase: (repo) => facts.get(repo),
-    rememberBase: async ({ repo, base }) => {
-      facts.set(repo, base)
-    },
     append: async ({ body }) => {
       appended.push(body)
     },
@@ -346,14 +343,14 @@ describe('BranchObserver', () => {
     await daemon.stop()
   })
 
-  it('falls back to the checked-out head on the first observation and remembers it', async () => {
+  it('leaves base off rather than adopting the checked-out head as the base', async () => {
     const daemon = await makeDaemon()
     const calls = connect(daemon)
     const record = fakeRecord()
     await calls.ready()
     await observerOver({ record, calls, baseOf: () => null }).refresh()
-    expect(record.appended[0]?.base).toBe('aaa111')
-    expect(record.facts.get('/w')).toBe('aaa111')
+    expect(record.appended[0]).not.toHaveProperty('base')
+    expect(record.facts.size).toBe(0)
     calls.close()
     await daemon.stop()
   })

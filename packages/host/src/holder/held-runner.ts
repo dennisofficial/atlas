@@ -110,19 +110,6 @@ export const createBranchObserver = (args: {
         const fact = book().fact(`base:${repo}`)
         return fact.found && typeof fact.value === 'string' ? fact.value : undefined
       },
-      rememberBase: ({ threadId: to, runId: id, repo, base }) =>
-        record.append({
-          threadId: to,
-          runId: id,
-          drafts: [
-            {
-              type: 'fact-recorded',
-              key: `base:${repo}`,
-              kind: 'base',
-              value: base,
-            },
-          ],
-        }),
     },
     remoteCalls: runtime.remoteCalls,
     threadId,

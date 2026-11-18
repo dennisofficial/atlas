@@ -166,6 +166,7 @@ export const createSessionRuntimeFactory = (
     })
     let setupListener: ((lifecycle: SetupLifecycle) => void) | undefined
     const setupLifecycles: SetupLifecycle[] = []
+    const checkedOutBranches = new Map<string, string>()
     const attempt = (signal: AbortSignal): Promise<PrepareResult> =>
       abortable(calls.ready(), signal)
         .then(async () => {
@@ -201,6 +202,7 @@ export const createSessionRuntimeFactory = (
               setupLifecycles.push(lifecycle)
               setupListener?.(lifecycle)
             },
+            onCheckedOut: ({ path, branch }) => checkedOutBranches.set(path, branch),
             ...(args.log === undefined ? {} : { log: args.log }),
           })
         })
@@ -353,7 +355,8 @@ export const createSessionRuntimeFactory = (
       launchDirectory,
       watchedRepos: () => gitWatch.watchedRepos(),
       onRepo: (listener) => gitWatch.onRepo(listener),
-      baseBranchOf: (repoPath) => repoAt(repoPath)?.base ?? null,
+      baseBranchOf: (repoPath) =>
+        repoAt(repoPath)?.base ?? checkedOutBranches.get(repoPath) ?? null,
       plugins: args.plugins,
       runningShells: () => countRunningShells({ calls }),
       env: sessionShellEnv,

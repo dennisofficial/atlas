@@ -18,6 +18,7 @@ import {
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 import type { WorkspaceConfig } from '../config/agent-host-config'
 
+import { captureCheckedOut, type CheckoutReport } from './workspace-checkout'
 import { materialize, run } from './workspace-clone'
 import { RepoProgress, repoNamesOf } from './workspace-repos'
 import {
@@ -163,6 +164,7 @@ export const ensureWorkspace = async (args: {
   onStep?: ((step: WorkspaceStepReport) => void) | undefined
   onOutput?: ((text: string) => void) | undefined
   onSetup?: ((lifecycle: SetupLifecycle) => void) | undefined
+  onCheckedOut?: CheckoutReport | undefined
 }): Promise<PrepareResult> => {
   const warnings: string[] = []
   const deps: Deps = {
@@ -173,7 +175,7 @@ export const ensureWorkspace = async (args: {
     ...(args.env === undefined ? {} : { env: args.env }),
     ...(args.log === undefined ? {} : { log: args.log }),
   }
-  const { workspace, launchDirectory, githubToken, onStep } = args
+  const { workspace, launchDirectory, githubToken, onStep, onCheckedOut } = args
   const stateDir = stateDirOf(launchDirectory)
   const sentinels = sentinelsOf(stateDir)
   const scrub = (text: string): string =>
@@ -234,6 +236,7 @@ export const ensureWorkspace = async (args: {
         state: EWorkspaceStepState.Done,
         repos: progress.snapshot(),
       })
+      await captureCheckedOut({ deps, workspace, launchDirectory, onCheckedOut })
       // the workspace was rebuilt, so a setup script started in the old one says nothing about it
       await clearSetupStarted({ deps, path: sentinels.setupStarted })
     }

@@ -19,12 +19,6 @@ export type BranchRecorder = {
   append(args: { threadId: ThreadId; runId: RunId; body: BranchesObserved }): Promise<unknown>
   lastObservation(repo: string): BranchObservation | undefined
   recordedBase(repo: string): string | undefined
-  rememberBase(args: {
-    threadId: ThreadId
-    runId: RunId
-    repo: string
-    base: string
-  }): Promise<unknown>
 }
 
 export type BranchObserverArgs = {
@@ -164,11 +158,7 @@ export class BranchObserver {
     if (this.isStopped) return
     const observation = observationOf(set)
     const last = this.args.record.lastObservation(observation.repo)
-    const base = await this.baseOf({
-      repo: observation.repo,
-      head: observation.head,
-      first: last === undefined,
-    })
+    const base = this.baseOf(observation.repo)
     const stamped = base === null ? observation : { ...observation, base }
     if (!observationChanged({ last, set: stamped })) return
     await this.args.record.append({
@@ -178,20 +168,7 @@ export class BranchObserver {
     })
   }
 
-  private async baseOf(args: {
-    repo: string
-    head: string | null
-    first: boolean
-  }): Promise<string | null> {
-    const known = this.args.baseOf(args.repo) ?? this.args.record.recordedBase(args.repo)
-    if (known !== null && known !== undefined) return known
-    if (!args.first || args.head === null) return null
-    await this.args.record.rememberBase({
-      threadId: this.args.threadId,
-      runId: this.args.runId(),
-      repo: args.repo,
-      base: args.head,
-    })
-    return args.head
+  private baseOf(repo: string): string | null {
+    return this.args.baseOf(repo) ?? this.args.record.recordedBase(repo) ?? null
   }
 }
