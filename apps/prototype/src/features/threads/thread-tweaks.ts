@@ -7,6 +7,7 @@ import { enumValueOf } from './enum-value'
 import { MAX_QUEUED } from './queue-fixtures'
 import type { SessionViewProps } from './session-view'
 import { ERightTab, ESessionState } from './session-types'
+import { EPaneVariant, PANE_VARIANTS } from './pane-variants/pane-variant'
 
 export const THREAD_CONTROLS = {
   state: {
@@ -32,6 +33,12 @@ export const THREAD_CONTROLS = {
     label: 'Preview runs in',
     options: ['web', 'mac'],
     default: 'web',
+  },
+  variant: {
+    type: 'select',
+    label: 'Pane design',
+    options: PANE_VARIANTS,
+    default: EPaneVariant.Current,
   },
   detail: { type: 'boolean', label: 'Agent detail', default: false },
   queued: {
@@ -67,6 +74,11 @@ export function tweaksOf(values: ThreadTweaks) {
       options: Object.values(ETerminalConnection),
       value: values.terminal,
       fallback: ETerminalConnection.Connected,
+    }),
+    variant: enumValueOf({
+      options: PANE_VARIANTS,
+      value: values.variant,
+      fallback: EPaneVariant.Current,
     }),
   }
 }

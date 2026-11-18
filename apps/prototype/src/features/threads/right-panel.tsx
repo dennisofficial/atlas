@@ -16,6 +16,10 @@ import { PreviewBrowser, usePreviewTabCount } from './preview-browser/preview-br
 import { RightTabStrip } from './right-tab-strip'
 import type { ETerminalConnection } from '@dltech/atlas-ui/ai/terminal-states'
 import { TerminalTab } from './terminal-tab'
+import { EPaneVariant } from './pane-variants/pane-variant'
+import { ChangesVariants } from './pane-variants/changes/changes-variants'
+import { DetailsVariants } from './pane-variants/details/details-variants'
+import { TerminalVariants } from './pane-variants/terminal/terminal-variants'
 
 export interface RightPanelProps {
   tab: ERightTab
@@ -23,6 +27,7 @@ export interface RightPanelProps {
   expanded: string[]
   onExpandedChange: (paths: string[]) => void
   initialTerminalConnection?: ETerminalConnection
+  paneVariant?: EPaneVariant
   pod?: PodPanelState
   agents: AgentsPanelAgent[]
   teammates: CrewRow[]
@@ -42,6 +47,7 @@ export function RightPanel({
   expanded,
   onExpandedChange,
   initialTerminalConnection,
+  paneVariant = EPaneVariant.Current,
   pod,
   agents,
   teammates,
@@ -56,6 +62,7 @@ export function RightPanel({
   const [scope, setScope] = useState('all')
   const [selectedFile, setSelectedFile] = useState<string>()
   const previewTabs = usePreviewTabCount()
+  const prototyping = paneVariant !== EPaneVariant.Current
 
   const handleTabChange = (value: unknown) => {
     if (isRightTab(value)) onTabChange(value)
@@ -67,19 +74,25 @@ export function RightPanel({
         counts={{ [ERightTab.Details]: running, [ERightTab.Preview]: pod ? 0 : previewTabs }}
       />
       <TabsContent value={ERightTab.Details} className="min-h-0 flex-1">
-        <DetailsTab
-          agents={agents}
-          teammates={teammates}
-          detailId={detailId}
-          onDetailChange={onDetailChange}
-          onOpenTeammate={onOpenTeammate}
-          onJumpToSpawn={onJumpToSpawn}
-          contextPath={contextPath}
-          onOpenContextFile={onOpenContextFile}
-        />
+        {prototyping ? (
+          <DetailsVariants variant={paneVariant} />
+        ) : (
+          <DetailsTab
+            agents={agents}
+            teammates={teammates}
+            detailId={detailId}
+            onDetailChange={onDetailChange}
+            onOpenTeammate={onOpenTeammate}
+            onJumpToSpawn={onJumpToSpawn}
+            contextPath={contextPath}
+            onOpenContextFile={onOpenContextFile}
+          />
+        )}
       </TabsContent>
       <TabsContent value={ERightTab.Changes} className="min-h-0 flex-1">
-        {pod ? (
+        {prototyping ? (
+          <ChangesVariants variant={paneVariant} />
+        ) : pod ? (
           <PodChanges pod={pod} expanded={expanded} onExpandedChange={onExpandedChange} />
         ) : (
           <ChangesPanel
@@ -103,7 +116,9 @@ export function RightPanel({
         )}
       </TabsContent>
       <TabsContent value={ERightTab.Terminal} className="min-h-0 flex-1">
-        {pod ? (
+        {prototyping ? (
+          <TerminalVariants variant={paneVariant} />
+        ) : pod ? (
           <PodTerminal pod={pod} />
         ) : (
           <TerminalTab initialConnection={initialTerminalConnection} />

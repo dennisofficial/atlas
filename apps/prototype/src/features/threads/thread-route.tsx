@@ -10,9 +10,11 @@ import { headerFor, THREAD_CONTROLS, tweaksOf } from './thread-tweaks'
 
 export function ThreadRoute({ threadId }: { threadId: string }) {
   const values = usePrototype(THREAD_CONTROLS)
-  const { state, tab, terminal } = tweaksOf(values)
+  const { state, tab, terminal, variant } = tweaksOf(values)
   const thread = THREADS.find((candidate) => candidate.id === threadId)
-  const signature = [threadId, state, tab, terminal, values.detail, values.queued].join('|')
+  const signature = [threadId, state, tab, terminal, variant, values.detail, values.queued].join(
+    '|',
+  )
 
   return (
     <SessionView
@@ -23,6 +25,7 @@ export function ThreadRoute({ threadId }: { threadId: string }) {
       initialDetailId={values.detail ? FOCUS_ID : undefined}
       initialQueue={queueOf(values.queued)}
       initialTerminalConnection={terminal}
+      paneVariant={variant}
       header={headerFor(thread)}
     />
   )

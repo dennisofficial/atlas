@@ -12,6 +12,7 @@ import type { PodPanelState } from './pod-state'
 import type { SessionHeaderProps } from './session-header'
 import { SessionPane } from './session-pane'
 import { ERightTab, ESessionState } from './session-types'
+import type { EPaneVariant } from './pane-variants/pane-variant'
 import { teammateHeader, teammateSessionState } from './teammate-view'
 
 export interface SessionViewProps {
@@ -21,6 +22,7 @@ export interface SessionViewProps {
   initialDetailId?: string
   initialQueue?: QueuedMessageEntry[]
   initialTerminalConnection?: ETerminalConnection
+  paneVariant?: EPaneVariant
   header?: Pick<SessionHeaderProps, 'title' | 'detail' | 'badgeLabel'>
   pod?: PodPanelState
   renderTranscript?: (api: { onOpenFile: (path: string) => void }) => ReactNode
@@ -34,6 +36,7 @@ export function SessionView({
   initialDetailId,
   initialQueue = [],
   initialTerminalConnection,
+  paneVariant,
   header,
   pod,
   renderTranscript,
@@ -64,6 +67,7 @@ export function SessionView({
         initialDetailId={initialDetailId}
         initialQueue={teammate ? [] : initialQueue}
         initialTerminalConnection={initialTerminalConnection}
+        paneVariant={paneVariant}
         pod={pod}
         renderTranscript={renderTranscript}
         composer={composer}

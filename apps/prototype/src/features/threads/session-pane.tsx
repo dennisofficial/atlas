@@ -17,6 +17,7 @@ import type { AgentRun } from './agent-run'
 import type { PodPanelState } from './pod-state'
 import { ContextViewer } from './details/context-viewer'
 import { useEscapeClose } from './details/use-escape-close'
+import type { EPaneVariant } from './pane-variants/pane-variant'
 import { RightPanel } from './right-panel'
 import type { ETerminalConnection } from '@dltech/atlas-ui/ai/terminal-states'
 import { SessionHeader, type SessionHeaderProps } from './session-header'
@@ -37,6 +38,7 @@ export interface SessionPaneProps {
   initialDetailId?: string
   initialQueue: QueuedMessageEntry[]
   initialTerminalConnection?: ETerminalConnection
+  paneVariant?: EPaneVariant
   pod?: PodPanelState
   renderTranscript?: (api: { onOpenFile: (path: string) => void }) => ReactNode
   composer?: ReactNode
@@ -52,6 +54,7 @@ export function SessionPane({
   initialDetailId,
   initialQueue,
   initialTerminalConnection,
+  paneVariant,
   pod,
   renderTranscript,
   composer,
@@ -134,6 +137,7 @@ export function SessionPane({
             expanded={expanded}
             onExpandedChange={setExpanded}
             initialTerminalConnection={initialTerminalConnection}
+            paneVariant={paneVariant}
             pod={pod}
             agents={panelAgents}
             teammates={teammateRowsOf(teammates)}
