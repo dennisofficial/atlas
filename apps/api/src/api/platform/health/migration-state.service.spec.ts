@@ -1,10 +1,14 @@
 import { contractStorageHash, sharedPool } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { describe, expect, it } from 'bun:test'
+import { afterAll, describe, expect, it } from 'bun:test'
 import { EMigrationState, MigrationStateService } from './migration-state.service'
 
 describe('MigrationStateService against Postgres', () => {
   useTestDatabase()
+
+  afterAll(async () => {
+    await sharedPool().query('DROP TABLE IF EXISTS prisma_contract.marker')
+  })
 
   const sign = async (hash: string) => {
     await sharedPool().query(

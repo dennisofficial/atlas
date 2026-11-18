@@ -1,4 +1,4 @@
-import { AgentHostEnvError, type AgentHostEnv, readAgentHostEnv } from '@dltech/atlas-agent-host'
+import { AgentHostEnvError, type AgentHostEnv, readAgentHostEnv } from '../agent'
 
 const EX_CONFIG = 78
 

@@ -2,7 +2,7 @@ import { db, or } from '@dltech/atlas-db'
 import { sandboxNameFor } from '../../platform/sandboxes/sandbox-names'
 import { ARCHIVED_SANDBOX_GRACE_MS } from './archived-sandbox-sweep'
 
-/** How `apps/agent-host` derives its sandbox names (`sandboxNameOf` in sandbox/sandbox-provider.ts). */
+/** How `src/agent` derives its sandbox names (`sandboxNameOf` in sandbox/sandbox-provider.ts). */
 const v2SandboxNameOf = (podSessionId: string): string => `atlas-v2-${podSessionId}`
 
 export type V2PodNames = {

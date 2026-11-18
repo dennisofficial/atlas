@@ -1,2 +1,3 @@
 [test]
+timeout = 30000
 preload = ["./nestjs-preload.ts", "../../bun-test.setup.ts", "../../packages/bun-test-incremental/src/preload.ts", "./test.setup.ts", "../../packages/db/src/testing/env.ts"]

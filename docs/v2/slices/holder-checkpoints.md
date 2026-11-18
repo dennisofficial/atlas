@@ -151,4 +151,4 @@ same events, after every prefix. The existing folds stay as the reference.
   `packages/host/src/holder/record/__tests__/` that times one simulated step's state reads at 1k
   and 20k events and asserts the 20k cost is within 2× (or 5 ms) of the 1k cost, the same bound
   `packages/control/__tests__/postgres-scale.spec.ts` uses.
-- Typecheck: `bunx turbo run typecheck --filter @dltech/atlas-core --filter @dltech/atlas-agent --filter @dltech/atlas-host --filter @dltech/atlas-agent-host`.
+- Typecheck: `bunx turbo run typecheck --filter @dltech/atlas-core --filter @dltech/atlas-agent --filter @dltech/atlas-host --filter @dltech/atlas-api`.

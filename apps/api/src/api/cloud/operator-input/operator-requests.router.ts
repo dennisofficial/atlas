@@ -7,8 +7,7 @@ import {
   Optional,
   ServiceUnavailableException,
 } from '@nestjs/common'
-import type { OperatorAnswerService } from '@dltech/atlas-agent-host'
-import { OPERATOR_ANSWERS } from '../../host-call-tokens'
+import { OPERATOR_ANSWERS, type OperatorAnswerService } from '../../../agent'
 import { type OperatorAnswerInput, operatorAnswerInputSchema } from '@dltech/atlas-wire'
 import { Ctx, Input, Mutation, Router, UseMiddlewares } from 'nestjs-trpc'
 import { z } from 'zod'

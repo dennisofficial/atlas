@@ -1,5 +1,4 @@
-import { SESSION_STREAM } from '@dltech/atlas-agent-host/host/tokens'
-import { createSessionStream } from '@dltech/atlas-agent-host'
+import { createSessionStream, SESSION_STREAM } from '../src/agent'
 import { type StreamServerMessage, streamServerMessageSchema } from '@dltech/atlas-protocol'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'

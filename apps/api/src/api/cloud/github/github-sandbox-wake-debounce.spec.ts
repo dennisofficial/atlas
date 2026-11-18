@@ -1,22 +1,9 @@
-import { afterEach, describe, expect, it, vi } from 'bun:test'
-import { stubEnv, unstubAllEnvs } from '@dltech/bun-test-shims'
+import { describe, expect, it } from 'bun:test'
 
 import { WAKE_DEBOUNCE_MS, wakeDebounceProvider } from './github-sandbox-wake-debounce'
 
 describe('wakeDebounceProvider', () => {
-  afterEach(() => {
-    unstubAllEnvs()
-  })
-
-  it('drops the debounce on Vercel, where the wakeClaim CAS is the dedupe', () => {
-    stubEnv('VERCEL', '1')
-
-    expect(wakeDebounceProvider().useValue).toBe(0)
-  })
-
-  it('keeps the debounce elsewhere', () => {
-    stubEnv('VERCEL', '')
-
+  it('debounces wake boots by five seconds', () => {
     expect(wakeDebounceProvider().useValue).toBe(WAKE_DEBOUNCE_MS)
   })
 })

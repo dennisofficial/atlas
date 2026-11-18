@@ -1,7 +1,6 @@
 import { Inject, Optional, ServiceUnavailableException } from '@nestjs/common'
-import type { SessionStream } from '@dltech/atlas-agent-host'
+import { SESSION_STREAM, type SessionStream } from '../../../agent'
 import type { StreamServerMessage } from '@dltech/atlas-protocol'
-import { SESSION_STREAM } from '../../host-call-tokens'
 import {
   type SessionStreamFollowInput,
   sessionStreamFollowInputSchema,

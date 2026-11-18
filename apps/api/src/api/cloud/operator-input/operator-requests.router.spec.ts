@@ -1,5 +1,5 @@
 import type { NestExpressApplication } from '@nestjs/platform-express'
-import { OPERATOR_ANSWERS } from '../../host-call-tokens'
+import { OPERATOR_ANSWERS } from '../../../agent'
 import { afterEach, describe, expect, it } from 'bun:test'
 import { SESSION_VERIFIER } from '../../../_core/ports/session-verifier'
 import { SessionMiddleware } from '../../../_module/session/session.middleware'

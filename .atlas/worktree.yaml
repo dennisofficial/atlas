@@ -1,4 +1,3 @@
 copy:
   - apps/api/.env.keys
   - apps/api/.env.personal
-  - apps/agent-host/.env.keys
