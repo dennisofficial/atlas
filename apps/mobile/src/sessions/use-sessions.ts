@@ -1,7 +1,7 @@
-import { createSessionsFeed, type SessionsFeed } from '@dltech/atlas-client/stream'
+import { createSessionsFeed } from '@dltech/atlas-client/stream'
 import type { StreamSessionRow } from '@dltech/atlas-protocol'
 import { useFocusEffect } from 'expo-router'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { useAuth } from '../auth/auth-provider'
 import { sessionStream } from '../thread/v2/session-stream'
@@ -23,15 +23,13 @@ export const useSessions = () => {
   const [loadState, setLoadState] = useState(ELoadState.Loading)
   const [refreshing, setRefreshing] = useState(false)
   const [now, setNow] = useState(() => Date.now())
-  const feedRef = useRef<SessionsFeed | undefined>(undefined)
 
   useEffect(() => {
     if (api === undefined) return undefined
-    feedRef.current ??= createSessionsFeed({
-      follow: () => sessionStream().followSessions(),
+    return createSessionsFeed({
+      follow: () => sessionStream(api).followSessions(),
       write: setLive,
-    })
-    return feedRef.current.retain()
+    }).retain()
   }, [api])
 
   const load = useCallback(async () => {

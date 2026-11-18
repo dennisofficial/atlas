@@ -1,4 +1,4 @@
-import { sessionStreamTransport } from '@dltech/atlas-api-router'
+import { sessionStreamTransport, type ApiClient } from '@dltech/atlas-api-router'
 import {
   createStreamConnection,
   systemStreamScheduler,
@@ -6,24 +6,25 @@ import {
 } from '@dltech/atlas-client/stream'
 
 import { v2EventSchema, v2EventTypes } from './registered-plugins'
-import { getStreamClient } from './stream-token'
 
 export { clearSessionLog, sessionLog } from './session-cache'
 
-let connection: StreamConnection | undefined
+let held: { client: ApiClient; connection: StreamConnection } | undefined
 
-export const sessionStream = (): StreamConnection => {
-  connection ??= createStreamConnection({
-    transport: {
-      follow: (input, handlers) =>
-        sessionStreamTransport({ client: getStreamClient() }).follow(input, handlers),
-      list: (handlers) => sessionStreamTransport({ client: getStreamClient() }).list(handlers),
-    },
+export const sessionStream = (client: ApiClient): StreamConnection => {
+  if (held?.client === client) {
+    held.connection.connect()
+    return held.connection
+  }
+  held?.connection.close()
+  const connection = createStreamConnection({
+    transport: sessionStreamTransport({ client }),
     scheduler: systemStreamScheduler,
     networkSignal: () => () => {},
     eventSchema: v2EventSchema,
     knownEventTypes: v2EventTypes,
   })
+  held = { client, connection }
   connection.connect()
   return connection
 }
