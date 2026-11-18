@@ -238,7 +238,6 @@ describe('GithubDeliveryService check rows', () => {
       checkRuns,
       statuses,
       checksState: null,
-      requiredCheckContexts: [],
     })
 
     expect(await tallyOf('abc123')).toEqual({

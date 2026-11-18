@@ -55,7 +55,6 @@ export interface PullRequestCacheFields {
   checksState: string | null
   mergeable: boolean | null
   mergeClean?: boolean | null
-  requiredCheckContexts?: readonly string[]
 }
 
 /**
@@ -78,7 +77,6 @@ export function pullRequestCacheFieldsOf(args: {
   checkRuns: readonly RestCheckRun[]
   statuses: readonly RestCommitStatus[]
   checksState: string | null
-  requiredCheckContexts: readonly string[]
 }): PullRequestCacheFields {
   const latestByContext = new Map<string, RestCommitStatus>()
   for (const status of args.statuses) {
@@ -115,6 +113,5 @@ export function pullRequestCacheFieldsOf(args: {
     checksState: args.checksState,
     mergeable: args.pull.mergeable,
     mergeClean: mergeCleanOf(args.pull.mergeable_state),
-    requiredCheckContexts: [...args.requiredCheckContexts],
   }
 }

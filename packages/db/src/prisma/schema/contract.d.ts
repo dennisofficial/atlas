@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'440aade754b29db78c71837295de8d12133fae48cc9290e2cb2570999e2a38ba'>;
+  StorageHashBase<'04bc31236a81dff5e209b163f3961960d73bc56f23b5f7453ebc8f10d2a0605f'>;
 export type ExecutionHash =
   ExecutionHashBase<'4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45'>;
 export type ProfileHash =
@@ -611,7 +611,6 @@ export namespace Models {
     prNumber: FieldOutputTypes['public']['GithubPrState']['prNumber'];
     pullUpdatedAt: FieldOutputTypes['public']['GithubPrState']['pullUpdatedAt'];
     repoFullName: FieldOutputTypes['public']['GithubPrState']['repoFullName'];
-    requiredCheckContexts: FieldOutputTypes['public']['GithubPrState']['requiredCheckContexts'];
     state: FieldOutputTypes['public']['GithubPrState']['state'];
     title: FieldOutputTypes['public']['GithubPrState']['title'];
     updatedAt: FieldOutputTypes['public']['GithubPrState']['updatedAt'];
@@ -3610,16 +3609,6 @@ type ContractBase = Omit<
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
                   readonly many: false;
-                };
-                readonly requiredCheckContexts: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly default: {
-                    readonly kind: 'literal';
-                    readonly value: DefaultLiteralValue<'pg/text@1', readonly []>;
-                  };
-                  readonly many: { readonly elementNullable: false };
                 };
                 readonly state: {
                   readonly dataType: 'pg/text';
@@ -9991,11 +9980,6 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
-              readonly requiredCheckContexts: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-                readonly many: { readonly elementNullable: false };
-              };
               readonly state: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -10043,7 +10027,6 @@ type ContractBase = Omit<
                 readonly prNumber: { readonly column: 'prNumber' };
                 readonly pullUpdatedAt: { readonly column: 'pullUpdatedAt' };
                 readonly repoFullName: { readonly column: 'repoFullName' };
-                readonly requiredCheckContexts: { readonly column: 'requiredCheckContexts' };
                 readonly state: { readonly column: 'state' };
                 readonly title: { readonly column: 'title' };
                 readonly updatedAt: { readonly column: 'updatedAt' };

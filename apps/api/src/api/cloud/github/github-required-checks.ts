@@ -1,7 +1,3 @@
-import { db, type Tx } from '@dltech/atlas-db'
-import { SUITE_KEY_PREFIX } from './github-check-suites'
-import { normalizedRepo } from './github-pr-identity'
-
 export const REQUIRED_CHECKS_TTL_MS = 60_000
 
 export type GithubBranchRule = {
@@ -104,38 +100,4 @@ export function rememberRequiredContexts(args: {
 }): string[] {
   args.cache.set(args.key, { at: args.now, contexts: args.contexts })
   return args.contexts
-}
-
-export function missingOf(args: {
-  requiredContexts: readonly string[]
-  present: ReadonlySet<string>
-}): string[] {
-  return args.requiredContexts.filter((context) => !args.present.has(context))
-}
-
-/**
- * A required context GitHub has not reported on this head yet is a check that has not run: the
- * head is not settled, so no verdict may close CI. A repo with no required contexts, or one whose
- * lookup failed, yields nothing here and settles on its observed tally alone.
- */
-export async function missingRequiredContexts(args: {
-  tx?: Tx
-  repoFullName: string
-  headSha: string
-  requiredContexts: readonly string[]
-}): Promise<string[]> {
-  if (args.requiredContexts.length === 0) return []
-  const orm = args.tx === undefined ? db.orm : args.tx.orm
-  const rows = await orm.public.GithubCommitCheck.select('checkKey', 'name')
-    .where({
-      repoFullName: normalizedRepo(args.repoFullName),
-      headSha: args.headSha,
-    })
-    .all()
-  const present = new Set(
-    rows.flatMap((row) =>
-      row.checkKey.startsWith(SUITE_KEY_PREFIX) || row.name === null ? [] : [row.name],
-    ),
-  )
-  return missingOf({ requiredContexts: args.requiredContexts, present })
 }

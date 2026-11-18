@@ -215,6 +215,28 @@ describe('GithubPrStore.apply', () => {
     expect(tally.running).toBe(4)
   })
 
+  it('stores expected until a required check reports, then the tally rollup', async () => {
+    await db.orm.public.GithubBranchProtection.create({
+      repoFullName: 'compai/app',
+      baseBranch: 'main',
+      requiredContexts: ['ci'],
+      fetchedAt: new Date(),
+    })
+    const { store } = rig()
+
+    const waiting = await store.apply(applyArgs([pull()]))
+
+    expect(waiting.row?.checksState).toBe('expected')
+    const frames = (await db.orm.public.GithubPrOutbox.all()).filter((row) => row.kind === 'fanout')
+    expect(frames).toHaveLength(1)
+    expect(frames[0]?.payload).toMatchObject({ state: { checksState: 'expected' } })
+
+    await seedSettledCheck()
+    const reported = await store.apply(applyArgs([]))
+
+    expect(reported.row?.checksState).toBe('success')
+  })
+
   it('numbers each committed apply of a PR one higher than the last', async () => {
     const { store } = rig()
 

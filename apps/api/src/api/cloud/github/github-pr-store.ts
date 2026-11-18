@@ -2,7 +2,7 @@ import { announceSessionChangesIn, sessionsTrackingHeadIn } from '@dltech/atlas-
 import {
   foldPrObservations,
   withDerivedChecks,
-  type DerivedChecks,
+  type EStoredChecksState,
   type PrFoldChange,
   type PrFoldState,
   type PrObservation,
@@ -81,7 +81,14 @@ export class GithubPrStore {
       repoFullName: args.repoFullName,
       headSha,
     })
-    const changed = [...new Set([...folded.changed, ...checked.changed])]
+    const checksStateMoved = (stored?.checksState ?? null) !== head.checksState
+    const changed: PrFoldChange[] = [
+      ...new Set<PrFoldChange>([
+        ...folded.changed,
+        ...checked.changed,
+        ...(checksStateMoved ? (['checks'] as const) : []),
+      ]),
+    ]
     if (changed.length === 0) {
       return {
         applied: false,
@@ -96,7 +103,13 @@ export class GithubPrStore {
       }
     }
 
-    const row = await this.writeRow({ ...args, tx, state, derived: head.derived, stored })
+    const row = await this.writeRow({
+      ...args,
+      tx,
+      state,
+      checksState: head.checksState,
+      stored,
+    })
     const subscribers = await this.subscribersOf({ ...args, tx, row })
     const effects = new PrEffectCollector()
     await deliverPrTransitions({
@@ -108,7 +121,7 @@ export class GithubPrStore {
         within: { tx, effects },
       },
       prior: stored === null ? null : snapshotOfLocked(stored),
-      next: await settlementSnapshotOf({ tx, row }),
+      next: settlementSnapshotOf({ row, missingRequiredChecks: head.missingRequiredContexts }),
       userIds: this.recipientsOf({ ...args, subscribers }),
       tx,
     })
@@ -136,7 +149,7 @@ export class GithubPrStore {
     repoFullName: string
     prNumber: number
     state: PrFoldState
-    derived: DerivedChecks
+    checksState: EStoredChecksState | null
     stored: Row<'GithubPrState'> | null
   }): Promise<Row<'GithubPrState'> & { headRepoFullName: string | null }> {
     const pull = args.state.pull
@@ -166,8 +179,7 @@ export class GithubPrStore {
       checksPassed: checks?.passed ?? 0,
       checksFailed: checks?.failed ?? 0,
       checksIgnored: checks?.ignored ?? 0,
-      checksState: checks?.rollup ?? null,
-      requiredCheckContexts: [...args.derived.requiredContexts],
+      checksState: args.checksState,
       updatedAt: new Date(),
       version: (args.stored?.version ?? 0) + 1,
     }

@@ -3338,16 +3338,6 @@
                   "kind": "scalar"
                 }
               },
-              "requiredCheckContexts": {
-                "many": {
-                  "elementNullable": false
-                },
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
               "state": {
                 "nullable": false,
                 "type": {
@@ -3440,9 +3430,6 @@
                 },
                 "repoFullName": {
                   "column": "repoFullName"
-                },
-                "requiredCheckContexts": {
-                  "column": "requiredCheckContexts"
                 },
                 "state": {
                   "column": "state"
@@ -12747,13 +12734,6 @@
               ]
             },
             "GithubPrState": {
-              "checks": [
-                {
-                  "expression": "array_position(\"requiredCheckContexts\", NULL) IS NULL",
-                  "name": "GithubPrState_requiredCheckContexts_elem_not_null_eafd55ca",
-                  "prefix": "GithubPrState_requiredCheckContexts_elem_not_null"
-                }
-              ],
               "columns": {
                 "baseBranch": {
                   "codecId": "pg/text@1",
@@ -12864,18 +12844,6 @@
                 "repoFullName": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
-                  "nullable": false
-                },
-                "requiredCheckContexts": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "default": {
-                    "kind": "literal",
-                    "value": []
-                  },
-                  "many": {
-                    "elementNullable": false
-                  },
                   "nullable": false
                 },
                 "state": {
@@ -18017,7 +17985,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "440aade754b29db78c71837295de8d12133fae48cc9290e2cb2570999e2a38ba"
+    "storageHash": "04bc31236a81dff5e209b163f3961960d73bc56f23b5f7453ebc8f10d2a0605f"
   },
   "execution": {
     "executionHash": "4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45",

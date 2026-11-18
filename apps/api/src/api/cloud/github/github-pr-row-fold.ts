@@ -6,7 +6,10 @@ import {
   ECheckSource,
   EPrSource,
   EPrState,
+  EStoredChecksState,
   latestAttemptOutcomes,
+  missingRequiredContextsOf,
+  storedChecksStateOf,
   type CheckAttempt,
   type CheckIdentity,
   type DerivedChecks,
@@ -41,7 +44,7 @@ export function foldStateOfRow(row: Row<'GithubPrState'> | null): PrFoldState | 
     },
     mergeability: mergeabilityOfRow(row),
     checks:
-      row.checksState === null
+      row.checksState === null || row.checksState === EStoredChecksState.Expected
         ? null
         : {
             headSha: row.headSha,
@@ -92,7 +95,12 @@ export async function headChecksOf(args: {
   repoFullName: string
   headSha: string
   baseBranch: string
-}): Promise<{ derived: DerivedChecks; identities: CheckIdentity[] }> {
+}): Promise<{
+  derived: DerivedChecks
+  identities: CheckIdentity[]
+  checksState: EStoredChecksState | null
+  missingRequiredContexts: number
+}> {
   const requiredContexts =
     args.baseBranch === ''
       ? []
@@ -115,6 +123,11 @@ export async function headChecksOf(args: {
     }))
   const outcomes = latestAttemptOutcomes(attempts)
   const tally = checksTally(outcomes)
+  const identities = checkIdentitiesOf(rows)
+  const missing = missingRequiredContextsOf({
+    requiredContexts,
+    reportedContexts: identities.map((identity) => identity.name),
+  })
 
   return {
     derived: {
@@ -126,6 +139,8 @@ export async function headChecksOf(args: {
       rollup: outcomes.length === 0 ? null : checksRollup(outcomes),
       requiredContexts,
     },
-    identities: checkIdentitiesOf(rows),
+    identities,
+    checksState: storedChecksStateOf({ outcomes, missingRequiredContexts: missing }),
+    missingRequiredContexts: missing.length,
   }
 }

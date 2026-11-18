@@ -20,7 +20,6 @@ model GithubPrState {
   mergeableHeadSha    String?
   mergeableBaseRef    String?
   mergeableObservedAt TimestamptzJsDate(3)?
-  requiredCheckContexts String[]        @default([])
   version          Int                  @default(0)
   updatedAt        TimestamptzJsDate(3)
 

@@ -9,7 +9,6 @@ import {
   type RestPullRequest,
 } from './github-pull-request-mapping'
 import { mergeabilitySampleOfRest } from './github-pr-observations'
-import type { GithubRequiredChecksRead } from './github-required-checks-read'
 
 export type PullRequestRead = {
   pull: RestPullRequest
@@ -21,7 +20,6 @@ export type PullRequestRead = {
 
 export async function readPullRequestFill(args: {
   get: <T>(args: { source: EGithubCallSource; token: string; path: string }) => Promise<T>
-  requiredChecks: GithubRequiredChecksRead
   baseUrl: string
   source: EGithubCallSource
   token: string
@@ -41,13 +39,6 @@ export async function readPullRequestFill(args: {
     repo: args.repo,
     headSha: pull.head.sha,
   })
-  const requiredCheckContexts = await args.requiredChecks.read({
-    source: args.source,
-    token: args.token,
-    owner: args.owner,
-    repo: args.repo,
-    branch: pull.base.ref,
-  })
   const checksState = await readChecksState({
     source: args.source,
     token: args.token,
@@ -66,7 +57,6 @@ export async function readPullRequestFill(args: {
       checkRuns: head.checkRuns,
       statuses: head.statuses,
       checksState,
-      requiredCheckContexts,
     }),
   }
 }

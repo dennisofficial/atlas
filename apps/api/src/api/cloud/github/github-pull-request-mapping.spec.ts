@@ -60,7 +60,6 @@ describe('pullRequestCacheFieldsOf', () => {
       ],
       statuses: [],
       checksState: null,
-      requiredCheckContexts: [],
     })
 
     expect(fields).toMatchObject({
@@ -81,7 +80,6 @@ describe('pullRequestCacheFieldsOf', () => {
       ],
       statuses: [],
       checksState: null,
-      requiredCheckContexts: [],
     })
 
     expect(fields).toMatchObject({
@@ -97,7 +95,6 @@ describe('pullRequestCacheFieldsOf', () => {
       checkRuns: [run({ name: 'release', conclusion: 'skipped' })],
       statuses: [],
       checksState: null,
-      requiredCheckContexts: [],
     })
 
     expect(fields).toMatchObject({
@@ -132,7 +129,6 @@ describe('pullRequestCacheFieldsOf', () => {
         },
       ],
       checksState: null,
-      requiredCheckContexts: [],
     })
 
     expect(fields).toMatchObject({

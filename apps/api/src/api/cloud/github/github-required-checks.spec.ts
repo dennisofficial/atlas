@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'bun:test'
 import {
-  missingOf,
   recalledRequiredContexts,
   rememberRequiredContexts,
   requiredContextsFrom,
@@ -80,15 +79,6 @@ describe('requiredContextsFrom', () => {
         },
       }),
     ).toEqual([])
-  })
-})
-
-describe('missingOf', () => {
-  it('names the required contexts GitHub has not reported on the head', () => {
-    expect(missingOf({ requiredContexts: ['ci', 'lint'], present: new Set(['lint']) })).toEqual([
-      'ci',
-    ])
-    expect(missingOf({ requiredContexts: [], present: new Set(['ci']) })).toEqual([])
   })
 })
 

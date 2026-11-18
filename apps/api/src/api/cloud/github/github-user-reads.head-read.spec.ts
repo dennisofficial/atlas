@@ -21,13 +21,6 @@ describe('GithubUserReads settle confirmation', () => {
       paths.push(path)
       if (path.endsWith('/check-runs')) return Response.json({ check_runs: [] })
       if (path.endsWith('/status')) return Response.json({ statuses: [] })
-      if (path.includes('/rules/branches/'))
-        return Response.json([
-          {
-            type: 'required_status_checks',
-            parameters: { required_status_checks: [{ context: 'ci' }] },
-          },
-        ])
       return Response.json({
         number: 1,
         head: { sha: 'abc', ref: 'b', repo: null },
@@ -38,19 +31,19 @@ describe('GithubUserReads settle confirmation', () => {
   })
   afterEach(() => restore())
 
-  it('reads the pull, its check-runs, its statuses, the rollup state and the base rulesets', async () => {
+  it('reads the pull, its check-runs, its statuses and the rollup state', async () => {
     branch = 'main'
     await new GithubUserReads().readPullRequest({
       ...target,
       number: 1,
       collectChecks: () => undefined,
     })
-    expect(paths).toHaveLength(5)
+    expect(paths).toHaveLength(4)
     expect(paths.some((path) => path.endsWith('/graphql'))).toBe(true)
-    expect(paths.some((path) => path.includes('/rules/branches/main'))).toBe(true)
+    expect(paths.some((path) => path.includes('/rules/branches/'))).toBe(false)
   })
 
-  it('hands the head checks to its collector and makes the same five calls', async () => {
+  it('hands the head checks to its collector and makes the same four calls', async () => {
     branch = 'release'
     const collected: Array<{ headSha: string; checks: unknown[] }> = []
     await new GithubUserReads().readPullRequest({
@@ -58,7 +51,7 @@ describe('GithubUserReads settle confirmation', () => {
       number: 1,
       collectChecks: (read) => collected.push(read),
     })
-    expect(paths).toHaveLength(5)
+    expect(paths).toHaveLength(4)
     expect(collected).toEqual([{ headSha: 'abc', checks: [] }])
   })
 })

@@ -1,6 +1,5 @@
 import { db, or, type Row, type Tx } from '@dltech/atlas-db'
 
-import { missingRequiredContexts } from './github-required-checks'
 import { headSettled, type PrTransitionSnapshot } from './github-pr-event-transitions'
 
 export enum EHeadVerdict {
@@ -41,21 +40,15 @@ export function snapshotOfLocked(row: {
 }
 
 /**
- * The observed row plus the one fact the row cannot hold: which of the base branch's required
- * status checks GitHub has not reported on this head yet. Every path that discharges a verdict or
- * diffs a transition builds its `next` here, so a missing required check gates all of them.
+ * The observed row plus the base branch's required status checks GitHub has not reported on this
+ * head yet. Every path that discharges a verdict or diffs a transition builds its `next` here, so
+ * a missing required check gates all of them.
  */
-export async function settlementSnapshotOf(args: {
-  tx?: Tx
+export function settlementSnapshotOf(args: {
   row: Row<'GithubPrState'>
-}): Promise<PrTransitionSnapshot> {
-  const missing = await missingRequiredContexts({
-    ...(args.tx === undefined ? {} : { tx: args.tx }),
-    repoFullName: args.row.repoFullName,
-    headSha: args.row.headSha,
-    requiredContexts: args.row.requiredCheckContexts,
-  })
-  return { ...snapshotOfLocked(args.row), missingRequiredChecks: missing.length }
+  missingRequiredChecks: number
+}): PrTransitionSnapshot {
+  return { ...snapshotOfLocked(args.row), missingRequiredChecks: args.missingRequiredChecks }
 }
 
 /**

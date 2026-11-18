@@ -110,14 +110,14 @@ describe('subscribe and read the head', () => {
 
   afterEach(() => unstubAllGlobals())
 
-  it('asks GitHub for no check suites and stores the ledger rollup state with the PR', async () => {
+  it('asks GitHub for no check suites and stores the derived tally state with the PR', async () => {
     const { paths } = githubHead({ runs: [], checksState: 'EXPECTED' })
     await seedHeadChecks({ headSha: SHA, passed: 1 })
 
     const state = await subscribe()
 
     expect(paths.some((path) => path.endsWith('/check-suites'))).toBe(false)
-    expect(state?.state?.checksState).toBe('passing')
+    expect(state?.state?.checksState).toBe('success')
     expect(state?.state?.checksRunning).toBe(0)
   })
 

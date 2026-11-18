@@ -105,7 +105,7 @@ describe('shared real HTTP budget for API fills, authorization and worker queue'
     const beforeFill = http.calls.length
     await api.delivery.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
     expect(http.calls.slice(beforeFill).map((call) => call.path)).toContain('/graphql')
-    expect(http.calls.length).toBe(beforeFill + 6)
+    expect(http.calls.length).toBe(beforeFill + 4)
     await worker.poll.handlePoll()
     const refreshes = http.calls.slice(beforeFill).filter((call) => /\/pulls\/\d+$/.test(call.path))
     expect(refreshes.length).toBeGreaterThan(0)

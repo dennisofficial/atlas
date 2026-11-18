@@ -9,7 +9,6 @@ import type { CommitCheckInput } from './github-commit-checks'
 import type { RawCheckAnnotation } from './github-check-annotations'
 import { readPullRequestFill, type PullRequestRead } from './github-pull-request-read'
 import { readHeadChecks } from './github-head-checks-read'
-import { GithubRequiredChecksRead } from './github-required-checks-read'
 
 const GITHUB_API = 'https://api.github.com'
 const DETAIL_CAP = 300
@@ -48,7 +47,6 @@ export interface HookConfig {
 @Injectable()
 export class GithubUserReads {
   private readonly baseUrl = process.env.GITHUB_API_URL ?? GITHUB_API
-  private readonly requiredChecks = new GithubRequiredChecksRead()
 
   readCheckAnnotations(args: {
     source: EGithubCallSource
@@ -115,7 +113,6 @@ export class GithubUserReads {
     return readPullRequestFill({
       get: <T>(request: { source: EGithubCallSource; token: string; path: string }) =>
         this.get<T>(request),
-      requiredChecks: this.requiredChecks,
       baseUrl: this.baseUrl,
       source: args.source,
       token: args.token,
