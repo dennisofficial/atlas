@@ -1,7 +1,7 @@
 const FENCE = '---'
 
-const SINGLE_QUOTED = /^'(.*)'$/s
-const DOUBLE_QUOTED = /^"(.*)"$/s
+const SINGLE_QUOTED = /^'([\s\S]*)'$/
+const DOUBLE_QUOTED = /^"([\s\S]*)"$/
 
 const unquote = (text: string): string => {
   const single = SINGLE_QUOTED.exec(text)

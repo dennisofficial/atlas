@@ -292,14 +292,20 @@ ioredis client. `client()` is the shared, lazy command connection; a subscriber 
 connection from `duplicate()` (a subscribed connection answers only pub/sub commands) and owns
 its teardown. Postgres remains the durable source of truth. Redis carries notifications plus the
 GitHub request coordinator (`GithubRequestCoordinator`): request-budget windows, refresh retry
-cursors and repository-access proofs (one per user, repo and token, an hour long). These expire and
-can be reconstructed; Redis eviction never deletes durable PR state. There are no per-connection
-leases: `githubPrs.states` replays the cached states of the user's subscribed and linked PRs and
-forwards fanout frames, checking a linked repo's access once per proof. A configured Redis outage
-parks budgeted GitHub work until it recovers, while cached replay and live streams stay usable. The
-budget covers access checks, subscription/hook setup, refreshes and webhook REST fills. Foreground
-repository/branch pickers, OAuth device flow and SSH signing-key management retain their existing
-procedure/provider controls and do not depend on the coordinator.
+cursors and repository-access proofs (one per credential and repo; a grant is kept without expiry
+until GitHub ends it, a denial 30 seconds). A grant ends on a real signal from a call with that
+user's own token: a 401 drops every grant of the credential, a repo 403/404 drops that repository's.
+Redis eviction only costs one re-proof; it never deletes durable PR
+state. There are no per-connection leases: `githubPrs.states` replays the cached states of the
+user's subscribed and linked PRs and forwards fanout frames, and proves a linked repo's access once,
+when it first sees that repo without a grant. A configured Redis outage parks budgeted GitHub work until it
+recovers, while cached replay and live streams stay usable. Budget windows are kept per credential
+fingerprint. `githubFetch` feeds GitHub's `x-ratelimit-*` headers back: under 5% remaining, background
+work (poll, hook and app sweeps) is refused until reset while deliveries and foreground reads go on,
+and a secondary-limit 403 cools the credential down for `retry-after` or 60 s. The budget covers
+access checks, subscription/hook setup, refreshes, webhook REST fills and the repository, branch and
+tree pickers. A subscribe proves a user's access with the PR read it was already making, never a
+`/repos` call of its own. OAuth device flow and SSH signing-key management keep their own controls.
 Local dev needs it: the app boots the agent in-process, and the agent refuses to start without
 `REDIS_URL`. `isConfigured()` is `false` when `REDIS_URL` is unset and callers choose local-only
 behaviour there; `client()` and `duplicate()` throw rather than reach for localhost.

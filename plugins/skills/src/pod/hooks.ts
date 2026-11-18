@@ -11,13 +11,14 @@ import { catalogueFor } from './catalogue-source'
 import { skillListingOf } from './listing'
 import type { CloudSkillSource, CloudSkillWriter } from './port'
 import type { SkillsPodState } from './state'
+import { emitSkillsChanged, watchSkills } from './watch'
 
 export type SkillsPodOptions = {
   cloud: CloudSkillSource
   writes?: CloudSkillWriter | undefined
 }
 
-type Ctx = Pick<PluginPodContext, 'call' | 'log'>
+type Ctx = Pick<PluginPodContext, 'call' | 'log' | 'onDaemonEvent' | 'append' | 'sessionId'>
 
 const ORDER = { stage: EStage.Observe, nudge: 0 }
 
@@ -30,13 +31,19 @@ export const skillsCatalogueHook = (args: {
   order: ORDER,
   run: async ({ projectDirectory }) => {
     args.state.directory = projectDirectory
-    await catalogueFor({
+    const started = await watchSkills({
       ctx: args.ctx,
       state: args.state,
       cloud: args.options.cloud,
       directory: projectDirectory,
-      refresh: true,
     })
+    const catalogue = await catalogueFor({
+      ctx: args.ctx,
+      state: args.state,
+      cloud: args.options.cloud,
+      directory: projectDirectory,
+    })
+    if (started) await emitSkillsChanged({ ctx: args.ctx, catalogue })
     return {}
   },
 })

@@ -2,7 +2,7 @@ import { EGithubPrStatesFrame, type GithubPrStatesFrame } from '@dltech/atlas-wi
 import { Logger } from '@nestjs/common'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
-import { afterEach, describe, expect, it, vi } from 'bun:test'
+import { afterEach, describe, expect, it, setSystemTime, vi } from 'bun:test'
 import { waitFor } from '../../../../test/fake-timers'
 import { seedPrState } from '../../../../test/github-seed'
 import { DrainStateService } from '../../platform/health/drain-state.service'
@@ -11,7 +11,7 @@ import type { ThreadSignalsService } from '../../platform/sessions/thread-signal
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { LinkedPrAccess } from './github-linked-pr-access'
 import { seedLinkedPr } from './github-linked-pr.fixture'
-import { attachPrStates } from './github-pr-states.stream'
+import { attachPrStates, PR_STATES_HEARTBEAT_MS } from './github-pr-states.stream'
 import type { GithubPrStateDto } from './github-realtime.types'
 import { localCoordinator } from './github-request-coordinator.fixture'
 import type { GithubService } from './github.service'
@@ -97,7 +97,11 @@ const signalRig = () => {
 
 type Rig = ReturnType<typeof rig>
 
-function rig(args: { subscribed?: readonly GithubPrStateDto[]; signals: ThreadSignalsService }) {
+function rig(args: {
+  subscribed?: readonly GithubPrStateDto[]
+  signals: ThreadSignalsService
+  access?: LinkedPrAccess
+}) {
   const github = githubOf()
   const coordinator = localCoordinator(github)
   const fanout = new GithubPrFanoutService(new DrainStateService())
@@ -110,7 +114,7 @@ function rig(args: { subscribed?: readonly GithubPrStateDto[]; signals: ThreadSi
     subscriptions: {
       currentStates: async () => [...(args.subscribed ?? [])],
     } as unknown as GithubSubscriptionsService,
-    access: new LinkedPrAccess({ coordinator, github }),
+    access: args.access ?? new LinkedPrAccess({ coordinator, github }),
     signals: args.signals,
     logger: new Logger('github-pr-states.stream.spec'),
   })
@@ -124,6 +128,7 @@ const opened: Rig[] = []
 const open = (args: {
   subscribed?: readonly GithubPrStateDto[]
   signals: ThreadSignalsService
+  access?: LinkedPrAccess
 }) => {
   const held = rig(args)
   opened.push(held)
@@ -135,6 +140,7 @@ describe('attachPrStates', () => {
 
   afterEach(() => {
     for (const held of opened.splice(0)) held.detach()
+    setSystemTime()
     unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -228,7 +234,7 @@ describe('attachPrStates', () => {
     expect(stream.states()).toHaveLength(1)
   })
 
-  it('runs no 45 s renewal and spends its github calls on repository checks only', async () => {
+  it('sets no access recheck interval, only the heartbeat', async () => {
     await seedLinkedPr({ userId: OWNER, threadId: 'thr_1' })
     await seedPrState({ prNumber: 42, checksPassed: 2, version: 1 })
     const calls = allowRepos(['compai/app'])
@@ -245,9 +251,27 @@ describe('attachPrStates', () => {
     const stream = open({ signals })
     await waitFor(() => expect(stream.states()).toHaveLength(1))
 
-    expect(intervals).not.toContain(45_000)
-    expect(calls.length).toBeGreaterThan(0)
+    expect(intervals).toEqual([PR_STATES_HEARTBEAT_MS])
     expect(calls.every((call) => call.includes('/repos/'))).toBe(true)
     spy.mockRestore()
+  })
+
+  it('makes no access call when a later stream connect finds the repo granted', async () => {
+    await seedLinkedPr({ userId: OWNER, threadId: 'thr_1' })
+    await seedPrState({ prNumber: 42, checksPassed: 2, version: 1 })
+    const calls = allowRepos(['compai/app'])
+    const github = githubOf()
+    const access = new LinkedPrAccess({ coordinator: localCoordinator(github), github })
+    const { signals } = signalRig()
+
+    const first = open({ signals, access })
+    await waitFor(() => expect(first.states()).toHaveLength(1))
+    expect(calls).toHaveLength(1)
+    first.detach()
+
+    setSystemTime(new Date(Date.now() + 365 * 24 * 3_600_000))
+    const second = open({ signals, access })
+    await waitFor(() => expect(second.states()).toHaveLength(1))
+    expect(calls).toHaveLength(1)
   })
 })

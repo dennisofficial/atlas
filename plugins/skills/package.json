@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./client": "./src/client/index.ts",
     "./core": "./src/core/index.ts",
     "./pod": "./src/pod/index.ts"
   },

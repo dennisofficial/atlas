@@ -35,13 +35,9 @@ export const fetchSkillSpecs = async (args: {
   return skillSpecsOf(listCommandsReplySchema.parse(reply))
 }
 
-export function useCommandList(args: {
-  channel: RemoteDeltaChannel | null
-  live: boolean
-  projectId: string | null | undefined
-}) {
+export function useCommandList(args: { channel: RemoteDeltaChannel | null; live: boolean }) {
   const [sandboxSkills, setSandboxSkills] = useState<readonly CommandSpec[]>(NO_SKILLS)
-  const catalogue = useCatalogueSkills(args.projectId)
+  const catalogue = useCatalogueSkills()
   const { channel, live } = args
 
   useEffect(() => {

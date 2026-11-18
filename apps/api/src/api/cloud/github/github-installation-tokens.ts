@@ -25,6 +25,11 @@ export class GithubInstallationTokens {
     return installationId === null ? undefined : this.tokenFor({ installationId })
   }
 
+  async tokenForInstallation(args: { installationId: bigint }): Promise<string | undefined> {
+    if (!this.client.isConfigured()) return undefined
+    return this.tokenFor({ installationId: args.installationId })
+  }
+
   private async tokenFor(args: { installationId: bigint }): Promise<string | undefined> {
     const key = String(args.installationId)
     const cached = this.held.get(key)

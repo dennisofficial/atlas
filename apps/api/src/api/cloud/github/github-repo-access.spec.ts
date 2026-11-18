@@ -1,9 +1,10 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it, setSystemTime, vi } from 'bun:test'
 import { ForbiddenException, HttpException } from '@nestjs/common'
 import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
 import { advanceTimersByTimeAsync } from '../../../../test/fake-timers'
 import { EGithubCallSource } from './github-call-log'
 import { RepoAccessChecker } from './github-repo-access'
+import { ACCESS_PROOF_DENIAL_TTL_MS } from './github-request-coordinator.types'
 import { hangingFetch, stubAbortSignalTimeout } from './github-timeout.fakes'
 
 describe('RepoAccessChecker outbound timeout', () => {
@@ -134,6 +135,67 @@ describe('RepoAccessChecker rate limits', () => {
     const subject = new RepoAccessChecker(async () => 't')
     await subject.require(args).catch(() => undefined)
     await subject.require(args).catch(() => undefined)
+    expect(fetched).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('RepoAccessChecker denial cache', () => {
+  const args = {
+    source: EGithubCallSource.RepoAccess,
+    userId: 'u',
+    owner: 'o',
+    repo: 'r',
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    setSystemTime(new Date('2026-11-18T12:00:00.000Z'))
+  })
+
+  afterEach(() => {
+    setSystemTime()
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+    unstubAllGlobals()
+  })
+
+  const answering = (status: number) => {
+    const fetched = vi.fn(async () => new Response('{}', { status }))
+    stubGlobal('fetch', fetched)
+    return fetched
+  }
+
+  it('holds no grant of its own: the coordinator proof is the only one', async () => {
+    const fetched = answering(200)
+    const subject = new RepoAccessChecker(async () => 't')
+
+    await expect(subject.require(args)).resolves.toBe(true)
+    await expect(subject.require(args)).resolves.toBe(true)
+
+    expect(fetched).toHaveBeenCalledTimes(2)
+  })
+
+  it('remembers a denial for half a minute, then asks github again', async () => {
+    const fetched = answering(404)
+    const subject = new RepoAccessChecker(async () => 't')
+
+    await expect(subject.require(args)).rejects.toBeInstanceOf(ForbiddenException)
+    setSystemTime(new Date(Date.now() + ACCESS_PROOF_DENIAL_TTL_MS - 1))
+    await expect(subject.require(args)).rejects.toBeInstanceOf(ForbiddenException)
+    expect(fetched).toHaveBeenCalledTimes(1)
+
+    setSystemTime(new Date(Date.now() + 1))
+    await expect(subject.require(args)).rejects.toBeInstanceOf(ForbiddenException)
+    expect(fetched).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not remember a rejected token, so a reconnect is tried at once', async () => {
+    const fetched = answering(401)
+    const subject = new RepoAccessChecker(async () => 't')
+
+    await subject.require(args).catch(() => undefined)
+    await subject.require(args).catch(() => undefined)
+
     expect(fetched).toHaveBeenCalledTimes(2)
   })
 })

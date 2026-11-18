@@ -177,7 +177,7 @@ cloud, database rows pushed into the pod as files. v2 has one writer per piece o
 | MCP, user + project rows    | `public.McpServer` (`sealedSpec`, `source = 'cloud'`)                                   | CP (rows), host (unseal)                 | the agent host at claim, refreshed at each turn boundary | yes         |
 | MCP, repo files             | `.mcp.json`, `.atlas/mcp.json` in the clone                                             | the pod's workspace (git)                | the pod through the daemon's file port                   | yes         |
 | Skills, user + project rows | `public.Skill` / `public.SkillFile`                                                     | CP (rows); the host reads **and writes** | the agent host, at claim and again per turn              | yes         |
-| Skills, repo dirs           | `<repo>/.atlas/skills`, `<repo>/.agents/skills` (symlinks followed, `.claude` not read) | the pod's workspace (git)                | the pod through the daemon                               | yes         |
+| Skills, repo dirs           | `<repo>/.atlas/skills`, `<repo>/.agents/skills` (symlinks followed, `.claude` not read) | the pod's workspace (git)                | the pod through the daemon, watched (§5.4)               | yes         |
 | Skills, built-ins           | compiled `SKILL.md` text                                                                | the plugin package                       | the plugin, no IO                                        | yes         |
 
 The consequences, and what §10 asks the operator to confirm:
@@ -186,12 +186,15 @@ The consequences, and what §10 asks the operator to confirm:
    the operator edits in Settings therefore reaches a v2 session at the next turn, not the next session.
 2. **A repo's own files are read inside the pod**, because that is where the clone is. It keeps the
    worked-on repo authoritative for the work it does — and it means a repo can add MCP servers and
-   skills by committing them, exactly as in v1.
+   skills by committing them, exactly as in v1. The skill roots are **watched, not polled** (§5.4):
+   a new or edited `SKILL.md` reaches the index and the clients from a daemon event, so nothing
+   re-lists on a menu open or on every turn.
 3. **Precedence stays v1's**: repo > cloud project > cloud user > built-in, and a disabled entry
    hides the name it repeats.
 4. **A cloud skill is never copied into a pod.** The rows are the only copy: the body and every
    bundled file are served on demand (§5.2), so an edit in Settings reaches the running session and
-   there is nothing to watch, sweep or sync. This is the one place the slice deliberately leaves v1,
+   there is nothing to watch, sweep or sync for the cloud layer — the watcher of §5.4 covers the
+   clone's roots only, because those are a filesystem the rows are not. This is the one place the slice deliberately leaves v1,
    which mounts rows into the pod as files and deletes whatever the last mount did not write
    (`apps/serve/src/file-mounts.ts:110-133`).
 
@@ -287,7 +290,8 @@ throws, later duplicate is dropped and logged).
 - **Repo dirs**: `<repo>/.atlas/skills` and `<repo>/.agents/skills`, discovered through the daemon's
   file port — a directory holding `SKILL.md` (any casing) or a flat `<name>.md`, one level, symlinks
   followed (v1's rules, `packages/harness/src/skills/filesystem-source.ts:83-113`). `.claude/skills`
-  is not a v2 root.
+  is not a v2 root. The two roots are **watched from the pod, never read from GitHub** (§5.4):
+  discovery runs once when the root is armed and again only when the daemon says a file changed.
 - Precedence: repo > cloud project > cloud user > built-in. Name is lowercased with a directory
   fallback; validation warns and never rejects (a rejected skill is a skill the operator already
   wrote, silently disappearing).
@@ -296,7 +300,9 @@ throws, later duplicate is dropped and logged).
 
 - A `prompts` entry rendering one line per model-invocable skill, with v1's arithmetic: 1536-char
   per-description cap, budget = context window × 4 × 0.03, binary-search shrink, then drop
-  descriptions, then names only. The fragment is Volatile and renders nothing when empty.
+  descriptions, then names only. The fragment is Volatile and renders nothing when empty. It renders
+  from the **watcher-maintained index** (§5.4), so a step after a change lists the skill that
+  arrived and stops listing the one that left, with no file IO on the step itself.
 - `skill` (load): `{name, arguments?, path?}`. Without a `path` it returns the body, case-insensitive,
   refusing `disable-model-invocation`, expanding `$ARGUMENTS` / `$1..$9`. With a `path` it returns one
   bundled file of that skill — for a cloud skill the row's `SkillFile`, for a repo or built-in skill
@@ -304,6 +310,32 @@ throws, later duplicate is dropped and logged).
 - The directory note that tells the model "every relative path below names a file inside that
   directory" is printed only for a skill with a real directory; a cloud skill's note says its files
   are read through the same tool with a `path`.
+
+### 5.4 The watcher: how a repo skill reaches the prompt and the clients
+
+Before a pod exists there is nothing to watch, so a client's `/` menu shows the cloud and built-in
+skills only. Once a session's first turn arms the pod, the plugin installs one watch over the clone
+and the index below is event-driven from then on.
+- **Op**: `watch.start` / `watch.stop` in `packages/protocol/src/ops/watch.ts`, with the
+  `watch.changed` event. `watch.start` takes a `watchId` (the plugin uses `skills:<sessionId>`), up to
+  sixteen roots and an optional `debounceMs` (default 150 ms), and answers the real paths it armed.
+- **Daemon** (`apps/daemon/src/ops/watch/index.ts`): one recursive `fs.watch` per root, resolved
+  through `realpath` first so a symlinked root is followed and the event paths name the real
+  directory. A root that does not exist yet is watched through its nearest existing ancestor, so a
+  directory created later starts reporting without a second callback. Events are trailing-debounced
+  into one `watch.changed` carrying the paths of the burst; `watch.stop` and the group's shutdown
+  close every watcher.
+- **Index**: `plugins/skills/src/pod/watch.ts` re-reads the roots on a matching `watch.changed` — one
+  read per burst, and the bursts are serialized so two changes cannot interleave two catalogues.
+  `beforeTurn` installs the watch and builds the index; `beforeStep` renders the listing from the
+  index. Neither re-lists: a turn with no change does no IO, and opening the client menu does no IO.
+- **Clients**: every rebuild appends one `skills-changed` plugin event body
+  (`plugins/skills/src/core/skill-events.ts`) — the full user-invocable list as `{name, description,
+  argumentHint, origin}` — through the record, which is how a v2 client sees the pod's skills. The
+  first turn appends the initial list, so a pod that comes up with skills in its clone publishes them
+  before anything changes.
+- **Still cloud-and-built-in only**: a skill edited in Settings arrives from the rows, not from a
+  pod file, and needs no watcher.
 
 ### 5.3 CRUD — install, edit and delete from a session (PR 5)
 
@@ -349,7 +381,14 @@ deploy — the stale-instance trap in `07-plugins.md` §8), recorded in §8 with
   `SkillFile` read (the existing one pins that names are read and files are not —
   `config/__tests__/config-reader.spec.ts:145` — so the new read must not weaken it: names stay in
   `AgentHostConfig.skills`, bodies are loaded on demand by the tool).
-- **Protocol**: no change needed; `packages/protocol/src/ops/mcp.ts` already pins the ops.
+- **Protocol**: no change needed for MCP; `packages/protocol/src/ops/mcp.ts` already pins the ops. The
+  watch ops are added and pinned by `packages/protocol/src/ops/watch.ts`, with a daemon spec over a
+  real temporary directory: a new, edited and removed `SKILL.md` each report, a burst collapses into
+  one `watch.changed`, a symlinked root resolves, and a root that does not exist yet is armed.
+- **Pod watcher**: `plugins/skills/src/pod/__tests__/watch.spec.ts` drives the fake daemon — the first
+  turn arms both roots and publishes the initial list, a change event updates the index and appends
+  one `skills-changed`, the next step's listing carries the new description, a removal drops the name,
+  another `watchId` is ignored, and a repo skill still shadows a cloud one.
 - **Live** (§8): one production session per feature, plus a killed server.
 
 ## 8. Out of scope
@@ -361,7 +400,8 @@ deploy — the stale-instance trap in `07-plugins.md` §8), recorded in §8 with
 - **An MCP http server reachable only inside the pod** (a `localhost` URL). It needs a daemon-side
   http op, which this slice does not add.
 - **A pod copy of a cloud skill, and any file watcher or sync to keep one in step.** Cloud skills
-  are read from their rows on demand; nothing is installed into the pod.
+  are read from their rows on demand; nothing is installed into the pod. The §5.4 watcher watches
+  the clone's skill roots and nothing else.
 - **`.claude/skills` as a repo root.** v2 reads `.atlas/skills` and `.agents/skills`; the Claude
   flavour stays v1 only.
 - **Tools changing mid-turn without a turn boundary** for http servers: the reconcile runs at
@@ -423,9 +463,10 @@ tools; a server killed mid-turn still read `connected` in the view.
    the pod. §2 has the owner of each.
 2. **Skills ship whole, not half: full CRUD.** Install, edit and delete from a session, cloud and
    repo; the listing and the load; **no pod copy of a cloud skill** — the rows are the only copy and
-   their files are served on demand (§5.2), so there is no sync, no file watcher and nothing to
-   sweep. Repo roots narrow to `.atlas/skills` and `.agents/skills` with symlinks followed; the
-   Settings pages stay the operator's surface and gain a folder upload (§5.1-§5.3, PRs 4-6).
+   their files are served on demand (§5.2), so there is no sync and nothing to sweep. Repo roots
+   narrow to `.atlas/skills` and `.agents/skills` with symlinks followed and are read from the pod's
+   filesystem, never from GitHub, with one watcher pushing changes to the index and the clients
+   (§5.4); the Settings pages stay the operator's surface and gain a folder upload (§5.1-§5.3, PRs 4-6).
 3. **A repo's MCP servers start without asking.** The clone is the operator's own repo; no approval
    surface is added, and `disabled: true` stays the only way to switch one off.
 4. **The §2 table** is the source-owner split these answers confirm. Two things in it differ from

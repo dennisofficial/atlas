@@ -19,6 +19,8 @@ import { operatorCoreSlots } from '@dltech/atlas-plugin-operator/core'
 import { operatorPod } from '@dltech/atlas-plugin-operator/pod'
 import { mcpServerPort } from './config/mcp-servers'
 import { skillCloudPort } from './config/skills'
+import { skillsClient } from '@dltech/atlas-plugin-skills/client'
+import { skillsCoreSlots } from '@dltech/atlas-plugin-skills/core'
 import { skillsPodOf } from '@dltech/atlas-plugin-skills/pod'
 import { memoryClient } from '@dltech/atlas-plugin-memory/client'
 import { memoryControl } from '@dltech/atlas-plugin-memory/control'
@@ -111,17 +113,15 @@ export const registeredPlugins: readonly Plugin[] = [
   }),
   definePlugin({
     name: 'skills',
-    events: [],
-    views: [],
-    commands: [],
+    ...skillsCoreSlots,
     pod: {
       ...EMPTY_POD,
       tools: (ctx) => skillsPodFor(ctx).tools?.(ctx) ?? [],
       hooks: (ctx) => skillsPodFor(ctx).hooks?.(ctx) ?? {},
     },
     control: EMPTY_CONTROL,
-    client: { hooks: [] },
-    transport: 'none',
+    client: skillsClient,
+    transport: 'stream',
   }),
   definePlugin({
     name: 'sessions',

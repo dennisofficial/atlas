@@ -6,9 +6,9 @@ import {
   localCoordinatorAdapter,
 } from './github-request-coordinator.local'
 import { RedisCoordinatorAdapter } from './github-request-coordinator.redis'
-import { accessProofAllows, accessProofKey } from './github-repo-access-proof'
+import { accessProofAllows, accessProofKey, accessProofPrefix } from './github-repo-access-proof'
 import {
-  ACCESS_PROOF_TTL_MS,
+  ACCESS_PROOF_DENIAL_TTL_MS,
   type CoordinatorAdapter,
   type GithubRequestIdentity,
 } from './github-request-coordinator.types'
@@ -38,8 +38,14 @@ export class GithubRequestCoordinator {
   httpCooldownUntil(identity: GithubRequestIdentity): Promise<number> {
     return this.coordinated(this.adapter.httpCooldownUntil(identity))
   }
+  httpReserveUntil(identity: GithubRequestIdentity): Promise<number> {
+    return this.coordinated(this.adapter.httpReserveUntil(identity))
+  }
   blockHttpUntil(args: { until: number } & Partial<GithubRequestIdentity>): Promise<void> {
     return this.coordinated(this.adapter.blockHttpUntil(args))
+  }
+  holdHttpReserve(args: { until: number } & Partial<GithubRequestIdentity>): Promise<void> {
+    return this.coordinated(this.adapter.holdHttpReserve(args))
   }
   attempt(args: { key: string }) {
     return this.coordinated(this.adapter.attempt(args.key))
@@ -51,7 +57,7 @@ export class GithubRequestCoordinator {
   /**
    * A proven repository authorization is shared with every reader of the same credential, so a
    * subscribe that would otherwise spend a `/repos/{owner}/{repo}` call rides the proof an earlier
-   * access check already wrote.
+   * read already wrote.
    */
   async provenAccess(args: { userId: string; repoFullName: string }): Promise<boolean> {
     const key = await this.proofKey(args)
@@ -83,6 +89,32 @@ export class GithubRequestCoordinator {
     return this.recordProof({ ...args, granted: false })
   }
 
+  revokeAccessGrant(args: {
+    credentialFingerprint: string
+    repoFullName?: string | undefined
+  }): Promise<void> {
+    if (args.repoFullName === undefined)
+      return this.revoke(
+        this.adapter.revokeAuthorizations(accessProofPrefix(args.credentialFingerprint)),
+      )
+    return this.revoke(
+      this.adapter.revokeAuthorization(
+        accessProofKey({
+          credentialFingerprint: args.credentialFingerprint,
+          repo: normalizedRepo(args.repoFullName),
+        }),
+      ),
+    )
+  }
+
+  private async revoke(work: Promise<void>): Promise<void> {
+    try {
+      await this.coordinated(work)
+    } catch {
+      return
+    }
+  }
+
   private async recordProof(args: {
     userId: string
     repoFullName: string
@@ -91,7 +123,6 @@ export class GithubRequestCoordinator {
   }): Promise<void> {
     const key = await this.proofKey(args)
     if (key === undefined) return
-    const until = Date.now() + ACCESS_PROOF_TTL_MS
     try {
       const version = await this.coordinated(this.adapter.beginAuthorization(key))
       await this.coordinated(
@@ -100,8 +131,8 @@ export class GithubRequestCoordinator {
           state: {
             version,
             checkedAt: Date.now(),
-            authorizedUntil: args.granted ? until : 0,
-            deniedUntil: args.granted ? 0 : until,
+            granted: args.granted,
+            deniedUntil: args.granted ? 0 : Date.now() + ACCESS_PROOF_DENIAL_TTL_MS,
             ...(args.message === undefined ? {} : { message: args.message }),
           },
         }),
@@ -118,8 +149,7 @@ export class GithubRequestCoordinator {
     const token = await this.github.findToken({ userId: args.userId })
     if (token === undefined) return undefined
     return accessProofKey({
-      userId: args.userId,
-      fingerprint: credentialFingerprint(token),
+      credentialFingerprint: credentialFingerprint(token),
       repo: normalizedRepo(args.repoFullName),
     })
   }

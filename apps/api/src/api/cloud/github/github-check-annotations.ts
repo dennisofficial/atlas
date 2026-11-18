@@ -20,6 +20,7 @@ export type RawCheckAnnotation = {
 export type FetchAnnotations = (args: {
   repoFullName: string
   checkRunId: number
+  installationId: bigint | undefined
 }) => Promise<readonly RawCheckAnnotation[] | null>
 
 const GENERIC_EXIT = /^Process completed with exit code \d+\.?$/
@@ -74,6 +75,7 @@ export class CheckAnnotationFetcher {
     repoFullName: string
     headSha: string
     check: CommitCheckInput
+    installationId: bigint | undefined
   }): Promise<CommitCheckInput> {
     const { check } = args
     if (!wantsAnnotations(check)) return check
@@ -81,7 +83,12 @@ export class CheckAnnotationFetcher {
     const key = `${repoFullName}@${args.headSha}#${check.checkKey}`
     const pending = this.inflight.get(key)
     if (pending !== undefined) return withAnnotations({ check, annotations: await pending })
-    const fetched = this.fetchOnce({ repoFullName, headSha: args.headSha, check })
+    const fetched = this.fetchOnce({
+      repoFullName,
+      headSha: args.headSha,
+      check,
+      installationId: args.installationId,
+    })
     this.inflight.set(key, fetched)
     try {
       return withAnnotations({ check, annotations: await fetched })
@@ -94,12 +101,14 @@ export class CheckAnnotationFetcher {
     repoFullName: string
     headSha: string
     check: CommitCheckInput
+    installationId: bigint | undefined
   }): Promise<GithubPrCheckAnnotation[] | undefined> {
     if (await annotationsHeld({ ...args, checkKey: args.check.checkKey })) return undefined
     try {
       const raw = await this.fetchAnnotations({
         repoFullName: args.repoFullName,
         checkRunId: Number(args.check.checkKey.slice(RUN_KEY_PREFIX.length)),
+        installationId: args.installationId,
       })
       return raw === null ? undefined : failureAnnotationsOf(raw)
     } catch {

@@ -1,16 +1,17 @@
 import { EDefinitionOrigin, resolveShadowing } from '@dltech/atlas-core'
 import { ESkillCatalogueOrigin, type SkillCatalogueEntry } from '@dltech/atlas-wire'
 
-export type OriginatedSkill = { origin: EDefinitionOrigin; entry: SkillCatalogueEntry }
+type CatalogueOrigin = EDefinitionOrigin.BuiltIn | EDefinitionOrigin.User
 
-const WIRE_ORIGINS: Readonly<Record<EDefinitionOrigin, ESkillCatalogueOrigin>> = {
+export type OriginatedSkill = { origin: CatalogueOrigin; entry: SkillCatalogueEntry }
+
+const WIRE_ORIGINS: Readonly<Record<CatalogueOrigin, ESkillCatalogueOrigin>> = {
   [EDefinitionOrigin.BuiltIn]: ESkillCatalogueOrigin.BuiltIn,
   [EDefinitionOrigin.User]: ESkillCatalogueOrigin.User,
-  [EDefinitionOrigin.Project]: ESkillCatalogueOrigin.Project,
 }
 
 export const originated = (args: {
-  origin: EDefinitionOrigin
+  origin: CatalogueOrigin
   spec: SkillCatalogueEntry
 }): OriginatedSkill => ({
   origin: args.origin,

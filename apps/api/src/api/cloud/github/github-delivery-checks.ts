@@ -27,18 +27,23 @@ export class GithubDeliveryChecks {
   constructor(
     private readonly deps: {
       writer: GithubPrStateWriter
-      restFill: (args: { repoFullName: string; prNumber: number }) => Promise<RestFill>
+      restFill: (args: {
+        repoFullName: string
+        prNumber: number
+        installationId: bigint | undefined
+      }) => Promise<RestFill>
       fetchAnnotations: FetchAnnotations
     },
   ) {
     this.annotations = new CheckAnnotationFetcher(deps.fetchAnnotations)
   }
 
-  handleCheckRun(payload: GithubCheckRunWebhookPayload): Promise<void> {
+  handleCheckRun(payload: GithubCheckRunWebhookPayload, installationId?: bigint): Promise<void> {
     return this.ingest({
       repoFullName: payload.repository.full_name,
       headSha: payload.check_run.head_sha,
       check: checkRunInputOf(payload.check_run),
+      installationId,
     })
   }
 
@@ -46,18 +51,23 @@ export class GithubDeliveryChecks {
    * A suite is a container, never a check: its event re-reads the head's tally and can settle a
    * ledger, but records nothing of its own.
    */
-  handleCheckSuite(payload: GithubCheckSuiteWebhookPayload): Promise<void> {
+  handleCheckSuite(
+    payload: GithubCheckSuiteWebhookPayload,
+    installationId?: bigint,
+  ): Promise<void> {
     return this.ingest({
       repoFullName: payload.repository.full_name,
       headSha: payload.check_suite.head_sha,
+      installationId,
     })
   }
 
-  handleStatus(payload: GithubStatusWebhookPayload): Promise<void> {
+  handleStatus(payload: GithubStatusWebhookPayload, installationId?: bigint): Promise<void> {
     return this.ingest({
       repoFullName: payload.repository.full_name,
       headSha: payload.sha,
       check: commitStatusInputOf(payload),
+      installationId,
     })
   }
 
@@ -65,13 +75,19 @@ export class GithubDeliveryChecks {
     repoFullName: string
     headSha: string
     check?: CommitCheckInput
+    installationId: bigint | undefined
   }): Promise<void> {
     const repoFullName = normalizedRepo(args.repoFullName)
     const { headSha } = args
     const check =
       args.check === undefined
         ? undefined
-        : await this.annotations.attach({ repoFullName, headSha, check: args.check })
+        : await this.annotations.attach({
+            repoFullName,
+            headSha,
+            check: args.check,
+            installationId: args.installationId,
+          })
 
     const decided = await db.transaction(async (tx) => {
       await lockCommit({ tx, repoFullName, headSha })
@@ -104,7 +120,11 @@ export class GithubDeliveryChecks {
 
     const deferred: number[] = []
     for (const prNumber of decided.confirm) {
-      const rest = await this.deps.restFill({ repoFullName, prNumber })
+      const rest = await this.deps.restFill({
+        repoFullName,
+        prNumber,
+        installationId: args.installationId,
+      })
       if (rest.kind === 'deferred') {
         deferred.push(prNumber)
         continue
@@ -112,7 +132,12 @@ export class GithubDeliveryChecks {
       const restHead = rest.kind === 'filled' ? rest.fields.headSha : headSha
       const restChecks =
         rest.kind === 'filled' && rest.checks !== null
-          ? await this.withAnnotations({ repoFullName, headSha: restHead, checks: rest.checks })
+          ? await this.withAnnotations({
+              repoFullName,
+              headSha: restHead,
+              checks: rest.checks,
+              installationId: args.installationId,
+            })
           : null
       const write = await db.transaction(async (tx) => {
         await lockCommit({ tx, repoFullName, headSha: restHead })
@@ -140,10 +165,16 @@ export class GithubDeliveryChecks {
     repoFullName: string
     headSha: string
     checks: readonly CommitCheckInput[]
+    installationId: bigint | undefined
   }): Promise<CommitCheckInput[]> {
     return Promise.all(
       args.checks.map((check) =>
-        this.annotations.attach({ repoFullName: args.repoFullName, headSha: args.headSha, check }),
+        this.annotations.attach({
+          repoFullName: args.repoFullName,
+          headSha: args.headSha,
+          check,
+          installationId: args.installationId,
+        }),
       ),
     )
   }

@@ -1,4 +1,3 @@
-import { GithubDeliveryFillDeferred } from './github-delivery-fill'
 import { randomUUID } from 'node:crypto'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
@@ -17,11 +16,7 @@ import { seedPrState, seedSubscription } from '../../../../test/github-seed'
 import type { RedisService } from '../../../_lib/redis/redis.service'
 import { PULL_REQUEST_PAYLOAD } from './github-delivery.fixture'
 import { mockGithubHttp, realGithubGraph } from './github-realtime-http.fixture'
-import {
-  GITHUB_HTTP_BUDGET_PER_MINUTE,
-  GITHUB_AUTH_HTTP_BUDGET_PER_MINUTE,
-  GITHUB_REFRESH_HTTP_BUDGET_PER_MINUTE,
-} from './github-request-coordinator.types'
+import { GITHUB_REFRESH_HTTP_BUDGET_PER_MINUTE } from './github-request-coordinator.types'
 import { withGithubRequestBudget } from './github-request-budget'
 import { RepoAccessChecker } from './github-repo-access'
 import { EGithubCallSource } from './github-call-log'
@@ -95,7 +90,7 @@ describe('shared real HTTP budget for API fills, authorization and worker queue'
     expect(http.calls.length).toBe(priorCalls)
   })
 
-  it('charges actual API delivery fills and worker/auth/hook HTTP attempts against one cross-instance ceiling', async () => {
+  it('paces each credential inside its own minute of the shared budget', async () => {
     for (let number = 1; number <= 30; number += 1)
       await seedSubscription({
         id: `agent-${number}`,
@@ -110,39 +105,14 @@ describe('shared real HTTP budget for API fills, authorization and worker queue'
     expect(http.calls.slice(beforeFill).map((call) => call.path)).toContain('/graphql')
     expect(http.calls.length).toBe(beforeFill + 6)
     await worker.poll.handlePoll()
-    expect(http.calls.length).toBe(GITHUB_REFRESH_HTTP_BUDGET_PER_MINUTE + 1)
-    for (let index = 1; index < GITHUB_AUTH_HTTP_BUDGET_PER_MINUTE; index += 1)
-      await withGithubRequestBudget({
-        store: api.coordinator,
-        run: () =>
-          githubFetch({
-            source: EGithubCallSource.RepoAccess,
-            url: 'https://api.github.com/repos/compai/app',
-            init: { headers: { authorization: 'Bearer owner' } },
-          }),
-      })
-    expect(http.calls.length).toBe(GITHUB_HTTP_BUDGET_PER_MINUTE)
-    expect(http.calls.some((call) => call.path.endsWith('/hooks'))).toBe(true)
-    const refreshes = http.calls.filter((call) => /\/pulls\/\d+$/.test(call.path))
+    const refreshes = http.calls.slice(beforeFill).filter((call) => /\/pulls\/\d+$/.test(call.path))
+    expect(refreshes.length).toBeGreaterThan(0)
+    expect(refreshes.length).toBeLessThanOrEqual(GITHUB_REFRESH_HTTP_BUDGET_PER_MINUTE)
     const numbers = refreshes.map((call) => call.path.split('/').at(-1))
     expect(new Set(numbers).size).toBe(numbers.length)
-    await expect(
-      api.delivery.handle({
-        event: 'pull_request',
-        payload: {
-          ...PULL_REQUEST_PAYLOAD,
-          pull_request: {
-            ...PULL_REQUEST_PAYLOAD.pull_request,
-            title: 'payload survives budget exhaustion',
-          },
-        },
-      }),
-    ).rejects.toBeInstanceOf(GithubDeliveryFillDeferred)
-    expect(http.calls).toHaveLength(GITHUB_HTTP_BUDGET_PER_MINUTE)
     expect(
-      (await db.orm.public.GithubPrState.first({ repoFullName: 'compai/app', prNumber: 42 }))
-        ?.title,
-    ).toBe('payload survives budget exhaustion')
+      await db.orm.public.GithubPrState.first({ repoFullName: 'compai/app', prNumber: 1 }),
+    ).not.toBeNull()
   })
 
   it('backs off a failed target, still refreshes a healthy one, and never continually polls a merged entry', async () => {

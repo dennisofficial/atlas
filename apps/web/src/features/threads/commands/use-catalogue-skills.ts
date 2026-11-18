@@ -7,15 +7,14 @@ import { skillSpecOf } from './skill-specs'
 
 const NO_SKILLS: readonly CommandSpec[] = []
 
-const loadCatalogueSpecs = async (projectId: string | null | undefined) =>
-  (await fetchSkillCatalogue(projectId)).skills.map(skillSpecOf)
+const loadCatalogueSpecs = async () => (await fetchSkillCatalogue()).skills.map(skillSpecOf)
 
-export function useCatalogueSkills(projectId: string | null | undefined) {
+export function useCatalogueSkills() {
   const [skills, setSkills] = useState<readonly CommandSpec[]>(NO_SKILLS)
 
   useEffect(() => {
     let current = true
-    loadCatalogueSpecs(projectId)
+    loadCatalogueSpecs()
       .then((found) => {
         if (current) setSkills(found)
       })
@@ -23,13 +22,13 @@ export function useCatalogueSkills(projectId: string | null | undefined) {
     return () => {
       current = false
     }
-  }, [projectId])
+  }, [])
 
   const reload = useCallback(async (): Promise<readonly CommandSpec[]> => {
-    const found = await loadCatalogueSpecs(projectId)
+    const found = await loadCatalogueSpecs()
     setSkills(found)
     return found
-  }, [projectId])
+  }, [])
 
   return { skills, reload }
 }
