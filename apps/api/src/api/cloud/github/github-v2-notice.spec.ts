@@ -11,6 +11,7 @@ import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { prEventRows, seedPrState, seedSubscription } from '../../../../test/github-seed'
+import { seedHeadChecks } from './github-pr-checks.fixture'
 import {
   CHECK_SUITE_PAYLOAD,
   FILLED_PR_STATE,
@@ -79,6 +80,7 @@ describe('v2 session notice for a PR event', () => {
   it('posts one event naming the PR, its checks tally and its mergeability', async () => {
     const { service } = settledGreen()
     await seedWatchedPr()
+    await seedHeadChecks({ headSha: 'abc123', passed: 3 })
 
     await service.handle({ event: 'check_run', payload: SETTLING_CHECK_RUN_PAYLOAD })
 

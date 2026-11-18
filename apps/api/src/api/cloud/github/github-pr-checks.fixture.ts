@@ -1,9 +1,18 @@
+import { db } from '@dltech/atlas-db'
 import { checkRunInputOf, recordCommitChecksLocked } from './github-commit-checks'
 
 const AT = '2026-11-18T00:00:00Z'
 
 const conclusionOf = (group: 'passed' | 'failed' | 'running') =>
   group === 'passed' ? 'success' : group === 'failed' ? 'failure' : null
+
+export const completeRunningChecks = (args: { repoFullName?: string; headSha: string }) =>
+  db.execute(
+    db.raw
+      .sql`UPDATE "GithubCommitCheck" SET "outcome" = 'passed', "sourceUpdatedAt" = now() WHERE "repoFullName" = ${args.repoFullName ?? 'compai/app'} AND "headSha" = ${args.headSha} AND "outcome" = 'running'`
+      .affectedCount()
+      .build(),
+  )
 
 export function seedHeadChecks(args: {
   headSha: string

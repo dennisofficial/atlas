@@ -1,7 +1,6 @@
 import { ForbiddenException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { EGithubCallSource } from './github-call-log'
-import type { PullRequestCacheFields } from './github-pull-request-mapping'
 import { GithubRequestCoordinator } from './github-request-coordinator'
 import {
   GithubUserReads,
@@ -37,28 +36,6 @@ export class GithubSubscribedPrResolver {
         throw new ForbiddenException(`no access to ${args.repoFullName}`)
       throw failure
     }
-  }
-
-  readPullRequest(args: {
-    userId: string
-    token: string
-    repoFullName: string
-    owner: string
-    repo: string
-    number: number
-  }): Promise<PullRequestCacheFields> {
-    return this.proveRead({
-      userId: args.userId,
-      repoFullName: args.repoFullName,
-      read: () =>
-        this.deps.reads.readPullRequest({
-          source: EGithubCallSource.SubscriptionResolve,
-          token: args.token,
-          owner: args.owner,
-          repo: args.repo,
-          number: args.number,
-        }),
-    })
   }
 
   readPullRequestObservation(args: {

@@ -234,6 +234,7 @@ describe('GithubDeliveryService per-head verdict ledger', () => {
     })
     await seedHook({ createdBy: 'usr-creator' })
     await seedSubscription({ userId: 'usr-fast', prNumber: 42 })
+    await seedHeadChecks({ headSha: 'abc123', failed: 2 })
     await seedPrState({
       ...FILLED_PR_STATE,
       checksRunning: 1,

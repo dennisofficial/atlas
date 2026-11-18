@@ -79,9 +79,8 @@ export async function tryRestFill(args: {
   owner: string
   repo: string
   prNumber: number
-  collect?: boolean
 }): Promise<RestFill> {
-  let collected: CommitCheckInput[] | null = null
+  let collected: CommitCheckInput[] = []
   try {
     const fields = await args.reads.readPullRequest({
       source: EGithubCallSource.DeliveryFill,
@@ -89,13 +88,9 @@ export async function tryRestFill(args: {
       owner: args.owner,
       repo: args.repo,
       number: args.prNumber,
-      ...(args.collect === true
-        ? {
-            collectChecks: ({ checks }: { checks: CommitCheckInput[] }) => {
-              collected = checks
-            },
-          }
-        : {}),
+      collectChecks: ({ checks }) => {
+        collected = [...checks]
+      },
     })
     return { kind: 'filled', fields: { ...fields, updatedAt: new Date() }, checks: collected }
   } catch (failure) {

@@ -6,7 +6,7 @@ import {
   seedPrState,
   seedUserSetting,
 } from '../../../../test/github-seed'
-import { seedHeadChecks } from './github-pr-checks.fixture'
+import { completeRunningChecks, seedHeadChecks } from './github-pr-checks.fixture'
 import {
   checkRunPayload,
   SETTLING_CHECK_RUN_PAYLOAD,
@@ -36,6 +36,7 @@ describe('GithubDeliveryService transition events', () => {
     })
     await seedHook({ createdBy: 'usr-creator' })
     await seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    await seedHeadChecks({ headSha: 'abc123', failed: 2 })
     await seedPrState({ ...FILLED_PR_STATE })
 
     await service.handle({
@@ -191,13 +192,7 @@ describe('GithubDeliveryService transition events', () => {
   })
 
   it('records verdicts per subscriber verdict timing: fail-fast fires mid-run and again when the run finishes, settled waits', async () => {
-    let running = true
-    const readPullRequest = vi.fn(async () => ({
-      ...REST_FIELDS,
-      checksRunning: running ? 9 : 0,
-      checksPassed: running ? 0 : 9,
-      checksFailed: 1,
-    }))
+    const readPullRequest = vi.fn(async () => REST_FIELDS)
     const { service } = serviceWith({
       tokens: { 'usr-creator': 'ghu_creator' },
       readPullRequest,
@@ -210,6 +205,7 @@ describe('GithubDeliveryService transition events', () => {
       key: 'github.prEvents.verdictTiming',
       value: 'atlas-setting:v1:"settled"',
     })
+    await seedHeadChecks({ headSha: 'abc123', running: 9, failed: 1 })
     await seedPrState({
       ...FILLED_PR_STATE,
       checksRunning: 10,
@@ -229,7 +225,7 @@ describe('GithubDeliveryService transition events', () => {
       payload: { verdict: 'failed' },
     })
 
-    running = false
+    await completeRunningChecks({ headSha: 'abc123' })
     await service.handle({
       event: 'check_run',
       payload: SETTLING_CHECK_RUN_PAYLOAD,

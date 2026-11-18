@@ -1,5 +1,6 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
+import { db } from '@dltech/atlas-db'
 import { prEventRows, seedPrState } from '../../../../test/github-seed'
 import {
   checkRunPayload,
@@ -44,8 +45,15 @@ const STORYBOOK_SUCCEEDED = {
   checksRunning: 0,
   checksPassed: 1,
   checksFailed: 0,
-  requiredCheckContexts: ['ci'],
 }
+
+const requireContext = (contexts: string[]) =>
+  db.orm.public.GithubBranchProtection.create({
+    repoFullName: 'compai/app',
+    baseBranch: 'main',
+    requiredContexts: contexts,
+    fetchedAt: new Date(),
+  })
 
 const verdictRows = async () => (await prEventRows()).filter((row) => row.kind === 'verdict')
 
@@ -61,12 +69,8 @@ describe('required status checks gate the head verdict', () => {
     })
     await seedHook({ createdBy: 'usr-creator' })
     await seedSubscription({ userId: 'usr-a', prNumber: 42 })
-    await seedPrState({
-      ...FILLED_PR_STATE,
-      checksRunning: 0,
-      checksPassed: 0,
-      requiredCheckContexts: ['ci'],
-    })
+    await requireContext(['ci'])
+    await seedPrState({ ...FILLED_PR_STATE, checksRunning: 0, checksPassed: 0 })
 
     await service.handle({ event: 'status', payload: STATUS_PAYLOAD('success') })
     expect(await verdictRows()).toHaveLength(0)

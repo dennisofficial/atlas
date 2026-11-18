@@ -14,6 +14,7 @@ import {
   seedSubscription,
   serviceWith,
 } from './github-delivery.fixture'
+import { seedHeadChecks } from './github-pr-checks.fixture'
 import { GithubUserReadFailed } from './github-user-reads'
 
 describe('GithubDeliveryService fill', () => {
@@ -100,6 +101,7 @@ describe('GithubDeliveryService fill', () => {
     })
     await seedHook({ createdBy: 'usr-gone' })
     await seedSubscription({ userId: 'usr-sub', prNumber: 42 })
+    await seedHeadChecks({ headSha: 'abc123', passed: 2 })
     await seedPrState({
       repoFullName: 'compai/app',
       prNumber: 42,

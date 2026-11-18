@@ -50,9 +50,15 @@ describe('GithubUserReads settle confirmation', () => {
     expect(paths.some((path) => path.includes('/rules/branches/main'))).toBe(true)
   })
 
-  it('makes the same five calls whether or not the caller collects checks', async () => {
+  it('hands the head checks to its collector and makes the same five calls', async () => {
     branch = 'release'
-    await new GithubUserReads().readPullRequest({ ...target, number: 1 })
+    const collected: Array<{ headSha: string; checks: unknown[] }> = []
+    await new GithubUserReads().readPullRequest({
+      ...target,
+      number: 1,
+      collectChecks: (read) => collected.push(read),
+    })
     expect(paths).toHaveLength(5)
+    expect(collected).toEqual([{ headSha: 'abc', checks: [] }])
   })
 })

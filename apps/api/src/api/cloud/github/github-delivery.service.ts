@@ -23,7 +23,6 @@ import {
   mergeabilityObservationOf,
   pullObservationOfWebhook,
 } from './github-pr-observations'
-import { GithubPrStateWriter } from './github-pr-state-writer'
 import { GithubPrStore } from './github-pr-store'
 import { GithubInstallationTokens } from './github-installation-tokens'
 import { subscriptionLiveWhere } from './github-delivery-routing'
@@ -61,7 +60,6 @@ const HANDLED_EVENTS = new Set([
 @Injectable()
 export class GithubDeliveryService {
   private readonly logger = new Logger(GithubDeliveryService.name)
-  private readonly writer: GithubPrStateWriter
   private readonly checks: GithubDeliveryChecks
 
   constructor(
@@ -76,14 +74,8 @@ export class GithubDeliveryService {
     private readonly store: GithubPrStore,
     private readonly appTokens?: GithubInstallationTokens,
   ) {
-    this.writer = new GithubPrStateWriter({
-      mailbox,
-      fanout,
-      signals,
-      logger: this.logger,
-    })
     this.checks = new GithubDeliveryChecks({
-      writer: this.writer,
+      store: this.store,
       restFill: async (args) => {
         const token = await this.findFillToken({
           repoFullName: args.repoFullName,
@@ -91,7 +83,7 @@ export class GithubDeliveryService {
         })
         if (token === undefined) return { kind: 'skipped' }
         const [owner, repo] = args.repoFullName.split('/') as [string, string]
-        return this.restFill({ token, owner, repo, prNumber: args.prNumber, collect: true })
+        return this.restFill({ token, owner, repo, prNumber: args.prNumber })
       },
       fetchAnnotations: async (args) => {
         const token = await this.findFillToken({
@@ -262,7 +254,6 @@ export class GithubDeliveryService {
     owner: string
     repo: string
     prNumber: number
-    collect?: boolean
   }): Promise<RestFill> {
     return tryRestFill({ reads: this.reads, logger: this.logger, ...args })
   }

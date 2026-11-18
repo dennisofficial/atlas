@@ -18,6 +18,7 @@ import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import type { PullRequestCacheFields } from './github-pull-request-mapping'
+import { type CommitCheckInput, restCommitChecksOf } from './github-commit-checks'
 import type { GithubUserReads } from './github-user-reads'
 import type { GithubService } from './github.service'
 
@@ -60,6 +61,19 @@ export const REST_FIELDS: PullRequestCacheFields = {
   mergeClean: true,
 }
 
+export const passedCheckInputs = (count: number): CommitCheckInput[] =>
+  restCommitChecksOf({
+    checkRuns: Array.from({ length: count }, (_, index) => ({
+      id: index + 1,
+      name: `job-${index + 1}`,
+      status: 'completed',
+      conclusion: 'success',
+      started_at: '2026-11-02T04:25:00Z',
+      completed_at: '2026-11-02T04:26:00Z',
+    })),
+    statuses: [],
+  })
+
 const USERS = [
   'usr-creator',
   'usr-gone',
@@ -85,12 +99,16 @@ export const FILLED_PR_STATE = {
   headBranch: 'dennis/add-the-thing',
   headSha: 'abc123',
   headRepoFullName: 'compai/app',
+  baseBranch: 'main',
   checksRunning: 1,
   checksPassed: 2,
   checksFailed: 0,
   checksIgnored: 0,
   checksState: null,
   mergeable: true,
+  mergeableHeadSha: 'abc123',
+  mergeableBaseRef: 'main',
+  mergeableObservedAt: new Date('2026-11-17T00:00:00Z'),
   pullUpdatedAt: new Date('2026-11-17T00:00:00Z'),
   updatedAt: new Date(),
 }

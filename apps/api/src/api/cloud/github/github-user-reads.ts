@@ -5,7 +5,7 @@ import { rateLimitOf } from './github-rate-limit'
 import type { MergeabilitySample } from '@dltech/atlas-core'
 import type { PullRequestCacheFields, RestPullRequest } from './github-pull-request-mapping'
 import { HOOK_EVENTS } from './github-hook-events'
-import { type CommitCheckInput, recordCheckCounts } from './github-commit-checks'
+import type { CommitCheckInput } from './github-commit-checks'
 import type { RawCheckAnnotation } from './github-check-annotations'
 import { readPullRequestFill, type PullRequestRead } from './github-pull-request-read'
 import { GithubRequiredChecksRead } from './github-required-checks-read'
@@ -69,20 +69,11 @@ export class GithubUserReads {
     owner: string
     repo: string
     number: number
-    collectChecks?: (args: { headSha: string; checks: CommitCheckInput[] }) => void
+    collectChecks: (args: { headSha: string; checks: CommitCheckInput[] }) => void
   }): Promise<PullRequestCacheFields> {
     const read = await this.readPullRequestFillOf(args)
-    if (args.collectChecks !== undefined) {
-      args.collectChecks({ headSha: read.headSha, checks: read.checks })
-      return read.fields
-    }
-    if (read.checks.length === 0) return read.fields
-    const counts = await recordCheckCounts({
-      repoFullName: `${args.owner}/${args.repo}`,
-      headSha: read.headSha,
-      checks: read.checks,
-    })
-    return { ...read.fields, ...counts }
+    args.collectChecks({ headSha: read.headSha, checks: read.checks })
+    return read.fields
   }
 
   readPullRequestObservation(args: {
