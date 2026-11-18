@@ -14,6 +14,7 @@ import {
   understandsCommand,
   waitingInputIdsOf,
 } from './held-inbox'
+import { openChildrenOf } from './crew/open-children'
 import type { HeldSessionDeps } from './held-session-deps'
 import type { SessionRecord } from './record/record-adapter'
 
@@ -38,6 +39,7 @@ export const drainNeedsHolder = async (args: {
     })
     return drainWantsHolder({
       turn: args.turnRunning ? 'running' : 'idle',
+      childrenRunning: openChildrenOf(cache?.visibleLoopEvents() ?? []).length > 0,
       resumable: isResumableOf(cache?.loopState() ?? initialLoopState()),
       messagePending:
         actionableEntries({ entries, failure: workspace.failure }).length > 0 ||

@@ -50,6 +50,7 @@ export const decideHeldAction = (snapshot: HeldSnapshot): EHeldAction => {
 
 export type DrainSnapshot = {
   turn: 'idle' | 'running'
+  childrenRunning: boolean
   resumable: boolean
   messagePending: boolean
   workspace: EWorkspaceState
@@ -57,7 +58,13 @@ export type DrainSnapshot = {
 }
 
 export const drainWantsHolder = (snapshot: DrainSnapshot): boolean => {
-  if (snapshot.turn === 'running' || snapshot.resumable || snapshot.messagePending) return true
+  if (
+    snapshot.turn === 'running' ||
+    snapshot.childrenRunning ||
+    snapshot.resumable ||
+    snapshot.messagePending
+  )
+    return true
   switch (snapshot.workspace) {
     case EWorkspaceState.Unprepared:
     case EWorkspaceState.Preparing:

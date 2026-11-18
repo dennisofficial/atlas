@@ -1,18 +1,27 @@
-import { EAgentStatus, EKilledBy, EReportKind, type ThreadId } from '@dltech/atlas-core'
-import { ETurnStatus, type LoopTurnRunner, type TurnOutcome } from '@dltech/atlas-agent'
+import {
+  EAgentRestart,
+  EAgentStatus,
+  EKilledBy,
+  EReportKind,
+  isResumableOf,
+  type ThreadId,
+} from '@dltech/atlas-core'
+import {
+  ETurnStatus,
+  PauseSignal,
+  type LoopTurnRunner,
+  type TurnOutcome,
+} from '@dltech/atlas-agent'
 import { logFieldsOf } from '@dltech/atlas-observability'
 import type {
   PodCrew,
   SubagentSaid,
   SubagentSnapshot,
   SubagentWorktree,
-  WorktreeEntryInfo,
 } from '@dltech/atlas-plugin-sdk'
 
-import type { HeldSessionDeps } from '../held-session-deps'
-import type { RoleModelChoice, SessionRuntime } from '../ports'
+import type { RoleModelChoice } from '../ports'
 import type { LeaseLostError, SessionRecord } from '../record/record-adapter'
-import { SessionRecord as RecordAdapter } from '../record/record-adapter'
 import { ChildIntake } from './child-intake'
 import { childPortOf } from './child-port'
 import { childChoiceOf } from './child-model'
@@ -25,31 +34,31 @@ import {
 } from './child-progress'
 import { childRunnerOf } from './child-runner'
 import { ChildTranscript } from './child-transcript'
+import {
+  adoptRecordOf,
+  childRecordOf,
+  seedWorktreeOf,
+  type AdoptedChildArgs,
+  type ChildRunArgs,
+} from './child-record'
 
-export type ChildRunArgs = {
-  deps: HeldSessionDeps
-  runtime: SessionRuntime
-  parentRecord: SessionRecord
-  parentThreadId: ThreadId
-  epoch: number
-  agentType: string
-  intent: string
-  worktree?: WorktreeEntryInfo | undefined
-  signal: AbortSignal
-  onLeaseLost(error: LeaseLostError): void
-}
+export type { AdoptedChildArgs, ChildRunArgs }
+
+type DriveArgs = { text: string; restart: boolean } | { resume: true }
 
 export class ChildRun {
   readonly agentId: ThreadId
   readonly startedAt: string
   private readonly intake = new ChildIntake()
   private readonly transcript: ChildTranscript
+  private readonly pauseSignal = new PauseSignal()
   private record!: SessionRecord
   private runner!: LoopTurnRunner
   private pump: Promise<void> | undefined
   private abort: AbortController | undefined
   private listeners: AbortController | undefined
   private stopping = false
+  private handingOff = false
   private ending: EAgentStatus | undefined
   private endedAt: string | undefined
   private killedBy: EKilledBy | undefined
@@ -59,9 +68,10 @@ export class ChildRun {
     private readonly args: ChildRunArgs,
     agentId: ThreadId,
     private readonly model: RoleModelChoice,
+    startedAt: string,
   ) {
     this.agentId = agentId
-    this.startedAt = new Date(args.deps.timers.now()).toISOString()
+    this.startedAt = startedAt
     this.transcript = new ChildTranscript({
       deps: args.deps,
       runtime: args.runtime,
@@ -79,25 +89,39 @@ export class ChildRun {
       args,
       args.deps.ids.nextThreadId(),
       childChoiceOf({ runtime: args.runtime, agentType: args.agentType }),
+      new Date(args.deps.timers.now()).toISOString(),
     )
     await args.deps.plane.createThread({ threadId: run.agentId, sessionId: args.deps.sessionId })
-    run.record = await RecordAdapter.open({
-      plane: args.deps.plane,
-      threadId: run.agentId,
-      epoch: args.epoch,
-      timers: args.deps.timers,
-      remoteCalls: args.runtime.remoteCalls,
-      daemonTools: args.runtime.daemonTools,
-      appendRetryMs: args.deps.appendRetryMs,
-      onLeaseLost: (error) => {
-        args.onLeaseLost(error)
-        run.abort?.abort('lease_lost')
-      },
-      nowIso: () => new Date(args.deps.timers.now()).toISOString(),
-      ...(args.deps.log === undefined ? {} : { log: args.deps.log }),
+    run.record = await childRecordOf({
+      args,
+      agentId: run.agentId,
+      onLeaseLost: (error) => run.lost(error),
     })
-    if (args.worktree !== undefined) await run.seedWorktree(args.worktree)
+    if (args.worktree !== undefined)
+      await seedWorktreeOf({
+        record: run.record,
+        ids: args.deps.ids,
+        agentId: run.agentId,
+        worktree: args.worktree,
+      })
     await run.transcript.spawned({ worktree: args.worktree })
+    return run
+  }
+
+  static async adopt(args: AdoptedChildArgs): Promise<ChildRun | undefined> {
+    const run = new ChildRun(
+      args,
+      args.agentId,
+      childChoiceOf({ runtime: args.runtime, agentType: args.agentType }),
+      args.spawnedAt,
+    )
+    const record = await adoptRecordOf({
+      args,
+      agentId: args.agentId,
+      onLeaseLost: (error) => run.lost(error),
+    })
+    if (record === undefined) return undefined
+    run.record = record
     return run
   }
 
@@ -110,16 +134,17 @@ export class ChildRun {
       this.intake.push(text)
       return { queued: true, snapshot: this.snapshot() }
     }
-    const restart = this.ending !== undefined
-    const pump = this.drive({ text, restart }).catch((error: unknown) => {
-      this.args.deps.log?.error({
-        source: 'holder.crew',
-        message: `sub-agent ${this.agentId} faulted`,
-        ...logFieldsOf({ error }),
-      })
-    })
-    this.pump = pump
+    this.begin({ text, restart: this.ending !== undefined })
     return { queued: false, snapshot: this.snapshot() }
+  }
+
+  continueTurn(): void {
+    if (!this.resumable()) return
+    this.begin({ resume: true })
+  }
+
+  resumable(): boolean {
+    return isResumableOf(this.record.eventCache().loopState())
   }
 
   stop(by: EKilledBy): SubagentSnapshot {
@@ -127,6 +152,12 @@ export class ChildRun {
     this.killedBy = by
     this.abort?.abort('agent_stop')
     return this.snapshot()
+  }
+
+  pause(): void {
+    this.handingOff = true
+    this.pauseSignal.pause()
+    this.abort?.abort('handoff')
   }
 
   dispose(): void {
@@ -158,27 +189,26 @@ export class ChildRun {
     })
   }
 
-  private async seedWorktree(worktree: WorktreeEntryInfo): Promise<void> {
-    await this.record.append({
-      threadId: this.agentId,
-      runId: this.args.deps.ids.nextRunId(),
-      drafts: [
-        {
-          type: 'worktree-entered',
-          path: worktree.path,
-          branch: worktree.branch,
-          ...(worktree.base === undefined ? {} : { base: worktree.base }),
-          adopted: worktree.adopted === true,
-        },
-      ],
-    })
+  private lost(error: LeaseLostError): void {
+    this.args.onLeaseLost(error)
+    this.abort?.abort('lease_lost')
   }
 
   port(): PodCrew {
     return childPortOf({ report: (report) => this.report(report) })
   }
 
-  private async drive(args: { text: string; restart: boolean }): Promise<void> {
+  private begin(args: DriveArgs): void {
+    this.pump = this.drive(args).catch((error: unknown) => {
+      this.args.deps.log?.error({
+        source: 'holder.crew',
+        message: `sub-agent ${this.agentId} faulted`,
+        ...logFieldsOf({ error }),
+      })
+    })
+  }
+
+  private async drive(args: DriveArgs): Promise<void> {
     const listeners = new AbortController()
     const abort = new AbortController()
     this.listeners = listeners
@@ -200,8 +230,7 @@ export class ChildRun {
         intake: this.intake,
         onFallback: (refs) => this.transcript.fellBack(refs),
       })
-      if (args.restart) await this.transcript.restarted()
-      let outcome = await this.turn({ text: args.text, signal: abort.signal })
+      let outcome = await this.firstTurn({ args, signal: abort.signal })
       while (
         outcome.status === ETurnStatus.Completed &&
         !this.stopping &&
@@ -220,14 +249,29 @@ export class ChildRun {
     }
   }
 
+  private async firstTurn(args: { args: DriveArgs; signal: AbortSignal }): Promise<TurnOutcome> {
+    const drive = args.args
+    if ('resume' in drive) {
+      await this.transcript.restarted({ via: EAgentRestart.Relocation })
+      return this.runner.resume({
+        threadId: this.agentId,
+        signal: args.signal,
+        pause: this.pauseSignal,
+      })
+    }
+    if (drive.restart) await this.transcript.restarted({ via: EAgentRestart.Message })
+    return this.turn({ text: drive.text, signal: args.signal })
+  }
+
   private turn(args: { text: string | undefined; signal: AbortSignal }): Promise<TurnOutcome> {
-    const request = { threadId: this.agentId, signal: args.signal }
+    const request = { threadId: this.agentId, signal: args.signal, pause: this.pauseSignal }
     return args.text === undefined
       ? this.runner.runTurn(request)
       : this.runner.say({ ...request, text: args.text })
   }
 
   private async settle(outcome: TurnOutcome): Promise<void> {
+    if (this.handingOff) return
     const status = statusOf(outcome)
     const failure = failureOf(outcome)
     const killedBy =
@@ -236,6 +280,7 @@ export class ChildRun {
   }
 
   private async settleFailure(error: unknown): Promise<void> {
+    if (this.handingOff) return
     const message = error instanceof Error ? error.message : String(error)
     await this.end({ status: EAgentStatus.Failed, failure: message, killedBy: undefined })
   }

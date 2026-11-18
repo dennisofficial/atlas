@@ -1,24 +1,27 @@
-import { lostAgentEnding, unendedSpawns, type IdPort, type ThreadId } from '@dltech/atlas-core'
+import { unendedSpawns, type Event, type ThreadId } from '@dltech/atlas-core'
+import type { WorktreeEntryInfo } from '@dltech/atlas-plugin-sdk'
 
 import type { SessionRecord } from '../record/record-adapter'
 
-export const settleOpenChildren = async (args: {
-  record: SessionRecord
-  ids: IdPort
-  threadId: ThreadId
-}): Promise<number> => {
-  const open = unendedSpawns(await args.record.ownEvents({ threadId: args.threadId }))
-  for (const spawn of open) {
-    await args.record.append({
-      threadId: args.threadId,
-      runId: args.ids.nextRunId(),
-      drafts: [
-        lostAgentEnding({
-          agent: { agentId: spawn.agentId, agentType: spawn.agentType, intent: spawn.intent },
-          progress: { turns: 0, toolCalls: 0, prose: '' },
-        }),
-      ],
-    })
-  }
-  return open.length
+export type OpenChild = {
+  agentId: ThreadId
+  agentType: string
+  intent: string
+  spawnedAt: string
+  worktree: WorktreeEntryInfo | undefined
 }
+
+export const openChildrenOf = (events: readonly Event[]): readonly OpenChild[] =>
+  unendedSpawns(events).map((spawn) => ({
+    agentId: spawn.agentId,
+    agentType: spawn.agentType,
+    intent: spawn.intent,
+    spawnedAt: spawn.at,
+    worktree: spawn.worktree,
+  }))
+
+export const openChildren = async (args: {
+  record: SessionRecord
+  threadId: ThreadId
+}): Promise<readonly OpenChild[]> =>
+  openChildrenOf(await args.record.ownEvents({ threadId: args.threadId }))

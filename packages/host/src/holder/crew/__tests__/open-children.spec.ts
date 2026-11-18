@@ -1,36 +1,44 @@
 import { describe, expect, it } from 'bun:test'
 
+import { SequentialIds } from '@dltech/atlas-agent/testing'
+
+import { RIG_MODEL_CHOICE } from '../../__tests__/rig-runtime'
+
 import {
+  EAgentRestart,
+  EAgentStart,
+  EKilledBy,
+  EAgentStatus,
+  GENESIS_HASH,
   chainEvents,
   chainHash,
-  EAgentStart,
-  EAgentStatus,
-  EKilledBy,
-  GENESIS_HASH,
   toRunId,
   toThreadId,
+  type Event,
   type LogHead,
   type RunId,
   type ThreadId,
   type V2Body,
   type V2Event,
 } from '@dltech/atlas-core'
-import { SequentialIds } from '@dltech/atlas-agent/testing'
-
+import type { HeldSessionDeps } from '../../held-session-deps'
+import type { SessionRuntime } from '../../ports'
 import type { SessionRecord } from '../../record/record-adapter'
-import { settleOpenChildren } from '../open-children'
+import { CrewRoom } from '../crew-room'
+import { openChildrenOf } from '../open-children'
 
 const PARENT = toThreadId('thread-parent')
 const FIRST = toThreadId('thread-child-1')
 const SECOND = toThreadId('thread-child-2')
 const AT = '2026-01-01T00:00:00.000Z'
 
-const spawned = (agentId: ThreadId): V2Body => ({
+const spawned = (agentId: ThreadId, worktree?: { path: string; branch: string }): V2Body => ({
   type: 'agent-spawned',
   agentId,
   agentType: 'builder',
   intent: 'build it',
   mode: EAgentStart.Fresh,
+  ...(worktree === undefined ? {} : { worktree }),
 })
 
 const ended = (agentId: ThreadId): V2Body => ({
@@ -51,9 +59,9 @@ const headOf = (events: readonly V2Event[]): LogHead => {
     : { seq: last.seq, hash: chainHash(last) }
 }
 
-type ParentLog = { record: SessionRecord; appends: V2Body[][]; events: V2Event[] }
-
-const parentLogOf = (bodies: readonly V2Body[]): ParentLog => {
+const parentRecordOf = (
+  bodies: readonly V2Body[],
+): { record: SessionRecord; appends: V2Body[][] } => {
   const events: V2Event[] = chainEvents({
     threadId: PARENT,
     runId: toRunId('run-seed'),
@@ -79,17 +87,84 @@ const parentLogOf = (bodies: readonly V2Body[]): ParentLog => {
       return []
     },
   } as unknown as SessionRecord
-  return { record, appends, events }
+  return { record, appends }
 }
 
-const settle = async (log: ParentLog): Promise<number> =>
-  settleOpenChildren({ record: log.record, ids: new SequentialIds(), threadId: PARENT })
+const childrenOf = async (bodies: readonly V2Body[]) =>
+  openChildrenOf((await parentRecordOf(bodies).record.ownEvents({ threadId: PARENT })) as Event[])
 
-describe('settling the children a boot finds open', () => {
-  it('ends a spawn with no ending, once', async () => {
-    const log = parentLogOf([spawned(FIRST)])
+const crewOf = (args: { record: SessionRecord; plane: undefined }): CrewRoom =>
+  new CrewRoom({
+    deps: {
+      sessionId: 'session-1',
+      ids: new SequentialIds(),
+      timers: { now: () => 0 },
+    } as unknown as HeldSessionDeps,
+    runtime: {
+      choiceFor: () => RIG_MODEL_CHOICE,
+      modelChoice: RIG_MODEL_CHOICE,
+    } as unknown as SessionRuntime,
+    parentRecord: args.record,
+    parentThreadId: PARENT,
+    epoch: 1,
+    signal: new AbortController().signal,
+    onLeaseLost: () => undefined,
+  })
 
-    expect(await settle(log)).toBe(1)
+describe('adopting the children a takeover finds open', () => {
+  it('names every spawn with no ending, worktree and spawn time included', async () => {
+    const children = await childrenOf([
+      spawned(FIRST, { path: '/work/tree', branch: 'dennis/tree' }),
+      spawned(SECOND),
+    ])
+
+    expect(children).toEqual([
+      {
+        agentId: FIRST,
+        agentType: 'builder',
+        intent: 'build it',
+        spawnedAt: AT,
+        worktree: { path: '/work/tree', branch: 'dennis/tree' },
+      },
+      {
+        agentId: SECOND,
+        agentType: 'builder',
+        intent: 'build it',
+        spawnedAt: AT,
+        worktree: undefined,
+      },
+    ])
+  })
+
+  it('leaves a child that already ended out', async () => {
+    expect(await childrenOf([spawned(FIRST), ended(FIRST)])).toEqual([])
+  })
+
+  it('keeps a child that was restarted after an ending', async () => {
+    const children = await childrenOf([
+      spawned(FIRST),
+      ended(FIRST),
+      spawned(FIRST),
+      {
+        type: 'agent-restarted',
+        agentId: FIRST,
+        agentType: 'builder',
+        intent: 'build it',
+        via: EAgentRestart.Message,
+      },
+    ])
+
+    expect(children.map((child) => child.agentId)).toEqual([FIRST])
+  })
+})
+
+describe('a child whose thread cannot be read', () => {
+  it('gets the lost ending instead of a resumed turn', async () => {
+    const log = parentRecordOf([spawned(FIRST)])
+    const crew = crewOf({ record: log.record, plane: undefined })
+
+    await crew.adoptAll(await childrenOf([spawned(FIRST)]))
+
     expect(log.appends).toEqual([
       [
         {
@@ -105,25 +180,6 @@ describe('settling the children a boot finds open', () => {
         },
       ],
     ])
-
-    expect(await settle(log)).toBe(0)
-    expect(log.appends).toHaveLength(1)
-  })
-
-  it('leaves a child that already ended alone', async () => {
-    const log = parentLogOf([spawned(FIRST), ended(FIRST)])
-
-    expect(await settle(log)).toBe(0)
-    expect(log.appends).toEqual([])
-  })
-
-  it('ends two open children with one ending each', async () => {
-    const log = parentLogOf([spawned(FIRST), spawned(SECOND)])
-
-    expect(await settle(log)).toBe(2)
-    expect(log.appends.flat()).toMatchObject([
-      { type: 'agent-ended', agentId: FIRST },
-      { type: 'agent-ended', agentId: SECOND },
-    ])
+    expect(crew.list()).toEqual([])
   })
 })

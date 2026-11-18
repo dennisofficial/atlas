@@ -161,7 +161,9 @@ export class HeldSession {
     this.branches?.stop()
     if (this.changes !== undefined)
       await this.changes.stop().catch((error: unknown) => logDriveFault({ deps: this.deps, error }))
-    await this.crew?.stopAll().catch((error: unknown) => logDriveFault({ deps: this.deps, error }))
+    await this.crew
+      ?.close({ draining: this.draining })
+      .catch((error: unknown) => logDriveFault({ deps: this.deps, error }))
     return teardownHeld({
       deps: this.deps,
       runtime: this.runtime,
@@ -219,7 +221,7 @@ export class HeldSession {
     this.logStaged = logStaged
     this.changes = this.changesOf({ runtime, record })
     this.changes?.start()
-    await settleAndCheckResume({ deps, runtime, record, threadId })
+    await settleAndCheckResume({ deps, runtime, record, threadId, crew })
     await recoverCommands()
     const completion = this.ending.waitForDrive()
     if (this.lifetimeAbort.signal.aborted || this.ending.outcome !== undefined) return

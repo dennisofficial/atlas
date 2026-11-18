@@ -66,6 +66,7 @@ const preparedRecord = (events: readonly V2Event[]): SessionRecord =>
       bookkeeping: () => ({ workspace: () => ({ prepared: true, failure: undefined }) }),
       loopState: () => initialLoopState(),
       eventsAfter: () => [...events],
+      visibleLoopEvents: () => [...events],
     }),
   }) as unknown as SessionRecord
 
@@ -82,7 +83,11 @@ const needsHolder = (params: {
       ? new Map([[ping.inboxKind, async () => ({ kind: 'done' as const })]])
       : new Map(),
   } as unknown as HeldSessionDeps
-  return drainNeedsHolder({ deps, record: preparedRecord(params.events ?? []), turnRunning: false })
+  return drainNeedsHolder({
+    deps,
+    record: preparedRecord(params.events ?? []),
+    turnRunning: false,
+  })
 }
 
 describe('drainNeedsHolder with commands', () => {
