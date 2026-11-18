@@ -63,6 +63,24 @@ describe('splitPath', () => {
   })
 })
 
+describe('ChangesPanel hideActions', () => {
+  it('drops the commit, review, pull request and scope controls', () => {
+    const html = render({ hideActions: true })
+    expect(html).not.toContain('Commit')
+    expect(html).not.toContain('Review')
+    expect(html).not.toContain('Open PR')
+    expect(html).not.toContain('Change scope')
+    expect(html).toContain('plan.tsx')
+    expect(html).toContain('3 files')
+  })
+
+  it('keeps them when the caller says nothing', () => {
+    const html = render()
+    expect(html).toContain('Commit')
+    expect(html).toContain('Change scope')
+  })
+})
+
 describe('ChangesPanel', () => {
   it('renders the summary, rows, letters and actions', () => {
     const html = render()

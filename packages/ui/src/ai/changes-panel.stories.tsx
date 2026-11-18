@@ -50,6 +50,8 @@ export const TreeFolderCollapsed: Story = {
 
 export const NoChanges: Story = { args: { files: [] } }
 
+export const ActionsHidden: Story = { args: { hideActions: true } }
+
 export const CustomDiffBody: Story = {
   args: {
     defaultExpanded: ['packages/ui/src/ai/task-dock.tsx'],

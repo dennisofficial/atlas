@@ -66,6 +66,7 @@ function CheckoutSection(args: {
         onLayoutChange={args.onLayoutChange}
         expanded={paths}
         onExpandedChange={handleExpandedChange}
+        hideActions
         renderDiff={(file) => {
           const entry = checkout.files.find((candidate) => candidate.path === file.path)
           if (entry === undefined) return null
