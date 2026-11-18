@@ -2,35 +2,22 @@ import { describe, expect, it } from 'bun:test'
 
 import { MAX_MESSAGE_UPLOADS } from '@dltech/atlas-core'
 
-import { isModelImage, routeAttachments } from '../session-attachments'
+import { routeAttachments } from '../session-attachments'
 
 const fileOf = (args: { name: string; type: string }) =>
   new File(['x'], args.name, { type: args.type })
 
-describe('isModelImage', () => {
-  it('accepts the formats the model reads', () => {
-    for (const type of ['image/png', 'image/jpeg', 'image/gif', 'image/webp']) {
-      expect(isModelImage({ type })).toBe(true)
-    }
-  })
-
-  it('refuses svg, heic and non-images', () => {
-    for (const type of ['image/svg+xml', 'image/heic', 'application/x-sh', '']) {
-      expect(isModelImage({ type })).toBe(false)
-    }
-  })
-})
-
 describe('routeAttachments', () => {
-  it('sends png to images and everything else to others', () => {
+  it('sends every image to the media path, heic and svg included', () => {
     const png = fileOf({ name: 'a.png', type: 'image/png' })
-    const svg = fileOf({ name: 'b.svg', type: 'image/svg+xml' })
+    const heic = fileOf({ name: 'IMG_0042.HEIC', type: 'image/heic' })
+    const svg = fileOf({ name: 'logo.svg', type: 'image/svg+xml' })
     const script = fileOf({ name: 'deploy.sh', type: '' })
 
-    const routed = routeAttachments({ files: [png, svg, script], held: 0 })
+    const routed = routeAttachments({ files: [png, heic, svg, script], held: 0 })
 
-    expect(routed.images).toEqual([png])
-    expect(routed.others).toEqual([svg, script])
+    expect(routed.images).toEqual([png, heic, svg])
+    expect(routed.others).toEqual([script])
     expect(routed.droppedOverflow).toBe(false)
   })
 

@@ -1,7 +1,6 @@
-import { MAX_MESSAGE_UPLOADS, SUPPORTED_IMAGE_MEDIA_TYPES } from '@dltech/atlas-core'
+import { MAX_MESSAGE_UPLOADS } from '@dltech/atlas-core'
 
-export const isModelImage = (file: { type: string }): boolean =>
-  SUPPORTED_IMAGE_MEDIA_TYPES.some((supported) => supported === file.type)
+import { isImageFile } from '@/features/threads/data/composer-images'
 
 export function routeAttachments(args: { files: readonly File[]; held: number }): {
   images: File[]
@@ -11,8 +10,8 @@ export function routeAttachments(args: { files: readonly File[]; held: number })
   const room = Math.max(0, MAX_MESSAGE_UPLOADS - args.held)
   const accepted = args.files.slice(0, room)
   return {
-    images: accepted.filter(isModelImage),
-    others: accepted.filter((file) => !isModelImage(file)),
+    images: accepted.filter(isImageFile),
+    others: accepted.filter((file) => !isImageFile(file)),
     droppedOverflow: args.files.length > room,
   }
 }

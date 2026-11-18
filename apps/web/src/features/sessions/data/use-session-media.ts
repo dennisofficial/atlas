@@ -36,7 +36,11 @@ const mediaApi: MediaUploadApi = {
   confirm: (input) => cloudCall(api.media.confirm.mutate(input)),
 }
 
-export function useSessionMedia() {
+export function useSessionMedia({
+  onUnreadable,
+}: {
+  onUnreadable?: ((file: File) => void) | undefined
+} = {}) {
   const [held, setHeld] = useState<HeldMedia[]>([])
   const heldRef = useRef<HeldMedia[]>([])
   const handles = useRef(new Map<string, UploadHandle>())
@@ -54,16 +58,41 @@ export function useSessionMedia() {
 
   const isHeld = useCallback((id: string) => heldRef.current.some((entry) => entry.id === id), [])
 
+  const remove = useCallback(
+    (id: string) => {
+      handles.current.get(id)?.abort()
+      handles.current.delete(id)
+      commit(heldRef.current.filter((entry) => entry.id !== id))
+    },
+    [commit],
+  )
+
+  const fail = useCallback(
+    (args: { id: string; file: File }) => {
+      update((current) => withMediaFailed({ held: current, id: args.id }))
+      toast.error(toastUploadFailed(args.file.name))
+    },
+    [update],
+  )
+
   const process = useCallback(
     async (args: { id: string; file: File }) => {
       const { id } = args
       sequence.current += 1
-      try {
-        const image = await encodeImage({
-          file: args.file,
-          index: sequence.current,
-        })
+      const image = await encodeImage({ file: args.file, index: sequence.current }).catch(
+        () => null,
+      )
+      if (image === null) {
         if (!isHeld(id)) return
+        if (onUnreadable === undefined) {
+          fail({ id, file: args.file })
+          return
+        }
+        remove(id)
+        onUnreadable(args.file)
+        return
+      }
+      try {
         update((current) =>
           withMediaEncoded({
             held: current,
@@ -87,13 +116,12 @@ export function useSessionMedia() {
         update((current) => withMediaReady({ held: current, id, hash }))
       } catch {
         if (!isHeld(id)) return
-        update((current) => withMediaFailed({ held: current, id }))
-        toast.error(toastUploadFailed(args.file.name))
+        fail({ id, file: args.file })
       } finally {
         handles.current.delete(id)
       }
     },
-    [isHeld, update],
+    [fail, isHeld, onUnreadable, remove, update],
   )
 
   const attach = useCallback(
@@ -111,15 +139,6 @@ export function useSessionMedia() {
       for (const { file, entry } of added) void process({ id: entry.id, file })
     },
     [update, process],
-  )
-
-  const remove = useCallback(
-    (id: string) => {
-      handles.current.get(id)?.abort()
-      handles.current.delete(id)
-      commit(heldRef.current.filter((entry) => entry.id !== id))
-    },
-    [commit],
   )
 
   const clear = useCallback(() => {

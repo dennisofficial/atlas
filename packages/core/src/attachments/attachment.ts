@@ -1,3 +1,5 @@
+import { supportedImageMediaTypeOf } from '../images/limits'
+
 export enum EAttachmentStore {
   Inline = 'inline',
   Upload = 'upload',
@@ -30,6 +32,9 @@ export type Attachment = {
 
 export const isImage = (attachment: Attachment): boolean =>
   attachment.mediaType.startsWith('image/')
+
+export const isModelImage = (attachment: Attachment): boolean =>
+  supportedImageMediaTypeOf(attachment.mediaType) !== null
 
 export const inlineData = (attachment: Attachment): string | undefined =>
   attachment.content.store === EAttachmentStore.Inline
