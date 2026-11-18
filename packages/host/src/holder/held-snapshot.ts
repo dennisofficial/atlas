@@ -38,8 +38,12 @@ const resumeSetupIn = (args: {
   decided: EHeldAction
   setupInFlight: boolean
   preparing: boolean
+  setupRunning: boolean
 }): EHeldAction =>
-  args.setupInFlight && !args.preparing && IDLE_WHILE_SETUP_RUNS.includes(args.decided)
+  args.setupInFlight &&
+  !args.preparing &&
+  !args.setupRunning &&
+  IDLE_WHILE_SETUP_RUNS.includes(args.decided)
     ? EHeldAction.Prepare
     : args.decided
 
@@ -110,6 +114,7 @@ export const readHeldAction = async (args: {
     }),
     setupInFlight: setupInFlightOf(events),
     preparing: args.preparing,
+    setupRunning: args.setupRunning,
   })
   return {
     entries,
