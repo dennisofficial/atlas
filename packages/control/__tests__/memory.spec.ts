@@ -15,6 +15,7 @@ import {
   describeControlPlaneSessionTitles,
   describeControlPlaneViews,
   describeControlPlaneWakes,
+  describeControlPlaneWorktreeChanges,
 } from '../src/testing/conformance'
 
 let store = new InMemoryControlStore()
@@ -46,6 +47,7 @@ describeControlPlaneBlobs(conformanceParams)
 describeControlPlaneWakes(conformanceParams)
 describeControlPlaneChanges(conformanceParams)
 describeControlPlaneViews(conformanceParams)
+describeControlPlaneWorktreeChanges(conformanceParams)
 
 describeControlPlaneRoutines({
   ...conformanceParams,

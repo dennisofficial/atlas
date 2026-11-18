@@ -6,3 +6,4 @@ export {
   describeControlPlaneSessions,
 } from './conformance'
 export type { ConformanceParams } from './conformance'
+export { FakeChangeContentStore } from './fake-change-content'

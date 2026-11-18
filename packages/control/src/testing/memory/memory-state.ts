@@ -1,8 +1,10 @@
 import type { InboxEntry, Lease } from '@dltech/atlas-core'
 
 import { subscriptionSubjectKey } from '../../port'
+import type { ChangeBlobState } from './memory-changes'
 import type {
   BlobRow,
+  WorktreeChangesWrite,
   ControlSessionRow,
   InsertRoutineRunParams,
   RoutineRow,
@@ -32,6 +34,8 @@ export type State = {
   inbox: Map<string, InboxEntry[]>
   blobs: Map<string, BlobRow>
   blobRefs: Set<string>
+  changeBlobs: Map<string, ChangeBlobState>
+  worktreeChanges: Map<string, WorktreeChangesWrite>
   notifications: string[]
   views: Map<string, SessionViewRow>
   pullRequestLinks: Set<string>
@@ -60,6 +64,8 @@ export const emptyState = (): State => ({
   inbox: new Map(),
   blobs: new Map(),
   blobRefs: new Set(),
+  changeBlobs: new Map(),
+  worktreeChanges: new Map(),
   notifications: [],
   views: new Map(),
   pullRequestLinks: new Set(),
@@ -78,6 +84,13 @@ export const cloneState = (state: State): State => ({
   inbox: new Map([...state.inbox].map(([key, value]) => [key, value.map((e) => ({ ...e }))])),
   blobs: new Map([...state.blobs].map(([key, value]) => [key, { ...value }])),
   blobRefs: new Set(state.blobRefs),
+  changeBlobs: new Map([...state.changeBlobs].map(([key, value]) => [key, { ...value }])),
+  worktreeChanges: new Map(
+    [...state.worktreeChanges].map(([key, value]) => [
+      key,
+      { ...value, files: value.files.map((file) => ({ ...file })) },
+    ]),
+  ),
   notifications: [...state.notifications],
   views: new Map([...state.views].map(([key, value]) => [key, { ...value }])),
   pullRequestLinks: new Set(state.pullRequestLinks),
