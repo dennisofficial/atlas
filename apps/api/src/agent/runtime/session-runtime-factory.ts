@@ -50,6 +50,7 @@ import { configToolsOf } from './config-tools'
 import { daemonToolsOf } from './tools'
 import { ShellEnvCell } from './shell-env'
 import { envSecretsRefresher } from './env-secrets-refresh'
+import { githubTokenRefresher } from './github-token-refresh'
 import { pathEnvironmentOf, sessionPathsOf, shellEnvironmentOf } from './session-paths'
 import { fixedSessionModelsOf, liveSessionModelsOf, type SessionModels } from './model-port'
 import { modelLabelOf } from '../config/model-labels'
@@ -155,6 +156,14 @@ export const createSessionRuntimeFactory = (
       sessionId,
       ...(args.log === undefined ? {} : { log: args.log }),
     })
+    const refreshGithubToken = githubTokenRefresher({
+      reader: args.github,
+      cell: shellEnv,
+      userId: config.userId,
+      sessionId,
+      launchDirectory,
+      log: args.log,
+    })
     let setupListener: ((lifecycle: SetupLifecycle) => void) | undefined
     const attempt = (signal: AbortSignal): Promise<PrepareResult> =>
       abortable(calls.ready(), signal)
@@ -252,7 +261,7 @@ export const createSessionRuntimeFactory = (
     })
     const repoAt = (path: string) => repoMap.find((entry) => entry.path === path)
     const sessionShellEnv = async (): Promise<Record<string, string>> => {
-      await refreshSecrets()
+      await Promise.all([refreshSecrets(), refreshGithubToken()])
       return shellEnvironmentOf({ paths, base: shellEnv.current() })
     }
     const daemonToolList = daemonToolsOf({

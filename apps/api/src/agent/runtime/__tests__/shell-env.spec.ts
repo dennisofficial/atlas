@@ -264,6 +264,23 @@ describe('ShellEnvCell', () => {
     expect(config).not.toContainEqual(['user.email', identity.email])
   })
 
+  it('takes a new token while keeping the signing config, and skips an unchanged one', async () => {
+    const asked: string[] = []
+    const cell = new ShellEnvCell({
+      identityOf: async ({ token }) => {
+        asked.push(token)
+        return identity
+      },
+    })
+    await cell.updateToken({ token: 'gho_one', launchDirectory: '/w', signal })
+    await cell.updateToken({ token: 'gho_one', launchDirectory: '/w', signal })
+    expect(asked).toEqual(['gho_one'])
+    await cell.refresh({ token: 'gho_one', signing, launchDirectory: '/w', signal })
+    await cell.updateToken({ token: 'gho_two', launchDirectory: '/w', signal })
+    expect(cell.current().GH_TOKEN).toBe('gho_two')
+    expect(gitConfigOf(cell.current())).toContainEqual(['user.signingkey', signing.keyPath])
+  })
+
   it('signs without a token', async () => {
     const cell = new ShellEnvCell({ identityOf: async () => identity })
     await cell.refresh({ token: null, signing, launchDirectory: '/w', signal })
