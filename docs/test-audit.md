@@ -20,6 +20,45 @@ A spec earns its place by failing when the behaviour it names breaks. Concretely
    (say so in the name or the directory) or paying for a fixable cost.
 7. **Sits where its subject lives** — `*.spec.ts(x)` in a sibling `__tests__/`, next to the module.
 
+## 2026-11-19
+
+Picked backlog items 1–4 from 2026-11-18. Every new or changed spec was mutation-checked: the
+product code was broken on purpose, the spec was seen to fail, and the product file was restored
+byte for byte.
+
+### Fixed today
+
+| change                                                                              | why                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| added `packages/harness/src/tools/__tests__/register-tools.spec.ts` (6 tests, 0.6s) | backlog 1. Real containers via `createHarnessContainer()`: tool names unique, the registry offers exactly the registered names, every own field of every resolved tool is defined, `execution_location` is withheld in the cloud, dynamic sources are unioned in. Mutations: registering `AgentListTool` twice and `new AgentSayTool(undefined)` each fail it.                                                                                                                                                                                                                                                                                                                         |
+| added `apps/serve/src/__tests__/compose-serve.spec.ts` (5 tests, ~4s)               | backlog 2, corrected: routing lives in `session-tool-routing.ts` and was already covered by `serve-session-tools.spec.ts`. What `compose-serve.ts` owns is the session's tool set (`compose-serve.ts:145-182`), so the spec asserts two composed sessions each answer `ReadGitChanges` from their own repo, terminal ops, and refusal without a changes port. Mutation: pointing `launchDirectory` at another dir fails it.                                                                                                                                                                                                                                                            |
+| `packages/harness/src/cloud/__tests__/*` — 39.6s → 23.1s                            | backlog 3, hypothesis was wrong: there is no KDF in the vault path (`SecretCipher` memoises a random key file; 100 write+read cycles = 79 ms). The ~2s per test was the transport's real retry backoff — 4 GETs, `min(8000, 500·2^n)·random` (`cloud-retry.ts:63-71`). Fixed through the existing `sleep` seam of `createRetryingFetch` (`api-trpc-client.ts:44`), threaded as an optional dependency through `CloudClient`, `cloudClientFor`, `AccountStoreProxy`, `CloudSettingsStore`, `CloudService`, `PrSubscriptionClient`; specs pass `instantSleep`. A global `setTimeout` patch was rejected: it would also collapse watchdog timers and let specs pass for the wrong reason. |
+| `lockstep-stream.spec.ts` polling → awaited publication                             | backlog 4. `until()` replaced by a listener that resolves when the published text reaches the expected value; per-test ~107 → ~37 ms. Mutation: dropping one `text-delta` fails all 5.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `shell-registry-release.spec.ts` polling → file-change await                        | backlog 4. The cursor write is fire-and-forget (`durable-background.ts:66,74-78`) with no flush that leaves state intact, so the spec awaits `fs.watch` events on the cursor dir instead of 400 × 25 ms reads. Mutation: removing `persist()` fails 2.                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `turn-wiring.spec.ts` presence case → awaited write                                 | backlog 4. Awaits the feed's `finished` callback instead of polling. The two **absence** cases keep a 400 ms bounded wait: without it they no longer catch an unconditional tl;dr wrap (verified both ways), because the footer write is a detached tail after `runTurn` resolves (`loop/tldr-turn-runner.ts:70-76`) with no settle signal.                                                                                                                                                                                                                                                                                                                                            |
+
+### Ruled out — do not re-investigate
+
+- The vault/KDF hypothesis for the cloud cluster (above).
+- `cloud-user-settings-store.spec.ts` six ~260 ms tests: a `Bun.sleep(5)` × 50 queue poll
+  (`:97`), not retry backoff; the `sleep` seam does not reach it. Belongs to backlog item 4's class.
+
+### Backlog
+
+Carried from 2026-11-18, renumbered; items 1–4 of that list are done.
+1. **`declared-reality.spec.ts` deadlock** — unchanged from 2026-11-18 item 5.
+2. **Awaitable tl;dr footer**: give `TldrTurnRunner` a settle signal for its detached write
+   (`loop/tldr-turn-runner.ts:70-76`) so the two absence cases in `turn-wiring.spec.ts` drop their
+   400 ms waits without losing the unconditional-wrap catch.
+3. **Polling: `cloud-user-settings-store.spec.ts:97`** queue poll (6 × ~260 ms).
+4. **Slow tail left on purpose, re-check only if it grows**: `sandbox-client.spec.ts` 10s (real
+   `AbortSignal.timeout`), SSE PR recovery/watchdog specs, `mirror-upload` (0.7–2.4s flush batching).
+5. **Duplicates in `apps/*`** — 2026-11-18 item 6.
+6. **Assertion-free specs** — 2026-11-18 item 7.
+7. **Over-300-line specs** — 2026-11-18 item 8.
+8. **Next composition roots without a spec**: `apps/tui/src/composition/overlay-stack.tsx`,
+   `apps/serve/src/serve-boot-finish.ts` (from the 2026-11-18 missing-tests list).
+
 ## 2026-11-18
 
 Baseline measured today, before any change: **3,695 live spec files, ~233k lines**, `bun test`

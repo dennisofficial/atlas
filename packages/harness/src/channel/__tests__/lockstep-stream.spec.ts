@@ -79,11 +79,35 @@ const FINISH_USAGE = {
   outputTokens: { total: 1, text: 1, reasoning: 0 },
 }
 
-async function until(args: { holds: () => boolean; what: string }): Promise<void> {
-  const deadline = Date.now() + 500
-  while (!args.holds()) {
-    if (Date.now() > deadline) throw new Error(`never published: ${args.what}`)
-    await Bun.sleep(1)
+type PublicationWatch = {
+  listener: (signal: ChannelSignal) => void
+  reaches: (text: string) => Promise<void>
+}
+
+function watchPublications(): PublicationWatch {
+  let published = ''
+  const waiting: { text: string; reached: () => void }[] = []
+
+  const settle = (): void => {
+    for (const wait of [...waiting]) {
+      if (wait.text !== published) continue
+      waiting.splice(waiting.indexOf(wait), 1)
+      wait.reached()
+    }
+  }
+
+  return {
+    listener: (signal) => {
+      if (signal.type !== 'chunk') return
+      if (signal.chunk.type !== 'text-delta') return
+      published += signal.chunk.text
+      settle()
+    },
+    reaches: (text) =>
+      new Promise((reached) => {
+        waiting.push({ text, reached })
+        settle()
+      }),
   }
 }
 
@@ -138,14 +162,8 @@ describe('a streamed turn, released one model part at a time', () => {
       })
       const thread = await harness.threads.create({})
 
-      const published: string[] = []
-      channel.subscribe({
-        threadId: thread.id,
-        listener: (signal: ChannelSignal) => {
-          if (signal.type !== 'chunk') return
-          if (signal.chunk.type === 'text-delta') published.push(signal.chunk.text)
-        },
-      })
+      const publications = watchPublications()
+      channel.subscribe({ threadId: thread.id, listener: publications.listener })
 
       const turn = runner.say({ threadId: thread.id, text: 'read a.ts' })
 
@@ -153,7 +171,7 @@ describe('a streamed turn, released one model part at a time', () => {
       first.push({ type: 'stream-start', warnings: [] })
       first.push({ type: 'text-start', id: 't1' })
       first.push({ type: 'text-delta', id: 't1', delta: 'reading' })
-      await until({ holds: () => published.join('') === 'reading', what: 'reading' })
+      await publications.reaches('reading')
       first.push({ type: 'text-end', id: 't1' })
       first.push({
         type: 'tool-call',
@@ -177,8 +195,7 @@ describe('a streamed turn, released one model part at a time', () => {
       for (const delta of ANSWER_DELTAS) {
         second.push({ type: 'text-delta', id: 't2', delta })
         expected += delta
-        const sought = expected
-        await until({ holds: () => published.join('') === sought, what: JSON.stringify(delta) })
+        await publications.reaches(expected)
       }
 
       second.push({ type: 'text-end', id: 't2' })

@@ -15,6 +15,7 @@ import { memoryAccountStore, type AccountStore } from '../../credentials/account
 import { AccountStoreProxy } from '../account-store-proxy'
 import { CloudSessionStore } from '../cloud-session'
 import { trpcData } from './accounts-trpc-fake'
+import { instantSleep } from './instant-sleep'
 
 const clock: ClockPort = { now: () => '2026-01-01T00:00:00.000Z' }
 
@@ -46,7 +47,7 @@ beforeEach(() => {
     keyFile: join(directory, 'key'),
   })
   local = memoryAccountStore({ clock })
-  proxy = new AccountStoreProxy({ local, sessions })
+  proxy = new AccountStoreProxy({ local, sessions, sleep: instantSleep })
 
   fetchCalls = []
   globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
@@ -131,6 +132,7 @@ describe('AccountStoreProxy with a session', () => {
       local,
       sessions,
       clientVersion: '1.2.3',
+      sleep: instantSleep,
     })
     signIn('sess_a')
 

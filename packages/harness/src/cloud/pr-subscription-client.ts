@@ -69,6 +69,7 @@ export class PrSubscriptionClient {
     session: CloudSession
     clientVersion: string
     log?: TransportRetryLog | undefined
+    sleep?: ((ms: number) => Promise<void>) | undefined
   }) {
     this.session = args.session
     this.clientVersion = args.clientVersion
@@ -79,6 +80,7 @@ export class PrSubscriptionClient {
       clientVersion: args.clientVersion,
       fetchFn: lateBoundFetch,
       log: args.log,
+      sleep: args.sleep,
     })
   }
 

@@ -18,6 +18,7 @@ import { MemorySettingsStore } from '../../settings/memory-store'
 import { CloudError } from '../cloud-client'
 import { CloudService } from '../cloud-service'
 import { CloudSessionStore } from '../cloud-session'
+import { instantSleep } from './instant-sleep'
 import { trpcCallOf, trpcData, trpcFailure, trpcVoid } from './trpc-wire'
 
 const clock: ClockPort = { now: () => '2026-01-01T00:00:00.000Z' }
@@ -220,10 +221,23 @@ afterEach(() => {
 })
 
 const serviceOver = (fetchFn: typeof fetch) =>
-  new CloudService({ sessions, localAccounts: local, defaultUrl: URL, fetchFn })
+  new CloudService({
+    sessions,
+    localAccounts: local,
+    defaultUrl: URL,
+    fetchFn,
+    sleep: instantSleep,
+  })
 
 const serviceWithSecrets = (fetchFn: typeof fetch) =>
-  new CloudService({ sessions, localAccounts: local, defaultUrl: URL, localSecrets, fetchFn })
+  new CloudService({
+    sessions,
+    localAccounts: local,
+    defaultUrl: URL,
+    localSecrets,
+    fetchFn,
+    sleep: instantSleep,
+  })
 
 const serviceWithSettings = (fetchFn: typeof fetch) =>
   new CloudService({
@@ -233,6 +247,7 @@ const serviceWithSettings = (fetchFn: typeof fetch) =>
     localSecrets,
     localSettings,
     fetchFn,
+    sleep: instantSleep,
   })
 
 const seedLocal = async () => {
@@ -531,6 +546,7 @@ describe('CloudService explicit sync', () => {
       localSecrets,
       localSettings,
       fetchFn: failing,
+      sleep: instantSleep,
     })
     await seedLocal()
     writeFileSync(join(directory, 'auth.json'), '{"version":1,"accounts":[]}')

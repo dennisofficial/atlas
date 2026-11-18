@@ -49,7 +49,6 @@ import { wireTurn } from '../turn-wiring'
 import { fakeCatalogue, recordingNotices } from './fakes'
 
 const ROOT = '/workspace/atlas'
-const FOOTER_GRACE_MS = 400
 
 const spendFields: Omit<TurnSpend, 'runId' | 'threadId'> = {
   status: 'done',
@@ -167,15 +166,15 @@ function rig(
 
 const childDeps = (container: DependencyContainer) => container.resolve(ChildRunnerDepsToken)()
 
-const footerWithin = async (args: {
-  log: EventLogPort
-  threadId: ThreadId
-  withinMs: number
-}): Promise<boolean> => {
+type FooterLog = { log: EventLogPort; threadId: ThreadId }
+
+const wroteFooter = async (args: FooterLog): Promise<boolean> =>
+  (await args.log.read({ threadId: args.threadId })).some((event) => event.type === 'tldr-written')
+
+const footerWithin = async (args: FooterLog & { withinMs: number }): Promise<boolean> => {
   const deadline = Date.now() + args.withinMs
   while (Date.now() < deadline) {
-    const events = await args.log.read({ threadId: args.threadId })
-    if (events.some((event) => event.type === 'tldr-written')) return true
+    if (await wroteFooter(args)) return true
     await new Promise((resolve) => setTimeout(resolve, 10))
   }
   return false
@@ -249,19 +248,23 @@ describe('the child runner deps wireTurn registers', () => {
 })
 
 describe('the tl;dr footer a wired turn writes', () => {
-  const feed = (): TldrFeed => ({
-    started: () => {},
-    chunk: () => {},
-    finished: () => {},
-  })
+  const feed = (): { feed: TldrFeed; written: Promise<void> } => {
+    let finish: () => void = () => undefined
+    const written = new Promise<void>((resolve) => {
+      finish = resolve
+    })
+    return { feed: { started: () => {}, chunk: () => {}, finished: () => finish() }, written }
+  }
 
   it('writes a footer when a feed is present and the setting is on', async () => {
-    const held = rig({ feed: feed() })
+    const tldr = feed()
+    const held = rig({ feed: tldr.feed })
 
     const { outcome, threadId } = await runSaidTurn(held)
 
     expect(outcome).toBe(ETurnStatus.Completed)
-    expect(await footerWithin({ log: held.log, threadId, withinMs: 5_000 })).toBe(true)
+    await tldr.written
+    expect(await wroteFooter({ log: held.log, threadId })).toBe(true)
     expect(held.tldrCalls()).toBe(1)
   }, 30_000)
 
@@ -271,17 +274,17 @@ describe('the tl;dr footer a wired turn writes', () => {
     const { outcome, threadId } = await runSaidTurn(held)
 
     expect(outcome).toBe(ETurnStatus.Completed)
-    expect(await footerWithin({ log: held.log, threadId, withinMs: FOOTER_GRACE_MS })).toBe(false)
+    expect(await footerWithin({ log: held.log, threadId, withinMs: 400 })).toBe(false)
     expect(held.tldrCalls()).toBe(0)
   }, 30_000)
 
   it('never asks the tl;dr model with the footer setting off, even with a feed', async () => {
-    const held = rig({ feed: feed(), footers: false })
+    const held = rig({ feed: feed().feed, footers: false })
 
     const { outcome, threadId } = await runSaidTurn(held)
 
     expect(outcome).toBe(ETurnStatus.Completed)
-    expect(await footerWithin({ log: held.log, threadId, withinMs: FOOTER_GRACE_MS })).toBe(false)
+    expect(await footerWithin({ log: held.log, threadId, withinMs: 400 })).toBe(false)
     expect(held.tldrCalls()).toBe(0)
   }, 30_000)
 })

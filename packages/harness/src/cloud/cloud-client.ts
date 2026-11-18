@@ -73,6 +73,7 @@ export class CloudClient {
     token: string
     clientVersion?: string
     fetchFn?: typeof fetch
+    sleep?: ((ms: number) => Promise<void>) | undefined
   }) {
     this.url = args.url.replace(/\/+$/, '')
     this.token = args.token
@@ -83,6 +84,7 @@ export class CloudClient {
       token: this.token,
       clientVersion: this.clientVersion,
       fetchFn: this.fetchFn,
+      sleep: args.sleep,
     })
   }
 
@@ -285,10 +287,12 @@ export const cloudClientFor = (args: {
   session: CloudSession
   clientVersion?: string
   fetchFn?: typeof fetch
+  sleep?: ((ms: number) => Promise<void>) | undefined
 }): CloudClient =>
   new CloudClient({
     url: args.session.url,
     token: args.session.token,
     ...(args.clientVersion === undefined ? {} : { clientVersion: args.clientVersion }),
     ...(args.fetchFn === undefined ? {} : { fetchFn: args.fetchFn }),
+    sleep: args.sleep,
   })
