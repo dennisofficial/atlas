@@ -1,5 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { db, type Row } from '@dltech/atlas-db'
+import { GithubHeadReads, pullStateOf } from './github-head-reads'
+import { GithubPrStateWriter } from './github-pr-state-writer'
+import { TransportSelector } from './github-transport-selector'
+import type { RestPullRequest } from './github-pull-request-mapping'
 import { EGithubCallSource } from './github-call-log'
 import { announceSubscriberThreads } from './github-list-signals'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
@@ -8,7 +12,7 @@ import { dtoOf, liveUntilOf, subscriberWhereOf } from './github-delivery-routing
 import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import { normalizedRepo } from './github-pr-identity'
 import { GithubRequestCoordinator } from './github-request-coordinator'
-import { readRepoCoverage } from './github-repo-coverage'
+import { readRepoTracking } from './github-repo-coverage'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { deliverPrTransitions } from './github-pr-transition-push'
@@ -32,6 +36,7 @@ import { GithubService } from './github.service'
 @Injectable()
 export class GithubPollSweeperService {
   private readonly logger = new Logger(GithubPollSweeperService.name)
+  private readonly writer: GithubPrStateWriter
   constructor(
     private readonly github: GithubService,
     private readonly reads: GithubUserReads,
@@ -40,7 +45,15 @@ export class GithubPollSweeperService {
     private readonly signals: ThreadSignalsService,
     private readonly hooks: GithubHookLifecycleService,
     private readonly coordinator: GithubRequestCoordinator,
-  ) {}
+    private readonly headReads: GithubHeadReads,
+  ) {
+    this.writer = new GithubPrStateWriter({
+      mailbox: this.mailbox,
+      fanout: this.fanout,
+      signals: this.signals,
+      logger: this.logger,
+    })
+  }
 
   async handlePoll(): Promise<void> {
     await this.refreshLiveUntil()
@@ -51,10 +64,11 @@ export class GithubPollSweeperService {
           refreshGithubQueue({
             coordinator: this.coordinator,
             hooks: this.hooks,
-            coverage: await readRepoCoverage(),
+            transport: new TransportSelector(readRepoTracking),
             logger: this.logger,
             resolve: (row) => this.resolvePrNumber(row),
             refresh: (target) => this.pollOne(target),
+            lookUp: (target) => this.lookUp(target),
           }),
       })
     } catch (failure) {
@@ -79,6 +93,80 @@ export class GithubPollSweeperService {
       if (liveUntil.getTime() > subscription.liveUntil.getTime())
         await db.orm.public.GithubSubscription.where({ id: subscription.id }).update({ liveUntil })
     }
+  }
+
+  private async lookUp(
+    target: Row<'GithubTrackingTarget'>,
+  ): Promise<'looked-up' | 'skipped' | 'rate-limited' | 'credential-limited'> {
+    const token = await this.github.findToken({ userId: target.userId })
+    if (token === undefined) return 'skipped'
+    try {
+      if (target.kind === 'head') {
+        await this.recordHeadPulls({ target, token })
+      } else if (target.prNumber !== null) {
+        const result = await this.pollOne({
+          userId: target.userId,
+          repoFullName: target.repoFullName,
+          prNumber: target.prNumber,
+        })
+        if (result !== 'polled') return result
+      }
+    } catch (failure) {
+      if (failure instanceof GithubCredentialCooldown) return 'credential-limited'
+      if (failure instanceof GithubHttpBudgetUnavailable) return 'rate-limited'
+      if (failure instanceof GithubUserReadFailed) {
+        return failure.rateLimited ? 'rate-limited' : 'skipped'
+      }
+      throw failure
+    }
+    await db.orm.public.GithubTrackingTarget.where({ id: target.id }).update({
+      lookedUpAt: new Date(),
+    })
+    return 'looked-up'
+  }
+
+  private async recordHeadPulls(args: {
+    target: Row<'GithubTrackingTarget'>
+    token: string
+  }): Promise<void> {
+    const headRepo = normalizedRepo(args.target.repoFullName)
+    const parent = await this.headReads.parentOf({ token: args.token, repoFullName: headRepo })
+    const repos = parent === null ? [headRepo] : [headRepo, parent]
+    for (const repoFullName of repos) {
+      const pulls = await this.headReads.pullsByHead({
+        token: args.token,
+        repoFullName,
+        branch: args.target.branch,
+      })
+      for (const pull of pulls) await this.recordPull({ repoFullName, pull })
+    }
+  }
+
+  private async recordPull(args: { repoFullName: string; pull: RestPullRequest }): Promise<void> {
+    const held = await db.orm.public.GithubPrState.where({
+      repoFullName: args.repoFullName,
+      prNumber: args.pull.number,
+    }).first()
+    if (held !== null) return
+    await this.writer.recordAndPush({
+      repoFullName: args.repoFullName,
+      prNumber: args.pull.number,
+      fields: {
+        title: args.pull.title,
+        url: args.pull.html_url,
+        state: pullStateOf(args.pull),
+        headBranch: args.pull.head.ref,
+        headSha: args.pull.head.sha,
+        headRepoFullName: args.pull.head.repo?.full_name ?? null,
+        checksRunning: 0,
+        checksPassed: 0,
+        checksFailed: 0,
+        checksIgnored: 0,
+        checksState: null,
+        mergeable: args.pull.mergeable,
+        updatedAt: new Date(),
+      },
+    })
   }
 
   private async resolvePrNumber(args: Row<'GithubSubscription'>): Promise<number | null> {

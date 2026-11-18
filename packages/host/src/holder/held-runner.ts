@@ -9,7 +9,6 @@ import { logFieldsOf } from '@dltech/atlas-observability'
 
 import { ScopedToolDispatcher } from '../calls/call-scope'
 import { BranchObserver } from './branch-observer'
-import { PrLinker } from './pr-linker'
 import { pluginPodOf } from './plugin-pod'
 import type { HeldSessionDeps } from './held-session-deps'
 import { LeaseLostError } from './record/record-adapter'
@@ -101,23 +100,6 @@ export const createBranchObserver = (args: {
   const { deps, record, runtime, threadId } = args
   const book = () => record.eventCache().bookkeeping()
   const runId = () => deps.ids.nextRunId()
-  const linker =
-    runtime.pullRequests === undefined
-      ? undefined
-      : new PrLinker({
-          source: runtime.pullRequests,
-          record: {
-            append: ({ threadId: to, runId: id, body }) =>
-              record.append({ threadId: to, runId: id, drafts: [body] }),
-            lastObservation: (repo) => book().lastObservation(repo),
-            hasLink: (link) => book().hasLink(link),
-          },
-          threadId,
-          signal: args.signal,
-          repos: () => runtime.watchedRepos(),
-          runId,
-          ...(deps.log === undefined ? {} : { log: deps.log }),
-        })
   return new BranchObserver({
     record: {
       append: ({ threadId: to, runId: id, body }) =>
@@ -146,7 +128,6 @@ export const createBranchObserver = (args: {
     repos: () => runtime.watchedRepos(),
     onRepo: runtime.onRepo,
     baseOf: (repo) => runtime.baseBranchOf(repo),
-    afterRefresh: linker === undefined ? undefined : () => linker.link(),
     runId,
     signal: args.signal,
     ...(deps.log === undefined ? {} : { log: deps.log }),

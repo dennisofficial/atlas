@@ -17,6 +17,8 @@ export type {
   SessionDigestRow,
   SessionViewRow,
   TrackedPullRequestRow,
+  TrackingTarget,
+  TrackingTargetKind,
   ControlSessionRow,
   ControlTx,
   InsertRoutineRunParams,

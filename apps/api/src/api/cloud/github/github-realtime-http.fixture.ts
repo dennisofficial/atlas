@@ -9,6 +9,7 @@ import type { GithubAppInstallationsService } from './github-app-installations.s
 import { GithubDeliveryService } from './github-delivery.service'
 import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import { GithubRequestCoordinator } from './github-request-coordinator'
+import { GithubHeadReads } from './github-head-reads'
 import { GithubPollSweeperService } from './github-poll-sweeper.service'
 import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
@@ -185,6 +186,7 @@ export function realGithubGraph(args: {
     signals,
     hooks,
     coordinator,
+    new GithubHeadReads(),
   )
   return {
     github,

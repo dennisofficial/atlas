@@ -60,21 +60,6 @@ export type SetupLifecycle =
       output: string
     }
 
-export type FoundPullRequest = { number: number; url: string }
-
-export type PullRequestFinder = {
-  find(args: {
-    repo: string
-    branch: string
-    signal: AbortSignal
-  }): Promise<FoundPullRequest | null>
-}
-
-export type PullRequestSource = {
-  finder: PullRequestFinder
-  repoOf(repoPath: string): string | null
-}
-
 export type PrepareStepReporter = (step: WorkspaceStepReport) => void
 
 export type RoleModelRequest = { role: ModelRole; root?: ModelChoice | undefined }
@@ -99,7 +84,6 @@ export type SessionRuntime = {
   watchedRepos(): Promise<readonly string[]>
   onRepo?: ((listener: (repoPath: string) => void) => () => void) | undefined
   baseBranchOf(repoPath: string): string | null
-  pullRequests?: PullRequestSource | undefined
   plugins?: ComposedPlugins | undefined
   runningShells(): Promise<number>
   env?: (() => Promise<Record<string, string>>) | undefined

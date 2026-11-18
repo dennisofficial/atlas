@@ -73,6 +73,17 @@ export type TrackedPullRequestRow = {
   state: TrackedPullRequestState
 }
 
+export type TrackingTargetKind = 'head' | 'pull-request'
+
+export type TrackingTarget = {
+  userId: string
+  kind: TrackingTargetKind
+  repoFullName: string
+  branch: string
+  prNumber: number | null
+  liveUntil: string
+}
+
 export type SubscriptionSubject =
   | { kind: 'pull-request'; number: number }
   | { kind: 'workflow-run'; selector: string }
@@ -278,6 +289,7 @@ export interface ControlTx {
   readTrackedPullRequests(sessionIds: readonly string[]): Promise<TrackedPullRequestRow[]>
   upsertSubscriptionLease(params: SubscriptionLease & { expiresAt: string }): Promise<void>
   deleteSubscriptionLease(params: SubscriptionLease): Promise<boolean>
+  upsertTrackingTarget(params: TrackingTarget): Promise<void>
   hostPresent(hostId: number): Promise<boolean>
   lockRoutine(routineId: string): Promise<RoutineRow | undefined>
   readRoutine(routineId: string): Promise<RoutineRow | undefined>

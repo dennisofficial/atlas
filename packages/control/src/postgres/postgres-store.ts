@@ -23,6 +23,7 @@ import {
   type ControlSessionRow,
   type PrStateRow,
   type SubscriptionLease,
+  type TrackingTarget,
   type SessionDigestRow,
   type SessionListParams,
   type PrHead,
@@ -83,6 +84,7 @@ import {
   userRoutinesIn,
 } from './postgres-routines'
 import { deleteSubscriptionLeaseIn, upsertSubscriptionLeaseIn } from './postgres-subscriptions'
+import { upsertTrackingTargetIn } from './postgres-tracking-targets'
 import { toLease, toThreadRow } from './postgres-rows'
 import { insertEventsIn, listSessionsIn, readEventsIn, writeThreadHeadIn } from './postgres-threads'
 
@@ -328,6 +330,10 @@ class PostgresTx implements ControlTx {
 
   async deleteSubscriptionLease(params: SubscriptionLease): Promise<boolean> {
     return deleteSubscriptionLeaseIn({ tx: this.tx, ...params })
+  }
+
+  async upsertTrackingTarget(params: TrackingTarget): Promise<void> {
+    await upsertTrackingTargetIn({ tx: this.tx, ...params })
   }
 
   async hostPresent(hostId: number): Promise<boolean> {

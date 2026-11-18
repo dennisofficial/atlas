@@ -11,6 +11,7 @@ import { GithubAppSyncGate } from '../../api/cloud/github/github-app-sync-gate'
 import { GithubAppSyncService } from '../../api/cloud/github/github-app-sync.service'
 import { GithubHookSweepService } from '../../api/cloud/github/github-hook-sweep.service'
 import { GithubDeviceClient } from '../../api/cloud/github/github-device-client'
+import { GithubHeadReads } from '../../api/cloud/github/github-head-reads'
 import { GithubHookLifecycleService } from '../../api/cloud/github/github-hook-lifecycle.service'
 import { GithubPollSweeperService } from '../../api/cloud/github/github-poll-sweeper.service'
 import { GithubDeliveryService } from '../../api/cloud/github/github-delivery.service'
@@ -110,6 +111,7 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
       workerSignals.signals,
       hookLifecycle,
       coordinator,
+      new GithubHeadReads(),
     ),
     hookLifecycle,
     hookSweep,

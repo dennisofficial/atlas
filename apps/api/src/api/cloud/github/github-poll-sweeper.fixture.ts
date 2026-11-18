@@ -8,6 +8,7 @@ import {
 } from '../../../../test/github-seed'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 import { DrainStateService } from '../../platform/health/drain-state.service'
+import { GithubHeadReads } from './github-head-reads'
 import { GithubPollSweeperService } from './github-poll-sweeper.service'
 import type { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
@@ -41,6 +42,7 @@ export function serviceWith(args: {
   tokens?: Record<string, string>
   readPullRequest?: GithubUserReads['readPullRequest']
   findOpenPrForBranch?: GithubUserReads['findOpenPrForBranch']
+  headReads?: GithubHeadReads
 }): { service: GithubPollSweeperService; fanout: GithubPrFanoutService } {
   const github = {
     findToken: async ({ userId }: { userId: string }) => args.tokens?.[userId],
@@ -62,6 +64,7 @@ export function serviceWith(args: {
       inertSignals(),
       hooks,
       localCoordinator(github),
+      args.headReads ?? (new GithubHeadReads() as unknown as GithubHeadReads),
     ),
     fanout,
   }

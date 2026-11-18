@@ -15,7 +15,7 @@ import type { LogPort } from '@dltech/atlas-observability'
 
 import type { CommandHandlers } from '../command-intake'
 import type { PodControlClient } from '../pod-control'
-import type { PrepareResult, PrepareStepReporter, PullRequestSource } from '../ports'
+import type { PrepareResult, PrepareStepReporter } from '../ports'
 import { SessionHolder } from '../session-holder'
 import { FakeBus, FakeClock, flushUntil, SANDBOX, SECRET, SESSION, THREAD } from './rig-fakes'
 import { makeRuntimeFactory, type RigRuntime, type ScriptRef } from './rig-runtime'
@@ -61,7 +61,6 @@ export const makeRig = async (args: {
   runningShells?: (() => Promise<number>) | undefined
   model?: (() => ModelPort) | undefined
   baseBranches?: Readonly<Record<string, string>> | undefined
-  pullRequests?: PullRequestSource | undefined
   reasonOfStartError?: ((error: unknown) => string) | undefined
   uploads?: SaidUploadsPort | undefined
   prepare?: ((onStep?: PrepareStepReporter) => Promise<PrepareResult>) | undefined
@@ -116,7 +115,6 @@ export const makeRig = async (args: {
     runningShells: args.runningShells,
     model: args.model,
     baseBranches: args.baseBranches,
-    pullRequests: args.pullRequests,
     uploads: args.uploads,
     prepare: args.prepare,
     subscribePrepareOutput: args.subscribePrepareOutput,

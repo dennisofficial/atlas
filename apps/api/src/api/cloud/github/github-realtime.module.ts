@@ -17,6 +17,7 @@ import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delive
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubHookController } from './github-hook.controller'
 import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
+import { GithubHeadReads } from './github-head-reads'
 import { GithubPollSweeperService } from './github-poll-sweeper.service'
 import { sweepSchedulerProviders } from './github-sweep-scheduler'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
@@ -42,6 +43,7 @@ import { GithubModule } from './github.module'
     GithubPrSubscriptionLinks,
     { provide: PrSubscriptionLinks, useExisting: GithubPrSubscriptionLinks },
     GithubHookLifecycleService,
+    GithubHeadReads,
     GithubPollSweeperService,
     ...sweepSchedulerProviders(),
     GithubDeliveryService,

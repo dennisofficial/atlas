@@ -5,8 +5,6 @@ import { ERepoHookStatus } from './github-realtime.types'
 
 export { ERepoTracking }
 
-export type RepoCoverage = { covers: (repoFullName: string) => boolean }
-
 export type RepoTracking = { trackingOf: (repoFullName: string) => ERepoTracking }
 
 export function trackingOf(args: {
@@ -23,23 +21,6 @@ export function trackingOf(args: {
       return ERepoTracking.Polled
     },
   }
-}
-
-export function coverageOf(args: {
-  installationRepos: readonly string[]
-  hookedRepos: readonly string[]
-}): RepoCoverage {
-  const tracking = trackingOf(args)
-  return { covers: (repoFullName) => tracking.trackingOf(repoFullName) !== ERepoTracking.Polled }
-}
-
-/**
- * A repo whose events reach us as webhooks needs no polling: GitHub pushes every state change and
- * the inbox retries anything that failed. Only an uncovered repo (no app installation, no live
- * personal hook) still depends on the timer.
- */
-export async function readRepoCoverage(): Promise<RepoCoverage> {
-  return coverageOf(await readSources())
 }
 
 export async function readRepoTracking(): Promise<RepoTracking> {

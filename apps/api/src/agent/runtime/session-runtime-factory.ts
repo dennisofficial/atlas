@@ -40,7 +40,7 @@ import { countRunningShells } from './running-shells'
 import { startKeepAlive } from './keep-alive'
 import { sandboxReleaseFor } from './sandbox-release'
 import { rewakingConnector } from './rewaking-connector'
-import { GithubPullRequestFinder, githubIdentityLookup } from '@dltech/atlas-plugin-github/pod'
+import { githubIdentityLookup } from '@dltech/atlas-plugin-github/pod'
 import type { ComposedPlugins } from '@dltech/atlas-plugin-sdk'
 import { agentHostPrompt } from './prompt'
 import { EnvSecretsFragment } from './prompt-fragments/secrets'
@@ -340,13 +340,6 @@ export const createSessionRuntimeFactory = (
       watchedRepos: () => gitWatch.watchedRepos(),
       onRepo: (listener) => gitWatch.onRepo(listener),
       baseBranchOf: (repoPath) => repoAt(repoPath)?.base ?? null,
-      pullRequests: {
-        repoOf: (repoPath) => repoAt(repoPath)?.repo ?? null,
-        finder: new GithubPullRequestFinder({
-          userId: config.userId,
-          github: args.github,
-        }),
-      },
       plugins: args.plugins,
       runningShells: () => countRunningShells({ calls }),
       env: sessionShellEnv,

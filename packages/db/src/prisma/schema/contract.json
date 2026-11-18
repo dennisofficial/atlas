@@ -96,6 +96,10 @@
       "model": "GithubSubscription",
       "namespace": "public"
     },
+    "GithubTrackingTarget": {
+      "model": "GithubTrackingTarget",
+      "namespace": "public"
+    },
     "GithubWebhookInbox": {
       "model": "GithubWebhookInbox",
       "namespace": "public"
@@ -273,6 +277,19 @@
     "namespaces": {
       "public": {
         "enum": {
+          "EGithubTargetKind": {
+            "codecId": "pg/text@1",
+            "members": [
+              {
+                "name": "Head",
+                "value": "head"
+              },
+              {
+                "name": "PullRequest",
+                "value": "pull-request"
+              }
+            ]
+          },
           "McpServerSource": {
             "codecId": "pg/text@1",
             "members": [
@@ -3469,6 +3486,139 @@
               },
               "namespaceId": "public",
               "table": "GithubSubscription"
+            }
+          },
+          "GithubTrackingTarget": {
+            "fields": {
+              "branch": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "kind": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                },
+                "valueSet": {
+                  "entityKind": "enum",
+                  "entityName": "EGithubTargetKind",
+                  "namespaceId": "public",
+                  "plane": "domain"
+                }
+              },
+              "liveUntil": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "lookedUpAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "prNumber": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "repoFullName": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "userId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "user": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "branch": {
+                  "column": "branch"
+                },
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "kind": {
+                  "column": "kind"
+                },
+                "liveUntil": {
+                  "column": "liveUntil"
+                },
+                "lookedUpAt": {
+                  "column": "lookedUpAt"
+                },
+                "prNumber": {
+                  "column": "prNumber"
+                },
+                "repoFullName": {
+                  "column": "repoFullName"
+                },
+                "userId": {
+                  "column": "userId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "GithubTrackingTarget"
             }
           },
           "GithubWebhookInbox": {
@@ -7244,6 +7394,21 @@
                 },
                 "to": {
                   "model": "GithubSubscription",
+                  "namespace": "public"
+                }
+              },
+              "githubTrackingTargets": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
+                },
+                "to": {
+                  "model": "GithubTrackingTarget",
                   "namespace": "public"
                 }
               },
@@ -12312,6 +12477,148 @@
                 }
               ]
             },
+            "GithubTrackingTarget": {
+              "checks": [
+                {
+                  "expression": "\"kind\" IN ('head', 'pull-request')",
+                  "name": "GithubTrackingTarget_kind_check_3307deca",
+                  "prefix": "GithubTrackingTarget_kind_check"
+                }
+              ],
+              "columns": {
+                "branch": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "default": {
+                    "kind": "literal",
+                    "value": ""
+                  },
+                  "nullable": false
+                },
+                "createdAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "kind": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "EGithubTargetKind",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "liveUntil": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "lookedUpAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "prNumber": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": true
+                },
+                "repoFullName": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "userId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "unique": [
+                      "userId",
+                      "kind",
+                      "repoFullName",
+                      "branch",
+                      "prNumber"
+                    ]
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "userId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "GithubTrackingTarget"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "liveUntil"
+                  ],
+                  "name": "GithubTrackingTarget_liveUntil_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "repoFullName",
+                    "branch"
+                  ],
+                  "name": "GithubTrackingTarget_repoFullName_branch_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "userId",
+                    "kind",
+                    "repoFullName",
+                    "branch",
+                    "prNumber"
+                  ],
+                  "name": "GithubTrackingTarget_userId_kind_repoFullName_branch_prNumber_key"
+                }
+              ]
+            },
             "GithubWebhookInbox": {
               "columns": {
                 "attempts": {
@@ -15707,6 +16014,13 @@
             }
           },
           "valueSet": {
+            "EGithubTargetKind": {
+              "kind": "valueSet",
+              "values": [
+                "head",
+                "pull-request"
+              ]
+            },
             "McpServerSource": {
               "kind": "valueSet",
               "values": [
@@ -16726,10 +17040,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "36a4181aa3c68fd5fc8527922fd3b3412fb0446bbb6367dc3a4d395b8b0d4f28"
+    "storageHash": "1add8b8b9f6b1ff3f18634749b5027921128d81a95a5cd7514fa8ae269324f77"
   },
   "execution": {
-    "executionHash": "27a680d0d8367c03704617bfac2d0041e04bd5395fc473f9e021f03bd0d4c6fa",
+    "executionHash": "f0070f067d5f975ffd666627e7d83dff8b80fcaa2204df163480c1b9274350d2",
     "mutations": {
       "defaults": [
         {
@@ -16941,6 +17255,17 @@
           },
           "ref": {
             "entry": "GithubSubscription",
+            "field": "id",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "cuid2",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "GithubTrackingTarget",
             "field": "id",
             "namespace": "public"
           }

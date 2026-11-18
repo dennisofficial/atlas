@@ -4,7 +4,7 @@ import { cachedPrStates, normalizedRepo, prIdentity, repoPattern } from './githu
 import { subscriptionLiveWhere } from './github-delivery-routing'
 import type { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import type { GithubRequestCoordinator } from './github-request-coordinator'
-import type { RepoCoverage } from './github-repo-coverage'
+import type { TransportSelector } from './github-transport-selector'
 import { GithubHttpBudgetUnavailable, GithubCredentialCooldown } from './github-request-budget'
 import { GithubUserReadFailed } from './github-user-reads'
 import { unsettledHeadExists } from './github-pr-head-checks'
@@ -15,10 +15,12 @@ type Target = {
   userIds: string[]
   pollBacked: boolean
 }
+type LookupOutcome = 'looked-up' | 'skipped' | 'rate-limited' | 'credential-limited'
+
 type QueueDeps = {
   coordinator: GithubRequestCoordinator
   hooks: GithubHookLifecycleService
-  coverage: RepoCoverage
+  transport: TransportSelector
   logger: Logger
   resolve: (subscription: Row<'GithubSubscription'>) => Promise<number | null>
   refresh: (args: {
@@ -26,11 +28,35 @@ type QueueDeps = {
     repoFullName: string
     prNumber: number
   }) => Promise<'polled' | 'skipped' | 'rate-limited' | 'credential-limited'>
+  lookUp: (target: Row<'GithubTrackingTarget'>) => Promise<LookupOutcome>
 }
 
 export async function refreshGithubQueue(deps: QueueDeps): Promise<void> {
+  const now = new Date()
+  const tracked = await db.orm.public.GithubTrackingTarget.where((target) =>
+    target.liveUntil.gt(now),
+  ).all()
+  const polls = new Map<string, boolean>()
+  const pollsIn = async (repoFullName: string): Promise<boolean> => {
+    const repo = normalizedRepo(repoFullName)
+    const held = polls.get(repo)
+    if (held !== undefined) return held
+    const answer = await deps.transport.polls(repo)
+    polls.set(repo, answer)
+    return answer
+  }
+  if (await lookUpEach({ deps, targets: tracked.filter((target) => target.lookedUpAt === null) }))
+    return
+  const workedHeads = tracked.filter(
+    (target) => target.kind === 'head' && target.lookedUpAt !== null,
+  )
+  const polledHeads: Row<'GithubTrackingTarget'>[] = []
+  for (const target of workedHeads) {
+    if (await pollsIn(target.repoFullName)) polledHeads.push(target)
+  }
+  if (await lookUpEach({ deps, targets: polledHeads })) return
   const subscriptions = await db.orm.public.GithubSubscription.where(
-    subscriptionLiveWhere({ now: new Date() }),
+    subscriptionLiveWhere({ now }),
   ).all()
   const targets = new Map<string, Target>()
   const add = (target: Target) => {
@@ -49,7 +75,7 @@ export async function refreshGithubQueue(deps: QueueDeps): Promise<void> {
       add({ ...row, prNumber: row.prNumber, userIds: [row.userId] })
       continue
     }
-    if (!row.pollBacked || deps.coverage.covers(row.repoFullName)) continue
+    if (!row.pollBacked || !(await pollsIn(row.repoFullName))) continue
     const key = `${normalizedRepo(row.repoFullName)}:${row.branch}`
     branches.set(key, [...(branches.get(key) ?? []), row])
   }
@@ -105,7 +131,7 @@ export async function refreshGithubQueue(deps: QueueDeps): Promise<void> {
     )
   const hooks = new Map<string, boolean>()
   for (const target of rotated(ordered)) {
-    if (deps.coverage.covers(target.repoFullName)) continue
+    if (!(await pollsIn(target.repoFullName))) continue
     const key = prIdentity(target)
     if ((await deps.coordinator.attempt({ key })).nextAttemptAt > Date.now()) continue
     const state = states.get(key)
@@ -166,6 +192,30 @@ export async function refreshGithubQueue(deps: QueueDeps): Promise<void> {
     })
   }
 }
+
+async function lookUpEach(args: {
+  deps: QueueDeps
+  targets: readonly Row<'GithubTrackingTarget'>[]
+}): Promise<boolean> {
+  for (const target of rotated([...args.targets])) {
+    const key = lookupKey(target)
+    if ((await args.deps.coordinator.attempt({ key })).nextAttemptAt > Date.now()) continue
+    let failed = true
+    try {
+      const result = await args.deps.lookUp(target)
+      if (result === 'rate-limited') return true
+      failed = result !== 'looked-up'
+    } finally {
+      await args.deps.coordinator.recordAttempt({ key, failed })
+    }
+  }
+  return false
+}
+
+const lookupKey = (target: Row<'GithubTrackingTarget'>): string =>
+  target.kind === 'head'
+    ? `head:${normalizedRepo(target.repoFullName)}#${target.branch}`
+    : `${normalizedRepo(target.repoFullName)}#${target.prNumber ?? 0}`
 
 /**
  * A merged PR keeps a refresh slot while its head still owes a verdict, for a short window after
