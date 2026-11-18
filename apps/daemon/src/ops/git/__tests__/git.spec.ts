@@ -116,6 +116,23 @@ describe('git group', () => {
     await stop()
   })
 
+  it('re-observes when a push remote changes in config', async () => {
+    const repoPath = await makeRepo({ dir: join(root, 'config-change') })
+    const { call, sets, stop } = rig()
+    await call({ op: 'git.watch', repoPath })
+    git({ cwd: repoPath, argv: ['remote', 'add', 'fork', 'git@github.com:dennis/app.git'] })
+    await waitUntil(() =>
+      sets().some((set) => set.remotes.some((remote) => remote.name === 'fork')),
+    )
+    git({ cwd: repoPath, argv: ['config', 'branch.main.pushRemote', 'fork'] })
+    await waitUntil(() =>
+      sets().some(
+        (set) => set.branches.find((branch) => branch.name === 'main')?.pushRemote === 'fork',
+      ),
+    )
+    await stop()
+  })
+
   it('keeps a deleted branch in checkouts', async () => {
     const repoPath = await makeRepo({ dir: join(root, 'deleted') })
     git({ cwd: repoPath, argv: ['checkout', '-qb', 'feat-gone'] })

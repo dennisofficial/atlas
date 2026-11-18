@@ -107,6 +107,7 @@ export const watchPathOf = (args: { gitDir: string; filename: string }): string 
   if (head === 'HEAD' && segments.length === 1) return args.gitDir
   if (head === 'packed-refs' && segments.length === 1) return args.gitDir
   if (head === 'logs' && second === 'HEAD' && segments.length === 2) return args.gitDir
+  if (head === 'config' && segments.length === 1) return args.gitDir
   if (head === 'refs' && second === 'heads') return `${args.gitDir}${sep}refs${sep}heads`
   if (head === 'worktrees') {
     if (segments.length === 1) return args.gitDir
