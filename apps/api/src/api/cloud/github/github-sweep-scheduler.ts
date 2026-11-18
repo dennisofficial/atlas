@@ -2,6 +2,7 @@ import { Injectable, type DynamicModule, type Provider } from '@nestjs/common'
 import { Interval, ScheduleModule } from '@nestjs/schedule'
 import { GithubHookSweepService } from './github-hook-sweep.service'
 import { GithubPollSweeperService } from './github-poll-sweeper.service'
+import { GithubPrOutboxDispatcher } from './github-pr-outbox'
 import { GithubWebhookInboxService } from './github-webhook-inbox.service'
 import { GithubDeliveryService } from './github-delivery.service'
 
@@ -20,6 +21,7 @@ export class GithubSweepSchedulerService {
     private readonly hookSweep: GithubHookSweepService,
     private readonly webhookInbox: GithubWebhookInboxService,
     private readonly deliveries: GithubDeliveryService,
+    private readonly outbox: GithubPrOutboxDispatcher,
   ) {}
 
   @Interval(POLL_SWEEP_INTERVAL_MS)
@@ -37,6 +39,8 @@ export class GithubSweepSchedulerService {
     await this.webhookInbox.handleReconcile({
       process: (entry) => this.deliveries.handle({ ...entry, replay: true }),
     })
+    await this.outbox.drain()
+    await this.outbox.prune({ now: new Date() })
   }
 }
 

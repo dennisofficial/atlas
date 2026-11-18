@@ -19,6 +19,8 @@ import { GithubPrDiscussionDeliveryService } from '../../api/cloud/github/github
 import { GithubWebhookInboxService } from '../../api/cloud/github/github-webhook-inbox.service'
 import { GithubPrEventMailboxService } from '../../api/cloud/github/github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from '../../api/cloud/github/github-pr-fanout.service'
+import { GithubPrOutboxDispatcher } from '../../api/cloud/github/github-pr-outbox'
+import { GithubPrStore } from '../../api/cloud/github/github-pr-store'
 import {
   LocalPrFrameBus,
   RedisPrFrameBus,
@@ -42,6 +44,8 @@ export type GithubSweepGraph = {
   webhookInbox: GithubWebhookInboxService
   deliveries: GithubDeliveryService
   wake: GithubSandboxWakeService
+  store: GithubPrStore
+  outbox: GithubPrOutboxDispatcher
   dispose: () => Promise<void>
 }
 
@@ -80,6 +84,12 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
     fanout,
   )
   const mailbox = new GithubPrEventMailboxService(fanout, wake)
+  const outbox = new GithubPrOutboxDispatcher({
+    fanout,
+    signals: workerSignals.signals,
+    wake,
+  })
+  const store = new GithubPrStore({ mailbox, dispatcher: outbox })
   const installations = new GithubAppInstallationsService()
   const hookLifecycle = new GithubHookLifecycleService(
     github,
@@ -103,6 +113,8 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
 
   return {
     wake,
+    store,
+    outbox,
     pollSweeper: new GithubPollSweeperService(
       github,
       reads,

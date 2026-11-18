@@ -32,6 +32,7 @@ import { GithubSubscriptionsService } from './github-subscriptions.service'
 import { GithubUserReads } from './github-user-reads'
 import { GithubWebhookInboxService } from './github-webhook-inbox.service'
 import { GithubModule } from './github.module'
+import { outboxDispatcherProvider, prStoreProvider } from './github-pr-apply.providers'
 
 @Module({
   imports: [GithubModule, HealthModule, RedisModule, SessionsModule],
@@ -49,6 +50,8 @@ import { GithubModule } from './github.module'
     GithubDeliveryService,
     GithubPrDiscussionDeliveryService,
     GithubPrEventMailboxService,
+    outboxDispatcherProvider,
+    prStoreProvider,
     GithubWebhookInboxService,
     prFrameBusProvider,
     GithubPrFanoutService,
