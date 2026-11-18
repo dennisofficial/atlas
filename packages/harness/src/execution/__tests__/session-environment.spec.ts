@@ -7,7 +7,12 @@ import { ProcessPort, toThreadId, type ProcessHandle, type SpawnCommand } from '
 
 import { CountingIds, SteppingClock } from '../../store/__tests__/harness'
 import { JsonlEventLog } from '../../store/sessions/event-log'
-import { contextDirectory, sessionDirectory, threadDataDirectory } from '../../store/sessions/paths'
+import {
+  contextDirectory,
+  scratchDirectory,
+  sessionDirectory,
+  threadDataDirectory,
+} from '../../store/sessions/paths'
 import { SessionRegistry } from '../../store/sessions/registry'
 import { JsonlThreadStore } from '../../store/sessions/thread-store'
 import {
@@ -104,6 +109,7 @@ describe('SessionEnvironmentProcessPort', () => {
       true,
     )
     expect((await stat(contextDirectory({ sessionDir }))).isDirectory()).toBe(true)
+    expect((await stat(scratchDirectory({ sessionDir }))).isDirectory()).toBe(true)
   })
 
   it('keeps concurrent spawns for different threads separate', async () => {

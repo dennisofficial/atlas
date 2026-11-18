@@ -14,6 +14,7 @@ import {
   THREADS_DIRECTORY_NAME,
   contextDirectory,
   imagesDirectory,
+  scratchDirectory,
   threadDataDirectory,
 } from '../store/sessions/paths'
 import type { SessionRegistry } from '../store/sessions/registry'
@@ -162,6 +163,10 @@ export class SessionEnvironmentProcessPort implements ProcessPort {
     await ensurePrivateDirectory({ anchor: dirname(sessionDir), directory: paths.threadDir })
     await ensurePrivateDirectory({ anchor: sessionDir, directory: paths.contextDir })
     await ensurePrivateDirectory({ anchor: sessionDir, directory: paths.imagesDir })
+    await ensurePrivateDirectory({
+      anchor: sessionDir,
+      directory: scratchDirectory({ sessionDir }),
+    })
     this.resolved.set(threadId, paths)
     return paths
   }
