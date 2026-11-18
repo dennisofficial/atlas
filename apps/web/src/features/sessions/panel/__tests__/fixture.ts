@@ -83,6 +83,7 @@ export const checkoutsFixture = (
 export const paneValueFixture = (overrides: Partial<SessionPaneValue> = {}): SessionPaneValue => ({
   sessionId: 'ses-1',
   view: viewModelFixture(),
+  viewLoaded: true,
   checkouts: checkoutsFixture(),
   status: statusFixture,
   shellTails: {},

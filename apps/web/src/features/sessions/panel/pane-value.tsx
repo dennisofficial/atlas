@@ -10,6 +10,7 @@ import type { ESessionPaneTab } from './pane-tab'
 export type SessionPaneValue = {
   sessionId: string
   view: SessionViewModel
+  viewLoaded: boolean
   checkouts: SessionViewOutput['checkouts']
   status: SessionStatusOutput | undefined
   shellTails: Readonly<Record<string, string>>
