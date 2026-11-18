@@ -1,3 +1,5 @@
+import { deployOf } from './render-deploy-of'
+
 const RENDER_API = 'https://api.render.com/v1'
 const HEALTH_URL = 'https://api.byatlas.io/healthz'
 const SETTLE_TIMEOUT_MS = 25 * 60_000
@@ -49,19 +51,6 @@ export type GateClock = { now: () => number; sleep: (ms: number) => Promise<void
 export type RenderDeploy = { id: string; status: string; commitId: string }
 
 type Fetcher = (url: string, init: RequestInit) => Promise<Response>
-
-function deployOf(entry: unknown): RenderDeploy | undefined {
-  if (typeof entry !== 'object' || entry === null) return undefined
-  if (!('deploy' in entry)) return undefined
-  const deploy = entry.deploy
-  if (typeof deploy !== 'object' || deploy === null) return undefined
-  if (!('id' in deploy) || typeof deploy.id !== 'string') return undefined
-  if (!('status' in deploy) || typeof deploy.status !== 'string') return undefined
-  if (!('commit' in deploy) || typeof deploy.commit !== 'object' || deploy.commit === null)
-    return undefined
-  if (!('id' in deploy.commit) || typeof deploy.commit.id !== 'string') return undefined
-  return { id: deploy.id, status: deploy.status, commitId: deploy.commit.id }
-}
 
 function deploysFrom(body: unknown): RenderDeploy[] {
   if (!Array.isArray(body)) throw new Error('the deploys answer is not a list')
