@@ -17,6 +17,8 @@ type FanoutPayload =
   | { userIds: readonly string[]; state: GithubPrStateDto }
   | { userIds: readonly string[]; event: GithubPrEventDto; ackId: string }
 
+export type PrOutboxWithin = { tx: Tx; effects: PrEffectCollector }
+
 export type PrOutboxEffect =
   | { kind: 'fanout'; payload: FanoutPayload; dedupeKey: string }
   | { kind: 'thread-signal'; payload: { threadId: string }; dedupeKey: string }

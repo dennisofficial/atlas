@@ -83,12 +83,12 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
     workerSignals.signals,
     fanout,
   )
-  const mailbox = new GithubPrEventMailboxService(fanout, wake)
   const outbox = new GithubPrOutboxDispatcher({
     fanout,
     signals: workerSignals.signals,
     wake,
   })
+  const mailbox = new GithubPrEventMailboxService(fanout, outbox)
   const store = new GithubPrStore({ mailbox, dispatcher: outbox })
   const installations = new GithubAppInstallationsService()
   const hookLifecycle = new GithubHookLifecycleService(

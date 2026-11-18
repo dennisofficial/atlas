@@ -15,6 +15,7 @@ import { GithubPollSweeperService } from './github-poll-sweeper.service'
 import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
+import { GithubPrOutboxDispatcher } from './github-pr-outbox'
 import { RedisPrFrameBus } from './github-pr-fanout.transport'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import { GithubUserReads } from './github-user-reads'
@@ -169,7 +170,10 @@ export function realGithubGraph(args: {
   const wake = {
     notifyEvent: (notice: unknown) => wakes.push(notice),
   } as unknown as GithubSandboxWakeService
-  const mailbox = new GithubPrEventMailboxService(fanout, wake)
+  const mailbox = new GithubPrEventMailboxService(
+    fanout,
+    new GithubPrOutboxDispatcher({ fanout, signals, wake }),
+  )
   const discussion = new GithubPrDiscussionDeliveryService(mailbox)
   const delivery = new GithubDeliveryService(
     github,

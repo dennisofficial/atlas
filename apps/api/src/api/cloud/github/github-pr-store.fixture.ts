@@ -15,9 +15,10 @@ export function storeFixture(
 ): GithubPrStore {
   const fanout = args.fanout ?? new GithubPrFanoutService(new DrainStateService())
   const wake = args.wake ?? inertWake()
+  const dispatcher = new GithubPrOutboxDispatcher({ fanout, signals: inertSignals(), wake })
 
   return new GithubPrStore({
-    mailbox: new GithubPrEventMailboxService(fanout, wake),
-    dispatcher: new GithubPrOutboxDispatcher({ fanout, signals: inertSignals(), wake }),
+    mailbox: new GithubPrEventMailboxService(fanout, dispatcher),
+    dispatcher,
   })
 }

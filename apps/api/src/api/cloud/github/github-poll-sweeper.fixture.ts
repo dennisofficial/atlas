@@ -15,10 +15,8 @@ import { observationReadOf } from './github-pr-read.fixture'
 import { storeFixture } from './github-pr-store.fixture'
 import { GithubPollSweeperService } from './github-poll-sweeper.service'
 import type { GithubHookLifecycleService } from './github-hook-lifecycle.service'
-import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import type { PullRequestCacheFields } from './github-pull-request-mapping'
-import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import type { GithubUserReads } from './github-user-reads'
 import type { RestPullRequest } from './github-pull-request-mapping'
 import type { GithubService } from './github.service'
@@ -60,8 +58,6 @@ export function serviceWith(args: {
     findOpenPrForBranch: args.findOpenPrForBranch ?? (async () => null),
   } as unknown as GithubUserReads
   const fanout = new GithubPrFanoutService(new DrainStateService())
-  const wake = { notifyEvent: () => undefined } as unknown as GithubSandboxWakeService
-  const _mailbox = new GithubPrEventMailboxService(fanout, wake)
   const hooks = { ensureHook: async () => 'poll-backed' } as unknown as GithubHookLifecycleService
   return {
     service: new GithubPollSweeperService(

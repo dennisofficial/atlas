@@ -64,7 +64,7 @@ function rig(
     signals,
     wake,
   })
-  const mailbox = overrides.mailbox ?? new GithubPrEventMailboxService(fanout, wake)
+  const mailbox = overrides.mailbox ?? new GithubPrEventMailboxService(fanout, dispatcher)
 
   return {
     store: new GithubPrStore({ mailbox, dispatcher }),

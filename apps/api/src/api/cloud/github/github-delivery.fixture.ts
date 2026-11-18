@@ -16,6 +16,7 @@ import type { GithubInstallationTokens } from './github-installation-tokens'
 import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
+import { GithubPrOutboxDispatcher } from './github-pr-outbox'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import type { PullRequestCacheFields } from './github-pull-request-mapping'
 import { type CommitCheckInput, restCommitChecksOf } from './github-commit-checks'
@@ -177,7 +178,10 @@ export function serviceWith(args: {
   const wake = {
     notifyEvent: () => undefined,
   } as unknown as GithubSandboxWakeService
-  const mailbox = new GithubPrEventMailboxService(fanout, wake)
+  const mailbox = new GithubPrEventMailboxService(
+    fanout,
+    new GithubPrOutboxDispatcher({ fanout, signals: inertSignals(), wake }),
+  )
   const discussion = new GithubPrDiscussionDeliveryService(mailbox)
   return {
     service: new GithubDeliveryService(

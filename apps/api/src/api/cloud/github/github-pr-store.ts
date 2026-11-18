@@ -91,7 +91,7 @@ export class GithubPrStore {
         repoFullName: args.repoFullName,
         prNumber: args.prNumber,
         url: row.url,
-        effects,
+        within: { tx, effects },
       },
       prior: stored === null ? null : snapshotOfLocked(stored),
       next: await settlementSnapshotOf({ tx, row }),

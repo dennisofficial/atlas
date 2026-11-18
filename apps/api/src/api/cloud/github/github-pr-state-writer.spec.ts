@@ -13,6 +13,7 @@ import { DrainStateService } from '../../platform/health/drain-state.service'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
+import { GithubPrOutboxDispatcher } from './github-pr-outbox'
 import { GithubPrStateWriter } from './github-pr-state-writer'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import type { GithubPrStateDto } from './github-realtime.types'
@@ -20,10 +21,13 @@ import type { GithubPrStateDto } from './github-realtime.types'
 function writerRig() {
   const fanout = new GithubPrFanoutService(new DrainStateService())
   const wake = { notifyEvent: () => undefined } as unknown as GithubSandboxWakeService
+  const signals = inertSignals()
+  const dispatcher = new GithubPrOutboxDispatcher({ fanout, signals, wake })
   const writer = new GithubPrStateWriter({
-    mailbox: new GithubPrEventMailboxService(fanout, wake),
+    mailbox: new GithubPrEventMailboxService(fanout, dispatcher),
     fanout,
-    signals: inertSignals(),
+    dispatcher,
+    signals,
     logger: new Logger('github-pr-state-writer.spec'),
   })
   return { writer, fanout }

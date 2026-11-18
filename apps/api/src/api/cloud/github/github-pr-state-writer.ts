@@ -7,6 +7,11 @@ import { normalizedRepo } from './github-pr-identity'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import {
+  GithubPrOutboxDispatcher,
+  GithubPrOutboxWriter,
+  PrEffectCollector,
+} from './github-pr-outbox'
+import {
   type LockedPrState,
   nextVersionOf,
   readPrStateForUpdate,
@@ -17,7 +22,11 @@ import { deliverPrTransitions } from './github-pr-transition-push'
 import { branchRoutingOf, dtoOf, subscriberWhereOf } from './github-delivery-routing'
 import type { GithubPrStateRecord } from './github-realtime.types'
 
-export type PrStateWrite = { row: Row<'GithubPrState'>; userIds: string[] }
+export type PrStateWrite = {
+  row: Row<'GithubPrState'>
+  userIds: string[]
+  outboxIds: readonly string[]
+}
 
 const TERMINAL_STATES = new Set(['merged', 'closed'])
 
@@ -60,6 +69,7 @@ export class GithubPrStateWriter {
     private readonly deps: {
       mailbox: GithubPrEventMailboxService
       fanout: GithubPrFanoutService
+      dispatcher: GithubPrOutboxDispatcher
       signals: ThreadSignalsService
       logger: Logger
     },
@@ -143,19 +153,27 @@ export class GithubPrStateWriter {
         ...subscribers.map((subscriber) => subscriber.userId),
       ]),
     ]
+    const effects = new PrEffectCollector()
     await deliverPrTransitions({
       writes: {
         mailbox: this.deps.mailbox,
         repoFullName,
         prNumber: args.prNumber,
         url: row.url,
+        within: { tx, effects },
       },
       prior,
       next: await settlementSnapshotOf({ tx, row }),
       userIds,
       tx,
     })
-    return { row, userIds }
+    const outboxIds = await GithubPrOutboxWriter.write({
+      tx,
+      repoFullName,
+      prNumber: args.prNumber,
+      effects: effects.all(),
+    })
+    return { row, userIds, outboxIds }
   }
 
   async recordAndPush(args: {
@@ -166,7 +184,9 @@ export class GithubPrStateWriter {
     seenVersion?: number
   }): Promise<PrStateWrite | null> {
     const write = await db.transaction((tx) => this.writeState({ tx, ...args }))
-    if (write !== null) await this.publish(write)
+    if (write === null) return null
+    await this.deps.dispatcher.dispatch(write.outboxIds)
+    await this.publish(write)
     return write
   }
 
