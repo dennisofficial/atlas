@@ -6,6 +6,7 @@ import {
   resolveSkillShadowing,
   skillFrontmatterOf,
   validateSkill,
+  type SkillsChanged,
 } from '../core'
 import { BUILT_IN_SKILLS } from './builtin.generated'
 import type { CloudSkillSource, CloudSkillText } from './port'
@@ -72,6 +73,18 @@ const cloudSkills = async (cloud: CloudSkillSource): Promise<readonly CloudCatal
     }
   })
 }
+
+export const skillsChangedOf = (catalogue: SkillCatalogue): SkillsChanged => ({
+  type: 'skills-changed',
+  skills: catalogue.skills
+    .filter((skill) => skill.userInvocable)
+    .map((skill) => ({
+      name: skill.name,
+      description: skill.description,
+      argumentHint: skill.argumentHint ?? null,
+      origin: skill.origin,
+    })),
+})
 
 export const buildCatalogue = async (args: {
   ctx: Pick<PluginPodContext, 'call' | 'log'>

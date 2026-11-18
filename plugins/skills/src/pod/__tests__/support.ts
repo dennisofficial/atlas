@@ -8,7 +8,13 @@ import {
   EMPTY_SESSIONS,
   EMPTY_WORKTREES,
 } from '@dltech/atlas-plugin-sdk'
-import { ECallStatus, type CallOp, type CallResult } from '@dltech/atlas-protocol'
+import {
+  ECallStatus,
+  type CallOp,
+  type CallResult,
+  type DaemonEvent,
+  type DaemonEventFrame,
+} from '@dltech/atlas-protocol'
 
 import { skillsPodOf } from '..'
 import type {
@@ -32,6 +38,7 @@ const failed = (op: string, message: string): CallResult =>
 
 export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
   const calls: CallOp[] = []
+  const watchers = new Set<(frame: DaemonEventFrame) => void>()
 
   const targetOf = (path: string): string | undefined => {
     const seen = new Set<string>()
@@ -97,6 +104,8 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
         if (path === op.path || path.startsWith(`${op.path}/`)) delete nodes[path]
       return ok(op.op, null)
     }
+    if (op.op === 'watch.start') return ok(op.op, op.roots)
+    if (op.op === 'watch.stop') return ok(op.op, null)
     if (op.op === 'readFile') {
       const real = targetOf(op.path)
       const node = real === undefined ? undefined : nodes[real]
@@ -133,12 +142,19 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
     append: async () => undefined,
     events: () => [],
     call,
-    onDaemonEvent: () => () => undefined,
+    onDaemonEvent: (listener) => {
+      watchers.add(listener)
+      return () => watchers.delete(listener)
+    },
     live: () => undefined,
     log: () => undefined,
   }
 
-  return { ctx, calls, nodes }
+  const emit = (event: DaemonEvent): void => {
+    for (const listener of watchers) listener({ kind: 'event', event })
+  }
+
+  return { ctx, calls, nodes, emit }
 }
 
 const bodyAt = (text: string | undefined): CloudSkillBody | null =>

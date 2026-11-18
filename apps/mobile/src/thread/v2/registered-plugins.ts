@@ -11,6 +11,8 @@ import { githubCoreSlots } from '@dltech/atlas-plugin-github/core'
 import { servicesClient } from '@dltech/atlas-plugin-services/client'
 import { servicesCoreSlots } from '@dltech/atlas-plugin-services/core'
 import { shellsClient, shellsCoreSlots } from '@dltech/atlas-plugin-shells/client'
+import { skillsClient } from '@dltech/atlas-plugin-skills/client'
+import { skillsCoreSlots } from '@dltech/atlas-plugin-skills/core'
 
 const registeredPlugins: readonly Plugin[] = [
   definePlugin({
@@ -35,6 +37,14 @@ const registeredPlugins: readonly Plugin[] = [
     pod: EMPTY_POD,
     control: EMPTY_CONTROL,
     client: servicesClient,
+    transport: 'stream',
+  }),
+  definePlugin({
+    name: 'skills',
+    ...skillsCoreSlots,
+    pod: EMPTY_POD,
+    control: EMPTY_CONTROL,
+    client: skillsClient,
     transport: 'stream',
   }),
 ]

@@ -42,6 +42,7 @@ import { useQueuedDock } from './data/use-queued-dock'
 import { useStagedMessages } from './data/use-staged-messages'
 import { useSessionAttachments } from './data/use-session-attachments'
 import { useSessionReveal } from './data/use-session-reveal'
+import { useSessionSkills } from './data/use-session-skills'
 import { useSessionSummarise } from './data/use-session-summarise'
 import { pendingOperatorRequestOf } from './data/use-operator-request'
 import { useSessionStream } from './data/use-session-stream'
@@ -170,6 +171,10 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const refusals = useMemo(() => sessionRefusalsOf(snapshot.events), [snapshot.events])
 
   const summarise = useSessionSummarise({ sessionId, events: snapshot.events })
+  const skillSpecs = useSessionSkills({
+    events: snapshot.events,
+    projectId: listed?.projectId,
+  })
   const choice = useSessionModelChoice({
     sessionId,
     current: sessionModelOf(listed),
@@ -267,6 +272,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
             value={draft}
             onValueChange={setDraft}
             onSubmit={(text) => void handleSubmit(text)}
+            commandSpecs={skillSpecs}
             sending={sending || attachments.uploading}
             {...attachments.composerProps}
             sendsAttachmentsAlone

@@ -9,6 +9,7 @@ import { previewsGroup } from './previews'
 import { servicesGroup } from './services'
 import { terminalGroup } from './terminal'
 import { shellsGroup } from './shells'
+import { watchGroup } from './watch'
 
 export const daemonGroups = (deps: DaemonOpsDeps): readonly DaemonGroupFactory[] => [
   execGroup(deps),
@@ -19,6 +20,7 @@ export const daemonGroups = (deps: DaemonOpsDeps): readonly DaemonGroupFactory[]
   servicesGroup(deps),
   terminalGroup(deps),
   shellsGroup(deps),
+  watchGroup,
 ]
 
 export type { DaemonOpsDeps } from './deps'

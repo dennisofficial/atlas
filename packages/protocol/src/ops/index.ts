@@ -9,6 +9,7 @@ import { failedCallResultSchema } from './result'
 import { servicesEventSchemas, servicesOpSchemas, servicesResultSchemas } from './services'
 import { terminalEventSchemas, terminalOpSchemas, terminalResultSchemas } from './terminal'
 import { shellsEventSchemas, shellsOpSchemas, shellsResultSchemas } from './shells'
+import { watchEventSchemas, watchOpSchemas, watchResultSchemas } from './watch'
 
 export const callOpSchema = z.discriminatedUnion('op', [
   ...execOpSchemas,
@@ -19,6 +20,7 @@ export const callOpSchema = z.discriminatedUnion('op', [
   ...servicesOpSchemas,
   ...terminalOpSchemas,
   ...shellsOpSchemas,
+  ...watchOpSchemas,
 ])
 
 export const okCallResultSchema = z.discriminatedUnion('op', [
@@ -30,6 +32,7 @@ export const okCallResultSchema = z.discriminatedUnion('op', [
   ...servicesResultSchemas,
   ...terminalResultSchemas,
   ...shellsResultSchemas,
+  ...watchResultSchemas,
 ])
 
 export const callResultSchema = z.union([okCallResultSchema, failedCallResultSchema])
@@ -42,6 +45,7 @@ export const daemonEventSchema = z.discriminatedUnion('type', [
   ...servicesEventSchemas,
   ...terminalEventSchemas,
   ...shellsEventSchemas,
+  ...watchEventSchemas,
 ])
 
 export type CallOp = z.infer<typeof callOpSchema>
@@ -61,3 +65,4 @@ export * from './result'
 export * from './services'
 export * from './terminal'
 export * from './shells'
+export * from './watch'

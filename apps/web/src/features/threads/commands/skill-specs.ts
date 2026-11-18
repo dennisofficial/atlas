@@ -1,4 +1,5 @@
 import { ECommandGroup, ECommandKind, type CommandSpec } from '@dltech/atlas-core'
+import type { SkillListRow } from '@dltech/atlas-plugin-skills/client'
 import type { CommandSkillWire } from '@dltech/atlas-wire/web'
 
 export const skillSpecOf = (skill: CommandSkillWire): CommandSpec => ({
@@ -8,6 +9,14 @@ export const skillSpecOf = (skill: CommandSkillWire): CommandSpec => ({
   summary: skill.summary,
   group: ECommandGroup.Workspace,
   argumentHint: skill.argumentHint,
+})
+
+export const repoSkillSpecOf = (skill: SkillListRow): CommandSpec => ({
+  name: skill.name,
+  kind: ECommandKind.Skill,
+  summary: skill.description,
+  group: ECommandGroup.Workspace,
+  ...(skill.argumentHint === null ? {} : { argumentHint: skill.argumentHint }),
 })
 
 export const mergeSkillSpecs = (args: {
