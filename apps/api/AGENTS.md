@@ -77,7 +77,7 @@ keeps `node:*`, Bun and the provider SDKs out of everything reachable from it.
 `createApp()` and `listen`. `create-app.ts` always mounts the root `AppModule` (`src/app.module.ts`) —
 `ApiModule` (`src/api/api.module.ts`), `AgentModule` (`src/agent/agent.module.ts`) and `HealthModule`,
 plus the drain hook that pauses held loops on shutdown. There is no host-free build and no flag: the
-one service answers `api.byatlas.io` and `agent.byatlas.io` on one port.
+one service answers `api.byatlas.io` on one port.
 
 `src/api` reaches the agent only through `src/agent/index.ts`, and `src/agent` never imports `src/api`;
 a boundary spec fails either direction.
@@ -185,11 +185,9 @@ trigger.dev. Nothing else hosts Atlas.
 - Start: `bun run --cwd apps/api start`. Render's health check is `/healthz`.
 - Render env: `DOTENV_PRIVATE_KEY_PRODUCTION_ENC`, `APP_TIER=production`, `BUN_VERSION`, `NODE_ENV`.
 
-`api.byatlas.io` is a proxied Cloudflare CNAME in front of the Worker `atlas-api-render-proxy` (route
-`api.byatlas.io/*`), which forwards to `atlas-agent-epee.onrender.com`; the Worker exists because the
-plan cannot override the Host header. `agent.byatlas.io` is an unproxied CNAME to the same origin and
-must stay: the MCP `redirect_uri` is sealed into pending rows as
-`https://agent.byatlas.io/mcp-oauth/callback`.
+`api.byatlas.io` is a Render custom domain on the service, reached through an unproxied Cloudflare
+CNAME to `atlas-agent-epee.onrender.com`. The MCP OAuth `redirect_uri` is
+`https://api.byatlas.io/mcp-oauth/callback`.
 
 `.github/workflows/release.yml` runs on every push to main. Its `render-live` job waits for the Render
 deploy of `GITHUB_SHA` to go live, or to be superseded by a newer deploy, then probes

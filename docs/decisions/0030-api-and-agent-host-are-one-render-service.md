@@ -23,7 +23,7 @@ holder resumes from the record at the next epoch. The worst case is one repeated
 
 **D1. One Nest app, one Render web service, both hostnames.** `apps/agent-host` becomes a module of
 `apps/api` loaded by the long-lived entry; the same service answers `api.byatlas.io` and
-`agent.byatlas.io`. Hostnames do not change: the MCP `redirect_uri` is sealed into pending rows as
+`agent.byatlas.io` (later retired, see Consequences). Hostnames do not change: the MCP `redirect_uri` is sealed into pending rows as
 `${AGENT_HOST_PUBLIC_URL}/mcp-oauth/callback`, and the web, mobile and Mac clients hold their origins
 in config.
 
@@ -90,9 +90,9 @@ The merge is finished; D4's rollback is retired.
   `render-live` job: it waits for the Render deploy of `GITHUB_SHA` to go live or be superseded by a
   newer deploy, then probes `https://api.byatlas.io/healthz`. `deploy-trigger` needs it, so trigger
   tasks never run ahead of the migrated schema.
-- `api.byatlas.io` is a proxied Cloudflare CNAME to the Worker `atlas-api-render-proxy` (route
-  `api.byatlas.io/*`), which forwards to `atlas-agent-epee.onrender.com` because the plan cannot
-  override the Host header. `agent.byatlas.io` is an unproxied CNAME to the same origin and must
-  stay: the MCP `redirect_uri` is sealed into pending rows as
-  `https://agent.byatlas.io/mcp-oauth/callback`.
+- `api.byatlas.io` is a Render custom domain on the service, reached through an unproxied
+  Cloudflare CNAME to `atlas-agent-epee.onrender.com`. It replaced a Cloudflare Worker proxy on
+  2026-11-18, after pod traffic through the Worker passed the free plan's 100k daily requests.
+  `agent.byatlas.io` is retired: the MCP `redirect_uri` is now
+  `https://api.byatlas.io/mcp-oauth/callback`.
 - The Vercel `atlas-api` project is deleted, so recovery is the next merge.

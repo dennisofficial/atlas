@@ -30,7 +30,7 @@ const DEFAULT_MAX_SESSIONS = 25
 const DEFAULT_SANDBOX_IMAGE = 'atlas-sandbox:latest'
 const DEFAULT_PORT = 10_000
 const DEFAULT_PREVIEW_DOMAIN = 'byatlas.dev'
-const DEFAULT_PUBLIC_URL = 'https://agent.byatlas.io'
+const DEFAULT_PUBLIC_URL = 'https://api.byatlas.io'
 
 const defaultDaemonBundlePath = (): string =>
   join(import.meta.dir, '../../../../daemon/bin/daemon.js')

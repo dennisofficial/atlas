@@ -23,7 +23,7 @@ const testDb = useTestDatabase()
 
 afterEach(restoreFetch)
 
-const CALLBACK = 'https://agent.byatlas.io/mcp-oauth/callback'
+const CALLBACK = 'https://api.byatlas.io/mcp-oauth/callback'
 
 const SESSION_ON_WEB: McpReturnTarget = {
   surface: 'web',

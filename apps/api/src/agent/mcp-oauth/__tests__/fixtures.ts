@@ -4,7 +4,7 @@ import { cipher, sealed } from '../../config/__tests__/config-reader.fixture'
 
 export { cipher, sealed }
 
-export const PUBLIC_URL = 'https://agent.byatlas.io'
+export const PUBLIC_URL = 'https://api.byatlas.io'
 export const WEB_ORIGIN = 'https://app.byatlas.io'
 export const REDIRECT_URI = `${PUBLIC_URL}/mcp-oauth/callback`
 export const SERVER_URL = 'https://mcp.example.com/mcp'
