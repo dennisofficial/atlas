@@ -2,7 +2,13 @@ import { useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react'
 
 import { QueuedMessages, type QueuedMessagesProps } from './queued-messages'
-import { FILE_ONLY, MANY_QUEUED, TWO_QUEUED, WITH_IMAGES } from './queued-messages.fixtures'
+import {
+  FILE_ONLY,
+  LONG_QUEUED,
+  MANY_QUEUED,
+  TWO_QUEUED,
+  WITH_IMAGES,
+} from './queued-messages.fixtures'
 import { PromptInput } from './prompt-input'
 import { removeQueued, saveQueued } from './queued-message-ops'
 
@@ -35,6 +41,8 @@ export const Staged: Story = {
 export const One: Story = { args: { messages: TWO_QUEUED.slice(0, 1) } }
 
 export const Many: Story = { args: { messages: MANY_QUEUED } }
+
+export const Long: Story = { args: { messages: [...TWO_QUEUED, ...LONG_QUEUED] } }
 
 export const WithImages: Story = { args: { messages: WITH_IMAGES } }
 

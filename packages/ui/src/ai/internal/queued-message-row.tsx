@@ -29,6 +29,19 @@ function RowAction({ label, onClick, className, children }: RowActionProps) {
   )
 }
 
+function QueuedBubble({ message }: { message: QueuedMessageEntry }) {
+  return (
+    <Bubble align="end" variant="pending">
+      <BubbleContent className="whitespace-pre-wrap">
+        <div className="flex max-h-[min(30vh,16rem)] flex-col gap-1.5 overflow-y-auto overscroll-contain">
+          <QueuedMessageAttachments attachments={message.attachments} />
+          {message.text.length > 0 ? <span>{message.text}</span> : null}
+        </div>
+      </BubbleContent>
+    </Bubble>
+  )
+}
+
 export interface QueuedMessageRowProps {
   message: QueuedMessageEntry
   editing: boolean
@@ -55,14 +68,7 @@ export function QueuedMessageRow({
   if (staged) {
     return (
       <li aria-busy="true" className="flex items-end justify-end opacity-45 transition-opacity">
-        <Bubble align="end" variant="pending">
-          <BubbleContent className="whitespace-pre-wrap">
-            <div className="flex flex-col gap-1.5">
-              <QueuedMessageAttachments attachments={message.attachments} />
-              {message.text.length > 0 ? <span>{message.text}</span> : null}
-            </div>
-          </BubbleContent>
-        </Bubble>
+        <QueuedBubble message={message} />
       </li>
     )
   }
@@ -89,14 +95,7 @@ export function QueuedMessageRow({
           <Trash2Icon />
         </RowAction>
       </div>
-      <Bubble align="end" variant="pending">
-        <BubbleContent className="whitespace-pre-wrap">
-          <div className="flex flex-col gap-1.5">
-            <QueuedMessageAttachments attachments={message.attachments} />
-            {message.text.length > 0 ? <span>{message.text}</span> : null}
-          </div>
-        </BubbleContent>
-      </Bubble>
+      <QueuedBubble message={message} />
     </li>
   )
 }
