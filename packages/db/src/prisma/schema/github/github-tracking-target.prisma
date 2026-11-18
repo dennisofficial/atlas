@@ -11,7 +11,7 @@ model GithubTrackingTarget {
   kind         EGithubTargetKind
   repoFullName String
   branch       String            @default("")
-  prNumber     Int?
+  prNumber     Int               @default(0)
   lookedUpAt   TimestamptzJsDate(3)?
   liveUntil    TimestamptzJsDate(3)
   createdAt    TimestamptzJsDate(3) @default(now())

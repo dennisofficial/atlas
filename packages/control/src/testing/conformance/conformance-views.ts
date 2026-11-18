@@ -1,17 +1,17 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
 import {
   ECompactionAnchor,
-  EFinishReason,
   ESessionStatus,
   initialSessionViewState,
   SESSION_VIEW_VERSION,
   stepSessionView,
-  type V2Body,
 } from '@dltech/atlas-core'
 
 import { decodeViewState, encodeViewState } from '../../session-view-codec'
 import type { PrStateRow } from '../../port'
 import type { ConformanceParams } from './conformance'
+import { branches, forkBranches, linked, prStateOf, reading } from './conformance-views.fixture'
+import { describeControlPlaneDigests } from './conformance-views.digests'
 import {
   appendBodies,
   makeHarness,
@@ -25,41 +25,8 @@ import {
   type Harness,
 } from './support'
 
-const reading = (tokens: number): V2Body => ({
-  type: 'assistant-said',
-  parts: [],
-  finish: EFinishReason.Stop,
-  usage: { inputTokens: tokens, outputTokens: 5, providerId: 'openai', modelId: 'gpt-5' },
-})
-
-const linked = (number: number): V2Body => ({
-  type: 'pull-request-linked',
-  number,
-  url: `https://github.com/Acme/App/pull/${number}`,
-  repo: 'github.com/Acme/App',
-  branch: 'feat',
-})
-
-const branches: V2Body = {
-  type: 'branches-observed',
-  repo: '/work/app',
-  head: 'feat',
-  base: 'main',
-  branches: [
-    { name: 'main', sha: 'a1' },
-    { name: 'feat', sha: 'b2' },
-  ],
-  worktrees: [],
-  remotes: [{ name: 'origin', url: 'git@github.com:Acme/App.git' }],
-}
-
-const forkBranches: V2Body = {
-  ...branches,
-  repo: '/work/fork',
-  remotes: [{ name: 'origin', url: 'https://github.com/Fork/App.git' }],
-}
-
 export function describeControlPlaneViews(params: ConformanceParams): void {
+  describeControlPlaneDigests(params)
   describe(`ControlPlane session view (${params.name})`, () => {
     let harness: Harness
     let epoch: number
@@ -71,26 +38,6 @@ export function describeControlPlaneViews(params: ConformanceParams): void {
     })
 
     const view = () => harness.plane.readSessionView({ sessionId: SESSION, threadId: THREAD })
-
-    const prState = (args: {
-      number: number
-      state: string
-      updatedAt: string
-      headRepoFullName?: string
-    }): PrStateRow => ({
-      repo: 'acme/app',
-      number: args.number,
-      title: `PR ${args.number}`,
-      state: args.state,
-      headSha: 'b2',
-      checksRunning: 0,
-      checksPassed: 2,
-      checksFailed: 0,
-      mergeable: true,
-      updatedAt: args.updatedAt,
-      headRepoFullName: args.headRepoFullName ?? 'acme/app',
-      headBranch: 'feat',
-    })
 
     const seedPr = async (row: PrStateRow): Promise<void> => {
       const seed = params.seedPrState
@@ -160,7 +107,7 @@ export function describeControlPlaneViews(params: ConformanceParams): void {
     })
 
     it('reads status, checkouts and a pull request derived from the branch index', async () => {
-      await seedPr(prState({ number: 7, state: 'open', updatedAt: '2026-11-02T12:00:00.000Z' }))
+      await seedPr(prStateOf({ number: 7, state: 'open', updatedAt: '2026-11-02T12:00:00.000Z' }))
       await appendBodies({ harness, epoch, bodies: [said('a'), linked(99), branches] })
       const read = await view()
       expect(read.value.status.state).toBe(ESessionStatus.Resuming)
@@ -185,7 +132,7 @@ export function describeControlPlaneViews(params: ConformanceParams): void {
     })
 
     it('keeps a tracked pull request once the branch leaves the observation', async () => {
-      await seedPr(prState({ number: 7, state: 'open', updatedAt: '2026-11-02T12:00:00.000Z' }))
+      await seedPr(prStateOf({ number: 7, state: 'open', updatedAt: '2026-11-02T12:00:00.000Z' }))
       await appendBodies({ harness, epoch, bodies: [branches] })
       await appendBodies({
         harness,
@@ -207,7 +154,7 @@ export function describeControlPlaneViews(params: ConformanceParams): void {
     })
 
     it('keeps a tracked pull request through a rewind', async () => {
-      await seedPr(prState({ number: 7, state: 'open', updatedAt: '2026-11-02T12:00:00.000Z' }))
+      await seedPr(prStateOf({ number: 7, state: 'open', updatedAt: '2026-11-02T12:00:00.000Z' }))
       await appendBodies({ harness, epoch, bodies: [said('a'), branches] })
       await appendBodies({ harness, epoch, bodies: [{ type: 'history-rewound', toSeq: 1 }] })
       const read = await view()
@@ -216,7 +163,7 @@ export function describeControlPlaneViews(params: ConformanceParams): void {
 
     it('matches a fork head to the pull request opened upstream', async () => {
       await seedPr(
-        prState({
+        prStateOf({
           number: 9,
           state: 'open',
           updatedAt: '2026-11-02T12:00:00.000Z',
@@ -231,8 +178,8 @@ export function describeControlPlaneViews(params: ConformanceParams): void {
     })
 
     it('orders an open pull request ahead of a merged one on the same head', async () => {
-      await seedPr(prState({ number: 7, state: 'merged', updatedAt: '2026-11-03T12:00:00.000Z' }))
-      await seedPr(prState({ number: 8, state: 'open', updatedAt: '2026-11-02T12:00:00.000Z' }))
+      await seedPr(prStateOf({ number: 7, state: 'merged', updatedAt: '2026-11-03T12:00:00.000Z' }))
+      await seedPr(prStateOf({ number: 8, state: 'open', updatedAt: '2026-11-02T12:00:00.000Z' }))
       await appendBodies({ harness, epoch, bodies: [branches] })
       const read = await view()
       expect(read.value.pullRequests.map((pullRequest) => pullRequest.number)).toEqual([8, 7])
@@ -342,24 +289,6 @@ export function describeControlPlaneViews(params: ConformanceParams): void {
       expect(read.value.status.state).toBe(ESessionStatus.Queued)
       expect(read.value.status.since).toBe(read.value.status.queued?.[0]?.postedAt)
       expect(read.value.status.queued?.[0]?.text).toBe('hi')
-    })
-
-    it('lists digests with the view', async () => {
-      await seedPr(prState({ number: 7, state: 'open', updatedAt: '2026-11-02T12:00:00.000Z' }))
-      await appendBodies({ harness, epoch, bodies: [said('a'), branches] })
-      const [bare] = await harness.plane.listSessionDigests({ userId: 'user-1', limit: 10 })
-      expect(bare?.view).toBeNull()
-      const [digest] = await harness.plane.listSessionDigests({
-        userId: 'user-1',
-        limit: 10,
-        withView: true,
-      })
-      expect(digest?.view?.primaryBranch).toBe('feat')
-      expect(digest?.view?.pullRequest).toMatchObject({
-        repo: 'acme/app',
-        number: 7,
-        state: 'open',
-      })
     })
   })
 }

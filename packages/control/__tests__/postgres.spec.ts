@@ -177,3 +177,28 @@ it('a presence lock held in another database of the cluster is not present here'
     await release()
   }
 })
+
+it('keeps one row when two sessions record the same head target at once', async () => {
+  const db = testDb().db
+  await db.orm.public.User.upsert({
+    create: { id: 'usr_race', name: 'race', email: 'race@test.local' },
+    update: {},
+    conflictOn: { id: 'usr_race' },
+  })
+  const target = {
+    userId: 'usr_race',
+    kind: 'head' as const,
+    repoFullName: 'compai/app',
+    branch: 'feat',
+    prNumber: null,
+    liveUntil: new Date(Date.now() + 60_000).toISOString(),
+  }
+
+  await Promise.all([
+    new PostgresControlStore(db).transact((tx) => tx.upsertTrackingTarget(target)),
+    new PostgresControlStore(db).transact((tx) => tx.upsertTrackingTarget(target)),
+  ])
+
+  const rows = await db.orm.public.GithubTrackingTarget.where({ userId: 'usr_race' }).all()
+  expect(rows).toHaveLength(1)
+})

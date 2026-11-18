@@ -3,6 +3,16 @@ import type { SessionModelAsk } from '@dltech/atlas-models'
 import type { SessionChange } from '@dltech/atlas-protocol'
 
 import type {
+  AdvanceRoutineParams,
+  InsertRoutineRunParams,
+  ListDueRoutinesParams,
+  ListRoutineRunsParams,
+  ListRoutinesParams,
+  ReadRoutineForUserParams,
+  RoutineRow,
+  RoutineRunRow,
+} from './routine-rows'
+import type {
   ControlSessionRow,
   PrChecks,
   SessionDigestRow,
@@ -20,6 +30,18 @@ export type {
   SessionListParams,
   SessionModelRow,
 } from './session-rows'
+
+export type {
+  AdvanceRoutineParams,
+  InsertRoutineRunParams,
+  ListDueRoutinesParams,
+  ListRoutineRunsParams,
+  ListRoutinesParams,
+  ReadRoutineForUserParams,
+  RoutineRow,
+  RoutineRunOutcome,
+  RoutineRunRow,
+} from './routine-rows'
 
 export type ClaimedBatch = { leases: Lease[]; nextRetryAt: string | null }
 
@@ -97,64 +119,6 @@ export type SubscriptionLease = {
 
 export const subscriptionSubjectKey = (subject: SubscriptionSubject): string =>
   subject.kind === 'pull-request' ? `#${subject.number}` : subject.selector
-
-export type RoutineRow = {
-  routineId: string
-  userId: string
-  projectId: string
-  name: string
-  prompt: string
-  cron: string
-  timezone: string
-  enabled: boolean
-  modelRef: string | null
-  modelEffort: string | null
-  modelFast: boolean | null
-  nextRunAt: string
-  lastRunAt: string | null
-  lastSessionId: string | null
-  createdAt: string
-  updatedAt: string
-}
-
-export type RoutineRunOutcome = 'started' | 'skipped-busy' | 'skipped' | 'failed'
-
-export type AdvanceRoutineParams = {
-  routineId: string
-  expectedNextRunAt: string
-  nextRunAt: string
-  lastRunAt?: string | undefined
-  lastSessionId?: string | undefined
-  at: string
-}
-
-export type InsertRoutineRunParams = {
-  id: string
-  routineId: string
-  scheduledFor: string
-  outcome: RoutineRunOutcome
-  reason?: string | undefined
-  sessionId?: string | undefined
-  at: string
-}
-
-export type ListDueRoutinesParams = { now: string; limit: number }
-
-export type RoutineRunRow = {
-  id: string
-  routineId: string
-  scheduledFor: string
-  outcome: RoutineRunOutcome
-  reason: string | null
-  sessionId: string | null
-  at: string
-}
-
-export type ListRoutinesParams = { userId: string; projectId?: string | undefined }
-
-export type ReadRoutineForUserParams = { routineId: string; userId: string }
-
-export type ListRoutineRunsParams = { routineId: string; limit: number }
 
 export type ThreadRow = {
   threadId: string

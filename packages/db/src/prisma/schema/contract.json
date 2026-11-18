@@ -3548,7 +3548,7 @@
                 }
               },
               "prNumber": {
-                "nullable": true,
+                "nullable": false,
                 "type": {
                   "codecId": "pg/int4@1",
                   "kind": "scalar"
@@ -12542,7 +12542,11 @@
                 "prNumber": {
                   "codecId": "pg/int4@1",
                   "dataType": "pg/int4",
-                  "nullable": true
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nullable": false
                 },
                 "repoFullName": {
                   "codecId": "pg/text@1",
@@ -17040,7 +17044,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "1add8b8b9f6b1ff3f18634749b5027921128d81a95a5cd7514fa8ae269324f77"
+    "storageHash": "88f225cca0b604786460cbaa120b91f0620bb6a929d5a1bafd679674ecc0dd41"
   },
   "execution": {
     "executionHash": "f0070f067d5f975ffd666627e7d83dff8b80fcaa2204df163480c1b9274350d2",

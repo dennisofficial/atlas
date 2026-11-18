@@ -99,8 +99,8 @@ describe('github tracking target hook on append (postgres)', () => {
         prNumber: row.prNumber,
       })),
     ).toEqual([
-      { kind: 'head', repo: 'dennis/atlas', branch: 'dennis/feature', prNumber: null },
-      { kind: 'head', repo: 'dltech/atlas', branch: 'dennis/old', prNumber: null },
+      { kind: 'head', repo: 'dennis/atlas', branch: 'dennis/feature', prNumber: 0 },
+      { kind: 'head', repo: 'dltech/atlas', branch: 'dennis/old', prNumber: 0 },
     ])
   })
 
