@@ -92,7 +92,7 @@ describe('GithubDeliveryService check rows concurrency', () => {
     expect((await prStateRows())[0]).toMatchObject({
       checksRunning: 1,
       checksPassed: 1,
-      mergeable: null,
+      mergeable: true,
       title: 'add the thing',
     })
     expect(await db.orm.public.GithubCommitCheck.all()).toHaveLength(2)
@@ -119,7 +119,7 @@ describe('GithubDeliveryService check rows concurrency', () => {
     expect(readPullRequest).toHaveBeenCalledTimes(1)
     expect((await prStateRows())[0]).toMatchObject({
       title: 'renamed mid-read',
-      mergeable: false,
+      mergeable: true,
       checksRunning: 0,
       checksPassed: 1,
     })
