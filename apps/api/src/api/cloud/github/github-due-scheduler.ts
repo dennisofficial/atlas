@@ -66,3 +66,14 @@ export const markRepoTargetsDue = (args: { repoFullName: string; now: Date }): P
   db.orm.public.GithubTrackingTarget.where((target) =>
     target.repoFullName.ilike(args.repoFullName.toLowerCase()),
   ).updateAndCount({ nextDueAt: args.now })
+
+export const markReposTargetsDue = (args: {
+  repoFullNames: readonly string[]
+  now: Date
+}): Promise<number> => {
+  const repoFullNames = [...new Set(args.repoFullNames.map((repo) => repo.toLowerCase()))]
+  if (repoFullNames.length === 0) return Promise.resolve(0)
+  return db.orm.public.GithubTrackingTarget.where((target) =>
+    target.repoFullName.in(repoFullNames),
+  ).updateAndCount({ nextDueAt: args.now })
+}

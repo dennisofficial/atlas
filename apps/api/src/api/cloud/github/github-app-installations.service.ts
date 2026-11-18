@@ -1,10 +1,35 @@
 import { Injectable } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
+import { markReposTargetsDue } from './github-due-scheduler'
 import { normalizedRepo } from './github-pr-identity'
 import type {
   GithubAppInstallationRepositoriesWebhookPayload,
   GithubAppInstallationWebhookPayload,
 } from './github-webhook.types'
+
+export type RepoCoverage = ReadonlySet<string>
+
+export const reposWithChangedCoverage = (args: {
+  before: RepoCoverage
+  after: RepoCoverage
+}): string[] =>
+  [...new Set([...args.before, ...args.after])].filter(
+    (repo) => args.before.has(repo) !== args.after.has(repo),
+  )
+
+type CoverageFields = {
+  repos: readonly (string | null)[] | null
+  suspendedAt: Date | null
+}
+
+const coverageOf = (row: CoverageFields): RepoCoverage =>
+  new Set(
+    row.suspendedAt === null
+      ? (row.repos ?? [])
+          .filter((repo): repo is string => repo !== null)
+          .map((repo) => normalizedRepo(repo))
+      : [],
+  )
 
 /**
  * The record of where the Atlas GitHub App is installed. An installation covering a repo means the
@@ -34,6 +59,13 @@ export class GithubAppInstallationsService {
     return db.orm.public.GithubAppInstallation.select('accountLogin').first({
       installationId: args.installationId,
     })
+  }
+
+  async coveredRepos(): Promise<RepoCoverage> {
+    const rows = await db.orm.public.GithubAppInstallation.select('repos', 'suspendedAt')
+      .where({ suspendedAt: null })
+      .all()
+    return new Set(rows.flatMap((row) => [...coverageOf(row)]))
   }
 
   async heldRepos(args: { installationId: bigint }): Promise<string[]> {
@@ -70,37 +102,44 @@ export class GithubAppInstallationsService {
   async applyInstallation(payload: GithubAppInstallationWebhookPayload): Promise<void> {
     const { installation } = payload
     const installationId = BigInt(installation.id)
+    const before = await this.coverageOf({ installationId })
     if (payload.action === 'deleted') {
       await db.orm.public.GithubAppInstallation.where({ installationId }).deleteAndCount()
+      await this.markChangedDue({ before, after: new Set() })
       return
     }
     if (payload.repositories === undefined) return
 
+    const repos = payload.repositories.map((repo) => normalizedRepo(repo.full_name))
+    const suspendedAt =
+      installation.suspended_at === null ? null : new Date(installation.suspended_at)
     await db.orm.public.GithubAppInstallation.upsert({
       conflictOn: { installationId },
       create: {
         installationId,
         accountLogin: installation.account.login,
         accountType: installation.account.type,
-        repos: payload.repositories.map((repo) => normalizedRepo(repo.full_name)),
-        suspendedAt:
-          installation.suspended_at === null ? null : new Date(installation.suspended_at),
+        repos,
+        suspendedAt,
       },
       update: {
         accountLogin: installation.account.login,
         accountType: installation.account.type,
-        repos: payload.repositories.map((repo) => normalizedRepo(repo.full_name)),
-        suspendedAt:
-          installation.suspended_at === null ? null : new Date(installation.suspended_at),
+        repos,
+        suspendedAt,
       },
+    })
+    await this.markChangedDue({
+      before,
+      after: coverageOf({ repos, suspendedAt }),
     })
   }
 
   async applyRepositories(payload: GithubAppInstallationRepositoriesWebhookPayload): Promise<void> {
-    const held = await db.orm.public.GithubAppInstallation.first({
-      installationId: BigInt(payload.installation.id),
-    })
+    const installationId = BigInt(payload.installation.id)
+    const held = await db.orm.public.GithubAppInstallation.first({ installationId })
     if (held === null) return
+    const before = coverageOf(held)
 
     const removed = new Set(
       (payload.repositories_removed ?? []).map((repo) => normalizedRepo(repo.full_name)),
@@ -110,8 +149,21 @@ export class GithubAppInstallationsService {
     )
     const added = (payload.repositories_added ?? []).map((repo) => normalizedRepo(repo.full_name))
 
-    await db.orm.public.GithubAppInstallation.where({
-      installationId: BigInt(payload.installation.id),
-    }).update({ repos: [...new Set([...kept.map(normalizedRepo), ...added])] })
+    const repos = [...new Set([...kept.map(normalizedRepo), ...added])]
+    await db.orm.public.GithubAppInstallation.where({ installationId }).update({ repos })
+    await this.markChangedDue({ before, after: coverageOf({ ...held, repos }) })
+  }
+
+  private async coverageOf(args: { installationId: bigint }): Promise<RepoCoverage> {
+    const row = await db.orm.public.GithubAppInstallation.first({
+      installationId: args.installationId,
+    })
+    return row === null ? new Set() : coverageOf(row)
+  }
+
+  private async markChangedDue(args: { before: RepoCoverage; after: RepoCoverage }): Promise<void> {
+    const repoFullNames = reposWithChangedCoverage(args)
+    if (repoFullNames.length === 0) return
+    await markReposTargetsDue({ repoFullNames, now: new Date() })
   }
 }
