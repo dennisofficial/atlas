@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 
 import { cn } from '#lib/utils'
 import { QueuedMessageRow } from './internal/queued-message-row'
@@ -34,13 +34,7 @@ export function QueuedMessages({
   className,
 }: QueuedMessagesProps) {
   const [internalEditingId, setInternalEditingId] = useState(editingId)
-  const listRef = useRef<HTMLUListElement>(null)
   const activeId = onEditingChange ? editingId : internalEditingId
-
-  useEffect(() => {
-    const list = listRef.current
-    if (list) list.scrollTop = list.scrollHeight
-  }, [messages.length])
 
   if (messages.length === 0) return null
 
@@ -67,11 +61,7 @@ export function QueuedMessages({
   }
 
   return (
-    <ul
-      ref={listRef}
-      aria-label="Queued messages"
-      className={cn('flex max-h-[40vh] flex-col items-stretch gap-3 overflow-y-auto', className)}
-    >
+    <ul aria-label="Queued messages" className={cn('flex flex-col items-stretch gap-3', className)}>
       {messages.map((message) => (
         <QueuedMessageRow
           key={message.id}
