@@ -26,6 +26,7 @@ import {
   type LoopState,
   loopStateOf,
   outstandingApprovalOf,
+  owesEndingOf,
   pendingCallsOf,
   projectDirectoryOfState,
   resumeDraftsOf,
@@ -246,5 +247,21 @@ describe('LoopState named cases', () => {
     expect(finishedTurnOf(pending)).toBe(false)
 
     expect(finishedTurnOf(initialLoopState())).toBe(false)
+  })
+
+  it('owes an ending for a turn that can still run or has finished unended', () => {
+    const finished = fold([
+      { type: 'user-said', text: 'go' },
+      { type: 'assistant-said', parts: [{ type: 'text', text: 'done' }] },
+    ])
+    expect(owesEndingOf(finished)).toBe(true)
+
+    expect(owesEndingOf(fold([{ type: 'user-said', text: 'go' }]))).toBe(true)
+
+    const idle = fold([
+      { type: 'worktree-entered', path: '/one', branch: 'dennis/tree', adopted: false },
+    ])
+    expect(owesEndingOf(idle)).toBe(false)
+    expect(owesEndingOf(initialLoopState())).toBe(false)
   })
 })

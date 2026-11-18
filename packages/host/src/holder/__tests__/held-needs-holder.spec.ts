@@ -152,11 +152,19 @@ const childEventsOf = (bodies: readonly V2Body[]): V2Event[] =>
   })
 
 describe('drainNeedsHolder over the children a takeover left open', () => {
-  it('does not want a holder for a child whose last turn finished without an ending', async () => {
+  it('wants a holder for a child whose last turn finished without an ending', async () => {
     const events = eventsOf([spawnedChild()])
     const childEvents = childEventsOf([
       { type: 'user-said', text: 'go' },
       { type: 'assistant-said', parts: [{ type: 'text', text: 'done' }] },
+    ])
+    expect(await needsHolder({ entries: [], knowsPing: true, events, childEvents })).toBe(true)
+  })
+
+  it('does not want a holder for a child that never started its turn', async () => {
+    const events = eventsOf([spawnedChild()])
+    const childEvents = childEventsOf([
+      { type: 'worktree-entered', path: '/work/tree', branch: 'dennis/tree', adopted: false },
     ])
     expect(await needsHolder({ entries: [], knowsPing: true, events, childEvents })).toBe(false)
   })

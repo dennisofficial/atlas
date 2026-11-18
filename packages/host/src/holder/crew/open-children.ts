@@ -1,6 +1,6 @@
 import {
-  finishedTurnOf,
   loopStateOf,
+  owesEndingOf,
   toLoopEvent,
   unendedSpawns,
   type Event,
@@ -62,16 +62,18 @@ const threadEventsOf = async (args: {
   }
 }
 
+const childOwesEnding = async (args: { plane: ControlPlane; child: OpenChild }): Promise<boolean> =>
+  threadEventsOf({ plane: args.plane, threadId: args.child.agentId })
+    .then((events) => owesEndingOf(loopStateOf({ events: loopEventsOf(events) })))
+    .catch(() => true)
+
 export const childrenAtWorkOf = async (args: {
   plane: ControlPlane
   children: readonly OpenChild[]
 }): Promise<number> => {
   let atWork = 0
   for (const child of args.children) {
-    const events = await threadEventsOf({ plane: args.plane, threadId: child.agentId }).catch(
-      () => [],
-    )
-    if (!finishedTurnOf(loopStateOf({ events: loopEventsOf(events) }))) atWork += 1
+    if (await childOwesEnding({ plane: args.plane, child })) atWork += 1
   }
   return atWork
 }
