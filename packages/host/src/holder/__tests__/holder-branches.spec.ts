@@ -19,13 +19,15 @@ const threadId = toThreadId('thread-branches')
 const SET: BranchSet = {
   repoPath: '/w',
   head: 'aaa111',
-  branches: [{ name: 'main', sha: 'aaa111' }],
+  branches: [{ name: 'main', sha: 'aaa111', pushRemote: null }],
   worktrees: [{ path: '/w', branch: 'main', sha: 'aaa111', detached: false }],
+  remotes: [{ name: 'origin', url: 'git@github.com:acme/app.git' }],
+  checkouts: ['main'],
 }
 
 const CHANGED: BranchSet = {
   ...SET,
-  branches: [...SET.branches, { name: 'feat-x', sha: 'bbb222' }],
+  branches: [...SET.branches, { name: 'feat-x', sha: 'bbb222', pushRemote: null }],
 }
 
 const publishingGitGroup = (reads: { count: number }): DaemonGroupFactory => {
@@ -390,6 +392,65 @@ describe('BranchObserver', () => {
     await calls.ready()
     await observerOver({ record, calls, baseOf: () => null }).refresh()
     expect(record.appended.at(-1)).not.toHaveProperty('base')
+    calls.close()
+    await daemon.stop()
+  })
+})
+
+describe('BranchObserver start', () => {
+  const waitFor = async (ready: () => boolean, ms = 2_000): Promise<void> => {
+    const deadline = Date.now() + ms
+    while (Date.now() < deadline) {
+      if (ready()) return
+      await new Promise((resolve) => setTimeout(resolve, 10))
+    }
+    throw new Error('the observer never read the repo')
+  }
+
+  it('reads every watched repo at start, before any turn ends', async () => {
+    const daemon = await makeDaemon()
+    const calls = connect(daemon)
+    const record = fakeRecord()
+    const observer = new BranchObserver({
+      record,
+      remoteCalls: calls,
+      threadId,
+      signal: new AbortController().signal,
+      repos: async () => ['/w'],
+      baseOf: () => null,
+      runId: () => toRunId('run-1'),
+    })
+    observer.start()
+    await waitFor(() => record.appended.length === 1)
+    expect(record.appended[0]?.repo).toBe('/w')
+    calls.close()
+    await daemon.stop()
+  })
+
+  it('reads a repo the watch reports after start', async () => {
+    const daemon = await makeDaemon()
+    const calls = connect(daemon)
+    const record = fakeRecord()
+    let report: ((repoPath: string) => void) | undefined
+    const observer = new BranchObserver({
+      record,
+      remoteCalls: calls,
+      threadId,
+      signal: new AbortController().signal,
+      repos: async () => [],
+      onRepo: (listener) => {
+        report = listener
+        return () => {
+          report = undefined
+        }
+      },
+      baseOf: () => null,
+      runId: () => toRunId('run-1'),
+    })
+    observer.start()
+    await calls.ready()
+    report?.('/cloned')
+    await waitFor(() => record.appended.some((body) => body.repo === '/cloned'))
     calls.close()
     await daemon.stop()
   })

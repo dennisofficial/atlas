@@ -129,7 +129,7 @@ describe('SessionHolder host generations', () => {
 
     expect(await answered(rig)).toBe(true)
     expect(appendEpochs.filter((epoch) => epoch === oldEpoch)).toEqual([])
-    expect(watchCalls).toBe(1)
+    expect(watchCalls).toBe(2)
     expect((await rig.events()).filter((event) => event.epoch === oldEpoch)).toEqual([])
   })
 

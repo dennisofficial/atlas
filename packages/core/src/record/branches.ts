@@ -4,7 +4,11 @@ import { canonicalJson } from './canonical'
 import type { V2Event } from './event'
 
 export const observedBranchSchema = z
-  .object({ name: z.string().min(1), sha: z.string().min(1) })
+  .object({
+    name: z.string().min(1),
+    sha: z.string().min(1),
+    pushRemote: z.string().min(1).nullable().optional(),
+  })
   .strict()
 
 export const observedWorktreeSchema = z
@@ -16,6 +20,10 @@ export const observedWorktreeSchema = z
   })
   .strict()
 
+export const observedRemoteSchema = z
+  .object({ name: z.string().min(1), url: z.string().min(1) })
+  .strict()
+
 export const branchesObservedSchema = z.object({
   type: z.literal('branches-observed'),
   repo: z.string().min(1),
@@ -23,10 +31,13 @@ export const branchesObservedSchema = z.object({
   base: z.string().min(1).nullable().optional(),
   branches: z.array(observedBranchSchema),
   worktrees: z.array(observedWorktreeSchema),
+  remotes: z.array(observedRemoteSchema).optional(),
+  checkouts: z.array(z.string().min(1)).optional(),
 })
 
 export type ObservedBranch = z.infer<typeof observedBranchSchema>
 export type ObservedWorktree = z.infer<typeof observedWorktreeSchema>
+export type ObservedRemote = z.infer<typeof observedRemoteSchema>
 export type BranchesObserved = z.infer<typeof branchesObservedSchema>
 
 export type BranchObservation = {
@@ -35,6 +46,8 @@ export type BranchObservation = {
   base?: string | null | undefined
   branches: ObservedBranch[]
   worktrees: ObservedWorktree[]
+  remotes?: ObservedRemote[] | undefined
+  checkouts?: string[] | undefined
 }
 
 const byName = (left: ObservedBranch, right: ObservedBranch): number =>
@@ -43,12 +56,23 @@ const byName = (left: ObservedBranch, right: ObservedBranch): number =>
 const byPath = (left: ObservedWorktree, right: ObservedWorktree): number =>
   left.path < right.path ? -1 : left.path > right.path ? 1 : 0
 
+const byRemoteName = (left: ObservedRemote, right: ObservedRemote): number =>
+  left.name < right.name ? -1 : left.name > right.name ? 1 : 0
+
+const canonicalBranch = (branch: ObservedBranch) => ({
+  name: branch.name,
+  sha: branch.sha,
+  pushRemote: branch.pushRemote ?? null,
+})
+
 export const canonicalObservation = (observation: BranchObservation): string =>
   canonicalJson({
     head: observation.head,
     ...(observation.base === undefined ? {} : { base: observation.base }),
-    branches: [...observation.branches].sort(byName),
+    branches: [...observation.branches].sort(byName).map(canonicalBranch),
     worktrees: [...observation.worktrees].sort(byPath),
+    remotes: [...(observation.remotes ?? [])].sort(byRemoteName),
+    checkouts: observation.checkouts ?? [],
   })
 
 export const branchesChanged = (args: {

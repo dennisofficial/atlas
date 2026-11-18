@@ -38,6 +38,20 @@ export const runGit = async (args: {
   })
 }
 
+export const runGitOrEmpty = async (args: {
+  deps: DaemonOpsDeps
+  repoPath: string
+  argv: readonly string[]
+}): Promise<string> => {
+  try {
+    return await runGit(args)
+  } catch (error) {
+    if (error instanceof CallFailureError && error.failure.code === ECallFailure.SpawnFailed)
+      throw error
+    return ''
+  }
+}
+
 export const commonGitDirOf = async (args: {
   deps: DaemonOpsDeps
   repoPath: string

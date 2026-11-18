@@ -144,6 +144,7 @@ export const createBranchObserver = (args: {
     remoteCalls: runtime.remoteCalls,
     threadId,
     repos: () => runtime.watchedRepos(),
+    onRepo: runtime.onRepo,
     baseOf: (repo) => runtime.baseBranchOf(repo),
     afterRefresh: linker === undefined ? undefined : () => linker.link(),
     runId,

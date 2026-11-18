@@ -97,6 +97,7 @@ export type SessionRuntime = {
   normalizeFailure: NormalizeFailure
   launchDirectory: string
   watchedRepos(): Promise<readonly string[]>
+  onRepo?: ((listener: (repoPath: string) => void) => () => void) | undefined
   baseBranchOf(repoPath: string): string | null
   pullRequests?: PullRequestSource | undefined
   plugins?: ComposedPlugins | undefined

@@ -80,7 +80,14 @@ export const describeGitConformance = (target: DaemonConformanceTarget): void =>
             repoPath: '/fake/repo',
           })
           const set = okValue({ result, op: 'git.watch' })
-          expect(set).toEqual({ repoPath: '/fake/repo', head: null, branches: [], worktrees: [] })
+          expect(set).toEqual({
+            repoPath: '/fake/repo',
+            head: null,
+            branches: [],
+            worktrees: [],
+            remotes: [],
+            checkouts: [],
+          })
         },
       }))
 

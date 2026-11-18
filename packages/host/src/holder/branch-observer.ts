@@ -30,6 +30,7 @@ export type BranchObserverArgs = {
   threadId: ThreadId
   signal: AbortSignal
   repos(): Promise<readonly string[]>
+  onRepo?: ((listener: (repoPath: string) => void) => () => void) | undefined
   baseOf(repo: string): string | null
   afterRefresh?: (() => Promise<void>) | undefined
   runId(): RunId
@@ -41,12 +42,15 @@ const observationOf = (set: BranchSet): BranchObservation => ({
   head: set.head,
   branches: set.branches,
   worktrees: set.worktrees,
+  remotes: set.remotes,
+  checkouts: set.checkouts,
 })
 
 export class BranchObserver {
   private tail: Promise<void> = Promise.resolve()
   private readonly stopped = new AbortController()
   private unsubscribe: (() => void) | undefined
+  private unsubscribeRepos: (() => void) | undefined
 
   constructor(private readonly args: BranchObserverArgs) {}
 
@@ -56,11 +60,17 @@ export class BranchObserver {
       const set = frame.event.set
       void this.enqueue(() => this.observe(set))
     })
+    this.unsubscribeRepos = this.args.onRepo?.((repoPath) => {
+      void this.enqueue(() => this.readRepo(repoPath))
+    })
+    void this.refreshRepos()
   }
 
   stop(): void {
     this.unsubscribe?.()
     this.unsubscribe = undefined
+    this.unsubscribeRepos?.()
+    this.unsubscribeRepos = undefined
     this.stopped.abort()
   }
 
@@ -71,19 +81,18 @@ export class BranchObserver {
 
   private refreshRepos(): Promise<void> {
     return this.enqueue(async () => {
-      const repos = await this.args.repos()
-      for (const repo of repos) {
-        const key = newKey()
-        const result = await this.args.remoteCalls.invoke({
-          key,
-          op: { op: 'git.read', repoPath: repo },
-        })
-        await this.ackQuietly(key)
-        if (result.status === 'ok' && result.op === 'git.read') {
-          await this.observe(result.value)
-        }
-      }
+      for (const repo of await this.args.repos()) await this.readRepo(repo)
     })
+  }
+
+  private async readRepo(repoPath: string): Promise<void> {
+    const key = newKey()
+    const result = await this.args.remoteCalls.invoke({
+      key,
+      op: { op: 'git.read', repoPath },
+    })
+    await this.ackQuietly(key)
+    if (result.status === 'ok' && result.op === 'git.read') await this.observe(result.value)
   }
 
   private get isStopped(): boolean {

@@ -338,6 +338,7 @@ export const createSessionRuntimeFactory = (
       normalizeFailure: normalizeProviderFailure,
       launchDirectory,
       watchedRepos: () => gitWatch.watchedRepos(),
+      onRepo: (listener) => gitWatch.onRepo(listener),
       baseBranchOf: (repoPath) => repoAt(repoPath)?.base ?? null,
       pullRequests: {
         repoOf: (repoPath) => repoAt(repoPath)?.repo ?? null,

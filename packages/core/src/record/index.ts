@@ -1,5 +1,6 @@
 export * from './blobs'
 export * from './branches'
+export * from './worked-heads'
 export * from './workspace'
 export * from './workspace-steps'
 export * from './start-failure'

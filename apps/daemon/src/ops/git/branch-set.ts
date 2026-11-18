@@ -1,23 +1,61 @@
 import { isAbsolute, relative, sep } from 'node:path'
 
-import type { BranchSet, GitBranch, GitWorktree } from '@dltech/atlas-protocol'
+import type { BranchSet, GitBranch, GitRemote, GitWorktree } from '@dltech/atlas-protocol'
 
-export const REF_FORMAT = '--format=%(refname:strip=2)%00%(objectname)'
+export const REF_FORMAT =
+  '--format=%(refname:strip=2)%00%(objectname)%00%(push:remotename)%00%(upstream:remotename)'
+
+export const REMOTE_URL_PATTERN = '^remote\\..*\\.url$'
 
 const REF_SEPARATOR = '\x00'
+const CHECKOUT_PREFIX = 'checkout: moving from '
+const CHECKOUT_SEPARATOR = ' to '
+const REWRITTEN = /[~^]/
+const MAX_CHECKOUTS = 200
 
 export const branchSetsEqual = (args: { a: BranchSet; b: BranchSet }): boolean =>
   JSON.stringify(args.a) === JSON.stringify(args.b)
+
+const pushRemoteOf = (args: { push: string; upstream: string }): string | null => {
+  const remote = args.push === '' ? args.upstream : args.push
+  return remote === '' ? null : remote
+}
 
 export const parseBranches = (text: string): readonly GitBranch[] =>
   text
     .split('\n')
     .filter((line) => line.includes(REF_SEPARATOR))
     .map((line) => {
-      const [name = '', sha = ''] = line.split(REF_SEPARATOR)
-      return { name, sha }
+      const [name = '', sha = '', push = '', upstream = ''] = line.split(REF_SEPARATOR)
+      return { name, sha, pushRemote: pushRemoteOf({ push, upstream }) }
     })
     .sort((a, b) => a.name.localeCompare(b.name))
+
+export const parseRemotes = (text: string): readonly GitRemote[] =>
+  text
+    .split('\n')
+    .map((line) => /^remote\.(.+)\.url\s+(\S+)$/.exec(line.trim()))
+    .filter((match): match is RegExpExecArray => match !== null)
+    .map((match) => ({ name: match[1] ?? '', url: match[2] ?? '' }))
+    .filter((remote) => remote.name !== '' && remote.url !== '')
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+const branchNameOrNull = (name: string): string | null =>
+  name === '' || name === 'HEAD' || REWRITTEN.test(name) ? null : name
+
+export const parseCheckouts = (texts: readonly string[]): readonly string[] => {
+  const targets = texts
+    .flatMap((text) => text.split('\n'))
+    .flatMap((line) => {
+      const message = line.slice(line.lastIndexOf('\t') + 1)
+      if (!message.startsWith(CHECKOUT_PREFIX)) return []
+      const target = message.slice(CHECKOUT_PREFIX.length).split(CHECKOUT_SEPARATOR).at(-1) ?? ''
+      const name = branchNameOrNull(target)
+      return name === null ? [] : [name]
+    })
+    .reverse()
+  return [...new Set(targets)].slice(0, MAX_CHECKOUTS)
+}
 
 export const parseHead = (text: string): string | null => {
   const ref = text.trim()
@@ -68,6 +106,7 @@ export const watchPathOf = (args: { gitDir: string; filename: string }): string 
   const [head = '', second = ''] = segments
   if (head === 'HEAD' && segments.length === 1) return args.gitDir
   if (head === 'packed-refs' && segments.length === 1) return args.gitDir
+  if (head === 'logs' && second === 'HEAD' && segments.length === 2) return args.gitDir
   if (head === 'refs' && second === 'heads') return `${args.gitDir}${sep}refs${sep}heads`
   if (head === 'worktrees') {
     if (segments.length === 1) return args.gitDir
