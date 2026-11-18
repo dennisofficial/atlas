@@ -2,6 +2,7 @@
 
 import { Tabs, TabsContent } from '@dltech/atlas-ui/components/tabs'
 
+import { ChangesTab } from '@/features/sessions/changes/changes-tab'
 import { openPageCount } from '@/features/threads/data/preview-browser/browser-model'
 import { usePreviewBrowser } from '@/features/threads/data/preview-browser/use-preview-browser'
 
@@ -22,6 +23,7 @@ export type SessionPaneProps = {
 function PaneBody({ tab }: { tab: ESessionPaneTab }) {
   const { sessionId, view, viewLoaded } = useSessionPaneValue()
   if (tab === ESessionPaneTab.Details) return <SessionDetailsTab />
+  if (tab === ESessionPaneTab.Changes) return <ChangesTab />
   if (tab === ESessionPaneTab.Browser) {
     return (
       <BrowserTab sessionId={sessionId} ports={previewPortsOf(view.previews)} loaded={viewLoaded} />

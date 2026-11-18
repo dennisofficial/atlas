@@ -78,9 +78,13 @@ describe('SessionPane', () => {
   })
 
   it('renders the empty state on every tab the stream cannot fill yet', () => {
-    for (const tab of [ESessionPaneTab.Changes, ESessionPaneTab.Files]) {
-      expect(render(tab)).toContain(`data-pane-empty="${tab}"`)
-    }
+    expect(render(ESessionPaneTab.Files)).toContain('data-pane-empty="files"')
+  })
+
+  it('renders the changes tab where the empty state used to be', () => {
+    const html = render(ESessionPaneTab.Changes)
+    expect(html).toContain('data-changes-tab="loading"')
+    expect(html).not.toContain('data-pane-empty="changes"')
   })
 
   it('renders the browser, not an empty state, on the Browser tab', () => {
