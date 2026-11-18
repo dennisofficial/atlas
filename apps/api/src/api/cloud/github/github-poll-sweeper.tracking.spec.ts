@@ -1,102 +1,19 @@
-import { db, type Row } from '@dltech/atlas-db'
+import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
-import { ControlPlane } from '@dltech/atlas-control'
-import { PostgresControlStore } from '@dltech/atlas-control/postgres'
-import { chainEvents, toRunId, toThreadId } from '@dltech/atlas-core'
 import { PG_CHANGE_CHANNEL } from '@dltech/atlas-protocol'
 import pg from 'pg'
-import type { RestPullRequest } from './github-pull-request-mapping'
-import type { GithubHeadReads } from './github-head-reads'
 import {
+  covered,
+  fakeHeadReads,
   preparePollSweeper,
   REST_FIELDS,
+  REST_PULL,
   seedPrState,
+  seedTarget,
   serviceWith,
+  trackHead,
 } from './github-poll-sweeper.fixture'
-
-const REST_PULL: RestPullRequest = {
-  number: 7,
-  title: 'add the thing',
-  html_url: 'https://github.com/compai/app/pull/7',
-  state: 'open',
-  draft: false,
-  merged_at: null,
-  mergeable: null,
-  mergeable_state: 'unknown',
-  head: { ref: 'dennis/feature', sha: 'abc123', repo: { full_name: 'compai/app' } },
-  base: { ref: 'main' },
-}
-
-const seedTarget = (overrides: Partial<Row<'GithubTrackingTarget'>> = {}) =>
-  db.orm.public.GithubTrackingTarget.create({
-    userId: 'usr_1',
-    kind: 'head',
-    repoFullName: 'compai/app',
-    branch: 'dennis/feature',
-    prNumber: 0,
-    lookedUpAt: null,
-    liveUntil: new Date(Date.now() + 60 * 60_000),
-    ...overrides,
-  })
-
-const fakeHeadReads = (
-  args: { pulls?: Record<string, RestPullRequest[]>; parent?: Record<string, string | null> } = {},
-) => {
-  const pullsByHead = vi.fn(
-    async (input: { repoFullName: string }) => args.pulls?.[input.repoFullName] ?? [],
-  )
-  const parentOf = vi.fn(
-    async (input: { repoFullName: string }) => args.parent?.[input.repoFullName] ?? null,
-  )
-  return {
-    reads: { pullsByHead, parentOf } as unknown as GithubHeadReads,
-    pullsByHead,
-    parentOf,
-  }
-}
-
-const covered = () =>
-  db.orm.public.GithubAppInstallation.create({
-    installationId: 11n,
-    accountLogin: 'compai',
-    accountType: 'Organization',
-    repos: ['compai/app'],
-    suspendedAt: null,
-  })
-
-const trackHead = async (args: { sessionId: string; branch: string }): Promise<void> => {
-  const plane = new ControlPlane({ store: new PostgresControlStore(db) })
-  await plane.createSession({
-    sessionId: args.sessionId,
-    userId: 'usr_1',
-    projectId: 'proj_1',
-    mainThreadId: `${args.sessionId}-thread`,
-  })
-  const lease = await plane.grant({ sessionId: args.sessionId, hostId: 1 })
-  const outcome = await plane.append({
-    threadId: `${args.sessionId}-thread`,
-    epoch: lease.epoch,
-    events: chainEvents({
-      threadId: toThreadId(`${args.sessionId}-thread`),
-      runId: toRunId('run-1'),
-      epoch: lease.epoch,
-      at: new Date().toISOString(),
-      bodies: [
-        {
-          type: 'branches-observed',
-          repo: '/work/app',
-          head: args.branch,
-          base: 'main',
-          branches: [{ name: args.branch, sha: 'abc123' }],
-          worktrees: [],
-          remotes: [{ name: 'origin', url: 'git@github.com:compai/app.git' }],
-        },
-      ],
-    }),
-  })
-  expect(outcome.ok).toBe(true)
-}
 
 describe('GithubPollSweeperService tracking targets', () => {
   useTestDatabase()

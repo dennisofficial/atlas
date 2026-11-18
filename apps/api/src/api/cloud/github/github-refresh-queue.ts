@@ -8,6 +8,14 @@ import type { TransportSelector } from './github-transport-selector'
 import { GithubHttpBudgetUnavailable, GithubCredentialCooldown } from './github-request-budget'
 import { GithubUserReadFailed } from './github-user-reads'
 import { unsettledHeadExists } from './github-pr-head-checks'
+import { GITHUB_REFRESH_HTTP_BUDGET_PER_MINUTE } from './github-request-coordinator.types'
+
+/**
+ * Seeding heads and refreshing known PRs share one minute of the refresh budget
+ * (`github-request-coordinator.types.ts`, docs/v2/slices/pr-tracking.md §7), and the sweeper runs
+ * twice a minute, so a quarter of that minute per sweep leaves the other half to refreshes.
+ */
+export const LOOKUPS_PER_SWEEP = Math.floor(GITHUB_REFRESH_HTTP_BUDGET_PER_MINUTE / 4)
 
 type Target = {
   repoFullName: string
@@ -47,11 +55,14 @@ export async function refreshGithubQueue(deps: QueueDeps): Promise<void> {
   }
   const polledHeads: Row<'GithubTrackingTarget'>[] = []
   const firstLookups: Row<'GithubTrackingTarget'>[] = []
-  for (const target of tracked.filter((held) => held.kind === 'head')) {
-    if (await pollsIn(target.repoFullName)) polledHeads.push(target)
-    else if (target.lookedUpAt === null) firstLookups.push(target)
+  for (const target of tracked) {
+    if (target.kind === 'head' && (await pollsIn(target.repoFullName))) {
+      polledHeads.push(target)
+      continue
+    }
+    if (target.lookedUpAt === null) firstLookups.push(target)
   }
-  if (await lookUpEach({ deps, targets: [...firstLookups, ...polledHeads] })) return
+  await lookUpEach({ deps, targets: [...firstLookups, ...polledHeads] })
   const subscriptions = await db.orm.public.GithubSubscription.where(
     subscriptionLiveWhere({ now }),
   ).all()
@@ -201,20 +212,19 @@ export async function refreshGithubQueue(deps: QueueDeps): Promise<void> {
 async function lookUpEach(args: {
   deps: QueueDeps
   targets: readonly Row<'GithubTrackingTarget'>[]
-}): Promise<boolean> {
-  for (const target of rotated([...args.targets])) {
+}): Promise<void> {
+  for (const target of rotated([...args.targets]).slice(0, LOOKUPS_PER_SWEEP)) {
     const key = lookupKey(target)
     if ((await args.deps.coordinator.attempt({ key })).nextAttemptAt > Date.now()) continue
     let failed = true
     try {
       const result = await args.deps.lookUp(target)
-      if (result === 'rate-limited') return true
+      if (result === 'rate-limited') return
       failed = result !== 'looked-up'
     } finally {
       await args.deps.coordinator.recordAttempt({ key, failed })
     }
   }
-  return false
 }
 
 async function statesOnPolledHeads(
