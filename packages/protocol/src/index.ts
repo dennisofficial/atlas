@@ -1,5 +1,7 @@
 export * from './frames'
 export * from './api'
+export * from './files'
+export * from './live-op'
 export * from './command-row'
 export * from './media'
 export * from './ops'

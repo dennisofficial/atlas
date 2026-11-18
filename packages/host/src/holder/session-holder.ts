@@ -14,6 +14,7 @@ import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 import type { HostBus, HostTimers, PodPeers, SessionRuntimeFactory } from './ports'
 import type { PodControlClient } from './pod-control'
 import { ClaimLoop } from './claim-loop'
+import { PodCalls } from './pod-calls'
 import type { CommandHandlers } from './command-intake'
 import { HeldSession, type HeldSessionDeps } from './held-session'
 import { HolderPresence } from './holder-presence'
@@ -146,6 +147,10 @@ export class SessionHolder {
 
   heldIds(): readonly string[] {
     return [...this.held.keys()]
+  }
+
+  podCalls(): PodCalls {
+    return new PodCalls({ held: (sessionId) => this.held.get(sessionId)?.runtimeOf() })
   }
 
   discard(): void {

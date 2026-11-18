@@ -10,7 +10,7 @@ import { changeByPath } from '../data/git-changes-map'
 import { EFileTreeStatus, useFileTree } from '../data/use-file-tree'
 import { EGitChangesStatus, useGitChanges, useTurnEndCount } from '../data/use-git-changes'
 import { EChangeScope } from '@dltech/atlas-wire/web'
-import type { FileTreeChannel } from '../data/file-tree-source'
+import { channelFileSource, type FileChannel } from '../data/file-source'
 import type { GitChangesChannel } from '../data/git-changes-load'
 import { ETabSubject } from './changes/offline-copy'
 import { TabFailed, TabOffline } from './changes/tab-states'
@@ -21,15 +21,12 @@ import { recallThreadPanel, rememberThreadPanel } from './thread-panel-memory'
 
 const ICON = <FolderTreeIcon />
 
-function FilesBody(props: { channel: FileTreeChannel & GitChangesChannel }) {
+function FilesBody(props: { channel: FileChannel & GitChangesChannel }) {
   const { threadId, working, openFile } = useThreadPanel()
+  const source = useMemo(() => channelFileSource(props.channel), [props.channel])
   const [selected, setSelected] = useState(() => recallThreadPanel(threadId).selectedFile)
   const turnEnds = useTurnEndCount(working)
-  const {
-    view: tree,
-    open,
-    setOpen,
-  } = useFileTree({ channel: props.channel, refreshKey: turnEnds, threadId })
+  const { view: tree, open, setOpen } = useFileTree({ source, refreshKey: turnEnds, threadId })
   const { view: changes } = useGitChanges({
     channel: props.channel,
     scope: EChangeScope.All,
@@ -73,6 +70,7 @@ function FilesBody(props: { channel: FileTreeChannel & GitChangesChannel }) {
   return (
     <FileSearchBody
       channel={props.channel}
+      source={source}
       refreshKey={turnEnds}
       changes={changed}
       ignored={ignored}

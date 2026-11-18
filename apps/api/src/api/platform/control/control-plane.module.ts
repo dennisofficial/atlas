@@ -3,6 +3,7 @@ import { db } from '@dltech/atlas-db'
 import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { eventSchemaOf } from '@dltech/atlas-plugin-sdk'
+import { HolderModule } from '../../../agent/host/holder.module'
 import { changeContentStoreProvider } from '../../../_lib/changes/change-content.provider'
 import { backgroundWorkProvider } from '../../../_lib/background-work/background-work.providers'
 import { COMMAND_REGISTRY, nativeCommandRegistry } from './command-registry'
@@ -15,6 +16,8 @@ import { MediaService } from './media.service'
 import { DbProjectAccess, ProjectAccess } from './project-access'
 import { RoutinesRouter } from './routines.router'
 import { RoutinesService } from './routines.service'
+import { FilesRouter } from './files.router'
+import { FilesService } from './files.service'
 import { SessionsRouter } from './sessions.router'
 import { SessionsService } from './sessions.service'
 
@@ -30,6 +33,7 @@ export const controlPlaneProvider: Provider = {
 }
 
 @Module({
+  imports: [HolderModule],
   providers: [
     controlPlaneProvider,
     { provide: ProjectAccess, useClass: DbProjectAccess },
@@ -40,6 +44,8 @@ export const controlPlaneProvider: Provider = {
     { provide: COMMAND_REGISTRY, useFactory: nativeCommandRegistry },
     SessionsService,
     SessionsRouter,
+    FilesService,
+    FilesRouter,
     ChangesService,
     MediaService,
     MediaRouter,

@@ -58,6 +58,10 @@ export class HeldSession {
   private readonly idle: IdleDeadline
   private readonly fenced: FencedSettlement
   private readonly ending: HeldEnding
+  runtimeOf(): SessionRuntime | undefined {
+    return this.runtime
+  }
+
   private resumeAfterSeq = 0
   private settleFence = true
   private takeOver: TakeOver | undefined

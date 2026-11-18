@@ -7,6 +7,7 @@ import { openPageCount } from '@/features/threads/data/preview-browser/browser-m
 import { usePreviewBrowser } from '@/features/threads/data/preview-browser/use-preview-browser'
 
 import { BrowserTab } from './browser/browser-tab'
+import { FilesTab } from '../files/files-tab'
 import { SessionDetailsTab } from './details-tab'
 import { PaneEmptyBody } from './pane-empty-body'
 import { ESessionPaneTab, isSessionPaneTab } from './pane-tab'
@@ -24,6 +25,7 @@ function PaneBody({ tab }: { tab: ESessionPaneTab }) {
   const { sessionId, view, viewLoaded } = useSessionPaneValue()
   if (tab === ESessionPaneTab.Details) return <SessionDetailsTab />
   if (tab === ESessionPaneTab.Changes) return <ChangesTab />
+  if (tab === ESessionPaneTab.Files) return <FilesTab />
   if (tab === ESessionPaneTab.Browser) {
     return (
       <BrowserTab sessionId={sessionId} ports={previewPortsOf(view.previews)} loaded={viewLoaded} />

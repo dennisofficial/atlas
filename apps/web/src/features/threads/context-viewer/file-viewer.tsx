@@ -8,6 +8,7 @@ import { Button } from '@dltech/atlas-ui/components/button'
 import { languageOfPath } from '@dltech/atlas-ui/lib/language-of-path'
 import { EChangeScope } from '@dltech/atlas-wire/web'
 
+import { channelFileSource } from '../data/file-source'
 import { lineMarksOf } from '../data/line-marks'
 import { EGitChangesStatus, useGitChanges, useTurnEndCount } from '../data/use-git-changes'
 import { useWorkspaceFile, type LoadedWorkspaceFile } from '../data/use-workspace-file'
@@ -49,7 +50,8 @@ export function FileBody(props: {
 export function FileViewer({ path }: { path: string }) {
   const { channel, working, closeFile, openChanges } = useThreadPanel()
   const turnEnds = useTurnEndCount(working)
-  const loaded = useWorkspaceFile({ channel, path, refreshKey: turnEnds })
+  const source = useMemo(() => (channel === null ? null : channelFileSource(channel)), [channel])
+  const loaded = useWorkspaceFile({ source, path, refreshKey: turnEnds })
   const { view } = useGitChanges({ channel, scope: EChangeScope.All, working })
   const changedFile = useMemo(
     () =>

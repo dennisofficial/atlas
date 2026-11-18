@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client'
 
 import { EClientRequest } from '@dltech/atlas-client/channel'
 
+import { channelFileSource } from '../file-source'
 import { EFileTreeStatus, useFileTree, type FileTreeState } from '../use-file-tree'
 import type { FileTreeChannel, TreeEntry } from '../file-tree-source'
 
@@ -43,9 +44,10 @@ function mount(args: {
   threadId?: string
 }) {
   const threadId = args.threadId ?? `tree-thread-${++mounts}`
+  const source = channelFileSource(args.channel as never)
   function Probe(props: { refreshKey: number }) {
     args.latest.current = useFileTree({
-      channel: args.channel,
+      source,
       refreshKey: props.refreshKey,
       threadId,
     })

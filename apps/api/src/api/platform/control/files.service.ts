@@ -1,0 +1,172 @@
+import { Inject, Injectable } from '@nestjs/common'
+import { TRPCError } from '@trpc/server'
+import { ControlPlane } from '@dltech/atlas-control'
+import {
+  ECallStatus,
+  ELiveOpFailure,
+  FILES_SEARCH_LIMIT,
+  LIVE_OP_MAX_BYTES,
+  type CallResult,
+  type FileContent,
+  type FilesReadOutput,
+  type FilesSearchOutput,
+  type FilesTreeOutput,
+} from '@dltech/atlas-protocol'
+import { PodParkedError } from './pod-parked.error'
+import { POD_OPS, type PodOps } from './pod-ops'
+import { SessionsService } from './sessions.service'
+
+const HIDDEN_NAMES: ReadonlySet<string> = new Set(['.git', 'node_modules'])
+
+type Success = Extract<CallResult, { status: ECallStatus.Ok }>
+type DirectoryResult = Extract<Success, { op: 'readDirectory' }>
+type StatResult = Extract<Success, { op: 'stat' }>
+type ReadFileResult = Extract<Success, { op: 'readFile' }>
+type GlobResult = Extract<Success, { op: 'glob' }>
+type StatValue = StatResult['value']
+
+const isHidden = (path: string): boolean =>
+  path.split('/').some((segment) => HIDDEN_NAMES.has(segment))
+
+const globEscaped = (query: string): string => query.replace(/([*?[\]{}!])/g, '\\$1')
+
+const positionsOf = (args: { path: string; query: string }): number[] => {
+  const haystack = args.path.toLowerCase()
+  const needle = args.query.toLowerCase()
+  const positions: number[] = []
+  let index = haystack.indexOf(needle)
+  while (index !== -1) {
+    positions.push(index)
+    index = haystack.indexOf(needle, index + needle.length)
+  }
+  return positions
+}
+
+const pathWithin = (args: { directory: string; name: string }): string =>
+  args.directory === '' ? args.name : `${args.directory}/${args.name}`
+
+@Injectable()
+export class FilesService {
+  constructor(
+    @Inject(ControlPlane) private readonly plane: ControlPlane,
+    @Inject(SessionsService) private readonly sessions: SessionsService,
+    @Inject(POD_OPS) private readonly ops: PodOps,
+  ) {}
+
+  private async invoke(args: {
+    sessionId: string
+    op: Parameters<PodOps['invoke']>[0]['op']
+  }): Promise<CallResult> {
+    const outcome = await this.ops.invoke(args)
+    if (outcome.state === 'unavailable') {
+      if (outcome.reason === ELiveOpFailure.Asleep) throw new PodParkedError()
+      throw new TRPCError({ code: 'BAD_REQUEST', message: 'this pod op is not allowed' })
+    }
+    return outcome.result
+  }
+
+  private async changedPaths(sessionId: string): Promise<Set<string>> {
+    const checkouts = await this.plane.readChanges({ sessionId })
+    const checkout = checkouts[0]
+    return new Set(checkout === undefined ? [] : checkout.files.map((file) => file.path))
+  }
+
+  async tree(args: {
+    userId: string
+    sessionId: string
+    directory: string
+  }): Promise<FilesTreeOutput> {
+    await this.sessions.requireOwnedSession({ userId: args.userId, sessionId: args.sessionId })
+    const [result, changed] = await Promise.all([
+      this.invoke({
+        sessionId: args.sessionId,
+        op: { op: 'readDirectory', path: args.directory === '' ? '.' : args.directory },
+      }),
+      this.changedPaths(args.sessionId),
+    ])
+    if (result.status === ECallStatus.Failed)
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: result.error.message,
+      })
+    const listing = result as DirectoryResult
+    const entries = listing.value
+      .filter((entry) => !HIDDEN_NAMES.has(entry.name))
+      .map((entry) => ({
+        name: entry.name,
+        isDirectory: entry.isDirectory,
+        changed: changed.has(pathWithin({ directory: args.directory, name: entry.name })),
+      }))
+      .sort((left, right) =>
+        left.isDirectory === right.isDirectory
+          ? left.name.localeCompare(right.name)
+          : left.isDirectory
+            ? -1
+            : 1,
+      )
+    return { directory: args.directory, entries }
+  }
+
+  async search(args: {
+    userId: string
+    sessionId: string
+    query: string
+  }): Promise<FilesSearchOutput> {
+    await this.sessions.requireOwnedSession({ userId: args.userId, sessionId: args.sessionId })
+    const result = await this.invoke({
+      sessionId: args.sessionId,
+      op: { op: 'glob', pattern: `**/*${globEscaped(args.query)}*`, cwd: '.', dot: false },
+    })
+    if (result.status === ECallStatus.Failed)
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: result.error.message,
+      })
+    const globbed = result as GlobResult
+    const matches = globbed.value
+      .map((path) => path.replace(/^\.\//, ''))
+      .filter((path) => !isHidden(path))
+      .sort((left, right) => left.localeCompare(right))
+    const paths = matches.slice(0, FILES_SEARCH_LIMIT).map((path) => ({
+      path,
+      positions: positionsOf({ path, query: args.query }),
+    }))
+    return { paths, truncated: matches.length > FILES_SEARCH_LIMIT }
+  }
+
+  async read(args: { userId: string; sessionId: string; path: string }): Promise<FilesReadOutput> {
+    await this.sessions.requireOwnedSession({ userId: args.userId, sessionId: args.sessionId })
+    const stat = await this.invoke({
+      sessionId: args.sessionId,
+      op: { op: 'stat', path: args.path },
+    })
+    if (stat.status === ECallStatus.Failed)
+      return { file: { type: 'refused', path: args.path, reason: stat.error.message } }
+    const stats = stat as StatResult
+    const refusal = refusalOf({ path: args.path, stat: stats.value })
+    if (refusal !== undefined) return { file: refusal }
+    const read = await this.invoke({
+      sessionId: args.sessionId,
+      op: { op: 'readFile', path: args.path },
+    })
+    if (read.status === ECallStatus.Failed)
+      return { file: { type: 'refused', path: args.path, reason: read.error.message } }
+    const file = read as ReadFileResult
+    return {
+      file: {
+        type: 'text',
+        path: args.path,
+        content: file.value,
+        truncated: false,
+        bytes: stats.value.size,
+      },
+    }
+  }
+}
+
+const refusalOf = (args: { path: string; stat: StatValue }): FileContent | undefined => {
+  if (!args.stat.isFile) return { type: 'refused', path: args.path, reason: 'not a file' }
+  if (args.stat.size > LIVE_OP_MAX_BYTES)
+    return { type: 'refused', path: args.path, reason: 'this file is too large to preview' }
+  return undefined
+}

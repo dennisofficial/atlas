@@ -9,7 +9,7 @@ const browseReplySchema = z.object({
   entries: z.array(z.object({ name: z.string(), isDirectory: z.boolean() })),
 })
 
-export type TreeEntry = { name: string; isDirectory: boolean }
+export type TreeEntry = { name: string; isDirectory: boolean; changed?: boolean }
 
 export const ROOT_DIRECTORY = ''
 

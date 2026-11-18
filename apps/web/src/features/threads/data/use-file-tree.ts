@@ -4,9 +4,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { recallThreadPanel, rememberThreadPanel } from '../panel/thread-panel-memory'
 import { messageOfFailure } from './git-changes-load'
-import { ROOT_DIRECTORY, browseDirectory } from './file-tree-source'
+import { ROOT_DIRECTORY } from './file-tree-source'
 import type { DirectoryListings } from './file-tree-nodes'
-import type { FileTreeChannel, TreeEntry } from './file-tree-source'
+import type { TreeEntry } from './file-tree-source'
+import type { FileSource } from './file-source'
 
 export enum EFileTreeStatus {
   Loading = 'loading',
@@ -27,22 +28,22 @@ export type FileTreeState = {
 
 const LOADING: FileTreeView = { status: EFileTreeStatus.Loading }
 
-async function listOrEmpty(args: {
-  channel: FileTreeChannel
-  directory: string
-}): Promise<TreeEntry[]> {
-  return browseDirectory(args).catch((error: unknown) => {
+async function listOrEmpty(args: { source: FileSource; directory: string }): Promise<TreeEntry[]> {
+  return args.source.browse({ directory: args.directory }).catch((error: unknown) => {
     if (args.directory === ROOT_DIRECTORY) throw error
     return []
   })
 }
 
 export function useFileTree(args: {
-  channel: FileTreeChannel | null
-  refreshKey: number
+  source: FileSource | null
+  refreshKey?: number
+  podAwake?: boolean
   threadId: string
 }): FileTreeState {
-  const { channel, refreshKey, threadId } = args
+  const { source, threadId } = args
+  const podAwake = args.podAwake ?? true
+  const refreshKey = args.refreshKey ?? 0
   const [view, setView] = useState<FileTreeView>(LOADING)
   const [open, setOpenState] = useState<string[]>(
     () => recallThreadPanel(threadId).openFolders ?? [],
@@ -59,12 +60,12 @@ export function useFileTree(args: {
   }, [])
 
   useEffect(() => {
-    if (channel === null) return
+    if (source === null || !podAwake) return
     let current = true
     const directories = [ROOT_DIRECTORY, ...openRef.current]
     Promise.all(
       directories.map(async (directory) => {
-        const entries = await listOrEmpty({ channel, directory })
+        const entries = await listOrEmpty({ source, directory })
         return [directory, entries] as const
       }),
     )
@@ -83,7 +84,7 @@ export function useFileTree(args: {
     return () => {
       current = false
     }
-  }, [channel, refreshKey, store])
+  }, [source, refreshKey, podAwake, store])
 
   const setOpen = useCallback(
     (change: { directory: string; open: boolean }) => {
@@ -94,11 +95,11 @@ export function useFileTree(args: {
       openRef.current = next
       setOpenState(next)
       rememberThreadPanel({ threadId, patch: { openFolders: next } })
-      if (!change.open || channel === null || listed.current.has(directory)) return
+      if (!change.open || source === null || listed.current.has(directory)) return
       listed.current.add(directory)
-      listOrEmpty({ channel, directory }).then((entries) => store(new Map([[directory, entries]])))
+      listOrEmpty({ source, directory }).then((entries) => store(new Map([[directory, entries]])))
     },
-    [channel, store, threadId],
+    [source, store, threadId],
   )
 
   return { view, open, setOpen }
