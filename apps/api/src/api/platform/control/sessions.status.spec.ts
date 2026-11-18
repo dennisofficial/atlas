@@ -9,7 +9,12 @@ import {
   type V2Body,
 } from '@dltech/atlas-core'
 import { inboxMessageSchema } from '@dltech/atlas-protocol'
-import { NOW, setupSessionsService as setup } from './sessions.service.fixture'
+import {
+  appendBodies,
+  NOW,
+  postedBody,
+  setupSessionsService as setup,
+} from './sessions.service.fixture'
 
 describe('SessionsService status and events', () => {
   it('maps an unconsumed post to queued and a consumed one past it', async () => {
@@ -31,8 +36,18 @@ describe('SessionsService status and events', () => {
       }),
     })
     expect(prepared.ok).toBe(true)
+    const posted = await service.post({
+      userId: 'user-a',
+      sessionId: created.sessionId,
+      text: 'hi',
+    })
+    await appendBodies({
+      plane,
+      threadId: created.mainThreadId,
+      epoch: seeded.epoch,
+      bodies: [postedBody({ inboxId: posted.inboxId, text: 'hi' })],
+    })
     await plane.revoke({ sessionId: created.sessionId, wantsHolder: false })
-    await service.post({ userId: 'user-a', sessionId: created.sessionId, text: 'hi' })
 
     const queued = await service.status({ userId: 'user-a', sessionId: created.sessionId })
     expect(queued.state).toBe(ESessionStatus.Queued)
@@ -65,8 +80,8 @@ describe('SessionsService status and events', () => {
     expect(thinking.lease).toEqual({ epoch: granted.epoch, holderHostId: 9001, live: true })
 
     const events = await service.events({ userId: 'user-a', sessionId: created.sessionId })
-    expect(events.events).toHaveLength(3)
-    expect(events.events[2]).toMatchObject({ type: 'user-said', text: 'hi' })
+    expect(events.events).toHaveLength(4)
+    expect(events.events[3]).toMatchObject({ type: 'user-said', text: 'hi' })
   })
 
   it('derives status from the tail of a log longer than one page', async () => {
@@ -207,12 +222,22 @@ describe('SessionsService status and events', () => {
     const failed = await service.status({ userId: 'user-a', sessionId: created.sessionId })
     expect(failed.state).toBe(ESessionStatus.SetupFailed)
 
-    await service.post({ userId: 'user-a', sessionId: created.sessionId, text: 'retry' })
+    const retry = await service.post({
+      userId: 'user-a',
+      sessionId: created.sessionId,
+      text: 'retry',
+    })
+    await appendBodies({
+      plane,
+      threadId: created.mainThreadId,
+      epoch: granted.epoch,
+      bodies: [postedBody({ inboxId: retry.inboxId, text: 'retry' })],
+    })
     const retrying = await service.status({ userId: 'user-a', sessionId: created.sessionId })
     expect(retrying.state).toBe(ESessionStatus.Preparing)
   })
 
-  it('retry posts a retry entry that moves a failed session to queued, and refuses strangers', async () => {
+  it('retry posts a retry entry for the holder to log, and refuses strangers', async () => {
     const { plane, service } = setup()
     const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
     const granted = await plane.grant({ sessionId: created.sessionId, hostId: 9001 })
@@ -238,8 +263,8 @@ describe('SessionsService status and events', () => {
     const { inboxId } = await service.retry({ userId: 'user-a', sessionId: created.sessionId })
     const entry = await plane.readInboxEntry({ sessionId: created.sessionId, inboxId })
     expect(entry).toMatchObject({ kind: 'retry', payload: '{}' })
-    const queued = await service.status({ userId: 'user-a', sessionId: created.sessionId })
-    expect(queued.state).toBe(ESessionStatus.Queued)
+    const staged = await service.status({ userId: 'user-a', sessionId: created.sessionId })
+    expect(staged.queued).toBeUndefined()
 
     await expect(service.retry({ userId: 'user-b', sessionId: created.sessionId })).rejects.toThrow(
       'session not found',

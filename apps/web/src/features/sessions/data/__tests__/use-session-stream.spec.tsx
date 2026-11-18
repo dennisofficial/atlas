@@ -5,7 +5,7 @@ import { act } from 'react'
 import {
   createStreamConnection,
   ESessionConnection,
-  memorySessionCache,
+  memorySessionLog,
 } from '@dltech/atlas-client/stream'
 import {
   createFakeScheduler,
@@ -44,14 +44,16 @@ const mount = async (params: {
   const { createRoot } = await import('react-dom/client')
   const host = document.createElement('div')
   const root = createRoot(host)
-  const cache = memorySessionCache()
+  const log = memorySessionLog()
   const connection = () => params.connection
+  const loaders: { loadOlder?: () => Promise<number> } = {}
   function Probe() {
-    const snapshot = useSessionStream({
+    const { snapshot, loadOlder } = useSessionStream({
       sessionId: params.sessionId,
       connection,
-      cache,
+      log,
     })
+    loaders.loadOlder = loadOlder
     const said = snapshot.events.flatMap((event) =>
       event.type === 'user-said' ? [event.text] : [],
     )
@@ -63,14 +65,16 @@ const mount = async (params: {
   }
   await act(async () => root.render(<Probe />))
   await settle()
-  return { host, root }
+  const loadOlder = (): Promise<number> => loaders.loadOlder?.() ?? Promise.resolve(-1)
+  return { host, root, loadOlder }
 }
 
 describe('useSessionStream', () => {
   it('subscribes on mount, renders events and aborts on unmount', async () => {
     const { connection, follows } = setup()
-    const { host, root } = await mount({ connection, sessionId: 'session-1' })
+    const { host, root, loadOlder } = await mount({ connection, sessionId: 'session-1' })
 
+    expect(await loadOlder()).toBe(0)
     const subscription = follows[0]
     if (subscription === undefined) throw new Error('no subscription')
     expect(subscription.input).toEqual({ sessionId: 'session-1' })
@@ -85,6 +89,7 @@ describe('useSessionStream', () => {
       await settle()
     })
     expect(host.textContent).toBe(`${ESessionConnection.Live}|hello`)
+    expect(await loadOlder()).toBe(0)
 
     await act(async () => root.unmount())
     expect(subscription.closed).toBe(true)

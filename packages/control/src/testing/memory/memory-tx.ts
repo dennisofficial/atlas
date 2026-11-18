@@ -25,6 +25,7 @@ import {
   markInboxConsumedIn,
   readInboxEntriesIn,
   readInboxEntryIn,
+  recentInboxEntriesIn,
 } from './memory-inbox'
 import {
   advanceRoutineIn,
@@ -251,6 +252,10 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
     excludeKind?: string | undefined
   }) {
     return readInboxEntriesIn({ state: this.state, ...params })
+  }
+
+  async recentInboxEntries(params: { sessionId: string; limit: number }) {
+    return recentInboxEntriesIn({ state: this.state, ...params })
   }
 
   async notifyWake(sessionId: string): Promise<void> {

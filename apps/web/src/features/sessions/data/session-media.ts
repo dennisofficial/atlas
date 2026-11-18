@@ -191,12 +191,14 @@ export function readyMediaOf(held: readonly HeldMedia[]): SessionPostMedia[] {
 
 export const messageInputOf = (args: {
   text: string
+  clientId?: string | undefined
   media: readonly Attachment[]
   uploads: readonly SaidUpload[]
 }): SessionMessageDraft => {
   const attachments = [...args.media, ...attachmentsOf({ uploads: args.uploads })]
   return {
     text: args.text,
+    ...(args.clientId === undefined ? {} : { clientId: args.clientId }),
     ...(attachments.length === 0 ? {} : { attachments }),
   }
 }
@@ -204,6 +206,7 @@ export const messageInputOf = (args: {
 export const postInputOf = (args: {
   sessionId: string
   text: string
+  clientId?: string | undefined
   media: readonly Attachment[]
   uploads: readonly SaidUpload[]
 }): SessionPostInput => ({ sessionId: args.sessionId, ...messageInputOf(args) })

@@ -8,7 +8,7 @@ import {
 import { v2EventSchema, v2EventTypes } from './registered-plugins'
 import { getStreamClient } from './stream-token'
 
-export { clearSessionCache, sessionCache } from './session-cache'
+export { clearSessionLog, sessionLog } from './session-cache'
 
 let connection: StreamConnection | undefined
 

@@ -102,21 +102,17 @@ export function describeControlPlaneChanges(params: ConformanceParams): void {
       expect(stop).toEqual([{ sessionId: SESSION }])
     })
 
-    it('takeBack announces when it deletes and nothing when refused', async () => {
+    it('withdraw stages a request and announces it once', async () => {
       await seeded()
       const { inboxId } = await harness.plane.post({
         sessionId: SESSION,
-        kind: 'user',
-        payload: '"a"',
+        kind: 'message',
+        payload: '{"text":"hi"}',
       })
-      const refused = await announced({
-        work: () => harness.plane.takeBack({ sessionId: SESSION, inboxId: inboxId + 40 }),
+      const notices = await announced({
+        work: () => harness.plane.withdraw({ sessionId: SESSION, inboxId }),
       })
-      expect(refused).toEqual([])
-      const taken = await announced({
-        work: () => harness.plane.takeBack({ sessionId: SESSION, inboxId }),
-      })
-      expect(taken).toEqual([{ sessionId: SESSION }])
+      expect(notices).toEqual([{ sessionId: SESSION }])
     })
 
     it('grant, plain revoke and wantsHolder revoke each announce once', async () => {

@@ -240,9 +240,19 @@ export const wireHeldLoop = (args: {
   epoch: number
   crew: PodCrew
   isDraining(): boolean
-}): { runner: LoopTurnRunner; branches: BranchObserver; recoverCommands(): Promise<void> } => {
+}): {
+  runner: LoopTurnRunner
+  branches: BranchObserver
+  recoverCommands(): Promise<void>
+  logStaged(): Promise<void>
+} => {
   const { runner, intake } = createLoopRunner(args)
   const branches = createBranchObserver(args)
   branches.start()
-  return { runner, branches, recoverCommands: () => intake.recoverUnfinished() }
+  return {
+    runner,
+    branches,
+    recoverCommands: () => intake.recoverUnfinished(),
+    logStaged: () => intake.logStaged(),
+  }
 }

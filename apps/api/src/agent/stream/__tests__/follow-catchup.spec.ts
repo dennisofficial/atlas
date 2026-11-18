@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
-import { FOLLOW_TAIL_BYTES } from '../follow-limits'
 import { FollowRig, said } from './follow-rig'
 
 const PAGE_READ = 2
@@ -31,7 +30,7 @@ describe('follow catch-up', () => {
     expect(seqs).toEqual([...new Set(seqs)].sort((a, b) => a - b))
   })
 
-  it('bounds the cold tail by bytes and keeps the newest events', async () => {
+  it('replays a long cold log from its first event, newest last', async () => {
     await rig.seed({ events: 0 })
     const text = 'x'.repeat(2_048)
     for (let batch = 0; batch < 10; batch += 1) {
@@ -40,17 +39,15 @@ describe('follow catch-up', () => {
     await rig.subscribe({ session: rig.open() })
     await rig.untilSeq(1_000)
     const events = rig.frames('events').flatMap((frame) => frame.events)
-    const bytes = events.reduce((sum, event) => sum + Buffer.byteLength(JSON.stringify(event)), 0)
-    expect(bytes).toBeLessThanOrEqual(FOLLOW_TAIL_BYTES + 4_096)
+    expect(events[0]?.seq).toBe(1)
     expect(events.at(-1)?.seq).toBe(1_000)
-    expect(events[0]?.seq).toBeGreaterThan(1)
   })
 
   it('never calls a page live when the head it reports is ahead of it', async () => {
     await rig.seed({ events: 3 })
     let appended = false
     rig.onRead = async () => {
-      if (appended || rig.reads !== PAGE_READ) return
+      if (appended || rig.reads !== 1) return
       appended = true
       await rig.append([said('raced')])
     }

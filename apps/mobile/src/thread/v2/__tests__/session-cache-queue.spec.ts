@@ -1,27 +1,14 @@
 import { describe, expect, it } from 'bun:test'
 
-import type { SessionCache, SessionWindow } from '@dltech/atlas-client/stream'
+import { memorySessionLog, type SessionLog } from '@dltech/atlas-client/stream'
+import { mintUserEvents } from '@dltech/atlas-client/stream-fixture'
 
-import { memoryJsonStore } from '../../../storage/json-store'
-import { queuedSessionCache } from '../session-cache-queue'
-import { createStoredSessionCache } from '../session-cache-store'
+import { queuedSessionLog } from '../session-cache-queue'
 
-const windowAt = (seq: number): SessionWindow => ({
-  events: [],
-  visibility: { spans: [] },
-  cursor: { seq, hash: `h${seq}` },
-})
+const headAt = (seq: number) => ({ seq, hash: `h${seq}` })
 
-const setup = () => {
-  const store = memoryJsonStore()
-  const cache = queuedSessionCache(createStoredSessionCache({ store, now: () => 1 }))
-  return { cache, store }
-}
-
-const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
-
-describe('the queued session cache', () => {
-  it('runs saves in the order they were asked for', async () => {
+describe('the queued session log', () => {
+  it('runs appends in the order they were asked for', async () => {
     const order: number[] = []
     const slow = (seq: number): Promise<void> =>
       new Promise((resolve) =>
@@ -33,57 +20,42 @@ describe('the queued session cache', () => {
           seq === 1 ? 10 : 0,
         ),
       )
-    const cache = queuedSessionCache({
-      load: () => Promise.resolve(undefined),
-      save: ({ window }) => slow(window.cursor?.seq ?? 0),
-    } as SessionCache)
+    const log = queuedSessionLog({
+      ...memorySessionLog(),
+      appendPage: ({ head }) => slow(head.seq),
+    } satisfies SessionLog)
 
     await Promise.all([
-      cache.save({ sessionId: 's1', window: windowAt(1) }),
-      cache.save({ sessionId: 's2', window: windowAt(2) }),
+      log.appendPage({ sessionId: 's1', events: [], head: headAt(1) }),
+      log.appendPage({ sessionId: 's2', events: [], head: headAt(2) }),
     ])
 
     expect(order).toEqual([1, 2])
   })
 
   it('keeps taking work after an operation fails', async () => {
-    const attempts: string[] = []
-    const cache = queuedSessionCache({
-      load: () => Promise.resolve(undefined),
-      save: ({ sessionId }) => {
-        attempts.push(sessionId)
-        return sessionId === 'first' ? Promise.reject(new Error('disk')) : Promise.resolve()
-      },
-    } as SessionCache)
+    const inner = memorySessionLog()
+    const log = queuedSessionLog({
+      ...inner,
+      appendPage: ({ sessionId }) =>
+        sessionId === 'first' ? Promise.reject(new Error('disk')) : Promise.resolve(),
+    } satisfies SessionLog)
 
-    await expect(cache.save({ sessionId: 'first', window: windowAt(1) })).rejects.toThrow('disk')
-    await cache.save({ sessionId: 'second', window: windowAt(2) })
+    await log.appendPage({ sessionId: 'first', events: [], head: headAt(1) })
+    await log.appendPage({ sessionId: 'second', events: [], head: headAt(2) })
 
-    expect(attempts).toEqual(['first', 'second'])
+    expect(await inner.listSessions()).toEqual([])
   })
 
-  it('lets nothing through once it is stopped and drained', async () => {
-    const { cache, store } = setup()
-    await cache.save({ sessionId: 's1', window: windowAt(1) })
+  it('drains and stops taking work', async () => {
+    const inner = memorySessionLog()
+    const log = queuedSessionLog(inner)
+    const events = mintUserEvents({ count: 2 })
 
-    cache.stop()
-    await cache.drain()
-    await store.clear()
-    await cache.save({ sessionId: 's1', window: windowAt(2) })
-    await settle()
+    void log.appendPage({ sessionId: 's1', events, head: headAt(2) })
+    log.stop()
+    await log.drain()
 
-    expect(await cache.load('s1')).toBeUndefined()
-    expect(await store.keys()).toEqual([])
-  })
-
-  it('drains a save that was already scheduled when it was stopped', async () => {
-    const { cache, store } = setup()
-    const saving = cache.save({ sessionId: 's1', window: windowAt(1) })
-
-    cache.stop()
-    await Promise.all([saving, cache.drain()])
-    await store.clear()
-
-    expect(await store.keys()).toEqual([])
+    expect(await inner.readTail({ sessionId: 's1', count: 10 })).toEqual([])
   })
 })

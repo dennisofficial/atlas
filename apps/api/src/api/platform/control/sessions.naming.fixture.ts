@@ -54,7 +54,7 @@ export const setupNaming = () => {
     mediaStore,
     composeCommands([]),
   )
-  return { service, titler, background, registry, mediaStore }
+  return { plane, service, titler, background, registry, mediaStore }
 }
 
 export const listedSession = async (args: { service: SessionsService; sessionId: string }) => {

@@ -20,6 +20,7 @@ export interface QueuedMessagesProps {
   onRemove: (id: string) => void
   editingId?: string
   onEditingChange?: (id: string | undefined) => void
+  stagedIds?: ReadonlySet<string>
   className?: string
 }
 
@@ -29,6 +30,7 @@ export function QueuedMessages({
   onRemove,
   editingId,
   onEditingChange,
+  stagedIds,
   className,
 }: QueuedMessagesProps) {
   const [internalEditingId, setInternalEditingId] = useState(editingId)
@@ -75,6 +77,7 @@ export function QueuedMessages({
           key={message.id}
           message={message}
           editing={message.id === activeId}
+          staged={stagedIds?.has(message.id) ?? false}
           onStartEdit={handleStartEdit}
           onCancelEdit={handleCancelEdit}
           onSave={handleSave}

@@ -18,6 +18,7 @@ import { NoticeRowView } from './notice-row'
 import { WorkRowView } from './work-row'
 
 const NEAR_BOTTOM_PX = 80
+const NEAR_TOP_PX = 400
 
 const keyOf = (row: ThreadRow): string => row.id
 
@@ -48,14 +49,17 @@ export const Transcript = ({
   rows,
   working,
   threadId,
+  onLoadOlder,
 }: {
   rows: readonly ThreadRow[]
   working: boolean
   now: number
   threadId: string | undefined
+  onLoadOlder?: (() => Promise<number>) | undefined
 }) => {
   const listRef = useRef<FlatList<ThreadRow>>(null)
   const isNearBottom = useRef(true)
+  const loadingOlder = useRef(false)
   const keyboardInset = useKeyboard().inset
   const keyboardVisible = keyboardInset > 0
   const tailSize = tailSizeOf(rows)
@@ -85,6 +89,12 @@ export const Transcript = ({
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent
     const distance = contentSize.height - (contentOffset.y + layoutMeasurement.height)
     isNearBottom.current = distance < NEAR_BOTTOM_PX
+    if (onLoadOlder === undefined || loadingOlder.current) return
+    if (contentOffset.y > NEAR_TOP_PX) return
+    loadingOlder.current = true
+    void onLoadOlder().finally(() => {
+      loadingOlder.current = false
+    })
   }
 
   const handleContentSizeChange = () => {
@@ -115,6 +125,7 @@ export const Transcript = ({
       keyboardShouldPersistTaps="handled"
       onScroll={handleScroll}
       scrollEventThrottle={16}
+      maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
       onContentSizeChange={handleContentSizeChange}
       ListFooterComponent={showWorking ? WorkingFooter : undefined}
     />

@@ -6,7 +6,7 @@ import {
   type StreamServerMessage,
 } from '@dltech/atlas-protocol'
 
-import { memorySessionCache } from '../session-cache'
+import { memorySessionLog } from '../session-log'
 import { createSessionFollower } from '../session-follower'
 import { createFakeScheduler, eventsMessage, mintUserEvents } from './support'
 
@@ -52,7 +52,7 @@ const statusView = (params: { at: number; state?: ESessionStatus }): StreamServe
 const setup = () =>
   createSessionFollower({
     sessionId: 'session-1',
-    cache: memorySessionCache(),
+    log: memorySessionLog(),
     scheduler: createFakeScheduler().scheduler,
     onResnap: () => undefined,
   })

@@ -32,6 +32,7 @@ function RowAction({ label, onClick, className, children }: RowActionProps) {
 export interface QueuedMessageRowProps {
   message: QueuedMessageEntry
   editing: boolean
+  staged?: boolean
   onStartEdit: (id: string) => void
   onCancelEdit: () => void
   onSave: (draft: QueuedMessageDraft & { id: string }) => void
@@ -41,6 +42,7 @@ export interface QueuedMessageRowProps {
 export function QueuedMessageRow({
   message,
   editing,
+  staged = false,
   onStartEdit,
   onCancelEdit,
   onSave,
@@ -49,6 +51,21 @@ export function QueuedMessageRow({
   const handleStartEdit = () => onStartEdit(message.id)
   const handleRemove = () => onRemove(message.id)
   const handleSave = (draft: QueuedMessageDraft) => onSave({ id: message.id, ...draft })
+
+  if (staged) {
+    return (
+      <li aria-busy="true" className="flex items-end justify-end opacity-45 transition-opacity">
+        <Bubble align="end" variant="pending">
+          <BubbleContent className="whitespace-pre-wrap">
+            <div className="flex flex-col gap-1.5">
+              <QueuedMessageAttachments attachments={message.attachments} />
+              {message.text.length > 0 ? <span>{message.text}</span> : null}
+            </div>
+          </BubbleContent>
+        </Bubble>
+      </li>
+    )
+  }
 
   if (editing) {
     return (

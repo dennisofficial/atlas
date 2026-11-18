@@ -32,6 +32,7 @@ export type MessageRow = {
   text: string
   streaming: boolean
   steer: boolean
+  staged?: boolean
   attachments: readonly Attachment[]
 }
 export type ThoughtItem = {

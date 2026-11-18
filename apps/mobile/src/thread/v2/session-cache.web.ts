@@ -1,29 +1,25 @@
 import {
-  browserSessionCache,
-  clearBrowserSessionCache,
+  browserSessionLog,
   defaultIndexedDbFactory,
-  memorySessionCache,
-  type SessionCache,
+  memorySessionLog,
+  type SessionLog,
 } from '@dltech/atlas-client/stream'
 
 import { v2EventSchema } from './registered-plugins'
-import { queuedSessionCache, type QueuedSessionCache } from './session-cache-queue'
+import { queuedSessionLog, type QueuedSessionLog } from './session-cache-queue'
 
-let cache: QueuedSessionCache | undefined
+let cache: QueuedSessionLog | undefined
 
-export const sessionCache = (): SessionCache => {
+export const sessionLog = (): SessionLog => {
   if (cache !== undefined) return cache
-  cache = queuedSessionCache(
-    defaultIndexedDbFactory() === undefined
-      ? memorySessionCache()
-      : browserSessionCache(v2EventSchema),
+  cache = queuedSessionLog(
+    defaultIndexedDbFactory() === undefined ? memorySessionLog() : browserSessionLog(v2EventSchema),
   )
   return cache
 }
 
-export const clearSessionCache = async (): Promise<void> => {
+export const clearSessionLog = async (): Promise<void> => {
   cache?.stop()
   await cache?.drain()
   cache = undefined
-  await clearBrowserSessionCache()
 }

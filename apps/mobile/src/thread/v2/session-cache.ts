@@ -1,42 +1,56 @@
-import { memorySessionCache, type SessionCache } from '@dltech/atlas-client/stream'
+import { memorySessionLog, type SessionLog } from '@dltech/atlas-client/stream'
 
-import { kvJsonStore } from '../../storage/kv-json-store'
-import type { JsonStore } from '../../storage/json-store'
+import { openSqliteExecutor } from '../../storage/sqlite-executor'
 import { v2EventSchema } from './registered-plugins'
-import { queuedSessionCache, type QueuedSessionCache } from './session-cache-queue'
-import { createStoredSessionCache } from './session-cache-store'
+import { queuedSessionLog, type QueuedSessionLog } from './session-cache-queue'
+import { createSqliteSessionLog } from './session-log-store'
 
-export const SESSION_CACHE_DATABASE = 'atlas-sessions'
+export const SESSION_LOG_DATABASE = 'atlas-sessions'
 
-let store: JsonStore | undefined
-let cache: QueuedSessionCache | undefined
+let opened: QueuedSessionLog | undefined
+let opening: Promise<QueuedSessionLog> | undefined
 
-const storeOf = (): JsonStore => {
-  store ??= kvJsonStore({ database: SESSION_CACHE_DATABASE })
-  return store
-}
-
-export const sessionCache = (): SessionCache => {
-  if (cache !== undefined) return cache
+const open = async (): Promise<SessionLog> => {
   try {
-    cache = queuedSessionCache(
-      createStoredSessionCache({
-        store: storeOf(),
-        now: () => Date.now(),
-        eventSchema: v2EventSchema,
-      }),
-    )
+    const db = await openSqliteExecutor(SESSION_LOG_DATABASE)
+    const stored = createSqliteSessionLog({ db, eventSchema: v2EventSchema })
+    await stored.prepare()
+    return stored
   } catch {
-    cache = queuedSessionCache(memorySessionCache())
+    return memorySessionLog()
   }
-  return cache
 }
 
-export const clearSessionCache = async (): Promise<void> => {
-  cache?.stop()
-  await cache?.drain()
-  cache = undefined
-  await storeOf()
-    .clear()
-    .catch(() => undefined)
+const queueOf = (): Promise<QueuedSessionLog> => {
+  opening ??= open().then((log) => {
+    opened = queuedSessionLog(log)
+    return opened
+  })
+  return opening
+}
+
+const deferred = <T>(run: (log: SessionLog) => Promise<T>, fallback: T): Promise<T> =>
+  queueOf()
+    .then(run)
+    .catch(() => fallback)
+
+export const sessionLog = (): SessionLog => ({
+  appendPage: (args) => deferred((log) => log.appendPage(args), undefined),
+  readRange: (args) => deferred((log) => log.readRange(args), []),
+  readTail: (args) => deferred((log) => log.readTail(args), []),
+  readBefore: (args) => deferred((log) => log.readBefore(args), []),
+  loadSnapshot: (sessionId) => deferred((log) => log.loadSnapshot(sessionId), undefined),
+  saveSnapshot: (args) => deferred((log) => log.saveSnapshot(args), undefined),
+  deleteSession: (sessionId) => deferred((log) => log.deleteSession(sessionId), undefined),
+  listSessions: () => deferred((log) => log.listSessions(), []),
+  clear: () => deferred((log) => log.clear(), undefined),
+})
+
+export const clearSessionLog = async (): Promise<void> => {
+  const held = opened
+  await held?.drain().catch(() => undefined)
+  await held?.clear().catch(() => undefined)
+  held?.stop()
+  opened = undefined
+  opening = undefined
 }

@@ -10,7 +10,7 @@ import {
 } from '@dltech/atlas-core'
 import { EStreamBlockKind, type StreamServerMessage } from '@dltech/atlas-protocol'
 
-import { memorySessionCache } from '../session-cache'
+import { memorySessionLog } from '../session-log'
 import { createSessionFollower } from '../session-follower'
 import { createFakeScheduler, eventsMessage, headOf, mintEvents, userSaid } from './support'
 
@@ -49,7 +49,7 @@ const view = (at: number): StreamServerMessage => ({
 const setup = () => {
   const follower = createSessionFollower({
     sessionId: 'session-1',
-    cache: memorySessionCache(),
+    log: memorySessionLog(),
     scheduler: createFakeScheduler().scheduler,
     onResnap: () => undefined,
   })

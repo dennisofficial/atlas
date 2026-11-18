@@ -50,7 +50,7 @@ export const deleteInboxEntryIn = async (params: {
   inboxId: number
 }): Promise<boolean> => {
   const changed = await params.tx.orm.v2.V2InboxEntry.where((e) =>
-    and(e.sessionId.eq(params.sessionId), e.inboxId.eq(params.inboxId), e.consumedSeq.isNull()),
+    and(e.sessionId.eq(params.sessionId), e.inboxId.eq(params.inboxId)),
   ).deleteAndCount()
   return changed === 1
 }
@@ -71,6 +71,18 @@ export const readInboxEntriesIn = async (params: {
     ),
   )
     .orderBy((e) => e.inboxId.asc())
+    .limit(params.limit)
+    .all()
+  return rows.map(toInbox)
+}
+
+export const recentInboxEntriesIn = async (params: {
+  tx: Tx
+  sessionId: string
+  limit: number
+}): Promise<InboxEntry[]> => {
+  const rows = await params.tx.orm.v2.V2InboxEntry.where((e) => e.sessionId.eq(params.sessionId))
+    .orderBy((e) => e.inboxId.desc())
     .limit(params.limit)
     .all()
   return rows.map(toInbox)

@@ -6,6 +6,7 @@ import { CirclePauseIcon } from 'lucide-react'
 import { isWaiting, type BackgroundWork } from '@dltech/atlas-client/crew'
 import { SandboxBoot } from '@dltech/atlas-ui/ai/sandbox-boot'
 import { Chat, ChatItem } from '@dltech/atlas-ui/ai/chat'
+import type { QueuedMessageEntry } from '@dltech/atlas-ui/ai/queued-messages'
 import { RunFailedMarker } from '@dltech/atlas-ui/ai/run-failed-marker'
 import { Trace, TraceIcon, TraceLine, TraceTitle } from '@dltech/atlas-ui/components/trace'
 import type { PodStatus } from '@dltech/atlas-wire/web'
@@ -25,6 +26,7 @@ import { useThreadPanel } from './panel/thread-panel-context'
 import { sandboxBootPropsOf } from './sandbox-boot-props'
 import { BackgroundWaitLine } from './transcript/background-wait-line'
 import { RunFailureCard, type RunFailureCardProps } from './transcript/run-failure-card'
+import { StagedTurn } from './transcript/staged-turn'
 import {
   TurnView,
   type TranscriptRewind,
@@ -84,6 +86,8 @@ export function ThreadTranscript({
   rewind,
   summarise,
   boot: sessionBoot,
+  staged,
+  onLoadOlder,
 }: {
   items: readonly TranscriptRow[]
   failureCard: RunFailureCardProps | null
@@ -96,6 +100,8 @@ export function ThreadTranscript({
   rewind: TranscriptRewind | null
   summarise: TranscriptSummarise | null
   boot?: BootView | null
+  staged?: readonly QueuedMessageEntry[]
+  onLoadOlder?: () => Promise<number>
 }) {
   const { user } = useSessionUser()
   const now = useNow(working || anySpawnRunning(items))
@@ -117,7 +123,7 @@ export function ThreadTranscript({
       .map((entry) => <BootEntryItem key={entry.id} entry={entry} onRetry={onRetryBoot} />)
   const lastUserTurnId = turns.findLast((turn) => turn.kind === ETurnKind.User)?.id ?? null
   return (
-    <Chat jumpKey={lastUserTurnId}>
+    <Chat jumpKey={lastUserTurnId} {...(onLoadOlder === undefined ? {} : { onLoadOlder })}>
       {sessionBoot === undefined || sessionBoot === null ? null : (
         <ChatItem id="session-boot">
           <TickingSandboxBoot view={sessionBoot} />
@@ -150,6 +156,11 @@ export function ThreadTranscript({
           <BackgroundWaitLine work={background} settledAt={settledAt} />
         </ChatItem>
       )}
+      {(staged ?? []).map((entry) => (
+        <ChatItem key={entry.id} id={entry.id}>
+          <StagedTurn entry={entry} author={userName} />
+        </ChatItem>
+      ))}
     </Chat>
   )
 }

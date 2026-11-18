@@ -2,11 +2,7 @@ export const FOLLOW_HIGH_WATER_BYTES = 1_048_576
 
 export const FOLLOW_PAGE_BYTES = 1_048_576
 
-export const FOLLOW_TAIL_BYTES = 1_048_576
-
 export const FOLLOW_SLOW_CONSUMER_MS = 30_000
-
-export const FOLLOW_MAX_RESUME_BEHIND = 1_500
 
 export const FOLLOW_MAX_SUBSCRIBES_PER_WINDOW = 20
 

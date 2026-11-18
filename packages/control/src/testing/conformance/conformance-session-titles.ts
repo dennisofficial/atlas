@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
 
+import { chainEvents, toRunId, toThreadId } from '@dltech/atlas-core'
+
 import { ControlPlane } from '../../control-plane'
 import type { ConformanceParams } from './conformance'
-import { createSessionParams, SESSION, T0, THREAD, USER } from './support'
+import { createSessionParams, HOLDER_HOST, SESSION, T0, THREAD, USER } from './support'
 
 const LATER = '2026-11-02T12:00:05.000Z'
 
@@ -70,7 +72,50 @@ export function describeControlPlaneSessionTitles(params: ConformanceParams): vo
 
     const titleNow = async () => (await plane.readSession({ sessionId: SESSION }))?.title
 
-    it('clears a title when the message it came from is taken back, announcing it', async () => {
+    const logWithdrawn = async (args: {
+      sessionId: string
+      threadId: string
+      inboxId: number
+      requestInboxId: number
+    }): Promise<void> => {
+      const lease = await plane.grant({ sessionId: args.sessionId, hostId: HOLDER_HOST })
+      const outcome = await plane.append({
+        threadId: args.threadId,
+        epoch: lease.epoch,
+        events: chainEvents({
+          threadId: toThreadId(args.threadId),
+          runId: toRunId('run-1'),
+          epoch: lease.epoch,
+          at: T0,
+          bodies: [
+            {
+              type: 'input-posted',
+              inboxId: args.inboxId,
+              kind: 'message',
+              postedAt: T0,
+              text: 'withdrawn',
+            },
+            { type: 'input-withdrawn', inboxId: args.inboxId, requestInboxId: args.requestInboxId },
+          ],
+          from: await plane.head({ threadId: args.threadId }),
+        }),
+      })
+      if (!outcome.ok) throw new Error('append refused')
+    }
+
+    const withdrawLogged = async (args: {
+      sessionId: string
+      threadId: string
+      inboxId: number
+    }): Promise<void> => {
+      const { requestInboxId } = await plane.withdraw({
+        sessionId: args.sessionId,
+        inboxId: args.inboxId,
+      })
+      await logWithdrawn({ ...args, requestInboxId })
+    }
+
+    it('clears the title when the holder logs the withdraw of the message it came from', async () => {
       const inboxId = await postMessage('fix the build')
       await plane.titleUntitledSession({
         sessionId: SESSION,
@@ -78,9 +123,10 @@ export function describeControlPlaneSessionTitles(params: ConformanceParams): vo
         fromInboxId: inboxId,
       })
 
-      const taken = await changesDuring(() => plane.takeBack({ sessionId: SESSION, inboxId }))
+      const { requestInboxId } = await plane.withdraw({ sessionId: SESSION, inboxId })
+      expect(await titleNow()).toBe('Build Fix')
+      await logWithdrawn({ sessionId: SESSION, threadId: THREAD, inboxId, requestInboxId })
 
-      expect(taken).toEqual({ changes: [{ sessionId: SESSION }], wakes: 0 })
       expect(await titleNow()).toBeNull()
       const again = await postMessage('add dark mode')
       expect(
@@ -93,9 +139,9 @@ export function describeControlPlaneSessionTitles(params: ConformanceParams): vo
       expect(await titleNow()).toBe('Dark Mode')
     })
 
-    it('refuses a title whose message was already taken back', async () => {
+    it('refuses a title whose message the holder already withdrew', async () => {
       const inboxId = await postMessage('fix the build')
-      await plane.takeBack({ sessionId: SESSION, inboxId })
+      await withdrawLogged({ sessionId: SESSION, threadId: THREAD, inboxId })
 
       expect(
         await plane.titleUntitledSession({
@@ -107,7 +153,7 @@ export function describeControlPlaneSessionTitles(params: ConformanceParams): vo
       expect(await titleNow()).toBeNull()
     })
 
-    it('keeps the title when a different message is taken back', async () => {
+    it('keeps the title when a different message is withdrawn', async () => {
       const first = await postMessage('fix the build')
       const second = await postMessage('also the tests')
       await plane.titleUntitledSession({
@@ -116,12 +162,12 @@ export function describeControlPlaneSessionTitles(params: ConformanceParams): vo
         fromInboxId: first,
       })
 
-      expect((await plane.takeBack({ sessionId: SESSION, inboxId: second })).ok).toBe(true)
+      await withdrawLogged({ sessionId: SESSION, threadId: THREAD, inboxId: second })
 
       expect(await titleNow()).toBe('Build Fix')
     })
 
-    it('keeps a title given at creation when a message is taken back', async () => {
+    it('keeps a title given at creation when a message is withdrawn', async () => {
       await plane.createSession(
         createSessionParams({
           sessionId: 'titled',
@@ -135,7 +181,7 @@ export function describeControlPlaneSessionTitles(params: ConformanceParams): vo
         payload: '{"text":"hi"}',
       })
 
-      expect((await plane.takeBack({ sessionId: 'titled', inboxId })).ok).toBe(true)
+      await withdrawLogged({ sessionId: 'titled', threadId: 't-titled', inboxId })
 
       expect((await plane.readSession({ sessionId: 'titled' }))?.title).toBe('Kept')
     })
@@ -152,11 +198,11 @@ export function describeControlPlaneSessionTitles(params: ConformanceParams): vo
       )
     })
 
-    it('keeps a chosen name when the message that auto-named it is taken back', async () => {
+    it('keeps a chosen name when the message that auto-named it is withdrawn', async () => {
       const inboxId = await postMessage('fix the build')
       await plane.titleUntitledSession({ sessionId: SESSION, title: 'Auto', fromInboxId: inboxId })
       await plane.renameSession({ sessionId: SESSION, title: 'Mine' })
-      await plane.takeBack({ sessionId: SESSION, inboxId })
+      await withdrawLogged({ sessionId: SESSION, threadId: THREAD, inboxId })
       expect(await titleNow()).toBe('Mine')
     })
 

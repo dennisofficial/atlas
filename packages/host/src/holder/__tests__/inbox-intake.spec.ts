@@ -1,115 +1,133 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EMessageOrigin, toRunId, toThreadId, type InboxEntry } from '@dltech/atlas-core'
-import { composeCommands } from '@dltech/atlas-commands'
+import {
+  composeCommands,
+  defineCommand,
+  type CommandHandler,
+  type CommandRegistry,
+} from '@dltech/atlas-commands'
 import type { ControlPlane } from '@dltech/atlas-control'
+import {
+  ECommandGroup,
+  ECommandTiming,
+  EInputConsumed,
+  EMessageOrigin,
+  initialLoopState,
+  toRunId,
+  toThreadId,
+  type EventDraft,
+  type InboxEntry,
+} from '@dltech/atlas-core'
+import { z } from 'zod'
 
+import type { CommandHandlers } from '../command-intake'
 import { InboxIntake } from '../inbox-intake'
-import type { SessionRecord } from '../record/record-adapter'
+import type { AppendBody, SessionRecord } from '../record/record-adapter'
+import { eventsOf } from './operator-answer-rig'
 
 const NOW = Date.parse('2026-11-08T12:00:00.000Z')
 const HOUR_MS = 60 * 60 * 1000
 
-const entry = (inboxId: number): InboxEntry => ({
+const entry = (inboxId: number, payload?: unknown, kind = 'message'): InboxEntry => ({
   sessionId: 'session-1',
   inboxId,
-  kind: 'message',
-  payload: JSON.stringify({ text: `m${inboxId}` }),
+  kind,
+  payload: JSON.stringify(payload ?? { text: `m${inboxId}` }),
   postedAt: new Date(NOW).toISOString(),
   consumedSeq: null,
   senderSessionId: null,
 })
 
-const intakeOver = (
-  readInbox: (args: { afterId: number }) => Promise<InboxEntry[]>,
-  record: SessionRecord = {} as SessionRecord,
-) =>
-  new InboxIntake({
-    plane: { readInbox } as unknown as ControlPlane,
+const withdrawOf = (inboxId: number, targetInboxId: number): InboxEntry =>
+  entry(inboxId, { targetInboxId }, 'withdraw')
+
+type RigOptions = {
+  commands?: boolean
+  registry?: CommandRegistry
+  handlers?: CommandHandlers
+  now?: number
+  source?: (args: { afterId: number; limit: number }) => Promise<InboxEntry[]>
+}
+
+const rigOf = (entries: readonly InboxEntry[], options: RigOptions = {}) => {
+  const appended: AppendBody[] = []
+  const appends: AppendBody[][] = []
+  const logged = new Set<number>()
+  const warnings: string[] = []
+  const infos: string[] = []
+  const record = {
+    append: async ({ drafts }: { drafts: readonly AppendBody[] }) => {
+      appends.push([...drafts])
+      appended.push(...drafts)
+      for (const draft of drafts) {
+        if (draft.type === 'input-posted') logged.add(draft.inboxId)
+      }
+    },
+    eventCache: () => ({
+      eventsAfter: () => eventsOf(appended as unknown as EventDraft[]),
+    }),
+    loopState: async () => initialLoopState(),
+  } as unknown as SessionRecord
+  const source =
+    options.source ??
+    (async ({ afterId, limit }: { afterId: number; limit: number }) =>
+      entries.filter((kept) => kept.inboxId > afterId && !logged.has(kept.inboxId)).slice(0, limit))
+  const intake = new InboxIntake({
+    plane: {
+      readInbox: source,
+      readInboxEntry: async ({ inboxId }: { inboxId: number }) =>
+        entries.find((kept) => kept.inboxId === inboxId),
+    } as unknown as ControlPlane,
     sessionId: 'session-1',
     record,
     threadId: toThreadId('thread-1'),
     runId: () => toRunId('run-1'),
+    ...(options.registry === undefined ? {} : { commands: options.registry }),
+    ...(options.commands === true ? { commands: composeCommands([]) } : {}),
+    ...(options.handlers === undefined ? {} : { handlers: options.handlers }),
+    now: () => options.now ?? NOW,
+    log: {
+      warn: (line: { message: string }) => warnings.push(line.message),
+      info: (line: { message: string }) => infos.push(line.message),
+      error: () => {},
+    } as never,
   })
+  return { intake, appended, appends, warnings, infos }
+}
 
-describe('InboxIntake retry entries', () => {
-  it('consumes a retry as discarded, drafts nothing and does not wake a turn', async () => {
-    const appended: unknown[] = []
-    const warnings: string[] = []
-    const record = {
-      append: async (args: unknown) => appended.push(args),
-    } as unknown as SessionRecord
-    const intake = new InboxIntake({
-      plane: {
-        readInbox: async () => [{ ...entry(3), kind: 'retry', payload: '{}' }],
-      } as unknown as ControlPlane,
-      sessionId: 'session-1',
-      record,
-      threadId: toThreadId('thread-1'),
-      runId: () => toRunId('run-1'),
-      log: { warn: (line: { message: string }) => warnings.push(line.message) } as never,
-    })
-    const drain = await intake.prepare()
-    expect(drain).toEqual({ drafts: [], wakesTurn: false })
-    expect(appended).toMatchObject([
-      { drafts: [{ type: 'input-consumed', inboxId: 3, consumed: 'discarded' }] },
-    ])
-    expect(warnings).toEqual([])
-  })
-
-  it('still drafts the message that arrived alongside the retry', async () => {
-    const record = { append: async () => [] } as unknown as SessionRecord
-    const drain = await intakeOver(
-      async () => [{ ...entry(1), kind: 'retry', payload: '{}' }, entry(2)],
-      record,
-    ).prepare()
-    expect(drain.drafts).toHaveLength(1)
-    expect(drain.wakesTurn).toBe(true)
-  })
+const posted = (inboxId: number, extra: Record<string, unknown> = {}): AppendBody => ({
+  type: 'input-posted',
+  inboxId,
+  kind: 'message',
+  postedAt: new Date(NOW).toISOString(),
+  ...extra,
 })
 
-describe('InboxIntake', () => {
-  it('rejects when the inbox read fails instead of draining nothing', async () => {
-    const intake = intakeOver(async () => {
-      throw new Error('inbox read blew up')
-    })
-    await expect(intake.prepare()).rejects.toThrow('inbox read blew up')
+const said = (inboxId: number, extra: Record<string, unknown> = {}): AppendBody => ({
+  type: 'user-said',
+  text: `m${inboxId}`,
+  requestId: `inbox:${inboxId}`,
+  inboxId,
+  ...extra,
+})
+
+describe('InboxIntake idle send', () => {
+  it('posts and says a message in one append', async () => {
+    const rig = rigOf([entry(1)])
+    const drain = await rig.intake.prepare()
+    expect(drain).toEqual({ drafts: [], wakesTurn: true })
+    expect(rig.appends).toEqual([[posted(1, { text: 'm1' }), said(1)]])
   })
 
-  it('drains the message on the retry after a failed read', async () => {
-    let calls = 0
-    const intake = intakeOver(async () => {
-      calls += 1
-      if (calls === 1) throw new Error('blip')
-      return [entry(1)]
-    })
-    await expect(intake.prepare()).rejects.toThrow('blip')
-    const drain = await intake.prepare()
-    expect(drain.wakesTurn).toBe(true)
-    expect(drain.drafts).toHaveLength(1)
-  })
-
-  it('tags each drafted message with its inbox id', async () => {
-    const drain = await intakeOver(async () => [entry(4)]).prepare()
-    expect(drain.drafts).toEqual([
-      { type: 'user-said', text: 'm4', requestId: 'inbox:4', inboxId: 4 },
+  it('carries the clientId on both events', async () => {
+    const rig = rigOf([entry(2, { text: 'm2', clientId: 'c2' })])
+    await rig.intake.prepare()
+    expect(rig.appends).toEqual([
+      [posted(2, { text: 'm2', clientId: 'c2' }), said(2, { clientId: 'c2' })],
     ])
   })
 
-  it('offers an entry again on the next prepare when its append never consumed it', async () => {
-    const afterIds: number[] = []
-    const intake = intakeOver(async ({ afterId }) => {
-      afterIds.push(afterId)
-      return [entry(1), entry(2)]
-    })
-    const first = await intake.prepare()
-    const second = await intake.prepare()
-    expect(afterIds).toEqual([0, 0])
-    expect(second.drafts).toEqual(first.drafts)
-    expect(second.drafts).toHaveLength(2)
-  })
-
-  it('drafts a message that carries stored images with its media', async () => {
+  it('carries stored images as attachments', async () => {
     const media = [
       {
         media: {
@@ -122,82 +140,27 @@ describe('InboxIntake', () => {
         source: 'shot.png',
       },
     ]
-    const withMedia = {
-      ...entry(5),
-      payload: JSON.stringify({ text: '', media }),
-    } as InboxEntry
-    const drain = await intakeOver(async () => [withMedia]).prepare()
-    expect(drain.wakesTurn).toBe(true)
-    expect(drain.drafts).toEqual([
-      {
-        type: 'user-said',
-        text: '',
-        attachments: [
-          {
-            id: `media:0:${'a'.repeat(64)}`,
-            name: 'shot.png',
-            mediaType: 'image/png',
-            size: 10,
-            source: 'shot.png',
-            content: { store: 'media', hash: 'a'.repeat(64) },
-            image: { width: 2, height: 3 },
-          },
-        ],
-        requestId: 'inbox:5',
-        inboxId: 5,
-      },
-    ])
-  })
-
-  it('drafts an entry carrying a sender session id as a peer agent', async () => {
-    const fromSession = { ...entry(9), senderSessionId: 'ses_2' }
-    const drain = await intakeOver(async () => [fromSession]).prepare()
-    expect(drain.drafts).toEqual([
-      {
-        type: 'user-said',
-        text: 'm9',
-        sender: { session: 'ses_2' },
-        via: EMessageOrigin.PeerAgent,
-        requestId: 'inbox:9',
-        inboxId: 9,
-      },
-    ])
-  })
-
-  it('drafts an entry carrying an origin in its payload as that origin', async () => {
-    const fromChild = { ...entry(11), payload: JSON.stringify({ text: 'm11', via: 'child-agent' }) }
-    const drain = await intakeOver(async () => [fromChild]).prepare()
-    expect(drain.drafts).toEqual([
-      {
-        type: 'user-said',
-        text: 'm11',
-        via: EMessageOrigin.ChildAgent,
-        requestId: 'inbox:11',
-        inboxId: 11,
-      },
-    ])
-  })
-
-  it('leaves the draft unchanged when no sender session id rides on the entry', async () => {
-    const drain = await intakeOver(async () => [entry(10)]).prepare()
-    expect(drain.drafts).toEqual([
-      { type: 'user-said', text: 'm10', requestId: 'inbox:10', inboxId: 10 },
-    ])
-  })
-
-  it('drops a message whose payload carries the sender inside it', async () => {
-    const misplaced = {
-      ...entry(11),
-      payload: JSON.stringify({ text: 'a steer', sender: { session: 'ses_2' } }),
+    const rig = rigOf([entry(5, { text: '', media })])
+    const drain = await rig.intake.prepare()
+    const attachment = {
+      id: `media:0:${'a'.repeat(64)}`,
+      name: 'shot.png',
+      mediaType: 'image/png',
+      size: 10,
+      source: 'shot.png',
+      content: { store: 'media', hash: 'a'.repeat(64) },
+      image: { width: 2, height: 3 },
     }
-    const drain = await intakeOver(async () => [misplaced], {
-      append: async () => [],
-    } as unknown as SessionRecord).prepare()
-    expect(drain.drafts).toEqual([])
-    expect(drain.wakesTurn).toBe(false)
+    expect(drain.wakesTurn).toBe(true)
+    expect(rig.appends).toEqual([
+      [
+        posted(5, { text: '', attachments: [attachment] }),
+        said(5, { text: '', attachments: [attachment] }),
+      ],
+    ])
   })
 
-  it('drafts a message that carries uploads', async () => {
+  it('carries uploads as attachments', async () => {
     const uploads = [
       {
         uploadId: '11111111-1111-4111-8111-111111111111',
@@ -207,153 +170,347 @@ describe('InboxIntake', () => {
         mediaType: 'text/plain',
       },
     ]
-    const withUploads = {
-      ...entry(6),
-      payload: JSON.stringify({ text: 'see file', uploads }),
-    } as InboxEntry
-    const drain = await intakeOver(async () => [withUploads]).prepare()
-    expect(drain.wakesTurn).toBe(true)
-    expect(drain.drafts).toEqual([
-      {
-        type: 'user-said',
-        text: 'see file',
-        attachments: [
-          {
-            id: uploads[0]!.uploadId,
-            name: 'notes.txt',
-            mediaType: 'text/plain',
-            size: 7,
-            content: {
-              store: 'upload',
-              uploadId: uploads[0]!.uploadId,
-              pathname: uploads[0]!.pathname,
-            },
-          },
-        ],
-        requestId: 'inbox:6',
-        inboxId: 6,
+    const rig = rigOf([entry(6, { text: 'see file', uploads })])
+    await rig.intake.prepare()
+    const attachment = {
+      id: uploads[0]!.uploadId,
+      name: 'notes.txt',
+      mediaType: 'text/plain',
+      size: 7,
+      content: {
+        store: 'upload' as const,
+        uploadId: uploads[0]!.uploadId,
+        pathname: uploads[0]!.pathname,
       },
+    }
+    expect(rig.appends).toEqual([
+      [
+        posted(6, { text: 'see file', attachments: [attachment] }),
+        said(6, { text: 'see file', attachments: [attachment] }),
+      ],
+    ])
+  })
+
+  it('marks a peer session message as a peer agent', async () => {
+    const rig = rigOf([{ ...entry(9), senderSessionId: 'ses_2' }])
+    await rig.intake.prepare()
+    expect(rig.appends).toEqual([
+      [
+        posted(9, { text: 'm9' }),
+        said(9, { sender: { session: 'ses_2' }, via: EMessageOrigin.PeerAgent }),
+      ],
+    ])
+  })
+
+  it('marks an origin in the payload as that origin', async () => {
+    const rig = rigOf([entry(11, { text: 'm11', via: 'child-agent' })])
+    await rig.intake.prepare()
+    expect(rig.appends).toEqual([
+      [
+        posted(11, { text: 'm11', via: EMessageOrigin.ChildAgent }),
+        said(11, { text: 'm11', via: EMessageOrigin.ChildAgent }),
+      ],
+    ])
+  })
+
+  it('refuses an unreadable message and hands back its text, clientId and attachments', async () => {
+    const attachment = {
+      id: 'a1',
+      name: 'notes.txt',
+      mediaType: 'text/plain',
+      size: 7,
+      content: {
+        store: 'upload' as const,
+        uploadId: '11111111-1111-4111-8111-111111111111',
+        pathname: 'composer-uploads/notes.txt',
+      },
+    }
+    const misplaced = entry(12, {
+      text: 'a steer',
+      clientId: 'c12',
+      attachments: [attachment],
+      sender: { session: 'ses_2' },
+    })
+    const rig = rigOf([misplaced])
+    const drain = await rig.intake.prepare()
+    expect(drain.wakesTurn).toBe(false)
+    expect(rig.appends).toEqual([
+      [
+        {
+          type: 'input-refused',
+          inboxId: 12,
+          reason: 'unreadable message',
+          text: 'a steer',
+          clientId: 'c12',
+          attachments: [attachment],
+        },
+      ],
     ])
   })
 })
 
-describe('InboxIntake unresolvable commands', () => {
-  const ghost = (overrides: Partial<InboxEntry> = {}): InboxEntry => ({
-    ...entry(7),
-    kind: 'command:ghost',
-    payload: '{}',
-    ...overrides,
+const ping = defineCommand({
+  spec: {
+    name: 'ping',
+    summary: 'records a fact',
+    group: ECommandGroup.Session,
+    args: z.strictObject({ word: z.string() }),
+    timing: ECommandTiming.Settled,
+    handledIn: 'pod',
+  },
+})
+
+const pingHandler: CommandHandler<unknown> = async () => ({ kind: 'done' })
+
+describe('InboxIntake logStaged', () => {
+  it('logs a posted message and a resolvable command but no user-said', async () => {
+    const rig = rigOf(
+      [
+        entry(1),
+        entry(2, { word: 'x' }, 'command:ping'),
+        entry(3, {}, 'retry'),
+        entry(4, {}, 'stop'),
+      ],
+      {
+        registry: composeCommands([ping]),
+        handlers: new Map([[ping.inboxKind, pingHandler]]),
+      },
+    )
+    await rig.intake.logStaged()
+    expect(rig.appends).toEqual([[posted(1, { text: 'm1' }), posted(2, { kind: 'command:ping' })]])
   })
 
-  const run = async (params: { entry: InboxEntry; commands: boolean; now?: number }) => {
-    const appended: unknown[] = []
-    const warnings: string[] = []
-    const infos: string[] = []
-    const intake = new InboxIntake({
-      plane: { readInbox: async () => [params.entry] } as unknown as ControlPlane,
-      sessionId: 'session-1',
-      record: { append: async (args: unknown) => appended.push(args) } as unknown as SessionRecord,
-      threadId: toThreadId('thread-1'),
-      runId: () => toRunId('run-1'),
-      ...(params.commands ? { commands: composeCommands([]) } : {}),
-      now: () => params.now ?? NOW,
-      log: {
-        warn: (line: { message: string }) => warnings.push(line.message),
-        info: (line: { message: string }) => infos.push(line.message),
-      } as never,
+  const unresolvable = [
+    { label: 'no registry', options: {} as RigOptions },
+    { label: 'a registry without the kind', options: { registry: composeCommands([ping]) } },
+    {
+      label: 'a registry without a handler',
+      options: { registry: composeCommands([ping]), handlers: new Map() },
+    },
+  ]
+
+  for (const { label, options } of unresolvable) {
+    it(`leaves a command it cannot resolve staged with ${label}`, async () => {
+      const rig = rigOf([entry(7, {}, 'command:ghost'), entry(8, {}, 'command:ping')], options)
+      await rig.intake.logStaged()
+      expect(rig.appends).toEqual([])
+      expect(
+        rig.appended.some((draft) => draft.type === 'input-posted' && draft.inboxId === 7),
+      ).toBe(false)
     })
-    const drain = await intake.prepare()
-    return { drain, appended, warnings, infos }
   }
 
+  it('leaves an over-age unresolvable command for the prepare that discards it', async () => {
+    const old = {
+      ...entry(7, {}, 'command:ghost'),
+      postedAt: new Date(NOW - 2 * HOUR_MS).toISOString(),
+    }
+    const rig = rigOf([old], { commands: true })
+    await rig.intake.logStaged()
+    expect(rig.appends).toEqual([])
+    await rig.intake.prepare()
+    expect(rig.appends).toEqual([
+      [{ type: 'input-consumed', inboxId: 7, consumed: EInputConsumed.Discarded }],
+    ])
+  })
+
+  it('posts and withdraws a still-staged target in one append', async () => {
+    const rig = rigOf([entry(1), withdrawOf(2, 1)])
+    await rig.intake.logStaged()
+    expect(rig.appends).toEqual([
+      [posted(1, { text: 'm1' }), { type: 'input-withdrawn', inboxId: 1, requestInboxId: 2 }],
+    ])
+  })
+
+  it('logs a mid-turn send as input-posted, then says it in a separate commit at the drain', async () => {
+    const rig = rigOf([entry(1)])
+    await rig.intake.logStaged()
+    expect(rig.appends).toEqual([[posted(1, { text: 'm1' })]])
+    const drain = await rig.intake.prepare()
+    expect(rig.appends).toEqual([[posted(1, { text: 'm1' })], [said(1)]])
+    expect(drain.wakesTurn).toBe(true)
+  })
+})
+
+describe('InboxIntake withdraw', () => {
+  it('posts and withdraws a still-staged target in one commit, never saying it', async () => {
+    const rig = rigOf([entry(1), withdrawOf(2, 1), entry(3)])
+    const drain = await rig.intake.prepare()
+    expect(rig.appends).toEqual([
+      [posted(1, { text: 'm1' }), { type: 'input-withdrawn', inboxId: 1, requestInboxId: 2 }],
+      [posted(3, { text: 'm3' }), said(3)],
+    ])
+    expect(drain.wakesTurn).toBe(true)
+  })
+
+  it('wakes no turn for a withdraw of the only staged message', async () => {
+    const rig = rigOf([entry(1), withdrawOf(2, 1)])
+    const drain = await rig.intake.prepare()
+    expect(drain).toEqual({ drafts: [], wakesTurn: false })
+    expect(rig.appended.some((draft) => draft.type === 'user-said')).toBe(false)
+  })
+
+  it('withdraws a target that is posted but not said', async () => {
+    const rig = rigOf([withdrawOf(2, 1)])
+    rig.appended.push(posted(1))
+    await rig.intake.prepare()
+    expect(rig.appends).toEqual([[{ type: 'input-withdrawn', inboxId: 1, requestInboxId: 2 }]])
+  })
+
+  it('refuses a withdraw of a message that already went to the thread', async () => {
+    const rig = rigOf([withdrawOf(2, 1)])
+    rig.appended.push(posted(1), said(1))
+    await rig.intake.prepare()
+    expect(rig.appends).toEqual([
+      [
+        {
+          type: 'input-refused',
+          inboxId: 2,
+          targetInboxId: 1,
+          reason: 'already-sent',
+        },
+      ],
+    ])
+  })
+
+  it('refuses an unreadable withdraw payload', async () => {
+    const rig = rigOf([{ ...entry(2), kind: 'withdraw', payload: 'nope' }])
+    await rig.intake.prepare()
+    expect(rig.appends).toEqual([
+      [{ type: 'input-refused', inboxId: 2, reason: 'unreadable withdraw' }],
+    ])
+  })
+})
+
+describe('InboxIntake retry and unknown entries', () => {
+  it('consumes a retry as discarded, drafts nothing and does not wake a turn', async () => {
+    const rig = rigOf([entry(3, {}, 'retry')])
+    const drain = await rig.intake.prepare()
+    expect(drain).toEqual({ drafts: [], wakesTurn: false })
+    expect(rig.appends).toEqual([
+      [{ type: 'input-consumed', inboxId: 3, consumed: EInputConsumed.Discarded }],
+    ])
+    expect(rig.warnings).toEqual([])
+  })
+
+  it('still says the message that arrived alongside the retry', async () => {
+    const rig = rigOf([entry(1, {}, 'retry'), entry(2)])
+    const drain = await rig.intake.prepare()
+    expect(drain.wakesTurn).toBe(true)
+    expect(rig.appends.at(-1)).toEqual([posted(2, { text: 'm2' }), said(2)])
+  })
+
+  it('rejects when the inbox read fails instead of draining nothing', async () => {
+    const intake = rigOf([], {
+      source: async () => {
+        throw new Error('inbox read blew up')
+      },
+    }).intake
+    await expect(intake.prepare()).rejects.toThrow('inbox read blew up')
+  })
+
+  it('says the message on the retry after a failed read', async () => {
+    let calls = 0
+    const rig = rigOf([entry(1)], {
+      source: async () => {
+        calls += 1
+        if (calls === 1) throw new Error('blip')
+        return [entry(1)]
+      },
+    })
+    await expect(rig.intake.prepare()).rejects.toThrow('blip')
+    expect((await rig.intake.prepare()).wakesTurn).toBe(true)
+    expect(rig.appends).toEqual([[posted(1, { text: 'm1' }), said(1)]])
+  })
+
+  it('consumes a non-command unknown kind as discarded immediately', async () => {
+    const rig = rigOf([entry(8, {}, 'mystery')], { commands: true })
+    const drain = await rig.intake.prepare()
+    expect(drain).toEqual({ drafts: [], wakesTurn: false })
+    expect(rig.appends).toEqual([
+      [{ type: 'input-consumed', inboxId: 8, consumed: EInputConsumed.Discarded }],
+    ])
+    expect(rig.warnings).toHaveLength(1)
+  })
+})
+
+describe('InboxIntake unresolvable commands', () => {
   for (const commands of [true, false]) {
     const label = commands ? 'a registry without the kind' : 'no registry'
+    const ghost = (overrides: Partial<InboxEntry> = {}): InboxEntry => ({
+      ...entry(7, {}, 'command:ghost'),
+      ...overrides,
+    })
 
-    it(`leaves a young command in the inbox with ${label}`, async () => {
-      const { drain, appended, warnings, infos } = await run({ entry: ghost(), commands })
+    it(`leaves a young command with ${label}`, async () => {
+      const rig = rigOf([ghost()], { commands })
+      const drain = await rig.intake.prepare()
       expect(drain).toEqual({ drafts: [], wakesTurn: false })
-      expect(appended).toEqual([])
-      expect(warnings).toEqual([])
-      expect(infos).toHaveLength(1)
+      expect(rig.appends).toEqual([])
+      expect(rig.warnings).toEqual([])
+      expect(rig.infos).toHaveLength(1)
     })
 
     it(`discards a command older than an hour with ${label}`, async () => {
-      const { drain, appended, warnings } = await run({
-        entry: ghost({ postedAt: new Date(NOW - 2 * HOUR_MS).toISOString() }),
+      const rig = rigOf([ghost({ postedAt: new Date(NOW - 2 * HOUR_MS).toISOString() })], {
         commands,
       })
-      expect(drain).toEqual({ drafts: [], wakesTurn: false })
-      expect(appended).toMatchObject([
-        { drafts: [{ type: 'input-consumed', inboxId: 7, consumed: 'discarded' }] },
+      await rig.intake.prepare()
+      expect(rig.appends).toEqual([
+        [{ type: 'input-consumed', inboxId: 7, consumed: EInputConsumed.Discarded }],
       ])
-      expect(warnings).toHaveLength(1)
+      expect(rig.warnings).toHaveLength(1)
     })
   }
 
   it('keeps a command exactly at the age bound and discards it just past', async () => {
-    const at = (age: number) => ghost({ postedAt: new Date(NOW - age).toISOString() })
-    expect((await run({ entry: at(HOUR_MS), commands: true })).appended).toEqual([])
-    expect((await run({ entry: at(HOUR_MS + 1), commands: true })).appended).toHaveLength(1)
+    const at = (age: number) => ({
+      ...entry(7, {}, 'command:ghost'),
+      postedAt: new Date(NOW - age).toISOString(),
+    })
+    expect((await rigOf([at(HOUR_MS)], { commands: true }).intake.prepare()).wakesTurn).toBe(false)
+    const past = rigOf([at(HOUR_MS + 1)], { commands: true })
+    await past.intake.prepare()
+    expect(past.appends).toHaveLength(1)
   })
 
   it('discards a command whose postedAt does not parse', async () => {
-    const { appended } = await run({ entry: ghost({ postedAt: 'not a date' }), commands: true })
-    expect(appended).toHaveLength(1)
+    const rig = rigOf([{ ...entry(7, {}, 'command:ghost'), postedAt: 'not a date' }], {
+      commands: true,
+    })
+    await rig.intake.prepare()
+    expect(rig.appends).toHaveLength(1)
   })
 
-  it('still drafts a message that sits behind more than one page of left commands', async () => {
-    const left = Array.from({ length: 101 }, (_, index) => ghost({ inboxId: index + 1 }))
+  it('still says a message behind more than one page of left commands', async () => {
+    const left = Array.from({ length: 101 }, (_, index) => ({
+      ...entry(index + 1, {}, 'command:ghost'),
+    }))
     const all = [...left, entry(102)]
     const reads: number[] = []
-    const intake = new InboxIntake({
-      plane: {
-        readInbox: async ({ afterId, limit }: { afterId: number; limit: number }) => {
-          reads.push(afterId)
-          return all.filter((candidate) => candidate.inboxId > afterId).slice(0, limit)
-        },
-      } as unknown as ControlPlane,
-      sessionId: 'session-1',
-      record: { append: async () => [] } as unknown as SessionRecord,
-      threadId: toThreadId('thread-1'),
-      runId: () => toRunId('run-1'),
-      now: () => NOW,
+    const rig = rigOf(all, {
+      source: async ({ afterId, limit }) => {
+        reads.push(afterId)
+        return all.filter((candidate) => candidate.inboxId > afterId).slice(0, limit)
+      },
     })
-    const drain = await intake.prepare()
+    const drain = await rig.intake.prepare()
     expect(reads).toEqual([0, 100])
     expect(drain.wakesTurn).toBe(true)
-    expect(drain.drafts).toEqual([
-      { type: 'user-said', text: 'm102', requestId: 'inbox:102', inboxId: 102 },
-    ])
+    expect(rig.appends.at(-1)).toEqual([posted(102, { text: 'm102' }), said(102)])
   })
 
   it('stops reading after ten pages', async () => {
     let reads = 0
-    const intake = new InboxIntake({
-      plane: {
-        readInbox: async ({ afterId }: { afterId: number }) => {
-          reads += 1
-          return Array.from({ length: 100 }, (_, index) => ghost({ inboxId: afterId + index + 1 }))
-        },
-      } as unknown as ControlPlane,
-      sessionId: 'session-1',
-      record: {} as SessionRecord,
-      threadId: toThreadId('thread-1'),
-      runId: () => toRunId('run-1'),
-      now: () => NOW,
+    const rig = rigOf([], {
+      source: async ({ afterId }) => {
+        reads += 1
+        return Array.from({ length: 100 }, (_, index) =>
+          entry(afterId + index + 1, {}, 'command:ghost'),
+        )
+      },
     })
-    await intake.prepare()
+    await rig.intake.prepare()
     expect(reads).toBe(10)
-  })
-
-  it('still consumes a non-command unknown kind as discarded immediately', async () => {
-    const { drain, appended, warnings } = await run({
-      entry: { ...entry(8), kind: 'mystery', payload: '{}' },
-      commands: true,
-    })
-    expect(drain).toEqual({ drafts: [], wakesTurn: false })
-    expect(appended).toMatchObject([
-      { drafts: [{ type: 'input-consumed', inboxId: 8, consumed: 'discarded' }] },
-    ])
-    expect(warnings).toHaveLength(1)
   })
 })

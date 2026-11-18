@@ -48,8 +48,7 @@ export const deleteInboxEntryIn = (params: {
 }): boolean => {
   const list = params.state.inbox.get(params.sessionId) ?? []
   const index = list.findIndex((entry) => entry.inboxId === params.inboxId)
-  const found = list[index]
-  if (found === undefined || found.consumedSeq !== null) return false
+  if (index < 0) return false
   list.splice(index, 1)
   return true
 }
@@ -65,5 +64,16 @@ export const readInboxEntriesIn = (params: {
     .filter((entry) => entry.inboxId > params.afterId && entry.consumedSeq === null)
     .filter((entry) => entry.kind !== params.excludeKind)
     .sort((a, b) => a.inboxId - b.inboxId)
+    .slice(0, params.limit)
+    .map((entry) => ({ ...entry }))
+
+export const recentInboxEntriesIn = (params: {
+  state: State
+  sessionId: string
+  limit: number
+}): InboxEntry[] =>
+  (params.state.inbox.get(params.sessionId) ?? [])
+    .slice()
+    .sort((a, b) => b.inboxId - a.inboxId)
     .slice(0, params.limit)
     .map((entry) => ({ ...entry }))

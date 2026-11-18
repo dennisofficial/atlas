@@ -1,14 +1,45 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EAttachmentStore } from '@dltech/atlas-core'
+import { EAttachmentStore, type PendingInputsState } from '@dltech/atlas-core'
 import { EQueuedAttachmentKind } from '@dltech/atlas-ui/ai/queued-messages'
 
-import { mergeWithdrawnIntoDraft, queuedMediaHashesOf, visibleQueuedOf } from '../queued-messages'
+import {
+  mergeWithdrawnIntoDraft,
+  queuedMediaHashesOf,
+  stagedQueuedOf,
+  visibleQueuedOf,
+} from '../queued-messages'
 
-const queued = [
-  { inboxId: 1, text: 'first', postedAt: '2026-11-06T10:00:00.000Z' },
-  { inboxId: 2, text: 'second', postedAt: '2026-11-06T10:00:01.000Z' },
-]
+type StoredSeed = {
+  id: string
+  name: string
+  mediaType: string
+  size: number
+  content: { store: EAttachmentStore; hash?: string; uploadId?: string; pathname?: string }
+}
+
+type PendingSeed = {
+  inboxId: number
+  text?: string
+  attachments?: readonly StoredSeed[]
+}
+
+const pendingOf = (seeds: readonly PendingSeed[]): PendingInputsState => ({
+  pending: seeds.map((seed) => ({
+    inboxId: seed.inboxId,
+    seq: seed.inboxId,
+    at: '2026-11-18T10:00:00.000Z',
+    kind: 'message',
+    clientId: `client-${seed.inboxId}`,
+    ...(seed.text === undefined ? {} : { text: seed.text }),
+    ...(seed.attachments === undefined ? {} : { attachments: seed.attachments as never }),
+  })),
+})
+
+const pending = pendingOf([
+  { inboxId: 1, text: 'first' },
+  { inboxId: 2, text: 'second' },
+])
 
 describe('mergeWithdrawnIntoDraft', () => {
   it('uses the withdrawn text alone when the draft is blank', () => {
@@ -22,90 +53,45 @@ describe('mergeWithdrawnIntoDraft', () => {
 })
 
 describe('visibleQueuedOf', () => {
-  it('lists queued entries oldest first as composer-dock entries', () => {
-    expect(visibleQueuedOf({ queued })).toEqual([
+  it('lists the folded pending messages oldest first, keyed by inboxId', () => {
+    expect(visibleQueuedOf({ pending })).toEqual([
       { id: '1', text: 'first', attachments: [] },
       { id: '2', text: 'second', attachments: [] },
     ])
   })
 
-  it('renders every entry the server queued, with no client-side hiding', () => {
-    expect(visibleQueuedOf({ queued }).map((entry) => entry.id)).toEqual(['1', '2'])
-  })
-
-  it('shows nothing without a queued field', () => {
-    expect(visibleQueuedOf({ queued: undefined })).toEqual([])
+  it('shows nothing when the fold holds no message', () => {
+    expect(visibleQueuedOf({ pending: { pending: [] } })).toEqual([])
   })
 })
 
-describe('visibleQueuedOf attachments', () => {
-  const hash = 'a'.repeat(64)
-  const withAttachments = [
-    {
-      inboxId: 3,
-      text: 'look',
-      postedAt: '2026-11-06T10:00:02.000Z',
-      media: [
-        {
-          media: {
-            hash,
-            mediaType: 'image/png' as const,
-            size: 10,
-            width: 2,
-            height: 3,
-          },
-          source: 'shot.png',
-        },
-      ],
-      uploads: [
-        {
-          uploadId: '0b6c1f9e-2d4a-4c1b-9f3e-7a2b5c8d1e40',
-          pathname: 'composer-uploads/u/0b6c1f9e-2d4a-4c1b-9f3e-7a2b5c8d1e40/deploy.sh',
-          name: 'deploy.sh',
-          size: 7,
-          mediaType: 'text/x-sh',
-        },
-      ],
-    },
-  ]
-
-  it('shows queued images with their signed preview and files by name', () => {
-    const [entry] = visibleQueuedOf({
-      queued: withAttachments,
-      urls: new Map([[hash, 'https://blob/shot']]),
-    })
-    expect(entry?.attachments).toEqual([
-      {
-        id: `media-0-${hash}`,
-        name: 'shot.png',
-        kind: EQueuedAttachmentKind.Image,
-        size: 10,
-        previewUrl: 'https://blob/shot',
-      },
-      {
-        id: '0b6c1f9e-2d4a-4c1b-9f3e-7a2b5c8d1e40',
-        name: 'deploy.sh',
-        kind: EQueuedAttachmentKind.File,
-        size: 7,
-      },
-    ])
+describe('stagedQueuedOf', () => {
+  it('renders a staged message keyed by its clientId, before any inboxId exists', () => {
+    expect(
+      stagedQueuedOf({
+        staged: [{ clientId: 'client-9', text: 'queued while working', attachments: [] }],
+      }),
+    ).toEqual([{ id: 'client-9', text: 'queued while working', attachments: [] }])
   })
+})
 
-  it('shows the attachments the server stored on the queued message', () => {
-    const picture = 'b'.repeat(64)
-    const queuedWithStored = [
+describe('queued attachments', () => {
+  const picture = 'b'.repeat(64)
+  const storedPicture: StoredSeed = {
+    id: 'att-1',
+    name: 'image.png',
+    mediaType: 'image/png',
+    size: 377,
+    content: { store: EAttachmentStore.Media, hash: picture },
+  }
+
+  it('shows a stored image with its signed preview and a file by name', () => {
+    const withAttachments = pendingOf([
       {
         inboxId: 4,
         text: 'What colour fills this image?',
-        postedAt: '2026-11-06T10:00:03.000Z',
         attachments: [
-          {
-            id: 'att-1',
-            name: 'image.png',
-            mediaType: 'image/png',
-            size: 377,
-            content: { store: EAttachmentStore.Media, hash: picture },
-          },
+          storedPicture,
           {
             id: 'att-2',
             name: 'notes.txt',
@@ -119,11 +105,11 @@ describe('visibleQueuedOf attachments', () => {
           },
         ],
       },
-    ]
+    ])
 
-    expect(queuedMediaHashesOf(queuedWithStored)).toEqual([picture])
+    expect(queuedMediaHashesOf({ pending: withAttachments, staged: [] })).toEqual([picture])
     const [entry] = visibleQueuedOf({
-      queued: queuedWithStored,
+      pending: withAttachments,
       urls: new Map([[picture, 'https://blob/image']]),
     })
     expect(entry?.attachments).toEqual([
@@ -134,17 +120,23 @@ describe('visibleQueuedOf attachments', () => {
         size: 377,
         previewUrl: 'https://blob/image',
       },
-      {
-        id: 'att-2',
-        name: 'notes.txt',
-        kind: EQueuedAttachmentKind.File,
-        size: 12,
-      },
+      { id: 'att-2', name: 'notes.txt', kind: EQueuedAttachmentKind.File, size: 12 },
     ])
   })
 
-  it('lists each queued image hash once', () => {
-    expect(queuedMediaHashesOf([...withAttachments, ...withAttachments])).toEqual([hash])
-    expect(queuedMediaHashesOf(undefined)).toEqual([])
+  it('lists each image hash once across the fold and the staged messages', () => {
+    expect(
+      queuedMediaHashesOf({
+        pending: pendingOf([{ inboxId: 5, text: 'one', attachments: [storedPicture] }]),
+        staged: [
+          {
+            clientId: 'client-5',
+            text: 'the same picture again',
+            attachments: [{ ...storedPicture, id: 'att-4' }],
+          },
+        ],
+      }),
+    ).toEqual([picture])
+    expect(queuedMediaHashesOf({ pending: { pending: [] }, staged: [] })).toEqual([])
   })
 })

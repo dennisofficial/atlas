@@ -22,7 +22,7 @@ const fullLog = async (rig: Awaited<ReturnType<typeof makeRig>>) => {
 }
 
 describe('SessionHolder turn', () => {
-  it('post -> claim -> input-consumed + user-said in one append, then assistant-said', async () => {
+  it('post -> claim -> input-posted + user-said in one append, then assistant-said', async () => {
     const rig = await makeRig({ script: [{ text: 'hello back' }] })
     await seedSession(rig)
     const appends: { type: string }[][] = []
@@ -41,15 +41,15 @@ describe('SessionHolder turn', () => {
 
     expect(appends.length).toBe(3)
     expect(appends[0]?.map((event) => event.type)).toEqual(['workspace-prepared'])
-    expect(appends[1]?.map((event) => event.type)).toEqual(['input-consumed', 'user-said'])
+    expect(appends[1]?.map((event) => event.type)).toEqual(['input-posted', 'user-said'])
     expect(appends[2]?.map((event) => event.type)).toEqual(['assistant-said'])
 
     const log = (await fullLog(rig)).filter((event) => event.type !== 'workspace-prepared')
     const types = log.map((event) => event.type)
-    expect(types.slice(0, 2)).toEqual(['input-consumed', 'user-said'])
-    const consumed = log[0]
-    if (consumed?.type !== 'input-consumed') throw new Error('expected input-consumed')
-    expect(consumed.inboxId).toBe(posted.inboxId)
+    expect(types.slice(0, 2)).toEqual(['input-posted', 'user-said'])
+    const postedEvent = log[0]
+    if (postedEvent?.type !== 'input-posted') throw new Error('expected input-posted')
+    expect(postedEvent.inboxId).toBe(posted.inboxId)
     const said = log[1]
     if (said?.type !== 'user-said') throw new Error('expected user-said')
     expect(said.requestId).toBe(`inbox:${posted.inboxId}`)

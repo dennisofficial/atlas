@@ -1,17 +1,18 @@
 'use client'
 
-import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 import {
   ESessionConnection,
   type FollowedSession,
-  type SessionCache,
+  type SessionLog,
   type SessionSnapshot,
   type StreamConnection,
 } from '@dltech/atlas-client/stream'
 
 const NOT_FOLLOWING: SessionSnapshot = {
   events: [],
+  pending: { pending: [] },
   cursor: undefined,
   status: undefined,
   overlay: undefined,
@@ -25,30 +26,40 @@ const NOT_FOLLOWING: SessionSnapshot = {
 
 const notFollowingSnapshot = (): SessionSnapshot => NOT_FOLLOWING
 
+export type SessionStream = {
+  snapshot: SessionSnapshot
+  loadOlder: () => Promise<number>
+}
+
 export function useSessionStream({
   sessionId,
   connection,
-  cache,
+  log,
 }: {
   sessionId: string
   connection: () => StreamConnection
-  cache: SessionCache
-}): SessionSnapshot {
+  log: SessionLog
+}): SessionStream {
   const [followed, setFollowed] = useState<FollowedSession | undefined>(undefined)
+  const followedRef = useRef<FollowedSession | undefined>(undefined)
 
   useEffect(() => {
-    const session = connection().follow({ sessionId, cache })
+    const session = connection().follow({ sessionId, log })
+    followedRef.current = session
     setFollowed(session)
     return () => {
+      followedRef.current = undefined
       session.close()
       setFollowed(undefined)
     }
-  }, [connection, sessionId, cache])
+  }, [connection, sessionId, log])
 
   const subscribe = useCallback(
     (listener: () => void) => followed?.subscribe(listener) ?? (() => undefined),
     [followed],
   )
   const getSnapshot = followed?.getSnapshot ?? notFollowingSnapshot
-  return useSyncExternalStore(subscribe, getSnapshot, notFollowingSnapshot)
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, notFollowingSnapshot)
+  const loadOlder = useCallback(() => followedRef.current?.loadOlder() ?? Promise.resolve(0), [])
+  return { snapshot, loadOlder }
 }

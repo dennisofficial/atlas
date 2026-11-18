@@ -88,10 +88,8 @@ describe('sessionStateLineOf', () => {
     )
   })
 
-  it('says a queued message is waiting for the agent', () => {
-    expect(sessionStateLineOf(snapshotOf({ state: ESessionStatus.Queued }))).toBe(
-      'Queued — waiting for the agent to pick it up',
-    )
+  it('says nothing for a queued message, whose place is the dock', () => {
+    expect(sessionStateLineOf(snapshotOf({ state: ESessionStatus.Queued }))).toBeNull()
   })
 
   it('puts a session problem ahead of the connection', () => {

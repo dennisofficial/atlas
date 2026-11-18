@@ -10,7 +10,7 @@ import type { z } from 'zod'
 
 import { runAppendHooks, type AppendHook } from './append-hooks'
 import { missingBlobHashes, verifyBlobWrites } from './blob-ops'
-import { consumeInbox } from './consume-inbox'
+import { settleInputRow } from './settle-input-row'
 import { UnknownThreadError } from './errors'
 import type { LeaseOps } from './lease-ops'
 import { parseAppendEvents } from './parse-append'
@@ -56,15 +56,7 @@ export const appendIn = async (params: {
   const stored: StoredEvent[] = []
   for (const [index, event] of parsed.events.entries()) {
     visibility = stepVisibility(visibility, event)
-    if (event.type === 'input-consumed') {
-      await consumeInbox({
-        tx,
-        sessionId: row.sessionId,
-        inboxId: event.inboxId,
-        seq: event.seq,
-        head,
-      })
-    }
+    await settleInputRow({ tx, sessionId: row.sessionId, event })
     stored.push(toStoredEvent({ event, hash: accepted.hashes[index] as StoredEvent['hash'] }))
   }
   const refHashes = new Set<string>()

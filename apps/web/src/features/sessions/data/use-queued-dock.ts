@@ -1,28 +1,50 @@
 import { useMemo } from 'react'
 import { toast } from 'sonner'
 
-import type { SessionQueuedMessage } from '@dltech/atlas-protocol'
+import { pendingMessagesOf, type PendingInputsState } from '@dltech/atlas-core'
 
 import { messageOf } from '@/features/threads/data/use-send'
 
-import { queuedMediaHashesOf, visibleQueuedOf } from './queued-messages'
+import {
+  queuedMediaHashesOf,
+  stagedQueuedOf,
+  visibleQueuedOf,
+  type StagedMessage,
+} from './queued-messages'
 import { sessionsApi } from './sessions-api'
 import { useMediaUrls } from './use-media-urls'
 import { EWithdrawOutcome, withdrawQueued } from './withdraw-queued'
 
 export function useQueuedDock(args: {
   sessionId: string
-  queued: readonly SessionQueuedMessage[] | undefined
+  pending: PendingInputsState
+  queueStaged: readonly StagedMessage[]
+  transcriptStaged: readonly StagedMessage[]
   draft: string
   onDraftChange: (draft: string) => void
 }) {
-  const { sessionId, queued, draft, onDraftChange } = args
-  const hashes = useMemo(() => queuedMediaHashesOf(queued), [queued])
+  const { sessionId, pending, queueStaged, transcriptStaged, draft, onDraftChange } = args
+  const pendingInputs = useMemo(() => pendingMessagesOf(pending), [pending])
+  const hashes = useMemo(
+    () => queuedMediaHashesOf({ pending, staged: [...queueStaged, ...transcriptStaged] }),
+    [pending, queueStaged, transcriptStaged],
+  )
   const urls = useMediaUrls({ sessionId, hashes })
-  const entries = useMemo(() => visibleQueuedOf({ queued, urls }), [queued, urls])
+  const queued = useMemo(() => visibleQueuedOf({ pending, urls }), [pending, urls])
+  const staged = useMemo(() => stagedQueuedOf({ staged: queueStaged, urls }), [queueStaged, urls])
+  const transcriptEntries = useMemo(
+    () => stagedQueuedOf({ staged: transcriptStaged, urls }),
+    [transcriptStaged, urls],
+  )
+  const entries = useMemo(() => [...queued, ...staged], [queued, staged])
+  const stagedIds = useMemo(() => new Set(staged.map((entry) => entry.id)), [staged])
+  const withdrawIds = useMemo(
+    () => new Set(pendingInputs.map((input) => String(input.inboxId))),
+    [pendingInputs],
+  )
 
   const withdraw = async (params: { id: string; restoreText: boolean }) => {
-    const entry = entries.find((candidate) => candidate.id === params.id)
+    const entry = queued.find((candidate) => candidate.id === params.id)
     if (entry === undefined) return
     try {
       const result = await withdrawQueued({
@@ -41,9 +63,11 @@ export function useQueuedDock(args: {
   }
 
   const handleEdit = (id: string | undefined) => {
-    if (id !== undefined) void withdraw({ id, restoreText: true })
+    if (id !== undefined && withdrawIds.has(id)) void withdraw({ id, restoreText: true })
   }
-  const handleRemove = (id: string) => void withdraw({ id, restoreText: false })
+  const handleRemove = (id: string) => {
+    if (withdrawIds.has(id)) void withdraw({ id, restoreText: false })
+  }
 
-  return { entries, handleEdit, handleRemove }
+  return { entries, stagedIds, transcriptEntries, handleEdit, handleRemove }
 }

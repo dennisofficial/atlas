@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import type { StreamServerMessage } from '@dltech/atlas-protocol'
 
 import { EStreamConnectionState } from '../connection-machine'
-import { memorySessionCache } from '../session-cache'
+import { memorySessionLog } from '../session-log'
 import { createSessionFollower, ESessionConnection } from '../session-follower'
 import { createFakeScheduler, eventsMessage, headOf, mintUserEvents } from './support'
 
@@ -11,7 +11,7 @@ const setup = () => {
   const clock = createFakeScheduler()
   const follower = createSessionFollower({
     sessionId: 'session-1',
-    cache: memorySessionCache(),
+    log: memorySessionLog(),
     scheduler: clock.scheduler,
     onResnap: () => undefined,
   })

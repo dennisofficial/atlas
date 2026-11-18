@@ -1,11 +1,11 @@
 'use client'
 
-import { createSessionsFeed, type SessionsFeed } from '@dltech/atlas-client/stream'
+import { createSessionsFeed, gcSessionLog, type SessionsFeed } from '@dltech/atlas-client/stream'
 import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 
 import { fetchV2Sessions } from '@/features/sessions/data/sessions-api'
-import { sessionStream } from '@/features/sessions/data/session-stream'
+import { sessionLog, sessionStream } from '@/features/sessions/data/session-stream'
 import { V2_SESSIONS_KEY } from '@/lib/cloud-keys'
 
 import type { V2SessionSummary } from './v2-rows'
@@ -33,5 +33,16 @@ export function useV2Sessions(): readonly V2SessionSummary[] {
     staleTime: Infinity,
   })
   useEffect(() => feedOf(queryClient).retain(), [queryClient])
-  return query.data ?? NONE
+  const rows = query.data
+  useEffect(() => {
+    if (rows === undefined) return
+    void gcSessionLog({
+      log: sessionLog(),
+      sessions: rows.map((row) => ({
+        sessionId: row.sessionId,
+        archived: row.archivedAt !== null && row.archivedAt !== undefined,
+      })),
+    })
+  }, [rows])
+  return rows ?? NONE
 }

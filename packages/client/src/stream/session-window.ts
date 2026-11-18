@@ -1,21 +1,27 @@
 import {
   chainHash,
+  EMPTY_PENDING,
   EMPTY_VISIBILITY,
   isVisible,
+  stepPending,
   stepVisibility,
   v2EventSchema,
+  type PendingInputsState,
   type V2Event,
   type VisibilityState,
 } from '@dltech/atlas-core'
 import type { z, ZodError } from 'zod'
 
-export const WINDOW_LIMIT = 3_000
+export const RENDER_LIMIT = 3_000
+
+export const OLDER_PAGE = 200
 
 export type SessionCursor = { seq: number; hash: string }
 
 export type SessionWindow = {
   events: V2Event[]
   visibility: VisibilityState
+  pending: PendingInputsState
   cursor: SessionCursor | undefined
 }
 
@@ -24,6 +30,7 @@ export type EventsPage = { events: readonly unknown[]; head: SessionCursor }
 export const EMPTY_WINDOW: SessionWindow = {
   events: [],
   visibility: EMPTY_VISIBILITY,
+  pending: EMPTY_PENDING,
   cursor: undefined,
 }
 
@@ -35,7 +42,12 @@ type Parsed = { event: V2Event; raw: unknown }
 
 type Seen = { seq: number; raw: unknown }
 
-export type PageOutcome = { window: SessionWindow; skipped: number; issue: string | undefined }
+export type PageOutcome = {
+  window: SessionWindow
+  fresh: readonly V2Event[]
+  skipped: number
+  issue: string | undefined
+}
 
 const seqOfRaw = (raw: unknown): number | undefined => {
   if (typeof raw !== 'object' || raw === null || !('seq' in raw)) return undefined
@@ -82,6 +94,7 @@ export const applyPageOutcome = (args: {
   window: SessionWindow
   page: EventsPage
   eventSchema?: z.ZodType<V2Event> | undefined
+  renderLimit?: number | undefined
 }): PageOutcome => {
   const { window, page } = args
   const { fresh, last, skipped, issue } = readPage({
@@ -89,15 +102,21 @@ export const applyPageOutcome = (args: {
     after: window.cursor?.seq ?? 0,
     eventSchema: args.eventSchema ?? v2EventSchema,
   })
-  if (last === undefined) return { window, skipped, issue }
+  if (last === undefined) return { window, fresh: [], skipped, issue }
   const visibility = fresh.reduce(
     (state, { event }) => stepVisibility(state, event),
     window.visibility,
   )
+  const pending = fresh.reduce((state, { event }) => stepPending(state, event), window.pending)
   const events = [...window.events, ...fresh.map(({ event }) => event)]
     .filter((event) => isVisible(visibility, event))
-    .slice(-WINDOW_LIMIT)
-  return { window: { events, visibility, cursor: cursorAfter({ page, last }) }, skipped, issue }
+    .slice(-(args.renderLimit ?? RENDER_LIMIT))
+  return {
+    window: { events, visibility, pending, cursor: cursorAfter({ page, last }) },
+    fresh: fresh.map(({ event }) => event),
+    skipped,
+    issue,
+  }
 }
 
 export const applyPage = (args: {

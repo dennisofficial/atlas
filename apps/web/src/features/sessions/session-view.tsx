@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 import { ESessionStatus } from '@dltech/atlas-core'
@@ -19,11 +19,13 @@ import { ThreadComposer } from '@/features/threads/thread-composer'
 import { ThreadTranscript } from '@/features/threads/thread-transcript'
 import { SummariseDialog } from '@/features/threads/transcript/summarise-dialog'
 
+import { attachmentsOf } from '@dltech/atlas-core'
+
 import { postInputOf } from './data/session-media'
 import { sessionsApi } from './data/sessions-api'
 import { stopSession } from './data/stop-session'
 import { headerStateOfSession, isSessionWorking, sessionStateLineOf } from './data/session-state'
-import { sessionCache, sessionStream } from './data/session-stream'
+import { sessionLog, sessionStream } from './data/session-stream'
 import { requestRewind, rewoundDraftOf, seqByEventIdOf } from './data/session-rewind'
 import { sessionRefusalsOf } from './data/session-refusals'
 import { sessionBootViewOf } from './data/session-boot-view'
@@ -36,6 +38,7 @@ import { retrySessionNow } from './data/use-retry-session'
 import { OperatorRequestDock } from './operator-request-dock'
 import { SessionUpdateCard } from './session-update-card'
 import { useQueuedDock } from './data/use-queued-dock'
+import { useStagedMessages } from './data/use-staged-messages'
 import { useSessionAttachments } from './data/use-session-attachments'
 import { useSessionReveal } from './data/use-session-reveal'
 import { useSessionSummarise } from './data/use-session-summarise'
@@ -76,10 +79,10 @@ const panelValueOf = (args: { sessionId: string; working: boolean }): ThreadPane
 })
 
 export function SessionView({ sessionId }: { sessionId: string }) {
-  const snapshot = useSessionStream({
+  const { snapshot, loadOlder } = useSessionStream({
     sessionId,
     connection: sessionStream,
-    cache: sessionCache(),
+    log: sessionLog(),
   })
   const sessions = useV2Sessions()
   const listed = sessions.find((session) => session.sessionId === sessionId)
@@ -91,6 +94,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   }, [sessions])
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
+  const retryClientId = useRef<string | undefined>(undefined)
   const files = useComposerAttachments()
   const attachments = useSessionAttachments({ files })
   const working = isSessionWorking(snapshot.status)
@@ -119,9 +123,17 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const background = useMemo(() => journalActivityOf(snapshot.events), [snapshot.events])
   const panel = useMemo(() => panelValueOf({ sessionId, working }), [sessionId, working])
   const stateLine = sessionStateLineOf(snapshot)
+  const stagedRun = useStagedMessages({
+    events: snapshot.events,
+    working,
+    draft,
+    onDraftChange: setDraft,
+  })
   const queuedDock = useQueuedDock({
     sessionId,
-    queued: snapshot.status?.queued,
+    pending: snapshot.pending,
+    queueStaged: stagedRun.queue,
+    transcriptStaged: stagedRun.transcript,
     draft,
     onDraftChange: setDraft,
   })
@@ -172,12 +184,20 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     if (!attachments.checkSendable()) return
     const { media, uploads } = attachments
     if (text.trim().length === 0 && media.length === 0 && uploads.length === 0) return
+    const clientId = retryClientId.current ?? crypto.randomUUID()
     setSending(true)
     try {
-      await sessionsApi.post(postInputOf({ sessionId, text, media, uploads }))
+      await sessionsApi.post(postInputOf({ sessionId, text, clientId, media, uploads }))
+      stagedRun.stage({
+        clientId,
+        text,
+        attachments: [...media, ...attachmentsOf({ uploads })],
+      })
+      retryClientId.current = undefined
       setDraft('')
       attachments.clear()
     } catch (failure) {
+      retryClientId.current = clientId
       toast.error(messageOf(failure))
     } finally {
       setSending(false)
@@ -214,6 +234,8 @@ export function SessionView({ sessionId }: { sessionId: string }) {
             rewind={rewind}
             summarise={summarise.transcript}
             boot={boot}
+            staged={queuedDock.transcriptEntries}
+            onLoadOlder={loadOlder}
           />
         </div>
         <div className="mx-auto flex w-full max-w-4xl shrink-0 flex-col gap-2 px-4 pb-4">

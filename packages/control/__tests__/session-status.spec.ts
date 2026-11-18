@@ -2,10 +2,12 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   chainEvents,
+  EAttachmentStore,
   EInputConsumed,
   ESessionStatus,
   toRunId,
   toThreadId,
+  type Attachment,
   type V2Body,
 } from '@dltech/atlas-core'
 
@@ -18,6 +20,20 @@ import { InMemoryControlStore } from '../src/testing/memory'
 const NOW = '2026-11-05T12:00:00.000Z'
 const SESSION = 'session-1'
 const THREAD = 'thread-1'
+
+const posted = (args: {
+  inboxId: number
+  kind?: string
+  text?: string
+  attachments?: readonly Attachment[]
+}): V2Body => ({
+  type: 'input-posted',
+  inboxId: args.inboxId,
+  kind: args.kind ?? 'message',
+  postedAt: NOW,
+  ...(args.text === undefined ? {} : { text: args.text }),
+  ...(args.attachments === undefined ? {} : { attachments: args.attachments }),
+})
 
 const setup = async () => {
   const store = new InMemoryControlStore({ clock: () => NOW })
@@ -77,7 +93,12 @@ describe('readSessionStatus', () => {
     const { plane, append, read } = await setup()
     const lease = await plane.grant({ sessionId: SESSION, hostId: 7 })
     await append({ epoch: lease.epoch, bodies: [{ type: 'workspace-prepared' }] })
-    await plane.post({ sessionId: SESSION, kind: 'message', payload: '{"text":"hi"}' })
+    const { inboxId } = await plane.post({
+      sessionId: SESSION,
+      kind: 'message',
+      payload: '{"text":"hi"}',
+    })
+    await append({ epoch: lease.epoch, bodies: [posted({ inboxId, text: 'hi' })] })
     expect((await read()).value.state).toBe(ESessionStatus.Queued)
   })
 
@@ -87,9 +108,18 @@ describe('readSessionStatus', () => {
     await append({ epoch: lease.epoch, bodies: [{ type: 'workspace-prepared' }] })
     const a = await plane.post({ sessionId: SESSION, kind: 'message', payload: '{"text":"a"}' })
     const b = await plane.post({ sessionId: SESSION, kind: 'message', payload: '{"text":"b"}' })
-    await plane.post({ sessionId: SESSION, kind: 'stop', payload: '{}' })
+    const stop = await plane.post({ sessionId: SESSION, kind: 'stop', payload: '{}' })
     await plane.post({ sessionId: SESSION, kind: 'message', payload: 'not json' })
     const c = await plane.post({ sessionId: SESSION, kind: 'message', payload: '{"text":"c"}' })
+    await append({
+      epoch: lease.epoch,
+      bodies: [
+        posted({ inboxId: a.inboxId, text: 'a' }),
+        posted({ inboxId: b.inboxId, text: 'b' }),
+        posted({ inboxId: stop.inboxId, kind: 'stop' }),
+        posted({ inboxId: c.inboxId, text: 'c' }),
+      ],
+    })
 
     const listed = (await read()).value.queued
     expect(listed?.map(({ inboxId, text }) => [inboxId, text])).toEqual([
@@ -99,38 +129,64 @@ describe('readSessionStatus', () => {
     ])
     expect(listed?.[0]?.postedAt).toBe(NOW)
 
-    await plane.takeBack({ sessionId: SESSION, inboxId: b.inboxId })
+    const { requestInboxId } = await plane.withdraw({
+      sessionId: SESSION,
+      inboxId: b.inboxId,
+    })
+    await append({
+      epoch: lease.epoch,
+      bodies: [{ type: 'input-withdrawn', inboxId: b.inboxId, requestInboxId }],
+    })
     expect((await read()).value.queued?.map((entry) => entry.text)).toEqual(['a', 'c'])
   })
 
-  it('carries the images and files of a queued message', async () => {
-    const { plane, read } = await setup()
-    const media = [
+  it('carries the attachments of a queued message', async () => {
+    const { plane, append, read } = await setup()
+    const lease = await plane.grant({ sessionId: SESSION, hostId: 7 })
+    await append({ epoch: lease.epoch, bodies: [{ type: 'workspace-prepared' }] })
+    const attachments: Attachment[] = [
       {
-        media: { hash: 'a'.repeat(64), mediaType: 'image/png', size: 10, width: 2, height: 3 },
+        id: 'm1',
+        name: 'shot.png',
+        mediaType: 'image/png',
+        size: 10,
         source: 'shot.png',
+        content: { store: EAttachmentStore.Media, hash: 'a'.repeat(64) },
+        image: { width: 2, height: 3 },
       },
-    ]
-    const uploads = [
       {
-        uploadId: '0b6c1f9e-2d4a-4c1b-9f3e-7a2b5c8d1e40',
-        pathname: 'composer-uploads/user-a/0b6c1f9e-2d4a-4c1b-9f3e-7a2b5c8d1e40/deploy.sh',
+        id: 'u1',
         name: 'deploy.sh',
-        size: 7,
         mediaType: 'text/x-sh',
+        size: 7,
+        content: {
+          store: EAttachmentStore.Upload,
+          uploadId: '0b6c1f9e-2d4a-4c1b-9f3e-7a2b5c8d1e40',
+          pathname: 'composer-uploads/user-a/0b6c1f9e-2d4a-4c1b-9f3e-7a2b5c8d1e40/deploy.sh',
+        },
       },
     ]
-    await plane.post({
+    const look = await plane.post({
       sessionId: SESSION,
       kind: 'message',
-      payload: JSON.stringify({ text: 'look', media, uploads }),
+      payload: JSON.stringify({ text: 'look' }),
     })
-    await plane.post({ sessionId: SESSION, kind: 'message', payload: '{"text":"plain"}' })
+    const plain = await plane.post({
+      sessionId: SESSION,
+      kind: 'message',
+      payload: '{"text":"plain"}',
+    })
+    await append({
+      epoch: lease.epoch,
+      bodies: [
+        posted({ inboxId: look.inboxId, text: 'look', attachments }),
+        posted({ inboxId: plain.inboxId, text: 'plain' }),
+      ],
+    })
 
     const listed = (await read()).value.queued
-    expect(listed?.[0]).toMatchObject({ text: 'look', media, uploads })
-    expect(listed?.[1]).not.toHaveProperty('media')
-    expect(listed?.[1]).not.toHaveProperty('uploads')
+    expect(listed?.[0]).toMatchObject({ text: 'look', attachments })
+    expect(listed?.[1]?.attachments).toBeUndefined()
   })
 
   it('lists a posted command beside queued and keeps it as running once consumed', async () => {
@@ -146,6 +202,13 @@ describe('readSessionStatus', () => {
       sessionId: SESSION,
       kind: 'command:rename',
       payload: '{"title":"x"}',
+    })
+    await append({
+      epoch: lease.epoch,
+      bodies: [
+        posted({ inboxId: message.inboxId, text: 'hi' }),
+        posted({ inboxId: command.inboxId, kind: 'command:rename' }),
+      ],
     })
 
     const listed = (await read()).value
@@ -206,7 +269,12 @@ describe('readSessionStatus', () => {
       state: ESessionStatus.StartFailed,
       reason: 'sandbox is not configured',
     })
-    await plane.post({ sessionId: SESSION, kind: 'message', payload: '{"text":"b"}' })
+    const second = await plane.post({
+      sessionId: SESSION,
+      kind: 'message',
+      payload: '{"text":"b"}',
+    })
+    await append({ epoch: lease.epoch, bodies: [posted({ inboxId: second.inboxId, text: 'b' })] })
     expect((await read()).value.state).toBe(ESessionStatus.Queued)
   })
 })

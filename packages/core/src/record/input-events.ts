@@ -37,7 +37,11 @@ export type InputPosted = {
   sealedValue?: string | undefined
 }
 
-export type InputWithdrawn = { type: 'input-withdrawn'; inboxId: number }
+export type InputWithdrawn = {
+  type: 'input-withdrawn'
+  inboxId: number
+  requestInboxId?: number | undefined
+}
 
 export type InputRefused = {
   type: 'input-refused'
@@ -68,6 +72,7 @@ export const inputPostedSchema = z.object({
 export const inputWithdrawnSchema = z.object({
   type: z.literal('input-withdrawn'),
   inboxId: inboxIdSchema,
+  requestInboxId: inboxIdSchema.optional(),
 })
 
 export const inputRefusedSchema = z.object({

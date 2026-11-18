@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 import {
   ESessionConnection,
@@ -6,10 +6,11 @@ import {
   type SessionSnapshot,
 } from '@dltech/atlas-client/stream'
 
-import { sessionCache, sessionStream } from './session-stream'
+import { sessionLog, sessionStream } from './session-stream'
 
 const NOT_FOLLOWING: SessionSnapshot = {
   events: [],
+  pending: { pending: [] },
   cursor: undefined,
   status: undefined,
   overlay: undefined,
@@ -23,13 +24,19 @@ const NOT_FOLLOWING: SessionSnapshot = {
 
 const notFollowingSnapshot = (): SessionSnapshot => NOT_FOLLOWING
 
-export function useV2Session(sessionId: string): SessionSnapshot {
+export function useV2Session(sessionId: string): {
+  snapshot: SessionSnapshot
+  loadOlder: () => Promise<number>
+} {
   const [followed, setFollowed] = useState<FollowedSession | undefined>(undefined)
+  const followedRef = useRef<FollowedSession | undefined>(undefined)
 
   useEffect(() => {
-    const session = sessionStream().follow({ sessionId, cache: sessionCache() })
+    const session = sessionStream().follow({ sessionId, log: sessionLog() })
+    followedRef.current = session
     setFollowed(session)
     return () => {
+      followedRef.current = undefined
       session.close()
       setFollowed(undefined)
     }
@@ -39,5 +46,7 @@ export function useV2Session(sessionId: string): SessionSnapshot {
     (listener: () => void) => followed?.subscribe(listener) ?? (() => undefined),
     [followed],
   )
-  return useSyncExternalStore(subscribe, followed?.getSnapshot ?? notFollowingSnapshot)
+  const snapshot = useSyncExternalStore(subscribe, followed?.getSnapshot ?? notFollowingSnapshot)
+  const loadOlder = useCallback(() => followedRef.current?.loadOlder() ?? Promise.resolve(0), [])
+  return { snapshot, loadOlder }
 }
