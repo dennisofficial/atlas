@@ -4,6 +4,7 @@ import type { SessionChange } from '@dltech/atlas-protocol'
 
 import type {
   ControlSessionRow,
+  PrChecks,
   SessionDigestRow,
   SessionListParams,
   SessionModelRow,
@@ -30,11 +31,18 @@ export type SessionViewRow = {
   state: string
 }
 
-export type SessionPullRequestKey = { repo: string; number: number }
+export type SessionBranchRow = {
+  sessionId: string
+  headRepo: string
+  branch: string
+  firstSeenSeq: number
+}
 
-export type SessionPullRequestRow = SessionPullRequestKey & { sessionId: string }
+export type PrHead = { headRepo: string; branch: string }
 
-export type PrStateRow = SessionPullRequestKey & {
+export type PrStateRow = {
+  repo: string
+  number: number
   title: string
   state: string
   headSha: string
@@ -43,6 +51,26 @@ export type PrStateRow = SessionPullRequestKey & {
   checksFailed: number
   mergeable: boolean | null
   updatedAt: string
+  headRepoFullName?: string | null | undefined
+  headBranch?: string | undefined
+}
+
+export type TrackedPullRequestState = {
+  title: string
+  state: string
+  headSha: string
+  checks: PrChecks
+  mergeable: boolean | null
+  updatedAt: string
+}
+
+export type TrackedPullRequestRow = {
+  sessionId: string
+  repo: string
+  number: number
+  url: string
+  branch: string
+  state: TrackedPullRequestState
 }
 
 export type SubscriptionSubject =
@@ -245,9 +273,9 @@ export interface ControlTx {
   announce(change: SessionChange): Promise<void>
   readSessionView(sessionId: string): Promise<SessionViewRow | undefined>
   writeSessionView(row: SessionViewRow): Promise<void>
-  insertSessionPullRequests(rows: readonly SessionPullRequestRow[]): Promise<void>
-  sessionsLinkedTo(key: SessionPullRequestKey): Promise<string[]>
-  readPrStates(keys: readonly SessionPullRequestKey[]): Promise<PrStateRow[]>
+  insertSessionBranches(rows: readonly SessionBranchRow[]): Promise<void>
+  sessionsTrackingHead(head: PrHead): Promise<string[]>
+  readTrackedPullRequests(sessionIds: readonly string[]): Promise<TrackedPullRequestRow[]>
   upsertSubscriptionLease(params: SubscriptionLease & { expiresAt: string }): Promise<void>
   deleteSubscriptionLease(params: SubscriptionLease): Promise<boolean>
   hostPresent(hostId: number): Promise<boolean>

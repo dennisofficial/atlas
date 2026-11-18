@@ -7,6 +7,7 @@ import type {
   InsertRoutineRunParams,
   RoutineRow,
   PrStateRow,
+  SessionBranchRow,
   SubscriptionLease,
   SessionViewRow,
   StoredEvent,
@@ -34,7 +35,7 @@ export type State = {
   blobRefs: Set<string>
   notifications: string[]
   views: Map<string, SessionViewRow>
-  pullRequestLinks: Set<string>
+  sessionBranches: Map<string, SessionBranchRow>
   prStates: Map<string, PrStateRow>
   subscriptionLeases: Map<string, SubscriptionLease & { expiresAt: string }>
   routines: Map<string, RoutineRow>
@@ -62,7 +63,7 @@ export const emptyState = (): State => ({
   blobRefs: new Set(),
   notifications: [],
   views: new Map(),
-  pullRequestLinks: new Set(),
+  sessionBranches: new Map(),
   prStates: new Map(),
   subscriptionLeases: new Map(),
   routines: new Map(),
@@ -80,7 +81,7 @@ export const cloneState = (state: State): State => ({
   blobRefs: new Set(state.blobRefs),
   notifications: [...state.notifications],
   views: new Map([...state.views].map(([key, value]) => [key, { ...value }])),
-  pullRequestLinks: new Set(state.pullRequestLinks),
+  sessionBranches: new Map([...state.sessionBranches].map(([key, value]) => [key, { ...value }])),
   prStates: new Map(state.prStates),
   subscriptionLeases: new Map(
     [...state.subscriptionLeases].map(([key, value]) => [key, { ...value }]),
@@ -128,6 +129,12 @@ export const activeFailureOf = (log: readonly StoredEvent[]): { inboxHead: numbe
 
 export const prKey = (params: { repo: string; number: number }): string =>
   `${params.repo}#${params.number}`
+
+export const branchKey = (params: {
+  sessionId: string
+  headRepo: string
+  branch: string
+}): string => `${params.sessionId} ${params.headRepo} ${params.branch}`
 
 export const subscriptionLeaseKey = (params: SubscriptionLease): string =>
   `${params.userId} ${params.threadId} ${params.repo}${subscriptionSubjectKey(params.subject)}`

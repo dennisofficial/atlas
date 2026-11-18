@@ -76,7 +76,7 @@ describe('GithubPrStateWriter session announcements', () => {
   const heard: string[] = []
   let listener: pg.Client
 
-  const linkSession = async (args: { sessionId: string; number: number }) => {
+  const trackSession = async (args: { sessionId: string; branch: string }) => {
     const plane = new ControlPlane({ store: new PostgresControlStore(db) })
     await plane.createSession({
       sessionId: args.sessionId,
@@ -95,11 +95,13 @@ describe('GithubPrStateWriter session announcements', () => {
         at: new Date().toISOString(),
         bodies: [
           {
-            type: 'pull-request-linked',
-            number: args.number,
-            url: `https://github.com/compai/app/pull/${args.number}`,
-            repo: 'github.com/CompAI/App',
-            branch: 'feat',
+            type: 'branches-observed',
+            repo: '/work/app',
+            head: args.branch,
+            base: 'main',
+            branches: [{ name: args.branch, sha: 'abc123' }],
+            worktrees: [],
+            remotes: [{ name: 'origin', url: 'git@github.com:compai/app.git' }],
           },
         ],
       }),
@@ -122,10 +124,10 @@ describe('GithubPrStateWriter session announcements', () => {
   })
   afterEach(() => listener.end())
 
-  it('announces the session linked to the written pull request and no other', async () => {
+  it('announces the session tracking the written pull request head and no other', async () => {
     const { writer } = writerRig()
-    await linkSession({ sessionId: 'linked', number: 42 })
-    await linkSession({ sessionId: 'elsewhere', number: 43 })
+    await trackSession({ sessionId: 'linked', branch: 'dennis/add-the-thing' })
+    await trackSession({ sessionId: 'elsewhere', branch: 'dennis/other-thing' })
     await settle()
     heard.length = 0
     await write({ writer, checksPassed: 1 })
@@ -133,9 +135,9 @@ describe('GithubPrStateWriter session announcements', () => {
     expect(heard).toEqual(['linked'])
   })
 
-  it('announces nothing when no session links the pull request', async () => {
+  it('announces nothing when no session tracks the pull request head', async () => {
     const { writer } = writerRig()
-    await linkSession({ sessionId: 'elsewhere', number: 43 })
+    await trackSession({ sessionId: 'elsewhere', branch: 'dennis/other-thing' })
     await settle()
     heard.length = 0
     await write({ writer, checksPassed: 1 })

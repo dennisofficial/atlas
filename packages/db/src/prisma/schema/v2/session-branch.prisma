@@ -1,0 +1,13 @@
+// use prisma-8
+namespace v2 {
+  model V2SessionBranch {
+    sessionId    String
+    headRepo     String
+    branch       String
+    firstSeenSeq Int
+    session      V2Session @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+    @@id([sessionId, headRepo, branch])
+    @@index([headRepo, branch])
+  }
+}

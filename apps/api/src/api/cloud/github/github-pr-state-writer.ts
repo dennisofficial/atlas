@@ -1,5 +1,5 @@
 import type { Logger } from '@nestjs/common'
-import { announceSessionChangesIn, sessionsLinkedToIn } from '@dltech/atlas-control/postgres'
+import { announceSessionChangesIn, sessionsTrackingHeadIn } from '@dltech/atlas-control/postgres'
 import { db, type Row, type Tx } from '@dltech/atlas-db'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { announceSubscriberThreads } from './github-list-signals'
@@ -105,7 +105,11 @@ export class GithubPrStateWriter {
 
     await announceSessionChangesIn({
       tx,
-      sessionIds: await sessionsLinkedToIn({ tx, repo: repoFullName, number: args.prNumber }),
+      sessionIds: await sessionsTrackingHeadIn({
+        tx,
+        headRepo: headRepoFullName ?? repoFullName,
+        branch: headBranch ?? row.headBranch,
+      }),
     })
 
     const subscribers = await tx.orm.public.GithubSubscription.where(

@@ -1,10 +1,10 @@
 import {
   needsRebuild,
-  normalizedPrRepo,
   rebuildEditSensitive,
   initialSessionViewState,
   SESSION_VIEW_VERSION,
   stepSessionView,
+  workedHeadsOf,
   type PluginViewFold,
   type SessionViewState,
   type V2Event,
@@ -12,7 +12,7 @@ import {
 import type { z } from 'zod'
 
 import { UnknownThreadError } from './errors'
-import type { ControlTx, SessionPullRequestRow, SessionViewRow, ThreadRow } from './port'
+import type { ControlTx, SessionBranchRow, SessionViewRow, ThreadRow } from './port'
 import { readEventsIn } from './read-events'
 import { decodeViewState, encodeViewState } from './session-view-codec'
 
@@ -76,18 +76,27 @@ export const rebuildFromTail = async (args: {
   return rebuildEditSensitive({ state: args.state, visibleTail: tail.events })
 }
 
-const linkRowsOf = (args: {
+const branchRowsOf = (args: {
   sessionId: string
-  links: readonly { repo: string; number: number }[]
-}): SessionPullRequestRow[] =>
-  args.links.map((link) => ({ sessionId: args.sessionId, repo: link.repo, number: link.number }))
+  events: readonly V2Event[]
+}): SessionBranchRow[] =>
+  args.events.flatMap((event) =>
+    event.type === 'branches-observed'
+      ? workedHeadsOf({ observation: event, base: event.base ?? null }).map((head) => ({
+          sessionId: args.sessionId,
+          headRepo: head.headRepo,
+          branch: head.branch,
+          firstSeenSeq: event.seq,
+        }))
+      : [],
+  )
 
 const persistIn = async (args: {
   tx: ControlTx
   sessionId: string
   threadId: string
   state: SessionViewState
-  links: readonly { repo: string; number: number }[]
+  branches: readonly SessionBranchRow[]
 }): Promise<void> => {
   const { tx, state } = args
   await tx.writeSessionView({
@@ -97,8 +106,8 @@ const persistIn = async (args: {
     version: state.version,
     state: encodeViewState(state),
   })
-  if (args.links.length === 0) return
-  await tx.insertSessionPullRequests(linkRowsOf({ sessionId: args.sessionId, links: args.links }))
+  if (args.branches.length === 0) return
+  await tx.insertSessionBranches(args.branches)
 }
 
 export const ensureSessionViewIn = async (args: {
@@ -116,6 +125,7 @@ export const ensureSessionViewIn = async (args: {
 
   let state = existing ?? initialSessionViewState
   let rebuild = false
+  let folded: V2Event[] = []
   for (;;) {
     const page = await readEventsIn({
       tx,
@@ -125,13 +135,20 @@ export const ensureSessionViewIn = async (args: {
       visible: false,
       eventSchema: args.eventSchema,
     })
-    const folded = foldEvents({ state, events: page.events, pluginViews: args.pluginViews })
-    state = folded.state
-    rebuild ||= folded.rebuild
+    const next = foldEvents({ state, events: page.events, pluginViews: args.pluginViews })
+    state = next.state
+    rebuild ||= next.rebuild
+    folded = [...folded, ...page.events]
     if (page.next === undefined) break
   }
   if (rebuild) state = await rebuildFromTail({ tx, row, state, eventSchema: args.eventSchema })
-  await persistIn({ tx, sessionId, threadId, state, links: state.pullRequests.links })
+  await persistIn({
+    tx,
+    sessionId,
+    threadId,
+    state,
+    branches: branchRowsOf({ sessionId, events: folded }),
+  })
   return { row, state }
 }
 
@@ -165,10 +182,11 @@ export const appendToViewIn = async (args: {
   const state = folded.rebuild
     ? await rebuildFromTail({ tx, row, state: folded.state, eventSchema: args.eventSchema })
     : folded.state
-  const links = args.events.flatMap((event) =>
-    event.type === 'pull-request-linked'
-      ? [{ repo: normalizedPrRepo(event.repo), number: event.number }]
-      : [],
-  )
-  await persistIn({ tx, sessionId: args.sessionId, threadId: row.threadId, state, links })
+  await persistIn({
+    tx,
+    sessionId: args.sessionId,
+    threadId: row.threadId,
+    state,
+    branches: branchRowsOf({ sessionId: args.sessionId, events: args.events }),
+  })
 }

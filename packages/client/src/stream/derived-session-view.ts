@@ -17,12 +17,10 @@ import {
 
 import type { SessionWindow } from './session-window'
 
-type PullRequestState = NonNullable<SessionViewOutput['pullRequests'][number]['state']>
-
 export type FrameFacts = {
   lease: SessionStatusOutput['lease']
   spendTally: SpendTally
-  pullRequestStates: Readonly<Record<string, PullRequestState>>
+  pullRequests: SessionViewOutput['pullRequests']
 }
 
 export const EMPTY_SPEND_TALLY: SpendTally = {
@@ -37,20 +35,13 @@ export const EMPTY_SPEND_TALLY: SpendTally = {
 export const EMPTY_FRAME_FACTS: FrameFacts = {
   lease: { epoch: 0, holderHostId: null, live: false },
   spendTally: EMPTY_SPEND_TALLY,
-  pullRequestStates: {},
+  pullRequests: [],
 }
-
-export const pullRequestKeyOf = (link: { repo: string; number: number }): string =>
-  `${link.repo}#${link.number}`
 
 export const frameFactsOf = (view: SessionViewOutput): FrameFacts => ({
   lease: view.status.lease,
   spendTally: view.spend.tally,
-  pullRequestStates: Object.fromEntries(
-    view.pullRequests.flatMap((link) =>
-      link.state === null ? [] : [[pullRequestKeyOf(link), link.state] as const],
-    ),
-  ),
+  pullRequests: view.pullRequests,
 })
 
 const commandsOf = (window: SessionWindow): SessionCommandRow[] => {
@@ -106,10 +97,7 @@ export const deriveViewOf = (args: {
   context: meterOf(args.window.view.meter),
   spend: { rows: [...args.window.view.spend.rows], tally: args.frame.spendTally },
   checkouts: checkoutsOutOf(args.window),
-  pullRequests: args.window.view.pullRequests.links.map((link) => ({
-    ...link,
-    state: args.frame.pullRequestStates[pullRequestKeyOf(link)] ?? null,
-  })),
+  pullRequests: args.frame.pullRequests,
   pluginViews: args.window.view.pluginViews,
 })
 

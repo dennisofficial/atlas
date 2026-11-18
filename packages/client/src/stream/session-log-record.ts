@@ -37,7 +37,6 @@ const isView = (value: unknown): value is SessionViewState =>
   isRecord(value.facts) &&
   isRecord(value.meter) &&
   isRecord(value.checkouts) &&
-  isRecord(value.pullRequests) &&
   isRecord(value.spend) &&
   isPending(value.pending) &&
   isRecord(value.pluginViews)

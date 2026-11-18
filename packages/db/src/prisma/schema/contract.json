@@ -252,8 +252,8 @@
       "model": "V2Session",
       "namespace": "v2"
     },
-    "V2SessionPullRequest": {
-      "model": "V2SessionPullRequest",
+    "V2SessionBranch": {
+      "model": "V2SessionBranch",
       "namespace": "v2"
     },
     "V2SessionView": {
@@ -9236,6 +9236,21 @@
               }
             },
             "relations": {
+              "branches": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "sessionId"
+                  ]
+                },
+                "to": {
+                  "model": "V2SessionBranch",
+                  "namespace": "v2"
+                }
+              },
               "inbox": {
                 "cardinality": "1:N",
                 "on": {
@@ -9264,21 +9279,6 @@
                 },
                 "to": {
                   "model": "V2Lease",
-                  "namespace": "v2"
-                }
-              },
-              "pullRequests": {
-                "cardinality": "1:N",
-                "on": {
-                  "localFields": [
-                    "id"
-                  ],
-                  "targetFields": [
-                    "sessionId"
-                  ]
-                },
-                "to": {
-                  "model": "V2SessionPullRequest",
                   "namespace": "v2"
                 }
               },
@@ -9378,16 +9378,23 @@
               "table": "V2Session"
             }
           },
-          "V2SessionPullRequest": {
+          "V2SessionBranch": {
             "fields": {
-              "number": {
+              "branch": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "firstSeenSeq": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/int4@1",
                   "kind": "scalar"
                 }
               },
-              "repo": {
+              "headRepo": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
@@ -9422,18 +9429,21 @@
             },
             "storage": {
               "fields": {
-                "number": {
-                  "column": "number"
+                "branch": {
+                  "column": "branch"
                 },
-                "repo": {
-                  "column": "repo"
+                "firstSeenSeq": {
+                  "column": "firstSeenSeq"
+                },
+                "headRepo": {
+                  "column": "headRepo"
                 },
                 "sessionId": {
                   "column": "sessionId"
                 }
               },
               "namespaceId": "v2",
-              "table": "V2SessionPullRequest"
+              "table": "V2SessionBranch"
             }
           },
           "V2SessionView": {
@@ -11996,6 +12006,15 @@
               },
               "foreignKeys": [],
               "indexes": [
+                {
+                  "columns": [
+                    "headRepoFullName",
+                    "headBranch"
+                  ],
+                  "name": "GithubPrState_headRepoFullName_headBranch_idx_ce47a3ad",
+                  "prefix": "GithubPrState_headRepoFullName_headBranch_idx",
+                  "unique": false
+                },
                 {
                   "columns": [
                     "headSha"
@@ -16485,14 +16504,19 @@
               },
               "uniques": []
             },
-            "V2SessionPullRequest": {
+            "V2SessionBranch": {
               "columns": {
-                "number": {
+                "branch": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "firstSeenSeq": {
                   "codecId": "pg/int4@1",
                   "dataType": "pg/int4",
                   "nullable": false
                 },
-                "repo": {
+                "headRepo": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": false
@@ -16506,7 +16530,7 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "V2SessionPullRequest_sessionId_idx_29f415d4"
+                    "name": "V2SessionBranch_sessionId_idx_29f415d4"
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
@@ -16515,7 +16539,7 @@
                       "sessionId"
                     ],
                     "namespaceId": "v2",
-                    "tableName": "V2SessionPullRequest"
+                    "tableName": "V2SessionBranch"
                   },
                   "target": {
                     "columns": [
@@ -16529,27 +16553,27 @@
               "indexes": [
                 {
                   "columns": [
-                    "repo",
-                    "number"
+                    "headRepo",
+                    "branch"
                   ],
-                  "name": "V2SessionPullRequest_repo_number_idx_1b5d84e4",
-                  "prefix": "V2SessionPullRequest_repo_number_idx",
+                  "name": "V2SessionBranch_headRepo_branch_idx_2f926fb3",
+                  "prefix": "V2SessionBranch_headRepo_branch_idx",
                   "unique": false
                 },
                 {
                   "columns": [
                     "sessionId"
                   ],
-                  "name": "V2SessionPullRequest_sessionId_idx_29f415d4",
-                  "prefix": "V2SessionPullRequest_sessionId_idx",
+                  "name": "V2SessionBranch_sessionId_idx_29f415d4",
+                  "prefix": "V2SessionBranch_sessionId_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
                 "columns": [
                   "sessionId",
-                  "repo",
-                  "number"
+                  "headRepo",
+                  "branch"
                 ]
               },
               "uniques": []
@@ -16702,7 +16726,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "e10afd6f04a655c4be2c0eafdcb177d67f2441abf67ede2e9888844edd9e68ef"
+    "storageHash": "36a4181aa3c68fd5fc8527922fd3b3412fb0446bbb6367dc3a4d395b8b0d4f28"
   },
   "execution": {
     "executionHash": "27a680d0d8367c03704617bfac2d0041e04bd5395fc473f9e021f03bd0d4c6fa",
