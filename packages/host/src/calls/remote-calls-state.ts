@@ -1,3 +1,4 @@
+import { EDaemonAnswer } from '@dltech/atlas-core'
 import type { LogPort } from '@dltech/atlas-observability'
 import { ECallFailure } from '@dltech/atlas-protocol'
 import type { CallOp, CallResult, DaemonFrame } from '@dltech/atlas-protocol'
@@ -141,6 +142,7 @@ export class RemoteCallsState {
     signal?: AbortSignal | undefined
     onOutput?: ((bytes: Uint8Array) => void) | undefined
     dispatchedBootId?: string | undefined
+    attachOnly?: boolean | undefined
   }): Promise<CallResult> {
     const dispatchedBootId = args.dispatchedBootId ?? scopeDispatchedBootId()
     if (this.fenced) throw new FencedError(`session ${this.args.sessionId} lost its lease`)
@@ -180,6 +182,14 @@ export class RemoteCallsState {
       throw error
     }
     if (call.done) return outcome
+    if (args.attachOnly === true) {
+      const answer = await this.answerOf(call.key)
+      if (call.done || this.closed || this.fenced) return outcome
+      if (answer !== EDaemonAnswer.Running && answer !== EDaemonAnswer.Done) {
+        this.settle(call, interruptedResult(args.op.op))
+        return outcome
+      }
+    }
     if (
       callLostAcrossBoot({
         op: call.op.op,

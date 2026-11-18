@@ -4,6 +4,7 @@ import {
   type FileStat,
   type FileSystemEntry,
   type ProcessHandle,
+  type ProcessOutcome,
   type SpawnCommand,
 } from '@dltech/atlas-core'
 
@@ -14,6 +15,7 @@ export class RecordingProcessPort extends ProcessPort {
     private readonly script: {
       chunks?: readonly string[]
       exitCodeOf?: (args: SpawnCommand) => number
+      outcomeOf?: (args: SpawnCommand) => ProcessOutcome | undefined
     } = {},
   ) {
     super()
@@ -23,6 +25,7 @@ export class RecordingProcessPort extends ProcessPort {
     this.spawned.push(args)
     const encoder = new TextEncoder()
     const chunks = args.cmd[0] === 'sh' ? (this.script.chunks ?? []) : []
+    const outcome = this.script.outcomeOf?.(args)
     return {
       stdout: new ReadableStream<Uint8Array>({
         start: (sink) => {
@@ -32,6 +35,7 @@ export class RecordingProcessPort extends ProcessPort {
       }),
       stderr: new ReadableStream<Uint8Array>({ start: (sink) => sink.close() }),
       exited: Promise.resolve(this.script.exitCodeOf?.(args) ?? 0),
+      ...(outcome === undefined ? {} : { outcome: Promise.resolve(outcome) }),
       terminate: () => {},
     }
   }

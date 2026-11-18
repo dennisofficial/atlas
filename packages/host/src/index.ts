@@ -12,6 +12,7 @@ export {
   markDispatched,
   nextKey,
   runInCallScope,
+  scopeAttachOnly,
   scopeDispatchedBootId,
   scopeKeyOf,
 } from './calls/call-scope'

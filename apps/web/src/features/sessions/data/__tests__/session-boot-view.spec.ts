@@ -156,6 +156,27 @@ describe('sessionBootViewOf', () => {
     })
   })
 
+  it('keeps a background setup script running after the workspace is prepared', () => {
+    const view = sessionBootViewOf({
+      events: eventsOf([
+        step(EWorkspaceStep.Sandbox, EWorkspaceStepState.Done),
+        step(EWorkspaceStep.Daemon, EWorkspaceStepState.Done),
+        step(EWorkspaceStep.Clone, EWorkspaceStepState.Done),
+        step(EWorkspaceStep.Setup, EWorkspaceStepState.Started, { command: 'bun install' }),
+        { type: 'workspace-prepared' },
+      ]),
+      status: statusOf(ESessionStatus.Idle),
+    })
+    expect(statesOf(view)).toEqual([
+      EBootStepState.Done,
+      EBootStepState.Done,
+      EBootStepState.Done,
+      EBootStepState.Running,
+    ])
+    expect(view?.state).toBe(EBootStepState.Running)
+    expect(view?.error).toBeUndefined()
+  })
+
   it('shows a half-replayed boot as running, not failed, while catching up', () => {
     const view = sessionBootViewOf({
       events: eventsOf([

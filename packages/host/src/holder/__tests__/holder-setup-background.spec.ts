@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'bun:test'
-import { ESetupPhase } from '@dltech/atlas-core'
+import {
+  ESetupPhase,
+  EWorkspaceStep,
+  EWorkspaceStepState,
+  type WorkspaceStepReport,
+} from '@dltech/atlas-core'
 import { ScriptedModel } from '@dltech/atlas-agent/testing'
 
-import type { SetupLifecycle } from '../ports'
-import { flushUntil, makeRig, seedSession, THREAD_ID } from './holder-rig'
+import type { PrepareStepReporter, SetupLifecycle } from '../ports'
+import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID } from './holder-rig'
 
 const setupHandle = () => {
   const listeners: ((lifecycle: SetupLifecycle) => void)[] = []
@@ -37,6 +42,27 @@ const noticesOf = async (rig: Awaited<ReturnType<typeof makeRig>>) => {
     visible: false,
   })
   return page.events.filter((event) => event.type === 'sandbox-setup-reported')
+}
+
+const setupStepsOf = async (rig: Awaited<ReturnType<typeof makeRig>>) => {
+  const page = await rig.plane.readEvents({
+    threadId: THREAD_ID,
+    afterSeq: 0,
+    limit: 100,
+    visible: false,
+  })
+  return page.events.flatMap((event) =>
+    event.type === 'workspace-step' && event.step === EWorkspaceStep.Setup
+      ? [
+          {
+            state: event.state,
+            reason: event.reason,
+            command: event.command,
+            output: event.output,
+          },
+        ]
+      : [],
+  )
 }
 
 const rigWith = async (args: {
@@ -164,6 +190,132 @@ describe('a setup script that runs in the background', () => {
     const types = await typesOf(rig)
     expect(types).not.toContain('run-failed')
     expect(model.requests.length).toBeLessThanOrEqual(2)
+    rig.holder.discard()
+  })
+
+  it('re-joins the setup a previous host left running, and records its real end', async () => {
+    const first = setupHandle()
+    const model = new ScriptedModel([{ text: 'one' }])
+    const a = await makeRig({
+      model: () => model,
+      idleMinutes: 1,
+      subscribeSetup: first.subscribe,
+      prepare: async (onStep) => {
+        onStep?.({
+          step: EWorkspaceStep.Setup,
+          state: EWorkspaceStepState.Started,
+          command: 'bun install',
+        })
+        first.started('bun install')
+        return { ok: true }
+      },
+    })
+    await seedSession(a)
+    await a.holder.start()
+    await a.wake()
+    const started = await flushUntil({
+      check: async () =>
+        (await setupStepsOf(a)).some((step) => step.state === EWorkspaceStepState.Started),
+    })
+    expect(started).toBe(true)
+    await a.holder.drain()
+    await new Promise((resolve) => setTimeout(resolve, 1_000))
+
+    let prepared = 0
+    let report: PrepareStepReporter | undefined
+    const second = setupHandle()
+    const b = await makeRig({
+      plane: a.plane,
+      store: a.store,
+      bus: a.bus,
+      clock: a.clock,
+      daemon: a.daemon,
+      model: () => model,
+      idleMinutes: 1,
+      subscribeSetup: second.subscribe,
+      prepare: async (onStep) => {
+        prepared += 1
+        report = onStep
+        return { ok: true }
+      },
+    })
+    await b.holder.start()
+    await a.bus.wake(SESSION)
+    const joined = await flushUntil({ check: () => prepared > 0, attempts: 200 })
+    expect(joined).toBe(true)
+
+    b.clock.advance(120_000)
+    await b.flush()
+    expect(b.runtimes[0]?.released).toBe(false)
+    expect(b.holder.heldIds().length).toBe(1)
+
+    report?.({
+      step: EWorkspaceStep.Setup,
+      state: EWorkspaceStepState.Done,
+      command: 'bun install',
+      output: 'installed 412 packages',
+    })
+    second.finished({ script: 'bun install', ok: true })
+    const recorded = await flushUntil({
+      check: async () =>
+        (await setupStepsOf(b)).some((step) => step.state === EWorkspaceStepState.Done) &&
+        (await noticesOf(b)).some((notice) => notice.phase === ESetupPhase.Finished),
+      attempts: 200,
+    })
+    expect(recorded).toBe(true)
+
+    const done = (await setupStepsOf(b)).at(-1)
+    expect(done).toMatchObject({
+      state: EWorkspaceStepState.Done,
+      command: 'bun install',
+    })
+    expect(done?.output).toContain('installed 412 packages')
+    const notices = await noticesOf(b)
+    expect(notices.at(-1)).toMatchObject({ phase: ESetupPhase.Finished, failed: false })
+    expect(String(notices.at(-1)?.text)).toContain('finished after')
+    b.holder.discard()
+  }, 15_000)
+
+  it('records the setup as failed when the session is stopped while it runs', async () => {
+    const setup = setupHandle()
+    const model = new ScriptedModel([{ text: 'one' }])
+    const rig = await makeRig({
+      model: () => model,
+      subscribeSetup: setup.subscribe,
+      prepare: async (onStep) => {
+        onStep?.({
+          step: EWorkspaceStep.Setup,
+          state: EWorkspaceStepState.Started,
+          command: 'bun install',
+        })
+        setup.started('bun install')
+        return { ok: true }
+      },
+    })
+    await seedSession(rig)
+    await rig.holder.start()
+    await rig.wake()
+    await flushUntil({
+      check: async () => (await typesOf(rig)).includes('workspace-prepared'),
+    })
+
+    await rig.postStop()
+    await rig.wake()
+    const stopped = await flushUntil({
+      check: async () =>
+        (await setupStepsOf(rig)).some((step) => step.state === EWorkspaceStepState.Failed),
+      attempts: 200,
+    })
+    expect(stopped).toBe(true)
+
+    expect((await setupStepsOf(rig)).at(-1)).toMatchObject({
+      state: EWorkspaceStepState.Failed,
+      reason: 'setup was stopped with the session',
+    })
+    expect((await noticesOf(rig)).at(-1)).toMatchObject({
+      phase: ESetupPhase.Finished,
+      failed: true,
+    })
     rig.holder.discard()
   })
 })

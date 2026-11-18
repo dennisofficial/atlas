@@ -27,7 +27,7 @@ const CLONE_TIMEOUT_MS = 10 * 60_000
 
 const SSH_REMOTE = /^(?:ssh:\/\/)?git@([^/:]+)[:/](.+)$/
 
-type RunOutcome = { ok: boolean; output: string }
+type RunOutcome = { ok: boolean; output: string; interrupted?: boolean; detached?: boolean }
 
 const httpsRemoteOf = (remoteUrl: string): string => {
   const ssh = SSH_REMOTE.exec(remoteUrl)
@@ -94,7 +94,14 @@ export const run = async (args: {
     if (outcome.kind === EProcessOutcome.Failed) {
       return { ok: false, output: `${output}${outcome.message}` }
     }
-    return { ok: outcome.kind === EProcessOutcome.Exited && outcome.code === 0, output }
+    if (outcome.kind === EProcessOutcome.Interrupted) {
+      return { ok: false, output, interrupted: true }
+    }
+    const code = outcome.kind === EProcessOutcome.Exited ? outcome.code : null
+    // 124 is a timeout and 130 a cancel: both are reported by the host that gave up watching, so
+    // the script may well still be running on the pod
+    const detached = code === 124 || code === 130
+    return { ok: code === 0, output, ...(detached ? { detached: true } : {}) }
   } finally {
     clearTimeout(timer)
     args.signal?.removeEventListener('abort', terminate)

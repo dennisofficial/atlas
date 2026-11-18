@@ -20,7 +20,12 @@ import {
 } from '@dltech/atlas-host'
 import { daemonToken } from '@dltech/atlas-protocol/engine'
 
-import { ESetupPhase } from '@dltech/atlas-core'
+import {
+  ESetupPhase,
+  EWorkspaceStep,
+  EWorkspaceStepState,
+  type WorkspaceStepReport,
+} from '@dltech/atlas-core'
 
 import { CollectingLog } from '../../__tests__/e2e-support'
 import { sandboxNameOf } from '../../sandbox/sandbox-provider'
@@ -28,9 +33,11 @@ import { LocalSandboxProvider } from '../../testing/local-sandbox-provider'
 import {
   ensureWorkspace,
   MATERIALIZED_SENTINEL,
+  SETUP_INTERRUPTED_REASON,
   SETUP_SENTINEL,
   WORKSPACE_STATE_DIR,
 } from '../workspace-setup'
+import { SETUP_STARTED_MARKER } from '../workspace-state'
 
 const SECRET = 'workspace-setup-secret'
 const TOKEN = 'ghp_secret-token-xyz'
@@ -98,6 +105,7 @@ const setupFor = async (args: {
   githubToken?: string | null
   launchDirectory: string
   log?: CollectingLog
+  onStep?: ((step: WorkspaceStepReport) => void) | undefined
 }) => {
   const setups: FinishedSetup[] = []
   let finish: () => void = () => {}
@@ -113,6 +121,7 @@ const setupFor = async (args: {
     launchDirectory: args.launchDirectory,
     sandboxName: sandboxNameOf(args.sessionId),
     ...(args.log === undefined ? {} : { log: args.log }),
+    ...(args.onStep === undefined ? {} : { onStep: args.onStep }),
     onSetup: (lifecycle) => {
       if (lifecycle.phase === ESetupPhase.Finished) {
         setups.push(lifecycle)
@@ -513,6 +522,152 @@ describe('ensureWorkspace', () => {
       'ran\n',
     )
     expect(existsSync(join(root, WORKSPACE_STATE_DIR, SETUP_SENTINEL))).toBe(true)
+    hostB.calls.close()
+  }, 90_000)
+})
+
+describe('a setup script left running by an earlier host', () => {
+  const CREDENTIALS = { token: '', teamId: '', projectId: '' }
+
+  const startThenDrop = async (args: {
+    sessionId: string
+    workspace: {
+      remoteUrl: string | null
+      baseBranch: string | null
+      additionalRepos: { repo: string; branch?: string }[]
+      setupScript: string
+    }
+    launchDirectory: string
+  }): Promise<void> => {
+    const host = await openPorts({ sessionId: args.sessionId })
+    void setupFor({
+      sessionId: args.sessionId,
+      calls: host.calls,
+      processes: host.processes,
+      files: host.files,
+      workspace: args.workspace,
+      launchDirectory: args.launchDirectory,
+    }).catch(() => undefined)
+    await waitFor(() => existsSync(join(args.launchDirectory, 'progress.txt')))
+    host.calls.close()
+  }
+
+  it('re-joins it on the replacement host and records the real end, with its output', async () => {
+    const sessionId = 'setup-session-resume'
+    const root = mkdtempSync(join(tmpdir(), 'atlas-workspace-resume-'))
+    const launchDirectory = join(root, 'workspace')
+    const workspace = {
+      remoteUrl: null,
+      baseBranch: null,
+      additionalRepos: [],
+      setupScript:
+        'echo started >> progress.txt && sleep 2 && echo ran >> setup-ran.txt && echo finished-marker',
+    }
+    await startThenDrop({ sessionId, workspace, launchDirectory })
+
+    const hostB = await openPorts({ sessionId })
+    const steps: WorkspaceStepReport[] = []
+    const second = await setupFor({
+      sessionId,
+      calls: hostB.calls,
+      processes: hostB.processes,
+      files: hostB.files,
+      workspace,
+      launchDirectory,
+      onStep: (step) => steps.push(step),
+    })
+    const finished = await settledOf(second.setups)
+
+    expect(finished).toMatchObject({ phase: ESetupPhase.Finished, ok: true })
+    expect(finished.output).toContain('finished-marker')
+    expect(await hostB.files.readFile({ path: join(launchDirectory, 'setup-ran.txt') })).toBe(
+      'ran\n',
+    )
+    expect(existsSync(join(root, WORKSPACE_STATE_DIR, SETUP_SENTINEL))).toBe(true)
+    const setup = steps.filter((step) => step.step === EWorkspaceStep.Setup)
+    expect(setup.some((step) => step.state === EWorkspaceStepState.Started)).toBe(false)
+    expect(setup.at(-1)).toMatchObject({
+      state: EWorkspaceStepState.Done,
+      command: workspace.setupScript,
+    })
+    expect(setup.at(-1)?.output).toContain('finished-marker')
+    hostB.calls.close()
+  }, 90_000)
+
+  it('records the failure of the resumed script, with its output tail', async () => {
+    const sessionId = 'setup-session-resume-bad'
+    const root = mkdtempSync(join(tmpdir(), 'atlas-workspace-resume-bad-'))
+    const launchDirectory = join(root, 'workspace')
+    const workspace = {
+      remoteUrl: null,
+      baseBranch: null,
+      additionalRepos: [],
+      setupScript: 'echo started >> progress.txt && sleep 2 && echo boom-marker >&2 && exit 3',
+    }
+    await startThenDrop({ sessionId, workspace, launchDirectory })
+
+    const hostB = await openPorts({ sessionId })
+    const steps: WorkspaceStepReport[] = []
+    const second = await setupFor({
+      sessionId,
+      calls: hostB.calls,
+      processes: hostB.processes,
+      files: hostB.files,
+      workspace,
+      launchDirectory,
+      onStep: (step) => steps.push(step),
+    })
+    const finished = await settledOf(second.setups)
+
+    expect(finished).toMatchObject({ phase: ESetupPhase.Finished, ok: false })
+    expect(finished.output).toContain('boom-marker')
+    expect(steps.at(-1)).toMatchObject({
+      step: EWorkspaceStep.Setup,
+      state: EWorkspaceStepState.Failed,
+      command: workspace.setupScript,
+    })
+    expect(steps.at(-1)?.output).toContain('boom-marker')
+    expect(existsSync(join(root, WORKSPACE_STATE_DIR, SETUP_SENTINEL))).toBe(false)
+    hostB.calls.close()
+  }, 90_000)
+
+  it('fails it as interrupted, and runs nothing, when the restarted sandbox no longer holds it', async () => {
+    const sessionId = 'setup-session-lost'
+    const root = mkdtempSync(join(tmpdir(), 'atlas-workspace-lost-'))
+    const launchDirectory = join(root, 'workspace')
+    const stateDir = join(root, WORKSPACE_STATE_DIR)
+    const workspace = {
+      remoteUrl: null,
+      baseBranch: null,
+      additionalRepos: [],
+      setupScript: 'echo started >> progress.txt && sleep 20 && echo ran >> setup-ran.txt',
+    }
+    await startThenDrop({ sessionId, workspace, launchDirectory })
+    expect(existsSync(join(stateDir, SETUP_STARTED_MARKER))).toBe(true)
+
+    await sandbox.stop({ sandboxSessionId: sessionId, credentials: CREDENTIALS })
+    const hostB = await openPorts({ sessionId })
+    const steps: WorkspaceStepReport[] = []
+    const second = await setupFor({
+      sessionId,
+      calls: hostB.calls,
+      processes: hostB.processes,
+      files: hostB.files,
+      workspace,
+      launchDirectory,
+      onStep: (step) => steps.push(step),
+    })
+    const finished = await settledOf(second.setups)
+
+    expect(finished).toMatchObject({ phase: ESetupPhase.Finished, ok: false })
+    expect(steps.at(-1)).toMatchObject({
+      step: EWorkspaceStep.Setup,
+      state: EWorkspaceStepState.Failed,
+      reason: SETUP_INTERRUPTED_REASON,
+    })
+    expect(existsSync(join(launchDirectory, 'setup-ran.txt'))).toBe(false)
+    expect(existsSync(join(stateDir, SETUP_SENTINEL))).toBe(false)
+    expect(existsSync(join(stateDir, SETUP_STARTED_MARKER))).toBe(false)
     hostB.calls.close()
   }, 90_000)
 })
