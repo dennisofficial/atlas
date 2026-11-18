@@ -70,13 +70,28 @@ describe('requiredContextsFrom', () => {
     ).toEqual(['ci'])
   })
 
-  it('treats a failed lookup as no required checks rather than blocking verdicts', async () => {
+  it('answers unknown when neither source could be read', async () => {
     expect(
       await requiredContextsFrom({
         ...args,
         read: async () => {
           throw new Error('github down')
         },
+      }),
+    ).toBeNull()
+  })
+
+  it('answers no required checks when both sources read and require nothing', async () => {
+    expect(
+      await requiredContextsFrom({
+        ...args,
+        read: readOf({
+          '/repos/dennisofficial/atlas/rules/branches/main': { status: 200, body: [] },
+          '/repos/dennisofficial/atlas/branches/main/protection/required_status_checks': {
+            status: 200,
+            body: {},
+          },
+        }),
       }),
     ).toEqual([])
   })

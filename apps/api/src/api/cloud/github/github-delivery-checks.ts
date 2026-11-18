@@ -9,10 +9,9 @@ import {
   lockCommit,
   recordCommitChecks,
 } from './github-commit-checks'
-import { GithubDeliveryFillDeferred, type RestFill } from './github-delivery-fill'
+import { GithubDeliveryFillDeferred, type FillFields, type RestFill } from './github-delivery-fill'
 import { normalizedRepo } from './github-pr-identity'
 import type { GithubPrStore } from './github-pr-store'
-import type { GithubPrStateRecord } from './github-realtime.types'
 import { CheckAnnotationFetcher, type FetchAnnotations } from './github-check-annotations'
 import type {
   GithubCheckRunWebhookPayload,
@@ -162,6 +161,8 @@ export class GithubDeliveryChecks {
       })
     }
 
+    const protection = rest.kind === 'filled' ? rest.protection : null
+
     await this.deps.store.apply({
       repoFullName: args.repoFullName,
       prNumber: args.target.prNumber,
@@ -170,6 +171,7 @@ export class GithubDeliveryChecks {
         baseBranch: args.target.baseBranch,
         observedAt: new Date().toISOString(),
       }),
+      ...(protection === null ? {} : { protection }),
     })
 
     return true
@@ -195,7 +197,7 @@ export class GithubDeliveryChecks {
 }
 
 function mergeabilityObservationsOf(args: {
-  fill: GithubPrStateRecord | null
+  fill: FillFields | null
   baseBranch: string
   observedAt: string
 }): readonly PrObservation[] {

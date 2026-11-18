@@ -1,7 +1,7 @@
 import type { MergeabilitySample } from '@dltech/atlas-core'
+import type { BranchProtectionRead } from './github-branch-protection'
 import type { EGithubCallSource } from './github-call-log'
 import type { CommitCheckInput } from './github-commit-checks'
-import { readChecksState } from './github-checks-state'
 import { readHeadChecks } from './github-head-checks-read'
 import {
   pullRequestCacheFieldsOf,
@@ -9,6 +9,7 @@ import {
   type RestPullRequest,
 } from './github-pull-request-mapping'
 import { mergeabilitySampleOfRest } from './github-pr-observations'
+import type { GithubRequiredChecksRead } from './github-required-checks-read'
 
 export type PullRequestRead = {
   pull: RestPullRequest
@@ -16,11 +17,12 @@ export type PullRequestRead = {
   headSha: string
   fields: PullRequestCacheFields
   checks: CommitCheckInput[]
+  protection: BranchProtectionRead
 }
 
 export async function readPullRequestFill(args: {
   get: <T>(args: { source: EGithubCallSource; token: string; path: string }) => Promise<T>
-  baseUrl: string
+  requiredChecks: GithubRequiredChecksRead
   source: EGithubCallSource
   token: string
   owner: string
@@ -39,24 +41,23 @@ export async function readPullRequestFill(args: {
     repo: args.repo,
     headSha: pull.head.sha,
   })
-  const checksState = await readChecksState({
+  const requiredContexts = await args.requiredChecks.read({
     source: args.source,
     token: args.token,
     owner: args.owner,
     repo: args.repo,
-    number: args.number,
-    baseUrl: args.baseUrl,
+    branch: pull.base.ref,
   })
   return {
     pull,
     mergeability: mergeabilitySampleOfRest({ pull, observedAt: args.observedAt }),
     headSha: pull.head.sha,
     checks: head.checks,
+    protection: { baseBranch: pull.base.ref, requiredContexts },
     fields: pullRequestCacheFieldsOf({
       pull,
       checkRuns: head.checkRuns,
       statuses: head.statuses,
-      checksState,
     }),
   }
 }

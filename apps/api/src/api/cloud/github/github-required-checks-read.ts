@@ -26,7 +26,7 @@ export class GithubRequiredChecksRead {
     owner: string
     repo: string
     branch: string
-  }): Promise<string[]> {
+  }): Promise<string[] | null> {
     const key = requiredContextsKey(args)
     const held = recalledRequiredContexts({ cache: this.known, key, now: Date.now() })
     if (held !== undefined) return held
@@ -36,6 +36,7 @@ export class GithubRequiredChecksRead {
       repo: args.repo,
       branch: args.branch,
     })
+    if (contexts === null) return null
     return rememberRequiredContexts({
       cache: this.known,
       key,

@@ -31,27 +31,30 @@ describe('GithubUserReads settle confirmation', () => {
   })
   afterEach(() => restore())
 
-  it('reads the pull, its check-runs, its statuses and the rollup state', async () => {
+  it("reads the pull, its head checks and the base branch's required contexts", async () => {
     branch = 'main'
     await new GithubUserReads().readPullRequest({
       ...target,
       number: 1,
       collectChecks: () => undefined,
     })
-    expect(paths).toHaveLength(4)
-    expect(paths.some((path) => path.endsWith('/graphql'))).toBe(true)
-    expect(paths.some((path) => path.includes('/rules/branches/'))).toBe(false)
+    expect(paths).toHaveLength(5)
+    expect(paths.some((path) => path.endsWith('/graphql'))).toBe(false)
+    expect(paths.some((path) => path.includes('/rules/branches/'))).toBe(true)
   })
 
-  it('hands the head checks to its collector and makes the same four calls', async () => {
+  it('hands the head checks and the branch protection to their collectors', async () => {
     branch = 'release'
     const collected: Array<{ headSha: string; checks: unknown[] }> = []
+    const protection: unknown[] = []
     await new GithubUserReads().readPullRequest({
       ...target,
       number: 1,
       collectChecks: (read) => collected.push(read),
+      collectRequiredContexts: (read) => protection.push(read),
     })
-    expect(paths).toHaveLength(4)
+    expect(paths).toHaveLength(5)
     expect(collected).toEqual([{ headSha: 'abc', checks: [] }])
+    expect(protection).toEqual([{ baseBranch: 'release', requiredContexts: [] }])
   })
 })

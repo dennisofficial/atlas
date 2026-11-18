@@ -237,7 +237,6 @@ describe('GithubDeliveryService check rows', () => {
       },
       checkRuns,
       statuses,
-      checksState: null,
     })
 
     expect(await tallyOf('abc123')).toEqual({

@@ -10,6 +10,8 @@ import {
 import { db, type Row, type Tx } from '@dltech/atlas-db'
 
 import { branchRoutingOf, dtoOf, subscriberWhereOf } from './github-delivery-routing'
+import type { BranchProtectionRead } from './github-branch-protection'
+import { rememberBranchProtection } from './github-branch-protection'
 import type { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { normalizedRepo } from './github-pr-identity'
 import { lockPrScope, type PrScopeTx } from './github-pr-lock'
@@ -29,6 +31,7 @@ export type PrApplyArgs = {
   prNumber: number
   observations: readonly PrObservation[]
   recipients?: readonly string[]
+  protection?: BranchProtectionRead
 }
 
 export type PrApplyResult = {
@@ -60,6 +63,13 @@ export class GithubPrStore {
     args: PrApplyArgs & { tx: Tx; repoFullName: string },
   ): Promise<PrApplyWrite> {
     const tx = await lockPrScope({ tx: args.tx, repoFullName: args.repoFullName })
+    if (args.protection !== undefined) {
+      await rememberBranchProtection({
+        tx,
+        repoFullName: args.repoFullName,
+        protection: args.protection,
+      })
+    }
     const stored = await tx.orm.public.GithubPrState.where({
       repoFullName: args.repoFullName,
       prNumber: args.prNumber,

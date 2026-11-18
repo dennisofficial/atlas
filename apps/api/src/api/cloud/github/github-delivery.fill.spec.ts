@@ -127,6 +127,7 @@ describe('GithubDeliveryService fill', () => {
       repo: 'app',
       number: 42,
       collectChecks: expect.any(Function),
+      collectRequiredContexts: expect.any(Function),
     })
     expect((await prStateRows())[0]?.checksPassed).toBe(2)
   })

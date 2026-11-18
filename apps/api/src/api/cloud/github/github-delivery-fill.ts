@@ -1,14 +1,21 @@
 import type { Logger } from '@nestjs/common'
 import type { MergeabilitySample } from '@dltech/atlas-core'
+import type { BranchProtectionRead } from './github-branch-protection'
 import { EGithubCallSource } from './github-call-log'
 import { GithubHttpBudgetUnavailable } from './github-request-budget'
 import type { CommitCheckInput } from './github-commit-checks'
-import type { RestPullRequest } from './github-pull-request-mapping'
-import type { GithubPrStateRecord } from './github-realtime.types'
+import type { PullRequestCacheFields, RestPullRequest } from './github-pull-request-mapping'
 import { GithubUserReadFailed, type GithubUserReads } from './github-user-reads'
 
+export type FillFields = PullRequestCacheFields & { updatedAt: Date }
+
 export type RestFill =
-  | { kind: 'filled'; fields: GithubPrStateRecord; checks: CommitCheckInput[] | null }
+  | {
+      kind: 'filled'
+      fields: FillFields
+      checks: CommitCheckInput[] | null
+      protection: BranchProtectionRead | null
+    }
   | { kind: 'skipped' }
   | { kind: 'deferred' }
 
@@ -81,6 +88,7 @@ export async function tryRestFill(args: {
   prNumber: number
 }): Promise<RestFill> {
   let collected: CommitCheckInput[] = []
+  let protection: BranchProtectionRead | null = null
   try {
     const fields = await args.reads.readPullRequest({
       source: EGithubCallSource.DeliveryFill,
@@ -91,8 +99,16 @@ export async function tryRestFill(args: {
       collectChecks: ({ checks }) => {
         collected = [...checks]
       },
+      collectRequiredContexts: (held) => {
+        protection = held
+      },
     })
-    return { kind: 'filled', fields: { ...fields, updatedAt: new Date() }, checks: collected }
+    return {
+      kind: 'filled',
+      fields: { ...fields, updatedAt: new Date() },
+      checks: collected,
+      protection,
+    }
   } catch (failure) {
     return failureOutcomeOf({
       failure,

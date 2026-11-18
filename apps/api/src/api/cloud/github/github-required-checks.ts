@@ -41,16 +41,16 @@ export function requiredContextsOf(args: {
 }
 
 /**
- * A lookup that fails answers "no required checks known", which keeps the head's settlement
- * exactly as it was before required checks were consulted: a permission problem or an outage
- * must never leave verdicts unsettled forever.
+ * Null means neither source could be read, which the writer must keep apart from an answer of no
+ * contexts: it stores contexts, so a permission problem or an outage that reads as "requires
+ * nothing" would erase a branch's protection and let a verdict settle early.
  */
 export async function requiredContextsFrom(args: {
   read: (path: string) => Promise<GithubPathRead>
   owner: string
   repo: string
   branch: string
-}): Promise<string[]> {
+}): Promise<string[] | null> {
   const branch = encodeURIComponent(args.branch)
   const rules = await bodyOf<GithubBranchRule[]>({
     read: args.read,
@@ -62,7 +62,9 @@ export async function requiredContextsFrom(args: {
     read: args.read,
     path: `/repos/${args.owner}/${args.repo}/branches/${branch}/protection/required_status_checks`,
   })
-  return requiredContextsOf({ rules: rules ?? [], protection })
+  const fromProtection = requiredContextsOf({ rules: [], protection })
+  if (fromProtection.length > 0) return fromProtection
+  return rules !== null && protection !== null ? [] : null
 }
 
 async function bodyOf<T>(args: {

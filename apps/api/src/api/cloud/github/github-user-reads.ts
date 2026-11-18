@@ -3,12 +3,14 @@ import type { EGithubCallSource } from './github-call-log'
 import { githubFetch } from './github-fetch'
 import { rateLimitOf } from './github-rate-limit'
 import type { MergeabilitySample } from '@dltech/atlas-core'
+import type { BranchProtectionRead } from './github-branch-protection'
 import type { PullRequestCacheFields, RestPullRequest } from './github-pull-request-mapping'
 import { HOOK_EVENTS } from './github-hook-events'
 import type { CommitCheckInput } from './github-commit-checks'
 import type { RawCheckAnnotation } from './github-check-annotations'
 import { readPullRequestFill, type PullRequestRead } from './github-pull-request-read'
 import { readHeadChecks } from './github-head-checks-read'
+import { GithubRequiredChecksRead } from './github-required-checks-read'
 
 const GITHUB_API = 'https://api.github.com'
 const DETAIL_CAP = 300
@@ -47,6 +49,7 @@ export interface HookConfig {
 @Injectable()
 export class GithubUserReads {
   private readonly baseUrl = process.env.GITHUB_API_URL ?? GITHUB_API
+  private readonly requiredChecks = new GithubRequiredChecksRead()
 
   readCheckAnnotations(args: {
     source: EGithubCallSource
@@ -84,9 +87,11 @@ export class GithubUserReads {
     repo: string
     number: number
     collectChecks: (args: { headSha: string; checks: CommitCheckInput[] }) => void
+    collectRequiredContexts?: (protection: BranchProtectionRead) => void
   }): Promise<PullRequestCacheFields> {
     const read = await this.readPullRequestFillOf(args)
     args.collectChecks({ headSha: read.headSha, checks: read.checks })
+    args.collectRequiredContexts?.(read.protection)
     return read.fields
   }
 
@@ -113,7 +118,7 @@ export class GithubUserReads {
     return readPullRequestFill({
       get: <T>(request: { source: EGithubCallSource; token: string; path: string }) =>
         this.get<T>(request),
-      baseUrl: this.baseUrl,
+      requiredChecks: this.requiredChecks,
       source: args.source,
       token: args.token,
       owner: args.owner,

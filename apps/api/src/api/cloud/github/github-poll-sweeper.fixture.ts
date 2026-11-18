@@ -32,7 +32,6 @@ export const REST_FIELDS: PullRequestCacheFields = {
   checksPassed: 3,
   checksFailed: 1,
   checksIgnored: 0,
-  checksState: null,
   mergeable: false,
 }
 
