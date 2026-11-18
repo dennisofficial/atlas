@@ -53,7 +53,7 @@ const crewRow = (overrides: Partial<CrewRow> = {}): CrewRow => ({
   ...overrides,
 })
 
-const render = (props: {
+type HeaderProps = {
   branch?: string
   routineId?: string | null
   entries: PullRequestEntry[]
@@ -62,29 +62,38 @@ const render = (props: {
   shellTails?: Readonly<Record<string, string>>
   crewRows?: readonly CrewRow[]
   previews?: readonly PreviewItem[]
-}) =>
-  renderToStaticMarkup(
-    <SidebarProvider>
-      <SessionHeader
-        sessionId="s1"
-        state={EHeaderState.Idle}
-        routineId={props.routineId ?? null}
-        title="Fix login"
-        naming={false}
-        branch={props.branch}
-        entries={props.entries}
-        subscriptions={props.subscriptions ?? []}
-        shells={props.shells ?? { running: 0, awaitingInput: false, labels: [], rows: [] }}
-        shellTails={props.shellTails ?? {}}
-        crew={{
-          running: (props.crewRows ?? []).filter((row) => row.status === 'running').length,
-          total: (props.crewRows ?? []).length,
-        }}
-        crewRows={props.crewRows ?? []}
-        previews={props.previews ?? []}
-      />
-    </SidebarProvider>,
-  )
+  paneCollapsed?: boolean
+  onTogglePane?: () => void
+  onOpenPane?: () => void
+}
+
+const headerOf = (props: HeaderProps) => (
+  <SidebarProvider>
+    <SessionHeader
+      sessionId="s1"
+      state={EHeaderState.Idle}
+      routineId={props.routineId ?? null}
+      title="Fix login"
+      naming={false}
+      branch={props.branch}
+      entries={props.entries}
+      subscriptions={props.subscriptions ?? []}
+      shells={props.shells ?? { running: 0, awaitingInput: false, labels: [], rows: [] }}
+      shellTails={props.shellTails ?? {}}
+      crew={{
+        running: (props.crewRows ?? []).filter((row) => row.status === 'running').length,
+        total: (props.crewRows ?? []).length,
+      }}
+      crewRows={props.crewRows ?? []}
+      previews={props.previews ?? []}
+      paneCollapsed={props.paneCollapsed}
+      onTogglePane={props.onTogglePane}
+      onOpenPane={props.onOpenPane}
+    />
+  </SidebarProvider>
+)
+
+const render = (props: HeaderProps) => renderToStaticMarkup(headerOf(props))
 
 describe('SessionHeader', () => {
   it('shows the branch and an open pull request with running checks linking to its url', () => {
@@ -200,6 +209,15 @@ describe('SessionHeader', () => {
   it('tags a session a routine produced, and leaves an ordinary session untagged', () => {
     expect(render({ entries: [], routineId: 'rte-1' })).toContain('data-session-routine')
     expect(render({ entries: [] })).not.toContain('data-session-routine')
+  })
+
+  it('offers a pane toggle that reports whether the pane is collapsed', () => {
+    const expanded = render({ entries: [], paneCollapsed: false })
+    expect(expanded).toContain('aria-label="Collapse panel"')
+    expect(expanded).toContain('aria-expanded="true"')
+    const collapsed = render({ entries: [], paneCollapsed: true })
+    expect(collapsed).toContain('aria-label="Expand panel"')
+    expect(collapsed).toContain('aria-expanded="false"')
   })
 })
 
