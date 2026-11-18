@@ -220,7 +220,8 @@ function settleFieldsOf(args: {
     checksFailed: args.fill.checksFailed,
     checksIgnored: args.fill.checksIgnored,
     checksState: args.fill.checksState,
-    requiredCheckContexts: args.fill.requiredCheckContexts,
+    requiredCheckContexts:
+      args.fill.requiredCheckContexts ?? args.stored.requiredCheckContexts ?? [],
     ...(args.hasChecks ? checkCountFieldsOf(args.tally) : {}),
     updatedAt: new Date(),
   }
