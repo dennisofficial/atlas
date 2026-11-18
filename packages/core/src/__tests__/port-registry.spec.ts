@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, it } from 'bun:test'
 
 import type {
   DetachedPortNames,
@@ -54,28 +54,31 @@ describe('port registry', () => {
     void noticeDetached
   })
 
-  it('names every entry it carries', () => {
-    const names: readonly RegisteredPortName[] = [
-      'ClockPort',
-      'IdPort',
-      'EventLogPort',
-      'ModelPort',
-      'CredentialPort',
-      'CredentialAvailabilityPort',
-      'AccountStorePort',
-      'ProcessPort',
-      'FileSystemPort',
-      'AgentFileSystemPort',
-      'FileCapabilitiesPort',
-      'WorkspacePort',
-      'WorkspaceFactsPort',
-      'WorkspaceIdentityPort',
-      'QualityReviewPort',
-      'DecisionPort',
-      'JudgePort',
-      'NoticePort',
-      'ExecutionLocationSinkPort',
-    ]
-    expect(new Set(names).size).toBe(names.length)
+  it('names every entry it carries, and nothing else', () => {
+    const entryNames = {
+      ClockPort: true,
+      IdPort: true,
+      EventLogPort: true,
+      ModelPort: true,
+      CredentialPort: true,
+      CredentialAvailabilityPort: true,
+      AccountStorePort: true,
+      ProcessPort: true,
+      FileSystemPort: true,
+      AgentFileSystemPort: true,
+      FileCapabilitiesPort: true,
+      WorkspacePort: true,
+      WorkspaceFactsPort: true,
+      WorkspaceIdentityPort: true,
+      QualityReviewPort: true,
+      DecisionPort: true,
+      JudgePort: true,
+      NoticePort: true,
+      ExecutionLocationSinkPort: true,
+      ThreadReadCursorPort: true,
+    } satisfies Record<RegisteredPortName, true>
+
+    const everyEntryNamed: Expect<Equal<keyof typeof entryNames, RegisteredPortName>> = true
+    void everyEntryNamed
   })
 })
