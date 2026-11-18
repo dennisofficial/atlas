@@ -1,4 +1,4 @@
-import { db, type Row } from '@dltech/atlas-db'
+import { and, db, or, type Row } from '@dltech/atlas-db'
 import type { Logger } from '@nestjs/common'
 import { cachedPrStates, normalizedRepo, prIdentity, repoPattern } from './github-linked-prs'
 import { subscriptionLiveWhere } from './github-delivery-routing'
@@ -45,16 +45,13 @@ export async function refreshGithubQueue(deps: QueueDeps): Promise<void> {
     polls.set(repo, answer)
     return answer
   }
-  if (await lookUpEach({ deps, targets: tracked.filter((target) => target.lookedUpAt === null) }))
-    return
-  const workedHeads = tracked.filter(
-    (target) => target.kind === 'head' && target.lookedUpAt !== null,
-  )
   const polledHeads: Row<'GithubTrackingTarget'>[] = []
-  for (const target of workedHeads) {
+  const firstLookups: Row<'GithubTrackingTarget'>[] = []
+  for (const target of tracked.filter((held) => held.kind === 'head')) {
     if (await pollsIn(target.repoFullName)) polledHeads.push(target)
+    else if (target.lookedUpAt === null) firstLookups.push(target)
   }
-  if (await lookUpEach({ deps, targets: polledHeads })) return
+  if (await lookUpEach({ deps, targets: [...firstLookups, ...polledHeads] })) return
   const subscriptions = await db.orm.public.GithubSubscription.where(
     subscriptionLiveWhere({ now }),
   ).all()
@@ -110,6 +107,14 @@ export async function refreshGithubQueue(deps: QueueDeps): Promise<void> {
     } finally {
       await deps.coordinator.recordAttempt({ key, failed })
     }
+  }
+  for (const found of await statesOnPolledHeads(polledHeads)) {
+    add({
+      repoFullName: found.state.repoFullName,
+      prNumber: found.state.prNumber,
+      userIds: [found.userId],
+      pollBacked: true,
+    })
   }
   const states = new Map(
     (await cachedPrStates([...targets.values()])).map((state) => [prIdentity(state), state]),
@@ -210,6 +215,30 @@ async function lookUpEach(args: {
     }
   }
   return false
+}
+
+async function statesOnPolledHeads(
+  heads: readonly Row<'GithubTrackingTarget'>[],
+): Promise<{ state: Row<'GithubPrState'>; userId: string }[]> {
+  if (heads.length === 0) return []
+  const userIds = new Map<string, string>()
+  for (const head of heads)
+    userIds.set(`${normalizedRepo(head.repoFullName)}#${head.branch}`, head.userId)
+  const states = await db.orm.public.GithubPrState.where((state) =>
+    or(
+      ...heads.map((head) =>
+        and(
+          state.headRepoFullName.eq(normalizedRepo(head.repoFullName)),
+          state.headBranch.eq(head.branch),
+        ),
+      ),
+    ),
+  ).all()
+  return states.flatMap((state) => {
+    const key = `${normalizedRepo(state.headRepoFullName ?? '')}#${state.headBranch}`
+    const userId = userIds.get(key)
+    return userId === undefined ? [] : [{ state, userId }]
+  })
 }
 
 const lookupKey = (target: Row<'GithubTrackingTarget'>): string =>

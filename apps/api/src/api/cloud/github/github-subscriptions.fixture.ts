@@ -9,6 +9,9 @@ import { GithubSubscriptionsService } from './github-subscriptions.service'
 import type { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import type { GithubUserReads } from './github-user-reads'
 import type { GithubService } from './github.service'
+import { GithubPrFanoutService } from './github-pr-fanout.service'
+import { DrainStateService } from '../../platform/health/drain-state.service'
+import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 
 export const REST_FIELDS: PullRequestCacheFields = {
   title: 'add the thing',
@@ -65,5 +68,7 @@ export function serviceWith(args: {
     args.coversRepo === undefined
       ? new GithubAppInstallationsService()
       : ({ coversRepo: args.coversRepo } as never),
+    new GithubPrFanoutService(new DrainStateService()),
+    inertSignals(),
   )
 }

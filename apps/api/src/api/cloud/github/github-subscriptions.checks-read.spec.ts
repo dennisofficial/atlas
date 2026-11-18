@@ -13,6 +13,7 @@ import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
 import { GithubUserReads } from './github-user-reads'
 import type { GithubService } from './github.service'
+import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 
 const SHA = 'abc123'
 const ACTIONS = { slug: 'github-actions' }
@@ -95,6 +96,8 @@ function subscriptionsService(): GithubSubscriptionsService {
     localCoordinator(github),
     new GithubPrEventMailboxService(fanout, wake),
     { coversRepo: async () => false } as never,
+    new GithubPrFanoutService(new DrainStateService()),
+    inertSignals(),
   )
 }
 

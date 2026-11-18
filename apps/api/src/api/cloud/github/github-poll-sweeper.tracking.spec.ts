@@ -1,9 +1,19 @@
 import { db, type Row } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
+import { ControlPlane } from '@dltech/atlas-control'
+import { PostgresControlStore } from '@dltech/atlas-control/postgres'
+import { chainEvents, toRunId, toThreadId } from '@dltech/atlas-core'
+import { PG_CHANGE_CHANNEL } from '@dltech/atlas-protocol'
+import pg from 'pg'
 import type { RestPullRequest } from './github-pull-request-mapping'
 import type { GithubHeadReads } from './github-head-reads'
-import { preparePollSweeper, serviceWith } from './github-poll-sweeper.fixture'
+import {
+  preparePollSweeper,
+  REST_FIELDS,
+  seedPrState,
+  serviceWith,
+} from './github-poll-sweeper.fixture'
 
 const REST_PULL: RestPullRequest = {
   number: 7,
@@ -24,7 +34,7 @@ const seedTarget = (overrides: Partial<Row<'GithubTrackingTarget'>> = {}) =>
     kind: 'head',
     repoFullName: 'compai/app',
     branch: 'dennis/feature',
-    prNumber: null,
+    prNumber: 0,
     lookedUpAt: null,
     liveUntil: new Date(Date.now() + 60 * 60_000),
     ...overrides,
@@ -54,6 +64,39 @@ const covered = () =>
     repos: ['compai/app'],
     suspendedAt: null,
   })
+
+const trackHead = async (args: { sessionId: string; branch: string }): Promise<void> => {
+  const plane = new ControlPlane({ store: new PostgresControlStore(db) })
+  await plane.createSession({
+    sessionId: args.sessionId,
+    userId: 'usr_1',
+    projectId: 'proj_1',
+    mainThreadId: `${args.sessionId}-thread`,
+  })
+  const lease = await plane.grant({ sessionId: args.sessionId, hostId: 1 })
+  const outcome = await plane.append({
+    threadId: `${args.sessionId}-thread`,
+    epoch: lease.epoch,
+    events: chainEvents({
+      threadId: toThreadId(`${args.sessionId}-thread`),
+      runId: toRunId('run-1'),
+      epoch: lease.epoch,
+      at: new Date().toISOString(),
+      bodies: [
+        {
+          type: 'branches-observed',
+          repo: '/work/app',
+          head: args.branch,
+          base: 'main',
+          branches: [{ name: args.branch, sha: 'abc123' }],
+          worktrees: [],
+          remotes: [{ name: 'origin', url: 'git@github.com:compai/app.git' }],
+        },
+      ],
+    }),
+  })
+  expect(outcome.ok).toBe(true)
+}
 
 describe('GithubPollSweeperService tracking targets', () => {
   useTestDatabase()
@@ -92,6 +135,50 @@ describe('GithubPollSweeperService tracking targets', () => {
     expect(head.pullsByHead).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps refreshing the pull requests a polled head found, with no subscription', async () => {
+    const head = fakeHeadReads({ pulls: { 'compai/app': [REST_PULL] } })
+    const readPullRequest = vi.fn(async () => ({
+      ...REST_FIELDS,
+      state: 'merged',
+      mergeable: true,
+    }))
+    const { service } = serviceWith({
+      tokens: { usr_1: 'ghu_1' },
+      headReads: head.reads,
+      readPullRequest,
+    })
+    await seedTarget()
+    await seedPrState({
+      repoFullName: 'compai/app',
+      prNumber: 7,
+      headBranch: 'dennis/feature',
+      headRepoFullName: 'compai/app',
+      state: 'open',
+      updatedAt: new Date(Date.now() - 3_600_000),
+    })
+
+    await service.handlePoll()
+
+    expect(readPullRequest).toHaveBeenCalled()
+    const row = await db.orm.public.GithubPrState.where({
+      repoFullName: 'compai/app',
+      prNumber: 7,
+    }).first()
+    expect(row?.state).toBe('merged')
+  })
+
+  it('renews a head target while a live session still tracks its branch', async () => {
+    const head = fakeHeadReads({ pulls: { 'compai/app': [REST_PULL] } })
+    const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, headReads: head.reads })
+    await trackHead({ sessionId: 'ses_tracked', branch: 'dennis/feature' })
+    const target = await seedTarget({ liveUntil: new Date(Date.now() + 60_000) })
+
+    await service.handlePoll()
+
+    const row = await db.orm.public.GithubTrackingTarget.where({ id: target.id }).first()
+    expect(row?.liveUntil.getTime()).toBeGreaterThan(Date.now() + 60_000)
+  })
+
   it('stops polling a repo the App covers mid-session, without touching the target', async () => {
     const head = fakeHeadReads({ pulls: { 'compai/app': [REST_PULL] } })
     const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, headReads: head.reads })
@@ -119,6 +206,9 @@ describe('GithubPollSweeperService tracking targets', () => {
 
     await service.handlePoll()
 
+    expect(head.pullsByHead).toHaveBeenCalledWith(
+      expect.objectContaining({ repoFullName: 'compai/app', headRepoFullName: 'dennis/fork' }),
+    )
     const row = await db.orm.public.GithubPrState.where({
       repoFullName: 'compai/app',
       prNumber: 7,
@@ -135,6 +225,32 @@ describe('GithubPollSweeperService tracking targets', () => {
     await service.handlePoll()
 
     expect(head.pullsByHead).not.toHaveBeenCalled()
+  })
+
+  it('announces a session that only tracks the polled head', async () => {
+    const heard: string[] = []
+    const listener = new pg.Client(process.env.DATABASE_URL)
+    await listener.connect()
+    listener.on('notification', (message) => {
+      if (message.payload === undefined) return
+      heard.push((JSON.parse(message.payload) as { sessionId: string }).sessionId)
+    })
+    await listener.query(`LISTEN ${PG_CHANGE_CHANNEL}`)
+    try {
+      const head = fakeHeadReads({ pulls: { 'compai/app': [REST_PULL] } })
+      const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, headReads: head.reads })
+      await trackHead({ sessionId: 'ses_head_only', branch: 'dennis/feature' })
+      await seedTarget()
+      await new Promise((resolve) => setTimeout(resolve, 200))
+      heard.length = 0
+
+      await service.handlePoll()
+      await new Promise((resolve) => setTimeout(resolve, 200))
+
+      expect(heard).toContain('ses_head_only')
+    } finally {
+      await listener.end()
+    }
   })
 
   it('never writes a delivery or inbox row for a tracked head', async () => {

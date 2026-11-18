@@ -10,6 +10,9 @@ import type { GithubService } from './github.service'
 import type { PullRequestCacheFields } from './github-pull-request-mapping'
 import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
 
+import { GithubPrFanoutService } from './github-pr-fanout.service'
+import { DrainStateService } from '../../platform/health/drain-state.service'
+import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 const REST_FIELDS: PullRequestCacheFields = {
   title: 'add the thing',
   url: 'https://github.com/compai/app/pull/42',
@@ -53,6 +56,8 @@ function serviceWith(args: {
     localCoordinator(github),
     { record: async () => undefined } as never,
     { coversRepo: async () => false } as never,
+    new GithubPrFanoutService(new DrainStateService()),
+    inertSignals(),
   )
 }
 

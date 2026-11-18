@@ -103,14 +103,15 @@ export class GithubPrStateWriter {
       update: { ...fields, version },
     })
 
-    await announceSessionChangesIn({
-      tx,
-      sessionIds: await sessionsTrackingHeadIn({
+    if (headRepoFullName !== null)
+      await announceSessionChangesIn({
         tx,
-        headRepo: headRepoFullName ?? repoFullName,
-        branch: headBranch ?? row.headBranch,
-      }),
-    })
+        sessionIds: await sessionsTrackingHeadIn({
+          tx,
+          headRepo: headRepoFullName,
+          branch: headBranch ?? row.headBranch,
+        }),
+      })
 
     const subscribers = await tx.orm.public.GithubSubscription.where(
       subscriberWhereOf({

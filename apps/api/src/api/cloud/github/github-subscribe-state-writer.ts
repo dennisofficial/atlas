@@ -1,14 +1,7 @@
 import { db, type Row } from '@dltech/atlas-db'
 import { dtoOf } from './github-delivery-routing'
-import {
-  nextVersionOf,
-  readPrStateForUpdate,
-  settlementSnapshotOf,
-  snapshotOfLocked,
-} from './github-pr-head-checks'
 import { normalizedRepo } from './github-pr-identity'
-import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
-import { deliverPrTransitions } from './github-pr-transition-push'
+import type { GithubPrStateWriter } from './github-pr-state-writer'
 import { isGithubBudgetParked } from './github-request-budget'
 import type { GithubPrStateDto } from './github-realtime.types'
 import type { GithubSubscribedPrResolver } from './github-subscribed-pr-resolver'
@@ -17,7 +10,7 @@ export class GithubSubscribeStateWriter {
   constructor(
     private readonly deps: {
       prs: GithubSubscribedPrResolver
-      mailbox: GithubPrEventMailboxService
+      writer: GithubPrStateWriter
     },
   ) {}
 
@@ -50,33 +43,14 @@ export class GithubSubscribeStateWriter {
     if (fields === null) return held === null ? null : dtoOf(held)
     if (fields.headRepoFullName !== null)
       fields.headRepoFullName = normalizedRepo(fields.headRepoFullName)
-    const row = await db.transaction(async (tx) => {
-      const priorRow = await readPrStateForUpdate({ tx, repoFullName: args.repoFullName, prNumber })
-      const row = await tx.orm.public.GithubPrState.upsert({
-        conflictOn: { repoFullName: args.repoFullName, prNumber },
-        create: {
-          repoFullName: args.repoFullName,
-          prNumber,
-          ...fields,
-          version: nextVersionOf(priorRow),
-          updatedAt: new Date(),
-        },
-        update: { ...fields, version: nextVersionOf(priorRow), updatedAt: new Date() },
-      })
-      await deliverPrTransitions({
-        writes: {
-          mailbox: this.deps.mailbox,
-          repoFullName: args.repoFullName,
-          prNumber,
-          url: row.url,
-        },
-        prior: priorRow === null ? null : snapshotOfLocked(priorRow),
-        next: await settlementSnapshotOf({ tx, row }),
-        userIds: [args.userId],
+    const { row } = await db.transaction((tx) =>
+      this.deps.writer.writeState({
         tx,
-      })
-      return row
-    })
+        repoFullName: args.repoFullName,
+        prNumber,
+        fields: { ...fields, updatedAt: new Date() },
+      }),
+    )
     return dtoOf(row)
   }
 

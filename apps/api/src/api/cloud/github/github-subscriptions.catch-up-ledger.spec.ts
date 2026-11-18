@@ -12,6 +12,7 @@ import type { GithubAppInstallNoticeService } from './github-app-install-notice.
 import type { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import type { GithubUserReads } from './github-user-reads'
 import type { GithubService } from './github.service'
+import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 
 const SETTLED_FIELDS = {
   title: 'add the thing',
@@ -55,6 +56,8 @@ function serviceWith(args: {
     localCoordinator(github),
     new GithubPrEventMailboxService(fanout, wake),
     { coversRepo: async () => false } as never,
+    new GithubPrFanoutService(new DrainStateService()),
+    inertSignals(),
   )
 }
 

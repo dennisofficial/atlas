@@ -37,6 +37,7 @@ import { GithubPrStreamRouter } from './github-pr-stream.router'
 import { GithubService } from './github.service'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
 
+import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 const OWNER = 'usr-owner'
 const OTHER = 'usr-other'
 const states = (frames: GithubPrStatesFrame[]) =>
@@ -132,6 +133,8 @@ describe('linked PR states across real HTTP, Redis and Postgres', () => {
       api.coordinator,
       { record: async () => undefined } as never,
       { coversRepo: async () => false } as never,
+      new GithubPrFanoutService(new DrainStateService()),
+      inertSignals(),
     )
     app = await createMixedApp({
       controllers: [GithubHookController],

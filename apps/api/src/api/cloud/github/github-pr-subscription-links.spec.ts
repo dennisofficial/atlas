@@ -7,6 +7,9 @@ import { seedEventRow, seedThreadRow } from '../../../../test/session-seed'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
 import { GithubPrSubscriptionLinks } from './github-pr-subscription-links'
 
+import { GithubPrFanoutService } from './github-pr-fanout.service'
+import { DrainStateService } from '../../platform/health/drain-state.service'
+import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 const THREAD = 'thr-1'
 const USER = 'usr-1'
 
@@ -31,6 +34,8 @@ function serviceWith(): GithubPrSubscriptionLinks {
     {} as never,
     { record: async () => undefined } as never,
     { coversRepo: async () => false } as never,
+    new GithubPrFanoutService(new DrainStateService()),
+    inertSignals(),
   )
   return new GithubPrSubscriptionLinks(subscriptions)
 }

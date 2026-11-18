@@ -18,10 +18,6 @@ export const pullStateOf = (pull: RestPullRequest): string => {
   return pull.draft ? 'draft' : 'open'
 }
 
-/**
- * The PRs whose head is one branch of one repo. `head=` must be qualified with the head repo's
- * owner: a bare branch matches same-repo heads only, so a fork's PR is otherwise invisible.
- */
 @Injectable()
 export class GithubHeadReads {
   private readonly baseUrl = process.env.GITHUB_API_URL ?? GITHUB_API
@@ -30,9 +26,10 @@ export class GithubHeadReads {
   async pullsByHead(args: {
     token: string
     repoFullName: string
+    headRepoFullName: string
     branch: string
   }): Promise<RestPullRequest[]> {
-    const [owner] = args.repoFullName.split('/') as [string, string]
+    const [owner] = args.headRepoFullName.split('/') as [string, string]
     const head = `${owner}:${encodeURIComponent(args.branch)}`
     return this.get<RestPullRequest[]>({
       token: args.token,

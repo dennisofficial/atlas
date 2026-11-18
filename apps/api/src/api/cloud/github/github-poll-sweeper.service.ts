@@ -5,23 +5,16 @@ import { GithubPrStateWriter } from './github-pr-state-writer'
 import { TransportSelector } from './github-transport-selector'
 import type { RestPullRequest } from './github-pull-request-mapping'
 import { EGithubCallSource } from './github-call-log'
-import { announceSubscriberThreads } from './github-list-signals'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { threadActivityAt } from './github-thread-activity'
-import { dtoOf, liveUntilOf, subscriberWhereOf } from './github-delivery-routing'
+import { liveUntilOf } from './github-delivery-routing'
 import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import { normalizedRepo } from './github-pr-identity'
 import { GithubRequestCoordinator } from './github-request-coordinator'
 import { readRepoTracking } from './github-repo-coverage'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
-import { deliverPrTransitions } from './github-pr-transition-push'
-import {
-  nextVersionOf,
-  readPrStateForUpdate,
-  settlementSnapshotOf,
-  snapshotOfLocked,
-} from './github-pr-head-checks'
+import { renewTrackedHeadTargets } from './github-tracked-head-renewal'
 import { refreshGithubQueue } from './github-refresh-queue'
 import {
   GithubHttpBudgetUnavailable,
@@ -57,6 +50,7 @@ export class GithubPollSweeperService {
 
   async handlePoll(): Promise<void> {
     await this.refreshLiveUntil()
+    await renewTrackedHeadTargets({})
     try {
       await withGithubRequestBudget({
         store: this.coordinator,
@@ -103,7 +97,7 @@ export class GithubPollSweeperService {
     try {
       if (target.kind === 'head') {
         await this.recordHeadPulls({ target, token })
-      } else if (target.prNumber !== null) {
+      } else if (target.prNumber > 0) {
         const result = await this.pollOne({
           userId: target.userId,
           repoFullName: target.repoFullName,
@@ -136,6 +130,7 @@ export class GithubPollSweeperService {
       const pulls = await this.headReads.pullsByHead({
         token: args.token,
         repoFullName,
+        headRepoFullName: headRepo,
         branch: args.target.branch,
       })
       for (const pull of pulls) await this.recordPull({ repoFullName, pull })
@@ -225,62 +220,15 @@ export class GithubPollSweeperService {
       }
       throw failure
     }
-    const normalizedFields = {
-      ...fields,
-      headRepoFullName:
-        fields.headRepoFullName === null ? null : normalizedRepo(fields.headRepoFullName),
-    }
-    const { row, userIds } = await db.transaction(async (tx) => {
-      const priorRow = await readPrStateForUpdate({
+    const write = await db.transaction((tx) =>
+      this.writer.writeState({
         tx,
         repoFullName,
         prNumber: args.prNumber,
-      })
-      const prior = priorRow === null ? null : snapshotOfLocked(priorRow)
-      const row = await tx.orm.public.GithubPrState.upsert({
-        conflictOn: { repoFullName, prNumber: args.prNumber },
-        create: {
-          repoFullName,
-          prNumber: args.prNumber,
-          ...normalizedFields,
-          version: nextVersionOf(priorRow),
-          updatedAt: new Date(),
-        },
-        update: { ...normalizedFields, version: nextVersionOf(priorRow), updatedAt: new Date() },
-      })
-      const subscribers = await tx.orm.public.GithubSubscription.where(
-        subscriberWhereOf({
-          repoFullName,
-          prNumber: args.prNumber,
-          routing: {
-            headBranch: row.headBranch,
-            headRepoMatchesBase: row.headRepoFullName === repoFullName,
-          },
-        }),
-      ).all()
-      const userIds = [...new Set(subscribers.map((subscriber) => subscriber.userId))]
-      await deliverPrTransitions({
-        writes: { mailbox: this.mailbox, repoFullName, prNumber: args.prNumber, url: row.url },
-        prior,
-        next: await settlementSnapshotOf({ tx, row }),
-        userIds,
-        tx,
-      })
-      return { row, userIds }
-    })
-    this.fanout.push({ userIds, state: dtoOf(row) })
-    if (userIds.length === 0) return 'polled'
-    const subscribers = await db.orm.public.GithubSubscription.where(
-      subscriberWhereOf({
-        repoFullName,
-        prNumber: args.prNumber,
-        routing: {
-          headBranch: row.headBranch,
-          headRepoMatchesBase: row.headRepoFullName === repoFullName,
-        },
+        fields: { ...fields, updatedAt: new Date() },
       }),
-    ).all()
-    await announceSubscriberThreads({ signals: this.signals, subscribers })
+    )
+    await this.writer.publish(write)
     return 'polled'
   }
 }
