@@ -33,7 +33,7 @@ function QueuedBubble({ message }: { message: QueuedMessageEntry }) {
   return (
     <Bubble align="end" variant="pending">
       <BubbleContent className="whitespace-pre-wrap">
-        <div className="flex max-h-[min(30vh,16rem)] flex-col gap-1.5 overflow-y-auto overscroll-contain">
+        <div className="scroll-fade-y flex max-h-[min(30vh,16rem)] flex-col gap-1.5 overflow-y-auto overscroll-contain">
           <QueuedMessageAttachments attachments={message.attachments} />
           {message.text.length > 0 ? <span>{message.text}</span> : null}
         </div>
