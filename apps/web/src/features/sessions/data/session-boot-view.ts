@@ -68,6 +68,7 @@ const phaseOf = (args: { status: SessionSnapshot['status']; catchingUp: boolean 
 }
 
 const stateOf = (args: {
+  step: EWorkspaceStep
   recorded: WorkspaceStepStatus | undefined
   phase: Phase
   previousDone: boolean
@@ -76,7 +77,8 @@ const stateOf = (args: {
   if (recorded?.state === EWorkspaceStepState.Done) return EBootStepState.Done
   if (recorded?.state === EWorkspaceStepState.Failed) return EBootStepState.Error
   if (recorded?.state === EWorkspaceStepState.Started) {
-    return phase === 'live' || phase === 'catching-up'
+    const runsPastPrepare = args.step === EWorkspaceStep.Setup && phase === 'settled'
+    return phase === 'live' || phase === 'catching-up' || runsPastPrepare
       ? EBootStepState.Running
       : EBootStepState.Error
   }
@@ -176,7 +178,7 @@ export const sessionBootViewOf = (args: {
   let previousDone = true
   let steps = WORKSPACE_STEP_ORDER.map((step, index): BootStepView => {
     const recorded = recordedSteps[index]
-    const state = stateOf({ recorded, phase, previousDone })
+    const state = stateOf({ step, recorded, phase, previousDone })
     previousDone = state === EBootStepState.Done
     return stepViewOf({ step, recorded, state, liveOutput: args.setupOutput })
   })
