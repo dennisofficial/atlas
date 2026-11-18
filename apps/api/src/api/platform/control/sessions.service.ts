@@ -33,6 +33,7 @@ import {
   type SessionStatusOutput,
   type SessionStopOutput,
   type SessionViewOutput,
+  type SessionWakeOutput,
   type SessionWithdrawOutput,
 } from '@dltech/atlas-protocol'
 import type { SessionPageOutput } from '@dltech/atlas-wire'
@@ -341,6 +342,14 @@ export class SessionsService {
   async stop(args: { userId: string; sessionId: string }): Promise<SessionStopOutput> {
     await this.requireOwnedSession(args)
     return this.plane.post({ sessionId: args.sessionId, kind: INBOX_KIND_STOP, payload: '{}' })
+  }
+
+  async wake(args: { userId: string; sessionId: string }): Promise<SessionWakeOutput> {
+    await this.requireOwnedSession(args)
+    const { lease, live } = await this.plane.currentLease({ sessionId: args.sessionId })
+    if (lease.holderHostId !== null && live) return { state: 'elsewhere' }
+    await this.plane.revoke({ sessionId: args.sessionId, wantsHolder: true })
+    return { state: 'waking' }
   }
 
   async command(args: { userId: string } & SessionCommandInput): Promise<SessionCommandOutput> {

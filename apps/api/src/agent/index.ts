@@ -10,7 +10,8 @@ export { daemonPaths, launchDaemon, type DaemonBundle } from './sandbox/daemon-l
 export { SandboxProvider, sandboxNameOf, type DaemonEndpoint } from './sandbox/sandbox-provider'
 export { VercelSandboxProvider } from './sandbox/vercel-sandbox-provider'
 export { AgentModule } from './agent.module'
-export { MCP_OAUTH_BEGIN, OPERATOR_ANSWERS, SESSION_STREAM } from './host/tokens'
+export { MCP_OAUTH_BEGIN, OPERATOR_ANSWERS, POD_OPS, SESSION_STREAM } from './host/tokens'
+export { podOpsOf, type PodOps } from './host/pod-ops'
 export {
   OperatorAnswerService,
   operatorAnswerRequestSchema,

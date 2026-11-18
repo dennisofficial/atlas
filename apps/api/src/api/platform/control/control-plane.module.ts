@@ -15,6 +15,8 @@ import { MediaService } from './media.service'
 import { DbProjectAccess, ProjectAccess } from './project-access'
 import { RoutinesRouter } from './routines.router'
 import { RoutinesService } from './routines.service'
+import { FilesRouter } from './files.router'
+import { FilesService } from './files.service'
 import { SessionsRouter } from './sessions.router'
 import { SessionsService } from './sessions.service'
 
@@ -40,6 +42,8 @@ export const controlPlaneProvider: Provider = {
     { provide: COMMAND_REGISTRY, useFactory: nativeCommandRegistry },
     SessionsService,
     SessionsRouter,
+    FilesService,
+    FilesRouter,
     ChangesService,
     MediaService,
     MediaRouter,

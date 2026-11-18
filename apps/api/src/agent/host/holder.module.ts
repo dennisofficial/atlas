@@ -1,10 +1,12 @@
-import { Module, type Provider } from '@nestjs/common'
+import { Global, Module, type Provider } from '@nestjs/common'
 import { ChangeContentStore, type ControlPlane } from '@dltech/atlas-control'
 import type { HostBus, HostPresence, PodControlClient, SessionHolder } from '@dltech/atlas-host'
 import type { LogPort } from '@dltech/atlas-observability'
 
 import type { PgWakeListener } from '../bus/pg-wake-listener'
 import { composeAgentHost } from '../compose'
+import { podOpsOf } from './pod-ops'
+import { POD_OPS } from './tokens'
 import type { ConfigSource } from '../config/agent-host-config'
 import type { AgentHostEnv } from '../config/env'
 import type { SandboxProvider } from '../sandbox/sandbox-provider'
@@ -93,9 +95,16 @@ const holderProvider: Provider = {
   ],
 }
 
+const podOpsProvider: Provider = {
+  provide: POD_OPS,
+  useFactory: (holder: SessionHolder) => podOpsOf({ holder }),
+  inject: [HOLDER],
+}
+
+@Global()
 @Module({
   imports: [ControlModule, RuntimeModule],
-  providers: [hostWatchProvider, holderProvider],
-  exports: [HOST_WATCH, HOLDER],
+  providers: [hostWatchProvider, holderProvider, podOpsProvider],
+  exports: [HOST_WATCH, HOLDER, POD_OPS],
 })
 export class HolderModule {}

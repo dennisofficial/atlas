@@ -77,8 +77,8 @@ describe('SessionPane', () => {
     expect(html).not.toContain('data-session-summary')
   })
 
-  it('renders the empty state on every tab the stream cannot fill yet', () => {
-    expect(render(ESessionPaneTab.Files)).toContain('data-pane-empty="files"')
+  it('renders the files tab where the empty state used to be', () => {
+    expect(render(ESessionPaneTab.Files)).not.toContain('data-pane-empty="files"')
   })
 
   it('renders the changes tab where the empty state used to be', () => {

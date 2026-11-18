@@ -15,11 +15,13 @@ import { Spinner } from '@dltech/atlas-ui/components/spinner'
 
 import { ESearchKeyAction, searchKeyResult } from '../data/file-search-keys'
 import { EFileSearchStatus, useFileSearch } from '../data/use-file-search'
+import type { FileSource } from '../data/file-source'
 import type { FileSearchChannel } from '../data/file-search-source'
 import { TabPlaceholder } from './tab-placeholder'
 
 type SearchProps = {
   channel: FileSearchChannel
+  source: FileSource | null
   refreshKey: number
   changes: ReadonlyMap<string, EFileChange>
   ignored: ReadonlySet<string>
@@ -73,10 +75,10 @@ function FileSearchInput(props: {
 }
 
 export function FileSearchBody(props: SearchProps) {
-  const { channel, refreshKey } = props
+  const { refreshKey, source } = props
   const [query, setQuery] = useState('')
   const listId = useId()
-  const view = useFileSearch({ channel, query, refreshKey })
+  const view = useFileSearch({ source, query, refreshKey })
   const [moved, setMoved] = useState(0)
 
   const hits = useMemo(
