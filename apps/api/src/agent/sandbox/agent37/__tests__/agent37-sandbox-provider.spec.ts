@@ -33,7 +33,7 @@ const bundle = (): { bundle: { path: string }; cleanup: () => void } => {
   return { bundle: { path }, cleanup: () => rmSync(dir, { recursive: true }) }
 }
 
-const fakeClient = (args: { version: string }) => {
+const fakeClient = (args: { version: string; get?: Agent37Client['get'] }) => {
   const creates: Agent37CreateArgs[] = []
   const execs: Agent37ExecArgs[] = []
   const slept: string[] = []
@@ -42,7 +42,8 @@ const fakeClient = (args: { version: string }) => {
       creates.push(body)
       return { id: 'inst-1', status: 'running', url: 'https://inst-1.agent37.app' }
     },
-    get: async ({ id }) => ({ id, status: 'running', url: `https://${id}.agent37.app` }),
+    get:
+      args.get ?? (async ({ id }) => ({ id, status: 'running', url: `https://${id}.agent37.app` })),
     list: async () => ({ data: [] }),
     remove: async () => undefined,
     sleep: async ({ id }) => {
@@ -99,6 +100,25 @@ describe('Agent37SandboxProvider.wake', () => {
       expect(endpoint.token).toBe(
         daemonToken({ secret: 'secret', sandboxName: agent37InstanceNameOf('pod-1') }),
       )
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('remembers the instance before waiting for it, so a slow pod still finds its session', async () => {
+    const { bundle: b, cleanup } = bundle()
+    const { client } = fakeClient({
+      version: 'unused',
+      get: async () => {
+        throw new Error('agent37 is unreachable')
+      },
+    })
+    const { provider, remembered } = providerOf({ client, bundlePath: b.path })
+    try {
+      const waking = provider.wake({ target: TARGET, signal: new AbortController().signal })
+
+      await expect(waking).rejects.toThrow(/unavailable/)
+      expect(remembered).toEqual([{ podSessionId: 'pod-1', instanceId: 'inst-1' }])
     } finally {
       cleanup()
     }

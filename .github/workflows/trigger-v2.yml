@@ -40,6 +40,16 @@ jobs:
 
       - run: bun install --frozen-lockfile
 
+      # v2 workers write the rows the pre-deploy migration reshapes, so the deploy waits for the
+      # Render deploy of this commit just as web-ota does before publishing a payload.
+      - name: wait for the API serving this commit to go live
+        run: bun scripts/render-deploy-gate.ts
+        working-directory: apps/api
+        env:
+          ACCEPT_NEWER_LIVE_COMMIT: '1'
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: srv-dbuu4tui0phs73ercifg
+
       # The CLI authenticates from TRIGGER_ACCESS_TOKEN (a tr_pat_ personal token) and reads the
       # project ref from trigger.config.ts, exactly as release.yml does for the v1 project.
       - name: deploy tasks to prod

@@ -18081,6 +18081,10 @@
                 "credentialSource": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
+                  "default": {
+                    "kind": "literal",
+                    "value": "byok"
+                  },
                   "nullable": false
                 },
                 "deletedAt": {
@@ -18170,6 +18174,10 @@
                 "sandboxProvider": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
+                  "default": {
+                    "kind": "literal",
+                    "value": "vercel"
+                  },
                   "nullable": false
                 },
                 "sandboxStatus": {
@@ -18836,7 +18844,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "8ff92224609f6e96b53098608e35a84a6a8c06de5545ab4e1f85bdd0fc13579c"
+    "storageHash": "af6290442a7b8be9d49345d9f58eeed65ae2b185b86d669ed88710c02c9c7a50"
   },
   "execution": {
     "executionHash": "4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45",

@@ -14,8 +14,8 @@ namespace v2 {
     modelRef     String
     modelEffort  String
     modelFast    Boolean
-    sandboxProvider   String
-    credentialSource  String
+    sandboxProvider   String                @default("vercel")
+    credentialSource  String                @default("byok")
     sandboxInstanceId String?
     sandboxStatus     String?
     sandboxStatusAt   TimestamptzJsDate(3)?

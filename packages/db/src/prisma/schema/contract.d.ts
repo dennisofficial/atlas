@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'8ff92224609f6e96b53098608e35a84a6a8c06de5545ab4e1f85bdd0fc13579c'>;
+  StorageHashBase<'af6290442a7b8be9d49345d9f58eeed65ae2b185b86d669ed88710c02c9c7a50'>;
 export type ExecutionHash =
   ExecutionHashBase<'4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45'>;
 export type ProfileHash =
@@ -7628,6 +7628,10 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', 'byok'>;
+                  };
                   readonly many: false;
                 };
                 readonly deletedAt: {
@@ -7728,6 +7732,10 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', 'vercel'>;
+                  };
                   readonly many: false;
                 };
                 readonly sandboxStatus: {

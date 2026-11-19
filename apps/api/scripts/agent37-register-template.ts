@@ -1,7 +1,10 @@
 const IMAGE = 'ghcr.io/dennisofficial/atlas-sandbox'
 const REGISTRY = 'https://ghcr.io'
 const TEMPLATE_NAME = 'atlas-sandbox'
+const TEMPLATES = 'https://api.agent37.com/v1/templates'
 const DEFAULT_PORT = 3000
+
+type Template = { name?: string; revision?: number | null }
 
 const registryDigestOf = async (tag: string): Promise<string> => {
   const tokenUrl = new URL(`${REGISTRY}/token`)
@@ -27,6 +30,60 @@ const registryDigestOf = async (tag: string): Promise<string> => {
   return amd64?.digest ?? digest
 }
 
+const callTemplate = async (args: {
+  apiKey: string
+  path: string
+  method: 'GET' | 'POST' | 'PATCH'
+  body?: Record<string, unknown>
+}): Promise<{ status: number; body: unknown }> => {
+  const answer = await fetch(`${TEMPLATES}${args.path}`, {
+    method: args.method,
+    headers: { Authorization: `Bearer ${args.apiKey}`, 'Content-Type': 'application/json' },
+    ...(args.body === undefined ? {} : { body: JSON.stringify(args.body) }),
+  })
+  return { status: answer.status, body: await answer.json() }
+}
+
+const refusal = (args: { step: string; status: number; body: unknown }): Error =>
+  new Error(
+    `agent37 refused to ${args.step} template ${TEMPLATE_NAME}: ${args.status} ${JSON.stringify(
+      args.body,
+    )}`,
+  )
+
+const upsertTemplate = async (args: { apiKey: string; imageRef: string }): Promise<Template> => {
+  const existing = await callTemplate({
+    apiKey: args.apiKey,
+    path: `/${TEMPLATE_NAME}`,
+    method: 'GET',
+  })
+  if (existing.status !== 200 && existing.status !== 404) {
+    throw refusal({ step: 'read', status: existing.status, body: existing.body })
+  }
+  const creates = existing.status === 404
+  const answer = creates
+    ? await callTemplate({
+        apiKey: args.apiKey,
+        path: '',
+        method: 'POST',
+        body: { name: TEMPLATE_NAME, image_ref: args.imageRef, default_port: DEFAULT_PORT },
+      })
+    : await callTemplate({
+        apiKey: args.apiKey,
+        path: `/${TEMPLATE_NAME}`,
+        method: 'PATCH',
+        body: { image_ref: args.imageRef },
+      })
+  if (answer.status !== 200 && answer.status !== 201) {
+    throw refusal({
+      step: creates ? 'create' : 'update',
+      status: answer.status,
+      body: answer.body,
+    })
+  }
+  return answer.body as Template
+}
+
 const main = async (): Promise<number> => {
   const apiKey = process.env.AGENT37_API_KEY
   if (apiKey === undefined || apiKey.trim() === '') {
@@ -35,24 +92,8 @@ const main = async (): Promise<number> => {
   }
   try {
     const digest = await registryDigestOf('latest')
-    const answer = await fetch('https://api.agent37.com/v1/templates', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: TEMPLATE_NAME,
-        image_ref: `${IMAGE}@${digest}`,
-        default_port: DEFAULT_PORT,
-      }),
-    })
-    const body: unknown = await answer.json()
-    if (!answer.ok) {
-      process.stderr.write(
-        `agent37 refused the template: ${answer.status} ${JSON.stringify(body)}\n`,
-      )
-      return 1
-    }
-    const template = body as { id?: string; name?: string }
-    process.stdout.write(`${template.id ?? template.name ?? ''}\n`)
+    const template = await upsertTemplate({ apiKey, imageRef: `${IMAGE}@${digest}` })
+    process.stdout.write(`${template.name ?? TEMPLATE_NAME}@${String(template.revision)}\n`)
     return 0
   } catch (error) {
     process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`)

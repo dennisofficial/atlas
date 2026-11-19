@@ -41,7 +41,7 @@ describe('initial PR cache visibility with authenticated accounts', () => {
         ThreadsRouter,
         ThreadEventsRouter,
         SessionOrSandboxMiddleware,
-        { provide: SESSION_VERIFIER, useClass: BetterAuthSessionVerifier },
+        { provide: SESSION_VERIFIER, useValue: new BetterAuthSessionVerifier({ db }) },
         { provide: SandboxesService, useValue: {} },
         { provide: ThreadsService, useValue: new ThreadsService(signals) },
         { provide: EventsService, useValue: new EventsService(signals) },
@@ -69,6 +69,7 @@ describe('initial PR cache visibility with authenticated accounts', () => {
       .map((value) => value.split(';')[0])
       .join('; ')
     expect(cookie.length).toBeGreaterThan(0)
+    await db.orm.public.User.where({ id: result.response.user.id }).update({ active: true })
     return { userId: result.response.user.id, headers: { cookie } }
   }
 

@@ -77,12 +77,12 @@ export class Agent37SandboxProvider extends SandboxProvider {
       }),
     )
     this.args.log?.(`agent37 created instance ${instance.id} for ${podSessionId}`)
+    await this.args.instances.remember({ podSessionId, instanceId: instance.id })
     await waitForAgent37Instance({
       client,
       instanceId: instance.id,
       ...(this.args.log === undefined ? {} : { log: this.args.log }),
     })
-    await this.args.instances.remember({ podSessionId, instanceId: instance.id })
     args.signal.throwIfAborted()
     return { instanceId: instance.id, sandboxName }
   }

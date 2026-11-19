@@ -18,10 +18,9 @@ const required = (args: { env: Record<string, string | undefined>; name: string 
 
 const env = process.env
 let token: string
-let sandboxName: string
 try {
   token = required({ env, name: 'DAEMON_TOKEN' })
-  sandboxName = required({ env, name: 'ATLAS_SANDBOX_NAME' })
+  required({ env, name: 'ATLAS_SANDBOX_NAME' })
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error))
   process.exit(78)
