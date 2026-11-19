@@ -81,6 +81,7 @@ export interface GithubStatusWebhookPayload {
 
 export interface GithubPushWebhookPayload {
   ref: string
+  after?: string
   repository: GithubWebhookRepository
 }
 

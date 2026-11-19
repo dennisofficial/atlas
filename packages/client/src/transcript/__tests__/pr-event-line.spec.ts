@@ -23,6 +23,22 @@ const verdict = (over: Partial<EventOfType<'pr-event'>>): EventOfType<'pr-event'
 
 const named = (...names: string[]) => names.map((name) => ({ name }))
 
+describe('a merge conflict line', () => {
+  it('names the base branch the pull request now conflicts with', () => {
+    expect(
+      prEventLine(
+        verdict({ kind: EPrEventKind.Mergeability, mergeable: false, baseBranch: 'main' }),
+      ),
+    ).toBe('PR #794: now has merge conflicts with main')
+  })
+
+  it('says only that it conflicts when the base branch is not in the event', () => {
+    expect(prEventLine(verdict({ kind: EPrEventKind.Mergeability, mergeable: false }))).toBe(
+      'PR #794: now has merge conflicts',
+    )
+  })
+})
+
 describe('a failed verdict line', () => {
   it('names the failed checks while CI runs', () => {
     expect(

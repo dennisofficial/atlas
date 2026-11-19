@@ -79,8 +79,12 @@ const verdictLine = (event: PrEvent): string => {
   return `${prefix(event)}: CI green${event.mergeable === true ? ', mergeable' : ''}`
 }
 
-const mergeabilityLine = (event: PrEvent): string =>
-  event.mergeable === false ? `${prefix(event)}: has conflicts` : `${prefix(event)}: mergeable`
+const mergeabilityLine = (event: PrEvent): string => {
+  if (event.mergeable !== false) return `${prefix(event)}: now mergeable`
+  const base = event.baseBranch === undefined ? '' : ` with ${event.baseBranch}`
+
+  return `${prefix(event)}: now has merge conflicts${base}`
+}
 
 const stateLine = (event: PrEvent): string => {
   if (event.state === 'merged') return `${prefix(event)}: merged`

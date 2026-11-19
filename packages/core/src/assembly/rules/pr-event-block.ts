@@ -66,7 +66,11 @@ const verdictSentence = (event: PrEvent): string => {
 
 const mergeabilitySentence = (event: PrEvent): string => {
   if (event.mergeable === true) return 'now mergeable.'
-  if (event.mergeable === false) return 'now has merge conflicts.'
+  if (event.mergeable === false) {
+    return event.baseBranch === undefined
+      ? 'now has merge conflicts.'
+      : `now has merge conflicts with ${event.baseBranch}.`
+  }
   return 'mergeability unknown.'
 }
 

@@ -80,6 +80,7 @@ function rig(
     signals: { threadChanged: () => undefined } as never,
     wake: { notifyEvent: async () => undefined } as never,
     reconcile: (request) => reconcile.run(request),
+    mergeability: async () => undefined,
     logger: { warn: () => undefined },
     now: () => new Date(clock),
   })

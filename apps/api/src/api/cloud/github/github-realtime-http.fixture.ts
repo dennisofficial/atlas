@@ -5,7 +5,7 @@ import type { EnvService } from '../../../_core/config/env/env.service'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
-import { inertReconcile } from './github-pr-store.fixture'
+import { inertMergeabilityRefresh, inertReconcile } from './github-pr-store.fixture'
 import type { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import type { GithubAppInstallationsService } from './github-app-installations.service'
 import { GithubDeliveryService } from './github-delivery.service'
@@ -173,7 +173,13 @@ export function realGithubGraph(args: {
   } as unknown as GithubSandboxWakeService
   const mailbox = new GithubPrEventMailboxService(
     fanout,
-    new GithubPrOutboxDispatcher({ fanout, signals, wake, reconcile: inertReconcile() }),
+    new GithubPrOutboxDispatcher({
+      fanout,
+      signals,
+      wake,
+      reconcile: inertReconcile(),
+      mergeability: inertMergeabilityRefresh(),
+    }),
   )
   const discussion = new GithubPrDiscussionDeliveryService(mailbox)
   const delivery = new GithubDeliveryService(

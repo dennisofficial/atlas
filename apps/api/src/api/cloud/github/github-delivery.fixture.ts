@@ -9,10 +9,12 @@ import {
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 import { inertReconcile } from './github-pr-store.fixture'
+import { GithubPrMergeabilityRefresh } from './github-pr-mergeability-refresh'
+import { GithubPrStore } from './github-pr-store'
+import { GithubFillTokens } from './github-fill-token'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { GithubDeliveryService } from './github-delivery.service'
 import { observationReadOf } from './github-pr-read.fixture'
-import { storeFixture } from './github-pr-store.fixture'
 import type { GithubInstallationTokens } from './github-installation-tokens'
 import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
@@ -184,6 +186,7 @@ export function serviceWith(args: {
   service: GithubDeliveryService
   fanout: GithubPrFanoutService
   mailbox: GithubPrEventMailboxService
+  dispatcher: GithubPrOutboxDispatcher
 } {
   const github = {
     findToken: async ({ userId }: { userId: string }) => args.tokens?.[userId],
@@ -200,15 +203,24 @@ export function serviceWith(args: {
   const wake = {
     notifyEvent: () => undefined,
   } as unknown as GithubSandboxWakeService
-  const mailbox = new GithubPrEventMailboxService(
+  const budget = args.coordinator ?? localCoordinator(github)
+  const fillTokens = new GithubFillTokens({ github, appTokens: args.appTokens })
+  let store: GithubPrStore
+  const mergeability = new GithubPrMergeabilityRefresh({
+    store: () => store,
+    fillTokenOf: (request) => fillTokens.find(request),
+    reads,
+    budget,
+  })
+  const dispatcher = new GithubPrOutboxDispatcher({
     fanout,
-    new GithubPrOutboxDispatcher({
-      fanout,
-      signals: inertSignals(),
-      wake,
-      reconcile: inertReconcile(),
-    }),
-  )
+    signals: inertSignals(),
+    wake,
+    reconcile: inertReconcile(),
+    mergeability: (run) => mergeability.run(run),
+  })
+  const mailbox = new GithubPrEventMailboxService(fanout, dispatcher)
+  store = new GithubPrStore({ mailbox, dispatcher })
   const discussion = new GithubPrDiscussionDeliveryService(mailbox)
   return {
     service: new GithubDeliveryService(
@@ -219,12 +231,13 @@ export function serviceWith(args: {
       mailbox,
       discussion,
       inertSignals(),
-      args.coordinator ?? localCoordinator(github),
-      storeFixture({ fanout }),
+      budget,
+      store,
       args.appTokens,
     ),
     fanout,
     mailbox,
+    dispatcher,
   }
 }
 

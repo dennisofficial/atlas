@@ -23,6 +23,7 @@ import {
   pullObservationOfRest,
   pullObservationOfWebhook,
 } from './github-pr-observations'
+import { refreshAfterBasePush } from './github-delivery-push'
 import { applyObservedPull } from './github-pr-observed-pull'
 import { GithubPrStore } from './github-pr-store'
 import { GithubInstallationTokens } from './github-installation-tokens'
@@ -36,6 +37,7 @@ import type {
   GithubPullRequestReviewCommentWebhookPayload,
   GithubPullRequestReviewWebhookPayload,
   GithubPullRequestWebhookPayload,
+  GithubPushWebhookPayload,
   GithubStatusWebhookPayload,
 } from './github-webhook.types'
 
@@ -156,6 +158,10 @@ export class GithubDeliveryService {
       return { handled: true }
     }
 
+    if (args.event === 'push') {
+      await this.handlePush(args.payload as GithubPushWebhookPayload)
+      return { handled: true }
+    }
     if (args.event === 'check_run') {
       await this.checks.handleCheckRun(args.payload as GithubCheckRunWebhookPayload, installationId)
     }
@@ -232,6 +238,15 @@ export class GithubDeliveryService {
       checks: rest.checks,
       protection: rest.protection,
     })
+  }
+
+  private async handlePush(payload: GithubPushWebhookPayload): Promise<void> {
+    const ids = await refreshAfterBasePush({
+      repoFullName: normalizedRepo(payload.repository.full_name),
+      ref: payload.ref,
+      after: payload.after,
+    })
+    await this.store.dispatch(ids)
   }
 
   private findFillToken(args: {

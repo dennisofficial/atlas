@@ -12,7 +12,7 @@ import {
 import { applyArgs, pull, rig } from './github-pr-apply.fixture'
 import type { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrOutboxDispatcher } from './github-pr-outbox'
-import { inertReconcile } from './github-pr-store.fixture'
+import { inertMergeabilityRefresh, inertReconcile } from './github-pr-store.fixture'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 
 const seedSettledCheck = (args: { outcome: string } = { outcome: 'passed' }) =>
@@ -111,6 +111,7 @@ describe('GithubPrStore.apply', () => {
       signals: recordingSignals().signals,
       wake: { notifyEvent: vi.fn() } as unknown as GithubSandboxWakeService,
       reconcile: inertReconcile(),
+      mergeability: inertMergeabilityRefresh(),
       now: () => new Date(Date.now() + 60_000),
     })
     expect(await healthy.drain()).toBe(1)
