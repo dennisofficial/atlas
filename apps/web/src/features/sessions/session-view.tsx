@@ -147,7 +147,20 @@ export function SessionView({ sessionId }: { sessionId: string }) {
       attachments.restore({ attachments: restored.attachments, previewOf: restored.previewOf })
     },
   })
-  const refusals = useMemo(() => sessionRefusalsOf(snapshot.events), [snapshot.events])
+  const [dismissedRefusals, setDismissedRefusals] = useState<ReadonlySet<number>>(new Set())
+  const refusals = useMemo(
+    () =>
+      sessionRefusalsOf(snapshot.events).filter(
+        (refusal) => !dismissedRefusals.has(refusal.inboxId),
+      ),
+    [snapshot.events, dismissedRefusals],
+  )
+  const dismissRefusals = () =>
+    setDismissedRefusals((current) => {
+      const next = new Set(current)
+      for (const refusal of refusals) next.add(refusal.inboxId)
+      return next
+    })
 
   const summarise = useSessionSummarise({ sessionId, events: snapshot.events })
   const skillSpecs = useSessionSkills({ events: snapshot.events })
@@ -256,7 +269,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                 {snapshot.status?.state === ESessionStatus.StartFailed ? (
                   <StartFailedCard reason={snapshot.status.reason} onRetry={handleRetry} />
                 ) : null}
-                <RefusalRows refusals={refusals} />
+                <RefusalRows refusals={refusals} onDismiss={dismissRefusals} />
                 <SummariseDialog {...summarise.dialog} />
                 <CommandRows rows={snapshot.status?.commands} />
                 <QueuedDock dock={queuedDock} />
