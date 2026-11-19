@@ -27,7 +27,6 @@ const firstTurn = async (
   args: TurnArgs & { drive: DriveArgs; restarted(via: EAgentRestart): Promise<void> },
 ): Promise<TurnOutcome> => {
   if ('resume' in args.drive) {
-    await args.restarted(EAgentRestart.Relocation)
     return args.runner.resume({
       threadId: args.threadId,
       signal: args.signal,
