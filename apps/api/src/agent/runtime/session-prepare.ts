@@ -14,10 +14,12 @@ import {
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
 import type { WorkspaceConfig } from '../config/agent-host-config'
+import type { ProjectFilesSource } from '../config/project-files'
 import type { GithubTokenReader } from '../tokens/github-token-reader'
 import type { SigningKeyReader } from '../tokens/signing-key-reader'
 import { abortable } from './abortable'
 import type { PrepareSteps } from './prepare-steps'
+import type { ScopedFileMount } from './project-files'
 import { shellEnvironmentOf, type SessionPaths } from './session-paths'
 import type { ShellEnvCell } from './shell-env'
 import { prepareSigning } from './signing-setup'
@@ -45,6 +47,8 @@ export const prepareControllerOf = (args: {
   steps: PrepareSteps
   shellEnv: ShellEnvCell
   refreshSecrets: (signal: AbortSignal) => Promise<void>
+  projectFiles: ProjectFilesSource | undefined
+  projectId: string | null
   github: Pick<GithubTokenReader, 'read'>
   signingKey: Pick<SigningKeyReader, 'read'> | undefined
   timers: HostTimers
@@ -52,6 +56,21 @@ export const prepareControllerOf = (args: {
   log: LogPort | undefined
 }): PrepareController => {
   const { sessionId, userId, launchDirectory, calls, processes, files, steps, shellEnv } = args
+  const projectFileMounts = async (signal: AbortSignal): Promise<readonly ScopedFileMount[]> => {
+    const source = args.projectFiles
+    const projectId = args.projectId
+    if (source === undefined || projectId === null) return []
+    try {
+      return await abortable(source.read({ projectId }), signal)
+    } catch (error) {
+      args.log?.error({
+        source: 'runtime.project-files',
+        message: `reading project file mounts for ${sessionId} failed; the sandbox starts without them`,
+        ...logFieldsOf({ error }),
+      })
+      return []
+    }
+  }
   let setupListener: ((lifecycle: SetupLifecycle) => void) | undefined
   const setupLifecycles: SetupLifecycle[] = []
   const checkedOutBranches = new Map<string, string>()
@@ -74,7 +93,9 @@ export const prepareControllerOf = (args: {
         })
         await shellEnv.refresh({ token, signing, launchDirectory, signal })
         await args.refreshSecrets(signal)
+        const mounts = await projectFileMounts(signal)
         return ensureWorkspace({
+          mounts,
           env: shellEnvironmentOf({ paths: args.paths, base: shellEnv.current() }),
           calls,
           processes,

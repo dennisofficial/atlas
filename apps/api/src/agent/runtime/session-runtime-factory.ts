@@ -27,6 +27,7 @@ import { signerUploadBlobs } from '../uploads/upload-blobs'
 import type { ConfigSource } from '../config/agent-host-config'
 import type { CloudConfigStore } from '../config/cloud-config-store'
 import type { EnvSecretsSource } from '../config/env-secrets'
+import type { ProjectFilesSource } from '../config/project-files'
 import { SANDBOX_HOME_PATH, workspaceDirectoryOf } from '../sandbox/constants'
 import { SandboxProvider, sandboxNameOf } from '../sandbox/sandbox-provider'
 import { SandboxNotConfiguredError } from './sandbox-not-configured-error'
@@ -71,6 +72,7 @@ export type SessionRuntimeFactoryArgs = {
   plugins?: ComposedPlugins | undefined
   configWrites?: CloudConfigStore | undefined
   envSecrets?: EnvSecretsSource | undefined
+  projectFiles?: ProjectFilesSource | undefined
   terminalStreams?: ((sessionId: string) => number) | undefined
 }
 
@@ -169,6 +171,8 @@ export const createSessionRuntimeFactory = (
       steps,
       shellEnv,
       refreshSecrets,
+      projectFiles: args.projectFiles,
+      projectId: config.projectId,
       github: args.github,
       signingKey: args.signingKey,
       timers: args.timers,
