@@ -520,3 +520,11 @@ export type RoutineRunOutput = z.infer<typeof routineRunOutputSchema>
 export type RoutineRunRow = z.infer<typeof routineRunRowSchema>
 export type RoutineRunsInput = z.infer<typeof routineRunsInputSchema>
 export type RoutineRunsOutput = z.infer<typeof routineRunsOutputSchema>
+
+export const accountMeOutputSchema = z.strictObject({
+  userId: z.string(),
+  email: z.string(),
+  active: z.boolean(),
+})
+
+export type AccountMeOutput = z.infer<typeof accountMeOutputSchema>

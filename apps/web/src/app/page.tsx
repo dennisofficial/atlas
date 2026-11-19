@@ -10,6 +10,7 @@ import {
   SessionFailed,
   useSessionState,
 } from '@/features/auth/session-gate'
+import { WhitelistWall } from '@/features/auth/whitelist-wall'
 
 function RootRedirect() {
   const router = useRouter()
@@ -23,6 +24,7 @@ function RootRedirect() {
   if (gate.state === ESessionState.Failed) {
     return <SessionFailed message={gate.message} onRetry={retry} />
   }
+  if (gate.state === ESessionState.AwaitingAccess) return <WhitelistWall />
   return <CheckingSession />
 }
 

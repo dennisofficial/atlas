@@ -15,6 +15,7 @@ import { HttpErrorMiddleware } from '../_module/trpc/http-error.middleware'
 import { ThrottleMiddleware } from '../_module/trpc/throttle.middleware'
 import { apiErrorFormatter } from '../_module/trpc/trpc-error-formatter'
 import { AccountsModule } from './platform/accounts/accounts.module'
+import { AccountRouter } from './platform/auth/account.router'
 import { CredentialAvailabilityModule } from './platform/credential-availability/credential-availability.module'
 import { AuthModule } from './platform/auth/auth.module'
 import { ArtifactsModule } from './cloud/artifacts/artifacts.module'
@@ -122,6 +123,7 @@ import { ControlPlaneModule } from './platform/control/control-plane.module'
   controllers: [HealthController],
   providers: [
     MigrationStateService,
+    AccountRouter,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: ClientVersionGuard },
   ],

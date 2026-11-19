@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
+import { CloudApiError } from '../cloud-api'
 import {
   actOnDevice,
   AuthApiError,
@@ -11,6 +12,7 @@ import {
   normalizeUserCode,
   requestPasswordReset,
   resetPassword,
+  sessionAccess,
   sessionUser,
   sessionUserPresent,
   signIn,
@@ -286,6 +288,75 @@ describe('isAccountExistsError', () => {
 
     expect(isAccountExistsError(failure)).toBe(true)
     expect(isAccountExistsError(new Error('other'))).toBe(false)
+  })
+})
+
+const answerByPath = (reply: (url: string) => Response): void => {
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    fetchCalls.push({ url: String(input), ...(init === undefined ? {} : { init }) })
+    return reply(String(input))
+  }) as typeof fetch
+}
+
+const accountMe = (active: boolean): Response =>
+  json({ result: { data: { userId: 'u', email: 'a@b.c', active } } })
+
+const forbidden = (message: string): Response =>
+  json(
+    {
+      error: {
+        message,
+        code: -32003,
+        data: { code: 'FORBIDDEN', httpStatus: 403, path: 'account.me', details: { message } },
+      },
+    },
+    403,
+  )
+
+const isAccountMe = (url: string): boolean => url.includes('/v1/trpc/account.me')
+
+const sessionWithUser = (): Response => json({ user: { name: 'Ada', email: 'a@b.c' } })
+
+describe('sessionAccess', () => {
+  it('adds the account access state to the session user', async () => {
+    answerByPath((url) => (isAccountMe(url) ? accountMe(true) : sessionWithUser()))
+
+    expect(await sessionAccess()).toEqual({
+      name: 'Ada',
+      email: 'a@b.c',
+      image: null,
+      active: true,
+    })
+  })
+
+  it('turns an awaiting-access refusal into an inactive session, not an error', async () => {
+    answerByPath((url) => (isAccountMe(url) ? forbidden('AWAITING_ACCESS') : sessionWithUser()))
+
+    expect(await sessionAccess()).toMatchObject({ email: 'a@b.c', active: false })
+  })
+
+  it('rethrows a failure that is not the awaiting-access code', async () => {
+    answerByPath((url) => (isAccountMe(url) ? json({}, 500) : sessionWithUser()))
+
+    const failure = await sessionAccess().catch((thrown: unknown) => thrown)
+
+    expect(failure).toBeInstanceOf(CloudApiError)
+  })
+
+  it('rethrows a network failure on the account check', async () => {
+    globalThis.fetch = (async (input: string | URL | Request) => {
+      if (isAccountMe(String(input))) throw new TypeError('fetch failed')
+      return sessionWithUser()
+    }) as typeof fetch
+
+    await expect(sessionAccess()).rejects.toMatchObject({ message: UNREACHABLE })
+  })
+
+  it('answers null for a signed-out visitor without asking the account', async () => {
+    answerByPath(() => json({ user: null }))
+
+    expect(await sessionAccess()).toBeNull()
+    expect(fetchCalls.map((call) => call.url)).toEqual(['/api/auth/get-session'])
   })
 })
 

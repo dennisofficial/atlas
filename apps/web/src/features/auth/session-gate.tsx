@@ -10,11 +10,13 @@ import { useSessionQuery } from '@/lib/use-session-query'
 
 import { FormError } from './auth-controls'
 import { SignInRedirect } from './sign-in-redirect'
+import { WhitelistWall } from './whitelist-wall'
 
 export enum ESessionState {
   Checking = 'checking',
   SignedIn = 'signed-in',
   SignedOut = 'signed-out',
+  AwaitingAccess = 'awaiting-access',
   Failed = 'failed',
 }
 
@@ -32,8 +34,11 @@ export function useSessionState(): { gate: GateState; retry: () => void } {
   if (query.state === EQueryState.Loading) {
     return { gate: { state: ESessionState.Checking, message: '' }, retry }
   }
-  const state = query.data === null ? ESessionState.SignedOut : ESessionState.SignedIn
-  return { gate: { state, message: '' }, retry }
+  if (query.data === null) return { gate: { state: ESessionState.SignedOut, message: '' }, retry }
+  if (query.data.active === false) {
+    return { gate: { state: ESessionState.AwaitingAccess, message: '' }, retry }
+  }
+  return { gate: { state: ESessionState.SignedIn, message: '' }, retry }
 }
 
 export function CheckingSession() {
@@ -54,6 +59,7 @@ export function SessionFailed({ message, onRetry }: { message: string; onRetry: 
 export function SessionGate({ children }: { children: ReactNode }) {
   const { gate, retry } = useSessionState()
   if (gate.state === ESessionState.SignedIn) return <>{children}</>
+  if (gate.state === ESessionState.AwaitingAccess) return <WhitelistWall />
   if (gate.state === ESessionState.SignedOut) return <SignInRedirect />
   if (gate.state === ESessionState.Failed) {
     return <SessionFailed message={gate.message} onRetry={retry} />

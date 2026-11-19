@@ -1,3 +1,4 @@
+import { api, cloudCall } from './api-client'
 import { apiUrl } from './api-base-url'
 
 export enum EAuthErrorCode {
@@ -132,6 +133,25 @@ export async function sessionUser(): Promise<SessionUser | null> {
   const email = typeof user.email === 'string' ? user.email : ''
   const name = typeof user.name === 'string' && user.name.length > 0 ? user.name : email
   return { name, email, image: typeof user.image === 'string' ? user.image : null }
+}
+
+export const AWAITING_ACCESS = 'AWAITING_ACCESS'
+
+export type SessionAccess = SessionUser & { active: boolean }
+
+const isAwaitingAccess = (failure: unknown): boolean =>
+  failure instanceof Error && failure.message === AWAITING_ACCESS
+
+export async function sessionAccess(): Promise<SessionAccess | null> {
+  const user = await sessionUser()
+  if (user === null) return null
+  try {
+    const account = await cloudCall(api.account.me.query({}))
+    return { ...user, active: account.active }
+  } catch (failure) {
+    if (isAwaitingAccess(failure)) return { ...user, active: false }
+    throw failure
+  }
 }
 
 export const postJson = (args: { path: string; body: unknown }): Promise<Response> =>

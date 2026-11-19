@@ -2,6 +2,8 @@ import { Ctx, Query, Router, UseMiddlewares } from 'nestjs-trpc'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'bun:test'
 import { z } from 'zod'
+import { AwaitingAccessError } from '../../_core/errors/awaiting-access.error'
+import type { SessionVerifyOptions } from '../../_core/ports/session-verifier'
 import { SESSION_VERIFIER } from '../../_core/ports/session-verifier'
 import type { VerifiedSession } from '../../_core/types/auth.types'
 import { meta } from '../trpc/procedure-meta'
@@ -16,8 +18,15 @@ const SESSION: VerifiedSession = {
 }
 
 const verify = vi.fn(
-  async (request: { headers: { cookie?: string | undefined } }): Promise<VerifiedSession | null> =>
-    request.headers.cookie === 'ok' ? SESSION : null,
+  async (
+    request: { headers: { cookie?: string | undefined } },
+    options: SessionVerifyOptions = {},
+  ): Promise<VerifiedSession | null> => {
+    if (request.headers.cookie === 'ok') return SESSION
+    if (request.headers.cookie !== 'inactive') return null
+    if (options.allowInactive !== true) throw new AwaitingAccessError()
+    return SESSION
+  },
 )
 
 @Router({ alias: 'probe' })
@@ -31,6 +40,11 @@ class ProbeRouter {
   @Query({ output: z.string(), meta: meta({ public: true }) })
   open(): string {
     return 'open'
+  }
+
+  @Query({ output: z.string(), meta: meta({ awaitingAccessAllowed: true }) })
+  awaiting(): string {
+    return 'awaiting'
   }
 }
 
@@ -65,6 +79,37 @@ describe('SessionMiddleware', () => {
     const reply = await request(app.getHttpServer()).get('/v1/trpc/probe.whoami')
 
     expect(reply.status).toBe(401)
+  })
+
+  it('answers FORBIDDEN carrying AWAITING_ACCESS for an inactive user', async () => {
+    const reply = await request(app.getHttpServer())
+      .get('/v1/trpc/probe.whoami')
+      .set('cookie', 'inactive')
+
+    expect(reply.status).toBe(403)
+    expect(reply.body.error.message).toBe('AWAITING_ACCESS')
+    expect(reply.body.error.data).toMatchObject({ code: 'FORBIDDEN', httpStatus: 403 })
+  })
+
+  it('lets an inactive user through a procedure that allows awaiting access', async () => {
+    const reply = await request(app.getHttpServer())
+      .get('/v1/trpc/probe.awaiting')
+      .set('cookie', 'inactive')
+
+    expect(reply.status).toBe(200)
+    expect(reply.body).toEqual({ result: { data: 'awaiting' } })
+  })
+
+  it('leaves any other verifier failure unchanged', async () => {
+    verify.mockImplementationOnce(async () => {
+      throw new Error('verifier exploded')
+    })
+
+    const reply = await request(app.getHttpServer())
+      .get('/v1/trpc/probe.whoami')
+      .set('cookie', 'ok')
+
+    expect(reply.status).toBe(500)
   })
 
   it('skips verification on a public procedure', async () => {
