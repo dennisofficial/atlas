@@ -36,7 +36,9 @@ export const listenWebSocket = (args: {
   engine: DaemonEngine
   port: number
   token: string
+  version: string
   drain(deadlineMs: number): void
+  restart(): void
 }): DaemonListener => {
   let draining = false
   const handleDrain = async (request: Request): Promise<Response> => {
@@ -49,11 +51,24 @@ export const listenWebSocket = (args: {
     queueMicrotask(() => args.drain(deadlineMs))
     return new Response('draining', { status: 202 })
   }
+  const handleRestart = (request: Request): Response => {
+    if (!daemonTokenMatches({ want: args.token, token: bearerOf(request) })) {
+      return new Response('forbidden', { status: 403 })
+    }
+    if (draining) return new Response('draining', { status: 409 })
+    draining = true
+    queueMicrotask(() => args.restart())
+    return new Response('restarting', { status: 202 })
+  }
   const server = Bun.serve<SocketData>({
     port: args.port,
     fetch(request, server) {
       const { pathname } = new URL(request.url)
       if (request.method === 'POST' && pathname === '/drain') return handleDrain(request)
+      if (request.method === 'POST' && pathname === '/restart') return handleRestart(request)
+      if (request.method === 'GET' && pathname === '/version') {
+        return new Response(args.version, { status: 200 })
+      }
       if (server.upgrade(request, { data: { link: null } })) return undefined
       return new Response('atlas-daemon', { status: 200 })
     },

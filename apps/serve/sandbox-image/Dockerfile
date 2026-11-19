@@ -292,3 +292,10 @@ RUN install -d -m 0777 /opt/atlas
 # /atlas holds the session's own filesystem: ATLAS_HOME (/atlas/home) and the workspace clones
 # (/atlas/workspaces/<repo>). Same 777 rule as /opt/atlas — the session user writes both at boot.
 RUN install -d -m 0777 /atlas
+
+# The daemon must start from PID 1 on Agent37, whose exec limit kills anything shorter-lived
+# (https://www.agent37.com/docs/agents-api/exec). With no ATLAS_DAEMON_BUNDLE_URL in the instance
+# env the script execs its command unchanged, which is how Vercel and the local docker pod run it.
+COPY atlas-boot.sh /usr/local/bin/atlas-boot
+RUN chmod 755 /usr/local/bin/atlas-boot
+ENTRYPOINT ["/usr/local/bin/atlas-boot"]

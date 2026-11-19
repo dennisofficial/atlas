@@ -16,6 +16,7 @@ import type { AgentHostEnv } from '../config/env'
 import type { SecretCipher } from '../config/secret-cipher'
 import { localPodControlOf } from '../control/local-pod-control'
 import { createPgHostPresence } from '../presence/pg-host-presence'
+import { DAEMON_BUNDLE_ROUTE } from '../http/daemon-bundle'
 import { sandboxRegistryOf, type SandboxProviderRegistry } from '../sandbox/provider-registry'
 import type { SandboxProvider } from '../sandbox/sandbox-provider'
 import { VercelSandboxProvider } from '../sandbox/vercel-sandbox-provider'
@@ -69,6 +70,7 @@ const sandboxProvider: Provider = {
         new Agent37SandboxProvider({
           env: agent37,
           daemonBundle: { path: env.daemonBundlePath },
+          daemonBundleUrl: `${env.publicUrl.replace(/\/$/, '')}/${DAEMON_BUNDLE_ROUTE}`,
           daemonSecret: env.daemonSecret,
           instances: agent37InstanceIdsOf(db),
           log: sandboxLog,

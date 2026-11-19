@@ -61,11 +61,23 @@ const handleDrain = (deadlineMs: number): void => {
     .then(() => process.exit(0))
 }
 
+const handleRestart = (): void => {
+  if (drained) return
+  drained = true
+  console.log('atlas-daemon restarting')
+  setTimeout(() => {
+    listener.stop()
+    void engine.stop().then(() => process.exit(0))
+  }, 100)
+}
+
 const listener = listenWebSocket({
   engine,
   port: Number(env.PORT ?? 3000),
   token,
+  version: DAEMON_VERSION,
   drain: handleDrain,
+  restart: handleRestart,
 })
 
 const handleSignal = (): void => {

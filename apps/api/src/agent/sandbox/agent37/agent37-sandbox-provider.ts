@@ -6,7 +6,12 @@ import { abortedWake, WAKE_DEADLINE_MS } from '../wake-deadline'
 import { SandboxProvider, type DaemonEndpoint, type SandboxTarget } from '../sandbox-provider'
 
 import { agent37CreateBodyOf } from './agent37-create'
-import { launchAgent37Daemon, type Agent37DaemonBundle } from './agent37-daemon'
+import {
+  agent37BundleVersionOf,
+  waitForAgent37Daemon,
+  waitForAgent37Instance,
+  type Agent37DaemonBundle,
+} from './agent37-daemon'
 import { agent37EndpointOf } from './agent37-endpoint'
 import {
   agent37InstanceNameOf,
@@ -37,6 +42,7 @@ export class Agent37SandboxProvider extends SandboxProvider {
     private readonly args: {
       env: Agent37Env
       daemonBundle: Agent37DaemonBundle
+      daemonBundleUrl: string
       daemonSecret: string
       instances: Agent37InstanceIds
       client?: Agent37Client | undefined
@@ -67,26 +73,28 @@ export class Agent37SandboxProvider extends SandboxProvider {
         podSessionId,
         sandboxName,
         token: this.tokenOf(sandboxName),
+        bundleUrl: this.args.daemonBundleUrl,
       }),
     )
+    this.args.log?.(`agent37 created instance ${instance.id} for ${podSessionId}`)
+    await waitForAgent37Instance({
+      client,
+      instanceId: instance.id,
+      ...(this.args.log === undefined ? {} : { log: this.args.log }),
+    })
     await this.args.instances.remember({ podSessionId, instanceId: instance.id })
     args.signal.throwIfAborted()
-    this.args.log?.(`agent37 created instance ${instance.id} for ${podSessionId}`)
     return { instanceId: instance.id, sandboxName }
   }
 
-  private async ensureDaemon(args: {
-    target: SandboxTarget
-    instanceId: string
-    sandboxName: string
-  }): Promise<void> {
+  private async ensureDaemon(args: { target: SandboxTarget; instanceId: string }): Promise<void> {
     const client = this.clientOf(apiKeyOf(args.target))
-    await launchAgent37Daemon({
+    const sandboxName = agent37InstanceNameOf(args.target.sandboxSessionId)
+    await waitForAgent37Daemon({
       client,
       instanceId: args.instanceId,
-      bundle: this.args.daemonBundle,
-      token: this.tokenOf(args.sandboxName),
-      sandboxName: args.sandboxName,
+      version: await agent37BundleVersionOf(this.args.daemonBundle.path),
+      token: this.tokenOf(sandboxName),
       ...(this.args.log === undefined ? {} : { log: this.args.log }),
     })
   }
@@ -108,7 +116,7 @@ export class Agent37SandboxProvider extends SandboxProvider {
     const sessionId = args.target.sandboxSessionId
     try {
       const resolved = await this.resolve(args)
-      await this.ensureDaemon({ target: args.target, ...resolved })
+      await this.ensureDaemon({ target: args.target, instanceId: resolved.instanceId })
       return await agent37EndpointOf({
         client: this.clientOf(apiKeyOf(args.target)),
         instanceId: resolved.instanceId,

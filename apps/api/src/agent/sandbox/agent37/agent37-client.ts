@@ -45,6 +45,8 @@ export type Agent37ExecResult = {
 
 export type Agent37Pid = { pid: number }
 
+export type Agent37Answer = { status: number; body: string }
+
 export type Agent37ExecArgs = {
   id: string
   command: string
@@ -60,6 +62,13 @@ export type Agent37Client = {
   remove(args: { id: string }): Promise<void>
   sleep(args: { id: string }): Promise<void>
   exec(args: Agent37ExecArgs): Promise<Agent37ExecResult | Agent37Pid>
+  probe(args: {
+    id: string
+    port: number
+    path?: string
+    method?: 'GET' | 'POST'
+    authorization?: string
+  }): Promise<Agent37Answer>
   signedUrl(args: { id: string; port: number; ttlSeconds: number }): Promise<string>
 }
 
@@ -81,7 +90,7 @@ export class Agent37Error extends Error {
 // move and clears within about a minute, so the budget spans one.
 export const agent37ExecRetry: RetryPolicy = { attempts: 10, delayMs: 6_000 }
 
-const RETRYABLE_STATUSES = new Set([409, 503])
+const RETRYABLE_STATUSES = new Set([409, 502, 503])
 
 // https://www.agent37.com/docs/agents-api/errors — sandbox.agent37.app answers a flat
 // `{"error": "not_found"}` instead of the `{"error": {"code": …}}` envelope.
@@ -175,6 +184,23 @@ export const liveAgent37Client = (args: {
         },
         timeoutMs: 15 * 60_000,
       }) as Promise<Agent37ExecResult | Agent37Pid>,
+    // https://www.agent37.com/docs/agents-api/urls — every port answers at its preview URL, with a
+    // transport error until something listens, so a probe reports the failure instead of throwing.
+    probe: async ({ id, port, path = '/', method = 'GET', authorization }) => {
+      try {
+        const response = await transport(`https://${id}-${port}.agent37.app${path}`, {
+          method,
+          headers: {
+            ...instanceKey,
+            ...(authorization === undefined ? {} : { Authorization: authorization }),
+          },
+          signal: AbortSignal.timeout(QUICK_TIMEOUT_MS),
+        })
+        return { status: response.status, body: await response.text() }
+      } catch {
+        return { status: 0, body: '' }
+      }
+    },
     signedUrl: async ({ id, port, ttlSeconds }) => {
       const answer = (await call({
         url: api(`/v1/instances/${id}/signed-url`),

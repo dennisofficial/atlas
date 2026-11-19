@@ -15,6 +15,7 @@ export const agent37CreateBodyOf = (args: {
   podSessionId: string
   sandboxName: string
   token: string
+  bundleUrl: string
 }): Agent37CreateArgs => ({
   template: args.env.template,
   type: 'vm',
@@ -27,6 +28,7 @@ export const agent37CreateBodyOf = (args: {
   idle_timeout_seconds: AGENT37_IDLE_TIMEOUT_SECONDS,
   env: {
     DAEMON_TOKEN: args.token,
+    ATLAS_DAEMON_BUNDLE_URL: args.bundleUrl,
     ATLAS_SANDBOX_NAME: args.sandboxName,
     PORT: String(SANDBOX_SERVE_PORT),
   },

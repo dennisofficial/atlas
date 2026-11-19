@@ -9,6 +9,7 @@ import { daemonToken } from '@dltech/atlas-protocol/engine'
 
 import type { SandboxTarget } from '../../sandbox-provider'
 import type { Agent37Client, Agent37CreateArgs, Agent37ExecArgs } from '../agent37-client'
+import { agent37BundleVersionOf } from '../agent37-daemon'
 import { agent37InstanceNameOf, type Agent37Env } from '../agent37-instances'
 import { Agent37SandboxProvider } from '../agent37-sandbox-provider'
 
@@ -17,6 +18,8 @@ const ENV: Agent37Env = {
   template: 'atlas-sandbox@3',
   resources: { cpu: 2, memory: 4, disk: 20 },
 }
+
+const BUNDLE_URL = 'https://api.byatlas.io/agent/daemon/bundle'
 
 const TARGET: SandboxTarget = {
   sandboxSessionId: 'pod-1',
@@ -30,7 +33,7 @@ const bundle = (): { bundle: { path: string }; cleanup: () => void } => {
   return { bundle: { path }, cleanup: () => rmSync(dir, { recursive: true }) }
 }
 
-const fakeClient = (args: { stored?: string | null } = {}) => {
+const fakeClient = (args: { version: string }) => {
   const creates: Agent37CreateArgs[] = []
   const execs: Agent37ExecArgs[] = []
   const slept: string[] = []
@@ -47,14 +50,12 @@ const fakeClient = (args: { stored?: string | null } = {}) => {
     },
     exec: async (body) => {
       execs.push(body)
-      if (body.command.includes('grep -qx atlas-daemon')) {
-        return { exit_code: 0, stdout: 'atlas-daemon\n', stderr: '', truncated: false }
-      }
       return { exit_code: 0, stdout: '', stderr: '', truncated: false }
     },
-    signedUrl: async ({ id }) => `https://${id}-3000.agent37.app/?a37_token=a37`,
+    probe: async () => ({ status: 200, body: args.version }),
+    signedUrl: async ({ id, port }) => `https://${id}-${port}.agent37.app/?a37_token=a37`,
   }
-  return { client, creates, execs, slept, stored: args.stored }
+  return { client, creates, execs, slept }
 }
 
 const providerOf = (args: {
@@ -67,6 +68,7 @@ const providerOf = (args: {
   const provider = new Agent37SandboxProvider({
     env: ENV,
     daemonBundle: { path: args.bundlePath },
+    daemonBundleUrl: BUNDLE_URL,
     daemonSecret: 'secret',
     client: args.client,
     instances: {
@@ -81,94 +83,70 @@ const providerOf = (args: {
 }
 
 describe('Agent37SandboxProvider.wake', () => {
-  it('creates the instance once, launches the daemon and returns the signed port URL', async () => {
+  it('creates the instance once, waits for the daemon and returns the signed port URL', async () => {
     const { bundle: b, cleanup } = bundle()
-    const { client, creates } = fakeClient()
+    const version = await agent37BundleVersionOf(b.path)
+    const { client, creates, execs } = fakeClient({ version })
     const { provider, remembered } = providerOf({ client, bundlePath: b.path })
+    try {
+      const endpoint = await provider.wake({ target: TARGET, signal: new AbortController().signal })
 
-    const endpoint = await provider.wake({ target: TARGET, signal: new AbortController().signal })
-
-    expect(creates).toHaveLength(1)
-    expect(remembered).toEqual([{ podSessionId: 'pod-1', instanceId: 'inst-1' }])
-    expect(endpoint.url).toBe('wss://inst-1-3000.agent37.app/?a37_token=a37')
-    expect(endpoint.sandboxName).toBe(agent37InstanceNameOf('pod-1'))
-    expect(endpoint.token).toBe(
-      daemonToken({ secret: 'secret', sandboxName: agent37InstanceNameOf('pod-1') }),
-    )
-    cleanup()
+      expect(creates).toHaveLength(1)
+      expect(execs).toHaveLength(0)
+      expect(remembered).toEqual([{ podSessionId: 'pod-1', instanceId: 'inst-1' }])
+      expect(endpoint.url).toBe('wss://inst-1-3000.agent37.app/?a37_token=a37')
+      expect(endpoint.sandboxName).toBe(agent37InstanceNameOf('pod-1'))
+      expect(endpoint.token).toBe(
+        daemonToken({ secret: 'secret', sandboxName: agent37InstanceNameOf('pod-1') }),
+      )
+    } finally {
+      cleanup()
+    }
   })
 
-  it('starts the daemon with a background exec, which returns at once', async () => {
+  it('wakes a known instance without creating another and without an exec', async () => {
     const { bundle: b, cleanup } = bundle()
-    const { client, execs } = fakeClient()
+    const version = await agent37BundleVersionOf(b.path)
+    const { client, creates, execs } = fakeClient({ version })
+    const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
+    try {
+      const endpoint = await provider.wake({ target: TARGET, signal: new AbortController().signal })
+
+      expect(creates).toHaveLength(0)
+      expect(execs).toHaveLength(0)
+      expect(endpoint.url).toContain('inst-9-3000')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('carries the bundle URL, the daemon token and the port in the create env', async () => {
+    const { bundle: b, cleanup } = bundle()
+    const version = await agent37BundleVersionOf(b.path)
+    const { client, creates } = fakeClient({ version })
     const { provider } = providerOf({ client, bundlePath: b.path })
-
-    await provider.wake({ target: TARGET, signal: new AbortController().signal })
-
-    const launches = execs.filter((exec) => exec.command.includes('/opt/mise/shims/bun'))
-    expect(launches).toHaveLength(1)
-    expect(launches[0]?.background).toBe(true)
-    cleanup()
-  })
-
-  it('reuses the stored instance id on a later wake instead of creating again', async () => {
-    const { bundle: b, cleanup } = bundle()
-    const { client, creates } = fakeClient()
-    const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-old' })
-
-    const endpoint = await provider.wake({ target: TARGET, signal: new AbortController().signal })
-
-    expect(creates).toHaveLength(0)
-    expect(endpoint.url).toBe('wss://inst-old-3000.agent37.app/?a37_token=a37')
-    cleanup()
-  })
-
-  it('refuses a Vercel target', async () => {
-    const { bundle: b, cleanup } = bundle()
-    const { client } = fakeClient()
-    const { provider } = providerOf({ client, bundlePath: b.path })
-
-    const failure = await provider
-      .wake({
-        target: {
-          sandboxSessionId: 'pod-1',
-          credentials: {
-            provider: ESandboxProvider.Vercel,
-            token: 't',
-            teamId: 'x',
-            projectId: 'y',
-          },
-        },
-        signal: new AbortController().signal,
-      })
-      .catch((error) => error)
-
-    expect(String(failure)).toContain('Agent37SandboxProvider cannot run a vercel sandbox')
-    cleanup()
+    try {
+      await provider.wake({ target: TARGET, signal: new AbortController().signal })
+      expect(creates[0]?.env.ATLAS_DAEMON_BUNDLE_URL).toBe(BUNDLE_URL)
+      expect(creates[0]?.env.PORT).toBe('3000')
+      expect(creates[0]?.env.DAEMON_TOKEN).toBeString()
+    } finally {
+      cleanup()
+    }
   })
 })
 
-describe('Agent37SandboxProvider.stop and keepAlive', () => {
-  it('sleeps the stored instance rather than deleting it', async () => {
-    const { client, slept } = fakeClient()
-    const { provider } = providerOf({ client, bundlePath: '/nonexistent', stored: 'inst-9' })
-    await provider.stop({ target: TARGET })
-    expect(slept).toEqual(['inst-9'])
-  })
-
-  it('does nothing when no instance was ever created', async () => {
-    const { client, slept, execs } = fakeClient()
-    const { provider } = providerOf({ client, bundlePath: '/nonexistent' })
-    await provider.stop({ target: TARGET })
-    await provider.keepAlive({ target: TARGET, until: 1 })
-    expect(slept).toEqual([])
-    expect(execs).toEqual([])
-  })
-
-  it('touches the instance with one foreground exec, which counts as activity', async () => {
-    const { client, execs } = fakeClient()
-    const { provider } = providerOf({ client, bundlePath: '/nonexistent', stored: 'inst-9' })
-    await provider.keepAlive({ target: TARGET, until: Date.now() + 60_000 })
-    expect(execs).toEqual([{ id: 'inst-9', command: 'true' }])
+describe('Agent37SandboxProvider.stop', () => {
+  it('sleeps the remembered instance', async () => {
+    const { bundle: b, cleanup } = bundle()
+    const version = await agent37BundleVersionOf(b.path)
+    const { client, slept } = fakeClient({ version })
+    const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
+    try {
+      await provider.stop({ target: TARGET })
+      expect(slept).toEqual(['inst-9'])
+    } finally {
+      cleanup()
+    }
   })
 })

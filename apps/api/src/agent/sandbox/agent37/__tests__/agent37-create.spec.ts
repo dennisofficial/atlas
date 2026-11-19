@@ -17,6 +17,7 @@ describe('agent37CreateBodyOf', () => {
     podSessionId: 'pod-1',
     sandboxName: agent37InstanceNameOf('pod-1'),
     token: daemonToken({ secret: 'secret', sandboxName: agent37InstanceNameOf('pod-1') }),
+    bundleUrl: 'https://api.byatlas.io/agent/daemon/bundle',
   })
 
   it('asks for a vm with the platform shape, an /atlas mount and the 1800s auto-sleep', () => {
@@ -40,6 +41,7 @@ describe('agent37CreateBodyOf', () => {
     )
     expect(body.env.ATLAS_SANDBOX_NAME).toBe('atlas-pod-1')
     expect(body.env.PORT).toBe('3000')
+    expect(body.env.ATLAS_DAEMON_BUNDLE_URL).toBe('https://api.byatlas.io/agent/daemon/bundle')
   })
 
   it('never carries the workspace api key', () => {
