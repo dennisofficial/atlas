@@ -4,6 +4,12 @@ import { answerTrpc, resetTrpc, restoreTrpc, trpcCalls, trpcData } from '@/lib/_
 
 import { fetchSettings, saveSettings } from '../cloud-settings'
 
+const bodyOf = (body: unknown): unknown => {
+  const parsed = body as { atlasB64?: string } | undefined
+  if (parsed === undefined || typeof parsed.atlasB64 !== 'string') return parsed
+  return JSON.parse(Buffer.from(parsed.atlasB64, 'base64').toString('utf8')) as unknown
+}
+
 beforeEach(resetTrpc)
 afterEach(restoreTrpc)
 
@@ -19,7 +25,7 @@ describe('personal settings', () => {
     await saveSettings({ a: true, b: null })
     expect(trpcCalls).toHaveLength(1)
     expect(trpcCalls[0]).toMatchObject({ url: '/v1/trpc/settings.patch', method: 'POST' })
-    expect(trpcCalls[0]?.body).toMatchObject({ values: { b: null } })
+    expect(bodyOf(trpcCalls[0]?.body)).toMatchObject({ values: { b: null } })
   })
 
   it('sends nothing for an empty change set', async () => {

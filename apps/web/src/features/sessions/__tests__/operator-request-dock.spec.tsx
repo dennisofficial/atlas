@@ -55,7 +55,11 @@ const stubFetch = (answer: { status: number; httpStatus?: number } = { status: 2
 }
 
 const answers = () => calls.filter((call) => call.url.endsWith('/v1/trpc/operatorRequests.answer'))
-const bodyOf = (call: FetchCall | undefined) => JSON.parse(String(call?.init?.body))
+const bodyOf = (call: FetchCall | undefined): unknown => {
+  const body = JSON.parse(String(call?.init?.body)) as { atlasB64?: string }
+  if (typeof body.atlasB64 !== 'string') return body
+  return JSON.parse(Buffer.from(body.atlasB64, 'base64').toString('utf8')) as unknown
+}
 
 beforeAll(() => {
   GlobalRegistrator.register()
