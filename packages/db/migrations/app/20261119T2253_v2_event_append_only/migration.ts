@@ -14,7 +14,7 @@ const appendOnlyGuard = rawSql({
   id: 'guard.v2-event-append-only',
   invariantId: 'v2-event-append-only',
   label: 'Refuse every UPDATE and DELETE of a V2Event row',
-  operationClass: 'additive',
+  operationClass: 'data',
   target: {
     id: 'table.V2Event',
     details: { schema: 'v2', objectType: 'table' as const, name: 'V2Event' },
