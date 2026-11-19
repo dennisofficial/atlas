@@ -59,7 +59,8 @@ export const isOutsideGit = (thread: WireThread | undefined): boolean =>
   thread?.checkout !== undefined && !thread.checkout.detached && !thread.checkout.branch
 
 export const entryHasConflicts = (entry: PullRequestEntry): boolean =>
-  entry.mergeable === false && entry.state === EPullRequestStateWire.Open
+  entry.mergeable === false &&
+  (entry.state === EPullRequestStateWire.Open || entry.state === EPullRequestStateWire.Draft)
 
 export function checksTallyOf(entry: PullRequestEntry): ChecksTally | undefined {
   const running = entry.checksRunning ?? 0

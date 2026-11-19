@@ -51,6 +51,25 @@ describe('pullRequestListOf', () => {
     expect(row?.conflicts).toBe(true)
   })
 
+  it('flags conflicts on drafts but not on merged or closed pull requests', () => {
+    const live = (state: EPullRequestStateWire): PrStateWire => ({
+      repo: 'o/r',
+      number: 2,
+      url: 'https://github.com/o/r/pull/2',
+      branch: 'b2',
+      state,
+      checksRunning: 0,
+      checksPassed: 1,
+      checksFailed: 0,
+      mergeable: false,
+    })
+    const conflictsOf = (state: EPullRequestStateWire) =>
+      pullRequestListOf({ thread, states: [live(state)] }).rows[1]?.conflicts
+    expect(conflictsOf(EPullRequestStateWire.Draft)).toBe(true)
+    expect(conflictsOf(EPullRequestStateWire.Merged)).toBe(false)
+    expect(conflictsOf(EPullRequestStateWire.Closed)).toBe(false)
+  })
+
   it('leaves pull requests without live state without checks or conflicts', () => {
     const row = pullRequestListOf({ thread, states: [] }).rows[0]
     expect(row?.checks).toBeUndefined()
