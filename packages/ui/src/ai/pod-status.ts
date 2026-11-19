@@ -15,12 +15,16 @@ export class ResizeDeclinedError extends Error {
 
 const RAM_PER_VCPU_GB = 2
 
+export type EPodResizePhase = 'steady' | 'resizing' | 'failed'
+
 export interface PodStatus {
   state: EPodState
   vcpus?: number
   podId?: string
   region?: string
   pendingVcpus?: number
+  phase?: EPodResizePhase
+  resizeError?: string
 }
 
 export const STATE_LABEL: Record<EPodState, string> = {
@@ -45,8 +49,11 @@ export function showsSize(state: EPodState): boolean {
 
 export function chipLabel(status: PodStatus): string {
   const restarting = status.state !== EPodState.Parked && status.state !== EPodState.Stopped
+  if (status.phase === 'failed') return 'Resize failed'
   if (restarting && status.pendingVcpus !== undefined) {
-    return `Restarting · ${sizeLabel(status.pendingVcpus)}`
+    return status.phase === 'resizing'
+      ? `Resizing · ${sizeLabel(status.pendingVcpus)}`
+      : `Restarting · ${sizeLabel(status.pendingVcpus)}`
   }
   if (status.state === EPodState.Running) {
     return status.vcpus === undefined ? STATE_LABEL[status.state] : sizeLabel(status.vcpus)

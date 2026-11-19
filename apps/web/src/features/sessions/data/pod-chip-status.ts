@@ -1,15 +1,19 @@
 import { EPodState, type PodStatus } from '@dltech/atlas-ui/ai/pod-status-chip'
-import type { SessionPodResourcesOutput } from '@dltech/atlas-protocol'
+import type { SessionStatusOutput } from '@dltech/atlas-protocol'
 
 export const podChipStatusOf = (args: {
-  resources: SessionPodResourcesOutput
+  pod: SessionStatusOutput['pod']
   live: boolean
 }): PodStatus | null => {
-  const { resources, live } = args
-  if (resources === null) return null
+  const { pod, live } = args
+  if (pod === undefined) return null
+  const vcpus = pod.actualVcpus ?? pod.desiredVcpus
+  const pending = pod.phase === 'steady' ? undefined : pod.desiredVcpus
   return {
     state: live ? EPodState.Running : EPodState.Parked,
-    ...(resources.vcpus === undefined ? {} : { vcpus: resources.vcpus }),
-    ...(resources.pendingVcpus === undefined ? {} : { pendingVcpus: resources.pendingVcpus }),
+    ...(vcpus === undefined ? {} : { vcpus }),
+    ...(pending === undefined ? {} : { pendingVcpus: pending }),
+    phase: pod.phase,
+    ...(pod.error === undefined ? {} : { resizeError: pod.error }),
   }
 }
