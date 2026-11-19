@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'bun:test'
 
 import type { ConformanceParams } from './conformance'
 import { claimFixtureOf } from './conformance-claim-support'
-import { T0 } from './support'
+import { mint, T0 } from './support'
 
 const SECOND = 1000
 
@@ -35,6 +35,45 @@ export function describeControlPlaneClaimCommands(params: ConformanceParams): vo
       ])
       await fixture.releaseAll()
     })
+
+    it('keeps an entry at or below the idle head from re-claiming, and claims a newer one at once', async () => {
+      await fixture.preparedSession('idle-head')
+      const { plane } = harness
+      const hostId = await fixture.present()
+      const threadId = 'idle-head-thread'
+      const first = await plane.post({
+        sessionId: 'idle-head',
+        kind: 'agent-notice',
+        payload: '{}',
+      })
+      const [claimed] = (await plane.claimNext({ hostId, limit: 5 })).leases
+      const epoch = claimed?.epoch ?? -1
+      const head = await plane.head({ threadId })
+      const appended = await plane.append({
+        threadId,
+        epoch,
+        events: mint({
+          bodies: [{ type: 'idle-released', inboxHead: first.inboxId }],
+          epoch,
+          from: head,
+          threadId,
+        }),
+      })
+      expect(appended.ok).toBe(true)
+      await plane.revoke({ sessionId: 'idle-head', wantsHolder: false })
+      harness.setNow(after({ from: T0, ms: 2 * SECOND }))
+      expect((await plane.claimNext({ hostId, limit: 5 })).leases).toEqual([])
+      const second = await plane.post({
+        sessionId: 'idle-head',
+        kind: 'agent-notice',
+        payload: '{}',
+      })
+      expect(second.inboxId).toBeGreaterThan(first.inboxId)
+      expect((await plane.claimNext({ hostId, limit: 5 })).leases).toMatchObject([
+        { sessionId: 'idle-head', holderHostId: hostId },
+      ])
+      await fixture.releaseAll()
+    }, 20_000)
 
     it('skips a session until its retryAfter passes and counts each claim', async () => {
       await fixture.newSession('retry')

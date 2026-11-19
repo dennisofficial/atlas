@@ -48,7 +48,9 @@ export type HostKnobs = {
 /**
  * A host holds a session only while it has work, so it can claim, finish and release a session
  * between two polls of the lease. The host's own take-over log is the durable proof that it held
- * it, and keeps the wait meaningful where a lease read would have missed the hold entirely.
+ * it, and keeps the wait meaningful where a lease read would have missed the hold entirely. A
+ * command-only hold never reaches a first step, so replaying a consumed command after a take-over
+ * counts as the same proof once that session's epoch has moved.
  */
 const takeOversOf = (args: { host: HostProcess | undefined; sessionId: string }): number =>
   args.host === undefined
@@ -57,6 +59,9 @@ const takeOversOf = (args: { host: HostProcess | undefined; sessionId: string })
         .logs()
         .filter((line) => line.includes(`take-over of ${args.sessionId} reached its first step`))
         .length
+
+const replaysAfterTakeOverOf = (host: HostProcess | undefined): number =>
+  host === undefined ? 0 : host.logs().filter((line) => line.includes('after takeover')).length
 
 export type FaultRig = {
   plane: ControlPlane
@@ -121,12 +126,15 @@ export const startRig = async (args: {
   }): Promise<void> => {
     const host = hostsByLabel.get(args.label)
     const seen = takeOversOf({ host, sessionId: args.sessionId })
+    const seenReplays = replaysAfterTakeOverOf(host)
+    const epochAtStart = (await plane.currentLease({ sessionId: args.sessionId })).lease.epoch
     const deadline = Date.now() + args.timeoutMs
     for (;;) {
       if (args.wake) await plane.wake({ sessionIds: [args.sessionId] }).catch(() => undefined)
       const current = await plane.currentLease({ sessionId: args.sessionId })
       if (current.live && (await labelOf(current.lease.holderHostId)) === args.label) return
       if (takeOversOf({ host, sessionId: args.sessionId }) > seen) return
+      if (current.lease.epoch > epochAtStart && replaysAfterTakeOverOf(host) > seenReplays) return
       if (Date.now() > deadline) {
         throw new Error(
           `timed out waiting for ${args.label} to take over ${args.sessionId}: ${JSON.stringify(current)}\n${args.label} logs:\n${host?.logs().join('\n') ?? 'the rig never spawned that host'}`,

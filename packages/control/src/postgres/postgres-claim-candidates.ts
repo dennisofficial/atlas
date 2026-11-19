@@ -19,6 +19,9 @@ const needingHolderIn = (tx: Tx) =>
               WHERE i."sessionId" = s."id" AND i."consumedSeq" IS NULL
                 AND i."kind" NOT LIKE ${COMMAND_KIND_LIKE}
                 AND (i."kind" = 'stop' OR i."inboxId" > GREATEST(COALESCE((
+                  SELECT (d."canonical"::jsonb ->> 'inboxHead')::int FROM "v2"."V2Event" d
+                  WHERE d."threadId" = s."mainThreadId" AND d."type" = 'idle-released'
+                  ORDER BY d."seq" DESC LIMIT 1), 0), COALESCE((
                   SELECT (f."canonical"::jsonb ->> 'inboxHead')::int FROM "v2"."V2Event" f
                   WHERE f."threadId" = s."mainThreadId" AND f."type" = 'workspace-prepare-failed'
                     AND NOT EXISTS (SELECT 1 FROM "v2"."V2Event" p

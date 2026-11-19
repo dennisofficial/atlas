@@ -228,7 +228,7 @@ export class HeldSession {
     const deps = this.deps
     const turnRunning = this.turns.turnRunning
     if (this.draining) return turnRunning ? undefined : this.ending.finish(EHeldOutcome.Drained)
-    const { entries, action, resumable, inboxHead } = await readHeldAction({
+    const { entries, action, resumable, inboxHead, failure } = await readHeldAction({
       deps,
       draining: this.draining,
       turnRunning,
@@ -283,7 +283,7 @@ export class HeldSession {
         return
       }
       case EHeldAction.Release: {
-        await this.ending.releaseIdle()
+        await this.ending.releaseIdle({ entries, failure, threadId: args.threadId })
         return
       }
       case EHeldAction.Wait: {

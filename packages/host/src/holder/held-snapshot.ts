@@ -7,6 +7,7 @@ import {
   setupInFlightOf,
   workspaceStateFrom,
   type InboxEntry,
+  type PrepareFailure,
 } from '@dltech/atlas-core'
 
 import { idleReleaseDue } from './held-idle'
@@ -64,6 +65,7 @@ export const readHeldAction = async (args: {
   resumable: boolean
   inboxHead: number
   shellsRunning: boolean
+  failure: PrepareFailure | undefined
 }> => {
   const { deps } = args
   const cache = args.record?.eventCache()
@@ -119,5 +121,6 @@ export const readHeldAction = async (args: {
     resumable,
     inboxHead: Math.max(0, ...entries.map((entry) => entry.inboxId)),
     shellsRunning: runningShells > 0,
+    failure: workspace.failure,
   }
 }

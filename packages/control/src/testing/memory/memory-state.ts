@@ -119,6 +119,11 @@ export const hasPrepareHistory = (log: readonly StoredEvent[]): boolean =>
 const inboxHeadOf = (event: StoredEvent): number =>
   (JSON.parse(event.canonical) as { inboxHead: number }).inboxHead
 
+export const idleHeadOf = (log: readonly StoredEvent[]): number => {
+  const released = log.findLast((event) => event.type === 'idle-released')
+  return released === undefined ? 0 : inboxHeadOf(released)
+}
+
 const START_FAILURE_ENDERS: ReadonlySet<string> = new Set([
   'user-said',
   'assistant-said',

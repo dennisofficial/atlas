@@ -1,4 +1,11 @@
-import { EHeldOutcome, type Lease, type ThreadId } from '@dltech/atlas-core'
+import {
+  EHeldOutcome,
+  type InboxEntry,
+  type Lease,
+  type PrepareFailure,
+  type ThreadId,
+} from '@dltech/atlas-core'
+import { idleReleaseGuardOf, type IdleReleaseGuard } from '@dltech/atlas-control'
 import { logFieldsOf } from '@dltech/atlas-observability'
 
 import type { BranchObserver } from './branch-observer'
@@ -70,15 +77,49 @@ export class HeldEnding {
     this.finish(kind)
   }
 
-  async releaseIdle(): Promise<void> {
+  async releaseIdle(args: {
+    entries: readonly InboxEntry[]
+    failure: PrepareFailure | undefined
+    threadId: ThreadId
+  }): Promise<void> {
     const runtime = this.args.runtime()
     if (runtime === undefined) return
     const current = await this.args.deps.plane.currentLease({ sessionId: this.args.sessionId })
     if (current.lease.epoch !== this.epochOfLease) return this.lose()
+    const guard = idleReleaseGuardOf({
+      entries: args.entries,
+      failure: args.failure,
+      wantsHolder: current.lease.wantsHolder,
+    })
+    if (guard.reasons.length > 0) {
+      this.args.deps.log?.warn({
+        source: 'holder.idle',
+        message: `released ${this.args.sessionId} at Idle while the plane can still claim it: ${guard.reasons.join('; ')}`,
+      })
+    }
     await this.args.beforeRelease()
+    if (guard.reasons.length > 0) await this.markSettled({ guard, threadId: args.threadId })
     await runtime.release()
     this.wasReleased = true
     this.finish(EHeldOutcome.Idle)
+  }
+
+  private async markSettled(args: { guard: IdleReleaseGuard; threadId: ThreadId }): Promise<void> {
+    const record = this.args.record()
+    if (record === undefined) return
+    try {
+      await record.append({
+        threadId: args.threadId,
+        runId: this.args.deps.ids.nextRunId(),
+        drafts: [{ type: 'idle-released', inboxHead: args.guard.inboxHead }],
+      })
+    } catch (error) {
+      this.args.deps.log?.warn({
+        source: 'holder.idle',
+        message: `recording the idle release of ${this.args.sessionId} failed`,
+        ...logFieldsOf({ error }),
+      })
+    }
   }
 
   async handBack(args: { needsHolder: boolean }): Promise<void> {

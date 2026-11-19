@@ -11,6 +11,8 @@ export type {
   ChangesGcSummary,
 } from './changes-gc'
 export { LeaseConflictError, UnknownThreadError } from './errors'
+export { idleReleaseGuardOf } from './idle-guard'
+export type { IdleReleaseGuard } from './idle-guard'
 export { ControlStorePort, SeqConflictError } from './port'
 export type {
   AdvanceRoutineParams,

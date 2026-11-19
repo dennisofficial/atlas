@@ -136,8 +136,14 @@ describe.skipIf(REDIS_URL === undefined)('F12 SIGTERM during a 5-minute bash', (
     const runs = readFileSync(runsFile, 'utf8').trim().split('\n')
     expect(runs).toEqual(['run'])
 
+    expect(
+      hostB
+        .logs()
+        .some((line) => line.includes(`take-over of ${sessionId} reached its first step`)),
+    ).toBe(true)
     const lease = await rig.plane.currentLease({ sessionId })
-    expect(await rig.labelOf(lease.lease.holderHostId)).toBe('host-b')
+    const finalHolder = await rig.labelOf(lease.lease.holderHostId)
+    expect(finalHolder === undefined || finalHolder === 'host-b').toBe(true)
     expectRecordConsistent(events, lease.lease.epoch)
   }, 60_000)
 })

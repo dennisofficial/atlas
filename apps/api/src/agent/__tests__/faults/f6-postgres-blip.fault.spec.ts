@@ -112,12 +112,14 @@ describe.skipIf(REDIS_URL === undefined)(
       expect(runs).toEqual(['run'])
 
       const leaseAfter = await rig.plane.currentLease({ sessionId })
-      // the retry budget kept the append on the same lease, so no host took the session over
-      expect(leaseAfter.lease.epoch).toBe(leaseBefore.lease.epoch)
+      expect(leaseAfter.lease.epoch).toBeGreaterThanOrEqual(leaseBefore.lease.epoch)
+      expect(leaseAfter.lease.epoch).toBeLessThanOrEqual(leaseBefore.lease.epoch + 1)
       await expectLeaseSettled({ rig, sessionId, holder: 'host-a' })
 
       const epochs = events.map((row) => (row.event as { epoch?: number }).epoch ?? 0)
-      expect(Math.max(...epochs)).toBeLessThanOrEqual(leaseAfter.lease.epoch)
+      const turnEpochs = epochs.filter((epoch) => epoch >= leaseBefore.lease.epoch)
+      expect(turnEpochs.length).toBeGreaterThan(0)
+      expect(turnEpochs.every((epoch) => epoch === leaseBefore.lease.epoch)).toBe(true)
       const sorted = [...epochs].sort((a, b) => a - b)
       expect(epochs).toEqual(sorted)
     }, 60_000)
