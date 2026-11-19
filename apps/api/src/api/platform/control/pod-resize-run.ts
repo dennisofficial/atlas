@@ -1,7 +1,6 @@
 import type { ControlSessionRow } from '@dltech/atlas-control'
 
-import type { VercelCredentials } from '../../../agent/sandbox/constants'
-import type { PodResizeOutcome } from '../../../agent/sandbox/sandbox-provider'
+import type { PodResizeOutcome, VercelCredentials } from '../../../agent'
 import {
   EPodResizeOutcome,
   type PodResizeOutput,
