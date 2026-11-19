@@ -9,6 +9,7 @@ export enum ESessionStatus {
   WaitingForCredentials = 'waiting-for-credentials',
   WaitingForOperator = 'waiting-for-operator',
   Resuming = 'resuming',
+  WaitingForBackground = 'waiting-for-background',
   Idle = 'idle',
   Failed = 'failed',
 }

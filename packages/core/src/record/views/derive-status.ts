@@ -1,3 +1,4 @@
+import { hasBackground } from './background-facts'
 import type { StatusFacts } from './status-facts'
 import { queuedSinceOf, type PendingInputsState } from '../pending-inputs'
 import { ESessionStatus, type SessionStatus } from './status-types'
@@ -102,5 +103,8 @@ export function deriveStatus(args: {
 
   const open = openTurnStatus({ facts, live: args.live, nowMs: Date.parse(args.now) })
   if (open !== undefined) return open
+  if (args.live && hasBackground(facts.background)) {
+    return { state: ESessionStatus.WaitingForBackground, since: idleSinceOf(facts) }
+  }
   return { state: ESessionStatus.Idle, since: idleSinceOf(facts) }
 }

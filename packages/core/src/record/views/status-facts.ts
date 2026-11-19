@@ -6,6 +6,7 @@ import { EFinishReason } from '../../stream/chunk'
 import { EInputConsumed, type V2Event, type V2EventType } from '../event'
 import { endsStartFailure } from '../start-failure'
 import { countsAsPrepared } from '../workspace'
+import { NO_BACKGROUND, stepBackground, type BackgroundFacts } from './background-facts'
 
 export type TimedReason = { reason: string; at: string }
 
@@ -34,6 +35,7 @@ export type StatusFacts = {
   credentialWait: { reason: string | null; at: string } | null
   retries: readonly RetryFact[]
   parked: ParkedFacts
+  background: BackgroundFacts
 }
 
 export const initialStatusFacts: StatusFacts = {
@@ -48,6 +50,7 @@ export const initialStatusFacts: StatusFacts = {
   credentialWait: null,
   retries: [],
   parked: {},
+  background: NO_BACKGROUND,
 }
 
 const TURN_ENDING_TYPES: ReadonlySet<V2EventType> = new Set([
@@ -176,10 +179,18 @@ const stepTurn = (facts: StatusFacts, event: V2Event): StatusFacts => {
   return facts
 }
 
+const stepBackgroundFacts = (facts: StatusFacts, event: V2Event): StatusFacts => {
+  const background = stepBackground(facts.background, event)
+  return background === facts.background ? facts : { ...facts, background }
+}
+
 export const stepStatusFacts = (facts: StatusFacts, event: V2Event): StatusFacts =>
-  stepParked(
-    stepTurn(
-      stepWaits(stepWorkspace({ ...facts, firstSeq: facts.firstSeq ?? event.seq }, event), event),
+  stepBackgroundFacts(
+    stepParked(
+      stepTurn(
+        stepWaits(stepWorkspace({ ...facts, firstSeq: facts.firstSeq ?? event.seq }, event), event),
+        event,
+      ),
       event,
     ),
     event,

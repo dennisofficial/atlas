@@ -150,6 +150,7 @@ const RUNNING_STATES: ReadonlySet<string> = new Set([
   'running-tool',
   'waiting-to-retry',
   'resuming',
+  'waiting-for-background',
 ])
 
 const FAILED_STATES: ReadonlySet<string> = new Set(['failed', 'setup-failed', 'start-failed'])

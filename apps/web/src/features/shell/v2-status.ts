@@ -23,6 +23,7 @@ const ICON: Record<ESessionStatus, EThreadStatus> = {
   [ESessionStatus.RunningTool]: EThreadStatus.Running,
   [ESessionStatus.WaitingToRetry]: EThreadStatus.Running,
   [ESessionStatus.Resuming]: EThreadStatus.Running,
+  [ESessionStatus.WaitingForBackground]: EThreadStatus.Running,
   [ESessionStatus.Idle]: EThreadStatus.Idle,
 }
 
