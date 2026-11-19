@@ -62,6 +62,11 @@ export const entryHasConflicts = (entry: PullRequestEntry): boolean =>
   entry.mergeable === false &&
   (entry.state === EPullRequestStateWire.Open || entry.state === EPullRequestStateWire.Draft)
 
+export const entryIsSettled = (entry: PullRequestEntry): boolean => {
+  const state = entry.state?.toLowerCase()
+  return state === EPullRequestStateWire.Merged || state === EPullRequestStateWire.Closed
+}
+
 export function checksTallyOf(entry: PullRequestEntry): ChecksTally | undefined {
   const running = entry.checksRunning ?? 0
   const passed = entry.checksPassed ?? 0

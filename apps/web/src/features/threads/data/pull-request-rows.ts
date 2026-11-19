@@ -1,6 +1,6 @@
 import type { PrStateWire, WireThread } from '@dltech/atlas-wire/web'
 
-import { checksTallyOf, entryHasConflicts, type ChecksTally } from './header-model'
+import { checksTallyOf, entryHasConflicts, entryIsSettled, type ChecksTally } from './header-model'
 import {
   pullRequestEntriesOf,
   pullRequestKeyOf,
@@ -33,7 +33,7 @@ export function pullRequestRowOf(entry: PullRequestEntry): PullRequestRow {
     url: entry.url,
     branch: entry.branch,
     state: entry.state,
-    checks: checksTallyOf(entry),
+    checks: entryIsSettled(entry) ? undefined : checksTallyOf(entry),
     conflicts: entryHasConflicts(entry),
     mergeQueued: entry.mergeQueued === true,
     autoMerge: entry.autoMerge === true,

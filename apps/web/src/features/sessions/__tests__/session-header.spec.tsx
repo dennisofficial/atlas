@@ -127,6 +127,24 @@ describe('SessionHeader', () => {
     expect(html).not.toContain('running,')
   })
 
+  it('shows a closed pull request as closed, without checks or a conflict warning', () => {
+    const html = render({
+      entries: [
+        entry({
+          state: 'closed',
+          mergeable: false,
+          checksRunning: 0,
+          checksPassed: 1,
+          checksFailed: 0,
+        }),
+      ],
+    })
+    expect(html).toContain('aria-label="Pull request closed"')
+    expect(html).toContain('#12')
+    expect(html).not.toContain('passed')
+    expect(html).not.toContain('Merge conflicts')
+  })
+
   it('shows unknown state as unknown, without guessing', () => {
     const html = render({
       entries: [
