@@ -165,34 +165,54 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
     }
   }
 
+  const projectName = projects.find((project) => project.id === projectId)?.name ?? null
+
   return (
-    <ThreadComposer
-      value={draft}
-      onValueChange={setDraft}
-      onSubmit={handleSubmit}
-      sending={creating || (v2 ? session.uploading : images.uploading)}
-      {...(v2 ? session.composerProps : images.composerProps)}
-      sendsAttachmentsAlone={v2}
-      commandSpecs={commands.specs}
-      placeholder="Describe a task for Atlas…"
-    >
-      <RunnerToggle desktop={desktop} value={runner} onValueChange={setRunner} />
-      {onThisMac ? null : <EngineToggle value={engine} onValueChange={setEngine} />}
-      <ModelPickerControls
-        picker={picker}
-        selection={selection}
-        onSelectionChange={setChosen}
-        open={commands.modelOpen}
-        onOpenChange={commands.setModelOpen}
-      />
-      <div className="ml-auto flex min-w-0">
-        <ProjectSelect
-          projects={projects}
-          projectId={projectId}
-          onProjectChange={handleProjectChange}
+    <>
+      <NewThreadHeading projectName={projectName} />
+      <ThreadComposer
+        value={draft}
+        onValueChange={setDraft}
+        onSubmit={handleSubmit}
+        sending={creating || (v2 ? session.uploading : images.uploading)}
+        {...(v2 ? session.composerProps : images.composerProps)}
+        sendsAttachmentsAlone={v2}
+        commandSpecs={commands.specs}
+        placeholder="Describe a task for Atlas…"
+      >
+        <RunnerToggle desktop={desktop} value={runner} onValueChange={setRunner} />
+        {onThisMac ? null : <EngineToggle value={engine} onValueChange={setEngine} />}
+        <ModelPickerControls
+          picker={picker}
+          selection={selection}
+          onSelectionChange={setChosen}
+          open={commands.modelOpen}
+          onOpenChange={commands.setModelOpen}
         />
-      </div>
-    </ThreadComposer>
+        <div className="ml-auto flex min-w-0">
+          <ProjectSelect
+            projects={projects}
+            projectId={projectId}
+            onProjectChange={handleProjectChange}
+          />
+        </div>
+      </ThreadComposer>
+    </>
+  )
+}
+
+function NewThreadHeading({ projectName }: { projectName: string | null }) {
+  return (
+    <h1 className="text-center text-2xl font-medium tracking-tight text-balance break-words sm:text-3xl">
+      {projectName === null ? (
+        'What should we work on?'
+      ) : (
+        <>
+          What should we work on in{' '}
+          <span className="font-semibold text-primary">{projectName}</span>?
+        </>
+      )}
+    </h1>
   )
 }
 
@@ -201,10 +221,16 @@ export function NewThreadView() {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col justify-center gap-5 px-4 py-16">
-        <h1 className="text-center text-xl font-medium tracking-tight">
-          What should Atlas work on?
-        </h1>
-        <QueryGate query={query} label="projects" skeleton={<NewThreadSkeleton />}>
+        <QueryGate
+          query={query}
+          label="projects"
+          skeleton={
+            <>
+              <NewThreadHeading projectName={null} />
+              <NewThreadSkeleton />
+            </>
+          }
+        >
           {(projects) => (
             <Suspense>
               <Welcome projects={projects} />
