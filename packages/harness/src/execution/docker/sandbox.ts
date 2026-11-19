@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto'
 
 import { mountBind, type Mount } from '../image/mounts'
-import { dockerfileImageReference, ensureBuiltImage, type DockerfileBuild } from '../image/build'
 import { DEFAULT_POD_IMAGE } from '../../cloud/local-pod/pod-create'
 import { gitConfigEnv } from '../../workspace/git-config-env'
 import {
@@ -14,7 +13,6 @@ import {
   missingIdentityMounts,
 } from './mount-drift'
 import { prepareContainerForOperator } from './operator-setup'
-import { runSandboxScripts } from './sandbox-scripts'
 import type { ContainerSummary, CreateContainerBody, DockerEngine } from './engine'
 import type { DockerImages } from './engine-images'
 
@@ -63,9 +61,6 @@ export type SandboxConfig = {
   gpgAgentExtraSocket?: string | undefined
   gpgPubringPath?: string | undefined
   gitconfigPath?: string | undefined
-  setup?: string | undefined
-  start?: string | undefined
-  dockerfile?: DockerfileBuild | undefined
   env?: Record<string, string> | undefined
   githubToken?: string | undefined
   mounts?: readonly Mount[] | undefined
@@ -250,10 +245,7 @@ export async function ensureSandbox(args: {
   const existing = await findSandbox({ engine: args.engine, prefix, session: args.config.session })
   if (existing !== undefined) {
     const details = await args.engine.inspectContainer({ id: existing.id })
-    const wanted =
-      args.config.dockerfile === undefined
-        ? args.config.image
-        : await dockerfileImageReference({ dockerfile: args.config.dockerfile })
+    const wanted = args.config.image
     const drifted = declaredMountsDrift({ config: args.config, details, prefix })
     const imageChanged = details.config.image !== wanted
     const envChanged = envDrift({ declared: args.config.env ?? {}, actual: details.config.env })
@@ -288,21 +280,11 @@ export async function ensureSandbox(args: {
         containerId: existing.id,
         config: args.config,
       })
-      const warnings = await runSandboxScripts({
-        engine: args.engine,
-        containerId: existing.id,
-        name,
-        config: args.config,
-        created: false,
-      })
       return {
         id: existing.id,
         name,
         created: false,
-        warnings: [
-          ...missingIdentityMounts({ config: args.config, actual: details.mounts }),
-          ...warnings,
-        ],
+        warnings: [...missingIdentityMounts({ config: args.config, actual: details.mounts })],
       }
     }
   }
@@ -312,10 +294,6 @@ export async function ensureSandbox(args: {
     prefix,
     adding: args.config.limits,
   })
-  const image =
-    args.config.dockerfile === undefined
-      ? args.config.image
-      : await ensureBuiltImage({ builder: args.engine.images, dockerfile: args.config.dockerfile })
   await ensureSandboxNetwork({
     engine: args.engine,
     prefix,
@@ -324,7 +302,7 @@ export async function ensureSandbox(args: {
   })
   const created = await args.engine.createContainer({
     name,
-    body: sandboxCreateBody({ ...args.config, image }),
+    body: sandboxCreateBody(args.config),
   })
   await args.engine.startContainer({ id: created.id })
   await prepareContainerForOperator({
@@ -332,18 +310,10 @@ export async function ensureSandbox(args: {
     containerId: created.id,
     config: args.config,
   })
-  const scriptWarnings = await runSandboxScripts({
-    engine: args.engine,
-    containerId: created.id,
-    name,
-    config: args.config,
-    created: true,
-  })
-
   return {
     id: created.id,
     name,
     created: true,
-    warnings: [...recreated, ...warnings, ...created.warnings, ...scriptWarnings],
+    warnings: [...recreated, ...warnings, ...created.warnings],
   }
 }

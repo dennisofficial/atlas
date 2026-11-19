@@ -21,13 +21,9 @@ afterEach(async () => {
   await Promise.all(projects.splice(0).map((project) => rm(project, { recursive: true })))
 })
 
-const freshProject = async (containerJson?: string): Promise<string> => {
+const freshProject = async (): Promise<string> => {
   const project = await mkdtemp(join(tmpdir(), 'atlas-sandbox-binding-'))
   projects.push(project)
-  if (containerJson !== undefined) {
-    await mkdir(join(project, '.atlas'))
-    await writeFile(join(project, '.atlas', 'container.json'), containerJson)
-  }
   return project
 }
 
@@ -47,16 +43,6 @@ const bindIn = (cwd: string, atlasHome?: string) =>
   })
 
 describe('the mounts bindSandbox returns', () => {
-  it('lists a configured mount', async () => {
-    const cwd = await freshProject(
-      JSON.stringify({ mounts: [{ path: '/Users/operator/Developer/shared-lib' }] }),
-    )
-
-    const { mounts } = await bindIn(cwd)
-
-    expect(mounts).toEqual(['/Users/operator/Developer/shared-lib'])
-  })
-
   it('is empty when nothing is configured', async () => {
     const cwd = await freshProject()
 

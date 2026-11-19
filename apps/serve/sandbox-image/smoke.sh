@@ -95,6 +95,13 @@ expect_fail '$BUN_INSTALL/bin/bun still honors per-directory bun pins' \
   run 'cd /Users/smoke/bunpin && "$BUN_INSTALL/bin/bun" --version'
 expect 'bun global bin dir is on PATH' '/opt/bun/bin' run 'echo "$PATH"'
 
+baked_bun=$(run 'bun --version')
+run "mkdir -p /Users/smoke/bunpinned && printf '[tools]\nbun = \"${baked_bun}\"\n' > /Users/smoke/bunpinned/mise.toml"
+expect 'a repository pinning the baked bun resolves through the shim' "$baked_bun" \
+  run 'cd /Users/smoke/bunpinned && bun --version'
+expect 'the daemon launch resolves a concrete bun rather than a shim' '/opt/mise/installs/bun/' \
+  run 'cd / && mise which bun'
+
 expect 'npm stays on the corepack stub after a reshim' '/opt/corepack/bin/npm' \
   run 'mise reshim && command -v npm'
 expect 'corepack shim stays excluded after a reshim' '/usr/local/bin/corepack' \

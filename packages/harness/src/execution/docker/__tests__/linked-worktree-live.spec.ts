@@ -68,7 +68,6 @@ const configForWorktree = (worktree: string): SandboxConfig => ({
     atlasHomeSubtrees: [],
   }),
   dockerSocket: SOCKET,
-  setup: 'apt-get update && apt-get install -y --no-install-recommends git',
   sshAuthSock: undefined,
   sshKnownHostsPath: undefined,
   gitconfigPath: undefined,

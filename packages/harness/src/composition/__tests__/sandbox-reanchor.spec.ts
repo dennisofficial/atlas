@@ -32,13 +32,9 @@ afterEach(async () => {
   await Promise.all(directories.splice(0).map((one) => rm(one, { recursive: true, force: true })))
 })
 
-const freshDirectory = async (containerJson?: string): Promise<string> => {
+const freshDirectory = async (): Promise<string> => {
   const directory = await mkdtemp(join(tmpdir(), 'atlas-reanchor-'))
   directories.push(directory)
-  if (containerJson !== undefined) {
-    await mkdir(join(directory, '.atlas'))
-    await writeFile(join(directory, '.atlas', 'container.json'), containerJson)
-  }
   return directory
 }
 
@@ -64,8 +60,6 @@ const bindAt = async (args: { cwd: string; engine: DockerEngine }) => {
   }
   return { ...bound, run }
 }
-
-const SHARED = '/Users/operator/Developer/shared-lib'
 
 describe('SandboxControl.prepareWorkspace', () => {
   it('mounts the boot directory until the session is re-anchored', async () => {
@@ -112,11 +106,9 @@ describe('SandboxControl.prepareWorkspace', () => {
     expect(fake.removals).toEqual([])
   })
 
-  it('resolves the mounts and image label from the restored tree, with a stable status snapshot', async () => {
+  it('keeps a stable status snapshot when the anchor moves to another tree', async () => {
     const boot = await freshDirectory()
-    const tree = await freshDirectory(
-      JSON.stringify({ image: 'custom/tree-image:1', mounts: [{ path: SHARED }] }),
-    )
+    const tree = await freshDirectory()
     const fake = statefulEngine()
     const { sandbox, mounts, containerStatus } = await bindAt({ cwd: boot, engine: fake.engine })
     expect(mounts).toEqual([])
@@ -125,10 +117,8 @@ describe('SandboxControl.prepareWorkspace', () => {
 
     await sandbox.prepareWorkspace({ cwd: tree, threadId: THREAD })
 
-    expect(mounts).toEqual([SHARED, join(boot, 'no-atlas-home-here', 'sessions')])
     const after = containerStatus.current()
-    expect(after.image).toBe('custom/tree-image:1')
-    expect(after.label).toBe('tree-image:1')
+    expect(after.label).toBe('atlas-sandbox:latest')
     expect(after).not.toBe(before)
     expect(containerStatus.current()).toBe(after)
   })
@@ -210,22 +200,6 @@ describe('SandboxControl.prepareWorkspace', () => {
       expect(rebuilt?.binds).not.toContain(`${repo}:${repo}`)
       expect(await Bun.file(join(repo, 'tracked.txt')).text()).toBe('main')
       expect(await Bun.file(join(tree, 'tracked.txt')).text()).toBe('main')
-    })
-
-    it('resolves the nested tree’s own container config', async () => {
-      const { repo, tree } = await repoWithNestedTree()
-      await mkdir(join(tree, '.atlas'), { recursive: true })
-      await writeFile(
-        join(tree, '.atlas', 'container.json'),
-        JSON.stringify({ image: 'custom/nested:2', mounts: [{ path: SHARED }] }),
-      )
-      const fake = statefulEngine()
-      const { sandbox, mounts, containerStatus } = await bindAt({ cwd: repo, engine: fake.engine })
-
-      await sandbox.prepareWorkspace({ cwd: tree, threadId: THREAD })
-
-      expect(mounts).toEqual([SHARED, join(repo, 'no-atlas-home-here', 'sessions')])
-      expect(containerStatus.current().image).toBe('custom/nested:2')
     })
 
     it('keeps the anchor for a subdirectory of the same tree', async () => {

@@ -12,7 +12,10 @@ const DAEMON_PID_PATH = `${DAEMON_HOME}/daemon.pid`
 const DAEMON_LOCK_PATH = `${DAEMON_HOME}/daemon.lock`
 const DAEMON_LOG_PATH = `${DAEMON_HOME}/daemon.log`
 
-const BUN_PATH = '/opt/mise/shims/bun'
+// A mise shim rewrites PATH for every process it starts, so a daemon booted through one hands
+// each agent shell the image's bun instead of the version the repository pins. Resolve the
+// concrete install the image baked; the glob covers an image whose mise cannot answer from `/`.
+const BUN_RESOLVE = `BUN="$(cd / && mise which bun 2>/dev/null | head -n 1)"; if [ ! -x "$BUN" ]; then BUN=/opt/mise/installs/bun/latest/bin/bun; [ -x "$BUN" ] || BUN="$(ls -d /opt/mise/installs/bun/*/bin/bun 2>/dev/null | head -n 1)"; fi; if [ ! -x "$BUN" ]; then echo 'atlas: no concrete bun under /opt/mise/installs/bun to boot the daemon' >&2; exit 78; fi`
 const DAEMON_PORT = String(SANDBOX_SERVE_PORT)
 const QUICK_COMMAND_TIMEOUT_MS = 15_000
 const DEFAULT_LISTEN_BUDGET_MS = 30_000
@@ -179,7 +182,7 @@ export const launchDaemon = async (args: {
     cmd: 'sh',
     args: [
       '-c',
-      `mkdir -p ${dirname(DAEMON_LOG_PATH)} && : >> ${DAEMON_LOG_PATH} && exec flock -w 5 ${DAEMON_LOCK_PATH} sh -c 'echo $$ > ${DAEMON_PID_PATH}; exec ${BUN_PATH} ${DAEMON_BUNDLE_PATH}' >> ${DAEMON_LOG_PATH} 2>&1`,
+      `mkdir -p ${dirname(DAEMON_LOG_PATH)} && : >> ${DAEMON_LOG_PATH} && exec flock -w 5 ${DAEMON_LOCK_PATH} sh -c '${BUN_RESOLVE}; echo $$ > ${DAEMON_PID_PATH}; exec "$BUN" ${DAEMON_BUNDLE_PATH}' >> ${DAEMON_LOG_PATH} 2>&1`,
     ],
     detached: true,
     env: {

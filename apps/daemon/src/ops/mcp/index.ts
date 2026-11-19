@@ -6,6 +6,7 @@ import {
   defineOp,
 } from '@dltech/atlas-protocol/engine'
 
+import { MISE_DATA_DIR_ENV } from '../../child-env'
 import { ManagedProcess } from '../../process/managed'
 import type { DaemonOpsDeps } from '../deps'
 
@@ -33,11 +34,17 @@ type RunningServer = {
 const scrubEnv = (args: {
   base: Record<string, string | undefined>
   extra: Record<string, string> | undefined
-}): Record<string, string> => ({
-  ...(args.base['PATH'] !== undefined ? { PATH: args.base['PATH'] } : {}),
-  ...(args.base['HOME'] !== undefined ? { HOME: args.base['HOME'] } : {}),
-  ...(args.extra ?? {}),
-})
+}): Record<string, string> => {
+  const dataDir = args.base[MISE_DATA_DIR_ENV]
+  return {
+    ...(args.base['PATH'] !== undefined ? { PATH: args.base['PATH'] } : {}),
+    ...(args.base['HOME'] !== undefined ? { HOME: args.base['HOME'] } : {}),
+    // a shim on that PATH resolves the server's tools from this env alone: the daemon drops the
+    // shim's cached resolution, so without the data dir the shim finds no installed tool
+    ...(dataDir === undefined ? {} : { [MISE_DATA_DIR_ENV]: dataDir }),
+    ...(args.extra ?? {}),
+  }
+}
 
 const serverOf = (servers: Map<string, RunningServer>, serverId: string): RunningServer => {
   const server = servers.get(serverId)

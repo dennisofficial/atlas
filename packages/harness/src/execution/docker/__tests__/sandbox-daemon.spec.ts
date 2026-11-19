@@ -7,7 +7,7 @@ import { join } from 'node:path'
 
 import { EMountMode } from '../../image/mounts'
 import { DockerEngine } from '../engine'
-import { runSandboxScript, type ScriptOutcome } from '../sandbox-scripts'
+import { runSandboxScript } from '../sandbox-scripts'
 import { removeTestSandboxes, uniqueTestPrefix } from './docker-test-cleanup'
 import { dockerUnavailableReason } from './live-docker'
 import {
@@ -114,40 +114,6 @@ describeDocker('ensureSandbox against a live daemon', () => {
 
     expect(warnings).toEqual([])
   })
-
-  it('runs setup once and start on every ensure, leaving markers in the mounted worktree', async () => {
-    const setupMarker = join(worktree, '.atlas-setup-ran')
-    const startMarker = join(worktree, '.atlas-start-ran')
-    const config = liveConfig({
-      setup: `touch ${setupMarker}`,
-      start: `touch ${startMarker}`,
-    })
-    const sandbox = await ensureSandbox({ engine, config })
-
-    // setup runs as root, so the markers are root-owned on a native-Linux daemon
-    // and only the container can delete them
-    const clearMarkers = (): Promise<ScriptOutcome> =>
-      runSandboxScript({
-        engine,
-        containerId: sandbox.id,
-        script: `rm -f ${setupMarker} ${startMarker}`,
-        cwd: worktree,
-        user: '0',
-      })
-
-    try {
-      expect(existsSync(setupMarker)).toBe(true)
-      expect(existsSync(startMarker)).toBe(true)
-
-      await clearMarkers()
-      await ensureSandbox({ engine, config })
-
-      expect(existsSync(setupMarker)).toBe(false)
-      expect(existsSync(startMarker)).toBe(true)
-    } finally {
-      await clearMarkers()
-    }
-  }, 60_000)
 
   it('reads a mounted memory subtree inside, but cannot see auth.json or write to it', async () => {
     const atlasHome = await realpath(await mkdtemp(join(tmpdir(), 'atlas-dev-sandbox-home-')))

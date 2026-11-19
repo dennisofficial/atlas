@@ -203,7 +203,6 @@ export async function bootServeFiles(args: {
           applyContainer({
             cwd,
             atlasHome,
-            env,
             setupScript: spec?.setupScript,
             notice,
           }),

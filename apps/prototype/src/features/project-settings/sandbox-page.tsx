@@ -18,7 +18,6 @@ import {
 } from './fixtures/project-settings'
 import {
   ERowLayout,
-  FileChip,
   SettingsCard,
   SettingsPage,
   SettingsRow,
@@ -117,12 +116,7 @@ function SetupScript() {
               <DocsBadge />
             </>
           }
-          description={
-            <>
-              Takes precedence over <FileChip>setup</FileChip> in{' '}
-              <FileChip>.atlas/container.json</FileChip>.
-            </>
-          }
+          description="Runs once per sandbox, before the agent starts."
           layout={ERowLayout.Stacked}
         >
           <Textarea

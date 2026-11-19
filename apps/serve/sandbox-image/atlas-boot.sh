@@ -6,7 +6,6 @@ set -u
 
 DAEMON_HOME=/atlas/home/.atlas/daemon
 BUNDLE_URL="${ATLAS_DAEMON_BUNDLE_URL:-}"
-BUN=/opt/mise/shims/bun
 
 if [ -z "$BUNDLE_URL" ]; then
   if [ "$#" -gt 0 ]; then
@@ -16,6 +15,18 @@ if [ -z "$BUNDLE_URL" ]; then
 fi
 
 mkdir -p "$DAEMON_HOME" /atlas/docker
+# Not the shim: a mise shim rewrites PATH for every process it starts, and the daemon passes its
+# env to every agent shell, which would then ignore the repository's pinned bun and node. mise
+# itself answers with the version its config selects; the glob covers an image where it cannot.
+BUN="$(cd / && mise which bun 2>/dev/null | head -n 1)"
+if [ ! -x "${BUN:-}" ]; then
+  BUN=/opt/mise/installs/bun/latest/bin/bun
+  [ -x "$BUN" ] || BUN="$(ls -d /opt/mise/installs/bun/*/bin/bun 2>/dev/null | head -n 1)"
+fi
+if [ ! -x "${BUN:-}" ]; then
+  BUN=/opt/mise/shims/bun
+  echo "atlas-boot: no concrete bun under /opt/mise/installs/bun, falling back to the shim" >&2
+fi
 # The Agent37 vm cannot create a bridge interface at all (dockerd: "Failed to create bridge docker0
 # via netlink: operation not supported") nor reach netfilter (iptables: Failed to initialize nft:
 # Protocol not supported), so its dockerd runs without a bridge; containers need --network host.

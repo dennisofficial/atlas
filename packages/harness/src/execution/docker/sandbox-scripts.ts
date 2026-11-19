@@ -1,21 +1,10 @@
 import { demuxExecStream } from './frames'
-import type { SandboxConfig, SandboxEngine } from './sandbox'
-
-export class SandboxSetupFailed extends Error {
-  constructor(args: { name: string; output: string }) {
-    super(
-      `setup failed in ${args.name} — the container exists but its toolchain script did not finish, so remove ${args.name} and start again. output: ${args.output}`,
-    )
-    this.name = 'SandboxSetupFailed'
-  }
-}
+import type { SandboxEngine } from './sandbox'
 
 export type ScriptOutcome = {
   exitCode: number
   output: string
 }
-
-const OUTPUT_TAIL = 2000
 
 const collectText = async (stream: ReadableStream<Uint8Array>): Promise<string> => {
   const reader = stream.getReader()
@@ -68,43 +57,4 @@ export async function runSandboxScript(args: {
     exitCode: await exitCodeOf({ engine: args.engine, execId: exec.id }),
     output: `${stdout}${stderr}`.trim(),
   }
-}
-
-export async function runSandboxScripts(args: {
-  engine: SandboxEngine
-  containerId: string
-  name: string
-  config: SandboxConfig
-  created: boolean
-}): Promise<readonly string[]> {
-  const warnings: string[] = []
-
-  if (args.created && args.config.setup !== undefined) {
-    const setup = await runSandboxScript({
-      engine: args.engine,
-      containerId: args.containerId,
-      script: args.config.setup,
-      cwd: args.config.worktree,
-      user: '0',
-    })
-    if (setup.exitCode !== 0) {
-      throw new SandboxSetupFailed({ name: args.name, output: setup.output.slice(-OUTPUT_TAIL) })
-    }
-  }
-
-  if (args.config.start !== undefined) {
-    const start = await runSandboxScript({
-      engine: args.engine,
-      containerId: args.containerId,
-      script: args.config.start,
-      cwd: args.config.worktree,
-    })
-    if (start.exitCode !== 0) {
-      warnings.push(
-        `the start command exited ${start.exitCode} in ${args.name}: ${start.output.slice(-OUTPUT_TAIL)}`,
-      )
-    }
-  }
-
-  return warnings
 }

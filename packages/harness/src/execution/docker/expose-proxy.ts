@@ -1,7 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { dockerfileImageReference } from '../image/build'
 import { atlasDirectory } from '../../store/paths'
 import type { DockerEngine } from './engine'
 import { proxyScriptSource } from './ingress-script'
@@ -70,15 +69,10 @@ export async function ensureSandboxProxy(args: {
   const hostPort = hostPortFor({ session, containerPort: PROXY_CONTAINER_PORT })
   const scriptDirectory = await writeProxyScript({ hostPort })
 
-  const image =
-    args.config.dockerfile === undefined
-      ? args.config.image
-      : await dockerfileImageReference({ dockerfile: args.config.dockerfile })
-
   const created = await args.engine.createContainer({
     name: proxyNameFor({ prefix, session }),
     body: {
-      Image: image,
+      Image: args.config.image,
       Cmd: ['node', `${CONTAINER_PROXY_DIRECTORY}/proxy.mjs`],
       Env: [`ATLAS_PROXY_TARGET=${args.sandboxName}`],
       Labels: {

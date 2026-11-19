@@ -31,12 +31,14 @@ settings page. If Git access fails in a sandbox, check that connection. Released
 matching image; prefer that default. `sandbox.image` / `ATLAS_SANDBOX_IMAGE` overrides it for
 image-access debugging or an intentional runtime. Quota and billing belong to the operator.
 
-Once the repository is cloned, the sandbox applies `.atlas/container.json` `setup` (once per sandbox),
-`start` (every boot) and `env`; the Project's Setup script in the Atlas Cloud project settings, when
-set, runs in place of `setup`. `image`, `dockerfile` and `mounts` cannot apply in a cloud sandbox.
-The boot card shows a "Run setup script" step. A failing setup or start script never stops the sandbox: the step is
-marked "Setup script failed" and the agent gets the end of the output as context. Each script is capped at 15
-minutes. See `container.md`.
+Once the repository is cloned, the sandbox applies container configuration from the Project's Atlas
+Cloud settings, never from a file in the repository: the Setup script runs once per sandbox, project
+secrets become environment variables, and project file mounts place files that are not in the repo.
+The boot card shows a "Run setup script" step. A failing setup script never stops the sandbox: the
+step is marked "Setup script failed" and the agent gets the end of the output as context. The script
+is capped at 15 minutes. The image carries the toolchains and picks their versions from the repo
+(`mise.toml`, `.tool-versions`, `.nvmrc`, `.node-version`, `.bun-version`, `packageManager`), so a
+repository normally needs no setup script.
 
 The operator types these slash commands in Atlas, not in a shell:
 

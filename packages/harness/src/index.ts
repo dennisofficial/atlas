@@ -75,14 +75,6 @@ export {
   mountedAtlasHomeSubtrees,
   sandboxConfigFromHost,
 } from './execution/docker/host-environment'
-export { EBuildContext } from './execution/image/build'
-export { parseContainerJson, type ParsedContainerJson } from './execution/image/parse'
-export {
-  EImageKind,
-  resolveContainerConfig,
-  type ContainerResolution,
-  type ImageRef,
-} from './execution/image/resolve'
 export type { BoundPort } from './execution/docker/ports'
 export { LocalProcessPort } from './execution/local-process'
 export { applyServePriority, type ServePriorityReport } from './execution/serve-priority'

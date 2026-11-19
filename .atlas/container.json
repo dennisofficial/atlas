@@ -1,6 +1,0 @@
-{
-  "setup": "mise install",
-  "env": {
-    "TURBO_CACHE_DIR": "/tmp/turbo-cache"
-  }
-}

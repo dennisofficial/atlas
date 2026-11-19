@@ -20,7 +20,6 @@ import { useProjectContext } from './data/project-context'
 import { useSandbox } from './data/use-sandbox'
 import {
   ERowLayout,
-  FileChip,
   SettingsCard,
   SettingsRow,
   SettingsSection,
@@ -73,12 +72,7 @@ function SetupScript({
               <DocsBadge />
             </>
           }
-          description={
-            <>
-              Runs once per sandbox in place of <FileChip>setup</FileChip> in{' '}
-              <FileChip>.atlas/container.json</FileChip>.
-            </>
-          }
+          description="Runs once per sandbox, before the agent starts."
           layout={ERowLayout.Stacked}
         >
           <Textarea

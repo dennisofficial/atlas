@@ -1,6 +1,6 @@
 ---
 name: atlas
-description: "Handbook to the Atlas harness: set up a repo or home for Atlas, configure and troubleshoot settings.json, ATLAS_HOME, instruction files (ATLAS.md, AGENTS.md, CLAUDE.md), skills, agent types, MCP servers (mcp.json, .mcp.json), .atlas/services.yaml (service_start, needs, preview URLs, PORT), .atlas/container.json, Dockerfile and devcontainer, plugins, worktrees, Atlas Cloud sandboxes, /container, parked sessions, cloud logs, and OAuth sign-in callbacks from a preview through callback.byatlas.dev."
+description: "Handbook to the Atlas harness: set up a repo or home for Atlas, configure and troubleshoot settings.json, ATLAS_HOME, instruction files (ATLAS.md, AGENTS.md, CLAUDE.md), skills, agent types, MCP servers (mcp.json, .mcp.json), .atlas/services.yaml (service_start, needs, preview URLs, PORT), plugins, worktrees, Atlas Cloud sandboxes and their project setup script and secrets, /container, parked sessions, cloud logs, and OAuth sign-in callbacks from a preview through callback.byatlas.dev."
 ---
 
 # Atlas
@@ -21,10 +21,9 @@ Create only what the repo needs; each item is optional and commit the shared one
 2. `.atlas/settings.json`: repo-wide settings overrides.
 3. `.atlas/mcp.json`: MCP servers for this repo; no secrets in it.
 4. `.atlas/services.yaml`: every dev server and API the agent should run and expose. A good file gives one-press previews: each app starts with one press of play or one `service_start({ name })`, and previews work first time. Follow "Writing a good services.yaml" in `references/services.md`.
-5. `.atlas/container.json` (or `.atlas/Dockerfile`): the image and setup for Docker execution.
-6. `.atlas/skills/`, `.atlas/agents/`: repo skills and agent types.
-7. `.atlas/plugins/`: hooks, tools and prompt fragments, as TypeScript.
-8. `.atlas/worktree.yaml`: gitignored files (`.env.keys`, local env files, caches) to copy or link into every worktree Atlas creates or adopts; a fresh worktree has none of them otherwise. Atlas creates worktrees under `.atlas/worktrees` and writes its own `.gitignore` there. See `references/worktrees.md`.
+5. `.atlas/skills/`, `.atlas/agents/`: repo skills and agent types.
+6. `.atlas/plugins/`: hooks, tools and prompt fragments, as TypeScript.
+7. `.atlas/worktree.yaml`: gitignored files (`.env.keys`, local env files, caches) to copy or link into every worktree Atlas creates or adopts; a fresh worktree has none of them otherwise. Atlas creates worktrees under `.atlas/worktrees` and writes its own `.gitignore` there. See `references/worktrees.md`.
 
 ## Every file Atlas reads
 
@@ -35,7 +34,6 @@ Create only what the repo needs; each item is optional and commit the shared one
 | `<atlas-home>/ATLAS.md`, `AGENTS.md`, `CLAUDE.md`, `ATLAS.md`, `*.local.md` | user, project | `references/config.md` |
 | `skills/` and `agents/` under `<atlas-home>`, `~/.agents`, `~/.claude`, and the project's `.atlas`, `.agents`, `.claude` | user, project | `references/config.md` |
 | `.atlas/services.yaml` | project | `references/services.md` |
-| `.atlas/container.json`, `.devcontainer/devcontainer.json`, `.atlas/Dockerfile`, `<atlas-home>/Dockerfile` | project, user | `references/container.md` |
 | `<atlas-home>/plugins/`, `.atlas/plugins/` | user, project | `references/plugins.md` |
 | `.atlas/worktrees/`, `.atlas/worktree.yaml` | project | `references/worktrees.md` |
 | Cloud sign-in, sandbox settings, backup | user | `references/cloud.md` |
@@ -50,9 +48,20 @@ Read the page for the task; do not load them all.
 | `references/services.md` | Writing a good `services.yaml`, `services.yaml` fields, `needs`, `setup`, portals, env references, stale services, `service_start`, URLs, framework host allow-listing, crash loops |
 | `references/cloud.md` | Placement, Vercel sandbox setup, `/container`, sign-in and backup, parking, cloud logs |
 | `references/cloud-config.md` | `cloud_config` tool: project and personal settings, secrets, MCP servers, file mounts, skills |
-| `references/container.md` | Docker image resolution, `container.json` fields, setup recipe |
 | `references/plugins.md` | Writing and installing plugins |
 | `references/worktrees.md` | `enter_worktree`, `exit_worktree`, `worktree_list`, `.atlas/worktree.yaml` |
+
+## Sandbox image and toolchains
+
+There is no per-repo container config file. Local Docker runs the built-in Atlas image and a cloud
+sandbox runs the image released for its runtime; nothing in the repo chooses an image, Dockerfile,
+setup script or mounts. The image picks toolchain versions itself from the repository:
+`mise.toml` / `.mise.toml`, `.tool-versions`, `.nvmrc`, `.node-version`, `.bun-version`, and
+`packageManager` in `package.json`; `yarn` and `pnpm` come through corepack. A normal repository
+needs no setup script — write one in the Atlas Cloud project settings only for what the toolchains
+cannot cover (system packages, generated files, a database seeded at boot). Project secrets carry
+environment variables into the sandbox, and project file mounts carry files that are not in the
+repository.
 
 ## Ground rules
 
