@@ -7,7 +7,7 @@ import {
   type HostTimers,
   type SessionRuntimeFactory,
 } from '@dltech/atlas-host'
-import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
+import { logFieldsOf, type LogPort, type TracePort } from '@dltech/atlas-observability'
 
 import type { MediaSigner } from '../media/media-signer'
 import { attachmentUrlBinding } from '../media/media-urls'
@@ -61,6 +61,7 @@ export type SessionRuntimeFactoryArgs = {
   launchDirectory?: string | undefined
   setupDeadlineMs?: number | undefined
   log?: LogPort | undefined
+  traceFor?: ((distinctId: string) => TracePort) | undefined
   pingMs?: number | undefined
   media?: MediaSigner | undefined
   githubFetch?: typeof fetch | undefined
@@ -242,8 +243,10 @@ export const createSessionRuntimeFactory = (
       log: args.log,
     })
 
+    const trace = args.traceFor?.(config.userId)
     return {
       remoteCalls: calls,
+      ...(trace === undefined ? {} : { trace }),
       ...(args.terminalStreams === undefined
         ? {}
         : { terminalStreams: () => args.terminalStreams?.(sessionId) ?? 0 }),

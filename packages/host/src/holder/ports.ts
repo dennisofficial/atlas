@@ -16,6 +16,7 @@ import type {
   ToolEffectResolver,
   ToolRegistry,
 } from '@dltech/atlas-agent'
+import type { TracePort } from '@dltech/atlas-observability'
 import type { ComposedPlugins } from '@dltech/atlas-plugin-sdk'
 import type { LiveFrame } from '@dltech/atlas-protocol'
 
@@ -79,6 +80,7 @@ export type RoleModelChoice = ModelChoice & { unavailable?: ModelRef | undefined
 
 export type SessionRuntime = {
   remoteCalls: RemoteCalls
+  trace?: TracePort | undefined
   model: ModelPort
   modelChoice: ModelChoice
   choiceFor(request: RoleModelRequest): RoleModelChoice

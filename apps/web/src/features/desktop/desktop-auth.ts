@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { resetAnalytics } from '@/lib/analytics/analytics'
+
 export enum EDesktopAuthState {
   Idle = 'idle',
   Pending = 'pending',
@@ -35,4 +37,5 @@ export async function desktopAuthStatus(): Promise<DesktopAuthStatus> {
 
 export async function desktopSignOut(): Promise<void> {
   await request({ path: '/desktop/auth/sign-out', method: 'POST' })
+  resetAnalytics()
 }

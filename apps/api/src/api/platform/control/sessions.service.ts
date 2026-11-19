@@ -26,6 +26,7 @@ import {
   type SaidUpload,
 } from '@dltech/atlas-core'
 import { MediaStore } from '@dltech/atlas-media'
+import type { ProductAnalytics } from '@dltech/atlas-observability'
 import {
   ECredentialSource,
   ESandboxProvider,
@@ -53,11 +54,11 @@ import type { SessionPageOutput } from '@dltech/atlas-wire'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { SessionTitler } from '../../../_core/ports/session-titler'
-import { POD_OPS, type PodOps } from '../../../agent'
+import { POD_OPS, PRODUCT_ANALYTICS, digestTimingProperties, type PodOps } from '../../../agent'
 import { PodSizingService, type PodSizing } from './pod-sizing.service'
 import { pageSessions, type PageBucket } from '../sessions/session-pages'
 import { COMMAND_REGISTRY, postCommand } from './command-registry'
-import { modelSetHandlers } from './model-set'
+import { modelSet, modelSetArgs, modelSetHandlers } from './model-set'
 import { MediaRegistry } from './media-registry'
 import { ProjectAccess } from './project-access'
 import { nameSession } from './session-naming'
@@ -91,6 +92,9 @@ export class SessionsService {
     @Inject(EnvService) private readonly env: EnvService,
     @Inject(PodSizingService) private readonly podSizing: PodSizing,
     @Optional() @Inject(POD_OPS) private readonly ops: PodOps | null = null,
+    @Optional()
+    @Inject(PRODUCT_ANALYTICS)
+    private readonly analytics: ProductAnalytics | null = null,
   ) {}
 
   async accessibleProjectId(args: { userId: string; projectId: string }): Promise<string> {
@@ -130,6 +134,7 @@ export class SessionsService {
     }
     if (args.firstMessage === undefined) {
       await this.plane.createSession(session)
+      this.captureSessionCreated({ sessionId, args, provider: sandboxProvider })
       return { sessionId, mainThreadId }
     }
     const message = await this.messageOf({ userId: args.userId, draft: args.firstMessage })
@@ -137,6 +142,7 @@ export class SessionsService {
       ...session,
       message: { kind: INBOX_KIND_MESSAGE, payload: message.payload },
     })
+    this.captureSessionCreated({ sessionId, args, provider: sandboxProvider })
     this.nameIfUntitled({
       userId: args.userId,
       sessionId,
@@ -148,6 +154,30 @@ export class SessionsService {
       modelRef,
     })
     return { sessionId, mainThreadId }
+  }
+
+  private captureSessionCreated(args: {
+    sessionId: string
+    provider: ESandboxProvider
+    args: {
+      userId: string
+      projectId?: string | null | undefined
+      model?: string | undefined
+      firstMessage?: SessionMessageDraft | undefined
+    }
+  }): void {
+    this.analytics?.capture({
+      userId: args.args.userId,
+      event: 'session_created',
+      properties: {
+        session_id: args.sessionId,
+        project_id: args.args.projectId ?? null,
+        model: args.args.model ?? null,
+        provider: args.provider,
+        has_first_message: args.args.firstMessage !== undefined,
+        spawned: false,
+      },
+    })
   }
 
   private sandboxProviderOf(provider: string | undefined): ESandboxProvider {
@@ -177,6 +207,16 @@ export class SessionsService {
       rows: sessions.length,
       durationMs,
       ...timings,
+    })
+    this.analytics?.capture({
+      userId: args.userId,
+      event: 'sessions_list_timed',
+      properties: {
+        surface: 'trpc',
+        rows: sessions.length,
+        duration_ms: durationMs,
+        ...digestTimingProperties(timings),
+      },
     })
     const now = Date.now()
     return {
@@ -303,6 +343,11 @@ export class SessionsService {
       sessionId: args.sessionId,
       archivedAt,
     })
+    this.analytics?.capture({
+      userId: args.userId,
+      event: args.archived ? 'session_archived' : 'session_unarchived',
+      properties: { session_id: args.sessionId },
+    })
     return { archivedAt }
   }
 
@@ -410,7 +455,7 @@ export class SessionsService {
 
   async command(args: { userId: string } & SessionCommandInput): Promise<SessionCommandOutput> {
     const session = await this.requireOwnedSession(args)
-    return postCommand({
+    const output = await postCommand({
       plane: this.plane,
       registry: this.commands,
       controlHandlers: new Map([
@@ -418,6 +463,28 @@ export class SessionsService {
         [resize.spec.name, this.podSizing.resizeHandler({ userId: args.userId, session })],
       ]),
       ...args,
+    })
+    if (args.name === modelSet.spec.name) this.captureModelChanged(args)
+    return output
+  }
+
+  private captureModelChanged(args: {
+    userId: string
+    sessionId: string
+    name: string
+    args: unknown
+  }): void {
+    const parsed = modelSetArgs.safeParse(args.args)
+    if (!parsed.success) return
+    this.analytics?.capture({
+      userId: args.userId,
+      event: 'model_changed',
+      properties: {
+        session_id: args.sessionId,
+        model: parsed.data.model,
+        effort: parsed.data.effort ?? null,
+        fast: parsed.data.fast ?? null,
+      },
     })
   }
 

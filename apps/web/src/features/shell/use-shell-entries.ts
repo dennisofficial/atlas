@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef } from 'react'
 
+import { markSidebarReady } from '@/lib/analytics/app-load'
 import { EQueryState, type CloudQuery } from '@/lib/use-cloud-query'
 
 import { applyActivityOverrides, useActivityOverrides } from './activity-overrides'
@@ -35,6 +36,10 @@ export function useShellEntries(activeThreadId: string | null): CloudQuery<Shell
     const withV2 = withV2Sessions({ entries: withCreated, sessions: v2Sessions })
     return { entries: applyActivityOverrides({ entries: withV2, overrides }), counts: data.counts }
   }, [data, created, overrides, v2Sessions])
+  const ready = query.state === EQueryState.Ready && merged !== undefined
+  useEffect(() => {
+    if (ready) markSidebarReady()
+  }, [ready])
   if (query.state !== EQueryState.Ready || merged === undefined) {
     return query.state === EQueryState.Failed
       ? query

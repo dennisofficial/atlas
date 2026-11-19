@@ -46,6 +46,7 @@ export const childRunnerOf = (args: {
   return new LoopTurnRunner({
     record,
     modelContext: record,
+    ...(runtime.trace === undefined ? {} : { trace: runtime.trace }),
     model: childModelOf({
       runtime,
       model: args.model,

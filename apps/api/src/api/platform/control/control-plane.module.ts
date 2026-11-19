@@ -2,7 +2,9 @@ import { Module, type Provider } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
+import type { ProductAnalytics } from '@dltech/atlas-observability'
 import { eventSchemaOf } from '@dltech/atlas-plugin-sdk'
+import { AnalyticsModule, PRODUCT_ANALYTICS, analyticsAppendHook } from '../../../agent'
 import { changeContentStoreProvider } from '../../../_lib/changes/change-content.provider'
 import { backgroundWorkProvider } from '../../../_lib/background-work/background-work.providers'
 import { COMMAND_REGISTRY, nativeCommandRegistry } from './command-registry'
@@ -26,17 +28,18 @@ import { SandboxesModule } from '../sandboxes/sandboxes.module'
 
 export const controlPlaneProvider: Provider = {
   provide: ControlPlane,
-  useFactory: (): ControlPlane =>
+  useFactory: (analytics: ProductAnalytics): ControlPlane =>
     new ControlPlane({
       store: new PostgresControlStore(db),
       eventSchema: eventSchemaOf(registeredPlugins),
       pluginViews: composedPlugins.views,
-      appendHooks: composedPlugins.control.hooks,
+      appendHooks: [...composedPlugins.control.hooks, analyticsAppendHook(analytics)],
     }),
+  inject: [PRODUCT_ANALYTICS],
 }
 
 @Module({
-  imports: [SandboxesModule],
+  imports: [AnalyticsModule, SandboxesModule],
   providers: [
     controlPlaneProvider,
     { provide: ProjectAccess, useClass: DbProjectAccess },

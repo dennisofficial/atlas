@@ -35,7 +35,7 @@ describe('next.config', () => {
 })
 
 describe('next.config rewrites', () => {
-  it('proxies only the provider callbacks that redirect to the web host', async () => {
+  it('proxies the provider callbacks that redirect to the web host and PostHog ingestion', async () => {
     process.env.ATLAS_API_ORIGIN = 'https://api.byatlas.io'
 
     const rewrites = nextConfig.rewrites
@@ -50,6 +50,14 @@ describe('next.config rewrites', () => {
       {
         source: '/v1/mcp/oauth/callback',
         destination: 'https://api.byatlas.io/v1/mcp/oauth/callback',
+      },
+      {
+        source: '/ingest/static/:path*',
+        destination: 'https://us-assets.i.posthog.com/static/:path*',
+      },
+      {
+        source: '/ingest/:path*',
+        destination: 'https://us.i.posthog.com/:path*',
       },
     ])
   })
@@ -72,6 +80,8 @@ describe('next.config rewrites', () => {
     expect(result.map((rewrite) => rewrite.source)).toEqual([
       '/api/auth/callback/:path*',
       '/v1/mcp/oauth/callback',
+      '/ingest/static/:path*',
+      '/ingest/:path*',
     ])
   })
 })

@@ -2,8 +2,11 @@ import { ValidationPipe, VersioningType } from '@nestjs/common'
 import type { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface'
 import { HttpAdapterHost, NestFactory } from '@nestjs/core'
 import type { NestExpressApplication } from '@nestjs/platform-express'
+import type { ProductAnalytics } from '@dltech/atlas-observability'
 import helmet from 'helmet'
 import type { AgentHostEnv } from './agent'
+import { PRODUCT_ANALYTICS } from './agent'
+import { ApiLatencyInterceptor } from './api/api-latency.interceptor'
 import { GlobalExceptionFilter } from './api/global-exception.filter'
 import { trustedOriginsOf } from './api/platform/desktop-auth/trusted-origins'
 import { EnvService } from './_core/config/env/env.service'
@@ -73,6 +76,9 @@ export async function createApp(
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' })
   app.useGlobalPipes(new ValidationPipe(VALIDATION_PIPE_OPTIONS))
   app.useGlobalFilters(new GlobalExceptionFilter(app.get(HttpAdapterHost).httpAdapter))
+  app.useGlobalInterceptors(
+    new ApiLatencyInterceptor({ analytics: app.get<ProductAnalytics>(PRODUCT_ANALYTICS) }),
+  )
 
   app.enableShutdownHooks([], { useProcessExit: true })
 

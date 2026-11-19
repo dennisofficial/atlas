@@ -51,8 +51,12 @@ const sharedConfig: NextConfig = {
   ],
 }
 
+const POSTHOG_ASSETS_HOST = 'https://us-assets.i.posthog.com'
+const POSTHOG_INGEST_HOST = 'https://us.i.posthog.com'
+
 const nextConfig: NextConfig = {
   ...sharedConfig,
+  skipTrailingSlashRedirect: true,
   async rewrites() {
     const apiOrigin = resolveApiOrigin(process.env)
     return [
@@ -61,6 +65,8 @@ const nextConfig: NextConfig = {
         destination: `${apiOrigin}/api/auth/callback/:path*`,
       },
       { source: '/v1/mcp/oauth/callback', destination: `${apiOrigin}/v1/mcp/oauth/callback` },
+      { source: '/ingest/static/:path*', destination: `${POSTHOG_ASSETS_HOST}/static/:path*` },
+      { source: '/ingest/:path*', destination: `${POSTHOG_INGEST_HOST}/:path*` },
     ]
   },
 }

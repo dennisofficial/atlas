@@ -2,6 +2,7 @@ import { emptyDigestTimings } from '@dltech/atlas-control'
 import { logFieldsOf } from '@dltech/atlas-observability'
 import type { SessionChange, SessionSummary } from '@dltech/atlas-protocol'
 
+import { digestTimingProperties } from '../analytics/digest-timings'
 import { entryOf, type SessionEntry } from './session-entry'
 import type { FollowDeps } from './follow-types'
 import type { SessionsSubscription } from './sessions-subscription'
@@ -43,14 +44,21 @@ export class SessionsListIndex {
       withView: true,
       timings,
     })
+    const durationMs = Math.round(performance.now() - startedAt)
     this.deps.log?.info({
       source: 'stream',
-      data: {
-        rows: digests.length,
-        durationMs: Math.round(performance.now() - startedAt),
-        ...timings,
-      },
+      data: { rows: digests.length, durationMs, ...timings },
       message: 'sessions snapshot',
+    })
+    this.deps.analytics?.capture({
+      userId: subscription.userId,
+      event: 'sessions_list_timed',
+      properties: {
+        surface: 'stream',
+        rows: digests.length,
+        duration_ms: durationMs,
+        ...digestTimingProperties(timings),
+      },
     })
     const now = this.deps.timers.now()
     return digests.map((digest) => {

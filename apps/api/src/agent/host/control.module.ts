@@ -3,8 +3,11 @@ import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import type { Db } from '@dltech/atlas-db'
 import type { HostBus } from '@dltech/atlas-host'
-import type { LogPort } from '@dltech/atlas-observability'
+import type { LogPort, ProductAnalytics } from '@dltech/atlas-observability'
 import { eventSchemaOf } from '@dltech/atlas-plugin-sdk'
+
+import { analyticsAppendHook } from '../analytics/append-hook'
+import { PRODUCT_ANALYTICS } from '../analytics/tokens'
 
 import { createHostBus } from '../bus/host-bus'
 import { startPgWakeListener, type PgWakeListener } from '../bus/pg-wake-listener'
@@ -26,14 +29,14 @@ import {
 
 const controlPlaneProvider: Provider = {
   provide: CONTROL_PLANE,
-  useFactory: (db: Db): ControlPlane =>
+  useFactory: (db: Db, analytics: ProductAnalytics): ControlPlane =>
     new ControlPlane({
       store: new PostgresControlStore(db),
       eventSchema: eventSchemaOf(registeredPlugins),
       pluginViews: composedPlugins.views,
-      appendHooks: composedPlugins.control.hooks,
+      appendHooks: [...composedPlugins.control.hooks, analyticsAppendHook(analytics)],
     }),
-  inject: [DB],
+  inject: [DB, PRODUCT_ANALYTICS],
 }
 
 const liveFramesProvider: Provider = {
@@ -59,9 +62,14 @@ const hostBusProvider: Provider = {
 
 const followStackProvider: Provider = {
   provide: FOLLOW_STACK,
-  useFactory: (env: AgentHostEnv, db: Db, plane: ControlPlane, log: LogPort): FollowStack =>
-    new FollowStack({ env, db, plane, log }),
-  inject: [AGENT_HOST_ENV, DB, CONTROL_PLANE, LOG],
+  useFactory: (
+    env: AgentHostEnv,
+    db: Db,
+    plane: ControlPlane,
+    log: LogPort,
+    analytics: ProductAnalytics,
+  ): FollowStack => new FollowStack({ env, db, plane, log, analytics }),
+  inject: [AGENT_HOST_ENV, DB, CONTROL_PLANE, LOG, PRODUCT_ANALYTICS],
 }
 
 @Module({

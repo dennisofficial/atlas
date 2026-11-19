@@ -1,6 +1,6 @@
 import type { ControlPlane } from '@dltech/atlas-control'
 import type { Db } from '@dltech/atlas-db'
-import type { LogPort } from '@dltech/atlas-observability'
+import type { LogPort, ProductAnalytics } from '@dltech/atlas-observability'
 
 import { startPgChangeFeed, type PgChangeFeed } from '../bus/pg-change-feed'
 import { createRedisLiveSource } from '../bus/redis-live-source'
@@ -16,6 +16,7 @@ export type FollowStackArgs = {
   db: Db
   plane: ControlPlane
   log: LogPort
+  analytics?: ProductAnalytics | undefined
 }
 
 export class FollowStack {
@@ -40,6 +41,7 @@ export class FollowStack {
       live,
       timers: systemHostTimers,
       log: this.args.log,
+      ...(this.args.analytics === undefined ? {} : { analytics: this.args.analytics }),
       recordSurface: recordSessionSurface({ db: this.args.db }),
     })
     this.feed = feed

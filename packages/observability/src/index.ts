@@ -1,4 +1,5 @@
 export type {} from './ports'
+export * from './analytics/product-analytics'
 export * from './log/log.port'
 export * from './log/log-fields'
 export * from './telemetry/telemetry.port'
