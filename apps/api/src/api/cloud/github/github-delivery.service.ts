@@ -18,10 +18,11 @@ import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delive
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import {
+  mergeabilityObservationOfSample,
   pullObservationOfRest,
-  mergeabilityObservationOf,
   pullObservationOfWebhook,
 } from './github-pr-observations'
+import { applyObservedPull } from './github-pr-observed-pull'
 import { GithubPrStore } from './github-pr-store'
 import { GithubInstallationTokens } from './github-installation-tokens'
 import { GithubFillTokens } from './github-fill-token'
@@ -185,7 +186,7 @@ export class GithubDeliveryService {
       })
     }
     if (rest.kind === 'skipped') return
-    const restObservedAt = new Date().toISOString()
+    const restObservedAt = rest.mergeability.observedAt
     const restObservation = pullObservationOfRest({
       repoFullName,
       pull: rest.pull,
@@ -197,17 +198,20 @@ export class GithubDeliveryService {
       this.logger.warn(`skipping the REST pull for ${repoFullName}#${prNumber}: incomplete fields`)
       return
     }
-    await this.store.apply({
+    await applyObservedPull({
+      store: this.store,
       repoFullName,
       prNumber,
       observations: [
         restObservation,
-        mergeabilityObservationOf({
-          pull: rest.pull,
-          observedAt: restObservedAt,
+        mergeabilityObservationOfSample({
+          sample: rest.mergeability,
           source: EPrSource.DeliveryFill,
         }),
       ],
+      headSha: rest.headSha,
+      checks: rest.checks,
+      protection: rest.protection,
     })
   }
 

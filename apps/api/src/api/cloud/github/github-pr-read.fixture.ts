@@ -1,9 +1,13 @@
+import type { BranchProtectionRead } from './github-branch-protection'
+import type { CommitCheckInput } from './github-commit-checks'
 import type { PullRequestCacheFields } from './github-pull-request-mapping'
 import type { PullObservationRead } from './github-user-reads'
 
 export function observationReadOf(args: {
   fields: PullRequestCacheFields
   number: number
+  checks?: CommitCheckInput[]
+  protection?: BranchProtectionRead
 }): PullObservationRead {
   const fields = args.fields
   const headSha = fields.headSha
@@ -34,6 +38,13 @@ export function observationReadOf(args: {
       mergeable: fields.mergeable,
       mergeClean: fields.mergeClean ?? null,
       observedAt,
+    },
+    headSha,
+    checks: args.checks ?? [],
+    protection: args.protection ?? {
+      acquiredAt: new Date(observedAt),
+      baseBranch,
+      requiredContexts: [],
     },
   }
 }

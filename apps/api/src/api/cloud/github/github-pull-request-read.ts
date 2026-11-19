@@ -11,6 +11,24 @@ import {
 import { mergeabilitySampleOfRest } from './github-pr-observations'
 import type { GithubRequiredChecksRead } from './github-required-checks-read'
 
+export type PullChecksCollected = {
+  headSha: string
+  checks: CommitCheckInput[]
+  mergeability?: MergeabilitySample
+}
+
+export type PullObservationRead = Omit<PullRequestRead, 'fields'>
+
+export function pullObservationReadOf(read: PullRequestRead): PullObservationRead {
+  return {
+    pull: read.pull,
+    mergeability: read.mergeability,
+    headSha: read.headSha,
+    checks: read.checks,
+    protection: read.protection,
+  }
+}
+
 export type PullRequestRead = {
   pull: RestPullRequest
   mergeability: MergeabilitySample
@@ -28,13 +46,13 @@ export async function readPullRequestFill(args: {
   owner: string
   repo: string
   number: number
-  observedAt: string
 }): Promise<PullRequestRead> {
   const pull = await args.get<RestPullRequest>({
     source: args.source,
     token: args.token,
     path: `/repos/${args.owner}/${args.repo}/pulls/${args.number}`,
   })
+  const observedAt = new Date().toISOString()
   const head = await readHeadChecks({
     get: <T>(path: string) => args.get<T>({ source: args.source, token: args.token, path }),
     owner: args.owner,
@@ -50,7 +68,7 @@ export async function readPullRequestFill(args: {
   })
   return {
     pull,
-    mergeability: mergeabilitySampleOfRest({ pull, observedAt: args.observedAt }),
+    mergeability: mergeabilitySampleOfRest({ pull, observedAt }),
     headSha: pull.head.sha,
     checks: head.checks,
     protection: { baseBranch: pull.base.ref, ...protection },

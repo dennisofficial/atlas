@@ -1,9 +1,10 @@
 import {
+  ECheckSource,
   checkRunOutcomeOf,
   checksTally,
-  latestAttemptOutcomes,
+  latestCheckAttempts,
   statusContextOutcomeOf,
-  type CheckAttempt,
+  type CheckIdentity,
 } from '@dltech/atlas-core'
 
 export interface RestPullRequest {
@@ -77,22 +78,30 @@ export function pullRequestCacheFieldsOf(args: {
   checkRuns: readonly RestCheckRun[]
   statuses: readonly RestCommitStatus[]
 }): PullRequestCacheFields {
-  const attempts: CheckAttempt[] = [
+  const attempts: CheckIdentity[] = [
     ...args.checkRuns.map((run) => ({
+      appSlug: run.app?.slug ?? null,
+      checkKey: `${ECheckSource.Run}:${run.id}`,
       name: run.name,
-      order: run.id,
       outcome: checkRunOutcomeOf({
         status: run.status,
         conclusion: run.conclusion,
       }),
+      source: ECheckSource.Run,
+      sourceCreatedAt: run.completed_at ?? run.started_at,
+      sourceId: String(run.id),
     })),
     ...args.statuses.map((status) => ({
+      appSlug: null,
+      checkKey: `${ECheckSource.Status}:${status.context}`,
       name: status.context,
-      order: status.id,
       outcome: statusContextOutcomeOf(status.state),
+      source: ECheckSource.Status,
+      sourceCreatedAt: status.created_at,
+      sourceId: String(status.id),
     })),
   ]
-  const tally = checksTally(latestAttemptOutcomes(attempts))
+  const tally = checksTally(latestCheckAttempts({ attempts }).map((attempt) => attempt.outcome))
 
   return {
     title: args.pull.title,

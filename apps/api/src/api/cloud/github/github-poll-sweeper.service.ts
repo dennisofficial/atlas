@@ -2,8 +2,13 @@ import { Injectable, Logger } from '@nestjs/common'
 import { db, type Row } from '@dltech/atlas-db'
 import { EPrSource, ETargetOutcome, ETrackingTransport } from '@dltech/atlas-core'
 import { GithubHeadReads } from './github-head-reads'
+import { applyObservedPull } from './github-pr-observed-pull'
 import { GithubPrStore } from './github-pr-store'
-import { mergeabilityObservationOf, pullObservationOfRest } from './github-pr-observations'
+import {
+  mergeabilityObservationOf,
+  mergeabilityObservationOfSample,
+  pullObservationOfRest,
+} from './github-pr-observations'
 import { TransportSelector } from './github-transport-selector'
 import type { RestPullRequest } from './github-pull-request-mapping'
 import { EGithubCallSource } from './github-call-log'
@@ -187,6 +192,40 @@ export class GithubPollSweeperService {
     })
   }
 
+  private async applyObservedPull(args: {
+    repoFullName: string
+    read: PullObservationRead
+    source: EPrSource
+  }): Promise<void> {
+    const { read } = args
+    const observedAt = read.mergeability.observedAt
+    const observation = pullObservationOfRest({
+      repoFullName: args.repoFullName,
+      pull: read.pull,
+      updatedAt: read.pull.updated_at,
+      observedAt,
+      source: args.source,
+    })
+    if (observation === null) {
+      this.logger.warn(
+        `skipping the pull for ${args.repoFullName}#${read.pull.number}: incomplete fields`,
+      )
+      return
+    }
+    await applyObservedPull({
+      store: this.store,
+      repoFullName: args.repoFullName,
+      prNumber: read.pull.number,
+      observations: [
+        observation,
+        mergeabilityObservationOfSample({ sample: read.mergeability, source: args.source }),
+      ],
+      headSha: read.headSha,
+      checks: read.checks,
+      protection: read.protection,
+    })
+  }
+
   private async pollOne(args: {
     userId: string
     repoFullName: string
@@ -217,7 +256,7 @@ export class GithubPollSweeperService {
       }
       return parkedAttemptOf(failure, this.logger)
     }
-    await this.applyPull({ repoFullName, pull: read.pull, source: EPrSource.Poll })
+    await this.applyObservedPull({ repoFullName, read, source: EPrSource.Poll })
 
     return { outcome: ETargetOutcome.Polled }
   }

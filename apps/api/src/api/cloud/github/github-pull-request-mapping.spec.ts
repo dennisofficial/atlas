@@ -74,8 +74,8 @@ describe('pullRequestCacheFieldsOf', () => {
     const fields = pullRequestCacheFieldsOf({
       pull: pull({}),
       checkRuns: [
-        run({ conclusion: 'cancelled', started_at: '2026-11-02T04:25:00Z' }),
-        run({ conclusion: 'success', started_at: '2026-11-02T04:26:00Z' }),
+        run({ id: 1, conclusion: 'cancelled', started_at: '2026-11-02T04:25:00Z' }),
+        run({ id: 2, conclusion: 'success', started_at: '2026-11-02T04:26:00Z' }),
       ],
       statuses: [],
     })
@@ -154,6 +154,23 @@ describe('pullRequestCacheFieldsOf', () => {
       checksRunning: 0,
       checksPassed: 1,
       checksFailed: 0,
+    })
+  })
+
+  it('counts a check name once per app that reports it', () => {
+    const fields = pullRequestCacheFieldsOf({
+      pull: pull({}),
+      checkRuns: [
+        run({ id: 1, name: 'build', app: { slug: 'actions' } }),
+        run({ id: 2, name: 'build', app: { slug: 'other' }, conclusion: 'failure' }),
+      ],
+      statuses: [],
+    })
+
+    expect(fields).toMatchObject({
+      checksRunning: 0,
+      checksPassed: 1,
+      checksFailed: 1,
     })
   })
 })

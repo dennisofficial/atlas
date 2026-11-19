@@ -2,6 +2,7 @@ import {
   EPrSource,
   pullSampleOfPayload,
   pullStateOfSample,
+  type MergeabilitySample,
   type PrObservation,
   type PullSample,
 } from '@dltech/atlas-core'
@@ -98,5 +99,17 @@ export function mergeabilityObservationOf(args: {
     source: args.source,
     observedAt: args.observedAt,
     sample: mergeabilitySampleOfRest(args),
+  }
+}
+
+export function mergeabilityObservationOfSample(args: {
+  sample: MergeabilitySample
+  source: EPrSource
+}): PrObservation {
+  return {
+    kind: 'mergeability',
+    source: args.source,
+    observedAt: args.sample.observedAt,
+    sample: args.sample,
   }
 }

@@ -9,13 +9,18 @@ import {
   githubHeadersOf,
   githubJsonGet,
 } from './github-user-http'
-import type { MergeabilitySample } from '@dltech/atlas-core'
 import type { BranchProtectionRead } from './github-branch-protection'
-import type { PullRequestCacheFields, RestPullRequest } from './github-pull-request-mapping'
+import type { PullRequestCacheFields } from './github-pull-request-mapping'
 import { HOOK_EVENTS } from './github-hook-events'
 import type { CommitCheckInput } from './github-commit-checks'
 import type { RawCheckAnnotation } from './github-check-annotations'
-import { readPullRequestFill, type PullRequestRead } from './github-pull-request-read'
+import {
+  pullObservationReadOf,
+  readPullRequestFill,
+  type PullChecksCollected,
+  type PullObservationRead,
+  type PullRequestRead,
+} from './github-pull-request-read'
 import { readHeadChecks } from './github-head-checks-read'
 import { GithubRequiredChecksRead } from './github-required-checks-read'
 
@@ -26,7 +31,7 @@ export type CreateHookResult =
   | { outcome: 'adopted'; hookId: number | undefined }
   | { outcome: 'forbidden' }
 
-export type PullObservationRead = { pull: RestPullRequest; mergeability: MergeabilitySample }
+export type { PullObservationRead } from './github-pull-request-read'
 
 export interface HookConfig {
   url: string
@@ -78,11 +83,15 @@ export class GithubUserReads {
     owner: string
     repo: string
     number: number
-    collectChecks: (args: { headSha: string; checks: CommitCheckInput[] }) => void
+    collectChecks: (args: PullChecksCollected) => void
     collectRequiredContexts?: (protection: BranchProtectionRead) => void
   }): Promise<PullRequestCacheFields> {
     const read = await this.readPullRequestFillOf(args)
-    args.collectChecks({ headSha: read.headSha, checks: read.checks })
+    args.collectChecks({
+      headSha: read.headSha,
+      checks: read.checks,
+      mergeability: read.mergeability,
+    })
     args.collectRequiredContexts?.(read.protection)
     return read.fields
   }
@@ -94,9 +103,7 @@ export class GithubUserReads {
     repo: string
     number: number
   }): Promise<PullObservationRead> {
-    return this.readPullRequestFillOf({ ...args, observedAt: new Date().toISOString() }).then(
-      (read) => ({ pull: read.pull, mergeability: read.mergeability }),
-    )
+    return this.readPullRequestFillOf(args).then(pullObservationReadOf)
   }
 
   private readPullRequestFillOf(args: {
@@ -105,7 +112,6 @@ export class GithubUserReads {
     owner: string
     repo: string
     number: number
-    observedAt?: string
   }): Promise<PullRequestRead> {
     return readPullRequestFill({
       get: <T>(request: { source: EGithubCallSource; token: string; path: string }) =>
@@ -116,7 +122,6 @@ export class GithubUserReads {
       owner: args.owner,
       repo: args.repo,
       number: args.number,
-      observedAt: args.observedAt ?? new Date().toISOString(),
     })
   }
 

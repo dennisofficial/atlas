@@ -45,7 +45,7 @@ describe('GithubUserReads settle confirmation', () => {
 
   it('hands the head checks and the branch protection to their collectors', async () => {
     branch = 'release'
-    const collected: Array<{ headSha: string; checks: unknown[] }> = []
+    const collected: Array<{ headSha: string; checks: unknown[]; mergeability?: unknown }> = []
     const protection: unknown[] = []
     await new GithubUserReads().readPullRequest({
       ...target,
@@ -54,7 +54,19 @@ describe('GithubUserReads settle confirmation', () => {
       collectRequiredContexts: (read) => protection.push(read),
     })
     expect(paths).toHaveLength(5)
-    expect(collected).toEqual([{ headSha: 'abc', checks: [] }])
+    expect(collected).toEqual([
+      {
+        headSha: 'abc',
+        checks: [],
+        mergeability: {
+          headSha: 'abc',
+          baseBranch: 'release',
+          mergeable: undefined,
+          mergeClean: false,
+          observedAt: expect.any(String),
+        },
+      },
+    ])
     expect(protection).toEqual([
       { acquiredAt: expect.any(Date), baseBranch: 'release', requiredContexts: [] },
     ])
