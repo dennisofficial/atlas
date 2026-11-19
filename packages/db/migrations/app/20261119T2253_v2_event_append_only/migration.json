@@ -1,0 +1,9 @@
+{
+  "from": "4406b81cac8b98381149af5769abd34522833966d2564835450f6715e509fe49",
+  "to": "4406b81cac8b98381149af5769abd34522833966d2564835450f6715e509fe49",
+  "providedInvariants": [
+    "v2-event-append-only"
+  ],
+  "createdAt": "2026-11-19T22:53:57.802Z",
+  "migrationHash": "797b7a8b95da158508e3a33a3af7278b2c3d6c1c3847166f1e2b208e291c08b0"
+}
