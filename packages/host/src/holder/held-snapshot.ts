@@ -1,12 +1,15 @@
 import {
+  EInputConsumed,
   EHeldAction,
   NO_WORKSPACE_RECORD,
   decideHeldAction,
   isResumableOf,
   loopStateOf,
   setupInFlightOf,
+  visibleEvents,
   workspaceStateFrom,
   type InboxEntry,
+  type V2Event,
 } from '@dltech/atlas-core'
 
 import { idleReleaseDue } from './held-idle'
@@ -34,6 +37,22 @@ const IDLE_WHILE_SETUP_RUNS: readonly EHeldAction[] = [
  * has to re-join it (Prepare) before it may start a turn, wait, or release the pod — releasing
  * would take the sandbox away under the running script.
  */
+/**
+ * A stop consumed after the last prompt is final even when the interrupted step left no
+ * `assistant-said { stopped }` behind: nothing about that turn may resume, here or on a take-over.
+ */
+export const stoppedAfterPromptOf = (events: readonly V2Event[]): boolean => {
+  let lastPrompt = 0
+  let lastStop = 0
+  for (const event of events) {
+    if (event.type === 'user-said' || event.type === 'nudge') lastPrompt = event.seq
+    else if (event.type === 'input-consumed' && event.consumed === EInputConsumed.Stop) {
+      lastStop = event.seq
+    }
+  }
+  return lastStop > lastPrompt
+}
+
 const resumeSetupIn = (args: {
   decided: EHeldAction
   setupInFlight: boolean
@@ -100,7 +119,8 @@ export const readHeldAction = async (args: {
     quiet && args.runtime !== undefined
       ? await countRunningShells({ deps, runtime: args.runtime })
       : 0
-  const resumable = isResumableOf(loopStateOf({ events: resumeEvents }))
+  const stopped = stoppedAfterPromptOf(visibleEvents(cache?.eventsAfter(args.resumeAfterSeq) ?? []))
+  const resumable = stopped ? false : isResumableOf(loopStateOf({ events: resumeEvents }))
   const action = resumeSetupIn({
     decided: decideHeldAction({
       draining: args.draining,
