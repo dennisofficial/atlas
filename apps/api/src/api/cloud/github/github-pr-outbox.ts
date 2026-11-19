@@ -17,6 +17,7 @@ import { noticeV2Sessions } from './github-v2-notice'
 import type { GithubPrEventDto, GithubPrStateDto } from './github-realtime.types'
 
 export const PR_OUTBOX_BATCH = 32
+export const PR_OUTBOX_DRAIN_BATCHES = 8
 export const PR_OUTBOX_RETENTION_MS = 24 * 60 * 60 * 1_000
 
 export type PrOutboxLogger = { warn(message: string): void }
@@ -106,10 +107,15 @@ export class GithubPrOutboxDispatcher {
   }
 
   async drain(): Promise<number> {
-    const claimed = await claimPrOutboxRows({ now: this.now(), limit: PR_OUTBOX_BATCH })
-    await this.runClaim(claimed)
+    let ran = 0
+    for (let batch = 0; batch < PR_OUTBOX_DRAIN_BATCHES; batch += 1) {
+      const claimed = await claimPrOutboxRows({ now: this.now(), limit: PR_OUTBOX_BATCH })
+      if (claimed.rows.length === 0 && claimed.deadLettered.length === 0) break
+      ran += claimed.rows.length
+      await this.runClaim(claimed)
+    }
 
-    return claimed.rows.length
+    return ran
   }
 
   private async runClaim(claimed: PrOutboxClaim): Promise<void> {

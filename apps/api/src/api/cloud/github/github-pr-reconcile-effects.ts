@@ -9,13 +9,7 @@ import type { PrOutboxEffect } from './github-pr-outbox'
 function fingerprintOf(attempts: readonly CheckIdentity[]): string {
   return JSON.stringify(
     latestCheckAttempts({ attempts })
-      .map((attempt) => [
-        attempt.name,
-        attempt.appSlug ?? '',
-        attempt.checkKey,
-        attempt.outcome,
-        attempt.sourceCreatedAt ?? '',
-      ])
+      .map((attempt) => [attempt.name, attempt.appSlug ?? '', attempt.checkKey, attempt.outcome])
       .sort(),
   )
 }

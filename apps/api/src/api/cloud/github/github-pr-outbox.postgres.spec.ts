@@ -257,10 +257,7 @@ describe('GithubPrOutboxDispatcher leases', () => {
       },
     })
 
-    expect(await dispatcher.drain()).toBe(32)
-    expect(changedThreads).toHaveLength(0)
-
-    expect(await dispatcher.drain()).toBe(1)
+    expect(await dispatcher.drain()).toBe(33)
     expect(changedThreads).toHaveLength(1)
     expect((await reload(valid.id))?.dispatchedAt).not.toBeNull()
   })
