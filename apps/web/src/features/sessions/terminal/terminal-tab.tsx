@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { toast } from 'sonner'
 
 import { ETerminalConnection } from '@dltech/atlas-ui/ai/terminal-states'
 import type { TerminalScreenHandle, TerminalSize } from '@dltech/atlas-ui/ai/terminal-screen'
@@ -184,7 +185,7 @@ export function TerminalTab(props: { transportOf?: TerminalTransportOf } = {}) {
         if (cwd !== undefined) cwdMemory.current.set(result.terminalId, cwd)
         void refresh()
       },
-      () => undefined,
+      () => toast.error('Could not open a terminal'),
     )
   }, [cwd, refresh, store])
 
