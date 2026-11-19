@@ -3,6 +3,13 @@ export type { ChangeFeed } from './change-feed'
 export { ControlPlane, MAX_READ_LIMIT, MAX_SESSION_LIST_LIMIT } from './control-plane'
 export type { ControlPlaneParams, ReadEventsPage } from './control-plane'
 export { changeBlobKey, ChangeContentStore, changeHashOf } from './change-content'
+export { CHANGES_GC_GRACE_MS, CHANGES_GC_ROW_LIMIT, runChangesGc } from './changes-gc'
+export type {
+  ChangesGcContent,
+  ChangesGcParams,
+  ChangesGcStore,
+  ChangesGcSummary,
+} from './changes-gc'
 export { LeaseConflictError, UnknownThreadError } from './errors'
 export { ControlStorePort, SeqConflictError } from './port'
 export type {
