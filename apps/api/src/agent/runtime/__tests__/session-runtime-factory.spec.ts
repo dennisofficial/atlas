@@ -245,7 +245,7 @@ describe('createSessionRuntimeFactory', () => {
     await runtime.stop()
   })
 
-  it('release stops the sandbox, stop leaves it', async () => {
+  it('release pushes the pod deadline and never stops it, stop does neither', async () => {
     const sandbox = new FakeSandbox(true)
     const factory = makeFactory({
       api: apiOf(configured()),
@@ -262,9 +262,11 @@ describe('createSessionRuntimeFactory', () => {
     const stopped = await factory(args)
     await stopped.stop()
     expect(sandbox.stopped).toEqual([])
+    expect(sandbox.keptAlive).toEqual(['s-4'])
     const released = await factory(args)
     await released.release()
-    expect(sandbox.stopped).toEqual(['s-4'])
+    expect(sandbox.stopped).toEqual([])
+    expect(sandbox.keptAlive).toEqual(['s-4', 's-4', 's-4'])
   })
 
   it('builds the anthropic model without the override', async () => {
@@ -371,7 +373,7 @@ describe('createSessionRuntimeFactory', () => {
     })
     lifetime.abort()
     fireScheduled()
-    expect(sandbox.keptAlive).toEqual([])
+    expect(sandbox.keptAlive).toEqual(['s-keep-alive'])
   })
 
   it('never arms the keep-alive when the lifetime already ended', async () => {

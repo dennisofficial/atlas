@@ -16,6 +16,7 @@ import {
   isStop,
   logPendingMessageIdsOf,
   readFullInbox,
+  stopSettledPromptOf,
   understandsCommand,
   waitingInputIdsOf,
 } from './held-inbox'
@@ -52,7 +53,6 @@ export const readHeldAction = async (args: {
   draining: boolean
   turnRunning: boolean
   resumeAfterSeq: number
-  lastActivityAt: number
   runtime: SessionRuntime | undefined
   record: SessionRecord | undefined
   preparing: boolean
@@ -84,15 +84,10 @@ export const readHeldAction = async (args: {
   const messagePending =
     actionable.some((entry) => !isStop(entry)) ||
     waitingInputIdsOf({ ids: logIds, failure: workspace.failure }).length > 0
-  const idleArgs = {
-    deps,
+  const quiet = idleReleaseDue({
     turnRunning: args.turnRunning,
-    lastActivityAt: args.lastActivityAt,
     runtime: args.runtime,
     pendingInput: messagePending,
-  }
-  const quiet = idleReleaseDue({
-    ...idleArgs,
     runningShells: 0,
     runningChildren: args.childrenRunning,
   })
@@ -100,7 +95,8 @@ export const readHeldAction = async (args: {
     quiet && args.runtime !== undefined
       ? await countRunningShells({ deps, runtime: args.runtime })
       : 0
-  const resumable = isResumableOf(loopStateOf({ events: resumeEvents }))
+  const state = loopStateOf({ events: resumeEvents })
+  const resumable = isResumableOf(state) && !stopSettledPromptOf(events)
   const action = resumeSetupIn({
     decided: decideHeldAction({
       draining: args.draining,

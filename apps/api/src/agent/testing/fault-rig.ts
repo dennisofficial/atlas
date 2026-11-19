@@ -37,12 +37,10 @@ export type ReadEvent = { seq: number; type: string; event: unknown }
 export type HostKnobs = {
   appendRetryMs?: number
   pingMs?: number
-  maxSessions?: number
   poolMax?: number
   noRing?: boolean
   queryTimeoutMs?: number
   toolOutputFile?: string
-  idleMs?: number
   sweepMs?: number
   fault?: EHostFault
 }

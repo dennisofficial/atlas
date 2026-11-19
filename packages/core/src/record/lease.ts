@@ -9,7 +9,9 @@ export type Lease = {
 
 export type LeaseRefusal = { kind: 'stale-epoch'; current: number }
 
-export type RevokeResult = { ok: true; lease: Lease } | { ok: false; refusal: LeaseRefusal }
+export type LeaseWriteResult = { ok: true; lease: Lease } | { ok: false; refusal: LeaseRefusal }
+
+export type RevokeResult = LeaseWriteResult
 
 export const grant = (params: { lease: Lease; hostId: number }): Lease => ({
   ...params.lease,
@@ -53,6 +55,13 @@ export const revoke = (params: {
   wantsHolder: params.wantsHolder,
   ...(params.resetRetry === true ? { attempts: 0, retryAfter: null } : {}),
 })
+
+export const clearAttemptsIfEpoch = (params: { lease: Lease; epoch: number }): LeaseWriteResult => {
+  if (params.epoch !== params.lease.epoch) {
+    return { ok: false, refusal: { kind: 'stale-epoch', current: params.lease.epoch } }
+  }
+  return { ok: true, lease: { ...params.lease, attempts: 0, retryAfter: null } }
+}
 
 export const revokeIfEpoch = (params: {
   lease: Lease

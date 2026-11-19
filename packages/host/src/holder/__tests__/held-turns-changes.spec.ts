@@ -25,7 +25,6 @@ describe('HeldTurns turn end', () => {
       threadId: toThreadId('thread-changes'),
       pause: new PauseSignal(),
       resume: false,
-      onActivity: () => undefined,
     })
 
     expect(asked).toBe(1)

@@ -17,9 +17,7 @@ export type SessionHolderArgs = {
   runtimes: SessionRuntimeFactory
   ids: IdPort
   podPeers?: PodPeers | undefined
-  maxSessions: number
   appendRetryMs?: number | undefined
-  idleMinutes?: number | undefined
   sweepMs?: number | undefined
   isPermanentStartError?: ((error: unknown) => boolean) | undefined
   reasonOfStartError?: ((error: unknown) => string) | undefined
@@ -40,6 +38,5 @@ export type SessionHolderArgs = {
 
 export const SESSION_HOLDER_DEFAULTS = {
   appendRetryMs: DEFAULT_APPEND_RETRY_MS,
-  idleMinutes: 30,
   sweepMs: 20_000,
 } as const

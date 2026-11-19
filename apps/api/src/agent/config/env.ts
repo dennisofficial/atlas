@@ -18,7 +18,6 @@ export type AgentHostEnv = {
   previewDomain: string
   vercelOauth: { clientId: string; clientSecret: string } | null
   mediaBlobToken: string | null
-  maxSessions: number
   sandboxImage: string
   daemonBundlePath: string
   port: number
@@ -26,7 +25,6 @@ export type AgentHostEnv = {
   trustedOrigins: string[]
 }
 
-const DEFAULT_MAX_SESSIONS = 25
 const DEFAULT_SANDBOX_IMAGE = 'atlas-sandbox:latest'
 const DEFAULT_PORT = 10_000
 const DEFAULT_PREVIEW_DOMAIN = 'byatlas.dev'
@@ -38,17 +36,6 @@ const defaultDaemonBundlePath = (): string =>
 const take = (env: Record<string, string | undefined>, name: string): string | undefined => {
   const value = env[name]
   return value === undefined || value.trim() === '' ? undefined : value
-}
-
-const parseMaxSessions = (raw: string | undefined): number => {
-  if (raw === undefined) return DEFAULT_MAX_SESSIONS
-  const parsed = Number(raw)
-  if (!Number.isInteger(parsed) || parsed < 1) {
-    throw new AgentHostEnvError([
-      `AGENT_HOST_MAX_SESSIONS must be a positive integer, got "${raw}"`,
-    ])
-  }
-  return parsed
 }
 
 const parsePort = (raw: string | undefined): number => {
@@ -112,7 +99,6 @@ export const readAgentHostEnv = (
     previewDomain: take(env, 'PREVIEW_DOMAIN') ?? DEFAULT_PREVIEW_DOMAIN,
     vercelOauth: vercelOauthOf(env),
     mediaBlobToken: take(env, 'BLOB_READ_WRITE_TOKEN') ?? null,
-    maxSessions: parseMaxSessions(take(env, 'AGENT_HOST_MAX_SESSIONS')),
     sandboxImage: take(env, 'ATLAS_SANDBOX_IMAGE') ?? DEFAULT_SANDBOX_IMAGE,
     daemonBundlePath: take(env, 'ATLAS_DAEMON_BUNDLE') ?? defaultDaemonBundlePath(),
     port: parsePort(take(env, 'PORT')),

@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 
-import { crashLooped, MAX_START_ATTEMPTS, revoke, revokeIfEpoch, startVerdict } from '../lease'
+import {
+  clearAttemptsIfEpoch,
+  crashLooped,
+  MAX_START_ATTEMPTS,
+  revoke,
+  revokeIfEpoch,
+  startVerdict,
+} from '../lease'
 import { lease } from './support'
 
 const RETRY_AT = '2026-11-02T12:00:08.000Z'
@@ -66,6 +73,24 @@ describe('revoke retry state', () => {
     expect(revokeIfEpoch({ lease: retrying, wantsHolder: false, epoch: 3 })).toMatchObject({
       ok: true,
       lease: { attempts: 3, retryAfter: RETRY_AT },
+    })
+  })
+})
+
+describe('clearAttemptsIfEpoch', () => {
+  const retrying = lease({ attempts: 3, retryAfter: RETRY_AT, epoch: 4, holderHostId: 7 })
+
+  it('forgets the failed starts of the holder that owns the epoch', () => {
+    expect(clearAttemptsIfEpoch({ lease: retrying, epoch: 4 })).toMatchObject({
+      ok: true,
+      lease: { epoch: 4, holderHostId: 7, attempts: 0, retryAfter: null },
+    })
+  })
+
+  it('changes nothing for a stale epoch', () => {
+    expect(clearAttemptsIfEpoch({ lease: retrying, epoch: 5 })).toEqual({
+      ok: false,
+      refusal: { kind: 'stale-epoch', current: 4 },
     })
   })
 })

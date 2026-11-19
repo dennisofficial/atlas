@@ -53,9 +53,7 @@ export const makeRig = async (args: {
   bus?: FakeBus | undefined
   plane?: ControlPlane | undefined
   store?: InMemoryControlStore | undefined
-  maxSessions?: number | undefined
   appendRetryMs?: number | undefined
-  idleMinutes?: number | undefined
   sweepMs?: number | undefined
   watchedRepos?: (() => Promise<readonly string[]>) | undefined
   runningShells?: (() => Promise<number>) | undefined
@@ -69,6 +67,7 @@ export const makeRig = async (args: {
   connectGate?: Promise<void> | undefined
   runtimeGate?: Promise<void> | undefined
   beforeRuntime?: (() => Promise<void>) | undefined
+  stopGate?: Promise<void> | undefined
   beforeRegister?: (() => Promise<void>) | undefined
   isPermanentStartError?: ((error: unknown) => boolean) | undefined
   commands?: CommandRegistry | undefined
@@ -122,6 +121,7 @@ export const makeRig = async (args: {
     connectGate: args.connectGate,
     runtimeGate: args.runtimeGate,
     beforeRuntime: args.beforeRuntime,
+    stopGate: args.stopGate,
     plugins: args.plugins,
   })
 
@@ -132,10 +132,8 @@ export const makeRig = async (args: {
     timers: clock,
     runtimes: runtimeFor,
     ids,
-    maxSessions: args.maxSessions ?? 4,
     reasonOfStartError: args.reasonOfStartError,
     ...(args.appendRetryMs === undefined ? {} : { appendRetryMs: args.appendRetryMs }),
-    idleMinutes: args.idleMinutes ?? 30,
     sweepMs: args.sweepMs ?? 0,
     ...(args.isPermanentStartError === undefined
       ? {}

@@ -1,9 +1,10 @@
 import { EHeldOutcome, type Lease, type ThreadId } from '@dltech/atlas-core'
+import { logFieldsOf } from '@dltech/atlas-observability'
 
 import type { BranchObserver } from './branch-observer'
+import { drainNeedsHolder } from './held-needs-holder'
 import type { HeldSessionDeps } from './held-session-deps'
 import type { HeldTurns } from './held-turns'
-import type { IdleDeadline } from './idle-deadline'
 import type { SessionRuntime } from './ports'
 import type { Reconciler } from './reconciler'
 import type { SessionRecord } from './record/record-adapter'
@@ -13,6 +14,7 @@ export class HeldEnding {
   private kind: EHeldOutcome | undefined
   private drive: (() => void) | undefined
   private wasReleased = false
+  private handedBack = false
   private epochOfLease = 0
 
   constructor(
@@ -21,12 +23,12 @@ export class HeldEnding {
       deps: HeldSessionDeps
       lifetimeAbort: AbortController
       turns: HeldTurns
-      idle: IdleDeadline
       isDraining(): boolean
       branches(): BranchObserver | undefined
       record(): SessionRecord | undefined
       runtime(): SessionRuntime | undefined
       reconciler(): Reconciler | undefined
+      beforeRelease(): Promise<void>
     },
   ) {}
 
@@ -73,15 +75,60 @@ export class HeldEnding {
     if (runtime === undefined) return
     const current = await this.args.deps.plane.currentLease({ sessionId: this.args.sessionId })
     if (current.lease.epoch !== this.epochOfLease) return this.lose()
+    await this.args.beforeRelease()
     await runtime.release()
     this.wasReleased = true
     this.finish(EHeldOutcome.Idle)
   }
 
+  async handBack(args: { needsHolder: boolean }): Promise<void> {
+    if (this.handedBack) return
+    this.handedBack = true
+    this.args.record()?.fence()
+    try {
+      const revoked = await this.args.deps.plane.revoke({
+        sessionId: this.args.sessionId,
+        epoch: this.epochOfLease,
+        wantsHolder: args.needsHolder,
+        resetRetry: true,
+      })
+      if (!args.needsHolder) {
+        const epoch = revoked.ok ? revoked.lease.epoch : await this.freeEpoch()
+        if (epoch !== undefined && (await this.needsHolder())) {
+          await this.args.deps.plane.revoke({
+            sessionId: this.args.sessionId,
+            epoch,
+            wantsHolder: true,
+          })
+        }
+      }
+    } catch (error) {
+      this.args.deps.log?.warn({
+        source: 'holder.drain',
+        message: `handing the lease on ${this.args.sessionId} back failed`,
+        ...logFieldsOf({ error }),
+      })
+    }
+    this.finish(EHeldOutcome.Drained)
+  }
+
+  private async freeEpoch(): Promise<number | undefined> {
+    const { lease } = await this.args.deps.plane.currentLease({ sessionId: this.args.sessionId })
+    if (lease.holderHostId !== null || lease.wantsHolder) return undefined
+    return lease.epoch
+  }
+
+  private needsHolder(): Promise<boolean> {
+    return drainNeedsHolder({
+      deps: this.args.deps,
+      record: this.args.record(),
+      turnRunning: this.args.turns.turnRunning,
+    })
+  }
+
   finish(kind: EHeldOutcome): void {
     if (this.kind !== undefined) return
     this.kind = kind
-    this.args.idle.disarm()
     this.args.reconciler()?.stop()
     this.drive?.()
   }

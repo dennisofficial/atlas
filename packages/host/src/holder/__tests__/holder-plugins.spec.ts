@@ -43,6 +43,7 @@ const publishingGitGroup: DaemonGroupFactory = () => ({
 const pluginRig = async (
   script: Parameters<typeof makeRig>[0]['script'],
   daemon?: InMemoryDaemon,
+  runningShells?: () => Promise<number>,
 ) => {
   const { plugin, record } = createFixturePlugin()
   const composed = composePlugins([plugin])
@@ -57,6 +58,7 @@ const pluginRig = async (
     plane,
     script,
     daemon,
+    runningShells,
     plugins: composed,
     commands: composeCommands(composed.commands),
     commandHandlers: composed.pod.commands,
@@ -120,11 +122,13 @@ describe('a session that registers plugins', () => {
       secret: SECRET,
       groups: () => [publishingGitGroup],
     })
-    const { rig, record } = await pluginRig([{ text: 'ok' }], daemon)
+    const { rig, record } = await pluginRig([{ text: 'ok' }], daemon, async () => 1)
     await rig.post('go')
     await rig.wake()
     await flushUntil({ check: () => rig.runtimes.length > 0 && record.beforeStep > 0 })
-    await rig.runtimes[0]?.remoteCalls.invoke({
+    const runtime = rig.runtimes.at(-1)
+    if (runtime === undefined) throw new Error('no runtime')
+    await runtime.remoteCalls.invoke({
       key: 'watch-1',
       op: { op: 'git.watch', repoPath: '/w' },
     })

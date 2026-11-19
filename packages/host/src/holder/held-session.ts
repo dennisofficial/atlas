@@ -8,13 +8,9 @@ import {
 } from '@dltech/atlas-core'
 import { LoopTurnRunner, OPERATOR_STOP_REASON, PauseSignal } from '@dltech/atlas-agent'
 
-import { DaemonProcessPort } from '../calls/ports/process'
-import { type ChangesCheckout, ChangesSnapshotter } from './changes/snapshotter'
-import { runGit } from './checkouts/git'
 import { FencedSettlement } from './fenced-settlement'
 import { settleOperatorOnStop } from './operator-stop'
 import type { SessionRuntime } from './ports'
-import type { BranchObserver } from './branch-observer'
 import { CrewRoom } from './crew'
 import {
   logDriveFault,
@@ -26,7 +22,7 @@ import {
 import { teardownHeld } from './held-teardown'
 import { HeldPrepare } from './held-prepare'
 import { readHeldAction } from './held-snapshot'
-import { IdleDeadline } from './idle-deadline'
+import { drainNeedsHolder } from './held-needs-holder'
 import { lostOutcome } from './lost-outcome'
 import { consumeStops } from './held-wait'
 import { Reconciler } from './reconciler'
@@ -36,6 +32,7 @@ import { HeldTurns } from './held-turns'
 import { TakeOver } from './held-takeover'
 import { quarantineOutcome } from './start-failure-record'
 import { HeldEnding } from './held-ending'
+import { HeldObservation } from './held-observation'
 
 export type { HeldSessionDeps }
 
@@ -48,15 +45,12 @@ export class HeldSession {
   private readonly prepare: HeldPrepare
   private draining = false
   private done: Promise<HeldOutcome> | undefined
-  private lastActivityAt: number
   private runtime: SessionRuntime | undefined
   private record: SessionRecord | undefined
-  private branches: BranchObserver | undefined
+  private observation: HeldObservation | undefined
   private branchesReady: Promise<void> = Promise.resolve()
-  private changes: ChangesSnapshotter | undefined
   private crew: CrewRoom | undefined
   private reconciler: Reconciler | undefined
-  private readonly idle: IdleDeadline
   private readonly fenced: FencedSettlement
   private readonly ending: HeldEnding
   runtimeOf(): SessionRuntime | undefined {
@@ -71,46 +65,35 @@ export class HeldSession {
   constructor(deps: HeldSessionDeps) {
     this.deps = deps
     this.sessionId = deps.sessionId
-    this.lastActivityAt = deps.timers.now()
     this.turns = new HeldTurns(deps)
     this.turns.onTurnEnd = () => {
-      void this.changes?.snapshotNow()
+      this.observation?.turnEnded()
+      this.reconciler?.request()
     }
     this.prepare = new HeldPrepare({
       deps,
       abandoned: () => this.draining || this.ending.outcome !== undefined,
       onSettled: ({ failed }) => {
-        this.noteActivity()
         if (failed) this.ending.finish(EHeldOutcome.Idle)
         else this.reconciler?.request()
       },
       onSetupEnded: () => {
-        this.noteActivity()
         this.reconciler?.request()
       },
     })
     this.fenced = new FencedSettlement(deps)
-    this.idle = new IdleDeadline({
-      timers: deps.timers,
-      idleMinutes: deps.idleMinutes,
-      onDue: () => this.reconciler?.request(),
-    })
     this.ending = new HeldEnding({
       sessionId: this.sessionId,
       deps,
       lifetimeAbort: this.lifetimeAbort,
       turns: this.turns,
-      idle: this.idle,
       isDraining: () => this.draining,
-      branches: () => this.branches,
+      branches: () => this.observation?.observer,
       record: () => this.record,
       runtime: () => this.runtime,
       reconciler: () => this.reconciler,
+      beforeRelease: () => this.observeBeforeRelease(),
     })
-  }
-
-  private readonly noteActivity = (): void => {
-    this.lastActivityAt = this.deps.timers.now()
   }
 
   private headSeq(): number {
@@ -124,8 +107,7 @@ export class HeldSession {
 
   beginDrain(): void {
     this.draining = true
-    this.branches?.stop()
-    void this.changes?.stop()
+    this.observation?.drain()
     this.pause.pause()
     this.record?.markDraining()
     this.reconciler?.request()
@@ -146,7 +128,17 @@ export class HeldSession {
     this.crew?.pauseAll()
     this.runtime?.remoteCalls.handoff()
     this.turns.abort('handoff')
-    await this.done
+    await this.ending.handBack({
+      needsHolder: await drainNeedsHolder({
+        deps: this.deps,
+        record: this.record,
+        turnRunning: this.turns.turnRunning,
+      }),
+    })
+  }
+
+  private async observeBeforeRelease(): Promise<void> {
+    await this.observation?.observeBeforeRelease()
   }
 
   private async drive(args: {
@@ -160,9 +152,7 @@ export class HeldSession {
       logDriveFault({ deps: this.deps, error })
       if (this.ending.outcome === undefined) await this.ending.settleFault({ ...args, error })
     }
-    this.branches?.stop()
-    if (this.changes !== undefined)
-      await this.changes.stop().catch((error: unknown) => logDriveFault({ deps: this.deps, error }))
+    await this.observation?.stop()
     await this.crew
       ?.close({ draining: this.draining })
       .catch((error: unknown) => logDriveFault({ deps: this.deps, error }))
@@ -219,10 +209,9 @@ export class HeldSession {
       crew: crew.port(),
       isDraining: () => this.draining,
     })
-    this.branches = branches
+    this.observation = new HeldObservation({ deps, runtime, record, branches })
+    this.observation.start()
     this.logStaged = logStaged
-    this.changes = this.changesOf({ runtime, record })
-    this.changes?.start()
     await settleAndCheckResume({ deps, runtime, record, threadId, crew })
     await recoverCommands()
     this.branchesReady = branchesStarted
@@ -238,67 +227,29 @@ export class HeldSession {
     await completion
   }
 
-  private changesOf(args: {
-    runtime: SessionRuntime
-    record: SessionRecord
-  }): ChangesSnapshotter | undefined {
-    const content = this.deps.changes?.content
-    if (content === undefined) return undefined
-    const { deps } = this
-    const processes = new DaemonProcessPort({ calls: args.runtime.remoteCalls })
-    return new ChangesSnapshotter({
-      sessionId: deps.sessionId,
-      plane: deps.plane,
-      content,
-      remoteCalls: args.runtime.remoteCalls,
-      checkouts: async () => {
-        if (!args.record.eventCache().bookkeeping().workspace().prepared) return []
-        const repos = await args.runtime.watchedRepos()
-        const found: ChangesCheckout[] = []
-        for (const repoPath of repos) {
-          const origin = await runGit({
-            processes,
-            cwd: repoPath,
-            argv: ['remote', 'get-url', 'origin'],
-          })
-          found.push({
-            repoPath,
-            originUrl: origin.ok ? origin.stdout.trim() : '',
-            base: args.runtime.baseBranchOf(repoPath),
-          })
-        }
-        return found
-      },
-      ...(deps.log === undefined ? {} : { log: deps.log }),
-      now: () => deps.timers.now(),
-    })
-  }
-
   private async step(args: { runner: LoopTurnRunner; threadId: ThreadId }): Promise<void> {
     if (this.ending.outcome !== undefined) return
     const deps = this.deps
     const turnRunning = this.turns.turnRunning
     if (this.draining) return turnRunning ? undefined : this.ending.finish(EHeldOutcome.Drained)
-    const { entries, action, resumable, inboxHead, shellsRunning } = await readHeldAction({
+    const { entries, action, resumable, inboxHead } = await readHeldAction({
       deps,
       draining: this.draining,
       turnRunning,
       resumeAfterSeq: this.resumeAfterSeq,
-      lastActivityAt: this.lastActivityAt,
       runtime: this.runtime,
       record: this.record,
       preparing: this.prepare.running,
       setupRunning: this.prepare.hasSetupRunning,
       childrenRunning: this.crew?.runningCount() ?? 0,
     })
-    if (shellsRunning) this.noteActivity()
     if (action === EHeldAction.AbortTurn) return this.turns.abort(OPERATOR_STOP_REASON)
     if (action !== EHeldAction.StartTurn) await this.logStaged?.()
     switch (action) {
       case EHeldAction.ConsumeStop: {
         await settleOperatorOnStop({ deps, record: this.record, runtime: this.runtime })
         await this.prepare.failStopped()
-        await consumeStops({ deps, record: this.record, entries, onActivity: this.noteActivity })
+        await consumeStops({ deps, record: this.record, entries })
         this.resumeAfterSeq = this.headSeq()
         this.reconciler?.request()
         return
@@ -315,8 +266,6 @@ export class HeldSession {
         if (this.draining || this.ending.outcome !== undefined) return
         this.takeOver?.firstStep()
         this.resumeAfterSeq = this.headSeq()
-        this.noteActivity()
-        this.idle.disarm()
         startHeldTurn({
           deps,
           turns: this.turns,
@@ -324,10 +273,9 @@ export class HeldSession {
           runner: args.runner,
           threadId: args.threadId,
           resume: resumable,
-          onActivity: this.noteActivity,
           refreshBranches: () => {
             if (this.draining || this.ending.outcome !== undefined) return
-            void this.branches?.refresh().catch((error) => logDriveFault({ deps, error }))
+            this.observation?.refreshBranches()
           },
           onFault: () => this.ending.finish(EHeldOutcome.Faulted),
           onSettled: () => this.reconciler?.request(),
@@ -339,8 +287,7 @@ export class HeldSession {
         return
       }
       case EHeldAction.Wait: {
-        if (turnRunning || this.prepare.running || this.prepare.hasSetupRunning) return
-        this.idle.arm({ lastActivityAt: this.lastActivityAt })
+        return
       }
     }
   }

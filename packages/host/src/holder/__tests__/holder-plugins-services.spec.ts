@@ -4,7 +4,7 @@ import { composeCommands } from '@dltech/atlas-commands'
 import { createV2EventSchema, type V2Event } from '@dltech/atlas-core'
 import { ControlPlane } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
-import type { ScriptedModelStep } from '@dltech/atlas-agent/testing'
+import { ScriptedModel, type ScriptedModelStep } from '@dltech/atlas-agent/testing'
 import { definePlugin, composePlugins } from '@dltech/atlas-plugin-sdk'
 import { servicesClient } from '@dltech/atlas-plugin-services/client'
 import { servicesControl } from '@dltech/atlas-plugin-services/control'
@@ -24,6 +24,7 @@ const servicesPlugin = definePlugin({
 
 const servicesRig = async (script: ScriptedModelStep[]) => {
   const composed = composePlugins([servicesPlugin])
+  const model = new ScriptedModel(script)
   const store = new InMemoryControlStore()
   const plane = new ControlPlane({
     store,
@@ -37,6 +38,7 @@ const servicesRig = async (script: ScriptedModelStep[]) => {
     plugins: composed,
     commands: composeCommands(composed.commands),
     commandHandlers: composed.pod.commands,
+    model: () => model,
   })
   await seedSession(rig)
   await rig.holder.start()

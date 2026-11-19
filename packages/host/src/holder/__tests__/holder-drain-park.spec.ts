@@ -2,8 +2,8 @@ import { describe, expect, it } from 'bun:test'
 
 import { flushUntil, makeRig, seedSession, SESSION, type HolderRig } from './holder-rig'
 
-const idleRig = async (): Promise<HolderRig> => {
-  const a = await makeRig({})
+const idleRig = async (shells: { running: number }): Promise<HolderRig> => {
+  const a = await makeRig({ runningShells: async () => shells.running })
   await seedSession(a)
   await a.holder.start()
   await a.post('hello')
@@ -28,7 +28,7 @@ const makeB = (a: HolderRig): Promise<HolderRig> =>
 
 describe('SessionHolder drain of an idle session', () => {
   it('revokes without wantsHolder, sends no wake and leaves the session unclaimed', async () => {
-    const a = await idleRig()
+    const a = await idleRig({ running: 0 })
     const b = await makeB(a)
     await b.holder.start()
     const wakesBefore = a.wakeCount(SESSION)
@@ -48,7 +48,7 @@ describe('SessionHolder drain of an idle session', () => {
   }, 15_000)
 
   it('a message after the drain wakes the next holder, which claims it', async () => {
-    const a = await idleRig()
+    const a = await idleRig({ running: 0 })
     const b = await makeB(a)
     await b.holder.start()
     await a.holder.drain()
@@ -61,22 +61,29 @@ describe('SessionHolder drain of an idle session', () => {
       attempts: 200,
     })
     expect(answered).toBe(true)
-    expect(b.holder.heldIds().length).toBe(1)
+    expect(b.runtimes.length).toBe(1)
   }, 15_000)
 
   it('a message posted while the drain revokes is claimed by the next holder within a tick', async () => {
-    const a = await idleRig()
+    const a = await idleRig({ running: 1 })
     const b = await makeB(a)
     await b.holder.start()
 
     const originalRevoke = a.plane.revoke.bind(a.plane)
+    let posted = false
     a.plane.revoke = (async (params: Parameters<typeof a.plane.revoke>[0]) => {
-      await a.post('posted during the drain')
+      if (!posted) {
+        posted = true
+        await a.post('posted during the drain')
+      }
       return originalRevoke(params)
     }) as typeof a.plane.revoke
 
     await a.holder.drain()
     await a.flush()
+
+    const { lease } = await a.plane.currentLease({ sessionId: SESSION })
+    expect(lease).toMatchObject({ holderHostId: null, wantsHolder: true })
 
     const answered = await flushUntil({
       check: async () =>
@@ -86,6 +93,6 @@ describe('SessionHolder drain of an idle session', () => {
       advanceMs: 5_000,
     })
     expect(answered).toBe(true)
-    expect(b.holder.heldIds().length).toBe(1)
+    expect(b.runtimes.length).toBe(1)
   }, 15_000)
 })

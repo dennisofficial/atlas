@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
 
-import { createSessionParams, makeHarness, T0, type Harness } from './support'
 import type { ConformanceParams } from './conformance'
+import { claimFixtureOf } from './conformance-claim-support'
+import { T0 } from './support'
 
 const SECOND = 1000
 
@@ -10,29 +11,17 @@ const after = (params: { from: string; ms: number }): string =>
 
 export function describeControlPlaneClaimNext(params: ConformanceParams): void {
   describe(`ControlPlane claimNext (${params.name})`, () => {
-    let harness: Harness
-    const releases: (() => Promise<void>)[] = []
+    const fixture = claimFixtureOf(params)
+    let harness: ReturnType<typeof fixture.harness>
 
     beforeEach(async () => {
-      await params.reset()
-      harness = makeHarness(params.makeStore())
+      await fixture.reset()
+      harness = fixture.harness()
     })
 
-    const present = async (): Promise<number> => {
-      const hostId = await params.nextHostId()
-      releases.push(await params.holdPresence(hostId))
-      return hostId
-    }
-
-    const releaseAll = async (): Promise<void> => {
-      for (const release of releases.splice(0)) await release()
-    }
-
-    const newSession = async (sessionId: string): Promise<void> => {
-      await harness.plane.createSession(
-        createSessionParams({ sessionId, mainThreadId: `${sessionId}-thread` }),
-      )
-    }
+    const present = (): Promise<number> => fixture.present()
+    const releaseAll = (): Promise<void> => fixture.releaseAll()
+    const newSession = (sessionId: string): Promise<void> => fixture.newSession(sessionId)
 
     it('createSession creates the lease row with the session', async () => {
       await newSession('born')
@@ -92,76 +81,39 @@ export function describeControlPlaneClaimNext(params: ConformanceParams): void {
       await releaseAll()
     })
 
-    it('skips a session until its retryAfter passes and counts each claim', async () => {
-      await newSession('retry')
-      const first = await params.nextHostId()
-      const releaseFirst = await params.holdPresence(first)
-      const [claimed] = (await harness.plane.claimNext({ hostId: first, limit: 1 })).leases
-      expect(claimed).toMatchObject({ attempts: 1, retryAfter: after({ from: T0, ms: SECOND }) })
-      await harness.plane.revoke({ sessionId: 'retry', wantsHolder: true })
-      const second = await present()
-      expect((await harness.plane.claimNext({ hostId: second, limit: 1 })).leases).toEqual([])
-      harness.setNow(after({ from: T0, ms: SECOND - 1 }))
-      expect((await harness.plane.claimNext({ hostId: second, limit: 1 })).leases).toEqual([])
-      const retryAt = after({ from: T0, ms: SECOND })
-      harness.setNow(retryAt)
-      const retried = (await harness.plane.claimNext({ hostId: second, limit: 1 })).leases
-      expect(retried).toMatchObject([
-        {
-          sessionId: 'retry',
-          epoch: 3,
-          holderHostId: second,
-          attempts: 2,
-          retryAfter: after({ from: retryAt, ms: 2 * SECOND }),
-        },
-      ])
-      await releaseFirst()
-      await releaseAll()
-    })
-
-    it('reports the earliest future retryAfter of a gated session and claims it once the clock passes', async () => {
-      await newSession('gated')
-      const first = await params.nextHostId()
-      const releaseFirst = await params.holdPresence(first)
-      await harness.plane.claimNext({ hostId: first, limit: 1 })
-      await harness.plane.revoke({ sessionId: 'gated', wantsHolder: true })
-      const second = await present()
-      const retryAt = after({ from: T0, ms: SECOND })
-      expect(await harness.plane.claimNext({ hostId: second, limit: 1 })).toEqual({
-        leases: [],
-        nextRetryAt: retryAt,
-      })
-      harness.setNow(retryAt)
-      const claimed = await harness.plane.claimNext({ hostId: second, limit: 1 })
-      expect(claimed.leases).toMatchObject([{ sessionId: 'gated', holderHostId: second }])
-      expect(claimed.nextRetryAt).toBeNull()
-      await releaseFirst()
-      await releaseAll()
-    })
-
-    it('reports no retry time when nothing needing a holder is gated', async () => {
-      await newSession('free')
-      const hostId = await present()
-      expect((await harness.plane.claimNext({ hostId, limit: 5 })).nextRetryAt).toBeNull()
-      expect(await harness.plane.claimNext({ hostId, limit: 5 })).toEqual({
-        leases: [],
-        nextRetryAt: null,
-      })
-      await releaseAll()
-    })
-
-    it('revoke keeps the retry state unless resetRetry is set', async () => {
-      await newSession('keep')
+    it('clearStartAttempts forgets failed starts without moving the lease', async () => {
+      await newSession('healthy')
       const hostId = await present()
       const [claimed] = (await harness.plane.claimNext({ hostId, limit: 1 })).leases
-      const kept = await harness.plane.revoke({
-        sessionId: 'keep',
-        wantsHolder: true,
+      const cleared = await harness.plane.clearStartAttempts({
+        sessionId: 'healthy',
         epoch: claimed?.epoch ?? -1,
       })
-      expect(kept).toMatchObject({
+      expect(cleared).toMatchObject({
         ok: true,
-        lease: { attempts: 1, retryAfter: after({ from: T0, ms: SECOND }) },
+        lease: { epoch: claimed?.epoch ?? -2, holderHostId: hostId, attempts: 0, retryAfter: null },
+      })
+      expect((await harness.plane.currentLease({ sessionId: 'healthy' })).lease).toMatchObject({
+        epoch: claimed?.epoch ?? -2,
+        holderHostId: hostId,
+        attempts: 0,
+        retryAfter: null,
+      })
+      await releaseAll()
+    })
+
+    it('clearStartAttempts changes nothing for a stale epoch', async () => {
+      await newSession('stale-clear')
+      const hostId = await present()
+      const [claimed] = (await harness.plane.claimNext({ hostId, limit: 1 })).leases
+      const stale = await harness.plane.clearStartAttempts({
+        sessionId: 'stale-clear',
+        epoch: (claimed?.epoch ?? 0) + 1,
+      })
+      expect(stale).toEqual({ ok: false, refusal: { kind: 'stale-epoch', current: 1 } })
+      expect((await harness.plane.currentLease({ sessionId: 'stale-clear' })).lease).toMatchObject({
+        attempts: 1,
+        holderHostId: hostId,
       })
       await releaseAll()
     })
@@ -188,22 +140,6 @@ export function describeControlPlaneClaimNext(params: ConformanceParams): void {
       await releaseAll()
     })
 
-    it('revoke with resetRetry clears attempts and retryAfter so the next claim is immediate', async () => {
-      await newSession('reset')
-      const hostId = await present()
-      const [claimed] = (await harness.plane.claimNext({ hostId, limit: 1 })).leases
-      const reset = await harness.plane.revoke({
-        sessionId: 'reset',
-        wantsHolder: true,
-        epoch: claimed?.epoch ?? -1,
-        resetRetry: true,
-      })
-      expect(reset).toMatchObject({ ok: true, lease: { attempts: 0, retryAfter: null } })
-      const again = (await harness.plane.claimNext({ hostId, limit: 1 })).leases
-      expect(again).toMatchObject([{ sessionId: 'reset', epoch: 3, attempts: 1 }])
-      await releaseAll()
-    })
-
     it('a stale-epoch revoke with resetRetry changes nothing', async () => {
       await newSession('stale')
       const hostId = await present()
@@ -219,19 +155,6 @@ export function describeControlPlaneClaimNext(params: ConformanceParams): void {
         attempts: 1,
         holderHostId: hostId,
       })
-      await releaseAll()
-    })
-
-    it('an unguarded revoke with resetRetry clears the retry state', async () => {
-      await newSession('unguarded')
-      const hostId = await present()
-      await harness.plane.claimNext({ hostId, limit: 1 })
-      const lease = await harness.plane.revoke({
-        sessionId: 'unguarded',
-        wantsHolder: false,
-        resetRetry: true,
-      })
-      expect(lease).toMatchObject({ attempts: 0, retryAfter: null, holderHostId: null })
       await releaseAll()
     })
 

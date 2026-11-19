@@ -9,12 +9,7 @@ import {
 } from '@dltech/atlas-core'
 import { PauseSignal, type LoopTurnRunner, type TurnOutcome } from '@dltech/atlas-agent'
 import { logFieldsOf } from '@dltech/atlas-observability'
-import type {
-  PodCrew,
-  SubagentSaid,
-  SubagentSnapshot,
-  SubagentWorktree,
-} from '@dltech/atlas-plugin-sdk'
+import type { PodCrew, SubagentSaid, SubagentSnapshot } from '@dltech/atlas-plugin-sdk'
 
 import type { RoleModelChoice } from '../ports'
 import type { LeaseLostError, SessionRecord } from '../record/record-adapter'
@@ -117,7 +112,11 @@ export class ChildRun {
     })
     if (record === undefined) return undefined
     run.record = record
-    await run.endSettledTurn()
+    if (args.settled === undefined) await run.endSettledTurn()
+    else {
+      run.ending = args.settled.status
+      run.endedAt = args.settled.endedAt
+    }
     return run
   }
 
@@ -184,14 +183,10 @@ export class ChildRun {
       status:
         this.ending ?? (this.pump === undefined ? EAgentStatus.Stopped : EAgentStatus.Running),
       endedAt: this.endedAt,
-      worktree: this.worktreeOf,
-    })
-  }
-
-  get worktreeOf(): SubagentWorktree | undefined {
-    return activeWorktreeSnapshotOf({
-      events: this.record.eventCache().loopEventsAfter(0),
-      spawned: this.args.worktree,
+      worktree: activeWorktreeSnapshotOf({
+        events: this.record.eventCache().loopEventsAfter(0),
+        spawned: this.args.worktree,
+      }),
     })
   }
 

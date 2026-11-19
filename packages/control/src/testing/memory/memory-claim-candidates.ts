@@ -1,5 +1,6 @@
 import { actionableInboxIds, type Lease } from '@dltech/atlas-core'
 
+import { wakesHolderOf } from '../../claim-ops'
 import { activeFailureOf, hasPrepareHistory, type State } from './memory-state'
 
 const needingHolderIn = (params: { state: State; presentHosts: ReadonlySet<number> }): Lease[] => {
@@ -13,7 +14,7 @@ const needingHolderIn = (params: { state: State; presentHosts: ReadonlySet<numbe
       if (lease?.wantsHolder === true) return true
       const events = state.events.get(row.mainThreadId) ?? []
       const unconsumed = (state.inbox.get(row.sessionId) ?? []).filter(
-        (entry) => entry.consumedSeq === null,
+        (entry) => entry.consumedSeq === null && wakesHolderOf(entry.kind),
       )
       const actionable = actionableInboxIds({
         entries: unconsumed,

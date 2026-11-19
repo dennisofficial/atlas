@@ -7,7 +7,7 @@ import type {
 } from '@dltech/atlas-plugin-sdk'
 
 import { ChildRun, type ChildRunArgs } from './child-run'
-import type { OpenChild } from './open-children'
+import { settledChildOf, type OpenChild } from './open-children'
 
 export type CrewRoomArgs = Omit<ChildRunArgs, 'agentType' | 'intent'>
 
@@ -54,8 +54,8 @@ export class CrewRoom {
     run.continueTurn()
   }
 
-  say(args: { agentId: string; text: string }): Promise<SubagentSaid> {
-    return this.find(args.agentId).say(args.text)
+  async say(args: { agentId: string; text: string }): Promise<SubagentSaid> {
+    return (await this.runOf(args.agentId)).say(args.text)
   }
 
   stop(args: { agentId: string }): SubagentSnapshot {
@@ -111,6 +111,35 @@ export class CrewRoom {
 
   disposeAll(): void {
     for (const run of this.runs.values()) run.dispose()
+  }
+
+  private async runOf(agentId: string): Promise<ChildRun> {
+    const live = this.runs.get(agentId as ThreadId)
+    if (live !== undefined) return live
+    return this.reopen(agentId as ThreadId)
+  }
+
+  private async reopen(agentId: ThreadId): Promise<ChildRun> {
+    const settled = settledChildOf({
+      events: await this.args.parentRecord.ownEvents({ threadId: this.args.parentThreadId }),
+      threadId: this.args.parentThreadId,
+      agentId,
+    })
+    const run =
+      settled === undefined
+        ? undefined
+        : await ChildRun.adopt({
+            ...this.args,
+            agentType: settled.agentType,
+            intent: settled.intent,
+            agentId,
+            spawnedAt: settled.spawnedAt,
+            settled: { status: settled.status, endedAt: settled.endedAt },
+            ...(settled.worktree === undefined ? {} : { worktree: settled.worktree }),
+          })
+    if (run === undefined) throw new Error(`no sub-agent ${agentId} in this session`)
+    this.runs.set(run.agentId, run)
+    return run
   }
 
   private async lose(child: OpenChild): Promise<void> {

@@ -142,8 +142,6 @@ export const makeHolder = (args: {
       launchDirectory: args.launchDirectory ?? E2E_WORKSPACE,
     }),
     ids: new RandomIds(),
-    maxSessions: 25,
-    idleMinutes: 30,
     ...(args.log === undefined ? {} : { log: args.log }),
   })
 }

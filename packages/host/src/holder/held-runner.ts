@@ -48,7 +48,6 @@ export const startHeldTurn = (args: {
   runner: LoopTurnRunner
   threadId: ThreadId
   resume: boolean
-  onActivity(): void
   refreshBranches(): void
   onFault(): void
   onSettled(): void
@@ -59,7 +58,6 @@ export const startHeldTurn = (args: {
       threadId: args.threadId,
       pause: args.pause,
       resume: args.resume,
-      onActivity: args.onActivity,
     })
     .then(() => {
       args.refreshBranches()
@@ -105,7 +103,13 @@ export const createBranchObserver = (args: {
     record: {
       append: ({ threadId: to, runId: id, body }) =>
         record.append({ threadId: to, runId: id, drafts: [body] }),
-      lastObservation: (repo) => book().lastObservation(repo),
+      lastObservation: (repo) => {
+        const last = record
+          .eventCache()
+          .eventsAfter(0)
+          .findLast((event) => event.type === 'branches-observed' && event.repo === repo)
+        return last?.type === 'branches-observed' ? last : undefined
+      },
       recordedBase: (repo) => {
         const fact = book().fact(`base:${repo}`)
         return fact.found && typeof fact.value === 'string' ? fact.value : undefined

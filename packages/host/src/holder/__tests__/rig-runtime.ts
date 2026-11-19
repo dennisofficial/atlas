@@ -106,6 +106,7 @@ export const makeRuntimeFactory = (args: {
   connectGate?: Promise<void> | undefined
   runtimeGate?: Promise<void> | undefined
   beforeRuntime?: (() => Promise<void>) | undefined
+  stopGate?: Promise<void> | undefined
   plugins?: ComposedPlugins | undefined
 }): ((params: {
   sessionId: string
@@ -175,6 +176,7 @@ export const makeRuntimeFactory = (args: {
       stopped: false,
       released: false,
       stop: async () => {
+        await args.stopGate
         runtime.stopped = true
         calls.close()
       },

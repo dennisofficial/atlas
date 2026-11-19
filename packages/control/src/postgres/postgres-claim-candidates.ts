@@ -1,6 +1,8 @@
 import type { Tx } from '@dltech/atlas-db'
 import { PG_PRESENCE_LOCK_NAMESPACE } from '@dltech/atlas-protocol'
 
+import { COMMAND_KIND_LIKE } from '../claim-ops'
+
 const needingHolderIn = (tx: Tx) =>
   tx.raw
     .sql`SELECT s."id" AS "id", s."createdAt" AS "createdAt", l."retryAfter" AS "retryAfter", l."epoch" AS "epoch"
@@ -15,6 +17,7 @@ const needingHolderIn = (tx: Tx) =>
           AND (l."holderHostId" IS NOT NULL OR l."wantsHolder"
             OR EXISTS (SELECT 1 FROM "v2"."V2InboxEntry" i
               WHERE i."sessionId" = s."id" AND i."consumedSeq" IS NULL
+                AND i."kind" NOT LIKE ${COMMAND_KIND_LIKE}
                 AND (i."kind" = 'stop' OR i."inboxId" > GREATEST(COALESCE((
                   SELECT (f."canonical"::jsonb ->> 'inboxHead')::int FROM "v2"."V2Event" f
                   WHERE f."threadId" = s."mainThreadId" AND f."type" = 'workspace-prepare-failed'

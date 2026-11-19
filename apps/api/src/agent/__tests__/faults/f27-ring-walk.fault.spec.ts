@@ -63,12 +63,12 @@ describe.skipIf(REDIS_URL === undefined)('F27 the ring walks over three consecut
           label,
           daemonUrl: daemonUrls[sessionId] ?? '',
           daemonUrls,
-          knobs: { maxSessions: 1 },
           scripts: stuck,
         }),
       )
       threads.push(await rig.newSession({ sessionId, text: 'a pending message' }))
       await rig.waitHeldBy({ sessionId, label, timeoutMs: 30_000 })
+      victims[victims.length - 1]?.pause()
     }
     hostA.resume()
     await waitUntil({

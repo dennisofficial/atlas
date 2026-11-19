@@ -23,7 +23,6 @@ no tiers of its own. A service holds only `DOTENV_PRIVATE_KEY_PRODUCTION_ENC`. A
 | `CLOUDFLARE_ACCOUNT_ID`              | yes      | —                                    |
 | `CLOUDFLARE_ZONE_ID`                 | yes      | —                                    |
 | `PREVIEW_DOMAIN`                     | no       | `byatlas.dev`                        |
-| `AGENT_HOST_MAX_SESSIONS`            | no       | 25                                   |
 | `AGENT_HOST_PUBLIC_URL`              | no       | `https://api.byatlas.io`             |
 | `ATLAS_SANDBOX_IMAGE`                | no       | `atlas-sandbox:latest`               |
 | `ATLAS_DAEMON_BUNDLE`                | no       | `apps/daemon/bin/daemon.js`          |

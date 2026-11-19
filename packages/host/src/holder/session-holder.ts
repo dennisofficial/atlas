@@ -31,9 +31,7 @@ export class SessionHolder {
   private readonly runtimes: SessionRuntimeFactory
   private readonly ids: IdPort
   private readonly podPeers: PodPeers | undefined
-  private readonly maxSessions: number
   private readonly appendRetryMs: number
-  private readonly idleMinutes: number
   private readonly isPermanentStartError: (error: unknown) => boolean
   private readonly reasonOfStartError: ((error: unknown) => string) | undefined
   private readonly commands: CommandRegistry | undefined
@@ -69,9 +67,7 @@ export class SessionHolder {
     this.runtimes = args.runtimes
     this.ids = args.ids
     this.podPeers = args.podPeers
-    this.maxSessions = args.maxSessions
     this.appendRetryMs = args.appendRetryMs ?? DEFAULTS.appendRetryMs
-    this.idleMinutes = args.idleMinutes ?? DEFAULTS.idleMinutes
     this.isPermanentStartError = args.isPermanentStartError ?? (() => false)
     this.reasonOfStartError = args.reasonOfStartError
     this.commands = args.commands
@@ -93,7 +89,6 @@ export class SessionHolder {
       tickMs: args.sweepMs ?? DEFAULTS.sweepMs,
       hostId: () => this.presence.current(),
       draining: () => this.draining,
-      freeSlots: () => this.maxSessions - this.held.size,
       claimNext: (claim) => this.plane.claimNext(claim),
       hold: (lease) => this.hold(lease),
       onTick: () => this.handleTick(),
@@ -127,7 +122,6 @@ export class SessionHolder {
         }),
       ),
     )
-    await Promise.all([...this.running])
   }
 
   private stopTriggers(): void {
@@ -258,7 +252,6 @@ export class SessionHolder {
       timers: this.timers,
       ids: this.ids,
       appendRetryMs: this.appendRetryMs,
-      idleMinutes: this.idleMinutes,
       runtimeFor: this.runtimes,
       judgeStartFailure: (error) =>
         startVerdict({

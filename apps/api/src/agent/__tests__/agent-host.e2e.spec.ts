@@ -182,8 +182,15 @@ describe('agent-host e2e', () => {
         `${error instanceof Error ? error.message : String(error)}\n${logA.dump('hostA')}\n${logB.dump('hostB')}\nlease: ${JSON.stringify(row)}\nevents: ${JSON.stringify(last)}`,
       )
     })
-    const leaseB = await plane.currentLease({ sessionId })
-    expect(leaseB.lease.holderHostId).toBe(presenceB.hostId())
+    let leaseB = await plane.currentLease({ sessionId })
+    for (let i = 0; i < 400 && leaseB.lease.holderHostId !== null; i += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      leaseB = await plane.currentLease({ sessionId })
+    }
+    expect(
+      leaseB.lease.holderHostId,
+      `${logB.dump('hostB')}\nlease: ${JSON.stringify(leaseB)}`,
+    ).toBeNull()
     expect(leaseB.lease.epoch).toBeGreaterThan(leaseA.epoch)
     const dispatches = events.filter((row) => row.type === 'tool-dispatched')
     const results = events.filter((row) => row.type === 'tool-result')

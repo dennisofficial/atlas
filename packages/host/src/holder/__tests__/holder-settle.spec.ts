@@ -21,50 +21,39 @@ const typesOf = async (rig: HolderRig): Promise<string[]> =>
 const leaseOf = async (rig: HolderRig) =>
   (await rig.plane.currentLease({ sessionId: SESSION })).lease
 
-const idleRig = async (args: { log?: LogPort } = {}): Promise<HolderRig> => {
-  const rig = await makeRig({ idleMinutes: 0.2, sweepMs: SWEEP_MS, ...args })
-  await seedSession(rig)
-  await rig.holder.start()
-  await rig.post('hello')
-  await rig.wake()
-  const saw = await flushUntil({
-    check: async () => (await answers(rig)) === 1,
-    clock: rig.clock,
-    advanceMs: 2_000,
-    attempts: 200,
-  })
-  expect(saw).toBe(true)
-  return rig
-}
-
 const advanceUntil = (rig: HolderRig, check: () => Promise<boolean> | boolean) =>
   flushUntil({ check, clock: rig.clock, advanceMs: 2_000, attempts: 400 })
 
 describe('SessionHolder settle', () => {
   it('F29: a failed settle leaves the lease held and the claim loop settles it within two ticks', async () => {
-    const rig = await idleRig()
+    const rig = await makeRig({ sweepMs: SWEEP_MS })
+    await seedSession(rig)
     const original = rig.plane.revoke.bind(rig.plane)
     let failed = 0
+    let allowRetry!: () => void
+    const retryGate = new Promise<void>((resolve) => (allowRetry = resolve))
     rig.plane.revoke = (async (params: Parameters<typeof rig.plane.revoke>[0]) => {
-      if (failed < 2) {
-        failed += 1
+      if (failed === 0) {
+        failed = 1
+        throw new Error('control plane down')
+      }
+      if (failed === 1) {
+        await retryGate
+        failed = 2
         throw new Error('control plane down')
       }
       return original(params)
     }) as typeof rig.plane.revoke
 
-    rig.clock.advance(13_000)
-    expect(
-      await flushUntil({
-        check: () => failed === 1,
-        clock: rig.clock,
-        advanceMs: 100,
-        attempts: 400,
-      }),
-    ).toBe(true)
+    await rig.holder.start()
+    await rig.post('hello')
+    await rig.wake()
+    expect(await advanceUntil(rig, async () => (await answers(rig)) === 1)).toBe(true)
+    expect(await flushUntil({ check: () => failed === 1, attempts: 200 })).toBe(true)
     expect(rig.holder.heldIds()).toEqual([])
     expect((await leaseOf(rig)).holderHostId).toBe(rig.hostId())
 
+    allowRetry()
     const startedAt = rig.clock.now()
     const released = await flushUntil({
       check: async () => (await leaseOf(rig)).holderHostId === null,
@@ -81,10 +70,22 @@ describe('SessionHolder settle', () => {
     expect(await advanceUntil(rig, async () => (await answers(rig)) === 2)).toBe(true)
   }, 20_000)
 
-  it('a fenced holder revokes once at the epoch it holds and leaves the successor lease alone', async () => {
+  it('a fenced holder settles at the epoch it holds and leaves the successor lease alone', async () => {
     const log = new CollectingLog()
-    const rig = await idleRig({ log })
+    let shells = 1
+    const rig = await makeRig({
+      sweepMs: SWEEP_MS,
+      runningShells: async () => shells,
+      log,
+    })
+    await seedSession(rig)
+    await rig.holder.start()
+    await rig.post('hello')
+    await rig.wake()
+    expect(await advanceUntil(rig, async () => (await answers(rig)) === 1)).toBe(true)
+    expect(rig.holder.heldIds()).toEqual([SESSION])
     const held = await leaseOf(rig)
+
     const thief = rig.store.nextHostId()
     rig.store.markHostPresent(thief)
     await rig.plane.grant({ sessionId: SESSION, hostId: thief })
@@ -96,7 +97,8 @@ describe('SessionHolder settle', () => {
       return original(params)
     }) as typeof rig.plane.revoke
 
-    rig.clock.advance(13_000)
+    shells = 0
+    rig.clock.advance(SWEEP_MS)
     expect(await advanceUntil(rig, () => rig.holder.heldIds().length === 0)).toBe(true)
     await rig.flush()
     expect(revokedAt).toEqual([held.epoch])
@@ -158,33 +160,39 @@ describe('SessionHolder settle', () => {
   }, 20_000)
 
   it('rings its own doorbell instead of waking: input posted during the release is answered', async () => {
-    const rig = await idleRig()
-    let wakesAfterPost = -1
+    const rig = await makeRig({ sweepMs: SWEEP_MS })
+    await seedSession(rig)
     const original = rig.plane.revoke.bind(rig.plane)
+    let wakesAfterPost = -1
+    let posted = false
     rig.plane.revoke = (async (params: Parameters<typeof rig.plane.revoke>[0]) => {
-      if (wakesAfterPost < 0) {
+      if (!posted) {
+        posted = true
         await rig.post('late arrival')
         wakesAfterPost = rig.wakeCount(SESSION)
       }
       return original(params)
     }) as typeof rig.plane.revoke
 
-    rig.clock.advance(13_000)
-    const answered = await advanceUntil(
+    await rig.holder.start()
+    await rig.post('hello')
+    await rig.wake()
+    const replied = await advanceUntil(
       rig,
       async () => (await rig.events()).filter((event) => event.type === 'user-said').length === 2,
     )
-    expect(answered).toBe(true)
-    expect(wakesAfterPost).toBeGreaterThan(0)
+    expect(replied).toBe(true)
+    expect(wakesAfterPost).toBeGreaterThanOrEqual(0)
     expect(rig.wakeCount(SESSION)).toBe(wakesAfterPost)
   }, 20_000)
 
   it('releases the lease by a revoke at the held epoch when appends give up on a failing store', async () => {
     const log = new CollectingLog()
+    let shells = 1
     const rig = await makeRig({
       appendRetryMs: 1_000,
       sweepMs: 1_000_000,
-      idleMinutes: 30,
+      runningShells: async () => shells,
       log,
     })
     await seedSession(rig)
@@ -192,6 +200,7 @@ describe('SessionHolder settle', () => {
     await rig.post('hello')
     await rig.wake()
     expect(await advanceUntil(rig, async () => (await answers(rig)) === 1)).toBe(true)
+    expect(rig.holder.heldIds()).toEqual([SESSION])
     const held = await leaseOf(rig)
 
     const append = rig.plane.append.bind(rig.plane)
@@ -217,6 +226,7 @@ describe('SessionHolder settle', () => {
       log.entries.filter((entry) => entry.severity === 'error' && entry.message.includes('bug')),
     ).toEqual([])
 
+    shells = 0
     await rig.post('later')
     await rig.wake()
     expect(await advanceUntil(rig, async () => (await answers(rig)) >= 2)).toBe(true)

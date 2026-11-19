@@ -27,6 +27,8 @@ export type { AppendBody }
 
 export const BLOB_SPILL_BYTES = 256 * 1024
 
+const STEP_EVENT_TYPES: ReadonlySet<string> = new Set(['assistant-said', 'tool-called'])
+
 export type SessionRecordArgs = {
   plane: ControlPlane
   threadId: ThreadId
@@ -38,6 +40,7 @@ export type SessionRecordArgs = {
   preloaded?: RecordCache | undefined
   appendRetryMs?: number | undefined
   onLeaseLost?: ((error: LeaseLostError) => void) | undefined
+  onStepAppended?: (() => void) | undefined
   log?: LogPort | undefined
   nowIso(): string
 }
@@ -48,6 +51,7 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
   private tail: Promise<void> = Promise.resolve()
   private draining = false
   private fenced = false
+  private stepped = false
 
   constructor(
     private readonly args: SessionRecordArgs,
@@ -192,7 +196,15 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
         const loop = toLoopEvent({ event: this.cache.resolvedEvent(event) })
         if (loop !== undefined) committed.push(loop)
       }
+      this.noteStep(committed)
     }
     return committed
+  }
+
+  private noteStep(committed: readonly Event[]): void {
+    if (this.stepped) return
+    if (!committed.some((event) => STEP_EVENT_TYPES.has(event.type))) return
+    this.stepped = true
+    this.args.onStepAppended?.()
   }
 }

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { composeCommands } from '@dltech/atlas-commands'
 import { ECompactionAnchor, EInputConsumed, type V2Event } from '@dltech/atlas-core'
 import { nativeCommandHandlers, nativeCommands } from '@dltech/atlas-native-commands'
+import { ScriptedModel } from '@dltech/atlas-agent/testing'
 
 import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID } from './holder-rig'
 
@@ -16,8 +17,9 @@ const typesOf = async (rig: Rig): Promise<string[]> =>
   (await eventsOf(rig)).map((event) => event.type)
 
 const rigWithConversation = async (summaryStep: { text: string }): Promise<Rig> => {
+  const model = new ScriptedModel([{ text: 'one' }, { text: 'two' }, summaryStep])
   const rig = await makeRig({
-    script: [{ text: 'one' }, { text: 'two' }, summaryStep],
+    model: () => model,
     commands: composeCommands(nativeCommands),
     commandHandlers: nativeCommandHandlers,
   })
@@ -95,9 +97,10 @@ describe('SessionHolder summarise command', () => {
     const rig = await rigWithConversation({ text: 'unused' })
     const first = (await eventsOf(rig)).find((event) => event.type === 'user-said')
     await postSummarise(rig, first?.seq ?? 0)
-    expect(
-      await flushUntil({ check: async () => (await typesOf(rig)).includes('input-refused') }),
-    ).toBe(true)
+    const got = await flushUntil({
+      check: async () => (await typesOf(rig)).includes('input-refused'),
+    })
+    expect(got).toBe(true)
     expect((await eventsOf(rig)).find((event) => event.type === 'input-refused')).toMatchObject({
       reason: 'That message cannot be summarised',
     })
