@@ -1,13 +1,15 @@
 import { z } from 'zod'
 import type { Db } from '@dltech/atlas-db'
-import { ESandboxProvider } from '@dltech/atlas-protocol'
+import { ECredentialSource, ESandboxProvider } from '@dltech/atlas-protocol'
 
 import type {
   AgentHostConfig,
   ConfigSource,
+  SandboxConfig,
   VercelConfig,
   WorkspaceConfig,
 } from './agent-host-config'
+import type { AgentHostEnv } from './env'
 import {
   modelSourceOf,
   type ActiveAccountRow,
@@ -16,6 +18,7 @@ import {
 } from './model-config'
 import type { SecretCipher } from './secret-cipher'
 import { skillIndexOf } from './skill-index'
+import { platformCredentialsOf } from './platform-credentials'
 import { VercelReconnectRequiredError } from '../tokens/vercel-token-refresher'
 
 const OAUTH_EXPIRY_MARGIN_MS = 60_000
@@ -25,6 +28,7 @@ type ModelChoiceRow = {
   modelEffort: string
   modelFast: boolean
   sandboxProvider: string
+  credentialSource: string
 }
 
 const sandboxProviderOf = (pinned: string | null | undefined): ESandboxProvider => {
@@ -77,6 +81,7 @@ export class ConfigReader implements ConfigSource {
       db: Db
       cipher: SecretCipher
       vercel: { refresh(args: { userId: string }): Promise<string> }
+      platform: Pick<AgentHostEnv, 'platformVercel' | 'agent37'>
       now?: (() => number) | undefined
     },
   ) {
@@ -88,9 +93,10 @@ export class ConfigReader implements ConfigSource {
     const session = await db.orm.v2.V2Session.first({ id: sessionId })
     if (session === null) throw new SessionNotFoundError(sessionId)
     const { userId, projectId } = session
-    const [project, vercel, accounts, activeAccounts, settings, skills] = await Promise.all([
+    const provider = sandboxProviderOf(session.sandboxProvider)
+    const [project, vercelRow, accounts, activeAccounts, settings, skills] = await Promise.all([
       this.projectOf(projectId),
-      db.orm.public.UserVercelCredential.first({ userId }),
+      this.credentialRowOf({ userId, credentialSource: session.credentialSource }),
       db.orm.public.AgentAccount.where({ userId }).all(),
       db.orm.public.ActiveAccount.where({ userId }).all(),
       this.settingsOf({ userId, projectId }),
@@ -100,12 +106,56 @@ export class ConfigReader implements ConfigSource {
     return {
       userId,
       projectId,
-      provider: sandboxProviderOf(session.sandboxProvider),
       model: models.main.config,
       models,
       workspace: workspaceOf(project),
-      vercel: await this.vercelOf({ userId, row: vercel }),
+      sandbox: await this.sandboxOf({
+        userId,
+        provider,
+        credentialSource: session.credentialSource,
+        row: vercelRow,
+      }),
       skills,
+    }
+  }
+
+  private async credentialRowOf(args: {
+    userId: string
+    credentialSource: string
+  }): Promise<VercelRow | null> {
+    if (args.credentialSource === ECredentialSource.Platform) return null
+    return await this.args.db.orm.public.UserVercelCredential.first({ userId: args.userId })
+  }
+
+  private async sandboxOf(args: {
+    userId: string
+    provider: ESandboxProvider
+    credentialSource: string
+    row: VercelRow | null
+  }): Promise<SandboxConfig> {
+    if (args.credentialSource === ECredentialSource.Platform) {
+      const credentials = platformCredentialsOf({
+        provider: args.provider,
+        env: this.args.platform,
+      })
+      if ('configured' in credentials) {
+        return { configured: false, provider: args.provider, gap: credentials.gap }
+      }
+      return { configured: true, provider: args.provider, credentials }
+    }
+    const vercel = await this.vercelOf({ userId: args.userId, row: args.row })
+    if (vercel.configured === false) {
+      return { configured: false, provider: ESandboxProvider.Vercel, gap: vercel.gap }
+    }
+    return {
+      configured: true,
+      provider: ESandboxProvider.Vercel,
+      credentials: {
+        provider: ESandboxProvider.Vercel,
+        token: vercel.token,
+        teamId: vercel.teamId,
+        projectId: vercel.projectId,
+      },
     }
   }
 

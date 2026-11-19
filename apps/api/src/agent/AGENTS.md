@@ -29,6 +29,14 @@ no tiers of its own. A service holds only `DOTENV_PRIVATE_KEY_PRODUCTION_ENC`. A
 | `ATLAS_DAEMON_BUNDLE`                | no       | `apps/daemon/bin/daemon.js`          |
 | `BLOB_READ_WRITE_TOKEN`              | no       | —                                    |
 | `VERCEL_OAUTH_CLIENT_ID` / `_SECRET` | no       | —                                    |
+| `PLATFORM_VERCEL_TOKEN`              | no       | —                                    |
+| `PLATFORM_VERCEL_TEAM_ID`            | no       | —                                    |
+| `PLATFORM_VERCEL_PROJECT_ID`         | no       | —                                    |
+| `AGENT37_API_KEY`                    | no       | —                                    |
+| `AGENT37_TEMPLATE_ID`                | no       | —                                    |
+| `AGENT37_CPU`                        | no       | 2                                    |
+| `AGENT37_MEMORY_GB`                  | no       | 4                                    |
+| `AGENT37_DISK_GB`                    | no       | 20                                   |
 | `PORT`                               | no       | 10000 (Render sets it)               |
 | `TRUSTED_ORIGINS`                    | no       | empty: any Origin; else a comma list |
 

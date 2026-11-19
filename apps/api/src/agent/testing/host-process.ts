@@ -104,8 +104,11 @@ const testSource = (): ConfigSource => ({
       projectId: 'proj-1',
       model,
       models: fakeModelSourceOf(model),
-      provider: ESandboxProvider.Vercel,
-      vercel: { configured: true, token: '', teamId: '', projectId: '' },
+      sandbox: {
+        configured: true,
+        provider: ESandboxProvider.Vercel,
+        credentials: { provider: ESandboxProvider.Vercel, token: '', teamId: '', projectId: '' },
+      },
       workspace: {
         remoteUrl: null,
         baseBranch: null,

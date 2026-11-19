@@ -91,6 +91,7 @@ const configProvider: Provider = {
       db,
       cipher,
       vercel: new VercelTokenRefresher({ db, cipher, oauth: env.vercelOauth }),
+      platform: { platformVercel: env.platformVercel, agent37: env.agent37 },
     }),
   inject: [AGENT_HOST_ENV, DB, CIPHER],
 }

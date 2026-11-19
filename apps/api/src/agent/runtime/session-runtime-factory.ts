@@ -5,7 +5,6 @@ import {
   type ModelPort,
 } from '@dltech/atlas-core'
 import { InMemoryToolRegistry } from '@dltech/atlas-agent'
-import { ESandboxProvider } from '@dltech/atlas-protocol'
 import { daemonToken } from '@dltech/atlas-protocol/engine'
 import {
   DaemonAgentFileSystemPort,
@@ -93,14 +92,13 @@ export const createSessionRuntimeFactory = (
     const config = await args.config.read({ sessionId })
     const launchDirectory =
       args.launchDirectory ?? workspaceDirectoryOf({ remoteUrl: config.workspace.remoteUrl })
-    const provider = args.sandbox.for(config.provider)
-    if (config.vercel.configured === false) {
-      throw new SandboxNotConfiguredError(config.vercel.gap)
+    const provider = args.sandbox.for(config.sandbox.provider)
+    if (config.sandbox.configured === false) {
+      throw new SandboxNotConfiguredError(config.sandbox.gap)
     }
-    const { token, teamId, projectId } = config.vercel
     const target: SandboxTarget = {
       sandboxSessionId,
-      credentials: { provider: ESandboxProvider.Vercel, token, teamId, projectId },
+      credentials: config.sandbox.credentials,
     }
     const sandboxName = sandboxNameOf(sandboxSessionId)
     const paths = sessionPathsOf({ sessionId, threadId })

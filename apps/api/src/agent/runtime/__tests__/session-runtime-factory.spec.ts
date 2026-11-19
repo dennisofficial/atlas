@@ -36,8 +36,16 @@ const configured = (over: Partial<AgentHostConfig> = {}): AgentHostConfig => ({
   projectId: 'proj-1',
   model: CONFIGURED_MODEL,
   models: fakeModelSourceOf(CONFIGURED_MODEL),
-  provider: ESandboxProvider.Vercel,
-  vercel: { configured: true, token: 'vt', teamId: 'team', projectId: 'proj' },
+  sandbox: {
+    configured: true,
+    provider: ESandboxProvider.Vercel,
+    credentials: {
+      provider: ESandboxProvider.Vercel,
+      token: 'vt',
+      teamId: 'team',
+      projectId: 'proj',
+    },
+  },
   workspace: { remoteUrl: null, baseBranch: null, additionalRepos: [], setupScript: '' },
   skills: [],
   ...over,
@@ -130,7 +138,15 @@ const makeFactory = (args: {
 describe('createSessionRuntimeFactory', () => {
   it('throws a typed error when vercel is not configured', async () => {
     const factory = makeFactory({
-      api: apiOf(configured({ vercel: { configured: false, gap: 'connect a vercel account' } })),
+      api: apiOf(
+        configured({
+          sandbox: {
+            configured: false,
+            provider: ESandboxProvider.Vercel,
+            gap: 'connect a vercel account',
+          },
+        }),
+      ),
       sandbox: new FakeSandbox(),
     })
     const promise = factory({
@@ -147,7 +163,15 @@ describe('createSessionRuntimeFactory', () => {
   it('fails loudly when the pinned provider has no registered adapter', async () => {
     const sandbox = new FakeSandbox()
     const factory = makeFactory({
-      api: apiOf(configured({ provider: ESandboxProvider.Agent37 })),
+      api: apiOf(
+        configured({
+          sandbox: {
+            configured: true,
+            provider: ESandboxProvider.Agent37,
+            credentials: { provider: ESandboxProvider.Agent37, apiKey: 'a37-key' },
+          },
+        }),
+      ),
       sandbox,
     })
     const promise = factory({

@@ -14,6 +14,8 @@ const agentEnv: AgentHostEnv = {
   cloudflare: { apiToken: 'cf-token', accountId: 'cf-account', zoneId: 'cf-zone' },
   previewDomain: 'byatlas.dev',
   vercelOauth: null,
+  platformVercel: null,
+  agent37: null,
   mediaBlobToken: null,
   maxSessions: 25,
   sandboxImage: 'atlas-sandbox:latest',

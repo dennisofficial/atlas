@@ -35,8 +35,16 @@ const config: AgentHostConfig = {
     accountId: 'acct-1',
     credential: { kind: 'api-key', apiKey: 'sk-test' },
   }),
-  provider: ESandboxProvider.Vercel,
-  vercel: { configured: true, token: 'vt', teamId: 'team', projectId: 'proj' },
+  sandbox: {
+    configured: true,
+    provider: ESandboxProvider.Vercel,
+    credentials: {
+      provider: ESandboxProvider.Vercel,
+      token: 'vt',
+      teamId: 'team',
+      projectId: 'proj',
+    },
+  },
   workspace: { remoteUrl: null, baseBranch: null, additionalRepos: [], setupScript: '' },
   skills: [],
 }
