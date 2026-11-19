@@ -19,7 +19,7 @@ import { NoSessionTitler } from '../../../_core/ports/session-titler'
 import { FakeMediaRegistry } from './media-registry.fake'
 import { SessionsService } from './sessions.service'
 import { PodSizingService } from './pod-sizing.service'
-import type { PodResizeOutcome } from '../../../agent'
+import { JobDispatcher, type JobDispatch } from '../../../_core/ports/job-dispatcher'
 import { ProjectAccess } from './project-access'
 import { modelSet } from './model-set'
 
@@ -107,20 +107,23 @@ export const logWithdrawn = async (args: {
   })
 }
 
-export class FakeSandboxResizer {
-  readonly resizes: { sandboxSessionId: string; vcpus: number }[] = []
-  outcome: PodResizeOutcome = 'restarted'
+export class FakePodResizeDispatcher {
+  readonly dispatches: { payload: unknown; idempotencyKey: string }[] = []
   failure: unknown = undefined
 
-  async resize(args: { sandboxSessionId: string; vcpus: number }): Promise<PodResizeOutcome> {
+  async dispatch(args: JobDispatch<never>): Promise<{ runId: string }> {
     if (this.failure !== undefined) throw this.failure
-    this.resizes.push(args)
-    return this.outcome
+    this.dispatches.push({ payload: args.payload, idempotencyKey: args.idempotencyKey })
+    return { runId: 'run_stub' }
   }
 }
 
 export const setupSessionsService = (
-  over: { env?: Record<string, string>; planGate?: PodPlanGate; resizer?: FakeSandboxResizer } = {},
+  over: {
+    env?: Record<string, string>
+    planGate?: PodPlanGate
+    dispatcher?: FakePodResizeDispatcher
+  } = {},
 ) => {
   const store = new InMemoryControlStore({ clock: () => NOW })
   store.markHostPresent(9001)
@@ -129,8 +132,8 @@ export const setupSessionsService = (
   const mediaStore = new FakeMediaStore()
   const projects = new RecordingProjectAccess()
   const planGate: PodPlanGate = over.planGate ?? { assertWithinPlan: async () => undefined }
-  const resizer = over.resizer ?? new FakeSandboxResizer()
-  const podSizing = new PodSizingService(plane, planGate, resizer)
+  const dispatcher = over.dispatcher ?? new FakePodResizeDispatcher()
+  const podSizing = new PodSizingService(plane, dispatcher as unknown as JobDispatcher, planGate)
   const service = new SessionsService(
     plane,
     projects,
@@ -142,5 +145,5 @@ export const setupSessionsService = (
     new EnvService({ SANDBOX_PROVIDER_DEFAULT: 'vercel', ...over.env }),
     podSizing,
   )
-  return { plane, service, registry, mediaStore, store, projects, resizer }
+  return { plane, service, registry, mediaStore, store, projects, dispatcher }
 }

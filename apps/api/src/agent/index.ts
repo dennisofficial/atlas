@@ -8,14 +8,12 @@ export type { AgentHostConfig, ConfigSource } from './config/agent-host-config'
 export { AgentHostEnvError, readAgentHostEnv, type AgentHostEnv } from './config/env'
 export { daemonPaths, launchDaemon, type DaemonBundle } from './sandbox/daemon-launch'
 export {
-  PodSizer,
   SandboxProvider,
   type DaemonEndpoint,
   type PodResizeOutcome,
   type SandboxCredentials,
   type SandboxTarget,
 } from './sandbox/sandbox-provider'
-export { VercelPodSizer } from './sandbox/vercel-pod-sizer'
 export {
   sandboxRegistryOf,
   SandboxProviderUnavailableError,
@@ -29,11 +27,10 @@ export {
   MCP_OAUTH_BEGIN,
   OPERATOR_ANSWERS,
   POD_OPS,
-  SANDBOX_RESIZER,
   SESSION_STREAM,
   TERMINAL_DEMAND,
 } from './host/tokens'
-export { sandboxResizerOf, type SandboxResizer } from './sandbox/sandbox-resizer'
+export { podResizerOf, type SandboxResizer } from './sandbox/sandbox-resizer'
 export { HOLDER_WAIT_MS, podOpsOf, type PodOps } from './host/pod-ops'
 export type { TerminalDemand } from '@dltech/atlas-host'
 export {

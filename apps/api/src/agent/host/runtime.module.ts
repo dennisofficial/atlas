@@ -1,7 +1,6 @@
 import { hostname } from 'node:os'
 
 import { Module, type Provider } from '@nestjs/common'
-import { ESandboxProvider } from '@dltech/atlas-protocol'
 import { ChangeContentStore, ControlPlane } from '@dltech/atlas-control'
 import type { Db } from '@dltech/atlas-db'
 import type { HostPresence, PodControlClient } from '@dltech/atlas-host'
@@ -10,24 +9,19 @@ import { CloudflareTunnelClient, PreviewTunnels } from '@dltech/atlas-previews'
 
 import { changeContentStoreProvider } from '../../_lib/changes/change-content.provider'
 import type { ConfigSource } from '../config/agent-host-config'
-import { ConfigReader } from '../config/config-reader'
+import { configSourceOf } from '../config/config-source'
 import { databaseUrlWithTls } from '../config/database-url'
 import type { AgentHostEnv } from '../config/env'
 import type { SecretCipher } from '../config/secret-cipher'
 import { localPodControlOf } from '../control/local-pod-control'
 import { ControlModule } from './control.module'
 import { createPgHostPresence } from '../presence/pg-host-presence'
-import { DAEMON_BUNDLE_ROUTE } from '../http/daemon-bundle'
-import { sandboxRegistryOf, type SandboxProviderRegistry } from '../sandbox/provider-registry'
-import type { SandboxProvider } from '../sandbox/sandbox-provider'
-import { VercelSandboxProvider } from '../sandbox/vercel-sandbox-provider'
-import { agent37InstanceIdsOf } from '../sandbox/agent37/agent37-instance-store'
-import { Agent37SandboxProvider } from '../sandbox/agent37/agent37-sandbox-provider'
+import type { SandboxProviderRegistry } from '../sandbox/provider-registry'
+import { sandboxProvidersOf } from '../sandbox/sandbox-providers'
 import { GithubTokenReader } from '../tokens/github-token-reader'
 import { ModelTokenService } from '../tokens/model-token-service'
 import { OauthConnectionStore } from '../tokens/oauth-connection-store'
 import { SigningKeyReader } from '../tokens/signing-key-reader'
-import { VercelTokenRefresher } from '../tokens/vercel-token-refresher'
 import { MediaSignerSource } from './media-signer-source'
 import {
   AGENT_HOST_ENV,
@@ -46,41 +40,10 @@ import {
   SIGNING_KEYS,
 } from './tokens'
 
-const sandboxLog = (line: string): void => {
-  console.log(JSON.stringify({ level: 'info', source: 'sandbox', message: line }))
-}
-
 const sandboxProvider: Provider = {
   provide: SANDBOX,
-  useFactory: (env: AgentHostEnv, db: Db): SandboxProviderRegistry => {
-    const adapters = new Map<ESandboxProvider, SandboxProvider>([
-      [
-        ESandboxProvider.Vercel,
-        new VercelSandboxProvider({
-          image: env.sandboxImage,
-          daemonBundle: { path: env.daemonBundlePath },
-          daemonSecret: env.daemonSecret,
-          cloudUrl: env.apiOrigin,
-          log: sandboxLog,
-        }),
-      ],
-    ])
-    const agent37 = env.agent37
-    if (agent37 !== null) {
-      adapters.set(
-        ESandboxProvider.Agent37,
-        new Agent37SandboxProvider({
-          env: agent37,
-          daemonBundle: { path: env.daemonBundlePath },
-          daemonBundleUrl: `${env.publicUrl.replace(/\/$/, '')}/${DAEMON_BUNDLE_ROUTE}`,
-          daemonSecret: env.daemonSecret,
-          instances: agent37InstanceIdsOf(db),
-          log: sandboxLog,
-        }),
-      )
-    }
-    return sandboxRegistryOf(adapters)
-  },
+  useFactory: (env: AgentHostEnv, db: Db): SandboxProviderRegistry =>
+    sandboxProvidersOf({ env, db }),
   inject: [AGENT_HOST_ENV, DB],
 }
 
@@ -114,12 +77,7 @@ const podControlProvider: Provider = {
 const configProvider: Provider = {
   provide: CONFIG_SOURCE,
   useFactory: (env: AgentHostEnv, db: Db, cipher: SecretCipher): ConfigSource =>
-    new ConfigReader({
-      db,
-      cipher,
-      vercel: new VercelTokenRefresher({ db, cipher, oauth: env.vercelOauth }),
-      platform: { platformVercel: env.platformVercel, agent37: env.agent37 },
-    }),
+    configSourceOf({ env, db, cipher }),
   inject: [AGENT_HOST_ENV, DB, CIPHER],
 }
 

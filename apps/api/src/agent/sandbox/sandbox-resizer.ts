@@ -1,7 +1,12 @@
+import type { Db } from '@dltech/atlas-db'
+
 import type { ConfigSource } from '../config/agent-host-config'
+import { configSourceOf, type ConfigSourceEnv } from '../config/config-source'
+import type { SecretCipher } from '../config/secret-cipher'
 import { SandboxNotConfiguredError } from '../runtime/sandbox-not-configured-error'
 import type { SandboxProviderRegistry } from './provider-registry'
 import type { PodResizeOutcome } from './sandbox-provider'
+import { sandboxProvidersOf, type SandboxProvidersEnv } from './sandbox-providers'
 
 export type SandboxResizer = {
   resize(args: { sandboxSessionId: string; vcpus: number }): Promise<PodResizeOutcome>
@@ -22,3 +27,15 @@ export const sandboxResizerOf = (args: {
     })
   },
 })
+
+export type PodResizerEnv = ConfigSourceEnv & SandboxProvidersEnv
+
+export const podResizerOf = (args: {
+  env: PodResizerEnv
+  db: Db
+  cipher: SecretCipher
+}): SandboxResizer =>
+  sandboxResizerOf({
+    config: configSourceOf(args),
+    sandbox: sandboxProvidersOf(args),
+  })

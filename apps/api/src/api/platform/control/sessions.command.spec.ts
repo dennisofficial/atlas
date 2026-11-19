@@ -98,28 +98,32 @@ describe('SessionsService command', () => {
 
     await expect(refused).rejects.toBeInstanceOf(BadRequestException)
     expect(seen).toEqual([{ userId: 'user-a', vcpus: 16 }])
-    expect(context.resizer.resizes).toEqual([])
+    expect(context.dispatcher.dispatches).toEqual([])
     expect(await inboxOf({ plane: context.plane, sessionId: created.sessionId })).toEqual([])
   })
 
-  it('records the desired size and resizes through the pinned provider', async () => {
-    const { service, plane, resizer, sessionId } = await seed()
+  it('records the desired size on the session pod and dispatches the apply', async () => {
+    const { service, plane, dispatcher, sessionId } = await seed()
 
     expect(
       await service.command({ userId: 'user-a', sessionId, name: 'resize', args: { vcpus: 4 } }),
     ).toEqual({})
-    expect(resizer.resizes).toEqual([{ sandboxSessionId: sessionId, vcpus: 4 }])
-    expect(await inboxOf({ plane, sessionId })).toEqual([])
 
     const row = await plane.readSession({ sessionId })
     expect(row?.podDesiredVcpus).toBe(4)
     expect(row?.podSizeGeneration).toBe(1)
+    expect(dispatcher.dispatches).toEqual([
+      {
+        payload: { sessionId, generation: 1, vcpus: 4 },
+        idempotencyKey: `pod-resize:${sessionId}:1`,
+      },
+    ])
     const view = await plane.readSessionView({ sessionId, threadId: row?.mainThreadId ?? '' })
     expect(view.value.status.pod).toEqual({ desiredVcpus: 4, phase: 'resizing' })
   })
 
   it('bumps the generation for each resize so a newer one supersedes the last', async () => {
-    const { service, plane, resizer, sessionId } = await seed()
+    const { service, plane, dispatcher, sessionId } = await seed()
 
     await service.command({ userId: 'user-a', sessionId, name: 'resize', args: { vcpus: 4 } })
     await service.command({ userId: 'user-a', sessionId, name: 'resize', args: { vcpus: 8 } })
@@ -127,14 +131,14 @@ describe('SessionsService command', () => {
     const row = await plane.readSession({ sessionId })
     expect(row?.podSizeGeneration).toBe(2)
     expect(row?.podDesiredVcpus).toBe(8)
-    expect(resizer.resizes).toEqual([
-      { sandboxSessionId: sessionId, vcpus: 4 },
-      { sandboxSessionId: sessionId, vcpus: 8 },
+    expect(dispatcher.dispatches.map((entry) => entry.idempotencyKey)).toEqual([
+      `pod-resize:${sessionId}:1`,
+      `pod-resize:${sessionId}:2`,
     ])
   })
 
   it('records the shared parent pod desired size for a sub-agent session', async () => {
-    const { service, plane, resizer, store, sessionId } = await seed()
+    const { service, plane, dispatcher, store, sessionId } = await seed()
     const childId = await childOf({ store, parentId: sessionId })
 
     await service.command({
@@ -144,30 +148,11 @@ describe('SessionsService command', () => {
       args: { vcpus: 8 },
     })
 
-    expect(resizer.resizes).toEqual([{ sandboxSessionId: sessionId, vcpus: 8 }])
     expect((await plane.readSession({ sessionId }))?.podDesiredVcpus).toBe(8)
     expect((await plane.readSession({ sessionId: childId }))?.podDesiredVcpus).toBeNull()
-  })
-
-  it('answers 404 when the pod is gone and posts nothing', async () => {
-    const context = setup()
-    const created = await context.service.create({ userId: 'user-a', projectId: 'proj-a' })
-    context.resizer.failure = new NotFoundException(
-      `sandbox atlas-v2-${created.sessionId} not found`,
-    )
-
-    const refused = context.service.command({
-      userId: 'user-a',
-      sessionId: created.sessionId,
-      name: 'resize',
-      args: { vcpus: 4 },
-    })
-
-    await expect(refused).rejects.toBeInstanceOf(NotFoundException)
-    expect(
-      (await context.plane.readSession({ sessionId: created.sessionId }))?.podResizeError,
-    ).toBe(`sandbox atlas-v2-${created.sessionId} not found`)
-    expect(await inboxOf({ plane: context.plane, sessionId: created.sessionId })).toEqual([])
+    expect(dispatcher.dispatches.map((entry) => entry.payload)).toEqual([
+      { sessionId, generation: 1, vcpus: 8 },
+    ])
   })
 
   it('refuses a session the caller does not own and posts nothing', async () => {
