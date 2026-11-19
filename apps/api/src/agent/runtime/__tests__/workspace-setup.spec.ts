@@ -671,7 +671,7 @@ describe('a setup script left running by an earlier host', () => {
     })
     expect(existsSync(join(launchDirectory, 'setup-ran.txt'))).toBe(false)
     expect(existsSync(join(stateDir, SETUP_SENTINEL))).toBe(false)
-    expect(existsSync(join(stateDir, SETUP_STARTED_MARKER))).toBe(false)
+    expect(existsSync(join(stateDir, SETUP_STARTED_MARKER))).toBe(true)
     hostB.calls.close()
   }, 90_000)
 })

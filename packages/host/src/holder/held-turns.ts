@@ -28,7 +28,6 @@ export class HeldTurns {
     threadId: ThreadId
     pause: PauseSignal
     resume: boolean
-    onActivity(): void
   }): Promise<void> {
     this.turnAbort = new AbortController()
     this.turnRunning = true
@@ -44,11 +43,10 @@ export class HeldTurns {
             signal: this.turnAbort.signal,
             pause: args.pause,
           })
-      if (TURN_EXITED.has(outcome.status as ETurnStatus)) args.onActivity()
+      if (TURN_EXITED.has(outcome.status as ETurnStatus)) this.onTurnEnd?.()
     } finally {
       this.turnRunning = false
       this.turnAbort = undefined
-      args.onActivity()
       this.onTurnEnd?.()
     }
   }

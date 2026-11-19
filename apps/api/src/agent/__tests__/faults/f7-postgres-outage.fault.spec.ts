@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 
 import { startRig, type FaultRig, type HostProcess, type ReadEvent } from '../../testing/fault-rig'
-import { callIdOf, isDoneResult, makeFifo, waitForFile } from './fault-support'
+import { callIdOf, expectLeaseSettled, isDoneResult, makeFifo, waitForFile } from './fault-support'
 
 const APPEND_RETRY_MS = 2_500
 
@@ -187,8 +187,8 @@ describe.skipIf(REDIS_URL === undefined)(
       expect(runs).toEqual(['run'])
 
       const finalLease = await rig.plane.currentLease({ sessionId: 'fault-f7-1' })
-      expect(finalLease.lease.holderHostId).not.toBeNull()
       expect(finalLease.lease.epoch).toBeGreaterThan(scenario.epochA)
+      await expectLeaseSettled({ rig, sessionId: 'fault-f7-1' })
 
       const epochs = scenario.events.map((row) => (row.event as { epoch?: number }).epoch ?? 0)
       expect(Math.max(...epochs)).toBeLessThanOrEqual(finalLease.lease.epoch)

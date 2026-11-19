@@ -142,8 +142,6 @@ describe('branches-observed e2e', () => {
       }),
       log,
       ids: new RandomIds(),
-      maxSessions: 25,
-      idleMinutes: 30,
     })
     holders.push(holder)
     await holder.start()

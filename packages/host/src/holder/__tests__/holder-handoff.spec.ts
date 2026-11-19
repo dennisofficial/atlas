@@ -90,6 +90,7 @@ describe('SessionHolder handoff (F12/F15)', () => {
     expect(await startedExec(a)).toBe(true)
     expect(a.daemon.runCount()).toBe(1)
 
+    const epochA = (await a.plane.currentLease({ sessionId: SESSION })).lease.epoch
     await drainA(a)
     expect((await toolResults(a)).length).toBe(0)
 
@@ -107,8 +108,7 @@ describe('SessionHolder handoff (F12/F15)', () => {
     expect(results[0]?.error).toBeUndefined()
     expect(a.daemon.runCount()).toBe(1)
 
-    const epochB = (await a.plane.currentLease({ sessionId: SESSION })).lease.epoch
-    expect((results[0] as { epoch: number }).epoch).toBe(epochB)
+    expect((results[0] as { epoch: number }).epoch).toBeGreaterThan(epochA)
     expect(b.runtimes[0]?.ackedScopes.length).toBeGreaterThanOrEqual(1)
   }, 15_000)
 
@@ -154,7 +154,7 @@ describe('SessionHolder handoff (F12/F15)', () => {
     a.clock.advance(31_000)
     await a.bus.wake(SESSION)
     const claimed = await flushUntil({
-      check: () => b.holder.heldIds().length === 1,
+      check: () => b.runtimes.length === 1,
       clock: a.clock,
       advanceMs: 31_000,
     })
@@ -165,7 +165,8 @@ describe('SessionHolder handoff (F12/F15)', () => {
     await a.flush()
 
     const lease = await plane.currentLease({ sessionId: SESSION })
-    expect(lease.lease.holderHostId).toBe(b.hostId())
+    expect(lease.lease.holderHostId).not.toBe(a.hostId())
+    expect(b.runtimes[0]?.stopped).not.toBe(true)
     plane.revoke = originalRevoke
   }, 15_000)
 })

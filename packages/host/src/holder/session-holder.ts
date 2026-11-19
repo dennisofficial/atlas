@@ -14,6 +14,7 @@ import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 import type { HostBus, HostTimers, PodPeers, SessionRuntimeFactory } from './ports'
 import type { PodControlClient } from './pod-control'
 import { ClaimLoop } from './claim-loop'
+import { HolderDemand } from './holder-demand'
 import { PodCalls } from './pod-calls'
 import type { CommandHandlers } from './command-intake'
 import { HeldSession, type HeldSessionDeps } from './held-session'
@@ -31,9 +32,7 @@ export class SessionHolder {
   private readonly runtimes: SessionRuntimeFactory
   private readonly ids: IdPort
   private readonly podPeers: PodPeers | undefined
-  private readonly maxSessions: number
   private readonly appendRetryMs: number
-  private readonly idleMinutes: number
   private readonly isPermanentStartError: (error: unknown) => boolean
   private readonly reasonOfStartError: ((error: unknown) => string) | undefined
   private readonly commands: CommandRegistry | undefined
@@ -45,6 +44,7 @@ export class SessionHolder {
   private readonly log: LogPort | undefined
 
   private readonly held = new Map<string, HeldSession>()
+  private readonly demand: HolderDemand
   private readonly retryAt = new Map<string, string | null>()
   private lostRetries: (string | null)[] = []
   private unsubWake: (() => void) | undefined
@@ -66,12 +66,19 @@ export class SessionHolder {
     this.plane = args.plane
     this.bus = args.bus
     this.timers = args.timers
+    this.demand = new HolderDemand({
+      plane: args.plane,
+      timers: args.timers,
+      holds: (sessionId) => this.held.has(sessionId),
+      draining: () => this.draining,
+      onReconcile: (sessionId) => this.onWake(sessionId),
+      terminal: args.terminalDemand,
+      log: args.log,
+    })
     this.runtimes = args.runtimes
     this.ids = args.ids
     this.podPeers = args.podPeers
-    this.maxSessions = args.maxSessions
     this.appendRetryMs = args.appendRetryMs ?? DEFAULTS.appendRetryMs
-    this.idleMinutes = args.idleMinutes ?? DEFAULTS.idleMinutes
     this.isPermanentStartError = args.isPermanentStartError ?? (() => false)
     this.reasonOfStartError = args.reasonOfStartError
     this.commands = args.commands
@@ -93,7 +100,6 @@ export class SessionHolder {
       tickMs: args.sweepMs ?? DEFAULTS.sweepMs,
       hostId: () => this.presence.current(),
       draining: () => this.draining,
-      freeSlots: () => this.maxSessions - this.held.size,
       claimNext: (claim) => this.plane.claimNext(claim),
       hold: (lease) => this.hold(lease),
       onTick: () => this.handleTick(),
@@ -127,7 +133,6 @@ export class SessionHolder {
         }),
       ),
     )
-    await Promise.all([...this.running])
   }
 
   private stopTriggers(): void {
@@ -151,6 +156,10 @@ export class SessionHolder {
 
   podCalls(): PodCalls {
     return new PodCalls({ held: (sessionId) => this.held.get(sessionId)?.runtimeOf() })
+  }
+
+  demandOf(): HolderDemand {
+    return this.demand
   }
 
   discard(): void {
@@ -225,6 +234,7 @@ export class SessionHolder {
       this.deps({ lease, podSessionId: row.podSessionId ?? row.sessionId }),
     )
     this.held.set(lease.sessionId, session)
+    this.demand.notifyHeld(lease.sessionId)
     this.retryAt.set(lease.sessionId, lease.retryAfter)
     const finished = this.runAndSettle({
       session,
@@ -258,7 +268,6 @@ export class SessionHolder {
       timers: this.timers,
       ids: this.ids,
       appendRetryMs: this.appendRetryMs,
-      idleMinutes: this.idleMinutes,
       runtimeFor: this.runtimes,
       judgeStartFailure: (error) =>
         startVerdict({

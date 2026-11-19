@@ -37,15 +37,31 @@ export type ReadEvent = { seq: number; type: string; event: unknown }
 export type HostKnobs = {
   appendRetryMs?: number
   pingMs?: number
-  maxSessions?: number
   poolMax?: number
   noRing?: boolean
   queryTimeoutMs?: number
   toolOutputFile?: string
-  idleMs?: number
   sweepMs?: number
   fault?: EHostFault
 }
+
+/**
+ * A host holds a session only while it has work, so it can claim, finish and release a session
+ * between two polls of the lease. The host's own take-over log is the durable proof that it held
+ * it, and keeps the wait meaningful where a lease read would have missed the hold entirely. A
+ * command-only hold never reaches a first step, so replaying a consumed command after a take-over
+ * counts as the same proof once that session's epoch has moved.
+ */
+const takeOversOf = (args: { host: HostProcess | undefined; sessionId: string }): number =>
+  args.host === undefined
+    ? 0
+    : args.host
+        .logs()
+        .filter((line) => line.includes(`take-over of ${args.sessionId} reached its first step`))
+        .length
+
+const replaysAfterTakeOverOf = (host: HostProcess | undefined): number =>
+  host === undefined ? 0 : host.logs().filter((line) => line.includes('after takeover')).length
 
 export type FaultRig = {
   plane: ControlPlane
@@ -92,6 +108,7 @@ export const startRig = async (args: {
   const store = new PostgresControlStore(createDb(pool))
   const plane = new ControlPlane({ store })
   const closers: (() => Promise<void>)[] = []
+  const hostsByLabel = new Map<string, HostProcess>()
   const labelOf = async (hostId: number | null): Promise<string | undefined> => {
     if (hostId === null) return undefined
     const result = await pool.query<{ label: string }>(
@@ -99,6 +116,32 @@ export const startRig = async (args: {
       [hostId],
     )
     return result.rows[0]?.label
+  }
+
+  const waitClaimedBy = async (args: {
+    sessionId: string
+    label: string
+    timeoutMs: number
+    wake: boolean
+  }): Promise<void> => {
+    const host = hostsByLabel.get(args.label)
+    const seen = takeOversOf({ host, sessionId: args.sessionId })
+    const seenReplays = replaysAfterTakeOverOf(host)
+    const epochAtStart = (await plane.currentLease({ sessionId: args.sessionId })).lease.epoch
+    const deadline = Date.now() + args.timeoutMs
+    for (;;) {
+      if (args.wake) await plane.wake({ sessionIds: [args.sessionId] }).catch(() => undefined)
+      const current = await plane.currentLease({ sessionId: args.sessionId })
+      if (current.live && (await labelOf(current.lease.holderHostId)) === args.label) return
+      if (takeOversOf({ host, sessionId: args.sessionId }) > seen) return
+      if (current.lease.epoch > epochAtStart && replaysAfterTakeOverOf(host) > seenReplays) return
+      if (Date.now() > deadline) {
+        throw new Error(
+          `timed out waiting for ${args.label} to take over ${args.sessionId}: ${JSON.stringify(current)}\n${args.label} logs:\n${host?.logs().join('\n') ?? 'the rig never spawned that host'}`,
+        )
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250))
+    }
   }
 
   return {
@@ -114,33 +157,12 @@ export const startRig = async (args: {
       await plane.wake({ sessionIds: [sessionId] })
     },
 
-    async claim({ sessionId, label, timeoutMs }) {
-      const deadline = Date.now() + (timeoutMs ?? 15_000)
-      for (;;) {
-        await plane.wake({ sessionIds: [sessionId] }).catch(() => undefined)
-        const current = await plane.currentLease({ sessionId })
-        if (current.live && (await labelOf(current.lease.holderHostId)) === label) return
-        if (Date.now() > deadline) {
-          throw new Error(
-            `timed out waiting for ${label} to hold ${sessionId}: ${JSON.stringify(current)}`,
-          )
-        }
-        await new Promise((resolve) => setTimeout(resolve, 500))
-      }
+    claim({ sessionId, label, timeoutMs }) {
+      return waitClaimedBy({ sessionId, label, timeoutMs: timeoutMs ?? 15_000, wake: true })
     },
 
-    async waitHeldBy({ sessionId, label, timeoutMs }) {
-      const deadline = Date.now() + (timeoutMs ?? 15_000)
-      for (;;) {
-        const current = await plane.currentLease({ sessionId })
-        if (current.live && (await labelOf(current.lease.holderHostId)) === label) return
-        if (Date.now() > deadline) {
-          throw new Error(
-            `timed out waiting for ${label} to hold ${sessionId}: ${JSON.stringify(current)}`,
-          )
-        }
-        await new Promise((resolve) => setTimeout(resolve, 100))
-      }
+    waitHeldBy({ sessionId, label, timeoutMs }) {
+      return waitClaimedBy({ sessionId, label, timeoutMs: timeoutMs ?? 15_000, wake: false })
     },
 
     async waitForSeq({ threadId, want, timeoutMs }) {
@@ -240,7 +262,7 @@ export const startRig = async (args: {
         child.kill('SIGKILL')
         await child.exited.catch(() => undefined)
       })
-      return {
+      const host: HostProcess = {
         label,
         ...(ownProxy === undefined ? {} : { dbProxy: ownProxy }),
         ...(ownDaemon === undefined ? {} : { daemonProxy: ownDaemon.proxy }),
@@ -256,6 +278,8 @@ export const startRig = async (args: {
         exited: child.exited,
         logs: () => [...lines],
       }
+      hostsByLabel.set(label, host)
+      return host
     },
 
     async stop() {

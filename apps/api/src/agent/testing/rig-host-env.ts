@@ -37,12 +37,10 @@ export const hostEnv = (args: {
     ...(args.daemonUrlFile === undefined ? {} : { DAEMON_URL_FILE: args.daemonUrlFile }),
     ...(knobs?.noRing === true ? { NO_RING: '1' } : {}),
     ...(knobs?.poolMax === undefined ? {} : { DATABASE_POOL_MAX: String(knobs.poolMax) }),
-    ...(knobs?.maxSessions === undefined ? {} : { MAX_SESSIONS: String(knobs.maxSessions) }),
     ...(knobs?.queryTimeoutMs === undefined
       ? {}
       : { DB_QUERY_TIMEOUT_MS: String(knobs.queryTimeoutMs) }),
     ...(knobs?.toolOutputFile === undefined ? {} : { TOOL_OUTPUT_FILE: knobs.toolOutputFile }),
-    ...(knobs?.idleMs === undefined ? {} : { IDLE_MINUTES: String(knobs.idleMs / 60_000) }),
     ...(knobs?.sweepMs === undefined ? {} : { SWEEP_MS: String(knobs.sweepMs) }),
     ...(knobs?.fault === undefined ? {} : { FAULT: knobs.fault }),
     ...(args.firstChunkFile === undefined ? {} : { FIRST_CHUNK_FILE: args.firstChunkFile }),

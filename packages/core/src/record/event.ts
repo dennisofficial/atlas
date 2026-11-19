@@ -65,6 +65,7 @@ export type RecordBody =
   | InputPosted
   | InputWithdrawn
   | InputRefused
+  | { type: 'idle-released'; inboxHead: number }
   | { type: 'fact-recorded'; key: string; kind: string; value?: unknown }
   | RetryScheduled
   | BranchesObserved
@@ -131,6 +132,10 @@ const recordBodySchema: z.ZodType<RecordBody> = z.discriminatedUnion('type', [
   inputWithdrawnSchema,
   inputRefusedSchema,
   z.object({
+    type: z.literal('idle-released'),
+    inboxHead: z.number().int().min(0),
+  }),
+  z.object({
     type: z.literal('fact-recorded'),
     key: z.string().min(1),
     kind: z.string().min(1),
@@ -151,6 +156,7 @@ const RECORD_TYPE_TABLE = {
   'input-posted': true,
   'input-withdrawn': true,
   'input-refused': true,
+  'idle-released': true,
   'fact-recorded': true,
   'retry-scheduled': true,
   'branches-observed': true,

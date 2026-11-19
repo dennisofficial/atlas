@@ -8,9 +8,8 @@ import type { DaemonConnector } from '../../calls/socket'
 import { flushUntil, makeRig, SANDBOX, SECRET, seedSession, SESSION } from './holder-rig'
 
 describe('SessionHolder drop releases the slot', () => {
-  it('a partitioned session dropped mid-tool frees the slot for another wake at maxSessions=1', async () => {
+  it('a partitioned session dropped mid-tool leaves the holder free for another session', async () => {
     const a = await makeRig({
-      maxSessions: 1,
       script: [
         {
           calls: [
@@ -48,9 +47,28 @@ describe('SessionHolder drop releases the slot', () => {
     })
     expect(dropped).toBe(true)
 
+    a.script.current = [{ text: 'served' }]
+    await a.plane.post({
+      sessionId: 'session-other',
+      kind: 'message',
+      payload: JSON.stringify({ text: 'other', via: 'operator' }),
+    })
     await a.bus.wake('session-other')
-    const claimed = await flushUntil({ check: () => a.holder.heldIds().includes('session-other') })
-    expect(claimed).toBe(true)
+    const served = await flushUntil({
+      check: async () =>
+        (
+          await a.plane.readEvents({
+            threadId: 'thread-other' as never,
+            afterSeq: 0,
+            limit: 100,
+            visible: false,
+          })
+        ).events.some((event) => event.type === 'assistant-said'),
+      clock: a.clock,
+      advanceMs: 2_000,
+      attempts: 3_000,
+    })
+    expect(served).toBe(true)
   }, 15_000)
 })
 

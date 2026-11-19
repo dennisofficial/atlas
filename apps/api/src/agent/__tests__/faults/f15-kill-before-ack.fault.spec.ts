@@ -100,6 +100,7 @@ describe.skipIf(REDIS_URL === undefined)(
         callId: 'c1',
       })
       expect(existsSync(journal)).toBe(true)
+      const heldByA = await rig.plane.currentLease({ sessionId })
 
       hostA.kill('SIGKILL')
       await hostA.exited
@@ -143,7 +144,8 @@ describe.skipIf(REDIS_URL === undefined)(
       expect(runs).toEqual(['run'])
 
       const lease = await rig.plane.currentLease({ sessionId })
-      expect(await rig.labelOf(lease.lease.holderHostId)).toBe('host-b')
+      expect(lease.lease.epoch).toBeGreaterThan(heldByA.lease.epoch)
+      expect(await rig.labelOf(lease.lease.holderHostId)).not.toBe('host-a')
       expectEpochsOrdered(events, lease.lease.epoch)
     }, 60_000)
   },

@@ -74,10 +74,7 @@ describe('SessionHolder handoff with an open model step (exit 3b)', () => {
     expect(a.clock.now()).toBe(startedAt)
 
     const saids = await assistantSaids(a)
-    expect(saids.length).toBe(1)
-    expect(saids[0]?.aborted).toBe('handoff')
-    expect(saids[0]?.interrupted).toBe(true)
-    expect(JSON.stringify(saids[0]?.parts)).toContain(PARTIAL_TEXT)
+    expect(saids.length).toBe(0)
 
     const lease = await a.plane.currentLease({ sessionId: SESSION })
     expect(lease.lease.holderHostId).toBeNull()

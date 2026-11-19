@@ -110,7 +110,6 @@ describe('a setup script that runs in the background', () => {
     const model = new ScriptedModel([{ text: 'one' }, { text: 'two' }])
     const rig = await makeRig({
       model: () => model,
-      idleMinutes: 1,
       subscribeSetup: setup.subscribe,
       prepare: async () => {
         setup.started('bun install')
@@ -199,7 +198,6 @@ describe('a setup script that runs in the background', () => {
     const model = new ScriptedModel([{ text: 'one' }])
     const a = await makeRig({
       model: () => model,
-      idleMinutes: 1,
       subscribeSetup: first.subscribe,
       prepare: async (onStep) => {
         onStep?.({
@@ -232,7 +230,6 @@ describe('a setup script that runs in the background', () => {
       clock: a.clock,
       daemon: a.daemon,
       model: () => model,
-      idleMinutes: 1,
       subscribeSetup: second.subscribe,
       prepare: async (onStep) => {
         prepared += 1

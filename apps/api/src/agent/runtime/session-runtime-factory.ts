@@ -12,7 +12,6 @@ import {
   DaemonProcessPort,
   RemoteCalls,
   type HostTimers,
-  type PodPeers,
   type SessionRuntimeFactory,
 } from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
@@ -35,7 +34,6 @@ import { PrepareSteps } from './prepare-steps'
 import { prepareControllerOf } from './session-prepare'
 import { countRunningShells } from './running-shells'
 import { startKeepAlive } from './keep-alive'
-import { sandboxReleaseFor } from './sandbox-release'
 import { rewakingConnector } from './rewaking-connector'
 import { githubIdentityLookup } from '@dltech/atlas-plugin-github/pod'
 import type { ComposedPlugins } from '@dltech/atlas-plugin-sdk'
@@ -71,9 +69,9 @@ export type SessionRuntimeFactoryArgs = {
   media?: MediaSigner | undefined
   githubFetch?: typeof fetch | undefined
   plugins?: ComposedPlugins | undefined
-  podPeers?: PodPeers | undefined
   configWrites?: CloudConfigStore | undefined
   envSecrets?: EnvSecretsSource | undefined
+  terminalStreams?: ((sessionId: string) => number) | undefined
 }
 
 export const createSessionRuntimeFactory = (
@@ -227,11 +225,7 @@ export const createSessionRuntimeFactory = (
       throw error
     }
 
-    const releaseSandbox = sandboxReleaseFor({
-      sandbox: args.sandbox,
-      podPeers: args.podPeers,
-    })
-    const stopKeepAlive = startKeepAlive({
+    const keepAlive = startKeepAlive({
       sandbox: args.sandbox,
       sandboxSessionId,
       credentials,
@@ -242,6 +236,9 @@ export const createSessionRuntimeFactory = (
 
     return {
       remoteCalls: calls,
+      ...(args.terminalStreams === undefined
+        ? {}
+        : { terminalStreams: () => args.terminalStreams?.(sessionId) ?? 0 }),
       model: models.main,
       get modelChoice() {
         return models.modelChoice()
@@ -284,13 +281,12 @@ export const createSessionRuntimeFactory = (
       // the setup script may start, or finish, before a replacement host subscribes: replay it
       subscribeSetup: prepareController.subscribeSetup,
       stop: async () => {
-        stopKeepAlive()
-        calls.close('asleep')
+        keepAlive.stop()
+        calls.close('detached')
       },
       release: async () => {
-        stopKeepAlive()
-        calls.close('asleep')
-        await releaseSandbox({ sandboxSessionId, sessionId, credentials })
+        await keepAlive.release()
+        calls.close('detached')
       },
     }
   }

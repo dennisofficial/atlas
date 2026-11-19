@@ -58,6 +58,7 @@ import { recordBootSteps, recordRunningServeVersion } from './sandbox-boot-steps
 import { applyThreadActivity } from './thread-activity'
 import { registerPodChild } from './pod-child'
 import { deleteContextFile, deleteMissingContextFiles, putContextFile } from './pod-context-files'
+import { endPodTerminals } from './pod-terminals'
 import { applyPodEvents, truncatePodEvents } from './pod-events'
 import { assertWithinSandboxFamily } from './pod-family'
 import { SandboxTokenMiddleware, type SandboxTrpcCtx } from './sandbox-token.middleware'
@@ -110,6 +111,8 @@ export class SandboxSelfRouter {
   async stop(@Input() input: SandboxSelfStopRequest, @Ctx() ctx: SandboxTrpcCtx): Promise<void> {
     const sandbox = await identityOf(ctx)
     await this.vercel.stopSession({ ...sandbox, sessionId: input.sessionId })
+    // Best-effort: the pod is already gone, so a failed terminal sweep must not fail the stop.
+    await endPodTerminals({ sandboxNames: [sandbox.name] }).catch(() => undefined)
   }
 
   @Mutation({

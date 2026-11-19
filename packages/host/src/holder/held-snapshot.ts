@@ -1,15 +1,13 @@
 import {
-  EInputConsumed,
   EHeldAction,
   NO_WORKSPACE_RECORD,
   decideHeldAction,
   isResumableOf,
   loopStateOf,
   setupInFlightOf,
-  visibleEvents,
   workspaceStateFrom,
   type InboxEntry,
-  type V2Event,
+  type PrepareFailure,
 } from '@dltech/atlas-core'
 
 import { idleReleaseDue } from './held-idle'
@@ -19,6 +17,7 @@ import {
   isStop,
   logPendingMessageIdsOf,
   readFullInbox,
+  stopSettledPromptOf,
   understandsCommand,
   waitingInputIdsOf,
 } from './held-inbox'
@@ -37,22 +36,6 @@ const IDLE_WHILE_SETUP_RUNS: readonly EHeldAction[] = [
  * has to re-join it (Prepare) before it may start a turn, wait, or release the pod — releasing
  * would take the sandbox away under the running script.
  */
-/**
- * A stop consumed after the last prompt is final even when the interrupted step left no
- * `assistant-said { stopped }` behind: nothing about that turn may resume, here or on a take-over.
- */
-export const stoppedAfterPromptOf = (events: readonly V2Event[]): boolean => {
-  let lastPrompt = 0
-  let lastStop = 0
-  for (const event of events) {
-    if (event.type === 'user-said' || event.type === 'nudge') lastPrompt = event.seq
-    else if (event.type === 'input-consumed' && event.consumed === EInputConsumed.Stop) {
-      lastStop = event.seq
-    }
-  }
-  return lastStop > lastPrompt
-}
-
 const resumeSetupIn = (args: {
   decided: EHeldAction
   setupInFlight: boolean
@@ -71,7 +54,6 @@ export const readHeldAction = async (args: {
   draining: boolean
   turnRunning: boolean
   resumeAfterSeq: number
-  lastActivityAt: number
   runtime: SessionRuntime | undefined
   record: SessionRecord | undefined
   preparing: boolean
@@ -83,6 +65,7 @@ export const readHeldAction = async (args: {
   resumable: boolean
   inboxHead: number
   shellsRunning: boolean
+  failure: PrepareFailure | undefined
 }> => {
   const { deps } = args
   const cache = args.record?.eventCache()
@@ -103,24 +86,20 @@ export const readHeldAction = async (args: {
   const messagePending =
     actionable.some((entry) => !isStop(entry)) ||
     waitingInputIdsOf({ ids: logIds, failure: workspace.failure }).length > 0
-  const idleArgs = {
-    deps,
+  const quiet = idleReleaseDue({
     turnRunning: args.turnRunning,
-    lastActivityAt: args.lastActivityAt,
     runtime: args.runtime,
     pendingInput: messagePending,
-  }
-  const quiet = idleReleaseDue({
-    ...idleArgs,
     runningShells: 0,
     runningChildren: args.childrenRunning,
+    terminalStreams: args.runtime?.terminalStreams?.() ?? 0,
   })
   const runningShells =
     quiet && args.runtime !== undefined
       ? await countRunningShells({ deps, runtime: args.runtime })
       : 0
-  const stopped = stoppedAfterPromptOf(visibleEvents(cache?.eventsAfter(args.resumeAfterSeq) ?? []))
-  const resumable = stopped ? false : isResumableOf(loopStateOf({ events: resumeEvents }))
+  const resumable =
+    isResumableOf(loopStateOf({ events: resumeEvents })) && !stopSettledPromptOf(events)
   const action = resumeSetupIn({
     decided: decideHeldAction({
       draining: args.draining,
@@ -142,5 +121,6 @@ export const readHeldAction = async (args: {
     resumable,
     inboxHead: Math.max(0, ...entries.map((entry) => entry.inboxId)),
     shellsRunning: runningShells > 0,
+    failure: workspace.failure,
   }
 }

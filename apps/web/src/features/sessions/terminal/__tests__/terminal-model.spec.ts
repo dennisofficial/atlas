@@ -5,6 +5,7 @@ import { MAX_TERMINALS } from '@dltech/atlas-protocol'
 
 import {
   EMPTY_TERMINALS,
+  ETerminalOp,
   ETerminalTabState,
   activeTab,
   applyExit,
@@ -13,9 +14,11 @@ import {
   cursorOf,
   cursorsOf,
   resetCursor,
+  retryDelayMs,
   selectTab,
   setCursor,
   tabStateOf,
+  withProblem,
   withRows,
 } from '../terminal-model'
 
@@ -98,5 +101,21 @@ describe('terminal model', () => {
     expect(closed.tabs.map((tab) => tab.row.terminalId)).toEqual(['t1'])
     expect(closed.cursors.t2).toBeUndefined()
     expect(closed.activeId).toBe('t1')
+  })
+
+  it('doubles the retry delay up to its ceiling', () => {
+    expect(retryDelayMs(0)).toBe(1000)
+    expect(retryDelayMs(1)).toBe(2000)
+    expect(retryDelayMs(2)).toBe(4000)
+    expect(retryDelayMs(6)).toBe(15_000)
+    expect(retryDelayMs(40)).toBe(15_000)
+  })
+
+  it('carries one problem at a time and clears it', () => {
+    const problem = { op: ETerminalOp.Write, message: 'pod is asleep' }
+    const flagged = withProblem(EMPTY_TERMINALS, problem)
+    expect(flagged.problem).toEqual(problem)
+    expect(withProblem(flagged, { ...problem })).toBe(flagged)
+    expect(withProblem(flagged, undefined).problem).toBeUndefined()
   })
 })

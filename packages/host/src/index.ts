@@ -39,6 +39,7 @@ export {
 } from './calls/ports/process'
 export { PodCalls, type PodCallOutcome } from './holder/pod-calls'
 export { SessionHolder } from './holder/session-holder'
+export { TerminalDemand } from './holder/terminal-demand'
 export type { SessionHolderArgs } from './holder/session-holder-args'
 export { podControlOf, type PodControlClient } from './holder/pod-control'
 export type {

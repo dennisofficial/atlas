@@ -8,7 +8,7 @@ import { makeRig, seedSession, SESSION, THREAD } from './holder-rig'
 
 describe('SessionRecord duplicate dispatch', () => {
   it('a re-dispatched tool-dispatched is dropped and marks the recorded bootId', async () => {
-    const rig = await makeRig({})
+    const rig = await makeRig({ runningShells: async () => 1 })
     await seedSession(rig)
     await rig.holder.start()
     await rig.post('start the runtime')
@@ -16,12 +16,13 @@ describe('SessionRecord duplicate dispatch', () => {
     await rig.flush()
     const runtime = rig.runtimes[0]
     if (runtime === undefined) throw new Error('no runtime')
+    const held = await rig.plane.currentLease({ sessionId: SESSION })
 
     const threadId = toThreadId(THREAD)
     const record = await SessionRecord.open({
       plane: rig.plane,
       threadId,
-      epoch: 1,
+      epoch: held.lease.epoch,
       timers: rig.clock,
       remoteCalls: runtime.remoteCalls,
       daemonTools: new Set<string>(),

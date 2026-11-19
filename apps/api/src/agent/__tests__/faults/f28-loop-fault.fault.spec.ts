@@ -4,7 +4,7 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 
 import { startRig, type FaultRig } from '../../testing/fault-rig'
 import { EHostFault } from '../../testing/host-faults'
-import { waitForLog, waitUntil } from './lease-fault-support'
+import { countLogLines, waitEpochAfter, waitForLog, waitUntil } from './lease-fault-support'
 import { echoScript, postMessage, REDIS_URL, waitAnswers } from './settle-fault-support'
 
 describe.skipIf(REDIS_URL === undefined)('F28 turn fault out of the loop, host alive', () => {
@@ -39,12 +39,13 @@ describe.skipIf(REDIS_URL === undefined)('F28 turn fault out of the loop, host a
     })
 
     await waitAnswers({ rig, threadId, count: 1, host, timeoutMs: 20_000 })
+    const answeredFirst = (await rig.plane.currentLease({ sessionId })).lease.epoch
     await postMessage({ rig, sessionId, text: 'second' })
     await waitAnswers({ rig, threadId, count: 2, host, timeoutMs: 20_000 })
+    await waitEpochAfter({ rig, sessionId, epoch: answeredFirst, timeoutMs: 20_000 })
 
     expect(host.logs().some((line) => line.includes('"host-fault"'))).toBe(true)
-    const lease = await rig.plane.currentLease({ sessionId })
-    expect(await rig.labelOf(lease.lease.holderHostId)).toBe('host-f28')
+    expect(countLogLines({ host, text: `take-over of ${sessionId}` })).toBeGreaterThanOrEqual(2)
     const exited = await Promise.race([host.exited, Bun.sleep(200).then(() => 'alive')])
     expect(exited).toBe('alive')
   }, 90_000)

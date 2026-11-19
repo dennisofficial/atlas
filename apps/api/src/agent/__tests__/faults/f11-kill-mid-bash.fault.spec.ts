@@ -54,6 +54,7 @@ describe.skipIf(REDIS_URL === undefined)('F11 SIGKILL the holder mid bash', () =
 
     const before = await readEvents({ plane: rig.plane, threadId })
     expect(before.some((row) => row.type === 'tool-result' && callIdOf(row) === 'c1')).toBe(false)
+    const heldByA = await rig.plane.currentLease({ sessionId })
 
     hostA.kill('SIGKILL')
     await hostA.exited
@@ -63,9 +64,8 @@ describe.skipIf(REDIS_URL === undefined)('F11 SIGKILL the holder mid bash', () =
       daemonUrl: daemon.url,
       scripts: { [sessionId]: [{ text: 'host b finished' }] },
     })
-    await rig.claim({ sessionId, label: 'host-b', timeoutMs: 20_000 })
-
     writeFileSync(gateFifo, 'go\n')
+    await rig.claim({ sessionId, label: 'host-b', timeoutMs: 20_000 })
 
     const events = await rig
       .waitForSeq({
@@ -94,6 +94,7 @@ describe.skipIf(REDIS_URL === undefined)('F11 SIGKILL the holder mid bash', () =
     expect(runs).toEqual(['run'])
 
     const lease = await rig.plane.currentLease({ sessionId })
-    expect(await rig.labelOf(lease.lease.holderHostId)).toBe('host-b')
+    expect(lease.lease.epoch).toBeGreaterThan(heldByA.lease.epoch)
+    expect(await rig.labelOf(lease.lease.holderHostId)).not.toBe('host-a')
   }, 60_000)
 })

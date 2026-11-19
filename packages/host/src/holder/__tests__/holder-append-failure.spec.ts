@@ -57,6 +57,22 @@ const holdBothSessions = async (rig: HolderRig): Promise<void> => {
   expect(held).toBe(true)
 }
 
+const epochOf = async (rig: HolderRig, sessionId: string): Promise<number> =>
+  (await rig.plane.currentLease({ sessionId })).lease.epoch
+
+const holdHandedBack = async (args: {
+  rig: HolderRig
+  sessionId: string
+  epoch: number
+  clock?: HolderRig['clock'] | undefined
+}): Promise<boolean> =>
+  flushUntil({
+    check: async () => (await epochOf(args.rig, args.sessionId)) > args.epoch,
+    ...(args.clock === undefined
+      ? { attempts: 400 }
+      : { clock: args.clock, advanceMs: 500, attempts: 3_000 }),
+  })
+
 const poisonSession = async (rig: HolderRig): Promise<void> => {
   await rig.post('poison')
   await rig.wake()
@@ -64,40 +80,46 @@ const poisonSession = async (rig: HolderRig): Promise<void> => {
 
 describe('SessionHolder append failures stay inside the failing session', () => {
   it('a generic append error ends only that session once the retry budget is spent', async () => {
-    const rig = await makeRig({ appendRetryMs: 1_000, script: [{ text: 'ok' }] })
+    const rig = await makeRig({
+      appendRetryMs: 1_000,
+      script: [{ text: 'ok' }],
+      runningShells: async () => 1,
+    })
     const arm = failAppendsFor({ rig, error: () => new Error('store unreachable') })
     const abandoned = trackAbandons(rig)
     await holdBothSessions(rig)
+    const epoch = await epochOf(rig, SESSION)
+    const clockAtArm = rig.clock.now()
     arm()
     await poisonSession(rig)
 
-    const ended = await flushUntil({
-      check: () => !rig.holder.heldIds().includes(SESSION),
-      clock: rig.clock,
-      advanceMs: 500,
-      attempts: 3000,
-    })
+    const ended = await holdHandedBack({ rig, sessionId: SESSION, epoch, clock: rig.clock })
 
     expect(ended).toBe(true)
+    expect(rig.clock.now() - clockAtArm).toBeGreaterThanOrEqual(1_000)
+    expect((await rig.events()).filter((event) => event.type === 'user-said')).toHaveLength(1)
     expect(abandoned).toEqual([])
     expect(rig.holder.heldIds()).toContain(OTHER)
   }, 20_000)
 
   it('an UnknownThreadError fails the session at once, without waiting out the retry budget', async () => {
-    const rig = await makeRig({ appendRetryMs: 30_000, script: [{ text: 'ok' }] })
+    const rig = await makeRig({
+      appendRetryMs: 30_000,
+      script: [{ text: 'ok' }],
+      runningShells: async () => 1,
+    })
     const arm = failAppendsFor({ rig, error: () => new UnknownThreadError(THREAD_ID) })
     const abandoned = trackAbandons(rig)
     await holdBothSessions(rig)
+    const epoch = await epochOf(rig, SESSION)
+    const clockAtArm = rig.clock.now()
     arm()
     await poisonSession(rig)
 
-    const ended = await flushUntil({
-      check: () => !rig.holder.heldIds().includes(SESSION),
-      attempts: 200,
-    })
+    const ended = await holdHandedBack({ rig, sessionId: SESSION, epoch })
 
     expect(ended).toBe(true)
-    expect(rig.clock.now()).toBe(0)
+    expect(rig.clock.now()).toBe(clockAtArm)
     expect(abandoned).toEqual([])
     expect(rig.holder.heldIds()).toContain(OTHER)
   }, 20_000)

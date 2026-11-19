@@ -15,7 +15,6 @@ const agentEnv: AgentHostEnv = {
   previewDomain: 'byatlas.dev',
   vercelOauth: null,
   mediaBlobToken: null,
-  maxSessions: 25,
   sandboxImage: 'atlas-sandbox:latest',
   daemonBundlePath: 'daemon.js',
   port: 3400,

@@ -88,12 +88,10 @@ const appendSeeded = async (args: {
 
 const seedTakeover = async (args: {
   child: readonly V2Body[]
-  idleMinutes?: number | undefined
   script?: readonly { text: string }[] | undefined
 }): Promise<Rig> => {
   const rig = await makeRig({
     script: args.script ?? [{ text: 'parent acknowledged' }],
-    ...(args.idleMinutes === undefined ? {} : { idleMinutes: args.idleMinutes }),
   })
   await seedSession(rig)
   const lease = await rig.plane.grant({ sessionId: SESSION, hostId: 1 })
@@ -129,7 +127,6 @@ const takeOver = async (first: Rig): Promise<Rig> => {
     clock: first.clock,
     daemon: first.daemon,
     script: [{ text: 'parent acknowledged' }],
-    idleMinutes: 0.05,
   })
   await next.holder.start()
   await next.bus.wake(SESSION)
@@ -138,7 +135,7 @@ const takeOver = async (first: Rig): Promise<Rig> => {
 
 describe('a takeover over a child that already finished its turn', () => {
   it('appends one finished ending with its real prose and restarts nothing', async () => {
-    const rig = await seedTakeover({ child: FINISHED_CHILD, idleMinutes: 0.05 })
+    const rig = await seedTakeover({ child: FINISHED_CHILD })
 
     const ended = await waitFor({ rig, check: async () => (await parentEndings(rig)).length > 0 })
     expect(ended).toBe(true)
@@ -171,11 +168,9 @@ describe('a takeover over a child that already finished its turn', () => {
 
 describe('a session end with an adopted child that never got going', () => {
   it('stops it once with a session-end ending', async () => {
-    const rig = await seedTakeover({ child: IDLE_CHILD, idleMinutes: 0.05 })
+    const rig = await seedTakeover({ child: IDLE_CHILD })
 
     expect(await waitFor({ rig, check: () => rig.runtimes.length > 0 })).toBe(true)
-    await rig.flush()
-    expect(await parentEndings(rig)).toEqual([])
 
     const ended = await waitFor({
       rig,
@@ -253,7 +248,7 @@ describe('a drain that lands between a child final message and its ending', () =
     )
     expect(repliesAfterEnding.length).toBe(1)
     const held = await next.plane.currentLease({ sessionId: SESSION })
-    expect(held.lease.holderHostId).toBe(next.hostId())
+    expect(held.lease.epoch).toBeGreaterThan(drained.lease.epoch)
     expect(held.lease.wantsHolder).toBe(false)
 
     const released = await waitFor({

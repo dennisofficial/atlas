@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'bun:test'
+import type { HostTimers } from '@dltech/atlas-host'
 import { LogPort } from '@dltech/atlas-observability'
+import type { StreamServerMessage } from '@dltech/atlas-protocol'
 
-import { HostShutdownSequence, type HostShutdownSequenceArgs } from '../shutdown-sequence'
+import { createSessionStream } from '../../stream/session-stream'
+import { STREAM_DRAIN_RECONNECT_SPREAD_MS } from '../../stream/stream-limits'
+import type { SubscriptionPort } from '../../stream/subscription-port'
+import { createUserSlots } from '../../stream/user-slots'
+import {
+  HostShutdownSequence,
+  LEASE_HANDOFF_MS,
+  type HostShutdownSequenceArgs,
+} from '../shutdown-sequence'
 
 class MemoryLog extends LogPort {
   readonly messages: string[] = []
@@ -17,7 +27,10 @@ const recorder = (calls: string[]) => {
   return record
 }
 
-const sequenceOf = (args: Partial<HostShutdownSequenceArgs> = {}, given: string[] = []) => {
+const sequenceOf = (
+  args: Partial<HostShutdownSequenceArgs> & { stream?: HostShutdownSequenceArgs['stream'] } = {},
+  given: string[] = [],
+) => {
   const calls = given
   const record = recorder(calls)
   const log = new MemoryLog()
@@ -26,7 +39,7 @@ const sequenceOf = (args: Partial<HostShutdownSequenceArgs> = {}, given: string[
     presence: { close: record('presence.close') },
     wakes: { close: record('wakes.close') },
     liveFrames: { close: record('liveFrames.close') },
-    stream: { drain: record('stream.drain'), stop: record('stream.stop') },
+    stream: { drain: () => undefined, stop: record('stream.stop') },
     holder: { drain: record('holder.drain') },
     follow: { close: record('follow.close') },
     pool: { end: record('pool.end') },
@@ -36,7 +49,26 @@ const sequenceOf = (args: Partial<HostShutdownSequenceArgs> = {}, given: string[
   return { sequence, calls, log }
 }
 
-const settle = (ms = 30): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+const subscriptions: SubscriptionPort = {
+  open: () => ({ handle: () => undefined, drain: () => undefined, close: () => undefined }),
+}
+
+const timers: HostTimers = {
+  now: () => Date.now(),
+  setTimeout: (handler, ms) => setTimeout(handler, ms),
+  clearTimeout: (timer) => clearTimeout(timer as ReturnType<typeof setTimeout>),
+  random: () => 1,
+}
+
+const pull = async (
+  generator: AsyncGenerator<StreamServerMessage>,
+): Promise<StreamServerMessage> => {
+  const step = await generator.next()
+  if (step.done === true) throw new Error('the stream ended early')
+  return step.value
+}
+
+const stuck = (): Promise<void> => new Promise<void>(() => {})
 
 describe('HostShutdownSequence', () => {
   it('closes what follows the drains in the order the host has always used', async () => {
@@ -73,30 +105,67 @@ describe('HostShutdownSequence', () => {
     expect(calls).toEqual(['watch.close'])
   })
 
-  it('drains the stream and the holder without waiting on a turn and never exits', async () => {
-    const exits: number[] = []
-    const { sequence, calls, log } = sequenceOf({ exit: (code) => exits.push(code) })
+  it('drains the stream and then waits on the holder', async () => {
+    const calls: string[] = []
+    const { sequence, log } = sequenceOf(
+      {
+        stream: {
+          drain: () => {
+            calls.push('stream.drain')
+          },
+          stop: async () => undefined,
+        },
+      },
+      calls,
+    )
 
     await sequence.beforeApplicationShutdown()
 
     expect(calls).toEqual(['stream.drain', 'holder.drain'])
-    expect(exits).toEqual([])
     expect(log.messages).toEqual(['draining'])
   })
 
-  it('hard exits 1 with a warning when the drain outlives the cap', async () => {
-    const exits: number[] = []
-    const stuck = (): Promise<void> => new Promise<void>(() => {})
+  it('hands a held session back and lets an open stream go away well inside the cap', async () => {
+    const users = createUserSlots({ limit: 4 })
+    const stream = createSessionStream({
+      users,
+      timers,
+      eventTypes: undefined,
+      log: undefined,
+    })
+    stream.start({ subscriptions })
+    const open = stream.follow({ userId: 'user-1', sessionId: 'session-1' })
+    const ready = await pull(open)
+    expect(ready.type).toBe('ready')
+
+    const { sequence } = sequenceOf({ stream })
+    const startedAt = Date.now()
+    await sequence.beforeApplicationShutdown()
+    const elapsed = Date.now() - startedAt
+
+    expect(elapsed).toBeLessThan(1_000)
+    const away = await pull(open)
+    expect(away.type).toBe('going-away')
+    if (away.type === 'going-away') {
+      expect(away.reconnectAfterMs).toBe(STREAM_DRAIN_RECONNECT_SPREAD_MS)
+    }
+    expect((await open.next()).done).toBe(true)
+    expect(LEASE_HANDOFF_MS).toBeLessThanOrEqual(1_000)
+  })
+
+  it('warns and returns instead of exiting when the hand-off outlives its budget', async () => {
     const { sequence, log } = sequenceOf({
-      stream: { drain: stuck, stop: async () => undefined },
-      exit: (code) => exits.push(code),
-      hardExitAfterMs: 40,
+      holder: { drain: stuck },
+      handoffBudgetMs: 25,
     })
 
+    const startedAt = Date.now()
     await sequence.beforeApplicationShutdown()
-    await settle()
 
-    expect(exits).toEqual([1])
-    expect(log.messages).toContain('hard exit: the drain did not finish in 40ms')
+    expect(Date.now() - startedAt).toBeLessThan(1_000)
+    expect(log.messages).toEqual([
+      'draining',
+      'the lease hand-off outlived 25ms; the leases expire on their TTL',
+    ])
   })
 })

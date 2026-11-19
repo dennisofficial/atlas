@@ -178,7 +178,7 @@ describe('SessionHolder prepare', () => {
   })
 
   it('releases an idle session whose only message is covered by the failure, without polling', async () => {
-    const rig = await makeRig({ idleMinutes: 1 })
+    const rig = await makeRig({})
     await seedSession(rig)
     await rig.post('hello')
     await seedLog({
@@ -194,15 +194,12 @@ describe('SessionHolder prepare', () => {
     }) as typeof rig.plane.readInbox
     await rig.holder.start()
     await rig.wake()
-    await rig.flush()
-    expect(rig.runtimes[0]?.released).toBe(false)
-    const readsAtStart = reads
-
-    rig.clock.advance(61_000)
     const released = await flushUntil({ check: () => rig.runtimes[0]?.released === true })
     expect(released).toBe(true)
+    const readsAtRelease = reads
+    await rig.flush()
     expect(rig.holder.heldIds()).toEqual([])
-    expect(reads - readsAtStart).toBeLessThan(10)
+    expect(reads - readsAtRelease).toBeLessThan(10)
     expect((await typesOf(rig)).filter((type) => type !== 'input-consumed')).toEqual([
       'workspace-prepare-failed',
       'input-posted',

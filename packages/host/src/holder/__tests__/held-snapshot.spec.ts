@@ -37,7 +37,6 @@ const depsOf = (): HeldSessionDeps =>
       readInbox: async () => [],
       endTerminals: async () => 0,
     } as unknown as ControlPlane,
-    idleMinutes: 30,
     timers: { now: () => 0 },
   }) as unknown as HeldSessionDeps
 
@@ -60,7 +59,6 @@ const actionOf = async (args: {
     draining: false,
     turnRunning: false,
     resumeAfterSeq: args.resumeAfterSeq ?? 0,
-    lastActivityAt: 0,
     runtime: undefined,
     record: recordOf(args.events),
     preparing: false,

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { retryDelayMs } from '@dltech/atlas-core'
 
+import { CLAIM_BATCH } from '../claim-loop'
 import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID, type HolderRig } from './holder-rig'
 
 const SWEEP_MS = 20_000
@@ -58,45 +59,6 @@ describe('SessionHolder claim loop', () => {
     expect(await flushUntil({ check: answered(rig) })).toBe(true)
   })
 
-  it('F34: a full host takes the waiting session when a slot frees, with no new post or wake', async () => {
-    const rig = await makeRig({ maxSessions: 1, idleMinutes: 0.2 })
-    await seedSession(rig)
-    await rig.plane.createSession({
-      sessionId: SECOND,
-      userId: 'user-1',
-      projectId: 'project-1',
-      mainThreadId: SECOND_THREAD,
-    })
-    await rig.holder.start()
-    await rig.post('first')
-    await rig.plane.post({
-      sessionId: SECOND,
-      kind: 'message',
-      payload: JSON.stringify({ text: 'second', via: 'operator' }),
-    })
-    await rig.bus.wake(SESSION)
-    await rig.bus.wake(SECOND)
-    await rig.flush()
-    expect(rig.holder.heldIds()).toEqual([SESSION])
-
-    const secondAnswered = async (): Promise<boolean> =>
-      (
-        await rig.plane.readEvents({
-          threadId: SECOND_THREAD as never,
-          afterSeq: 0,
-          limit: 100,
-          visible: false,
-        })
-      ).events.some((event) => event.type === 'assistant-said')
-    const done = await flushUntil({
-      check: secondAnswered,
-      attempts: 400,
-      clock: rig.clock,
-      advanceMs: 13_000,
-    })
-    expect(done).toBe(true)
-  }, 20_000)
-
   it('coalesces fifty wakes in one tick into at most two claimNext calls', async () => {
     const rig = await makeRig({})
     await seedSession(rig)
@@ -110,8 +72,8 @@ describe('SessionHolder claim loop', () => {
     expect(spy.calls()).toBeLessThanOrEqual(2)
   })
 
-  it('asks claimNext for exactly the free slots', async () => {
-    const rig = await makeRig({ maxSessions: 3 })
+  it('asks claimNext for a fixed batch, whatever is already held', async () => {
+    const rig = await makeRig({})
     await seedSession(rig)
     const limits: number[] = []
     const original = rig.plane.claimNext.bind(rig.plane)
@@ -123,8 +85,8 @@ describe('SessionHolder claim loop', () => {
     await rig.post('hello')
     await rig.bus.wake(SESSION)
     await rig.flush()
-    expect(limits[0]).toBe(3)
-    expect(limits.every((limit) => limit > 0 && limit <= 3)).toBe(true)
+    expect(limits[0]).toBe(CLAIM_BATCH)
+    expect(limits.every((limit) => limit === CLAIM_BATCH)).toBe(true)
   })
 
   it('keeps going after claimNext throws and claims on the next ring', async () => {
@@ -235,6 +197,6 @@ describe('SessionHolder start backoff on the lease row', () => {
     await b.flush()
     expect(b.holder.heldIds()).toEqual([])
     rig.clock.advance(1)
-    expect(await flushUntil({ check: async () => b.holder.heldIds().length === 1 })).toBe(true)
+    expect(await flushUntil({ check: () => b.runtimes.length > 0 })).toBe(true)
   })
 })

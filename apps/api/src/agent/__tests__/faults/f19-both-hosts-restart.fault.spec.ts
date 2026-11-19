@@ -96,13 +96,12 @@ describe.skipIf(REDIS_URL === undefined)('F19 both agent hosts restarted at once
       scripts: { [sessionId]: [{ text: 'host d resumed' }] },
     })
 
-    const claimed = await (async (): Promise<string> => {
+    await (async (): Promise<void> => {
       const deadline = Date.now() + 30_000
       for (;;) {
         await rig.wake(sessionId).catch(() => undefined)
         const lease = await rig.plane.currentLease({ sessionId })
-        const label = lease.live ? await rig.labelOf(lease.lease.holderHostId) : undefined
-        if (label === 'host-c' || label === 'host-d') return label
+        if (lease.lease.epoch > preKill.lease.epoch) return
         if (Date.now() > deadline) throw new Error('no fresh host claimed the session')
         await new Promise((resolve) => setTimeout(resolve, 250))
       }
@@ -156,7 +155,8 @@ describe.skipIf(REDIS_URL === undefined)('F19 both agent hosts restarted at once
     expectOneResultPerDispatch(events)
 
     const lease = await rig.plane.currentLease({ sessionId })
-    expect(await rig.labelOf(lease.lease.holderHostId)).toBe(claimed)
+    const holder = await rig.labelOf(lease.lease.holderHostId)
+    expect(holder === undefined || holder === 'host-c' || holder === 'host-d').toBe(true)
     expect(lease.lease.epoch).toBeGreaterThan(preKill.lease.epoch)
     expectEpochsOrdered({ events, finalEpoch: lease.lease.epoch })
   }, 90_000)

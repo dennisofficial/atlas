@@ -88,6 +88,7 @@ export type SessionRuntime = {
   baseBranchOf(repoPath: string): string | null
   plugins?: ComposedPlugins | undefined
   runningShells(): Promise<number>
+  terminalStreams?: (() => number) | undefined
   env?: (() => Promise<Record<string, string>>) | undefined
   prepare(onStep?: PrepareStepReporter): Promise<PrepareResult>
   subscribePrepareOutput?(listener: (text: string) => void): void

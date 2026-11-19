@@ -8,6 +8,7 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { startRig, type FaultRig, type ReadEvent } from '../../testing/fault-rig'
 import {
   callIdOf,
+  expectLeaseSettled,
   isDoneResult,
   makeFifo,
   readEvents,
@@ -137,7 +138,7 @@ describe.skipIf(REDIS_URL === undefined)(
       expect(runs).toEqual(['run'])
 
       const lease = await rig.plane.currentLease({ sessionId })
-      expect(await rig.labelOf(lease.lease.holderHostId)).toBe('host-a')
+      await expectLeaseSettled({ rig, sessionId, holder: 'host-a' })
       const epochs = events.map(epochOf)
       expect(Math.max(...epochs)).toBeLessThanOrEqual(lease.lease.epoch)
       const sorted = [...epochs].sort((a, b) => a - b)

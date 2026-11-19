@@ -1,9 +1,12 @@
 import {
+  agentRoster,
   loopStateOf,
   owesEndingOf,
   toLoopEvent,
   unendedSpawns,
+  type EAgentStatus,
   type Event,
+  type EventOfType,
   type ThreadId,
   type V2Event,
 } from '@dltech/atlas-core'
@@ -22,14 +25,34 @@ export type OpenChild = {
   worktree: WorktreeEntryInfo | undefined
 }
 
+const openChildOf = (spawn: EventOfType<'agent-spawned'>): OpenChild => ({
+  agentId: spawn.agentId,
+  agentType: spawn.agentType,
+  intent: spawn.intent,
+  spawnedAt: spawn.at,
+  worktree: spawn.worktree,
+})
+
 export const openChildrenOf = (events: readonly Event[]): readonly OpenChild[] =>
-  unendedSpawns(events).map((spawn) => ({
-    agentId: spawn.agentId,
-    agentType: spawn.agentType,
-    intent: spawn.intent,
-    spawnedAt: spawn.at,
-    worktree: spawn.worktree,
-  }))
+  unendedSpawns(events).map(openChildOf)
+
+export type SettledChild = OpenChild & { status: EAgentStatus; endedAt: string }
+
+export const settledChildOf = (args: {
+  events: readonly Event[]
+  threadId: ThreadId
+  agentId: ThreadId
+}): SettledChild | undefined => {
+  const spawn = args.events.findLast(
+    (event): event is EventOfType<'agent-spawned'> =>
+      event.type === 'agent-spawned' && event.agentId === args.agentId,
+  )
+  const agent = agentRoster({ events: args.events, threadId: args.threadId }).find(
+    (candidate) => candidate.agentId === args.agentId && candidate.endedAt !== undefined,
+  )
+  if (spawn === undefined || agent?.endedAt === undefined) return undefined
+  return { ...openChildOf(spawn), status: agent.status, endedAt: agent.endedAt }
+}
 
 export const openChildren = async (args: {
   record: SessionRecord

@@ -1,3 +1,4 @@
+import { endPodTerminals } from '../../platform/sandboxes/pod-terminals'
 import { ESandboxState } from '../../platform/sandboxes/sandboxes.types'
 
 export const ORPHAN_SANDBOX_GRACE_MS = 24 * 60 * 60 * 1_000
@@ -94,6 +95,18 @@ export function planSandboxStateReconcile(args: {
   return { park }
 }
 
+async function endTerminalsOf(args: {
+  names: readonly string[]
+  log: (line: string) => void
+}): Promise<void> {
+  if (args.names.length === 0) return
+  try {
+    await endPodTerminals({ sandboxNames: args.names })
+  } catch (failure) {
+    args.log(`could not end the terminals of ${args.names.join(', ')}: ${String(failure)}`)
+  }
+}
+
 async function runBounded<T>(args: {
   items: readonly T[]
   task: (item: T) => Promise<void>
@@ -151,12 +164,15 @@ export async function sweepOrphanSandboxes(args: {
       summary.failed += 1
       args.log(`${label}: ${name}: ${String(failure)}`)
     }
+    const stopped: string[] = []
+    const deleted: string[] = []
     await runBounded({
       items: plan.stop,
       task: async (sandbox) => {
         try {
           await store.stopSandbox({ name: sandbox.name })
           summary.stopped += 1
+          stopped.push(sandbox.name)
           await args.onStopped?.({ name: sandbox.name })
         } catch (failure) {
           failed(sandbox.name)(failure)
@@ -169,12 +185,14 @@ export async function sweepOrphanSandboxes(args: {
         try {
           await store.deleteSandbox({ name: sandbox.name })
           summary.deleted += 1
+          deleted.push(sandbox.name)
           await args.onRetired?.({ name: sandbox.name })
         } catch (failure) {
           failed(sandbox.name)(failure)
         }
       },
     })
+    await endTerminalsOf({ names: [...stopped, ...deleted], log: args.log })
   }
   return summary
 }

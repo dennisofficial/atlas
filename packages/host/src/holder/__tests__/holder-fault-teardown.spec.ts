@@ -1,22 +1,28 @@
 import { describe, expect, it } from 'bun:test'
 
+import { MAX_START_ATTEMPTS } from '@dltech/atlas-core'
+
 import { flushUntil, makeRig, seedSession, SESSION, type HolderRig } from './holder-rig'
 
 const answered = async (rig: HolderRig): Promise<boolean> =>
   (await rig.events()).some((event) => event.type === 'assistant-said')
 
+const quarantined = async (rig: HolderRig): Promise<boolean> =>
+  (await rig.events()).some((event) => event.type === 'session-start-failed')
+
 const holderOf = async (rig: HolderRig): Promise<number | null> =>
   (await rig.plane.currentLease({ sessionId: SESSION })).lease.holderHostId
 
-const idleRig = async (): Promise<HolderRig> => {
-  const rig = await makeRig({ idleMinutes: 0.2 })
+const idleRig = async (): Promise<{ rig: HolderRig; shells: { running: number } }> => {
+  const shells = { running: 1 }
+  const rig = await makeRig({ runningShells: async () => shells.running })
   await seedSession(rig)
   await rig.holder.start()
   await rig.post('hello')
   await rig.wake()
   const saw = await flushUntil({ check: () => answered(rig), clock: rig.clock, advanceMs: 2_000 })
   expect(saw).toBe(true)
-  return rig
+  return { rig, shells }
 }
 
 const tickUntil = async (rig: HolderRig, check: () => Promise<boolean> | boolean) => {
@@ -65,8 +71,35 @@ describe('SessionHolder settles the lease on every exit', () => {
     expect(recovered).toBe(true)
   }, 20_000)
 
+  it('a session that keeps faulting backs off and is quarantined', async () => {
+    const rig = await makeRig({
+      model: () =>
+        ({
+          identity: { id: 'faulty', modelId: 'faulty-1' },
+          step: async () => {
+            throw new Error('boom')
+          },
+        }) as never,
+    })
+    await seedSession(rig)
+    await rig.holder.start()
+    await rig.post('first')
+    await rig.wake()
+
+    expect(await tickUntil(rig, () => quarantined(rig))).toBe(true)
+    await rig.flush()
+    expect(rig.runtimes.length).toBe(MAX_START_ATTEMPTS)
+    expect(await rig.plane.currentLease({ sessionId: SESSION })).toMatchObject({
+      lease: { holderHostId: null, wantsHolder: false },
+    })
+    expect(rig.holder.heldIds()).toEqual([])
+    rig.clock.advance(10 * 60_000)
+    await rig.flush()
+    expect(rig.runtimes.length).toBe(MAX_START_ATTEMPTS)
+  }, 30_000)
+
   it('an idle release whose runtime.release throws is retried until the lease is revoked (F29a)', async () => {
-    const rig = await idleRig()
+    const { rig, shells } = await idleRig()
     const runtime = rig.runtimes[0]
     if (runtime === undefined) throw new Error('no runtime')
     const original = runtime.release
@@ -79,7 +112,8 @@ describe('SessionHolder settles the lease on every exit', () => {
       return original()
     }
 
-    rig.clock.advance(13_000)
+    shells.running = 0
+    await rig.wake()
     const revoked = await advanceUntil(rig, async () => (await holderOf(rig)) === null)
     expect(failed).toBe(1)
     expect(revoked).toBe(true)
@@ -95,7 +129,7 @@ describe('SessionHolder settles the lease on every exit', () => {
   }, 20_000)
 
   it('an idle release whose revoke throws is retried until the lease is revoked (F29b)', async () => {
-    const rig = await idleRig()
+    const { rig, shells } = await idleRig()
     const original = rig.plane.revoke.bind(rig.plane)
     let failed = 0
     rig.plane.revoke = (async (params: Parameters<typeof rig.plane.revoke>[0]) => {
@@ -106,7 +140,8 @@ describe('SessionHolder settles the lease on every exit', () => {
       return original(params)
     }) as typeof rig.plane.revoke
 
-    rig.clock.advance(13_000)
+    shells.running = 0
+    await rig.wake()
     const revoked = await advanceUntil(rig, async () => (await holderOf(rig)) === null)
     expect(failed).toBe(1)
     expect(revoked).toBe(true)
