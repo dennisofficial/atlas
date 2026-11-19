@@ -4,6 +4,8 @@ import { Test } from '@nestjs/testing'
 import { ThrottlerModule } from '@nestjs/throttler'
 import { TRPCModule } from 'nestjs-trpc'
 import { EnvService } from '../../_core/config/env/env.service'
+import { decodeAtlasB64Body } from '../../_lib/atlas-b64-body'
+import { JSON_BODY_LIMIT } from '../../_lib/body-limits'
 import { ApiTrpcContext } from './api-trpc-context'
 import { ApiTrpcModule } from './api-trpc.module'
 import { HttpErrorMiddleware } from './http-error.middleware'
@@ -57,6 +59,8 @@ export async function createMiddlewareApp({
     providers,
   }).compile()
   const app = module.createNestApplication<NestExpressApplication>()
+  app.useBodyParser('json', { limit: JSON_BODY_LIMIT })
+  app.use('/v1/trpc', decodeAtlasB64Body)
   await app.init()
   return app
 }

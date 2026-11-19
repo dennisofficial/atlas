@@ -2,7 +2,18 @@ import { describe, expect, it } from 'bun:test'
 import { controlPlaneError, createApiClient, detailsOf, httpStatusOf } from '../client'
 
 type FetchInput = Parameters<typeof fetch>[0]
-type Seen = { url: string; headers: Headers; credentials: string | undefined }
+type Seen = {
+  url: string
+  headers: Headers
+  credentials: string | undefined
+  body: unknown
+}
+
+const wrappedBodyOf = (body: unknown): { atlasB64: string } =>
+  JSON.parse(String(body)) as { atlasB64: string }
+
+const decodedBody = (body: unknown): unknown =>
+  JSON.parse(Buffer.from(wrappedBodyOf(body).atlasB64, 'base64').toString('utf8'))
 
 const recordingFetch = (seen: Seen[]): typeof fetch =>
   Object.assign(
@@ -11,6 +22,7 @@ const recordingFetch = (seen: Seen[]): typeof fetch =>
         url: String(input),
         headers: new Headers(init?.headers),
         credentials: init?.credentials,
+        body: init?.body,
       })
       return Response.json({ result: { data: { head: 1 } } })
     },
@@ -191,6 +203,50 @@ describe('createApiClient', () => {
     expect(httpStatusOf(failure)).toBe(409)
     expect(detailsOf(failure)).toEqual({ seq: 3 })
     expect(controlPlaneError(failure).message).toBe('the control plane answered 409: conflict')
+  })
+
+  it('base64-wraps a mutation body', async () => {
+    const seen: Seen[] = []
+    const client = createApiClient({
+      baseUrl: 'https://api.atlas.test',
+      fetchFn: recordingFetch(seen),
+    })
+    const input = { scope: 'new', text: 'hello', uploads: [] }
+
+    await client.composerDrafts.put.mutate(input).catch(() => undefined)
+
+    expect(Object.keys(wrappedBodyOf(seen[0]?.body))).toEqual(['atlasB64'])
+    expect(decodedBody(seen[0]?.body)).toEqual(input)
+  })
+
+  it('round-trips non-ASCII and emoji text through the base64 body', async () => {
+    const seen: Seen[] = []
+    const client = createApiClient({
+      baseUrl: 'https://api.atlas.test',
+      fetchFn: recordingFetch(seen),
+    })
+    const input = {
+      scope: 'new',
+      text: 'héllo 👋 read ../../../../etc/passwd; rm -rf /tmp/x',
+      uploads: [],
+    }
+
+    await client.composerDrafts.put.mutate(input).catch(() => undefined)
+
+    expect(decodedBody(seen[0]?.body)).toEqual(input)
+  })
+
+  it('leaves a query input in the URL and sends no body', async () => {
+    const seen: Seen[] = []
+    const client = createApiClient({
+      baseUrl: 'https://api.atlas.test',
+      fetchFn: recordingFetch(seen),
+    })
+
+    await client.composerDrafts.get.query({ scope: 'new' }).catch(() => undefined)
+
+    expect(seen[0]?.url).toContain('input=')
+    expect(seen[0]?.body).toBeUndefined()
   })
 
   it('passes a non-tRPC failure through unchanged', () => {

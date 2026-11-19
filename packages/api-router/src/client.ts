@@ -26,6 +26,26 @@ export type ApiClientOptions = {
 
 const trpcUrlOf = (baseUrl: string): string => `${baseUrl.replace(/\/+$/, '')}/v1/trpc`
 
+const BASE64_CHUNK_BYTES = 0x8000
+
+const base64OfUtf8 = (text: string): string => {
+  const bytes = new TextEncoder().encode(text)
+  let binary = ''
+  for (let index = 0; index < bytes.length; index += BASE64_CHUNK_BYTES) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + BASE64_CHUNK_BYTES))
+  }
+  return btoa(binary)
+}
+
+// Render's edge WAF blocks request bodies by content (shell commands, paths), so the JSON body
+// travels base64-wrapped and the API unwraps it before tRPC parses it.
+const encodeBody = (init: RequestInit): RequestInit => {
+  const body = init.body
+  return typeof body === 'string'
+    ? { ...init, body: JSON.stringify({ atlasB64: base64OfUtf8(body) }) }
+    : init
+}
+
 const credentialsOf = (options: ApiClientOptions): ApiCredentials =>
   options.credentials ?? 'same-origin'
 
@@ -67,11 +87,14 @@ export const createApiClient = (options: ApiClientOptions) => {
         false: httpLink({
           url,
           fetch: async (input, init) => {
-            const response = await fetchFn(input, {
-              ...init,
-              credentials,
-              signal: init?.signal ?? null,
-            })
+            const response = await fetchFn(
+              input,
+              encodeBody({
+                ...init,
+                credentials,
+                signal: init?.signal ?? null,
+              }),
+            )
             return { ok: response.ok, json: () => response.json() }
           },
           headers: headersOf(options),

@@ -9,7 +9,7 @@ import {
   SANDBOX_TOKEN,
 } from './sandbox-self.router.fixture'
 
-const FIVE_MIB = 5 * 1024 * 1024
+const NINE_MIB = 9 * 1024 * 1024
 
 describe('tRPC routes under the global JSON body cap', () => {
   let app: INestApplication
@@ -22,8 +22,8 @@ describe('tRPC routes under the global JSON body cap', () => {
     await app.close()
   })
 
-  it('is the same 4mb cap the REST routes get', () => {
-    expect(JSON_BODY_LIMIT).toBe('4mb')
+  it('is the same 8mb cap the REST routes get', () => {
+    expect(JSON_BODY_LIMIT).toBe('8mb')
   })
 
   it('refuses a body over the cap with 413 before any procedure runs', async () => {
@@ -31,7 +31,7 @@ describe('tRPC routes under the global JSON body cap', () => {
       .post(procedurePath('stop'))
       .set(as(SANDBOX_TOKEN))
       .set('content-type', 'application/json')
-      .send(JSON.stringify({ sessionId: 'x'.repeat(FIVE_MIB) }))
+      .send(JSON.stringify({ sessionId: 'x'.repeat(NINE_MIB) }))
 
     expect(reply.status).toBe(413)
   })

@@ -7,6 +7,7 @@ import { UserFilesService } from './user-files.service'
 
 const HARNESS_FILE_CAP_BYTES = 3_000_000
 const FOUR_MIB = 4 * 1024 * 1024
+const NINE_MIB = 9 * 1024 * 1024
 const LONGEST_PATH = `${'d/'.repeat(249)}x`
 
 const largestLegalPut = () => {
@@ -20,7 +21,7 @@ const largestLegalPut = () => {
   }
 }
 
-describe('userFiles.put under the 4 MB JSON body cap', () => {
+describe('userFiles.put under the 8 MB JSON body cap', () => {
   let app: INestApplication
   const received: number[] = []
   const recordingFiles = {
@@ -54,7 +55,7 @@ describe('userFiles.put under the 4 MB JSON body cap', () => {
       app,
       path: 'userFiles.put',
       token: 'session-a',
-      input: { ...largestLegalPut(), content: 'A'.repeat(FOUR_MIB + 1024) },
+      input: { ...largestLegalPut(), content: 'A'.repeat(NINE_MIB + 1024) },
     })
 
     expect(reply.status).toBe(413)
@@ -65,7 +66,7 @@ describe('userFiles.put under the 4 MB JSON body cap', () => {
       app,
       path: 'userFiles.get',
       token: 'session-a',
-      input: { tree: 'skills', paths: ['x'.repeat(FOUR_MIB + 1024)] },
+      input: { tree: 'skills', paths: ['x'.repeat(NINE_MIB + 1024)] },
     })
 
     expect(reply.status).toBe(413)

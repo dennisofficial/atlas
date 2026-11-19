@@ -1,1 +1,1 @@
-export const JSON_BODY_LIMIT = '4mb'
+export const JSON_BODY_LIMIT = '8mb'

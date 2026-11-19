@@ -2,7 +2,7 @@ import { json, type RequestHandler } from 'express'
 
 /**
  * Sanity cap for the unauthenticated webhook endpoints, raw bytes over the wire. The global
- * JSON parser accepts JSON_BODY_LIMIT (4mb); a GitHub webhook delivery is never anywhere near
+ * JSON parser accepts JSON_BODY_LIMIT (8mb); a GitHub webhook delivery is never anywhere near
  * that, and these routes are reachable with no caller principal (the HMAC is verified only after
  * the body is buffered), so they get their own parser that rejects oversized bodies before
  * buffering. There is deliberately no request-rate cap here: a throttled webhook is a failed
