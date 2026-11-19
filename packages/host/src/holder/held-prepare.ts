@@ -23,6 +23,14 @@ import { setupWarningText } from './setup-warning'
 
 const SETUP_STOPPED_REASON = 'setup was stopped with the session'
 
+const lastSetupPhaseOf = (record: SessionRecord): ESetupPhase | undefined => {
+  const last = record
+    .eventCache()
+    .eventsAfter(0)
+    .findLast((event) => event.type === 'sandbox-setup-reported' && event.phase !== undefined)
+  return last?.type === 'sandbox-setup-reported' ? last.phase : undefined
+}
+
 export class HeldPrepare {
   private active = false
   private setupRunning = false
@@ -195,6 +203,11 @@ export class HeldPrepare {
     if (finished === undefined || target === undefined || !this.settled) return
     if (this.args.abandoned()) return
     this.finished = undefined
+    // a host that took over may observe an end an earlier host already recorded
+    if (lastSetupPhaseOf(target.record) === ESetupPhase.Finished) {
+      this.args.onSetupEnded()
+      return
+    }
     await target.record
       .append({
         threadId: target.threadId,
@@ -250,7 +263,8 @@ export class HeldPrepare {
   }): Promise<void> {
     if (this.args.abandoned()) return
     const { result, runId } = args
-    const started = this.takeStarted()
+    const taken = this.takeStarted()
+    const started = lastSetupPhaseOf(args.record) === ESetupPhase.Started ? [] : taken
     if (!result.ok) {
       await args.record.append({
         threadId: args.threadId,

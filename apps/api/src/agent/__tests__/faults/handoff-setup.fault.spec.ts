@@ -15,6 +15,12 @@ const setupStepsOf = async (ctx: HandoffContext): Promise<Step[]> =>
     .map((row) => row.event as Step)
     .filter((step) => step.step === EWorkspaceStep.Setup)
 
+const setupNoticePhasesOf = async (ctx: HandoffContext): Promise<string[]> =>
+  (await ctx.record())
+    .filter((row) => row.type === 'sandbox-setup-reported')
+    .map((row) => (row.event as { phase?: string }).phase)
+    .filter((phase): phase is string => phase !== undefined)
+
 const startedCount = (steps: readonly Step[]): number =>
   steps.filter((step) => step.state === EWorkspaceStepState.Started).length
 
@@ -73,6 +79,11 @@ describeHandoff({
     expect(done).toHaveLength(1)
     expect(done[0]?.command).toBe(SETUP_SCRIPT)
     expect(done[0]?.output).toContain('end')
+    await waitUntil({
+      what: 'the setup finished notice',
+      check: async () => (await setupNoticePhasesOf(ctx)).includes('finished'),
+    })
+    expect(await setupNoticePhasesOf(ctx)).toEqual(['started', 'finished'])
   },
 
   async runs(ctx) {
