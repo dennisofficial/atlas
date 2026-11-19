@@ -65,6 +65,27 @@ describe('SessionDetailsTab', () => {
     expect(html).toContain('Building the details variants')
   })
 
+  it('shows spend and token usage under the header', () => {
+    const spend = {
+      inputTokens: 150_000,
+      outputTokens: 12_000,
+      cacheReadTokens: 100_000,
+      cacheWriteTokens: 0,
+      uncachedInputTokens: 50_000,
+      costUsd: 1.23,
+    }
+    const html = render(paneValueFixture({ view: { ...paneValueFixture().view, spend } }))
+    expect(html).toContain('data-session-spend')
+    expect(html).toContain('$1.23')
+    expect(html).toContain('aria-label="Input tokens"')
+    expect(html).toContain('aria-label="Output tokens"')
+    expect(html).toContain('cached')
+  })
+
+  it('hides the spend line before any model call', () => {
+    expect(render(paneValueFixture())).not.toContain('data-session-spend')
+  })
+
   it('has no todo section without a plan', () => {
     expect(render(populatedPaneValue())).not.toContain('aria-label="Todo"')
   })
