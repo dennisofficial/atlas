@@ -18,7 +18,8 @@ export const sessionDigestsIn = async (
     params.tx.raw
       .sql`SELECT s."id", s."userId", s."projectId", s."title", s."mainThreadId", s."createdAt", s."archivedAt",
         s."deletedAt", s."modelRef", s."modelEffort", s."modelFast", s."spawnedBySessionId", s."nested",
-        s."podSessionId", s."routineId", s."readSeq",
+        s."podSessionId", s."podDesiredVcpus", s."podSizeGeneration", s."podActualVcpus",
+        s."podAppliedGeneration", s."podResizeError", s."routineId", s."readSeq",
         (SELECT e."at" FROM "v2"."V2Event" e
           WHERE e."threadId" = s."mainThreadId" ORDER BY e."seq" DESC LIMIT 1) AS "lastEventAt",
         COALESCE((SELECT MAX(e."seq") FROM "v2"."V2Event" e
