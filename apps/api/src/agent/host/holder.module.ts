@@ -7,8 +7,9 @@ import type {
   SessionHolder,
   TerminalDemand,
 } from '@dltech/atlas-host'
-import type { LogPort } from '@dltech/atlas-observability'
+import type { LogPort, TracePort } from '@dltech/atlas-observability'
 
+import { TRACE_FOR } from '../analytics/tokens'
 import type { PgWakeListener } from '../bus/pg-wake-listener'
 import { composeAgentHost } from '../compose'
 import { MacLinkModule } from '../mac-link/mac-link.module'
@@ -70,6 +71,7 @@ const holderProvider: Provider = {
     log: LogPort,
     watch: HostWatchService,
     macLink: MacLink,
+    traceFor: (distinctId: string) => TracePort,
   ): SessionHolder =>
     composeAgentHost({
       env,
@@ -84,6 +86,7 @@ const holderProvider: Provider = {
       control,
       macLink,
       log,
+      traceFor,
       onHostIdChanged: () => watch.recompute(),
       ...(media.signer === undefined ? {} : { media: media.signer }),
       ...(content instanceof UnavailableChangeContentStore ? {} : { changes: { content } }),
@@ -104,6 +107,7 @@ const holderProvider: Provider = {
     LOG,
     HOST_WATCH,
     MAC_LINK,
+    TRACE_FOR,
   ],
 }
 

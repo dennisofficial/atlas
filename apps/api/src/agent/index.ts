@@ -23,6 +23,11 @@ export { sandboxNameOf } from './sandbox/vercel-names'
 export { VercelSandboxProvider } from './sandbox/vercel-sandbox-provider'
 export { Agent37SandboxProvider } from './sandbox/agent37/agent37-sandbox-provider'
 export { AgentModule } from './agent.module'
+export { analyticsAppendHook } from './analytics/append-hook'
+export { AnalyticsModule } from './analytics/analytics.module'
+export { digestTimingProperties } from './analytics/digest-timings'
+export { serverAnalytics } from './analytics/singleton'
+export { PRODUCT_ANALYTICS, TRACE_FOR } from './analytics/tokens'
 export {
   MCP_OAUTH_BEGIN,
   OPERATOR_ANSWERS,

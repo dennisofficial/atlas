@@ -1,5 +1,7 @@
 import { sharedPool } from '@dltech/atlas-db'
+import { serverAnalytics } from '../../../agent'
 import { createEmailSender } from '../../../_lib/email/email-sender'
+import { captureSignedIn, captureSignedUp } from './auth-analytics'
 import { createAuthEmailHooks } from './auth-email-hooks'
 import { deletePushDevicesOfSession } from './auth-session-hooks'
 import { sessionStorageFromEnv } from './auth-session-storage'
@@ -99,8 +101,19 @@ export const auth = betterAuth({
   },
   trustedOrigins,
   databaseHooks: {
-    user: { create: { before: async (user) => ({ data: { ...user, active: false } }) } },
-    session: { delete: { after: deletePushDevicesOfSession } },
+    user: {
+      create: {
+        before: async (user) => ({ data: { ...user, active: false } }),
+        after: async (user, context) => captureSignedUp(serverAnalytics().analytics, user, context),
+      },
+    },
+    session: {
+      create: {
+        after: async (session, context) =>
+          captureSignedIn(serverAnalytics().analytics, session, context),
+      },
+      delete: { after: deletePushDevicesOfSession },
+    },
   },
   plugins: [
     bearer(),

@@ -197,6 +197,7 @@ export const createLoopRunner = (args: {
   const runner = new LoopTurnRunner({
     record,
     modelContext: record,
+    ...(runtime.trace === undefined ? {} : { trace: runtime.trace }),
     model: runtime.model,
     ids: deps.ids,
     assembly: runtime.assembly,

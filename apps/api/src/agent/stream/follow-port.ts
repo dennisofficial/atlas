@@ -32,7 +32,12 @@ export const createFollowSubscriptions = (
     log,
     onLiveness: (liveness) => overlay?.liveness(liveness),
   })
-  const sessions = new SessionsListIndex({ plane, timers, log })
+  const sessions = new SessionsListIndex({
+    plane,
+    timers,
+    log,
+    ...(args.analytics === undefined ? {} : { analytics: args.analytics }),
+  })
   const bySession = new Map<string, Set<FollowTarget>>()
   const index: SubscriptionIndex = {
     add: (subscription) => {
@@ -68,6 +73,7 @@ export const createFollowSubscriptions = (
     plane,
     timers,
     log,
+    ...(args.analytics === undefined ? {} : { analytics: args.analytics }),
     ...(args.recordSurface === undefined ? {} : { recordSurface: args.recordSurface }),
     viewHead: (head) => sessionViews.handleHead(head),
   }

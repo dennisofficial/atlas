@@ -10,6 +10,7 @@ import {
 } from '@dltech/atlas-core'
 import { z } from 'zod'
 import { FakeMediaStore } from '@dltech/atlas-media/testing'
+import type { ProductAnalytics } from '@dltech/atlas-observability'
 import { ControlPlane, INBOX_KIND_WITHDRAW, withdrawPayloadOf } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 import { EnvService } from '../../../_core/config/env/env.service'
@@ -125,6 +126,7 @@ export const setupSessionsService = (
     planGate?: PodPlanGate
     dispatcher?: FakePodResizeDispatcher
     ops?: PodOps | null
+    analytics?: ProductAnalytics | null
   } = {},
 ) => {
   const store = new InMemoryControlStore({ clock: () => NOW })
@@ -147,6 +149,16 @@ export const setupSessionsService = (
     new EnvService({ SANDBOX_PROVIDER_DEFAULT: 'vercel', ...over.env }),
     podSizing,
     over.ops ?? null,
+    over.analytics ?? null,
   )
-  return { plane, service, registry, mediaStore, store, projects, dispatcher }
+  return {
+    plane,
+    service,
+    registry,
+    mediaStore,
+    store,
+    projects,
+    dispatcher,
+    analytics: over.analytics ?? null,
+  }
 }
