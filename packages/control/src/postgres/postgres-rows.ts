@@ -52,6 +52,8 @@ export const toSessionRow = (row: {
   sandboxProvider: string
   credentialSource: string
   sandboxInstanceId: string | null
+  sandboxStatus: string | null
+  sandboxStatusAt: Date | null
   spawnedBySessionId: string | null
   nested: boolean
   podSessionId: string | null
@@ -71,6 +73,8 @@ export const toSessionRow = (row: {
   sandboxProvider: row.sandboxProvider,
   credentialSource: row.credentialSource,
   sandboxInstanceId: row.sandboxInstanceId,
+  sandboxStatus: row.sandboxStatus,
+  sandboxStatusAt: row.sandboxStatusAt === null ? null : iso(row.sandboxStatusAt),
   spawnedBySessionId: row.spawnedBySessionId,
   nested: row.nested,
   podSessionId: row.podSessionId,

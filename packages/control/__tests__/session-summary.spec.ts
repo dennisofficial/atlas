@@ -1,3 +1,5 @@
+import { ESessionStatus } from '@dltech/atlas-core'
+import { ESandboxStatus } from '@dltech/atlas-protocol'
 import { describe, expect, it } from 'bun:test'
 
 import type { ControlSessionDigest } from '../src/port'
@@ -21,6 +23,8 @@ const digest = (patch: Partial<ControlSessionDigest> = {}): ControlSessionDigest
   sandboxProvider: 'vercel',
   credentialSource: 'byok',
   sandboxInstanceId: null,
+  sandboxStatus: null,
+  sandboxStatusAt: null,
   spawnedBySessionId: null,
   nested: true,
   podSessionId: null,
@@ -54,6 +58,24 @@ describe('sessionSummaryOf', () => {
       now: postedMs,
     })
     expect(summary).toMatchObject({ title: null, naming: false })
+  })
+
+  it('carries the sandbox status the digest exposes', () => {
+    const sandbox = { status: ESandboxStatus.Sleeping, at: POSTED }
+    const summary = sessionSummaryOf({
+      digest: digest({
+        view: {
+          status: { state: ESessionStatus.Idle },
+          primaryBranch: null,
+          pullRequest: null,
+          sandbox,
+        },
+      }),
+      now: postedMs,
+    })
+
+    expect(summary.sandbox).toEqual(sandbox)
+    expect(sessionSummaryOf({ digest: digest(), now: postedMs }).sandbox).toBeUndefined()
   })
 
   it('updates at the last event, else creation', () => {

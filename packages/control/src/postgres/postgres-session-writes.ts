@@ -39,6 +39,8 @@ export const createSessionIn = async (params: {
     sandboxProvider: params.sandboxProvider,
     credentialSource: params.credentialSource,
     sandboxInstanceId: params.sandboxInstanceId,
+    sandboxStatus: null,
+    sandboxStatusAt: null,
     spawnedBySessionId: params.spawnedBySessionId ?? null,
     nested: params.nested ?? true,
     podSessionId: params.podSessionId ?? null,
@@ -112,6 +114,20 @@ export const setSandboxInstanceIdIn = async (params: {
     id: params.sessionId,
   }).updateAndCount({ sandboxInstanceId: params.sandboxInstanceId })
   return changed === 1
+}
+
+export const setSandboxStatusIn = async (params: {
+  tx: Tx
+  sandboxInstanceId: string
+  status: string
+  at: string
+}): Promise<boolean> => {
+  const statement = params.tx.raw.sql`UPDATE "v2"."V2Session"
+      SET "sandboxStatus" = ${params.status}, "sandboxStatusAt" = ${params.at}::timestamptz
+      WHERE "sandboxInstanceId" = ${params.sandboxInstanceId}
+        AND ("sandboxStatusAt" IS NULL OR "sandboxStatusAt" < ${params.at}::timestamptz)`
+  const { affectedRows } = await params.tx.execute(statement.affectedCount().build())
+  return affectedRows > 0
 }
 
 export const setSessionArchivedIn = async (params: {

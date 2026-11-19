@@ -250,6 +250,11 @@ export interface ControlTx {
     sessionId: string
     sandboxInstanceId: string | null
   }): Promise<boolean>
+  setSandboxStatus(params: {
+    sandboxInstanceId: string
+    status: string
+    at: string
+  }): Promise<boolean>
   readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined>
   lockSession(sessionId: string): Promise<ControlSessionRow | undefined>
   setSessionArchived(params: { sessionId: string; archivedAt: string | null }): Promise<boolean>

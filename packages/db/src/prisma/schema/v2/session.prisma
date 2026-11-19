@@ -17,6 +17,8 @@ namespace v2 {
     sandboxProvider   String
     credentialSource  String
     sandboxInstanceId String?
+    sandboxStatus     String?
+    sandboxStatusAt   TimestamptzJsDate(3)?
     spawnedBySessionId String?
     nested             Boolean               @default(true)
     podSessionId       String?
@@ -33,5 +35,6 @@ namespace v2 {
     terminals       V2Terminal[]
 
     @@index([userId, createdAt])
+    @@index([sandboxInstanceId])
   }
 }

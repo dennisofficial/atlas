@@ -9878,6 +9878,23 @@
                   "kind": "scalar"
                 }
               },
+              "sandboxStatus": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "sandboxStatusAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
               "spawnedBySessionId": {
                 "nullable": true,
                 "type": {
@@ -10086,6 +10103,12 @@
                 },
                 "sandboxProvider": {
                   "column": "sandboxProvider"
+                },
+                "sandboxStatus": {
+                  "column": "sandboxStatus"
+                },
+                "sandboxStatusAt": {
+                  "column": "sandboxStatusAt"
                 },
                 "spawnedBySessionId": {
                   "column": "spawnedBySessionId"
@@ -18149,6 +18172,19 @@
                   "dataType": "pg/text",
                   "nullable": false
                 },
+                "sandboxStatus": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "sandboxStatusAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
                 "spawnedBySessionId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -18172,6 +18208,14 @@
               },
               "foreignKeys": [],
               "indexes": [
+                {
+                  "columns": [
+                    "sandboxInstanceId"
+                  ],
+                  "name": "V2Session_sandboxInstanceId_idx_c3850fdd",
+                  "prefix": "V2Session_sandboxInstanceId_idx",
+                  "unique": false
+                },
                 {
                   "columns": [
                     "userId",
@@ -18792,7 +18836,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "b3d260c93b2482a08fb1673253a185d6399e44d37cc1a4b8e0c07c6b04d346bf"
+    "storageHash": "8ff92224609f6e96b53098608e35a84a6a8c06de5545ab4e1f85bdd0fc13579c"
   },
   "execution": {
     "executionHash": "4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45",

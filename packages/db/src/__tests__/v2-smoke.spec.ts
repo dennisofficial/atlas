@@ -21,6 +21,8 @@ const sessionRow = () => ({
   sandboxProvider: 'vercel',
   credentialSource: 'byok',
   sandboxInstanceId: null,
+  sandboxStatus: null,
+  sandboxStatusAt: null,
   spawnedBySessionId: null,
   nested: true,
   podSessionId: null,

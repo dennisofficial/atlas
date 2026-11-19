@@ -8,7 +8,11 @@ import { GlobalExceptionFilter } from './api/global-exception.filter'
 import { trustedOriginsOf } from './api/platform/desktop-auth/trusted-origins'
 import { EnvService } from './_core/config/env/env.service'
 import { JSON_BODY_LIMIT } from './_lib/body-limits'
-import { GITHUB_WEBHOOK_BODY_LIMIT, webhookJsonParser } from './_lib/webhook-body-limit'
+import {
+  AGENT37_WEBHOOK_BODY_LIMIT,
+  GITHUB_WEBHOOK_BODY_LIMIT,
+  webhookJsonParser,
+} from './_lib/webhook-body-limit'
 
 const VALIDATION_PIPE_OPTIONS = {
   whitelist: true,
@@ -61,6 +65,7 @@ export async function createApp(
   // Unauthenticated webhook routes get tight body caps well under the global limit: the HMAC is
   // verified only after buffering, so anything bigger must be refused before it is read.
   app.use('/v1/github/hooks', webhookJsonParser({ limit: GITHUB_WEBHOOK_BODY_LIMIT }))
+  app.use('/v1/webhooks/agent37', webhookJsonParser({ limit: AGENT37_WEBHOOK_BODY_LIMIT }))
   app.useBodyParser('json', { limit: JSON_BODY_LIMIT })
   app.set('trust proxy', 1)
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' })

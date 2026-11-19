@@ -1,4 +1,5 @@
 import type { SessionStatus } from '@dltech/atlas-core'
+import type { SessionSandboxStatus } from '@dltech/atlas-protocol'
 
 export type ControlSessionRow = {
   sessionId: string
@@ -15,6 +16,8 @@ export type ControlSessionRow = {
   sandboxProvider: string
   credentialSource: string
   sandboxInstanceId: string | null
+  sandboxStatus: string | null
+  sandboxStatusAt: string | null
   spawnedBySessionId: string | null
   nested: boolean
   podSessionId: string | null
@@ -49,6 +52,7 @@ export type ControlDigestView = {
   status: SessionStatus
   primaryBranch: string | null
   pullRequest: ControlDigestPullRequest | null
+  sandbox: SessionSandboxStatus | null
 }
 
 export type ControlSessionDigest = SessionDigestRow & { view: ControlDigestView | null }

@@ -68,6 +68,7 @@ import {
   createSessionIn,
   readSessionIn,
   setSandboxInstanceIdIn,
+  setSandboxStatusIn,
   setSessionArchivedIn,
   setSessionModelIn,
   setSessionTitleIfUntitledIn,
@@ -153,6 +154,10 @@ class PostgresTx implements ControlTx {
 
   async setSandboxInstanceId(params: Parameters<ControlTx['setSandboxInstanceId']>[0]) {
     return setSandboxInstanceIdIn({ tx: this.tx, ...params })
+  }
+
+  async setSandboxStatus(params: Parameters<ControlTx['setSandboxStatus']>[0]) {
+    return setSandboxStatusIn({ tx: this.tx, ...params })
   }
 
   async readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined> {

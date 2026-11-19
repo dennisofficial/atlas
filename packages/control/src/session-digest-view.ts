@@ -2,7 +2,16 @@ import type { LeaseOps } from './lease-ops'
 import type { ControlDigestView, ControlSessionDigest, ControlTx, SessionDigestRow } from './port'
 import { currentViewIn, liveViewIn, trackedPullRequestsOf } from './session-view-read'
 import { checkoutsOf, type PluginViewFold, type V2Event } from '@dltech/atlas-core'
+import { sessionSandboxStatusSchema } from '@dltech/atlas-protocol'
 import type { z } from 'zod'
+
+const sandboxOf = (row: SessionDigestRow): ControlDigestView['sandbox'] => {
+  const parsed = sessionSandboxStatusSchema.safeParse({
+    status: row.sandboxStatus,
+    at: row.sandboxStatusAt,
+  })
+  return parsed.success ? parsed.data : null
+}
 
 const digestViewIn = async (args: {
   tx: ControlTx
@@ -33,6 +42,7 @@ const digestViewIn = async (args: {
   return {
     status: live.value.status,
     primaryBranch: checkoutsOf(state.checkouts).primary?.branch ?? null,
+    sandbox: sandboxOf(row),
     pullRequest:
       pullRequest === undefined
         ? null

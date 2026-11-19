@@ -1,0 +1,150 @@
+[
+  {
+    "id": "column.v2.V2Session.sandboxStatus",
+    "label": "Add column \"sandboxStatus\" to \"V2Session\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "column",
+        "name": "sandboxStatus",
+        "table": "V2Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"sandboxStatus\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "sandboxStatus"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"sandboxStatus\"",
+        "sql": "ALTER TABLE \"v2\".\"V2Session\" ADD COLUMN \"sandboxStatus\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"sandboxStatus\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "sandboxStatus"
+        ]
+      },
+      {
+        "description": "verify column \"sandboxStatus\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "sandboxStatus",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.v2.V2Session.sandboxStatusAt",
+    "label": "Add column \"sandboxStatusAt\" to \"V2Session\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "column",
+        "name": "sandboxStatusAt",
+        "table": "V2Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"sandboxStatusAt\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "sandboxStatusAt"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"sandboxStatusAt\"",
+        "sql": "ALTER TABLE \"v2\".\"V2Session\" ADD COLUMN \"sandboxStatusAt\" timestamptz(3)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"sandboxStatusAt\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "sandboxStatusAt"
+        ]
+      },
+      {
+        "description": "verify column \"sandboxStatusAt\" has type \"timestamp(3) with time zone\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "sandboxStatusAt",
+          "timestamp(3) with time zone"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.V2Session.V2Session_sandboxInstanceId_idx_c3850fdd",
+    "label": "Create index \"V2Session_sandboxInstanceId_idx_c3850fdd\" on \"V2Session\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "index",
+        "name": "V2Session_sandboxInstanceId_idx_c3850fdd",
+        "table": "V2Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"V2Session_sandboxInstanceId_idx_c3850fdd\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2Session_sandboxInstanceId_idx_c3850fdd\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"V2Session_sandboxInstanceId_idx_c3850fdd\"",
+        "sql": "CREATE INDEX \"V2Session_sandboxInstanceId_idx_c3850fdd\" ON \"v2\".\"V2Session\" (\"sandboxInstanceId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"V2Session_sandboxInstanceId_idx_c3850fdd\" exists on \"V2Session\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2Session_sandboxInstanceId_idx_c3850fdd\"",
+          "i",
+          "I",
+          "\"v2\".\"V2Session\"",
+          "btree",
+          "[\"sandboxInstanceId\"]"
+        ]
+      }
+    ]
+  }
+]

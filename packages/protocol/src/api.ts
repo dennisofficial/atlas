@@ -68,6 +68,21 @@ export enum ECredentialSource {
   Platform = 'platform',
 }
 
+export enum ESandboxStatus {
+  Provisioning = 'provisioning',
+  Running = 'running',
+  Stopping = 'stopping',
+  Stopped = 'stopped',
+  Starting = 'starting',
+  Restarting = 'restarting',
+  Updating = 'updating',
+  Sleeping = 'sleeping',
+  Waking = 'waking',
+  Failed = 'failed',
+  Deleting = 'deleting',
+  Deleted = 'deleted',
+}
+
 export const sessionCreateInputSchema = z.strictObject({
   projectId: z.string().min(1).nullish(),
   title: z.string().optional(),
@@ -172,6 +187,13 @@ export const sessionModelChoiceOf = (row: {
   fast: row.modelFast,
 })
 
+export const sessionSandboxStatusSchema = z.strictObject({
+  status: z.nativeEnum(ESandboxStatus),
+  at: z.string().min(1),
+})
+
+export type SessionSandboxStatus = z.infer<typeof sessionSandboxStatusSchema>
+
 export const sessionSummarySchema = z.strictObject({
   sessionId: z.string().min(1),
   projectId: z.string().min(1).nullable(),
@@ -188,6 +210,7 @@ export const sessionSummarySchema = z.strictObject({
   status: sessionRowStatusSchema.optional(),
   primaryBranch: z.string().nullable().optional(),
   pullRequest: sessionRowPullRequestSchema.nullable().optional(),
+  sandbox: sessionSandboxStatusSchema.nullable().optional(),
 })
 
 export const sessionListOutputSchema = z.strictObject({

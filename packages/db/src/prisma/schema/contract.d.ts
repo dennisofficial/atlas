@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'b3d260c93b2482a08fb1673253a185d6399e44d37cc1a4b8e0c07c6b04d346bf'>;
+  StorageHashBase<'8ff92224609f6e96b53098608e35a84a6a8c06de5545ab4e1f85bdd0fc13579c'>;
 export type ExecutionHash =
   ExecutionHashBase<'4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45'>;
 export type ProfileHash =
@@ -1334,6 +1334,8 @@ export namespace Models {
     routineId: FieldOutputTypes['v2']['V2Session']['routineId'];
     sandboxInstanceId: FieldOutputTypes['v2']['V2Session']['sandboxInstanceId'];
     sandboxProvider: FieldOutputTypes['v2']['V2Session']['sandboxProvider'];
+    sandboxStatus: FieldOutputTypes['v2']['V2Session']['sandboxStatus'];
+    sandboxStatusAt: FieldOutputTypes['v2']['V2Session']['sandboxStatusAt'];
     spawnedBySessionId: FieldOutputTypes['v2']['V2Session']['spawnedBySessionId'];
     title: FieldOutputTypes['v2']['V2Session']['title'];
     titledFromInboxId: FieldOutputTypes['v2']['V2Session']['titledFromInboxId'];
@@ -7728,6 +7730,19 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly many: false;
                 };
+                readonly sandboxStatus: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly sandboxStatusAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
                 readonly spawnedBySessionId: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
@@ -7756,6 +7771,12 @@ type ContractBase = Omit<
               primaryKey: { readonly columns: readonly ['id'] };
               uniques: readonly [];
               indexes: readonly [
+                {
+                  readonly name: 'V2Session_sandboxInstanceId_idx_c3850fdd';
+                  readonly prefix: 'V2Session_sandboxInstanceId_idx';
+                  readonly columns: readonly ['sandboxInstanceId'];
+                  readonly unique: false;
+                },
                 {
                   readonly name: 'V2Session_userId_createdAt_idx_f726f04a';
                   readonly prefix: 'V2Session_userId_createdAt_idx';
@@ -14471,6 +14492,18 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly sandboxStatus: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly sandboxStatusAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
               readonly spawnedBySessionId: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -14596,6 +14629,8 @@ type ContractBase = Omit<
                 readonly routineId: { readonly column: 'routineId' };
                 readonly sandboxInstanceId: { readonly column: 'sandboxInstanceId' };
                 readonly sandboxProvider: { readonly column: 'sandboxProvider' };
+                readonly sandboxStatus: { readonly column: 'sandboxStatus' };
+                readonly sandboxStatusAt: { readonly column: 'sandboxStatusAt' };
                 readonly spawnedBySessionId: { readonly column: 'spawnedBySessionId' };
                 readonly title: { readonly column: 'title' };
                 readonly titledFromInboxId: { readonly column: 'titledFromInboxId' };

@@ -171,6 +171,14 @@ export class ControlPlane {
     return this.store.transact((tx) => tx.setSandboxInstanceId(params))
   }
 
+  async setSandboxStatus(params: {
+    sandboxInstanceId: string
+    status: string
+    at: string
+  }): Promise<boolean> {
+    return this.store.transact((tx) => tx.setSandboxStatus(params))
+  }
+
   async spawnPeer(params: {
     spawnerSessionId: string
     sessionId: string

@@ -64,6 +64,7 @@ import {
   listSessionsIn,
   readSessionIn,
   setSandboxInstanceIdIn,
+  setSandboxStatusIn,
   setSessionArchivedIn,
   setSessionTitleIfUntitledIn,
   setSessionTitleIn,
@@ -110,6 +111,10 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
 
   async setSandboxInstanceId(params: Parameters<ControlTx['setSandboxInstanceId']>[0]) {
     return setSandboxInstanceIdIn({ state: this.state, ...params })
+  }
+
+  async setSandboxStatus(params: Parameters<ControlTx['setSandboxStatus']>[0]) {
+    return setSandboxStatusIn({ state: this.state, ...params })
   }
 
   async readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined> {
