@@ -103,6 +103,31 @@ export class LeaseOps {
     return { lease, live }
   }
 
+  async currentLeasesIn(params: {
+    tx: ControlTx
+    sessionIds: readonly string[]
+  }): Promise<Map<string, { lease: Lease; live: boolean }>> {
+    const { tx, sessionIds } = params
+    const leases = new Map(
+      (await tx.readLeases(sessionIds)).map((lease) => [lease.sessionId, lease]),
+    )
+    const hostIds = [
+      ...new Set(
+        [...leases.values()].flatMap((lease) =>
+          lease.holderHostId === null ? [] : [lease.holderHostId],
+        ),
+      ),
+    ]
+    const present = await tx.hostsPresent(hostIds)
+    return new Map(
+      sessionIds.map((sessionId) => {
+        const lease = leases.get(sessionId) ?? initialLease({ sessionId })
+        const live = lease.holderHostId !== null && present.has(lease.holderHostId)
+        return [sessionId, { lease, live }]
+      }),
+    )
+  }
+
   async currentLease(params: { sessionId: string }): Promise<{ lease: Lease; live: boolean }> {
     return this.store.transact((tx) => this.currentLeaseIn({ tx, ...params }))
   }

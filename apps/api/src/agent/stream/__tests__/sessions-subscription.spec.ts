@@ -87,6 +87,8 @@ describe('sessions subscription', () => {
       createdAt: AT,
       updatedAt: AT,
       archivedAt: null,
+      lastAssistantSeq: 0,
+      readSeq: null,
     })
     await rig.plane.setSessionArchived({ sessionId: SESSION, archivedAt: AT })
     await rig.settled()
