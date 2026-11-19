@@ -169,7 +169,6 @@ describe('the session base across a host restart', () => {
         rows.some((row) => row.type === 'assistant-said'),
     })
     const observedBefore = branchRecords(before)
-    console.error('BRDBG2', JSON.stringify(observedBefore.map((row) => row.event)))
     expect(observedBefore.map((row) => hasBranch(row, 'feat-x'))).toEqual([false, true])
     expect(observedBefore.map(baseOf)).toEqual(['main', 'main'])
     const lastSeqBeforeRestart = before.at(-1)?.seq ?? 0

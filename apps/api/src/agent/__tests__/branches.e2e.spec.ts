@@ -175,7 +175,6 @@ describe('branches-observed e2e', () => {
       const bodies = rows.events.map((row) => JSON.stringify(row)).join('\n')
       throw new Error(`${String(error)}\n${log.dump('branches-e2e')}\n${bodies}`)
     })
-    console.error('BRDBG1', JSON.stringify(branchRecords(first).map((row) => row.event)))
     expect(branchRecords(first).map((row) => hasBranch(row, 'feat-x'))).toEqual([false, true])
     expect(branchRecords(first).map(baseOf)).toEqual(['main', 'main'])
 
