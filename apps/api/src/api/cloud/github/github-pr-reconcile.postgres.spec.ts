@@ -129,6 +129,7 @@ function rig(
     signals: inertSignals(),
     wake,
     reconcile: (request) => reconcile.run(request),
+    mergeability: async () => undefined,
     now: () => new Date(clock),
   })
   store = new GithubPrStore({

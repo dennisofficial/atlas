@@ -90,6 +90,7 @@ function rig(args: {
     signals,
     wake: { notifyEvent: async () => args.wake?.() } as unknown as GithubSandboxWakeService,
     reconcile: async (input) => args.reconcile?.(input),
+    mergeability: async () => undefined,
     logger: { warn: () => undefined },
     now: args.now ?? (() => AT),
   })

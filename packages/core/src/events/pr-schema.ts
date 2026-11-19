@@ -35,6 +35,7 @@ export const prEventSchemas = [
     settled: z.boolean().optional(),
     failedChecks: z.array(prFailedCheckSchema).optional(),
     mergeable: z.boolean().optional(),
+    baseBranch: z.string().optional(),
     state: z.string().optional(),
     queue: z.enum(EMergeQueueMove).optional(),
     checks: prChecksTallySchema.optional(),

@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it } from 'bun:test'
 import { ensureUsers, prEventRows, seedSubscription } from '../../../../test/github-seed'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
-import { inertReconcile } from './github-pr-store.fixture'
+import { inertMergeabilityRefresh, inertReconcile } from './github-pr-store.fixture'
 import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
@@ -29,6 +29,7 @@ function rig(): {
     signals: inertSignals(),
     wake,
     reconcile: inertReconcile(),
+    mergeability: inertMergeabilityRefresh(),
   })
   return {
     fanout,
@@ -131,6 +132,7 @@ describe('GithubPrEventMailboxService outbox', () => {
       signals: inertSignals(),
       wake,
       reconcile: inertReconcile(),
+      mergeability: inertMergeabilityRefresh(),
     })
     expect(await dispatcher.drain()).toBe(3)
     expect(wakes).toHaveLength(1)

@@ -40,8 +40,15 @@ export type PrOutboxEffect =
       payload: { repoFullName: string; headSha: string }
       dedupeKey: string
     }
+  | {
+      kind: 'mergeability-refresh'
+      payload: { repoFullName: string; prNumber: number }
+      dedupeKey: string
+    }
 
 export type PrReconcileRun = (args: { repoFullName: string; headSha: string }) => Promise<void>
+
+export type PrMergeabilityRun = (args: { repoFullName: string; prNumber: number }) => Promise<void>
 
 export class PrEffectCollector {
   private readonly effects: PrOutboxEffect[] = []
@@ -93,6 +100,7 @@ export class GithubPrOutboxDispatcher {
       signals: Pick<ThreadSignalsService, 'threadChanged'>
       wake: Pick<GithubSandboxWakeService, 'notifyEvent'>
       reconcile: PrReconcileRun
+      mergeability: PrMergeabilityRun
       logger?: PrOutboxLogger
       now?: () => Date
     },
@@ -190,6 +198,10 @@ export class GithubPrOutboxDispatcher {
     }
     if (row.kind === 'reconcile-checks') {
       await this.deps.reconcile(row.payload as { repoFullName: string; headSha: string })
+      return
+    }
+    if (row.kind === 'mergeability-refresh') {
+      await this.deps.mergeability(row.payload as { repoFullName: string; prNumber: number })
       return
     }
     if (row.kind === 'fanout') {

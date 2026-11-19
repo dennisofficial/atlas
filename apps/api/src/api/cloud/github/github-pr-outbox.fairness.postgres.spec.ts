@@ -37,6 +37,7 @@ function rig() {
     reconcile: async () => {
       throw new GithubHttpBudgetUnavailable()
     },
+    mergeability: async () => undefined,
     logger: { warn: () => undefined },
     now: () => AT,
   })

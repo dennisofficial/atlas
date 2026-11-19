@@ -9,7 +9,7 @@ import { EPrEventKind } from './github-realtime.types'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import { waitFor } from '../../../../test/fake-timers'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
-import { inertReconcile } from './github-pr-store.fixture'
+import { inertMergeabilityRefresh, inertReconcile } from './github-pr-store.fixture'
 
 function serviceWith(): {
   mailbox: GithubPrEventMailboxService
@@ -22,6 +22,7 @@ function serviceWith(): {
     signals: inertSignals(),
     wake,
     reconcile: inertReconcile(),
+    mergeability: inertMergeabilityRefresh(),
   })
   return { mailbox: new GithubPrEventMailboxService(fanout, dispatcher), fanout }
 }
