@@ -58,9 +58,18 @@ export type SessionBranchRow = {
   headRepo: string
   branch: string
   firstSeenSeq: number
+  firstSeenAt: string | null
+}
+
+export type SessionPullRequestRow = {
+  sessionId: string
+  repo: string
+  number: number
 }
 
 export type PrHead = { headRepo: string; branch: string }
+
+export type PrRef = { repo: string; number: number }
 
 export type PrStateRow = {
   repo: string
@@ -73,6 +82,8 @@ export type PrStateRow = {
   checksFailed: number
   mergeable: boolean | null
   updatedAt: string
+  closedAt?: string | null | undefined
+  mergedAt?: string | null | undefined
   headRepoFullName?: string | null | undefined
   headBranch?: string | undefined
 }
@@ -298,7 +309,9 @@ export interface ControlTx {
   readSessionView(sessionId: string): Promise<SessionViewRow | undefined>
   writeSessionView(row: SessionViewRow): Promise<void>
   insertSessionBranches(rows: readonly SessionBranchRow[]): Promise<void>
+  insertSessionPullRequests(rows: readonly SessionPullRequestRow[]): Promise<void>
   sessionsTrackingHead(head: PrHead): Promise<string[]>
+  sessionsTrackingPullRequest(pullRequest: PrRef): Promise<string[]>
   readTrackedPullRequests(sessionIds: readonly string[]): Promise<TrackedPullRequestRow[]>
   upsertSubscriptionLease(params: SubscriptionLease & { expiresAt: string }): Promise<void>
   deleteSubscriptionLease(params: SubscriptionLease): Promise<boolean>

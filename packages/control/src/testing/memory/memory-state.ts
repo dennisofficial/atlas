@@ -10,6 +10,7 @@ import type {
   RoutineRow,
   PrStateRow,
   SessionBranchRow,
+  SessionPullRequestRow,
   SubscriptionLease,
   SessionViewRow,
   StoredEvent,
@@ -41,6 +42,7 @@ export type State = {
   notifications: string[]
   views: Map<string, SessionViewRow>
   sessionBranches: Map<string, SessionBranchRow>
+  sessionPullRequests: Map<string, SessionPullRequestRow>
   prStates: Map<string, PrStateRow>
   subscriptionLeases: Map<string, SubscriptionLease & { expiresAt: string }>
   trackingTargets: Map<string, TrackingTarget>
@@ -72,6 +74,7 @@ export const emptyState = (): State => ({
   notifications: [],
   views: new Map(),
   sessionBranches: new Map(),
+  sessionPullRequests: new Map(),
   prStates: new Map(),
   subscriptionLeases: new Map(),
   trackingTargets: new Map(),
@@ -98,6 +101,9 @@ export const cloneState = (state: State): State => ({
   notifications: [...state.notifications],
   views: new Map([...state.views].map(([key, value]) => [key, { ...value }])),
   sessionBranches: new Map([...state.sessionBranches].map(([key, value]) => [key, { ...value }])),
+  sessionPullRequests: new Map(
+    [...state.sessionPullRequests].map(([key, value]) => [key, { ...value }]),
+  ),
   prStates: new Map(state.prStates),
   subscriptionLeases: new Map(
     [...state.subscriptionLeases].map(([key, value]) => [key, { ...value }]),
@@ -152,6 +158,12 @@ export const branchKey = (params: {
   headRepo: string
   branch: string
 }): string => `${params.sessionId} ${params.headRepo} ${params.branch}`
+
+export const sessionPullRequestKey = (params: {
+  sessionId: string
+  repo: string
+  number: number
+}): string => `${params.sessionId} ${params.repo}#${params.number}`
 
 export const subscriptionLeaseKey = (params: SubscriptionLease): string =>
   `${params.userId} ${params.threadId} ${params.repo}${subscriptionSubjectKey(params.subject)}`

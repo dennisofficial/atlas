@@ -25,6 +25,7 @@ namespace v2 {
     lease        V2Lease?
     view         V2SessionView?
     branches        V2SessionBranch[]
+    pullRequests    V2SessionPullRequest[]
     worktreeChanges V2WorktreeChanges[]
 
     @@index([userId, createdAt])

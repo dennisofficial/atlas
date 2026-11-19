@@ -41,6 +41,8 @@ export const prStateOf = (args: {
   state: string
   updatedAt: string
   headRepoFullName?: string
+  closedAt?: string
+  mergedAt?: string
 }): PrStateRow => ({
   repo: 'acme/app',
   number: args.number,
@@ -52,6 +54,8 @@ export const prStateOf = (args: {
   checksFailed: 0,
   mergeable: true,
   updatedAt: args.updatedAt,
+  closedAt: args.closedAt ?? null,
+  mergedAt: args.mergedAt ?? null,
   headRepoFullName: args.headRepoFullName ?? 'acme/app',
   headBranch: 'feat',
 })

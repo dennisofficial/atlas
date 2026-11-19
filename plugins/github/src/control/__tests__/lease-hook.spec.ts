@@ -80,7 +80,9 @@ describe('github subscription lease hook on append (postgres)', () => {
       if (!outcome.ok) throw new Error(JSON.stringify(outcome.refusal))
     }
     const rows = () => db.orm.public.GithubSubscription.where({ userId: 'usr_1' }).all()
-    return { append, rows }
+    const trackedPullRequests = () =>
+      db.orm.v2.V2SessionPullRequest.where({ sessionId: SESSION }).all()
+    return { append, rows, trackedPullRequests }
   }
 
   it('creates the transport lease in the append transaction and removes it on end', async () => {
@@ -98,6 +100,16 @@ describe('github subscription lease hook on append (postgres)', () => {
 
     await append([ended('a')])
     expect(await rows()).toHaveLength(0)
+  })
+
+  it('keeps the subscribed pull request on the session after the subscription ends', async () => {
+    const { append, trackedPullRequests } = await setup()
+    await append([created({ id: 'a' })])
+    expect(await trackedPullRequests()).toMatchObject([
+      { sessionId: SESSION, repoFullName: 'dltech/atlas', prNumber: 7 },
+    ])
+    await append([ended('a')])
+    expect(await trackedPullRequests()).toHaveLength(1)
   })
 
   it('uses the expiry the subscription declares instead of the default', async () => {

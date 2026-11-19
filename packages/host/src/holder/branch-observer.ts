@@ -38,6 +38,7 @@ export type BranchObserverArgs = {
 const observationOf = (set: BranchSet): BranchObservation => ({
   repo: set.repoPath,
   head: set.head,
+  defaultBranch: set.defaultBranch ?? null,
   branches: set.branches,
   worktrees: set.worktrees,
   remotes: set.remotes,
@@ -158,7 +159,10 @@ export class BranchObserver {
     if (this.isStopped) return
     const observation = observationOf(set)
     const last = this.args.record.lastObservation(observation.repo)
-    const base = this.baseOf(observation.repo)
+    const base = this.baseOf({
+      repo: observation.repo,
+      defaultBranch: observation.defaultBranch ?? null,
+    })
     const stamped = base === null ? observation : { ...observation, base }
     if (!observationChanged({ last, set: stamped })) return
     await this.args.record.append({
@@ -168,7 +172,9 @@ export class BranchObserver {
     })
   }
 
-  private baseOf(repo: string): string | null {
-    return this.args.baseOf(repo) ?? this.args.record.recordedBase(repo) ?? null
+  private baseOf(args: { repo: string; defaultBranch: string | null }): string | null {
+    return (
+      this.args.baseOf(args.repo) ?? this.args.record.recordedBase(args.repo) ?? args.defaultBranch
+    )
   }
 }

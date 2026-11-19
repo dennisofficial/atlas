@@ -87,6 +87,7 @@ const branchRowsOf = (args: {
           headRepo: head.headRepo,
           branch: head.branch,
           firstSeenSeq: event.seq,
+          firstSeenAt: event.at,
         }))
       : [],
   )

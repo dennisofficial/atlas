@@ -101,6 +101,25 @@ describe('git group', () => {
     await stop()
   })
 
+  it('reports the remote default branch only when origin/HEAD points at one', async () => {
+    const cloned = await makeRepo({
+      dir: join(root, 'cloned'),
+      remote: 'git@github.com:acme/app.git',
+    })
+    git({ cwd: cloned, argv: ['update-ref', 'refs/remotes/origin/main', 'HEAD'] })
+    git({
+      cwd: cloned,
+      argv: ['symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/main'],
+    })
+    const bare = await makeRepo({ dir: join(root, 'bare'), remote: 'git@github.com:acme/app.git' })
+    const { call, stop } = rig()
+    expect(((await call({ op: 'git.read', repoPath: cloned })) as BranchSet).defaultBranch).toBe(
+      'main',
+    )
+    expect(((await call({ op: 'git.read', repoPath: bare })) as BranchSet).defaultBranch).toBeNull()
+    await stop()
+  })
+
   it('reports a checkout round trip inside one debounce window', async () => {
     const repoPath = await makeRepo({ dir: join(root, 'trips') })
     const { call, sets, stop } = rig()

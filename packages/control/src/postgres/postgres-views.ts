@@ -3,11 +3,14 @@ import type { SessionChange } from '@dltech/atlas-protocol'
 
 import type {
   PrHead,
+  PrRef,
   PrStateRow,
   SessionBranchRow,
+  SessionPullRequestRow,
   SessionViewRow,
   TrackedPullRequestRow,
 } from '../port'
+import { repoFullNameOf } from '../repo-name'
 import { trackedPullRequestsOf } from '../tracked-pull-requests'
 import { announceIn } from './postgres-notify'
 
@@ -52,10 +55,33 @@ export const insertSessionBranchesIn = async (params: {
   const { tx } = params
   for (const row of params.rows) {
     await tx.execute(
-      tx.raw
-        .sql`INSERT INTO "v2"."V2SessionBranch" ("sessionId", "headRepo", "branch", "firstSeenSeq")
-        VALUES (${row.sessionId}, ${row.headRepo}, ${row.branch}, ${row.firstSeenSeq})
-        ON CONFLICT ("sessionId", "headRepo", "branch") DO NOTHING`
+      row.firstSeenAt === null
+        ? tx.raw
+            .sql`INSERT INTO "v2"."V2SessionBranch" ("sessionId", "headRepo", "branch", "firstSeenSeq")
+            VALUES (${row.sessionId}, ${row.headRepo}, ${row.branch}, ${row.firstSeenSeq})
+            ON CONFLICT ("sessionId", "headRepo", "branch") DO NOTHING`
+            .affectedCount()
+            .build()
+        : tx.raw
+            .sql`INSERT INTO "v2"."V2SessionBranch" ("sessionId", "headRepo", "branch", "firstSeenSeq", "firstSeenAt")
+            VALUES (${row.sessionId}, ${row.headRepo}, ${row.branch}, ${row.firstSeenSeq}, ${row.firstSeenAt}::timestamptz)
+            ON CONFLICT ("sessionId", "headRepo", "branch") DO NOTHING`
+            .affectedCount()
+            .build(),
+    )
+  }
+}
+
+export const insertSessionPullRequestsIn = async (params: {
+  tx: Tx
+  rows: readonly SessionPullRequestRow[]
+}): Promise<void> => {
+  const { tx } = params
+  for (const row of params.rows) {
+    await tx.execute(
+      tx.raw.sql`INSERT INTO "v2"."V2SessionPullRequest" ("sessionId", "repoFullName", "prNumber")
+        VALUES (${row.sessionId}, ${repoFullNameOf(row.repo)}, ${row.number})
+        ON CONFLICT ("sessionId", "repoFullName", "prNumber") DO NOTHING`
         .affectedCount()
         .build(),
     )
@@ -74,6 +100,18 @@ export const sessionsTrackingHeadIn = async (params: {
   return [...new Set(rows.map((row) => row.sessionId))]
 }
 
+export const sessionsTrackingPullRequestIn = async (params: {
+  tx: Tx
+  repo: string
+  number: number
+}): Promise<string[]> => {
+  const rows = await params.tx.orm.v2.V2SessionPullRequest.where({
+    repoFullName: repoFullNameOf(params.repo),
+    prNumber: params.number,
+  }).all()
+  return [...new Set(rows.map((row) => row.sessionId))]
+}
+
 const sessionBranchesIn = async (params: {
   tx: Tx
   sessionIds: readonly string[]
@@ -87,8 +125,56 @@ const sessionBranchesIn = async (params: {
     headRepo: row.headRepo,
     branch: row.branch,
     firstSeenSeq: row.firstSeenSeq,
+    firstSeenAt: row.firstSeenAt === null ? null : row.firstSeenAt.toISOString(),
   }))
 }
+
+const sessionPullRequestsIn = async (params: {
+  tx: Tx
+  sessionIds: readonly string[]
+}): Promise<SessionPullRequestRow[]> => {
+  if (params.sessionIds.length === 0) return []
+  const rows = await params.tx.orm.v2.V2SessionPullRequest.where((pullRequest) =>
+    or(...params.sessionIds.map((sessionId) => pullRequest.sessionId.eq(sessionId))),
+  ).all()
+  return rows.map((row) => ({
+    sessionId: row.sessionId,
+    repo: row.repoFullName,
+    number: row.prNumber,
+  }))
+}
+
+const prStateRowOf = (row: {
+  repoFullName: string
+  prNumber: number
+  title: string
+  state: string
+  headSha: string
+  checksRunning: number
+  checksPassed: number
+  checksFailed: number
+  mergeable: boolean | null
+  updatedAt: Date
+  closedAt: Date | null
+  mergedAt: Date | null
+  headRepoFullName: string | null
+  headBranch: string
+}): PrStateRow => ({
+  repo: row.repoFullName,
+  number: row.prNumber,
+  title: row.title,
+  state: row.state,
+  headSha: row.headSha,
+  checksRunning: row.checksRunning,
+  checksPassed: row.checksPassed,
+  checksFailed: row.checksFailed,
+  mergeable: row.mergeable,
+  updatedAt: row.updatedAt.toISOString(),
+  closedAt: row.closedAt === null ? null : row.closedAt.toISOString(),
+  mergedAt: row.mergedAt === null ? null : row.mergedAt.toISOString(),
+  headRepoFullName: row.headRepoFullName,
+  headBranch: row.headBranch,
+})
 
 const prStatesForHeadsIn = async (params: {
   tx: Tx
@@ -105,20 +191,33 @@ const prStatesForHeadsIn = async (params: {
       ),
     ),
   ).all()
-  return rows.map((row) => ({
-    repo: row.repoFullName,
-    number: row.prNumber,
-    title: row.title,
-    state: row.state,
-    headSha: row.headSha,
-    checksRunning: row.checksRunning,
-    checksPassed: row.checksPassed,
-    checksFailed: row.checksFailed,
-    mergeable: row.mergeable,
-    updatedAt: row.updatedAt.toISOString(),
-    headRepoFullName: row.headRepoFullName,
-    headBranch: row.headBranch,
-  }))
+  return rows.map(prStateRowOf)
+}
+
+const prStatesForNumbersIn = async (params: {
+  tx: Tx
+  pullRequests: readonly PrRef[]
+}): Promise<PrStateRow[]> => {
+  const pullRequests = [
+    ...new Map(
+      params.pullRequests.map((pullRequest) => [
+        `${pullRequest.repo}#${pullRequest.number}`,
+        pullRequest,
+      ]),
+    ).values(),
+  ]
+  if (pullRequests.length === 0) return []
+  const rows = await params.tx.orm.public.GithubPrState.where((state) =>
+    or(
+      ...pullRequests.map((pullRequest) =>
+        and(
+          state.repoFullName.eq(repoFullNameOf(pullRequest.repo)),
+          state.prNumber.eq(pullRequest.number),
+        ),
+      ),
+    ),
+  ).all()
+  return rows.map(prStateRowOf)
 }
 
 export const readTrackedPullRequestsIn = async (params: {
@@ -126,11 +225,21 @@ export const readTrackedPullRequestsIn = async (params: {
   sessionIds: readonly string[]
 }): Promise<TrackedPullRequestRow[]> => {
   const branches = await sessionBranchesIn(params)
-  const states = await prStatesForHeadsIn({
-    tx: params.tx,
-    heads: branches.map((branch) => ({ headRepo: branch.headRepo, branch: branch.branch })),
-  })
-  return trackedPullRequestsOf({ branches, states })
+  const subscriptions = await sessionPullRequestsIn(params)
+  const states = [
+    ...(await prStatesForHeadsIn({
+      tx: params.tx,
+      heads: branches.map((branch) => ({ headRepo: branch.headRepo, branch: branch.branch })),
+    })),
+    ...(await prStatesForNumbersIn({
+      tx: params.tx,
+      pullRequests: subscriptions.map((subscription) => ({
+        repo: subscription.repo,
+        number: subscription.number,
+      })),
+    })),
+  ]
+  return trackedPullRequestsOf({ branches, subscriptions, states })
 }
 
 export const announceSessionChangesIn = async (params: {

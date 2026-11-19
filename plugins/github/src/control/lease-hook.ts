@@ -93,6 +93,9 @@ export const subscriptionLeaseHook: AppendHook = {
           prNumber: lease.subject.number,
           liveUntil: expiresAt,
         })
+        await tx.insertSessionPullRequests([
+          { sessionId, repo: lease.repo, number: lease.subject.number },
+        ])
       }
       return
     }
