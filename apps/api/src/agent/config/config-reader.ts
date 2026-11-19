@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import type { Db } from '@dltech/atlas-db'
-import { decodeSettingValue, validateCloudSetting } from '@dltech/atlas-wire/web'
+import { decodeSettingValue, validateCloudSetting } from '@dltech/atlas-core'
 
 import type {
   AgentHostConfig,
