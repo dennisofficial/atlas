@@ -16,13 +16,12 @@ import { VcpuSizeSelect } from '../vcpu-size-select'
 
 interface SizeNoteProps {
   status: PodStatus
-  pending?: number
   canChange: boolean
   failed: boolean
   failureDetail?: string
 }
 
-function SizeNote({ status, pending, canChange, failed, failureDetail }: SizeNoteProps) {
+function SizeNote({ status, canChange, failed, failureDetail }: SizeNoteProps) {
   if (failed) {
     return (
       <p className="text-xs text-destructive">
@@ -30,8 +29,14 @@ function SizeNote({ status, pending, canChange, failed, failureDetail }: SizeNot
       </p>
     )
   }
+  const pending = status.pendingVcpus
   if (pending !== undefined) {
-    const lead = status.state === EPodState.Parked ? 'Starts with' : 'Restarting with'
+    const lead =
+      status.state === EPodState.Parked
+        ? 'Starts with'
+        : status.phase === 'resizing'
+          ? 'Resizing to'
+          : 'Restarting with'
     return (
       <p className="text-xs text-muted-foreground">
         {lead} {sizeLabel(pending)}
@@ -85,21 +90,22 @@ export function PodPopoverBody({
   const target = status.pendingVcpus ?? status.vcpus ?? sizes[0] ?? 1
   const [selected, setSelected] = useState(target)
   const [syncedTarget, setSyncedTarget] = useState(target)
-  const [requested, setRequested] = useState<number>()
   const [applying, setApplying] = useState(false)
-  const [failed, setFailed] = useState(false)
-  const [failureDetail, setFailureDetail] = useState<string>()
+  const [applyError, setApplyError] = useState<string>()
   if (syncedTarget !== target) {
     setSyncedTarget(target)
     setSelected(target)
-    setRequested(undefined)
-    setFailureDetail(undefined)
+    setApplyError(undefined)
   }
-  const pending = status.pendingVcpus ?? requested
   const canChange = canResize(status.state)
-  const restarting = status.pendingVcpus !== undefined && status.state !== EPodState.Parked
-  const locked = !canChange || restarting || applying || !onResize
-  const unchanged = selected === status.vcpus || selected === pending
+  const resizing =
+    status.pendingVcpus !== undefined &&
+    status.state !== EPodState.Parked &&
+    status.phase !== 'failed'
+  const locked = !canChange || resizing || applying || !onResize
+  const unchanged = selected === status.vcpus || selected === status.pendingVcpus
+  const failed = status.phase === 'failed' || applyError !== undefined
+  const failureDetail = status.resizeError ?? applyError
 
   const handleSizeChange = (value: string) => {
     const next = Number(value)
@@ -109,16 +115,13 @@ export function PodPopoverBody({
   const handleApply = async () => {
     if (!onResize) return
     setApplying(true)
-    setFailed(false)
-    setFailureDetail(undefined)
+    setApplyError(undefined)
     try {
       await onResize(selected)
-      setRequested(selected)
     } catch (failure) {
       const declined = failure instanceof ResizeDeclinedError
-      setFailed(!declined)
       if (!declined && failure instanceof Error && failure.message !== '') {
-        setFailureDetail(failure.message)
+        setApplyError(failure.message)
       }
     } finally {
       setApplying(false)
@@ -149,13 +152,12 @@ export function PodPopoverBody({
           <p className="text-xs text-muted-foreground">{planCapHint}</p>
         )}
         <div className="flex items-center gap-2">
-          <Button size="sm" disabled={locked || unchanged} onClick={handleApply}>
+          <Button size="sm" disabled={locked || (unchanged && !failed)} onClick={handleApply}>
             {applying ? <InlineSpinner /> : null}
-            {applying ? 'Applying…' : 'Apply'}
+            {applying ? 'Applying…' : failed ? 'Retry' : 'Apply'}
           </Button>
           <SizeNote
             status={status}
-            pending={pending}
             canChange={canChange}
             failed={failed}
             failureDetail={failureDetail}

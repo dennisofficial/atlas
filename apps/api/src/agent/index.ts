@@ -7,7 +7,14 @@ export { SecretCipher } from './config/secret-cipher'
 export type { AgentHostConfig, ConfigSource } from './config/agent-host-config'
 export { AgentHostEnvError, readAgentHostEnv, type AgentHostEnv } from './config/env'
 export { daemonPaths, launchDaemon, type DaemonBundle } from './sandbox/daemon-launch'
-export { SandboxProvider, sandboxNameOf, type DaemonEndpoint } from './sandbox/sandbox-provider'
+export {
+  PodSizer,
+  SandboxProvider,
+  sandboxNameOf,
+  type DaemonEndpoint,
+  type PodResizeOutcome,
+} from './sandbox/sandbox-provider'
+export { VercelPodSizer } from './sandbox/vercel-pod-sizer'
 export { VercelSandboxProvider } from './sandbox/vercel-sandbox-provider'
 export { AgentModule } from './agent.module'
 export {
@@ -53,3 +60,4 @@ export {
   SandboxNotConfiguredError,
   type SessionRuntimeFactoryArgs,
 } from './runtime/session-runtime-factory'
+export type { VercelCredentials } from './sandbox/constants'

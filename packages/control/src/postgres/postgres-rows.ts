@@ -52,6 +52,11 @@ export const toSessionRow = (row: {
   spawnedBySessionId: string | null
   nested: boolean
   podSessionId: string | null
+  podDesiredVcpus: number | null
+  podSizeGeneration: number
+  podActualVcpus: number | null
+  podAppliedGeneration: number | null
+  podResizeError: string | null
   routineId: string | null
 }): ControlSessionRow => ({
   sessionId: row.id,
@@ -68,6 +73,11 @@ export const toSessionRow = (row: {
   spawnedBySessionId: row.spawnedBySessionId,
   nested: row.nested,
   podSessionId: row.podSessionId,
+  podDesiredVcpus: row.podDesiredVcpus,
+  podSizeGeneration: row.podSizeGeneration,
+  podActualVcpus: row.podActualVcpus,
+  podAppliedGeneration: row.podAppliedGeneration,
+  podResizeError: row.podResizeError,
   routineId: row.routineId,
 })
 

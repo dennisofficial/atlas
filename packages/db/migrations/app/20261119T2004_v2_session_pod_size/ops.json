@@ -1,0 +1,272 @@
+[
+  {
+    "id": "column.v2.V2Session.podActualVcpus",
+    "label": "Add column \"podActualVcpus\" to \"V2Session\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "column",
+        "name": "podActualVcpus",
+        "table": "V2Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"podActualVcpus\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "podActualVcpus"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"podActualVcpus\"",
+        "sql": "ALTER TABLE \"v2\".\"V2Session\" ADD COLUMN \"podActualVcpus\" int4"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"podActualVcpus\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "podActualVcpus"
+        ]
+      },
+      {
+        "description": "verify column \"podActualVcpus\" has type \"integer\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "podActualVcpus",
+          "integer"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.v2.V2Session.podAppliedGeneration",
+    "label": "Add column \"podAppliedGeneration\" to \"V2Session\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "column",
+        "name": "podAppliedGeneration",
+        "table": "V2Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"podAppliedGeneration\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "podAppliedGeneration"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"podAppliedGeneration\"",
+        "sql": "ALTER TABLE \"v2\".\"V2Session\" ADD COLUMN \"podAppliedGeneration\" int4"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"podAppliedGeneration\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "podAppliedGeneration"
+        ]
+      },
+      {
+        "description": "verify column \"podAppliedGeneration\" has type \"integer\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "podAppliedGeneration",
+          "integer"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.v2.V2Session.podDesiredVcpus",
+    "label": "Add column \"podDesiredVcpus\" to \"V2Session\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "column",
+        "name": "podDesiredVcpus",
+        "table": "V2Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"podDesiredVcpus\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "podDesiredVcpus"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"podDesiredVcpus\"",
+        "sql": "ALTER TABLE \"v2\".\"V2Session\" ADD COLUMN \"podDesiredVcpus\" int4"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"podDesiredVcpus\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "podDesiredVcpus"
+        ]
+      },
+      {
+        "description": "verify column \"podDesiredVcpus\" has type \"integer\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "podDesiredVcpus",
+          "integer"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.v2.V2Session.podResizeError",
+    "label": "Add column \"podResizeError\" to \"V2Session\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "column",
+        "name": "podResizeError",
+        "table": "V2Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"podResizeError\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "podResizeError"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"podResizeError\"",
+        "sql": "ALTER TABLE \"v2\".\"V2Session\" ADD COLUMN \"podResizeError\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"podResizeError\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "podResizeError"
+        ]
+      },
+      {
+        "description": "verify column \"podResizeError\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "podResizeError",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.v2.V2Session.podSizeGeneration",
+    "label": "Add column \"podSizeGeneration\" to \"V2Session\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "column",
+        "name": "podSizeGeneration",
+        "table": "V2Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"podSizeGeneration\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "podSizeGeneration"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"podSizeGeneration\"",
+        "sql": "ALTER TABLE \"v2\".\"V2Session\" ADD COLUMN \"podSizeGeneration\" int4 DEFAULT 0 NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"podSizeGeneration\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "podSizeGeneration"
+        ]
+      },
+      {
+        "description": "verify column \"podSizeGeneration\" has type \"integer\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "podSizeGeneration",
+          "integer"
+        ]
+      },
+      {
+        "description": "verify column \"podSizeGeneration\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "podSizeGeneration",
+          "NO"
+        ]
+      }
+    ]
+  }
+]

@@ -18,10 +18,7 @@ import { NoSessionTitler } from '../../../_core/ports/session-titler'
 import { FakeMediaRegistry } from './media-registry.fake'
 import { SessionsService } from './sessions.service'
 import { PodSizingService } from './pod-sizing.service'
-import type {
-  SandboxResourcesObservation,
-  VercelSandboxClient,
-} from '../sandboxes/vercel-sandbox.client'
+import { JobDispatcher, type JobDispatch } from '../../../_core/ports/job-dispatcher'
 import { ProjectAccess } from './project-access'
 import { modelSet } from './model-set'
 
@@ -109,29 +106,19 @@ export const logWithdrawn = async (args: {
   })
 }
 
-export class FakePodSizingClient {
-  readonly reads: { userId: string; name: string }[] = []
-  readonly resizes: { userId: string; name: string; vcpus: number }[] = []
-  resources: SandboxResourcesObservation | null = null
+export class FakePodResizeDispatcher {
+  readonly dispatches: { payload: unknown; idempotencyKey: string }[] = []
   failure: unknown = undefined
 
-  async readPodResources(args: {
-    userId: string
-    name: string
-  }): Promise<SandboxResourcesObservation | null> {
-    this.reads.push(args)
+  async dispatch(args: JobDispatch<never>): Promise<{ runId: string }> {
     if (this.failure !== undefined) throw this.failure
-    return this.resources
-  }
-
-  async resizePod(args: { userId: string; name: string; vcpus: number }): Promise<void> {
-    this.resizes.push(args)
-    if (this.failure !== undefined) throw this.failure
+    this.dispatches.push({ payload: args.payload, idempotencyKey: args.idempotencyKey })
+    return { runId: 'run_stub' }
   }
 }
 
 export const setupSessionsService = (
-  over: { planGate?: PodPlanGate; client?: FakePodSizingClient } = {},
+  over: { planGate?: PodPlanGate; dispatcher?: FakePodResizeDispatcher } = {},
 ) => {
   const store = new InMemoryControlStore({ clock: () => NOW })
   store.markHostPresent(9001)
@@ -140,12 +127,8 @@ export const setupSessionsService = (
   const mediaStore = new FakeMediaStore()
   const projects = new RecordingProjectAccess()
   const planGate: PodPlanGate = over.planGate ?? { assertWithinPlan: async () => undefined }
-  const client = over.client ?? new FakePodSizingClient()
-  const podSizing = new PodSizingService(
-    client as unknown as VercelSandboxClient,
-    new NoBackgroundWork(),
-    planGate,
-  )
+  const dispatcher = over.dispatcher ?? new FakePodResizeDispatcher()
+  const podSizing = new PodSizingService(plane, dispatcher as unknown as JobDispatcher, planGate)
   const service = new SessionsService(
     plane,
     projects,
@@ -156,5 +139,5 @@ export const setupSessionsService = (
     composeCommands([TEST_COMMAND, modelSet, resize]),
     podSizing,
   )
-  return { plane, service, registry, mediaStore, store, projects, client }
+  return { plane, service, registry, mediaStore, store, projects, dispatcher }
 }

@@ -57,6 +57,21 @@ export const Stopped: Story = { args: { status: { ...RUNNING, state: EPodState.S
 
 export const Restarting: Story = { args: { status: { ...RUNNING, pendingVcpus: 8 } } }
 
+export const Resizing: Story = {
+  args: { status: { ...RUNNING, pendingVcpus: 8, phase: 'resizing' } },
+}
+
+export const ResizeFailed: Story = {
+  args: {
+    status: {
+      ...RUNNING,
+      pendingVcpus: 8,
+      phase: 'failed',
+      resizeError: 'vCPUs above 8 need an Enterprise plan',
+    },
+  },
+}
+
 export const ResizeFails: Story = { args: { onResize: fail } }
 
 export const ReadOnly: Story = { args: { onResize: undefined, settingsHref: undefined } }

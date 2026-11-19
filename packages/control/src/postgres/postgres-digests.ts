@@ -18,7 +18,8 @@ export const sessionDigestsIn = async (
     params.tx.raw
       .sql`SELECT s."id", s."userId", s."projectId", s."title", s."mainThreadId", s."createdAt", s."archivedAt",
         s."deletedAt", s."modelRef", s."modelEffort", s."modelFast", s."spawnedBySessionId", s."nested",
-        s."podSessionId", s."routineId", s."readSeq",
+        s."podSessionId", s."podDesiredVcpus", s."podSizeGeneration", s."podActualVcpus",
+        s."podAppliedGeneration", s."podResizeError", s."routineId", s."readSeq",
         (SELECT e."at" FROM "v2"."V2Event" e
           WHERE e."threadId" = s."mainThreadId" ORDER BY e."seq" DESC LIMIT 1) AS "lastEventAt",
         COALESCE((SELECT MAX(e."seq") FROM "v2"."V2Event" e
@@ -53,6 +54,11 @@ export const sessionDigestsIn = async (
         spawnedBySessionId: { codecId: 'pg/text@1', nullable: true },
         nested: 'pg/bool@1',
         podSessionId: { codecId: 'pg/text@1', nullable: true },
+        podDesiredVcpus: { codecId: 'pg/int4@1', nullable: true },
+        podSizeGeneration: 'pg/int4@1',
+        podActualVcpus: { codecId: 'pg/int4@1', nullable: true },
+        podAppliedGeneration: { codecId: 'pg/int4@1', nullable: true },
+        podResizeError: { codecId: 'pg/text@1', nullable: true },
         routineId: { codecId: 'pg/text@1', nullable: true },
         readSeq: { codecId: 'pg/int4@1', nullable: true },
         lastEventAt: { codecId: 'pg/timestamptz-date@1', nullable: true },
@@ -77,6 +83,11 @@ export const sessionDigestsIn = async (
     spawnedBySessionId: row.spawnedBySessionId,
     nested: row.nested,
     podSessionId: row.podSessionId,
+    podDesiredVcpus: row.podDesiredVcpus,
+    podSizeGeneration: row.podSizeGeneration,
+    podActualVcpus: row.podActualVcpus,
+    podAppliedGeneration: row.podAppliedGeneration,
+    podResizeError: row.podResizeError,
     routineId: row.routineId,
     readSeq: row.readSeq,
     lastEventAt: row.lastEventAt === null ? null : iso(row.lastEventAt),

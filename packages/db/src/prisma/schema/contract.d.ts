@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'2040fdaad1f6b437ef3fbbe002f96b4f07954f628cc8c799e5b774fb6be69f0f'>;
+  StorageHashBase<'41338d269aeb2c3286bf5cd9de9bee50a6368aa813f7ccb5064f009c55f0d340'>;
 export type ExecutionHash =
   ExecutionHashBase<'4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45'>;
 export type ProfileHash =
@@ -1329,8 +1329,13 @@ export namespace Models {
     modelRef: FieldOutputTypes['v2']['V2Session']['modelRef'];
     nested: FieldOutputTypes['v2']['V2Session']['nested'];
     nextInboxId: FieldOutputTypes['v2']['V2Session']['nextInboxId'];
+    podActualVcpus: FieldOutputTypes['v2']['V2Session']['podActualVcpus'];
+    podAppliedGeneration: FieldOutputTypes['v2']['V2Session']['podAppliedGeneration'];
+    podDesiredVcpus: FieldOutputTypes['v2']['V2Session']['podDesiredVcpus'];
+    podResizeError: FieldOutputTypes['v2']['V2Session']['podResizeError'];
     podRetiredAt: FieldOutputTypes['v2']['V2Session']['podRetiredAt'];
     podSessionId: FieldOutputTypes['v2']['V2Session']['podSessionId'];
+    podSizeGeneration: FieldOutputTypes['v2']['V2Session']['podSizeGeneration'];
     projectId: FieldOutputTypes['v2']['V2Session']['projectId'];
     readSeq: FieldOutputTypes['v2']['V2Session']['readSeq'];
     routineId: FieldOutputTypes['v2']['V2Session']['routineId'];
@@ -7705,6 +7710,30 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly many: false;
                 };
+                readonly podActualVcpus: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly podAppliedGeneration: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly podDesiredVcpus: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly podResizeError: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
                 readonly podRetiredAt: {
                   readonly dataType: 'pg/timestamptz';
                   readonly codecId: 'pg/timestamptz-date@1';
@@ -7716,6 +7745,16 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly podSizeGeneration: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
+                  };
                   readonly many: false;
                 };
                 readonly projectId: {
@@ -14457,6 +14496,22 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
+              readonly podActualVcpus: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly podAppliedGeneration: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly podDesiredVcpus: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly podResizeError: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly podRetiredAt: {
                 readonly nullable: true;
                 readonly type: {
@@ -14468,6 +14523,10 @@ type ContractBase = Omit<
               readonly podSessionId: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly podSizeGeneration: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
               readonly projectId: {
                 readonly nullable: true;
@@ -14599,8 +14658,13 @@ type ContractBase = Omit<
                 readonly modelRef: { readonly column: 'modelRef' };
                 readonly nested: { readonly column: 'nested' };
                 readonly nextInboxId: { readonly column: 'nextInboxId' };
+                readonly podActualVcpus: { readonly column: 'podActualVcpus' };
+                readonly podAppliedGeneration: { readonly column: 'podAppliedGeneration' };
+                readonly podDesiredVcpus: { readonly column: 'podDesiredVcpus' };
+                readonly podResizeError: { readonly column: 'podResizeError' };
                 readonly podRetiredAt: { readonly column: 'podRetiredAt' };
                 readonly podSessionId: { readonly column: 'podSessionId' };
+                readonly podSizeGeneration: { readonly column: 'podSizeGeneration' };
                 readonly projectId: { readonly column: 'projectId' };
                 readonly readSeq: { readonly column: 'readSeq' };
                 readonly routineId: { readonly column: 'routineId' };

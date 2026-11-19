@@ -252,6 +252,14 @@ export const sessionStatusOutputSchema = z.strictObject({
   lease: sessionLeaseSchema,
   queued: z.array(sessionQueuedMessageSchema).optional(),
   commands: z.array(sessionCommandRowSchema).optional(),
+  pod: z
+    .strictObject({
+      desiredVcpus: z.number().int().min(1).optional(),
+      actualVcpus: z.number().int().min(1).optional(),
+      phase: z.enum(['steady', 'resizing', 'failed']),
+      error: z.string().optional(),
+    })
+    .optional(),
 })
 
 export const sessionRetryInputSchema = z.strictObject({

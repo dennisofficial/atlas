@@ -42,6 +42,7 @@ export type AgentHostConfig = {
   workspace: WorkspaceConfig
   vercel: VercelConfig
   sandboxVcpus: number | undefined
+  podSize?: { desiredVcpus: number | undefined; generation: number } | undefined
   skills: SkillIndexEntry[]
 }
 

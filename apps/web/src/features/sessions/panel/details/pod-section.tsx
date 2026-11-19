@@ -1,7 +1,7 @@
 'use client'
 
 import { PodStatusChip } from '@dltech/atlas-ui/ai/pod-status-chip'
-import type { SessionPodResourcesOutput } from '@dltech/atlas-protocol'
+import type { SessionStatusOutput } from '@dltech/atlas-protocol'
 import { type EVercelPlan, sandboxSizesOfPlan, vercelPlanCapNote } from '@dltech/atlas-wire/web'
 
 import { hrefOfPage, ESettingsPage } from '@/features/settings/settings-nav'
@@ -17,7 +17,6 @@ import { podChipStatusOf } from '../../data/pod-chip-status'
 import { resizePod } from '../../data/pod-resources'
 import { sessionsApi } from '../../data/sessions-api'
 import type { SessionViewModel } from '../../data/session-view-model'
-import { useSessionPodResources } from '../../data/use-pod-resources'
 import { useSessionPaneValue } from '../pane-value'
 
 export const podBusyOf = (view: SessionViewModel): boolean =>
@@ -28,7 +27,7 @@ const settingsHrefOf = (projectId: string | undefined): string =>
   hrefOfPage(ESettingsPage.UsageSandboxes)
 
 export type PodStatusSectionProps = {
-  resources: SessionPodResourcesOutput
+  pod: SessionStatusOutput['pod']
   live: boolean
   busy: boolean
   plan: EVercelPlan
@@ -37,9 +36,9 @@ export type PodStatusSectionProps = {
 }
 
 export function PodStatusSection(props: PodStatusSectionProps) {
-  const { resources, live, busy, plan, settingsHref, onResize } = props
+  const { pod, live, busy, plan, settingsHref, onResize } = props
   const { confirmation, handleResize } = useResizeConfirmation({ busy, onResize })
-  const status = podChipStatusOf({ resources, live })
+  const status = podChipStatusOf({ pod, live })
   if (status === null) return null
   return (
     <section data-session-pod aria-label="Pod" className="flex items-center">
@@ -57,17 +56,15 @@ export function PodStatusSection(props: PodStatusSectionProps) {
 
 export function SessionPodSection() {
   const { sessionId, view, status, projectId } = useSessionPaneValue()
-  const { resources, reload } = useSessionPodResources({ sessionId })
   const plan = useVercelPlan()
 
   const handleResize = async (vcpus: number) => {
     await resizePod({ api: sessionsApi, sessionId, vcpus })
-    reload()
   }
 
   return (
     <PodStatusSection
-      resources={resources}
+      pod={status?.pod}
       live={status?.lease.live ?? false}
       busy={podBusyOf(view)}
       plan={plan}

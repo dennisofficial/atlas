@@ -15,6 +15,11 @@ export type ControlSessionRow = {
   spawnedBySessionId: string | null
   nested: boolean
   podSessionId: string | null
+  podDesiredVcpus: number | null
+  podSizeGeneration: number
+  podActualVcpus: number | null
+  podAppliedGeneration: number | null
+  podResizeError: string | null
   routineId: string | null
 }
 

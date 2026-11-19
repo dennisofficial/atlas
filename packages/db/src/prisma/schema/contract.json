@@ -9846,6 +9846,34 @@
                   "kind": "scalar"
                 }
               },
+              "podActualVcpus": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "podAppliedGeneration": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "podDesiredVcpus": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "podResizeError": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "podRetiredAt": {
                 "nullable": true,
                 "type": {
@@ -9860,6 +9888,13 @@
                 "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "podSizeGeneration": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
                   "kind": "scalar"
                 }
               },
@@ -10072,11 +10107,26 @@
                 "nextInboxId": {
                   "column": "nextInboxId"
                 },
+                "podActualVcpus": {
+                  "column": "podActualVcpus"
+                },
+                "podAppliedGeneration": {
+                  "column": "podAppliedGeneration"
+                },
+                "podDesiredVcpus": {
+                  "column": "podDesiredVcpus"
+                },
+                "podResizeError": {
+                  "column": "podResizeError"
+                },
                 "podRetiredAt": {
                   "column": "podRetiredAt"
                 },
                 "podSessionId": {
                   "column": "podSessionId"
+                },
+                "podSizeGeneration": {
+                  "column": "podSizeGeneration"
                 },
                 "projectId": {
                   "column": "projectId"
@@ -18129,6 +18179,26 @@
                   "dataType": "pg/int4",
                   "nullable": false
                 },
+                "podActualVcpus": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": true
+                },
+                "podAppliedGeneration": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": true
+                },
+                "podDesiredVcpus": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": true
+                },
+                "podResizeError": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
                 "podRetiredAt": {
                   "codecId": "pg/timestamptz-date@1",
                   "dataType": "pg/timestamptz",
@@ -18141,6 +18211,15 @@
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": true
+                },
+                "podSizeGeneration": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nullable": false
                 },
                 "projectId": {
                   "codecId": "pg/text@1",
@@ -18800,7 +18879,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "2040fdaad1f6b437ef3fbbe002f96b4f07954f628cc8c799e5b774fb6be69f0f"
+    "storageHash": "41338d269aeb2c3286bf5cd9de9bee50a6368aa813f7ccb5064f009c55f0d340"
   },
   "execution": {
     "executionHash": "4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45",
