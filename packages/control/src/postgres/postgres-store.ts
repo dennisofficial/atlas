@@ -59,7 +59,7 @@ import {
 } from './postgres-blobs'
 import { writeLeaseIn } from './postgres-leases'
 import { announceIn, notifyWakeIn } from './postgres-notify'
-import { hostPresentIn } from './postgres-presence'
+import { hostPresentIn, hostsPresentIn } from './postgres-presence'
 import { resolveSessionModelIn } from './postgres-session-model'
 import { sessionDigestsIn } from './postgres-digests'
 import { podPeersPlacedIn } from './postgres-peers'
@@ -90,6 +90,7 @@ import {
   insertSessionBranchesIn,
   insertSessionPullRequestsIn,
   readSessionViewIn,
+  readSessionViewsIn,
   readTrackedPullRequestsIn,
   sessionsTrackingHeadIn,
   sessionsTrackingPullRequestIn,
@@ -243,6 +244,12 @@ class PostgresTx implements ControlTx {
     return row === null ? undefined : toThreadRow(row)
   }
 
+  async readThreads(threadIds: readonly string[]): Promise<ThreadRow[]> {
+    if (threadIds.length === 0) return []
+    const rows = await this.tx.orm.v2.V2Thread.where((thread) => thread.id.in([...threadIds])).all()
+    return rows.map(toThreadRow)
+  }
+
   async writeThreadHead(params: Parameters<ControlTx['writeThreadHead']>[0]): Promise<boolean> {
     return writeThreadHeadIn({ tx: this.tx, ...params })
   }
@@ -317,6 +324,14 @@ class PostgresTx implements ControlTx {
   async readLease(sessionId: string): Promise<Lease | undefined> {
     const row = await this.tx.orm.v2.V2Lease.first({ sessionId })
     return row === null ? undefined : toLease(row)
+  }
+
+  async readLeases(sessionIds: readonly string[]): Promise<Lease[]> {
+    if (sessionIds.length === 0) return []
+    const rows = await this.tx.orm.v2.V2Lease.where((lease) =>
+      lease.sessionId.in([...sessionIds]),
+    ).all()
+    return rows.map(toLease)
   }
 
   async leasesHeldBy(params: { hostId: number; limit: number }): Promise<Lease[]> {
@@ -398,6 +413,10 @@ class PostgresTx implements ControlTx {
     return readSessionViewIn({ tx: this.tx, sessionId })
   }
 
+  async readSessionViews(sessionIds: readonly string[]): Promise<SessionViewRow[]> {
+    return readSessionViewsIn({ tx: this.tx, sessionIds })
+  }
+
   async writeSessionView(row: SessionViewRow): Promise<void> {
     await writeSessionViewIn({ tx: this.tx, row })
   }
@@ -436,6 +455,10 @@ class PostgresTx implements ControlTx {
 
   async hostPresent(hostId: number): Promise<boolean> {
     return hostPresentIn({ tx: this.tx, hostId })
+  }
+
+  async hostsPresent(hostIds: readonly number[]): Promise<ReadonlySet<number>> {
+    return hostsPresentIn({ tx: this.tx, hostIds })
   }
 
   async lockRoutine(routineId: string): Promise<RoutineRow | undefined> {

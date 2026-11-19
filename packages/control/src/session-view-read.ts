@@ -72,7 +72,7 @@ const failureMayBeActive = (state: SessionViewState): boolean =>
   state.facts.startFailure !== null ||
   (state.facts.prepareFailure !== null && !state.facts.prepared)
 
-const messageAfterFailureIn = async (args: {
+export const messageAfterFailureIn = async (args: {
   tx: ControlTx
   sessionId: string
   threadId: string

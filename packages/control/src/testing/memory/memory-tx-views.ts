@@ -28,6 +28,13 @@ export class MemoryTxViews {
     return readSessionViewIn({ state: this.state, sessionId })
   }
 
+  async readSessionViews(sessionIds: readonly string[]): Promise<SessionViewRow[]> {
+    return sessionIds.flatMap((sessionId) => {
+      const row = readSessionViewIn({ state: this.state, sessionId })
+      return row === undefined ? [] : [row]
+    })
+  }
+
   async writeSessionView(row: SessionViewRow): Promise<void> {
     writeSessionViewIn({ state: this.state, row })
   }

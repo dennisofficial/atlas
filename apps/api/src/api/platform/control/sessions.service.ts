@@ -136,12 +136,15 @@ export class SessionsService {
     projectId?: string | undefined
     limit?: number | undefined
   }): Promise<SessionListOutput> {
+    const startedAt = performance.now()
     const sessions = await this.plane.listSessionDigests({
       userId: args.userId,
       projectId: args.projectId,
       limit: args.limit ?? 100,
       withView: true,
     })
+    const durationMs = Math.round(performance.now() - startedAt)
+    this.logger.log({ source: 'sessions.list', rows: sessions.length, durationMs })
     const now = Date.now()
     return {
       sessions: sessions.map((digest) => sessionSummaryOf({ digest, now })),

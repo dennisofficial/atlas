@@ -1,11 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
+import type { V2Body } from '@dltech/atlas-core'
 
 import { ControlPlane } from '../../control-plane'
+import type { ControlStorePort, ControlTx } from '../../port'
 import {
   createSessionParams,
   HOLDER_HOST,
   mint,
   PROJECT,
+  said,
   SESSION,
   T0,
   THREAD,
@@ -14,9 +17,41 @@ import {
 import type { ConformanceParams } from './conformance'
 import { freshHosts } from './conformance-fresh-hosts'
 import { describeControlPlaneStartFailures } from './conformance-start-failure'
+import { branches, prStateOf } from './conformance-views.fixture'
 
 const after = (params: { iso: string; offsetMs: number }): string =>
   new Date(Date.parse(params.iso) + params.offsetMs).toISOString()
+
+const countingPlaneOf = (
+  store: ControlStorePort,
+): { plane: ControlPlane; counts: Record<string, number> } => {
+  const counts: Record<string, number> = {}
+  const countingTx = (tx: ControlTx): ControlTx =>
+    new Proxy(tx, {
+      get(target, property) {
+        const value = Reflect.get(target, property, target)
+        if (typeof value !== 'function') return value
+        return (...args: unknown[]) => {
+          const name = String(property)
+          counts[name] = (counts[name] ?? 0) + 1
+          return (value as (...callArgs: unknown[]) => unknown).apply(target, args)
+        }
+      },
+    })
+  const plane = new ControlPlane({
+    store: new Proxy(store, {
+      get(target, property) {
+        if (property === 'transact')
+          return (work: (tx: ControlTx) => Promise<unknown>) =>
+            target.transact((tx) => work(countingTx(tx)))
+        const value = Reflect.get(target, property, target)
+        return typeof value === 'function' ? value.bind(target) : value
+      },
+    }),
+    clock: () => T0,
+  })
+  return { plane, counts }
+}
 
 export function describeControlPlaneSessions(params: ConformanceParams): void {
   describeControlPlaneStartFailures(params)
@@ -203,6 +238,109 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
       await plane.setSessionArchived({ sessionId: 's-a', archivedAt: null })
       const restored = await plane.listSessionDigests({ userId: USER, limit: 10 })
       expect(restored.map((row) => row.archivedAt)).toEqual([null, null])
+    })
+
+    it('matches the per-row digests across fresh and stale views, live and dead leases and tracked pull requests', async () => {
+      const sessionIds = ['s-0', 's-1', 's-2', 's-3', 's-4', 's-5']
+      const liveHost = await params.nextHostId()
+      const releaseLive = await params.holdPresence(liveHost)
+      try {
+        for (const [index, sessionId] of sessionIds.entries()) {
+          setNow(after({ iso: T0, offsetMs: index * 1000 }))
+          const threadId = `t-${sessionId}`
+          await plane.createSession(createSessionParams({ sessionId, mainThreadId: threadId }))
+          const lease = await plane.grant({ sessionId, hostId: liveHost })
+          const bodies: V2Body[] = [said(`hello ${sessionId}`)]
+          if (index === 0 || index === 2) bodies.push(branches)
+          const appended = await plane.append({
+            threadId,
+            epoch: lease.epoch,
+            events: mint({
+              bodies,
+              epoch: lease.epoch,
+              from: await plane.head({ threadId }),
+              threadId,
+            }),
+          })
+          if (!appended.ok) throw new Error(JSON.stringify(appended.refusal))
+          if (index !== 2 && index !== 5) await plane.readSessionView({ sessionId, threadId })
+          if (index === 1 || index === 4) {
+            const stale = await plane.append({
+              threadId,
+              epoch: lease.epoch,
+              events: mint({
+                bodies: [said('later')],
+                epoch: lease.epoch,
+                from: appended.head,
+                threadId,
+              }),
+            })
+            if (!stale.ok) throw new Error(JSON.stringify(stale.refusal))
+          }
+          if (index === 2 || index === 3 || index === 4) {
+            await plane.revoke({ sessionId, wantsHolder: false })
+          }
+        }
+        if (params.seedPrState !== undefined) {
+          await params.seedPrState(prStateOf({ number: 20, state: 'open', updatedAt: T0 }))
+        }
+
+        const batched = await plane.listSessionDigests({ userId: USER, limit: 100, withView: true })
+        expect(batched.map((row) => row.sessionId)).toEqual([...sessionIds].reverse())
+        const perRow: typeof batched = []
+        for (const row of batched) {
+          const [one] = await plane.listSessionDigests({
+            userId: USER,
+            sessionId: row.sessionId,
+            limit: 1,
+            withView: true,
+          })
+          if (one !== undefined) perRow.push(one)
+        }
+        expect(batched).toEqual(perRow)
+
+        const byId = new Map(batched.map((row) => [row.sessionId, row]))
+        expect(byId.get('s-0')?.view?.primaryBranch).toBe('feat')
+        expect(byId.get('s-0')?.view?.pullRequest).toMatchObject({ number: 20, state: 'open' })
+        if (params.seedPrState !== undefined) {
+          expect(byId.get('s-2')?.view?.pullRequest).toMatchObject({ number: 20, state: 'open' })
+        }
+        expect(byId.get('s-1')?.view?.pullRequest).toBeNull()
+        expect(batched.every((row) => row.view !== null)).toBe(true)
+      } finally {
+        await releaseLive()
+      }
+    })
+
+    it('reads a fresh digest page in a constant number of calls regardless of row count', async () => {
+      const counted = countingPlaneOf(params.makeStore())
+      for (let index = 0; index < 12; index += 1) {
+        const sessionId = `count-${index}`
+        const threadId = `t-${sessionId}`
+        await counted.plane.createSession(
+          createSessionParams({ sessionId, mainThreadId: threadId }),
+        )
+        await counted.plane.readSessionView({ sessionId, threadId })
+      }
+      for (const key of Object.keys(counted.counts)) delete counted.counts[key]
+
+      const digests = await counted.plane.listSessionDigests({
+        userId: USER,
+        limit: 100,
+        withView: true,
+      })
+
+      expect(digests).toHaveLength(12)
+      expect(counted.counts.readThreads).toBe(1)
+      expect(counted.counts.readSessionViews).toBe(1)
+      expect(counted.counts.readLeases).toBe(1)
+      expect(counted.counts.hostsPresent ?? 0).toBeLessThanOrEqual(1)
+      expect(counted.counts.readTrackedPullRequests).toBe(1)
+      expect(counted.counts.readThread ?? 0).toBe(0)
+      expect(counted.counts.readSessionView ?? 0).toBe(0)
+      expect(counted.counts.readLease ?? 0).toBe(0)
+      expect(counted.counts.hostPresent ?? 0).toBe(0)
+      expect(counted.counts.lockThread ?? 0).toBe(0)
     })
 
     it('digests the last assistant seq of the main thread', async () => {

@@ -33,11 +33,17 @@ export class SessionsListIndex {
   }
 
   async readSnapshot(subscription: SessionsSubscription): Promise<SessionSummary[]> {
+    const startedAt = performance.now()
     const digests = await this.deps.plane.listSessionDigests({
       userId: subscription.userId,
       projectId: subscription.projectId,
       limit: SNAPSHOT_LIMIT,
       withView: true,
+    })
+    this.deps.log?.info({
+      source: 'stream',
+      data: { rows: digests.length, durationMs: Math.round(performance.now() - startedAt) },
+      message: 'sessions snapshot',
     })
     const now = this.deps.timers.now()
     return digests.map((digest) => {
