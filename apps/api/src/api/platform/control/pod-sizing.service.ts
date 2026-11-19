@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common'
+import { Inject, Injectable, Optional, ServiceUnavailableException } from '@nestjs/common'
 import type { ControlCommandHandler } from '@dltech/atlas-commands'
 import type { ControlPlane, ControlSessionRow } from '@dltech/atlas-control'
 import { resizeArgs } from '@dltech/atlas-native-commands'
@@ -32,7 +32,7 @@ export class PodSizingService implements PodSizing {
     private readonly client: VercelSandboxClient,
     background: BackgroundWork,
     private readonly planGate: PodPlanGate,
-    @Inject(SANDBOX_RESIZER) private readonly resizer: SandboxResizer,
+    @Optional() @Inject(SANDBOX_RESIZER) private readonly resizer: SandboxResizer | null = null,
   ) {
     this.cache = new PodResourcesCache(background, () => undefined)
   }
@@ -62,6 +62,8 @@ export class PodSizingService implements PodSizing {
       const { vcpus } = resizeArgs.parse(raw)
       await this.planGate.assertWithinPlan({ userId: args.userId, vcpus })
       const podSessionId = podKeyOfSession({ session: args.session })
+      if (this.resizer === null)
+        throw new ServiceUnavailableException('the agent host is not running')
       await this.resizer.resize({ sandboxSessionId: podSessionId, vcpus })
       this.cache.forget(sandboxNameOf(podSessionId))
     }

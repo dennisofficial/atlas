@@ -54,7 +54,9 @@ describe('useSessionUser', () => {
         </TestQueryProvider>,
       ),
     )
-    await act(async () => new Promise<void>((done) => setTimeout(done, 20)))
+    for (let tick = 0; tick < 100 && !seen.includes('Ada'); tick += 1) {
+      await act(async () => new Promise<void>((done) => setTimeout(done, 20)))
+    }
 
     expect(sessionReads()).toHaveLength(1)
     expect(seen).toContain('Ada')

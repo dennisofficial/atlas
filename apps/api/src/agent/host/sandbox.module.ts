@@ -3,6 +3,7 @@ import { Global, Module, type Provider } from '@nestjs/common'
 import type { ConfigSource } from '../config/agent-host-config'
 import type { SandboxProviderRegistry } from '../sandbox/provider-registry'
 import { sandboxResizerOf, type SandboxResizer } from '../sandbox/sandbox-resizer'
+import { RuntimeModule } from './runtime.module'
 import { CONFIG_SOURCE, SANDBOX, SANDBOX_RESIZER } from './tokens'
 
 const sandboxResizerProvider: Provider = {
@@ -13,5 +14,9 @@ const sandboxResizerProvider: Provider = {
 }
 
 @Global()
-@Module({ providers: [sandboxResizerProvider], exports: [SANDBOX_RESIZER] })
+@Module({
+  imports: [RuntimeModule],
+  providers: [sandboxResizerProvider],
+  exports: [SANDBOX_RESIZER],
+})
 export class SandboxModule {}
