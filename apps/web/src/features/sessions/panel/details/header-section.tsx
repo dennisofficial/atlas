@@ -7,7 +7,6 @@ import { useNowEvery } from '@/features/threads/data/use-now'
 
 import { headerStateOfSession } from '../../data/session-state'
 import { useSessionPaneValue } from '../pane-value'
-import { SessionFollowingSwitch } from './following-switch'
 import { Pill } from './rows'
 
 const PILL_TONE: Record<EHeaderState, string> = {
@@ -45,7 +44,6 @@ export function SessionDetailsHeader() {
             {elapsed}
           </span>
         )}
-        <SessionFollowingSwitch />
       </div>
     </header>
   )
