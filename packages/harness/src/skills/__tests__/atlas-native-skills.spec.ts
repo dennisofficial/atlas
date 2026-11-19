@@ -16,7 +16,7 @@ import { digestOfBytes } from '../embedded-bundle'
 import { ESkillOrigin, isSkillEntryFilename } from '../skill'
 
 const ATLAS_SKILLS = ['atlas']
-const REFERENCE_PAGES = ['config', 'services', 'cloud', 'container', 'plugins', 'worktrees']
+const REFERENCE_PAGES = ['config', 'services', 'cloud', 'plugins', 'worktrees']
 
 let home: string
 
