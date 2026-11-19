@@ -76,6 +76,18 @@ export const archiveIn = async (params: {
   await tx.announce({ sessionId: params.sessionId })
 }
 
+export const markReadIn = async (params: {
+  tx: ControlTx
+  sessionId: string
+  seq: number
+}): Promise<number> => {
+  const { tx, sessionId, seq } = params
+  const readSeq = await tx.setSessionReadSeq({ sessionId, seq })
+  if (readSeq === undefined) throw new Error(`unknown session ${sessionId}`)
+  await tx.announce({ sessionId })
+  return readSeq
+}
+
 const sourceIsGone = async (params: {
   tx: ControlTx
   sessionId: string

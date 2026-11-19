@@ -9,6 +9,8 @@ export type V2RowView = {
   branch: string | undefined
   pullRequest: PullRequestEntry | undefined
   routineId: string | undefined
+  lastAssistantSeq: number
+  readSeq: number | null
 }
 
 const ICON: Record<ESessionStatus, EThreadStatus> = {
@@ -29,3 +31,10 @@ const ICON: Record<ESessionStatus, EThreadStatus> = {
 
 export const v2StatusIconOf = (status: ESessionStatus | undefined): EThreadStatus | undefined =>
   status === undefined ? undefined : ICON[status]
+
+export const v2IsUnread = (args: { view: V2RowView; active: boolean }): boolean => {
+  if (args.active) return false
+  if (args.view.lastAssistantSeq <= 0) return false
+  if (v2StatusIconOf(args.view.status) === EThreadStatus.Running) return false
+  return args.view.lastAssistantSeq > (args.view.readSeq ?? -1)
+}

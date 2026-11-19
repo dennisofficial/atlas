@@ -20,6 +20,17 @@ export const setSessionArchivedIn = (params: {
   return true
 }
 
+export const setSessionReadSeqIn = (params: {
+  state: State
+  sessionId: string
+  seq: number
+}): number | undefined => {
+  const row = params.state.sessions.get(params.sessionId)
+  if (row === undefined || row.deletedAt !== null) return undefined
+  row.readSeq = Math.max(row.readSeq ?? -1, params.seq)
+  return row.readSeq
+}
+
 export const setSessionTitleIfUntitledIn = (params: {
   state: State
   sessionId: string
@@ -98,6 +109,7 @@ export const createSessionIn = (params: {
     createdAt: params.at,
     archivedAt: null,
     deletedAt: null,
+    readSeq: null,
     nextInboxId: 1,
     titledFromInboxId: null,
     modelRef: params.modelRef,

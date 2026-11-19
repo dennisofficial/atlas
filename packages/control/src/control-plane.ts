@@ -64,6 +64,7 @@ import { AppendAbort, type AppendOutcome } from './refusal'
 import {
   archiveIn,
   createSessionIn,
+  markReadIn,
   renameIn,
   setSessionModelIn,
   titleUntitledIn,
@@ -260,6 +261,10 @@ export class ControlPlane {
 
   async setSessionArchived(params: { sessionId: string; archivedAt: string | null }) {
     await this.store.transact((tx) => archiveIn({ tx, ...params }))
+  }
+
+  async markSessionRead(params: { sessionId: string; seq: number }): Promise<number> {
+    return this.store.transact((tx) => markReadIn({ tx, ...params }))
   }
 
   async titleUntitledSession(params: Omit<Parameters<typeof titleUntitledIn>[0], 'tx'>) {

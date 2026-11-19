@@ -148,3 +148,19 @@ export const clearTitleFromIn = async (params: {
   }).updateAndCount({ title: null, titledFromInboxId: null })
   return changed === 1
 }
+
+export const setSessionReadSeqIn = async (params: {
+  tx: Tx
+  sessionId: string
+  seq: number
+}): Promise<number | undefined> => {
+  const [row] = await params.tx.query(
+    params.tx.raw.sql`UPDATE "v2"."V2Session"
+        SET "readSeq" = GREATEST(COALESCE("readSeq", -1), ${params.seq})
+        WHERE "id" = ${params.sessionId} AND "deletedAt" IS NULL
+        RETURNING "readSeq"`
+      .returnsRow({ readSeq: 'pg/int4@1' })
+      .build(),
+  )
+  return row?.readSeq
+}

@@ -19,6 +19,7 @@ namespace v2 {
     podSessionId       String?
     podRetiredAt       TimestamptzJsDate(3)?
     routineId          String?
+    readSeq            Int?
     lastSurface        String                @default("web")
     threads      V2Thread[]
     inbox        V2InboxEntry[]

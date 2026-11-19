@@ -104,11 +104,20 @@ export function useV2SessionScreen(sessionId: string): V2SessionScreen {
     void api?.sessions.retry.mutate({ sessionId }).catch(() => undefined)
   }, [api, sessionId])
 
+  const loaded = snapshot.cursor !== undefined || snapshot.status !== undefined
+  const head = snapshot.events.at(-1)?.seq
+
+  useEffect(() => {
+    if (api === undefined || !loaded || view.working) return
+    if (head === undefined || head <= 0) return
+    void api.sessions.markRead.mutate({ sessionId, seq: head }).catch(() => undefined)
+  }, [api, sessionId, loaded, view.working, head])
+
   return {
     ...view,
     now,
     stateLine: sessionStateLineOf(snapshot),
-    loaded: snapshot.cursor !== undefined || snapshot.status !== undefined,
+    loaded,
     fromCache: snapshot.fromCache,
     catchingUp: snapshot.fromCache && snapshot.connection !== ESessionConnection.Live,
     failedToLoad: snapshot.error !== undefined,

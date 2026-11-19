@@ -82,6 +82,17 @@ describe('v2 sidebar row', () => {
     expect(unknown).toContain('state unknown')
   })
 
+  it('shows the unread dot until the row is read to the last assistant seq', () => {
+    const idle = { state: ESessionStatus.Idle }
+    expect(render({ lastAssistantSeq: 7, status: idle })).toContain('aria-label="Unread"')
+    expect(render({ lastAssistantSeq: 7, readSeq: 7, status: idle })).not.toContain(
+      'aria-label="Unread"',
+    )
+    expect(
+      render({ lastAssistantSeq: 7, status: { state: ESessionStatus.Thinking } }),
+    ).not.toContain('aria-label="Unread"')
+  })
+
   it('tags the row of a session a routine produced, and only that row', () => {
     const html = render({ routineId: 'rte-1' })
     expect(html).toContain('data-engine-tag="routine"')

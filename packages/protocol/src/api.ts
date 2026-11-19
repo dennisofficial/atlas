@@ -91,6 +91,11 @@ export const sessionArchiveInputSchema = z.strictObject({
   archived: z.boolean(),
 })
 
+export const sessionMarkReadInputSchema = z.strictObject({
+  sessionId: z.string().min(1),
+  seq: z.number().int().min(0),
+})
+
 export const sessionStatusInputSchema = z.strictObject({
   sessionId: z.string().min(1),
 })
@@ -103,6 +108,7 @@ export type SessionEventsInput = z.infer<typeof sessionEventsInputSchema>
 export type SessionBlobInput = z.infer<typeof sessionBlobInputSchema>
 export type SessionWithdrawInput = z.infer<typeof sessionWithdrawInputSchema>
 export type SessionArchiveInput = z.infer<typeof sessionArchiveInputSchema>
+export type SessionMarkReadInput = z.infer<typeof sessionMarkReadInputSchema>
 export type SessionStatusInput = z.infer<typeof sessionStatusInputSchema>
 
 export const inboxMessageSchema = z.strictObject({
@@ -171,6 +177,8 @@ export const sessionSummarySchema = z.strictObject({
   createdAt: z.string().min(1),
   updatedAt: z.string().min(1),
   archivedAt: z.string().nullable(),
+  lastAssistantSeq: z.number().int().min(0).optional(),
+  readSeq: z.number().int().min(0).nullable().optional(),
   spawnedBy: z.string().min(1).nullable().optional(),
   nested: z.boolean().optional(),
   routineId: z.string().min(1).nullable().optional(),
@@ -229,6 +237,10 @@ export const sessionWithdrawOutputSchema = z.discriminatedUnion('ok', [
 ])
 
 export const sessionArchiveOutputSchema = z.strictObject({ archivedAt: z.string().nullable() })
+
+export const sessionMarkReadOutputSchema = z.strictObject({
+  readSeq: z.number().int().min(0),
+})
 
 export const sessionStatusOutputSchema = z.strictObject({
   state: z.enum(ESessionStatus),
@@ -428,6 +440,7 @@ export type SessionLeaseView = z.infer<typeof sessionLeaseSchema>
 export type SessionQueuedMessage = z.infer<typeof sessionQueuedMessageSchema>
 export type SessionWithdrawOutput = z.infer<typeof sessionWithdrawOutputSchema>
 export type SessionArchiveOutput = z.infer<typeof sessionArchiveOutputSchema>
+export type SessionMarkReadOutput = z.infer<typeof sessionMarkReadOutputSchema>
 export type SessionStatusOutput = z.infer<typeof sessionStatusOutputSchema>
 
 export const hostExposePortInputSchema = z.strictObject({
