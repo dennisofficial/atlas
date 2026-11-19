@@ -38,14 +38,16 @@ const STATE_ICON: Record<string, { icon: LucideIcon; tone: string; label: string
   },
 }
 
-function StateIcon({ state }: { state: string | undefined }) {
+function StateIcon({ state, queued }: { state: string | undefined; queued: boolean }) {
   const entry = state === undefined ? undefined : STATE_ICON[state]
+  const settled = state === 'merged' || state === 'closed'
+  const tone = queued && !settled ? 'text-pr-queued' : entry?.tone
   const Icon = entry?.icon ?? GitPullRequestIcon
   return (
     <Icon
       role="img"
       aria-label={entry?.label ?? 'Pull request'}
-      className={cn('size-3.5 shrink-0', entry?.tone ?? 'text-muted-foreground')}
+      className={cn('size-3.5 shrink-0', tone ?? 'text-muted-foreground')}
     />
   )
 }
@@ -112,7 +114,7 @@ export function PullRequestRowItem(props: {
     <TableRow>
       <TableCell className={`${BODY_CELL} w-6`}>
         <span className="flex size-4 items-center justify-center">
-          <StateIcon state={row.state} />
+          <StateIcon state={row.state} queued={row.mergeQueued} />
         </span>
       </TableCell>
       <TableCell className={`${BODY_CELL} w-full max-w-0`}>

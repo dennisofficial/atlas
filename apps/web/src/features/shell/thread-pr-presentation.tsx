@@ -16,6 +16,7 @@ import { latestThreadPullRequestOf } from './thread-pull-requests'
 
 export function PullRequestIcon({ entry }: { entry: PullRequestEntry }) {
   const state = entry.state?.toLowerCase()
+  const queued = entry.mergeQueued === true && state !== 'merged' && state !== 'closed'
   const Icon =
     state === 'merged'
       ? GitMerge
@@ -27,16 +28,18 @@ export function PullRequestIcon({ entry }: { entry: PullRequestEntry }) {
   return (
     <Icon
       role="img"
-      aria-label={`Pull request ${state ?? 'state unknown'}`}
+      aria-label={queued ? 'Pull request queued' : `Pull request ${state ?? 'state unknown'}`}
       className={cn(
         'size-4 shrink-0',
-        state === 'merged'
-          ? 'text-pr-merged'
-          : state === 'closed'
-            ? 'text-pr-closed'
-            : state === 'open'
-              ? 'text-pr-open'
-              : 'text-muted-foreground',
+        queued
+          ? 'text-pr-queued'
+          : state === 'merged'
+            ? 'text-pr-merged'
+            : state === 'closed'
+              ? 'text-pr-closed'
+              : state === 'open'
+                ? 'text-pr-open'
+                : 'text-muted-foreground',
       )}
     />
   )
