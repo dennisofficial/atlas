@@ -111,6 +111,7 @@ export const reportToSpawnerIn = async (params: {
       intent: params.session.title ?? `session ${params.session.sessionId}`,
       prose: params.text,
       kind: params.kind,
+      senderSessionId: params.session.sessionId,
     }),
     at: params.at,
     senderSessionId: params.session.sessionId,

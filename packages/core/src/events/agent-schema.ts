@@ -56,6 +56,7 @@ export const agentEventSchemas = [
     intent: z.string(),
     prose: z.string(),
     kind: z.enum(EReportKind).optional(),
+    senderSessionId: z.string().min(1).optional(),
     notice: noticeStampSchema.optional(),
   }),
   z.object({

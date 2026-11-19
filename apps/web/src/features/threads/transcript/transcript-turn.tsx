@@ -173,6 +173,7 @@ function SegmentView({
       <>
         <AgentMessage
           author={AGENT_AUTHOR}
+          {...(item.sender === undefined ? {} : { caption: item.sender })}
           timestamp={messageTimeOf({ at: item.at, now })}
           streaming={item.streaming}
           caret={false}
