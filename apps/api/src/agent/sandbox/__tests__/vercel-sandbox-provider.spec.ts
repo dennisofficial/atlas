@@ -84,6 +84,82 @@ describe('VercelSandboxProvider.wake', () => {
   })
 })
 
+describe('VercelSandboxProvider.wake size', () => {
+  const providerWith = (sdk: VercelSdk, path: string) =>
+    new VercelSandboxProvider({
+      image: 'atlas-sandbox:latest',
+      daemonBundle: { path },
+      daemonSecret: 'top-secret',
+      cloudUrl: 'https://api.test',
+      sdk,
+    })
+
+  it('creates the sandbox at the configured vCPU size', async () => {
+    const { bundle: b, cleanup } = bundle()
+    const { sdk, creates } = fakeSdk()
+    try {
+      await providerWith(sdk, b.path).wake({
+        sandboxSessionId: 's4',
+        credentials: CREDENTIALS,
+        signal: AbortSignal.timeout(5000),
+        vcpus: 8,
+      })
+      expect(creates[0]).toMatchObject({ resources: { vcpus: 8 } })
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('leaves the size to Vercel when none is configured', async () => {
+    const { bundle: b, cleanup } = bundle()
+    const { sdk, creates } = fakeSdk()
+    try {
+      await providerWith(sdk, b.path).wake({
+        sandboxSessionId: 's5',
+        credentials: CREDENTIALS,
+        signal: AbortSignal.timeout(5000),
+      })
+      expect(creates[0]).not.toHaveProperty('resources')
+    } finally {
+      cleanup()
+    }
+  })
+})
+
+describe('VercelSandboxProvider.resize', () => {
+  const sandbox = (calls: string[]) => ({
+    update: async (params: { resources?: { vcpus?: number } }) => {
+      calls.push(`update:${params.resources?.vcpus}`)
+    },
+    stop: async () => {
+      calls.push('stop')
+    },
+  })
+
+  it('stores the new size and stops the sandbox so the next wake resumes at it', async () => {
+    const calls: string[] = []
+    const sdk: VercelSdk = {
+      getOrCreate: async () => {
+        throw new Error('unused')
+      },
+      get: async () => sandbox(calls) as never,
+    }
+    const provider = new VercelSandboxProvider({
+      image: 'atlas-sandbox:latest',
+      daemonBundle: { path: '/tmp/daemon.js' },
+      daemonSecret: 'top-secret',
+      cloudUrl: 'https://api.test',
+      sdk,
+    })
+    await provider.resize({
+      sandboxSessionId: 's6',
+      credentials: CREDENTIALS,
+      vcpus: 16,
+    })
+    expect(calls).toEqual(['update:16', 'stop'])
+  })
+})
+
 describe('VercelSandboxProvider.wake deadline', () => {
   const hangingSdk = (seen: AbortSignal[]): VercelSdk => ({
     getOrCreate: (params) => {

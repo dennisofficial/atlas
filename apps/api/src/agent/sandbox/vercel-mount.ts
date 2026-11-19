@@ -33,6 +33,7 @@ export async function mountWithRetries(args: {
   image: string
   threadId: string
   token: string
+  vcpus?: number | undefined
   environment?: Record<string, string> | undefined
   onCreate: () => Promise<void>
   signal?: AbortSignal | undefined
@@ -50,6 +51,7 @@ export async function mountWithRetries(args: {
         keepLastSnapshots: SANDBOX_SNAPSHOT_RETENTION,
         resume: true,
         image: args.image,
+        ...(args.vcpus === undefined ? {} : { resources: { vcpus: args.vcpus } }),
         onCreate: args.onCreate,
         env: {
           ATLAS_SERVE_TOKEN: args.token,

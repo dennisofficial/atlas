@@ -6,7 +6,8 @@ import {
   type PodControlClient,
   type PodPeers,
 } from '@dltech/atlas-host'
-import { nativeCommandHandlers, nativeCommands } from '@dltech/atlas-native-commands'
+import { nativeCommandHandlers, nativeCommands, resize } from '@dltech/atlas-native-commands'
+import { db } from '@dltech/atlas-db'
 import { cloudConfigStore } from './config/cloud-config-store'
 import { envSecretsReader } from './config/env-secrets'
 import { mcpControlPort } from './config/mcp-control'
@@ -27,6 +28,7 @@ import { systemTimers, type HostBus, type HostTimers } from '@dltech/atlas-host'
 import { SessionNotFoundError } from './config/config-reader'
 import { CredentialsUnavailableError } from './config/agent-host-credential-port'
 import { sessionDirOf } from './runtime/session-paths'
+import { podKeyOf, podResizeHandler } from './sandbox/pod-resize'
 import { startFailureReason } from './start-failure-reason'
 import {
   createSessionRuntimeFactory,
@@ -88,7 +90,18 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
     reasonOfStartError: startFailureReason,
     maxSessions: args.env.maxSessions,
     commands: composeCommands([...nativeCommands, ...composedPlugins.commands]),
-    commandHandlers: new Map([...nativeCommandHandlers, ...composedPlugins.pod.commands]),
+    commandHandlers: new Map([
+      ...nativeCommandHandlers,
+      ...composedPlugins.pod.commands,
+      [
+        resize.inboxKind,
+        podResizeHandler({
+          sandbox: args.sandbox,
+          config: args.config,
+          podSessionIdOf: ({ sessionId }) => podKeyOf({ db, sessionId }),
+        }),
+      ],
+    ]),
     control: args.control,
     mcp: (sessionId) => mcpControl.of(sessionId),
     operator: {

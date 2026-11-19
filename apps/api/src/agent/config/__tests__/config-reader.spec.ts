@@ -152,6 +152,48 @@ describe('ConfigReader', () => {
     })
   })
 
+  it.each([
+    { name: "uses the session project's size", project: 4, personal: 8, want: 4 },
+    {
+      name: "falls through to the owner's sandbox.vcpus setting",
+      project: null,
+      personal: 8,
+      want: 8,
+    },
+    {
+      name: 'leaves the size to Vercel when neither layer sets one',
+      project: null,
+      personal: null,
+      want: undefined,
+    },
+    {
+      name: 'ignores a personal value outside the Vercel pod sizes',
+      project: null,
+      personal: 3,
+      want: undefined,
+    },
+  ])('sizes the pod: $name', async ({ project, personal, want }) => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedApiKeyAccount(db)
+    if (project !== null) {
+      await db.orm.public.Project.where({ id: 'proj-1' }).update({ sandboxVcpus: project })
+    }
+    if (personal !== null) {
+      await seedSetting({ db, scope: 'user', key: 'sandbox.vcpus', value: personal })
+    }
+    expect((await readerOver().read({ sessionId: 's-1' })).sandboxVcpus).toBe(want)
+  })
+
+  it('takes the personal sandbox size over a project-scoped setting of the same key', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedApiKeyAccount(db)
+    await seedSetting({ db, scope: 'user', key: 'sandbox.vcpus', value: 8 })
+    await seedSetting({ db, scope: 'project', key: 'sandbox.vcpus', value: 2 })
+    expect((await readerOver().read({ sessionId: 's-1' })).sandboxVcpus).toBe(8)
+  })
+
   it('throws a typed error for an unknown session', async () => {
     await expect(readerOver().read({ sessionId: 'missing' })).rejects.toBeInstanceOf(
       SessionNotFoundError,
@@ -323,6 +365,48 @@ describe('ConfigReader model read', () => {
       fast: false,
       accountId: 'acct-1',
     })
+  })
+
+  it.each([
+    { name: "uses the session project's size", project: 4, personal: 8, want: 4 },
+    {
+      name: "falls through to the owner's sandbox.vcpus setting",
+      project: null,
+      personal: 8,
+      want: 8,
+    },
+    {
+      name: 'leaves the size to Vercel when neither layer sets one',
+      project: null,
+      personal: null,
+      want: undefined,
+    },
+    {
+      name: 'ignores a personal value outside the Vercel pod sizes',
+      project: null,
+      personal: 3,
+      want: undefined,
+    },
+  ])('sizes the pod: $name', async ({ project, personal, want }) => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedApiKeyAccount(db)
+    if (project !== null) {
+      await db.orm.public.Project.where({ id: 'proj-1' }).update({ sandboxVcpus: project })
+    }
+    if (personal !== null) {
+      await seedSetting({ db, scope: 'user', key: 'sandbox.vcpus', value: personal })
+    }
+    expect((await readerOver().read({ sessionId: 's-1' })).sandboxVcpus).toBe(want)
+  })
+
+  it('takes the personal sandbox size over a project-scoped setting of the same key', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedApiKeyAccount(db)
+    await seedSetting({ db, scope: 'user', key: 'sandbox.vcpus', value: 8 })
+    await seedSetting({ db, scope: 'project', key: 'sandbox.vcpus', value: 2 })
+    expect((await readerOver().read({ sessionId: 's-1' })).sandboxVcpus).toBe(8)
   })
 
   it('throws a typed error for an unknown session', async () => {

@@ -1,13 +1,14 @@
 import type { Command, CommandHandler, ControlCommandHandler } from '@dltech/atlas-commands'
 
 import { renameHandler, type RenamePlane } from './rename/control'
+import { resize, resizeArgs } from './resize/spec'
 import { rename } from './rename/spec'
 import { rewindHandler } from './rewind/pod'
 import { rewind } from './rewind/spec'
 import { summariseHandler } from './summarise/pod'
 import { summarise } from './summarise/spec'
 
-export const nativeCommands: readonly Command[] = [rewind, rename, summarise]
+export const nativeCommands: readonly Command[] = [rewind, rename, summarise, resize]
 
 export const nativeCommandHandlers: ReadonlyMap<string, CommandHandler<unknown>> = new Map([
   [rewind.inboxKind, rewindHandler],
@@ -19,6 +20,8 @@ export const nativeControlHandlers: ReadonlyMap<
   ControlCommandHandler<RenamePlane, unknown>
 > = new Map([[rename.spec.name, renameHandler]])
 
+export { resize, resizeArgs }
+export type { ResizeArgs } from './resize/spec'
 export { REFUSAL_NOT_A_MESSAGE, REFUSAL_NOTHING_TO_REWIND, rewindTargetOf } from './rewind/spec'
 export {
   REFUSAL_EMPTY_SUMMARY,

@@ -109,6 +109,7 @@ const testSource = (): ConfigSource => ({
         additionalRepos: [],
         setupScript: process.env.SETUP_SCRIPT ?? '',
       },
+      sandboxVcpus: undefined,
       skills: [],
     }
   },

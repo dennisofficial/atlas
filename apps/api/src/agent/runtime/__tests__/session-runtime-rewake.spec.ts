@@ -32,6 +32,7 @@ const config: AgentHostConfig = {
   }),
   vercel: { configured: true, token: 'vt', teamId: 'team', projectId: 'proj' },
   workspace: { remoteUrl: null, baseBranch: null, additionalRepos: [], setupScript: '' },
+  sandboxVcpus: undefined,
   skills: [],
 }
 
@@ -59,6 +60,7 @@ class DeadUrlSandbox extends SandboxProvider {
 
   async stop(): Promise<void> {}
   async keepAlive(): Promise<void> {}
+  async resize(): Promise<void> {}
 }
 
 const timers: HostTimers = { now: () => Date.now(), ...systemTimers, random: () => 0 }

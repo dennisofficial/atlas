@@ -1,4 +1,5 @@
 import { composeCommands, defineCommand } from '@dltech/atlas-commands'
+import { resize } from '@dltech/atlas-native-commands'
 import {
   chainEvents,
   ECommandGroup,
@@ -12,9 +13,11 @@ import { FakeMediaStore } from '@dltech/atlas-media/testing'
 import { ControlPlane, INBOX_KIND_WITHDRAW, withdrawPayloadOf } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 import { BackgroundWork } from '../../../_core/ports/background-work'
+import { PodPlanGate } from '../../../_core/ports/pod-plan-gate'
 import { NoSessionTitler } from '../../../_core/ports/session-titler'
 import { FakeMediaRegistry } from './media-registry.fake'
 import { SessionsService } from './sessions.service'
+import type { PodResourceReads } from './pod-resources.service'
 import { ProjectAccess } from './project-access'
 import { modelSet } from './model-set'
 
@@ -102,7 +105,9 @@ export const logWithdrawn = async (args: {
   })
 }
 
-export const setupSessionsService = () => {
+export const setupSessionsService = (
+  over: { planGate?: PodPlanGate; podResources?: PodResourceReads } = {},
+) => {
   const store = new InMemoryControlStore({ clock: () => NOW })
   store.markHostPresent(9001)
   const plane = new ControlPlane({ store })
@@ -116,7 +121,9 @@ export const setupSessionsService = () => {
     new NoBackgroundWork(),
     registry,
     mediaStore,
-    composeCommands([TEST_COMMAND, modelSet]),
+    composeCommands([TEST_COMMAND, modelSet, resize]),
+    over.planGate ?? { assertWithinPlan: async () => undefined },
+    over.podResources ?? { resources: async () => null, forget: () => undefined },
   )
   return { plane, service, registry, mediaStore, store, projects }
 }

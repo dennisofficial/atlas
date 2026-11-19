@@ -30,6 +30,7 @@ const config: AgentHostConfig = {
   }),
   vercel: { configured: true, token: 'vt', teamId: 'team', projectId: 'proj' },
   workspace: { remoteUrl: null, baseBranch: null, additionalRepos: [], setupScript: '' },
+  sandboxVcpus: undefined,
   skills: [],
 }
 
@@ -57,6 +58,8 @@ class SlowWakeSandbox extends SandboxProvider {
   }
 
   async keepAlive(): Promise<void> {}
+
+  async resize(): Promise<void> {}
 }
 
 const releaseOf = async (args: {

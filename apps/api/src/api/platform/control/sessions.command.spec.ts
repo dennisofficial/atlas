@@ -53,6 +53,76 @@ describe('SessionsService command', () => {
     },
   )
 
+  it('checks the plan cap before a resize is posted, and posts nothing when it refuses', async () => {
+    const seen: { userId: string; vcpus: number }[] = []
+    const context = setup({
+      planGate: {
+        assertWithinPlan: async (args) => {
+          seen.push(args)
+          throw new BadRequestException('16 vCPU exceeds the plan')
+        },
+      },
+    })
+    const created = await context.service.create({ userId: 'user-a', projectId: 'proj-a' })
+
+    const refused = context.service.command({
+      userId: 'user-a',
+      sessionId: created.sessionId,
+      name: 'resize',
+      args: { vcpus: 16 },
+    })
+
+    await expect(refused).rejects.toBeInstanceOf(BadRequestException)
+    expect(seen).toEqual([{ userId: 'user-a', vcpus: 16 }])
+    expect(await inboxOf({ plane: context.plane, sessionId: created.sessionId })).toEqual([])
+  })
+
+  it('forgets the cached pod resources once a resize is posted', async () => {
+    const forgotten: string[] = []
+    const context = setup({
+      podResources: {
+        resources: async () => null,
+        forget: ({ podKey }) => {
+          forgotten.push(podKey)
+        },
+      },
+    })
+    const created = await context.service.create({ userId: 'user-a', projectId: 'proj-a' })
+
+    await context.service.command({
+      userId: 'user-a',
+      sessionId: created.sessionId,
+      name: 'resize',
+      args: { vcpus: 4 },
+    })
+
+    expect(forgotten).toEqual([created.sessionId])
+    const inbox = await inboxOf({ plane: context.plane, sessionId: created.sessionId })
+    expect(inbox.map((entry) => entry.kind)).toEqual(['command:resize'])
+  })
+
+  it('reports the pod resources of the session pod', async () => {
+    const reads: { userId: string; podKey: string }[] = []
+    const context = setup({
+      podResources: {
+        resources: async (args) => {
+          reads.push(args)
+          return { vcpus: 4, memoryMb: 8192, pendingVcpus: 8 }
+        },
+        forget: () => undefined,
+      },
+    })
+    const created = await context.service.create({ userId: 'user-a', projectId: 'proj-a' })
+
+    expect(
+      await context.service.podResourcesOf({
+        userId: 'user-a',
+        sessionId: created.sessionId,
+      }),
+    ).toEqual({ vcpus: 4, memoryMb: 8192, pendingVcpus: 8 })
+    expect(reads).toEqual([{ userId: 'user-a', podKey: created.sessionId }])
+  })
+
   it('refuses a session the caller does not own and posts nothing', async () => {
     const { plane, service, sessionId } = await seed()
 

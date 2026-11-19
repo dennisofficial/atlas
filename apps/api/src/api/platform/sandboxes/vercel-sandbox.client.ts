@@ -68,6 +68,7 @@ const stateOf = (status: string): ESandboxState => {
 export interface SandboxResourcesObservation {
   vcpus?: number
   memoryMb?: number
+  pendingVcpus?: number
 }
 
 const resourcesOf = (sandbox: Sandbox): SandboxResourcesObservation => {
@@ -79,6 +80,25 @@ const resourcesOf = (sandbox: Sandbox): SandboxResourcesObservation => {
   }
   const session = sandbox.currentSession()
   return { vcpus: session.vcpus, memoryMb: session.memory }
+}
+
+const podResourcesOf = (sandbox: Sandbox): SandboxResourcesObservation => {
+  const live = sandbox.status === 'running' ? sandbox.currentSession() : undefined
+  const pending =
+    live !== undefined && sandbox.vcpus !== undefined && sandbox.vcpus !== live.vcpus
+      ? sandbox.vcpus
+      : undefined
+  if (live === undefined) {
+    return {
+      ...(sandbox.vcpus === undefined ? {} : { vcpus: sandbox.vcpus }),
+      ...(sandbox.memory === undefined ? {} : { memoryMb: sandbox.memory }),
+    }
+  }
+  return {
+    vcpus: live.vcpus,
+    memoryMb: live.memory,
+    ...(pending === undefined ? {} : { pendingVcpus: pending }),
+  }
 }
 
 const routedUrlOf = (sandbox: Sandbox): string | undefined => {
@@ -162,6 +182,27 @@ export class VercelSandboxClient {
       return resourcesOf(await this.get({ ...args, resume: false }))
     } catch (failure) {
       if (isSandboxMissing(failure)) throw new SandboxMissingError(args.name)
+      throw asBadGateway(failure)
+    }
+  }
+
+  async readPodResources(args: {
+    userId: string
+    name: string
+  }): Promise<SandboxResourcesObservation | null> {
+    const { token, teamId, projectId } = await this.credentials.forUser({ userId: args.userId })
+    try {
+      const sandbox = await Sandbox.get({
+        token,
+        teamId,
+        projectId,
+        name: args.name,
+        resume: false,
+        signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
+      })
+      return podResourcesOf(sandbox)
+    } catch (failure) {
+      if (isSandboxMissing(failure)) return null
       throw asBadGateway(failure)
     }
   }

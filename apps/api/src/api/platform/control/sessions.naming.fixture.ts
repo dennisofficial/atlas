@@ -53,6 +53,8 @@ export const setupNaming = () => {
     registry,
     mediaStore,
     composeCommands([]),
+    { assertWithinPlan: async () => undefined },
+    { resources: async () => null, forget: () => undefined },
   )
   return { plane, service, titler, background, registry, mediaStore }
 }

@@ -31,6 +31,7 @@ const configured = (over: Partial<AgentHostConfig> = {}): AgentHostConfig => ({
   models: fakeModelSourceOf(CONFIGURED_MODEL),
   vercel: { configured: true, token: 'vt', teamId: 'team', projectId: 'proj' },
   workspace: { remoteUrl: null, baseBranch: null, additionalRepos: [], setupScript: '' },
+  sandboxVcpus: undefined,
   skills: [],
   ...over,
 })
@@ -68,6 +69,8 @@ class FakeSandbox extends SandboxProvider {
   async keepAlive(args: { sandboxSessionId: string }): Promise<void> {
     this.keptAlive.push(args.sandboxSessionId)
   }
+
+  async resize(): Promise<void> {}
 }
 
 type ScheduledTimer = { handler: () => void; cleared: boolean }

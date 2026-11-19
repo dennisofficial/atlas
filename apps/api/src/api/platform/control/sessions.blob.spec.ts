@@ -45,6 +45,8 @@ describe('SessionsService blob reads', () => {
       new FakeMediaRegistry(),
       new FakeMediaStore(),
       composeCommands([]),
+      { assertWithinPlan: async () => undefined },
+      { resources: async () => null, forget: () => undefined },
     )
     return { plane, service }
   }

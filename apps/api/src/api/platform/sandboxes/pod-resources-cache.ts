@@ -1,11 +1,11 @@
 import type { BackgroundWork } from '../../../_core/ports/background-work'
-import type { SandboxResourcesObservation } from '../../platform/sandboxes/vercel-sandbox.client'
+import type { SandboxResourcesObservation } from './vercel-sandbox.client'
 
 const FRESH_MS = 60_000
 const FAILED_MS = 15_000
 const MAX_ENTRIES = 500
 
-type Read = () => Promise<SandboxResourcesObservation>
+type Read = () => Promise<SandboxResourcesObservation | null>
 
 interface Entry {
   live: SandboxResourcesObservation | null

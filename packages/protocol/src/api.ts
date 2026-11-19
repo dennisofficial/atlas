@@ -266,6 +266,21 @@ export const sessionViewInputSchema = z.strictObject({
   sessionId: z.string().min(1),
 })
 
+export const sessionPodResourcesInputSchema = z.strictObject({
+  sessionId: z.string().min(1),
+})
+
+export const sessionPodResourcesOutputSchema = z
+  .strictObject({
+    vcpus: z.number().int().min(1).optional(),
+    memoryMb: z.number().int().min(1).optional(),
+    pendingVcpus: z.number().int().min(1).optional(),
+  })
+  .nullable()
+
+export type SessionPodResourcesInput = z.infer<typeof sessionPodResourcesInputSchema>
+export type SessionPodResourcesOutput = z.infer<typeof sessionPodResourcesOutputSchema>
+
 export const sessionRetryOutputSchema = z.strictObject({ inboxId: z.number().int().min(1) })
 
 export const sessionStopOutputSchema = z.strictObject({ inboxId: z.number().int().min(1) })
