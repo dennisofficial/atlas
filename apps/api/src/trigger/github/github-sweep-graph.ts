@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common'
+import { triggerLog } from '../trigger-logger'
 import { EnvService } from '../../_core/config/env/env.service'
 import { envConfigValidation } from '../../_core/config/env/validation'
 import { ProcessBackgroundWork } from '../../_lib/background-work/background-work.providers'
@@ -64,7 +64,7 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
   const cipher = new SecretCipherService(env)
   const redis = new RedisService(env)
   if (!redis.isConfigured()) {
-    new Logger('GithubSweepGraph').warn(
+    triggerLog.warn(
       'Without Redis the GitHub request budget and PR frames stay in this process; the API and this worker cannot share them',
     )
   }

@@ -1,4 +1,3 @@
-import { Logger } from '@nestjs/common'
 import { schedules } from '@trigger.dev/sdk'
 import { db } from '@dltech/atlas-db'
 import { softDeleteArchivedSessionsIn } from '@dltech/atlas-control/postgres'
@@ -20,6 +19,7 @@ import {
 } from '../../api/cloud/sandbox-provisioning/orphan-sandbox-sweep'
 import { VercelOrphanSandboxStore } from '../../api/cloud/sandbox-provisioning/vercel-orphan-sandbox-store'
 import { workerEnvService } from '../github/github-sweep-graph'
+import { triggerLog } from '../trigger-logger'
 
 type StoreEntry = { label: string; projectId: string; store: OrphanSandboxStore }
 
@@ -99,7 +99,6 @@ export const orphanSandboxSweepTask = schedules.task({
   cron: '5 * * * *',
   retry: { maxAttempts: 3 },
   run: async () => {
-    const logger = new Logger('OrphanSandboxSweep')
     const cipher = new SecretCipherService(workerEnvService())
     const now = new Date()
     const cutoff = new Date(now.getTime() - ARCHIVED_SANDBOX_GRACE_MS)
@@ -128,12 +127,12 @@ export const orphanSandboxSweepTask = schedules.task({
       reconcileStates: reconcile,
       now,
       dryRun: false,
-      log: (line) => logger.log(line),
+      log: (line) => triggerLog.log(line),
     })
     const softDeleted = await db.transaction((tx) =>
       softDeleteArchivedSessionsIn({ tx, cutoff, at: now }),
     )
-    logger.log(`soft-deleted ${softDeleted} v2 sessions archived past the grace`)
+    triggerLog.log(`soft-deleted ${softDeleted} v2 sessions archived past the grace`)
     return { ...summary, softDeleted }
   },
 })

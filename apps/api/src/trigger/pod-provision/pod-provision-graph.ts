@@ -1,4 +1,3 @@
-import { Logger } from '@nestjs/common'
 import { liveSdk } from '@dltech/atlas-wire'
 import type { EnvService } from '../../_core/config/env/env.service'
 import { SecretCipherService } from '../../_lib/crypto/secret-cipher.service'
@@ -6,6 +5,7 @@ import { sandboxWakeBootProvider } from '../../api/cloud/github/github-sandbox-w
 import type { PodProvisionDeps } from '../../api/cloud/sandbox-provisioning/pod-provision-run'
 import { buildScopedConfig } from '../../api/cloud/scoped-config/scoped-config.factory'
 import { workerEnvService } from '../github/github-sweep-graph'
+import { triggerLog } from '../trigger-logger'
 import { buildWorkerThreadSignals, type WorkerThreadSignals } from '../thread-signals-graph'
 
 const DEFAULT_CLOUD_URL = 'https://api.byatlas.io'
@@ -16,7 +16,6 @@ export function buildPodProvisionGraph(args: { env: EnvService }): PodProvisionG
   const { env } = args
   const { signals, dispose } = buildWorkerThreadSignals({ env })
   const cipher = new SecretCipherService(env)
-  const logger = new Logger('PodProvision')
   const deps: PodProvisionDeps = {
     cipher,
     scoped: buildScopedConfig({ cipher, env }),
@@ -25,7 +24,7 @@ export function buildPodProvisionGraph(args: { env: EnvService }): PodProvisionG
     signals,
     image: env.get('SANDBOX_IMAGE'),
     cloudUrl: env.get('ATLAS_CLOUD_URL') ?? DEFAULT_CLOUD_URL,
-    log: (line) => logger.log(line),
+    log: (line) => triggerLog.log(line),
     telemetryPepper: env.get('ATLAS_TELEMETRY_PEPPER'),
   }
   return { deps, dispose }
