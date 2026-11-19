@@ -3,6 +3,7 @@ import { fail, report, type Deps } from './workspace-state'
 
 const TOOLCHAIN_TIMEOUT_MS = 5 * 60_000
 const TOOLCHAIN_OUTPUT_TAIL_CHARS = 4000
+const MISE_INSTALL = 'command -v mise >/dev/null 2>&1 || exit 0; mise install'
 
 /**
  * Installs the versions a repository pins (mise.toml, .tool-versions, .bun-version, .nvmrc)
@@ -17,7 +18,7 @@ export const installToolchain = async (args: {
 }): Promise<boolean> => {
   const outcome = await run({
     processes: args.deps.processes,
-    cmd: ['sh', '-c', 'mise install'],
+    cmd: ['sh', '-c', MISE_INSTALL],
     cwd: args.launchDirectory,
     timeoutMs: TOOLCHAIN_TIMEOUT_MS,
     ...(args.deps.signal === undefined ? {} : { signal: args.deps.signal }),

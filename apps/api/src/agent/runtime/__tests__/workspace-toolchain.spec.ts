@@ -9,7 +9,8 @@ const prepare = async (args: { setupScript: string; miseExitCode?: number }) => 
   files.directories.add('/workspace/repo')
   const processes = new RecordingProcessPort({
     chunks: ['+ mise install\n'],
-    exitCodeOf: (call) => (call.cmd.includes('mise install') ? (args.miseExitCode ?? 0) : 0),
+    exitCodeOf: (call) =>
+      call.cmd.some((part) => part.includes('mise install')) ? (args.miseExitCode ?? 0) : 0,
   })
   const result = await ensureWorkspace({
     calls: { ackScope: () => Promise.resolve() },
@@ -29,7 +30,7 @@ const prepare = async (args: { setupScript: string; miseExitCode?: number }) => 
 }
 
 const indexOf = (processes: RecordingProcessPort, command: string): number =>
-  processes.spawned.findIndex((call) => call.cmd.includes(command))
+  processes.spawned.findIndex((call) => call.cmd.some((part) => part.includes(command)))
 
 describe('workspace toolchain install', () => {
   it('installs the repository pins before the setup script runs', async () => {
@@ -44,8 +45,14 @@ describe('workspace toolchain install', () => {
   it('runs mise install non-interactively in the launch directory with the session env', async () => {
     const { processes } = await prepare({ setupScript: 'bun install' })
 
-    const call = processes.spawned.find((spawned) => spawned.cmd.includes('mise install'))
-    expect(call?.cmd).toEqual(['sh', '-c', 'mise install'])
+    const call = processes.spawned.find((spawned) =>
+      spawned.cmd.some((part) => part.includes('mise install')),
+    )
+    expect(call?.cmd).toEqual([
+      'sh',
+      '-c',
+      'command -v mise >/dev/null 2>&1 || exit 0; mise install',
+    ])
     expect(call?.cwd).toBe('/workspace/repo')
     expect(call?.env?.MISE_YES).toBe('1')
   })
@@ -65,7 +72,7 @@ describe('workspace toolchain install', () => {
     expect(indexOf(processes, 'bun install')).toBeGreaterThan(indexOf(processes, 'mise install'))
   })
 
-  it('returns false and records the failure when mise itself is missing', async () => {
+  it('returns false and records the output when mise install exits non-zero', async () => {
     const warnings: string[] = []
     const ok = await installToolchain({
       deps: {
