@@ -3198,6 +3198,16 @@
                   }
                 }
               },
+              "parkedSince": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
               "payload": {
                 "nullable": false,
                 "type": {
@@ -3255,6 +3265,9 @@
                 },
                 "nextAttemptAt": {
                   "column": "nextAttemptAt"
+                },
+                "parkedSince": {
+                  "column": "parkedSince"
                 },
                 "payload": {
                   "column": "payload"
@@ -12871,6 +12884,14 @@
                     "precision": 3
                   }
                 },
+                "parkedSince": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
                 "payload": {
                   "codecId": "pg/jsonb@1",
                   "dataType": "pg/jsonb",
@@ -18236,7 +18257,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "820192810d0d976067a2872e941e6fd46fc3816345fc594b98d069c7533574b3"
+    "storageHash": "03c0fe7f2588b74aae34cffb0265f9af9108958a14f20512e7c639a359f1e2cb"
   },
   "execution": {
     "executionHash": "4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45",

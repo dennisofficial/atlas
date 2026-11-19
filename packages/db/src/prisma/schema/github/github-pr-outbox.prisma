@@ -11,6 +11,7 @@ model GithubPrOutbox {
   leaseUntil     TimestamptzJsDate(3)?
   leaseOwner     String?
   nextAttemptAt  TimestamptzJsDate(3)?
+  parkedSince    TimestamptzJsDate(3)?
   deadLetteredAt TimestamptzJsDate(3)?
   attempts       Int                  @default(0)
   lastError      String?

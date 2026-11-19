@@ -10,6 +10,9 @@ export const PR_OUTBOX_PARK_MS = 5_000
 export const PR_OUTBOX_PARK_EXPIRE_MS = 60 * 60 * 1_000
 const BACKOFF_BASE_MS = 5_000
 const BACKOFF_CAP_MS = 10 * 60 * 1_000
+const parkedTooLongError = `parked past ${PR_OUTBOX_PARK_EXPIRE_MS} ms without a token or a successful read`
+
+const parkExpireCutoff = (now: Date) => new Date(now.getTime() - PR_OUTBOX_PARK_EXPIRE_MS)
 
 export type PrOutboxClaim = {
   token: string
@@ -41,14 +44,13 @@ async function expireStaleParkedRows(args: {
   limit: number
 }): Promise<Row<'GithubPrOutbox'>[]> {
   const ids = args.ids
-  const cutoff = new Date(args.now.getTime() - PR_OUTBOX_PARK_EXPIRE_MS)
+  const cutoff = parkExpireCutoff(args.now)
   const parked = args.tx.orm.public.GithubPrOutbox.where({
     dispatchedAt: null,
     deadLetteredAt: null,
-    attempts: 0,
   }).where((row) =>
     and(
-      row.createdAt.lt(cutoff),
+      row.parkedSince.lte(cutoff),
       row.nextAttemptAt.isNotNull(),
       row.nextAttemptAt.lte(args.now),
       or(row.leaseUntil.isNull(), row.leaseUntil.lt(args.now)),
@@ -63,15 +65,17 @@ async function expireStaleParkedRows(args: {
     leaseUntil: null,
     leaseOwner: null,
     nextAttemptAt: null,
+    parkedSince: null,
     deadLetteredAt: args.now,
-    lastError: `parked past ${PR_OUTBOX_PARK_EXPIRE_MS} ms without a token or a successful read`,
+    lastError: parkedTooLongError,
   })
 
   return rows.map((row) => ({
     ...row,
     nextAttemptAt: null,
+    parkedSince: null,
     deadLetteredAt: args.now,
-    lastError: `parked past ${PR_OUTBOX_PARK_EXPIRE_MS} ms without a token or a successful read`,
+    lastError: parkedTooLongError,
   }))
 }
 
@@ -83,6 +87,7 @@ async function duePrOutboxRows(args: {
   freshOnly: boolean
 }): Promise<Row<'GithubPrOutbox'>[]> {
   const ids = args.ids
+  const expiredBefore = parkExpireCutoff(args.now)
   const pending = args.tx.orm.public.GithubPrOutbox.where({
     dispatchedAt: null,
     deadLetteredAt: null,
@@ -90,6 +95,7 @@ async function duePrOutboxRows(args: {
     and(
       or(row.leaseUntil.isNull(), row.leaseUntil.lt(args.now)),
       args.freshOnly ? row.nextAttemptAt.isNull() : row.nextAttemptAt.lte(args.now),
+      or(row.parkedSince.isNull(), row.parkedSince.gt(expiredBefore)),
     ),
   )
   const scoped = ids === undefined ? pending : pending.where((row) => row.id.in([...ids]))
@@ -118,6 +124,7 @@ export function claimPrOutboxRows(args: {
     return Promise.resolve({ token, rows: [], deadLettered: [] })
   }
   return db.transaction(async (tx) => {
+    const stale = await expireStaleParkedRows({ tx, now: args.now, ids, limit: args.limit })
     const fresh = await duePrOutboxRows({
       tx,
       now: args.now,
@@ -135,7 +142,6 @@ export function claimPrOutboxRows(args: {
             limit: args.limit - fresh.length,
             freshOnly: false,
           })
-    const stale = await expireStaleParkedRows({ tx, now: args.now, ids, limit: args.limit })
     const due = [...fresh, ...retried]
     const exhausted = [...stale, ...due.filter((row) => row.attempts >= PR_OUTBOX_MAX_ATTEMPTS)]
     if (exhausted.length > 0) {
@@ -145,6 +151,7 @@ export function claimPrOutboxRows(args: {
         leaseUntil: null,
         leaseOwner: null,
         nextAttemptAt: null,
+        parkedSince: null,
         deadLetteredAt: args.now,
       })
     }
@@ -168,7 +175,11 @@ export async function renewPrOutboxLease(args: {
   token: string
   now: Date
 }): Promise<boolean> {
-  const renewed = await db.orm.public.GithubPrOutbox.where({ id: args.id, dispatchedAt: null })
+  const renewed = await db.orm.public.GithubPrOutbox.where({
+    id: args.id,
+    dispatchedAt: null,
+    deadLetteredAt: null,
+  })
     .where((row) => row.leaseOwner.eq(args.token))
     .updateAndCount({ leaseUntil: new Date(args.now.getTime() + PR_OUTBOX_LEASE_MS) })
 
@@ -180,12 +191,17 @@ export async function completePrOutboxRow(args: {
   token: string
   now: Date
 }): Promise<boolean> {
-  const completed = await db.orm.public.GithubPrOutbox.where({ id: args.id })
+  const completed = await db.orm.public.GithubPrOutbox.where({
+    id: args.id,
+    dispatchedAt: null,
+    deadLetteredAt: null,
+  })
     .where((row) => row.leaseOwner.eq(args.token))
     .updateAndCount({
       dispatchedAt: args.now,
       leaseUntil: null,
       leaseOwner: null,
+      parkedSince: null,
       lastError: null,
     })
 
@@ -219,6 +235,7 @@ export async function failPrOutboxRow(args: PrOutboxFailure): Promise<PrOutboxFa
         leaseUntil: null,
         leaseOwner: null,
         nextAttemptAt: parkUntil,
+        parkedSince: args.row.parkedSince ?? args.now,
       })
 
     return { attempts: args.row.attempts, deadLettered: false, parked: true, lastError }
@@ -232,6 +249,7 @@ export async function failPrOutboxRow(args: PrOutboxFailure): Promise<PrOutboxFa
       lastError,
       leaseUntil: null,
       leaseOwner: null,
+      parkedSince: null,
       nextAttemptAt: deadLettered
         ? null
         : new Date(args.now.getTime() + prOutboxBackoffMs(attempts)),

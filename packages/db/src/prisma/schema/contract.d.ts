@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'820192810d0d976067a2872e941e6fd46fc3816345fc594b98d069c7533574b3'>;
+  StorageHashBase<'03c0fe7f2588b74aae34cffb0265f9af9108958a14f20512e7c639a359f1e2cb'>;
 export type ExecutionHash =
   ExecutionHashBase<'4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45'>;
 export type ProfileHash =
@@ -593,6 +593,7 @@ export namespace Models {
     leaseOwner: FieldOutputTypes['public']['GithubPrOutbox']['leaseOwner'];
     leaseUntil: FieldOutputTypes['public']['GithubPrOutbox']['leaseUntil'];
     nextAttemptAt: FieldOutputTypes['public']['GithubPrOutbox']['nextAttemptAt'];
+    parkedSince: FieldOutputTypes['public']['GithubPrOutbox']['parkedSince'];
     payload: FieldOutputTypes['public']['GithubPrOutbox']['payload'];
     prNumber: FieldOutputTypes['public']['GithubPrOutbox']['prNumber'];
     repoFullName: FieldOutputTypes['public']['GithubPrOutbox']['repoFullName'];
@@ -3493,6 +3494,13 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly nextAttemptAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly parkedSince: {
                   readonly dataType: 'pg/timestamptz';
                   readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: true;
@@ -10011,6 +10019,14 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
+              readonly parkedSince: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
               readonly payload: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
@@ -10040,6 +10056,7 @@ type ContractBase = Omit<
                 readonly leaseOwner: { readonly column: 'leaseOwner' };
                 readonly leaseUntil: { readonly column: 'leaseUntil' };
                 readonly nextAttemptAt: { readonly column: 'nextAttemptAt' };
+                readonly parkedSince: { readonly column: 'parkedSince' };
                 readonly payload: { readonly column: 'payload' };
                 readonly prNumber: { readonly column: 'prNumber' };
                 readonly repoFullName: { readonly column: 'repoFullName' };

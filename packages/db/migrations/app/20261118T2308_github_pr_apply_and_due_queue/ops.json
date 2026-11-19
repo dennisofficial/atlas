@@ -186,7 +186,7 @@
     "execute": [
       {
         "description": "create table \"GithubPrOutbox\"",
-        "sql": "CREATE TABLE \"public\".\"GithubPrOutbox\" (\n  \"attempts\" int4 DEFAULT 0 NOT NULL,\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"deadLetteredAt\" timestamptz(3),\n  \"dedupeKey\" text,\n  \"dispatchedAt\" timestamptz(3),\n  \"id\" text NOT NULL,\n  \"kind\" text NOT NULL,\n  \"lastError\" text,\n  \"leaseOwner\" text,\n  \"leaseUntil\" timestamptz(3),\n  \"nextAttemptAt\" timestamptz(3),\n  \"payload\" jsonb NOT NULL,\n  \"prNumber\" int4 NOT NULL,\n  \"repoFullName\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "sql": "CREATE TABLE \"public\".\"GithubPrOutbox\" (\n  \"attempts\" int4 DEFAULT 0 NOT NULL,\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"deadLetteredAt\" timestamptz(3),\n  \"dedupeKey\" text,\n  \"dispatchedAt\" timestamptz(3),\n  \"id\" text NOT NULL,\n  \"kind\" text NOT NULL,\n  \"lastError\" text,\n  \"leaseOwner\" text,\n  \"leaseUntil\" timestamptz(3),\n  \"nextAttemptAt\" timestamptz(3),\n  \"parkedSince\" timestamptz(3),\n  \"payload\" jsonb NOT NULL,\n  \"prNumber\" int4 NOT NULL,\n  \"repoFullName\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
         "params": []
       }
     ],

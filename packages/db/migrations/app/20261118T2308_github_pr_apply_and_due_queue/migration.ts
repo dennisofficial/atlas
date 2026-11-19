@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node
-import type { Contract as End } from '../../snapshots/820192810d0d976067a2872e941e6fd46fc3816345fc594b98d069c7533574b3/contract';
-import endContract from '../../snapshots/820192810d0d976067a2872e941e6fd46fc3816345fc594b98d069c7533574b3/contract.json' with { type: 'json' };
+import type { Contract as End } from '../../snapshots/03c0fe7f2588b74aae34cffb0265f9af9108958a14f20512e7c639a359f1e2cb/contract';
+import endContract from '../../snapshots/03c0fe7f2588b74aae34cffb0265f9af9108958a14f20512e7c639a359f1e2cb/contract.json' with { type: 'json' };
 import type { Contract as Start } from '../../snapshots/b880c65f607b166b6d4bc082fb39f8fbf8db741dd330ddafee93a35a0f7c01c0/contract';
 import startContract from '../../snapshots/b880c65f607b166b6d4bc082fb39f8fbf8db741dd330ddafee93a35a0f7c01c0/contract.json' with { type: 'json' };
 import {
@@ -85,6 +85,9 @@ export default class M extends Migration<Start, End> {
             codecRef: { codecId: 'pg/timestamptz-date@1', typeParams: { precision: 3 } },
           }),
           col('nextAttemptAt', 'timestamptz(3)', {
+            codecRef: { codecId: 'pg/timestamptz-date@1', typeParams: { precision: 3 } },
+          }),
+          col('parkedSince', 'timestamptz(3)', {
             codecRef: { codecId: 'pg/timestamptz-date@1', typeParams: { precision: 3 } },
           }),
           col('payload', 'jsonb', { notNull: true, codecRef: { codecId: 'pg/jsonb@1' } }),
