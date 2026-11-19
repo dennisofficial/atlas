@@ -67,7 +67,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
   const [creating, setCreating] = useState(false)
   const desktop = useDesktop()
   const [runner, setRunner] = useState(ERunnerChoice.Cloud)
-  const [engine, setEngine] = useState(EEngine.V1)
+  const [engine, setEngine] = useState(EEngine.V2)
   const attempt = useRef<{
     text: string
     attachments: Attachment[]
