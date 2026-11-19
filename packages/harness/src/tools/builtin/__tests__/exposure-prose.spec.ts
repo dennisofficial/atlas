@@ -29,5 +29,7 @@ describe('the exposure clause', () => {
     expect(text).toContain('resolves only on the operator’s machine')
     expect(text).toContain('proves nothing about what the operator can open')
     expect(text).toContain('one site')
+    expect(text).toContain('cross-site to the Atlas app')
+    expect(text).toContain('partitioned')
   })
 })

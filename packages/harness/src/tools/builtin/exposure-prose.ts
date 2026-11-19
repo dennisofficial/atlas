@@ -15,7 +15,7 @@ export function exposureClause({
     'Bind the server to 0.0.0.0 so the proxy can reach it.',
     'Hand the operator the returned URL, never a localhost or sandbox-internal one.',
     'That name resolves only on the operator’s machine: a curl from inside the sandbox can never reach it, and a curl to localhost proves nothing about what the operator can open. Verify against the service’s in-sandbox address.',
-    'Every port subdomain of the sandbox host is one site, so cookies and cross-origin fetch behave as they do on one production domain - wire related servers with the returned URLs, not localhost.',
+    'Every port subdomain of the sandbox host is one site with the others, so cookies and cross-origin fetch between them behave as on one production domain - wire related servers with the returned URLs, not localhost. They are cross-site to the Atlas app, though, so session cookies set inside the embedded preview pane are partitioned.',
   ]
 }
 

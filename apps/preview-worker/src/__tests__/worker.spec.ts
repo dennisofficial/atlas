@@ -83,20 +83,40 @@ describe('response headers', () => {
     expect(result.headers.get('content-security-policy')).toBe("default-src 'self' 'unsafe-inline'")
   })
 
-  it('rewrites every Set-Cookie', async () => {
-    const { result } = await run({
-      url: `${HOST}/`,
-      response: () => {
-        const headers = new Headers({ 'content-type': 'application/json' })
-        headers.append('set-cookie', 'a=1; SameSite=Lax; HttpOnly')
-        headers.append('set-cookie', 'b=2')
-        return new Response('{}', { headers })
-      },
-    })
-    expect(result.headers.getSetCookie()).toEqual([
-      'a=1; HttpOnly; Secure; Partitioned; SameSite=None',
-      'b=2; Secure; Partitioned; SameSite=None',
-    ])
+  const twoCookies = () => {
+    const headers = new Headers({ 'content-type': 'application/json' })
+    headers.append('set-cookie', 'a=1; SameSite=Lax; HttpOnly')
+    headers.append('set-cookie', 'b=2')
+    return new Response('{}', { headers })
+  }
+
+  it.each(['empty', 'iframe'])(
+    'rewrites every Set-Cookie for a cross-site %p request',
+    async (destination) => {
+      const { result } = await run({
+        url: `${HOST}/`,
+        init: { headers: { 'sec-fetch-site': 'cross-site', 'sec-fetch-dest': destination } },
+        response: twoCookies,
+      })
+      expect(result.headers.getSetCookie()).toEqual([
+        'a=1; HttpOnly; Secure; Partitioned; SameSite=None',
+        'b=2; Secure; Partitioned; SameSite=None',
+      ])
+    },
+  )
+
+  it.each([
+    [
+      'a cross-site top-level document',
+      { 'sec-fetch-site': 'cross-site', 'sec-fetch-dest': 'document' },
+    ],
+    ['a request without sec-fetch headers', undefined],
+  ])('forwards Set-Cookie untouched for %s', async (_name, headers) => {
+    const { result } = await run({ url: `${HOST}/`, init: { headers }, response: twoCookies })
+    const appCookies = result.headers
+      .getSetCookie()
+      .filter((cookie) => !cookie.startsWith('atlas-preview='))
+    expect(appCookies).toEqual(['a=1; SameSite=Lax; HttpOnly', 'b=2'])
   })
 
   it('leaves non-HTML bodies and content-length alone', async () => {

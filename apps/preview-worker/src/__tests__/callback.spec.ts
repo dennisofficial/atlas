@@ -56,7 +56,7 @@ describe('preview cookie', () => {
     expect(json.result.headers.getSetCookie()).toEqual([])
   })
 
-  it('leaves the app cookies partitioned beside it', async () => {
+  it('leaves the app cookies untouched beside it', async () => {
     const { result } = await run({
       url: `https://${PREVIEW}/`,
       response: () => {
@@ -65,10 +65,7 @@ describe('preview cookie', () => {
         return response
       },
     })
-    expect(result.headers.getSetCookie()).toEqual([
-      'sid=1; Secure; Partitioned; SameSite=None',
-      PREVIEW_COOKIE,
-    ])
+    expect(result.headers.getSetCookie()).toEqual(['sid=1', PREVIEW_COOKIE])
   })
 })
 

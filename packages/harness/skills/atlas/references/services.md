@@ -190,6 +190,12 @@ runtime and listen on `$PORT` bound to `0.0.0.0`; never hardcode a port or hostn
 `https://<port>-<random>.byatlas.dev`; the original Host is kept and `X-Forwarded-Proto` is added.
 `localhost` is the sandbox, not the operator's machine, so always hand over the URL.
 
+The portal proxy turns `Set-Cookie` into a third-party cookie (`Secure; Partitioned; SameSite=None`)
+only for requests coming from the embedded preview pane, and forwards it untouched otherwise. A
+browser can hold a partitioned and an unpartitioned copy of one cookie name, sends both, and a
+server that reads only the first copy of a name sees a stale session. Do not set `SameSite=None` in
+the app to work around it.
+
 ## Framework notes
 
 - Vite 6.1 or newer reads `__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS` itself; no config change. Older

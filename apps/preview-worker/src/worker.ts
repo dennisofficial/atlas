@@ -1,4 +1,5 @@
 import { CALLBACK_HOST, handleCallbackRequest, previewCookie } from './callback'
+import { isThirdPartyFrameRequest } from './cookies'
 import { rewriteResponseHeaders } from './headers'
 import { isPreviewHost } from './origins'
 import { SCRIPT_TAG, scriptHash } from './script'
@@ -51,6 +52,7 @@ export async function handlePreviewRequest(args: {
     headers: response.headers,
     scriptHash: html ? await scriptHash() : null,
     dropContentLength: html,
+    partitionCookies: isThirdPartyFrameRequest(request),
   })
   if (isTopLevelNavigation({ request, html })) headers.append('set-cookie', previewCookie(hostname))
   const rewritten = new Response(response.body, {
