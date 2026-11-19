@@ -4,7 +4,6 @@ import {
   EConnectionTimer,
   EStreamClosedReason,
   EStreamConnectionState,
-  FAILURE_RETRY_LIMIT,
   type ConnectionEffect,
   type ConnectionInput,
   type ConnectionState,
@@ -120,11 +119,10 @@ const failed = (args: {
   if (args.status === 401) {
     return toClosed({ state: args.state, reason: EStreamClosedReason.Unauthenticated })
   }
-  const failures = args.state.failures + 1
-  if (failures > FAILURE_RETRY_LIMIT) {
-    return toClosed({ state: { ...args.state, failures }, reason: EStreamClosedReason.Failed })
-  }
-  return toBackoff({ state: { ...args.state, failures }, random: args.random })
+  return toBackoff({
+    state: { ...args.state, failures: args.state.failures + 1 },
+    random: args.random,
+  })
 }
 
 const timerFired = (args: ReduceArgs & { timer: EConnectionTimer }): ConnectionStep => {
@@ -148,6 +146,39 @@ const networkOnline = (state: ConnectionState): ConnectionStep => {
   }
 }
 
+const reconnectRequested = (state: ConnectionState): ConnectionStep => {
+  if (state.phase === EStreamConnectionState.Backoff) {
+    return {
+      state: {
+        ...state,
+        phase: EStreamConnectionState.Connecting,
+        attempt: 0,
+        failures: 0,
+        reason: undefined,
+        reconnectAfterMs: undefined,
+      },
+      effects: [cancelReconnect, subscribe],
+    }
+  }
+  if (
+    state.phase === EStreamConnectionState.Closed &&
+    state.reason === EStreamClosedReason.Unauthenticated
+  ) {
+    return {
+      state: {
+        ...state,
+        phase: EStreamConnectionState.Connecting,
+        attempt: 0,
+        failures: 0,
+        reason: undefined,
+        reconnectAfterMs: undefined,
+      },
+      effects: [subscribe],
+    }
+  }
+  return stay(state)
+}
+
 export const reduceConnection = (args: ReduceArgs): ConnectionStep => {
   const { state, input, random } = args
   switch (input.type) {
@@ -167,5 +198,7 @@ export const reduceConnection = (args: ReduceArgs): ConnectionStep => {
       return closeRequested(state)
     case 'network-online':
       return networkOnline(state)
+    case 'reconnect-requested':
+      return reconnectRequested(state)
   }
 }

@@ -2,8 +2,6 @@ export const BACKOFF_BASE_MS = 500
 
 export const BACKOFF_CAP_MS = 15_000
 
-export const FAILURE_RETRY_LIMIT = 1
-
 export enum EStreamConnectionState {
   Connecting = 'connecting',
   Open = 'open',
@@ -13,7 +11,6 @@ export enum EStreamConnectionState {
 
 export enum EStreamClosedReason {
   Unauthenticated = 'unauthenticated',
-  Failed = 'failed',
   Requested = 'requested',
 }
 
@@ -38,6 +35,7 @@ export type ConnectionInput =
   | { type: 'timer-fired'; timer: EConnectionTimer }
   | { type: 'close-requested' }
   | { type: 'network-online' }
+  | { type: 'reconnect-requested' }
 
 export type ConnectionEffect =
   | { type: 'subscribe' }

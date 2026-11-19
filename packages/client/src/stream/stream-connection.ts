@@ -37,6 +37,7 @@ export type StreamConnection = {
   follow(args: { sessionId: string; log?: SessionLog | undefined }): FollowedSession
   followSessions(): FollowedSessionList
   connect(): void
+  reconnect(): void
   close(): void
   state(): EStreamConnectionState
 }
@@ -197,6 +198,12 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
     subscribeFollow(entry)
   }
 
+  const retryIfBackingOff = (): void => {
+    if (machine.phase === EStreamConnectionState.Backoff) {
+      dispatch({ type: 'reconnect-requested' })
+    }
+  }
+
   const follow: StreamConnection['follow'] = ({ sessionId, log }) => {
     nextId += 1
     const id = `s${nextId}`
@@ -217,6 +224,8 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
     }
     if (machine.phase === EStreamConnectionState.Closed && machine.reason === undefined) {
       dispatch({ type: 'connect' })
+    } else {
+      retryIfBackingOff()
     }
     followed.set(id, entry)
     entry.follower.setConnection(machine.phase)
@@ -235,6 +244,8 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
     const entry: Listed = { list: createSessionsList(), subscription: undefined, epoch: 0 }
     if (machine.phase === EStreamConnectionState.Closed && machine.reason === undefined) {
       dispatch({ type: 'connect' })
+    } else {
+      retryIfBackingOff()
     }
     lists.add(entry)
     if (live()) subscribeList(entry)
@@ -251,6 +262,7 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
     follow,
     followSessions,
     connect: () => dispatch({ type: 'connect' }),
+    reconnect: () => dispatch({ type: 'reconnect-requested' }),
     close: () => dispatch({ type: 'close-requested' }),
     state: () => machine.phase,
   }

@@ -6,7 +6,12 @@ import { ESessionConnection, type SessionSnapshot } from '@dltech/atlas-client/s
 
 import { EHeaderState } from '@/features/threads/data/header-model'
 
-import { headerStateOfSession, isSessionWorking, sessionStateLineOf } from '../session-state'
+import {
+  canReconnectOf,
+  headerStateOfSession,
+  isSessionWorking,
+  sessionStateLineOf,
+} from '../session-state'
 
 const LEASE = { epoch: 1, holderHostId: 1, live: true }
 
@@ -69,8 +74,15 @@ describe('sessionStateLineOf', () => {
       'Reconnecting…',
     )
     expect(sessionStateLineOf(snapshotOf({ connection: ESessionConnection.Offline }))).toBe(
-      'Offline — reload to reconnect',
+      'Disconnected',
     )
+  })
+
+  it('offers a reconnect while the stream is down', () => {
+    expect(canReconnectOf(snapshotOf({ connection: ESessionConnection.Reconnecting }))).toBe(true)
+    expect(canReconnectOf(snapshotOf({ connection: ESessionConnection.Offline }))).toBe(true)
+    expect(canReconnectOf(snapshotOf({ connection: ESessionConnection.CatchingUp }))).toBe(false)
+    expect(canReconnectOf(snapshotOf({ connection: ESessionConnection.Live }))).toBe(false)
   })
 
   it('gives the setup failure with its reason', () => {

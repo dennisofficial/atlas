@@ -7,7 +7,7 @@ import {
 
 import { EHeaderState } from '@/features/threads/data/header-model'
 
-export { isSessionWorking, sessionStateLineOf } from '@dltech/atlas-client/stream'
+export { canReconnectOf, isSessionWorking, sessionStateLineOf } from '@dltech/atlas-client/stream'
 
 type Status = SessionSnapshot['status']
 

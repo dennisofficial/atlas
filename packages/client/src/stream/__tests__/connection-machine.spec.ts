@@ -56,17 +56,54 @@ describe('the stream connection machine', () => {
     expect(backoffDelayMs({ attempt: 20, random: 1 })).toBe(15_000)
   })
 
-  it('retries a failed subscription once, then gives up', () => {
+  it('keeps backing off through repeated failures', () => {
     const first = step(open(), { type: 'failure', status: 500 }, 1)
     expect(first.state.phase).toBe(EStreamConnectionState.Backoff)
+    expect(first.effects).toContainEqual({ ...reconnectTimer, ms: 500 })
     const retried = step(first.state, {
       type: 'timer-fired',
       timer: EConnectionTimer.Reconnect,
     }).state
-    const second = step(retried, { type: 'failure', status: 500 })
-    expect(second.state.phase).toBe(EStreamConnectionState.Closed)
-    expect(second.state.reason).toBe(EStreamClosedReason.Failed)
-    expect(second.effects).toContainEqual({ type: 'abort' })
+    const second = step(retried, { type: 'failure', status: 500 }, 1)
+    expect(second.state.phase).toBe(EStreamConnectionState.Backoff)
+    expect(second.state.failures).toBe(2)
+    expect(second.effects).toContainEqual({ ...reconnectTimer, ms: 1_000 })
+    const third = step(
+      step(second.state, { type: 'timer-fired', timer: EConnectionTimer.Reconnect }).state,
+      { type: 'failure', status: 500 },
+      1,
+    )
+    expect(third.state.phase).toBe(EStreamConnectionState.Backoff)
+  })
+
+  it('reconnects at once when the user asks while it is backing off', () => {
+    const backoff = step(open(), { type: 'failure', status: 500 }).state
+    const asked = step(backoff, { type: 'reconnect-requested' })
+    expect(asked.state.phase).toBe(EStreamConnectionState.Connecting)
+    expect(asked.state.attempt).toBe(0)
+    expect(asked.state.failures).toBe(0)
+    expect(asked.effects).toEqual([
+      { type: 'cancel', timer: EConnectionTimer.Reconnect },
+      { type: 'subscribe' },
+    ])
+  })
+
+  it('reconnects when the user asks after a sign-in closes it', () => {
+    const unauthenticated = step(open(), { type: 'failure', status: 401 }).state
+    const asked = step(unauthenticated, { type: 'reconnect-requested' })
+    expect(asked.state.phase).toBe(EStreamConnectionState.Connecting)
+    expect(asked.state.reason).toBeUndefined()
+    expect(asked.effects).toEqual([{ type: 'subscribe' }])
+  })
+
+  it('ignores a reconnect it cannot honour', () => {
+    const requested = step(open(), { type: 'close-requested' }).state
+    expect(step(requested, { type: 'reconnect-requested' })).toEqual({
+      state: requested,
+      effects: [],
+    })
+    const running = open()
+    expect(step(running, { type: 'reconnect-requested' })).toEqual({ state: running, effects: [] })
   })
 
   it('closes without retrying when the session is not accepted', () => {
