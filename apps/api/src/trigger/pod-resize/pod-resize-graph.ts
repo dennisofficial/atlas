@@ -26,6 +26,7 @@ export function buildPodResizeGraph(): PodResizeGraph {
         await plane.revoke({ sessionId: args.sessionId, wantsHolder: true })
         logger.log(`rewaking ${args.sessionId} at its new size`)
       },
+      held: async (args) => (await plane.currentLease(args)).live,
       recordFailed: async (args) => {
         await plane.recordPodFailed(args)
         logger.warn(`pod-resize for ${args.sessionId} failed: ${args.error}`)

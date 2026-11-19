@@ -32,6 +32,7 @@ const depsOf = (over: Partial<PodResizeDeps> = {}) => {
     rewake: async (args) => {
       rewakes.push(args)
     },
+    held: async () => false,
     recordFailed: async (args) => {
       failures.push(args)
     },
@@ -90,6 +91,13 @@ describe('runPodResize', () => {
 
     expect(await runPodResize({ payload, deps })).toEqual({ outcome: EPodResizeOutcome.Stored })
     expect(rewakes).toEqual([])
+  })
+
+  it('rewakes a pod a retry finds already stopped while a host still holds it', async () => {
+    const { deps, rewakes } = depsOf({ resize: async () => 'stored', held: async () => true })
+
+    expect(await runPodResize({ payload, deps })).toEqual({ outcome: EPodResizeOutcome.Applied })
+    expect(rewakes).toEqual([{ sessionId: 'session-a' }])
   })
 
   it('leaves an absent pod alone', async () => {
