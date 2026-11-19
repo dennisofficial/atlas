@@ -9,6 +9,13 @@ export {
   type Clause,
 } from './kinds'
 export {
+  mcpHueOf,
+  mcpToolOf,
+  serverLabelOf,
+  toolLabelOf,
+  type McpTool,
+} from './mcp'
+export {
   measureOfSentence,
   runLabel,
   segmentsOf,

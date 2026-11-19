@@ -9,6 +9,7 @@ import { radius, space } from '@dltech/atlas-ui/tokens'
 import {
   EFontFamily,
   ETextRole,
+  ETextTone,
   ETraceStatus,
   Step,
   Text,
@@ -17,6 +18,8 @@ import {
 } from '@dltech/atlas-ui-native'
 import { FilePen, FileText, ListChecks, Terminal, Wrench } from 'lucide-react-native'
 import { ActivityIndicator, ScrollView, StyleSheet } from 'react-native'
+
+import { McpServerMark } from './mcp-server-mark'
 
 const OUTPUT_MAX_HEIGHT = 240
 
@@ -39,9 +42,21 @@ const elapsedOf = (call: ToolCall): string => {
   return formatElapsed(Math.max(0, settled - started))
 }
 
+/** `Paper Get guide` — the server in the foreground, the tool in the trace's muted colour. */
+const McpTitle = ({ mcp, failed }: { mcp: { server: string; tool: string }; failed: boolean }) => (
+  <>
+    <Text size={ETextRole.Sm} tone={failed ? ETextTone.Destructive : ETextTone.Foreground}>
+      {mcp.server}
+    </Text>
+    <Text size={ETextRole.Sm} tone={ETextTone.Muted}>
+      {` ${mcp.tool}`}
+    </Text>
+  </>
+)
+
 export const ToolRowView = ({ call }: { call: ToolCall }) => {
   const theme = useTheme()
-  const { klass, line, note, failed } = classify({ call, cwd: '' })
+  const { klass, line, note, failed, mcp } = classify({ call, cwd: '' })
   const output = call.liveOutput ?? call.modelText
   const hasOutput = output.length > 0
   const Glyph = ICON_OF_CLASS[klass]
@@ -50,6 +65,8 @@ export const ToolRowView = ({ call }: { call: ToolCall }) => {
   const status = failed ? ETraceStatus.Error : isOpen(call) ? ETraceStatus.Running : undefined
   const icon = isOpen(call) ? (
     <ActivityIndicator size="small" color={theme.mutedForeground} />
+  ) : mcp !== undefined ? (
+    <McpServerMark server={mcp.server} />
   ) : (
     <Glyph size={16} color={failed ? theme.destructive : theme.mutedForeground} />
   )
@@ -58,7 +75,7 @@ export const ToolRowView = ({ call }: { call: ToolCall }) => {
     <Trace>
       <Step
         icon={icon}
-        title={line}
+        title={mcp === undefined ? line : <McpTitle mcp={mcp} failed={failed} />}
         description={description}
         status={status}
         defaultOpen={failed && hasOutput}

@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react'
 import { BotIcon, ListChecksIcon, WrenchIcon } from 'lucide-react'
 
+import { McpServerMark } from '@dltech/atlas-ui/ai/mcp-server-mark'
 import { EToolKind, EToolState, Tool, ToolLine } from '@dltech/atlas-ui/ai/tool'
 import { DiffViewer } from '@dltech/atlas-ui/ai/diff-viewer'
 import { CodeBlock, CodeBlockContent, CodeBlockLine } from '@dltech/atlas-ui/components/code-block'
@@ -90,6 +91,23 @@ function EditToolRow({
   )
 }
 
+/**
+ * `Paper Get guide` — the server in the foreground, the tool in the trace's muted colour.
+ *
+ * The failure colour is decided here rather than inherited, because the foreground override would
+ * otherwise out-rank the red that `TraceLine` puts on the whole row.
+ */
+function McpTitle({ state, mcp }: { state: EToolState; mcp: { server: string; tool: string } }) {
+  return (
+    <>
+      <span className={state === EToolState.Error ? 'text-destructive' : 'text-foreground'}>
+        {mcp.server}
+      </span>{' '}
+      <span>{mcp.tool}</span>
+    </>
+  )
+}
+
 export function ToolRow({
   call,
   onOpenChanges,
@@ -105,8 +123,16 @@ export function ToolRow({
       kind={call.kind}
       state={call.state}
       label={call.label}
-      title={call.title}
-      icon={call.family === undefined ? undefined : ICON_OF_FAMILY[call.family]}
+      title={call.mcp === undefined ? call.title : <McpTitle state={call.state} mcp={call.mcp} />}
+      icon={
+        call.mcp === undefined ? (
+          call.family === undefined ? undefined : (
+            ICON_OF_FAMILY[call.family]
+          )
+        ) : (
+          <McpServerMark server={call.mcp.server} />
+        )
+      }
       output={call.output}
       errorText={call.errorText}
       elapsed={call.elapsed}

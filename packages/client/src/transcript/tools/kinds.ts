@@ -102,4 +102,11 @@ export type Classification = {
   /** The same measure as a number, so a sentence can add its calls up. */
   metric: number | null
   detail: EDetail
+  /**
+   * The server and tool an MCP call belongs to, in the words the row shows.
+   *
+   * A surface that can draw the server's letter tile wants these apart rather than the joined
+   * `line`; a surface that cannot reads the line, which says the same thing in plain text.
+   */
+  mcp?: { server: string; tool: string } | undefined
 }

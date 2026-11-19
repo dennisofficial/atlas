@@ -364,6 +364,45 @@ describe('tool titles', () => {
     })
   })
 
+  it('names the MCP server a tool belongs to, not the roster key', () => {
+    expect(toolItem('mcp__paper__get_guide', {})).toMatchObject({
+      title: 'Paper Get guide',
+      mcp: { server: 'Paper', tool: 'Get guide' },
+    })
+  })
+
+  it('keeps a failed MCP call on the same server and name', () => {
+    const view = viewOf({
+      events: [
+        said(1, 'hi'),
+        wire(2, {
+          type: 'tool-called',
+          callId: 'call_1',
+          name: 'mcp__wispr-flow__search_meetings',
+          input: {},
+          ordinal: 0,
+        }),
+        wire(3, {
+          type: 'tool-result',
+          callId: 'call_1',
+          name: 'mcp__wispr-flow__search_meetings',
+          output: {},
+          modelText: '',
+          error: { message: 'connect timed out' },
+        }),
+      ],
+    })
+    const item = view.items[1]
+    if (item?.kind !== ETranscriptKind.Tools) throw new Error('expected a tools item')
+
+    expect(item.calls[0]).toMatchObject({
+      state: EToolState.Error,
+      title: 'Wispr Flow Search meetings',
+      mcp: { server: 'Wispr Flow', tool: 'Search meetings' },
+      errorText: 'connect timed out',
+    })
+  })
+
   it('leaves tools with a dedicated kind untitled', () => {
     const call = toolItem('bash', { command: 'ls' })
     expect(call?.title).toBeUndefined()

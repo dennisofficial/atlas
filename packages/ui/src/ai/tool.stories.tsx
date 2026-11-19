@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react'
 
 import { DiffViewer } from './diff-viewer'
+import { McpServerMark } from './mcp-server-mark'
 import { EToolKind, EToolState, Tool } from './tool'
 import { Trace } from '#components/trace'
 
@@ -75,6 +76,49 @@ export const Kinds: Story = {
 
 export const TitleOverride: Story = {
   args: { label: 'agent_spawn', title: 'Spawned vault audit' },
+}
+
+/** The server in the foreground, the tool in the trace's own muted colour — red when it failed. */
+const mcpTitle = (server: string, tool: string, failed = false) => (
+  <>
+    <span className={failed ? 'text-destructive' : 'text-foreground'}>{server}</span>{' '}
+    <span>{tool}</span>
+  </>
+)
+
+export const Mcp: Story = {
+  render: () => (
+    <Trace>
+      <Tool
+        icon={<McpServerMark server="paper" />}
+        label="mcp__paper__get_guide"
+        title={mcpTitle('Paper', 'Get guide')}
+        elapsed="3s"
+        output={'Getting started\n\n  bun create paper@latest'}
+      />
+      <Tool
+        icon={<McpServerMark server="wispr-flow" />}
+        label="mcp__wispr-flow__search_meetings"
+        title={mcpTitle('Wispr Flow', 'Search meetings')}
+        elapsed="1.2s"
+        output={'3 meetings matched'}
+      />
+      <Tool
+        icon={<McpServerMark server="paper" />}
+        label="mcp__paper__get_guide"
+        state={EToolState.Error}
+        title={mcpTitle('Paper', 'Get guide', true)}
+        errorText="MCP server paper is not reachable: connect timed out after 10s"
+        elapsed="10s"
+      />
+      <Tool
+        icon={<McpServerMark server="posthog" />}
+        label="mcp__posthog__exec"
+        state={EToolState.Running}
+        title={mcpTitle('Posthog', 'Exec')}
+      />
+    </Trace>
+  ),
 }
 
 export const WithDiffOutput: Story = {
