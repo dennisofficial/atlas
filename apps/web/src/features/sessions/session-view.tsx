@@ -114,6 +114,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     sessionId,
     title: listed?.title ?? undefined,
     startedAt: listed?.createdAt,
+    projectId: listed?.projectId ?? undefined,
     model,
     snapshot,
     openTab: pane.openTab,

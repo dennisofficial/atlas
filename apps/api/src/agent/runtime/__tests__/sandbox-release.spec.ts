@@ -30,6 +30,7 @@ const config: AgentHostConfig = {
   }),
   vercel: { configured: true, token: 'vt', teamId: 'team', projectId: 'proj' },
   workspace: { remoteUrl: null, baseBranch: null, additionalRepos: [], setupScript: '' },
+  sandboxVcpus: undefined,
   skills: [],
 }
 

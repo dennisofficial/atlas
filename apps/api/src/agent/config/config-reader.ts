@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { Db } from '@dltech/atlas-db'
+import { decodeSettingValue, validateCloudSetting } from '@dltech/atlas-core'
 
 import type {
   AgentHostConfig,
@@ -48,7 +49,10 @@ type ProjectRow = {
   baseBranch: string | null
   additionalRepos: unknown
   setupScript: string
+  sandboxVcpus: number | null
 }
+
+const SANDBOX_VCPUS_KEY = 'sandbox.vcpus'
 
 const workspaceOf = (project: ProjectRow | null): WorkspaceConfig => {
   if (project === null)
@@ -96,6 +100,7 @@ export class ConfigReader implements ConfigSource {
       models,
       workspace: workspaceOf(project),
       vercel: await this.vercelOf({ userId, row: vercel }),
+      sandboxVcpus: project?.sandboxVcpus ?? (await this.personalVcpusOf({ userId })),
       skills,
     }
   }
@@ -127,6 +132,19 @@ export class ConfigReader implements ConfigSource {
       settings: args.settings,
       session: { ref: session.modelRef, effort: session.modelEffort, fast: session.modelFast },
     })
+  }
+
+  private async personalVcpusOf(args: { userId: string }): Promise<number | undefined> {
+    const row = await this.args.db.orm.public.UserSetting.where({
+      userId: args.userId,
+      key: SANDBOX_VCPUS_KEY,
+    })
+      .select('value')
+      .first()
+    if (row === null) return undefined
+    if (!validateCloudSetting({ key: SANDBOX_VCPUS_KEY, stored: row.value }).ok) return undefined
+    const value = decodeSettingValue(row.value)
+    return typeof value === 'number' ? value : undefined
   }
 
   private async projectOf(projectId: string | null): Promise<ProjectRow | null> {

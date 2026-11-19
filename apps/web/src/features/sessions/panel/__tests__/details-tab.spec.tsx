@@ -2,15 +2,19 @@ import { describe, expect, it } from 'bun:test'
 import { EPlanStatus, type PlanTask } from '@dltech/atlas-core'
 import { renderToStaticMarkup } from 'react-dom/server'
 
+import { createTestQueryClient, TestQueryProvider } from '@/lib/__tests__/query-test-provider'
+
 import { SessionDetailsTab } from '../details-tab'
 import { SessionPaneProvider, type SessionPaneValue } from '../pane-value'
 import { paneValueFixture, populatedPaneValue, previewFixture } from './fixture'
 
 const render = (value: SessionPaneValue): string =>
   renderToStaticMarkup(
-    <SessionPaneProvider value={value}>
-      <SessionDetailsTab />
-    </SessionPaneProvider>,
+    <TestQueryProvider client={createTestQueryClient()}>
+      <SessionPaneProvider value={value}>
+        <SessionDetailsTab />
+      </SessionPaneProvider>
+    </TestQueryProvider>,
   )
 
 const rowsIn = (html: string): number => html.match(/data-pane-row/g)?.length ?? 0

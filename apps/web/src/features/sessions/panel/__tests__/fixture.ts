@@ -86,6 +86,7 @@ export const paneValueFixture = (overrides: Partial<SessionPaneValue> = {}): Ses
   sessionId: 'ses-1',
   title: 'Rebase ui on shadcn base-nova',
   startedAt: '2026-11-18T10:00:00.000Z',
+  projectId: 'proj-1',
   view: viewModelFixture(),
   viewLoaded: true,
   checkouts: checkoutsFixture(),
