@@ -1,4 +1,4 @@
-import { Archive, ArchiveRestore, CircleCheck, Pin, RotateCcw } from 'lucide-react'
+import { Archive, ArchiveRestore, CalendarClock, CircleCheck, Pin, RotateCcw } from 'lucide-react'
 import Link from 'next/link'
 
 import { NamingTitle } from '@dltech/atlas-ui/ai/naming-title'
@@ -163,12 +163,12 @@ export function ThreadRowBody({
             </span>
           ) : null}
           {v2View?.routineId === undefined ? null : (
-            <span
+            <CalendarClock
               data-engine-tag="routine"
-              className="shrink-0 rounded-sm border px-1 font-mono text-[10px] leading-4 text-muted-foreground group-data-[collapsible=icon]:hidden"
-            >
-              routine
-            </span>
+              role="img"
+              aria-label="Routine"
+              className="size-3.5 shrink-0 text-muted-foreground group-data-[collapsible=icon]:hidden"
+            />
           )}
           {thread.runner === 'local' ? (
             <span className="group-data-[collapsible=icon]:hidden">
