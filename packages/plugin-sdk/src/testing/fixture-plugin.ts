@@ -1,4 +1,4 @@
-import { EMPTY_MCP_CONTROL } from '@dltech/atlas-plugin-sdk'
+import { EMPTY_MCP_CONTROL, EMPTY_ROUTINES } from '@dltech/atlas-plugin-sdk'
 import { defineCommand } from '@dltech/atlas-commands'
 import {
   ECommandGroup,
@@ -186,6 +186,7 @@ export const podControlStub: PodControl = {
   exposePort: noControlPlane,
   mcp: EMPTY_MCP_CONTROL,
   webSearch: { config: noControlPlane },
+  routines: EMPTY_ROUTINES,
   memory: {
     list: noControlPlane,
     read: noControlPlane,

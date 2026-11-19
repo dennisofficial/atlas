@@ -15,6 +15,7 @@ import type { CallOp, CallResult, DaemonEventFrame, LiveFrame } from '@dltech/at
 import type { PodCrew } from './crew'
 import { MacOfflineError, type PodMcpProxyChannel, type PodMcpProxyTransport } from './mcp-proxy'
 import type { PodMemory } from './memory'
+import type { PodRoutines } from './routines'
 import type { PodSessions } from './sessions'
 import type { PodWorktrees } from './worktrees'
 
@@ -31,6 +32,8 @@ export type {
   WorktreeState,
   WorktreeUnpushed,
 } from './worktrees'
+export { EMPTY_ROUTINES } from './routines'
+export type { PodRoutineInput, PodRoutines } from './routines'
 export type {
   MemoryAddress,
   MemoryEntry,
@@ -74,6 +77,7 @@ export type PodControl = {
   memory: PodMemory
   webSearch: PodWebSearch
   mcp: PodMcpControl
+  routines: PodRoutines
 }
 
 export type PluginPodContext = {

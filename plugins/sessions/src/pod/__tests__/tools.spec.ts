@@ -7,6 +7,7 @@ import {
   type SessionBrief,
   EMPTY_CREW,
   EMPTY_MCP_CONTROL,
+  EMPTY_ROUTINES,
   EMPTY_WORKTREES,
 } from '@dltech/atlas-plugin-sdk'
 
@@ -82,6 +83,7 @@ const rig = (sessions: PodSessions) => {
       webSearch: {
         config: async () => ({ backend: undefined, key: undefined }),
       },
+      routines: EMPTY_ROUTINES,
       memory: {
         list: async () => ({ project: null, memories: [] }),
         read: async () => null,
