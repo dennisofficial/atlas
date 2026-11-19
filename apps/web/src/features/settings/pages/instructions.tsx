@@ -90,7 +90,7 @@ function InstructionsEditor({ doc, onSaved }: { doc: InstructionsDoc; onSaved: (
   return (
     <SettingsPage
       title="Instructions"
-      description="Loaded into every thread, before the project's ATLAS.md, AGENTS.md and CLAUDE.md."
+      description="Loaded into every thread, before the repository's AGENTS.md files."
       actions={
         <>
           <CharCount length={draft.value.length} />

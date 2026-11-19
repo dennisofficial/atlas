@@ -5,11 +5,7 @@ import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 import { parseRepoAgentType, type RepoAgentRefusal, type RepoAgentType } from '../core'
 import { directoryOf, statOf, textOf } from './daemon'
 
-export const REPO_AGENT_ROOTS: readonly string[] = [
-  '.atlas/agents',
-  '.agents/agents',
-  '.claude/agents',
-]
+export const REPO_AGENT_ROOTS: readonly string[] = ['.agents/agents']
 
 const MARKDOWN = '.md'
 

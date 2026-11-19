@@ -10,17 +10,18 @@ Atlas home is non-empty `ATLAS_HOME`, otherwise `~/.atlas`. A project is the ses
 directory, including an entered worktree. A shell's environment may differ from Atlas's launch
 environment. Use current workspace reminders; do not assume the repository's main checkout.
 
-| Kind         | User                                                          | Project                                                          |
-| ------------ | ------------------------------------------------------------- | ---------------------------------------------------------------- |
-| Settings     | `<atlas-home>/settings.json`                                  | `<project>/.atlas/settings.json`                                 |
-| MCP          | `<atlas-home>/mcp.json`                                       | `<project>/.atlas/mcp.json`, `<project>/.mcp.json`               |
-| Instructions | `<atlas-home>/ATLAS.md`                                       | `AGENTS.md`, `CLAUDE.md`, `ATLAS.md`, their `.local.md` siblings |
-| Skills       | `<atlas-home>/skills`, `~/.agents/skills`, `~/.claude/skills` | `.atlas/skills`, `.agents/skills`, `.claude/skills`              |
-| Agent types  | Corresponding `agents` roots                                  | Corresponding `agents` roots                                     |
+| Kind         | User                                                    | Project                                                                   |
+| ------------ | ------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Settings     | `<atlas-home>/settings.json`                            | `<project>/.atlas/settings.json`                                          |
+| MCP          | `<atlas-home>/mcp.json`                                 | `<project>/.atlas/mcp.json`, `<project>/.mcp.json`                        |
+| Instructions | Atlas Cloud personal instructions (Settings → Instructions) | `AGENTS.md` from the repo root down to the project directory, plus nested |
+| Skills       | Atlas Cloud user skills                                 | `<project>/.agents/skills`                                                |
+| Agent types  | built-in types                                          | `<project>/.agents/agents`                                                |
 
-Cloud compatibility roots for skills use `/atlas/home/.agents/skills` and `/atlas/home/.claude/skills`.
-Agent compatibility roots still use the sandbox's ordinary home. Prefer `skill_install` for skills.
-Cloud user settings follow the attached terminal; sandbox edits do not sync back. Change them on the terminal.
+Personal instructions are edited in the web app's Settings → Instructions and live in Atlas Cloud,
+not in a file on disk. Skills install through `skill_install`, which writes the Cloud rows or the
+clone's `.agents/skills`. Cloud user settings follow the attached terminal; sandbox edits do not sync
+back. Change them on the terminal.
 
 Read only relevant non-secret configuration. If a file can contain tokens or headers, inspect key
 names or masked values. Do not dump `auth.json`, `secrets.json`, vault keys, or credential values.
@@ -46,23 +47,32 @@ Settings files are flat JSON objects keyed by dotted id, for example `{"context.
 - Default model preferences differ from the model saved on an existing conversation. `/model`
   changes that conversation. Child model settings affect new spawns, not existing children.
 
-## Instruction files
+## Instructions
 
-User-wide instructions come from `<atlas-home>/ATLAS.md`. Project discovery walks from the repository
-root to the project directory. With the default filename selection, each directory contributes
-`AGENTS.md`, `CLAUDE.md`, `ATLAS.md`, then `AGENTS.local.md`, `CLAUDE.local.md`, `ATLAS.local.md`.
-More specific instructions take precedence; nested directories touched by tools can add instructions.
+Two sources, both re-read every turn.
 
-`context.userInstructions` and `context.projectInstructions` control loading. `context.filenames`
-selects `both`, `agents`, `claude`, or `none`; `none` still permits Atlas-named files.
-`context.reload` defaults on and re-reads root instructions each turn. With reload off, already-loaded
-instructions stay cached. The reader has a 40,000-character budget and skips whole overflowing files.
+Project instructions are `AGENTS.md`: discovery walks from the repository root down to the project
+directory, and a nested `AGENTS.md` in a directory the agent touches with its tools adds its own.
+More specific instructions take precedence. No other filename is read, so a repository that also
+serves Claude Code symlinks `CLAUDE.md` → `AGENTS.md` and keeps per-machine text out of the committed
+file.
+
+The operator's personal instructions come from Atlas Cloud, for every project, and are edited in the
+web app's Settings → Instructions; they reach the session through its Cloud port, not a file on disk.
+The reader has a 40,000-character budget and skips whole overflowing files.
+
+There is no setting to select instruction filenames, to switch either source off, or to change when
+they reload: both are read every turn.
 
 ## Skills
 
-Write `<skill-root>/<name>/SKILL.md` or a flat `<skill-root>/<name>.md`. Prefer `skill_install` for
-installation. Project definitions override user definitions, which override built-ins by name;
-within a layer Atlas roots precede `.agents`, then `.claude`. `/skills` reloads and reports changes.
+Install skills with `skill_install`. The operator's user skills and the project's skills are Atlas
+Cloud rows, edited in the app's Skills settings. A repository's own skills live in `.agents/skills`,
+read from the clone with symlinks followed; nothing under `.atlas/` is a skill root.
+
+Write `<repo>/.agents/skills/<name>/SKILL.md` or a flat `<repo>/.agents/skills/<name>.md`. A repo
+skill overrides a Cloud skill of the same name, which overrides a built-in. `/skills` reloads and
+reports changes.
 
 Put `name` and `description` in YAML frontmatter, followed by the Markdown procedure. Write the
 frontmatter as strict YAML: double-quote any value containing `: ` or ` #`, or Atlas Cloud's skill
@@ -78,17 +88,17 @@ not proof of tool restrictions or model switching; verify behavior before promis
 
 ## Agent types
 
-Add flat `<agents-root>/<name>.md` files; subdirectories are not scanned. Frontmatter uses `name`,
+Add flat `<repo>/.agents/agents/<name>.md` files; subdirectories are not scanned. Frontmatter uses `name`,
 required `description`, and optionally `model`. The body is the agent prompt. Names match
 `^[a-z][a-z0-9-]*$`; `teammate` is reserved. An unusable model or invalid definition refuses the
-type. Project overrides user overrides built-in. Restart after edits; `/agents types` reports loaded,
-refused, and shadowed definitions.
+type. A repo type overrides a built-in, and the first definition of a name in `.agents/agents` wins.
+Restart after edits; `/agents types` reports loaded, refused, and shadowed definitions.
 
 An agent type changes the prompt and the model, never the tools: every agent type gets the same tool
 set, minus the denials that follow what an agent is (a sub-agent cannot spawn, subscribe or talk to
 the operator; a teammate loses only `operator_input`). Other frontmatter fields, including Claude
-Code's `tools`, `disallowed-tools` and `max-effect`, are ignored, so a Claude Code agent file loads
-unchanged — a `tools: Read, Grep` line does not restrict the agent, and prose that promises a
+Code's `tools`, `disallowed-tools` and `max-effect`, are ignored, so a Claude Code agent file dropped
+into `.agents/agents` loads unchanged — a `tools: Read, Grep` line does not restrict the agent, and prose that promises a
 read-only or shell-less agent is a briefing rather than an enforced limit.
 
 ## MCP servers
@@ -116,8 +126,8 @@ Enable/disable replace the entry, so supply its transport to preserve it. Restar
 2. Inspect the existing file without exposing secrets; preserve unrelated keys in the smallest edit.
 3. Validate JSON without printing it (`jq empty <file>`). Use verified file ids/values;
    use `/settings` itself when the installed version's file schema is not known.
-4. Report the changed path and activation: settings according to their consumer, instructions next
-   turn with reload on, `/skills` for skills, restart for MCP and agent types.
+4. Report the changed path and activation: settings according to their consumer, instructions on the
+   next turn, `/skills` for skills, restart for MCP and agent types.
 5. Verify through the matching operator command or runtime evidence. Stored overrides alone do not
    prove the running session's state. For ignored changes, check home, project directory, shadowing,
    invalid entries, and activation before retrying.
