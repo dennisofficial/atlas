@@ -33,6 +33,7 @@ export default function NewSessionScreen() {
   const [localPinned, setLocalPinned] = useState<string[] | null>(null)
   const selection = selectionOf({ models, modelId, effort, fast })
   const efforts = effortChoicesOf(selection)
+  const projectName = projects.find((entry) => entry.id === projectId)?.name ?? null
   const personalId = settings.read({ key: 'model.id', schema: z.string() })
   const pinned =
     localPinned ??
@@ -91,8 +92,17 @@ export default function NewSessionScreen() {
   return (
     <KeyboardDock style={[styles.screen, { backgroundColor: theme.background }]}>
       <View style={styles.center}>
-        <Text size={ETextRole.Xl} weight={EFontWeight.Medium} tight style={styles.heading}>
-          What should Atlas work on?
+        <Text size={ETextRole.Xxl} weight={EFontWeight.Medium} tight style={styles.heading}>
+          What should we work on
+          {projectName === null ? null : (
+            <>
+              {' in '}
+              <Text size={ETextRole.Xxl} weight={EFontWeight.Semibold} tight color={theme.primary}>
+                {projectName}
+              </Text>
+            </>
+          )}
+          ?
         </Text>
         <Composer
           autoFocus
