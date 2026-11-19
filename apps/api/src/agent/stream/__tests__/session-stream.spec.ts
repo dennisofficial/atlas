@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
-import { STREAM_PROTOCOL_VERSION, type StreamServerMessage } from '@dltech/atlas-protocol'
+import {
+  EStreamSurface,
+  STREAM_PROTOCOL_VERSION,
+  type StreamServerMessage,
+} from '@dltech/atlas-protocol'
 
 import { createSessionStream, SessionStreamLimitError } from '../session-stream'
 import { createUserSlots } from '../user-slots'
@@ -143,6 +147,34 @@ describe('session stream adapters', () => {
     const generator = streamOf().list({ userId: OWNER })
     expect((await pull(generator)).type).toBe('ready')
     expect((await nextPayload(generator)).type).toBe('snapshot')
+    await generator.return(undefined)
+  })
+
+  it('records the surface a desktop follower declares, so an mcp sign-in returns to the app', async () => {
+    await rig.seed({ events: 1 })
+    const generator = streamOf().follow({
+      userId: OWNER,
+      sessionId: SESSION,
+      surface: EStreamSurface.Desktop,
+    })
+    expect((await pull(generator)).type).toBe('ready')
+    expect(await liveSeqs(generator)).toEqual([1])
+
+    expect(rig.surfaces).toEqual([
+      { sessionId: SESSION, userId: OWNER, surface: EStreamSurface.Desktop },
+    ])
+    await generator.return(undefined)
+  })
+
+  it('records web when the follower declares no surface', async () => {
+    await rig.seed({ events: 1 })
+    const generator = streamOf().follow({ userId: OWNER, sessionId: SESSION })
+    expect((await pull(generator)).type).toBe('ready')
+    expect(await liveSeqs(generator)).toEqual([1])
+
+    expect(rig.surfaces).toEqual([
+      { sessionId: SESSION, userId: OWNER, surface: EStreamSurface.Web },
+    ])
     await generator.return(undefined)
   })
 })
