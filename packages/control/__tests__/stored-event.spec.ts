@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { chainEvents, chainHash, toRunId, toThreadId } from '@dltech/atlas-core'
+import { chainEvents, chainHash, toRunId, toThreadId, type Hash } from '@dltech/atlas-core'
 
 import { decodeStoredEvent, EMPTY_VISIBILITY_TEXT, toStoredEvent } from '../src/stored-event'
 
@@ -22,5 +22,16 @@ describe('stored events', () => {
 
   it('writes the empty visibility state canonically', () => {
     expect(EMPTY_VISIBILITY_TEXT).toBe('{"spans":[]}')
+  })
+
+  it('trusts the stored row instead of re-hashing it on read', () => {
+    const stored = toStoredEvent({ event: event!, hash: chainHash(event!) })
+    const staleHash = 'not-the-digest' as Hash
+    expect(decodeStoredEvent({ ...stored, hash: staleHash })).toEqual(event!)
+  })
+
+  it('still refuses a row that disagrees with its columns', () => {
+    const stored = toStoredEvent({ event: event!, hash: chainHash(event!) })
+    expect(() => decodeStoredEvent({ ...stored, seq: 2 })).toThrow(/disagrees with its row/)
   })
 })
