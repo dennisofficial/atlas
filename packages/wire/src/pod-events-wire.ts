@@ -43,12 +43,13 @@ export const POD_EVENT_CONFLICT_CODE = 'pod-event-conflict'
 
 export enum EEventsWatchFrame {
   Tick = 'tick',
+  Keepalive = 'keepalive',
 }
 
 export const eventsWatchInputSchema = z.strictObject({ threadId: z.string().min(1) })
 export type EventsWatchInput = z.infer<typeof eventsWatchInputSchema>
 
-export const eventsWatchFrameSchema = z.strictObject({ type: z.literal(EEventsWatchFrame.Tick) })
+export const eventsWatchFrameSchema = z.strictObject({ type: z.enum(EEventsWatchFrame) })
 export type EventsWatchFrame = z.infer<typeof eventsWatchFrameSchema>
 
 const isAsyncIterable = (value: unknown): value is AsyncIterable<EventsWatchFrame> =>

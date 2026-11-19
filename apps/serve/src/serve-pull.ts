@@ -1,6 +1,6 @@
 import { awaitsPulledInput, type ThreadId } from '@dltech/atlas-core'
 import { SessionsClient } from '@dltech/atlas-harness'
-import { mirrorsThreadState } from '@dltech/atlas-wire'
+import { EEventsWatchFrame, mirrorsThreadState, type EventsWatchFrame } from '@dltech/atlas-wire'
 
 import type { ServeApp } from './serve-app'
 import { hydrateServeHistory } from './serve-hydrate'
@@ -9,6 +9,7 @@ import { wakeChildrenWithPendingInput } from './serve-pending-children'
 import type { ServeTurnDriver } from './turn-driver'
 
 export const PULL_RECONNECT_DELAY_MS = 3_000
+export const PULL_RECONNECT_MAX_DELAY_MS = 30_000
 
 export type PullRemote = {
   controlPlaneUrl: string
@@ -17,7 +18,7 @@ export type PullRemote = {
   fetchFn: typeof fetch
 }
 
-export type PullSubscribe = (args: { onTick: () => void }) => () => void
+export type PullSubscribe = (args: { onTick: (frame?: EventsWatchFrame) => void }) => () => void
 
 const reasonOf = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
@@ -27,19 +28,24 @@ export function watchEventsFor(args: {
   threadId: ThreadId
   log: ServeLog
   reconnectDelayMs?: number | undefined
+  reconnectMaxDelayMs?: number | undefined
 }): PullSubscribe {
-  const delayMs = args.reconnectDelayMs ?? PULL_RECONNECT_DELAY_MS
+  const startDelayMs = args.reconnectDelayMs ?? PULL_RECONNECT_DELAY_MS
+  const maxDelayMs = args.reconnectMaxDelayMs ?? PULL_RECONNECT_MAX_DELAY_MS
   return ({ onTick }) => {
     let stopped = false
     let stopStream: () => void = () => undefined
     let timer: ReturnType<typeof setTimeout> | undefined
+    let delayMs = startDelayMs
 
     const reconnectLater = (): void => {
       if (stopped || timer !== undefined) return
+      const waitMs = delayMs
+      delayMs = Math.min(delayMs * 2, maxDelayMs)
       timer = setTimeout(() => {
         timer = undefined
         connect()
-      }, delayMs)
+      }, waitMs)
     }
 
     function connect(): void {
@@ -47,7 +53,11 @@ export function watchEventsFor(args: {
       stopStream()
       stopStream = args.sessions.watchEvents({
         threadId: args.threadId,
-        onTick,
+        // A delivered frame proves the stream works, so the next drop backs off from the start.
+        onTick: (frame?: EventsWatchFrame) => {
+          delayMs = startDelayMs
+          onTick(frame)
+        },
         onFailure: (reason) => {
           args.log({ event: EServeEvent.PullFailed, reason: `watching events failed: ${reason}` })
           reconnectLater()
@@ -133,7 +143,10 @@ export function bindServePull(args: {
     pulling = undefined
   }
 
-  const handleTick = (): void => {
+  const handleTick = (frame: EventsWatchFrame = { type: EEventsWatchFrame.Tick }): void => {
+    // The watch also carries keepalives that only hold the connection open; pulling for those
+    // would cost a full history read per frame on a session where nothing changed.
+    if (frame.type !== EEventsWatchFrame.Tick) return
     if (detached) return
     if (pulling !== undefined) {
       followUp = true

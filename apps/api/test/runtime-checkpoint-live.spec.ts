@@ -25,7 +25,7 @@ describe('runtime checkpoint CAS over HTTP and real PostgreSQL', () => {
   const runId = randomUUID()
   const ownerId = `checkpoint-owner-${runId}`
   const foreignId = `checkpoint-foreign-${runId}`
-  const token = `synthetic-checkpoint-token-${runId}`
+  let token = `synthetic-checkpoint-token-${runId}`
   let app: INestApplication | undefined
   let fixture: { threadId: string; sandboxId: string }
 
@@ -117,6 +117,7 @@ describe('runtime checkpoint CAS over HTTP and real PostgreSQL', () => {
     const threadId = `brn_checkpoint_${randomUUID()}`
     const sandboxId = `sbx_checkpoint_${randomUUID()}`
     fixture = { threadId, sandboxId }
+    token = `synthetic-checkpoint-token-${randomUUID()}`
     const at = new Date('2026-10-01T00:00:00.000Z')
     await seedUser({ db, id: ownerId })
     await seedUser({ db, id: foreignId })

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it, vi } from 'bun:test'
 
 import {
   ENoticeStage,
@@ -13,8 +13,10 @@ import {
   type EventDraft,
 } from '@dltech/atlas-core'
 
+import { EEventsWatchFrame, type EventsWatchFrame } from '@dltech/atlas-wire'
+
 import { EServeEvent, type ServeLogLine } from '../serve-log'
-import { bindServePull, type PullSubscribe } from '../serve-pull'
+import { bindServePull, watchEventsFor, type PullSubscribe } from '../serve-pull'
 
 const threadId = toThreadId('thread-pull')
 const env = { ATLAS_API_PROVISIONED: '1' }
@@ -64,7 +66,7 @@ const setup = (
 ) => {
   const runs: unknown[] = []
   const lines: ServeLogLine[] = []
-  const ticks: Array<() => void> = []
+  const ticks: Array<(frame?: EventsWatchFrame) => void> = []
   const hydrates = { calls: 0, next: async (): Promise<unknown> => undefined }
   let detached = 0
   const subscribe: PullSubscribe = ({ onTick }) => {
@@ -94,8 +96,8 @@ const setup = (
     },
     subscribe,
   })
-  const tick = (): void => {
-    for (const onTick of ticks) onTick()
+  const tick = (frame?: EventsWatchFrame): void => {
+    for (const onTick of ticks) onTick(frame)
   }
   return {
     runs,
@@ -109,6 +111,18 @@ const setup = (
 }
 
 describe('bindServePull', () => {
+  it('does not pull for a keepalive frame that carries no work', async () => {
+    const pull = setup()
+    pull.tick({ type: 'keepalive' } as unknown as EventsWatchFrame)
+    await settle()
+    expect(pull.hydrates.calls).toBe(0)
+    expect(pull.runs).toEqual([])
+
+    pull.tick({ type: EEventsWatchFrame.Tick })
+    await settle()
+    expect(pull.hydrates.calls).toBe(1)
+  })
+
   it('runs an idle driver once when a pulled user-said awaits a reply', async () => {
     const pull = setup()
     pull.tick()
@@ -300,7 +314,7 @@ describe('bindServePull', () => {
       log: () => undefined,
       hydrate: async () => undefined,
       subscribe: ({ onTick }) => {
-        onTick()
+        onTick({ type: EEventsWatchFrame.Tick })
         return () => undefined
       },
     })
@@ -308,5 +322,80 @@ describe('bindServePull', () => {
     detach()
 
     expect(woken).toEqual([child])
+  })
+})
+
+describe('watchEventsFor', () => {
+  const fakeSessions = () => {
+    const opened: Array<{
+      onTick: (frame?: EventsWatchFrame) => void
+      onFailure: (reason: string) => void
+      onEnded: () => void
+    }> = []
+    return {
+      opened,
+      sessions: {
+        watchEvents: (options: {
+          threadId: string
+          onTick: (frame?: EventsWatchFrame) => void
+          onFailure: (reason: string) => void
+          onEnded: () => void
+        }) => {
+          opened.push(options)
+          return () => undefined
+        },
+      },
+    }
+  }
+
+  it('backs off from 3s to a 30s cap and starts over after a delivered frame', () => {
+    vi.useFakeTimers()
+    try {
+      const rig = fakeSessions()
+      const frames: Array<string | undefined> = []
+      const stop = watchEventsFor({
+        sessions: rig.sessions as unknown as Parameters<typeof watchEventsFor>[0]['sessions'],
+        threadId,
+        log: () => undefined,
+      })({ onTick: (frame) => frames.push(frame?.type) })
+
+      expect(rig.opened).toHaveLength(1)
+      rig.opened[0]?.onFailure('api down')
+      vi.advanceTimersByTime(2_999)
+      expect(rig.opened).toHaveLength(1)
+      vi.advanceTimersByTime(1)
+      expect(rig.opened).toHaveLength(2)
+
+      rig.opened[1]?.onEnded()
+      vi.advanceTimersByTime(5_999)
+      expect(rig.opened).toHaveLength(2)
+      vi.advanceTimersByTime(1)
+      expect(rig.opened).toHaveLength(3)
+
+      rig.opened[2]?.onEnded()
+      vi.advanceTimersByTime(12_000)
+      expect(rig.opened).toHaveLength(4)
+
+      rig.opened[3]?.onEnded()
+      vi.advanceTimersByTime(24_000)
+      expect(rig.opened).toHaveLength(5)
+
+      rig.opened[4]?.onEnded()
+      vi.advanceTimersByTime(29_999)
+      expect(rig.opened).toHaveLength(5)
+      vi.advanceTimersByTime(1)
+      expect(rig.opened).toHaveLength(6)
+
+      // A frame proves the stream is alive: the next drop waits the initial 3s again.
+      rig.opened[5]?.onTick({ type: 'keepalive' } as unknown as EventsWatchFrame)
+      rig.opened[5]?.onEnded()
+      vi.advanceTimersByTime(3_000)
+      expect(rig.opened).toHaveLength(7)
+
+      stop()
+      expect(frames).toEqual(['keepalive'])
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

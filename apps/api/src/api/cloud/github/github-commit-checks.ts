@@ -14,6 +14,7 @@ import { lockPrScope } from './github-pr-lock'
 import type { GithubPrCheckAnnotation } from './github-realtime.types'
 
 export const COMMIT_CHECK_RETENTION_MS = 14 * 24 * 60 * 60 * 1_000
+export const COMMIT_CHECK_TOUCH_MS = 24 * 60 * 60 * 1_000
 
 export type CommitCheckInput = {
   checkKey: string
@@ -108,12 +109,91 @@ export async function recordCommitChecksLocked(args: {
   })
 }
 
-function newerThanHeld(args: { held: Row<'GithubCommitCheck'>; check: CommitCheckInput }): boolean {
+type HeldCommitCheck = Pick<
+  Row<'GithubCommitCheck'>,
+  | 'checkKey'
+  | 'sourceId'
+  | 'name'
+  | 'startedAt'
+  | 'outcome'
+  | 'sourceUpdatedAt'
+  | 'conclusion'
+  | 'appSlug'
+  | 'detailsUrl'
+  | 'title'
+  | 'summary'
+  | 'annotationsCount'
+  | 'annotations'
+  | 'updatedAt'
+>
+
+type CommitCheckWrite = {
+  sourceId: string | null
+  name: string
+  startedAt: string | null
+  outcome: ECheckOutcome
+  sourceUpdatedAt: Date
+  conclusion: string | null
+  appSlug: string | null
+  detailsUrl: string | null
+  title: string | null
+  summary: string | null
+  annotationsCount: number | null
+  annotations?: GithubPrCheckAnnotation[]
+}
+
+function newerThanHeld(args: { held: HeldCommitCheck; check: CommitCheckInput }): boolean {
   const heldAt = args.held.sourceUpdatedAt.getTime()
   const checkAt = args.check.sourceUpdatedAt.getTime()
   if (heldAt !== checkAt) return heldAt > checkAt
 
   return Number(args.held.sourceId ?? '') > Number(args.check.sourceId ?? '')
+}
+
+function writeOf(check: CommitCheckInput): CommitCheckWrite {
+  return {
+    sourceId: check.sourceId ?? null,
+    name: check.name,
+    startedAt: check.startedAt,
+    outcome: check.outcome,
+    sourceUpdatedAt: check.sourceUpdatedAt,
+    conclusion: check.conclusion ?? null,
+    appSlug: check.appSlug ?? null,
+    detailsUrl: check.detailsUrl ?? null,
+    title: check.title ?? null,
+    summary: check.summary ?? null,
+    annotationsCount: check.annotationsCount ?? null,
+    ...(check.annotations === undefined ? {} : { annotations: check.annotations }),
+  }
+}
+
+const stableJson = (value: unknown): string => {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`
+  if (value !== null && typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    const entries = Object.keys(record)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableJson(record[key])}`)
+    return `{${entries.join(',')}}`
+  }
+  return JSON.stringify(value) ?? 'null'
+}
+
+function heldMatchesWrite(args: { held: HeldCommitCheck; write: CommitCheckWrite }): boolean {
+  const { held, write } = args
+  if (held.sourceId !== write.sourceId) return false
+  if (held.name !== write.name) return false
+  if (held.startedAt !== write.startedAt) return false
+  if (held.outcome !== write.outcome) return false
+  if (held.sourceUpdatedAt.getTime() !== write.sourceUpdatedAt.getTime()) return false
+  if (held.conclusion !== write.conclusion) return false
+  if (held.appSlug !== write.appSlug) return false
+  if (held.detailsUrl !== write.detailsUrl) return false
+  if (held.title !== write.title) return false
+  if (held.summary !== write.summary) return false
+  if (held.annotationsCount !== write.annotationsCount) return false
+  if (write.annotations === undefined) return true
+  return stableJson(held.annotations) === stableJson(write.annotations)
 }
 
 export async function recordCommitChecks(args: {
@@ -124,50 +204,58 @@ export async function recordCommitChecks(args: {
 }): Promise<void> {
   if (args.checks.length === 0) return
   const repoFullName = normalizedRepo(args.repoFullName)
-  {
-    const { tx } = args
-    const existing = await tx.orm.public.GithubCommitCheck.where({
-      repoFullName,
-      headSha: args.headSha,
-    }).all()
-    const byKey = new Map(existing.map((row) => [row.checkKey, row]))
-    for (const check of args.checks) {
-      const held = byKey.get(check.checkKey)
-      if (held !== undefined) {
-        const heldCompleted = held.outcome !== ECheckOutcome.Running
-        const heldNewer = newerThanHeld({ held, check })
-        const staleRun = heldCompleted && (check.outcome === ECheckOutcome.Running || heldNewer)
-        if (check.isRun ? staleRun : heldNewer) continue
-      }
-      const fields = {
-        sourceId: check.sourceId ?? null,
-        name: check.name,
-        startedAt: check.startedAt,
-        outcome: check.outcome,
-        sourceUpdatedAt: check.sourceUpdatedAt,
-        conclusion: check.conclusion ?? null,
-        appSlug: check.appSlug ?? null,
-        detailsUrl: check.detailsUrl ?? null,
-        title: check.title ?? null,
-        summary: check.summary ?? null,
-        annotationsCount: check.annotationsCount ?? null,
-        ...(check.annotations === undefined ? {} : { annotations: check.annotations }),
-      }
-      await tx.orm.public.GithubCommitCheck.upsert({
-        conflictOn: {
-          repoFullName,
-          headSha: args.headSha,
-          checkKey: check.checkKey,
-        },
-        create: {
-          repoFullName,
-          headSha: args.headSha,
-          checkKey: check.checkKey,
-          ...fields,
-        },
-        update: fields,
-      })
+  const observedAt = new Date()
+  const { tx } = args
+  const existing = await tx.orm.public.GithubCommitCheck.select(
+    'checkKey',
+    'sourceId',
+    'name',
+    'startedAt',
+    'outcome',
+    'sourceUpdatedAt',
+    'conclusion',
+    'appSlug',
+    'detailsUrl',
+    'title',
+    'summary',
+    'annotationsCount',
+    'annotations',
+    'updatedAt',
+  )
+    .where({ repoFullName, headSha: args.headSha })
+    .all()
+  const byKey = new Map(existing.map((row) => [row.checkKey, row]))
+  for (const check of args.checks) {
+    const fields = writeOf(check)
+    const held = byKey.get(check.checkKey)
+    if (held !== undefined) {
+      const heldCompleted = held.outcome !== ECheckOutcome.Running
+      const heldNewer = newerThanHeld({ held, check })
+      const staleRun = heldCompleted && (check.outcome === ECheckOutcome.Running || heldNewer)
+      if (check.isRun ? staleRun : heldNewer) continue
+      const heldFresh = observedAt.getTime() - held.updatedAt.getTime() < COMMIT_CHECK_TOUCH_MS
+      if (heldFresh && heldMatchesWrite({ held, write: fields })) continue
     }
+    await tx.orm.public.GithubCommitCheck.upsert({
+      conflictOn: {
+        repoFullName,
+        headSha: args.headSha,
+        checkKey: check.checkKey,
+      },
+      create: {
+        repoFullName,
+        headSha: args.headSha,
+        checkKey: check.checkKey,
+        ...fields,
+      },
+      update: fields,
+    })
+    byKey.set(check.checkKey, {
+      checkKey: check.checkKey,
+      ...fields,
+      annotations: fields.annotations ?? held?.annotations ?? [],
+      updatedAt: observedAt,
+    })
   }
 }
 

@@ -9,6 +9,7 @@ import { toSandboxDto } from './rows'
 import { claimSandboxRow } from './sandbox-claim'
 import { sandboxStateOf } from './sandbox-lifecycle'
 import { SandboxEndpointService } from './sandbox-endpoint'
+import { SandboxPrincipalCache } from './sandbox-principal-cache'
 import { registerSandbox, type RegisterSandboxArgs } from './sandbox-register'
 import { findOrCreateClaimThread } from './sandbox-thread'
 import { hashSessionToken, mintSessionToken, tokenMatches } from './sandbox-tokens'
@@ -37,6 +38,8 @@ export class SandboxesService {
 
   private readonly endpoints: SandboxEndpointService
 
+  private readonly principals = new SandboxPrincipalCache()
+
   constructor(
     private readonly vercel: VercelSandboxClient,
     private readonly cipher: SecretCipherService,
@@ -60,7 +63,7 @@ export class SandboxesService {
   private async claimWithoutSignal(args: ClaimArgs): Promise<SandboxAttachmentDto> {
     const clientToken = args.clientToken
     if (clientToken !== undefined) {
-      return this.register({
+      return await this.register({
         userId: args.userId,
         threadId: args.threadId,
         clientToken,
@@ -85,6 +88,7 @@ export class SandboxesService {
         : { sealedGitToken: this.cipher.encrypt(args.gitToken) }),
       ...(args.contextPending === undefined ? {} : { contextPending: args.contextPending }),
     })
+    this.principals.forgetSession(thread.sessionId)
     return {
       threadId: args.threadId,
       name: row.name,
@@ -102,8 +106,10 @@ export class SandboxesService {
    * the owner-session reads that answer attachment) and the endpoint the sandbox already serves.
    * Re-registration is idempotent — the stored token never rotates under the client that issued it.
    */
-  private register(args: RegisterSandboxArgs): Promise<SandboxAttachmentDto> {
-    return registerSandbox({ ...args, cipher: this.cipher })
+  private async register(args: RegisterSandboxArgs): Promise<SandboxAttachmentDto> {
+    const attachment = await registerSandbox({ ...args, cipher: this.cipher })
+    this.principals.clear()
+    return attachment
   }
 
   runningEndpoint(args: {
@@ -152,6 +158,7 @@ export class SandboxesService {
     await ownedSandbox(args)
     const sessionId = await podSessionOf({ reader: db, threadId: args.threadId })
     await db.orm.public.CloudSandbox.where({ sessionId }).delete()
+    this.principals.forgetSession(sessionId)
     await this.signals.podChanged({ threadId: args.threadId })
   }
 
@@ -178,6 +185,9 @@ export class SandboxesService {
   }
 
   private async sandboxPrincipal(tokenHash: string) {
+    const cached = this.principals.get(tokenHash)
+    if (cached !== null) return cached
+    const lookup = this.principals.beginLookup()
     const row = await db.orm.public.CloudSandbox.where({ tokenHash })
       .select('id', 'sessionId', 'userId')
       .first()
@@ -186,7 +196,9 @@ export class SandboxesService {
       .select('mainThreadId')
       .first()
     if (session?.mainThreadId == null) return null
-    return { id: row.id, userId: row.userId, threadId: session.mainThreadId }
+    const principal = { id: row.id, userId: row.userId, threadId: session.mainThreadId }
+    this.principals.remember({ tokenHash, principal, sessionId: row.sessionId, lookup })
+    return principal
   }
 
   /**
@@ -227,6 +239,7 @@ export class SandboxesService {
       runtimeCheckpointRevision: null,
       updatedAt: new Date(),
     })
+    this.principals.forgetSession(args.row.sessionId)
     await this.signals.podChanged({ threadId: args.threadId })
   }
 

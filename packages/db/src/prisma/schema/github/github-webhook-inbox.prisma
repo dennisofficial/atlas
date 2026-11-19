@@ -12,4 +12,5 @@ model GithubWebhookInbox {
   deadAt          TimestamptzJsDate(3)?
 
   @@index([processedAt], map: "GithubWebhookInbox_processedAt_idx")
+  @@index([deadAt], map: "GithubWebhookInbox_deadAt_idx")
 }
