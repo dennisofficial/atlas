@@ -1,4 +1,4 @@
-import { EMemoryScope, EMemoryType } from '@dltech/atlas-wire'
+import { EMemoryScope, EMemoryType } from '@dltech/atlas-core'
 import type { MemoryAddress, MemoryKind, MemoryScope } from '@dltech/atlas-plugin-sdk'
 
 const KIND: Record<EMemoryType, MemoryKind> = {

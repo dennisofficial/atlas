@@ -83,6 +83,7 @@ const rigOf = (entries: readonly InboxEntry[]) => {
       readInbox: source,
       readInboxEntry: async ({ inboxId }: { inboxId: number }) =>
         entries.find((kept) => kept.inboxId === inboxId),
+      endTerminals: async () => 0,
     } as unknown as ControlPlane,
     sessionId: 'session-1',
     record,

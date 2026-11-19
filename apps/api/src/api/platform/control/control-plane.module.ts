@@ -18,6 +18,8 @@ import { RoutinesService } from './routines.service'
 import { FilesRouter } from './files.router'
 import { FilesService } from './files.service'
 import { SessionsRouter } from './sessions.router'
+import { TerminalRouter } from './terminal.router'
+import { TerminalService } from './terminal.service'
 import { SessionsService } from './sessions.service'
 
 export const controlPlaneProvider: Provider = {
@@ -49,7 +51,9 @@ export const controlPlaneProvider: Provider = {
     MediaRouter,
     RoutinesService,
     RoutinesRouter,
+    TerminalService,
+    TerminalRouter,
   ],
-  exports: [ControlPlane],
+  exports: [ControlPlane, TerminalService],
 })
 export class ControlPlaneModule {}

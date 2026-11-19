@@ -24,6 +24,8 @@ let failPuts: boolean
 let calls: string[]
 let puts: { key: string; authorization: string | null }[]
 let gate: Promise<void> | undefined
+let inFlight: number
+let onPut: (() => void) | undefined
 let posts: NoticePost[]
 let changes: number
 let local: MemorySettingsStore
@@ -31,6 +33,15 @@ let cloud: CloudSettingsStore
 let store: CloudUserSettingsStore
 
 const fetchFn = (async (input: unknown, init?: RequestInit) => {
+  inFlight += 1
+  try {
+    return await answer(input, init)
+  } finally {
+    inFlight -= 1
+  }
+}) as typeof fetch
+
+const answer = async (input: unknown, init?: RequestInit): Promise<Response> => {
   const call = trpcCallOf({ input, init })
   const body = call.input as { key?: string; value?: string } | undefined
   calls.push(`${call.method} ${call.path}`)
@@ -48,6 +59,7 @@ const fetchFn = (async (input: unknown, init?: RequestInit) => {
       key: String(body?.key),
       authorization: new Headers(init?.headers).get('authorization'),
     })
+    onPut?.()
     if (gate !== undefined) await gate
     if (failPuts) return trpcFailure({ status: 500, message: 'boom' })
     remote.set(String(body?.key), String(body?.value))
@@ -58,7 +70,7 @@ const fetchFn = (async (input: unknown, init?: RequestInit) => {
     return trpcVoid()
   }
   return trpcFailure({ status: 404, message: 'unhandled' })
-}) as typeof fetch
+}
 
 beforeEach(() => {
   directory = mkdtempSync(join(tmpdir(), 'atlas-cloud-user-settings-'))
@@ -71,6 +83,8 @@ beforeEach(() => {
   calls = []
   puts = []
   gate = undefined
+  inFlight = 0
+  onPut = undefined
   posts = []
   changes = 0
   local = new MemorySettingsStore({ label: 'local file' })
@@ -93,8 +107,17 @@ afterEach(() => {
 
 const signIn = (token = 'sess') => sessions.write({ url: URL, token, email: null })
 
+const macrotask = () => new Promise<void>((resolve) => setImmediate(resolve))
+
+// The write chain advances on microtasks between fetches, so it has settled once no request is
+// open across consecutive macrotask turns; a turn drains every microtask queued before it.
 const settled = async () => {
-  for (let attempt = 0; attempt < 50; attempt += 1) await Bun.sleep(5)
+  let idleTurns = 0
+  for (let turn = 0; idleTurns < 3; turn += 1) {
+    if (turn > 1000) throw new Error('the cloud write chain never settled')
+    await macrotask()
+    idleTurns = inFlight === 0 ? idleTurns + 1 : 0
+  }
 }
 
 describe('CloudUserSettingsStore signed out', () => {
@@ -227,8 +250,12 @@ describe('CloudUserSettingsStore signed in', () => {
       release = resolve
     })
 
+    const firstPutHeld = new Promise<void>((resolve) => {
+      onPut = resolve
+    })
+
     store.write({ values: { 'transcript.smoothStreaming': false } })
-    await settled()
+    await firstPutHeld
     store.write({
       values: { 'transcript.smoothStreaming': false, 'transcript.thinkingBlocks': 'hidden' },
     })

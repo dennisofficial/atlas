@@ -6,21 +6,11 @@ import {
   type FoldableService,
   type SpendTally,
 } from '@dltech/atlas-core'
+import { formatTokens } from '@dltech/atlas-client/crew'
 import {
   EServiceStatus as EWireServiceStatus,
   type ServiceSnapshotWire,
 } from '@dltech/atlas-wire/web'
-
-const THOUSAND = 1_000
-const MILLION = 1_000_000
-const BILLION = 1_000_000_000
-
-export function formatTokens(tokens: number): string {
-  if (tokens < THOUSAND) return String(tokens)
-  if (tokens < MILLION) return `${(tokens / THOUSAND).toFixed(1)}k`
-  if (tokens < BILLION) return `${(tokens / MILLION).toFixed(2)}m`
-  return `${(tokens / BILLION).toFixed(2)}b`
-}
 
 export const turnCountOf = (events: readonly Event[]): number =>
   events.filter((event) => event.type === 'user-said').length

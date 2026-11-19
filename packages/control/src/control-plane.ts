@@ -45,6 +45,10 @@ import {
   type RoutineRunRow,
   type SessionListParams,
   type SessionModelRow,
+  type ControlTerminalRow,
+  type CreateTerminalParams,
+  type EndTerminalParams,
+  type TerminalEndedReason,
 } from './port'
 import { claimNextIn, wakeIn } from './claim-ops'
 import { withDigestViews } from './session-digest-view'
@@ -420,6 +424,45 @@ export class ControlPlane {
     blobs: readonly ChangeBlobWrite[]
   }): Promise<void> {
     await this.store.transact((tx) => tx.upsertChanges(params))
+  }
+
+  async listTerminals(params: { sessionId: string }): Promise<ControlTerminalRow[]> {
+    return this.store.listTerminals(params)
+  }
+
+  async readTerminal(params: {
+    sessionId: string
+    terminalId: string
+  }): Promise<ControlTerminalRow | undefined> {
+    return this.store.readTerminal(params)
+  }
+
+  async createTerminal(params: CreateTerminalParams): Promise<ControlTerminalRow | undefined> {
+    return this.store.createTerminal(params)
+  }
+
+  async renameTerminal(params: {
+    sessionId: string
+    terminalId: string
+    name: string
+  }): Promise<ControlTerminalRow | undefined> {
+    return this.store.renameTerminal(params)
+  }
+
+  async markTerminalOpen(params: { sessionId: string; terminalId: string }): Promise<void> {
+    await this.store.markTerminalOpen(params)
+  }
+
+  async endTerminal(params: EndTerminalParams): Promise<ControlTerminalRow | undefined> {
+    return this.store.endTerminal(params)
+  }
+
+  async endTerminals(params: { sessionId: string; reason: TerminalEndedReason }): Promise<number> {
+    return this.store.endTerminals(params)
+  }
+
+  async deleteTerminal(params: { sessionId: string; terminalId: string }): Promise<void> {
+    await this.store.deleteTerminal(params)
   }
 
   async readChanges(params: { sessionId: string }): Promise<readonly WorktreeChangesRead[]> {

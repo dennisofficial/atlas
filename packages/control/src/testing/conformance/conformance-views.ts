@@ -3,8 +3,13 @@ import {
   ECompactionAnchor,
   ESessionStatus,
   initialSessionViewState,
+  PLAN_TOOL_NAME,
+  planView,
+  planViewSchema,
   SESSION_VIEW_VERSION,
   stepSessionView,
+  toCallId,
+  type V2Body,
 } from '@dltech/atlas-core'
 
 import { decodeViewState, encodeViewState } from '../../session-view-codec'
@@ -60,6 +65,17 @@ export function describeControlPlaneViews(params: ConformanceParams): void {
       })
       return state
     }
+
+    const writePlan = (args: { callId: string; texts: readonly string[] }): V2Body[] => [
+      {
+        type: 'tool-called',
+        callId: toCallId(args.callId),
+        name: PLAN_TOOL_NAME,
+        input: { tasks: args.texts.map((text) => ({ text, status: 'pending' })) },
+        ordinal: 0,
+      },
+      { type: 'tool-result', callId: toCallId(args.callId), name: PLAN_TOOL_NAME, output: 'ok' },
+    ]
 
     const overwriteRow = async (patch: { version: number; state: string; atSeq: number }) => {
       await params
@@ -219,6 +235,70 @@ export function describeControlPlaneViews(params: ConformanceParams): void {
       const outcome = await harness.plane.append({ threadId: 'side', epoch, events })
       expect(outcome.ok).toBe(true)
       expect(await storedState()).toEqual(before)
+    })
+
+    it('materializes the plan and unwinds the writes a rewind dropped', async () => {
+      const viewed = makeHarness(params.makeStore(), undefined, { pluginViews: [planView] })
+      const planOf = async (): Promise<readonly string[]> => {
+        const read = await viewed.plane.readSessionView({ sessionId: SESSION, threadId: THREAD })
+        return planViewSchema.parse(read.value.pluginViews.plan).tasks.map((task) => task.text)
+      }
+
+      const first = await appendBodies({
+        harness: viewed,
+        epoch,
+        bodies: [said('a'), ...writePlan({ callId: 'call-1', texts: ['one', 'two'] })],
+      })
+      expect(await planOf()).toEqual(['one', 'two'])
+
+      await appendBodies({
+        harness: viewed,
+        epoch,
+        bodies: writePlan({ callId: 'call-2', texts: ['three'] }),
+      })
+      expect(await planOf()).toEqual(['three'])
+
+      await appendBodies({
+        harness: viewed,
+        epoch,
+        bodies: [
+          { type: 'history-rewound', toSeq: first.events[first.events.length - 1]?.seq ?? 0 },
+        ],
+      })
+      expect(await planOf()).toEqual(['one', 'two'])
+
+      await appendBodies({
+        harness: viewed,
+        epoch,
+        bodies: [{ type: 'history-rewound', toSeq: 0 }],
+      })
+      expect(await planOf()).toEqual([])
+    })
+
+    it('keeps the plan through a summary', async () => {
+      const viewed = makeHarness(params.makeStore(), undefined, { pluginViews: [planView] })
+      await appendBodies({
+        harness: viewed,
+        epoch,
+        bodies: [said('a'), ...writePlan({ callId: 'call-1', texts: ['one'] })],
+      })
+      await appendBodies({
+        harness: viewed,
+        epoch,
+        bodies: [
+          {
+            type: 'history-summarised',
+            fromSeq: 1,
+            throughSeq: 3,
+            anchor: ECompactionAnchor.Prefix,
+            summary: 'sum',
+          },
+        ],
+      })
+      const read = await viewed.plane.readSessionView({ sessionId: SESSION, threadId: THREAD })
+      expect(
+        planViewSchema.parse(read.value.pluginViews.plan).tasks.map((task) => task.text),
+      ).toEqual(['one'])
     })
 
     it('shows queued messages and queued status folded from the log', async () => {

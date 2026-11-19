@@ -15,6 +15,12 @@ import {
   type SubscriptionLease,
   type TrackingTarget,
 } from '../../port'
+import type {
+  ControlTerminalRow,
+  CreateTerminalParams,
+  EndTerminalParams,
+  TerminalEndedReason,
+} from '../../terminal-rows'
 import { dueRoutinesIn, routineRunsIn, userRoutineIn, userRoutinesIn } from './memory-routines'
 import { MemoryTx } from './memory-tx'
 import { MemoryTestControls } from './memory-test-controls'
@@ -25,6 +31,7 @@ export class InMemoryControlStore extends ControlStorePort implements ChangeFeed
   private state: State = emptyState()
   private tail: Promise<unknown> = Promise.resolve()
   private readonly controls = new MemoryTestControls(() => this.state)
+  private terminals: ControlTerminalRow[] = []
 
   constructor(params: { clock?: (() => string) | undefined } = {}) {
     super()
@@ -118,5 +125,88 @@ export class InMemoryControlStore extends ControlStorePort implements ChangeFeed
 
   changesOf(sessionId: string): SessionChange[] {
     return this.controls.changesOf(sessionId)
+  }
+
+  private terminalRowsOf(sessionId: string): ControlTerminalRow[] {
+    return this.terminals
+      .filter((row) => row.sessionId === sessionId)
+      .sort((left, right) => left.ordinal - right.ordinal)
+  }
+
+  async listTerminals(params: { sessionId: string }): Promise<ControlTerminalRow[]> {
+    return this.terminalRowsOf(params.sessionId)
+  }
+
+  async readTerminal(params: {
+    sessionId: string
+    terminalId: string
+  }): Promise<ControlTerminalRow | undefined> {
+    return this.terminals.find(
+      (row) => row.sessionId === params.sessionId && row.terminalId === params.terminalId,
+    )
+  }
+
+  async createTerminal(params: CreateTerminalParams): Promise<ControlTerminalRow | undefined> {
+    const rows = this.terminalRowsOf(params.sessionId)
+    if (rows.filter((row) => row.state !== 'ended').length >= params.limit) return undefined
+    const ordinal = rows.reduce((max, row) => Math.max(max, row.ordinal), 0) + 1
+    const row: ControlTerminalRow = {
+      sessionId: params.sessionId,
+      terminalId: params.terminalId,
+      ordinal,
+      name: `Terminal ${ordinal}`,
+      state: 'opening',
+      exitCode: null,
+      signal: null,
+      endedReason: null,
+      createdAt: this.clock(),
+      endedAt: null,
+    }
+    this.terminals.push(row)
+    return { ...row }
+  }
+
+  async renameTerminal(params: {
+    sessionId: string
+    terminalId: string
+    name: string
+  }): Promise<ControlTerminalRow | undefined> {
+    const row = await this.readTerminal(params)
+    if (row === undefined) return undefined
+    row.name = params.name
+    return { ...row }
+  }
+
+  async markTerminalOpen(params: { sessionId: string; terminalId: string }): Promise<void> {
+    const row = await this.readTerminal(params)
+    if (row === undefined || row.state !== 'opening') return
+    row.state = 'open'
+  }
+
+  async endTerminal(params: EndTerminalParams): Promise<ControlTerminalRow | undefined> {
+    const row = await this.readTerminal(params)
+    if (row === undefined || row.state === 'ended') return undefined
+    row.state = 'ended'
+    row.endedReason = params.reason
+    row.exitCode = params.exitCode ?? null
+    row.signal = params.signal ?? null
+    row.endedAt = this.clock()
+    return { ...row }
+  }
+
+  async endTerminals(params: { sessionId: string; reason: TerminalEndedReason }): Promise<number> {
+    const open = this.terminalRowsOf(params.sessionId).filter((row) => row.state === 'open')
+    for (const row of open) {
+      row.state = 'ended'
+      row.endedReason = params.reason
+      row.endedAt = this.clock()
+    }
+    return open.length
+  }
+
+  async deleteTerminal(params: { sessionId: string; terminalId: string }): Promise<void> {
+    this.terminals = this.terminals.filter(
+      (row) => row.sessionId !== params.sessionId || row.terminalId !== params.terminalId,
+    )
   }
 }

@@ -29,7 +29,7 @@ const CONNECTION_LINE: Record<ESessionConnection, string | null> = {
   [ESessionConnection.Live]: null,
   [ESessionConnection.CatchingUp]: 'Catching up…',
   [ESessionConnection.Reconnecting]: 'Reconnecting…',
-  [ESessionConnection.Offline]: 'Offline — reload to reconnect',
+  [ESessionConnection.Offline]: 'Disconnected',
 }
 
 const ERROR_LINE: Record<EStreamErrorCode, string> = {
@@ -49,6 +49,10 @@ const statusLineOf = (status: Status): string | null => {
   if (status?.state === ESessionStatus.WaitingForCredentials) return 'Waiting for model credentials'
   return null
 }
+
+export const canReconnectOf = (snapshot: Pick<SessionSnapshot, 'connection'>): boolean =>
+  snapshot.connection === ESessionConnection.Reconnecting ||
+  snapshot.connection === ESessionConnection.Offline
 
 export const sessionStateLineOf = (
   snapshot: Pick<SessionSnapshot, 'status' | 'connection' | 'error'>,

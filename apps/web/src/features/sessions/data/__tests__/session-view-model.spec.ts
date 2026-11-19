@@ -156,6 +156,7 @@ describe('sessionViewModelOf', () => {
       crew: { running: 0, total: 0 },
       crewRows: [],
       previews: [],
+      plan: [],
       context: null,
       spend: null,
     })
@@ -199,7 +200,12 @@ describe('sessionViewModelOf', () => {
     }
     const model = sessionViewModelOf(viewOf({ pluginViews: { subscriptions: [row] } }))
     expect(model.subscriptions).toEqual([
-      { number: 31, label: 'owner/atlas#31', url: 'https://github.com/owner/atlas/pull/31' },
+      {
+        id: 's1',
+        number: 31,
+        label: 'owner/atlas#31',
+        url: 'https://github.com/owner/atlas/pull/31',
+      },
     ])
   })
 
@@ -238,6 +244,29 @@ describe('sessionViewModelOf', () => {
     const model = sessionViewModelOf(viewOf({ pluginViews: { services: [live, stopped] } }))
     expect(model.previews).toEqual([
       { serviceId: 'svc1', label: 'web', port: 4321, url: 'https://4321-abc.byatlas.dev' },
+    ])
+  })
+})
+
+describe('the plan on the session view model', () => {
+  const planState = {
+    tasks: [
+      { ordinal: 1, text: 'Read the v2 pane brief', status: 'completed' },
+      { ordinal: 2, text: 'Building the details variants', status: 'in_progress' },
+    ],
+    pending: {},
+  }
+
+  it('is empty without a plan view', () => {
+    expect(sessionViewModelOf(undefined).plan).toEqual([])
+    expect(sessionViewModelOf(viewOf({})).plan).toEqual([])
+  })
+
+  it('reads the tasks of the plan view', () => {
+    const model = sessionViewModelOf(viewOf({ pluginViews: { plan: planState } }))
+    expect(model.plan.map((task) => task.text)).toEqual([
+      'Read the v2 pane brief',
+      'Building the details variants',
     ])
   })
 })

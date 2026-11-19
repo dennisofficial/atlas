@@ -1,177 +1,101 @@
 # Test-suite audit
 
-A dated, append-only audit of the live spec suite, run as a daily routine. Each entry records what
-was measured, what was fixed that day, and what is queued — so the next run starts from the backlog
-instead of re-deriving it. `deprecated/` is frozen prior art and out of scope in every entry.
+A daily routine audits the live spec suite. The backlog and ruled-out list below are rewritten
+each run. Each run then adds one dated entry of at most 10 lines, dated in America/New_York.
+`deprecated/` is out of scope.
 
 ## The standard
 
-A spec earns its place by failing when the behaviour it names breaks. Concretely, a good unit spec:
-1. **Asserts observable behaviour** — a return value, published output, thrown error, persisted
-   record. Not that a collaborator was called in a particular order, not private state.
-2. **Never mocks the unit under test**, and mocks only what cannot be real (a model, a clock, a
-   network). Pure `core` decisions are tested as plain data.
-3. **Cannot pass when the behaviour is broken** — no literal-against-itself assertions, no snapshot
-   nobody reads, no `await` with no assertion, no compile-time-only check dressed as a runtime one.
-4. **Is deterministic** — no real sleeps, no wall-clock races, no dependence on file order or
-   module-level mutable state.
+A spec earns its place by failing when the behaviour it names breaks. A good unit spec:
+1. **Asserts observable behaviour**: a return value, published output, thrown error or persisted
+   record. It does not assert call order or private state.
+2. **Never mocks the unit under test**, and mocks only what cannot be real: a model, a clock or a
+   network.
+3. **Cannot pass when the behaviour is broken**: no literal compared with itself, no unread
+   snapshot, no `await` without an assertion.
+4. **Is deterministic**: no real sleeps, wall-clock races, file-order dependence or module-level
+   mutable state.
 5. **Fails for one reason**, and its name says which behaviour broke.
-6. **Runs fast** — unit specs are milliseconds; anything taking >1s is either integration shaped
-   (say so in the name or the directory) or paying for a fixable cost.
-7. **Sits where its subject lives** — `*.spec.ts(x)` in a sibling `__tests__/`, next to the module.
+6. **Runs fast**: unit specs take milliseconds. A spec over 1s is integration-shaped or pays for a
+   fixable cost.
+7. **Sits where its subject lives**: `*.spec.ts(x)` in a sibling `__tests__/`.
+
+## Backlog
+
+Ordered by value. Each item fits in one sitting.
+1. **`declared-reality.spec.ts` deadlock**
+   (`packages/harness/src/services/__tests__/declared-reality.spec.ts`). Four specs hang in a
+   nested cloud sandbox but pass on CI and on clean main. First find the await that never settles,
+   using a rented runner or a macOS host. Change the specs only after that.
+2. **Awaitable tl;dr footer.** The detached footer write in `TldrTurnRunner`
+   (`loop/tldr-turn-runner.ts:70-76`) has no settle signal. Adding one would let the two absence
+   cases in `turn-wiring.spec.ts` drop their 400 ms waits. This is a production change, so the PR
+   stays open for Dennis.
+3. **Duplicates in `apps/*`.** There are 16 near-identical spec pairs, and the prototype mirror of
+   the web feature specs is the largest group. Merge each pair and keep the copy nearest its
+   source.
+4. **Assertion-free specs.** There are 21 dead or tautological specs in `packages/*`, plus 11 in
+   `apps/*` and `plugins/*`. Each one gets a real assertion or is deleted.
+5. **Composition roots without a spec:** `apps/tui/src/composition/overlay-stack.tsx` and
+   `apps/serve/src/serve-boot-finish.ts`.
+6. **Over-300-line specs** (212 files). Split them as they are touched, starting with
+   `packages/client/src/channel/__tests__/remote-delta-channel.spec.ts` (976 lines).
+7. **Slow tail kept on purpose.** Re-check only if it grows:
+   - `sandbox-client.spec.ts`: 10s, a real `AbortSignal.timeout`.
+   - `plugin-types/drift.spec.ts`: 15s, runs the generator.
+   - `local-process.spec.ts`: 5s, a SIGKILL grace period.
+   - The SSE PR recovery and watchdog specs.
+   - `mirror-upload`: 0.7–2.4s.
+
+## Ruled out — do not re-investigate
+
+- **`apps/api/src/agent/agent-tools/__tests__/*`** are not dead clones. The fork they test is live
+  (`apps/api/src/agent/runtime/tools.ts:18-25`).
+- **`lockstep-stream.spec.ts` and `packages/control/__tests__/memory.spec.ts`** contain no `expect`
+  but are not dead. One throws past a deadline. The other runs the shared conformance suites.
+- **`apps/daemon/src/__tests__/conformance-bundle.spec.ts:14`** has an `it.skip` that guards an
+  unbuilt bundle. It is legitimate.
+- **The 13 `adapter.available ? describe : describe.skip` gates** in
+  `packages/harness/src/shells/__tests__/` are a deliberate platform seam.
+- **There is no vault KDF cost in `packages/harness/src/cloud/__tests__/`.** The slow cluster was
+  retry backoff, fixed on 2026-11-18.
+- **Convention drift:** no `.test.ts(x)` files, no Vitest outside `evals/`, and focused tests are
+  blocked by `noFocusedTests`. Specs outside `__tests__/` are sanctioned by `apps/api/AGENTS.md`.
 
 ## 2026-11-19
 
-Picked backlog items 1–4 from 2026-11-18. Every new or changed spec was mutation-checked: the
-product code was broken on purpose, the spec was seen to fail, and the product file was restored
-byte for byte.
+- **`cloud-user-settings-store.spec.ts`: 2.2s → 0.3s** (former backlog item 3).
+  - The `settled()` helper used to wait out `50 × Bun.sleep(5)`. Now it counts open fetches and
+    returns once none has been open for 3 macrotask turns. It throws if the chain never settles.
+  - The sign-in-change case now awaits the gated PUT arriving.
+  - Six product mutations each made the spec fail:
+    1. Drop `onChange` after a failed write.
+    2. Ignore the token check.
+    3. Never delete dropped keys.
+    4. Forget `lastSeen` mid-refresh.
+    5. Skip `writeRemote`.
+    6. Return local-only keys.
+- **Deleted `apps/tui/.aspect/a.spec.tsx`.** It was a 2025 scratch probe that `bun test` never
+  discovers (dot-directory). It had no assertions and read an image from `$HOME`.
+- **Date fix.** Both earlier entries were dated in UTC. In New York time both ran on 2026-11-18.
 
-### Fixed today
+## 2026-11-18 (second run)
 
-| change                                                                              | why                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| added `packages/harness/src/tools/__tests__/register-tools.spec.ts` (6 tests, 0.6s) | backlog 1. Real containers via `createHarnessContainer()`: tool names unique, the registry offers exactly the registered names, every own field of every resolved tool is defined, `execution_location` is withheld in the cloud, dynamic sources are unioned in. Mutations: registering `AgentListTool` twice and `new AgentSayTool(undefined)` each fail it.                                                                                                                                                                                                                                                                                                                         |
-| added `apps/serve/src/__tests__/compose-serve.spec.ts` (5 tests, ~4s)               | backlog 2, corrected: routing lives in `session-tool-routing.ts` and was already covered by `serve-session-tools.spec.ts`. What `compose-serve.ts` owns is the session's tool set (`compose-serve.ts:145-182`), so the spec asserts two composed sessions each answer `ReadGitChanges` from their own repo, terminal ops, and refusal without a changes port. Mutation: pointing `launchDirectory` at another dir fails it.                                                                                                                                                                                                                                                            |
-| `packages/harness/src/cloud/__tests__/*` — 39.6s → 23.1s                            | backlog 3, hypothesis was wrong: there is no KDF in the vault path (`SecretCipher` memoises a random key file; 100 write+read cycles = 79 ms). The ~2s per test was the transport's real retry backoff — 4 GETs, `min(8000, 500·2^n)·random` (`cloud-retry.ts:63-71`). Fixed through the existing `sleep` seam of `createRetryingFetch` (`api-trpc-client.ts:44`), threaded as an optional dependency through `CloudClient`, `cloudClientFor`, `AccountStoreProxy`, `CloudSettingsStore`, `CloudService`, `PrSubscriptionClient`; specs pass `instantSleep`. A global `setTimeout` patch was rejected: it would also collapse watchdog timers and let specs pass for the wrong reason. |
-| `lockstep-stream.spec.ts` polling → awaited publication                             | backlog 4. `until()` replaced by a listener that resolves when the published text reaches the expected value; per-test ~107 → ~37 ms. Mutation: dropping one `text-delta` fails all 5.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `shell-registry-release.spec.ts` polling → file-change await                        | backlog 4. The cursor write is fire-and-forget (`durable-background.ts:66,74-78`) with no flush that leaves state intact, so the spec awaits `fs.watch` events on the cursor dir instead of 400 × 25 ms reads. Mutation: removing `persist()` fails 2.                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `turn-wiring.spec.ts` presence case → awaited write                                 | backlog 4. Awaits the feed's `finished` callback instead of polling. The two **absence** cases keep a 400 ms bounded wait: without it they no longer catch an unconditional tl;dr wrap (verified both ways), because the footer write is a detached tail after `runTurn` resolves (`loop/tldr-turn-runner.ts:70-76`) with no settle signal.                                                                                                                                                                                                                                                                                                                                            |
-
-### Ruled out — do not re-investigate
-
-- The vault/KDF hypothesis for the cloud cluster (above).
-- `cloud-user-settings-store.spec.ts` six ~260 ms tests: a `Bun.sleep(5)` × 50 queue poll
-  (`:97`), not retry backoff; the `sleep` seam does not reach it. Belongs to backlog item 4's class.
-
-### Backlog
-
-Carried from 2026-11-18, renumbered; items 1–4 of that list are done.
-1. **`declared-reality.spec.ts` deadlock** — unchanged from 2026-11-18 item 5.
-2. **Awaitable tl;dr footer**: give `TldrTurnRunner` a settle signal for its detached write
-   (`loop/tldr-turn-runner.ts:70-76`) so the two absence cases in `turn-wiring.spec.ts` drop their
-   400 ms waits without losing the unconditional-wrap catch.
-3. **Polling: `cloud-user-settings-store.spec.ts:97`** queue poll (6 × ~260 ms).
-4. **Slow tail left on purpose, re-check only if it grows**: `sandbox-client.spec.ts` 10s (real
-   `AbortSignal.timeout`), SSE PR recovery/watchdog specs, `mirror-upload` (0.7–2.4s flush batching).
-5. **Duplicates in `apps/*`** — 2026-11-18 item 6.
-6. **Assertion-free specs** — 2026-11-18 item 7.
-7. **Over-300-line specs** — 2026-11-18 item 8.
-8. **Next composition roots without a spec**: `apps/tui/src/composition/overlay-stack.tsx`,
-   `apps/serve/src/serve-boot-finish.ts` (from the 2026-11-18 missing-tests list).
+- Added `register-tools.spec.ts` (6 tests) and `compose-serve.spec.ts` (5 tests). Each was
+  mutation-checked.
+- `packages/harness/src/cloud/__tests__/*` went from 39.6s to 23.1s. The cost was real retry
+  backoff, not a KDF. The fix threads the existing `sleep` seam of `createRetryingFetch` through
+  the cloud clients.
+- Replaced polling with awaited signals in `lockstep-stream`, `shell-registry-release` and
+  `turn-wiring`. The `turn-wiring` presence case was converted. Its two absence cases keep a
+  400 ms wait.
 
 ## 2026-11-18
 
-Baseline measured today, before any change: **3,695 live spec files, ~233k lines**, `bun test`
-through `bun:test`, incremental cache in CI, nightly full run (`tests-nightly.yml`).
-`packages/core` alone: 336 files / 3,537 tests / 86s. Focused tests (`.only`) are already blocked by
-`noFocusedTests` in `biome.json`, so that class of drift cannot happen.
-
-### Verdict on the four axes
-
-- **Best practice / dead tests.** The suite is in good shape overall: no snapshot testing, only five
-  files use `mock.module`, `core` genuinely tests decisions as data. The dominant weakness is not
-  the dead spec but the **assertion-free spec**: 13 dead + 8 tautological in `packages/*`, 8 dead +
-  3 tautological in `apps/*` + `plugins/*` — tests that a reader counts as coverage and that cannot
-  fail. Second weakness is **duplication that reads as independent coverage** (16 near-identical
-  pairs in `apps/*`).
-- **Slow tests.** Measured table below. The suite is dominated by a handful of genuinely expensive
-  integration-shaped specs (a plugin-type generator comparison, a wedged-connection timeout, a
-  SIGKILL grace period) rather than by thousands of sleepy unit specs. The recurring _fixable_
-  pattern is **polling to observe a value**: `until()`/`footerWithin()`/`persistedRead()` loops with
-  `Bun.sleep` deadlines, used where an awaitable signal exists.
-- **Missing tests.** 3,921 churned modules in 90 days have no covering spec; the long tail is
-  churn-1 UI leaves, so the table below ranks by churn × blast radius instead. The five that matter
-  are composition roots — `apps/serve/src/compose-serve.ts`, `packages/harness/src/tools/register-tools.ts`,
-  `packages/harness/src/composition/turn-wiring.ts`, `apps/tui/src/composition/overlay-stack.tsx`,
-  `apps/serve/src/serve-boot-finish.ts` — where a regression silently deguts a session rather than
-  failing loudly.
-- **Convention drift.** Effectively none: zero `.test.ts(x)`, zero cross-package internal imports,
-  zero Vitest leakage outside `evals/`. 410 specs sit outside `__tests__/` and 409 of those are
-  sanctioned by `apps/api/AGENTS.md`; the single real offender was deleted today. 212 specs exceed
-  the 300-line file rule, largest `packages/client/src/channel/__tests__/remote-delta-channel.spec.ts`
-  (976 lines) — a readability backlog, not a correctness one.
-
-### Measurements
-
-| subject         | files | tests | wall clock                              |
-| --------------- | ----- | ----- | --------------------------------------- |
-| `packages/core` | 336   | 3,537 | 86s idle, 103s with four audits running |
-
-Slowest individual tests measured in `packages/harness`, and what each one is paying for:
-
-| test                                                                             | time     | the cost                                                                                                                                                                                                                                                                                                                                                                           |
-| -------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/plugin-types/__tests__/drift.spec.ts:6` "match what the generator produces" | 15.0s    | runs the plugin-type generator and compares output — the point of the test                                                                                                                                                                                                                                                                                                         |
-| `src/cloud/__tests__/sandbox-client.spec.ts:197` "rejects a wedged connection"   | 10.0s    | waits out a real hung-connection timeout — the point of the test                                                                                                                                                                                                                                                                                                                   |
-| `src/execution/__tests__/local-process.spec.ts:81` SIGKILL after grace           | 5.0s     | a real SIGTERM grace period; a candidate for an injected clock                                                                                                                                                                                                                                                                                                                     |
-| plugin-type fixture typecheck                                                    | 4.8s     | `tsc` over a materialised fixture — the point of the test                                                                                                                                                                                                                                                                                                                          |
-| `src/cloud/__tests__/*` "cloud is answering badly" cluster                       | ~2s each | **not** a fetch timeout: the stub throws synchronously (`account-store-proxy.spec.ts:190-197`), so the time is spent before the call — `signIn`/`seedLocal` writing the encrypted vault per test. Hypothesis to confirm before optimising: a per-test key derivation. If so, cache the derived key rather than lowering the KDF cost, so the tests keep exercising the real vault. |
-
-No test in the sampled run took between 500 ms and 1 s: the distribution is milliseconds or seconds,
-which is what a suite with a clear unit/integration split looks like.
-
-**An environment-dependent deadlock, not slowness.** Four specs in
-`packages/harness/src/services/__tests__/declared-reality.spec.ts` hang past the 5 s default timeout in
-a nested cloud sandbox: "references > fails dependents of a failed dependency" and three under
-"setup" ("runs once per registry lifetime", "runs setup with the session PATH", "blocks the start
-when setup fails"). They are not slow — raising the timeout to 30 s still fails — and they are not new:
-they reproduce identically on clean `main` (`48651233b`). CI on `main` is green (`ci` success,
-2026-11-18T06:03Z), so whatever they await resolves on GitHub's runners and not here. What is
-certain: they cost ~20 s of a local harness run and they hide any real regression in that file.
-Next step, not today's: run that one file on a rented runner or a macOS host and watch which await
-never settles before changing anything.
-
-### Fixed today
-
-| change                                                                                   | why                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| deleted `packages/harness/src/execution/__tests__/serve-priority.spec.ts`                | byte-identical to `packages/sandbox/src/__tests__/serve-priority.spec.ts`, and its subject `packages/harness/src/execution/serve-priority.ts` is only `export * from '@dltech/atlas-sandbox'` — the same four tests ran twice per suite, zero coverage lost                                                                                                                                                                                                                                                                                                       |
-| deleted `apps/tui/src/composition/__tests__/app-cloud-birth-preflight.spec.tsx`          | a whole-suite `describe.skip` whose two `it`s had empty bodies; its own comment says the `/container` lift it guarded is gone, replaced by `born-cloud-preflight`                                                                                                                                                                                                                                                                                                                                                                                                 |
-| fixed `packages/core/src/__tests__/port-registry.spec.ts` "names every entry it carries" | it asserted `new Set(literal).size === literal.length` — a constant against itself — and silently omitted `ThreadReadCursorPort` (`packages/core/src/ports/registry.ts:79`) while claiming to name every entry. Now the literal is `satisfies Record<RegisteredPortName, true>` plus the file's `Expect<Equal<>>` idiom, so a missed or extra port fails `tsc`. Verified by deleting `ThreadReadCursorPort` from the literal and watching typecheck fail (TS1360).                                                                                                |
-| added `packages/harness/src/composition/__tests__/turn-wiring.spec.ts` (9 tests)         | `wireTurn` (`turn-wiring.ts:68`) — the seam every session kind passes through, 47 commits/90d — had no spec. Covers: child-runner deps share the parent's `turn`/`intake`/`activity`/`channel`; `QualityReviewPort` resolves optionally (`turn-wiring.ts:184-186`); spending through the wired ledger is readable back from the container's ledger; the container's hook chain is shared; both tl;dr branches (`turn-wiring.ts:229-234`). Verified non-vacuous by mutation: forcing the tl;dr branch open makes "never asks the tl;dr model without a feed" fail. |
-
-### Ruled out — do not re-investigate
-
-- `apps/api/src/agent/agent-tools/__tests__/*` look like verbatim clones of
-  `packages/harness/src/tools/builtin/__tests__/*` (they differ only in `new GlobTool(files)` vs
-  `new GlobTool()`). They are **not** dead: `apps/api/src/agent/agent-tools` is a live fork wired
-  into production at `apps/api/src/agent/runtime/tools.ts:18-25`, and the differing lines are the
-  fork's `files`/`processes` ports. Delete these only if the fork itself is ever collapsed back into
-  harness; the fork — not the specs — is the real duplication.
-- `packages/harness/src/channel/__tests__/lockstep-stream.spec.ts` has no `expect` but is not dead:
-  its `until()` helper throws `never published: …` past a deadline, so it does fail. It is a
-  slow/flaky candidate (500 ms polling × 41 deltas), not a delete candidate.
-- `apps/daemon/src/__tests__/conformance-bundle.spec.ts:14` `it.skip` is a placeholder for an
-  unbuilt `bin/daemon.js`, which the spec guards with `existsSync`. Legit.
-- The 13 `adapter.available ? describe : describe.skip` gates under
-  `packages/harness/src/shells/__tests__/` are unreachable today (`shellAdapters` is
-  `[localShellAdapter]`, `shell-registry-fixture.ts:91`) but they are a deliberate platform seam,
-  not rot.
-
-### Backlog
-
-Ordered by value; each entry is one sitting.
-1. **`register-tools.ts` — uniqueness + resolution spec**
-   (`packages/harness/src/tools/register-tools.ts`, 287 lines, 47 commits/90d, no spec): every
-   builtin tool name unique across the two container scopes, and each resolves with no undefined
-   port. A duplicate registration currently surfaces only at model-call time.
-2. **`compose-serve.ts` — session tool routing** (`apps/serve/src/compose-serve.ts`, 307 lines,
-   56 commits/90d, no spec): an unroutable session tool request routes to that session's own tool
-   set and not another family's.
-3. **Slow: confirm and fix the ~2s vault-setup cluster** (`packages/harness/src/cloud/__tests__/`).
-   Time `signIn`/`seedLocal` to confirm the per-test key derivation, then cache the derived key per
-   process. Do not lower the KDF work factor — that would stop the tests exercising the real vault.
-4. **Slow: replace polling with awaitable observation.** `until()` in
-   `packages/harness/src/channel/__tests__/lockstep-stream.spec.ts:82`, `persistedRead` in
-   `packages/harness/src/shells/__tests__/shell-registry-release.spec.ts:17` (up to 400 × 25 ms),
-   and `footerWithin` in the new `turn-wiring.spec.ts` (2 × ~430 ms for the absence cases).
-5. **`declared-reality.spec.ts` deadlock** (see Measurements): 4 specs hang in a nested sandbox and
-   pass on CI. Find the await that never settles before touching the specs — the tests are probably
-   right about the behaviour and wrong about the environment.
-6. **Duplicates in `apps/*`**: 16 near-identical pairs, the prototype mirror of the web feature
-   specs is the largest group — merge each pair to one, keeping the copy nearest the source.
-7. **Assertion-free specs**: the 21 dead/tautological specs in `packages/*` and the 11 in
-   `apps/*`/`plugins/*` (anchors in the audit reports of this run) — each is either a real assertion
-   or a deletion.
-8. **Over-300-line specs**: 212 files; split as they are touched, starting with
-   `packages/client/src/channel/__tests__/remote-delta-channel.spec.ts` (976).
+- Baseline: 3,695 spec files, ~233k lines. `packages/core` has 336 files and 3,537 tests and runs
+  in 86s.
+- Deleted the duplicate `harness/execution/serve-priority.spec.ts` and the empty skipped
+  `app-cloud-birth-preflight.spec.tsx`.
+- Fixed the tautological "names every entry" test in `port-registry.spec.ts`. It now uses
+  `satisfies` plus a type equality check.
+- Added `turn-wiring.spec.ts` (9 tests).

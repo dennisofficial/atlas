@@ -22,6 +22,8 @@ export {
   systemTimers,
   type CallTimers,
   type RemoteCallsArgs,
+  type RemoteCloseReason,
+  type EventFrame,
 } from './calls/remote-calls'
 export {
   webSocketConnector,

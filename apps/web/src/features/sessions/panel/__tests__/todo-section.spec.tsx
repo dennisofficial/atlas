@@ -1,0 +1,102 @@
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
+import { EPlanStatus, type PlanTask } from '@dltech/atlas-core'
+import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { act } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import type { Root } from 'react-dom/client'
+
+import { SessionTodoSection } from '../details/todo-section'
+
+const task = (overrides: Partial<PlanTask>): PlanTask => ({
+  ordinal: 1,
+  text: 'Read the v2 pane brief',
+  status: EPlanStatus.Completed,
+  ...overrides,
+})
+
+const tasks: readonly PlanTask[] = [
+  task({ ordinal: 1, text: 'Read the v2 pane brief' }),
+  task({
+    ordinal: 2,
+    text: 'Build the details variants',
+    status: EPlanStatus.InProgress,
+    activeForm: 'Building the details variants',
+  }),
+  task({ ordinal: 3, text: 'Run typecheck and biome', status: EPlanStatus.Pending }),
+]
+
+let root: Root
+let container: HTMLDivElement
+beforeEach(async () => {
+  GlobalRegistrator.register()
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true
+  const { createRoot } = await import('react-dom/client')
+  container = document.createElement('div')
+  document.body.append(container)
+  root = createRoot(container)
+})
+afterEach(async () => {
+  await act(async () => root.unmount())
+  container.remove()
+  await GlobalRegistrator.unregister()
+})
+
+const toggleOf = (): HTMLElement => container.querySelector('button') as HTMLElement
+
+describe('SessionTodoSection', () => {
+  it('renders nothing without a plan', () => {
+    expect(renderToStaticMarkup(<SessionTodoSection tasks={[]} />)).toBe('')
+  })
+
+  it('collapses to the count and the task in progress', () => {
+    const html = renderToStaticMarkup(<SessionTodoSection tasks={tasks} />)
+    expect(html).toContain('1 / 3 tasks')
+    expect(html).toContain('Building the details variants')
+    expect(html).not.toContain('data-pane-row')
+    expect(html).toContain('aria-expanded="false"')
+  })
+
+  it('says every task is done when nothing is in progress', () => {
+    const html = renderToStaticMarkup(
+      <SessionTodoSection tasks={[task({ ordinal: 1, text: 'Read the brief' })]} />,
+    )
+    expect(html).toContain('All tasks done')
+  })
+
+  it('expands to one row per task with its status glyph', async () => {
+    act(() => root.render(<SessionTodoSection tasks={tasks} />))
+    await act(async () => toggleOf().click())
+
+    expect(toggleOf().getAttribute('aria-expanded')).toBe('true')
+    expect(container.querySelectorAll('[data-pane-row]').length).toBe(3)
+    expect(container.querySelector('[aria-label="Done"]')).not.toBeNull()
+    expect(container.querySelector('[aria-label="In progress"]')).not.toBeNull()
+    expect(container.querySelector('[aria-label="Pending"]')).not.toBeNull()
+    expect(container.textContent).toContain('Run typecheck and biome')
+  })
+
+  it('shows every task when expanded, including the completed tail', async () => {
+    const plan = Array.from({ length: 8 }, (_, index) =>
+      task({
+        ordinal: index + 1,
+        text: `task ${index + 1}`,
+        status: index < 4 ? EPlanStatus.Completed : EPlanStatus.Pending,
+      }),
+    )
+    act(() => root.render(<SessionTodoSection tasks={plan} />))
+    await act(async () => toggleOf().click())
+
+    expect(container.querySelectorAll('[data-pane-row]').length).toBe(8)
+    expect(container.textContent).toContain('task 1')
+    expect(container.textContent).toContain('task 8')
+  })
+
+  it('collapses again on a second click', async () => {
+    act(() => root.render(<SessionTodoSection tasks={tasks} />))
+    await act(async () => toggleOf().click())
+    await act(async () => toggleOf().click())
+
+    expect(toggleOf().getAttribute('aria-expanded')).toBe('false')
+    expect(container.querySelectorAll('[data-pane-row]').length).toBe(0)
+  })
+})

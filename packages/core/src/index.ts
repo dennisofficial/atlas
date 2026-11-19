@@ -171,6 +171,7 @@ export * from './tools/dynamic-source'
 export * from './plan/plan'
 export * from './plan/from-events'
 export * from './plan/fold'
+export * from './plan/view'
 
 export * from './prompt/group'
 export * from './prompt/context'

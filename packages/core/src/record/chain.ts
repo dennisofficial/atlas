@@ -10,10 +10,8 @@ export type SuffixVerification =
   | { ok: true; head: LogHead }
   | { ok: false; atSeq: number; reason: 'seq-mismatch' | 'hash-mismatch' }
 
-export const canonicalEvent = (event: V2Event): string => canonicalJson(event)
-
 export const chainHash = (event: V2Event): Hash =>
-  sha256Hex(new TextEncoder().encode(canonicalEvent(event))) as Hash
+  sha256Hex(new TextEncoder().encode(canonicalJson(event))) as Hash
 
 export function verifySuffix(params: {
   trusted: LogHead

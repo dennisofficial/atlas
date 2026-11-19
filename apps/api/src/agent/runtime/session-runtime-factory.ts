@@ -277,11 +277,11 @@ export const createSessionRuntimeFactory = (
       subscribeSetup: prepareController.subscribeSetup,
       stop: async () => {
         keepAlive.stop()
-        calls.close()
+        calls.close('detached')
       },
       release: async () => {
         await keepAlive.release()
-        calls.close()
+        calls.close('detached')
       },
     }
   }

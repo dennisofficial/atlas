@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
 import { toast } from 'sonner'
 
 import type { Attachment } from '@dltech/atlas-core'
@@ -10,26 +10,34 @@ import {
 } from '@dltech/atlas-client/stream'
 
 import { mergeWithdrawnIntoDraft, type StagedMessage } from './queued-messages'
+import { settleMessages, stageMessage, stagedOf, subscribeStaged } from './staged-store'
 
 export type StagedDraft = StagedMessage & { attachments: readonly Attachment[] }
 
 export function useStagedMessages(args: {
+  sessionId: string
   events: SessionSnapshot['events']
   working: boolean
   draft: string
   onDraftChange: (draft: string) => void
 }) {
-  const { events, working, draft, onDraftChange } = args
-  const [staged, setStaged] = useState<readonly StagedMessage[]>([])
+  const { sessionId, events, working, draft, onDraftChange } = args
+  const subscribe = useCallback(
+    (listener: () => void) => subscribeStaged({ sessionId, listener }),
+    [sessionId],
+  )
+  const getSnapshot = useCallback(() => stagedOf(sessionId), [sessionId])
+  const staged = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
   const handled = useRef<ReadonlySet<string>>(new Set())
   const draftRef = useRef(draft)
   draftRef.current = draft
   const changeRef = useRef(onDraftChange)
   changeRef.current = onDraftChange
 
-  const stage = useCallback((message: StagedDraft) => {
-    setStaged((current) => [...current, message])
-  }, [])
+  const stage = useCallback(
+    (message: StagedDraft) => stageMessage({ sessionId, message }),
+    [sessionId],
+  )
 
   const outcomes = useMemo(
     () => stagedOutcomesOf({ events, clientIds: staged.map((entry) => entry.clientId) }),
@@ -55,10 +63,11 @@ export function useStagedMessages(args: {
       changeRef.current(mergeWithdrawnIntoDraft({ withdrawn: entry.text, draft: draftRef.current }))
       if (outcome.reason !== undefined) toast.error(outcome.reason)
     }
-    setStaged((current) =>
-      current.filter((entry) => !settled.some((settledOne) => settledOne.entry === entry)),
-    )
-  }, [outcomes, staged])
+    settleMessages({
+      sessionId,
+      clientIds: new Set(settled.map(({ entry }) => entry.clientId)),
+    })
+  }, [outcomes, sessionId, staged])
 
   const placement = useMemo(
     () => stagedPlacementOf({ staged, events, working }),

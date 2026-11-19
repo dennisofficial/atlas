@@ -27,6 +27,7 @@ namespace v2 {
     branches        V2SessionBranch[]
     pullRequests    V2SessionPullRequest[]
     worktreeChanges V2WorktreeChanges[]
+    terminals       V2Terminal[]
 
     @@index([userId, createdAt])
   }

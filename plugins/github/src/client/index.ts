@@ -31,6 +31,7 @@ export const subscriptionsOfView = (
   }) ?? []
 
 export type SubscribedPullRequest = {
+  id: string
   number: number
   label: string
   url: string
@@ -45,6 +46,7 @@ export const subscribedPullRequestsOf = (
     if (target === null) return []
     return [
       {
+        id: row.id,
         number: target.number,
         label: labelOf(target),
         url: `https://${target.repo}/pull/${target.number}`,

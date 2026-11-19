@@ -16,6 +16,7 @@ import { operatorControl } from '@dltech/atlas-plugin-operator/control'
 import { operatorCoreSlots } from '@dltech/atlas-plugin-operator/core'
 import { servicesClient } from '@dltech/atlas-plugin-services/client'
 import { servicesCoreSlots } from '@dltech/atlas-plugin-services/core'
+import { sessionsCoreSlots } from '@dltech/atlas-plugin-sessions/core'
 import { shellsClient, shellsCoreSlots } from '@dltech/atlas-plugin-shells/client'
 import { skillsClient } from '@dltech/atlas-plugin-skills/client'
 import { skillsCoreSlots } from '@dltech/atlas-plugin-skills/core'
@@ -68,6 +69,14 @@ const registeredPlugins: readonly Plugin[] = [
     control: EMPTY_CONTROL,
     client: servicesClient,
     transport: 'stream',
+  }),
+  definePlugin({
+    name: 'sessions',
+    ...sessionsCoreSlots,
+    pod: EMPTY_POD,
+    control: EMPTY_CONTROL,
+    client: { hooks: [] },
+    transport: 'none',
   }),
   definePlugin({
     name: 'skills',

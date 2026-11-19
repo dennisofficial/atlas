@@ -280,6 +280,10 @@
       "model": "V2SessionView",
       "namespace": "v2"
     },
+    "V2Terminal": {
+      "model": "V2Terminal",
+      "namespace": "v2"
+    },
     "V2Thread": {
       "model": "V2Thread",
       "namespace": "v2"
@@ -311,6 +315,23 @@
               {
                 "name": "PullRequest",
                 "value": "pull-request"
+              }
+            ]
+          },
+          "ETerminalState": {
+            "codecId": "pg/text@1",
+            "members": [
+              {
+                "name": "Opening",
+                "value": "opening"
+              },
+              {
+                "name": "Open",
+                "value": "open"
+              },
+              {
+                "name": "Ended",
+                "value": "ended"
               }
             ]
           },
@@ -9917,6 +9938,21 @@
                   "namespace": "v2"
                 }
               },
+              "terminals": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "sessionId"
+                  ]
+                },
+                "to": {
+                  "model": "V2Terminal",
+                  "namespace": "v2"
+                }
+              },
               "threads": {
                 "cardinality": "1:N",
                 "on": {
@@ -10256,6 +10292,146 @@
               },
               "namespaceId": "v2",
               "table": "V2SessionView"
+            }
+          },
+          "V2Terminal": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "endedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "endedReason": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "exitCode": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "name": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "ordinal": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "sessionId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "signal": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "state": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                },
+                "valueSet": {
+                  "entityKind": "enum",
+                  "entityName": "ETerminalState",
+                  "namespaceId": "public",
+                  "plane": "domain"
+                }
+              },
+              "terminalId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "session": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "sessionId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "V2Session",
+                  "namespace": "v2"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "endedAt": {
+                  "column": "endedAt"
+                },
+                "endedReason": {
+                  "column": "endedReason"
+                },
+                "exitCode": {
+                  "column": "exitCode"
+                },
+                "name": {
+                  "column": "name"
+                },
+                "ordinal": {
+                  "column": "ordinal"
+                },
+                "sessionId": {
+                  "column": "sessionId"
+                },
+                "signal": {
+                  "column": "signal"
+                },
+                "state": {
+                  "column": "state"
+                },
+                "terminalId": {
+                  "column": "terminalId"
+                }
+              },
+              "namespaceId": "v2",
+              "table": "V2Terminal"
             }
           },
           "V2Thread": {
@@ -17105,6 +17281,14 @@
                 "pull-request"
               ]
             },
+            "ETerminalState": {
+              "kind": "valueSet",
+              "values": [
+                "opening",
+                "open",
+                "ended"
+              ]
+            },
             "McpServerSource": {
               "kind": "valueSet",
               "values": [
@@ -18159,6 +18343,126 @@
               },
               "uniques": []
             },
+            "V2Terminal": {
+              "checks": [
+                {
+                  "expression": "\"state\" IN ('opening', 'open', 'ended')",
+                  "name": "V2Terminal_state_check_5a2da7a7",
+                  "prefix": "V2Terminal_state_check"
+                }
+              ],
+              "columns": {
+                "createdAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "endedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "endedReason": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "exitCode": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": true
+                },
+                "name": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "ordinal": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": false
+                },
+                "sessionId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "signal": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "state": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "ETerminalState",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "terminalId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "name": "V2Terminal_sessionId_idx_29f415d4"
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "sessionId"
+                    ],
+                    "namespaceId": "v2",
+                    "tableName": "V2Terminal"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "v2",
+                    "tableName": "V2Session"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "sessionId"
+                  ],
+                  "name": "V2Terminal_sessionId_idx_29f415d4",
+                  "prefix": "V2Terminal_sessionId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "sessionId",
+                  "terminalId"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "sessionId",
+                    "ordinal"
+                  ]
+                }
+              ]
+            },
             "V2Thread": {
               "columns": {
                 "createdAt": {
@@ -18424,7 +18728,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "fcd0e8a3d02428ea66ea8ed6d1f8be1c1e8803014b295892f5940eef1429c933"
+    "storageHash": "dfcc7c0b326bdd3a18c3406fcad8c05ea65a610165757e8832bd973b236fdf92"
   },
   "execution": {
     "executionHash": "4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45",

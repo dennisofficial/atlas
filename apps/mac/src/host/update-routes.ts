@@ -8,9 +8,9 @@ export enum EDesktopUpdateState {
 
 export interface IDesktopUpdateStatus {
   state: EDesktopUpdateState
-  version?: string
-  error?: string
-  web?: IWebPayloadStatus
+  version?: string | undefined
+  error?: string | undefined
+  web?: IWebPayloadStatus | undefined
 }
 
 export interface IDesktopUpdatesPort {

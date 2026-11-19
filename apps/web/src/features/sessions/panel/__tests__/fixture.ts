@@ -1,4 +1,4 @@
-import { EAgentStatus, ESessionStatus, type SpendTally } from '@dltech/atlas-core'
+import { EAgentStatus, ESessionStatus, type PlanTask, type SpendTally } from '@dltech/atlas-core'
 import type { CrewRow } from '@dltech/atlas-plugin-crew/client'
 import type { SubscribedPullRequest } from '@dltech/atlas-plugin-github/client'
 import type { PreviewItem } from '@dltech/atlas-plugin-services/client'
@@ -40,9 +40,10 @@ export const pullRequestFixture: PullRequestEntry = {
 }
 
 export const subscriptionFixture: SubscribedPullRequest = {
-  number: 31,
-  label: 'owner/atlas#31',
-  url: 'https://github.com/owner/atlas/pull/31',
+  id: 'sub_7',
+  number: 7,
+  label: 'owner/atlas#7',
+  url: 'https://github.com/owner/atlas/pull/7',
 }
 
 export const previewFixture: PreviewItem = {
@@ -71,6 +72,7 @@ export const viewModelFixture = (overrides: Partial<SessionViewModel> = {}): Ses
   crew: { running: 0, total: 0 },
   crewRows: [],
   previews: [],
+  plan: [],
   context: null,
   spend: null,
   ...overrides,
@@ -82,6 +84,8 @@ export const checkoutsFixture = (
 
 export const paneValueFixture = (overrides: Partial<SessionPaneValue> = {}): SessionPaneValue => ({
   sessionId: 'ses-1',
+  title: 'Rebase ui on shadcn base-nova',
+  startedAt: '2026-11-18T10:00:00.000Z',
   view: viewModelFixture(),
   viewLoaded: true,
   checkouts: checkoutsFixture(),
@@ -126,3 +130,10 @@ export const populatedPaneValue = (): SessionPaneValue =>
     }),
     shellTails: { sh1: 'tick 1' },
   })
+
+export const planTaskFixture = (overrides: Partial<PlanTask> = {}): PlanTask => ({
+  ordinal: 1,
+  text: 'Read the v2 pane brief',
+  status: 'completed' as PlanTask['status'],
+  ...overrides,
+})

@@ -26,11 +26,13 @@ export type SessionPaneWiring = {
 
 export function useSessionPaneWiring(args: {
   sessionId: string
+  title: string | undefined
+  startedAt: string | undefined
   model: SessionViewModel
   snapshot: PaneSnapshot
   openTab: (tab: ESessionPaneTab) => void
 }): SessionPaneWiring {
-  const { sessionId, model, snapshot, openTab } = args
+  const { sessionId, title, startedAt, model, snapshot, openTab } = args
   const { view: viewOutput, status, shells } = snapshot
   const shellTails = useMemo(() => shellTailTextOf(shells), [shells])
   const ports = useMemo(() => previewPortsOf(model.previews), [model.previews])
@@ -45,6 +47,8 @@ export function useSessionPaneWiring(args: {
   const paneValue = useMemo<SessionPaneValue>(
     () => ({
       sessionId,
+      title,
+      startedAt,
       view: model,
       viewLoaded: viewOutput !== undefined,
       checkouts: viewOutput?.checkouts ?? NO_CHECKOUTS,
@@ -53,7 +57,7 @@ export function useSessionPaneWiring(args: {
       openTab,
       openBrowser,
     }),
-    [sessionId, model, viewOutput, status, shellTails, openTab, openBrowser],
+    [sessionId, title, startedAt, model, viewOutput, status, shellTails, openTab, openBrowser],
   )
   return { paneValue, ports, shellTails, openBrowser, openBrowserTab }
 }

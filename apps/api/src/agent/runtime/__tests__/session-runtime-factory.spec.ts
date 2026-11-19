@@ -245,7 +245,7 @@ describe('createSessionRuntimeFactory', () => {
     await runtime.stop()
   })
 
-  it('release pushes the pod deadline and never stops it, stop does neither', async () => {
+  it('release pushes the pod deadline, never stops it, and tells a stream detached', async () => {
     const sandbox = new FakeSandbox(true)
     const factory = makeFactory({
       api: apiOf(configured()),
@@ -260,13 +260,19 @@ describe('createSessionRuntimeFactory', () => {
       signal: new AbortController().signal,
     }
     const stopped = await factory(args)
+    const stopReasons: string[] = []
+    stopped.remoteCalls.onClose((reason) => stopReasons.push(reason))
     await stopped.stop()
     expect(sandbox.stopped).toEqual([])
     expect(sandbox.keptAlive).toEqual(['s-4'])
+    expect(stopReasons).toEqual(['detached'])
     const released = await factory(args)
+    const releaseReasons: string[] = []
+    released.remoteCalls.onClose((reason) => releaseReasons.push(reason))
     await released.release()
     expect(sandbox.stopped).toEqual([])
     expect(sandbox.keptAlive).toEqual(['s-4', 's-4', 's-4'])
+    expect(releaseReasons).toEqual(['detached'])
   })
 
   it('builds the anthropic model without the override', async () => {

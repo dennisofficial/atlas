@@ -70,6 +70,32 @@ describe('SessionHolder settle', () => {
     expect(await advanceUntil(rig, async () => (await answers(rig)) === 2)).toBe(true)
   }, 20_000)
 
+  it('leaves the session’s open terminals open when it releases the lease', async () => {
+    const rig = await makeRig({ sweepMs: SWEEP_MS })
+    await seedSession(rig)
+    await rig.plane.createTerminal({ sessionId: SESSION, terminalId: 'term-1', limit: 8 })
+    await rig.plane.markTerminalOpen({ sessionId: SESSION, terminalId: 'term-1' })
+
+    await rig.holder.start()
+    await rig.post('hello')
+    await rig.wake()
+    expect(await advanceUntil(rig, async () => (await answers(rig)) === 1)).toBe(true)
+    expect(await advanceUntil(rig, async () => (await leaseOf(rig)).holderHostId === null)).toBe(
+      true,
+    )
+    await rig.flush()
+    expect(await rig.plane.listTerminals({ sessionId: SESSION })).toMatchObject([
+      { terminalId: 'term-1', state: 'open', endedReason: null },
+    ])
+
+    await rig.post('again')
+    await rig.wake()
+    expect(await advanceUntil(rig, async () => (await answers(rig)) === 2)).toBe(true)
+    expect(await rig.plane.listTerminals({ sessionId: SESSION })).toMatchObject([
+      { terminalId: 'term-1', state: 'open', endedReason: null },
+    ])
+  }, 20_000)
+
   it('a fenced holder settles at the epoch it holds and leaves the successor lease alone', async () => {
     const log = new CollectingLog()
     let shells = 1

@@ -11,7 +11,7 @@ import { initialStatusFacts, stepStatusFacts, type StatusFacts } from './status-
 import type { PluginViewFold } from './plugin-view'
 import type { SessionStatus } from './status-types'
 
-export const SESSION_VIEW_VERSION = 7
+export const SESSION_VIEW_VERSION = 8
 
 export type SessionViewState = {
   version: number
@@ -64,6 +64,19 @@ export const foldPluginViews = (args: {
   for (const view of args.views) {
     const current = Object.hasOwn(bag, view.name) ? bag[view.name] : view.initial
     bag = { ...bag, [view.name]: view.fold(current, args.event) }
+  }
+  return bag
+}
+
+export const refoldRewindable = (args: {
+  bag: Readonly<Record<string, unknown>>
+  views: readonly PluginViewFold[]
+  surviving: readonly V2Event[]
+}): Readonly<Record<string, unknown>> => {
+  let bag = args.bag
+  for (const view of args.views) {
+    if (view.rewindable !== true) continue
+    bag = { ...bag, [view.name]: args.surviving.reduce(view.fold, view.initial) }
   }
   return bag
 }

@@ -10,7 +10,8 @@
     "bundle:payload": "bun scripts/bundle-payload.ts",
     "pack:host": "bun scripts/pack-host.ts",
     "test": "bun run bundle:payload && bun test",
-    "dist:mac": "bun run bundle:payload && bun run pack:host && electron-builder --mac dmg --arm64"
+    "dist:mac": "bun run bundle:payload && bun run pack:host && electron-builder --mac dmg --arm64",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@dltech/atlas-api-router": "workspace:*",
@@ -22,6 +23,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/bun": "latest",
     "electron": "45.2.3",
     "electron-builder": "26.18.0"
   },

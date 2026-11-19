@@ -25,7 +25,7 @@ export interface ICreateDesktopHostOptions {
   apiOrigin?: string
   pods?: IPodHostConfig
   auth?: Omit<IAuthConfig, 'home'> & { home?: string }
-  updates?: IDesktopUpdatesPort
+  updates?: IDesktopUpdatesPort | undefined
   window?: IDesktopWindowPort
   app?: IDesktopAppInfo
   previewViews?: { clear: () => void }
@@ -70,7 +70,7 @@ export function createDesktopHost({
       read: () => authService.deviceId(),
       write: (value) => authService.saveDeviceId(value),
     }),
-    appVersion: app?.version ?? '0.0.0',
+    appVersion: () => app?.version ?? '0.0.0',
     ...(macMcp === undefined ? {} : { sink: macMcp }),
   })
   const syncLink = (): void => {

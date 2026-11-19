@@ -19,6 +19,20 @@ import type {
   SessionListParams,
   SessionModelRow,
 } from './session-rows'
+import type {
+  ControlTerminalRow,
+  CreateTerminalParams,
+  EndTerminalParams,
+  TerminalEndedReason,
+} from './terminal-rows'
+
+export type {
+  ControlTerminalRow,
+  CreateTerminalParams,
+  EndTerminalParams,
+  TerminalEndedReason,
+  TerminalState,
+} from './terminal-rows'
 
 export type {
   ControlDigestPullRequest,
@@ -328,6 +342,21 @@ export interface ControlTx {
 
 export abstract class ControlStorePort {
   abstract transact<T>(work: (tx: ControlTx) => Promise<T>): Promise<T>
+  abstract listTerminals(params: { sessionId: string }): Promise<ControlTerminalRow[]>
+  abstract readTerminal(params: {
+    sessionId: string
+    terminalId: string
+  }): Promise<ControlTerminalRow | undefined>
+  abstract createTerminal(params: CreateTerminalParams): Promise<ControlTerminalRow | undefined>
+  abstract renameTerminal(params: {
+    sessionId: string
+    terminalId: string
+    name: string
+  }): Promise<ControlTerminalRow | undefined>
+  abstract markTerminalOpen(params: { sessionId: string; terminalId: string }): Promise<void>
+  abstract endTerminal(params: EndTerminalParams): Promise<ControlTerminalRow | undefined>
+  abstract endTerminals(params: { sessionId: string; reason: TerminalEndedReason }): Promise<number>
+  abstract deleteTerminal(params: { sessionId: string; terminalId: string }): Promise<void>
   abstract listDueRoutines(params: ListDueRoutinesParams): Promise<RoutineRow[]>
   abstract listRoutines(params: ListRoutinesParams): Promise<RoutineRow[]>
   abstract readRoutineForUser(params: ReadRoutineForUserParams): Promise<RoutineRow | undefined>

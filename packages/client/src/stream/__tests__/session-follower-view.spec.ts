@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'bun:test'
-import { ESessionStatus, type LogHead, type SpendTally } from '@dltech/atlas-core'
+import {
+  ESessionStatus,
+  type LogHead,
+  type PluginViewFold,
+  type SpendTally,
+} from '@dltech/atlas-core'
 import {
   EStreamResetReason,
   type SessionStatusOutput,
@@ -30,6 +35,7 @@ const sessionView = (params: {
   state?: ESessionStatus
   live?: boolean
   pullRequestState?: string
+  pluginViews?: Readonly<Record<string, unknown>>
 }): StreamServerMessage => ({
   type: 'view',
   id: 's1',
@@ -60,16 +66,17 @@ const sessionView = (params: {
               },
       },
     ],
-    pluginViews: {},
+    pluginViews: params.pluginViews ?? {},
   },
 })
 
-const setup = () =>
+const setup = (views?: readonly PluginViewFold[]) =>
   createSessionFollower({
     sessionId: 'session-1',
     log: memorySessionLog(),
     scheduler: createFakeScheduler().scheduler,
     onResnap: () => undefined,
+    ...(views === undefined ? {} : { views }),
   })
 
 const seed = (follower: ReturnType<typeof setup>): LogHead => {
@@ -153,5 +160,45 @@ describe('the session follower frame facts', () => {
     })
     expect(follower.getSnapshot().view).toBeUndefined()
     expect(follower.getSnapshot().status).toBeUndefined()
+  })
+})
+
+describe('the session follower plugin views', () => {
+  const planState = { tasks: [{ ordinal: 1, text: 'read', status: 'pending' }], pending: {} }
+
+  const plan: PluginViewFold<Readonly<Record<string, unknown>>> = {
+    name: 'plan',
+    initial: {},
+    fold: (state) => state,
+    rewindable: true,
+  }
+
+  const shells: PluginViewFold<readonly string[]> = {
+    name: 'shells',
+    initial: [],
+    fold: (state) => state,
+  }
+
+  it('adopts a rewindable view from the control plane', () => {
+    const follower = setup([plan])
+    seed(follower)
+    follower.handleMessage(sessionView({ at: 2, pluginViews: { plan: planState } }))
+    expect(follower.getSnapshot().view?.pluginViews.plan).toEqual(planState)
+  })
+
+  it('keeps folding a view the control plane does not own', () => {
+    const follower = setup([shells])
+    seed(follower)
+    follower.handleMessage(sessionView({ at: 2, pluginViews: { shells: ['from-the-server'] } }))
+    expect(follower.getSnapshot().view?.pluginViews.shells).toEqual([])
+  })
+
+  it('leaves the bag alone when the frame repeats what it already holds', () => {
+    const follower = setup([plan])
+    seed(follower)
+    follower.handleMessage(sessionView({ at: 2, pluginViews: { plan: planState } }))
+    const held = follower.getSnapshot().view?.pluginViews
+    follower.handleMessage(sessionView({ at: 2, pluginViews: { plan: planState } }))
+    expect(follower.getSnapshot().view?.pluginViews).toBe(held)
   })
 })

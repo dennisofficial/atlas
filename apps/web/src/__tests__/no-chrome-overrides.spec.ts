@@ -103,13 +103,6 @@ const ALLOWED: AllowedOverride[] = [
       'the mobile session pane sheet hosts the pane tabs edge to edge on the card surface, as the v1 thread panel sheet does (#1484)',
   })),
   {
-    file: 'features/sessions/panel/details/github-section.tsx',
-    component: 'TableCell',
-    token: 'pt-2',
-    reason:
-      'the checkout label row needs extra top inset to separate it from the previous checkout, which the shared py-1 body cell does not give (#1704)',
-  },
-  {
     file: 'features/shell/shell-teammate-folder.tsx',
     component: 'SidebarMenuSub',
     token: 'gap-0.5',
