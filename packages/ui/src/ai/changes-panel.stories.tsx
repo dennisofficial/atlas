@@ -48,6 +48,18 @@ export const TreeFolderCollapsed: Story = {
   args: { layout: 'tree', collapsedFolders: ['packages/ui/src'] },
 }
 
+export const TreeHostDiffExpanded: Story = {
+  args: {
+    layout: 'tree',
+    defaultExpanded: ['packages/ui/src/ai/task-dock.tsx'],
+    renderDiff: (file) => (
+      <p className="rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground">
+        {file.path} is diffed by the host app.
+      </p>
+    ),
+  },
+}
+
 export const NoChanges: Story = { args: { files: [] } }
 
 export const ActionsHidden: Story = { args: { hideActions: true } }
