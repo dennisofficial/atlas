@@ -5,12 +5,18 @@ import { Agent37Error, liveAgent37Client } from '../agent37-client'
 type Answer = { status: number; body: unknown }
 
 const fakeFetch = (answers: Answer[]) => {
-  const calls: Array<{ url: string; method: string; headers: Record<string, string> }> = []
+  const calls: Array<{
+    url: string
+    method: string
+    headers: Record<string, string>
+    body: unknown
+  }> = []
   const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
     calls.push({
       url: String(input),
       method: init?.method ?? 'GET',
       headers: (init?.headers ?? {}) as Record<string, string>,
+      body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
     })
     const answer = answers.shift() ?? { status: 200, body: {} }
     return new Response(JSON.stringify(answer.body), { status: answer.status })
@@ -61,6 +67,19 @@ describe('liveAgent37Client', () => {
     expect(failure).toBeInstanceOf(Agent37Error)
     expect((failure as Agent37Error).code).toBe('not_found')
     expect((failure as Agent37Error).retryable).toBe(false)
+  })
+
+  it('resizes on the API host, sending only the dimensions it was given', async () => {
+    const { fetchImpl, calls } = fakeFetch([
+      { status: 200, body: { ...instance, resources: { cpu: 4, memory: 8, disk: 20 } } },
+    ])
+    const client = liveAgent37Client({ apiKey: 'sk_live_5', fetch: fetchImpl })
+    const resized = await client.resize({ id: 'ab12', cpu: 4, memory: 8 })
+    expect(calls[0]?.url).toBe('https://api.agent37.com/v1/instances/ab12/resize')
+    expect(calls[0]?.method).toBe('POST')
+    expect(calls[0]?.headers.Authorization).toBe('Bearer sk_live_5')
+    expect(calls[0]?.body).toEqual({ cpu: 4, memory: 8 })
+    expect(resized.resources).toEqual({ cpu: 4, memory: 8, disk: 20 })
   })
 
   it('retries a 409 try_again once and returns the answer that follows', async () => {

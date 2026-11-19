@@ -62,6 +62,8 @@ describe('sessions subscription', () => {
       createdAt: AT,
       updatedAt: AT,
       archivedAt: null,
+      lastAssistantSeq: 0,
+      readSeq: null,
       spawnedBy: null,
       routineId: null,
       model: { ref: 'anthropic/claude-haiku-4-5', effort: 'medium', fast: false },

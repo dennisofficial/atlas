@@ -67,6 +67,8 @@ class SlowWakeSandbox extends SandboxProvider {
   }
 
   async keepAlive(): Promise<void> {}
+
+  async resize(): Promise<void> {}
 }
 
 const releaseOf = async (args: {

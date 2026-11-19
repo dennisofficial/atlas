@@ -21,6 +21,8 @@ import { SessionsRouter } from './sessions.router'
 import { TerminalRouter } from './terminal.router'
 import { TerminalService } from './terminal.service'
 import { SessionsService } from './sessions.service'
+import { PodSizingService } from './pod-sizing.service'
+import { SandboxesModule } from '../sandboxes/sandboxes.module'
 
 export const controlPlaneProvider: Provider = {
   provide: ControlPlane,
@@ -34,6 +36,7 @@ export const controlPlaneProvider: Provider = {
 }
 
 @Module({
+  imports: [SandboxesModule],
   providers: [
     controlPlaneProvider,
     { provide: ProjectAccess, useClass: DbProjectAccess },
@@ -43,6 +46,7 @@ export const controlPlaneProvider: Provider = {
     changeContentStoreProvider,
     { provide: COMMAND_REGISTRY, useFactory: nativeCommandRegistry },
     SessionsService,
+    PodSizingService,
     SessionsRouter,
     FilesService,
     FilesRouter,

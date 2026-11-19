@@ -26,6 +26,10 @@ import { memoryClient } from '@dltech/atlas-plugin-memory/client'
 import { memoryControl } from '@dltech/atlas-plugin-memory/control'
 import { memoryCoreSlots } from '@dltech/atlas-plugin-memory/core'
 import { memoryPod } from '@dltech/atlas-plugin-memory/pod'
+import { routinesClient } from '@dltech/atlas-plugin-routines/client'
+import { routinesControl } from '@dltech/atlas-plugin-routines/control'
+import { routinesCoreSlots } from '@dltech/atlas-plugin-routines/core'
+import { routinesPod } from '@dltech/atlas-plugin-routines/pod'
 import { servicesClient } from '@dltech/atlas-plugin-services/client'
 import { servicesControl } from '@dltech/atlas-plugin-services/control'
 import { servicesCoreSlots } from '@dltech/atlas-plugin-services/core'
@@ -85,6 +89,14 @@ export const registeredPlugins: readonly Plugin[] = [
     pod: crewPod,
     control: crewControl,
     client: crewClient,
+    transport: 'none',
+  }),
+  definePlugin({
+    name: 'routines',
+    ...routinesCoreSlots,
+    pod: routinesPod,
+    control: routinesControl,
+    client: routinesClient,
     transport: 'none',
   }),
   definePlugin({

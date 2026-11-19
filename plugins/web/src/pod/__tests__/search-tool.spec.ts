@@ -5,6 +5,7 @@ import {
   type PluginPodContext,
   type WebSearchConfig,
   EMPTY_MCP_CONTROL,
+  EMPTY_ROUTINES,
 } from '@dltech/atlas-plugin-sdk'
 
 import { keylessBackend, resolveBackend } from '../search'
@@ -21,6 +22,7 @@ const ctxWith = (config: WebSearchConfig): PluginPodContext => {
       memory: {} as never,
       mcp: EMPTY_MCP_CONTROL,
       webSearch: { config: async () => config },
+      routines: EMPTY_ROUTINES,
     },
     crew: {} as never,
     sessions: {} as never,

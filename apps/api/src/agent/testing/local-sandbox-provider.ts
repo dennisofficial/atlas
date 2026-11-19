@@ -59,6 +59,8 @@ export class LocalSandboxProvider extends SandboxProvider {
 
   async keepAlive(_args: { target: SandboxTarget; until: number }): Promise<void> {}
 
+  async resize(_args: { target: SandboxTarget; vcpus: number }): Promise<void> {}
+
   async stopAll(): Promise<void> {
     for (const sandboxSessionId of [...this.running.keys()]) {
       await this.stop({ target: { sandboxSessionId, credentials: localCredentials } })

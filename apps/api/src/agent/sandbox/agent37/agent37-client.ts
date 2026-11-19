@@ -19,6 +19,7 @@ export type Agent37Instance = {
   url: string
   name?: string | undefined
   metadata?: Record<string, string> | undefined
+  resources?: Agent37Resources | undefined
 }
 
 export type Agent37Resources = { cpu: number; memory: number; disk: number }
@@ -34,6 +35,13 @@ export type Agent37CreateArgs = {
   auto_sleep: boolean
   idle_timeout_seconds: number
   env: Record<string, string>
+}
+
+export type Agent37ResizeArgs = {
+  id: string
+  cpu?: number | undefined
+  memory?: number | undefined
+  disk?: number | undefined
 }
 
 export type Agent37ExecResult = {
@@ -61,6 +69,7 @@ export type Agent37Client = {
   list(args?: { cursor?: string }): Promise<{ data: Agent37Instance[]; next?: string }>
   remove(args: { id: string }): Promise<void>
   sleep(args: { id: string }): Promise<void>
+  resize(args: Agent37ResizeArgs): Promise<Agent37Instance>
   exec(args: Agent37ExecArgs): Promise<Agent37ExecResult | Agent37Pid>
   probe(args: {
     id: string
@@ -171,6 +180,20 @@ export const liveAgent37Client = (args: {
     sleep: async ({ id }) => {
       await call({ url: api(`/v1/instances/${id}/sleep`), method: 'POST', headers: bearer })
     },
+    // https://www.agent37.com/docs/agents-api/instances/resize — a host move can run past the
+    // request and answer 202 while the instance is still `updating`, so this waits like create.
+    resize: ({ id, cpu, memory, disk }) =>
+      call({
+        url: api(`/v1/instances/${id}/resize`),
+        method: 'POST',
+        headers: bearer,
+        body: {
+          ...(cpu === undefined ? {} : { cpu }),
+          ...(memory === undefined ? {} : { memory }),
+          ...(disk === undefined ? {} : { disk }),
+        },
+        timeoutMs: 15 * 60_000,
+      }) as Promise<Agent37Instance>,
     exec: (body) =>
       call({
         url: exec(`/v1/instances/${body.id}/exec`),

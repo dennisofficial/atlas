@@ -52,6 +52,7 @@ const digestViewIn = async (args: {
             url: pullRequest.url,
             state: pullRequest.state.state,
             checks: pullRequest.state.checks,
+            mergeable: pullRequest.state.mergeable,
           },
   }
 }

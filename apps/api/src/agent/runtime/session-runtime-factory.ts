@@ -101,6 +101,7 @@ export const createSessionRuntimeFactory = (
       epoch,
       provider,
       target,
+      ...(config.sandbox.vcpus === undefined ? {} : { vcpus: config.sandbox.vcpus }),
       daemonSecret: args.daemonSecret,
       timers: args.timers,
       signal,

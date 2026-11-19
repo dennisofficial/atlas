@@ -21,7 +21,8 @@ import { createTestRenderer } from '@opentui/core/testing'
 import { createRoot, useKeyboard, useRenderer } from '@opentui/react'
 import React, { useEffect, useRef, useState } from 'react'
 
-import { EDetail } from '@dltech/atlas-client/transcript'
+import { ECallState, EDetail, type ToolCall } from '@dltech/atlas-client/transcript'
+import { toCallId } from '@dltech/atlas-core'
 import { NOT_EXPANDABLE } from '../src/ui/components/blocks/more-toggle'
 import { ToolDetail } from '../src/ui/components/blocks/tool-detail'
 import { mixHex } from '../src/ui/colour'
@@ -235,16 +236,20 @@ const VARIANTS: readonly Variant[] = [
 
 // --- backdrop: six settled diffs behind the line, the shape measured earlier ---
 
-const EDIT_CALL = {
-  callId: 'call-2',
+const EDIT_CALL: ToolCall = {
+  callId: toCallId('call-2'),
   name: 'edit',
   input: { path: '/tmp/a.ts', oldString: 'a', newString: 'b' },
   output: {
     path: '/tmp/a.ts',
     diff: '--- a/a.ts\n+++ b/a.ts\n@@ -1,3 +1,3 @@\n const x = 1\n-const y = a\n+const y = b\n const z = 3\n',
   },
-  settled: true,
-  failed: false,
+  modelText: '',
+  state: ECallState.Ok,
+  note: null,
+  at: null,
+  settledAt: null,
+  attachments: [],
 }
 
 const PANELS = 6
@@ -253,11 +258,10 @@ function Backdrop(props: { panels: number }): React.ReactNode {
   return (
     <scrollbox flexGrow={1}>
       {Array.from({ length: props.panels }, (_u, i) => (
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         <ToolDetail
           key={i}
           detail={EDetail.Diff}
-          call={EDIT_CALL as any}
+          call={EDIT_CALL}
           inner={80}
           cwd="/tmp"
           expand={NOT_EXPANDABLE}

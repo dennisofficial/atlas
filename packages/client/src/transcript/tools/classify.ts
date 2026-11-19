@@ -7,11 +7,12 @@
  */
 
 import { ECallState, type ToolCall } from '../tool-runs'
-import { awaitingApproval, denied, failed } from './call-state'
+import { awaitingApproval, denied } from './call-state'
 import { agentCall } from './agents'
 import { readShell } from './bash'
 import { imageRead } from './images'
 import { changed, pending } from './classify-change'
+import { mcpToolOf, serverLabelOf, toolLabelOf } from './mcp'
 import { memoryCall } from './memory'
 import { EDetail, EGather, EToolClass, type Classification } from './kinds'
 import {
@@ -142,16 +143,43 @@ function gatheredByName(args: { call: ToolCall; cwd: string }): Classification |
 
 export function classify(args: { call: ToolCall; cwd: string }): Classification {
   const { call } = args
+  const mcp = mcpOf(call.name)
+
   if (call.state === ECallState.Denied) return denied(args)
   if (call.state === ECallState.AwaitingApproval) return awaitingApproval(args)
-  if (call.state === ECallState.Pending) return pending(args)
-  if (call.state === ECallState.Failed && call.note !== null) return failed(args)
+  if (call.state === ECallState.Pending) return marked(pending(args), mcp)
+
+  const settled = settledCall(args)
+  if (call.state !== ECallState.Failed || call.note === null) return marked(settled, mcp)
+
+  /**
+   * A call the tool itself refused to complete reads as the call it WAS, crossed out in red — not
+   * as a second sentence about the failure. There is no output to open onto, so the only thing the
+   * panel can show is the sentence the model was handed.
+   */
+  return marked({ ...settled, failed: true, note: 'failed', detail: EDetail.Reason }, mcp)
+}
+
+/** The server and tool an MCP call belongs to, in the words a row shows them. */
+function mcpOf(name: string): Classification['mcp'] {
+  const tool = mcpToolOf(name)
+  if (tool === null) return undefined
+  return { server: serverLabelOf(tool.server), tool: toolLabelOf(tool.tool) }
+}
+
+const marked = (classification: Classification, mcp: Classification['mcp']): Classification =>
+  mcp === undefined ? classification : { ...classification, line: `${mcp.server} ${mcp.tool}`, mcp }
+
+/** A call that settled — every state but denied, awaiting approval and still running. */
+function settledCall(args: { call: ToolCall; cwd: string }): Classification {
+  const { call } = args
 
   if (call.name.includes(MCP_SEPARATOR)) {
+    const mcp = mcpOf(call.name)
     return {
       klass: EToolClass.External,
       gather: null,
-      line: `Called ${call.name.split(MCP_SEPARATOR).at(-1) ?? call.name}`,
+      line: mcp === undefined ? `Called ${call.name}` : `${mcp.server} ${mcp.tool}`,
       failed: call.state !== ECallState.Ok,
       note: call.state === ECallState.Ok ? 'done' : 'failed',
       metric: null,

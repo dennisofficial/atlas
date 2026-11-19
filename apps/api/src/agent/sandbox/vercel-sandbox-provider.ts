@@ -45,13 +45,22 @@ export class VercelSandboxProvider extends SandboxProvider {
     return this.args.sdk ?? liveSdk
   }
 
-  async wake(args: { target: SandboxTarget; signal: AbortSignal }): Promise<DaemonEndpoint> {
+  async wake(args: {
+    target: SandboxTarget
+    signal: AbortSignal
+    vcpus?: number | undefined
+  }): Promise<DaemonEndpoint> {
     const credentials = vercelCredentialsOf(args.target)
     const signal = AbortSignal.any([
       AbortSignal.timeout(this.args.wakeDeadlineMs ?? WAKE_DEADLINE_MS),
       args.signal,
     ])
-    const waking = this.wakeWithin({ target: args.target, credentials, signal })
+    const waking = this.wakeWithin({
+      target: args.target,
+      credentials,
+      signal,
+      ...(args.vcpus === undefined ? {} : { vcpus: args.vcpus }),
+    })
     waking.catch(() => undefined)
     return Promise.race([waking, abortedWake({ signal, caller: args.signal })])
   }
@@ -60,6 +69,7 @@ export class VercelSandboxProvider extends SandboxProvider {
     target: SandboxTarget
     credentials: VercelCredentials
     signal: AbortSignal
+    vcpus?: number | undefined
   }): Promise<DaemonEndpoint> {
     const sandboxSessionId = args.target.sandboxSessionId
     const sandboxName = sandboxNameOf(sandboxSessionId)
@@ -75,6 +85,7 @@ export class VercelSandboxProvider extends SandboxProvider {
       image: this.args.image,
       threadId: sandboxSessionId,
       token: randomUUID(),
+      ...(args.vcpus === undefined ? {} : { vcpus: args.vcpus }),
       environment: { ATLAS_SANDBOX_NAME: sandboxName },
       onCreate: () => Promise.resolve(),
       signal: args.signal,
@@ -126,5 +137,21 @@ export class VercelSandboxProvider extends SandboxProvider {
       sessionId: args.target.sandboxSessionId,
       until: args.until,
     })
+  }
+
+  async resize(args: { target: SandboxTarget; vcpus: number }): Promise<void> {
+    const credentials = vercelCredentialsOf(args.target)
+    const sandbox = await this.sdk.get({
+      ...credentials,
+      name: sandboxNameOf(args.target.sandboxSessionId),
+      resume: false,
+      signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
+    })
+    await sandbox.update(
+      { resources: { vcpus: args.vcpus } },
+      { signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) },
+    )
+    if (sandbox.status === 'stopped') return
+    await sandbox.stop({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
   }
 }

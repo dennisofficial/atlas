@@ -66,7 +66,7 @@ export interface QueuedMessageAttachmentsProps {
 export function QueuedMessageAttachments({ attachments, onRemove }: QueuedMessageAttachmentsProps) {
   if (attachments.length === 0) return null
   return (
-    <AttachmentGroup className="flex-wrap">
+    <AttachmentGroup className="shrink-0 flex-wrap">
       {attachments.map((attachment) =>
         attachment.kind === EQueuedAttachmentKind.Image && attachment.previewUrl ? (
           <ImageChip key={attachment.id} attachment={attachment} onRemove={onRemove} />

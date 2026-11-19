@@ -24,7 +24,7 @@ import { ThreadSignalsService } from '../../platform/sessions/thread-signals.ser
 import { dispatchFailure, PodLaunchService } from './pod-launch.service'
 import { standingStateOf } from '../../platform/sandboxes/pod-state'
 import { SANDBOX_BUSY_MESSAGE } from './sandbox-provisioning-rows'
-import { PodResourcesCache } from './pod-resources-cache'
+import { PodResourcesCache } from '../../platform/sandboxes/pod-resources-cache'
 import { assertWithinPlanCap, PLAN_CAP_STALE_MS } from '../user-vercel/plan-cap'
 import { VercelPlanService } from '../user-vercel/vercel-credential-plan'
 

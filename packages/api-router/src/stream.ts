@@ -1,4 +1,8 @@
-import { streamServerMessageSchema, type StreamServerMessage } from '@dltech/atlas-protocol'
+import {
+  streamServerMessageSchema,
+  type EStreamSurface,
+  type StreamServerMessage,
+} from '@dltech/atlas-protocol'
 
 import { httpStatusOf, type ApiClient } from './client'
 
@@ -75,6 +79,7 @@ const openSubscription = (args: {
 
 export const sessionStreamTransport = (args: {
   client: ApiClient
+  surface?: EStreamSurface | undefined
   handleUnauthorized?: (() => void) | undefined
 }): SessionStreamTransport => {
   const { follow, list } = args.client.sessionStream
@@ -83,7 +88,11 @@ export const sessionStreamTransport = (args: {
       openSubscription({
         handlers,
         handleUnauthorized: args.handleUnauthorized,
-        run: (observer) => follow.subscribe(input, observer),
+        run: (observer) =>
+          follow.subscribe(
+            args.surface === undefined ? input : { ...input, surface: args.surface },
+            observer,
+          ),
       }),
     list: (handlers) =>
       openSubscription({

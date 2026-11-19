@@ -35,6 +35,7 @@ import { useComposerDraft } from './data/use-composer-draft'
 import { useModelPicker } from './data/use-model-picker'
 import { isRetryOf, messageOf } from './data/use-send'
 import { ModelPickerControls } from './model-picker'
+import { NewThreadHero } from './new-thread-hero'
 import { ProjectSelect } from './project-select'
 import { ThreadComposer } from './thread-composer'
 
@@ -69,7 +70,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
   const [creating, setCreating] = useState(false)
   const desktop = useDesktop()
   const [runner, setRunner] = useState(ERunnerChoice.Cloud)
-  const [engine, setEngine] = useState(EEngine.V1)
+  const [engine, setEngine] = useState(EEngine.V2)
   const [provider, setProvider] = useState(ESandboxProvider.Vercel)
   const attempt = useRef<{
     text: string
@@ -81,6 +82,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
   const local =
     desktop.present && desktop.docker && runner === ERunnerChoice.ThisMac && projectId !== null
   const onThisMac = desktop.present && runner === ERunnerChoice.ThisMac
+  const projectName = projects.find((project) => project.id === projectId)?.name ?? null
   const v2 = engine === EEngine.V2 && !onThisMac
 
   const clearDraft = useCallback(() => setDraft(''), [])
@@ -170,34 +172,37 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
   }
 
   return (
-    <ThreadComposer
-      value={draft}
-      onValueChange={setDraft}
-      onSubmit={handleSubmit}
-      sending={creating || (v2 ? session.uploading : images.uploading)}
-      {...(v2 ? session.composerProps : images.composerProps)}
-      sendsAttachmentsAlone={v2}
-      commandSpecs={commands.specs}
-      placeholder="Describe a task for Atlas…"
-    >
-      <RunnerToggle desktop={desktop} value={runner} onValueChange={setRunner} />
-      {onThisMac ? null : <EngineToggle value={engine} onValueChange={setEngine} />}
-      {v2 ? <ProviderToggle value={provider} onValueChange={setProvider} /> : null}
-      <ModelPickerControls
-        picker={picker}
-        selection={selection}
-        onSelectionChange={setChosen}
-        open={commands.modelOpen}
-        onOpenChange={commands.setModelOpen}
-      />
-      <div className="ml-auto flex min-w-0">
-        <ProjectSelect
-          projects={projects}
-          projectId={projectId}
-          onProjectChange={handleProjectChange}
+    <>
+      <NewThreadHero projectName={projectName} />
+      <ThreadComposer
+        value={draft}
+        onValueChange={setDraft}
+        onSubmit={handleSubmit}
+        sending={creating || (v2 ? session.uploading : images.uploading)}
+        {...(v2 ? session.composerProps : images.composerProps)}
+        sendsAttachmentsAlone={v2}
+        commandSpecs={commands.specs}
+        placeholder="Describe a task for Atlas…"
+      >
+        <RunnerToggle desktop={desktop} value={runner} onValueChange={setRunner} />
+        {onThisMac ? null : <EngineToggle value={engine} onValueChange={setEngine} />}
+        {v2 ? <ProviderToggle value={provider} onValueChange={setProvider} /> : null}
+        <ModelPickerControls
+          picker={picker}
+          selection={selection}
+          onSelectionChange={setChosen}
+          open={commands.modelOpen}
+          onOpenChange={commands.setModelOpen}
         />
-      </div>
-    </ThreadComposer>
+        <div className="ml-auto flex min-w-0">
+          <ProjectSelect
+            projects={projects}
+            projectId={projectId}
+            onProjectChange={handleProjectChange}
+          />
+        </div>
+      </ThreadComposer>
+    </>
   )
 }
 
@@ -205,11 +210,17 @@ export function NewThreadView() {
   const query = useCloudQuery({ key: PROJECTS_KEY, load: fetchProjects })
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
-      <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col justify-center gap-5 px-4 py-16">
-        <h1 className="text-center text-xl font-medium tracking-tight">
-          What should Atlas work on?
-        </h1>
-        <QueryGate query={query} label="projects" skeleton={<NewThreadSkeleton />}>
+      <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col justify-center gap-6 px-4 py-16">
+        <QueryGate
+          query={query}
+          label="projects"
+          skeleton={
+            <>
+              <NewThreadHero projectName={null} />
+              <NewThreadSkeleton />
+            </>
+          }
+        >
           {(projects) => (
             <Suspense>
               <Welcome projects={projects} />

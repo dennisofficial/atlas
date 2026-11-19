@@ -34,6 +34,8 @@ export type SessionListParams = {
 
 export type SessionDigestRow = ControlSessionRow & {
   lastEventAt: string | null
+  lastAssistantSeq: number
+  readSeq: number | null
   firstMessageText: string | null
   firstMessageAt: string | null
 }
@@ -46,6 +48,7 @@ export type ControlDigestPullRequest = {
   url: string
   state: string | null
   checks: PrChecks | null
+  mergeable: boolean | null
 }
 
 export type ControlDigestView = {

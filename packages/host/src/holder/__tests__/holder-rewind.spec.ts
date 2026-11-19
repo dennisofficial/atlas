@@ -69,6 +69,60 @@ describe('SessionHolder rewind command', () => {
     expect(visibleTexts).toEqual(['first'])
   })
 
+  it('drops a rewind a later rewind to the same message overtook, without refusing', async () => {
+    const rig = await rigWithConversation()
+    const said = (await eventsOf(rig)).filter((event) => event.type === 'user-said')
+    const target = said[1]
+    if (target === undefined) throw new Error('no second message')
+    const payload = JSON.stringify({ toSeq: target.seq })
+    const superseded = await rig.plane.post({ sessionId: SESSION, kind: 'command:rewind', payload })
+    const kept = await rig.plane.post({ sessionId: SESSION, kind: 'command:rewind', payload })
+    await rig.wake()
+    expect(
+      await flushUntil({ check: async () => (await typesOf(rig)).includes('history-rewound') }),
+    ).toBe(true)
+    const events = await eventsOf(rig)
+    expect(events.filter((event) => event.type === 'history-rewound')).toHaveLength(1)
+    expect(events.some((event) => event.type === 'input-refused')).toBe(false)
+    expect(events.find((event) => event.type === 'history-rewound')).toMatchObject({
+      inboxId: kept.inboxId,
+    })
+    const discarded = events.filter(
+      (event): event is Extract<V2Event, { type: 'input-consumed' }> =>
+        event.type === 'input-consumed' && event.consumed === EInputConsumed.Discarded,
+    )
+    expect(discarded.map((event) => event.inboxId)).toContain(superseded.inboxId)
+  })
+
+  it('drops a rewind whose target was already rewound to, without refusing', async () => {
+    const rig = await rigWithConversation()
+    const said = (await eventsOf(rig)).filter((event) => event.type === 'user-said')
+    const target = said[1]
+    if (target === undefined) throw new Error('no second message')
+    const payload = JSON.stringify({ toSeq: target.seq })
+    await postRewind(rig, payload)
+    expect(
+      await flushUntil({ check: async () => (await typesOf(rig)).includes('history-rewound') }),
+    ).toBe(true)
+    const again = await postRewind(rig, payload)
+    expect(
+      await flushUntil({
+        check: async () =>
+          (await eventsOf(rig)).some((event) => {
+            const consumed = (event as { consumed?: string }).consumed
+            return (
+              event.type === 'input-consumed' &&
+              consumed === EInputConsumed.Discarded &&
+              (event as { inboxId: number }).inboxId === again.inboxId
+            )
+          }),
+      }),
+    ).toBe(true)
+    const events = await eventsOf(rig)
+    expect(events.filter((event) => event.type === 'history-rewound')).toHaveLength(1)
+    expect(events.some((event) => event.type === 'input-refused')).toBe(false)
+  })
+
   it('refuses a sequence that is not a user message', async () => {
     const rig = await rigWithConversation()
     const reply = (await eventsOf(rig)).find((event) => event.type === 'assistant-said')

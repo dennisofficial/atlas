@@ -35,7 +35,12 @@ export type VercelConfig =
 export type SkillScope = 'user' | 'project'
 
 export type SandboxConfig =
-  | { configured: true; provider: ESandboxProvider; credentials: SandboxCredentials }
+  | {
+      configured: true
+      provider: ESandboxProvider
+      credentials: SandboxCredentials
+      vcpus?: number | undefined
+    }
   | { configured: false; provider: ESandboxProvider; gap: string }
 
 export type SkillIndexEntry = { name: string; description: string; scope: SkillScope }

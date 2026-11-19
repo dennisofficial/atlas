@@ -118,6 +118,7 @@ export const SidebarRows = {
                 url: 'https://github.com/owner/atlas/pull/128',
                 state: 'open',
                 checks: { running: 2, passed: 5, failed: 0 },
+                mergeable: false,
               },
             }),
             summary({

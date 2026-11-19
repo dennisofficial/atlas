@@ -3,6 +3,7 @@ import {
   EHeldAction,
   EHeldOutcome,
   type HeldOutcome,
+  type InboxEntry,
   type Lease,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -37,6 +38,12 @@ import { TakeOver } from './held-takeover'
 import { quarantineOutcome } from './start-failure-record'
 import { HeldEnding } from './held-ending'
 
+const IDLE_COMMAND_ACTIONS: readonly EHeldAction[] = [
+  EHeldAction.StartTurn,
+  EHeldAction.Wait,
+  EHeldAction.Release,
+]
+
 export type { HeldSessionDeps }
 
 export class HeldSession {
@@ -67,6 +74,7 @@ export class HeldSession {
   private settleFence = true
   private takeOver: TakeOver | undefined
   private logStaged: (() => Promise<void>) | undefined
+  private runCommands: ((entries: readonly InboxEntry[]) => Promise<boolean>) | undefined
 
   constructor(deps: HeldSessionDeps) {
     this.deps = deps
@@ -208,19 +216,21 @@ export class HeldSession {
       onLeaseLost: (error) => this.ending.lose(lostOutcome(error)),
     })
     this.crew = crew
-    const { runner, branches, branchesStarted, recoverCommands, logStaged } = wireHeldLoop({
-      deps,
-      runtime,
-      record,
-      turns: this.turns,
-      threadId,
-      signal: this.lifetimeAbort.signal,
-      epoch: lease.epoch,
-      crew: crew.port(),
-      isDraining: () => this.draining,
-    })
+    const { runner, branches, branchesStarted, recoverCommands, runCommands, logStaged } =
+      wireHeldLoop({
+        deps,
+        runtime,
+        record,
+        turns: this.turns,
+        threadId,
+        signal: this.lifetimeAbort.signal,
+        epoch: lease.epoch,
+        crew: crew.port(),
+        isDraining: () => this.draining,
+      })
     this.branches = branches
     this.logStaged = logStaged
+    this.runCommands = runCommands
     this.changes = this.changesOf({ runtime, record })
     this.changes?.start()
     await settleAndCheckResume({ deps, runtime, record, threadId, crew })
@@ -294,6 +304,13 @@ export class HeldSession {
     if (shellsRunning) this.noteActivity()
     if (action === EHeldAction.AbortTurn) return this.turns.abort(OPERATOR_STOP_REASON)
     if (action !== EHeldAction.StartTurn) await this.logStaged?.()
+    // A command is not a prompt: run it now rather than start a turn that only waits for it.
+    if (!turnRunning && IDLE_COMMAND_ACTIONS.includes(action)) {
+      if ((await this.runCommands?.(entries)) === true) {
+        this.reconciler?.request()
+        return
+      }
+    }
     switch (action) {
       case EHeldAction.ConsumeStop: {
         await settleOperatorOnStop({ deps, record: this.record, runtime: this.runtime })

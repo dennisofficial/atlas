@@ -52,6 +52,7 @@
     "@dltech/atlas-plugin-mcp": "workspace:*",
     "@dltech/atlas-plugin-memory": "workspace:*",
     "@dltech/atlas-plugin-operator": "workspace:*",
+    "@dltech/atlas-plugin-routines": "workspace:*",
     "@dltech/atlas-plugin-sdk": "workspace:*",
     "@dltech/atlas-plugin-services": "workspace:*",
     "@dltech/atlas-plugin-sessions": "workspace:*",

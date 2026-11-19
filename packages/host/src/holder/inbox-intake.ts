@@ -48,6 +48,7 @@ import {
   type Drainable,
 } from './staged-log'
 import { resolveWithdraws as applyWithdraws, type WithdrawLookup } from './withdraw-plan'
+import { supersededRewindIdsOf } from './rewind-dedupe'
 
 export { INBOX_KIND_STOP }
 
@@ -105,14 +106,48 @@ export class InboxIntake implements AgentIntake {
     return await this.serial(() => this.drain())
   }
 
+  /** Runs commands the holder already knows are safe to run outside a turn, without a model step. */
+  async runCommands(entries: readonly InboxEntry[]): Promise<boolean> {
+    if (this.commandIntake === undefined) return false
+    return await this.serial(async () => {
+      const glue = this.commandGlue()
+      const superseded = supersededRewindIdsOf({
+        entries,
+        events: this.args.record.eventCache().eventsAfter(0),
+      })
+      let ran = false
+      for (const entry of entries) {
+        if (!isCommandKind(entry.kind)) continue
+        if (superseded.has(entry.inboxId)) {
+          await consumeQuietly({ ...glue, entry })
+          ran = true
+          continue
+        }
+        const resolved = this.commandIntake?.resolve(entry)
+        if (resolved === undefined) continue
+        await this.commandIntake?.run({ entry, ...resolved })
+        ran = true
+      }
+      return ran
+    })
+  }
+
   private async drain(): Promise<PendingDrain> {
     const entries = await this.fetch()
     const resolved = await this.resolveWithdraws(entries)
+    const superseded = supersededRewindIdsOf({
+      entries,
+      events: this.args.record.eventCache().eventsAfter(0),
+    })
     const glue = this.commandGlue()
     const drainable: { entry: InboxEntry; message: InputMessage }[] = []
     let wakesTurn = false
     for (const entry of entries) {
       if (resolved.has(entry.inboxId)) continue
+      if (superseded.has(entry.inboxId)) {
+        await consumeQuietly({ ...glue, entry })
+        continue
+      }
       if (entry.kind === INBOX_KIND_OPERATOR_ANSWER) {
         const answered = await this.answerOperator(entry)
         if (answered.wakesTurn) wakesTurn = true

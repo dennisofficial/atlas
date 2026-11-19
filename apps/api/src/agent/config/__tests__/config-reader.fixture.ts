@@ -87,7 +87,7 @@ export const seedThread = async (db: Db, over: Record<string, unknown> = {}): Pr
 export const seedSetting = async (args: {
   db: Db
   scope: 'user' | 'project'
-  value: string | boolean
+  value: string | number | boolean
   key?: string
 }): Promise<void> => {
   const key = args.key ?? 'model.id'

@@ -5,6 +5,7 @@ import { QueuedMessages, type QueuedMessagesProps } from './queued-messages'
 import {
   FILE_ONLY,
   LONG_QUEUED,
+  LONG_WITH_IMAGES,
   MANY_QUEUED,
   TWO_QUEUED,
   WITH_IMAGES,
@@ -45,6 +46,8 @@ export const Many: Story = { args: { messages: MANY_QUEUED } }
 export const Long: Story = { args: { messages: [...TWO_QUEUED, ...LONG_QUEUED] } }
 
 export const WithImages: Story = { args: { messages: WITH_IMAGES } }
+
+export const LongWithImages: Story = { args: { messages: LONG_WITH_IMAGES } }
 
 export const FileOnly: Story = { args: { messages: FILE_ONLY } }
 

@@ -16,6 +16,11 @@ export const fetchV2Sessions = async () =>
 export const archiveV2Session = (args: { sessionId: string; archived: boolean }) =>
   cloudCall(api.sessions.archive.mutate(args))
 
+export const markV2SessionRead = async (args: { sessionId: string; seq: number }) => {
+  const { readSeq } = await cloudCall(api.sessions.markRead.mutate(args))
+  return { readSeq }
+}
+
 export const fetchSessionPage = (input: SessionPageInput) =>
   cloudCall(api.sessions.page.query(input))
 

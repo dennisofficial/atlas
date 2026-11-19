@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
+import { ESessionStatus as ECoreSessionStatus } from '@dltech/atlas-core'
 import type { WireThread } from '@dltech/atlas-wire/web'
 
 import {
@@ -75,6 +76,27 @@ describe('partitionSessions', () => {
       threads: [threadOf({ id: 'loose', projectId: null })],
     })
     expect(loose.groups.at(-1)).toMatchObject({ name: NO_PROJECT_NAME, projectId: null })
+  })
+
+  it('marks a v2 row unread until its read cursor reaches the last assistant seq', () => {
+    const partition = partitionSessions({
+      projects,
+      now: NOW,
+      threads: [],
+      sessions: [
+        summaryOf({ sessionId: 'unread', lastAssistantSeq: 6, readSeq: 5 }),
+        summaryOf({ sessionId: 'read', lastAssistantSeq: 6, readSeq: 6 }),
+        summaryOf({
+          sessionId: 'working',
+          lastAssistantSeq: 6,
+          status: { state: ECoreSessionStatus.Thinking },
+        }),
+      ],
+    })
+    const entries = partition.groups.flatMap((group) => group.sessions)
+    expect(entries.find((entry) => entry.id === 'unread')?.unread).toBe(true)
+    expect(entries.find((entry) => entry.id === 'read')?.unread).toBe(false)
+    expect(entries.find((entry) => entry.id === 'working')?.unread).toBe(false)
   })
 
   it('files a v2 session with no project under the No project group', () => {

@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'af6290442a7b8be9d49345d9f58eeed65ae2b185b86d669ed88710c02c9c7a50'>;
+  StorageHashBase<'e52acf6e77c1b474cb70a8d424a55b015963913c0b2ca41242fbcf832a7e8b3c'>;
 export type ExecutionHash =
   ExecutionHashBase<'4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45'>;
 export type ProfileHash =
@@ -1331,6 +1331,7 @@ export namespace Models {
     podRetiredAt: FieldOutputTypes['v2']['V2Session']['podRetiredAt'];
     podSessionId: FieldOutputTypes['v2']['V2Session']['podSessionId'];
     projectId: FieldOutputTypes['v2']['V2Session']['projectId'];
+    readSeq: FieldOutputTypes['v2']['V2Session']['readSeq'];
     routineId: FieldOutputTypes['v2']['V2Session']['routineId'];
     sandboxInstanceId: FieldOutputTypes['v2']['V2Session']['sandboxInstanceId'];
     sandboxProvider: FieldOutputTypes['v2']['V2Session']['sandboxProvider'];
@@ -7713,6 +7714,12 @@ type ContractBase = Omit<
                 readonly projectId: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly readSeq: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
                   readonly nullable: true;
                   readonly many: false;
                 };
@@ -14488,6 +14495,10 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly readSeq: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
               readonly routineId: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -14634,6 +14645,7 @@ type ContractBase = Omit<
                 readonly podRetiredAt: { readonly column: 'podRetiredAt' };
                 readonly podSessionId: { readonly column: 'podSessionId' };
                 readonly projectId: { readonly column: 'projectId' };
+                readonly readSeq: { readonly column: 'readSeq' };
                 readonly routineId: { readonly column: 'routineId' };
                 readonly sandboxInstanceId: { readonly column: 'sandboxInstanceId' };
                 readonly sandboxProvider: { readonly column: 'sandboxProvider' };

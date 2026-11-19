@@ -19,6 +19,7 @@ const v2Directories = [
     'mcp',
     'memory',
     'operator',
+    'routines',
     'services',
     'sessions',
     'shells',
@@ -45,14 +46,6 @@ export const EXCEPTIONS: Readonly<Record<string, string>> = {
     'artifacts are the v2 control plane’s, unpublished over its API, so a pod has no tool',
   execution_location:
     'a v2 pod never moves execution location; the control plane decides where a session runs',
-  routine_create:
-    'routines are the v2 control plane’s, scheduled over its API, so a pod has no tool',
-  routine_delete:
-    'routines are the v2 control plane’s, scheduled over its API, so a pod has no tool',
-  routine_list: 'routines are the v2 control plane’s, listed over its API, so a pod has no tool',
-  routine_run: 'routines are the v2 control plane’s, run over its API, so a pod has no tool',
-  routine_update:
-    'routines are the v2 control plane’s, scheduled over its API, so a pod has no tool',
   subscription_list: 'v2 ships the same capability under the github plugin’s list_subscriptions',
 }
 

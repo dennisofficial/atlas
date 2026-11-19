@@ -55,6 +55,7 @@ export const setupNaming = () => {
     mediaStore,
     composeCommands([]),
     new EnvService({ SANDBOX_PROVIDER_DEFAULT: 'vercel' }),
+    { resourcesOf: async () => null, resizeHandler: () => async () => undefined },
   )
   return { plane, service, titler, background, registry, mediaStore }
 }

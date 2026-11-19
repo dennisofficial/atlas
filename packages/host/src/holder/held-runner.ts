@@ -1,4 +1,4 @@
-import { EToolEffect, isResumableOf, type ThreadId } from '@dltech/atlas-core'
+import { EToolEffect, isResumableOf, type InboxEntry, type ThreadId } from '@dltech/atlas-core'
 import {
   HookedToolDispatcher,
   LoopTurnRunner,
@@ -218,6 +218,7 @@ export const wireHeldLoop = (args: {
   branches: BranchObserver
   branchesStarted: Promise<void>
   recoverCommands(): Promise<void>
+  runCommands(entries: readonly InboxEntry[]): Promise<boolean>
   logStaged(): Promise<void>
 } => {
   const { runner, intake } = createLoopRunner(args)
@@ -229,6 +230,7 @@ export const wireHeldLoop = (args: {
     branches,
     branchesStarted,
     recoverCommands: () => intake.recoverUnfinished(),
+    runCommands: (entries) => intake.runCommands(entries),
     logStaged: () =>
       intake.logStaged({ willDrain: () => !args.turns.turnRunning && prepared(), prepared }),
   }

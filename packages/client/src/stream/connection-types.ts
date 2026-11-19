@@ -2,6 +2,8 @@ export const BACKOFF_BASE_MS = 500
 
 export const BACKOFF_CAP_MS = 15_000
 
+export const STABLE_AFTER_MS = 10_000
+
 export enum EStreamConnectionState {
   Connecting = 'connecting',
   Open = 'open',
@@ -16,6 +18,7 @@ export enum EStreamClosedReason {
 
 export enum EConnectionTimer {
   Reconnect = 'reconnect',
+  Stable = 'stable',
 }
 
 export type ConnectionState = {

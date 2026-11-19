@@ -1,4 +1,5 @@
 import { sessionStreamTransport, type ApiClient } from '@dltech/atlas-api-router'
+import { EStreamSurface } from '@dltech/atlas-protocol'
 import {
   createStreamConnection,
   systemStreamScheduler,
@@ -18,7 +19,7 @@ export const sessionStream = (client: ApiClient): StreamConnection => {
   }
   held?.connection.close()
   const connection = createStreamConnection({
-    transport: sessionStreamTransport({ client }),
+    transport: sessionStreamTransport({ client, surface: EStreamSurface.Ios }),
     scheduler: systemStreamScheduler,
     networkSignal: () => () => {},
     eventSchema: v2EventSchema,

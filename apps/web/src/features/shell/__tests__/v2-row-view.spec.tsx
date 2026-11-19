@@ -62,10 +62,12 @@ describe('v2 sidebar row', () => {
         url: 'https://github.com/owner/atlas/pull/9',
         state: 'open',
         checks: { running: 1, passed: 2, failed: 0 },
+        mergeable: false,
       },
     })
     expect(html).toContain('#9')
     expect(html).toContain('1 running, 2 passed, 0 failed')
+    expect(html).toContain('aria-label="Merge conflicts"')
     const unknown = render({
       pullRequest: {
         repo: 'owner/atlas',
@@ -73,10 +75,22 @@ describe('v2 sidebar row', () => {
         url: 'https://github.com/owner/atlas/pull/9',
         state: null,
         checks: null,
+        mergeable: null,
       },
     })
     expect(unknown).toContain('Checks unknown')
     expect(unknown).toContain('state unknown')
+  })
+
+  it('shows the unread dot until the row is read to the last assistant seq', () => {
+    const idle = { state: ESessionStatus.Idle }
+    expect(render({ lastAssistantSeq: 7, status: idle })).toContain('aria-label="Unread"')
+    expect(render({ lastAssistantSeq: 7, readSeq: 7, status: idle })).not.toContain(
+      'aria-label="Unread"',
+    )
+    expect(
+      render({ lastAssistantSeq: 7, status: { state: ESessionStatus.Thinking } }),
+    ).not.toContain('aria-label="Unread"')
   })
 
   it('tags the row of a session a routine produced, and only that row', () => {

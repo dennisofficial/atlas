@@ -30,6 +30,7 @@ import { sessionRefusalsOf } from './data/session-refusals'
 import { sessionBootViewOf } from './data/session-boot-view'
 import { sessionModelOf } from './data/session-model'
 import { sessionTranscriptOf } from './data/session-transcript'
+import { useSessionMarkRead } from './data/use-session-mark-read'
 import { useSessionModelChoice } from './data/use-session-model-choice'
 import { useSessionRunFailure } from './data/use-session-run-failure'
 import { sessionViewModelOf } from './data/session-view-model'
@@ -63,6 +64,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     connection: sessionStream,
     log: sessionLog(),
   })
+  useSessionMarkRead({ sessionId, head: snapshot.events.at(-1)?.seq })
   const sessions = useV2Sessions()
   const listed = sessions.find((session) => session.sessionId === sessionId)
   const sessionNameOf = useMemo(() => {
@@ -114,6 +116,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     sessionId,
     title: listed?.title ?? undefined,
     startedAt: listed?.createdAt,
+    projectId: listed?.projectId ?? undefined,
     model,
     snapshot,
     openTab: pane.openTab,
@@ -146,7 +149,20 @@ export function SessionView({ sessionId }: { sessionId: string }) {
       attachments.restore({ attachments: restored.attachments, previewOf: restored.previewOf })
     },
   })
-  const refusals = useMemo(() => sessionRefusalsOf(snapshot.events), [snapshot.events])
+  const [dismissedRefusals, setDismissedRefusals] = useState<ReadonlySet<number>>(new Set())
+  const refusals = useMemo(
+    () =>
+      sessionRefusalsOf(snapshot.events).filter(
+        (refusal) => !dismissedRefusals.has(refusal.inboxId),
+      ),
+    [snapshot.events, dismissedRefusals],
+  )
+  const dismissRefusals = () =>
+    setDismissedRefusals((current) => {
+      const next = new Set(current)
+      for (const refusal of refusals) next.add(refusal.inboxId)
+      return next
+    })
 
   const summarise = useSessionSummarise({ sessionId, events: snapshot.events })
   const skillSpecs = useSessionSkills({ events: snapshot.events })
@@ -255,7 +271,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                 {snapshot.status?.state === ESessionStatus.StartFailed ? (
                   <StartFailedCard reason={snapshot.status.reason} onRetry={handleRetry} />
                 ) : null}
-                <RefusalRows refusals={refusals} />
+                <RefusalRows refusals={refusals} onDismiss={dismissRefusals} />
                 <SummariseDialog {...summarise.dialog} />
                 <CommandRows rows={snapshot.status?.commands} />
                 <QueuedDock dock={queuedDock} />

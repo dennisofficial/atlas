@@ -12,6 +12,8 @@ class StubSandbox extends SandboxProvider {
   async stop(_args: { target: SandboxTarget }): Promise<void> {}
 
   async keepAlive(_args: { target: SandboxTarget; until: number }): Promise<void> {}
+
+  async resize(_args: { target: SandboxTarget; vcpus: number }): Promise<void> {}
 }
 
 describe('sandboxRegistryOf', () => {

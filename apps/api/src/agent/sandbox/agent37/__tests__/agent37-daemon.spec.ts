@@ -57,6 +57,7 @@ const clientOf = (args: {
     list: async () => ({ data: [] }),
     remove: async () => undefined,
     sleep: async () => undefined,
+    resize: async ({ id }) => ({ ...INSTANCE, id }),
     exec: async (body) => {
       execs.push(body)
       return { exit_code: 0, stdout: '', stderr: '', truncated: false }

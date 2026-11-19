@@ -69,6 +69,7 @@ class DeadUrlSandbox extends SandboxProvider {
 
   async stop(): Promise<void> {}
   async keepAlive(): Promise<void> {}
+  async resize(): Promise<void> {}
 }
 
 const timers: HostTimers = { now: () => Date.now(), ...systemTimers, random: () => 0 }

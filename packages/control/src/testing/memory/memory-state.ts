@@ -21,10 +21,16 @@ import type {
 export type SessionRow = ControlSessionRow & {
   nextInboxId: number
   titledFromInboxId: number | null
+  readSeq: number | null
 }
 
 export const sessionRowOf = (row: SessionRow): ControlSessionRow => {
-  const { nextInboxId: _nextInboxId, titledFromInboxId: _titledFrom, ...session } = row
+  const {
+    nextInboxId: _nextInboxId,
+    titledFromInboxId: _titledFrom,
+    readSeq: _readSeq,
+    ...session
+  } = row
   return { ...session }
 }
 

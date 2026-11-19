@@ -48,6 +48,8 @@ export const sessionSummaryOf = (args: {
     createdAt: digest.createdAt,
     updatedAt: digest.lastEventAt ?? digest.createdAt,
     archivedAt: digest.archivedAt,
+    lastAssistantSeq: digest.lastAssistantSeq,
+    readSeq: digest.readSeq,
     spawnedBy: digest.spawnedBySessionId,
     nested: digest.nested,
     routineId: digest.routineId ?? null,

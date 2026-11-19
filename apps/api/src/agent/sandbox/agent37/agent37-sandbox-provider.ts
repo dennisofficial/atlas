@@ -19,6 +19,7 @@ import {
   type Agent37InstanceIds,
 } from './agent37-instances'
 import { liveAgent37Client, type Agent37Client } from './agent37-client'
+import { agent37ShapeOfVcpus } from './agent37-resize'
 
 const apiKeyOf = (target: SandboxTarget): string => {
   const credentials = target.credentials
@@ -135,6 +136,22 @@ export class Agent37SandboxProvider extends SandboxProvider {
     })
     if (instanceId === null) return
     await this.clientOf(apiKeyOf(args.target)).sleep({ id: instanceId })
+  }
+
+  async resize(args: { target: SandboxTarget; vcpus: number }): Promise<void> {
+    const podSessionId = args.target.sandboxSessionId
+    const instanceId = await this.args.instances.find({ podSessionId })
+    if (instanceId === null) {
+      throw new SandboxUnavailableError(
+        `sandbox for ${podSessionId} has no agent37 instance to resize`,
+      )
+    }
+    const shape = agent37ShapeOfVcpus(args.vcpus)
+    await this.clientOf(apiKeyOf(args.target)).resize({
+      id: instanceId,
+      cpu: shape.cpu,
+      memory: shape.memory,
+    })
   }
 
   async keepAlive(args: { target: SandboxTarget; until: number }): Promise<void> {

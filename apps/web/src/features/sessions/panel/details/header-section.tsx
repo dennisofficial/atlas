@@ -1,13 +1,15 @@
 'use client'
 
 import { formatElapsed } from '@dltech/atlas-client/transcript'
+import { formatUsd, type SpendTally } from '@dltech/atlas-core'
 
 import { EHeaderState, STATE_LABEL } from '@/features/threads/data/header-model'
 import { useNowEvery } from '@/features/threads/data/use-now'
+import { tokenStatsOf } from '@/features/threads/panel/details/details-model'
+import { Stat, Tokens } from '@/features/threads/panel/details/head-section'
 
 import { headerStateOfSession } from '../../data/session-state'
 import { useSessionPaneValue } from '../pane-value'
-import { SessionFollowingSwitch } from './following-switch'
 import { Pill } from './rows'
 
 const PILL_TONE: Record<EHeaderState, string> = {
@@ -27,8 +29,23 @@ function elapsedOf(args: { startedAt: string | undefined; now: number }): string
   return formatElapsed(Math.max(0, args.now - started))
 }
 
+function SpendLine({ spend }: { spend: SpendTally | null }) {
+  const stats = spend === null ? null : tokenStatsOf(spend)
+  if (spend === null || stats === null) return null
+  return (
+    <p
+      data-session-spend
+      className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs leading-4 text-muted-foreground"
+    >
+      {spend.costUsd === null ? null : <Stat value={formatUsd(spend.costUsd)} unit="spent" />}
+      <Tokens stats={stats} />
+      {stats.cached == null ? null : <Stat value={stats.cached} unit="cached" />}
+    </p>
+  )
+}
+
 export function SessionDetailsHeader() {
-  const { title, startedAt, status } = useSessionPaneValue()
+  const { title, startedAt, status, view } = useSessionPaneValue()
   const now = useNowEvery({ enabled: startedAt !== undefined, tickMs: ELAPSED_TICK_MS })
   const state = headerStateOfSession(status)
   const elapsed = elapsedOf({ startedAt, now })
@@ -45,8 +62,8 @@ export function SessionDetailsHeader() {
             {elapsed}
           </span>
         )}
-        <SessionFollowingSwitch />
       </div>
+      <SpendLine spend={view.spend} />
     </header>
   )
 }

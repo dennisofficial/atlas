@@ -254,6 +254,44 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
       expect(restored.map((row) => row.archivedAt)).toEqual([null, null])
     })
 
+    it('digests the last assistant seq of the main thread', async () => {
+      await seedSession({ sessionId: 's-a', offsetMs: 0 })
+      const first = await plane.grant({ sessionId: 's-a', hostId: HOLDER_HOST })
+      const head = await plane.head({ threadId: 't-s-a' })
+      const appended = await plane.append({
+        threadId: 't-s-a',
+        epoch: first.epoch,
+        events: mint({
+          bodies: [
+            { type: 'assistant-said', parts: [{ type: 'text', text: 'hello' }] },
+            { type: 'assistant-said', parts: [{ type: 'text', text: 'again' }] },
+          ],
+          epoch: first.epoch,
+          from: head,
+          threadId: 't-s-a',
+        }),
+      })
+      if (!appended.ok) throw new Error(JSON.stringify(appended.refusal))
+      const [digest] = await plane.listSessionDigests({ userId: USER, limit: 10 })
+      expect(digest?.lastAssistantSeq).toBe(appended.head.seq)
+      expect(digest?.readSeq).toBeNull()
+    })
+
+    it('marks a session read monotonically and digests the cursor', async () => {
+      await seedSession({ sessionId: 's-a', offsetMs: 0 })
+      expect(await plane.markSessionRead({ sessionId: 's-a', seq: 4 })).toBe(4)
+      expect(await plane.markSessionRead({ sessionId: 's-a', seq: 2 })).toBe(4)
+      expect(await plane.markSessionRead({ sessionId: 's-a', seq: 7 })).toBe(7)
+      const [digest] = await plane.listSessionDigests({ userId: USER, limit: 10 })
+      expect(digest?.readSeq).toBe(7)
+    })
+
+    it('refuses to mark an unknown session read', async () => {
+      await expect(plane.markSessionRead({ sessionId: 'nope', seq: 1 })).rejects.toThrow(
+        'unknown session nope',
+      )
+    })
+
     it('refuses to archive an unknown session', async () => {
       await expect(plane.setSessionArchived({ sessionId: 'nope', archivedAt: T0 })).rejects.toThrow(
         'unknown session nope',

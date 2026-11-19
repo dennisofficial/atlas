@@ -7,7 +7,14 @@ import { STREAM_SESSION_VIEW_VERSION, type SessionSummary } from '@dltech/atlas-
 
 export type LegacySessionRow = Omit<
   SessionSummary,
-  'status' | 'primaryBranch' | 'pullRequest' | 'spawnedBy' | 'routineId' | 'model'
+  | 'status'
+  | 'primaryBranch'
+  | 'pullRequest'
+  | 'spawnedBy'
+  | 'routineId'
+  | 'model'
+  | 'lastAssistantSeq'
+  | 'readSeq'
 >
 
 export type SessionRow = SessionSummary | LegacySessionRow
@@ -28,6 +35,8 @@ export const rowForVersion = (args: { row: SessionSummary; version: number }): S
     spawnedBy: _spawnedBy,
     routineId: _routineId,
     model: _model,
+    lastAssistantSeq: _lastAssistantSeq,
+    readSeq: _readSeq,
     ...legacy
   } = args.row
   return legacy

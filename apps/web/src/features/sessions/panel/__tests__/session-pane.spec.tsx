@@ -4,6 +4,7 @@ import { act } from 'react'
 import type { Root } from 'react-dom/client'
 import { renderToStaticMarkup } from 'react-dom/server'
 
+import { createTestQueryClient, TestQueryProvider } from '@/lib/__tests__/query-test-provider'
 import { openTab } from '@/features/threads/data/preview-browser/browser-model'
 import { updatePreviewBrowser } from '@/features/threads/data/preview-browser/use-preview-browser'
 
@@ -31,9 +32,11 @@ afterEach(async () => {
 
 const render = (tab: ESessionPaneTab, value = populatedPaneValue()): string =>
   renderToStaticMarkup(
-    <SessionPaneProvider value={value}>
-      <SessionPane tab={tab} onTabChange={() => undefined} />
-    </SessionPaneProvider>,
+    <TestQueryProvider client={createTestQueryClient()}>
+      <SessionPaneProvider value={value}>
+        <SessionPane tab={tab} onTabChange={() => undefined} />
+      </SessionPaneProvider>
+    </TestQueryProvider>,
   )
 
 async function mountWithOpenPages(sessionId: string, pages: string[]) {
@@ -49,9 +52,11 @@ async function mountWithOpenPages(sessionId: string, pages: string[]) {
   roots.add(root)
   await act(async () =>
     root.render(
-      <SessionPaneProvider value={paneValueFixture({ sessionId })}>
-        <SessionPane tab={ESessionPaneTab.Browser} onTabChange={() => undefined} />
-      </SessionPaneProvider>,
+      <TestQueryProvider client={createTestQueryClient()}>
+        <SessionPaneProvider value={paneValueFixture({ sessionId })}>
+          <SessionPane tab={ESessionPaneTab.Browser} onTabChange={() => undefined} />
+        </SessionPaneProvider>
+      </TestQueryProvider>,
     ),
   )
   return container

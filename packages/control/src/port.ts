@@ -258,6 +258,7 @@ export interface ControlTx {
   readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined>
   lockSession(sessionId: string): Promise<ControlSessionRow | undefined>
   setSessionArchived(params: { sessionId: string; archivedAt: string | null }): Promise<boolean>
+  setSessionReadSeq(params: { sessionId: string; seq: number }): Promise<number | undefined>
   setSessionTitleIfUntitled(params: {
     sessionId: string
     title: string

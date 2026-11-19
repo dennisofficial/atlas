@@ -30,6 +30,8 @@ const digest = (patch: Partial<ControlSessionDigest> = {}): ControlSessionDigest
   podSessionId: null,
   routineId: null,
   lastEventAt: null,
+  lastAssistantSeq: 0,
+  readSeq: null,
   firstMessageText: 'Make the sidebar push session titles instead of polling them',
   firstMessageAt: POSTED,
   view: null,
@@ -76,6 +78,18 @@ describe('sessionSummaryOf', () => {
 
     expect(summary.sandbox).toEqual(sandbox)
     expect(sessionSummaryOf({ digest: digest(), now: postedMs }).sandbox).toBeUndefined()
+  })
+
+  it('carries the assistant seq and read cursor', () => {
+    const summary = sessionSummaryOf({
+      digest: digest({ lastAssistantSeq: 12, readSeq: 9 }),
+      now: 0,
+    })
+    expect(summary).toMatchObject({ lastAssistantSeq: 12, readSeq: 9 })
+    expect(sessionSummaryOf({ digest: digest(), now: 0 })).toMatchObject({
+      lastAssistantSeq: 0,
+      readSeq: null,
+    })
   })
 
   it('updates at the last event, else creation', () => {

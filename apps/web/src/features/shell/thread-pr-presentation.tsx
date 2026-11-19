@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 
 import { cn } from '@dltech/atlas-ui/lib/utils'
+import { entryHasConflicts } from '@/features/threads/data/header-model'
 import type { PullRequestEntry } from '@/features/threads/data/pull-request-entries'
 import { latestThreadPullRequestOf } from './thread-pull-requests'
 
@@ -119,7 +120,7 @@ export function PullRequestChecks({
 }
 
 export function PullRequestConflict({ entry }: { entry: PullRequestEntry }) {
-  return entry.mergeable === false ? (
+  return entryHasConflicts(entry) ? (
     <TriangleAlert
       role="img"
       aria-label="Merge conflicts"

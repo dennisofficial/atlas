@@ -18,7 +18,8 @@ export enum EToolState {
 
 export interface ToolProps {
   label: string
-  title?: string | undefined
+  /** What the row says. A string, or the pieces of it when a surface colours them apart. */
+  title?: ReactNode
   kind?: EToolKind
   state?: EToolState
   output?: string

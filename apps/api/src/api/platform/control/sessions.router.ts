@@ -17,6 +17,10 @@ import {
   sessionEventsOutputSchema,
   sessionListInputSchema,
   sessionListOutputSchema,
+  sessionMarkReadInputSchema,
+  sessionMarkReadOutputSchema,
+  sessionPodResourcesInputSchema,
+  sessionPodResourcesOutputSchema,
   sessionPostInputSchema,
   sessionPostOutputSchema,
   sessionRetryInputSchema,
@@ -47,6 +51,10 @@ import {
   type SessionEventsOutput,
   type SessionListInput,
   type SessionListOutput,
+  type SessionMarkReadInput,
+  type SessionMarkReadOutput,
+  type SessionPodResourcesInput,
+  type SessionPodResourcesOutput,
   type SessionPostInput,
   type SessionPostOutput,
   type SessionRetryInput,
@@ -120,6 +128,14 @@ export class SessionsRouter {
     return this.sessions.archive({ userId: ctx.auth.userId, ...input })
   }
 
+  @Mutation({ input: sessionMarkReadInputSchema, output: sessionMarkReadOutputSchema })
+  markRead(
+    @Input() input: SessionMarkReadInput,
+    @Ctx() ctx: SessionTrpcCtx,
+  ): Promise<SessionMarkReadOutput> {
+    return this.sessions.markRead({ userId: ctx.auth.userId, ...input })
+  }
+
   @Query({ input: sessionPageInputSchema, output: sessionPageOutputSchema })
   page(@Input() input: SessionPageInput, @Ctx() ctx: SessionTrpcCtx): Promise<SessionPageOutput> {
     return this.sessions.page({ userId: ctx.auth.userId, ...input })
@@ -189,6 +205,17 @@ export class SessionsRouter {
   wake(@Input() input: SessionWakeInput, @Ctx() ctx: SessionTrpcCtx): Promise<SessionWakeOutput> {
     this.refuseBatched(ctx)
     return this.sessions.wake({ userId: ctx.auth.userId, sessionId: input.sessionId })
+  }
+
+  @Query({
+    input: sessionPodResourcesInputSchema,
+    output: sessionPodResourcesOutputSchema,
+  })
+  podResources(
+    @Input() input: SessionPodResourcesInput,
+    @Ctx() ctx: SessionTrpcCtx,
+  ): Promise<SessionPodResourcesOutput> {
+    return this.sessions.podResourcesOf({ userId: ctx.auth.userId, sessionId: input.sessionId })
   }
 
   @Query({ input: sessionViewInputSchema, output: sessionViewOutputSchema })

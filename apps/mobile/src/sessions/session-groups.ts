@@ -165,6 +165,13 @@ const statusOfV2 = (summary: V2SessionSummary): ESessionStatus => {
   return RUNNING_STATES.has(state) ? ESessionStatus.Running : ESessionStatus.Idle
 }
 
+const isUnreadV2 = (summary: V2SessionSummary): boolean => {
+  const lastAssistantSeq = summary.lastAssistantSeq ?? 0
+  if (lastAssistantSeq <= 0) return false
+  if (statusOfV2(summary) === ESessionStatus.Running) return false
+  return lastAssistantSeq > (summary.readSeq ?? -1)
+}
+
 const workOfV2 = (summary: V2SessionSummary): SessionWork => {
   const pullRequest = summary.pullRequest
   if (pullRequest !== null && pullRequest !== undefined) {
@@ -192,7 +199,7 @@ const v2EntryOf = ({
   updatedAt: summary.updatedAt,
   pinned: false,
   status: statusOfV2(summary),
-  unread: false,
+  unread: isUnreadV2(summary),
   work: workOfV2(summary),
 })
 

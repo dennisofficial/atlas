@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { Db } from '@dltech/atlas-db'
+import { decodeSettingValue, validateCloudSetting } from '@dltech/atlas-core'
 import { ECredentialSource, ESandboxProvider } from '@dltech/atlas-protocol'
 
 import type {
@@ -60,7 +61,10 @@ type ProjectRow = {
   baseBranch: string | null
   additionalRepos: unknown
   setupScript: string
+  sandboxVcpus: number | null
 }
+
+const SANDBOX_VCPUS_KEY = 'sandbox.vcpus'
 
 const workspaceOf = (project: ProjectRow | null): WorkspaceConfig => {
   if (project === null)
@@ -114,6 +118,7 @@ export class ConfigReader implements ConfigSource {
         provider,
         credentialSource: session.credentialSource,
         row: vercelRow,
+        vcpus: project?.sandboxVcpus ?? (await this.personalVcpusOf({ userId })),
       }),
       skills,
     }
@@ -132,6 +137,7 @@ export class ConfigReader implements ConfigSource {
     provider: ESandboxProvider
     credentialSource: string
     row: VercelRow | null
+    vcpus: number | undefined
   }): Promise<SandboxConfig> {
     if (args.credentialSource === ECredentialSource.Platform) {
       const credentials = platformCredentialsOf({
@@ -141,7 +147,12 @@ export class ConfigReader implements ConfigSource {
       if ('configured' in credentials) {
         return { configured: false, provider: args.provider, gap: credentials.gap }
       }
-      return { configured: true, provider: args.provider, credentials }
+      return {
+        configured: true,
+        provider: args.provider,
+        credentials,
+        ...(args.vcpus === undefined ? {} : { vcpus: args.vcpus }),
+      }
     }
     const vercel = await this.vercelOf({ userId: args.userId, row: args.row })
     if (vercel.configured === false) {
@@ -156,6 +167,7 @@ export class ConfigReader implements ConfigSource {
         teamId: vercel.teamId,
         projectId: vercel.projectId,
       },
+      ...(args.vcpus === undefined ? {} : { vcpus: args.vcpus }),
     }
   }
 
@@ -186,6 +198,19 @@ export class ConfigReader implements ConfigSource {
       settings: args.settings,
       session: { ref: session.modelRef, effort: session.modelEffort, fast: session.modelFast },
     })
+  }
+
+  private async personalVcpusOf(args: { userId: string }): Promise<number | undefined> {
+    const row = await this.args.db.orm.public.UserSetting.where({
+      userId: args.userId,
+      key: SANDBOX_VCPUS_KEY,
+    })
+      .select('value')
+      .first()
+    if (row === null) return undefined
+    if (!validateCloudSetting({ key: SANDBOX_VCPUS_KEY, stored: row.value }).ok) return undefined
+    const value = decodeSettingValue(row.value)
+    return typeof value === 'number' ? value : undefined
   }
 
   private async projectOf(projectId: string | null): Promise<ProjectRow | null> {

@@ -17,7 +17,7 @@ import {
 } from '@dltech/atlas-protocol'
 
 import { createFollowSubscriptions, type FollowSubscriptions } from '../follow-port'
-import type { FollowPlane } from '../follow-types'
+import type { FollowPlane, SurfaceRecord } from '../follow-types'
 import type { LiveSource } from '../live-source'
 import type {
   OutgoingFrame,
@@ -40,6 +40,7 @@ export class FollowRig {
   readonly timers = new FakeTimers()
   readonly sent: OutgoingFrame[] = []
   readonly closedWith: number[] = []
+  readonly surfaces: SurfaceRecord[] = []
   buffered = 0
   reads = 0
   onRead: (() => Promise<void>) | undefined
@@ -79,6 +80,7 @@ export class FollowRig {
       plane,
       timers: this.timers,
       log: undefined,
+      recordSurface: (record) => this.surfaces.push(record),
       feed: {
         onChange: (listener) => this.store.onChange(listener),
         onGap: (listener) => {

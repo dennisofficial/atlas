@@ -56,6 +56,7 @@ import { SkillCatalogueModule } from './cloud/skill-catalogue/skill-catalogue.mo
 import { SkillsModule } from './cloud/skills/skills.module'
 import { UserFilesModule } from './cloud/user-files/user-files.module'
 import { UserVercelModule } from './cloud/user-vercel/user-vercel.module'
+import { PodPlanGateModule } from './cloud/user-vercel/pod-plan-gate.module'
 import { SessionTitlerModule } from './cloud/thread-titling/session-titler.module'
 import { ControlPlaneModule } from './platform/control/control-plane.module'
 
@@ -100,6 +101,7 @@ import { ControlPlaneModule } from './platform/control/control-plane.module'
     SkillCatalogueModule,
     SkillsModule,
     UserVercelModule,
+    PodPlanGateModule,
     McpServersModule,
     McpOauthModule,
     OperatorRequestsModule,

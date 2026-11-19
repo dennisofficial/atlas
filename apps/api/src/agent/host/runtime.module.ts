@@ -2,7 +2,7 @@ import { hostname } from 'node:os'
 
 import { Module, type Provider } from '@nestjs/common'
 import { ESandboxProvider } from '@dltech/atlas-protocol'
-import { ChangeContentStore } from '@dltech/atlas-control'
+import { ChangeContentStore, ControlPlane } from '@dltech/atlas-control'
 import type { Db } from '@dltech/atlas-db'
 import type { HostPresence, PodControlClient } from '@dltech/atlas-host'
 import type { LogPort } from '@dltech/atlas-observability'
@@ -15,6 +15,7 @@ import { databaseUrlWithTls } from '../config/database-url'
 import type { AgentHostEnv } from '../config/env'
 import type { SecretCipher } from '../config/secret-cipher'
 import { localPodControlOf } from '../control/local-pod-control'
+import { ControlModule } from './control.module'
 import { createPgHostPresence } from '../presence/pg-host-presence'
 import { DAEMON_BUNDLE_ROUTE } from '../http/daemon-bundle'
 import { sandboxRegistryOf, type SandboxProviderRegistry } from '../sandbox/provider-registry'
@@ -32,6 +33,7 @@ import {
   AGENT_HOST_ENV,
   CIPHER,
   CONFIG_SOURCE,
+  CONTROL_PLANE,
   DB,
   GITHUB_TOKENS,
   LOG,
@@ -100,9 +102,13 @@ const previewsProvider: Provider = {
 
 const podControlProvider: Provider = {
   provide: POD_CONTROL,
-  useFactory: (db: Db, previews: PreviewTunnels, cipher: SecretCipher): PodControlClient =>
-    localPodControlOf({ db, previews, cipher }),
-  inject: [DB, PREVIEWS, CIPHER],
+  useFactory: (
+    db: Db,
+    previews: PreviewTunnels,
+    cipher: SecretCipher,
+    plane: ControlPlane,
+  ): PodControlClient => localPodControlOf({ db, previews, cipher, plane }),
+  inject: [DB, PREVIEWS, CIPHER, CONTROL_PLANE],
 }
 
 const configProvider: Provider = {
@@ -187,6 +193,7 @@ export const runtimeExports: readonly symbol[] = [
 ]
 
 @Module({
+  imports: [ControlModule],
   providers: [...runtimeProviders],
   exports: [...runtimeExports, ChangeContentStore],
 })

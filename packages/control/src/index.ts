@@ -57,6 +57,19 @@ export type {
   WorktreeChangesRead,
   WorktreeChangesWrite,
 } from './port'
+export {
+  MINIMUM_ROUTINE_GAP_MINUTES,
+  routineCreateOf,
+  routineListOf,
+  routineOf,
+  routineRemoveOf,
+  routineRunNowOf,
+  routineRunsOf,
+  RoutineInvalidError,
+  RoutineNotFoundError,
+  routineUpdateOf,
+} from './routine-service'
+export type { RoutinePlane, RoutinesFor } from './routine-service'
 export { runRoutineIn } from './routine-ops'
 export { INBOX_KIND_WITHDRAW, MessageOriginRequiredError, withdrawPayloadOf } from './inbox-ops'
 export type { RunRoutineParams, RunRoutineResult } from './routine-ops'

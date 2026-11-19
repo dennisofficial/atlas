@@ -8,7 +8,12 @@ import { ESandboxProvider } from '@dltech/atlas-protocol'
 import { daemonToken } from '@dltech/atlas-protocol/engine'
 
 import type { SandboxTarget } from '../../sandbox-provider'
-import type { Agent37Client, Agent37CreateArgs, Agent37ExecArgs } from '../agent37-client'
+import type {
+  Agent37Client,
+  Agent37CreateArgs,
+  Agent37ExecArgs,
+  Agent37ResizeArgs,
+} from '../agent37-client'
 import { agent37BundleVersionOf } from '../agent37-daemon'
 import { agent37InstanceNameOf, type Agent37Env } from '../agent37-instances'
 import { Agent37SandboxProvider } from '../agent37-sandbox-provider'
@@ -37,6 +42,7 @@ const fakeClient = (args: { version: string; get?: Agent37Client['get'] }) => {
   const creates: Agent37CreateArgs[] = []
   const execs: Agent37ExecArgs[] = []
   const slept: string[] = []
+  const resized: Agent37ResizeArgs[] = []
   const client: Agent37Client = {
     create: async (body) => {
       creates.push(body)
@@ -49,6 +55,10 @@ const fakeClient = (args: { version: string; get?: Agent37Client['get'] }) => {
     sleep: async ({ id }) => {
       slept.push(id)
     },
+    resize: async (body) => {
+      resized.push(body)
+      return { id: body.id, status: 'running', url: `https://${body.id}.agent37.app` }
+    },
     exec: async (body) => {
       execs.push(body)
       return { exit_code: 0, stdout: '', stderr: '', truncated: false }
@@ -56,7 +66,7 @@ const fakeClient = (args: { version: string; get?: Agent37Client['get'] }) => {
     probe: async () => ({ status: 200, body: args.version }),
     signedUrl: async ({ id, port }) => `https://${id}-${port}.agent37.app/?a37_token=a37`,
   }
-  return { client, creates, execs, slept }
+  return { client, creates, execs, slept, resized }
 }
 
 const providerOf = (args: {
@@ -150,6 +160,36 @@ describe('Agent37SandboxProvider.wake', () => {
       expect(creates[0]?.env.ATLAS_DAEMON_BUNDLE_URL).toBe(BUNDLE_URL)
       expect(creates[0]?.env.PORT).toBe('3000')
       expect(creates[0]?.env.DAEMON_TOKEN).toBeString()
+    } finally {
+      cleanup()
+    }
+  })
+})
+
+describe('Agent37SandboxProvider.resize', () => {
+  it('resizes the remembered instance to the nearest vm shape, leaving disk alone', async () => {
+    const { bundle: b, cleanup } = bundle()
+    const version = await agent37BundleVersionOf(b.path)
+    const { client, resized } = fakeClient({ version })
+    const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
+    try {
+      await provider.resize({ target: TARGET, vcpus: 3 })
+      expect(resized).toEqual([{ id: 'inst-9', cpu: 4, memory: 8 }])
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('refuses to resize a session with no instance to resize', async () => {
+    const { bundle: b, cleanup } = bundle()
+    const version = await agent37BundleVersionOf(b.path)
+    const { client, resized } = fakeClient({ version })
+    const { provider } = providerOf({ client, bundlePath: b.path, stored: null })
+    try {
+      await expect(provider.resize({ target: TARGET, vcpus: 4 })).rejects.toThrow(
+        'no agent37 instance',
+      )
+      expect(resized).toEqual([])
     } finally {
       cleanup()
     }

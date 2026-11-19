@@ -71,6 +71,7 @@ import {
   setSandboxStatusIn,
   setSessionArchivedIn,
   setSessionModelIn,
+  setSessionReadSeqIn,
   setSessionTitleIfUntitledIn,
   setSessionTitleIn,
 } from './postgres-session-writes'
@@ -170,6 +171,10 @@ class PostgresTx implements ControlTx {
 
   async setSessionArchived(params: { sessionId: string; archivedAt: string | null }) {
     return setSessionArchivedIn({ tx: this.tx, ...params })
+  }
+
+  async setSessionReadSeq(params: { sessionId: string; seq: number }) {
+    return setSessionReadSeqIn({ tx: this.tx, ...params })
   }
 
   async setSessionTitleIfUntitled(params: {

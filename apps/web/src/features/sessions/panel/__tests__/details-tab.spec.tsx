@@ -2,15 +2,19 @@ import { describe, expect, it } from 'bun:test'
 import { EPlanStatus, type PlanTask } from '@dltech/atlas-core'
 import { renderToStaticMarkup } from 'react-dom/server'
 
+import { createTestQueryClient, TestQueryProvider } from '@/lib/__tests__/query-test-provider'
+
 import { SessionDetailsTab } from '../details-tab'
 import { SessionPaneProvider, type SessionPaneValue } from '../pane-value'
 import { paneValueFixture, populatedPaneValue, previewFixture } from './fixture'
 
 const render = (value: SessionPaneValue): string =>
   renderToStaticMarkup(
-    <SessionPaneProvider value={value}>
-      <SessionDetailsTab />
-    </SessionPaneProvider>,
+    <TestQueryProvider client={createTestQueryClient()}>
+      <SessionPaneProvider value={value}>
+        <SessionDetailsTab />
+      </SessionPaneProvider>
+    </TestQueryProvider>,
   )
 
 const rowsIn = (html: string): number => html.match(/data-pane-row/g)?.length ?? 0
@@ -30,14 +34,12 @@ describe('SessionDetailsTab', () => {
     expect(html).toContain('Running')
     expect(html).toContain('aria-label="Pull requests"')
     expect(html).toContain('href="https://github.com/owner/atlas/pull/7"')
-    expect(html).toContain('Add the session pane')
     expect(html).toContain('#7')
-    expect(html).toContain('CI 3/4')
-    expect(html).toContain('Open')
+    expect(html).toContain('aria-label="1 running, 3 passed, 0 failed"')
     expect(html).toContain('aria-label="Services"')
     expect(html).toContain(':4321')
     expect(html).toContain('aria-label="Open web"')
-    expect(html).toContain('aria-label="Teammates"')
+    expect(html).toContain('aria-label="Sub-agents"')
     expect(html).toContain('work the branch')
     expect(html).toContain('map the seam')
     expect(html).toContain('aria-label="Shells"')
@@ -63,6 +65,27 @@ describe('SessionDetailsTab', () => {
     expect(html).toContain('Building the details variants')
   })
 
+  it('shows spend and token usage under the header', () => {
+    const spend = {
+      inputTokens: 150_000,
+      outputTokens: 12_000,
+      cacheReadTokens: 100_000,
+      cacheWriteTokens: 0,
+      uncachedInputTokens: 50_000,
+      costUsd: 1.23,
+    }
+    const html = render(paneValueFixture({ view: { ...paneValueFixture().view, spend } }))
+    expect(html).toContain('data-session-spend')
+    expect(html).toContain('$1.23')
+    expect(html).toContain('aria-label="Input tokens"')
+    expect(html).toContain('aria-label="Output tokens"')
+    expect(html).toContain('cached')
+  })
+
+  it('hides the spend line before any model call', () => {
+    expect(render(paneValueFixture())).not.toContain('data-session-spend')
+  })
+
   it('has no todo section without a plan', () => {
     expect(render(populatedPaneValue())).not.toContain('aria-label="Todo"')
   })
@@ -82,15 +105,15 @@ describe('SessionDetailsTab', () => {
     expect(slot).toBeLessThan(html.indexOf('aria-label="Pull requests"'))
   })
 
-  it('renders the header, the slot and the Following switch when nothing else streamed', () => {
+  it('renders the header and the slot when nothing else streamed', () => {
     const html = render(paneValueFixture())
     expect(html).toContain('data-session-summary')
     expect(html).toContain('data-session-todo-slot')
-    expect(html).toContain('aria-label="Follow this session&#x27;s pull requests"')
+    expect(html).not.toContain('role="switch"')
     expect(html).not.toContain('aria-label="Pull requests"')
     expect(html).not.toContain('aria-label="Services"')
     expect(html).not.toContain('aria-label="Shells"')
-    expect(html).not.toContain('aria-label="Teammates"')
+    expect(html).not.toContain('aria-label="Sub-agents"')
   })
 
   it('shows three rows and a Show all control when a list is longer', () => {
@@ -111,14 +134,16 @@ describe('SessionDetailsTab', () => {
     expect(html).not.toContain('Show all')
   })
 
-  it('checks the Following switch once every linked pull request is subscribed', () => {
+  it('rings the bell on a pull request row only while it is subscribed', () => {
     const subscribed = render(populatedPaneValue())
     const unsubscribed = render(
       paneValueFixture({
         view: { ...populatedPaneValue().view, subscriptions: [] },
       }),
     )
-    expect(subscribed).toContain('aria-checked="true"')
-    expect(unsubscribed).toContain('aria-checked="false"')
+    expect(subscribed).toContain('aria-label="Unsubscribe from #7"')
+    expect(subscribed).toContain('aria-pressed="true"')
+    expect(unsubscribed).toContain('aria-label="Subscribe to #7"')
+    expect(unsubscribed).toContain('aria-pressed="false"')
   })
 })

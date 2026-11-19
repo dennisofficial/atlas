@@ -47,6 +47,7 @@ describe('SessionsService blob reads', () => {
       new FakeMediaStore(),
       composeCommands([]),
       new EnvService({ SANDBOX_PROVIDER_DEFAULT: 'vercel' }),
+      { resourcesOf: async () => null, resizeHandler: () => async () => undefined },
     )
     return { plane, service }
   }

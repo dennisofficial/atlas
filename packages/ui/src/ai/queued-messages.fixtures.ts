@@ -63,6 +63,10 @@ export const LONG_QUEUED: QueuedMessageEntry[] = [
   },
 ]
 
+export const LONG_WITH_IMAGES: QueuedMessageEntry[] = [
+  { ...LONG_QUEUED[0]!, id: 'li1', attachments: SCREENSHOTS },
+]
+
 export const FILE_ONLY: QueuedMessageEntry[] = [{ id: 'f1', text: '', attachments: [SPEC_PDF] }]
 
 export const MANY_QUEUED: QueuedMessageEntry[] = Array.from({ length: 8 }, (_, index) => ({

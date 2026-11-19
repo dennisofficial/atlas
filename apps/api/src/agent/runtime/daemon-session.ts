@@ -17,6 +17,7 @@ export const daemonSessionOf = (args: {
   epoch: number
   provider: SandboxProvider
   target: SandboxTarget
+  vcpus?: number | undefined
   daemonSecret: string
   timers: HostTimers
   signal: AbortSignal
@@ -26,7 +27,11 @@ export const daemonSessionOf = (args: {
 }): DaemonSession => {
   let current: DaemonEndpoint | undefined
   const wake = async (): Promise<DaemonEndpoint> => {
-    const endpoint = await args.provider.wake({ target: args.target, signal: args.signal })
+    const endpoint = await args.provider.wake({
+      target: args.target,
+      signal: args.signal,
+      ...(args.vcpus === undefined ? {} : { vcpus: args.vcpus }),
+    })
     current = endpoint
     return endpoint
   }
