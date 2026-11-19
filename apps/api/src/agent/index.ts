@@ -20,6 +20,7 @@ export {
 } from './sandbox/provider-registry'
 export { sandboxNameOf } from './sandbox/vercel-names'
 export { VercelSandboxProvider } from './sandbox/vercel-sandbox-provider'
+export { Agent37SandboxProvider } from './sandbox/agent37/agent37-sandbox-provider'
 export { AgentModule } from './agent.module'
 export { MCP_OAUTH_BEGIN, OPERATOR_ANSWERS, POD_OPS, SESSION_STREAM } from './host/tokens'
 export { podOpsOf, type PodOps } from './host/pod-ops'

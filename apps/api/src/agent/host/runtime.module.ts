@@ -17,7 +17,10 @@ import type { SecretCipher } from '../config/secret-cipher'
 import { localPodControlOf } from '../control/local-pod-control'
 import { createPgHostPresence } from '../presence/pg-host-presence'
 import { sandboxRegistryOf, type SandboxProviderRegistry } from '../sandbox/provider-registry'
+import type { SandboxProvider } from '../sandbox/sandbox-provider'
 import { VercelSandboxProvider } from '../sandbox/vercel-sandbox-provider'
+import { agent37InstanceIdsOf } from '../sandbox/agent37/agent37-instance-store'
+import { Agent37SandboxProvider } from '../sandbox/agent37/agent37-sandbox-provider'
 import { GithubTokenReader } from '../tokens/github-token-reader'
 import { ModelTokenService } from '../tokens/model-token-service'
 import { OauthConnectionStore } from '../tokens/oauth-connection-store'
@@ -40,25 +43,41 @@ import {
   SIGNING_KEYS,
 } from './tokens'
 
+const sandboxLog = (line: string): void => {
+  console.log(JSON.stringify({ level: 'info', source: 'sandbox', message: line }))
+}
+
 const sandboxProvider: Provider = {
   provide: SANDBOX,
-  useFactory: (env: AgentHostEnv): SandboxProviderRegistry =>
-    sandboxRegistryOf(
-      new Map([
-        [
-          ESandboxProvider.Vercel,
-          new VercelSandboxProvider({
-            image: env.sandboxImage,
-            daemonBundle: { path: env.daemonBundlePath },
-            daemonSecret: env.daemonSecret,
-            cloudUrl: env.apiOrigin,
-            log: (line) =>
-              console.log(JSON.stringify({ level: 'info', source: 'sandbox', message: line })),
-          }),
-        ],
-      ]),
-    ),
-  inject: [AGENT_HOST_ENV],
+  useFactory: (env: AgentHostEnv, db: Db): SandboxProviderRegistry => {
+    const adapters = new Map<ESandboxProvider, SandboxProvider>([
+      [
+        ESandboxProvider.Vercel,
+        new VercelSandboxProvider({
+          image: env.sandboxImage,
+          daemonBundle: { path: env.daemonBundlePath },
+          daemonSecret: env.daemonSecret,
+          cloudUrl: env.apiOrigin,
+          log: sandboxLog,
+        }),
+      ],
+    ])
+    const agent37 = env.agent37
+    if (agent37 !== null) {
+      adapters.set(
+        ESandboxProvider.Agent37,
+        new Agent37SandboxProvider({
+          env: agent37,
+          daemonBundle: { path: env.daemonBundlePath },
+          daemonSecret: env.daemonSecret,
+          instances: agent37InstanceIdsOf(db),
+          log: sandboxLog,
+        }),
+      )
+    }
+    return sandboxRegistryOf(adapters)
+  },
+  inject: [AGENT_HOST_ENV, DB],
 }
 
 const previewsProvider: Provider = {

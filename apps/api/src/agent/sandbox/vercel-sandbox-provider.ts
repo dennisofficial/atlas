@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto'
 
 import { ESandboxProvider } from '@dltech/atlas-protocol'
 import { daemonToken } from '@dltech/atlas-protocol/engine'
-import { SandboxUnavailableError } from '@dltech/atlas-host'
 
 import {
   imageOptimizeRetry,
@@ -16,8 +15,9 @@ import { liveSdk, renewSessionDeadline, routedUrlOf, type VercelSdk } from './ve
 import { launchDaemon, type DaemonBundle } from './daemon-launch'
 import { SandboxProvider, type DaemonEndpoint, type SandboxTarget } from './sandbox-provider'
 import { sandboxNameOf } from './vercel-names'
+import { abortedWake, WAKE_DEADLINE_MS } from './wake-deadline'
 
-export const WAKE_DEADLINE_MS = 5 * 60_000
+export { WAKE_DEADLINE_MS }
 
 const vercelCredentialsOf = (target: SandboxTarget): VercelCredentials => {
   const credentials = target.credentials
@@ -25,20 +25,6 @@ const vercelCredentialsOf = (target: SandboxTarget): VercelCredentials => {
     throw new Error(`VercelSandboxProvider cannot run a ${credentials.provider} sandbox`)
   return credentials
 }
-
-const abortedWake = (args: { signal: AbortSignal; caller: AbortSignal }): Promise<never> =>
-  new Promise((_, reject) => {
-    const fail = (): void =>
-      reject(
-        new SandboxUnavailableError(
-          args.caller.aborted
-            ? 'waking the sandbox was cancelled'
-            : 'the sandbox did not wake within 5 minutes',
-        ),
-      )
-    if (args.signal.aborted) fail()
-    else args.signal.addEventListener('abort', fail, { once: true })
-  })
 
 export class VercelSandboxProvider extends SandboxProvider {
   constructor(

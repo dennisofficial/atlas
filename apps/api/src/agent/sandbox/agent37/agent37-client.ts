@@ -1,0 +1,188 @@
+import { retrySleep, type RetryPolicy } from '../constants'
+
+const API_BASE = 'https://api.agent37.com'
+const EXEC_BASE = 'https://sandbox.agent37.app'
+const QUICK_TIMEOUT_MS = 30_000
+
+export type Agent37Status =
+  | 'provisioning'
+  | 'starting'
+  | 'running'
+  | 'updating'
+  | 'sleeping'
+  | 'waking'
+  | 'stopped'
+
+export type Agent37Instance = {
+  id: string
+  status: Agent37Status
+  url: string
+  name?: string | undefined
+  metadata?: Record<string, string> | undefined
+}
+
+export type Agent37Resources = { cpu: number; memory: number; disk: number }
+
+export type Agent37CreateArgs = {
+  template: string
+  type: 'vm'
+  region: 'us'
+  name: string
+  metadata: Record<string, string>
+  resources: Agent37Resources
+  mount_path: string
+  auto_sleep: boolean
+  idle_timeout_seconds: number
+  env: Record<string, string>
+}
+
+export type Agent37ExecResult = {
+  exit_code: number
+  stdout: string
+  stderr: string
+  truncated: boolean
+}
+
+export type Agent37Pid = { pid: number }
+
+export type Agent37ExecArgs = {
+  id: string
+  command: string
+  background?: boolean
+  name?: string
+  user?: 'root'
+}
+
+export type Agent37Client = {
+  create(args: Agent37CreateArgs): Promise<Agent37Instance>
+  get(args: { id: string }): Promise<Agent37Instance>
+  list(args?: { cursor?: string }): Promise<{ data: Agent37Instance[]; next?: string }>
+  remove(args: { id: string }): Promise<void>
+  sleep(args: { id: string }): Promise<void>
+  exec(args: Agent37ExecArgs): Promise<Agent37ExecResult | Agent37Pid>
+  signedUrl(args: { id: string; port: number; ttlSeconds: number }): Promise<string>
+}
+
+export class Agent37Error extends Error {
+  readonly code: string
+  readonly status: number
+  readonly retryable: boolean
+
+  constructor(args: { status: number; code: string; retryable: boolean }) {
+    super(`agent37 refused the call: ${args.status} ${args.code}`)
+    this.name = 'Agent37Error'
+    this.status = args.status
+    this.code = args.code
+    this.retryable = args.retryable
+  }
+}
+
+// https://www.agent37.com/docs/agents-api/exec — a `409 try_again` follows a checkpoint or a host
+// move and clears within about a minute, so the budget spans one.
+export const agent37ExecRetry: RetryPolicy = { attempts: 10, delayMs: 6_000 }
+
+const RETRYABLE_STATUSES = new Set([409, 503])
+
+// https://www.agent37.com/docs/agents-api/errors — sandbox.agent37.app answers a flat
+// `{"error": "not_found"}` instead of the `{"error": {"code": …}}` envelope.
+const errorCodeOf = (body: unknown): string | undefined => {
+  if (typeof body !== 'object' || body === null || !('error' in body)) return undefined
+  const error = body.error
+  if (typeof error === 'string') return error
+  if (typeof error !== 'object' || error === null || !('code' in error)) return undefined
+  return typeof error.code === 'string' ? error.code : undefined
+}
+
+export const liveAgent37Client = (args: {
+  apiKey: string
+  fetch?: typeof fetch | undefined
+  retry?: RetryPolicy | undefined
+}): Agent37Client => {
+  const transport = args.fetch ?? fetch
+  const retry = args.retry ?? agent37ExecRetry
+
+  const call = async (request: {
+    url: string
+    method: string
+    headers: Record<string, string>
+    body?: unknown
+    timeoutMs?: number
+  }): Promise<unknown> => {
+    for (let attempt = 1; ; attempt += 1) {
+      const response = await transport(request.url, {
+        method: request.method,
+        headers: {
+          ...request.headers,
+          ...(request.body === undefined ? {} : { 'Content-Type': 'application/json' }),
+        },
+        ...(request.body === undefined ? {} : { body: JSON.stringify(request.body) }),
+        signal: AbortSignal.timeout(request.timeoutMs ?? QUICK_TIMEOUT_MS),
+      })
+      const text = await response.text()
+      const body: unknown = text === '' ? undefined : JSON.parse(text)
+      if (response.ok) return body
+      const code = errorCodeOf(body) ?? 'unknown'
+      const retryable = RETRYABLE_STATUSES.has(response.status)
+      if (!retryable || attempt >= retry.attempts) {
+        throw new Agent37Error({ status: response.status, code, retryable })
+      }
+      await retrySleep(retry)
+    }
+  }
+
+  const api = (path: string): string => `${API_BASE}${path}`
+  const exec = (path: string): string => `${EXEC_BASE}${path}`
+  const bearer = { Authorization: `Bearer ${args.apiKey}` }
+  const instanceKey = { 'X-Agent37-Key': args.apiKey }
+
+  return {
+    create: (body) =>
+      call({
+        url: api('/v1/instances'),
+        method: 'POST',
+        headers: bearer,
+        body,
+        timeoutMs: 15 * 60_000,
+      }) as Promise<Agent37Instance>,
+    get: ({ id }) =>
+      call({
+        url: api(`/v1/instances/${id}`),
+        method: 'GET',
+        headers: bearer,
+      }) as Promise<Agent37Instance>,
+    list: ({ cursor } = {}) =>
+      call({
+        url: cursor === undefined ? api('/v1/instances') : api(`/v1/instances?cursor=${cursor}`),
+        method: 'GET',
+        headers: bearer,
+      }) as Promise<{ data: Agent37Instance[]; next?: string }>,
+    remove: async ({ id }) => {
+      await call({ url: api(`/v1/instances/${id}`), method: 'DELETE', headers: bearer })
+    },
+    sleep: async ({ id }) => {
+      await call({ url: api(`/v1/instances/${id}/sleep`), method: 'POST', headers: bearer })
+    },
+    exec: (body) =>
+      call({
+        url: exec(`/v1/instances/${body.id}/exec`),
+        method: 'POST',
+        headers: instanceKey,
+        body: {
+          command: body.command,
+          ...(body.background === undefined ? {} : { background: body.background }),
+          ...(body.name === undefined ? {} : { name: body.name }),
+          ...(body.user === undefined ? {} : { user: body.user }),
+        },
+        timeoutMs: 15 * 60_000,
+      }) as Promise<Agent37ExecResult | Agent37Pid>,
+    signedUrl: async ({ id, port, ttlSeconds }) => {
+      const answer = (await call({
+        url: api(`/v1/instances/${id}/signed-url`),
+        method: 'POST',
+        headers: bearer,
+        body: { port, ttl_seconds: ttlSeconds },
+      })) as { url: string }
+      return answer.url
+    },
+  }
+}

@@ -18,7 +18,7 @@ export type RemoteCloseReason = 'asleep' | 'detached'
 
 export type RemoteCallsArgs = {
   sessionId: string
-  token: string
+  token: string | (() => string)
   connector(): Promise<DaemonConnector>
   timers: CallTimers
   onFenced(): void

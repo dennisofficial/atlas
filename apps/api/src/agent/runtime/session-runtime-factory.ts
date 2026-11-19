@@ -1,21 +1,14 @@
-import {
-  defaultPipeline,
-  EWorkspaceStep,
-  EWorkspaceStepState,
-  type ModelPort,
-} from '@dltech/atlas-core'
+import { defaultPipeline, type ModelPort } from '@dltech/atlas-core'
 import { InMemoryToolRegistry } from '@dltech/atlas-agent'
-import { daemonToken } from '@dltech/atlas-protocol/engine'
 import {
   DaemonAgentFileSystemPort,
   DaemonFileSystemPort,
   DaemonProcessPort,
-  RemoteCalls,
   type HostTimers,
   type PodPeers,
   type SessionRuntimeFactory,
 } from '@dltech/atlas-host'
-import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
+import type { LogPort } from '@dltech/atlas-observability'
 
 import type { MediaSigner } from '../media/media-signer'
 import { attachmentUrlBinding } from '../media/media-urls'
@@ -38,7 +31,7 @@ import { prepareControllerOf } from './session-prepare'
 import { countRunningShells } from './running-shells'
 import { startKeepAlive } from './keep-alive'
 import { sandboxReleaseFor } from './sandbox-release'
-import { rewakingConnector } from './rewaking-connector'
+import { daemonSessionOf } from './daemon-session'
 import { githubIdentityLookup } from '@dltech/atlas-plugin-github/pod'
 import type { ComposedPlugins } from '@dltech/atlas-plugin-sdk'
 import { agentHostPrompt } from './prompt'
@@ -102,40 +95,19 @@ export const createSessionRuntimeFactory = (
     }
     const sandboxName = sandboxNameOf(sandboxSessionId)
     const paths = sessionPathsOf({ sessionId, threadId })
-    const wake = () => provider.wake({ target, signal })
     const steps = new PrepareSteps()
-    steps.report({ step: EWorkspaceStep.Sandbox, state: EWorkspaceStepState.Started })
-    const endpoint = wake()
-    endpoint.then(
-      () =>
-        steps.report({
-          step: EWorkspaceStep.Sandbox,
-          state: EWorkspaceStepState.Done,
-        }),
-      (error: unknown) => steps.failOpen(error instanceof Error ? error.message : String(error)),
-    )
-    endpoint.catch((error: unknown) => {
-      args.log?.error({
-        source: 'runtime.wake',
-        message: `sandbox wake for ${sessionId} rejected`,
-        ...logFieldsOf({ error }),
-      })
-    })
-    const calls = new RemoteCalls({
+    const { calls } = daemonSessionOf({
       sessionId,
-      token: daemonToken({ secret: args.daemonSecret, sandboxName }),
-      connector: rewakingConnector({
-        sessionId,
-        first: endpoint,
-        wake,
-        signal,
-      }),
+      epoch,
+      provider,
+      target,
+      daemonSecret: args.daemonSecret,
       timers: args.timers,
-      onFenced: () => {},
-      ...(args.pingMs === undefined ? {} : { pingMs: args.pingMs }),
+      signal,
+      steps,
       ...(args.log === undefined ? {} : { log: args.log }),
+      ...(args.pingMs === undefined ? {} : { pingMs: args.pingMs }),
     })
-    calls.open({ epoch })
 
     const processes = new DaemonProcessPort({ calls })
     const files = new DaemonFileSystemPort({ calls })

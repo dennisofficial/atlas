@@ -45,6 +45,11 @@ the API); the agent itself calls the API for nothing. `CLOUDFLARE_*` is what it 
 tunnels and DNS routes for `exposePort`. `AGENT_HOST_PUBLIC_URL` seals the MCP OAuth `redirect_uri`,
 so production keeps it at `https://api.byatlas.io`.
 
+`AGENT37_TEMPLATE_ID` names the workspace template that `scripts/agent37-register-template.ts`
+registers from `ghcr.io/dennisofficial/atlas-sandbox` (name `atlas-sandbox`, `default_port` 3000).
+Every Agent37 instance mounts its disk at `/atlas` through `mount_path`, which hides whatever the
+image ships in that folder, so the image must keep nothing it needs under `/atlas`.
+
 Missing required vars exit 78 with the names on stderr.
 
 ## Deploy and local dev
