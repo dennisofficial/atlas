@@ -7,13 +7,16 @@ export function rewriteResponseHeaders(args: {
   headers: Headers
   scriptHash: string | null
   dropContentLength: boolean
+  partitionCookies: boolean
 }): Headers {
-  const { headers, scriptHash, dropContentLength } = args
+  const { headers, scriptHash, dropContentLength, partitionCookies } = args
   const cookies = headers.getSetCookie()
   const next = new Headers(headers)
   next.delete('x-frame-options')
   next.delete('set-cookie')
-  for (const cookie of cookies) next.append('set-cookie', rewriteSetCookie(cookie))
+  for (const cookie of cookies) {
+    next.append('set-cookie', partitionCookies ? rewriteSetCookie(cookie) : cookie)
+  }
   const csp = headers.get('content-security-policy')
   if (csp !== null) {
     const edited = editCsp({ header: csp, scriptHash })
