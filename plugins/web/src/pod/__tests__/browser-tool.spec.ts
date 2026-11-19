@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { toThreadId } from '@dltech/atlas-core'
-import { type PluginPodContext, EMPTY_MCP_CONTROL } from '@dltech/atlas-plugin-sdk'
+import { type PluginPodContext, EMPTY_MCP_CONTROL, EMPTY_ROUTINES } from '@dltech/atlas-plugin-sdk'
 import {
   ECallFailure,
   ECallStatus,
@@ -35,6 +35,7 @@ const ctxOf = (args: {
       memory: {} as never,
       mcp: EMPTY_MCP_CONTROL,
       webSearch: { config: async () => ({ backend: 'bing', key: undefined }) },
+      routines: EMPTY_ROUTINES,
     },
     crew: {} as never,
     sessions: {} as never,

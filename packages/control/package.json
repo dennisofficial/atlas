@@ -18,6 +18,7 @@
     "@dltech/atlas-db": "workspace:*",
     "@dltech/atlas-models": "workspace:*",
     "@dltech/atlas-protocol": "workspace:*",
+    "@dltech/atlas-schedule": "workspace:*",
     "zod": "^4.4.3"
   },
   "devDependencies": {

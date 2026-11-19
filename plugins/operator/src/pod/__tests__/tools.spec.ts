@@ -4,6 +4,7 @@ import { isParkedOutcome, toThreadId } from '@dltech/atlas-core'
 import {
   EMPTY_CREW,
   EMPTY_MCP_CONTROL,
+  EMPTY_ROUTINES,
   EMPTY_SESSIONS,
   EMPTY_WORKTREES,
   type PluginPodContext,
@@ -23,6 +24,7 @@ const control: PodControl = {
   exposePort: unavailable,
   mcp: EMPTY_MCP_CONTROL,
   webSearch: { config: unavailable },
+  routines: EMPTY_ROUTINES,
   memory: {
     list: unavailable,
     read: unavailable,

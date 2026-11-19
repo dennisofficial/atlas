@@ -1,5 +1,15 @@
 import type { Db } from '@dltech/atlas-db'
-import { threadOwnerOf } from '@dltech/atlas-control/postgres'
+import {
+  RoutineInvalidError,
+  RoutineNotFoundError,
+  routineCreateOf,
+  routineListOf,
+  routineRemoveOf,
+  routineRunNowOf,
+  routineUpdateOf,
+  type ControlPlane,
+} from '@dltech/atlas-control'
+import { threadOwnerOf, type ThreadOwner } from '@dltech/atlas-control/postgres'
 import type { PodControlClient } from '@dltech/atlas-host'
 import {
   MemoryEditRefusedError,
@@ -18,6 +28,8 @@ import type { MemoryScope } from '@dltech/atlas-plugin-sdk'
 import type { SecretCipher } from '../config/secret-cipher'
 import { webSearchConfigOf } from './web-search-config'
 
+const NOT_IN_A_PROJECT = 'this session has no Atlas Cloud project, and routines belong to a project'
+
 const refused = (failure: unknown): never => {
   if (
     failure instanceof MemoryInvalidError ||
@@ -25,6 +37,13 @@ const refused = (failure: unknown): never => {
     failure instanceof MemoryStaleRevisionError ||
     failure instanceof MemoryEditRefusedError
   ) {
+    throw new Error(failure.message)
+  }
+  throw failure
+}
+
+const routineRefused = (failure: unknown): never => {
+  if (failure instanceof RoutineInvalidError || failure instanceof RoutineNotFoundError) {
     throw new Error(failure.message)
   }
   throw failure
@@ -42,10 +61,16 @@ const projectFor = (args: {
   return args.project
 }
 
+const routineScopeOf = (owner: ThreadOwner): { userId: string; projectId: string } => {
+  if (owner.projectId === null) throw new Error(NOT_IN_A_PROJECT)
+  return { userId: owner.userId, projectId: owner.projectId }
+}
+
 export const localPodControlOf = (args: {
   db: Db
   previews: PreviewTunnels
   cipher: SecretCipher
+  plane: ControlPlane
 }): PodControlClient => {
   const ownerOf = (threadId: string) => threadOwnerOf({ handle: args.db, threadId })
 
@@ -76,6 +101,53 @@ export const localPodControlOf = (args: {
     exposePort: async ({ threadId, port }) => {
       const owner = await ownerOf(threadId)
       return await args.previews.expose({ threadId, userId: owner.userId, port })
+    },
+    routines: {
+      list: async ({ threadId }) => {
+        const scope = routineScopeOf(await ownerOf(threadId))
+        try {
+          const listed = await routineListOf({ plane: args.plane, ...scope })
+          return listed.routines
+        } catch (failure) {
+          return routineRefused(failure)
+        }
+      },
+      create: async ({ threadId, ...input }) => {
+        const scope = routineScopeOf(await ownerOf(threadId))
+        try {
+          return await routineCreateOf({
+            plane: args.plane,
+            userId: scope.userId,
+            input: { ...input, projectId: scope.projectId },
+          })
+        } catch (failure) {
+          return routineRefused(failure)
+        }
+      },
+      update: async ({ threadId, ...input }) => {
+        const scope = routineScopeOf(await ownerOf(threadId))
+        try {
+          return await routineUpdateOf({ plane: args.plane, ...scope, input })
+        } catch (failure) {
+          return routineRefused(failure)
+        }
+      },
+      remove: async ({ threadId, routineId }) => {
+        const scope = routineScopeOf(await ownerOf(threadId))
+        try {
+          return await routineRemoveOf({ plane: args.plane, ...scope, routineId })
+        } catch (failure) {
+          return routineRefused(failure)
+        }
+      },
+      run: async ({ threadId, routineId }) => {
+        const scope = routineScopeOf(await ownerOf(threadId))
+        try {
+          return await routineRunNowOf({ plane: args.plane, ...scope, routineId })
+        } catch (failure) {
+          return routineRefused(failure)
+        }
+      },
     },
     webSearch: {
       config: async ({ threadId }) => {

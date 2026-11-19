@@ -4,6 +4,7 @@ import {
   EMPTY_WORKTREES,
   type PluginPodContext,
   EMPTY_MCP_CONTROL,
+  EMPTY_ROUTINES,
 } from '@dltech/atlas-plugin-sdk'
 import { ECallStatus, type CallOp, type CallResult } from '@dltech/atlas-protocol'
 
@@ -26,6 +27,7 @@ export const podContextOf = (sessionId: string): PluginPodContext => ({
     },
     mcp: EMPTY_MCP_CONTROL,
     webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
+    routines: EMPTY_ROUTINES,
   },
   crew: EMPTY_CREW,
   sessions: EMPTY_SESSIONS,

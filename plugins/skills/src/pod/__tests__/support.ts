@@ -5,6 +5,7 @@ import {
   type PluginPodContext,
   EMPTY_CREW,
   EMPTY_MCP_CONTROL,
+  EMPTY_ROUTINES,
   EMPTY_SESSIONS,
   EMPTY_WORKTREES,
 } from '@dltech/atlas-plugin-sdk'
@@ -135,6 +136,7 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
       },
       mcp: EMPTY_MCP_CONTROL,
       webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
+      routines: EMPTY_ROUTINES,
     },
     crew: EMPTY_CREW,
     sessions: EMPTY_SESSIONS,
