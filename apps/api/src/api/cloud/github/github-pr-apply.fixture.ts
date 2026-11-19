@@ -6,7 +6,7 @@ import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { GithubPrOutboxDispatcher } from './github-pr-outbox'
 import { GithubPrStore } from './github-pr-store'
-import { inertReconcile } from './github-pr-store.fixture'
+import { inertMergeabilityRefresh, inertReconcile } from './github-pr-store.fixture'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 
 export const SAMPLE: PullSample = {
@@ -51,6 +51,7 @@ export function rig(
     signals,
     wake,
     reconcile: inertReconcile(),
+    mergeability: inertMergeabilityRefresh(),
   })
   const mailbox = overrides.mailbox ?? new GithubPrEventMailboxService(fanout, dispatcher)
 

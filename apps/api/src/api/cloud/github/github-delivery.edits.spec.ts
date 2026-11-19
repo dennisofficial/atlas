@@ -9,7 +9,7 @@ import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { GithubPrOutboxDispatcher } from './github-pr-outbox'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
-import { inertReconcile } from './github-pr-store.fixture'
+import { inertMergeabilityRefresh, inertReconcile } from './github-pr-store.fixture'
 
 function discussionWith(): {
   discussion: GithubPrDiscussionDeliveryService
@@ -27,6 +27,7 @@ function discussionWith(): {
       signals: inertSignals(),
       wake,
       reconcile: inertReconcile(),
+      mergeability: inertMergeabilityRefresh(),
     }),
   )
   return { discussion: new GithubPrDiscussionDeliveryService(mailbox), wakes }

@@ -16,7 +16,10 @@ import { EPrEventKind as EApiPrEventKind, type GithubPrEventPayload } from './gi
 
 type PrEventDraft = Extract<EventBody, { type: 'pr-event' }>
 
-type Tally = Pick<Row<'GithubPrState'>, 'checksPassed' | 'checksFailed' | 'checksRunning'>
+type Tally = Pick<
+  Row<'GithubPrState'>,
+  'checksPassed' | 'checksFailed' | 'checksRunning' | 'baseBranch'
+>
 
 const CORE_KIND: Record<EApiPrEventKind, ECorePrEventKind> = {
   [EApiPrEventKind.Comment]: ECorePrEventKind.Comment,
@@ -54,6 +57,7 @@ export const prEventBodyOf = (args: {
   const reviewState = reviewStateOf(payload.reviewState)
   const verdict = verdictOf(payload.verdict)
   const checks = checksOf(args.tally)
+  const baseBranch = args.tally?.baseBranch ?? ''
   return {
     type: 'pr-event',
     repo: `github.com/${args.event.repoFullName}`,
@@ -69,6 +73,7 @@ export const prEventBodyOf = (args: {
     ...(payload.settled === undefined ? {} : { settled: payload.settled }),
     ...(payload.failedChecks === undefined ? {} : { failedChecks: payload.failedChecks }),
     ...(payload.mergeable === undefined ? {} : { mergeable: payload.mergeable }),
+    ...(payload.mergeable === false && baseBranch !== '' ? { baseBranch } : {}),
     ...(payload.state === undefined ? {} : { state: payload.state }),
     ...(reviewState === undefined ? {} : { reviewState }),
     ...(payload.path === undefined ? {} : { path: payload.path }),

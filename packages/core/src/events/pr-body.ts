@@ -32,6 +32,7 @@ export type PrEventBody =
       settled?: boolean | undefined
       failedChecks?: readonly PrFailedCheck[] | undefined
       mergeable?: boolean | undefined
+      baseBranch?: string | undefined
       state?: string | undefined
       queue?: EMergeQueueMove | undefined
       checks?: PrChecksTally | undefined

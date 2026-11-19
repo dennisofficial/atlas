@@ -205,6 +205,14 @@ describe('handing a PR event to the model', () => {
     expect(unknown).toContain('mergeability unknown.')
   })
 
+  it('names the base branch a conflicting PR now conflicts with', () => {
+    const conflicted = prEventBlock(
+      eventOf({ kind: EPrEventKind.Mergeability, mergeable: false, baseBranch: 'main' }),
+    )
+
+    expect(conflicted).toContain('now has merge conflicts with main.')
+  })
+
   it('says a PR merged or closed, and passes any other state through', () => {
     const merged = prEventBlock(eventOf({ kind: EPrEventKind.State, state: 'merged' }))
     const closed = prEventBlock(eventOf({ kind: EPrEventKind.State, state: 'closed' }))

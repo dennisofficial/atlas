@@ -52,6 +52,7 @@ function rig(args: { now: () => Date; reconcile: () => Promise<void> }) {
     signals,
     wake: { notifyEvent: async () => undefined },
     reconcile: args.reconcile,
+    mergeability: async () => undefined,
     logger: { warn: () => undefined },
     now: args.now,
   })
