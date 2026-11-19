@@ -5,7 +5,6 @@ import {
   type Lease,
   type PendingInputsState,
   type PluginViewFold,
-  type PullRequestLink,
   type SessionViewState,
   type SessionViewValue,
   type V2Event,
@@ -15,7 +14,7 @@ import type { z } from 'zod'
 
 import { UnknownThreadError } from './errors'
 import type { LeaseOps } from './lease-ops'
-import type { ControlStorePort, ControlTx, PrChecks, PrStateRow } from './port'
+import type { ControlStorePort, ControlTx, PrChecks, TrackedPullRequestRow } from './port'
 import { runningCommandsIn } from './command-rows'
 import { commandsOf, queuedOf } from './queued-messages'
 import { readEventsIn } from './read-events'
@@ -30,7 +29,13 @@ export type ControlPullRequestState = {
   updatedAt: string
 }
 
-export type ControlPullRequest = PullRequestLink & { state: ControlPullRequestState | null }
+export type ControlPullRequest = {
+  repo: string
+  number: number
+  url: string
+  branch: string
+  state: ControlPullRequestState
+}
 
 export type ControlSessionViewValue = Omit<SessionViewValue, 'status' | 'pullRequests'> & {
   status: SessionStatusOutput
@@ -115,25 +120,27 @@ export const liveViewIn = async (args: {
   return { value, lease, live }
 }
 
-const stateOfRow = (row: PrStateRow): ControlPullRequestState => ({
-  title: row.title,
-  state: row.state,
-  headSha: row.headSha,
-  checks: { running: row.checksRunning, passed: row.checksPassed, failed: row.checksFailed },
-  mergeable: row.mergeable,
-  updatedAt: row.updatedAt,
+const pullRequestOf = (row: TrackedPullRequestRow): ControlPullRequest => ({
+  repo: row.repo,
+  number: row.number,
+  url: row.url,
+  branch: row.branch,
+  state: {
+    title: row.state.title,
+    state: row.state.state,
+    headSha: row.state.headSha,
+    checks: row.state.checks,
+    mergeable: row.state.mergeable,
+    updatedAt: row.state.updatedAt,
+  },
 })
 
-export const pullRequestsWithState = async (args: {
+export const trackedPullRequestsOf = async (args: {
   tx: ControlTx
-  links: readonly PullRequestLink[]
+  sessionId: string
 }): Promise<ControlPullRequest[]> => {
-  if (args.links.length === 0) return []
-  const rows = await args.tx.readPrStates(args.links)
-  return args.links.map((link) => {
-    const row = rows.find((kept) => kept.repo === link.repo && kept.number === link.number)
-    return { ...link, state: row === undefined ? null : stateOfRow(row) }
-  })
+  const rows = await args.tx.readTrackedPullRequests([args.sessionId])
+  return rows.map(pullRequestOf)
 }
 
 export const statusOutputOf = (args: {
@@ -183,7 +190,7 @@ export const readSessionViewIn = async (args: {
           eventSchema: args.eventSchema,
         }),
       }),
-      pullRequests: await pullRequestsWithState({ tx, links: live.value.pullRequests }),
+      pullRequests: await trackedPullRequestsOf({ tx, sessionId }),
     },
   }
 }

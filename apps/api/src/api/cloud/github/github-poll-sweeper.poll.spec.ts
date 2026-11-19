@@ -42,8 +42,8 @@ describe('GithubPollSweeperService polling', () => {
     })
     expect((await prStateRows())[0]).toMatchObject({
       prNumber: 42,
-      checksFailed: 1,
       mergeable: false,
+      pullUpdatedAt: expect.any(Date),
     })
     expect(received).toHaveLength(1)
   })

@@ -3,6 +3,14 @@ import {
   realRedisCoordinators,
   type RedisCoordinatorFixture,
 } from './github-request-coordinator-redis.integration.fixture'
+import {
+  EGithubHttpCategory,
+  GITHUB_AUTH_HTTP_BUDGET_PER_MINUTE,
+  GITHUB_REFRESH_RESERVED_FOR_REFRESH,
+  GITHUB_REFRESH_HTTP_BUDGET_PER_MINUTE,
+} from './github-request-coordinator.types'
+
+const LOOKUP_SHARE = GITHUB_REFRESH_HTTP_BUDGET_PER_MINUTE - GITHUB_REFRESH_RESERVED_FOR_REFRESH
 
 describe('RedisCoordinatorAdapter over independent real Redis connections', () => {
   let fixture: RedisCoordinatorFixture
@@ -31,6 +39,36 @@ describe('RedisCoordinatorAdapter over independent real Redis connections', () =
     setSystemTime(new Date('2035-01-01T00:01:00.000Z'))
     expect(await fixture.second.takeHttpSlot(fixture.identity('owner'))).toBe(true)
     expect(await fixture.first.takeHttpSlot(fixture.identity('agent'))).toBe(true)
+  })
+
+  it('charges lookups to the refresh share and leaves authorization its own reserved share', async () => {
+    setSystemTime(new Date('2035-01-01T00:00:00.000Z'))
+    const credential = fixture.identity('shared')
+    const take = (category: EGithubHttpCategory) =>
+      fixture.second.takeHttpSlot({ ...credential, category })
+    const lookups = await Promise.all(
+      Array.from({ length: 40 }, (_, index) =>
+        (index % 2 === 0 ? fixture.first : fixture.second).takeHttpSlot({
+          ...credential,
+          category: EGithubHttpCategory.Lookup,
+        }),
+      ),
+    )
+    expect(lookups.filter(Boolean)).toHaveLength(LOOKUP_SHARE)
+    const refreshes = await Promise.all(
+      Array.from({ length: GITHUB_REFRESH_HTTP_BUDGET_PER_MINUTE - LOOKUP_SHARE }, () =>
+        take(EGithubHttpCategory.Refresh),
+      ),
+    )
+    expect(refreshes.every(Boolean)).toBe(true)
+    expect(await take(EGithubHttpCategory.Refresh)).toBe(false)
+    const authorizations = await Promise.all(
+      Array.from({ length: GITHUB_AUTH_HTTP_BUDGET_PER_MINUTE }, () =>
+        take(EGithubHttpCategory.Authorization),
+      ),
+    )
+    expect(authorizations.every(Boolean)).toBe(true)
+    expect(await take(EGithubHttpCategory.Authorization)).toBe(false)
   })
 
   it('shares a low-quota reserve only with the credential it belongs to', async () => {
@@ -117,31 +155,5 @@ describe('RedisCoordinatorAdapter over independent real Redis connections', () =
     expect(ttl).toBeLessThanOrEqual(30_000)
     setSystemTime(new Date(now + 30_001))
     expect(await fixture.second.readAuthorization(key)).toBeUndefined()
-  })
-
-  it('shares bounded exponential attempt backoff, resets success, and leaves unrelated targets untouched', async () => {
-    const now = new Date('2035-01-01T00:00:00.000Z').getTime()
-    setSystemTime(new Date(now))
-    const key = 'owner/repo#42'
-    fixture.key(`attempt:${key}`)
-    expect(await fixture.second.attempt(key)).toEqual({ failures: 0, nextAttemptAt: 0 })
-    const delays = [60_000, 120_000, 240_000, 480_000, 600_000, 600_000, 600_000, 600_000, 600_000]
-    for (const [index, delay] of delays.entries()) {
-      const adapter = index % 2 === 0 ? fixture.first : fixture.second
-      await adapter.recordAttempt({ key, failed: true })
-      expect(await fixture.second.attempt(key)).toEqual({
-        failures: Math.min(index + 1, 8),
-        nextAttemptAt: now + delay,
-      })
-    }
-    const ttl = await fixture.services.first.client().pttl(fixture.key(`attempt:${key}`))
-    expect(ttl).toBeGreaterThan(0)
-    expect(ttl).toBeLessThanOrEqual(1_200_000)
-    await fixture.second.recordAttempt({ key, failed: false })
-    expect(await fixture.first.attempt(key)).toEqual({ failures: 0, nextAttemptAt: now + 30_000 })
-    expect(await fixture.first.attempt('owner/elsewhere#42')).toEqual({
-      failures: 0,
-      nextAttemptAt: 0,
-    })
   })
 })

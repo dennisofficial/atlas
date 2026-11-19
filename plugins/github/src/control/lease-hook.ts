@@ -76,13 +76,24 @@ export const subscriptionLeaseHook: AppendHook = {
       if (event.provider !== GITHUB_PROVIDER && event.provider !== GITHUB_RUN_PROVIDER) return
       const lease = leaseOf({ provider: event.provider, target: event.target })
       if (lease === null) return
+      const expiresAt = expiryOf(event)
       await tx.upsertSubscriptionLease({
         userId: session.userId,
         threadId: event.threadId,
         repo: lease.repo,
         subject: lease.subject,
-        expiresAt: expiryOf(event),
+        expiresAt,
       })
+      if (lease.subject.kind === 'pull-request') {
+        await tx.upsertTrackingTarget({
+          userId: session.userId,
+          kind: 'pull-request',
+          repoFullName: lease.repo,
+          branch: '',
+          prNumber: lease.subject.number,
+          liveUntil: expiresAt,
+        })
+      }
       return
     }
     if (event.type !== 'subscription-ended') return

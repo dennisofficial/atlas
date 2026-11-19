@@ -51,7 +51,11 @@ describe('GithubDeliveryService tracked state', () => {
   it('keeps a merged row merged when an older opened payload is replayed', async () => {
     const { service } = serviceWith({ tokens: {} })
     await seedSubscription({ userId: 'usr-a', prNumber: 42 })
-    await seedPrState({ ...FILLED_PR_STATE, state: 'merged' })
+    await seedPrState({
+      ...FILLED_PR_STATE,
+      state: 'merged',
+      pullUpdatedAt: new Date('2026-11-18T12:00:00Z'),
+    })
 
     await service.handle({
       event: 'pull_request',

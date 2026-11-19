@@ -1,3 +1,5 @@
+import { observationReadOf } from './github-pr-read.fixture'
+import { storeFixture } from './github-pr-store.fixture'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { localCoordinator } from './github-request-coordinator.fixture'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
@@ -21,7 +23,6 @@ const REST_FIELDS: PullRequestCacheFields = {
   checksPassed: 2,
   checksFailed: 0,
   checksIgnored: 0,
-  checksState: null,
   mergeable: true,
 }
 
@@ -37,6 +38,11 @@ function serviceWith(args: {
   } as unknown as GithubHookLifecycleService
   const reads = {
     readPullRequest: args.readPullRequest,
+    readPullRequestObservation: async (input: { number: number }) =>
+      observationReadOf({
+        fields: await args.readPullRequest(input as never),
+        number: input.number,
+      }),
     findOpenPrForBranch: args.findOpenPrForBranch,
   } as unknown as GithubUserReads
   const installNotice = {
@@ -51,8 +57,8 @@ function serviceWith(args: {
     hooks,
     installNotice,
     localCoordinator(github),
-    { record: async () => undefined } as never,
     { coversRepo: async () => false } as never,
+    storeFixture(),
   )
 }
 

@@ -12,6 +12,7 @@ import {
   type ClaimedBatch,
   type ControlTx,
   type SubscriptionLease,
+  type TrackingTarget,
   type ReadEventsParams,
   type StoredEvent,
   type ThreadRow,
@@ -41,7 +42,7 @@ import {
   readRoutineIn,
   updateRoutineIn,
 } from './memory-routines'
-import { subscriptionLeaseKey } from './memory-state'
+import { subscriptionLeaseKey, trackingTargetKey } from './memory-state'
 import { blobHashesPresent, insertBlobRows, readBlobRow } from './memory-blobs'
 import {
   changeBlobsUnreferencedIn,
@@ -334,6 +335,16 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
 
   async deleteSubscriptionLease(params: SubscriptionLease): Promise<boolean> {
     return this.state.subscriptionLeases.delete(subscriptionLeaseKey(params))
+  }
+
+  async upsertTrackingTarget(params: TrackingTarget): Promise<void> {
+    const key = trackingTargetKey(params)
+    const held = this.state.trackingTargets.get(key)
+    const liveUntil =
+      held !== undefined && Date.parse(held.liveUntil) > Date.parse(params.liveUntil)
+        ? held.liveUntil
+        : params.liveUntil
+    this.state.trackingTargets.set(key, { ...params, liveUntil })
   }
 
   async hostPresent(hostId: number): Promise<boolean> {

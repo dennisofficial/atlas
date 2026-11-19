@@ -1,35 +1,37 @@
 import { Injectable } from '@nestjs/common'
 import type { EGithubCallSource } from './github-call-log'
 import { githubFetch } from './github-fetch'
-import { rateLimitOf } from './github-rate-limit'
+import {
+  DETAIL_CAP,
+  GithubUserReadFailed,
+  GITHUB_REQUEST_TIMEOUT_MS,
+  githubApiBaseUrlOf,
+  githubHeadersOf,
+  githubJsonGet,
+} from './github-user-http'
+import type { BranchProtectionRead } from './github-branch-protection'
 import type { PullRequestCacheFields } from './github-pull-request-mapping'
 import { HOOK_EVENTS } from './github-hook-events'
-import { type CommitCheckInput, recordCheckCounts } from './github-commit-checks'
+import type { CommitCheckInput } from './github-commit-checks'
 import type { RawCheckAnnotation } from './github-check-annotations'
-import { readPullRequestFill } from './github-pull-request-read'
+import {
+  pullObservationReadOf,
+  readPullRequestFill,
+  type PullChecksCollected,
+  type PullObservationRead,
+  type PullRequestRead,
+} from './github-pull-request-read'
+import { readHeadChecks } from './github-head-checks-read'
 import { GithubRequiredChecksRead } from './github-required-checks-read'
 
-const GITHUB_API = 'https://api.github.com'
-const DETAIL_CAP = 300
-const GITHUB_REQUEST_TIMEOUT_MS = 8_000
-
-export class GithubUserReadFailed extends Error {
-  readonly rateLimited: boolean
-
-  constructor(
-    message: string,
-    readonly status: number,
-    rateLimited?: boolean,
-  ) {
-    super(message)
-    this.rateLimited = rateLimited ?? status === 429
-  }
-}
+export { GithubUserReadFailed } from './github-user-http'
 
 export type CreateHookResult =
   | { outcome: 'created'; hookId: number }
   | { outcome: 'adopted'; hookId: number | undefined }
   | { outcome: 'forbidden' }
+
+export type { PullObservationRead } from './github-pull-request-read'
 
 export interface HookConfig {
   url: string
@@ -43,7 +45,7 @@ export interface HookConfig {
  */
 @Injectable()
 export class GithubUserReads {
-  private readonly baseUrl = process.env.GITHUB_API_URL ?? GITHUB_API
+  private readonly baseUrl = githubApiBaseUrlOf()
   private readonly requiredChecks = new GithubRequiredChecksRead()
 
   readCheckAnnotations(args: {
@@ -60,36 +62,67 @@ export class GithubUserReads {
     })
   }
 
+  readHeadChecksOf(args: {
+    source: EGithubCallSource
+    token: string
+    owner: string
+    repo: string
+    headSha: string
+  }): Promise<CommitCheckInput[]> {
+    return readHeadChecks({
+      get: <T>(path: string) => this.get<T>({ source: args.source, token: args.token, path }),
+      owner: args.owner,
+      repo: args.repo,
+      headSha: args.headSha,
+    }).then((read) => read.checks)
+  }
+
   async readPullRequest(args: {
     source: EGithubCallSource
     token: string
     owner: string
     repo: string
     number: number
-    collectChecks?: (args: { headSha: string; checks: CommitCheckInput[] }) => void
+    collectChecks: (args: PullChecksCollected) => void
+    collectRequiredContexts?: (protection: BranchProtectionRead) => void
   }): Promise<PullRequestCacheFields> {
-    const read = await readPullRequestFill({
+    const read = await this.readPullRequestFillOf(args)
+    args.collectChecks({
+      headSha: read.headSha,
+      checks: read.checks,
+      mergeability: read.mergeability,
+    })
+    args.collectRequiredContexts?.(read.protection)
+    return read.fields
+  }
+
+  readPullRequestObservation(args: {
+    source: EGithubCallSource
+    token: string
+    owner: string
+    repo: string
+    number: number
+  }): Promise<PullObservationRead> {
+    return this.readPullRequestFillOf(args).then(pullObservationReadOf)
+  }
+
+  private readPullRequestFillOf(args: {
+    source: EGithubCallSource
+    token: string
+    owner: string
+    repo: string
+    number: number
+  }): Promise<PullRequestRead> {
+    return readPullRequestFill({
       get: <T>(request: { source: EGithubCallSource; token: string; path: string }) =>
         this.get<T>(request),
       requiredChecks: this.requiredChecks,
-      baseUrl: this.baseUrl,
       source: args.source,
       token: args.token,
       owner: args.owner,
       repo: args.repo,
       number: args.number,
     })
-    if (args.collectChecks !== undefined) {
-      args.collectChecks({ headSha: read.headSha, checks: read.checks })
-      return read.fields
-    }
-    if (read.checks.length === 0) return read.fields
-    const counts = await recordCheckCounts({
-      repoFullName: `${args.owner}/${args.repo}`,
-      headSha: read.headSha,
-      checks: read.checks,
-    })
-    return { ...read.fields, ...counts }
   }
 
   /**
@@ -126,7 +159,7 @@ export class GithubUserReads {
       url: `${this.baseUrl}/repos/${args.owner}/${args.repo}/hooks`,
       init: {
         method: 'POST',
-        headers: this.headers({ token: args.token }),
+        headers: githubHeadersOf({ token: args.token }),
         signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
         body: JSON.stringify({
           name: 'web',
@@ -165,7 +198,7 @@ export class GithubUserReads {
       source: args.source,
       url: `${this.baseUrl}/repos/${args.owner}/${args.repo}/hooks/${args.hookId}`,
       init: {
-        headers: this.headers({ token: args.token }),
+        headers: githubHeadersOf({ token: args.token }),
         signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
       },
     })
@@ -207,7 +240,7 @@ export class GithubUserReads {
       url: `${this.baseUrl}/repos/${args.owner}/${args.repo}/hooks/${args.hookId}`,
       init: {
         method: 'PATCH',
-        headers: this.headers({ token: args.token }),
+        headers: githubHeadersOf({ token: args.token }),
         signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
         body: JSON.stringify({ events: args.events }),
       },
@@ -233,7 +266,7 @@ export class GithubUserReads {
       url: `${this.baseUrl}/repos/${args.owner}/${args.repo}/hooks/${args.hookId}`,
       init: {
         method: 'DELETE',
-        headers: this.headers({ token: args.token }),
+        headers: githubHeadersOf({ token: args.token }),
         signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
       },
     })
@@ -261,35 +294,7 @@ export class GithubUserReads {
     return hooks.find((hook) => hook.config?.url === args.config.url)?.id
   }
 
-  private async get<T>(args: {
-    source: EGithubCallSource
-    token: string
-    path: string
-  }): Promise<T> {
-    const response = await githubFetch({
-      source: args.source,
-      url: `${this.baseUrl}${args.path}`,
-      init: {
-        headers: this.headers({ token: args.token }),
-        signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
-      },
-    })
-    if (!response.ok) {
-      const detail = (await response.text()).slice(0, DETAIL_CAP)
-      throw new GithubUserReadFailed(
-        `github answered ${response.status} for ${args.path}: ${detail}`,
-        response.status,
-        rateLimitOf(response) !== null,
-      )
-    }
-    return (await response.json()) as T
-  }
-
-  private headers(args: { token: string }): Record<string, string> {
-    return {
-      authorization: `Bearer ${args.token}`,
-      accept: 'application/vnd.github+json',
-      'x-github-api-version': '2022-11-28',
-    }
+  private get<T>(args: { source: EGithubCallSource; token: string; path: string }): Promise<T> {
+    return githubJsonGet({ baseUrl: this.baseUrl, ...args })
   }
 }

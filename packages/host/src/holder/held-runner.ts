@@ -9,7 +9,6 @@ import { logFieldsOf } from '@dltech/atlas-observability'
 
 import { ScopedToolDispatcher } from '../calls/call-scope'
 import { BranchObserver } from './branch-observer'
-import { PrLinker } from './pr-linker'
 import { pluginPodOf } from './plugin-pod'
 import type { HeldSessionDeps } from './held-session-deps'
 import { LeaseLostError } from './record/record-adapter'
@@ -102,23 +101,6 @@ export const createBranchObserver = (args: {
   const { deps, record, runtime, threadId } = args
   const book = () => record.eventCache().bookkeeping()
   const runId = () => deps.ids.nextRunId()
-  const linker =
-    runtime.pullRequests === undefined
-      ? undefined
-      : new PrLinker({
-          source: runtime.pullRequests,
-          record: {
-            append: ({ threadId: to, runId: id, body }) =>
-              record.append({ threadId: to, runId: id, drafts: [body] }),
-            lastObservation: (repo) => book().lastObservation(repo),
-            hasLink: (link) => book().hasLink(link),
-          },
-          threadId,
-          signal: args.signal,
-          repos: () => runtime.watchedRepos(),
-          runId,
-          ...(deps.log === undefined ? {} : { log: deps.log }),
-        })
   return new BranchObserver({
     record: {
       append: ({ threadId: to, runId: id, body }) =>
@@ -128,27 +110,15 @@ export const createBranchObserver = (args: {
         const fact = book().fact(`base:${repo}`)
         return fact.found && typeof fact.value === 'string' ? fact.value : undefined
       },
-      rememberBase: ({ threadId: to, runId: id, repo, base }) =>
-        record.append({
-          threadId: to,
-          runId: id,
-          drafts: [
-            {
-              type: 'fact-recorded',
-              key: `base:${repo}`,
-              kind: 'base',
-              value: base,
-            },
-          ],
-        }),
     },
     remoteCalls: runtime.remoteCalls,
     threadId,
     repos: () => runtime.watchedRepos(),
+    onRepo: runtime.onRepo,
     baseOf: (repo) => runtime.baseBranchOf(repo),
-    afterRefresh: linker === undefined ? undefined : () => linker.link(),
     runId,
     signal: args.signal,
+    timers: deps.timers,
     ...(deps.log === undefined ? {} : { log: deps.log }),
   })
 }
@@ -246,16 +216,18 @@ export const wireHeldLoop = (args: {
 }): {
   runner: LoopTurnRunner
   branches: BranchObserver
+  branchesStarted: Promise<void>
   recoverCommands(): Promise<void>
   logStaged(): Promise<void>
 } => {
   const { runner, intake } = createLoopRunner(args)
   const branches = createBranchObserver(args)
   const prepared = () => args.record.eventCache().bookkeeping().workspace().prepared
-  branches.start()
+  const branchesStarted = branches.start()
   return {
     runner,
     branches,
+    branchesStarted,
     recoverCommands: () => intake.recoverUnfinished(),
     logStaged: () =>
       intake.logStaged({ willDrain: () => !args.turns.turnRunning && prepared(), prepared }),

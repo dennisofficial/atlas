@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { createHash } from 'node:crypto'
 import {
+  EGithubHttpCategory,
   GITHUB_HTTP_LOW_WATER_RATIO,
   type GithubRequestIdentity,
 } from './github-request-coordinator.types'
@@ -20,6 +21,7 @@ export type GithubHttpBudget = {
   }): Promise<void>
 }
 const scope = new AsyncLocalStorage<GithubHttpBudget>()
+const callCategory = new AsyncLocalStorage<EGithubHttpCategory>()
 const logger = new Logger('GithubBudget')
 
 export enum EGithubBudgetRefusal {
@@ -80,6 +82,16 @@ export function withGithubRequestBudget<T>(args: {
 }): Promise<T> {
   return scope.run(args.store, args.run)
 }
+
+export function withGithubCallCategory<T>(
+  category: EGithubHttpCategory,
+  run: () => Promise<T>,
+): Promise<T> {
+  return callCategory.run(category, run)
+}
+
+export const githubCallCategory = (fallback: EGithubHttpCategory): EGithubHttpCategory =>
+  callCategory.getStore() ?? fallback
 
 const detailOf = (failure: unknown): string =>
   failure instanceof Error ? `${failure.name}: ${failure.message}` : String(failure)

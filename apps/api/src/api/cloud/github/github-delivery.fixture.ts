@@ -8,14 +8,19 @@ import {
 } from '../../../../test/github-seed'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
+import { inertReconcile } from './github-pr-store.fixture'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { GithubDeliveryService } from './github-delivery.service'
+import { observationReadOf } from './github-pr-read.fixture'
+import { storeFixture } from './github-pr-store.fixture'
 import type { GithubInstallationTokens } from './github-installation-tokens'
 import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
+import { GithubPrOutboxDispatcher } from './github-pr-outbox'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import type { PullRequestCacheFields } from './github-pull-request-mapping'
+import { type CommitCheckInput, restCommitChecksOf } from './github-commit-checks'
 import type { GithubUserReads } from './github-user-reads'
 import type { GithubService } from './github.service'
 
@@ -28,6 +33,11 @@ export const PULL_REQUEST_PAYLOAD = {
     state: 'open',
     draft: false,
     merged_at: null,
+    closed_at: null,
+    updated_at: '2026-11-18T00:00:00Z',
+    mergeable: null,
+    mergeable_state: 'unknown',
+    base: { ref: 'main', repo: { full_name: 'compai/app' } },
     head: {
       ref: 'dennis/add-the-thing',
       sha: 'abc123',
@@ -48,10 +58,22 @@ export const REST_FIELDS: PullRequestCacheFields = {
   checksPassed: 2,
   checksFailed: 0,
   checksIgnored: 0,
-  checksState: null,
   mergeable: true,
   mergeClean: true,
 }
+
+export const passedCheckInputs = (count: number): CommitCheckInput[] =>
+  restCommitChecksOf({
+    checkRuns: Array.from({ length: count }, (_, index) => ({
+      id: index + 1,
+      name: `job-${index + 1}`,
+      status: 'completed',
+      conclusion: 'success',
+      started_at: '2026-11-02T04:25:00Z',
+      completed_at: '2026-11-02T04:26:00Z',
+    })),
+    statuses: [],
+  })
 
 const USERS = [
   'usr-creator',
@@ -78,12 +100,17 @@ export const FILLED_PR_STATE = {
   headBranch: 'dennis/add-the-thing',
   headSha: 'abc123',
   headRepoFullName: 'compai/app',
+  baseBranch: 'main',
   checksRunning: 1,
   checksPassed: 2,
   checksFailed: 0,
   checksIgnored: 0,
   checksState: null,
   mergeable: true,
+  mergeableHeadSha: 'abc123',
+  mergeableBaseRef: 'main',
+  mergeableObservedAt: new Date('2026-11-17T00:00:00Z'),
+  pullUpdatedAt: new Date('2026-11-17T00:00:00Z'),
   updatedAt: new Date(),
 }
 
@@ -120,6 +147,28 @@ export const checkRunPayload = (
 
 export const SETTLING_CHECK_RUN_PAYLOAD = checkRunPayload()
 
+const withBaseBranch =
+  (read: GithubUserReads['readPullRequest']): GithubUserReads['readPullRequest'] =>
+  async (args) => {
+    let collected = false
+    const fields = await read({
+      ...args,
+      collectRequiredContexts: (held) => {
+        collected = true
+        args.collectRequiredContexts?.(held)
+      },
+    })
+    if (!collected) {
+      args.collectRequiredContexts?.({
+        acquiredAt: new Date(),
+        baseBranch: 'main',
+        requiredContexts: [],
+      })
+    }
+
+    return fields
+  }
+
 export const prepareDelivery = async (): Promise<void> => {
   vi.useRealTimers()
   await ensureUsers(...USERS)
@@ -139,8 +188,11 @@ export function serviceWith(args: {
   const github = {
     findToken: async ({ userId }: { userId: string }) => args.tokens?.[userId],
   } as unknown as GithubService
+  const readPullRequest = withBaseBranch(args.readPullRequest ?? (async () => REST_FIELDS))
   const reads = {
-    readPullRequest: args.readPullRequest ?? (async () => REST_FIELDS),
+    readPullRequest,
+    readPullRequestObservation: async (input: { number: number }) =>
+      observationReadOf({ fields: await readPullRequest(input as never), number: input.number }),
     readCheckAnnotations: args.readCheckAnnotations ?? (async () => []),
   } as unknown as GithubUserReads
   const fanout = new GithubPrFanoutService(new DrainStateService())
@@ -148,7 +200,15 @@ export function serviceWith(args: {
   const wake = {
     notifyEvent: () => undefined,
   } as unknown as GithubSandboxWakeService
-  const mailbox = new GithubPrEventMailboxService(fanout, wake)
+  const mailbox = new GithubPrEventMailboxService(
+    fanout,
+    new GithubPrOutboxDispatcher({
+      fanout,
+      signals: inertSignals(),
+      wake,
+      reconcile: inertReconcile(),
+    }),
+  )
   const discussion = new GithubPrDiscussionDeliveryService(mailbox)
   return {
     service: new GithubDeliveryService(
@@ -160,6 +220,7 @@ export function serviceWith(args: {
       discussion,
       inertSignals(),
       args.coordinator ?? localCoordinator(github),
+      storeFixture({ fanout }),
       args.appTokens,
     ),
     fanout,

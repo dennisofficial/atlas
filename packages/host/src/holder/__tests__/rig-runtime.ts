@@ -28,7 +28,6 @@ import { scopeDispatchedBootId } from '../../calls/call-scope'
 import type {
   PrepareResult,
   PrepareStepReporter,
-  PullRequestSource,
   RoleModelChoice,
   SessionRuntime,
   SetupLifecycle,
@@ -103,7 +102,6 @@ export const makeRuntimeFactory = (args: {
   subscribeSetup?: ((listener: (lifecycle: SetupLifecycle) => void) => void) | undefined
   model?: (() => ModelPort) | undefined
   baseBranches?: Readonly<Record<string, string>> | undefined
-  pullRequests?: PullRequestSource | undefined
   uploads?: SaidUploadsPort | undefined
   connectGate?: Promise<void> | undefined
   runtimeGate?: Promise<void> | undefined
@@ -167,7 +165,6 @@ export const makeRuntimeFactory = (args: {
       watched: [],
       watchedRepos: args.watchedRepos ?? (async () => runtime.watched),
       baseBranchOf: (repoPath) => args.baseBranches?.[repoPath] ?? null,
-      ...(args.pullRequests === undefined ? {} : { pullRequests: args.pullRequests }),
       ...(args.plugins === undefined ? {} : { plugins: args.plugins }),
       runningShells: args.runningShells ?? (async () => 0),
       prepare: (onStep) => (args.prepare ?? (async () => ({ ok: true as const })))(onStep),

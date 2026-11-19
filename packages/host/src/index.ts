@@ -40,15 +40,13 @@ export { SessionHolder } from './holder/session-holder'
 export type { SessionHolderArgs } from './holder/session-holder-args'
 export { podControlOf, type PodControlClient } from './holder/pod-control'
 export type {
+  CapturedBase,
   HostBus,
   HostPresence,
   HostTimers,
   PrepareResult,
-  FoundPullRequest,
   PrepareStepReporter,
   PodPeers,
-  PullRequestFinder,
-  PullRequestSource,
   RoleModelChoice,
   RoleModelRequest,
   SessionRuntime,

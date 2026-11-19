@@ -1,16 +1,20 @@
-import { EWorkspaceRepoState, type WorkspaceStepRepo } from '@dltech/atlas-core'
+import {
+  EWorkspaceRepoState,
+  githubRepoOfRemoteUrl,
+  type WorkspaceStepRepo,
+} from '@dltech/atlas-core'
 import type { WorkspaceConfig } from '../config/agent-host-config'
 
 const SSH_PATH = /^(?:ssh:\/\/)?git@[^/:]+[:/](.+)$/
 const URL_PREFIX = /^[a-z][a-z0-9+.-]*:\/\/[^/]*\//i
 
-export const repoOfRemoteUrl = (remoteUrl: string): string => {
-  const ssh = SSH_PATH.exec(remoteUrl)
-  const path = (ssh?.[1] ?? remoteUrl.replace(URL_PREFIX, ''))
+const remotePathOf = (remoteUrl: string): string =>
+  (SSH_PATH.exec(remoteUrl)?.[1] ?? remoteUrl.replace(URL_PREFIX, ''))
     .replace(/\/+$/, '')
     .replace(/\.git$/, '')
-  return path.split('/').slice(-2).join('/')
-}
+
+export const repoOfRemoteUrl = (remoteUrl: string): string =>
+  githubRepoOfRemoteUrl(remoteUrl) ?? remotePathOf(remoteUrl).split('/').slice(-2).join('/')
 
 export const repoNamesOf = (workspace: WorkspaceConfig): string[] => [
   ...(workspace.remoteUrl === null ? [] : [repoOfRemoteUrl(workspace.remoteUrl)]),

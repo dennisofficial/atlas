@@ -1,6 +1,7 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
 import { prEventRows } from '../../../../test/github-seed'
+import { seedHeadChecks } from './github-pr-checks.fixture'
 import {
   preparePollSweeper,
   REST_FIELDS,
@@ -41,6 +42,7 @@ describe('GithubPollSweeperService transition events', () => {
     }))
     const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
     await seedSubscription()
+    await seedHeadChecks({ headSha: 'abc123', passed: 3 })
     await seedPrState({ checksRunning: 2, checksPassed: 1, checksFailed: 0 })
 
     await service.handlePoll()
@@ -54,11 +56,12 @@ describe('GithubPollSweeperService transition events', () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
     const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
     await seedSubscription()
+    await seedHeadChecks({ headSha: 'abc123', passed: 3, failed: 1 })
     await seedPrState()
 
     await service.handlePoll()
 
-    // Seeded settled state carries no ledger row, so the obligation is discharged once…
+    // Seeded settled state carries no verdict row, so the obligation is discharged once…
     expect(await prEventRows()).toHaveLength(1)
 
     // …and a steady-state re-read after the discharge emits nothing.
@@ -70,6 +73,7 @@ describe('GithubPollSweeperService transition events', () => {
     const readPullRequest = vi.fn(async () => ({ ...REST_FIELDS, state: 'merged' }))
     const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
     await seedSubscription()
+    await seedHeadChecks({ headSha: 'abc123', passed: 3, failed: 1 })
 
     await service.handlePoll()
 

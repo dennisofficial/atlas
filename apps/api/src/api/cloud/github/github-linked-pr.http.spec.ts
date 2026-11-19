@@ -1,3 +1,4 @@
+import { storeFixture } from './github-pr-store.fixture'
 import { createHmac, randomUUID } from 'node:crypto'
 import type { IncomingMessage } from 'node:http'
 import { db } from '@dltech/atlas-db'
@@ -130,8 +131,8 @@ describe('linked PR states across real HTTP, Redis and Postgres', () => {
       api.hooks,
       {} as GithubAppInstallNoticeService,
       api.coordinator,
-      { record: async () => undefined } as never,
       { coversRepo: async () => false } as never,
+      storeFixture(),
     )
     app = await createMixedApp({
       controllers: [GithubHookController],
@@ -214,14 +215,14 @@ describe('linked PR states across real HTTP, Redis and Postgres', () => {
         repository: { full_name: 'CompAI/App' },
       })
       await waitFor(() =>
-        expect(states(owner.frames).some((frame) => frame.state.checksPassed === 1)).toBe(true),
+        expect(states(owner.frames).some((frame) => frame.state.mergeable === true)).toBe(true),
       )
       expect(states(other.frames)).toEqual([])
 
       const reconnect = subscribe(OWNER)
       await waitFor(() => expect(states(reconnect.frames)).toHaveLength(1))
       expect(states(reconnect.frames)[0]).toMatchObject({
-        state: { repoFullName: 'compai/app', prNumber: 42, checksPassed: 1 },
+        state: { repoFullName: 'compai/app', prNumber: 42, mergeable: true },
       })
 
       http.failChecks()

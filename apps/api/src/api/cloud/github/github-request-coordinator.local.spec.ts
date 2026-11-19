@@ -2,8 +2,16 @@ import { afterEach, describe, expect, it, setSystemTime } from 'bun:test'
 import { credentialFingerprint } from './github-request-budget'
 import { localCoordinator } from './github-request-coordinator.fixture'
 import { LocalCoordinatorAdapter } from './github-request-coordinator.local'
-import { ACCESS_PROOF_DENIAL_TTL_MS, EGithubHttpCategory } from './github-request-coordinator.types'
+import {
+  ACCESS_PROOF_DENIAL_TTL_MS,
+  EGithubHttpCategory,
+  GITHUB_AUTH_HTTP_BUDGET_PER_MINUTE,
+  GITHUB_REFRESH_HTTP_BUDGET_PER_MINUTE,
+  GITHUB_REFRESH_RESERVED_FOR_REFRESH,
+} from './github-request-coordinator.types'
 import type { GithubService } from './github.service'
+
+const LOOKUP_SHARE = GITHUB_REFRESH_HTTP_BUDGET_PER_MINUTE - GITHUB_REFRESH_RESERVED_FOR_REFRESH
 
 describe('same-process request coordinator adapter', () => {
   afterEach(() => setSystemTime())
@@ -41,6 +49,20 @@ describe('same-process request coordinator adapter', () => {
       ).toBe(true)
     expect(await adapter.takeHttpSlot(identity)).toBe(false)
   })
+  it('spends lookups from the refresh allowance so authorization keeps its own share', async () => {
+    const adapter = new LocalCoordinatorAdapter()
+    const identity = { credentialFingerprint: 'one', resource: 'core' }
+    const take = (category: EGithubHttpCategory) => adapter.takeHttpSlot({ ...identity, category })
+    for (let index = 0; index < LOOKUP_SHARE; index += 1)
+      expect(await take(EGithubHttpCategory.Lookup)).toBe(true)
+    for (let index = 0; index < GITHUB_REFRESH_HTTP_BUDGET_PER_MINUTE - LOOKUP_SHARE; index += 1)
+      expect(await take(EGithubHttpCategory.Refresh)).toBe(true)
+    expect(await take(EGithubHttpCategory.Refresh)).toBe(false)
+    expect(await take(EGithubHttpCategory.Lookup)).toBe(false)
+    for (let index = 0; index < GITHUB_AUTH_HTTP_BUDGET_PER_MINUTE; index += 1)
+      expect(await take(EGithubHttpCategory.Authorization)).toBe(true)
+    expect(await take(EGithubHttpCategory.Authorization)).toBe(false)
+  })
   it('holds a low-quota reserve per credential and resource until it expires', async () => {
     const adapter = new LocalCoordinatorAdapter()
     const identity = { credentialFingerprint: 'one', resource: 'core' }
@@ -74,13 +96,6 @@ describe('same-process request coordinator adapter', () => {
       await adapter.writeAuthorization({ key: 'fingerprint:compai/app', state: grant }),
     ).toEqual(denial)
     expect(await adapter.readAuthorization('fingerprint:compai/app')).toEqual(denial)
-  })
-  it('expires retry attempts after twenty minutes', async () => {
-    const adapter = new LocalCoordinatorAdapter()
-    await adapter.recordAttempt({ key: 'compai/app#42', failed: true })
-    expect((await adapter.attempt('compai/app#42')).failures).toBe(1)
-    setSystemTime(new Date(Date.now() + 1_200_001))
-    expect(await adapter.attempt('compai/app#42')).toEqual({ nextAttemptAt: 0, failures: 0 })
   })
 })
 

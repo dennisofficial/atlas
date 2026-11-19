@@ -13,7 +13,9 @@ import { ThreadSignalsService } from '../../platform/sessions/thread-signals.ser
 import {
   failedWakeTargets,
   linkedThreadsOf,
+  owedWakeTargets,
   WAKE_FAILURE_BACKOFF_MS,
+  type FailedWakeTarget,
 } from './github-sandbox-wake-linked'
 import { LocalPodWakes } from './github-local-pod-wake'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
@@ -53,21 +55,12 @@ type WakeTarget = {
   }
 }
 
-/**
- * Wakes parked sandboxes when a PR/CI event targets their thread. Called from the mailbox after
- * the event row lands; resolves the thread through the subscription link, boots only parked
- * sandboxes inside the 24h wake window, and debounces per threadId so a check-run storm boots
- * once. Never throws into the delivery path — a failed wake is logged, the mailbox row stays.
- * The wakeClaim CAS dedupes races between events and API instances before any Vercel call; the
- * claim reads as Resuming until serve's own mirror supersedes it. When the delivery carries the
- * event, the claim also appends it as a durable `pr-event` intent the booted pod pulls on hydrate.
- */
 @Injectable()
 export class GithubSandboxWakeService {
   private readonly logger = new Logger(GithubSandboxWakeService.name)
   private readonly debounce = new Map<
     string,
-    { timer: ReturnType<typeof setTimeout>; target: WakeTarget; event: WakePrEvent | undefined }
+    { timer: ReturnType<typeof setTimeout>; target: WakeTarget }
   >()
   private readonly inFlight = new Set<string>()
   private readonly lookupsInFlight = new Set<Promise<void>>()
@@ -87,25 +80,29 @@ export class GithubSandboxWakeService {
     this.localPods = new LocalPodWakes(fanout)
   }
 
-  notifyEvent(args: WakeEventNotice, event?: WakePrEvent): void {
-    this.track({
+  notifyEvent(args: WakeEventNotice, event?: WakePrEvent): Promise<void> {
+    const tracked = this.track({
       inFlight: this.lookupsInFlight,
       work: this.wakeTargets(args, event).catch((failure: unknown) => {
         this.logger.warn(
           `sandbox wake for ${subjectOf(args)} (user ${args.userId}) failed: ${failureText(failure)}`,
         )
+        throw failure
       }),
     })
+    tracked.catch(() => undefined)
+
+    return tracked
   }
 
   async settle(): Promise<void> {
-    await Promise.all([...this.lookupsInFlight])
-    for (const { timer, target, event } of [...this.debounce.values()]) {
+    await Promise.allSettled([...this.lookupsInFlight])
+    for (const { timer, target } of [...this.debounce.values()]) {
       clearTimeout(timer)
       this.debounce.delete(target.threadId)
-      this.startBoot(target, event)
+      this.startBoot(target)
     }
-    await Promise.all([...this.bootsInFlight])
+    await Promise.allSettled([...this.bootsInFlight])
   }
 
   private track(args: { inFlight: Set<Promise<void>>; work: Promise<void> }): Promise<void> {
@@ -119,8 +116,8 @@ export class GithubSandboxWakeService {
     return appendWakeIntent({ threadId: args.threadId, event: args.event, signals: this.signals })
   }
 
-  private startBoot(target: WakeTarget, event?: WakePrEvent): Promise<void> {
-    const booted = this.bootParkedSandbox({ threadId: target.threadId }, event).catch(
+  private startBoot(target: WakeTarget): Promise<void> {
+    const booted = this.bootParkedSandbox({ threadId: target.threadId }).catch(
       (failure: unknown) => {
         this.logger.warn(
           `wake boot of sandbox ${target.sandbox.name} (thread ${target.threadId}) failed: ${failureText(failure)}`,
@@ -165,20 +162,16 @@ export class GithubSandboxWakeService {
       if (!subscribed.has(target.threadId)) continue
       if (seen.has(target.threadId)) continue
       seen.add(target.threadId)
-      const boot = this.debounceBoot(target, event)
+      if (event !== undefined) await this.appendIntent({ threadId: target.threadId, event })
+      const boot = this.debounceBoot(target)
       if (boot !== undefined) immediateBoots.push(boot)
     }
     await Promise.all(immediateBoots)
   }
 
-  private debounceBoot(target: WakeTarget, event?: WakePrEvent): Promise<void> | undefined {
-    if (this.inFlight.has(target.threadId)) {
-      // A boot is already underway for this thread; its intent is still durable, so append it
-      // even though the pod boot dedupes this event out.
-      if (event !== undefined) void this.appendIntent({ threadId: target.threadId, event })
-      return undefined
-    }
-    if (this.debounceMs === 0) return this.startBoot(target, event)
+  private debounceBoot(target: WakeTarget): Promise<void> | undefined {
+    if (this.inFlight.has(target.threadId)) return undefined
+    if (this.debounceMs === 0) return this.startBoot(target)
     const pending = this.debounce.get(target.threadId)
     if (pending !== undefined) {
       clearTimeout(pending.timer)
@@ -186,35 +179,38 @@ export class GithubSandboxWakeService {
     }
     const timer = setTimeout(() => {
       this.debounce.delete(target.threadId)
-      this.startBoot(target, event)
+      this.startBoot(target)
     }, this.debounceMs)
-    this.debounce.set(target.threadId, { timer, target, event })
+    this.debounce.set(target.threadId, { timer, target })
     return undefined
   }
 
-  /** Boot-failure retry, driven by the poll-sweep task: re-boots each parked sandbox whose last
-   * wake failed past its backoff while its pod still holds an unconsumed wake intent. */
   async retryFailedWakes(): Promise<void> {
-    for (const target of await failedWakeTargets()) {
+    const targets = new Map<string, FailedWakeTarget>()
+    for (const target of [...(await failedWakeTargets()), ...(await owedWakeTargets())]) {
+      targets.set(target.threadId, target)
+    }
+    for (const target of targets.values()) {
+      if (this.inFlight.has(target.threadId) || this.debounce.has(target.threadId)) continue
       this.logger.log(
-        `retrying the failed wake of sandbox ${target.sandbox.name} (thread ${target.threadId}) after backoff`,
+        `retrying the owed wake of sandbox ${target.sandbox.name} (thread ${target.threadId})`,
       )
       this.startBoot(target)
     }
     await Promise.all([...this.bootsInFlight])
   }
 
-  private async bootParkedSandbox(args: { threadId: string }, event?: WakePrEvent): Promise<void> {
+  private async bootParkedSandbox(args: { threadId: string }): Promise<void> {
     if (this.inFlight.has(args.threadId)) return
     this.inFlight.add(args.threadId)
     try {
-      await this.claimAndBoot(args, event)
+      await this.claimAndBoot(args)
     } finally {
       this.inFlight.delete(args.threadId)
     }
   }
 
-  private async claimAndBoot(args: { threadId: string }, event?: WakePrEvent): Promise<void> {
+  private async claimAndBoot(args: { threadId: string }): Promise<void> {
     const sessionId = await podSessionOf({ reader: db, threadId: args.threadId })
     const row = await db.orm.public.CloudSandbox.first({ sessionId })
     if (row === null || !wakeableOf(row)) {
@@ -224,11 +220,6 @@ export class GithubSandboxWakeService {
     if (await retiredThread({ threadId: args.threadId })) {
       this.logger.log(`wake of thread ${args.threadId} skipped — the thread is archived or deleted`)
       return
-    }
-    // The intent is durable before the boot dedupe: append it regardless of whether this event
-    // wins the claim, so a CAS loser still leaves its event for the pod to hydrate.
-    if (event !== undefined) {
-      await appendWakeIntent({ threadId: args.threadId, event, signals: this.signals })
     }
     const wakeClaim = new Date()
     const claimed = await db.orm.public.CloudSandbox.where({

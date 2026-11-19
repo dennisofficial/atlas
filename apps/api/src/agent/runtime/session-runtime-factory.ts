@@ -13,10 +13,7 @@ import {
   RemoteCalls,
   type HostTimers,
   type PodPeers,
-  type PrepareResult,
-  type PrepareStepReporter,
   type SessionRuntimeFactory,
-  type SetupLifecycle,
 } from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
@@ -33,14 +30,14 @@ import type { CloudConfigStore } from '../config/cloud-config-store'
 import type { EnvSecretsSource } from '../config/env-secrets'
 import { SANDBOX_HOME_PATH, workspaceDirectoryOf } from '../sandbox/constants'
 import { SandboxProvider, sandboxNameOf } from '../sandbox/sandbox-provider'
-import { abortable } from './abortable'
 import { SandboxNotConfiguredError } from './sandbox-not-configured-error'
 import { PrepareSteps } from './prepare-steps'
+import { prepareControllerOf } from './session-prepare'
 import { countRunningShells } from './running-shells'
 import { startKeepAlive } from './keep-alive'
 import { sandboxReleaseFor } from './sandbox-release'
 import { rewakingConnector } from './rewaking-connector'
-import { GithubPullRequestFinder, githubIdentityLookup } from '@dltech/atlas-plugin-github/pod'
+import { githubIdentityLookup } from '@dltech/atlas-plugin-github/pod'
 import type { ComposedPlugins } from '@dltech/atlas-plugin-sdk'
 import { agentHostPrompt } from './prompt'
 import { EnvSecretsFragment } from './prompt-fragments/secrets'
@@ -52,15 +49,11 @@ import { ShellEnvCell } from './shell-env'
 import { envSecretsRefresher } from './env-secrets-refresh'
 import { githubTokenRefresher } from './github-token-refresh'
 import { pathEnvironmentOf, sessionPathsOf, shellEnvironmentOf } from './session-paths'
-import { fixedSessionModelsOf, liveSessionModelsOf, type SessionModels } from './model-port'
+import { sessionModelsOf, type SessionModels } from './model-port'
 import { modelLabelOf } from '../config/model-labels'
-import { prepareSigning } from './signing-setup'
-import { ensureWorkspace } from './workspace-setup'
 import { workspaceRepoMap } from './workspace-repo-map'
 
 export { SandboxNotConfiguredError }
-
-const SETUP_DEADLINE_MS = 15 * 60_000
 
 export type SessionRuntimeFactoryArgs = {
   config: ConfigSource
@@ -164,94 +157,26 @@ export const createSessionRuntimeFactory = (
       launchDirectory,
       log: args.log,
     })
-    let setupListener: ((lifecycle: SetupLifecycle) => void) | undefined
-    const setupLifecycles: SetupLifecycle[] = []
-    const attempt = (signal: AbortSignal): Promise<PrepareResult> =>
-      abortable(calls.ready(), signal)
-        .then(async () => {
-          steps.report({
-            step: EWorkspaceStep.Daemon,
-            state: EWorkspaceStepState.Done,
-          })
-          const token = await abortable(args.github.read({ userId: config.userId }), signal)
-          const signing = await prepareSigning({
-            reader: args.signingKey,
-            files,
-            calls,
-            userId: config.userId,
-            launchDirectory,
-            signal,
-            log: args.log,
-          })
-          await shellEnv.refresh({ token, signing, launchDirectory, signal })
-          await refreshSecrets(signal)
-          return ensureWorkspace({
-            env: shellEnvironmentOf({ paths, base: shellEnv.current() }),
-            calls,
-            processes,
-            files,
-            workspace: config.workspace,
-            githubToken: token,
-            launchDirectory,
-            sandboxName,
-            signal,
-            onStep: (step) => steps.report(step),
-            onOutput: (text) => steps.output(text),
-            onSetup: (lifecycle) => {
-              setupLifecycles.push(lifecycle)
-              setupListener?.(lifecycle)
-            },
-            ...(args.log === undefined ? {} : { log: args.log }),
-          })
-        })
-        .catch((error: unknown): PrepareResult => {
-          steps.failOpen(error instanceof Error ? error.message : String(error))
-          args.log?.error({
-            source: 'runtime.workspace-setup',
-            message: `workspace setup for ${sessionId} failed`,
-            ...logFieldsOf({ error }),
-          })
-          return {
-            ok: false,
-            reason: error instanceof Error ? error.message : String(error),
-          }
-        })
-    const deadlineMs = args.setupDeadlineMs ?? SETUP_DEADLINE_MS
-    let failedAttempt: Promise<PrepareResult> | undefined
-    const start = (previous: Promise<unknown>): Promise<PrepareResult> => {
-      const controller = new AbortController()
-      const running = previous.then(() => attempt(controller.signal))
-      let deadline: unknown
-      const expired = new Promise<PrepareResult>((resolve) => {
-        deadline = args.timers.setTimeout(() => {
-          args.log?.error({
-            source: 'runtime.workspace-setup',
-            message: `workspace setup for ${sessionId} did not finish within ${deadlineMs}ms`,
-          })
-          controller.abort(new Error(`workspace setup did not finish within ${deadlineMs}ms`))
-          steps.failOpen(`workspace setup did not finish within ${deadlineMs}ms`)
-          resolve({
-            ok: false,
-            reason: `workspace setup did not finish within ${deadlineMs}ms`,
-          })
-        }, deadlineMs)
-      })
-      return Promise.race([running, expired]).then((outcome) => {
-        args.timers.clearTimeout(deadline)
-        if (!outcome.ok) failedAttempt = running
-        return outcome
-      })
-    }
-    let current = start(Promise.resolve())
-    const prepare = (onStep?: PrepareStepReporter): Promise<PrepareResult> => {
-      if (onStep !== undefined) steps.subscribe(onStep)
-      const previous = failedAttempt
-      if (previous === undefined) return current
-      failedAttempt = undefined
-      current = start(previous)
-      return current
-    }
-    const gate = current.then(() => undefined)
+    const prepareController = prepareControllerOf({
+      sessionId,
+      userId: config.userId,
+      launchDirectory,
+      sandboxName,
+      workspace: config.workspace,
+      paths,
+      calls,
+      processes,
+      files,
+      steps,
+      shellEnv,
+      refreshSecrets,
+      github: args.github,
+      signingKey: args.signingKey,
+      timers: args.timers,
+      setupDeadlineMs: args.setupDeadlineMs,
+      log: args.log,
+    })
+    const gate = prepareController.gate
     const gitWatch = watchWorkspaceRepos({
       calls,
       gate,
@@ -284,23 +209,18 @@ export const createSessionRuntimeFactory = (
     const registry = new InMemoryToolRegistry(tools)
     const byName = new Map(tools.map((tool) => [tool.name, tool]))
 
-    const overridden = args.modelFor
     let models: SessionModels
     try {
-      models =
-        overridden === undefined
-          ? liveSessionModelsOf({
-              userId: config.userId,
-              initial: config.models,
-              read: () => args.config.models({ sessionId }),
-              tokens: args.tokens,
-              media: args.media,
-              log: args.log,
-            })
-          : fixedSessionModelsOf({
-              port: () => overridden({ sessionId }),
-              source: config.models,
-            })
+      models = sessionModelsOf({
+        override: args.modelFor,
+        sessionId,
+        userId: config.userId,
+        initial: config.models,
+        read: () => args.config.models({ sessionId }),
+        tokens: args.tokens,
+        media: args.media,
+        log: args.log,
+      })
     } catch (error) {
       calls.close()
       throw error
@@ -352,24 +272,16 @@ export const createSessionRuntimeFactory = (
       normalizeFailure: normalizeProviderFailure,
       launchDirectory,
       watchedRepos: () => gitWatch.watchedRepos(),
-      baseBranchOf: (repoPath) => repoAt(repoPath)?.base ?? null,
-      pullRequests: {
-        repoOf: (repoPath) => repoAt(repoPath)?.repo ?? null,
-        finder: new GithubPullRequestFinder({
-          userId: config.userId,
-          github: args.github,
-        }),
-      },
+      onRepo: (listener) => gitWatch.onRepo(listener),
+      baseBranchOf: (repoPath) =>
+        repoAt(repoPath)?.base ?? prepareController.checkedOutBaseOf(repoPath),
       plugins: args.plugins,
       runningShells: () => countRunningShells({ calls }),
       env: sessionShellEnv,
-      prepare,
+      prepare: prepareController.prepare,
       subscribePrepareOutput: (listener) => steps.subscribeOutput(listener),
       // the setup script may start, or finish, before a replacement host subscribes: replay it
-      subscribeSetup: (listener) => {
-        setupListener = listener
-        for (const lifecycle of setupLifecycles) listener(lifecycle)
-      },
+      subscribeSetup: prepareController.subscribeSetup,
       stop: async () => {
         stopKeepAlive()
         calls.close()

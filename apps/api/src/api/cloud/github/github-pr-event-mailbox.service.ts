@@ -2,10 +2,25 @@ import { randomUUID } from 'node:crypto'
 import { Injectable } from '@nestjs/common'
 import { db, or, type Row, type Tx } from '@dltech/atlas-db'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
-import { noticeV2Sessions } from './github-v2-notice'
-import { GithubSandboxWakeService } from './github-sandbox-wake.service'
+import {
+  GithubPrOutboxDispatcher,
+  GithubPrOutboxWriter,
+  PrEffectCollector,
+  type PrOutboxWithin,
+} from './github-pr-outbox'
 import { replayThreadEvents } from './github-pr-event-thread-replay'
 import type { EPrEventKind, GithubPrEventDto, GithubPrEventPayload } from './github-realtime.types'
+
+type PrMailboxRecord = {
+  userIds: readonly string[]
+  repoFullName: string
+  prNumber: number
+  kind: EPrEventKind
+  payload: GithubPrEventPayload
+  dedupeKey?: string | undefined
+  wake?: boolean | undefined
+  within?: PrOutboxWithin | undefined
+}
 
 export const REPLAY_LEASE_MS = 5 * 60 * 1_000
 
@@ -18,7 +33,7 @@ export const REPLAY_LEASE_MS = 5 * 60 * 1_000
 export class GithubPrEventMailboxService {
   constructor(
     private readonly fanout: GithubPrFanoutService,
-    private readonly wake: GithubSandboxWakeService,
+    private readonly dispatcher: GithubPrOutboxDispatcher,
   ) {
     this.fanout.onEventDelivered(({ ackId, userId, userStream, threadIds }) => {
       if (userStream) {
@@ -59,17 +74,32 @@ export class GithubPrEventMailboxService {
     )
   }
 
-  async record(args: {
-    userIds: readonly string[]
-    repoFullName: string
-    prNumber: number
-    kind: EPrEventKind
-    payload: GithubPrEventPayload
-    dedupeKey?: string | undefined
-    tx?: Tx | undefined
-    wake?: boolean
-  }): Promise<void> {
-    const orm = args.tx === undefined ? db.orm : args.tx.orm
+  /**
+   * A caller inside a state transaction passes its own `within` so the rows commit with the state;
+   * every other caller gets a transaction here, and only a committed row is ever pushed.
+   */
+  async record(args: PrMailboxRecord): Promise<void> {
+    if (args.within !== undefined) {
+      await this.writeEvents({ ...args, tx: args.within.tx, effects: args.within.effects })
+      return
+    }
+    const ids = await db.transaction(async (tx) => {
+      const effects = new PrEffectCollector()
+      await this.writeEvents({ ...args, tx, effects })
+      return await GithubPrOutboxWriter.write({
+        tx,
+        repoFullName: args.repoFullName,
+        prNumber: args.prNumber,
+        effects: effects.all(),
+      })
+    })
+    await this.dispatcher.dispatch(ids)
+  }
+
+  private async writeEvents(
+    args: PrMailboxRecord & { tx: Tx; effects: PrEffectCollector },
+  ): Promise<void> {
+    const orm = args.tx.orm
     for (const userId of args.userIds) {
       const dedupeKey = args.dedupeKey === undefined ? null : `${args.dedupeKey}:${userId}`
       const id = `evt_${randomUUID()}`
@@ -104,34 +134,32 @@ export class GithubPrEventMailboxService {
         consumedAt: null,
         createdAt,
       }
-      if (args.wake !== false) await this.noticeV2({ tx: args.tx, event: row })
-      this.fanout.pushEvent({
-        userIds: [userId],
-        event: eventDtoOf(row),
-        ackId: row.id,
+      const notice = {
+        userId,
+        repoFullName: args.repoFullName,
+        prNumber: args.prNumber,
+      }
+      const wakeEvent = { ...notice, kind: args.kind, payload: args.payload, eventId: row.id }
+      if (args.wake !== false) {
+        args.effects.add({
+          kind: 'v2-notice',
+          payload: { eventId: row.id },
+          dedupeKey: `v2-notice:${row.id}`,
+        })
+      }
+      args.effects.add({
+        kind: 'fanout',
+        payload: { userIds: [userId], event: eventDtoOf(row), ackId: row.id },
+        dedupeKey: `fanout-event:${row.id}`,
       })
-      if (args.wake === false) continue
-      this.wake.notifyEvent(
-        {
-          userId,
-          repoFullName: args.repoFullName,
-          prNumber: args.prNumber,
-        },
-        {
-          userId,
-          repoFullName: args.repoFullName,
-          prNumber: args.prNumber,
-          kind: args.kind,
-          payload: args.payload,
-          eventId: row.id,
-        },
-      )
+      if (args.wake !== false) {
+        args.effects.add({
+          kind: 'wake',
+          payload: { notice, event: wakeEvent },
+          dedupeKey: `wake:${row.id}`,
+        })
+      }
     }
-  }
-
-  private noticeV2(args: { tx: Tx | undefined; event: Row<'GithubPrEvent'> }): Promise<unknown> {
-    if (args.tx !== undefined) return noticeV2Sessions({ tx: args.tx, event: args.event })
-    return db.transaction((tx) => noticeV2Sessions({ tx, event: args.event }))
   }
 
   /**

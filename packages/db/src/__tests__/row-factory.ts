@@ -27,6 +27,7 @@ const OVERRIDES: Record<string, Record<string, unknown>> = {
 
 const LITERALS: Record<string, Record<string, unknown>> = {
   McpServer: { source: 'repo', repoUrl: 'https://mcp.example.com/mcp' },
+  GithubTrackingTarget: { kind: 'head' },
 }
 
 function literalFor({

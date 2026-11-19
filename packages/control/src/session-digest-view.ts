@@ -1,6 +1,6 @@
 import type { LeaseOps } from './lease-ops'
 import type { ControlDigestView, ControlSessionDigest, ControlTx, SessionDigestRow } from './port'
-import { currentViewIn, liveViewIn, pullRequestsWithState } from './session-view-read'
+import { currentViewIn, liveViewIn, trackedPullRequestsOf } from './session-view-read'
 import { checkoutsOf, type PluginViewFold, type V2Event } from '@dltech/atlas-core'
 import type { z } from 'zod'
 
@@ -29,9 +29,7 @@ const digestViewIn = async (args: {
     now: args.now,
     eventSchema: args.eventSchema,
   })
-  const latest = live.value.pullRequests.at(-1)
-  const [pullRequest] =
-    latest === undefined ? [] : await pullRequestsWithState({ tx, links: [latest] })
+  const [pullRequest] = await trackedPullRequestsOf({ tx, sessionId: row.sessionId })
   return {
     status: live.value.status,
     primaryBranch: checkoutsOf(state.checkouts).primary?.branch ?? null,
@@ -42,8 +40,8 @@ const digestViewIn = async (args: {
             repo: pullRequest.repo,
             number: pullRequest.number,
             url: pullRequest.url,
-            state: pullRequest.state?.state ?? null,
-            checks: pullRequest.state?.checks ?? null,
+            state: pullRequest.state.state,
+            checks: pullRequest.state.checks,
           },
   }
 }

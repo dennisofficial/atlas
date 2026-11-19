@@ -1,22 +1,14 @@
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
-import { prStateRows, seedPrState } from '../../../../test/github-seed'
+import { prStateRows } from '../../../../test/github-seed'
 import { pullRequestCacheFieldsOf } from './github-pull-request-mapping'
 import {
   pruneCommitChecks,
   recordCommitChecksLocked,
   restCommitChecksOf,
 } from './github-commit-checks'
-import {
-  checkRunPayload,
-  FILLED_PR_STATE,
-  prepareDelivery,
-  REST_FIELDS,
-  seedHook,
-  seedSubscription,
-  serviceWith,
-} from './github-delivery.fixture'
+import { checkRunPayload, prepareDelivery, REST_FIELDS } from './github-delivery.fixture'
 import { RUNNING, setupTrackedPr, tallyOf } from './github-delivery.checks.fixture'
 import { HOOK_EVENTS } from './github-hook-events'
 
@@ -170,6 +162,11 @@ describe('GithubDeliveryService check rows', () => {
           state: 'open',
           draft: false,
           merged_at: null,
+          closed_at: null,
+          updated_at: '2026-11-18T06:00:00Z',
+          mergeable: null,
+          mergeable_state: 'unknown',
+          base: { ref: 'main', repo: { full_name: 'compai/app' } },
           head: {
             ref: 'dennis/add-the-thing',
             sha: 'abc123',
@@ -183,7 +180,6 @@ describe('GithubDeliveryService check rows', () => {
     expect(readPullRequest).not.toHaveBeenCalled()
     expect((await prStateRows())[0]).toMatchObject({ title: 'renamed' })
   })
-
   it('seeds rows from REST attempts and the row tally equals the REST-written counts', async () => {
     const checkRuns = [
       {
@@ -213,6 +209,7 @@ describe('GithubDeliveryService check rows', () => {
     ]
     const statuses = [
       {
+        id: 900,
         context: 'vercel',
         state: 'success',
         created_at: '2026-11-02T04:25:00Z',
@@ -232,6 +229,7 @@ describe('GithubDeliveryService check rows', () => {
         state: 'open',
         draft: false,
         merged_at: null,
+        updated_at: '2026-11-02T04:26:00Z',
         mergeable: true,
         mergeable_state: 'clean',
         head: { ref: 'b', sha: 'abc123', repo: null },
@@ -239,8 +237,6 @@ describe('GithubDeliveryService check rows', () => {
       },
       checkRuns,
       statuses,
-      checksState: null,
-      requiredCheckContexts: [],
     })
 
     expect(await tallyOf('abc123')).toEqual({

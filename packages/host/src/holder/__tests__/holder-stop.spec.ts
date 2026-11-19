@@ -123,6 +123,7 @@ describe('SessionHolder stop', () => {
   }, 15_000)
 
   it('a stopped turn consumes the stop before a gated branch refresh opens', async () => {
+    let reads = 0
     let openGate: (() => void) | undefined
     const gate = new Promise<void>((resolve) => {
       openGate = () => resolve()
@@ -140,7 +141,10 @@ describe('SessionHolder stop', () => {
         },
         { text: 'after' },
       ],
-      watchedRepos: () => gate.then(() => ['/w']),
+      watchedRepos: () => {
+        reads += 1
+        return reads === 1 ? Promise.resolve([]) : gate.then(() => ['/w'])
+      },
     })
     await seedSession(rig)
     await rig.holder.start()

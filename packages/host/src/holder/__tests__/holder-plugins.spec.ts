@@ -18,7 +18,14 @@ import { createInMemoryDaemon, type InMemoryDaemon } from '@dltech/atlas-protoco
 
 import { flushUntil, makeRig, SANDBOX, SECRET, seedSession, SESSION, THREAD_ID } from './holder-rig'
 
-const SET = { repoPath: '/w', head: 'a', branches: [], worktrees: [] }
+const SET = {
+  repoPath: '/w',
+  head: 'a',
+  branches: [],
+  worktrees: [],
+  remotes: [],
+  checkouts: [],
+}
 
 const publishingGitGroup: DaemonGroupFactory = () => ({
   name: 'git',

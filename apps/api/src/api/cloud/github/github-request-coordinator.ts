@@ -47,12 +47,6 @@ export class GithubRequestCoordinator {
   holdHttpReserve(args: { until: number } & Partial<GithubRequestIdentity>): Promise<void> {
     return this.coordinated(this.adapter.holdHttpReserve(args))
   }
-  attempt(args: { key: string }) {
-    return this.coordinated(this.adapter.attempt(args.key))
-  }
-  recordAttempt(args: { key: string; failed: boolean }): Promise<void> {
-    return this.coordinated(this.adapter.recordAttempt(args))
-  }
 
   /**
    * A proven repository authorization is shared with every reader of the same credential, so a

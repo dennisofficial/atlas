@@ -100,13 +100,15 @@ const conformanceParams = {
   holdPresence: (hostId: number) => holdLock({ hostId, fn: 'pg_advisory_lock' }),
   seedPrState: async (row: PrStateRow) => {
     await testDb().pool.query(
-      `INSERT INTO "GithubPrState" ("repoFullName", "prNumber", "title", "url", "state", "headBranch", "headSha", "checksRunning", "checksPassed", "checksFailed", "mergeable", "updatedAt")
-       VALUES ($1, $2, $3, 'https://x', $4, 'feat', $5, $6, $7, $8, $9, $10)`,
+      `INSERT INTO "GithubPrState" ("repoFullName", "prNumber", "title", "url", "state", "headBranch", "headRepoFullName", "headSha", "checksRunning", "checksPassed", "checksFailed", "mergeable", "updatedAt")
+       VALUES ($1, $2, $3, 'https://x', $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
       [
         row.repo,
         row.number,
         row.title,
         row.state,
+        row.headBranch ?? 'feat',
+        row.headRepoFullName ?? null,
         row.headSha,
         row.checksRunning,
         row.checksPassed,
@@ -176,4 +178,29 @@ it('a presence lock held in another database of the cluster is not present here'
   } finally {
     await release()
   }
+})
+
+it('keeps one row when two sessions record the same head target at once', async () => {
+  const db = testDb().db
+  await db.orm.public.User.upsert({
+    create: { id: 'usr_race', name: 'race', email: 'race@test.local' },
+    update: {},
+    conflictOn: { id: 'usr_race' },
+  })
+  const target = {
+    userId: 'usr_race',
+    kind: 'head' as const,
+    repoFullName: 'compai/app',
+    branch: 'feat',
+    prNumber: null,
+    liveUntil: new Date(Date.now() + 60_000).toISOString(),
+  }
+
+  await Promise.all([
+    new PostgresControlStore(db).transact((tx) => tx.upsertTrackingTarget(target)),
+    new PostgresControlStore(db).transact((tx) => tx.upsertTrackingTarget(target)),
+  ])
+
+  const rows = await db.orm.public.GithubTrackingTarget.where({ userId: 'usr_race' }).all()
+  expect(rows).toHaveLength(1)
 })

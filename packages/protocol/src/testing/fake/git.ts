@@ -6,6 +6,8 @@ const emptySetFor = (repoPath: string): BranchSet => ({
   head: null,
   branches: [],
   worktrees: [],
+  remotes: [],
+  checkouts: [],
 })
 
 export const fakeGitGroup = (): DaemonGroupFactory => {
@@ -40,6 +42,10 @@ export const fakeGitGroup = (): DaemonGroupFactory => {
           }
           return set
         },
+      }),
+      defineOp({
+        op: 'git.discover',
+        run: async () => ({ repos: [] as string[] }),
       }),
     ],
   })

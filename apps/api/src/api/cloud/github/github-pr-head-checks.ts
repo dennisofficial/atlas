@@ -1,33 +1,10 @@
 import { db, or, type Row, type Tx } from '@dltech/atlas-db'
 
-import { missingRequiredContexts } from './github-required-checks'
 import { headSettled, type PrTransitionSnapshot } from './github-pr-event-transitions'
 
 export enum EHeadVerdict {
   Green = 'green',
   Failed = 'failed',
-}
-
-export type LockedPrState = {
-  repoFullName: string
-  prNumber: number
-  state: string
-  headSha: string
-  headBranch: string
-  headRepoFullName: string | null
-  checksRunning: number
-  checksPassed: number
-  checksFailed: number
-  checksIgnored: number
-  checksState: string | null
-  mergeable: boolean | null
-  mergeClean: boolean | null
-  requiredCheckContexts: readonly string[]
-  version: number
-}
-
-export function nextVersionOf(prior: { version: number } | null): number {
-  return (prior?.version ?? 0) + 1
 }
 
 export function verdictEventKeyOf(args: {
@@ -38,63 +15,6 @@ export function verdictEventKeyOf(args: {
   settlement: string
 }): string {
   return `${args.repoFullName}:${args.prNumber}:${args.headSha}:verdict:${args.verdict}:${args.settlement}`
-}
-
-export function eventDedupeKeyOf(args: {
-  repoFullName: string
-  prNumber: number
-  headSha: string
-  kind: string
-  verdictKey: string
-  userId: string
-}): string {
-  return [
-    args.repoFullName,
-    args.prNumber,
-    args.headSha,
-    args.kind,
-    args.verdictKey,
-    args.userId,
-  ].join(':')
-}
-
-/**
- * One transaction on the state row serializes concurrent writers (webhook fills and polls race
- * for the same PR), so the row-lock read below, the upsert, and the event inserts it gates on
- * all observe the same prior.
- */
-export async function readPrStateForUpdate(args: {
-  tx: Tx
-  repoFullName: string
-  prNumber: number
-}): Promise<LockedPrState | null> {
-  const rows = await args.tx.query(
-    args.tx.sql.public.GithubPrState.select(
-      'repoFullName',
-      'prNumber',
-      'state',
-      'headSha',
-      'headBranch',
-      'headRepoFullName',
-      'checksRunning',
-      'checksPassed',
-      'checksFailed',
-      'checksIgnored',
-      'checksState',
-      'mergeable',
-      'mergeClean',
-      'requiredCheckContexts',
-      'version',
-    )
-      .where((f, fns) =>
-        fns.and(fns.eq(f.repoFullName, args.repoFullName), fns.eq(f.prNumber, args.prNumber)),
-      )
-      .forUpdate()
-      .build(),
-  )
-  let found: LockedPrState | null = null
-  for await (const row of rows) found = row
-  return found
 }
 
 export function snapshotOfLocked(row: {
@@ -120,21 +40,15 @@ export function snapshotOfLocked(row: {
 }
 
 /**
- * The observed row plus the one fact the row cannot hold: which of the base branch's required
- * status checks GitHub has not reported on this head yet. Every path that discharges a verdict or
- * diffs a transition builds its `next` here, so a missing required check gates all of them.
+ * The observed row plus the base branch's required status checks GitHub has not reported on this
+ * head yet. Every path that discharges a verdict or diffs a transition builds its `next` here, so
+ * a missing required check gates all of them.
  */
-export async function settlementSnapshotOf(args: {
-  tx?: Tx
+export function settlementSnapshotOf(args: {
   row: Row<'GithubPrState'>
-}): Promise<PrTransitionSnapshot> {
-  const missing = await missingRequiredContexts({
-    ...(args.tx === undefined ? {} : { tx: args.tx }),
-    repoFullName: args.row.repoFullName,
-    headSha: args.row.headSha,
-    requiredContexts: args.row.requiredCheckContexts,
-  })
-  return { ...snapshotOfLocked(args.row), missingRequiredChecks: missing.length }
+  missingRequiredChecks: number
+}): PrTransitionSnapshot {
+  return { ...snapshotOfLocked(args.row), missingRequiredChecks: args.missingRequiredChecks }
 }
 
 /**

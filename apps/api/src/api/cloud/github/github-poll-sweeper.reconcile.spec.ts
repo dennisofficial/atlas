@@ -2,6 +2,7 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
 import { db } from '@dltech/atlas-db'
 import { prEventRows } from '../../../../test/github-seed'
+import { seedHeadChecks } from './github-pr-checks.fixture'
 import {
   preparePollSweeper,
   REST_FIELDS,
@@ -25,6 +26,7 @@ describe('GithubPollSweeperService post-merge reconciliation', () => {
     }))
     const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
     await seedSubscription()
+    await seedHeadChecks({ headSha: 'abc123', passed: 8 })
     await seedPrState({
       state: 'merged',
       checksRunning: 0,
@@ -94,6 +96,7 @@ describe('GithubPollSweeperService post-merge reconciliation', () => {
     }))
     const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
     await seedSubscription()
+    await seedHeadChecks({ headSha: 'abc123', passed: 3 })
 
     await service.handlePoll()
 

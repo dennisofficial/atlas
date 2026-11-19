@@ -14,9 +14,9 @@ import { GithubAppInstallationsService } from './github-app-installations.servic
 import { GithubInstallationTokens } from './github-installation-tokens'
 import { GithubDeliveryService } from './github-delivery.service'
 import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
-import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubHookController } from './github-hook.controller'
 import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
+import { GithubHeadReads } from './github-head-reads'
 import { GithubPollSweeperService } from './github-poll-sweeper.service'
 import { sweepSchedulerProviders } from './github-sweep-scheduler'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
@@ -31,6 +31,12 @@ import { GithubSubscriptionsService } from './github-subscriptions.service'
 import { GithubUserReads } from './github-user-reads'
 import { GithubWebhookInboxService } from './github-webhook-inbox.service'
 import { GithubModule } from './github.module'
+import {
+  mailboxProvider,
+  outboxDispatcherProvider,
+  prApplyWiringProvider,
+  prStoreProvider,
+} from './github-pr-apply.providers'
 
 @Module({
   imports: [GithubModule, HealthModule, RedisModule, SessionsModule],
@@ -42,11 +48,15 @@ import { GithubModule } from './github.module'
     GithubPrSubscriptionLinks,
     { provide: PrSubscriptionLinks, useExisting: GithubPrSubscriptionLinks },
     GithubHookLifecycleService,
+    GithubHeadReads,
     GithubPollSweeperService,
     ...sweepSchedulerProviders(),
     GithubDeliveryService,
     GithubPrDiscussionDeliveryService,
-    GithubPrEventMailboxService,
+    prApplyWiringProvider,
+    mailboxProvider,
+    outboxDispatcherProvider,
+    prStoreProvider,
     GithubWebhookInboxService,
     prFrameBusProvider,
     GithubPrFanoutService,

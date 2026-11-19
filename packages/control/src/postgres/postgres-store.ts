@@ -24,13 +24,14 @@ import {
   type StoredEvent,
   type ThreadRow,
   type ControlSessionRow,
-  type PrStateRow,
   type SubscriptionLease,
+  type TrackingTarget,
   type SessionDigestRow,
   type SessionListParams,
-  type SessionPullRequestKey,
-  type SessionPullRequestRow,
+  type PrHead,
+  type SessionBranchRow,
   type SessionViewRow,
+  type TrackedPullRequestRow,
   type WorktreeChangesRead,
   type WorktreeChangesWrite,
 } from '../port'
@@ -76,10 +77,10 @@ import {
   readInboxEntryIn,
 } from './postgres-inbox'
 import {
-  insertSessionPullRequestsIn,
-  readPrStatesIn,
+  insertSessionBranchesIn,
   readSessionViewIn,
-  sessionsLinkedToIn,
+  readTrackedPullRequestsIn,
+  sessionsTrackingHeadIn,
   writeSessionViewIn,
 } from './postgres-views'
 import {
@@ -96,6 +97,7 @@ import {
   userRoutinesIn,
 } from './postgres-routines'
 import { deleteSubscriptionLeaseIn, upsertSubscriptionLeaseIn } from './postgres-subscriptions'
+import { upsertTrackingTargetIn } from './postgres-tracking-targets'
 import { toLease, toThreadRow } from './postgres-rows'
 import { insertEventsIn, listSessionsIn, readEventsIn, writeThreadHeadIn } from './postgres-threads'
 
@@ -362,16 +364,16 @@ class PostgresTx implements ControlTx {
     await writeSessionViewIn({ tx: this.tx, row })
   }
 
-  async insertSessionPullRequests(rows: readonly SessionPullRequestRow[]): Promise<void> {
-    await insertSessionPullRequestsIn({ tx: this.tx, rows })
+  async insertSessionBranches(rows: readonly SessionBranchRow[]): Promise<void> {
+    await insertSessionBranchesIn({ tx: this.tx, rows })
   }
 
-  async sessionsLinkedTo(key: SessionPullRequestKey): Promise<string[]> {
-    return sessionsLinkedToIn({ tx: this.tx, ...key })
+  async sessionsTrackingHead(head: PrHead): Promise<string[]> {
+    return sessionsTrackingHeadIn({ tx: this.tx, ...head })
   }
 
-  async readPrStates(keys: readonly SessionPullRequestKey[]): Promise<PrStateRow[]> {
-    return readPrStatesIn({ tx: this.tx, keys })
+  async readTrackedPullRequests(sessionIds: readonly string[]): Promise<TrackedPullRequestRow[]> {
+    return readTrackedPullRequestsIn({ tx: this.tx, sessionIds })
   }
 
   async upsertSubscriptionLease(params: SubscriptionLease & { expiresAt: string }) {
@@ -380,6 +382,10 @@ class PostgresTx implements ControlTx {
 
   async deleteSubscriptionLease(params: SubscriptionLease): Promise<boolean> {
     return deleteSubscriptionLeaseIn({ tx: this.tx, ...params })
+  }
+
+  async upsertTrackingTarget(params: TrackingTarget): Promise<void> {
+    await upsertTrackingTargetIn({ tx: this.tx, ...params })
   }
 
   async hostPresent(hostId: number): Promise<boolean> {

@@ -4,9 +4,12 @@ import { ensureUsers, prEventRows, seedPrEvent } from '../../../../test/github-s
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
+import { GithubPrOutboxDispatcher } from './github-pr-outbox'
 import { EPrEventKind } from './github-realtime.types'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import { waitFor } from '../../../../test/fake-timers'
+import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
+import { inertReconcile } from './github-pr-store.fixture'
 
 function serviceWith(): {
   mailbox: GithubPrEventMailboxService
@@ -14,7 +17,13 @@ function serviceWith(): {
 } {
   const fanout = new GithubPrFanoutService(new DrainStateService())
   const wake = { notifyEvent: () => undefined } as unknown as GithubSandboxWakeService
-  return { mailbox: new GithubPrEventMailboxService(fanout, wake), fanout }
+  const dispatcher = new GithubPrOutboxDispatcher({
+    fanout,
+    signals: inertSignals(),
+    wake,
+    reconcile: inertReconcile(),
+  })
+  return { mailbox: new GithubPrEventMailboxService(fanout, dispatcher), fanout }
 }
 
 describe('GithubPrEventMailboxService', () => {

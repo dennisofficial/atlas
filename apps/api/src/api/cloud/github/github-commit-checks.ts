@@ -3,20 +3,21 @@ import {
   checkRunOutcomeOf,
   checksTally,
   ECheckOutcome,
-  latestAttemptOutcomes,
+  latestCheckAttempts,
   statusContextOutcomeOf,
-  type CheckAttempt,
   type ChecksCount,
 } from '@dltech/atlas-core'
-import { db, type Tx } from '@dltech/atlas-db'
-import { runOrderOfKey, SUITE_KEY_PREFIX } from './github-check-suites'
+import { db, type Row, type Tx } from '@dltech/atlas-db'
 import { normalizedRepo } from './github-pr-identity'
+import { checkIdentitiesOf } from './github-pr-row-fold'
+import { lockPrScope } from './github-pr-lock'
 import type { GithubPrCheckAnnotation } from './github-realtime.types'
 
 export const COMMIT_CHECK_RETENTION_MS = 14 * 24 * 60 * 60 * 1_000
 
 export type CommitCheckInput = {
   checkKey: string
+  sourceId?: string | null
   name: string
   startedAt: string | null
   outcome: ECheckOutcome
@@ -48,6 +49,7 @@ export type CheckRunShape = {
 }
 
 export type CommitStatusShape = {
+  id?: number
   context: string
   state: string
   created_at: string | null
@@ -62,6 +64,7 @@ const timeOf = (iso: string | null | undefined): Date | null =>
 export function checkRunInputOf(run: CheckRunShape): CommitCheckInput {
   return {
     checkKey: `run:${run.id}`,
+    sourceId: String(run.id),
     name: run.name,
     startedAt: run.started_at,
     outcome: checkRunOutcomeOf({
@@ -82,6 +85,7 @@ export function checkRunInputOf(run: CheckRunShape): CommitCheckInput {
 export function commitStatusInputOf(status: CommitStatusShape): CommitCheckInput {
   return {
     checkKey: `status:${status.context}`,
+    sourceId: status.id === undefined ? null : String(status.id),
     name: status.context,
     startedAt: status.created_at,
     outcome: statusContextOutcomeOf(status.state),
@@ -92,17 +96,6 @@ export function commitStatusInputOf(status: CommitStatusShape): CommitCheckInput
   }
 }
 
-export async function lockCommit(args: {
-  tx: Tx
-  repoFullName: string
-  headSha: string
-}): Promise<void> {
-  const key = `${normalizedRepo(args.repoFullName)}@${args.headSha}`
-  await args.tx.execute(
-    args.tx.raw.sql`SELECT pg_advisory_xact_lock(hashtext(${key}))`.affectedCount().build(),
-  )
-}
-
 export async function recordCommitChecksLocked(args: {
   repoFullName: string
   headSha: string
@@ -110,30 +103,18 @@ export async function recordCommitChecksLocked(args: {
 }): Promise<void> {
   if (args.checks.length === 0) return
   await db.transaction(async (tx) => {
-    await lockCommit({ tx, ...args })
-    await recordCommitChecks({ tx, ...args })
+    const scope = await lockPrScope({ tx, repoFullName: args.repoFullName })
+    await recordCommitChecks({ tx: scope, ...args })
   })
 }
 
-export async function recordCheckCounts(args: {
-  repoFullName: string
-  headSha: string
-  checks: readonly CommitCheckInput[]
-}): Promise<ReturnType<typeof checkCountFieldsOf>> {
-  const tally = await db.transaction(async (tx) => {
-    await lockCommit({ tx, ...args })
-    await recordCommitChecks({ tx, ...args })
-    return commitChecksTally({ tx, repoFullName: args.repoFullName, headSha: args.headSha })
-  })
-  return checkCountFieldsOf(tally)
-}
+function newerThanHeld(args: { held: Row<'GithubCommitCheck'>; check: CommitCheckInput }): boolean {
+  const heldAt = args.held.sourceUpdatedAt.getTime()
+  const checkAt = args.check.sourceUpdatedAt.getTime()
+  if (heldAt !== checkAt) return heldAt > checkAt
 
-export const checkCountFieldsOf = (tally: ChecksCount) => ({
-  checksRunning: tally.running,
-  checksPassed: tally.passed,
-  checksFailed: tally.failed,
-  checksIgnored: tally.ignored,
-})
+  return Number(args.held.sourceId ?? '') > Number(args.check.sourceId ?? '')
+}
 
 export async function recordCommitChecks(args: {
   tx: Tx
@@ -154,11 +135,12 @@ export async function recordCommitChecks(args: {
       const held = byKey.get(check.checkKey)
       if (held !== undefined) {
         const heldCompleted = held.outcome !== ECheckOutcome.Running
-        const heldNewer = held.sourceUpdatedAt.getTime() > check.sourceUpdatedAt.getTime()
+        const heldNewer = newerThanHeld({ held, check })
         const staleRun = heldCompleted && (check.outcome === ECheckOutcome.Running || heldNewer)
         if (check.isRun ? staleRun : heldNewer) continue
       }
       const fields = {
+        sourceId: check.sourceId ?? null,
         name: check.name,
         startedAt: check.startedAt,
         outcome: check.outcome,
@@ -198,14 +180,9 @@ export async function commitChecksTally(args: {
     repoFullName: normalizedRepo(args.repoFullName),
     headSha: args.headSha,
   }).all()
-  const attempts: CheckAttempt[] = rows
-    .filter((row) => !row.checkKey.startsWith(SUITE_KEY_PREFIX))
-    .map((row) => ({
-      name: row.name,
-      order: runOrderOfKey(row.checkKey),
-      outcome: row.outcome as ECheckOutcome,
-    }))
-  return checksTally(latestAttemptOutcomes(attempts))
+  const latest = latestCheckAttempts({ attempts: checkIdentitiesOf(rows) })
+
+  return checksTally(latest.map((attempt) => attempt.outcome))
 }
 
 export async function pruneCommitChecks(args: { now: Date }): Promise<void> {

@@ -7,6 +7,7 @@ export const WORKSPACE_STATE_DIR = '.atlas-agent'
 export const MATERIALIZED_SENTINEL = 'workspace-materialized'
 export const SETUP_SENTINEL = 'setup-ran'
 export const SETUP_STARTED_MARKER = 'setup-started'
+export const SESSION_BASES_FILE = 'session-bases'
 export const PRIMARY_SENTINEL = 'primary-cloned'
 export const TOKEN_FILE = 'github-token'
 export const SIGNING_KEY_FILE = 'signing-key'
@@ -17,6 +18,7 @@ export type Sentinels = {
   setupRan: string
   primary: string
   setupStarted: string
+  bases: string
 }
 
 export type Deps = {
@@ -43,6 +45,7 @@ export const sentinelsOf = (stateDir: string): Sentinels => ({
   setupRan: join(stateDir, SETUP_SENTINEL),
   primary: join(stateDir, PRIMARY_SENTINEL),
   setupStarted: join(stateDir, SETUP_STARTED_MARKER),
+  bases: join(stateDir, SESSION_BASES_FILE),
 })
 
 /**

@@ -7,13 +7,18 @@ import { type DaemonGroupFactory, type GroupContext, defineOp } from '@dltech/at
 import type { DaemonOpsDeps } from '../deps'
 import {
   REF_FORMAT,
+  REMOTE_URL_PATTERN,
   branchSetsEqual,
   parseBranches,
+  parseCheckouts,
   parseHead,
+  parseRemotes,
   parseWorktrees,
   watchPathOf,
 } from './branch-set'
-import { commonGitDirOf, runGit } from './git'
+import { RepoDiscovery } from './discover'
+import { commonGitDirOf, runGit, runGitOrEmpty } from './git'
+import { readReflogs } from './reflogs'
 
 const DEBOUNCE_MS = 500
 
@@ -28,12 +33,21 @@ type WatchedRepo = {
   stopped: boolean
 }
 
+const emptySetFor = (repoPath: string): BranchSet => ({
+  repoPath,
+  head: null,
+  branches: [],
+  worktrees: [],
+  remotes: [],
+  checkouts: [],
+})
+
 const readBranchSet = async (args: {
   deps: DaemonOpsDeps
   repoPath: string
 }): Promise<BranchSet> => {
-  await commonGitDirOf({ deps: args.deps, repoPath: args.repoPath })
-  const [refs, head, worktreeList] = await Promise.all([
+  const gitDir = await commonGitDirOf({ deps: args.deps, repoPath: args.repoPath })
+  const [refs, head, worktreeList, remoteConfig, reflogTexts] = await Promise.all([
     runGit({
       deps: args.deps,
       repoPath: args.repoPath,
@@ -41,12 +55,20 @@ const readBranchSet = async (args: {
     }),
     runGit({ deps: args.deps, repoPath: args.repoPath, argv: ['branch', '--show-current'] }),
     runGit({ deps: args.deps, repoPath: args.repoPath, argv: ['worktree', 'list', '--porcelain'] }),
+    runGitOrEmpty({
+      deps: args.deps,
+      repoPath: args.repoPath,
+      argv: ['config', '--get-regexp', REMOTE_URL_PATTERN],
+    }),
+    readReflogs({ gitDir }),
   ])
   return {
     repoPath: args.repoPath,
     head: parseHead(head),
     branches: [...parseBranches(refs)],
     worktrees: [...parseWorktrees({ text: worktreeList, repoPath: args.repoPath })],
+    remotes: [...parseRemotes(remoteConfig)],
+    checkouts: [...parseCheckouts(reflogTexts)],
   }
 }
 
@@ -56,6 +78,7 @@ export const gitGroup =
   (deps: DaemonOpsDeps): DaemonGroupFactory =>
   (ctx: GroupContext) => {
     const watched = new Map<string, WatchedRepo>()
+    const discoveries = new Map<string, RepoDiscovery>()
 
     const publishChanged = (repo: WatchedRepo, set: BranchSet): void => {
       if (branchSetsEqual({ a: set, b: repo.lastPublished })) return
@@ -127,7 +150,7 @@ export const gitGroup =
         repoPath,
         gitDir,
         watchers: [],
-        lastPublished: { repoPath, head: null, branches: [], worktrees: [] },
+        lastPublished: emptySetFor(repoPath),
         timer: null,
         refreshing: false,
         pending: false,
@@ -141,6 +164,16 @@ export const gitGroup =
       }
       watched.set(repoPath, repo)
       return set
+    }
+
+    const discover = async (root: string): Promise<{ repos: string[] }> => {
+      discoveries.get(root)?.stop()
+      const discovery = new RepoDiscovery({
+        root,
+        onFound: (repoPath) => ctx.publish({ type: 'git.repo-found', repoPath }),
+      })
+      discoveries.set(root, discovery)
+      return { repos: [...(await discovery.start())] }
     }
 
     return {
@@ -165,6 +198,10 @@ export const gitGroup =
           op: 'git.read',
           run: async ({ op }) => await readBranchSet({ deps, repoPath: op.repoPath }),
         }),
+        defineOp({
+          op: 'git.discover',
+          run: async ({ op }) => await discover(op.root),
+        }),
       ],
       onConnect: () => {
         for (const repo of watched.values()) {
@@ -174,6 +211,8 @@ export const gitGroup =
       stop: async () => {
         for (const repo of watched.values()) unwatchRepo(repo)
         watched.clear()
+        for (const discovery of discoveries.values()) discovery.stop()
+        discoveries.clear()
       },
     }
   }

@@ -1,17 +1,12 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
-import {
-  prEventRows,
-  prStateRows,
-  seedPrState,
-  seedUserSetting,
-} from '../../../../test/github-seed'
+import { prEventRows, seedPrState, seedUserSetting } from '../../../../test/github-seed'
+import { completeRunningChecks, seedHeadChecks } from './github-pr-checks.fixture'
 import {
   checkRunPayload,
   SETTLING_CHECK_RUN_PAYLOAD,
   FILLED_PR_STATE,
   prepareDelivery,
-  PULL_REQUEST_PAYLOAD,
   REST_FIELDS,
   seedHook,
   seedSubscription,
@@ -35,6 +30,7 @@ describe('GithubDeliveryService transition events', () => {
     })
     await seedHook({ createdBy: 'usr-creator' })
     await seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    await seedHeadChecks({ headSha: 'abc123', failed: 2 })
     await seedPrState({ ...FILLED_PR_STATE })
 
     await service.handle({
@@ -112,90 +108,8 @@ describe('GithubDeliveryService transition events', () => {
     expect((await prEventRows()).filter((row) => row.kind === 'verdict')).toHaveLength(1)
   })
 
-  it('records a conflict straight away and not a repeated one', async () => {
-    const readPullRequest = vi.fn(async () => ({
-      ...REST_FIELDS,
-      checksRunning: 3,
-      checksPassed: 1,
-      mergeable: false,
-    }))
-    const { service } = serviceWith({
-      tokens: { 'usr-creator': 'ghu_creator' },
-      readPullRequest,
-    })
-    await seedHook({ createdBy: 'usr-creator' })
-    await seedSubscription({ userId: 'usr-a', prNumber: 42 })
-    await seedPrState({
-      ...FILLED_PR_STATE,
-      checksRunning: 3,
-      checksPassed: 1,
-      mergeable: true,
-    })
-
-    await service.handle({
-      event: 'pull_request',
-      payload: PULL_REQUEST_PAYLOAD,
-    })
-    const flips = (await prEventRows()).filter((row) => row.kind === 'mergeability')
-    expect(flips).toHaveLength(1)
-    expect(flips[0]).toMatchObject({ payload: { mergeable: false } })
-    expect((await prStateRows())[0]).toMatchObject({ mergeable: false })
-
-    await service.handle({
-      event: 'pull_request',
-      payload: PULL_REQUEST_PAYLOAD,
-    })
-    expect((await prEventRows()).filter((row) => row.kind === 'mergeability')).toHaveLength(1)
-  })
-
-  it('says nothing when a pull request whose CI already finished turns mergeable', async () => {
-    let mergeable: boolean | null = null
-    const readPullRequest = vi.fn(async () => ({
-      ...REST_FIELDS,
-      checksRunning: 0,
-      checksPassed: 3,
-      checksFailed: 0,
-      mergeable,
-    }))
-    const { service } = serviceWith({
-      tokens: { 'usr-creator': 'ghu_creator' },
-      readPullRequest,
-    })
-    await seedHook({ createdBy: 'usr-creator' })
-    await seedSubscription({ userId: 'usr-a', prNumber: 42 })
-    await seedPrState({
-      ...FILLED_PR_STATE,
-      checksRunning: 0,
-      checksPassed: 3,
-      checksFailed: 0,
-      mergeable: null,
-    })
-
-    await service.handle({
-      event: 'pull_request',
-      payload: PULL_REQUEST_PAYLOAD,
-    })
-    const announced = await prEventRows()
-    expect(announced.filter((row) => row.kind === 'verdict')).toHaveLength(1)
-
-    mergeable = true
-    await service.handle({
-      event: 'pull_request',
-      payload: PULL_REQUEST_PAYLOAD,
-    })
-
-    expect(await prEventRows()).toHaveLength(announced.length)
-    expect((await prStateRows())[0]).toMatchObject({ mergeable: true })
-  })
-
   it('records verdicts per subscriber verdict timing: fail-fast fires mid-run and again when the run finishes, settled waits', async () => {
-    let running = true
-    const readPullRequest = vi.fn(async () => ({
-      ...REST_FIELDS,
-      checksRunning: running ? 9 : 0,
-      checksPassed: running ? 0 : 9,
-      checksFailed: 1,
-    }))
+    const readPullRequest = vi.fn(async () => REST_FIELDS)
     const { service } = serviceWith({
       tokens: { 'usr-creator': 'ghu_creator' },
       readPullRequest,
@@ -208,6 +122,7 @@ describe('GithubDeliveryService transition events', () => {
       key: 'github.prEvents.verdictTiming',
       value: 'atlas-setting:v1:"settled"',
     })
+    await seedHeadChecks({ headSha: 'abc123', running: 9, failed: 1 })
     await seedPrState({
       ...FILLED_PR_STATE,
       checksRunning: 10,
@@ -227,7 +142,7 @@ describe('GithubDeliveryService transition events', () => {
       payload: { verdict: 'failed' },
     })
 
-    running = false
+    await completeRunningChecks({ headSha: 'abc123' })
     await service.handle({
       event: 'check_run',
       payload: SETTLING_CHECK_RUN_PAYLOAD,
@@ -290,20 +205,5 @@ describe('GithubDeliveryService transition events', () => {
     expect(verdicts).toHaveLength(1)
     expect(verdicts[0]).toMatchObject({ payload: { verdict: 'green', mergeable: true } })
     expect((await prEventRows()).filter((row) => row.kind === 'mergeability')).toHaveLength(0)
-  })
-
-  it('records no transition events for a brand-new PR row', async () => {
-    const readPullRequest = vi.fn(async () => ({ ...REST_FIELDS }))
-    const { service } = serviceWith({ tokens: {}, readPullRequest })
-    await seedSubscription({ userId: 'usr-a', prNumber: 42 })
-
-    await service.handle({
-      event: 'pull_request',
-      payload: PULL_REQUEST_PAYLOAD,
-    })
-
-    expect(readPullRequest).not.toHaveBeenCalled()
-    expect(await prStateRows()).toHaveLength(1)
-    expect(await prEventRows()).toHaveLength(0)
   })
 })

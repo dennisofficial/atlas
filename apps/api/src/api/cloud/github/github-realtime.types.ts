@@ -90,7 +90,6 @@ export type GithubPrStateRecord = GithubPrStateFields & {
   updatedAt: Date
   headRepoFullName: string | null
   mergeClean?: boolean | null
-  requiredCheckContexts?: readonly string[]
 }
 
 export interface GithubBranchRouting {

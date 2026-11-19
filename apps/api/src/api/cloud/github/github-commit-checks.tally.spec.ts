@@ -6,12 +6,18 @@ import { commitChecksTally } from './github-commit-checks'
 const tallyOf = (headSha: string) =>
   db.transaction((tx) => commitChecksTally({ tx, repoFullName: 'compai/app', headSha }))
 
-const seedRow = (args: { headSha: string; checkKey: string; outcome: string; appSlug?: string }) =>
+const seedRow = (args: {
+  headSha: string
+  checkKey: string
+  name?: string
+  outcome: string
+  appSlug?: string
+}) =>
   db.orm.public.GithubCommitCheck.create({
     repoFullName: 'compai/app',
     headSha: args.headSha,
     checkKey: args.checkKey,
-    name: args.checkKey,
+    name: args.name ?? args.checkKey,
     outcome: args.outcome,
     sourceUpdatedAt: new Date('2026-11-13T00:00:00Z'),
     appSlug: args.appSlug ?? null,
@@ -35,6 +41,32 @@ describe('commitChecksTally', () => {
     await seedRow({ headSha: 'sha1', checkKey: 'suite:1', outcome: 'running', appSlug: 'gh' })
 
     expect(await tallyOf('sha1')).toEqual({ running: 0, passed: 17, failed: 0, ignored: 0 })
+  })
+
+  it('counts two apps same-named checks separately', async () => {
+    await seedRow({
+      headSha: 'sha1',
+      checkKey: 'run:1',
+      name: 'ci',
+      outcome: 'failed',
+      appSlug: 'a',
+    })
+    await seedRow({
+      headSha: 'sha1',
+      checkKey: 'run:2',
+      name: 'ci',
+      outcome: 'passed',
+      appSlug: 'b',
+    })
+    await seedRow({
+      headSha: 'sha1',
+      checkKey: 'run:3',
+      name: 'ci',
+      outcome: 'running',
+      appSlug: 'c',
+    })
+
+    expect(await tallyOf('sha1')).toEqual({ running: 1, passed: 1, failed: 1, ignored: 0 })
   })
 
   it('keeps a run that is still going', async () => {

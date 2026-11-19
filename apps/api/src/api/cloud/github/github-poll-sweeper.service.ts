@@ -1,32 +1,29 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { db, type Row } from '@dltech/atlas-db'
+import { EPrSource, ETargetOutcome, ETrackingTransport } from '@dltech/atlas-core'
+import { GithubHeadReads } from './github-head-reads'
+import { applyObservedPull } from './github-pr-observed-pull'
+import { GithubPrStore } from './github-pr-store'
+import { mergeabilityObservationOfSample, pullObservationOfRest } from './github-pr-observations'
+import { TransportSelector } from './github-transport-selector'
+import type { RestPullRequest } from './github-pull-request-mapping'
 import { EGithubCallSource } from './github-call-log'
-import { announceSubscriberThreads } from './github-list-signals'
-import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { threadActivityAt } from './github-thread-activity'
-import { dtoOf, liveUntilOf, subscriberWhereOf } from './github-delivery-routing'
+import { liveUntilOf } from './github-delivery-routing'
 import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import { normalizedRepo } from './github-pr-identity'
 import { GithubRequestCoordinator } from './github-request-coordinator'
-import { readRepoCoverage } from './github-repo-coverage'
-import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
-import { GithubPrFanoutService } from './github-pr-fanout.service'
-import { deliverPrTransitions } from './github-pr-transition-push'
+import { readRepoTracking } from './github-repo-coverage'
+import { renewTrackedHeadTargets } from './github-tracked-head-renewal'
+import { parkedAttemptOf, refreshGithubQueue, type TargetAttempt } from './github-refresh-queue'
+import { ensurePullTarget } from './github-refresh-seed'
+import { CLAIM_BATCH } from './github-due-scheduler'
+import { withGithubRequestBudget, credentialFingerprint } from './github-request-budget'
 import {
-  nextVersionOf,
-  readPrStateForUpdate,
-  settlementSnapshotOf,
-  snapshotOfLocked,
-} from './github-pr-head-checks'
-import { refreshGithubQueue } from './github-refresh-queue'
-import {
-  GithubHttpBudgetUnavailable,
-  GithubCredentialCooldown,
-  withGithubRequestBudget,
-  credentialFingerprint,
-} from './github-request-budget'
-import { GithubUserReadFailed, GithubUserReads } from './github-user-reads'
-import type { PullRequestCacheFields } from './github-pull-request-mapping'
+  GithubUserReadFailed,
+  GithubUserReads,
+  type PullObservationRead,
+} from './github-user-reads'
 import { GithubService } from './github.service'
 
 @Injectable()
@@ -35,26 +32,29 @@ export class GithubPollSweeperService {
   constructor(
     private readonly github: GithubService,
     private readonly reads: GithubUserReads,
-    private readonly fanout: GithubPrFanoutService,
-    private readonly mailbox: GithubPrEventMailboxService,
-    private readonly signals: ThreadSignalsService,
     private readonly hooks: GithubHookLifecycleService,
     private readonly coordinator: GithubRequestCoordinator,
+    private readonly headReads: GithubHeadReads,
+    private readonly store: GithubPrStore,
   ) {}
 
-  async handlePoll(): Promise<void> {
+  async handlePoll(args: { limit?: number } = {}): Promise<void> {
     await this.refreshLiveUntil()
+    await renewTrackedHeadTargets({})
     try {
       await withGithubRequestBudget({
         store: this.coordinator,
         run: async () =>
           refreshGithubQueue({
-            coordinator: this.coordinator,
-            hooks: this.hooks,
-            coverage: await readRepoCoverage(),
-            logger: this.logger,
-            resolve: (row) => this.resolvePrNumber(row),
-            refresh: (target) => this.pollOne(target),
+            deps: {
+              hooks: this.hooks,
+              transport: new TransportSelector(readRepoTracking),
+              logger: this.logger,
+              refresh: (target) => this.pollOne(target),
+              lookUp: (target, transport) => this.lookUp({ target, transport }),
+            },
+            now: new Date(),
+            limit: args.limit ?? CLAIM_BATCH,
           }),
       })
     } catch (failure) {
@@ -81,42 +81,156 @@ export class GithubPollSweeperService {
     }
   }
 
-  private async resolvePrNumber(args: Row<'GithubSubscription'>): Promise<number | null> {
-    if (args.prNumber !== null || args.branch === '' || args.branch.startsWith('#'))
-      return args.prNumber
-    const token = await this.github.findToken({ userId: args.userId })
-    if (token === undefined) return null
-    const [owner, repo] = args.repoFullName.split('/') as [string, string]
+  private async lookUp(args: {
+    target: Row<'GithubTrackingTarget'>
+    transport: ETrackingTransport
+  }): Promise<TargetAttempt> {
+    const { target } = args
+    const token = await this.github.findToken({ userId: target.userId })
+    if (token === undefined) return { outcome: ETargetOutcome.CredentialLimited }
     try {
-      return (
-        (
-          await this.reads.findOpenPrForBranch({
-            source: EGithubCallSource.PollSweep,
-            token,
-            owner,
-            repo,
-            branch: args.branch,
-          })
-        )?.number ?? null
-      )
+      if (target.kind === 'head') {
+        const held = await this.recordHeadPulls({
+          target,
+          token,
+          refreshFound: args.transport === ETrackingTransport.Polled,
+        })
+        if (held !== undefined) return held
+      } else if (target.prNumber > 0) {
+        const result = await this.pollOne({
+          userId: target.userId,
+          repoFullName: target.repoFullName,
+          prNumber: target.prNumber,
+        })
+        if (result.outcome !== ETargetOutcome.Polled) return result
+      }
     } catch (failure) {
-      if (failure instanceof GithubUserReadFailed && !failure.rateLimited) return null
-      throw failure
+      return parkedAttemptOf(failure, this.logger)
     }
+    await db.orm.public.GithubTrackingTarget.where({ id: target.id }).update({
+      lookedUpAt: new Date(),
+    })
+    return { outcome: ETargetOutcome.LookedUp }
+  }
+
+  private async recordHeadPulls(args: {
+    target: Row<'GithubTrackingTarget'>
+    token: string
+    refreshFound: boolean
+  }): Promise<TargetAttempt | undefined> {
+    const headRepo = normalizedRepo(args.target.repoFullName)
+    const parent = await this.headReads.parentOf({ token: args.token, repoFullName: headRepo })
+    const repos = parent === null ? [headRepo] : [headRepo, parent]
+    let held: TargetAttempt | undefined
+    for (const repoFullName of repos) {
+      const pulls = await this.headReads.pullsByHead({
+        token: args.token,
+        repoFullName,
+        headRepoFullName: headRepo,
+        branch: args.target.branch,
+      })
+      for (const pull of pulls) {
+        await this.recordPull({ repoFullName, pull })
+        await ensurePullTarget({
+          userId: args.target.userId,
+          repoFullName,
+          prNumber: pull.number,
+          liveUntil: args.target.liveUntil,
+          now: new Date(),
+        })
+        if (!args.refreshFound) continue
+        const attempt = await this.pollOne({
+          userId: args.target.userId,
+          repoFullName,
+          prNumber: pull.number,
+        })
+        if (attempt.outcome !== ETargetOutcome.Polled) held = attempt
+      }
+    }
+    return held
+  }
+
+  private async recordPull(args: { repoFullName: string; pull: RestPullRequest }): Promise<void> {
+    await this.applyPull({
+      repoFullName: args.repoFullName,
+      pull: args.pull,
+      source: EPrSource.HeadDiscovery,
+    })
+  }
+
+  private applyPull(args: {
+    repoFullName: string
+    pull: RestPullRequest
+    source: EPrSource
+  }): Promise<unknown> {
+    const observedAt = new Date().toISOString()
+    const observation = pullObservationOfRest({
+      repoFullName: args.repoFullName,
+      pull: args.pull,
+      updatedAt: args.pull.updated_at,
+      observedAt,
+      source: args.source,
+    })
+    if (observation === null) {
+      this.logger.warn(
+        `skipping the pull for ${args.repoFullName}#${args.pull.number}: incomplete fields`,
+      )
+      return Promise.resolve()
+    }
+
+    return this.store.apply({
+      repoFullName: args.repoFullName,
+      prNumber: args.pull.number,
+      observations: [observation],
+    })
+  }
+
+  private async applyObservedPull(args: {
+    repoFullName: string
+    read: PullObservationRead
+    source: EPrSource
+  }): Promise<void> {
+    const { read } = args
+    const observedAt = read.mergeability.observedAt
+    const observation = pullObservationOfRest({
+      repoFullName: args.repoFullName,
+      pull: read.pull,
+      updatedAt: read.pull.updated_at,
+      observedAt,
+      source: args.source,
+    })
+    if (observation === null) {
+      this.logger.warn(
+        `skipping the pull for ${args.repoFullName}#${read.pull.number}: incomplete fields`,
+      )
+      return
+    }
+    await applyObservedPull({
+      store: this.store,
+      repoFullName: args.repoFullName,
+      prNumber: read.pull.number,
+      observations: [
+        observation,
+        mergeabilityObservationOfSample({ sample: read.mergeability, source: args.source }),
+      ],
+      headSha: read.headSha,
+      checks: read.checks,
+      protection: read.protection,
+    })
   }
 
   private async pollOne(args: {
     userId: string
     repoFullName: string
     prNumber: number
-  }): Promise<'polled' | 'skipped' | 'rate-limited' | 'credential-limited'> {
+  }): Promise<TargetAttempt> {
     const token = await this.github.findToken({ userId: args.userId })
-    if (token === undefined) return 'skipped'
+    if (token === undefined) return { outcome: ETargetOutcome.CredentialLimited }
     const repoFullName = normalizedRepo(args.repoFullName)
     const [owner, repo] = repoFullName.split('/') as [string, string]
-    let fields: PullRequestCacheFields
+    let read: PullObservationRead
     try {
-      fields = await this.reads.readPullRequest({
+      read = await this.reads.readPullRequestObservation({
         source: EGithubCallSource.PollSweep,
         token,
         owner,
@@ -124,75 +238,19 @@ export class GithubPollSweeperService {
         number: args.prNumber,
       })
     } catch (failure) {
-      if (failure instanceof GithubCredentialCooldown) return 'credential-limited'
-      if (failure instanceof GithubHttpBudgetUnavailable) return 'rate-limited'
-      if (failure instanceof GithubUserReadFailed) {
-        if (!failure.rateLimited) return 'skipped'
+      if (failure instanceof GithubUserReadFailed && failure.rateLimited) {
+        const until = Date.now() + 60_000
         await this.coordinator.blockHttpUntil({
-          until: Date.now() + 60_000,
+          until,
           credentialFingerprint: credentialFingerprint(token),
           resource: 'core',
         })
-        return 'credential-limited'
+        return { outcome: ETargetOutcome.CredentialLimited, retryAtMs: until }
       }
-      throw failure
+      return parkedAttemptOf(failure, this.logger)
     }
-    const normalizedFields = {
-      ...fields,
-      headRepoFullName:
-        fields.headRepoFullName === null ? null : normalizedRepo(fields.headRepoFullName),
-    }
-    const { row, userIds } = await db.transaction(async (tx) => {
-      const priorRow = await readPrStateForUpdate({
-        tx,
-        repoFullName,
-        prNumber: args.prNumber,
-      })
-      const prior = priorRow === null ? null : snapshotOfLocked(priorRow)
-      const row = await tx.orm.public.GithubPrState.upsert({
-        conflictOn: { repoFullName, prNumber: args.prNumber },
-        create: {
-          repoFullName,
-          prNumber: args.prNumber,
-          ...normalizedFields,
-          version: nextVersionOf(priorRow),
-          updatedAt: new Date(),
-        },
-        update: { ...normalizedFields, version: nextVersionOf(priorRow), updatedAt: new Date() },
-      })
-      const subscribers = await tx.orm.public.GithubSubscription.where(
-        subscriberWhereOf({
-          repoFullName,
-          prNumber: args.prNumber,
-          routing: {
-            headBranch: row.headBranch,
-            headRepoMatchesBase: row.headRepoFullName === repoFullName,
-          },
-        }),
-      ).all()
-      const userIds = [...new Set(subscribers.map((subscriber) => subscriber.userId))]
-      await deliverPrTransitions({
-        writes: { mailbox: this.mailbox, repoFullName, prNumber: args.prNumber, url: row.url },
-        prior,
-        next: await settlementSnapshotOf({ tx, row }),
-        userIds,
-        tx,
-      })
-      return { row, userIds }
-    })
-    this.fanout.push({ userIds, state: dtoOf(row) })
-    if (userIds.length === 0) return 'polled'
-    const subscribers = await db.orm.public.GithubSubscription.where(
-      subscriberWhereOf({
-        repoFullName,
-        prNumber: args.prNumber,
-        routing: {
-          headBranch: row.headBranch,
-          headRepoMatchesBase: row.headRepoFullName === repoFullName,
-        },
-      }),
-    ).all()
-    await announceSubscriberThreads({ signals: this.signals, subscribers })
-    return 'polled'
+    await this.applyObservedPull({ repoFullName, read, source: EPrSource.Poll })
+
+    return { outcome: ETargetOutcome.Polled }
   }
 }

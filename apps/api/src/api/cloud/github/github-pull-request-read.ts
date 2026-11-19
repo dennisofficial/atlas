@@ -1,24 +1,46 @@
+import type { MergeabilitySample } from '@dltech/atlas-core'
+import type { BranchProtectionRead } from './github-branch-protection'
 import type { EGithubCallSource } from './github-call-log'
 import type { CommitCheckInput } from './github-commit-checks'
-import { readChecksState } from './github-checks-state'
 import { readHeadChecks } from './github-head-checks-read'
 import {
   pullRequestCacheFieldsOf,
   type PullRequestCacheFields,
   type RestPullRequest,
 } from './github-pull-request-mapping'
+import { mergeabilitySampleOfRest } from './github-pr-observations'
 import type { GithubRequiredChecksRead } from './github-required-checks-read'
 
+export type PullChecksCollected = {
+  headSha: string
+  checks: CommitCheckInput[]
+  mergeability?: MergeabilitySample
+}
+
+export type PullObservationRead = Omit<PullRequestRead, 'fields'>
+
+export function pullObservationReadOf(read: PullRequestRead): PullObservationRead {
+  return {
+    pull: read.pull,
+    mergeability: read.mergeability,
+    headSha: read.headSha,
+    checks: read.checks,
+    protection: read.protection,
+  }
+}
+
 export type PullRequestRead = {
+  pull: RestPullRequest
+  mergeability: MergeabilitySample
   headSha: string
   fields: PullRequestCacheFields
   checks: CommitCheckInput[]
+  protection: BranchProtectionRead
 }
 
 export async function readPullRequestFill(args: {
   get: <T>(args: { source: EGithubCallSource; token: string; path: string }) => Promise<T>
   requiredChecks: GithubRequiredChecksRead
-  baseUrl: string
   source: EGithubCallSource
   token: string
   owner: string
@@ -30,36 +52,30 @@ export async function readPullRequestFill(args: {
     token: args.token,
     path: `/repos/${args.owner}/${args.repo}/pulls/${args.number}`,
   })
+  const observedAt = new Date().toISOString()
   const head = await readHeadChecks({
     get: <T>(path: string) => args.get<T>({ source: args.source, token: args.token, path }),
     owner: args.owner,
     repo: args.repo,
     headSha: pull.head.sha,
   })
-  const requiredCheckContexts = await args.requiredChecks.read({
+  const protection = await args.requiredChecks.read({
     source: args.source,
     token: args.token,
     owner: args.owner,
     repo: args.repo,
     branch: pull.base.ref,
   })
-  const checksState = await readChecksState({
-    source: args.source,
-    token: args.token,
-    owner: args.owner,
-    repo: args.repo,
-    number: args.number,
-    baseUrl: args.baseUrl,
-  })
   return {
+    pull,
+    mergeability: mergeabilitySampleOfRest({ pull, observedAt }),
     headSha: pull.head.sha,
     checks: head.checks,
+    protection: { baseBranch: pull.base.ref, ...protection },
     fields: pullRequestCacheFieldsOf({
       pull,
       checkRuns: head.checkRuns,
       statuses: head.statuses,
-      checksState,
-      requiredCheckContexts,
     }),
   }
 }

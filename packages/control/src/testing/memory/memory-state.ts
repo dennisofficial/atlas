@@ -9,10 +9,12 @@ import type {
   InsertRoutineRunParams,
   RoutineRow,
   PrStateRow,
+  SessionBranchRow,
   SubscriptionLease,
   SessionViewRow,
   StoredEvent,
   ThreadRow,
+  TrackingTarget,
 } from '../../port'
 
 export type SessionRow = ControlSessionRow & {
@@ -38,9 +40,10 @@ export type State = {
   worktreeChanges: Map<string, WorktreeChangesWrite>
   notifications: string[]
   views: Map<string, SessionViewRow>
-  pullRequestLinks: Set<string>
+  sessionBranches: Map<string, SessionBranchRow>
   prStates: Map<string, PrStateRow>
   subscriptionLeases: Map<string, SubscriptionLease & { expiresAt: string }>
+  trackingTargets: Map<string, TrackingTarget>
   routines: Map<string, RoutineRow>
   routineRuns: InsertRoutineRunParams[]
 }
@@ -68,9 +71,10 @@ export const emptyState = (): State => ({
   worktreeChanges: new Map(),
   notifications: [],
   views: new Map(),
-  pullRequestLinks: new Set(),
+  sessionBranches: new Map(),
   prStates: new Map(),
   subscriptionLeases: new Map(),
+  trackingTargets: new Map(),
   routines: new Map(),
   routineRuns: [],
 })
@@ -93,11 +97,12 @@ export const cloneState = (state: State): State => ({
   ),
   notifications: [...state.notifications],
   views: new Map([...state.views].map(([key, value]) => [key, { ...value }])),
-  pullRequestLinks: new Set(state.pullRequestLinks),
+  sessionBranches: new Map([...state.sessionBranches].map(([key, value]) => [key, { ...value }])),
   prStates: new Map(state.prStates),
   subscriptionLeases: new Map(
     [...state.subscriptionLeases].map(([key, value]) => [key, { ...value }]),
   ),
+  trackingTargets: new Map([...state.trackingTargets].map(([key, value]) => [key, { ...value }])),
   routines: new Map([...state.routines].map(([key, value]) => [key, { ...value }])),
   routineRuns: state.routineRuns.map((run) => ({ ...run })),
 })
@@ -142,5 +147,14 @@ export const activeFailureOf = (log: readonly StoredEvent[]): { inboxHead: numbe
 export const prKey = (params: { repo: string; number: number }): string =>
   `${params.repo}#${params.number}`
 
+export const branchKey = (params: {
+  sessionId: string
+  headRepo: string
+  branch: string
+}): string => `${params.sessionId} ${params.headRepo} ${params.branch}`
+
 export const subscriptionLeaseKey = (params: SubscriptionLease): string =>
   `${params.userId} ${params.threadId} ${params.repo}${subscriptionSubjectKey(params.subject)}`
+
+export const trackingTargetKey = (params: TrackingTarget): string =>
+  `${params.userId} ${params.kind} ${params.repoFullName} ${params.branch} ${params.prNumber ?? ''}`

@@ -1,18 +1,22 @@
+import { storeFixture } from './github-pr-store.fixture'
 import { spyOn } from 'bun:test'
 import type { RedisService } from '../../../_lib/redis/redis.service'
 import type { EnvService } from '../../../_core/config/env/env.service'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
+import { inertReconcile } from './github-pr-store.fixture'
 import type { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import type { GithubAppInstallationsService } from './github-app-installations.service'
 import { GithubDeliveryService } from './github-delivery.service'
 import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import { GithubRequestCoordinator } from './github-request-coordinator'
+import { GithubHeadReads } from './github-head-reads'
 import { GithubPollSweeperService } from './github-poll-sweeper.service'
 import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
+import { GithubPrOutboxDispatcher } from './github-pr-outbox'
 import { RedisPrFrameBus } from './github-pr-fanout.transport'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import { GithubUserReads } from './github-user-reads'
@@ -79,6 +83,7 @@ export function mockGithubHttp() {
         state,
         draft: false,
         merged_at: null,
+        updated_at: '2026-11-18T06:00:00Z',
         mergeable: true,
         mergeable_state: 'clean',
         head: {
@@ -163,9 +168,13 @@ export function realGithubGraph(args: {
   )
   const signals: ThreadSignalsService = inertSignals()
   const wakes: unknown[] = []
-  const mailbox = new GithubPrEventMailboxService(fanout, {
-    notifyEvent: (wake: unknown) => wakes.push(wake),
-  } as unknown as GithubSandboxWakeService)
+  const wake = {
+    notifyEvent: (notice: unknown) => wakes.push(notice),
+  } as unknown as GithubSandboxWakeService
+  const mailbox = new GithubPrEventMailboxService(
+    fanout,
+    new GithubPrOutboxDispatcher({ fanout, signals, wake, reconcile: inertReconcile() }),
+  )
   const discussion = new GithubPrDiscussionDeliveryService(mailbox)
   const delivery = new GithubDeliveryService(
     github,
@@ -176,15 +185,15 @@ export function realGithubGraph(args: {
     discussion,
     signals,
     coordinator,
+    storeFixture({ fanout, wake }),
   )
   const poll = new GithubPollSweeperService(
     github,
     reads,
-    fanout,
-    mailbox,
-    signals,
     hooks,
     coordinator,
+    new GithubHeadReads(),
+    storeFixture({ fanout, wake }),
   )
   return {
     github,

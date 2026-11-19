@@ -13,10 +13,10 @@ import type {
   GithubSubscribeArgs,
 } from './github-realtime.types'
 import { GithubRequestCoordinator } from './github-request-coordinator'
-import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { withGithubRequestBudget } from './github-request-budget'
 import { normalizedRepo } from './github-pr-identity'
 import { GithubSubscribedPrResolver } from './github-subscribed-pr-resolver'
+import { GithubPrStore } from './github-pr-store'
 import { GithubSubscribeStateWriter } from './github-subscribe-state-writer'
 import { GithubUserReads } from './github-user-reads'
 import { GithubService } from './github.service'
@@ -32,11 +32,11 @@ export class GithubSubscriptionsService {
     private readonly hooks: GithubHookLifecycleService,
     private readonly installNotice: GithubAppInstallNoticeService,
     private readonly coordinator: GithubRequestCoordinator,
-    mailbox: GithubPrEventMailboxService,
     private readonly installations: GithubAppInstallationsService,
+    store: GithubPrStore,
   ) {
     this.prs = new GithubSubscribedPrResolver({ reads, coordinator })
-    this.stateWriter = new GithubSubscribeStateWriter({ prs: this.prs, mailbox })
+    this.stateWriter = new GithubSubscribeStateWriter({ prs: this.prs, store })
   }
 
   subscribe(args: GithubSubscribeArgs): Promise<GithubSubscriptionDto> {

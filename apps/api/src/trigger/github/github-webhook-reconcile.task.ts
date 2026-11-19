@@ -15,6 +15,8 @@ export const githubWebhookReconcileTask = schedules.task({
           process: (entry) => graph.deliveries.handle({ ...entry, replay: true }),
         })
         await graph.webhookInbox.prune({ now })
+        await graph.outbox.drain()
+        await graph.outbox.prune({ now })
         await pruneCommitChecks({ now })
       },
     }),

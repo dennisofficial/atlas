@@ -46,8 +46,10 @@ export type HostTimers = {
   random(): number
 }
 
+export type CapturedBase = { repoPath: string; base: string }
+
 export type PrepareResult =
-  | { ok: true; warnings?: readonly string[] | undefined }
+  | { ok: true; warnings?: readonly string[] | undefined; bases?: readonly CapturedBase[] }
   | { ok: false; reason: string }
 
 export type SetupLifecycle =
@@ -59,21 +61,6 @@ export type SetupLifecycle =
       durationMs: number
       output: string
     }
-
-export type FoundPullRequest = { number: number; url: string }
-
-export type PullRequestFinder = {
-  find(args: {
-    repo: string
-    branch: string
-    signal: AbortSignal
-  }): Promise<FoundPullRequest | null>
-}
-
-export type PullRequestSource = {
-  finder: PullRequestFinder
-  repoOf(repoPath: string): string | null
-}
 
 export type PrepareStepReporter = (step: WorkspaceStepReport) => void
 
@@ -97,8 +84,8 @@ export type SessionRuntime = {
   normalizeFailure: NormalizeFailure
   launchDirectory: string
   watchedRepos(): Promise<readonly string[]>
+  onRepo?: ((listener: (repoPath: string) => void) => () => void) | undefined
   baseBranchOf(repoPath: string): string | null
-  pullRequests?: PullRequestSource | undefined
   plugins?: ComposedPlugins | undefined
   runningShells(): Promise<number>
   env?: (() => Promise<Record<string, string>>) | undefined

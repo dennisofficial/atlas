@@ -1,5 +1,5 @@
+import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { EGithubCallSource } from './github-call-log'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import {
   prStateRows,
@@ -8,8 +8,10 @@ import {
 } from '../../../../test/github-seed'
 import { advanceTimersByTimeAsync } from '../../../../test/fake-timers'
 import {
+  fakeHeadReads,
   preparePollSweeper,
   REST_FIELDS,
+  REST_PULL,
   seedSubscription,
   serviceWith,
 } from './github-poll-sweeper.fixture'
@@ -39,55 +41,51 @@ describe('GithubPollSweeperService branch subscriptions', () => {
     expect(readPullRequest).not.toHaveBeenCalled()
   })
 
-  it('re-resolves a poll-backed branch row with no pr number and records the found pr', async () => {
+  it('discovers the pull request of a polled branch row through a head target', async () => {
     vi.useFakeTimers()
+    const head = fakeHeadReads({ pulls: { 'compai/app': [REST_PULL] } })
     const readPullRequest = vi.fn(async () => REST_FIELDS)
-    const findOpenPrForBranch = vi.fn(async () => ({ number: 42 }))
-    const { service, fanout } = serviceWith({
+    const { service } = serviceWith({
       tokens: { usr_1: 'ghu_1' },
+      headReads: head.reads,
       readPullRequest,
-      findOpenPrForBranch,
     })
     await seedSubscription({ prNumber: null, branch: 'dennis/add-the-thing' })
-
-    const received: unknown[] = []
-    fanout.openStream({ userId: 'usr_1', handler: (state) => received.push(state) })
 
     await service.handlePoll()
     await advanceTimersByTimeAsync(1_100)
 
-    expect(findOpenPrForBranch).toHaveBeenCalledWith({
-      source: EGithubCallSource.PollSweep,
-      token: 'ghu_1',
-      owner: 'compai',
-      repo: 'app',
+    expect(head.pullsByHead).toHaveBeenCalledWith(
+      expect.objectContaining({
+        token: 'ghu_1',
+        repoFullName: 'compai/app',
+        branch: 'dennis/add-the-thing',
+      }),
+    )
+    expect((await subscriptionRows())[0]?.prNumber).toBeNull()
+    const target = await db.orm.public.GithubTrackingTarget.where({
       branch: 'dennis/add-the-thing',
-    })
-    expect((await subscriptionRows())[0]?.prNumber).toBe(42)
-    expect(readPullRequest).toHaveBeenCalledWith({
-      source: EGithubCallSource.PollSweep,
-      token: 'ghu_1',
-      owner: 'compai',
-      repo: 'app',
-      number: 42,
-    })
-    expect((await prStateRows())[0]).toMatchObject({ prNumber: 42 })
-    expect(received).toHaveLength(1)
+    }).first()
+    expect(target?.kind).toBe('head')
+    expect(target?.attemptedAt).not.toBeNull()
+    expect(target?.nextDueAt.getTime()).toBeGreaterThan(Date.now())
+    expect((await prStateRows())[0]).toMatchObject({ prNumber: REST_PULL.number })
   })
 
-  it('leaves a poll-backed branch row unresolved while no open pr exists for it', async () => {
+  it('keeps a polled branch row unresolved while no pull request carries its head', async () => {
+    const head = fakeHeadReads()
     const readPullRequest = vi.fn(async () => REST_FIELDS)
-    const findOpenPrForBranch = vi.fn(async () => null)
     const { service } = serviceWith({
       tokens: { usr_1: 'ghu_1' },
+      headReads: head.reads,
       readPullRequest,
-      findOpenPrForBranch,
     })
     await seedSubscription({ prNumber: null, branch: 'dennis/add-the-thing' })
 
     await service.handlePoll()
+    await service.handlePoll()
 
-    expect(findOpenPrForBranch).toHaveBeenCalled()
+    expect(head.pullsByHead).toHaveBeenCalledTimes(1)
     expect(readPullRequest).not.toHaveBeenCalled()
     expect((await subscriptionRows())[0]?.prNumber).toBeNull()
     expect(await prStateRows()).toHaveLength(0)

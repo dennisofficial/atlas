@@ -80,27 +80,6 @@ const seed = (follower: ReturnType<typeof setup>): LogHead => {
   return headOf(events)
 }
 
-const linked = (follower: ReturnType<typeof setup>, from: LogHead): void => {
-  follower.handleMessage(
-    eventsMessage({
-      id: 's1',
-      events: mintEvents({
-        from,
-        bodies: [
-          {
-            type: 'pull-request-linked',
-            repo: 'acme/atlas',
-            number: 7,
-            url: 'https://github.com/acme/atlas/pull/7',
-            branch: 'fix',
-          },
-        ],
-      }),
-      live: true,
-    }),
-  )
-}
-
 describe('the session follower frame facts', () => {
   it('never lets a frame status override the log-derived one', () => {
     const follower = setup()
@@ -112,10 +91,9 @@ describe('the session follower frame facts', () => {
     expect(snapshot.view?.at).toBe(2)
   })
 
-  it('takes only lease liveness, spend tally and pull request state from a frame', () => {
+  it('takes only lease liveness, spend tally and pull requests from a frame', () => {
     const follower = setup()
-    const from = seed(follower)
-    linked(follower, from)
+    seed(follower)
     follower.handleMessage(sessionView({ at: 3, pullRequestState: 'open' }))
     const view = follower.getSnapshot().view
     expect(view?.spend).toEqual({ rows: [], tally })

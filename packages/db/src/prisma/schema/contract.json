@@ -64,6 +64,10 @@
       "model": "GithubAppNoticeDismissal",
       "namespace": "public"
     },
+    "GithubBranchProtection": {
+      "model": "GithubBranchProtection",
+      "namespace": "public"
+    },
     "GithubCommitCheck": {
       "model": "GithubCommitCheck",
       "namespace": "public"
@@ -84,6 +88,10 @@
       "model": "GithubPrHeadCheck",
       "namespace": "public"
     },
+    "GithubPrOutbox": {
+      "model": "GithubPrOutbox",
+      "namespace": "public"
+    },
     "GithubPrState": {
       "model": "GithubPrState",
       "namespace": "public"
@@ -94,6 +102,10 @@
     },
     "GithubSubscription": {
       "model": "GithubSubscription",
+      "namespace": "public"
+    },
+    "GithubTrackingTarget": {
+      "model": "GithubTrackingTarget",
       "namespace": "public"
     },
     "GithubWebhookInbox": {
@@ -256,8 +268,8 @@
       "model": "V2Session",
       "namespace": "v2"
     },
-    "V2SessionPullRequest": {
-      "model": "V2SessionPullRequest",
+    "V2SessionBranch": {
+      "model": "V2SessionBranch",
       "namespace": "v2"
     },
     "V2SessionView": {
@@ -285,6 +297,19 @@
     "namespaces": {
       "public": {
         "enum": {
+          "EGithubTargetKind": {
+            "codecId": "pg/text@1",
+            "members": [
+              {
+                "name": "Head",
+                "value": "head"
+              },
+              {
+                "name": "PullRequest",
+                "value": "pull-request"
+              }
+            ]
+          },
           "McpServerSource": {
             "codecId": "pg/text@1",
             "members": [
@@ -2389,6 +2414,63 @@
               "table": "GithubAppNoticeDismissal"
             }
           },
+          "GithubBranchProtection": {
+            "fields": {
+              "baseBranch": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "fetchedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "repoFullName": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "requiredContexts": {
+                "many": {
+                  "elementNullable": false
+                },
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {},
+            "storage": {
+              "fields": {
+                "baseBranch": {
+                  "column": "baseBranch"
+                },
+                "fetchedAt": {
+                  "column": "fetchedAt"
+                },
+                "repoFullName": {
+                  "column": "repoFullName"
+                },
+                "requiredContexts": {
+                  "column": "requiredContexts"
+                }
+              },
+              "namespaceId": "public",
+              "table": "GithubBranchProtection"
+            }
+          },
           "GithubCommitCheck": {
             "fields": {
               "annotations": {
@@ -2456,6 +2538,13 @@
               },
               "repoFullName": {
                 "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "sourceId": {
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -2535,6 +2624,9 @@
                 },
                 "repoFullName": {
                   "column": "repoFullName"
+                },
+                "sourceId": {
+                  "column": "sourceId"
                 },
                 "sourceUpdatedAt": {
                   "column": "sourceUpdatedAt"
@@ -3012,8 +3104,194 @@
               "table": "GithubPrHeadCheck"
             }
           },
+          "GithubPrOutbox": {
+            "fields": {
+              "attempts": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "deadLetteredAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "dedupeKey": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "dispatchedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "kind": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "lastError": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "leaseOwner": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "leaseUntil": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "nextAttemptAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "parkedSince": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "payload": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/jsonb@1",
+                  "kind": "scalar"
+                }
+              },
+              "prNumber": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "repoFullName": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {},
+            "storage": {
+              "fields": {
+                "attempts": {
+                  "column": "attempts"
+                },
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "deadLetteredAt": {
+                  "column": "deadLetteredAt"
+                },
+                "dedupeKey": {
+                  "column": "dedupeKey"
+                },
+                "dispatchedAt": {
+                  "column": "dispatchedAt"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "kind": {
+                  "column": "kind"
+                },
+                "lastError": {
+                  "column": "lastError"
+                },
+                "leaseOwner": {
+                  "column": "leaseOwner"
+                },
+                "leaseUntil": {
+                  "column": "leaseUntil"
+                },
+                "nextAttemptAt": {
+                  "column": "nextAttemptAt"
+                },
+                "parkedSince": {
+                  "column": "parkedSince"
+                },
+                "payload": {
+                  "column": "payload"
+                },
+                "prNumber": {
+                  "column": "prNumber"
+                },
+                "repoFullName": {
+                  "column": "repoFullName"
+                }
+              },
+              "namespaceId": "public",
+              "table": "GithubPrOutbox"
+            }
+          },
           "GithubPrState": {
             "fields": {
+              "baseBranch": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "checksFailed": {
                 "nullable": false,
                 "type": {
@@ -3047,6 +3325,16 @@
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
+                }
+              },
+              "closedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
                 }
               },
               "headBranch": {
@@ -3084,6 +3372,40 @@
                   "kind": "scalar"
                 }
               },
+              "mergeableBaseRef": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "mergeableHeadSha": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "mergeableObservedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "mergedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
               "prNumber": {
                 "nullable": false,
                 "type": {
@@ -3091,17 +3413,17 @@
                   "kind": "scalar"
                 }
               },
-              "repoFullName": {
-                "nullable": false,
+              "pullUpdatedAt": {
+                "nullable": true,
                 "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
                 }
               },
-              "requiredCheckContexts": {
-                "many": {
-                  "elementNullable": false
-                },
+              "repoFullName": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
@@ -3150,6 +3472,9 @@
             "relations": {},
             "storage": {
               "fields": {
+                "baseBranch": {
+                  "column": "baseBranch"
+                },
                 "checksFailed": {
                   "column": "checksFailed"
                 },
@@ -3164,6 +3489,9 @@
                 },
                 "checksState": {
                   "column": "checksState"
+                },
+                "closedAt": {
+                  "column": "closedAt"
                 },
                 "headBranch": {
                   "column": "headBranch"
@@ -3180,14 +3508,26 @@
                 "mergeable": {
                   "column": "mergeable"
                 },
+                "mergeableBaseRef": {
+                  "column": "mergeableBaseRef"
+                },
+                "mergeableHeadSha": {
+                  "column": "mergeableHeadSha"
+                },
+                "mergeableObservedAt": {
+                  "column": "mergeableObservedAt"
+                },
+                "mergedAt": {
+                  "column": "mergedAt"
+                },
                 "prNumber": {
                   "column": "prNumber"
                 },
+                "pullUpdatedAt": {
+                  "column": "pullUpdatedAt"
+                },
                 "repoFullName": {
                   "column": "repoFullName"
-                },
-                "requiredCheckContexts": {
-                  "column": "requiredCheckContexts"
                 },
                 "state": {
                   "column": "state"
@@ -3481,6 +3821,198 @@
               },
               "namespaceId": "public",
               "table": "GithubSubscription"
+            }
+          },
+          "GithubTrackingTarget": {
+            "fields": {
+              "attemptedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "branch": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "failures": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "kind": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                },
+                "valueSet": {
+                  "entityKind": "enum",
+                  "entityName": "EGithubTargetKind",
+                  "namespaceId": "public",
+                  "plane": "domain"
+                }
+              },
+              "leaseToken": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "leaseUntil": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "liveUntil": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "lookedUpAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "nextDueAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "prNumber": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "repoFullName": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "userId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "user": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "attemptedAt": {
+                  "column": "attemptedAt"
+                },
+                "branch": {
+                  "column": "branch"
+                },
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "failures": {
+                  "column": "failures"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "kind": {
+                  "column": "kind"
+                },
+                "leaseToken": {
+                  "column": "leaseToken"
+                },
+                "leaseUntil": {
+                  "column": "leaseUntil"
+                },
+                "liveUntil": {
+                  "column": "liveUntil"
+                },
+                "lookedUpAt": {
+                  "column": "lookedUpAt"
+                },
+                "nextDueAt": {
+                  "column": "nextDueAt"
+                },
+                "prNumber": {
+                  "column": "prNumber"
+                },
+                "repoFullName": {
+                  "column": "repoFullName"
+                },
+                "userId": {
+                  "column": "userId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "GithubTrackingTarget"
             }
           },
           "GithubWebhookInbox": {
@@ -7272,6 +7804,21 @@
                   "namespace": "public"
                 }
               },
+              "githubTrackingTargets": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
+                },
+                "to": {
+                  "model": "GithubTrackingTarget",
+                  "namespace": "public"
+                }
+              },
               "harnessSecrets": {
                 "cardinality": "1:N",
                 "on": {
@@ -9305,6 +9852,21 @@
               }
             },
             "relations": {
+              "branches": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "sessionId"
+                  ]
+                },
+                "to": {
+                  "model": "V2SessionBranch",
+                  "namespace": "v2"
+                }
+              },
               "inbox": {
                 "cardinality": "1:N",
                 "on": {
@@ -9333,21 +9895,6 @@
                 },
                 "to": {
                   "model": "V2Lease",
-                  "namespace": "v2"
-                }
-              },
-              "pullRequests": {
-                "cardinality": "1:N",
-                "on": {
-                  "localFields": [
-                    "id"
-                  ],
-                  "targetFields": [
-                    "sessionId"
-                  ]
-                },
-                "to": {
-                  "model": "V2SessionPullRequest",
                   "namespace": "v2"
                 }
               },
@@ -9462,16 +10009,23 @@
               "table": "V2Session"
             }
           },
-          "V2SessionPullRequest": {
+          "V2SessionBranch": {
             "fields": {
-              "number": {
+              "branch": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "firstSeenSeq": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/int4@1",
                   "kind": "scalar"
                 }
               },
-              "repo": {
+              "headRepo": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
@@ -9506,18 +10060,21 @@
             },
             "storage": {
               "fields": {
-                "number": {
-                  "column": "number"
+                "branch": {
+                  "column": "branch"
                 },
-                "repo": {
-                  "column": "repo"
+                "firstSeenSeq": {
+                  "column": "firstSeenSeq"
+                },
+                "headRepo": {
+                  "column": "headRepo"
                 },
                 "sessionId": {
                   "column": "sessionId"
                 }
               },
               "namespaceId": "v2",
-              "table": "V2SessionPullRequest"
+              "table": "V2SessionBranch"
             }
           },
           "V2SessionView": {
@@ -11704,6 +12261,56 @@
               },
               "uniques": []
             },
+            "GithubBranchProtection": {
+              "checks": [
+                {
+                  "expression": "array_position(\"requiredContexts\", NULL) IS NULL",
+                  "name": "GithubBranchProtection_requiredContexts_elem_not_null_83effcc3",
+                  "prefix": "GithubBranchProtection_requiredContexts_elem_not_null"
+                }
+              ],
+              "columns": {
+                "baseBranch": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "fetchedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "repoFullName": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "requiredContexts": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "default": {
+                    "kind": "literal",
+                    "value": []
+                  },
+                  "many": {
+                    "elementNullable": false
+                  },
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [],
+              "indexes": [],
+              "primaryKey": {
+                "columns": [
+                  "repoFullName",
+                  "baseBranch"
+                ]
+              },
+              "uniques": []
+            },
             "GithubCommitCheck": {
               "columns": {
                 "annotations": {
@@ -11755,6 +12362,11 @@
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": false
+                },
+                "sourceId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
                 },
                 "sourceUpdatedAt": {
                   "codecId": "pg/timestamptz-date@1",
@@ -12192,15 +12804,145 @@
               },
               "uniques": []
             },
-            "GithubPrState": {
-              "checks": [
+            "GithubPrOutbox": {
+              "columns": {
+                "attempts": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nullable": false
+                },
+                "createdAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "deadLetteredAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "dedupeKey": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "dispatchedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "kind": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "lastError": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "leaseOwner": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "leaseUntil": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "nextAttemptAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "parkedSince": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "payload": {
+                  "codecId": "pg/jsonb@1",
+                  "dataType": "pg/jsonb",
+                  "nullable": false
+                },
+                "prNumber": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": false
+                },
+                "repoFullName": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [],
+              "indexes": [
                 {
-                  "expression": "array_position(\"requiredCheckContexts\", NULL) IS NULL",
-                  "name": "GithubPrState_requiredCheckContexts_elem_not_null_eafd55ca",
-                  "prefix": "GithubPrState_requiredCheckContexts_elem_not_null"
+                  "columns": [
+                    "dispatchedAt",
+                    "createdAt"
+                  ],
+                  "name": "GithubPrOutbox_pending_idx",
+                  "unique": false
                 }
               ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "dedupeKey"
+                  ]
+                }
+              ]
+            },
+            "GithubPrState": {
               "columns": {
+                "baseBranch": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "default": {
+                    "kind": "literal",
+                    "value": ""
+                  },
+                  "nullable": false
+                },
                 "checksFailed": {
                   "codecId": "pg/int4@1",
                   "dataType": "pg/int4",
@@ -12242,6 +12984,14 @@
                   "dataType": "pg/text",
                   "nullable": true
                 },
+                "closedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
                 "headBranch": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -12267,26 +13017,48 @@
                   "dataType": "pg/bool",
                   "nullable": true
                 },
+                "mergeableBaseRef": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "mergeableHeadSha": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "mergeableObservedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "mergedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
                 "prNumber": {
                   "codecId": "pg/int4@1",
                   "dataType": "pg/int4",
                   "nullable": false
                 },
+                "pullUpdatedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
                 "repoFullName": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
-                  "nullable": false
-                },
-                "requiredCheckContexts": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "default": {
-                    "kind": "literal",
-                    "value": []
-                  },
-                  "many": {
-                    "elementNullable": false
-                  },
                   "nullable": false
                 },
                 "state": {
@@ -12324,6 +13096,15 @@
               },
               "foreignKeys": [],
               "indexes": [
+                {
+                  "columns": [
+                    "headRepoFullName",
+                    "headBranch"
+                  ],
+                  "name": "GithubPrState_headRepoFullName_headBranch_idx_ce47a3ad",
+                  "prefix": "GithubPrState_headRepoFullName_headBranch_idx",
+                  "unique": false
+                },
                 {
                   "columns": [
                     "headSha"
@@ -12618,6 +13399,209 @@
                     "threadId"
                   ],
                   "name": "GithubSubscription_userId_repoFullName_branch_threadId_key"
+                }
+              ]
+            },
+            "GithubTrackingTarget": {
+              "checks": [
+                {
+                  "expression": "\"kind\" IN ('head', 'pull-request')",
+                  "name": "GithubTrackingTarget_kind_check_3307deca",
+                  "prefix": "GithubTrackingTarget_kind_check"
+                }
+              ],
+              "columns": {
+                "attemptedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "branch": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "default": {
+                    "kind": "literal",
+                    "value": ""
+                  },
+                  "nullable": false
+                },
+                "createdAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "failures": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "kind": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "EGithubTargetKind",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "leaseToken": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "leaseUntil": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "liveUntil": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "lookedUpAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "nextDueAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "prNumber": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nullable": false
+                },
+                "repoFullName": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "userId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "unique": [
+                      "userId",
+                      "kind",
+                      "repoFullName",
+                      "branch",
+                      "prNumber"
+                    ]
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "userId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "GithubTrackingTarget"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "liveUntil"
+                  ],
+                  "name": "GithubTrackingTarget_liveUntil_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "liveUntil",
+                    "nextDueAt"
+                  ],
+                  "name": "GithubTrackingTarget_liveUntil_nextDueAt_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "nextDueAt"
+                  ],
+                  "name": "GithubTrackingTarget_nextDueAt_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "repoFullName",
+                    "branch"
+                  ],
+                  "name": "GithubTrackingTarget_repoFullName_branch_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "userId",
+                    "kind",
+                    "repoFullName",
+                    "branch",
+                    "prNumber"
+                  ],
+                  "name": "GithubTrackingTarget_userId_kind_repoFullName_branch_prNumber_key"
                 }
               ]
             },
@@ -16024,6 +17008,13 @@
             }
           },
           "valueSet": {
+            "EGithubTargetKind": {
+              "kind": "valueSet",
+              "values": [
+                "head",
+                "pull-request"
+              ]
+            },
             "McpServerSource": {
               "kind": "valueSet",
               "values": [
@@ -16860,14 +17851,19 @@
               },
               "uniques": []
             },
-            "V2SessionPullRequest": {
+            "V2SessionBranch": {
               "columns": {
-                "number": {
+                "branch": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "firstSeenSeq": {
                   "codecId": "pg/int4@1",
                   "dataType": "pg/int4",
                   "nullable": false
                 },
-                "repo": {
+                "headRepo": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": false
@@ -16881,7 +17877,7 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "V2SessionPullRequest_sessionId_idx_29f415d4"
+                    "name": "V2SessionBranch_sessionId_idx_29f415d4"
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
@@ -16890,7 +17886,7 @@
                       "sessionId"
                     ],
                     "namespaceId": "v2",
-                    "tableName": "V2SessionPullRequest"
+                    "tableName": "V2SessionBranch"
                   },
                   "target": {
                     "columns": [
@@ -16904,27 +17900,27 @@
               "indexes": [
                 {
                   "columns": [
-                    "repo",
-                    "number"
+                    "headRepo",
+                    "branch"
                   ],
-                  "name": "V2SessionPullRequest_repo_number_idx_1b5d84e4",
-                  "prefix": "V2SessionPullRequest_repo_number_idx",
+                  "name": "V2SessionBranch_headRepo_branch_idx_2f926fb3",
+                  "prefix": "V2SessionBranch_headRepo_branch_idx",
                   "unique": false
                 },
                 {
                   "columns": [
                     "sessionId"
                   ],
-                  "name": "V2SessionPullRequest_sessionId_idx_29f415d4",
-                  "prefix": "V2SessionPullRequest_sessionId_idx",
+                  "name": "V2SessionBranch_sessionId_idx_29f415d4",
+                  "prefix": "V2SessionBranch_sessionId_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
                 "columns": [
                   "sessionId",
-                  "repo",
-                  "number"
+                  "headRepo",
+                  "branch"
                 ]
               },
               "uniques": []
@@ -17261,10 +18257,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "b880c65f607b166b6d4bc082fb39f8fbf8db741dd330ddafee93a35a0f7c01c0"
+    "storageHash": "03c0fe7f2588b74aae34cffb0265f9af9108958a14f20512e7c639a359f1e2cb"
   },
   "execution": {
-    "executionHash": "27a680d0d8367c03704617bfac2d0041e04bd5395fc473f9e021f03bd0d4c6fa",
+    "executionHash": "4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45",
     "mutations": {
       "defaults": [
         {
@@ -17475,7 +18471,29 @@
             "kind": "generator"
           },
           "ref": {
+            "entry": "GithubPrOutbox",
+            "field": "id",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "cuid2",
+            "kind": "generator"
+          },
+          "ref": {
             "entry": "GithubSubscription",
+            "field": "id",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "cuid2",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "GithubTrackingTarget",
             "field": "id",
             "namespace": "public"
           }

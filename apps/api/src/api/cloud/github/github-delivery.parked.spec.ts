@@ -45,7 +45,7 @@ describe('GithubDeliveryService parked-subscription survival', () => {
     sandboxAt({ userId: 'usr-parked', lastActivityAt: new Date(Date.now() - 60 * 60 * 1_000) })
 
   it('a delivery fans out to an expired subscription whose sandbox is inside the wake window', async () => {
-    const { service, fanout } = serviceWith({ tokens: { 'usr-parked': 'ghu_1' } })
+    const { service, fanout } = serviceWith({ tokens: {} })
     const pushes: GithubPrStateDto[] = []
     fanout.openStream({
       userId: 'usr-parked',

@@ -13,6 +13,7 @@ import {
 } from 'bun:test'
 import { createRealRedisService } from '../../../../test/real-redis.fixture'
 import { seedPrState, seedSubscription } from '../../../../test/github-seed'
+import { seedHeadChecks } from './github-pr-checks.fixture'
 import type { RedisService } from '../../../_lib/redis/redis.service'
 import { PULL_REQUEST_PAYLOAD } from './github-delivery.fixture'
 import { mockGithubHttp, realGithubGraph } from './github-realtime-http.fixture'
@@ -64,6 +65,7 @@ describe('shared real HTTP budget for API fills, authorization and worker queue'
     })
 
   it('polls a subscribed PR from closed to open and leaves a PR no subscription names alone', async () => {
+    await seedHeadChecks({ headSha: 'abc123', passed: 1 })
     await seedPrState({ state: 'closed', updatedAt: new Date(0) })
     await seedPrState({ prNumber: 77, state: 'open', updatedAt: new Date(0) })
     await seedSubscription({
@@ -102,8 +104,10 @@ describe('shared real HTTP budget for API fills, authorization and worker queue'
     await access(api.coordinator, 'owner')
     const beforeFill = http.calls.length
     await api.delivery.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
-    expect(http.calls.slice(beforeFill).map((call) => call.path)).toContain('/graphql')
-    expect(http.calls.length).toBe(beforeFill + 6)
+    expect(http.calls.slice(beforeFill).map((call) => call.path)).toContain(
+      '/repos/compai/app/rules/branches/main',
+    )
+    expect(http.calls.length).toBe(beforeFill + 5)
     await worker.poll.handlePoll()
     const refreshes = http.calls.slice(beforeFill).filter((call) => /\/pulls\/\d+$/.test(call.path))
     expect(refreshes.length).toBeGreaterThan(0)
@@ -131,9 +135,12 @@ describe('shared real HTTP budget for API fills, authorization and worker queue'
     await seedPrState({ prNumber: 44, state: 'merged', updatedAt: new Date(0) })
     http.failures.add(42)
     await worker.poll.handlePoll()
-    expect(
-      (await worker.coordinator.attempt({ key: 'compai/app#42' })).nextAttemptAt,
-    ).toBeGreaterThan(Date.now())
+    const parked = await db.orm.public.GithubTrackingTarget.first({
+      repoFullName: 'compai/app',
+      prNumber: 42,
+    })
+    expect(parked?.failures).toBe(1)
+    expect(parked?.nextDueAt.getTime()).toBeGreaterThan(Date.now())
     expect(
       await db.orm.public.GithubPrState.first({ repoFullName: 'compai/app', prNumber: 43 }),
     ).not.toBeNull()

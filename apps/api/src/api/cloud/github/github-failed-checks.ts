@@ -1,13 +1,14 @@
 import {
   ECheckOutcome,
   FAILED_CHECK_LIMIT,
-  latestAttempts,
+  latestCheckAttempts,
   prFailedCheckAnnotationSchema,
 } from '@dltech/atlas-core'
 import { db, type Tx } from '@dltech/atlas-db'
 import { z } from 'zod'
-import { RUN_KEY_PREFIX, runOrderOfKey, SUITE_KEY_PREFIX } from './github-check-suites'
+import { RUN_KEY_PREFIX } from './github-check-suites'
 import { normalizedRepo } from './github-pr-identity'
+import { checkIdentitiesOf } from './github-pr-row-fold'
 import type { GithubPrCheckAnnotation, GithubPrFailedCheck } from './github-realtime.types'
 
 type CheckRow = {
@@ -61,17 +62,16 @@ export function failedCheckOf(row: CheckRow): GithubPrFailedCheck {
 }
 
 export function failedChecksOfRows(rows: readonly CheckRow[]): GithubPrFailedCheck[] {
-  const attempts = rows
-    .filter((row) => !row.checkKey.startsWith(SUITE_KEY_PREFIX))
-    .map((row) => ({
-      row,
-      name: row.name,
-      order: runOrderOfKey(row.checkKey),
-      outcome: row.outcome as ECheckOutcome,
-    }))
-  return latestAttempts(attempts)
+  const byKey = new Map(rows.map((row) => [row.checkKey, row]))
+  const latest = latestCheckAttempts({ attempts: checkIdentitiesOf(rows) })
+
+  return latest
     .filter((attempt) => attempt.outcome === ECheckOutcome.Failed)
-    .map((attempt) => failedCheckOf(attempt.row))
+    .flatMap((attempt) => {
+      const row = byKey.get(attempt.checkKey)
+
+      return row === undefined ? [] : [failedCheckOf(row)]
+    })
     .sort((left, right) => left.name.localeCompare(right.name))
     .slice(0, FAILED_CHECK_LIMIT)
 }

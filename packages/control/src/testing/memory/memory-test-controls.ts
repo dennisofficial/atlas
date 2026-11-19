@@ -2,7 +2,13 @@ import type { SessionChange } from '@dltech/atlas-protocol'
 
 import { MemoryChangeFeed } from './memory-change-feed'
 import { prKey, type State } from './memory-state'
-import type { InsertRoutineRunParams, PrStateRow, RoutineRow, SubscriptionLease } from '../../port'
+import type {
+  InsertRoutineRunParams,
+  PrStateRow,
+  RoutineRow,
+  SubscriptionLease,
+  TrackingTarget,
+} from '../../port'
 
 export class MemoryTestControls {
   private lastHostId = 0
@@ -49,6 +55,10 @@ export class MemoryTestControls {
 
   subscriptionLeases(): Array<SubscriptionLease & { expiresAt: string }> {
     return [...this.stateOf().subscriptionLeases.values()].map((lease) => ({ ...lease }))
+  }
+
+  trackingTargets(): TrackingTarget[] {
+    return [...this.stateOf().trackingTargets.values()].map((target) => ({ ...target }))
   }
 
   changesOf(sessionId: string): SessionChange[] {

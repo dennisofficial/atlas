@@ -6,18 +6,12 @@ import type { CheckoutsState, CheckoutsView } from './checkouts'
 import { deriveStatus } from './derive-status'
 import { EMPTY_PENDING, stepPending, type PendingInputsState } from '../pending-inputs'
 import { initialMeterState, meterOf, rebuildMeter, stepMeter, type MeterState } from './meter-state'
-import {
-  initialPullRequestLinks,
-  stepPullRequestLinks,
-  type PullRequestLink,
-  type PullRequestLinksState,
-} from './pull-request-links'
 import { initialSpendState, stepSpend, type SpendState } from './spend'
 import { initialStatusFacts, stepStatusFacts, type StatusFacts } from './status-facts'
 import type { PluginViewFold } from './plugin-view'
 import type { SessionStatus } from './status-types'
 
-export const SESSION_VIEW_VERSION = 5
+export const SESSION_VIEW_VERSION = 6
 
 export type SessionViewState = {
   version: number
@@ -25,7 +19,6 @@ export type SessionViewState = {
   facts: StatusFacts
   meter: MeterState
   checkouts: CheckoutsState
-  pullRequests: PullRequestLinksState
   spend: SpendState
   pending: PendingInputsState
   pluginViews: Readonly<Record<string, unknown>>
@@ -36,7 +29,6 @@ export type SessionViewValue = {
   context: ContextMeter | null
   spend: readonly SpendRow[]
   checkouts: CheckoutsView
-  pullRequests: readonly PullRequestLink[]
   pluginViews: Readonly<Record<string, unknown>>
 }
 
@@ -46,7 +38,6 @@ export const initialSessionViewState: SessionViewState = {
   facts: initialStatusFacts,
   meter: initialMeterState,
   checkouts: initialCheckoutsState,
-  pullRequests: initialPullRequestLinks,
   spend: initialSpendState,
   pending: EMPTY_PENDING,
   pluginViews: {},
@@ -59,7 +50,6 @@ export const stepSessionView = (state: SessionViewState, event: V2Event): Sessio
   meter: stepMeter(state.meter, event),
   checkouts:
     event.type === 'branches-observed' ? stepCheckouts(state.checkouts, event) : state.checkouts,
-  pullRequests: stepPullRequestLinks(state.pullRequests, event),
   spend: stepSpend(state.spend, event),
   pending: stepPending(state.pending, event),
   pluginViews: state.pluginViews,
@@ -121,6 +111,5 @@ export const sessionViewOf = (args: {
   context: meterOf(args.state.meter),
   spend: args.state.spend.rows,
   checkouts: checkoutsOf(args.state.checkouts),
-  pullRequests: args.state.pullRequests.links,
   pluginViews: args.state.pluginViews,
 })

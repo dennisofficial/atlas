@@ -6,7 +6,10 @@ import { prepareDelivery, PULL_REQUEST_PAYLOAD, seedSubscription } from './githu
 import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
+import { GithubPrOutboxDispatcher } from './github-pr-outbox'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
+import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
+import { inertReconcile } from './github-pr-store.fixture'
 
 function discussionWith(): {
   discussion: GithubPrDiscussionDeliveryService
@@ -16,9 +19,15 @@ function discussionWith(): {
   const wake = {
     notifyEvent: (args: unknown) => wakes.push(args),
   } as unknown as GithubSandboxWakeService
+  const fanout = new GithubPrFanoutService(new DrainStateService())
   const mailbox = new GithubPrEventMailboxService(
-    new GithubPrFanoutService(new DrainStateService()),
-    wake,
+    fanout,
+    new GithubPrOutboxDispatcher({
+      fanout,
+      signals: inertSignals(),
+      wake,
+      reconcile: inertReconcile(),
+    }),
   )
   return { discussion: new GithubPrDiscussionDeliveryService(mailbox), wakes }
 }

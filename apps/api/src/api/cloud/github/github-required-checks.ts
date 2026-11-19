@@ -1,7 +1,3 @@
-import { db, type Tx } from '@dltech/atlas-db'
-import { SUITE_KEY_PREFIX } from './github-check-suites'
-import { normalizedRepo } from './github-pr-identity'
-
 export const REQUIRED_CHECKS_TTL_MS = 60_000
 
 export type GithubBranchRule = {
@@ -16,7 +12,7 @@ export type GithubClassicRequiredChecks = {
 
 export type GithubPathRead = { status: number; body: unknown }
 
-export type RequiredContextsCache = Map<string, { at: number; contexts: string[] }>
+export type RequiredContextsCache = Map<string, { acquiredAt: number; contexts: string[] }>
 
 function asArray<T>(value: readonly T[] | T | null | undefined): readonly T[] {
   if (value === null || value === undefined) return []
@@ -45,16 +41,16 @@ export function requiredContextsOf(args: {
 }
 
 /**
- * A lookup that fails answers "no required checks known", which keeps the head's settlement
- * exactly as it was before required checks were consulted: a permission problem or an outage
- * must never leave verdicts unsettled forever.
+ * Null means neither source could be read, which the writer must keep apart from an answer of no
+ * contexts: it stores contexts, so a permission problem or an outage that reads as "requires
+ * nothing" would erase a branch's protection and let a verdict settle early.
  */
 export async function requiredContextsFrom(args: {
   read: (path: string) => Promise<GithubPathRead>
   owner: string
   repo: string
   branch: string
-}): Promise<string[]> {
+}): Promise<string[] | null> {
   const branch = encodeURIComponent(args.branch)
   const rules = await bodyOf<GithubBranchRule[]>({
     read: args.read,
@@ -66,7 +62,9 @@ export async function requiredContextsFrom(args: {
     read: args.read,
     path: `/repos/${args.owner}/${args.repo}/branches/${branch}/protection/required_status_checks`,
   })
-  return requiredContextsOf({ rules: rules ?? [], protection })
+  const fromProtection = requiredContextsOf({ rules: [], protection })
+  if (fromProtection.length > 0) return fromProtection
+  return rules !== null && protection !== null ? [] : null
 }
 
 async function bodyOf<T>(args: {
@@ -90,52 +88,19 @@ export function recalledRequiredContexts(args: {
   cache: RequiredContextsCache
   key: string
   now: number
-}): string[] | undefined {
+}): { acquiredAt: number; contexts: string[] } | undefined {
   const held = args.cache.get(args.key)
   if (held === undefined) return undefined
-  return args.now - held.at < REQUIRED_CHECKS_TTL_MS ? held.contexts : undefined
+  return args.now - held.acquiredAt < REQUIRED_CHECKS_TTL_MS ? held : undefined
 }
 
 export function rememberRequiredContexts(args: {
   cache: RequiredContextsCache
-  key: string
-  now: number
+  acquiredAt: number
   contexts: string[]
+  key: string
 }): string[] {
-  args.cache.set(args.key, { at: args.now, contexts: args.contexts })
+  args.cache.set(args.key, { acquiredAt: args.acquiredAt, contexts: args.contexts })
+
   return args.contexts
-}
-
-export function missingOf(args: {
-  requiredContexts: readonly string[]
-  present: ReadonlySet<string>
-}): string[] {
-  return args.requiredContexts.filter((context) => !args.present.has(context))
-}
-
-/**
- * A required context GitHub has not reported on this head yet is a check that has not run: the
- * head is not settled, so no verdict may close CI. A repo with no required contexts, or one whose
- * lookup failed, yields nothing here and settles on its observed tally alone.
- */
-export async function missingRequiredContexts(args: {
-  tx?: Tx
-  repoFullName: string
-  headSha: string
-  requiredContexts: readonly string[]
-}): Promise<string[]> {
-  if (args.requiredContexts.length === 0) return []
-  const orm = args.tx === undefined ? db.orm : args.tx.orm
-  const rows = await orm.public.GithubCommitCheck.select('checkKey', 'name')
-    .where({
-      repoFullName: normalizedRepo(args.repoFullName),
-      headSha: args.headSha,
-    })
-    .all()
-  const present = new Set(
-    rows.flatMap((row) =>
-      row.checkKey.startsWith(SUITE_KEY_PREFIX) || row.name === null ? [] : [row.name],
-    ),
-  )
-  return missingOf({ requiredContexts: args.requiredContexts, present })
 }

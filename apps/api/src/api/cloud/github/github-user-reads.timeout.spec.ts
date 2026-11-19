@@ -25,7 +25,8 @@ describe('GithubUserReads outbound timeouts', () => {
   })
 
   const calls: Record<string, () => Promise<unknown>> = {
-    'get (readPullRequest)': () => reads.readPullRequest({ ...target, number: 1 }),
+    'get (readPullRequest)': () =>
+      reads.readPullRequest({ ...target, number: 1, collectChecks: () => undefined }),
     createHook: () => reads.createHook({ ...target, config: { url: 'u', secret: 's' } }),
     getHook: () => reads.getHook({ ...target, hookId: 1 }),
     updateHook: () => reads.updateHook({ ...target, hookId: 1, events: [] }),

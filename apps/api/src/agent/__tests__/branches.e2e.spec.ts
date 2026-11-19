@@ -77,6 +77,9 @@ const hasBranch = (row: ReadEvent, name: string): boolean => {
   return body.branches?.some((branch) => branch.name === name) ?? false
 }
 
+const baseOf = (row: ReadEvent): string | null =>
+  (row.event as { base?: string | null }).base ?? null
+
 describe('branches-observed e2e', () => {
   const sandbox = new LocalSandboxProvider({ daemonSecret: E2E_SECRET })
   let plane: ControlPlane
@@ -118,11 +121,6 @@ describe('branches-observed e2e', () => {
       projectId: 'proj-1',
       mainThreadId,
     })
-    await plane.post({
-      sessionId,
-      kind: INBOX_KIND_MESSAGE,
-      payload: JSON.stringify({ text: 'make a branch', via: EMessageOrigin.Operator }),
-    })
     const timers = { now: () => Date.now(), ...systemTimers }
     const log = new CollectingLog()
     const holder = new SessionHolder({
@@ -148,6 +146,19 @@ describe('branches-observed e2e', () => {
     })
     holders.push(holder)
     await holder.start()
+    const boot = await waitForSeq({
+      plane,
+      threadId: mainThreadId,
+      want: (rows) => branchRecords(rows).length > 0,
+    })
+    expect(branchRecords(boot).map((row) => hasBranch(row, 'feat-x'))).toEqual([false])
+    expect(branchRecords(boot).map(baseOf)).toEqual(['main'])
+
+    await plane.post({
+      sessionId,
+      kind: INBOX_KIND_MESSAGE,
+      payload: JSON.stringify({ text: 'make a branch', via: EMessageOrigin.Operator }),
+    })
     await bus.wake(sessionId)
 
     const first = await waitForSeq({
@@ -164,7 +175,8 @@ describe('branches-observed e2e', () => {
       const bodies = rows.events.map((row) => JSON.stringify(row)).join('\n')
       throw new Error(`${String(error)}\n${log.dump('branches-e2e')}\n${bodies}`)
     })
-    expect(branchRecords(first)).toHaveLength(1)
+    expect(branchRecords(first).map((row) => hasBranch(row, 'feat-x'))).toEqual([false, true])
+    expect(branchRecords(first).map(baseOf)).toEqual(['main', 'main'])
 
     await plane.post({
       sessionId,
@@ -183,6 +195,7 @@ describe('branches-observed e2e', () => {
       threadId: mainThreadId,
       want: (rows) => rows.filter((row) => row.type === 'assistant-said').length >= 2,
     })
-    expect(branchRecords(after)).toHaveLength(1)
+    expect(branchRecords(after).map((row) => hasBranch(row, 'feat-x'))).toEqual([false, true])
+    expect(branchRecords(after).map(baseOf)).toEqual(['main', 'main'])
   }, 60_000)
 })

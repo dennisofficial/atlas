@@ -67,10 +67,30 @@ describe('github sweep scheduler gating', () => {
       { handleSweep: async () => void calls.push('hook-sweep') } as never,
       {} as never,
       {} as never,
+      {} as never,
     )
 
     await scheduler.handlePollTick()
 
     expect(calls).toEqual(['poll'])
+  })
+
+  it('drains and prunes the pr outbox on each webhook reconcile tick', async () => {
+    const { GithubSweepSchedulerService } = await import('./github-sweep-scheduler')
+    const calls: string[] = []
+    const scheduler = new GithubSweepSchedulerService(
+      {} as never,
+      {} as never,
+      { handleReconcile: async () => void calls.push('reconcile') } as never,
+      {} as never,
+      {
+        drain: async () => void calls.push('drain'),
+        prune: async () => void calls.push('prune'),
+      } as never,
+    )
+
+    await scheduler.handleWebhookReconcileTick()
+
+    expect(calls).toEqual(['reconcile', 'drain', 'prune'])
   })
 })

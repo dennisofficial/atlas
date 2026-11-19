@@ -8,20 +8,17 @@ import {
 import type { BranchSet } from '@dltech/atlas-protocol'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
-import { newKey, type RemoteCalls } from '../calls/remote-calls'
+import { newKey, systemTimers, type RemoteCalls } from '../calls/remote-calls'
+import type { HostTimers } from './ports'
 
 const REFRESH_TIMEOUT_MS = 10_000
+
+type ObserverTimers = Pick<HostTimers, 'setTimeout' | 'clearTimeout'>
 
 export type BranchRecorder = {
   append(args: { threadId: ThreadId; runId: RunId; body: BranchesObserved }): Promise<unknown>
   lastObservation(repo: string): BranchObservation | undefined
   recordedBase(repo: string): string | undefined
-  rememberBase(args: {
-    threadId: ThreadId
-    runId: RunId
-    repo: string
-    base: string
-  }): Promise<unknown>
 }
 
 export type BranchObserverArgs = {
@@ -30,9 +27,11 @@ export type BranchObserverArgs = {
   threadId: ThreadId
   signal: AbortSignal
   repos(): Promise<readonly string[]>
+  onRepo?: ((listener: (repoPath: string) => void) => () => void) | undefined
   baseOf(repo: string): string | null
   afterRefresh?: (() => Promise<void>) | undefined
   runId(): RunId
+  timers?: ObserverTimers | undefined
   log?: LogPort | undefined
 }
 
@@ -41,26 +40,39 @@ const observationOf = (set: BranchSet): BranchObservation => ({
   head: set.head,
   branches: set.branches,
   worktrees: set.worktrees,
+  remotes: set.remotes,
+  checkouts: set.checkouts,
 })
 
 export class BranchObserver {
   private tail: Promise<void> = Promise.resolve()
   private readonly stopped = new AbortController()
   private unsubscribe: (() => void) | undefined
+  private unsubscribeRepos: (() => void) | undefined
 
-  constructor(private readonly args: BranchObserverArgs) {}
+  private readonly timers: ObserverTimers
 
-  start(): void {
+  constructor(private readonly args: BranchObserverArgs) {
+    this.timers = args.timers ?? systemTimers
+  }
+
+  start(): Promise<void> {
     this.unsubscribe = this.args.remoteCalls.onEvent((frame) => {
       if (frame.event.type !== 'git.branches') return
       const set = frame.event.set
       void this.enqueue(() => this.observe(set))
     })
+    this.unsubscribeRepos = this.args.onRepo?.((repoPath) => {
+      void this.enqueue(() => this.readRepo(repoPath))
+    })
+    return this.refreshRepos()
   }
 
   stop(): void {
     this.unsubscribe?.()
     this.unsubscribe = undefined
+    this.unsubscribeRepos?.()
+    this.unsubscribeRepos = undefined
     this.stopped.abort()
   }
 
@@ -71,19 +83,18 @@ export class BranchObserver {
 
   private refreshRepos(): Promise<void> {
     return this.enqueue(async () => {
-      const repos = await this.args.repos()
-      for (const repo of repos) {
-        const key = newKey()
-        const result = await this.args.remoteCalls.invoke({
-          key,
-          op: { op: 'git.read', repoPath: repo },
-        })
-        await this.ackQuietly(key)
-        if (result.status === 'ok' && result.op === 'git.read') {
-          await this.observe(result.value)
-        }
-      }
+      for (const repo of await this.args.repos()) await this.readRepo(repo)
     })
+  }
+
+  private async readRepo(repoPath: string): Promise<void> {
+    const key = newKey()
+    const result = await this.args.remoteCalls.invoke({
+      key,
+      op: { op: 'git.read', repoPath },
+    })
+    await this.ackQuietly(key)
+    if (result.status === 'ok' && result.op === 'git.read') await this.observe(result.value)
   }
 
   private get isStopped(): boolean {
@@ -101,14 +112,14 @@ export class BranchObserver {
     const signals = [this.args.signal, this.stopped.signal]
     return new Promise<void>((resolve) => {
       const cleanup = (): void => {
-        clearTimeout(timer)
+        this.timers.clearTimeout(timer)
         for (const signal of signals) signal.removeEventListener('abort', finish)
       }
       const finish = (): void => {
         cleanup()
         resolve()
       }
-      const timer = setTimeout(finish, REFRESH_TIMEOUT_MS)
+      const timer = this.timers.setTimeout(finish, REFRESH_TIMEOUT_MS)
       if (this.isStopped || signals.some((signal) => signal.aborted)) {
         finish()
         return
@@ -147,11 +158,7 @@ export class BranchObserver {
     if (this.isStopped) return
     const observation = observationOf(set)
     const last = this.args.record.lastObservation(observation.repo)
-    const base = await this.baseOf({
-      repo: observation.repo,
-      head: observation.head,
-      first: last === undefined,
-    })
+    const base = this.baseOf(observation.repo)
     const stamped = base === null ? observation : { ...observation, base }
     if (!observationChanged({ last, set: stamped })) return
     await this.args.record.append({
@@ -161,20 +168,7 @@ export class BranchObserver {
     })
   }
 
-  private async baseOf(args: {
-    repo: string
-    head: string | null
-    first: boolean
-  }): Promise<string | null> {
-    const known = this.args.baseOf(args.repo) ?? this.args.record.recordedBase(args.repo)
-    if (known !== null && known !== undefined) return known
-    if (!args.first || args.head === null) return null
-    await this.args.record.rememberBase({
-      threadId: this.args.threadId,
-      runId: this.args.runId(),
-      repo: args.repo,
-      base: args.head,
-    })
-    return args.head
+  private baseOf(repo: string): string | null {
+    return this.args.baseOf(repo) ?? this.args.record.recordedBase(repo) ?? null
   }
 }

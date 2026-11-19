@@ -1,16 +1,17 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
 import {
   ECompactionAnchor,
-  EFinishReason,
   ESessionStatus,
   initialSessionViewState,
   SESSION_VIEW_VERSION,
   stepSessionView,
-  type V2Body,
 } from '@dltech/atlas-core'
 
 import { decodeViewState, encodeViewState } from '../../session-view-codec'
+import type { PrStateRow } from '../../port'
 import type { ConformanceParams } from './conformance'
+import { branches, forkBranches, linked, prStateOf, reading } from './conformance-views.fixture'
+import { describeControlPlaneDigests } from './conformance-views.digests'
 import {
   appendBodies,
   makeHarness,
@@ -24,34 +25,8 @@ import {
   type Harness,
 } from './support'
 
-const reading = (tokens: number): V2Body => ({
-  type: 'assistant-said',
-  parts: [],
-  finish: EFinishReason.Stop,
-  usage: { inputTokens: tokens, outputTokens: 5, providerId: 'openai', modelId: 'gpt-5' },
-})
-
-const linked = (number: number): V2Body => ({
-  type: 'pull-request-linked',
-  number,
-  url: `https://github.com/Acme/App/pull/${number}`,
-  repo: 'github.com/Acme/App',
-  branch: 'feat',
-})
-
-const branches: V2Body = {
-  type: 'branches-observed',
-  repo: '/work/app',
-  head: 'feat',
-  base: 'main',
-  branches: [
-    { name: 'main', sha: 'a1' },
-    { name: 'feat', sha: 'b2' },
-  ],
-  worktrees: [],
-}
-
 export function describeControlPlaneViews(params: ConformanceParams): void {
+  describeControlPlaneDigests(params)
   describe(`ControlPlane session view (${params.name})`, () => {
     let harness: Harness
     let epoch: number
@@ -63,6 +38,12 @@ export function describeControlPlaneViews(params: ConformanceParams): void {
     })
 
     const view = () => harness.plane.readSessionView({ sessionId: SESSION, threadId: THREAD })
+
+    const seedPr = async (row: PrStateRow): Promise<void> => {
+      const seed = params.seedPrState
+      if (seed === undefined) throw new Error('the harness seeds no pull request state')
+      await seed(row)
+    }
 
     const freshFold = async () => {
       const events = await readAll({ harness, visible: false })
@@ -91,7 +72,6 @@ export function describeControlPlaneViews(params: ConformanceParams): void {
       const fresh = await freshFold()
       expect(state?.spend).toEqual(fresh.spend)
       expect(state?.checkouts).toEqual(fresh.checkouts)
-      expect(state?.pullRequests).toEqual(fresh.pullRequests)
       expect(state?.at).toBe(6)
 
       await appendBodies({
@@ -112,7 +92,6 @@ export function describeControlPlaneViews(params: ConformanceParams): void {
       const freshAfter = await freshFold()
       expect(after?.at).toBe(8)
       expect(after?.spend).toEqual(freshAfter.spend)
-      expect(after?.pullRequests).toEqual(freshAfter.pullRequests)
       expect(after?.checkouts).toEqual(freshAfter.checkouts)
     })
 
@@ -127,50 +106,107 @@ export function describeControlPlaneViews(params: ConformanceParams): void {
       expect(after.at).toBe(4)
     })
 
-    it('reads status, checkouts and linked pull requests with joined PR state', async () => {
-      await appendBodies({ harness, epoch, bodies: [said('a'), branches, linked(7)] })
-      const first = await view()
-      expect(first.value.status.state).toBe(ESessionStatus.Resuming)
-      expect(first.value.status.lease).toMatchObject({ epoch, live: false })
-      expect(first.value.checkouts.primary).toEqual({ repo: '/work/app', branch: 'feat' })
-      expect(first.value.pullRequests).toMatchObject([{ repo: 'acme/app', number: 7, state: null }])
-      await params.seedPrState?.({
-        repo: 'acme/app',
-        number: 7,
-        title: 'Add it',
-        state: 'open',
-        headSha: 'b2',
-        checksRunning: 1,
-        checksPassed: 2,
-        checksFailed: 0,
-        mergeable: true,
-        updatedAt: '2026-11-02T12:00:00.000Z',
-      })
-      const joined = await view()
-      expect(joined.value.pullRequests[0]?.state).toMatchObject({
-        state: 'open',
-        checks: { running: 1, passed: 2, failed: 0 },
-      })
+    it('reads status, checkouts and a pull request derived from the branch index', async () => {
+      await seedPr(prStateOf({ number: 7, state: 'open', updatedAt: '2026-11-02T12:00:00.000Z' }))
+      await appendBodies({ harness, epoch, bodies: [said('a'), linked(99), branches] })
+      const read = await view()
+      expect(read.value.status.state).toBe(ESessionStatus.Resuming)
+      expect(read.value.status.lease).toMatchObject({ epoch, live: false })
+      expect(read.value.checkouts.primary).toEqual({ repo: '/work/app', branch: 'feat' })
+      expect(read.value.pullRequests).toEqual([
+        {
+          repo: 'acme/app',
+          number: 7,
+          url: 'https://github.com/acme/app/pull/7',
+          branch: 'feat',
+          state: {
+            title: 'PR 7',
+            state: 'open',
+            headSha: 'b2',
+            checks: { running: 0, passed: 2, failed: 0 },
+            mergeable: true,
+            updatedAt: '2026-11-02T12:00:00.000Z',
+          },
+        },
+      ])
     })
 
-    it('finds the sessions linked to a pull request', async () => {
-      await appendBodies({ harness, epoch, bodies: [said('a'), linked(7)] })
+    it('keeps a tracked pull request once the branch leaves the observation', async () => {
+      await seedPr(prStateOf({ number: 7, state: 'open', updatedAt: '2026-11-02T12:00:00.000Z' }))
+      await appendBodies({ harness, epoch, bodies: [branches] })
+      await appendBodies({
+        harness,
+        epoch,
+        bodies: [
+          {
+            type: 'branches-observed',
+            repo: '/work/app',
+            head: 'other',
+            base: 'main',
+            branches: [{ name: 'other', sha: 'c3' }],
+            worktrees: [],
+            remotes: [{ name: 'origin', url: 'git@github.com:Acme/App.git' }],
+          },
+        ],
+      })
+      const read = await view()
+      expect(read.value.pullRequests.map((pullRequest) => pullRequest.number)).toEqual([7])
+    })
+
+    it('keeps a tracked pull request through a rewind', async () => {
+      await seedPr(prStateOf({ number: 7, state: 'open', updatedAt: '2026-11-02T12:00:00.000Z' }))
+      await appendBodies({ harness, epoch, bodies: [said('a'), branches] })
+      await appendBodies({ harness, epoch, bodies: [{ type: 'history-rewound', toSeq: 1 }] })
+      const read = await view()
+      expect(read.value.pullRequests.map((pullRequest) => pullRequest.number)).toEqual([7])
+    })
+
+    it('matches a fork head to the pull request opened upstream', async () => {
+      await seedPr(
+        prStateOf({
+          number: 9,
+          state: 'open',
+          updatedAt: '2026-11-02T12:00:00.000Z',
+          headRepoFullName: 'fork/app',
+        }),
+      )
+      await appendBodies({ harness, epoch, bodies: [forkBranches] })
+      const read = await view()
+      expect(read.value.pullRequests).toMatchObject([
+        { repo: 'acme/app', number: 9, branch: 'feat' },
+      ])
+    })
+
+    it('orders an open pull request ahead of a merged one on the same head', async () => {
+      await seedPr(prStateOf({ number: 7, state: 'merged', updatedAt: '2026-11-03T12:00:00.000Z' }))
+      await seedPr(prStateOf({ number: 8, state: 'open', updatedAt: '2026-11-02T12:00:00.000Z' }))
+      await appendBodies({ harness, epoch, bodies: [branches] })
+      const read = await view()
+      expect(read.value.pullRequests.map((pullRequest) => pullRequest.number)).toEqual([8, 7])
+    })
+
+    it('finds the sessions tracking a head', async () => {
+      await appendBodies({ harness, epoch, bodies: [said('a'), branches] })
       const store = params.makeStore()
       const found = await store.transact((tx) =>
-        tx.sessionsLinkedTo({ repo: 'acme/app', number: 7 }),
+        tx.sessionsTrackingHead({ headRepo: 'acme/app', branch: 'feat' }),
       )
       const other = await store.transact((tx) =>
-        tx.sessionsLinkedTo({ repo: 'acme/app', number: 8 }),
+        tx.sessionsTrackingHead({ headRepo: 'acme/app', branch: 'other' }),
+      )
+      const untracked = await store.transact((tx) =>
+        tx.sessionsTrackingHead({ headRepo: 'acme/elsewhere', branch: 'feat' }),
       )
       expect(found).toEqual([SESSION])
       expect(other).toEqual([])
+      expect(untracked).toEqual([])
     })
 
     it('a refused append leaves the row and the index untouched', async () => {
       await appendBodies({ harness, epoch, bodies: [said('a')] })
       const head = await harness.plane.head({ threadId: THREAD })
       const events = mint({
-        bodies: [linked(9), said('x'), { type: 'input-withdrawn', inboxId: 0 }],
+        bodies: [branches, said('x'), { type: 'input-withdrawn', inboxId: 0 }],
         epoch,
         from: head,
       })
@@ -179,7 +215,7 @@ export function describeControlPlaneViews(params: ConformanceParams): void {
       expect((await storedState())?.at).toBe(1)
       const found = await params
         .makeStore()
-        .transact((tx) => tx.sessionsLinkedTo({ repo: 'acme/app', number: 9 }))
+        .transact((tx) => tx.sessionsTrackingHead({ headRepo: 'acme/app', branch: 'feat' }))
       expect(found).toEqual([])
     })
 
@@ -253,19 +289,6 @@ export function describeControlPlaneViews(params: ConformanceParams): void {
       expect(read.value.status.state).toBe(ESessionStatus.Queued)
       expect(read.value.status.since).toBe(read.value.status.queued?.[0]?.postedAt)
       expect(read.value.status.queued?.[0]?.text).toBe('hi')
-    })
-
-    it('lists digests with the view', async () => {
-      await appendBodies({ harness, epoch, bodies: [said('a'), branches, linked(7)] })
-      const [bare] = await harness.plane.listSessionDigests({ userId: 'user-1', limit: 10 })
-      expect(bare?.view).toBeNull()
-      const [digest] = await harness.plane.listSessionDigests({
-        userId: 'user-1',
-        limit: 10,
-        withView: true,
-      })
-      expect(digest?.view?.primaryBranch).toBe('feat')
-      expect(digest?.view?.pullRequest).toMatchObject({ repo: 'acme/app', number: 7, state: null })
     })
   })
 }

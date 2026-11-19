@@ -3,7 +3,18 @@ import type { SessionModelAsk } from '@dltech/atlas-models'
 import type { EChangeFileStatus, SessionChange } from '@dltech/atlas-protocol'
 
 import type {
+  AdvanceRoutineParams,
+  InsertRoutineRunParams,
+  ListDueRoutinesParams,
+  ListRoutineRunsParams,
+  ListRoutinesParams,
+  ReadRoutineForUserParams,
+  RoutineRow,
+  RoutineRunRow,
+} from './routine-rows'
+import type {
   ControlSessionRow,
+  PrChecks,
   SessionDigestRow,
   SessionListParams,
   SessionModelRow,
@@ -20,6 +31,18 @@ export type {
   SessionModelRow,
 } from './session-rows'
 
+export type {
+  AdvanceRoutineParams,
+  InsertRoutineRunParams,
+  ListDueRoutinesParams,
+  ListRoutineRunsParams,
+  ListRoutinesParams,
+  ReadRoutineForUserParams,
+  RoutineRow,
+  RoutineRunOutcome,
+  RoutineRunRow,
+} from './routine-rows'
+
 export type ClaimedBatch = { leases: Lease[]; nextRetryAt: string | null }
 
 export type SessionViewRow = {
@@ -30,11 +53,18 @@ export type SessionViewRow = {
   state: string
 }
 
-export type SessionPullRequestKey = { repo: string; number: number }
+export type SessionBranchRow = {
+  sessionId: string
+  headRepo: string
+  branch: string
+  firstSeenSeq: number
+}
 
-export type SessionPullRequestRow = SessionPullRequestKey & { sessionId: string }
+export type PrHead = { headRepo: string; branch: string }
 
-export type PrStateRow = SessionPullRequestKey & {
+export type PrStateRow = {
+  repo: string
+  number: number
   title: string
   state: string
   headSha: string
@@ -43,6 +73,37 @@ export type PrStateRow = SessionPullRequestKey & {
   checksFailed: number
   mergeable: boolean | null
   updatedAt: string
+  headRepoFullName?: string | null | undefined
+  headBranch?: string | undefined
+}
+
+export type TrackedPullRequestState = {
+  title: string
+  state: string
+  headSha: string
+  checks: PrChecks
+  mergeable: boolean | null
+  updatedAt: string
+}
+
+export type TrackedPullRequestRow = {
+  sessionId: string
+  repo: string
+  number: number
+  url: string
+  branch: string
+  state: TrackedPullRequestState
+}
+
+export type TrackingTargetKind = 'head' | 'pull-request'
+
+export type TrackingTarget = {
+  userId: string
+  kind: TrackingTargetKind
+  repoFullName: string
+  branch: string
+  prNumber: number | null
+  liveUntil: string
 }
 
 export type SubscriptionSubject =
@@ -58,64 +119,6 @@ export type SubscriptionLease = {
 
 export const subscriptionSubjectKey = (subject: SubscriptionSubject): string =>
   subject.kind === 'pull-request' ? `#${subject.number}` : subject.selector
-
-export type RoutineRow = {
-  routineId: string
-  userId: string
-  projectId: string
-  name: string
-  prompt: string
-  cron: string
-  timezone: string
-  enabled: boolean
-  modelRef: string | null
-  modelEffort: string | null
-  modelFast: boolean | null
-  nextRunAt: string
-  lastRunAt: string | null
-  lastSessionId: string | null
-  createdAt: string
-  updatedAt: string
-}
-
-export type RoutineRunOutcome = 'started' | 'skipped-busy' | 'skipped' | 'failed'
-
-export type AdvanceRoutineParams = {
-  routineId: string
-  expectedNextRunAt: string
-  nextRunAt: string
-  lastRunAt?: string | undefined
-  lastSessionId?: string | undefined
-  at: string
-}
-
-export type InsertRoutineRunParams = {
-  id: string
-  routineId: string
-  scheduledFor: string
-  outcome: RoutineRunOutcome
-  reason?: string | undefined
-  sessionId?: string | undefined
-  at: string
-}
-
-export type ListDueRoutinesParams = { now: string; limit: number }
-
-export type RoutineRunRow = {
-  id: string
-  routineId: string
-  scheduledFor: string
-  outcome: RoutineRunOutcome
-  reason: string | null
-  sessionId: string | null
-  at: string
-}
-
-export type ListRoutinesParams = { userId: string; projectId?: string | undefined }
-
-export type ReadRoutineForUserParams = { routineId: string; userId: string }
-
-export type ListRoutineRunsParams = { routineId: string; limit: number }
 
 export type ThreadRow = {
   threadId: string
@@ -294,11 +297,12 @@ export interface ControlTx {
   announce(change: SessionChange): Promise<void>
   readSessionView(sessionId: string): Promise<SessionViewRow | undefined>
   writeSessionView(row: SessionViewRow): Promise<void>
-  insertSessionPullRequests(rows: readonly SessionPullRequestRow[]): Promise<void>
-  sessionsLinkedTo(key: SessionPullRequestKey): Promise<string[]>
-  readPrStates(keys: readonly SessionPullRequestKey[]): Promise<PrStateRow[]>
+  insertSessionBranches(rows: readonly SessionBranchRow[]): Promise<void>
+  sessionsTrackingHead(head: PrHead): Promise<string[]>
+  readTrackedPullRequests(sessionIds: readonly string[]): Promise<TrackedPullRequestRow[]>
   upsertSubscriptionLease(params: SubscriptionLease & { expiresAt: string }): Promise<void>
   deleteSubscriptionLease(params: SubscriptionLease): Promise<boolean>
+  upsertTrackingTarget(params: TrackingTarget): Promise<void>
   hostPresent(hostId: number): Promise<boolean>
   lockRoutine(routineId: string): Promise<RoutineRow | undefined>
   readRoutine(routineId: string): Promise<RoutineRow | undefined>

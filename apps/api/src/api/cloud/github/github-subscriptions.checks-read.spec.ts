@@ -1,15 +1,13 @@
+import { seedHeadChecks } from './github-pr-checks.fixture'
+import { storeFixture } from './github-pr-store.fixture'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
 import { ensureUsers, prEventRows } from '../../../../test/github-seed'
-import { DrainStateService } from '../../platform/health/drain-state.service'
 import type { GithubAppInstallNoticeService } from './github-app-install-notice.service'
 import type { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import { localCoordinator } from './github-request-coordinator.fixture'
-import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
-import { GithubPrFanoutService } from './github-pr-fanout.service'
 import type { RestCheckRun, RestCommitStatus } from './github-pull-request-mapping'
-import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
 import { GithubUserReads } from './github-user-reads'
 import type { GithubService } from './github.service'
@@ -18,7 +16,8 @@ const SHA = 'abc123'
 const ACTIONS = { slug: 'github-actions' }
 
 const VERCEL_STATUSES: RestCommitStatus[] = ['Vercel – atlas-api', 'Vercel – atlas-storybook'].map(
-  (context) => ({
+  (context, index) => ({
+    id: index + 1,
     context,
     state: 'success',
     created_at: '2026-11-04T21:50:45Z',
@@ -33,6 +32,7 @@ const pullOf = () => ({
   state: 'open',
   draft: false,
   merged_at: null,
+  updated_at: '2026-11-18T06:00:00Z',
   mergeable: true,
   mergeable_state: 'clean',
   head: { ref: 'dennis/drop-label', sha: SHA, repo: { full_name: 'compai/app' } },
@@ -85,16 +85,14 @@ function subscriptionsService(): GithubSubscriptionsService {
     shouldRecommend: async () => false,
     dismiss: async () => undefined,
   } as unknown as GithubAppInstallNoticeService
-  const fanout = new GithubPrFanoutService(new DrainStateService())
-  const wake = { notifyEvent: () => undefined } as unknown as GithubSandboxWakeService
   return new GithubSubscriptionsService(
     github,
     new GithubUserReads(),
     hooks,
     installNotice,
     localCoordinator(github),
-    new GithubPrEventMailboxService(fanout, wake),
     { coversRepo: async () => false } as never,
+    storeFixture(),
   )
 }
 
@@ -113,14 +111,14 @@ describe('subscribe and read the head', () => {
 
   afterEach(() => unstubAllGlobals())
 
-  it('asks GitHub for no check suites and stores its rollup state with the PR', async () => {
+  it('asks GitHub for no check suites and stores the derived tally state with the PR', async () => {
     const { paths } = githubHead({ runs: [], checksState: 'EXPECTED' })
+    await seedHeadChecks({ headSha: SHA, passed: 1 })
 
     const state = await subscribe()
 
     expect(paths.some((path) => path.endsWith('/check-suites'))).toBe(false)
-    expect(paths.some((path) => path.endsWith('/graphql'))).toBe(true)
-    expect(state?.state?.checksState).toBe('expected')
+    expect(state?.state?.checksState).toBe('success')
     expect(state?.state?.checksRunning).toBe(0)
   })
 
@@ -132,8 +130,9 @@ describe('subscribe and read the head', () => {
     expect(await verdicts()).toHaveLength(0)
   })
 
-  it('announces green once the runner has completed its runs', async () => {
+  it('announces green once the ledger holds the completed runs', async () => {
     githubHead({ runs: [completedRun(11), completedRun(12)], checksState: 'SUCCESS' })
+    await seedHeadChecks({ headSha: SHA, passed: 2 })
 
     await subscribe()
 

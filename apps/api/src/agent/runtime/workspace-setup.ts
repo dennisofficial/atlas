@@ -11,6 +11,7 @@ import {
 import {
   runInCallScope,
   scopeKeyOf,
+  type CapturedBase,
   type PrepareResult,
   type RemoteCalls,
   type SetupLifecycle,
@@ -18,7 +19,10 @@ import {
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 import type { WorkspaceConfig } from '../config/agent-host-config'
 
-import { materialize, run } from './workspace-clone'
+import { replayCapturedBases } from './workspace-bases'
+import type { CheckoutReport } from './workspace-checkout'
+import { prepareFailureResult, prepareWorkspace, resultOf } from './workspace-materialize'
+import { run } from './workspace-clone'
 import { RepoProgress, repoNamesOf } from './workspace-repos'
 import {
   checkSentinels,
@@ -143,9 +147,6 @@ const startSetupInBackground = (args: {
     .finally(() => args.ackScope().catch(() => undefined))
 }
 
-const resultOf = (warnings: readonly string[]): PrepareResult =>
-  warnings.length === 0 ? { ok: true } : { ok: true, warnings: [...warnings] }
-
 const scopeFor = (args: { sandboxName: string; phase: string }): string =>
   scopeKeyOf({ runId: 'setup', callId: `${args.sandboxName}:${args.phase}` })
 
@@ -163,6 +164,7 @@ export const ensureWorkspace = async (args: {
   onStep?: ((step: WorkspaceStepReport) => void) | undefined
   onOutput?: ((text: string) => void) | undefined
   onSetup?: ((lifecycle: SetupLifecycle) => void) | undefined
+  onCheckedOut?: CheckoutReport | undefined
 }): Promise<PrepareResult> => {
   const warnings: string[] = []
   const deps: Deps = {
@@ -173,7 +175,7 @@ export const ensureWorkspace = async (args: {
     ...(args.env === undefined ? {} : { env: args.env }),
     ...(args.log === undefined ? {} : { log: args.log }),
   }
-  const { workspace, launchDirectory, githubToken, onStep } = args
+  const { workspace, launchDirectory, githubToken, onStep, onCheckedOut } = args
   const stateDir = stateDirOf(launchDirectory)
   const sentinels = sentinelsOf(stateDir)
   const scrub = (text: string): string =>
@@ -183,6 +185,7 @@ export const ensureWorkspace = async (args: {
   )
   const setupScope = phases[2] ?? 'setup:setup'
   let setupInBackground = false
+  let captured: readonly CapturedBase[] = []
   try {
     const state = await runInCallScope({
       scopeKey: phases[0] ?? 'setup:check',
@@ -195,6 +198,11 @@ export const ensureWorkspace = async (args: {
         onStep?.({ step: EWorkspaceStep.Clone, state: EWorkspaceStepState.Started, repos }),
     })
     if (state.materialized) {
+      captured = await replayCapturedBases({
+        deps,
+        path: sentinels.bases,
+        expectedRepos: repoNamesOf(workspace).length,
+      })
       onStep?.({
         step: EWorkspaceStep.Clone,
         state: EWorkspaceStepState.Done,
@@ -202,11 +210,10 @@ export const ensureWorkspace = async (args: {
         repos: progress.snapshot().map((entry) => ({ ...entry, state: EWorkspaceRepoState.Done })),
       })
     } else {
-      progress.start()
-      const materialized = await runInCallScope({
+      const prepared = await runInCallScope({
         scopeKey: phases[1] ?? 'setup:clone',
         body: () =>
-          materialize({
+          prepareWorkspace({
             deps,
             workspace,
             githubToken,
@@ -215,25 +222,19 @@ export const ensureWorkspace = async (args: {
             sentinels,
             progress,
             scrub,
+            onCheckedOut,
+            onStep,
           }),
       })
-      if (!materialized) {
-        onStep?.({
-          step: EWorkspaceStep.Clone,
-          state: EWorkspaceStepState.Failed,
-          reason: warnings.join('\n') || 'clone failed',
-          repos: progress.snapshot(),
+      captured = prepared.bases
+      if (!prepared.ok) {
+        return prepareFailureResult({
+          prepared,
+          deps,
+          warnings,
+          setupScript: workspace.setupScript,
         })
-        if (workspace.setupScript.trim() !== '') {
-          fail({ deps, message: 'setup script was skipped because the workspace clone failed' })
-        }
-        return resultOf(warnings)
       }
-      onStep?.({
-        step: EWorkspaceStep.Clone,
-        state: EWorkspaceStepState.Done,
-        repos: progress.snapshot(),
-      })
       // the workspace was rebuilt, so a setup script started in the old one says nothing about it
       await clearSetupStarted({ deps, path: sentinels.setupStarted })
     }
@@ -276,7 +277,7 @@ export const ensureWorkspace = async (args: {
         ackScope: () => args.calls.ackScope({ scopeKey: setupScope }),
       })
     }
-    return resultOf(warnings)
+    return { ...resultOf(warnings), ...(captured.length === 0 ? {} : { bases: captured }) }
   } catch (error) {
     fail({ deps, message: 'workspace setup failed', detail: String(error) })
     deps.log?.error({

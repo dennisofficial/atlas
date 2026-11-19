@@ -1,9 +1,12 @@
 import { ForbiddenException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { EGithubCallSource } from './github-call-log'
-import type { PullRequestCacheFields } from './github-pull-request-mapping'
 import { GithubRequestCoordinator } from './github-request-coordinator'
-import { GithubUserReads, GithubUserReadFailed } from './github-user-reads'
+import {
+  GithubUserReads,
+  GithubUserReadFailed,
+  type PullObservationRead,
+} from './github-user-reads'
 
 export class GithubSubscribedPrResolver {
   constructor(
@@ -35,19 +38,19 @@ export class GithubSubscribedPrResolver {
     }
   }
 
-  readPullRequest(args: {
+  readPullRequestObservation(args: {
     userId: string
     token: string
     repoFullName: string
     owner: string
     repo: string
     number: number
-  }): Promise<PullRequestCacheFields> {
+  }): Promise<PullObservationRead> {
     return this.proveRead({
       userId: args.userId,
       repoFullName: args.repoFullName,
       read: () =>
-        this.deps.reads.readPullRequest({
+        this.deps.reads.readPullRequestObservation({
           source: EGithubCallSource.SubscriptionResolve,
           token: args.token,
           owner: args.owner,

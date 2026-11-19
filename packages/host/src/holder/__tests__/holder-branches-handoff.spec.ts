@@ -13,6 +13,16 @@ const longExecScript = [
 
 const PROMPT_HANDOFF_MS = 2_000
 
+const hangAfterTheBootRead = (): (() => Promise<readonly string[]>) => {
+  let reads = 0
+  return () => {
+    reads += 1
+    return reads === 1
+      ? Promise.resolve<readonly string[]>([])
+      : new Promise<readonly string[]>(() => {})
+  }
+}
+
 const handoffPromptly = async (rig: HolderRig): Promise<void> => {
   const startedAt = Date.now()
   await rig.holder.drain()
@@ -49,7 +59,7 @@ describe('branch observer lifecycle on handoff', () => {
   it('handoff completes when watchedRepos never resolves', async () => {
     const rig = await makeRig({
       script: [{ text: 'ok' }],
-      watchedRepos: () => new Promise<readonly string[]>(() => {}),
+      watchedRepos: hangAfterTheBootRead(),
     })
     await seedSession(rig)
     await rig.holder.start()

@@ -13,6 +13,7 @@ const pull = (over: Partial<RestPullRequest>): RestPullRequest => ({
   state: 'open',
   draft: false,
   merged_at: null,
+  updated_at: '2026-11-18T00:00:00Z',
   mergeable: null,
   mergeable_state: 'unknown',
   head: {
@@ -58,8 +59,6 @@ describe('pullRequestCacheFieldsOf', () => {
         run({ name: 'f', conclusion: 'cancelled' }),
       ],
       statuses: [],
-      checksState: null,
-      requiredCheckContexts: [],
     })
 
     expect(fields).toMatchObject({
@@ -75,12 +74,10 @@ describe('pullRequestCacheFieldsOf', () => {
     const fields = pullRequestCacheFieldsOf({
       pull: pull({}),
       checkRuns: [
-        run({ conclusion: 'cancelled', started_at: '2026-11-02T04:25:00Z' }),
-        run({ conclusion: 'success', started_at: '2026-11-02T04:26:00Z' }),
+        run({ id: 1, conclusion: 'cancelled', started_at: '2026-11-02T04:25:00Z' }),
+        run({ id: 2, conclusion: 'success', started_at: '2026-11-02T04:26:00Z' }),
       ],
       statuses: [],
-      checksState: null,
-      requiredCheckContexts: [],
     })
 
     expect(fields).toMatchObject({
@@ -95,8 +92,6 @@ describe('pullRequestCacheFieldsOf', () => {
       pull: pull({}),
       checkRuns: [run({ name: 'release', conclusion: 'skipped' })],
       statuses: [],
-      checksState: null,
-      requiredCheckContexts: [],
     })
 
     expect(fields).toMatchObject({
@@ -112,26 +107,64 @@ describe('pullRequestCacheFieldsOf', () => {
       checkRuns: [],
       statuses: [
         {
+          id: 300,
           context: 'ci/build',
           state: 'success',
           created_at: '2026-11-02T04:25:00Z',
           updated_at: '2026-11-02T04:25:00Z',
         },
         {
+          id: 200,
           context: 'ci/build',
           state: 'pending',
           created_at: '2026-11-02T04:20:00Z',
           updated_at: '2026-11-02T04:20:00Z',
         },
         {
+          id: 400,
           context: 'deploy',
           state: 'failure',
           created_at: '2026-11-02T04:25:00Z',
           updated_at: '2026-11-02T04:25:00Z',
         },
       ],
-      checksState: null,
-      requiredCheckContexts: [],
+    })
+
+    expect(fields).toMatchObject({
+      checksRunning: 0,
+      checksPassed: 1,
+      checksFailed: 1,
+    })
+  })
+
+  it('ranks two statuses one context posted in the same second by their id', () => {
+    const status = (over: { id: number; state: string }) => ({
+      context: 'ci/build',
+      created_at: '2026-11-02T04:25:00Z',
+      updated_at: '2026-11-02T04:25:00Z',
+      ...over,
+    })
+    const fields = pullRequestCacheFieldsOf({
+      pull: pull({}),
+      checkRuns: [],
+      statuses: [status({ id: 7, state: 'failure' }), status({ id: 9, state: 'success' })],
+    })
+
+    expect(fields).toMatchObject({
+      checksRunning: 0,
+      checksPassed: 1,
+      checksFailed: 0,
+    })
+  })
+
+  it('counts a check name once per app that reports it', () => {
+    const fields = pullRequestCacheFieldsOf({
+      pull: pull({}),
+      checkRuns: [
+        run({ id: 1, name: 'build', app: { slug: 'actions' } }),
+        run({ id: 2, name: 'build', app: { slug: 'other' }, conclusion: 'failure' }),
+      ],
+      statuses: [],
     })
 
     expect(fields).toMatchObject({

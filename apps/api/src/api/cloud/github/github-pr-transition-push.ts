@@ -10,6 +10,7 @@ import {
   type PrTransitionEvent,
   type PrTransitionSnapshot,
 } from './github-pr-event-transitions'
+import type { PrOutboxWithin } from './github-pr-outbox'
 import { EPrEventKind, type GithubPrEventPayload } from './github-realtime.types'
 
 export type PrTransitionWrites = {
@@ -17,6 +18,7 @@ export type PrTransitionWrites = {
   repoFullName: string
   prNumber: number
   url: string
+  within?: PrOutboxWithin | undefined
 }
 
 /**
@@ -49,7 +51,7 @@ export async function deliverPrTransitions(args: {
       kind: event.kind,
       payload: { ...event.payload, url: writes.url },
       dedupeKey: event.dedupeKey === '' ? undefined : event.dedupeKey,
-      tx: args.tx,
+      within: writes.within,
     })
 
   await dischargeHeadVerdict({
@@ -76,7 +78,7 @@ export async function deliverPrTransitions(args: {
         kind: EPrEventKind.Verdict,
         payload,
         dedupeKey: eventKey,
-        tx: args.tx,
+        within: writes.within,
       })
     },
   })

@@ -246,6 +246,7 @@ describe('ensureWorkspace', () => {
 
   it('reports ok after a clean clone and setup', async () => {
     const root = mkdtempSync(join(tmpdir(), 'atlas-workspace-ok-'))
+    const launchDirectory = join(root, 'workspace')
     const { calls, processes, files } = await openPorts({ sessionId: 'setup-session-ok' })
     const { result } = await setupFor({
       sessionId: 'setup-session-ok',
@@ -258,9 +259,9 @@ describe('ensureWorkspace', () => {
         additionalRepos: [],
         setupScript: 'true',
       },
-      launchDirectory: join(root, 'workspace'),
+      launchDirectory,
     })
-    expect(result).toEqual({ ok: true })
+    expect(result).toEqual({ ok: true, bases: [{ repoPath: launchDirectory, base: 'main' }] })
     calls.close()
   }, 60_000)
 
@@ -322,7 +323,10 @@ describe('ensureWorkspace', () => {
       workspace: { ...workspace, remoteUrl },
       launchDirectory,
     })
-    expect(retried).toEqual({ ok: true })
+    expect(retried).toEqual({
+      ok: true,
+      bases: [{ repoPath: launchDirectory, base: 'main' }],
+    })
     expect(await files.readFile({ path: join(launchDirectory, 'hello.txt') })).toBe(
       'hello from the repo\n',
     )

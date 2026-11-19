@@ -27,6 +27,7 @@ model User {
   githubPrEvents           GithubPrEvent[]
   githubNoticeDismissals   GithubAppNoticeDismissal[]
   githubRepoHooks          GithubRepoHook[]
+  githubTrackingTargets    GithubTrackingTarget[]
   publishedBundles         PublishedBundle[]
   secrets                  UserSecret[]
   harnessSecrets           UserHarnessSecret[]

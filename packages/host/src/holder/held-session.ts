@@ -52,6 +52,7 @@ export class HeldSession {
   private runtime: SessionRuntime | undefined
   private record: SessionRecord | undefined
   private branches: BranchObserver | undefined
+  private branchesReady: Promise<void> = Promise.resolve()
   private changes: ChangesSnapshotter | undefined
   private crew: CrewRoom | undefined
   private reconciler: Reconciler | undefined
@@ -207,7 +208,7 @@ export class HeldSession {
       onLeaseLost: (error) => this.ending.lose(lostOutcome(error)),
     })
     this.crew = crew
-    const { runner, branches, recoverCommands, logStaged } = wireHeldLoop({
+    const { runner, branches, branchesStarted, recoverCommands, logStaged } = wireHeldLoop({
       deps,
       runtime,
       record,
@@ -224,6 +225,7 @@ export class HeldSession {
     this.changes?.start()
     await settleAndCheckResume({ deps, runtime, record, threadId, crew })
     await recoverCommands()
+    this.branchesReady = branchesStarted
     const completion = this.ending.waitForDrive()
     if (this.lifetimeAbort.signal.aborted || this.ending.outcome !== undefined) return
     const reconciler = new Reconciler({
@@ -309,6 +311,8 @@ export class HeldSession {
         return
       }
       case EHeldAction.StartTurn: {
+        await this.branchesReady
+        if (this.draining || this.ending.outcome !== undefined) return
         this.takeOver?.firstStep()
         this.resumeAfterSeq = this.headSeq()
         this.noteActivity()

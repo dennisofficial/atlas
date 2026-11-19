@@ -1,19 +1,15 @@
-import type { ChecksCount } from '@dltech/atlas-core'
-import { db, type Row, type Tx } from '@dltech/atlas-db'
-import { affectedPrsBySha } from './github-delivery-affected'
+import { EPrSource, type PrObservation } from '@dltech/atlas-core'
+import { db } from '@dltech/atlas-db'
 import {
   type CommitCheckInput,
-  checkCountFieldsOf,
   checkRunInputOf,
-  commitChecksTally,
   commitStatusInputOf,
-  lockCommit,
   recordCommitChecks,
 } from './github-commit-checks'
-import { GithubDeliveryFillDeferred, type RestFill } from './github-delivery-fill'
+import { GithubDeliveryFillDeferred, type FillFields, type RestFill } from './github-delivery-fill'
 import { normalizedRepo } from './github-pr-identity'
-import { stateFieldsOf } from './github-pr-state-fields'
-import type { GithubPrStateWriter, PrStateWrite } from './github-pr-state-writer'
+import { lockPrScope } from './github-pr-lock'
+import type { GithubPrStore } from './github-pr-store'
 import { CheckAnnotationFetcher, type FetchAnnotations } from './github-check-annotations'
 import type {
   GithubCheckRunWebhookPayload,
@@ -26,7 +22,7 @@ export class GithubDeliveryChecks {
 
   constructor(
     private readonly deps: {
-      writer: GithubPrStateWriter
+      store: GithubPrStore
       restFill: (args: {
         repoFullName: string
         prNumber: number
@@ -79,86 +75,82 @@ export class GithubDeliveryChecks {
   }): Promise<void> {
     const repoFullName = normalizedRepo(args.repoFullName)
     const { headSha } = args
-    const check =
+    const checks =
       args.check === undefined
-        ? undefined
-        : await this.annotations.attach({
-            repoFullName,
-            headSha,
-            check: args.check,
-            installationId: args.installationId,
-          })
+        ? []
+        : [
+            await this.annotations.attach({
+              repoFullName,
+              headSha,
+              check: args.check,
+              installationId: args.installationId,
+            }),
+          ]
 
-    const decided = await db.transaction(async (tx) => {
-      await lockCommit({ tx, repoFullName, headSha })
-      if (check !== undefined) {
-        await recordCommitChecks({ tx, repoFullName, headSha, checks: [check] })
-      }
-      const affected = await affectedPrsBySha({ tx, repoFullName, sha: headSha })
-      const tally = await commitChecksTally({ tx, repoFullName, headSha })
-      const writes: PrStateWrite[] = []
-      const confirm: number[] = []
-      for (const pr of affected) {
-        if (await awaitsSettleConfirmation({ tx, pr, tally })) {
-          confirm.push(pr.prNumber)
-          continue
-        }
-        if (countsMatch({ tally, pr })) continue
-        writes.push(
-          await this.deps.writer.writeState({
-            tx,
-            repoFullName,
-            prNumber: pr.prNumber,
-            fields: withTally({ pr, tally }),
-          }),
-        )
-      }
-      return { writes, confirm }
-    })
-
-    for (const write of decided.writes) await this.deps.writer.publish(write)
-
+    const applied = await this.deps.store.applyChecks({ repoFullName, headSha, checks })
     const deferred: number[] = []
-    for (const prNumber of decided.confirm) {
-      const rest = await this.deps.restFill({
+    for (const prNumber of applied.awaitingSettle) {
+      const settled = await this.settle({
         repoFullName,
         prNumber,
+        headSha,
         installationId: args.installationId,
       })
-      if (rest.kind === 'deferred') {
-        deferred.push(prNumber)
-        continue
-      }
-      const restHead = rest.kind === 'filled' ? rest.fields.headSha : headSha
-      const restChecks =
-        rest.kind === 'filled' && rest.checks !== null
-          ? await this.withAnnotations({
-              repoFullName,
-              headSha: restHead,
-              checks: rest.checks,
-              installationId: args.installationId,
-            })
-          : null
-      const write = await db.transaction(async (tx) => {
-        await lockCommit({ tx, repoFullName, headSha: restHead })
-        if (restChecks !== null) {
-          await recordCommitChecks({ tx, repoFullName, headSha: restHead, checks: restChecks })
-        }
-        const tally = await commitChecksTally({ tx, repoFullName, headSha: restHead })
-        const fields =
-          rest.kind === 'filled'
-            ? rest.checks === null
-              ? rest.fields
-              : { ...rest.fields, ...checkCountFieldsOf(tally) }
-            : withTally({ pr: await currentRow({ tx, repoFullName, prNumber }), tally })
-        return this.deps.writer.writeState({ tx, repoFullName, prNumber, fields })
-      })
-      await this.deps.writer.publish(write)
+      if (!settled) deferred.push(prNumber)
     }
 
     if (deferred.length > 0) {
       throw new GithubDeliveryFillDeferred({ repoFullName, prNumbers: deferred })
     }
+  }
+
+  private async settle(args: {
+    repoFullName: string
+    prNumber: number
+    headSha: string
+    installationId: bigint | undefined
+  }): Promise<boolean> {
+    const rest = await this.deps.restFill({
+      repoFullName: args.repoFullName,
+      prNumber: args.prNumber,
+      installationId: args.installationId,
+    })
+    if (rest.kind === 'deferred') return false
+
+    const fill = rest.kind === 'filled' ? rest.fields : null
+    const headSha = fill?.headSha ?? args.headSha
+    const checks =
+      rest.kind === 'filled' && rest.checks !== null && rest.checks.length > 0
+        ? await this.withAnnotations({
+            repoFullName: args.repoFullName,
+            headSha,
+            checks: rest.checks,
+            installationId: args.installationId,
+          })
+        : []
+    const protection = rest.kind === 'filled' ? rest.protection : null
+
+    const outboxIds = await db.transaction(async (tx) => {
+      const scope = await lockPrScope({ tx, repoFullName: args.repoFullName })
+      await recordCommitChecks({
+        tx: scope,
+        repoFullName: args.repoFullName,
+        headSha,
+        checks,
+      })
+      const applied = await this.deps.store.applyWithin({
+        tx: scope,
+        repoFullName: args.repoFullName,
+        prNumber: args.prNumber,
+        observations: mergeabilityObservationsOf(fill),
+        ...(protection === null ? {} : { protection }),
+      })
+
+      return applied.outboxIds
+    })
+    await this.deps.store.dispatch(outboxIds)
+
+    return true
   }
 
   private withAnnotations(args: {
@@ -180,41 +172,22 @@ export class GithubDeliveryChecks {
   }
 }
 
-async function currentRow(args: {
-  tx: Tx
-  repoFullName: string
-  prNumber: number
-}): Promise<Row<'GithubPrState'>> {
-  return args.tx.orm.public.GithubPrState.where({
-    repoFullName: args.repoFullName,
-    prNumber: args.prNumber,
-  }).first() as Promise<Row<'GithubPrState'>>
-}
+function mergeabilityObservationsOf(fill: FillFields | null): readonly PrObservation[] {
+  if (fill === null || fill.headSha === '' || fill.baseBranch === '') return []
+  const observedAt = fill.updatedAt.toISOString()
 
-async function awaitsSettleConfirmation(args: {
-  tx: Tx
-  pr: { repoFullName: string; prNumber: number; headSha: string }
-  tally: ChecksCount
-}): Promise<boolean> {
-  const { tally } = args
-  if (tally.running > 0 || tally.passed + tally.failed + tally.ignored === 0) return false
-  const ledger = await args.tx.orm.public.GithubPrHeadCheck.where({
-    repoFullName: args.pr.repoFullName,
-    prNumber: args.pr.prNumber,
-    headSha: args.pr.headSha,
-  }).first()
-  return ledger?.settledAt == null
-}
-
-function withTally(args: { pr: Row<'GithubPrState'>; tally: ChecksCount }) {
-  return { ...stateFieldsOf(args.pr), ...checkCountFieldsOf(args.tally), updatedAt: new Date() }
-}
-
-function countsMatch(args: { tally: ChecksCount; pr: Row<'GithubPrState'> }): boolean {
-  return (
-    args.pr.checksRunning === args.tally.running &&
-    args.pr.checksPassed === args.tally.passed &&
-    args.pr.checksFailed === args.tally.failed &&
-    args.pr.checksIgnored === args.tally.ignored
-  )
+  return [
+    {
+      kind: 'mergeability',
+      source: EPrSource.DeliveryFill,
+      observedAt,
+      sample: {
+        headSha: fill.headSha,
+        baseBranch: fill.baseBranch,
+        mergeable: fill.mergeable,
+        mergeClean: fill.mergeClean ?? null,
+        observedAt,
+      },
+    },
+  ]
 }

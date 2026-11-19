@@ -13,6 +13,7 @@ import {
   type RoutineRow,
   type RoutineRunRow,
   type SubscriptionLease,
+  type TrackingTarget,
 } from '../../port'
 import { dueRoutinesIn, routineRunsIn, userRoutineIn, userRoutinesIn } from './memory-routines'
 import { MemoryTx } from './memory-tx'
@@ -101,6 +102,10 @@ export class InMemoryControlStore extends ControlStorePort implements ChangeFeed
 
   subscriptionLeases(): Array<SubscriptionLease & { expiresAt: string }> {
     return this.controls.subscriptionLeases()
+  }
+
+  trackingTargets(): TrackingTarget[] {
+    return this.controls.trackingTargets()
   }
 
   setRoutine(row: RoutineRow): void {

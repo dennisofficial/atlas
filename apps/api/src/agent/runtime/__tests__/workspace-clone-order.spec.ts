@@ -7,10 +7,10 @@ import { RecordingProcessPort, StubFileSystemPort } from './workspace-fakes'
 class OrderedFiles extends StubFileSystemPort {
   readonly order: string[] = []
 
-  override async writeFile(args?: { path: string }): Promise<void> {
-    if (args === undefined) return
+  override async writeFile(args: { path: string; content: string | Uint8Array }): Promise<void> {
     this.order.push(`write ${basename(args.path)}`)
     await Bun.sleep(10)
+    await super.writeFile(args)
     this.order.push(`written ${basename(args.path)}`)
   }
 
@@ -21,7 +21,7 @@ class OrderedFiles extends StubFileSystemPort {
 }
 
 describe('workspace clone ordering', () => {
-  it('removes the github token only after the last sentinel is written', async () => {
+  it('removes the github token before the workspace is marked materialized', async () => {
     const files = new OrderedFiles()
     await ensureWorkspace({
       calls: { ackScope: () => Promise.resolve() },
@@ -41,6 +41,7 @@ describe('workspace clone ordering', () => {
     const written = files.order.indexOf('written workspace-materialized')
     const removed = files.order.indexOf('remove github-token')
     expect(written).toBeGreaterThan(-1)
-    expect(removed).toBeGreaterThan(written)
+    expect(removed).toBeGreaterThan(-1)
+    expect(removed).toBeLessThan(written)
   })
 })

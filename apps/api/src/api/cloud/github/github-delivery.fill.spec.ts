@@ -1,3 +1,4 @@
+import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { EGithubCallSource } from './github-call-log'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
@@ -13,6 +14,7 @@ import {
   seedSubscription,
   serviceWith,
 } from './github-delivery.fixture'
+import { seedHeadChecks } from './github-pr-checks.fixture'
 import { GithubUserReadFailed } from './github-user-reads'
 
 describe('GithubDeliveryService fill', () => {
@@ -34,18 +36,20 @@ describe('GithubDeliveryService fill', () => {
     })
 
     expect(outcome.handled).toBe(true)
-    expect(readPullRequest).toHaveBeenCalledWith({
-      source: EGithubCallSource.DeliveryFill,
-      token: 'ghu_creator',
-      owner: 'compai',
-      repo: 'app',
-      number: 42,
-    })
+    expect(readPullRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: EGithubCallSource.DeliveryFill,
+        token: 'ghu_creator',
+        owner: 'compai',
+        repo: 'app',
+        number: 42,
+      }),
+    )
     expect((await prStateRows())[0]).toMatchObject({
       repoFullName: 'compai/app',
       prNumber: 42,
-      checksPassed: 2,
       mergeable: true,
+      mergeClean: true,
     })
   })
 
@@ -99,6 +103,7 @@ describe('GithubDeliveryService fill', () => {
     })
     await seedHook({ createdBy: 'usr-gone' })
     await seedSubscription({ userId: 'usr-sub', prNumber: 42 })
+    await seedHeadChecks({ headSha: 'abc123', passed: 2 })
     await seedPrState({
       repoFullName: 'compai/app',
       prNumber: 42,
@@ -124,6 +129,7 @@ describe('GithubDeliveryService fill', () => {
       repo: 'app',
       number: 42,
       collectChecks: expect.any(Function),
+      collectRequiredContexts: expect.any(Function),
     })
     expect((await prStateRows())[0]?.checksPassed).toBe(2)
   })
@@ -201,6 +207,55 @@ describe('GithubDeliveryService fill', () => {
     })
   })
 
+  it('drops a pull_request fill whose sample an older clock cannot reopen a merge with', async () => {
+    const readPullRequest = vi.fn(async () => REST_FIELDS)
+    const { service } = serviceWith({
+      tokens: { 'usr-creator': 'ghu_creator' },
+      readPullRequest,
+    })
+    await seedHook({ createdBy: 'usr-creator' })
+    await seedPrState({
+      ...FILLED_PR_STATE,
+      state: 'merged',
+      headSha: 'webhook-head',
+      pullUpdatedAt: new Date(Date.now() + 60_000),
+    })
+
+    await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
+
+    expect((await prStateRows())[0]).toMatchObject({
+      prNumber: 42,
+      state: 'merged',
+      headSha: 'webhook-head',
+    })
+  })
+
+  it('drops a settle fill whose read a newer delivery overtook', async () => {
+    const readPullRequest = vi.fn(async () => {
+      await overtakeWithMergedHead()
+      return REST_FIELDS
+    })
+    const { service } = serviceWith({ tokens: { 'usr-sub': 'ghu_sub' }, readPullRequest })
+    await seedHook({ createdBy: 'usr-gone' })
+    await seedSubscription({ userId: 'usr-sub', prNumber: 42 })
+    await seedPrState({
+      ...FILLED_PR_STATE,
+      checksRunning: 0,
+      checksPassed: 0,
+      checksFailed: 0,
+      mergeable: null,
+      updatedAt: new Date(),
+    })
+
+    await service.handle({ event: 'check_run', payload: checkRunPayload() })
+
+    expect((await prStateRows())[0]).toMatchObject({
+      prNumber: 42,
+      state: 'merged',
+      headSha: 'webhook-head',
+    })
+  })
+
   it('ignores unknown events and handles ping without touching state', async () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
     const { service } = serviceWith({ tokens: {}, readPullRequest })
@@ -215,3 +270,19 @@ describe('GithubDeliveryService fill', () => {
     expect(await prStateRows()).toHaveLength(0)
   })
 })
+
+async function overtakeWithMergedHead(): Promise<void> {
+  const held = await db.orm.public.GithubPrState.where({
+    repoFullName: 'compai/app',
+    prNumber: 42,
+  }).first()
+  await db.orm.public.GithubPrState.where({
+    repoFullName: 'compai/app',
+    prNumber: 42,
+  }).update({
+    state: 'merged',
+    headSha: 'webhook-head',
+    pullUpdatedAt: new Date(Date.now() + 60_000),
+    version: (held?.version ?? 0) + 1,
+  })
+}

@@ -1,9 +1,10 @@
 import {
+  ECheckSource,
   checkRunOutcomeOf,
   checksTally,
-  latestAttemptOutcomes,
+  latestCheckAttempts,
   statusContextOutcomeOf,
-  type CheckAttempt,
+  type CheckIdentity,
 } from '@dltech/atlas-core'
 
 export interface RestPullRequest {
@@ -13,6 +14,7 @@ export interface RestPullRequest {
   state: string
   draft: boolean
   merged_at: string | null
+  updated_at: string
   mergeable: boolean | null
   mergeable_state: string
   head: { ref: string; sha: string; repo: { full_name: string } | null }
@@ -32,6 +34,7 @@ export interface RestCheckRun {
 }
 
 export interface RestCommitStatus {
+  id: number
   context: string
   state: string
   created_at: string | null
@@ -51,10 +54,8 @@ export interface PullRequestCacheFields {
   checksPassed: number
   checksFailed: number
   checksIgnored: number
-  checksState: string | null
   mergeable: boolean | null
   mergeClean?: boolean | null
-  requiredCheckContexts?: readonly string[]
 }
 
 /**
@@ -76,29 +77,31 @@ export function pullRequestCacheFieldsOf(args: {
   pull: RestPullRequest
   checkRuns: readonly RestCheckRun[]
   statuses: readonly RestCommitStatus[]
-  checksState: string | null
-  requiredCheckContexts: readonly string[]
 }): PullRequestCacheFields {
-  const latestByContext = new Map<string, RestCommitStatus>()
-  for (const status of args.statuses) {
-    if (!latestByContext.has(status.context)) latestByContext.set(status.context, status)
-  }
-  const attempts: CheckAttempt[] = [
+  const attempts: CheckIdentity[] = [
     ...args.checkRuns.map((run) => ({
+      appSlug: run.app?.slug ?? null,
+      checkKey: `${ECheckSource.Run}:${run.id}`,
       name: run.name,
-      order: run.id,
       outcome: checkRunOutcomeOf({
         status: run.status,
         conclusion: run.conclusion,
       }),
+      source: ECheckSource.Run,
+      sourceCreatedAt: run.completed_at ?? run.started_at,
+      sourceId: String(run.id),
     })),
-    ...[...latestByContext.values()].map((status) => ({
+    ...args.statuses.map((status) => ({
+      appSlug: null,
+      checkKey: `${ECheckSource.Status}:${status.context}`,
       name: status.context,
-      order: null,
       outcome: statusContextOutcomeOf(status.state),
+      source: ECheckSource.Status,
+      sourceCreatedAt: status.created_at,
+      sourceId: String(status.id),
     })),
   ]
-  const tally = checksTally(latestAttemptOutcomes(attempts))
+  const tally = checksTally(latestCheckAttempts({ attempts }).map((attempt) => attempt.outcome))
 
   return {
     title: args.pull.title,
@@ -111,9 +114,7 @@ export function pullRequestCacheFieldsOf(args: {
     checksPassed: tally.passed,
     checksFailed: tally.failed,
     checksIgnored: tally.ignored,
-    checksState: args.checksState,
     mergeable: args.pull.mergeable,
     mergeClean: mergeCleanOf(args.pull.mergeable_state),
-    requiredCheckContexts: [...args.requiredCheckContexts],
   }
 }

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'bun:test'
 import {
-  missingOf,
   recalledRequiredContexts,
   rememberRequiredContexts,
   requiredContextsFrom,
@@ -71,7 +70,7 @@ describe('requiredContextsFrom', () => {
     ).toEqual(['ci'])
   })
 
-  it('treats a failed lookup as no required checks rather than blocking verdicts', async () => {
+  it('answers unknown when neither source could be read', async () => {
     expect(
       await requiredContextsFrom({
         ...args,
@@ -79,16 +78,22 @@ describe('requiredContextsFrom', () => {
           throw new Error('github down')
         },
       }),
-    ).toEqual([])
+    ).toBeNull()
   })
-})
 
-describe('missingOf', () => {
-  it('names the required contexts GitHub has not reported on the head', () => {
-    expect(missingOf({ requiredContexts: ['ci', 'lint'], present: new Set(['lint']) })).toEqual([
-      'ci',
-    ])
-    expect(missingOf({ requiredContexts: [], present: new Set(['ci']) })).toEqual([])
+  it('answers no required checks when both sources read and require nothing', async () => {
+    expect(
+      await requiredContextsFrom({
+        ...args,
+        read: readOf({
+          '/repos/dennisofficial/atlas/rules/branches/main': { status: 200, body: [] },
+          '/repos/dennisofficial/atlas/branches/main/protection/required_status_checks': {
+            status: 200,
+            body: {},
+          },
+        }),
+      }),
+    ).toEqual([])
   })
 })
 
@@ -97,8 +102,11 @@ describe('required context cache', () => {
     const cache: RequiredContextsCache = new Map()
     const key = requiredContextsKey({ owner: 'compai', repo: 'app', branch: 'main' })
     expect(recalledRequiredContexts({ cache, key, now: 1_000 })).toBeUndefined()
-    rememberRequiredContexts({ cache, key, now: 1_000, contexts: ['ci'] })
-    expect(recalledRequiredContexts({ cache, key, now: 60_999 })).toEqual(['ci'])
+    rememberRequiredContexts({ cache, key, acquiredAt: 1_000, contexts: ['ci'] })
+    expect(recalledRequiredContexts({ cache, key, now: 60_999 })).toEqual({
+      acquiredAt: 1_000,
+      contexts: ['ci'],
+    })
     expect(recalledRequiredContexts({ cache, key, now: 61_001 })).toBeUndefined()
   })
 })

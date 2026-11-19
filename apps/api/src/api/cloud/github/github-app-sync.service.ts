@@ -1,7 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { GithubAppClient } from './github-app-client'
-import { GithubAppInstallationsService } from './github-app-installations.service'
+import {
+  GithubAppInstallationsService,
+  reposWithChangedCoverage,
+} from './github-app-installations.service'
 import { GithubAppSyncGate } from './github-app-sync-gate'
+import { markReposTargetsDue } from './github-due-scheduler'
 
 const PERIODIC_SYNC_KEY = 'periodic'
 const PERIODIC_SYNC_INTERVAL_MS = 15 * 60 * 1_000
@@ -19,6 +23,7 @@ export class GithubAppSyncService {
 
   async syncFromGithub(): Promise<void> {
     if (!this.client.isConfigured()) return
+    const before = await this.installations.coveredRepos()
     const listed = await this.client.listInstallations()
     for (const installation of listed) {
       const repos =
@@ -33,6 +38,10 @@ export class GithubAppSyncService {
     }
     await this.installations.retainOnly({
       installationIds: listed.map((installation) => installation.installationId),
+    })
+    await this.markChangedReposDue({
+      before,
+      after: await this.installations.coveredRepos(),
     })
   }
 
@@ -58,6 +67,15 @@ export class GithubAppSyncService {
       key: `unknown:${args.installationId}`,
       ttlMs: UNKNOWN_INSTALLATION_DEBOUNCE_MS,
     })
+  }
+
+  private async markChangedReposDue(args: {
+    before: ReadonlySet<string>
+    after: ReadonlySet<string>
+  }): Promise<void> {
+    const repoFullNames = reposWithChangedCoverage(args)
+    if (repoFullNames.length === 0) return
+    await markReposTargetsDue({ repoFullNames, now: new Date() })
   }
 
   private async syncGated(args: { key: string; ttlMs: number }): Promise<void> {

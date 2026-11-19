@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 
-import { pullRequestsOf } from '../../../workspace/pull-requests'
-import { normalizedPrRepo } from '../../../github/pr-repo'
 import { contextMeterOf, type ContextMeter } from '../../context-meter'
 import type { V2Event } from '../../event'
 import { sessionStatusOf } from '../../session-status'
@@ -83,14 +81,6 @@ const spendOracle = (events: readonly V2Event[]) => {
   return [...rows.values()]
 }
 
-const linksOracle = (events: readonly V2Event[]) =>
-  pullRequestsOf(events).map((link) => ({
-    repo: normalizedPrRepo(link.repo),
-    number: link.number,
-    url: link.url,
-    branch: link.branch,
-  }))
-
 describe('session view fold against the whole-log oracles', () => {
   it('equals every oracle over logs with history edits', () => {
     fc.assert(
@@ -101,7 +91,6 @@ describe('session view fold against the whole-log oracles', () => {
           sessionStatusOf({ events: visibleEvents(events), now: NOW, ...live }),
         )
         expectContext(view.context, contextMeterOf(events))
-        expect(view.pullRequests).toEqual(linksOracle(events))
         expect(view.spend).toEqual(spendOracle(events))
       }),
       { numRuns: 300 },
@@ -136,7 +125,6 @@ describe('session view fold against the whole-log oracles', () => {
         }
         expect(rebuilt.spend).toEqual(view.spend)
         expect(rebuilt.checkouts).toEqual(view.checkouts)
-        expect(rebuilt.pullRequests).toEqual(view.pullRequests)
       }),
       { numRuns: 200 },
     )

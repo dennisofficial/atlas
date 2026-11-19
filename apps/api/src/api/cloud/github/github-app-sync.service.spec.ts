@@ -1,7 +1,8 @@
 import { createPublicKey, createVerify } from 'node:crypto'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { db } from '@dltech/atlas-db'
+import { ensureUsers } from '../../../../test/github-seed'
 import {
   fakeGithubApp,
   syncServiceWith,
@@ -14,12 +15,35 @@ const PERSONAL: FakeInstallation = {
   login: 'dennisofficial',
   repos: ['DennisOfficial/Atlas'],
 }
+const HOUR_MS = 60 * 60 * 1_000
+
+const seedTarget = (args: { repoFullName: string; nextDueAt: Date }) =>
+  db.orm.public.GithubTrackingTarget.create({
+    userId: 'usr_1',
+    kind: 'head',
+    repoFullName: args.repoFullName,
+    branch: 'dennis/feature',
+    prNumber: 0,
+    lookedUpAt: null,
+    attemptedAt: null,
+    failures: 0,
+    leaseUntil: null,
+    nextDueAt: args.nextDueAt,
+    liveUntil: new Date(args.nextDueAt.getTime() + HOUR_MS),
+  })
+
+const dueAt = (id: string) => db.orm.public.GithubTrackingTarget.first({ id })
+
 let github: ReturnType<typeof fakeGithubApp> | undefined
 
 afterEach(() => github?.restore())
 
 describe('GithubAppSyncService', () => {
   useTestDatabase()
+
+  beforeEach(async () => {
+    await ensureUsers('usr_1')
+  })
 
   it('inserts a missing installation with all its repos, paging past 100', async () => {
     const many = Array.from({ length: 130 }, (_, index) => `dennisofficial/repo-${index}`)
@@ -55,6 +79,45 @@ describe('GithubAppSyncService', () => {
     })
     expect(row?.suspendedAt).not.toBeNull()
     expect(await installations.coversRepo({ repoFullName: 'dennisofficial/other' })).toBe(false)
+  })
+
+  it('makes the targets of a repo a sync drops from an installation due', async () => {
+    github = fakeGithubApp({
+      installations: [{ ...PERSONAL, repos: ['DennisOfficial/Atlas', 'DennisOfficial/legacy'] }],
+    })
+    const { service } = syncServiceWith()
+    await service.syncFromGithub()
+    const dropped = await seedTarget({
+      repoFullName: 'dennisofficial/legacy',
+      nextDueAt: new Date(Date.now() + HOUR_MS),
+    })
+    const stable = await seedTarget({
+      repoFullName: 'dennisofficial/atlas',
+      nextDueAt: new Date(Date.now() + HOUR_MS),
+    })
+
+    github.state.installations = [PERSONAL]
+    await service.syncFromGithub()
+
+    expect((await dueAt(dropped.id))?.nextDueAt.getTime()).toBeLessThanOrEqual(Date.now())
+    expect((await dueAt(stable.id))?.nextDueAt.getTime()).toBeGreaterThan(Date.now())
+  })
+
+  it('makes the targets of a repo an unsuspended installation gains due', async () => {
+    github = fakeGithubApp({
+      installations: [{ ...PERSONAL, suspended: true, repos: ['DennisOfficial/Atlas'] }],
+    })
+    const { service } = syncServiceWith()
+    await service.syncFromGithub()
+    const target = await seedTarget({
+      repoFullName: 'dennisofficial/atlas',
+      nextDueAt: new Date(Date.now() + HOUR_MS),
+    })
+
+    github.state.installations = [PERSONAL]
+    await service.syncFromGithub()
+
+    expect((await dueAt(target.id))?.nextDueAt.getTime()).toBeLessThanOrEqual(Date.now())
   })
 
   it('syncs once for an unknown installation id and debounces repeats', async () => {

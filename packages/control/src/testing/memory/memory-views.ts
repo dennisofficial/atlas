@@ -1,10 +1,12 @@
 import type {
+  PrHead,
   PrStateRow,
-  SessionPullRequestKey,
-  SessionPullRequestRow,
+  SessionBranchRow,
   SessionViewRow,
+  TrackedPullRequestRow,
 } from '../../port'
-import { prKey, type State } from './memory-state'
+import { trackedPullRequestsOf } from '../../tracked-pull-requests'
+import { branchKey, prKey, type State } from './memory-state'
 
 export const readSessionViewIn = (params: {
   state: State
@@ -18,30 +20,59 @@ export const writeSessionViewIn = (params: { state: State; row: SessionViewRow }
   params.state.views.set(params.row.sessionId, { ...params.row })
 }
 
-export const insertSessionPullRequestsIn = (params: {
+export const insertSessionBranchesIn = (params: {
   state: State
-  rows: readonly SessionPullRequestRow[]
+  rows: readonly SessionBranchRow[]
 }): void => {
   for (const row of params.rows) {
-    params.state.pullRequestLinks.add(`${row.sessionId} ${prKey(row)}`)
+    const key = branchKey(row)
+    if (params.state.sessionBranches.has(key)) continue
+    params.state.sessionBranches.set(key, { ...row })
   }
 }
 
-export const sessionsLinkedToIn = (params: {
-  state: State
-  key: SessionPullRequestKey
-}): string[] => {
-  const suffix = ` ${prKey(params.key)}`
-  return [...params.state.pullRequestLinks]
-    .filter((entry) => entry.endsWith(suffix))
-    .map((entry) => entry.slice(0, entry.length - suffix.length))
+export const sessionsTrackingHeadIn = (params: { state: State; head: PrHead }): string[] => {
+  const sessionIds = [...params.state.sessionBranches.values()]
+    .filter((row) => row.headRepo === params.head.headRepo && row.branch === params.head.branch)
+    .map((row) => row.sessionId)
+  return [...new Set(sessionIds)]
 }
 
-export const readPrStatesIn = (params: {
+const sessionBranchesIn = (params: {
   state: State
-  keys: readonly SessionPullRequestKey[]
-}): PrStateRow[] =>
-  params.keys.flatMap((key) => {
-    const row = params.state.prStates.get(prKey(key))
-    return row === undefined ? [] : [{ ...row }]
+  sessionIds: readonly string[]
+}): SessionBranchRow[] => {
+  const wanted = new Set(params.sessionIds)
+  return [...params.state.sessionBranches.values()]
+    .filter((row) => wanted.has(row.sessionId))
+    .map((row) => ({ ...row }))
+}
+
+const prStatesForHeadsIn = (params: { state: State; heads: readonly PrHead[] }): PrStateRow[] => {
+  const wanted = new Set(params.heads.map((head) => `${head.headRepo}\u0000${head.branch}`))
+  return [...params.state.prStates.values()]
+    .filter(
+      (row) =>
+        row.headRepoFullName != null &&
+        row.headBranch !== undefined &&
+        wanted.has(`${row.headRepoFullName}\u0000${row.headBranch}`),
+    )
+    .map((row) => ({ ...row }))
+}
+
+export const readTrackedPullRequestsIn = (params: {
+  state: State
+  sessionIds: readonly string[]
+}): TrackedPullRequestRow[] => {
+  const branches = sessionBranchesIn(params)
+  return trackedPullRequestsOf({
+    branches,
+    states: prStatesForHeadsIn({
+      state: params.state,
+      heads: branches.map((branch) => ({ headRepo: branch.headRepo, branch: branch.branch })),
+    }),
   })
+}
+
+export const prStateOf = (params: { state: State; key: { repo: string; number: number } }) =>
+  params.state.prStates.get(prKey(params.key))

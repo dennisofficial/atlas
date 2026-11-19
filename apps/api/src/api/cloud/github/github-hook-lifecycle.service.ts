@@ -15,6 +15,7 @@ import { normalizedRepo, repoPattern } from './github-pr-identity'
 import { subscriptionLiveWhere } from './github-delivery-routing'
 import { GithubRequestCoordinator } from './github-request-coordinator'
 import { withGithubRequestBudget } from './github-request-budget'
+import { markRepoTargetsDue } from './github-due-scheduler'
 
 export const HOOK_EVENTS = GITHUB_HOOK_EVENTS
 const IDLE_DELETE_AFTER_MS = 24 * 60 * 60 * 1_000
@@ -253,6 +254,7 @@ export class GithubHookLifecycleService {
       status: ERepoHookStatus.Active,
       idleSince: null,
     })
+    await markRepoTargetsDue({ repoFullName: args.storedRepo, now: new Date() })
     return result.outcome === 'adopted' ? 'existing' : 'created'
   }
 
@@ -286,6 +288,7 @@ export class GithubHookLifecycleService {
         createdBy: args.userId,
         status: ERepoHookStatus.Active,
       })
+      await markRepoTargetsDue({ repoFullName: args.repoFullName, now: new Date() })
       return result.outcome === 'adopted' ? 'existing' : 'created'
     } catch (failure) {
       if (isUniqueViolation({ error: failure, constraint: REPO_HOOK_PRIMARY_KEY }))

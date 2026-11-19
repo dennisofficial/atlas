@@ -1,13 +1,9 @@
 import {
-  normalizedPrRepo,
   type BranchObservation,
   type ScheduledRetry,
   type V2Event,
   type WorkspaceRecord,
 } from '@dltech/atlas-core'
-
-const linkKey = (args: { repo: string; branch: string }): string =>
-  `${normalizedPrRepo(args.repo)}#${args.branch}`
 
 export type DispatchedCall = { bootId?: string | undefined }
 
@@ -22,7 +18,6 @@ export class RecordBookkeeping {
   private readonly firstRetries = new Map<string, ScheduledRetry>()
   private readonly retries: ScheduledRetry[] = []
   private readonly observations = new Map<string, BranchObservation>()
-  private readonly links = new Set<string>()
   private workspaceRecord: WorkspaceRecord = {
     prepared: false,
     failure: undefined,
@@ -52,10 +47,9 @@ export class RecordBookkeeping {
           base: event.base,
           branches: event.branches,
           worktrees: event.worktrees,
+          remotes: event.remotes,
+          checkouts: event.checkouts,
         })
-        return
-      case 'pull-request-linked':
-        this.links.add(linkKey({ repo: event.repo, branch: event.branch }))
         return
       case 'workspace-prepared':
         this.workspaceRecord = { ...this.workspaceRecord, prepared: true }
@@ -112,10 +106,6 @@ export class RecordBookkeeping {
 
   lastObservation(repo: string): BranchObservation | undefined {
     return this.observations.get(repo)
-  }
-
-  hasLink(args: { repo: string; branch: string }): boolean {
-    return this.links.has(linkKey(args))
   }
 
   workspace(): WorkspaceRecord {

@@ -1,8 +1,9 @@
+import { storeFixture } from './github-pr-store.fixture'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { db } from '@dltech/atlas-db'
 
-import { ensureUsers, seedRepoHook, seedSubscription } from '../../../../test/github-seed'
+import { ensureUsers, seedRepoHook } from '../../../../test/github-seed'
 import { seedEventRow, seedThreadRow } from '../../../../test/session-seed'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
 import { GithubPrSubscriptionLinks } from './github-pr-subscription-links'
@@ -39,8 +40,8 @@ function serviceWith(): GithubPrSubscriptionLinks {
     {} as never,
     {} as never,
     {} as never,
-    { record: async () => undefined } as never,
     { coversRepo: async () => false } as never,
+    storeFixture(),
   )
   return new GithubPrSubscriptionLinks(subscriptions)
 }

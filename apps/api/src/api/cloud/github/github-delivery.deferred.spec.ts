@@ -3,6 +3,7 @@ import { db } from '@dltech/atlas-db'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
 import { prStateRows, seedPrState } from '../../../../test/github-seed'
 import {
+  passedCheckInputs,
   SETTLING_CHECK_RUN_PAYLOAD,
   FILLED_PR_STATE,
   prepareDelivery,
@@ -11,6 +12,23 @@ import {
   seedSubscription,
   serviceWith,
 } from './github-delivery.fixture'
+import type { GithubUserReads } from './github-user-reads'
+
+const fillOf = (count: number) =>
+  vi.fn(async (args: Parameters<GithubUserReads['readPullRequest']>[0]) => {
+    args.collectChecks({ headSha: 'abc123', checks: passedCheckInputs(count) })
+    return { ...REST_FIELDS }
+  })
+
+const failingFill = (count: number) => {
+  let refuse = true
+  const fill = vi.fn(async (args: Parameters<GithubUserReads['readPullRequest']>[0]) => {
+    if (refuse) throw new GithubHttpBudgetUnavailable()
+    args.collectChecks({ headSha: 'abc123', checks: passedCheckInputs(count) })
+    return { ...REST_FIELDS }
+  })
+  return { fill, release: () => (refuse = false) }
+}
 import { GithubDeliveryFillDeferred } from './github-delivery-fill'
 import { GithubHttpBudgetUnavailable } from './github-request-budget'
 import { GithubUserReadFailed } from './github-user-reads'
@@ -72,11 +90,7 @@ describe('GithubDeliveryService budget-refused fills', () => {
   it('a replay confirms with REST and writes its fields', async () => {
     const { service, fanout } = serviceWith({
       tokens: { 'usr-creator': 'ghu_creator' },
-      readPullRequest: vi.fn(async () => ({
-        ...REST_FIELDS,
-        checksRunning: 0,
-        checksPassed: 5,
-      })),
+      readPullRequest: fillOf(5),
     })
     await seedTrackedPr()
     const pushes = vi.spyOn(fanout, 'push')
@@ -95,13 +109,10 @@ describe('GithubDeliveryService budget-refused fills', () => {
   })
 
   it('a deferred delivery stays unprocessed and the next reconcile pass settles it', async () => {
-    let refuse = true
+    const { fill, release } = failingFill(4)
     const { service } = serviceWith({
       tokens: { 'usr-creator': 'ghu_creator' },
-      readPullRequest: vi.fn(async () => {
-        if (refuse) throw new GithubHttpBudgetUnavailable()
-        return { ...REST_FIELDS, checksRunning: 0, checksPassed: 4 }
-      }),
+      readPullRequest: fill,
     })
     await seedTrackedPr()
     const inbox = new GithubWebhookInboxService()
@@ -120,7 +131,7 @@ describe('GithubDeliveryService budget-refused fills', () => {
     expect(row?.processedAt).toBeNull()
     expect(row?.processingError).toContain('deferred')
 
-    refuse = false
+    release()
     await db.orm.public.GithubWebhookInbox.where({ deliveryId: 'd-1' }).updateAndCount({
       nextAttemptAt: new Date(Date.now() - 1000),
     })
