@@ -1,6 +1,7 @@
 import { db, type Row } from '@dltech/atlas-db'
 import { normalizedRepo } from './github-linked-prs'
 import { subscriptionLiveWhere } from './github-delivery-routing'
+import { runSelectorOf } from './github-run-selector'
 import type { TransportSelector } from './github-transport-selector'
 
 export async function seedSubscriptionTargets(args: {
@@ -16,6 +17,7 @@ export async function seedSubscriptionTargets(args: {
       continue
     }
     if (!row.pollBacked || row.branch === '') continue
+    if (runSelectorOf(row.branch) !== null) continue
     if (!(await args.transport.polls(row.repoFullName))) continue
     await dueHeadTarget({ row, now: args.now })
   }
