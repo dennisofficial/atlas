@@ -1,5 +1,4 @@
 import {
-  canonicalEvent,
   canonicalJson,
   EMPTY_VISIBILITY,
   sha256Hex,
@@ -24,9 +23,7 @@ const visibilitySchema: z.ZodType<VisibilityState> = z.object({
   ),
 })
 
-export const encodeVisibility = (state: VisibilityState): string => canonicalJson(state)
-
-export const EMPTY_VISIBILITY_TEXT = encodeVisibility(EMPTY_VISIBILITY)
+export const EMPTY_VISIBILITY_TEXT = canonicalJson(EMPTY_VISIBILITY)
 
 export function decodeVisibility(text: string): VisibilityState {
   const parsed = visibilitySchema.safeParse(JSON.parse(text))
@@ -44,7 +41,7 @@ export const toStoredEvent = (params: { event: V2Event; hash: Hash }): StoredEve
   at: params.event.at,
   prevHash: params.event.prevHash,
   hash: params.hash,
-  canonical: canonicalEvent(params.event),
+  canonical: canonicalJson(params.event),
 })
 
 export function decodeStoredEvent(

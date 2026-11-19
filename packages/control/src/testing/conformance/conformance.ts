@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
-import { canonicalEvent, type V2Body, type V2Event } from '@dltech/atlas-core'
+import { canonicalJson, type V2Body, type V2Event } from '@dltech/atlas-core'
 
 import type { SessionChange } from '@dltech/atlas-protocol'
 
@@ -229,7 +229,7 @@ export function describeControlPlaneConformance(params: ConformanceParams): void
         })
         expect(page.events.length).toBeGreaterThan(0)
         const bytes = page.events.reduce(
-          (sum, event) => sum + Buffer.byteLength(canonicalEvent(event), 'utf8'),
+          (sum, event) => sum + Buffer.byteLength(canonicalJson(event), 'utf8'),
           0,
         )
         if (page.events.length > 1) expect(bytes).toBeLessThanOrEqual(maxBytes)
@@ -246,8 +246,8 @@ export function describeControlPlaneConformance(params: ConformanceParams): void
         epoch,
         bodies: [said('漢'.repeat(400)), said('字'.repeat(400))],
       })
-      const canonicalBytes = events.map((event) => Buffer.byteLength(canonicalEvent(event), 'utf8'))
-      const utf16Units = events.map((event) => canonicalEvent(event).length)
+      const canonicalBytes = events.map((event) => Buffer.byteLength(canonicalJson(event), 'utf8'))
+      const utf16Units = events.map((event) => canonicalJson(event).length)
       for (const [index, event] of events.entries()) {
         expect(canonicalBytes[index]).toBeGreaterThan(utf16Units[index] as number)
         const page = await harness.plane.readEvents({
