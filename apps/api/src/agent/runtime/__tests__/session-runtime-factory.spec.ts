@@ -1,8 +1,10 @@
 import { EEffort } from '@dltech/atlas-core'
+import { ESandboxProvider } from '@dltech/atlas-protocol'
+import { singleProviderRegistry } from '../../testing/sandbox-registry'
 import { describe, expect, it, spyOn } from 'bun:test'
 import { EToolEffect, toThreadId } from '@dltech/atlas-core'
 import { ScriptedModel } from '@dltech/atlas-agent/testing'
-import { NO_REPO_WORKSPACE_PATH, type VercelCredentials } from '../../sandbox/constants'
+import { NO_REPO_WORKSPACE_PATH } from '../../sandbox/constants'
 import {
   RemoteCalls,
   SandboxUnavailableError,
@@ -11,7 +13,13 @@ import {
 } from '@dltech/atlas-host'
 
 import type { AgentHostConfig, ConfigSource } from '../../config/agent-host-config'
-import { SandboxProvider, type DaemonEndpoint } from '../../sandbox/sandbox-provider'
+import { SandboxProviderUnavailableError } from '../../sandbox/provider-registry'
+import {
+  SandboxProvider,
+  type DaemonEndpoint,
+  type SandboxTarget,
+  type PodResizeOutcome,
+} from '../../sandbox/sandbox-provider'
 import { createSessionRuntimeFactory, SandboxNotConfiguredError } from '../session-runtime-factory'
 import { fakeModelSourceOf } from '../../testing/model-source'
 
@@ -29,9 +37,17 @@ const configured = (over: Partial<AgentHostConfig> = {}): AgentHostConfig => ({
   projectId: 'proj-1',
   model: CONFIGURED_MODEL,
   models: fakeModelSourceOf(CONFIGURED_MODEL),
-  vercel: { configured: true, token: 'vt', teamId: 'team', projectId: 'proj' },
+  sandbox: {
+    configured: true,
+    provider: ESandboxProvider.Vercel,
+    credentials: {
+      provider: ESandboxProvider.Vercel,
+      token: 'vt',
+      teamId: 'team',
+      projectId: 'proj',
+    },
+  },
   workspace: { remoteUrl: null, baseBranch: null, additionalRepos: [], setupScript: '' },
-  sandboxVcpus: undefined,
   skills: [],
   ...over,
 })
@@ -49,12 +65,8 @@ class FakeSandbox extends SandboxProvider {
     super()
   }
 
-  wake(args: {
-    sandboxSessionId: string
-    credentials: VercelCredentials
-    signal: AbortSignal
-  }): Promise<DaemonEndpoint> {
-    this.wakeStarted.push(args.sandboxSessionId)
+  wake(args: { target: SandboxTarget; signal: AbortSignal }): Promise<DaemonEndpoint> {
+    this.wakeStarted.push(args.target.sandboxSessionId)
     if (this.rejectWake) return Promise.reject(new Error('daemon bundle missing'))
     if (this.neverResolve) return new Promise(() => {})
     return new Promise((resolve) => {
@@ -62,12 +74,16 @@ class FakeSandbox extends SandboxProvider {
     })
   }
 
-  async stop(args: { sandboxSessionId: string; credentials: VercelCredentials }): Promise<void> {
-    this.stopped.push(args.sandboxSessionId)
+  async stop(args: { target: SandboxTarget }): Promise<void> {
+    this.stopped.push(args.target.sandboxSessionId)
   }
 
-  async keepAlive(args: { sandboxSessionId: string }): Promise<void> {
-    this.keptAlive.push(args.sandboxSessionId)
+  async keepAlive(args: { target: SandboxTarget; until: number }): Promise<void> {
+    this.keptAlive.push(args.target.sandboxSessionId)
+  }
+
+  async resize(_args: { target: SandboxTarget; vcpus: number }): Promise<PodResizeOutcome> {
+    return 'restarted'
   }
 }
 
@@ -117,7 +133,7 @@ const makeFactory = (args: {
     config: args.api,
     tokens: args.api,
     github: { read: async () => null },
-    sandbox: args.sandbox,
+    sandbox: singleProviderRegistry(args.sandbox),
     daemonSecret: 'secret-1',
     timers: testTimers,
     ...(args.modelFor === undefined ? {} : { modelFor: args.modelFor }),
@@ -127,7 +143,15 @@ const makeFactory = (args: {
 describe('createSessionRuntimeFactory', () => {
   it('throws a typed error when vercel is not configured', async () => {
     const factory = makeFactory({
-      api: apiOf(configured({ vercel: { configured: false, gap: 'connect a vercel account' } })),
+      api: apiOf(
+        configured({
+          sandbox: {
+            configured: false,
+            provider: ESandboxProvider.Vercel,
+            gap: 'connect a vercel account',
+          },
+        }),
+      ),
       sandbox: new FakeSandbox(),
     })
     const promise = factory({
@@ -139,6 +163,32 @@ describe('createSessionRuntimeFactory', () => {
     })
     await expect(promise).rejects.toBeInstanceOf(SandboxNotConfiguredError)
     await expect(promise).rejects.toThrow('connect a vercel account')
+  })
+
+  it('fails loudly when the pinned provider has no registered adapter', async () => {
+    const sandbox = new FakeSandbox()
+    const factory = makeFactory({
+      api: apiOf(
+        configured({
+          sandbox: {
+            configured: true,
+            provider: ESandboxProvider.Agent37,
+            credentials: { provider: ESandboxProvider.Agent37, apiKey: 'a37-key' },
+          },
+        }),
+      ),
+      sandbox,
+    })
+    const promise = factory({
+      sessionId: 's-agent37',
+      podSessionId: 's-agent37',
+      threadId: toThreadId('t-agent37'),
+      epoch: 1,
+      signal: new AbortController().signal,
+    })
+    await expect(promise).rejects.toBeInstanceOf(SandboxProviderUnavailableError)
+    await expect(promise).rejects.toThrow('agent37')
+    expect(sandbox.wakeStarted).toEqual([])
   })
 
   it('resolves while wake is still pending (prewarm)', async () => {
@@ -365,7 +415,7 @@ describe('createSessionRuntimeFactory', () => {
       config: apiOf(configured()),
       tokens: apiOf(configured()),
       github: { read: async () => null },
-      sandbox,
+      sandbox: singleProviderRegistry(sandbox),
       daemonSecret: 'secret-1',
       timers,
       modelFor: () => new ScriptedModel([{ text: 'done' }]),
@@ -390,7 +440,7 @@ describe('createSessionRuntimeFactory', () => {
       config: apiOf(configured()),
       tokens: apiOf(configured()),
       github: { read: async () => null },
-      sandbox,
+      sandbox: singleProviderRegistry(sandbox),
       daemonSecret: 'secret-1',
       timers,
       modelFor: () => new ScriptedModel([{ text: 'done' }]),

@@ -2,9 +2,14 @@ import { describe, expect, it } from 'bun:test'
 
 import type { HostTimers } from '@dltech/atlas-host'
 import { LogPort } from '@dltech/atlas-observability'
+import { ESandboxProvider } from '@dltech/atlas-protocol'
 
-import type { VercelCredentials } from '../../sandbox/constants'
-import { SandboxProvider, type DaemonEndpoint } from '../../sandbox/sandbox-provider'
+import {
+  SandboxProvider,
+  type DaemonEndpoint,
+  type SandboxTarget,
+  type PodResizeOutcome,
+} from '../../sandbox/sandbox-provider'
 import { POD_IDLE_WINDOW_MS, startKeepAlive } from '../keep-alive'
 
 class RecordingSandbox extends SandboxProvider {
@@ -12,17 +17,21 @@ class RecordingSandbox extends SandboxProvider {
   stopped: string[] = []
   failure: Error | undefined
 
-  wake(): Promise<DaemonEndpoint> {
+  wake(_args: { target: SandboxTarget; signal: AbortSignal }): Promise<DaemonEndpoint> {
     return new Promise(() => {})
   }
 
-  async stop(args: { sandboxSessionId: string; credentials: VercelCredentials }): Promise<void> {
-    this.stopped.push(args.sandboxSessionId)
+  async stop(args: { target: SandboxTarget }): Promise<void> {
+    this.stopped.push(args.target.sandboxSessionId)
   }
 
-  async keepAlive(args: { until: number }): Promise<void> {
+  async keepAlive(args: { target: SandboxTarget; until: number }): Promise<void> {
     if (this.failure !== undefined) throw this.failure
     this.pushed.push(args.until)
+  }
+
+  async resize(_args: { target: SandboxTarget; vcpus: number }): Promise<PodResizeOutcome> {
+    return 'restarted'
   }
 }
 
@@ -35,6 +44,11 @@ class RecordingLog extends LogPort {
 }
 
 const NOW = 1_700_000_000_000
+
+const TARGET: SandboxTarget = {
+  sandboxSessionId: 's-keep',
+  credentials: { provider: ESandboxProvider.Agent37, apiKey: 'agent37-key' },
+}
 
 const fakeTimers = (): { timers: HostTimers; fire: () => void } => {
   const scheduled: (() => void)[] = []
@@ -64,8 +78,7 @@ const keepAliveOf = (args: { sandbox: RecordingSandbox; signal?: AbortSignal }) 
   const log = new RecordingLog()
   const keepAlive = startKeepAlive({
     sandbox: args.sandbox,
-    sandboxSessionId: 's-keep',
-    credentials: { token: 'vt', teamId: 'team', projectId: 'proj' },
+    target: TARGET,
     timers,
     signal: args.signal ?? new AbortController().signal,
     log,

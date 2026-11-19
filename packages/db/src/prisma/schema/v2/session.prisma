@@ -14,6 +14,11 @@ namespace v2 {
     modelRef     String
     modelEffort  String
     modelFast    Boolean
+    sandboxProvider   String                @default("vercel")
+    credentialSource  String                @default("byok")
+    sandboxInstanceId String?
+    sandboxStatus     String?
+    sandboxStatusAt   TimestamptzJsDate(3)?
     spawnedBySessionId String?
     nested             Boolean               @default(true)
     podSessionId       String?
@@ -36,5 +41,6 @@ namespace v2 {
     terminals       V2Terminal[]
 
     @@index([userId, createdAt])
+    @@index([sandboxInstanceId])
   }
 }

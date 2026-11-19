@@ -1,12 +1,18 @@
 import { EEffort } from '@dltech/atlas-core'
+import { ESandboxProvider } from '@dltech/atlas-protocol'
+import { singleProviderRegistry } from '../../testing/sandbox-registry'
 import { describe, expect, it } from 'bun:test'
 import { toThreadId } from '@dltech/atlas-core'
 import { ScriptedModel } from '@dltech/atlas-agent/testing'
 import { SandboxUnavailableError, systemTimers, type HostTimers } from '@dltech/atlas-host'
 
 import type { AgentHostConfig, ConfigSource } from '../../config/agent-host-config'
-import type { VercelCredentials } from '../../sandbox/constants'
-import { SandboxProvider, type DaemonEndpoint } from '../../sandbox/sandbox-provider'
+import {
+  SandboxProvider,
+  type DaemonEndpoint,
+  type SandboxTarget,
+  type PodResizeOutcome,
+} from '../../sandbox/sandbox-provider'
 import { REWAKES_BEFORE_GIVING_UP } from '../rewaking-connector'
 import { createSessionRuntimeFactory } from '../session-runtime-factory'
 import { fakeModelSourceOf } from '../../testing/model-source'
@@ -30,9 +36,17 @@ const config: AgentHostConfig = {
     accountId: 'acct-1',
     credential: { kind: 'api-key', apiKey: 'sk-test' },
   }),
-  vercel: { configured: true, token: 'vt', teamId: 'team', projectId: 'proj' },
+  sandbox: {
+    configured: true,
+    provider: ESandboxProvider.Vercel,
+    credentials: {
+      provider: ESandboxProvider.Vercel,
+      token: 'vt',
+      teamId: 'team',
+      projectId: 'proj',
+    },
+  },
   workspace: { remoteUrl: null, baseBranch: null, additionalRepos: [], setupScript: '' },
-  sandboxVcpus: undefined,
   skills: [],
 }
 
@@ -48,11 +62,7 @@ class DeadUrlSandbox extends SandboxProvider {
   wakes = 0
   rejectFrom = Number.POSITIVE_INFINITY
 
-  async wake(_args: {
-    sandboxSessionId: string
-    credentials: VercelCredentials
-    signal: AbortSignal
-  }): Promise<DaemonEndpoint> {
+  async wake(_args: { target: SandboxTarget; signal: AbortSignal }): Promise<DaemonEndpoint> {
     this.wakes += 1
     if (this.wakes >= this.rejectFrom) throw new Error('sandbox gone')
     return { url: `ws://127.0.0.1:1/${this.wakes}`, token: 't', sandboxName: 'n' }
@@ -60,6 +70,9 @@ class DeadUrlSandbox extends SandboxProvider {
 
   async stop(): Promise<void> {}
   async keepAlive(): Promise<void> {}
+  async resize(): Promise<PodResizeOutcome> {
+    return 'restarted'
+  }
 }
 
 const timers: HostTimers = { now: () => Date.now(), ...systemTimers, random: () => 0 }
@@ -69,7 +82,7 @@ const build = (sandbox: SandboxProvider) =>
     config: source,
     tokens: source,
     github: { read: async () => null },
-    sandbox,
+    sandbox: singleProviderRegistry(sandbox),
     daemonSecret: 'secret-1',
     timers,
     modelFor: () => new ScriptedModel([{ text: 'done' }]),

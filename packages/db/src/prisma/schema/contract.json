@@ -7576,6 +7576,13 @@
           },
           "User": {
             "fields": {
+              "active": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
               "createdAt": {
                 "nullable": false,
                 "type": {
@@ -8149,6 +8156,9 @@
             },
             "storage": {
               "fields": {
+                "active": {
+                  "column": "active"
+                },
                 "createdAt": {
                   "column": "createdAt"
                 },
@@ -9780,6 +9790,13 @@
                   }
                 }
               },
+              "credentialSource": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "deletedAt": {
                 "nullable": true,
                 "type": {
@@ -9917,6 +9934,37 @@
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
+                }
+              },
+              "sandboxInstanceId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "sandboxProvider": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "sandboxStatus": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "sandboxStatusAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
                 }
               },
               "spawnedBySessionId": {
@@ -10080,6 +10128,9 @@
                 "createdAt": {
                   "column": "createdAt"
                 },
+                "credentialSource": {
+                  "column": "credentialSource"
+                },
                 "deletedAt": {
                   "column": "deletedAt"
                 },
@@ -10136,6 +10187,18 @@
                 },
                 "routineId": {
                   "column": "routineId"
+                },
+                "sandboxInstanceId": {
+                  "column": "sandboxInstanceId"
+                },
+                "sandboxProvider": {
+                  "column": "sandboxProvider"
+                },
+                "sandboxStatus": {
+                  "column": "sandboxStatus"
+                },
+                "sandboxStatusAt": {
+                  "column": "sandboxStatusAt"
                 },
                 "spawnedBySessionId": {
                   "column": "spawnedBySessionId"
@@ -16938,6 +17001,15 @@
             },
             "User": {
               "columns": {
+                "active": {
+                  "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
+                  "nullable": false
+                },
                 "createdAt": {
                   "codecId": "pg/timestamptz-date@1",
                   "dataType": "pg/timestamptz",
@@ -18130,6 +18202,15 @@
                     "precision": 3
                   }
                 },
+                "credentialSource": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "default": {
+                    "kind": "literal",
+                    "value": "byok"
+                  },
+                  "nullable": false
+                },
                 "deletedAt": {
                   "codecId": "pg/timestamptz-date@1",
                   "dataType": "pg/timestamptz",
@@ -18243,6 +18324,33 @@
                   "dataType": "pg/text",
                   "nullable": true
                 },
+                "sandboxInstanceId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "sandboxProvider": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "default": {
+                    "kind": "literal",
+                    "value": "vercel"
+                  },
+                  "nullable": false
+                },
+                "sandboxStatus": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "sandboxStatusAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
                 "spawnedBySessionId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -18266,6 +18374,14 @@
               },
               "foreignKeys": [],
               "indexes": [
+                {
+                  "columns": [
+                    "sandboxInstanceId"
+                  ],
+                  "name": "V2Session_sandboxInstanceId_idx_c3850fdd",
+                  "prefix": "V2Session_sandboxInstanceId_idx",
+                  "unique": false
+                },
                 {
                   "columns": [
                     "userId",
@@ -18886,7 +19002,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "bf5971f6734312e26cc52170b6a19be6f0e0f24f0f9d6274f56906d2fc21bb93"
+    "storageHash": "4406b81cac8b98381149af5769abd34522833966d2564835450f6715e509fe49"
   },
   "execution": {
     "executionHash": "4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45",

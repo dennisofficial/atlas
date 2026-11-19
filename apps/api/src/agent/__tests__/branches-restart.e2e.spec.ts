@@ -1,4 +1,6 @@
 import { execFileSync } from 'node:child_process'
+import { ESandboxProvider } from '@dltech/atlas-protocol'
+import { singleProviderRegistry } from '../testing/sandbox-registry'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -61,9 +63,12 @@ const sourceWithRepo = (remoteUrl: string): ConfigSource => ({
       projectId: 'proj-1',
       model,
       models: fakeModelSourceOf(model),
-      vercel: { configured: true, token: '', teamId: '', projectId: '' },
+      sandbox: {
+        configured: true,
+        provider: ESandboxProvider.Vercel,
+        credentials: { provider: ESandboxProvider.Vercel, token: '', teamId: '', projectId: '' },
+      },
       workspace: { remoteUrl, baseBranch: null, additionalRepos: [], setupScript: '' },
-      sandboxVcpus: undefined,
       skills: [],
     }
   },
@@ -123,7 +128,7 @@ describe('the session base across a host restart', () => {
         config: sourceWithRepo(args.remoteUrl),
         tokens: unusedTokens(),
         github: noGithub(),
-        sandbox,
+        sandbox: singleProviderRegistry(sandbox),
         daemonSecret: E2E_SECRET,
         timers,
         modelFor: () => new ScriptedModel([...args.scripts]),

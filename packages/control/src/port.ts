@@ -241,6 +241,9 @@ export interface ControlTx {
     modelRef: string
     modelEffort: string
     modelFast: boolean
+    sandboxProvider: string
+    credentialSource: string
+    sandboxInstanceId: string | null
     spawnedBySessionId?: string | undefined
     nested?: boolean | undefined
     podSessionId?: string | undefined
@@ -248,6 +251,15 @@ export interface ControlTx {
     at: string
   }): Promise<void>
   setSessionModel(params: { sessionId: string } & SessionModelRow): Promise<boolean>
+  setSandboxInstanceId(params: {
+    sessionId: string
+    sandboxInstanceId: string | null
+  }): Promise<boolean>
+  setSandboxStatus(params: {
+    sandboxInstanceId: string
+    status: string
+    at: string
+  }): Promise<boolean>
   readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined>
   lockSession(sessionId: string): Promise<ControlSessionRow | undefined>
   setSessionPodDesired(params: {

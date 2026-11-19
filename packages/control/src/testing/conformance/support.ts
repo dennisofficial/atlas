@@ -64,10 +64,16 @@ export const createSessionParams = (params: {
   projectId: string | null
   title?: string
   mainThreadId: string
+  sandboxProvider: string
+  credentialSource: string
+  sandboxInstanceId: string | null
 } => ({
   ...params,
   userId: USER,
   projectId: PROJECT,
+  sandboxProvider: 'vercel',
+  credentialSource: 'platform',
+  sandboxInstanceId: null,
 })
 
 export const said = (text: string): V2Body => ({ type: 'user-said', text })

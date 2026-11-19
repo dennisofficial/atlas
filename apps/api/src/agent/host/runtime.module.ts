@@ -9,20 +9,19 @@ import { CloudflareTunnelClient, PreviewTunnels } from '@dltech/atlas-previews'
 
 import { changeContentStoreProvider } from '../../_lib/changes/change-content.provider'
 import type { ConfigSource } from '../config/agent-host-config'
-import { ConfigReader } from '../config/config-reader'
+import { configSourceOf } from '../config/config-source'
 import { databaseUrlWithTls } from '../config/database-url'
 import type { AgentHostEnv } from '../config/env'
 import type { SecretCipher } from '../config/secret-cipher'
 import { localPodControlOf } from '../control/local-pod-control'
 import { ControlModule } from './control.module'
 import { createPgHostPresence } from '../presence/pg-host-presence'
-import type { SandboxProvider } from '../sandbox/sandbox-provider'
-import { VercelSandboxProvider } from '../sandbox/vercel-sandbox-provider'
+import type { SandboxProviderRegistry } from '../sandbox/provider-registry'
+import { sandboxProvidersOf } from '../sandbox/sandbox-providers'
 import { GithubTokenReader } from '../tokens/github-token-reader'
 import { ModelTokenService } from '../tokens/model-token-service'
 import { OauthConnectionStore } from '../tokens/oauth-connection-store'
 import { SigningKeyReader } from '../tokens/signing-key-reader'
-import { VercelTokenRefresher } from '../tokens/vercel-token-refresher'
 import { MediaSignerSource } from './media-signer-source'
 import {
   AGENT_HOST_ENV,
@@ -43,16 +42,9 @@ import {
 
 const sandboxProvider: Provider = {
   provide: SANDBOX,
-  useFactory: (env: AgentHostEnv): SandboxProvider =>
-    new VercelSandboxProvider({
-      image: env.sandboxImage,
-      daemonBundle: { path: env.daemonBundlePath },
-      daemonSecret: env.daemonSecret,
-      cloudUrl: env.apiOrigin,
-      log: (line) =>
-        console.log(JSON.stringify({ level: 'info', source: 'sandbox', message: line })),
-    }),
-  inject: [AGENT_HOST_ENV],
+  useFactory: (env: AgentHostEnv, db: Db): SandboxProviderRegistry =>
+    sandboxProvidersOf({ env, db }),
+  inject: [AGENT_HOST_ENV, DB],
 }
 
 const previewsProvider: Provider = {
@@ -85,11 +77,7 @@ const podControlProvider: Provider = {
 const configProvider: Provider = {
   provide: CONFIG_SOURCE,
   useFactory: (env: AgentHostEnv, db: Db, cipher: SecretCipher): ConfigSource =>
-    new ConfigReader({
-      db,
-      cipher,
-      vercel: new VercelTokenRefresher({ db, cipher, oauth: env.vercelOauth }),
-    }),
+    configSourceOf({ env, db, cipher }),
   inject: [AGENT_HOST_ENV, DB, CIPHER],
 }
 

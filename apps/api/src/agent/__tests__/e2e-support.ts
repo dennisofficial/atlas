@@ -1,4 +1,6 @@
 import { mkdtempSync } from 'node:fs'
+import { ESandboxProvider } from '@dltech/atlas-protocol'
+import { singleProviderRegistry } from '../testing/sandbox-registry'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -67,9 +69,12 @@ export const sourceFor = (setupScript = ''): ConfigSource => ({
       projectId: 'proj-1',
       model,
       models: fakeModelSourceOf(model),
-      vercel: { configured: true, token: '', teamId: '', projectId: '' },
+      sandbox: {
+        configured: true,
+        provider: ESandboxProvider.Vercel,
+        credentials: { provider: ESandboxProvider.Vercel, token: '', teamId: '', projectId: '' },
+      },
       workspace: { remoteUrl: null, baseBranch: null, additionalRepos: [], setupScript },
-      sandboxVcpus: undefined,
       skills: [],
     }
   },
@@ -136,7 +141,7 @@ export const makeHolder = (args: {
       config: sourceFor(args.setupScript),
       tokens: unusedTokens(),
       github: noGithub(),
-      sandbox: args.sandbox,
+      sandbox: singleProviderRegistry(args.sandbox),
       daemonSecret: E2E_SECRET,
       timers,
       modelFor: ({ sessionId }) => new ScriptedModel(args.scripts[sessionId] ?? []),

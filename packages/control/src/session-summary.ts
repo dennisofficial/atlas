@@ -28,6 +28,7 @@ const rowViewOf = (view: ControlDigestView): Partial<SessionSummary> => ({
   },
   primaryBranch: view.primaryBranch,
   pullRequest: view.pullRequest,
+  ...(view.sandbox === null ? {} : { sandbox: view.sandbox }),
 })
 
 export const sessionSummaryOf = (args: {

@@ -98,7 +98,10 @@ export const auth = betterAuth({
       : { apple: { clientId: appleBundleIdentifier, appBundleIdentifier: appleBundleIdentifier } }),
   },
   trustedOrigins,
-  databaseHooks: { session: { delete: { after: deletePushDevicesOfSession } } },
+  databaseHooks: {
+    user: { create: { before: async (user) => ({ data: { ...user, active: false } }) } },
+    session: { delete: { after: deletePushDevicesOfSession } },
+  },
   plugins: [
     bearer(),
     deviceAuthorization({

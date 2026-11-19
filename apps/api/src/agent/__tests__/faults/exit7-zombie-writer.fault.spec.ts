@@ -7,7 +7,7 @@ import { chainEvents, toRunId, toThreadId } from '@dltech/atlas-core'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { daemonToken } from '@dltech/atlas-protocol/engine'
 
-import { sandboxNameOf } from '../../sandbox/sandbox-provider'
+import { sandboxNameOf } from '../../sandbox/vercel-names'
 import { RIG_SECRET, startRig, type FaultRig } from '../../testing/fault-rig'
 import { callIdOf, isDoneResult, makeFifo, readEvents, waitForFile } from './fault-support'
 import { waitReleased } from './lease-fault-support'

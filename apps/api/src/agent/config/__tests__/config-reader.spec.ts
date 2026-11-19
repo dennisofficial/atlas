@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'bun:test'
 import { EEffort } from '@dltech/atlas-core'
+import { ECredentialSource, ESandboxProvider } from '@dltech/atlas-protocol'
+import { ControlPlane } from '@dltech/atlas-control'
+import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 
 import { VercelReconnectRequiredError } from '../../tokens/vercel-token-refresher'
 import { ConfigReader, SessionNotFoundError } from '../config-reader'
+import type { SandboxConfig } from '../agent-host-config'
+import type { AgentHostEnv } from '../env'
 import {
   cipher,
   recordingDb,
@@ -18,10 +23,26 @@ import {
 const testDb = useTestDatabase()
 const NOW = Date.parse('2026-11-05T12:00:00.000Z')
 const noRefresh = { refresh: async (): Promise<string> => 'refreshed-token' }
+const NO_PLATFORM: Pick<AgentHostEnv, 'platformVercel' | 'agent37'> = {
+  platformVercel: null,
+  agent37: null,
+}
+const PLATFORM: Pick<AgentHostEnv, 'platformVercel' | 'agent37'> = {
+  platformVercel: { token: 'platform-token', teamId: 'platform-team', projectId: 'platform-proj' },
+  agent37: {
+    apiKey: 'a37-platform-key',
+    template: 'atlas-sandbox@3',
+    resources: { cpu: 2, memory: 4, disk: 20 },
+  },
+}
 const readerOver = (
   db = testDb().db,
   vercel: { refresh(a: { userId: string }): Promise<string> } = noRefresh,
-) => new ConfigReader({ db, cipher, vercel, now: () => NOW })
+  platform: Pick<AgentHostEnv, 'platformVercel' | 'agent37'> = NO_PLATFORM,
+) => new ConfigReader({ db, cipher, vercel, platform, now: () => NOW })
+
+const vcpusOf = (sandbox: SandboxConfig): number | undefined =>
+  sandbox.configured ? sandbox.vcpus : undefined
 
 describe('ConfigReader', () => {
   it('reads workspace, vercel credentials and the model choice for a session', async () => {
@@ -33,17 +54,22 @@ describe('ConfigReader', () => {
     const config = await readerOver().read({ sessionId: 's-1' })
     expect(config.userId).toBe('user-1')
     expect(config.projectId).toBe('proj-1')
+    expect(config.sandbox.provider).toBe(ESandboxProvider.Vercel)
     expect(config.workspace).toEqual({
       remoteUrl: 'https://github.com/acme/app.git',
       baseBranch: 'main',
       additionalRepos: [{ repo: 'acme/lib', branch: 'dev' }],
       setupScript: 'bun install',
     })
-    expect(config.vercel).toEqual({
+    expect(config.sandbox).toEqual({
       configured: true,
-      token: 'vercel-token',
-      teamId: 'team-1',
-      projectId: 'vproj-1',
+      provider: ESandboxProvider.Vercel,
+      credentials: {
+        provider: ESandboxProvider.Vercel,
+        token: 'vercel-token',
+        teamId: 'team-1',
+        projectId: 'vproj-1',
+      },
     })
     expect(config.model).toEqual({
       configured: true,
@@ -53,6 +79,20 @@ describe('ConfigReader', () => {
       accountId: 'acct-1',
       credential: { kind: 'api-key', apiKey: 'sk-test' },
     })
+  })
+
+  it('reads the sandbox provider pinned on the session', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await new ControlPlane({ store: new PostgresControlStore(db) }).createSession({
+      sessionId: 's-agent37',
+      userId: 'user-1',
+      projectId: 'proj-1',
+      mainThreadId: 't-agent37',
+      sandboxProvider: ESandboxProvider.Agent37,
+    })
+    const config = await readerOver().read({ sessionId: 's-agent37' })
+    expect(config.sandbox.provider).toBe(ESandboxProvider.Agent37)
   })
 
   it('runs the model the session names, over the configured default', async () => {
@@ -112,7 +152,11 @@ describe('ConfigReader', () => {
     const { db } = testDb()
     await seedOwner(db)
     const config = await readerOver().read({ sessionId: 's-1' })
-    expect(config.vercel).toEqual({ configured: false, gap: 'user-credential' })
+    expect(config.sandbox).toEqual({
+      configured: false,
+      provider: ESandboxProvider.Vercel,
+      gap: 'user-credential',
+    })
     expect(config.model).toEqual({ configured: false, gap: 'no model account' })
   })
 
@@ -120,19 +164,24 @@ describe('ConfigReader', () => {
     const { db } = testDb()
     await seedOwner(db)
     await seedVercel(db, { kind: 'oauth', accessTokenExpiresAt: new Date(NOW + 30_000) })
-    expect((await readerOver().read({ sessionId: 's-1' })).vercel).toEqual({
+    expect((await readerOver().read({ sessionId: 's-1' })).sandbox).toEqual({
       configured: true,
-      token: 'refreshed-token',
-      teamId: 'team-1',
-      projectId: 'vproj-1',
+      provider: ESandboxProvider.Vercel,
+      credentials: {
+        provider: ESandboxProvider.Vercel,
+        token: 'refreshed-token',
+        teamId: 'team-1',
+        projectId: 'vproj-1',
+      },
     })
     const reconnect = {
       refresh: async (): Promise<string> => {
         throw new VercelReconnectRequiredError()
       },
     }
-    expect((await readerOver(db, reconnect).read({ sessionId: 's-1' })).vercel).toEqual({
+    expect((await readerOver(db, reconnect).read({ sessionId: 's-1' })).sandbox).toEqual({
       configured: false,
+      provider: ESandboxProvider.Vercel,
       gap: 'vercel-reconnect-required',
     })
     const down = {
@@ -140,15 +189,82 @@ describe('ConfigReader', () => {
         throw new Error('vercel down')
       },
     }
-    expect((await readerOver(db, down).read({ sessionId: 's-1' })).vercel).toEqual({
+    expect((await readerOver(db, down).read({ sessionId: 's-1' })).sandbox).toEqual({
       configured: false,
+      provider: ESandboxProvider.Vercel,
       gap: 'vercel-oauth-refresh-required',
     })
     await db.orm.public.UserVercelCredential.where({ userId: 'user-1' }).updateAndCount({
       accessTokenExpiresAt: new Date(NOW + 600_000),
     })
-    expect((await readerOver().read({ sessionId: 's-1' })).vercel).toMatchObject({
+    expect((await readerOver().read({ sessionId: 's-1' })).sandbox).toMatchObject({
       configured: true,
+    })
+  })
+
+  it('leaves a byok session on the user vercel credential', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedVercel(db)
+    expect((await readerOver(db, noRefresh, PLATFORM).read({ sessionId: 's-1' })).sandbox).toEqual({
+      configured: true,
+      provider: ESandboxProvider.Vercel,
+      credentials: {
+        provider: ESandboxProvider.Vercel,
+        token: 'vercel-token',
+        teamId: 'team-1',
+        projectId: 'vproj-1',
+      },
+    })
+  })
+
+  it('reads platform credentials from the env without touching UserVercelCredential', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await db.orm.v2.V2Session.where({ id: 's-1' }).update({
+      credentialSource: ECredentialSource.Platform,
+    })
+    const recording = recordingDb({ url: testDb().url })
+    const config = await readerOver(recording.db, noRefresh, PLATFORM).read({ sessionId: 's-1' })
+    await recording.end()
+    expect(config.sandbox).toEqual({
+      configured: true,
+      provider: ESandboxProvider.Vercel,
+      credentials: {
+        provider: ESandboxProvider.Vercel,
+        token: 'platform-token',
+        teamId: 'platform-team',
+        projectId: 'platform-proj',
+      },
+    })
+    expect(recording.sql.some((text) => text.includes('"UserVercelCredential"'))).toBe(false)
+  })
+
+  it('reads the platform agent37 key for a session pinned to agent37', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await db.orm.v2.V2Session.where({ id: 's-1' }).update({
+      credentialSource: ECredentialSource.Platform,
+      sandboxProvider: ESandboxProvider.Agent37,
+    })
+    expect((await readerOver(db, noRefresh, PLATFORM).read({ sessionId: 's-1' })).sandbox).toEqual({
+      configured: true,
+      provider: ESandboxProvider.Agent37,
+      credentials: { provider: ESandboxProvider.Agent37, apiKey: 'a37-platform-key' },
+    })
+  })
+
+  it('reports a platform gap when the env holds no credential for the pinned provider', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedVercel(db)
+    await db.orm.v2.V2Session.where({ id: 's-1' }).update({
+      credentialSource: ECredentialSource.Platform,
+    })
+    expect((await readerOver().read({ sessionId: 's-1' })).sandbox).toEqual({
+      configured: false,
+      provider: ESandboxProvider.Vercel,
+      gap: 'platform-credential',
     })
   })
 
@@ -175,6 +291,7 @@ describe('ConfigReader', () => {
   ])('sizes the pod: $name', async ({ project, personal, want }) => {
     const { db } = testDb()
     await seedOwner(db)
+    await seedVercel(db)
     await seedApiKeyAccount(db)
     if (project !== null) {
       await db.orm.public.Project.where({ id: 'proj-1' }).update({ sandboxVcpus: project })
@@ -182,16 +299,19 @@ describe('ConfigReader', () => {
     if (personal !== null) {
       await seedSetting({ db, scope: 'user', key: 'sandbox.vcpus', value: personal })
     }
-    expect((await readerOver().read({ sessionId: 's-1' })).sandboxVcpus).toBe(want)
+    const config = await readerOver().read({ sessionId: 's-1' })
+    expect(vcpusOf(config.sandbox)).toBe(want)
   })
 
   it('takes the personal sandbox size over a project-scoped setting of the same key', async () => {
     const { db } = testDb()
     await seedOwner(db)
+    await seedVercel(db)
     await seedApiKeyAccount(db)
     await seedSetting({ db, scope: 'user', key: 'sandbox.vcpus', value: 8 })
     await seedSetting({ db, scope: 'project', key: 'sandbox.vcpus', value: 2 })
-    expect((await readerOver().read({ sessionId: 's-1' })).sandboxVcpus).toBe(8)
+    const config = await readerOver().read({ sessionId: 's-1' })
+    expect(vcpusOf(config.sandbox)).toBe(8)
   })
 
   it('throws a typed error for an unknown session', async () => {
@@ -390,6 +510,7 @@ describe('ConfigReader model read', () => {
   ])('sizes the pod: $name', async ({ project, personal, want }) => {
     const { db } = testDb()
     await seedOwner(db)
+    await seedVercel(db)
     await seedApiKeyAccount(db)
     if (project !== null) {
       await db.orm.public.Project.where({ id: 'proj-1' }).update({ sandboxVcpus: project })
@@ -397,16 +518,17 @@ describe('ConfigReader model read', () => {
     if (personal !== null) {
       await seedSetting({ db, scope: 'user', key: 'sandbox.vcpus', value: personal })
     }
-    expect((await readerOver().read({ sessionId: 's-1' })).sandboxVcpus).toBe(want)
+    expect(vcpusOf((await readerOver().read({ sessionId: 's-1' })).sandbox)).toBe(want)
   })
 
   it('takes the personal sandbox size over a project-scoped setting of the same key', async () => {
     const { db } = testDb()
     await seedOwner(db)
+    await seedVercel(db)
     await seedApiKeyAccount(db)
     await seedSetting({ db, scope: 'user', key: 'sandbox.vcpus', value: 8 })
     await seedSetting({ db, scope: 'project', key: 'sandbox.vcpus', value: 2 })
-    expect((await readerOver().read({ sessionId: 's-1' })).sandboxVcpus).toBe(8)
+    expect(vcpusOf((await readerOver().read({ sessionId: 's-1' })).sandbox)).toBe(8)
   })
 
   it('throws a typed error for an unknown session', async () => {

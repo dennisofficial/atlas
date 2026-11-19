@@ -2,6 +2,7 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { afterAll, afterEach, beforeAll, describe, expect, it, mock } from 'bun:test'
 import { act } from 'react'
 
+import '@/lib/__tests__/fake-trpc'
 import { createTestQueryClient, TestQueryProvider } from '@/lib/__tests__/query-test-provider'
 
 const originalFetch = globalThis.fetch
@@ -21,9 +22,15 @@ afterEach(() => {
 
 describe('useSessionUser', () => {
   it('shares one get-session request across the gate, sidebar and transcript', async () => {
-    const fetchMock = mock(async () =>
-      Response.json({ user: { name: 'Ada', email: 'ada@example.com' } }),
+    const fetchMock = mock(async (input: RequestInfo | URL) =>
+      String(input).includes('/v1/trpc/account.me')
+        ? Response.json({
+            result: { data: { userId: 'u', email: 'ada@example.com', active: true } },
+          })
+        : Response.json({ user: { name: 'Ada', email: 'ada@example.com' } }),
     )
+    const sessionReads = () =>
+      fetchMock.mock.calls.filter(([input]) => String(input).includes('/api/auth/get-session'))
     globalThis.fetch = fetchMock as unknown as typeof fetch
     const { createRoot } = await import('react-dom/client')
     const { useSessionUser } = await import('../use-session-identity')
@@ -48,9 +55,11 @@ describe('useSessionUser', () => {
         </TestQueryProvider>,
       ),
     )
-    await act(async () => new Promise<void>((done) => setTimeout(done, 20)))
+    for (let tick = 0; tick < 100 && !seen.includes('Ada'); tick += 1) {
+      await act(async () => new Promise<void>((done) => setTimeout(done, 20)))
+    }
 
-    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(sessionReads()).toHaveLength(1)
     expect(seen).toContain('Ada')
     await act(async () => root.unmount())
   })

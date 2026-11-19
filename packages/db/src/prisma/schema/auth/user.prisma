@@ -5,6 +5,7 @@ model User {
   email                    String
   emailVerified            Boolean                     @default(false)
   image                    String?
+  active                   Boolean                     @default(false)
   createdAt                TimestamptzJsDate(3)        @default(now())
   updatedAt                TimestamptzJsDate(3)        @onCreate(now()) @onUpdate(now())
   accounts                 Account[]

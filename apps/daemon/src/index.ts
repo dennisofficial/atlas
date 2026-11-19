@@ -18,10 +18,9 @@ const required = (args: { env: Record<string, string | undefined>; name: string 
 
 const env = process.env
 let token: string
-let sandboxName: string
 try {
   token = required({ env, name: 'DAEMON_TOKEN' })
-  sandboxName = required({ env, name: 'ATLAS_SANDBOX_NAME' })
+  required({ env, name: 'ATLAS_SANDBOX_NAME' })
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error))
   process.exit(78)
@@ -61,11 +60,23 @@ const handleDrain = (deadlineMs: number): void => {
     .then(() => process.exit(0))
 }
 
+const handleRestart = (): void => {
+  if (drained) return
+  drained = true
+  console.log('atlas-daemon restarting')
+  setTimeout(() => {
+    listener.stop()
+    void engine.stop().then(() => process.exit(0))
+  }, 100)
+}
+
 const listener = listenWebSocket({
   engine,
   port: Number(env.PORT ?? 3000),
   token,
+  version: DAEMON_VERSION,
   drain: handleDrain,
+  restart: handleRestart,
 })
 
 const handleSignal = (): void => {

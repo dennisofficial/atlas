@@ -8,6 +8,7 @@ const needingHolderIn = (tx: Tx) =>
     .sql`SELECT s."id" AS "id", s."createdAt" AS "createdAt", l."retryAfter" AS "retryAfter", l."epoch" AS "epoch"
         FROM "v2"."V2Session" s
         JOIN "v2"."V2Lease" l ON l."sessionId" = s."id"
+        LEFT JOIN "public"."User" u ON u."id" = s."userId"
         WHERE (l."holderHostId" IS NULL
             OR NOT EXISTS (SELECT 1 FROM pg_locks k
               WHERE k.locktype = 'advisory' AND k.granted AND k.mode = 'ExclusiveLock'
@@ -38,7 +39,8 @@ const needingHolderIn = (tx: Tx) =>
             OR NOT EXISTS (SELECT 1 FROM "v2"."V2Event" e
               WHERE e."threadId" = s."mainThreadId"
                 AND e."type" IN ('workspace-prepared', 'user-said', 'workspace-prepare-failed',
-                  'session-start-failed')))`.returnsRow({
+                  'session-start-failed')))
+          AND COALESCE(u."active", true)`.returnsRow({
     id: 'pg/text@1',
     epoch: 'pg/int4@1',
     createdAt: 'pg/timestamptz-date@1',

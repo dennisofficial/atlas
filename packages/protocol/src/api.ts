@@ -58,12 +58,38 @@ export const sessionPostInputSchema = z
   .refine(hasMessageContent, 'a message needs text or an attachment')
   .refine(withinAttachmentLimit, `a message carries at most ${MAX_MESSAGE_UPLOADS} attachments`)
 
+export enum ESandboxProvider {
+  Vercel = 'vercel',
+  Agent37 = 'agent37',
+}
+
+export enum ECredentialSource {
+  Byok = 'byok',
+  Platform = 'platform',
+}
+
+export enum ESandboxStatus {
+  Provisioning = 'provisioning',
+  Running = 'running',
+  Stopping = 'stopping',
+  Stopped = 'stopped',
+  Starting = 'starting',
+  Restarting = 'restarting',
+  Updating = 'updating',
+  Sleeping = 'sleeping',
+  Waking = 'waking',
+  Failed = 'failed',
+  Deleting = 'deleting',
+  Deleted = 'deleted',
+}
+
 export const sessionCreateInputSchema = z.strictObject({
   projectId: z.string().min(1).nullish(),
   title: z.string().optional(),
   model: z.string().min(1).optional(),
   effort: z.string().min(1).optional(),
   fast: z.boolean().optional(),
+  provider: z.nativeEnum(ESandboxProvider).optional(),
   firstMessage: messageDraftSchema.optional(),
 })
 
@@ -171,6 +197,13 @@ export const sessionModelChoiceOf = (row: {
   fast: row.modelFast,
 })
 
+export const sessionSandboxStatusSchema = z.strictObject({
+  status: z.nativeEnum(ESandboxStatus),
+  at: z.string().min(1),
+})
+
+export type SessionSandboxStatus = z.infer<typeof sessionSandboxStatusSchema>
+
 export const sessionSummarySchema = z.strictObject({
   sessionId: z.string().min(1),
   projectId: z.string().min(1).nullable(),
@@ -189,6 +222,7 @@ export const sessionSummarySchema = z.strictObject({
   status: sessionRowStatusSchema.optional(),
   primaryBranch: z.string().nullable().optional(),
   pullRequest: sessionRowPullRequestSchema.nullable().optional(),
+  sandbox: sessionSandboxStatusSchema.nullable().optional(),
 })
 
 export const sessionListOutputSchema = z.strictObject({
@@ -562,3 +596,11 @@ export type RoutineRunOutput = z.infer<typeof routineRunOutputSchema>
 export type RoutineRunRow = z.infer<typeof routineRunRowSchema>
 export type RoutineRunsInput = z.infer<typeof routineRunsInputSchema>
 export type RoutineRunsOutput = z.infer<typeof routineRunsOutputSchema>
+
+export const accountMeOutputSchema = z.strictObject({
+  userId: z.string(),
+  email: z.string(),
+  active: z.boolean(),
+})
+
+export type AccountMeOutput = z.infer<typeof accountMeOutputSchema>

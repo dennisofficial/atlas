@@ -17,6 +17,12 @@ export type AgentHostEnv = {
   cloudflare: { apiToken: string; accountId: string; zoneId: string }
   previewDomain: string
   vercelOauth: { clientId: string; clientSecret: string } | null
+  platformVercel: { token: string; teamId: string; projectId: string } | null
+  agent37: {
+    apiKey: string
+    template: string
+    resources: { cpu: number; memory: number; disk: number }
+  } | null
   mediaBlobToken: string | null
   sandboxImage: string
   daemonBundlePath: string
@@ -29,6 +35,9 @@ const DEFAULT_SANDBOX_IMAGE = 'atlas-sandbox:latest'
 const DEFAULT_PORT = 10_000
 const DEFAULT_PREVIEW_DOMAIN = 'byatlas.dev'
 const DEFAULT_PUBLIC_URL = 'https://api.byatlas.io'
+const DEFAULT_AGENT37_CPU = 2
+const DEFAULT_AGENT37_MEMORY_GB = 4
+const DEFAULT_AGENT37_DISK_GB = 20
 
 const defaultDaemonBundlePath = (): string =>
   join(import.meta.dir, '../../../../daemon/bin/daemon.js')
@@ -59,6 +68,64 @@ const vercelOauthOf = (env: Record<string, string | undefined>): AgentHostEnv['v
   return clientId === undefined || clientSecret === undefined ? null : { clientId, clientSecret }
 }
 
+const platformVercelOf = (
+  env: Record<string, string | undefined>,
+): { value: AgentHostEnv['platformVercel']; missing: string[] } => {
+  const token = take(env, 'PLATFORM_VERCEL_TOKEN')
+  const teamId = take(env, 'PLATFORM_VERCEL_TEAM_ID')
+  const projectId = take(env, 'PLATFORM_VERCEL_PROJECT_ID')
+  const missing = [
+    ...(token === undefined ? ['PLATFORM_VERCEL_TOKEN'] : []),
+    ...(teamId === undefined ? ['PLATFORM_VERCEL_TEAM_ID'] : []),
+    ...(projectId === undefined ? ['PLATFORM_VERCEL_PROJECT_ID'] : []),
+  ]
+  if (missing.length === 3) return { value: null, missing: [] }
+  if (token === undefined || teamId === undefined || projectId === undefined) {
+    return { value: null, missing }
+  }
+  return { value: { token, teamId, projectId }, missing: [] }
+}
+
+const parsePositiveInteger = (args: {
+  raw: string | undefined
+  name: string
+  fallback: number
+}): number => {
+  if (args.raw === undefined) return args.fallback
+  const parsed = Number(args.raw)
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new AgentHostEnvError([`${args.name} must be a positive integer, got "${args.raw}"`])
+  }
+  return parsed
+}
+
+const agent37Of = (env: Record<string, string | undefined>): AgentHostEnv['agent37'] => {
+  const apiKey = take(env, 'AGENT37_API_KEY')
+  const template = take(env, 'AGENT37_TEMPLATE_ID')
+  if (apiKey === undefined || template === undefined) return null
+  return {
+    apiKey,
+    template,
+    resources: {
+      cpu: parsePositiveInteger({
+        raw: take(env, 'AGENT37_CPU'),
+        name: 'AGENT37_CPU',
+        fallback: DEFAULT_AGENT37_CPU,
+      }),
+      memory: parsePositiveInteger({
+        raw: take(env, 'AGENT37_MEMORY_GB'),
+        name: 'AGENT37_MEMORY_GB',
+        fallback: DEFAULT_AGENT37_MEMORY_GB,
+      }),
+      disk: parsePositiveInteger({
+        raw: take(env, 'AGENT37_DISK_GB'),
+        name: 'AGENT37_DISK_GB',
+        fallback: DEFAULT_AGENT37_DISK_GB,
+      }),
+    },
+  }
+}
+
 export const readAgentHostEnv = (
   env: Record<string, string | undefined> = process.env,
 ): AgentHostEnv => {
@@ -82,7 +149,11 @@ export const readAgentHostEnv = (
     ['CLOUDFLARE_ACCOUNT_ID', cloudflareAccountId],
     ['CLOUDFLARE_ZONE_ID', cloudflareZoneId],
   ]
-  const missing = required.filter((pair) => pair[1] === undefined).map((pair) => pair[0])
+  const platformVercel = platformVercelOf(env)
+  const missing = [
+    ...required.filter((pair) => pair[1] === undefined).map((pair) => pair[0]),
+    ...platformVercel.missing,
+  ]
   if (missing.length > 0) throw new AgentHostEnvError(missing)
   return {
     databaseUrl: databaseUrl as string,
@@ -98,6 +169,8 @@ export const readAgentHostEnv = (
     },
     previewDomain: take(env, 'PREVIEW_DOMAIN') ?? DEFAULT_PREVIEW_DOMAIN,
     vercelOauth: vercelOauthOf(env),
+    platformVercel: platformVercel.value,
+    agent37: agent37Of(env),
     mediaBlobToken: take(env, 'BLOB_READ_WRITE_TOKEN') ?? null,
     sandboxImage: take(env, 'ATLAS_SANDBOX_IMAGE') ?? DEFAULT_SANDBOX_IMAGE,
     daemonBundlePath: take(env, 'ATLAS_DAEMON_BUNDLE') ?? defaultDaemonBundlePath(),

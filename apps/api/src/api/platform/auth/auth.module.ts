@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common'
 import { AuthModule as BetterAuthModule } from '@thallesp/nestjs-better-auth'
+import { db } from '@dltech/atlas-db'
 import { SessionModule } from '../../../_module/session/session.module'
 import { auth } from './auth.server'
 import { BetterAuthSessionVerifier } from './better-auth-session-verifier'
@@ -11,7 +12,7 @@ import { BetterAuthSessionVerifier } from './better-auth-session-verifier'
       disableGlobalAuthGuard: true,
       disableTrustedOriginsCors: true,
     }),
-    SessionModule.withVerifier(BetterAuthSessionVerifier),
+    SessionModule.withVerifierOf(new BetterAuthSessionVerifier({ db })),
   ],
 })
 export class AuthModule {}

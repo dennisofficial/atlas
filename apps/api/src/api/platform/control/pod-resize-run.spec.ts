@@ -7,11 +7,8 @@ import {
   type PodResizeSession,
 } from './pod-resize-run'
 
-const CREDENTIALS = { token: 'user-token', teamId: 'team_1', projectId: 'prj_1' }
-
 const sessionOf = (over: Partial<PodResizeSession> = {}): PodResizeSession => ({
   sessionId: 'session-a',
-  userId: 'user-a',
   podSessionId: null,
   podSizeGeneration: 2,
   podDesiredVcpus: 4,
@@ -24,7 +21,6 @@ const depsOf = (over: Partial<PodResizeDeps> = {}) => {
   const failures: { sessionId: string; generation: number; error: string }[] = []
   const deps: PodResizeDeps = {
     session: async () => sessionOf(),
-    credentials: async () => CREDENTIALS,
     resize: async (args) => {
       resizes.push({ sandboxSessionId: args.sandboxSessionId, vcpus: args.vcpus })
       return 'restarted'

@@ -12,6 +12,7 @@ import { z } from 'zod'
 import { FakeMediaStore } from '@dltech/atlas-media/testing'
 import { ControlPlane, INBOX_KIND_WITHDRAW, withdrawPayloadOf } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
+import { EnvService } from '../../../_core/config/env/env.service'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { PodPlanGate } from '../../../_core/ports/pod-plan-gate'
 import { NoSessionTitler } from '../../../_core/ports/session-titler'
@@ -118,7 +119,11 @@ export class FakePodResizeDispatcher {
 }
 
 export const setupSessionsService = (
-  over: { planGate?: PodPlanGate; dispatcher?: FakePodResizeDispatcher } = {},
+  over: {
+    env?: Record<string, string>
+    planGate?: PodPlanGate
+    dispatcher?: FakePodResizeDispatcher
+  } = {},
 ) => {
   const store = new InMemoryControlStore({ clock: () => NOW })
   store.markHostPresent(9001)
@@ -137,6 +142,7 @@ export const setupSessionsService = (
     registry,
     mediaStore,
     composeCommands([TEST_COMMAND, modelSet, resize]),
+    new EnvService({ SANDBOX_PROVIDER_DEFAULT: 'vercel', ...over.env }),
     podSizing,
   )
   return { plane, service, registry, mediaStore, store, projects, dispatcher }

@@ -1,8 +1,7 @@
 import type { HostTimers } from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
-import type { VercelCredentials } from '../sandbox/constants'
-import type { SandboxProvider } from '../sandbox/sandbox-provider'
+import type { SandboxProvider, SandboxTarget } from '../sandbox/sandbox-provider'
 
 const RENEW_EVERY_MS = 10 * 60_000
 export const POD_IDLE_WINDOW_MS = 30 * 60_000
@@ -14,25 +13,20 @@ export type PodKeepAlive = {
 
 export const startKeepAlive = (args: {
   sandbox: SandboxProvider
-  sandboxSessionId: string
-  credentials: VercelCredentials
+  target: SandboxTarget
   timers: HostTimers
   signal: AbortSignal
   log?: LogPort | undefined
 }): PodKeepAlive => {
-  const { sandbox, sandboxSessionId, credentials, timers, signal, log } = args
+  const { sandbox, target, timers, signal, log } = args
   let timer: unknown
   const pushDeadline = async (): Promise<void> => {
     try {
-      await sandbox.keepAlive({
-        sandboxSessionId,
-        credentials,
-        until: timers.now() + POD_IDLE_WINDOW_MS,
-      })
+      await sandbox.keepAlive({ target, until: timers.now() + POD_IDLE_WINDOW_MS })
     } catch (error) {
       log?.error({
         source: 'runtime.keep-alive',
-        message: `keep-alive for ${sandboxSessionId} failed`,
+        message: `keep-alive for ${target.sandboxSessionId} failed`,
         ...logFieldsOf({ error }),
       })
     }

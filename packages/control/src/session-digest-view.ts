@@ -6,6 +6,7 @@ import {
   type SessionViewState,
   type V2Event,
 } from '@dltech/atlas-core'
+import { sessionSandboxStatusSchema } from '@dltech/atlas-protocol'
 import type { z } from 'zod'
 
 import { UnknownThreadError } from './errors'
@@ -19,6 +20,14 @@ import type {
 } from './port'
 import { usableState } from './session-view-ops'
 import { currentViewIn, messageAfterFailureIn } from './session-view-read'
+
+const sandboxOf = (row: SessionDigestRow): ControlDigestView['sandbox'] => {
+  const parsed = sessionSandboxStatusSchema.safeParse({
+    status: row.sandboxStatus,
+    at: row.sandboxStatusAt,
+  })
+  return parsed.success ? parsed.data : null
+}
 
 const pullRequestViewOf = (
   row: TrackedPullRequestRow | undefined,
@@ -44,6 +53,7 @@ const digestViewOf = async (args: {
   lease: Lease
   live: boolean
   pullRequest: TrackedPullRequestRow | undefined
+  sandbox: ControlDigestView['sandbox']
   now: string
   eventSchema?: z.ZodType<V2Event> | undefined
 }): Promise<ControlDigestView> => {
@@ -65,6 +75,7 @@ const digestViewOf = async (args: {
     status: value.status,
     primaryBranch: checkoutsOf(args.state.checkouts).primary?.branch ?? null,
     pullRequest: pullRequestViewOf(args.pullRequest),
+    sandbox: args.sandbox,
   }
 }
 
@@ -118,6 +129,7 @@ export const withDigestViews = async (args: {
       lease: current.lease,
       live: current.live,
       pullRequest: pullRequests.get(row.sessionId)?.[0],
+      sandbox: sandboxOf(row),
       now: args.now,
       eventSchema: args.eventSchema,
     })

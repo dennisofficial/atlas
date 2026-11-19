@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { BadRequestException, NotFoundException } from '@nestjs/common'
 import { chainEvents, toRunId, toThreadId } from '@dltech/atlas-core'
-import { EWithdrawRefusal } from '@dltech/atlas-protocol'
+import { ECredentialSource, ESandboxProvider, EWithdrawRefusal } from '@dltech/atlas-protocol'
 import {
   appendBodies,
   logWithdrawn,
@@ -337,5 +337,50 @@ describe('SessionsService model choice', () => {
     expect(await plane.readInbox({ sessionId: created.sessionId, afterId: 0, limit: 10 })).toEqual(
       [],
     )
+  })
+})
+
+describe('SessionsService sandbox provider', () => {
+  it('pins vercel and platform credentials when the caller names no provider', async () => {
+    const { plane, service } = setup()
+
+    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+
+    const row = await plane.readSession({ sessionId: created.sessionId })
+    expect(row?.sandboxProvider).toBe(ESandboxProvider.Vercel)
+    expect(row?.credentialSource).toBe(ECredentialSource.Platform)
+    expect(row?.sandboxInstanceId).toBeNull()
+  })
+
+  it('takes the default provider from the environment', async () => {
+    const { plane, service } = setup({ env: { SANDBOX_PROVIDER_DEFAULT: 'agent37' } })
+
+    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+
+    expect((await plane.readSession({ sessionId: created.sessionId }))?.sandboxProvider).toBe(
+      ESandboxProvider.Agent37,
+    )
+  })
+
+  it('pins the provider the caller names', async () => {
+    const { plane, service } = setup()
+
+    const created = await service.create({
+      userId: 'user-a',
+      projectId: 'proj-a',
+      provider: 'agent37',
+    })
+
+    expect((await plane.readSession({ sessionId: created.sessionId }))?.sandboxProvider).toBe(
+      ESandboxProvider.Agent37,
+    )
+  })
+
+  it('refuses an unknown provider', async () => {
+    const { service } = setup()
+
+    await expect(
+      service.create({ userId: 'user-a', projectId: 'proj-a', provider: 'docker' }),
+    ).rejects.toBeInstanceOf(BadRequestException)
   })
 })

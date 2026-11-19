@@ -122,6 +122,11 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
         modelRef: 'anthropic/claude-haiku-4-5',
         modelEffort: 'medium',
         modelFast: false,
+        sandboxProvider: 'vercel',
+        credentialSource: 'platform',
+        sandboxInstanceId: null,
+        sandboxStatus: null,
+        sandboxStatusAt: null,
         spawnedBySessionId: null,
         nested: true,
         podSessionId: null,
@@ -134,6 +139,55 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
       })
       expect(await plane.head({ threadId: THREAD })).toEqual({ seq: 0, hash: expect.any(String) })
       expect(await plane.readSession({ sessionId: 'unknown' })).toBeUndefined()
+    })
+
+    it('pins the sandbox provider and credential source and stores the instance id', async () => {
+      await plane.createSession(createSessionParams({ sessionId: SESSION, mainThreadId: THREAD }))
+      const row = await plane.readSession({ sessionId: SESSION })
+      expect(row?.sandboxProvider).toBe('vercel')
+      expect(row?.credentialSource).toBe('platform')
+      expect(row?.sandboxInstanceId).toBeNull()
+
+      expect(
+        await plane.setSandboxInstanceId({ sessionId: SESSION, sandboxInstanceId: 'inst-1' }),
+      ).toBe(true)
+      expect((await plane.readSession({ sessionId: SESSION }))?.sandboxInstanceId).toBe('inst-1')
+
+      await plane.createSession({
+        sessionId: 'agent37-session',
+        userId: USER,
+        projectId: PROJECT,
+        mainThreadId: 'agent37-thread',
+        sandboxProvider: 'agent37',
+        credentialSource: 'byok',
+      })
+      expect((await plane.readSession({ sessionId: 'agent37-session' }))?.sandboxProvider).toBe(
+        'agent37',
+      )
+    })
+
+    it('records the newest sandbox status of an instance and drops older events', async () => {
+      await plane.createSession(createSessionParams({ sessionId: SESSION, mainThreadId: THREAD }))
+      await plane.setSandboxInstanceId({ sessionId: SESSION, sandboxInstanceId: 'inst-1' })
+      const newer = after({ iso: T0, offsetMs: 1000 })
+
+      expect(
+        await plane.setSandboxStatus({
+          sandboxInstanceId: 'unknown-instance',
+          status: 'running',
+          at: newer,
+        }),
+      ).toBe(false)
+      expect(
+        await plane.setSandboxStatus({ sandboxInstanceId: 'inst-1', status: 'running', at: newer }),
+      ).toBe(true)
+      expect(
+        await plane.setSandboxStatus({ sandboxInstanceId: 'inst-1', status: 'sleeping', at: T0 }),
+      ).toBe(false)
+
+      const row = await plane.readSession({ sessionId: SESSION })
+      expect(row?.sandboxStatus).toBe('running')
+      expect(row?.sandboxStatusAt).toBe(newer)
     })
 
     it('pins the complete model the session was created with', async () => {

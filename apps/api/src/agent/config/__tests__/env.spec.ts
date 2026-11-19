@@ -45,6 +45,68 @@ describe('readAgentHostEnv', () => {
     ).toEqual({ clientId: 'cl', clientSecret: 'sec' })
   })
 
+  it('reads the platform vercel triple only when all three are set', () => {
+    expect(readAgentHostEnv(complete).platformVercel).toBeNull()
+    expect(
+      readAgentHostEnv({
+        ...complete,
+        PLATFORM_VERCEL_TOKEN: 'token',
+        PLATFORM_VERCEL_TEAM_ID: 'team',
+        PLATFORM_VERCEL_PROJECT_ID: 'prj',
+      }).platformVercel,
+    ).toEqual({ token: 'token', teamId: 'team', projectId: 'prj' })
+  })
+
+  it('names the platform vars a partial vercel triple is missing', () => {
+    let thrown: unknown
+    try {
+      readAgentHostEnv({ ...complete, PLATFORM_VERCEL_TOKEN: 'token' })
+    } catch (error) {
+      thrown = error
+    }
+    expect(thrown).toBeInstanceOf(AgentHostEnvError)
+    expect((thrown as AgentHostEnvError).missing).toEqual([
+      'PLATFORM_VERCEL_TEAM_ID',
+      'PLATFORM_VERCEL_PROJECT_ID',
+    ])
+  })
+
+  it('reads agent37 only with an api key and a template, defaulting the shape', () => {
+    expect(readAgentHostEnv({ ...complete, AGENT37_API_KEY: 'key' }).agent37).toBeNull()
+    expect(
+      readAgentHostEnv({ ...complete, AGENT37_TEMPLATE_ID: 'atlas-sandbox@3' }).agent37,
+    ).toBeNull()
+    expect(
+      readAgentHostEnv({
+        ...complete,
+        AGENT37_API_KEY: 'key',
+        AGENT37_TEMPLATE_ID: 'atlas-sandbox@3',
+      }).agent37,
+    ).toEqual({
+      apiKey: 'key',
+      template: 'atlas-sandbox@3',
+      resources: { cpu: 2, memory: 4, disk: 20 },
+    })
+    expect(
+      readAgentHostEnv({
+        ...complete,
+        AGENT37_API_KEY: 'key',
+        AGENT37_TEMPLATE_ID: 'atlas-sandbox@3',
+        AGENT37_CPU: '4',
+        AGENT37_MEMORY_GB: '8',
+        AGENT37_DISK_GB: '40',
+      }).agent37?.resources,
+    ).toEqual({ cpu: 4, memory: 8, disk: 40 })
+    expect(() =>
+      readAgentHostEnv({
+        ...complete,
+        AGENT37_API_KEY: 'key',
+        AGENT37_TEMPLATE_ID: 'atlas-sandbox@3',
+        AGENT37_CPU: '0',
+      }),
+    ).toThrow(AgentHostEnvError)
+  })
+
   it('reads the media blob token when it is set', () => {
     expect(
       readAgentHostEnv({ ...complete, BLOB_READ_WRITE_TOKEN: 'blob-token' }).mediaBlobToken,

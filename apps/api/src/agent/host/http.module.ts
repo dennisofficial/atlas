@@ -4,6 +4,7 @@ import type { Db } from '@dltech/atlas-db'
 import type { AgentHostEnv } from '../config/env'
 import { mcpOauthCallbackOf } from '../mcp-oauth/callback'
 import type { SecretCipher } from '../config/secret-cipher'
+import { DaemonBundleController } from '../http/daemon-bundle.controller'
 import { HealthController } from '../http/health.controller'
 import { McpOauthCallbackController } from '../http/mcp-oauth.controller'
 import { CoreModule } from './core.module'
@@ -24,7 +25,7 @@ const mcpOauthCallbackProvider: Provider = {
 
 @Module({
   imports: [CoreModule],
-  controllers: [HealthController, McpOauthCallbackController],
+  controllers: [HealthController, DaemonBundleController, McpOauthCallbackController],
   providers: [mcpOauthCallbackProvider],
 })
 export class HttpModule {}

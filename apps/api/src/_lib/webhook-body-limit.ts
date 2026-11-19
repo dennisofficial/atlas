@@ -9,6 +9,7 @@ import { json, type RequestHandler } from 'express'
  * delivery, and GitHub does not retry those, so the ceiling only ever dropped real events.
  */
 export const GITHUB_WEBHOOK_BODY_LIMIT = '1mb'
+export const AGENT37_WEBHOOK_BODY_LIMIT = '64kb'
 
 /** Mounted per-route in main.ts; mirrors the global parser's verify hook so `request.rawBody` is set. */
 export function webhookJsonParser(args: { limit: string }): RequestHandler {

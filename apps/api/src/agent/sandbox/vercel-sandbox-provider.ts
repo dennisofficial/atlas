@@ -1,7 +1,10 @@
 import { randomUUID } from 'node:crypto'
 
-import { SandboxUnavailableError } from '@dltech/atlas-host'
+import type { Sandbox } from '@vercel/sandbox'
+
+import { ESandboxProvider } from '@dltech/atlas-protocol'
 import { daemonToken } from '@dltech/atlas-protocol/engine'
+
 import {
   imageOptimizeRetry,
   SANDBOX_QUICK_TIMEOUT_MS,
@@ -10,25 +13,26 @@ import {
 } from './constants'
 import { mountWithRetries } from './vercel-mount'
 import { liveSdk, renewSessionDeadline, routedUrlOf, type VercelSdk } from './vercel-sdk'
+import { isSandboxMissing } from './vercel-errors'
 
 import { launchDaemon, type DaemonBundle } from './daemon-launch'
-import { SandboxProvider, sandboxNameOf, type DaemonEndpoint } from './sandbox-provider'
+import {
+  SandboxProvider,
+  type DaemonEndpoint,
+  type PodResizeOutcome,
+  type SandboxTarget,
+} from './sandbox-provider'
+import { sandboxNameOf } from './vercel-names'
+import { abortedWake, WAKE_DEADLINE_MS } from './wake-deadline'
 
-export const WAKE_DEADLINE_MS = 5 * 60_000
+export { WAKE_DEADLINE_MS }
 
-const abortedWake = (args: { signal: AbortSignal; caller: AbortSignal }): Promise<never> =>
-  new Promise((_, reject) => {
-    const fail = (): void =>
-      reject(
-        new SandboxUnavailableError(
-          args.caller.aborted
-            ? 'waking the sandbox was cancelled'
-            : 'the sandbox did not wake within 5 minutes',
-        ),
-      )
-    if (args.signal.aborted) fail()
-    else args.signal.addEventListener('abort', fail, { once: true })
-  })
+const vercelCredentialsOf = (target: SandboxTarget): VercelCredentials => {
+  const credentials = target.credentials
+  if (credentials.provider !== ESandboxProvider.Vercel)
+    throw new Error(`VercelSandboxProvider cannot run a ${credentials.provider} sandbox`)
+  return credentials
+}
 
 export class VercelSandboxProvider extends SandboxProvider {
   constructor(
@@ -50,27 +54,33 @@ export class VercelSandboxProvider extends SandboxProvider {
   }
 
   async wake(args: {
-    sandboxSessionId: string
-    credentials: VercelCredentials
+    target: SandboxTarget
     signal: AbortSignal
     vcpus?: number | undefined
   }): Promise<DaemonEndpoint> {
+    const credentials = vercelCredentialsOf(args.target)
     const signal = AbortSignal.any([
       AbortSignal.timeout(this.args.wakeDeadlineMs ?? WAKE_DEADLINE_MS),
       args.signal,
     ])
-    const waking = this.wakeWithin({ ...args, signal })
+    const waking = this.wakeWithin({
+      target: args.target,
+      credentials,
+      signal,
+      ...(args.vcpus === undefined ? {} : { vcpus: args.vcpus }),
+    })
     waking.catch(() => undefined)
     return Promise.race([waking, abortedWake({ signal, caller: args.signal })])
   }
 
   private async wakeWithin(args: {
-    sandboxSessionId: string
+    target: SandboxTarget
     credentials: VercelCredentials
     signal: AbortSignal
     vcpus?: number | undefined
   }): Promise<DaemonEndpoint> {
-    const sandboxName = sandboxNameOf(args.sandboxSessionId)
+    const sandboxSessionId = args.target.sandboxSessionId
+    const sandboxName = sandboxNameOf(sandboxSessionId)
     const token = daemonToken({ secret: this.args.daemonSecret, sandboxName })
     const sandbox = await mountWithRetries({
       sdk: this.sdk,
@@ -81,7 +91,7 @@ export class VercelSandboxProvider extends SandboxProvider {
       credentials: args.credentials,
       name: sandboxName,
       image: this.args.image,
-      threadId: args.sandboxSessionId,
+      threadId: sandboxSessionId,
       token: randomUUID(),
       ...(args.vcpus === undefined ? {} : { vcpus: args.vcpus }),
       environment: { ATLAS_SANDBOX_NAME: sandboxName },
@@ -113,31 +123,50 @@ export class VercelSandboxProvider extends SandboxProvider {
     }
   }
 
-  async stop(args: { sandboxSessionId: string; credentials: VercelCredentials }): Promise<void> {
+  async stop(args: { target: SandboxTarget }): Promise<void> {
+    const credentials = vercelCredentialsOf(args.target)
     const sandbox = await this.sdk.get({
-      ...args.credentials,
-      name: sandboxNameOf(args.sandboxSessionId),
+      ...credentials,
+      name: sandboxNameOf(args.target.sandboxSessionId),
       signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
     })
     await sandbox.stop({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
   }
 
-  async keepAlive(args: {
-    sandboxSessionId: string
-    credentials: VercelCredentials
-    until: number
-  }): Promise<void> {
-    const sandboxName = sandboxNameOf(args.sandboxSessionId)
+  async keepAlive(args: { target: SandboxTarget; until: number }): Promise<void> {
+    const credentials = vercelCredentialsOf(args.target)
+    const sandboxName = sandboxNameOf(args.target.sandboxSessionId)
     const sandbox = await this.sdk.get({
-      ...args.credentials,
+      ...credentials,
       name: sandboxName,
       signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
     })
     await renewSessionDeadline({
       sandbox,
       name: sandboxName,
-      sessionId: args.sandboxSessionId,
+      sessionId: args.target.sandboxSessionId,
       until: args.until,
     })
+  }
+
+  async resize(args: { target: SandboxTarget; vcpus: number }): Promise<PodResizeOutcome> {
+    const credentials = vercelCredentialsOf(args.target)
+    const signal = AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS)
+    let sandbox: Sandbox
+    try {
+      sandbox = await this.sdk.get({
+        ...credentials,
+        name: sandboxNameOf(args.target.sandboxSessionId),
+        resume: false,
+        signal,
+      })
+    } catch (failure) {
+      if (isSandboxMissing(failure)) return 'absent'
+      throw failure
+    }
+    await sandbox.update({ resources: { vcpus: args.vcpus } }, { signal })
+    if (sandbox.status === 'stopped') return 'stored'
+    await sandbox.stop({ signal })
+    return 'restarted'
   }
 }

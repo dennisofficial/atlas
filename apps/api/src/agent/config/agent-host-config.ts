@@ -1,5 +1,7 @@
 import type { EEffort, ModelRef } from '@dltech/atlas-core'
+import type { ESandboxProvider } from '@dltech/atlas-protocol'
 
+import type { SandboxCredentials } from '../sandbox/sandbox-provider'
 import type { ModelSource } from './model-config'
 
 export type ModelCredential =
@@ -32,6 +34,15 @@ export type VercelConfig =
 
 export type SkillScope = 'user' | 'project'
 
+export type SandboxConfig =
+  | {
+      configured: true
+      provider: ESandboxProvider
+      credentials: SandboxCredentials
+      vcpus?: number | undefined
+    }
+  | { configured: false; provider: ESandboxProvider; gap: string }
+
 export type SkillIndexEntry = { name: string; description: string; scope: SkillScope }
 
 export type AgentHostConfig = {
@@ -40,8 +51,7 @@ export type AgentHostConfig = {
   model: ModelConfig
   models: ModelSource
   workspace: WorkspaceConfig
-  vercel: VercelConfig
-  sandboxVcpus: number | undefined
+  sandbox: SandboxConfig
   podSize?: { desiredVcpus: number | undefined; generation: number } | undefined
   skills: SkillIndexEntry[]
 }

@@ -77,6 +77,10 @@ export class RemoteCallsState {
     })
   }
 
+  private tokenOf(): string {
+    return typeof this.args.token === 'function' ? this.args.token() : this.args.token
+  }
+
   open(args: { epoch: number }): void {
     const tookOver = this.leaseTookOver(args.epoch)
     this.epoch = args.epoch
@@ -87,7 +91,7 @@ export class RemoteCallsState {
         kind: 'hello',
         sessionId: this.args.sessionId,
         epoch: this.epoch,
-        token: this.args.token,
+        token: this.tokenOf(),
       }),
     })
   }

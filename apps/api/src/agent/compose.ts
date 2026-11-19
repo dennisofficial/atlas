@@ -23,7 +23,7 @@ import type { SigningKeyReader } from './tokens/signing-key-reader'
 import type { ConfigSource } from './config/agent-host-config'
 import type { AgentHostEnv } from './config/env'
 import type { MediaSigner } from './media/media-signer'
-import type { SandboxProvider } from './sandbox/sandbox-provider'
+import type { SandboxProviderRegistry } from './sandbox/provider-registry'
 import { systemTimers, type HostBus, type HostTimers } from '@dltech/atlas-host'
 import { SessionNotFoundError } from './config/config-reader'
 import { CredentialsUnavailableError } from './config/agent-host-credential-port'
@@ -43,7 +43,7 @@ export type ComposeAgentHostArgs = {
   env: AgentHostEnv
   plane: ControlPlane
   bus: HostBus
-  sandbox: SandboxProvider
+  sandbox: SandboxProviderRegistry
   config: ConfigSource
   tokens: Pick<ModelTokenService, 'issue'>
   github: Pick<GithubTokenReader, 'read'>

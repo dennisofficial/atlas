@@ -9,6 +9,35 @@ export const readSessionIn = (params: {
   return row === undefined ? undefined : sessionRowOf(row)
 }
 
+export const setSandboxInstanceIdIn = (params: {
+  state: State
+  sessionId: string
+  sandboxInstanceId: string | null
+}): boolean => {
+  const row = params.state.sessions.get(params.sessionId)
+  if (row === undefined) return false
+  row.sandboxInstanceId = params.sandboxInstanceId
+  return true
+}
+
+export const setSandboxStatusIn = (params: {
+  state: State
+  sandboxInstanceId: string
+  status: string
+  at: string
+}): boolean => {
+  const row = [...params.state.sessions.values()].find(
+    (session) => session.sandboxInstanceId === params.sandboxInstanceId,
+  )
+  if (row === undefined) return false
+  if (row.sandboxStatusAt !== null && Date.parse(row.sandboxStatusAt) >= Date.parse(params.at)) {
+    return false
+  }
+  row.sandboxStatus = params.status
+  row.sandboxStatusAt = params.at
+  return true
+}
+
 export const setSessionPodDesiredIn = (params: {
   state: State
   sessionId: string
@@ -132,6 +161,9 @@ export const createSessionIn = (params: {
   modelRef: string
   modelEffort: string
   modelFast: boolean
+  sandboxProvider: string
+  credentialSource: string
+  sandboxInstanceId: string | null
   spawnedBySessionId?: string | undefined
   nested?: boolean | undefined
   podSessionId?: string | undefined
@@ -155,6 +187,11 @@ export const createSessionIn = (params: {
     modelRef: params.modelRef,
     modelEffort: params.modelEffort,
     modelFast: params.modelFast,
+    sandboxProvider: params.sandboxProvider,
+    credentialSource: params.credentialSource,
+    sandboxInstanceId: params.sandboxInstanceId,
+    sandboxStatus: null,
+    sandboxStatusAt: null,
     spawnedBySessionId: params.spawnedBySessionId ?? null,
     nested: params.nested ?? true,
     podSessionId: params.podSessionId ?? null,

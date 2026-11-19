@@ -1,16 +1,9 @@
-import {
-  defaultPipeline,
-  EWorkspaceStep,
-  EWorkspaceStepState,
-  type ModelPort,
-} from '@dltech/atlas-core'
+import { defaultPipeline, type ModelPort } from '@dltech/atlas-core'
 import { InMemoryToolRegistry } from '@dltech/atlas-agent'
-import { daemonToken } from '@dltech/atlas-protocol/engine'
 import {
   DaemonAgentFileSystemPort,
   DaemonFileSystemPort,
   DaemonProcessPort,
-  RemoteCalls,
   type HostTimers,
   type SessionRuntimeFactory,
 } from '@dltech/atlas-host'
@@ -29,13 +22,15 @@ import type { CloudConfigStore } from '../config/cloud-config-store'
 import type { EnvSecretsSource } from '../config/env-secrets'
 import type { ProjectFilesSource } from '../config/project-files'
 import { SANDBOX_HOME_PATH, workspaceDirectoryOf } from '../sandbox/constants'
-import { SandboxProvider, sandboxNameOf } from '../sandbox/sandbox-provider'
+import type { SandboxProviderRegistry } from '../sandbox/provider-registry'
+import type { SandboxTarget } from '../sandbox/sandbox-provider'
+import { sandboxNameOf } from '../sandbox/vercel-names'
 import { SandboxNotConfiguredError } from './sandbox-not-configured-error'
 import { PrepareSteps } from './prepare-steps'
 import { prepareControllerOf } from './session-prepare'
 import { countRunningShells } from './running-shells'
 import { startKeepAlive } from './keep-alive'
-import { rewakingConnector } from './rewaking-connector'
+import { daemonSessionOf } from './daemon-session'
 import { githubIdentityLookup } from '@dltech/atlas-plugin-github/pod'
 import type { ComposedPlugins } from '@dltech/atlas-plugin-sdk'
 import { agentHostPrompt } from './prompt'
@@ -59,7 +54,7 @@ export type SessionRuntimeFactoryArgs = {
   tokens: Pick<ModelTokenService, 'issue'>
   github: Pick<GithubTokenReader, 'read'>
   signingKey?: Pick<SigningKeyReader, 'read'> | undefined
-  sandbox: SandboxProvider
+  sandbox: SandboxProviderRegistry
   daemonSecret: string
   timers: HostTimers
   modelFor?: ((args: { sessionId: string }) => ModelPort) | undefined
@@ -99,14 +94,18 @@ export const createSessionRuntimeFactory = (
     const config = await args.config.read({ sessionId })
     const launchDirectory =
       args.launchDirectory ?? workspaceDirectoryOf({ remoteUrl: config.workspace.remoteUrl })
-    if (config.vercel.configured === false) {
-      throw new SandboxNotConfiguredError(config.vercel.gap)
+    const provider = args.sandbox.for(config.sandbox.provider)
+    if (config.sandbox.configured === false) {
+      throw new SandboxNotConfiguredError(config.sandbox.gap)
     }
-    const credentials = config.vercel
+    const target: SandboxTarget = {
+      sandboxSessionId,
+      credentials: config.sandbox.credentials,
+    }
     const sandboxName = sandboxNameOf(sandboxSessionId)
     const paths = sessionPathsOf({ sessionId, threadId })
     const podSize = config.podSize
-    const desiredVcpus = podSize?.desiredVcpus ?? config.sandboxVcpus
+    const desiredVcpus = podSize?.desiredVcpus ?? config.sandbox.vcpus
     const recordApplied = async (endpoint: { vcpus?: number | undefined }): Promise<void> => {
       if (args.podSizing === undefined || podSize?.desiredVcpus === undefined) return
       if (endpoint.vcpus !== podSize.desiredVcpus) return
@@ -124,52 +123,21 @@ export const createSessionRuntimeFactory = (
         })
       }
     }
-    const wake = async () => {
-      const endpoint = await args.sandbox.wake({
-        sandboxSessionId,
-        credentials,
-        signal,
-        vcpus: desiredVcpus,
-      })
-      await recordApplied(endpoint)
-      return endpoint
-    }
     const steps = new PrepareSteps()
-    steps.report({
-      step: EWorkspaceStep.Sandbox,
-      state: EWorkspaceStepState.Started,
-    })
-    const endpoint = wake()
-    endpoint.then(
-      () =>
-        steps.report({
-          step: EWorkspaceStep.Sandbox,
-          state: EWorkspaceStepState.Done,
-        }),
-      (error: unknown) => steps.failOpen(error instanceof Error ? error.message : String(error)),
-    )
-    endpoint.catch((error: unknown) => {
-      args.log?.error({
-        source: 'runtime.wake',
-        message: `sandbox wake for ${sessionId} rejected`,
-        ...logFieldsOf({ error }),
-      })
-    })
-    const calls = new RemoteCalls({
+    const { calls } = daemonSessionOf({
       sessionId,
-      token: daemonToken({ secret: args.daemonSecret, sandboxName }),
-      connector: rewakingConnector({
-        sessionId,
-        first: endpoint,
-        wake,
-        signal,
-      }),
+      epoch,
+      provider,
+      target,
+      ...(desiredVcpus === undefined ? {} : { vcpus: desiredVcpus }),
+      onWake: recordApplied,
+      daemonSecret: args.daemonSecret,
       timers: args.timers,
-      onFenced: () => {},
-      ...(args.pingMs === undefined ? {} : { pingMs: args.pingMs }),
+      signal,
+      steps,
       ...(args.log === undefined ? {} : { log: args.log }),
+      ...(args.pingMs === undefined ? {} : { pingMs: args.pingMs }),
     })
-    calls.open({ epoch })
 
     const processes = new DaemonProcessPort({ calls })
     const files = new DaemonFileSystemPort({ calls })
@@ -266,9 +234,8 @@ export const createSessionRuntimeFactory = (
     }
 
     const keepAlive = startKeepAlive({
-      sandbox: args.sandbox,
-      sandboxSessionId,
-      credentials,
+      sandbox: provider,
+      target,
       timers: args.timers,
       signal,
       log: args.log,

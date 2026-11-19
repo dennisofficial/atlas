@@ -13,6 +13,9 @@ export const createSessionIn = async (params: {
   modelRef: string
   modelEffort: string
   modelFast: boolean
+  sandboxProvider: string
+  credentialSource: string
+  sandboxInstanceId: string | null
   spawnedBySessionId?: string | undefined
   nested?: boolean | undefined
   podSessionId?: string | undefined
@@ -33,6 +36,11 @@ export const createSessionIn = async (params: {
     modelRef: params.modelRef,
     modelEffort: params.modelEffort,
     modelFast: params.modelFast,
+    sandboxProvider: params.sandboxProvider,
+    credentialSource: params.credentialSource,
+    sandboxInstanceId: params.sandboxInstanceId,
+    sandboxStatus: null,
+    sandboxStatusAt: null,
     spawnedBySessionId: params.spawnedBySessionId ?? null,
     nested: params.nested ?? true,
     podSessionId: params.podSessionId ?? null,
@@ -95,6 +103,31 @@ export const setSessionModelIn = async (params: {
     modelFast: params.modelFast,
   })
   return changed === 1
+}
+
+export const setSandboxInstanceIdIn = async (params: {
+  tx: Tx
+  sessionId: string
+  sandboxInstanceId: string | null
+}): Promise<boolean> => {
+  const changed = await params.tx.orm.v2.V2Session.where({
+    id: params.sessionId,
+  }).updateAndCount({ sandboxInstanceId: params.sandboxInstanceId })
+  return changed === 1
+}
+
+export const setSandboxStatusIn = async (params: {
+  tx: Tx
+  sandboxInstanceId: string
+  status: string
+  at: string
+}): Promise<boolean> => {
+  const statement = params.tx.raw.sql`UPDATE "v2"."V2Session"
+      SET "sandboxStatus" = ${params.status}, "sandboxStatusAt" = ${params.at}::timestamptz
+      WHERE "sandboxInstanceId" = ${params.sandboxInstanceId}
+        AND ("sandboxStatusAt" IS NULL OR "sandboxStatusAt" < ${params.at}::timestamptz)`
+  const { affectedRows } = await params.tx.execute(statement.affectedCount().build())
+  return affectedRows > 0
 }
 
 export const setSessionArchivedIn = async (params: {

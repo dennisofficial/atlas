@@ -1,3 +1,4 @@
+import { ESandboxProvider } from '@dltech/atlas-protocol'
 import { afterAll, describe, expect, it } from 'bun:test'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -12,7 +13,7 @@ import {
 } from '@dltech/atlas-host'
 import { daemonToken } from '@dltech/atlas-protocol/engine'
 
-import { sandboxNameOf } from '../../sandbox/sandbox-provider'
+import { sandboxNameOf } from '../../sandbox/vercel-names'
 import { LocalSandboxProvider } from '../../testing/local-sandbox-provider'
 import { ensureWorkspace, WORKSPACE_STATE_DIR } from '../workspace-setup'
 import { additionalSentinelOf, PRIMARY_SENTINEL, SESSION_BASES_FILE } from '../workspace-state'
@@ -33,8 +34,10 @@ const git = (args: readonly string[], cwd: string): void => {
 
 const openPorts = async (args: { sessionId: string }) => {
   const endpoint = await sandbox.wake({
-    sandboxSessionId: args.sessionId,
-    credentials: { token: '', teamId: '', projectId: '' },
+    target: {
+      sandboxSessionId: args.sessionId,
+      credentials: { provider: ESandboxProvider.Vercel, token: '', teamId: '', projectId: '' },
+    },
     signal: new AbortController().signal,
   })
   const calls = new RemoteCalls({

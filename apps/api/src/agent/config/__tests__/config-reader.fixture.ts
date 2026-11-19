@@ -1,6 +1,7 @@
 import { createDb, createPool, type Db, type Pool } from '@dltech/atlas-db'
 import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
+import { ECredentialSource } from '@dltech/atlas-protocol'
 
 import { SecretCipher } from '../secret-cipher'
 
@@ -25,6 +26,7 @@ export const seedOwner = async (db: Db): Promise<void> => {
     userId: 'user-1',
     projectId: 'proj-1',
     mainThreadId: 't-1',
+    credentialSource: ECredentialSource.Byok,
   })
 }
 

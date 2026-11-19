@@ -1,4 +1,10 @@
-import type { VercelCredentials } from './constants'
+import { ESandboxProvider } from '@dltech/atlas-protocol'
+
+export type SandboxCredentials =
+  | { provider: ESandboxProvider.Vercel; token: string; teamId: string; projectId: string }
+  | { provider: ESandboxProvider.Agent37; apiKey: string }
+
+export type SandboxTarget = { sandboxSessionId: string; credentials: SandboxCredentials }
 
 export type DaemonEndpoint = {
   url: string
@@ -9,28 +15,13 @@ export type DaemonEndpoint = {
 
 export type PodResizeOutcome = 'restarted' | 'stored' | 'absent'
 
-/** Stores a pod's size on the provider and restarts a running pod so it comes back at that size. */
-export abstract class PodSizer {
-  abstract resize(args: {
-    sandboxSessionId: string
-    credentials: VercelCredentials
-    vcpus: number
-  }): Promise<PodResizeOutcome>
-}
-
-export const sandboxNameOf = (sandboxSessionId: string): string => `atlas-v2-${sandboxSessionId}`
-
 export abstract class SandboxProvider {
   abstract wake(args: {
-    sandboxSessionId: string
-    credentials: VercelCredentials
+    target: SandboxTarget
     signal: AbortSignal
     vcpus?: number | undefined
   }): Promise<DaemonEndpoint>
-  abstract stop(args: { sandboxSessionId: string; credentials: VercelCredentials }): Promise<void>
-  abstract keepAlive(args: {
-    sandboxSessionId: string
-    credentials: VercelCredentials
-    until: number
-  }): Promise<void>
+  abstract stop(args: { target: SandboxTarget }): Promise<void>
+  abstract keepAlive(args: { target: SandboxTarget; until: number }): Promise<void>
+  abstract resize(args: { target: SandboxTarget; vcpus: number }): Promise<PodResizeOutcome>
 }

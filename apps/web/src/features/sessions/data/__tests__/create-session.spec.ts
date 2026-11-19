@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { ESandboxProvider } from '@dltech/atlas-protocol'
 
 import { createSessionWithMessage, type SessionsApi } from '../create-session'
 
@@ -132,6 +133,32 @@ describe('createSessionWithMessage', () => {
         firstMessage: { text: 'hello' },
       },
     ])
+  })
+
+  it('carries the chosen sandbox provider only when one is given', async () => {
+    const { api, calls } = fakeApi()
+
+    await createSessionWithMessage({
+      api,
+      projectId: 'proj-1',
+      text: 'hello',
+      media: [],
+      uploads: [],
+      provider: ESandboxProvider.Agent37,
+    })
+    await createSessionWithMessage({
+      api,
+      projectId: 'proj-1',
+      text: 'hello',
+      media: [],
+      uploads: [],
+    })
+
+    expect(calls[0]).toEqual([
+      'create',
+      { projectId: 'proj-1', provider: 'agent37', firstMessage: { text: 'hello' } },
+    ])
+    expect(calls[1]).toEqual(['create', { projectId: 'proj-1', firstMessage: { text: 'hello' } }])
   })
 
   it('fails when the create is refused', async () => {

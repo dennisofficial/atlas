@@ -9,6 +9,12 @@ export interface ISandboxEnv {
   SANDBOX_MAX_SESSION_MINUTES: number
   SANDBOX_MAX_ACTIVE_PER_USER: number
   SANDBOX_IMAGE: string
+  SANDBOX_PROVIDER_DEFAULT: string
+  PLATFORM_VERCEL_TOKEN?: string
+  PLATFORM_VERCEL_TEAM_ID?: string
+  PLATFORM_VERCEL_PROJECT_ID?: string
+  AGENT37_API_KEY?: string
+  AGENT37_WEBHOOK_SECRET?: string
   ATLAS_TELEMETRY_PEPPER?: string
 }
 
@@ -21,5 +27,11 @@ export const sandboxEnvSchema = {
   SANDBOX_MAX_SESSION_MINUTES: Joi.number().integer().min(1).default(240),
   SANDBOX_MAX_ACTIVE_PER_USER: Joi.number().integer().min(1).default(3),
   SANDBOX_IMAGE: Joi.string().default('atlas-sandbox:latest'),
+  SANDBOX_PROVIDER_DEFAULT: Joi.string().valid('vercel', 'agent37').default('vercel'),
+  PLATFORM_VERCEL_TOKEN: Joi.string().optional(),
+  PLATFORM_VERCEL_TEAM_ID: Joi.string().optional(),
+  PLATFORM_VERCEL_PROJECT_ID: Joi.string().optional(),
+  AGENT37_API_KEY: Joi.string().optional(),
+  AGENT37_WEBHOOK_SECRET: Joi.string().optional(),
   ATLAS_TELEMETRY_PEPPER: Joi.string().optional(),
 }

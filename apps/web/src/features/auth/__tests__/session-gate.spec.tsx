@@ -25,8 +25,18 @@ afterEach(() => {
   replace.mockClear()
 })
 
-const respond = (body: unknown, status = 200) => {
-  globalThis.fetch = mock(async () => Response.json(body, { status })) as unknown as typeof fetch
+const sessionAnswer = (signedIn: boolean): Response =>
+  Response.json(signedIn ? { user: { id: 'u', name: 'Ada', email: 'a@b.c' } } : { user: null })
+
+const accountAnswer = (active: boolean): Response =>
+  Response.json({ result: { data: { userId: 'u', email: 'a@b.c', active } } })
+
+const serve = (options: { signedIn: boolean; active?: boolean }): void => {
+  globalThis.fetch = mock(async (input: string | URL | Request) => {
+    const url = String(input)
+    if (url.includes('/v1/trpc/account.me')) return accountAnswer(options.active ?? true)
+    return sessionAnswer(options.signedIn)
+  }) as unknown as typeof fetch
 }
 
 const settle = () => act(async () => new Promise<void>((done) => setTimeout(done, 20)))
@@ -52,15 +62,24 @@ const mount = async () => {
 }
 
 describe('SessionGate', () => {
-  it('renders children when a user is present', async () => {
-    respond({ user: { id: 'u' } })
+  it('renders children when the account has access', async () => {
+    serve({ signedIn: true, active: true })
     const { host, root } = await mount()
     expect(host.textContent).toContain('private content')
     await act(async () => root.unmount())
   })
 
+  it('shows the whitelist wall for a signed-in account that is awaiting access', async () => {
+    serve({ signedIn: true, active: false })
+    const { host, root } = await mount()
+    expect(host.textContent).toContain("You're on the list")
+    expect(host.textContent).not.toContain('private content')
+    expect(replace).not.toHaveBeenCalled()
+    await act(async () => root.unmount())
+  })
+
   it('redirects to sign-in with the current path when signed out', async () => {
-    respond({ user: null })
+    serve({ signedIn: false })
     const { host, root } = await mount()
     expect(host.textContent).not.toContain('private content')
     expect(replace).toHaveBeenCalledWith('/sign-in?next=%2Fthreads%2Fabc')
@@ -73,7 +92,7 @@ describe('SessionGate', () => {
     }) as unknown as typeof fetch
     const { host, root } = await mount()
     expect(host.textContent).toContain('Could not reach Atlas Cloud')
-    respond({ user: { id: 'u' } })
+    serve({ signedIn: true, active: true })
     const retry = host.querySelector('button')
     await act(async () => retry?.click())
     await settle()

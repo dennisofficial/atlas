@@ -28,6 +28,14 @@ no tiers of its own. A service holds only `DOTENV_PRIVATE_KEY_PRODUCTION_ENC`. A
 | `ATLAS_DAEMON_BUNDLE`                | no       | `apps/daemon/bin/daemon.js`          |
 | `BLOB_READ_WRITE_TOKEN`              | no       | —                                    |
 | `VERCEL_OAUTH_CLIENT_ID` / `_SECRET` | no       | —                                    |
+| `PLATFORM_VERCEL_TOKEN`              | no       | —                                    |
+| `PLATFORM_VERCEL_TEAM_ID`            | no       | —                                    |
+| `PLATFORM_VERCEL_PROJECT_ID`         | no       | —                                    |
+| `AGENT37_API_KEY`                    | no       | —                                    |
+| `AGENT37_TEMPLATE_ID`                | no       | —                                    |
+| `AGENT37_CPU`                        | no       | 2                                    |
+| `AGENT37_MEMORY_GB`                  | no       | 4                                    |
+| `AGENT37_DISK_GB`                    | no       | 20                                   |
 | `PORT`                               | no       | 10000 (Render sets it)               |
 | `TRUSTED_ORIGINS`                    | no       | empty: any Origin; else a comma list |
 
@@ -35,6 +43,13 @@ no tiers of its own. A service holds only `DOTENV_PRIVATE_KEY_PRODUCTION_ENC`. A
 the API); the agent itself calls the API for nothing. `CLOUDFLARE_*` is what it uses to mint preview
 tunnels and DNS routes for `exposePort`. `AGENT_HOST_PUBLIC_URL` seals the MCP OAuth `redirect_uri`,
 so production keeps it at `https://api.byatlas.io`.
+
+`AGENT37_TEMPLATE_ID` names the workspace template that `scripts/agent37-register-template.ts`
+registers from `ghcr.io/dennisofficial/atlas-sandbox` (name `atlas-sandbox`, `default_port` 3000).
+A create hands the instance `ATLAS_DAEMON_BUNDLE_URL` (this host's `/agent/daemon/bundle`), so the
+image's entrypoint boots the daemon at PID 1 — Agent37 kills every exec after about a second.
+Every Agent37 instance mounts its disk at `/atlas` through `mount_path`, which hides whatever the
+image ships in that folder, so the image must keep nothing it needs under `/atlas`.
 
 Missing required vars exit 78 with the names on stderr.
 
@@ -44,6 +59,9 @@ Missing required vars exit 78 with the names on stderr.
 `apps/api/AGENTS.md`. Render's health check is `GET /healthz`, which this module serves
 (`http/health.controller.ts`) and which answers 503 while the session stream drains.
 `/mcp-oauth/callback` is the redirect a provider opens; keep the path and the origin.
+`GET /agent/daemon/bundle` serves the daemon bundle the host holds at `ATLAS_DAEMON_BUNDLE`; it
+authenticates the sandbox with its `DAEMON_TOKEN` and `X-Atlas-Sandbox` header, and the Agent37
+image's boot loop fetches it on every wake (`apps/serve/sandbox-image/atlas-boot.sh`).
 
 Locally, `bun run dev` in `apps/api` runs it with the api and needs docker Postgres and `test-redis`:
 the agent refuses to start without `REDIS_URL`. Tests run from `apps/api` too — `bun test src/agent`.

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
+import { singleProviderRegistry } from '../../testing/sandbox-registry'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -30,7 +31,7 @@ const shellOutputOf = async (args: {
       tokens: unusedTokens(),
       github: { read: args.read ?? (async () => args.token) },
       githubFetch: identityFetch,
-      sandbox,
+      sandbox: singleProviderRegistry(sandbox),
       daemonSecret: 'shell-env-secret',
       timers: { now: () => Date.now(), ...systemTimers },
       modelFor: () => new ScriptedModel([]),

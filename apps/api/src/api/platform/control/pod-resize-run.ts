@@ -1,6 +1,6 @@
 import type { ControlSessionRow } from '@dltech/atlas-control'
 
-import type { PodResizeOutcome, VercelCredentials } from '../../../agent'
+import type { PodResizeOutcome } from '../../../agent'
 import {
   EPodResizeOutcome,
   type PodResizeOutput,
@@ -9,17 +9,12 @@ import {
 
 export type PodResizeSession = Pick<
   ControlSessionRow,
-  'sessionId' | 'userId' | 'podSessionId' | 'podSizeGeneration' | 'podDesiredVcpus'
+  'sessionId' | 'podSessionId' | 'podSizeGeneration' | 'podDesiredVcpus'
 >
 
 export type PodResizeDeps = {
   session(args: { sessionId: string }): Promise<PodResizeSession | undefined>
-  credentials(args: { userId: string }): Promise<VercelCredentials>
-  resize(args: {
-    sandboxSessionId: string
-    credentials: VercelCredentials
-    vcpus: number
-  }): Promise<PodResizeOutcome>
+  resize(args: { sandboxSessionId: string; vcpus: number }): Promise<PodResizeOutcome>
   rewake(args: { sessionId: string }): Promise<unknown>
   held(args: { sessionId: string }): Promise<boolean>
   recordFailed(args: { sessionId: string; generation: number; error: string }): Promise<unknown>
@@ -42,8 +37,7 @@ export const runPodResize = async (args: {
   }
   const vcpus = session.podDesiredVcpus ?? payload.vcpus
   const sandboxSessionId = session.podSessionId ?? session.sessionId
-  const credentials = await deps.credentials({ userId: session.userId })
-  const resized = await deps.resize({ sandboxSessionId, credentials, vcpus })
+  const resized = await deps.resize({ sandboxSessionId, vcpus })
   if (resized === 'absent') return { outcome: outcomeOf(resized) }
   // a retry after a partial apply finds the pod already stopped while a host still holds it
   if (resized === 'stored' && !(await deps.held({ sessionId: sandboxSessionId }))) {
