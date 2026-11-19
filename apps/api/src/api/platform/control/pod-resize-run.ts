@@ -20,8 +20,7 @@ export type PodResizeDeps = {
   recordFailed(args: { sessionId: string; generation: number; error: string }): Promise<unknown>
 }
 
-const outcomeOf = (resized: PodResizeOutcome): EPodResizeOutcome =>
-  resized === 'restarted' ? EPodResizeOutcome.Applied : EPodResizeOutcome.Stored
+export const NO_SANDBOX_TO_RESIZE = 'No sandbox to resize'
 
 export const failureText = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
@@ -38,10 +37,18 @@ export const runPodResize = async (args: {
   const vcpus = session.podDesiredVcpus ?? payload.vcpus
   const sandboxSessionId = session.podSessionId ?? session.sessionId
   const resized = await deps.resize({ sandboxSessionId, vcpus })
-  if (resized === 'absent') return { outcome: outcomeOf(resized) }
-  // a retry after a partial apply finds the pod already stopped while a host still holds it
+  if (resized === 'absent') {
+    // nothing will ever apply this size: say so rather than claim it was stored
+    await deps.recordFailed({
+      sessionId: sandboxSessionId,
+      generation: payload.generation,
+      error: NO_SANDBOX_TO_RESIZE,
+    })
+    return { outcome: EPodResizeOutcome.Failed }
+  }
+  // a parked pod keeps the size for its next wake; waking it now would defeat the park
   if (resized === 'stored' && !(await deps.held({ sessionId: sandboxSessionId }))) {
-    return { outcome: outcomeOf(resized) }
+    return { outcome: EPodResizeOutcome.Deferred }
   }
   // the restart stopped the pod: nothing else would wake it, so the applied size stays unrecorded
   await deps.rewake({ sessionId: sandboxSessionId })

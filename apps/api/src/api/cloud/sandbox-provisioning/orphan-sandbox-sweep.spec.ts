@@ -1,6 +1,7 @@
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { describe, expect, it } from 'bun:test'
+import { isPodSandboxName, sandboxNameOf } from '../../../agent'
 import { seedUsers } from '../../../../test/session-seed'
 import {
   ORPHAN_SANDBOX_GRACE_MS,
@@ -51,7 +52,7 @@ describe('planOrphanSandboxes', () => {
   })
 
   it('leaves a running sandbox alone unless its owner is done', () => {
-    const running = sandbox('atlas-v2-pod', { status: 'running' })
+    const running = sandbox('atlas-thread-busy', { status: 'running' })
 
     expect(
       planOrphanSandboxes({ sandboxes: [running], liveNames: new Set(), now: NOW }).stop,
@@ -60,10 +61,24 @@ describe('planOrphanSandboxes', () => {
       planOrphanSandboxes({
         sandboxes: [running],
         liveNames: new Set(),
-        retirableNames: new Set(['atlas-v2-pod']),
+        retirableNames: new Set(['atlas-thread-busy']),
         now: NOW,
       }).stop.map((target) => target.name),
-    ).toEqual(['atlas-v2-pod'])
+    ).toEqual(['atlas-thread-busy'])
+  })
+
+  it('leaves a v2 pod to the port-scoped sweep, whatever its state or listed age', () => {
+    const pod = sandbox(sandboxNameOf('ses-pod'), { status: 'stopped' })
+
+    expect(
+      planOrphanSandboxes({
+        sandboxes: [pod],
+        liveNames: new Set(),
+        retirableNames: new Set([sandboxNameOf('ses-pod')]),
+        ignoreName: isPodSandboxName,
+        now: NOW,
+      }),
+    ).toEqual({ delete: [], stop: [] })
   })
 
   it('waits out the grace before touching a fresh one', () => {
@@ -151,7 +166,7 @@ describe('planSandboxStateReconcile', () => {
 describe('sweepOrphanSandboxes', () => {
   it('deletes per project, stops retirable ones and reports retirement', async () => {
     const web = fakeStore([sandbox('atlas-thread-dead'), sandbox('atlas-thread-live')])
-    const peer = fakeStore([sandbox('atlas-v2-dead', { status: 'running' })])
+    const peer = fakeStore([sandbox('atlas-thread-dead-2', { status: 'running' })])
     const retired: string[] = []
     const stopped: string[] = []
 
@@ -161,7 +176,7 @@ describe('sweepOrphanSandboxes', () => {
         { label: 'usr-1/prj-sandboxes', projectId: 'prj-sandboxes', store: peer.store },
       ],
       liveNames: async () => new Set(['atlas-thread-live']),
-      retirableNames: async () => new Set(['atlas-v2-dead']),
+      retirableNames: async () => new Set(['atlas-thread-dead-2']),
       onStopped: async ({ name }) => {
         stopped.push(name)
       },
@@ -182,8 +197,8 @@ describe('sweepOrphanSandboxes', () => {
       failed: 0,
     })
     expect(web.deleted).toEqual(['atlas-thread-dead'])
-    expect(peer.stopped).toEqual(['atlas-v2-dead'])
-    expect(stopped).toEqual(['atlas-v2-dead'])
+    expect(peer.stopped).toEqual(['atlas-thread-dead-2'])
+    expect(stopped).toEqual(['atlas-thread-dead-2'])
     expect(retired).toEqual(['atlas-thread-dead'])
   })
 
@@ -243,10 +258,10 @@ describe('sweepOrphanSandboxes', () => {
   })
 })
 
-describe('sweepOrphanSandboxes ending terminals', () => {
+describe('sweepOrphanSandboxes and v2 pods', () => {
   useTestDatabase()
 
-  it('ends the open terminals of the pod it stops, which no daemon can ever report', async () => {
+  it('leaves a v2 pod to the port-scoped sweep and keeps its terminals open', async () => {
     await seedUsers('user-a')
     await db.orm.v2.V2Session.create({
       id: 'ses-pod',
@@ -266,20 +281,24 @@ describe('sweepOrphanSandboxes ending terminals', () => {
       state: 'open',
       createdAt: NOW,
     })
-    const peer = fakeStore([sandbox('atlas-v2-ses-pod', { status: 'stopped' })])
+    const peer = fakeStore([sandbox(sandboxNameOf('ses-pod'), { status: 'stopped' })])
 
-    await sweepOrphanSandboxes({
+    const summary = await sweepOrphanSandboxes({
       stores: [{ label: 'usr-1/prj-sandboxes', projectId: 'prj-sandboxes', store: peer.store }],
       liveNames: async () => new Set(),
+      retirableNames: async () => new Set([sandboxNameOf('ses-pod')]),
+      ignoreName: isPodSandboxName,
       now: NOW,
       dryRun: false,
       log: () => undefined,
     })
 
-    expect(peer.deleted).toEqual(['atlas-v2-ses-pod'])
+    expect(peer.deleted).toEqual([])
+    expect(peer.stopped).toEqual([])
+    expect(summary).toMatchObject({ deleted: 0, stopped: 0, kept: 1 })
     const rows = await db.orm.v2.V2Terminal.where({ sessionId: 'ses-pod' })
       .select('state', 'endedReason')
       .all()
-    expect(rows).toEqual([{ state: 'ended', endedReason: 'pod-slept' }])
+    expect(rows).toEqual([{ state: 'open', endedReason: null }])
   })
 })

@@ -1,6 +1,7 @@
 import { schedules } from '@trigger.dev/sdk'
 import { db } from '@dltech/atlas-db'
 import { softDeleteArchivedSessionsIn } from '@dltech/atlas-control/postgres'
+import { ESandboxProvider } from '@dltech/atlas-protocol'
 import { ESandboxState } from '../../api/platform/sandboxes/sandboxes.types'
 import { ARCHIVED_SANDBOX_GRACE_MS } from '../../api/cloud/sandbox-provisioning/archived-sandbox-sweep'
 import { SecretCipherService } from '../../_lib/crypto/secret-cipher.service'
@@ -8,7 +9,7 @@ import { openSecretValue } from '../../api/cloud/secrets/sealed-secret'
 import {
   liveSandboxNames,
   retirableSandboxNames,
-  v2PodNames,
+  v2Pods,
 } from '../../api/cloud/sandbox-provisioning/live-sandbox-names'
 import {
   planSandboxStateReconcile,
@@ -17,7 +18,17 @@ import {
   type OrphanSandboxStore,
   type SandboxStateReconciler,
 } from '../../api/cloud/sandbox-provisioning/orphan-sandbox-sweep'
+import {
+  sweepV2Pods,
+  type V2PodSweepScope,
+} from '../../api/cloud/sandbox-provisioning/v2-pod-sweep'
 import { VercelOrphanSandboxStore } from '../../api/cloud/sandbox-provisioning/vercel-orphan-sandbox-store'
+import { endPodTerminals } from '../../api/platform/sandboxes/pod-terminals'
+import type { AgentHostEnv, SandboxCredentials } from '../../agent'
+import { readAgentHostEnv } from '../../agent/config/env'
+import { isPodSandboxName } from '../../agent/sandbox/vercel-names'
+import { platformCredentialsOf } from '../../agent/config/platform-credentials'
+import { sandboxProvidersOf } from '../../agent/sandbox/sandbox-providers'
 import { workerEnvService } from '../github/github-sweep-graph'
 import { triggerLog } from '../trigger-logger'
 
@@ -94,6 +105,49 @@ async function storesOf(args: { cipher: SecretCipherService }): Promise<StoreEnt
   return [...entries.values()]
 }
 
+/**
+ * Every credential set a v2 pod can exist under, paired with the adapter that holds it: the
+ * platform's own Vercel project and Agent37 account when configured, and each user's BYOK Vercel
+ * token for every project its pods were pinned to.
+ */
+async function v2ScopesOf(args: {
+  cipher: SecretCipherService
+  env: AgentHostEnv
+}): Promise<V2PodSweepScope[]> {
+  const sandbox = sandboxProvidersOf({ env: args.env, db })
+  const scopes: V2PodSweepScope[] = []
+  for (const provider of [ESandboxProvider.Vercel, ESandboxProvider.Agent37]) {
+    const credentials = platformCredentialsOf({ provider, env: args.env })
+    if ('configured' in credentials) continue
+    scopes.push({ label: `platform/${provider}`, credentials, sandbox: sandbox.for(provider) })
+  }
+  const seen = new Set<string>()
+  for (const row of await db.orm.public.UserVercelCredential.all()) {
+    if (row.sealedToken === null) continue
+    const token = openSecretValue({ cipher: args.cipher, sealed: row.sealedToken })
+    const pinned = await db.orm.public.CloudSandbox.where({ userId: row.userId })
+      .select('vercelProjectId')
+      .all()
+    for (const projectId of projectIdsOf({ projectId: row.vercelProjectId, pinned })) {
+      const key = `${row.teamId}/${projectId}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      const credentials: SandboxCredentials = {
+        provider: ESandboxProvider.Vercel,
+        token,
+        teamId: row.teamId,
+        projectId,
+      }
+      scopes.push({
+        label: `${row.userId}/${projectId}`,
+        credentials,
+        sandbox: sandbox.for(ESandboxProvider.Vercel),
+      })
+    }
+  }
+  return scopes
+}
+
 export const orphanSandboxSweepTask = schedules.task({
   id: 'orphan-sandbox-sweep',
   cron: '5 * * * *',
@@ -102,20 +156,29 @@ export const orphanSandboxSweepTask = schedules.task({
     const cipher = new SecretCipherService(workerEnvService())
     const now = new Date()
     const cutoff = new Date(now.getTime() - ARCHIVED_SANDBOX_GRACE_MS)
-    const pods = await v2PodNames({ now })
+    const pods = await v2Pods({ now })
+    const v2Summary = await sweepV2Pods({
+      scopes: await v2ScopesOf({ cipher, env: readAgentHostEnv() }),
+      pods,
+      onRetired: async ({ podSessionId }) => {
+        const sessionIds = pods.sessionIdsByPod.get(podSessionId) ?? []
+        if (sessionIds.length === 0) return
+        await db.orm.v2.V2Session.where((session) => session.id.in(sessionIds))
+          .where((session) => session.archivedAt.isNotNull())
+          .updateAndCount({ podRetiredAt: new Date() })
+      },
+      endTerminals: (args) => endPodTerminals(args),
+      now,
+      dryRun: false,
+      log: (line) => triggerLog.log(line),
+    })
     const reconcile: SandboxStateReconciler = async ({ projectId, sandboxes }) =>
       reconcileStates({ projectId, sandboxes, now })
     const summary = await sweepOrphanSandboxes({
       stores: await storesOf({ cipher }),
       liveNames: () => liveSandboxNames({ now }),
       retirableNames: () => retirableSandboxNames({ now }),
-      onRetired: async ({ name }) => {
-        const sessionIds = pods.sessionIdsByName.get(name) ?? []
-        if (sessionIds.length === 0) return
-        await db.orm.v2.V2Session.where((session) => session.id.in(sessionIds))
-          .where((session) => session.archivedAt.isNotNull())
-          .updateAndCount({ podRetiredAt: new Date() })
-      },
+      ignoreName: isPodSandboxName,
       onStopped: async ({ name }) => {
         await db.orm.public.CloudSandbox.where({ name }).update({
           state: ESandboxState.Parked,
@@ -133,6 +196,6 @@ export const orphanSandboxSweepTask = schedules.task({
       softDeleteArchivedSessionsIn({ tx, cutoff, at: now }),
     )
     triggerLog.log(`soft-deleted ${softDeleted} v2 sessions archived past the grace`)
-    return { ...summary, softDeleted }
+    return { ...summary, v2: v2Summary, softDeleted }
   },
 })

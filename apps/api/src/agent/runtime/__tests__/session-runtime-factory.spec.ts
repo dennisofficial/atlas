@@ -19,6 +19,8 @@ import {
   type DaemonEndpoint,
   type SandboxTarget,
   type PodResizeOutcome,
+  type SandboxCredentials,
+  type SandboxListing,
 } from '../../sandbox/sandbox-provider'
 import { createSessionRuntimeFactory, SandboxNotConfiguredError } from '../session-runtime-factory'
 import { fakeModelSourceOf } from '../../testing/model-source'
@@ -84,6 +86,12 @@ class FakeSandbox extends SandboxProvider {
 
   async resize(_args: { target: SandboxTarget; vcpus: number }): Promise<PodResizeOutcome> {
     return 'restarted'
+  }
+
+  async delete(_args: { target: SandboxTarget }): Promise<void> {}
+
+  async list(_args: { credentials: SandboxCredentials }): Promise<readonly SandboxListing[]> {
+    return []
   }
 }
 

@@ -53,7 +53,7 @@ describe('endPodTerminals', () => {
     await terminal({ sessionId: 'ses-root', terminalId: 't3', ordinal: 2, state: 'ended' })
     await terminal({ sessionId: 'ses-elsewhere', terminalId: 't4', ordinal: 1, state: 'open' })
 
-    const ended = await endPodTerminals({ sandboxNames: ['atlas-v2-pod-1'] })
+    const ended = await endPodTerminals({ podSessionIds: ['pod-1'] })
 
     expect(ended).toBe(2)
     expect(await terminalRowsOf('ses-root')).toEqual([
@@ -73,19 +73,19 @@ describe('endPodTerminals', () => {
     await v2Session({ id: 'ses-solo' })
     await terminal({ sessionId: 'ses-solo', terminalId: 't1', ordinal: 1, state: 'open' })
 
-    expect(await endPodTerminals({ sandboxNames: ['atlas-v2-ses-solo'] })).toBe(1)
+    expect(await endPodTerminals({ podSessionIds: ['ses-solo'] })).toBe(1)
     expect(await terminalRowsOf('ses-solo')).toEqual([
       { terminalId: 't1', state: 'ended', endedReason: 'pod-slept' },
     ])
   })
 
-  it('ignores a sandbox that never hosted a v2 session', async () => {
+  it('ignores a pod that never hosted a v2 session', async () => {
     await seedUsers('user-a')
     await v2Session({ id: 'ses-root', podSessionId: 'pod-1' })
     await terminal({ sessionId: 'ses-root', terminalId: 't1', ordinal: 1, state: 'open' })
 
-    expect(await endPodTerminals({ sandboxNames: ['atlas-thread-thr-1'] })).toBe(0)
-    expect(await endPodTerminals({ sandboxNames: [] })).toBe(0)
+    expect(await endPodTerminals({ podSessionIds: ['pod-elsewhere'] })).toBe(0)
+    expect(await endPodTerminals({ podSessionIds: [] })).toBe(0)
     expect(await terminalRowsOf('ses-root')).toEqual([
       { terminalId: 't1', state: 'open', endedReason: null },
     ])

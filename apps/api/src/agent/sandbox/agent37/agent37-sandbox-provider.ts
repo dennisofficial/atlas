@@ -7,6 +7,8 @@ import {
   SandboxProvider,
   type DaemonEndpoint,
   type PodResizeOutcome,
+  type SandboxCredentials,
+  type SandboxListing,
   type SandboxTarget,
 } from '../sandbox-provider'
 
@@ -19,6 +21,7 @@ import {
 } from './agent37-daemon'
 import { agent37EndpointOf } from './agent37-endpoint'
 import {
+  AGENT37_POD_SESSION_KEY,
   agent37InstanceNameOf,
   type Agent37Env,
   type Agent37InstanceIds,
@@ -26,12 +29,11 @@ import {
 import { liveAgent37Client, type Agent37Client } from './agent37-client'
 import { agent37ShapeOfVcpus } from './agent37-resize'
 
-const apiKeyOf = (target: SandboxTarget): string => {
-  const credentials = target.credentials
-  if (credentials.provider !== ESandboxProvider.Agent37) {
-    throw new Error(`Agent37SandboxProvider cannot run a ${credentials.provider} sandbox`)
+const apiKeyOf = (given: SandboxCredentials): string => {
+  if (given.provider !== ESandboxProvider.Agent37) {
+    throw new Error(`Agent37SandboxProvider cannot run a ${given.provider} sandbox`)
   }
-  return credentials.apiKey
+  return given.apiKey
 }
 
 type Resolved = { instanceId: string; sandboxName: string }
@@ -67,12 +69,16 @@ export class Agent37SandboxProvider extends SandboxProvider {
     return daemonToken({ secret: this.args.daemonSecret, sandboxName })
   }
 
-  private async resolve(args: { target: SandboxTarget; signal: AbortSignal }): Promise<Resolved> {
+  private async resolve(args: {
+    target: SandboxTarget
+    signal: AbortSignal
+    vcpus?: number | undefined
+  }): Promise<Resolved> {
     const podSessionId = args.target.sandboxSessionId
     const sandboxName = agent37InstanceNameOf(podSessionId)
     const known = await this.args.instances.find({ podSessionId })
     if (known !== null) return { instanceId: known, sandboxName }
-    const client = this.clientOf(apiKeyOf(args.target))
+    const client = this.clientOf(apiKeyOf(args.target.credentials))
     const instance = await client.create(
       agent37CreateBodyOf({
         env: this.args.env,
@@ -80,6 +86,7 @@ export class Agent37SandboxProvider extends SandboxProvider {
         sandboxName,
         token: this.tokenOf(sandboxName),
         bundleUrl: this.args.daemonBundleUrl,
+        ...(args.vcpus === undefined ? {} : { vcpus: args.vcpus }),
       }),
     )
     this.args.log?.(`agent37 created instance ${instance.id} for ${podSessionId}`)
@@ -94,7 +101,7 @@ export class Agent37SandboxProvider extends SandboxProvider {
   }
 
   private async ensureDaemon(args: { target: SandboxTarget; instanceId: string }): Promise<void> {
-    const client = this.clientOf(apiKeyOf(args.target))
+    const client = this.clientOf(apiKeyOf(args.target.credentials))
     const sandboxName = agent37InstanceNameOf(args.target.sandboxSessionId)
     await waitForAgent37Daemon({
       client,
@@ -105,12 +112,20 @@ export class Agent37SandboxProvider extends SandboxProvider {
     })
   }
 
-  async wake(args: { target: SandboxTarget; signal: AbortSignal }): Promise<DaemonEndpoint> {
+  async wake(args: {
+    target: SandboxTarget
+    signal: AbortSignal
+    vcpus?: number | undefined
+  }): Promise<DaemonEndpoint> {
     const signal = AbortSignal.any([
       AbortSignal.timeout(this.args.wakeDeadlineMs ?? WAKE_DEADLINE_MS),
       args.signal,
     ])
-    const waking = this.wakeWithin({ target: args.target, signal })
+    const waking = this.wakeWithin({
+      target: args.target,
+      signal,
+      ...(args.vcpus === undefined ? {} : { vcpus: args.vcpus }),
+    })
     waking.catch(() => undefined)
     return Promise.race([waking, abortedWake({ signal, caller: args.signal })])
   }
@@ -118,16 +133,21 @@ export class Agent37SandboxProvider extends SandboxProvider {
   private async wakeWithin(args: {
     target: SandboxTarget
     signal: AbortSignal
+    vcpus?: number | undefined
   }): Promise<DaemonEndpoint> {
     const sessionId = args.target.sandboxSessionId
     try {
       const resolved = await this.resolve(args)
       await this.ensureDaemon({ target: args.target, instanceId: resolved.instanceId })
+      const client = this.clientOf(apiKeyOf(args.target.credentials))
+      // The endpoint carries the instance's real cpu so the runtime can record the size as applied.
+      const instance = await client.get({ id: resolved.instanceId })
       return await agent37EndpointOf({
-        client: this.clientOf(apiKeyOf(args.target)),
+        client,
         instanceId: resolved.instanceId,
         token: this.tokenOf(resolved.sandboxName),
         sandboxName: resolved.sandboxName,
+        ...(instance.resources?.cpu === undefined ? {} : { vcpus: instance.resources.cpu }),
       })
     } catch (error) {
       if (error instanceof SandboxUnavailableError) throw error
@@ -140,19 +160,17 @@ export class Agent37SandboxProvider extends SandboxProvider {
       podSessionId: args.target.sandboxSessionId,
     })
     if (instanceId === null) return
-    await this.clientOf(apiKeyOf(args.target)).sleep({ id: instanceId })
+    await this.clientOf(apiKeyOf(args.target.credentials)).sleep({ id: instanceId })
   }
 
   async resize(args: { target: SandboxTarget; vcpus: number }): Promise<PodResizeOutcome> {
     const podSessionId = args.target.sandboxSessionId
     const instanceId = await this.args.instances.find({ podSessionId })
-    if (instanceId === null) {
-      throw new SandboxUnavailableError(
-        `sandbox for ${podSessionId} has no agent37 instance to resize`,
-      )
-    }
+    if (instanceId === null) return 'absent'
     const shape = agent37ShapeOfVcpus(args.vcpus)
-    await this.clientOf(apiKeyOf(args.target)).resize({
+    // A resize recreates the container in place (https://www.agent37.com/docs/agents-api/instances/resize),
+    // so a sleeping instance comes back running at the new shape instead of storing it for its next wake.
+    await this.clientOf(apiKeyOf(args.target.credentials)).resize({
       id: instanceId,
       cpu: shape.cpu,
       memory: shape.memory,
@@ -165,6 +183,34 @@ export class Agent37SandboxProvider extends SandboxProvider {
       podSessionId: args.target.sandboxSessionId,
     })
     if (instanceId === null) return
-    await this.clientOf(apiKeyOf(args.target)).exec({ id: instanceId, command: 'true' })
+    await this.clientOf(apiKeyOf(args.target.credentials)).exec({ id: instanceId, command: 'true' })
+  }
+
+  async delete(args: { target: SandboxTarget }): Promise<void> {
+    const instanceId = await this.args.instances.find({
+      podSessionId: args.target.sandboxSessionId,
+    })
+    if (instanceId === null) return
+    await this.clientOf(apiKeyOf(args.target.credentials)).remove({ id: instanceId })
+  }
+
+  async list(args: { credentials: SandboxCredentials }): Promise<readonly SandboxListing[]> {
+    const client = this.clientOf(apiKeyOf(args.credentials))
+    const listings: SandboxListing[] = []
+    let cursor: string | undefined
+    for (;;) {
+      const page = await client.list(cursor === undefined ? {} : { cursor })
+      for (const instance of page.data) {
+        const sandboxSessionId = instance.metadata?.[AGENT37_POD_SESSION_KEY]
+        if (sandboxSessionId === undefined) continue
+        listings.push({
+          sandboxSessionId,
+          running: instance.status === 'running',
+          createdAt: (instance.created ?? 0) * 1000,
+        })
+      }
+      if (page.next === undefined) return listings
+      cursor = page.next
+    }
   }
 }

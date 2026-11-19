@@ -110,7 +110,6 @@ jobs:
           cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache
 
       - uses: oven-sh/setup-bun@v2.2.0
-        if: vars.VERCEL_VCR_ENABLED == 'true'
 
       # After the push, never before: the fresh image now holds `latest`, and every image a
       # sandbox (running or stopped) still references is spared so resumes keep working.
@@ -123,3 +122,16 @@ jobs:
           VERCEL_PROJECT_ID: prj_kmYGr5ZuEyOeZdJpjw2pZaVOaJwo
           VERCEL_PROJECT_NAME: atlas-sandboxes
         run: bun apps/serve/scripts/prune-vcr-images.ts
+
+      # The Agent37 template must point at the same image release as VCR, or the two providers
+      # drift apart with nothing to detect it. Pinned by the immutable per-commit tag the
+      # publish job pushes, not `latest`, which a later merge can move under us. Runs whether
+      # or not VCR is enabled: the template is what every Agent37 pod boots from.
+      - name: register the agent37 template
+        env:
+          DOTENV_PRIVATE_KEY_PRODUCTION_ENC: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION_ENC }}
+        run: |
+          set -euo pipefail
+          tag="sha-$(echo '${{ inputs.release_sha }}' | cut -c1-7)"
+          bunx dotenvx run -f apps/api/.env.production.enc -- \
+            bun apps/api/scripts/agent37-register-template.ts --tag "$tag"

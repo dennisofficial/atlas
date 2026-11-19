@@ -46,8 +46,13 @@ so production keeps it at `https://api.byatlas.io`.
 
 `AGENT37_TEMPLATE_ID` names the workspace template that `scripts/agent37-register-template.ts`
 registers from `ghcr.io/dennisofficial/atlas-sandbox` (name `atlas-sandbox`, `default_port` 3000).
+The `retag` job in `.github/workflows/sandbox-image.yml` runs that script on every release with the
+`sha-<7>` tag the `publish` job pushed, so the template's digest moves together with the image the
+Vercel provider gets.
 A create hands the instance `ATLAS_DAEMON_BUNDLE_URL` (this host's `/agent/daemon/bundle`), so the
-image's entrypoint boots the daemon at PID 1 — Agent37 kills every exec after about a second.
+image's entrypoint boots the daemon at PID 1. An Agent37 instance stops when its image's main
+command exits, so `atlas-boot.sh` has to stay PID 1: the template's entrypoint must never be set to
+a command that returns, or the instance dies and takes every exec with it.
 Every Agent37 instance mounts its disk at `/atlas` through `mount_path`, which hides whatever the
 image ships in that folder, so the image must keep nothing it needs under `/atlas`.
 

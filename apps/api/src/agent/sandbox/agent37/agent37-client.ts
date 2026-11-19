@@ -19,6 +19,8 @@ export type Agent37Instance = {
   url: string
   name?: string | undefined
   metadata?: Record<string, string> | undefined
+  /** Creation time in epoch seconds. */
+  created?: number | undefined
   resources?: Agent37Resources | undefined
 }
 

@@ -13,7 +13,7 @@ import {
 } from '@/features/pods/pod-resize-confirmation'
 
 import { resizePod } from '../../data/pod-resources'
-import { podBusyOf, PodStatusSection } from '../details/pod-section'
+import { podBusyOf, PodStatusSection, podSizesOf } from '../details/pod-section'
 import { paneValueFixture, previewFixture, populatedPaneValue, viewModelFixture } from './fixture'
 
 beforeAll(() => {
@@ -90,6 +90,48 @@ function Harness(props: {
   )
 }
 
+describe('podSizesOf', () => {
+  it('keeps the plan-capped sizes for a Vercel pod on the team own credentials', () => {
+    expect(
+      podSizesOf({
+        sandboxProvider: 'vercel',
+        credentialSource: 'byok',
+        plan: EVercelPlan.Hobby,
+      }),
+    ).toEqual({ sizes: [1, 2, 4], planCapHint: 'Hobby plan: up to 4 vCPU' })
+  })
+
+  it('offers 2, 4 and 8 with no Vercel plan hint for an Agent37 pod', () => {
+    expect(
+      podSizesOf({
+        sandboxProvider: 'agent37',
+        credentialSource: 'platform',
+        plan: EVercelPlan.Hobby,
+      }),
+    ).toEqual({ sizes: [2, 4, 8], planCapHint: undefined })
+  })
+
+  it('offers 2, 4 and 8 with no Vercel plan hint for a Vercel pod on Atlas credentials', () => {
+    expect(
+      podSizesOf({
+        sandboxProvider: 'vercel',
+        credentialSource: 'platform',
+        plan: EVercelPlan.Hobby,
+      }),
+    ).toEqual({ sizes: [2, 4, 8], planCapHint: undefined })
+  })
+
+  it('falls back to the plan-capped sizes when the session reports no provider', () => {
+    expect(
+      podSizesOf({
+        sandboxProvider: undefined,
+        credentialSource: undefined,
+        plan: EVercelPlan.Pro,
+      }),
+    ).toEqual({ sizes: [1, 2, 4, 6, 8], planCapHint: 'Pro plan: up to 8 vCPU' })
+  })
+})
+
 describe('PodStatusSection', () => {
   it('renders nothing without pushed pod state', async () => {
     const unmount = await mount(
@@ -144,6 +186,23 @@ describe('PodStatusSection', () => {
       />,
     )
     expect(html).toContain('Resize failed')
+  })
+
+  it('names the sandbox provider of the session', () => {
+    const html = renderToStaticMarkup(
+      <PodStatusSection
+        pod={{ desiredVcpus: 2, actualVcpus: 2, phase: 'steady' }}
+        live
+        busy={false}
+        plan={EVercelPlan.Unknown}
+        sandboxProvider="agent37"
+        credentialSource="platform"
+        settingsHref="/settings/usage-sandboxes"
+        onResize={async () => undefined}
+      />,
+    )
+    expect(html).toContain('data-sandbox-provider="agent37"')
+    expect(html).toContain('Agent37')
   })
 
   it('asks only when the pod waits on a parked session', () => {

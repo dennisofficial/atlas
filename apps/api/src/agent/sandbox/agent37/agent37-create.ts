@@ -6,6 +6,7 @@ import {
   type Agent37Env,
 } from './agent37-instances'
 import type { Agent37CreateArgs } from './agent37-client'
+import { agent37ShapeOfVcpus } from './agent37-resize'
 
 export const AGENT37_IDLE_TIMEOUT_SECONDS = 1800
 export const AGENT37_MOUNT_PATH = SANDBOX_HOME_PATH.replace(/\/home$/, '')
@@ -16,13 +17,17 @@ export const agent37CreateBodyOf = (args: {
   sandboxName: string
   token: string
   bundleUrl: string
+  vcpus?: number | undefined
 }): Agent37CreateArgs => ({
   template: args.env.template,
   type: 'vm',
   region: 'us',
   name: agent37InstanceNameOf(args.podSessionId),
   metadata: { [AGENT37_POD_SESSION_KEY]: args.podSessionId },
-  resources: args.env.resources,
+  resources:
+    args.vcpus === undefined
+      ? args.env.resources
+      : { ...agent37ShapeOfVcpus(args.vcpus), disk: args.env.resources.disk },
   mount_path: AGENT37_MOUNT_PATH,
   auto_sleep: true,
   idle_timeout_seconds: AGENT37_IDLE_TIMEOUT_SECONDS,

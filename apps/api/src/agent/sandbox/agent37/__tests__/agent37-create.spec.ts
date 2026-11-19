@@ -44,6 +44,18 @@ describe('agent37CreateBodyOf', () => {
     expect(body.env.ATLAS_DAEMON_BUNDLE_URL).toBe('https://api.byatlas.io/agent/daemon/bundle')
   })
 
+  it('takes the shape of the requested vcpus, keeping the template disk', () => {
+    const bigger = agent37CreateBodyOf({
+      env,
+      podSessionId: 'pod-1',
+      sandboxName: agent37InstanceNameOf('pod-1'),
+      token: 'unused',
+      bundleUrl: 'https://api.byatlas.io/agent/daemon/bundle',
+      vcpus: 4,
+    })
+    expect(bigger.resources).toEqual({ cpu: 4, memory: 8, disk: 20 })
+  })
+
   it('never carries the workspace api key', () => {
     expect(JSON.stringify(body)).not.toContain(env.apiKey)
   })

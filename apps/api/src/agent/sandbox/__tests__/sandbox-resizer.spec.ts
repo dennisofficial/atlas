@@ -11,6 +11,8 @@ import {
   SandboxProvider,
   type DaemonEndpoint,
   type PodResizeOutcome,
+  type SandboxCredentials,
+  type SandboxListing,
   type SandboxTarget,
 } from '../sandbox-provider'
 import { sandboxResizerOf, type SandboxResizer } from '../sandbox-resizer'
@@ -45,6 +47,12 @@ class RecordingSandbox extends SandboxProvider {
   async resize(args: { target: SandboxTarget; vcpus: number }): Promise<PodResizeOutcome> {
     this.resizes.push(args)
     return 'restarted'
+  }
+
+  async delete(_args: { target: SandboxTarget }): Promise<void> {}
+
+  async list(_args: { credentials: SandboxCredentials }): Promise<readonly SandboxListing[]> {
+    return []
   }
 }
 

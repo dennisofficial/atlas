@@ -6,12 +6,14 @@ export { ConfigReader, SessionNotFoundError } from './config/config-reader'
 export { SecretCipher } from './config/secret-cipher'
 export type { AgentHostConfig, ConfigSource } from './config/agent-host-config'
 export { AgentHostEnvError, readAgentHostEnv, type AgentHostEnv } from './config/env'
+export { platformCredentialsOf, type PlatformCredentialGap } from './config/platform-credentials'
 export { daemonPaths, launchDaemon, type DaemonBundle } from './sandbox/daemon-launch'
 export {
   SandboxProvider,
   type DaemonEndpoint,
   type PodResizeOutcome,
   type SandboxCredentials,
+  type SandboxListing,
   type SandboxTarget,
 } from './sandbox/sandbox-provider'
 export {
@@ -19,7 +21,12 @@ export {
   SandboxProviderUnavailableError,
   type SandboxProviderRegistry,
 } from './sandbox/provider-registry'
-export { sandboxNameOf } from './sandbox/vercel-names'
+export {
+  isPodSandboxName,
+  podSessionIdOfSandboxName,
+  sandboxNameOf,
+} from './sandbox/vercel-names'
+export { sandboxProvidersOf, type SandboxProvidersEnv } from './sandbox/sandbox-providers'
 export { VercelSandboxProvider } from './sandbox/vercel-sandbox-provider'
 export { Agent37SandboxProvider } from './sandbox/agent37/agent37-sandbox-provider'
 export { AgentModule } from './agent.module'

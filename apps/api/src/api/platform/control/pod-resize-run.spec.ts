@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import { EPodResizeOutcome } from './pod-resize.contract'
 import {
   failureText,
+  NO_SANDBOX_TO_RESIZE,
   runPodResize,
   type PodResizeDeps,
   type PodResizeSession,
@@ -82,11 +83,12 @@ describe('runPodResize', () => {
     expect(rewakes).toEqual([{ sessionId: 'parent-a' }])
   })
 
-  it('reports a stored size as such and leaves the parked pod asleep', async () => {
-    const { deps, rewakes } = depsOf({ resize: async () => 'stored' })
+  it('defers a stored size on a parked pod and leaves it asleep', async () => {
+    const { deps, failures, rewakes } = depsOf({ resize: async () => 'stored' })
 
-    expect(await runPodResize({ payload, deps })).toEqual({ outcome: EPodResizeOutcome.Stored })
+    expect(await runPodResize({ payload, deps })).toEqual({ outcome: EPodResizeOutcome.Deferred })
     expect(rewakes).toEqual([])
+    expect(failures).toEqual([])
   })
 
   it('rewakes a pod a retry finds already stopped while a host still holds it', async () => {
@@ -96,11 +98,22 @@ describe('runPodResize', () => {
     expect(rewakes).toEqual([{ sessionId: 'session-a' }])
   })
 
-  it('leaves an absent pod alone', async () => {
-    const { deps, rewakes } = depsOf({ resize: async () => 'absent' })
+  it('fails a resize with no sandbox to resize and records the error', async () => {
+    const { deps, failures, rewakes } = depsOf({ resize: async () => 'absent' })
 
-    expect(await runPodResize({ payload, deps })).toEqual({ outcome: EPodResizeOutcome.Stored })
+    expect(await runPodResize({ payload, deps })).toEqual({ outcome: EPodResizeOutcome.Failed })
+    expect(failures).toEqual([
+      { sessionId: 'session-a', generation: 2, error: NO_SANDBOX_TO_RESIZE },
+    ])
     expect(rewakes).toEqual([])
+  })
+
+  it('records nothing for a deferred resize', async () => {
+    const { deps, failures } = depsOf({ resize: async () => 'stored' })
+
+    await runPodResize({ payload, deps })
+
+    expect(failures).toEqual([])
   })
 
   it('rethrows the apply failure without recording it or rewaking', async () => {

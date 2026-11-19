@@ -2,22 +2,20 @@ import { db, or } from '@dltech/atlas-db'
 import { sandboxNameFor } from '../../platform/sandboxes/sandbox-names'
 import { ARCHIVED_SANDBOX_GRACE_MS } from './archived-sandbox-sweep'
 
-/** How `src/agent` derives its sandbox names (`sandboxNameOf` in sandbox/sandbox-provider.ts). */
-const v2SandboxNameOf = (podSessionId: string): string => `atlas-v2-${podSessionId}`
-
-export type V2PodNames = {
+export type V2Pods = {
   live: ReadonlySet<string>
   retirable: ReadonlySet<string>
-  sessionIdsByName: ReadonlyMap<string, string[]>
+  sessionIdsByPod: ReadonlyMap<string, string[]>
 }
 
 /**
- * A v2 pod is named by the session that owns it: its `podSessionId`, or its own id for a root pod
- * (`COALESCE(podSessionId, id)` in `packages/control`). A pod is live while some session on it can
- * still resume it — unarchived, or archived inside the grace an unarchive can undo — and retirable
- * once every session on it is archived past that grace.
+ * A v2 pod is identified by the session that owns it: its `podSessionId`, or its own id for a root
+ * pod (`COALESCE(podSessionId, id)` in `packages/control`). A pod is live while some session on it
+ * can still resume it — unarchived, or archived inside the grace an unarchive can undo — and
+ * retirable once every session on it is archived past that grace. The pod's provider name stays in
+ * its adapter, so this is the only identity the sweep and the runtime share.
  */
-export async function v2PodNames(args: { now: Date }): Promise<V2PodNames> {
+export async function v2Pods(args: { now: Date }): Promise<V2Pods> {
   const cutoff = args.now.getTime() - ARCHIVED_SANDBOX_GRACE_MS
   const sessions = await db.orm.v2.V2Session.select('id', 'podSessionId', 'archivedAt').all()
   const byPod = new Map<string, { ids: string[]; live: boolean }>()
@@ -30,29 +28,23 @@ export async function v2PodNames(args: { now: Date }): Promise<V2PodNames> {
   }
   const live = new Set<string>()
   const retirable = new Set<string>()
-  const sessionIdsByName = new Map<string, string[]>()
+  const sessionIdsByPod = new Map<string, string[]>()
   for (const [pod, entry] of byPod) {
-    const name = v2SandboxNameOf(pod)
-    sessionIdsByName.set(name, entry.ids)
-    if (entry.live) live.add(name)
-    else retirable.add(name)
+    sessionIdsByPod.set(pod, entry.ids)
+    if (entry.live) live.add(pod)
+    else retirable.add(pod)
   }
-  return { live, retirable, sessionIdsByName }
+  return { live, retirable, sessionIdsByPod }
 }
 
 /**
- * The names a running or resumable session can still resolve. Anything outside this set is storage
- * nobody can reach: resuming a pod looks it up by name, so a name with no live session behind it is
- * dead weight until it is deleted.
- */
-/**
- * Names whose pod must not be running: nothing live can resume them. A v2 pod whose sessions are all
- * archived past the grace, and a cloud sandbox whose session is archived past it — archiving parks
- * the pod, and the grace lets an unarchive bring it back before this list lets the hourly sweep finish
- * the job.
+ * The v1 names whose sandbox must not be running: nothing live can resume them. A cloud sandbox
+ * whose session is archived past the grace has been parked by archiving; the grace lets an
+ * unarchive bring it back before this list lets the hourly sweep finish the job. v2 pods are
+ * retired by `v2-pod-sweep.ts` instead.
  */
 export async function retirableSandboxNames(args: { now: Date }): Promise<ReadonlySet<string>> {
-  const names = new Set<string>((await v2PodNames({ now: args.now })).retirable)
+  const names = new Set<string>()
   const cutoff = new Date(args.now.getTime() - ARCHIVED_SANDBOX_GRACE_MS)
   const archived = await db.orm.public.Session.where((session) => session.archivedAt.lt(cutoff))
     .select('id')
@@ -67,6 +59,12 @@ export async function retirableSandboxNames(args: { now: Date }): Promise<Readon
   return names
 }
 
+/**
+ * The v1 names a running or resumable session can still resolve. Anything outside this set is
+ * storage nobody can reach: resuming a cloud sandbox looks it up by name, so a name with no live
+ * session behind it is dead weight until it is deleted. v2 pods are not named here — they belong to
+ * the port-scoped sweep (`v2-pod-sweep.ts`), which identity-checks them by pod session id.
+ */
 export async function liveSandboxNames(args: { now: Date }): Promise<ReadonlySet<string>> {
   const cutoff = new Date(args.now.getTime() - ARCHIVED_SANDBOX_GRACE_MS)
   const sessions = await db.orm.public.Session.where((session) =>
@@ -80,6 +78,5 @@ export async function liveSandboxNames(args: { now: Date }): Promise<ReadonlySet
   for (const thread of threads) {
     if (liveSessions.has(thread.sessionId)) names.add(sandboxNameFor({ threadId: thread.id }))
   }
-  for (const name of (await v2PodNames({ now: args.now })).live) names.add(name)
   return names
 }

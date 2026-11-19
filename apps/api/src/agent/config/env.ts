@@ -37,7 +37,7 @@ const DEFAULT_PREVIEW_DOMAIN = 'byatlas.dev'
 const DEFAULT_PUBLIC_URL = 'https://api.byatlas.io'
 const DEFAULT_AGENT37_CPU = 2
 const DEFAULT_AGENT37_MEMORY_GB = 4
-const DEFAULT_AGENT37_DISK_GB = 20
+const DEFAULT_AGENT37_DISK_GB = 64
 
 const defaultDaemonBundlePath = (): string =>
   join(import.meta.dir, '../../../../daemon/bin/daemon.js')

@@ -183,6 +183,16 @@ const sandboxOf = (session: ControlSessionRow | undefined): SessionStatusOutput[
   return parsed.success ? parsed.data : undefined
 }
 
+const sandboxChoiceOf = (
+  session: ControlSessionRow | undefined,
+): Pick<SessionStatusOutput, 'sandboxProvider' | 'credentialSource'> => {
+  if (session === undefined) return {}
+  return {
+    sandboxProvider: session.sandboxProvider as SessionStatusOutput['sandboxProvider'],
+    credentialSource: session.credentialSource as SessionStatusOutput['credentialSource'],
+  }
+}
+
 export const statusOutputOf = (args: {
   live: LiveView
   pending: PendingInputsState
@@ -201,6 +211,7 @@ export const statusOutputOf = (args: {
     ...(status.since === undefined ? {} : { since: status.since }),
     lease: { epoch: live.lease.epoch, holderHostId: live.lease.holderHostId, live: live.live },
     ...(sandbox === undefined ? {} : { sandbox }),
+    ...sandboxChoiceOf(args.session),
     ...(queued.length === 0 ? {} : { queued }),
     ...(commands.length === 0 ? {} : { commands }),
     ...(pod === undefined ? {} : { pod }),

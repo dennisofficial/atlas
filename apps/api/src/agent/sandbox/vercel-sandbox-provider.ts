@@ -20,18 +20,22 @@ import {
   SandboxProvider,
   type DaemonEndpoint,
   type PodResizeOutcome,
+  type SandboxCredentials,
+  type SandboxListing,
   type SandboxTarget,
 } from './sandbox-provider'
-import { sandboxNameOf } from './vercel-names'
+import { podSessionIdOfSandboxName, sandboxNameOf } from './vercel-names'
 import { abortedWake, WAKE_DEADLINE_MS } from './wake-deadline'
+
+/** Vercel's list endpoints reject a limit above 50. */
+const LIST_PAGE_LIMIT = 50
 
 export { WAKE_DEADLINE_MS }
 
-const vercelCredentialsOf = (target: SandboxTarget): VercelCredentials => {
-  const credentials = target.credentials
-  if (credentials.provider !== ESandboxProvider.Vercel)
-    throw new Error(`VercelSandboxProvider cannot run a ${credentials.provider} sandbox`)
-  return credentials
+const vercelCredentialsOf = (given: SandboxCredentials): VercelCredentials => {
+  if (given.provider !== ESandboxProvider.Vercel)
+    throw new Error(`VercelSandboxProvider cannot run a ${given.provider} sandbox`)
+  return given
 }
 
 export class VercelSandboxProvider extends SandboxProvider {
@@ -58,7 +62,7 @@ export class VercelSandboxProvider extends SandboxProvider {
     signal: AbortSignal
     vcpus?: number | undefined
   }): Promise<DaemonEndpoint> {
-    const credentials = vercelCredentialsOf(args.target)
+    const credentials = vercelCredentialsOf(args.target.credentials)
     const signal = AbortSignal.any([
       AbortSignal.timeout(this.args.wakeDeadlineMs ?? WAKE_DEADLINE_MS),
       args.signal,
@@ -124,7 +128,7 @@ export class VercelSandboxProvider extends SandboxProvider {
   }
 
   async stop(args: { target: SandboxTarget }): Promise<void> {
-    const credentials = vercelCredentialsOf(args.target)
+    const credentials = vercelCredentialsOf(args.target.credentials)
     const sandbox = await this.sdk.get({
       ...credentials,
       name: sandboxNameOf(args.target.sandboxSessionId),
@@ -134,7 +138,7 @@ export class VercelSandboxProvider extends SandboxProvider {
   }
 
   async keepAlive(args: { target: SandboxTarget; until: number }): Promise<void> {
-    const credentials = vercelCredentialsOf(args.target)
+    const credentials = vercelCredentialsOf(args.target.credentials)
     const sandboxName = sandboxNameOf(args.target.sandboxSessionId)
     const sandbox = await this.sdk.get({
       ...credentials,
@@ -150,7 +154,7 @@ export class VercelSandboxProvider extends SandboxProvider {
   }
 
   async resize(args: { target: SandboxTarget; vcpus: number }): Promise<PodResizeOutcome> {
-    const credentials = vercelCredentialsOf(args.target)
+    const credentials = vercelCredentialsOf(args.target.credentials)
     const signal = AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS)
     let sandbox: Sandbox
     try {
@@ -168,5 +172,37 @@ export class VercelSandboxProvider extends SandboxProvider {
     if (sandbox.status === 'stopped') return 'stored'
     await sandbox.stop({ signal })
     return 'restarted'
+  }
+
+  async delete(args: { target: SandboxTarget }): Promise<void> {
+    const credentials = vercelCredentialsOf(args.target.credentials)
+    const signal = AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS)
+    try {
+      const sandbox = await this.sdk.get({
+        ...credentials,
+        name: sandboxNameOf(args.target.sandboxSessionId),
+        resume: false,
+        signal,
+      })
+      if (sandbox.status === 'running') await sandbox.stop({ signal })
+      await sandbox.delete({ signal })
+    } catch (failure) {
+      if (isSandboxMissing(failure)) return
+      throw failure
+    }
+  }
+
+  async list(args: { credentials: SandboxCredentials }): Promise<readonly SandboxListing[]> {
+    const credentials = vercelCredentialsOf(args.credentials)
+    // Vercel's list endpoints reject a limit above 50; `toArray` walks every page.
+    const pages = await this.sdk.list({ ...credentials, limit: LIST_PAGE_LIMIT })
+    const sandboxes = await pages.toArray()
+    return sandboxes.flatMap((sandbox) => {
+      const sandboxSessionId = podSessionIdOfSandboxName(sandbox.name)
+      if (sandboxSessionId === null) return []
+      return [
+        { sandboxSessionId, running: sandbox.status === 'running', createdAt: sandbox.createdAt },
+      ]
+    })
   }
 }

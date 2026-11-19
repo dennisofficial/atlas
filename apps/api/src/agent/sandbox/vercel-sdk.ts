@@ -2,9 +2,18 @@ import { Sandbox } from '@vercel/sandbox'
 
 import { SANDBOX_QUICK_TIMEOUT_MS, SANDBOX_SERVE_PORT } from './constants'
 
+export type VercelListedSandbox = {
+  name: string
+  status: string
+  createdAt: number
+}
+
 export type VercelSdk = {
   getOrCreate: (params: Parameters<typeof Sandbox.getOrCreate>[0]) => Promise<Sandbox>
   get: (params: Parameters<typeof Sandbox.get>[0]) => Promise<Sandbox>
+  list: (params: Parameters<typeof Sandbox.list>[0]) => Promise<{
+    toArray: () => Promise<VercelListedSandbox[]>
+  }>
 }
 
 const preconnectOf = (target: object): { preconnect?: unknown } =>
@@ -22,6 +31,7 @@ const gzipOnlyFetch = Object.assign(
 export const liveSdk: VercelSdk = {
   getOrCreate: (params) => Sandbox.getOrCreate({ ...params, fetch: gzipOnlyFetch }),
   get: (params) => Sandbox.get({ ...params, fetch: gzipOnlyFetch }),
+  list: (params) => Sandbox.list({ ...params, fetch: gzipOnlyFetch }),
 }
 
 const routeOf = (sandbox: Sandbox): string | undefined => {
