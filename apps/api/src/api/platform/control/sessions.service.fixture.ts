@@ -112,7 +112,6 @@ export const logWithdrawn = async (args: {
 
 export class FakePodSizingClient {
   readonly reads: { userId: string; name: string }[] = []
-  readonly resizes: { userId: string; name: string; vcpus: number }[] = []
   resources: SandboxResourcesObservation | null = null
   failure: unknown = undefined
 
@@ -124,15 +123,25 @@ export class FakePodSizingClient {
     if (this.failure !== undefined) throw this.failure
     return this.resources
   }
+}
 
-  async resizePod(args: { userId: string; name: string; vcpus: number }): Promise<void> {
+export class FakeSandboxResizer {
+  readonly resizes: { sandboxSessionId: string; vcpus: number }[] = []
+  failure: unknown = undefined
+
+  async resize(args: { sandboxSessionId: string; vcpus: number }): Promise<void> {
     this.resizes.push(args)
     if (this.failure !== undefined) throw this.failure
   }
 }
 
 export const setupSessionsService = (
-  over: { env?: Record<string, string>; planGate?: PodPlanGate; client?: FakePodSizingClient } = {},
+  over: {
+    env?: Record<string, string>
+    planGate?: PodPlanGate
+    client?: FakePodSizingClient
+    resizer?: FakeSandboxResizer
+  } = {},
 ) => {
   const store = new InMemoryControlStore({ clock: () => NOW })
   store.markHostPresent(9001)
@@ -142,10 +151,12 @@ export const setupSessionsService = (
   const projects = new RecordingProjectAccess()
   const planGate: PodPlanGate = over.planGate ?? { assertWithinPlan: async () => undefined }
   const client = over.client ?? new FakePodSizingClient()
+  const resizer = over.resizer ?? new FakeSandboxResizer()
   const podSizing = new PodSizingService(
     client as unknown as VercelSandboxClient,
     new NoBackgroundWork(),
     planGate,
+    resizer,
   )
   const service = new SessionsService(
     plane,
@@ -158,5 +169,5 @@ export const setupSessionsService = (
     new EnvService({ SANDBOX_PROVIDER_DEFAULT: 'vercel', ...over.env }),
     podSizing,
   )
-  return { plane, service, registry, mediaStore, store, projects, client }
+  return { plane, service, registry, mediaStore, store, projects, client, resizer }
 }

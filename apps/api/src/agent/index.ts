@@ -22,7 +22,14 @@ export { sandboxNameOf } from './sandbox/vercel-names'
 export { VercelSandboxProvider } from './sandbox/vercel-sandbox-provider'
 export { Agent37SandboxProvider } from './sandbox/agent37/agent37-sandbox-provider'
 export { AgentModule } from './agent.module'
-export { MCP_OAUTH_BEGIN, OPERATOR_ANSWERS, POD_OPS, SESSION_STREAM } from './host/tokens'
+export {
+  MCP_OAUTH_BEGIN,
+  OPERATOR_ANSWERS,
+  POD_OPS,
+  SANDBOX_RESIZER,
+  SESSION_STREAM,
+} from './host/tokens'
+export { sandboxResizerOf, type SandboxResizer } from './sandbox/sandbox-resizer'
 export { podOpsOf, type PodOps } from './host/pod-ops'
 export {
   OperatorAnswerService,

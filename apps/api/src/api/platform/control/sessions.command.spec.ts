@@ -98,12 +98,12 @@ describe('SessionsService command', () => {
 
     await expect(refused).rejects.toBeInstanceOf(BadRequestException)
     expect(seen).toEqual([{ userId: 'user-a', vcpus: 16 }])
-    expect(context.client.resizes).toEqual([])
+    expect(context.resizer.resizes).toEqual([])
     expect(await inboxOf({ plane: context.plane, sessionId: created.sessionId })).toEqual([])
   })
 
   it('resizes the shared pod at once, forgets its cached resources and posts nothing', async () => {
-    const { service, client, plane, sessionId } = await seed()
+    const { service, client, resizer, plane, sessionId } = await seed()
     client.resources = { vcpus: 2, memoryMb: 4096 }
 
     await service.podResourcesOf({ userId: 'user-a', sessionId })
@@ -113,7 +113,7 @@ describe('SessionsService command', () => {
     expect(
       await service.command({ userId: 'user-a', sessionId, name: 'resize', args: { vcpus: 4 } }),
     ).toEqual({})
-    expect(client.resizes).toEqual([{ userId: 'user-a', name: `atlas-v2-${sessionId}`, vcpus: 4 }])
+    expect(resizer.resizes).toEqual([{ sandboxSessionId: sessionId, vcpus: 4 }])
     expect(await inboxOf({ plane, sessionId })).toEqual([])
 
     expect(await service.podResourcesOf({ userId: 'user-a', sessionId })).toEqual({
@@ -124,7 +124,7 @@ describe('SessionsService command', () => {
   })
 
   it('resizes the parent pod for a sub-agent session', async () => {
-    const { service, client, store, sessionId } = await seed()
+    const { service, resizer, store, sessionId } = await seed()
     const childId = await childOf({ store, parentId: sessionId })
 
     await service.command({
@@ -134,13 +134,13 @@ describe('SessionsService command', () => {
       args: { vcpus: 8 },
     })
 
-    expect(client.resizes).toEqual([{ userId: 'user-a', name: `atlas-v2-${sessionId}`, vcpus: 8 }])
+    expect(resizer.resizes).toEqual([{ sandboxSessionId: sessionId, vcpus: 8 }])
   })
 
   it('answers 404 when the pod is gone and posts nothing', async () => {
     const context = setup()
     const created = await context.service.create({ userId: 'user-a', projectId: 'proj-a' })
-    context.client.failure = new NotFoundException(
+    context.resizer.failure = new NotFoundException(
       `sandbox atlas-v2-${created.sessionId} not found`,
     )
 

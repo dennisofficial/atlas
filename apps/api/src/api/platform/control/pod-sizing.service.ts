@@ -1,10 +1,10 @@
-import { Injectable } from '@nestjs/common'
+import { Inject, Injectable } from '@nestjs/common'
 import type { ControlCommandHandler } from '@dltech/atlas-commands'
 import type { ControlPlane, ControlSessionRow } from '@dltech/atlas-control'
 import { resizeArgs } from '@dltech/atlas-native-commands'
 import type { SessionPodResourcesOutput } from '@dltech/atlas-protocol'
 
-import { sandboxNameOf } from '../../../agent'
+import { SANDBOX_RESIZER, sandboxNameOf, type SandboxResizer } from '../../../agent'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { PodPlanGate } from '../../../_core/ports/pod-plan-gate'
 import { PodResourcesCache } from '../sandboxes/pod-resources-cache'
@@ -32,6 +32,7 @@ export class PodSizingService implements PodSizing {
     private readonly client: VercelSandboxClient,
     background: BackgroundWork,
     private readonly planGate: PodPlanGate,
+    @Inject(SANDBOX_RESIZER) private readonly resizer: SandboxResizer,
   ) {
     this.cache = new PodResourcesCache(background, () => undefined)
   }
@@ -60,9 +61,9 @@ export class PodSizingService implements PodSizing {
     return async ({ args: raw }) => {
       const { vcpus } = resizeArgs.parse(raw)
       await this.planGate.assertWithinPlan({ userId: args.userId, vcpus })
-      const name = sandboxNameOf(podKeyOfSession({ session: args.session }))
-      await this.client.resizePod({ userId: args.userId, name, vcpus })
-      this.cache.forget(name)
+      const podSessionId = podKeyOfSession({ session: args.session })
+      await this.resizer.resize({ sandboxSessionId: podSessionId, vcpus })
+      this.cache.forget(sandboxNameOf(podSessionId))
     }
   }
 }

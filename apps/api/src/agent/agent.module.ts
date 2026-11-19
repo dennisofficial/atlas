@@ -7,6 +7,7 @@ import { CoreModule } from './host/core.module'
 import { HolderModule } from './host/holder.module'
 import { HttpModule } from './host/http.module'
 import { RuntimeModule } from './host/runtime.module'
+import { SandboxModule } from './host/sandbox.module'
 import { StartupModule } from './host/startup.module'
 import { MacLinkModule } from './mac-link/mac-link.module'
 
@@ -19,6 +20,7 @@ export class AgentModule {
         CoreModule.forRoot(env),
         ControlModule,
         RuntimeModule,
+        SandboxModule,
         HolderModule,
         HostCallsModule,
         HttpModule,
