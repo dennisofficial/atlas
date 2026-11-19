@@ -1,19 +1,15 @@
-import type { VercelCredentials } from './constants'
+import { ESandboxProvider } from '@dltech/atlas-protocol'
+
+export type SandboxCredentials =
+  | { provider: ESandboxProvider.Vercel; token: string; teamId: string; projectId: string }
+  | { provider: ESandboxProvider.Agent37; apiKey: string }
+
+export type SandboxTarget = { sandboxSessionId: string; credentials: SandboxCredentials }
 
 export type DaemonEndpoint = { url: string; token: string; sandboxName: string }
 
-export const sandboxNameOf = (sandboxSessionId: string): string => `atlas-v2-${sandboxSessionId}`
-
 export abstract class SandboxProvider {
-  abstract wake(args: {
-    sandboxSessionId: string
-    credentials: VercelCredentials
-    signal: AbortSignal
-  }): Promise<DaemonEndpoint>
-  abstract stop(args: { sandboxSessionId: string; credentials: VercelCredentials }): Promise<void>
-  abstract keepAlive(args: {
-    sandboxSessionId: string
-    credentials: VercelCredentials
-    until: number
-  }): Promise<void>
+  abstract wake(args: { target: SandboxTarget; signal: AbortSignal }): Promise<DaemonEndpoint>
+  abstract stop(args: { target: SandboxTarget }): Promise<void>
+  abstract keepAlive(args: { target: SandboxTarget; until: number }): Promise<void>
 }

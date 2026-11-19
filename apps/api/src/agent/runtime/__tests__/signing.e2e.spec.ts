@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
+import { singleProviderRegistry } from '../../testing/sandbox-registry'
 import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -69,7 +70,7 @@ const commitInShell = async (args: {
       signingKey: { read: async () => args.signingKey },
       githubFetch: (async () =>
         new Response(JSON.stringify({ id: 1, login: 'octocat' }))) as unknown as typeof fetch,
-      sandbox,
+      sandbox: singleProviderRegistry(sandbox),
       daemonSecret: 'signing-secret',
       timers: { now: () => Date.now(), ...systemTimers },
       modelFor: () => new ScriptedModel([]),

@@ -3,14 +3,26 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { daemonTestEnv, spawnDaemon } from '@dltech/atlas-daemon/testing'
+import { ESandboxProvider } from '@dltech/atlas-protocol'
 import { daemonToken } from '@dltech/atlas-protocol/engine'
-import type { VercelCredentials } from '../sandbox/constants'
 
-import { SandboxProvider, sandboxNameOf, type DaemonEndpoint } from '../sandbox/sandbox-provider'
+import {
+  SandboxProvider,
+  type DaemonEndpoint,
+  type SandboxTarget,
+} from '../sandbox/sandbox-provider'
+import { sandboxNameOf } from '../sandbox/vercel-names'
 
 const daemonEntry = join(import.meta.dir, '../../../../daemon/src/index.ts')
 
 type Running = { child: Bun.Subprocess; home: string; port: number }
+
+const localCredentials = {
+  provider: ESandboxProvider.Vercel,
+  token: '',
+  teamId: '',
+  projectId: '',
+} as const
 
 export class LocalSandboxProvider extends SandboxProvider {
   private readonly running = new Map<string, Running>()
@@ -19,44 +31,37 @@ export class LocalSandboxProvider extends SandboxProvider {
     super()
   }
 
-  async wake(args: {
-    sandboxSessionId: string
-    credentials: VercelCredentials
-    signal: AbortSignal
-  }): Promise<DaemonEndpoint> {
-    const existing = this.running.get(args.sandboxSessionId)
-    if (existing !== undefined)
-      return this.endpointOf({ sandboxSessionId: args.sandboxSessionId, port: existing.port })
+  async wake(args: { target: SandboxTarget; signal: AbortSignal }): Promise<DaemonEndpoint> {
+    const sandboxSessionId = args.target.sandboxSessionId
+    const existing = this.running.get(sandboxSessionId)
+    if (existing !== undefined) return this.endpointOf({ sandboxSessionId, port: existing.port })
     const home = mkdtempSync(join(tmpdir(), 'atlas-api-agent-local-'))
-    const sandboxName = sandboxNameOf(args.sandboxSessionId)
+    const sandboxName = sandboxNameOf(sandboxSessionId)
     const env = {
       ...daemonTestEnv(home),
       DAEMON_TOKEN: daemonToken({ secret: this.args.daemonSecret, sandboxName }),
       ATLAS_SANDBOX_NAME: sandboxName,
     }
     const spawned = await spawnDaemon({ entry: daemonEntry, env })
-    this.running.set(args.sandboxSessionId, { child: spawned.child, home, port: spawned.port })
-    return this.endpointOf({ sandboxSessionId: args.sandboxSessionId, port: spawned.port })
+    this.running.set(sandboxSessionId, { child: spawned.child, home, port: spawned.port })
+    return this.endpointOf({ sandboxSessionId, port: spawned.port })
   }
 
-  async stop(args: { sandboxSessionId: string; credentials: VercelCredentials }): Promise<void> {
-    const running = this.running.get(args.sandboxSessionId)
+  async stop(args: { target: SandboxTarget }): Promise<void> {
+    const sandboxSessionId = args.target.sandboxSessionId
+    const running = this.running.get(sandboxSessionId)
     if (running === undefined) return
-    this.running.delete(args.sandboxSessionId)
+    this.running.delete(sandboxSessionId)
     running.child.kill('SIGKILL')
     await running.child.exited
     rmSync(running.home, { recursive: true, force: true })
   }
 
-  async keepAlive(_args: {
-    sandboxSessionId: string
-    credentials: VercelCredentials
-    until: number
-  }): Promise<void> {}
+  async keepAlive(_args: { target: SandboxTarget; until: number }): Promise<void> {}
 
   async stopAll(): Promise<void> {
     for (const sandboxSessionId of [...this.running.keys()]) {
-      await this.stop({ sandboxSessionId, credentials: { token: '', teamId: '', projectId: '' } })
+      await this.stop({ target: { sandboxSessionId, credentials: localCredentials } })
     }
   }
 

@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto'
 
-import { SandboxUnavailableError } from '@dltech/atlas-host'
+import { ESandboxProvider } from '@dltech/atlas-protocol'
 import { daemonToken } from '@dltech/atlas-protocol/engine'
+import { SandboxUnavailableError } from '@dltech/atlas-host'
+
 import {
   imageOptimizeRetry,
   SANDBOX_QUICK_TIMEOUT_MS,
@@ -12,9 +14,17 @@ import { mountWithRetries } from './vercel-mount'
 import { liveSdk, renewSessionDeadline, routedUrlOf, type VercelSdk } from './vercel-sdk'
 
 import { launchDaemon, type DaemonBundle } from './daemon-launch'
-import { SandboxProvider, sandboxNameOf, type DaemonEndpoint } from './sandbox-provider'
+import { SandboxProvider, type DaemonEndpoint, type SandboxTarget } from './sandbox-provider'
+import { sandboxNameOf } from './vercel-names'
 
 export const WAKE_DEADLINE_MS = 5 * 60_000
+
+const vercelCredentialsOf = (target: SandboxTarget): VercelCredentials => {
+  const credentials = target.credentials
+  if (credentials.provider !== ESandboxProvider.Vercel)
+    throw new Error(`VercelSandboxProvider cannot run a ${credentials.provider} sandbox`)
+  return credentials
+}
 
 const abortedWake = (args: { signal: AbortSignal; caller: AbortSignal }): Promise<never> =>
   new Promise((_, reject) => {
@@ -49,26 +59,24 @@ export class VercelSandboxProvider extends SandboxProvider {
     return this.args.sdk ?? liveSdk
   }
 
-  async wake(args: {
-    sandboxSessionId: string
-    credentials: VercelCredentials
-    signal: AbortSignal
-  }): Promise<DaemonEndpoint> {
+  async wake(args: { target: SandboxTarget; signal: AbortSignal }): Promise<DaemonEndpoint> {
+    const credentials = vercelCredentialsOf(args.target)
     const signal = AbortSignal.any([
       AbortSignal.timeout(this.args.wakeDeadlineMs ?? WAKE_DEADLINE_MS),
       args.signal,
     ])
-    const waking = this.wakeWithin({ ...args, signal })
+    const waking = this.wakeWithin({ target: args.target, credentials, signal })
     waking.catch(() => undefined)
     return Promise.race([waking, abortedWake({ signal, caller: args.signal })])
   }
 
   private async wakeWithin(args: {
-    sandboxSessionId: string
+    target: SandboxTarget
     credentials: VercelCredentials
     signal: AbortSignal
   }): Promise<DaemonEndpoint> {
-    const sandboxName = sandboxNameOf(args.sandboxSessionId)
+    const sandboxSessionId = args.target.sandboxSessionId
+    const sandboxName = sandboxNameOf(sandboxSessionId)
     const token = daemonToken({ secret: this.args.daemonSecret, sandboxName })
     const sandbox = await mountWithRetries({
       sdk: this.sdk,
@@ -79,7 +87,7 @@ export class VercelSandboxProvider extends SandboxProvider {
       credentials: args.credentials,
       name: sandboxName,
       image: this.args.image,
-      threadId: args.sandboxSessionId,
+      threadId: sandboxSessionId,
       token: randomUUID(),
       environment: { ATLAS_SANDBOX_NAME: sandboxName },
       onCreate: () => Promise.resolve(),
@@ -108,30 +116,28 @@ export class VercelSandboxProvider extends SandboxProvider {
     }
   }
 
-  async stop(args: { sandboxSessionId: string; credentials: VercelCredentials }): Promise<void> {
+  async stop(args: { target: SandboxTarget }): Promise<void> {
+    const credentials = vercelCredentialsOf(args.target)
     const sandbox = await this.sdk.get({
-      ...args.credentials,
-      name: sandboxNameOf(args.sandboxSessionId),
+      ...credentials,
+      name: sandboxNameOf(args.target.sandboxSessionId),
       signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
     })
     await sandbox.stop({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
   }
 
-  async keepAlive(args: {
-    sandboxSessionId: string
-    credentials: VercelCredentials
-    until: number
-  }): Promise<void> {
-    const sandboxName = sandboxNameOf(args.sandboxSessionId)
+  async keepAlive(args: { target: SandboxTarget; until: number }): Promise<void> {
+    const credentials = vercelCredentialsOf(args.target)
+    const sandboxName = sandboxNameOf(args.target.sandboxSessionId)
     const sandbox = await this.sdk.get({
-      ...args.credentials,
+      ...credentials,
       name: sandboxName,
       signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
     })
     await renewSessionDeadline({
       sandbox,
       name: sandboxName,
-      sessionId: args.sandboxSessionId,
+      sessionId: args.target.sandboxSessionId,
       until: args.until,
     })
   }

@@ -12,7 +12,7 @@ import { podOpsOf } from './pod-ops'
 import { POD_OPS } from './tokens'
 import type { ConfigSource } from '../config/agent-host-config'
 import type { AgentHostEnv } from '../config/env'
-import type { SandboxProvider } from '../sandbox/sandbox-provider'
+import type { SandboxProviderRegistry } from '../sandbox/provider-registry'
 import type { GithubTokenReader } from '../tokens/github-token-reader'
 import type { ModelTokenService } from '../tokens/model-token-service'
 import type { SigningKeyReader } from '../tokens/signing-key-reader'
@@ -52,7 +52,7 @@ const holderProvider: Provider = {
     env: AgentHostEnv,
     plane: ControlPlane,
     bus: HostBus,
-    sandbox: SandboxProvider,
+    sandbox: SandboxProviderRegistry,
     config: ConfigSource,
     tokens: ModelTokenService,
     github: GithubTokenReader,

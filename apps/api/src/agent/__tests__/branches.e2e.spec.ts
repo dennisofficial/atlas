@@ -1,4 +1,6 @@
 import { execFileSync } from 'node:child_process'
+import { ESandboxProvider } from '@dltech/atlas-protocol'
+import { singleProviderRegistry } from '../testing/sandbox-registry'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -61,6 +63,7 @@ const sourceWithRepo = (remoteUrl: string): ConfigSource => ({
       projectId: 'proj-1',
       model,
       models: fakeModelSourceOf(model),
+      provider: ESandboxProvider.Vercel,
       vercel: { configured: true, token: '', teamId: '', projectId: '' },
       workspace: { remoteUrl, baseBranch: null, additionalRepos: [], setupScript: '' },
       skills: [],
@@ -132,7 +135,7 @@ describe('branches-observed e2e', () => {
         config: sourceWithRepo(bareRepoUrl()),
         tokens: unusedTokens(),
         github: noGithub(),
-        sandbox,
+        sandbox: singleProviderRegistry(sandbox),
         daemonSecret: E2E_SECRET,
         timers,
         modelFor: () => new ScriptedModel(scripts),

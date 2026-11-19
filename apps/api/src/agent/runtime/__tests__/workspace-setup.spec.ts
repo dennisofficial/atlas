@@ -1,3 +1,4 @@
+import { ESandboxProvider } from '@dltech/atlas-protocol'
 import { afterAll, describe, expect, it } from 'bun:test'
 import {
   existsSync,
@@ -28,7 +29,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { CollectingLog } from '../../__tests__/e2e-support'
-import { sandboxNameOf } from '../../sandbox/sandbox-provider'
+import { sandboxNameOf } from '../../sandbox/vercel-names'
 import { LocalSandboxProvider } from '../../testing/local-sandbox-provider'
 import {
   ensureWorkspace,
@@ -71,8 +72,10 @@ const makeRemote = (dir: string): string => {
 
 const openPorts = async (args: { sessionId: string }) => {
   const endpoint = await sandbox.wake({
-    sandboxSessionId: args.sessionId,
-    credentials: { token: '', teamId: '', projectId: '' },
+    target: {
+      sandboxSessionId: args.sessionId,
+      credentials: { provider: ESandboxProvider.Vercel, token: '', teamId: '', projectId: '' },
+    },
     signal: new AbortController().signal,
   })
   const calls = new RemoteCalls({
@@ -531,7 +534,12 @@ describe('ensureWorkspace', () => {
 })
 
 describe('a setup script left running by an earlier host', () => {
-  const CREDENTIALS = { token: '', teamId: '', projectId: '' }
+  const CREDENTIALS = {
+    provider: ESandboxProvider.Vercel,
+    token: '',
+    teamId: '',
+    projectId: '',
+  } as const
 
   const startThenDrop = async (args: {
     sessionId: string
@@ -649,7 +657,7 @@ describe('a setup script left running by an earlier host', () => {
     await startThenDrop({ sessionId, workspace, launchDirectory })
     expect(existsSync(join(stateDir, SETUP_STARTED_MARKER))).toBe(true)
 
-    await sandbox.stop({ sandboxSessionId: sessionId, credentials: CREDENTIALS })
+    await sandbox.stop({ target: { sandboxSessionId: sessionId, credentials: CREDENTIALS } })
     const hostB = await openPorts({ sessionId })
     const steps: WorkspaceStepReport[] = []
     const second = await setupFor({

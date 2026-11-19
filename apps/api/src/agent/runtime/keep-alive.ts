@@ -1,34 +1,28 @@
 import type { HostTimers } from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
-import type { VercelCredentials } from '../sandbox/constants'
-import type { SandboxProvider } from '../sandbox/sandbox-provider'
+import type { SandboxProvider, SandboxTarget } from '../sandbox/sandbox-provider'
 
 const KEEP_ALIVE_EVERY_MS = 10 * 60_000
 const KEEP_ALIVE_WINDOW_MS = 45 * 60_000
 
 export const startKeepAlive = (args: {
   sandbox: SandboxProvider
-  sandboxSessionId: string
-  credentials: VercelCredentials
+  target: SandboxTarget
   timers: HostTimers
   signal: AbortSignal
   log?: LogPort | undefined
 }): (() => void) => {
-  const { sandbox, sandboxSessionId, credentials, timers, signal, log } = args
+  const { sandbox, target, timers, signal, log } = args
   let keepAlive = signal.aborted
     ? undefined
     : timers.setTimeout(function renew() {
         sandbox
-          .keepAlive({
-            sandboxSessionId,
-            credentials,
-            until: timers.now() + KEEP_ALIVE_WINDOW_MS,
-          })
+          .keepAlive({ target, until: timers.now() + KEEP_ALIVE_WINDOW_MS })
           .catch((error: unknown) => {
             log?.error({
               source: 'runtime.keep-alive',
-              message: `keep-alive for ${sandboxSessionId} failed`,
+              message: `keep-alive for ${target.sandboxSessionId} failed`,
               ...logFieldsOf({ error }),
             })
           })

@@ -10,7 +10,7 @@ import {
 } from '@dltech/atlas-host'
 import { daemonToken } from '@dltech/atlas-protocol/engine'
 
-import { sandboxNameOf } from '../../sandbox/sandbox-provider'
+import { sandboxNameOf } from '../../sandbox/vercel-names'
 import { startDaemon, type RigDaemon } from '../../testing/rig-daemon'
 import { SandboxSaidUploads } from '../sandbox-said-uploads'
 

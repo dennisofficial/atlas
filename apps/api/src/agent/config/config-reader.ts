@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { Db } from '@dltech/atlas-db'
+import { ESandboxProvider } from '@dltech/atlas-protocol'
 
 import type {
   AgentHostConfig,
@@ -23,6 +24,13 @@ type ModelChoiceRow = {
   modelRef: string
   modelEffort: string
   modelFast: boolean
+  sandboxProvider: string
+}
+
+const sandboxProviderOf = (pinned: string | null | undefined): ESandboxProvider => {
+  const value = pinned?.trim() ?? ''
+  if (value === '') return ESandboxProvider.Vercel
+  return z.nativeEnum(ESandboxProvider).parse(value)
 }
 
 const repoSchema = z.object({ repo: z.string().min(1), branch: z.string().min(1).optional() })
@@ -92,6 +100,7 @@ export class ConfigReader implements ConfigSource {
     return {
       userId,
       projectId,
+      provider: sandboxProviderOf(session.sandboxProvider),
       model: models.main.config,
       models,
       workspace: workspaceOf(project),

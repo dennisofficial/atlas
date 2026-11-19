@@ -5,13 +5,19 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { SandboxUnavailableError } from '@dltech/atlas-host'
+import { ESandboxProvider } from '@dltech/atlas-protocol'
 import { daemonToken } from '@dltech/atlas-protocol/engine'
 import type { VercelSdk } from '../vercel-sdk'
 
-import { sandboxNameOf } from '../sandbox-provider'
+import { sandboxNameOf } from '../vercel-names'
 import { VercelSandboxProvider, WAKE_DEADLINE_MS } from '../vercel-sandbox-provider'
 
-const CREDENTIALS = { token: 'vercel-tok', teamId: 'team-1', projectId: 'proj-1' }
+const CREDENTIALS = {
+  provider: ESandboxProvider.Vercel,
+  token: 'vercel-tok',
+  teamId: 'team-1',
+  projectId: 'proj-1',
+} as const
 
 const bundle = (): { bundle: { path: string }; cleanup: () => void } => {
   const dir = mkdtempSync(join(tmpdir(), 'atlas-daemon-bundle-'))
@@ -61,8 +67,7 @@ describe('VercelSandboxProvider.wake', () => {
         sdk,
       })
       const endpoint = await provider.wake({
-        sandboxSessionId: 's1',
-        credentials: CREDENTIALS,
+        target: { sandboxSessionId: 's1', credentials: CREDENTIALS },
         signal: AbortSignal.timeout(5000),
       })
 
@@ -113,8 +118,7 @@ describe('VercelSandboxProvider.wake deadline', () => {
       const started = Date.now()
       const failure = await provider
         .wake({
-          sandboxSessionId: 's2',
-          credentials: CREDENTIALS,
+          target: { sandboxSessionId: 's2', credentials: CREDENTIALS },
           signal: new AbortController().signal,
         })
         .catch((error: unknown) => error)
@@ -133,8 +137,7 @@ describe('VercelSandboxProvider.wake deadline', () => {
       const provider = providerOf({ sdk: hangingSdk([]), path: b.path })
       const controller = new AbortController()
       const waking = provider.wake({
-        sandboxSessionId: 's3',
-        credentials: CREDENTIALS,
+        target: { sandboxSessionId: 's3', credentials: CREDENTIALS },
         signal: controller.signal,
       })
       controller.abort()
@@ -146,5 +149,60 @@ describe('VercelSandboxProvider.wake deadline', () => {
 
   it('says five minutes for the default deadline', () => {
     expect(WAKE_DEADLINE_MS).toBe(5 * 60_000)
+  })
+})
+
+describe('VercelSandboxProvider.keepAlive', () => {
+  it('renews the sandbox session deadline to the requested time', async () => {
+    const extended: number[] = []
+    const sandbox = {
+      name: sandboxNameOf('s5'),
+      expiresAt: new Date(1_000_000),
+      currentSession: () => ({
+        status: 'running',
+        extendTimeout: async (ms: number) => {
+          extended.push(ms)
+        },
+      }),
+    }
+    const sdk: VercelSdk = {
+      getOrCreate: async () => sandbox as never,
+      get: async () => sandbox as never,
+    }
+    const provider = new VercelSandboxProvider({
+      image: 'atlas-sandbox:latest',
+      daemonBundle: { path: '/unused/daemon.js' },
+      daemonSecret: 'top-secret',
+      cloudUrl: 'https://api.test',
+      sdk,
+    })
+
+    await provider.keepAlive({
+      target: { sandboxSessionId: 's5', credentials: CREDENTIALS },
+      until: 1_600_000,
+    })
+
+    expect(extended).toEqual([600_000])
+  })
+})
+
+describe('VercelSandboxProvider credential guard', () => {
+  const provider = new VercelSandboxProvider({
+    image: 'atlas-sandbox:latest',
+    daemonBundle: { path: '/unused/daemon.js' },
+    daemonSecret: 'top-secret',
+    cloudUrl: 'https://api.test',
+  })
+  const target = {
+    sandboxSessionId: 's6',
+    credentials: { provider: ESandboxProvider.Agent37, apiKey: 'a37-key' },
+  } as const
+
+  it('refuses a target that is not a Vercel sandbox', async () => {
+    await expect(provider.wake({ target, signal: AbortSignal.timeout(1_000) })).rejects.toThrow(
+      'agent37',
+    )
+    await expect(provider.stop({ target })).rejects.toThrow('agent37')
+    await expect(provider.keepAlive({ target, until: 1 })).rejects.toThrow('agent37')
   })
 })

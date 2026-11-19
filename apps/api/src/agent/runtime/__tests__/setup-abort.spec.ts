@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { singleProviderRegistry } from '../../testing/sandbox-registry'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -123,7 +124,7 @@ describe('SessionRuntime.prepare after the setup deadline', () => {
             return new Promise<string | null>(() => {})
           },
         },
-        sandbox,
+        sandbox: singleProviderRegistry(sandbox),
         daemonSecret: 'abort-secret',
         timers: deadline.timers,
         modelFor: () => new ScriptedModel([]),

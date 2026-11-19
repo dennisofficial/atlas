@@ -1,9 +1,13 @@
 import { readFileSync } from 'node:fs'
 
 import { daemonToken } from '@dltech/atlas-protocol/engine'
-import type { VercelCredentials } from '../sandbox/constants'
 
-import { SandboxProvider, sandboxNameOf, type DaemonEndpoint } from '../sandbox/sandbox-provider'
+import {
+  SandboxProvider,
+  type DaemonEndpoint,
+  type SandboxTarget,
+} from '../sandbox/sandbox-provider'
+import { sandboxNameOf } from '../sandbox/vercel-names'
 
 export class FixedEndpointSandboxProvider extends SandboxProvider {
   constructor(
@@ -17,14 +21,10 @@ export class FixedEndpointSandboxProvider extends SandboxProvider {
     super()
   }
 
-  async wake(args: {
-    sandboxSessionId: string
-    credentials: VercelCredentials
-    signal: AbortSignal
-  }): Promise<DaemonEndpoint> {
-    const sandboxName = sandboxNameOf(args.sandboxSessionId)
+  async wake(args: { target: SandboxTarget; signal: AbortSignal }): Promise<DaemonEndpoint> {
+    const sandboxName = sandboxNameOf(args.target.sandboxSessionId)
     return {
-      url: this.urlOf(args.sandboxSessionId),
+      url: this.urlOf(args.target.sandboxSessionId),
       token: daemonToken({ secret: this.args.daemonSecret, sandboxName }),
       sandboxName,
     }
@@ -35,11 +35,7 @@ export class FixedEndpointSandboxProvider extends SandboxProvider {
     return this.args.urls?.[sandboxSessionId] ?? this.args.url
   }
 
-  async stop(_args: { sandboxSessionId: string; credentials: VercelCredentials }): Promise<void> {}
+  async stop(_args: { target: SandboxTarget }): Promise<void> {}
 
-  async keepAlive(_args: {
-    sandboxSessionId: string
-    credentials: VercelCredentials
-    until: number
-  }): Promise<void> {}
+  async keepAlive(_args: { target: SandboxTarget; until: number }): Promise<void> {}
 }

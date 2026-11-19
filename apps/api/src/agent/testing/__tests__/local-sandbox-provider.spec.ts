@@ -1,8 +1,15 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
+import { ESandboxProvider } from '@dltech/atlas-protocol'
+
 import { LocalSandboxProvider } from '../local-sandbox-provider'
 
-const CREDENTIALS = { token: '', teamId: '', projectId: '' }
+const CREDENTIALS = {
+  provider: ESandboxProvider.Vercel,
+  token: '',
+  teamId: '',
+  projectId: '',
+} as const
 
 describe('LocalSandboxProvider', () => {
   const provider = new LocalSandboxProvider({ daemonSecret: 'local-secret' })
@@ -13,8 +20,7 @@ describe('LocalSandboxProvider', () => {
 
   it('wakes and answers a hello with the endpoint token', async () => {
     const endpoint = await provider.wake({
-      sandboxSessionId: 's-local',
-      credentials: CREDENTIALS,
+      target: { sandboxSessionId: 's-local', credentials: CREDENTIALS },
       signal: AbortSignal.timeout(10_000),
     })
     const socket = new WebSocket(endpoint.url)
@@ -45,7 +51,7 @@ describe('LocalSandboxProvider', () => {
       expect(helloReply.kind).toBe('hello-reply')
     } finally {
       socket.close()
-      await provider.stop({ sandboxSessionId: 's-local', credentials: CREDENTIALS })
+      await provider.stop({ target: { sandboxSessionId: 's-local', credentials: CREDENTIALS } })
     }
   })
 })

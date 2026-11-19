@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { singleProviderRegistry } from '../../testing/sandbox-registry'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -88,7 +89,7 @@ describe('the setup gate deadline', () => {
         config: sourceFor(),
         tokens: unusedTokens(),
         github,
-        sandbox,
+        sandbox: singleProviderRegistry(sandbox),
         daemonSecret: 'gate-deadline-secret',
         timers: { now: () => Date.now(), ...systemTimers },
         modelFor: () => new ScriptedModel([]),
@@ -124,7 +125,7 @@ describe('SessionRuntime.prepare', () => {
       config: sourceFor(),
       tokens: unusedTokens(),
       github: { read: args.githubToken },
-      sandbox,
+      sandbox: singleProviderRegistry(sandbox),
       daemonSecret: 'prepare-secret',
       timers: { now: () => Date.now(), ...systemTimers },
       modelFor: () => new ScriptedModel([]),

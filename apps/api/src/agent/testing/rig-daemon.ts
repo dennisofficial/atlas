@@ -7,7 +7,7 @@ import { daemonTestEnv } from '@dltech/atlas-daemon/testing'
 import { FaultProxy } from '@dltech/atlas-host/testing'
 import { daemonToken } from '@dltech/atlas-protocol/engine'
 
-import { sandboxNameOf } from '../sandbox/sandbox-provider'
+import { sandboxNameOf } from '../sandbox/vercel-names'
 
 const daemonEntry = join(import.meta.dir, '../../../../daemon/src/index.ts')
 

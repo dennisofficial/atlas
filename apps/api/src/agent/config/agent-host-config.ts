@@ -1,4 +1,5 @@
 import type { EEffort, ModelRef } from '@dltech/atlas-core'
+import type { ESandboxProvider } from '@dltech/atlas-protocol'
 
 import type { ModelSource } from './model-config'
 
@@ -37,6 +38,7 @@ export type SkillIndexEntry = { name: string; description: string; scope: SkillS
 export type AgentHostConfig = {
   userId: string
   projectId: string | null
+  provider: ESandboxProvider
   model: ModelConfig
   models: ModelSource
   workspace: WorkspaceConfig

@@ -1,11 +1,16 @@
 import { EEffort, toThreadId } from '@dltech/atlas-core'
+import { ESandboxProvider } from '@dltech/atlas-protocol'
+import { singleProviderRegistry } from '../../testing/sandbox-registry'
 import { describe, expect, it } from 'bun:test'
 import { ScriptedModel } from '@dltech/atlas-agent/testing'
 import { systemTimers } from '@dltech/atlas-host'
 
 import type { AgentHostConfig, ConfigSource } from '../../config/agent-host-config'
-import type { VercelCredentials } from '../../sandbox/constants'
-import { SandboxProvider, type DaemonEndpoint } from '../../sandbox/sandbox-provider'
+import {
+  SandboxProvider,
+  type DaemonEndpoint,
+  type SandboxTarget,
+} from '../../sandbox/sandbox-provider'
 import { createSessionRuntimeFactory } from '../session-runtime-factory'
 import { fakeModelSourceOf } from '../../testing/model-source'
 
@@ -28,6 +33,7 @@ const config: AgentHostConfig = {
     accountId: 'acct-1',
     credential: { kind: 'api-key', apiKey: 'sk-test' },
   }),
+  provider: ESandboxProvider.Vercel,
   vercel: { configured: true, token: 'vt', teamId: 'team', projectId: 'proj' },
   workspace: { remoteUrl: null, baseBranch: null, additionalRepos: [], setupScript: '' },
   skills: [],
@@ -44,16 +50,12 @@ const source: ConfigSource & { issue(): Promise<never> } = {
 class SlowWakeSandbox extends SandboxProvider {
   stopped: string[] = []
 
-  wake(_args: {
-    sandboxSessionId: string
-    credentials: VercelCredentials
-    signal: AbortSignal
-  }): Promise<DaemonEndpoint> {
+  wake(_args: { target: SandboxTarget; signal: AbortSignal }): Promise<DaemonEndpoint> {
     return new Promise(() => {})
   }
 
-  async stop(args: { sandboxSessionId: string; credentials: VercelCredentials }): Promise<void> {
-    this.stopped.push(args.sandboxSessionId)
+  async stop(args: { target: SandboxTarget }): Promise<void> {
+    this.stopped.push(args.target.sandboxSessionId)
   }
 
   async keepAlive(): Promise<void> {}
@@ -70,7 +72,7 @@ const releaseOf = async (args: {
     config: source,
     tokens: source,
     github: { read: async () => null },
-    sandbox,
+    sandbox: singleProviderRegistry(sandbox),
     daemonSecret: 'secret-1',
     timers: { now: () => Date.now(), ...systemTimers },
     podPeers: {

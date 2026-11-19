@@ -1,4 +1,6 @@
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { ESandboxProvider } from '@dltech/atlas-protocol'
+import { singleProviderRegistry } from './sandbox-registry'
 
 import { composeCommands } from '@dltech/atlas-commands'
 import { ControlPlane } from '@dltech/atlas-control'
@@ -102,6 +104,7 @@ const testSource = (): ConfigSource => ({
       projectId: 'proj-1',
       model,
       models: fakeModelSourceOf(model),
+      provider: ESandboxProvider.Vercel,
       vercel: { configured: true, token: '', teamId: '', projectId: '' },
       workspace: {
         remoteUrl: null,
@@ -174,7 +177,7 @@ const main = async (): Promise<void> => {
       config: testSource(),
       tokens: testTokens(),
       github: { read: async () => null },
-      sandbox,
+      sandbox: singleProviderRegistry(sandbox),
       daemonSecret,
       timers,
       modelFor: ({ sessionId }) => {

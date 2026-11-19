@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 import { EEffort } from '@dltech/atlas-core'
+import { ESandboxProvider } from '@dltech/atlas-protocol'
+import { ControlPlane } from '@dltech/atlas-control'
+import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 
 import { VercelReconnectRequiredError } from '../../tokens/vercel-token-refresher'
@@ -33,6 +36,7 @@ describe('ConfigReader', () => {
     const config = await readerOver().read({ sessionId: 's-1' })
     expect(config.userId).toBe('user-1')
     expect(config.projectId).toBe('proj-1')
+    expect(config.provider).toBe(ESandboxProvider.Vercel)
     expect(config.workspace).toEqual({
       remoteUrl: 'https://github.com/acme/app.git',
       baseBranch: 'main',
@@ -53,6 +57,20 @@ describe('ConfigReader', () => {
       accountId: 'acct-1',
       credential: { kind: 'api-key', apiKey: 'sk-test' },
     })
+  })
+
+  it('reads the sandbox provider pinned on the session', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await new ControlPlane({ store: new PostgresControlStore(db) }).createSession({
+      sessionId: 's-agent37',
+      userId: 'user-1',
+      projectId: 'proj-1',
+      mainThreadId: 't-agent37',
+      sandboxProvider: ESandboxProvider.Agent37,
+    })
+    const config = await readerOver().read({ sessionId: 's-agent37' })
+    expect(config.provider).toBe(ESandboxProvider.Agent37)
   })
 
   it('runs the model the session names, over the configured default', async () => {

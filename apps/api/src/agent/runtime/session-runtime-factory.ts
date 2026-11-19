@@ -5,6 +5,7 @@ import {
   type ModelPort,
 } from '@dltech/atlas-core'
 import { InMemoryToolRegistry } from '@dltech/atlas-agent'
+import { ESandboxProvider } from '@dltech/atlas-protocol'
 import { daemonToken } from '@dltech/atlas-protocol/engine'
 import {
   DaemonAgentFileSystemPort,
@@ -29,7 +30,9 @@ import type { ConfigSource } from '../config/agent-host-config'
 import type { CloudConfigStore } from '../config/cloud-config-store'
 import type { EnvSecretsSource } from '../config/env-secrets'
 import { SANDBOX_HOME_PATH, workspaceDirectoryOf } from '../sandbox/constants'
-import { SandboxProvider, sandboxNameOf } from '../sandbox/sandbox-provider'
+import type { SandboxProviderRegistry } from '../sandbox/provider-registry'
+import type { SandboxTarget } from '../sandbox/sandbox-provider'
+import { sandboxNameOf } from '../sandbox/vercel-names'
 import { SandboxNotConfiguredError } from './sandbox-not-configured-error'
 import { PrepareSteps } from './prepare-steps'
 import { prepareControllerOf } from './session-prepare'
@@ -60,7 +63,7 @@ export type SessionRuntimeFactoryArgs = {
   tokens: Pick<ModelTokenService, 'issue'>
   github: Pick<GithubTokenReader, 'read'>
   signingKey?: Pick<SigningKeyReader, 'read'> | undefined
-  sandbox: SandboxProvider
+  sandbox: SandboxProviderRegistry
   daemonSecret: string
   timers: HostTimers
   modelFor?: ((args: { sessionId: string }) => ModelPort) | undefined
@@ -90,18 +93,20 @@ export const createSessionRuntimeFactory = (
     const config = await args.config.read({ sessionId })
     const launchDirectory =
       args.launchDirectory ?? workspaceDirectoryOf({ remoteUrl: config.workspace.remoteUrl })
+    const provider = args.sandbox.for(config.provider)
     if (config.vercel.configured === false) {
       throw new SandboxNotConfiguredError(config.vercel.gap)
     }
-    const credentials = config.vercel
+    const { token, teamId, projectId } = config.vercel
+    const target: SandboxTarget = {
+      sandboxSessionId,
+      credentials: { provider: ESandboxProvider.Vercel, token, teamId, projectId },
+    }
     const sandboxName = sandboxNameOf(sandboxSessionId)
     const paths = sessionPathsOf({ sessionId, threadId })
-    const wake = () => args.sandbox.wake({ sandboxSessionId, credentials, signal })
+    const wake = () => provider.wake({ target, signal })
     const steps = new PrepareSteps()
-    steps.report({
-      step: EWorkspaceStep.Sandbox,
-      state: EWorkspaceStepState.Started,
-    })
+    steps.report({ step: EWorkspaceStep.Sandbox, state: EWorkspaceStepState.Started })
     const endpoint = wake()
     endpoint.then(
       () =>
@@ -227,13 +232,12 @@ export const createSessionRuntimeFactory = (
     }
 
     const releaseSandbox = sandboxReleaseFor({
-      sandbox: args.sandbox,
+      sandbox: provider,
       podPeers: args.podPeers,
     })
     const stopKeepAlive = startKeepAlive({
-      sandbox: args.sandbox,
-      sandboxSessionId,
-      credentials,
+      sandbox: provider,
+      target,
       timers: args.timers,
       signal,
       log: args.log,
@@ -289,7 +293,7 @@ export const createSessionRuntimeFactory = (
       release: async () => {
         stopKeepAlive()
         calls.close('asleep')
-        await releaseSandbox({ sandboxSessionId, sessionId, credentials })
+        await releaseSandbox({ target, sessionId })
       },
     }
   }

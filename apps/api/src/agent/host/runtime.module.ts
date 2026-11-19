@@ -1,6 +1,7 @@
 import { hostname } from 'node:os'
 
 import { Module, type Provider } from '@nestjs/common'
+import { ESandboxProvider } from '@dltech/atlas-protocol'
 import { ChangeContentStore } from '@dltech/atlas-control'
 import type { Db } from '@dltech/atlas-db'
 import type { HostPresence, PodControlClient } from '@dltech/atlas-host'
@@ -15,7 +16,7 @@ import type { AgentHostEnv } from '../config/env'
 import type { SecretCipher } from '../config/secret-cipher'
 import { localPodControlOf } from '../control/local-pod-control'
 import { createPgHostPresence } from '../presence/pg-host-presence'
-import type { SandboxProvider } from '../sandbox/sandbox-provider'
+import { sandboxRegistryOf, type SandboxProviderRegistry } from '../sandbox/provider-registry'
 import { VercelSandboxProvider } from '../sandbox/vercel-sandbox-provider'
 import { GithubTokenReader } from '../tokens/github-token-reader'
 import { ModelTokenService } from '../tokens/model-token-service'
@@ -41,15 +42,22 @@ import {
 
 const sandboxProvider: Provider = {
   provide: SANDBOX,
-  useFactory: (env: AgentHostEnv): SandboxProvider =>
-    new VercelSandboxProvider({
-      image: env.sandboxImage,
-      daemonBundle: { path: env.daemonBundlePath },
-      daemonSecret: env.daemonSecret,
-      cloudUrl: env.apiOrigin,
-      log: (line) =>
-        console.log(JSON.stringify({ level: 'info', source: 'sandbox', message: line })),
-    }),
+  useFactory: (env: AgentHostEnv): SandboxProviderRegistry =>
+    sandboxRegistryOf(
+      new Map([
+        [
+          ESandboxProvider.Vercel,
+          new VercelSandboxProvider({
+            image: env.sandboxImage,
+            daemonBundle: { path: env.daemonBundlePath },
+            daemonSecret: env.daemonSecret,
+            cloudUrl: env.apiOrigin,
+            log: (line) =>
+              console.log(JSON.stringify({ level: 'info', source: 'sandbox', message: line })),
+          }),
+        ],
+      ]),
+    ),
   inject: [AGENT_HOST_ENV],
 }
 
