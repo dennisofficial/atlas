@@ -39,6 +39,7 @@ export type SessionStreamDeps = {
 export type SessionStreamFollowArgs = {
   userId: string
   sessionId: string
+  surface?: EStreamSurface | undefined
   afterSeq?: number | undefined
   afterHash?: string | undefined
   signal?: AbortSignal | undefined
@@ -61,6 +62,7 @@ export type SessionStream = {
 
 type OpenSubscription = {
   userId: string
+  surface: EStreamSurface
   signal: AbortSignal | undefined
   queue: StreamFrameQueue
   subscribe: (id: string) => StreamSubscriptionMessage
@@ -82,7 +84,7 @@ export const createSessionStream = (deps: SessionStreamDeps): SessionStream => {
     const session = subscriptions.open({
       userId: args.userId,
       version: STREAM_PROTOCOL_VERSION,
-      surface: EStreamSurface.Web,
+      surface: args.surface,
       send: (frame) => {
         queue.push(frame)
         flush.afterSend()
@@ -141,6 +143,7 @@ export const createSessionStream = (deps: SessionStreamDeps): SessionStream => {
     follow: (args) =>
       frames({
         userId: args.userId,
+        surface: args.surface ?? EStreamSurface.Web,
         signal: args.signal,
         queue: new StreamFrameQueue(),
         subscribe: (id) => ({
@@ -155,6 +158,7 @@ export const createSessionStream = (deps: SessionStreamDeps): SessionStream => {
     list: (args) =>
       frames({
         userId: args.userId,
+        surface: EStreamSurface.Web,
         signal: args.signal,
         queue: new StreamFrameQueue(),
         subscribe: (id) => ({ type: 'subscribe', id, kind: EStreamSubscribeKind.Sessions }),

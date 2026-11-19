@@ -4,6 +4,7 @@ import {
   EConnectionTimer,
   EStreamClosedReason,
   EStreamConnectionState,
+  STABLE_AFTER_MS,
   type ConnectionEffect,
   type ConnectionInput,
   type ConnectionState,
@@ -37,6 +38,8 @@ const abort: ConnectionEffect = { type: 'abort' }
 
 const cancelReconnect: ConnectionEffect = { type: 'cancel', timer: EConnectionTimer.Reconnect }
 
+const cancelStable: ConnectionEffect = { type: 'cancel', timer: EConnectionTimer.Stable }
+
 const toBackoff = (args: {
   state: ConnectionState
   random: number
@@ -51,7 +54,7 @@ const toBackoff = (args: {
       attempt: directed === undefined ? args.state.attempt + 1 : args.state.attempt,
       reconnectAfterMs: undefined,
     },
-    effects: [abort, { type: 'schedule', timer: EConnectionTimer.Reconnect, ms }],
+    effects: [abort, cancelStable, { type: 'schedule', timer: EConnectionTimer.Reconnect, ms }],
   }
 }
 
@@ -65,7 +68,7 @@ const toClosed = (args: {
     reason: args.reason,
     reconnectAfterMs: undefined,
   },
-  effects: [abort, cancelReconnect],
+  effects: [abort, cancelReconnect, cancelStable],
 })
 
 const connect = (state: ConnectionState): ConnectionStep => {
@@ -91,12 +94,10 @@ const opened = (state: ConnectionState): ConnectionStep => {
     state: {
       ...state,
       phase: EStreamConnectionState.Open,
-      attempt: 0,
-      failures: 0,
       reason: undefined,
       reconnectAfterMs: undefined,
     },
-    effects: [],
+    effects: [{ type: 'schedule', timer: EConnectionTimer.Stable, ms: STABLE_AFTER_MS }],
   }
 }
 
@@ -126,6 +127,10 @@ const failed = (args: {
 }
 
 const timerFired = (args: ReduceArgs & { timer: EConnectionTimer }): ConnectionStep => {
+  if (args.timer === EConnectionTimer.Stable) {
+    if (args.state.phase !== EStreamConnectionState.Open) return stay(args.state)
+    return stay({ ...args.state, attempt: 0, failures: 0 })
+  }
   if (args.state.phase !== EStreamConnectionState.Backoff) return stay(args.state)
   return {
     state: { ...args.state, phase: EStreamConnectionState.Connecting },
