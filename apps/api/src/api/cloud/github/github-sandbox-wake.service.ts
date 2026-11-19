@@ -13,7 +13,9 @@ import { ThreadSignalsService } from '../../platform/sessions/thread-signals.ser
 import {
   failedWakeTargets,
   linkedThreadsOf,
+  owedWakeTargets,
   WAKE_FAILURE_BACKOFF_MS,
+  type FailedWakeTarget,
 } from './github-sandbox-wake-linked'
 import { LocalPodWakes } from './github-local-pod-wake'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
@@ -53,15 +55,6 @@ type WakeTarget = {
   }
 }
 
-/**
- * Wakes parked sandboxes when a PR/CI event targets their thread. Called from the mailbox after
- * the event row lands; resolves the thread through the subscription link, boots only parked
- * sandboxes inside the 24h wake window, and debounces per threadId so a check-run storm boots
- * once. Never throws into the delivery path — a failed wake is logged, the mailbox row stays.
- * The wakeClaim CAS dedupes races between events and API instances before any Vercel call; the
- * claim reads as Resuming until serve's own mirror supersedes it. When the delivery carries the
- * event, the claim also appends it as a durable `pr-event` intent the booted pod pulls on hydrate.
- */
 @Injectable()
 export class GithubSandboxWakeService {
   private readonly logger = new Logger(GithubSandboxWakeService.name)
@@ -192,12 +185,16 @@ export class GithubSandboxWakeService {
     return undefined
   }
 
-  /** Boot-failure retry, driven by the poll-sweep task: re-boots each parked sandbox whose last
-   * wake failed past its backoff while its pod still holds an unconsumed wake intent. */
+  /** Recovers every parked sandbox that still owes its pod a wake intent. */
   async retryFailedWakes(): Promise<void> {
-    for (const target of await failedWakeTargets()) {
+    const targets = new Map<string, FailedWakeTarget>()
+    for (const target of [...(await failedWakeTargets()), ...(await owedWakeTargets())]) {
+      targets.set(target.threadId, target)
+    }
+    for (const target of targets.values()) {
+      if (this.inFlight.has(target.threadId) || this.debounce.has(target.threadId)) continue
       this.logger.log(
-        `retrying the failed wake of sandbox ${target.sandbox.name} (thread ${target.threadId}) after backoff`,
+        `retrying the owed wake of sandbox ${target.sandbox.name} (thread ${target.threadId})`,
       )
       this.startBoot(target)
     }

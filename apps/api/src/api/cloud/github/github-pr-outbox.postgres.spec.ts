@@ -6,9 +6,11 @@ import { recordingSignals } from '../../platform/sessions/thread-signals.fixture
 import {
   claimPrOutboxRows,
   completePrOutboxRow,
+  PR_OUTBOX_LEASE_MS,
   PR_OUTBOX_MAX_ATTEMPTS,
 } from './github-pr-outbox-lease'
 import { GithubPrOutboxDispatcher } from './github-pr-outbox'
+import { GithubHttpBudgetUnavailable } from './github-request-budget'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 
 const AT = new Date('2026-11-18T10:00:00Z')
@@ -32,6 +34,12 @@ const fanoutRow = (args: { createdAt: Date; id?: string }) => ({
   payload: { userIds: ['usr-a'], state: { repoFullName: 'compai/app', prNumber: 42 } },
 })
 
+const reconcileRow = (args: { createdAt: Date }) => ({
+  ...signalRow(args),
+  kind: 'reconcile-checks',
+  payload: { repoFullName: 'compai/app', headSha: 'abc123' },
+})
+
 const wakeRow = (args: { createdAt: Date }) => ({
   ...signalRow(args),
   kind: 'wake',
@@ -47,9 +55,32 @@ const wakeRow = (args: { createdAt: Date }) => ({
   },
 })
 
+function wakeGate(): { entered: Promise<void>; release: () => void; wake: () => Promise<void> } {
+  let markEntered: () => void = () => undefined
+  let release: () => void = () => undefined
+  const entered = new Promise<void>((resolve) => {
+    markEntered = resolve
+  })
+  const held = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  let calls = 0
+  return {
+    entered,
+    release: () => release(),
+    wake: async () => {
+      calls += 1
+      if (calls > 1) return
+      markEntered()
+      await held
+    },
+  }
+}
+
 function rig(args: {
   push?: (input: unknown) => void
   wake?: () => Promise<void>
+  reconcile?: () => Promise<void>
   now?: () => Date
 }) {
   const { signals, changedThreads } = recordingSignals()
@@ -58,7 +89,7 @@ function rig(args: {
     fanout: { push, pushEvent: vi.fn() },
     signals,
     wake: { notifyEvent: async () => args.wake?.() } as unknown as GithubSandboxWakeService,
-    reconcile: async () => undefined,
+    reconcile: async () => args.reconcile?.(),
     logger: { warn: () => undefined },
     now: args.now ?? (() => AT),
   })
@@ -76,11 +107,7 @@ describe('GithubPrOutboxDispatcher leases', () => {
     const second = await db.orm.public.GithubPrOutbox.create(
       signalRow({ createdAt: new Date(AT.getTime() + 1) }),
     )
-    const claimed = await claimPrOutboxRows({
-      now: new Date(0),
-      owner: 'outbox_dead',
-      limit: 32,
-    })
+    const claimed = await claimPrOutboxRows({ now: new Date(0), limit: 32 })
     expect(claimed.rows.map((row) => row.id).sort()).toEqual([first.id, second.id].sort())
 
     const { dispatcher, changedThreads } = rig({})
@@ -92,14 +119,63 @@ describe('GithubPrOutboxDispatcher leases', () => {
     expect((await reload(second.id))?.dispatchedAt).not.toBeNull()
   })
 
-  it('refuses the completion of a stale owner after the row was reclaimed', async () => {
+  it('refuses the completion of a claim another claimant has taken over', async () => {
     const row = await db.orm.public.GithubPrOutbox.create(signalRow({ createdAt: AT }))
-    await claimPrOutboxRows({ now: new Date(0), owner: 'outbox_stale', limit: 1 })
-    const reclaimed = await claimPrOutboxRows({ now: AT, owner: 'outbox_fresh', limit: 1 })
-    expect(reclaimed.rows.map((held) => held.id)).toEqual([row.id])
+    const stale = await claimPrOutboxRows({ now: new Date(0), limit: 1 })
+    const fresh = await claimPrOutboxRows({ now: AT, limit: 1 })
+    expect(fresh.rows.map((held) => held.id)).toEqual([row.id])
 
-    expect(await completePrOutboxRow({ id: row.id, owner: 'outbox_stale', now: AT })).toBe(false)
+    expect(await completePrOutboxRow({ id: row.id, token: stale.token, now: AT })).toBe(false)
     expect((await reload(row.id))?.dispatchedAt).toBeNull()
+  })
+
+  it('fences the completion of a claim the same dispatcher lost and reclaimed', async () => {
+    const row = await db.orm.public.GithubPrOutbox.create(wakeRow({ createdAt: AT }))
+    const gate = wakeGate()
+    let clock = AT
+    const { dispatcher } = rig({ wake: gate.wake, now: () => clock })
+
+    const first = dispatcher.drain()
+    await gate.entered
+    clock = new Date(AT.getTime() + PR_OUTBOX_LEASE_MS + 60_000)
+    expect(await dispatcher.drain()).toBe(1)
+    const reclaimed = await reload(row.id)
+    expect(reclaimed?.dispatchedAt?.getTime()).toBe(clock.getTime())
+
+    clock = new Date(clock.getTime() + 60_000)
+    gate.release()
+    expect(await first).toBe(1)
+
+    const after = await reload(row.id)
+    expect(after?.dispatchedAt?.getTime()).toBe(reclaimed?.dispatchedAt?.getTime())
+    expect(after).toMatchObject({ attempts: 0, leaseOwner: null })
+  })
+
+  it('renews its claim before each effect, so a batch that outlives its lease still completes', async () => {
+    const first = await db.orm.public.GithubPrOutbox.create(reconcileRow({ createdAt: AT }))
+    const second = await db.orm.public.GithubPrOutbox.create(
+      reconcileRow({ createdAt: new Date(AT.getTime() + 1) }),
+    )
+    let clock = AT
+    const leases: (number | null)[] = []
+    const { dispatcher } = rig({
+      now: () => clock,
+      reconcile: async () => {
+        const held = await reload(second.id)
+        leases.push(held?.leaseUntil?.getTime() ?? null)
+        clock = new Date(clock.getTime() + PR_OUTBOX_LEASE_MS + 1_000)
+      },
+    })
+
+    expect(await dispatcher.drain()).toBe(2)
+
+    expect(leases).toHaveLength(2)
+    expect(leases[1]).toBeGreaterThan(leases[0] ?? 0)
+    for (const id of [first.id, second.id]) {
+      expect(await reload(id)).toMatchObject({ attempts: 0, leaseOwner: null })
+      expect((await reload(id))?.dispatchedAt).not.toBeNull()
+    }
+    expect(await dispatcher.drain()).toBe(0)
   })
 
   it('runs each effect once when an inline dispatch and a drain race the same row', async () => {
@@ -116,17 +192,14 @@ describe('GithubPrOutboxDispatcher leases', () => {
 
   it('acks a wake row only after its notifyEvent promise resolves', async () => {
     const row = await db.orm.public.GithubPrOutbox.create(wakeRow({ createdAt: AT }))
-    let release: () => void = () => undefined
-    const durable = new Promise<void>((resolve) => {
-      release = resolve
-    })
-    const { dispatcher } = rig({ wake: () => durable })
+    const gate = wakeGate()
+    const { dispatcher } = rig({ wake: gate.wake })
 
     const draining = dispatcher.drain()
-    await Bun.sleep(30)
+    await gate.entered
     expect((await reload(row.id))?.dispatchedAt).toBeNull()
 
-    release()
+    gate.release()
     await draining
     expect((await reload(row.id))?.dispatchedAt).not.toBeNull()
   })
@@ -145,6 +218,29 @@ describe('GithubPrOutboxDispatcher leases', () => {
     expect(stored).toMatchObject({ dispatchedAt: null, attempts: 1, deadLetteredAt: null })
     expect(stored?.lastError).toContain('wake down')
     expect(stored?.nextAttemptAt?.getTime()).toBeGreaterThan(AT.getTime())
+  })
+
+  it('parks a row the budget refused until its window opens, without spending an attempt', async () => {
+    const row = await db.orm.public.GithubPrOutbox.create(reconcileRow({ createdAt: AT }))
+    const until = AT.getTime() + 4 * 60_000
+    let clock = AT
+    const { dispatcher } = rig({
+      now: () => clock,
+      reconcile: async () => {
+        throw new GithubHttpBudgetUnavailable(undefined, until)
+      },
+    })
+
+    expect(await dispatcher.drain()).toBe(1)
+    expect((await reload(row.id))?.nextAttemptAt?.getTime()).toBe(until)
+
+    for (let round = 0; round < PR_OUTBOX_MAX_ATTEMPTS + 1; round += 1) {
+      clock = new Date(clock.getTime() + 5 * 60_000)
+      expect(await dispatcher.drain()).toBe(1)
+      const stored = await reload(row.id)
+      expect(stored).toMatchObject({ dispatchedAt: null, attempts: 0, deadLetteredAt: null })
+      expect(stored?.nextAttemptAt?.getTime()).toBeGreaterThan(clock.getTime())
+    }
   })
 
   it('delivers a valid row behind a full batch of poison rows', async () => {

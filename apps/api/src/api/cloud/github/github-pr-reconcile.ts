@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { db } from '@dltech/atlas-db'
 
 import { EGithubCallSource } from './github-call-log'
@@ -10,6 +11,15 @@ import type { GithubUserReads } from './github-user-reads'
 import { withGithubRequestBudget, type GithubHttpBudget } from './github-request-budget'
 
 export type PrReconcileArgs = { repoFullName: string; headSha: string }
+
+export class GithubPrTokenUnavailable extends Error {
+  readonly parked = true
+  constructor(repoFullName: string) {
+    super(`github reconcile has no installation token for ${repoFullName}`)
+  }
+}
+
+const inlineConfirmation = new AsyncLocalStorage<boolean>()
 
 export class GithubPrReconcile {
   constructor(
@@ -27,9 +37,7 @@ export class GithubPrReconcile {
   async run(args: PrReconcileArgs): Promise<void> {
     const repoFullName = normalizedRepo(args.repoFullName)
     const token = await this.deps.fillTokenOf({ repoFullName, installationId: undefined })
-    if (token === undefined) {
-      throw new Error(`github reconcile has no installation token for ${repoFullName}`)
-    }
+    if (token === undefined) throw new GithubPrTokenUnavailable(repoFullName)
     const [owner, repo] = repoFullName.split('/') as [string, string]
     const checks = await withGithubRequestBudget({
       store: this.deps.budget,
@@ -60,6 +68,7 @@ export class GithubPrReconcile {
 
       return { store, outboxIds }
     })
-    await applied.store.dispatch(applied.outboxIds)
+    if (inlineConfirmation.getStore() === true) return
+    await inlineConfirmation.run(true, () => applied.store.dispatch(applied.outboxIds))
   }
 }

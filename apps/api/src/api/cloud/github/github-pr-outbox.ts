@@ -8,7 +8,8 @@ import {
   claimPrOutboxRows,
   completePrOutboxRow,
   failPrOutboxRow,
-  prOutboxOwnerOf,
+  renewPrOutboxLease,
+  type PrOutboxClaim,
 } from './github-pr-outbox-lease'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import type { WakeEventNotice, WakePrEvent } from './github-sandbox-wake-intent'
@@ -82,7 +83,6 @@ export class GithubPrOutboxWriter {
 }
 
 export class GithubPrOutboxDispatcher {
-  private readonly owner = prOutboxOwnerOf()
   private readonly logger: PrOutboxLogger
   private readonly now: () => Date
 
@@ -102,32 +102,23 @@ export class GithubPrOutboxDispatcher {
 
   async dispatch(ids: readonly string[]): Promise<void> {
     if (ids.length === 0) return
-    await this.runClaim(
-      await claimPrOutboxRows({ now: this.now(), owner: this.owner, limit: ids.length, ids }),
-    )
+    await this.runClaim(await claimPrOutboxRows({ now: this.now(), limit: ids.length, ids }))
   }
 
   async drain(): Promise<number> {
-    const claimed = await claimPrOutboxRows({
-      now: this.now(),
-      owner: this.owner,
-      limit: PR_OUTBOX_BATCH,
-    })
+    const claimed = await claimPrOutboxRows({ now: this.now(), limit: PR_OUTBOX_BATCH })
     await this.runClaim(claimed)
 
     return claimed.rows.length
   }
 
-  private async runClaim(claimed: {
-    rows: readonly Row<'GithubPrOutbox'>[]
-    deadLettered: readonly Row<'GithubPrOutbox'>[]
-  }): Promise<void> {
+  private async runClaim(claimed: PrOutboxClaim): Promise<void> {
     for (const row of claimed.deadLettered) {
       this.logger.warn(
         `github pr outbox ${row.kind} ${row.id} dead-lettered after ${row.attempts} attempts: ${row.lastError ?? 'no error recorded'}`,
       )
     }
-    for (const row of claimed.rows) await this.run(row)
+    for (const row of claimed.rows) await this.run({ row, token: claimed.token })
   }
 
   prune(args: { now: Date }): Promise<number> {
@@ -136,19 +127,28 @@ export class GithubPrOutboxDispatcher {
     ).deleteAndCount()
   }
 
-  private async run(row: Row<'GithubPrOutbox'>): Promise<void> {
-    try {
-      await this.perform(row)
-    } catch (failure) {
-      const record = await failPrOutboxRow({ row, owner: this.owner, failure, now: this.now() })
+  private async run(args: { row: Row<'GithubPrOutbox'>; token: string }): Promise<void> {
+    const { row, token } = args
+    if (!(await renewPrOutboxLease({ id: row.id, token, now: this.now() }))) {
       this.logger.warn(
-        `github pr outbox ${row.kind} ${row.id} failed on attempt ${record.attempts}${record.deadLettered ? ' and was dead-lettered' : ''}: ${record.lastError}`,
+        `github pr outbox ${row.kind} ${row.id} was reclaimed before its effect ran; its new owner will run it`,
       )
       return
     }
-    if (!(await completePrOutboxRow({ id: row.id, owner: this.owner, now: this.now() }))) {
+    try {
+      await this.perform(row)
+    } catch (failure) {
+      const record = await failPrOutboxRow({ row, token, failure, now: this.now() })
       this.logger.warn(
-        `github pr outbox ${row.kind} ${row.id} lost its lease before its effect finished; it will run again`,
+        record.parked
+          ? `github pr outbox ${row.kind} ${row.id} parked without spending an attempt: ${record.lastError}`
+          : `github pr outbox ${row.kind} ${row.id} failed on attempt ${record.attempts}${record.deadLettered ? ' and was dead-lettered' : ''}: ${record.lastError}`,
+      )
+      return
+    }
+    if (!(await completePrOutboxRow({ id: row.id, token, now: this.now() }))) {
+      this.logger.warn(
+        `github pr outbox ${row.kind} ${row.id} lost its claim before its effect finished; it will run again`,
       )
     }
   }

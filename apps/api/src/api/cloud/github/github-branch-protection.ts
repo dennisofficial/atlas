@@ -8,10 +8,6 @@ export type BranchProtectionRead = {
 
 const LOCK_NAMESPACE = 'gh-branch-protection:'
 
-/**
- * The read answers null when GitHub would not say, and a stored answer of "requires nothing" is
- * what lets a verdict settle early, so an unanswered read leaves what is stored alone.
- */
 export async function rememberBranchProtection(args: {
   tx: Tx
   repoFullName: string

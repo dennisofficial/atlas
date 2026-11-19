@@ -1,0 +1,67 @@
+import { db } from '@dltech/atlas-db'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
+import { unstubAllGlobals } from '@dltech/bun-test-shims'
+import {
+  fakeBoot,
+  PR_EVENT,
+  readSandbox,
+  seedParkedSandbox,
+  seedSubscription,
+  serviceWith,
+  settleLookups,
+  useWakeFixture,
+} from '../../../../test/github-sandbox-wake-fixture'
+import { EPrEventKind } from './github-realtime.types'
+import type { WakePrEvent } from './github-sandbox-wake-intent'
+
+const VERDICT: WakePrEvent = {
+  userId: 'usr-1',
+  repoFullName: 'compai/app',
+  prNumber: 42,
+  kind: EPrEventKind.Verdict,
+  payload: {
+    url: 'https://github.com/compai/app/pull/42',
+    verdict: 'green',
+    headSha: 'abc123',
+    settled: true,
+  },
+  eventId: 'evt-recover',
+}
+
+describe('GithubSandboxWakeService recovery of an owed intent', () => {
+  useTestDatabase()
+  useWakeFixture()
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    unstubAllGlobals()
+    vi.useRealTimers()
+  })
+
+  it('boots once for a debounced wake whose process died before the timer fired', async () => {
+    await seedParkedSandbox()
+    await seedSubscription()
+    const doomed = serviceWith({ boot: fakeBoot().boot })
+
+    await doomed.notifyEvent(PR_EVENT, VERDICT)
+    await settleLookups()
+
+    expect(
+      await db.orm.public.Event.where({ threadId: 'thr-1', type: 'pr-event' }).all(),
+    ).toHaveLength(1)
+    expect((await readSandbox()).wakeClaim).toBeNull()
+
+    const { boot, calls } = fakeBoot()
+    const recovery = serviceWith({ boot })
+
+    await recovery.retryFailedWakes()
+
+    expect(calls.map((call) => call.threadId)).toEqual(['thr-1'])
+    await recovery.retryFailedWakes()
+    expect(calls).toHaveLength(1)
+  })
+})

@@ -18,23 +18,27 @@ describe('GithubPollSweeperService tracked-head writes', () => {
   it('creates one row when two sweeps discover the same head pull request at once', async () => {
     const head = fakeHeadReads({ pulls: { 'compai/app': [REST_PULL] } })
     const served = head.pullsByHead.getMockImplementation()
-    let arrived = 0
-    let release = (): void => {}
+    const arrivals = { count: 0, release: (): void => {} }
     const bothArrived = new Promise<void>((resolve) => {
-      release = resolve
+      arrivals.release = resolve
     })
     head.pullsByHead.mockImplementation(async (input) => {
-      arrived += 1
-      if (arrived === 2) release()
-      await Promise.race([bothArrived, new Promise((resolve) => setTimeout(resolve, 500))])
+      arrivals.count += 1
+      if (arrivals.count === 2) arrivals.release()
+      await bothArrived
       return served === undefined ? [] : await served(input)
     })
-    const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, headReads: head.reads })
+    const { service } = serviceWith({
+      tokens: { usr_1: 'ghu_1', usr_2: 'ghu_2' },
+      headReads: head.reads,
+    })
     await covered()
     await seedTarget()
+    await seedTarget({ userId: 'usr_2' })
 
-    await Promise.all([service.handlePoll(), service.handlePoll()])
+    await Promise.all([service.handlePoll({ limit: 1 }), service.handlePoll({ limit: 1 })])
 
+    expect(arrivals.count).toBe(2)
     const rows = await db.orm.public.GithubPrState.where({ repoFullName: 'compai/app' }).all()
     expect(rows).toHaveLength(1)
     expect(rows[0]?.version).toBe(1)
