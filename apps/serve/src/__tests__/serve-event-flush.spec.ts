@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { trpcBodyOf } from './trpc-body'
 
 import { toRunId, toThreadId } from '@dltech/atlas-core'
 import type { PodEvent } from '@dltech/atlas-wire'
@@ -54,7 +55,7 @@ describe('createEventFlusher', () => {
     expect(await flusher.flush()).toBe(true)
 
     expect(api.posted.map((batch) => batch.map((event) => event.seq))).toEqual([[2, 3]])
-    expect(JSON.parse(api.posted[0]?.[0]?.body ?? '{}')).toMatchObject({
+    expect(trpcBodyOf(api.posted[0]?.[0]?.body ?? '{}')).toMatchObject({
       type: 'user-said',
       text: 'two',
     })

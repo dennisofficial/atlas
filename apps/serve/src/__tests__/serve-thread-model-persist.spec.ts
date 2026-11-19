@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { trpcBodyOf } from './trpc-body'
 import { NoticePort, toThreadId, type NoticePost } from '@dltech/atlas-core'
 import { API_PROVISIONED_ENV, EServeEnv } from '@dltech/atlas-wire'
 
@@ -35,7 +36,7 @@ const bind = (args: { env: Record<string, string | undefined>; status?: number }
       requests.push({
         url: String(input),
         method: init?.method,
-        body: JSON.parse(String(init?.body)),
+        body: trpcBodyOf(String(init?.body ?? '')),
         auth: new Headers(init?.headers).get('authorization'),
       })
       return args.status === undefined ? trpcOk(undefined) : trpcFailure({ status: args.status })

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { trpcBodyOf } from './trpc-body'
 
 import { toRunId, toThreadId } from '@dltech/atlas-core'
 import { createDeltaChannel, ETurnStatus } from '@dltech/atlas-harness'
@@ -147,7 +148,7 @@ describe('bindServeActivity Cloud adapter', () => {
           expect(String(input)).toBe(
             trpcUrl({ controlPlaneUrl: 'http://api', procedure: 'sandboxSelf.activity' }),
           )
-          bodies.push(JSON.parse(String(init?.body)))
+          bodies.push(trpcBodyOf(String(init?.body ?? '')))
           return trpcOk(null)
         }) as typeof fetch,
       },

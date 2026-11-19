@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
+import { trpcBodyOf } from './trpc-body'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -43,7 +44,7 @@ const recordingFetch = () => {
       return new Response('{}', { status: 404 })
     const headers = new Headers(init?.headers)
     requests.push({ url, authorization: headers.get('authorization') })
-    events.push(...bootStepsPostSchema.parse(JSON.parse(String(init?.body))).steps)
+    events.push(...bootStepsPostSchema.parse(trpcBodyOf(String(init?.body ?? ''))).steps)
     return trpcOk(undefined)
   }) as unknown as typeof fetch
   return { fetchFn, events, requests }
@@ -220,7 +221,7 @@ describe('serveBootSink', () => {
   const bodiesOf = async (serveVersion?: string) => {
     const bodies: unknown[] = []
     const fetchFn = (async (_input: string | URL | Request, init?: RequestInit) => {
-      bodies.push(JSON.parse(String(init?.body)))
+      bodies.push(trpcBodyOf(String(init?.body ?? '')))
       return trpcOk(undefined)
     }) as unknown as typeof fetch
     await serveBootSink({

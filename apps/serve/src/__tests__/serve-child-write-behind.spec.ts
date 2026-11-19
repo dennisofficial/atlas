@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { trpcBodyOf } from './trpc-body'
 
 import { toEventId, toRunId, toThreadId, type Event, type ThreadId } from '@dltech/atlas-core'
 import { EAgentStatus } from '@dltech/atlas-wire'
@@ -69,7 +70,11 @@ const harness = (args: { counts: Record<string, number>; failRegister?: { times:
   } as unknown as ServeApp
   const fetchFn = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input)
-    const body = JSON.parse(String(init?.body))
+    const body = trpcBodyOf(String(init?.body ?? '')) as {
+      threadId: string
+      title: string
+      events: { seq: number }[]
+    }
     if (url === trpcUrl({ controlPlaneUrl, procedure: 'sandboxSelf.registerChild' })) {
       if ((args.failRegister?.times ?? 0) > 0) {
         args.failRegister!.times -= 1
@@ -80,7 +85,7 @@ const harness = (args: { counts: Record<string, number>; failRegister?: { times:
       return trpcOk({ head: 0 })
     }
     posted.push({ threadId: body.threadId, seqs: body.events.map((e: { seq: number }) => e.seq) })
-    return trpcOk({ head: body.events.at(-1).seq })
+    return trpcOk({ head: body.events.at(-1)?.seq })
   }) as unknown as typeof fetch
   const lines: ServeLogLine[] = []
   const behind = bindServeWriteBehind({

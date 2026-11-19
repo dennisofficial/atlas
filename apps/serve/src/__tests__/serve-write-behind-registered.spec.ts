@@ -1,4 +1,5 @@
 import { mkdtempSync, rmSync } from 'node:fs'
+import { trpcBodyOf } from './trpc-body'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -71,7 +72,7 @@ const fakePostgres = (seed: readonly WireEvent[] = []) => {
   const fetchFn = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input)
     if (url === trpcUrl({ controlPlaneUrl, procedure: 'sandboxSelf.events' })) {
-      const { events } = podEventsPostSchema.parse(JSON.parse(String(init?.body)))
+      const { events } = podEventsPostSchema.parse(trpcBodyOf(String(init?.body ?? '')))
       batches.push(events.map((event) => event.seq))
       for (const event of events) {
         const stored = rows.get(event.seq)

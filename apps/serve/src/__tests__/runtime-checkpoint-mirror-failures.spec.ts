@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
+import { trpcBodyOf } from './trpc-body'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -56,7 +57,7 @@ describe('runtime checkpoint mirror failures', () => {
           failNext = false
           throw new Error('socket hang up')
         }
-        sent.push((JSON.parse(String(init?.body)) as RuntimeCheckpoint).revision)
+        sent.push((trpcBodyOf(String(init?.body ?? '')) as RuntimeCheckpoint).revision)
         return trpcOk(null)
       }),
     })
@@ -80,7 +81,7 @@ describe('runtime checkpoint mirror failures', () => {
       cloudURL: 'http://127.0.0.1:9',
       now: () => clock.at,
       fetchFn: fakeFetch(async (_input: unknown, init?: RequestInit) => {
-        sent.push((JSON.parse(String(init?.body)) as RuntimeCheckpoint).revision)
+        sent.push((trpcBodyOf(String(init?.body ?? '')) as RuntimeCheckpoint).revision)
         const status = replies.shift() ?? 200
         return status === 404 ? trpcFailure({ status, message: 'gone' }) : trpcOk(null)
       }),

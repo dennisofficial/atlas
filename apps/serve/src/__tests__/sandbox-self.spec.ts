@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { trpcBodyOf } from './trpc-body'
 import { describe, expect, it } from 'bun:test'
 
 import { toThreadId } from '@dltech/atlas-core'
@@ -18,7 +19,7 @@ const fakeFetch = (reply: () => Response) => {
     calls.push({
       url: String(input),
       headers: new Headers(init?.headers),
-      body: JSON.parse(String(init?.body)),
+      body: trpcBodyOf(String(init?.body ?? '')),
     })
     return reply()
   }) as unknown as typeof fetch
