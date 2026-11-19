@@ -37,6 +37,19 @@ const reachesThreadless = ({
   return procedureMeta.sandboxReachable === true
 }
 
+/**
+ * True when a sandbox token asks for its own thread: the token's lookup joined `Session` and
+ * found it undeleted, so a handler's ownership read would only repeat that join.
+ */
+export const sandboxOwnThread = (args: {
+  ctx: Pick<SessionOrSandboxTrpcCtx, 'sandbox'>
+  threadId: string
+}): boolean => args.ctx.sandbox?.threadId === args.threadId
+
+/** Spread into a handler's arguments so a user-session call carries nothing new. */
+export const liveOnly = (sessionLive: boolean): { sessionLive?: true } =>
+  sessionLive ? { sessionLive: true } : {}
+
 type PrincipalCtx = { auth: VerifiedSession; sandbox?: SandboxPrincipal; pod?: PodPrincipal }
 
 const principalCtx = (principal: TokenPrincipal): PrincipalCtx => {

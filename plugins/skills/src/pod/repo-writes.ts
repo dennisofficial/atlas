@@ -7,14 +7,14 @@ import { mkdirOf, removeOf, statOf, writeTextOf } from './daemon'
 
 export const SKILL_ENTRY_PATH = 'SKILL.md'
 
-export const REPO_SKILL_ROOT = REPO_SKILL_ROOTS[0] ?? '.atlas/skills'
+export const REPO_SKILL_ROOT = REPO_SKILL_ROOTS[0] ?? '.agents/skills'
 
 type Ctx = Pick<PluginPodContext, 'call'>
 
 export type RepoWriteResult = { ok: true; path: string } | { ok: false; reason: string }
 
 const NO_CLONE =
-  'this session has no clone, so it has no <repo>/.atlas/skills directory to write; use layer user or layer project instead'
+  'this session has no clone, so it has no <repo>/.agents/skills directory to write; use layer user or layer project instead'
 
 export const hasClone = async (args: { ctx: Ctx; projectDirectory: string }): Promise<boolean> => {
   if (args.projectDirectory === '') return false

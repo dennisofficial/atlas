@@ -1,3 +1,4 @@
+import { trpcBodyOf } from '../../cloud/__tests__/trpc-body'
 import { OAuthConnectionsClient } from '../../cloud/oauth-connections-client'
 
 type Connection = {
@@ -23,7 +24,8 @@ const failure = (args: { status: number; code: string; message: string }): Respo
   })
 
 const inputOf = (args: { url: URL; init: RequestInit | undefined }): Record<string, unknown> => {
-  if (typeof args.init?.body === 'string') return JSON.parse(args.init.body)
+  if (typeof args.init?.body === 'string')
+    return trpcBodyOf(args.init.body) as Record<string, unknown>
   const raw = args.url.searchParams.get('input')
   return raw === null ? {} : JSON.parse(raw)
 }

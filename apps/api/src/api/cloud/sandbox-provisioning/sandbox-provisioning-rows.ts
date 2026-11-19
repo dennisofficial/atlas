@@ -21,7 +21,14 @@ export { failedAfterClaim, standingStateOf }
 
 export type RowWriter = Pick<Tx, 'orm'>
 
-export type RowClaim = { token: string; wakeClaim: Date; name: string; sandboxId: string }
+export type RowClaim = {
+  token: string
+  wakeClaim: Date
+  name: string
+  sandboxId: string
+  /** Set when the claim minted a token or revived a retired row: the caller revokes after commit. */
+  revokedSessionId?: string
+}
 
 export const relaunchableOf = (row: Row<'CloudSandbox'> | null): boolean =>
   row === null || wakeableOf(row) || failedAfterClaim(row)
@@ -36,7 +43,7 @@ function tokenOfExisting(args: { existing: Row<'CloudSandbox'>; cipher: SecretCi
   token: string
   mintedColumns: { tokenHash: string; sealedToken: string } | Record<string, never>
 } {
-  if (args.existing.sealedToken !== null) {
+  if (args.existing.sealedToken !== null && args.existing.retiredAt === null) {
     return { token: args.cipher.decrypt(args.existing.sealedToken), mintedColumns: {} }
   }
   const { token, tokenHash } = mintSessionToken()
@@ -82,6 +89,12 @@ export async function claimRow(args: {
     return { token, wakeClaim, name, sandboxId }
   }
   const { token, mintedColumns } = tokenOfExisting({ existing: args.existing, cipher: args.cipher })
+  if (args.existing.retiredAt !== null) {
+    await writer.orm.public.Session.where({ id: sessionId })
+      .where((session) => session.deletedAt.isNotNull())
+      .update({ deletedAt: null, updatedAt: wakeClaim })
+  }
+  const revived = args.existing.retiredAt !== null
   const claimed = await writer.orm.public.CloudSandbox.where({
     sessionId,
     wakeClaim: args.existing.wakeClaim,
@@ -93,7 +106,15 @@ export async function claimRow(args: {
     state: ESandboxState.Resuming,
     updatedAt: wakeClaim,
   })
-  return claimed === 0 ? null : { token, wakeClaim, name, sandboxId: args.existing.id }
+  if (claimed === 0) return null
+  const rotated = Object.keys(mintedColumns).length > 0 || revived
+  return {
+    token,
+    wakeClaim,
+    name,
+    sandboxId: args.existing.id,
+    ...(rotated ? { revokedSessionId: sessionId } : {}),
+  }
 }
 
 export async function markRunning(args: {

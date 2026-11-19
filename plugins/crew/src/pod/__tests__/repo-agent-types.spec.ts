@@ -12,6 +12,15 @@ const docsWriter = [
   'Write the docs.',
 ].join('\n')
 
+const secondDocsWriter = [
+  '---',
+  'name: docs-writer',
+  'description: A second definition of the same type.',
+  '---',
+  '',
+  'Write the docs twice.',
+].join('\n')
+
 const securityReviewer = [
   '---',
   'description: Reviews the auth path.',
@@ -22,35 +31,41 @@ const securityReviewer = [
 ].join('\n')
 
 const nodes = {
-  ...dirs('/work/.atlas/agents', '/work/.atlas/agents/helpers', '/work/.claude/agents'),
+  ...dirs(
+    '/work/.agents/agents',
+    '/work/.agents/agents/helpers',
+    '/work/.atlas/agents',
+    '/work/.claude/agents',
+  ),
   ...Object.fromEntries([
-    file('/work/.atlas/agents/docs-writer.md', docsWriter),
-    file('/work/.atlas/agents/helpers/nested.md', docsWriter),
-    file('/work/.atlas/agents/notes.txt', 'not an agent'),
-    file('/work/.claude/agents/docs-writer.md', docsWriter),
-    file('/work/.claude/agents/security-reviewer.md', securityReviewer),
-    file('/work/.claude/agents/builder.md', securityReviewer),
+    file('/work/.agents/agents/builder.md', securityReviewer),
+    file('/work/.agents/agents/docs-writer.md', docsWriter),
+    file('/work/.agents/agents/helpers/nested.md', docsWriter),
+    file('/work/.agents/agents/notes.txt', 'not an agent'),
+    file('/work/.agents/agents/second-docs.md', secondDocsWriter),
+    file('/work/.atlas/agents/security-reviewer.md', securityReviewer),
+    file('/work/.claude/agents/old.md', securityReviewer),
   ]),
 }
 
 describe('discoverRepoAgentTypes', () => {
-  it('loads flat markdown from the repo roots, first root winning a duplicate name', async () => {
+  it('loads flat markdown from .agents/agents, the first definition of a name winning', async () => {
     const { ctx } = rig({ nodes })
     const found = await discoverRepoAgentTypes({ ctx, projectDirectory: '/work' })
 
-    expect(found.types.map((type) => type.name)).toEqual(['docs-writer', 'security-reviewer'])
-    expect(found.types[0]?.definedIn).toBe('.atlas/agents/docs-writer.md')
+    expect(found.types.map((type) => type.name)).toEqual(['docs-writer'])
+    expect(found.types[0]?.definedIn).toBe('.agents/agents/docs-writer.md')
     expect(found.types[0]?.prompt).toBe('Write the docs.')
     expect(found.refusals).toEqual([
       {
         name: 'builder',
-        definedIn: '.claude/agents/builder.md',
+        definedIn: '.agents/agents/builder.md',
         reason: 'is a built-in agent type',
       },
       {
         name: 'docs-writer',
-        definedIn: '.claude/agents/docs-writer.md',
-        reason: 'is shadowed by .atlas/agents/docs-writer.md',
+        definedIn: '.agents/agents/second-docs.md',
+        reason: 'is shadowed by .agents/agents/docs-writer.md',
       },
     ])
   })
@@ -59,8 +74,17 @@ describe('discoverRepoAgentTypes', () => {
     const { ctx } = rig({ nodes })
     const found = await discoverRepoAgentTypes({ ctx, projectDirectory: '/work' })
     const paths = [...found.types, ...found.refusals].map((each) => each.definedIn)
-    expect(paths).not.toContain('.atlas/agents/helpers/nested.md')
-    expect(paths).not.toContain('.atlas/agents/notes.txt')
+    expect(paths).not.toContain('.agents/agents/helpers/nested.md')
+    expect(paths).not.toContain('.agents/agents/notes.txt')
+  })
+
+  it('does not read .atlas/agents or .claude/agents, which are not v2 roots', async () => {
+    const { ctx, calls } = rig({ nodes })
+    const found = await discoverRepoAgentTypes({ ctx, projectDirectory: '/work' })
+
+    expect(found.types.map((type) => type.name)).not.toContain('security-reviewer')
+    expect(calls.some((call) => 'path' in call && call.path.includes('/.atlas/'))).toBe(false)
+    expect(calls.some((call) => 'path' in call && call.path.includes('/.claude/'))).toBe(false)
   })
 
   it('treats a missing root as empty', async () => {
@@ -78,9 +102,8 @@ describe('the repo agent type listing', () => {
       [
         'Agent types defined in this repository (spawn them with agent_spawn like the built-in types):',
         '- docs-writer: Writes the docs a change needs.',
-        '- security-reviewer: Reviews the auth path.',
-        'Not loaded: .claude/agents/builder.md — "builder" is a built-in agent type',
-        'Not loaded: .claude/agents/docs-writer.md — "docs-writer" is shadowed by .atlas/agents/docs-writer.md',
+        'Not loaded: .agents/agents/builder.md — "builder" is a built-in agent type',
+        'Not loaded: .agents/agents/second-docs.md — "docs-writer" is shadowed by .agents/agents/docs-writer.md',
       ].join('\n'),
     )
   })

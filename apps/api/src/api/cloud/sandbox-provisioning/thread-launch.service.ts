@@ -84,6 +84,7 @@ export class ThreadLaunchService extends ThreadLauncher {
       return { threadId: thread.id, claim: claimed, existing: false, appended }
     })
 
+    await this.pod.revokeAfterCommit(claim)
     if (!existing && gap === null && claim !== null) {
       this.background.keepAlive(this.pod.dispatch({ threadId, claim }).catch(() => undefined))
     }

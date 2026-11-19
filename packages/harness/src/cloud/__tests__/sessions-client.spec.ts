@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'bun:test'
 
 import { CloudError } from '../cloud-transport'
 import { SessionsClient } from '../sessions-client'
+import { trpcBodyOf } from './trpc-body'
 
 type Seen = { url: string; method: string; body: unknown; authorization: string | null }
 
@@ -36,7 +37,7 @@ const clientAnswering = (reply: () => Response) => {
       seen.push({
         url: String(input),
         method: init?.method ?? 'GET',
-        body: init?.body === undefined ? undefined : JSON.parse(String(init.body)),
+        body: init?.body === undefined ? undefined : trpcBodyOf(String(init.body)),
         authorization: new Headers(init?.headers).get('authorization'),
       })
       return reply()

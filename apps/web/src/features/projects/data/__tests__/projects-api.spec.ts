@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, mock } from 'bun:test'
 
 import { createApiClient } from '@dltech/atlas-api-router'
 
+import { trpcBodyOf } from '@/lib/__tests__/trpc-body'
 import * as realApiClient from '@/lib/api-client'
 
 let calls: { url: string; init?: RequestInit }[]
@@ -67,7 +68,7 @@ describe('createProject', () => {
     expect(project.id).toBe('p1')
     expect(calls[0]?.url).toBe('/v1/trpc/projects.create')
     expect(calls[0]?.init?.method).toBe('POST')
-    expect(JSON.parse(String(calls[0]?.init?.body))).toEqual(body)
+    expect(trpcBodyOf(String(calls[0]?.init?.body))).toEqual(body)
   })
 
   it('surfaces the API message on failure', async () => {

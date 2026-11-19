@@ -54,6 +54,26 @@ export class SandboxPrincipalCache {
     }
   }
 
+  /** Remembers a resolved row as one entry, dropping the session id the cache keeps for eviction. */
+  rememberResolved(args: {
+    resolved: SandboxPrincipal & { sessionId: string }
+    tokenHash: string
+    lookup: PrincipalLookup
+  }): SandboxPrincipal {
+    const principal: SandboxPrincipal = {
+      id: args.resolved.id,
+      userId: args.resolved.userId,
+      threadId: args.resolved.threadId,
+    }
+    this.remember({
+      tokenHash: args.tokenHash,
+      principal,
+      sessionId: args.resolved.sessionId,
+      lookup: args.lookup,
+    })
+    return principal
+  }
+
   forgetSession(sessionId: string): void {
     this.generation += 1
     for (const [tokenHash, entry] of this.entries) {

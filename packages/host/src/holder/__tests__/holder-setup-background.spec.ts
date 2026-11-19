@@ -150,6 +150,30 @@ describe('a setup script that runs in the background', () => {
     rig.holder.discard()
   })
 
+  it('reports the script duration, not the time since the epoch, on a real wall clock', async () => {
+    const setup = setupHandle()
+    const model = new ScriptedModel([{ text: 'one' }, { text: 'two' }])
+    const rig = await makeRig({
+      model: () => model,
+      subscribeSetup: setup.subscribe,
+      prepare: async () => {
+        rig.clock.current = Date.parse('2026-11-19T17:14:00.000Z')
+        setup.started('bun install')
+        return { ok: true }
+      },
+    })
+    await seedSession(rig)
+    await rig.post('hello')
+    await rig.holder.start()
+    await rig.wake()
+    await flushUntil({ check: async () => (await typesOf(rig)).includes('assistant-said') })
+
+    setup.finished({ script: 'bun install', ok: true })
+    await flushUntil({ check: async () => (await noticesOf(rig)).length > 1, attempts: 200 })
+    expect(String((await noticesOf(rig))[1]?.text)).toContain('finished after 1.4s')
+    rig.holder.discard()
+  })
+
   it('wakes an idle session with a failed notice and its output tail', async () => {
     const setup = setupHandle()
     const model = new ScriptedModel([{ text: 'one' }, { text: 'two' }])

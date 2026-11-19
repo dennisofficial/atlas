@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, mock } from 'bun:test'
 
 import { createApiClient } from '@dltech/atlas-api-router'
 
+import { trpcBodyOf } from '@/lib/__tests__/trpc-body'
+
 type Call = { url: string; method: string; body: string }
 
 const calls: Call[] = []
@@ -11,7 +13,7 @@ const recordingFetch = (async (input: RequestInfo | URL, init?: RequestInit) => 
   calls.push({
     url: String(input),
     method: init?.method ?? 'GET',
-    body: typeof init?.body === 'string' ? init.body : '',
+    body: typeof init?.body === 'string' ? JSON.stringify(trpcBodyOf(init.body)) : '',
   })
   return answer()
 }) as typeof fetch

@@ -13,6 +13,7 @@ import {
 
 import { CloudClient } from '../cloud-client'
 import { isTrpcUrl, trpcCallOf, trpcData, trpcError, type TrpcCall } from './accounts-trpc-fake'
+import { trpcBodyOf } from './trpc-body'
 
 export const key: AvailabilityKey = {
   accountId: toAccountId('acct_1'),
@@ -57,7 +58,7 @@ export const clientAnswering = (
   const fetchFn = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input)
     if (!isTrpcUrl(url)) return new Response('not found', { status: 404 })
-    const body = typeof init?.body === 'string' ? JSON.parse(init.body) : undefined
+    const body = typeof init?.body === 'string' ? trpcBodyOf(init.body) : undefined
     const call = trpcCallOf({ url, body })
     calls.push(call)
     const reply = respond(call)

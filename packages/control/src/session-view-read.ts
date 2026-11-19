@@ -1,6 +1,5 @@
 import {
-  activeFailure,
-  activeStartFailure,
+  messageAfterFailureOf,
   sessionViewOf,
   type Lease,
   type PendingInputsState,
@@ -27,8 +26,7 @@ import type {
 } from './port'
 import { runningCommandsIn } from './command-rows'
 import { commandsOf, queuedOf } from './queued-messages'
-import { readEventsIn } from './read-events'
-import { ensureSessionViewIn, usableState, VIEW_TAIL_LIMIT } from './session-view-ops'
+import { ensureSessionViewIn, usableState } from './session-view-ops'
 
 export type ControlPullRequestState = {
   title: string
@@ -72,38 +70,8 @@ export const currentViewIn = async (args: {
   return (await ensureSessionViewIn(args)).state
 }
 
-export const failureMayBeActive = (state: SessionViewState): boolean =>
-  state.facts.startFailure !== null ||
-  (state.facts.prepareFailure !== null && !state.facts.prepared)
-
-export const messageAfterFailureIn = async (args: {
-  tx: ControlTx
-  sessionId: string
-  threadId: string
-  state: SessionViewState
-  eventSchema?: z.ZodType<V2Event> | undefined
-}): Promise<boolean> => {
-  const { tx } = args
-  if (!failureMayBeActive(args.state)) return false
-  const row = await tx.readThread(args.threadId)
-  if (row === undefined) return false
-  const page = await readEventsIn({
-    tx,
-    row,
-    afterSeq: Math.max(0, row.headSeq - VIEW_TAIL_LIMIT),
-    limit: VIEW_TAIL_LIMIT,
-    visible: true,
-    eventSchema: args.eventSchema,
-  })
-  const failure = activeStartFailure(page.events) ?? activeFailure(page.events)
-  if (failure === undefined) return false
-  return page.events.some(
-    (event) =>
-      (event.type === 'user-said' || event.type === 'input-posted') &&
-      event.inboxId !== undefined &&
-      event.inboxId > failure.inboxHead,
-  )
-}
+export const messageAfterFailureIn = (args: { state: SessionViewState }): boolean =>
+  messageAfterFailureOf(args.state.failure)
 
 export type LiveView = {
   value: SessionViewValue
@@ -126,7 +94,7 @@ export const liveViewIn = async (args: {
     state,
     live,
     queuedSince: null,
-    messageAfterFailure: await messageAfterFailureIn(args),
+    messageAfterFailure: messageAfterFailureIn({ state }),
     now: args.now,
   })
   return { value, lease, live }

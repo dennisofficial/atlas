@@ -4,6 +4,8 @@ import { createApiClient } from '@dltech/atlas-api-router'
 
 import { cloudCall } from '@/lib/api-client'
 
+import { trpcBodyOf } from './trpc-body'
+
 const liveFetch: typeof fetch = Object.assign(
   (input: Parameters<typeof fetch>[0], init?: RequestInit) => globalThis.fetch(input, init),
   { preconnect: fetch.preconnect },
@@ -33,7 +35,7 @@ const dispatcher = Object.assign(
     trpcCalls.push({
       url: String(input),
       method: init?.method ?? 'GET',
-      body: typeof raw === 'string' ? JSON.parse(raw) : undefined,
+      body: typeof raw === 'string' ? trpcBodyOf(raw) : undefined,
     })
     return reply === null ? Response.json({ result: {} }) : reply()
   },

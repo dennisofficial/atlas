@@ -1,7 +1,7 @@
 # packages/db — Atlas's database on Prisma 8
 
 `@dltech/atlas-db` owns the data contract, the migrations, the runtime client and the seed. Only
-`apps/api` imports it. The repo root `CLAUDE.md` rules apply here too.
+`apps/api` imports it. The repo root `AGENTS.md` rules apply here too.
 
 Load the vendored skill before you touch the contract, a migration or a query:
 `.agents/skills/prisma-8/SKILL.md`. It is version-matched to the installed RC. Training data on

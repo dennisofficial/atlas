@@ -8,6 +8,7 @@ import {
   removeSigningKey,
   rotateSigningKey,
 } from '../signing-key-setup'
+import { trpcBodyOf } from './trpc-body'
 
 type Reply = { status: number; body?: unknown; code?: string; networkError?: boolean }
 type Replies = Partial<Record<string, Reply>>
@@ -44,7 +45,7 @@ const fakeApi = (args: { replies: Replies }) => {
   const calls: { key: string; body: unknown }[] = []
   const fetchFn = (async (input: unknown, init?: RequestInit) => {
     const key = new URL(String(input)).pathname.replace('/v1/trpc/', '')
-    calls.push({ key, body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined })
+    calls.push({ key, body: typeof init?.body === 'string' ? trpcBodyOf(init.body) : undefined })
     const reply = args.replies[key] ?? { status: 200 }
     if (reply.networkError === true) throw new Error('connection reset')
     return answer(reply)

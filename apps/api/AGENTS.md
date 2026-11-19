@@ -370,6 +370,6 @@ one exact version; bump all three at once.
 - `bun:test` specs are colocated `*.spec.ts`. Specs that need data run against real Postgres through
   `useTestDatabase()` from `@dltech/atlas-db/testing` (a local lane on :55441, a service container in
   CI), never an in-memory fake. `db` is a lazy proxy, so importing it never connects.
-- Everything else from the root CLAUDE.md still applies: 300-line files, no `as any`, no
+- Everything else from the root AGENTS.md still applies: 300-line files, no `as any`, no
   ts-ignore, E-prefixed enums, `handle`-prefixed handlers, named parameters, no comments that
   restate the code.

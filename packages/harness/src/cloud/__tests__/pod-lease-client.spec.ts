@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { CloudError } from '../cloud-transport'
 import { putPodLease } from '../pod-lease-client'
+import { trpcBodyOf } from './trpc-body'
 
 type Seen = { url: string; method: string | undefined; headers: Headers; body: unknown }
 
@@ -24,7 +25,7 @@ const lease = async (reply: () => Response) => {
       url: String(input),
       method: init?.method,
       headers: new Headers(init?.headers),
-      body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
+      body: typeof init?.body === 'string' ? trpcBodyOf(init.body) : undefined,
     })
     return reply()
   }) as typeof fetch

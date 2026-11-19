@@ -128,11 +128,13 @@ export class EventsService {
     threadId: string
     fromSeq?: number | undefined
     upTo?: number | undefined
+    sessionLive?: boolean | undefined
   }): Promise<EventDto[]> {
     await ownedThread({
       reader: db,
       userId: args.userId,
       threadId: args.threadId,
+      sessionLive: args.sessionLive,
     })
     const rows = await readComposedRows({
       reader: db,
@@ -149,11 +151,13 @@ export class EventsService {
     threadId: string
     fromSeq?: number | undefined
     upTo?: number | undefined
+    sessionLive?: boolean | undefined
   }): Promise<EventDto[]> {
     await ownedThread({
       reader: db,
       userId: args.userId,
       threadId: args.threadId,
+      sessionLive: args.sessionLive,
     })
     const rows = await readOwnRows({
       reader: db,
@@ -183,11 +187,16 @@ export class EventsService {
     })
   }
 
-  async head(args: { userId: string; threadId: string }): Promise<{ head: number }> {
+  async head(args: {
+    userId: string
+    threadId: string
+    sessionLive?: boolean | undefined
+  }): Promise<{ head: number }> {
     const thread = await ownedThread({
       reader: db,
       userId: args.userId,
       threadId: args.threadId,
+      sessionLive: args.sessionLive,
     })
     return { head: thread.head }
   }

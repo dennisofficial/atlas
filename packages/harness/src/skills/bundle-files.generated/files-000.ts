@@ -4,9 +4,9 @@ import { embeddedFile, type EmbeddedSkillFile } from "../embedded-bundle"
 
 export const FILES: readonly EmbeddedSkillFile[] = [
   embeddedFile({ path: "references/cloud-config.md", digest: "6e01d6995f4bce10b1aaab023c01447fd19124d5bfa72b99f2fd9d461b21fb30", load: () => import("../../../skills/atlas/references/cloud-config.md" as string, { with: { type: 'file' } }) }),
-  embeddedFile({ path: "references/cloud.md", digest: "4ba2c5a9e1c59baa19384e2d4647350ed2217dda6ff9f780b72b2f14bf250789", load: () => import("../../../skills/atlas/references/cloud.md" as string, { with: { type: 'file' } }) }),
-  embeddedFile({ path: "references/config.md", digest: "b9e6bd08a999a9a8ba63c42aa8552c497ad0c93472de368d6ccbaafc57e35c7c", load: () => import("../../../skills/atlas/references/config.md" as string, { with: { type: 'file' } }) }),
+  embeddedFile({ path: "references/cloud.md", digest: "a60383e55b75904c4ecfe6b7c9f70095dfc0132f4ca89c29e2c4f260c81d9277", load: () => import("../../../skills/atlas/references/cloud.md" as string, { with: { type: 'file' } }) }),
+  embeddedFile({ path: "references/config.md", digest: "c0df499ba65d9b958c017408f22aa12142ec9505b424016da6aaaa0e172f96e2", load: () => import("../../../skills/atlas/references/config.md" as string, { with: { type: 'file' } }) }),
   embeddedFile({ path: "references/plugins.md", digest: "a0f3117e49cf4cc6c555e1086bfcbc40396512432c6e70bf0c4e409c3b026c11", load: () => import("../../../skills/atlas/references/plugins.md" as string, { with: { type: 'file' } }) }),
   embeddedFile({ path: "references/services.md", digest: "7bd259fe4f48b8454bd48957315eac3b1ac0c7f6383d49b460e74aed399cb170", load: () => import("../../../skills/atlas/references/services.md" as string, { with: { type: 'file' } }) }),
-  embeddedFile({ path: "references/worktrees.md", digest: "c0d20ae0291cccd680aafc0ae83e8d506a33d9b60beba719dffa438c3aee6481", load: () => import("../../../skills/atlas/references/worktrees.md" as string, { with: { type: 'file' } }) }),
+  embeddedFile({ path: "references/worktrees.md", digest: "58c10032395e8c1bed56feb3a8004cae6af6b671176c2b2992057e64026d624d", load: () => import("../../../skills/atlas/references/worktrees.md" as string, { with: { type: 'file' } }) }),
 ]

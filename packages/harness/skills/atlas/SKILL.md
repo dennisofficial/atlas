@@ -1,6 +1,6 @@
 ---
 name: atlas
-description: "Handbook to the Atlas harness: set up a repo or home for Atlas, configure and troubleshoot settings.json, ATLAS_HOME, instruction files (ATLAS.md, AGENTS.md, CLAUDE.md), skills, agent types, MCP servers (mcp.json, .mcp.json), .atlas/services.yaml (service_start, needs, preview URLs, PORT), plugins, worktrees, Atlas Cloud sandboxes and their project setup script and secrets, /container, parked sessions, cloud logs, and OAuth sign-in callbacks from a preview through callback.byatlas.dev."
+description: "Handbook to the Atlas harness: set up a repo or home for Atlas, configure and troubleshoot settings.json, ATLAS_HOME, repo instructions (AGENTS.md) and Cloud personal instructions, skills and agent types under .agents, MCP servers (mcp.json, .mcp.json), .atlas/services.yaml (service_start, needs, preview URLs, PORT), plugins, worktrees, Atlas Cloud sandboxes and their project setup script and secrets, /container, parked sessions, cloud logs, and OAuth sign-in callbacks from a preview through callback.byatlas.dev."
 ---
 
 # Atlas
@@ -17,11 +17,11 @@ All paths below are relative to this skill's directory when they start with `ref
 
 Create only what the repo needs; each item is optional and commit the shared ones.
 
-1. Instructions: `AGENTS.md` (or `CLAUDE.md` / `ATLAS.md`) at the repo root; `*.local.md` siblings stay uncommitted.
+1. Instructions: `AGENTS.md` at the repo root, and nested `AGENTS.md` files where a directory needs its own. Only that name is read; symlink `CLAUDE.md` → `AGENTS.md` when another harness needs the other name.
 2. `.atlas/settings.json`: repo-wide settings overrides.
 3. `.atlas/mcp.json`: MCP servers for this repo; no secrets in it.
 4. `.atlas/services.yaml`: every dev server and API the agent should run and expose. A good file gives one-press previews: each app starts with one press of play or one `service_start({ name })`, and previews work first time. Follow "Writing a good services.yaml" in `references/services.md`.
-5. `.atlas/skills/`, `.atlas/agents/`: repo skills and agent types.
+5. `.agents/skills/`, `.agents/agents/`: repo skills and agent types, the same directories other harnesses read. `.atlas/` holds only Atlas's own files (settings, MCP, services, plugins, worktree).
 6. `.atlas/plugins/`: hooks, tools and prompt fragments, as TypeScript.
 7. `.atlas/worktree.yaml`: gitignored files (`.env.keys`, local env files, caches) to copy or link into every worktree Atlas creates or adopts; a fresh worktree has none of them otherwise. Atlas creates worktrees under `.atlas/worktrees` and writes its own `.gitignore` there. See `references/worktrees.md`.
 
@@ -31,8 +31,8 @@ Create only what the repo needs; each item is optional and commit the shared one
 | --- | --- | --- |
 | `<atlas-home>/settings.json`, `.atlas/settings.json` | user, project | `references/config.md` |
 | `<atlas-home>/mcp.json`, `.atlas/mcp.json`, `.mcp.json` | user, project | `references/config.md` |
-| `<atlas-home>/ATLAS.md`, `AGENTS.md`, `CLAUDE.md`, `ATLAS.md`, `*.local.md` | user, project | `references/config.md` |
-| `skills/` and `agents/` under `<atlas-home>`, `~/.agents`, `~/.claude`, and the project's `.atlas`, `.agents`, `.claude` | user, project | `references/config.md` |
+| Personal instructions in Atlas Cloud (Settings → Instructions), `AGENTS.md` from the repo root down to the project directory and nested ones | user, project | `references/config.md` |
+| `.agents/skills`, `.agents/agents` in the repo; Atlas Cloud user and project skills | user, project | `references/config.md` |
 | `.atlas/services.yaml` | project | `references/services.md` |
 | `<atlas-home>/plugins/`, `.atlas/plugins/` | user, project | `references/plugins.md` |
 | `.atlas/worktrees/`, `.atlas/worktree.yaml` | project | `references/worktrees.md` |

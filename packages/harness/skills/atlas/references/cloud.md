@@ -111,8 +111,8 @@ use background `bash` only for finite jobs.
 ## Diagnose with evidence
 
 Read `/atlas/home/operational/atlas-serve.log` for persistent Cloud diagnostics; older runtimes may
-use `/opt/atlas/atlas-serve.log`. User skills live in `/atlas/home/skills`, `/atlas/home/.agents/skills`,
-and `/atlas/home/.claude/skills`; prefer `skill_install` over the sandbox's ordinary home.
+use `/opt/atlas/atlas-serve.log`. User skills are Atlas Cloud rows, installed with `skill_install`;
+the sandbox's ordinary home carries none of them.
 Host Atlas home holds global `logs.jsonl` (including driver/wake narration) and `sessions/<id>/logs.jsonl`.
 Inspect relevant errors without dumping credentials or sensitive headers.
 For setup failures, inspect the Vercel settings, image access, or quota named by the error. For Git

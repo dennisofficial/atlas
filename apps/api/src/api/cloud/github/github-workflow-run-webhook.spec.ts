@@ -48,6 +48,7 @@ const payloadOf = (
     branch?: string
     status?: string
     repo?: string
+    createdAt?: string
   } = {},
 ): GithubWorkflowRunWebhookPayload => {
   const repo = overrides.repo ?? 'compai/app'
@@ -62,6 +63,7 @@ const payloadOf = (
       conclusion: 'success',
       head_branch: overrides.branch ?? 'main',
       html_url: `https://github.com/${repo}/actions/runs/${runId}`,
+      created_at: overrides.createdAt ?? null,
     },
     repository: { full_name: repo },
   }
@@ -137,6 +139,42 @@ describe('recordWorkflowRunFinished', () => {
     const { wake } = wakeStub()
 
     expect(await recordWorkflowRunFinished({ payload: payloadOf({ name: 'CI' }), wake })).toBe(1)
+  })
+
+  it('posts once per later-created run for a workflow selector, and not twice for the same run', async () => {
+    await seedV2Thread()
+    const at = new Date()
+    const watermark = new Date(at.getTime() - 60_000)
+    await seedRunRow({ branch: '#workflow:ci@main', lastRunCreatedAt: watermark })
+    const { wake, notices } = wakeStub()
+    const firstRun = payloadOf({
+      runId: 9001,
+      createdAt: new Date(at.getTime() - 30_000).toISOString(),
+    })
+    const laterRun = payloadOf({ runId: 9002, createdAt: at.toISOString() })
+
+    expect(await recordWorkflowRunFinished({ payload: firstRun, wake })).toBe(1)
+    expect(await recordWorkflowRunFinished({ payload: firstRun, wake })).toBe(0)
+    expect(await recordWorkflowRunFinished({ payload: laterRun, wake })).toBe(1)
+
+    expect(notices).toHaveLength(2)
+    expect(await inboxEvents(V2_SESSION)).toHaveLength(2)
+    const [row] = await rows()
+    expect(row?.deliveredRunId).toBe('')
+    expect(row?.lastRunCreatedAt.getTime()).toBe(at.getTime())
+  })
+
+  it('posts nothing for a run created before the watermark of a workflow selector', async () => {
+    await seedV2Thread()
+    const at = new Date()
+    await seedRunRow({ branch: '#workflow:ci@main', lastRunCreatedAt: at })
+    const { wake, notices } = wakeStub()
+    const earlyRun = payloadOf({ createdAt: new Date(at.getTime() - 60_000).toISOString() })
+
+    expect(await recordWorkflowRunFinished({ payload: earlyRun, wake })).toBe(0)
+    expect(notices).toHaveLength(0)
+    const [row] = await rows()
+    expect(row?.lastRunCreatedAt.getTime()).toBe(at.getTime())
   })
 
   it('leaves a workflow selector alone when the branch differs', async () => {

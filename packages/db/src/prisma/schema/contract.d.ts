@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'4406b81cac8b98381149af5769abd34522833966d2564835450f6715e509fe49'>;
+  StorageHashBase<'f7543aa4035670134d8a1239a96708503be0cb7ff56d300ae497ebe2fbdfca19'>;
 export type ExecutionHash =
   ExecutionHashBase<'4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45'>;
 export type ProfileHash =
@@ -666,6 +666,7 @@ export namespace Models {
     expiresAt: FieldOutputTypes['public']['GithubSubscription']['expiresAt'];
     id: FieldOutputTypes['public']['GithubSubscription']['id'];
     kind: FieldOutputTypes['public']['GithubSubscription']['kind'];
+    lastRunCreatedAt: FieldOutputTypes['public']['GithubSubscription']['lastRunCreatedAt'];
     liveUntil: FieldOutputTypes['public']['GithubSubscription']['liveUntil'];
     pollBacked: FieldOutputTypes['public']['GithubSubscription']['pollBacked'];
     prNumber: FieldOutputTypes['public']['GithubSubscription']['prNumber'];
@@ -3958,6 +3959,14 @@ type ContractBase = Omit<
                     readonly kind: 'literal';
                     readonly value: DefaultLiteralValue<'pg/text@1', 'pull-request'>;
                   };
+                  readonly many: false;
+                };
+                readonly lastRunCreatedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
                 readonly liveUntil: {
@@ -10690,6 +10699,14 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly lastRunCreatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
               readonly liveUntil: {
                 readonly nullable: false;
                 readonly type: {
@@ -10740,6 +10757,7 @@ type ContractBase = Omit<
                 readonly expiresAt: { readonly column: 'expiresAt' };
                 readonly id: { readonly column: 'id' };
                 readonly kind: { readonly column: 'kind' };
+                readonly lastRunCreatedAt: { readonly column: 'lastRunCreatedAt' };
                 readonly liveUntil: { readonly column: 'liveUntil' };
                 readonly pollBacked: { readonly column: 'pollBacked' };
                 readonly prNumber: { readonly column: 'prNumber' };
