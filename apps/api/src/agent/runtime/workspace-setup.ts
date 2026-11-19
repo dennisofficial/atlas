@@ -19,8 +19,10 @@ import {
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 import type { WorkspaceConfig } from '../config/agent-host-config'
 
-import { captureCheckedOut, type CheckoutReport } from './workspace-checkout'
-import { materialize, run } from './workspace-clone'
+import { replayCapturedBases } from './workspace-bases'
+import type { CheckoutReport } from './workspace-checkout'
+import { prepareWorkspace } from './workspace-materialize'
+import { run } from './workspace-clone'
 import { RepoProgress, repoNamesOf } from './workspace-repos'
 import {
   checkSentinels,
@@ -199,6 +201,11 @@ export const ensureWorkspace = async (args: {
         onStep?.({ step: EWorkspaceStep.Clone, state: EWorkspaceStepState.Started, repos }),
     })
     if (state.materialized) {
+      captured = await replayCapturedBases({
+        deps,
+        path: sentinels.bases,
+        expectedRepos: repoNamesOf(workspace).length,
+      })
       onStep?.({
         step: EWorkspaceStep.Clone,
         state: EWorkspaceStepState.Done,
@@ -206,11 +213,10 @@ export const ensureWorkspace = async (args: {
         repos: progress.snapshot().map((entry) => ({ ...entry, state: EWorkspaceRepoState.Done })),
       })
     } else {
-      progress.start()
-      const materialized = await runInCallScope({
+      const prepared = await runInCallScope({
         scopeKey: phases[1] ?? 'setup:clone',
         body: () =>
-          materialize({
+          prepareWorkspace({
             deps,
             workspace,
             githubToken,
@@ -219,26 +225,17 @@ export const ensureWorkspace = async (args: {
             sentinels,
             progress,
             scrub,
+            onCheckedOut,
+            onStep,
           }),
       })
-      if (!materialized) {
-        onStep?.({
-          step: EWorkspaceStep.Clone,
-          state: EWorkspaceStepState.Failed,
-          reason: warnings.join('\n') || 'clone failed',
-          repos: progress.snapshot(),
-        })
+      captured = prepared.bases
+      if (!prepared.ok) {
         if (workspace.setupScript.trim() !== '') {
           fail({ deps, message: 'setup script was skipped because the workspace clone failed' })
         }
         return resultOf(warnings)
       }
-      onStep?.({
-        step: EWorkspaceStep.Clone,
-        state: EWorkspaceStepState.Done,
-        repos: progress.snapshot(),
-      })
-      captured = await captureCheckedOut({ deps, workspace, launchDirectory, onCheckedOut })
       // the workspace was rebuilt, so a setup script started in the old one says nothing about it
       await clearSetupStarted({ deps, path: sentinels.setupStarted })
     }

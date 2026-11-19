@@ -21,7 +21,7 @@ class OrderedFiles extends StubFileSystemPort {
 }
 
 describe('workspace clone ordering', () => {
-  it('removes the github token only after the last sentinel is written', async () => {
+  it('removes the github token before the workspace is marked materialized', async () => {
     const files = new OrderedFiles()
     await ensureWorkspace({
       calls: { ackScope: () => Promise.resolve() },
@@ -41,6 +41,7 @@ describe('workspace clone ordering', () => {
     const written = files.order.indexOf('written workspace-materialized')
     const removed = files.order.indexOf('remove github-token')
     expect(written).toBeGreaterThan(-1)
-    expect(removed).toBeGreaterThan(written)
+    expect(removed).toBeGreaterThan(-1)
+    expect(removed).toBeLessThan(written)
   })
 })

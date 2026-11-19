@@ -291,12 +291,7 @@ export const materialize = async (args: {
       progress,
       scrub: args.scrub,
     })
-    if (!additionalCloned) return false
-    return await writeSentinel({
-      deps,
-      path: args.sentinels.materialized,
-      message: 'materialized sentinel write failed; setup is not done',
-    })
+    return additionalCloned
   } finally {
     if (tokenPath !== null) await deps.files.removeFile({ path: tokenPath }).catch(() => undefined)
   }

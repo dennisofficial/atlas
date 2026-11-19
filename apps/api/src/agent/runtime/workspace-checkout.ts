@@ -27,7 +27,6 @@ export const captureCheckedOut = async (args: {
   onCheckedOut: CheckoutReport | undefined
 }): Promise<readonly CapturedBase[]> => {
   const captured: CapturedBase[] = []
-  if (args.onCheckedOut === undefined) return captured
   const repos = workspaceRepoMap({
     launchDirectory: args.launchDirectory,
     workspace: args.workspace,
@@ -36,7 +35,7 @@ export const captureCheckedOut = async (args: {
     const branch = await checkedOutBranchOf({ deps: args.deps, path })
     if (branch === null) continue
     captured.push({ repoPath: path, base: branch })
-    args.onCheckedOut({ path, branch })
+    args.onCheckedOut?.({ path, branch })
   }
   return captured
 }

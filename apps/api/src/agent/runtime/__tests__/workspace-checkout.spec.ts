@@ -77,15 +77,15 @@ describe('the prepared checkout branch', () => {
     expect(reported).toEqual([])
   })
 
-  it('reads nothing when the caller keeps no checkout branches', async () => {
+  it('captures the branch even when the caller keeps no checkout branches', async () => {
     const processes = new BranchProcesses({ branch: 'main' })
-    await captureCheckedOut({
+    const captured = await captureCheckedOut({
       deps: depsOf(processes),
       workspace: workspaceOf([]),
       launchDirectory: '/workspace/app',
       onCheckedOut: undefined,
     })
 
-    expect(processes.spawned).toEqual([])
+    expect(captured).toEqual([{ repoPath: '/workspace/app', base: 'main' }])
   })
 })
