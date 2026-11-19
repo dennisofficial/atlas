@@ -22,7 +22,20 @@ const sourceOf = (): FileSource => ({
 
 const valueOf = (live: boolean): SessionPaneValue =>
   paneValueFixture({
-    status: { state: 'idle', lease: { epoch: 1, holderHostId: 7, live } },
+    status: {
+      state: 'idle',
+      lease: { epoch: 1, holderHostId: live ? 7 : null, live },
+      sandbox: { status: live ? 'running' : 'sleeping', at: '2026-01-01T00:00:00.000Z' },
+    },
+  } as never)
+
+const attachedValue = (): SessionPaneValue =>
+  paneValueFixture({
+    status: {
+      state: 'idle',
+      lease: { epoch: 1, holderHostId: null, live: false },
+      sandbox: { status: 'running', at: '2026-01-01T00:00:00.000Z' },
+    },
   } as never)
 
 beforeAll(() => {
@@ -44,6 +57,24 @@ describe('FilesTab', () => {
     expect(html).toContain('Disconnected')
     expect(html).toContain('Wake pod')
     expect(browsed).toHaveLength(0)
+  })
+
+  it('renders the tree while the pod runs without a holder', async () => {
+    browsed.length = 0
+    const host = document.createElement('div')
+    const root = createRoot(host)
+    await act(async () => {
+      root.render(
+        <SessionPaneProvider value={attachedValue()}>
+          <FilesTab sourceOf={sourceOf} />
+        </SessionPaneProvider>,
+      )
+    })
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+    expect(host.innerHTML).not.toContain('Disconnected')
+    await act(async () => root.unmount())
   })
 
   it('renders the live tree once the pod is awake', async () => {

@@ -9,7 +9,11 @@ import {
   type SessionViewValue,
   type V2Event,
 } from '@dltech/atlas-core'
-import type { SessionCommandRow, SessionStatusOutput } from '@dltech/atlas-protocol'
+import {
+  sessionSandboxStatusSchema,
+  type SessionCommandRow,
+  type SessionStatusOutput,
+} from '@dltech/atlas-protocol'
 import type { z } from 'zod'
 
 import { UnknownThreadError } from './errors'
@@ -169,6 +173,16 @@ export const podStatusOf = (session: ControlSessionRow | undefined): SessionStat
   }
 }
 
+const sandboxOf = (session: ControlSessionRow | undefined): SessionStatusOutput['sandbox'] => {
+  if (session === undefined || session.sandboxStatus === null) return undefined
+  if (session.sandboxStatusAt === null) return undefined
+  const parsed = sessionSandboxStatusSchema.safeParse({
+    status: session.sandboxStatus,
+    at: session.sandboxStatusAt,
+  })
+  return parsed.success ? parsed.data : undefined
+}
+
 export const statusOutputOf = (args: {
   live: LiveView
   pending: PendingInputsState
@@ -177,6 +191,7 @@ export const statusOutputOf = (args: {
 }): SessionStatusOutput => {
   const { live } = args
   const pod = podStatusOf(args.session)
+  const sandbox = sandboxOf(args.session)
   const { status } = live.value
   const queued = queuedOf(args.pending)
   const commands = [...args.running, ...commandsOf(args.pending)]
@@ -185,6 +200,7 @@ export const statusOutputOf = (args: {
     ...(status.reason === undefined ? {} : { reason: status.reason }),
     ...(status.since === undefined ? {} : { since: status.since }),
     lease: { epoch: live.lease.epoch, holderHostId: live.lease.holderHostId, live: live.live },
+    ...(sandbox === undefined ? {} : { sandbox }),
     ...(queued.length === 0 ? {} : { queued }),
     ...(commands.length === 0 ? {} : { commands }),
     ...(pod === undefined ? {} : { pod }),

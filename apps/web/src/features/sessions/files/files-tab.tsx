@@ -21,6 +21,7 @@ import { useWorkspaceFile } from '@/features/threads/data/use-workspace-file'
 import { FileBody } from '@/features/threads/context-viewer/file-viewer'
 import { lineMarksOf } from '@/features/threads/data/line-marks'
 import { usePodWake } from '../data/use-pod-wake'
+import { podAttached } from '../data/pod-attachment'
 import { useSessionPaneValue } from '../panel/pane-value'
 import { PodDisconnected } from '../panel/pod-disconnected'
 import { recallSelectedFile, rememberSelectedFile } from './files-memory'
@@ -118,14 +119,14 @@ export function FilesTab(props: { sourceOf?: (sessionId: string) => FileSource }
   const { sessionId, status } = useSessionPaneValue()
   const sourceOf = props.sourceOf ?? ((id: string) => v2FileSource({ sessionId: id }))
   const source = useMemo(() => sourceOf(sessionId), [sourceOf, sessionId])
-  const live = status?.lease.live ?? false
+  const attached = podAttached(status)
   const { state, wakePod } = usePodWake({
     sessionId,
-    live,
+    live: attached,
     wake: () => requestWake(sessionId).then(() => undefined),
   })
-  if (!live) return <PodDisconnected tab="Files" state={state} onWake={wakePod} />
-  return <FilesBody sessionId={sessionId} source={source} podAwake={live} />
+  if (!attached) return <PodDisconnected tab="Files" state={state} onWake={wakePod} />
+  return <FilesBody sessionId={sessionId} source={source} podAwake={attached} />
 }
 
 export const FILES_TAB_ICON = <FolderTreeIcon />

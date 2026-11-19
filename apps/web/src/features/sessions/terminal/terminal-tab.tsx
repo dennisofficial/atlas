@@ -8,6 +8,7 @@ import type { TerminalScreenHandle, TerminalSize } from '@dltech/atlas-ui/ai/ter
 import { api, cloudCall } from '@/lib/api-client'
 
 import { usePodWake } from '../data/use-pod-wake'
+import { podAttached } from '../data/pod-attachment'
 import { useSessionPaneValue } from '../panel/pane-value'
 import { PodDisconnected } from '../panel/pod-disconnected'
 import { v2TerminalTransport, type TerminalTransportOf } from './terminal-api'
@@ -45,10 +46,10 @@ export function TerminalTab(props: { transportOf?: TerminalTransportOf } = {}) {
   const transportOf = props.transportOf ?? v2TerminalTransport
   const store = useTerminalStore(sessionId)
   const snapshot = useTerminals(sessionId)
-  const live = status?.lease.live ?? false
+  const attached = podAttached(status)
   const { state: wakeState, wakePod } = usePodWake({
     sessionId,
-    live,
+    live: attached,
     wake: () => requestWake(sessionId).then(() => undefined),
   })
 
@@ -100,7 +101,7 @@ export function TerminalTab(props: { transportOf?: TerminalTransportOf } = {}) {
   )
 
   const { transport, refresh } = useTerminalConnection({
-    live,
+    live: attached,
     sessionId,
     transportOf,
     store,
@@ -195,7 +196,7 @@ export function TerminalTab(props: { transportOf?: TerminalTransportOf } = {}) {
     [transport],
   )
 
-  if (!live || snapshot.link === ETerminalConnection.Disconnected) {
+  if (!attached || snapshot.link === ETerminalConnection.Disconnected) {
     return <PodDisconnected tab="Terminal" state={wakeState} onWake={wakePod} />
   }
 

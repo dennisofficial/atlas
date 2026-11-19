@@ -72,7 +72,11 @@ function fakeTransportOf(initial: TerminalRow[]) {
 
 const valueOf = (live: boolean): SessionPaneValue =>
   paneValueFixture({
-    status: { state: 'idle', lease: { epoch: 1, holderHostId: 7, live } },
+    status: {
+      state: 'idle',
+      lease: { epoch: 1, holderHostId: live ? 7 : null, live },
+      sandbox: { status: live ? 'running' : 'sleeping', at: '2026-01-01T00:00:00.000Z' },
+    },
   } as never)
 
 const flush = async () => {
