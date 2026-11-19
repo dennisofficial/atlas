@@ -14,6 +14,7 @@ export async function registerSandboxRow(args: {
   serveVersion?: string | null | undefined
 }): Promise<Pick<Row<'CloudSandbox'>, 'name' | 'serveUrl'>> {
   const at = new Date()
+  await reviveSession({ thread: args.thread, writer: undefined })
   return db.orm.public.CloudSandbox.select('name', 'serveUrl').upsert({
     create: {
       id: `sbx_${randomUUID()}`,
@@ -41,6 +42,7 @@ export async function registerSandboxRow(args: {
       updatedAt: at,
       serveUrl: args.serveUrl,
       ...(args.serveVersion === undefined ? {} : { serveVersion: args.serveVersion }),
+      retiredAt: null,
     },
     conflictOn: { sessionId: args.thread.sessionId },
   })
@@ -101,6 +103,7 @@ export function rotationOf(args: {
     lastActivityAt: args.at,
     updatedAt: args.at,
     ...(args.rotated ? { tokenHash: args.tokenHash, sealedToken: args.sealedToken } : {}),
+    ...(args.rotated ? { retiredAt: null } : {}),
   }
   if (args.sealedGitToken !== undefined) rotation.sealedGitToken = args.sealedGitToken
   if (args.contextPending !== undefined) rotation.contextPending = args.contextPending
@@ -113,8 +116,12 @@ export function rotationOf(args: {
  * `rotated` is false whenever the caller reissued the sandbox's already-stored token rather than
  * minting a fresh one, so the update leaves `tokenHash`/`sealedToken` untouched — writing the
  * unchanged values back would just be a no-op read-modify-write on every attach.
+ *
+ * A rotated claim is a real re-provision, so it also retires nothing: a row kept from a retired
+ * sandbox is revived by it, and the session the sweep soft-deleted comes back, because the fresh
+ * token may only authenticate against a live session.
  */
-export function claimSandboxRow(args: {
+export async function claimSandboxRow(args: {
   thread: Row<'Thread'>
   writer?: Pick<Db, 'orm'> | Tx | undefined
   tokenHash: string
@@ -128,6 +135,7 @@ export function claimSandboxRow(args: {
 }): Promise<ClaimedSandbox> {
   const at = new Date()
   const columns: WorkspaceColumns = workspaceColumnsOf(undefined)
+  if (args.rotated) await reviveSession({ thread: args.thread, writer: args.writer })
   return (args.writer ?? db).orm.public.CloudSandbox.select(
     'sessionId',
     'name',
@@ -157,4 +165,13 @@ export function claimSandboxRow(args: {
     },
     update: rotationOf({ ...args, at }),
   })
+}
+
+async function reviveSession(args: {
+  thread: Row<'Thread'>
+  writer: Pick<Db, 'orm'> | Tx | undefined
+}): Promise<void> {
+  await (args.writer ?? db).orm.public.Session.where({ id: args.thread.sessionId })
+    .where((session) => session.deletedAt.isNotNull())
+    .update({ deletedAt: null, updatedAt: new Date() })
 }

@@ -12,6 +12,8 @@ import { z } from 'zod'
 import { meta } from '../../../_module/trpc/procedure-meta'
 import { CLIENT_READ_LIMIT_PER_MINUTE } from '../../client-rate-limit'
 import {
+  liveOnly,
+  sandboxOwnThread,
   SessionOrSandboxMiddleware,
   type SessionOrSandboxTrpcCtx,
 } from './session-or-sandbox.middleware'
@@ -31,16 +33,30 @@ export class ThreadTurnsRouter {
     @Ctx() ctx: SessionOrSandboxTrpcCtx,
   ): Promise<void> {
     const { threadId, runId, ...draft } = input
-    await this.turns.record({ userId: ctx.auth.userId, threadId, runId, draft })
+    await this.turns.record({
+      userId: ctx.auth.userId,
+      threadId,
+      runId,
+      draft,
+      ...liveOnly(sandboxOwnThread({ ctx, threadId })),
+    })
   }
 
   @Query({ input: threadIdInputSchema, output: turnTreeSchema, meta: readMeta })
   tree(@Input() input: ThreadIdInput, @Ctx() ctx: SessionOrSandboxTrpcCtx): Promise<TurnTree> {
-    return this.turns.forThreadTree({ userId: ctx.auth.userId, threadId: input.threadId })
+    return this.turns.forThreadTree({
+      userId: ctx.auth.userId,
+      threadId: input.threadId,
+      ...liveOnly(sandboxOwnThread({ ctx, threadId: input.threadId })),
+    })
   }
 
   @Query({ input: threadIdInputSchema, output: z.array(wireTurnSchema), meta: readMeta })
   list(@Input() input: ThreadIdInput, @Ctx() ctx: SessionOrSandboxTrpcCtx): Promise<TurnDto[]> {
-    return this.turns.forThread({ userId: ctx.auth.userId, threadId: input.threadId })
+    return this.turns.forThread({
+      userId: ctx.auth.userId,
+      threadId: input.threadId,
+      ...liveOnly(sandboxOwnThread({ ctx, threadId: input.threadId })),
+    })
   }
 }

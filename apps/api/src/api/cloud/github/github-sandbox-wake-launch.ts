@@ -5,6 +5,7 @@ import { db, type Row } from '@dltech/atlas-db'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SandboxCredentials } from '../../../_core/ports/sandbox-credentials'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
+import { notifyPrincipalRevoked } from '../../platform/sandboxes/sandbox-principal-notify'
 import { hashSessionToken } from '../../platform/sandboxes/sandbox-tokens'
 import { ESandboxState } from '../../platform/sandboxes/sandboxes.types'
 import type { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
@@ -82,6 +83,7 @@ async function adoptFreshSandbox(
     runtimeCheckpointRevision: null,
     updatedAt: new Date(),
   })
+  await notifyPrincipalRevoked(args.sessionId)
 }
 
 function unsealedToken(
