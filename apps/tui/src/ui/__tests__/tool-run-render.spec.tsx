@@ -505,7 +505,8 @@ describe('a run of tool calls in the transcript', () => {
     const run = runOf([broken])
 
     const shut = await frameOf(run)
-    expect(shut).toContain('Failed read gone.ts')
+    expect(shut).toContain('gone.ts')
+    expect(shut).not.toContain('Failed read')
     expect(shut).not.toContain('no file at /repo/gone.ts')
     expect(await frameOf(run, new Set([broken.callId]))).toContain('no file at /repo/gone.ts')
   })

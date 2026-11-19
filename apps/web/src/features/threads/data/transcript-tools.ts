@@ -28,6 +28,8 @@ export type ToolCallItem = {
   state: EToolState
   label: string
   title?: string
+  /** The server and tool an MCP call belongs to, when the row can draw them apart. */
+  mcp?: { server: string; tool: string }
   family?: EToolFamily
   path?: string
   change?: EditBody
@@ -106,6 +108,7 @@ export function toolCallItemOf(call: ToolCall): ToolCallItem {
   const note = call.note === null ? undefined : clipped(call.note)
   const elapsed = elapsedOf(call)
   const kind = KIND_OF_TOOL[call.name]
+  const classified = classify({ call, cwd: '' })
   const path = editPathOf(call)
   const change = kind === EToolKind.Edit ? editBodyOf({ call, state }) : undefined
   const image = pictureOf(call)
@@ -114,9 +117,8 @@ export function toolCallItemOf(call: ToolCall): ToolCallItem {
     kind: kind ?? EToolKind.Shell,
     state,
     ...(kind === undefined ? { family: familyOf(call.name) } : {}),
-    ...(kind === undefined && TITLED_STATES.includes(state)
-      ? { title: classify({ call, cwd: '' }).line }
-      : {}),
+    ...(classified.mcp === undefined ? {} : { mcp: classified.mcp }),
+    ...(kind === undefined && TITLED_STATES.includes(state) ? { title: classified.line } : {}),
     label: targetOf({ call, cwd: '' }) ?? str(inputOf(call).url) ?? call.name,
     ...(path === undefined ? {} : { path }),
     ...(change === undefined ? {} : { change }),
