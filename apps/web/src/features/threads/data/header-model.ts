@@ -14,7 +14,7 @@ export enum EHeaderState {
   Idle = 'idle',
 }
 
-export type ChecksTally = { running: number; passed: number; failed: number; waiting: boolean }
+export type ChecksTally = { running: number; passed: number; failed: number; expected: number }
 
 export const STATE_LABEL: Record<EHeaderState, string> = {
   [EHeaderState.Failed]: 'Failed',
@@ -66,7 +66,8 @@ export function checksTallyOf(entry: PullRequestEntry): ChecksTally | undefined 
   const running = entry.checksRunning ?? 0
   const passed = entry.checksPassed ?? 0
   const failed = entry.checksFailed ?? 0
-  const waiting = entry.checksState === EPullRequestChecksStateWire.Expected
-  if (running + passed + failed === 0 && !waiting) return undefined
-  return { running, passed, failed, waiting }
+  const expected =
+    entry.checksExpected ?? (entry.checksState === EPullRequestChecksStateWire.Expected ? 1 : 0)
+  if (running + passed + failed + expected === 0) return undefined
+  return { running, passed, failed, expected }
 }

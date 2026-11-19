@@ -34,7 +34,7 @@ export type SessionDigestRow = ControlSessionRow & {
   firstMessageAt: string | null
 }
 
-export type PrChecks = { running: number; passed: number; failed: number }
+export type PrChecks = { running: number; passed: number; failed: number; expected: number }
 
 export type ControlDigestPullRequest = {
   repo: string

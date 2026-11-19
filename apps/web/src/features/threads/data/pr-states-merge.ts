@@ -22,6 +22,7 @@ export function prStateWireOfApi(state: GithubPrState): PrStateWire | undefined 
     checksRunning: state.checksRunning,
     checksPassed: state.checksPassed,
     checksFailed: state.checksFailed,
+    checksExpected: state.checksExpected,
     checksState: KNOWN_CHECKS_STATES.has(state.checksState ?? '')
       ? (state.checksState as EPullRequestChecksStateWire)
       : undefined,
@@ -49,6 +50,7 @@ export function mergePrStates(args: {
     byKey.set(key, {
       ...state,
       title: state.title ?? apiState?.title,
+      checksExpected: state.checksExpected ?? apiState?.checksExpected,
       checksState: state.checksState ?? apiState?.checksState,
       polled: state.polled ?? apiState?.polled,
     })

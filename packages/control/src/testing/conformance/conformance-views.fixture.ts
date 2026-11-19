@@ -52,6 +52,7 @@ export const prStateOf = (args: {
   checksRunning: 0,
   checksPassed: 2,
   checksFailed: 0,
+  checksExpected: 0,
   mergeable: true,
   updatedAt: args.updatedAt,
   closedAt: args.closedAt ?? null,

@@ -33,6 +33,7 @@ export const pullRequestFixture: PullRequestEntry = {
   checksRunning: 1,
   checksPassed: 3,
   checksFailed: 0,
+  checksExpected: 0,
   checksState: undefined,
   mergeable: true,
   current: true,

@@ -25,6 +25,7 @@ export const prStateWireSchema = z.object({
   checksRunning: z.number().int().nonnegative(),
   checksPassed: z.number().int().nonnegative(),
   checksFailed: z.number().int().nonnegative(),
+  checksExpected: z.number().int().nonnegative().optional(),
   checksState: z.enum(EPullRequestChecksStateWire).nullable().optional(),
   mergeable: z.boolean().nullable(),
   polled: z.boolean().optional(),

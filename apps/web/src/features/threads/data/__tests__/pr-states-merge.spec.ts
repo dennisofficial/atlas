@@ -177,6 +177,6 @@ describe('parked pod pull request row', () => {
       api: [podState({ checksFailed: 2 })],
     })
     const list = pullRequestListOf({ thread, states })
-    expect(list.rows[0]?.checks).toEqual({ running: 0, passed: 9, failed: 2, waiting: false })
+    expect(list.rows[0]?.checks).toEqual({ running: 0, passed: 9, failed: 2, expected: 0 })
   })
 })

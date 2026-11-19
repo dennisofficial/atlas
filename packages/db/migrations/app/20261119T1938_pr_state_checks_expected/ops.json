@@ -1,0 +1,64 @@
+[
+  {
+    "id": "column.public.GithubPrState.checksExpected",
+    "label": "Add column \"checksExpected\" to \"GithubPrState\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "checksExpected",
+        "table": "GithubPrState"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"checksExpected\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "checksExpected"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"checksExpected\"",
+        "sql": "ALTER TABLE \"public\".\"GithubPrState\" ADD COLUMN \"checksExpected\" int4 DEFAULT 0 NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"checksExpected\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "checksExpected"
+        ]
+      },
+      {
+        "description": "verify column \"checksExpected\" has type \"integer\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "checksExpected",
+          "integer"
+        ]
+      },
+      {
+        "description": "verify column \"checksExpected\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "checksExpected",
+          "NO"
+        ]
+      }
+    ]
+  }
+]
