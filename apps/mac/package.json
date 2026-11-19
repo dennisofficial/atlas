@@ -16,6 +16,7 @@
     "@dltech/atlas-api-router": "workspace:*",
     "@dltech/atlas-core": "workspace:*",
     "@dltech/atlas-harness": "workspace:*",
+    "@dltech/atlas-protocol": "workspace:*",
     "@dltech/atlas-wire": "workspace:*",
     "electron-updater": "^6.8.11",
     "zod": "^4.4.3"

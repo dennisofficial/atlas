@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { SESSION_COOKIE } from '../../guard'
 import { createDesktopHost, type IDesktopHost } from '../../index'
+import { createAuthService } from '../auth-service'
 import { createTokenStore } from '../token-store'
 
 const SECRET = 'c'.repeat(64)
@@ -239,5 +240,52 @@ describe('proxy auth', () => {
     expect(seenProxy?.get('authorization')).toBeNull()
     expect(seenProxy?.get('cookie')).toBe('k=v')
     expect(seenProxy?.get('origin')).toBeNull()
+  })
+})
+
+describe('auth change listeners', () => {
+  const home = mkdtempSync(join(tmpdir(), 'atlas-mac-onchange-'))
+
+  const serviceOf = (origin: string) =>
+    createAuthService({
+      config: { home, webOrigin: WEB },
+      apiOrigin: origin,
+      webOrigin: WEB,
+      port: () => 4321,
+    })
+
+  test('fires on callback, adopt and sign-out', async () => {
+    const service = serviceOf(`http://127.0.0.1:${upstream.port}`)
+    let fired = 0
+    service.onChange(() => {
+      fired += 1
+    })
+
+    const { authorizeUrl } = service.start()
+    const state = new URL(authorizeUrl).searchParams.get('state')
+    const outcome = await service.callback(
+      new URL(`http://127.0.0.1:4321/desktop/auth/callback?code=code-1&state=${state}`),
+    )
+    expect(outcome).toBe('signed-in')
+    expect(fired).toBe(1)
+
+    await service.adopt('tok-2')
+    expect(fired).toBe(2)
+
+    await service.signOut()
+    expect(fired).toBe(3)
+  })
+
+  test('stops notifying a listener that unsubscribed', async () => {
+    const service = serviceOf(`http://127.0.0.1:${upstream.port}`)
+    let fired = 0
+    const off = service.onChange(() => {
+      fired += 1
+    })
+
+    off()
+    await service.signOut()
+
+    expect(fired).toBe(0)
   })
 })

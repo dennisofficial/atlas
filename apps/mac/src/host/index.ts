@@ -1,11 +1,15 @@
+import type { MacClientFrame } from '@dltech/atlas-protocol/mac-link'
+
 import type { IDesktopAppInfo } from './app-info'
 import { resolveApiOrigin, resolveWebOrigin } from './api-origin'
 import { CALLBACK_PATH, createAuthService, type IAuthConfig } from './auth/auth-service'
 import { callbackResponse } from './auth/callback-page'
 import { createAuthHandler } from './auth/routes'
 import { createDesktopRouter } from './desktop-routes'
-import type { IPanePort } from './pane-routes'
 import { isAuthorized, startSession } from './guard'
+import { createMacLinkClient, type MacFrameSink } from './mac-link/client'
+import { createDeviceId } from './mac-link/device-id'
+import type { IPanePort } from './pane-routes'
 import { isProxyPath, proxyToApp, proxyToApi } from './proxy'
 import type { IPodHostConfig } from './pods/config'
 import { defaultDesktopHome } from './pods/config'
@@ -26,6 +30,7 @@ export interface ICreateDesktopHostOptions {
   app?: IDesktopAppInfo
   previewViews?: { clear: () => void }
   pane?: IPanePort | undefined
+  macMcp?: (emit: (frame: MacClientFrame) => void) => MacFrameSink
   port?: number
 }
 
@@ -47,6 +52,7 @@ export function createDesktopHost({
   app,
   previewViews,
   pane,
+  macMcp,
 }: ICreateDesktopHostOptions): IDesktopHost {
   const origin = apiOrigin ?? resolveApiOrigin(process.env)
   const appOriginOf = typeof appOrigin === 'function' ? appOrigin : () => appOrigin
@@ -57,6 +63,22 @@ export function createDesktopHost({
     port: () => server.port as number,
   })
   const bearer = () => authService.token()
+  const link = createMacLinkClient({
+    apiOrigin: origin,
+    token: bearer,
+    deviceId: createDeviceId({
+      read: () => authService.deviceId(),
+      write: (value) => authService.saveDeviceId(value),
+    }),
+    appVersion: app?.version ?? '0.0.0',
+    ...(macMcp === undefined ? {} : { sink: macMcp }),
+  })
+  const syncLink = (): void => {
+    if (authService.status().state === 'signed-in') link.start()
+    else link.stop()
+  }
+  authService.onChange(syncLink)
+  syncLink()
   const podsHandler =
     pods === undefined
       ? undefined
@@ -109,6 +131,7 @@ export function createDesktopHost({
     url: `http://127.0.0.1:${boundPort}`,
     port: boundPort,
     stop: () => {
+      link.stop()
       podsHandler?.close()
       return server.stop(true)
     },

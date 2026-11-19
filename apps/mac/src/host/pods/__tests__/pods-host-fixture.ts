@@ -64,6 +64,7 @@ export function useDesktopHost(): void {
       port: 0,
       hostname: '127.0.0.1',
       async fetch(request) {
+        if (new URL(request.url).pathname === '/mac-link') return new Response('', { status: 404 })
         leaseHeaders.push({
           authorization: request.headers.get('authorization'),
           cookie: request.headers.get('cookie'),

@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./engine": "./src/engine/index.ts",
+    "./mac-link": "./src/mac-link.ts",
     "./testing": "./src/testing/index.ts"
   },
   "scripts": {
