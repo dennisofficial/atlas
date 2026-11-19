@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'bun:test'
 import type { ControlPlane, ControlTerminalRow } from '@dltech/atlas-control'
+import type { PodCallOutcome } from '@dltech/atlas-host'
 import {
   ECallStatus,
   ELiveOpFailure,
@@ -7,6 +8,7 @@ import {
   type CallOp,
   type CallResult,
 } from '@dltech/atlas-protocol'
+import type { PodOps } from '../../../agent'
 import { PodParkedError } from './pod-parked.error'
 import { TerminalService } from './terminal.service'
 import type { SessionsService } from './sessions.service'
@@ -28,7 +30,9 @@ const rowOf = (over: Partial<ControlTerminalRow> = {}): ControlTerminalRow => ({
 const planeOf = () => ({
   listTerminals: vi.fn(async () => [rowOf()]),
   readTerminal: vi.fn(async () => rowOf()),
-  createTerminal: vi.fn(async () => rowOf({ state: 'opening' })),
+  createTerminal: vi.fn(async (_args: { sessionId: string; terminalId: string; limit: number }) =>
+    rowOf({ state: 'opening' }),
+  ),
   renameTerminal: vi.fn(async () => rowOf()),
   markTerminalOpen: vi.fn(async () => undefined),
   endTerminal: vi.fn(async () => rowOf({ state: 'ended', endedReason: 'pod-slept' })),
@@ -39,15 +43,14 @@ const planeOf = () => ({
 
 const okOf = (result: CallResult) => ({ state: 'ok' as const, result })
 
-const parked = {
-  state: 'unavailable' as const,
+const parked: PodCallOutcome = {
+  state: 'unavailable',
   reason: ELiveOpFailure.Asleep,
 }
 
-const opsOf = (answer: (op: CallOp) => Awaited<ReturnType<typeof okOf>> | typeof parked) => {
-  const ops = { invoke: vi.fn(async (args: { op: CallOp }) => answer(args.op)) }
-  return ops
-}
+const opsOf = (answer: (op: CallOp) => PodCallOutcome) => ({
+  invoke: vi.fn(async (args: { op: CallOp }): Promise<PodCallOutcome> => answer(args.op)),
+})
 
 const owned = () => ({ requireOwnedSession: vi.fn(async () => undefined) })
 
@@ -55,7 +58,7 @@ const serviceOf = (plane: ReturnType<typeof planeOf>, ops: ReturnType<typeof ops
   new TerminalService(
     plane as unknown as ControlPlane,
     owned() as unknown as SessionsService,
-    ops as unknown as { invoke: typeof ops.invoke },
+    ops as unknown as PodOps,
   )
 
 describe('TerminalService', () => {
