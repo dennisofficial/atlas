@@ -2,16 +2,18 @@ import { describe, expect, it } from 'bun:test'
 
 import { ERetryReason } from '@dltech/atlas-core'
 
-import { flushUntil, makeRig, postAndRun, seedSession, SESSION, THREAD_ID } from './holder-rig'
+import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID } from './holder-rig'
 import { V2OnceLedger } from '../record/v2-once-ledger'
 import { SessionRecord } from '../record/record-adapter'
 
 describe('SessionHolder OnceLedger', () => {
   it('a retry deadline recorded by A is read back by B', async () => {
-    const a = await makeRig({})
+    let shells = 1
+    const a = await makeRig({ runningShells: async () => shells })
     await seedSession(a)
     await a.holder.start()
-    await postAndRun(a, 'hello')
+    await a.post('hello')
+    await a.wake()
     const saw = await flushUntil({
       check: async () => (await a.events()).some((event) => event.type === 'assistant-said'),
     })
@@ -44,6 +46,7 @@ describe('SessionHolder OnceLedger', () => {
     const scheduled = (await a.events()).filter((event) => event.type === 'retry-scheduled')
     expect(scheduled.length).toBe(1)
 
+    shells = 0
     const drain = a.holder.drain()
     await drain
 
@@ -58,7 +61,12 @@ describe('SessionHolder OnceLedger', () => {
     await a.post('after drain')
     await b.holder.start()
     await a.bus.wake(SESSION)
-    const claimed = await flushUntil({ check: () => b.holder.heldIds().length === 1 })
+    const claimed = await flushUntil({
+      check: () => b.runtimes.length === 1,
+      clock: a.clock,
+      advanceMs: 2_000,
+      attempts: 200,
+    })
     expect(claimed).toBe(true)
 
     const runtimeB = b.runtimes[0]

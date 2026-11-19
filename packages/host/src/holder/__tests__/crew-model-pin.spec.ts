@@ -148,7 +148,7 @@ describe('a sub-agent’s spawn model', () => {
     const { rig } = await pinRig({
       parent: [
         { calls: [{ callId: 'c1', name: SPAWN_PROBE, input: {} }] },
-        { text: 'parent done' },
+        { calls: [{ callId: 'c0', name: 'bash', input: { command: 'sleep 0.5' } }] },
         { calls: [{ callId: 'c2', name: SAY_PROBE, input: {} }] },
         { text: 'saw the second answer' },
       ],
@@ -157,25 +157,29 @@ describe('a sub-agent’s spawn model', () => {
 
     await rig.post('spawn one')
     await rig.wake()
-    const ended = await flushUntil({
+    const spawned = await flushUntil({
       check: async () =>
-        (await eventsIn(rig, THREAD_ID)).some((event) => event.type === 'agent-ended'),
+        (await eventsIn(rig, THREAD_ID)).some((event) => event.type === 'agent-spawned'),
       clock: rig.clock,
     })
-    expect(ended).toBe(true)
-    await rig.flush()
+    expect(spawned).toBe(true)
     const childId = childIdOf(await eventsIn(rig, THREAD_ID))
+    const answered = await flushUntil({
+      check: async () => saidTexts(await eventsIn(rig, childId)).length === 1,
+      clock: rig.clock,
+    })
+    expect(answered).toBe(true)
     const runtime = rig.runtimes[0]
     if (runtime === undefined) throw new Error('no runtime')
     runtime.modelChoice = LATER_MODEL_CHOICE
 
-    await rig.post('say again')
-    await rig.wake()
     const answeredAgain = await flushUntil({
       check: async () => saidTexts(await eventsIn(rig, childId)).length === 2,
+      attempts: 1500,
       clock: rig.clock,
     })
     expect(answeredAgain).toBe(true)
+    expect(rig.runtimes.length).toBe(1)
     expect(saidTexts(await eventsIn(rig, childId))).toEqual(['child answer', 'child second'])
     expect(runtime.modelOfCalls).toEqual([RIG_MODEL_CHOICE, RIG_MODEL_CHOICE])
   })

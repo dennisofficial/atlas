@@ -48,7 +48,7 @@ const viewOf = (args: { events: WireEvent[]; signals?: StepSignal[] }) => {
 }
 
 describe('a routine prompt', () => {
-  it('reads as a prompt from a routine rather than the operator bubble', () => {
+  it('reads as a visible message from a routine rather than the operator bubble', () => {
     const view = viewOf({
       events: [
         wire(1, {
@@ -61,9 +61,9 @@ describe('a routine prompt', () => {
 
     expect(view.items).toMatchObject([
       {
-        kind: ETranscriptKind.Notice,
-        title: 'Message from a routine',
-        body: 'Summarise what happened overnight',
+        kind: ETranscriptKind.Agent,
+        text: 'Summarise what happened overnight',
+        sender: 'From a routine',
       },
     ])
   })

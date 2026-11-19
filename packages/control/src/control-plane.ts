@@ -2,6 +2,7 @@ import {
   type EReportKind,
   type InboxEntry,
   type Lease,
+  type LeaseWriteResult,
   type LogHead,
   type PluginViewFold,
   type RevokeResult,
@@ -579,6 +580,13 @@ export class ControlPlane {
       epoch: params.epoch,
       resetRetry: params.resetRetry,
     })
+  }
+
+  async clearStartAttempts(params: {
+    sessionId: string
+    epoch: number
+  }): Promise<LeaseWriteResult> {
+    return this.leases.clearAttemptsIfEpoch(params)
   }
 
   async currentLease(params: { sessionId: string }): Promise<{ lease: Lease; live: boolean }> {

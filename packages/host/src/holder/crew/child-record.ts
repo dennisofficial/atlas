@@ -1,4 +1,4 @@
-import { EToolEffect, type IdPort, type ThreadId } from '@dltech/atlas-core'
+import { EToolEffect, type EAgentStatus, type IdPort, type ThreadId } from '@dltech/atlas-core'
 import { settleCrashedCalls } from '@dltech/atlas-agent'
 import type { WorktreeEntryInfo } from '@dltech/atlas-plugin-sdk'
 
@@ -20,7 +20,11 @@ export type ChildRunArgs = {
   onLeaseLost(error: LeaseLostError): void
 }
 
-export type AdoptedChildArgs = ChildRunArgs & { agentId: ThreadId; spawnedAt: string }
+export type AdoptedChildArgs = ChildRunArgs & {
+  agentId: ThreadId
+  spawnedAt: string
+  settled?: { status: EAgentStatus; endedAt: string } | undefined
+}
 
 type RecordArgs = {
   args: ChildRunArgs

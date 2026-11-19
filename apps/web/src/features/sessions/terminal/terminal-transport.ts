@@ -15,6 +15,8 @@ import {
 } from '@dltech/atlas-protocol'
 import { ETerminalConnection } from '@dltech/atlas-ui/ai/terminal-states'
 
+import { ETerminalOp, type TerminalProblem } from './terminal-model'
+
 export type TerminalCursor = { terminalId: string; offset: number }
 
 export type TerminalStreamSubscription = { unsubscribe(): void }
@@ -48,6 +50,7 @@ export type TerminalTransportArgs = {
   onExit: (frame: { terminalId: string; exitCode: number | null; signal: string | null }) => void
   onClosed: (reason: TerminalStreamClose) => void
   onLink: (state: ETerminalConnection) => void
+  onProblem: (problem: TerminalProblem | undefined) => void
 }
 
 export type TerminalTransport = {
@@ -79,6 +82,13 @@ const isFrameStream = (value: unknown): value is AsyncIterable<unknown> =>
 
 const DISCONNECTING_REASONS: readonly TerminalStreamClose[] = ['asleep', 'detached']
 
+const UNREACHABLE = "couldn't reach the session — retrying"
+
+const messageOf = (failure: unknown): string => {
+  const message = failure instanceof Error ? failure.message : undefined
+  return message === undefined || message.length === 0 ? UNREACHABLE : message
+}
+
 export function createTerminalTransport(args: TerminalTransportArgs): TerminalTransport {
   const { sessionId, api } = args
   const offsets = new Map<string, number>()
@@ -87,8 +97,14 @@ export function createTerminalTransport(args: TerminalTransportArgs): TerminalTr
   let disposed = false
   let queue: Promise<unknown> = Promise.resolve()
 
-  const enqueue = (run: () => Promise<unknown>): void => {
-    queue = queue.then(run).catch(() => undefined)
+  const report = (op: ETerminalOp, failure: unknown): void =>
+    args.onProblem({ op, message: messageOf(failure) })
+
+  const enqueue = (op: ETerminalOp, run: () => Promise<unknown>): void => {
+    queue = queue.then(run).then(
+      () => args.onProblem(undefined),
+      (failure: unknown) => report(op, failure),
+    )
   }
 
   const cursorOf = (terminalId: string): number => offsets.get(terminalId) ?? 0
@@ -104,6 +120,12 @@ export function createTerminalTransport(args: TerminalTransportArgs): TerminalTr
     token = undefined
   }
 
+  const dropStream = (failure?: unknown): void => {
+    args.onProblem({ op: ETerminalOp.Stream, message: messageOf(failure) })
+    args.onLink(ETerminalConnection.Paused)
+    closeSubscription()
+  }
+
   const catchUp = async (terminalId: string): Promise<void> => {
     const offset = cursorOf(terminalId)
     const result = await api.read({ sessionId, terminalId, offset })
@@ -116,6 +138,7 @@ export function createTerminalTransport(args: TerminalTransportArgs): TerminalTr
 
   const handleFrame = (frame: ReturnType<typeof terminalStreamFrameSchema.parse>): void => {
     if (frame.type === 'ready') {
+      args.onProblem(undefined)
       args.onLink(ETerminalConnection.Connected)
       return
     }
@@ -133,9 +156,8 @@ export function createTerminalTransport(args: TerminalTransportArgs): TerminalTr
       args.onExit({ terminalId: frame.terminalId, exitCode: frame.exitCode, signal: frame.signal })
       return
     }
-    if (frame.type === 'parked') {
-      args.onLink(ETerminalConnection.Disconnected)
-      closeSubscription()
+    if (frame.type !== 'closed') {
+      dropStream()
       return
     }
     args.onClosed(frame.reason)
@@ -164,11 +186,25 @@ export function createTerminalTransport(args: TerminalTransportArgs): TerminalTr
 
   return {
     list: async () => (await api.list({ sessionId })).terminals,
-    open: async (open) =>
-      api.open({ sessionId, ...open, ...(open.cwd === undefined ? {} : { cwd: open.cwd }) }),
-    write: (terminalId, data) => enqueue(() => api.write({ sessionId, terminalId, data })),
+    open: async (open) => {
+      const opened = await api
+        .open({ sessionId, ...open, ...(open.cwd === undefined ? {} : { cwd: open.cwd }) })
+        .then(
+          (result) => {
+            args.onProblem(undefined)
+            return result
+          },
+          (failure: unknown) => {
+            report(ETerminalOp.Open, failure)
+            throw failure
+          },
+        )
+      return opened
+    },
+    write: (terminalId, data) =>
+      enqueue(ETerminalOp.Write, () => api.write({ sessionId, terminalId, data })),
     resize: (terminalId, cols, rows) =>
-      enqueue(() => api.resize({ sessionId, terminalId, cols, rows })),
+      enqueue(ETerminalOp.Resize, () => api.resize({ sessionId, terminalId, cols, rows })),
     close: async (terminalId) => {
       await api.close({ sessionId, terminalId })
     },
@@ -188,11 +224,11 @@ export function createTerminalTransport(args: TerminalTransportArgs): TerminalTr
         { sessionId, cursors: cursors.map((cursor) => ({ ...cursor })) },
         {
           onData: (value) => (isFrameStream(value) ? pump(value) : handleValue(value)),
-          onError: () => {
-            if (stillCurrent()) args.onLink(ETerminalConnection.Paused)
+          onError: (failure) => {
+            if (stillCurrent()) dropStream(failure)
           },
           onComplete: () => {
-            if (stillCurrent()) args.onLink(ETerminalConnection.Paused)
+            if (stillCurrent()) dropStream()
           },
         },
       )

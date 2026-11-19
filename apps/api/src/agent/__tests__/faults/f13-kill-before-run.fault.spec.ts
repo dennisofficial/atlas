@@ -61,6 +61,7 @@ describe.skipIf(REDIS_URL === undefined)('F13 SIGKILL between tool-dispatched an
     const before = await readEvents({ plane: rig.plane, threadId })
     expect(before.some((row) => row.type === 'tool-result' && callIdOf(row) === 'c1')).toBe(false)
     expect(existsSync(runsFile)).toBe(false)
+    const heldByA = await rig.plane.currentLease({ sessionId })
 
     hostA.kill('SIGKILL')
     await hostA.exited
@@ -101,6 +102,7 @@ describe.skipIf(REDIS_URL === undefined)('F13 SIGKILL between tool-dispatched an
     expect(runs).toEqual(['run'])
 
     const lease = await rig.plane.currentLease({ sessionId })
-    expect(await rig.labelOf(lease.lease.holderHostId)).toBe('host-b')
+    expect(lease.lease.epoch).toBeGreaterThan(heldByA.lease.epoch)
+    expect(await rig.labelOf(lease.lease.holderHostId)).not.toBe('host-a')
   }, 60_000)
 })

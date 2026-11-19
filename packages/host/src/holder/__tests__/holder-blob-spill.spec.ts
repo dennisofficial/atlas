@@ -14,6 +14,12 @@ import { flushUntil, makeRig, postAndRun, seedSession, SESSION, THREAD_ID } from
 import { SessionRecord } from '../record/record-adapter'
 import { V2OnceLedger } from '../record/v2-once-ledger'
 
+const recordLease = async (rig: Awaited<ReturnType<typeof makeRig>>) => {
+  const freed = await flushUntil({ check: () => !rig.holder.heldIds().includes(SESSION) })
+  expect(freed).toBe(true)
+  return rig.plane.grant({ sessionId: SESSION, hostId: 9001 })
+}
+
 const readStored = async (rig: Awaited<ReturnType<typeof makeRig>>): Promise<V2Event[]> => {
   const page = await rig.plane.readEvents({
     threadId: THREAD_ID,
@@ -37,11 +43,11 @@ describe('SessionRecord blob spill', () => {
 
     const runtime = rig.runtimes[0]
     if (runtime === undefined) throw new Error('no runtime')
-    const lease = await rig.plane.currentLease({ sessionId: SESSION })
+    const lease = await recordLease(rig)
     const args = {
       plane: rig.plane,
       threadId: THREAD_ID,
-      epoch: lease.lease.epoch,
+      epoch: lease.epoch,
       timers: rig.clock,
       remoteCalls: runtime.remoteCalls,
       daemonTools: runtime.daemonTools,
@@ -87,11 +93,11 @@ describe('SessionRecord blob spill', () => {
 
     const runtime = rig.runtimes[0]
     if (runtime === undefined) throw new Error('no runtime')
-    const lease = await rig.plane.currentLease({ sessionId: SESSION })
+    const lease = await recordLease(rig)
     const args = {
       plane: rig.plane,
       threadId: THREAD_ID,
-      epoch: lease.lease.epoch,
+      epoch: lease.epoch,
       timers: rig.clock,
       remoteCalls: runtime.remoteCalls,
       daemonTools: runtime.daemonTools,

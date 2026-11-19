@@ -17,7 +17,6 @@ const agentEnv: AgentHostEnv = {
   platformVercel: null,
   agent37: null,
   mediaBlobToken: null,
-  maxSessions: 25,
   sandboxImage: 'atlas-sandbox:latest',
   daemonBundlePath: 'daemon.js',
   port: 3400,

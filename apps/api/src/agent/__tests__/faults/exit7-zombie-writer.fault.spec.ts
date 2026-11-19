@@ -10,6 +10,7 @@ import { daemonToken } from '@dltech/atlas-protocol/engine'
 import { sandboxNameOf } from '../../sandbox/vercel-names'
 import { RIG_SECRET, startRig, type FaultRig } from '../../testing/fault-rig'
 import { callIdOf, isDoneResult, makeFifo, readEvents, waitForFile } from './fault-support'
+import { waitReleased } from './lease-fault-support'
 
 const REDIS_URL = process.env.ATLAS_TEST_REDIS_URL
 
@@ -178,6 +179,7 @@ describe.skipIf(REDIS_URL === undefined)(
         scripts: { [sessionId]: [{ text: 'host b finished' }] },
       })
       await rig.claim({ sessionId, label: 'host-b', timeoutMs: 20_000 })
+      const epochB = (await rig.plane.currentLease({ sessionId })).lease.epoch
       const headAtBClaim = (await rig.plane.head({ threadId })).seq
 
       writeFileSync(gateFifo, 'go\n')
@@ -221,8 +223,11 @@ describe.skipIf(REDIS_URL === undefined)(
       const staleWrite = await rig.plane.append({ threadId, epoch: epochA, events: zombieWrites })
       expect(staleWrite).toMatchObject({ ok: false, refusal: { kind: 'stale-epoch' } })
 
+      await waitReleased({ rig, sessionId, timeoutMs: 20_000 })
       const finalLease = await rig.plane.currentLease({ sessionId })
-      expect(await rig.labelOf(finalLease.lease.holderHostId)).toBe('host-b')
+      expect(finalLease.lease.epoch).toBeGreaterThan(epochB)
+      expect(finalLease.lease.holderHostId).toBeNull()
+      expect(finalLease.lease.wantsHolder).toBe(false)
 
       hostB.kill('SIGKILL')
       await hostB.exited

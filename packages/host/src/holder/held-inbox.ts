@@ -1,5 +1,6 @@
 import {
   actionableInboxIds,
+  EInputConsumed,
   INBOX_KIND_STOP,
   pendingInputsOf,
   pendingMessagesOf,
@@ -57,6 +58,18 @@ export const actionableEntries = (args: {
 }
 
 export const isStop = (entry: InboxEntry): boolean => entry.kind === INBOX_KIND_STOP
+
+export const stopSettledPromptOf = (events: readonly V2Event[]): boolean => {
+  let lastPrompt = -1
+  let lastStop = -1
+  for (const event of events) {
+    if (event.type === 'user-said' || event.type === 'nudge') lastPrompt = event.seq
+    else if (event.type === 'input-consumed' && event.consumed === EInputConsumed.Stop) {
+      lastStop = event.seq
+    }
+  }
+  return lastPrompt >= 0 && lastStop > lastPrompt
+}
 
 export const understandsCommand = (deps: HeldSessionDeps, entry: InboxEntry): boolean =>
   !isCommandKind(entry.kind) ||

@@ -7,6 +7,7 @@ import type { LogPort } from '@dltech/atlas-observability'
 import type { HostBus, HostPresence, HostTimers, PodPeers, SessionRuntimeFactory } from './ports'
 import type { PodControlClient } from './pod-control'
 import type { CommandHandlers } from './command-intake'
+import type { TerminalDemand } from './terminal-demand'
 import { DEFAULT_APPEND_RETRY_MS } from './record/retry-deadline'
 
 export type SessionHolderArgs = {
@@ -17,9 +18,7 @@ export type SessionHolderArgs = {
   runtimes: SessionRuntimeFactory
   ids: IdPort
   podPeers?: PodPeers | undefined
-  maxSessions: number
   appendRetryMs?: number | undefined
-  idleMinutes?: number | undefined
   sweepMs?: number | undefined
   isPermanentStartError?: ((error: unknown) => boolean) | undefined
   reasonOfStartError?: ((error: unknown) => string) | undefined
@@ -36,10 +35,10 @@ export type SessionHolderArgs = {
   changes?: { content: ChangeContentStore } | undefined
   log?: LogPort | undefined
   onHostIdChanged?: (() => void) | undefined
+  terminalDemand?: TerminalDemand | undefined
 }
 
 export const SESSION_HOLDER_DEFAULTS = {
   appendRetryMs: DEFAULT_APPEND_RETRY_MS,
-  idleMinutes: 30,
   sweepMs: 20_000,
 } as const

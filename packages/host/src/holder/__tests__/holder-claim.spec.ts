@@ -24,18 +24,13 @@ describe('SessionHolder claim', () => {
     expect(sawEvents).toBe(true)
 
     const leases = await a.plane.currentLease({ sessionId: SESSION })
-    const holderHostId = leases.lease.holderHostId ?? -1
-    expect([a.hostId(), b.hostId()].includes(holderHostId)).toBe(true)
-    expect(leases.live).toBe(true)
-
-    const winner = leases.lease.holderHostId === a.hostId() ? a : b
-    const loser = leases.lease.holderHostId === a.hostId() ? b : a
-    expect(winner.runtimes.length).toBe(1)
-    expect(loser.runtimes.length).toBe(0)
+    expect(leases.lease.holderHostId).toBeNull()
+    expect(leases.live).toBe(false)
+    expect(a.runtimes.length + b.runtimes.length).toBe(1)
   })
 
   it('a live lease is never stolen', async () => {
-    const a = await makeRig({})
+    const a = await makeRig({ runningShells: async () => 1 })
     await seedSession(a)
     await a.holder.start()
     await postAndRun(a, 'first')
@@ -81,8 +76,8 @@ describe('SessionHolder claim', () => {
     expect(a.runtimes.length).toBe(1)
   })
 
-  it('maxSessions=1 with two concurrent wakes holds exactly one session', async () => {
-    const a = await makeRig({ maxSessions: 1 })
+  it('two concurrent wakes hold one session and claim it once', async () => {
+    const a = await makeRig({})
     await a.holder.start()
     await a.flush()
     await seedSession(a)
@@ -108,7 +103,7 @@ describe('SessionHolder claim', () => {
   })
 
   it('a wake arriving during drain starts nothing', async () => {
-    const a = await makeRig({ maxSessions: 1 })
+    const a = await makeRig({})
     await seedSession(a)
     await a.holder.start()
     await postAndRun(a, 'first')

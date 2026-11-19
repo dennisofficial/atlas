@@ -1,5 +1,7 @@
 import { INBOX_KIND_MESSAGE, inboxMessageSchema } from '@dltech/atlas-protocol'
 
+import { wakesHolderOf } from './claim-ops'
+import { LeaseConflictError } from './errors'
 import type { ControlTx } from './port'
 
 export const INBOX_KIND_WITHDRAW = 'withdraw'
@@ -72,6 +74,21 @@ const alreadyPosted = async (params: {
   )?.inboxId
 }
 
+const requestHolderFor = async (params: {
+  tx: ControlTx
+  sessionId: string
+  kind: string
+}): Promise<void> => {
+  if (wakesHolderOf(params.kind)) return
+  const lease = await params.tx.lockLease(params.sessionId)
+  if (lease === undefined || lease.wantsHolder) return
+  const written = await params.tx.writeLease({
+    lease: { ...lease, wantsHolder: true },
+    expectedEpoch: lease.epoch,
+  })
+  if (!written) throw new LeaseConflictError(params.sessionId)
+}
+
 export const postIn = async (params: {
   tx: ControlTx
   sessionId: string
@@ -104,6 +121,7 @@ export const postIn = async (params: {
     consumedSeq: null,
     senderSessionId: params.senderSessionId ?? null,
   })
+  await requestHolderFor({ tx: params.tx, sessionId: params.sessionId, kind: params.kind })
   if (params.wake !== false) await params.tx.notifyWake(params.sessionId)
   await params.tx.announce({ sessionId: params.sessionId })
   return { inboxId }

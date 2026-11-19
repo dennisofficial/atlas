@@ -17,8 +17,8 @@ import {
 const CASES = [
   { fault: EHostFault.RevokeThrowsTwice, marker: 'fault: revoke throws 2', boundMs: 5_000 },
   {
-    fault: EHostFault.SandboxStopThrowsOnce,
-    marker: 'fault: sandbox.stop throws',
+    fault: EHostFault.PodDeadlineThrowsOnce,
+    marker: 'fault: pod deadline throws',
     boundMs: 10_000,
   },
 ] as const
@@ -36,7 +36,7 @@ describe.skipIf(REDIS_URL === undefined)('F29 failed settle after an idle releas
   })
 
   for (const { fault, marker, boundMs } of CASES) {
-    it(`${fault}: the release is retried and the next post is answered`, async () => {
+    it(`${fault}: the release completes and the next post is answered`, async () => {
       const sessionId = `fault-f29-${fault}`
       const threadId = await rig.newSession({ sessionId, text: 'first' })
       const daemon = await rig.spawnDaemonFor({ sessionId })

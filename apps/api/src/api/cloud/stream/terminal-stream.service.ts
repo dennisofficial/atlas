@@ -6,11 +6,13 @@ import {
   terminalOutputEventSchema,
   type TerminalStreamFrame,
 } from '@dltech/atlas-protocol'
-import { POD_OPS, type PodOps } from '../../../agent'
+import { POD_OPS, TERMINAL_DEMAND, type PodOps, type TerminalDemand } from '../../../agent'
 import { TerminalService } from '../../platform/control/terminal.service'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { HOST_ABSENT } from './session-stream.router'
 import { TerminalStreamQueue } from './terminal-stream-queue'
+
+const UNHELD_SESSION = 'no host picked this session up in time — retry the stream'
 
 export type TerminalStreamAttachArgs = {
   userId: string
@@ -27,6 +29,7 @@ export class TerminalStreamService {
     private readonly terminals: TerminalService,
     private readonly drain: DrainStateService,
     @Optional() @Inject(POD_OPS) private readonly ops: PodOps | null = null,
+    @Optional() @Inject(TERMINAL_DEMAND) private readonly demand: TerminalDemand | null = null,
   ) {}
 
   async *attach(args: TerminalStreamAttachArgs): AsyncGenerator<TerminalStreamFrame> {
@@ -35,17 +38,23 @@ export class TerminalStreamService {
     if (ops === null) throw new ServiceUnavailableException(HOST_ABSENT)
     if (this.drain.isDraining())
       throw new ServiceUnavailableException('the api is restarting — retry the stream')
+    const release = this.demand?.hold(args.sessionId)
     yield { type: 'ready', sessionId: args.sessionId }
     const queue = new TerminalStreamQueue(TERMINAL_STREAM_BUFFER_BYTES)
     const next = new Map<string, number>()
+    const held = await this.awaitHolder({ ops, args })
+    if (!held) {
+      release?.()
+      throw new ServiceUnavailableException(UNHELD_SESSION)
+    }
     const dispose = ops.events({
       sessionId: args.sessionId,
       listener: (frame) => this.forward({ frame, sessionId: args.sessionId, queue, next }),
       onClose: (reason) => queue.end(this.drain.isDraining() ? 'restarted' : reason),
     })
     if (dispose === null) {
-      yield { type: 'parked' }
-      return
+      release?.()
+      throw new ServiceUnavailableException(UNHELD_SESSION)
     }
     const abort = (): void => queue.end()
     args.signal?.addEventListener('abort', abort)
@@ -68,7 +77,20 @@ export class TerminalStreamService {
     } finally {
       args.signal?.removeEventListener('abort', abort)
       dispose()
+      release?.()
     }
+  }
+
+  private async awaitHolder(args: {
+    ops: PodOps
+    args: TerminalStreamAttachArgs
+  }): Promise<boolean> {
+    const wait = args.ops.waitForHolder
+    if (wait === undefined) return true
+    return wait({
+      sessionId: args.args.sessionId,
+      ...(args.args.signal === undefined ? {} : { signal: args.args.signal }),
+    })
   }
 
   private async *replay(args: {

@@ -30,7 +30,6 @@ describe('readAgentHostEnv', () => {
     expect(env.previewDomain).toBe('byatlas.dev')
     expect(env.vercelOauth).toBeNull()
     expect(env.mediaBlobToken).toBeNull()
-    expect(env.maxSessions).toBe(25)
     expect(env.sandboxImage).toBe('atlas-sandbox:latest')
     expect(env.daemonBundlePath.endsWith('apps/daemon/bin/daemon.js')).toBe(true)
   })
@@ -118,11 +117,9 @@ describe('readAgentHostEnv', () => {
   it('honours the overrides', () => {
     const env = readAgentHostEnv({
       ...complete,
-      AGENT_HOST_MAX_SESSIONS: '7',
       ATLAS_SANDBOX_IMAGE: 'ghcr.io/x/atlas-sandbox:sha-abc',
       ATLAS_DAEMON_BUNDLE: '/tmp/daemon.js',
     })
-    expect(env.maxSessions).toBe(7)
     expect(env.sandboxImage).toBe('ghcr.io/x/atlas-sandbox:sha-abc')
     expect(env.daemonBundlePath).toBe('/tmp/daemon.js')
   })
@@ -168,11 +165,5 @@ describe('readAgentHostEnv', () => {
     expect(set.port).toBe(8080)
     expect(set.trustedOrigins).toEqual(['https://a.example', 'https://b.example'])
     expect(() => readAgentHostEnv({ ...complete, PORT: 'x' })).toThrow(AgentHostEnvError)
-  })
-
-  it('rejects a non-integer AGENT_HOST_MAX_SESSIONS', () => {
-    expect(() => readAgentHostEnv({ ...complete, AGENT_HOST_MAX_SESSIONS: 'many' })).toThrow(
-      AgentHostEnvError,
-    )
   })
 })

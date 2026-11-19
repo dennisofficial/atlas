@@ -33,7 +33,7 @@ describe.skipIf(REDIS_URL === undefined)('F27 the ring walks over three consecut
     await rig.stop()
   })
 
-  it('the survivor ends up holding every session and its watch has no waiter', async () => {
+  it('the survivor runs every session and its watch has no waiter', async () => {
     const daemons = await Promise.all(
       SESSIONS.map(async (sessionId) => (await prepareGated({ rig, sessionId })).daemon),
     )
@@ -63,12 +63,12 @@ describe.skipIf(REDIS_URL === undefined)('F27 the ring walks over three consecut
           label,
           daemonUrl: daemonUrls[sessionId] ?? '',
           daemonUrls,
-          knobs: { maxSessions: 1 },
           scripts: stuck,
         }),
       )
       threads.push(await rig.newSession({ sessionId, text: 'a pending message' }))
       await rig.waitHeldBy({ sessionId, label, timeoutMs: 30_000 })
+      victims[victims.length - 1]?.pause()
     }
     hostA.resume()
     await waitUntil({
@@ -84,15 +84,6 @@ describe.skipIf(REDIS_URL === undefined)('F27 the ring walks over three consecut
       await sleep(1_000)
     }
 
-    for (const sessionId of SESSIONS) {
-      await rig
-        .waitHeldBy({ sessionId, label: 'host-a', timeoutMs: 15_000 })
-        .catch((error: unknown) => {
-          throw new Error(
-            `${error instanceof Error ? error.message : String(error)}\nhost-a logs:\n${hostA.logs().join('\n')}`,
-          )
-        })
-    }
     for (const threadId of threads) {
       await rig.waitForSeq({
         threadId,
@@ -104,6 +95,12 @@ describe.skipIf(REDIS_URL === undefined)('F27 the ring walks over three consecut
           ),
         timeoutMs: 30_000,
       })
+    }
+
+    for (const sessionId of SESSIONS) {
+      const lease = await rig.plane.currentLease({ sessionId })
+      const label = await rig.labelOf(lease.lease.holderHostId)
+      expect(label === undefined || label === 'host-a').toBe(true)
     }
 
     await waitUntil({

@@ -12,6 +12,7 @@ import {
   isStop,
   logPendingMessageIdsOf,
   readFullInbox,
+  stopSettledPromptOf,
   understandsCommand,
   waitingInputIdsOf,
 } from './held-inbox'
@@ -41,10 +42,11 @@ export const drainNeedsHolder = async (args: {
       ],
     })
     const children = openChildrenOf(cache?.visibleLoopEvents() ?? [])
+    const state = cache?.loopState() ?? initialLoopState()
     return drainWantsHolder({
       turn: args.turnRunning ? 'running' : 'idle',
       childrenRunning: (await childrenAtWorkOf({ plane: args.deps.plane, children })) > 0,
-      resumable: isResumableOf(cache?.loopState() ?? initialLoopState()),
+      resumable: isResumableOf(state) && !stopSettledPromptOf(events),
       messagePending:
         actionableEntries({ entries, failure: workspace.failure }).length > 0 ||
         waitingInputIdsOf({ ids: logIds, failure: workspace.failure }).length > 0,

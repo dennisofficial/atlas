@@ -45,6 +45,7 @@ export interface UserMessageProps extends SummariseActions {
 export interface AgentMessageProps {
   children: ReactNode
   author?: string
+  caption?: string
   timestamp?: string
   streaming?: boolean
   caret?: boolean
@@ -176,6 +177,7 @@ export function UserMessage({
 export function AgentMessage({
   children,
   author,
+  caption,
   timestamp,
   streaming = false,
   caret = true,
@@ -190,6 +192,11 @@ export function AgentMessage({
     <Message>
       <MessageContent>
         <SpeakerName author={author} />
+        {caption === undefined ? null : (
+          <span data-slot="message-caption" className="text-xs font-medium text-muted-foreground">
+            {caption}
+          </span>
+        )}
         <div className="text-sm leading-relaxed text-pretty">
           {children}
           {streaming && caret ? (

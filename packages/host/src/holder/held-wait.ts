@@ -11,12 +11,10 @@ export const consumeStops = async (args: {
   deps: HeldSessionDeps
   record: SessionRecord | undefined
   entries: readonly InboxEntry[]
-  onActivity(): void
 }): Promise<void> => {
   const { deps, record } = args
   if (record === undefined) return
   const consume = async (params: { inboxId: number; consumed: EInputConsumed }): Promise<void> => {
-    args.onActivity()
     await record.append({
       threadId: record.threadId,
       runId: deps.ids.nextRunId(),

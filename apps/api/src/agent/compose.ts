@@ -2,9 +2,9 @@ import { RandomIds } from './runtime/random-ids'
 import { composeCommands } from '@dltech/atlas-commands'
 import {
   SessionHolder,
+  TerminalDemand,
   type HostPresence,
   type PodControlClient,
-  type PodPeers,
 } from '@dltech/atlas-host'
 import { nativeCommandHandlers, nativeCommands } from '@dltech/atlas-native-commands'
 import { cloudConfigStore } from './config/cloud-config-store'
@@ -59,9 +59,9 @@ export type ComposeAgentHostArgs = {
 
 export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
   const timers = args.timers ?? { now: () => Date.now(), ...systemTimers }
-  const podPeers: PodPeers = { placed: (params) => args.plane.podPeersPlaced(params) }
   const mcpControl = mcpControlPort(args.macLink)
   const cipher = new SecretCipher(args.env.secretsEncryptionKey)
+  const terminalDemand = new TerminalDemand()
   return new SessionHolder({
     presence: args.presence,
     plane: args.plane,
@@ -77,16 +77,14 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
       timers,
       media: args.media,
       plugins: composedPlugins,
-      podPeers,
       configWrites: cloudConfigStore(),
       envSecrets: envSecretsReader(),
+      terminalStreams: (sessionId) => terminalDemand.countOf(sessionId),
       ...(args.log === undefined ? {} : { log: args.log }),
     }),
     ids: new RandomIds(),
-    podPeers,
     isPermanentStartError,
     reasonOfStartError: startFailureReason,
-    maxSessions: args.env.maxSessions,
     commands: composeCommands([...nativeCommands, ...composedPlugins.commands]),
     commandHandlers: new Map([...nativeCommandHandlers, ...composedPlugins.pod.commands]),
     control: args.control,
@@ -96,6 +94,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
       openValue: (sealed) => cipher.decrypt(sealed),
     },
     ...(args.changes === undefined ? {} : { changes: args.changes }),
+    terminalDemand,
     onHostIdChanged: args.onHostIdChanged,
     ...(args.log === undefined ? {} : { log: args.log }),
   })

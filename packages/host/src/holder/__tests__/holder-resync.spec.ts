@@ -47,7 +47,15 @@ describe('SessionHolder F8 resync', () => {
     const cache = await RecordCache.load({ plane: rig.plane, threadId: THREAD_ID })
     expect(cache.currentHead().seq).toBe(4)
 
-    await otherWriterCommits(rig, { count: 1_500, epoch: 1 })
+    const freed = await flushUntil({ check: () => !rig.holder.heldIds().includes(SESSION) })
+    expect(freed).toBe(true)
+    const revoked = await flushUntil({
+      check: async () =>
+        (await rig.plane.currentLease({ sessionId: SESSION })).lease.holderHostId === null,
+    })
+    expect(revoked).toBe(true)
+    const { epoch } = await rig.plane.grant({ sessionId: SESSION, hostId: 9001 })
+    await otherWriterCommits(rig, { count: 1_500, epoch })
     const storeHead = await rig.plane.head({ threadId: THREAD_ID })
     expect(storeHead.seq).toBeGreaterThan(1_500)
 

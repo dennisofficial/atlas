@@ -1,7 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef } from 'react'
-import { toast } from 'sonner'
+import { useCallback, useMemo, useRef } from 'react'
 
 import { ETerminalConnection } from '@dltech/atlas-ui/ai/terminal-states'
 import type { TerminalScreenHandle, TerminalSize } from '@dltech/atlas-ui/ai/terminal-screen'
@@ -18,6 +17,7 @@ import {
   TerminalFailedBody,
   TerminalScreens,
 } from './terminal-bodies'
+import { type PendingFrame, useTerminalConnection } from './terminal-connection'
 import {
   ETerminalTabState,
   activeTab,
@@ -25,25 +25,20 @@ import {
   canOpen,
   closeTab,
   cursorOf,
-  cursorsOf,
   isLiveTab,
   renameTab,
   resetCursor,
   selectTab,
   setCursor,
-  withLink,
-  withRows,
 } from './terminal-model'
-import { TerminalBreadcrumb, TerminalStatusBar, TerminalStrip } from './terminal-strip'
-import { bytesOf, type TerminalTransport, type TerminalTransportArgs } from './terminal-transport'
+import { TerminalBreadcrumb, TerminalProblemBar, TerminalStatusBar } from './terminal-status'
+import { TerminalStrip } from './terminal-strip'
+import { bytesOf, type TerminalTransportArgs } from './terminal-transport'
 import { useTerminalStore, useTerminals } from './terminals-store'
 
 const DEFAULT_SIZE = { cols: 80, rows: 24 }
-const RECONNECT_DELAY_MS = 3000
 
 const requestWake = (sessionId: string) => cloudCall(api.sessions.wake.mutate({ sessionId }))
-
-type PendingFrame = { terminalId: string; offset: number; data: Uint8Array }
 
 export function TerminalTab(props: { transportOf?: TerminalTransportOf } = {}) {
   const { sessionId, status, checkouts } = useSessionPaneValue()
@@ -57,7 +52,6 @@ export function TerminalTab(props: { transportOf?: TerminalTransportOf } = {}) {
     wake: () => requestWake(sessionId).then(() => undefined),
   })
 
-  const transportRef = useRef<TerminalTransport | undefined>(undefined)
   const screens = useRef(new Map<string, TerminalScreenHandle>())
   const pending = useRef(new Map<string, PendingFrame[]>())
   const replaying = useRef(new Set<string>())
@@ -99,95 +93,35 @@ export function TerminalTab(props: { transportOf?: TerminalTransportOf } = {}) {
     [write],
   )
 
-  const refresh = useCallback(async () => {
-    const transport = transportRef.current
-    if (transport === undefined) return
-    const rows = await transport.list().catch(() => undefined)
-    if (rows === undefined) return
-    store.update((state) => withRows({ snapshot: state, rows, cwdOf }))
-  }, [cwdOf, store])
-
-  const handleClosed = useCallback(
-    (reason: 'asleep' | 'restarted' | 'detached') => {
-      if (reason !== 'restarted') return
-      const transport = transportRef.current
-      if (transport === undefined) return
-      void refresh().then(() => transport.reconnect(cursorsOf(store.snapshot())))
-    },
-    [refresh, store],
-  )
-
-  const handleLink = useCallback(
-    (link: ETerminalConnection) => store.update((state) => withLink(state, link)),
-    [store],
-  )
-
   const handleExit = useCallback(
     (frame: { terminalId: string; exitCode: number | null; signal: string | null }) =>
       store.update((state) => applyExit(state, frame)),
     [store],
   )
 
-  useEffect(() => {
-    if (!live) return undefined
-    const transport = transportOf({
-      sessionId,
-      onOutput: handleOutput,
-      onExit: handleExit,
-      onClosed: handleClosed,
-      onLink: handleLink,
-    })
-    transportRef.current = transport
-    let cancelled = false
-    void transport.list().then(
-      (rows) => {
-        if (cancelled || transportRef.current !== transport) return
-        store.update((state) => withRows({ snapshot: state, rows, cwdOf }))
-        transport.reconnect(cursorsOf(store.snapshot()))
-      },
-      () => undefined,
-    )
-    return () => {
-      cancelled = true
-      if (transportRef.current === transport) transportRef.current = undefined
-      transport.dispose()
-    }
-  }, [
+  const { transport, refresh } = useTerminalConnection({
     live,
     sessionId,
     transportOf,
     store,
+    link: snapshot.link,
     cwdOf,
-    handleOutput,
-    handleExit,
-    handleClosed,
-    handleLink,
-  ])
-
-  useEffect(() => {
-    if (!live || snapshot.link !== ETerminalConnection.Paused) return undefined
-    const timer = setTimeout(() => {
-      const transport = transportRef.current
-      if (transport !== undefined) transport.reconnect(cursorsOf(store.snapshot()))
-    }, RECONNECT_DELAY_MS)
-    return () => clearTimeout(timer)
-  }, [live, snapshot.link, store])
+    onOutput: handleOutput,
+    onExit: handleExit,
+  })
 
   const handleNew = useCallback(() => {
-    const transport = transportRef.current
-    if (transport === undefined || !canOpen(store.snapshot())) return
-    void transport.open({ ...DEFAULT_SIZE, cwd }).then(
+    const active = transport.current
+    if (active === undefined || !canOpen(store.snapshot())) return
+    void active.open({ ...DEFAULT_SIZE, cwd }).then(
       (result) => {
-        if (result.state !== 'open') {
-          store.update((state) => withLink(state, ETerminalConnection.Disconnected))
-          return
-        }
+        if (result.state !== 'open') return
         if (cwd !== undefined) cwdMemory.current.set(result.terminalId, cwd)
         void refresh()
       },
-      () => toast.error('Could not open a terminal'),
+      () => undefined,
     )
-  }, [cwd, refresh, store])
+  }, [cwd, refresh, store, transport])
 
   const handleSelect = useCallback(
     (terminalId: string) => store.update((state) => selectTab(state, terminalId)),
@@ -198,27 +132,27 @@ export function TerminalTab(props: { transportOf?: TerminalTransportOf } = {}) {
     (terminalId: string) => {
       store.update((state) => closeTab(state, terminalId))
       screens.current.delete(terminalId)
-      const transport = transportRef.current
-      if (transport === undefined) return
-      void transport.close(terminalId).then(
+      const active = transport.current
+      if (active === undefined) return
+      void active.close(terminalId).then(
         () => refresh(),
         () => refresh(),
       )
     },
-    [refresh, store],
+    [refresh, store, transport],
   )
 
   const handleRename = useCallback(
     (terminalId: string, name: string) => {
       store.update((state) => renameTab(state, terminalId, name))
-      const transport = transportRef.current
-      if (transport === undefined) return
-      void transport.rename(terminalId, name).then(
+      const active = transport.current
+      if (active === undefined) return
+      void active.rename(terminalId, name).then(
         () => refresh(),
         () => refresh(),
       )
     },
-    [refresh, store],
+    [refresh, store, transport],
   )
 
   const handleRegister = useCallback((terminalId: string, handle: TerminalScreenHandle | null) => {
@@ -228,11 +162,11 @@ export function TerminalTab(props: { transportOf?: TerminalTransportOf } = {}) {
 
   const handleScreenReady = useCallback(
     (terminalId: string) => {
-      const transport = transportRef.current
-      if (transport === undefined) return
+      const active = transport.current
+      if (active === undefined) return
       replaying.current.add(terminalId)
       store.update((state) => resetCursor(state, terminalId))
-      void transport.read(terminalId, 0).then(
+      void active.read(terminalId, 0).then(
         (result) => {
           replaying.current.delete(terminalId)
           const data = bytesOf(result.data)
@@ -246,17 +180,20 @@ export function TerminalTab(props: { transportOf?: TerminalTransportOf } = {}) {
         () => replaying.current.delete(terminalId),
       )
     },
-    [store, write],
+    [store, transport, write],
   )
 
   const handleData = useCallback(
-    (terminalId: string, data: string) => transportRef.current?.write(terminalId, data),
-    [],
+    (terminalId: string, data: string) => transport.current?.write(terminalId, data),
+    [transport],
   )
 
-  const handleResize = useCallback((terminalId: string, size: TerminalSize) => {
-    transportRef.current?.resize(terminalId, size.cols, size.rows)
-  }, [])
+  const handleResize = useCallback(
+    (terminalId: string, size: TerminalSize) => {
+      transport.current?.resize(terminalId, size.cols, size.rows)
+    },
+    [transport],
+  )
 
   if (!live || snapshot.link === ETerminalConnection.Disconnected) {
     return <PodDisconnected tab="Terminal" state={wakeState} onWake={wakePod} />
@@ -310,6 +247,7 @@ export function TerminalTab(props: { transportOf?: TerminalTransportOf } = {}) {
           </>
         )}
       </div>
+      {snapshot.problem === undefined ? null : <TerminalProblemBar problem={snapshot.problem} />}
       <TerminalStatusBar tab={active} count={snapshot.tabs.length} />
     </div>
   )

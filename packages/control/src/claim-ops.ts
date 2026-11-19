@@ -1,4 +1,10 @@
+import { COMMAND_INBOX_PREFIX } from '@dltech/atlas-commands'
+
 import type { ClaimedBatch, ControlTx } from './port'
+
+export const COMMAND_KIND_LIKE = `${COMMAND_INBOX_PREFIX}%`
+
+export const wakesHolderOf = (kind: string): boolean => !kind.startsWith(COMMAND_INBOX_PREFIX)
 
 export const claimNextIn = async (params: {
   tx: ControlTx

@@ -137,8 +137,6 @@ describe('the session base across a host restart', () => {
       }),
       log: args.log,
       ids: new RandomIds(),
-      maxSessions: 25,
-      idleMinutes: 30,
     })
   }
 

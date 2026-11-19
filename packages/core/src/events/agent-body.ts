@@ -49,6 +49,8 @@ export type AgentEventBody =
       intent: string
       prose: string
       kind?: EReportKind | undefined
+      /** The reporting session, for a v2 teammate: the id message_teammate accepts, where agentId is its thread. */
+      senderSessionId?: string | undefined
       notice?: NoticeStamp | undefined
     }
   | {

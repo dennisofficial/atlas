@@ -1,4 +1,10 @@
-import { EToolEffect, isResumableOf, type InboxEntry, type ThreadId } from '@dltech/atlas-core'
+import {
+  EHeldAction,
+  EToolEffect,
+  isResumableOf,
+  type InboxEntry,
+  type ThreadId,
+} from '@dltech/atlas-core'
 import {
   HookedToolDispatcher,
   LoopTurnRunner,
@@ -48,7 +54,6 @@ export const startHeldTurn = (args: {
   runner: LoopTurnRunner
   threadId: ThreadId
   resume: boolean
-  onActivity(): void
   refreshBranches(): void
   onFault(): void
   onSettled(): void
@@ -59,7 +64,6 @@ export const startHeldTurn = (args: {
       threadId: args.threadId,
       pause: args.pause,
       resume: args.resume,
-      onActivity: args.onActivity,
     })
     .then(() => {
       args.refreshBranches()
@@ -71,6 +75,22 @@ export const startHeldTurn = (args: {
     .finally(() => {
       args.onSettled()
     })
+}
+
+const IDLE_COMMAND_ACTIONS: readonly EHeldAction[] = [
+  EHeldAction.StartTurn,
+  EHeldAction.Wait,
+  EHeldAction.Release,
+]
+
+export const ranQueuedCommand = async (args: {
+  action: EHeldAction
+  entries: readonly InboxEntry[]
+  turnRunning: boolean
+  runCommands?: ((entries: readonly InboxEntry[]) => Promise<boolean>) | undefined
+}): Promise<boolean> => {
+  if (args.turnRunning || !IDLE_COMMAND_ACTIONS.includes(args.action)) return false
+  return (await args.runCommands?.(args.entries)) === true
 }
 
 export const settleAndCheckResume = async (args: {
@@ -105,7 +125,13 @@ export const createBranchObserver = (args: {
     record: {
       append: ({ threadId: to, runId: id, body }) =>
         record.append({ threadId: to, runId: id, drafts: [body] }),
-      lastObservation: (repo) => book().lastObservation(repo),
+      lastObservation: (repo) => {
+        const last = record
+          .eventCache()
+          .eventsAfter(0)
+          .findLast((event) => event.type === 'branches-observed' && event.repo === repo)
+        return last?.type === 'branches-observed' ? last : undefined
+      },
       recordedBase: (repo) => {
         const fact = book().fact(`base:${repo}`)
         return fact.found && typeof fact.value === 'string' ? fact.value : undefined

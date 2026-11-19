@@ -8,12 +8,13 @@ export type ClaimBatch = { leases: Lease[]; nextRetryAt: string | null }
 
 const MIN_DUE_DELAY_MS = 50
 
+export const CLAIM_BATCH = 25
+
 export type ClaimLoopArgs = {
   timers: HostTimers
   tickMs: number
   hostId(): number | undefined
   draining(): boolean
-  freeSlots(): number
   claimNext(args: { hostId: number; limit: number }): Promise<ClaimBatch>
   hold(args: { hostId: number; lease: Lease; claimMs: number }): Promise<void>
   onTick(): Promise<void>
@@ -103,12 +104,10 @@ export class ClaimLoop {
       this.auditDue = false
       await this.args.onTick()
     }
-    const limit = this.args.freeSlots()
-    if (limit <= 0) return
     const startedAt = this.args.timers.now()
     let batch: ClaimBatch
     try {
-      batch = await this.args.claimNext({ hostId, limit })
+      batch = await this.args.claimNext({ hostId, limit: CLAIM_BATCH })
     } catch (error) {
       this.args.log?.error({
         source: 'holder.claim',
@@ -121,7 +120,7 @@ export class ClaimLoop {
     this.ringAt(batch.nextRetryAt)
     const claimMs = this.args.timers.now() - startedAt
     for (const lease of leases) await this.holdOne({ hostId, lease, claimMs })
-    if (leases.length === limit) this.queued = true
+    if (leases.length === CLAIM_BATCH) this.queued = true
   }
 
   private async holdOne(args: { hostId: number; lease: Lease; claimMs: number }): Promise<void> {

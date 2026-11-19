@@ -1,4 +1,5 @@
 import type { ThreadId } from '@dltech/atlas-core'
+import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
 import type { HeldSessionDeps } from './held-session-deps'
 import type { SessionRuntime } from './ports'
@@ -17,6 +18,8 @@ const timed = async <T>(deps: HeldSessionDeps, work: () => Promise<T>): Promise<
 
 export class TakeOver {
   private readonly startedAt: number
+  private epoch: number | undefined
+  private cleared = false
   private configMs = 0
   private recordMs = 0
   private logged = false
@@ -36,6 +39,7 @@ export class TakeOver {
     onRuntime(runtime: SessionRuntime): void
   }): Promise<{ runtime: SessionRuntime; record: SessionRecord }> {
     const { deps } = this
+    this.epoch = args.epoch
     const [runtime, cache] = await Promise.all([
       timed(deps, async () =>
         deps.runtimeFor({
@@ -76,6 +80,7 @@ export class TakeOver {
       appendRetryMs: deps.appendRetryMs,
       nowIso: () => new Date(deps.timers.now()).toISOString(),
       onLeaseLost: args.onLeaseLost,
+      onStepAppended: () => this.forgetFailedStarts(),
       preloaded: cache,
       ...(deps.log === undefined ? {} : { log: deps.log }),
     })
@@ -96,6 +101,25 @@ export class TakeOver {
         recordMs: this.recordMs,
         firstStepMs: this.deps.timers.now() - this.startedAt,
       },
+    })
+  }
+
+  private forgetFailedStarts(): void {
+    if (this.cleared) return
+    this.cleared = true
+    const epoch = this.epoch
+    if (epoch === undefined) return
+    void this.deps.plane
+      .clearStartAttempts({ sessionId: this.deps.sessionId, epoch })
+      .catch((error: unknown) => this.logFault(error))
+  }
+
+  private logFault(error: unknown): void {
+    const log: LogPort | undefined = this.deps.log
+    log?.error({
+      source: 'holder.takeover',
+      message: `clearing the start attempts of ${this.deps.sessionId} failed`,
+      ...logFieldsOf({ error }),
     })
   }
 }

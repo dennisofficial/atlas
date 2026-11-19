@@ -49,7 +49,10 @@ const parked: PodCallOutcome = {
 }
 
 const opsOf = (answer: (op: CallOp) => PodCallOutcome) => ({
-  invoke: vi.fn(async (args: { op: CallOp }): Promise<PodCallOutcome> => answer(args.op)),
+  invoke: vi.fn(
+    async (args: { op: CallOp; waitForHolder?: boolean | undefined }): Promise<PodCallOutcome> =>
+      answer(args.op),
+  ),
 })
 
 const owned = () => ({ requireOwnedSession: vi.fn(async () => undefined) })
@@ -101,6 +104,7 @@ describe('TerminalService', () => {
         cols: 80,
         rows: 24,
       },
+      waitForHolder: true,
     })
     expect(plane.markTerminalOpen).toHaveBeenCalledWith({
       sessionId: 's1',
@@ -119,34 +123,31 @@ describe('TerminalService', () => {
     expect(ops.invoke).not.toHaveBeenCalled()
   })
 
-  it('deletes the row and answers parked when the pod is asleep', async () => {
+  it('deletes the row and surfaces the unheld session when no holder arrives', async () => {
     const plane = planeOf()
     const ops = opsOf(() => parked)
-    const out = await serviceOf(plane, ops).open({
-      userId: 'u1',
-      sessionId: 's1',
-      cols: 80,
-      rows: 24,
-    })
-    expect(out).toEqual({ state: 'parked' })
+    await expect(
+      serviceOf(plane, ops).open({ userId: 'u1', sessionId: 's1', cols: 80, rows: 24 }),
+    ).rejects.toBeInstanceOf(PodParkedError)
     expect(plane.deleteTerminal).toHaveBeenCalledTimes(1)
     expect(plane.markTerminalOpen).not.toHaveBeenCalled()
   })
 
-  it('answers parked for write and resize without deleting the row', async () => {
+  it('write and resize surface the unheld session and keep the row', async () => {
     const plane = planeOf()
     const ops = opsOf(() => parked)
     const service = serviceOf(plane, ops)
-    expect(
-      await service.write({ userId: 'u1', sessionId: 's1', terminalId: 't1', data: 'x' }),
-    ).toEqual({ state: 'parked' })
-    expect(
-      await service.resize({ userId: 'u1', sessionId: 's1', terminalId: 't1', cols: 10, rows: 5 }),
-    ).toEqual({ state: 'parked' })
+    await expect(
+      service.write({ userId: 'u1', sessionId: 's1', terminalId: 't1', data: 'x' }),
+    ).rejects.toBeInstanceOf(PodParkedError)
+    await expect(
+      service.resize({ userId: 'u1', sessionId: 's1', terminalId: 't1', cols: 10, rows: 5 }),
+    ).rejects.toBeInstanceOf(PodParkedError)
     expect(ops.invoke.mock.calls.map((call) => call[0].op.op)).toEqual([
       'terminal.write',
       'terminal.resize',
     ])
+    expect(ops.invoke.mock.calls.map((call) => call[0].waitForHolder)).toEqual([true, true])
     expect(plane.deleteTerminal).not.toHaveBeenCalled()
   })
 
@@ -162,6 +163,7 @@ describe('TerminalService', () => {
     expect(ops.invoke).toHaveBeenCalledWith({
       sessionId: 's1',
       op: { op: 'terminal.close', terminalId: 't1' },
+      waitForHolder: true,
     })
     expect(plane.deleteTerminal).toHaveBeenCalledWith({ sessionId: 's1', terminalId: 't1' })
   })
@@ -221,6 +223,42 @@ describe('TerminalService', () => {
     })
   })
 
+  it('write ends a terminal the pod no longer has instead of leaving the row open', async () => {
+    const plane = planeOf()
+    const ops = opsOf(() => ({
+      state: 'ok',
+      result: {
+        status: ECallStatus.Failed,
+        op: 'terminal.write',
+        error: { message: 'no terminal t1' },
+      } as CallResult,
+    }))
+    await expect(
+      serviceOf(plane, ops).write({ userId: 'u1', sessionId: 's1', terminalId: 't1', data: 'x' }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: 'no terminal t1' })
+    expect(plane.endTerminal).toHaveBeenCalledWith({
+      sessionId: 's1',
+      terminalId: 't1',
+      reason: 'pod-slept',
+    })
+  })
+
+  it('write keeps the row when the pod refuses for another reason', async () => {
+    const plane = planeOf()
+    const ops = opsOf(() => ({
+      state: 'ok',
+      result: {
+        status: ECallStatus.Failed,
+        op: 'terminal.write',
+        error: { message: 'terminal t1 is closed' },
+      } as CallResult,
+    }))
+    await expect(
+      serviceOf(plane, ops).write({ userId: 'u1', sessionId: 's1', terminalId: 't1', data: 'x' }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: 'terminal t1 is closed' })
+    expect(plane.endTerminal).not.toHaveBeenCalled()
+  })
+
   it('read replays the pod answer for a live terminal', async () => {
     const plane = planeOf()
     const value = { offset: 4, data: 'aGk=', totalBytes: 6, exited: null }
@@ -238,15 +276,19 @@ describe('TerminalService', () => {
     expect(plane.endTerminal).not.toHaveBeenCalled()
   })
 
-  it('never revokes a lease, because a terminal never wakes a pod', async () => {
+  it('leaves asking for a holder to the pod ops', async () => {
     const plane = planeOf()
     const ops = opsOf(() => parked)
     const service = serviceOf(plane, ops)
     await service.list({ userId: 'u1', sessionId: 's1' })
-    await service.open({ userId: 'u1', sessionId: 's1', cols: 80, rows: 24 })
+    await service.open({ userId: 'u1', sessionId: 's1', cols: 80, rows: 24 }).catch(() => undefined)
     await service.rename({ userId: 'u1', sessionId: 's1', terminalId: 't1', name: 'x' })
-    await service.write({ userId: 'u1', sessionId: 's1', terminalId: 't1', data: 'x' })
-    await service.resize({ userId: 'u1', sessionId: 's1', terminalId: 't1', cols: 10, rows: 5 })
+    await service
+      .write({ userId: 'u1', sessionId: 's1', terminalId: 't1', data: 'x' })
+      .catch(() => undefined)
+    await service
+      .resize({ userId: 'u1', sessionId: 's1', terminalId: 't1', cols: 10, rows: 5 })
+      .catch(() => undefined)
     await service.close({ userId: 'u1', sessionId: 's1', terminalId: 't1' })
     await service
       .read({ userId: 'u1', sessionId: 's1', terminalId: 't1', offset: 0 })

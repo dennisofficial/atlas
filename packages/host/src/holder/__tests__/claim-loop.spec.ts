@@ -9,7 +9,6 @@ const makeLoop = (args: { clock: FakeClock; nextRetryAt: () => string | null }):
     tickMs: 0,
     hostId: () => 1,
     draining: () => false,
-    freeSlots: () => 4,
     claimNext: async () => ({ leases: [], nextRetryAt: args.nextRetryAt() }),
     hold: async () => undefined,
     onTick: async () => undefined,
@@ -46,7 +45,6 @@ describe('ClaimLoop due timer', () => {
       tickMs: 0,
       hostId: () => 1,
       draining: () => false,
-      freeSlots: () => 4,
       claimNext: async () => {
         calls += 1
         return { leases: [], nextRetryAt: next }

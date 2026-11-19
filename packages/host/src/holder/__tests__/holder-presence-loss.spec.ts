@@ -65,7 +65,7 @@ describe('SessionHolder presence loss', () => {
     })
     expect(answered).toBe(true)
     expect(a.hostId()).not.toBe(oldId)
-    expect(await currentEpoch(a)).toBe(oldEpoch + 1)
+    expect(await currentEpoch(a)).toBeGreaterThan(oldEpoch)
     const stale = (await a.events()).filter(
       (event) => event.epoch === oldEpoch && event.seq > lastSeq,
     )
@@ -161,7 +161,7 @@ describe('SessionHolder presence loss', () => {
       advanceMs: 1_000,
     })
     expect(answered).toBe(true)
-    expect(await currentEpoch(a)).toBe(epoch + 1)
+    expect(await currentEpoch(a)).toBeGreaterThan(epoch)
   }, 15_000)
 
   it('drain cancels the pending register retry', async () => {

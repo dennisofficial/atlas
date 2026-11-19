@@ -28,9 +28,11 @@ export {
   POD_OPS,
   SANDBOX_RESIZER,
   SESSION_STREAM,
+  TERMINAL_DEMAND,
 } from './host/tokens'
 export { sandboxResizerOf, type SandboxResizer } from './sandbox/sandbox-resizer'
-export { podOpsOf, type PodOps } from './host/pod-ops'
+export { HOLDER_WAIT_MS, podOpsOf, type PodOps } from './host/pod-ops'
+export type { TerminalDemand } from '@dltech/atlas-host'
 export {
   OperatorAnswerService,
   operatorAnswerRequestSchema,

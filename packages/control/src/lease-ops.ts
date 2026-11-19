@@ -1,4 +1,12 @@
-import { grant, revoke, revokeIfEpoch, type Lease, type RevokeResult } from '@dltech/atlas-core'
+import {
+  clearAttemptsIfEpoch,
+  grant,
+  revoke,
+  revokeIfEpoch,
+  type Lease,
+  type LeaseWriteResult,
+  type RevokeResult,
+} from '@dltech/atlas-core'
 
 import { LeaseConflictError } from './errors'
 import type { ControlStorePort, ControlTx } from './port'
@@ -51,6 +59,16 @@ export class LeaseOps {
           epoch: params.epoch,
           resetRetry: params.resetRetry,
         }),
+    })
+  }
+
+  async clearAttemptsIfEpoch(params: {
+    sessionId: string
+    epoch: number
+  }): Promise<LeaseWriteResult> {
+    return this.mutateLease({
+      sessionId: params.sessionId,
+      decide: (lease) => clearAttemptsIfEpoch({ lease, epoch: params.epoch }),
     })
   }
 

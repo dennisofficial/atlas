@@ -54,12 +54,12 @@ describe.skipIf(REDIS_URL === undefined)('F26 primary restart drops every connec
       label: 'host-a',
       daemonUrl: one.daemon.url,
       daemonUrls,
-      knobs: { maxSessions: 1 },
       scripts: scriptsFor({ own: one, other: two }),
     })
     const threadOne = await rig.newSession({ sessionId: one.sessionId, text: 'gated command' })
     await rig.waitHeldBy({ sessionId: one.sessionId, label: 'host-a', timeoutMs: 30_000 })
     await waitForFile({ path: one.startedFile, timeoutMs: 30_000 })
+    hostA.pause()
 
     const hostB = await rig.spawnHost({
       label: 'host-b',
@@ -70,6 +70,7 @@ describe.skipIf(REDIS_URL === undefined)('F26 primary restart drops every connec
     const threadTwo = await rig.newSession({ sessionId: two.sessionId, text: 'gated command' })
     await rig.waitHeldBy({ sessionId: two.sessionId, label: 'host-b', timeoutMs: 30_000 })
     await waitForFile({ path: two.startedFile, timeoutMs: 30_000 })
+    hostA.resume()
 
     const idsBefore = await hostIdsByLabel({ url: testDb().url })
     const epochs = {

@@ -51,7 +51,7 @@ export class TerminalService {
 
   private async invoke(args: { sessionId: string; op: CallOp }): Promise<CallResult> {
     if (this.ops === null) throw new ServiceUnavailableException('pod access is not running')
-    const outcome = await this.ops.invoke(args)
+    const outcome = await this.ops.invoke({ ...args, waitForHolder: true })
     if (outcome.state === 'unavailable') {
       if (outcome.reason === ELiveOpFailure.Asleep) throw new PodParkedError()
       throw new TRPCError({ code: 'BAD_REQUEST', message: 'this pod op is not allowed' })
@@ -59,10 +59,7 @@ export class TerminalService {
     return outcome.result
   }
 
-  private async invokeOrParked(args: {
-    sessionId: string
-    op: CallOp
-  }): Promise<CallResult | null> {
+  private async invokeOrDone(args: { sessionId: string; op: CallOp }): Promise<CallResult | null> {
     try {
       return await this.invoke(args)
     } catch (error) {
@@ -125,7 +122,7 @@ export class TerminalService {
         code: 'BAD_REQUEST',
         message: `this session already has ${MAX_TERMINALS} terminals`,
       })
-    const result = await this.invokeOrParked({
+    const result = await this.invoke({
       sessionId: args.sessionId,
       op: {
         op: 'terminal.open',
@@ -134,11 +131,10 @@ export class TerminalService {
         rows: args.rows,
         ...(args.cwd === undefined ? {} : { cwd: args.cwd }),
       },
-    })
-    if (result === null) {
+    }).catch(async (error: unknown) => {
       await this.plane.deleteTerminal({ sessionId: args.sessionId, terminalId })
-      return { state: 'parked' }
-    }
+      throw error
+    })
     if (result.status === ECallStatus.Failed) {
       await this.plane.deleteTerminal({ sessionId: args.sessionId, terminalId })
       throw new TRPCError({ code: 'BAD_REQUEST', message: result.error.message })
@@ -172,11 +168,10 @@ export class TerminalService {
   }): Promise<TerminalMutationOutput> {
     await this.requireSession(args)
     await this.requireRow(args)
-    const result = await this.invokeOrParked({
+    return this.invoke({
       sessionId: args.sessionId,
       op: { op: 'terminal.write', terminalId: args.terminalId, data: args.data },
-    })
-    return this.mutationOf({ result })
+    }).then((result) => this.mutationOf({ ...args, result }))
   }
 
   async resize(args: {
@@ -188,11 +183,10 @@ export class TerminalService {
   }): Promise<TerminalMutationOutput> {
     await this.requireSession(args)
     await this.requireRow(args)
-    const result = await this.invokeOrParked({
+    return this.invoke({
       sessionId: args.sessionId,
       op: { op: 'terminal.resize', terminalId: args.terminalId, cols: args.cols, rows: args.rows },
-    })
-    return this.mutationOf({ result })
+    }).then((result) => this.mutationOf({ ...args, result }))
   }
 
   async close(args: {
@@ -202,7 +196,7 @@ export class TerminalService {
   }): Promise<TerminalMutationOutput> {
     await this.requireSession(args)
     await this.requireRow(args)
-    const result = await this.invokeOrParked({
+    const result = await this.invokeOrDone({
       sessionId: args.sessionId,
       op: { op: 'terminal.close', terminalId: args.terminalId },
     })
@@ -227,20 +221,29 @@ export class TerminalService {
     if (result.status === ECallStatus.Failed) {
       if (!result.error.message.startsWith(UNKNOWN_TERMINAL))
         throw new TRPCError({ code: 'BAD_REQUEST', message: result.error.message })
-      await this.plane.endTerminal({
-        sessionId: args.sessionId,
-        terminalId: args.terminalId,
-        reason: 'pod-slept',
-      })
+      await this.endLost(args)
       return { offset: 0, data: '', totalBytes: 0, exited: { exitCode: null, signal: null } }
     }
     return (result as ReadResult).value
   }
 
-  private mutationOf(args: { result: CallResult | null }): TerminalMutationOutput {
+  private async mutationOf(args: {
+    result: CallResult | null
+    sessionId: string
+    terminalId: string
+  }): Promise<TerminalMutationOutput> {
     if (args.result === null) return { state: 'parked' }
-    if (args.result.status === ECallStatus.Failed)
-      throw new TRPCError({ code: 'BAD_REQUEST', message: args.result.error.message })
-    return { state: 'done' }
+    if (args.result.status !== ECallStatus.Failed) return { state: 'done' }
+    if (args.result.error.message.startsWith(UNKNOWN_TERMINAL)) await this.endLost(args)
+    throw new TRPCError({ code: 'BAD_REQUEST', message: args.result.error.message })
+  }
+
+  /** A pod that booted fresh knows none of the terminals its predecessor ran, and never will. */
+  private async endLost(args: { sessionId: string; terminalId: string }): Promise<void> {
+    await this.plane.endTerminal({
+      sessionId: args.sessionId,
+      terminalId: args.terminalId,
+      reason: 'pod-slept',
+    })
   }
 }

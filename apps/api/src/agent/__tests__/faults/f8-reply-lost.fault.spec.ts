@@ -7,7 +7,14 @@ import { GENESIS_HASH, verifySuffix, type V2Event } from '@dltech/atlas-core'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 
 import { startRig, type FaultRig } from '../../testing/fault-rig'
-import { callIdOf, isDoneResult, makeFifo, readEvents, waitForFile } from './fault-support'
+import {
+  callIdOf,
+  expectLeaseSettled,
+  isDoneResult,
+  makeFifo,
+  readEvents,
+  waitForFile,
+} from './fault-support'
 
 const REDIS_URL = process.env.ATLAS_TEST_REDIS_URL
 
@@ -125,7 +132,7 @@ describe.skipIf(REDIS_URL === undefined)('F8 append commits but the reply is los
     }
 
     const finalLease = await rig.plane.currentLease({ sessionId })
-    expect(await rig.labelOf(finalLease.lease.holderHostId)).toBe('host-a')
+    await expectLeaseSettled({ rig, sessionId, holder: 'host-a' })
     const epochs = events.map((row) => (row.event as { epoch?: number }).epoch ?? 0)
     expect(Math.max(...epochs)).toBeLessThanOrEqual(finalLease.lease.epoch)
     const sorted = [...epochs].sort((a, b) => a - b)

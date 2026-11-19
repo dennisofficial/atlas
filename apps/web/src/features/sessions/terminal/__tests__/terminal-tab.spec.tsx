@@ -10,6 +10,7 @@ import { ETerminalConnection } from '@dltech/atlas-ui/ai/terminal-states'
 import { paneValueFixture } from '../../panel/__tests__/fixture'
 import { SessionPaneProvider, type SessionPaneValue } from '../../panel/pane-value'
 import type { TerminalTransportOf } from '../terminal-api'
+import { ETerminalOp, type TerminalProblem } from '../terminal-model'
 import { forgetTerminalStore } from '../terminals-store'
 import { TerminalTab } from '../terminal-tab'
 import type { TerminalTransport } from '../terminal-transport'
@@ -30,7 +31,9 @@ const row = (overrides: Partial<TerminalRow> = {}): TerminalRow => ({
 function fakeTransportOf(initial: TerminalRow[]) {
   const rows = [...initial]
   const calls = { open: 0, close: [] as string[], rename: [] as string[], reconnect: 0 }
+  let raise: ((problem: TerminalProblem | undefined) => void) | undefined
   const transportOf: TerminalTransportOf = (args) => {
+    raise = args.onProblem
     const transport: TerminalTransport = {
       list: async () => [...rows],
       open: async () => {
@@ -59,7 +62,12 @@ function fakeTransportOf(initial: TerminalRow[]) {
     }
     return transport
   }
-  return { transportOf, calls, rows }
+  return {
+    transportOf,
+    calls,
+    rows,
+    raise: (problem: TerminalProblem | undefined) => raise?.(problem),
+  }
 }
 
 const valueOf = (live: boolean): SessionPaneValue =>
@@ -132,6 +140,15 @@ describe('TerminalTab', () => {
     )
     expect(html).toContain('No terminals')
     expect(html).not.toContain('data-terminal-screen')
+  })
+
+  it('shows a failed write in the terminal, then clears it once the stream is back', async () => {
+    const fake = fakeTransportOf([row()])
+    const { container } = await mount({ live: true, transportOf: fake.transportOf })
+    await act(async () => fake.raise({ op: ETerminalOp.Write, message: 'pod is asleep' }))
+    expect(container.textContent).toContain('pod is asleep')
+    await act(async () => fake.raise(undefined))
+    expect(container.textContent).not.toContain('pod is asleep')
   })
 
   it('creates a terminal when the user presses plus', async () => {

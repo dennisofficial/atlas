@@ -69,7 +69,10 @@ describe('SessionHolder startup stop', () => {
     }
 
     await a.bus.wake(SESSION)
-    const claimed = await flushUntil({ check: () => b.holder.heldIds().length === 1 })
+    const claimed = await flushUntil({
+      check: () => b.holder.heldIds().length === 1,
+      clock: a.clock,
+    })
     expect(claimed).toBe(true)
 
     const stop = await a.plane.post({ sessionId: SESSION, kind: 'stop', payload: '{}' })
@@ -85,6 +88,7 @@ describe('SessionHolder startup stop', () => {
           (event) => event.type === 'input-consumed' && event.inboxId === stop.inboxId,
         ),
       attempts: 200,
+      clock: a.clock,
     })
     expect(consumed).toBe(true)
 

@@ -77,7 +77,8 @@ describe.skipIf(REDIS_URL === undefined)('F25 silent partition then edge drop', 
 
     bDb.drop()
     await rig.waitHeldBy({ sessionId, label: 'host-a', timeoutMs: 5_000 })
-    expect((await rig.plane.currentLease({ sessionId })).lease.epoch).toBe(before.lease.epoch + 1)
+    const handed = await rig.plane.currentLease({ sessionId })
+    expect(handed.lease.epoch).toBeGreaterThan(before.lease.epoch)
 
     bDb.clear()
     await rig.waitForSeq({

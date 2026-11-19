@@ -62,6 +62,7 @@ export type TranscriptItem = Timed &
         streaming: boolean
         fast?: true
         stopped?: true
+        sender?: string
       }
     | {
         kind: ETranscriptKind.Thought
@@ -129,11 +130,11 @@ function textItemOf(args: {
       return userItemOf(entry)
     case EEntryKind.AgentSaid:
       return {
-        kind: ETranscriptKind.Notice,
+        kind: ETranscriptKind.Agent,
         id: entry.key,
-        title: senderTitleOf({ entry, sessionNameOf: args.sessionNameOf }),
-        body: entry.text,
-        tone: ENoticeTone.Quiet,
+        text: entry.text,
+        streaming: false,
+        sender: senderLabelOf({ entry, sessionNameOf: args.sessionNameOf }),
       }
     case EEntryKind.ModelSaid:
       return entry.muted || entry.text.trim().length === 0
@@ -283,14 +284,14 @@ function prRunAt(args: { entries: readonly TranscriptEntry[]; index: number }): 
 
 export type SessionNameOf = (sessionId: string) => string | undefined
 
-const senderTitleOf = (args: {
+const senderLabelOf = (args: {
   entry: Extract<TranscriptEntry, { kind: EEntryKind.AgentSaid }>
   sessionNameOf: SessionNameOf | undefined
 }): string => {
   const sessionId = args.entry.senderSessionId
-  if (sessionId === null) return `Message from ${args.entry.sender}`
+  if (sessionId === null) return `From ${args.entry.sender}`
   const name = args.sessionNameOf?.(sessionId)?.trim()
-  return name === undefined || name === '' ? 'Message from another session' : `Message from ${name}`
+  return name === undefined || name === '' ? 'From another session' : `From ${name}`
 }
 
 export function transcriptViewOf(args: {

@@ -38,6 +38,16 @@ const answered = (rig: HolderRig): Promise<boolean> =>
     check: async () => (await rig.events()).some((event) => event.type === 'assistant-said'),
   })
 
+const witnessHosts = (rig: HolderRig): { hosts: (number | null)[] } => {
+  const hosts: (number | null)[] = []
+  const original = rig.plane.append.bind(rig.plane)
+  rig.plane.append = (async (params: Parameters<typeof original>[0]) => {
+    hosts.push((await rig.plane.currentLease({ sessionId: SESSION })).lease.holderHostId)
+    return original(params)
+  }) as typeof rig.plane.append
+  return { hosts }
+}
+
 describe('SessionHolder host generations', () => {
   it('a claim issued under a lost host id is retried under the new one', async () => {
     const rig = await makeRig({ script: [{ text: 'recovered' }] })
@@ -46,6 +56,7 @@ describe('SessionHolder host generations', () => {
     const oldId = rig.hostId()
     const claim = gateFirst(rig.plane.claimNext.bind(rig.plane))
     rig.plane.claimNext = claim.wrapped
+    const witness = witnessHosts(rig)
     await rig.post('hello')
     await rig.wake()
     await claim.entered
@@ -56,8 +67,8 @@ describe('SessionHolder host generations', () => {
     claim.release()
 
     expect(await answered(rig)).toBe(true)
-    const lease = await rig.plane.currentLease({ sessionId: SESSION })
-    expect(lease.lease.holderHostId).toBe(rig.hostId())
+    expect(witness.hosts.length).toBeGreaterThan(0)
+    expect([...new Set(witness.hosts)]).toEqual([rig.hostId()])
   })
 
   it('a hold whose session read straddles the loss never starts under the dead id', async () => {
@@ -66,6 +77,7 @@ describe('SessionHolder host generations', () => {
     await rig.holder.start()
     const read = gateFirst(rig.plane.readSession.bind(rig.plane))
     rig.plane.readSession = read.wrapped
+    const witness = witnessHosts(rig)
     await rig.post('hello')
     await rig.wake()
     await read.entered
@@ -76,8 +88,8 @@ describe('SessionHolder host generations', () => {
 
     expect(await answered(rig)).toBe(true)
     expect(rig.runtimes.length).toBe(1)
-    const lease = await rig.plane.currentLease({ sessionId: SESSION })
-    expect(lease.lease.holderHostId).toBe(rig.hostId())
+    expect(witness.hosts.length).toBeGreaterThan(0)
+    expect([...new Set(witness.hosts)]).toEqual([rig.hostId()])
   })
 
   it('a takeover that finishes opening after the loss writes nothing and the new id recovers', async () => {
@@ -129,7 +141,7 @@ describe('SessionHolder host generations', () => {
 
     expect(await answered(rig)).toBe(true)
     expect(appendEpochs.filter((epoch) => epoch === oldEpoch)).toEqual([])
-    expect(watchCalls).toBe(2)
+    expect(watchCalls).toBeGreaterThanOrEqual(3)
     expect((await rig.events()).filter((event) => event.epoch === oldEpoch)).toEqual([])
   })
 

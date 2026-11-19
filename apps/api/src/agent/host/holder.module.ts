@@ -1,6 +1,12 @@
 import { Global, Module, type Provider } from '@nestjs/common'
 import { ChangeContentStore, type ControlPlane } from '@dltech/atlas-control'
-import type { HostBus, HostPresence, PodControlClient, SessionHolder } from '@dltech/atlas-host'
+import type {
+  HostBus,
+  HostPresence,
+  PodControlClient,
+  SessionHolder,
+  TerminalDemand,
+} from '@dltech/atlas-host'
 import type { LogPort } from '@dltech/atlas-observability'
 
 import type { PgWakeListener } from '../bus/pg-wake-listener'
@@ -9,7 +15,7 @@ import { MacLinkModule } from '../mac-link/mac-link.module'
 import { MAC_LINK } from '../mac-link/port'
 import type { MacLink } from '../mac-link/port'
 import { podOpsOf } from './pod-ops'
-import { POD_OPS } from './tokens'
+import { POD_OPS, TERMINAL_DEMAND } from './tokens'
 import type { ConfigSource } from '../config/agent-host-config'
 import type { AgentHostEnv } from '../config/env'
 import type { SandboxProviderRegistry } from '../sandbox/provider-registry'
@@ -101,6 +107,12 @@ const holderProvider: Provider = {
   ],
 }
 
+const terminalDemandProvider: Provider = {
+  provide: TERMINAL_DEMAND,
+  useFactory: (holder: SessionHolder): TerminalDemand => holder.demandOf().terminal,
+  inject: [HOLDER],
+}
+
 const podOpsProvider: Provider = {
   provide: POD_OPS,
   useFactory: (holder: SessionHolder) => podOpsOf({ holder }),
@@ -110,7 +122,7 @@ const podOpsProvider: Provider = {
 @Global()
 @Module({
   imports: [ControlModule, RuntimeModule, MacLinkModule],
-  providers: [hostWatchProvider, holderProvider, podOpsProvider],
-  exports: [HOST_WATCH, HOLDER, POD_OPS],
+  providers: [hostWatchProvider, holderProvider, podOpsProvider, terminalDemandProvider],
+  exports: [HOST_WATCH, HOLDER, POD_OPS, TERMINAL_DEMAND],
 })
 export class HolderModule {}

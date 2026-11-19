@@ -88,3 +88,32 @@ describe('a typed teammate report', () => {
     expect(block).toContain('has not ended and may still be working')
   })
 })
+
+describe('a report from a v2 teammate session', () => {
+  const session = 'c3150ddf-cb9d-4397-8374-7c731b9b0649'
+
+  it('names the teammate session id that message_teammate accepts, not its thread', () => {
+    const block = agentReportedBlock(reported({ senderSessionId: session }))
+
+    expect(block).toContain(`Agent ${session} teammate "port #336 to comp-v3" reported:`)
+    expect(block).not.toContain('brn_child')
+  })
+
+  it('says to answer with message_teammate rather than agent_say', () => {
+    const block = agentReportedBlock(
+      reported({ kind: EReportKind.Blocked, senderSessionId: session }),
+    )
+
+    expect(block).toContain('message_teammate')
+    expect(block).toContain('teammateId')
+    expect(block).not.toContain('agent_say')
+  })
+
+  it('names the session on a done report too', () => {
+    const block = agentReportedBlock(reported({ kind: EReportKind.Done, senderSessionId: session }))
+
+    expect(block).toContain(`Agent ${session}`)
+    expect(block).toContain('message_teammate')
+    expect(block).not.toContain('agent_say')
+  })
+})
