@@ -8,7 +8,7 @@ import type { SandboxProvider } from '../sandbox/sandbox-provider'
 export enum EHostFault {
   TurnThrowsOnce = 'turn-throws-once',
   RevokeThrowsTwice = 'revoke-throws-twice',
-  SandboxStopThrowsOnce = 'sandbox-stop-throws-once',
+  PodDeadlineThrowsOnce = 'pod-deadline-throws-once',
   PostDuringRevoke = 'post-during-revoke',
   SpyWake = 'spy-wake',
   CommandOutcomeHangs = 'command-outcome-hangs',
@@ -125,14 +125,14 @@ export const faultSandbox = (args: {
   fault: EHostFault | undefined
   log: LogPort
 }): void => {
-  if (args.fault !== EHostFault.SandboxStopThrowsOnce) return
+  if (args.fault !== EHostFault.PodDeadlineThrowsOnce) return
   const { sandbox, log } = args
-  const stop = sandbox.stop.bind(sandbox)
+  const keepAlive = sandbox.keepAlive.bind(sandbox)
   let thrown = false
-  sandbox.stop = async (params) => {
-    if (thrown) return stop(params)
+  sandbox.keepAlive = async (params) => {
+    if (thrown) return keepAlive(params)
     thrown = true
-    announce({ log, message: 'fault: sandbox.stop throws' })
-    throw new Error('injected sandbox stop failure')
+    announce({ log, message: 'fault: pod deadline throws' })
+    throw new Error('injected pod deadline failure')
   }
 }

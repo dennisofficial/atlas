@@ -1,4 +1,7 @@
+import { db } from '@dltech/atlas-db'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { describe, expect, it } from 'bun:test'
+import { seedUsers } from '../../../../test/session-seed'
 import {
   ORPHAN_SANDBOX_GRACE_MS,
   planOrphanSandboxes,
@@ -237,5 +240,46 @@ describe('sweepOrphanSandboxes', () => {
 
     expect(seen).toEqual([{ projectId: 'prj-web', names: ['atlas-thread-gone'] }])
     expect(summary.reconciled).toBe(2)
+  })
+})
+
+describe('sweepOrphanSandboxes ending terminals', () => {
+  useTestDatabase()
+
+  it('ends the open terminals of the pod it stops, which no daemon can ever report', async () => {
+    await seedUsers('user-a')
+    await db.orm.v2.V2Session.create({
+      id: 'ses-pod',
+      userId: 'user-a',
+      mainThreadId: 'thr_ses-pod',
+      nextInboxId: 1,
+      modelRef: 'anthropic/claude-haiku-4-5',
+      modelEffort: 'medium',
+      modelFast: false,
+      createdAt: NOW,
+    })
+    await db.orm.v2.V2Terminal.create({
+      sessionId: 'ses-pod',
+      terminalId: 't1',
+      ordinal: 1,
+      name: 'Terminal 1',
+      state: 'open',
+      createdAt: NOW,
+    })
+    const peer = fakeStore([sandbox('atlas-v2-ses-pod', { status: 'stopped' })])
+
+    await sweepOrphanSandboxes({
+      stores: [{ label: 'usr-1/prj-sandboxes', projectId: 'prj-sandboxes', store: peer.store }],
+      liveNames: async () => new Set(),
+      now: NOW,
+      dryRun: false,
+      log: () => undefined,
+    })
+
+    expect(peer.deleted).toEqual(['atlas-v2-ses-pod'])
+    const rows = await db.orm.v2.V2Terminal.where({ sessionId: 'ses-pod' })
+      .select('state', 'endedReason')
+      .all()
+    expect(rows).toEqual([{ state: 'ended', endedReason: 'pod-slept' }])
   })
 })

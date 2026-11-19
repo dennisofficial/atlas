@@ -1,6 +1,11 @@
 import { RandomIds } from './runtime/random-ids'
 import { composeCommands } from '@dltech/atlas-commands'
-import { SessionHolder, type HostPresence, type PodControlClient } from '@dltech/atlas-host'
+import {
+  SessionHolder,
+  TerminalDemand,
+  type HostPresence,
+  type PodControlClient,
+} from '@dltech/atlas-host'
 import { nativeCommandHandlers, nativeCommands } from '@dltech/atlas-native-commands'
 import { cloudConfigStore } from './config/cloud-config-store'
 import { envSecretsReader } from './config/env-secrets'
@@ -56,6 +61,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
   const timers = args.timers ?? { now: () => Date.now(), ...systemTimers }
   const mcpControl = mcpControlPort(args.macLink)
   const cipher = new SecretCipher(args.env.secretsEncryptionKey)
+  const terminalDemand = new TerminalDemand()
   return new SessionHolder({
     presence: args.presence,
     plane: args.plane,
@@ -73,6 +79,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
       plugins: composedPlugins,
       configWrites: cloudConfigStore(),
       envSecrets: envSecretsReader(),
+      terminalStreams: (sessionId) => terminalDemand.countOf(sessionId),
       ...(args.log === undefined ? {} : { log: args.log }),
     }),
     ids: new RandomIds(),
@@ -87,6 +94,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
       openValue: (sealed) => cipher.decrypt(sealed),
     },
     ...(args.changes === undefined ? {} : { changes: args.changes }),
+    terminalDemand,
     onHostIdChanged: args.onHostIdChanged,
     ...(args.log === undefined ? {} : { log: args.log }),
   })

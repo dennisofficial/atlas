@@ -58,6 +58,7 @@ export const makeRig = async (args: {
   watchedRepos?: (() => Promise<readonly string[]>) | undefined
   runningShells?: (() => Promise<number>) | undefined
   model?: (() => ModelPort) | undefined
+  terminalStreams?: (() => number) | undefined
   baseBranches?: Readonly<Record<string, string>> | undefined
   reasonOfStartError?: ((error: unknown) => string) | undefined
   uploads?: SaidUploadsPort | undefined
@@ -112,6 +113,7 @@ export const makeRig = async (args: {
     runtimes,
     watchedRepos: args.watchedRepos,
     runningShells: args.runningShells,
+    terminalStreams: args.terminalStreams,
     model: args.model,
     baseBranches: args.baseBranches,
     uploads: args.uploads,

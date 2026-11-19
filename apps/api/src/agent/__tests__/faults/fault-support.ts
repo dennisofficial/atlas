@@ -5,7 +5,7 @@ import { expect } from 'bun:test'
 
 import type { ControlPlane } from '@dltech/atlas-control'
 
-import type { ReadEvent } from '../../testing/fault-rig'
+import type { FaultRig, ReadEvent } from '../../testing/fault-rig'
 
 export const makeFifo = (args: { path: string }): void => {
   const result = spawnSync('mkfifo', [args.path])
@@ -75,6 +75,23 @@ export const expectOneResultPerDispatch = (events: readonly ReadEvent[]): void =
       1,
     )
   }
+}
+
+/**
+ * A session is held only while it has work, so a finished turn's lease is released before a spec
+ * can read it. What must still hold: no other host took the session over, and the crash-loop
+ * counter is clear.
+ */
+export const expectLeaseSettled = async (args: {
+  rig: FaultRig
+  sessionId: string
+  holder?: string
+}): Promise<void> => {
+  const { lease } = await args.rig.plane.currentLease({ sessionId: args.sessionId })
+  if (args.holder !== undefined && lease.holderHostId !== null) {
+    expect(await args.rig.labelOf(lease.holderHostId)).toBe(args.holder)
+  }
+  expect(lease.attempts).toBe(0)
 }
 
 export const expectEpochsOrdered = (args: {

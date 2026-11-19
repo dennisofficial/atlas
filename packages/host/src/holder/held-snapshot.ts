@@ -90,6 +90,7 @@ export const readHeldAction = async (args: {
     pendingInput: messagePending,
     runningShells: 0,
     runningChildren: args.childrenRunning,
+    terminalStreams: args.runtime?.terminalStreams?.() ?? 0,
   })
   const runningShells =
     quiet && args.runtime !== undefined

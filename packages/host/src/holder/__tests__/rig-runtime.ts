@@ -97,6 +97,7 @@ export const makeRuntimeFactory = (args: {
   runtimes: RigRuntime[]
   watchedRepos?: (() => Promise<readonly string[]>) | undefined
   runningShells?: (() => Promise<number>) | undefined
+  terminalStreams?: (() => number) | undefined
   prepare?: ((onStep?: PrepareStepReporter) => Promise<PrepareResult>) | undefined
   subscribePrepareOutput?: ((listener: (text: string) => void) => void) | undefined
   subscribeSetup?: ((listener: (lifecycle: SetupLifecycle) => void) => void) | undefined
@@ -168,6 +169,7 @@ export const makeRuntimeFactory = (args: {
       baseBranchOf: (repoPath) => args.baseBranches?.[repoPath] ?? null,
       ...(args.plugins === undefined ? {} : { plugins: args.plugins }),
       runningShells: args.runningShells ?? (async () => 0),
+      ...(args.terminalStreams === undefined ? {} : { terminalStreams: args.terminalStreams }),
       prepare: (onStep) => (args.prepare ?? (async () => ({ ok: true as const })))(onStep),
       ...(args.subscribePrepareOutput === undefined
         ? {}

@@ -9,6 +9,7 @@ import {
   type EventDraft,
   type RunId,
   type ThreadId,
+  type V2Event,
   type WorkspaceStepReport,
 } from '@dltech/atlas-core'
 import { logFieldsOf } from '@dltech/atlas-observability'
@@ -23,13 +24,28 @@ import { setupWarningText } from './setup-warning'
 
 const SETUP_STOPPED_REASON = 'setup was stopped with the session'
 
-const lastSetupPhaseOf = (record: SessionRecord): ESetupPhase | undefined => {
-  const last = record
-    .eventCache()
-    .eventsAfter(0)
-    .findLast((event) => event.type === 'sandbox-setup-reported' && event.phase !== undefined)
-  return last?.type === 'sandbox-setup-reported' ? last.phase : undefined
+const setupNoticesOf = (record: SessionRecord): ReadonlySet<ESetupPhase> => {
+  const events = record.eventCache().eventsAfter(0)
+  const runStart = (event: V2Event): boolean =>
+    event.type === 'workspace-step' &&
+    event.step === EWorkspaceStep.Setup &&
+    event.state === EWorkspaceStepState.Started
+  const reports = events.slice(events.findLastIndex(runStart) + 1)
+  return new Set(
+    reports.flatMap((event) =>
+      event.type === 'sandbox-setup-reported' && event.phase !== undefined ? [event.phase] : [],
+    ),
+  )
 }
+
+const appendFailureReporter =
+  (deps: HeldSessionDeps, verb: string) =>
+  (error: unknown): void =>
+    deps.log?.error({
+      source: 'holder.prepare',
+      message: `${verb} of ${deps.sessionId} failed`,
+      ...logFieldsOf({ error }),
+    })
 
 export class HeldPrepare {
   private active = false
@@ -37,10 +53,11 @@ export class HeldPrepare {
   private resuming = false
   private joined = false
   private script: string | undefined
-  private setupStartedAt: number | undefined
+  private setupStartedAt = 0
   private startedText: string | undefined
   private finished: { text: string; failed: boolean } | undefined
   private target: { record: SessionRecord; threadId: ThreadId } | undefined
+  private steps: Promise<void> = Promise.resolve()
   private settled = false
 
   constructor(
@@ -78,14 +95,14 @@ export class HeldPrepare {
     this.resuming = setupInFlightOf(recorded)
     this.joined = this.resuming
     this.script = setup?.command
-    this.setupStartedAt = setup === undefined ? undefined : Date.parse(setup.at)
+    this.setupStartedAt = setup === undefined ? 0 : Date.parse(setup.at)
     this.setupRunning = this.resuming
     const { deps } = this.args
     const runId: RunId = deps.ids.nextRunId()
     let failed = false
-    let steps: Promise<void> = Promise.resolve()
+    this.steps = Promise.resolve()
     const onStep = (step: WorkspaceStepReport): void => {
-      steps = steps.then(() => this.recordStep({ ...args, runId, step }))
+      this.steps = this.steps.then(() => this.recordStep({ ...args, runId, step }))
     }
     args.runtime.subscribePrepareOutput?.((text) =>
       fireLive({
@@ -106,7 +123,7 @@ export class HeldPrepare {
         return { ok: false, reason: error instanceof Error ? error.message : String(error) }
       })
       .then(async (result) => {
-        await steps
+        await this.steps
         await this.record({ ...args, runId, result })
         this.settled = true
         await this.flushSetupEnd()
@@ -129,11 +146,13 @@ export class HeldPrepare {
     if (this.args.abandoned()) return
     if (lifecycle.phase === ESetupPhase.Started) {
       this.script = lifecycle.script
-      if (!this.resuming) this.startedText = setupStartedText({ script: lifecycle.script })
+      const record = this.target?.record
+      if (record === undefined || !setupNoticesOf(record).has(ESetupPhase.Started)) {
+        this.startedText = setupStartedText({ script: lifecycle.script })
+      }
       this.setupRunning = true
       return
     }
-    this.setupRunning = false
     this.joined = false
     this.finished = {
       text: setupFinishedText({
@@ -147,10 +166,6 @@ export class HeldPrepare {
     void this.flushSetupEnd()
   }
 
-  /**
-   * The session was stopped (or archived) while the setup script was still running on the pod:
-   * nothing will report its end now, so the record has to say that it did not finish.
-   */
   async failStopped(): Promise<void> {
     const target = this.target
     if (target === undefined || !this.setupRunning) return
@@ -183,52 +198,36 @@ export class HeldPrepare {
           },
         ],
       })
-      .catch((error) => {
-        this.args.deps.log?.error({
-          source: 'holder.prepare',
-          message: `recording the stop of the setup of ${this.args.deps.sessionId} failed`,
-          ...logFieldsOf({ error }),
-        })
-      })
+      .catch(appendFailureReporter(this.args.deps, 'recording the stop of the setup'))
   }
 
   private elapsedMs(): number {
-    const since = this.setupStartedAt
-    return since === undefined ? 0 : Math.max(0, this.args.deps.timers.now() - since)
+    return Math.max(0, this.args.deps.timers.now() - this.setupStartedAt)
   }
 
   private async flushSetupEnd(): Promise<void> {
-    const finished = this.finished
-    const target = this.target
+    const { finished, target } = this
     if (finished === undefined || target === undefined || !this.settled) return
-    if (this.args.abandoned()) return
     this.finished = undefined
-    // a host that took over may observe an end an earlier host already recorded
-    if (lastSetupPhaseOf(target.record) === ESetupPhase.Finished) {
-      this.args.onSetupEnded()
-      return
-    }
-    await target.record
-      .append({
-        threadId: target.threadId,
-        runId: this.args.deps.ids.nextRunId(),
-        drafts: [
-          {
-            type: 'sandbox-setup-reported',
-            text: finished.text,
-            failed: finished.failed,
-            phase: ESetupPhase.Finished,
-          },
-        ],
-      })
-      .catch((error) => {
-        this.args.deps.log?.error({
-          source: 'holder.prepare',
-          message: `recording the end of the setup of ${this.args.deps.sessionId} failed`,
-          ...logFieldsOf({ error }),
+    await this.steps
+    // a replayed lifecycle, or an end an earlier host already recorded, is reported once
+    if (!this.args.abandoned() && !setupNoticesOf(target.record).has(ESetupPhase.Finished)) {
+      await target.record
+        .append({
+          threadId: target.threadId,
+          runId: this.args.deps.ids.nextRunId(),
+          drafts: [
+            {
+              type: 'sandbox-setup-reported',
+              text: finished.text,
+              failed: finished.failed,
+              phase: ESetupPhase.Finished,
+            },
+          ],
         })
-        return
-      })
+        .catch(appendFailureReporter(this.args.deps, 'recording the end of the setup'))
+    }
+    this.setupRunning = false
     this.args.onSetupEnded()
   }
 
@@ -245,13 +244,7 @@ export class HeldPrepare {
         runId: args.runId,
         drafts: [{ type: 'workspace-step', ...args.step }],
       })
-      .catch((error) => {
-        this.args.deps.log?.error({
-          source: 'holder.prepare',
-          message: `recording a prepare step of ${this.args.deps.sessionId} failed`,
-          ...logFieldsOf({ error }),
-        })
-      })
+      .catch(appendFailureReporter(this.args.deps, 'recording a prepare step'))
   }
 
   private async record(args: {
@@ -263,8 +256,7 @@ export class HeldPrepare {
   }): Promise<void> {
     if (this.args.abandoned()) return
     const { result, runId } = args
-    const taken = this.takeStarted()
-    const started = lastSetupPhaseOf(args.record) === ESetupPhase.Started ? [] : taken
+    const started = setupNoticesOf(args.record).has(ESetupPhase.Started) ? [] : this.takeStarted()
     if (!result.ok) {
       await args.record.append({
         threadId: args.threadId,

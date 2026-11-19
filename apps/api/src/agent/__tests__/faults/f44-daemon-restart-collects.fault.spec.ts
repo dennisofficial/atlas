@@ -84,6 +84,7 @@ describe.skipIf(REDIS_URL === undefined)('F44 a finished call survives a daemon 
 
     const mid = await readEvents({ plane: rig.plane, threadId })
     expect(mid.some((row) => row.type === 'tool-result' && callIdOf(row) === 'c1')).toBe(false)
+    const heldByA = await rig.plane.currentLease({ sessionId })
 
     hostA.kill('SIGKILL')
     await hostA.exited
@@ -125,6 +126,7 @@ describe.skipIf(REDIS_URL === undefined)('F44 a finished call survives a daemon 
     expect(readFileSync(runsFile, 'utf8').trim().split('\n')).toEqual(['run'])
 
     const lease = await rig.plane.currentLease({ sessionId })
-    expect(await rig.labelOf(lease.lease.holderHostId)).toBe('host-b')
+    expect(lease.lease.epoch).toBeGreaterThan(heldByA.lease.epoch)
+    expect(await rig.labelOf(lease.lease.holderHostId)).not.toBe('host-a')
   }, 90_000)
 })

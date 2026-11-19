@@ -6,7 +6,14 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 
 import { startRig, type FaultRig } from '../../testing/fault-rig'
-import { callIdOf, isDoneResult, makeFifo, readEvents, waitForFile } from './fault-support'
+import {
+  callIdOf,
+  expectLeaseSettled,
+  isDoneResult,
+  makeFifo,
+  readEvents,
+  waitForFile,
+} from './fault-support'
 
 const REDIS_URL = process.env.ATLAS_TEST_REDIS_URL
 
@@ -105,9 +112,9 @@ describe.skipIf(REDIS_URL === undefined)(
       expect(runs).toEqual(['run'])
 
       const leaseAfter = await rig.plane.currentLease({ sessionId })
-      expect(leaseAfter.live).toBe(true)
-      expect(await rig.labelOf(leaseAfter.lease.holderHostId)).toBe('host-a')
+      // the retry budget kept the append on the same lease, so no host took the session over
       expect(leaseAfter.lease.epoch).toBe(leaseBefore.lease.epoch)
+      await expectLeaseSettled({ rig, sessionId, holder: 'host-a' })
 
       const epochs = events.map((row) => (row.event as { epoch?: number }).epoch ?? 0)
       expect(Math.max(...epochs)).toBeLessThanOrEqual(leaseAfter.lease.epoch)

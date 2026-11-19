@@ -27,7 +27,13 @@ const CLONE_TIMEOUT_MS = 10 * 60_000
 
 const SSH_REMOTE = /^(?:ssh:\/\/)?git@([^/:]+)[:/](.+)$/
 
-type RunOutcome = { ok: boolean; output: string; interrupted?: boolean; detached?: boolean }
+type RunOutcome = {
+  ok: boolean
+  output: string
+  interrupted?: boolean
+  detached?: boolean
+  unknownExit?: boolean
+}
 
 const httpsRemoteOf = (remoteUrl: string): string => {
   const ssh = SSH_REMOTE.exec(remoteUrl)
@@ -92,7 +98,7 @@ export const run = async (args: {
       outcomeOf(handle),
     ])
     if (outcome.kind === EProcessOutcome.Failed) {
-      return { ok: false, output: `${output}${outcome.message}` }
+      return { ok: false, output: `${output}${outcome.message}`, unknownExit: true }
     }
     if (outcome.kind === EProcessOutcome.Interrupted) {
       return { ok: false, output, interrupted: true }

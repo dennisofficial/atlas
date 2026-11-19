@@ -9,6 +9,15 @@ export enum ETerminalTabState {
   Failed = 'failed',
 }
 
+export enum ETerminalOp {
+  Open = 'open',
+  Write = 'write',
+  Resize = 'resize',
+  Stream = 'stream',
+}
+
+export type TerminalProblem = { op: ETerminalOp; message: string }
+
 export type TerminalTab = {
   row: TerminalRow
   state: ETerminalTabState
@@ -20,6 +29,7 @@ export type TerminalSnapshot = {
   activeId: string | undefined
   loaded: boolean
   link: ETerminalConnection
+  problem: TerminalProblem | undefined
   cursors: Readonly<Record<string, number>>
 }
 
@@ -28,8 +38,15 @@ export const EMPTY_TERMINALS: TerminalSnapshot = {
   activeId: undefined,
   loaded: false,
   link: ETerminalConnection.Connecting,
+  problem: undefined,
   cursors: {},
 }
+
+const RETRY_BASE_MS = 1000
+const RETRY_CEILING_MS = 15_000
+
+export const retryDelayMs = (attempt: number): number =>
+  Math.min(RETRY_CEILING_MS, RETRY_BASE_MS * 2 ** Math.max(0, attempt))
 
 export const tabStateOf = (row: TerminalRow): ETerminalTabState => {
   if (row.state === 'ended') return ETerminalTabState.Ended
@@ -128,6 +145,15 @@ export const withLink = (
   snapshot: TerminalSnapshot,
   link: ETerminalConnection,
 ): TerminalSnapshot => (snapshot.link === link ? snapshot : { ...snapshot, link })
+
+const sameProblem = (a: TerminalProblem | undefined, b: TerminalProblem | undefined): boolean =>
+  a === b || (a !== undefined && b !== undefined && a.op === b.op && a.message === b.message)
+
+export const withProblem = (
+  snapshot: TerminalSnapshot,
+  problem: TerminalProblem | undefined,
+): TerminalSnapshot =>
+  sameProblem(snapshot.problem, problem) ? snapshot : { ...snapshot, problem }
 
 export const cursorOf = (snapshot: TerminalSnapshot, terminalId: string): number =>
   snapshot.cursors[terminalId] ?? 0

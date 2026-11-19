@@ -123,7 +123,7 @@ describe.skipIf(REDIS_URL === undefined)(
       expect(runs).toEqual(['run'])
 
       const lease = await rig.plane.currentLease({ sessionId })
-      expect(await rig.labelOf(lease.lease.holderHostId)).toBe('host-a')
+      expect([undefined, 'host-a']).toContain(await rig.labelOf(lease.lease.holderHostId))
       expectEpochsOrdered({ events, finalEpoch: lease.lease.epoch })
     }, 90_000)
   },

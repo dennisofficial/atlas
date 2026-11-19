@@ -145,6 +145,42 @@ export const terminateAllBackends = async (args: { url: string }): Promise<numbe
   }
 }
 
+export const countLogLines = (args: { host: HostProcess; text: string }): number =>
+  args.host.logs().filter((line) => line.includes(args.text)).length
+
+export const waitReleased = async (args: {
+  rig: FaultRig
+  sessionId: string
+  timeoutMs: number
+}): Promise<void> => {
+  await waitUntil({
+    what: `${args.sessionId} to be released`,
+    timeoutMs: args.timeoutMs,
+    check: async () =>
+      (await args.rig.plane.currentLease({ sessionId: args.sessionId })).lease.holderHostId ===
+      null,
+  })
+}
+
+export const waitEpochAfter = async (args: {
+  rig: FaultRig
+  sessionId: string
+  epoch: number
+  timeoutMs: number
+}): Promise<number> => {
+  let seen = args.epoch
+  await waitUntil({
+    what: `${args.sessionId} to be claimed again after epoch ${args.epoch}`,
+    timeoutMs: args.timeoutMs,
+    check: async () => {
+      const current = await args.rig.plane.currentLease({ sessionId: args.sessionId })
+      seen = current.lease.epoch
+      return seen > args.epoch
+    },
+  })
+  return seen
+}
+
 export const waitReheld = async (args: {
   rig: FaultRig
   sessionId: string

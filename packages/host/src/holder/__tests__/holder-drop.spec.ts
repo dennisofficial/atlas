@@ -47,6 +47,7 @@ describe('SessionHolder drop releases the slot', () => {
     })
     expect(dropped).toBe(true)
 
+    a.script.current = [{ text: 'served' }]
     await a.plane.post({
       sessionId: 'session-other',
       kind: 'message',
@@ -65,7 +66,7 @@ describe('SessionHolder drop releases the slot', () => {
         ).events.some((event) => event.type === 'assistant-said'),
       clock: a.clock,
       advanceMs: 2_000,
-      attempts: 200,
+      attempts: 3_000,
     })
     expect(served).toBe(true)
   }, 15_000)

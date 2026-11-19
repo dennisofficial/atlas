@@ -14,6 +14,7 @@ import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 import type { HostBus, HostTimers, PodPeers, SessionRuntimeFactory } from './ports'
 import type { PodControlClient } from './pod-control'
 import { ClaimLoop } from './claim-loop'
+import { HolderDemand } from './holder-demand'
 import { PodCalls } from './pod-calls'
 import type { CommandHandlers } from './command-intake'
 import { HeldSession, type HeldSessionDeps } from './held-session'
@@ -43,6 +44,7 @@ export class SessionHolder {
   private readonly log: LogPort | undefined
 
   private readonly held = new Map<string, HeldSession>()
+  private readonly demand: HolderDemand
   private readonly retryAt = new Map<string, string | null>()
   private lostRetries: (string | null)[] = []
   private unsubWake: (() => void) | undefined
@@ -64,6 +66,15 @@ export class SessionHolder {
     this.plane = args.plane
     this.bus = args.bus
     this.timers = args.timers
+    this.demand = new HolderDemand({
+      plane: args.plane,
+      timers: args.timers,
+      holds: (sessionId) => this.held.has(sessionId),
+      draining: () => this.draining,
+      onReconcile: (sessionId) => this.onWake(sessionId),
+      terminal: args.terminalDemand,
+      log: args.log,
+    })
     this.runtimes = args.runtimes
     this.ids = args.ids
     this.podPeers = args.podPeers
@@ -147,6 +158,10 @@ export class SessionHolder {
     return new PodCalls({ held: (sessionId) => this.held.get(sessionId)?.runtimeOf() })
   }
 
+  demandOf(): HolderDemand {
+    return this.demand
+  }
+
   discard(): void {
     this.draining = true
     this.stopTriggers()
@@ -219,6 +234,7 @@ export class SessionHolder {
       this.deps({ lease, podSessionId: row.podSessionId ?? row.sessionId }),
     )
     this.held.set(lease.sessionId, session)
+    this.demand.notifyHeld(lease.sessionId)
     this.retryAt.set(lease.sessionId, lease.retryAfter)
     const finished = this.runAndSettle({
       session,

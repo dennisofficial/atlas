@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from 'bun:test'
+import { ServiceUnavailableException } from '@nestjs/common'
 import type { EventFrame, RemoteCloseReason } from '@dltech/atlas-host'
 import {
   TERMINAL_STREAM_BUFFER_BYTES,
   type TerminalReadOutput,
   type TerminalStreamFrame,
 } from '@dltech/atlas-protocol'
-import type { PodOps } from '../../../agent'
+import type { PodOps, TerminalDemand } from '../../../agent'
 import type { TerminalService } from '../../platform/control/terminal.service'
 import type { DrainStateService } from '../../platform/health/drain-state.service'
 import { TerminalStreamQueue } from './terminal-stream-queue'
@@ -53,6 +54,7 @@ const operationsOf = (held: boolean) => {
   } = { listener: undefined, close: undefined, dispose: vi.fn() }
   const ops = {
     invoke: vi.fn(),
+    waitForHolder: vi.fn(async () => held),
     events: vi.fn(
       (args: {
         listener: (frame: EventFrame) => void
@@ -77,11 +79,13 @@ const serviceOf = (args: {
   terminals: ReturnType<typeof terminalsOf>
   ops: PodOps
   drain?: DrainStateService
+  demand?: TerminalDemand
 }) =>
   new TerminalStreamService(
     args.terminals as unknown as TerminalService,
     args.drain ?? drainOf().drain,
     args.ops,
+    args.demand ?? null,
   )
 
 const collect = (generator: AsyncGenerator<TerminalStreamFrame>) => {
@@ -109,14 +113,31 @@ const attach = (service: TerminalStreamService, signal?: AbortSignal) =>
   })
 
 describe('TerminalStreamService', () => {
-  it('yields ready then parked for a session the holder does not have', async () => {
+  it('asks for a holder and refuses the stream when none arrives', async () => {
     const terminals = terminalsOf()
     const { ops, state } = operationsOf(false)
     const run = collect(attach(serviceOf({ terminals, ops })))
-    await run.done
-    expect(run.frames).toEqual([{ type: 'ready', sessionId: 's1' }, { type: 'parked' }])
-    expect(state.listener).toBeDefined()
+    const failure = await run.done.catch((error: unknown) => error)
+    expect(run.frames).toEqual([{ type: 'ready', sessionId: 's1' }])
+    expect(failure).toBeInstanceOf(ServiceUnavailableException)
+    expect(ops.waitForHolder).toHaveBeenCalledWith({ sessionId: 's1' })
+    expect(state.listener).toBeUndefined()
     expect(terminals.read).not.toHaveBeenCalled()
+  })
+
+  it('holds the terminal demand for as long as the stream is attached', async () => {
+    const terminals = terminalsOf()
+    const { ops } = operationsOf(true)
+    const release = vi.fn()
+    const demand = { hold: vi.fn(() => release) } as unknown as TerminalDemand
+    const abort = new AbortController()
+    const run = collect(attach(serviceOf({ terminals, ops, demand }), abort.signal))
+    await until(() => run.frames.length >= 1)
+    expect(demand.hold).toHaveBeenCalledWith('s1')
+    expect(release).not.toHaveBeenCalled()
+    abort.abort()
+    await run.done
+    expect(release).toHaveBeenCalledTimes(1)
   })
 
   it('replays a cursor as output then exit', async () => {

@@ -71,6 +71,7 @@ export type SessionRuntimeFactoryArgs = {
   plugins?: ComposedPlugins | undefined
   configWrites?: CloudConfigStore | undefined
   envSecrets?: EnvSecretsSource | undefined
+  terminalStreams?: ((sessionId: string) => number) | undefined
 }
 
 export const createSessionRuntimeFactory = (
@@ -234,6 +235,9 @@ export const createSessionRuntimeFactory = (
 
     return {
       remoteCalls: calls,
+      ...(args.terminalStreams === undefined
+        ? {}
+        : { terminalStreams: () => args.terminalStreams?.(sessionId) ?? 0 }),
       model: models.main,
       get modelChoice() {
         return models.modelChoice()

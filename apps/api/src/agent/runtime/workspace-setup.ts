@@ -66,14 +66,15 @@ const runSetupOnce = async (args: {
   })
   const output = args.scrub(outcome.output)
   const recorded = { command, output: output.slice(-SETUP_OUTPUT_TAIL_CHARS) }
-  // once the script is known to have ended the marker has served its purpose; while a host gave up
-  // watching it (a timeout or a cancel) the script may still be running, so the next host resumes it
+  const ended =
+    outcome.ok ||
+    !(outcome.interrupted === true || outcome.unknownExit === true || outcome.detached === true)
   const forgetStarted = async (): Promise<void> => {
-    if (outcome.detached === true) return
+    if (!ended) return
     await clearSetupStarted({ deps, path: args.sentinels.setupStarted })
   }
   if (!outcome.ok) {
-    const interrupted = outcome.interrupted === true && deps.signal?.aborted !== true
+    const interrupted = !ended
     const reason = interrupted
       ? SETUP_INTERRUPTED_REASON
       : `workspace setup script failed (command: ${command.slice(0, COMMAND_CHARS)})`

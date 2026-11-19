@@ -10,6 +10,7 @@ import { startRig, type FaultRig } from '../../testing/fault-rig'
 import {
   callIdOf,
   expectEpochsOrdered,
+  expectLeaseSettled,
   expectOneResultPerDispatch,
   isDoneResult,
   makeFifo,
@@ -133,7 +134,7 @@ describe.skipIf(REDIS_URL === undefined)('F3 daemon link dropped mid-bash, back 
     expect(runs).toEqual(['run'])
 
     const lease = await rig.plane.currentLease({ sessionId })
-    expect(await rig.labelOf(lease.lease.holderHostId)).toBe('host-a')
+    await expectLeaseSettled({ rig, sessionId, holder: 'host-a' })
     expectEpochsOrdered({ events, finalEpoch: lease.lease.epoch })
   }, 60_000)
 })

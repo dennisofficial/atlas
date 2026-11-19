@@ -41,26 +41,49 @@ describe.skipIf(REDIS_URL === undefined)(
       const threadId = await rig.newSession({ sessionId, text: 'first' })
       const daemon = await rig.spawnDaemonFor({ sessionId })
       const bootIdBefore = daemon.bootId
-      const scripts = { [sessionId]: [{ text: 'first answer' }, { text: 'second answer' }] }
 
-      const hostA = await rig.spawnHost({ label: 'host-a', daemonUrl: daemon.url, scripts })
+      const hostA = await rig.spawnHost({
+        label: 'host-a',
+        daemonUrl: daemon.url,
+        scripts: { [sessionId]: [{ text: 'first answer' }] },
+      })
       await waitAnswers({ rig, threadId, count: 1, host: hostA, timeoutMs: 30_000 })
       await waitReleased({ rig, sessionId, timeoutMs: 30_000 })
+      const released = await rig.plane.currentLease({ sessionId })
 
       hostA.kill('SIGKILL')
       await hostA.exited
 
-      const hostB = await rig.spawnHost({ label: 'host-b', daemonUrl: daemon.url, scripts })
+      const hostB = await rig.spawnHost({
+        label: 'host-b',
+        daemonUrl: daemon.url,
+        scripts: { [sessionId]: [{ text: 'second answer' }] },
+      })
       await postMessage({ rig, sessionId, text: 'after the release' })
-      await rig.waitHeldBy({ sessionId, label: 'host-b', timeoutMs: 30_000 })
-      const events = await waitAnswers({ rig, threadId, count: 2, host: hostB, timeoutMs: 30_000 })
+      const events = await rig
+        .waitForSeq({
+          threadId,
+          want: (rows) =>
+            rows.some(
+              (row) =>
+                row.type === 'assistant-said' &&
+                JSON.stringify(row.event).includes('second answer'),
+            ),
+          timeoutMs: 30_000,
+        })
+        .catch((error: unknown) => {
+          throw new Error(
+            `${error instanceof Error ? error.message : String(error)}\nhostB logs:\n${hostB.logs().join('\n')}`,
+          )
+        })
 
-      expect(
-        events.some(
-          (row) =>
-            row.type === 'assistant-said' && JSON.stringify(row.event).includes('second answer'),
-        ),
-      ).toBe(true)
+      const secondAnswers = events.filter(
+        (row) =>
+          row.type === 'assistant-said' && JSON.stringify(row.event).includes('second answer'),
+      )
+      expect(secondAnswers).toHaveLength(1)
+      const answeredAt = (secondAnswers[0]?.event as { epoch?: number } | undefined)?.epoch ?? 0
+      expect(answeredAt).toBeGreaterThan(released.lease.epoch)
       expectOneResultPerDispatch(events)
       expect(daemon.bootId).toBe(bootIdBefore)
     }, 120_000)
