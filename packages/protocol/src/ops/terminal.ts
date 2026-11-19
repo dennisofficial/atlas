@@ -2,13 +2,13 @@ import { z } from 'zod'
 
 import { okResultSchema } from './result'
 
-const terminalIdSchema = z
+export const terminalIdSchema = z
   .string()
   .min(1)
   .regex(/^[A-Za-z0-9_.:-]+$/)
   .refine((id) => !/^\.+$/.test(id))
 
-const dimensionSchema = z.number().int().min(1).max(1000)
+export const dimensionSchema = z.number().int().min(1).max(1000)
 
 export const terminalExitSchema = z
   .object({

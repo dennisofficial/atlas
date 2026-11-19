@@ -1,5 +1,10 @@
 import { CP_POD_OPS, ELiveOpFailure, type CallOp } from '@dltech/atlas-protocol'
-import type { PodCallOutcome, SessionHolder } from '@dltech/atlas-host'
+import type {
+  EventFrame,
+  PodCallOutcome,
+  RemoteCloseReason,
+  SessionHolder,
+} from '@dltech/atlas-host'
 
 import { POD_OPS } from './tokens'
 
@@ -11,6 +16,11 @@ export type PodOps = {
     op: CallOp
     signal?: AbortSignal | undefined
   }): Promise<PodCallOutcome>
+  events(args: {
+    sessionId: string
+    listener: (frame: EventFrame) => void
+    onClose?: ((reason: RemoteCloseReason) => void) | undefined
+  }): (() => void) | null
 }
 
 export const podOpsOf = (args: { holder: Pick<SessionHolder, 'podCalls'> }): PodOps => {
@@ -21,5 +31,6 @@ export const podOpsOf = (args: { holder: Pick<SessionHolder, 'podCalls'> }): Pod
         return Promise.resolve({ state: 'unavailable', reason: ELiveOpFailure.Absent })
       return calls.invoke(input)
     },
+    events: (input) => calls.events(input),
   }
 }

@@ -41,6 +41,38 @@ class JoinedStore extends ControlStorePort {
   listRoutineRuns(params: ListRoutineRunsParams): Promise<RoutineRunRow[]> {
     return this.owner.listRoutineRuns(params)
   }
+
+  listTerminals(params: { sessionId: string }) {
+    return this.owner.listTerminals(params)
+  }
+
+  readTerminal(params: { sessionId: string; terminalId: string }) {
+    return this.owner.readTerminal(params)
+  }
+
+  createTerminal(params: Parameters<ControlStorePort['createTerminal']>[0]) {
+    return this.owner.createTerminal(params)
+  }
+
+  renameTerminal(params: { sessionId: string; terminalId: string; name: string }) {
+    return this.owner.renameTerminal(params)
+  }
+
+  markTerminalOpen(params: { sessionId: string; terminalId: string }) {
+    return this.owner.markTerminalOpen(params)
+  }
+
+  endTerminal(params: Parameters<ControlStorePort['endTerminal']>[0]) {
+    return this.owner.endTerminal(params)
+  }
+
+  endTerminals(params: Parameters<ControlStorePort['endTerminals']>[0]) {
+    return this.owner.endTerminals(params)
+  }
+
+  deleteTerminal(params: { sessionId: string; terminalId: string }) {
+    return this.owner.deleteTerminal(params)
+  }
 }
 
 const seedPrepared = async (args: {

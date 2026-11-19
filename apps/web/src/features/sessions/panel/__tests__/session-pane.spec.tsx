@@ -71,9 +71,10 @@ describe('SessionPane', () => {
     expect(html).toContain('Rebase ui on shadcn base-nova')
   })
 
-  it('tells the Terminal tab owner what is missing, without the details', () => {
+  it('renders the terminal tab where the empty state used to be', () => {
     const html = render(ESessionPaneTab.Terminal)
-    expect(html).toContain('Terminal is not connected')
+    expect(html).toContain('No terminals')
+    expect(html).not.toContain('data-pane-empty="terminal"')
     expect(html).not.toContain('data-session-summary')
   })
 

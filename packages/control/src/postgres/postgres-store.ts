@@ -30,6 +30,10 @@ import {
   type SessionListParams,
   type PrHead,
   type PrRef,
+  type ControlTerminalRow,
+  type CreateTerminalParams,
+  type EndTerminalParams,
+  type TerminalEndedReason,
   type SessionBranchRow,
   type SessionPullRequestRow,
   type SessionViewRow,
@@ -104,6 +108,16 @@ import { deleteSubscriptionLeaseIn, upsertSubscriptionLeaseIn } from './postgres
 import { upsertTrackingTargetIn } from './postgres-tracking-targets'
 import { toLease, toThreadRow } from './postgres-rows'
 import { insertEventsIn, listSessionsIn, readEventsIn, writeThreadHeadIn } from './postgres-threads'
+import {
+  createTerminalIn,
+  deleteTerminalIn,
+  endSessionTerminalsIn,
+  endTerminalIn,
+  listTerminalsIn,
+  markTerminalOpenIn,
+  readTerminalIn,
+  renameTerminalIn,
+} from './postgres-terminals'
 
 class PostgresTx implements ControlTx {
   constructor(private readonly tx: Tx) {}
@@ -463,6 +477,65 @@ export class PostgresControlStore extends ControlStorePort {
   listRoutineRuns(params: ListRoutineRunsParams): Promise<RoutineRunRow[]> {
     return retryOnConnectionLoss(() =>
       this.db.transaction((tx) => routineRunsIn({ tx, ...params })),
+    )
+  }
+
+  listTerminals(params: { sessionId: string }): Promise<ControlTerminalRow[]> {
+    return retryOnConnectionLoss(() =>
+      this.db.transaction((tx) => listTerminalsIn({ tx, ...params })),
+    )
+  }
+
+  readTerminal(params: {
+    sessionId: string
+    terminalId: string
+  }): Promise<ControlTerminalRow | undefined> {
+    return retryOnConnectionLoss(() =>
+      this.db.transaction((tx) => readTerminalIn({ tx, ...params })),
+    )
+  }
+
+  createTerminal(params: CreateTerminalParams): Promise<ControlTerminalRow | undefined> {
+    return retryOnConnectionLoss(() =>
+      this.db.transaction((tx) => createTerminalIn({ tx, ...params })),
+    )
+  }
+
+  renameTerminal(params: {
+    sessionId: string
+    terminalId: string
+    name: string
+  }): Promise<ControlTerminalRow | undefined> {
+    return retryOnConnectionLoss(() =>
+      this.db.transaction((tx) => renameTerminalIn({ tx, ...params })),
+    )
+  }
+
+  markTerminalOpen(params: { sessionId: string; terminalId: string }): Promise<void> {
+    return retryOnConnectionLoss(() =>
+      this.db.transaction(async (tx) => {
+        await markTerminalOpenIn({ tx, ...params })
+      }),
+    )
+  }
+
+  endTerminal(params: EndTerminalParams): Promise<ControlTerminalRow | undefined> {
+    return retryOnConnectionLoss(() =>
+      this.db.transaction((tx) => endTerminalIn({ tx, ...params })),
+    )
+  }
+
+  endTerminals(params: { sessionId: string; reason: TerminalEndedReason }): Promise<number> {
+    return retryOnConnectionLoss(() =>
+      this.db.transaction((tx) => endSessionTerminalsIn({ tx, ...params })),
+    )
+  }
+
+  deleteTerminal(params: { sessionId: string; terminalId: string }): Promise<void> {
+    return retryOnConnectionLoss(() =>
+      this.db.transaction(async (tx) => {
+        await deleteTerminalIn({ tx, ...params })
+      }),
     )
   }
 }

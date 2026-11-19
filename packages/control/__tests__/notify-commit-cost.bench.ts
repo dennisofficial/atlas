@@ -39,6 +39,38 @@ class SilentStore extends ControlStorePort {
     return this.inner.listDueRoutines(params)
   }
 
+  listTerminals(params: { sessionId: string }) {
+    return this.inner.listTerminals(params)
+  }
+
+  readTerminal(params: { sessionId: string; terminalId: string }) {
+    return this.inner.readTerminal(params)
+  }
+
+  createTerminal(params: Parameters<ControlStorePort['createTerminal']>[0]) {
+    return this.inner.createTerminal(params)
+  }
+
+  renameTerminal(params: { sessionId: string; terminalId: string; name: string }) {
+    return this.inner.renameTerminal(params)
+  }
+
+  markTerminalOpen(params: { sessionId: string; terminalId: string }) {
+    return this.inner.markTerminalOpen(params)
+  }
+
+  endTerminal(params: Parameters<ControlStorePort['endTerminal']>[0]) {
+    return this.inner.endTerminal(params)
+  }
+
+  endTerminals(params: Parameters<ControlStorePort['endTerminals']>[0]) {
+    return this.inner.endTerminals(params)
+  }
+
+  deleteTerminal(params: { sessionId: string; terminalId: string }) {
+    return this.inner.deleteTerminal(params)
+  }
+
   listRoutines(params: ListRoutinesParams): Promise<RoutineRow[]> {
     return this.inner.listRoutines(params)
   }

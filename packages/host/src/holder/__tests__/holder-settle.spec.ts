@@ -81,6 +81,21 @@ describe('SessionHolder settle', () => {
     expect(await advanceUntil(rig, async () => (await answers(rig)) === 2)).toBe(true)
   }, 20_000)
 
+  it('marks the session’s open terminals pod-slept when it releases the pod', async () => {
+    const rig = await idleRig()
+    await rig.plane.createTerminal({ sessionId: SESSION, terminalId: 'term-1', limit: 8 })
+    await rig.plane.markTerminalOpen({ sessionId: SESSION, terminalId: 'term-1' })
+
+    rig.clock.advance(13_000)
+    expect(await advanceUntil(rig, async () => (await leaseOf(rig)).holderHostId === null)).toBe(
+      true,
+    )
+    await rig.flush()
+    expect(await rig.plane.listTerminals({ sessionId: SESSION })).toMatchObject([
+      { terminalId: 'term-1', state: 'ended', endedReason: 'pod-slept' },
+    ])
+  }, 20_000)
+
   it('a fenced holder revokes once at the epoch it holds and leaves the successor lease alone', async () => {
     const log = new CollectingLog()
     const rig = await idleRig({ log })

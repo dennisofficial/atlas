@@ -37,6 +37,13 @@ export type {
 } from './port'
 export type { BlobRow, BlobWrite } from './port'
 export type {
+  ControlTerminalRow,
+  CreateTerminalParams,
+  EndTerminalParams,
+  TerminalEndedReason,
+  TerminalState,
+} from './terminal-rows'
+export type {
   ChangeBlobRow,
   ChangeBlobWrite,
   ChangedFileWrite,
