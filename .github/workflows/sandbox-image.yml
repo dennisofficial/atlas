@@ -74,6 +74,12 @@ jobs:
   retag:
     # release-on-main (the release job in .github/workflows/ci.yml) tags tui releases as tui-vX.Y.Z
     # (apps/tui/scripts/release-version.ts) and dispatches here after each one.
+    #
+    # needs: publish because a dispatch runs that job too — its `if` is `event_name != 'release'`
+    # and this workflow has no release trigger, so it always runs — and the template below pins
+    # the image ghcr holds for the release commit. Waiting on it orders the two writes and stops
+    # the retag from publishing to VCR and Agent37 when the image itself never landed.
+    needs: publish
     if: github.event_name == 'workflow_dispatch' && startsWith(inputs.release_tag, 'tui-v')
     runs-on: ubuntu-latest
     steps:
@@ -111,6 +117,34 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2.2.0
 
+      # The Agent37 template is pinned by digest, never by a tag a later merge can move, so
+      # resolve the digest ghcr holds for the release commit here and hand it to the register
+      # step. linux/amd64 first, the same choice agent37-register-template.ts's registryDigestOf
+      # makes for itself: that is the leg both Agent37 pods and the VCR push above run.
+      - name: resolve the release image digest
+        id: release-image
+        env:
+          IMAGE: ${{ env.IMAGE }}
+          RELEASE_SHA: ${{ inputs.release_sha }}
+        run: |
+          set -euo pipefail
+          tag="sha-$(echo "$RELEASE_SHA" | cut -c1-7)"
+          digest="$(docker buildx imagetools inspect "${IMAGE}:${tag}" --format '{{json .Manifest}}' | bun -e '
+            const manifest = JSON.parse(await Bun.stdin.text())
+            const amd64 = (manifest.manifests ?? []).find(
+              (entry) => entry.platform?.os === "linux" && entry.platform?.architecture === "amd64",
+            )
+            process.stdout.write(amd64?.digest ?? manifest.digest ?? "")
+          ')"
+          if [ -z "$digest" ]; then
+            digest="$(docker buildx imagetools inspect "${IMAGE}:${tag}" --format '{{.Digest}}')"
+          fi
+          if [ -z "$digest" ]; then
+            echo "ghcr has no image for ${IMAGE}:${tag}" >&2
+            exit 1
+          fi
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
       # After the push, never before: the fresh image now holds `latest`, and every image a
       # sandbox (running or stopped) still references is spared so resumes keep working.
       - name: prune VCR images to latest plus in-use
@@ -124,14 +158,17 @@ jobs:
         run: bun apps/serve/scripts/prune-vcr-images.ts
 
       # The Agent37 template must point at the same image release as VCR, or the two providers
-      # drift apart with nothing to detect it. Pinned by the immutable per-commit tag the
-      # publish job pushes, not `latest`, which a later merge can move under us. Runs whether
-      # or not VCR is enabled: the template is what every Agent37 pod boots from.
+      # drift apart with nothing to detect it. The digest resolved above is the release commit's
+      # image, the build the VCR push re-ships, and a digest cannot be moved by a later merge the
+      # way a tag can. Runs whether or not VCR is enabled: the template is what every Agent37 pod
+      # boots from.
       - name: register the agent37 template
         env:
           DOTENV_PRIVATE_KEY_PRODUCTION_ENC: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION_ENC }}
         run: |
           set -euo pipefail
-          tag="sha-$(echo '${{ inputs.release_sha }}' | cut -c1-7)"
-          bunx dotenvx run -f apps/api/.env.production.enc -- \
-            bun apps/api/scripts/agent37-register-template.ts --tag "$tag"
+          # This job installs no workspace deps, so `bunx dotenvx` would fetch the unrelated npm
+          # package of that name: name the real one at the version the root package.json asks for.
+          bunx --package @dotenvx/dotenvx@^1.71.0 dotenvx run -f apps/api/.env.production.enc -- \
+            bun apps/api/scripts/agent37-register-template.ts \
+              --tag '${{ steps.release-image.outputs.digest }}'

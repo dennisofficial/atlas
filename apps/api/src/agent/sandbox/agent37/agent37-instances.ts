@@ -9,4 +9,5 @@ export const agent37InstanceNameOf = (podSessionId: string): string => `atlas-${
 export type Agent37InstanceIds = {
   find(args: { podSessionId: string }): Promise<string | null>
   remember(args: { podSessionId: string; instanceId: string }): Promise<void>
+  forget(args: { podSessionId: string }): Promise<void>
 }

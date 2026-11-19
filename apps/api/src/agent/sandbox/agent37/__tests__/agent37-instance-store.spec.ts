@@ -24,7 +24,7 @@ const fakeDb = (rows: Row[]): Db => {
         V2Session: {
           first: async (filter: { id?: string; podSessionId?: string }) => matching(filter),
           where: (filter: { id: string }) => ({
-            updateAndCount: async (values: { sandboxInstanceId: string }) => {
+            updateAndCount: async (values: { sandboxInstanceId: string | null }) => {
               const row = matching(filter)
               if (row === null) return 0
               row.sandboxInstanceId = values.sandboxInstanceId
@@ -64,5 +64,15 @@ describe('agent37 instance ids', () => {
     await ids.remember({ podSessionId: 'missing', instanceId: 'inst-1' })
 
     expect(await ids.find({ podSessionId: 'missing' })).toBeNull()
+  })
+
+  it('clears the instance a session remembered once it is deleted', async () => {
+    const row: Row = { id: 'session-1', podSessionId: null, sandboxInstanceId: 'inst-1' }
+    const ids = agent37InstanceIdsOf(fakeDb([row]))
+
+    await ids.forget({ podSessionId: 'session-1' })
+
+    expect(row.sandboxInstanceId).toBeNull()
+    expect(await ids.find({ podSessionId: 'session-1' })).toBeNull()
   })
 })

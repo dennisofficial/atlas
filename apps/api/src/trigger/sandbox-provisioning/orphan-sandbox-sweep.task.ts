@@ -8,6 +8,7 @@ import { SecretCipherService } from '../../_lib/crypto/secret-cipher.service'
 import { openSecretValue } from '../../api/cloud/secrets/sealed-secret'
 import {
   liveSandboxNames,
+  podStillRetirable,
   retirableSandboxNames,
   v2Pods,
 } from '../../api/cloud/sandbox-provisioning/live-sandbox-names'
@@ -20,6 +21,7 @@ import {
 } from '../../api/cloud/sandbox-provisioning/orphan-sandbox-sweep'
 import {
   sweepV2Pods,
+  uniqueV2Scopes,
   type V2PodSweepScope,
 } from '../../api/cloud/sandbox-provisioning/v2-pod-sweep'
 import { VercelOrphanSandboxStore } from '../../api/cloud/sandbox-provisioning/vercel-orphan-sandbox-store'
@@ -121,7 +123,6 @@ async function v2ScopesOf(args: {
     if ('configured' in credentials) continue
     scopes.push({ label: `platform/${provider}`, credentials, sandbox: sandbox.for(provider) })
   }
-  const seen = new Set<string>()
   for (const row of await db.orm.public.UserVercelCredential.all()) {
     if (row.sealedToken === null) continue
     const token = openSecretValue({ cipher: args.cipher, sealed: row.sealedToken })
@@ -129,9 +130,6 @@ async function v2ScopesOf(args: {
       .select('vercelProjectId')
       .all()
     for (const projectId of projectIdsOf({ projectId: row.vercelProjectId, pinned })) {
-      const key = `${row.teamId}/${projectId}`
-      if (seen.has(key)) continue
-      seen.add(key)
       const credentials: SandboxCredentials = {
         provider: ESandboxProvider.Vercel,
         token,
@@ -145,7 +143,7 @@ async function v2ScopesOf(args: {
       })
     }
   }
-  return scopes
+  return uniqueV2Scopes(scopes)
 }
 
 export const orphanSandboxSweepTask = schedules.task({
@@ -160,6 +158,7 @@ export const orphanSandboxSweepTask = schedules.task({
     const v2Summary = await sweepV2Pods({
       scopes: await v2ScopesOf({ cipher, env: readAgentHostEnv() }),
       pods,
+      stillRetirable: ({ podSessionId }) => podStillRetirable({ podSessionId, now }),
       onRetired: async ({ podSessionId }) => {
         const sessionIds = pods.sessionIdsByPod.get(podSessionId) ?? []
         if (sessionIds.length === 0) return

@@ -35,7 +35,7 @@ no tiers of its own. A service holds only `DOTENV_PRIVATE_KEY_PRODUCTION_ENC`. A
 | `AGENT37_TEMPLATE_ID`                | no       | —                                    |
 | `AGENT37_CPU`                        | no       | 2                                    |
 | `AGENT37_MEMORY_GB`                  | no       | 4                                    |
-| `AGENT37_DISK_GB`                    | no       | 20                                   |
+| `AGENT37_DISK_GB`                    | no       | 64                                   |
 | `PORT`                               | no       | 10000 (Render sets it)               |
 | `TRUSTED_ORIGINS`                    | no       | empty: any Origin; else a comma list |
 

@@ -1,3 +1,4 @@
+import { ESandboxProvider } from '@dltech/atlas-protocol'
 import type { SandboxCredentials, SandboxListing, SandboxProvider } from '../../../agent'
 import { ARCHIVED_SANDBOX_GRACE_MS } from './archived-sandbox-sweep'
 
@@ -17,6 +18,27 @@ export type V2PodSweepPods = {
 }
 
 export type V2PodPlan = { stop: string[]; delete: string[] }
+
+/**
+ * Two scopes with the same key list the same pods, so sweeping both would act on one pod twice. A
+ * Vercel scope is an account and project whatever token it carries; Agent37 has one platform account.
+ */
+export const v2ScopeKeyOf = (credentials: SandboxCredentials): string =>
+  credentials.provider === ESandboxProvider.Vercel
+    ? `${credentials.provider}/${credentials.teamId}/${credentials.projectId}`
+    : credentials.provider
+
+export function uniqueV2Scopes(scopes: readonly V2PodSweepScope[]): V2PodSweepScope[] {
+  const seen = new Set<string>()
+  const unique: V2PodSweepScope[] = []
+  for (const scope of scopes) {
+    const key = v2ScopeKeyOf(scope.credentials)
+    if (seen.has(key)) continue
+    seen.add(key)
+    unique.push(scope)
+  }
+  return unique
+}
 
 export type V2PodSweepSummary = {
   scopes: number
@@ -69,14 +91,13 @@ async function runBounded<T>(args: {
 
 /**
  * Every pod sandbox a provider holds is listed through the port and stopped or deleted by the same
- * rules as `planOrphanSandboxes`, for every provider rather than Vercel alone. A pod that was
- * swept is retired: its archived sessions are stamped and the terminals it hosted are ended, since
- * no daemon can ever report their exit. One scope or one pod failing is logged and the rest carry
- * on — a bad BYOK token must not keep the platform's own pods alive.
+ * rules as `planOrphanSandboxes`, for every provider rather than Vercel alone.
  */
 export async function sweepV2Pods(args: {
   scopes: readonly V2PodSweepScope[]
   pods: V2PodSweepPods
+  /** Re-read immediately before each stop or delete: a pod can come back to life after the list. */
+  stillRetirable?: ((args: { podSessionId: string }) => Promise<boolean>) | undefined
   onRetired?: ((args: { podSessionId: string }) => Promise<void>) | undefined
   endTerminals?: ((args: { podSessionIds: readonly string[] }) => Promise<number>) | undefined
   now: Date
@@ -124,10 +145,23 @@ export async function sweepV2Pods(args: {
       sandboxSessionId: podSessionId,
       credentials: scope.credentials,
     })
+    const retirableNow = async (podSessionId: string): Promise<boolean> => {
+      if (args.stillRetirable === undefined) return true
+      try {
+        return await args.stillRetirable({ podSessionId })
+      } catch (failure) {
+        failed(podSessionId)(failure)
+        return false
+      }
+    }
     await runBounded({
       items: plan.stop,
       task: async (podSessionId) => {
         try {
+          if (!(await retirableNow(podSessionId))) {
+            summary.kept += 1
+            return
+          }
           await scope.sandbox.stop({ target: targetOf(podSessionId) })
           summary.stopped += 1
           swept.push(podSessionId)
@@ -140,6 +174,10 @@ export async function sweepV2Pods(args: {
       items: plan.delete,
       task: async (podSessionId) => {
         try {
+          if (!(await retirableNow(podSessionId))) {
+            summary.kept += 1
+            return
+          }
           await scope.sandbox.delete({ target: targetOf(podSessionId) })
           summary.deleted += 1
           swept.push(podSessionId)

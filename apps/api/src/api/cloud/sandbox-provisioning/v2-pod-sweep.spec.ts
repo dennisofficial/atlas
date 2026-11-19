@@ -8,7 +8,7 @@ import {
   type SandboxListing,
   type SandboxTarget,
 } from '../../../agent'
-import { planV2Pods, sweepV2Pods } from './v2-pod-sweep'
+import { planV2Pods, sweepV2Pods, uniqueV2Scopes } from './v2-pod-sweep'
 
 const NOW = new Date('2026-11-10T06:00:00Z')
 const hoursAgo = (hours: number): number => NOW.getTime() - hours * 60 * 60 * 1_000
@@ -232,6 +232,49 @@ describe('sweepV2Pods', () => {
     expect(summary).toMatchObject({ stopped: 0, failed: 2 })
   })
 
+  it('skips the pod that was unarchived between the listing and the delete', async () => {
+    const sandbox = new FakeSandboxProvider({
+      listings: [
+        listing({ sandboxSessionId: 'ses-revived' }),
+        listing({ sandboxSessionId: 'ses-gone' }),
+      ],
+    })
+    const retired: string[] = []
+
+    const summary = await sweepV2Pods({
+      scopes: [scope(sandbox)],
+      pods: noPods,
+      stillRetirable: async ({ podSessionId }) => podSessionId !== 'ses-revived',
+      onRetired: async ({ podSessionId }) => {
+        retired.push(podSessionId)
+      },
+      now: NOW,
+      dryRun: false,
+      log: () => undefined,
+    })
+
+    expect(sandbox.deleted).toEqual(['ses-gone'])
+    expect(retired).toEqual(['ses-gone'])
+    expect(summary).toMatchObject({ deleted: 1, kept: 1, failed: 0 })
+  })
+
+  it('keeps a running pod when it went live before the stop', async () => {
+    const sandbox = new FakeSandboxProvider({
+      listings: [listing({ sandboxSessionId: 'ses-revived', running: true })],
+    })
+
+    await sweepV2Pods({
+      scopes: [scope(sandbox)],
+      pods: { live: new Set(), retirable: new Set(['ses-revived']) },
+      stillRetirable: async () => false,
+      now: NOW,
+      dryRun: false,
+      log: () => undefined,
+    })
+
+    expect(sandbox.stopped).toEqual([])
+  })
+
   it('touches nothing on a dry run but still reports the plan', async () => {
     const sandbox = new FakeSandboxProvider({
       listings: [listing({ sandboxSessionId: 'ses-gone' })],
@@ -252,5 +295,52 @@ describe('sweepV2Pods', () => {
     expect(summary).toMatchObject({ scanned: 1, deleted: 0, stopped: 0, dryRun: true })
     expect(sandbox.deleted).toEqual([])
     expect(retired).toEqual([])
+  })
+})
+
+describe('uniqueV2Scopes', () => {
+  const vercelCredentials = (args: {
+    teamId: string
+    projectId: string
+    token: string
+  }): SandboxCredentials => ({
+    provider: ESandboxProvider.Vercel,
+    token: args.token,
+    teamId: args.teamId,
+    projectId: args.projectId,
+  })
+  const vercelScope = (label: string, token: string, projectId = 'prj-1') => ({
+    label,
+    credentials: vercelCredentials({ teamId: 'team-1', projectId, token }),
+    sandbox: new FakeSandboxProvider({}),
+  })
+
+  it('keeps one scope per Vercel team and project, platform first', () => {
+    const scopes = uniqueV2Scopes([
+      vercelScope('platform/vercel', 'platform-token'),
+      vercelScope('usr-1/prj-1', 'user-token'),
+      vercelScope('usr-1/prj-2', 'user-token', 'prj-2'),
+    ])
+
+    expect(scopes.map((scope) => scope.label)).toEqual(['platform/vercel', 'usr-1/prj-2'])
+  })
+
+  it('keeps one Agent37 scope, since there is one platform account', () => {
+    const agent37 = (label: string) => ({
+      label,
+      credentials: AGENT37_CREDENTIALS,
+      sandbox: new FakeSandboxProvider({}),
+    })
+
+    expect(uniqueV2Scopes([agent37('platform/agent37'), agent37('duplicate')])).toHaveLength(1)
+  })
+
+  it('keeps the providers apart even for the same label', () => {
+    const scopes = uniqueV2Scopes([
+      vercelScope('platform', 'platform-token'),
+      { label: 'platform', credentials: AGENT37_CREDENTIALS, sandbox: new FakeSandboxProvider({}) },
+    ])
+
+    expect(scopes).toHaveLength(2)
   })
 })

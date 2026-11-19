@@ -4,7 +4,12 @@ import { describe, expect, it } from 'bun:test'
 import { sandboxNameFor } from '../../platform/sandboxes/sandbox-names'
 import { sandboxNameOf } from '../../../agent'
 import { seedThreadRow, seedUsers } from '../../../../test/session-seed'
-import { liveSandboxNames, retirableSandboxNames, v2Pods } from './live-sandbox-names'
+import {
+  liveSandboxNames,
+  podStillRetirable,
+  retirableSandboxNames,
+  v2Pods,
+} from './live-sandbox-names'
 
 const NOW = new Date('2026-11-10T06:00:00Z')
 const hoursBefore = (hours: number): Date => new Date(NOW.getTime() - hours * 60 * 60 * 1_000)
@@ -129,5 +134,18 @@ describe('liveSandboxNames', () => {
     expect(live.has('v2-fresh')).toBe(true)
     expect(live.has('v2-shared')).toBe(true)
     expect(sessionIdsByPod.get('v2-a')).toEqual(['v2-a', 'v2-b'])
+  })
+
+  it('says a pod is still retirable only while every session on it stays archived', async () => {
+    await v2Session({ id: 'v2-a', archivedAt: hoursBefore(25) })
+    await v2Session({ id: 'v2-b', podSessionId: 'v2-a', archivedAt: hoursBefore(25) })
+    await v2Session({ id: 'v2-fresh', podSessionId: 'v2-fresh', archivedAt: hoursBefore(1) })
+
+    expect(await podStillRetirable({ podSessionId: 'v2-a', now: NOW })).toBe(true)
+    expect(await podStillRetirable({ podSessionId: 'v2-unknown', now: NOW })).toBe(true)
+    expect(await podStillRetirable({ podSessionId: 'v2-fresh', now: NOW })).toBe(false)
+
+    await db.orm.v2.V2Session.where({ id: 'v2-b' }).updateAndCount({ archivedAt: null })
+    expect(await podStillRetirable({ podSessionId: 'v2-a', now: NOW })).toBe(false)
   })
 })

@@ -26,7 +26,7 @@ import {
   type Agent37Env,
   type Agent37InstanceIds,
 } from './agent37-instances'
-import { liveAgent37Client, type Agent37Client } from './agent37-client'
+import { isAgent37Missing, liveAgent37Client, type Agent37Client } from './agent37-client'
 import { agent37ShapeOfVcpus } from './agent37-resize'
 
 const apiKeyOf = (given: SandboxCredentials): string => {
@@ -186,12 +186,49 @@ export class Agent37SandboxProvider extends SandboxProvider {
     await this.clientOf(apiKeyOf(args.target.credentials)).exec({ id: instanceId, command: 'true' })
   }
 
+  /**
+   * Every instance this account holds for the pod, not just the remembered one: a create that died
+   * before it was remembered, or a session row that was soft-deleted, leaves an orphan the mapping
+   * no longer knows about. The pod key in the instance metadata is what survives both.
+   */
+  private async instanceIdsOf(args: {
+    client: Agent37Client
+    podSessionId: string
+  }): Promise<Set<string>> {
+    const ids = new Set<string>()
+    const known = await this.args.instances.find({ podSessionId: args.podSessionId })
+    if (known !== null) ids.add(known)
+    let cursor: string | undefined
+    for (;;) {
+      const page = await args.client.list(cursor === undefined ? {} : { cursor })
+      for (const instance of page.data) {
+        if (instance.metadata?.[AGENT37_POD_SESSION_KEY] === args.podSessionId) ids.add(instance.id)
+      }
+      if (page.next === undefined) return ids
+      cursor = page.next
+    }
+  }
+
   async delete(args: { target: SandboxTarget }): Promise<void> {
-    const instanceId = await this.args.instances.find({
-      podSessionId: args.target.sandboxSessionId,
-    })
-    if (instanceId === null) return
-    await this.clientOf(apiKeyOf(args.target.credentials)).remove({ id: instanceId })
+    const podSessionId = args.target.sandboxSessionId
+    const client = this.clientOf(apiKeyOf(args.target.credentials))
+    let leftRunning = false
+    for (const instanceId of await this.instanceIdsOf({ client, podSessionId })) {
+      try {
+        // A running instance has someone behind it; the sweep stops it on one pass and deletes it
+        // on a later one, so a pod that came alive is never deleted under its user.
+        if ((await client.get({ id: instanceId })).status === 'running') {
+          leftRunning = true
+          continue
+        }
+        await client.remove({ id: instanceId })
+      } catch (failure) {
+        if (!isAgent37Missing(failure)) throw failure
+      }
+    }
+    // The mapping still has to find a pod that was left running, so it is only forgotten once the
+    // pod has nothing live left.
+    if (!leftRunning) await this.args.instances.forget({ podSessionId })
   }
 
   async list(args: { credentials: SandboxCredentials }): Promise<readonly SandboxListing[]> {

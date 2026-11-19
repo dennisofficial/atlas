@@ -184,7 +184,9 @@ export class VercelSandboxProvider extends SandboxProvider {
         resume: false,
         signal,
       })
-      if (sandbox.status === 'running') await sandbox.stop({ signal })
+      // A running sandbox has someone behind it: the sweep stops it on one pass and deletes it on a
+      // later one, so delete never races a live pod into deletion.
+      if (sandbox.status === 'running') return
       await sandbox.delete({ signal })
     } catch (failure) {
       if (isSandboxMissing(failure)) return

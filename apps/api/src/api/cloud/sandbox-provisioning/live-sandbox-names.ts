@@ -38,6 +38,26 @@ export async function v2Pods(args: { now: Date }): Promise<V2Pods> {
 }
 
 /**
+ * Re-checks one pod right before the sweep stops or deletes it: a session unarchived between the
+ * listing and the action makes the pod live again, and it must not be touched. A pod whose rows are
+ * gone is retirable — no session can resolve it any more.
+ */
+export async function podStillRetirable(args: {
+  podSessionId: string
+  now: Date
+}): Promise<boolean> {
+  const cutoff = args.now.getTime() - ARCHIVED_SANDBOX_GRACE_MS
+  const sessions = await db.orm.v2.V2Session.where((session) =>
+    or(session.id.eq(args.podSessionId), session.podSessionId.eq(args.podSessionId)),
+  )
+    .select('archivedAt')
+    .all()
+  return sessions.every(
+    (session) => session.archivedAt !== null && session.archivedAt.getTime() < cutoff,
+  )
+}
+
+/**
  * The v1 names whose sandbox must not be running: nothing live can resume them. A cloud sandbox
  * whose session is archived past the grace has been parked by archiving; the grace lets an
  * unarchive bring it back before this list lets the hourly sweep finish the job. v2 pods are

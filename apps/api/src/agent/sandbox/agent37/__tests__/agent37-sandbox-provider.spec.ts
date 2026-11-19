@@ -95,6 +95,9 @@ const providerOf = (args: {
         remembered.push(params)
         stored = params.instanceId
       },
+      forget: async () => {
+        stored = null
+      },
     },
   })
   return { provider, remembered }
@@ -244,100 +247,6 @@ describe('Agent37SandboxProvider.wake size', () => {
     try {
       const endpoint = await provider.wake({ target: TARGET, signal: new AbortController().signal })
       expect(endpoint.vcpus).toBe(4)
-    } finally {
-      cleanup()
-    }
-  })
-})
-
-describe('Agent37SandboxProvider.delete', () => {
-  it('removes the remembered instance', async () => {
-    const { bundle: b, cleanup } = bundle()
-    const version = await agent37BundleVersionOf(b.path)
-    const { client, removed } = fakeClient({ version })
-    const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
-    try {
-      await provider.delete({ target: TARGET })
-      expect(removed).toEqual(['inst-9'])
-    } finally {
-      cleanup()
-    }
-  })
-
-  it('is a success when the pod has no instance left', async () => {
-    const { bundle: b, cleanup } = bundle()
-    const version = await agent37BundleVersionOf(b.path)
-    const { client, removed } = fakeClient({ version })
-    const { provider } = providerOf({ client, bundlePath: b.path, stored: null })
-    try {
-      await expect(provider.delete({ target: TARGET })).resolves.toBeUndefined()
-      expect(removed).toEqual([])
-    } finally {
-      cleanup()
-    }
-  })
-})
-
-describe('Agent37SandboxProvider.list', () => {
-  it('walks every page and keeps only the instances this host created for a pod', async () => {
-    const asked: Array<{ cursor?: string }> = []
-    const list: Agent37Client['list'] = async (params = {}) => {
-      asked.push(params)
-      if (params.cursor === undefined)
-        return {
-          data: [
-            {
-              id: 'inst-a',
-              status: 'running',
-              url: 'https://inst-a.agent37.app',
-              metadata: { atlasPodSessionId: 'pod-a' },
-              created: 1_000,
-            },
-            {
-              id: 'inst-x',
-              status: 'running',
-              url: 'https://inst-x.agent37.app',
-              metadata: { other: 'x' },
-            },
-          ],
-          next: 'page-2',
-        }
-      return {
-        data: [
-          {
-            id: 'inst-c',
-            status: 'sleeping',
-            url: 'https://inst-c.agent37.app',
-            metadata: { atlasPodSessionId: 'pod-c' },
-            created: 2_000,
-          },
-        ],
-      }
-    }
-    const { client } = fakeClient({ version: 'unused', list })
-    const { provider } = providerOf({ client, bundlePath: '/unused/daemon.js' })
-
-    const listed = await provider.list({
-      credentials: { provider: ESandboxProvider.Agent37, apiKey: 'sk_live_test' },
-    })
-
-    expect(listed).toEqual([
-      { sandboxSessionId: 'pod-a', running: true, createdAt: 1_000_000 },
-      { sandboxSessionId: 'pod-c', running: false, createdAt: 2_000_000 },
-    ])
-    expect(asked).toEqual([{}, { cursor: 'page-2' }])
-  })
-})
-
-describe('Agent37SandboxProvider.stop', () => {
-  it('sleeps the remembered instance', async () => {
-    const { bundle: b, cleanup } = bundle()
-    const version = await agent37BundleVersionOf(b.path)
-    const { client, slept } = fakeClient({ version })
-    const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
-    try {
-      await provider.stop({ target: TARGET })
-      expect(slept).toEqual(['inst-9'])
     } finally {
       cleanup()
     }

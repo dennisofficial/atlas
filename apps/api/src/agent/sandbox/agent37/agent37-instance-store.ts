@@ -23,4 +23,9 @@ export const agent37InstanceIdsOf = (db: Db): Agent37InstanceIds => ({
       sandboxInstanceId: instanceId,
     })
   },
+  forget: async ({ podSessionId }) => {
+    const row = await rowOf(db, podSessionId)
+    if (row === null) return
+    await db.orm.v2.V2Session.where({ id: row.id }).updateAndCount({ sandboxInstanceId: null })
+  },
 })
