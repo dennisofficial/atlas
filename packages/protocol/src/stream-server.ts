@@ -20,7 +20,8 @@ const idSchema = z.string().min(1)
 
 export { streamStepKeySchema }
 
-export const streamSessionRowSchema = sessionSummarySchema
+// Rows strip unknown keys so an older client keeps reading a list once the server adds a field.
+export const streamSessionRowSchema = z.object(sessionSummarySchema.shape)
 
 const viewFrameShape = { type: z.literal('view'), id: idSchema, at: z.number().int().min(0) }
 
