@@ -19,6 +19,7 @@ import { CloudError } from '../cloud-client'
 import { CloudService } from '../cloud-service'
 import { CloudSessionStore } from '../cloud-session'
 import { instantSleep } from './instant-sleep'
+import { trpcBodyOf } from './trpc-body'
 import { trpcCallOf, trpcData, trpcFailure, trpcVoid } from './trpc-wire'
 
 const clock: ClockPort = { now: () => '2026-01-01T00:00:00.000Z' }
@@ -77,7 +78,7 @@ const cloudFake = (): CloudFake => {
     const method = init?.method ?? 'GET'
     const body =
       typeof init?.body === 'string'
-        ? (JSON.parse(init.body) as Record<string, unknown>)
+        ? (trpcBodyOf(init.body) as Record<string, unknown>)
         : undefined
     fake.clientVersions.push({
       path,

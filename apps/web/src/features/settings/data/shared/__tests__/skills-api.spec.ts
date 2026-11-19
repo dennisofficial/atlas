@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import { createApiClient } from '@dltech/atlas-api-router'
 import { ESkillScope } from '@dltech/atlas-wire/web'
 
+import { trpcBodyOf } from '@/lib/__tests__/trpc-body'
 import * as realApiClient from '@/lib/api-client'
 
 let calls: { url: string; init?: RequestInit }[]
@@ -120,7 +121,7 @@ describe('skills api', () => {
       baseRevision: 6,
     })
     expect(revision).toBe(7)
-    const sent = JSON.parse(String(calls[0]?.init?.body))
+    const sent = trpcBodyOf(String(calls[0]?.init?.body))
     expect(sent).toMatchObject({
       skill: 'tdd',
       path: 'SKILL.md',
@@ -170,7 +171,7 @@ describe('skills api', () => {
       'fresh text',
     )
     expect(result).toEqual({ outcome: 'saved', revision: 4 })
-    expect(JSON.parse(String(calls[0]?.init?.body))).toMatchObject({
+    expect(trpcBodyOf(String(calls[0]?.init?.body))).toMatchObject({
       baseRevision: 3,
       content: toBase64Utf8('fresh text'),
     })

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { CloudClient } from '../cloud-client'
+import { trpcBodyOf } from './trpc-body'
 
 const recordingClient = () => {
   const requests: { path: string; method: string; body: unknown }[] = []
@@ -12,7 +13,7 @@ const recordingClient = () => {
         requests.push({
           path: new URL(String(input)).pathname,
           method: init?.method ?? 'GET',
-          body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
+          body: typeof init?.body === 'string' ? trpcBodyOf(init.body) : undefined,
         })
         return Response.json({ result: {} })
       },

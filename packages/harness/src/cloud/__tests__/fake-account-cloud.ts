@@ -1,5 +1,7 @@
 import { EAccountStatus, EAuthKind } from '@dltech/atlas-core'
 
+import { trpcBodyOf } from './trpc-body'
+
 type Json = Record<string, unknown>
 
 export type FakeAccountCloud = {
@@ -34,7 +36,7 @@ const withoutSecret = ({ secret: _secret, ...account }: Json): Json => account
 const inputOf = async (request: Request): Promise<Json> => {
   const url = new URL(request.url)
   const raw = request.method === 'GET' ? url.searchParams.get('input') : await request.text()
-  return raw === null || raw === '' ? {} : (JSON.parse(raw) as Json)
+  return raw === null || raw === '' ? {} : (trpcBodyOf(raw) as Json)
 }
 
 export function startFakeAccountCloud(): FakeAccountCloud {

@@ -13,6 +13,7 @@ import {
 import { CloudClient, CloudError, cloudClientFor } from '../cloud-client'
 import { isTrpcUrl, trpcCallOf, trpcData, trpcError } from './accounts-trpc-fake'
 import { instantSleep } from './instant-sleep'
+import { trpcBodyOf } from './trpc-body'
 
 const TOKEN = 'sess_test_token'
 
@@ -53,7 +54,7 @@ const clientWith = (
       url: String(input),
       method: init?.method ?? 'GET',
       headers: init?.headers,
-      body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
+      body: typeof init?.body === 'string' ? trpcBodyOf(init.body) : undefined,
     }
     if (isTrpcUrl(call.url)) {
       const { procedure, input: trpcInput } = trpcCallOf({ url: call.url, body: call.body })
