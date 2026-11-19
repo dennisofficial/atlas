@@ -118,8 +118,8 @@ describe('openStdioChannel', () => {
 
   test('spawns with the injected PATH and the spec environment', async () => {
     const record = recorder()
-    const seen: { env?: Record<string, string | undefined> } = {}
-    const spawn = ((options: Parameters<typeof Bun.spawn>[0]) => {
+    const seen: { env?: Record<string, string | undefined> | undefined } = {}
+    const spawn = ((options: { env?: Record<string, string | undefined> | undefined }) => {
       seen.env = options.env
       return Bun.spawn({
         cmd: [process.execPath, '-e', 'setTimeout(() => undefined, 5_000)'],

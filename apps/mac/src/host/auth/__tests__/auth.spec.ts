@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { SESSION_COOKIE } from '../../guard'
 import { createDesktopHost, type IDesktopHost } from '../../index'
-import { createAuthService } from '../auth-service'
+import { createAuthService, ECallbackOutcome } from '../auth-service'
 import { createTokenStore } from '../token-store'
 
 const SECRET = 'c'.repeat(64)
@@ -266,7 +266,7 @@ describe('auth change listeners', () => {
     const outcome = await service.callback(
       new URL(`http://127.0.0.1:4321/desktop/auth/callback?code=code-1&state=${state}`),
     )
-    expect(outcome).toBe('signed-in')
+    expect(outcome).toBe(ECallbackOutcome.SignedIn)
     expect(fired).toBe(1)
 
     await service.adopt('tok-2')
