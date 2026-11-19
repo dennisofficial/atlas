@@ -44,8 +44,14 @@ export class TurnsService {
     threadId: string
     runId: string
     draft: Omit<RecordTurnInput, 'threadId' | 'runId'>
+    sessionLive?: boolean | undefined
   }): Promise<void> {
-    await ownedThread({ reader: db, userId: args.userId, threadId: args.threadId })
+    await ownedThread({
+      reader: db,
+      userId: args.userId,
+      threadId: args.threadId,
+      sessionLive: args.sessionLive,
+    })
     const { startedAt, endedAt, ...rest } = args.draft
     const columns = { ...rest, startedAt: new Date(startedAt), endedAt: new Date(endedAt) }
     await db.orm.public.Turn.upsert({
@@ -54,16 +60,34 @@ export class TurnsService {
     })
   }
 
-  async forThread(args: { userId: string; threadId: string }): Promise<TurnDto[]> {
-    await ownedThread({ reader: db, userId: args.userId, threadId: args.threadId })
+  async forThread(args: {
+    userId: string
+    threadId: string
+    sessionLive?: boolean | undefined
+  }): Promise<TurnDto[]> {
+    await ownedThread({
+      reader: db,
+      userId: args.userId,
+      threadId: args.threadId,
+      sessionLive: args.sessionLive,
+    })
     const rows = await db.orm.public.Turn.where({ threadId: args.threadId, userId: args.userId })
       .orderBy((turn) => turn.startedAt.asc())
       .all()
     return rows.map(toTurnDto)
   }
 
-  async forThreadTree(args: { userId: string; threadId: string }): Promise<TurnTreeDto> {
-    await ownedThread({ reader: db, userId: args.userId, threadId: args.threadId })
+  async forThreadTree(args: {
+    userId: string
+    threadId: string
+    sessionLive?: boolean | undefined
+  }): Promise<TurnTreeDto> {
+    await ownedThread({
+      reader: db,
+      userId: args.userId,
+      threadId: args.threadId,
+      sessionLive: args.sessionLive,
+    })
     const spawned = await readSpawnedThreadIds(args)
     const rows = await db.orm.public.Turn.where((turn) =>
       turn.threadId.in([args.threadId, ...spawned]),

@@ -1,4 +1,10 @@
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common'
+import {
+  Injectable,
+  Logger,
+  UnauthorizedException,
+  type OnModuleDestroy,
+  type OnModuleInit,
+} from '@nestjs/common'
 import type { RegisterSandboxMetadata } from '@dltech/atlas-wire'
 import { db, type Row } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
@@ -10,6 +16,8 @@ import { claimSandboxRow } from './sandbox-claim'
 import { sandboxStateOf } from './sandbox-lifecycle'
 import { SandboxEndpointService } from './sandbox-endpoint'
 import { SandboxPrincipalCache } from './sandbox-principal-cache'
+import { lookupTokenPrincipal, type TokenLookup } from './sandbox-principal-lookup'
+import { PrincipalRevocations } from './sandbox-principal-revocations'
 import { registerSandbox, type RegisterSandboxArgs } from './sandbox-register'
 import { findOrCreateClaimThread } from './sandbox-thread'
 import { hashSessionToken, mintSessionToken, tokenMatches } from './sandbox-tokens'
@@ -33,12 +41,19 @@ const messageOf = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
 
 @Injectable()
-export class SandboxesService {
+export class SandboxesService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(SandboxesService.name)
 
   private readonly endpoints: SandboxEndpointService
 
   private readonly principals = new SandboxPrincipalCache()
+
+  /** Swappable so a spec can hold a lookup open across a revoking write. */
+  lookupPrincipal: TokenLookup = lookupTokenPrincipal
+
+  private readonly revocations = new PrincipalRevocations(this.principals, (line, error) =>
+    this.logger.warn(error === undefined ? line : `${line}: ${messageOf(error)}`),
+  )
 
   constructor(
     private readonly vercel: VercelSandboxClient,
@@ -46,6 +61,19 @@ export class SandboxesService {
     private readonly signals: ThreadSignalsService,
   ) {
     this.endpoints = new SandboxEndpointService(vercel, cipher)
+  }
+
+  onModuleInit(): void {
+    this.startPrincipalWatch()
+  }
+
+  /** Exposed for a process that builds the service by hand, and for the specs that stand up two. */
+  startPrincipalWatch(): void {
+    this.revocations.start()
+  }
+
+  onModuleDestroy(): Promise<void> {
+    return this.revocations.close()
   }
 
   /**
@@ -88,7 +116,7 @@ export class SandboxesService {
         : { sealedGitToken: this.cipher.encrypt(args.gitToken) }),
       ...(args.contextPending === undefined ? {} : { contextPending: args.contextPending }),
     })
-    this.principals.forgetSession(thread.sessionId)
+    await this.revocations.revoke(thread.sessionId)
     return {
       threadId: args.threadId,
       name: row.name,
@@ -108,7 +136,7 @@ export class SandboxesService {
    */
   private async register(args: RegisterSandboxArgs): Promise<SandboxAttachmentDto> {
     const attachment = await registerSandbox({ ...args, cipher: this.cipher })
-    this.principals.clear()
+    await this.revocations.revokeAll()
     return attachment
   }
 
@@ -158,7 +186,7 @@ export class SandboxesService {
     await ownedSandbox(args)
     const sessionId = await podSessionOf({ reader: db, threadId: args.threadId })
     await db.orm.public.CloudSandbox.where({ sessionId }).delete()
-    this.principals.forgetSession(sessionId)
+    await this.revocations.revoke(sessionId)
     await this.signals.podChanged({ threadId: args.threadId })
   }
 
@@ -173,32 +201,30 @@ export class SandboxesService {
     return { userId: row.userId }
   }
 
+  /**
+   * One indexed read resolves the bearer either way: the sandbox row joined to its session, or the
+   * local-pod lease. A cached sandbox principal answers without touching the database at all; a
+   * miss is a single round trip.
+   */
   async verifyTokenPrincipal(args: { token: string }): Promise<TokenPrincipal> {
     const tokenHash = hashSessionToken(args.token)
-    const [sandbox, pod] = await Promise.all([
-      this.sandboxPrincipal(tokenHash),
-      db.orm.public.LocalPodLease.where({ tokenHash }).select('threadId', 'userId').first(),
-    ])
-    if (sandbox !== null && pod === null) return { kind: ETokenPrincipalKind.Sandbox, ...sandbox }
-    if (pod !== null && sandbox === null) return { kind: ETokenPrincipalKind.Pod, ...pod }
-    throw new UnauthorizedException('a valid sandbox session token is required')
-  }
-
-  private async sandboxPrincipal(tokenHash: string) {
     const cached = this.principals.get(tokenHash)
-    if (cached !== null) return cached
+    if (cached !== null) return { kind: ETokenPrincipalKind.Sandbox, ...cached }
     const lookup = this.principals.beginLookup()
-    const row = await db.orm.public.CloudSandbox.where({ tokenHash })
-      .select('id', 'sessionId', 'userId')
-      .first()
-    if (row === null) return null
-    const session = await db.orm.public.Session.where({ id: row.sessionId })
-      .select('mainThreadId')
-      .first()
-    if (session?.mainThreadId == null) return null
-    const principal = { id: row.id, userId: row.userId, threadId: session.mainThreadId }
-    this.principals.remember({ tokenHash, principal, sessionId: row.sessionId, lookup })
-    return principal
+    const resolved = await this.lookupPrincipal(tokenHash)
+    if (resolved.sandbox !== null && resolved.pod !== null) {
+      throw new UnauthorizedException('a valid sandbox session token is required')
+    }
+    if (resolved.sandbox !== null) {
+      const principal = this.principals.rememberResolved({
+        resolved: resolved.sandbox,
+        tokenHash,
+        lookup,
+      })
+      return { kind: ETokenPrincipalKind.Sandbox, ...principal }
+    }
+    if (resolved.pod !== null) return { kind: ETokenPrincipalKind.Pod, ...resolved.pod }
+    throw new UnauthorizedException('a valid sandbox session token is required')
   }
 
   /**
@@ -239,7 +265,7 @@ export class SandboxesService {
       runtimeCheckpointRevision: null,
       updatedAt: new Date(),
     })
-    this.principals.forgetSession(args.row.sessionId)
+    await this.revocations.revoke(args.row.sessionId)
     await this.signals.podChanged({ threadId: args.threadId })
   }
 

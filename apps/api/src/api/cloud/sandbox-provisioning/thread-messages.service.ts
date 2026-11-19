@@ -123,7 +123,7 @@ export class ThreadMessagesService {
     args: SendArgs & { thread: Row<'Thread'>; claimable: boolean },
   ): Promise<StagedSend> {
     const { thread, userId, threadId, sendId, text, images, uploads, attachments, claimable } = args
-    return db.transaction(async (tx) => {
+    const staged = await db.transaction(async (tx) => {
       await lockThread({ tx, threadId })
       const podLease = await tx.orm.public.LocalPodLease.where({ threadId }).select('id').first()
       if (podLease !== null) throw new ConflictException(LOCAL_POD_MESSAGE)
@@ -157,5 +157,7 @@ export class ThreadMessagesService {
         ...(appended === undefined ? {} : { appended: appended.appended }),
       }
     })
+    await this.pod.revokeAfterCommit(staged.claim)
+    return staged
   }
 }

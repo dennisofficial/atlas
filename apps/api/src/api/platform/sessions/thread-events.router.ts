@@ -44,6 +44,8 @@ import { CLIENT_READ_LIMIT_PER_MINUTE } from '../../client-rate-limit'
 import { DrainStateService } from '../health/drain-state.service'
 import { EventsService } from './events.service'
 import {
+  liveOnly,
+  sandboxOwnThread,
   SessionOrSandboxMiddleware,
   type SessionOrSandboxTrpcCtx,
 } from './session-or-sandbox.middleware'
@@ -89,6 +91,7 @@ export class ThreadEventsRouter {
       threadId: input.threadId,
       fromSeq: input.fromSeq,
       upTo: input.upTo,
+      ...liveOnly(sandboxOwnThread({ ctx, threadId: input.threadId })),
     }
     if (input.own === true) return this.events.readOwn(args)
     return this.events.read(args)
@@ -122,7 +125,11 @@ export class ThreadEventsRouter {
     if (this.drain.isDraining()) {
       throw new ServiceUnavailableException('the api is restarting — retry the stream')
     }
-    await this.events.head({ userId: ctx.auth.userId, threadId: input.threadId })
+    await this.events.head({
+      userId: ctx.auth.userId,
+      threadId: input.threadId,
+      ...liveOnly(sandboxOwnThread({ ctx, threadId: input.threadId })),
+    })
     return orderedThreadEvents({
       threadId: input.threadId,
       lastEventId: input.lastEventId,
@@ -178,7 +185,13 @@ export class ThreadEventsRouter {
     }
     const { threadId } = input
     const readHead = async (): Promise<number> =>
-      (await this.events.head({ userId: ctx.auth.userId, threadId })).head
+      (
+        await this.events.head({
+          userId: ctx.auth.userId,
+          threadId,
+          ...liveOnly(sandboxOwnThread({ ctx, threadId })),
+        })
+      ).head
     await readHead()
     return threadStreamFrames({
       signal: opts.signal,
