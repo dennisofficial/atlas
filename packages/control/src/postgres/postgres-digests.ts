@@ -18,9 +18,11 @@ export const sessionDigestsIn = async (
     params.tx.raw
       .sql`SELECT s."id", s."userId", s."projectId", s."title", s."mainThreadId", s."createdAt", s."archivedAt",
         s."deletedAt", s."modelRef", s."modelEffort", s."modelFast", s."spawnedBySessionId", s."nested",
-        s."podSessionId", s."routineId",
+        s."podSessionId", s."routineId", s."readSeq",
         (SELECT e."at" FROM "v2"."V2Event" e
           WHERE e."threadId" = s."mainThreadId" ORDER BY e."seq" DESC LIMIT 1) AS "lastEventAt",
+        COALESCE((SELECT MAX(e."seq") FROM "v2"."V2Event" e
+          WHERE e."threadId" = s."mainThreadId" AND e."type" = 'assistant-said'), 0) AS "lastAssistantSeq",
         first."text" AS "firstMessageText", first."postedAt" AS "firstMessageAt"
       FROM "v2"."V2Session" s
       LEFT JOIN LATERAL (
@@ -52,7 +54,9 @@ export const sessionDigestsIn = async (
         nested: 'pg/bool@1',
         podSessionId: { codecId: 'pg/text@1', nullable: true },
         routineId: { codecId: 'pg/text@1', nullable: true },
+        readSeq: { codecId: 'pg/int4@1', nullable: true },
         lastEventAt: { codecId: 'pg/timestamptz-date@1', nullable: true },
+        lastAssistantSeq: 'pg/int4@1',
         firstMessageText: { codecId: 'pg/text@1', nullable: true },
         firstMessageAt: { codecId: 'pg/timestamptz-date@1', nullable: true },
       })
@@ -74,7 +78,9 @@ export const sessionDigestsIn = async (
     nested: row.nested,
     podSessionId: row.podSessionId,
     routineId: row.routineId,
+    readSeq: row.readSeq,
     lastEventAt: row.lastEventAt === null ? null : iso(row.lastEventAt),
+    lastAssistantSeq: row.lastAssistantSeq,
     firstMessageText: row.firstMessageText,
     firstMessageAt: row.firstMessageAt === null ? null : iso(row.firstMessageAt),
   }))

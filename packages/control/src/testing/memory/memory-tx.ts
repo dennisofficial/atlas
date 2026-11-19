@@ -64,6 +64,7 @@ import {
   listSessionsIn,
   readSessionIn,
   setSessionArchivedIn,
+  setSessionReadSeqIn,
   setSessionTitleIfUntitledIn,
   setSessionTitleIn,
 } from './memory-sessions'
@@ -120,6 +121,10 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
 
   async setSessionArchived(params: { sessionId: string; archivedAt: string | null }) {
     return setSessionArchivedIn({ state: this.state, ...params })
+  }
+
+  async setSessionReadSeq(params: { sessionId: string; seq: number }) {
+    return setSessionReadSeqIn({ state: this.state, ...params })
   }
 
   async lockSession(sessionId: string): Promise<ControlSessionRow | undefined> {

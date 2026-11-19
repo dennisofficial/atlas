@@ -17,6 +17,8 @@ import {
   sessionEventsOutputSchema,
   sessionListInputSchema,
   sessionListOutputSchema,
+  sessionMarkReadInputSchema,
+  sessionMarkReadOutputSchema,
   sessionPodResourcesInputSchema,
   sessionPodResourcesOutputSchema,
   sessionPostInputSchema,
@@ -49,6 +51,8 @@ import {
   type SessionEventsOutput,
   type SessionListInput,
   type SessionListOutput,
+  type SessionMarkReadInput,
+  type SessionMarkReadOutput,
   type SessionPodResourcesInput,
   type SessionPodResourcesOutput,
   type SessionPostInput,
@@ -122,6 +126,14 @@ export class SessionsRouter {
     @Ctx() ctx: SessionTrpcCtx,
   ): Promise<SessionArchiveOutput> {
     return this.sessions.archive({ userId: ctx.auth.userId, ...input })
+  }
+
+  @Mutation({ input: sessionMarkReadInputSchema, output: sessionMarkReadOutputSchema })
+  markRead(
+    @Input() input: SessionMarkReadInput,
+    @Ctx() ctx: SessionTrpcCtx,
+  ): Promise<SessionMarkReadOutput> {
+    return this.sessions.markRead({ userId: ctx.auth.userId, ...input })
   }
 
   @Query({ input: sessionPageInputSchema, output: sessionPageOutputSchema })

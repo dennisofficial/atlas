@@ -28,6 +28,12 @@ const firstMessageOf = (params: {
   }
 }
 
+const lastAssistantSeqOf = (params: { state: State; threadId: string }): number =>
+  (params.state.events.get(params.threadId) ?? []).reduce(
+    (best, event) => (event.type === 'assistant-said' ? Math.max(best, event.seq) : best),
+    0,
+  )
+
 export const sessionDigestsIn = (
   params: { state: State } & SessionListParams,
 ): SessionDigestRow[] =>
@@ -43,9 +49,10 @@ export const sessionDigestsIn = (
     )
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
     .slice(0, params.limit)
-    .map(sessionRowOf)
-    .map((session) => ({
-      ...session,
-      lastEventAt: params.state.events.get(session.mainThreadId)?.at(-1)?.at ?? null,
-      ...firstMessageOf({ state: params.state, sessionId: session.sessionId }),
+    .map((row) => ({
+      ...sessionRowOf(row),
+      readSeq: row.readSeq,
+      lastEventAt: params.state.events.get(row.mainThreadId)?.at(-1)?.at ?? null,
+      lastAssistantSeq: lastAssistantSeqOf({ state: params.state, threadId: row.mainThreadId }),
+      ...firstMessageOf({ state: params.state, sessionId: row.sessionId }),
     }))

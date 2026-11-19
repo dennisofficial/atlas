@@ -28,6 +28,7 @@ import {
   type SessionCommandOutput,
   type SessionEventsOutput,
   type SessionListOutput,
+  type SessionMarkReadOutput,
   type SessionMessageDraft,
   type SessionPodResourcesOutput,
   type SessionPostMedia,
@@ -268,6 +269,16 @@ export class SessionsService {
       archivedAt,
     })
     return { archivedAt }
+  }
+
+  async markRead(args: {
+    userId: string
+    sessionId: string
+    seq: number
+  }): Promise<SessionMarkReadOutput> {
+    await this.requireOwnedSession(args)
+    const readSeq = await this.plane.markSessionRead({ sessionId: args.sessionId, seq: args.seq })
+    return { readSeq }
   }
 
   async events(args: {

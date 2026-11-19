@@ -20,7 +20,7 @@ import { latestThreadPullRequestOf, threadPullRequestsOf } from './thread-pull-r
 import { CompactWorkIcon, ThreadWorkSummary } from './thread-pr-presentation'
 import { EThreadStatus, isUnread, isWorking, threadStatusOf } from './thread-status'
 import { v2SessionHref } from './v2-rows'
-import { v2StatusIconOf, type V2RowView } from './v2-status'
+import { v2IsUnread, v2StatusIconOf, type V2RowView } from './v2-status'
 
 export interface ThreadRowBodyProps {
   thread: WireThread
@@ -63,7 +63,8 @@ export function ThreadRowBody({
   const latest = latestThreadPullRequestOf(entries)
   const pinned = thread.pinnedAt !== null && thread.pinnedAt !== undefined
   const archived = thread.archivedAt !== null && thread.archivedAt !== undefined
-  const unread = isUnread({ thread, active })
+  const unread =
+    v2 && v2View !== undefined ? v2IsUnread({ view: v2View, active }) : isUnread({ thread, active })
   const naming = rowNamingOf({
     listedTitle: thread.title ?? null,
     listedNaming,

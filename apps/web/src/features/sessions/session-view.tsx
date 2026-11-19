@@ -30,6 +30,7 @@ import { sessionRefusalsOf } from './data/session-refusals'
 import { sessionBootViewOf } from './data/session-boot-view'
 import { sessionModelOf } from './data/session-model'
 import { sessionTranscriptOf } from './data/session-transcript'
+import { useSessionMarkRead } from './data/use-session-mark-read'
 import { useSessionModelChoice } from './data/use-session-model-choice'
 import { useSessionRunFailure } from './data/use-session-run-failure'
 import { sessionViewModelOf } from './data/session-view-model'
@@ -63,6 +64,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     connection: sessionStream,
     log: sessionLog(),
   })
+  useSessionMarkRead({ sessionId, head: snapshot.events.at(-1)?.seq })
   const sessions = useV2Sessions()
   const listed = sessions.find((session) => session.sessionId === sessionId)
   const sessionNameOf = useMemo(() => {
