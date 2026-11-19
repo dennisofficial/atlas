@@ -3,10 +3,11 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import { createTRPCClient, httpSubscriptionLink } from '@trpc/client'
 import { EventSource } from 'eventsource'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { seedSandboxRow, seedThreadRow, seedUsers } from '../../../../test/session-seed'
 import { waitFor } from '../../../../test/fake-timers'
 import type { AppRouter } from '../../../../../../packages/api-router/src/generated/server'
+import { keepaliveFrames, POD_WATCH_KEEPALIVE } from './sandbox-watch-keepalive'
 import {
   as,
   createSandboxSelfApp,
@@ -102,6 +103,24 @@ describe('SandboxSelfRouter watchEvents', () => {
 
     await waitFor(() => expect(frames.length).toBeGreaterThan(1))
     expect(frames.every((frame) => frame.type === EEventsWatchFrame.Tick)).toBe(true)
+  })
+
+  it('keeps a quiet stream warm with a frame the pod does not pull on', () => {
+    vi.useFakeTimers()
+    try {
+      const frames: EventsWatchFrame[] = []
+      const stop = keepaliveFrames({ push: (frame) => frames.push(frame) }, 1_000)
+
+      vi.advanceTimersByTime(2_500)
+      expect(frames).toEqual([POD_WATCH_KEEPALIVE, POD_WATCH_KEEPALIVE])
+      expect(frames.some((frame) => frame.type === EEventsWatchFrame.Tick)).toBe(false)
+
+      stop()
+      vi.advanceTimersByTime(2_000)
+      expect(frames).toHaveLength(2)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('does not tick for another thread in the same family', async () => {
