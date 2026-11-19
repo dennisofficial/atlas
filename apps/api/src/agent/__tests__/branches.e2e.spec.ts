@@ -63,6 +63,7 @@ const sourceWithRepo = (remoteUrl: string): ConfigSource => ({
       models: fakeModelSourceOf(model),
       vercel: { configured: true, token: '', teamId: '', projectId: '' },
       workspace: { remoteUrl, baseBranch: null, additionalRepos: [], setupScript: '' },
+      sandboxVcpus: undefined,
       skills: [],
     }
   },

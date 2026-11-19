@@ -1,4 +1,10 @@
-import { EToolEffect, isResumableOf, type ThreadId } from '@dltech/atlas-core'
+import {
+  EHeldAction,
+  EToolEffect,
+  isResumableOf,
+  type InboxEntry,
+  type ThreadId,
+} from '@dltech/atlas-core'
 import {
   HookedToolDispatcher,
   LoopTurnRunner,
@@ -69,6 +75,22 @@ export const startHeldTurn = (args: {
     .finally(() => {
       args.onSettled()
     })
+}
+
+const IDLE_COMMAND_ACTIONS: readonly EHeldAction[] = [
+  EHeldAction.StartTurn,
+  EHeldAction.Wait,
+  EHeldAction.Release,
+]
+
+export const ranQueuedCommand = async (args: {
+  action: EHeldAction
+  entries: readonly InboxEntry[]
+  turnRunning: boolean
+  runCommands?: ((entries: readonly InboxEntry[]) => Promise<boolean>) | undefined
+}): Promise<boolean> => {
+  if (args.turnRunning || !IDLE_COMMAND_ACTIONS.includes(args.action)) return false
+  return (await args.runCommands?.(args.entries)) === true
 }
 
 export const settleAndCheckResume = async (args: {
@@ -222,6 +244,7 @@ export const wireHeldLoop = (args: {
   branches: BranchObserver
   branchesStarted: Promise<void>
   recoverCommands(): Promise<void>
+  runCommands(entries: readonly InboxEntry[]): Promise<boolean>
   logStaged(): Promise<void>
 } => {
   const { runner, intake } = createLoopRunner(args)
@@ -233,6 +256,7 @@ export const wireHeldLoop = (args: {
     branches,
     branchesStarted,
     recoverCommands: () => intake.recoverUnfinished(),
+    runCommands: (entries) => intake.runCommands(entries),
     logStaged: () =>
       intake.logStaged({ willDrain: () => !args.turns.turnRunning && prepared(), prepared }),
   }

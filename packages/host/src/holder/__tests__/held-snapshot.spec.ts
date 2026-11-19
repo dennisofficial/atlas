@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import {
   chainEvents,
   EHeldAction,
+  EInputConsumed,
   EShellStatus,
   visibleLoopEvents,
   toRunId,
@@ -90,6 +91,36 @@ describe('readHeldAction over the pending log', () => {
 
   it('waits when nothing is pending in the inbox or the log', async () => {
     expect(await actionOf({ events: [] })).toBe(EHeldAction.Wait)
+  })
+})
+
+describe('readHeldAction after a consumed stop', () => {
+  const stopped = (): V2Body => ({
+    type: 'input-consumed',
+    inboxId: 9,
+    consumed: EInputConsumed.Stop,
+  })
+
+  it('does not start a turn for a stop left between the prompt and its first reply', async () => {
+    expect(await actionOf({ events: eventsOf([said('go'), stopped()]) })).toBe(EHeldAction.Wait)
+  })
+
+  it('does not resume the stopped turn on a take-over that folds the whole log', async () => {
+    const interrupted: V2Body = {
+      type: 'assistant-said',
+      parts: [{ type: 'text', text: 'working' }],
+      interrupted: true,
+      stopped: true,
+    }
+    expect(
+      await actionOf({ events: eventsOf([said('go'), interrupted, stopped()]), resumeAfterSeq: 0 }),
+    ).toBe(EHeldAction.Wait)
+  })
+
+  it('starts a turn again once the operator prompts after the stop', async () => {
+    expect(await actionOf({ events: eventsOf([said('go'), stopped(), said('try again')]) })).toBe(
+      EHeldAction.StartTurn,
+    )
   })
 })
 

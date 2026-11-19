@@ -264,4 +264,35 @@ describe('LoopState named cases', () => {
     expect(owesEndingOf(idle)).toBe(false)
     expect(owesEndingOf(initialLoopState())).toBe(false)
   })
+
+  it('ends a stopped turn for good: no reply owed, nothing to resume', () => {
+    const stopped = fold([
+      { type: 'user-said', text: 'go' },
+      { type: 'tool-called', callId: id, name: 'bash', input: 1, ordinal: 0 },
+      {
+        type: 'assistant-said',
+        parts: [{ type: 'text', text: 'working' }],
+        interrupted: true,
+        stopped: true,
+      },
+    ])
+    expect(awaitsReplyOf(stopped)).toBe(false)
+    expect(resumePlanOf(stopped)).toEqual({ kind: EResume.Nothing })
+    expect(isResumableOf(stopped)).toBe(false)
+  })
+
+  it('resumes a stopped turn only once the operator prompts again', () => {
+    const promptedAgain = fold([
+      { type: 'user-said', text: 'go' },
+      {
+        type: 'assistant-said',
+        parts: [{ type: 'text', text: 'working' }],
+        interrupted: true,
+        stopped: true,
+      },
+      { type: 'user-said', text: 'try again' },
+    ])
+    expect(awaitsReplyOf(promptedAgain)).toBe(true)
+    expect(isResumableOf(promptedAgain)).toBe(true)
+  })
 })

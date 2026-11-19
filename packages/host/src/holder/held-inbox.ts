@@ -60,17 +60,15 @@ export const actionableEntries = (args: {
 export const isStop = (entry: InboxEntry): boolean => entry.kind === INBOX_KIND_STOP
 
 export const stopSettledPromptOf = (events: readonly V2Event[]): boolean => {
-  const stop = events.findLast(
-    (event): event is Extract<V2Event, { type: 'input-consumed' }> =>
-      event.type === 'input-consumed' && event.consumed === EInputConsumed.Stop,
-  )
-  if (stop === undefined) return false
-  const prompt = events.findLast(
-    (event): event is Extract<V2Event, { type: 'user-said' }> =>
-      event.type === 'user-said' && event.seq < stop.seq,
-  )
-  const inboxId = prompt?.inboxId
-  return inboxId !== undefined && inboxId < stop.inboxId
+  let lastPrompt = -1
+  let lastStop = -1
+  for (const event of events) {
+    if (event.type === 'user-said' || event.type === 'nudge') lastPrompt = event.seq
+    else if (event.type === 'input-consumed' && event.consumed === EInputConsumed.Stop) {
+      lastStop = event.seq
+    }
+  }
+  return lastPrompt >= 0 && lastStop > lastPrompt
 }
 
 export const understandsCommand = (deps: HeldSessionDeps, entry: InboxEntry): boolean =>

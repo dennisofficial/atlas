@@ -104,6 +104,7 @@ describe('partitionSessions with v2 sessions', () => {
             url: 'https://github.com/dennisofficial/atlas/pull/42',
             state: 'open',
             checks: null,
+            mergeable: null,
           },
         }),
       ],

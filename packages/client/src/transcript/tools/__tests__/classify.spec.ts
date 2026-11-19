@@ -234,16 +234,43 @@ describe('the tools that are not bash', () => {
       }),
     )
 
-    expect(refused.line).toBe('Failed skill tdd')
+    expect(refused.line).toBe('Loaded the tdd skill')
     expect(refused.failed).toBe(true)
+    expect(refused.note).toBe('failed')
     expect(refused.detail).toBe(EDetail.Reason)
   })
 
-  it('gives an MCP tool its own line under its own name', () => {
+  it('gives an MCP tool its server and its own name, in words', () => {
     const external = reading(aCall({ name: 'mcp__linear__save_issue' }))
 
     expect(external.klass).toBe(EToolClass.External)
-    expect(external.line).toBe('Called save_issue')
+    expect(external.line).toBe('Linear Save issue')
+    expect(external.mcp).toEqual({ server: 'Linear', tool: 'Save issue' })
+  })
+
+  it('keeps a running MCP call on its own server and name', () => {
+    const running = reading(
+      aCall({ name: 'mcp__wispr-flow__search_meetings', state: ECallState.Pending }),
+    )
+
+    expect(running.line).toBe('Wispr Flow Search meetings')
+    expect(running.mcp).toEqual({ server: 'Wispr Flow', tool: 'Search meetings' })
+  })
+
+  it('keeps a failed MCP call on the same line, marked failed rather than renamed', () => {
+    const broken = reading(
+      aCall({
+        name: 'mcp__paper__get_guide',
+        state: ECallState.Failed,
+        note: 'connect timed out',
+      }),
+    )
+
+    expect(broken.line).toBe('Paper Get guide')
+    expect(broken.mcp).toEqual({ server: 'Paper', tool: 'Get guide' })
+    expect(broken.failed).toBe(true)
+    expect(broken.note).toBe('failed')
+    expect(broken.detail).toBe(EDetail.Reason)
   })
 
   it('says what a denial refused, and refuses to guess a measure', () => {
@@ -271,10 +298,10 @@ describe('the tools that are not bash', () => {
       }),
     )
 
-    expect(broken.line).toBe('Failed read gone.ts')
+    expect(broken.line).toBe('gone.ts')
     expect(broken.failed).toBe(true)
+    expect(broken.note).toBe('failed')
     expect(broken.detail).toBe(EDetail.Reason)
-    expect(broken.metric).toBeNull()
   })
 
   it('leaves a call still running out of every claim about what it did', () => {

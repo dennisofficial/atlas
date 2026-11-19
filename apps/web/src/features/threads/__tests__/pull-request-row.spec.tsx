@@ -20,9 +20,17 @@ const row = (over: Partial<PullRequestRow> = {}): PullRequestRow => ({
 })
 
 const render = (over: Partial<PullRequestRow> = {}) =>
-  renderToStaticMarkup(
-    <PullRequestRowItem row={row(over)} bell={undefined} onToggleBell={() => undefined} />,
-  )
+  renderToStaticMarkup(<PullRequestRowItem row={row(over)} />)
+
+describe('PullRequestRowItem conflicts', () => {
+  it('shows the warning triangle when the pull request has merge conflicts', () => {
+    expect(render({ conflicts: true })).toContain('aria-label="Merge conflicts"')
+  })
+
+  it('shows no triangle without conflicts', () => {
+    expect(render()).not.toContain('Merge conflicts')
+  })
+})
 
 describe('PullRequestRowItem polled marker', () => {
   it('says polled when the wire reports a poll-backed pull request', () => {

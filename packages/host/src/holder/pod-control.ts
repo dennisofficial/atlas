@@ -8,8 +8,16 @@ import type {
   MemorySummary,
   PodControl,
   PodMcpControl,
+  PodRoutineInput,
+  PodRoutines,
   WebSearchConfig,
 } from '@dltech/atlas-plugin-sdk'
+import type {
+  Routine,
+  RoutineRemoveOutput,
+  RoutineRunOutput,
+  RoutineUpdateInput,
+} from '@dltech/atlas-protocol'
 
 type Called = { threadId: string; signal?: AbortSignal | undefined }
 
@@ -33,9 +41,42 @@ export type PodControlClient = {
     ): Promise<MemorySummary>
     remove(args: Called & MemoryAddress): Promise<boolean>
   }
+  routines: {
+    list(args: Called): Promise<readonly Routine[]>
+    create(args: Called & PodRoutineInput): Promise<Routine>
+    update(args: Called & RoutineUpdateInput): Promise<Routine>
+    remove(args: Called & { routineId: string }): Promise<RoutineRemoveOutput>
+    run(args: Called & { routineId: string }): Promise<RoutineRunOutput>
+  }
 }
 
 const unreachable = (): Error => new Error('this session cannot reach the control plane')
+
+const routinesOf = (args: {
+  client: PodControlClient | undefined
+  threadId: ThreadId
+}): PodRoutines => ({
+  list: async () => {
+    if (args.client === undefined) throw unreachable()
+    return await args.client.routines.list({ threadId: args.threadId })
+  },
+  create: async (input) => {
+    if (args.client === undefined) throw unreachable()
+    return await args.client.routines.create({ threadId: args.threadId, ...input })
+  },
+  update: async (input) => {
+    if (args.client === undefined) throw unreachable()
+    return await args.client.routines.update({ threadId: args.threadId, ...input })
+  },
+  remove: async ({ routineId }) => {
+    if (args.client === undefined) throw unreachable()
+    return await args.client.routines.remove({ threadId: args.threadId, routineId })
+  },
+  run: async ({ routineId }) => {
+    if (args.client === undefined) throw unreachable()
+    return await args.client.routines.run({ threadId: args.threadId, routineId })
+  },
+})
 
 export const podControlOf = (args: {
   client: PodControlClient | undefined
@@ -52,6 +93,7 @@ export const podControlOf = (args: {
     }
   },
   mcp: args.mcp ?? EMPTY_MCP_CONTROL,
+  routines: routinesOf({ client: args.client, threadId: args.threadId }),
   webSearch: {
     config: async () => {
       if (args.client === undefined) throw unreachable()

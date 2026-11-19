@@ -96,8 +96,8 @@ export const readHeldAction = async (args: {
     quiet && args.runtime !== undefined
       ? await countRunningShells({ deps, runtime: args.runtime })
       : 0
-  const state = loopStateOf({ events: resumeEvents })
-  const resumable = isResumableOf(state) && !stopSettledPromptOf(events)
+  const resumable =
+    isResumableOf(loopStateOf({ events: resumeEvents })) && !stopSettledPromptOf(events)
   const action = resumeSetupIn({
     decided: decideHeldAction({
       draining: args.draining,

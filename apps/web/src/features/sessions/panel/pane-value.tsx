@@ -11,6 +11,7 @@ export type SessionPaneValue = {
   sessionId: string
   title: string | undefined
   startedAt: string | undefined
+  projectId: string | undefined
   view: SessionViewModel
   viewLoaded: boolean
   checkouts: SessionViewOutput['checkouts']

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common'
 import type { CommandRegistry } from '@dltech/atlas-commands'
+import { resize } from '@dltech/atlas-native-commands'
 import {
   ControlPlane,
   pricedView,
@@ -28,6 +29,7 @@ import {
   type SessionEventsOutput,
   type SessionListOutput,
   type SessionMessageDraft,
+  type SessionPodResourcesOutput,
   type SessionPostMedia,
   type SessionRetryOutput,
   type SessionStatusOutput,
@@ -39,6 +41,7 @@ import {
 import type { SessionPageOutput } from '@dltech/atlas-wire'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { SessionTitler } from '../../../_core/ports/session-titler'
+import { PodSizingService, type PodSizing } from './pod-sizing.service'
 import { pageSessions, type PageBucket } from '../sessions/session-pages'
 import { COMMAND_REGISTRY, postCommand } from './command-registry'
 import { modelSetHandlers } from './model-set'
@@ -72,6 +75,7 @@ export class SessionsService {
     @Inject(MediaRegistry) private readonly media: MediaRegistry,
     @Inject(MediaStore) private readonly store: MediaStore,
     @Inject(COMMAND_REGISTRY) private readonly commands: CommandRegistry,
+    @Inject(PodSizingService) private readonly podSizing: PodSizing,
   ) {}
 
   async accessibleProjectId(args: { userId: string; projectId: string }): Promise<string> {
@@ -357,9 +361,20 @@ export class SessionsService {
     return postCommand({
       plane: this.plane,
       registry: this.commands,
-      controlHandlers: modelSetHandlers({ plane: this.plane, session }),
+      controlHandlers: new Map([
+        ...modelSetHandlers({ plane: this.plane, session }),
+        [resize.spec.name, this.podSizing.resizeHandler({ userId: args.userId, session })],
+      ]),
       ...args,
     })
+  }
+
+  async podResourcesOf(args: {
+    userId: string
+    sessionId: string
+  }): Promise<SessionPodResourcesOutput> {
+    const session = await this.requireOwnedSession(args)
+    return this.podSizing.resourcesOf({ userId: args.userId, session })
   }
 
   async requireOwnedSession(args: {

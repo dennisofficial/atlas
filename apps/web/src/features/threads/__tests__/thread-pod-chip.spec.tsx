@@ -5,7 +5,9 @@ import { act, useState } from 'react'
 import { ResizeDeclinedError } from '@dltech/atlas-ui/ai/pod-status-chip'
 import { EPodState, type PodStatus } from '@dltech/atlas-wire/web'
 
-import { ThreadPodChip, useResizeConfirmation } from '../thread-pod-chip'
+import { useResizeConfirmation } from '@/features/pods/pod-resize-confirmation'
+
+import { ThreadPodChip } from '../thread-pod-chip'
 
 beforeAll(() => {
   GlobalRegistrator.register()
@@ -38,7 +40,8 @@ const buttonNamed = (name: string) =>
   [...document.body.querySelectorAll('button')].find((button) => button.textContent?.includes(name))
 
 function Harness(props: { working: boolean; onResize: (vcpus: number) => Promise<void> }) {
-  const { confirmation, handleResize } = useResizeConfirmation(props)
+  const { working, onResize } = props
+  const { confirmation, handleResize } = useResizeConfirmation({ busy: working, onResize })
   const [outcome, setOutcome] = useState('pending')
   const handleStart = () =>
     handleResize(8).then(

@@ -7,6 +7,7 @@ import {
   EStreamConnectionState,
   initialConnectionState,
   reduceConnection,
+  STABLE_AFTER_MS,
   type ConnectionInput,
   type ConnectionState,
 } from '../connection-machine'
@@ -54,6 +55,39 @@ describe('the stream connection machine', () => {
     expect(backoffDelayMs({ attempt: 0, random: 1 })).toBe(500)
     expect(backoffDelayMs({ attempt: 3, random: 1 })).toBe(4_000)
     expect(backoffDelayMs({ attempt: 20, random: 1 })).toBe(15_000)
+  })
+
+  it('keeps growing the backoff when each stream dies soon after it opens', () => {
+    const first = step(open(), { type: 'ended' }, 1)
+    expect(first.effects).toContainEqual({ ...reconnectTimer, ms: 500 })
+    const reopened = step(
+      step(first.state, { type: 'timer-fired', timer: EConnectionTimer.Reconnect }).state,
+      { type: 'opened' },
+    )
+    expect(reopened.effects).toContainEqual({
+      type: 'schedule',
+      timer: EConnectionTimer.Stable,
+      ms: STABLE_AFTER_MS,
+    })
+    const second = step(reopened.state, { type: 'ended' }, 1)
+    expect(second.effects).toContainEqual({ ...reconnectTimer, ms: 1_000 })
+    expect(second.effects).toContainEqual({ type: 'cancel', timer: EConnectionTimer.Stable })
+  })
+
+  it('resets the backoff once a stream has stayed open', () => {
+    const dropped = step(open(), { type: 'ended' }, 1).state
+    const reopened = step(
+      step(dropped, { type: 'timer-fired', timer: EConnectionTimer.Reconnect }).state,
+      { type: 'opened' },
+    ).state
+    expect(reopened.attempt).toBe(1)
+    const stable = step(reopened, { type: 'timer-fired', timer: EConnectionTimer.Stable }).state
+    expect(stable.phase).toBe(EStreamConnectionState.Open)
+    expect(stable.attempt).toBe(0)
+    expect(step(stable, { type: 'ended' }, 1).effects).toContainEqual({
+      ...reconnectTimer,
+      ms: 500,
+    })
   })
 
   it('keeps backing off through repeated failures', () => {

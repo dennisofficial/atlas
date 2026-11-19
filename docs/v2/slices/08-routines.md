@@ -218,12 +218,16 @@ dispatcher, the schema or the API contract.
 
 ### 9.1 The agent's routine tools
 
-Five builtin tools in `packages/harness/src/tools/builtin/routine-*.ts`, registered by
-`registerRoutineTools` (`packages/harness/src/routines/register.ts`) beside the subscription tools in
-`register-tools.ts`. They reach the control plane the way `cloud_config` does: the pod already holds
-an `ApiClient` for the signed-in session (`routineAccessOf`, mirroring
-`packages/harness/src/cloud/cloud-config-access.ts`), and each call goes through `cloudCall` so an
-API refusal arrives as `ok: false` with its message instead of an exception.
+The five tools ship as the v2 **routines plugin** (`plugins/routines`, package
+`@dltech/atlas-plugin-routines`), registered in `apps/api/src/agent/registered-plugins.ts` with
+`transport: 'none'`. A v2 session's tools act as the session's owner, in the session's project: they
+reach the host through `PodControl.routines` (`packages/plugin-sdk/src/routines.ts`), which the host
+bridges to `routineListOf` / `routineCreateOf` / `routineUpdateOf` / `routineRemoveOf` /
+`routineRunNowOf` in `packages/control/src/routine-service.ts` — the same domain logic the tRPC
+`routines` router calls through `RoutinesService`
+(`apps/api/src/api/platform/control/routines.service.ts`). A session with no project gets the plain
+refusal "this session has no Atlas Cloud project, and routines belong to a project", and
+update/delete/run only reach routines of that project.
 
 | Tool             | Effect | What it does                                                                                                                       |
 | ---------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------- |
@@ -235,8 +239,8 @@ API refusal arrives as `ok: false` with its message instead of an exception.
 
 Scope is the session's own project: a session without one gets a plain refusal, and nothing in the
 tool can name another project. Validation is the API's, which is the point — the five-minute floor,
-cron parsing and the timezone check live in one place (`routines.service.ts`), so the tools inherit
-them instead of restating them.
+cron parsing and the timezone check live in one place (`routine-service.ts`), so the router and the
+tools inherit them instead of restating them.
 
 No classifier change was needed: a tool with `TAKES_NO_PATHS` and no deeds of its own yields
 `EDeed.Routine`, which the prefilter already treats as quiet, exactly as `cloud_config` and

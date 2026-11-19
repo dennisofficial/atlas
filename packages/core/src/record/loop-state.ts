@@ -24,6 +24,7 @@ export type LoopState = {
   lastTurnType: EventType | undefined
   lastAssistant: EventOfType<'assistant-said'> | undefined
   cutShortSincePrompt: boolean
+  stoppedSincePrompt: boolean
   lastUserSaidSeq: number | undefined
   worktree: ActiveWorktree | undefined
   home: string | undefined
@@ -41,6 +42,7 @@ export const initialLoopState = (): LoopState => ({
   lastTurnType: undefined,
   lastAssistant: undefined,
   cutShortSincePrompt: false,
+  stoppedSincePrompt: false,
   lastUserSaidSeq: undefined,
   worktree: undefined,
   home: undefined,
@@ -111,13 +113,14 @@ const parkedPatch = (state: LoopState, event: Event): Patch => {
 
 const promptPatch = (event: Event): Patch => {
   if (event.type === 'user-said') {
-    return { lastUserSaidSeq: event.seq, cutShortSincePrompt: false }
+    return { lastUserSaidSeq: event.seq, cutShortSincePrompt: false, stoppedSincePrompt: false }
   }
-  if (event.type === 'nudge') return { cutShortSincePrompt: false }
+  if (event.type === 'nudge') return { cutShortSincePrompt: false, stoppedSincePrompt: false }
   if (event.type === 'assistant-said') {
     return {
       lastAssistant: event,
       ...(carriesInterruption(event) ? { cutShortSincePrompt: true } : {}),
+      ...(event.stopped === true ? { stoppedSincePrompt: true } : {}),
     }
   }
   return carriesInterruption(event) ? { cutShortSincePrompt: true } : {}
@@ -194,7 +197,9 @@ export function outstandingApprovalOf(state: LoopState): CallId | undefined {
 }
 
 export const awaitsReplyOf = (state: LoopState): boolean =>
-  state.lastTurnType !== undefined && state.lastTurnType !== 'assistant-said'
+  state.lastTurnType !== undefined &&
+  state.lastTurnType !== 'assistant-said' &&
+  !state.stoppedSincePrompt
 
 export const activeWorktreeOfState = (state: LoopState): ActiveWorktree | undefined =>
   state.worktree
@@ -217,6 +222,9 @@ export const projectDirectoryOfState = ({
 
 export function resumePlanOf(state: LoopState): ResumePlan {
   if (state.empty) return { kind: EResume.Nothing }
+  // An operator's stop ends the turn for good: nothing about it resumes on its own, here or
+  // after a later take-over, until the operator prompts again.
+  if (state.stoppedSincePrompt) return { kind: EResume.Nothing }
   if (outstandingApprovalOf(state) !== undefined) {
     return { kind: EResume.Blocked, reason: APPROVAL_WAITING }
   }

@@ -100,6 +100,7 @@ describe('rowPullRequestEntryOf', () => {
       url: linked.url,
       state: null,
       checks: null,
+      mergeable: null,
     })
     expect(entry.state).toBeUndefined()
     expect(entry.checksRunning).toBeUndefined()

@@ -94,7 +94,8 @@ export const createSessionRuntimeFactory = (
     const credentials = config.vercel
     const sandboxName = sandboxNameOf(sandboxSessionId)
     const paths = sessionPathsOf({ sessionId, threadId })
-    const wake = () => args.sandbox.wake({ sandboxSessionId, credentials, signal })
+    const wake = () =>
+      args.sandbox.wake({ sandboxSessionId, credentials, signal, vcpus: config.sandboxVcpus })
     const steps = new PrepareSteps()
     steps.report({
       step: EWorkspaceStep.Sandbox,

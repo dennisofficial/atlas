@@ -1,4 +1,5 @@
 import { sessionStreamTransport } from '@dltech/atlas-api-router'
+import { EStreamSurface } from '@dltech/atlas-protocol'
 import {
   browserSessionLog,
   createStreamConnection,
@@ -7,6 +8,7 @@ import {
   type StreamConnection,
 } from '@dltech/atlas-client/stream'
 
+import { isDesktopHost } from '@/features/desktop/desktop-attributes'
 import { api } from '@/lib/api-client'
 import { sharedQueryClient } from '@/lib/query-client'
 import { SESSION_QUERY_KEY } from '@/lib/use-session-query'
@@ -40,7 +42,11 @@ const handleSignedOut = (): void => {
 export function sessionStream(): StreamConnection {
   if (connection !== undefined) return connection
   connection = createStreamConnection({
-    transport: sessionStreamTransport({ client: api, handleUnauthorized: handleSignedOut }),
+    transport: sessionStreamTransport({
+      client: api,
+      surface: isDesktopHost(window) ? EStreamSurface.Desktop : EStreamSurface.Web,
+      handleUnauthorized: handleSignedOut,
+    }),
     scheduler: systemStreamScheduler,
     eventSchema: sessionEventSchema,
     knownEventTypes: sessionEventTypes,

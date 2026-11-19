@@ -21,15 +21,28 @@ const refused = (inboxId: number, reason: string): V2Body => ({
 
 describe('sessionRefusalsOf', () => {
   it('lists refusals in event order, newest last', () => {
+    const events = eventsOf([refused(1, 'first'), refused(2, 'second')])
+    expect(sessionRefusalsOf(events)).toEqual([
+      { inboxId: 1, reason: 'first' },
+      { inboxId: 2, reason: 'second' },
+    ])
+  })
+
+  it('forgets a refusal once the operator sends again', () => {
     const events = eventsOf([
       refused(1, 'first'),
       { type: 'user-said', text: 'a' },
       refused(2, 'second'),
     ])
-    expect(sessionRefusalsOf(events)).toEqual([
-      { inboxId: 1, reason: 'first' },
-      { inboxId: 2, reason: 'second' },
+    expect(sessionRefusalsOf(events)).toEqual([{ inboxId: 2, reason: 'second' }])
+  })
+
+  it('forgets a refusal once a turn starts', () => {
+    const events = eventsOf([
+      refused(1, 'rewound to'),
+      { type: 'assistant-said', parts: [{ type: 'text', text: 'working' }] },
     ])
+    expect(sessionRefusalsOf(events)).toEqual([])
   })
 
   it('keeps only the last twenty', () => {

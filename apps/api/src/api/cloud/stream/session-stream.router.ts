@@ -46,6 +46,7 @@ export class SessionStreamRouter {
     return streamOf({ host: this.stream, drain: this.drain }).follow({
       userId: ctx.auth.userId,
       sessionId: input.sessionId,
+      surface: input.surface,
       afterSeq: input.afterSeq,
       afterHash: input.afterHash,
       signal: opts.signal,

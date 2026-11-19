@@ -69,6 +69,7 @@ export const sourceFor = (setupScript = ''): ConfigSource => ({
       models: fakeModelSourceOf(model),
       vercel: { configured: true, token: '', teamId: '', projectId: '' },
       workspace: { remoteUrl: null, baseBranch: null, additionalRepos: [], setupScript },
+      sandboxVcpus: undefined,
       skills: [],
     }
   },

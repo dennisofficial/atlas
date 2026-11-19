@@ -3,6 +3,7 @@ import {
   EHeldAction,
   EHeldOutcome,
   type HeldOutcome,
+  type InboxEntry,
   type Lease,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -15,6 +16,7 @@ import { CrewRoom } from './crew'
 import {
   logDriveFault,
   logReconcileFault,
+  ranQueuedCommand,
   settleAndCheckResume,
   startHeldTurn,
   wireHeldLoop,
@@ -44,7 +46,6 @@ export class HeldSession {
   private readonly turns: HeldTurns
   private readonly prepare: HeldPrepare
   private draining = false
-  private done: Promise<HeldOutcome> | undefined
   private runtime: SessionRuntime | undefined
   private record: SessionRecord | undefined
   private observation: HeldObservation | undefined
@@ -61,6 +62,7 @@ export class HeldSession {
   private settleFence = true
   private takeOver: TakeOver | undefined
   private logStaged: (() => Promise<void>) | undefined
+  private runCommands: ((entries: readonly InboxEntry[]) => Promise<boolean>) | undefined
 
   constructor(deps: HeldSessionDeps) {
     this.deps = deps
@@ -92,12 +94,8 @@ export class HeldSession {
       record: () => this.record,
       runtime: () => this.runtime,
       reconciler: () => this.reconciler,
-      beforeRelease: () => this.observeBeforeRelease(),
+      beforeRelease: () => this.observation?.observeBeforeRelease() ?? Promise.resolve(),
     })
-  }
-
-  private headSeq(): number {
-    return this.record?.eventCache().currentHead().seq ?? this.resumeAfterSeq
   }
 
   notifyWake(): void {
@@ -115,7 +113,7 @@ export class HeldSession {
 
   run(args: { lease: Lease; threadId: ThreadId; claimMs?: number }): Promise<HeldOutcome> {
     this.ending.begin(args.lease.epoch)
-    return (this.done = this.drive(args))
+    return this.drive(args)
   }
 
   discard(): void {
@@ -135,10 +133,6 @@ export class HeldSession {
         turnRunning: this.turns.turnRunning,
       }),
     })
-  }
-
-  private async observeBeforeRelease(): Promise<void> {
-    await this.observation?.observeBeforeRelease()
   }
 
   private async drive(args: {
@@ -198,20 +192,22 @@ export class HeldSession {
       onLeaseLost: (error) => this.ending.lose(lostOutcome(error)),
     })
     this.crew = crew
-    const { runner, branches, branchesStarted, recoverCommands, logStaged } = wireHeldLoop({
-      deps,
-      runtime,
-      record,
-      turns: this.turns,
-      threadId,
-      signal: this.lifetimeAbort.signal,
-      epoch: lease.epoch,
-      crew: crew.port(),
-      isDraining: () => this.draining,
-    })
+    const { runner, branches, branchesStarted, recoverCommands, runCommands, logStaged } =
+      wireHeldLoop({
+        deps,
+        runtime,
+        record,
+        turns: this.turns,
+        threadId,
+        signal: this.lifetimeAbort.signal,
+        epoch: lease.epoch,
+        crew: crew.port(),
+        isDraining: () => this.draining,
+      })
     this.observation = new HeldObservation({ deps, runtime, record, branches })
     this.observation.start()
     this.logStaged = logStaged
+    this.runCommands = runCommands
     await settleAndCheckResume({ deps, runtime, record, threadId, crew })
     await recoverCommands()
     this.branchesReady = branchesStarted
@@ -245,12 +241,16 @@ export class HeldSession {
     })
     if (action === EHeldAction.AbortTurn) return this.turns.abort(OPERATOR_STOP_REASON)
     if (action !== EHeldAction.StartTurn) await this.logStaged?.()
+    if (await ranQueuedCommand({ action, entries, turnRunning, runCommands: this.runCommands })) {
+      this.reconciler?.request()
+      return
+    }
     switch (action) {
       case EHeldAction.ConsumeStop: {
         await settleOperatorOnStop({ deps, record: this.record, runtime: this.runtime })
         await this.prepare.failStopped()
         await consumeStops({ deps, record: this.record, entries })
-        this.resumeAfterSeq = this.headSeq()
+        this.resumeAfterSeq = this.record?.eventCache().currentHead().seq ?? this.resumeAfterSeq
         this.reconciler?.request()
         return
       }
@@ -265,7 +265,7 @@ export class HeldSession {
         await this.branchesReady
         if (this.draining || this.ending.outcome !== undefined) return
         this.takeOver?.firstStep()
-        this.resumeAfterSeq = this.headSeq()
+        this.resumeAfterSeq = this.record?.eventCache().currentHead().seq ?? this.resumeAfterSeq
         startHeldTurn({
           deps,
           turns: this.turns,

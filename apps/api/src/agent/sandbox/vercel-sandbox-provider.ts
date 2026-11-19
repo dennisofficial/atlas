@@ -53,6 +53,7 @@ export class VercelSandboxProvider extends SandboxProvider {
     sandboxSessionId: string
     credentials: VercelCredentials
     signal: AbortSignal
+    vcpus?: number | undefined
   }): Promise<DaemonEndpoint> {
     const signal = AbortSignal.any([
       AbortSignal.timeout(this.args.wakeDeadlineMs ?? WAKE_DEADLINE_MS),
@@ -67,6 +68,7 @@ export class VercelSandboxProvider extends SandboxProvider {
     sandboxSessionId: string
     credentials: VercelCredentials
     signal: AbortSignal
+    vcpus?: number | undefined
   }): Promise<DaemonEndpoint> {
     const sandboxName = sandboxNameOf(args.sandboxSessionId)
     const token = daemonToken({ secret: this.args.daemonSecret, sandboxName })
@@ -81,6 +83,7 @@ export class VercelSandboxProvider extends SandboxProvider {
       image: this.args.image,
       threadId: args.sandboxSessionId,
       token: randomUUID(),
+      ...(args.vcpus === undefined ? {} : { vcpus: args.vcpus }),
       environment: { ATLAS_SANDBOX_NAME: sandboxName },
       onCreate: () => Promise.resolve(),
       signal: args.signal,

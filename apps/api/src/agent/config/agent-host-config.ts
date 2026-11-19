@@ -41,6 +41,7 @@ export type AgentHostConfig = {
   models: ModelSource
   workspace: WorkspaceConfig
   vercel: VercelConfig
+  sandboxVcpus: number | undefined
   skills: SkillIndexEntry[]
 }
 
