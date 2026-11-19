@@ -131,7 +131,6 @@ export class GithubPollSweeperService {
       })
       for (const pull of pulls) {
         await this.recordPull({ repoFullName, pull })
-        if (!args.refreshFound) continue
         await ensurePullTarget({
           userId: args.target.userId,
           repoFullName,
@@ -139,6 +138,7 @@ export class GithubPollSweeperService {
           liveUntil: args.target.liveUntil,
           now: new Date(),
         })
+        if (!args.refreshFound) continue
         const attempt = await this.pollOne({
           userId: args.target.userId,
           repoFullName,

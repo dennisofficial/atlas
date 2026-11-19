@@ -83,4 +83,38 @@ describe('GithubSandboxWakeService recovery of an owed intent', () => {
 
     expect(calls.map((call) => call.threadId)).toEqual(['thr-1'])
   })
+
+  it('leaves the accepted intent of a retired pod alone', async () => {
+    await seedParkedSandbox()
+    await seedSubscription()
+    const doomed = serviceWith({ boot: fakeBoot().boot })
+
+    await doomed.notifyEvent(PR_EVENT, VERDICT)
+    await settleLookups()
+    await patchSandbox({ retiredAt: new Date() })
+
+    const { boot, calls } = fakeBoot()
+    const recovery = serviceWith({ boot })
+
+    await recovery.retryFailedWakes()
+
+    expect(calls).toHaveLength(0)
+  })
+
+  it('leaves the accepted intent of an archived session alone', async () => {
+    await seedParkedSandbox()
+    await seedSubscription()
+    const doomed = serviceWith({ boot: fakeBoot().boot })
+
+    await doomed.notifyEvent(PR_EVENT, VERDICT)
+    await settleLookups()
+    await db.orm.public.Session.where({ id: 'ses_thr-1' }).update({ archivedAt: new Date() })
+
+    const { boot, calls } = fakeBoot()
+    const recovery = serviceWith({ boot })
+
+    await recovery.retryFailedWakes()
+
+    expect(calls).toHaveLength(0)
+  })
 })

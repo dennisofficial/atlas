@@ -138,12 +138,27 @@ export async function failedWakeTargets(): Promise<FailedWakeTarget[]> {
 export async function owedWakeTargets(): Promise<FailedWakeTarget[]> {
   const parked = await db.orm.public.CloudSandbox.where({ state: ESandboxState.Parked })
     .where((sandbox) => sandbox.wakeFailedAt.isNull())
+    .where((sandbox) => sandbox.retiredAt.isNull())
     .all()
+  const live = await parkedOfLiveSessions(parked)
   const targets: FailedWakeTarget[] = []
-  for (const sandbox of parked) {
+  for (const sandbox of live) {
     if (!wakeableOf(sandbox)) continue
     const threadId = await owedIntentThreadOf({ sessionId: sandbox.sessionId })
     if (threadId !== undefined) targets.push({ threadId, sandbox })
   }
   return targets
+}
+
+async function parkedOfLiveSessions(rows: Row<'CloudSandbox'>[]): Promise<Row<'CloudSandbox'>[]> {
+  if (rows.length === 0) return []
+  const live = await db.orm.public.Session.where((session) =>
+    session.id.in(rows.map((row) => row.sessionId)),
+  )
+    .where((session) => session.archivedAt.isNull())
+    .where((session) => session.deletedAt.isNull())
+    .select('id')
+    .all()
+  const liveIds = new Set(live.map((session) => session.id))
+  return rows.filter((row) => liveIds.has(row.sessionId))
 }

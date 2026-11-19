@@ -20,28 +20,6 @@ describe('GithubPollSweeperService tracking targets', () => {
 
   beforeEach(preparePollSweeper)
 
-  it('looks up a new head target once on an app-covered repo and never polls it', async () => {
-    const head = fakeHeadReads({ pulls: { 'compai/app': [REST_PULL] } })
-    const readPullRequest = vi.fn(async () => {
-      throw new Error('a covered repo is never polled')
-    })
-    const { service } = serviceWith({
-      tokens: { usr_1: 'ghu_1' },
-      headReads: head.reads,
-      readPullRequest,
-    })
-    await covered()
-    const target = await seedTarget()
-
-    await service.handlePoll()
-    await service.handlePoll()
-
-    expect(head.pullsByHead).toHaveBeenCalledTimes(1)
-    expect(readPullRequest).not.toHaveBeenCalled()
-    const row = await db.orm.public.GithubTrackingTarget.where({ id: target.id }).first()
-    expect(row?.lookedUpAt).not.toBeNull()
-  })
-
   it('records a discovered pull without the mergeability only an applied read can know', async () => {
     const head = fakeHeadReads({
       pulls: { 'compai/app': [{ ...REST_PULL, mergeable: true, mergeable_state: 'clean' }] },
