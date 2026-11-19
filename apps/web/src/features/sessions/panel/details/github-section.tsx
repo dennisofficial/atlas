@@ -8,6 +8,7 @@ import { PullRequestIcon } from '@/features/shell/thread-pr-presentation'
 import type { PullRequestEntry } from '@/features/threads/data/pull-request-entries'
 
 import { useSessionPaneValue } from '../pane-value'
+import { PullRequestBell } from './pull-request-bell'
 import { FoldedRows, Pill, Row, SectionHead } from './rows'
 
 const PR_STATE: Record<string, { label: string; tone: string }> = {
@@ -59,7 +60,12 @@ function PullRequestRow({ entry }: { entry: PullRequestEntry }) {
         </a>
       }
       meta={metaOf(entry)}
-      trailing={state === undefined ? null : <Pill label={state.label} tone={state.tone} />}
+      trailing={
+        <>
+          {state === undefined ? null : <Pill label={state.label} tone={state.tone} />}
+          <PullRequestBell entry={entry} />
+        </>
+      }
     />
   )
 }

@@ -86,11 +86,11 @@ describe('SessionDetailsTab', () => {
     expect(slot).toBeLessThan(html.indexOf('aria-label="Pull requests"'))
   })
 
-  it('renders the header, the slot and the Following switch when nothing else streamed', () => {
+  it('renders the header and the slot when nothing else streamed', () => {
     const html = render(paneValueFixture())
     expect(html).toContain('data-session-summary')
     expect(html).toContain('data-session-todo-slot')
-    expect(html).toContain('aria-label="Follow this session&#x27;s pull requests"')
+    expect(html).not.toContain('role="switch"')
     expect(html).not.toContain('aria-label="Pull requests"')
     expect(html).not.toContain('aria-label="Services"')
     expect(html).not.toContain('aria-label="Shells"')
@@ -115,14 +115,16 @@ describe('SessionDetailsTab', () => {
     expect(html).not.toContain('Show all')
   })
 
-  it('checks the Following switch once every linked pull request is subscribed', () => {
+  it('rings the bell on a pull request row only while it is subscribed', () => {
     const subscribed = render(populatedPaneValue())
     const unsubscribed = render(
       paneValueFixture({
         view: { ...populatedPaneValue().view, subscriptions: [] },
       }),
     )
-    expect(subscribed).toContain('aria-checked="true"')
-    expect(unsubscribed).toContain('aria-checked="false"')
+    expect(subscribed).toContain('aria-label="Unsubscribe from #7"')
+    expect(subscribed).toContain('aria-pressed="true"')
+    expect(unsubscribed).toContain('aria-label="Subscribe to #7"')
+    expect(unsubscribed).toContain('aria-pressed="false"')
   })
 })
