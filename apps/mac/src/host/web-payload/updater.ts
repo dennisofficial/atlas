@@ -18,10 +18,10 @@ export enum EWebPayloadState {
 
 export interface IWebPayloadStatus {
   state: EWebPayloadState
-  version?: string
-  hash?: string
-  builtAt?: string
-  error?: string
+  version?: string | undefined
+  hash?: string | undefined
+  builtAt?: string | undefined
+  error?: string | undefined
 }
 
 export interface IWebUpdaterPorts {
