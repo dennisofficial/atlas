@@ -78,6 +78,15 @@ export function checksTally(outcomes: readonly ECheckOutcome[]): ChecksCount {
   )
 }
 
+export function checksRollupOfCounts(counts: ChecksCount): EChecksState | null {
+  if (counts.failed > 0) return EChecksState.Failing
+  if (counts.running > 0) return EChecksState.Running
+  if (counts.passed > 0) return EChecksState.Passing
+  if (counts.ignored > 0) return EChecksState.None
+
+  return null
+}
+
 const CHECK_RUN_CONCLUSIONS: Record<string, ECheckOutcome> = {
   success: ECheckOutcome.Passed,
   neutral: ECheckOutcome.Ignored,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { compareCheckAttempts, type CheckIdentity } from '../check-identity'
-import { ECheckOutcome, EChecksState } from '../checks'
+import { ECheckOutcome } from '../checks'
 import type { PrFoldState } from '../pr-fold-state'
 import {
   ECheckSource,
@@ -9,7 +9,6 @@ import {
   type MergeabilitySample,
   type PullSample,
 } from '../pr-observation'
-import { EStoredChecksState, rollupOfStoredChecksState } from '../pr-checks-state'
 import { comparePullSamples, foldPrObservations, provenanceAdvancedBetween } from '../pr-reducer'
 
 const pull = (over: Partial<PullSample> = {}): PullSample => ({
@@ -144,16 +143,6 @@ describe('provenanceAdvancedBetween', () => {
 
   it('reports nothing for an absent observed row', () => {
     expect(provenanceAdvancedBetween({ from: null, to: null })).toBe(false)
-  })
-})
-
-describe('rollupOfStoredChecksState', () => {
-  it('translates the stored vocabulary into the rollup vocabulary', () => {
-    expect(rollupOfStoredChecksState(EStoredChecksState.Success)).toBe(EChecksState.Passing)
-    expect(rollupOfStoredChecksState(EStoredChecksState.Failure)).toBe(EChecksState.Failing)
-    expect(rollupOfStoredChecksState(EStoredChecksState.Pending)).toBe(EChecksState.Running)
-    expect(rollupOfStoredChecksState(EStoredChecksState.Expected)).toBeNull()
-    expect(rollupOfStoredChecksState(null)).toBeNull()
   })
 })
 

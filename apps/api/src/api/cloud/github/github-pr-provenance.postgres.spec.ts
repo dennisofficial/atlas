@@ -179,32 +179,39 @@ describe('GithubPrState provenance', () => {
     expect(applied.row?.checksState).toBe('failure')
   })
 
-  it('orders same-second statuses by their id through the store', async () => {
-    const store = storeFixture()
-    await store.apply(applyArgs([pull()]))
-    await recordCommitChecksLocked({
+  const statuses = {
+    100: 'pending',
+    200: 'success',
+  } as const
+
+  const deliverStatus = (id: 100 | 200) =>
+    recordCommitChecksLocked({
       repoFullName: REPO,
       headSha: 'abc123',
       checks: [
         commitStatusInputOf({
-          id: 100,
+          id,
           context: 'probe',
-          state: 'pending',
-          created_at: '2026-11-18T10:00:00Z',
-        }),
-        commitStatusInputOf({
-          id: 200,
-          context: 'probe',
-          state: 'success',
+          state: statuses[id],
           created_at: '2026-11-18T10:00:00Z',
         }),
       ],
     })
 
-    const applied = await store.apply(applyArgs([]))
+  for (const arrival of [
+    [100, 200],
+    [200, 100],
+  ] as const) {
+    it(`orders same-second statuses by their id when ${arrival.join(' arrives before ')}`, async () => {
+      const store = storeFixture()
+      await store.apply(applyArgs([pull()]))
+      for (const id of arrival) await deliverStatus(id)
 
-    expect(applied.row?.checksState).toBe('success')
-  })
+      const applied = await store.apply(applyArgs([]))
+
+      expect(applied.row?.checksState).toBe('success')
+    })
+  }
 
   it('reports an exact replay as unchanged and writes no outbox row', async () => {
     const store = storeFixture()

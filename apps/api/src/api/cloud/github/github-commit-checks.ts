@@ -3,14 +3,13 @@ import {
   checkRunOutcomeOf,
   checksTally,
   ECheckOutcome,
-  latestAttemptOutcomes,
+  latestCheckAttempts,
   statusContextOutcomeOf,
-  type CheckAttempt,
   type ChecksCount,
 } from '@dltech/atlas-core'
 import { db, type Row, type Tx } from '@dltech/atlas-db'
-import { runOrderOfKey, SUITE_KEY_PREFIX } from './github-check-suites'
 import { normalizedRepo } from './github-pr-identity'
+import { checkIdentitiesOf } from './github-pr-row-fold'
 import { lockPrScope } from './github-pr-lock'
 import type { GithubPrCheckAnnotation } from './github-realtime.types'
 
@@ -181,14 +180,9 @@ export async function commitChecksTally(args: {
     repoFullName: normalizedRepo(args.repoFullName),
     headSha: args.headSha,
   }).all()
-  const attempts: CheckAttempt[] = rows
-    .filter((row) => !row.checkKey.startsWith(SUITE_KEY_PREFIX))
-    .map((row) => ({
-      name: row.name,
-      order: runOrderOfKey(row.checkKey),
-      outcome: row.outcome as ECheckOutcome,
-    }))
-  return checksTally(latestAttemptOutcomes(attempts))
+  const latest = latestCheckAttempts({ attempts: checkIdentitiesOf(rows) })
+
+  return checksTally(latest.map((attempt) => attempt.outcome))
 }
 
 export async function pruneCommitChecks(args: { now: Date }): Promise<void> {

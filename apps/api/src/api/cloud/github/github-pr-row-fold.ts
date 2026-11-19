@@ -1,4 +1,5 @@
 import {
+  checksSummaryOfStored,
   derivedChecksOf,
   ECheckOutcome,
   ECheckSource,
@@ -7,7 +8,6 @@ import {
   EStoredChecksState,
   latestCheckAttempts,
   missingRequiredContextsOf,
-  rollupOfStoredChecksState,
   storedChecksStateOf,
   type CheckIdentity,
   type DerivedChecks,
@@ -57,17 +57,16 @@ function pullOfRow(args: {
 }
 
 function checksOfRow(row: Row<'GithubPrState'>): PrChecksSummary | null {
-  const rollup = rollupOfStoredChecksState(row.checksState)
-  if (rollup === null) return null
-
-  return {
+  return checksSummaryOfStored({
+    checksState: row.checksState as EStoredChecksState | null,
     headSha: row.headSha,
-    running: row.checksRunning,
-    passed: row.checksPassed,
-    failed: row.checksFailed,
-    ignored: row.checksIgnored,
-    rollup,
-  }
+    counts: {
+      running: row.checksRunning,
+      passed: row.checksPassed,
+      failed: row.checksFailed,
+      ignored: row.checksIgnored,
+    },
+  })
 }
 
 function mergeabilityOfRow(row: Row<'GithubPrState'>): MergeabilitySample | null {
@@ -88,7 +87,16 @@ function mergeabilityOfRow(row: Row<'GithubPrState'>): MergeabilitySample | null
   }
 }
 
-export function checkIdentitiesOf(rows: readonly Row<'GithubCommitCheck'>[]): CheckIdentity[] {
+export type CheckIdentityRow = {
+  appSlug: string | null
+  checkKey: string
+  name: string | null
+  outcome: string
+  sourceId?: string | null | undefined
+  sourceUpdatedAt: Date
+}
+
+export function checkIdentitiesOf(rows: readonly CheckIdentityRow[]): CheckIdentity[] {
   return rows
     .filter((row) => !row.checkKey.startsWith(SUITE_KEY_PREFIX))
     .map((row) => ({

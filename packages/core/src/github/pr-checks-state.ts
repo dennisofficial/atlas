@@ -1,4 +1,5 @@
-import { ECheckOutcome, EChecksState } from './checks'
+import { ECheckOutcome, checksRollupOfCounts, type ChecksCount } from './checks'
+import type { PrChecksSummary } from './pr-fold-state'
 
 export enum EStoredChecksState {
   Expected = 'expected',
@@ -33,15 +34,14 @@ export function storedChecksStateOf(args: {
   return EStoredChecksState.Success
 }
 
-export function rollupOfStoredChecksState(name: string | null): EChecksState | null {
-  switch (name) {
-    case EStoredChecksState.Success:
-      return EChecksState.Passing
-    case EStoredChecksState.Failure:
-      return EChecksState.Failing
-    case EStoredChecksState.Pending:
-      return EChecksState.Running
-    default:
-      return null
-  }
+export function checksSummaryOfStored(args: {
+  checksState: EStoredChecksState | null
+  counts: ChecksCount
+  headSha: string
+}): PrChecksSummary | null {
+  if (args.checksState === null) return null
+  const rollup = checksRollupOfCounts(args.counts)
+  if (rollup === null) return null
+
+  return { headSha: args.headSha, ...args.counts, rollup }
 }

@@ -98,6 +98,16 @@ describe('failedChecksOfRows', () => {
     expect(checks).toEqual([])
   })
 
+  it('names a failing check another app left passing under the same name', () => {
+    const checks = failedChecksOfRows([
+      row({ checkKey: 'run:1', appSlug: 'app-a' }),
+      row({ checkKey: 'run:2', outcome: 'passed', appSlug: 'app-b' }),
+      row({ checkKey: 'run:3', outcome: 'running', appSlug: 'app-c' }),
+    ])
+
+    expect(checks).toEqual([{ name: 'lint', app: 'app-a', checkRunId: '1' }])
+  })
+
   it('ignores suites and names a status context by its context', () => {
     const checks = failedChecksOfRows([
       row({ checkKey: 'suite:3', name: 'suite:3' }),

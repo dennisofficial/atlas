@@ -179,12 +179,13 @@ export class GithubPrStore {
       ]),
     ]
     if (changed.length === 0) {
+      const outboxIds = await this.writeRechecks({ tx, args, rechecks })
       if (!provenanceAdvancedBetween({ from: storedState, to: state })) {
-        return { applied: false, row: stored, changed: [], outboxIds: [] }
+        return { applied: false, row: stored, changed: [], outboxIds }
       }
       const row = await writePrProvenance({ ...args, tx, state })
 
-      return { applied: false, row: row ?? stored, changed: [], outboxIds: [] }
+      return { applied: false, row: row ?? stored, changed: [], outboxIds }
     }
 
     const row = await writePrStateRow({
@@ -217,6 +218,19 @@ export class GithubPrStore {
     })
 
     return { applied: true, row, changed, outboxIds }
+  }
+
+  private async writeRechecks(args: {
+    tx: PrScopeTx
+    args: PrApplyArgs & { repoFullName: string }
+    rechecks: readonly PrOutboxEffect[]
+  }): Promise<readonly string[]> {
+    return await GithubPrOutboxWriter.write({
+      tx: args.tx,
+      repoFullName: args.args.repoFullName,
+      prNumber: args.args.prNumber,
+      effects: args.rechecks,
+    })
   }
 
   private recipientsOf(args: {
