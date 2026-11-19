@@ -8,7 +8,8 @@ import {
   type RestPull,
 } from './github-delivery-fill'
 import { EGithubCallSource } from './github-call-log'
-import { EPrSource } from '@dltech/atlas-core'
+import { EMergeQueueMove, EPrSource } from '@dltech/atlas-core'
+import { mergeQueueMoveOfPullAction, notifyMergeQueueMove } from './github-merge-queue-webhook'
 import { normalizedRepo } from './github-pr-identity'
 import { GithubRequestCoordinator } from './github-request-coordinator'
 import { withGithubRequestBudget } from './github-request-budget'
@@ -181,11 +182,16 @@ export class GithubDeliveryService {
     if (observation !== null) {
       await this.store.apply({ repoFullName, prNumber, observations: [observation] })
     }
+    const move = mergeQueueMoveOfPullAction(payload.action)
     await this.store.applyMergeFlags({
       repoFullName,
       prNumber,
-      flags: { autoMerge: payload.pull_request.auto_merge != null },
+      flags: {
+        autoMerge: payload.pull_request.auto_merge != null,
+        ...(move === null ? {} : { mergeQueued: move === EMergeQueueMove.Entered }),
+      },
     })
+    if (move !== null) await notifyMergeQueueMove({ repoFullName, prNumber, move })
     if (!HEAD_ACTIONS.has(payload.action)) return
     const token = await this.findFillToken({ repoFullName, installationId })
     if (token === undefined) return

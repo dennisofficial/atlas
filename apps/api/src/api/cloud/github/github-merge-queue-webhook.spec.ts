@@ -7,7 +7,11 @@ import { EMergeQueueMove, EPrEventKind, INBOX_KIND_EVENT, inboxEventOf } from '@
 import { beforeEach, describe, expect, it } from 'bun:test'
 
 import { ensureUsers, seedPrState, seedSubscription } from '../../../../test/github-seed'
-import { mergeQueuePrNumberOf, recordMergeQueueEntry } from './github-merge-queue-webhook'
+import {
+  mergeQueueMoveOfPullAction,
+  mergeQueuePrNumberOf,
+  recordMergeQueueEntry,
+} from './github-merge-queue-webhook'
 import type { GithubMergeQueueEntryWebhookPayload } from './github-webhook.types'
 
 const noQueues = async (): Promise<void> => undefined
@@ -212,5 +216,13 @@ describe('recordMergeQueueEntry', () => {
     expect(
       mergeQueuePrNumberOf(payloadOf({ prNumber: undefined, headRef: 'refs/heads/main' })),
     ).toBe(null)
+  })
+})
+
+describe('mergeQueueMoveOfPullAction', () => {
+  it('reads enqueued and dequeued pull_request actions as queue moves', () => {
+    expect(mergeQueueMoveOfPullAction('enqueued')).toBe(EMergeQueueMove.Entered)
+    expect(mergeQueueMoveOfPullAction('dequeued')).toBe(EMergeQueueMove.Left)
+    expect(mergeQueueMoveOfPullAction('synchronize')).toBe(null)
   })
 })
