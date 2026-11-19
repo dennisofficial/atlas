@@ -94,6 +94,5 @@ export function describeControlPlaneDigests(params: ConformanceParams): void {
       expect(fresh.staleRows).toBe(0)
       expect(fresh.staleMs).toBe(0)
     })
-
   })
 }
