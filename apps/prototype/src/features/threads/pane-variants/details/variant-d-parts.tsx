@@ -33,7 +33,7 @@ export function SectionHead(props: {
   )
 
   if (props.onToggle === undefined) {
-    return <div className="flex items-baseline justify-between gap-3 px-1 pb-1">{inner}</div>
+    return <div className="flex items-baseline justify-between gap-3 pb-1">{inner}</div>
   }
 
   return (
@@ -42,7 +42,7 @@ export function SectionHead(props: {
       aria-expanded={props.open}
       onClick={props.onToggle}
       className={cn(
-        'flex w-full items-baseline justify-between gap-3 rounded-sm px-1 pb-1 text-left outline-none',
+        'flex w-full items-baseline justify-between gap-3 rounded-sm pb-1 text-left outline-none',
         'hover:[&_h3]:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50',
       )}
     >
@@ -58,7 +58,7 @@ export function Row(props: {
   trailing?: ReactNode
 }) {
   return (
-    <div className="grid grid-cols-[1rem_minmax(0,1fr)_auto] items-start gap-x-2.5 rounded-sm px-1 py-1.5">
+    <div className="grid grid-cols-[1rem_minmax(0,1fr)_auto] items-start gap-x-2.5 rounded-sm py-1">
       <span className="flex h-4 items-center justify-center text-muted-foreground">
         {props.leading}
       </span>
@@ -88,7 +88,7 @@ export function FoldedRows<T>(props: { rows: T[]; render: (row: T) => ReactNode 
         <button
           type="button"
           onClick={() => setExpanded((held) => !held)}
-          className="mt-0.5 ml-7 w-fit rounded-sm text-[11px] leading-4 text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+          className="mt-0.5 ml-[1.625rem] w-fit rounded-sm text-[11px] leading-4 text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
         >
           {expanded ? 'Show fewer' : `Show all (${props.rows.length})`}
         </button>

@@ -51,14 +51,15 @@ export function TerminalVariantD() {
 
   const strip = showStrip ? (
     <div className="flex shrink-0 flex-col">
-      <div className="flex h-8 items-center gap-1 border-b border-border px-1.5">
-        <div ref={ref} className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
+      <div className="flex h-8 items-center gap-1 border-b border-border bg-muted/30 pr-1.5">
+        <div ref={ref} className="flex h-full min-w-0 flex-1 items-stretch overflow-hidden">
           {terminals.map((terminal) => (
             <ShellChip
               key={terminal.id}
               terminal={terminal}
               active={terminal.id === activeId}
               onSelect={() => select(terminal.id)}
+              onClose={() => handleClose(terminal.id)}
             />
           ))}
         </div>

@@ -1,4 +1,4 @@
-import { ChevronDownIcon, TerminalIcon, Trash2Icon } from 'lucide-react'
+import { ChevronDownIcon, TerminalIcon, Trash2Icon, XIcon } from 'lucide-react'
 
 import { Button } from '@dltech/atlas-ui/components/button'
 import { cn } from '@dltech/atlas-ui/lib/utils'
@@ -23,28 +23,46 @@ export interface ShellChipProps {
   terminal: PaneTerminal
   active: boolean
   onSelect: () => void
+  onClose: () => void
 }
 
-export function ShellChip({ terminal, active, onSelect }: ShellChipProps) {
+export function ShellChip({ terminal, active, onSelect, onClose }: ShellChipProps) {
   const ended = terminal.status === ETerminalStatus.Ended
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-pressed={active}
-      title={terminal.label}
+    <div
       className={cn(
-        'flex h-6 max-w-32 shrink-0 items-center gap-1.5 rounded-md px-2 text-[11px] whitespace-nowrap transition-colors',
-        active
-          ? 'bg-muted text-foreground ring-1 ring-border'
-          : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
-        ended && !active && 'opacity-55',
+        'group/tab relative flex h-full max-w-36 shrink-0 items-center border-r border-border text-xs',
+        active ? 'bg-background text-foreground' : 'text-muted-foreground hover:text-foreground',
+        ended && !active && 'opacity-60',
       )}
     >
-      <span className={cn('size-1.5 shrink-0 rounded-full', DOT_CLASS[terminal.status])} />
-      <span className="truncate">{terminal.label}</span>
-      {ended ? <span className="shrink-0 font-mono text-[9px] opacity-70">ended</span> : null}
-    </button>
+      {active ? <span aria-hidden className="absolute inset-x-0 top-0 h-px bg-primary" /> : null}
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-pressed={active}
+        title={terminal.label}
+        className="flex h-full min-w-0 items-center gap-1.5 pr-1 pl-2.5 whitespace-nowrap outline-none"
+      >
+        <span className={cn('size-1.5 shrink-0 rounded-full', DOT_CLASS[terminal.status])} />
+        <span className={cn('truncate', ended && 'line-through decoration-muted-foreground/50')}>
+          {terminal.label}
+        </span>
+      </button>
+      <button
+        type="button"
+        aria-label={`Close ${terminal.label}`}
+        onClick={onClose}
+        className={cn(
+          'mr-1 flex size-4 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground',
+          active
+            ? 'opacity-100'
+            : 'opacity-0 group-hover/tab:opacity-100 focus-visible:opacity-100',
+        )}
+      >
+        <XIcon className="size-3" />
+      </button>
+    </div>
   )
 }
 

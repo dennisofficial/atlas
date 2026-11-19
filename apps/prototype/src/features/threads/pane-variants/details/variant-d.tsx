@@ -111,13 +111,13 @@ export function VariantD() {
       </header>
 
       <div className="min-h-0 flex-1 overflow-auto">
-        <div className="mx-auto flex w-full max-w-[34rem] flex-col gap-6 px-4 py-4">
+        <div className="mx-auto flex w-full max-w-[34rem] flex-col gap-4 px-4 py-2.5">
           <section className="flex flex-col">
             <button
               type="button"
               aria-expanded={todosOpen}
               onClick={() => setTodosOpen((held) => !held)}
-              className="flex w-full items-center gap-2 rounded-sm px-1 py-1 text-left outline-none hover:[&_span]:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+              className="flex w-full items-center gap-2 rounded-sm py-1 text-left outline-none hover:[&_span]:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
             >
               <span className="text-[11px] leading-4 font-medium text-muted-foreground tabular-nums">
                 {DONE_TASKS} / {PLAN_TASKS.length} tasks
