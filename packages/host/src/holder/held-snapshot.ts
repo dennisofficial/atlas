@@ -93,6 +93,7 @@ export const readHeldAction = async (args: {
     runningShells: 0,
     runningChildren: args.childrenRunning,
     terminalStreams: args.runtime?.terminalStreams?.() ?? 0,
+    panelHolds: args.runtime?.panelHolds?.() ?? 0,
   })
   const runningShells =
     quiet && args.runtime !== undefined

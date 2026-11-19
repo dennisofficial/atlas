@@ -15,6 +15,8 @@ import {
   sessionCreateOutputSchema,
   sessionEventsInputSchema,
   sessionEventsOutputSchema,
+  sessionHoldPodInputSchema,
+  sessionHoldPodOutputSchema,
   sessionListInputSchema,
   sessionListOutputSchema,
   sessionMarkReadInputSchema,
@@ -47,6 +49,8 @@ import {
   type SessionCreateOutput,
   type SessionEventsInput,
   type SessionEventsOutput,
+  type SessionHoldPodInput,
+  type SessionHoldPodOutput,
   type SessionListInput,
   type SessionListOutput,
   type SessionMarkReadInput,
@@ -201,6 +205,15 @@ export class SessionsRouter {
   wake(@Input() input: SessionWakeInput, @Ctx() ctx: SessionTrpcCtx): Promise<SessionWakeOutput> {
     this.refuseBatched(ctx)
     return this.sessions.wake({ userId: ctx.auth.userId, sessionId: input.sessionId })
+  }
+
+  @Mutation({ input: sessionHoldPodInputSchema, output: sessionHoldPodOutputSchema })
+  holdPod(
+    @Input() input: SessionHoldPodInput,
+    @Ctx() ctx: SessionTrpcCtx,
+  ): Promise<SessionHoldPodOutput> {
+    this.refuseBatched(ctx)
+    return this.sessions.holdPod({ userId: ctx.auth.userId, sessionId: input.sessionId })
   }
 
   @Query({ input: sessionViewInputSchema, output: sessionViewOutputSchema })

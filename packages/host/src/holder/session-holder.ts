@@ -73,6 +73,7 @@ export class SessionHolder {
       draining: () => this.draining,
       onReconcile: (sessionId) => this.onWake(sessionId),
       terminal: args.terminalDemand,
+      panel: args.panelDemand,
       log: args.log,
     })
     this.runtimes = args.runtimes
@@ -165,6 +166,7 @@ export class SessionHolder {
   discard(): void {
     this.draining = true
     this.stopTriggers()
+    this.demand.panel.stop()
     for (const session of this.held.values()) session.discard()
   }
 

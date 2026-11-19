@@ -7,6 +7,7 @@ import type { TerminalScreenHandle, TerminalSize } from '@dltech/atlas-ui/ai/ter
 
 import { api, cloudCall } from '@/lib/api-client'
 
+import { usePodHold } from '../data/use-pod-hold'
 import { usePodWake } from '../data/use-pod-wake'
 import { podAttached } from '../data/pod-attachment'
 import { useSessionPaneValue } from '../panel/pane-value'
@@ -47,6 +48,7 @@ export function TerminalTab(props: { transportOf?: TerminalTransportOf } = {}) {
   const store = useTerminalStore(sessionId)
   const snapshot = useTerminals(sessionId)
   const attached = podAttached(status)
+  usePodHold({ sessionId, active: attached })
   const { state: wakeState, wakePod } = usePodWake({
     sessionId,
     live: attached,

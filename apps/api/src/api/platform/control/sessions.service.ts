@@ -1,5 +1,12 @@
 import { randomUUID } from 'node:crypto'
-import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common'
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+  Optional,
+} from '@nestjs/common'
 import type { CommandRegistry } from '@dltech/atlas-commands'
 import { resize } from '@dltech/atlas-native-commands'
 import {
@@ -38,12 +45,14 @@ import {
   type SessionStopOutput,
   type SessionViewOutput,
   type SessionWakeOutput,
+  type SessionHoldPodOutput,
   type SessionWithdrawOutput,
 } from '@dltech/atlas-protocol'
 import type { SessionPageOutput } from '@dltech/atlas-wire'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { SessionTitler } from '../../../_core/ports/session-titler'
+import { POD_OPS, type PodOps } from '../../../agent'
 import { PodSizingService, type PodSizing } from './pod-sizing.service'
 import { pageSessions, type PageBucket } from '../sessions/session-pages'
 import { COMMAND_REGISTRY, postCommand } from './command-registry'
@@ -80,6 +89,7 @@ export class SessionsService {
     @Inject(COMMAND_REGISTRY) private readonly commands: CommandRegistry,
     @Inject(EnvService) private readonly env: EnvService,
     @Inject(PodSizingService) private readonly podSizing: PodSizing,
+    @Optional() @Inject(POD_OPS) private readonly ops: PodOps | null = null,
   ) {}
 
   async accessibleProjectId(args: { userId: string; projectId: string }): Promise<string> {
@@ -382,6 +392,12 @@ export class SessionsService {
     if (lease.holderHostId !== null && live) return { state: 'elsewhere' }
     await this.plane.revoke({ sessionId: args.sessionId, wantsHolder: true })
     return { state: 'waking' }
+  }
+
+  async holdPod(args: { userId: string; sessionId: string }): Promise<SessionHoldPodOutput> {
+    await this.requireOwnedSession(args)
+    if (this.ops === null) return { held: false }
+    return { held: this.ops.hold({ sessionId: args.sessionId }) }
   }
 
   async command(args: { userId: string } & SessionCommandInput): Promise<SessionCommandOutput> {

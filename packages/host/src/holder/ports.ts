@@ -96,6 +96,7 @@ export type SessionRuntime = {
   plugins?: ComposedPlugins | undefined
   runningShells(): Promise<number>
   terminalStreams?: (() => number) | undefined
+  panelHolds?: (() => number) | undefined
   env?: (() => Promise<Record<string, string>>) | undefined
   prepare(onStep?: PrepareStepReporter): Promise<PrepareResult>
   subscribePrepareOutput?(listener: (text: string) => void): void

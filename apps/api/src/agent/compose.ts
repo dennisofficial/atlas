@@ -1,6 +1,7 @@
 import { RandomIds } from './runtime/random-ids'
 import { composeCommands } from '@dltech/atlas-commands'
 import {
+  PanelDemand,
   SessionHolder,
   TerminalDemand,
   type HostPresence,
@@ -63,6 +64,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
   const mcpControl = mcpControlPort(args.macLink)
   const cipher = new SecretCipher(args.env.secretsEncryptionKey)
   const terminalDemand = new TerminalDemand()
+  const panelDemand = new PanelDemand()
   return new SessionHolder({
     presence: args.presence,
     plane: args.plane,
@@ -82,6 +84,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
       envSecrets: envSecretsReader(),
       projectFiles: projectFilesSourceOf(),
       terminalStreams: (sessionId) => terminalDemand.countOf(sessionId),
+      panelHolds: (sessionId) => panelDemand.countOf(sessionId),
       podSizing: args.plane,
       ...(args.log === undefined ? {} : { log: args.log }),
     }),
@@ -98,6 +101,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
     },
     ...(args.changes === undefined ? {} : { changes: args.changes }),
     terminalDemand,
+    panelDemand,
     onHostIdChanged: args.onHostIdChanged,
     ...(args.log === undefined ? {} : { log: args.log }),
   })

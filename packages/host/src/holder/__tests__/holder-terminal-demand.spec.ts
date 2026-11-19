@@ -16,6 +16,7 @@ describe('idleReleaseDue with terminal demand', () => {
         runningShells: 0,
         runningChildren: 0,
         terminalStreams: 1,
+        panelHolds: 0,
       }),
     ).toBe(false)
   })
@@ -29,6 +30,7 @@ describe('idleReleaseDue with terminal demand', () => {
         runningShells: 0,
         runningChildren: 0,
         terminalStreams: 0,
+        panelHolds: 0,
       }),
     ).toBe(true)
   })

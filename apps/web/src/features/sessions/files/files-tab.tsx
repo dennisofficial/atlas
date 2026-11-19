@@ -20,6 +20,7 @@ import { EFileTreeStatus, useFileTree } from '@/features/threads/data/use-file-t
 import { useWorkspaceFile } from '@/features/threads/data/use-workspace-file'
 import { FileBody } from '@/features/threads/context-viewer/file-viewer'
 import { lineMarksOf } from '@/features/threads/data/line-marks'
+import { usePodHold } from '../data/use-pod-hold'
 import { usePodWake } from '../data/use-pod-wake'
 import { podAttached } from '../data/pod-attachment'
 import { useSessionPaneValue } from '../panel/pane-value'
@@ -120,6 +121,7 @@ export function FilesTab(props: { sourceOf?: (sessionId: string) => FileSource }
   const sourceOf = props.sourceOf ?? ((id: string) => v2FileSource({ sessionId: id }))
   const source = useMemo(() => sourceOf(sessionId), [sourceOf, sessionId])
   const attached = podAttached(status)
+  usePodHold({ sessionId, active: attached })
   const { state, wakePod } = usePodWake({
     sessionId,
     live: attached,

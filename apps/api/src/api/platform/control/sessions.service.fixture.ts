@@ -13,6 +13,7 @@ import { FakeMediaStore } from '@dltech/atlas-media/testing'
 import { ControlPlane, INBOX_KIND_WITHDRAW, withdrawPayloadOf } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 import { EnvService } from '../../../_core/config/env/env.service'
+import type { PodOps } from '../../../agent'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { PodPlanGate } from '../../../_core/ports/pod-plan-gate'
 import { NoSessionTitler } from '../../../_core/ports/session-titler'
@@ -123,6 +124,7 @@ export const setupSessionsService = (
     env?: Record<string, string>
     planGate?: PodPlanGate
     dispatcher?: FakePodResizeDispatcher
+    ops?: PodOps | null
   } = {},
 ) => {
   const store = new InMemoryControlStore({ clock: () => NOW })
@@ -144,6 +146,7 @@ export const setupSessionsService = (
     composeCommands([TEST_COMMAND, modelSet, resize]),
     new EnvService({ SANDBOX_PROVIDER_DEFAULT: 'vercel', ...over.env }),
     podSizing,
+    over.ops ?? null,
   )
   return { plane, service, registry, mediaStore, store, projects, dispatcher }
 }

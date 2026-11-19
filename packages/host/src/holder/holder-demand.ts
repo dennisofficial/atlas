@@ -2,6 +2,7 @@ import type { ControlPlane } from '@dltech/atlas-control'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
 import { HeldWaits } from './held-waits'
+import { PanelDemand } from './panel-demand'
 import type { HostTimers } from './ports'
 import { TerminalDemand } from './terminal-demand'
 
@@ -23,6 +24,7 @@ const requestHolderFor = async (args: {
 
 export class HolderDemand {
   readonly terminal: TerminalDemand
+  readonly panel: PanelDemand
   private readonly waits: HeldWaits
   private readonly args: {
     plane: ControlPlane
@@ -31,6 +33,7 @@ export class HolderDemand {
     draining(): boolean
     onReconcile(sessionId: string): void
     terminal: TerminalDemand | undefined
+    panel: PanelDemand | undefined
     log: LogPort | undefined
   }
 
@@ -39,6 +42,13 @@ export class HolderDemand {
     this.waits = new HeldWaits(args.timers)
     this.terminal = args.terminal ?? new TerminalDemand()
     this.terminal.observe({
+      onWork: (sessionId) => {
+        void this.requestHolder(sessionId).catch((error: unknown) => this.logFault(error))
+      },
+      onIdle: (sessionId) => this.requestReconcile(sessionId),
+    })
+    this.panel = args.panel ?? new PanelDemand()
+    this.panel.observe({
       onWork: (sessionId) => {
         void this.requestHolder(sessionId).catch((error: unknown) => this.logFault(error))
       },
