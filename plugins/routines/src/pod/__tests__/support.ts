@@ -46,6 +46,13 @@ export const fakeRoutines = (
       refuse()
       return [...rows.values()]
     },
+    get: async ({ routineId }) => {
+      calls.push(`get:${routineId}`)
+      refuse()
+      const row = rows.get(routineId)
+      if (row === undefined) throw new Error(`routine not found: ${routineId}`)
+      return row
+    },
     create: async (input) => {
       calls.push('create')
       refuse()

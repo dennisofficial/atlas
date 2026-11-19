@@ -3,6 +3,7 @@ import {
   RoutineInvalidError,
   RoutineNotFoundError,
   routineCreateOf,
+  routineGetOf,
   routineListOf,
   routineRemoveOf,
   routineRunNowOf,
@@ -108,6 +109,14 @@ export const localPodControlOf = (args: {
         try {
           const listed = await routineListOf({ plane: args.plane, ...scope })
           return listed.routines
+        } catch (failure) {
+          return routineRefused(failure)
+        }
+      },
+      get: async ({ threadId, routineId }) => {
+        const scope = routineScopeOf(await ownerOf(threadId))
+        try {
+          return await routineGetOf({ plane: args.plane, ...scope, routineId })
         } catch (failure) {
           return routineRefused(failure)
         }

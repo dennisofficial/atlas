@@ -43,6 +43,7 @@ export type PodControlClient = {
   }
   routines: {
     list(args: Called): Promise<readonly Routine[]>
+    get(args: Called & { routineId: string }): Promise<Routine>
     create(args: Called & PodRoutineInput): Promise<Routine>
     update(args: Called & RoutineUpdateInput): Promise<Routine>
     remove(args: Called & { routineId: string }): Promise<RoutineRemoveOutput>
@@ -59,6 +60,10 @@ const routinesOf = (args: {
   list: async () => {
     if (args.client === undefined) throw unreachable()
     return await args.client.routines.list({ threadId: args.threadId })
+  },
+  get: async ({ routineId }) => {
+    if (args.client === undefined) throw unreachable()
+    return await args.client.routines.get({ threadId: args.threadId, routineId })
   },
   create: async (input) => {
     if (args.client === undefined) throw unreachable()

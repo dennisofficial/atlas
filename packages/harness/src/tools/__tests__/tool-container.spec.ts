@@ -74,6 +74,7 @@ const BUILTIN_NAMES = [
   'unsubscribe',
   'subscription_list',
   'routine_list',
+  'routine_get',
   'routine_create',
   'routine_update',
   'routine_delete',

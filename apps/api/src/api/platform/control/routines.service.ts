@@ -4,6 +4,7 @@ import {
   RoutineInvalidError,
   RoutineNotFoundError,
   routineCreateOf,
+  routineGetOf,
   routineListOf,
   routineRemoveOf,
   routineRunNowOf,
@@ -47,6 +48,23 @@ export class RoutinesService {
       userId: args.userId,
       projectId: args.projectId,
     })
+  }
+
+  async get(args: {
+    userId: string
+    routineId: string
+    projectId?: string | undefined
+  }): Promise<Routine> {
+    try {
+      return await routineGetOf({
+        plane: this.plane,
+        userId: args.userId,
+        routineId: args.routineId,
+        projectId: args.projectId,
+      })
+    } catch (failure) {
+      return refused(failure)
+    }
   }
 
   async create(args: { userId: string; input: RoutineCreateInput }): Promise<Routine> {
