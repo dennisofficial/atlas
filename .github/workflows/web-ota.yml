@@ -105,7 +105,7 @@ jobs:
         env:
           ACCEPT_NEWER_LIVE_COMMIT: '1'
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-          RENDER_SERVICE_ID: srv-dbmaj7ajnfac738tg30g
+          RENDER_SERVICE_ID: srv-dbuu4tui0phs73ercifg
 
       - name: publish the manifest and the artifact
         run: |
