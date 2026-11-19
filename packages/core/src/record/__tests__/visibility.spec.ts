@@ -8,6 +8,7 @@ import { chainEvents } from '../chain-events'
 import type { V2Body, V2Event } from '../event'
 import {
   EMPTY_VISIBILITY,
+  isSurviving,
   isVisible,
   stepVisibility,
   visibleEvents,
@@ -224,5 +225,38 @@ describe('visibility', () => {
         expect(spans([...bodies, { type: 'history-rewound', toSeq: 0 }]).length).toBe(1)
       }),
     )
+  })
+})
+
+describe('the surviving log', () => {
+  const build = (bodies: readonly V2Body[]): V2Event[] =>
+    chainEvents({ threadId, runId, epoch: 1, at: NOW, bodies })
+
+  it('keeps an event a summary hid and drops one a rewind hid', () => {
+    const summarised = build([
+      { type: 'user-said', text: 'a' },
+      { type: 'user-said', text: 'b' },
+      {
+        type: 'history-summarised',
+        fromSeq: 1,
+        throughSeq: 2,
+        anchor: ECompactionAnchor.Prefix,
+        summary: 's',
+      },
+    ])
+    const summaryState = summarised.reduce(stepVisibility, EMPTY_VISIBILITY)
+    expect(isVisible(summaryState, summarised[1] as V2Event)).toBe(false)
+    expect(isSurviving(summaryState, summarised[1] as V2Event)).toBe(true)
+
+    const rewound = build([
+      { type: 'user-said', text: 'a' },
+      { type: 'user-said', text: 'b' },
+      { type: 'user-said', text: 'c' },
+      { type: 'history-rewound', toSeq: 2 },
+    ])
+    const rewindState = rewound.reduce(stepVisibility, EMPTY_VISIBILITY)
+    expect(isSurviving(rewindState, rewound[0] as V2Event)).toBe(true)
+    expect(isSurviving(rewindState, rewound[2] as V2Event)).toBe(false)
+    expect(isSurviving(rewindState, rewound[3] as V2Event)).toBe(false)
   })
 })

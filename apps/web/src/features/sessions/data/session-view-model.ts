@@ -1,4 +1,4 @@
-import type { SpendTally } from '@dltech/atlas-core'
+import type { PlanTask, SpendTally } from '@dltech/atlas-core'
 import {
   crewOfView,
   crewRosterOf,
@@ -10,6 +10,7 @@ import {
   type SubscribedPullRequest,
 } from '@dltech/atlas-plugin-github/client'
 import { previewsOfView, type PreviewItem } from '@dltech/atlas-plugin-services/client'
+import { planOfView } from '@dltech/atlas-plugin-sessions/client'
 import { shellRosterOf, type ShellRoster } from '@dltech/atlas-plugin-shells/client'
 import type { SessionSummary, SessionViewOutput } from '@dltech/atlas-protocol'
 
@@ -31,6 +32,7 @@ export type SessionViewModel = {
   crew: CrewRoster
   crewRows: readonly CrewRow[]
   previews: readonly PreviewItem[]
+  plan: readonly PlanTask[]
   context: SessionContextModel | null
   spend: SpendTally | null
 }
@@ -94,6 +96,7 @@ export const sessionViewModelOf = (view: SessionViewOutput | undefined): Session
       crew: { running: 0, total: 0 },
       crewRows: [],
       previews: [],
+      plan: [],
       context: null,
       spend: null,
     }
@@ -108,6 +111,7 @@ export const sessionViewModelOf = (view: SessionViewOutput | undefined): Session
     crew: crewRosterOf(view.pluginViews),
     crewRows: crewOfView(view.pluginViews),
     previews: previewsOfView(view.pluginViews),
+    plan: planOfView(view.pluginViews),
     context: contextOfView(view),
     spend: view.spend.tally,
   }

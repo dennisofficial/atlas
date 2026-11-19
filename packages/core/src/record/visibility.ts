@@ -49,6 +49,11 @@ export const isVisible = (state: VisibilityState, event: Pick<V2Event, 'seq' | '
       !(span.keepSurvivors && SURVIVOR_TYPES.includes(event.type)),
   )
 
+export const isSurviving = (
+  state: VisibilityState,
+  event: Pick<V2Event, 'seq' | 'type'>,
+): boolean => !state.spans.some((span) => !span.keepSurvivors && covers({ span, seq: event.seq }))
+
 export function visibleSegments(params: {
   state: VisibilityState
   fromSeq: number

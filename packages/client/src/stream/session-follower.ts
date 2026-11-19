@@ -29,6 +29,7 @@ import {
   RENDER_LIMIT,
   resetWindow,
   type SessionCursor,
+  type SessionWindow,
 } from './session-window'
 import { defaultKnownEventTypes } from './known-event-types'
 import type { StreamScheduler } from './stream-ports'
@@ -65,6 +66,26 @@ export type SessionFollowerArgs = {
 }
 
 type Inner = FollowedState
+
+const adoptRewindable = (args: {
+  window: SessionWindow
+  views: readonly PluginViewFold[]
+  pluginViews: Readonly<Record<string, unknown>>
+}): SessionWindow => {
+  const owned = args.views.filter(
+    (view) => view.rewindable === true && Object.hasOwn(args.pluginViews, view.name),
+  )
+  const changed = owned.some(
+    (view) => args.window.view.pluginViews[view.name] !== args.pluginViews[view.name],
+  )
+  if (!changed) return args.window
+  const pluginViews = { ...args.window.view.pluginViews }
+  for (const view of owned) {
+    if (Object.hasOwn(args.pluginViews, view.name))
+      pluginViews[view.name] = args.pluginViews[view.name]
+  }
+  return { ...args.window, view: { ...args.window.view, pluginViews } }
+}
 
 export const createSessionFollower = (args: SessionFollowerArgs): SessionFollower => {
   const { sessionId, log, scheduler } = args
@@ -177,8 +198,13 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
     if (message.name !== 'session') return
     if (!acceptsView({ inner, at: message.at })) return
     const frame: FrameFacts = frameFactsOf(message.value)
+    const window = adoptRewindable({
+      window: inner.window,
+      views: args.views ?? [],
+      pluginViews: message.value.pluginViews,
+    })
     const live = viewSettlesCatchUp({ inner, at: message.at }) || inner.live
-    commit({ ...inner, frame, live })
+    commit({ ...inner, window, frame, live })
   }
 
   const handleOverlayMessage = (
