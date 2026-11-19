@@ -199,7 +199,12 @@ describe('sessionViewModelOf', () => {
     }
     const model = sessionViewModelOf(viewOf({ pluginViews: { subscriptions: [row] } }))
     expect(model.subscriptions).toEqual([
-      { number: 31, label: 'owner/atlas#31', url: 'https://github.com/owner/atlas/pull/31' },
+      {
+        id: 's1',
+        number: 31,
+        label: 'owner/atlas#31',
+        url: 'https://github.com/owner/atlas/pull/31',
+      },
     ])
   })
 

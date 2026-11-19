@@ -1,107 +1,79 @@
 'use client'
 
-import { GitBranchIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
 
-import type { SessionViewOutput } from '@dltech/atlas-protocol'
-import { Table, TableBody, TableCell, TableRow } from '@dltech/atlas-ui/components/table'
+import { cn } from '@dltech/atlas-ui/lib/utils'
 
-import {
-  PullRequestChecks,
-  PullRequestConflict,
-  PullRequestIcon,
-} from '@/features/shell/thread-pr-presentation'
+import { PullRequestIcon } from '@/features/shell/thread-pr-presentation'
 import type { PullRequestEntry } from '@/features/threads/data/pull-request-entries'
-import { DetailsSection } from '@/features/threads/panel/details/section'
-import { BODY_CELL } from '@/features/threads/panel/details/table-parts'
 
 import { useSessionPaneValue } from '../pane-value'
+import { FoldedRows, Pill, Row, SectionHead } from './rows'
 
-const COLUMNS = 4
+const PR_STATE: Record<string, { label: string; tone: string }> = {
+  open: { label: 'Open', tone: 'bg-pr-open/10 text-pr-open' },
+  draft: { label: 'Draft', tone: 'bg-pr-draft/10 text-pr-draft' },
+  merged: { label: 'Merged', tone: 'bg-pr-merged/12 text-pr-merged' },
+  closed: { label: 'Closed', tone: 'bg-pr-closed/10 text-pr-closed' },
+}
 
-type CheckoutRepo = SessionViewOutput['checkouts']['repos'][number]
+const ciLabelOf = (entry: PullRequestEntry): string | null => {
+  if (entry.checksPassed === undefined) return null
+  const failed = entry.checksFailed ?? 0
+  const running = entry.checksRunning ?? 0
+  return `CI ${entry.checksPassed}/${entry.checksPassed + failed + running}`
+}
 
-function CheckoutGroup({ repo }: { repo: CheckoutRepo }) {
-  const range = repo.base === null || repo.head === null ? null : `${repo.base} → ${repo.head}`
+const metaOf = (entry: PullRequestEntry): ReactNode => {
+  const ci = ciLabelOf(entry)
   return (
     <>
-      <TableRow data-pane-checkout-repo>
-        <TableCell colSpan={COLUMNS} className={`${BODY_CELL} pt-2`}>
-          <span className="block truncate text-xs text-muted-foreground" title={repo.repo}>
-            {repo.repo}
-            {range === null ? null : <span className="font-mono"> · {range}</span>}
+      <span className="font-mono">#{entry.number}</span>
+      {ci === null ? null : (
+        <>
+          {' · '}
+          <span className={cn('font-mono', (entry.checksFailed ?? 0) > 0 && 'text-destructive')}>
+            {ci}
           </span>
-        </TableCell>
-      </TableRow>
-      {repo.branches.map((branch) => (
-        <TableRow key={branch.name} data-pane-checkout-branch>
-          <TableCell className={`${BODY_CELL} w-6`}>
-            <GitBranchIcon
-              role="img"
-              aria-label="Branch"
-              className="size-3.5 text-muted-foreground"
-            />
-          </TableCell>
-          <TableCell colSpan={COLUMNS - 1} className={`${BODY_CELL} max-w-0`}>
-            <span
-              className="block truncate font-mono text-sm"
-              title={branch.worktreePath ?? branch.name}
-            >
-              {branch.name}
-            </span>
-          </TableCell>
-        </TableRow>
-      ))}
+        </>
+      )}
+      {entry.mergeable === false ? ' · conflicts' : null}
     </>
   )
 }
 
 function PullRequestRow({ entry }: { entry: PullRequestEntry }) {
+  const state = PR_STATE[(entry.state ?? '').toLowerCase()]
   return (
-    <TableRow data-pane-pull-request>
-      <TableCell className={`${BODY_CELL} w-6`}>
-        <PullRequestIcon entry={entry} />
-      </TableCell>
-      <TableCell className={`${BODY_CELL} whitespace-nowrap`}>
+    <Row
+      leading={<PullRequestIcon entry={entry} />}
+      title={
         <a
           href={entry.url}
           target="_blank"
           rel="noreferrer"
-          className="font-mono underline-offset-2 hover:underline"
+          title={entry.title ?? entry.repo}
+          className="outline-none hover:underline focus-visible:underline"
         >
-          #{entry.number}
-        </a>
-      </TableCell>
-      <TableCell className={`${BODY_CELL} max-w-0`}>
-        <span className="block truncate text-sm" title={entry.title}>
           {entry.title ?? entry.repo}
-        </span>
-      </TableCell>
-      <TableCell className={`${BODY_CELL} whitespace-nowrap`}>
-        <span className="flex items-center gap-1.5">
-          <span className="font-mono text-xs text-muted-foreground">{entry.branch}</span>
-          <PullRequestConflict entry={entry} />
-          <PullRequestChecks entry={entry} />
-        </span>
-      </TableCell>
-    </TableRow>
+        </a>
+      }
+      meta={metaOf(entry)}
+      trailing={state === undefined ? null : <Pill label={state.label} tone={state.tone} />}
+    />
   )
 }
 
 export function SessionGithubSection() {
-  const { view, checkouts } = useSessionPaneValue()
-  if (checkouts.repos.length === 0 && view.entries.length === 0) return null
+  const { view } = useSessionPaneValue()
+  if (view.entries.length === 0) return null
   return (
-    <DetailsSection title="GitHub">
-      <Table>
-        <TableBody>
-          {checkouts.repos.map((repo) => (
-            <CheckoutGroup key={repo.repo} repo={repo} />
-          ))}
-          {view.entries.map((entry) => (
-            <PullRequestRow key={`${entry.repo}#${entry.number}`} entry={entry} />
-          ))}
-        </TableBody>
-      </Table>
-    </DetailsSection>
+    <section data-session-pull-requests aria-label="Pull requests" className="flex flex-col">
+      <SectionHead title="Pull requests" count={view.entries.length} />
+      <FoldedRows
+        rows={view.entries}
+        render={(entry) => <PullRequestRow key={`${entry.repo}#${entry.number}`} entry={entry} />}
+      />
+    </section>
   )
 }

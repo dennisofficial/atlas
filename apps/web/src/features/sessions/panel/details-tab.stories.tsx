@@ -10,7 +10,7 @@ const meta = {
 export default meta
 
 const pane = (value: ReturnType<typeof populatedPaneValue>) => (
-  <div className="h-[36rem] w-full max-w-sm border-r bg-card">
+  <div className="h-[36rem] w-[26rem] border-r bg-card">
     <SessionPaneProvider value={value}>
       <SessionDetailsTab />
     </SessionPaneProvider>

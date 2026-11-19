@@ -2,23 +2,22 @@
 
 import { SessionCrewSection } from './details/crew-section'
 import { SessionGithubSection } from './details/github-section'
+import { SessionDetailsHeader } from './details/header-section'
 import { SessionServicesSection } from './details/services-section'
 import { SessionShellsSection } from './details/shells-section'
-import { SessionSubscriptionsSection } from './details/subscriptions-section'
-import { SessionSummarySection } from './details/summary-section'
 
 export function SessionDetailsTab() {
   return (
     <div
       data-session-details
-      className="@container flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-3"
+      className="@container flex min-h-0 flex-1 flex-col gap-4 overflow-auto px-4 py-3"
     >
-      <SessionSummarySection />
+      <SessionDetailsHeader />
+      <div data-session-todo-slot className="contents" />
       <SessionGithubSection />
       <SessionServicesSection />
-      <SessionShellsSection />
       <SessionCrewSection />
-      <SessionSubscriptionsSection />
+      <SessionShellsSection />
     </div>
   )
 }
