@@ -8,6 +8,15 @@ import { materialize } from './workspace-clone'
 import type { RepoProgress } from './workspace-repos'
 import { fail, writeSentinel, type Deps, type Sentinels } from './workspace-state'
 
+export enum EWorkspacePrepareFailure {
+  Clone = 'clone',
+  Materialized = 'materialized',
+}
+
+export type WorkspacePrepareOutcome =
+  | { ok: true; bases: readonly CapturedBase[] }
+  | { ok: false; failure: EWorkspacePrepareFailure; bases: readonly CapturedBase[] }
+
 export const markMaterialized = async (args: {
   deps: Deps
   basesPath: string
@@ -45,7 +54,7 @@ export const prepareWorkspace = async (args: {
   scrub: (text: string) => string
   onCheckedOut: CheckoutReport | undefined
   onStep?: ((step: WorkspaceStepReport) => void) | undefined
-}): Promise<{ ok: boolean; bases: readonly CapturedBase[] }> => {
+}): Promise<WorkspacePrepareOutcome> => {
   const { deps, workspace, launchDirectory, sentinels, progress, onStep } = args
   progress.start()
   const cloned = await materialize({
@@ -65,7 +74,7 @@ export const prepareWorkspace = async (args: {
       reason: (deps.warnings ?? []).join('\n') || 'clone failed',
       repos: progress.snapshot(),
     })
-    return { ok: false, bases: [] }
+    return { ok: false, failure: EWorkspacePrepareFailure.Clone, bases: [] }
   }
   const bases = await captureCheckedOut({
     deps,
@@ -85,5 +94,7 @@ export const prepareWorkspace = async (args: {
     ...(marked ? {} : { reason: (deps.warnings ?? []).join('\n') || 'materialize failed' }),
     repos: progress.snapshot(),
   })
-  return { ok: marked, bases }
+  return marked
+    ? { ok: true, bases }
+    : { ok: false, failure: EWorkspacePrepareFailure.Materialized, bases }
 }

@@ -21,7 +21,7 @@ import type { WorkspaceConfig } from '../config/agent-host-config'
 
 import { replayCapturedBases } from './workspace-bases'
 import type { CheckoutReport } from './workspace-checkout'
-import { prepareWorkspace } from './workspace-materialize'
+import { EWorkspacePrepareFailure, prepareWorkspace } from './workspace-materialize'
 import { run } from './workspace-clone'
 import { RepoProgress, repoNamesOf } from './workspace-repos'
 import {
@@ -231,6 +231,12 @@ export const ensureWorkspace = async (args: {
       })
       captured = prepared.bases
       if (!prepared.ok) {
+        if (prepared.failure === EWorkspacePrepareFailure.Materialized) {
+          return {
+            ok: false,
+            reason: warnings.join('\n') || 'the workspace was not marked materialized',
+          }
+        }
         if (workspace.setupScript.trim() !== '') {
           fail({ deps, message: 'setup script was skipped because the workspace clone failed' })
         }

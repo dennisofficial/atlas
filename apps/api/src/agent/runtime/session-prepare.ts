@@ -39,7 +39,7 @@ export const prepareControllerOf = (args: {
   sandboxName: string
   workspace: WorkspaceConfig
   paths: SessionPaths
-  calls: RemoteCalls
+  calls: Pick<RemoteCalls, 'ready' | 'ackScope'>
   processes: ProcessPort
   files: FileSystemPort
   steps: PrepareSteps
