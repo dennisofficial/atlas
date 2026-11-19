@@ -11,6 +11,7 @@ import { cn } from '@dltech/atlas-ui/lib/utils'
 import { ChecksTally } from '@/features/threads/checks-tally'
 import { checksTallyOf, entryHasConflicts } from '@/features/threads/data/header-model'
 import type { PullRequestEntry } from '@/features/threads/data/pull-request-entries'
+import { PullRequestMergeMarker } from '@/features/threads/pull-request-merge-marker'
 import { latestThreadPullRequestOf } from './thread-pull-requests'
 
 export function PullRequestIcon({ entry }: { entry: PullRequestEntry }) {
@@ -148,6 +149,7 @@ export function ThreadWorkSummary({
       <PullRequestIcon entry={latest} />
       <span className="font-mono">#{latest.number}</span>
       <PullRequestConflict entry={latest} />
+      <PullRequestMergeMarker entry={latest} />
       <PullRequestChecks entry={latest} />
       {entries.length > 1 ? (
         <span

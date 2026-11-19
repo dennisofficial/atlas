@@ -15,6 +15,8 @@ export type PullRequestRow = {
   state: string | undefined
   checks: ChecksTally | undefined
   conflicts: boolean
+  mergeQueued: boolean
+  autoMerge: boolean
   polled: boolean
   via: string | undefined
 }
@@ -33,6 +35,8 @@ export function pullRequestRowOf(entry: PullRequestEntry): PullRequestRow {
     state: entry.state,
     checks: checksTallyOf(entry),
     conflicts: entryHasConflicts(entry),
+    mergeQueued: entry.mergeQueued === true,
+    autoMerge: entry.autoMerge === true,
     polled: entry.polled === true,
     via: entry.via?.title ? `via ${entry.via.title}` : undefined,
   }

@@ -20,6 +20,7 @@ export interface GithubWebhookPullRequest {
   state: string
   draft: boolean
   merged_at: string | null
+  auto_merge?: unknown
   head: { ref: string; sha: string; repo: { full_name: string } | null }
 }
 

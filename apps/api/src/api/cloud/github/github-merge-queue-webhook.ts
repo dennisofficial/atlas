@@ -74,12 +74,14 @@ async function subscribedThreadIds(args: {
 
 export async function recordMergeQueueEntry(args: {
   payload: GithubMergeQueueEntryWebhookPayload
+  queues: (args: { repoFullName: string; prNumber: number; mergeQueued: boolean }) => Promise<void>
 }): Promise<number> {
   const move = moveOf(args.payload.action)
   if (move === null) return 0
   const prNumber = mergeQueuePrNumberOf(args.payload)
   if (prNumber === null) return 0
   const repoFullName = args.payload.repository.full_name
+  await args.queues({ repoFullName, prNumber, mergeQueued: move === EMergeQueueMove.Entered })
   const threadIds = await subscribedThreadIds({ repoFullName, prNumber })
   if (threadIds.length === 0) return 0
   const threads = await db.orm.v2.V2Thread.where((thread) => thread.id.in(threadIds)).all()

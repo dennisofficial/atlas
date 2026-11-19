@@ -143,6 +143,8 @@ export function describeControlPlaneViews(params: ConformanceParams): void {
             headSha: 'b2',
             checks: { running: 0, passed: 2, failed: 0, expected: 0 },
             mergeable: true,
+            mergeQueued: false,
+            autoMerge: false,
             updatedAt: '2026-11-02T12:00:00.000Z',
           },
         },

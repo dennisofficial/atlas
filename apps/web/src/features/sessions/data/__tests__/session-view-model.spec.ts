@@ -43,6 +43,8 @@ const linked = {
     headSha: 'abc',
     checks: { running: 2, passed: 3, failed: 0, expected: 1 },
     mergeable: false,
+    mergeQueued: true,
+    autoMerge: false,
     updatedAt: '2026-11-06T10:00:00.000Z',
   },
 }
@@ -70,6 +72,8 @@ describe('pullRequestEntryOf', () => {
       checksFailed: 0,
       checksExpected: 1,
       mergeable: false,
+      mergeQueued: true,
+      autoMerge: false,
       current: true,
     })
     expect(checksTallyOf(entry)).toEqual({ running: 2, passed: 3, failed: 0, expected: 1 })

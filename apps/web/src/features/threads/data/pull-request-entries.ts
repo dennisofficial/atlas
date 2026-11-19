@@ -15,6 +15,8 @@ export type PullRequestEntry = {
   checksExpected: number | undefined
   checksState: string | undefined
   mergeable: boolean | null | undefined
+  mergeQueued?: boolean | undefined
+  autoMerge?: boolean | undefined
   polled?: boolean | undefined
   current: boolean
   via: { threadId: string; title: string | null } | undefined
@@ -58,6 +60,8 @@ function entryOf(args: {
   checksExpected?: number | undefined
   checksState?: string | null | undefined
   mergeable?: boolean | null | undefined
+  mergeQueued?: boolean | undefined
+  autoMerge?: boolean | undefined
   polled?: boolean | undefined
   via?: { threadId: string; title: string | null } | undefined
   live: PrStateWire | undefined
@@ -77,6 +81,8 @@ function entryOf(args: {
     checksExpected: live?.checksExpected ?? args.checksExpected,
     checksState: live?.checksState ?? args.checksState ?? undefined,
     mergeable: live === undefined ? args.mergeable : live.mergeable,
+    mergeQueued: live?.mergeQueued ?? args.mergeQueued,
+    autoMerge: live?.autoMerge ?? args.autoMerge,
     polled: live?.polled ?? args.polled,
     current: currentBranch !== undefined && branch === currentBranch,
     via: args.via,

@@ -149,6 +149,8 @@ export const sessionRowPullRequestSchema = z.strictObject({
   state: z.string().nullable(),
   checks: prChecksSchema.nullable(),
   mergeable: z.boolean().nullable(),
+  mergeQueued: z.boolean().optional(),
+  autoMerge: z.boolean().optional(),
 })
 
 export const sessionModelChoiceSchema = z.strictObject({
@@ -352,6 +354,8 @@ export const sessionPullRequestStateSchema = z.strictObject({
   headSha: z.string(),
   checks: prChecksSchema,
   mergeable: z.boolean().nullable(),
+  mergeQueued: z.boolean().optional(),
+  autoMerge: z.boolean().optional(),
   updatedAt: z.string(),
 })
 

@@ -18,6 +18,7 @@ import {
 } from './github-commit-checks'
 import { affectedPrsBySha } from './github-delivery-affected'
 import type { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
+import { mergeFlagsOf, writePrFlags, type PrMergeFlags } from './github-pr-flags'
 import { normalizedRepo } from './github-pr-identity'
 import { lockPrScope, type PrScopeTx } from './github-pr-lock'
 import {
@@ -97,6 +98,60 @@ export class GithubPrStore {
 
   async dispatch(outboxIds: readonly string[]): Promise<void> {
     await this.deps.dispatcher.dispatch(outboxIds)
+  }
+
+  /**
+   * A merge-queue move or an auto-merge toggle changes no folded pull field, so it writes the
+   * column and fans the new version out through the same state frame as any other change.
+   */
+  async applyMergeFlags(args: {
+    repoFullName: string
+    prNumber: number
+    flags: Partial<PrMergeFlags>
+  }): Promise<void> {
+    const repoFullName = normalizedRepo(args.repoFullName)
+    const outboxIds = await db.transaction(async (tx) => {
+      const scope = await lockPrScope({ tx, repoFullName })
+      const row = await writePrFlags({
+        tx: scope,
+        repoFullName,
+        prNumber: args.prNumber,
+        flags: args.flags,
+      })
+      if (row === null) return []
+      const subscribers = await this.subscribersOf({
+        tx: scope,
+        repoFullName,
+        prNumber: args.prNumber,
+        row,
+      })
+      const frame = `${repoFullName}#${args.prNumber}:${row.version}`
+      const threads = [...new Set(subscribers.map((held) => held.threadId))].filter(
+        (threadId) => threadId !== '',
+      )
+
+      return await GithubPrOutboxWriter.write({
+        tx: scope,
+        repoFullName,
+        prNumber: args.prNumber,
+        effects: [
+          {
+            kind: 'fanout',
+            payload: {
+              userIds: [...new Set(subscribers.map((held) => held.userId))],
+              state: dtoOf(row),
+            },
+            dedupeKey: `fanout:${frame}`,
+          },
+          ...threads.map((threadId) => ({
+            kind: 'thread-signal' as const,
+            payload: { threadId },
+            dedupeKey: `thread-signal:${frame}:${threadId}`,
+          })),
+        ],
+      })
+    })
+    await this.dispatch(outboxIds)
   }
 
   async applyChecks(args: {
@@ -196,6 +251,7 @@ export class GithubPrStore {
       state,
       checksState: head.checksState,
       checksExpected: head.missingRequiredContexts,
+      ...mergeFlagsOf({ stored, state }),
       stored,
     })
     const subscribers = await this.subscribersOf({ ...args, tx, row })

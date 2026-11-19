@@ -76,6 +76,8 @@ export async function writePrStateRow(args: {
   state: PrFoldState
   checksState: EStoredChecksState | null
   checksExpected: number
+  mergeQueued: boolean
+  autoMerge: boolean
   stored: Row<'GithubPrState'> | null
 }): Promise<Row<'GithubPrState'>> {
   const pull = args.state.pull
@@ -90,6 +92,8 @@ export async function writePrStateRow(args: {
     checksIgnored: checks?.ignored ?? 0,
     checksExpected: args.checksExpected,
     checksState: args.checksState,
+    mergeQueued: args.mergeQueued,
+    autoMerge: args.autoMerge,
     updatedAt: new Date(),
     version: (args.stored?.version ?? 0) + 1,
   }

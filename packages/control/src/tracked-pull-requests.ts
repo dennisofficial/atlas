@@ -68,6 +68,8 @@ const rowOf = (args: {
       expected: args.state.checksExpected,
     },
     mergeable: args.state.mergeable,
+    mergeQueued: args.state.mergeQueued,
+    autoMerge: args.state.autoMerge,
     updatedAt: args.state.updatedAt,
   },
 })

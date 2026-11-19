@@ -28,6 +28,8 @@ export const prStateWireSchema = z.object({
   checksExpected: z.number().int().nonnegative().optional(),
   checksState: z.enum(EPullRequestChecksStateWire).nullable().optional(),
   mergeable: z.boolean().nullable(),
+  mergeQueued: z.boolean().optional(),
+  autoMerge: z.boolean().optional(),
   polled: z.boolean().optional(),
 })
 

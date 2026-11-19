@@ -154,6 +154,8 @@ const prStateRowOf = (row: {
   checksPassed: number
   checksFailed: number
   checksExpected: number
+  mergeQueued: boolean
+  autoMerge: boolean
   mergeable: boolean | null
   updatedAt: Date
   closedAt: Date | null
@@ -170,6 +172,8 @@ const prStateRowOf = (row: {
   checksPassed: row.checksPassed,
   checksFailed: row.checksFailed,
   checksExpected: row.checksExpected,
+  mergeQueued: row.mergeQueued,
+  autoMerge: row.autoMerge,
   mergeable: row.mergeable,
   updatedAt: row.updatedAt.toISOString(),
   closedAt: row.closedAt === null ? null : row.closedAt.toISOString(),

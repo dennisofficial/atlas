@@ -76,6 +76,8 @@ export interface GithubPrStateDto {
   checksExpected?: number | undefined
   checksState: string | null
   mergeable: boolean | null
+  mergeQueued?: boolean | undefined
+  autoMerge?: boolean | undefined
   version: number
   updatedAt: string
   polled?: boolean | undefined

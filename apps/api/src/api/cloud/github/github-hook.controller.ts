@@ -80,6 +80,7 @@ export class GithubHookController {
         event,
         payload,
         wake: this.wake,
+        deliveries: this.deliveries,
       })
       const outcome = supplementary
         ? { handled: true }
