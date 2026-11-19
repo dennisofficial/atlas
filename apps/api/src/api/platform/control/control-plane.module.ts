@@ -4,7 +4,7 @@ import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import type { ProductAnalytics } from '@dltech/atlas-observability'
 import { eventSchemaOf } from '@dltech/atlas-plugin-sdk'
-import { PRODUCT_ANALYTICS, analyticsAppendHook } from '../../../agent'
+import { AnalyticsModule, PRODUCT_ANALYTICS, analyticsAppendHook } from '../../../agent'
 import { changeContentStoreProvider } from '../../../_lib/changes/change-content.provider'
 import { backgroundWorkProvider } from '../../../_lib/background-work/background-work.providers'
 import { COMMAND_REGISTRY, nativeCommandRegistry } from './command-registry'
@@ -39,7 +39,7 @@ export const controlPlaneProvider: Provider = {
 }
 
 @Module({
-  imports: [SandboxesModule],
+  imports: [AnalyticsModule, SandboxesModule],
   providers: [
     controlPlaneProvider,
     { provide: ProjectAccess, useClass: DbProjectAccess },
