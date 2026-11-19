@@ -50,12 +50,16 @@ export class TerminalStreamService {
     const abort = (): void => queue.end()
     args.signal?.addEventListener('abort', abort)
     try {
-      yield* this.replay({
+      const replayed = yield* this.replay({
         userId: args.userId,
         sessionId: args.sessionId,
         cursors: args.cursors,
         next,
       })
+      if (!replayed) {
+        yield { type: 'closed', reason: 'asleep' }
+        return
+      }
       for (;;) {
         const frame = await queue.next()
         if (frame === undefined) return
@@ -72,7 +76,7 @@ export class TerminalStreamService {
     sessionId: string
     cursors: readonly { terminalId: string; offset: number }[]
     next: Map<string, number>
-  }): AsyncGenerator<TerminalStreamFrame> {
+  }): AsyncGenerator<TerminalStreamFrame, boolean> {
     for (const cursor of args.cursors) {
       let at = cursor.offset
       for (;;) {
@@ -84,7 +88,7 @@ export class TerminalStreamService {
             offset: at,
           })
           .catch(() => undefined)
-        if (page === undefined) return
+        if (page === undefined) return false
         const bytes = bytesOf(page.data)
         if (bytes > 0)
           yield {
@@ -106,6 +110,7 @@ export class TerminalStreamService {
       }
       args.next.set(cursor.terminalId, at)
     }
+    return true
   }
 
   private forward(args: {

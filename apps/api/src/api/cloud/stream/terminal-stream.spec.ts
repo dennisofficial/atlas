@@ -140,6 +140,18 @@ describe('TerminalStreamService', () => {
     ])
   })
 
+  it('closes asleep when the pod no longer has the terminal during replay', async () => {
+    const terminals = terminalsOf()
+    terminals.read.mockRejectedValueOnce(new Error('pod is asleep'))
+    const { ops } = operationsOf(true)
+    const run = collect(attach(serviceOf({ terminals, ops })))
+    await run.done
+    expect(run.frames).toEqual([
+      { type: 'ready', sessionId: 's1' },
+      { type: 'closed', reason: 'asleep' },
+    ])
+  })
+
   it('forwards live output and writes the row when the shell exits', async () => {
     const terminals = terminalsOf()
     const { ops, state } = operationsOf(true)
