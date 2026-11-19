@@ -20,6 +20,7 @@ export type RecordTurnSpendArgs = TurnLedgerDeps & {
   threadId: ThreadId
   runId: RunId
   status: string
+  failureKind?: string
   model: ProviderIdentity
   steps: number
   usage: BilledUsage
@@ -58,6 +59,7 @@ export async function recordTurnSpend(args: RecordTurnSpendArgs): Promise<void> 
 
   args.telemetry?.turnCompleted({
     status: spend.status,
+    ...(args.failureKind === undefined ? {} : { failureKind: args.failureKind }),
     providerId: spend.providerId,
     modelId: spend.modelId,
     steps: spend.steps,
@@ -85,12 +87,13 @@ export function openTurnSpend(args: TurnLedgerDeps & { model: ProviderIdentity }
       usage = addUsage({ billed: usage, step: reported })
     },
 
-    settle: ({ threadId, runId, status }) =>
+    settle: ({ threadId, runId, status, failureKind }) =>
       recordTurnSpend({
         ...args,
         threadId,
         runId,
         status,
+        ...(failureKind === undefined ? {} : { failureKind }),
         steps,
         usage,
         startedAt,

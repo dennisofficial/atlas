@@ -223,6 +223,7 @@ export class LoopTurnRunner extends TurnRunner {
     const runId = this.ids.nextRunId()
     const spend = openTurnSpend({ ...(this.spend ?? {}), model: this.model.identity })
     let status: string = TURN_CRASHED
+    let failureKind: string | undefined
     // A turn that parks for a human does so by returning Paused, which drops this lease — the
     // assertion rides again on resume() rather than surviving a wait nobody is driving.
     const releaseSleepAssertion = this.sleepPrevention?.acquire()
@@ -247,6 +248,7 @@ export class LoopTurnRunner extends TurnRunner {
           providerId: this.model.identity.id,
           modelId: this.model.identity.modelId,
         })
+        failureKind = failure.kind
         await recordRunFailure({ record: this.record, threadId, runId, failure })
         return { ...outcome, failure }
       }
@@ -256,7 +258,7 @@ export class LoopTurnRunner extends TurnRunner {
         status = ETurnStatus.HandoffPaused
         return { status: ETurnStatus.HandoffPaused, runId }
       }
-      await recordEscapedFailure({
+      const failure = await recordEscapedFailure({
         record: this.record,
         threadId,
         runId,
@@ -264,10 +266,16 @@ export class LoopTurnRunner extends TurnRunner {
         identity: this.model.identity,
         normalizeFailure: this.normalizeFailure,
       })
+      failureKind = failure.kind
       throw error
     } finally {
       releaseSleepAssertion?.()
-      await spend.settle({ threadId, runId, status })
+      await spend.settle({
+        threadId,
+        runId,
+        status,
+        ...(failureKind === undefined ? {} : { failureKind }),
+      })
     }
   }
 }

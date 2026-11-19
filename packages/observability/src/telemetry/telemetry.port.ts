@@ -1,5 +1,6 @@
 export type TelemetryTurn = {
   status: string
+  failureKind?: string | undefined
   providerId: string
   modelId: string
   steps: number

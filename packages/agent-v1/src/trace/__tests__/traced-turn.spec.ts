@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EFinishReason, type Chunk } from '@dltech/atlas-core'
+import { EFinishReason, ERunFailureKind, type Chunk } from '@dltech/atlas-core'
 import { ESpan, ESpanMark, ESpanOutcome } from '@dltech/atlas-observability'
 import { RecordingTracer } from '@dltech/atlas-observability/testing'
 
@@ -8,6 +8,7 @@ import { THREAD, rigOf } from '../../__tests__/exit-fixture'
 import { HookChain } from '../../hooks/registry'
 import { FakeTool, fakeToolRegistry } from '../../testing'
 import { HookedToolDispatcher } from '../../tools/dispatch'
+import { ModelStreamError } from '../../model/errors'
 import { ETurnStatus } from '../../loop/turn-outcome'
 import { TracedModel } from '../traced-model'
 
@@ -50,6 +51,31 @@ describe('traced turn', () => {
     expect(trace.named(ESpan.ContextPrepare).length).toBeGreaterThanOrEqual(2)
     expect(trace.named(ESpan.RecordAppend).length).toBeGreaterThan(0)
     expect(trace.spans.every((span) => span.ended)).toBe(true)
+  })
+
+  it('names on the turn span why the turn failed', async () => {
+    const trace = new RecordingTracer()
+    const { runner } = rigOf({
+      script: [{ text: 'never reached' }],
+      overrides: {
+        trace,
+        model: {
+          identity: { id: 'scripted', modelId: 'scripted-1' },
+          step: async () => {
+            throw new ModelStreamError({ message: 'connection reset' })
+          },
+        },
+      },
+    })
+
+    const outcome = await runner.say({ threadId: THREAD, text: 'go' })
+
+    expect(outcome.status).toBe(ETurnStatus.Failed)
+    const [turn] = trace.named(ESpan.Turn)
+    expect(turn?.fields).toMatchObject({
+      status: ETurnStatus.Failed,
+      failureKind: ERunFailureKind.Network,
+    })
   })
 
   it('records nothing and changes nothing when no tracer is wired', async () => {

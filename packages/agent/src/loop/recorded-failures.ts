@@ -37,21 +37,23 @@ export async function recordEscapedFailure(args: {
   error: unknown
   identity: { id: string; modelId: string }
   normalizeFailure: NormalizeFailure
-}): Promise<void> {
-  if (failureRecorded(args.error)) return
+}): Promise<RunFailure> {
   const { error } = args
+  const failure = runFailureWith({
+    normalize: args.normalizeFailure,
+    message: error instanceof Error ? error.message : String(error),
+    cause: error,
+    escaped: true,
+    providerId: args.identity.id,
+    modelId: args.identity.modelId,
+  })
+  if (failureRecorded(error)) return failure
   await recordRunFailure({
     record: args.record,
     threadId: args.threadId,
     runId: args.runId,
-    failure: runFailureWith({
-      normalize: args.normalizeFailure,
-      message: error instanceof Error ? error.message : String(error),
-      cause: error,
-      escaped: true,
-      providerId: args.identity.id,
-      modelId: args.identity.modelId,
-    }),
+    failure,
   }).catch(() => undefined)
   markFailureRecorded(error)
+  return failure
 }
