@@ -326,6 +326,7 @@ describe('sessionAccess', () => {
       email: 'a@b.c',
       image: null,
       active: true,
+      userId: 'u',
     })
   })
 

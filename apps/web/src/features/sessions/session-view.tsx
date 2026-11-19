@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 import { ESessionStatus } from '@dltech/atlas-core'
@@ -15,6 +15,8 @@ import { ModelPickerControls } from '@/features/threads/model-picker'
 import { ThreadComposer } from '@/features/threads/thread-composer'
 import { ThreadTranscript } from '@/features/threads/thread-transcript'
 import { SummariseDialog } from '@/features/threads/transcript/summarise-dialog'
+import { track } from '@/lib/analytics/analytics'
+import { sessionOpenedProps } from '@/lib/analytics/perf'
 
 import { attachmentsOf } from '@dltech/atlas-core'
 
@@ -64,6 +66,24 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     connection: sessionStream,
     log: sessionLog(),
   })
+  const routeAt = useRef(0)
+  useEffect(() => {
+    if (routeAt.current === 0) routeAt.current = performance.now()
+  }, [])
+  const hasEvents = snapshot.events.length > 0
+  const openedReported = useRef(false)
+  useEffect(() => {
+    if (!hasEvents || openedReported.current) return
+    openedReported.current = true
+    track(
+      'session_opened',
+      sessionOpenedProps({
+        sessionId,
+        routeAt: routeAt.current,
+        firstContentAt: performance.now(),
+      }),
+    )
+  }, [hasEvents, sessionId])
   useSessionMarkRead({ sessionId, head: snapshot.events.at(-1)?.seq })
   const sessions = useV2Sessions()
   const listed = sessions.find((session) => session.sessionId === sessionId)

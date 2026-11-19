@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 
 import { Toaster } from '@dltech/atlas-ui/components/sonner'
 
+import { AnalyticsIdentity } from '@/features/auth/analytics-identity'
 import { SessionGate } from '@/features/auth/session-gate'
 import { PaneReports } from '@/features/threads/panel/preview/desktop/pane-reports'
 import { PreviewFrameLayer } from '@/features/threads/panel/preview/preview-frame-layer'
@@ -11,6 +12,7 @@ export default function PrivateLayout({ children }: { children: ReactNode }) {
   return (
     <QueryProvider>
       <SessionGate>
+        <AnalyticsIdentity />
         {children}
         <PreviewFrameLayer />
         <PaneReports />

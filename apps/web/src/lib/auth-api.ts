@@ -1,3 +1,4 @@
+import { resetAnalytics } from './analytics/analytics'
 import { api, cloudCall } from './api-client'
 import { apiUrl } from './api-base-url'
 
@@ -137,7 +138,7 @@ export async function sessionUser(): Promise<SessionUser | null> {
 
 export const AWAITING_ACCESS = 'AWAITING_ACCESS'
 
-export type SessionAccess = SessionUser & { active: boolean }
+export type SessionAccess = SessionUser & { active: boolean; userId?: string }
 
 const isAwaitingAccess = (failure: unknown): boolean =>
   failure instanceof Error && failure.message === AWAITING_ACCESS
@@ -147,7 +148,7 @@ export async function sessionAccess(): Promise<SessionAccess | null> {
   if (user === null) return null
   try {
     const account = await cloudCall(api.account.me.query({}))
-    return { ...user, active: account.active }
+    return { ...user, active: account.active, userId: account.userId }
   } catch (failure) {
     if (isAwaitingAccess(failure)) return { ...user, active: false }
     throw failure
@@ -188,6 +189,7 @@ export async function googleSignInUrl(args: {
 export async function signOut(): Promise<void> {
   const response = await postJson({ path: '/api/auth/sign-out', body: {} })
   if (!response.ok) await failWith(response, 'Sign-out failed')
+  resetAnalytics()
 }
 
 export async function requestPasswordReset(args: { email: string; origin: string }): Promise<void> {
