@@ -1,4 +1,4 @@
-import { EAgentStatus, ESessionStatus, type SpendTally } from '@dltech/atlas-core'
+import { EAgentStatus, ESessionStatus, type PlanTask, type SpendTally } from '@dltech/atlas-core'
 import type { CrewRow } from '@dltech/atlas-plugin-crew/client'
 import type { SubscribedPullRequest } from '@dltech/atlas-plugin-github/client'
 import type { PreviewItem } from '@dltech/atlas-plugin-services/client'
@@ -72,6 +72,7 @@ export const viewModelFixture = (overrides: Partial<SessionViewModel> = {}): Ses
   crew: { running: 0, total: 0 },
   crewRows: [],
   previews: [],
+  plan: [],
   context: null,
   spend: null,
   ...overrides,
@@ -129,3 +130,10 @@ export const populatedPaneValue = (): SessionPaneValue =>
     }),
     shellTails: { sh1: 'tick 1' },
   })
+
+export const planTaskFixture = (overrides: Partial<PlanTask> = {}): PlanTask => ({
+  ordinal: 1,
+  text: 'Read the v2 pane brief',
+  status: 'completed' as PlanTask['status'],
+  ...overrides,
+})

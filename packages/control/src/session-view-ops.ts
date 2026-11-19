@@ -1,7 +1,9 @@
 import {
+  isSurviving,
   needsRebuild,
   rebuildEditSensitive,
   initialSessionViewState,
+  refoldRewindable,
   SESSION_VIEW_VERSION,
   stepSessionView,
   workedHeadsOf,
@@ -15,6 +17,7 @@ import { UnknownThreadError } from './errors'
 import type { ControlTx, SessionBranchRow, SessionViewRow, ThreadRow } from './port'
 import { readEventsIn } from './read-events'
 import { decodeViewState, encodeViewState } from './session-view-codec'
+import { decodeVisibility } from './stored-event'
 
 export const CATCH_UP_PAGE = 500
 export const VIEW_TAIL_LIMIT = 1000
@@ -45,25 +48,52 @@ export const foldEvents = (args: {
   state: SessionViewState
   events: readonly V2Event[]
   pluginViews?: readonly PluginViewFold[] | undefined
-}): { state: SessionViewState; rebuild: boolean } => {
+}): { state: SessionViewState; rebuild: boolean; rewound: boolean } => {
   const views = args.pluginViews ?? []
   let state = args.state
   let rebuild = false
+  let rewound = false
   for (const event of args.events) {
     state = stepSessionView(state, event)
     if (views.length > 0) {
       state = { ...state, pluginViews: foldPluginViews({ bag: state.pluginViews, views, event }) }
     }
     rebuild ||= needsRebuild(event)
+    rewound ||= event.type === 'history-rewound'
   }
-  return { state, rebuild }
+  return { state, rebuild, rewound }
 }
 
-export const rebuildFromTail = async (args: {
+const survivingEvents = async (args: {
+  tx: ControlTx
+  row: ThreadRow
+  eventSchema?: z.ZodType<V2Event> | undefined
+}): Promise<V2Event[]> => {
+  const visibility = decodeVisibility(args.row.visibility)
+  const surviving: V2Event[] = []
+  let afterSeq = 0
+  for (;;) {
+    const page = await readEventsIn({
+      tx: args.tx,
+      row: args.row,
+      afterSeq,
+      limit: CATCH_UP_PAGE,
+      visible: false,
+      eventSchema: args.eventSchema,
+    })
+    surviving.push(...page.events.filter((event) => isSurviving(visibility, event)))
+    if (page.next === undefined) return surviving
+    afterSeq = page.next
+  }
+}
+
+export const rebuildFromLog = async (args: {
   tx: ControlTx
   row: ThreadRow
   state: SessionViewState
   eventSchema?: z.ZodType<V2Event> | undefined
+  pluginViews?: readonly PluginViewFold[] | undefined
+  rewound: boolean
 }): Promise<SessionViewState> => {
   const tail = await readEventsIn({
     tx: args.tx,
@@ -73,7 +103,18 @@ export const rebuildFromTail = async (args: {
     visible: true,
     eventSchema: args.eventSchema,
   })
-  return rebuildEditSensitive({ state: args.state, visibleTail: tail.events })
+  const rebuilt = rebuildEditSensitive({ state: args.state, visibleTail: tail.events })
+  const views = args.pluginViews ?? []
+  if (!args.rewound || views.length === 0) return rebuilt
+  const surviving = await survivingEvents({
+    tx: args.tx,
+    row: args.row,
+    eventSchema: args.eventSchema,
+  })
+  return {
+    ...rebuilt,
+    pluginViews: refoldRewindable({ bag: rebuilt.pluginViews, views, surviving }),
+  }
 }
 
 const branchRowsOf = (args: {
@@ -126,6 +167,7 @@ export const ensureSessionViewIn = async (args: {
 
   let state = existing ?? initialSessionViewState
   let rebuild = false
+  let rewound = false
   let folded: V2Event[] = []
   for (;;) {
     const page = await readEventsIn({
@@ -139,10 +181,19 @@ export const ensureSessionViewIn = async (args: {
     const next = foldEvents({ state, events: page.events, pluginViews: args.pluginViews })
     state = next.state
     rebuild ||= next.rebuild
+    rewound ||= next.rewound
     folded = [...folded, ...page.events]
     if (page.next === undefined) break
   }
-  if (rebuild) state = await rebuildFromTail({ tx, row, state, eventSchema: args.eventSchema })
+  if (rebuild)
+    state = await rebuildFromLog({
+      tx,
+      row,
+      state,
+      eventSchema: args.eventSchema,
+      pluginViews: args.pluginViews,
+      rewound,
+    })
   await persistIn({
     tx,
     sessionId,
@@ -181,7 +232,14 @@ export const appendToViewIn = async (args: {
     pluginViews: args.pluginViews,
   })
   const state = folded.rebuild
-    ? await rebuildFromTail({ tx, row, state: folded.state, eventSchema: args.eventSchema })
+    ? await rebuildFromLog({
+        tx,
+        row,
+        state: folded.state,
+        eventSchema: args.eventSchema,
+        pluginViews: args.pluginViews,
+        rewound: folded.rewound,
+      })
     : folded.state
   await persistIn({
     tx,

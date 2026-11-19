@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { EPlanStatus, type PlanTask } from '@dltech/atlas-core'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 import { SessionDetailsTab } from '../details-tab'
@@ -41,6 +42,29 @@ describe('SessionDetailsTab', () => {
     expect(html).toContain('map the seam')
     expect(html).toContain('aria-label="Shells"')
     expect(html).toContain('tick 1')
+  })
+
+  it('shows the plan above every other list when the session has one', () => {
+    const plan: readonly PlanTask[] = [
+      { ordinal: 1, text: 'Read the v2 pane brief', status: EPlanStatus.Completed },
+      {
+        ordinal: 2,
+        text: 'Build the details variants',
+        status: EPlanStatus.InProgress,
+        activeForm: 'Building the details variants',
+      },
+    ]
+    const html = render(paneValueFixture({ view: { ...populatedPaneValue().view, plan } }))
+    const todo = html.indexOf('aria-label="Todo"')
+
+    expect(todo).toBeGreaterThan(html.indexOf('data-session-summary'))
+    expect(todo).toBeLessThan(html.indexOf('aria-label="Pull requests"'))
+    expect(html).toContain('1 / 2 tasks')
+    expect(html).toContain('Building the details variants')
+  })
+
+  it('has no todo section without a plan', () => {
+    expect(render(populatedPaneValue())).not.toContain('aria-label="Todo"')
   })
 
   it('drops the checkout lines and the subscription list', () => {

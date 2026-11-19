@@ -9,10 +9,12 @@ import {
   initialSessionViewState,
   needsRebuild,
   rebuildEditSensitive,
+  refoldRewindable,
   sessionViewOf,
   stepSessionView,
   type SessionViewState,
 } from '../session-view'
+import type { PluginViewFold } from '../plugin-view'
 import { eventsOf, NOW, opsWithEdits, opsWithoutEdits, type Op } from './support'
 
 const fold = (events: readonly V2Event[]): SessionViewState =>
@@ -289,5 +291,49 @@ describe('fold performance', () => {
     const started = performance.now()
     fold(events)
     expect(performance.now() - started).toBeLessThan(200)
+  })
+})
+
+describe('refoldRewindable', () => {
+  const counted: PluginViewFold<number> = {
+    name: 'counted',
+    initial: 0,
+    fold: (state, event) => (event.type === 'user-said' ? state + 1 : state),
+    rewindable: true,
+  }
+
+  const kept: PluginViewFold<number> = {
+    name: 'kept',
+    initial: 0,
+    fold: (state, event) => (event.type === 'user-said' ? state + 1 : state),
+  }
+
+  const events = eventsOf([
+    { kind: 'user', a: 1, b: 1 },
+    { kind: 'user', a: 1, b: 1 },
+  ])
+
+  it('refolds a rewindable fold over the surviving events', () => {
+    expect(
+      refoldRewindable({ bag: { counted: 99, kept: 99 }, views: [counted], surviving: events }),
+    ).toEqual({ counted: 2, kept: 99 })
+  })
+
+  it('leaves a fold that did not opt in untouched', () => {
+    const bag = { counted: 99, kept: 99 }
+    expect(refoldRewindable({ bag, views: [kept], surviving: events }).kept).toBe(99)
+  })
+
+  it('leaves keys for views nothing registered alone', () => {
+    expect(
+      refoldRewindable({ bag: { counted: 0, stranger: ['x'] }, views: [counted], surviving: [] })
+        .stranger,
+    ).toEqual(['x'])
+  })
+
+  it('carries plugin views through a rebuild for the folds that did not opt in', () => {
+    const state = { ...initialSessionViewState, pluginViews: { kept: 4 } }
+    const rebuilt = rebuildEditSensitive({ state, visibleTail: events })
+    expect(rebuilt.pluginViews).toBe(state.pluginViews)
   })
 })
