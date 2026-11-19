@@ -1,81 +1,19 @@
-import {
-  EPrSource,
-  EPrState,
-  foldPrObservations,
-  type PrObservation,
-  type PullSample,
-} from '@dltech/atlas-core'
-import {
-  commitChecksTally,
-  checkRunInputOf,
-  recordCommitChecksLocked,
-} from './github-commit-checks'
+import { EPrState, foldPrObservations } from '@dltech/atlas-core'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
 import { seedSubscription } from '../../../../test/github-seed'
-import { DrainStateService } from '../../platform/health/drain-state.service'
 import { recordingSignals } from '../../platform/sessions/thread-signals.fixture'
-import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
-import { GithubPrFanoutService } from './github-pr-fanout.service'
+import {
+  checkRunInputOf,
+  commitChecksTally,
+  recordCommitChecksLocked,
+} from './github-commit-checks'
+import { applyArgs, pull, rig } from './github-pr-apply.fixture'
+import type { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrOutboxDispatcher } from './github-pr-outbox'
-import { GithubPrStore } from './github-pr-store'
 import { inertReconcile } from './github-pr-store.fixture'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
-
-const SAMPLE: PullSample = {
-  repoFullName: 'compai/app',
-  prNumber: 42,
-  title: 'add the thing',
-  url: 'https://github.com/compai/app/pull/42',
-  state: EPrState.Open,
-  headBranch: 'dennis/add-the-thing',
-  headSha: 'abc123',
-  headRepoFullName: 'compai/app',
-  baseBranch: 'main',
-  pullUpdatedAt: '2026-11-18T10:00:00Z',
-  closedAt: null,
-  mergedAt: null,
-}
-
-const pull = (over: Partial<PullSample> = {}): PrObservation => ({
-  kind: 'pull',
-  source: EPrSource.Poll,
-  observedAt: '2026-11-18T10:00:00Z',
-  sample: { ...SAMPLE, ...over },
-})
-
-const applyArgs = (observations: readonly PrObservation[]) => ({
-  repoFullName: 'compai/app',
-  prNumber: 42,
-  observations,
-})
-
-function rig(
-  overrides: {
-    mailbox?: GithubPrEventMailboxService
-    fanout?: Pick<GithubPrFanoutService, 'push' | 'pushEvent'>
-  } = {},
-) {
-  const fanout = new GithubPrFanoutService(new DrainStateService())
-  const wake = { notifyEvent: vi.fn() } as unknown as GithubSandboxWakeService
-  const { signals, changedThreads } = recordingSignals()
-  const dispatcher = new GithubPrOutboxDispatcher({
-    fanout: overrides.fanout ?? fanout,
-    signals,
-    wake,
-    reconcile: inertReconcile(),
-  })
-  const mailbox = overrides.mailbox ?? new GithubPrEventMailboxService(fanout, dispatcher)
-
-  return {
-    store: new GithubPrStore({ mailbox, dispatcher }),
-    fanout,
-    wake,
-    signals,
-    changedThreads,
-  }
-}
 
 const seedSettledCheck = (args: { outcome: string } = { outcome: 'passed' }) =>
   recordCommitChecksLocked({
@@ -288,87 +226,5 @@ describe('GithubPrStore.apply on a tracked head nobody subscribed to', () => {
     expect(wake.notifyEvent).not.toHaveBeenCalled()
     expect(changedThreads).toHaveLength(0)
     expect((await db.orm.public.GithubPrOutbox.all()).map((row) => row.kind)).toEqual(['fanout'])
-  })
-})
-
-describe('GithubPrStore.apply replaying a head it already folded', () => {
-  useTestDatabase()
-
-  const seedRun = (args: { id: number; name: string; conclusion: string }) =>
-    recordCommitChecksLocked({
-      repoFullName: 'compai/app',
-      headSha: 'abc123',
-      checks: [
-        checkRunInputOf({
-          id: args.id,
-          name: args.name,
-          status: 'completed',
-          conclusion: args.conclusion,
-          started_at: '2026-11-18T09:59:00Z',
-          completed_at: '2026-11-18T10:00:00Z',
-        }),
-      ],
-    })
-
-  const outboxRows = () => db.orm.public.GithubPrOutbox.all()
-
-  const reconcileRows = async () =>
-    (await outboxRows()).filter((row) => row.kind === 'reconcile-checks')
-
-  it('replays a partially reported required check as unchanged', async () => {
-    await db.orm.public.GithubBranchProtection.create({
-      repoFullName: 'compai/app',
-      baseBranch: 'main',
-      requiredContexts: ['ci', 'lint'],
-      fetchedAt: new Date(),
-    })
-    const { store } = rig()
-    await store.apply(applyArgs([pull()]))
-    await seedRun({ id: 1, name: 'ci', conclusion: 'success' })
-    const reported = await store.apply(applyArgs([]))
-    expect(reported.row?.checksState).toBe('expected')
-    expect(reported.row?.checksPassed).toBe(1)
-    const before = await outboxRows()
-
-    const replayed = await store.apply(applyArgs([pull()]))
-
-    expect(replayed.changed).toEqual([])
-    expect(replayed.applied).toBe(false)
-    expect(await outboxRows()).toHaveLength(before.length)
-  })
-
-  it('replays a head whose checks were all ignored as unchanged', async () => {
-    const { store } = rig()
-    await store.apply(applyArgs([pull()]))
-    await seedRun({ id: 1, name: 'ci', conclusion: 'neutral' })
-    const settled = await store.apply(applyArgs([]))
-    expect(settled.row?.checksState).toBe('success')
-    expect(settled.row?.checksIgnored).toBe(1)
-    const before = await outboxRows()
-
-    const replayed = await store.apply(applyArgs([pull()]))
-
-    expect(replayed.changed).toEqual([])
-    expect(await outboxRows()).toHaveLength(before.length)
-  })
-
-  it('writes one reconcile effect for a rerun that changes no visible state', async () => {
-    const { store } = rig()
-    await store.apply(applyArgs([pull()]))
-    await seedRun({ id: 1, name: 'ci', conclusion: 'success' })
-    await store.apply(applyArgs([]))
-    expect(await reconcileRows()).toHaveLength(0)
-
-    await seedRun({ id: 2, name: 'ci', conclusion: 'success' })
-    const rerun = await store.apply(applyArgs([]))
-
-    expect(rerun.changed).toEqual([])
-    expect(rerun.applied).toBe(false)
-    expect(await reconcileRows()).toHaveLength(1)
-
-    const advanced = await store.apply(applyArgs([pull({ pullUpdatedAt: '2026-11-18T10:02:00Z' })]))
-
-    expect(advanced.changed).toEqual([])
-    expect(await reconcileRows()).toHaveLength(1)
   })
 })

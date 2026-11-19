@@ -4,11 +4,7 @@ import { EPrSource, ETargetOutcome, ETrackingTransport } from '@dltech/atlas-cor
 import { GithubHeadReads } from './github-head-reads'
 import { applyObservedPull } from './github-pr-observed-pull'
 import { GithubPrStore } from './github-pr-store'
-import {
-  mergeabilityObservationOf,
-  mergeabilityObservationOfSample,
-  pullObservationOfRest,
-} from './github-pr-observations'
+import { mergeabilityObservationOfSample, pullObservationOfRest } from './github-pr-observations'
 import { TransportSelector } from './github-transport-selector'
 import type { RestPullRequest } from './github-pull-request-mapping'
 import { EGithubCallSource } from './github-call-log'
@@ -185,10 +181,7 @@ export class GithubPollSweeperService {
     return this.store.apply({
       repoFullName: args.repoFullName,
       prNumber: args.pull.number,
-      observations: [
-        observation,
-        mergeabilityObservationOf({ pull: args.pull, observedAt, source: args.source }),
-      ],
+      observations: [observation],
     })
   }
 

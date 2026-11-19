@@ -2,7 +2,6 @@ import { db, type Row } from '@dltech/atlas-db'
 import { podSessionsOf } from '../../platform/sessions/session-of-thread'
 import { wakeableOf, wakeClaimActive } from '../../platform/sandboxes/sandbox-lifecycle'
 import { ESandboxState } from '../../platform/sandboxes/sandboxes.types'
-import { PARK_WAKE_WINDOW_MS } from './github-delivery-routing'
 import { WORKFLOW_RUN_KIND } from './github-run-selector'
 import type { WakeEventNotice } from './github-sandbox-wake-intent'
 
@@ -136,16 +135,9 @@ export async function failedWakeTargets(): Promise<FailedWakeTarget[]> {
   return targets
 }
 
-/**
- * The intents no boot is working on: a parked sandbox whose pod's thread still holds an
- * unacked wake intent, with no live claim, is either mid-boot elsewhere or was deduped into a
- * debounce whose process died before it fired. Boots are idempotent behind the `wakeClaim` CAS.
- */
 export async function owedWakeTargets(): Promise<FailedWakeTarget[]> {
-  const cutoff = new Date(Date.now() - PARK_WAKE_WINDOW_MS)
   const parked = await db.orm.public.CloudSandbox.where({ state: ESandboxState.Parked })
     .where((sandbox) => sandbox.wakeFailedAt.isNull())
-    .where((sandbox) => sandbox.lastActivityAt.gt(cutoff))
     .all()
   const targets: FailedWakeTarget[] = []
   for (const sandbox of parked) {

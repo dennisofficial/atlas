@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { unstubAllGlobals } from '@dltech/bun-test-shims'
 import {
   fakeBoot,
+  patchSandbox,
+  pastDate,
   PR_EVENT,
   readSandbox,
   seedParkedSandbox,
@@ -63,5 +65,22 @@ describe('GithubSandboxWakeService recovery of an owed intent', () => {
     expect(calls.map((call) => call.threadId)).toEqual(['thr-1'])
     await recovery.retryFailedWakes()
     expect(calls).toHaveLength(1)
+  })
+
+  it('boots an accepted intent the sandbox activity window has since aged out', async () => {
+    await seedParkedSandbox()
+    await seedSubscription()
+    const doomed = serviceWith({ boot: fakeBoot().boot })
+
+    await doomed.notifyEvent(PR_EVENT, VERDICT)
+    await settleLookups()
+    await patchSandbox({ lastActivityAt: pastDate(25 * 60 * 60 * 1_000) })
+
+    const { boot, calls } = fakeBoot()
+    const recovery = serviceWith({ boot })
+
+    await recovery.retryFailedWakes()
+
+    expect(calls.map((call) => call.threadId)).toEqual(['thr-1'])
   })
 })

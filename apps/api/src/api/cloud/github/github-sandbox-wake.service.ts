@@ -185,7 +185,6 @@ export class GithubSandboxWakeService {
     return undefined
   }
 
-  /** Recovers every parked sandbox that still owes its pod a wake intent. */
   async retryFailedWakes(): Promise<void> {
     const targets = new Map<string, FailedWakeTarget>()
     for (const target of [...(await failedWakeTargets()), ...(await owedWakeTargets())]) {

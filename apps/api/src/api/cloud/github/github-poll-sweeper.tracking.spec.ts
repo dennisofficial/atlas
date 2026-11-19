@@ -42,6 +42,25 @@ describe('GithubPollSweeperService tracking targets', () => {
     expect(row?.lookedUpAt).not.toBeNull()
   })
 
+  it('records a discovered pull without the mergeability only an applied read can know', async () => {
+    const head = fakeHeadReads({
+      pulls: { 'compai/app': [{ ...REST_PULL, mergeable: true, mergeable_state: 'clean' }] },
+    })
+    const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, headReads: head.reads })
+    await covered()
+    await seedTarget()
+
+    await service.handlePoll()
+
+    const row = await db.orm.public.GithubPrState.where({
+      repoFullName: 'compai/app',
+      prNumber: 7,
+    }).first()
+    expect(row?.title).toBe('add the thing')
+    expect(row?.mergeable).toBeNull()
+    expect(row?.mergeableObservedAt).toBeNull()
+  })
+
   it('stamps a first lookup whose sample is older than the row it raced, without retrying', async () => {
     const readPullRequest = vi.fn(async () => {
       await db.orm.public.GithubPrState.where({
