@@ -95,33 +95,47 @@ describe('SessionsService command', () => {
 
     await expect(refused).rejects.toBeInstanceOf(BadRequestException)
     expect(seen).toEqual([{ userId: 'user-a', vcpus: 16 }])
-    expect(context.client.resizes).toEqual([])
+    expect(context.dispatcher.dispatches).toEqual([])
     expect(await inboxOf({ plane: context.plane, sessionId: created.sessionId })).toEqual([])
   })
 
-  it('resizes the shared pod at once, forgets its cached resources and posts nothing', async () => {
-    const { service, client, plane, sessionId } = await seed()
-    client.resources = { vcpus: 2, memoryMb: 4096 }
+  it('records the desired size on the session pod and dispatches the apply', async () => {
+    const { service, plane, dispatcher, sessionId } = await seed()
 
-    await service.podResourcesOf({ userId: 'user-a', sessionId })
-    expect(client.reads).toHaveLength(1)
-
-    client.resources = { vcpus: 4, memoryMb: 8192 }
     expect(
       await service.command({ userId: 'user-a', sessionId, name: 'resize', args: { vcpus: 4 } }),
     ).toEqual({})
-    expect(client.resizes).toEqual([{ userId: 'user-a', name: `atlas-v2-${sessionId}`, vcpus: 4 }])
-    expect(await inboxOf({ plane, sessionId })).toEqual([])
 
-    expect(await service.podResourcesOf({ userId: 'user-a', sessionId })).toEqual({
-      vcpus: 4,
-      memoryMb: 8192,
-    })
-    expect(client.reads).toHaveLength(2)
+    const row = await plane.readSession({ sessionId })
+    expect(row?.podDesiredVcpus).toBe(4)
+    expect(row?.podSizeGeneration).toBe(1)
+    expect(dispatcher.dispatches).toEqual([
+      {
+        payload: { sessionId, generation: 1, vcpus: 4 },
+        idempotencyKey: `pod-resize:${sessionId}:1`,
+      },
+    ])
+    const view = await plane.readSessionView({ sessionId, threadId: row?.mainThreadId ?? '' })
+    expect(view.value.status.pod).toEqual({ desiredVcpus: 4, phase: 'resizing' })
   })
 
-  it('resizes the parent pod for a sub-agent session', async () => {
-    const { service, client, store, sessionId } = await seed()
+  it('bumps the generation for each resize so a newer one supersedes the last', async () => {
+    const { service, plane, dispatcher, sessionId } = await seed()
+
+    await service.command({ userId: 'user-a', sessionId, name: 'resize', args: { vcpus: 4 } })
+    await service.command({ userId: 'user-a', sessionId, name: 'resize', args: { vcpus: 8 } })
+
+    const row = await plane.readSession({ sessionId })
+    expect(row?.podSizeGeneration).toBe(2)
+    expect(row?.podDesiredVcpus).toBe(8)
+    expect(dispatcher.dispatches.map((entry) => entry.idempotencyKey)).toEqual([
+      `pod-resize:${sessionId}:1`,
+      `pod-resize:${sessionId}:2`,
+    ])
+  })
+
+  it('records the shared parent pod desired size for a sub-agent session', async () => {
+    const { service, plane, dispatcher, store, sessionId } = await seed()
     const childId = await childOf({ store, parentId: sessionId })
 
     await service.command({
@@ -131,37 +145,11 @@ describe('SessionsService command', () => {
       args: { vcpus: 8 },
     })
 
-    expect(client.resizes).toEqual([{ userId: 'user-a', name: `atlas-v2-${sessionId}`, vcpus: 8 }])
-  })
-
-  it('answers 404 when the pod is gone and posts nothing', async () => {
-    const context = setup()
-    const created = await context.service.create({ userId: 'user-a', projectId: 'proj-a' })
-    context.client.failure = new NotFoundException(
-      `sandbox atlas-v2-${created.sessionId} not found`,
-    )
-
-    const refused = context.service.command({
-      userId: 'user-a',
-      sessionId: created.sessionId,
-      name: 'resize',
-      args: { vcpus: 4 },
-    })
-
-    await expect(refused).rejects.toBeInstanceOf(NotFoundException)
-    expect(await inboxOf({ plane: context.plane, sessionId: created.sessionId })).toEqual([])
-  })
-
-  it('reports the pod resources of the session pod', async () => {
-    const { service, client, sessionId } = await seed()
-    client.resources = { vcpus: 4, memoryMb: 8192, pendingVcpus: 8 }
-
-    expect(await service.podResourcesOf({ userId: 'user-a', sessionId })).toEqual({
-      vcpus: 4,
-      memoryMb: 8192,
-      pendingVcpus: 8,
-    })
-    expect(client.reads).toEqual([{ userId: 'user-a', name: `atlas-v2-${sessionId}` }])
+    expect((await plane.readSession({ sessionId }))?.podDesiredVcpus).toBe(8)
+    expect((await plane.readSession({ sessionId: childId }))?.podDesiredVcpus).toBeNull()
+    expect(dispatcher.dispatches.map((entry) => entry.payload)).toEqual([
+      { sessionId, generation: 1, vcpus: 8 },
+    ])
   })
 
   it('refuses a session the caller does not own and posts nothing', async () => {

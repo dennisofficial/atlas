@@ -9,6 +9,46 @@ export const readSessionIn = (params: {
   return row === undefined ? undefined : sessionRowOf(row)
 }
 
+export const setSessionPodDesiredIn = (params: {
+  state: State
+  sessionId: string
+  vcpus: number
+  generation: number
+}): boolean => {
+  const row = params.state.sessions.get(params.sessionId)
+  if (row === undefined) return false
+  row.podDesiredVcpus = params.vcpus
+  row.podSizeGeneration = params.generation
+  row.podResizeError = null
+  return true
+}
+
+export const setSessionPodAppliedIn = (params: {
+  state: State
+  sessionId: string
+  vcpus: number
+  generation: number
+}): boolean => {
+  const row = params.state.sessions.get(params.sessionId)
+  if (row === undefined || row.podSizeGeneration !== params.generation) return false
+  row.podActualVcpus = params.vcpus
+  row.podAppliedGeneration = params.generation
+  row.podResizeError = null
+  return true
+}
+
+export const setSessionPodFailedIn = (params: {
+  state: State
+  sessionId: string
+  generation: number
+  error: string
+}): boolean => {
+  const row = params.state.sessions.get(params.sessionId)
+  if (row === undefined || row.podSizeGeneration !== params.generation) return false
+  row.podResizeError = params.error
+  return true
+}
+
 export const setSessionArchivedIn = (params: {
   state: State
   sessionId: string
@@ -118,6 +158,11 @@ export const createSessionIn = (params: {
     spawnedBySessionId: params.spawnedBySessionId ?? null,
     nested: params.nested ?? true,
     podSessionId: params.podSessionId ?? null,
+    podDesiredVcpus: null,
+    podSizeGeneration: 0,
+    podActualVcpus: null,
+    podAppliedGeneration: null,
+    podResizeError: null,
     routineId: params.routineId ?? null,
   })
   state.leases.set(params.sessionId, {

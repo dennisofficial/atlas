@@ -250,6 +250,21 @@ export interface ControlTx {
   setSessionModel(params: { sessionId: string } & SessionModelRow): Promise<boolean>
   readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined>
   lockSession(sessionId: string): Promise<ControlSessionRow | undefined>
+  setSessionPodDesired(params: {
+    sessionId: string
+    vcpus: number
+    generation: number
+  }): Promise<boolean>
+  setSessionPodApplied(params: {
+    sessionId: string
+    vcpus: number
+    generation: number
+  }): Promise<boolean>
+  setSessionPodFailed(params: {
+    sessionId: string
+    generation: number
+    error: string
+  }): Promise<boolean>
   setSessionArchived(params: { sessionId: string; archivedAt: string | null }): Promise<boolean>
   setSessionReadSeq(params: { sessionId: string; seq: number }): Promise<number | undefined>
   setSessionTitleIfUntitled(params: {

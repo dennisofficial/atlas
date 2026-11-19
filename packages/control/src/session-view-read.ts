@@ -14,7 +14,13 @@ import type { z } from 'zod'
 
 import { UnknownThreadError } from './errors'
 import type { LeaseOps } from './lease-ops'
-import type { ControlStorePort, ControlTx, PrChecks, TrackedPullRequestRow } from './port'
+import type {
+  ControlSessionRow,
+  ControlStorePort,
+  ControlTx,
+  PrChecks,
+  TrackedPullRequestRow,
+} from './port'
 import { runningCommandsIn } from './command-rows'
 import { commandsOf, queuedOf } from './queued-messages'
 import { readEventsIn } from './read-events'
@@ -147,12 +153,30 @@ export const trackedPullRequestsOf = async (args: {
   return rows.map(pullRequestOf)
 }
 
+export const podStatusOf = (session: ControlSessionRow | undefined): SessionStatusOutput['pod'] => {
+  if (session === undefined) return undefined
+  const desiredVcpus = session.podDesiredVcpus ?? undefined
+  const actualVcpus = session.podActualVcpus ?? undefined
+  if (desiredVcpus === undefined && actualVcpus === undefined) return undefined
+  const pending =
+    desiredVcpus !== undefined && session.podAppliedGeneration !== session.podSizeGeneration
+  const phase = session.podResizeError !== null ? 'failed' : pending ? 'resizing' : 'steady'
+  return {
+    ...(desiredVcpus === undefined ? {} : { desiredVcpus }),
+    ...(actualVcpus === undefined ? {} : { actualVcpus }),
+    phase,
+    ...(session.podResizeError === null ? {} : { error: session.podResizeError }),
+  }
+}
+
 export const statusOutputOf = (args: {
   live: LiveView
   pending: PendingInputsState
   running: readonly SessionCommandRow[]
+  session: ControlSessionRow | undefined
 }): SessionStatusOutput => {
   const { live } = args
+  const pod = podStatusOf(args.session)
   const { status } = live.value
   const queued = queuedOf(args.pending)
   const commands = [...args.running, ...commandsOf(args.pending)]
@@ -163,6 +187,7 @@ export const statusOutputOf = (args: {
     lease: { epoch: live.lease.epoch, holderHostId: live.lease.holderHostId, live: live.live },
     ...(queued.length === 0 ? {} : { queued }),
     ...(commands.length === 0 ? {} : { commands }),
+    ...(pod === undefined ? {} : { pod }),
   }
 }
 
@@ -193,6 +218,7 @@ export const readSessionViewIn = async (args: {
           threadId,
           eventSchema: args.eventSchema,
         }),
+        session: await tx.readSession({ sessionId }),
       }),
       pullRequests: await trackedPullRequestsOf({ tx, sessionId }),
     },

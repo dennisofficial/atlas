@@ -104,10 +104,12 @@ export class VercelSandboxProvider extends SandboxProvider {
           signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
         }),
     })
+    const vcpus = sandbox.status === 'running' ? sandbox.currentSession().vcpus : sandbox.vcpus
     return {
       url: routed.replace(/^https:/, 'wss:'),
       token,
       sandboxName,
+      ...(vcpus === undefined ? {} : { vcpus }),
     }
   }
 

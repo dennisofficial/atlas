@@ -74,6 +74,15 @@ export type SessionRuntimeFactoryArgs = {
   envSecrets?: EnvSecretsSource | undefined
   projectFiles?: ProjectFilesSource | undefined
   terminalStreams?: ((sessionId: string) => number) | undefined
+  podSizing?:
+    | {
+        recordPodApplied(args: {
+          sessionId: string
+          vcpus: number
+          generation: number
+        }): Promise<boolean>
+      }
+    | undefined
 }
 
 export const createSessionRuntimeFactory = (
@@ -96,8 +105,35 @@ export const createSessionRuntimeFactory = (
     const credentials = config.vercel
     const sandboxName = sandboxNameOf(sandboxSessionId)
     const paths = sessionPathsOf({ sessionId, threadId })
-    const wake = () =>
-      args.sandbox.wake({ sandboxSessionId, credentials, signal, vcpus: config.sandboxVcpus })
+    const podSize = config.podSize
+    const desiredVcpus = podSize?.desiredVcpus ?? config.sandboxVcpus
+    const recordApplied = async (endpoint: { vcpus?: number | undefined }): Promise<void> => {
+      if (args.podSizing === undefined || podSize?.desiredVcpus === undefined) return
+      if (endpoint.vcpus !== podSize.desiredVcpus) return
+      try {
+        await args.podSizing.recordPodApplied({
+          sessionId,
+          vcpus: endpoint.vcpus,
+          generation: podSize.generation,
+        })
+      } catch (error) {
+        args.log?.warn({
+          source: 'runtime.wake',
+          message: `recording the applied pod size for ${sessionId} failed`,
+          ...logFieldsOf({ error }),
+        })
+      }
+    }
+    const wake = async () => {
+      const endpoint = await args.sandbox.wake({
+        sandboxSessionId,
+        credentials,
+        signal,
+        vcpus: desiredVcpus,
+      })
+      await recordApplied(endpoint)
+      return endpoint
+    }
     const steps = new PrepareSteps()
     steps.report({
       step: EWorkspaceStep.Sandbox,

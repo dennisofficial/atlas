@@ -101,6 +101,10 @@ export class ConfigReader implements ConfigSource {
       workspace: workspaceOf(project),
       vercel: await this.vercelOf({ userId, row: vercel }),
       sandboxVcpus: project?.sandboxVcpus ?? (await this.personalVcpusOf({ userId })),
+      podSize: {
+        desiredVcpus: session.podDesiredVcpus ?? undefined,
+        generation: session.podSizeGeneration,
+      },
       skills,
     }
   }

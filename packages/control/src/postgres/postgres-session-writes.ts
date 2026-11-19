@@ -164,3 +164,49 @@ export const setSessionReadSeqIn = async (params: {
   )
   return row?.readSeq
 }
+
+export const setSessionPodDesiredIn = async (params: {
+  tx: Tx
+  sessionId: string
+  vcpus: number
+  generation: number
+}): Promise<boolean> => {
+  const changed = await params.tx.orm.v2.V2Session.where({
+    id: params.sessionId,
+  }).updateAndCount({
+    podDesiredVcpus: params.vcpus,
+    podSizeGeneration: params.generation,
+    podResizeError: null,
+  })
+  return changed === 1
+}
+
+export const setSessionPodAppliedIn = async (params: {
+  tx: Tx
+  sessionId: string
+  vcpus: number
+  generation: number
+}): Promise<boolean> => {
+  const changed = await params.tx.orm.v2.V2Session.where({
+    id: params.sessionId,
+    podSizeGeneration: params.generation,
+  }).updateAndCount({
+    podActualVcpus: params.vcpus,
+    podAppliedGeneration: params.generation,
+    podResizeError: null,
+  })
+  return changed === 1
+}
+
+export const setSessionPodFailedIn = async (params: {
+  tx: Tx
+  sessionId: string
+  generation: number
+  error: string
+}): Promise<boolean> => {
+  const changed = await params.tx.orm.v2.V2Session.where({
+    id: params.sessionId,
+    podSizeGeneration: params.generation,
+  }).updateAndCount({ podResizeError: params.error })
+  return changed === 1
+}

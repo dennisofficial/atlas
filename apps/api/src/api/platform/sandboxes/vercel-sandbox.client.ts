@@ -82,25 +82,6 @@ const resourcesOf = (sandbox: Sandbox): SandboxResourcesObservation => {
   return { vcpus: session.vcpus, memoryMb: session.memory }
 }
 
-const podResourcesOf = (sandbox: Sandbox): SandboxResourcesObservation => {
-  const live = sandbox.status === 'running' ? sandbox.currentSession() : undefined
-  const pending =
-    live !== undefined && sandbox.vcpus !== undefined && sandbox.vcpus !== live.vcpus
-      ? sandbox.vcpus
-      : undefined
-  if (live === undefined) {
-    return {
-      ...(sandbox.vcpus === undefined ? {} : { vcpus: sandbox.vcpus }),
-      ...(sandbox.memory === undefined ? {} : { memoryMb: sandbox.memory }),
-    }
-  }
-  return {
-    vcpus: live.vcpus,
-    memoryMb: live.memory,
-    ...(pending === undefined ? {} : { pendingVcpus: pending }),
-  }
-}
-
 const routedUrlOf = (sandbox: Sandbox): string | undefined => {
   try {
     return sandbox.domain(SANDBOX_SERVE_PORT)
@@ -182,50 +163,6 @@ export class VercelSandboxClient {
       return resourcesOf(await this.get({ ...args, resume: false }))
     } catch (failure) {
       if (isSandboxMissing(failure)) throw new SandboxMissingError(args.name)
-      throw asBadGateway(failure)
-    }
-  }
-
-  async readPodResources(args: {
-    userId: string
-    name: string
-  }): Promise<SandboxResourcesObservation | null> {
-    const { token, teamId, projectId } = await this.credentials.forUser({ userId: args.userId })
-    try {
-      const sandbox = await Sandbox.get({
-        token,
-        teamId,
-        projectId,
-        name: args.name,
-        resume: false,
-        signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
-      })
-      return podResourcesOf(sandbox)
-    } catch (failure) {
-      if (isSandboxMissing(failure)) return null
-      throw asBadGateway(failure)
-    }
-  }
-
-  async resizePod(args: { userId: string; name: string; vcpus: number }): Promise<void> {
-    const { token, teamId, projectId } = await this.credentials.forUser({ userId: args.userId })
-    try {
-      const sandbox = await Sandbox.get({
-        token,
-        teamId,
-        projectId,
-        name: args.name,
-        resume: false,
-        signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
-      })
-      await sandbox.update(
-        { resources: { vcpus: args.vcpus } },
-        { signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) },
-      )
-      if (sandbox.status === 'stopped') return
-      await sandbox.stop({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
-    } catch (failure) {
-      if (isSandboxMissing(failure)) throw new NotFoundException(`sandbox ${args.name} not found`)
       throw asBadGateway(failure)
     }
   }

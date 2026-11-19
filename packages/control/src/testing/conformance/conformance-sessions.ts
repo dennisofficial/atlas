@@ -90,6 +90,11 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
         spawnedBySessionId: null,
         nested: true,
         podSessionId: null,
+        podDesiredVcpus: null,
+        podSizeGeneration: 0,
+        podActualVcpus: null,
+        podAppliedGeneration: null,
+        podResizeError: null,
         routineId: null,
       })
       expect(await plane.head({ threadId: THREAD })).toEqual({ seq: 0, hash: expect.any(String) })
