@@ -7,6 +7,7 @@ import type { GithubPrStateDto } from './github-realtime.types'
 import { applyObservedPull } from './github-pr-observed-pull'
 import type { GithubPrStore } from './github-pr-store'
 import type { GithubSubscribedPrResolver } from './github-subscribed-pr-resolver'
+import { inWatchScope } from './github-watch-scope'
 
 export class GithubSubscribeStateWriter {
   constructor(
@@ -28,7 +29,11 @@ export class GithubSubscribeStateWriter {
     if (args.prNumber === null) return null
     const prNumber = args.prNumber
     const held = await this.prState({ repoFullName: args.repoFullName, prNumber })
-    if (args.covered && held !== null) return dtoOf(held)
+    const watchedBefore = await inWatchScope({
+      repoFullName: args.repoFullName,
+      prNumbers: [prNumber],
+    })
+    if (args.covered && held !== null && watchedBefore) return dtoOf(held)
     const read = await this.deps.prs
       .readPullRequestObservation({
         userId: args.userId,

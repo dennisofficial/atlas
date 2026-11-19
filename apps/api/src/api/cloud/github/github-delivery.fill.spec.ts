@@ -29,6 +29,7 @@ describe('GithubDeliveryService fill', () => {
       readPullRequest,
     })
     await seedHook({ createdBy: 'usr-creator' })
+    await seedSubscription({ userId: 'usr-sub', prNumber: 42 })
 
     const outcome = await service.handle({
       event: 'pull_request',
@@ -57,6 +58,7 @@ describe('GithubDeliveryService fill', () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
     const { service } = serviceWith({ tokens: {}, readPullRequest })
     await seedHook({ createdBy: 'usr-gone' })
+    await seedSubscription({ userId: 'usr-sub', prNumber: 42 })
 
     const outcome = await service.handle({
       event: 'pull_request',
@@ -83,6 +85,7 @@ describe('GithubDeliveryService fill', () => {
       readPullRequest,
     })
     await seedHook({ createdBy: 'usr-creator' })
+    await seedSubscription({ userId: 'usr-sub', prNumber: 42 })
 
     await service.handle({
       event: 'pull_request',

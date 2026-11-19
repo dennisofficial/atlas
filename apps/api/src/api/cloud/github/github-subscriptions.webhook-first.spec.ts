@@ -2,7 +2,12 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { db } from '@dltech/atlas-db'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { unstubAllGlobals } from '@dltech/bun-test-shims'
-import { ensureUsers, prStateRows, seedPrState } from '../../../../test/github-seed'
+import {
+  ensureUsers,
+  prStateRows,
+  seedPrState,
+  seedSubscription,
+} from '../../../../test/github-seed'
 import { GithubHttpBudgetUnavailable } from './github-request-budget'
 import { REST_FIELDS } from './github-poll-sweeper.fixture'
 import { serviceWith } from './github-subscriptions.fixture'
@@ -27,6 +32,7 @@ describe('GithubSubscriptionsService without a GitHub pull request read', () => 
 
   it('answers from the webhook-maintained state instead of reading the pull request again', async () => {
     await cover('compai/app')
+    await seedSubscription({ userId: 'usr_2', prNumber: 42 })
     await seedPrState({ checksPassed: 2, mergeable: true, updatedAt: new Date() })
     const readPullRequest = vi.fn(async () => REST_FIELDS)
     const service = serviceWith({ token: 'ghu_1', readPullRequest })

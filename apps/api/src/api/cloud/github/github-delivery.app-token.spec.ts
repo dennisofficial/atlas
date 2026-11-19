@@ -1,7 +1,7 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { db } from '@dltech/atlas-db'
 import { afterEach, beforeEach, describe, expect, it, setSystemTime, vi } from 'bun:test'
-import { seedPrState } from '../../../../test/github-seed'
+import { ensureUsers, seedPrState, seedSubscription } from '../../../../test/github-seed'
 import { EGithubCallSource } from './github-call-log'
 import {
   checkRunPayload,
@@ -89,7 +89,11 @@ afterEach(() => {
 describe('GithubDeliveryService fill credential', () => {
   useTestDatabase()
 
-  beforeEach(prepareDelivery)
+  beforeEach(async () => {
+    await prepareDelivery()
+    await ensureUsers('usr-sub')
+    await seedSubscription({ userId: 'usr-sub', prNumber: 42 })
+  })
 
   it('fills an App-covered repository on the installation token with no user token at all', async () => {
     github = fakeGithubApp({ installations: [] })
