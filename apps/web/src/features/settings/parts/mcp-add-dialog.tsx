@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@dltech/atlas-ui/components/select'
+import { Switch } from '@dltech/atlas-ui/components/switch'
 import { Textarea } from '@dltech/atlas-ui/components/textarea'
 
 import { EMcpTransport } from '../fixtures/settings-mcp'
@@ -38,9 +39,16 @@ type Draft = {
   transport: EMcpTransport
   target: string
   extra: string
+  proxy: boolean
 }
 
-const EMPTY_DRAFT: Draft = { name: '', transport: EMcpTransport.Stdio, target: '', extra: '' }
+const EMPTY_DRAFT: Draft = {
+  name: '',
+  transport: EMcpTransport.Stdio,
+  target: '',
+  extra: '',
+  proxy: false,
+}
 
 function toServerId(name: string) {
   return name
@@ -72,6 +80,7 @@ export function McpAddDialog({ onAdd }: { onAdd: (draft: McpDraft) => void }) {
       target: draft.target.trim(),
       enabled: true,
       extra: draft.extra,
+      proxy: draft.proxy,
     })
     setOpen(false)
   }
@@ -146,6 +155,17 @@ export function McpAddDialog({ onAdd }: { onAdd: (draft: McpDraft) => void }) {
               {isStdio ? 'One KEY=value per line.' : 'One Header: value per line.'}
             </p>
           </div>
+          <div className="flex items-center justify-between gap-3">
+            <Label htmlFor="mcp-proxy">Run on my Mac</Label>
+            <Switch
+              id="mcp-proxy"
+              checked={draft.proxy}
+              onCheckedChange={(proxy) => setDraft({ ...draft, proxy })}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            The Mac app starts this server on your Mac instead of in the sandbox.
+          </p>
         </div>
         <DialogFooter>
           <DialogClose render={<Button variant="ghost" size="sm" />}>Cancel</DialogClose>

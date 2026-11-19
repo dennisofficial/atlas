@@ -1,7 +1,17 @@
 import { createDb, createPool, type Db } from '@dltech/atlas-db'
-import type { McpServerSource, PodMcpControl } from '@dltech/atlas-plugin-sdk'
+import {
+  MacOfflineError,
+  type McpServerSource,
+  type PodMcpControl,
+  type PodMcpProxyTransport,
+} from '@dltech/atlas-plugin-sdk'
 import { z } from 'zod'
 
+import {
+  MacOfflineError as MacLinkOfflineError,
+  type MacChannel,
+  type MacLink,
+} from '../mac-link/port'
 import {
   mcpOauthGatewayOf,
   surfaceOf,
@@ -46,10 +56,18 @@ const freshTokenOf = (args: { cipher: SecretCipher; sealed: string }): string | 
   }
 }
 
+export const offlineMacLink: MacLink = {
+  online: async () => false,
+  open: async () => {
+    throw new MacLinkOfflineError(0)
+  },
+}
+
 export const mcpControlOf = (args: {
   db: Db
   cipher: SecretCipher
   gateway: McpOauthGateway
+  macLink: MacLink
 }): McpControlPort => {
   const owners = new Map<string, Promise<Owner | null>>()
 
@@ -136,12 +154,47 @@ export const mcpControlOf = (args: {
       if (!begun.ok) return begun
       return { ok: true, url: begun.url, expiresAt: begun.expiresAt }
     },
+    proxy: async (request) => {
+      const owner = await ownerFor(sessionId)
+      if (owner === null) throw new MacOfflineError()
+      if (!(await args.macLink.online(owner.userId))) throw new MacOfflineError()
+      const channel = await openMacLink({
+        userId: owner.userId,
+        name: request.name,
+        transport: request.transport,
+        waitMs: request.waitMs,
+      })
+      return {
+        send: (message) => channel.send(message),
+        onMessage: (listener) => channel.onMessage(listener),
+        onClosed: (listener) => channel.onClosed(listener),
+        close: () => channel.close(),
+      }
+    },
   })
+
+  const openMacLink = async (request: {
+    userId: string
+    name: string
+    transport: PodMcpProxyTransport
+    waitMs: number
+  }): Promise<MacChannel> => {
+    try {
+      return await args.macLink.open({
+        userId: request.userId,
+        server: { name: request.name, transport: request.transport },
+        waitMs: request.waitMs,
+      })
+    } catch (error) {
+      if (error instanceof MacLinkOfflineError) throw new MacOfflineError()
+      throw error
+    }
+  }
 
   return { of: controlOf }
 }
 
-export const mcpControlPort = (): McpControlPort => {
+export const mcpControlPort = (macLink: MacLink): McpControlPort => {
   let port: McpControlPort | undefined
   return {
     of: (sessionId) => {
@@ -155,6 +208,7 @@ export const mcpControlPort = (): McpControlPort => {
           db,
           cipher,
           gateway: mcpOauthGatewayOf({ db, cipher, publicUrl: env.publicUrl }),
+          macLink,
         })
       }
       return port.of(sessionId)

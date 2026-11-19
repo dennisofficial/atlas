@@ -6,6 +6,7 @@ const labelOf = (status: EMcpViewStatus): string => {
   if (status === EMcpViewStatus.Connected) return 'Connected'
   if (status === EMcpViewStatus.Disabled) return 'Disabled'
   if (status === EMcpViewStatus.NeedsAuth) return 'NeedsAuth'
+  if (status === EMcpViewStatus.Unavailable) return 'Unavailable'
   return 'Failed'
 }
 

@@ -28,6 +28,7 @@ export type ProjectMcp = {
     transport: EMcpTransport
     target: string
     extra: string
+    proxy: boolean
   }) => Promise<void>
   toggle: (args: { id: string; enabled: boolean }) => Promise<void>
   remove: (id: string) => Promise<void>
@@ -42,8 +43,11 @@ export function useProjectMcp(projectId: string): ProjectMcp {
   )
   return {
     query,
-    add: ({ id, transport, target, extra }) =>
-      put({ name: id, spec: upsertOfDraft({ kind: kindOfTransport(transport), target, extra }) }),
+    add: ({ id, transport, target, extra, proxy }) =>
+      put({
+        name: id,
+        spec: upsertOfDraft({ kind: kindOfTransport(transport), target, extra, proxy }),
+      }),
     toggle: async ({ id, enabled }) => {
       const server = servers.find((entry) => entry.name === id)
       if (server === undefined) throw new Error(`${id} no longer exists`)

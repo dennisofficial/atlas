@@ -5,7 +5,7 @@ import { EMcpRejection, EMcpViewStatus, type McpCloudRow } from '../../core'
 import { mcpPod } from '..'
 import { McpBridgeTool } from '../bridge-tool'
 import { EMcpServerStatus, McpStore } from '../store'
-import { fakeDaemon, invocation, rig, type FakeBehaviour } from './support'
+import { fakeDaemon, fakeProxyControl, invocation, rig, type FakeBehaviour } from './support'
 
 const docsTransport = { kind: 'stdio' as const, command: 'bun', args: ['run', 'server'] }
 
@@ -18,6 +18,7 @@ const start = async (args: {
   rows?: readonly McpCloudRow[]
   repoFiles?: Readonly<Record<string, string>>
   eventLineBytes?: number
+  proxy?: ReturnType<typeof fakeProxyControl>
 }) => {
   const daemon = fakeDaemon(
     args.behaviours ?? {},
@@ -25,7 +26,7 @@ const start = async (args: {
   )
   for (const [path, text] of Object.entries(args.repoFiles ?? {})) daemon.files.set(path, text)
   const config = { read: async () => ({ rows: args.rows ?? rowsOf(), rejections: [] }) }
-  const ctx = rig(daemon)
+  const ctx = rig(daemon, args.proxy === undefined ? {} : { mcp: args.proxy.control })
   const store = new McpStore({
     ctx,
     config,
@@ -42,6 +43,72 @@ const searchTool = {
   inputSchema: { type: 'object' },
   annotations: { readOnlyHint: true },
 }
+
+const proxiedRows: readonly McpCloudRow[] = [
+  {
+    source: 'user',
+    spec: { name: 'paper', transport: { kind: 'stdio', command: 'paper' }, proxy: true },
+  },
+]
+
+describe('a proxied server', () => {
+  it('is listed as unavailable, without tools, when the Mac is closed', async () => {
+    const proxy = fakeProxyControl({ online: false })
+
+    const { daemon, store } = await start({ rows: proxiedRows, proxy })
+
+    expect(store.servers()).toEqual([
+      {
+        name: 'paper',
+        origin: EDefinitionOrigin.User,
+        transport: 'stdio',
+        status: EMcpServerStatus.Unavailable,
+        tools: 0,
+        reason: 'Mac app offline',
+      },
+    ])
+    expect(store.tools()).toEqual([])
+    expect(store.rows()).toEqual([
+      {
+        name: 'paper',
+        transport: 'stdio',
+        status: EMcpViewStatus.Unavailable,
+        toolCount: 0,
+        reason: 'Mac app offline',
+        layer: EDefinitionOrigin.User,
+      },
+    ])
+    expect(daemon.spawns).toEqual([])
+  })
+
+  it('connects through the Mac while it is online and follows it offline and back on reconcile', async () => {
+    const proxy = fakeProxyControl({ behaviours: { paper: { tools: [searchTool] } } })
+
+    const { daemon, store } = await start({ rows: proxiedRows, proxy })
+
+    expect(store.servers()[0]?.status).toBe(EMcpServerStatus.Connected)
+    expect(store.tools().map((tool) => tool.name)).toEqual(['mcp__paper__search'])
+    expect(daemon.spawns).toEqual([])
+    expect(proxy.opens[0]).toMatchObject({
+      name: 'paper',
+      transport: { kind: 'stdio', command: 'paper' },
+    })
+
+    proxy.setOnline(false)
+    proxy.closeChannels('mac-disconnected')
+    await store.reconcile()
+    expect(store.servers()[0]).toMatchObject({
+      status: EMcpServerStatus.Unavailable,
+      reason: 'Mac app offline',
+      tools: 0,
+    })
+    expect(store.tools()).toEqual([])
+
+    proxy.setOnline(true)
+    await store.reconcile()
+    expect(store.servers()[0]).toMatchObject({ status: EMcpServerStatus.Connected, tools: 1 })
+  })
+})
 
 describe('lifecycle', () => {
   it('connects a stdio server in the sandbox and lists its tools', async () => {

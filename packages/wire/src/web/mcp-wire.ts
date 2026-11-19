@@ -24,6 +24,7 @@ export const mcpServerSchema = z.object({
   name: z.string(),
   transport: mcpTransportSchema.optional(),
   disabled: z.boolean().optional(),
+  proxy: z.boolean().optional(),
   updatedAt: z.string(),
 })
 export type McpServerWire = z.infer<typeof mcpServerSchema>
@@ -31,5 +32,6 @@ export type McpServerWire = z.infer<typeof mcpServerSchema>
 export const mcpUpsertSchema = z.strictObject({
   transport: mcpTransportSchema.optional(),
   disabled: z.boolean().optional(),
+  proxy: z.boolean().optional(),
 })
 export type McpUpsertWire = z.infer<typeof mcpUpsertSchema>

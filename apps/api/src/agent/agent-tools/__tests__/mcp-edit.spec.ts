@@ -22,6 +22,8 @@ const textOf = (outcome: ToolOutcome): string => (outcome.ok ? outcome.modelText
 
 const HTTP = { kind: 'http', url: 'https://mcp.example.com/mcp' } as const
 
+const STDIO = { kind: 'stdio', command: 'npx' } as const
+
 describe('McpEditTool', () => {
   it('is the mcp-edit tool', () => {
     expect(toolFor().name).toBe('mcp-edit')
@@ -53,7 +55,33 @@ describe('McpEditTool', () => {
 
     const enabled = await invoke(tool, { action: 'enable', name: 'docs' })
     expect(textOf(enabled)).toBe('Enabled mcp server docs. It applies on the next sandbox start.')
-    expect(fake.servers.get('docs')).toEqual({ name: 'docs', transport: HTTP, disabled: false })
+    expect(fake.servers.get('docs')).toEqual({
+      name: 'docs',
+      transport: HTTP,
+      disabled: false,
+      proxy: false,
+    })
+  })
+
+  it('adds a proxied server, marks it in the list, and keeps the switch across disable and enable', async () => {
+    const fake = fakeCloudConfig()
+    const tool = toolFor(fake)
+
+    await invoke(tool, { action: 'add', name: 'paper', transport: STDIO, proxy: true })
+    expect(textOf(await invoke(tool, { action: 'list' }))).toBe(
+      'mcp servers:\npaper stdio npx (on your Mac)',
+    )
+
+    await invoke(tool, { action: 'disable', name: 'paper' })
+    expect(fake.servers.get('paper')?.proxy).toBe(true)
+
+    await invoke(tool, { action: 'enable', name: 'paper' })
+    expect(fake.servers.get('paper')).toEqual({
+      name: 'paper',
+      transport: STDIO,
+      disabled: false,
+      proxy: true,
+    })
   })
 
   it('refuses to enable or disable a server that does not exist', async () => {

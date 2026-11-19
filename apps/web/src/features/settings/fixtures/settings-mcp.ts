@@ -8,6 +8,7 @@ export type McpServer = {
   transport: EMcpTransport
   target: string
   enabled: boolean
+  proxy?: boolean | undefined
 }
 
 export const PERSONAL_MCP_SERVERS: McpServer[] = [

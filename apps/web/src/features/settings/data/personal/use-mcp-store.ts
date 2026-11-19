@@ -25,6 +25,7 @@ export function useMcpStore(args: { servers: McpServerWire[]; reload: () => void
         name: change.id,
         transport: current?.transport,
         disabled: !change.enabled,
+        proxy: current?.proxy,
       })
       reload()
     },
