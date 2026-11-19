@@ -1,6 +1,7 @@
 import {
   acceptAppend,
   blobRefsOf,
+  canonicalJson,
   stepVisibility,
   type LogHead,
   type PluginViewFold,
@@ -17,7 +18,7 @@ import { parseAppendEvents } from './parse-append'
 import { SeqConflictError, type BlobWrite, type ControlTx, type StoredEvent } from './port'
 import type { AppendOutcome, ControlRefusal } from './refusal'
 import { appendToViewIn, ensureMainThreadViewIn } from './session-view-ops'
-import { decodeVisibility, encodeVisibility, toStoredEvent } from './stored-event'
+import { decodeVisibility, toStoredEvent } from './stored-event'
 
 export const appendIn = async (params: {
   tx: ControlTx
@@ -84,7 +85,7 @@ export const appendIn = async (params: {
     expectedHeadSeq: head.seq,
     headSeq: accepted.head.seq,
     headHash: accepted.head.hash,
-    visibility: encodeVisibility(visibility),
+    visibility: canonicalJson(visibility),
   })
   if (!swapped) throw new SeqConflictError()
   if (view !== undefined) {
@@ -95,7 +96,7 @@ export const appendIn = async (params: {
         ...row,
         headSeq: accepted.head.seq,
         headHash: accepted.head.hash,
-        visibility: encodeVisibility(visibility),
+        visibility: canonicalJson(visibility),
       },
       state: view.state,
       events: parsed.events,
