@@ -84,6 +84,33 @@ export const liveSessionModelsOf = (
   }
 }
 
+export const sessionModelsOf = (args: {
+  override: ((args: { sessionId: string }) => ModelPort) | undefined
+  sessionId: string
+  userId: string
+  initial: ModelSource
+  read: () => Promise<ModelSource>
+  tokens: Pick<ModelTokenService, 'issue'>
+  media?: MediaSigner | undefined
+  log?: LogPort | undefined
+}): SessionModels => {
+  const override = args.override
+  if (override === undefined) {
+    return liveSessionModelsOf({
+      userId: args.userId,
+      initial: args.initial,
+      read: args.read,
+      tokens: args.tokens,
+      media: args.media,
+      log: args.log,
+    })
+  }
+  return fixedSessionModelsOf({
+    port: () => override({ sessionId: args.sessionId }),
+    source: args.initial,
+  })
+}
+
 export const fixedSessionModelsOf = (args: {
   port: () => ModelPort
   source: ModelSource

@@ -58,43 +58,45 @@ describe('RemoteCalls.onEvent', () => {
     const daemon = await makeDaemon()
     const calls = connect(daemon)
     const seen: string[] = []
+    const delivered = Promise.withResolvers<void>()
     const off = calls.onEvent((frame) => {
-      if (frame.event.type === 'git.branches') seen.push(frame.event.set.repoPath)
+      if (frame.event.type !== 'git.branches') return
+      seen.push(frame.event.set.repoPath)
+      delivered.resolve()
     })
     await calls.ready()
     await calls.invoke({ key: 'k1', op: { op: 'git.watch', repoPath: '/w' } })
-    for (let index = 0; index < 50 && seen.length === 0; index += 1) {
-      await new Promise((resolve) => setTimeout(resolve, 10))
-    }
+    await delivered.promise
     expect(seen).toEqual(['/w'])
     off()
+    const replayed = Promise.withResolvers<void>()
+    const stopAfterReplay = calls.onEvent((frame) => {
+      if (frame.event.type === 'git.branches') replayed.resolve()
+    })
     await calls.invoke({ key: 'k2', op: { op: 'git.watch', repoPath: '/w' } })
-    for (let index = 0; index < 10; index += 1) {
-      await new Promise((resolve) => setTimeout(resolve, 10))
-    }
+    await replayed.promise
+    stopAfterReplay()
     expect(seen).toEqual(['/w'])
     calls.close()
     await daemon.stop()
   })
 
   it('clears listeners on close', async () => {
-    let handlers: DaemonLinkHandlers | undefined
+    const linked = Promise.withResolvers<DaemonLinkHandlers>()
     const calls = new RemoteCalls({
       sessionId: 'session-branches',
       token: inMemoryDaemonToken({ secret: SECRET, sandboxName: SANDBOX }),
       connector: () =>
         Promise.resolve<DaemonConnector>((link) => {
-          handlers = link
+          linked.resolve(link)
           return Promise.resolve({ send: () => {}, close: () => {} })
         }),
       timers: new FakeClock(),
       onFenced: () => {},
     })
     calls.open({ epoch: 1 })
-    for (let index = 0; index < 100 && handlers === undefined; index += 1) {
-      await new Promise((resolve) => setTimeout(resolve, 0))
-    }
-    handlers?.onText(JSON.stringify({ kind: 'hello-reply', bootId: 'b1', version: 'test' }))
+    const handlers = await linked.promise
+    handlers.onText(JSON.stringify({ kind: 'hello-reply', bootId: 'b1', version: 'test' }))
     await calls.ready()
     const seen: string[] = []
     calls.onEvent(() => {
@@ -104,10 +106,10 @@ describe('RemoteCalls.onEvent', () => {
       kind: 'event',
       event: { type: 'git.branches', set: SET },
     })
-    handlers?.onText(eventText)
+    handlers.onText(eventText)
     expect(seen).toEqual(['x'])
     calls.close()
-    handlers?.onText(eventText)
+    handlers.onText(eventText)
     expect(seen).toEqual(['x'])
   })
 })

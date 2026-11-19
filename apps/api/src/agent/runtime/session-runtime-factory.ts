@@ -49,7 +49,7 @@ import { ShellEnvCell } from './shell-env'
 import { envSecretsRefresher } from './env-secrets-refresh'
 import { githubTokenRefresher } from './github-token-refresh'
 import { pathEnvironmentOf, sessionPathsOf, shellEnvironmentOf } from './session-paths'
-import { fixedSessionModelsOf, liveSessionModelsOf, type SessionModels } from './model-port'
+import { sessionModelsOf, type SessionModels } from './model-port'
 import { modelLabelOf } from '../config/model-labels'
 import { workspaceRepoMap } from './workspace-repo-map'
 
@@ -209,23 +209,18 @@ export const createSessionRuntimeFactory = (
     const registry = new InMemoryToolRegistry(tools)
     const byName = new Map(tools.map((tool) => [tool.name, tool]))
 
-    const overridden = args.modelFor
     let models: SessionModels
     try {
-      models =
-        overridden === undefined
-          ? liveSessionModelsOf({
-              userId: config.userId,
-              initial: config.models,
-              read: () => args.config.models({ sessionId }),
-              tokens: args.tokens,
-              media: args.media,
-              log: args.log,
-            })
-          : fixedSessionModelsOf({
-              port: () => overridden({ sessionId }),
-              source: config.models,
-            })
+      models = sessionModelsOf({
+        override: args.modelFor,
+        sessionId,
+        userId: config.userId,
+        initial: config.models,
+        read: () => args.config.models({ sessionId }),
+        tokens: args.tokens,
+        media: args.media,
+        log: args.log,
+      })
     } catch (error) {
       calls.close()
       throw error

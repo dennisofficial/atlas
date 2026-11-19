@@ -7,10 +7,10 @@ import { RecordingProcessPort, StubFileSystemPort } from './workspace-fakes'
 class OrderedFiles extends StubFileSystemPort {
   readonly order: string[] = []
 
-  override async writeFile(args?: { path: string }): Promise<void> {
-    if (args === undefined) return
+  override async writeFile(args: { path: string; content: string | Uint8Array }): Promise<void> {
     this.order.push(`write ${basename(args.path)}`)
     await Bun.sleep(10)
+    await super.writeFile(args)
     this.order.push(`written ${basename(args.path)}`)
   }
 

@@ -8,7 +8,7 @@ import { materialize } from './workspace-clone'
 import type { RepoProgress } from './workspace-repos'
 import { fail, writeSentinel, type Deps, type Sentinels } from './workspace-state'
 
-const markMaterialized = async (args: {
+export const markMaterialized = async (args: {
   deps: Deps
   basesPath: string
   sentinelPath: string
@@ -22,8 +22,10 @@ const markMaterialized = async (args: {
   if (!persisted) {
     fail({
       deps: args.deps,
-      message: 'the captured session bases were not persisted; a later prepare cannot replay them',
+      message:
+        'the captured session bases were not persisted; the workspace stays unmaterialized so the next prepare captures them again',
     })
+    return false
   }
   return writeSentinel({
     deps: args.deps,

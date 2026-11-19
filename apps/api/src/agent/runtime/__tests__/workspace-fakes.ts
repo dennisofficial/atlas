@@ -46,40 +46,74 @@ export class RecordingProcessPort extends ProcessPort {
 }
 
 export class StubFileSystemPort extends FileSystemPort {
-  override stat(): Promise<FileStat> {
-    return Promise.reject(new Error('missing'))
+  readonly contents = new Map<string, string>()
+  readonly directories = new Set<string>()
+
+  override stat(args: { path: string }): Promise<FileStat> {
+    const content = this.contents.get(args.path)
+    const directory = this.directories.has(args.path)
+    if (content === undefined && !directory) return Promise.reject(new Error('missing'))
+    return Promise.resolve({
+      size: content?.length ?? 0,
+      mode: 0o644,
+      mtimeMs: 0,
+      isFile: () => !directory,
+      isDirectory: () => directory,
+    })
   }
 
   override readLink(): Promise<string | null> {
     return Promise.resolve(null)
   }
 
-  override readFile(): Promise<string> {
-    return Promise.reject(new Error('missing'))
+  override readFile(args: { path: string }): Promise<string> {
+    const content = this.contents.get(args.path)
+    return content === undefined
+      ? Promise.reject(new Error(`missing ${args.path}`))
+      : Promise.resolve(content)
   }
 
-  override readBytes(): Promise<Uint8Array> {
-    return Promise.reject(new Error('missing'))
+  override readBytes(args: { path: string }): Promise<Uint8Array> {
+    return this.readFile(args).then((text) => new TextEncoder().encode(text))
   }
 
-  override readTextForEdit(): Promise<{ text: string; strict: string | null }> {
-    return Promise.reject(new Error('missing'))
+  override readTextForEdit(args: {
+    path: string
+  }): Promise<{ text: string; strict: string | null }> {
+    return this.readFile(args).then((text) => ({ text, strict: text }))
   }
 
-  override writeFile(): Promise<void> {
+  override writeFile(args: { path: string; content: string | Uint8Array }): Promise<void> {
+    this.contents.set(
+      args.path,
+      typeof args.content === 'string' ? args.content : new TextDecoder().decode(args.content),
+    )
     return Promise.resolve()
   }
 
-  override removeFile(): Promise<void> {
+  override removeFile(args: { path: string }): Promise<void> {
+    this.contents.delete(args.path)
+    this.directories.delete(args.path)
     return Promise.resolve()
   }
 
-  override mkdir(): Promise<void> {
+  override mkdir(args: { path: string }): Promise<void> {
+    this.directories.add(args.path)
     return Promise.resolve()
   }
 
-  override rename(): Promise<void> {
-    return Promise.resolve()
+  override rename(args: { from: string; to: string }): Promise<void> {
+    const content = this.contents.get(args.from)
+    if (content !== undefined) {
+      this.contents.delete(args.from)
+      this.contents.set(args.to, content)
+      return Promise.resolve()
+    }
+    if (this.directories.delete(args.from)) {
+      this.directories.add(args.to)
+      return Promise.resolve()
+    }
+    return Promise.reject(new Error(`missing ${args.from}`))
   }
 
   override readDirectory(): Promise<readonly FileSystemEntry[]> {
