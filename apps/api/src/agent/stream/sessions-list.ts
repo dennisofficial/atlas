@@ -1,3 +1,4 @@
+import { emptyDigestTimings } from '@dltech/atlas-control'
 import { logFieldsOf } from '@dltech/atlas-observability'
 import type { SessionChange, SessionSummary } from '@dltech/atlas-protocol'
 
@@ -34,15 +35,21 @@ export class SessionsListIndex {
 
   async readSnapshot(subscription: SessionsSubscription): Promise<SessionSummary[]> {
     const startedAt = performance.now()
+    const timings = emptyDigestTimings()
     const digests = await this.deps.plane.listSessionDigests({
       userId: subscription.userId,
       projectId: subscription.projectId,
       limit: SNAPSHOT_LIMIT,
       withView: true,
+      timings,
     })
     this.deps.log?.info({
       source: 'stream',
-      data: { rows: digests.length, durationMs: Math.round(performance.now() - startedAt) },
+      data: {
+        rows: digests.length,
+        durationMs: Math.round(performance.now() - startedAt),
+        ...timings,
+      },
       message: 'sessions snapshot',
     })
     const now = this.deps.timers.now()

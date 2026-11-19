@@ -68,7 +68,7 @@ export const currentViewIn = async (args: {
   return (await ensureSessionViewIn(args)).state
 }
 
-const failureMayBeActive = (state: SessionViewState): boolean =>
+export const failureMayBeActive = (state: SessionViewState): boolean =>
   state.facts.startFailure !== null ||
   (state.facts.prepareFailure !== null && !state.facts.prepared)
 

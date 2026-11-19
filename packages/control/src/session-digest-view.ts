@@ -19,7 +19,50 @@ import type {
   TrackedPullRequestRow,
 } from './port'
 import { usableState } from './session-view-ops'
-import { currentViewIn, messageAfterFailureIn } from './session-view-read'
+import { currentViewIn, failureMayBeActive, messageAfterFailureIn } from './session-view-read'
+
+export type DigestPhases = {
+  transactionMs: number
+  digestRowsMs: number
+  threadsMs: number
+  viewsMs: number
+  leasesMs: number
+  pullRequestsMs: number
+  rowsMs: number
+}
+
+export type DigestTimings = {
+  phases: DigestPhases
+  staleRows: number
+  staleMs: number
+  failureRows: number
+  failureMs: number
+}
+
+export const emptyDigestTimings = (): DigestTimings => ({
+  phases: {
+    transactionMs: 0,
+    digestRowsMs: 0,
+    threadsMs: 0,
+    viewsMs: 0,
+    leasesMs: 0,
+    pullRequestsMs: 0,
+    rowsMs: 0,
+  },
+  staleRows: 0,
+  staleMs: 0,
+  failureRows: 0,
+  failureMs: 0,
+})
+
+export const markDigestPhase = (
+  timings: DigestTimings | undefined,
+  phase: keyof DigestPhases,
+  startedAt: number,
+): void => {
+  if (timings === undefined) return
+  timings.phases[phase] = Math.round(performance.now() - startedAt)
+}
 
 const sandboxOf = (row: SessionDigestRow): ControlDigestView['sandbox'] => {
   const parsed = sessionSandboxStatusSchema.safeParse({
@@ -55,8 +98,11 @@ const digestViewOf = async (args: {
   pullRequest: TrackedPullRequestRow | undefined
   sandbox: ControlDigestView['sandbox']
   now: string
+  timings: DigestTimings
   eventSchema?: z.ZodType<V2Event> | undefined
 }): Promise<ControlDigestView> => {
+  const readsFailure = failureMayBeActive(args.state)
+  const failureStartedAt = performance.now()
   const messageAfterFailure = await messageAfterFailureIn({
     tx: args.tx,
     sessionId: args.sessionId,
@@ -64,6 +110,10 @@ const digestViewOf = async (args: {
     state: args.state,
     eventSchema: args.eventSchema,
   })
+  if (readsFailure) {
+    args.timings.failureRows += 1
+    args.timings.failureMs += Math.round(performance.now() - failureStartedAt)
+  }
   const value = sessionViewOf({
     state: args.state,
     live: args.live,
@@ -85,6 +135,7 @@ export const withDigestViews = async (args: {
   rows: readonly SessionDigestRow[]
   now: string
   withView: boolean
+  timings?: DigestTimings | undefined
   eventSchema?: z.ZodType<V2Event> | undefined
   pluginViews?: readonly PluginViewFold[] | undefined
 }): Promise<ControlSessionDigest[]> => {
@@ -92,33 +143,50 @@ export const withDigestViews = async (args: {
   if (!args.withView || rows.length === 0) {
     return rows.map((row) => ({ ...row, view: null }))
   }
+  const stats = args.timings ?? emptyDigestTimings()
   const threadIds = [...new Set(rows.map((row) => row.mainThreadId))]
   const sessionIds = rows.map((row) => row.sessionId)
+  let startedAt = performance.now()
   const threads = new Map((await tx.readThreads(threadIds)).map((row) => [row.threadId, row]))
+  markDigestPhase(stats, 'threadsMs', startedAt)
+  startedAt = performance.now()
   const views = new Map((await tx.readSessionViews(sessionIds)).map((row) => [row.sessionId, row]))
+  markDigestPhase(stats, 'viewsMs', startedAt)
+  startedAt = performance.now()
   const leases = await args.leases.currentLeasesIn({ tx, sessionIds })
+  markDigestPhase(stats, 'leasesMs', startedAt)
+  startedAt = performance.now()
   const pullRequests = new Map<string, TrackedPullRequestRow[]>()
   for (const row of await tx.readTrackedPullRequests(sessionIds)) {
     const list = pullRequests.get(row.sessionId)
     if (list === undefined) pullRequests.set(row.sessionId, [row])
     else list.push(row)
   }
+  markDigestPhase(stats, 'pullRequestsMs', startedAt)
 
+  let staleRows = 0
+  let staleMs = 0
+  const loopStartedAt = performance.now()
   const digests: ControlSessionDigest[] = []
   for (const row of rows) {
     const thread = threads.get(row.mainThreadId)
     if (thread === undefined) throw new UnknownThreadError(row.mainThreadId)
     const cached = usableState(views.get(row.sessionId))
-    const state =
-      cached !== undefined && cached.at === thread.headSeq
-        ? cached
-        : await currentViewIn({
-            tx,
-            sessionId: row.sessionId,
-            threadId: row.mainThreadId,
-            eventSchema: args.eventSchema,
-            pluginViews: args.pluginViews,
-          })
+    const cachedIsCurrent = cached !== undefined && cached.at === thread.headSeq
+    const viewStartedAt = performance.now()
+    const state = cachedIsCurrent
+      ? cached
+      : await currentViewIn({
+          tx,
+          sessionId: row.sessionId,
+          threadId: row.mainThreadId,
+          eventSchema: args.eventSchema,
+          pluginViews: args.pluginViews,
+        })
+    if (!cachedIsCurrent) {
+      staleRows += 1
+      staleMs += performance.now() - viewStartedAt
+    }
     const current = leases.get(row.sessionId)
     if (current === undefined) throw new Error(`missing lease for ${row.sessionId}`)
     const view = await digestViewOf({
@@ -131,9 +199,13 @@ export const withDigestViews = async (args: {
       pullRequest: pullRequests.get(row.sessionId)?.[0],
       sandbox: sandboxOf(row),
       now: args.now,
+      timings: stats,
       eventSchema: args.eventSchema,
     })
     digests.push({ ...row, view })
   }
+  stats.phases.rowsMs = Math.round(performance.now() - loopStartedAt)
+  stats.staleRows = staleRows
+  stats.staleMs = Math.round(staleMs)
   return digests
 }
