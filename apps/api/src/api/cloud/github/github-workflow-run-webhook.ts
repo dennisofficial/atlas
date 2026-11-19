@@ -43,32 +43,63 @@ export function runMatchesSelector(args: {
   return run.path !== undefined && run.path !== null && basenameOf(run.path) === selector.workflow
 }
 
+const createdAtOf = (run: GithubWorkflowRunWebhookRun): Date | null => {
+  if (run.created_at === undefined || run.created_at === null) return null
+  const at = new Date(run.created_at)
+  return Number.isNaN(at.getTime()) ? null : at
+}
+
+function matchesSubscription(args: {
+  row: Row<'GithubSubscription'>
+  run: GithubWorkflowRunWebhookRun
+  runCreatedAt: Date | null
+}): boolean {
+  const selector = runSelectorOf(args.row.branch)
+  if (!runMatchesSelector({ selector, run: args.run })) return false
+  if (selector?.selector === 'run') return args.row.deliveredRunId === ''
+  if (args.runCreatedAt === null) return true
+  return args.runCreatedAt.getTime() > args.row.lastRunCreatedAt.getTime()
+}
+
 async function subscriptionsFor(args: {
   repoFullName: string
   run: GithubWorkflowRunWebhookRun
+  runCreatedAt: Date | null
 }): Promise<Row<'GithubSubscription'>[]> {
-  const rows = await db.orm.public.GithubSubscription.where({
-    kind: WORKFLOW_RUN_KIND,
-    deliveredRunId: '',
-  })
+  const rows = await db.orm.public.GithubSubscription.where({ kind: WORKFLOW_RUN_KIND })
     .where((subscription) => subscription.repoFullName.ilike(repoPattern(args.repoFullName)))
     .where((subscription) => subscription.threadId.neq(''))
     .where((subscription) => subscription.liveUntil.gt(new Date()))
     .all()
   return rows.filter((row) =>
-    runMatchesSelector({ selector: runSelectorOf(row.branch), run: args.run }),
+    matchesSubscription({ row, run: args.run, runCreatedAt: args.runCreatedAt }),
   )
+}
+
+function claimRun(args: {
+  subscription: Row<'GithubSubscription'>
+  run: WorkflowRunSnapshot
+  runCreatedAt: Date
+}): Promise<number> {
+  if (runSelectorOf(args.subscription.branch)?.selector === 'run') {
+    return db.orm.public.GithubSubscription.where({
+      id: args.subscription.id,
+      deliveredRunId: '',
+    }).updateAndCount({ deliveredRunId: args.run.id })
+  }
+  return db.orm.public.GithubSubscription.where({
+    id: args.subscription.id,
+    lastRunCreatedAt: args.subscription.lastRunCreatedAt,
+  }).updateAndCount({ lastRunCreatedAt: args.runCreatedAt })
 }
 
 async function notifyOne(args: {
   subscription: Row<'GithubSubscription'>
   run: WorkflowRunSnapshot
+  runCreatedAt: Date
   wake: GithubSandboxWakeService
 }): Promise<boolean> {
-  const claimed = await db.orm.public.GithubSubscription.where({
-    id: args.subscription.id,
-    deliveredRunId: '',
-  }).updateAndCount({ deliveredRunId: args.run.id })
+  const claimed = await claimRun(args)
   if (claimed === 0) return false
   await db.transaction((tx) =>
     postRunNoticeV2Sessions({ tx, subscription: args.subscription, run: args.run }),
@@ -91,20 +122,25 @@ export async function recordWorkflowRunFinished(args: {
   if (args.payload.action !== 'completed') return 0
   if (args.payload.workflow_run.status !== 'completed') return 0
   const run = runSnapshotOf(args.payload)
+  const runCreatedAt = createdAtOf(args.payload.workflow_run)
   const subscriptions = await subscriptionsFor({
     repoFullName: args.payload.repository.full_name,
     run: args.payload.workflow_run,
+    runCreatedAt,
   })
   let notified = 0
   for (const subscription of subscriptions) {
-    const outcome = await notifyOne({ subscription, run, wake: args.wake }).catch(
-      (failure: unknown) => {
-        logger.warn(
-          `notifying thread ${subscription.threadId} for the completed run ${run.id} of ${subscription.repoFullName} failed: ${failureText(failure)}`,
-        )
-        return false
-      },
-    )
+    const outcome = await notifyOne({
+      subscription,
+      run,
+      runCreatedAt: runCreatedAt ?? new Date(),
+      wake: args.wake,
+    }).catch((failure: unknown) => {
+      logger.warn(
+        `notifying thread ${subscription.threadId} for the completed run ${run.id} of ${subscription.repoFullName} failed: ${failureText(failure)}`,
+      )
+      return false
+    })
     if (outcome) notified += 1
   }
   return notified

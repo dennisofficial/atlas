@@ -3771,6 +3771,16 @@
                   "kind": "scalar"
                 }
               },
+              "lastRunCreatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
               "liveUntil": {
                 "nullable": false,
                 "type": {
@@ -3854,6 +3864,9 @@
                 },
                 "kind": {
                   "column": "kind"
+                },
+                "lastRunCreatedAt": {
+                  "column": "lastRunCreatedAt"
                 },
                 "liveUntil": {
                   "column": "liveUntil"
@@ -13718,6 +13731,18 @@
                   },
                   "nullable": false
                 },
+                "lastRunCreatedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
                 "liveUntil": {
                   "codecId": "pg/timestamptz-date@1",
                   "dataType": "pg/timestamptz",
@@ -19002,7 +19027,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "4406b81cac8b98381149af5769abd34522833966d2564835450f6715e509fe49"
+    "storageHash": "f7543aa4035670134d8a1239a96708503be0cb7ff56d300ae497ebe2fbdfca19"
   },
   "execution": {
     "executionHash": "4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45",
