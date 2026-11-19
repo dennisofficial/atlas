@@ -11,6 +11,7 @@ import { EGithubCallSource } from './github-call-log'
 import { EMergeQueueMove, EPrSource } from '@dltech/atlas-core'
 import { mergeQueueMoveOfPullAction, notifyMergeQueueMove } from './github-merge-queue-webhook'
 import { normalizedRepo } from './github-pr-identity'
+import { inWatchScope } from './github-watch-scope'
 import { GithubRequestCoordinator } from './github-request-coordinator'
 import { withGithubRequestBudget } from './github-request-budget'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
@@ -183,6 +184,22 @@ export class GithubDeliveryService {
   ): Promise<void> {
     const repoFullName = normalizedRepo(payload.repository.full_name)
     const prNumber = payload.pull_request.number
+    const watched = await inWatchScope({
+      repoFullName,
+      prNumbers: [prNumber],
+      heads: [
+        { repoFullName, branch: payload.pull_request.head.ref },
+        ...(payload.pull_request.head.repo === null
+          ? []
+          : [
+              {
+                repoFullName: payload.pull_request.head.repo.full_name,
+                branch: payload.pull_request.head.ref,
+              },
+            ]),
+      ],
+    })
+    if (!watched) return
     const observedAt = new Date().toISOString()
     const observation = pullObservationOfWebhook({ payload, observedAt })
     if (observation !== null) {

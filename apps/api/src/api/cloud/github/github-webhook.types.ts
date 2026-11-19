@@ -39,6 +39,7 @@ export interface GithubCheckSuiteWebhookPayload {
     app?: { slug: string } | null
     head_sha: string
     head_branch: string | null
+    pull_requests?: { number: number }[]
   }
   repository: GithubWebhookRepository
 }

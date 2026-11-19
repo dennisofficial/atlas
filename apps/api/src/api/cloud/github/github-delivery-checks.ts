@@ -10,6 +10,7 @@ import { GithubDeliveryFillDeferred, type FillFields, type RestFill } from './gi
 import { normalizedRepo } from './github-pr-identity'
 import { lockPrScope } from './github-pr-lock'
 import type { GithubPrStore } from './github-pr-store'
+import { headShaPrNumbers, inWatchScope } from './github-watch-scope'
 import { CheckAnnotationFetcher, type FetchAnnotations } from './github-check-annotations'
 import type {
   GithubCheckRunWebhookPayload,
@@ -39,6 +40,8 @@ export class GithubDeliveryChecks {
       repoFullName: payload.repository.full_name,
       headSha: payload.check_run.head_sha,
       check: checkRunInputOf(payload.check_run),
+      prNumbers: payload.check_run.pull_requests?.map((pull) => pull.number) ?? [],
+      branch: payload.check_run.check_suite?.head_branch ?? null,
       installationId,
     })
   }
@@ -54,6 +57,8 @@ export class GithubDeliveryChecks {
     return this.ingest({
       repoFullName: payload.repository.full_name,
       headSha: payload.check_suite.head_sha,
+      prNumbers: payload.check_suite.pull_requests?.map((pull) => pull.number) ?? [],
+      branch: payload.check_suite.head_branch,
       installationId,
     })
   }
@@ -63,6 +68,8 @@ export class GithubDeliveryChecks {
       repoFullName: payload.repository.full_name,
       headSha: payload.sha,
       check: commitStatusInputOf(payload),
+      prNumbers: [],
+      branch: payload.branches?.[0]?.name ?? null,
       installationId,
     })
   }
@@ -71,10 +78,21 @@ export class GithubDeliveryChecks {
     repoFullName: string
     headSha: string
     check?: CommitCheckInput
+    prNumbers: readonly number[]
+    branch: string | null
     installationId: bigint | undefined
   }): Promise<void> {
     const repoFullName = normalizedRepo(args.repoFullName)
     const { headSha } = args
+    if (
+      !(await this.watched({
+        repoFullName,
+        headSha,
+        prNumbers: args.prNumbers,
+        branch: args.branch,
+      }))
+    )
+      return
     const checks =
       args.check === undefined
         ? []
@@ -102,6 +120,29 @@ export class GithubDeliveryChecks {
     if (deferred.length > 0) {
       throw new GithubDeliveryFillDeferred({ repoFullName, prNumbers: deferred })
     }
+  }
+
+  private async watched(args: {
+    repoFullName: string
+    headSha: string
+    prNumbers: readonly number[]
+    branch: string | null
+  }): Promise<boolean> {
+    const prNumbers =
+      args.prNumbers.length > 0
+        ? args.prNumbers
+        : [
+            ...(await headShaPrNumbers({
+              repoFullName: args.repoFullName,
+              headSha: args.headSha,
+            })),
+          ]
+
+    return await inWatchScope({
+      repoFullName: args.repoFullName,
+      prNumbers,
+      heads: args.branch === null ? [] : [{ repoFullName: args.repoFullName, branch: args.branch }],
+    })
   }
 
   private async settle(args: {

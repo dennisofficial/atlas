@@ -3,7 +3,7 @@ import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { describe, expect, it } from 'bun:test'
 import { createRealRedisService } from '../../../../test/real-redis.fixture'
-import { seedRepoHook } from '../../../../test/github-seed'
+import { seedRepoHook, seedSubscription } from '../../../../test/github-seed'
 import { GithubHookController } from './github-hook.controller'
 import { GithubWebhookInboxService } from './github-webhook-inbox.service'
 import { PULL_REQUEST_PAYLOAD } from './github-delivery.fixture'
@@ -24,6 +24,7 @@ describe('legacy mixed-case hook identity', () => {
     })
     try {
       await seedRepoHook({ repoFullName: 'CompAI/App', createdBy: 'usr-owner', status: 'orphaned' })
+      await seedSubscription({ userId: 'usr-owner', prNumber: 42 })
       await graph.hooks.ensureHook({ userId: 'usr-owner', repoFullName: 'COMPAI/APP' })
       const hook = await db.orm.public.GithubRepoHook.first({ repoFullName: 'CompAI/App' })
       if (hook === null) throw new Error('legacy hook row missing')
