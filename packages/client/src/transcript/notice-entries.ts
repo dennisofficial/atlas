@@ -5,13 +5,7 @@ import {
   type Event,
 } from '@dltech/atlas-core'
 
-import {
-  agentEndedLine,
-  agentEndingFailed,
-  agentReportedKindLine,
-  agentRestartedLine,
-} from './agent-ended-line'
-import { deliberateAgentRestart } from './notice-barriers'
+import { agentEndedLine, agentEndingFailed, agentReportedKindLine } from './agent-ended-line'
 import { prEventFailed, prEventLine } from './pr-event-line'
 import { serviceEndedLine, serviceEndingFailed } from './service-ended-line'
 import { shellAwaitingInputLine, shellEndedLine, shellEndingFailed } from './shell-ended-line'
@@ -144,18 +138,7 @@ export function noticeEntriesOf(event: Event): TranscriptEntry[] | null {
     ]
   }
 
-  if (event.type === 'agent-restarted') {
-    if (!deliberateAgentRestart(event)) return []
-    return [
-      {
-        kind: EEntryKind.AgentRestarted,
-        author: EAuthor.Model,
-        key: event.id,
-        text: agentRestartedLine(event),
-        agentId: event.agentId,
-      },
-    ]
-  }
+  if (event.type === 'agent-restarted') return []
 
   if (event.type === 'rotated') {
     return [

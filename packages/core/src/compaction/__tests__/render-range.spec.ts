@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EAgentRestart } from '../../agents/restart'
 import { EAgentStatus } from '../../agents/status'
 import { EReportKind } from '../../agents/report'
 import { EMessageOrigin, EPrEventKind, EPrVerdict } from '../../events/body'
@@ -156,22 +155,6 @@ describe('transcriptOfRange', () => {
 
     expect(transcriptOfRange({ events, throughSeq: 3 })).toBe(
       'Operator: hold on\nAtlas parked this session (idle)\nAtlas: still here',
-    )
-  })
-
-  it('renders a sub-agent restart with the path that restarted it', () => {
-    const events = eventsFrom([
-      {
-        type: 'agent-restarted',
-        agentId: toThreadId('thread_child'),
-        agentType: 'explore',
-        intent: 'find the callers',
-        via: EAgentRestart.Resume,
-      },
-    ])
-
-    expect(transcriptOfRange({ events, throughSeq: 1 })).toBe(
-      'Sub-agent (explore, find the callers) was restarted (via resume)',
     )
   })
 

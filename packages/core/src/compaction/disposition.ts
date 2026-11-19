@@ -30,7 +30,7 @@ export const COMPACTION_DISPOSITION = {
   'history-compacted': ECompactionDisposition.Summarise,
   'agent-ended': ECompactionDisposition.Summarise,
   'agent-reported': ECompactionDisposition.Summarise,
-  'agent-restarted': ECompactionDisposition.Summarise,
+  'agent-restarted': ECompactionDisposition.Drop,
   'background-shell-ended': ECompactionDisposition.Summarise,
   'background-shell-still-running': ECompactionDisposition.Summarise,
   'background-shell-matched': ECompactionDisposition.Summarise,

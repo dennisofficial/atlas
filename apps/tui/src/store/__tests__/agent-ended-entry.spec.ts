@@ -14,7 +14,6 @@ import {
   EEntryKind,
   type AgentEndedEntry,
   type AgentReportedEntry,
-  type AgentRestartedEntry,
 } from '@dltech/atlas-client/transcript'
 import { isExpandable } from '../expandable'
 import { log } from '@dltech/atlas-client/transcript-fixture'
@@ -189,51 +188,11 @@ const agentRestarted = (over: Record<string, unknown> = {}) => ({
   ...over,
 })
 
-const onlyRestartEntry = (events: readonly Event[]): AgentRestartedEntry => {
-  const entry = durableEntries({ events }).find(
-    (candidate): candidate is AgentRestartedEntry => candidate.kind === EEntryKind.AgentRestarted,
-  )
-  if (entry === undefined) throw new Error('no restart entry was projected')
-  return entry
-}
-
 describe('a sub-agent restart in the transcript', () => {
-  it('is its own entry, so a rebuilt roster can be read against it', () => {
-    const entries = durableEntries({ events: log([agentRestarted()]) })
-
-    expect(entries).toHaveLength(1)
-    expect(entries[0]?.kind).toBe(EEntryKind.AgentRestarted)
-  })
-
-  it('names the child and that it was resumed', () => {
-    expect(onlyRestartEntry(log([agentRestarted()])).text).toBe(
-      'Sub-agent audit the credential resumed',
-    )
-  })
-
-  it('says when a message restarted the child', () => {
-    expect(onlyRestartEntry(log([agentRestarted({ via: EAgentRestart.Message })])).text).toContain(
-      'restarted by a message',
-    )
-  })
-
-  it('shows no row for a queued notice waking the child, which nobody asked for', () => {
-    expect(durableEntries({ events: log([agentRestarted({ via: EAgentRestart.Wake })]) })).toEqual(
-      [],
-    )
-  })
-
-  it('says when the child moved with the conversation', () => {
-    expect(
-      onlyRestartEntry(log([agentRestarted({ via: EAgentRestart.Relocation })])).text,
-    ).toContain('moved with the conversation')
-  })
-
-  it('carries the child and offers no fold, because there is no report yet', () => {
-    const entry = onlyRestartEntry(log([agentRestarted()]))
-
-    expect(entry.agentId).toBe(childId)
-    expect(isExpandable(entry)).toBe(false)
+  it('shows nothing, whichever way the child was set running again', () => {
+    for (const via of Object.values(EAgentRestart)) {
+      expect(durableEntries({ events: log([agentRestarted({ via })]) })).toEqual([])
+    }
   })
 })
 

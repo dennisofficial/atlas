@@ -316,18 +316,6 @@ function DerivedEntryView(props: {
         />
       )
 
-    case EEntryKind.AgentRestarted:
-      return (
-        <NoticeBlock
-          text={entry.text}
-          body=""
-          failed={false}
-          width={props.width}
-          openHint={AGENT_REPORT_HINT}
-          expanded={false}
-        />
-      )
-
     case EEntryKind.Rotated:
       return (
         <RotatedDivider
