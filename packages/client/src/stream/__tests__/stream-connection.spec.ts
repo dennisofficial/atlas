@@ -132,17 +132,50 @@ describe('the stream connection', () => {
     expect(lists).toHaveLength(2)
   })
 
-  it('stops retrying once the failures are exhausted', async () => {
+  it('keeps retrying through repeated failures', async () => {
     const { connection, clock, follows } = setup()
     connection.follow({ sessionId: 'session-1' })
     await settle()
-    follows[0]?.handlers.handleFailure(502)
     clock.setRandom(1)
+    follows[0]?.handlers.handleFailure(502)
+    expect(connection.state()).toBe(EStreamConnectionState.Backoff)
     clock.advance(500)
     await settle()
     follows[1]?.handlers.handleFailure(502)
-    expect(connection.state()).toBe(EStreamConnectionState.Closed)
-    expect(follows[0]?.closed).toBe(true)
+    expect(connection.state()).toBe(EStreamConnectionState.Backoff)
+    clock.advance(1_000)
+    await settle()
+    expect(follows).toHaveLength(3)
     expect(follows[1]?.closed).toBe(true)
+  })
+
+  it('reconnects at once when a session is opened while it is backing off', async () => {
+    const { connection, follows } = setup()
+    connection.follow({ sessionId: 'session-1' })
+    await settle()
+    follows[0]?.handlers.handleFailure(502)
+    expect(connection.state()).toBe(EStreamConnectionState.Backoff)
+    connection.follow({ sessionId: 'session-2' })
+    await settle()
+    expect(connection.state()).toBe(EStreamConnectionState.Connecting)
+    expect(follows.map((entry) => entry.input?.sessionId)).toEqual([
+      'session-1',
+      'session-1',
+      'session-2',
+    ])
+    expect(follows[0]?.closed).toBe(true)
+  })
+
+  it('reconnects every followed session when asked', async () => {
+    const { connection, lists, follows } = setup()
+    connection.follow({ sessionId: 'session-1' })
+    connection.followSessions()
+    await settle()
+    follows[0]?.handlers.handleFailure(500)
+    connection.reconnect()
+    await settle()
+    expect(connection.state()).toBe(EStreamConnectionState.Connecting)
+    expect(follows).toHaveLength(2)
+    expect(lists).toHaveLength(2)
   })
 })

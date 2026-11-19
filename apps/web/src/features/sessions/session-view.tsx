@@ -22,7 +22,7 @@ import { panelValueOf } from './data/panel-value'
 import { postInputOf } from './data/session-media'
 import { sessionsApi } from './data/sessions-api'
 import { stopSession } from './data/stop-session'
-import { headerStateOfSession, isSessionWorking, sessionStateLineOf } from './data/session-state'
+import { headerStateOfSession, isSessionWorking } from './data/session-state'
 import { sessionLog, sessionStream } from './data/session-stream'
 import { mergedDraftOf } from './data/session-rewind'
 import { useSessionRewind } from './data/use-session-rewind'
@@ -45,6 +45,7 @@ import { useSessionSummarise } from './data/use-session-summarise'
 import { pendingOperatorRequestOf } from './data/use-operator-request'
 import { useSessionStream } from './data/use-session-stream'
 import { CommandRows } from './command-rows'
+import { ConnectionLine } from './connection-line'
 import { QueuedDock } from './queued-dock'
 import { RefusalRows } from './refusal-rows'
 import { SessionPreviewsProvider } from './panel/browser/previews-provider'
@@ -117,8 +118,8 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     snapshot,
     openTab: pane.openTab,
   })
-  const stateLine = sessionStateLineOf(snapshot)
   const stagedRun = useStagedMessages({
+    sessionId,
     events: snapshot.events,
     working,
     draft,
@@ -247,11 +248,10 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                     writerAhead={snapshot.writerAhead}
                   />
                 ) : null}
-                {stateLine === null ? null : (
-                  <p role="status" className="truncate px-1 text-xs text-muted-foreground">
-                    {stateLine}
-                  </p>
-                )}
+                <ConnectionLine
+                  snapshot={snapshot}
+                  onReconnect={() => sessionStream().reconnect()}
+                />
                 {snapshot.status?.state === ESessionStatus.StartFailed ? (
                   <StartFailedCard reason={snapshot.status.reason} onRetry={handleRetry} />
                 ) : null}
