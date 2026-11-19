@@ -6,7 +6,7 @@ import {
   type ToolRun,
 } from '@dltech/atlas-core'
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
-import { EMemoryScope, MEMORY_NAME_PATTERN } from '@dltech/atlas-wire'
+import { EMemoryScope, MEMORY_NAME_PATTERN } from '@dltech/atlas-core'
 import { z } from 'zod'
 
 import { addressOf } from './address'

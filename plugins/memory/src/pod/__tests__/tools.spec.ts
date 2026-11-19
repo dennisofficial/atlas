@@ -126,4 +126,25 @@ describe('memory tools', () => {
     })
     expect(refused.ok).toBe(false)
   })
+
+  it('takes a body of up to 20000 characters and a description of up to 300', async () => {
+    const { ctx } = rig(fakeMemory().port)
+    const outcome = await invoke({
+      ctx,
+      name: 'write_memory',
+      input: { ...saved, scope: 'project', body: 'x'.repeat(20_000), description: 'd'.repeat(300) },
+    })
+    expect(outcome.ok).toBe(true)
+  })
+
+  it.each([
+    ['a body over 20000 characters', { body: 'x'.repeat(20_001) }],
+    ['a description over 300 characters', { description: 'd'.repeat(301) }],
+    ['an unknown type', { type: 'opinion' }],
+    ['an unknown scope', { scope: 'team' }],
+  ])('refuses %s', async (_label, patch) => {
+    const { ctx } = rig()
+    const refused = await invoke({ ctx, name: 'write_memory', input: { ...saved, ...patch } })
+    expect(refused.ok).toBe(false)
+  })
 })
