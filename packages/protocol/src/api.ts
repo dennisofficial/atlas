@@ -58,12 +58,23 @@ export const sessionPostInputSchema = z
   .refine(hasMessageContent, 'a message needs text or an attachment')
   .refine(withinAttachmentLimit, `a message carries at most ${MAX_MESSAGE_UPLOADS} attachments`)
 
+export enum ESandboxProvider {
+  Vercel = 'vercel',
+  Agent37 = 'agent37',
+}
+
+export enum ECredentialSource {
+  Byok = 'byok',
+  Platform = 'platform',
+}
+
 export const sessionCreateInputSchema = z.strictObject({
   projectId: z.string().min(1).nullish(),
   title: z.string().optional(),
   model: z.string().min(1).optional(),
   effort: z.string().min(1).optional(),
   fast: z.boolean().optional(),
+  provider: z.nativeEnum(ESandboxProvider).optional(),
   firstMessage: messageDraftSchema.optional(),
 })
 

@@ -13,6 +13,9 @@ export const createSessionIn = async (params: {
   modelRef: string
   modelEffort: string
   modelFast: boolean
+  sandboxProvider: string
+  credentialSource: string
+  sandboxInstanceId: string | null
   spawnedBySessionId?: string | undefined
   nested?: boolean | undefined
   podSessionId?: string | undefined
@@ -33,6 +36,9 @@ export const createSessionIn = async (params: {
     modelRef: params.modelRef,
     modelEffort: params.modelEffort,
     modelFast: params.modelFast,
+    sandboxProvider: params.sandboxProvider,
+    credentialSource: params.credentialSource,
+    sandboxInstanceId: params.sandboxInstanceId,
     spawnedBySessionId: params.spawnedBySessionId ?? null,
     nested: params.nested ?? true,
     podSessionId: params.podSessionId ?? null,
@@ -94,6 +100,17 @@ export const setSessionModelIn = async (params: {
     modelEffort: params.modelEffort,
     modelFast: params.modelFast,
   })
+  return changed === 1
+}
+
+export const setSandboxInstanceIdIn = async (params: {
+  tx: Tx
+  sessionId: string
+  sandboxInstanceId: string | null
+}): Promise<boolean> => {
+  const changed = await params.tx.orm.v2.V2Session.where({
+    id: params.sessionId,
+  }).updateAndCount({ sandboxInstanceId: params.sandboxInstanceId })
   return changed === 1
 }
 

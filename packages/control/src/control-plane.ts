@@ -119,6 +119,9 @@ export class ControlPlane {
     title?: string | undefined
     mainThreadId: string
     model?: SessionModelAsk | undefined
+    sandboxProvider?: string | undefined
+    credentialSource?: string | undefined
+    sandboxInstanceId?: string | null | undefined
     routineId?: string | undefined
   }): Promise<SessionModelRow> {
     return this.store.transact(async (tx) =>
@@ -133,6 +136,9 @@ export class ControlPlane {
     title?: string | undefined
     mainThreadId: string
     model?: SessionModelAsk | undefined
+    sandboxProvider?: string | undefined
+    credentialSource?: string | undefined
+    sandboxInstanceId?: string | null | undefined
     routineId?: string | undefined
     message: { kind: string; payload: string }
   }): Promise<{ inboxId: number } & SessionModelRow> {
@@ -156,6 +162,13 @@ export class ControlPlane {
     ask: SessionModelAsk
   }): Promise<SessionModelRow> {
     return this.store.transact((tx) => setSessionModelIn({ tx, ...params }))
+  }
+
+  async setSandboxInstanceId(params: {
+    sessionId: string
+    sandboxInstanceId: string | null
+  }): Promise<boolean> {
+    return this.store.transact((tx) => tx.setSandboxInstanceId(params))
   }
 
   async spawnPeer(params: {

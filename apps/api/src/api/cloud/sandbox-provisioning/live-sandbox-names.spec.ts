@@ -23,6 +23,8 @@ const v2Session = async (args: {
     modelRef: 'anthropic/claude-haiku-4-5',
     modelEffort: 'medium',
     modelFast: false,
+    sandboxProvider: 'vercel',
+    credentialSource: 'byok',
     ...(args.podSessionId === undefined ? {} : { podSessionId: args.podSessionId }),
     ...(args.archivedAt === undefined ? {} : { archivedAt: args.archivedAt }),
     createdAt: at,

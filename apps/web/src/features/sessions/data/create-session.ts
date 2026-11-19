@@ -1,5 +1,6 @@
 import type { Attachment, SaidUpload } from '@dltech/atlas-core'
 import type {
+  ESandboxProvider,
   SessionCreateInput,
   SessionCreateOutput,
   SessionPostInput,
@@ -22,6 +23,7 @@ export async function createSessionWithMessage(args: {
   model?: string | undefined
   effort?: string | undefined
   fast?: boolean | undefined
+  provider?: ESandboxProvider | undefined
 }): Promise<string> {
   const { sessionId } = await args.api.create({
     ...(args.projectId === null || args.projectId === undefined
@@ -30,6 +32,7 @@ export async function createSessionWithMessage(args: {
     ...(args.model === undefined ? {} : { model: args.model }),
     ...(args.effort === undefined ? {} : { effort: args.effort }),
     ...(args.fast === undefined ? {} : { fast: args.fast }),
+    ...(args.provider === undefined ? {} : { provider: args.provider }),
     firstMessage: messageInputOf({
       text: args.text,
       media: args.media,

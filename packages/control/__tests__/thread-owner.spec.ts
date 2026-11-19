@@ -33,6 +33,8 @@ const seedThread = async (args: {
     modelRef: 'anthropic/claude-haiku-4-5',
     modelEffort: 'medium',
     modelFast: false,
+    sandboxProvider: 'vercel',
+    credentialSource: 'byok',
     spawnedBySessionId: null,
     nested: true,
     podSessionId: null,

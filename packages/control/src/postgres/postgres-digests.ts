@@ -17,7 +17,8 @@ export const sessionDigestsIn = async (
   const rows = await params.tx.query(
     params.tx.raw
       .sql`SELECT s."id", s."userId", s."projectId", s."title", s."mainThreadId", s."createdAt", s."archivedAt",
-        s."deletedAt", s."modelRef", s."modelEffort", s."modelFast", s."spawnedBySessionId", s."nested",
+        s."deletedAt", s."modelRef", s."modelEffort", s."modelFast", s."sandboxProvider",
+        s."credentialSource", s."sandboxInstanceId", s."spawnedBySessionId", s."nested",
         s."podSessionId", s."routineId",
         (SELECT e."at" FROM "v2"."V2Event" e
           WHERE e."threadId" = s."mainThreadId" ORDER BY e."seq" DESC LIMIT 1) AS "lastEventAt",
@@ -48,6 +49,9 @@ export const sessionDigestsIn = async (
         modelRef: 'pg/text@1',
         modelEffort: 'pg/text@1',
         modelFast: 'pg/bool@1',
+        sandboxProvider: 'pg/text@1',
+        credentialSource: 'pg/text@1',
+        sandboxInstanceId: { codecId: 'pg/text@1', nullable: true },
         spawnedBySessionId: { codecId: 'pg/text@1', nullable: true },
         nested: 'pg/bool@1',
         podSessionId: { codecId: 'pg/text@1', nullable: true },
@@ -70,6 +74,9 @@ export const sessionDigestsIn = async (
     modelRef: row.modelRef,
     modelEffort: row.modelEffort,
     modelFast: row.modelFast,
+    sandboxProvider: row.sandboxProvider,
+    credentialSource: row.credentialSource,
+    sandboxInstanceId: row.sandboxInstanceId,
     spawnedBySessionId: row.spawnedBySessionId,
     nested: row.nested,
     podSessionId: row.podSessionId,

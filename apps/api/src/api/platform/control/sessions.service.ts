@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common'
+import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common'
 import type { CommandRegistry } from '@dltech/atlas-commands'
 import {
   ControlPlane,
@@ -18,6 +18,8 @@ import {
 } from '@dltech/atlas-core'
 import { MediaStore } from '@dltech/atlas-media'
 import {
+  ECredentialSource,
+  ESandboxProvider,
   EWithdrawRefusal,
   INBOX_KIND_MESSAGE,
   inboxMessageSchema,
@@ -37,6 +39,7 @@ import {
   type SessionWithdrawOutput,
 } from '@dltech/atlas-protocol'
 import type { SessionPageOutput } from '@dltech/atlas-wire'
+import { EnvService } from '../../../_core/config/env/env.service'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { SessionTitler } from '../../../_core/ports/session-titler'
 import { pageSessions, type PageBucket } from '../sessions/session-pages'
@@ -72,6 +75,7 @@ export class SessionsService {
     @Inject(MediaRegistry) private readonly media: MediaRegistry,
     @Inject(MediaStore) private readonly store: MediaStore,
     @Inject(COMMAND_REGISTRY) private readonly commands: CommandRegistry,
+    @Inject(EnvService) private readonly env: EnvService,
   ) {}
 
   async accessibleProjectId(args: { userId: string; projectId: string }): Promise<string> {
@@ -87,6 +91,7 @@ export class SessionsService {
     model?: string | undefined
     effort?: string | undefined
     fast?: boolean | undefined
+    provider?: string | undefined
     firstMessage?: SessionMessageDraft | undefined
   }) {
     if (args.projectId !== null && args.projectId !== undefined) {
@@ -97,6 +102,7 @@ export class SessionsService {
     }
     const sessionId = randomUUID()
     const mainThreadId = randomUUID()
+    const sandboxProvider = this.sandboxProviderOf(args.provider)
     const session = {
       sessionId,
       userId: args.userId,
@@ -104,6 +110,8 @@ export class SessionsService {
       title: args.title,
       mainThreadId,
       model: { ref: args.model, effort: args.effort, fast: args.fast },
+      sandboxProvider,
+      credentialSource: ECredentialSource.Platform,
     }
     if (args.firstMessage === undefined) {
       await this.plane.createSession(session)
@@ -125,6 +133,13 @@ export class SessionsService {
       modelRef,
     })
     return { sessionId, mainThreadId }
+  }
+
+  private sandboxProviderOf(provider: string | undefined): ESandboxProvider {
+    const picked = provider ?? this.env.get('SANDBOX_PROVIDER_DEFAULT')
+    const known = Object.values(ESandboxProvider).find((value) => value === picked)
+    if (known === undefined) throw new BadRequestException(`unknown sandbox provider ${picked}`)
+    return known
   }
 
   async list(args: {

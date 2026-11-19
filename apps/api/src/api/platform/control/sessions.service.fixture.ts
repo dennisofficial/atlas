@@ -11,6 +11,7 @@ import { z } from 'zod'
 import { FakeMediaStore } from '@dltech/atlas-media/testing'
 import { ControlPlane, INBOX_KIND_WITHDRAW, withdrawPayloadOf } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
+import { EnvService } from '../../../_core/config/env/env.service'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { NoSessionTitler } from '../../../_core/ports/session-titler'
 import { FakeMediaRegistry } from './media-registry.fake'
@@ -102,7 +103,7 @@ export const logWithdrawn = async (args: {
   })
 }
 
-export const setupSessionsService = () => {
+export const setupSessionsService = (args: { env?: Record<string, string> } = {}) => {
   const store = new InMemoryControlStore({ clock: () => NOW })
   store.markHostPresent(9001)
   const plane = new ControlPlane({ store })
@@ -117,6 +118,7 @@ export const setupSessionsService = () => {
     registry,
     mediaStore,
     composeCommands([TEST_COMMAND, modelSet]),
+    new EnvService({ SANDBOX_PROVIDER_DEFAULT: 'vercel', ...args.env }),
   )
   return { plane, service, registry, mediaStore, store, projects }
 }

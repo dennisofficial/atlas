@@ -9,6 +9,17 @@ export const readSessionIn = (params: {
   return row === undefined ? undefined : sessionRowOf(row)
 }
 
+export const setSandboxInstanceIdIn = (params: {
+  state: State
+  sessionId: string
+  sandboxInstanceId: string | null
+}): boolean => {
+  const row = params.state.sessions.get(params.sessionId)
+  if (row === undefined) return false
+  row.sandboxInstanceId = params.sandboxInstanceId
+  return true
+}
+
 export const setSessionArchivedIn = (params: {
   state: State
   sessionId: string
@@ -81,6 +92,9 @@ export const createSessionIn = (params: {
   modelRef: string
   modelEffort: string
   modelFast: boolean
+  sandboxProvider: string
+  credentialSource: string
+  sandboxInstanceId: string | null
   spawnedBySessionId?: string | undefined
   nested?: boolean | undefined
   podSessionId?: string | undefined
@@ -103,6 +117,9 @@ export const createSessionIn = (params: {
     modelRef: params.modelRef,
     modelEffort: params.modelEffort,
     modelFast: params.modelFast,
+    sandboxProvider: params.sandboxProvider,
+    credentialSource: params.credentialSource,
+    sandboxInstanceId: params.sandboxInstanceId,
     spawnedBySessionId: params.spawnedBySessionId ?? null,
     nested: params.nested ?? true,
     podSessionId: params.podSessionId ?? null,

@@ -5,6 +5,7 @@ import { Suspense, useCallback, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 import type { Attachment } from '@dltech/atlas-core'
+import { ESandboxProvider } from '@dltech/atlas-protocol'
 import type { Project } from '@dltech/atlas-wire/web'
 
 import { createLocalThread, newLocalThreadId } from '@/features/desktop/create-local-thread'
@@ -15,6 +16,7 @@ import { sessionStream } from '@/features/sessions/data/session-stream'
 import { sessionsApi } from '@/features/sessions/data/sessions-api'
 import { useSessionAttachments } from '@/features/sessions/data/use-session-attachments'
 import { EEngine, EngineToggle } from '@/features/sessions/engine-toggle'
+import { ProviderToggle } from '@/features/sessions/provider-toggle'
 import { QueryGate } from '@/features/settings/data/shared/query-gate'
 import { NewThreadSkeleton } from '@/features/projects/project-skeletons'
 import { createdThreads } from '@/features/shell/created-threads'
@@ -68,6 +70,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
   const desktop = useDesktop()
   const [runner, setRunner] = useState(ERunnerChoice.Cloud)
   const [engine, setEngine] = useState(EEngine.V1)
+  const [provider, setProvider] = useState(ESandboxProvider.Vercel)
   const attempt = useRef<{
     text: string
     attachments: Attachment[]
@@ -155,6 +158,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
         media,
         uploads,
         ...createFieldsOf(selection),
+        provider,
       })
       session.clear()
       drafts.handleSent(text)
@@ -178,6 +182,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
     >
       <RunnerToggle desktop={desktop} value={runner} onValueChange={setRunner} />
       {onThisMac ? null : <EngineToggle value={engine} onValueChange={setEngine} />}
+      {v2 ? <ProviderToggle value={provider} onValueChange={setProvider} /> : null}
       <ModelPickerControls
         picker={picker}
         selection={selection}

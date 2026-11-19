@@ -2,6 +2,7 @@ import { composeCommands } from '@dltech/atlas-commands'
 import { ControlPlane } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 import { FakeMediaStore } from '@dltech/atlas-media/testing'
+import { EnvService } from '../../../_core/config/env/env.service'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { SessionTitler } from '../../../_core/ports/session-titler'
 import { FakeMediaRegistry } from './media-registry.fake'
@@ -53,6 +54,7 @@ export const setupNaming = () => {
     registry,
     mediaStore,
     composeCommands([]),
+    new EnvService({ SANDBOX_PROVIDER_DEFAULT: 'vercel' }),
   )
   return { plane, service, titler, background, registry, mediaStore }
 }

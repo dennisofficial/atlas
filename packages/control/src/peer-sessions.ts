@@ -36,6 +36,8 @@ export const spawnPeerIn = async (params: {
     ...(params.model === undefined ? {} : { model: params.model }),
     ...(params.title === undefined ? {} : { title: params.title }),
     mainThreadId: params.mainThreadId,
+    sandboxProvider: spawner.sandboxProvider,
+    credentialSource: spawner.credentialSource,
     spawnedBySessionId: spawner.sessionId,
     nested: params.nested,
     at: params.at,

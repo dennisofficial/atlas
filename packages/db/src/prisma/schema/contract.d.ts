@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'1a02b03e9c55a9217a656178deaf1e9cd859f579ee855b15801ba04a1329bbbc'>;
+  StorageHashBase<'b3d260c93b2482a08fb1673253a185d6399e44d37cc1a4b8e0c07c6b04d346bf'>;
 export type ExecutionHash =
   ExecutionHashBase<'4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45'>;
 export type ProfileHash =
@@ -1318,6 +1318,7 @@ export namespace Models {
   export type v2_V2Session = {
     archivedAt: FieldOutputTypes['v2']['V2Session']['archivedAt'];
     createdAt: FieldOutputTypes['v2']['V2Session']['createdAt'];
+    credentialSource: FieldOutputTypes['v2']['V2Session']['credentialSource'];
     deletedAt: FieldOutputTypes['v2']['V2Session']['deletedAt'];
     id: FieldOutputTypes['v2']['V2Session']['id'];
     lastSurface: FieldOutputTypes['v2']['V2Session']['lastSurface'];
@@ -1331,6 +1332,8 @@ export namespace Models {
     podSessionId: FieldOutputTypes['v2']['V2Session']['podSessionId'];
     projectId: FieldOutputTypes['v2']['V2Session']['projectId'];
     routineId: FieldOutputTypes['v2']['V2Session']['routineId'];
+    sandboxInstanceId: FieldOutputTypes['v2']['V2Session']['sandboxInstanceId'];
+    sandboxProvider: FieldOutputTypes['v2']['V2Session']['sandboxProvider'];
     spawnedBySessionId: FieldOutputTypes['v2']['V2Session']['spawnedBySessionId'];
     title: FieldOutputTypes['v2']['V2Session']['title'];
     titledFromInboxId: FieldOutputTypes['v2']['V2Session']['titledFromInboxId'];
@@ -7619,6 +7622,12 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
+                readonly credentialSource: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
                 readonly deletedAt: {
                   readonly dataType: 'pg/timestamptz';
                   readonly codecId: 'pg/timestamptz-date@1';
@@ -7705,6 +7714,18 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly sandboxInstanceId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly sandboxProvider: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
                   readonly many: false;
                 };
                 readonly spawnedBySessionId: {
@@ -14378,6 +14399,10 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
+              readonly credentialSource: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly deletedAt: {
                 readonly nullable: true;
                 readonly type: {
@@ -14436,6 +14461,14 @@ type ContractBase = Omit<
               };
               readonly routineId: {
                 readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly sandboxInstanceId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly sandboxProvider: {
+                readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
               readonly spawnedBySessionId: {
@@ -14547,6 +14580,7 @@ type ContractBase = Omit<
               readonly fields: {
                 readonly archivedAt: { readonly column: 'archivedAt' };
                 readonly createdAt: { readonly column: 'createdAt' };
+                readonly credentialSource: { readonly column: 'credentialSource' };
                 readonly deletedAt: { readonly column: 'deletedAt' };
                 readonly id: { readonly column: 'id' };
                 readonly lastSurface: { readonly column: 'lastSurface' };
@@ -14560,6 +14594,8 @@ type ContractBase = Omit<
                 readonly podSessionId: { readonly column: 'podSessionId' };
                 readonly projectId: { readonly column: 'projectId' };
                 readonly routineId: { readonly column: 'routineId' };
+                readonly sandboxInstanceId: { readonly column: 'sandboxInstanceId' };
+                readonly sandboxProvider: { readonly column: 'sandboxProvider' };
                 readonly spawnedBySessionId: { readonly column: 'spawnedBySessionId' };
                 readonly title: { readonly column: 'title' };
                 readonly titledFromInboxId: { readonly column: 'titledFromInboxId' };

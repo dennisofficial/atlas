@@ -12,6 +12,9 @@ export type ControlSessionRow = {
   modelRef: string
   modelEffort: string
   modelFast: boolean
+  sandboxProvider: string
+  credentialSource: string
+  sandboxInstanceId: string | null
   spawnedBySessionId: string | null
   nested: boolean
   podSessionId: string | null

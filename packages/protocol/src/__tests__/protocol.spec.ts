@@ -7,6 +7,7 @@ import {
   EExecOutcome,
   EProtection,
   ERunState,
+  ESandboxProvider,
   ackFrameSchema,
   daemonErrorFrameSchema,
   daemonFrameSchema,
@@ -196,6 +197,9 @@ describe('session API inputs', () => {
   it('round-trips create, list, post, events and status inputs', () => {
     const create = { projectId: 'proj-1', title: 'a v2 session' }
     expect(roundTrips(sessionCreateInputSchema, create)).toEqual(create)
+    expect(
+      roundTrips(sessionCreateInputSchema, { ...create, provider: ESandboxProvider.Agent37 }),
+    ).toEqual({ ...create, provider: ESandboxProvider.Agent37 })
 
     const list = { projectId: 'proj-1', limit: 50 }
     expect(roundTrips(sessionListInputSchema, list)).toEqual(list)
@@ -211,8 +215,9 @@ describe('session API inputs', () => {
     expect(roundTrips(sessionStatusInputSchema, status)).toEqual(status)
   })
 
-  it('rejects an empty text and an out-of-range events limit', () => {
+  it('rejects an empty text, an unknown sandbox provider and an out-of-range events limit', () => {
     expect(sessionPostInputSchema.safeParse({ sessionId: 's-1', text: '' }).success).toBe(false)
+    expect(sessionCreateInputSchema.safeParse({ provider: 'docker' }).success).toBe(false)
     expect(sessionEventsInputSchema.safeParse({ sessionId: 's-1', limit: 1001 }).success).toBe(
       false,
     )
