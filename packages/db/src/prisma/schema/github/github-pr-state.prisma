@@ -23,6 +23,8 @@ model GithubPrState {
   mergeableHeadSha    String?
   mergeableBaseRef    String?
   mergeableObservedAt TimestamptzJsDate(3)?
+  mergeQueued      Boolean              @default(false)
+  autoMerge        Boolean              @default(false)
   version          Int                  @default(0)
   updatedAt        TimestamptzJsDate(3)
 

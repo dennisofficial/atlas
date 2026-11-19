@@ -18,6 +18,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@dltech/atlas-ui/compon
 import { cn } from '@dltech/atlas-ui/lib/utils'
 
 import { ChecksTally } from '../../checks-tally'
+import { PullRequestMergeMarker } from '../../pull-request-merge-marker'
 import type { PullRequestRow } from '../../data/pull-request-rows'
 import type { PullRequestBell } from '../../data/subscription-model'
 import { BODY_CELL, MID_COLUMN } from './table-parts'
@@ -89,9 +90,11 @@ export function BellToggle(props: {
 }
 
 function ChecksAndConflicts({ row }: { row: PullRequestRow }) {
-  if (row.checks === undefined && !row.conflicts) return null
+  const marker = row.mergeQueued || row.autoMerge
+  if (row.checks === undefined && !row.conflicts && !marker) return null
   return (
     <span className="inline-flex items-center justify-end gap-1.5 text-xs">
+      <PullRequestMergeMarker entry={row} />
       {row.checks === undefined ? null : <ChecksTally checks={row.checks} />}
       {row.conflicts ? <ConflictIndicator /> : null}
     </span>

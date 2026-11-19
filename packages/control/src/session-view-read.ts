@@ -26,6 +26,8 @@ export type ControlPullRequestState = {
   headSha: string
   checks: PrChecks
   mergeable: boolean | null
+  mergeQueued: boolean
+  autoMerge: boolean
   updatedAt: string
 }
 
@@ -131,6 +133,8 @@ const pullRequestOf = (row: TrackedPullRequestRow): ControlPullRequest => ({
     headSha: row.state.headSha,
     checks: row.state.checks,
     mergeable: row.state.mergeable,
+    mergeQueued: row.state.mergeQueued,
+    autoMerge: row.state.autoMerge,
     updatedAt: row.state.updatedAt,
   },
 })

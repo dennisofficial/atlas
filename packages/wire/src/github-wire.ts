@@ -94,6 +94,8 @@ export const githubPrStateSchema = z.object({
   checksExpected: z.number().int().optional(),
   checksState: z.string().nullable().optional(),
   mergeable: z.boolean().nullable(),
+  mergeQueued: z.boolean().optional(),
+  autoMerge: z.boolean().optional(),
   version: z.number().int(),
   updatedAt: z.string(),
   polled: z.boolean().optional(),

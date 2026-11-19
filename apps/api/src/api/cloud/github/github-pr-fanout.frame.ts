@@ -34,6 +34,8 @@ const stateSchema = z.object({
   checksExpected: z.number().exactOptional(),
   checksState: z.string().nullable(),
   mergeable: z.boolean().nullable(),
+  mergeQueued: z.boolean().exactOptional(),
+  autoMerge: z.boolean().exactOptional(),
   version: z.number(),
   updatedAt: z.string(),
   polled: z.boolean().exactOptional(),

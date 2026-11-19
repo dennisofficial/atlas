@@ -105,6 +105,14 @@ export class GithubDeliveryService {
     })
   }
 
+  async applyMergeQueued(args: {
+    repoFullName: string
+    prNumber: number
+    mergeQueued: boolean
+  }): Promise<void> {
+    await this.store.applyMergeFlags({ ...args, flags: { mergeQueued: args.mergeQueued } })
+  }
+
   handle(args: {
     event: string
     payload: unknown
@@ -173,6 +181,11 @@ export class GithubDeliveryService {
     if (observation !== null) {
       await this.store.apply({ repoFullName, prNumber, observations: [observation] })
     }
+    await this.store.applyMergeFlags({
+      repoFullName,
+      prNumber,
+      flags: { autoMerge: payload.pull_request.auto_merge != null },
+    })
     if (!HEAD_ACTIONS.has(payload.action)) return
     const token = await this.findFillToken({ repoFullName, installationId })
     if (token === undefined) return

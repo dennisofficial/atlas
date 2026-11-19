@@ -3310,6 +3310,13 @@
           },
           "GithubPrState": {
             "fields": {
+              "autoMerge": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
               "baseBranch": {
                 "nullable": false,
                 "type": {
@@ -3392,6 +3399,13 @@
               },
               "mergeClean": {
                 "nullable": true,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "mergeQueued": {
+                "nullable": false,
                 "type": {
                   "codecId": "pg/bool@1",
                   "kind": "scalar"
@@ -3504,6 +3518,9 @@
             "relations": {},
             "storage": {
               "fields": {
+                "autoMerge": {
+                  "column": "autoMerge"
+                },
                 "baseBranch": {
                   "column": "baseBranch"
                 },
@@ -3539,6 +3556,9 @@
                 },
                 "mergeClean": {
                   "column": "mergeClean"
+                },
+                "mergeQueued": {
+                  "column": "mergeQueued"
                 },
                 "mergeable": {
                   "column": "mergeable"
@@ -13220,6 +13240,15 @@
             },
             "GithubPrState": {
               "columns": {
+                "autoMerge": {
+                  "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
+                  "nullable": false
+                },
                 "baseBranch": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -13306,6 +13335,15 @@
                   "codecId": "pg/bool@1",
                   "dataType": "pg/bool",
                   "nullable": true
+                },
+                "mergeQueued": {
+                  "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
+                  "nullable": false
                 },
                 "mergeable": {
                   "codecId": "pg/bool@1",
@@ -18762,7 +18800,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "0286ec8602a1bd3709199639e2b9ef43150ddc2bda27f43ba7206442e135fd48"
+    "storageHash": "2040fdaad1f6b437ef3fbbe002f96b4f07954f628cc8c799e5b774fb6be69f0f"
   },
   "execution": {
     "executionHash": "4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45",

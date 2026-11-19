@@ -1,0 +1,126 @@
+[
+  {
+    "id": "column.public.GithubPrState.autoMerge",
+    "label": "Add column \"autoMerge\" to \"GithubPrState\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "autoMerge",
+        "table": "GithubPrState"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"autoMerge\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "autoMerge"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"autoMerge\"",
+        "sql": "ALTER TABLE \"public\".\"GithubPrState\" ADD COLUMN \"autoMerge\" bool DEFAULT false NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"autoMerge\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "autoMerge"
+        ]
+      },
+      {
+        "description": "verify column \"autoMerge\" has type \"boolean\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "autoMerge",
+          "boolean"
+        ]
+      },
+      {
+        "description": "verify column \"autoMerge\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "autoMerge",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.GithubPrState.mergeQueued",
+    "label": "Add column \"mergeQueued\" to \"GithubPrState\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "mergeQueued",
+        "table": "GithubPrState"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"mergeQueued\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "mergeQueued"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"mergeQueued\"",
+        "sql": "ALTER TABLE \"public\".\"GithubPrState\" ADD COLUMN \"mergeQueued\" bool DEFAULT false NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"mergeQueued\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "mergeQueued"
+        ]
+      },
+      {
+        "description": "verify column \"mergeQueued\" has type \"boolean\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "mergeQueued",
+          "boolean"
+        ]
+      },
+      {
+        "description": "verify column \"mergeQueued\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubPrState",
+          "mergeQueued",
+          "NO"
+        ]
+      }
+    ]
+  }
+]

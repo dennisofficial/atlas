@@ -95,6 +95,8 @@ export type PrStateRow = {
   checksPassed: number
   checksFailed: number
   checksExpected: number
+  mergeQueued: boolean
+  autoMerge: boolean
   mergeable: boolean | null
   updatedAt: string
   closedAt?: string | null | undefined
@@ -109,6 +111,8 @@ export type TrackedPullRequestState = {
   headSha: string
   checks: PrChecks
   mergeable: boolean | null
+  mergeQueued: boolean
+  autoMerge: boolean
   updatedAt: string
 }
 

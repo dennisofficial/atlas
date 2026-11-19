@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'0286ec8602a1bd3709199639e2b9ef43150ddc2bda27f43ba7206442e135fd48'>;
+  StorageHashBase<'2040fdaad1f6b437ef3fbbe002f96b4f07954f628cc8c799e5b774fb6be69f0f'>;
 export type ExecutionHash =
   ExecutionHashBase<'4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45'>;
 export type ProfileHash =
@@ -618,6 +618,7 @@ export namespace Models {
     readonly [RelationKeys]?: never;
   };
   export type public_GithubPrState = {
+    autoMerge: FieldOutputTypes['public']['GithubPrState']['autoMerge'];
     baseBranch: FieldOutputTypes['public']['GithubPrState']['baseBranch'];
     checksExpected: FieldOutputTypes['public']['GithubPrState']['checksExpected'];
     checksFailed: FieldOutputTypes['public']['GithubPrState']['checksFailed'];
@@ -630,6 +631,7 @@ export namespace Models {
     headRepoFullName: FieldOutputTypes['public']['GithubPrState']['headRepoFullName'];
     headSha: FieldOutputTypes['public']['GithubPrState']['headSha'];
     mergeClean: FieldOutputTypes['public']['GithubPrState']['mergeClean'];
+    mergeQueued: FieldOutputTypes['public']['GithubPrState']['mergeQueued'];
     mergeable: FieldOutputTypes['public']['GithubPrState']['mergeable'];
     mergeableBaseRef: FieldOutputTypes['public']['GithubPrState']['mergeableBaseRef'];
     mergeableHeadSha: FieldOutputTypes['public']['GithubPrState']['mergeableHeadSha'];
@@ -3592,6 +3594,16 @@ type ContractBase = Omit<
             };
             readonly GithubPrState: {
               columns: {
+                readonly autoMerge: {
+                  readonly dataType: 'pg/bool';
+                  readonly codecId: 'pg/bool@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/bool@1', false>;
+                  };
+                  readonly many: false;
+                };
                 readonly baseBranch: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
@@ -3687,6 +3699,16 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/bool';
                   readonly codecId: 'pg/bool@1';
                   readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly mergeQueued: {
+                  readonly dataType: 'pg/bool';
+                  readonly codecId: 'pg/bool@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/bool@1', false>;
+                  };
                   readonly many: false;
                 };
                 readonly mergeable: {
@@ -10292,6 +10314,10 @@ type ContractBase = Omit<
           };
           readonly GithubPrState: {
             readonly fields: {
+              readonly autoMerge: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
+              };
               readonly baseBranch: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -10342,6 +10368,10 @@ type ContractBase = Omit<
               };
               readonly mergeClean: {
                 readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
+              };
+              readonly mergeQueued: {
+                readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
               };
               readonly mergeable: {
@@ -10418,6 +10448,7 @@ type ContractBase = Omit<
               readonly table: 'GithubPrState';
               readonly namespaceId: 'public';
               readonly fields: {
+                readonly autoMerge: { readonly column: 'autoMerge' };
                 readonly baseBranch: { readonly column: 'baseBranch' };
                 readonly checksExpected: { readonly column: 'checksExpected' };
                 readonly checksFailed: { readonly column: 'checksFailed' };
@@ -10430,6 +10461,7 @@ type ContractBase = Omit<
                 readonly headRepoFullName: { readonly column: 'headRepoFullName' };
                 readonly headSha: { readonly column: 'headSha' };
                 readonly mergeClean: { readonly column: 'mergeClean' };
+                readonly mergeQueued: { readonly column: 'mergeQueued' };
                 readonly mergeable: { readonly column: 'mergeable' };
                 readonly mergeableBaseRef: { readonly column: 'mergeableBaseRef' };
                 readonly mergeableHeadSha: { readonly column: 'mergeableHeadSha' };
