@@ -9,7 +9,11 @@ import {
 
 import { cn } from '@dltech/atlas-ui/lib/utils'
 import { ChecksTally } from '@/features/threads/checks-tally'
-import { checksTallyOf, entryHasConflicts } from '@/features/threads/data/header-model'
+import {
+  checksTallyOf,
+  entryHasConflicts,
+  entryIsSettled,
+} from '@/features/threads/data/header-model'
 import type { PullRequestEntry } from '@/features/threads/data/pull-request-entries'
 import { PullRequestMergeMarker } from '@/features/threads/pull-request-merge-marker'
 import { latestThreadPullRequestOf } from './thread-pull-requests'
@@ -52,7 +56,7 @@ export function PullRequestChecks({
   entry: PullRequestEntry
   detailed?: boolean
 }) {
-  if (!detailed && entry.state?.toLowerCase() === 'merged') return null
+  if (!detailed && entryIsSettled(entry)) return null
   const { checksRunning: running, checksPassed: passed, checksFailed: failed } = entry
   const complete = running !== undefined && passed !== undefined && failed !== undefined
   if (!detailed) {

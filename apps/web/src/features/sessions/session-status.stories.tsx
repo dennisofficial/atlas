@@ -75,6 +75,22 @@ export const HeaderMergedPr = {
   render: () => header({ branch: 'dennis/v2-views-web', entries: [entry({ state: 'merged' })] }),
 }
 
+export const HeaderClosedPr = {
+  render: () =>
+    header({
+      branch: 'dennis/v2-views-web',
+      entries: [
+        entry({
+          state: 'closed',
+          checksRunning: 0,
+          checksPassed: 1,
+          checksFailed: 0,
+          mergeable: false,
+        }),
+      ],
+    }),
+}
+
 export const HeaderUnknownState = {
   render: () =>
     header({
