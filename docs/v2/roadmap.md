@@ -79,8 +79,8 @@ _Updated at the end of every slice. Last update: 2026-11-17._
   double dispatch are covered by specs only.
 - **Done 2026-11-10: slice 7b, MCP and skills** ([spec](slices/07b-mcp-skills.md), live check in
   its §9). `plugins/skills` is registered (#2150), so a session offers `skill`, `skill_install`,
-  `skill_edit` and `skill_delete`, its listing carries the cloud rows, the clone's `.atlas/skills` and
-  `.agents/skills`, and its built-ins; the cloud source and the revision-checked writer run over the
+  `skill_edit` and `skill_delete`, its listing carries the cloud rows, the clone's `.agents/skills`,
+  and its built-ins; the cloud source and the revision-checked writer run over the
   host's own Postgres. On production, one session listed and loaded a built-in, a repo skill and a
   cloud skill, installed/edited/deleted one in each layer, and a repo `opentui` shadowed the cloud row
   of that name. `plugins/mcp` read both cloud rows with their layers, a project `.atlas/mcp.json`
@@ -128,7 +128,7 @@ _Updated at the end of every slice. Last update: 2026-11-17._
   needed on 2026-11-12. Two names in the handover were not tools at all
   (`worktree_adopt` is `enter_worktree`'s `path` branch, `agent_tokens` is a pair of DI tokens).
 - **Spec written 2026-11-09: slice 7b, MCP and skills** ([spec](slices/07b-mcp-skills.md); open questions in its §10). Slice 7 closed all six plugins and handed these two here. The one contract change is a live tool source: `ComposedPodRegistry` takes a supplier so a plugin's tools are re-read every step, which is what an MCP server whose tool list changes needs. `plugins/mcp` reads cloud rows (`public.McpServer`, unsealed with the host's `SecretCipher` as GitHub tokens already are) and the clone's `.mcp.json` / `.atlas/mcp.json`, spawns stdio servers through the daemon's existing `mcp.*` ops, and keeps v1's tool naming, effect mapping and instructions hook. `plugins/skills` turns the dead `skill-index.ts` read into the listing and adds `skill` over repo dirs
-  (`.atlas/skills`, `.agents/skills`, symlinks followed), cloud rows and compiled built-ins, plus full
+  (`.agents/skills`, symlinks followed), cloud rows and compiled built-ins, plus full
   CRUD from a session — install, edit and delete — with no pod copy of a cloud skill: the rows are the
   only copy and their files are served on demand. MCP stays read-only: no sign-in, no `mcp-edit`.
 

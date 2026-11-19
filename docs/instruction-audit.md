@@ -1,19 +1,19 @@
 # Instruction audit
 
-Checkable rules taken from the repo's instruction files (`CLAUDE.md`, `apps/*/AGENTS.md`,
-`packages/*/AGENTS.md`, `evals/**/ATLAS.md`). `deprecated/` is out of scope. Layering/import
+Checkable rules taken from the repo's instruction files (`AGENTS.md`, `apps/*/AGENTS.md`,
+`packages/*/AGENTS.md`, `evals/**/AGENTS.md`). `deprecated/` is out of scope. Layering/import
 boundaries belong to the Abstraction police routine; test conventions to the Test audit routine.
 
 ## Rules
 
 | #   | Rule                                                                               | Source                      | Check                                                                               |
 | --- | ---------------------------------------------------------------------------------- | --------------------------- | ----------------------------------------------------------------------------------- |
-| R1  | Max 300 lines per file                                                             | `CLAUDE.md:44`              | `wc -l` over tracked `*.ts(x)`, minus specs, fixtures, stories, generated, vendored |
-| R2  | No `as any`, `@ts-ignore`, `@ts-expect-error`                                      | `CLAUDE.md:45`              | grep, ignoring prose in strings/comments                                            |
-| R3  | Value-union enums are `E`-prefixed                                                 | `CLAUDE.md:47`              | grep `enum [^E]`                                                                    |
-| R4  | No tsyringe decorators outside `apps/api`                                          | `CLAUDE.md:53`              | grep `@injectable(` / `@inject(`                                                    |
-| R5  | No comments / no JSDoc on internal code                                            | `CLAUDE.md:49`              | grep `//`, `/**` in non-test source                                                 |
-| R6  | No npm/pnpm/yarn lockfiles                                                         | `CLAUDE.md:92`              | `git ls-files`                                                                      |
+| R1  | Max 300 lines per file                                                             | `AGENTS.md:44`              | `wc -l` over tracked `*.ts(x)`, minus specs, fixtures, stories, generated, vendored |
+| R2  | No `as any`, `@ts-ignore`, `@ts-expect-error`                                      | `AGENTS.md:45`              | grep, ignoring prose in strings/comments                                            |
+| R3  | Value-union enums are `E`-prefixed                                                 | `AGENTS.md:47`              | grep `enum [^E]`                                                                    |
+| R4  | No tsyringe decorators outside `apps/api`                                          | `AGENTS.md:53`              | grep `@injectable(` / `@inject(`                                                    |
+| R5  | No comments / no JSDoc on internal code                                            | `AGENTS.md:49`              | grep `//`, `/**` in non-test source                                                 |
+| R6  | No npm/pnpm/yarn lockfiles                                                         | `AGENTS.md:92`              | `git ls-files`                                                                      |
 | R7  | `apps/api` app code never reads `process.env` (except `main.ts`, `auth.server.ts`) | `apps/api/AGENTS.md` Env    | grep                                                                                |
 | R8  | Every `.prisma` model file starts `// use prisma-8`, one model per file            | `packages/db/AGENTS.md`     | head/grep                                                                           |
 | R9  | Every lexical language has `languages/__tests__/<ft>.spec.ts`                      | `packages/syntax/AGENTS.md` | file listing                                                                        |
