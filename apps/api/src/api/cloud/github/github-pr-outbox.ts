@@ -8,7 +8,7 @@ import {
   claimPrOutboxRows,
   completePrOutboxRow,
   failPrOutboxRow,
-  renewPrOutboxLease,
+  holdsPrOutboxLease,
   type PrOutboxClaim,
 } from './github-pr-outbox-lease'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
@@ -124,7 +124,9 @@ export class GithubPrOutboxDispatcher {
         `github pr outbox ${row.kind} ${row.id} dead-lettered after ${row.attempts} attempts: ${row.lastError ?? 'no error recorded'}`,
       )
     }
-    for (const row of claimed.rows) await this.run({ row, token: claimed.token })
+    for (const row of claimed.rows) {
+      await this.run({ row, token: claimed.token, leaseUntil: claimed.leaseUntil })
+    }
   }
 
   prune(args: { now: Date }): Promise<number> {
@@ -133,9 +135,14 @@ export class GithubPrOutboxDispatcher {
     ).deleteAndCount()
   }
 
-  private async run(args: { row: Row<'GithubPrOutbox'>; token: string }): Promise<void> {
+  private async run(args: {
+    row: Row<'GithubPrOutbox'>
+    token: string
+    leaseUntil: Date
+  }): Promise<void> {
     const { row, token } = args
-    if (!(await renewPrOutboxLease({ id: row.id, token, now: this.now() }))) {
+    const now = this.now()
+    if (!(await holdsPrOutboxLease({ id: row.id, token, leaseUntil: args.leaseUntil, now }))) {
       this.logger.warn(
         `github pr outbox ${row.kind} ${row.id} was reclaimed before its effect ran; its new owner will run it`,
       )

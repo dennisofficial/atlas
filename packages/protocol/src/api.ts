@@ -165,6 +165,7 @@ export const prChecksSchema = z.strictObject({
   running: z.number().int().min(0),
   passed: z.number().int().min(0),
   failed: z.number().int().min(0),
+  expected: z.number().int().min(0).optional(),
 })
 
 export const sessionRowPullRequestSchema = z.strictObject({
@@ -174,6 +175,8 @@ export const sessionRowPullRequestSchema = z.strictObject({
   state: z.string().nullable(),
   checks: prChecksSchema.nullable(),
   mergeable: z.boolean().nullable(),
+  mergeQueued: z.boolean().optional(),
+  autoMerge: z.boolean().optional(),
 })
 
 export const sessionModelChoiceSchema = z.strictObject({
@@ -283,6 +286,14 @@ export const sessionStatusOutputSchema = z.strictObject({
   lease: sessionLeaseSchema,
   queued: z.array(sessionQueuedMessageSchema).optional(),
   commands: z.array(sessionCommandRowSchema).optional(),
+  pod: z
+    .strictObject({
+      desiredVcpus: z.number().int().min(1).optional(),
+      actualVcpus: z.number().int().min(1).optional(),
+      phase: z.enum(['steady', 'resizing', 'failed']),
+      error: z.string().optional(),
+    })
+    .optional(),
 })
 
 export const sessionRetryInputSchema = z.strictObject({
@@ -385,6 +396,8 @@ export const sessionPullRequestStateSchema = z.strictObject({
   headSha: z.string(),
   checks: prChecksSchema,
   mergeable: z.boolean().nullable(),
+  mergeQueued: z.boolean().optional(),
+  autoMerge: z.boolean().optional(),
   updatedAt: z.string(),
 })
 

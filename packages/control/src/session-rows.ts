@@ -21,6 +21,11 @@ export type ControlSessionRow = {
   spawnedBySessionId: string | null
   nested: boolean
   podSessionId: string | null
+  podDesiredVcpus: number | null
+  podSizeGeneration: number
+  podActualVcpus: number | null
+  podAppliedGeneration: number | null
+  podResizeError: string | null
   routineId: string | null
 }
 
@@ -40,7 +45,7 @@ export type SessionDigestRow = ControlSessionRow & {
   firstMessageAt: string | null
 }
 
-export type PrChecks = { running: number; passed: number; failed: number }
+export type PrChecks = { running: number; passed: number; failed: number; expected: number }
 
 export type ControlDigestPullRequest = {
   repo: string
@@ -49,6 +54,8 @@ export type ControlDigestPullRequest = {
   state: string | null
   checks: PrChecks | null
   mergeable: boolean | null
+  mergeQueued: boolean
+  autoMerge: boolean
 }
 
 export type ControlDigestView = {

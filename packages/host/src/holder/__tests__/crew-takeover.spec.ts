@@ -220,9 +220,7 @@ describe('a host handoff while a sub-agent runs', () => {
     expect(endingsOf({ events: parent, agentId: childId })[0]).not.toMatchObject({
       killedBy: 'unrecorded',
     })
-    expect(ofType({ events: parent, type: 'agent-restarted' })).toMatchObject([
-      { agentId: childId, via: 'relocation' },
-    ])
+    expect(ofType({ events: parent, type: 'agent-restarted' })).toEqual([])
     expect(
       ofType({ events: await eventsIn({ rig: a, threadId: childId }), type: 'agent-ended' }),
     ).toEqual([])
@@ -382,7 +380,7 @@ describe('steering a sub-agent across a handoff', () => {
 })
 
 describe('two host handoffs in a row', () => {
-  it('restarts the child once per relocation and ends it once', async () => {
+  it('resumes the child silently on each holder and ends it once', async () => {
     const state: ProbeState = { agentId: undefined }
     const plugins = (): ReturnType<typeof composePlugins> => composePlugins([probePlugin(state)])
     const a = await makeRig({ plugins: plugins(), model: stalledModel })
@@ -408,11 +406,7 @@ describe('two host handoffs in a row', () => {
     await a.bus.wake(SESSION)
 
     const relocated = await flushUntil({
-      check: async () =>
-        ofType({
-          events: await eventsIn({ rig: a, threadId: THREAD_ID }),
-          type: 'agent-restarted',
-        }).length === 1,
+      check: () => b.holder.heldIds().length === 1,
       attempts: 200,
       clock: a.clock,
       advanceMs: 5_000,
@@ -438,10 +432,7 @@ describe('two host handoffs in a row', () => {
     ])
     expect(endingsOf({ events: ended, agentId: childId }).length).toBe(1)
     const parent = await eventsIn({ rig: a, threadId: THREAD_ID })
-    expect(ofType({ events: parent, type: 'agent-restarted' })).toMatchObject([
-      { agentId: childId, via: 'relocation' },
-      { agentId: childId, via: 'relocation' },
-    ])
+    expect(ofType({ events: parent, type: 'agent-restarted' })).toEqual([])
     expect(
       ofType({ events: await eventsIn({ rig: a, threadId: childId }), type: 'agent-ended' }),
     ).toEqual([])

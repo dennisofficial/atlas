@@ -6,6 +6,7 @@ import {
   SandboxProvider,
   type DaemonEndpoint,
   type SandboxTarget,
+  type PodResizeOutcome,
 } from '../sandbox/sandbox-provider'
 import { sandboxNameOf } from '../sandbox/vercel-names'
 
@@ -39,5 +40,7 @@ export class FixedEndpointSandboxProvider extends SandboxProvider {
 
   async keepAlive(_args: { target: SandboxTarget; until: number }): Promise<void> {}
 
-  async resize(_args: { target: SandboxTarget; vcpus: number }): Promise<void> {}
+  async resize(_args: { target: SandboxTarget; vcpus: number }): Promise<PodResizeOutcome> {
+    return 'restarted'
+  }
 }

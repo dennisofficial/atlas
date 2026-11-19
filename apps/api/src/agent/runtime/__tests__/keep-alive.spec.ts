@@ -8,6 +8,7 @@ import {
   SandboxProvider,
   type DaemonEndpoint,
   type SandboxTarget,
+  type PodResizeOutcome,
 } from '../../sandbox/sandbox-provider'
 import { POD_IDLE_WINDOW_MS, startKeepAlive } from '../keep-alive'
 
@@ -29,7 +30,9 @@ class RecordingSandbox extends SandboxProvider {
     this.pushed.push(args.until)
   }
 
-  async resize(_args: { target: SandboxTarget; vcpus: number }): Promise<void> {}
+  async resize(_args: { target: SandboxTarget; vcpus: number }): Promise<PodResizeOutcome> {
+    return 'restarted'
+  }
 }
 
 class RecordingLog extends LogPort {

@@ -7,8 +7,14 @@ import { EMergeQueueMove, EPrEventKind, INBOX_KIND_EVENT, inboxEventOf } from '@
 import { beforeEach, describe, expect, it } from 'bun:test'
 
 import { ensureUsers, seedPrState, seedSubscription } from '../../../../test/github-seed'
-import { mergeQueuePrNumberOf, recordMergeQueueEntry } from './github-merge-queue-webhook'
+import {
+  mergeQueueMoveOfPullAction,
+  mergeQueuePrNumberOf,
+  recordMergeQueueEntry,
+} from './github-merge-queue-webhook'
 import type { GithubMergeQueueEntryWebhookPayload } from './github-webhook.types'
+
+const noQueues = async (): Promise<void> => undefined
 
 const USER = 'usr-1'
 const OTHER_USER = 'usr-2'
@@ -76,11 +82,26 @@ describe('recordMergeQueueEntry', () => {
     await seedPrState({ repoFullName: 'compai/app', prNumber: 42 })
   })
 
+  it('tells the pull request row that it entered and left the queue', async () => {
+    const moves: { repoFullName: string; prNumber: number; mergeQueued: boolean }[] = []
+    const queue = async (move: (typeof moves)[number]): Promise<void> => {
+      moves.push(move)
+    }
+
+    await recordMergeQueueEntry({ queues: queue, payload: payloadOf({ action: 'added' }) })
+    await recordMergeQueueEntry({ queues: queue, payload: payloadOf({ action: 'removed' }) })
+
+    expect(moves).toEqual([
+      { repoFullName: 'compai/app', prNumber: 42, mergeQueued: true },
+      { repoFullName: 'compai/app', prNumber: 42, mergeQueued: false },
+    ])
+  })
+
   it('notifies the subscribed thread that the PR entered the queue', async () => {
     await seedV2Thread({ sessionId: V2_SESSION, threadId: V2_THREAD, userId: USER })
     await seedSubscription({ userId: USER, prNumber: 42, threadId: V2_THREAD })
 
-    expect(await recordMergeQueueEntry({ payload: payloadOf() })).toBe(1)
+    expect(await recordMergeQueueEntry({ queues: noQueues, payload: payloadOf() })).toBe(1)
 
     const [entry] = await inboxEvents(V2_SESSION)
     if (entry === undefined) throw new Error('no inbox entry')
@@ -101,7 +122,9 @@ describe('recordMergeQueueEntry', () => {
     await seedV2Thread({ sessionId: V2_SESSION, threadId: V2_THREAD, userId: USER })
     await seedSubscription({ userId: USER, prNumber: 42, threadId: V2_THREAD })
 
-    expect(await recordMergeQueueEntry({ payload: payloadOf({ action: 'removed' }) })).toBe(1)
+    expect(
+      await recordMergeQueueEntry({ queues: noQueues, payload: payloadOf({ action: 'removed' }) }),
+    ).toBe(1)
 
     const [entry] = await inboxEvents(V2_SESSION)
     if (entry === undefined) throw new Error('no inbox entry')
@@ -121,7 +144,7 @@ describe('recordMergeQueueEntry', () => {
     await seedSubscription({ userId: USER, prNumber: 42, threadId: V2_THREAD })
     await seedSubscription({ userId: OTHER_USER, prNumber: 42, threadId: OTHER_THREAD })
 
-    expect(await recordMergeQueueEntry({ payload: payloadOf() })).toBe(2)
+    expect(await recordMergeQueueEntry({ queues: noQueues, payload: payloadOf() })).toBe(2)
 
     expect(await inboxEvents(V2_SESSION)).toHaveLength(1)
     expect(await inboxEvents(OTHER_SESSION)).toHaveLength(1)
@@ -136,7 +159,7 @@ describe('recordMergeQueueEntry', () => {
       threadId: V2_THREAD,
     })
 
-    expect(await recordMergeQueueEntry({ payload: payloadOf() })).toBe(1)
+    expect(await recordMergeQueueEntry({ queues: noQueues, payload: payloadOf() })).toBe(1)
     expect(await inboxEvents(V2_SESSION)).toHaveLength(1)
   })
 
@@ -144,7 +167,9 @@ describe('recordMergeQueueEntry', () => {
     await seedV2Thread({ sessionId: V2_SESSION, threadId: V2_THREAD, userId: USER })
     await seedSubscription({ userId: USER, prNumber: 42, threadId: V2_THREAD })
 
-    expect(await recordMergeQueueEntry({ payload: payloadOf({ prNumber: 43 }) })).toBe(0)
+    expect(
+      await recordMergeQueueEntry({ queues: noQueues, payload: payloadOf({ prNumber: 43 }) }),
+    ).toBe(0)
     expect(await inboxEvents(V2_SESSION)).toEqual([])
   })
 
@@ -152,7 +177,12 @@ describe('recordMergeQueueEntry', () => {
     await seedV2Thread({ sessionId: V2_SESSION, threadId: V2_THREAD, userId: USER })
     await seedSubscription({ userId: USER, prNumber: 42, threadId: V2_THREAD })
 
-    expect(await recordMergeQueueEntry({ payload: payloadOf({ action: 'destroyed' }) })).toBe(0)
+    expect(
+      await recordMergeQueueEntry({
+        queues: noQueues,
+        payload: payloadOf({ action: 'destroyed' }),
+      }),
+    ).toBe(0)
     expect(await inboxEvents(V2_SESSION)).toEqual([])
   })
 
@@ -161,7 +191,12 @@ describe('recordMergeQueueEntry', () => {
     await seedSubscription({ userId: USER, prNumber: 42, threadId: V2_THREAD })
 
     expect(mergeQueuePrNumberOf(payloadOf({ prNumber: undefined }))).toBe(42)
-    expect(await recordMergeQueueEntry({ payload: payloadOf({ prNumber: undefined }) })).toBe(1)
+    expect(
+      await recordMergeQueueEntry({
+        queues: noQueues,
+        payload: payloadOf({ prNumber: undefined }),
+      }),
+    ).toBe(1)
     const [entry] = await inboxEvents(V2_SESSION)
     if (entry === undefined) throw new Error('no inbox entry')
     expect(queueMoveOf(entry)).toEqual({
@@ -181,5 +216,13 @@ describe('recordMergeQueueEntry', () => {
     expect(
       mergeQueuePrNumberOf(payloadOf({ prNumber: undefined, headRef: 'refs/heads/main' })),
     ).toBe(null)
+  })
+})
+
+describe('mergeQueueMoveOfPullAction', () => {
+  it('reads enqueued and dequeued pull_request actions as queue moves', () => {
+    expect(mergeQueueMoveOfPullAction('enqueued')).toBe(EMergeQueueMove.Entered)
+    expect(mergeQueueMoveOfPullAction('dequeued')).toBe(EMergeQueueMove.Left)
+    expect(mergeQueueMoveOfPullAction('synchronize')).toBe(null)
   })
 })

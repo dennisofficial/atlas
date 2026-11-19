@@ -51,7 +51,7 @@ const sectionOf = (args: {
   busy?: boolean
 }): React.ReactElement => (
   <PodStatusSection
-    resources={{ vcpus: 2, memoryMb: 4096 }}
+    pod={{ desiredVcpus: 2, actualVcpus: 2, phase: 'steady' }}
     live
     busy={args.busy ?? false}
     plan={EVercelPlan.Unknown}
@@ -91,10 +91,10 @@ function Harness(props: {
 }
 
 describe('PodStatusSection', () => {
-  it('renders nothing without pod resources', async () => {
+  it('renders nothing without pushed pod state', async () => {
     const unmount = await mount(
       <PodStatusSection
-        resources={null}
+        pod={undefined}
         live
         busy
         plan={EVercelPlan.Unknown}
@@ -113,10 +113,43 @@ describe('PodStatusSection', () => {
     expect(html).toContain('2 vCPU · 4 GB')
   })
 
+  it('shows the resize in flight with its target size', () => {
+    const html = renderToStaticMarkup(
+      <PodStatusSection
+        pod={{ desiredVcpus: 8, actualVcpus: 2, phase: 'resizing' }}
+        live
+        busy={false}
+        plan={EVercelPlan.Unknown}
+        settingsHref="/settings/usage-sandboxes"
+        onResize={async () => undefined}
+      />,
+    )
+    expect(html).toContain('Resizing · 8 vCPU · 16 GB')
+  })
+
+  it('names a failed resize on the chip', () => {
+    const html = renderToStaticMarkup(
+      <PodStatusSection
+        pod={{
+          desiredVcpus: 8,
+          actualVcpus: 2,
+          phase: 'failed',
+          error: 'vCPUs above 8 need an Enterprise plan',
+        }}
+        live
+        busy={false}
+        plan={EVercelPlan.Unknown}
+        settingsHref="/settings/usage-sandboxes"
+        onResize={async () => undefined}
+      />,
+    )
+    expect(html).toContain('Resize failed')
+  })
+
   it('asks only when the pod waits on a parked session', () => {
     const html = renderToStaticMarkup(
       <PodStatusSection
-        resources={{ vcpus: 2, memoryMb: 4096 }}
+        pod={{ desiredVcpus: 2, actualVcpus: 2, phase: 'steady' }}
         live={false}
         busy={false}
         plan={EVercelPlan.Unknown}

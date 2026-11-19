@@ -76,6 +76,7 @@
   --color-pr-draft: var(--pr-draft);
   --color-pr-merged: var(--pr-merged);
   --color-pr-closed: var(--pr-closed);
+  --color-pr-queued: var(--pr-queued);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
   --color-code: var(--code);
@@ -142,6 +143,7 @@
   --pr-draft: #9198a1;
   --pr-merged: #ab7df8;
   --pr-closed: #f85149;
+  --pr-queued: #d29922;
   --warning: #e3b341;
   --warning-foreground: #241f1c;
   --code: #7cbdff;
@@ -204,6 +206,7 @@
   --pr-draft: #59636e;
   --pr-merged: #8250df;
   --pr-closed: #cf222e;
+  --pr-queued: #9a6700;
   --warning: #8f6615;
   --warning-foreground: #fdfcfa;
   --code: #28558f;

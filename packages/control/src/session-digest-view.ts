@@ -53,6 +53,8 @@ const digestViewIn = async (args: {
             state: pullRequest.state.state,
             checks: pullRequest.state.checks,
             mergeable: pullRequest.state.mergeable,
+            mergeQueued: pullRequest.state.mergeQueued,
+            autoMerge: pullRequest.state.autoMerge,
           },
   }
 }

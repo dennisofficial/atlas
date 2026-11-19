@@ -43,6 +43,7 @@ export { TerminalDemand } from './holder/terminal-demand'
 export type { SessionHolderArgs } from './holder/session-holder-args'
 export { podControlOf, type PodControlClient } from './holder/pod-control'
 export type {
+  BootNotice,
   CapturedBase,
   HostBus,
   HostPresence,

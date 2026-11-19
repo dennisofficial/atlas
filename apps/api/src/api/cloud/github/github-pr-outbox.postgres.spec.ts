@@ -80,7 +80,7 @@ function wakeGate(): { entered: Promise<void>; release: () => void; wake: () => 
 function rig(args: {
   push?: (input: unknown) => void
   wake?: () => Promise<void>
-  reconcile?: () => Promise<void>
+  reconcile?: (input: { repoFullName: string; headSha: string }) => Promise<void>
   now?: () => Date
 }) {
   const { signals, changedThreads } = recordingSignals()
@@ -89,7 +89,7 @@ function rig(args: {
     fanout: { push, pushEvent: vi.fn() },
     signals,
     wake: { notifyEvent: async () => args.wake?.() } as unknown as GithubSandboxWakeService,
-    reconcile: async () => args.reconcile?.(),
+    reconcile: async (input) => args.reconcile?.(input),
     logger: { warn: () => undefined },
     now: args.now ?? (() => AT),
   })
@@ -151,7 +151,7 @@ describe('GithubPrOutboxDispatcher leases', () => {
     expect(after).toMatchObject({ attempts: 0, leaseOwner: null })
   })
 
-  it('renews its claim before each effect, so a batch that outlives its lease still completes', async () => {
+  it('renews a claim whose lease is half spent, so a batch that outlives its lease still completes', async () => {
     const first = await db.orm.public.GithubPrOutbox.create(reconcileRow({ createdAt: AT }))
     const second = await db.orm.public.GithubPrOutbox.create(
       reconcileRow({ createdAt: new Date(AT.getTime() + 1) }),
@@ -176,6 +176,36 @@ describe('GithubPrOutboxDispatcher leases', () => {
       expect((await reload(id))?.dispatchedAt).not.toBeNull()
     }
     expect(await dispatcher.drain()).toBe(0)
+  })
+
+  it('leaves a fresh claim alone for effects that run well inside its lease', async () => {
+    const first = await db.orm.public.GithubPrOutbox.create({
+      ...reconcileRow({ createdAt: AT }),
+      id: 'out_first',
+      payload: { repoFullName: 'compai/app', headSha: 'out_first' },
+    })
+    const second = await db.orm.public.GithubPrOutbox.create({
+      ...reconcileRow({ createdAt: new Date(AT.getTime() + 1) }),
+      id: 'out_second',
+      payload: { repoFullName: 'compai/app', headSha: 'out_second' },
+    })
+    let clock = AT
+    const leases: Record<string, number | null> = {}
+    const { dispatcher } = rig({
+      now: () => clock,
+      reconcile: async ({ headSha }) => {
+        leases[headSha] = (await reload(headSha))?.leaseUntil?.getTime() ?? null
+        clock = new Date(clock.getTime() + 20_000)
+      },
+    })
+
+    expect(await dispatcher.drain()).toBe(2)
+
+    for (const id of [first.id, second.id])
+      expect(leases[id]).toBe(AT.getTime() + PR_OUTBOX_LEASE_MS)
+    for (const id of [first.id, second.id]) {
+      expect((await reload(id))?.dispatchedAt).not.toBeNull()
+    }
   })
 
   it('runs each effect once when an inline dispatch and a drain race the same row', async () => {

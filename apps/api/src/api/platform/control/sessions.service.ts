@@ -32,7 +32,6 @@ import {
   type SessionListOutput,
   type SessionMarkReadOutput,
   type SessionMessageDraft,
-  type SessionPodResourcesOutput,
   type SessionPostMedia,
   type SessionRetryOutput,
   type SessionStatusOutput,
@@ -393,14 +392,6 @@ export class SessionsService {
       ]),
       ...args,
     })
-  }
-
-  async podResourcesOf(args: {
-    userId: string
-    sessionId: string
-  }): Promise<SessionPodResourcesOutput> {
-    const session = await this.requireOwnedSession(args)
-    return this.podSizing.resourcesOf({ userId: args.userId, session })
   }
 
   async requireOwnedSession(args: {

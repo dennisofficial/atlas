@@ -66,6 +66,9 @@ import {
   setSandboxInstanceIdIn,
   setSandboxStatusIn,
   setSessionArchivedIn,
+  setSessionPodAppliedIn,
+  setSessionPodDesiredIn,
+  setSessionPodFailedIn,
   setSessionReadSeqIn,
   setSessionTitleIfUntitledIn,
   setSessionTitleIn,
@@ -127,6 +130,18 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
     excludeSessionId: string
   }): Promise<number> {
     return podPeersPlacedIn({ state: this.state, ...params })
+  }
+
+  async setSessionPodDesired(params: Parameters<ControlTx['setSessionPodDesired']>[0]) {
+    return setSessionPodDesiredIn({ state: this.state, ...params })
+  }
+
+  async setSessionPodApplied(params: Parameters<ControlTx['setSessionPodApplied']>[0]) {
+    return setSessionPodAppliedIn({ state: this.state, ...params })
+  }
+
+  async setSessionPodFailed(params: Parameters<ControlTx['setSessionPodFailed']>[0]) {
+    return setSessionPodFailedIn({ state: this.state, ...params })
   }
 
   async setSessionArchived(params: { sessionId: string; archivedAt: string | null }) {

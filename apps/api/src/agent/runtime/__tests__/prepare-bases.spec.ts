@@ -79,6 +79,8 @@ const controllerOf = (files: FailingBasesFiles): PrepareController =>
       identityOf: async () => ({ name: 'atlas', email: 'atlas@example.com' }),
     }),
     refreshSecrets: async () => {},
+    projectFiles: undefined,
+    projectId: null,
     github: { read: async () => null },
     signingKey: undefined,
     timers: { now: () => Date.now(), ...systemTimers },

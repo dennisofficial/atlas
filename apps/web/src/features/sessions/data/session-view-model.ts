@@ -53,8 +53,11 @@ export const pullRequestEntryOf = (args: {
     checksRunning: state?.checks.running,
     checksPassed: state?.checks.passed,
     checksFailed: state?.checks.failed,
+    checksExpected: state?.checks.expected,
     checksState: undefined,
     mergeable: state === null ? undefined : state.mergeable,
+    mergeQueued: state?.mergeQueued,
+    autoMerge: state?.autoMerge,
     current: primaryBranch !== undefined && pullRequest.branch === primaryBranch,
     via: undefined,
   }
@@ -69,8 +72,11 @@ export const rowPullRequestEntryOf = (pullRequest: RowPullRequest): PullRequestE
   checksRunning: pullRequest.checks?.running,
   checksPassed: pullRequest.checks?.passed,
   checksFailed: pullRequest.checks?.failed,
+  checksExpected: pullRequest.checks?.expected,
   checksState: undefined,
   mergeable: pullRequest.mergeable,
+  mergeQueued: pullRequest.mergeQueued,
+  autoMerge: pullRequest.autoMerge,
   current: false,
   via: undefined,
 })

@@ -48,8 +48,15 @@ export type HostTimers = {
 
 export type CapturedBase = { repoPath: string; base: string }
 
+export type BootNotice = { slot: string; content: string }
+
 export type PrepareResult =
-  | { ok: true; warnings?: readonly string[] | undefined; bases?: readonly CapturedBase[] }
+  | {
+      ok: true
+      warnings?: readonly string[] | undefined
+      bases?: readonly CapturedBase[]
+      notices?: readonly BootNotice[] | undefined
+    }
   | { ok: false; reason: string }
 
 export type SetupLifecycle =

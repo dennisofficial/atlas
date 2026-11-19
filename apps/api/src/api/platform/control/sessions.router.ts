@@ -19,8 +19,6 @@ import {
   sessionListOutputSchema,
   sessionMarkReadInputSchema,
   sessionMarkReadOutputSchema,
-  sessionPodResourcesInputSchema,
-  sessionPodResourcesOutputSchema,
   sessionPostInputSchema,
   sessionPostOutputSchema,
   sessionRetryInputSchema,
@@ -53,8 +51,6 @@ import {
   type SessionListOutput,
   type SessionMarkReadInput,
   type SessionMarkReadOutput,
-  type SessionPodResourcesInput,
-  type SessionPodResourcesOutput,
   type SessionPostInput,
   type SessionPostOutput,
   type SessionRetryInput,
@@ -205,17 +201,6 @@ export class SessionsRouter {
   wake(@Input() input: SessionWakeInput, @Ctx() ctx: SessionTrpcCtx): Promise<SessionWakeOutput> {
     this.refuseBatched(ctx)
     return this.sessions.wake({ userId: ctx.auth.userId, sessionId: input.sessionId })
-  }
-
-  @Query({
-    input: sessionPodResourcesInputSchema,
-    output: sessionPodResourcesOutputSchema,
-  })
-  podResources(
-    @Input() input: SessionPodResourcesInput,
-    @Ctx() ctx: SessionTrpcCtx,
-  ): Promise<SessionPodResourcesOutput> {
-    return this.sessions.podResourcesOf({ userId: ctx.auth.userId, sessionId: input.sessionId })
   }
 
   @Query({ input: sessionViewInputSchema, output: sessionViewOutputSchema })

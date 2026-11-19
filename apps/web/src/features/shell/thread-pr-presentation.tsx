@@ -1,22 +1,26 @@
 import {
-  Check,
   GitBranch,
   GitMerge,
   GitPullRequest,
   GitPullRequestClosed,
   GitPullRequestDraft,
-  LoaderCircle,
   TriangleAlert,
-  X,
 } from 'lucide-react'
 
 import { cn } from '@dltech/atlas-ui/lib/utils'
-import { entryHasConflicts } from '@/features/threads/data/header-model'
+import { ChecksTally } from '@/features/threads/checks-tally'
+import {
+  checksTallyOf,
+  entryHasConflicts,
+  entryIsSettled,
+} from '@/features/threads/data/header-model'
 import type { PullRequestEntry } from '@/features/threads/data/pull-request-entries'
+import { PullRequestMergeMarker } from '@/features/threads/pull-request-merge-marker'
 import { latestThreadPullRequestOf } from './thread-pull-requests'
 
 export function PullRequestIcon({ entry }: { entry: PullRequestEntry }) {
   const state = entry.state?.toLowerCase()
+  const queued = entry.mergeQueued === true && state !== 'merged' && state !== 'closed'
   const Icon =
     state === 'merged'
       ? GitMerge
@@ -28,16 +32,18 @@ export function PullRequestIcon({ entry }: { entry: PullRequestEntry }) {
   return (
     <Icon
       role="img"
-      aria-label={`Pull request ${state ?? 'state unknown'}`}
+      aria-label={queued ? 'Pull request queued' : `Pull request ${state ?? 'state unknown'}`}
       className={cn(
         'size-4 shrink-0',
-        state === 'merged'
-          ? 'text-pr-merged'
-          : state === 'closed'
-            ? 'text-pr-closed'
-            : state === 'open'
-              ? 'text-pr-open'
-              : 'text-muted-foreground',
+        queued
+          ? 'text-pr-queued'
+          : state === 'merged'
+            ? 'text-pr-merged'
+            : state === 'closed'
+              ? 'text-pr-closed'
+              : state === 'open'
+                ? 'text-pr-open'
+                : 'text-muted-foreground',
       )}
     />
   )
@@ -50,71 +56,43 @@ export function PullRequestChecks({
   entry: PullRequestEntry
   detailed?: boolean
 }) {
-  if (!detailed && entry.state?.toLowerCase() === 'merged') return null
+  if (!detailed && entryIsSettled(entry)) return null
   const { checksRunning: running, checksPassed: passed, checksFailed: failed } = entry
-  if (running === undefined && passed === undefined && failed === undefined)
-    return <span className="sr-only">Checks unknown</span>
   const complete = running !== undefined && passed !== undefined && failed !== undefined
-  const passing = complete && running === 0 && failed === 0 && passed > 0
-  const label = `${running ?? 'unknown'} running, ${passed ?? 'unknown'} passed, ${failed ?? 'unknown'} failed`
-  if (detailed)
+  if (!detailed) {
+    const tally = complete ? checksTallyOf(entry) : undefined
+    if (tally !== undefined) return <ChecksTally checks={tally} />
     return (
-      <span
-        role="img"
-        aria-label={label}
-        className="inline-flex flex-wrap items-center gap-1.5 font-mono tabular-nums"
-      >
-        {running !== undefined ? (
-          <span className={running > 0 ? 'text-warning' : 'text-muted-foreground'}>
-            {running} running
-          </span>
-        ) : null}
-        {passed !== undefined ? (
-          <span className={complete && passed > 0 ? 'text-success' : 'text-muted-foreground'}>
-            {passed} passed
-          </span>
-        ) : null}
-        {failed !== undefined ? (
-          <span className={failed > 0 ? 'text-destructive' : 'text-muted-foreground'}>
-            {failed} failed
-          </span>
-        ) : null}
-        {!complete ? <span className="text-muted-foreground">Checks incomplete</span> : null}
+      <span className="font-mono tabular-nums text-muted-foreground">
+        {complete ? 'No checks' : 'Checks unknown'}
       </span>
     )
+  }
+  if (running === undefined && passed === undefined && failed === undefined)
+    return <span className="sr-only">Checks unknown</span>
+  const label = `${running ?? 'unknown'} running, ${passed ?? 'unknown'} passed, ${failed ?? 'unknown'} failed`
   return (
     <span
       role="img"
       aria-label={label}
-      className={cn(
-        'inline-flex items-center gap-0.5 font-mono tabular-nums',
-        (failed ?? 0) > 0
-          ? 'text-destructive'
-          : (running ?? 0) > 0
-            ? 'text-warning'
-            : passing
-              ? 'text-success'
-              : 'text-muted-foreground',
-      )}
+      className="inline-flex flex-wrap items-center gap-1.5 font-mono tabular-nums"
     >
-      {(failed ?? 0) > 0 ? (
-        <>
-          <X className="size-3" />
-          {failed}
-        </>
-      ) : (running ?? 0) > 0 ? (
-        <>
-          <LoaderCircle className="size-3 animate-spin motion-reduce:animate-none" />
-          {passed === undefined ? running : `${passed}/${passed + (running ?? 0)}`}
-        </>
-      ) : passing ? (
-        <>
-          <Check className="size-3" />
-          {passed}
-        </>
-      ) : (
-        <span className="text-muted-foreground">{complete ? 'No checks' : 'Checks unknown'}</span>
-      )}
+      {running !== undefined ? (
+        <span className={running > 0 ? 'text-warning' : 'text-muted-foreground'}>
+          {running} running
+        </span>
+      ) : null}
+      {passed !== undefined ? (
+        <span className={complete && passed > 0 ? 'text-success' : 'text-muted-foreground'}>
+          {passed} passed
+        </span>
+      ) : null}
+      {failed !== undefined ? (
+        <span className={failed > 0 ? 'text-destructive' : 'text-muted-foreground'}>
+          {failed} failed
+        </span>
+      ) : null}
+      {!complete ? <span className="text-muted-foreground">Checks incomplete</span> : null}
     </span>
   )
 }
@@ -178,6 +156,7 @@ export function ThreadWorkSummary({
       <PullRequestIcon entry={latest} />
       <span className="font-mono">#{latest.number}</span>
       <PullRequestConflict entry={latest} />
+      <PullRequestMergeMarker entry={latest} />
       <PullRequestChecks entry={latest} />
       {entries.length > 1 ? (
         <span

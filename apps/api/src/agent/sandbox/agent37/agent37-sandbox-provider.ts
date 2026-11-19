@@ -3,7 +3,12 @@ import { daemonToken } from '@dltech/atlas-protocol/engine'
 import { SandboxUnavailableError } from '@dltech/atlas-host'
 
 import { abortedWake, WAKE_DEADLINE_MS } from '../wake-deadline'
-import { SandboxProvider, type DaemonEndpoint, type SandboxTarget } from '../sandbox-provider'
+import {
+  SandboxProvider,
+  type DaemonEndpoint,
+  type PodResizeOutcome,
+  type SandboxTarget,
+} from '../sandbox-provider'
 
 import { agent37CreateBodyOf } from './agent37-create'
 import {
@@ -138,7 +143,7 @@ export class Agent37SandboxProvider extends SandboxProvider {
     await this.clientOf(apiKeyOf(args.target)).sleep({ id: instanceId })
   }
 
-  async resize(args: { target: SandboxTarget; vcpus: number }): Promise<void> {
+  async resize(args: { target: SandboxTarget; vcpus: number }): Promise<PodResizeOutcome> {
     const podSessionId = args.target.sandboxSessionId
     const instanceId = await this.args.instances.find({ podSessionId })
     if (instanceId === null) {
@@ -152,6 +157,7 @@ export class Agent37SandboxProvider extends SandboxProvider {
       cpu: shape.cpu,
       memory: shape.memory,
     })
+    return 'restarted'
   }
 
   async keepAlive(args: { target: SandboxTarget; until: number }): Promise<void> {

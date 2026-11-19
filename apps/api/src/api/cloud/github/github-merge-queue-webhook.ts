@@ -22,6 +22,13 @@ const moveOf = (action: string): EMergeQueueMove | null => {
   return null
 }
 
+/** GitHub Apps receive queue moves as `pull_request` actions; `merge_queue_entry` never arrives. */
+export const mergeQueueMoveOfPullAction = (action: string): EMergeQueueMove | null => {
+  if (action === 'enqueued') return EMergeQueueMove.Entered
+  if (action === 'dequeued') return EMergeQueueMove.Left
+  return null
+}
+
 /** A `removed` delivery may carry no `pull_request`; the queue head ref still names the PR. */
 export function mergeQueuePrNumberOf(payload: GithubMergeQueueEntryWebhookPayload): number | null {
   const stated = payload.pull_request?.number
@@ -74,12 +81,23 @@ async function subscribedThreadIds(args: {
 
 export async function recordMergeQueueEntry(args: {
   payload: GithubMergeQueueEntryWebhookPayload
+  queues: (args: { repoFullName: string; prNumber: number; mergeQueued: boolean }) => Promise<void>
 }): Promise<number> {
   const move = moveOf(args.payload.action)
   if (move === null) return 0
   const prNumber = mergeQueuePrNumberOf(args.payload)
   if (prNumber === null) return 0
   const repoFullName = args.payload.repository.full_name
+  await args.queues({ repoFullName, prNumber, mergeQueued: move === EMergeQueueMove.Entered })
+  return await notifyMergeQueueMove({ repoFullName, prNumber, move })
+}
+
+export async function notifyMergeQueueMove(args: {
+  repoFullName: string
+  prNumber: number
+  move: EMergeQueueMove
+}): Promise<number> {
+  const { repoFullName, prNumber, move } = args
   const threadIds = await subscribedThreadIds({ repoFullName, prNumber })
   if (threadIds.length === 0) return 0
   const threads = await db.orm.v2.V2Thread.where((thread) => thread.id.in(threadIds)).all()

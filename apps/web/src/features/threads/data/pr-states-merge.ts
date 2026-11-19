@@ -22,10 +22,13 @@ export function prStateWireOfApi(state: GithubPrState): PrStateWire | undefined 
     checksRunning: state.checksRunning,
     checksPassed: state.checksPassed,
     checksFailed: state.checksFailed,
+    checksExpected: state.checksExpected,
     checksState: KNOWN_CHECKS_STATES.has(state.checksState ?? '')
       ? (state.checksState as EPullRequestChecksStateWire)
       : undefined,
     mergeable: state.mergeable,
+    ...(state.mergeQueued === undefined ? {} : { mergeQueued: state.mergeQueued }),
+    ...(state.autoMerge === undefined ? {} : { autoMerge: state.autoMerge }),
     ...(state.polled === undefined ? {} : { polled: state.polled }),
   }
 }
@@ -49,7 +52,10 @@ export function mergePrStates(args: {
     byKey.set(key, {
       ...state,
       title: state.title ?? apiState?.title,
+      checksExpected: state.checksExpected ?? apiState?.checksExpected,
       checksState: state.checksState ?? apiState?.checksState,
+      mergeQueued: state.mergeQueued ?? apiState?.mergeQueued,
+      autoMerge: state.autoMerge ?? apiState?.autoMerge,
       polled: state.polled ?? apiState?.polled,
     })
   }

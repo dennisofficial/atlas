@@ -47,7 +47,7 @@ describe('pullRequestListOf', () => {
       mergeable: false,
     }
     const row = pullRequestListOf({ thread, states: [live] }).rows[1]
-    expect(row?.checks).toEqual({ running: 0, passed: 1, failed: 2, waiting: false })
+    expect(row?.checks).toEqual({ running: 0, passed: 1, failed: 2, expected: 0 })
     expect(row?.conflicts).toBe(true)
   })
 
@@ -68,6 +68,31 @@ describe('pullRequestListOf', () => {
     expect(conflictsOf(EPullRequestStateWire.Draft)).toBe(true)
     expect(conflictsOf(EPullRequestStateWire.Merged)).toBe(false)
     expect(conflictsOf(EPullRequestStateWire.Closed)).toBe(false)
+  })
+
+  it('hides checks once a pull request is closed or merged', () => {
+    const live = (state: EPullRequestStateWire): PrStateWire => ({
+      repo: 'o/r',
+      number: 2,
+      url: 'https://github.com/o/r/pull/2',
+      branch: 'b2',
+      state,
+      checksRunning: 0,
+      checksPassed: 1,
+      checksFailed: 0,
+      mergeable: true,
+    })
+    const checksOf = (state: EPullRequestStateWire) =>
+      pullRequestListOf({ thread, states: [live(state)] }).rows[1]?.checks
+
+    expect(checksOf(EPullRequestStateWire.Open)).toEqual({
+      running: 0,
+      passed: 1,
+      failed: 0,
+      expected: 0,
+    })
+    expect(checksOf(EPullRequestStateWire.Merged)).toBeUndefined()
+    expect(checksOf(EPullRequestStateWire.Closed)).toBeUndefined()
   })
 
   it('leaves pull requests without live state without checks or conflicts', () => {

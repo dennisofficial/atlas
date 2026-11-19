@@ -8,11 +8,14 @@ export type { AgentHostConfig, ConfigSource } from './config/agent-host-config'
 export { AgentHostEnvError, readAgentHostEnv, type AgentHostEnv } from './config/env'
 export { daemonPaths, launchDaemon, type DaemonBundle } from './sandbox/daemon-launch'
 export {
+  PodSizer,
   SandboxProvider,
   type DaemonEndpoint,
+  type PodResizeOutcome,
   type SandboxCredentials,
   type SandboxTarget,
 } from './sandbox/sandbox-provider'
+export { VercelPodSizer } from './sandbox/vercel-pod-sizer'
 export {
   sandboxRegistryOf,
   SandboxProviderUnavailableError,
@@ -67,3 +70,4 @@ export {
   SandboxNotConfiguredError,
   type SessionRuntimeFactoryArgs,
 } from './runtime/session-runtime-factory'
+export type { VercelCredentials } from './sandbox/constants'

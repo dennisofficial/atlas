@@ -16,12 +16,15 @@ model GithubPrState {
   checksPassed     Int                  @default(0)
   checksFailed     Int                  @default(0)
   checksIgnored    Int                  @default(0)
+  checksExpected   Int                  @default(0)
   checksState      String?
   mergeable        Boolean?
   mergeClean       Boolean?
   mergeableHeadSha    String?
   mergeableBaseRef    String?
   mergeableObservedAt TimestamptzJsDate(3)?
+  mergeQueued      Boolean              @default(false)
+  autoMerge        Boolean              @default(false)
   version          Int                  @default(0)
   updatedAt        TimestamptzJsDate(3)
 

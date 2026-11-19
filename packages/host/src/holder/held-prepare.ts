@@ -9,7 +9,6 @@ import {
   type EventDraft,
   type RunId,
   type ThreadId,
-  type V2Event,
   type WorkspaceStepReport,
 } from '@dltech/atlas-core'
 import { logFieldsOf } from '@dltech/atlas-observability'
@@ -18,25 +17,12 @@ import { setupOutputCallId } from '@dltech/atlas-protocol'
 import { baseFactDraftsOf } from './held-prepare-bases'
 import type { HeldSessionDeps } from './held-session-deps'
 import { fireLive, type PrepareResult, type SessionRuntime, type SetupLifecycle } from './ports'
+import { bootDraftOf, setupNoticesOf } from './prepare-notices'
 import type { AppendBody } from './record/append-drafts'
 import type { SessionRecord } from './record/record-adapter'
 import { setupWarningText } from './setup-warning'
 
 const SETUP_STOPPED_REASON = 'setup was stopped with the session'
-
-const setupNoticesOf = (record: SessionRecord): ReadonlySet<ESetupPhase> => {
-  const events = record.eventCache().eventsAfter(0)
-  const runStart = (event: V2Event): boolean =>
-    event.type === 'workspace-step' &&
-    event.step === EWorkspaceStep.Setup &&
-    event.state === EWorkspaceStepState.Started
-  const reports = events.slice(events.findLastIndex(runStart) + 1)
-  return new Set(
-    reports.flatMap((event) =>
-      event.type === 'sandbox-setup-reported' && event.phase !== undefined ? [event.phase] : [],
-    ),
-  )
-}
 
 const appendFailureReporter =
   (deps: HeldSessionDeps, verb: string) =>
@@ -268,7 +254,8 @@ export class HeldPrepare {
       return
     }
     const warnings = result.warnings ?? []
-    const drafts: AppendBody[] = [...started, ...baseFactDraftsOf(result.bases)]
+    const notices = (result.notices ?? []).map(bootDraftOf)
+    const drafts: AppendBody[] = [...started, ...baseFactDraftsOf(result.bases), ...notices]
     if (warnings.length > 0) {
       drafts.push({
         type: 'sandbox-setup-reported',

@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
+import type { Sandbox } from '@vercel/sandbox'
+
 import { ESandboxProvider } from '@dltech/atlas-protocol'
 import { daemonToken } from '@dltech/atlas-protocol/engine'
 
@@ -11,9 +13,15 @@ import {
 } from './constants'
 import { mountWithRetries } from './vercel-mount'
 import { liveSdk, renewSessionDeadline, routedUrlOf, type VercelSdk } from './vercel-sdk'
+import { isSandboxMissing } from './vercel-errors'
 
 import { launchDaemon, type DaemonBundle } from './daemon-launch'
-import { SandboxProvider, type DaemonEndpoint, type SandboxTarget } from './sandbox-provider'
+import {
+  SandboxProvider,
+  type DaemonEndpoint,
+  type PodResizeOutcome,
+  type SandboxTarget,
+} from './sandbox-provider'
 import { sandboxNameOf } from './vercel-names'
 import { abortedWake, WAKE_DEADLINE_MS } from './wake-deadline'
 
@@ -106,10 +114,12 @@ export class VercelSandboxProvider extends SandboxProvider {
           signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
         }),
     })
+    const vcpus = sandbox.status === 'running' ? sandbox.currentSession().vcpus : sandbox.vcpus
     return {
       url: routed.replace(/^https:/, 'wss:'),
       token,
       sandboxName,
+      ...(vcpus === undefined ? {} : { vcpus }),
     }
   }
 
@@ -139,19 +149,24 @@ export class VercelSandboxProvider extends SandboxProvider {
     })
   }
 
-  async resize(args: { target: SandboxTarget; vcpus: number }): Promise<void> {
+  async resize(args: { target: SandboxTarget; vcpus: number }): Promise<PodResizeOutcome> {
     const credentials = vercelCredentialsOf(args.target)
-    const sandbox = await this.sdk.get({
-      ...credentials,
-      name: sandboxNameOf(args.target.sandboxSessionId),
-      resume: false,
-      signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
-    })
-    await sandbox.update(
-      { resources: { vcpus: args.vcpus } },
-      { signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) },
-    )
-    if (sandbox.status === 'stopped') return
-    await sandbox.stop({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
+    const signal = AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS)
+    let sandbox: Sandbox
+    try {
+      sandbox = await this.sdk.get({
+        ...credentials,
+        name: sandboxNameOf(args.target.sandboxSessionId),
+        resume: false,
+        signal,
+      })
+    } catch (failure) {
+      if (isSandboxMissing(failure)) return 'absent'
+      throw failure
+    }
+    await sandbox.update({ resources: { vcpus: args.vcpus } }, { signal })
+    if (sandbox.status === 'stopped') return 'stored'
+    await sandbox.stop({ signal })
+    return 'restarted'
   }
 }

@@ -3310,10 +3310,24 @@
           },
           "GithubPrState": {
             "fields": {
+              "autoMerge": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
               "baseBranch": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "checksExpected": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
                   "kind": "scalar"
                 }
               },
@@ -3385,6 +3399,13 @@
               },
               "mergeClean": {
                 "nullable": true,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "mergeQueued": {
+                "nullable": false,
                 "type": {
                   "codecId": "pg/bool@1",
                   "kind": "scalar"
@@ -3497,8 +3518,14 @@
             "relations": {},
             "storage": {
               "fields": {
+                "autoMerge": {
+                  "column": "autoMerge"
+                },
                 "baseBranch": {
                   "column": "baseBranch"
+                },
+                "checksExpected": {
+                  "column": "checksExpected"
                 },
                 "checksFailed": {
                   "column": "checksFailed"
@@ -3529,6 +3556,9 @@
                 },
                 "mergeClean": {
                   "column": "mergeClean"
+                },
+                "mergeQueued": {
+                  "column": "mergeQueued"
                 },
                 "mergeable": {
                   "column": "mergeable"
@@ -9833,6 +9863,34 @@
                   "kind": "scalar"
                 }
               },
+              "podActualVcpus": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "podAppliedGeneration": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "podDesiredVcpus": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "podResizeError": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "podRetiredAt": {
                 "nullable": true,
                 "type": {
@@ -9847,6 +9905,13 @@
                 "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "podSizeGeneration": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
                   "kind": "scalar"
                 }
               },
@@ -10093,11 +10158,26 @@
                 "nextInboxId": {
                   "column": "nextInboxId"
                 },
+                "podActualVcpus": {
+                  "column": "podActualVcpus"
+                },
+                "podAppliedGeneration": {
+                  "column": "podAppliedGeneration"
+                },
+                "podDesiredVcpus": {
+                  "column": "podDesiredVcpus"
+                },
+                "podResizeError": {
+                  "column": "podResizeError"
+                },
                 "podRetiredAt": {
                   "column": "podRetiredAt"
                 },
                 "podSessionId": {
                   "column": "podSessionId"
+                },
+                "podSizeGeneration": {
+                  "column": "podSizeGeneration"
                 },
                 "projectId": {
                   "column": "projectId"
@@ -13273,12 +13353,30 @@
             },
             "GithubPrState": {
               "columns": {
+                "autoMerge": {
+                  "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
+                  "nullable": false
+                },
                 "baseBranch": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "default": {
                     "kind": "literal",
                     "value": ""
+                  },
+                  "nullable": false
+                },
+                "checksExpected": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
                   },
                   "nullable": false
                 },
@@ -13350,6 +13448,15 @@
                   "codecId": "pg/bool@1",
                   "dataType": "pg/bool",
                   "nullable": true
+                },
+                "mergeQueued": {
+                  "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
+                  "nullable": false
                 },
                 "mergeable": {
                   "codecId": "pg/bool@1",
@@ -14018,6 +14125,13 @@
               },
               "foreignKeys": [],
               "indexes": [
+                {
+                  "columns": [
+                    "deadAt"
+                  ],
+                  "name": "GithubWebhookInbox_deadAt_idx",
+                  "unique": false
+                },
                 {
                   "columns": [
                     "processedAt"
@@ -18153,6 +18267,26 @@
                   "dataType": "pg/int4",
                   "nullable": false
                 },
+                "podActualVcpus": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": true
+                },
+                "podAppliedGeneration": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": true
+                },
+                "podDesiredVcpus": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": true
+                },
+                "podResizeError": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
                 "podRetiredAt": {
                   "codecId": "pg/timestamptz-date@1",
                   "dataType": "pg/timestamptz",
@@ -18165,6 +18299,15 @@
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": true
+                },
+                "podSizeGeneration": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nullable": false
                 },
                 "projectId": {
                   "codecId": "pg/text@1",
@@ -18859,7 +19002,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "e52acf6e77c1b474cb70a8d424a55b015963913c0b2ca41242fbcf832a7e8b3c"
+    "storageHash": "4406b81cac8b98381149af5769abd34522833966d2564835450f6715e509fe49"
   },
   "execution": {
     "executionHash": "4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45",

@@ -7,7 +7,12 @@ import { ConfigReader } from '../../config/config-reader'
 import { cipher, seedOwner, seedVercel } from '../../config/__tests__/config-reader.fixture'
 import { SandboxNotConfiguredError } from '../../runtime/sandbox-not-configured-error'
 import { sandboxRegistryOf } from '../provider-registry'
-import { SandboxProvider, type DaemonEndpoint, type SandboxTarget } from '../sandbox-provider'
+import {
+  SandboxProvider,
+  type DaemonEndpoint,
+  type PodResizeOutcome,
+  type SandboxTarget,
+} from '../sandbox-provider'
 import { sandboxResizerOf, type SandboxResizer } from '../sandbox-resizer'
 
 const testDb = useTestDatabase()
@@ -37,8 +42,9 @@ class RecordingSandbox extends SandboxProvider {
 
   async keepAlive(_args: { target: SandboxTarget; until: number }): Promise<void> {}
 
-  async resize(args: { target: SandboxTarget; vcpus: number }): Promise<void> {
+  async resize(args: { target: SandboxTarget; vcpus: number }): Promise<PodResizeOutcome> {
     this.resizes.push(args)
+    return 'restarted'
   }
 }
 

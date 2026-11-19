@@ -94,6 +94,9 @@ export type PrStateRow = {
   checksRunning: number
   checksPassed: number
   checksFailed: number
+  checksExpected: number
+  mergeQueued: boolean
+  autoMerge: boolean
   mergeable: boolean | null
   updatedAt: string
   closedAt?: string | null | undefined
@@ -108,6 +111,8 @@ export type TrackedPullRequestState = {
   headSha: string
   checks: PrChecks
   mergeable: boolean | null
+  mergeQueued: boolean
+  autoMerge: boolean
   updatedAt: string
 }
 
@@ -257,6 +262,21 @@ export interface ControlTx {
   }): Promise<boolean>
   readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined>
   lockSession(sessionId: string): Promise<ControlSessionRow | undefined>
+  setSessionPodDesired(params: {
+    sessionId: string
+    vcpus: number
+    generation: number
+  }): Promise<boolean>
+  setSessionPodApplied(params: {
+    sessionId: string
+    vcpus: number
+    generation: number
+  }): Promise<boolean>
+  setSessionPodFailed(params: {
+    sessionId: string
+    generation: number
+    error: string
+  }): Promise<boolean>
   setSessionArchived(params: { sessionId: string; archivedAt: string | null }): Promise<boolean>
   setSessionReadSeq(params: { sessionId: string; seq: number }): Promise<number | undefined>
   setSessionTitleIfUntitled(params: {

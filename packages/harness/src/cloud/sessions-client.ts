@@ -1,6 +1,7 @@
 import type { ApiClient, ApiClientOptions } from '@dltech/atlas-api-router'
 import {
   type CompactThreadInput,
+  type EventsWatchFrame,
   type ForkThreadInput,
   type PodEvent,
   type PodEventsReply,
@@ -63,19 +64,42 @@ export class SessionsClient {
 
   watchEvents(args: {
     threadId: string
-    onTick: () => void
+    onTick: (frame: EventsWatchFrame) => void
     onFailure: (reason: string) => void
     onEnded: () => void
   }): () => void {
+    let stopped = false
+    let stop: (() => void) | undefined
+    const fail = (reason: string): void => {
+      if (stopped) return
+      stopped = true
+      stop?.()
+      args.onFailure(reason)
+    }
     const subscription = this.streamClient.sandboxSelf.watchEvents.subscribe(
       { threadId: args.threadId },
       {
         onData: args.onTick,
-        onError: (failure) => args.onFailure(failure.message),
-        onComplete: args.onEnded,
+        onError: (failure) => fail(failure.message),
+        onComplete: () => {
+          if (stopped) return
+          stopped = true
+          args.onEnded()
+        },
+        // The EventSource retries a dropped connection itself, every 3s and forever; the caller
+        // backs off instead, so a retryable connection state ends this subscription.
+        onConnectionStateChange: (state) => {
+          if (state.state !== 'connecting' || state.error === null) return
+          fail(state.error.message)
+        },
       },
     )
-    return () => subscription.unsubscribe()
+    stop = () => subscription.unsubscribe()
+    if (stopped) stop()
+    return () => {
+      stopped = true
+      stop?.()
+    }
   }
 
   async createThread(args: {

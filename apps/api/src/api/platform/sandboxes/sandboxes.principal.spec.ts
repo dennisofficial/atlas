@@ -1,10 +1,11 @@
 import { UnauthorizedException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { beforeEach, describe, expect, it } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { seedSandboxRow, seedUsers } from '../../../../test/session-seed'
 import type { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
+import { PRINCIPAL_CACHE_TTL_MS } from './sandbox-principal-cache'
 import { hashSessionToken } from './sandbox-tokens'
 import { SandboxesService } from './sandboxes.service'
 import { ETokenPrincipalKind } from './token-principal'
@@ -18,6 +19,8 @@ const cipher = new SecretCipherService({
 describe('SandboxesService.verifyTokenPrincipal', () => {
   useTestDatabase()
   let service: SandboxesService
+
+  afterEach(() => vi.restoreAllMocks())
 
   beforeEach(async () => {
     await seedUsers('user-a', 'user-b')
@@ -74,6 +77,98 @@ describe('SandboxesService.verifyTokenPrincipal', () => {
 
   it('refuses a token that neither table holds', async () => {
     await expect(service.verifyTokenPrincipal({ token: 'unknown' })).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    )
+  })
+
+  it('answers a repeated request from the principal cache', async () => {
+    await expect(service.verifyTokenPrincipal({ token: 'sandbox-token' })).resolves.toMatchObject({
+      id: 'sbx_1',
+    })
+    await db.orm.public.CloudSandbox.where({ id: 'sbx_1' }).delete()
+
+    await expect(service.verifyTokenPrincipal({ token: 'sandbox-token' })).resolves.toEqual({
+      kind: ETokenPrincipalKind.Sandbox,
+      id: 'sbx_1',
+      threadId: 'brn_sandbox',
+      userId: 'user-a',
+    })
+  })
+
+  it('drops a cached principal once its ttl passes', async () => {
+    const now = Date.now()
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(now)
+    await service.verifyTokenPrincipal({ token: 'sandbox-token' })
+    await db.orm.public.CloudSandbox.where({ id: 'sbx_1' }).delete()
+
+    clock.mockReturnValue(now + PRINCIPAL_CACHE_TTL_MS + 1)
+    await expect(service.verifyTokenPrincipal({ token: 'sandbox-token' })).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    )
+  })
+
+  it('never caches a miss', async () => {
+    await expect(service.verifyTokenPrincipal({ token: 'late-token' })).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    )
+    await db.orm.public.CloudSandbox.where({ id: 'sbx_1' }).update({
+      tokenHash: hashSessionToken('late-token'),
+    })
+
+    await expect(service.verifyTokenPrincipal({ token: 'late-token' })).resolves.toMatchObject({
+      id: 'sbx_1',
+    })
+  })
+
+  it('forgets the previous token the moment a claim rotates it', async () => {
+    await service.verifyTokenPrincipal({ token: 'sandbox-token' })
+
+    await service.claim({ userId: 'user-a', threadId: 'brn_sandbox' })
+
+    await expect(service.verifyTokenPrincipal({ token: 'sandbox-token' })).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    )
+  })
+
+  it('does not cache a principal whose lookup outlived the destroy that revoked it', async () => {
+    const tokenHash = hashSessionToken('sandbox-token')
+    const realWhere = db.orm.public.CloudSandbox.where
+    const stale = await db.orm.public.CloudSandbox.where({ tokenHash })
+      .select('id', 'sessionId', 'userId')
+      .first()
+    expect(stale).not.toBeNull()
+    const held = Promise.withResolvers<void>()
+    const spy = vi.spyOn(db.orm.public.CloudSandbox, 'where').mockImplementation(((filter: {
+      tokenHash?: string
+    }) =>
+      filter.tokenHash === tokenHash
+        ? {
+            select: () => ({
+              first: async () => {
+                await held.promise
+                return stale
+              },
+            }),
+          }
+        : realWhere.call(db.orm.public.CloudSandbox, filter as never)) as never)
+
+    const raced = service.verifyTokenPrincipal({ token: 'sandbox-token' })
+    await service.destroy({ userId: 'user-a', threadId: 'brn_sandbox' })
+    held.resolve()
+    await expect(raced).resolves.toMatchObject({ id: 'sbx_1' })
+
+    spy.mockRestore()
+    await expect(service.verifyTokenPrincipal({ token: 'sandbox-token' })).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    )
+  })
+
+  it('forgets a destroyed sandbox at once', async () => {
+    await service.verifyTokenPrincipal({ token: 'sandbox-token' })
+
+    await service.destroy({ userId: 'user-a', threadId: 'brn_sandbox' })
+
+    await expect(service.verifyTokenPrincipal({ token: 'sandbox-token' })).rejects.toBeInstanceOf(
       UnauthorizedException,
     )
   })

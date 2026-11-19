@@ -52,6 +52,7 @@ export type AgentHostConfig = {
   models: ModelSource
   workspace: WorkspaceConfig
   sandbox: SandboxConfig
+  podSize?: { desiredVcpus: number | undefined; generation: number } | undefined
   skills: SkillIndexEntry[]
 }
 

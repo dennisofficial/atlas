@@ -18,6 +18,7 @@ export const daemonSessionOf = (args: {
   provider: SandboxProvider
   target: SandboxTarget
   vcpus?: number | undefined
+  onWake?: ((endpoint: DaemonEndpoint) => Promise<void>) | undefined
   daemonSecret: string
   timers: HostTimers
   signal: AbortSignal
@@ -33,6 +34,7 @@ export const daemonSessionOf = (args: {
       ...(args.vcpus === undefined ? {} : { vcpus: args.vcpus }),
     })
     current = endpoint
+    await args.onWake?.(endpoint)
     return endpoint
   }
   args.steps.report({ step: EWorkspaceStep.Sandbox, state: EWorkspaceStepState.Started })

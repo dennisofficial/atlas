@@ -30,6 +30,11 @@ const sessionRow = () => ({
   lastSurface: 'web',
   routineId: null,
   readSeq: null,
+  podDesiredVcpus: null,
+  podSizeGeneration: 0,
+  podActualVcpus: null,
+  podAppliedGeneration: null,
+  podResizeError: null,
 })
 
 describe('v2 namespace client', () => {

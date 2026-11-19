@@ -7,7 +7,7 @@ import {
   type HostTimers,
   type SessionRuntimeFactory,
 } from '@dltech/atlas-host'
-import type { LogPort } from '@dltech/atlas-observability'
+import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
 import type { MediaSigner } from '../media/media-signer'
 import { attachmentUrlBinding } from '../media/media-urls'
@@ -20,6 +20,7 @@ import { signerUploadBlobs } from '../uploads/upload-blobs'
 import type { ConfigSource } from '../config/agent-host-config'
 import type { CloudConfigStore } from '../config/cloud-config-store'
 import type { EnvSecretsSource } from '../config/env-secrets'
+import type { ProjectFilesSource } from '../config/project-files'
 import { SANDBOX_HOME_PATH, workspaceDirectoryOf } from '../sandbox/constants'
 import type { SandboxProviderRegistry } from '../sandbox/provider-registry'
 import type { SandboxTarget } from '../sandbox/sandbox-provider'
@@ -66,7 +67,17 @@ export type SessionRuntimeFactoryArgs = {
   plugins?: ComposedPlugins | undefined
   configWrites?: CloudConfigStore | undefined
   envSecrets?: EnvSecretsSource | undefined
+  projectFiles?: ProjectFilesSource | undefined
   terminalStreams?: ((sessionId: string) => number) | undefined
+  podSizing?:
+    | {
+        recordPodApplied(args: {
+          sessionId: string
+          vcpus: number
+          generation: number
+        }): Promise<boolean>
+      }
+    | undefined
 }
 
 export const createSessionRuntimeFactory = (
@@ -93,13 +104,33 @@ export const createSessionRuntimeFactory = (
     }
     const sandboxName = sandboxNameOf(sandboxSessionId)
     const paths = sessionPathsOf({ sessionId, threadId })
+    const podSize = config.podSize
+    const desiredVcpus = podSize?.desiredVcpus ?? config.sandbox.vcpus
+    const recordApplied = async (endpoint: { vcpus?: number | undefined }): Promise<void> => {
+      if (args.podSizing === undefined || podSize?.desiredVcpus === undefined) return
+      if (endpoint.vcpus !== podSize.desiredVcpus) return
+      try {
+        await args.podSizing.recordPodApplied({
+          sessionId,
+          vcpus: endpoint.vcpus,
+          generation: podSize.generation,
+        })
+      } catch (error) {
+        args.log?.warn({
+          source: 'runtime.wake',
+          message: `recording the applied pod size for ${sessionId} failed`,
+          ...logFieldsOf({ error }),
+        })
+      }
+    }
     const steps = new PrepareSteps()
     const { calls } = daemonSessionOf({
       sessionId,
       epoch,
       provider,
       target,
-      ...(config.sandbox.vcpus === undefined ? {} : { vcpus: config.sandbox.vcpus }),
+      ...(desiredVcpus === undefined ? {} : { vcpus: desiredVcpus }),
+      onWake: recordApplied,
       daemonSecret: args.daemonSecret,
       timers: args.timers,
       signal,
@@ -144,6 +175,8 @@ export const createSessionRuntimeFactory = (
       steps,
       shellEnv,
       refreshSecrets,
+      projectFiles: args.projectFiles,
+      projectId: config.projectId,
       github: args.github,
       signingKey: args.signingKey,
       timers: args.timers,

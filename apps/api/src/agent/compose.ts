@@ -9,6 +9,7 @@ import {
 import { nativeCommandHandlers, nativeCommands } from '@dltech/atlas-native-commands'
 import { cloudConfigStore } from './config/cloud-config-store'
 import { envSecretsReader } from './config/env-secrets'
+import { projectFilesSourceOf } from './config/project-files'
 import { mcpControlPort } from './config/mcp-control'
 import type { MacLink } from './mac-link/port'
 import { SecretCipher } from './config/secret-cipher'
@@ -79,7 +80,9 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
       plugins: composedPlugins,
       configWrites: cloudConfigStore(),
       envSecrets: envSecretsReader(),
+      projectFiles: projectFilesSourceOf(),
       terminalStreams: (sessionId) => terminalDemand.countOf(sessionId),
+      podSizing: args.plane,
       ...(args.log === undefined ? {} : { log: args.log }),
     }),
     ids: new RandomIds(),

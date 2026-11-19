@@ -72,6 +72,9 @@ import {
   setSessionArchivedIn,
   setSessionModelIn,
   setSessionReadSeqIn,
+  setSessionPodAppliedIn,
+  setSessionPodDesiredIn,
+  setSessionPodFailedIn,
   setSessionTitleIfUntitledIn,
   setSessionTitleIn,
 } from './postgres-session-writes'
@@ -167,6 +170,18 @@ class PostgresTx implements ControlTx {
 
   async lockSession(sessionId: string): Promise<ControlSessionRow | undefined> {
     return readSessionIn({ tx: this.tx, sessionId, lock: true })
+  }
+
+  async setSessionPodDesired(params: Parameters<ControlTx['setSessionPodDesired']>[0]) {
+    return setSessionPodDesiredIn({ tx: this.tx, ...params })
+  }
+
+  async setSessionPodApplied(params: Parameters<ControlTx['setSessionPodApplied']>[0]) {
+    return setSessionPodAppliedIn({ tx: this.tx, ...params })
+  }
+
+  async setSessionPodFailed(params: Parameters<ControlTx['setSessionPodFailed']>[0]) {
+    return setSessionPodFailedIn({ tx: this.tx, ...params })
   }
 
   async setSessionArchived(params: { sessionId: string; archivedAt: string | null }) {

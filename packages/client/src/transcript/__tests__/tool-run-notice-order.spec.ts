@@ -145,7 +145,6 @@ describe('a visible notice between tool batches', () => {
       shellCheckin(),
       serviceEnded(),
       agentReported(),
-      agentRestarted(EAgentRestart.Resume),
       locationChanged(),
       historyCompacted(),
     ]
@@ -157,7 +156,11 @@ describe('a visible notice between tool batches', () => {
   })
 
   it('does not split at bookkeeping the transcript never prints', () => {
-    const invisible = [tldrWritten(), agentRestarted(EAgentRestart.Wake)]
+    const invisible = [
+      tldrWritten(),
+      agentRestarted(EAgentRestart.Resume),
+      agentRestarted(EAgentRestart.Wake),
+    ]
 
     for (const event of invisible) {
       const runs = toolRuns(log([readCall(1), event, readCall(2)]))

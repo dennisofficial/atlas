@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'e52acf6e77c1b474cb70a8d424a55b015963913c0b2ca41242fbcf832a7e8b3c'>;
+  StorageHashBase<'4406b81cac8b98381149af5769abd34522833966d2564835450f6715e509fe49'>;
 export type ExecutionHash =
   ExecutionHashBase<'4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45'>;
 export type ProfileHash =
@@ -618,7 +618,9 @@ export namespace Models {
     readonly [RelationKeys]?: never;
   };
   export type public_GithubPrState = {
+    autoMerge: FieldOutputTypes['public']['GithubPrState']['autoMerge'];
     baseBranch: FieldOutputTypes['public']['GithubPrState']['baseBranch'];
+    checksExpected: FieldOutputTypes['public']['GithubPrState']['checksExpected'];
     checksFailed: FieldOutputTypes['public']['GithubPrState']['checksFailed'];
     checksIgnored: FieldOutputTypes['public']['GithubPrState']['checksIgnored'];
     checksPassed: FieldOutputTypes['public']['GithubPrState']['checksPassed'];
@@ -629,6 +631,7 @@ export namespace Models {
     headRepoFullName: FieldOutputTypes['public']['GithubPrState']['headRepoFullName'];
     headSha: FieldOutputTypes['public']['GithubPrState']['headSha'];
     mergeClean: FieldOutputTypes['public']['GithubPrState']['mergeClean'];
+    mergeQueued: FieldOutputTypes['public']['GithubPrState']['mergeQueued'];
     mergeable: FieldOutputTypes['public']['GithubPrState']['mergeable'];
     mergeableBaseRef: FieldOutputTypes['public']['GithubPrState']['mergeableBaseRef'];
     mergeableHeadSha: FieldOutputTypes['public']['GithubPrState']['mergeableHeadSha'];
@@ -1328,8 +1331,13 @@ export namespace Models {
     modelRef: FieldOutputTypes['v2']['V2Session']['modelRef'];
     nested: FieldOutputTypes['v2']['V2Session']['nested'];
     nextInboxId: FieldOutputTypes['v2']['V2Session']['nextInboxId'];
+    podActualVcpus: FieldOutputTypes['v2']['V2Session']['podActualVcpus'];
+    podAppliedGeneration: FieldOutputTypes['v2']['V2Session']['podAppliedGeneration'];
+    podDesiredVcpus: FieldOutputTypes['v2']['V2Session']['podDesiredVcpus'];
+    podResizeError: FieldOutputTypes['v2']['V2Session']['podResizeError'];
     podRetiredAt: FieldOutputTypes['v2']['V2Session']['podRetiredAt'];
     podSessionId: FieldOutputTypes['v2']['V2Session']['podSessionId'];
+    podSizeGeneration: FieldOutputTypes['v2']['V2Session']['podSizeGeneration'];
     projectId: FieldOutputTypes['v2']['V2Session']['projectId'];
     readSeq: FieldOutputTypes['v2']['V2Session']['readSeq'];
     routineId: FieldOutputTypes['v2']['V2Session']['routineId'];
@@ -3597,6 +3605,16 @@ type ContractBase = Omit<
             };
             readonly GithubPrState: {
               columns: {
+                readonly autoMerge: {
+                  readonly dataType: 'pg/bool';
+                  readonly codecId: 'pg/bool@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/bool@1', false>;
+                  };
+                  readonly many: false;
+                };
                 readonly baseBranch: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
@@ -3604,6 +3622,16 @@ type ContractBase = Omit<
                   readonly default: {
                     readonly kind: 'literal';
                     readonly value: DefaultLiteralValue<'pg/text@1', ''>;
+                  };
+                  readonly many: false;
+                };
+                readonly checksExpected: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
                   };
                   readonly many: false;
                 };
@@ -3682,6 +3710,16 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/bool';
                   readonly codecId: 'pg/bool@1';
                   readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly mergeQueued: {
+                  readonly dataType: 'pg/bool';
+                  readonly codecId: 'pg/bool@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/bool@1', false>;
+                  };
                   readonly many: false;
                 };
                 readonly mergeable: {
@@ -4250,6 +4288,11 @@ type ContractBase = Omit<
               primaryKey: { readonly columns: readonly ['deliveryId'] };
               uniques: readonly [];
               indexes: readonly [
+                {
+                  readonly name: 'GithubWebhookInbox_deadAt_idx';
+                  readonly columns: readonly ['deadAt'];
+                  readonly unique: false;
+                },
                 {
                   readonly name: 'GithubWebhookInbox_processedAt_idx';
                   readonly columns: readonly ['processedAt'];
@@ -7698,6 +7741,30 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly many: false;
                 };
+                readonly podActualVcpus: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly podAppliedGeneration: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly podDesiredVcpus: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly podResizeError: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
                 readonly podRetiredAt: {
                   readonly dataType: 'pg/timestamptz';
                   readonly codecId: 'pg/timestamptz-date@1';
@@ -7709,6 +7776,16 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly podSizeGeneration: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
+                  };
                   readonly many: false;
                 };
                 readonly projectId: {
@@ -10342,9 +10419,17 @@ type ContractBase = Omit<
           };
           readonly GithubPrState: {
             readonly fields: {
+              readonly autoMerge: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
+              };
               readonly baseBranch: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly checksExpected: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
               readonly checksFailed: {
                 readonly nullable: false;
@@ -10388,6 +10473,10 @@ type ContractBase = Omit<
               };
               readonly mergeClean: {
                 readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
+              };
+              readonly mergeQueued: {
+                readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
               };
               readonly mergeable: {
@@ -10464,7 +10553,9 @@ type ContractBase = Omit<
               readonly table: 'GithubPrState';
               readonly namespaceId: 'public';
               readonly fields: {
+                readonly autoMerge: { readonly column: 'autoMerge' };
                 readonly baseBranch: { readonly column: 'baseBranch' };
+                readonly checksExpected: { readonly column: 'checksExpected' };
                 readonly checksFailed: { readonly column: 'checksFailed' };
                 readonly checksIgnored: { readonly column: 'checksIgnored' };
                 readonly checksPassed: { readonly column: 'checksPassed' };
@@ -10475,6 +10566,7 @@ type ContractBase = Omit<
                 readonly headRepoFullName: { readonly column: 'headRepoFullName' };
                 readonly headSha: { readonly column: 'headSha' };
                 readonly mergeClean: { readonly column: 'mergeClean' };
+                readonly mergeQueued: { readonly column: 'mergeQueued' };
                 readonly mergeable: { readonly column: 'mergeable' };
                 readonly mergeableBaseRef: { readonly column: 'mergeableBaseRef' };
                 readonly mergeableHeadSha: { readonly column: 'mergeableHeadSha' };
@@ -14479,6 +14571,22 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
+              readonly podActualVcpus: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly podAppliedGeneration: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly podDesiredVcpus: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly podResizeError: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly podRetiredAt: {
                 readonly nullable: true;
                 readonly type: {
@@ -14490,6 +14598,10 @@ type ContractBase = Omit<
               readonly podSessionId: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly podSizeGeneration: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
               readonly projectId: {
                 readonly nullable: true;
@@ -14642,8 +14754,13 @@ type ContractBase = Omit<
                 readonly modelRef: { readonly column: 'modelRef' };
                 readonly nested: { readonly column: 'nested' };
                 readonly nextInboxId: { readonly column: 'nextInboxId' };
+                readonly podActualVcpus: { readonly column: 'podActualVcpus' };
+                readonly podAppliedGeneration: { readonly column: 'podAppliedGeneration' };
+                readonly podDesiredVcpus: { readonly column: 'podDesiredVcpus' };
+                readonly podResizeError: { readonly column: 'podResizeError' };
                 readonly podRetiredAt: { readonly column: 'podRetiredAt' };
                 readonly podSessionId: { readonly column: 'podSessionId' };
+                readonly podSizeGeneration: { readonly column: 'podSizeGeneration' };
                 readonly projectId: { readonly column: 'projectId' };
                 readonly readSeq: { readonly column: 'readSeq' };
                 readonly routineId: { readonly column: 'routineId' };

@@ -61,6 +61,7 @@ import { deleteContextFile, deleteMissingContextFiles, putContextFile } from './
 import { endPodTerminals } from './pod-terminals'
 import { applyPodEvents, truncatePodEvents } from './pod-events'
 import { assertWithinSandboxFamily } from './pod-family'
+import { keepaliveFrames } from './sandbox-watch-keepalive'
 import { SandboxTokenMiddleware, type SandboxTrpcCtx } from './sandbox-token.middleware'
 import { PreviewTunnelService } from './preview-tunnel.service'
 import { VercelSandboxClient } from './vercel-sandbox.client'
@@ -266,7 +267,8 @@ export class SandboxSelfRouter {
       queueLimit: WATCH_QUEUE_LIMIT,
       attach: (sink) => {
         sink.push(TICK)
-        return this.signals.openStream({
+        const stopKeepalive = keepaliveFrames(sink)
+        const detach = this.signals.openStream({
           threadId,
           onFrame: (frame) => {
             if (
@@ -278,6 +280,10 @@ export class SandboxSelfRouter {
           },
           onClosed: sink.close,
         })
+        return () => {
+          stopKeepalive()
+          detach()
+        }
       },
     })
   }

@@ -66,6 +66,9 @@ import {
   archiveIn,
   createSessionIn,
   markReadIn,
+  recordPodAppliedIn,
+  recordPodDesiredIn,
+  recordPodFailedIn,
   renameIn,
   setSessionModelIn,
   titleUntitledIn,
@@ -179,6 +182,26 @@ export class ControlPlane {
     at: string
   }): Promise<boolean> {
     return this.store.transact((tx) => tx.setSandboxStatus(params))
+  }
+
+  async recordPodDesired(params: { sessionId: string; vcpus: number }): Promise<number> {
+    return this.store.transact((tx) => recordPodDesiredIn({ tx, ...params }))
+  }
+
+  async recordPodApplied(params: {
+    sessionId: string
+    vcpus: number
+    generation: number
+  }): Promise<boolean> {
+    return this.store.transact((tx) => recordPodAppliedIn({ tx, ...params }))
+  }
+
+  async recordPodFailed(params: {
+    sessionId: string
+    generation: number
+    error: string
+  }): Promise<boolean> {
+    return this.store.transact((tx) => recordPodFailedIn({ tx, ...params }))
   }
 
   async spawnPeer(params: {

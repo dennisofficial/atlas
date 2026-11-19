@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'bun:test'
+import type { EventsWatchFrame } from '@dltech/atlas-wire'
+import { beforeEach, describe, expect, it } from 'bun:test'
 
 import { CloudError } from '../cloud-transport'
 import { SessionsClient } from '../sessions-client'
@@ -152,5 +153,108 @@ describe('SessionsClient over tRPC', () => {
     )
     expect(raised).toBeInstanceOf(CloudError)
     expect(raised).toMatchObject({ status: 403 })
+  })
+})
+
+type FakeEvent = { data?: string; message?: string }
+type Listeners = Map<string, Array<(event: FakeEvent) => void>>
+
+class DroppingEventSource {
+  static latest: DroppingEventSource | undefined
+
+  readonly CONNECTING = 0
+  readonly OPEN = 1
+  readonly CLOSED = 2
+  readyState = 0
+  private readonly listeners: Listeners = new Map()
+
+  constructor(readonly url: string) {
+    DroppingEventSource.latest = this
+  }
+
+  addEventListener(type: string, listener: (event: FakeEvent) => void): void {
+    this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener])
+  }
+
+  removeEventListener(type: string, listener: (event: FakeEvent) => void): void {
+    this.listeners.set(
+      type,
+      (this.listeners.get(type) ?? []).filter((one) => one !== listener),
+    )
+  }
+
+  close(): void {
+    this.readyState = this.CLOSED
+  }
+
+  emit(type: string, event: FakeEvent): void {
+    for (const listener of this.listeners.get(type) ?? []) listener(event)
+  }
+}
+
+const openedSource = async (): Promise<DroppingEventSource> => {
+  const deadline = Date.now() + 2000
+  while (DroppingEventSource.latest === undefined && Date.now() < deadline) await Bun.sleep(5)
+  const source = DroppingEventSource.latest
+  if (source === undefined) throw new Error('the watch never opened an event source')
+  return source
+}
+
+const settled = async (done: () => boolean): Promise<void> => {
+  const deadline = Date.now() + 2000
+  while (!done() && Date.now() < deadline) await Bun.sleep(5)
+}
+
+describe('SessionsClient.watchEvents', () => {
+  beforeEach(() => {
+    DroppingEventSource.latest = undefined
+  })
+
+  it('hands the pod the frame it was sent', async () => {
+    const frames: EventsWatchFrame[] = []
+    const client = new SessionsClient({
+      url: 'https://cloud.test/',
+      token: 'tok',
+      EventSource: DroppingEventSource,
+    })
+    const stop = client.watchEvents({
+      threadId: 'thr_1',
+      onTick: (frame) => frames.push(frame),
+      onFailure: () => undefined,
+      onEnded: () => undefined,
+    })
+    const source = await openedSource()
+    source.emit('connected', { data: '{}' })
+    source.emit('message', { data: JSON.stringify({ type: 'keepalive' }) })
+    await settled(() => frames.length === 1)
+    stop()
+
+    expect(frames).toHaveLength(1)
+    expect(String(frames[0]?.type)).toBe('keepalive')
+  })
+
+  it('reports a dropped transport as a failure and ends the stream so the caller reconnects', async () => {
+    const failures: string[] = []
+    let ended = 0
+    const client = new SessionsClient({
+      url: 'https://cloud.test/',
+      token: 'tok',
+      EventSource: DroppingEventSource,
+    })
+    const stop = client.watchEvents({
+      threadId: 'thr_1',
+      onTick: () => undefined,
+      onFailure: (reason) => failures.push(reason),
+      onEnded: () => (ended += 1),
+    })
+    const source = await openedSource()
+    source.emit('connected', { data: '{}' })
+    source.emit('error', { message: 'socket hang up' })
+    await settled(() => failures.length === 1)
+
+    expect(failures).toEqual(['socket hang up'])
+    expect(source.readyState).toBe(source.CLOSED)
+    expect(ended).toBe(0)
+    stop()
   })
 })

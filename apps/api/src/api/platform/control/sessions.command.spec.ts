@@ -102,29 +102,39 @@ describe('SessionsService command', () => {
     expect(await inboxOf({ plane: context.plane, sessionId: created.sessionId })).toEqual([])
   })
 
-  it('resizes the shared pod at once, forgets its cached resources and posts nothing', async () => {
-    const { service, client, resizer, plane, sessionId } = await seed()
-    client.resources = { vcpus: 2, memoryMb: 4096 }
+  it('records the desired size and resizes through the pinned provider', async () => {
+    const { service, plane, resizer, sessionId } = await seed()
 
-    await service.podResourcesOf({ userId: 'user-a', sessionId })
-    expect(client.reads).toHaveLength(1)
-
-    client.resources = { vcpus: 4, memoryMb: 8192 }
     expect(
       await service.command({ userId: 'user-a', sessionId, name: 'resize', args: { vcpus: 4 } }),
     ).toEqual({})
     expect(resizer.resizes).toEqual([{ sandboxSessionId: sessionId, vcpus: 4 }])
     expect(await inboxOf({ plane, sessionId })).toEqual([])
 
-    expect(await service.podResourcesOf({ userId: 'user-a', sessionId })).toEqual({
-      vcpus: 4,
-      memoryMb: 8192,
-    })
-    expect(client.reads).toHaveLength(2)
+    const row = await plane.readSession({ sessionId })
+    expect(row?.podDesiredVcpus).toBe(4)
+    expect(row?.podSizeGeneration).toBe(1)
+    const view = await plane.readSessionView({ sessionId, threadId: row?.mainThreadId ?? '' })
+    expect(view.value.status.pod).toEqual({ desiredVcpus: 4, phase: 'resizing' })
   })
 
-  it('resizes the parent pod for a sub-agent session', async () => {
-    const { service, resizer, store, sessionId } = await seed()
+  it('bumps the generation for each resize so a newer one supersedes the last', async () => {
+    const { service, plane, resizer, sessionId } = await seed()
+
+    await service.command({ userId: 'user-a', sessionId, name: 'resize', args: { vcpus: 4 } })
+    await service.command({ userId: 'user-a', sessionId, name: 'resize', args: { vcpus: 8 } })
+
+    const row = await plane.readSession({ sessionId })
+    expect(row?.podSizeGeneration).toBe(2)
+    expect(row?.podDesiredVcpus).toBe(8)
+    expect(resizer.resizes).toEqual([
+      { sandboxSessionId: sessionId, vcpus: 4 },
+      { sandboxSessionId: sessionId, vcpus: 8 },
+    ])
+  })
+
+  it('records the shared parent pod desired size for a sub-agent session', async () => {
+    const { service, plane, resizer, store, sessionId } = await seed()
     const childId = await childOf({ store, parentId: sessionId })
 
     await service.command({
@@ -135,6 +145,8 @@ describe('SessionsService command', () => {
     })
 
     expect(resizer.resizes).toEqual([{ sandboxSessionId: sessionId, vcpus: 8 }])
+    expect((await plane.readSession({ sessionId }))?.podDesiredVcpus).toBe(8)
+    expect((await plane.readSession({ sessionId: childId }))?.podDesiredVcpus).toBeNull()
   })
 
   it('answers 404 when the pod is gone and posts nothing', async () => {
@@ -152,19 +164,10 @@ describe('SessionsService command', () => {
     })
 
     await expect(refused).rejects.toBeInstanceOf(NotFoundException)
+    expect(
+      (await context.plane.readSession({ sessionId: created.sessionId }))?.podResizeError,
+    ).toBe(`sandbox atlas-v2-${created.sessionId} not found`)
     expect(await inboxOf({ plane: context.plane, sessionId: created.sessionId })).toEqual([])
-  })
-
-  it('reports the pod resources of the session pod', async () => {
-    const { service, client, sessionId } = await seed()
-    client.resources = { vcpus: 4, memoryMb: 8192, pendingVcpus: 8 }
-
-    expect(await service.podResourcesOf({ userId: 'user-a', sessionId })).toEqual({
-      vcpus: 4,
-      memoryMb: 8192,
-      pendingVcpus: 8,
-    })
-    expect(client.reads).toEqual([{ userId: 'user-a', name: `atlas-v2-${sessionId}` }])
   })
 
   it('refuses a session the caller does not own and posts nothing', async () => {

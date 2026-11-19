@@ -19,10 +19,7 @@ import { NoSessionTitler } from '../../../_core/ports/session-titler'
 import { FakeMediaRegistry } from './media-registry.fake'
 import { SessionsService } from './sessions.service'
 import { PodSizingService } from './pod-sizing.service'
-import type {
-  SandboxResourcesObservation,
-  VercelSandboxClient,
-} from '../sandboxes/vercel-sandbox.client'
+import type { PodResizeOutcome } from '../../../agent'
 import { ProjectAccess } from './project-access'
 import { modelSet } from './model-set'
 
@@ -110,38 +107,20 @@ export const logWithdrawn = async (args: {
   })
 }
 
-export class FakePodSizingClient {
-  readonly reads: { userId: string; name: string }[] = []
-  resources: SandboxResourcesObservation | null = null
-  failure: unknown = undefined
-
-  async readPodResources(args: {
-    userId: string
-    name: string
-  }): Promise<SandboxResourcesObservation | null> {
-    this.reads.push(args)
-    if (this.failure !== undefined) throw this.failure
-    return this.resources
-  }
-}
-
 export class FakeSandboxResizer {
   readonly resizes: { sandboxSessionId: string; vcpus: number }[] = []
+  outcome: PodResizeOutcome = 'restarted'
   failure: unknown = undefined
 
-  async resize(args: { sandboxSessionId: string; vcpus: number }): Promise<void> {
-    this.resizes.push(args)
+  async resize(args: { sandboxSessionId: string; vcpus: number }): Promise<PodResizeOutcome> {
     if (this.failure !== undefined) throw this.failure
+    this.resizes.push(args)
+    return this.outcome
   }
 }
 
 export const setupSessionsService = (
-  over: {
-    env?: Record<string, string>
-    planGate?: PodPlanGate
-    client?: FakePodSizingClient
-    resizer?: FakeSandboxResizer
-  } = {},
+  over: { env?: Record<string, string>; planGate?: PodPlanGate; resizer?: FakeSandboxResizer } = {},
 ) => {
   const store = new InMemoryControlStore({ clock: () => NOW })
   store.markHostPresent(9001)
@@ -150,14 +129,8 @@ export const setupSessionsService = (
   const mediaStore = new FakeMediaStore()
   const projects = new RecordingProjectAccess()
   const planGate: PodPlanGate = over.planGate ?? { assertWithinPlan: async () => undefined }
-  const client = over.client ?? new FakePodSizingClient()
   const resizer = over.resizer ?? new FakeSandboxResizer()
-  const podSizing = new PodSizingService(
-    client as unknown as VercelSandboxClient,
-    new NoBackgroundWork(),
-    planGate,
-    resizer,
-  )
+  const podSizing = new PodSizingService(plane, planGate, resizer)
   const service = new SessionsService(
     plane,
     projects,
@@ -169,5 +142,5 @@ export const setupSessionsService = (
     new EnvService({ SANDBOX_PROVIDER_DEFAULT: 'vercel', ...over.env }),
     podSizing,
   )
-  return { plane, service, registry, mediaStore, store, projects, client, resizer }
+  return { plane, service, registry, mediaStore, store, projects, resizer }
 }

@@ -82,6 +82,23 @@ describe('v2 sidebar row', () => {
     expect(unknown).toContain('state unknown')
   })
 
+  it('marks a pull request with auto-merge on by its icon alone', () => {
+    const html = render({
+      pullRequest: {
+        repo: 'owner/atlas',
+        number: 9,
+        url: 'https://github.com/owner/atlas/pull/9',
+        state: 'open',
+        checks: { running: 0, passed: 2, failed: 0 },
+        mergeable: true,
+        autoMerge: true,
+      },
+    })
+    expect(html).toContain('lucide-fast-forward')
+    expect(html).toContain('aria-label="Auto-merge enabled"')
+    expect(html).not.toContain('>Auto-merge<')
+  })
+
   it('shows the unread dot until the row is read to the last assistant seq', () => {
     const idle = { state: ESessionStatus.Idle }
     expect(render({ lastAssistantSeq: 7, status: idle })).toContain('aria-label="Unread"')

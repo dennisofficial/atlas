@@ -17,6 +17,7 @@ import { useThreadFamily } from './shell-thread-family'
 import { useThreadActions } from './thread-actions-context'
 import { ThreadHoverCard } from './thread-hover-card'
 import { latestThreadPullRequestOf, threadPullRequestsOf } from './thread-pull-requests'
+import { PullRequestMergeMarker } from '@/features/threads/pull-request-merge-marker'
 import { CompactWorkIcon, ThreadWorkSummary } from './thread-pr-presentation'
 import { EThreadStatus, isUnread, isWorking, threadStatusOf } from './thread-status'
 import { v2SessionHref } from './v2-rows'
@@ -139,6 +140,11 @@ export function ThreadRowBody({
           {compact ? (
             <span className="group-data-[collapsible=icon]:hidden">
               <CompactWorkIcon entries={entries} />
+            </span>
+          ) : null}
+          {compact && latest !== undefined ? (
+            <span className="inline-flex group-data-[collapsible=icon]:hidden">
+              <PullRequestMergeMarker entry={latest} />
             </span>
           ) : null}
           <span className="min-w-0 flex-1 truncate group-data-[collapsible=icon]:hidden">

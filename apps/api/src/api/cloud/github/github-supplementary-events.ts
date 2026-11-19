@@ -1,3 +1,4 @@
+import type { GithubDeliveryService } from './github-delivery.service'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import type {
   GithubMergeQueueEntryWebhookPayload,
@@ -15,6 +16,7 @@ export async function handleSupplementaryEvent(args: {
   event: string
   payload: unknown
   wake: GithubSandboxWakeService
+  deliveries: { applyMergeQueued: GithubDeliveryService['applyMergeQueued'] }
 }): Promise<boolean> {
   if (args.event === 'workflow_run') {
     await recordWorkflowRunFinished({
@@ -26,6 +28,7 @@ export async function handleSupplementaryEvent(args: {
   if (args.event === 'merge_queue_entry') {
     await recordMergeQueueEntry({
       payload: args.payload as GithubMergeQueueEntryWebhookPayload,
+      queues: async (move) => await args.deliveries.applyMergeQueued(move),
     })
     return true
   }

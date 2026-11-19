@@ -18,6 +18,7 @@ import {
   SandboxProvider,
   type DaemonEndpoint,
   type SandboxTarget,
+  type PodResizeOutcome,
 } from '../../sandbox/sandbox-provider'
 import { createSessionRuntimeFactory, SandboxNotConfiguredError } from '../session-runtime-factory'
 import { fakeModelSourceOf } from '../../testing/model-source'
@@ -81,7 +82,9 @@ class FakeSandbox extends SandboxProvider {
     this.keptAlive.push(args.target.sandboxSessionId)
   }
 
-  async resize(_args: { target: SandboxTarget; vcpus: number }): Promise<void> {}
+  async resize(_args: { target: SandboxTarget; vcpus: number }): Promise<PodResizeOutcome> {
+    return 'restarted'
+  }
 }
 
 type ScheduledTimer = { handler: () => void; cleared: boolean }

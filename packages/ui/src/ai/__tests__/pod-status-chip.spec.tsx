@@ -120,25 +120,65 @@ describe('PodStatusChip resize', () => {
     await view.unmount()
   })
 
-  it('calls onResize with the chosen vCPUs and then shows the pending note', async () => {
-    const onResize = mock(() => Promise.resolve())
+  it('calls onResize with the chosen vCPUs and spins only while it is in flight', async () => {
+    let settle = (): void => undefined
+    const onResize = mock(
+      () =>
+        new Promise<void>((resolve) => {
+          settle = resolve
+        }),
+    )
     const view = await mount(<PodPopoverBody {...bodyProps} onResize={onResize} />)
     await chooseSize(view.container, 8)
     await click(buttonNamed(view.container, 'Apply'))
     expect(onResize).toHaveBeenCalledWith(8)
-    expect(view.container.textContent).toContain('Restarting with 8 vCPU · 16 GB')
-    expect(view.container.textContent).not.toContain('next wake')
+    expect(view.container.textContent).toContain('Applying…')
+    expect(view.container.textContent).not.toContain('Restarting with')
+    await act(async () => settle())
+    expect(view.container.textContent).not.toContain('Applying…')
+    await view.unmount()
+  })
+
+  it('shows the pushed resize target', async () => {
+    const view = await mount(
+      <PodPopoverBody
+        status={{ ...RUNNING, pendingVcpus: 8, phase: 'resizing' }}
+        sizes={SIZES}
+        onResize={mock(() => Promise.resolve())}
+      />,
+    )
+    expect(view.container.textContent).toContain('Resizing to 8 vCPU · 16 GB')
+    expect(buttonNamed(view.container, 'Apply')?.disabled).toBe(true)
     await view.unmount()
   })
 
   it('says a parked pod takes the size when it next starts', async () => {
-    const onResize = mock(() => Promise.resolve())
-    const parked = { ...RUNNING, state: EPodState.Parked }
-    const view = await mount(<PodPopoverBody status={parked} sizes={SIZES} onResize={onResize} />)
-    expect(view.container.textContent).toContain('Applies on next start')
-    await chooseSize(view.container, 8)
-    await click(buttonNamed(view.container, 'Apply'))
+    const parked = { ...RUNNING, state: EPodState.Parked, pendingVcpus: 8 }
+    const view = await mount(
+      <PodPopoverBody status={parked} sizes={SIZES} onResize={mock(() => Promise.resolve())} />,
+    )
     expect(view.container.textContent).toContain('Starts with 8 vCPU · 16 GB')
+    await view.unmount()
+  })
+
+  it('shows the pushed failure and retries the desired size', async () => {
+    const onResize = mock(() => Promise.resolve())
+    const view = await mount(
+      <PodPopoverBody
+        status={{
+          ...RUNNING,
+          pendingVcpus: 8,
+          phase: 'failed',
+          resizeError: 'vCPUs above 8 need an Enterprise plan',
+        }}
+        sizes={SIZES}
+        onResize={onResize}
+      />,
+    )
+    expect(view.container.textContent).toContain('Could not resize the pod.')
+    expect(view.container.textContent).toContain('Enterprise plan')
+    await click(buttonNamed(view.container, 'Retry'))
+    expect(onResize).toHaveBeenCalledWith(8)
     await view.unmount()
   })
 

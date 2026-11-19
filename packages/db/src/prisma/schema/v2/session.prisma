@@ -23,6 +23,11 @@ namespace v2 {
     nested             Boolean               @default(true)
     podSessionId       String?
     podRetiredAt       TimestamptzJsDate(3)?
+    podDesiredVcpus    Int?
+    podSizeGeneration  Int                   @default(0)
+    podActualVcpus     Int?
+    podAppliedGeneration Int?
+    podResizeError     String?
     routineId          String?
     readSeq            Int?
     lastSurface        String                @default("web")

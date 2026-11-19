@@ -21,8 +21,11 @@ export function payloadFieldsOf(args: { pull: GithubWebhookPullRequest }): Githu
     checksPassed: 0,
     checksFailed: 0,
     checksIgnored: 0,
+    checksExpected: 0,
     checksState: null,
     mergeable: null,
+    mergeQueued: false,
+    autoMerge: args.pull.auto_merge != null,
     updatedAt: new Date(),
   }
 }

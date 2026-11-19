@@ -115,7 +115,7 @@ export const currentPullRequest = async (args: {
   cwd?: string | undefined
 }): Promise<ResolveOutcome> => {
   const view = await runGh({ ...args, argv: ['pr', 'view', '--json', 'url', '-q', '.url'] })
-  if (!view.ok) return { error: NO_PULL_REQUEST_ERROR }
+  if (!view.ok) return { error: `${NO_PULL_REQUEST_ERROR} (${view.reason})` }
   const parsed = parseTargetInput(view.text)
   return parsed.kind === 'explicit' ? resolved(parsed.target) : { error: NO_PULL_REQUEST_ERROR }
 }
@@ -130,7 +130,7 @@ const numberInCheckout = async (args: {
     cwd: args.cwd,
     argv: ['repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner'],
   })
-  if (!repo.ok) return { error: NO_REPOSITORY_ERROR }
+  if (!repo.ok) return { error: `${NO_REPOSITORY_ERROR} (${repo.reason})` }
   const target = targetOfRepo({ nameWithOwner: repo.text, number: args.number })
   return target === undefined ? { error: NO_REPOSITORY_ERROR } : resolved(target)
 }

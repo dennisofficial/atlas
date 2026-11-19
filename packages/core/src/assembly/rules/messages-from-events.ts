@@ -1,4 +1,3 @@
-import { EAgentRestart } from '../../agents/restart'
 import { agentSaid, laneNameOf, operatorSaid } from '../../context/envelope'
 import { contextBlock } from '../../context/render'
 import { currentContextEvents } from '../../context/supersede'
@@ -20,7 +19,6 @@ import {
 } from './background-shell-block'
 import { attachmentPartsOf, type DeliveryContext } from './attachment-parts'
 import { agentReportedBlock } from './agent-reported-block'
-import { agentRestartedBlock } from './agent-restarted-block'
 import { nudgeBlock } from './nudge-block'
 import { operatorStopBlock, spokenPartsOf } from './operator-stop-block'
 import { prEventBlock } from './pr-event-block'
@@ -379,18 +377,7 @@ function walkEvents({
       continue
     }
 
-    if (event.type === 'agent-restarted') {
-      if (event.via === EAgentRestart.Wake) continue
-
-      groups.push({
-        message: {
-          role: 'user',
-          content: [{ type: 'text', text: agentRestartedBlock(event) }],
-        },
-        origin: originOf(event),
-      })
-      continue
-    }
+    if (event.type === 'agent-restarted') continue
 
     if (event.type === 'tool-result' || event.type === 'tool-denied') {
       const open = openCallIds.get(event.callId) ?? []

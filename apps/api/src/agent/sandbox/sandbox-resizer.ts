@@ -1,9 +1,10 @@
 import type { ConfigSource } from '../config/agent-host-config'
 import { SandboxNotConfiguredError } from '../runtime/sandbox-not-configured-error'
 import type { SandboxProviderRegistry } from './provider-registry'
+import type { PodResizeOutcome } from './sandbox-provider'
 
 export type SandboxResizer = {
-  resize(args: { sandboxSessionId: string; vcpus: number }): Promise<void>
+  resize(args: { sandboxSessionId: string; vcpus: number }): Promise<PodResizeOutcome>
 }
 
 export const sandboxResizerOf = (args: {
@@ -15,7 +16,7 @@ export const sandboxResizerOf = (args: {
     if (config.sandbox.configured === false) {
       throw new SandboxNotConfiguredError(config.sandbox.gap)
     }
-    await args.sandbox.for(config.sandbox.provider).resize({
+    return await args.sandbox.for(config.sandbox.provider).resize({
       target: { sandboxSessionId, credentials: config.sandbox.credentials },
       vcpus,
     })

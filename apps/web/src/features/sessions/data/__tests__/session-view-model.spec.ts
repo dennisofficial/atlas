@@ -41,8 +41,10 @@ const linked = {
     title: 'Fix it',
     state: 'open',
     headSha: 'abc',
-    checks: { running: 2, passed: 3, failed: 0 },
+    checks: { running: 2, passed: 3, failed: 0, expected: 1 },
     mergeable: false,
+    mergeQueued: true,
+    autoMerge: false,
     updatedAt: '2026-11-06T10:00:00.000Z',
   },
 }
@@ -68,10 +70,13 @@ describe('pullRequestEntryOf', () => {
       checksRunning: 2,
       checksPassed: 3,
       checksFailed: 0,
+      checksExpected: 1,
       mergeable: false,
+      mergeQueued: true,
+      autoMerge: false,
       current: true,
     })
-    expect(checksTallyOf(entry)).toEqual({ running: 2, passed: 3, failed: 0, waiting: false })
+    expect(checksTallyOf(entry)).toEqual({ running: 2, passed: 3, failed: 0, expected: 1 })
   })
 
   it('leaves everything unknown when the server has no state for the pull request', () => {
@@ -113,7 +118,7 @@ describe('rowPullRequestEntryOf', () => {
       number: 7,
       url: linked.url,
       state: 'merged',
-      checks: { running: 0, passed: 4, failed: 1 },
+      checks: { running: 0, passed: 4, failed: 1, expected: 0 },
     })
     expect(entry).toMatchObject({
       state: 'merged',

@@ -5,6 +5,8 @@ import { isGithubBudgetParked } from './github-request-budget'
 import { GITHUB_RATE_LIMIT_RETRY_MS, GithubUserReadFailed } from './github-user-http'
 
 export const PR_OUTBOX_LEASE_MS = 60 * 1_000
+/** How little lease a claim must have left before its owner re-verifies it against the database. */
+export const PR_OUTBOX_RENEW_WITHIN_MS = PR_OUTBOX_LEASE_MS / 2
 export const PR_OUTBOX_MAX_ATTEMPTS = 5
 export const PR_OUTBOX_PARK_MS = 5_000
 export const PR_OUTBOX_PARK_EXPIRE_MS = 60 * 60 * 1_000
@@ -16,6 +18,8 @@ const parkExpireCutoff = (now: Date) => new Date(now.getTime() - PR_OUTBOX_PARK_
 
 export type PrOutboxClaim = {
   token: string
+  /** When the lease this claim granted runs out, so a dispatcher can tell a live lease from one it must re-check. */
+  leaseUntil: Date
   rows: readonly Row<'GithubPrOutbox'>[]
   deadLettered: readonly Row<'GithubPrOutbox'>[]
 }
@@ -120,8 +124,9 @@ export function claimPrOutboxRows(args: {
 }): Promise<PrOutboxClaim> {
   const ids = args.ids
   const token = `outbox_${randomUUID()}`
+  const leaseUntil = new Date(args.now.getTime() + PR_OUTBOX_LEASE_MS)
   if (args.limit <= 0 || ids?.length === 0) {
-    return Promise.resolve({ token, rows: [], deadLettered: [] })
+    return Promise.resolve({ token, leaseUntil, rows: [], deadLettered: [] })
   }
   return db.transaction(async (tx) => {
     const stale = await expireStaleParkedRows({ tx, now: args.now, ids, limit: args.limit })
@@ -156,14 +161,14 @@ export function claimPrOutboxRows(args: {
       })
     }
     const rows = due.filter((row) => row.attempts < PR_OUTBOX_MAX_ATTEMPTS)
-    if (rows.length === 0) return { token, rows: [], deadLettered: exhausted }
-    const leaseUntil = new Date(args.now.getTime() + PR_OUTBOX_LEASE_MS)
+    if (rows.length === 0) return { token, leaseUntil, rows: [], deadLettered: exhausted }
     await tx.orm.public.GithubPrOutbox.where((row) =>
       row.id.in(rows.map((held) => held.id)),
     ).updateAndCount({ leaseUntil, leaseOwner: token })
 
     return {
       token,
+      leaseUntil,
       rows: rows.map((row) => ({ ...row, leaseUntil, leaseOwner: token })),
       deadLettered: exhausted,
     }
@@ -184,6 +189,24 @@ export async function renewPrOutboxLease(args: {
     .updateAndCount({ leaseUntil: new Date(args.now.getTime() + PR_OUTBOX_LEASE_MS) })
 
   return renewed > 0
+}
+
+/**
+ * The fence a dispatcher passes before it runs an effect. No other dispatcher can take a row whose
+ * lease has not run out, so while more than the renewal window is left the claim is provably still
+ * ours and the check costs nothing; inside the window the lease is renewed, which both extends it
+ * over the effect and re-confirms the token still owns the row. Renewing every row on claim instead
+ * spent a single-row update per effect on a lease that had just been granted.
+ */
+export async function holdsPrOutboxLease(args: {
+  id: string
+  token: string
+  leaseUntil: Date
+  now: Date
+}): Promise<boolean> {
+  if (args.leaseUntil.getTime() - args.now.getTime() > PR_OUTBOX_RENEW_WITHIN_MS) return true
+
+  return renewPrOutboxLease({ id: args.id, token: args.token, now: args.now })
 }
 
 export async function completePrOutboxRow(args: {

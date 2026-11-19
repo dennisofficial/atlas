@@ -11,6 +11,9 @@ const stateOf = (patch: Partial<PrStateRow> & { number: number }): PrStateRow =>
   checksRunning: 1,
   checksPassed: 2,
   checksFailed: 0,
+  checksExpected: 0,
+  mergeQueued: false,
+  autoMerge: false,
   mergeable: true,
   updatedAt: '2026-11-02T12:00:00.000Z',
   closedAt: null,
@@ -44,6 +47,24 @@ describe('trackedPullRequestsOf', () => {
     })
     expect(numbers(tracked)).toEqual([7])
     expect(tracked[0]?.branch).toBe('feat')
+  })
+
+  it('carries the count of required checks still waiting', () => {
+    const tracked = trackedPullRequestsOf({
+      branches: [branchOf()],
+      subscriptions: [],
+      states: [stateOf({ number: 7, checksExpected: 2 })],
+    })
+    expect(tracked[0]?.state.checks).toEqual({ running: 1, passed: 2, failed: 0, expected: 2 })
+  })
+
+  it('carries the merge queue and auto-merge markers on the row state', () => {
+    const tracked = trackedPullRequestsOf({
+      branches: [branchOf()],
+      subscriptions: [],
+      states: [stateOf({ number: 7, mergeQueued: true, autoMerge: true })],
+    })
+    expect(tracked[0]?.state).toMatchObject({ mergeQueued: true, autoMerge: true })
   })
 
   it('drops a pull request closed before the session first saw its branch', () => {

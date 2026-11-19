@@ -11,6 +11,7 @@ import {
   SandboxProvider,
   type DaemonEndpoint,
   type SandboxTarget,
+  type PodResizeOutcome,
 } from '../../sandbox/sandbox-provider'
 import { REWAKES_BEFORE_GIVING_UP } from '../rewaking-connector'
 import { createSessionRuntimeFactory } from '../session-runtime-factory'
@@ -69,7 +70,9 @@ class DeadUrlSandbox extends SandboxProvider {
 
   async stop(): Promise<void> {}
   async keepAlive(): Promise<void> {}
-  async resize(): Promise<void> {}
+  async resize(): Promise<PodResizeOutcome> {
+    return 'restarted'
+  }
 }
 
 const timers: HostTimers = { now: () => Date.now(), ...systemTimers, random: () => 0 }
