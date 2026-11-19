@@ -1,5 +1,5 @@
 import { EWorkspaceStep, EWorkspaceStepState, type WorkspaceStepReport } from '@dltech/atlas-core'
-import type { CapturedBase, PrepareResult } from '@dltech/atlas-host'
+import type { BootNotice, CapturedBase, PrepareResult } from '@dltech/atlas-host'
 
 import type { WorkspaceConfig } from '../config/agent-host-config'
 import { captureCheckedOut, type CheckoutReport } from './workspace-checkout'
@@ -43,8 +43,16 @@ export const markMaterialized = async (args: {
   })
 }
 
-export const resultOf = (warnings: readonly string[]): Extract<PrepareResult, { ok: true }> =>
-  warnings.length === 0 ? { ok: true } : { ok: true, warnings: [...warnings] }
+export const resultOf = (args: {
+  warnings: readonly string[]
+  notices?: readonly BootNotice[] | undefined
+}): Extract<PrepareResult, { ok: true }> => ({
+  ok: true,
+  ...(args.warnings.length === 0 ? {} : { warnings: [...args.warnings] }),
+  ...(args.notices === undefined || args.notices.length === 0
+    ? {}
+    : { notices: [...args.notices] }),
+})
 
 export const prepareFailureResult = (args: {
   prepared: Extract<WorkspacePrepareOutcome, { ok: false }>
@@ -64,7 +72,7 @@ export const prepareFailureResult = (args: {
       message: 'setup script was skipped because the workspace clone failed',
     })
   }
-  return resultOf(args.warnings)
+  return resultOf({ warnings: args.warnings })
 }
 
 export const prepareWorkspace = async (args: {

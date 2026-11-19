@@ -11,6 +11,7 @@ import {
 import {
   runInCallScope,
   scopeKeyOf,
+  type BootNotice,
   type CapturedBase,
   type PrepareResult,
   type RemoteCalls,
@@ -19,17 +20,18 @@ import {
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 import type { WorkspaceConfig } from '../config/agent-host-config'
 
+import type { ScopedFileMount } from './project-files'
 import { replayCapturedBases } from './workspace-bases'
+import { mountProjectFiles } from './workspace-mounts'
 import type { CheckoutReport } from './workspace-checkout'
 import { prepareFailureResult, prepareWorkspace, resultOf } from './workspace-materialize'
-import { run } from './workspace-clone'
 import { RepoProgress, repoNamesOf } from './workspace-repos'
+import { runSetupOnce } from './workspace-setup-run'
 import {
   checkSentinels,
   clearSetupStarted,
   exists,
   fail,
-  report,
   sentinelsOf,
   stateDirOf,
   writeSentinel,
@@ -38,65 +40,7 @@ import {
 } from './workspace-state'
 
 export { MATERIALIZED_SENTINEL, SETUP_SENTINEL, WORKSPACE_STATE_DIR } from './workspace-state'
-
-const SETUP_TIMEOUT_MS = 10 * 60_000
-const SETUP_OUTPUT_TAIL_CHARS = 16_000
-const COMMAND_CHARS = 500
-export const SETUP_INTERRUPTED_REASON = 'setup was interrupted: the sandbox restarted'
-
-const runSetupOnce = async (args: {
-  deps: Deps
-  setupScript: string
-  launchDirectory: string
-  sentinels: Sentinels
-  scrub: (text: string) => string
-  onOutput?: ((text: string) => void) | undefined
-  onStep?: ((step: WorkspaceStepReport) => void) | undefined
-}): Promise<{ ok: boolean; output: string; interrupted?: boolean }> => {
-  const { deps, setupScript, launchDirectory } = args
-  const command = setupScript.trim()
-  const outcome = await run({
-    processes: deps.processes,
-    cmd: ['sh', '-c', setupScript],
-    cwd: launchDirectory,
-    timeoutMs: SETUP_TIMEOUT_MS,
-    signal: deps.signal,
-    ...(deps.env === undefined ? {} : { env: deps.env }),
-    onOutput: (text) => args.onOutput?.(args.scrub(text)),
-  })
-  const output = args.scrub(outcome.output)
-  const recorded = { command, output: output.slice(-SETUP_OUTPUT_TAIL_CHARS) }
-  const ended =
-    outcome.ok ||
-    !(outcome.interrupted === true || outcome.unknownExit === true || outcome.detached === true)
-  const forgetStarted = async (): Promise<void> => {
-    if (!ended) return
-    await clearSetupStarted({ deps, path: args.sentinels.setupStarted })
-  }
-  if (!outcome.ok) {
-    const interrupted = !ended
-    const reason = interrupted
-      ? SETUP_INTERRUPTED_REASON
-      : `workspace setup script failed (command: ${command.slice(0, COMMAND_CHARS)})`
-    report({ deps, message: reason, detail: output })
-    args.onStep?.({
-      step: EWorkspaceStep.Setup,
-      state: EWorkspaceStepState.Failed,
-      reason,
-      ...recorded,
-    })
-    await forgetStarted()
-    return { ok: false, output, ...(interrupted ? { interrupted: true } : {}) }
-  }
-  await writeSentinel({
-    deps,
-    path: args.sentinels.setupRan,
-    message: 'setup sentinel write failed; setup is not done',
-  })
-  args.onStep?.({ step: EWorkspaceStep.Setup, state: EWorkspaceStepState.Done, ...recorded })
-  await forgetStarted()
-  return { ok: true, output }
-}
+export { SETUP_INTERRUPTED_REASON } from './workspace-setup-run'
 
 const startSetupInBackground = (args: {
   deps: Deps
@@ -159,6 +103,7 @@ export const ensureWorkspace = async (args: {
   githubToken: string | null
   launchDirectory: string
   sandboxName: string
+  mounts?: readonly ScopedFileMount[] | undefined
   env?: Record<string, string> | undefined
   signal?: AbortSignal | undefined
   log?: LogPort | undefined
@@ -168,6 +113,7 @@ export const ensureWorkspace = async (args: {
   onCheckedOut?: CheckoutReport | undefined
 }): Promise<PrepareResult> => {
   const warnings: string[] = []
+  const notices: BootNotice[] = []
   const deps: Deps = {
     processes: args.processes,
     files: args.files,
@@ -181,10 +127,10 @@ export const ensureWorkspace = async (args: {
   const sentinels = sentinelsOf(stateDir)
   const scrub = (text: string): string =>
     githubToken === null ? text : text.split(githubToken).join('***')
-  const phases = ['check', 'clone', 'setup'].map((phase) =>
+  const phases = ['check', 'clone', 'files', 'setup'].map((phase) =>
     scopeFor({ sandboxName: args.sandboxName, phase }),
   )
-  const setupScope = phases[2] ?? 'setup:setup'
+  const setupScope = phases[3] ?? 'setup:setup'
   let setupInBackground = false
   let captured: readonly CapturedBase[] = []
   try {
@@ -240,6 +186,17 @@ export const ensureWorkspace = async (args: {
       await clearSetupStarted({ deps, path: sentinels.setupStarted })
     }
     args.signal?.throwIfAborted()
+    await runInCallScope({
+      scopeKey: phases[2] ?? 'setup:files',
+      body: () =>
+        mountProjectFiles({
+          deps,
+          mounts: args.mounts ?? [],
+          launchDirectory,
+          notices,
+        }),
+    })
+    args.signal?.throwIfAborted()
     const setupStarted =
       !state.setupRan &&
       state.materialized &&
@@ -278,7 +235,10 @@ export const ensureWorkspace = async (args: {
         ackScope: () => args.calls.ackScope({ scopeKey: setupScope }),
       })
     }
-    return { ...resultOf(warnings), ...(captured.length === 0 ? {} : { bases: captured }) }
+    return {
+      ...resultOf({ warnings, notices }),
+      ...(captured.length === 0 ? {} : { bases: captured }),
+    }
   } catch (error) {
     fail({ deps, message: 'workspace setup failed', detail: String(error) })
     deps.log?.error({
