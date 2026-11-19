@@ -134,6 +134,9 @@ export const routineListOf = async (scope: RoutinesFor): Promise<RoutineListOutp
   return { routines: rows.map(routineOf) }
 }
 
+export const routineGetOf = async (args: RoutinesFor & { routineId: string }): Promise<Routine> =>
+  routineOf(await routineIn(args))
+
 export const routineCreateOf = async (
   args: { userId: string; input: RoutineCreateInput } & { plane: RoutinePlane },
 ): Promise<Routine> => {

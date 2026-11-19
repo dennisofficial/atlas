@@ -576,6 +576,11 @@ export const routineUpdateInputSchema = z.strictObject({
 
 export const routineIdInputSchema = z.strictObject({ routineId: z.string().min(1) })
 
+export const routineGetInputSchema = z.strictObject({
+  routineId: z.string().min(1),
+  projectId: z.string().min(1).optional(),
+})
+
 export const routineRemoveOutputSchema = z.strictObject({ removed: z.boolean() })
 
 export const routineRunOutputSchema = z.strictObject({ sessionId: z.string().min(1) })
@@ -602,6 +607,7 @@ export type RoutineListOutput = z.infer<typeof routineListOutputSchema>
 export type RoutineCreateInput = z.infer<typeof routineCreateInputSchema>
 export type RoutineUpdateInput = z.infer<typeof routineUpdateInputSchema>
 export type RoutineIdInput = z.infer<typeof routineIdInputSchema>
+export type RoutineGetInput = z.infer<typeof routineGetInputSchema>
 export type RoutineRemoveOutput = z.infer<typeof routineRemoveOutputSchema>
 export type RoutineRunOutput = z.infer<typeof routineRunOutputSchema>
 export type RoutineRunRow = z.infer<typeof routineRunRowSchema>

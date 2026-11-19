@@ -67,6 +67,9 @@ const routinesStub: PodControlClient['routines'] = {
   list: async () => {
     throw new Error('this test lists no routines')
   },
+  get: async () => {
+    throw new Error('this test reads no routine')
+  },
   create: async () => {
     throw new Error('this test creates no routine')
   },
