@@ -1,5 +1,5 @@
 import type { Db } from '@dltech/atlas-db'
-import { describe, expect, it, mock } from 'bun:test'
+import { afterAll, beforeAll, describe, expect, it, spyOn } from 'bun:test'
 import { AWAITING_ACCESS, AwaitingAccessError } from '../../../_core/errors/awaiting-access.error'
 import type { BetterAuthSessionVerifier as Verifier } from './better-auth-session-verifier'
 
@@ -10,11 +10,18 @@ type Verified = {
 
 let current: Verified | null = null
 
-mock.module('./auth.server', () => ({
-  auth: { api: { getSession: async () => current } },
-}))
-
+const { auth } = await import('./auth.server')
 const { BetterAuthSessionVerifier } = await import('./better-auth-session-verifier')
+
+const getSession = spyOn(auth.api, 'getSession')
+
+beforeAll(() => {
+  getSession.mockImplementation((async () => current) as unknown as typeof auth.api.getSession)
+})
+
+afterAll(() => {
+  getSession.mockRestore()
+})
 
 type UserRow = { id: string; active: boolean }
 

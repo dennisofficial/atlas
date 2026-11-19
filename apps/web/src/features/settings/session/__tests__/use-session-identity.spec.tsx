@@ -2,6 +2,7 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { afterAll, afterEach, beforeAll, describe, expect, it, mock } from 'bun:test'
 import { act } from 'react'
 
+import '@/lib/__tests__/fake-trpc'
 import { createTestQueryClient, TestQueryProvider } from '@/lib/__tests__/query-test-provider'
 
 const originalFetch = globalThis.fetch
