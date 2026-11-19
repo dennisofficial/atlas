@@ -51,7 +51,7 @@ import {
   type TerminalEndedReason,
 } from './port'
 import { claimNextIn, wakeIn } from './claim-ops'
-import { withDigestViews } from './session-digest-view'
+import { markDigestPhase, withDigestViews, type DigestTimings } from './session-digest-view'
 import { readSessionViewWithCatchUp, type SessionViewRead } from './session-view-read'
 import { readEventsIn, type ReadEventsPage } from './read-events'
 import { runRoutineIn, type RunRoutineParams, type RunRoutineResult } from './routine-ops'
@@ -331,23 +331,32 @@ export class ControlPlane {
   }
 
   async listSessionDigests(
-    params: SessionListParams & { withView?: boolean | undefined },
+    params: SessionListParams & {
+      withView?: boolean | undefined
+      timings?: DigestTimings | undefined
+    },
   ): Promise<ControlSessionDigest[]> {
-    const { withView, ...list } = params
-    return this.store.transact(async (tx) =>
-      withDigestViews({
+    const { withView, timings, ...list } = params
+    const calledAt = performance.now()
+    return this.store.transact(async (tx) => {
+      markDigestPhase(timings, 'transactionMs', calledAt)
+      const rowsAt = performance.now()
+      const rows = await tx.listSessionDigests({
+        ...list,
+        limit: clampSessionLimit(list.limit),
+      })
+      markDigestPhase(timings, 'digestRowsMs', rowsAt)
+      return withDigestViews({
         tx,
         leases: this.leases,
-        rows: await tx.listSessionDigests({
-          ...list,
-          limit: clampSessionLimit(list.limit),
-        }),
+        rows,
         now: await this.nowIn(tx),
         withView: withView === true,
         eventSchema: this.eventSchema,
         pluginViews: this.pluginViews,
-      }),
-    )
+        timings,
+      })
+    })
   }
 
   async readSessionView(params: { sessionId: string; threadId: string }): Promise<SessionViewRead> {
