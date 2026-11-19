@@ -24,6 +24,7 @@ export type PodOps = {
     listener: (frame: EventFrame) => void
     onClose?: ((reason: RemoteCloseReason) => void) | undefined
   }): (() => void) | null
+  hold(args: { sessionId: string; ttlMs?: number | undefined }): boolean
   waitForHolder?(args: { sessionId: string; signal?: AbortSignal | undefined }): Promise<boolean>
 }
 
@@ -50,6 +51,7 @@ export const podOpsOf = (args: {
       return calls.invoke(input)
     },
     events: (input) => calls.events(input),
+    hold: (input) => demand.holdPanel(input),
     waitForHolder,
   }
 }

@@ -7,6 +7,8 @@ import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { createDb, createPool, type Pool } from '@dltech/atlas-db'
 import { FaultProxy } from '@dltech/atlas-host/testing'
+import { PANEL_HOLD_CHANNEL } from '@dltech/atlas-protocol'
+import { Redis } from 'ioredis'
 
 import type { EHostFault } from './host-faults'
 import { seedSession } from './rig-seed'
@@ -33,6 +35,8 @@ export type HostProcess = {
 }
 
 export type ReadEvent = { seq: number; type: string; event: unknown }
+
+export type PanelBeats = { stop(): Promise<void> }
 
 export type HostKnobs = {
   appendRetryMs?: number
@@ -76,6 +80,7 @@ export type FaultRig = {
     want: (events: readonly ReadEvent[]) => boolean
     timeoutMs?: number
   }): Promise<ReadEvent[]>
+  panelBeats(args: { sessionId: string; ttlMs: number; everyMs: number }): PanelBeats
   spawnDaemonFor(args: { sessionId: string }): Promise<RigDaemon>
   spawnHost(args: {
     label: string
@@ -177,6 +182,23 @@ export const startRig = async (args: {
       throw new Error(
         `timed out; last events: ${last.map((row) => `${row.seq}:${row.type}`).join(', ')}`,
       )
+    },
+
+    panelBeats({ sessionId, ttlMs, everyMs }) {
+      const publisher = new Redis(args.redisUrl, { lazyConnect: true, maxRetriesPerRequest: 3 })
+      const beat = (): void => {
+        void publisher
+          .publish(PANEL_HOLD_CHANNEL, JSON.stringify({ sessionId, ttlMs }))
+          .catch(() => undefined)
+      }
+      beat()
+      const timer = setInterval(beat, everyMs)
+      return {
+        async stop() {
+          clearInterval(timer)
+          await publisher.quit().catch(() => undefined)
+        },
+      }
     },
 
     async spawnDaemonFor({ sessionId }) {

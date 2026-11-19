@@ -68,11 +68,13 @@ export class SessionHolder {
     this.timers = args.timers
     this.demand = new HolderDemand({
       plane: args.plane,
+      bus: args.bus,
       timers: args.timers,
       holds: (sessionId) => this.held.has(sessionId),
       draining: () => this.draining,
       onReconcile: (sessionId) => this.onWake(sessionId),
       terminal: args.terminalDemand,
+      panel: args.panelDemand,
       log: args.log,
     })
     this.runtimes = args.runtimes
@@ -138,6 +140,7 @@ export class SessionHolder {
   private stopTriggers(): void {
     this.unsubWake?.()
     this.unsubResync?.()
+    this.demand.stop()
     this.presence.stop()
     this.loop.stop()
   }
@@ -165,6 +168,7 @@ export class SessionHolder {
   discard(): void {
     this.draining = true
     this.stopTriggers()
+    this.demand.panel.stop()
     for (const session of this.held.values()) session.discard()
   }
 

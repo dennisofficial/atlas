@@ -19,6 +19,7 @@ const opsOf = (results: CallResult[], seen: CallOp[] = []): PodOps => ({
     return ok(next)
   },
   events: () => null,
+  hold: () => true,
 })
 
 const setupFiles = (ops: PodOps) => {
@@ -60,6 +61,7 @@ describe('FilesService', () => {
     const { files, sessions } = setupFiles({
       invoke: async () => ({ state: 'unavailable', reason: ELiveOpFailure.Asleep }),
       events: () => null,
+      hold: () => true,
     })
     const sessionId = await asUser(sessions)
     await expect(files.tree({ userId: 'user-a', sessionId, directory: '' })).rejects.toBeInstanceOf(

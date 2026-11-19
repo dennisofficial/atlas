@@ -69,6 +69,7 @@ export type SessionRuntimeFactoryArgs = {
   envSecrets?: EnvSecretsSource | undefined
   projectFiles?: ProjectFilesSource | undefined
   terminalStreams?: ((sessionId: string) => number) | undefined
+  panelHolds?: ((sessionId: string) => number) | undefined
   podSizing?:
     | {
         recordPodApplied(args: {
@@ -246,6 +247,9 @@ export const createSessionRuntimeFactory = (
       ...(args.terminalStreams === undefined
         ? {}
         : { terminalStreams: () => args.terminalStreams?.(sessionId) ?? 0 }),
+      ...(args.panelHolds === undefined
+        ? {}
+        : { panelHolds: () => args.panelHolds?.(sessionId) ?? 0 }),
       model: models.main,
       get modelChoice() {
         return models.modelChoice()

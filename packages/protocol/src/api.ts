@@ -284,6 +284,7 @@ export const sessionStatusOutputSchema = z.strictObject({
   reason: z.string().optional(),
   since: z.string().optional(),
   lease: sessionLeaseSchema,
+  sandbox: sessionSandboxStatusSchema.nullable().optional(),
   queued: z.array(sessionQueuedMessageSchema).optional(),
   commands: z.array(sessionCommandRowSchema).optional(),
   pod: z
@@ -319,6 +320,16 @@ export const sessionWakeOutputSchema = z.strictObject({
 })
 export type SessionWakeInput = z.infer<typeof sessionWakeInputSchema>
 export type SessionWakeOutput = z.infer<typeof sessionWakeOutputSchema>
+
+export const sessionHoldPodInputSchema = z.strictObject({
+  sessionId: z.string().min(1),
+})
+
+export const sessionHoldPodOutputSchema = z.strictObject({
+  held: z.boolean(),
+})
+export type SessionHoldPodInput = z.infer<typeof sessionHoldPodInputSchema>
+export type SessionHoldPodOutput = z.infer<typeof sessionHoldPodOutputSchema>
 
 export const sessionViewInputSchema = z.strictObject({
   sessionId: z.string().min(1),

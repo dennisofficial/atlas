@@ -106,6 +106,7 @@ export const makeRig = async (args: {
     }))
   const script: ScriptRef = { current: args.script ?? [{ text: 'ok' }] }
   const runtimes: RigRuntime[] = []
+  let held: SessionHolder | undefined
   const runtimeFor = makeRuntimeFactory({
     daemon,
     clock,
@@ -114,6 +115,7 @@ export const makeRig = async (args: {
     watchedRepos: args.watchedRepos,
     runningShells: args.runningShells,
     terminalStreams: args.terminalStreams,
+    panelHolds: () => held?.demandOf().panel.countOf(SESSION) ?? 0,
     model: args.model,
     baseBranches: args.baseBranches,
     uploads: args.uploads,
@@ -146,6 +148,7 @@ export const makeRig = async (args: {
     ...(args.log === undefined ? {} : { log: args.log }),
     onHostIdChanged: args.onHostIdChanged,
   })
+  held = holder
 
   return {
     plane,

@@ -80,7 +80,7 @@ const isFrameStream = (value: unknown): value is AsyncIterable<unknown> =>
   typeof (value as { [Symbol.asyncIterator]?: unknown } | null)?.[Symbol.asyncIterator] ===
   'function'
 
-const DISCONNECTING_REASONS: readonly TerminalStreamClose[] = ['asleep', 'detached']
+const PARKED_REASONS: readonly TerminalStreamClose[] = ['asleep']
 
 const UNREACHABLE = "couldn't reach the session — retrying"
 
@@ -96,6 +96,8 @@ export function createTerminalTransport(args: TerminalTransportArgs): TerminalTr
   let token: symbol | undefined
   let disposed = false
   let queue: Promise<unknown> = Promise.resolve()
+  const buffered = new Map<string, string>()
+  const writing = new Set<string>()
 
   const report = (op: ETerminalOp, failure: unknown): void =>
     args.onProblem({ op, message: messageOf(failure) })
@@ -104,6 +106,20 @@ export function createTerminalTransport(args: TerminalTransportArgs): TerminalTr
     queue = queue.then(run).then(
       () => args.onProblem(undefined),
       (failure: unknown) => report(op, failure),
+    )
+  }
+
+  const flush = (terminalId: string): void => {
+    if (writing.has(terminalId)) return
+    const data = buffered.get(terminalId)
+    if (data === undefined) return
+    buffered.delete(terminalId)
+    writing.add(terminalId)
+    enqueue(ETerminalOp.Write, () =>
+      api.write({ sessionId, terminalId, data }).finally(() => {
+        writing.delete(terminalId)
+        if (!disposed) flush(terminalId)
+      }),
     )
   }
 
@@ -161,12 +177,14 @@ export function createTerminalTransport(args: TerminalTransportArgs): TerminalTr
       return
     }
     args.onClosed(frame.reason)
+    closeSubscription()
+    if (frame.reason !== 'restarted' && PARKED_REASONS.includes(frame.reason)) {
+      args.onLink(ETerminalConnection.Disconnected)
+      return
+    }
     args.onLink(
-      frame.reason === 'restarted'
-        ? ETerminalConnection.Connecting
-        : ETerminalConnection.Disconnected,
+      frame.reason === 'restarted' ? ETerminalConnection.Connecting : ETerminalConnection.Paused,
     )
-    if (DISCONNECTING_REASONS.includes(frame.reason)) closeSubscription()
   }
 
   const handleValue = (value: unknown): void => {
@@ -201,8 +219,10 @@ export function createTerminalTransport(args: TerminalTransportArgs): TerminalTr
         )
       return opened
     },
-    write: (terminalId, data) =>
-      enqueue(ETerminalOp.Write, () => api.write({ sessionId, terminalId, data })),
+    write: (terminalId, data) => {
+      buffered.set(terminalId, (buffered.get(terminalId) ?? '') + data)
+      flush(terminalId)
+    },
     resize: (terminalId, cols, rows) =>
       enqueue(ETerminalOp.Resize, () => api.resize({ sessionId, terminalId, cols, rows })),
     close: async (terminalId) => {
@@ -235,6 +255,7 @@ export function createTerminalTransport(args: TerminalTransportArgs): TerminalTr
     },
     dispose: () => {
       disposed = true
+      buffered.clear()
       closeSubscription()
     },
   }

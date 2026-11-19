@@ -3,12 +3,15 @@ import { Redis } from 'ioredis'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 import {
   liveFrameSchema,
+  PANEL_HOLD_CHANNEL,
+  panelHoldSchema,
   sessionLiveBufferKey,
   sessionLiveChannel,
   sessionShellBacklogKey,
   SHELL_BACKLOG_FRAMES,
   SHELL_BACKLOG_TTL_SECONDS,
   type LiveFrame,
+  type PanelHold,
 } from '@dltech/atlas-protocol'
 
 export const LIVE_BUFFER_TTL_SECONDS = 600
@@ -16,6 +19,8 @@ export const LIVE_BUFFER_EXPIRE_EVERY_MS = 1_000
 
 export type RedisLiveFrames = {
   live(args: { sessionId: string; frame: LiveFrame }): Promise<void>
+  hold(hold: PanelHold): Promise<void>
+  onHold(listener: (hold: PanelHold) => void): () => void
   trackedSessions(): number
   close(): Promise<void>
 }
@@ -40,7 +45,55 @@ export const createRedisLiveFrames = (args: {
   })
 
   let closing: Promise<void> | undefined
+  let subscriber: Redis | undefined
+  const holdListeners = new Set<(hold: PanelHold) => void>()
   const expiredAt = new Map<string, number>()
+
+  const receiveHold = (raw: string): void => {
+    const parsed = panelHoldSchema.safeParse(JSON.parse(raw))
+    if (!parsed.success) {
+      args.log?.error({
+        source: 'bus.hold',
+        message: 'dropping a malformed panel hold',
+        ...logFieldsOf({ error: parsed.error }),
+      })
+      return
+    }
+    for (const listener of [...holdListeners]) listener(parsed.data)
+  }
+
+  const startSubscriber = (): Redis => {
+    const client = new Redis(args.url, { lazyConnect: true, keepAlive: 10_000 })
+    client.on('error', (error: unknown) => {
+      args.log?.error({
+        source: 'bus.hold',
+        message: 'redis hold subscriber connection error',
+        ...logFieldsOf({ error }),
+      })
+    })
+    client.on('message', (_channel: string, message: string) => {
+      try {
+        receiveHold(message)
+      } catch (error: unknown) {
+        args.log?.error({
+          source: 'bus.hold',
+          message: 'dropping an unreadable panel hold',
+          ...logFieldsOf({ error }),
+        })
+      }
+    })
+    void client
+      .connect()
+      .then(() => client.subscribe(PANEL_HOLD_CHANNEL))
+      .catch((error: unknown) => {
+        args.log?.error({
+          source: 'bus.hold',
+          message: 'subscribing to panel holds failed',
+          ...logFieldsOf({ error }),
+        })
+      })
+    return client
+  }
 
   const publishStepFrame = (args: { sessionId: string; frame: LiveFrame }): Promise<unknown> => {
     const { sessionId, frame } = args
@@ -103,6 +156,28 @@ export const createRedisLiveFrames = (args: {
       })
     },
 
+    hold(hold) {
+      return publisher
+        .publish(PANEL_HOLD_CHANNEL, JSON.stringify(hold))
+        .then(() => undefined)
+        .catch((error: unknown) => {
+          args.log?.error({
+            source: 'bus.hold',
+            message: `publishing a panel hold for ${hold.sessionId} failed`,
+            ...logFieldsOf({ error }),
+          })
+          throw error
+        })
+    },
+
+    onHold(listener) {
+      subscriber ??= startSubscriber()
+      holdListeners.add(listener)
+      return () => {
+        holdListeners.delete(listener)
+      }
+    },
+
     trackedSessions() {
       return expiredAt.size
     },
@@ -119,6 +194,7 @@ export const createRedisLiveFrames = (args: {
         },
       )
       await closing
+      await subscriber?.quit().catch(() => undefined)
     },
   }
 }

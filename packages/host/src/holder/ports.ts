@@ -25,6 +25,8 @@ export type HostBus = {
   onWake(listener: (sessionId: string) => void): () => void
   onResync(listener: () => void): () => void
   live(args: { sessionId: string; frame: LiveFrame }): Promise<void>
+  panelHold(args: { sessionId: string; ttlMs: number }): Promise<void>
+  onPanelHold(listener: (hold: { sessionId: string; ttlMs: number }) => void): () => void
 }
 
 export const fireLive = (args: { bus: HostBus; sessionId: string; frame: LiveFrame }): void => {
@@ -96,6 +98,7 @@ export type SessionRuntime = {
   plugins?: ComposedPlugins | undefined
   runningShells(): Promise<number>
   terminalStreams?: (() => number) | undefined
+  panelHolds?: (() => number) | undefined
   env?: (() => Promise<Record<string, string>>) | undefined
   prepare(onStep?: PrepareStepReporter): Promise<PrepareResult>
   subscribePrepareOutput?(listener: (text: string) => void): void

@@ -14,6 +14,11 @@ const encoded = (text: string): string => btoa(text)
 
 type Failures = { open?: Error; write?: Error; resize?: Error }
 
+type Options = Failures & {
+  read?: { offset: number; data: string; totalBytes: number }
+  writeGate?: Promise<void>
+}
+
 type Harness = {
   transport: ReturnType<typeof createTerminalTransport>
   send: (frame: unknown) => void
@@ -27,9 +32,7 @@ type Harness = {
   writes: string[]
 }
 
-function harness(
-  options: { read?: { offset: number; data: string; totalBytes: number } } & Failures = {},
-) {
+function harness(options: Options = {}) {
   const readOffsets: number[] = []
   const outputs: Harness['outputs'] = []
   const links: ETerminalConnection[] = []
@@ -57,6 +60,7 @@ function harness(
     rename: async () => ({ state: 'done' }),
     write: async (input) => {
       failOnce(take('write'))
+      await options.writeGate
       writes.push(input.data)
       return { state: 'done' }
     },
@@ -158,6 +162,34 @@ describe('terminal transport', () => {
     await tick()
     expect(test.problems.at(-1)).toBeUndefined()
     expect(test.writes).toEqual(['pwd\n'])
+  })
+
+  it('sends the keystrokes that arrive during a write as one write', async () => {
+    let release = (): void => undefined
+    const writeGate = new Promise<void>((resolve) => (release = resolve))
+    const test = harness({ writeGate })
+    test.transport.write('t1', 'a')
+    test.transport.write('t1', 'b')
+    test.transport.write('t1', 'c')
+    await tick()
+    expect(test.writes).toEqual([])
+    release()
+    await tick()
+    await tick()
+    expect(test.writes).toEqual(['a', 'bc'])
+  })
+
+  it('reconnects after a detached close instead of showing the pod asleep', () => {
+    const test = harness()
+    test.send({ type: 'closed', reason: 'detached' })
+    expect(test.links.at(-1)).toBe(ETerminalConnection.Paused)
+    expect(test.unsubscribed()).toBe(1)
+  })
+
+  it('shows the pod asleep when the close reason is parked', () => {
+    const test = harness()
+    test.send({ type: 'closed', reason: 'asleep' })
+    expect(test.links.at(-1)).toBe(ETerminalConnection.Disconnected)
   })
 
   it('falls back to its own wording when a failure carries no message', async () => {
