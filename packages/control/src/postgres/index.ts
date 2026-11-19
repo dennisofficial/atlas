@@ -1,5 +1,9 @@
 export { PostgresControlStore } from './postgres-store'
 export { softDeleteArchivedSessionsIn } from './postgres-session-writes'
-export { announceSessionChangesIn, sessionsTrackingHeadIn } from './postgres-views'
+export {
+  announceSessionChangesIn,
+  sessionsTrackingHeadIn,
+  sessionsTrackingPullRequestIn,
+} from './postgres-views'
 export { postInboxEntryIn } from './postgres-post'
 export { threadOwnerOf, type ThreadOwner } from './postgres-thread-owner'

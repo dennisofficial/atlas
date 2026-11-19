@@ -5,6 +5,7 @@ namespace v2 {
     headRepo     String
     branch       String
     firstSeenSeq Int
+    firstSeenAt  TimestamptzJsDate(3)?
     session      V2Session @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
     @@id([sessionId, headRepo, branch])

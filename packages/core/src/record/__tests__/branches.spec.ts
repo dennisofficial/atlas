@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
 import { chainEvents } from '../chain-events'
-import { branchesChanged, branchesObservedSchema, type BranchObservation } from '../branches'
+import {
+  branchesChanged,
+  branchesObservedSchema,
+  observationChanged,
+  type BranchObservation,
+} from '../branches'
 import { v2EventSchema } from '../event'
 import { NOW, runId, threadId } from './support'
 
@@ -31,6 +36,18 @@ describe('branchesObservedSchema', () => {
     expect(event?.type).toBe('branches-observed')
     const parsed = v2EventSchema.parse(event)
     expect(parsed.type).toBe('branches-observed')
+  })
+
+  it('round-trips the remote default branch', () => {
+    const [event] = recorded(observation({ defaultBranch: 'main' }))
+    const parsed = v2EventSchema.parse(event)
+    expect(parsed.type === 'branches-observed' ? parsed.defaultBranch : null).toBe('main')
+  })
+
+  it('treats a missing default branch and a null one alike', () => {
+    expect(
+      observationChanged({ last: observation(), set: observation({ defaultBranch: null }) }),
+    ).toBe(false)
   })
 
   it('rejects a missing head field', () => {

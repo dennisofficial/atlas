@@ -29,6 +29,7 @@ export const branchSetSchema = z
   .object({
     repoPath: z.string().min(1),
     head: z.string().min(1).nullable(),
+    defaultBranch: z.string().min(1).nullable().optional(),
     branches: z.array(gitBranchSchema),
     worktrees: z.array(gitWorktreeSchema),
     remotes: z.array(gitRemoteSchema),

@@ -161,6 +161,28 @@ describe('BranchObserver', () => {
     await daemon.stop()
   })
 
+  it('falls back to the remote default branch when no base is configured', async () => {
+    const daemon = await makeDaemon({ count: 0 }, 'main')
+    const calls = connect(daemon)
+    const record = fakeRecord()
+    await calls.ready()
+    await observerOver({ record, calls, baseOf: () => null }).refresh()
+    expect(record.appended[0]?.base).toBe('main')
+    calls.close()
+    await daemon.stop()
+  })
+
+  it('prefers a configured base over the remote default branch', async () => {
+    const daemon = await makeDaemon({ count: 0 }, 'main')
+    const calls = connect(daemon)
+    const record = fakeRecord()
+    await calls.ready()
+    await observerOver({ record, calls, baseOf: () => 'develop' }).refresh()
+    expect(record.appended[0]?.base).toBe('develop')
+    calls.close()
+    await daemon.stop()
+  })
+
   it('a new holder reads the remembered base instead of the current head', async () => {
     const daemon = await makeDaemon()
     const calls = connect(daemon)

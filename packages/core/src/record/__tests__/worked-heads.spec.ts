@@ -40,6 +40,20 @@ describe('workedHeadsOf', () => {
     expect(heads).toEqual([{ headRepo: 'dennis/app', branch: 'feat-fork' }])
   })
 
+  it('maps a fork branch whose push remote is a URL, as gh pr checkout leaves it', () => {
+    const heads = workedHeadsOf({
+      observation: observation({
+        head: 'pr-899',
+        branches: [
+          { name: 'main', sha: 'bbb222', pushRemote: null },
+          { name: 'pr-899', sha: 'ccc333', pushRemote: 'https://github.com/dennis/app.git' },
+        ],
+      }),
+      base: 'main',
+    })
+    expect(heads).toEqual([{ headRepo: 'dennis/app', branch: 'pr-899' }])
+  })
+
   it('keeps branches the session left behind, in checkout order', () => {
     const heads = workedHeadsOf({
       observation: observation({ checkouts: ['feat-gone', 'feat-a'] }),

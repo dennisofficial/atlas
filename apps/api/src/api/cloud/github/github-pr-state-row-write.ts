@@ -1,4 +1,8 @@
-import { announceSessionChangesIn, sessionsTrackingHeadIn } from '@dltech/atlas-control/postgres'
+import {
+  announceSessionChangesIn,
+  sessionsTrackingHeadIn,
+  sessionsTrackingPullRequestIn,
+} from '@dltech/atlas-control/postgres'
 import type {
   EStoredChecksState,
   MergeabilitySample,
@@ -92,15 +96,22 @@ export async function writePrStateRow(args: {
     create: { repoFullName: args.repoFullName, prNumber: args.prNumber, ...fields },
     update: fields,
   })
-  if (row.headRepoFullName !== null) {
-    await announceSessionChangesIn({
+  const tracked = [
+    ...(row.headRepoFullName === null
+      ? []
+      : await sessionsTrackingHeadIn({
+          tx: args.tx,
+          headRepo: row.headRepoFullName,
+          branch: row.headBranch,
+        })),
+    ...(await sessionsTrackingPullRequestIn({
       tx: args.tx,
-      sessionIds: await sessionsTrackingHeadIn({
-        tx: args.tx,
-        headRepo: row.headRepoFullName,
-        branch: row.headBranch,
-      }),
-    })
+      repo: row.repoFullName,
+      number: row.prNumber,
+    })),
+  ]
+  if (tracked.length > 0) {
+    await announceSessionChangesIn({ tx: args.tx, sessionIds: [...new Set(tracked)] })
   }
 
   return row

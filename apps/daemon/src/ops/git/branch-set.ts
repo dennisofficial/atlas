@@ -57,6 +57,15 @@ export const parseCheckouts = (texts: readonly string[]): readonly string[] => {
   return [...new Set(targets)].slice(0, MAX_CHECKOUTS)
 }
 
+const DEFAULT_BRANCH_PREFIX = 'origin/'
+
+export const parseDefaultBranch = (text: string): string | null => {
+  const name = text.trim()
+  if (!name.startsWith(DEFAULT_BRANCH_PREFIX)) return null
+  const branch = name.slice(DEFAULT_BRANCH_PREFIX.length)
+  return branch === '' ? null : branch
+}
+
 export const parseHead = (text: string): string | null => {
   const ref = text.trim()
   return ref === '' ? null : ref

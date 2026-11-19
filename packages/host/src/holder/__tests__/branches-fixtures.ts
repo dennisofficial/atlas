@@ -28,7 +28,16 @@ export const CHANGED: BranchSet = {
   branches: [...SET.branches, { name: 'feat-x', sha: 'bbb222', pushRemote: null }],
 }
 
-export const publishingGitGroup = (reads: { count: number }): DaemonGroupFactory => {
+const withDefaultBranch = (args: { set: BranchSet; defaultBranch: string | null }): BranchSet =>
+  args.defaultBranch === null ? args.set : { ...args.set, defaultBranch: args.defaultBranch }
+
+const readSet = (args: { set: BranchSet; defaultBranch: string | null }): BranchSet =>
+  withDefaultBranch(args)
+
+export const publishingGitGroup = (args: {
+  reads: { count: number }
+  defaultBranch: string | null
+}): DaemonGroupFactory => {
   return () => ({
     name: 'git',
     ops: [
@@ -37,9 +46,15 @@ export const publishingGitGroup = (reads: { count: number }): DaemonGroupFactory
         run: async ({ op, ctx: callCtx }) => {
           callCtx.publish({
             type: 'git.branches',
-            set: { ...SET, repoPath: op.repoPath },
+            set: readSet({
+              set: { ...SET, repoPath: op.repoPath },
+              defaultBranch: args.defaultBranch,
+            }),
           })
-          return { ...SET, repoPath: op.repoPath }
+          return readSet({
+            set: { ...SET, repoPath: op.repoPath },
+            defaultBranch: args.defaultBranch,
+          })
         },
       }),
       defineOp({
@@ -49,20 +64,26 @@ export const publishingGitGroup = (reads: { count: number }): DaemonGroupFactory
       defineOp({
         op: 'git.read',
         run: async ({ op }) => {
-          reads.count += 1
-          return { ...CHANGED, repoPath: op.repoPath }
+          args.reads.count += 1
+          return readSet({
+            set: { ...CHANGED, repoPath: op.repoPath },
+            defaultBranch: args.defaultBranch,
+          })
         },
       }),
     ],
   })
 }
 
-export const makeDaemon = (reads: { count: number } = { count: 0 }) =>
+export const makeDaemon = (
+  reads: { count: number } = { count: 0 },
+  defaultBranch: string | null = null,
+) =>
   createInMemoryDaemon({
     version: 'test',
     sandboxName: SANDBOX,
     secret: SECRET,
-    groups: () => [publishingGitGroup(reads)],
+    groups: () => [publishingGitGroup({ reads, defaultBranch })],
   })
 
 export const connect = (daemon: Awaited<ReturnType<typeof makeDaemon>>): RemoteCalls => {

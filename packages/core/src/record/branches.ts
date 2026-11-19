@@ -28,6 +28,7 @@ export const branchesObservedSchema = z.object({
   type: z.literal('branches-observed'),
   repo: z.string().min(1),
   head: z.string().min(1).nullable(),
+  defaultBranch: z.string().min(1).nullable().optional(),
   base: z.string().min(1).nullable().optional(),
   branches: z.array(observedBranchSchema),
   worktrees: z.array(observedWorktreeSchema),
@@ -43,6 +44,7 @@ export type BranchesObserved = z.infer<typeof branchesObservedSchema>
 export type BranchObservation = {
   repo: string
   head: string | null
+  defaultBranch?: string | null | undefined
   base?: string | null | undefined
   branches: ObservedBranch[]
   worktrees: ObservedWorktree[]
@@ -68,6 +70,7 @@ const canonicalBranch = (branch: ObservedBranch) => ({
 export const canonicalObservation = (observation: BranchObservation): string =>
   canonicalJson({
     head: observation.head,
+    ...(observation.defaultBranch == null ? {} : { defaultBranch: observation.defaultBranch }),
     ...(observation.base === undefined ? {} : { base: observation.base }),
     branches: [...observation.branches].sort(byName).map(canonicalBranch),
     worktrees: [...observation.worktrees].sort(byPath),

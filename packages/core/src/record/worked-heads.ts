@@ -14,6 +14,13 @@ const namesOf = (observation: BranchObservation): readonly string[] => {
   return [...new Set(names)]
 }
 
+const headRepoOf = (args: { remote: string; urlOfRemote: Map<string, string> }): string | null => {
+  const direct = githubRepoOfRemoteUrl(args.remote)
+  if (direct !== null) return direct
+  const url = args.urlOfRemote.get(args.remote) ?? args.urlOfRemote.get(DEFAULT_REMOTE)
+  return url === undefined ? null : githubRepoOfRemoteUrl(url)
+}
+
 export const workedHeadsOf = (args: {
   observation: BranchObservation
   base: string | null
@@ -28,9 +35,7 @@ export const workedHeadsOf = (args: {
   for (const branch of namesOf(args.observation)) {
     if (branch === args.base) continue
     const remote = pushRemoteOfBranch.get(branch) ?? DEFAULT_REMOTE
-    const url = urlOfRemote.get(remote) ?? urlOfRemote.get(DEFAULT_REMOTE)
-    if (url === undefined) continue
-    const headRepo = githubRepoOfRemoteUrl(url)
+    const headRepo = headRepoOf({ remote, urlOfRemote })
     if (headRepo === null) continue
     heads.push({ headRepo, branch })
   }

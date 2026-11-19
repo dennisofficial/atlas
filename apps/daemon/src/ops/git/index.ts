@@ -11,6 +11,7 @@ import {
   branchSetsEqual,
   parseBranches,
   parseCheckouts,
+  parseDefaultBranch,
   parseHead,
   parseRemotes,
   parseWorktrees,
@@ -36,6 +37,7 @@ type WatchedRepo = {
 const emptySetFor = (repoPath: string): BranchSet => ({
   repoPath,
   head: null,
+  defaultBranch: null,
   branches: [],
   worktrees: [],
   remotes: [],
@@ -47,13 +49,18 @@ const readBranchSet = async (args: {
   repoPath: string
 }): Promise<BranchSet> => {
   const gitDir = await commonGitDirOf({ deps: args.deps, repoPath: args.repoPath })
-  const [refs, head, worktreeList, remoteConfig, reflogTexts] = await Promise.all([
+  const [refs, head, defaultBranch, worktreeList, remoteConfig, reflogTexts] = await Promise.all([
     runGit({
       deps: args.deps,
       repoPath: args.repoPath,
       argv: ['for-each-ref', REF_FORMAT, 'refs/heads'],
     }),
     runGit({ deps: args.deps, repoPath: args.repoPath, argv: ['branch', '--show-current'] }),
+    runGitOrEmpty({
+      deps: args.deps,
+      repoPath: args.repoPath,
+      argv: ['symbolic-ref', '--quiet', '--short', 'refs/remotes/origin/HEAD'],
+    }),
     runGit({ deps: args.deps, repoPath: args.repoPath, argv: ['worktree', 'list', '--porcelain'] }),
     runGitOrEmpty({
       deps: args.deps,
@@ -65,6 +72,7 @@ const readBranchSet = async (args: {
   return {
     repoPath: args.repoPath,
     head: parseHead(head),
+    defaultBranch: parseDefaultBranch(defaultBranch),
     branches: [...parseBranches(refs)],
     worktrees: [...parseWorktrees({ text: worktreeList, repoPath: args.repoPath })],
     remotes: [...parseRemotes(remoteConfig)],

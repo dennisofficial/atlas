@@ -1,10 +1,19 @@
-import type { PrHead, SessionBranchRow, SessionViewRow, TrackedPullRequestRow } from '../../port'
+import type {
+  PrHead,
+  PrRef,
+  SessionBranchRow,
+  SessionPullRequestRow,
+  SessionViewRow,
+  TrackedPullRequestRow,
+} from '../../port'
 import type { State } from './memory-state'
 import {
   insertSessionBranchesIn,
+  insertSessionPullRequestsIn,
   readSessionViewIn,
   readTrackedPullRequestsIn,
   sessionsTrackingHeadIn,
+  sessionsTrackingPullRequestIn,
   writeSessionViewIn,
 } from './memory-views'
 
@@ -27,8 +36,16 @@ export class MemoryTxViews {
     insertSessionBranchesIn({ state: this.state, rows })
   }
 
+  async insertSessionPullRequests(rows: readonly SessionPullRequestRow[]): Promise<void> {
+    insertSessionPullRequestsIn({ state: this.state, rows })
+  }
+
   async sessionsTrackingHead(head: PrHead): Promise<string[]> {
     return sessionsTrackingHeadIn({ state: this.state, head })
+  }
+
+  async sessionsTrackingPullRequest(pullRequest: PrRef): Promise<string[]> {
+    return sessionsTrackingPullRequestIn({ state: this.state, pullRequest })
   }
 
   async readTrackedPullRequests(sessionIds: readonly string[]): Promise<TrackedPullRequestRow[]> {

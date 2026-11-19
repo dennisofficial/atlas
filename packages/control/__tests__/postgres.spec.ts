@@ -100,8 +100,8 @@ const conformanceParams = {
   holdPresence: (hostId: number) => holdLock({ hostId, fn: 'pg_advisory_lock' }),
   seedPrState: async (row: PrStateRow) => {
     await testDb().pool.query(
-      `INSERT INTO "GithubPrState" ("repoFullName", "prNumber", "title", "url", "state", "headBranch", "headRepoFullName", "headSha", "checksRunning", "checksPassed", "checksFailed", "mergeable", "updatedAt")
-       VALUES ($1, $2, $3, 'https://x', $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+      `INSERT INTO "GithubPrState" ("repoFullName", "prNumber", "title", "url", "state", "headBranch", "headRepoFullName", "headSha", "checksRunning", "checksPassed", "checksFailed", "mergeable", "updatedAt", "closedAt", "mergedAt")
+       VALUES ($1, $2, $3, 'https://x', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
       [
         row.repo,
         row.number,
@@ -115,6 +115,8 @@ const conformanceParams = {
         row.checksFailed,
         row.mergeable,
         row.updatedAt,
+        row.closedAt ?? null,
+        row.mergedAt ?? null,
       ],
     )
   },

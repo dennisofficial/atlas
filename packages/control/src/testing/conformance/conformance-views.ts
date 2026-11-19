@@ -10,8 +10,9 @@ import {
 import { decodeViewState, encodeViewState } from '../../session-view-codec'
 import type { PrStateRow } from '../../port'
 import type { ConformanceParams } from './conformance'
-import { branches, forkBranches, linked, prStateOf, reading } from './conformance-views.fixture'
+import { branches, linked, prStateOf, reading } from './conformance-views.fixture'
 import { describeControlPlaneDigests } from './conformance-views.digests'
+import { describeControlPlanePullRequestViews } from './conformance-views.pull-requests'
 import {
   appendBodies,
   makeHarness,
@@ -27,6 +28,7 @@ import {
 
 export function describeControlPlaneViews(params: ConformanceParams): void {
   describeControlPlaneDigests(params)
+  describeControlPlanePullRequestViews(params)
   describe(`ControlPlane session view (${params.name})`, () => {
     let harness: Harness
     let epoch: number
@@ -129,60 +131,6 @@ export function describeControlPlaneViews(params: ConformanceParams): void {
           },
         },
       ])
-    })
-
-    it('keeps a tracked pull request once the branch leaves the observation', async () => {
-      await seedPr(prStateOf({ number: 7, state: 'open', updatedAt: '2026-11-02T12:00:00.000Z' }))
-      await appendBodies({ harness, epoch, bodies: [branches] })
-      await appendBodies({
-        harness,
-        epoch,
-        bodies: [
-          {
-            type: 'branches-observed',
-            repo: '/work/app',
-            head: 'other',
-            base: 'main',
-            branches: [{ name: 'other', sha: 'c3' }],
-            worktrees: [],
-            remotes: [{ name: 'origin', url: 'git@github.com:Acme/App.git' }],
-          },
-        ],
-      })
-      const read = await view()
-      expect(read.value.pullRequests.map((pullRequest) => pullRequest.number)).toEqual([7])
-    })
-
-    it('keeps a tracked pull request through a rewind', async () => {
-      await seedPr(prStateOf({ number: 7, state: 'open', updatedAt: '2026-11-02T12:00:00.000Z' }))
-      await appendBodies({ harness, epoch, bodies: [said('a'), branches] })
-      await appendBodies({ harness, epoch, bodies: [{ type: 'history-rewound', toSeq: 1 }] })
-      const read = await view()
-      expect(read.value.pullRequests.map((pullRequest) => pullRequest.number)).toEqual([7])
-    })
-
-    it('matches a fork head to the pull request opened upstream', async () => {
-      await seedPr(
-        prStateOf({
-          number: 9,
-          state: 'open',
-          updatedAt: '2026-11-02T12:00:00.000Z',
-          headRepoFullName: 'fork/app',
-        }),
-      )
-      await appendBodies({ harness, epoch, bodies: [forkBranches] })
-      const read = await view()
-      expect(read.value.pullRequests).toMatchObject([
-        { repo: 'acme/app', number: 9, branch: 'feat' },
-      ])
-    })
-
-    it('orders an open pull request ahead of a merged one on the same head', async () => {
-      await seedPr(prStateOf({ number: 7, state: 'merged', updatedAt: '2026-11-03T12:00:00.000Z' }))
-      await seedPr(prStateOf({ number: 8, state: 'open', updatedAt: '2026-11-02T12:00:00.000Z' }))
-      await appendBodies({ harness, epoch, bodies: [branches] })
-      const read = await view()
-      expect(read.value.pullRequests.map((pullRequest) => pullRequest.number)).toEqual([8, 7])
     })
 
     it('finds the sessions tracking a head', async () => {

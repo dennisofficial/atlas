@@ -272,6 +272,10 @@
       "model": "V2SessionBranch",
       "namespace": "v2"
     },
+    "V2SessionPullRequest": {
+      "model": "V2SessionPullRequest",
+      "namespace": "v2"
+    },
     "V2SessionView": {
       "model": "V2SessionView",
       "namespace": "v2"
@@ -9898,6 +9902,21 @@
                   "namespace": "v2"
                 }
               },
+              "pullRequests": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "sessionId"
+                  ]
+                },
+                "to": {
+                  "model": "V2SessionPullRequest",
+                  "namespace": "v2"
+                }
+              },
               "threads": {
                 "cardinality": "1:N",
                 "on": {
@@ -10018,6 +10037,16 @@
                   "kind": "scalar"
                 }
               },
+              "firstSeenAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
               "firstSeenSeq": {
                 "nullable": false,
                 "type": {
@@ -10063,6 +10092,9 @@
                 "branch": {
                   "column": "branch"
                 },
+                "firstSeenAt": {
+                  "column": "firstSeenAt"
+                },
                 "firstSeenSeq": {
                   "column": "firstSeenSeq"
                 },
@@ -10075,6 +10107,64 @@
               },
               "namespaceId": "v2",
               "table": "V2SessionBranch"
+            }
+          },
+          "V2SessionPullRequest": {
+            "fields": {
+              "prNumber": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "repoFullName": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "sessionId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "session": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "sessionId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "V2Session",
+                  "namespace": "v2"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "prNumber": {
+                  "column": "prNumber"
+                },
+                "repoFullName": {
+                  "column": "repoFullName"
+                },
+                "sessionId": {
+                  "column": "sessionId"
+                }
+              },
+              "namespaceId": "v2",
+              "table": "V2SessionPullRequest"
             }
           },
           "V2SessionView": {
@@ -17858,6 +17948,14 @@
                   "dataType": "pg/text",
                   "nullable": false
                 },
+                "firstSeenAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
                 "firstSeenSeq": {
                   "codecId": "pg/int4@1",
                   "dataType": "pg/int4",
@@ -17921,6 +18019,75 @@
                   "sessionId",
                   "headRepo",
                   "branch"
+                ]
+              },
+              "uniques": []
+            },
+            "V2SessionPullRequest": {
+              "columns": {
+                "prNumber": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": false
+                },
+                "repoFullName": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "sessionId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "name": "V2SessionPullRequest_sessionId_idx_29f415d4"
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "sessionId"
+                    ],
+                    "namespaceId": "v2",
+                    "tableName": "V2SessionPullRequest"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "v2",
+                    "tableName": "V2Session"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "repoFullName",
+                    "prNumber"
+                  ],
+                  "name": "V2SessionPullRequest_repoFullName_prNumber_idx_af81cccf",
+                  "prefix": "V2SessionPullRequest_repoFullName_prNumber_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "sessionId"
+                  ],
+                  "name": "V2SessionPullRequest_sessionId_idx_29f415d4",
+                  "prefix": "V2SessionPullRequest_sessionId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "sessionId",
+                  "repoFullName",
+                  "prNumber"
                 ]
               },
               "uniques": []
@@ -18257,7 +18424,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "03c0fe7f2588b74aae34cffb0265f9af9108958a14f20512e7c639a359f1e2cb"
+    "storageHash": "fcd0e8a3d02428ea66ea8ed6d1f8be1c1e8803014b295892f5940eef1429c933"
   },
   "execution": {
     "executionHash": "4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45",

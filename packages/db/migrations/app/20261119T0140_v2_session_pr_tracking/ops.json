@@ -1,0 +1,252 @@
+[
+  {
+    "id": "table.V2SessionPullRequest",
+    "label": "Create table \"V2SessionPullRequest\"",
+    "summary": "Creates table \"V2SessionPullRequest\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2SessionPullRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"V2SessionPullRequest\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2SessionPullRequest\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"V2SessionPullRequest\"",
+        "sql": "CREATE TABLE \"v2\".\"V2SessionPullRequest\" (\n  \"prNumber\" int4 NOT NULL,\n  \"repoFullName\" text NOT NULL,\n  \"sessionId\" text NOT NULL,\n  PRIMARY KEY (\"sessionId\", \"repoFullName\", \"prNumber\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"V2SessionPullRequest\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2SessionPullRequest\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.v2.V2SessionBranch.firstSeenAt",
+    "label": "Add column \"firstSeenAt\" to \"V2SessionBranch\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "column",
+        "name": "firstSeenAt",
+        "table": "V2SessionBranch"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"firstSeenAt\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2SessionBranch",
+          "firstSeenAt"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"firstSeenAt\"",
+        "sql": "ALTER TABLE \"v2\".\"V2SessionBranch\" ADD COLUMN \"firstSeenAt\" timestamptz(3)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"firstSeenAt\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2SessionBranch",
+          "firstSeenAt"
+        ]
+      },
+      {
+        "description": "verify column \"firstSeenAt\" has type \"timestamp(3) with time zone\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "v2",
+          "V2SessionBranch",
+          "firstSeenAt",
+          "timestamp(3) with time zone"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "data.v2-session-branch-first-seen-at-backfill",
+    "label": "Backfill V2SessionBranch.firstSeenAt from the branches-observed event that first saw it",
+    "operationClass": "data",
+    "target": {
+      "id": "table.V2SessionBranch",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2SessionBranch"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Backfill V2SessionBranch.firstSeenAt from V2Event.at",
+        "sql": "UPDATE \"v2\".\"V2SessionBranch\" b\nSET \"firstSeenAt\" = seen.\"at\"\nFROM (\n  SELECT t.\"sessionId\", e.\"seq\", MIN(e.\"at\") AS \"at\"\n  FROM \"v2\".\"V2Event\" e\n  JOIN \"v2\".\"V2Thread\" t ON t.\"id\" = e.\"threadId\"\n  WHERE e.\"type\" = 'branches-observed'\n  GROUP BY t.\"sessionId\", e.\"seq\"\n) seen\nWHERE seen.\"sessionId\" = b.\"sessionId\" AND seen.\"seq\" = b.\"firstSeenSeq\" AND b.\"firstSeenAt\" IS NULL"
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "index.V2SessionPullRequest.V2SessionPullRequest_repoFullName_prNumber_idx_af81cccf",
+    "label": "Create index \"V2SessionPullRequest_repoFullName_prNumber_idx_af81cccf\" on \"V2SessionPullRequest\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "index",
+        "name": "V2SessionPullRequest_repoFullName_prNumber_idx_af81cccf",
+        "table": "V2SessionPullRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"V2SessionPullRequest_repoFullName_prNumber_idx_af81cccf\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2SessionPullRequest_repoFullName_prNumber_idx_af81cccf\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"V2SessionPullRequest_repoFullName_prNumber_idx_af81cccf\"",
+        "sql": "CREATE INDEX \"V2SessionPullRequest_repoFullName_prNumber_idx_af81cccf\" ON \"v2\".\"V2SessionPullRequest\" (\"repoFullName\", \"prNumber\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"V2SessionPullRequest_repoFullName_prNumber_idx_af81cccf\" exists on \"V2SessionPullRequest\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2SessionPullRequest_repoFullName_prNumber_idx_af81cccf\"",
+          "i",
+          "I",
+          "\"v2\".\"V2SessionPullRequest\"",
+          "btree",
+          "[\"repoFullName\",\"prNumber\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.V2SessionPullRequest.V2SessionPullRequest_sessionId_idx_29f415d4",
+    "label": "Create index \"V2SessionPullRequest_sessionId_idx_29f415d4\" on \"V2SessionPullRequest\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "index",
+        "name": "V2SessionPullRequest_sessionId_idx_29f415d4",
+        "table": "V2SessionPullRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"V2SessionPullRequest_sessionId_idx_29f415d4\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2SessionPullRequest_sessionId_idx_29f415d4\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"V2SessionPullRequest_sessionId_idx_29f415d4\"",
+        "sql": "CREATE INDEX \"V2SessionPullRequest_sessionId_idx_29f415d4\" ON \"v2\".\"V2SessionPullRequest\" (\"sessionId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"V2SessionPullRequest_sessionId_idx_29f415d4\" exists on \"V2SessionPullRequest\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2SessionPullRequest_sessionId_idx_29f415d4\"",
+          "i",
+          "I",
+          "\"v2\".\"V2SessionPullRequest\"",
+          "btree",
+          "[\"sessionId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.V2SessionPullRequest.V2SessionPullRequest_sessionId_fkey",
+    "label": "Add foreign key \"V2SessionPullRequest_sessionId_fkey\" on \"V2SessionPullRequest\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "foreignKey",
+        "name": "V2SessionPullRequest_sessionId_fkey",
+        "table": "V2SessionPullRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"V2SessionPullRequest_sessionId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "V2SessionPullRequest_sessionId_fkey",
+          "v2",
+          "\"v2\".\"V2SessionPullRequest\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"V2SessionPullRequest_sessionId_fkey\"",
+        "sql": "ALTER TABLE \"v2\".\"V2SessionPullRequest\"\nADD CONSTRAINT \"V2SessionPullRequest_sessionId_fkey\"\nFOREIGN KEY (\"sessionId\")\nREFERENCES \"v2\".\"V2Session\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"V2SessionPullRequest_sessionId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "V2SessionPullRequest_sessionId_fkey",
+          "v2",
+          "\"v2\".\"V2SessionPullRequest\"",
+          "f",
+          "[\"sessionId\"]",
+          "\"v2\".\"V2Session\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  }
+]

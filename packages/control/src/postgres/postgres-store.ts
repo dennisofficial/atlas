@@ -29,7 +29,9 @@ import {
   type SessionDigestRow,
   type SessionListParams,
   type PrHead,
+  type PrRef,
   type SessionBranchRow,
+  type SessionPullRequestRow,
   type SessionViewRow,
   type TrackedPullRequestRow,
   type WorktreeChangesRead,
@@ -78,9 +80,11 @@ import {
 } from './postgres-inbox'
 import {
   insertSessionBranchesIn,
+  insertSessionPullRequestsIn,
   readSessionViewIn,
   readTrackedPullRequestsIn,
   sessionsTrackingHeadIn,
+  sessionsTrackingPullRequestIn,
   writeSessionViewIn,
 } from './postgres-views'
 import {
@@ -368,8 +372,16 @@ class PostgresTx implements ControlTx {
     await insertSessionBranchesIn({ tx: this.tx, rows })
   }
 
+  async insertSessionPullRequests(rows: readonly SessionPullRequestRow[]): Promise<void> {
+    await insertSessionPullRequestsIn({ tx: this.tx, rows })
+  }
+
   async sessionsTrackingHead(head: PrHead): Promise<string[]> {
     return sessionsTrackingHeadIn({ tx: this.tx, ...head })
+  }
+
+  async sessionsTrackingPullRequest(pullRequest: PrRef): Promise<string[]> {
+    return sessionsTrackingPullRequestIn({ tx: this.tx, ...pullRequest })
   }
 
   async readTrackedPullRequests(sessionIds: readonly string[]): Promise<TrackedPullRequestRow[]> {

@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'03c0fe7f2588b74aae34cffb0265f9af9108958a14f20512e7c639a359f1e2cb'>;
+  StorageHashBase<'fcd0e8a3d02428ea66ea8ed6d1f8be1c1e8803014b295892f5940eef1429c933'>;
 export type ExecutionHash =
   ExecutionHashBase<'4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45'>;
 export type ProfileHash =
@@ -1319,17 +1319,26 @@ export namespace Models {
     branches: v2_V2SessionBranch[];
     inbox: v2_V2InboxEntry[];
     lease: v2_V2Lease | null;
+    pullRequests: v2_V2SessionPullRequest[];
     threads: v2_V2Thread[];
     view: v2_V2SessionView | null;
     worktreeChanges: v2_V2WorktreeChanges[];
     readonly [RelationKeys]?:
-      'branches' | 'inbox' | 'lease' | 'threads' | 'view' | 'worktreeChanges';
+      'branches' | 'inbox' | 'lease' | 'pullRequests' | 'threads' | 'view' | 'worktreeChanges';
   };
   export type v2_V2SessionBranch = {
     branch: FieldOutputTypes['v2']['V2SessionBranch']['branch'];
+    firstSeenAt: FieldOutputTypes['v2']['V2SessionBranch']['firstSeenAt'];
     firstSeenSeq: FieldOutputTypes['v2']['V2SessionBranch']['firstSeenSeq'];
     headRepo: FieldOutputTypes['v2']['V2SessionBranch']['headRepo'];
     sessionId: FieldOutputTypes['v2']['V2SessionBranch']['sessionId'];
+    session: v2_V2Session;
+    readonly [RelationKeys]?: 'session';
+  };
+  export type v2_V2SessionPullRequest = {
+    prNumber: FieldOutputTypes['v2']['V2SessionPullRequest']['prNumber'];
+    repoFullName: FieldOutputTypes['v2']['V2SessionPullRequest']['repoFullName'];
+    sessionId: FieldOutputTypes['v2']['V2SessionPullRequest']['sessionId'];
     session: v2_V2Session;
     readonly [RelationKeys]?: 'session';
   };
@@ -1454,6 +1463,7 @@ export declare const models: {
     V2RoutineRun: Models.v2_V2RoutineRun;
     V2Session: Models.v2_V2Session;
     V2SessionBranch: Models.v2_V2SessionBranch;
+    V2SessionPullRequest: Models.v2_V2SessionPullRequest;
     V2SessionView: Models.v2_V2SessionView;
     V2Thread: Models.v2_V2Thread;
     V2WorktreeChangedFile: Models.v2_V2WorktreeChangedFile;
@@ -7686,6 +7696,13 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly many: false;
                 };
+                readonly firstSeenAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
                 readonly firstSeenSeq: {
                   readonly dataType: 'pg/int4';
                   readonly codecId: 'pg/int4@1';
@@ -7726,6 +7743,58 @@ type ContractBase = Omit<
                   readonly source: {
                     readonly namespaceId: 'v2' & NamespaceId;
                     readonly tableName: 'V2SessionBranch';
+                    readonly columns: readonly ['sessionId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'v2' & NamespaceId;
+                    readonly tableName: 'V2Session';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
+            readonly V2SessionPullRequest: {
+              columns: {
+                readonly prNumber: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly repoFullName: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly sessionId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['sessionId', 'repoFullName', 'prNumber'] };
+              uniques: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'V2SessionPullRequest_repoFullName_prNumber_idx_af81cccf';
+                  readonly prefix: 'V2SessionPullRequest_repoFullName_prNumber_idx';
+                  readonly columns: readonly ['repoFullName', 'prNumber'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'V2SessionPullRequest_sessionId_idx_29f415d4';
+                  readonly prefix: 'V2SessionPullRequest_sessionId_idx';
+                  readonly columns: readonly ['sessionId'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'v2' & NamespaceId;
+                    readonly tableName: 'V2SessionPullRequest';
                     readonly columns: readonly ['sessionId'];
                   };
                   readonly target: {
@@ -8240,6 +8309,10 @@ type ContractBase = Omit<
     readonly V2SessionBranch: {
       readonly namespace: 'v2' & NamespaceId;
       readonly model: 'V2SessionBranch';
+    };
+    readonly V2SessionPullRequest: {
+      readonly namespace: 'v2' & NamespaceId;
+      readonly model: 'V2SessionPullRequest';
     };
     readonly V2SessionView: {
       readonly namespace: 'v2' & NamespaceId;
@@ -14249,6 +14322,17 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['sessionId'];
                 };
               };
+              readonly pullRequests: {
+                readonly to: {
+                  readonly namespace: 'v2' & NamespaceId;
+                  readonly model: 'V2SessionPullRequest';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['sessionId'];
+                };
+              };
               readonly threads: {
                 readonly to: { readonly namespace: 'v2' & NamespaceId; readonly model: 'V2Thread' };
                 readonly cardinality: '1:N';
@@ -14313,6 +14397,14 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly firstSeenAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
               readonly firstSeenSeq: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
@@ -14345,8 +14437,48 @@ type ContractBase = Omit<
               readonly namespaceId: 'v2';
               readonly fields: {
                 readonly branch: { readonly column: 'branch' };
+                readonly firstSeenAt: { readonly column: 'firstSeenAt' };
                 readonly firstSeenSeq: { readonly column: 'firstSeenSeq' };
                 readonly headRepo: { readonly column: 'headRepo' };
+                readonly sessionId: { readonly column: 'sessionId' };
+              };
+            };
+          };
+          readonly V2SessionPullRequest: {
+            readonly fields: {
+              readonly prNumber: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly repoFullName: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly sessionId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: {
+              readonly session: {
+                readonly to: {
+                  readonly namespace: 'v2' & NamespaceId;
+                  readonly model: 'V2Session';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['sessionId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'V2SessionPullRequest';
+              readonly namespaceId: 'v2';
+              readonly fields: {
+                readonly prNumber: { readonly column: 'prNumber' };
+                readonly repoFullName: { readonly column: 'repoFullName' };
                 readonly sessionId: { readonly column: 'sessionId' };
               };
             };
