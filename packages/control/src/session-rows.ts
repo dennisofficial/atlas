@@ -40,6 +40,7 @@ export type ControlDigestPullRequest = {
   url: string
   state: string | null
   checks: PrChecks | null
+  mergeable: boolean | null
 }
 
 export type ControlDigestView = {

@@ -70,7 +70,7 @@ export const rowPullRequestEntryOf = (pullRequest: RowPullRequest): PullRequestE
   checksPassed: pullRequest.checks?.passed,
   checksFailed: pullRequest.checks?.failed,
   checksState: undefined,
-  mergeable: undefined,
+  mergeable: pullRequest.mergeable,
   current: false,
   via: undefined,
 })

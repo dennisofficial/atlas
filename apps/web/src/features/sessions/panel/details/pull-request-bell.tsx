@@ -48,7 +48,6 @@ export function PullRequestBell({
             aria-label={`${label} #${entry.number}`}
             aria-pressed={watching}
             disabled={busy || command === null}
-            className="text-muted-foreground"
             onClick={handleClick}
           />
         }

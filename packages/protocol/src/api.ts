@@ -141,6 +141,7 @@ export const sessionRowPullRequestSchema = z.strictObject({
   url: z.string().min(1),
   state: z.string().nullable(),
   checks: prChecksSchema.nullable(),
+  mergeable: z.boolean().nullable(),
 })
 
 export const sessionModelChoiceSchema = z.strictObject({
