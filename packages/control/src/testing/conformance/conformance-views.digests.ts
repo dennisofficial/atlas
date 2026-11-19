@@ -77,7 +77,6 @@ export function describeControlPlaneDigests(params: ConformanceParams): void {
       expect(digest?.view?.primaryBranch).toBe('feat')
       expect(stale.staleRows).toBe(1)
       expect(stale.staleMs).toBeGreaterThanOrEqual(0)
-      expect(stale.failureRows).toBe(0)
       expect(stale.phases.digestRowsMs).toBeGreaterThanOrEqual(0)
       expect(stale.phases.threadsMs).toBeGreaterThanOrEqual(0)
       expect(stale.phases.viewsMs).toBeGreaterThanOrEqual(0)
@@ -94,26 +93,6 @@ export function describeControlPlaneDigests(params: ConformanceParams): void {
       })
       expect(fresh.staleRows).toBe(0)
       expect(fresh.staleMs).toBe(0)
-    })
-
-    it('counts rows whose failure state needs a read', async () => {
-      await appendBodies({
-        harness,
-        epoch,
-        bodies: [
-          said('a'),
-          { type: 'session-start-failed', reason: 'no sandbox', inboxHead: 0, permanent: true },
-        ],
-      })
-      const timings = emptyDigestTimings()
-      await harness.plane.listSessionDigests({
-        userId: 'user-1',
-        limit: 10,
-        withView: true,
-        timings,
-      })
-      expect(timings.failureRows).toBe(1)
-      expect(timings.failureMs).toBeGreaterThanOrEqual(0)
     })
   })
 }

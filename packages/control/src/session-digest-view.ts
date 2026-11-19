@@ -19,7 +19,7 @@ import type {
   TrackedPullRequestRow,
 } from './port'
 import { usableState } from './session-view-ops'
-import { currentViewIn, failureMayBeActive, messageAfterFailureIn } from './session-view-read'
+import { currentViewIn, messageAfterFailureIn } from './session-view-read'
 
 export type DigestPhases = {
   transactionMs: number
@@ -35,8 +35,6 @@ export type DigestTimings = {
   phases: DigestPhases
   staleRows: number
   staleMs: number
-  failureRows: number
-  failureMs: number
 }
 
 export const emptyDigestTimings = (): DigestTimings => ({
@@ -51,8 +49,6 @@ export const emptyDigestTimings = (): DigestTimings => ({
   },
   staleRows: 0,
   staleMs: 0,
-  failureRows: 0,
-  failureMs: 0,
 })
 
 export const markDigestPhase = (
@@ -98,22 +94,9 @@ const digestViewOf = async (args: {
   pullRequest: TrackedPullRequestRow | undefined
   sandbox: ControlDigestView['sandbox']
   now: string
-  timings: DigestTimings
   eventSchema?: z.ZodType<V2Event> | undefined
 }): Promise<ControlDigestView> => {
-  const readsFailure = failureMayBeActive(args.state)
-  const failureStartedAt = performance.now()
-  const messageAfterFailure = await messageAfterFailureIn({
-    tx: args.tx,
-    sessionId: args.sessionId,
-    threadId: args.threadId,
-    state: args.state,
-    eventSchema: args.eventSchema,
-  })
-  if (readsFailure) {
-    args.timings.failureRows += 1
-    args.timings.failureMs += Math.round(performance.now() - failureStartedAt)
-  }
+  const messageAfterFailure = messageAfterFailureIn({ state: args.state })
   const value = sessionViewOf({
     state: args.state,
     live: args.live,
@@ -199,7 +182,6 @@ export const withDigestViews = async (args: {
       pullRequest: pullRequests.get(row.sessionId)?.[0],
       sandbox: sandboxOf(row),
       now: args.now,
-      timings: stats,
       eventSchema: args.eventSchema,
     })
     digests.push({ ...row, view })
