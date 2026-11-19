@@ -5,12 +5,11 @@ import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 import { ESkillOrigin } from '../../core'
 import { type FakeNode, fakeCloud, fakeDaemon, turn } from './support'
 
-const ROOTS = ['/repo/.atlas/skills', '/repo/.agents/skills']
+const ROOTS = ['/repo/.agents/skills']
 
 const emptyRepo = (): Record<string, FakeNode> => ({
   '/repo': { kind: 'dir' },
   '/repo/.atlas': { kind: 'dir' },
-  '/repo/.atlas/skills': { kind: 'dir' },
   '/repo/.agents': { kind: 'dir' },
   '/repo/.agents/skills': { kind: 'dir' },
 })
@@ -60,7 +59,7 @@ const addSkill = (args: {
 }
 
 describe('the watched skill index', () => {
-  it('watches both repo roots from the first turn and publishes the list', async () => {
+  it('watches the repo root from the first turn and publishes the list', async () => {
     const { daemon, ctx, cloud, appended } = rig(emptyRepo())
     await turn({ ctx, cloud })
     expect(daemon.calls.filter((call) => call.op === 'watch.start')).toEqual([
@@ -73,11 +72,11 @@ describe('the watched skill index', () => {
   it('adds a skill the watcher reports, in one frame', async () => {
     const { daemon, ctx, cloud, appended, nodes } = rig(emptyRepo())
     await turn({ ctx, cloud })
-    addSkill({ nodes, root: '/repo/.atlas/skills', name: 'alpha', description: 'does alpha' })
+    addSkill({ nodes, root: '/repo/.agents/skills', name: 'alpha', description: 'does alpha' })
     daemon.emit({
       type: 'watch.changed',
       watchId: 'skills:s1',
-      paths: ['/repo/.atlas/skills/alpha/SKILL.md'],
+      paths: ['/repo/.agents/skills/alpha/SKILL.md'],
     })
     await settle(() => appended.length === 2)
     expect(appended).toHaveLength(2)
@@ -108,14 +107,14 @@ describe('the watched skill index', () => {
 
   it('drops a skill whose directory leaves a watched root', async () => {
     const { daemon, ctx, cloud, appended, nodes } = rig(emptyRepo())
-    addSkill({ nodes, root: '/repo/.atlas/skills', name: 'alpha', description: 'does alpha' })
+    addSkill({ nodes, root: '/repo/.agents/skills', name: 'alpha', description: 'does alpha' })
     await turn({ ctx, cloud })
-    delete nodes['/repo/.atlas/skills/alpha/SKILL.md']
-    delete nodes['/repo/.atlas/skills/alpha']
+    delete nodes['/repo/.agents/skills/alpha/SKILL.md']
+    delete nodes['/repo/.agents/skills/alpha']
     daemon.emit({
       type: 'watch.changed',
       watchId: 'skills:s1',
-      paths: ['/repo/.atlas/skills/alpha'],
+      paths: ['/repo/.agents/skills/alpha'],
     })
     await settle(() => appended.length === 2)
     expect(repoRowsOf(appended[1])).toEqual([])
@@ -126,7 +125,7 @@ describe('the watched skill index', () => {
   it('ignores a change reported for another watcher', async () => {
     const { daemon, ctx, cloud, appended, nodes } = rig(emptyRepo())
     await turn({ ctx, cloud })
-    addSkill({ nodes, root: '/repo/.atlas/skills', name: 'alpha', description: 'does alpha' })
+    addSkill({ nodes, root: '/repo/.agents/skills', name: 'alpha', description: 'does alpha' })
     daemon.emit({ type: 'watch.changed', watchId: 'another:watch', paths: ['/repo/x'] })
     await new Promise((resolve) => setTimeout(resolve, 20))
     expect(appended).toHaveLength(1)
@@ -134,9 +133,9 @@ describe('the watched skill index', () => {
 
   it('keeps a repo skill ahead of a cloud skill of the same name', async () => {
     const { daemon, ctx, cloud, appended, nodes } = rig(emptyRepo())
-    addSkill({ nodes, root: '/repo/.atlas/skills', name: 'shared', description: 'from the repo' })
+    addSkill({ nodes, root: '/repo/.agents/skills', name: 'shared', description: 'from the repo' })
     await turn({ ctx, cloud })
-    daemon.emit({ type: 'watch.changed', watchId: 'skills:s1', paths: ['/repo/.atlas/skills'] })
+    daemon.emit({ type: 'watch.changed', watchId: 'skills:s1', paths: ['/repo/.agents/skills'] })
     await settle(() => appended.length === 2)
     const shared = rowsOf(appended[1]).filter((row) => row.name === 'shared')
     expect(shared).toEqual([

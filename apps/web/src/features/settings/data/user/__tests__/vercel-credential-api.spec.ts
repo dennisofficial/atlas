@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, mock } from 'bun:test'
 
 import { createApiClient } from '@dltech/atlas-api-router'
 
+import { trpcBodyOf } from '@/lib/__tests__/trpc-body'
 import * as realApiClient from '@/lib/api-client'
 
 let calls: { url: string; init?: RequestInit }[]
@@ -59,7 +60,7 @@ describe('user Vercel credential api', () => {
     await putUserVercelCredential({ teamId: 'team_me', vercelProjectId: 'prj_me', token: 'tok' })
     expect(calls[0]?.url).toBe('/v1/trpc/userVercel.save')
     expect(calls[0]?.init?.method).toBe('POST')
-    expect(JSON.parse(String(calls[0]?.init?.body))).toEqual({
+    expect(trpcBodyOf(String(calls[0]?.init?.body))).toEqual({
       teamId: 'team_me',
       vercelProjectId: 'prj_me',
       token: 'tok',

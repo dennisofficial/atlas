@@ -190,6 +190,7 @@ export interface GithubWorkflowRunWebhookRun {
   conclusion?: string | null
   head_branch?: string | null
   html_url?: string | null
+  created_at?: string | null
   jobs?: GithubWorkflowRunWebhookJob[]
 }
 

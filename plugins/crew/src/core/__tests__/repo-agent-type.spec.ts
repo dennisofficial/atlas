@@ -20,7 +20,7 @@ describe('parseRepoAgentType', () => {
     const parsed = parseRepoAgentType({
       text: claudeCodeFile,
       fallbackName: 'ignored',
-      definedIn: '.claude/agents/security-reviewer.md',
+      definedIn: '.agents/agents/security-reviewer.md',
     })
     expect(parsed).toEqual({
       ok: true,
@@ -28,7 +28,7 @@ describe('parseRepoAgentType', () => {
         name: 'security-reviewer',
         whenToUse: 'Reviews the auth path for holes.',
         prompt: 'You review authentication code and report what breaks.',
-        definedIn: '.claude/agents/security-reviewer.md',
+        definedIn: '.agents/agents/security-reviewer.md',
       },
     })
   })
@@ -37,7 +37,7 @@ describe('parseRepoAgentType', () => {
     const parsed = parseRepoAgentType({
       text: '---\ndescription: does the thing\n---\n\nDo the thing.',
       fallbackName: '  Data-Migrator  ',
-      definedIn: '.atlas/agents/Data-Migrator.md',
+      definedIn: '.agents/agents/Data-Migrator.md',
     })
     expect(parsed.ok).toBe(true)
     expect(parsed.ok && parsed.type.name).toBe('data-migrator')
@@ -84,13 +84,13 @@ describe('parseRepoAgentType', () => {
     const parsed = parseRepoAgentType({
       text: '---\ndescription: builds things\n---\n\nBuild it.',
       fallbackName: 'builder',
-      definedIn: '.claude/agents/builder.md',
+      definedIn: '.agents/agents/builder.md',
     })
     expect(parsed).toEqual({
       ok: false,
       refusal: {
         name: 'builder',
-        definedIn: '.claude/agents/builder.md',
+        definedIn: '.agents/agents/builder.md',
         reason: 'is a built-in agent type',
       },
     })
@@ -100,7 +100,7 @@ describe('parseRepoAgentType', () => {
     const parsed = parseRepoAgentType({
       text: '---\ndescription: talks to the human\n---\n\nTalk to them.',
       fallbackName: 'teammate',
-      definedIn: '.atlas/agents/teammate.md',
+      definedIn: '.agents/agents/teammate.md',
     })
     expect(parsed.ok).toBe(false)
     expect(parsed.ok === false && parsed.refusal.reason).toBe(

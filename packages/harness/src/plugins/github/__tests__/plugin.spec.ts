@@ -186,7 +186,8 @@ describe('the github plugin as the loader sees it', () => {
     expect(text).toContain('`subscribe` with provider `github.workflow-run`')
     expect(text).toContain('blank target for this push\u2019s run')
     expect(text).toContain('`<workflow>@<branch>`')
-    expect(text).toContain('It ends when that run finishes')
+    expect(text).toContain('which ends when that run finishes')
+    expect(text).toContain('one notice per run, until the thread ends')
     expect(text).toContain('One-shot reads')
     expect(text).not.toContain('Pull request updates')
 

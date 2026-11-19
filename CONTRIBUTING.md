@@ -57,6 +57,6 @@ the package.
 - `deprecated/` is frozen reference code: read it for prior art, never import from it, never fix
   it.
 
-`CLAUDE.md` is the full contributor contract — package layout, dependency-injection rules, testing
+`AGENTS.md` is the full contributor contract — package layout, dependency-injection rules, testing
 philosophy, and TUI performance guidance. Read `docs/architecture.md` before changing anything
 structural.

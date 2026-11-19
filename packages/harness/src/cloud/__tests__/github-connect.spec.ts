@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { CloudClient, CloudError } from '../cloud-client'
 import { EGithubConnectPoll } from '../github-connect'
+import { trpcBodyOf } from './trpc-body'
 import { trpcFailure, trpcOk } from './trpc-fakes'
 
 const TOKEN = 'sess_test_token'
@@ -23,7 +24,7 @@ const clientWith = (
       url: String(input),
       method: init?.method ?? 'GET',
       headers: init?.headers,
-      body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
+      body: typeof init?.body === 'string' ? trpcBodyOf(init.body) : undefined,
     }
     calls.push(call)
 

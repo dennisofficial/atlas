@@ -2,7 +2,7 @@
 
 `@dltech/atlas-ui`: Atlas's web components and design tokens. shadcn/ui `base-nova` is the visual
 language as shipped (spacing, radius, type sizes, shadows, motion); Atlas contributes its colors
-and fonts. The repo `CLAUDE.md` has the repo-wide philosophy; read it first.
+and fonts. The repo `AGENTS.md` has the repo-wide philosophy; read it first.
 
 ## Layout
 

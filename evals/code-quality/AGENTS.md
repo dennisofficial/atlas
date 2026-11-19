@@ -1,6 +1,6 @@
 # code-quality evals — policy rubric and data details
 
-Read `../ATLAS.md` (evals/) first; it owns commands, artifact contract and integrity rules. This file holds
+Read `../AGENTS.md` (evals/) first; it owns commands, artifact contract and integrity rules. This file holds
 the code-quality/single-responsibility specifics.
 
 ## Feature

@@ -9,6 +9,7 @@ import {
   type CredentialPort,
 } from '@dltech/atlas-core'
 
+import { trpcBodyOf } from '../../cloud/__tests__/trpc-body'
 import { OAuthConnectionsClient } from '../../cloud/oauth-connections-client'
 import { fileAccountStore } from '../account-store'
 import { CloudManagedCredentialPort } from '../cloud-managed-credential-port'
@@ -100,8 +101,11 @@ const handoff = async (): Promise<void> => {
   const api = fakeOauthApi()
   const upload: typeof fetch = Object.assign(
     async (input: string | URL | Request, init?: RequestInit) => {
-      const body = typeof init?.body === 'string' ? JSON.parse(init.body) : {}
-      record(`upload-start ${body?.tokens?.refreshToken ?? ''}`)
+      const body =
+        typeof init?.body === 'string'
+          ? (trpcBodyOf(init.body) as { tokens?: { refreshToken?: string } })
+          : {}
+      record(`upload-start ${body.tokens?.refreshToken ?? ''}`)
       if (job.signal !== undefined) raise(job.signal)
       if (job.blockOn !== undefined) await reach(job.blockOn)
       const response = await api.fetchFn(input, init)

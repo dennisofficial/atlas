@@ -93,3 +93,5 @@ export type {
   ControlSessionViewValue,
   SessionViewRead,
 } from './session-view-read'
+export { emptyDigestTimings } from './session-digest-view'
+export type { DigestPhases, DigestTimings } from './session-digest-view'

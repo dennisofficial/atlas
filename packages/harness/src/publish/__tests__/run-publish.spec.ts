@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { afterEach, describe, expect, it } from 'bun:test'
 
+import { trpcBodyOf } from '../../cloud/__tests__/trpc-body'
 import { PublishedBundleClient } from '../../cloud/published-bundle-client'
 import { publishBundle, EPublishStage } from '../run-publish'
 import { scanPublishables } from '../publishables'
@@ -48,7 +49,7 @@ function fakeCloud(args: { putStatus: number }) {
       url,
       authorization: headers.get('authorization'),
       contentType: headers.get('content-type'),
-      body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
+      body: typeof init?.body === 'string' ? trpcBodyOf(init.body) : undefined,
     })
     if (isPut)
       return new Response(args.putStatus === 200 ? '' : 'denied', { status: args.putStatus })

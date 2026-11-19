@@ -1,0 +1,23 @@
+{
+  "name": "@dltech/atlas-plugin-instructions",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./core": "./src/core/index.ts",
+    "./pod": "./src/pod/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@dltech/atlas-agent": "workspace:*",
+    "@dltech/atlas-core": "workspace:*",
+    "@dltech/atlas-plugin-sdk": "workspace:*",
+    "@dltech/atlas-protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}

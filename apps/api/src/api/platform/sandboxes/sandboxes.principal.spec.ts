@@ -131,33 +131,19 @@ describe('SandboxesService.verifyTokenPrincipal', () => {
   })
 
   it('does not cache a principal whose lookup outlived the destroy that revoked it', async () => {
-    const tokenHash = hashSessionToken('sandbox-token')
-    const realWhere = db.orm.public.CloudSandbox.where
-    const stale = await db.orm.public.CloudSandbox.where({ tokenHash })
-      .select('id', 'sessionId', 'userId')
-      .first()
-    expect(stale).not.toBeNull()
     const held = Promise.withResolvers<void>()
-    const spy = vi.spyOn(db.orm.public.CloudSandbox, 'where').mockImplementation(((filter: {
-      tokenHash?: string
-    }) =>
-      filter.tokenHash === tokenHash
-        ? {
-            select: () => ({
-              first: async () => {
-                await held.promise
-                return stale
-              },
-            }),
-          }
-        : realWhere.call(db.orm.public.CloudSandbox, filter as never)) as never)
+    const real = service.lookupPrincipal
+    service.lookupPrincipal = async (tokenHash) => {
+      const resolved = await real(tokenHash)
+      await held.promise
+      return resolved
+    }
 
     const raced = service.verifyTokenPrincipal({ token: 'sandbox-token' })
     await service.destroy({ userId: 'user-a', threadId: 'brn_sandbox' })
     held.resolve()
     await expect(raced).resolves.toMatchObject({ id: 'sbx_1' })
 
-    spy.mockRestore()
     await expect(service.verifyTokenPrincipal({ token: 'sandbox-token' })).rejects.toBeInstanceOf(
       UnauthorizedException,
     )

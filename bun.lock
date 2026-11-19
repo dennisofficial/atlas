@@ -39,6 +39,7 @@
         "@dltech/atlas-observability": "workspace:*",
         "@dltech/atlas-plugin-crew": "workspace:*",
         "@dltech/atlas-plugin-github": "workspace:*",
+        "@dltech/atlas-plugin-instructions": "workspace:*",
         "@dltech/atlas-plugin-mcp": "workspace:*",
         "@dltech/atlas-plugin-memory": "workspace:*",
         "@dltech/atlas-plugin-operator": "workspace:*",
@@ -866,6 +867,19 @@
         "@types/bun": "latest",
       },
     },
+    "plugins/instructions": {
+      "name": "@dltech/atlas-plugin-instructions",
+      "version": "0.1.0",
+      "dependencies": {
+        "@dltech/atlas-agent": "workspace:*",
+        "@dltech/atlas-core": "workspace:*",
+        "@dltech/atlas-plugin-sdk": "workspace:*",
+        "@dltech/atlas-protocol": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
     "plugins/mcp": {
       "name": "@dltech/atlas-plugin-mcp",
       "version": "0.1.0",
@@ -1487,6 +1501,8 @@
     "@dltech/atlas-plugin-crew": ["@dltech/atlas-plugin-crew@workspace:plugins/crew"],
 
     "@dltech/atlas-plugin-github": ["@dltech/atlas-plugin-github@workspace:plugins/github"],
+
+    "@dltech/atlas-plugin-instructions": ["@dltech/atlas-plugin-instructions@workspace:plugins/instructions"],
 
     "@dltech/atlas-plugin-mcp": ["@dltech/atlas-plugin-mcp@workspace:plugins/mcp"],
 

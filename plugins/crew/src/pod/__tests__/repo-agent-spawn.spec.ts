@@ -15,8 +15,8 @@ const securityReviewer = [
 ].join('\n')
 
 const nodes = {
-  ...dirs('/work/.claude/agents'),
-  ...Object.fromEntries([file('/work/.claude/agents/security-reviewer.md', securityReviewer)]),
+  ...dirs('/work/.agents/agents'),
+  ...Object.fromEntries([file('/work/.agents/agents/security-reviewer.md', securityReviewer)]),
 }
 
 describe('agent_spawn with a repo agent type', () => {
@@ -52,8 +52,8 @@ describe('agent_spawn with a repo agent type', () => {
     const crew = fakeCrew()
     const { ctx } = rig({
       nodes: {
-        ...dirs('/work/.atlas/agents'),
-        ...Object.fromEntries([file('/work/.atlas/agents/builder.md', securityReviewer)]),
+        ...dirs('/work/.agents/agents'),
+        ...Object.fromEntries([file('/work/.agents/agents/builder.md', securityReviewer)]),
       },
       crew: crew.port,
     })
@@ -84,7 +84,7 @@ describe('agent_spawn with a repo agent type', () => {
   })
 
   it('names only the built-in types when the repository defines none', async () => {
-    const { ctx } = rig({ nodes: dirs('/work/.atlas/agents') })
+    const { ctx } = rig({ nodes: dirs('/work/.agents/agents') })
     const outcome = await invoke({
       ctx,
       name: 'agent_spawn',

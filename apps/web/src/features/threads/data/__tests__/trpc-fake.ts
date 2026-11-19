@@ -2,6 +2,7 @@ import { mock } from 'bun:test'
 
 import { createApiClient } from '@dltech/atlas-api-router'
 
+import { trpcBodyOf } from '@/lib/__tests__/trpc-body'
 import { cloudCall } from '@/lib/api-client'
 
 const liveFetch: typeof fetch = Object.assign(
@@ -54,7 +55,7 @@ export const fakeFetch = (reply: () => Response): SeenCall[] => {
     calls.push({
       url: String(input),
       method: init?.method ?? 'GET',
-      body: init?.body === undefined ? undefined : JSON.parse(String(init.body)),
+      body: init?.body === undefined ? undefined : trpcBodyOf(String(init.body)),
     })
     return reply()
   }) as typeof fetch

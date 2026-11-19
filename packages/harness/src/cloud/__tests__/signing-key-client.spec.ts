@@ -3,6 +3,7 @@ import { ESshSigningKeyState } from '@dltech/atlas-wire'
 
 import { CloudError } from '../cloud-transport'
 import { SigningKeyClient } from '../signing-key-client'
+import { trpcBodyOf } from './trpc-body'
 
 type Call = { method: string; path: string; authorization: string | null; body: unknown }
 type Reply = { status: number; body?: unknown; code?: string }
@@ -33,7 +34,7 @@ const fakeApi = (args: { reply: Reply }) => {
       method: init?.method ?? 'GET',
       path: new URL(String(input)).pathname,
       authorization: headers.get('authorization'),
-      body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
+      body: typeof init?.body === 'string' ? trpcBodyOf(init.body) : undefined,
     })
     return reply(args.reply)
   }) as typeof fetch

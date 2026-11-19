@@ -11,6 +11,7 @@ import type { CommandRegistry } from '@dltech/atlas-commands'
 import { resize } from '@dltech/atlas-native-commands'
 import {
   ControlPlane,
+  emptyDigestTimings,
   pricedView,
   readSessionStatus,
   sessionSummaryOf,
@@ -162,14 +163,21 @@ export class SessionsService {
     limit?: number | undefined
   }): Promise<SessionListOutput> {
     const startedAt = performance.now()
+    const timings = emptyDigestTimings()
     const sessions = await this.plane.listSessionDigests({
       userId: args.userId,
       projectId: args.projectId,
       limit: args.limit ?? 100,
       withView: true,
+      timings,
     })
     const durationMs = Math.round(performance.now() - startedAt)
-    this.logger.log({ source: 'sessions.list', rows: sessions.length, durationMs })
+    this.logger.log({
+      source: 'sessions.list',
+      rows: sessions.length,
+      durationMs,
+      ...timings,
+    })
     const now = Date.now()
     return {
       sessions: sessions.map((digest) => sessionSummaryOf({ digest, now })),

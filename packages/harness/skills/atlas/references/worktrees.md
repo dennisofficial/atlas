@@ -106,6 +106,6 @@ Copies are one-shot. When a copied file changes in the main checkout (a rotated 
 
 - Git itself: a worktree needs a git repository with commits. Setting `origin` (and ideally `origin/HEAD`, via `git remote set-head origin -a`) makes the default branch unambiguous.
 - Ignoring the directory is optional for the default (Atlas writes its own `.gitignore`); adding `.atlas/worktrees/` to the repo's `.gitignore` is harmless.
-- A fresh worktree is a clean checkout: gitignored files (`node_modules`, `.env`, build output, `*.local.md` instruction files) are absent. List the secrets and local config it needs in `.atlas/worktree.yaml` (above), and document the install step (for example `bun install`) in `AGENTS.md`/`CLAUDE.md` so the agent runs it after entering. Project settings (`.atlas/settings.json`) and project skills are read from the worktree, so they only apply if committed.
+- A fresh worktree is a clean checkout: gitignored files (`node_modules`, `.env`, build output) are absent. List the secrets and local config it needs in `.atlas/worktree.yaml` (above), and document the install step (for example `bun install`) in `AGENTS.md` so the agent runs it after entering. Project settings (`.atlas/settings.json`) and project skills are read from the worktree, so they only apply if committed.
 - Tell Atlas the branch convention in instructions (e.g. `Branch as <you>/<slug>`), since `name` becomes the branch verbatim.
 - Do not write into the main checkout while working in a worktree unless asked; reach it by absolute path only.

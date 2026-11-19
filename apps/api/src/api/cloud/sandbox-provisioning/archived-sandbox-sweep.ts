@@ -1,5 +1,6 @@
 import { db, type Row } from '@dltech/atlas-db'
 import type { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
+import { notifyPrincipalRevoked } from '../../platform/sandboxes/sandbox-principal-notify'
 import type { VercelSandboxClient } from '../../platform/sandboxes/vercel-sandbox.client'
 
 export const ARCHIVED_SANDBOX_GRACE_MS = 24 * 60 * 60 * 1_000
@@ -106,6 +107,7 @@ async function softDelete(args: { sessionId: string; at: Date }): Promise<void> 
   await db.orm.public.Session.where({ id: args.sessionId }).updateAndCount({
     deletedAt: args.at,
   })
+  await notifyPrincipalRevoked(args.sessionId)
 }
 
 async function expiredSessions(args: { cutoff: Date }): Promise<Array<{ id: string }>> {

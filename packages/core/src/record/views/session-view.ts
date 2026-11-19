@@ -4,6 +4,12 @@ import type { SpendRow } from '../../models/spend-tally'
 import { checkoutsOf, initialCheckoutsState, stepCheckouts } from './checkouts'
 import type { CheckoutsState, CheckoutsView } from './checkouts'
 import { deriveStatus } from './derive-status'
+import {
+  failureMessageOf,
+  initialFailureMessage,
+  stepFailureMessage,
+  type FailureMessageState,
+} from './failure-message'
 import { EMPTY_PENDING, stepPending, type PendingInputsState } from '../pending-inputs'
 import { initialMeterState, meterOf, rebuildMeter, stepMeter, type MeterState } from './meter-state'
 import { initialSpendState, stepSpend, type SpendState } from './spend'
@@ -11,7 +17,7 @@ import { initialStatusFacts, stepStatusFacts, type StatusFacts } from './status-
 import type { PluginViewFold } from './plugin-view'
 import type { SessionStatus } from './status-types'
 
-export const SESSION_VIEW_VERSION = 8
+export const SESSION_VIEW_VERSION = 9
 
 export type SessionViewState = {
   version: number
@@ -21,6 +27,7 @@ export type SessionViewState = {
   checkouts: CheckoutsState
   spend: SpendState
   pending: PendingInputsState
+  failure: FailureMessageState
   pluginViews: Readonly<Record<string, unknown>>
 }
 
@@ -40,6 +47,7 @@ export const initialSessionViewState: SessionViewState = {
   checkouts: initialCheckoutsState,
   spend: initialSpendState,
   pending: EMPTY_PENDING,
+  failure: initialFailureMessage,
   pluginViews: {},
 }
 
@@ -52,6 +60,7 @@ export const stepSessionView = (state: SessionViewState, event: V2Event): Sessio
     event.type === 'branches-observed' ? stepCheckouts(state.checkouts, event) : state.checkouts,
   spend: stepSpend(state.spend, event),
   pending: stepPending(state.pending, event),
+  failure: stepFailureMessage(state.failure, event),
   pluginViews: state.pluginViews,
 })
 
@@ -104,6 +113,7 @@ export const rebuildEditSensitive = (args: {
   ...args.state,
   facts: args.visibleTail.reduce(stepStatusFacts, initialStatusFacts),
   meter: rebuildMeter({ state: args.state.meter, visibleTail: args.visibleTail }),
+  failure: failureMessageOf(args.visibleTail),
 })
 
 export const sessionViewOf = (args: {

@@ -7,6 +7,7 @@ import {
   pollCloudLogin,
   type CloudLoginTicket,
 } from '../device-login'
+import { trpcBodyOf } from './trpc-body'
 
 const URL = 'http://cloud.test'
 
@@ -55,7 +56,7 @@ describe('beginCloudLogin', () => {
   it('posts the atlas-tui client id', async () => {
     let seen: unknown
     const fetchFn = (async (_input: unknown, init?: RequestInit) => {
-      seen = typeof init?.body === 'string' ? JSON.parse(init.body) : undefined
+      seen = typeof init?.body === 'string' ? trpcBodyOf(init.body) : undefined
       return new Response(JSON.stringify(deviceCodeBody), { status: 200 })
     }) as typeof fetch
 
@@ -104,7 +105,7 @@ describe('pollCloudLogin', () => {
   it('posts the device-code grant', async () => {
     let seen: unknown
     const fetchFn = (async (_input: unknown, init?: RequestInit) => {
-      seen = typeof init?.body === 'string' ? JSON.parse(init.body) : undefined
+      seen = typeof init?.body === 'string' ? trpcBodyOf(init.body) : undefined
       return new Response(JSON.stringify({ error: 'authorization_pending' }), { status: 400 })
     }) as typeof fetch
 

@@ -156,11 +156,11 @@ const PULL_REQUEST_HINT =
   "blank for this checkout's pull request, #number, owner/repo#number or a pull request URL"
 
 const RUN_HINT =
-  'Blank for this push\u2019s run, or #<run id>, owner/repo#<run id>, a run URL, or <workflow>@<branch>.'
+  'Blank for this push\u2019s run, or #<run id>, owner/repo#<run id> or a run URL for that one run, or <workflow>@<branch> for every run of it on that branch from then on.'
 
 const PROVIDER_LINES: readonly string[] = [
   `${GITHUB_PROVIDER}  a GitHub pull request  target: ${PULL_REQUEST_HINT}`,
-  `${GITHUB_RUN_PROVIDER}  a workflow run finishing (success, failure, cancelled)  target: ${RUN_HINT}`,
+  `${GITHUB_RUN_PROVIDER}  workflow runs finishing (success, failure, cancelled)  target: ${RUN_HINT}`,
 ]
 
 export const listText = (events: readonly (Event | V2Event)[]): string => {

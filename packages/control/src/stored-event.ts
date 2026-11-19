@@ -1,7 +1,6 @@
 import {
   canonicalJson,
   EMPTY_VISIBILITY,
-  sha256Hex,
   v2EventSchema,
   type Hash,
   type V2Event,
@@ -48,10 +47,6 @@ export function decodeStoredEvent(
   row: StoredEvent,
   eventSchema: z.ZodType<V2Event> = v2EventSchema,
 ): V2Event {
-  const digest = sha256Hex(new TextEncoder().encode(row.canonical))
-  if (digest !== row.hash) {
-    throw new RecordCorruptError(`hash mismatch at ${row.threadId}:${row.seq}`)
-  }
   const parsed = eventSchema.safeParse(JSON.parse(row.canonical))
   if (!parsed.success) {
     throw new RecordCorruptError(`stored event ${row.threadId}:${row.seq} is invalid`)

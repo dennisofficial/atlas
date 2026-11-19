@@ -5,13 +5,13 @@ import { fakeCloud, fakeDaemon, invoke, skillDir, textOf, turn } from './support
 const repoTree = (
   extra: Record<string, { kind: 'file'; text: string } | { kind: 'dir' }> = {},
 ) => ({
-  '/repo/.atlas/skills': { kind: 'dir' as const },
-  '/repo/.atlas/skills/alpha': { kind: 'dir' as const },
-  '/repo/.atlas/skills/alpha/SKILL.md': {
+  '/repo/.agents/skills': { kind: 'dir' as const },
+  '/repo/.agents/skills/alpha': { kind: 'dir' as const },
+  '/repo/.agents/skills/alpha/SKILL.md': {
     kind: 'file' as const,
     text: '---\nname: alpha\ndescription: does alpha\nwhen_to_use: alpha work\n---\n\nrun $1 with $ARGUMENTS',
   },
-  '/repo/.atlas/skills/alpha/references/one.md': { kind: 'file' as const, text: 'reference one' },
+  '/repo/.agents/skills/alpha/references/one.md': { kind: 'file' as const, text: 'reference one' },
   ...extra,
 })
 
@@ -25,7 +25,7 @@ describe('the skill tool', () => {
       input: { name: 'Alpha', arguments: 'one two' },
     })
     expect(textOf(outcome)).toContain(
-      'The alpha skill is installed at /repo/.atlas/skills/alpha. Every relative path below names a file inside that directory',
+      'The alpha skill is installed at /repo/.agents/skills/alpha. Every relative path below names a file inside that directory',
     )
     expect(textOf(outcome)).toContain('run one with one two')
   })
@@ -99,8 +99,8 @@ describe('the skill tool', () => {
   it('refuses a skill that sets disable-model-invocation', async () => {
     const { ctx } = fakeDaemon(
       repoTree({
-        '/repo/.atlas/skills/hidden': { kind: 'dir' },
-        '/repo/.atlas/skills/hidden/SKILL.md': {
+        '/repo/.agents/skills/hidden': { kind: 'dir' },
+        '/repo/.agents/skills/hidden/SKILL.md': {
           kind: 'file',
           text: skillDir('hidden', 'body', 'disable-model-invocation: true\n'),
         },
@@ -161,8 +161,8 @@ describe('the skills listing', () => {
   it('lists repo, cloud and built-in skills, with the nearest definition winning', async () => {
     const { ctx } = fakeDaemon(
       repoTree({
-        '/repo/.atlas/skills/commit': { kind: 'dir' },
-        '/repo/.atlas/skills/commit/SKILL.md': { kind: 'file', text: skillDir('commit', 'x') },
+        '/repo/.agents/skills/commit': { kind: 'dir' },
+        '/repo/.agents/skills/commit/SKILL.md': { kind: 'file', text: skillDir('commit', 'x') },
       }),
     )
     const cloud = fakeCloud({

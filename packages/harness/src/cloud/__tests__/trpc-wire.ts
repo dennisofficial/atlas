@@ -1,3 +1,5 @@
+import { trpcBodyOf } from './trpc-body'
+
 export type TrpcCall = {
   procedure: string
   method: string
@@ -24,7 +26,7 @@ export const trpcCallOf = (args: { input: unknown; init?: RequestInit | undefine
     procedure,
     method,
     path: url.pathname,
-    input: parseJson(method === 'GET' ? raw : body),
+    input: method === 'GET' ? parseJson(raw) : trpcBodyOf(body ?? ''),
   }
 }
 

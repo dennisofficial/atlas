@@ -2,6 +2,8 @@ import { GlobalRegistrator } from '@happy-dom/global-registrator'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock } from 'bun:test'
 import { act } from 'react'
 
+import { trpcBodyOf } from '@/lib/__tests__/trpc-body'
+
 const replace = mock((_href: string) => {})
 const assign = mock((_href: string) => {})
 let search = ''
@@ -43,7 +45,7 @@ beforeEach(() => {
       return Response.json(signedIn ? { user: { name: 'a', email: 'a@b.c', image: null } } : null)
     }
     if (url.endsWith('/v1/trpc/desktopAuth.authorize')) {
-      minted.push(JSON.parse(String(init?.body)))
+      minted.push(trpcBodyOf(String(init?.body)))
       return Response.json({ result: { data: { code: 'the-code' } } })
     }
     return new Response('nope', { status: 404 })

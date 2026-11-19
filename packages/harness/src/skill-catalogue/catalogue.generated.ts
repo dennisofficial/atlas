@@ -5,17 +5,17 @@ import type { BuiltInSkillCatalogueEntry } from './catalogue-types'
 export const BUILT_IN_SKILL_CATALOGUE: readonly BuiltInSkillCatalogueEntry[] = [
   {
     name: "atlas",
-    description: "Handbook to the Atlas harness: set up a repo or home for Atlas, configure and troubleshoot settings.json, ATLAS_HOME, instruction files (ATLAS.md, AGENTS.md, CLAUDE.md), skills, agent types, MCP servers (mcp.json, .mcp.json), .atlas/services.yaml (service_start, needs, preview URLs, PORT), .atlas/container.json, Dockerfile and devcontainer, plugins, worktrees, Atlas Cloud sandboxes, /container, parked sessions, cloud logs, and OAuth sign-in callbacks from a preview through callback.byatlas.dev.",
+    description: "Handbook to the Atlas harness: set up a repo or home for Atlas, configure and troubleshoot settings.json, ATLAS_HOME, repo instructions (AGENTS.md) and Cloud personal instructions, skills and agent types under .agents, MCP servers (mcp.json, .mcp.json), .atlas/services.yaml (service_start, needs, preview URLs, PORT), .atlas/container.json, Dockerfile and devcontainer, plugins, worktrees, Atlas Cloud sandboxes, /container, parked sessions, cloud logs, and OAuth sign-in callbacks from a preview through callback.byatlas.dev.",
     updatedAt: "1970-01-01T00:00:00.000Z",
-    entry: { path: 'SKILL.md', digest: "03383b05763421c1a3f778e1682f9ea63150ae2f1f5e18ad62c4f405a43aed34", sizeBytes: 4598 },
+    entry: { path: 'SKILL.md', digest: "34fcc89885b9b4e0ae395b39e67c0f80320a15273a4f1f50edeccd5a4d49d933", sizeBytes: 4892 },
     files: [
       { path: "references/cloud-config.md", digest: "6e01d6995f4bce10b1aaab023c01447fd19124d5bfa72b99f2fd9d461b21fb30", sizeBytes: 3511, isText: true },
-      { path: "references/cloud.md", digest: "fc05aedd4776d25c703c3d12ec3e5c5cc969c2fa1ae9ec9e2784ffcaf3476daa", sizeBytes: 8397, isText: true },
-      { path: "references/config.md", digest: "fd08a2d9893a386ff6bf2421b4186564bda2a2902221267cc2527b2341be6009", sizeBytes: 9046, isText: true },
+      { path: "references/cloud.md", digest: "3094cb28248e293ee42900b59e4d260409496d2af9027aa896d1b464ed33d0fa", sizeBytes: 8350, isText: true },
+      { path: "references/config.md", digest: "2357a74268866f5f4b4340b5c03a3eb67d249581ec0d180da720f238dbf4dd62", sizeBytes: 9450, isText: true },
       { path: "references/container.md", digest: "0557e52c7c27544d494c38acfe5d1b797acdccb55885bfe3bfbb818160ff2551", sizeBytes: 9817, isText: true },
       { path: "references/plugins.md", digest: "a0f3117e49cf4cc6c555e1086bfcbc40396512432c6e70bf0c4e409c3b026c11", sizeBytes: 8387, isText: true },
       { path: "references/services.md", digest: "7bd259fe4f48b8454bd48957315eac3b1ac0c7f6383d49b460e74aed399cb170", sizeBytes: 12639, isText: true },
-      { path: "references/worktrees.md", digest: "c0d20ae0291cccd680aafc0ae83e8d506a33d9b60beba719dffa438c3aee6481", sizeBytes: 9840, isText: true },
+      { path: "references/worktrees.md", digest: "58c10032395e8c1bed56feb3a8004cae6af6b671176c2b2992057e64026d624d", sizeBytes: 9796, isText: true },
     ],
   },
   {

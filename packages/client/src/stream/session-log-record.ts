@@ -30,6 +30,12 @@ const isPending = (value: unknown): value is PendingInputsState =>
   Array.isArray(value.pending) &&
   value.pending.every((entry) => isRecord(entry) && typeof entry.inboxId === 'number')
 
+const isFailure = (value: unknown): value is FailureMessageState =>
+  isRecord(value) &&
+  (value.failureHead === null || typeof value.failureHead === 'number') &&
+  typeof value.prepared === 'boolean' &&
+  typeof value.afterFailure === 'boolean'
+
 const isView = (value: unknown): value is SessionViewState =>
   isRecord(value) &&
   typeof value.version === 'number' &&
@@ -39,13 +45,8 @@ const isView = (value: unknown): value is SessionViewState =>
   isRecord(value.checkouts) &&
   isRecord(value.spend) &&
   isPending(value.pending) &&
+  isFailure(value.failure) &&
   isRecord(value.pluginViews)
-
-const isFailureMessage = (value: unknown): value is FailureMessageState =>
-  isRecord(value) &&
-  (value.failureHead === null || typeof value.failureHead === 'number') &&
-  typeof value.prepared === 'boolean' &&
-  typeof value.afterFailure === 'boolean'
 
 const isCommandLog = (value: unknown): value is readonly V2Event[] =>
   Array.isArray(value) && value.every((event) => isRecord(event) && typeof event.seq === 'number')
@@ -54,7 +55,7 @@ const snapshotOfValue = (value: unknown): SessionLogSnapshot | undefined => {
   if (!isRecord(value)) return undefined
   if (value.version !== SESSION_LOG_STRUCTURE_VERSION) return undefined
   if (!isVisibility(value.visibility) || !isPending(value.pending)) return undefined
-  if (!isView(value.view) || !isFailureMessage(value.failureMessage)) return undefined
+  if (!isView(value.view) || !isFailure(value.failureMessage)) return undefined
   if (!isCommandLog(value.commandLog)) return undefined
   if (typeof value.throughSeq !== 'number') return undefined
   if (value.cursor !== undefined && !isCursor(value.cursor)) return undefined

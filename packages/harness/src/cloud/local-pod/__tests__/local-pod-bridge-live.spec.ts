@@ -9,6 +9,7 @@ import { toThreadId } from '@dltech/atlas-core'
 import { DockerEngine } from '../../../execution/docker/engine'
 import { DockerPodEngine } from '../../../execution/docker/pod-engine'
 import { dockerUnavailableReason } from '../../../execution/docker/__tests__/live-docker'
+import { trpcBodyOf } from '../../__tests__/trpc-body'
 import { createLocalPodBridge } from '../../local-pod-bridge'
 import {
   DEFAULT_POD_IMAGE,
@@ -43,7 +44,7 @@ const startFakeApi = () =>
       recordedPuts.push({
         path: new URL(request.url).pathname,
         authorization: request.headers.get('authorization'),
-        body: await request.json(),
+        body: trpcBodyOf(await request.text()),
       })
       return Response.json({ result: { data: null } })
     },
