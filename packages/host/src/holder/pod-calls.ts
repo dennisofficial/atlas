@@ -5,7 +5,7 @@ import {
   type CallResult,
 } from '@dltech/atlas-protocol'
 
-import { newKey, type EventFrame } from '../calls/remote-calls'
+import { newKey, type EventFrame, type RemoteCloseReason } from '../calls/remote-calls'
 import type { SessionRuntime } from './ports'
 
 export type PodCallOutcome =
@@ -61,9 +61,19 @@ export class PodCalls {
     return { state: 'ok', result }
   }
 
-  events(args: { sessionId: string; listener: (frame: EventFrame) => void }): () => void {
+  events(args: {
+    sessionId: string
+    listener: (frame: EventFrame) => void
+    onClose?: ((reason: RemoteCloseReason) => void) | undefined
+  }): (() => void) | null {
     const runtime = this.held(args.sessionId)
-    if (runtime === undefined) return () => {}
-    return runtime.remoteCalls.onEvent(args.listener)
+    if (runtime === undefined) return null
+    const offEvent = runtime.remoteCalls.onEvent(args.listener)
+    const offClose =
+      args.onClose === undefined ? () => {} : runtime.remoteCalls.onClose(args.onClose)
+    return () => {
+      offEvent()
+      offClose()
+    }
   }
 }

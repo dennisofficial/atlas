@@ -14,6 +14,8 @@ export type CallTimers = {
 
 export type EventFrame = Extract<DaemonFrame, { kind: 'event' }>
 
+export type RemoteCloseReason = 'asleep' | 'detached'
+
 export type RemoteCallsArgs = {
   sessionId: string
   token: string
@@ -30,6 +32,7 @@ export type RemoteCallsArgs = {
 export class RemoteCalls {
   private readonly state: RemoteCallsState
   private readonly eventListeners = new Set<(frame: EventFrame) => void>()
+  private readonly closeListeners = new Set<(reason: RemoteCloseReason) => void>()
   private readonly log: LogPort | undefined
 
   constructor(args: RemoteCallsArgs) {
@@ -44,6 +47,13 @@ export class RemoteCalls {
     this.eventListeners.add(listener)
     return () => {
       this.eventListeners.delete(listener)
+    }
+  }
+
+  onClose(listener: (reason: RemoteCloseReason) => void): () => void {
+    this.closeListeners.add(listener)
+    return () => {
+      this.closeListeners.delete(listener)
     }
   }
 
@@ -77,9 +87,22 @@ export class RemoteCalls {
     this.state.handoff()
   }
 
-  close(): void {
+  close(reason: RemoteCloseReason = 'detached'): void {
+    const listeners = [...this.closeListeners]
+    this.closeListeners.clear()
     this.eventListeners.clear()
     this.state.close()
+    for (const listener of listeners) {
+      try {
+        listener(reason)
+      } catch (error) {
+        this.log?.error({
+          source: 'remote-calls',
+          message: 'close listener threw',
+          ...logFieldsOf({ error }),
+        })
+      }
+    }
   }
 
   invoke(args: {

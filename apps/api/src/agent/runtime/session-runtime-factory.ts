@@ -284,11 +284,11 @@ export const createSessionRuntimeFactory = (
       subscribeSetup: prepareController.subscribeSetup,
       stop: async () => {
         stopKeepAlive()
-        calls.close()
+        calls.close('asleep')
       },
       release: async () => {
         stopKeepAlive()
-        calls.close()
+        calls.close('asleep')
         await releaseSandbox({ sandboxSessionId, sessionId, credentials })
       },
     }

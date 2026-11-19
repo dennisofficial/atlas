@@ -54,6 +54,6 @@ export const controlPlaneProvider: Provider = {
     TerminalService,
     TerminalRouter,
   ],
-  exports: [ControlPlane],
+  exports: [ControlPlane, TerminalService],
 })
 export class ControlPlaneModule {}

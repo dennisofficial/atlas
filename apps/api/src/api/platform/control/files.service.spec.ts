@@ -18,6 +18,7 @@ const opsOf = (results: CallResult[], seen: CallOp[] = []): PodOps => ({
     if (next === undefined) throw new Error('no result staged')
     return ok(next)
   },
+  events: () => null,
 })
 
 const setupFiles = (ops: PodOps) => {
@@ -58,6 +59,7 @@ describe('FilesService', () => {
   it('throws the parked failure when the pod is asleep', async () => {
     const { files, sessions } = setupFiles({
       invoke: async () => ({ state: 'unavailable', reason: ELiveOpFailure.Asleep }),
+      events: () => null,
     })
     const sessionId = await asUser(sessions)
     await expect(files.tree({ userId: 'user-a', sessionId, directory: '' })).rejects.toBeInstanceOf(

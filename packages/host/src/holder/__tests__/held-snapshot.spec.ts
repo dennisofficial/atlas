@@ -32,7 +32,10 @@ const eventsOf = (bodies: readonly V2Body[]): V2Event[] =>
 const depsOf = (): HeldSessionDeps =>
   ({
     sessionId: 'session-1',
-    plane: { readInbox: async () => [] } as unknown as ControlPlane,
+    plane: {
+      readInbox: async () => [],
+      endTerminals: async () => 0,
+    } as unknown as ControlPlane,
     idleMinutes: 30,
     timers: { now: () => 0 },
   }) as unknown as HeldSessionDeps

@@ -32,6 +32,7 @@ import { NotificationsModule } from './platform/notifications/notifications.modu
 import { OauthConnectionsModule } from './platform/oauth-connections/oauth-connections.module'
 import { OperatorRequestsModule } from './cloud/operator-input/operator-requests.module'
 import { SessionStreamModule } from './cloud/stream/session-stream.module'
+import { TerminalStreamModule } from './cloud/stream/terminal-stream.module'
 import { ProviderSignInModule } from './platform/provider-sign-in/provider-sign-in.module'
 import { DesktopAuthModule } from './platform/desktop-auth/desktop-auth.module'
 import { PodLeasesModule } from './platform/pod-leases/pod-leases.module'
@@ -101,6 +102,7 @@ import { ControlPlaneModule } from './platform/control/control-plane.module'
     McpOauthModule,
     OperatorRequestsModule,
     SessionStreamModule,
+    TerminalStreamModule,
     GithubModule,
     SshSigningKeyModule,
     MemoriesModule,

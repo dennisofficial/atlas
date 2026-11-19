@@ -81,6 +81,25 @@ export class TerminalService {
     return row
   }
 
+  async requireOwned(args: { userId: string; sessionId: string }): Promise<void> {
+    await this.requireSession(args)
+  }
+
+  async recordExit(args: {
+    sessionId: string
+    terminalId: string
+    exitCode: number | null
+    signal: string | null
+  }): Promise<void> {
+    await this.plane.endTerminal({
+      sessionId: args.sessionId,
+      terminalId: args.terminalId,
+      reason: 'exited',
+      exitCode: args.exitCode,
+      signal: args.signal,
+    })
+  }
+
   async list(args: { userId: string; sessionId: string }): Promise<TerminalListOutput> {
     await this.requireSession(args)
     const rows = await this.plane.listTerminals({ sessionId: args.sessionId })

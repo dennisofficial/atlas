@@ -47,6 +47,7 @@ export class LeaseSettler {
         wantsHolder: write.wantsHolder,
         resetRetry: write.resetRetry,
       })
+      await this.args.plane.endTerminals({ sessionId: lease.sessionId, reason: 'pod-slept' })
     } catch (error) {
       this.args.log?.error({
         source: 'holder.settle',

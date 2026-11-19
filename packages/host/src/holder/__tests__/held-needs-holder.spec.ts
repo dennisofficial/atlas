@@ -82,6 +82,7 @@ const needsHolder = (params: {
     plane: {
       readInbox: async () => params.entries,
       readEvents: async () => ({ events: [...(params.childEvents ?? [])], next: undefined }),
+      endTerminals: async () => 0,
     } as unknown as ControlPlane,
     commands: composeCommands([ping]),
     commandHandlers: params.knowsPing
