@@ -68,6 +68,7 @@ export class SessionHolder {
     this.timers = args.timers
     this.demand = new HolderDemand({
       plane: args.plane,
+      bus: args.bus,
       timers: args.timers,
       holds: (sessionId) => this.held.has(sessionId),
       draining: () => this.draining,
@@ -139,6 +140,7 @@ export class SessionHolder {
   private stopTriggers(): void {
     this.unsubWake?.()
     this.unsubResync?.()
+    this.demand.stop()
     this.presence.stop()
     this.loop.stop()
   }

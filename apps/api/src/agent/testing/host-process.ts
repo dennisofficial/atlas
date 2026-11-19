@@ -170,6 +170,7 @@ const main = async (): Promise<void> => {
     },
   }
   let watch: HostWatch | undefined
+  let held: SessionHolder | undefined
   const generations = new Map<string, number>()
   const holder = new SessionHolder({
     presence,
@@ -190,6 +191,7 @@ const main = async (): Promise<void> => {
         return withFirstChunkMarker(new ScriptedModel(script, undefined, existsSync))
       },
       launchDirectory: workspace,
+      panelHolds: (sessionId) => held?.demandOf().panel.countOf(sessionId) ?? 0,
       log,
       pingMs: numberEnv('PING_MS', 10_000),
     }),
@@ -201,6 +203,7 @@ const main = async (): Promise<void> => {
     log,
     onHostIdChanged: () => watch?.recompute(),
   })
+  held = holder
   await holder.start()
   if (process.env.NO_RING !== '1') {
     watch = startHostWatch({

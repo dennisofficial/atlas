@@ -12,6 +12,15 @@ export const PG_HOST_CHANGE_CHANNEL = 'atlas_host_change'
 
 export const PG_PRESENCE_LOCK_NAMESPACE = 1095060563
 
+export const PANEL_HOLD_CHANNEL = 'atlas_panel_hold'
+
+export const panelHoldSchema = z.strictObject({
+  sessionId: z.string().min(1),
+  ttlMs: z.number().int().positive(),
+})
+
+export type PanelHold = z.infer<typeof panelHoldSchema>
+
 export const sessionLiveChannel = (sessionId: string): string => `atlas:session-live:${sessionId}`
 
 export const sessionLiveBufferKey = (sessionId: string): string =>

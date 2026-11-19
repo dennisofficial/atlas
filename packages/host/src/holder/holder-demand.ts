@@ -2,8 +2,8 @@ import type { ControlPlane } from '@dltech/atlas-control'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
 import { HeldWaits } from './held-waits'
-import { PanelDemand } from './panel-demand'
-import type { HostTimers } from './ports'
+import { PANEL_HOLD_TTL_MS, PanelDemand } from './panel-demand'
+import type { HostBus, HostTimers } from './ports'
 import { TerminalDemand } from './terminal-demand'
 
 const requestHolderFor = async (args: {
@@ -26,8 +26,10 @@ export class HolderDemand {
   readonly terminal: TerminalDemand
   readonly panel: PanelDemand
   private readonly waits: HeldWaits
+  private readonly unsubPanelHold: () => void
   private readonly args: {
     plane: ControlPlane
+    bus: HostBus
     timers: HostTimers
     holds(sessionId: string): boolean
     draining(): boolean
@@ -54,6 +56,20 @@ export class HolderDemand {
       },
       onIdle: (sessionId) => this.requestReconcile(sessionId),
     })
+    this.unsubPanelHold = args.bus.onPanelHold((hold) => this.panel.hold(hold))
+  }
+
+  holdPanel(args: { sessionId: string; ttlMs?: number | undefined }): boolean {
+    const ttlMs = args.ttlMs ?? PANEL_HOLD_TTL_MS
+    this.panel.hold({ sessionId: args.sessionId, ttlMs })
+    this.args.bus
+      .panelHold({ sessionId: args.sessionId, ttlMs })
+      .catch((error: unknown) => this.logFault(error))
+    return true
+  }
+
+  stop(): void {
+    this.unsubPanelHold()
   }
 
   notifyHeld(sessionId: string): void {

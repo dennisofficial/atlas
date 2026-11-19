@@ -56,8 +56,10 @@ export class FakeClock implements HostTimers {
 export class FakeBus implements HostBus {
   readonly wakes: string[] = []
   readonly frames: { sessionId: string; frame: LiveFrame }[] = []
+  readonly holds: { sessionId: string; ttlMs: number }[] = []
   private readonly listeners = new Set<(sessionId: string) => void>()
   private readonly resyncListeners = new Set<() => void>()
+  private readonly holdListeners = new Set<(hold: { sessionId: string; ttlMs: number }) => void>()
 
   onWake(listener: (sessionId: string) => void): () => void {
     this.listeners.add(listener)
@@ -84,6 +86,22 @@ export class FakeBus implements HostBus {
 
   async live(args: { sessionId: string; frame: LiveFrame }): Promise<void> {
     this.frames.push({ ...args })
+  }
+
+  onPanelHold(listener: (hold: { sessionId: string; ttlMs: number }) => void): () => void {
+    this.holdListeners.add(listener)
+    return () => {
+      this.holdListeners.delete(listener)
+    }
+  }
+
+  async panelHold(hold: { sessionId: string; ttlMs: number }): Promise<void> {
+    this.holds.push({ ...hold })
+    for (const listener of [...this.holdListeners]) listener(hold)
+  }
+
+  deliverPanelHold(hold: { sessionId: string; ttlMs: number }): void {
+    for (const listener of [...this.holdListeners]) listener(hold)
   }
 }
 

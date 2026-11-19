@@ -33,6 +33,7 @@ export type InMemoryBus = HostBus & {
 
 export const makeInMemoryBus = (): InMemoryBus => {
   const listeners = new Set<(sessionId: string) => void>()
+  const holdListeners = new Set<(hold: { sessionId: string; ttlMs: number }) => void>()
   const wakes: string[] = []
   const lives: { sessionId: string; frame: unknown }[] = []
   return {
@@ -51,6 +52,15 @@ export const makeInMemoryBus = (): InMemoryBus => {
     },
     async live({ sessionId, frame }) {
       lives.push({ sessionId, frame })
+    },
+    async panelHold(hold) {
+      for (const listener of [...holdListeners]) listener(hold)
+    },
+    onPanelHold(listener) {
+      holdListeners.add(listener)
+      return () => {
+        holdListeners.delete(listener)
+      }
     },
     reset() {
       wakes.length = 0

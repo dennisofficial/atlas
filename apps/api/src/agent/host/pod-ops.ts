@@ -51,10 +51,7 @@ export const podOpsOf = (args: {
       return calls.invoke(input)
     },
     events: (input) => calls.events(input),
-    hold: (input) => {
-      demand.panel.hold(input)
-      return true
-    },
+    hold: (input) => demand.holdPanel(input),
     waitForHolder,
   }
 }
