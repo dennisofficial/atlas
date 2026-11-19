@@ -30,7 +30,7 @@ export type McpServerWrite = {
   name: string
   transport: McpTransport | undefined
   disabled: boolean
-  proxy: boolean
+  proxy?: boolean
 }
 
 export type FileMountView = { path: string; mode: number }

@@ -56,6 +56,8 @@ type MacLinkRegistryArgs = {
 
 type SettledFrame = Extract<MacClientFrame, { type: 'opened' | 'open-failed' | 'rpc' | 'closed' }>
 
+type RelayedFrame = Extract<MacHostFrame, { type: 'open' | 'rpc' | 'close' }>
+
 const settles = (frame: MacHostFrame | MacClientFrame): frame is SettledFrame =>
   frame.type === 'opened' ||
   frame.type === 'open-failed' ||
@@ -261,7 +263,7 @@ export class MacLinkRegistry implements MacLink {
     this.placeholders.get(userId)?.socket.send(frame)
   }
 
-  private async sendToMac(userId: string, frame: MacHostFrame): Promise<void> {
+  private async sendToMac(userId: string, frame: RelayedFrame): Promise<void> {
     const holder = this.placeholders.get(userId)
     if (holder !== undefined) {
       holder.socket.send(frame)

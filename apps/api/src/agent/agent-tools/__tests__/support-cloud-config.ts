@@ -40,7 +40,7 @@ export const fakeCloudConfig = (args: { projectId?: string } = {}): FakeCloudCon
           name: server.name,
           transport: server.transport,
           disabled: server.disabled,
-          proxy: server.proxy,
+          proxy: server.proxy === true,
         })),
     readMcpServer: async (name) => {
       const server = servers.get(name)
@@ -50,7 +50,7 @@ export const fakeCloudConfig = (args: { projectId?: string } = {}): FakeCloudCon
             name: server.name,
             transport: server.transport,
             disabled: server.disabled,
-            proxy: server.proxy,
+            proxy: server.proxy === true,
           }
     },
     putMcpServer: async (server) => {

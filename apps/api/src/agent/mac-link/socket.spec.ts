@@ -161,16 +161,23 @@ describe('the mac-link socket', () => {
     appVersion: '1.2.3',
   })
 
+  const upgradeOf = (authorization?: string): Promise<Response> =>
+    fetch(`${base.replace('ws://', 'http://')}/mac-link`, {
+      headers: {
+        Upgrade: 'websocket',
+        Connection: 'Upgrade',
+        'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==',
+        'Sec-WebSocket-Version': '13',
+        ...(authorization === undefined ? {} : { authorization }),
+      },
+    })
+
   test('refuses an upgrade without a bearer', async () => {
-    const client = clientOf()
-    await client.waitForSettled()
-    expect(client.errors.join(' ')).toContain('401')
+    expect((await upgradeOf()).status).toBe(401)
   })
 
   test('refuses a bearer the session verifier does not know', async () => {
-    const client = clientOf({ authorization: 'Bearer nope' })
-    await client.waitForSettled()
-    expect(client.errors.join(' ')).toContain('401')
+    expect((await upgradeOf('Bearer nope')).status).toBe(401)
   })
 
   test('answers ready once the Mac says hello with its own bearer', async () => {

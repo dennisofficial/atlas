@@ -24,7 +24,7 @@ export type MacRelayRedis = {
   set(key: string, value: string, mode: 'EX', ttlSeconds: number): Promise<unknown>
   del(key: string): Promise<number>
   publish(channel: string, message: string): Promise<number>
-  subscribe(channel: string): Promise<unknown>
+  subscribe(...channels: string[]): Promise<unknown>
   unsubscribe(channel: string): Promise<unknown>
   on(event: 'ready' | 'error' | 'message', listener: (...args: never[]) => void): unknown
   quit(): Promise<unknown>
