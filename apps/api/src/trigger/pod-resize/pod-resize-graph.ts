@@ -2,7 +2,9 @@ import { Logger } from '@nestjs/common'
 import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { db } from '@dltech/atlas-db'
-import { podResizerOf, readAgentHostEnv, SecretCipher } from '../../agent'
+import { readAgentHostEnv } from '../../agent/config/env'
+import { SecretCipher } from '../../agent/config/secret-cipher'
+import { podResizerOf } from '../../agent/sandbox/sandbox-resizer'
 import type { PodResizeDeps } from '../../api/platform/control/pod-resize-run'
 
 export type PodResizeGraph = { deps: PodResizeDeps }
