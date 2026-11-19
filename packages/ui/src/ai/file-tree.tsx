@@ -5,6 +5,7 @@ import { ChevronRightIcon, FileIcon, FolderIcon } from 'lucide-react'
 import { Button } from '#components/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '#components/collapsible'
 import { cn } from '#lib/utils'
+import { TreeGuide } from './internal/tree-guide'
 
 export enum EFileChange {
   Added = 'added',
@@ -131,7 +132,7 @@ function FileTreeNode({ node, selected, onSelect, defaultOpen, open, onOpenChang
           {node.ignored && node.change === undefined ? <IgnoredMark /> : null}
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <div className="ml-4 flex flex-col border-l pl-1">
+          <TreeGuide>
             {node.loaded === false && isOpen ? <LoadingRow /> : null}
             {node.children.map((child) => (
               <FileTreeNode
@@ -144,7 +145,7 @@ function FileTreeNode({ node, selected, onSelect, defaultOpen, open, onOpenChang
                 onOpenChange={onOpenChange}
               />
             ))}
-          </div>
+          </TreeGuide>
         </CollapsibleContent>
       </Collapsible>
     )
