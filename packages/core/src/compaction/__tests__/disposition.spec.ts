@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EAgentRestart } from '../../agents/restart'
 import { EReportKind } from '../../agents/report'
 import { EAgentStatus } from '../../agents/status'
 import { ECompactionAnchor, EPrEventKind, EPrVerdict, type EventType } from '../../events/body'
@@ -66,13 +65,6 @@ const SURVIVOR_MINIMAL = {
     intent: 'find the callers',
     prose: 'halfway through',
     kind: EReportKind.Progress,
-  },
-  'agent-restarted': {
-    type: 'agent-restarted',
-    agentId: toThreadId('thread-child'),
-    agentType: 'explore',
-    intent: 'find the callers',
-    via: EAgentRestart.Resume,
   },
   'background-shell-ended': {
     type: 'background-shell-ended',

@@ -306,20 +306,13 @@ describe('a restart the parent did not cause', () => {
     via,
   })
 
-  it('says nothing to the parent when a queued notice woke the child', () => {
-    const assembled = assembleWith({
-      drafts: [{ type: 'user-said', text: 'go' }, restarted(EAgentRestart.Wake)],
-    })
+  it('says nothing to the parent, however the child was set running again', () => {
+    for (const via of Object.values(EAgentRestart)) {
+      const assembled = assembleWith({
+        drafts: [{ type: 'user-said', text: 'go' }, restarted(via)],
+      })
 
-    expect(textsOf(assembled)).toEqual([operatorSaidAs('go')])
-  })
-
-  it('still tells the parent about the restarts it did cause', () => {
-    for (const via of [EAgentRestart.Message, EAgentRestart.Resume, EAgentRestart.Relocation]) {
-      const texts = textsOf(assembleWith({ drafts: [restarted(via)] }))
-
-      expect(texts).toHaveLength(1)
-      expect(texts[0]).toStartWith('<system-notice kind="agent-restarted"')
+      expect(textsOf(assembled)).toEqual([operatorSaidAs('go')])
     }
   })
 })

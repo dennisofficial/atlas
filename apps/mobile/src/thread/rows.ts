@@ -134,7 +134,6 @@ function noticeFieldsOf(entry: TranscriptEntry): {
       }
     case EEntryKind.SystemContext:
     case EEntryKind.Rotated:
-    case EEntryKind.AgentRestarted:
     case EEntryKind.OperatorInput:
     case EEntryKind.HistoryCompacted:
     case EEntryKind.TldrWritten:

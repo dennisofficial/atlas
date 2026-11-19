@@ -22,7 +22,6 @@ export enum EEntryKind {
   ServiceEnded = 'service-ended',
   AgentEnded = 'agent-ended',
   AgentReported = 'agent-reported',
-  AgentRestarted = 'agent-restarted',
   TldrWritten = 'tldr-written',
   TurnEnded = 'turn-ended',
   SandboxNotice = 'sandbox-notice',
@@ -174,14 +173,6 @@ export type AgentReportedEntry = {
   reportKind?: EReportKind | undefined
 }
 
-export type AgentRestartedEntry = {
-  kind: EEntryKind.AgentRestarted
-  author: EAuthor.Model
-  key: string
-  text: string
-  agentId: string
-}
-
 export type ModelFellBackEntry = {
   kind: EEntryKind.ModelFellBack
   author: EAuthor.Model
@@ -318,7 +309,6 @@ export type TranscriptEntry =
   | ServiceEndedEntry
   | AgentEndedEntry
   | AgentReportedEntry
-  | AgentRestartedEntry
   | TldrWrittenEntry
   | TurnEndedEntry
   | SandboxNoticeEntry

@@ -122,7 +122,6 @@ export const fromTheModel = (model: TranscriptModel) =>
       | { kind: EEntryKind.SandboxNotice }
       | { kind: EEntryKind.ModelFellBack }
       | { kind: EEntryKind.Rotated }
-      | { kind: EEntryKind.AgentRestarted }
       | { kind: EEntryKind.AgentReported }
       | { kind: EEntryKind.OperatorInput }
       | { kind: EEntryKind.OperatorRequest }
@@ -146,7 +145,6 @@ export const fromTheModel = (model: TranscriptModel) =>
       entry.kind !== EEntryKind.SandboxNotice &&
       entry.kind !== EEntryKind.ModelFellBack &&
       entry.kind !== EEntryKind.Rotated &&
-      entry.kind !== EEntryKind.AgentRestarted &&
       entry.kind !== EEntryKind.AgentReported &&
       entry.kind !== EEntryKind.OperatorInput &&
       entry.kind !== EEntryKind.OperatorRequest &&

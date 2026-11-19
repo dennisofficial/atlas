@@ -221,9 +221,7 @@ describe('a drain that lands between a child final message and its ending', () =
     ])
     expect(await parentEndings(rig)).toEqual([])
     const drainedParent = await eventsIn({ rig, threadId: THREAD_ID })
-    expect(ofType({ events: drainedParent, type: 'agent-restarted' })).toMatchObject([
-      { agentId: CHILD, via: 'relocation' },
-    ])
+    expect(ofType({ events: drainedParent, type: 'agent-restarted' })).toEqual([])
 
     const drained = await rig.plane.currentLease({ sessionId: SESSION })
     expect(drained.lease.wantsHolder).toBe(true)
@@ -240,7 +238,7 @@ describe('a drain that lands between a child final message and its ending', () =
       { status: 'finished', prose: ANSWER },
     ])
     expect(endingsOf({ events: settled, threadId: CHILD }).length).toBe(1)
-    expect(ofType({ events: settled, type: 'agent-restarted' }).length).toBe(1)
+    expect(ofType({ events: settled, type: 'agent-restarted' })).toEqual([])
     const ending = settled.find((event) => event.type === 'agent-ended' && event.agentId === CHILD)
     const repliesAfterEnding = settled.filter(
       (event) =>

@@ -64,8 +64,6 @@ const SUMMARISED_LINES: {
     `Sub-agent (${event.agentType}, ${event.intent}) ${event.status}: ${clipped(event.prose, limit)}`,
   'agent-reported': ({ event, limit }) =>
     `Agent ${event.agentId} (${agentLabel(event)}) reported ${event.kind ?? EReportKind.Done}: ${clipped(event.prose, limit)}`,
-  'agent-restarted': ({ event }) =>
-    `Sub-agent (${event.agentType}, ${event.intent}) was restarted (via ${event.via})`,
   'background-shell-ended': ({ event, limit }) =>
     `Background shell "${event.command}" ${event.status}: ${clipped(event.output, limit)}`,
   'background-shell-still-running': ({ event }) =>
