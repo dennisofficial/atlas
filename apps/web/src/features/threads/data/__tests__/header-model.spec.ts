@@ -129,6 +129,7 @@ describe('checksTallyOf', () => {
       checksRunning: 0,
       checksPassed: 0,
       checksFailed: 0,
+      checksExpected: undefined,
       checksState: undefined,
       mergeable: true,
       current: true,
@@ -136,12 +137,21 @@ describe('checksTallyOf', () => {
       ...over,
     }) as Parameters<typeof checksTallyOf>[0]
 
-  it('waits on GitHub rollup state before any check reports', () => {
+  it('carries the count of required checks that have not reported yet', () => {
+    expect(checksTallyOf(entry({ checksExpected: 2, checksPassed: 39 }))).toEqual({
+      running: 0,
+      passed: 39,
+      failed: 0,
+      expected: 2,
+    })
+  })
+
+  it('falls back to one waiting check from the rollup state when no count is known', () => {
     expect(checksTallyOf(entry({ checksState: 'expected' }))).toEqual({
       running: 0,
       passed: 0,
       failed: 0,
-      waiting: true,
+      expected: 1,
     })
   })
 
@@ -150,16 +160,18 @@ describe('checksTallyOf', () => {
       running: 1,
       passed: 0,
       failed: 0,
-      waiting: false,
+      expected: 0,
     })
   })
 
-  it('still waits when GitHub expects a check beside the ones that reported', () => {
-    expect(checksTallyOf(entry({ checksState: 'expected', checksPassed: 2 }))).toEqual({
+  it('trusts a known count of nothing waiting over the rollup state', () => {
+    expect(
+      checksTallyOf(entry({ checksState: 'expected', checksExpected: 0, checksPassed: 2 })),
+    ).toEqual({
       running: 0,
       passed: 2,
       failed: 0,
-      waiting: true,
+      expected: 0,
     })
   })
 

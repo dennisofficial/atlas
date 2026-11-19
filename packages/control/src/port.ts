@@ -94,6 +94,7 @@ export type PrStateRow = {
   checksRunning: number
   checksPassed: number
   checksFailed: number
+  checksExpected: number
   mergeable: boolean | null
   updatedAt: string
   closedAt?: string | null | undefined

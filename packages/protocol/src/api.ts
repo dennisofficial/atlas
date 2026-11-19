@@ -139,6 +139,7 @@ export const prChecksSchema = z.strictObject({
   running: z.number().int().min(0),
   passed: z.number().int().min(0),
   failed: z.number().int().min(0),
+  expected: z.number().int().min(0).optional(),
 })
 
 export const sessionRowPullRequestSchema = z.strictObject({

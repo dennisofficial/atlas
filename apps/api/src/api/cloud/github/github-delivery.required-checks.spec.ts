@@ -88,7 +88,10 @@ describe('required status checks gate the head verdict', () => {
     const brought = await db.orm.public.GithubBranchProtection.all()
     expect(brought).toMatchObject([{ requiredContexts: ['ci'] }])
     expect((await storedState())?.checksState).toBe('expected')
-    expect((await lastFanout())?.payload).toMatchObject({ state: { checksState: 'expected' } })
+    expect((await storedState())?.checksExpected).toBe(1)
+    expect((await lastFanout())?.payload).toMatchObject({
+      state: { checksState: 'expected', checksExpected: 1 },
+    })
     expect(await verdictRows()).toHaveLength(0)
 
     await service.handle({ event: 'check_run', payload: CI_RUNNING })
@@ -97,6 +100,7 @@ describe('required status checks gate the head verdict', () => {
 
     await service.handle({ event: 'check_run', payload: CI_COMPLETED })
     expect((await storedState())?.checksState).toBe('success')
+    expect((await storedState())?.checksExpected).toBe(0)
     const verdicts = await verdictRows()
     expect(verdicts).toHaveLength(1)
     expect(verdicts[0]).toMatchObject({

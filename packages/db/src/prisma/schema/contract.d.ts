@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'e7fb1deef42a9e3691eb5b183a61acfa5e82d3bbef4ba7ee38382a7ac0b3ef3f'>;
+  StorageHashBase<'0286ec8602a1bd3709199639e2b9ef43150ddc2bda27f43ba7206442e135fd48'>;
 export type ExecutionHash =
   ExecutionHashBase<'4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45'>;
 export type ProfileHash =
@@ -619,6 +619,7 @@ export namespace Models {
   };
   export type public_GithubPrState = {
     baseBranch: FieldOutputTypes['public']['GithubPrState']['baseBranch'];
+    checksExpected: FieldOutputTypes['public']['GithubPrState']['checksExpected'];
     checksFailed: FieldOutputTypes['public']['GithubPrState']['checksFailed'];
     checksIgnored: FieldOutputTypes['public']['GithubPrState']['checksIgnored'];
     checksPassed: FieldOutputTypes['public']['GithubPrState']['checksPassed'];
@@ -3598,6 +3599,16 @@ type ContractBase = Omit<
                   readonly default: {
                     readonly kind: 'literal';
                     readonly value: DefaultLiteralValue<'pg/text@1', ''>;
+                  };
+                  readonly many: false;
+                };
+                readonly checksExpected: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
                   };
                   readonly many: false;
                 };
@@ -10285,6 +10296,10 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly checksExpected: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
               readonly checksFailed: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
@@ -10404,6 +10419,7 @@ type ContractBase = Omit<
               readonly namespaceId: 'public';
               readonly fields: {
                 readonly baseBranch: { readonly column: 'baseBranch' };
+                readonly checksExpected: { readonly column: 'checksExpected' };
                 readonly checksFailed: { readonly column: 'checksFailed' };
                 readonly checksIgnored: { readonly column: 'checksIgnored' };
                 readonly checksPassed: { readonly column: 'checksPassed' };

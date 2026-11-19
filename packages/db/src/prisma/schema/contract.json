@@ -3317,6 +3317,13 @@
                   "kind": "scalar"
                 }
               },
+              "checksExpected": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
               "checksFailed": {
                 "nullable": false,
                 "type": {
@@ -3499,6 +3506,9 @@
               "fields": {
                 "baseBranch": {
                   "column": "baseBranch"
+                },
+                "checksExpected": {
+                  "column": "checksExpected"
                 },
                 "checksFailed": {
                   "column": "checksFailed"
@@ -13219,6 +13229,15 @@
                   },
                   "nullable": false
                 },
+                "checksExpected": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nullable": false
+                },
                 "checksFailed": {
                   "codecId": "pg/int4@1",
                   "dataType": "pg/int4",
@@ -18743,7 +18762,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "e7fb1deef42a9e3691eb5b183a61acfa5e82d3bbef4ba7ee38382a7ac0b3ef3f"
+    "storageHash": "0286ec8602a1bd3709199639e2b9ef43150ddc2bda27f43ba7206442e135fd48"
   },
   "execution": {
     "executionHash": "4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45",

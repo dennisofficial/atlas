@@ -170,7 +170,9 @@ export class GithubPrStore {
       repoFullName: args.repoFullName,
       headSha,
     })
-    const checksStateMoved = (stored?.checksState ?? null) !== head.checksState
+    const checksStateMoved =
+      (stored?.checksState ?? null) !== head.checksState ||
+      (stored?.checksExpected ?? 0) !== head.missingRequiredContexts
     const changed: PrFoldChange[] = [
       ...new Set<PrFoldChange>([
         ...folded.changed,
@@ -193,6 +195,7 @@ export class GithubPrStore {
       tx,
       state,
       checksState: head.checksState,
+      checksExpected: head.missingRequiredContexts,
       stored,
     })
     const subscribers = await this.subscribersOf({ ...args, tx, row })
