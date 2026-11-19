@@ -22,6 +22,10 @@ export function buildPodResizeGraph(): PodResizeGraph {
       session: (args) => plane.readSession(args),
       credentials: (args) => scoped.vercelCredentials({ thread: { userId: args.userId } }),
       resize: (args) => sizer.resize(args),
+      rewake: async (args) => {
+        await plane.revoke({ sessionId: args.sessionId, wantsHolder: true })
+        logger.log(`rewaking ${args.sessionId} at its new size`)
+      },
       recordFailed: async (args) => {
         await plane.recordPodFailed(args)
         logger.warn(`pod-resize for ${args.sessionId} failed: ${args.error}`)

@@ -6,7 +6,7 @@ import {
   type PodResizePayload,
   type PodResizeTask,
 } from '../../api/platform/control/pod-resize.contract'
-import { runPodResize } from '../../api/platform/control/pod-resize-run'
+import { failureText, runPodResize } from '../../api/platform/control/pod-resize-run'
 import { buildPodResizeGraph } from './pod-resize-graph'
 
 export async function runPodResizeTask(payload: PodResizePayload): Promise<PodResizeOutput> {
@@ -17,7 +17,15 @@ export async function runPodResizeTask(payload: PodResizePayload): Promise<PodRe
 export const podResizeTask = schemaTask({
   id: POD_RESIZE_TASK_ID,
   schema: podResizePayloadSchema,
-  retry: { maxAttempts: 1 },
+  retry: { maxAttempts: 3 },
   maxDuration: 120,
   run: runPodResizeTask,
+  onFailure: async ({ payload, error }) => {
+    const { deps } = buildPodResizeGraph()
+    await deps.recordFailed({
+      sessionId: payload.sessionId,
+      generation: payload.generation,
+      error: failureText(error),
+    })
+  },
 }) satisfies PodResizeTask

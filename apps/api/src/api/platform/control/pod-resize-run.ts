@@ -21,13 +21,14 @@ export type PodResizeDeps = {
     credentials: VercelCredentials
     vcpus: number
   }): Promise<PodResizeOutcome>
+  rewake(args: { sessionId: string }): Promise<unknown>
   recordFailed(args: { sessionId: string; generation: number; error: string }): Promise<unknown>
 }
 
 const outcomeOf = (resized: PodResizeOutcome): EPodResizeOutcome =>
   resized === 'restarted' ? EPodResizeOutcome.Applied : EPodResizeOutcome.Stored
 
-const failureText = (failure: unknown): string =>
+export const failureText = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
 
 export const runPodResize = async (args: {
@@ -40,20 +41,11 @@ export const runPodResize = async (args: {
     return { outcome: EPodResizeOutcome.Superseded }
   }
   const vcpus = session.podDesiredVcpus ?? payload.vcpus
-  try {
-    const credentials = await deps.credentials({ userId: session.userId })
-    const resized = await deps.resize({
-      sandboxSessionId: session.podSessionId ?? session.sessionId,
-      credentials,
-      vcpus,
-    })
-    return { outcome: outcomeOf(resized) }
-  } catch (failure) {
-    await deps.recordFailed({
-      sessionId: payload.sessionId,
-      generation: payload.generation,
-      error: failureText(failure),
-    })
-    throw failure
-  }
+  const sandboxSessionId = session.podSessionId ?? session.sessionId
+  const credentials = await deps.credentials({ userId: session.userId })
+  const resized = await deps.resize({ sandboxSessionId, credentials, vcpus })
+  if (resized !== 'restarted') return { outcome: outcomeOf(resized) }
+  // the restart stopped the pod: nothing else would wake it, so the applied size stays unrecorded
+  await deps.rewake({ sessionId: sandboxSessionId })
+  return { outcome: EPodResizeOutcome.Applied }
 }
