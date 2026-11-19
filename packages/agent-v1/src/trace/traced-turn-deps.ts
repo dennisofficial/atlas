@@ -5,7 +5,7 @@ import type { AgentIntake } from '../intake/agent-intake'
 import type { LoopWatch } from '../loop/loop-watchdog'
 import { sleepUnlessAborted, type RetryDeps } from '../loop/retrying-step'
 import type { TurnDeps } from '../loop/run-turn'
-import type { TurnOutcome } from '../loop/turn-outcome'
+import { ETurnStatus, type TurnOutcome } from '../loop/turn-outcome'
 import { TracedModel } from './traced-model'
 import { TracedRecord } from './traced-record'
 
@@ -95,7 +95,13 @@ export const traceTurn = (args: {
     },
     run: async (span) => {
       const outcome = await args.run()
-      span.set({ runId: outcome.runId, status: outcome.status })
+      span.set({
+        runId: outcome.runId,
+        status: outcome.status,
+        ...(outcome.status === ETurnStatus.Failed && outcome.failure !== undefined
+          ? { failureKind: outcome.failure.kind }
+          : {}),
+      })
       return outcome
     },
   })

@@ -5,6 +5,7 @@ import { ClientVersionToken, CloudSessionStoreToken, ServeSessionToken } from '.
 import { ThreadStorePort } from '../store/thread-store'
 import { RoutineCreateTool } from '../tools/builtin/routine-create'
 import { RoutineDeleteTool } from '../tools/builtin/routine-delete'
+import { RoutineGetTool } from '../tools/builtin/routine-get'
 import { RoutineListTool } from '../tools/builtin/routine-list'
 import { RoutineRunTool } from '../tools/builtin/routine-run'
 import { RoutineUpdateTool } from '../tools/builtin/routine-update'
@@ -29,6 +30,9 @@ export function registerRoutineTools({ container }: { container: DependencyConta
 
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) => new RoutineListTool(deps(resolver)),
+  })
+  container.register(portToken(ToolDefinition), {
+    useFactory: (resolver) => new RoutineGetTool(deps(resolver)),
   })
   container.register(portToken(ToolDefinition), {
     useFactory: (resolver) => new RoutineCreateTool(deps(resolver)),

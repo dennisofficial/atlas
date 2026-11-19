@@ -38,6 +38,7 @@ export type SpanFields = {
   readonly model?: string | undefined
   readonly tool?: string | undefined
   readonly status?: string | undefined
+  readonly failureKind?: string | undefined
   readonly verdict?: string | undefined
   readonly finishReason?: string | undefined
   readonly outcome?: ESpanOutcome | undefined

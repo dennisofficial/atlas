@@ -62,6 +62,7 @@ export type {
 export {
   MINIMUM_ROUTINE_GAP_MINUTES,
   routineCreateOf,
+  routineGetOf,
   routineListOf,
   routineOf,
   routineRemoveOf,

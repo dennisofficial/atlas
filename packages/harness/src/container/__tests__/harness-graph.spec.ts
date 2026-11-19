@@ -71,6 +71,7 @@ describe('the harness container graph', () => {
       'report_to_main',
       'routine_create',
       'routine_delete',
+      'routine_get',
       'routine_list',
       'routine_run',
       'routine_update',

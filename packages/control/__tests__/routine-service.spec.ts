@@ -6,6 +6,7 @@ import {
   RoutineInvalidError,
   RoutineNotFoundError,
   routineCreateOf,
+  routineGetOf,
   routineListOf,
   routineRemoveOf,
   routineRunNowOf,
@@ -132,6 +133,27 @@ describe('routine scoping', () => {
     const { plane } = fakePlane([rowOf(), rowOf({ routineId: 'r2', projectId: 'p2' })])
     const listed = await routineListOf({ plane, userId: 'u1', projectId: 'p1' })
     expect(listed.routines.map((routine) => routine.routineId)).toEqual(['r1'])
+  })
+
+  it('reads one routine of the project, prompt and all', async () => {
+    const { plane } = fakePlane([rowOf(), rowOf({ routineId: 'r2', projectId: 'p2' })])
+    const routine = await routineGetOf({ plane, userId: 'u1', projectId: 'p1', routineId: 'r1' })
+    expect(routine.prompt).toBe('post the standup')
+    expect(routine.nextRunAt).toBe('2026-11-20T09:00:00.000Z')
+  })
+
+  it('refuses to read a routine of another project', async () => {
+    const { plane } = fakePlane()
+    await expect(
+      routineGetOf({ plane, userId: 'u1', projectId: 'p2', routineId: 'r1' }),
+    ).rejects.toBeInstanceOf(RoutineNotFoundError)
+  })
+
+  it('refuses to read a routine that is gone', async () => {
+    const { plane } = fakePlane()
+    await expect(routineGetOf({ plane, userId: 'u1', routineId: 'gone' })).rejects.toThrow(
+      'routine not found: gone',
+    )
   })
 
   it('refuses to update a routine of another project', async () => {

@@ -16,6 +16,7 @@ const inputSchema = z.strictObject({})
 
 const description = [
   "List the routines saved in this session's project, with each routine's id, name, cron, timezone, whether it is enabled, when it next runs and the session its last run started.",
+  'The listing is short: use routine_get with a routineId to read one routine and its full prompt.',
   ...SCHEDULING,
 ].join(' ')
 

@@ -3,6 +3,8 @@ import {
   type Routine,
   type RoutineCreateInput,
   routineCreateInputSchema,
+  routineGetInputSchema,
+  type RoutineGetInput,
   type RoutineIdInput,
   routineIdInputSchema,
   type RoutineListInput,
@@ -32,6 +34,15 @@ export class RoutinesRouter {
   @Query({ input: routineListInputSchema, output: routineListOutputSchema })
   list(@Input() input: RoutineListInput, @Ctx() ctx: SessionTrpcCtx): Promise<RoutineListOutput> {
     return this.routines.list({ userId: ctx.auth.userId, projectId: input.projectId })
+  }
+
+  @Query({ input: routineGetInputSchema, output: routineSchema })
+  get(@Input() input: RoutineGetInput, @Ctx() ctx: SessionTrpcCtx): Promise<Routine> {
+    return this.routines.get({
+      userId: ctx.auth.userId,
+      routineId: input.routineId,
+      projectId: input.projectId,
+    })
   }
 
   @Query({ input: routineRunsInputSchema, output: routineRunsOutputSchema })

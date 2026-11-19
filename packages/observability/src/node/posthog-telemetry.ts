@@ -26,7 +26,11 @@ export class PosthogTelemetry extends TelemetryPort {
   }
 
   turnCompleted(turn: TelemetryTurn): void {
-    this.capture('turn_completed', { ...turn })
+    const { failureKind, ...rest } = turn
+    this.capture('turn_completed', {
+      ...rest,
+      ...(failureKind === undefined ? {} : { failure_kind: failureKind }),
+    })
   }
 
   featureUsed(args: { feature: string }): void {

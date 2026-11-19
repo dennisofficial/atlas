@@ -75,6 +75,35 @@ describe('recordTurnSpend telemetry', () => {
     expect(telemetry.exceptions).toEqual([])
   })
 
+  it('forwards why a failed turn failed as the failure kind, never the message', async () => {
+    const ledger = new CapturingLedger()
+    const telemetry = new RecordingTelemetry()
+
+    await recordTurnSpend({
+      ...base,
+      status: 'failed',
+      failureKind: 'rate-limited',
+      ledger,
+      telemetry,
+    })
+
+    expect(telemetry.turns).toEqual([
+      {
+        status: 'failed',
+        failureKind: 'rate-limited',
+        providerId: 'anthropic',
+        modelId: 'claude-opus-4-1',
+        steps: 3,
+        inputTokens: 1200,
+        outputTokens: 300,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+        durationMs: 5000,
+      },
+    ])
+    expect(ledger.recorded[0]).not.toHaveProperty('failureKind')
+  })
+
   it('emits an exception alongside the rollup when the turn crashed', async () => {
     const ledger = new CapturingLedger()
     const telemetry = new RecordingTelemetry()

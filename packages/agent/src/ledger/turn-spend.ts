@@ -12,5 +12,10 @@ export type TurnLedgerDeps = {
 
 export type TurnSpendTally = {
   countStep(usage: ModelUsage | undefined): void
-  settle(args: { threadId: ThreadId; runId: RunId; status: string }): Promise<void>
+  settle(args: {
+    threadId: ThreadId
+    runId: RunId
+    status: string
+    failureKind?: string
+  }): Promise<void>
 }
