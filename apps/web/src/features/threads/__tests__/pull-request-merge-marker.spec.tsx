@@ -16,14 +16,15 @@ describe('PullRequestMergeMarker', () => {
 
     expect(html).toContain('Queued')
     expect(html).toContain('lucide-list-ordered')
-    expect(html).not.toContain('Auto-merge')
+    expect(html).not.toContain('lucide-fast-forward')
   })
 
-  it('shows the auto-merge marker when only the setting is on', () => {
+  it('shows the auto-merge marker as an icon only, named by its hint', () => {
     const html = renderToStaticMarkup(<PullRequestMergeMarker entry={entry({ autoMerge: true })} />)
 
-    expect(html).toContain('Auto-merge')
-    expect(html).toContain('lucide-zap')
+    expect(html).toContain('lucide-fast-forward')
+    expect(html).toContain('aria-label="Auto-merge enabled"')
+    expect(html).not.toContain('>Auto-merge<')
     expect(html).not.toContain('Queued')
   })
 
@@ -38,8 +39,8 @@ describe('PullRequestMergeMarker', () => {
       label: 'Queued',
       hint: 'In merge queue',
     })
-    expect(mergeMarkerOf(entry({ autoMerge: true }))).toMatchObject({
-      label: 'Auto-merge',
+    expect(mergeMarkerOf(entry({ autoMerge: true }))).toEqual({
+      icon: expect.anything(),
       hint: 'Auto-merge enabled',
     })
   })
