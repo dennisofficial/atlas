@@ -12,7 +12,7 @@ export const resize = defineCommand({
     summary: 'Resize this pod and restart its sandbox at the new size',
     group: ECommandGroup.Session,
     args: resizeArgs,
-    timing: ECommandTiming.Settled,
-    handledIn: 'pod',
+    timing: ECommandTiming.Immediate,
+    handledIn: 'control',
   },
 })

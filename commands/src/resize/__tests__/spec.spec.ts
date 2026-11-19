@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'bun:test'
+import { ECommandTiming } from '@dltech/atlas-core'
 
 import { resize, resizeArgs } from '../spec'
 
 describe('resize spec', () => {
-  it('is handled in the pod and carries a command inbox entry', () => {
+  it('is handled in the control plane at once and has no inbox entry', () => {
     expect(resize.spec.name).toBe('resize')
-    expect(resize.spec.handledIn).toBe('pod')
-    expect(resize.inboxKind).toBe('command:resize')
+    expect(resize.spec.handledIn).toBe('control')
+    expect(resize.spec.timing).toBe(ECommandTiming.Immediate)
   })
 
   it('accepts the pod sizes Vercel offers', () => {

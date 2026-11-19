@@ -69,8 +69,6 @@ class FakeSandbox extends SandboxProvider {
   async keepAlive(args: { sandboxSessionId: string }): Promise<void> {
     this.keptAlive.push(args.sandboxSessionId)
   }
-
-  async resize(): Promise<void> {}
 }
 
 type ScheduledTimer = { handler: () => void; cleared: boolean }

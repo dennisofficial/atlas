@@ -37,12 +37,6 @@ export class FixedEndpointSandboxProvider extends SandboxProvider {
 
   async stop(_args: { sandboxSessionId: string; credentials: VercelCredentials }): Promise<void> {}
 
-  async resize(_args: {
-    sandboxSessionId: string
-    credentials: VercelCredentials
-    vcpus: number
-  }): Promise<void> {}
-
   async keepAlive(_args: {
     sandboxSessionId: string
     credentials: VercelCredentials

@@ -17,7 +17,11 @@ import { PodPlanGate } from '../../../_core/ports/pod-plan-gate'
 import { NoSessionTitler } from '../../../_core/ports/session-titler'
 import { FakeMediaRegistry } from './media-registry.fake'
 import { SessionsService } from './sessions.service'
-import type { PodResourceReads } from './pod-resources.service'
+import { PodSizingService } from './pod-sizing.service'
+import type {
+  SandboxResourcesObservation,
+  VercelSandboxClient,
+} from '../sandboxes/vercel-sandbox.client'
 import { ProjectAccess } from './project-access'
 import { modelSet } from './model-set'
 
@@ -105,8 +109,29 @@ export const logWithdrawn = async (args: {
   })
 }
 
+export class FakePodSizingClient {
+  readonly reads: { userId: string; name: string }[] = []
+  readonly resizes: { userId: string; name: string; vcpus: number }[] = []
+  resources: SandboxResourcesObservation | null = null
+  failure: unknown = undefined
+
+  async readPodResources(args: {
+    userId: string
+    name: string
+  }): Promise<SandboxResourcesObservation | null> {
+    this.reads.push(args)
+    if (this.failure !== undefined) throw this.failure
+    return this.resources
+  }
+
+  async resizePod(args: { userId: string; name: string; vcpus: number }): Promise<void> {
+    this.resizes.push(args)
+    if (this.failure !== undefined) throw this.failure
+  }
+}
+
 export const setupSessionsService = (
-  over: { planGate?: PodPlanGate; podResources?: PodResourceReads } = {},
+  over: { planGate?: PodPlanGate; client?: FakePodSizingClient } = {},
 ) => {
   const store = new InMemoryControlStore({ clock: () => NOW })
   store.markHostPresent(9001)
@@ -114,6 +139,13 @@ export const setupSessionsService = (
   const registry = new FakeMediaRegistry()
   const mediaStore = new FakeMediaStore()
   const projects = new RecordingProjectAccess()
+  const planGate: PodPlanGate = over.planGate ?? { assertWithinPlan: async () => undefined }
+  const client = over.client ?? new FakePodSizingClient()
+  const podSizing = new PodSizingService(
+    client as unknown as VercelSandboxClient,
+    new NoBackgroundWork(),
+    planGate,
+  )
   const service = new SessionsService(
     plane,
     projects,
@@ -122,8 +154,7 @@ export const setupSessionsService = (
     registry,
     mediaStore,
     composeCommands([TEST_COMMAND, modelSet, resize]),
-    over.planGate ?? { assertWithinPlan: async () => undefined },
-    over.podResources ?? { resources: async () => null, forget: () => undefined },
+    podSizing,
   )
-  return { plane, service, registry, mediaStore, store, projects }
+  return { plane, service, registry, mediaStore, store, projects, client }
 }

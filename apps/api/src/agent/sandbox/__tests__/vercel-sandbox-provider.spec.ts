@@ -126,40 +126,6 @@ describe('VercelSandboxProvider.wake size', () => {
   })
 })
 
-describe('VercelSandboxProvider.resize', () => {
-  const sandbox = (calls: string[]) => ({
-    update: async (params: { resources?: { vcpus?: number } }) => {
-      calls.push(`update:${params.resources?.vcpus}`)
-    },
-    stop: async () => {
-      calls.push('stop')
-    },
-  })
-
-  it('stores the new size and stops the sandbox so the next wake resumes at it', async () => {
-    const calls: string[] = []
-    const sdk: VercelSdk = {
-      getOrCreate: async () => {
-        throw new Error('unused')
-      },
-      get: async () => sandbox(calls) as never,
-    }
-    const provider = new VercelSandboxProvider({
-      image: 'atlas-sandbox:latest',
-      daemonBundle: { path: '/tmp/daemon.js' },
-      daemonSecret: 'top-secret',
-      cloudUrl: 'https://api.test',
-      sdk,
-    })
-    await provider.resize({
-      sandboxSessionId: 's6',
-      credentials: CREDENTIALS,
-      vcpus: 16,
-    })
-    expect(calls).toEqual(['update:16', 'stop'])
-  })
-})
-
 describe('VercelSandboxProvider.wake deadline', () => {
   const hangingSdk = (seen: AbortSignal[]): VercelSdk => ({
     getOrCreate: (params) => {

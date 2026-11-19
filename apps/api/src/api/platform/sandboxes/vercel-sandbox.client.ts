@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, NotFoundException } from '@nestjs/common'
 import { Sandbox } from '@vercel/sandbox'
 import {
   assertLiveSession,
@@ -203,6 +203,29 @@ export class VercelSandboxClient {
       return podResourcesOf(sandbox)
     } catch (failure) {
       if (isSandboxMissing(failure)) return null
+      throw asBadGateway(failure)
+    }
+  }
+
+  async resizePod(args: { userId: string; name: string; vcpus: number }): Promise<void> {
+    const { token, teamId, projectId } = await this.credentials.forUser({ userId: args.userId })
+    try {
+      const sandbox = await Sandbox.get({
+        token,
+        teamId,
+        projectId,
+        name: args.name,
+        resume: false,
+        signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
+      })
+      await sandbox.update(
+        { resources: { vcpus: args.vcpus } },
+        { signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) },
+      )
+      if (sandbox.status === 'stopped') return
+      await sandbox.stop({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
+    } catch (failure) {
+      if (isSandboxMissing(failure)) throw new NotFoundException(`sandbox ${args.name} not found`)
       throw asBadGateway(failure)
     }
   }

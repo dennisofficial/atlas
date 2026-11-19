@@ -111,23 +111,6 @@ export class VercelSandboxProvider extends SandboxProvider {
     }
   }
 
-  async resize(args: {
-    sandboxSessionId: string
-    credentials: VercelCredentials
-    vcpus: number
-  }): Promise<void> {
-    const sandbox = await this.sdk.get({
-      ...args.credentials,
-      name: sandboxNameOf(args.sandboxSessionId),
-      signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
-    })
-    await sandbox.update(
-      { resources: { vcpus: args.vcpus } },
-      { signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) },
-    )
-    await sandbox.stop({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
-  }
-
   async stop(args: { sandboxSessionId: string; credentials: VercelCredentials }): Promise<void> {
     const sandbox = await this.sdk.get({
       ...args.credentials,

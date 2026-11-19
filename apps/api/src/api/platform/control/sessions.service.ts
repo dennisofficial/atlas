@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common'
 import type { CommandRegistry } from '@dltech/atlas-commands'
-import { resizeArgs } from '@dltech/atlas-native-commands'
+import { resize } from '@dltech/atlas-native-commands'
 import {
   ControlPlane,
   pricedView,
@@ -40,9 +40,8 @@ import {
 } from '@dltech/atlas-protocol'
 import type { SessionPageOutput } from '@dltech/atlas-wire'
 import { BackgroundWork } from '../../../_core/ports/background-work'
-import { PodPlanGate } from '../../../_core/ports/pod-plan-gate'
 import { SessionTitler } from '../../../_core/ports/session-titler'
-import { PodResourcesService, type PodResourceReads } from './pod-resources.service'
+import { PodSizingService, type PodSizing } from './pod-sizing.service'
 import { pageSessions, type PageBucket } from '../sessions/session-pages'
 import { COMMAND_REGISTRY, postCommand } from './command-registry'
 import { modelSetHandlers } from './model-set'
@@ -64,9 +63,6 @@ type MessageDraftInput = {
   attachments?: readonly Attachment[] | undefined
 }
 
-const podKeyOfSession = (args: { session: ControlSessionRow }): string =>
-  args.session.podSessionId ?? args.session.sessionId
-
 @Injectable()
 export class SessionsService {
   private readonly logger = new Logger(SessionsService.name)
@@ -79,8 +75,7 @@ export class SessionsService {
     @Inject(MediaRegistry) private readonly media: MediaRegistry,
     @Inject(MediaStore) private readonly store: MediaStore,
     @Inject(COMMAND_REGISTRY) private readonly commands: CommandRegistry,
-    @Inject(PodPlanGate) private readonly planGate: PodPlanGate,
-    @Inject(PodResourcesService) private readonly podResources: PodResourceReads,
+    @Inject(PodSizingService) private readonly podSizing: PodSizing,
   ) {}
 
   async accessibleProjectId(args: { userId: string; projectId: string }): Promise<string> {
@@ -363,15 +358,15 @@ export class SessionsService {
 
   async command(args: { userId: string } & SessionCommandInput): Promise<SessionCommandOutput> {
     const session = await this.requireOwnedSession(args)
-    if (args.name === 'resize') await this.assertResizeWithinPlan(args)
-    const posted = await postCommand({
+    return postCommand({
       plane: this.plane,
       registry: this.commands,
-      controlHandlers: modelSetHandlers({ plane: this.plane, session }),
+      controlHandlers: new Map([
+        ...modelSetHandlers({ plane: this.plane, session }),
+        [resize.spec.name, this.podSizing.resizeHandler({ userId: args.userId, session })],
+      ]),
       ...args,
     })
-    if (args.name === 'resize') this.podResources.forget({ podKey: podKeyOfSession({ session }) })
-    return posted
   }
 
   async podResourcesOf(args: {
@@ -379,16 +374,7 @@ export class SessionsService {
     sessionId: string
   }): Promise<SessionPodResourcesOutput> {
     const session = await this.requireOwnedSession(args)
-    return this.podResources.resources({
-      userId: args.userId,
-      podKey: podKeyOfSession({ session }),
-    })
-  }
-
-  private async assertResizeWithinPlan(args: { userId: string; args: unknown }): Promise<void> {
-    const parsed = resizeArgs.safeParse(args.args)
-    if (!parsed.success) return
-    await this.planGate.assertWithinPlan({ userId: args.userId, vcpus: parsed.data.vcpus })
+    return this.podSizing.resourcesOf({ userId: args.userId, session })
   }
 
   async requireOwnedSession(args: {

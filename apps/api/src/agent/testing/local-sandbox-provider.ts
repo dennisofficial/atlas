@@ -48,12 +48,6 @@ export class LocalSandboxProvider extends SandboxProvider {
     rmSync(running.home, { recursive: true, force: true })
   }
 
-  async resize(_args: {
-    sandboxSessionId: string
-    credentials: VercelCredentials
-    vcpus: number
-  }): Promise<void> {}
-
   async keepAlive(_args: {
     sandboxSessionId: string
     credentials: VercelCredentials

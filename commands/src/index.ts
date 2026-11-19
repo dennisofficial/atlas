@@ -8,7 +8,7 @@ import { rewind } from './rewind/spec'
 import { summariseHandler } from './summarise/pod'
 import { summarise } from './summarise/spec'
 
-export const nativeCommands: readonly Command[] = [rewind, rename, summarise, resize]
+export const nativeCommands: readonly Command[] = [rewind, rename, summarise]
 
 export const nativeCommandHandlers: ReadonlyMap<string, CommandHandler<unknown>> = new Map([
   [rewind.inboxKind, rewindHandler],

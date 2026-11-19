@@ -11,11 +11,6 @@ export abstract class SandboxProvider {
     signal: AbortSignal
     vcpus?: number | undefined
   }): Promise<DaemonEndpoint>
-  abstract resize(args: {
-    sandboxSessionId: string
-    credentials: VercelCredentials
-    vcpus: number
-  }): Promise<void>
   abstract stop(args: { sandboxSessionId: string; credentials: VercelCredentials }): Promise<void>
   abstract keepAlive(args: {
     sandboxSessionId: string
