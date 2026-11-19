@@ -1,5 +1,5 @@
 import { EWorkspaceStep, EWorkspaceStepState, type WorkspaceStepReport } from '@dltech/atlas-core'
-import type { CapturedBase } from '@dltech/atlas-host'
+import type { CapturedBase, PrepareResult } from '@dltech/atlas-host'
 
 import type { WorkspaceConfig } from '../config/agent-host-config'
 import { captureCheckedOut, type CheckoutReport } from './workspace-checkout'
@@ -41,6 +41,30 @@ export const markMaterialized = async (args: {
     path: args.sentinelPath,
     message: 'materialized sentinel write failed; setup is not done',
   })
+}
+
+export const resultOf = (warnings: readonly string[]): Extract<PrepareResult, { ok: true }> =>
+  warnings.length === 0 ? { ok: true } : { ok: true, warnings: [...warnings] }
+
+export const prepareFailureResult = (args: {
+  prepared: Extract<WorkspacePrepareOutcome, { ok: false }>
+  deps: Deps
+  warnings: readonly string[]
+  setupScript: string
+}): PrepareResult => {
+  if (args.prepared.failure === EWorkspacePrepareFailure.Materialized) {
+    return {
+      ok: false,
+      reason: args.warnings.join('\n') || 'the workspace was not marked materialized',
+    }
+  }
+  if (args.setupScript.trim() !== '') {
+    fail({
+      deps: args.deps,
+      message: 'setup script was skipped because the workspace clone failed',
+    })
+  }
+  return resultOf(args.warnings)
 }
 
 export const prepareWorkspace = async (args: {

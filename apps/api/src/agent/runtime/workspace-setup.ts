@@ -21,7 +21,7 @@ import type { WorkspaceConfig } from '../config/agent-host-config'
 
 import { replayCapturedBases } from './workspace-bases'
 import type { CheckoutReport } from './workspace-checkout'
-import { EWorkspacePrepareFailure, prepareWorkspace } from './workspace-materialize'
+import { prepareFailureResult, prepareWorkspace, resultOf } from './workspace-materialize'
 import { run } from './workspace-clone'
 import { RepoProgress, repoNamesOf } from './workspace-repos'
 import {
@@ -147,9 +147,6 @@ const startSetupInBackground = (args: {
     .finally(() => args.ackScope().catch(() => undefined))
 }
 
-const resultOf = (warnings: readonly string[]): Extract<PrepareResult, { ok: true }> =>
-  warnings.length === 0 ? { ok: true } : { ok: true, warnings: [...warnings] }
-
 const scopeFor = (args: { sandboxName: string; phase: string }): string =>
   scopeKeyOf({ runId: 'setup', callId: `${args.sandboxName}:${args.phase}` })
 
@@ -231,16 +228,12 @@ export const ensureWorkspace = async (args: {
       })
       captured = prepared.bases
       if (!prepared.ok) {
-        if (prepared.failure === EWorkspacePrepareFailure.Materialized) {
-          return {
-            ok: false,
-            reason: warnings.join('\n') || 'the workspace was not marked materialized',
-          }
-        }
-        if (workspace.setupScript.trim() !== '') {
-          fail({ deps, message: 'setup script was skipped because the workspace clone failed' })
-        }
-        return resultOf(warnings)
+        return prepareFailureResult({
+          prepared,
+          deps,
+          warnings,
+          setupScript: workspace.setupScript,
+        })
       }
       // the workspace was rebuilt, so a setup script started in the old one says nothing about it
       await clearSetupStarted({ deps, path: sentinels.setupStarted })

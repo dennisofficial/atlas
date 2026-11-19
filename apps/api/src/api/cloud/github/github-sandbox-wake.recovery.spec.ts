@@ -16,6 +16,7 @@ import {
 } from '../../../../test/github-sandbox-wake-fixture'
 import { EPrEventKind } from './github-realtime.types'
 import type { WakePrEvent } from './github-sandbox-wake-intent'
+import { owedWakeTargets } from './github-sandbox-wake-linked'
 
 const VERDICT: WakePrEvent = {
   userId: 'usr-1',
@@ -116,5 +117,49 @@ describe('GithubSandboxWakeService recovery of an owed intent', () => {
     await recovery.retryFailedWakes()
 
     expect(calls).toHaveLength(0)
+  })
+})
+
+describe('owedWakeTargets over a parked sandbox with an owed intent', () => {
+  useTestDatabase()
+  useWakeFixture()
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    unstubAllGlobals()
+    vi.useRealTimers()
+  })
+
+  const owedThreadIds = async (): Promise<string[]> =>
+    (await owedWakeTargets()).map((target) => target.threadId).sort()
+
+  const seedOwedIntents = async (): Promise<void> => {
+    await seedParkedSandbox()
+    await seedParkedSandbox({ threadId: 'thr-2', tokenHash: 'stored-hash-2' })
+    await seedSubscription()
+    await seedSubscription({ threadId: 'thr-2' })
+    await serviceWith({ boot: fakeBoot().boot }).notifyEvent(PR_EVENT, VERDICT)
+    await settleLookups()
+  }
+
+  it('excludes the parked sandbox of an archived session', async () => {
+    await seedOwedIntents()
+    expect(await owedThreadIds()).toEqual(['thr-1', 'thr-2'])
+
+    await db.orm.public.Session.where({ id: 'ses_thr-2' }).update({ archivedAt: new Date() })
+
+    expect(await owedThreadIds()).toEqual(['thr-1'])
+  })
+
+  it('excludes the parked sandbox of a deleted session', async () => {
+    await seedOwedIntents()
+    expect(await owedThreadIds()).toEqual(['thr-1', 'thr-2'])
+
+    await db.orm.public.Session.where({ id: 'ses_thr-2' }).update({ deletedAt: new Date() })
+
+    expect(await owedThreadIds()).toEqual(['thr-1'])
   })
 })
