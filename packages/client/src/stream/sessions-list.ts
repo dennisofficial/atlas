@@ -19,9 +19,11 @@ export type SessionsList = {
 export const foldSessionsMessage = (args: {
   rows: readonly StreamSessionRow[] | undefined
   message: SessionsListMessage
-}): readonly StreamSessionRow[] => {
-  const { rows = [], message } = args
+}): readonly StreamSessionRow[] | undefined => {
+  const { rows, message } = args
   if (message.type === 'snapshot') return message.rows
+  // A delta before the first snapshot would otherwise replace the whole list with one row.
+  if (rows === undefined) return undefined
   if (message.type === 'remove') return rows.filter((row) => row.sessionId !== message.sessionId)
   const exists = rows.some((row) => row.sessionId === message.row.sessionId)
   if (!exists) return [...rows, message.row]
@@ -33,7 +35,9 @@ export const createSessionsList = (): SessionsList => {
   const listeners = new Set<() => void>()
   return {
     handleMessage: (message) => {
-      rows = foldSessionsMessage({ rows, message })
+      const next = foldSessionsMessage({ rows, message })
+      if (next === rows) return
+      rows = next
       for (const listener of [...listeners]) listener()
     },
     view: {
