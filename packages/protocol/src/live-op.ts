@@ -12,7 +12,17 @@ export const liveOpFailureSchema = z.strictObject({
 })
 export type LiveOpFailure = z.infer<typeof liveOpFailureSchema>
 
-export const CP_POD_OPS = ['stat', 'readFile', 'readDirectory', 'glob'] as const
+export const CP_POD_OPS = [
+  'stat',
+  'readFile',
+  'readDirectory',
+  'glob',
+  'terminal.open',
+  'terminal.write',
+  'terminal.resize',
+  'terminal.close',
+  'terminal.read',
+] as const
 
 export const LIVE_OP_MAX_BYTES = 1_048_576
 export const LIVE_OP_TIMEOUT_MS = 15_000
