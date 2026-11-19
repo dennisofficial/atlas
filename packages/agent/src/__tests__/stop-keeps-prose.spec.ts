@@ -7,7 +7,7 @@ import { THREAD, rigOf } from './exit-fixture'
 
 const ESSAY = 'It was the best of times, it was the worst of times'
 
-const stoppedRig = () => {
+const stoppedRig = (abortReason = 'stop') => {
   const controller = new AbortController()
   let armed = true
   const rig = rigOf({
@@ -16,7 +16,7 @@ const stoppedRig = () => {
       onChunk: (chunk) => {
         if (armed && chunk.type === 'text-delta') {
           armed = false
-          controller.abort('stop')
+          controller.abort(abortReason)
         }
         return chunk
       },
@@ -60,8 +60,14 @@ describe('a turn the operator stops while the model is streaming', () => {
   })
 
   it('leaves a crash interruption to nudge the model back into the thought', async () => {
-    const { rig, stop } = stoppedRig()
+    // A crash ends the run without the operator's stop reason, so the reply is interrupted but
+    // not marked stopped: that reply is what resume() nudges the model back into.
+    const { rig, stop } = stoppedRig('crash')
     await stop()
+
+    const reply = rig.record.eventsOf(THREAD).find((event) => event.type === 'assistant-said')
+    expect(reply?.type === 'assistant-said' ? reply.interrupted : undefined).toBe(true)
+    expect(reply?.type === 'assistant-said' ? reply.stopped : undefined).toBeUndefined()
 
     await rig.runner.resume({ threadId: THREAD })
 
