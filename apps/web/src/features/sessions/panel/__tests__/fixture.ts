@@ -40,9 +40,10 @@ export const pullRequestFixture: PullRequestEntry = {
 }
 
 export const subscriptionFixture: SubscribedPullRequest = {
-  number: 31,
-  label: 'owner/atlas#31',
-  url: 'https://github.com/owner/atlas/pull/31',
+  id: 'sub_7',
+  number: 7,
+  label: 'owner/atlas#7',
+  url: 'https://github.com/owner/atlas/pull/7',
 }
 
 export const previewFixture: PreviewItem = {
@@ -82,6 +83,8 @@ export const checkoutsFixture = (
 
 export const paneValueFixture = (overrides: Partial<SessionPaneValue> = {}): SessionPaneValue => ({
   sessionId: 'ses-1',
+  title: 'Rebase ui on shadcn base-nova',
+  startedAt: '2026-11-18T10:00:00.000Z',
   view: viewModelFixture(),
   viewLoaded: true,
   checkouts: checkoutsFixture(),

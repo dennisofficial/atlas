@@ -109,7 +109,14 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   )
   const panel = useMemo(() => panelValueOf({ sessionId, working }), [sessionId, working])
   const pane = useSessionPane(sessionId)
-  const wiring = useSessionPaneWiring({ sessionId, model, snapshot, openTab: pane.openTab })
+  const wiring = useSessionPaneWiring({
+    sessionId,
+    title: listed?.title ?? undefined,
+    startedAt: listed?.createdAt,
+    model,
+    snapshot,
+    openTab: pane.openTab,
+  })
   const stateLine = sessionStateLineOf(snapshot)
   const stagedRun = useStagedMessages({
     events: snapshot.events,

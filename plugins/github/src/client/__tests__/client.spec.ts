@@ -22,6 +22,7 @@ describe('subscribedPullRequestsOf', () => {
   it('names the number, label and url of each active pull request subscription', () => {
     expect(subscribedPullRequestsOf({ subscriptions: [row()] })).toEqual([
       {
+        id: 's1',
         number: 31,
         label: 'owner/atlas#31',
         url: 'https://github.com/owner/atlas/pull/31',

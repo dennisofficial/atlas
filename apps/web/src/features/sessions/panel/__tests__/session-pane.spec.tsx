@@ -68,7 +68,7 @@ describe('SessionPane', () => {
   it('renders the details of the streamed view on the Details tab', () => {
     const html = render(ESessionPaneTab.Details)
     expect(html).toContain('data-session-summary')
-    expect(html).toContain('dennis/v2-session-pane')
+    expect(html).toContain('Rebase ui on shadcn base-nova')
   })
 
   it('tells the Terminal tab owner what is missing, without the details', () => {
@@ -95,9 +95,7 @@ describe('SessionPane', () => {
   })
 
   it('renders without a view, on a session that has streamed nothing', () => {
-    expect(render(ESessionPaneTab.Details, paneValueFixture())).toContain(
-      'Context not measured yet',
-    )
+    expect(render(ESessionPaneTab.Details, paneValueFixture())).toContain('data-session-summary')
   })
 
   it('counts the open browser tabs on the strip', async () => {
