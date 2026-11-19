@@ -7,6 +7,7 @@ import {
   type TerminalStreamFrame,
 } from '@dltech/atlas-protocol'
 import type { PodOps, TerminalDemand } from '../../../agent'
+import { PodParkedError } from '../../platform/control/pod-parked.error'
 import type { TerminalService } from '../../platform/control/terminal.service'
 import type { DrainStateService } from '../../platform/health/drain-state.service'
 import { TerminalStreamQueue } from './terminal-stream-queue'
@@ -161,15 +162,27 @@ describe('TerminalStreamService', () => {
     ])
   })
 
-  it('closes asleep when the pod no longer has the terminal during replay', async () => {
+  it('closes asleep only when the pod is parked during replay', async () => {
     const terminals = terminalsOf()
-    terminals.read.mockRejectedValueOnce(new Error('pod is asleep'))
+    terminals.read.mockRejectedValueOnce(new PodParkedError())
     const { ops } = operationsOf(true)
     const run = collect(attach(serviceOf({ terminals, ops })))
     await run.done
     expect(run.frames).toEqual([
       { type: 'ready', sessionId: 's1' },
       { type: 'closed', reason: 'asleep' },
+    ])
+  })
+
+  it('closes detached for a dropped replay so the client reconnects', async () => {
+    const terminals = terminalsOf()
+    terminals.read.mockRejectedValueOnce(new Error('undici: connection reset'))
+    const { ops } = operationsOf(true)
+    const run = collect(attach(serviceOf({ terminals, ops })))
+    await run.done
+    expect(run.frames).toEqual([
+      { type: 'ready', sessionId: 's1' },
+      { type: 'closed', reason: 'detached' },
     ])
   })
 

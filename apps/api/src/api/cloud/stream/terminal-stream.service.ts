@@ -7,12 +7,18 @@ import {
   type TerminalStreamFrame,
 } from '@dltech/atlas-protocol'
 import { POD_OPS, TERMINAL_DEMAND, type PodOps, type TerminalDemand } from '../../../agent'
+import { PodParkedError } from '../../platform/control/pod-parked.error'
 import { TerminalService } from '../../platform/control/terminal.service'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { HOST_ABSENT } from './session-stream.router'
 import { TerminalStreamQueue } from './terminal-stream-queue'
 
 const UNHELD_SESSION = 'no host picked this session up in time — retry the stream'
+
+type ReplayClose = 'asleep' | 'detached'
+
+const closeReasonOf = (error: unknown): ReplayClose =>
+  error instanceof PodParkedError ? 'asleep' : 'detached'
 
 export type TerminalStreamAttachArgs = {
   userId: string
@@ -59,14 +65,14 @@ export class TerminalStreamService {
     const abort = (): void => queue.end()
     args.signal?.addEventListener('abort', abort)
     try {
-      const replayed = yield* this.replay({
+      const closed = yield* this.replay({
         userId: args.userId,
         sessionId: args.sessionId,
         cursors: args.cursors,
         next,
       })
-      if (!replayed) {
-        yield { type: 'closed', reason: 'asleep' }
+      if (closed !== undefined) {
+        yield { type: 'closed', reason: closed }
         return
       }
       for (;;) {
@@ -98,7 +104,7 @@ export class TerminalStreamService {
     sessionId: string
     cursors: readonly { terminalId: string; offset: number }[]
     next: Map<string, number>
-  }): AsyncGenerator<TerminalStreamFrame, boolean> {
+  }): AsyncGenerator<TerminalStreamFrame, ReplayClose | undefined> {
     for (const cursor of args.cursors) {
       let at = cursor.offset
       for (;;) {
@@ -109,8 +115,8 @@ export class TerminalStreamService {
             terminalId: cursor.terminalId,
             offset: at,
           })
-          .catch(() => undefined)
-        if (page === undefined) return false
+          .catch((error: unknown) => closeReasonOf(error))
+        if (typeof page === 'string') return page
         const bytes = bytesOf(page.data)
         if (bytes > 0)
           yield {
@@ -132,7 +138,7 @@ export class TerminalStreamService {
       }
       args.next.set(cursor.terminalId, at)
     }
-    return true
+    return undefined
   }
 
   private forward(args: {
