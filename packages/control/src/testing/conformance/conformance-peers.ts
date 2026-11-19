@@ -144,6 +144,7 @@ export function describeControlPlanePeers(params: ConformanceParams): void {
         agentType: 'teammate',
         prose: 'the parser is green',
         kind: EReportKind.Done,
+        senderSessionId: 'peer-1',
       })
       expect(await params.wakes(SESSION)).toBe(before + 1)
     })

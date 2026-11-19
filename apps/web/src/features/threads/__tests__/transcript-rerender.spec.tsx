@@ -122,13 +122,35 @@ const setup = async () => {
     act(async () => {
       for (const callback of intervals) callback()
     })
-  return { render, tick }
+  return { render, tick, container }
 }
 
 const reset = () => {
   renders.user = 0
   renders.agent = 0
 }
+
+describe('a message from another session', () => {
+  it('shows the sender caption above the text instead of hiding both in a notice', async () => {
+    const { render, container } = await setup()
+
+    await render(
+      [
+        {
+          kind: ETranscriptKind.Agent,
+          id: 'peer_1',
+          text: 'The audit of the labels is done.',
+          streaming: false,
+          sender: 'From Teammate Label Mismatch',
+        },
+      ],
+      false,
+    )
+
+    expect(container.textContent).toContain('From Teammate Label Mismatch')
+    expect(container.textContent).toContain('The audit of the labels is done.')
+  })
+})
 
 describe('ThreadTranscript re-renders', () => {
   it('re-renders only the running turn on a clock tick while working', async () => {

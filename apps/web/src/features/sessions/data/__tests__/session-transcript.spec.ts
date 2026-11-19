@@ -22,15 +22,17 @@ describe('a message from another session', () => {
     { type: 'user-said', text: 'second reply ok', sender: { session }, via: 'peer-agent' as never },
   ]
 
-  it('names the session that sent it, rather than showing its id', () => {
+  it('names the session that sent it, above a message rather than inside a notice', () => {
     const view = sessionTranscriptOf({
       events: mint(peerSaid('ses_2')),
       overlay: undefined,
       sessionNameOf: (id) => (id === 'ses_2' ? 'Fix login' : undefined),
     })
-    const row = view.items[0]
-    expect(row.kind).toBe(ETranscriptKind.Notice)
-    expect(row.kind === ETranscriptKind.Notice ? row.title : '').toBe('Message from Fix login')
+    expect(view.items[0]).toMatchObject({
+      kind: ETranscriptKind.Agent,
+      text: 'second reply ok',
+      sender: 'From Fix login',
+    })
   })
 
   it('never falls back to a raw id when the session is unknown', () => {
@@ -40,9 +42,7 @@ describe('a message from another session', () => {
       sessionNameOf: () => undefined,
     })
     const row = view.items[0]
-    expect(row.kind === ETranscriptKind.Notice ? row.title : '').toBe(
-      'Message from another session',
-    )
+    expect(row?.kind === ETranscriptKind.Agent ? row.sender : '').toBe('From another session')
   })
 })
 
