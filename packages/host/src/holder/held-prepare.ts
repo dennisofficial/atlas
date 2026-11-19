@@ -132,6 +132,7 @@ export class HeldPrepare {
     if (this.args.abandoned()) return
     if (lifecycle.phase === ESetupPhase.Started) {
       this.script = lifecycle.script
+      if (this.setupStartedAt === 0) this.setupStartedAt = this.args.deps.timers.now()
       const record = this.target?.record
       if (record === undefined || !setupNoticesOf(record).has(ESetupPhase.Started)) {
         this.startedText = setupStartedText({ script: lifecycle.script })
@@ -188,6 +189,8 @@ export class HeldPrepare {
   }
 
   private elapsedMs(): number {
+    // with no recorded start, now - 0 would report the whole Unix epoch as the duration
+    if (this.setupStartedAt === 0) return 0
     return Math.max(0, this.args.deps.timers.now() - this.setupStartedAt)
   }
 
