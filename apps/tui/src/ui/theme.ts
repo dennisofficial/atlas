@@ -1,5 +1,6 @@
 export { ACCENT, CODE_BLUE, SERVICE_BLUE, theme } from './palette'
 export type { Palette } from './palette'
+export { formatTokens } from '@dltech/atlas-client/crew'
 export { formatElapsed } from '@dltech/atlas-client/transcript'
 export { glyph, SPINNER_FRAMES, SPINNER_FRAME_MS, spinnerFrame } from './glyphs'
 
@@ -30,15 +31,4 @@ export function formatClockTime(iso: string): string {
   const shown = hours % MERIDIEM_PIVOT === 0 ? MERIDIEM_PIVOT : hours % MERIDIEM_PIVOT
 
   return `${shown}:${minutes}${hours < MERIDIEM_PIVOT ? 'am' : 'pm'}`
-}
-
-const THOUSAND = 1_000
-const MILLION = 1_000_000
-const BILLION = 1_000_000_000
-
-export function formatTokens(tokens: number): string {
-  if (tokens < THOUSAND) return String(tokens)
-  if (tokens < MILLION) return `${(tokens / THOUSAND).toFixed(1)}k`
-  if (tokens < BILLION) return `${(tokens / MILLION).toFixed(2)}m`
-  return `${(tokens / BILLION).toFixed(2)}b`
 }

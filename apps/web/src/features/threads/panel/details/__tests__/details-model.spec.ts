@@ -38,6 +38,15 @@ describe('details model', () => {
       cached: '500',
     })
     expect(tokenStatsOf({ ...base, inputTokens: 0, outputTokens: 0 })).toBeNull()
+    expect(
+      tokenStatsOf({
+        ...base,
+        inputTokens: 2_500_000_000,
+        uncachedInputTokens: 2_500_000_000,
+        outputTokens: 45_840_200,
+        cacheReadTokens: 1_000_000,
+      }),
+    ).toEqual({ input: '2.50b', output: '45.84m', cached: '1.00m' })
   })
 
   it('labels the settled toggle', () => {

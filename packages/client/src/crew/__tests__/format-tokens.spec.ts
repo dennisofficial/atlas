@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import { formatTokens } from '../theme'
+import { formatTokens } from '../readout'
 
 describe('formatTokens', () => {
   test('shows small counts raw', () => {
