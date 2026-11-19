@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'bun:test'
-import type { McpSignInBegin, PluginPodContext } from '@dltech/atlas-plugin-sdk'
+import {
+  EMPTY_MCP_CONTROL,
+  type McpSignInBegin,
+  type PluginPodContext,
+} from '@dltech/atlas-plugin-sdk'
 import { podControlStub } from '@dltech/atlas-plugin-sdk/testing'
 
 import { LINK_EXPIRED_REASON, type McpCloudRow } from '../../core'
@@ -65,6 +69,7 @@ const start = async (args: { begin?: () => Promise<McpSignInBegin> } = {}) => {
     control: {
       ...podControlStub,
       mcp: {
+        ...EMPTY_MCP_CONTROL,
         token: async () => held.token,
         begin: async () =>
           args.begin === undefined

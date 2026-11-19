@@ -64,6 +64,20 @@ describe('McpServersService', () => {
     })
   })
 
+  it('round-trips the proxy switch and keeps the command sealed', async () => {
+    await service.put({
+      userId: USER_A,
+      name: 'paper',
+      spec: { transport: stdioTransport({ command: 'paper-mcp' }), proxy: true },
+    })
+
+    const stored = (await servers())[0]
+    expect(stored?.sealedSpec).not.toContain('paper-mcp')
+
+    const listed = await service.list({ userId: USER_A })
+    expect(listed[0]).toMatchObject({ name: 'paper', proxy: true })
+  })
+
   it('accepts a disabled server with no transport', async () => {
     await service.put({ userId: USER_A, name: 'paused', spec: { disabled: true } })
 

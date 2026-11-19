@@ -12,6 +12,7 @@ export type McpRow = {
   kind: EMcpTransportKind
   target: string
   enabled: boolean
+  proxy?: boolean | undefined
 }
 
 export type McpRowDraft = {
@@ -19,6 +20,7 @@ export type McpRowDraft = {
   target: string
   extra?: string
   enabled?: boolean
+  proxy?: boolean | undefined
 }
 
 export const transportKindOf = (value: string): EMcpTransportKind =>
@@ -39,6 +41,7 @@ export function rowOfServer(server: McpServerWire): McpRow {
     kind: server.transport?.kind ?? EMcpTransportKind.Stdio,
     target: targetOf(server.transport),
     enabled: server.disabled !== true,
+    proxy: server.proxy === true,
   }
 }
 
@@ -65,6 +68,7 @@ export function transportOfDraft(draft: McpRowDraft): McpTransportWire {
 export const upsertOfDraft = (draft: McpRowDraft): McpUpsertWire => ({
   transport: transportOfDraft(draft),
   ...(draft.enabled === false ? { disabled: true } : {}),
+  ...(draft.proxy === true ? { proxy: true } : {}),
 })
 
 export const upsertOfToggle = ({
@@ -76,4 +80,5 @@ export const upsertOfToggle = ({
 }): McpUpsertWire => ({
   ...(server.transport === undefined ? {} : { transport: server.transport }),
   disabled: !enabled,
+  ...(server.proxy === true ? { proxy: true } : {}),
 })

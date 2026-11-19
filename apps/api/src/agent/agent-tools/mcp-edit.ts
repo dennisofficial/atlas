@@ -23,6 +23,7 @@ export const mcpEditInputSchema = z.strictObject({
   action: z.enum(EMcpEditAction),
   name: z.string().min(1).optional(),
   transport: mcpTransportSchema.optional(),
+  proxy: z.boolean().optional(),
 })
 
 type Input = z.output<typeof mcpEditInputSchema>
@@ -31,6 +32,7 @@ const description = [
   'List and change the MCP servers this project’s sessions load from Atlas.',
   'action is list, add, remove, disable or enable. name is the server name; transport is stdio {command, args, env} or http {url, headers}.',
   'add writes a server with a transport; disable keeps its transport and stops it loading; enable re-enables a server that still carries a transport.',
+  'proxy runs the server on your Mac instead of in the sandbox.',
   'Changes apply on the next sandbox start.',
 ].join(' ')
 
@@ -51,7 +53,8 @@ const rowLine = (row: McpServerView): string => {
     row.transport === undefined
       ? `${row.name} (no transport)`
       : `${row.name} ${transportLine(row.transport)}`
-  return row.disabled ? `${base} (disabled)` : base
+  const proxied = row.proxy ? `${base} (on your Mac)` : base
+  return row.disabled ? `${proxied} (disabled)` : proxied
 }
 
 const need = (args: { value: string | undefined; field: string }): string | ToolOutcome =>
@@ -75,19 +78,34 @@ const change = async (args: {
   }
   if (input.action === EMcpEditAction.Add) {
     if (input.transport === undefined) return fail('transport is required to add a server')
-    await client.putMcpServer({ name, transport: input.transport, disabled: false })
+    await client.putMcpServer({
+      name,
+      transport: input.transport,
+      disabled: false,
+      proxy: input.proxy === true,
+    })
     return done({ text: `Set mcp server ${name}. ${APPLIES}` })
   }
   const existing = await client.readMcpServer(name)
   if (existing === null) return fail(`there is no mcp server "${name}"`)
   if (input.action === EMcpEditAction.Disable) {
-    await client.putMcpServer({ name, transport: existing.transport, disabled: true })
+    await client.putMcpServer({
+      name,
+      transport: existing.transport,
+      disabled: true,
+      proxy: existing.proxy,
+    })
     return done({ text: `Disabled mcp server ${name}. ${APPLIES}` })
   }
   if (existing.transport === undefined) {
     return fail(`mcp server "${name}" has no transport; add it with a transport to enable it`)
   }
-  await client.putMcpServer({ name, transport: existing.transport, disabled: false })
+  await client.putMcpServer({
+    name,
+    transport: existing.transport,
+    disabled: false,
+    proxy: existing.proxy,
+  })
   return done({ text: `Enabled mcp server ${name}. ${APPLIES}` })
 }
 

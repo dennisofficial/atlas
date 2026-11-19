@@ -14,6 +14,7 @@ export type McpTransportDraft = {
 export type McpSpecDraft = {
   transport?: McpTransportDraft | undefined
   disabled?: boolean | undefined
+  proxy?: boolean | undefined
 }
 
 export type McpTransport =
@@ -29,6 +30,7 @@ export interface McpSpec {
   name: string
   transport?: McpTransport
   disabled?: boolean
+  proxy?: boolean
 }
 
 export interface McpServerDto extends McpSpec {

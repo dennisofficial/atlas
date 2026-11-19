@@ -60,6 +60,7 @@ function ServerRow({
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <span className="flex items-center gap-2">
           <span className="font-mono text-sm font-medium">{server.id}</span>
+          {server.proxy === true ? <Badge variant="outline">Mac</Badge> : null}
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <span aria-hidden className="size-1.5 rounded-full bg-muted-foreground/40" />
             Not checked

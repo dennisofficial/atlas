@@ -3,14 +3,17 @@ import { EMcpViewStatus } from '../../core'
 import { describe, expect, it } from 'bun:test'
 
 import { McpStore } from '../store'
-import { fakeDaemon, rig } from './support'
+import { fakeDaemon, fakeProxyControl, rig } from './support'
 
 const transport = { kind: 'stdio' as const, command: 'bun', args: ['run', 'server'] }
 
-const recordingRig = (daemon: ReturnType<typeof fakeDaemon>) => {
+const recordingRig = (
+  daemon: ReturnType<typeof fakeDaemon>,
+  over: { mcp?: ReturnType<typeof fakeProxyControl>['control'] } = {},
+) => {
   const appended: unknown[] = []
   const ctx = {
-    ...rig(daemon),
+    ...rig(daemon, over),
     append: async (drafts: readonly unknown[]) => void appended.push(...drafts),
   }
   return { ctx, appended }
@@ -77,6 +80,24 @@ describe('the mcp view event body', () => {
     await store.boot()
     await store.reconcile()
     expect(appended).toHaveLength(1)
+  })
+
+  it('reopens a server, and republishes it, when only the proxy switch flips', async () => {
+    const daemon = fakeDaemon({ docs: { tools: [{ name: 'search' }] } })
+    const proxy = fakeProxyControl({ online: false })
+    const { ctx, appended } = recordingRig(daemon, { mcp: proxy.control })
+    let rows: readonly McpCloudRow[] = [{ source: 'user', spec: { name: 'docs', transport } }]
+    const store = storeWith({ ctx, rows: () => rows })
+    await store.boot()
+    expect(appended).toHaveLength(1)
+
+    rows = [{ source: 'user', spec: { name: 'docs', transport, proxy: true } }]
+    await store.reconcile()
+
+    expect(appended.at(-1)).toMatchObject({
+      type: 'mcp-server-changed',
+      row: { name: 'docs', status: EMcpViewStatus.Unavailable, reason: 'Mac app offline' },
+    })
   })
 
   it('appends a removal when a server leaves the config', async () => {

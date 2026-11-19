@@ -6,6 +6,7 @@ export enum EMcpViewStatus {
   Failed = 'failed',
   Disabled = 'disabled',
   NeedsAuth = 'needs-auth',
+  Unavailable = 'unavailable',
 }
 
 export const mcpTransportKindSchema = z.enum(['stdio', 'http'])

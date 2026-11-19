@@ -152,3 +152,33 @@ describe('precedence', () => {
     expect(merged.servers.map((entry) => entry.name)).toEqual(['alpha', 'zeta'])
   })
 })
+
+describe('the proxy field', () => {
+  it('accepts a proxied server and keeps the switch through a cloud row', () => {
+    const read = parseMcpRows({
+      rows: [
+        {
+          source: 'user',
+          spec: { name: 'paper', transport: { kind: 'stdio', command: 'paper' }, proxy: true },
+        },
+      ],
+      definedIn: 'cloud',
+    })
+    expect(read.entries.map((entry) => entry.proxy)).toEqual([true])
+    expect(read.rejections).toEqual([])
+  })
+
+  it('still refuses an unknown key beside it', () => {
+    const read = parseMcpRows({
+      rows: [
+        {
+          source: 'user',
+          spec: { name: 'paper', transport: stdio, proxy: true, proxied: true },
+        },
+      ],
+      definedIn: 'cloud',
+    })
+    expect(read.entries).toEqual([])
+    expect(read.rejections[0]?.rejection).toBe(EMcpRejection.BadEntry)
+  })
+})

@@ -1,5 +1,5 @@
 import type { EDefinitionOrigin, ToolDefinition } from '@dltech/atlas-core'
-import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
+import { MacOfflineError, type PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
 import type { McpServerChanged, McpServerRemoved } from '../core'
 import type { LoadedMcpEntry, McpRejection } from '../core'
@@ -14,6 +14,7 @@ import { McpBridgeTool } from './bridge-tool'
 import { McpSignInBook } from './sign-in-book'
 import { fileReaderOf, loadMcpConfig, type McpConfigPort } from './config'
 import { HttpClient } from './http'
+import { ProxyClient } from './proxy'
 import { StdioClient } from './stdio'
 import {
   McpTransportError,
@@ -28,6 +29,7 @@ export enum EMcpServerStatus {
   Connected = 'connected',
   Failed = 'failed',
   NeedsAuth = 'needs-auth',
+  Unavailable = 'unavailable',
 }
 
 export type McpServerState = {
@@ -88,12 +90,13 @@ const withBudget = async (args: { ms: number; run: () => Promise<unknown> }): Pr
 const viewStatusOf = (status: EMcpServerStatus): EMcpViewStatus => {
   if (status === EMcpServerStatus.Connected) return EMcpViewStatus.Connected
   if (status === EMcpServerStatus.NeedsAuth) return EMcpViewStatus.NeedsAuth
+  if (status === EMcpServerStatus.Unavailable) return EMcpViewStatus.Unavailable
   return EMcpViewStatus.Failed
 }
 
 const sameSpec = (left: LoadedMcpEntry, right: LoadedMcpEntry): boolean =>
-  JSON.stringify([left.transport, left.disabled]) ===
-  JSON.stringify([right.transport, right.disabled])
+  JSON.stringify([left.transport, left.disabled, left.proxy]) ===
+  JSON.stringify([right.transport, right.disabled, right.proxy])
 
 export class McpStore {
   private readonly held = new Map<string, Held>()
@@ -336,20 +339,27 @@ export class McpStore {
       }
     }
 
-    const token = spec.accessToken ?? (await this.tokenOf(spec))
+    const token = spec.proxy === true ? undefined : (spec.accessToken ?? (await this.tokenOf(spec)))
     const client: McpTransportClient =
-      transport.kind === 'http'
-        ? new HttpClient({
+      spec.proxy === true
+        ? new ProxyClient({
+            control: this.args.ctx.control.mcp,
             serverId: spec.name,
             transport,
-            ...(token === undefined ? {} : { accessToken: token }),
+            onClosed: (reason) => void this.markFailed({ name: spec.name, client, reason }),
           })
-        : new StdioClient({
-            ctx: this.args.ctx,
-            serverId: spec.name,
-            transport,
-            onExit: (reason) => void this.markFailed({ name: spec.name, client, reason }),
-          })
+        : transport.kind === 'http'
+          ? new HttpClient({
+              serverId: spec.name,
+              transport,
+              ...(token === undefined ? {} : { accessToken: token }),
+            })
+          : new StdioClient({
+              ctx: this.args.ctx,
+              serverId: spec.name,
+              transport,
+              onExit: (reason) => void this.markFailed({ name: spec.name, client, reason }),
+            })
 
     try {
       const connection = await withCeiling({
@@ -371,9 +381,11 @@ export class McpStore {
         spec,
         client,
         status:
-          error instanceof McpUnauthorizedError
-            ? EMcpServerStatus.NeedsAuth
-            : EMcpServerStatus.Failed,
+          error instanceof MacOfflineError
+            ? EMcpServerStatus.Unavailable
+            : error instanceof McpUnauthorizedError
+              ? EMcpServerStatus.NeedsAuth
+              : EMcpServerStatus.Failed,
         tools: [],
         reason: reasonOf(error),
         instructions: undefined,

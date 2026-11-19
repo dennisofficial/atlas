@@ -12,9 +12,11 @@ import {
   composePlugins,
   definePlugin,
   EMPTY_CONTROL,
+  EMPTY_MCP_CONTROL,
   EMPTY_POD,
   eventSchemaOf,
   eventTypesOf,
+  MacOfflineError,
   MissingPluginSlotError,
 } from '..'
 import type { Plugin, PluginPodContext, PodSlot } from '..'
@@ -225,6 +227,19 @@ describe('composePlugins', () => {
   it('keeps commands in registration order', () => {
     const names = composePlugins([fixturePlugin, second]).commands.map((c) => c.spec.name)
     expect(names).toEqual(['probe-observe', 'probe-read'])
+  })
+})
+
+describe('EMPTY_MCP_CONTROL', () => {
+  it('reports the Mac offline rather than pretending a proxy opened', async () => {
+    const error = await EMPTY_MCP_CONTROL.proxy({
+      name: 'paper',
+      transport: { kind: 'stdio', command: 'paper' },
+      waitMs: 0,
+    }).catch((thrown: unknown) => thrown)
+
+    expect(error).toBeInstanceOf(MacOfflineError)
+    expect((error as Error).message).toBe('Mac app offline')
   })
 })
 

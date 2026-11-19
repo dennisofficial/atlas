@@ -5,6 +5,9 @@ import type { LogPort } from '@dltech/atlas-observability'
 
 import type { PgWakeListener } from '../bus/pg-wake-listener'
 import { composeAgentHost } from '../compose'
+import { MacLinkModule } from '../mac-link/mac-link.module'
+import { MAC_LINK } from '../mac-link/port'
+import type { MacLink } from '../mac-link/port'
 import { podOpsOf } from './pod-ops'
 import { POD_OPS } from './tokens'
 import type { ConfigSource } from '../config/agent-host-config'
@@ -60,6 +63,7 @@ const holderProvider: Provider = {
     content: ChangeContentStore,
     log: LogPort,
     watch: HostWatchService,
+    macLink: MacLink,
   ): SessionHolder =>
     composeAgentHost({
       env,
@@ -72,6 +76,7 @@ const holderProvider: Provider = {
       signingKey,
       presence,
       control,
+      macLink,
       log,
       onHostIdChanged: () => watch.recompute(),
       ...(media.signer === undefined ? {} : { media: media.signer }),
@@ -92,6 +97,7 @@ const holderProvider: Provider = {
     ChangeContentStore,
     LOG,
     HOST_WATCH,
+    MAC_LINK,
   ],
 }
 
@@ -103,7 +109,7 @@ const podOpsProvider: Provider = {
 
 @Global()
 @Module({
-  imports: [ControlModule, RuntimeModule],
+  imports: [ControlModule, RuntimeModule, MacLinkModule],
   providers: [hostWatchProvider, holderProvider, podOpsProvider],
   exports: [HOST_WATCH, HOLDER, POD_OPS],
 })

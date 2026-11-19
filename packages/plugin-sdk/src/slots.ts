@@ -13,6 +13,7 @@ import type { AppendHook, ControlPlane } from '@dltech/atlas-control'
 import type { CallOp, CallResult, DaemonEventFrame, LiveFrame } from '@dltech/atlas-protocol'
 
 import type { PodCrew } from './crew'
+import { MacOfflineError, type PodMcpProxyChannel, type PodMcpProxyTransport } from './mcp-proxy'
 import type { PodMemory } from './memory'
 import type { PodSessions } from './sessions'
 import type { PodWorktrees } from './worktrees'
@@ -53,11 +54,19 @@ export type McpSignInBegin =
 export type PodMcpControl = {
   token(args: { name: string; source: McpServerSource; url: string }): Promise<string | undefined>
   begin(args: { name: string; source: McpServerSource; url: string }): Promise<McpSignInBegin>
+  proxy(args: {
+    name: string
+    transport: PodMcpProxyTransport
+    waitMs: number
+  }): Promise<PodMcpProxyChannel>
 }
 
 export const EMPTY_MCP_CONTROL: PodMcpControl = {
   token: async () => undefined,
   begin: async () => ({ ok: false, reason: 'this session cannot start an MCP sign-in' }),
+  proxy: async () => {
+    throw new MacOfflineError()
+  },
 }
 
 export type PodControl = {

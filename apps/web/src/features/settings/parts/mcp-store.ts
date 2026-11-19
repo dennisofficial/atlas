@@ -25,6 +25,7 @@ export function useLocalMcpStore(initial: McpServer[]): McpStore {
           transport: draft.transport,
           target: draft.target,
           enabled: draft.enabled,
+          proxy: draft.proxy,
         },
       ]),
     toggle: async ({ id, enabled }) =>

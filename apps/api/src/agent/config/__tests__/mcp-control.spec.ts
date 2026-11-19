@@ -3,7 +3,7 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { describe, expect, it } from 'bun:test'
 
 import type { McpOauthGateway } from '../../mcp-oauth'
-import { mcpControlOf } from '../mcp-control'
+import { mcpControlOf, offlineMacLink } from '../mcp-control'
 import { cipher, sealed, seedOwner } from './config-reader.fixture'
 
 const testDb = useTestDatabase()
@@ -14,7 +14,7 @@ const gatewayOf = (): McpOauthGateway => ({
 })
 
 const tokenOf = async (args: { db: Db; url: string }): Promise<string | undefined> =>
-  await mcpControlOf({ db: args.db, cipher, gateway: gatewayOf() })
+  await mcpControlOf({ db: args.db, cipher, gateway: gatewayOf(), macLink: offlineMacLink })
     .of('s-1')
     .token({ name: 'paper', source: 'cloud', url: args.url })
 

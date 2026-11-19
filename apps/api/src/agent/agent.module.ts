@@ -8,6 +8,7 @@ import { HolderModule } from './host/holder.module'
 import { HttpModule } from './host/http.module'
 import { RuntimeModule } from './host/runtime.module'
 import { StartupModule } from './host/startup.module'
+import { MacLinkModule } from './mac-link/mac-link.module'
 
 @Module({})
 export class AgentModule {
@@ -22,6 +23,7 @@ export class AgentModule {
         HostCallsModule,
         HttpModule,
         StartupModule,
+        MacLinkModule,
       ],
     }
   }

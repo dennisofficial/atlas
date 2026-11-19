@@ -40,12 +40,18 @@ export const fakeCloudConfig = (args: { projectId?: string } = {}): FakeCloudCon
           name: server.name,
           transport: server.transport,
           disabled: server.disabled,
+          proxy: server.proxy === true,
         })),
     readMcpServer: async (name) => {
       const server = servers.get(name)
       return server === undefined
         ? null
-        : { name: server.name, transport: server.transport, disabled: server.disabled }
+        : {
+            name: server.name,
+            transport: server.transport,
+            disabled: server.disabled,
+            proxy: server.proxy === true,
+          }
     },
     putMcpServer: async (server) => {
       servers.set(server.name, server)

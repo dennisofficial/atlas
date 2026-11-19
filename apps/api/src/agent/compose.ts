@@ -10,6 +10,7 @@ import { nativeCommandHandlers, nativeCommands } from '@dltech/atlas-native-comm
 import { cloudConfigStore } from './config/cloud-config-store'
 import { envSecretsReader } from './config/env-secrets'
 import { mcpControlPort } from './config/mcp-control'
+import type { MacLink } from './mac-link/port'
 import { SecretCipher } from './config/secret-cipher'
 import { composedPlugins } from './registered-plugins'
 import type { ChangeContentStore, ControlPlane } from '@dltech/atlas-control'
@@ -52,13 +53,14 @@ export type ComposeAgentHostArgs = {
   changes?: { content: ChangeContentStore } | undefined
   presence: HostPresence
   control: PodControlClient
+  macLink: MacLink
   onHostIdChanged?: (() => void) | undefined
 }
 
 export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
   const timers = args.timers ?? { now: () => Date.now(), ...systemTimers }
   const podPeers: PodPeers = { placed: (params) => args.plane.podPeersPlaced(params) }
-  const mcpControl = mcpControlPort()
+  const mcpControl = mcpControlPort(args.macLink)
   const cipher = new SecretCipher(args.env.secretsEncryptionKey)
   return new SessionHolder({
     presence: args.presence,

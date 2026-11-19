@@ -55,6 +55,28 @@ describe('BranchObserver', () => {
     await daemon.stop()
   })
 
+  it('does not append the same observation twice when the record misses the last one', async () => {
+    const daemon = await makeDaemon()
+    const calls = connect(daemon)
+    const base = fakeRecord()
+    const record = { ...base, lastObservation: (): undefined => undefined }
+    const observer = new BranchObserver({
+      record,
+      remoteCalls: calls,
+      threadId,
+      signal: new AbortController().signal,
+      repos: async () => ['/w'],
+      baseOf: () => null,
+      runId: () => toRunId('run-1'),
+    })
+    await calls.ready()
+    await observer.refresh()
+    await observer.refresh()
+    expect(record.appended).toHaveLength(1)
+    calls.close()
+    await daemon.stop()
+  })
+
   it('ignores a failing git.read', async () => {
     const daemon = await createInMemoryDaemon({
       version: 'test',

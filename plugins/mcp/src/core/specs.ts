@@ -47,6 +47,7 @@ export const mcpSpecSchema = z
     name: nameSchema,
     transport: mcpTransportSchema.optional(),
     disabled: z.boolean().optional(),
+    proxy: z.boolean().optional(),
   })
   .check((ctx) => {
     if (ctx.value.disabled === true || ctx.value.transport !== undefined) return

@@ -22,6 +22,9 @@ export interface IAuthService {
   signOut: () => Promise<void>
   token: () => string | undefined
   adopt: (token: string) => Promise<void>
+  onChange: (listener: () => void) => () => void
+  deviceId: () => string | undefined
+  saveDeviceId: (value: string) => void
 }
 
 export interface IAuthConfig {
@@ -59,6 +62,11 @@ export function createAuthService({
   const api = createApiClient({ baseUrl: origin })
   let pending: IPending | undefined
   let failed: 'denied' | undefined
+  const listeners = new Set<() => void>()
+
+  const notify = (): void => {
+    for (const listener of [...listeners]) listener()
+  }
 
   const fetchEmail = async (token: string): Promise<string | undefined> => {
     try {
@@ -112,6 +120,7 @@ export function createAuthService({
           redirectUri: current.redirectUri,
         })
         store.save({ token, email: await fetchEmail(token) })
+        notify()
         return ECallbackOutcome.SignedIn
       } catch {
         failed = 'denied'
@@ -130,6 +139,7 @@ export function createAuthService({
       failed = undefined
       const token = store.token()
       store.clear()
+      notify()
       if (token === undefined) return
       await revoke(token)
     },
@@ -138,7 +148,16 @@ export function createAuthService({
       const previous = store.token()
       if (previous === token) return
       store.save({ token, email: await fetchEmail(token) })
+      notify()
       if (previous !== undefined) await revoke(previous)
     },
+    onChange: (listener) => {
+      listeners.add(listener)
+      return () => {
+        listeners.delete(listener)
+      }
+    },
+    deviceId: () => store.deviceId(),
+    saveDeviceId: (value) => store.saveDeviceId(value),
   }
 }

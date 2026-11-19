@@ -1,4 +1,5 @@
 import {
+  canonicalObservation,
   observationChanged,
   type BranchObservation,
   type BranchesObserved,
@@ -48,6 +49,7 @@ const observationOf = (set: BranchSet): BranchObservation => ({
 export class BranchObserver {
   private tail: Promise<void> = Promise.resolve()
   private readonly stopped = new AbortController()
+  private readonly recorded = new Map<string, string>()
   private unsubscribe: (() => void) | undefined
   private unsubscribeRepos: (() => void) | undefined
 
@@ -164,12 +166,18 @@ export class BranchObserver {
       defaultBranch: observation.defaultBranch ?? null,
     })
     const stamped = base === null ? observation : { ...observation, base }
-    if (!observationChanged({ last, set: stamped })) return
+    const canonical = canonicalObservation(stamped)
+    if (this.recorded.get(observation.repo) === canonical) return
+    if (!observationChanged({ last, set: stamped })) {
+      this.recorded.set(observation.repo, canonical)
+      return
+    }
     await this.args.record.append({
       threadId: this.args.threadId,
       runId: this.args.runId(),
       body: { type: 'branches-observed', ...stamped },
     })
+    this.recorded.set(observation.repo, canonical)
   }
 
   private baseOf(args: { repo: string; defaultBranch: string | null }): string | null {

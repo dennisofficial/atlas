@@ -23,12 +23,14 @@ export type McpServerView = {
   name: string
   transport: McpTransport | undefined
   disabled: boolean
+  proxy: boolean
 }
 
 export type McpServerWrite = {
   name: string
   transport: McpTransport | undefined
   disabled: boolean
+  proxy?: boolean
 }
 
 export type FileMountView = { path: string; mode: number }
@@ -72,6 +74,7 @@ const specOf = (args: { cipher: SecretCipher; sealed: string }): McpServerWrite 
           name: parsed.data.name,
           transport: parsed.data.transport,
           disabled: parsed.data.disabled === true,
+          proxy: parsed.data.proxy === true,
         }
       : null
   } catch {
@@ -91,6 +94,7 @@ const toView = (args: {
     name: args.row.name,
     transport: spec?.transport,
     disabled: spec?.disabled === true,
+    proxy: spec?.proxy === true,
   }
 }
 
@@ -169,6 +173,7 @@ export const cloudConfigClientOf = (args: {
         name: server.name,
         ...(server.transport === undefined ? {} : { transport: server.transport }),
         ...(server.disabled ? { disabled: true } : {}),
+        ...(server.proxy ? { proxy: true } : {}),
       }
       const sealedSpec = sealed({ cipher, value: spec })
       await servers.upsert({

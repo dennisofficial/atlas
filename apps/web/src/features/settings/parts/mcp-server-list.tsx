@@ -58,6 +58,7 @@ export function McpServerList({
             <>
               <Mono className="text-sm">{server.id}</Mono>
               <Badge variant="outline">{server.transport}</Badge>
+              {server.proxy === true ? <Badge variant="outline">Mac</Badge> : null}
             </>
           }
           description={

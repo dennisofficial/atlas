@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import {
   ENV_NAME_PATTERN,
   EShipBehavior,
+  mcpServerSchema,
   mcpUpsertSchema,
   projectSandboxSchema,
   projectSchema,
@@ -53,5 +54,25 @@ describe('web wire schemas', () => {
     ).toBe(true)
     expect(mcpUpsertSchema.safeParse({ transport: { kind: 'stdio' } }).success).toBe(false)
     expect(mcpUpsertSchema.safeParse({ disabled: true }).success).toBe(true)
+  })
+
+  it('mcp upsert carries the proxy switch and rejects an unknown key beside it', () => {
+    const parsed = mcpUpsertSchema.safeParse({
+      disabled: true,
+      proxy: true,
+    })
+    expect(parsed.success).toBe(true)
+    expect(parsed.success ? parsed.data.proxy : undefined).toBe(true)
+    expect(mcpUpsertSchema.safeParse({ disabled: true, proxied: true }).success).toBe(false)
+  })
+
+  it('mcp list row keeps the proxy switch', () => {
+    const parsed = mcpServerSchema.parse({
+      name: 'paper',
+      transport: { kind: 'stdio', command: 'paper' },
+      proxy: true,
+      updatedAt: '2026-11-19T00:00:00.000Z',
+    })
+    expect(parsed.proxy).toBe(true)
   })
 })

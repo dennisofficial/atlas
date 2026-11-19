@@ -1,6 +1,8 @@
 import { join } from 'node:path'
 
 import { createDesktopHost } from '../host'
+import { createLoginShellPath } from '../host/mac-mcp/login-path'
+import { createMacMcpRunner, type MacMcpRunner } from '../host/mac-mcp/runner'
 import { bunPath, startNextServer } from '../host/next-server'
 import { defaultDesktopHome } from '../host/pods/config'
 import type { IPanePort, PaneReply } from '../host/pane-routes'
@@ -26,6 +28,8 @@ const pane: IPanePort | undefined =
         },
       }
 const nextServer = await startNextServer({ root: webRoot, bunPath: bunPath() })
+const login = createLoginShellPath({ spawn: Bun.spawn })
+let runner: MacMcpRunner | undefined
 const host = createDesktopHost({
   appOrigin: nextServer.origin,
   secret,
@@ -37,10 +41,20 @@ const host = createDesktopHost({
   window: { titlebarDoubleClick: () => {}, setPreviewOrigins: () => {} },
   pane,
   updates: updateOrigin === undefined ? undefined : createUpdatesPort({ origin: updateOrigin }),
+  macMcp: (emit) => {
+    runner = createMacMcpRunner({
+      emit,
+      spawn: Bun.spawn,
+      path: login.path,
+      log: (line) => process.stderr.write(`[mcp] ${line}\n`),
+    })
+    return runner
+  },
 })
 process.stdout.write(`${SESSION_MARKER}${sessionUrlOf({ origin: host.url, secret })}\n`)
 
 const stop = async () => {
+  runner?.stop()
   await host.stop()
   await nextServer.stop()
 }

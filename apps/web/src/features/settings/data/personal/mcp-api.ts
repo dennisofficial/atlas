@@ -32,6 +32,7 @@ export function toMcpServer(wire: McpServerWire): McpServer {
       wire.transport?.kind === EMcpTransportKind.Http ? EMcpTransport.Http : EMcpTransport.Stdio,
     target: targetOf(wire.transport),
     enabled: wire.disabled !== true,
+    ...(wire.proxy === true ? { proxy: true } : {}),
   }
 }
 
@@ -44,20 +45,27 @@ export function putMcpServer(args: {
   name: string
   transport?: McpTransportWire | undefined
   disabled?: boolean | undefined
+  proxy?: boolean | undefined
 }): Promise<void> {
   return cloudCall(
     api.mcpServers.put.mutate({
       name: args.name,
       ...(args.transport === undefined ? {} : { transport: args.transport }),
       ...(args.disabled === undefined ? {} : { disabled: args.disabled }),
+      ...(args.proxy === undefined ? {} : { proxy: args.proxy }),
     }),
   )
 }
 
 export function addMcpServer(
-  draft: Parameters<typeof transportOf>[0] & { id: string },
+  draft: Parameters<typeof transportOf>[0] & { id: string; proxy?: boolean | undefined },
 ): Promise<void> {
-  return putMcpServer({ name: draft.id, transport: transportOf(draft), disabled: false })
+  return putMcpServer({
+    name: draft.id,
+    transport: transportOf(draft),
+    disabled: false,
+    ...(draft.proxy === undefined ? {} : { proxy: draft.proxy }),
+  })
 }
 
 export function deleteMcpServer(name: string): Promise<void> {

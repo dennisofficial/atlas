@@ -16,6 +16,7 @@ import {
 } from '@dltech/atlas-ui/components/dialog'
 import { Field, FieldDescription, FieldLabel } from '@dltech/atlas-ui/components/field'
 import { Input } from '@dltech/atlas-ui/components/input'
+import { Switch } from '@dltech/atlas-ui/components/switch'
 import { Textarea } from '@dltech/atlas-ui/components/textarea'
 import { ToggleGroup, ToggleGroupItem } from '@dltech/atlas-ui/components/toggle-group'
 
@@ -26,6 +27,7 @@ export interface McpServerDraft {
   transport: EMcpTransport
   target: string
   extra: string
+  proxy: boolean
 }
 
 const SERVER_ID = /^[a-zA-Z0-9_-]+$/
@@ -48,6 +50,7 @@ export function AddMcpServerDialog({
   const [transport, setTransport] = useState(initialTransport)
   const [target, setTarget] = useState('')
   const [extra, setExtra] = useState('')
+  const [proxy, setProxy] = useState(false)
   const isStdio = transport === EMcpTransport.Stdio
   const canSave = SERVER_ID.test(id) && target.trim() !== ''
 
@@ -57,6 +60,7 @@ export function AddMcpServerDialog({
     setId('')
     setTarget('')
     setExtra('')
+    setProxy(false)
   }
   const handleTransportChange = (value: unknown[]) => {
     const [next] = value
@@ -64,7 +68,7 @@ export function AddMcpServerDialog({
   }
   const handleSubmit = () => {
     if (!canSave) return
-    onAdd({ id, transport, target: target.trim(), extra })
+    onAdd({ id, transport, target: target.trim(), extra, proxy })
     handleOpenChange(false)
   }
 
@@ -118,7 +122,9 @@ export function AddMcpServerDialog({
           />
           <FieldDescription>
             {isStdio
-              ? 'Runs inside the sandbox, so the binary must be installed by the setup script.'
+              ? proxy
+                ? 'Runs on your Mac while the Atlas app is open.'
+                : 'Runs inside the sandbox, so the binary must be installed by the setup script.'
               : 'Atlas signs in with OAuth when the server asks for it.'}
           </FieldDescription>
         </Field>
@@ -135,6 +141,14 @@ export function AddMcpServerDialog({
           <FieldDescription>
             One per line. <span className="font-mono">$NAME</span> reads from this project&apos;s
             secrets.
+          </FieldDescription>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="mcp-proxy">Run on my Mac</FieldLabel>
+          <Switch id="mcp-proxy" checked={proxy} onCheckedChange={setProxy} />
+          <FieldDescription>
+            The Mac app starts this server on your Mac instead of in the sandbox while the app is
+            open.
           </FieldDescription>
         </Field>
         <DialogFooter>

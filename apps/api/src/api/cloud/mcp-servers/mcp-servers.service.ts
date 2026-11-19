@@ -77,6 +77,7 @@ export function toMcpSpec(draft: McpSpecDraft & { name: string }): McpSpec {
     name: draft.name,
     ...(transport === undefined ? {} : { transport }),
     ...(draft.disabled === undefined ? {} : { disabled: draft.disabled }),
+    ...(draft.proxy === undefined ? {} : { proxy: draft.proxy }),
   }
 }
 
