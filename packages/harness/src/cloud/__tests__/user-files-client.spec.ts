@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { CloudUserFilesClient, UserFileConflict } from '../user-files-client'
 import { ELogSeverity, LogPort, type LogEntry } from '@dltech/atlas-observability'
+import { trpcBodyOf } from './trpc-body'
 
 type Call = { url: string; method: string; body: unknown }
 type Answer = { status: number; body?: unknown }
@@ -29,7 +30,7 @@ const clientWith = (
     const call: Call = {
       url: String(input),
       method: init?.method ?? 'GET',
-      body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
+      body: typeof init?.body === 'string' ? trpcBodyOf(init.body) : undefined,
     }
     calls.push(call)
     return answerOf(respond(call))

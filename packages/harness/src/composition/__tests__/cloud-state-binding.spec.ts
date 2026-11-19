@@ -14,6 +14,7 @@ import {
   toAccountId,
 } from '@dltech/atlas-core'
 
+import { trpcBodyOf } from '../../cloud/__tests__/trpc-body'
 import { CloudSessionStore } from '../../cloud/cloud-session'
 import { encodeSettingValue } from '../../cloud/sync-settings'
 import { atlasCloudFile, atlasVaultKeyFile } from '../../credentials/paths'
@@ -51,7 +52,7 @@ const STAMP = '2026-01-01T00:00:00.000Z'
 const handle = async (request: Request): Promise<Response> => {
   const path = new URL(request.url).pathname
   const text = await request.text()
-  calls.push({ method: request.method, path, body: text === '' ? undefined : JSON.parse(text) })
+  calls.push({ method: request.method, path, body: text === '' ? undefined : trpcBodyOf(text) })
 
   if (request.method === 'GET' && path === '/v1/trpc/accounts.list') {
     return Response.json({ result: { data: cloudAccounts } })

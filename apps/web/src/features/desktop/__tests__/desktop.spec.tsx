@@ -3,6 +3,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { act, type ReactElement } from 'react'
 
 import { EPodConnectOutcome } from '@/features/threads/data/pod-connect'
+import { trpcBodyOf } from '@/lib/__tests__/trpc-body'
 
 import { createLocalThread } from '../create-local-thread'
 import { resetDesktopCapabilities } from '../desktop-wire'
@@ -43,7 +44,7 @@ beforeEach(() => {
       calls.push({
         path,
         method,
-        body: init?.body ? JSON.parse(String(init.body)) : undefined,
+        body: init?.body ? trpcBodyOf(String(init.body)) : undefined,
       })
       const route = routes[`${method} ${path}`]
       return route ? route() : new Response('not found', { status: 404 })

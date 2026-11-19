@@ -1,3 +1,5 @@
+import { trpcBodyOf } from './trpc-body'
+
 const TRPC_CODES: Record<number, { code: string; number: number }> = {
   400: { code: 'BAD_REQUEST', number: -32600 },
   401: { code: 'UNAUTHORIZED', number: -32001 },
@@ -28,7 +30,7 @@ export const procedureOf = (input: unknown): string =>
   new URL(String(input)).pathname.split('/v1/trpc/')[1] ?? ''
 
 export const inputOf = (init: { body?: unknown } | undefined): unknown =>
-  typeof init?.body === 'string' ? JSON.parse(init.body) : undefined
+  typeof init?.body === 'string' ? trpcBodyOf(init.body) : undefined
 
 export const STREAM_PROCEDURE = 'githubPrs.stream'
 

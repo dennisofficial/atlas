@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, mock } from 'bun:test'
 
 import { createApiClient } from '@dltech/atlas-api-router'
 
+import { trpcBodyOf } from '@/lib/__tests__/trpc-body'
 import * as realApiClient from '@/lib/api-client'
 
 let calls: { url: string; init?: RequestInit }[]
@@ -46,7 +47,7 @@ describe('instructions api', () => {
     expect(await fetchInstructions()).toEqual({ text: 'hello', revision: 2 })
     expect(calls[0]?.url).toBe('/v1/trpc/userFiles.get')
     expect(calls[0]?.init?.method).toBe('POST')
-    expect(JSON.parse(String(calls[0]?.init?.body))).toEqual({
+    expect(trpcBodyOf(String(calls[0]?.init?.body))).toEqual({
       tree: 'instructions',
       paths: ['.atlas/ATLAS.md'],
     })
@@ -59,7 +60,7 @@ describe('instructions api', () => {
       revision: 5,
     })
     expect(calls[0]?.url).toBe('/v1/trpc/userFiles.put')
-    expect(JSON.parse(String(calls[0]?.init?.body))).toMatchObject({
+    expect(trpcBodyOf(String(calls[0]?.init?.body))).toMatchObject({
       tree: 'instructions',
       path: '.atlas/ATLAS.md',
       content: 'aGVsbG8=',

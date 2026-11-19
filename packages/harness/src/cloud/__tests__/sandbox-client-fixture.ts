@@ -1,4 +1,5 @@
 import { SandboxClient } from '../sandbox-client'
+import { trpcBodyOf } from './trpc-body'
 
 export type Call = {
   url: string
@@ -37,7 +38,7 @@ export const harness = (replies: readonly Reply[]) => {
       url: `${url.origin}${url.pathname}`,
       method: init?.method ?? 'GET',
       headers: new Headers(init?.headers),
-      ...(init?.body === undefined ? {} : { body: JSON.parse(String(init.body)) }),
+      ...(init?.body === undefined ? {} : { body: trpcBodyOf(String(init.body)) }),
       ...(encoded === null ? {} : { input: JSON.parse(encoded) }),
     })
     const entry = replies[at]
