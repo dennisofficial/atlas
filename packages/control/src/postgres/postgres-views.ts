@@ -29,6 +29,23 @@ export const readSessionViewIn = async (params: {
   }
 }
 
+export const readSessionViewsIn = async (params: {
+  tx: Tx
+  sessionIds: readonly string[]
+}): Promise<SessionViewRow[]> => {
+  if (params.sessionIds.length === 0) return []
+  const rows = await params.tx.orm.v2.V2SessionView.where((view) =>
+    view.sessionId.in([...params.sessionIds]),
+  ).all()
+  return rows.map((row) => ({
+    sessionId: row.sessionId,
+    threadId: row.threadId,
+    atSeq: row.atSeq,
+    version: row.version,
+    state: row.state,
+  }))
+}
+
 export const writeSessionViewIn = async (params: {
   tx: Tx
   row: SessionViewRow

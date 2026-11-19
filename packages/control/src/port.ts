@@ -274,6 +274,7 @@ export interface ControlTx {
   }): Promise<void>
   lockThread(threadId: string): Promise<ThreadRow | undefined>
   readThread(threadId: string): Promise<ThreadRow | undefined>
+  readThreads(threadIds: readonly string[]): Promise<ThreadRow[]>
   writeThreadHead(params: {
     threadId: string
     expectedHeadSeq: number
@@ -307,6 +308,7 @@ export interface ControlTx {
   }): Promise<readonly ChangeBlobRow[]>
   deleteChangeBlobs(params: { hashes: readonly string[] }): Promise<void>
   readLease(sessionId: string): Promise<Lease | undefined>
+  readLeases(sessionIds: readonly string[]): Promise<Lease[]>
   leasesHeldBy(params: { hostId: number; limit: number }): Promise<Lease[]>
   lockLease(sessionId: string): Promise<Lease | undefined>
   shareLease(sessionId: string): Promise<Lease | undefined>
@@ -327,6 +329,7 @@ export interface ControlTx {
   notifyWake(sessionId: string): Promise<void>
   announce(change: SessionChange): Promise<void>
   readSessionView(sessionId: string): Promise<SessionViewRow | undefined>
+  readSessionViews(sessionIds: readonly string[]): Promise<SessionViewRow[]>
   writeSessionView(row: SessionViewRow): Promise<void>
   insertSessionBranches(rows: readonly SessionBranchRow[]): Promise<void>
   insertSessionPullRequests(rows: readonly SessionPullRequestRow[]): Promise<void>
@@ -337,6 +340,7 @@ export interface ControlTx {
   deleteSubscriptionLease(params: SubscriptionLease): Promise<boolean>
   upsertTrackingTarget(params: TrackingTarget): Promise<void>
   hostPresent(hostId: number): Promise<boolean>
+  hostsPresent(hostIds: readonly number[]): Promise<ReadonlySet<number>>
   lockRoutine(routineId: string): Promise<RoutineRow | undefined>
   readRoutine(routineId: string): Promise<RoutineRow | undefined>
   advanceRoutine(params: AdvanceRoutineParams): Promise<boolean>

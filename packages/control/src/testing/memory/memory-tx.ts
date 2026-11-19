@@ -173,6 +173,13 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
     return readThreadIn({ state: this.state, threadId })
   }
 
+  async readThreads(threadIds: readonly string[]): Promise<ThreadRow[]> {
+    return threadIds.flatMap((threadId) => {
+      const row = readThreadIn({ state: this.state, threadId })
+      return row === undefined ? [] : [row]
+    })
+  }
+
   async writeThreadHead(params: {
     threadId: string
     expectedHeadSeq: number
@@ -265,6 +272,13 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
     return lease === undefined ? undefined : { ...lease }
   }
 
+  async readLeases(sessionIds: readonly string[]): Promise<Lease[]> {
+    return sessionIds.flatMap((sessionId) => {
+      const lease = this.state.leases.get(sessionId)
+      return lease === undefined ? [] : [{ ...lease }]
+    })
+  }
+
   async leasesHeldBy(params: { hostId: number; limit: number }): Promise<Lease[]> {
     return leasesHeldByIn({ state: this.state, ...params })
   }
@@ -354,6 +368,10 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
 
   async hostPresent(hostId: number): Promise<boolean> {
     return this.presentHosts.has(hostId)
+  }
+
+  async hostsPresent(hostIds: readonly number[]): Promise<ReadonlySet<number>> {
+    return new Set(hostIds.filter((hostId) => this.presentHosts.has(hostId)))
   }
 
   async lockRoutine(routineId: string): Promise<RoutineRow | undefined> {
