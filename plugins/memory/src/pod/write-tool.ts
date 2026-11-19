@@ -12,7 +12,7 @@ import {
   MAX_MEMORY_BODY_CHARS,
   MAX_MEMORY_DESCRIPTION_CHARS,
   MEMORY_NAME_PATTERN,
-} from '@dltech/atlas-wire'
+} from '@dltech/atlas-core'
 import { z } from 'zod'
 
 import { addressOf, kindOf } from './address'
