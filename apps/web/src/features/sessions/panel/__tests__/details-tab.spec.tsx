@@ -39,7 +39,7 @@ describe('SessionDetailsTab', () => {
     expect(html).toContain('aria-label="Services"')
     expect(html).toContain(':4321')
     expect(html).toContain('aria-label="Open web"')
-    expect(html).toContain('aria-label="Teammates"')
+    expect(html).toContain('aria-label="Sub-agents"')
     expect(html).toContain('work the branch')
     expect(html).toContain('map the seam')
     expect(html).toContain('aria-label="Shells"')
@@ -113,7 +113,7 @@ describe('SessionDetailsTab', () => {
     expect(html).not.toContain('aria-label="Pull requests"')
     expect(html).not.toContain('aria-label="Services"')
     expect(html).not.toContain('aria-label="Shells"')
-    expect(html).not.toContain('aria-label="Teammates"')
+    expect(html).not.toContain('aria-label="Sub-agents"')
   })
 
   it('shows three rows and a Show all control when a list is longer', () => {

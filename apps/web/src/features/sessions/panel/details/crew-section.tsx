@@ -25,8 +25,8 @@ export function SessionCrewSection() {
   const now = useNowEvery({ enabled: view.crewRows.length > 0, tickMs: TICK_MS })
   if (view.crew.total === 0) return null
   return (
-    <section data-session-crew aria-label="Teammates" className="flex flex-col">
-      <SectionHead title="Teammates" count={view.crew.total} />
+    <section data-session-crew aria-label="Sub-agents" className="flex flex-col">
+      <SectionHead title="Sub-agents" count={view.crew.total} />
       <FoldedRows
         rows={view.crewRows}
         render={(row) => {
