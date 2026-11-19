@@ -49,6 +49,7 @@
     "@dltech/atlas-observability": "workspace:*",
     "@dltech/atlas-plugin-crew": "workspace:*",
     "@dltech/atlas-plugin-github": "workspace:*",
+    "@dltech/atlas-plugin-instructions": "workspace:*",
     "@dltech/atlas-plugin-mcp": "workspace:*",
     "@dltech/atlas-plugin-memory": "workspace:*",
     "@dltech/atlas-plugin-operator": "workspace:*",

@@ -4,16 +4,16 @@ import { fakeCloud, fakeDaemon, fakeWrites, invoke, skillDir, textOf, turn } fro
 
 const repoTree = () => ({
   '/repo/.git': { kind: 'dir' as const },
-  '/repo/.atlas/skills': { kind: 'dir' as const },
-  '/repo/.atlas/skills/alpha': { kind: 'dir' as const },
-  '/repo/.atlas/skills/alpha/SKILL.md': {
+  '/repo/.agents/skills': { kind: 'dir' as const },
+  '/repo/.agents/skills/alpha': { kind: 'dir' as const },
+  '/repo/.agents/skills/alpha/SKILL.md': {
     kind: 'file' as const,
     text: skillDir('alpha', 'alpha body'),
   },
 })
 
 describe('the same three tools over the clone', () => {
-  it('installs a repo skill into .atlas/skills and the next turn lists it', async () => {
+  it('installs a repo skill into .agents/skills and the next turn lists it', async () => {
     const { ctx, nodes } = fakeDaemon(repoTree())
     const cloud = fakeCloud({ entries: [] })
 
@@ -23,8 +23,8 @@ describe('the same three tools over the clone', () => {
       name: 'skill_install',
       input: { layer: 'repo', name: 'gamma', body: skillDir('gamma', 'gamma body') },
     })
-    expect(textOf(installed)).toContain('/repo/.atlas/skills/gamma/SKILL.md')
-    expect(nodes['/repo/.atlas/skills/gamma/SKILL.md']).toEqual({
+    expect(textOf(installed)).toContain('/repo/.agents/skills/gamma/SKILL.md')
+    expect(nodes['/repo/.agents/skills/gamma/SKILL.md']).toEqual({
       kind: 'file',
       text: skillDir('gamma', 'gamma body'),
     })
@@ -44,7 +44,7 @@ describe('the same three tools over the clone', () => {
       input: { name: 'alpha', layer: 'repo', body: skillDir('alpha', 'changed') },
     })
     expect(edited.ok).toBe(true)
-    expect(nodes['/repo/.atlas/skills/alpha/SKILL.md']).toEqual({
+    expect(nodes['/repo/.agents/skills/alpha/SKILL.md']).toEqual({
       kind: 'file',
       text: skillDir('alpha', 'changed'),
     })
@@ -56,8 +56,8 @@ describe('the same three tools over the clone', () => {
       input: { name: 'alpha', layer: 'repo' },
     })
     expect(deleted.ok).toBe(true)
-    expect(nodes['/repo/.atlas/skills/alpha']).toBeUndefined()
-    expect(nodes['/repo/.atlas/skills/alpha/SKILL.md']).toBeUndefined()
+    expect(nodes['/repo/.agents/skills/alpha']).toBeUndefined()
+    expect(nodes['/repo/.agents/skills/alpha/SKILL.md']).toBeUndefined()
   })
 
   it('loads a skill it has just installed, with no turn boundary in between', async () => {
@@ -91,7 +91,7 @@ describe('the same three tools over the clone', () => {
   })
 
   it('refuses a repo write in a session with no clone, and says to use another layer', async () => {
-    const { ctx } = fakeDaemon({ '/repo/.atlas/skills': { kind: 'dir' } })
+    const { ctx } = fakeDaemon({ '/repo/.agents/skills': { kind: 'dir' } })
     const cloud = fakeCloud({ entries: [] })
 
     const installed = await invoke({
@@ -117,7 +117,7 @@ describe('the same three tools over the clone', () => {
 describe('a write aimed at a layer the name does not live in', () => {
   const shadowedTree = () => ({
     ...repoTree(),
-    '/repo/.atlas/skills/alpha/SKILL.md': {
+    '/repo/.agents/skills/alpha/SKILL.md': {
       kind: 'file' as const,
       text: skillDir('alpha', 'alpha body'),
     },
@@ -140,7 +140,7 @@ describe('a write aimed at a layer the name does not live in', () => {
     })
 
     expect(outcome.ok).toBe(false)
-    expect(textOf(outcome)).toContain('/repo/.atlas/skills/alpha')
+    expect(textOf(outcome)).toContain('/repo/.agents/skills/alpha')
     expect(textOf(outcome)).toContain('layer repo')
     expect(writes.calls).toEqual([])
   })
@@ -211,6 +211,6 @@ describe('a write aimed at a layer the name does not live in', () => {
     })
 
     expect(outcome.ok).toBe(true)
-    expect(nodes['/repo/.atlas/skills/beta/SKILL.md']).toBeDefined()
+    expect(nodes['/repo/.agents/skills/beta/SKILL.md']).toBeDefined()
   })
 })

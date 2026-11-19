@@ -13,34 +13,6 @@ const toggle = (args: {
 })
 
 export const CONTEXT_FIELDS: SettingField[] = [
-  toggle({
-    key: 'context.projectInstructions',
-    title: 'Project instructions',
-    description:
-      'Load the instruction files a repository carries for its agents. A deeper file overrides a shallower one.',
-    fallback: true,
-  }),
-  toggle({
-    key: 'context.userInstructions',
-    title: 'Personal instructions',
-    description:
-      'Also load your own ATLAS.md, which applies to every project. The repository wins any disagreement with it.',
-    fallback: true,
-  }),
-  {
-    kind: ESettingFieldKind.Choice,
-    key: 'context.filenames',
-    title: 'Borrowed instruction files',
-    description:
-      'Which instruction files from other harnesses a repository is read for. ATLAS.md is always read and loaded last.',
-    fallback: 'both',
-    options: [
-      { value: 'both', label: 'AGENTS.md + CLAUDE.md' },
-      { value: 'claude', label: 'CLAUDE.md' },
-      { value: 'agents', label: 'AGENTS.md' },
-      { value: 'none', label: 'Neither' },
-    ],
-  },
   {
     kind: ESettingFieldKind.Text,
     key: 'plugins.trustedRepos',
@@ -50,13 +22,6 @@ export const CONTEXT_FIELDS: SettingField[] = [
     fallback: '',
     placeholder: 'github.com/acme/widget',
   },
-  toggle({
-    key: 'context.reload',
-    title: 'Reload on change',
-    description:
-      'Re-read the instruction files every turn, so an edit takes effect in the conversation you are already in. Off freezes them as they were when it opened.',
-    fallback: true,
-  }),
   toggle({
     key: 'skills.suggest',
     title: 'Suggest a skill per turn',

@@ -17,8 +17,11 @@ import { operatorClient } from '@dltech/atlas-plugin-operator/client'
 import { operatorControl } from '@dltech/atlas-plugin-operator/control'
 import { operatorCoreSlots } from '@dltech/atlas-plugin-operator/core'
 import { operatorPod } from '@dltech/atlas-plugin-operator/pod'
+import { instructionsCoreSlots } from '@dltech/atlas-plugin-instructions/core'
+import { instructionsPodOf } from '@dltech/atlas-plugin-instructions/pod'
 import { mcpServerPort } from './config/mcp-servers'
 import { skillCloudPort } from './config/skills'
+import { instructionsPort } from './config/instructions'
 import { skillsClient } from '@dltech/atlas-plugin-skills/client'
 import { skillsCoreSlots } from '@dltech/atlas-plugin-skills/core'
 import { skillsPodOf } from '@dltech/atlas-plugin-skills/pod'
@@ -51,6 +54,11 @@ import { webCoreSlots } from '@dltech/atlas-plugin-web/core'
 import { webPod } from '@dltech/atlas-plugin-web/pod'
 
 const skillCloud = skillCloudPort()
+
+const personalInstructions = instructionsPort()
+
+const instructionsPodFor = (ctx: PluginPodContext) =>
+  instructionsPodOf({ personal: () => personalInstructions.personal(ctx.sessionId) })
 
 const skillsPodFor = (ctx: PluginPodContext) =>
   skillsPodOf({
@@ -121,6 +129,17 @@ export const registeredPlugins: readonly Plugin[] = [
     pod: operatorPod,
     control: operatorControl,
     client: operatorClient,
+    transport: 'none',
+  }),
+  definePlugin({
+    name: 'instructions',
+    ...instructionsCoreSlots,
+    pod: {
+      ...EMPTY_POD,
+      hooks: (ctx) => instructionsPodFor(ctx).hooks?.(ctx) ?? {},
+    },
+    control: EMPTY_CONTROL,
+    client: { hooks: [] },
     transport: 'none',
   }),
   definePlugin({

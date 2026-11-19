@@ -101,4 +101,4 @@ id rather than dumping full artifacts into context.
 
 ## Suite-specific instructions
 
-- `code-quality/ATLAS.md` — SRP rubric, expected-label shapes, dataset layout.
+- `code-quality/AGENTS.md` — SRP rubric, expected-label shapes, dataset layout.

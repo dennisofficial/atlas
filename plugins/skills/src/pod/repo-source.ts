@@ -13,7 +13,7 @@ import {
 import { directoryOf, statOf, textOf } from './daemon'
 import type { RepoCatalogueSkill } from './types'
 
-export const REPO_SKILL_ROOTS: readonly string[] = ['.atlas/skills', '.agents/skills']
+export const REPO_SKILL_ROOTS: readonly string[] = ['.agents/skills']
 
 const MARKDOWN = '.md'
 
