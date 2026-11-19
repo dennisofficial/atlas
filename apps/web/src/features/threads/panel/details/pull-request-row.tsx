@@ -10,6 +10,7 @@ import {
   TriangleAlertIcon,
   type LucideIcon,
 } from 'lucide-react'
+import type { ReactNode } from 'react'
 
 import { TableCell, TableRow } from '@dltech/atlas-ui/components/table'
 import { Button } from '@dltech/atlas-ui/components/button'
@@ -59,7 +60,7 @@ function ConflictIndicator() {
   )
 }
 
-function BellToggle(props: {
+export function BellToggle(props: {
   bell: PullRequestBell
   label: string
   size: 'icon-sm' | 'icon-xs'
@@ -100,10 +101,9 @@ function ChecksAndConflicts({ row }: { row: PullRequestRow }) {
 export function PullRequestRowItem(props: {
   row: PullRequestRow
   checkoutBranch?: string
-  bell: PullRequestBell | undefined
-  onToggleBell: (key: string) => void
+  bell?: ReactNode
 }) {
-  const { row, bell, onToggleBell } = props
+  const { row } = props
   const branchShown = row.branch !== props.checkoutBranch
   return (
     <TableRow>
@@ -143,14 +143,7 @@ export function PullRequestRowItem(props: {
           <span className="@[480px]:hidden">
             <ChecksAndConflicts row={row} />
           </span>
-          {bell ? (
-            <BellToggle
-              bell={bell}
-              label={`${bell.label} ${row.label}`}
-              size="icon-xs"
-              onToggle={() => onToggleBell(row.key)}
-            />
-          ) : null}
+          {props.bell}
         </span>
       </TableCell>
     </TableRow>

@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableRow } from '@dltech/atlas-ui/componen
 
 import type { CheckoutView } from '../../data/session-checkouts'
 import { useThreadPanel } from '../thread-panel-context'
-import { PullRequestRowItem } from './pull-request-row'
+import { BellToggle, PullRequestRowItem } from './pull-request-row'
 import { DetailsSection } from './section'
 import { BODY_CELL } from './table-parts'
 
@@ -49,15 +49,26 @@ export function GithubSection() {
   const renderRows = (args: { keys: readonly string[]; branch?: string }) =>
     rows
       .filter((row) => args.keys.includes(row.key))
-      .map((row) => (
-        <PullRequestRowItem
-          key={row.key}
-          row={row}
-          checkoutBranch={args.branch}
-          bell={pullRequests.bells[row.key]}
-          onToggleBell={pullRequests.handleToggle}
-        />
-      ))
+      .map((row) => {
+        const bell = pullRequests.bells[row.key]
+        return (
+          <PullRequestRowItem
+            key={row.key}
+            row={row}
+            checkoutBranch={args.branch}
+            bell={
+              bell === undefined ? null : (
+                <BellToggle
+                  bell={bell}
+                  label={`${bell.label} ${row.label}`}
+                  size="icon-xs"
+                  onToggle={() => pullRequests.handleToggle(row.key)}
+                />
+              )
+            }
+          />
+        )
+      })
 
   return (
     <DetailsSection title="GitHub">
