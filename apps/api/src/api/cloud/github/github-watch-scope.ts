@@ -1,12 +1,13 @@
 import { and, db, or } from '@dltech/atlas-db'
-import { repoPattern } from './github-pr-identity'
+import { normalizedRepo, repoPattern } from './github-pr-identity'
 
 /**
- * The watch scope is the same liveness predicate the poll sweeper tracks with: a live
- * GithubSubscription (a session or user watching a pull request or a branch) or a live
- * GithubTrackingTarget (the materialized head/pull-request target, including session branches).
- * Nothing else decides what Atlas follows, so a delivery outside it carries no state any watcher
- * would read.
+ * The watch scope is what keeps a pull request on screen: a live GithubSubscription (a session or
+ * user watching a pull request or a branch), a live GithubTrackingTarget (the materialized
+ * head/pull-request target), or a session that stopped watching but still holds the link — the
+ * V2SessionPullRequest row the plugin writes when a subscription is created survives its
+ * expiry, and it is what the states stream and the session views replay from. Nothing else
+ * decides what Atlas shows, so a delivery outside it carries no state any watcher would read.
  */
 export type WatchedHead = { repoFullName: string; branch: string }
 
@@ -43,8 +44,43 @@ export async function inWatchScope(scope: WatchScope): Promise<boolean> {
     db.orm.public.GithubSubscription.where(where).first(),
     db.orm.public.GithubTrackingTarget.where(where).first(),
   ])
+  if (subscription != null || target != null) return true
 
-  return subscription != null || target != null
+  return await trackedBySession({ repoFullName: scope.repoFullName, prNumbers, heads })
+}
+
+/**
+ * The durable half of the snapshot: a session keeps the pull request or head it linked after the
+ * subscription that created it lapses (plugins/github `subscription-created` writes
+ * V2SessionPullRequest and never deletes it). Those rows decide which states a session view and
+ * the states stream still replay, so a delivery they name is not skippable.
+ */
+async function trackedBySession(args: {
+  repoFullName: string
+  prNumbers: readonly number[]
+  heads: readonly WatchedHead[]
+}): Promise<boolean> {
+  const repoFullName = normalizedRepo(args.repoFullName)
+  if (args.prNumbers.length > 0) {
+    const tracked = await db.orm.v2.V2SessionPullRequest.where((pr) =>
+      or(
+        ...args.prNumbers.map((prNumber) =>
+          and(pr.repoFullName.eq(repoFullName), pr.prNumber.eq(prNumber)),
+        ),
+      ),
+    ).first()
+    if (tracked != null) return true
+  }
+
+  for (const head of args.heads) {
+    const tracked = await db.orm.v2.V2SessionBranch.where({
+      headRepo: normalizedRepo(head.repoFullName),
+      branch: head.branch,
+    }).first()
+    if (tracked != null) return true
+  }
+
+  return false
 }
 
 /**

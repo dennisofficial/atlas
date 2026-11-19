@@ -10,6 +10,7 @@ import {
   seedSubscription,
 } from '../../../../test/github-seed'
 import { REST_FIELDS, prepareDelivery, serviceWith } from './github-delivery.fixture'
+import { seedLinkedPr } from './github-linked-pr.fixture'
 import { seedTarget } from './github-poll-sweeper.fixture'
 import { serviceWith as subscriptionsWith } from './github-subscriptions.fixture'
 
@@ -97,6 +98,15 @@ describe('delivery watch scope', () => {
 
   it('processes the same check_run once a live subscription watches the pull request', async () => {
     await seedSubscription({ userId: 'usr-a', prNumber: 42 })
+    const { service } = serviceWith({ readPullRequest: async () => REST_FIELDS })
+
+    await service.handle({ event: 'check_run', payload: checkRunOf({ pullRequests: [42] }) })
+
+    expect(await commitCheckRows()).toHaveLength(1)
+  })
+
+  it('processes a check_run for a pull request a session still links after its watch lapsed', async () => {
+    await seedLinkedPr({ userId: 'usr-a' })
     const { service } = serviceWith({ readPullRequest: async () => REST_FIELDS })
 
     await service.handle({ event: 'check_run', payload: checkRunOf({ pullRequests: [42] }) })

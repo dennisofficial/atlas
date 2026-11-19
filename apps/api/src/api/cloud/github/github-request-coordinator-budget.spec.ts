@@ -101,6 +101,13 @@ describe('shared real HTTP budget for API fills, authorization and worker queue'
         branch: `#${number}`,
         pollBacked: true,
       })
+    await seedSubscription({
+      id: 'agent-42',
+      userId: 'usr-agent',
+      prNumber: 42,
+      branch: '#42',
+      pollBacked: true,
+    })
     await access(api.coordinator, 'owner')
     const beforeFill = http.calls.length
     await api.delivery.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
