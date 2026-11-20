@@ -40,8 +40,8 @@ const started = async (harness: ReturnType<typeof rig>, command = 'listen') =>
   serviceIdOf(
     await invoke({
       ctx: harness.ctx,
-      name: 'service_start',
-      input: { description: 'web', command },
+      name: 'service',
+      input: { action: 'start', description: 'web', command },
     }),
   )
 

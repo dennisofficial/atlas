@@ -16,6 +16,7 @@ export const repoAgentTypesHook = (args: {
 }): RegisteredHook<BeforeTurn> => ({
   name: 'crew-repo-agent-types',
   order: ORDER,
+  awaited: true,
   run: async ({ projectDirectory }) => {
     args.state.directory = projectDirectory
     const found = await discoverRepoAgentTypes({ ctx: args.ctx, projectDirectory })
@@ -30,6 +31,7 @@ export const repoAgentListingHook = (args: {
 }): RegisteredHook<BeforeStep> => ({
   name: 'crew-repo-agent-listing',
   order: ORDER,
+  awaited: true,
   run: async ({ assembled }) => {
     if (args.state.directory === null) return assembled
     const listing = repoAgentListingOf({

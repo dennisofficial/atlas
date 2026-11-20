@@ -4,7 +4,6 @@ import { EMPTY_POD, type PodSlot } from '@dltech/atlas-plugin-sdk'
 
 import { mcpCommand } from '../core'
 import type { McpConfigPort } from './config'
-import { mcpDeferredListingHook } from './deferred-listing'
 import { mcpInstructionsHook } from './instructions'
 import { mcpReport } from './report'
 import { McpSignInTool } from './sign-in'
@@ -12,7 +11,6 @@ import { McpStores } from './store'
 
 export { MCP_NAME_PREFIX } from './bridge-tool'
 export { McpBridgeTool } from './bridge-tool'
-export { mcpDeferredListingHook } from './deferred-listing'
 export { mcpInstructionsHook, mcpInstructionsOf } from './instructions'
 export { mcpReport, mcpReportRow, NO_MCP_SERVERS } from './report'
 export { McpSignInTool } from './sign-in'
@@ -63,7 +61,6 @@ export const mcpPod = (args: McpPodArgs): PodSlot => {
         },
         mcpInstructionsHook({ store: stores.of(ctx), offered }),
       ],
-      beforeStep: [mcpDeferredListingHook({ store: stores.of(ctx) })],
     }),
     commands: new Map([[mcpCommand.inboxKind, report]]),
   }

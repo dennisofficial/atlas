@@ -12,6 +12,7 @@ import type { CallOp, CallResult } from '@dltech/atlas-protocol'
 
 import { newKey } from '../calls/remote-calls'
 import { worktreesOf } from './checkouts'
+import { deferredListingHook } from './deferred-listing'
 import { withDiscoveryTools } from './discovery'
 import type { HeldSessionDeps } from './held-session-deps'
 import { fireLive } from './ports'
@@ -168,20 +169,27 @@ const composedToolsOf = (args: {
   )
 }
 
-export const hostHooksOf = (): HookChainArgs => ({ afterTool: [new MirrorPlanHook()] })
+export const hostHooksOf = (args: {
+  declarations: () => readonly ToolDeclaration[]
+}): HookChainArgs => ({
+  beforeStep: [deferredListingHook({ declarations: args.declarations })],
+  afterTool: [new MirrorPlanHook()],
+})
 
 export const pluginHooksOf = (args: {
   runtime: SessionRuntime
   ctx: PluginPodContext
+  declarations: () => readonly ToolDeclaration[]
 }): HookChain => {
   const { plugins } = args.runtime
-  const host = hostHooksOf()
+  const host = hostHooksOf({ declarations: args.declarations })
   if (plugins === undefined) return new HookChain(host)
 
   const plugin = plugins.pod.hooks(args.ctx)
   return new HookChain({
     ...host,
     ...plugin,
+    beforeStep: [...(host.beforeStep ?? []), ...(plugin.beforeStep ?? [])],
     afterTool: [...(host.afterTool ?? []), ...(plugin.afterTool ?? [])],
   })
 }
@@ -198,11 +206,17 @@ export const pluginPodOf = (args: {
 }): PluginPod => {
   const { plugins } = args.runtime
   if (plugins === undefined) {
-    return { tools: withDiscoveryTools(args.runtime.tools), hooks: new HookChain(hostHooksOf()) }
+    const tools = withDiscoveryTools(args.runtime.tools)
+    const hooks = new HookChain(hostHooksOf({ declarations: () => tools.declarations() }))
+    return { tools, hooks }
   }
   const ctx = pluginPodContextOf(args)
   const tools = pluginToolsOf({ runtime: args.runtime, ctx })
-  const hooks = pluginHooksOf({ runtime: args.runtime, ctx })
+  const hooks = pluginHooksOf({
+    runtime: args.runtime,
+    ctx,
+    declarations: () => tools.declarations(),
+  })
   ctx.onDaemonEvent((frame) => plugins.pod.onDaemonEvent(frame))
   return { tools, hooks }
 }

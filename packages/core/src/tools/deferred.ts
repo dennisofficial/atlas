@@ -12,6 +12,8 @@ export const MCP_TOOL_PREFIX = 'mcp__'
 
 const MCP_TOOL_SEPARATOR = '__'
 
+const ATLAS_TOOL_GROUP = 'atlas'
+
 const TOOL_SEARCH_LIMIT = 5
 
 export const callToolInputSchema = z.strictObject({
@@ -49,7 +51,7 @@ export const toolNamesByServerOf = (
 ): ReadonlyMap<string, readonly string[]> => {
   const groups = new Map<string, string[]>()
   for (const declaration of deferredDeclarationsOf(declarations)) {
-    const server = mcpPartsOf(declaration.name)?.server ?? 'other'
+    const server = mcpPartsOf(declaration.name)?.server ?? ATLAS_TOOL_GROUP
     const names = groups.get(server) ?? []
     names.push(declaration.name)
     groups.set(server, names)
@@ -93,7 +95,7 @@ const renderMatch = (declaration: ToolDeclaration): string =>
     JSON.stringify(jsonSchemaOf(declaration) ?? {}, null, 2),
   ].join('\n')
 
-const NO_DEFERRED_TOOLS = 'no MCP tools are loaded in this session'
+const NO_DEFERRED_TOOLS = 'no deferred tools are in this session'
 
 export const toolSearchTextOf = (args: {
   declarations: readonly ToolDeclaration[]
@@ -139,14 +141,11 @@ export const resolveToolCallOf = (args: {
   name: string
   input: unknown
 }): ResolvedToolCall => {
-  const called = args.declarations.find((declaration) => declaration.name === args.name)
-  if (called !== undefined && isDeferredDeclaration(called))
-    return refused({
-      name: args.name,
-      reason: `"${args.name}" is deferred, so it is not loaded until you search for it: call ${TOOL_SEARCH_NAME}, then run it with ${CALL_TOOL_NAME}. Nothing ran.`,
-    })
-
-  if (args.name !== CALL_TOOL_NAME) return { kind: 'direct', name: args.name, input: args.input }
+  if (args.name !== CALL_TOOL_NAME) {
+    const called = args.declarations.find((declaration) => declaration.name === args.name)
+    const kind = called !== undefined && isDeferredDeclaration(called) ? 'deferred' : 'direct'
+    return { kind, name: args.name, input: args.input }
+  }
 
   const parsed = callToolInputSchema.safeParse(args.input)
   if (!parsed.success)

@@ -29,6 +29,7 @@ export const skillsCatalogueHook = (args: {
 }): RegisteredHook<BeforeTurn> => ({
   name: 'skills-catalogue',
   order: ORDER,
+  awaited: true,
   run: async ({ projectDirectory }) => {
     args.state.directory = projectDirectory
     const started = await watchSkills({
@@ -55,6 +56,7 @@ export const skillsListingHook = (args: {
 }): RegisteredHook<BeforeStep> => ({
   name: 'skills-listing',
   order: ORDER,
+  awaited: true,
   run: async ({ assembled }) => {
     const directory = args.state.directory
     if (directory === null) return assembled

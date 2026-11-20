@@ -173,8 +173,8 @@ describe('github pod workflow-run subscriptions', () => {
     const { ctx, log } = rig({})
     const outcome = await invoke({
       ctx,
-      name: 'subscribe',
-      input: { provider: 'github.workflow-run', target: 'o/r#5' },
+      name: 'subscription',
+      input: { action: 'subscribe', provider: 'github.workflow-run', target: 'o/r#5' },
     })
     expect(outcome.ok).toBe(true)
     expect(log).toHaveLength(1)
@@ -191,8 +191,8 @@ describe('github pod workflow-run subscriptions', () => {
     const { ctx, log } = rig({ [NAME]: exec('o/r') })
     await invoke({
       ctx,
-      name: 'subscribe',
-      input: { provider: 'github.workflow-run', target: 'deploy.yml@main' },
+      name: 'subscription',
+      input: { action: 'subscribe', provider: 'github.workflow-run', target: 'deploy.yml@main' },
     })
     expect(log[0]).toMatchObject({
       target: { kind: 'selector', repo: 'github.com/o/r', workflow: 'deploy.yml', branch: 'main' },
@@ -204,13 +204,17 @@ describe('github pod workflow-run subscriptions', () => {
     const { ctx, log } = rig({})
     await invoke({
       ctx,
-      name: 'subscribe',
-      input: { provider: 'github.workflow-run', target: 'o/r#5' },
+      name: 'subscription',
+      input: { action: 'subscribe', provider: 'github.workflow-run', target: 'o/r#5' },
     })
     const again = await invoke({
       ctx,
-      name: 'subscribe',
-      input: { provider: 'github.workflow-run', target: 'https://github.com/o/r/actions/runs/5' },
+      name: 'subscription',
+      input: {
+        action: 'subscribe',
+        provider: 'github.workflow-run',
+        target: 'https://github.com/o/r/actions/runs/5',
+      },
     })
     expect(again.ok && again.modelText).toContain('Already subscribed')
     expect(log).toHaveLength(1)
@@ -220,13 +224,13 @@ describe('github pod workflow-run subscriptions', () => {
     const { ctx, log } = rig({})
     await invoke({
       ctx,
-      name: 'subscribe',
-      input: { provider: 'github.pull-request', target: 'o/r#5' },
+      name: 'subscription',
+      input: { action: 'subscribe', provider: 'github.pull-request', target: 'o/r#5' },
     })
     await invoke({
       ctx,
-      name: 'subscribe',
-      input: { provider: 'github.workflow-run', target: 'o/r#5' },
+      name: 'subscription',
+      input: { action: 'subscribe', provider: 'github.workflow-run', target: 'o/r#5' },
     })
     expect(log.map((event) => (event as { provider?: string }).provider)).toEqual([
       'github.pull-request',
@@ -236,7 +240,11 @@ describe('github pod workflow-run subscriptions', () => {
 
   it('refuses an unknown provider naming both', async () => {
     const { ctx } = rig({})
-    const outcome = await invoke({ ctx, name: 'subscribe', input: { provider: 'slack' } })
+    const outcome = await invoke({
+      ctx,
+      name: 'subscription',
+      input: { action: 'subscribe', provider: 'slack' },
+    })
     expect(outcome.ok).toBe(false)
     expect(outcome.ok ? '' : outcome.reason).toContain('github.pull-request')
     expect(outcome.ok ? '' : outcome.reason).toContain('github.workflow-run')
@@ -246,10 +254,10 @@ describe('github pod workflow-run subscriptions', () => {
     const { ctx } = rig({})
     await invoke({
       ctx,
-      name: 'subscribe',
-      input: { provider: 'github.workflow-run', target: 'o/r#5' },
+      name: 'subscription',
+      input: { action: 'subscribe', provider: 'github.workflow-run', target: 'o/r#5' },
     })
-    const listed = await invoke({ ctx, name: 'list_subscriptions', input: {} })
+    const listed = await invoke({ ctx, name: 'subscription', input: { action: 'list' } })
     const text = listed.ok ? listed.modelText : ''
     expect(text).toContain('github.pull-request')
     expect(text).toContain('github.workflow-run')

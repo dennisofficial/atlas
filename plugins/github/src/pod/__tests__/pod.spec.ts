@@ -91,8 +91,8 @@ describe('github pod tools', () => {
     const { ctx, log } = rig({ [PR_VIEW]: exec('https://github.com/Dltech/Atlas/pull/7') })
     const outcome = await invoke({
       ctx,
-      name: 'subscribe',
-      input: { provider: 'github.pull-request' },
+      name: 'subscription',
+      input: { action: 'subscribe', provider: 'github.pull-request' },
     })
     expect(outcome.ok).toBe(true)
     expect(log).toHaveLength(1)
@@ -109,13 +109,17 @@ describe('github pod tools', () => {
     const { ctx, log } = rig({})
     await invoke({
       ctx,
-      name: 'subscribe',
-      input: { provider: 'github.pull-request', target: 'o/r#2' },
+      name: 'subscription',
+      input: { action: 'subscribe', provider: 'github.pull-request', target: 'o/r#2' },
     })
     const again = await invoke({
       ctx,
-      name: 'subscribe',
-      input: { provider: 'github.pull-request', target: 'https://github.com/o/r/pull/2' },
+      name: 'subscription',
+      input: {
+        action: 'subscribe',
+        provider: 'github.pull-request',
+        target: 'https://github.com/o/r/pull/2',
+      },
     })
     expect(again.ok && again.modelText).toContain('Already subscribed')
     expect(log).toHaveLength(1)
@@ -127,8 +131,8 @@ describe('github pod tools', () => {
     })
     await invoke({
       ctx,
-      name: 'subscribe',
-      input: { provider: 'github.pull-request', target: '#5' },
+      name: 'subscription',
+      input: { action: 'subscribe', provider: 'github.pull-request', target: '#5' },
     })
     expect(log[0]).toMatchObject({ target: { repo: 'github.com/o/r', number: 5 } })
   })
@@ -137,8 +141,8 @@ describe('github pod tools', () => {
     const { ctx, log } = rig({})
     const outcome = await invoke({
       ctx,
-      name: 'subscribe',
-      input: { provider: 'github.pull-request' },
+      name: 'subscription',
+      input: { action: 'subscribe', provider: 'github.pull-request' },
     })
     expect(outcome).toMatchObject({ ok: false })
     expect(log).toHaveLength(0)
@@ -146,7 +150,13 @@ describe('github pod tools', () => {
 
   it('refuses another provider', async () => {
     const { ctx } = rig({})
-    expect(await invoke({ ctx, name: 'subscribe', input: { provider: 'slack' } })).toMatchObject({
+    expect(
+      await invoke({
+        ctx,
+        name: 'subscription',
+        input: { action: 'subscribe', provider: 'slack' },
+      }),
+    ).toMatchObject({
       ok: false,
     })
   })
@@ -155,24 +165,32 @@ describe('github pod tools', () => {
     const { ctx, log } = rig({})
     const made = await invoke({
       ctx,
-      name: 'subscribe',
-      input: { provider: 'github.pull-request', target: 'o/r#2' },
+      name: 'subscription',
+      input: { action: 'subscribe', provider: 'github.pull-request', target: 'o/r#2' },
     })
     const id = made.ok ? (made.output as { subscriptionId: string }).subscriptionId : ''
-    const listed = await invoke({ ctx, name: 'list_subscriptions', input: {} })
+    const listed = await invoke({ ctx, name: 'subscription', input: { action: 'list' } })
     expect(listed.ok && listed.modelText).toContain('o/r#2')
     expect(
-      await invoke({ ctx, name: 'unsubscribe', input: { subscriptionId: 'nope' } }),
+      await invoke({
+        ctx,
+        name: 'subscription',
+        input: { action: 'unsubscribe', subscriptionId: 'nope' },
+      }),
     ).toMatchObject({ ok: false })
-    expect(await invoke({ ctx, name: 'unsubscribe', input: { subscriptionId: id } })).toMatchObject(
-      { ok: true },
-    )
+    expect(
+      await invoke({
+        ctx,
+        name: 'subscription',
+        input: { action: 'unsubscribe', subscriptionId: id },
+      }),
+    ).toMatchObject({ ok: true })
     expect(log.at(-1)).toMatchObject({
       type: 'subscription-ended',
       subscriptionId: id,
       reason: 'unsubscribed',
     })
-    const after = await invoke({ ctx, name: 'list_subscriptions', input: {} })
+    const after = await invoke({ ctx, name: 'subscription', input: { action: 'list' } })
     expect(after.ok && after.modelText).toContain('no subscriptions')
   })
 
@@ -180,8 +198,13 @@ describe('github pod tools', () => {
     const { ctx, log } = rig({})
     const outcome = await invoke({
       ctx,
-      name: 'subscribe',
-      input: { provider: 'github.pull-request', target: 'o/r#4', events: ['state', 'ci'] },
+      name: 'subscription',
+      input: {
+        action: 'subscribe',
+        provider: 'github.pull-request',
+        target: 'o/r#4',
+        events: ['state', 'ci'],
+      },
     })
     expect(outcome.ok && outcome.modelText).toContain('o/r#4 (only: ci, state)')
     expect(log[0]).toMatchObject({ label: 'o/r#4 (only: ci, state)', events: ['ci', 'state'] })
@@ -191,8 +214,13 @@ describe('github pod tools', () => {
     const { ctx, log } = rig({})
     const outcome = await invoke({
       ctx,
-      name: 'subscribe',
-      input: { provider: 'github.pull-request', target: 'o/r#4', events: ['ci', 'nope'] },
+      name: 'subscription',
+      input: {
+        action: 'subscribe',
+        provider: 'github.pull-request',
+        target: 'o/r#4',
+        events: ['ci', 'nope'],
+      },
     })
     expect(outcome.ok ? '' : outcome.reason).toContain(
       'Valid events: ci, comments, mergeability, state',
@@ -204,20 +232,30 @@ describe('github pod tools', () => {
     const { ctx, log } = rig({})
     const made = await invoke({
       ctx,
-      name: 'subscribe',
-      input: { provider: 'github.pull-request', target: 'o/r#4', events: ['ci'] },
+      name: 'subscription',
+      input: {
+        action: 'subscribe',
+        provider: 'github.pull-request',
+        target: 'o/r#4',
+        events: ['ci'],
+      },
     })
     const id = made.ok ? (made.output as { subscriptionId: string }).subscriptionId : ''
     const again = await invoke({
       ctx,
-      name: 'subscribe',
-      input: { provider: 'github.pull-request', target: 'o/r#4', events: ['state'] },
+      name: 'subscription',
+      input: {
+        action: 'subscribe',
+        provider: 'github.pull-request',
+        target: 'o/r#4',
+        events: ['state'],
+      },
     })
     expect(again.ok && again.modelText).toContain('Updated filter on o/r#4 (only: state)')
     expect(log).toHaveLength(2)
     expect(log[1]).toMatchObject({ subscriptionId: id, events: ['state'] })
     expect(again.ok && (again.output as { existed: boolean }).existed).toBe(true)
-    const listed = await invoke({ ctx, name: 'list_subscriptions', input: {} })
+    const listed = await invoke({ ctx, name: 'subscription', input: { action: 'list' } })
     expect(listed.ok && listed.modelText).toContain('o/r#4 (only: state)')
   })
 
@@ -225,13 +263,18 @@ describe('github pod tools', () => {
     const { ctx, log } = rig({})
     await invoke({
       ctx,
-      name: 'subscribe',
-      input: { provider: 'github.pull-request', target: 'o/r#4', events: ['state'] },
+      name: 'subscription',
+      input: {
+        action: 'subscribe',
+        provider: 'github.pull-request',
+        target: 'o/r#4',
+        events: ['state'],
+      },
     })
     const again = await invoke({
       ctx,
-      name: 'subscribe',
-      input: { provider: 'github.pull-request', target: 'o/r#4' },
+      name: 'subscription',
+      input: { action: 'subscribe', provider: 'github.pull-request', target: 'o/r#4' },
     })
     expect(again.ok && again.modelText).toContain('Already subscribed to o/r#4 (only: state)')
     expect(log).toHaveLength(1)
@@ -242,8 +285,13 @@ describe('github pod tools', () => {
     expect(
       await invoke({
         ctx,
-        name: 'subscribe',
-        input: { provider: 'github.workflow-run', target: '#run:1', events: ['ci'] },
+        name: 'subscription',
+        input: {
+          action: 'subscribe',
+          provider: 'github.workflow-run',
+          target: '#run:1',
+          events: ['ci'],
+        },
       }),
     ).toMatchObject({
       ok: false,
@@ -251,13 +299,21 @@ describe('github pod tools', () => {
     })
   })
 
-  it('declares a read effect for the list tool', () => {
+  it('declares one write tool, with only list safe to run beside another call', () => {
     const { ctx } = rig({})
     const tools = githubPod.tools?.(ctx) ?? []
-    expect(tools.map((t) => [t.name, t.effect])).toContainEqual([
-      'list_subscriptions',
-      EToolEffect.Read,
-    ])
+    expect(tools.map((t) => [t.name, t.effect])).toEqual([['subscription', EToolEffect.Write]])
+    const tool = tools[0]
+    expect(tool?.isConcurrencySafe?.({ action: 'list' })).toBe(true)
+    expect(tool?.isConcurrencySafe?.({ action: 'subscribe' })).toBe(false)
+  })
+
+  it('names the action and the field it is missing', async () => {
+    const { ctx } = rig({})
+    const noProvider = await invoke({ ctx, name: 'subscription', input: { action: 'subscribe' } })
+    expect(noProvider.ok ? '' : noProvider.reason).toContain('✖ action subscribe needs provider')
+    const noId = await invoke({ ctx, name: 'subscription', input: { action: 'unsubscribe' } })
+    expect(noId.ok ? '' : noId.reason).toContain('✖ action unsubscribe needs subscriptionId')
   })
 })
 
@@ -327,8 +383,8 @@ describe('github ci watch hook', () => {
     const rigged = rig({ [PR_VIEW]: exec('https://github.com/o/r/pull/2') })
     await invoke({
       ctx: rigged.ctx,
-      name: 'subscribe',
-      input: { provider: 'github.pull-request', target: 'o/r#2' },
+      name: 'subscription',
+      input: { action: 'subscribe', provider: 'github.pull-request', target: 'o/r#2' },
     })
     expect(await consult({ rigged, command: 'gh pr checks --watch' })).toEqual({
       decision: EBeforeToolDecision.Deny,
@@ -340,8 +396,8 @@ describe('github ci watch hook', () => {
     const rigged = rig({ [PR_VIEW]: exec('https://github.com/o/r/pull/9') })
     await invoke({
       ctx: rigged.ctx,
-      name: 'subscribe',
-      input: { provider: 'github.pull-request', target: 'o/r#2' },
+      name: 'subscription',
+      input: { action: 'subscribe', provider: 'github.pull-request', target: 'o/r#2' },
     })
     expect((await consult({ rigged, command: 'gh pr checks' })).decision).toBe(
       EBeforeToolDecision.Allow,

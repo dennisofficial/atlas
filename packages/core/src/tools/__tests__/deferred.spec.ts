@@ -44,7 +44,9 @@ const meetings = declaration({
 
 const readFile = declaration({ name: 'read', description: 'Read a file' })
 
-const declarations = [readFile, exec, meetings]
+const routine = declaration({ name: 'routine', description: 'Manage routines', deferred: true })
+
+const declarations = [readFile, exec, meetings, routine]
 
 describe('the deferred filter', () => {
   it('drops deferred declarations from the model-facing list and keeps the order of the rest', () => {
@@ -55,6 +57,7 @@ describe('the deferred filter', () => {
     expect(deferredDeclarationsOf(declarations).map((entry) => entry.name)).toEqual([
       'mcp__posthog__exec',
       'mcp__wispr-flow__search_meetings',
+      'routine',
     ])
   })
 })
@@ -72,13 +75,14 @@ describe('MCP tool names', () => {
     expect(mcpPartsOf('mcp__noseparator')).toBeUndefined()
   })
 
-  it('groups deferred names by server', () => {
+  it('groups deferred names by MCP server, and every other deferred tool under atlas', () => {
     expect([...toolNamesByServerOf(declarations)]).toEqual([
       ['posthog', ['mcp__posthog__exec']],
       ['wispr-flow', ['mcp__wispr-flow__search_meetings']],
+      ['atlas', ['routine']],
     ])
     expect(deferredListingTextOf(declarations)).toBe(
-      'posthog: mcp__posthog__exec\nwispr-flow: mcp__wispr-flow__search_meetings',
+      'posthog: mcp__posthog__exec\nwispr-flow: mcp__wispr-flow__search_meetings\natlas: routine',
     )
   })
 })
@@ -127,7 +131,7 @@ describe('tool_search text', () => {
 
   it('says so when nothing is deferred', () => {
     expect(toolSearchTextOf({ declarations: [readFile], query: '' })).toBe(
-      'no MCP tools are loaded in this session.',
+      'no deferred tools are in this session.',
     )
   })
 })
@@ -195,17 +199,13 @@ describe('unwrapping call_tool', () => {
     }
   })
 
-  it('refuses a direct call to a deferred tool and points at call_tool', () => {
-    const resolved = resolveToolCallOf({
-      declarations,
-      name: 'mcp__posthog__exec',
-      input: { command: 'info' },
-    })
-
-    expect(resolved.kind).toBe('refused')
-    if (resolved.kind === 'refused') {
-      expect(resolved.name).toBe('mcp__posthog__exec')
-      expect(resolved.reason).toContain(CALL_TOOL_NAME)
-    }
+  it('runs a direct call to a deferred tool by its own name', () => {
+    expect(
+      resolveToolCallOf({
+        declarations,
+        name: 'mcp__posthog__exec',
+        input: { command: 'info' },
+      }),
+    ).toEqual({ kind: 'deferred', name: 'mcp__posthog__exec', input: { command: 'info' } })
   })
 })

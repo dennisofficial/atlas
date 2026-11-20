@@ -30,19 +30,44 @@ const changed = (args: { line: string; note: string; detail: EDetail }): Classif
   detail: args.detail,
 })
 
+const remembered = (subject: string): Classification =>
+  changed({ line: `Remembered ${subject}`, note: 'saved', detail: EDetail.Created })
+
+const revised = (subject: string): Classification =>
+  changed({ line: `Revised ${subject}`, note: 'saved', detail: EDetail.None })
+
+const forgot = (subject: string): Classification =>
+  changed({ line: `Forgot ${subject}`, note: 'forgotten', detail: EDetail.None })
+
+const actionCall = (call: ToolCall, subject: string): Classification | null => {
+  switch (str(inputOf(call).action)) {
+    case 'read':
+      return recalled(call)
+    case 'write':
+      return remembered(subject)
+    case 'edit':
+      return revised(subject)
+    case 'delete':
+      return forgot(subject)
+    default:
+      return null
+  }
+}
+
 export function memoryCall(call: ToolCall): Classification | null {
   if (call.state !== ECallState.Ok) return null
-  const subject = subjectOf(call)
 
   switch (call.name) {
     case 'read_memory':
       return recalled(call)
     case 'write_memory':
-      return changed({ line: `Remembered ${subject}`, note: 'saved', detail: EDetail.Created })
+      return remembered(subjectOf(call))
     case 'edit_memory':
-      return changed({ line: `Revised ${subject}`, note: 'saved', detail: EDetail.None })
+      return revised(subjectOf(call))
     case 'delete_memory':
-      return changed({ line: `Forgot ${subject}`, note: 'forgotten', detail: EDetail.None })
+      return forgot(subjectOf(call))
+    case 'memory':
+      return actionCall(call, subjectOf(call))
     default:
       return null
   }

@@ -11,5 +11,6 @@ export const memoryIndexHook = (
 ): RegisteredHook<BeforeStep> => ({
   name: 'memory-index',
   order: { stage: EStage.Observe, nudge: 0 },
+  awaited: true,
   run: async ({ assembled }) => await withMemoryIndex({ assembled, ctx, state }),
 })

@@ -23,7 +23,12 @@ import {
 
 import { withinBudget, type OnHookMishap } from './budget'
 
-export type RegisteredHook<TPhase> = { name: string; order: HookOrder; run: TPhase }
+export type RegisteredHook<TPhase> = {
+  name: string
+  order: HookOrder
+  run: TPhase
+  awaited?: true | undefined
+}
 
 /**
  * Anything the chain itself can depend on must hold it as a thunk: the chain resolves hooks, which
@@ -52,7 +57,7 @@ export type Bounds = { onMishap: OnHookMishap | undefined; budgetMs: number | un
 const NOTHING: HookOutcome = {}
 
 function bounded<TValue>(args: {
-  hook: { name: string }
+  hook: { name: string; awaited?: true | undefined }
   bounds: Bounds
   run: () => Promise<TValue>
   fallback: TValue
@@ -62,6 +67,7 @@ function bounded<TValue>(args: {
     run: args.run,
     fallback: () => args.fallback,
     budgetMs: args.bounds.budgetMs,
+    awaited: args.hook.awaited,
     onMishap: args.bounds.onMishap,
   })
 }

@@ -22,7 +22,7 @@ export function runningServicesReminder(services: readonly RunningService[]): st
     content: [
       'These services are running across the whole session:',
       services.map(lineFor).join('\n'),
-      'Services keep running as infrastructure you work against: an exit is not a completion. Every thread shares the list, but an exit notice goes only to the thread that started the service, so another thread is not told when one exits. Check health in its log file or at its endpoint. Stop one with service_stop({ id }) when that tool is available.',
+      'Services keep running as infrastructure you work against: an exit is not a completion. Every thread shares the list, but an exit notice goes only to the thread that started the service, so another thread is not told when one exits. Check health in its log file or at its endpoint. Stop one with `service` action `stop` when that tool is available.',
     ].join('\n\n'),
   })
 }

@@ -27,8 +27,8 @@ describe('a declared service start', () => {
     writeDeclared(harness, TWO)
     const outcome = await invoke({
       ctx: harness.ctx,
-      name: 'service_start',
-      input: { name: 'api' },
+      name: 'service',
+      input: { action: 'start', name: 'api' },
     })
     expect(textOf(outcome)).toContain('api is running as svc-')
     expect(startsOf(harness.calls).map((call) => call.command)).toEqual(['dbserve', 'listen'])
@@ -54,8 +54,8 @@ describe('a declared service start', () => {
     )
     const outcome = await invoke({
       ctx: harness.ctx,
-      name: 'service_start',
-      input: { name: 'web' },
+      name: 'service',
+      input: { action: 'start', name: 'web' },
     })
     expect(textOf(outcome)).toContain('web is running as svc-')
     expect(startsOf(harness.calls)[0]).toMatchObject({
@@ -75,8 +75,8 @@ describe('a declared service start', () => {
         '\n',
       ),
     )
-    await invoke({ ctx: harness.ctx, name: 'service_start', input: { name: 'web' } })
-    await invoke({ ctx: harness.ctx, name: 'service_start', input: { name: 'web' } })
+    await invoke({ ctx: harness.ctx, name: 'service', input: { action: 'start', name: 'web' } })
+    await invoke({ ctx: harness.ctx, name: 'service', input: { action: 'start', name: 'web' } })
     expect(harness.calls.filter((call) => call.op === 'exec')).toHaveLength(1)
     expect(startsOf(harness.calls)).toHaveLength(1)
   })
@@ -95,7 +95,7 @@ describe('a declared service start', () => {
         '      - echo installing',
       ].join('\n'),
     )
-    await invoke({ ctx: harness.ctx, name: 'service_start', input: { name: 'web' } })
+    await invoke({ ctx: harness.ctx, name: 'service', input: { action: 'start', name: 'web' } })
     const setupCalls = harness.calls.filter((call) => call.op === 'exec')
     expect(setupCalls).toHaveLength(1)
     expect(setupCalls[0]).toMatchObject({ cwd: '/work', env: { MODE: 'dev' } })
@@ -115,7 +115,7 @@ describe('a declared service start', () => {
         '      - echo installing',
       ].join('\n'),
     )
-    await invoke({ ctx: harness.ctx, name: 'service_start', input: { name: 'web' } })
+    await invoke({ ctx: harness.ctx, name: 'service', input: { action: 'start', name: 'web' } })
 
     expect(startsOf(harness.calls)[0]).toMatchObject({
       env: { API_KEY: 'project-secret', MODE: 'dev' },
@@ -139,8 +139,8 @@ describe('a declared service start', () => {
     )
     const outcome = await invoke({
       ctx: harness.ctx,
-      name: 'service_start',
-      input: { name: 'web' },
+      name: 'service',
+      input: { action: 'start', name: 'web' },
     })
     expect(outcome.ok).toBe(false)
     expect(textOf(outcome)).toContain('exited 3')
@@ -151,8 +151,12 @@ describe('a declared service start', () => {
   it('starts nothing for an unchanged service that is already running', async () => {
     const harness = rig()
     writeDeclared(harness, TWO)
-    await invoke({ ctx: harness.ctx, name: 'service_start', input: { name: 'api' } })
-    const again = await invoke({ ctx: harness.ctx, name: 'service_start', input: { name: 'api' } })
+    await invoke({ ctx: harness.ctx, name: 'service', input: { action: 'start', name: 'api' } })
+    const again = await invoke({
+      ctx: harness.ctx,
+      name: 'service',
+      input: { action: 'start', name: 'api' },
+    })
     expect(textOf(again)).toContain('api was already running as svc-')
     expect(startsOf(harness.calls)).toHaveLength(2)
   })
@@ -160,9 +164,17 @@ describe('a declared service start', () => {
   it('restarts a service whose declaration changed', async () => {
     const harness = rig()
     writeDeclared(harness, TWO)
-    const first = await invoke({ ctx: harness.ctx, name: 'service_start', input: { name: 'api' } })
+    const first = await invoke({
+      ctx: harness.ctx,
+      name: 'service',
+      input: { action: 'start', name: 'api' },
+    })
     writeDeclared(harness, TWO.replace('command: listen', 'command: listen --watch'))
-    const second = await invoke({ ctx: harness.ctx, name: 'service_start', input: { name: 'api' } })
+    const second = await invoke({
+      ctx: harness.ctx,
+      name: 'service',
+      input: { action: 'start', name: 'api' },
+    })
     expect(textOf(second)).toContain('api is running as svc-')
     expect(startsOf(harness.calls).map((call) => call.command)).toContain('listen --watch')
     expect(harness.calls.some((call) => call.op === 'services.stop')).toBe(true)
@@ -174,8 +186,8 @@ describe('a declared service start', () => {
     writeDeclared(harness, TWO)
     const outcome = await invoke({
       ctx: harness.ctx,
-      name: 'service_start',
-      input: { name: 'nope' },
+      name: 'service',
+      input: { action: 'start', name: 'nope' },
     })
     expect(outcome.ok).toBe(false)
     expect(textOf(outcome)).toContain('declared services: api, db')
@@ -185,8 +197,8 @@ describe('a declared service start', () => {
     const harness = rig()
     const outcome = await invoke({
       ctx: harness.ctx,
-      name: 'service_start',
-      input: { name: 'api' },
+      name: 'service',
+      input: { action: 'start', name: 'api' },
     })
     expect(outcome.ok).toBe(false)
     expect(textOf(outcome)).toContain('there is no readable /work/.atlas/services.yaml')

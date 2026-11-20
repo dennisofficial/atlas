@@ -30,6 +30,7 @@ export const instructionsTurn = (args: {
 }): RegisteredHook<BeforeTurn> => ({
   name: 'instructions-turn',
   order: ORDER,
+  awaited: true,
   run: async ({ threadId, projectDirectory }) => {
     args.state.threadId = threadId
     args.state.directory = projectDirectory
@@ -59,6 +60,7 @@ export const instructionsBlocks = (args: {
 }): RegisteredHook<BeforeStep> => ({
   name: 'instructions-blocks',
   order: ORDER,
+  awaited: true,
   run: async ({ assembled }) => {
     const blocks = await blocksOf(args)
     if (blocks.length === 0) return assembled

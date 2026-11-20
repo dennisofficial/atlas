@@ -198,6 +198,36 @@ describe('HookChain', () => {
     })
   })
 
+  it('waits for an awaited beforeStep hook past the chain budget, so the step carries its output', async () => {
+    const chain = new HookChain({
+      beforeStep: [
+        {
+          name: 'skills-listing',
+          order: guard(0),
+          awaited: true,
+          run: async ({ assembled: given }) => {
+            await Bun.sleep(15)
+            return { ...given, system: [{ text: 'listing' }] }
+          },
+        },
+        {
+          name: 'preamble',
+          order: observe(0),
+          run: async ({ assembled: given }) => ({
+            ...given,
+            system: [...given.system, { text: 'after' }],
+          }),
+        },
+      ],
+      budgetMs: 1,
+    })
+
+    expect((await chain.beforeStep({ assembled, trace: [] })).system).toEqual([
+      { text: 'listing' },
+      { text: 'after' },
+    ])
+  })
+
   it('stops at the hook that drops the chunk, leaving the rest unrun', async () => {
     const seen: string[] = []
     const chain = new HookChain({

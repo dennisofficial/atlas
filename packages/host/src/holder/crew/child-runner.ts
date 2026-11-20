@@ -38,7 +38,11 @@ export const childRunnerOf = (args: {
     pluginToolsOf({ runtime, ctx }),
     runtime.plugins?.pod.childDeny ?? [],
   )
-  const hooks: HookChain = pluginHooksOf({ runtime, ctx })
+  const hooks: HookChain = pluginHooksOf({
+    runtime,
+    ctx,
+    declarations: () => registry.declarations(),
+  })
   return new LoopTurnRunner({
     record,
     modelContext: record,
