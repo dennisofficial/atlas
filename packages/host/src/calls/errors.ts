@@ -1,8 +1,11 @@
 import { EDaemonAnswer, recoverCall, type RecoverAction } from '@dltech/atlas-core'
 
+export const SANDBOX_OFFLINE_GUIDANCE =
+  'The sandbox is offline, so retrying tool calls will not help: stop making sandbox tool calls, tell the operator the sandbox is down and why, and end your turn.'
+
 export class SandboxUnavailableError extends Error {
-  constructor(message: string) {
-    super(message)
+  constructor(reason: string) {
+    super(`${reason}. Nothing ran. ${SANDBOX_OFFLINE_GUIDANCE}`)
     this.name = 'SandboxUnavailableError'
   }
 }
