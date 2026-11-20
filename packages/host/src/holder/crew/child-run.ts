@@ -50,6 +50,7 @@ export class ChildRun {
   private listeners: AbortController | undefined
   private stopping = false
   private handingOff = false
+  private pausing: Promise<void> | undefined
   private ending: EAgentStatus | undefined
   private endedAt: string | undefined
   private killedBy: EKilledBy | undefined
@@ -160,16 +161,20 @@ export class ChildRun {
     await this.end({ status: EAgentStatus.Stopped, failure: undefined, killedBy: by })
   }
 
-  async pause(): Promise<void> {
+  pause(): Promise<void> {
     this.handingOff = true
     this.pauseSignal.pause()
-    if (!(await this.settledWithin(DRAIN_IN_FLIGHT_CAP_MS))) {
-      this.args.deps.log?.warn({
-        source: 'holder.drain',
-        message: `sub-agent ${this.agentId} ran in flight for ${DRAIN_IN_FLIGHT_CAP_MS}ms, past the drain cap; aborting it for the hand-off`,
-      })
-      this.abort?.abort('handoff')
-    }
+    this.pausing ??= this.settleOrAbort()
+    return this.pausing
+  }
+
+  private async settleOrAbort(): Promise<void> {
+    if (await this.settledWithin(DRAIN_IN_FLIGHT_CAP_MS)) return
+    this.args.deps.log?.warn({
+      source: 'holder.drain',
+      message: `sub-agent ${this.agentId} ran in flight for ${DRAIN_IN_FLIGHT_CAP_MS}ms, past the drain cap; aborting it for the hand-off`,
+    })
+    this.abort?.abort('handoff')
   }
 
   private settledWithin(ms: number): Promise<boolean> {

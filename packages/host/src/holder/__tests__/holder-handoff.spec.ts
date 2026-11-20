@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
+import type { V2Event } from '@dltech/atlas-core'
+
 import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID, type HolderRig } from './holder-rig'
 
 const longExecScript = [
@@ -38,18 +40,28 @@ const claimWithB = async (a: HolderRig): Promise<HolderRig> => {
   return b
 }
 
-const toolResults = async (rig: HolderRig): Promise<unknown[]> => {
+const eventsOf = async (rig: HolderRig): Promise<V2Event[]> => {
   const raw = await rig.plane.readEvents({
     threadId: THREAD_ID,
     afterSeq: 0,
     limit: 1000,
     visible: false,
   })
-  return raw.events.filter((event) => event.type === 'tool-result')
+  return raw.events
 }
 
+const toolResults = async (rig: HolderRig): Promise<unknown[]> =>
+  (await eventsOf(rig)).filter((event) => event.type === 'tool-result')
+
+const saidTexts = async (rig: HolderRig): Promise<string[]> =>
+  (await eventsOf(rig)).flatMap((event) =>
+    event.type === 'assistant-said'
+      ? event.parts.flatMap((part) => (part.type === 'text' ? [part.text] : []))
+      : [],
+  )
+
 describe('SessionHolder handoff (F12/F15)', () => {
-  it('drain hands a long exec to the next holder, which collects it without a second spawn', async () => {
+  it('drain waits for a long exec to land, then the next holder continues without a second spawn', async () => {
     const a = await makeRig({ script: longExecScript })
     await seedSession(a)
     await a.holder.start()
@@ -61,6 +73,11 @@ describe('SessionHolder handoff (F12/F15)', () => {
 
     await drainA(a)
 
+    const drained = await toolResults(a)
+    expect(drained.length).toBe(1)
+    expect(drained[0]).not.toMatchObject({ interrupted: true })
+    expect(await saidTexts(a)).not.toContain('after handoff')
+
     const leaseAfterDrain = await a.plane.currentLease({ sessionId: SESSION })
     expect(leaseAfterDrain.lease.holderHostId).toBeNull()
     expect(leaseAfterDrain.lease.wantsHolder).toBe(true)
@@ -68,19 +85,17 @@ describe('SessionHolder handoff (F12/F15)', () => {
 
     const b = await claimWithB(a)
 
-    const done = await flushUntil({
-      check: async () => (await toolResults(a)).length > 0,
+    const continued = await flushUntil({
+      check: async () => b.runtimes.length === 1 && (await saidTexts(a)).includes('collected'),
       attempts: 200,
     })
-    expect(done).toBe(true)
+    expect(continued).toBe(true)
 
-    const results = await toolResults(a)
-    expect(results.length).toBe(1)
+    expect((await toolResults(a)).length).toBe(1)
     expect(a.daemon.runCount()).toBe(1)
-    expect(b.runtimes.length).toBe(1)
   }, 15_000)
 
-  it('a drain mid-tool-call detaches at once: no cancel, no record by A; B collects the successful result', async () => {
+  it('a drain mid-tool-call records the result before hand-back, and B does not dispatch it again', async () => {
     const a = await makeRig({ script: longExecScript })
     await seedSession(a)
     await a.holder.start()
@@ -92,24 +107,23 @@ describe('SessionHolder handoff (F12/F15)', () => {
 
     const epochA = (await a.plane.currentLease({ sessionId: SESSION })).lease.epoch
     await drainA(a)
-    expect((await toolResults(a)).length).toBe(0)
-
-    const b = await claimWithB(a)
-
-    const done = await flushUntil({
-      check: async () => (await toolResults(a)).length > 0,
-      attempts: 200,
-    })
-    expect(done).toBe(true)
-    await flushUntil({ check: () => (b.runtimes[0]?.ackedScopes.length ?? 0) > 0 })
 
     const results = (await toolResults(a)) as { error?: unknown; epoch?: number }[]
     expect(results.length).toBe(1)
     expect(results[0]?.error).toBeUndefined()
+    expect(results[0]?.epoch).toBe(epochA)
     expect(a.daemon.runCount()).toBe(1)
 
-    expect((results[0] as { epoch: number }).epoch).toBeGreaterThan(epochA)
-    expect(b.runtimes[0]?.ackedScopes.length).toBeGreaterThanOrEqual(1)
+    const b = await claimWithB(a)
+
+    const continued = await flushUntil({
+      check: async () => b.runtimes.length === 1 && (await saidTexts(a)).includes('collected'),
+      attempts: 200,
+    })
+    expect(continued).toBe(true)
+
+    expect((await toolResults(a)).length).toBe(1)
+    expect(a.daemon.runCount()).toBe(1)
   }, 15_000)
 
   it('a holder whose drain revoke resolves after a successor claimed never revokes that successor', async () => {
