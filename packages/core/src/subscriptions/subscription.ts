@@ -30,7 +30,7 @@ export type Subscription = {
   createdBy: ESubscriptionActor
   status: ESubscriptionStatus
   expiresAt?: string | undefined
-  events: readonly string[]
+  events?: readonly string[] | undefined
   createdAt: string
 }
 
