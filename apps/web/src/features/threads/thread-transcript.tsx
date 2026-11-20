@@ -69,7 +69,7 @@ function BootEntryItem({ entry, onRetry }: { entry: BootEntry; onRetry: () => vo
       ) : entry.live ? (
         <TickingSandboxBoot view={entry.view} onRetry={onRetry} />
       ) : (
-        <SandboxBoot {...sandboxBootPropsOf(entry.view)} />
+        <SandboxBoot {...sandboxBootPropsOf(entry.view)} onRetry={onRetry} />
       )}
     </ChatItem>
   )
@@ -126,7 +126,7 @@ export function ThreadTranscript({
     <Chat jumpKey={lastUserTurnId} {...(onLoadOlder === undefined ? {} : { onLoadOlder })}>
       {sessionBoot === undefined || sessionBoot === null ? null : (
         <ChatItem id="session-boot">
-          <TickingSandboxBoot view={sessionBoot} />
+          <TickingSandboxBoot view={sessionBoot} onRetry={onRetryBoot} />
         </ChatItem>
       )}
       {bootAfter(-1)}

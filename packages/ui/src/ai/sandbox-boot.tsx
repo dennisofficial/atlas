@@ -3,7 +3,12 @@
 import { RotateCcwIcon } from 'lucide-react'
 
 import { Button } from '#components/button'
-import { CodeBlock, CodeBlockContent } from '#components/code-block'
+import {
+  CodeBlock,
+  CodeBlockContent,
+  CodeBlockHeader,
+  CodeBlockTitle,
+} from '#components/code-block'
 import { Trace } from '#components/trace'
 import { EStepStatus, Step, StatusIcon, StepLine, traceStatusOf } from './internal/step'
 
@@ -54,6 +59,8 @@ const TITLES = {
   [EBootStepState.Error]: 'Sandbox failed to start',
 } as const
 
+const ERROR_LABEL = 'Sandbox'
+
 export function sandboxBootTitle(state: EBootStepState): string {
   return TITLES[state]
 }
@@ -62,42 +69,59 @@ function formatElapsed(elapsedMs: number): string {
   return `${(elapsedMs / 1000).toFixed(1)}s`
 }
 
-type SandboxBootSummaryInput = Pick<SandboxBootProps, 'steps' | 'state' | 'elapsedMs' | 'error'>
+type SandboxBootSummaryInput = Pick<SandboxBootProps, 'steps' | 'state' | 'elapsedMs'>
 
 export function sandboxBootSummary({
   steps,
   state,
   elapsedMs,
-  error,
 }: SandboxBootSummaryInput): string | undefined {
-  if (state === EBootStepState.Error) {
-    return error ?? steps.find((step) => step.state === EBootStepState.Error)?.label
-  }
+  if (state === EBootStepState.Error || state === EBootStepState.Pending) return undefined
   if (state === EBootStepState.Done) {
     return elapsedMs === undefined ? undefined : formatElapsed(elapsedMs)
   }
-  if (state === EBootStepState.Pending) return undefined
   const done = steps.filter((step) => step.state === EBootStepState.Done).length
   const progress = `${done}/${steps.length}`
   return elapsedMs === undefined ? progress : `${progress} · ${formatElapsed(elapsedMs)}`
 }
 
+const errorTextOf = (step: SandboxBootChild): string | undefined =>
+  step.state === EBootStepState.Error ? step.detail : undefined
+
+function BootErrorCard({ text, className }: { text: string; className?: string }) {
+  return (
+    <div data-slot="sandbox-boot-error" className={className}>
+      <CodeBlock size="sm">
+        <CodeBlockHeader>
+          <CodeBlockTitle>{ERROR_LABEL}</CodeBlockTitle>
+        </CodeBlockHeader>
+        <CodeBlockContent wrap className="max-h-64">
+          {text}
+        </CodeBlockContent>
+      </CodeBlock>
+    </div>
+  )
+}
+
 function BootLine({ step }: { step: SandboxBootChild }) {
   const status = STEP_STATUS[step.state]
-  const failed = step.state === EBootStepState.Error
   return (
     <StepLine
       icon={<StatusIcon status={status} />}
       title={step.label}
-      description={
-        step.detail && failed ? (
-          <span className="text-destructive">{step.detail}</span>
-        ) : (
-          step.detail
-        )
-      }
+      description={errorTextOf(step) === undefined ? step.detail : undefined}
       status={traceStatusOf(status)}
     />
+  )
+}
+
+function BootRow({ step }: { step: SandboxBootChild }) {
+  const error = errorTextOf(step)
+  return (
+    <div className="flex flex-col gap-1">
+      <BootLine step={step} />
+      {error === undefined ? null : <BootErrorCard text={error} />}
+    </div>
   )
 }
 
@@ -115,26 +139,29 @@ function BootTerminal({ command, output }: { command: string; output?: string })
 }
 
 function BootStepLine({ step }: { step: SandboxBootStep }) {
-  if (step.command !== undefined) {
-    return (
-      <div className="flex flex-col gap-1">
-        <BootLine step={step} />
-        <BootTerminal command={step.command} output={step.output} />
-      </div>
-    )
-  }
-  if (step.children === undefined || step.children.length === 0) return <BootLine step={step} />
+  const error = errorTextOf(step)
+  const children = step.children ?? []
   return (
     <div className="flex flex-col gap-1">
       <BootLine step={step} />
-      <div data-slot="sandbox-boot-children" className="flex flex-col gap-1 pl-6">
-        {step.children.map((child) => (
-          <BootLine key={child.id} step={child} />
-        ))}
-      </div>
+      {error === undefined ? null : <BootErrorCard text={error} className="pl-6" />}
+      {children.length === 0 ? null : (
+        <div data-slot="sandbox-boot-children" className="flex flex-col gap-1 pl-6">
+          {children.map((child) => (
+            <BootRow key={child.id} step={child} />
+          ))}
+        </div>
+      )}
+      {step.command === undefined ? null : (
+        <BootTerminal command={step.command} output={step.output} />
+      )}
     </div>
   )
 }
+
+const carriesError = (step: SandboxBootStep): boolean =>
+  errorTextOf(step) !== undefined ||
+  (step.children ?? []).some((child) => errorTextOf(child) !== undefined)
 
 export function SandboxBoot({
   steps,
@@ -147,17 +174,22 @@ export function SandboxBoot({
   const status = STEP_STATUS[state]
   const open = state === EBootStepState.Running || state === EBootStepState.Error
   const showRetry = state === EBootStepState.Error && onRetry !== undefined
+  const headerError =
+    state === EBootStepState.Error && error !== undefined && !steps.some(carriesError)
+      ? error
+      : undefined
 
   return (
     <Trace data-slot="sandbox-boot" className={className}>
       <Step
         icon={<StatusIcon status={status} />}
         title={sandboxBootTitle(state)}
-        description={sandboxBootSummary({ steps, state, elapsedMs, error })}
+        description={sandboxBootSummary({ steps, state, elapsedMs })}
         status={traceStatusOf(status)}
         autoOpen={open}
         contentClassName="flex flex-col gap-2"
       >
+        {headerError === undefined ? null : <BootErrorCard text={headerError} />}
         {steps.map((step) => (
           <BootStepLine key={step.id} step={step} />
         ))}
