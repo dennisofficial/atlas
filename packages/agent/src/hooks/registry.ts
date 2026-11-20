@@ -20,8 +20,19 @@ import {
   type OnThreadOpen,
   type ProviderPrompt,
 } from '@dltech/atlas-core'
+import { ESpan, spanWith, type TracePort } from '@dltech/atlas-observability'
 
 import { withinBudget, type OnHookMishap } from './budget'
+
+export enum EHookPhase {
+  BeforeTurn = 'before-turn',
+  ThreadOpen = 'thread-open',
+  BeforeStep = 'before-step',
+  BeforeRequest = 'before-request',
+  AfterShell = 'after-shell',
+  OnChunk = 'on-chunk',
+  AfterTurn = 'after-turn',
+}
 
 export type RegisteredHook<TPhase> = { name: string; order: HookOrder; run: TPhase }
 
@@ -45,49 +56,83 @@ export type HookChainArgs = {
   onThreadOpen?: readonly RegisteredHook<OnThreadOpen>[] | undefined
   onMishap?: OnHookMishap | undefined
   budgetMs?: number | undefined
+  trace?: TracePort | undefined
 }
 
-export type Bounds = { onMishap: OnHookMishap | undefined; budgetMs: number | undefined }
+export type Bounds = {
+  onMishap: OnHookMishap | undefined
+  budgetMs: number | undefined
+  trace?: TracePort | undefined
+}
 
 const NOTHING: HookOutcome = {}
 
 function bounded<TValue>(args: {
   hook: { name: string }
+  phase: EHookPhase
   bounds: Bounds
   run: () => Promise<TValue>
   fallback: TValue
 }): Promise<TValue> {
-  return withinBudget({
-    label: args.hook.name,
-    run: args.run,
-    fallback: () => args.fallback,
-    budgetMs: args.bounds.budgetMs,
-    onMishap: args.bounds.onMishap,
+  return spanWith(args.bounds.trace, {
+    name: ESpan.Hook,
+    fields: { hook: args.hook.name, phase: args.phase },
+    run: (span) =>
+      withinBudget({
+        label: args.hook.name,
+        run: args.run,
+        fallback: (mishap) => {
+          span.set({ failureKind: mishap.kind })
+          return args.fallback
+        },
+        budgetMs: args.bounds.budgetMs,
+        onMishap: args.bounds.onMishap,
+      }),
   })
 }
 
 async function collectDrafts<TArgs>({
   hooks,
+  phase,
   args,
   bounds,
 }: {
   hooks: readonly RegisteredHook<OutcomeHook<TArgs>>[]
+  phase: EHookPhase
   args: TArgs
   bounds: Bounds
 }): Promise<readonly EventDraft[]> {
   const drafts: EventDraft[] = []
-
-  for (const hook of hooks) {
-    const outcome = await bounded({
-      hook,
-      bounds,
-      run: () => hook.run(args),
-      fallback: NOTHING,
-    })
-    drafts.push(...hookOutcomeDrafts({ hookName: hook.name, outcome }))
+  for (const stage of stagesOf(hooks)) {
+    const collected = await Promise.all(
+      stage.map(async (hook) =>
+        hookOutcomeDrafts({
+          hookName: hook.name,
+          outcome: await bounded({
+            hook,
+            phase,
+            bounds,
+            run: () => hook.run(args),
+            fallback: NOTHING,
+          }),
+        }),
+      ),
+    )
+    drafts.push(...collected.flat())
   }
-
   return drafts
+}
+
+const stagesOf = <THook extends { order: HookOrder }>(
+  ordered: readonly THook[],
+): readonly (readonly THook[])[] => {
+  const stages: THook[][] = []
+  for (const hook of ordered) {
+    const current = stages.at(-1)
+    if (current?.[0]?.order.stage === hook.order.stage) current.push(hook)
+    else stages.push([hook])
+  }
+  return stages
 }
 
 export class HookChain {
@@ -104,7 +149,7 @@ export class HookChain {
   readonly bounds: Bounds
 
   constructor(args: HookChainArgs) {
-    this.bounds = { onMishap: args.onMishap, budgetMs: args.budgetMs }
+    this.bounds = { onMishap: args.onMishap, budgetMs: args.budgetMs, trace: args.trace }
     this.beforeTurnHooks = orderHooks(args.beforeTurn ?? [])
     this.beforeStepHooks = orderHooks(args.beforeStep ?? [])
     this.beforeRequestHooks = orderHooks(args.beforeRequest ?? [])
@@ -120,14 +165,24 @@ export class HookChain {
     threadId: ThreadId
     projectDirectory: string
   }): Promise<readonly EventDraft[]> {
-    return collectDrafts({ hooks: this.beforeTurnHooks, args, bounds: this.bounds })
+    return collectDrafts({
+      hooks: this.beforeTurnHooks,
+      phase: EHookPhase.BeforeTurn,
+      args,
+      bounds: this.bounds,
+    })
   }
 
   async onThreadOpen(args: {
     threadId: ThreadId
     projectDirectory: string
   }): Promise<readonly EventDraft[]> {
-    return collectDrafts({ hooks: this.onThreadOpenHooks, args, bounds: this.bounds })
+    return collectDrafts({
+      hooks: this.onThreadOpenHooks,
+      phase: EHookPhase.ThreadOpen,
+      args,
+      bounds: this.bounds,
+    })
   }
 
   async beforeStep(args: { assembled: Assembled; trace: AssemblyTrace }): Promise<Assembled> {
@@ -137,6 +192,7 @@ export class HookChain {
       assembled = await bounded({
         hook,
         bounds: this.bounds,
+        phase: EHookPhase.BeforeStep,
         run: () => hook.run({ assembled: carried, trace: args.trace }),
         fallback: carried,
       })
@@ -151,6 +207,7 @@ export class HookChain {
       prompt = await bounded({
         hook,
         bounds: this.bounds,
+        phase: EHookPhase.BeforeRequest,
         run: () => hook.run(carried),
         fallback: carried,
       })
@@ -166,7 +223,12 @@ export class HookChain {
     threadId: ThreadId
     shell: EndedShell
   }): Promise<readonly EventDraft[]> {
-    return collectDrafts({ hooks: this.afterShellHooks, args, bounds: this.bounds })
+    return collectDrafts({
+      hooks: this.afterShellHooks,
+      phase: EHookPhase.AfterShell,
+      args,
+      bounds: this.bounds,
+    })
   }
 
   async onChunk(args: { chunk: Chunk }): Promise<Chunk | null> {
@@ -175,7 +237,8 @@ export class HookChain {
       const carried = chunk
       const kept = await bounded<Chunk | null>({
         hook,
-        bounds: this.bounds,
+        phase: EHookPhase.OnChunk,
+        bounds: { ...this.bounds, trace: undefined },
         run: () => hook.run(carried),
         fallback: carried,
       })
@@ -186,6 +249,11 @@ export class HookChain {
   }
 
   async afterTurn(args: { threadId: ThreadId }): Promise<readonly EventDraft[]> {
-    return collectDrafts({ hooks: this.afterTurnHooks, args, bounds: this.bounds })
+    return collectDrafts({
+      hooks: this.afterTurnHooks,
+      phase: EHookPhase.AfterTurn,
+      args,
+      bounds: this.bounds,
+    })
   }
 }
