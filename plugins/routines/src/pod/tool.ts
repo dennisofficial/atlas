@@ -25,6 +25,7 @@ export class RoutineTool extends SchemaTool<typeof routineInputSchema> {
   override readonly isConcurrencySafe = (input: RoutineInput) =>
     input.action === ERoutineAction.List || input.action === ERoutineAction.Get
   readonly inputSchema = routineInputSchema
+  readonly deferred = true
   override readonly pathFields = TAKES_NO_PATHS
 
   constructor(private readonly ctx: PluginPodContext) {

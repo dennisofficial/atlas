@@ -118,6 +118,7 @@ export class McpEditTool extends SchemaTool<typeof mcpEditInputSchema> {
   readonly description = description
   readonly effect = EToolEffect.Write
   readonly inputSchema = mcpEditInputSchema
+  readonly deferred = true
   override readonly pathFields = TAKES_NO_PATHS
 
   constructor(private readonly access: { client: CloudConfigClient; projectId: string }) {

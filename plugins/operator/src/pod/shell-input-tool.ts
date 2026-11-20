@@ -24,6 +24,7 @@ export class OperatorShellInputTool extends SchemaTool<typeof inputSchema> {
   ].join(' ')
   readonly effect = EToolEffect.Write
   readonly inputSchema = inputSchema
+  readonly deferred = true
   override readonly pathFields = TAKES_NO_PATHS
 
   protected override async run({ input }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {

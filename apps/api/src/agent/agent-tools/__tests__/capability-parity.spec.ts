@@ -47,6 +47,23 @@ export const EXCEPTIONS: Readonly<Record<string, string>> = {
   execution_location:
     'a v2 pod never moves execution location; the control plane decides where a session runs',
   subscription_list: 'v2 ships the same capability under the github plugin’s list_subscriptions',
+  write_memory: 'v2 merges the memory family into `memory`, action write',
+  read_memory: 'v2 merges the memory family into `memory`, action read',
+  edit_memory: 'v2 merges the memory family into `memory`, action edit',
+  delete_memory: 'v2 merges the memory family into `memory`, action delete',
+  routine_list: 'v2 merges the routine family into `routine`, action list',
+  routine_get: 'v2 merges the routine family into `routine`, action get',
+  routine_create: 'v2 merges the routine family into `routine`, action create',
+  routine_update: 'v2 merges the routine family into `routine`, action update',
+  routine_delete: 'v2 merges the routine family into `routine`, action delete',
+  routine_run: 'v2 merges the routine family into `routine`, action run',
+  service_start: 'v2 merges the service family into `service`, action start',
+  service_stop: 'v2 merges the service family into `service`, action stop',
+  service_restart: 'v2 merges the service family into `service`, action restart',
+  service_list: 'v2 merges the service family into `service`, action list',
+  skill_install: 'v2 ships it as skill_manage, action install',
+  subscribe: 'v2 merges the subscription family into `subscription`, action subscribe',
+  unsubscribe: 'v2 merges the subscription family into `subscription`, action unsubscribe',
 }
 
 type Source = { file: string; source: string }

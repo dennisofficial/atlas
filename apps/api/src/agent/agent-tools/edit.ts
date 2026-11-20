@@ -17,7 +17,7 @@ import { nullUnlessInterrupted } from './interrupted'
 import { writeFileAtomically } from './atomic-write'
 import { FileWriteGuardPort, SerializedWrites } from './write-guard'
 import { captureText, captureUnavailableFault, makeChange } from './capture-text'
-import { filePathSchema, pathEnvironmentNote, resolveToolPath, toLf } from './file-text'
+import { filePathSchema, resolveToolPath, toLf } from './file-text'
 import type { PathEnvironment } from '../runtime/session-paths'
 import { replaceInContent } from './replace-text'
 import { renderUnifiedDiff } from './unified-diff'
@@ -30,11 +30,8 @@ const inputSchema = z.strictObject({
 })
 
 const description = [
-  'Replace an exact string in a text file.',
-  'A relative path resolves against the project directory.',
-  pathEnvironmentNote,
-  'oldString must match the file exactly, including indentation. oldString must be unique unless replaceAll is true.',
-  'An empty oldString creates the file with newString as its whole content.',
+  'Replace an exact string in a text file. A relative path resolves against the project directory.',
+  'oldString must match the file exactly, including indentation, and be unique unless replaceAll is true. An empty oldString creates the file with newString as its whole content.',
   'Lines the edit does not touch keep their exact bytes, line endings included.',
 ].join(' ')
 

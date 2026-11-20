@@ -15,7 +15,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { nullUnlessInterrupted } from './interrupted'
-import { filePathSchema, pathEnvironmentNote, resolveToolPath } from './file-text'
+import { filePathSchema, resolveToolPath } from './file-text'
 import type { PathEnvironment } from '../runtime/session-paths'
 
 const RESULT_LIMIT = 100
@@ -27,11 +27,9 @@ const inputSchema = z.strictObject({
 
 const description = [
   'Find files by glob pattern and return their absolute paths, most recently modified first.',
-  'The search starts in the directory you are currently in unless path names a different one. A relative path resolves against the project directory.',
-  pathEnvironmentNote,
-  `The tool returns at most ${RESULT_LIMIT} paths. When more files match, the result says how many it left out.`,
-  'Hidden files and directories are not matched.',
-  'Symbolic links are followed.',
+  'The search starts in the directory you are in unless path names a different one. A relative path resolves against the project directory.',
+  `At most ${RESULT_LIMIT} paths come back. When more files match, the result says how many it left out.`,
+  'Hidden files and directories are not matched. Symbolic links are followed.',
 ].join(' ')
 
 type DatedPath = { path: string; modifiedAt: number }

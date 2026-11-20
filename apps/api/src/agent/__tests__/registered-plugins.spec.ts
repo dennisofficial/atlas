@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
+import { InMemoryToolRegistry } from '@dltech/atlas-agent'
+import { deferredDeclarationsOf } from '@dltech/atlas-core'
 import { eventTypesOf } from '@dltech/atlas-plugin-sdk'
 
 import { composedPlugins, registeredPlugins } from '../registered-plugins'
@@ -31,6 +33,30 @@ describe('the agent host plugin composition', () => {
     const reserved = names.filter((name) => name.startsWith('mcp_') && !name.startsWith('mcp__'))
 
     expect(reserved).toEqual([])
+  })
+
+  it('defers the tools a turn rarely needs, and keeps the rest eager', () => {
+    const tools = composedPlugins.pod.tools(podContextOf('s-1'))
+    const declarations = new InMemoryToolRegistry(tools).declarations()
+    const deferred = deferredDeclarationsOf(declarations)
+      .map((declaration) => declaration.name)
+      .sort()
+
+    expect(deferred).toEqual([
+      'agent_list',
+      'list_sessions',
+      'list_teammates',
+      'message_session',
+      'message_teammate',
+      'operator_mcp_sign_in',
+      'operator_shell_input',
+      'report_to_spawner',
+      'routine',
+      'skill_manage',
+      'spawn_session',
+      'spawn_teammate',
+      'worktree_list',
+    ])
   })
 
   it('registers the skills plugin with its two tools and both hooks', () => {

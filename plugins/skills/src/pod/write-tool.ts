@@ -28,6 +28,7 @@ export class SkillManageTool extends SchemaTool<typeof skillManageSchema> {
   readonly description = description
   readonly effect = EToolEffect.Write
   readonly inputSchema = skillManageSchema
+  readonly deferred = true
   override readonly pathFields = TOUCHES_PATHS_IT_CANNOT_NAME
 
   constructor(

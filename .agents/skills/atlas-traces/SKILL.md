@@ -1,11 +1,15 @@
 ---
 name: atlas-traces
-description: "Read Atlas's own agent-loop traces in PostHog (service `atlas`): where a slow turn spent its time, slow model calls (time to first chunk/output), slow tools, retry backoff, and prompt-cache health from cacheReadTokens/cacheWriteTokens. Use when the operator says the loop feels slow, asks how long model calls or tools take, wants to check caching, or names a trace, turn, thread or session to investigate."
+description: "Read Atlas's own agent-loop traces in PostHog (service `atlas-agent` for v2, `atlas` for v1): where a slow turn spent its time, slow model calls (time to first chunk/output), slow tools, retry backoff, and prompt-cache health from cacheReadTokens/cacheWriteTokens. Use when the operator says the loop feels slow, asks how long model calls or tools take, wants to check caching, or names a trace, turn, thread or session to investigate."
 ---
 
 # Reading Atlas traces
 
-Every Atlas turn sends one trace to PostHog distributed tracing (project "Atlas", service `atlas`).
+Every Atlas turn sends one trace to PostHog distributed tracing (project "Atlas"). The resource
+`service_name` says which loop ran it: `atlas-agent` is the v2 loop (pod, control plane, every
+session since #2475), and `atlas` is the v1 loop (the released serve and TUI, and anything still on
+it). Filter on both unless you know which one you need: `serviceNames: ["atlas-agent", "atlas"]`.
+
 The spans are defined in `packages/observability/src/trace/trace.port.ts` (`ESpan`, `SpanFields`)
 and emitted from `packages/agent/src/trace/` and `packages/agent/src/tools/dispatch.ts`. If a span
 or field below is missing from that file, the file wins: update this skill.
@@ -51,7 +55,7 @@ A sub-agent's turn is its own trace, not a child of the tool call that spawned i
 | `finishReason`, `toolCalls` | `model.call` | Why the step stopped and how many tools it asked for |
 | `size.*` | `model.call` | Characters per part of the request: `size.system.<source>`, `size.tools.builtin`, `size.tools.mcp.<server>`, their `.count`, `size.messages`, `size.messages.context.<source>`, `size.total` |
 | `delayMs` | `model.backoff` | Planned retry delay |
-| `tool`, `outcome` | `tool` | Tool name; `ok`, `error` or `denied` |
+| `tool`, `outcome` | `tool` | Tool name; `ok`, `error` or `denied`. A deferred tool called through `call_tool` reports the real tool, not `call_tool` |
 | `drafts`, `events` | record and intake spans | How many events were written or read |
 | `verdict` | `loop.watch` | The judge's verdict |
 | `error.class` | any failed span | Error type only; the message is never exported |
@@ -65,13 +69,14 @@ is streaming time.
 
 ## Recipes
 
-Always set `dateRange`, filter `serviceNames: ["atlas"]`, and surface the `_posthogUrl` that
-`apm-trace-get` returns so the operator can open the trace.
+Always set `dateRange`, filter `serviceNames: ["atlas-agent", "atlas"]` unless the operator named an
+older session, and surface the `_posthogUrl` that `apm-trace-get` returns so the operator can open
+the trace.
 
 **Where did a slow turn go?** List recent turns, slowest first, then open one:
 
 ```json
-{"query": {"serviceNames": ["atlas"], "dateRange": {"date_from": "-6h"}, "rootSpans": true,
+{"query": {"serviceNames": ["atlas-agent", "atlas"], "dateRange": {"date_from": "-6h"}, "rootSpans": true,
   "orderBy": "duration", "limit": 10, "excludeAttributes": true}}
 ```
 
@@ -92,8 +97,10 @@ High `first_chunk_ms` is provider latency or a cold prompt cache (check the cach
 gap between first chunk and first output is the model thinking.
 
 **Slow tools.** The same query with `"value": "tool"`, then break down by the `tool` attribute
-(`apm-attribute-breakdown`) or aggregate per operation (`apm-spans-aggregate`). To see what a slow
-call actually ran, find its `callId` in the session's event log.
+(`apm-attribute-breakdown`) or aggregate per operation (`apm-spans-aggregate`). A tool that is
+deferred in the prompt still reports its real name here when the model reached it through
+`call_tool`, so a breakdown needs no special case for deferred tools. To see what a slow call
+actually ran, find its `callId` in the session's event log.
 
 **Retries.** Look for `model.backoff` spans and more than one `model.call` per step. Failed attempts
 carry `error.class`.

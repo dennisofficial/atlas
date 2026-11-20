@@ -16,10 +16,9 @@ import type { ShellPodState } from './state'
 const inputSchema = z.strictObject({ shellId: z.string().min(1) })
 
 const description = [
-  'Stop a background shell that is still running.',
-  'The whole process group is signalled.',
-  'The call waits for the shell to die and hands you everything it printed as its result.',
-  'That result is a read, not the announcement. The ending is also recorded on its own and reaches you as a background-shell-ended notice, so a shell you stopped can be told to you twice. It is the same death both times, so act on either telling.',
+  'Stop a background shell that is still running. The whole process group is signalled.',
+  'The call waits for the shell to die and hands you everything it printed as its result. That result is a read, not the announcement.',
+  'The ending is also recorded on its own and reaches you as a background-shell-ended notice, so a shell you stopped can be told to you twice. It is the same death both times, so act on either telling.',
 ].join(' ')
 
 export class ShellKillTool extends SchemaTool<typeof inputSchema> {

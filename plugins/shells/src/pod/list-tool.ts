@@ -18,9 +18,7 @@ import { outcomeOf, startedOf } from './status'
 const inputSchema = z.strictObject({ runningOnly: z.boolean().optional() })
 
 const description = [
-  'List the background shells this session has started, running and finished alike.',
-  'Set runningOnly to leave out the ones that have already ended.',
-  'Each entry names its shellId, its command, whether it is still running, and how much it has printed.',
+  'List the background shells this session has started, running and finished alike, with shellId, command, state and how much each printed. Set runningOnly to leave out the ones that have ended.',
   'A shell marked as awaiting input may need an answer through shell_input.',
   'Reading a shell with shell_output does not show here. This list only says what exists.',
 ].join(' ')

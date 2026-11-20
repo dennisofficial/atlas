@@ -148,6 +148,7 @@ export class CloudConfigTool extends SchemaTool<typeof cloudConfigInputSchema> {
   readonly description = description
   readonly effect = EToolEffect.Write
   readonly inputSchema = cloudConfigInputSchema
+  readonly deferred = true
   override readonly pathFields = TAKES_NO_PATHS
 
   constructor(private readonly access: { client: CloudConfigClient; projectId: string }) {
