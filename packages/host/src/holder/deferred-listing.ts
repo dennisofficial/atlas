@@ -21,6 +21,7 @@ export const deferredListingHook = (args: {
   declarations: () => readonly ToolDeclaration[]
 }): RegisteredHook<BeforeStep> => ({
   name: 'deferred-listing',
+  awaited: true,
   order: { stage: EStage.Observe, nudge: 30 },
   run: async ({ assembled }) => {
     const groups = toolNamesByServerOf(args.declarations())
