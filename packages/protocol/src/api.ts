@@ -63,6 +63,8 @@ export enum ESandboxProvider {
   Agent37 = 'agent37',
 }
 
+export const DEFAULT_SANDBOX_PROVIDER = ESandboxProvider.Agent37
+
 export enum ECredentialSource {
   Byok = 'byok',
   Platform = 'platform',
@@ -372,6 +374,8 @@ export const sessionSpendRowSchema = z.strictObject({
   providerId: z.string(),
   modelId: z.string(),
   ...tokenSpendShape,
+  costUsd: z.number().min(0).optional(),
+  unpricedTokens: z.strictObject(tokenSpendShape).optional(),
 })
 
 export const sessionSpendTallySchema = z.strictObject({
@@ -430,6 +434,13 @@ export const sessionViewOutputSchema = z.strictObject({
   spend: z.strictObject({
     rows: z.array(sessionSpendRowSchema),
     tally: sessionSpendTallySchema,
+  }),
+  compute: z.strictObject({
+    costUsd: z.number().nullable(),
+    running: z.boolean(),
+    tick: z
+      .strictObject({ at: z.number().int().min(0), rateUsdPerHour: z.number().min(0) })
+      .nullable(),
   }),
   checkouts: sessionCheckoutsSchema,
   pullRequests: z.array(sessionLinkedPullRequestSchema),

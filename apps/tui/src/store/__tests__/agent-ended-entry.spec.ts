@@ -113,7 +113,7 @@ describe('a sub-agent ending in the transcript', () => {
       log([agentEnded({ status: EAgentStatus.Stopped, killedBy: EKilledBy.User })]),
     )
 
-    expect(entry.text).toContain('was stopped by the user after')
+    expect(entry.text).toContain('was stopped by the operator after')
     expect(entry.failed).toBe(false)
   })
 

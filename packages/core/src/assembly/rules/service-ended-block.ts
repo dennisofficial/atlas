@@ -7,7 +7,7 @@ import { EKilledBy } from '../../shells/status'
 const PRINTED_NOTHING = 'Its log is empty.'
 
 const USER_KILLED =
-  'The user stopped this service deliberately. Nothing is wrong; do not restart it or work around it unless the user asks.'
+  'The operator stopped this service deliberately. Nothing is wrong. Do not restart it or work around it unless the operator asks.'
 
 const SLEPT_THROUGH: ReadonlySet<EKilledBy | undefined> = new Set([
   EKilledBy.SessionEnd,
@@ -17,7 +17,7 @@ const SLEPT_THROUGH: ReadonlySet<EKilledBy | undefined> = new Set([
 const WOKE_UP = 'Start it again if you still need it.'
 
 const NOT_WORK =
-  'This was infrastructure you work against, not work you were waiting on. Its full log is at the path above; read it with the read tool if you need more than the tail.'
+  'This was infrastructure you work against, not work you were waiting on. Its full log is at the path above. Read it with the read tool if you need more than the tail.'
 
 const NO_LOG = 'Its log is gone with the process that ran it.'
 

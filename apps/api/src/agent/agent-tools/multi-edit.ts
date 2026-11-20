@@ -38,9 +38,9 @@ const description = [
   'Apply several edits to one file in a single call.',
   'A relative path resolves against the project directory.',
   pathEnvironmentNote,
-  "Each edit follows the edit tool's rules: oldString must match the file exactly, including indentation, and must be unique unless that edit's replaceAll is true.",
-  'Edits apply in array order, each against the result of the ones before it, and the file is written once — if any edit fails, nothing is written.',
-  'Prefer this over consecutive edit calls when changing several places in the same file. To create a file, use write.',
+  "Each edit follows the edit tool's rules. oldString must match the file exactly, including indentation. oldString must be unique unless that edit's replaceAll is true.",
+  'Edits apply in array order. Each edit applies against the result of the edits before it. The file is written once: if any edit fails, nothing is written.',
+  'Prefer this tool over consecutive edit calls when you change several places in the same file. To create a file, use write.',
 ].join(' ')
 
 export class MultiEditTool extends SchemaTool<typeof inputSchema> {
@@ -84,7 +84,7 @@ export class MultiEditTool extends SchemaTool<typeof inputSchema> {
         if (empty !== -1) {
           return {
             ok: false,
-            reason: `Edit ${empty + 1} of ${input.edits.length} has an empty oldString. multi_edit changes an existing file; to create one, use the write tool.`,
+            reason: `Edit ${empty + 1} of ${input.edits.length} has an empty oldString. multi_edit changes an existing file. To create a file, use the write tool.`,
           }
         }
 

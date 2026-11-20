@@ -102,7 +102,7 @@ describe('McpEditTool', () => {
     const outcome = await invoke(toolFor(fake), { action: 'enable', name: 'paused' })
     expect(outcome).toEqual({
       ok: false,
-      reason: 'mcp server "paused" has no transport; add it with a transport to enable it',
+      reason: 'mcp server "paused" has no transport. Add a transport to enable it.',
     })
   })
 

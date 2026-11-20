@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, readdirSync, rmdirSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { mirrorsThreadState } from '@dltech/atlas-wire'
+import { mirrorsThreadState } from '@dltech/atlas-core'
 
 import { sandboxWorkloadsEnabled } from './markers'
 

@@ -1,6 +1,7 @@
 import { EFinishReason, type V2Event } from '@dltech/atlas-core'
 import type { AppendHook, ControlTx } from '@dltech/atlas-control'
 import type { ProductAnalytics, ProductAnalyticsProperties } from '@dltech/atlas-observability'
+import { reasonClassOf } from '@dltech/atlas-observability'
 
 const OWNER_CACHE_MAX = 10_000
 
@@ -66,7 +67,10 @@ const mappedOf = (event: V2Event): Mapped | undefined => {
         },
       }
     case 'tool-denied':
-      return { event: 'tool_denied', properties: { tool: event.name } }
+      return {
+        event: 'tool_denied',
+        properties: { tool: event.name, reason_class: reasonClassOf(event.reason) },
+      }
     case 'agent-spawned':
       return { event: 'agent_spawned', properties: { agent_type: event.agentType } }
     case 'agent-ended':

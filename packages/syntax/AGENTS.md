@@ -1,6 +1,6 @@
 # @dltech/atlas-syntax
 
-Languages for syntax highlighting, with no rendering: tree-sitter grammars (`src/tree-sitter`) and the lexical scanner tier (`src/lexical`). Themes and styled rows stay in the surfaces.
-- Tree-sitter language: add an entry to `src/tree-sitter/parsers-config.json`, then `bun run grammars:update`. Grammar and queries must come from the same version; the rule is in the config's `$comment`.
-- Lexical language: add a spec in `src/lexical/languages/`, register it in `languages/index.ts`, and add `languages/__tests__/<filetype>.spec.ts`. A key must not also be a tree-sitter filetype or alias; `registry.spec.ts` enforces it.
-- Run `bun test` inside this package so its `bunfig.toml` preloads apply.
+This package holds languages for syntax highlighting and does no rendering: tree-sitter grammars (`src/tree-sitter`) and the lexical scanner tier (`src/lexical`). Themes and styled rows stay in the surfaces.
+- To add a tree-sitter language, add an entry to `src/tree-sitter/parsers-config.json`, then run `bun run grammars:update`. A grammar and its queries must come from the same version. The rule is in the config's `$comment`.
+- To add a lexical language, add a spec in `src/lexical/languages/`. Register it in `languages/index.ts`. Add `languages/__tests__/<filetype>.spec.ts`. A key must not also be a tree-sitter filetype or an alias. `registry.spec.ts` enforces it.
+- Run `bun test` inside this package, so that its `bunfig.toml` preloads apply.

@@ -29,10 +29,13 @@ const inputSchema = z.strictObject({
 const knownTypes = CREW_AGENT_TYPES.map((type) => type.name).join(', ')
 
 const description = [
-  'Start a sub-agent that works in the background and hands you its answer the moment it stops.',
-  `agentType is one of ${knownTypes}, or an agent type defined in the repository (listed in the system prompt); intent is a few words naming what it is for;`,
-  'brief is the whole task, because the sub-agent sees nothing of this conversation.',
-  'worktree puts the child in a git worktree before its first turn: a name creates a new branch and a worktree cut from the fetched origin default branch, and a path to a worktree git already lists adopts it instead.',
+  'Start a sub-agent. It works in the background. It hands you its answer the moment it stops.',
+  `agentType is one of ${knownTypes}, or an agent type defined in the repository (listed in the system prompt).`,
+  'intent is a few words that name what the sub-agent does.',
+  'brief is the whole instruction, because the sub-agent sees nothing of this session.',
+  'worktree puts the sub-agent in a git worktree before its first turn.',
+  'A name creates a new branch and a worktree cut from the fetched origin default branch.',
+  'A path adopts a worktree that git already lists instead.',
 ].join(' ')
 
 const unknownTypeRefusal = async (args: {
@@ -46,8 +49,10 @@ const unknownTypeRefusal = async (args: {
   })
   const repoTypes = found.types.map((type) => type.name)
   const others =
-    repoTypes.length === 0 ? '' : `, or a type defined in this repository: ${repoTypes.join(', ')}`
-  return `there is no agent type "${args.name}"; known types are ${knownTypes}${others}`
+    repoTypes.length === 0
+      ? ''
+      : `, or an agent type defined in this repository: ${repoTypes.join(', ')}`
+  return `there is no agent type "${args.name}". Known types are ${knownTypes}${others}.`
 }
 
 export class AgentSpawnTool extends SchemaTool<typeof inputSchema> {
@@ -143,7 +148,7 @@ export class AgentSpawnTool extends SchemaTool<typeof inputSchema> {
           ...(target === undefined
             ? []
             : [`It works in ${target.entry.path} on branch ${target.entry.branch}.`]),
-          'It runs in the background, and hands you its answer the moment it stops.',
+          'It runs in the background. It hands you its answer the moment it stops.',
         ].join('\n'),
       }
     } catch (error) {

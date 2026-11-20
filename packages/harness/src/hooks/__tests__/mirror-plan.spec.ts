@@ -62,7 +62,7 @@ describe('MirrorPlanHook', () => {
       signal: NEVER_ABORTED,
     })
 
-    expect(outcome.additionalContext).toContain('no plan written')
+    expect(outcome.additionalContext).toContain('no task list written')
   })
 
   it('ignores every other tool', async () => {

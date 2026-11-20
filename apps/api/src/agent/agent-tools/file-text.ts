@@ -13,10 +13,11 @@ import {
 export const filePathSchema = z.string().min(1)
 
 export const pathEnvironmentNote = [
-  'A path may reference $ATLAS_HOME, the Atlas home directory of the sandbox, and',
-  `$${ATLAS_SESSION_DIR_ENV}, $${ATLAS_THREAD_DIR_ENV} and $${ATLAS_CONTEXT_DIR_ENV}, the session, thread and`,
-  'context directories of this session; any other variable, and a leading ~, is an error rather than a',
-  'literal directory name.',
+  'A path may reference $ATLAS_HOME, the Atlas home directory of the sandbox.',
+  `A path may also reference $${ATLAS_SESSION_DIR_ENV}, $${ATLAS_THREAD_DIR_ENV} and`,
+  `$${ATLAS_CONTEXT_DIR_ENV}, the session, thread and context directories of this session.`,
+  'Any other variable is an error rather than a literal directory name.',
+  'A leading ~ is an error rather than a literal directory name.',
 ].join(' ')
 
 export type ToolPathResolution =
@@ -61,7 +62,7 @@ export function expandPathEnvironment(args: {
     const verb = unset.size === 1 ? 'is' : 'are'
     return {
       ok: false,
-      reason: `The path ${args.path} references ${names.join(' and ')}, which ${verb} not set in the agent's environment. Spell the path out, or expand it through the bash tool instead.`,
+      reason: `The path ${args.path} references ${names.join(' and ')}, which ${verb} not set in the environment of this session. Choose one remedy: spell the path out, or expand it through the bash tool.`,
     }
   }
 

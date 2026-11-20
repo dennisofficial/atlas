@@ -7,8 +7,8 @@ import {
   type ProjectRepoTree,
 } from '@dltech/atlas-wire'
 import { GithubUserReadFailed } from './github-user-reads'
+import { GITHUB_API } from './github-user-http'
 
-const GITHUB_API = 'https://api.github.com'
 const HTTP_CONFLICT = 409
 const DETAIL_CAP = 300
 const GITHUB_REQUEST_TIMEOUT_MS = 8_000
@@ -50,8 +50,6 @@ const TREE_KINDS: Record<string, ERepoTreeEntryKind> = {
 
 @Injectable()
 export class GithubRepoReads {
-  private readonly baseUrl = process.env.GITHUB_API_URL ?? GITHUB_API
-
   async listRepos(args: {
     source: EGithubCallSource
     token: string
@@ -149,7 +147,7 @@ export class GithubRepoReads {
   }): Promise<T> {
     const response = await githubFetch({
       source: args.source,
-      url: `${this.baseUrl}${args.path}`,
+      url: `${GITHUB_API}${args.path}`,
       init: {
         headers: {
           authorization: `Bearer ${args.token}`,

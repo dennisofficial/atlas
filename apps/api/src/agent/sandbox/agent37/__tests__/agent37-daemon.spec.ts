@@ -57,6 +57,7 @@ const clientOf = (args: {
     list: async () => ({ data: [] }),
     remove: async () => undefined,
     sleep: async () => undefined,
+    start: async ({ id }) => ({ id, status: 'running' }),
     resize: async ({ id }) => ({ ...INSTANCE, id }),
     exec: async (body) => {
       execs.push(body)
@@ -67,6 +68,8 @@ const clientOf = (args: {
       return args.versions(probe)
     },
     signedUrl: async () => 'https://inst-1-47300.agent37.app/?a37_token=t',
+    usage: async () => ({ from: '', to: '' }),
+    events: async () => ({ from: '', to: '', events: [] }),
   }
   return { client, execs, probes }
 }

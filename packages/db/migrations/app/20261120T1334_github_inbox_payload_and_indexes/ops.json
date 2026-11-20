@@ -1,0 +1,626 @@
+[
+  {
+    "id": "dropIndex.GithubPrOutbox.GithubPrOutbox_pending_idx",
+    "label": "Drop index \"GithubPrOutbox_pending_idx\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "GithubPrOutbox_pending_idx",
+        "table": "GithubPrOutbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"GithubPrOutbox_pending_idx\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GithubPrOutbox_pending_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"GithubPrOutbox_pending_idx\"",
+        "sql": "DROP INDEX \"public\".\"GithubPrOutbox_pending_idx\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"GithubPrOutbox_pending_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GithubPrOutbox_pending_idx\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.GithubTrackingTarget.GithubTrackingTarget_liveUntil_idx",
+    "label": "Drop index \"GithubTrackingTarget_liveUntil_idx\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "GithubTrackingTarget_liveUntil_idx",
+        "table": "GithubTrackingTarget"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"GithubTrackingTarget_liveUntil_idx\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GithubTrackingTarget_liveUntil_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"GithubTrackingTarget_liveUntil_idx\"",
+        "sql": "DROP INDEX \"public\".\"GithubTrackingTarget_liveUntil_idx\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"GithubTrackingTarget_liveUntil_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GithubTrackingTarget_liveUntil_idx\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.GithubWebhookInbox.GithubWebhookInbox_deadAt_idx",
+    "label": "Drop index \"GithubWebhookInbox_deadAt_idx\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "GithubWebhookInbox_deadAt_idx",
+        "table": "GithubWebhookInbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"GithubWebhookInbox_deadAt_idx\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GithubWebhookInbox_deadAt_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"GithubWebhookInbox_deadAt_idx\"",
+        "sql": "DROP INDEX \"public\".\"GithubWebhookInbox_deadAt_idx\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"GithubWebhookInbox_deadAt_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GithubWebhookInbox_deadAt_idx\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.GithubWebhookInbox.GithubWebhookInbox_processedAt_idx",
+    "label": "Drop index \"GithubWebhookInbox_processedAt_idx\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "GithubWebhookInbox_processedAt_idx",
+        "table": "GithubWebhookInbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"GithubWebhookInbox_processedAt_idx\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GithubWebhookInbox_processedAt_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"GithubWebhookInbox_processedAt_idx\"",
+        "sql": "DROP INDEX \"public\".\"GithubWebhookInbox_processedAt_idx\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"GithubWebhookInbox_processedAt_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GithubWebhookInbox_processedAt_idx\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.V2SandboxRun.V2SandboxRun_sessionId_idx_29f415d4",
+    "label": "Drop index \"V2SandboxRun_sessionId_idx_29f415d4\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "index",
+        "name": "V2SandboxRun_sessionId_idx_29f415d4",
+        "table": "V2SandboxRun"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"V2SandboxRun_sessionId_idx_29f415d4\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2SandboxRun_sessionId_idx_29f415d4\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"V2SandboxRun_sessionId_idx_29f415d4\"",
+        "sql": "DROP INDEX \"v2\".\"V2SandboxRun_sessionId_idx_29f415d4\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"V2SandboxRun_sessionId_idx_29f415d4\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2SandboxRun_sessionId_idx_29f415d4\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.V2SessionBranch.V2SessionBranch_sessionId_idx_29f415d4",
+    "label": "Drop index \"V2SessionBranch_sessionId_idx_29f415d4\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "index",
+        "name": "V2SessionBranch_sessionId_idx_29f415d4",
+        "table": "V2SessionBranch"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"V2SessionBranch_sessionId_idx_29f415d4\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2SessionBranch_sessionId_idx_29f415d4\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"V2SessionBranch_sessionId_idx_29f415d4\"",
+        "sql": "DROP INDEX \"v2\".\"V2SessionBranch_sessionId_idx_29f415d4\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"V2SessionBranch_sessionId_idx_29f415d4\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2SessionBranch_sessionId_idx_29f415d4\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropIndex.V2Terminal.V2Terminal_sessionId_idx_29f415d4",
+    "label": "Drop index \"V2Terminal_sessionId_idx_29f415d4\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "index",
+        "name": "V2Terminal_sessionId_idx_29f415d4",
+        "table": "V2Terminal"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"V2Terminal_sessionId_idx_29f415d4\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2Terminal_sessionId_idx_29f415d4\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"V2Terminal_sessionId_idx_29f415d4\"",
+        "sql": "DROP INDEX \"v2\".\"V2Terminal_sessionId_idx_29f415d4\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"V2Terminal_sessionId_idx_29f415d4\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2Terminal_sessionId_idx_29f415d4\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "alterNullability.dropNotNull.GithubWebhookInbox.payload",
+    "label": "Drop NOT NULL on \"GithubWebhookInbox\".\"payload\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "payload",
+        "table": "GithubWebhookInbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"payload\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubWebhookInbox",
+          "payload"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop NOT NULL on \"payload\"",
+        "sql": "ALTER TABLE \"public\".\"GithubWebhookInbox\" ALTER COLUMN \"payload\" DROP NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"payload\" is nullable",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubWebhookInbox",
+          "payload",
+          "YES"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.GithubPrOutbox.GithubPrOutbox_parked_idx_420727ba",
+    "label": "Create index \"GithubPrOutbox_parked_idx_420727ba\" on \"GithubPrOutbox\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "GithubPrOutbox_parked_idx_420727ba",
+        "table": "GithubPrOutbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"GithubPrOutbox_parked_idx_420727ba\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GithubPrOutbox_parked_idx_420727ba\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"GithubPrOutbox_parked_idx_420727ba\"",
+        "sql": "CREATE INDEX \"GithubPrOutbox_parked_idx_420727ba\" ON \"public\".\"GithubPrOutbox\" (\"parkedSince\") WHERE ((\"dispatchedAt\" IS NULL AND \"deadLetteredAt\" IS NULL AND \"parkedSince\" IS NOT NULL))",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"GithubPrOutbox_parked_idx_420727ba\" exists on \"GithubPrOutbox\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NOT NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"GithubPrOutbox_parked_idx_420727ba\"",
+          "i",
+          "I",
+          "\"public\".\"GithubPrOutbox\"",
+          "btree",
+          "[\"parkedSince\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.GithubPrOutbox.GithubPrOutbox_pending_idx_93d474b5",
+    "label": "Create index \"GithubPrOutbox_pending_idx_93d474b5\" on \"GithubPrOutbox\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "GithubPrOutbox_pending_idx_93d474b5",
+        "table": "GithubPrOutbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"GithubPrOutbox_pending_idx_93d474b5\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GithubPrOutbox_pending_idx_93d474b5\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"GithubPrOutbox_pending_idx_93d474b5\"",
+        "sql": "CREATE INDEX \"GithubPrOutbox_pending_idx_93d474b5\" ON \"public\".\"GithubPrOutbox\" (\"createdAt\") WHERE ((\"dispatchedAt\" IS NULL AND \"deadLetteredAt\" IS NULL))",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"GithubPrOutbox_pending_idx_93d474b5\" exists on \"GithubPrOutbox\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NOT NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"GithubPrOutbox_pending_idx_93d474b5\"",
+          "i",
+          "I",
+          "\"public\".\"GithubPrOutbox\"",
+          "btree",
+          "[\"createdAt\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.GithubPrOutbox.GithubPrOutbox_retry_idx_ceb33cdb",
+    "label": "Create index \"GithubPrOutbox_retry_idx_ceb33cdb\" on \"GithubPrOutbox\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "GithubPrOutbox_retry_idx_ceb33cdb",
+        "table": "GithubPrOutbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"GithubPrOutbox_retry_idx_ceb33cdb\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GithubPrOutbox_retry_idx_ceb33cdb\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"GithubPrOutbox_retry_idx_ceb33cdb\"",
+        "sql": "CREATE INDEX \"GithubPrOutbox_retry_idx_ceb33cdb\" ON \"public\".\"GithubPrOutbox\" (\"nextAttemptAt\") WHERE ((\"dispatchedAt\" IS NULL AND \"deadLetteredAt\" IS NULL AND \"nextAttemptAt\" IS NOT NULL))",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"GithubPrOutbox_retry_idx_ceb33cdb\" exists on \"GithubPrOutbox\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NOT NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"GithubPrOutbox_retry_idx_ceb33cdb\"",
+          "i",
+          "I",
+          "\"public\".\"GithubPrOutbox\"",
+          "btree",
+          "[\"nextAttemptAt\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.GithubWebhookInbox.GithubWebhookInbox_deadAt_idx_fcda36f6",
+    "label": "Create index \"GithubWebhookInbox_deadAt_idx_fcda36f6\" on \"GithubWebhookInbox\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "GithubWebhookInbox_deadAt_idx_fcda36f6",
+        "table": "GithubWebhookInbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"GithubWebhookInbox_deadAt_idx_fcda36f6\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GithubWebhookInbox_deadAt_idx_fcda36f6\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"GithubWebhookInbox_deadAt_idx_fcda36f6\"",
+        "sql": "CREATE INDEX \"GithubWebhookInbox_deadAt_idx_fcda36f6\" ON \"public\".\"GithubWebhookInbox\" (\"deadAt\") WHERE ((\"deadAt\" IS NOT NULL))",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"GithubWebhookInbox_deadAt_idx_fcda36f6\" exists on \"GithubWebhookInbox\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NOT NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"GithubWebhookInbox_deadAt_idx_fcda36f6\"",
+          "i",
+          "I",
+          "\"public\".\"GithubWebhookInbox\"",
+          "btree",
+          "[\"deadAt\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.GithubWebhookInbox.GithubWebhookInbox_due_idx_c3c7694b",
+    "label": "Create index \"GithubWebhookInbox_due_idx_c3c7694b\" on \"GithubWebhookInbox\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "GithubWebhookInbox_due_idx_c3c7694b",
+        "table": "GithubWebhookInbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"GithubWebhookInbox_due_idx_c3c7694b\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GithubWebhookInbox_due_idx_c3c7694b\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"GithubWebhookInbox_due_idx_c3c7694b\"",
+        "sql": "CREATE INDEX \"GithubWebhookInbox_due_idx_c3c7694b\" ON \"public\".\"GithubWebhookInbox\" (\"receivedAt\") WHERE ((\"processedAt\" IS NULL AND \"deadAt\" IS NULL))",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"GithubWebhookInbox_due_idx_c3c7694b\" exists on \"GithubWebhookInbox\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NOT NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"GithubWebhookInbox_due_idx_c3c7694b\"",
+          "i",
+          "I",
+          "\"public\".\"GithubWebhookInbox\"",
+          "btree",
+          "[\"receivedAt\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.GithubWebhookInbox.GithubWebhookInbox_processedAt_idx_be4956e2",
+    "label": "Create index \"GithubWebhookInbox_processedAt_idx_be4956e2\" on \"GithubWebhookInbox\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "GithubWebhookInbox_processedAt_idx_be4956e2",
+        "table": "GithubWebhookInbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"GithubWebhookInbox_processedAt_idx_be4956e2\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GithubWebhookInbox_processedAt_idx_be4956e2\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"GithubWebhookInbox_processedAt_idx_be4956e2\"",
+        "sql": "CREATE INDEX \"GithubWebhookInbox_processedAt_idx_be4956e2\" ON \"public\".\"GithubWebhookInbox\" (\"processedAt\") WHERE ((\"processedAt\" IS NOT NULL))",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"GithubWebhookInbox_processedAt_idx_be4956e2\" exists on \"GithubWebhookInbox\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NOT NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"GithubWebhookInbox_processedAt_idx_be4956e2\"",
+          "i",
+          "I",
+          "\"public\".\"GithubWebhookInbox\"",
+          "btree",
+          "[\"processedAt\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.V2Session.V2Session_mainThreadId_idx_60785a54",
+    "label": "Create index \"V2Session_mainThreadId_idx_60785a54\" on \"V2Session\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "index",
+        "name": "V2Session_mainThreadId_idx_60785a54",
+        "table": "V2Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"V2Session_mainThreadId_idx_60785a54\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2Session_mainThreadId_idx_60785a54\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"V2Session_mainThreadId_idx_60785a54\"",
+        "sql": "CREATE INDEX \"V2Session_mainThreadId_idx_60785a54\" ON \"v2\".\"V2Session\" (\"mainThreadId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"V2Session_mainThreadId_idx_60785a54\" exists on \"V2Session\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2Session_mainThreadId_idx_60785a54\"",
+          "i",
+          "I",
+          "\"v2\".\"V2Session\"",
+          "btree",
+          "[\"mainThreadId\"]"
+        ]
+      }
+    ]
+  }
+]

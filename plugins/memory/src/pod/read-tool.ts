@@ -19,7 +19,7 @@ const inputSchema = z.strictObject({
 
 const description = [
   'Read the full body of one memory listed in the memory index.',
-  'The scope is global or project, and the name is the one shown in the index.',
+  'The scope is global or project. The name is the one shown in the index.',
   "The result starts with the memory's revision, which edit_memory needs.",
 ].join(' ')
 

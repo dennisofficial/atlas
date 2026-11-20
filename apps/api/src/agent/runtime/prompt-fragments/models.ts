@@ -11,9 +11,9 @@ export class AnswerInTextFragment extends PromptFragment {
 
   text(): string {
     return [
-      'Finish every turn in the text channel, never in reasoning alone: the developer sees only your',
-      'text, and a reply that lives entirely in reasoning renders as nothing and ends the turn. When the',
-      'work is done, write the full answer as message text.',
+      'Write the answer as message text at the end of every turn. Never put the answer in reasoning',
+      'alone. The operator reads only message text. A reply that is only in reasoning shows nothing and',
+      'ends the turn. When the work is done, write the full answer as message text.',
     ].join('\n')
   }
 }

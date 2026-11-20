@@ -72,12 +72,12 @@ export function renderModelText(args: {
     sections.push(untrustedEnvelope({ source: 'bash', body: args.merged }))
   if (args.timedOut) {
     sections.push(
-      `The command was killed after exceeding its ${args.timeoutMs} ms timeout. If it needs longer than ${args.maximumTimeoutMs} ms, start it again with runInBackground and its ending will be delivered to you whenever it lands.`,
+      `The command was killed after exceeding its ${args.timeoutMs} ms timeout. If it needs longer than ${args.maximumTimeoutMs} ms, start it again with runInBackground. Its ending is delivered to you whenever it lands.`,
     )
   }
   if (args.oomKilled) {
     sections.push(
-      "The kernel killed the command because it ran out of memory: it exceeded the sandbox's memory limit. Retrying it unchanged will fail the same way, so reduce its memory use (smaller inputs, streaming or batching, fewer parallel workers) before running it again.",
+      'The kernel killed the command because it ran out of memory: it exceeded the memory limit of the sandbox. A retry with no change fails the same way. Reduce its memory use before you run it again: smaller inputs, streaming or batching, fewer parallel workers.',
     )
   }
   if (args.exitCode !== 0) sections.push(`Exit code: ${args.exitCode}`)

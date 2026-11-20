@@ -24,7 +24,7 @@ const description = [
   'Stop a service that is still running.',
   'Takes the id that service_start returned, or the name a project declares in .atlas/services.yaml.',
   'The whole process group is signalled, so anything the service forked goes with it.',
-  'The ending is recorded and delivered on its own, the same as any other ending, so do not wait for it.',
+  'The ending is recorded and delivered on its own, the same as any other ending. Do not wait for it.',
 ].join(' ')
 
 export class ServiceStopTool extends SchemaTool<typeof inputSchema> {

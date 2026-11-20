@@ -174,6 +174,17 @@ export class Agent37SandboxProvider extends SandboxProvider {
     }
   }
 
+  override async instanceIdOf(args: { target: SandboxTarget }): Promise<string | undefined> {
+    const instanceId = await this.args.instances.find({
+      podSessionId: args.target.sandboxSessionId,
+    })
+    return instanceId ?? undefined
+  }
+
+  override podDiskGb(): number {
+    return this.args.env.resources.disk
+  }
+
   async stop(args: { target: SandboxTarget }): Promise<void> {
     const instanceId = await this.args.instances.find({
       podSessionId: args.target.sandboxSessionId,
@@ -186,14 +197,23 @@ export class Agent37SandboxProvider extends SandboxProvider {
     const podSessionId = args.target.sandboxSessionId
     const instanceId = await this.args.instances.find({ podSessionId })
     if (instanceId === null) return 'absent'
+    const client = this.clientOf(apiKeyOf(args.target.credentials))
     const shape = agent37ShapeOfVcpus(args.vcpus)
-    // A resize recreates the container in place (https://www.agent37.com/docs/agents-api/instances/resize),
-    // so a sleeping instance comes back running at the new shape instead of storing it for its next wake.
-    await this.clientOf(apiKeyOf(args.target.credentials)).resize({
-      id: instanceId,
-      cpu: shape.cpu,
-      memory: shape.memory,
-    })
+    const instance = await client.get({ id: instanceId })
+    if (instance.resources?.cpu === shape.cpu && instance.resources.memory === shape.memory) {
+      return 'stored'
+    }
+    // https://www.agent37.com/docs/agents-api/instances/resize — only a running instance can be
+    // resized, so a sleeping one is started first and holds the shape once it is running.
+    if (instance.status !== 'running') {
+      await client.start({ id: instanceId })
+      await waitForAgent37Instance({
+        client,
+        instanceId,
+        ...(this.args.log === undefined ? {} : { log: this.args.log }),
+      })
+    }
+    await client.resize({ id: instanceId, cpu: shape.cpu, memory: shape.memory })
     return 'restarted'
   }
 

@@ -19,6 +19,7 @@ export async function stopSessionForRollover(args: {
   sessionId: string
   log: (line: string) => void
   timing?: ResizeRestartTiming | undefined
+  onStopped?: ((args: { sessionId: string }) => Promise<void>) | undefined
 }): Promise<void> {
   const timing = args.timing ?? RESIZE_RESTART_TIMING
   const target = { sdk: args.sdk, credentials: args.credentials, name: args.name }
@@ -32,6 +33,7 @@ export async function stopSessionForRollover(args: {
     return
   }
   await sandbox.stop({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
+  await args.onStopped?.({ sessionId: args.sessionId })
   if (await settlesWithin({ target, withinMs: timing.forceMs, pollMs: timing.pollMs })) return
   throw new Error(`sandbox ${args.name} did not stop for the rollover`)
 }

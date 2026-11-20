@@ -23,7 +23,9 @@ describe('what the tool tells the model about watching', () => {
   it('warns that a watch on the success marker alone is silent through a crash', () => {
     const { description } = new BashTool(new ForegroundOnlyShells(), files, processes)
 
-    expect(description).toContain('silence is indistinguishable from progress')
+    expect(description).toContain(
+      'a watch that matches only success cannot tell a slow command from a failed one',
+    )
   }, 30_000)
 })
 

@@ -35,6 +35,7 @@ const sessionView = (params: { at: number; live: boolean }): StreamServerMessage
       lease: { epoch: 1, holderHostId: 7, live: params.live },
     },
     context: null,
+    compute: { costUsd: null, running: false, tick: null },
     spend: {
       rows: [],
       tally: {

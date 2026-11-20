@@ -1,5 +1,6 @@
 import type { EGithubCallSource } from './github-call-log'
 import { githubFetch } from './github-fetch'
+import { GITHUB_API } from './github-user-http'
 import {
   recalledRequiredContexts,
   rememberRequiredContexts,
@@ -9,7 +10,6 @@ import {
   type RequiredContextsCache,
 } from './github-required-checks'
 
-const GITHUB_API = 'https://api.github.com'
 const GITHUB_REQUEST_TIMEOUT_MS = 8_000
 
 export type GithubRequiredContextsRead = {
@@ -18,7 +18,6 @@ export type GithubRequiredContextsRead = {
 }
 
 export class GithubRequiredChecksRead {
-  private readonly baseUrl = process.env.GITHUB_API_URL ?? GITHUB_API
   private readonly known: RequiredContextsCache = new Map()
 
   /**
@@ -66,7 +65,7 @@ export class GithubRequiredChecksRead {
   }): Promise<GithubPathRead> {
     const response = await githubFetch({
       source: args.source,
-      url: `${this.baseUrl}${args.path}`,
+      url: `${GITHUB_API}${args.path}`,
       init: {
         headers: {
           authorization: `Bearer ${args.token}`,

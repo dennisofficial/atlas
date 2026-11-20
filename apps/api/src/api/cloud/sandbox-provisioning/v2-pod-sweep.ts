@@ -99,6 +99,9 @@ export async function sweepV2Pods(args: {
   /** Re-read immediately before each stop or delete: a pod can come back to life after the list. */
   stillRetirable?: ((args: { podSessionId: string }) => Promise<boolean>) | undefined
   onRetired?: ((args: { podSessionId: string }) => Promise<void>) | undefined
+  onStopped?:
+    | ((args: { podSessionId: string; cpuCumulativeMs?: number | undefined }) => Promise<void>)
+    | undefined
   endTerminals?: ((args: { podSessionIds: readonly string[] }) => Promise<number>) | undefined
   now: Date
   dryRun: boolean
@@ -145,6 +148,15 @@ export async function sweepV2Pods(args: {
       sandboxSessionId: podSessionId,
       credentials: scope.credentials,
     })
+    const cpuCumulativeMsBeforeRetire = async (
+      podSessionId: string,
+    ): Promise<number | undefined> => {
+      try {
+        return await scope.sandbox.activeCpuMs({ target: targetOf(podSessionId) })
+      } catch {
+        return undefined
+      }
+    }
     const retirableNow = async (podSessionId: string): Promise<boolean> => {
       if (args.stillRetirable === undefined) return true
       try {
@@ -162,7 +174,12 @@ export async function sweepV2Pods(args: {
             summary.kept += 1
             return
           }
+          const cpuCumulativeMs = await cpuCumulativeMsBeforeRetire(podSessionId)
           await scope.sandbox.stop({ target: targetOf(podSessionId) })
+          await args.onStopped?.({
+            podSessionId,
+            ...(cpuCumulativeMs === undefined ? {} : { cpuCumulativeMs }),
+          })
           summary.stopped += 1
           swept.push(podSessionId)
         } catch (failure) {
@@ -178,7 +195,12 @@ export async function sweepV2Pods(args: {
             summary.kept += 1
             return
           }
+          const cpuCumulativeMs = await cpuCumulativeMsBeforeRetire(podSessionId)
           await scope.sandbox.delete({ target: targetOf(podSessionId) })
+          await args.onStopped?.({
+            podSessionId,
+            ...(cpuCumulativeMs === undefined ? {} : { cpuCumulativeMs }),
+          })
           summary.deleted += 1
           swept.push(podSessionId)
         } catch (failure) {

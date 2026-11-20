@@ -24,7 +24,7 @@ import { runSearcher } from './grep-run'
 import {
   messageOf,
   ripgrepBinaryOf,
-  searcherFor,
+  ripgrepSearcher,
   type Searcher,
   type SearchArguments,
 } from './grep-search'
@@ -50,10 +50,10 @@ const inputSchema = z.strictObject({
 
 const description = [
   'Search file contents by regular expression and return the matching lines, each prefixed with its absolute path and line number.',
-  'Searches the workspace root unless path names a narrower file or directory (a relative path resolves against the project directory), and glob narrows further by file name.',
+  'The search covers the project directory unless path names a narrower file or directory. A relative path resolves against the project directory. Use glob to narrow the search by file name.',
   pathEnvironmentNote,
-  `Returns at most ${DEFAULT_HEAD_LIMIT} lines unless headLimit says otherwise; when more match, the result says so and offset asks for the next page.`,
-  'Version control directories are never searched, and long lines are cut short.',
+  `The tool returns at most ${DEFAULT_HEAD_LIMIT} lines unless headLimit says otherwise. When more lines match, the result says so. Set offset to read the next page.`,
+  'Version control directories are never searched. Long lines are cut short.',
   'Symbolic links are followed.',
 ].join(' ')
 
@@ -117,13 +117,13 @@ function renderModelText(args: {
 
   if (args.total === 0) sections.push('No matches found.')
   else if (args.window.length === 0) {
-    sections.push(`No matches at offset ${args.offset}; there are ${args.total} matches in total.`)
+    sections.push(`No matches at offset ${args.offset}. There are ${args.total} matches in total.`)
   } else {
     sections.push(args.window.join('\n'))
     const next = args.offset + args.window.length
     if (next < args.total) {
       sections.push(
-        `Showing matches ${args.offset + 1}-${next} of ${args.total}. Call grep again with offset: ${next} for the next page, or narrow the pattern.`,
+        `Showing matches ${args.offset + 1}-${next} of ${args.total}. Call grep again with offset: ${next} for the next page. Or narrow the pattern.`,
       )
     }
   }
@@ -198,7 +198,7 @@ export class GrepTool extends SchemaTool<typeof inputSchema> {
     const searcher =
       binary === null
         ? null
-        : searcherFor({
+        : ripgrepSearcher({
             pattern,
             searchPath,
             glob,

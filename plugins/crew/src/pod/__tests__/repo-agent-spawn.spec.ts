@@ -78,7 +78,7 @@ describe('agent_spawn with a repo agent type', () => {
     })
     expect(outcome.ok).toBe(false)
     expect(textOf(outcome)).toBe(
-      'there is no agent type "teammate"; known types are general-purpose, explore, builder, reviewer, or a type defined in this repository: security-reviewer',
+      'there is no agent type "teammate". Known types are general-purpose, explore, builder, reviewer, or an agent type defined in this repository: security-reviewer.',
     )
     expect(crew.calls).toEqual([])
   })
@@ -91,7 +91,7 @@ describe('agent_spawn with a repo agent type', () => {
       input: { agentType: 'security-reviewer', intent: 'review', brief: 'Review it.' },
     })
     expect(textOf(outcome)).toBe(
-      'there is no agent type "security-reviewer"; known types are general-purpose, explore, builder, reviewer',
+      'there is no agent type "security-reviewer". Known types are general-purpose, explore, builder, reviewer.',
     )
   })
 })

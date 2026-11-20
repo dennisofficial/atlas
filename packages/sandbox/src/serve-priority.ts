@@ -1,7 +1,7 @@
 import { readdirSync, writeFileSync } from 'node:fs'
 import { setPriority } from 'node:os'
 
-import { mirrorsThreadState } from '@dltech/atlas-wire'
+import { mirrorsThreadState } from '@dltech/atlas-core'
 
 export const SERVE_OOM_SCORE_ADJ = -900
 export const SERVE_NICE = -5

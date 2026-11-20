@@ -720,7 +720,7 @@
       "name": "@dltech/atlas-sandbox",
       "version": "0.1.0",
       "dependencies": {
-        "@dltech/atlas-wire": "workspace:*",
+        "@dltech/atlas-core": "workspace:*",
       },
       "devDependencies": {
         "@types/bun": "latest",

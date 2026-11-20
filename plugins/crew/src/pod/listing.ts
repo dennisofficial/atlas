@@ -1,7 +1,7 @@
 import type { RepoAgentRefusal, RepoAgentType } from '../core'
 
 export const REPO_AGENT_HEADING =
-  'Agent types defined in this repository (spawn them with agent_spawn like the built-in types):'
+  'Agent types defined in this repository. Spawn one with agent_spawn, like the built-in types:'
 
 export const repoAgentListingOf = (args: {
   types: readonly RepoAgentType[]

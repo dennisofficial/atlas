@@ -56,6 +56,7 @@ export class GithubWebhookInboxService {
   async markProcessed(args: { deliveryId: string }): Promise<void> {
     await db.orm.public.GithubWebhookInbox.where({ deliveryId: args.deliveryId }).updateAndCount({
       processedAt: new Date(),
+      payload: null,
       processingError: null,
       leaseUntil: null,
       nextAttemptAt: null,
@@ -118,13 +119,14 @@ export class GithubWebhookInboxService {
       .updateAndCount({ deadAt: null, attempts: 1, leaseUntil: null, nextAttemptAt: null })
   }
 
-  prune(args: { now: Date }): Promise<number> {
-    return db.orm.public.GithubWebhookInbox.where((row) =>
-      or(
-        row.processedAt.lt(new Date(args.now.getTime() - PROCESSED_RETENTION_MS)),
-        row.deadAt.lt(new Date(args.now.getTime() - DEAD_RETENTION_MS)),
-      ),
+  async prune(args: { now: Date }): Promise<number> {
+    const processed = await db.orm.public.GithubWebhookInbox.where((row) =>
+      row.processedAt.lt(new Date(args.now.getTime() - PROCESSED_RETENTION_MS)),
     ).deleteAndCount()
+    const dead = await db.orm.public.GithubWebhookInbox.where((row) =>
+      row.deadAt.lt(new Date(args.now.getTime() - DEAD_RETENTION_MS)),
+    ).deleteAndCount()
+    return processed + dead
   }
 
   private async claimDue(): Promise<Row<'GithubWebhookInbox'>[]> {

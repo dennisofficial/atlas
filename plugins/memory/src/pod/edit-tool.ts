@@ -23,8 +23,8 @@ const inputSchema = z.strictObject({
 
 const description = [
   'Replace one passage of a memory body.',
-  'old must occur exactly once in the body, and new replaces it.',
-  'revision is the revision you got from read_memory; the edit is refused if the memory changed since, in which case read it again.',
+  'old must occur exactly once in the body. new replaces it.',
+  'revision is the revision you got from read_memory. The edit is refused if the memory changed since. Read the memory again.',
 ].join(' ')
 
 export class EditMemoryTool extends SchemaTool<typeof inputSchema> {

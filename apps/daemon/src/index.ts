@@ -4,6 +4,7 @@ import { DAEMON_PORT, DAEMON_PORT_ENV } from '@dltech/atlas-protocol'
 import { DaemonEngine } from '@dltech/atlas-protocol/engine'
 
 import { sanitizeChildEnv } from './child-env'
+import { daemonCpuReadingOf } from './cpu'
 import { DiskCallStore, daemonHomeFromEnv } from './disk-store'
 import { daemonGroups } from './ops'
 import { protectDaemon, workMemory } from './protection'
@@ -80,6 +81,7 @@ const listener = listenWebSocket({
   version: DAEMON_VERSION,
   drain: handleDrain,
   restart: handleRestart,
+  cpu: () => daemonCpuReadingOf(),
 })
 
 const handleSignal = (): void => {

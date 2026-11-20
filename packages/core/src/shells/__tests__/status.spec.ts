@@ -13,7 +13,7 @@ describe('the sentence a shell ends on', () => {
   })
 
   it('names who killed the shell when the harness recorded it', () => {
-    expect(killedBy(EKilledBy.User)).toBe('was killed by the user')
+    expect(killedBy(EKilledBy.User)).toBe('was killed by the operator')
     expect(killedBy(EKilledBy.Model)).toBe('was killed at your request')
     expect(killedBy(EKilledBy.SessionEnd)).toBe('was killed when the sandbox went to sleep')
     expect(killedBy(EKilledBy.Rewind)).toBe('was killed by a rewind')

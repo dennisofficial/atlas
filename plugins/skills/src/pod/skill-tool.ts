@@ -45,8 +45,8 @@ const inputSchema = z.strictObject({
 
 const description = [
   'Load a skill: a packaged set of instructions someone already wrote for one kind of work, which becomes your procedure for it.',
-  'Call this whenever a skill listed in your system prompt covers the task in front of you, and call it before planning an approach of your own, because the packaged instructions know things about this workspace that you cannot infer.',
-  'Pass name exactly as the listing spells it. Pass arguments only when the task has a subject the skill should be pointed at; most skills need none.',
+  'Call this whenever a skill listed in your system prompt covers the task in front of you. Call it before you plan an approach of your own. The packaged instructions know things about this project directory that you cannot infer.',
+  'Pass name exactly as the listing spells it. Pass arguments only when the task has a subject that the skill should be pointed at. Most skills need none.',
   'Pass path to read one file a skill bundles: the path is relative to the skill\u2019s own directory.',
 ].join(' ')
 
@@ -96,14 +96,14 @@ const unknownReason = (args: { requested: string; catalogue: SkillCatalogue }): 
 const directoryNoteOf = (skill: CatalogueSkill): string =>
   skill.directory === null
     ? ''
-    : `The ${skill.name} skill is installed at ${skill.directory}. Every relative path below names a file inside that directory, so read one by joining it onto that path rather than onto the project directory.`
+    : `The ${skill.name} skill is installed at ${skill.directory}. Every relative path below names a file inside that directory. Read one by joining it onto that path rather than onto the project directory.`
 
 const bundlesFiles = (skill: CatalogueSkill): boolean =>
   isCloudSkill(skill) || (isBuiltInSkill(skill) && skill.files.length > 0)
 
 const bundledNoteOf = (skill: CatalogueSkill): string =>
   bundlesFiles(skill)
-    ? `The ${skill.name} skill has no directory in this session: read a file it bundles by calling this tool again with path set to that file's path.`
+    ? `The ${skill.name} skill has no directory in this session. Read a file it bundles by calling this tool again with path set to that file's path.`
     : ''
 
 const noteOf = (skill: CatalogueSkill): string => directoryNoteOf(skill) || bundledNoteOf(skill)
@@ -156,7 +156,7 @@ export class SkillTool extends SchemaTool<typeof inputSchema> {
     if (!found.modelInvocable)
       return {
         ok: false,
-        reason: `the ${found.name} skill sets disable-model-invocation, so only the developer may reach for it`,
+        reason: `the ${found.name} skill sets disable-model-invocation, so only the operator can load it`,
       }
 
     if (input.path !== undefined) return await this.readFile({ skill: found, path: input.path })

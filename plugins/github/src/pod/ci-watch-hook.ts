@@ -22,16 +22,16 @@ import { currentPullRequest, readCheckout } from './resolve-target'
 import { githubSubscriptionsOf } from './subscribe'
 
 export const CI_WATCH_DENY_REASON =
-  "Atlas is delivering this PR's events to you through a subscription and will wake you when CI reaches a verdict, a comment lands, or it merges. Do not poll or watch. Read once with `gh pr checks` (no --watch) for current state, or end your turn."
+  "Atlas is delivering this pull request's events to you through a subscription. It will wake you when CI reaches a verdict, a comment arrives, or the pull request merges. Do not poll or watch. Read once with `gh pr checks` (no --watch) for the current state, or end your turn."
 
 export const PULL_REQUEST_SUBSCRIBE_REASON =
-  "Atlas delivers pull request events through a subscription: call `subscribe` with provider `github.pull-request` (blank for this checkout's pull request), then end your turn. One-shot reads such as `gh pr checks` stay available."
+  "Atlas delivers pull request events through a subscription. Call `subscribe` with provider `github.pull-request` (blank for this project directory's pull request), then end your turn. One-shot reads such as `gh pr checks` stay available."
 
 export const WORKFLOW_RUN_WAKE_REASON =
-  'Atlas is already delivering this workflow run to you and will wake you when it finishes. End your turn; read once with `gh run view <id>` (no `--watch`) if you need the current state now.'
+  'Atlas is already delivering this workflow run to you and will wake you when it finishes. End your turn. Read once with `gh run view <id>` (no `--watch`) if you need the current state now.'
 
 export const WORKFLOW_RUN_SUBSCRIBE_REASON =
-  "Do not watch runs from bash: call `subscribe` with provider `github.workflow-run` (blank for this push's run, or `<workflow>@<branch>`), then end your turn. One-shot reads such as `gh run view <id>` stay available."
+  "Do not watch runs from bash. Call `subscribe` with provider `github.workflow-run` (blank for this push's run, or `<workflow>@<branch>`), then end your turn. One-shot reads such as `gh run view <id>` stay available."
 
 const bashInput = z.object({ command: z.string() })
 

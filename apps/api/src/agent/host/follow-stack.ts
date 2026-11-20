@@ -4,6 +4,8 @@ import type { LogPort, ProductAnalytics } from '@dltech/atlas-observability'
 
 import { startPgChangeFeed, type PgChangeFeed } from '../bus/pg-change-feed'
 import { createRedisLiveSource } from '../bus/redis-live-source'
+import { sandboxLiveCpuMs } from '../sandbox/sandbox-live-cpu'
+import { sandboxComputeFor } from '../sandbox/sandbox-runs'
 import { databaseUrlWithTls } from '../config/database-url'
 import type { AgentHostEnv } from '../config/env'
 import { createFollowSubscriptions, type FollowSubscriptions } from '../stream/follow-port'
@@ -43,6 +45,13 @@ export class FollowStack {
       log: this.args.log,
       ...(this.args.analytics === undefined ? {} : { analytics: this.args.analytics }),
       recordSurface: recordSessionSurface({ db: this.args.db }),
+      compute: async ({ sessionId }) => {
+        const cumulativeCpuMs = await sandboxLiveCpuMs({ sessionId })
+        return sandboxComputeFor({
+          sessionId,
+          ...(cumulativeCpuMs === undefined ? {} : { cumulativeCpuMs }),
+        })
+      },
     })
     this.feed = feed
     this.live = live

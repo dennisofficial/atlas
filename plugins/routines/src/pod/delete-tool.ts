@@ -14,8 +14,8 @@ import { SCHEDULING } from './scheduling'
 const inputSchema = z.strictObject({ routineId: z.string().min(1) })
 
 const description = [
-  'Delete a routine for good, so it stops being scheduled and leaves the Routines page in the Atlas web app.',
-  'Sessions its earlier runs created stay where they are. To stop a routine but keep it, use routine_update with enabled false instead.',
+  'Delete a routine for good. It stops being scheduled and it leaves the Routines page in the Atlas web app.',
+  'The sessions its earlier runs created stay where they are. To stop a routine but keep it, use routine_update with enabled false instead.',
   'Use routine_list to find the routineId.',
   ...SCHEDULING,
 ].join(' ')

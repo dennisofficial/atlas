@@ -54,7 +54,7 @@ export class SessionsListIndex {
       userId: subscription.userId,
       event: 'sessions_list_timed',
       properties: {
-        surface: 'stream',
+        source: 'stream',
         rows: digests.length,
         duration_ms: durationMs,
         ...digestTimingProperties(timings),

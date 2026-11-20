@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'65e8ab17771d5cf4f5d0a9493da0d7d329095a90a570b74cf08d3bbb317f390d'>;
+  StorageHashBase<'5e85d8cdcd62571cf9e061d2d249db49c7b6c39f6d336e6cb5e8b35a04d52b4b'>;
 export type ExecutionHash =
   ExecutionHashBase<'4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45'>;
 export type ProfileHash =
@@ -1320,6 +1320,25 @@ export namespace Models {
     sessionId: FieldOutputTypes['v2']['V2RoutineRun']['sessionId'];
     readonly [RelationKeys]?: never;
   };
+  export type v2_V2SandboxRun = {
+    activeCpuMs: FieldOutputTypes['v2']['V2SandboxRun']['activeCpuMs'];
+    awakeMs: FieldOutputTypes['v2']['V2SandboxRun']['awakeMs'];
+    costSource: FieldOutputTypes['v2']['V2SandboxRun']['costSource'];
+    costUsd: FieldOutputTypes['v2']['V2SandboxRun']['costUsd'];
+    cpuBaselineMs: FieldOutputTypes['v2']['V2SandboxRun']['cpuBaselineMs'];
+    diskGb: FieldOutputTypes['v2']['V2SandboxRun']['diskGb'];
+    endedAt: FieldOutputTypes['v2']['V2SandboxRun']['endedAt'];
+    id: FieldOutputTypes['v2']['V2SandboxRun']['id'];
+    memoryGb: FieldOutputTypes['v2']['V2SandboxRun']['memoryGb'];
+    provider: FieldOutputTypes['v2']['V2SandboxRun']['provider'];
+    sandboxInstanceId: FieldOutputTypes['v2']['V2SandboxRun']['sandboxInstanceId'];
+    sessionId: FieldOutputTypes['v2']['V2SandboxRun']['sessionId'];
+    startedAt: FieldOutputTypes['v2']['V2SandboxRun']['startedAt'];
+    userId: FieldOutputTypes['v2']['V2SandboxRun']['userId'];
+    vcpus: FieldOutputTypes['v2']['V2SandboxRun']['vcpus'];
+    session: v2_V2Session;
+    readonly [RelationKeys]?: 'session';
+  };
   export type v2_V2Session = {
     archivedAt: FieldOutputTypes['v2']['V2Session']['archivedAt'];
     createdAt: FieldOutputTypes['v2']['V2Session']['createdAt'];
@@ -1356,6 +1375,7 @@ export namespace Models {
     inbox: v2_V2InboxEntry[];
     lease: v2_V2Lease | null;
     pullRequests: v2_V2SessionPullRequest[];
+    sandboxRuns: v2_V2SandboxRun[];
     terminals: v2_V2Terminal[];
     threads: v2_V2Thread[];
     view: v2_V2SessionView | null;
@@ -1365,6 +1385,7 @@ export namespace Models {
       | 'inbox'
       | 'lease'
       | 'pullRequests'
+      | 'sandboxRuns'
       | 'terminals'
       | 'threads'
       | 'view'
@@ -1519,6 +1540,7 @@ export declare const models: {
     V2Lease: Models.v2_V2Lease;
     V2Routine: Models.v2_V2Routine;
     V2RoutineRun: Models.v2_V2RoutineRun;
+    V2SandboxRun: Models.v2_V2SandboxRun;
     V2Session: Models.v2_V2Session;
     V2SessionBranch: Models.v2_V2SessionBranch;
     V2SessionPullRequest: Models.v2_V2SessionPullRequest;
@@ -3599,8 +3621,24 @@ type ContractBase = Omit<
               uniques: readonly [{ readonly columns: readonly ['dedupeKey'] }];
               indexes: readonly [
                 {
-                  readonly name: 'GithubPrOutbox_pending_idx';
-                  readonly columns: readonly ['dispatchedAt', 'createdAt'];
+                  readonly name: 'GithubPrOutbox_parked_idx_420727ba';
+                  readonly prefix: 'GithubPrOutbox_parked_idx';
+                  readonly columns: readonly ['parkedSince'];
+                  readonly where: '("dispatchedAt" IS NULL AND "deadLetteredAt" IS NULL AND "parkedSince" IS NOT NULL)';
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'GithubPrOutbox_pending_idx_93d474b5';
+                  readonly prefix: 'GithubPrOutbox_pending_idx';
+                  readonly columns: readonly ['createdAt'];
+                  readonly where: '("dispatchedAt" IS NULL AND "deadLetteredAt" IS NULL)';
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'GithubPrOutbox_retry_idx_ceb33cdb';
+                  readonly prefix: 'GithubPrOutbox_retry_idx';
+                  readonly columns: readonly ['nextAttemptAt'];
+                  readonly where: '("dispatchedAt" IS NULL AND "deadLetteredAt" IS NULL AND "nextAttemptAt" IS NOT NULL)';
                   readonly unique: false;
                 },
               ];
@@ -4199,11 +4237,6 @@ type ContractBase = Omit<
               ];
               indexes: readonly [
                 {
-                  readonly name: 'GithubTrackingTarget_liveUntil_idx';
-                  readonly columns: readonly ['liveUntil'];
-                  readonly unique: false;
-                },
-                {
                   readonly name: 'GithubTrackingTarget_liveUntil_nextDueAt_idx';
                   readonly columns: readonly ['liveUntil', 'nextDueAt'];
                   readonly unique: false;
@@ -4282,7 +4315,7 @@ type ContractBase = Omit<
                 readonly payload: {
                   readonly dataType: 'pg/jsonb';
                   readonly codecId: 'pg/jsonb@1';
-                  readonly nullable: false;
+                  readonly nullable: true;
                   readonly many: false;
                 };
                 readonly processedAt: {
@@ -4310,13 +4343,24 @@ type ContractBase = Omit<
               uniques: readonly [];
               indexes: readonly [
                 {
-                  readonly name: 'GithubWebhookInbox_deadAt_idx';
+                  readonly name: 'GithubWebhookInbox_deadAt_idx_fcda36f6';
+                  readonly prefix: 'GithubWebhookInbox_deadAt_idx';
                   readonly columns: readonly ['deadAt'];
+                  readonly where: '("deadAt" IS NOT NULL)';
                   readonly unique: false;
                 },
                 {
-                  readonly name: 'GithubWebhookInbox_processedAt_idx';
+                  readonly name: 'GithubWebhookInbox_due_idx_c3c7694b';
+                  readonly prefix: 'GithubWebhookInbox_due_idx';
+                  readonly columns: readonly ['receivedAt'];
+                  readonly where: '("processedAt" IS NULL AND "deadAt" IS NULL)';
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'GithubWebhookInbox_processedAt_idx_be4956e2';
+                  readonly prefix: 'GithubWebhookInbox_processedAt_idx';
                   readonly columns: readonly ['processedAt'];
+                  readonly where: '("processedAt" IS NOT NULL)';
                   readonly unique: false;
                 },
               ];
@@ -7673,6 +7717,132 @@ type ContractBase = Omit<
               ];
               foreignKeys: readonly [];
             };
+            readonly V2SandboxRun: {
+              columns: {
+                readonly activeCpuMs: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly awakeMs: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly costSource: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly costUsd: {
+                  readonly dataType: 'pg/float8';
+                  readonly codecId: 'pg/float8@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly cpuBaselineMs: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly diskGb: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly endedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly id: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly memoryGb: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly provider: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly sandboxInstanceId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly sessionId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly startedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly userId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly vcpus: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'V2SandboxRun_sessionId_startedAt_idx_e70936f3';
+                  readonly prefix: 'V2SandboxRun_sessionId_startedAt_idx';
+                  readonly columns: readonly ['sessionId', 'startedAt'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'V2SandboxRun_userId_startedAt_idx_91bd1466';
+                  readonly prefix: 'V2SandboxRun_userId_startedAt_idx';
+                  readonly columns: readonly ['userId', 'startedAt'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'v2' & NamespaceId;
+                    readonly tableName: 'V2SandboxRun';
+                    readonly columns: readonly ['sessionId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'v2' & NamespaceId;
+                    readonly tableName: 'V2Session';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
             readonly V2Session: {
               columns: {
                 readonly archivedAt: {
@@ -7892,6 +8062,12 @@ type ContractBase = Omit<
               uniques: readonly [];
               indexes: readonly [
                 {
+                  readonly name: 'V2Session_mainThreadId_idx_60785a54';
+                  readonly prefix: 'V2Session_mainThreadId_idx';
+                  readonly columns: readonly ['mainThreadId'];
+                  readonly unique: false;
+                },
+                {
                   readonly name: 'V2Session_sandboxInstanceId_idx_c3850fdd';
                   readonly prefix: 'V2Session_sandboxInstanceId_idx';
                   readonly columns: readonly ['sandboxInstanceId'];
@@ -7940,19 +8116,16 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
               };
-              primaryKey: { readonly columns: readonly ['sessionId', 'headRepo', 'branch'] };
+              primaryKey: {
+                readonly columns: readonly ['sessionId', 'headRepo', 'branch'];
+                readonly name: 'V2SessionBranch_pkey';
+              };
               uniques: readonly [];
               indexes: readonly [
                 {
                   readonly name: 'V2SessionBranch_headRepo_branch_idx_2f926fb3';
                   readonly prefix: 'V2SessionBranch_headRepo_branch_idx';
                   readonly columns: readonly ['headRepo', 'branch'];
-                  readonly unique: false;
-                },
-                {
-                  readonly name: 'V2SessionBranch_sessionId_idx_29f415d4';
-                  readonly prefix: 'V2SessionBranch_sessionId_idx';
-                  readonly columns: readonly ['sessionId'];
                   readonly unique: false;
                 },
               ];
@@ -8146,16 +8319,12 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
               };
-              primaryKey: { readonly columns: readonly ['sessionId', 'terminalId'] };
+              primaryKey: {
+                readonly columns: readonly ['sessionId', 'terminalId'];
+                readonly name: 'V2Terminal_pkey';
+              };
               uniques: readonly [{ readonly columns: readonly ['sessionId', 'ordinal'] }];
-              indexes: readonly [
-                {
-                  readonly name: 'V2Terminal_sessionId_idx_29f415d4';
-                  readonly prefix: 'V2Terminal_sessionId_idx';
-                  readonly columns: readonly ['sessionId'];
-                  readonly unique: false;
-                },
-              ];
+              indexes: readonly [];
               foreignKeys: readonly [
                 {
                   readonly source: {
@@ -8612,6 +8781,10 @@ type ContractBase = Omit<
     readonly V2RoutineRun: {
       readonly namespace: 'v2' & NamespaceId;
       readonly model: 'V2RoutineRun';
+    };
+    readonly V2SandboxRun: {
+      readonly namespace: 'v2' & NamespaceId;
+      readonly model: 'V2SandboxRun';
     };
     readonly V2Session: { readonly namespace: 'v2' & NamespaceId; readonly model: 'V2Session' };
     readonly V2SessionBranch: {
@@ -10946,7 +11119,7 @@ type ContractBase = Omit<
                 };
               };
               readonly payload: {
-                readonly nullable: false;
+                readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
               };
               readonly processedAt: {
@@ -14552,6 +14725,113 @@ type ContractBase = Omit<
               };
             };
           };
+          readonly V2SandboxRun: {
+            readonly fields: {
+              readonly activeCpuMs: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly awakeMs: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly costSource: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly costUsd: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/float8@1' };
+              };
+              readonly cpuBaselineMs: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly diskGb: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly endedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly memoryGb: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly provider: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly sandboxInstanceId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly sessionId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly startedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly userId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly vcpus: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+            };
+            readonly relations: {
+              readonly session: {
+                readonly to: {
+                  readonly namespace: 'v2' & NamespaceId;
+                  readonly model: 'V2Session';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['sessionId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'V2SandboxRun';
+              readonly namespaceId: 'v2';
+              readonly fields: {
+                readonly activeCpuMs: { readonly column: 'activeCpuMs' };
+                readonly awakeMs: { readonly column: 'awakeMs' };
+                readonly costSource: { readonly column: 'costSource' };
+                readonly costUsd: { readonly column: 'costUsd' };
+                readonly cpuBaselineMs: { readonly column: 'cpuBaselineMs' };
+                readonly diskGb: { readonly column: 'diskGb' };
+                readonly endedAt: { readonly column: 'endedAt' };
+                readonly id: { readonly column: 'id' };
+                readonly memoryGb: { readonly column: 'memoryGb' };
+                readonly provider: { readonly column: 'provider' };
+                readonly sandboxInstanceId: { readonly column: 'sandboxInstanceId' };
+                readonly sessionId: { readonly column: 'sessionId' };
+                readonly startedAt: { readonly column: 'startedAt' };
+                readonly userId: { readonly column: 'userId' };
+                readonly vcpus: { readonly column: 'vcpus' };
+              };
+            };
+          };
           readonly V2Session: {
             readonly fields: {
               readonly archivedAt: {
@@ -14739,6 +15019,17 @@ type ContractBase = Omit<
                 readonly to: {
                   readonly namespace: 'v2' & NamespaceId;
                   readonly model: 'V2SessionPullRequest';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['sessionId'];
+                };
+              };
+              readonly sandboxRuns: {
+                readonly to: {
+                  readonly namespace: 'v2' & NamespaceId;
+                  readonly model: 'V2SandboxRun';
                 };
                 readonly cardinality: '1:N';
                 readonly on: {

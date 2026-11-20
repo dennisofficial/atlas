@@ -30,7 +30,7 @@ const inputSchema = z.strictObject({
 const description = [
   'Save a memory, or replace the one that already has this name in this scope.',
   'The name is lowercase words joined by hyphens and states the claim, like bun-deflate-is-raw-not-zlib.',
-  `The description is one line of at most ${MAX_MEMORY_DESCRIPTION_CHARS} characters and is what the index shows.`,
+  `The description is one line of at most ${MAX_MEMORY_DESCRIPTION_CHARS} characters. It is what the index shows.`,
   'The type is user, feedback, project or reference.',
   `The body states the fact first, then Why and How to apply, in at most ${MAX_MEMORY_BODY_CHARS} characters.`,
   'To change part of a memory, use edit_memory instead.',

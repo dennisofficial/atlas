@@ -30,8 +30,12 @@ type Input = z.output<typeof mcpEditInputSchema>
 
 const description = [
   'List and change the MCP servers this project’s sessions load from Atlas.',
-  'action is list, add, remove, disable or enable. name is the server name; transport is stdio {command, args, env} or http {url, headers}.',
-  'add writes a server with a transport; disable keeps its transport and stops it loading; enable re-enables a server that still carries a transport.',
+  'action is list, add, remove, disable or enable.',
+  'name is the server name.',
+  'transport is stdio {command, args, env} or http {url, headers}.',
+  'add writes a server with a transport.',
+  'disable keeps the transport of a server and stops it loading.',
+  'enable re-enables a server that still carries a transport.',
   'proxy runs the server on your Mac instead of in the sandbox.',
   'Changes apply on the next sandbox start.',
 ].join(' ')
@@ -98,7 +102,7 @@ const change = async (args: {
     return done({ text: `Disabled mcp server ${name}. ${APPLIES}` })
   }
   if (existing.transport === undefined) {
-    return fail(`mcp server "${name}" has no transport; add it with a transport to enable it`)
+    return fail(`mcp server "${name}" has no transport. Add a transport to enable it.`)
   }
   await client.putMcpServer({
     name,

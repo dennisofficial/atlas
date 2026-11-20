@@ -16,6 +16,8 @@ import {
   type Agent37CreateArgs,
   type Agent37ExecArgs,
   type Agent37ResizeArgs,
+  type Agent37Resources,
+  type Agent37Status,
 } from '../agent37-client'
 import { agent37BundleVersionOf } from '../agent37-daemon'
 import { agent37InstanceNameOf, type Agent37Env } from '../agent37-instances'
@@ -45,25 +47,40 @@ const fakeClient = (args: {
   version: string
   get?: Agent37Client['get']
   list?: Agent37Client['list']
+  status?: Agent37Status
+  resources?: Agent37Resources
 }) => {
   const creates: Agent37CreateArgs[] = []
   const execs: Agent37ExecArgs[] = []
   const slept: string[] = []
+  const started: string[] = []
   const resized: Agent37ResizeArgs[] = []
   const removed: string[] = []
+  const instance = { status: args.status ?? 'running' } as { status: Agent37Status }
   const client: Agent37Client = {
     create: async (body) => {
       creates.push(body)
       return { id: 'inst-1', status: 'running', url: 'https://inst-1.agent37.app' }
     },
     get:
-      args.get ?? (async ({ id }) => ({ id, status: 'running', url: `https://${id}.agent37.app` })),
+      args.get ??
+      (async ({ id }) => ({
+        id,
+        status: instance.status,
+        url: `https://${id}.agent37.app`,
+        ...(args.resources === undefined ? {} : { resources: args.resources }),
+      })),
     list: args.list ?? (async () => ({ data: [] })),
     remove: async ({ id }) => {
       removed.push(id)
     },
     sleep: async ({ id }) => {
       slept.push(id)
+    },
+    start: async ({ id }) => {
+      started.push(id)
+      instance.status = 'running'
+      return { id, status: 'running' }
     },
     resize: async (body) => {
       resized.push(body)
@@ -75,8 +92,10 @@ const fakeClient = (args: {
     },
     probe: async () => ({ status: 200, body: args.version }),
     signedUrl: async ({ id, port }) => `https://${id}-${port}.agent37.app/?a37_token=a37`,
+    usage: async () => ({ from: '', to: '' }),
+    events: async () => ({ from: '', to: '', events: [] }),
   }
-  return { client, creates, execs, slept, resized, removed }
+  return { client, creates, execs, slept, started, resized, removed }
 }
 
 const providerOf = (args: {
@@ -183,11 +202,44 @@ describe('Agent37SandboxProvider.resize', () => {
   it('resizes the remembered instance to the nearest vm shape, leaving disk alone', async () => {
     const { bundle: b, cleanup } = bundle()
     const version = await agent37BundleVersionOf(b.path)
-    const { client, resized } = fakeClient({ version })
+    const { client, started, resized } = fakeClient({ version })
     const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
     try {
-      await provider.resize({ target: TARGET, vcpus: 3 })
+      expect(await provider.resize({ target: TARGET, vcpus: 3 })).toBe('restarted')
       expect(resized).toEqual([{ id: 'inst-9', cpu: 4, memory: 8 }])
+      expect(started).toEqual([])
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('starts a sleeping instance before resizing it', async () => {
+    const { bundle: b, cleanup } = bundle()
+    const version = await agent37BundleVersionOf(b.path)
+    const { client, started, resized } = fakeClient({ version, status: 'sleeping' })
+    const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
+    try {
+      expect(await provider.resize({ target: TARGET, vcpus: 2 })).toBe('restarted')
+      expect(started).toEqual(['inst-9'])
+      expect(resized).toEqual([{ id: 'inst-9', cpu: 2, memory: 4 }])
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('leaves an instance already at the target shape alone, and stores the size', async () => {
+    const { bundle: b, cleanup } = bundle()
+    const version = await agent37BundleVersionOf(b.path)
+    const { client, started, resized } = fakeClient({
+      version,
+      status: 'sleeping',
+      resources: { cpu: 4, memory: 8, disk: 20 },
+    })
+    const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
+    try {
+      expect(await provider.resize({ target: TARGET, vcpus: 3 })).toBe('stored')
+      expect(started).toEqual([])
+      expect(resized).toEqual([])
     } finally {
       cleanup()
     }

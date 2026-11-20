@@ -72,7 +72,7 @@ describe('handing a finished delegate to the parent that spawned it', () => {
     const block = blocksOf(assembleWith({ drafts: [ended({ prose: '<no content>' })] }))[0] ?? ''
 
     expect(block).toContain('<no content>')
-    expect(block).toMatch(/ended with no reply content/)
+    expect(block).toMatch(/ended with no text/)
     expect(block).toMatch(/agent_say to try again/)
     expect(block).toMatch(/compensate/)
     expect(block).toContain('finished after 4 turns and 11 tool calls')
@@ -86,8 +86,8 @@ describe('handing a finished delegate to the parent that spawned it', () => {
         }),
       )[0] ?? ''
 
-    expect(block).toContain('The user stopped this agent deliberately')
-    expect(block).toMatch(/ended with no reply content/)
+    expect(block).toContain('The operator stopped this sub-agent deliberately')
+    expect(block).toMatch(/ended with no text/)
   })
 
   it('renders the ending where it landed in the log, not at the tail', () => {
@@ -335,8 +335,8 @@ describe('an agent the operator stopped', () => {
   it('tells the parent a human did it, so it does not read the stop as its own', () => {
     const block = stoppedBy(EKilledBy.User)
 
-    expect(block).toContain('was stopped by the user after')
-    expect(block).toContain('The user stopped this agent deliberately')
+    expect(block).toContain('was stopped by the operator after')
+    expect(block).toContain('The operator stopped this sub-agent deliberately')
     expect(block).toContain('I had read four files.')
   })
 
@@ -344,32 +344,32 @@ describe('an agent the operator stopped', () => {
     const block = stoppedBy(EKilledBy.Model)
 
     expect(block).toContain('was stopped at your request after')
-    expect(block).not.toContain('The user stopped this agent deliberately')
+    expect(block).not.toContain('The operator stopped this sub-agent deliberately')
   })
 
   it('tells the parent a lost agent was nobody\u2019s decision, and its work may be half-applied', () => {
     const block = stoppedBy(EKilledBy.Unrecorded)
 
     expect(block).toContain('was lost before anything recorded how it ended')
-    expect(block).toContain('the session it was running in went away')
+    expect(block).toContain('The session it ran in went away')
     expect(block).toContain('may be half-applied')
-    expect(block).not.toContain('The user stopped this agent deliberately')
+    expect(block).not.toContain('The operator stopped this sub-agent deliberately')
   })
 
   it('says nothing extra when teardown stopped it', () => {
     const block = stoppedBy(EKilledBy.SessionEnd)
 
     expect(block).toContain('was stopped when the sandbox went to sleep, after')
-    expect(block).not.toContain('The user stopped this agent deliberately')
+    expect(block).not.toContain('The operator stopped this sub-agent deliberately')
   })
 
   it('tells the parent a relocated agent is resuming, not ended', () => {
     const block = stoppedBy(EKilledBy.ContainerSwitch)
 
-    expect(block).toContain('moved with the conversation and is resuming there')
-    expect(block).toContain('the agent is resuming there')
-    expect(block).toContain('It will report again when it actually ends')
-    expect(block).not.toContain('The user stopped this agent deliberately')
+    expect(block).toContain('moved with the session and is resuming there')
+    expect(block).toContain('the sub-agent is resuming there')
+    expect(block).toContain('It will report again when the real ending arrives')
+    expect(block).not.toContain('The operator stopped this sub-agent deliberately')
   })
 })
 
@@ -401,13 +401,13 @@ describe('a bookkeeping ending, and the retry line on endings that went wrong', 
     'tells the parent to agent_say to a %s agent to retry',
     (status) => {
       const block = blocksOf(assembleWith({ drafts: [ended({ status })] }))[0] ?? ''
-      expect(block).toContain('agent_say to it to retry')
+      expect(block).toContain('Send agent_say to retry it')
     },
   )
 
   it('does not suggest a retry for a finished agent', () => {
     const block = blocksOf(assembleWith({ drafts: [ended()] }))[0] ?? ''
-    expect(block).not.toContain('agent_say to it to retry')
+    expect(block).not.toContain('Send agent_say to retry it')
   })
 
   it('tells the parent to spawn fresh, not retry, when the thread fails prompt assembly', () => {
@@ -423,8 +423,8 @@ describe('a bookkeeping ending, and the retry line on endings that went wrong', 
           ],
         }),
       )[0] ?? ''
-    expect(block).not.toContain('agent_say to it to retry')
-    expect(block).toContain('Spawn a fresh agent')
+    expect(block).not.toContain('Send agent_say to retry it')
+    expect(block).toContain('Spawn a fresh sub-agent')
     expect(block).toContain('prompt assembly fails on every step')
   })
 
@@ -441,7 +441,7 @@ describe('a bookkeeping ending, and the retry line on endings that went wrong', 
           ],
         }),
       )[0] ?? ''
-    expect(block).toContain('agent_say to it to retry')
+    expect(block).toContain('Send agent_say to retry it')
   })
 })
 
@@ -455,7 +455,7 @@ describe('services a finished delegate left running', () => {
       )[0] ?? ''
 
     expect(block).toContain(
-      'It left 2 services running, which you own now: bun run dev; docs preview.',
+      'It left 2 services running, and you own them now: bun run dev; docs preview.',
     )
     expect(block).toContain('service_stop')
   })
