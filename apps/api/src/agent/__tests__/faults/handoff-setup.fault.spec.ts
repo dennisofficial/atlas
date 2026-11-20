@@ -94,12 +94,12 @@ describeHandoff({
     await waitUntil({
       what: 'the setup script to be reported interrupted',
       check: async () =>
-        (await setupStepsOf(ctx)).some((step) => step.state === EWorkspaceStepState.Failed),
+        (await setupStepsOf(ctx)).some((step) => step.state === EWorkspaceStepState.Interrupted),
     })
     const steps = await setupStepsOf(ctx)
     expect(startedCount(steps)).toBe(1)
     expect(steps.filter((step) => step.state === EWorkspaceStepState.Done)).toHaveLength(0)
-    expect(steps.filter((step) => step.state === EWorkspaceStepState.Failed)).toEqual([
+    expect(steps.filter((step) => step.state === EWorkspaceStepState.Interrupted)).toEqual([
       expect.objectContaining({ reason: SETUP_INTERRUPTED_REASON }),
     ])
   },

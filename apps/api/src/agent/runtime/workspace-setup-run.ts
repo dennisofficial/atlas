@@ -51,7 +51,7 @@ export const runSetupOnce = async (args: {
     report({ deps, message: reason, detail: output })
     args.onStep?.({
       step: EWorkspaceStep.Setup,
-      state: EWorkspaceStepState.Failed,
+      state: interrupted ? EWorkspaceStepState.Interrupted : EWorkspaceStepState.Failed,
       reason,
       ...recorded,
     })

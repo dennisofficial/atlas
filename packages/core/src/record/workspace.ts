@@ -25,6 +25,7 @@ export enum EWorkspaceStepState {
   Started = 'started',
   Done = 'done',
   Failed = 'failed',
+  Interrupted = 'interrupted',
 }
 
 export enum EWorkspaceStepOutcome {
