@@ -1,30 +1,21 @@
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test'
 
 import { GithubHeadReads } from './github-head-reads'
 
-const requests: string[] = []
-const prior = process.env.GITHUB_API_URL
-
-const fakeGitHub = Bun.serve({
-  port: 0,
-  fetch: (request) => {
-    const url = new URL(request.url)
-    requests.push(`${url.pathname}${url.search}`)
-    return new Response('[]', { headers: { 'content-type': 'application/json' } })
-  },
-})
-
-beforeAll(() => {
-  process.env.GITHUB_API_URL = `http://127.0.0.1:${fakeGitHub.port}`
-})
-
-afterAll(() => {
-  if (prior === undefined) delete process.env.GITHUB_API_URL
-  else process.env.GITHUB_API_URL = prior
-  fakeGitHub.stop(true)
-})
-
 describe('GithubHeadReads', () => {
+  const urls: string[] = []
+  let restore: () => void
+
+  beforeEach(() => {
+    urls.length = 0
+    const mock = spyOn(globalThis, 'fetch').mockImplementation((async (input: URL | string) => {
+      urls.push(String(input))
+      return Response.json([])
+    }) as unknown as typeof fetch)
+    restore = () => mock.mockRestore()
+  })
+  afterEach(() => restore())
+
   it('qualifies the head with the fork owner on the parent query', async () => {
     const reads = new GithubHeadReads()
     await reads.pullsByHead({
@@ -34,8 +25,8 @@ describe('GithubHeadReads', () => {
       branch: 'dennis/feature',
     })
 
-    expect(requests).toEqual([
-      '/repos/compai/app/pulls?state=all&head=dennis:dennis%2Ffeature&per_page=100',
+    expect(urls).toEqual([
+      'https://api.github.com/repos/compai/app/pulls?state=all&head=dennis:dennis%2Ffeature&per_page=100',
     ])
   })
 })
