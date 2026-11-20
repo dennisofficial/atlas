@@ -1,12 +1,11 @@
 'use client'
 
 import { AlertCircle } from 'lucide-react'
-import { useEffect } from 'react'
 
 import { Alert, AlertDescription } from '@dltech/atlas-ui/components/alert'
 import { Button } from '@dltech/atlas-ui/components/button'
 
-import { captureException } from '@/lib/analytics/analytics'
+import { ErrorDetails } from '@/features/errors/error-details'
 
 export default function Error({
   error,
@@ -15,10 +14,6 @@ export default function Error({
   error: Error & { digest?: string }
   reset: () => void
 }) {
-  useEffect(() => {
-    captureException(error)
-  }, [error])
-
   return (
     <div className="mx-auto flex min-h-svh max-w-sm flex-col justify-center gap-3 p-6">
       <Alert variant="destructive">
@@ -27,6 +22,7 @@ export default function Error({
           Something went wrong loading this page. Try again, and if it keeps failing, reload Atlas.
         </AlertDescription>
       </Alert>
+      <ErrorDetails error={error} />
       <Button variant="outline" onClick={reset}>
         Try again
       </Button>

@@ -25,6 +25,7 @@ const toCloudApiError = (failure: unknown): CloudApiError => {
     message: detailMessageOf(details) ?? errorMessage ?? `Atlas Cloud answered ${status}`,
     status,
     code: stringOf(details?.code),
+    requestId: stringOf(details?.requestId),
   })
 }
 

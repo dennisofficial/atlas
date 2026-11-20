@@ -19,7 +19,14 @@ export function QueryFailure({ error, onRetry }: { error: CloudApiError; onRetry
     <Alert variant="destructive" role="alert">
       <AlertCircleIcon />
       <AlertTitle>Couldn&apos;t load this</AlertTitle>
-      <AlertDescription>{error.message}</AlertDescription>
+      <AlertDescription>
+        {error.message}
+        {error.requestId === undefined ? null : (
+          <span className="mt-1 block font-mono text-[11px] text-muted-foreground">
+            Request {error.requestId}
+          </span>
+        )}
+      </AlertDescription>
       <AlertAction>
         <Button variant="outline" size="xs" onClick={onRetry}>
           Retry
