@@ -10,7 +10,7 @@ import {
 import {
   actionableEntries,
   isStop,
-  logPendingMessageIdsOf,
+  logPendingInputIdsOf,
   readFullInbox,
   stopSettledPromptOf,
   understandsCommand,
@@ -32,7 +32,7 @@ export const drainNeedsHolder = async (args: {
     )
     const events = cache?.eventsAfter(0) ?? []
     if (setupInFlightOf(events)) return true
-    const logIds = logPendingMessageIdsOf(events)
+    const logIds = logPendingInputIdsOf(events)
     const workspace = workspaceStateFrom({
       record: cache?.bookkeeping().workspace() ?? NO_WORKSPACE_RECORD,
       preparing: false,

@@ -7,6 +7,7 @@ import { messageOf } from '@/features/threads/data/use-send'
 
 import {
   queuedMediaHashesOf,
+  queuedNoticesOf,
   stagedQueuedOf,
   visibleQueuedOf,
   type StagedMessage,
@@ -30,6 +31,7 @@ export function useQueuedDock(args: {
     [pending, queueStaged, transcriptStaged],
   )
   const urls = useMediaUrls({ sessionId, hashes })
+  const notices = useMemo(() => queuedNoticesOf(pending), [pending])
   const queued = useMemo(() => visibleQueuedOf({ pending, urls }), [pending, urls])
   const staged = useMemo(() => stagedQueuedOf({ staged: queueStaged, urls }), [queueStaged, urls])
   const transcriptEntries = useMemo(
@@ -69,5 +71,5 @@ export function useQueuedDock(args: {
     if (withdrawIds.has(id)) void withdraw({ id, restoreText: false })
   }
 
-  return { entries, stagedIds, transcriptEntries, handleEdit, handleRemove }
+  return { entries, notices, stagedIds, transcriptEntries, handleEdit, handleRemove }
 }

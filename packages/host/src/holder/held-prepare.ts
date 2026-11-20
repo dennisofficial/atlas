@@ -1,6 +1,8 @@
 import {
   ESetupPhase,
   EWorkspaceStep,
+  INBOX_KIND_EVENT,
+  inboxEventPayloadOf,
   EWorkspaceStepState,
   setupFinishedText,
   setupStartedText,
@@ -201,18 +203,19 @@ export class HeldPrepare {
     await this.steps
     // a replayed lifecycle, or an end an earlier host already recorded, is reported once
     if (!this.args.abandoned() && !setupNoticesOf(target.record).has(ESetupPhase.Finished)) {
-      await target.record
-        .append({
-          threadId: target.threadId,
-          runId: this.args.deps.ids.nextRunId(),
-          drafts: [
-            {
+      await this.args.deps.plane
+        .post({
+          sessionId: this.args.deps.sessionId,
+          kind: INBOX_KIND_EVENT,
+          payload: inboxEventPayloadOf({
+            event: {
               type: 'sandbox-setup-reported',
               text: finished.text,
               failed: finished.failed,
               phase: ESetupPhase.Finished,
             },
-          ],
+            clientId: `sandbox-setup-finished:${this.args.deps.sessionId}`,
+          }),
         })
         .catch(appendFailureReporter(this.args.deps, 'recording the end of the setup'))
     }

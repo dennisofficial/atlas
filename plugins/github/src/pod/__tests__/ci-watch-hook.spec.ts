@@ -59,6 +59,7 @@ const rig = (answers: Record<string, ReturnType<typeof exec>>) => {
     crew: EMPTY_CREW,
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
+    notify: async () => undefined,
     sessionId: 's1',
     append,
     events: () => log,

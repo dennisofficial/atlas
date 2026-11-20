@@ -120,6 +120,7 @@ export const rig = (routines: PodRoutines = fakeRoutines().port) => {
       },
     },
     append: async () => undefined,
+    notify: async () => undefined,
     events: () => [],
     call: async () => {
       throw new Error('this rig calls no daemon')

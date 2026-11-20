@@ -1,7 +1,10 @@
 import { HookChain, ToolRegistry, type HookChainArgs } from '@dltech/atlas-agent'
 import {
   EModelFallbackReason,
+  INBOX_KIND_EVENT,
   TEAMMATE_AGENT_TYPE,
+  inboxEventPayloadOf,
+  type EventBody,
   type EventDraft,
   type ThreadId,
   type ToolDeclaration,
@@ -106,6 +109,18 @@ export const pluginCallOf = (args: {
     })
 }
 
+const postNoticeToSession = async (args: {
+  deps: HeldSessionDeps
+  event: EventBody
+  key: string
+}): Promise<void> => {
+  await args.deps.plane.post({
+    sessionId: args.deps.sessionId,
+    kind: INBOX_KIND_EVENT,
+    payload: inboxEventPayloadOf({ event: args.event, clientId: args.key }),
+  })
+}
+
 export const pluginPodContextOf = (args: {
   deps: HeldSessionDeps
   runtime: SessionRuntime
@@ -113,6 +128,7 @@ export const pluginPodContextOf = (args: {
   threadId: ThreadId
   signal: AbortSignal
   crew: PodCrew
+  notify?: ((event: EventBody, options: { key: string }) => Promise<void>) | undefined
 }): PluginPodContext => {
   const { deps, runtime, record, threadId } = args
   const append = async (drafts: readonly EventDraft[]): Promise<void> => {
@@ -135,6 +151,10 @@ export const pluginPodContextOf = (args: {
     }),
     worktrees: worktreesOf({ calls: runtime.remoteCalls }),
     append,
+    notify: async (event, options) =>
+      await (args.notify === undefined
+        ? postNoticeToSession({ deps, event, key: options.key })
+        : args.notify(event, options)),
     events: () => record.eventCache().eventsAfter(0),
     call: pluginCallOf({
       invoke: (call) => runtime.remoteCalls.invoke(call),

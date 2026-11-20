@@ -1,6 +1,7 @@
 import { podControlStub } from '@dltech/atlas-plugin-sdk/testing'
 import {
   toThreadId,
+  type EventBody,
   type EventDraft,
   type PluginEventBody,
   type RecordBody,
@@ -109,6 +110,7 @@ export const rig = () => {
     return ok(op.op, shell.info)
   }
 
+  const notices: { event: EventBody; key: string }[] = []
   const ctx: PluginPodContext = {
     control: podControlStub,
     crew: EMPTY_CREW,
@@ -116,6 +118,9 @@ export const rig = () => {
     worktrees: EMPTY_WORKTREES,
     sessionId: 's1',
     append,
+    notify: async (event, options) => {
+      notices.push({ event, key: options.key })
+    },
     events: () => log,
     call,
     live: (frame) => liveFrames.push(frame),
@@ -143,7 +148,7 @@ export const rig = () => {
     return { kind: 'event', event: { type: 'shells.ended', shellId, info: shell.info } }
   }
 
-  return { ctx, log, shells, calls, liveFrames, print, output, finish, frame, listeners }
+  return { ctx, log, shells, calls, liveFrames, print, output, finish, frame, listeners, notices }
 }
 
 export const invoke = async (args: {

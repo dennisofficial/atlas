@@ -1,19 +1,24 @@
 import type { AgentIntake, PendingDrain } from '@dltech/atlas-agent'
+import type { EventDraft } from '@dltech/atlas-core'
 
 export class ChildIntake implements AgentIntake {
-  private queued = 0
+  private drafts: EventDraft[] = []
+  private signals = 0
 
-  accept(): void {
-    this.queued += 1
+  accept(draft?: EventDraft): void {
+    this.signals += 1
+    if (draft !== undefined) this.drafts.push(draft)
   }
 
   get pending(): number {
-    return this.queued
+    return this.signals
   }
 
   async prepare(): Promise<PendingDrain> {
-    const wakesTurn = this.queued > 0
-    this.queued = 0
-    return { drafts: [], wakesTurn }
+    const drafts = this.drafts
+    const wakesTurn = this.signals > 0
+    this.drafts = []
+    this.signals = 0
+    return { drafts, wakesTurn }
   }
 }

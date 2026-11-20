@@ -30,17 +30,21 @@ describe('recordShellEnding', () => {
     harness.print(shellId, 'done\n')
     harness.finish(shellId, EShellRunStatus.Exited, 3)
     await ending(harness, shellId)
-    expect(harness.log.at(-1)).toMatchObject({
-      type: 'background-shell-ended',
-      shellId,
-      command: 'sleep 30',
-      description: 'ticker',
-      status: EShellStatus.Exited,
-      exitCode: 3,
-      output: 'done\n',
-      droppedCharacters: 0,
-      remainingCharacters: 0,
+    expect(harness.notices.at(-1)).toMatchObject({
+      event: {
+        type: 'background-shell-ended',
+        shellId,
+        command: 'sleep 30',
+        description: 'ticker',
+        status: EShellStatus.Exited,
+        exitCode: 3,
+        output: 'done\n',
+        droppedCharacters: 0,
+        remainingCharacters: 0,
+      },
+      key: `background-shell-ended:${shellId}`,
     })
+    expect(harness.log.filter((e) => e.type === 'background-shell-ended')).toHaveLength(0)
   })
 
   it('records a timeout as a kill by the timeout', async () => {
@@ -48,7 +52,7 @@ describe('recordShellEnding', () => {
     const shellId = await started(harness)
     harness.finish(shellId, EShellRunStatus.TimedOut, null)
     await ending(harness, shellId)
-    const event = harness.log.at(-1)
+    const event = harness.notices.at(-1)?.event
     expect(event).toMatchObject({ status: EShellStatus.Killed, killedBy: EKilledBy.Timeout })
     expect(event && 'exitCode' in event).toBe(false)
   })
@@ -58,7 +62,10 @@ describe('recordShellEnding', () => {
     const shellId = await started(harness)
     harness.finish(shellId, EShellRunStatus.OomKilled, 137)
     await ending(harness, shellId)
-    expect(harness.log.at(-1)).toMatchObject({ status: EShellStatus.Exited, exitCode: 137 })
+    expect(harness.notices.at(-1)?.event).toMatchObject({
+      status: EShellStatus.Exited,
+      exitCode: 137,
+    })
   })
 
   it('records a frame delivered twice only once', async () => {
@@ -67,7 +74,7 @@ describe('recordShellEnding', () => {
     harness.finish(shellId, EShellRunStatus.Exited, 0)
     await ending(harness, shellId)
     await ending(harness, shellId)
-    expect(harness.log.filter((e) => e.type === 'background-shell-ended')).toHaveLength(1)
+    expect(harness.notices).toHaveLength(1)
   })
 
   it('skips an ending the journal already holds, as after a holder restart', async () => {
@@ -86,7 +93,7 @@ describe('recordShellEnding', () => {
     ])
     harness.finish(shellId, EShellRunStatus.Exited, 0)
     await ending(harness, shellId)
-    expect(harness.log.filter((e) => e.type === 'background-shell-ended')).toHaveLength(1)
+    expect(harness.notices).toHaveLength(0)
   })
 
   it('records an empty output when the read fails', async () => {
@@ -115,7 +122,10 @@ describe('recordShellEnding', () => {
         },
       },
     })
-    expect(harness.log.at(-1)).toMatchObject({ output: '', status: EShellStatus.Killed })
+    expect(harness.notices.at(-1)?.event).toMatchObject({
+      output: '',
+      status: EShellStatus.Killed,
+    })
   })
 
   it('ignores output frames and other events', async () => {
@@ -138,6 +148,9 @@ describe('recordShellEnding', () => {
     harness.finish(shellId, EShellRunStatus.Exited, 0)
     await new Promise((resolve) => setTimeout(resolve, 0))
     await new Promise((resolve) => setTimeout(resolve, 0))
-    expect(harness.log.at(-1)).toMatchObject({ type: 'background-shell-ended', output: 'bye\n' })
+    expect(harness.notices.at(-1)?.event).toMatchObject({
+      type: 'background-shell-ended',
+      output: 'bye\n',
+    })
   })
 })

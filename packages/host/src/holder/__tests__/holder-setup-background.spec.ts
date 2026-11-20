@@ -4,7 +4,6 @@ import {
   EWorkspaceStep,
   EWorkspaceStepState,
   setupInFlightOf,
-  type WorkspaceStepReport,
 } from '@dltech/atlas-core'
 import { ScriptedModel } from '@dltech/atlas-agent/testing'
 
@@ -214,6 +213,11 @@ describe('a setup script that runs in the background', () => {
     const types = await typesOf(rig)
     expect(types).not.toContain('run-failed')
     expect(model.requests.length).toBeLessThanOrEqual(2)
+    const finished = (await noticesOf(rig)).filter(
+      (event) => event.type === 'sandbox-setup-reported' && event.phase === ESetupPhase.Finished,
+    )
+    expect(finished).toHaveLength(1)
+    expect(JSON.stringify(model.requests[1]?.assembled.messages)).toContain('finished after 1.4s')
     rig.holder.discard()
   })
 

@@ -4,6 +4,7 @@ import {
   INBOX_KIND_STOP,
   pendingInputsOf,
   pendingMessagesOf,
+  pendingNoticesOf,
   type V2Event,
   type InboxEntry,
   type PrepareFailure,
@@ -41,8 +42,10 @@ export const readInboxPages = async (args: {
 export const readFullInbox = (deps: HeldSessionDeps): Promise<InboxEntry[]> =>
   readInboxPages({ plane: deps.plane, sessionId: deps.sessionId })
 
-export const logPendingMessageIdsOf = (events: readonly V2Event[]): number[] =>
-  pendingMessagesOf(pendingInputsOf(events)).map((entry) => entry.inboxId)
+export const logPendingInputIdsOf = (events: readonly V2Event[]): number[] => {
+  const pending = pendingInputsOf(events)
+  return [...pendingMessagesOf(pending), ...pendingNoticesOf(pending)].map((entry) => entry.inboxId)
+}
 
 export const waitingInputIdsOf = (args: {
   ids: readonly number[]

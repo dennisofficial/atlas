@@ -50,3 +50,39 @@ export const driveTurns = async (
   }
   return outcome
 }
+
+const resumesAfter = (outcome: TurnOutcome): boolean =>
+  outcome.status === ETurnStatus.Completed || outcome.status === ETurnStatus.Idle
+
+export const driveLifecycle = async (
+  args: TurnArgs & {
+    drive: DriveArgs
+    stopped(): boolean
+    restarted(via: EAgentRestart): Promise<void>
+    owedTurn(): boolean
+    handingOff(): boolean
+    reset(): void
+    settle(outcome: TurnOutcome): Promise<void>
+  },
+): Promise<void> => {
+  let next: DriveArgs = args.drive
+  for (;;) {
+    args.reset()
+    const outcome = await driveTurns({
+      drive: next,
+      runner: args.runner,
+      intake: args.intake,
+      pause: args.pause,
+      threadId: args.threadId,
+      signal: args.signal,
+      stopped: args.stopped,
+      restarted: args.restarted,
+    })
+    if (args.handingOff()) return
+    if (!resumesAfter(outcome) || !args.owedTurn()) {
+      await args.settle(outcome)
+      if (!resumesAfter(outcome) || !args.owedTurn()) return
+    }
+    next = { resume: true }
+  }
+}

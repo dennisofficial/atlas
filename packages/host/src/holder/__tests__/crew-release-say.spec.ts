@@ -17,7 +17,7 @@ import {
 import { ScriptedModel, type ScriptedModelStep } from '@dltech/atlas-agent/testing'
 import { z } from 'zod'
 
-import { flushUntil, makeRig, seedSession, THREAD_ID } from './holder-rig'
+import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID } from './holder-rig'
 
 const CHILD_BRIEF = 'RELEASE-BRIEF take the first pass'
 const SECOND_BRIEF = 'RELEASE-SECOND go once more'
@@ -126,35 +126,24 @@ const releaseRig = async (scripts: {
   const state: ProbeState = { agentId: undefined, said: undefined, missing: undefined }
   const parent = new ScriptedModel(scripts.parent)
   const child = new ScriptedModel(scripts.child)
-  let built: Awaited<ReturnType<typeof makeRig>> | undefined
-  const childEnded = async (): Promise<boolean> => {
-    if (built === undefined) return false
-    const events = await eventsIn(built, THREAD_ID)
-    return events.some((event) => event.type === 'agent-ended')
-  }
-  const awaitChildEnded = async (): Promise<void> => {
-    for (let attempt = 0; attempt < 400; attempt += 1) {
-      if (await childEnded()) return
-      await new Promise((resolve) => setTimeout(resolve, 5))
-    }
-  }
   const model: ModelPort = {
     identity: parent.identity,
-    step: async (args) => {
-      if (JSON.stringify(args.assembled).includes(CHILD_BRIEF)) return child.step(args)
-      if (parent.requests.length === 1) await awaitChildEnded()
-      return parent.step(args)
-    },
+    step: async (args) =>
+      JSON.stringify(args.assembled).includes(CHILD_BRIEF) ? child.step(args) : parent.step(args),
   }
   const rig = await makeRig({
     plugins: composePlugins([releaseProbePlugin(state)]),
     model: () => model,
   })
-  built = rig
   await seedSession(rig)
   await rig.holder.start()
   return { rig, state }
 }
+
+const endingQueued = async (rig: Awaited<ReturnType<typeof makeRig>>): Promise<boolean> =>
+  (await rig.plane.readInbox({ sessionId: SESSION, afterId: 0, limit: 200 })).some(
+    (entry) => entry.kind === 'event' && entry.payload.includes('"agent-ended"'),
+  )
 
 const eventsIn = async (
   rig: Awaited<ReturnType<typeof makeRig>>,
@@ -188,16 +177,36 @@ const saidTexts = (events: readonly V2Event[]): string[] =>
 const endingsOf = (args: { events: readonly V2Event[]; agentId: string }): V2Event[] =>
   args.events.filter((event) => event.type === 'agent-ended' && event.agentId === args.agentId)
 
+const deliverEndings = async (args: {
+  rig: Awaited<ReturnType<typeof makeRig>>
+  agentId: string
+  count: number
+}): Promise<boolean> =>
+  await flushUntil({
+    check: async () => {
+      const events = await eventsIn(args.rig, THREAD_ID)
+      if (endingsOf({ events, agentId: args.agentId }).length >= args.count) return true
+      if (await endingQueued(args.rig)) await args.rig.wake()
+      return false
+    },
+    clock: args.rig.clock,
+    attempts: 400,
+  })
+
 describe('a say to a finished sub-agent after its parent’s lease was released', () => {
   it('re-adopts the child, runs one more turn and ends it once', async () => {
     const { rig, state } = await releaseRig({
       parent: [
         { calls: [{ callId: 'c1', name: SPAWN_PROBE, input: {} }] },
         { text: 'parent done' },
+        { text: 'saw the ending' },
         { calls: [{ callId: 'c2', name: SAY_PROBE, input: {} }] },
         { text: 'saw the second answer' },
         { calls: [{ callId: 'c3', name: MISSING_PROBE, input: {} }] },
         { text: 'saw the missing error' },
+        { text: 'parent idle again' },
+        { text: 'parent still idle' },
+        { text: 'parent idles once more' },
       ],
       child: [{ text: 'child answer' }, { text: 'child second' }],
     })
@@ -213,6 +222,9 @@ describe('a say to a finished sub-agent after its parent’s lease was released'
     })
     expect(answered).toBe(true)
     const childId = childIdOf(await eventsIn(rig, THREAD_ID))
+
+    const drained = await deliverEndings({ rig, agentId: childId, count: 1 })
+    expect(drained).toBe(true)
 
     const released = await flushUntil({
       check: () => rig.holder.heldIds().length === 0,
@@ -233,6 +245,7 @@ describe('a say to a finished sub-agent after its parent’s lease was released'
       clock: rig.clock,
     })
     expect(answeredAgain).toBe(true)
+    expect(await deliverEndings({ rig, agentId: childId, count: 2 })).toBe(true)
     await rig.flush()
 
     const parent = await eventsIn(rig, THREAD_ID)

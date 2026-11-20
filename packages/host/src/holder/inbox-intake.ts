@@ -1,25 +1,21 @@
 import {
-  INBOX_KIND_AGENT_NOTICE,
   INBOX_KIND_EVENT,
   INBOX_KIND_RETRY,
   INBOX_KIND_STOP,
-  inboxEventOf,
-  isTurnTaking,
-  visibleEvents,
+  pendingInputsOf,
   type EventDraft,
   type InboxEntry,
   type ModelPort,
   type PluginEventBody,
   type RecordBody,
-  type InputMessage,
   type RunId,
   type ThreadId,
   userSaidOf,
 } from '@dltech/atlas-core'
-import { unfinishedCommandIdsOf, type ControlPlane } from '@dltech/atlas-control'
+import type { ControlPlane } from '@dltech/atlas-control'
 import type { AgentIntake, PendingDrain } from '@dltech/atlas-agent'
 import type { CommandRegistry } from '@dltech/atlas-commands'
-import { INBOX_KIND_MESSAGE, inboxMessageSchema } from '@dltech/atlas-protocol'
+import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
 import { INBOX_KIND_OPERATOR_ANSWER } from '@dltech/atlas-plugin-operator/core'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
@@ -33,18 +29,23 @@ import {
 } from './command-intake-glue'
 import { CommandIntake, isCommandKind, type CommandHandlers } from './command-intake'
 import { INBOX_INTAKE_MAX_PAGES, readInboxPages } from './held-inbox'
-import type { OperatorAnswerIntake, OperatorAnswerOutcome } from './operator-answer'
+import {
+  drainEventEntry,
+  drainLoggedNotices,
+  stagedMessageOf,
+  type StagedMessage,
+} from './notice-drain'
+import type { OperatorAnswerIntake } from './operator-answer'
 import type { SessionRecord } from './record/record-adapter'
+import { recoverUnfinishedCommands } from './recover-unfinished-commands'
 import {
   drainOrderOf,
-  inputMessageOf,
-  jsonOf,
   logStagedInputs,
   loggedMessagesOf,
   postedAndSaidOf,
   postedDraftsOf as postedDraftsFor,
   postedInboxIdsOf,
-  salvagedOf,
+  type AppendDrafts,
   type Drainable,
 } from './staged-log'
 import { resolveWithdraws as applyWithdraws, type WithdrawLookup } from './withdraw-plan'
@@ -70,6 +71,7 @@ export class InboxIntake implements AgentIntake {
   private readonly commandIntake: CommandIntake | undefined
   private queue: Promise<unknown> = Promise.resolve()
   private staged = new Map<number, InboxEntry>()
+  private readonly append: AppendDrafts = (drafts) => this.appendDrafts(drafts)
 
   constructor(private readonly args: InboxIntakeArgs) {
     this.commandIntake =
@@ -140,7 +142,7 @@ export class InboxIntake implements AgentIntake {
       events: this.args.record.eventCache().eventsAfter(0),
     })
     const glue = this.commandGlue()
-    const drainable: { entry: InboxEntry; message: InputMessage }[] = []
+    const drainable: StagedMessage[] = []
     let wakesTurn = false
     for (const entry of entries) {
       if (resolved.has(entry.inboxId)) continue
@@ -149,8 +151,8 @@ export class InboxIntake implements AgentIntake {
         continue
       }
       if (entry.kind === INBOX_KIND_OPERATOR_ANSWER) {
-        const answered = await this.answerOperator(entry)
-        if (answered.wakesTurn) wakesTurn = true
+        const answers = this.args.operatorAnswers
+        if (answers !== undefined && (await answers.handle(entry)).wakesTurn) wakesTurn = true
         await consumeQuietly({ ...glue, entry })
         continue
       }
@@ -159,40 +161,13 @@ export class InboxIntake implements AgentIntake {
         await consumeQuietly({ ...glue, entry })
         continue
       }
-      if (entry.kind === INBOX_KIND_AGENT_NOTICE) {
-        await consumeQuietly({ ...glue, entry })
-        wakesTurn = true
-        continue
-      }
       if (entry.kind === INBOX_KIND_EVENT) {
-        const read = inboxEventOf(entry.payload)
-        if (!read.ok) {
-          await this.appendDrafts([
-            { type: 'input-refused', inboxId: entry.inboxId, reason: read.reason },
-          ])
-          continue
-        }
-        await this.appendDrafts([read.event, { type: 'input-consumed', inboxId: entry.inboxId }])
-        if (isTurnTaking(read.event)) wakesTurn = true
+        if (await drainEventEntry({ entry, appendDrafts: this.append })) wakesTurn = true
         continue
       }
       if (entry.kind === INBOX_KIND_MESSAGE) {
-        const parsed = inboxMessageSchema.safeParse(jsonOf(entry.payload))
-        if (!parsed.success) {
-          await this.appendDrafts([
-            {
-              type: 'input-refused',
-              inboxId: entry.inboxId,
-              reason: 'unreadable message',
-              ...salvagedOf(entry.payload),
-            },
-          ])
-          continue
-        }
-        drainable.push({
-          entry,
-          message: inputMessageOf({ entry, message: parsed.data }),
-        })
+        const stagedMessage = await stagedMessageOf({ entry, appendDrafts: this.append })
+        if (stagedMessage !== undefined) drainable.push(stagedMessage)
         continue
       }
       if (isCommandKind(entry.kind)) {
@@ -201,6 +176,12 @@ export class InboxIntake implements AgentIntake {
       }
       await consumeUnknown({ ...glue, entry })
     }
+    const loggedWakes = await drainLoggedNotices({
+      events: this.args.record.eventCache().eventsAfter(0),
+      staged: new Set(entries.map((entry) => entry.inboxId)),
+      appendDrafts: this.append,
+    })
+    if (loggedWakes) wakesTurn = true
     const order = drainOrderOf({
       staged: drainable,
       logged: loggedMessagesOf(this.args.record.eventCache().eventsAfter(0)),
@@ -228,25 +209,13 @@ export class InboxIntake implements AgentIntake {
 
   async recoverUnfinished(): Promise<void> {
     if (this.commandIntake === undefined) return
-    const { sessionId, record } = this.args
-    const visible = visibleEvents(record.eventCache().eventsAfter(0))
-    for (const inboxId of unfinishedCommandIdsOf(visible)) {
-      try {
-        const entry = await this.args.plane.readInboxEntry({ sessionId, inboxId })
-        if (entry === undefined || !isCommandKind(entry.kind)) continue
-        this.args.log?.info({
-          source: 'holder.intake',
-          message: `re-running consumed command ${inboxId} of kind "${entry.kind}" after takeover`,
-        })
-        await this.commandIntake.replay({ entry })
-      } catch (error) {
-        this.args.log?.error({
-          source: 'holder.intake',
-          message: `re-running consumed command ${inboxId} failed`,
-          ...logFieldsOf({ error }),
-        })
-      }
-    }
+    await recoverUnfinishedCommands({
+      intake: this.commandIntake,
+      plane: this.args.plane,
+      sessionId: this.args.sessionId,
+      record: this.args.record,
+      log: this.args.log,
+    })
   }
 
   private commandGlue(): CommandGlue {
@@ -277,8 +246,10 @@ export class InboxIntake implements AgentIntake {
   private withdrawLookup(): WithdrawLookup {
     return {
       stagedOf: (inboxId) => this.staged.get(inboxId),
-      postedInboxIds: () =>
-        postedInboxIdsOf({ events: this.args.record.eventCache().eventsAfter(0) }),
+      pendingOf: (inboxId) =>
+        pendingInputsOf(this.args.record.eventCache().eventsAfter(0)).pending.find(
+          (pending) => pending.inboxId === inboxId,
+        ),
       postedDraftsOf: (entry) => this.postedDraftsOf(entry),
     }
   }
@@ -288,11 +259,6 @@ export class InboxIntake implements AgentIntake {
       return [userSaidOf({ inboxId: item.inboxId, message: item.message })]
     }
     return postedAndSaidOf({ entry: item.entry, message: item.message })
-  }
-
-  private async answerOperator(entry: InboxEntry): Promise<OperatorAnswerOutcome> {
-    if (this.args.operatorAnswers === undefined) return { wakesTurn: false }
-    return await this.args.operatorAnswers.handle(entry)
   }
 
   private async cancelOpenForMessage(): Promise<void> {

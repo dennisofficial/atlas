@@ -4,12 +4,14 @@ import {
   attachmentSchema,
   attachmentsOf,
   EMessageOrigin,
-  INBOX_KIND_AGENT_NOTICE,
   INBOX_KIND_EVENT,
+  inboxEventOf,
   INBOX_KIND_RETRY,
   INBOX_KIND_STOP,
   pendingInputsOf,
+  pendingNoticesOf,
   userSaidOf,
+  type EventBody,
   type EventDraft,
   type InboxEntry,
   type InputMessage,
@@ -101,8 +103,19 @@ export const postedDraftsOf = (params: {
 }): RecordBody[] => {
   const { entry } = params
   if (entry.kind === INBOX_KIND_STOP || entry.kind === INBOX_KIND_RETRY) return []
-  if (entry.kind === INBOX_KIND_AGENT_NOTICE) return []
-  if (entry.kind === INBOX_KIND_EVENT) return []
+  if (entry.kind === INBOX_KIND_EVENT) {
+    const read = inboxEventOf(entry.payload)
+    if (!read.ok) return []
+    return [
+      {
+        type: 'input-posted',
+        inboxId: entry.inboxId,
+        kind: entry.kind,
+        postedAt: entry.postedAt,
+        event: read.event,
+      },
+    ]
+  }
   if (entry.kind === INBOX_KIND_WITHDRAW) return []
   if (entry.kind === INBOX_KIND_MESSAGE) {
     const parsed = inboxMessageSchema.safeParse(jsonOf(entry.payload))
@@ -159,6 +172,19 @@ export const loggedMessagesOf = (events: readonly V2Event[]): LoggedMessage[] =>
       : [{ inboxId: pending.inboxId, message: pending.message }],
   )
 
+export const loggedNoticesOf = (params: {
+  events: readonly V2Event[]
+  staged: ReadonlySet<number>
+}): { inboxId: number; event: EventBody }[] =>
+  pendingNoticesOf(pendingInputsOf(params.events)).flatMap((pending) =>
+    pending.event === undefined || params.staged.has(pending.inboxId)
+      ? []
+      : [{ inboxId: pending.inboxId, event: pending.event }],
+  )
+
+export const stagesUnprepared = (kind: string): boolean =>
+  kind === INBOX_KIND_MESSAGE || kind === INBOX_KIND_EVENT
+
 export const logStagedInputs = async (params: {
   fetch: () => Promise<InboxEntry[]>
   resolveWithdraws: (entries: readonly InboxEntry[]) => Promise<ReadonlySet<number>>
@@ -174,7 +200,7 @@ export const logStagedInputs = async (params: {
     const resolved = await params.resolveWithdraws(entries)
     const drafts = entries
       .filter((entry) => !resolved.has(entry.inboxId))
-      .filter((entry) => params.prepared?.() !== false || entry.kind === INBOX_KIND_MESSAGE)
+      .filter((entry) => params.prepared?.() !== false || stagesUnprepared(entry.kind))
       .flatMap((entry) => params.postedDraftsOf(entry))
     if (drafts.length === 0) return
     await params.appendDrafts(drafts)

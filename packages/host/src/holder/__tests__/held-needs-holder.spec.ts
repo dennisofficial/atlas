@@ -6,6 +6,7 @@ import {
   EAgentStart,
   ECommandGroup,
   ECommandTiming,
+  ESetupPhase,
   initialLoopState,
   toRunId,
   toThreadId,
@@ -122,6 +123,24 @@ describe('drainNeedsHolder with commands', () => {
 })
 
 describe('drainNeedsHolder over the pending log', () => {
+  it('wants a holder for a staged notice with no operator message', async () => {
+    const events = eventsOf([
+      {
+        type: 'input-posted',
+        inboxId: 7,
+        kind: 'event',
+        postedAt: '2026-11-12T03:00:00.000Z',
+        event: {
+          type: 'sandbox-setup-reported',
+          text: 'setup finished after 1.2s',
+          failed: false,
+          phase: ESetupPhase.Finished,
+        },
+      },
+    ])
+    expect(await needsHolder({ entries: [], knowsPing: true, events })).toBe(true)
+  })
+
   it('wants a holder for a message posted in the log with no staging row', async () => {
     const events = eventsOf([posted()])
     expect(await needsHolder({ entries: [], knowsPing: true, events })).toBe(true)
