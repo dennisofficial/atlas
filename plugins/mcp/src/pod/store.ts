@@ -10,7 +10,7 @@ import {
   type McpSignInResolved,
   type OutstandingSignIn,
 } from '../core'
-import { McpBridgeTool } from './bridge-tool'
+import { bridgeNameOf, McpBridgeTool } from './bridge-tool'
 import { McpSignInBook } from './sign-in-book'
 import { fileReaderOf, loadMcpConfig, type McpConfigPort } from './config'
 import { HttpClient } from './http'
@@ -195,6 +195,18 @@ export class McpStore {
         layer: rejection.origin,
       })),
     ]
+  }
+
+  toolNamesByServer(): Map<string, readonly string[]> {
+    const groups = new Map<string, readonly string[]>()
+    for (const held of this.held.values()) {
+      if (held.status !== EMcpServerStatus.Connected) continue
+      groups.set(
+        held.spec.name,
+        held.tools.map((info) => bridgeNameOf(held.spec.name, info.name)),
+      )
+    }
+    return groups
   }
 
   instructionsByServer(): Map<string, string> {

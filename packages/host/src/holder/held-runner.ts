@@ -2,6 +2,7 @@ import {
   EHeldAction,
   EToolEffect,
   isResumableOf,
+  modelFacingDeclarationsOf,
   type InboxEntry,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -200,7 +201,7 @@ export const createLoopRunner = (args: {
     ...(runtime.plugins === undefined ? {} : { hooks: pod.hooks }),
     ...(runtime.uploads === undefined ? {} : { uploads: runtime.uploads }),
     ...(runtime.mediaUrls === undefined ? {} : { mediaUrls: runtime.mediaUrls }),
-    tools: () => pod.tools.declarations(),
+    tools: () => modelFacingDeclarationsOf(pod.tools.declarations()),
     dispatch: new ScopedToolDispatcher(
       hookedToolsOf({ registry: pod.tools, hooks: pod.hooks, trace: runtime.trace }),
     ),

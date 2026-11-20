@@ -12,6 +12,7 @@ import type { CallOp, CallResult } from '@dltech/atlas-protocol'
 
 import { newKey } from '../calls/remote-calls'
 import { worktreesOf } from './checkouts'
+import { withDiscoveryTools } from './discovery'
 import type { HeldSessionDeps } from './held-session-deps'
 import { fireLive } from './ports'
 import { MirrorPlanHook } from './plan-mirror'
@@ -152,6 +153,11 @@ export const pluginPodContextOf = (args: {
 export const pluginToolsOf = (args: {
   runtime: SessionRuntime
   ctx: PluginPodContext
+}): ToolRegistry => withDiscoveryTools(composedToolsOf(args))
+
+const composedToolsOf = (args: {
+  runtime: SessionRuntime
+  ctx: PluginPodContext
 }): ToolRegistry => {
   const { plugins } = args.runtime
   if (plugins === undefined) return args.runtime.tools
@@ -194,7 +200,7 @@ export const pluginPodOf = (args: {
 }): PluginPod => {
   const { plugins } = args.runtime
   if (plugins === undefined) {
-    return { tools: args.runtime.tools, hooks: new HookChain(hostHooksOf()) }
+    return { tools: withDiscoveryTools(args.runtime.tools), hooks: new HookChain(hostHooksOf()) }
   }
   const ctx = pluginPodContextOf(args)
   const tools = pluginToolsOf({ runtime: args.runtime, ctx })

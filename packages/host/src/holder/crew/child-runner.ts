@@ -1,5 +1,5 @@
 import { HookChain, LoopTurnRunner, type AgentIntake } from '@dltech/atlas-agent'
-import type { ThreadId, ModelRef } from '@dltech/atlas-core'
+import { modelFacingDeclarationsOf, type ThreadId, type ModelRef } from '@dltech/atlas-core'
 import type { PodCrew } from '@dltech/atlas-plugin-sdk'
 
 import { ScopedToolDispatcher } from '../../calls/call-scope'
@@ -51,7 +51,7 @@ export const childRunnerOf = (args: {
     ids: deps.ids,
     assembly: runtime.assembly,
     hooks,
-    tools: () => registry.declarations(),
+    tools: () => modelFacingDeclarationsOf(registry.declarations()),
     dispatch: new ScopedToolDispatcher(hookedToolsOf({ registry, hooks, trace: runtime.trace })),
     intake: args.intake,
     detachTool: (tool) => args.isDraining() && runtime.daemonTools.has(tool),
