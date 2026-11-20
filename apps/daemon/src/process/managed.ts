@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { CallFailureError, ECallFailure } from '@dltech/atlas-protocol'
@@ -17,6 +17,26 @@ type OutputHandler = (bytes: Uint8Array) => void
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
+
+const isDirectory = (path: string): boolean => {
+  try {
+    return statSync(path).isDirectory()
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Bun reports a missing working directory as `ENOENT … posix_spawn '<executable>'`, naming the
+ * binary instead of the directory, so the directory is checked before the error is trusted.
+ */
+const spawnFailureOf = (args: { error: unknown; cwd: string | undefined }): CallFailureError => {
+  const message =
+    args.cwd !== undefined && !isDirectory(args.cwd)
+      ? `the working directory ${args.cwd} does not exist`
+      : messageOf(args.error)
+  return new CallFailureError({ code: ECallFailure.SpawnFailed, message })
+}
 
 const signalGroup = (args: { pid: number; signal: NodeJS.Signals }): void => {
   try {
@@ -114,7 +134,7 @@ export class ManagedProcess {
         onStderr: args.onStderr,
       })
     } catch (error) {
-      throw new CallFailureError({ code: ECallFailure.SpawnFailed, message: messageOf(error) })
+      throw spawnFailureOf({ error, cwd: args.cwd })
     }
   }
 
