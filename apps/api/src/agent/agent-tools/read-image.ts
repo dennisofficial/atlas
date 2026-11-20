@@ -134,7 +134,7 @@ export async function readImage(args: {
       mediaType,
       size,
       byteLength,
-      because: 'the file is not a valid image of its type and a model would reject it',
+      because: 'a model would reject the file, because it is not a valid image of its type',
     })
   }
 

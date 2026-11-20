@@ -7,7 +7,7 @@ const reachability = (args: {
   exposeReason?: string | undefined
   port?: number | null | undefined
 }): string => {
-  if (args.url !== undefined) return `It is published at ${args.url}: give the user that URL.`
+  if (args.url !== undefined) return `It is published at ${args.url}. Give the operator that URL.`
   if (args.port !== undefined && args.port !== null) {
     return args.exposeReason === undefined
       ? 'It is only reachable inside the sandbox: it has no public URL.'
@@ -27,12 +27,12 @@ export const renderStarted = (args: {
   [
     `Started ${args.serviceId} (pid ${args.pid}) - ${args.description}.`,
     reachability(args),
-    'It keeps running after this turn ends and nobody waits on it; its ending arrives on its own, so do not poll for it.',
+    'It keeps running after this turn ends, and nothing waits on it. Its ending arrives on its own, so do not poll for it.',
     `Stop it with service_stop({ serviceId: "${args.serviceId}" }), or service_restart after you change its command.`,
   ].join('\n')
 
 export const renderStopped = (args: { serviceId: string }): string =>
-  `Sent the stop to service ${args.serviceId} and its process group. Its ending is recorded and delivered on its own, so do not wait for it or poll.`
+  `Sent the stop to service ${args.serviceId} and its process group. Its ending is recorded and delivered on its own. Do not wait for it. Do not poll.`
 
 export const renderListLine = (args: {
   serviceId: string

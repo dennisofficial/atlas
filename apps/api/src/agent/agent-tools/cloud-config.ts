@@ -42,10 +42,10 @@ type Input = z.output<typeof cloudConfigInputSchema>
 
 const description = [
   'Read and change Atlas configuration for the project this session runs in.',
-  'kind is setting, secret or file; action is list, read, set or remove.',
-  'setting is an Atlas setting key and value is its new value; environment variables are secrets, not settings.',
-  'secret is an environment variable exported to the agent shells and services, named like FOO_BAR: list returns names only, read is refused, set replaces the value and remove deletes it.',
-  'file is a file mounted in the sandbox at path, repo-relative or starting with ~/: set writes contents (text up to 64 KiB) with mode, an octal string like "0600" (the default) or "644"; it is written on the next sandbox start.',
+  'kind is setting, secret or file. action is list, read, set or remove.',
+  'For a setting, name is an Atlas setting key and value is the new value. Environment variables are secrets, not settings.',
+  'A secret is an environment variable exported to the agent shells and services, named like FOO_BAR. list returns names only. read is refused. set replaces the value. remove deletes it.',
+  'A file is a file mounted in the sandbox at path, relative to the repository or starting with ~/. set writes contents (text up to 64 KiB) with mode, an octal string like "0600" (the default) or "644". The file is written on the next sandbox start.',
   'Settings and secrets apply before the next turn. There is no projectId: this session can only change its own project.',
 ].join(' ')
 

@@ -27,9 +27,9 @@ const inputSchema = z.strictObject({
 
 const description = [
   'Find files by glob pattern and return their absolute paths, most recently modified first.',
-  'Matches against the directory you are currently in unless path names a different one; a relative path resolves against the project directory.',
+  'The search starts in the directory you are currently in unless path names a different one. A relative path resolves against the project directory.',
   pathEnvironmentNote,
-  `Returns at most ${RESULT_LIMIT} paths; when more match, the result says how many were left out.`,
+  `The tool returns at most ${RESULT_LIMIT} paths. When more files match, the result says how many it left out.`,
   'Hidden files and directories are not matched.',
   'Symbolic links are followed.',
 ].join(' ')
@@ -118,7 +118,7 @@ export class GlobTool extends SchemaTool<typeof inputSchema> {
     const found: DatedPath[] = []
     for (const match of matches) {
       if (signal.aborted)
-        return { ok: false, reason: 'the developer interrupted the turn while scanning for files' }
+        return { ok: false, reason: 'the operator interrupted the turn while scanning for files' }
       found.push({
         path: match,
         modifiedAt: await modifiedAt({ path: match, files: this.files, threadId }),

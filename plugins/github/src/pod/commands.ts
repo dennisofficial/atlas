@@ -14,7 +14,7 @@ import {
 import { changeSubscriptionStatus, subscribeTo, unsubscribeFrom } from './subscribe'
 
 const NEEDS_EXPLICIT_TARGET =
-  'The subscribe command needs an explicit reference, such as owner/repo#number, a pull request URL, a run URL or owner/repo#<run id>; the pod cannot read a checkout from a command'
+  'The subscribe command needs an explicit reference, such as owner/repo#number, a pull request URL, a run URL or owner/repo#<run id>. The sandbox cannot read a clone from a command'
 
 const unreachableCall = async (): Promise<never> => {
   throw new Error(NEEDS_EXPLICIT_TARGET)

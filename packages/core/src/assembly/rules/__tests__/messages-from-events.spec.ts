@@ -52,7 +52,7 @@ describe('messagesFromEvents', () => {
       content: [
         {
           type: 'text',
-          text: agentSaidAs({ from: 'the main agent', text: 'count the call sites' }),
+          text: agentSaidAs({ from: 'the parent agent', text: 'count the call sites' }),
         },
       ],
     })

@@ -20,7 +20,7 @@ const inputSchema = z.strictObject({
 
 const description = [
   'Delete a memory that turned out wrong or that another memory now covers.',
-  'The scope is global or project, and the name is the one shown in the index.',
+  'The scope is global or project. The name is the one shown in the index.',
 ].join(' ')
 
 export class DeleteMemoryTool extends SchemaTool<typeof inputSchema> {

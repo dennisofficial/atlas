@@ -16,7 +16,7 @@ export type RunningShell = {
 export type RunningShellsSource = (args: { threadId: ThreadId }) => readonly RunningShell[]
 
 const AWAITING_INPUT =
-  'awaiting input — its stdin is closed, so nothing can answer it and it will never end on its own; kill it and re-run with the input piped in'
+  'awaiting input — its stdin is closed, so nothing can answer it and it will never end on its own. Kill it and re-run it with the input piped in'
 
 const printed = (characters: number): string =>
   characters === 1 ? '1 character printed' : `${characters} characters printed`
@@ -37,7 +37,7 @@ export function runningShellsReminder(shells: readonly RunningShell[]): string {
     content: [
       'These background shells are still running:',
       shells.map(lineFor).join('\n'),
-      'Each shell’s ending arrives automatically, even after this turn ends. shell_output({ shellId }) reads a shell that will not end on its own, and shell_kill({ shellId }) stops one.',
+      'Each background shell’s ending arrives automatically, even after this turn ends. shell_output({ shellId }) reads a shell that will not end on its own. shell_kill({ shellId }) stops one.',
     ].join('\n\n'),
   })
 }

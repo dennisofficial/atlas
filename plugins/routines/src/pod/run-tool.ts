@@ -14,8 +14,8 @@ import { SCHEDULING } from './scheduling'
 const inputSchema = z.strictObject({ routineId: z.string().min(1) })
 
 const description = [
-  'Start a routine now, off its schedule, and return the id of the session the run created.',
-  'The run is a full session of its own: it does not run in this conversation and you do not see its turn.',
+  'Start a routine now, off its schedule. The result gives the id of the session the run created.',
+  'The run is a full session of its own. It does not run in this session and you do not see its turn.',
   'The routine keeps its schedule, so its next scheduled run is unaffected.',
   ...SCHEDULING,
 ].join(' ')

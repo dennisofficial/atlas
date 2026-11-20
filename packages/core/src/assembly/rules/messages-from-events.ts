@@ -66,7 +66,7 @@ type Settlement = EventOfType<'tool-result'> | EventOfType<'tool-denied'>
 
 type SettledCall = { part: ToolResultPart; origin: EventRef }
 
-const UNSETTLED_CALL = 'This tool call did not complete and produced no result.'
+const UNSETTLED_CALL = 'This tool call did not complete and returned no result.'
 
 function unsettledResult(call: ToolCallPart): ToolResultPart {
   return {

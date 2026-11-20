@@ -64,7 +64,7 @@ describe('a sub-agent the operator stopped', () => {
     const ending = await lastEnding(open)
     expect(ending.status).toBe(EAgentStatus.Stopped)
     expect(ending.killedBy).toBe(EKilledBy.User)
-    expect(agentEnding(ending)).toContain('was stopped by the user')
+    expect(agentEnding(ending)).toContain('was stopped by the operator')
   })
 
   it('records the parent when the parent stopped it, so the two never read alike', async () => {

@@ -28,7 +28,7 @@ describe('run event content', () => {
       conclusion: 'failure',
       failedJobs: ['deploy', 'publish'],
     })
-    expect(content).toContain('completed, failure — failed jobs: deploy, publish.')
+    expect(content).toContain('completed, failure. Failed jobs: deploy, publish.')
   })
 
   it('caps the job list and counts the rest', () => {

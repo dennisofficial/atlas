@@ -41,9 +41,9 @@ export class SkillInstallTool extends SchemaTool<typeof installSchema> {
   override readonly pathFields = TOUCHES_PATHS_IT_CANNOT_NAME
   readonly description = [
     'Install a skill by writing its whole SKILL.md, frontmatter and all, under one layer: the shape for "install the X skill", where you drop the body yourself.',
-    'layer user installs it for every project of the operator, layer project installs it for this project, and layer repo writes <repo>/.agents/skills/<name>/SKILL.md into the clone this session works in.',
-    'name is the folder the skill lives in, lowercase, and body is the whole SKILL.md text; write the frontmatter as strict YAML, double-quoting any value that contains ": ".',
-    'Installing a cloud skill that already exists is refused rather than overwritten: call skill_edit with the revision skill reported.',
+    'layer user installs it for every project of the operator. layer project installs it for this project. layer repo writes <repo>/.agents/skills/<name>/SKILL.md into the clone this session works in.',
+    'name is the folder the skill lives in, lowercase. body is the whole SKILL.md text. Write the frontmatter as strict YAML, double-quoting any value that contains ": ".',
+    'Installing a cloud skill that already exists is refused rather than overwritten. Call skill_edit with the revision that skill reported.',
   ].join(' ')
 
   constructor(
@@ -118,7 +118,7 @@ export class SkillEditTool extends SchemaTool<typeof editSchema> {
   override readonly pathFields = TOUCHES_PATHS_IT_CANNOT_NAME
   readonly description = [
     'Replace one file of an installed skill whole: SKILL.md by default, or the file named by path inside the skill directory.',
-    'A cloud edit must carry baseRevision, the revision the body it replaces was at, which skill reports when it loads the skill. An edit whose revision is stale is refused with the current revision and hash so it is not lost; read the skill again and retry.',
+    'A cloud edit must carry baseRevision, the revision the body it replaces was at. skill reports that revision when it loads the skill. An edit whose revision is stale is refused with the current revision and hash, so the edit is not lost. Read the skill again and retry.',
     'layer repo writes into <repo>/.agents/skills/<name>/ in this session\u2019s clone and needs no revision.',
   ].join(' ')
 
@@ -239,7 +239,7 @@ export class SkillDeleteTool extends SchemaTool<typeof deleteSchema> {
         return {
           ok: false,
           reason:
-            'this session has no clone, so it has no <repo>/.agents/skills directory to delete from; use layer user or layer project instead',
+            'this session has no clone, so it has no <repo>/.agents/skills directory to delete from. Use layer user or layer project instead',
         }
       const catalogue = await catalogueFor({
         ctx: this.ctx,

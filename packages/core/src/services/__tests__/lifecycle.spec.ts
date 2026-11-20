@@ -57,7 +57,7 @@ describe('serviceEnding', () => {
 
   it('attributes a stop to whoever asked for it', () => {
     expect(serviceEnding({ status: EServiceStatus.Killed, killedBy: EKilledBy.User })).toBe(
-      'was stopped by the user',
+      'was stopped by the operator',
     )
     expect(serviceEnding({ status: EServiceStatus.Killed, killedBy: EKilledBy.Model })).toBe(
       'was stopped at your request',

@@ -14,11 +14,11 @@ export type RunningAgent = {
 export type RunningAgentsSource = (args: { threadId: ThreadId }) => readonly RunningAgent[]
 
 const SUB_AGENT_LINE =
-  'Each sub-agent’s final answer arrives on its own, even after this turn ends, and a sub-agent that finishes while nothing else is running opens a turn to deliver it.'
+  'Each sub-agent’s end-turn message arrives on its own, even after this turn ends. A sub-agent that finishes while nothing else is running opens a turn to deliver it.'
 const TEAMMATE_LINE =
   'A teammate reports only when it sends an explicit report, and is silent between reports.'
 const WAITING_LINE =
-  'Work that does not depend on them can continue meanwhile; if you are only waiting, say what for and end your turn. agent_say({ agentId, text }) steers one and agent_stop({ agentId }) ends one early.'
+  'Work that does not depend on them can continue meanwhile. If you are only waiting, say what you are waiting for and end your turn. agent_say({ agentId, text }) steers one. agent_stop({ agentId }) ends one early.'
 
 const guidanceFor = (agents: readonly RunningAgent[]): string =>
   [

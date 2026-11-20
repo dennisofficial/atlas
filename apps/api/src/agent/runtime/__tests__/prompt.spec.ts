@@ -38,9 +38,9 @@ describe('agentHostPrompt', () => {
       prompt({ projectDirectory: '/workspace' })
         .blocks.map((block) => block.text)
         .join('\n\n')
-    expect(textOf()).not.toContain('Finish every turn in the text channel')
+    expect(textOf()).not.toContain('Write the answer as message text at the end of every turn')
     current = { id: 'openrouter', modelId: 'moonshotai/kimi-k2' }
-    expect(textOf()).toContain('Finish every turn in the text channel')
+    expect(textOf()).toContain('Write the answer as message text at the end of every turn')
   })
 })
 

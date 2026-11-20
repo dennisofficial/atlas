@@ -29,13 +29,13 @@ const unsubscribeInput = z.strictObject({ subscriptionId: z.string().min(1) })
 const listInput = z.strictObject({})
 
 export const SUBSCRIBE_DESCRIPTION = [
-  'Subscribe this conversation to an external event source, such as a pull request or a workflow run.',
-  'Occurrences from a subscribed source are delivered to you as notices that wake you; nothing notifies you about a source you have not subscribed to.',
+  'Subscribe this session to an external event source, such as a pull request or a workflow run.',
+  'Occurrences from a subscribed source are delivered to you as notices that wake you. Nothing notifies you about a source you have not subscribed to.',
   'Call list_subscriptions to see the available providers and the target syntax each one takes.',
-  'Omit target when the provider can work it out from this conversation, such as the pull request or run of the current branch.',
+  'Omit target when the provider can work it out from this session, such as the pull request or the run of the current branch.',
   'Set expiresInMinutes to end the subscription on its own after that long.',
   'Subscribing again to the same target returns the existing subscription, or updates its filter when events differ.',
-  'Set events to receive only some kinds of occurrence; omit it to receive everything. Occurrences that end a subscription, such as a pull request merging, always arrive.',
+  'Set events to receive only some kinds of occurrence. Omit it to receive everything. Occurrences that end a subscription, such as a pull request merging, always arrive.',
   `${GITHUB_PROVIDER} events: ${catalogText(PULL_REQUEST_EVENTS)}.`,
   `${GITHUB_RUN_PROVIDER} takes no events filter: every run completion is delivered.`,
 ].join(' ')
@@ -92,7 +92,7 @@ export class SubscribeTool extends SchemaTool<typeof subscribeInput> {
 export class UnsubscribeTool extends SchemaTool<typeof unsubscribeInput> {
   readonly name = 'unsubscribe'
   readonly description =
-    "End one of this conversation's subscriptions by its id, so its source stops waking you. list_subscriptions shows the ids."
+    "End one of this session's subscriptions by its id, so its source stops waking you. list_subscriptions shows the ids."
   readonly effect = EToolEffect.Write
   readonly inputSchema = unsubscribeInput
   override readonly pathFields = TAKES_NO_PATHS
@@ -120,7 +120,7 @@ export class UnsubscribeTool extends SchemaTool<typeof unsubscribeInput> {
 export class ListSubscriptionsTool extends SchemaTool<typeof listInput> {
   readonly name = 'list_subscriptions'
   readonly description =
-    "List this conversation's subscriptions with their id, label, status, who created them and expiry, and the providers available to subscribe to."
+    "List this session's subscriptions with their id, label, status, who created them and expiry, and the providers available to subscribe to."
   readonly effect = EToolEffect.Read
   override readonly isConcurrencySafe = (): boolean => true
   readonly inputSchema = listInput

@@ -32,8 +32,8 @@ const inputSchema = z
   )
 
 const description = [
-  'Change a routine: its name, prompt, cron, timezone, enabled flag or model settings. Pass only the fields that change, at least one of them.',
-  'enabled false pauses a routine without deleting it; enabled true resumes it and the API recomputes the next run.',
+  'Change a routine: its name, prompt, cron, timezone, enabled flag or model settings. Pass only the fields that change. Pass at least one of them.',
+  'enabled false pauses a routine without deleting it. enabled true resumes it and the API recomputes the next run.',
   'model, effort and fast set to null fall back to the project default for that run.',
   'Use routine_list to find the routineId.',
   ...SCHEDULING,

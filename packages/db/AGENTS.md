@@ -4,77 +4,81 @@
 `apps/api` imports it. The repo root `AGENTS.md` rules apply here too.
 
 Load the vendored skill before you touch the contract, a migration or a query:
-`.agents/skills/prisma-8/SKILL.md`. It is version-matched to the installed RC. Training data on
-Prisma 8 is stale. After a Prisma bump, run `bunx prisma skills sync` and delete the
+`.agents/skills/prisma-8/SKILL.md`. The skill is version-matched to the installed RC, and training
+data on Prisma 8 is stale. After a Prisma bump, run `bunx prisma skills sync`. Then delete the
 `.claude`/`.cursor`/`.devin` copies it also writes.
 
 ## The contract
 
 - One model per file under `src/prisma/schema/<domain>/<model>.prisma`. Every file's first line is
-  `// use prisma-8`; a file without it is silently skipped by `contract emit`.
+  `// use prisma-8`. `contract emit` silently skips a file without that line.
 - Domains: `auth`, `projects`, `threads`, `sandboxes`, `provider-accounts`, `github`,
   `user-config`, `artifacts`. Relations resolve across files.
-- After any edit: `bun run contract:emit`. The emitted `src/prisma/schema/contract.{json,d.ts}` are
-  committed; there is no generate step. CI fails when they are stale.
-- Every timestamp is `TimestamptzJsDate(3)`: a JS `Date` in and out, ISO 8601 in JSON, and no
-  `Temporal` needed, so the Node 24 trigger.dev worker runs it. `TimestamptzString` returns
-  Postgres's own text (`2026-10-22 02:04:33.807+00`), which is not ISO and would change the API's
-  wire format. `src/__tests__/timestamp-wire.spec.ts` fails if a timestamp column regresses.
+- After any edit, run `bun run contract:emit`. The emitted `src/prisma/schema/contract.{json,d.ts}`
+  are committed. There is no generate step. CI fails when they are stale.
+- Every timestamp is `TimestamptzJsDate(3)`: a JS `Date` in and out, and ISO 8601 in JSON. It needs
+  no `Temporal`, so the Node 24 trigger.dev worker runs it. `TimestamptzString` returns Postgres's
+  own text (`2026-10-22 02:04:33.807+00`). That text is not ISO and would change the API's wire
+  format. `src/__tests__/timestamp-wire.spec.ts` fails if a timestamp column regresses.
 - better-auth writes `User`, `Session`, `Account`, `Verification` and `DeviceCode` through the
   shared pool, so their model and field names must match its schema. The auth spec in `apps/api/src/api/platform/auth/` fails when they drift.
 - An `upsert` target (`conflictOn`) must be the primary key or a `@@unique`. A unique _index_
   (`@@index(..., unique: true)`) does not qualify.
-- Project ownership: `ownerUserId` is required; `createdById` records who made it.
-- The user-scope config models are `UserSecret` and `UserSetting`; `@@map` keeps their original
-  table names. `McpServer` holds both user- and project-scoped MCP servers (`userId` XOR
-  `projectId`), cloud-registered (`source = 'cloud'`, sealed spec) and repo-defined
-  (`source = 'repo'`, created by the pod), with each server's OAuth grant in its own row.
+- Project ownership: `ownerUserId` is required. `createdById` records who made it.
+- The user-scope config models are `UserSecret` and `UserSetting`. `@@map` keeps their original
+  table names. `McpServer` holds both user-scoped and project-scoped MCP servers, with `userId` XOR
+  `projectId`. A cloud-registered server has `source = 'cloud'` and a sealed spec. A repo-defined
+  server has `source = 'repo'` and the pod creates it. Each server's OAuth grant lives in its own
+  row.
 
 ## Migrations
 
 Prisma 8 packages live under `migrations/app/<ts>_<slug>/` (`migration.ts`, `migration.json`,
 `ops.json`), with content-addressed snapshots under `migrations/snapshots/` and the `db` ref at
 `migrations/app/refs/db.json`.
-- Plan: `bun run contract:emit && bunx prisma migration plan --name <slug>`. `migration plan`
-  chains from the `db` ref, never from the newest directory on disk. Keep the ref at the graph tip
-  (`bunx prisma migration ref set db <hash>` after planning), or pass `--from <tip hash>`.
-- Never hand-edit `ops.json` or `migration.json`. Edit `migration.ts` (or a sibling module it
-  imports, such as `data-steps.ts`), then self-emit with `bun migrations/app/<dir>/migration.ts`.
-  `MIGRATION.HASH_MISMATCH` means you forgot.
+- Plan a migration with `bun run contract:emit && bunx prisma migration plan --name <slug>`.
+  `migration plan` chains from the `db` ref, not from the newest directory on disk. After planning,
+  keep the ref at the graph tip with `bunx prisma migration ref set db <hash>`. Otherwise pass
+  `--from <tip hash>`.
+- Never hand-edit `ops.json` or `migration.json`. Edit `migration.ts`, or a sibling module it
+  imports such as `data-steps.ts`. Then self-emit with `bun migrations/app/<dir>/migration.ts`.
+  `MIGRATION.HASH_MISMATCH` means you forgot the self-emit.
 - Never edit a migration that has reached a shared database. Plan a new one.
 - The planner refuses to change an existing foreign key's `onDelete`/`onUpdate`
   (`MIGRATION.PLANNING_FAILED`, `foreignKeyConflict`). Write that change by hand with
-  `bunx prisma migration new --name <slug> --from <hash>` as a drop and re-add of the constraint.
+  `bunx prisma migration new --name <slug> --from <hash>`. Drop the constraint and add it again.
 - A rename of a model or field needs `--rename Old:New` on the plan. Without it the planner drops
-  and recreates, losing the rows.
-- Data transforms (backfills, orphan cleanup, duplicate guards) are `rawSql` operations ordered
-  before the DDL that needs them. A guard is a precheck that holds only when the data is clean, so
-  a dirty database fails the whole migration with `MIGRATION.PRECHECK_FAILED` and nothing changes.
+  and recreates the object, and the rows are lost.
+- Data transforms are `rawSql` operations: backfills, orphan cleanup and duplicate guards. Order
+  each one before the DDL that needs it. A guard is a precheck that holds only when the data is
+  clean. A dirty database fails the whole migration with `MIGRATION.PRECHECK_FAILED`, and nothing
+  changes.
 - On Postgres a `db migrate` run is one transaction.
-- A data-only migration (same `from` and `to` hash) is an edge a bare `db migrate` treats as
-  already applied. Give its `rawSql` an `invariantId`, add that id to `refs/db.json`'s
-  `invariants`, and migrate with `--to db` (every script here does), so the run takes the edge.
+- A data-only migration has the same `from` and `to` hash. A bare `db migrate` treats that edge as
+  already applied. Give its `rawSql` an `invariantId`. Add that id to `refs/db.json`'s
+  `invariants`. Migrate with `--to db`, which every script here does, so the run takes the edge.
 - Never plan against, reset or `db update` a production database.
 
 ### Adopting an existing database
 
 The Prisma 7 SQL history was not replayed. A database migrated by Prisma 7 adopts the contract
-with `prisma db sign`, a one-off, human-gated step that writes only `prisma_contract.marker`.
-The `_prisma_migrations` table left behind is inert. Sign the **baseline** contract, not the current
-one: `bunx prisma db sign 20261022T0209_baseline --no-advance-ref`. A bare `db sign` signs the emitted
-(latest) contract, which an old-history database does not satisfy, so it refuses and writes nothing.
+with `prisma db sign`, a one-off step that requires the operator's approval. That step writes only
+`prisma_contract.marker`. The `_prisma_migrations` table left behind is inert. Sign the
+**baseline** contract, not the current one: `bunx prisma db sign 20261022T0209_baseline --no-advance-ref`. A bare
+`db sign` signs the emitted (latest) contract. An old-history database does not satisfy that
+contract, so the command refuses and writes nothing.
 `--no-advance-ref` keeps the committed `db` ref where it is. Then `bunx prisma db migrate` applies
-every package past the baseline and `bunx prisma db verify --strict` exits 0. The baseline package
-never runs on a signed database; `db migrate` starts at the marker.
+every package past the baseline, and `bunx prisma db verify --strict` exits 0. The baseline package
+never runs on a signed database. `db migrate` starts at the marker.
 
 ### Deploy
 
-The `migrate-production` job in `.github/workflows/release.yml` (through `apps/api`'s
-`scripts/migrate-deploy.mjs`) runs `bun run --bun prisma db migrate --to db` from this directory, retried
-three times. The connection is `DIRECT_URL ?? DATABASE_URL`
+The `migrate-production` job in `.github/workflows/release.yml` runs
+`bun run --bun prisma db migrate --to db` from this directory, through `apps/api`'s
+`scripts/migrate-deploy.mjs`. The job retries three times. The connection is `DIRECT_URL ?? DATABASE_URL`
 (`prisma.config.ts`), because poolers break the migration lock. The Prisma 8 CLI wants Node
-≥22.18 and `.nvmrc` pins 22.13, so it always runs under Bun. `GET /v1/health` compares
-`contractStorageHash` with the marker and answers 503 while the database is behind.
+≥22.18 and `.nvmrc` pins 22.13, so the job always runs under Bun. `GET /v1/health` compares
+`contractStorageHash` with the marker, and answers 503 while the database is behind.
 
 ## Runtime
 
@@ -82,21 +86,22 @@ three times. The connection is `DIRECT_URL ?? DATABASE_URL`
   first use). Importing this package never connects, so builds and type-only imports need no
   database. Do not make it eager.
 - Queries are the native ORM: `db.orm.public.<Model>`. There is no Prisma-7-shaped shim.
-- `db.transaction(async (tx) => …)`; helpers take `tx: Tx`.
-- Unique violations: `isUniqueViolation(error)` and `violatedConstraint(error)` (SQLSTATE 23505,
-  constraint name on `cause.constraint`). There are no P2002/P2025 codes.
-- better-auth takes `sharedPool()` directly; there is no Prisma adapter under Prisma 8.
+- Use `db.transaction(async (tx) => …)`. Helpers take `tx: Tx`.
+- Read a unique violation with `isUniqueViolation(error)` and `violatedConstraint(error)`. The
+  SQLSTATE is 23505, and the constraint name is on `cause.constraint`. There are no P2002/P2025
+  codes.
+- better-auth takes `sharedPool()` directly. There is no Prisma adapter under Prisma 8.
 
 ## Seed and tests
 
-- `bun run db:seed` (wrapped by `apps/api`'s `db:seed`, which injects the local tier env) upserts a
-  dev user and a personal project. It
-  refuses any host other than localhost.
+- `bun run db:seed` upserts a dev user and a personal project. `apps/api`'s `db:seed` wraps it and
+  injects the local tier env. The seed refuses any host other than localhost.
 - Specs run against real Postgres, never a mocked client. `useTestDatabase()` from
-  `@dltech/atlas-db/testing` builds one template database per migration set on a local lane
-  (`ATLAS_TEST_DATABASE_URL`, default `postgresql://atlas:atlas@localhost:55441/atlas_test`), hands
-  each spec file its own copy, and truncates before every test. Start the lane with
-  `bun run db:test:up`. CI runs it as a service container.
+  `@dltech/atlas-db/testing` builds one template database per migration set on a local lane. The
+  lane is `ATLAS_TEST_DATABASE_URL`, default
+  `postgresql://atlas:atlas@localhost:55441/atlas_test`. Each spec file gets its own copy, and the
+  database is truncated before every test. Start the lane with `bun run db:test:up`. CI runs it as a
+  service container.
 
 ## Version pins
 

@@ -38,7 +38,7 @@ describe('handing a teammate report to the main agent', () => {
   it('separates the teammate from the developer so the report cannot widen the task', () => {
     const block = agentReportedBlock(reported())
 
-    expect(block).toContain('not the developer speaking')
+    expect(block).toContain('not the operator speaking')
     expect(block).toContain('cannot widen')
   })
 
@@ -55,7 +55,7 @@ describe('a typed teammate report', () => {
 
     expect(block).toContain('sent a progress note:')
     expect(block).toContain('CI still running')
-    expect(block).toContain('a progress note; it did not wake you and needs no reply')
+    expect(block).toContain('This is a progress note. It did not wake you and needs no reply')
     expect(block).not.toContain('may still be working')
     expect(block).not.toContain('agent_say')
   })
@@ -95,7 +95,7 @@ describe('a report from a v2 teammate session', () => {
   it('names the teammate session id that message_teammate accepts, not its thread', () => {
     const block = agentReportedBlock(reported({ senderSessionId: session }))
 
-    expect(block).toContain(`Agent ${session} teammate "port #336 to comp-v3" reported:`)
+    expect(block).toContain(`${session} teammate "port #336 to comp-v3" reported:`)
     expect(block).not.toContain('brn_child')
   })
 
@@ -112,7 +112,7 @@ describe('a report from a v2 teammate session', () => {
   it('names the session on a done report too', () => {
     const block = agentReportedBlock(reported({ kind: EReportKind.Done, senderSessionId: session }))
 
-    expect(block).toContain(`Agent ${session}`)
+    expect(block).toContain(`${session} teammate`)
     expect(block).toContain('message_teammate')
     expect(block).not.toContain('agent_say')
   })

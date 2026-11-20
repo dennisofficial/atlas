@@ -28,17 +28,17 @@ const inputSchema = z.strictObject({
 
 const description = [
   'Start a long-running service - a dev server, a database, a cache, anything that keeps serving until it is stopped - and get its id back at once.',
-  'Pass name to start a service the project declares in .atlas/services.yaml: it starts what that service needs first, runs its setup once, and uses its command, working directory, env and port.',
-  'Pass command instead to start an ad-hoc one yourself; pass only one of the two.',
-  'This is not for work you are waiting on: a command that ends and whose result you need belongs on bash.',
-  'A monitor that exits when what it watches finishes - a CI watch, a log tail - is a background shell, not a service.',
-  'A service never times out and never holds the turn open; if it dies you will be told, wherever you are.',
+  'Pass name to start a service the project declares in .atlas/services.yaml. It starts what that service needs first, runs its setup once, and uses its command, working directory, env and port.',
+  'Pass command instead to start an ad-hoc one yourself. Pass only one of the two.',
+  'This is not for work you are waiting on. A command that ends and whose result you need belongs on bash.',
+  'A monitor that exits when what it watches finishes is a background shell, not a service. A CI watch and a log tail are examples.',
+  'A service never times out and never holds the turn open. If it dies, you will be told, wherever you are.',
   'Its stdin is closed and it is its own process group, so nothing it forks outlives a stop.',
   'A port makes the call wait until that port answers, up to readyTimeoutMs, and the service is recorded as ready.',
   'It runs with PORT set to that port, so listen on $PORT.',
-  'A service with a port is published at a public URL and the call returns it: give the user that URL, which is what they open.',
+  'A service with a port is published at a public URL and the call returns it. Give the operator that URL, because it is what they open.',
   'Pass exposePort false to keep it inside the sandbox instead.',
-  'Its ending arrives on its own; do not poll.',
+  'Its ending arrives on its own. Do not poll.',
 ].join(' ')
 
 export class ServiceStartTool extends SchemaTool<typeof inputSchema> {

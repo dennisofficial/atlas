@@ -74,7 +74,7 @@ describe('telling the model the project directory and any active worktree', () =
     expect(note).toContain(`Project directory: ${TREE}`)
     expect(note).toContain('dennis/eng-327')
     expect(note).toContain('branched from origin/main')
-    expect(note).toContain('main checkout is at /w;')
+    expect(note).toContain('main checkout is at /w.')
   })
 
   it('never leaves the system prompt, and rides a user-role reminder anchored to the last event', () => {
@@ -101,7 +101,7 @@ describe('telling the model the project directory and any active worktree', () =
   it('keeps the main checkout advisory and does not authorise committing or pushing', () => {
     const note = noteOf(assembleWith(log([entered])))
 
-    expect(note).toContain('stays unchanged unless the developer asks')
+    expect(note).toContain('stays unchanged unless the operator asks')
     expect(note).not.toMatch(/commit/i)
     expect(note).not.toMatch(/push/i)
   })
@@ -111,7 +111,7 @@ describe('telling the model the project directory and any active worktree', () =
 
     expect(note).toContain('which tracks origin/topic')
     expect(note).not.toContain('branched from')
-    expect(note).toContain('will not remove a worktree Atlas did not create')
+    expect(note).toContain('will not remove a worktree the Atlas harness did not create')
   })
 
   it('says an adopted worktree has no upstream rather than naming a base it does not have', () => {
@@ -128,7 +128,7 @@ describe('telling the model the project directory and any active worktree', () =
     const launchedInside = '/repo/.claude/worktrees/feat-a'
     const note = noteOf(assembleWith(log([entered]), { launch: launchedInside, repoRoot: '/repo' }))
 
-    expect(note).toContain('main checkout is at /repo;')
+    expect(note).toContain('main checkout is at /repo.')
     expect(note).not.toContain(launchedInside)
   })
 
@@ -184,15 +184,15 @@ describe('telling the model the project directory and any active worktree', () =
     const note = noteOf(assembleWith(log([relocated(EExecutionLocation.Cloud)])))
 
     expect(note).toContain('Execution location: a cloud sandbox')
-    expect(note).toContain("the operator's machine cannot see any of it")
+    expect(note).toContain("The operator's machine cannot see any of it")
   })
 
   it('says a Docker session shares only the project directory and its declared mounts', () => {
     const note = noteOf(assembleWith(log([relocated(EExecutionLocation.Docker)])))
 
-    expect(note).toContain('Execution location: a Docker container')
+    expect(note).toContain('Execution location: a Docker sandbox')
     expect(note).toContain(
-      'only the project directory and explicitly mounted paths are shared with the host',
+      "only the project directory and explicitly mounted paths are shared with the operator's machine",
     )
   })
 
@@ -220,7 +220,7 @@ describe('telling the model the project directory and any active worktree', () =
     )
 
     expect(note).toContain('a cloud sandbox')
-    expect(note).not.toContain('a Docker container')
+    expect(note).not.toContain('a Docker sandbox')
   })
 
   it('still asserts the location after the history covering the move is compacted', () => {

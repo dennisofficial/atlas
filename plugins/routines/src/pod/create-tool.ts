@@ -23,11 +23,11 @@ const inputSchema = z.strictObject({
 })
 
 const description = [
-  "Create a routine: a prompt this session's project runs on a cron, in a fresh session, at each scheduled time.",
-  'timezone has no default here, so pass one: an IANA zone such as Europe/London or UTC.',
-  'prompt is the whole instruction the agent receives at the start of a run, so write it to stand alone without this conversation.',
-  'model, effort and fast pick the model for each run and default to the project setting; enabled defaults to true.',
-  "The routine is created in this session's project; there is no way to create one in another project from here.",
+  "Create a routine: a prompt that this session's project runs on a cron, in a fresh session, at each scheduled time.",
+  'timezone has no default here, so pass one as an IANA zone such as Europe/London or UTC.',
+  'prompt is the whole instruction the agent receives at the start of a run. Write it to stand alone without this session.',
+  'model, effort and fast pick the model for each run. They default to the project setting. enabled defaults to true.',
+  "The routine is created in this session's project. There is no way to create one in another project from here.",
   ...SCHEDULING,
 ].join(' ')
 

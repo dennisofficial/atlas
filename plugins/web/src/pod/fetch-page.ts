@@ -139,7 +139,7 @@ export async function fetchPage(args: {
       if (timer.aborted)
         return { ok: false, reason: `${hostOf(current)} did not answer within ${seconds}s` }
       if (args.signal.aborted)
-        return { ok: false, reason: 'the developer interrupted the turn while fetching' }
+        return { ok: false, reason: 'the operator interrupted the turn while fetching' }
       return {
         ok: false,
         reason: `could not reach ${hostOf(current)}: ${error instanceof Error ? error.message : String(error)}`,

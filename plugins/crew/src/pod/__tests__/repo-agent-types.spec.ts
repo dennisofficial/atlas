@@ -100,7 +100,7 @@ describe('the repo agent type listing', () => {
     const blocks = await turn({ ctx })
     expect(blocks.at(-1)).toBe(
       [
-        'Agent types defined in this repository (spawn them with agent_spawn like the built-in types):',
+        'Agent types defined in this repository. Spawn one with agent_spawn, like the built-in types:',
         '- docs-writer: Writes the docs a change needs.',
         'Not loaded: .agents/agents/builder.md — "builder" is a built-in agent type',
         'Not loaded: .agents/agents/second-docs.md — "docs-writer" is shadowed by .agents/agents/docs-writer.md',

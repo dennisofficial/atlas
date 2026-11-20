@@ -64,7 +64,7 @@ describe('telling the model what it still has out', () => {
   it('says a sub-agent final answer arrives on its own, with no prohibition on checking', () => {
     const tail = textsOf(assembleWith({ events: SPOKEN, agents: [anAgent()] })).at(-1) ?? ''
 
-    expect(tail).toContain('final answer arrives on its own')
+    expect(tail).toContain('end-turn message arrives on its own')
     expect(tail).not.toMatch(/never poll|no sleeping|no polling|agent_list/)
     expect(tail).not.toContain('explicit report')
   })
@@ -81,7 +81,7 @@ describe('telling the model what it still has out', () => {
   it('names ending the turn as the way to wait, rather than leaving waiting undefined', () => {
     const tail = textsOf(assembleWith({ events: SPOKEN, agents: [anAgent()] })).at(-1) ?? ''
 
-    expect(tail).toContain('say what for and end your turn')
+    expect(tail).toContain('say what you are waiting for and end your turn')
     expect(tail).toContain('agent_say({ agentId, text })')
   })
 

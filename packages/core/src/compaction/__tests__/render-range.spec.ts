@@ -56,7 +56,7 @@ describe('transcriptOfRange', () => {
     ])
 
     expect(transcriptOfRange({ events, throughSeq: 3 })).toBe(
-      'Main agent: count the callers\nPeer agent: carrying a steer\nOperator: mine',
+      'Parent agent: count the callers\nPeer agent: carrying a steer\nOperator: mine',
     )
   })
 
@@ -81,7 +81,7 @@ describe('transcriptOfRange', () => {
     const events = eventsFrom([compacted(4, 'A parser was written.'), said('now the lexer')])
 
     expect(transcriptOfRange({ events, throughSeq: 2 })).toBe(
-      'Summary of the conversation before this: A parser was written.\nOperator: now the lexer',
+      'Summary of this session before this point: A parser was written.\nOperator: now the lexer',
     )
   })
 
@@ -122,7 +122,7 @@ describe('transcriptOfRange', () => {
     ])
 
     expect(transcriptOfRange({ events, throughSeq: 1 })).toBe(
-      "Atlas moved this conversation's processing to a cloud sandbox — earlier tool results came from the host",
+      "Atlas moved this session's processing to a cloud sandbox. Earlier tool results came from the operator's machine",
     )
   })
 
@@ -132,7 +132,7 @@ describe('transcriptOfRange', () => {
     ])
 
     expect(transcriptOfRange({ events, throughSeq: 1 })).toBe(
-      "Atlas moved this conversation's processing to a Docker container — earlier tool results came from a cloud sandbox",
+      "Atlas moved this session's processing to a Docker sandbox. Earlier tool results came from a cloud sandbox",
     )
   })
 
@@ -146,7 +146,7 @@ describe('transcriptOfRange', () => {
     ])
 
     expect(transcriptOfRange({ events, throughSeq: 1 })).toBe(
-      "Atlas moved this conversation's processing to a cloud sandbox — earlier tool results came from the host — the working directory is now /workspace",
+      "Atlas moved this session's processing to a cloud sandbox. Earlier tool results came from the operator's machine — the working directory is now /workspace",
     )
   })
 
@@ -190,7 +190,7 @@ describe('transcriptOfRange', () => {
     ])
 
     expect(transcriptOfRange({ events, throughSeq: 1 })).toBe(
-      'Agent thread-child (builder "wire the disposition table") reported progress: halfway through the rewiring',
+      'Sub-agent thread-child (builder "wire the disposition table") reported progress: halfway through the rewiring',
     )
   })
 
@@ -216,7 +216,7 @@ describe('transcriptOfRange', () => {
     ])
 
     expect(transcriptOfRange({ events, throughSeq: 3 })).toBe(
-      'Harness nudge: wrap up soon\n' +
+      'Harness notice: wrap up soon\n' +
         'Background shell "bun test" matched fail: 2 fail\n' +
         'Background shell "bun add" is waiting for input: which package?',
     )
@@ -233,7 +233,7 @@ describe('transcriptOfRange', () => {
     ])
 
     expect(transcriptOfRange({ events, throughSeq: 6, proseOnly: true })).toBe(
-      'Summary of the conversation before this: A parser was written.\n' +
+      'Summary of this session before this point: A parser was written.\n' +
         'Operator: now the lexer\n' +
         'Atlas: lexer done',
     )
