@@ -263,12 +263,12 @@ describe('checking in on a background shell that has not ended', () => {
     expect(block).not.toContain('most recent output')
   })
 
-  it('names the three ways out, including service_start for something meant to stay up', () => {
+  it('names the three ways out, including the service tool for something meant to stay up', () => {
     const block = backgroundShellStillRunningBlock(stillRunning())
 
     expect(block).toContain('shell_output({ shellId: "bash_27" })')
     expect(block).toContain('shell_kill({ shellId: "bash_27" })')
-    expect(block).toContain('service_start')
+    expect(block).toContain('`service` action `start`')
     expect(block).toContain('do nothing')
   })
 

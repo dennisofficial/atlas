@@ -40,7 +40,7 @@ describe('bash no longer publishes ports', () => {
     const text = bashDescription({ defaultTimeoutMs: 1, maximumTimeoutMs: 2 })
 
     expect(text).toContain('finite jobs')
-    expect(text).toContain('service_start')
+    expect(text).toContain('`service` action `start`')
     expect(text).not.toContain('exposePort')
   })
 })

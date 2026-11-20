@@ -30,7 +30,7 @@ const knownTypes = CREW_AGENT_TYPES.map((type) => type.name).join(', ')
 
 const description = [
   'Start a sub-agent. It works in the background. It hands you its answer the moment it stops.',
-  `agentType is one of ${knownTypes}, or an agent type defined in the repository (listed in the system prompt).`,
+  'agentType is a built-in type or one defined in this repository; the system prompt lists both.',
   'intent is a few words that name what the sub-agent does.',
   'brief is the whole instruction, because the sub-agent sees nothing of this session.',
   'worktree puts the sub-agent in a git worktree before its first turn.',

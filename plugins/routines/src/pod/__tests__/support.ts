@@ -131,9 +131,9 @@ export const rig = (routines: PodRoutines = fakeRoutines().port) => {
   return { ctx }
 }
 
-export const invoke = async (args: { ctx: PluginPodContext; name: string; input: unknown }) => {
-  const tool = routinesPod.tools?.(args.ctx).find((candidate) => candidate.name === args.name)
-  if (tool === undefined) throw new Error(`no tool ${args.name}`)
+export const invoke = async (args: { ctx: PluginPodContext; input: unknown }) => {
+  const tool = routinesPod.tools?.(args.ctx).find((candidate) => candidate.name === 'routine')
+  if (tool === undefined) throw new Error('no routine tool')
   return tool.invoke({
     input: args.input,
     signal: new AbortController().signal,

@@ -24,7 +24,11 @@ import {
   InvestigateThenExplainFragment,
   WorkLoopFragment,
 } from './prompt-fragments/scope'
-import { ParallelToolCallsFragment, PreferDedicatedToolsFragment } from './prompt-fragments/tools'
+import {
+  ParallelToolCallsFragment,
+  PathEnvironmentFragment,
+  PreferDedicatedToolsFragment,
+} from './prompt-fragments/tools'
 import { PromptFragmentRegistry } from './prompt-registry'
 
 const registryOf = (extraFragments: readonly PromptFragment[]): PromptFragmentRegistry =>
@@ -40,6 +44,7 @@ const registryOf = (extraFragments: readonly PromptFragment[]): PromptFragmentRe
     new ExecutionLocationFragment(),
     new ContextFolderFragment(),
     new PreferDedicatedToolsFragment(),
+    new PathEnvironmentFragment(),
     new ParallelToolCallsFragment(),
     new DelegationFragment(),
     new DestructiveActionsFragment(),

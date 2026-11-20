@@ -57,6 +57,42 @@ describe('withinBudget', () => {
     ])
   })
 
+  it('waits for an awaited hook however long it takes, and reports nothing', async () => {
+    const { seen, onMishap } = collect()
+
+    const value = await withinBudget({
+      label: 'loader',
+      run: async () => {
+        await Bun.sleep(15)
+        return 'loaded'
+      },
+      fallback: () => 'fallback',
+      budgetMs: 1,
+      awaited: true,
+      onMishap,
+    })
+
+    expect(value).toBe('loaded')
+    expect(seen).toEqual([])
+  })
+
+  it('still falls back and reports when an awaited hook throws', async () => {
+    const { seen, onMishap } = collect()
+
+    const value = await withinBudget({
+      label: 'loader',
+      run: async () => {
+        throw new Error('no catalogue')
+      },
+      fallback: () => 'fallback',
+      awaited: true,
+      onMishap,
+    })
+
+    expect(value).toBe('fallback')
+    expect(seen).toEqual([{ label: 'loader', kind: EHookMishapKind.Threw, detail: 'no catalogue' }])
+  })
+
   it('falls back and reports when the hook returns undefined', async () => {
     const { seen, onMishap } = collect()
 

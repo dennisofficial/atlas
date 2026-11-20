@@ -79,7 +79,7 @@ const leftServicesAdvice = (event: Ending): readonly string[] =>
   event.leftServices === undefined || event.leftServices.length === 0
     ? []
     : [
-        `It left ${countedNoun({ count: event.leftServices.length, noun: 'service' })} running, and you own ${event.leftServices.length === 1 ? 'it' : 'them'} now: ${event.leftServices.join('; ')}. Stop ${event.leftServices.length === 1 ? 'it' : 'them'} with service_stop when you no longer need ${event.leftServices.length === 1 ? 'it' : 'them'}.`,
+        `It left ${countedNoun({ count: event.leftServices.length, noun: 'service' })} running, and you own ${event.leftServices.length === 1 ? 'it' : 'them'} now: ${event.leftServices.join('; ')}. Stop ${event.leftServices.length === 1 ? 'it' : 'them'} with \`service\` action \`stop\` when you no longer need ${event.leftServices.length === 1 ? 'it' : 'them'}.`,
       ]
 
 function sectionOf(event: Ending): string {

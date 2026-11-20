@@ -457,7 +457,7 @@ describe('services a finished delegate left running', () => {
     expect(block).toContain(
       'It left 2 services running, and you own them now: bun run dev; docs preview.',
     )
-    expect(block).toContain('service_stop')
+    expect(block).toContain('`service` action `stop`')
   })
 
   it('says nothing when it left none', () => {

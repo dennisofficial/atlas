@@ -197,18 +197,6 @@ export class McpStore {
     ]
   }
 
-  toolNamesByServer(): Map<string, readonly string[]> {
-    const groups = new Map<string, readonly string[]>()
-    for (const held of this.held.values()) {
-      if (held.status !== EMcpServerStatus.Connected) continue
-      groups.set(
-        held.spec.name,
-        held.tools.map((info) => bridgeNameOf(held.spec.name, info.name)),
-      )
-    }
-    return groups
-  }
-
   instructionsByServer(): Map<string, string> {
     const live = new Map<string, string>()
     for (const [name, held] of this.held) {

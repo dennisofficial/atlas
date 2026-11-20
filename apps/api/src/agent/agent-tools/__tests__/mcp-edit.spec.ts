@@ -29,6 +29,10 @@ describe('McpEditTool', () => {
     expect(toolFor().name).toBe('mcp-edit')
   })
 
+  it('stays deferred, so its schema costs no prompt space', () => {
+    expect(toolFor().deferred).toBe(true)
+  })
+
   it('adds a server and lists it with its transport', async () => {
     const tool = toolFor()
 

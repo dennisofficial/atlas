@@ -28,7 +28,7 @@ export const renderStarted = (args: {
     `Started ${args.serviceId} (pid ${args.pid}) - ${args.description}.`,
     reachability(args),
     'It keeps running after this turn ends, and nothing waits on it. Its ending arrives on its own, so do not poll for it.',
-    `Stop it with service_stop({ serviceId: "${args.serviceId}" }), or service_restart after you change its command.`,
+    `Stop it with service({ action: "stop", serviceId: "${args.serviceId}" }), or restart it after you change its command.`,
   ].join('\n')
 
 export const renderStopped = (args: { serviceId: string }): string =>

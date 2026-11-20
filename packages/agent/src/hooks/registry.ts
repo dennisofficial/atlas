@@ -34,7 +34,12 @@ export enum EHookPhase {
   AfterTurn = 'after-turn',
 }
 
-export type RegisteredHook<TPhase> = { name: string; order: HookOrder; run: TPhase }
+export type RegisteredHook<TPhase> = {
+  name: string
+  order: HookOrder
+  run: TPhase
+  awaited?: true | undefined
+}
 
 /**
  * Anything the chain itself can depend on must hold it as a thunk: the chain resolves hooks, which
@@ -68,7 +73,7 @@ export type Bounds = {
 const NOTHING: HookOutcome = {}
 
 function bounded<TValue>(args: {
-  hook: { name: string }
+  hook: { name: string; awaited?: true | undefined }
   phase: EHookPhase
   bounds: Bounds
   run: () => Promise<TValue>
@@ -86,6 +91,7 @@ function bounded<TValue>(args: {
           return args.fallback
         },
         budgetMs: args.bounds.budgetMs,
+        awaited: args.hook.awaited,
         onMishap: args.bounds.onMishap,
       }),
   })

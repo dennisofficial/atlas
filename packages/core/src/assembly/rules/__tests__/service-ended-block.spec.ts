@@ -125,7 +125,7 @@ describe('the running-services reminder', () => {
     expect(reminder).not.toContain('you are told if one exits')
     expect(reminder).toContain('exit notice goes only to the thread that started the service')
     expect(reminder).toContain('another thread is not told when one exits')
-    expect(reminder).toContain('Stop one with service_stop({ id }) when that tool is available')
+    expect(reminder).toContain('Stop one with `service` action `stop` when that tool is available')
     expect(reminder).not.toMatch(/never|polling|service_list/)
   })
 })

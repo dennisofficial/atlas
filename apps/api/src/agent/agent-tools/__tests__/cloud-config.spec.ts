@@ -27,6 +27,12 @@ describe('CloudConfigTool', () => {
     )
   })
 
+  it('stays deferred, so its schema costs no prompt space', () => {
+    expect(
+      new CloudConfigTool({ client: fakeCloudConfig().client, projectId: 'prj_1' }).deferred,
+    ).toBe(true)
+  })
+
   it('sets a project setting, then lists and reads it back', async () => {
     const tool = toolFor()
 

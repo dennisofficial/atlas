@@ -16,9 +16,10 @@ import {
 import { z } from 'zod'
 
 const SEARCH_DESCRIPTION = [
-  "Find a tool that is available but not loaded, such as an MCP server's tools, without spending the prompt on its schema.",
-  'Pass a word or two from the tool name or what it does; it answers with up to 5 matching tools, each with its full name, description and input schema. An empty or unmatched query lists every deferred tool name by server.',
-  `Run one with ${CALL_TOOL_NAME}.`,
+  'Find a tool that is available but not loaded, and read its input schema, without spending prompt space on every schema.',
+  'Pass one or two words from the tool name or from what it does. It answers with up to 5 matching tools: the full name, the description and the input schema of each.',
+  'An empty query, or a query that matches nothing, lists every deferred tool name by group.',
+  `Then call the tool by its name, or use ${CALL_TOOL_NAME} if the provider refuses the name.`,
 ].join(' ')
 
 const CALL_DESCRIPTION = [

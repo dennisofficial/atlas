@@ -17,7 +17,7 @@ import {
 import { z } from 'zod'
 
 import { nullUnlessInterrupted } from './interrupted'
-import { filePathSchema, pathEnvironmentNote, resolveToolPath } from './file-text'
+import { filePathSchema, resolveToolPath } from './file-text'
 import { missingPathReason } from './missing-path'
 import { readFile } from './read-file'
 import { readImage } from './read-image'
@@ -40,15 +40,11 @@ const inputSchema = z.strictObject({
 })
 
 const description = [
-  'Read a file from the filesystem.',
-  'A relative path resolves against the project directory.',
-  pathEnvironmentNote,
+  'Read a file from the filesystem. A relative path resolves against the project directory.',
   'A PNG, JPEG, GIF or WebP file comes back as a picture you can look at when it is small enough to send. The operator may see the picture rendered inline.',
   'A PDF comes back as a file you can read natively, when it is small enough to send.',
-  'Output is line-numbered and tab-separated. Each output line is one line of the file.',
-  'Use offset to start at a given 1-based line. Use limit to cap how many lines come back.',
-  `At most ${DEFAULT_LINE_LIMIT} lines come back at a time. Each line is clipped at ${MAX_LINE_CHARS} characters.`,
-  'When that happens, the result says so and names the line to resume from.',
+  'Output is line-numbered and tab-separated, one output line per line of the file. Use offset to start at a given 1-based line, and limit to cap how many come back.',
+  `At most ${DEFAULT_LINE_LIMIT} lines come back at a time, each clipped at ${MAX_LINE_CHARS} characters. When that happens, the result says so and names the line to resume from.`,
   'Use grep to find what you need in a file too large to take in one read.',
 ].join(' ')
 

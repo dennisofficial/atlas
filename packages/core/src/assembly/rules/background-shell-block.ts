@@ -174,7 +174,7 @@ const STILL_RUNNING_NOT_ENDED =
   'This is a scheduled check-in, not an ending: the shell is still running. When it ends you will be told, along with everything it printed.'
 
 const stillRunningExits = (shellId: string): string =>
-  `Three ways out: read it with shell_output({ shellId: "${shellId}" }) to see how it is doing, stop it with shell_kill({ shellId: "${shellId}" }), or, if it is meant to stay up like a service or a watcher, kill it and start it again with service_start. service_start never times out and never asks for attention. If it is making progress and simply needs the time, do nothing.`
+  `Three ways out: read it with shell_output({ shellId: "${shellId}" }) to see how it is doing, stop it with shell_kill({ shellId: "${shellId}" }), or, if it is meant to stay up like a service or a watcher, kill it and start it again with \`service\` action \`start\`. A service never times out and never asks for attention. If it is making progress and simply needs the time, do nothing.`
 
 export function backgroundShellStillRunningBlock(
   event: EventOfType<'background-shell-still-running'>,

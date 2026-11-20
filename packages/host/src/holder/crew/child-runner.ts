@@ -41,6 +41,7 @@ export const childRunnerOf = (args: {
   const hooks: HookChain = pluginHooksOf({
     runtime,
     ctx,
+    declarations: () => registry.declarations(),
     now: () => new Date(deps.timers.now()),
   })
   return new LoopTurnRunner({

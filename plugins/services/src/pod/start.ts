@@ -1,0 +1,47 @@
+import type { ToolOutcome } from '@dltech/atlas-core'
+import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
+
+import { ensureDeclared } from './declared-ensure'
+import { readDeclared } from './declared-file'
+import { launchService } from './launch'
+import type { ServiceInput } from './schema'
+import type { ServicePodState } from './state'
+
+export const startService = async (args: {
+  ctx: PluginPodContext
+  state: ServicePodState
+  input: ServiceInput
+  projectDirectory: string
+  signal?: AbortSignal | undefined
+}): Promise<ToolOutcome> => {
+  const { ctx, state, input } = args
+  if (input.name !== undefined) {
+    const declared = await readDeclared({
+      ctx,
+      projectDirectory: args.projectDirectory,
+      signal: args.signal,
+    })
+    if (!declared.ok) return declared
+    return ensureDeclared({
+      ctx,
+      state,
+      declared: declared.value,
+      name: input.name,
+      projectDirectory: args.projectDirectory,
+      readyTimeoutMs: input.readyTimeoutMs,
+      expose: input.exposePort,
+      signal: args.signal,
+    })
+  }
+  return launchService({
+    ctx,
+    state,
+    command: input.command ?? '',
+    description: input.description ?? input.command ?? '',
+    cwd: input.workdir ?? args.projectDirectory,
+    port: input.port,
+    readyTimeoutMs: input.readyTimeoutMs,
+    expose: input.exposePort,
+    signal: args.signal,
+  })
+}

@@ -17,7 +17,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { nullUnlessInterrupted } from './interrupted'
-import { filePathSchema, pathEnvironmentNote, resolveToolPath } from './file-text'
+import { filePathSchema, resolveToolPath } from './file-text'
 import type { PathEnvironment } from '../runtime/session-paths'
 import { runPosixGrep } from './grep-fallback'
 import { runSearcher } from './grep-run'
@@ -50,11 +50,9 @@ const inputSchema = z.strictObject({
 
 const description = [
   'Search file contents by regular expression and return the matching lines, each prefixed with its absolute path and line number.',
-  'The search covers the project directory unless path names a narrower file or directory. A relative path resolves against the project directory. Use glob to narrow the search by file name.',
-  pathEnvironmentNote,
-  `The tool returns at most ${DEFAULT_HEAD_LIMIT} lines unless headLimit says otherwise. When more lines match, the result says so. Set offset to read the next page.`,
-  'Version control directories are never searched. Long lines are cut short.',
-  'Symbolic links are followed.',
+  'The search covers the project directory unless path names a narrower file or directory. A relative path resolves against the project directory. Use glob to narrow by file name.',
+  `At most ${DEFAULT_HEAD_LIMIT} lines come back unless headLimit says otherwise. When more lines match, the result says so; set offset to read the next page.`,
+  'Version control directories are never searched. Long lines are cut short. Symbolic links are followed.',
 ].join(' ')
 
 export type GrepInput = z.output<typeof inputSchema>
