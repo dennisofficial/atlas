@@ -99,6 +99,31 @@ const bundle = (content = '// daemon bundle\n') => {
 }
 
 describe('launchDaemon', () => {
+  it('boots the daemon with a script sh can parse', async () => {
+    const { bundle: b, cleanup } = bundle()
+    try {
+      const { sandbox, commands } = fakeSandbox({ alive: false, listens: true })
+      await launchDaemon({ sandbox, bundle: b, token: 'tok-1', sandboxName: 'atlas-v2-s1' })
+
+      const boot = commands.find((command) => command.detached === true)
+      const dir = mkdtempSync(join(tmpdir(), 'daemon-boot-'))
+      try {
+        const flock = join(dir, 'flock')
+        writeFileSync(flock, '#!/bin/sh\nshift 4\nexec sh -n "$@"\n', { mode: 0o755 })
+        const script = (boot?.args[1] ?? 'false').replaceAll(daemonPaths.home, dir)
+        const parsed = Bun.spawnSync(['sh', '-c', script], {
+          env: { ...process.env, PATH: `${dir}:${process.env.PATH ?? ''}` },
+        })
+        expect(Bun.file(join(dir, 'daemon.log')).size).toBe(0)
+        expect(parsed.exitCode).toBe(0)
+      } finally {
+        rmSync(dir, { recursive: true })
+      }
+    } finally {
+      cleanup()
+    }
+  })
+
   it('starts the daemon detached with the token only in that runCommand env', async () => {
     const { bundle: b, version, cleanup } = bundle()
     try {
