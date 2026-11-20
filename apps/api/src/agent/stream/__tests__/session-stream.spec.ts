@@ -2,13 +2,14 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
 import {
   EStreamSurface,
+  STREAM_HEARTBEAT_MS,
   STREAM_PROTOCOL_VERSION,
   type StreamServerMessage,
 } from '@dltech/atlas-protocol'
 
 import { createSessionStream, SessionStreamLimitError } from '../session-stream'
 import { createUserSlots } from '../user-slots'
-import { FollowRig, OWNER, SESSION, THREAD } from './follow-rig'
+import { FollowRig, OWNER, said, SESSION, THREAD } from './follow-rig'
 
 const pull = async (
   generator: AsyncGenerator<StreamServerMessage>,
@@ -24,6 +25,15 @@ const nextPayload = async (
   for (;;) {
     const frame = await pull(generator)
     if (frame.type !== 'pong') return frame
+  }
+}
+
+const eventsFrame = async (
+  generator: AsyncGenerator<StreamServerMessage>,
+): Promise<Extract<StreamServerMessage, { type: 'events' }>> => {
+  for (;;) {
+    const frame = await pull(generator)
+    if (frame.type === 'events') return frame
   }
 }
 
@@ -92,6 +102,35 @@ describe('session stream adapters', () => {
       frame = await pull(generator)
     }
     expect((await pull(generator)).type).toBe('pong')
+    await generator.return(undefined)
+  })
+
+  it('pongs a subscription that has been idle for the heartbeat interval', async () => {
+    await rig.seed({ events: 0 })
+    const generator = streamOf().follow({ userId: OWNER, sessionId: SESSION })
+    expect((await pull(generator)).type).toBe('ready')
+    expect((await pull(generator)).type).toBe('pong')
+
+    rig.timers.advance(STREAM_HEARTBEAT_MS)
+    expect((await pull(generator)).type).toBe('pong')
+
+    await generator.return(undefined)
+    expect(rig.timers.pendingCount()).toBe(0)
+  })
+
+  it('holds the heartbeat back while frames keep flowing', async () => {
+    await rig.seed({ events: 0 })
+    const generator = streamOf().follow({ userId: OWNER, sessionId: SESSION })
+    expect((await pull(generator)).type).toBe('ready')
+
+    for (let n = 1; n <= 3; n += 1) {
+      rig.timers.advance(STREAM_HEARTBEAT_MS - 5_000)
+      expect(rig.timers.pendingCount()).toBe(1)
+      await rig.append([said(`m${n}`)])
+      const frame = await eventsFrame(generator)
+      expect(frame.events.map((event) => Number(event.seq))).toEqual([n])
+    }
+
     await generator.return(undefined)
   })
 

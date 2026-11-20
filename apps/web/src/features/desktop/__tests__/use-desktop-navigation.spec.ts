@@ -1,12 +1,12 @@
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 
 import { DESKTOP_NAVIGATE_EVENT } from '@dltech/atlas-wire/web'
 
 import { desktopPathOf } from '../use-desktop-navigation'
 
-beforeAll(() => GlobalRegistrator.register())
-afterAll(async () => GlobalRegistrator.unregister())
+beforeAll(() => registerDom())
+afterAll(async () => unregisterDom())
 
 const navigate = (detail: unknown) => new CustomEvent(DESKTOP_NAVIGATE_EVENT, { detail })
 

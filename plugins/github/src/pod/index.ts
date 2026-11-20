@@ -12,7 +12,7 @@ export type { GitIdentity, IdentityLookup } from './identity'
 
 export const githubPod: PodSlot = {
   ...EMPTY_POD,
-  childDeny: ['subscribe', 'unsubscribe'],
+  childDeny: ['subscribe', 'unsubscribe', 'set-subscription-status'],
   tools: (ctx) => [
     new SubscribeTool(ctx),
     new UnsubscribeTool(ctx),

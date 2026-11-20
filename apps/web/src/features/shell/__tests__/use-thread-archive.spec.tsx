@@ -1,4 +1,4 @@
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, mock } from 'bun:test'
 import { act } from 'react'
 import * as realSonner from 'sonner'
@@ -27,13 +27,13 @@ mock.module('sonner', () => ({
 const { useThreadArchive } = await import('../use-thread-archive')
 
 beforeAll(() => {
-  GlobalRegistrator.register()
+  registerDom()
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
 })
 
 afterAll(async () => {
   mock.module('sonner', () => realSonnerExports)
-  await GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 beforeEach(() => {

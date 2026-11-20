@@ -2,12 +2,13 @@ import { describe, expect, it } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 import { ESessionStatus } from '@dltech/atlas-core'
+import { ESandboxProvider } from '@dltech/atlas-protocol'
 import { SidebarProvider } from '@dltech/atlas-ui/components/sidebar'
 
 import { ThreadRow } from '../shell-thread-row'
 import { ThreadActionsContext } from '../thread-actions-context'
 import { v2RowOf, type V2SessionSummary } from '../v2-rows'
-import { agoIso } from './fixtures'
+import { agoIso, sessionOf, threadOf } from './fixtures'
 
 const summary = (overrides: Partial<V2SessionSummary> = {}): V2SessionSummary => ({
   sessionId: 'v2-a',
@@ -114,5 +115,47 @@ describe('v2 sidebar row', () => {
     const html = render({ routineId: 'rte-1' })
     expect(html).toContain('data-engine-tag="routine"')
     expect(render({})).not.toContain('data-engine-tag="routine"')
+  })
+
+  it('leaves a v2 row unmarked by an engine tag', () => {
+    expect(render({})).not.toContain('data-engine-tag="v1"')
+    expect(render({})).not.toContain('data-engine-tag="v2"')
+  })
+
+  it('marks a v2 row on vercel with a Vercel pill', () => {
+    const html = render({ sandboxProvider: ESandboxProvider.Vercel })
+    expect(html).toContain('data-sandbox-provider="vercel"')
+    expect(html).toContain('>Vercel<')
+  })
+
+  it('leaves a v2 row on the default provider without a pill', () => {
+    expect(render({ sandboxProvider: ESandboxProvider.Agent37 })).not.toContain(
+      'data-sandbox-provider',
+    )
+    expect(render({})).not.toContain('data-sandbox-provider')
+  })
+})
+
+describe('v1 sidebar row', () => {
+  const v1Row = (id: string) =>
+    sessionOf(
+      threadOf({
+        id,
+        title: 'Legacy session',
+        model: { ref: 'anthropic/claude-opus-5-5' },
+      }),
+    )
+
+  it('marks the row v1 and never as a v2 session', () => {
+    const html = renderToStaticMarkup(
+      <SidebarProvider>
+        <ThreadActionsContext.Provider value={{ onToggleArchive: () => undefined }}>
+          <ThreadRow session={v1Row('t1')} projectName="atlas" activeThreadId={null} />
+        </ThreadActionsContext.Provider>
+      </SidebarProvider>,
+    )
+    expect(html).toContain('data-engine-tag="v1"')
+    expect(html).toContain('>v1<')
+    expect(html).not.toContain('data-sandbox-provider')
   })
 })

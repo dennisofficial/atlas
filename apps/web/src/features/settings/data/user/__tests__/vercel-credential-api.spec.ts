@@ -1,9 +1,6 @@
-import { beforeEach, describe, expect, it, mock } from 'bun:test'
-
-import { createApiClient } from '@dltech/atlas-api-router'
+import { afterAll, beforeEach, describe, expect, it } from 'bun:test'
 
 import { trpcBodyOf } from '@/lib/__tests__/trpc-body'
-import * as realApiClient from '@/lib/api-client'
 
 let calls: { url: string; init?: RequestInit }[]
 let response: Response
@@ -16,10 +13,13 @@ const fakeFetch = Object.assign(
   { preconnect: fetch.preconnect },
 )
 
-mock.module('@/lib/api-client', () => ({
-  ...realApiClient,
-  api: createApiClient({ baseUrl: '', fetchFn: fakeFetch }),
-}))
+const originalFetch = globalThis.fetch
+
+globalThis.fetch = fakeFetch
+
+afterAll(() => {
+  globalThis.fetch = originalFetch
+})
 
 const { deleteUserVercelCredential, getUserVercelCredential, putUserVercelCredential } =
   await import('../vercel-credential-api')

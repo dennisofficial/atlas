@@ -156,6 +156,67 @@ describe('sessionBootViewOf', () => {
     })
   })
 
+  it('shows an interrupted setup as restarting rather than failed', () => {
+    const view = sessionBootViewOf({
+      events: eventsOf([
+        step(EWorkspaceStep.Sandbox, EWorkspaceStepState.Done),
+        step(EWorkspaceStep.Daemon, EWorkspaceStepState.Done),
+        step(EWorkspaceStep.Clone, EWorkspaceStepState.Done),
+        step(EWorkspaceStep.Setup, EWorkspaceStepState.Interrupted, {
+          reason: 'setup was interrupted: the sandbox restarted',
+          command: 'bun install',
+          output: 'resolving\n',
+        }),
+      ]),
+      status: statusOf(ESessionStatus.Preparing),
+    })
+    expect(statesOf(view)).toEqual([
+      EBootStepState.Done,
+      EBootStepState.Done,
+      EBootStepState.Done,
+      EBootStepState.Interrupted,
+    ])
+    expect(view?.steps.at(-1)?.label).toBe('Setup restarted · running again')
+    expect(view?.state).toBe(EBootStepState.Running)
+    expect(view?.error).toBeUndefined()
+  })
+
+  it('keeps an interrupted setup neutral once the session carries on', () => {
+    const view = sessionBootViewOf({
+      events: eventsOf([
+        step(EWorkspaceStep.Sandbox, EWorkspaceStepState.Done),
+        step(EWorkspaceStep.Daemon, EWorkspaceStepState.Done),
+        step(EWorkspaceStep.Clone, EWorkspaceStepState.Done),
+        step(EWorkspaceStep.Setup, EWorkspaceStepState.Interrupted, {
+          reason: 'setup was interrupted: the sandbox restarted',
+          command: 'bun install',
+        }),
+        { type: 'workspace-prepared' },
+      ]),
+      status: statusOf(ESessionStatus.Idle),
+    })
+    expect(view?.steps.at(-1)?.state).toBe(EBootStepState.Interrupted)
+    expect(view?.state).toBe(EBootStepState.Running)
+    expect(view?.error).toBeUndefined()
+  })
+
+  it('shows the setup as done once the interrupted script re-runs', () => {
+    const view = sessionBootViewOf({
+      events: eventsOf([
+        step(EWorkspaceStep.Setup, EWorkspaceStepState.Interrupted, { command: 'bun install' }),
+        step(EWorkspaceStep.Setup, EWorkspaceStepState.Started, { command: 'bun install' }),
+        step(EWorkspaceStep.Setup, EWorkspaceStepState.Done, {
+          command: 'bun install',
+          output: 'installed\n',
+        }),
+        { type: 'workspace-prepared' },
+      ]),
+      status: statusOf(ESessionStatus.Idle),
+    })
+    expect(view?.steps.at(-1)?.state).toBe(EBootStepState.Done)
+    expect(view?.state).toBe(EBootStepState.Done)
+  })
+
   it('keeps a background setup script running after the workspace is prepared', () => {
     const view = sessionBootViewOf({
       events: eventsOf([

@@ -1,4 +1,5 @@
 import { ESessionStatus } from '@dltech/atlas-core'
+import type { ESandboxProvider } from '@dltech/atlas-protocol'
 
 import type { PullRequestEntry } from '@/features/threads/data/pull-request-entries'
 
@@ -9,6 +10,7 @@ export type V2RowView = {
   branch: string | undefined
   pullRequest: PullRequestEntry | undefined
   routineId: string | undefined
+  sandboxProvider: ESandboxProvider | undefined
   lastAssistantSeq: number
   readSeq: number | null
 }

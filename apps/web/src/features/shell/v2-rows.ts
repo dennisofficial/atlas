@@ -18,6 +18,7 @@ const rowViewOf = (summary: V2SessionSummary): V2RowView => ({
   status: summary.status?.state,
   branch: summary.primaryBranch ?? undefined,
   routineId: summary.routineId ?? undefined,
+  sandboxProvider: summary.sandboxProvider,
   lastAssistantSeq: summary.lastAssistantSeq ?? 0,
   readSeq: summary.readSeq ?? null,
   pullRequest:

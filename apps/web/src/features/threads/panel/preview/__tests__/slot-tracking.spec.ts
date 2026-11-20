@@ -1,4 +1,4 @@
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 
 import { trackSlot, type SlotEnvironment } from '../placement'
@@ -51,11 +51,11 @@ const fakeEnvironment = () => {
 
 describe('trackSlot', () => {
   beforeAll(() => {
-    GlobalRegistrator.register()
+    registerDom()
   })
 
   afterAll(async () => {
-    await GlobalRegistrator.unregister()
+    await unregisterDom()
   })
 
   it('places the frame once and does not measure again until something fires', () => {

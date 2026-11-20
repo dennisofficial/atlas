@@ -1,4 +1,4 @@
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'bun:test'
 import type { WireEvent } from '@dltech/atlas-wire/web'
 
@@ -10,9 +10,9 @@ import { fakeFetch, trpcOk } from './trpc-fake'
 
 const realFetch = globalThis.fetch
 
-beforeAll(() => GlobalRegistrator.register())
+beforeAll(() => registerDom())
 afterAll(async () => {
-  await GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 afterEach(() => {
   clearCloudCache()

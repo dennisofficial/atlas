@@ -1,4 +1,4 @@
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 
 import { createPaneSync } from '../pane-sync'
@@ -14,11 +14,11 @@ import {
 
 describe('createPaneSync', () => {
   beforeAll(() => {
-    GlobalRegistrator.register()
+    registerDom()
   })
 
   afterAll(async () => {
-    await GlobalRegistrator.unregister()
+    await unregisterDom()
   })
 
   it('keeps one command in flight and sends the latest after it settles', async () => {

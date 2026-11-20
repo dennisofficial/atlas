@@ -65,14 +65,12 @@ export const createSessionParams = (params: {
   title?: string
   mainThreadId: string
   sandboxProvider: string
-  credentialSource: string
   sandboxInstanceId: string | null
 } => ({
   ...params,
   userId: USER,
   projectId: PROJECT,
   sandboxProvider: 'vercel',
-  credentialSource: 'platform',
   sandboxInstanceId: null,
 })
 

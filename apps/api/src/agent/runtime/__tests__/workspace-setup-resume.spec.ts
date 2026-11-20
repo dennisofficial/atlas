@@ -76,7 +76,7 @@ describe('a resumed setup script', () => {
     const { steps, setups } = await prepare({ processes, files })
 
     expect(lastSetupStep(steps)).toMatchObject({
-      state: EWorkspaceStepState.Failed,
+      state: EWorkspaceStepState.Interrupted,
       reason: SETUP_INTERRUPTED_REASON,
       output: expect.stringContaining('closed its daemon link'),
     })
@@ -88,6 +88,28 @@ describe('a resumed setup script', () => {
 
     expect(later.steps.some((step) => step.state === EWorkspaceStepState.Started)).toBe(false)
     expect(files.contents.has(STARTED)).toBe(true)
+  })
+
+  it('re-runs the interrupted script on the next prepare and reports it done', async () => {
+    const files = resumedFiles()
+    const interrupted = new RecordingProcessPort({
+      outcomeOf: () => ({
+        kind: EProcessOutcome.Failed,
+        code: 'internal',
+        message: 'session sandbox-resume closed its daemon link',
+      }),
+    })
+    await prepare({ processes: interrupted, files })
+
+    const rerun = new RecordingProcessPort({ chunks: ['installed\n'], exitCodeOf: () => 0 })
+    const { steps } = await prepare({ processes: rerun, files })
+
+    expect(lastSetupStep(steps)).toMatchObject({
+      state: EWorkspaceStepState.Done,
+      output: 'installed\n',
+    })
+    expect(files.contents.has(SETUP_RAN)).toBe(true)
+    expect(files.contents.has(STARTED)).toBe(false)
   })
 
   it('reports a known non-zero exit as failed and forgets its started marker', async () => {

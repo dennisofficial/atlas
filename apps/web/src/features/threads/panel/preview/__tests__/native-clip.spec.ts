@@ -1,12 +1,12 @@
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 
 import { clipRectsOf } from '../native/clip'
 import { createMaskSync, OVERLAY_MASKS, overlayStateOf } from '../native/masks'
 
-beforeAll(() => GlobalRegistrator.register())
+beforeAll(() => registerDom())
 afterAll(async () => {
-  await GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 describe('clipRectsOf', () => {

@@ -38,6 +38,7 @@ const view = (overrides: Partial<V2RowView> = {}): V2RowView => ({
   branch: undefined,
   pullRequest: undefined,
   routineId: undefined,
+  sandboxProvider: undefined,
   lastAssistantSeq: 5,
   readSeq: null,
   ...overrides,

@@ -1,8 +1,4 @@
-import { beforeEach, describe, expect, it, mock } from 'bun:test'
-
-import { createApiClient } from '@dltech/atlas-api-router'
-
-import * as realApiClient from '@/lib/api-client'
+import { afterAll, beforeEach, describe, expect, it } from 'bun:test'
 
 let urls: string[]
 
@@ -16,10 +12,13 @@ const fakeFetch = Object.assign(
   { preconnect: fetch.preconnect },
 )
 
-mock.module('@/lib/api-client', () => ({
-  ...realApiClient,
-  api: createApiClient({ baseUrl: '', fetchFn: fakeFetch }),
-}))
+const originalFetch = globalThis.fetch
+
+globalThis.fetch = fakeFetch
+
+afterAll(() => {
+  globalThis.fetch = originalFetch
+})
 
 const { loadSecretNames } = await import('../use-agent-keys')
 

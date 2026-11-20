@@ -1,4 +1,4 @@
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'bun:test'
 import { act } from 'react'
 import { EClientRequest, EServeFrame } from '@dltech/atlas-client/channel'
@@ -11,14 +11,14 @@ import { TestWebSocket, threadCacheRig } from './thread-cache-fixture'
 const realFetch = globalThis.fetch
 let socketDescriptor: PropertyDescriptor | undefined
 beforeAll(() => {
-  GlobalRegistrator.register()
+  registerDom()
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
   socketDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'WebSocket')
   Object.defineProperty(globalThis, 'WebSocket', { configurable: true, value: TestWebSocket })
 })
 afterAll(async () => {
   if (socketDescriptor) Object.defineProperty(globalThis, 'WebSocket', socketDescriptor)
-  await GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 afterEach(() => {
   clearCloudCache()

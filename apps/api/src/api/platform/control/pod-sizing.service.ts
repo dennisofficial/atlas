@@ -4,7 +4,6 @@ import { ControlPlane, type ControlSessionRow } from '@dltech/atlas-control'
 import { resizeArgs } from '@dltech/atlas-native-commands'
 
 import { JobDispatcher } from '../../../_core/ports/job-dispatcher'
-import { PodPlanGate } from '../../../_core/ports/pod-plan-gate'
 import { podResizeIdempotencyKey, podResizeTaskContract } from './pod-resize.contract'
 import { assertWithinVcpuLimit, vcpuLimitOf } from './pod-vcpu-limit'
 
@@ -20,7 +19,6 @@ export class PodSizingService implements PodSizing {
   constructor(
     @Inject(ControlPlane) private readonly plane: ControlPlane,
     @Inject(JobDispatcher) private readonly dispatcher: JobDispatcher,
-    private readonly planGate: PodPlanGate,
   ) {}
 
   resizeHandler(args: {
@@ -29,9 +27,7 @@ export class PodSizingService implements PodSizing {
   }): ControlCommandHandler<ControlPlane, unknown> {
     return async ({ args: raw }) => {
       const { vcpus, whenIdle } = resizeArgs.parse(raw)
-      const limit = vcpuLimitOf(args.session)
-      if (limit === null) await this.planGate.assertWithinPlan({ userId: args.userId, vcpus })
-      else assertWithinVcpuLimit({ vcpus, limit })
+      assertWithinVcpuLimit({ vcpus, limit: vcpuLimitOf(args.session) })
       const sessionId = args.session.podSessionId ?? args.session.sessionId
       const generation = await this.plane.recordPodDesired({ sessionId, vcpus })
       const payload = {

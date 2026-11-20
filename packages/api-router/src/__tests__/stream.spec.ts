@@ -155,6 +155,21 @@ describe('sessionStreamTransport', () => {
     expect(signedOut).toBe(1)
   })
 
+  it('reports one failure when the link drops and would reconnect with the stale input', async () => {
+    const state = collected()
+    const subscription = transportOf().follow({ sessionId: 'ses_1', afterSeq: 3 }, state.handlers)
+    const source = await opened()
+
+    source.emit('error', { data: '' })
+    await settled(() => state.failures.length >= 1)
+    await Bun.sleep(20)
+    subscription.close()
+
+    expect(state.failures).toEqual([undefined])
+    expect(state.ends).toBe(0)
+    expect(source.readyState).toBe(source.CLOSED)
+  })
+
   it('ends once when the server stops the stream', async () => {
     const state = collected()
     const transport = transportOf()
