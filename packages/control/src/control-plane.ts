@@ -126,7 +126,6 @@ export class ControlPlane {
     mainThreadId: string
     model?: SessionModelAsk | undefined
     sandboxProvider?: string | undefined
-    credentialSource?: string | undefined
     sandboxInstanceId?: string | null | undefined
     routineId?: string | undefined
   }): Promise<SessionModelRow> {
@@ -143,7 +142,6 @@ export class ControlPlane {
     mainThreadId: string
     model?: SessionModelAsk | undefined
     sandboxProvider?: string | undefined
-    credentialSource?: string | undefined
     sandboxInstanceId?: string | null | undefined
     routineId?: string | undefined
     message: { kind: string; payload: string }

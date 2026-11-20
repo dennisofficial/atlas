@@ -208,10 +208,12 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
         projectId: PROJECT,
         mainThreadId: 'agent37-thread',
         sandboxProvider: 'agent37',
-        credentialSource: 'byok',
       })
       expect((await plane.readSession({ sessionId: 'agent37-session' }))?.sandboxProvider).toBe(
         'agent37',
+      )
+      expect((await plane.readSession({ sessionId: 'agent37-session' }))?.credentialSource).toBe(
+        'platform',
       )
     })
 
