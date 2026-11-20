@@ -1,6 +1,6 @@
 import { createPublicKey, createVerify } from 'node:crypto'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test'
 import { db } from '@dltech/atlas-db'
 import { ensureUsers } from '../../../../test/github-seed'
 import {
@@ -139,6 +139,35 @@ describe('GithubAppSyncService', () => {
     await service.syncUnknownInstallation({ installationId: 145998843 })
 
     expect(github.calls).toEqual([])
+  })
+
+  it('checks a known installation against the process set instead of the table', async () => {
+    github = fakeGithubApp({ installations: [PERSONAL] })
+    const { service } = syncServiceWith()
+    await service.syncFromGithub()
+    const select = spyOn(db.orm.public.GithubAppInstallation, 'select')
+    try {
+      await service.syncUnknownInstallation({ installationId: 145998843 })
+      expect(select).not.toHaveBeenCalled()
+    } finally {
+      select.mockRestore()
+    }
+  })
+
+  it('drops a deleted installation from the known set so the next delivery reads it', async () => {
+    github = fakeGithubApp({ installations: [PERSONAL] })
+    const { service, installations } = syncServiceWith()
+    await service.syncFromGithub()
+    await installations.applyInstallation({
+      action: 'deleted',
+      installation: {
+        id: PERSONAL.id,
+        account: { login: 'dennisofficial', type: 'User' },
+        suspended_at: null,
+      },
+    } as never)
+
+    expect(await installations.isKnown({ installationId: BigInt(PERSONAL.id) })).toBe(false)
   })
 
   it('throttles the periodic sync to once per window', async () => {
