@@ -165,12 +165,12 @@ describe('a pr-event in the transcript', () => {
   it('renders mergeability both ways', () => {
     expect(
       onlyPrEntry(log([prEvent({ kind: EPrEventKind.Mergeability, mergeable: true })])).text,
-    ).toBe('PR #42: mergeable')
+    ).toBe('PR #42: now mergeable')
 
     const conflicted = onlyPrEntry(
       log([prEvent({ kind: EPrEventKind.Mergeability, mergeable: false })]),
     )
-    expect(conflicted.text).toBe('PR #42: has conflicts')
+    expect(conflicted.text).toBe('PR #42: now has merge conflicts')
     expect(conflicted.failed).toBe(true)
   })
 
