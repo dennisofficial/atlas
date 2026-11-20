@@ -81,7 +81,7 @@ export function createSettlePending(deps: {
   }
 
   return async ({ threadId, signal, pause }) => {
-    const paused = (): boolean => pause !== undefined && pause.paused
+    const paused = (): boolean => pause?.paused === true
     const events = await deps.record.composedEvents({ threadId })
     const state = await deps.record.loopState({ threadId })
 

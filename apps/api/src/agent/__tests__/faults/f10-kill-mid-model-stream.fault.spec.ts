@@ -18,6 +18,11 @@ const v2EventsOf = (rows: readonly ReadEvent[]): V2Event[] =>
 const textOfAssistantSaid = (row: ReadEvent): string =>
   JSON.stringify((row.event as { parts?: unknown }).parts ?? [])
 
+const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
+
 const expectEpochsOrdered = (events: readonly ReadEvent[], finalEpoch: number): void => {
   let previous = -1
   for (const row of events) {
@@ -112,7 +117,7 @@ describe.skipIf(REDIS_URL === undefined)(
       await hostB.exited
     }, 60_000)
 
-    it('exit 3b: SIGTERM mid model stream leaves the partial output marked aborted: handoff', async () => {
+    it('exit 3b: SIGTERM mid model stream lets the reply commit whole, without a second answer', async () => {
       const sessionId = 'fault-f10-3b'
       const threadId = await rig.newSession({ sessionId, text: 'tell me a story' })
       const daemon = await rig.spawnDaemonFor({ sessionId })
@@ -137,43 +142,32 @@ describe.skipIf(REDIS_URL === undefined)(
       await hostA.exited
 
       const after = await readEvents({ plane: rig.plane, threadId })
-      const partial = after.filter((row) => row.type === 'assistant-said')
-      expect(partial.length).toBe(1)
-      const partialEvent = partial[0]?.event as { aborted?: string; parts?: unknown }
-      expect(partialEvent.aborted).toBe('handoff')
-      const partialText = JSON.stringify(partialEvent.parts ?? [])
-      expect(partialText.length).toBeGreaterThan(2)
-      expect(partialText.length).toBeLessThan(streamed.length)
+      const said = after.filter((row) => row.type === 'assistant-said')
+      expect(said).toHaveLength(1)
+      const whole = said[0]?.event as { aborted?: string; interrupted?: boolean }
+      expect(whole.aborted).toBeUndefined()
+      expect(whole.interrupted).toBeUndefined()
+      expect(textOfAssistantSaid(said[0] as ReadEvent)).toContain(streamed)
+      expect(after.filter((row) => row.type === 'nudge')).toEqual([])
+
+      const lease = await rig.plane.currentLease({ sessionId })
+      expect(lease.lease.holderHostId).toBeNull()
+      expectEpochsOrdered(after, lease.lease.epoch)
 
       const hostB = await rig.spawnHost({
         label: 'host-b',
         daemonUrl: daemon.url,
         scripts: { [sessionId]: [{ text: 'host b finished' }] },
       })
-      await rig.claim({ sessionId, label: 'host-b', timeoutMs: 20_000 })
+      await rig.wake(sessionId)
+      await sleep(2_000)
 
-      await rig
-        .waitForSeq({
-          threadId,
-          want: (rows) =>
-            rows.some(
-              (row) =>
-                row.type === 'assistant-said' &&
-                textOfAssistantSaid(row).includes('host b finished'),
-            ),
-          timeoutMs: 30_000,
-        })
-        .catch((error: unknown) => {
-          throw new Error(
-            `${error instanceof Error ? error.message : String(error)}\nhostB logs:\n${hostB.logs().join('\n')}`,
-          )
-        })
+      const later = await readEvents({ plane: rig.plane, threadId })
+      expect(later.filter((row) => row.type === 'assistant-said')).toHaveLength(1)
+      expect(later.filter((row) => row.type === 'nudge')).toEqual([])
 
-      const events = await readEvents({ plane: rig.plane, threadId })
-      const lease = await rig.plane.currentLease({ sessionId })
-      expect(lease.lease.epoch).toBeGreaterThan(leaseBefore.lease.epoch)
-      expect(await rig.labelOf(lease.lease.holderHostId)).not.toBe('host-a')
-      expectEpochsOrdered(events, lease.lease.epoch)
+      hostB.kill('SIGKILL')
+      await hostB.exited
     }, 60_000)
   },
 )
