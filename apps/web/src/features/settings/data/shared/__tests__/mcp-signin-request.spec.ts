@@ -1,6 +1,4 @@
-import { beforeEach, describe, expect, it, mock } from 'bun:test'
-
-import { createApiClient } from '@dltech/atlas-api-router'
+import { afterAll, beforeEach, describe, expect, it } from 'bun:test'
 
 import { trpcBodyOf } from '@/lib/__tests__/trpc-body'
 
@@ -18,9 +16,13 @@ const recordingFetch = (async (input: RequestInfo | URL, init?: RequestInit) => 
   return answer()
 }) as typeof fetch
 
-mock.module('@/lib/api-client', () => ({
-  api: createApiClient({ baseUrl: '', fetchFn: recordingFetch }),
-}))
+const originalFetch = globalThis.fetch
+
+globalThis.fetch = recordingFetch
+
+afterAll(() => {
+  globalThis.fetch = originalFetch
+})
 
 const { beginMcpSignIn } = await import('../mcp-signin-request')
 

@@ -1,9 +1,6 @@
-import { beforeEach, describe, expect, it, mock } from 'bun:test'
-
-import { createApiClient } from '@dltech/atlas-api-router'
+import { afterAll, beforeEach, describe, expect, it } from 'bun:test'
 
 import { trpcBodyOf } from '@/lib/__tests__/trpc-body'
-import * as realApiClient from '@/lib/api-client'
 
 let calls: { url: string; init?: RequestInit }[]
 let trpcResponse: Response
@@ -16,10 +13,13 @@ const fakeTrpcFetch = Object.assign(
   { preconnect: fetch.preconnect },
 )
 
-mock.module('@/lib/api-client', () => ({
-  ...realApiClient,
-  api: createApiClient({ baseUrl: '', fetchFn: fakeTrpcFetch }),
-}))
+const originalFetch = globalThis.fetch
+
+globalThis.fetch = fakeTrpcFetch
+
+afterAll(() => {
+  globalThis.fetch = originalFetch
+})
 
 const { createProject } = await import('@/features/project-settings/data/project-api')
 const { fetchGithubBranches, fetchGithubRepos } = await import('../github-repos-api')

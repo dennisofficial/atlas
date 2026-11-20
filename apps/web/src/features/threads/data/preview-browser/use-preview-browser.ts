@@ -23,6 +23,10 @@ const storeOf = () => {
 export const updatePreviewBrowser = (args: { threadId: string; change: BrowserChange }) =>
   storeOf().update(args)
 
+export const resetPreviewBrowsers = (): void => {
+  held = undefined
+}
+
 const subscribe = (listener: () => void) => storeOf().subscribe(listener)
 
 const SERVER_STATE: BrowserState = freshBrowser()
