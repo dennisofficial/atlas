@@ -56,6 +56,23 @@ describe('withMemoryIndex', () => {
     expect(added).toContain('- dennis-prefers-bun — The workspace runs on Bun')
   })
 
+  it('renders the same block when the control plane lists the entries in another order', async () => {
+    const { memory, row } = memoryWith()
+    await memory.port.write(row)
+    await memory.port.write({ ...row, name: 'second', description: 'Second entry' })
+    await memory.port.write({ ...row, name: 'third', description: 'Third entry' })
+    const first = await withMemoryIndex({ assembled, ctx: ctxWith(memory.port), state: state() })
+    const reversed: PodMemory = {
+      ...memory.port,
+      list: async () => {
+        const listed = await memory.port.list()
+        return { ...listed, memories: [...listed.memories].reverse() }
+      },
+    }
+    const second = await withMemoryIndex({ assembled, ctx: ctxWith(reversed), state: state() })
+    expect(second.system[1]?.text).toBe(first.system[1]?.text ?? '')
+  })
+
   it('loads the index once across steps', async () => {
     const { memory, row } = memoryWith()
     await memory.port.write(row)

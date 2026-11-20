@@ -33,7 +33,7 @@ import { runTrackedTurn, type TrackedTurnDeps } from './tracked-turn'
 import { ETurnStatus, type TurnOutcome } from './turn-outcome'
 import { TurnRunner } from './turn-runner.port'
 import type { TurnDeps } from './turn-deps'
-import type { LogPort, TracePort } from '@dltech/atlas-observability'
+import { ETurnEntry, type LogPort, type TracePort } from '@dltech/atlas-observability'
 import { traceTurn, tracedTurnDeps } from '../trace/traced-turn-deps'
 
 export type { PendingDrain }
@@ -182,14 +182,15 @@ export class LoopTurnRunner extends TurnRunner {
       threadId,
       expandContext: this.expandContext,
     })
-    return this.runTurn({
+    return this.tracedTurn({
       threadId,
+      entry: ETurnEntry.Resume,
       ...(signal === undefined ? {} : { signal }),
       ...(pause === undefined ? {} : { pause }),
     })
   }
 
-  async runTurn({
+  runTurn({
     threadId,
     signal,
     pause,
@@ -198,10 +199,30 @@ export class LoopTurnRunner extends TurnRunner {
     signal?: AbortSignal
     pause?: PauseSignal
   }): Promise<TurnOutcome> {
+    return this.tracedTurn({
+      threadId,
+      entry: ETurnEntry.Start,
+      ...(signal === undefined ? {} : { signal }),
+      ...(pause === undefined ? {} : { pause }),
+    })
+  }
+
+  private tracedTurn({
+    threadId,
+    entry,
+    signal,
+    pause,
+  }: {
+    threadId: ThreadId
+    entry: ETurnEntry
+    signal?: AbortSignal
+    pause?: PauseSignal
+  }): Promise<TurnOutcome> {
     return traceTurn({
       trace: this.trace,
       model: this.model,
       threadId,
+      entry,
       run: () =>
         this.runTracedTurn({
           threadId,

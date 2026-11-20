@@ -8,12 +8,16 @@ export const memoryPromptOf = (text: string): string => `${UNAVAILABLE_PREFIX}: 
 export const unavailableIndexOf = (reason: string): string =>
   memoryPromptOf(reason.replace(/\.+$/, ''))
 
+const byName = (left: MemorySummary, right: MemorySummary): number =>
+  left.name < right.name ? -1 : left.name > right.name ? 1 : 0
+
 const linesOf = (
   summaries: readonly MemorySummary[],
   scope: MemoryScope,
 ): readonly MemoryIndexLine[] =>
   summaries
     .filter((summary) => summary.scope === scope)
+    .sort(byName)
     .map((summary) => ({ name: summary.name, description: summary.description }))
 
 export const memoryIndexOf = (args: {
