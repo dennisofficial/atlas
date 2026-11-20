@@ -11,6 +11,7 @@ import type { Row, Tx } from '@dltech/atlas-db'
 import { z } from 'zod'
 
 import { subscriptionLiveWhere } from './github-delivery-routing'
+import { wantsPrEvent } from './github-event-filter'
 import { repoPattern } from './github-pr-identity'
 import { EPrEventKind as EApiPrEventKind, type GithubPrEventPayload } from './github-realtime.types'
 
@@ -92,7 +93,7 @@ const subscribedV2Sessions = async (args: {
   now: Date
 }): Promise<Array<{ threadId: string; sessionId: string }>> => {
   const { tx, event } = args
-  const subscriptions = await tx.orm.public.GithubSubscription.where({
+  const held = await tx.orm.public.GithubSubscription.where({
     userId: event.userId,
     prNumber: event.prNumber,
   })
@@ -100,6 +101,9 @@ const subscribedV2Sessions = async (args: {
     .where((subscription) => subscription.threadId.neq(''))
     .where(subscriptionLiveWhere({ now: args.now }))
     .all()
+  const subscriptions = held.filter((subscription) =>
+    wantsPrEvent({ events: subscription.events, kind: event.kind }),
+  )
   if (subscriptions.length === 0) return []
   const threadIds = [...new Set(subscriptions.map((subscription) => subscription.threadId))]
   const threads = await tx.orm.v2.V2Thread.where((thread) => thread.id.in(threadIds)).all()

@@ -66,7 +66,12 @@ export class GithubPrSubscriptionLinks extends PrSubscriptionLinks {
         const known = existing.some(
           (row) => row.repoFullName === target.repoFullName && row.branch === target.branch,
         )
-        await this.ensureLink({ userId: args.userId, threadId: args.threadId, target })
+        await this.ensureLink({
+          userId: args.userId,
+          threadId: args.threadId,
+          target,
+          events: subscriptionEventsOf(event.body),
+        })
         if (!known && target.kind === PULL_REQUEST_KIND) {
           await db.orm.public.GithubRepoHook.where({
             repoFullName: target.repoFullName,
@@ -136,6 +141,7 @@ export class GithubPrSubscriptionLinks extends PrSubscriptionLinks {
     userId: string
     threadId: string
     target: LinkTarget
+    events: readonly string[]
   }): Promise<void> {
     try {
       const expiresAt = nextExpiry()
@@ -157,6 +163,7 @@ export class GithubPrSubscriptionLinks extends PrSubscriptionLinks {
           prNumber: args.target.prNumber,
           branch: args.target.branch,
           kind: args.target.kind,
+          events: [...args.events],
           pollBacked: true,
           expiresAt,
           liveUntil,
@@ -164,6 +171,7 @@ export class GithubPrSubscriptionLinks extends PrSubscriptionLinks {
         },
         update: {
           prNumber: args.target.prNumber,
+          events: [...args.events],
           expiresAt,
           liveUntil,
         },
@@ -174,6 +182,19 @@ export class GithubPrSubscriptionLinks extends PrSubscriptionLinks {
       )
     }
   }
+}
+
+function subscriptionEventsOf(body: string): readonly string[] {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(body)
+  } catch {
+    return []
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return []
+  const events = (parsed as Record<string, unknown>).events
+  if (!Array.isArray(events)) return []
+  return events.filter((name): name is string => typeof name === 'string')
 }
 
 function subscriptionIdOf(body: string): string | undefined {

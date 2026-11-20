@@ -83,6 +83,23 @@ describe('GithubPrEventMailboxService per-thread delivery', () => {
     expect(second).toEqual([])
   })
 
+  it('serves only the event groups a thread subscription asked for', async () => {
+    const { mailbox } = serviceWith()
+    await seedSubscription({
+      userId: 'usr-a',
+      threadId: 'thr-1',
+      createdAt: new Date(Date.now() - 60_000),
+      events: ['state'],
+    })
+    await seedPrEvent({ id: 'evt_comment', userId: 'usr-a', kind: 'comment' })
+    await seedPrEvent({ id: 'evt_verdict', userId: 'usr-a', kind: 'verdict' })
+    await seedPrEvent({ id: 'evt_state', userId: 'usr-a', kind: 'state' })
+
+    const drained = await mailbox.replayForThread({ userId: 'usr-a', threadId: 'thr-1' })
+
+    expect(drained.map((event) => event.id)).toEqual(['evt_state'])
+  })
+
   it('drains events for a teammate child link and claims them on the teammate thread', async () => {
     const { mailbox } = serviceWith()
     await seedThreadRow({ id: 'thr-1', userId: 'usr-a' })
