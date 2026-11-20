@@ -96,7 +96,14 @@ describe('background work in the session status', () => {
     expect(statusOf([userSaid, agentSpawned])).toBe(ESessionStatus.Thinking)
   })
 
-  it('stays idle when no host holds the session', () => {
-    expect(statusOf([userSaid, shellStarted, assistantDone], false)).toBe(ESessionStatus.Idle)
+  it('reads as resuming while background work runs and no host holds the session', () => {
+    expect(statusOf([userSaid, agentSpawned, assistantDone], false)).toBe(ESessionStatus.Resuming)
+    expect(statusOf([userSaid, shellStarted, assistantDone], false)).toBe(ESessionStatus.Resuming)
+  })
+
+  it('stays idle without a host once background work ended', () => {
+    expect(
+      statusOf([userSaid, shellStarted, assistantDone, shellEnded, assistantDone], false),
+    ).toBe(ESessionStatus.Idle)
   })
 })
