@@ -16,6 +16,8 @@ export class CiFeedFragment extends PromptFragment {
       'on a run a notice already called finished. It ends itself',
       'when the pull request merges or closes. You can subscribe to any pull request, such as one your',
       'work depends on, with `#123`, `owner/repo#123`, or its URL.',
+      "When you only wait for someone else\u2019s pull request to land, subscribe with `events: ['state']`",
+      'so comments and CI do not wake you. A notice that needs no action gets a one-line reply.',
       'A workflow run that is not a pull request\u2019s \u2014 a deploy, a nightly, a run on main \u2014 is its own',
       'subscription: call `subscribe` with provider `github.workflow-run`, with a blank target for this',
       'push\u2019s run, `#<run id>`, `owner/repo#<run id>` or a run URL for one specific run, which ends when',

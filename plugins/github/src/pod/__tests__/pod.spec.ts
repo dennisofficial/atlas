@@ -176,6 +176,81 @@ describe('github pod tools', () => {
     expect(after.ok && after.modelText).toContain('no subscriptions')
   })
 
+  it('subscribes to a filtered set of occurrences and labels the filter', async () => {
+    const { ctx, log } = rig({})
+    const outcome = await invoke({
+      ctx,
+      name: 'subscribe',
+      input: { provider: 'github.pull-request', target: 'o/r#4', events: ['state', 'ci'] },
+    })
+    expect(outcome.ok && outcome.modelText).toContain('o/r#4 (only: ci, state)')
+    expect(log[0]).toMatchObject({ label: 'o/r#4 (only: ci, state)', events: ['ci', 'state'] })
+  })
+
+  it('refuses an unknown event, naming the valid ones and appending nothing', async () => {
+    const { ctx, log } = rig({})
+    const outcome = await invoke({
+      ctx,
+      name: 'subscribe',
+      input: { provider: 'github.pull-request', target: 'o/r#4', events: ['ci', 'nope'] },
+    })
+    expect(outcome.ok ? '' : outcome.reason).toContain(
+      'Valid events: ci, comments, mergeability, state',
+    )
+    expect(log).toHaveLength(0)
+  })
+
+  it('replaces the filter on re-subscribe with the same id, and the list shows it', async () => {
+    const { ctx, log } = rig({})
+    const made = await invoke({
+      ctx,
+      name: 'subscribe',
+      input: { provider: 'github.pull-request', target: 'o/r#4', events: ['ci'] },
+    })
+    const id = made.ok ? (made.output as { subscriptionId: string }).subscriptionId : ''
+    const again = await invoke({
+      ctx,
+      name: 'subscribe',
+      input: { provider: 'github.pull-request', target: 'o/r#4', events: ['state'] },
+    })
+    expect(again.ok && again.modelText).toContain('Updated filter on o/r#4 (only: state)')
+    expect(log).toHaveLength(2)
+    expect(log[1]).toMatchObject({ subscriptionId: id, events: ['state'] })
+    expect(again.ok && (again.output as { existed: boolean }).existed).toBe(true)
+    const listed = await invoke({ ctx, name: 'list_subscriptions', input: {} })
+    expect(listed.ok && listed.modelText).toContain('o/r#4 (only: state)')
+  })
+
+  it('keeps the held filter when re-subscribing without events', async () => {
+    const { ctx, log } = rig({})
+    await invoke({
+      ctx,
+      name: 'subscribe',
+      input: { provider: 'github.pull-request', target: 'o/r#4', events: ['state'] },
+    })
+    const again = await invoke({
+      ctx,
+      name: 'subscribe',
+      input: { provider: 'github.pull-request', target: 'o/r#4' },
+    })
+    expect(again.ok && again.modelText).toContain('Already subscribed to o/r#4 (only: state)')
+    expect(log).toHaveLength(1)
+  })
+
+  it('refuses an events filter on a provider that has no filter', async () => {
+    const { ctx } = rig({})
+    expect(
+      await invoke({
+        ctx,
+        name: 'subscribe',
+        input: { provider: 'github.workflow-run', target: '#run:1', events: ['ci'] },
+      }),
+    ).toMatchObject({
+      ok: false,
+      reason: 'github.workflow-run has no event filter; it delivers every occurrence.',
+    })
+  })
+
   it('declares a read effect for the list tool', () => {
     const { ctx } = rig({})
     const tools = githubPod.tools?.(ctx) ?? []

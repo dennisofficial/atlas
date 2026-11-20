@@ -14,6 +14,7 @@ export type SubscriptionEventBody =
       label: string
       createdBy: ESubscriptionActor
       expiresAt?: string | undefined
+      events?: readonly string[] | undefined
     }
   | {
       type: 'subscription-changed'

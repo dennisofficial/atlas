@@ -30,6 +30,7 @@ export type Subscription = {
   createdBy: ESubscriptionActor
   status: ESubscriptionStatus
   expiresAt?: string | undefined
+  events: readonly string[]
   createdAt: string
 }
 
@@ -50,6 +51,7 @@ export function subscriptionsOf(events: readonly Event[]): readonly Subscription
         createdBy: event.createdBy,
         status: ESubscriptionStatus.Active,
         expiresAt: event.expiresAt,
+        events: event.events ?? [],
         createdAt: event.at,
       })
       continue

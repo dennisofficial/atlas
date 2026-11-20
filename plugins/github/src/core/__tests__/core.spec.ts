@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   chainEvents,
+  EPrEventKind,
   ESubscriptionActor,
   ESubscriptionEnd,
   ESubscriptionStatus,
@@ -15,6 +16,7 @@ import {
   ECiWatch,
   foldSubscriptions,
   parseTargetInput,
+  prEventGroupOf,
   subscriptionsOfEvents,
   subscriptionsViewSchema,
   targetOfRepo,
@@ -77,6 +79,34 @@ describe('subscriptions view', () => {
     )
     expect(state).toHaveLength(1)
     expect(state[0]?.status).toBe(ESubscriptionStatus.Paused)
+  })
+
+  it('carries the events filter, replacing it on a later created for the same id', () => {
+    const created = (events?: readonly string[]): V2Body => ({
+      type: 'subscription-created',
+      subscriptionId: 'a',
+      provider: 'github.pull-request',
+      target: { repo: 'github.com/o/r', number: 4 },
+      label: 'o/r#4',
+      createdBy: ESubscriptionActor.Agent,
+      ...(events === undefined ? {} : { events }),
+    })
+    expect(subscriptionsOfEvents(eventsOf([created()]))[0]?.events).toEqual([])
+    expect(
+      subscriptionsOfEvents(eventsOf([created(['ci']), created(['state'])]))[0]?.events,
+    ).toEqual(['state'])
+  })
+
+  it('groups every pull request event kind into a catalog event', () => {
+    expect(Object.values(EPrEventKind).map((kind) => [kind, prEventGroupOf(kind)])).toEqual([
+      ['comment', 'comments'],
+      ['review', 'comments'],
+      ['review-comment', 'comments'],
+      ['verdict', 'ci'],
+      ['mergeability', 'mergeability'],
+      ['state', 'state'],
+      ['merge-queue', 'mergeability'],
+    ])
   })
 
   it('leaves state untouched for unrelated events and round-trips its schema', () => {

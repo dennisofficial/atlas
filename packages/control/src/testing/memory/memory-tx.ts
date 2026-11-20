@@ -12,6 +12,7 @@ import {
   type ClaimedBatch,
   type ControlTx,
   type SubscriptionLease,
+  type SubscriptionLeaseKey,
   type TrackingTarget,
   type ReadEventsParams,
   type StoredEvent,
@@ -374,10 +375,13 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
   }
 
   async upsertSubscriptionLease(params: SubscriptionLease & { expiresAt: string }) {
-    this.state.subscriptionLeases.set(subscriptionLeaseKey(params), { ...params })
+    this.state.subscriptionLeases.set(subscriptionLeaseKey(params), {
+      ...params,
+      events: [...params.events],
+    })
   }
 
-  async deleteSubscriptionLease(params: SubscriptionLease): Promise<boolean> {
+  async deleteSubscriptionLease(params: SubscriptionLeaseKey): Promise<boolean> {
     return this.state.subscriptionLeases.delete(subscriptionLeaseKey(params))
   }
 

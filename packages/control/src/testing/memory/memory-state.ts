@@ -12,6 +12,7 @@ import type {
   SessionBranchRow,
   SessionPullRequestRow,
   SubscriptionLease,
+  SubscriptionLeaseKey,
   SessionViewRow,
   StoredEvent,
   ThreadRow,
@@ -176,7 +177,7 @@ export const sessionPullRequestKey = (params: {
   number: number
 }): string => `${params.sessionId} ${params.repo}#${params.number}`
 
-export const subscriptionLeaseKey = (params: SubscriptionLease): string =>
+export const subscriptionLeaseKey = (params: SubscriptionLeaseKey): string =>
   `${params.userId} ${params.threadId} ${params.repo}${subscriptionSubjectKey(params.subject)}`
 
 export const trackingTargetKey = (params: TrackingTarget): string =>
