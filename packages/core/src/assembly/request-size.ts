@@ -1,12 +1,13 @@
 import { z } from 'zod'
 
+import { ENVELOPE_CONTEXT_TAG } from '../context/envelope'
 import type { Message } from '../message/message'
 import type { MessagePart, ToolResultOutput } from '../message/parts'
 import type { ToolDeclaration } from '../tools/tool'
 import type { Assembled } from './assembled'
 
 const MCP_PREFIX = 'mcp__'
-const CONTEXT_SOURCE_PREFIX = '<system-context source="'
+const CONTEXT_SOURCE_PREFIX = `<${ENVELOPE_CONTEXT_TAG} source="`
 
 type Sizes = Record<string, number>
 
