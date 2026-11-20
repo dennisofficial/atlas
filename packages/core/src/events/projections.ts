@@ -151,7 +151,10 @@ export function inputForCall({
     ?.input
 }
 
+export const handoffAborted = (event: Event): boolean =>
+  event.type === 'assistant-said' && event.aborted === 'handoff'
+
 export function awaitsReply(events: readonly Event[]): boolean {
-  const lastTurn = events.filter(isTurnTaking).at(-1)
+  const lastTurn = events.filter((event) => isTurnTaking(event) && !handoffAborted(event)).at(-1)
   return lastTurn !== undefined && lastTurn.type !== 'assistant-said'
 }

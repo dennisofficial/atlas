@@ -10,6 +10,7 @@ import {
 import type { AgentRecordPort } from '../record/agent-record.port'
 import { TurnFault } from '../model/turn-fault'
 import type { SettlePending } from './settle-pending'
+import type { PauseSignal } from './pause-signal'
 import { stalledReport } from './turn-faults'
 
 export function messageArrivedSince({
@@ -55,6 +56,7 @@ export type SettledOutcome =
   | { kind: 'none-pending' }
   | { kind: 'settled' }
   | { kind: 'interrupted' }
+  | { kind: 'handoffPaused' }
   | { kind: 'paused'; callId: CallId; reason: string }
   | { kind: 'parked'; callId: CallId; name: string }
   | { kind: 'stalled'; message: string; cause: unknown }
@@ -64,7 +66,8 @@ export type SettledOutcome =
  * next step; `settled` restarts the iteration so the settled result is re-read; `paused` hands
  * the call to the operator; `parked` ends the turn because the result arrives later from outside
  * it; `stalled` fails the turn rather than retrying a call dispatch
- * already left pending; `interrupted` means the operator stopped the turn mid-settle.
+ * already left pending; `interrupted` means the operator stopped the turn mid-settle;
+ * `handoffPaused` means the drain asked for no new dispatch.
  */
 export async function settlePendingCall({
   pending,
@@ -72,12 +75,14 @@ export async function settlePendingCall({
   settlePending,
   settleAttempted,
   signal,
+  pause,
 }: {
   pending: PendingCall | undefined
   threadId: ThreadId
   settlePending: SettlePending | undefined
   settleAttempted: CallId | undefined
   signal: AbortSignal
+  pause?: PauseSignal | undefined
 }): Promise<SettledOutcome> {
   if (pending === undefined) return { kind: 'none-pending' }
 
@@ -93,7 +98,12 @@ export async function settlePendingCall({
     }
   }
 
-  const settled = await settlePending({ threadId, signal })
+  const settled = await settlePending({
+    threadId,
+    signal,
+    ...(pause === undefined ? {} : { pause }),
+  })
+  if (settled.handoffPaused === true) return { kind: 'handoffPaused' }
   if (settled.paused !== undefined) return { kind: 'paused', ...settled.paused }
   if (signal.aborted) return { kind: 'interrupted' }
   if (settled.parked !== undefined) return { kind: 'parked', ...settled.parked }

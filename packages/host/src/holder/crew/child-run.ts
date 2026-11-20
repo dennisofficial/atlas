@@ -23,6 +23,7 @@ import {
   statusOf,
   activeWorktreeSnapshotOf,
 } from './child-progress'
+import { DRAIN_IN_FLIGHT_CAP_MS } from '../drain-cap'
 import { childRunnerOf } from './child-runner'
 import { ChildTranscript } from './child-transcript'
 import { driveTurns, type DriveArgs } from './child-turns'
@@ -159,10 +160,27 @@ export class ChildRun {
     await this.end({ status: EAgentStatus.Stopped, failure: undefined, killedBy: by })
   }
 
-  pause(): void {
+  async pause(): Promise<void> {
     this.handingOff = true
     this.pauseSignal.pause()
-    this.abort?.abort('handoff')
+    if (!(await this.settledWithin(DRAIN_IN_FLIGHT_CAP_MS))) {
+      this.args.deps.log?.warn({
+        source: 'holder.drain',
+        message: `sub-agent ${this.agentId} ran in flight for ${DRAIN_IN_FLIGHT_CAP_MS}ms, past the drain cap; aborting it for the hand-off`,
+      })
+      this.abort?.abort('handoff')
+    }
+  }
+
+  private settledWithin(ms: number): Promise<boolean> {
+    const timers = this.args.deps.timers
+    return new Promise<boolean>((resolve) => {
+      const timer = timers.setTimeout(() => resolve(false), ms)
+      void this.done.then(() => {
+        timers.clearTimeout(timer)
+        resolve(true)
+      })
+    })
   }
 
   dispose(): void {

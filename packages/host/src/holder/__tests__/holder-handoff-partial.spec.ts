@@ -4,19 +4,32 @@ import {
   EFinishReason,
   ModelPort,
   type Assembled,
+  type ChunkFilter,
   type ModelStepResult,
   type ToolDeclaration,
   type V2Event,
 } from '@dltech/atlas-core'
-import type { ChunkFilter } from '@dltech/atlas-core'
+import { LogPort } from '@dltech/atlas-observability'
 
+import { DRAIN_IN_FLIGHT_CAP_MS } from '../drain-cap'
 import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID, type HolderRig } from './holder-rig'
 
 const PARTIAL_TEXT = 'partial answer'
 
-class StreamingModel extends ModelPort {
-  readonly identity = { id: 'streaming', modelId: 'streaming-1' }
+const result = (): ModelStepResult => ({
+  parts: [{ type: 'text', text: PARTIAL_TEXT }],
+  toolCalls: [],
+  finishReason: EFinishReason.Stop,
+})
+
+class GatedModel extends ModelPort {
+  readonly identity = { id: 'gated', modelId: 'gated-1' }
   started = 0
+  private finish: (() => void) | undefined
+
+  finishStep(): void {
+    this.finish?.()
+  }
 
   step: ModelPort['step'] = (args: {
     assembled: Assembled
@@ -29,21 +42,29 @@ class StreamingModel extends ModelPort {
     emit({ type: 'text-start', id: 'text-1' })
     emit({ type: 'text-delta', id: 'text-1', text: PARTIAL_TEXT })
     return new Promise<ModelStepResult>((resolve) => {
-      const partial = (): ModelStepResult => ({
-        parts: [{ type: 'text', text: PARTIAL_TEXT }],
-        toolCalls: [],
-        finishReason: EFinishReason.Stop,
-      })
-      if (args.signal.aborted) {
-        resolve(partial())
-        return
-      }
-      args.signal.addEventListener('abort', () => resolve(partial()), { once: true })
+      this.finish = () => resolve(result())
     })
   }
 }
 
-const assistantSaids = async (rig: HolderRig) => {
+class StuckModel extends ModelPort {
+  readonly identity = { id: 'stuck', modelId: 'stuck-1' }
+  started = 0
+
+  step: ModelPort['step'] = () => {
+    this.started += 1
+    return new Promise<ModelStepResult>(() => {})
+  }
+}
+
+class MemoryLog extends LogPort {
+  readonly entries: { source: unknown; message: string }[] = []
+  record(entry: Parameters<LogPort['record']>[0]): void {
+    this.entries.push({ source: entry.source, message: entry.message })
+  }
+}
+
+const saids = async (rig: HolderRig) => {
   const page = await rig.plane.readEvents({
     threadId: THREAD_ID,
     afterSeq: 0,
@@ -56,29 +77,62 @@ const assistantSaids = async (rig: HolderRig) => {
   )
 }
 
+const nudges = async (rig: HolderRig) => {
+  const page = await rig.plane.readEvents({
+    threadId: THREAD_ID,
+    afterSeq: 0,
+    limit: 1000,
+    visible: false,
+  })
+  return page.events.filter((event) => event.type === 'nudge')
+}
+
 describe('SessionHolder handoff with an open model step (exit 3b)', () => {
-  it('aborts the stream and revokes at once, without waiting on the turn or a timer', async () => {
-    const a = await makeRig({ model: () => new StreamingModel() })
+  it('lets a streaming step finish and commit, then hands the lease back', async () => {
+    const model = new GatedModel()
+    const a = await makeRig({ model: () => model })
     await seedSession(a)
     await a.holder.start()
     await a.post('say something')
     await a.wake()
 
-    const stepped = await flushUntil({
-      check: () => a.runtimes.some((runtime) => (runtime.model as StreamingModel).started > 0),
-    })
-    expect(stepped).toBe(true)
+    const streaming = await flushUntil({ check: () => model.started > 0 })
+    expect(streaming).toBe(true)
 
-    const startedAt = a.clock.now()
-    await a.holder.drain()
-    expect(a.clock.now()).toBe(startedAt)
+    const draining = a.holder.drain()
+    await a.flush()
+    model.finishStep()
+    await draining
 
-    const saids = await assistantSaids(a)
-    expect(saids.length).toBe(0)
+    const [said] = await saids(a)
+    expect(said?.interrupted).toBeUndefined()
+    expect(said?.aborted).toBeUndefined()
+    expect(await nudges(a)).toEqual([])
 
-    const lease = await a.plane.currentLease({ sessionId: SESSION })
-    expect(lease.lease.holderHostId).toBeNull()
-    expect(lease.lease.wantsHolder).toBe(true)
-    expect(a.bus.wakes.filter((id) => id === SESSION).length).toBeGreaterThanOrEqual(1)
+    const { lease } = await a.plane.currentLease({ sessionId: SESSION })
+    expect(lease.holderHostId).toBeNull()
+  }, 15_000)
+
+  it('aborts past the drain cap, warns with what was in flight, and records no reply', async () => {
+    const model = new StuckModel()
+    const log = new MemoryLog()
+    const a = await makeRig({ model: () => model, log })
+    await seedSession(a)
+    await a.holder.start()
+    await a.post('say something')
+    await a.wake()
+    expect(await flushUntil({ check: () => model.started > 0 })).toBe(true)
+
+    const draining = a.holder.drain()
+    await a.flush()
+    a.clock.advance(DRAIN_IN_FLIGHT_CAP_MS)
+    await draining
+
+    expect(await saids(a)).toEqual([])
+    expect(await nudges(a)).toEqual([])
+    const caps = log.entries.filter((entry) => entry.source === 'holder.drain')
+    expect(caps).toHaveLength(1)
+    expect(caps[0]?.message).toContain('drain cap')
+    expect(caps[0]?.message).toContain('model step')
   }, 15_000)
 })

@@ -14,6 +14,7 @@ const TURN_EXITED = new Set<ETurnStatus>([ETurnStatus.Failed, ETurnStatus.Interr
 
 export class HeldTurns {
   private turnAbort: AbortController | undefined
+  private readonly idleWaiters: (() => void)[] = []
   turnRunning = false
   onTurnEnd: (() => void) | undefined
 
@@ -21,6 +22,11 @@ export class HeldTurns {
 
   abort(reason?: unknown): void {
     this.turnAbort?.abort(reason)
+  }
+
+  whenIdle(): Promise<void> {
+    if (!this.turnRunning) return Promise.resolve()
+    return new Promise<void>((resolve) => this.idleWaiters.push(resolve))
   }
 
   async drive(args: {
@@ -47,6 +53,8 @@ export class HeldTurns {
     } finally {
       this.turnRunning = false
       this.turnAbort = undefined
+      const idle = this.idleWaiters.splice(0)
+      for (const resolve of idle) resolve()
       this.onTurnEnd?.()
     }
   }

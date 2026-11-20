@@ -17,6 +17,7 @@ import {
 
 import type { AgentRecordPort } from '../record/agent-record.port'
 import type { OnceLedger } from './once-ledger.port'
+import type { PauseSignal } from './pause-signal'
 
 import type { DispatchableCall, ToolDispatcher } from '../tools/dispatch'
 
@@ -27,11 +28,13 @@ export type OnToolOutputNotice = (args: ToolOutputNotice) => void
 export type SettledPending = {
   paused?: { callId: CallId; reason: string }
   parked?: { callId: CallId; name: string }
+  handoffPaused?: true
 }
 
 export type SettlePending = (args: {
   threadId: ThreadId
   signal: AbortSignal
+  pause?: PauseSignal | undefined
 }) => Promise<SettledPending>
 
 export function createSettlePending(deps: {
@@ -76,7 +79,7 @@ export function createSettlePending(deps: {
     })
   }
 
-  return async ({ threadId, signal }) => {
+  return async ({ threadId, signal, pause }) => {
     const events = await deps.record.composedEvents({ threadId })
     const state = await deps.record.loopState({ threadId })
 
@@ -91,6 +94,7 @@ export function createSettlePending(deps: {
 
     for (const [index, run] of runs.entries()) {
       if (signal.aborted) return {}
+      if (pause?.paused === true) return { handoffPaused: true }
 
       const current = index === 0 ? events : await deps.record.composedEvents({ threadId })
       const projectDirectory = activeWorktree?.path ?? homeDirectory

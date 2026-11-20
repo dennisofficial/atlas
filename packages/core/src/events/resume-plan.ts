@@ -1,6 +1,12 @@
 import type { EventDraft } from './body'
 import type { Event, EventOfType } from './envelope'
-import { awaitsReply, openParkedCall, outstandingApproval, pendingCalls } from './projections'
+import {
+  awaitsReply,
+  handoffAborted,
+  openParkedCall,
+  outstandingApproval,
+  pendingCalls,
+} from './projections'
 
 export const RESUME_NUDGE =
   'You were interrupted mid-turn. Continue from exactly where you stopped: finish the thought you were in and carry on with the work. If a tool call was cut short, run it again. Do not restart, re-plan, or repeat what you already said, and do not ask what to do instead or remark on the interruption.'
@@ -30,7 +36,8 @@ export const carriesInterruption = (event: Event): boolean =>
   (event.type === 'assistant-said' ||
     event.type === 'tool-result' ||
     event.type === 'tool-denied') &&
-  event.interrupted === true
+  event.interrupted === true &&
+  !handoffAborted(event)
 
 function cutShortSincePrompt(events: readonly Event[]): boolean {
   const prompted = events.findLastIndex(
@@ -54,7 +61,8 @@ export function resumePlan(events: readonly Event[]): ResumePlan {
   if (awaitsReply(events)) return { kind: EResume.Continue, nudge: cutShortSincePrompt(events) }
 
   const spoke = events.findLast(
-    (event): event is EventOfType<'assistant-said'> => event.type === 'assistant-said',
+    (event): event is EventOfType<'assistant-said'> =>
+      event.type === 'assistant-said' && !handoffAborted(event),
   )
 
   if (spoke?.interrupted !== true) return { kind: EResume.Nothing }
