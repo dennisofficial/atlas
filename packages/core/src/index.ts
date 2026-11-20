@@ -143,6 +143,7 @@ export * from './agents/crew-fold'
 
 export * from './lifecycle/lifecycle'
 export * from './pod/pod-busy'
+export * from './pod/serve-env'
 export * from './shells/status'
 export * from './shells/lifecycle'
 export * from './shells/running'

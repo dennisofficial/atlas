@@ -1,4 +1,4 @@
-import { mirrorsThreadState } from '@dltech/atlas-wire'
+import { mirrorsThreadState } from '@dltech/atlas-core'
 
 import { sandboxWorkloadsEnabled } from './markers'
 
