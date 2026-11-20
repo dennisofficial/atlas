@@ -17,10 +17,7 @@ const gitDirectories = (worktree: string): readonly string[] => {
   }
 }
 
-export function mountsWithGitMetadata(args: {
-  worktree: string
-  declared: readonly Mount[]
-}): readonly Mount[] {
+export function mountsWithGitMetadata(args: { worktree: string }): readonly Mount[] {
   const directories = gitDirectories(args.worktree).filter(
     (path) => !isUnderPath({ directory: args.worktree, path }),
   )
@@ -28,21 +25,5 @@ export function mountsWithGitMetadata(args: {
     (path) =>
       !directories.some((directory) => directory !== path && isUnderPath({ directory, path })),
   )
-  const mounts = [...args.declared]
-  for (const path of metadata) {
-    if (
-      mounts.some(
-        (mount) =>
-          mount.mode === EMountMode.ReadWrite && isUnderPath({ directory: mount.path, path }),
-      )
-    )
-      continue
-    if (mounts.some((mount) => mount.path === path)) {
-      throw new Error(
-        `Git metadata at ${path} needs a read-write mount; the declared mount is read-only`,
-      )
-    }
-    mounts.push({ path, mode: EMountMode.ReadWrite })
-  }
-  return mounts
+  return metadata.map((path) => ({ path, mode: EMountMode.ReadWrite }))
 }

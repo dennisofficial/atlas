@@ -1,4 +1,5 @@
 import { mkdtempSync, rmSync } from 'node:fs'
+import { trpcBodyOf } from './trpc-body'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -61,7 +62,7 @@ const boot = async (args: {
   const fetchFn = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input)
     if (url === trpcUrl({ controlPlaneUrl, procedure: 'sandboxSelf.bootSteps' })) {
-      const posted = bootStepsPostSchema.parse(JSON.parse(String(init?.body))).steps
+      const posted = bootStepsPostSchema.parse(trpcBodyOf(String(init?.body ?? ''))).steps
       steps.push(...posted)
       return args.bootStepsReply?.(posted) ?? trpcOk(undefined)
     }

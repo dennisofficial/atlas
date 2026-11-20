@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { trpcBodyOf } from './trpc-body'
 
 import { toRunId, toThreadId, type OrphanedInput } from '@dltech/atlas-core'
 import { podEventsPostSchema, podEventsTruncateSchema } from '@dltech/atlas-wire'
@@ -53,7 +54,7 @@ const fakeApi = (args: { alwaysDivergent: boolean }) => {
       )
     }
     if (procedure === 'sandboxSelf.truncateEvents') {
-      const { toSeq } = podEventsTruncateSchema.parse(JSON.parse(String(init?.body)))
+      const { toSeq } = podEventsTruncateSchema.parse(trpcBodyOf(String(init?.body ?? '')))
       truncates.push(toSeq)
       for (let index = rows.length - 1; index >= 0; index -= 1) {
         if ((rows[index]?.seq ?? 0) > toSeq) rows.splice(index, 1)
@@ -61,7 +62,7 @@ const fakeApi = (args: { alwaysDivergent: boolean }) => {
       return trpcOk({ head: head() })
     }
     if (procedure === 'sandboxSelf.events') {
-      const { events } = podEventsPostSchema.parse(JSON.parse(String(init?.body)))
+      const { events } = podEventsPostSchema.parse(trpcBodyOf(String(init?.body ?? '')))
       posts.push(events.map((event) => event.seq))
       for (const event of events) {
         const existing = rows.find((row) => row.seq === event.seq)

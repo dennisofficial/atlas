@@ -1,4 +1,5 @@
 import { mkdtempSync, rmSync } from 'node:fs'
+import { trpcBodyOf } from './trpc-body'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -47,7 +48,7 @@ const fakePostgres = () => {
   const fetchFn = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input)
     if (url === trpcUrl({ controlPlaneUrl, procedure: 'sandboxSelf.events' })) {
-      const { events } = podEventsPostSchema.parse(JSON.parse(String(init?.body)))
+      const { events } = podEventsPostSchema.parse(trpcBodyOf(String(init?.body ?? '')))
       for (const event of events) {
         if (event.seq !== head() + 1)
           return trpcFailure({ status: 409, details: { seq: event.seq } })

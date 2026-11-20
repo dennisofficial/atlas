@@ -79,7 +79,6 @@ export async function bindSandbox(args: {
   let anchor: WorkspaceAnchor = await resolveWorkspaceAnchor({
     cwd,
     atlasHome: args.atlasHome,
-    notice,
   })
   const mounts: string[] = [...anchor.mounts]
 
@@ -109,7 +108,7 @@ export async function bindSandbox(args: {
       sandbox: sandboxConfigFromHost({
         worktree: target.cwd,
         session,
-        resolution: target.resolution,
+        image: target.image,
         atlasHomeSubtrees: target.atlasSubtrees,
         limits: { cpus, memoryBytes: memoryGb * 1024 ** 3 },
       }),
@@ -148,7 +147,7 @@ export async function bindSandbox(args: {
     const resolved =
       next === anchor.cwd
         ? undefined
-        : await resolveWorkspaceAnchor({ cwd: next, atlasHome: args.atlasHome, notice })
+        : await resolveWorkspaceAnchor({ cwd: next, atlasHome: args.atlasHome })
 
     const removed = await removeSandboxMountedElsewhere({
       engine,

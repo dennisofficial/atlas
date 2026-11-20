@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
+import { trpcBodyOf } from './trpc-body'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -99,7 +100,7 @@ describe('runtime checkpoint mirror', () => {
       cloudURL: 'http://127.0.0.1:9',
       fetchFn: fakeFetch(async (_input: unknown, init?: RequestInit) => {
         if (sentRevisions.length === 0 && gate === null) await holdFirst()
-        const body = JSON.parse(String(init?.body)) as RuntimeCheckpoint
+        const body = trpcBodyOf(String(init?.body ?? '')) as RuntimeCheckpoint
         sentRevisions.push(body.revision)
         return trpcOk(null)
       }),
@@ -125,7 +126,7 @@ describe('runtime checkpoint mirror', () => {
       cloudURL: 'http://127.0.0.1:9',
       now: () => clock,
       fetchFn: fakeFetch(async (_input: unknown, init?: RequestInit) => {
-        const body = JSON.parse(String(init?.body)) as RuntimeCheckpoint
+        const body = trpcBodyOf(String(init?.body ?? '')) as RuntimeCheckpoint
         sent.push({ revision: body.revision, phase: body.phase })
         return trpcOk(null)
       }),
@@ -149,7 +150,7 @@ describe('runtime checkpoint mirror', () => {
       cloudURL: 'http://127.0.0.1:9',
       now: () => clock,
       fetchFn: fakeFetch(async (_input: unknown, init?: RequestInit) => {
-        const body = JSON.parse(String(init?.body)) as RuntimeCheckpoint
+        const body = trpcBodyOf(String(init?.body ?? '')) as RuntimeCheckpoint
         sent.push({ revision: body.revision, phase: body.phase })
         return trpcOk(null)
       }),
@@ -179,7 +180,7 @@ describe('runtime checkpoint mirror', () => {
       cloudURL: 'http://127.0.0.1:9',
       now: () => clock,
       fetchFn: fakeFetch(async (_input: unknown, init?: RequestInit) => {
-        const body = JSON.parse(String(init?.body)) as RuntimeCheckpoint
+        const body = trpcBodyOf(String(init?.body ?? '')) as RuntimeCheckpoint
         sent.push({ revision: body.revision, phase: body.phase })
         return trpcOk(null)
       }),

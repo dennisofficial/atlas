@@ -27,6 +27,7 @@ import type { CheckoutReport } from './workspace-checkout'
 import { prepareFailureResult, prepareWorkspace, resultOf } from './workspace-materialize'
 import { RepoProgress, repoNamesOf } from './workspace-repos'
 import { runSetupOnce } from './workspace-setup-run'
+import { installToolchain } from './workspace-toolchain'
 import {
   checkSentinels,
   clearSetupStarted,
@@ -196,6 +197,11 @@ export const ensureWorkspace = async (args: {
           notices,
         }),
     })
+    args.signal?.throwIfAborted()
+    // the repository is on disk now, so its pins can be read; the setup script needs them first
+    if (await exists({ files: args.files, path: launchDirectory })) {
+      await installToolchain({ deps, launchDirectory, scrub })
+    }
     args.signal?.throwIfAborted()
     const setupStarted =
       !state.setupRan &&

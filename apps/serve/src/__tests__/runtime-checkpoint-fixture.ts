@@ -1,3 +1,4 @@
+import { trpcBodyOf } from './trpc-body'
 import { toRunId, toThreadId, type Event, type EventId } from '@dltech/atlas-core'
 import { acceptsRuntimeCheckpoint } from '@dltech/atlas-harness'
 import { runtimeCheckpointSchema, type RuntimeCheckpoint } from '@dltech/atlas-wire'
@@ -46,7 +47,7 @@ export const startApi = (args: {
         return trpcOk({ checkpoint: args.stored() })
       }
       if (url.pathname === CHECKPOINT_PUT && request.method === 'POST') {
-        const reported = runtimeCheckpointSchema.parse(await request.json())
+        const reported = runtimeCheckpointSchema.parse(trpcBodyOf(await request.text()))
         const stored = args.stored()
         if (acceptsRuntimeCheckpoint({ stored, reported })) {
           args.publish(reported)

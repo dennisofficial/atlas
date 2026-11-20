@@ -1,4 +1,5 @@
 import { mkdtempSync, rmSync } from 'node:fs'
+import { trpcBodyOf } from './trpc-body'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -43,7 +44,7 @@ const bind = (args: { env: Record<string, string>; reject?: boolean }) => {
       fetchFn: (async (input: string | URL | Request, init?: RequestInit) => {
         const procedure = trpcProcedureOf(String(input))
         if (procedure !== 'threads.rename') return trpcOk({ head: 0 })
-        posts.push({ procedure, body: JSON.parse(String(init?.body)) })
+        posts.push({ procedure, body: trpcBodyOf(String(init?.body ?? '')) })
         return args.reject ? trpcFailure({ status: 500 }) : trpcOk(null)
       }) as unknown as typeof fetch,
     },

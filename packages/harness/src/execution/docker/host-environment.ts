@@ -10,8 +10,6 @@ import {
   type SandboxConfig,
   type SandboxLimits,
 } from './sandbox'
-import { EImageKind, type ContainerResolution } from '../image/resolve'
-import type { DockerfileBuild } from '../image/build'
 import { EMountMode, type Mount } from '../image/mounts'
 import { atlasDirectory } from '../../store/paths'
 import { mountsWithGitMetadata } from './git-metadata-mounts'
@@ -89,16 +87,6 @@ export function hostSandboxEnvironment(args?: {
   }
 }
 
-const imageFieldsOf = (
-  resolution: ContainerResolution,
-): { image: string; dockerfile?: DockerfileBuild } => {
-  if (resolution.image.kind === EImageKind.Image) return { image: resolution.image.reference }
-  return {
-    image: DEFAULT_SANDBOX_IMAGE,
-    dockerfile: { path: resolution.image.path, context: resolution.image.context },
-  }
-}
-
 const SESSIONS_SUBTREE = 'sessions'
 
 // The atlas-home root itself must never become reachable by widening this list. Mounting only
@@ -119,20 +107,17 @@ export const ATLAS_HOME_MOUNTED_SUBTREES = [
 
 export function mountedAtlasHomeSubtrees(args: {
   worktree: string
-  declared?: readonly Mount[] | undefined
   atlasHome?: string | undefined
 }): readonly Mount[] {
   const atlasHome = args.atlasHome ?? atlasDirectory()
   mkdirSync(join(atlasHome, SESSIONS_SUBTREE), { recursive: true })
-  const covered = [args.worktree, ...(args.declared ?? []).map((mount) => mount.path)]
 
   return ATLAS_HOME_MOUNTED_SUBTREES.map((name) => ({
     path: join(atlasHome, name),
     mode: EMountMode.ReadWrite,
   })).filter(
     (subtree) =>
-      existsSync(subtree.path) &&
-      !covered.some((root) => isUnderPath({ directory: root, path: subtree.path })),
+      existsSync(subtree.path) && !isUnderPath({ directory: args.worktree, path: subtree.path }),
   )
 }
 
@@ -141,19 +126,13 @@ export function sandboxConfigFromHost(args: {
   session: string
   limits: SandboxLimits
   image?: string | undefined
-  resolution?: ContainerResolution | undefined
   labelPrefix?: string | undefined
   atlasHomeSubtrees?: readonly Mount[] | undefined
 }): SandboxConfig {
   const host = hostSandboxEnvironment()
 
-  const imageFields =
-    args.resolution !== undefined
-      ? imageFieldsOf(args.resolution)
-      : { image: args.image ?? DEFAULT_SANDBOX_IMAGE }
-
   return {
-    ...imageFields,
+    image: args.image ?? DEFAULT_SANDBOX_IMAGE,
     worktree: args.worktree,
     session: args.session,
     uid: host.uid,
@@ -168,15 +147,8 @@ export function sandboxConfigFromHost(args: {
     gpgPubringPath: host.gpgPubringPath,
     gitconfigPath: host.gitconfigPath,
     githubToken: host.githubToken,
-    setup: args.resolution?.setup,
-    start: args.resolution?.start,
-    env: args.resolution?.env,
-    mounts: mountsWithGitMetadata({
-      worktree: args.worktree,
-      declared: args.resolution?.mounts ?? [],
-    }),
+    mounts: mountsWithGitMetadata({ worktree: args.worktree }),
     atlasHomeSubtrees:
-      args.atlasHomeSubtrees ??
-      mountedAtlasHomeSubtrees({ worktree: args.worktree, declared: args.resolution?.mounts }),
+      args.atlasHomeSubtrees ?? mountedAtlasHomeSubtrees({ worktree: args.worktree }),
   }
 }

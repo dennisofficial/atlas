@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 
 import { DaemonEngine } from '@dltech/atlas-protocol/engine'
 
+import { sanitizeChildEnv } from './child-env'
 import { DiskCallStore, daemonHomeFromEnv } from './disk-store'
 import { daemonGroups } from './ops'
 import { protectDaemon, workMemory } from './protection'
@@ -28,6 +29,7 @@ try {
 delete env.DAEMON_TOKEN
 
 const home = daemonHomeFromEnv(env)
+const childEnv = sanitizeChildEnv(env)
 const protection = protectDaemon(env)
 const bootId = randomUUID()
 const engine = new DaemonEngine({
@@ -35,7 +37,7 @@ const engine = new DaemonEngine({
   version: DAEMON_VERSION,
   token,
   store: new DiskCallStore(home),
-  groups: daemonGroups({ env, home }),
+  groups: daemonGroups({ env: childEnv, home }),
   health: () => {
     const memory = workMemory(env)
     return { protection, ...(memory === undefined ? {} : { memory }) }

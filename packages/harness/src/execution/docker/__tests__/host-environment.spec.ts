@@ -10,8 +10,6 @@ import {
   sandboxConfigFromHost,
 } from '../host-environment'
 import { EMountMode } from '../../image/mounts'
-import { EBuildContext } from '../../image/build'
-import { EConfigSource, EImageKind, type ContainerResolution } from '../../image/resolve'
 
 const hostUid = (): number => {
   const uid = process.getuid?.()
@@ -157,65 +155,6 @@ describe('hostSandboxEnvironment', () => {
     expect(config.uid).toBe(hostUid())
     expect(config.dockerSocket.length).toBeGreaterThan(0)
   })
-
-  const resolution = (image: ContainerResolution['image']): ContainerResolution => ({
-    image,
-    setup: 'bun install',
-    start: 'docker compose up -d',
-    env: {},
-    mounts: [{ path: '/Users/operator/Developer/shared-lib', mode: EMountMode.ReadOnly }],
-    source: EConfigSource.ContainerJson,
-    notes: [],
-    refusals: [],
-  })
-
-  it('carries declared container env into the sandbox config', () => {
-    const config = sandboxConfigFromHost({
-      worktree: '/Users/operator/Developer/project',
-      session: 'session-test',
-      limits: { cpus: 2, memoryBytes: 4 * 1024 ** 3 },
-      resolution: {
-        ...resolution({ kind: EImageKind.Image, reference: 'repo/toolchain:latest' }),
-        env: { TURBO_CACHE_DIR: '/tmp/turbo-cache' },
-      },
-    })
-
-    expect(config.env).toEqual({ TURBO_CACHE_DIR: '/tmp/turbo-cache' })
-  })
-
-  it('maps a resolved container config onto the sandbox config', () => {
-    const config = sandboxConfigFromHost({
-      worktree: '/Users/operator/Developer/project',
-      session: 'session-test',
-      limits: { cpus: 2, memoryBytes: 4 * 1024 ** 3 },
-      resolution: resolution({ kind: EImageKind.Image, reference: 'repo/toolchain:latest' }),
-    })
-
-    expect(config.image).toBe('repo/toolchain:latest')
-    expect(config.setup).toBe('bun install')
-    expect(config.start).toBe('docker compose up -d')
-    expect(config.mounts).toEqual([
-      { path: '/Users/operator/Developer/shared-lib', mode: EMountMode.ReadOnly },
-    ])
-  })
-
-  it('maps a Dockerfile resolution onto the sandbox config as a path to build from', () => {
-    const config = sandboxConfigFromHost({
-      worktree: '/Users/operator/Developer/project',
-      session: 'session-test',
-      limits: { cpus: 2, memoryBytes: 4 * 1024 ** 3 },
-      resolution: resolution({
-        kind: EImageKind.Dockerfile,
-        path: '/Users/operator/Developer/project/.atlas/Dockerfile',
-        context: EBuildContext.Directory,
-      }),
-    })
-
-    expect(config.dockerfile).toEqual({
-      path: '/Users/operator/Developer/project/.atlas/Dockerfile',
-      context: EBuildContext.Directory,
-    })
-  })
 })
 
 describe('mountedAtlasHomeSubtrees', () => {
@@ -284,21 +223,6 @@ describe('mountedAtlasHomeSubtrees', () => {
       const worktree = join(atlasHome, '..')
 
       expect(mountedAtlasHomeSubtrees({ worktree, atlasHome })).toEqual([])
-    })
-  })
-
-  it('skips a subtree a declared mount already covers, so Docker never sees a duplicate bind', async () => {
-    await withAtlasHome(async (atlasHome) => {
-      await mkdir(join(atlasHome, 'memory'))
-      await mkdir(join(atlasHome, 'skills'))
-
-      expect(
-        mountedAtlasHomeSubtrees({
-          worktree: '/unrelated/worktree',
-          declared: [{ path: atlasHome, mode: EMountMode.ReadOnly }],
-          atlasHome,
-        }),
-      ).toEqual([])
     })
   })
 

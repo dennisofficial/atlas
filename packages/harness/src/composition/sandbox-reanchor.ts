@@ -1,9 +1,6 @@
 import {
-  ENoticeTone,
   isUnderPath,
-  NOTICE_WARN_MS,
   ProcessPort,
-  type NoticePort,
   type ProcessHandle,
   type SpawnCommand,
   type ThreadId,
@@ -12,13 +9,13 @@ import {
 import { probeWorkspace } from '../workspace/probe'
 import { mountedAtlasHomeSubtrees } from '../execution/docker/host-environment'
 import { removeSandbox, type LifecycleEngine } from '../execution/docker/lifecycle'
-import { DEFAULT_LABEL_PREFIX, sessionLabel, worktreeLabel } from '../execution/docker/sandbox'
-import type { Mount } from '../execution/image/mounts'
 import {
-  EImageKind,
-  resolveContainerConfig,
-  type ContainerResolution,
-} from '../execution/image/resolve'
+  DEFAULT_LABEL_PREFIX,
+  DEFAULT_SANDBOX_IMAGE,
+  sessionLabel,
+  worktreeLabel,
+} from '../execution/docker/sandbox'
+import type { Mount } from '../execution/image/mounts'
 
 import { imageLabelOf } from './container-label'
 import type { ExecutionLocationControl } from './execution-location-state'
@@ -42,7 +39,6 @@ export type AnchoringControl = ExecutionLocationControl & {
 
 export type WorkspaceAnchor = {
   cwd: string
-  resolution: ContainerResolution
   atlasSubtrees: readonly Mount[]
   mounts: readonly string[]
   image: string
@@ -52,39 +48,18 @@ export type WorkspaceAnchor = {
 export async function resolveWorkspaceAnchor(args: {
   cwd: string
   atlasHome?: string | undefined
-  notice: NoticePort
 }): Promise<WorkspaceAnchor> {
-  const resolution = await resolveContainerConfig({
-    projectDirectory: args.cwd,
-    atlasHome: args.atlasHome,
-  })
   const atlasSubtrees = mountedAtlasHomeSubtrees({
     worktree: args.cwd,
-    declared: resolution.mounts,
     atlasHome: args.atlasHome,
   })
-  for (const refusal of resolution.refusals) {
-    args.notice.notify({
-      key: `container-refusal:${refusal.file}`,
-      tone: ENoticeTone.Warn,
-      ttlMs: NOTICE_WARN_MS,
-      text: `${refusal.file}: ${refusal.detail}`,
-    })
-  }
 
   return {
     cwd: args.cwd,
-    resolution,
     atlasSubtrees,
-    mounts: [
-      ...resolution.mounts.map((mount) => mount.path),
-      ...atlasSubtrees.map((subtree) => subtree.path),
-    ],
-    image:
-      resolution.image.kind === EImageKind.Image
-        ? resolution.image.reference
-        : resolution.image.path,
-    label: imageLabelOf(resolution.image),
+    mounts: atlasSubtrees.map((subtree) => subtree.path),
+    image: DEFAULT_SANDBOX_IMAGE,
+    label: imageLabelOf(DEFAULT_SANDBOX_IMAGE),
   }
 }
 

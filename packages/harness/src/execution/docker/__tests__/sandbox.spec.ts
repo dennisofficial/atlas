@@ -51,80 +51,18 @@ describe('ensureSandbox scripts and drift, against a fake engine', () => {
     expect(execs[0]?.cmd[2]).not.toContain('chown 501:20')
   })
 
-  it('refuses failed operator preparation before running setup or start', async () => {
+  it('refuses failed operator preparation', async () => {
     const { engine: fake, execs } = fakeEngine({ exitCodes: [1] })
 
     const attempt = ensureSandbox({
       engine: fake,
-      config: { ...FAKE_CONFIG, setup: 'apt-get install -y git', start: 'docker compose up -d' },
+      config: FAKE_CONFIG,
     })
 
     await expect(attempt).rejects.toThrow(/operator setup failed/)
     expect(execs).toHaveLength(1)
     expect(execs[0]?.user).toBe('0')
     expect(execs[0]?.cmd[2]).toContain(`chmod 666 '${FAKE_CONFIG.dockerSocket}'`)
-  })
-
-  it('runs setup once as root at creation, before start', async () => {
-    const { engine: fake, execs } = fakeEngine()
-
-    await ensureSandbox({
-      engine: fake,
-      config: { ...FAKE_CONFIG, setup: 'apt-get install -y git', start: 'docker compose up -d' },
-    })
-
-    expect(execs).toHaveLength(3)
-    expect(execs[0]?.cmd[2]).toContain(`chmod 666 '${FAKE_CONFIG.dockerSocket}'`)
-    expect(execs[0]?.user).toBe('0')
-    expect(execs[1]?.cmd).toEqual(['sh', '-c', 'apt-get install -y git'])
-    expect(execs[1]?.user).toBe('0')
-    expect(execs[2]?.cmd).toEqual(['sh', '-c', 'docker compose up -d'])
-    expect(execs[2]?.user).toBeUndefined()
-  })
-
-  it('runs start but not setup when reusing a container', async () => {
-    const config = {
-      ...FAKE_CONFIG,
-      setup: 'apt-get install -y git',
-      start: 'docker compose up -d',
-    }
-    const { engine: fake, execs } = fakeEngine({
-      existing: {
-        id: 'kept-1',
-        state: 'running',
-        mounts: systemMounts,
-        labels: labelsFor(config),
-      },
-    })
-
-    const sandbox = await ensureSandbox({ engine: fake, config })
-
-    expect(sandbox.created).toBe(false)
-    expect(execs).toHaveLength(2)
-    expect(execs[0]?.cmd[2]).toContain(`chmod 666 '${FAKE_CONFIG.dockerSocket}'`)
-    expect(execs[1]?.cmd).toEqual(['sh', '-c', 'docker compose up -d'])
-  })
-
-  it('refuses a failed setup loudly rather than serving a container without its toolchain', async () => {
-    const { engine: fake } = fakeEngine({ exitCodes: [0, 1] })
-
-    const attempt = ensureSandbox({
-      engine: fake,
-      config: { ...FAKE_CONFIG, setup: 'apt-get install -y git' },
-    })
-
-    await expect(attempt).rejects.toThrow(/setup failed/)
-  })
-
-  it('reports a failed start as a warning, not a death', async () => {
-    const { engine: fake } = fakeEngine({ exitCodes: [0, 1] })
-
-    const sandbox = await ensureSandbox({
-      engine: fake,
-      config: { ...FAKE_CONFIG, start: 'docker compose up -d' },
-    })
-
-    expect(sandbox.warnings.some((one) => one.includes('start'))).toBe(true)
   })
 
   it.each([

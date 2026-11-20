@@ -167,7 +167,7 @@ describe('declared mounts drift, label-stamped at creation', () => {
     ).toBe(true)
   })
 
-  it('encodes order-insensitively, so a reordered container.json is not drift', () => {
+  it('encodes order-insensitively, so reordered mounts are not drift', () => {
     const mounts = [
       { path: '/data/b', mode: EMountMode.ReadWrite },
       { path: '/data/a', mode: EMountMode.ReadOnly },

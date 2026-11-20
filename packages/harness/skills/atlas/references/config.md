@@ -1,7 +1,7 @@
 # Atlas configuration
 
 Use this guide without an Atlas source checkout. Establish the session's current project directory
-and Atlas home before inspecting files. For Cloud execution and sign-in, read cloud.md; for services, services.md; for containers, container.md; for plugins, plugins.md; for worktrees, worktrees.md.
+and Atlas home before inspecting files. For Cloud execution and sign-in, read cloud.md; for services, services.md; for plugins, plugins.md; for worktrees, worktrees.md.
 These instructions describe configuration mechanisms, not the live values in this session.
 
 ## Locate the configuration

@@ -1,4 +1,5 @@
 import { mkdtempSync, rmSync } from 'node:fs'
+import { trpcBodyOf } from './trpc-body'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -207,7 +208,7 @@ describe('the set-thread-model op', () => {
       fetchFn: (async (input: string | URL | Request, init?: RequestInit) => {
         const url = String(input)
         if (url.includes('threads.chooseModel'))
-          posted.push({ url, body: JSON.parse(String(init?.body)) })
+          posted.push({ url, body: trpcBodyOf(String(init?.body ?? '')) })
         return trpcOk(url.includes('threadEvents') ? [] : undefined)
       }) as unknown as typeof fetch,
       modelBridge: {

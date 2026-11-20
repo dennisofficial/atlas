@@ -62,7 +62,6 @@ describe('serve boot setup order', () => {
     const gate = new Promise<void>((resolve) => {
       release = resolve
     })
-    let setupEnv: string | undefined
     const booting = bootServeFiles({
       env,
       threadId: toThreadId('thread-setup-order'),
@@ -76,9 +75,8 @@ describe('serve boot setup order', () => {
       fetchFn: cloudFetch,
       reporter: trackedReporter,
       notice: { notify: () => undefined },
-      containerSetup: async ({ env: setupEnvironment }) => {
+      containerSetup: async () => {
         order.push('setup:running')
-        setupEnv = setupEnvironment.PROJECT_SECRET
         await gate
         order.push('setup:released')
         return EContainerSetupResult.Ran
@@ -93,7 +91,6 @@ describe('serve boot setup order', () => {
     await reporter.flush()
 
     expect(order.indexOf(`${EBootStep.Settings}:end`)).toBeLessThan(order.indexOf('setup:running'))
-    expect(setupEnv).toBe('from-settings')
     expect(
       events.some((e) => e.step === EBootStep.Context && e.state === EBootStepState.Done),
     ).toBe(true)

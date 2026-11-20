@@ -7,7 +7,6 @@ import { join } from 'node:path'
 import { sandboxConfigFromHost } from '../host-environment'
 import { sandboxCreateBody } from '../sandbox'
 import { EMountMode } from '../../image/mounts'
-import { EConfigSource, EImageKind } from '../../image/resolve'
 
 let root: string
 
@@ -66,33 +65,6 @@ describe('Git metadata in host sandbox configuration', () => {
     })
 
     expect(config.mounts).toEqual([{ path: join(repository, '.git'), mode: EMountMode.ReadWrite }])
-  })
-
-  it('does not duplicate explicitly mounted metadata and refuses an explicitly read-only Git directory', () => {
-    const repository = join(root, 'repository')
-    const worktree = join(root, 'linked')
-    const metadata = join(repository, '.git')
-    git({ cwd: repository, argv: ['worktree', 'add', '-b', 'linked', worktree] })
-    const configFor = (mode: EMountMode) =>
-      sandboxConfigFromHost({
-        worktree,
-        session: worktree,
-        limits: { cpus: 1, memoryBytes: 512 * 1024 ** 2 },
-        atlasHomeSubtrees: [],
-        resolution: {
-          image: { kind: EImageKind.Image, reference: 'node:22-trixie-slim' },
-          env: {},
-          mounts: [{ path: metadata, mode }],
-          source: EConfigSource.ContainerJson,
-          notes: [],
-          refusals: [],
-        },
-      })
-
-    expect(configFor(EMountMode.ReadWrite).mounts).toEqual([
-      { path: metadata, mode: EMountMode.ReadWrite },
-    ])
-    expect(() => configFor(EMountMode.ReadOnly)).toThrow(/Git metadata.*read-write/)
   })
 
   it('mounts a linked worktree and its external common directory without the main working tree', () => {

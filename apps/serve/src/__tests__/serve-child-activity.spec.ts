@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { trpcBodyOf } from './trpc-body'
 
 import { toThreadId } from '@dltech/atlas-core'
 import { createDeltaChannel } from '@dltech/atlas-harness'
@@ -91,7 +92,7 @@ describe('bindChildActivity adapter', () => {
           expect(String(input)).toBe(
             trpcUrl({ controlPlaneUrl: 'http://api', procedure: 'sandboxSelf.activity' }),
           )
-          bodies.push(JSON.parse(String(init?.body)))
+          bodies.push(trpcBodyOf(String(init?.body ?? '')))
           sent.resolve()
           return trpcOk(null)
         }) as typeof fetch,
