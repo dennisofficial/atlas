@@ -18,7 +18,7 @@ export const instructionsPodOf = (options: InstructionsPodOptions): PodSlot => (
     return {
       beforeTurn: [instructionsTurn({ state })],
       beforeStep: [instructionsBlocks({ ctx, state, options })],
-      afterTool: [instructionsTouch({ state })],
+      afterTool: [instructionsTouch({ ctx, state })],
     }
   },
 })

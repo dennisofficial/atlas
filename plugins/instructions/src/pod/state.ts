@@ -9,7 +9,7 @@ export type InstructionTurn = {
 export type InstructionsPodState = {
   threadId: string | null
   directory: string | null
-  touched: Map<string, Set<string>>
+  offered: Map<string, Map<string, string>>
   turn: InstructionTurn | null
 }
 
@@ -21,7 +21,7 @@ export const stateFor = (ctx: PluginPodContext): InstructionsPodState => {
   const state: InstructionsPodState = {
     threadId: null,
     directory: null,
-    touched: new Map(),
+    offered: new Map(),
     turn: null,
   }
   states.set(ctx, state)

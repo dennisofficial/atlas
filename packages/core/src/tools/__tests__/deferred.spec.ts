@@ -9,6 +9,7 @@ import {
   mcpPartsOf,
   modelFacingDeclarationsOf,
   resolveToolCallOf,
+  serverListingTextOf,
   toolNamesByServerOf,
   toolSearchTextOf,
 } from '../deferred'
@@ -79,6 +80,24 @@ describe('MCP tool names', () => {
     ])
     expect(deferredListingTextOf(declarations)).toBe(
       'posthog: mcp__posthog__exec\nwispr-flow: mcp__wispr-flow__search_meetings',
+    )
+  })
+})
+
+describe('the deferred listing text', () => {
+  it('renders the same text whatever order the servers and tools arrive in', () => {
+    const forward = new Map([
+      ['wispr-flow', ['mcp__wispr-flow__b', 'mcp__wispr-flow__a']],
+      ['posthog', ['mcp__posthog__exec']],
+    ])
+    const backward = new Map([
+      ['posthog', ['mcp__posthog__exec']],
+      ['wispr-flow', ['mcp__wispr-flow__a', 'mcp__wispr-flow__b']],
+    ])
+
+    expect(serverListingTextOf(forward)).toBe(serverListingTextOf(backward))
+    expect(serverListingTextOf(forward)).toBe(
+      'posthog: mcp__posthog__exec\nwispr-flow: mcp__wispr-flow__a, mcp__wispr-flow__b',
     )
   })
 })
