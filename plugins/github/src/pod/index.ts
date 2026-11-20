@@ -2,6 +2,7 @@ import { EMPTY_POD, type PodSlot } from '@dltech/atlas-plugin-sdk'
 
 import { CiFeedFragment } from './ci-fragment'
 import { ciWatchHooks } from './ci-watch-hook'
+import { githubSubscriptionEnds } from '../core'
 import { podCommands } from './commands'
 import { SubscriptionTool } from './tools'
 
@@ -15,6 +16,7 @@ export const githubPod: PodSlot = {
   childDeny: ['subscription', 'set-subscription-status'],
   tools: (ctx) => [new SubscriptionTool(ctx)],
   hooks: ciWatchHooks,
+  subscriptionEnds: githubSubscriptionEnds,
   prompts: [new CiFeedFragment()],
   commands: podCommands,
 }

@@ -465,7 +465,11 @@ append transaction. One writer: the pod appends the journal event, the CP derive
 **Lease lifetime.** v1's 5-minute `GithubSubscription.expiresAt` was a liveness heartbeat. v2 has
 no heartbeat, so the append hook sets `expiresAt` and `liveUntil` from the `subscription-created`
 body's own `expiresAt`, falling back to `DEFAULT_SUBSCRIPTION_TTL_MS` (24 h) when it is absent or
-unreadable. A subscription created once stays live until it ends or expires; no timer or poller.
+unreadable. The subscription framework ends a subscription, not the plugin: the host's turn hooks
+append `subscription-ended` (`completed`) after an event that the provider's declared end rule
+(`PodSlot.subscriptionEnds`) matches, and (`expired`) once its declared `expiresAt` has passed. github
+declares merged or closed pull requests and a pinned run's finish; a selector subscription outlives
+every run. No timer or poller waits for either, and the lease hook deletes the lease from that event.
 
 **The wake.** The control plane cannot append to a session (no holder lease), so its write is the
 inbox. `GithubPrEventMailboxService.record` (the one place every webhook, poll and discussion event

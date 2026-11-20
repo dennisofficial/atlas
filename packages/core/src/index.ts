@@ -92,6 +92,7 @@ export * from './media/media-path'
 
 export * from './assembly/assembled'
 export * from './assembly/request-size'
+export * from './assembly/request-hash'
 export * from './assembly/provider-prompt'
 export * from './assembly/rule'
 export * from './assembly/trace'

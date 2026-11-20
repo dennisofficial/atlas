@@ -1,9 +1,14 @@
 import {
   EToolEffect,
   toCallId,
+  toEventId,
+  toRunId,
   toThreadId,
   type Assembled,
+  type EventDraft,
+  type Hash,
   type ToolCall,
+  type V2Event,
 } from '@dltech/atlas-core'
 import {
   EMPTY_CREW,
@@ -30,8 +35,27 @@ const ok = (op: string, value: unknown): CallResult =>
 const failed = (op: string, message: string): CallResult =>
   ({ status: ECallStatus.Failed, op, error: { code: 'not-found', message } }) as CallResult
 
+const stampedOf = (args: { draft: EventDraft; seq: number }): V2Event =>
+  ({
+    ...args.draft,
+    id: toEventId(`e-${args.seq}`),
+    seq: args.seq,
+    threadId: THREAD,
+    runId: toRunId('r1'),
+    depth: 0,
+    at: '2026-11-20T00:00:00.000Z',
+    epoch: 0,
+    prevHash: '0' as Hash,
+  }) as V2Event
+
+export const THREAD = toThreadId('t1')
+
 export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
   const calls: CallOp[] = []
+  const events: V2Event[] = []
+  const record = (drafts: readonly EventDraft[]): void => {
+    for (const draft of drafts) events.push(stampedOf({ draft, seq: events.length + 1 }))
+  }
 
   const call = async (op: CallOp): Promise<CallResult> => {
     calls.push(op)
@@ -80,14 +104,14 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
     append: async () => undefined,
-    events: () => [],
+    events: () => events,
     call,
     onDaemonEvent: (_listener: (frame: DaemonEventFrame) => void) => () => undefined,
     live: () => undefined,
     log: () => undefined,
   }
 
-  return { ctx, calls, nodes }
+  return { ctx, calls, nodes, events, record }
 }
 
 const hooksOf = (args: { ctx: PluginPodContext; options: InstructionsPodOptions }) =>
@@ -101,7 +125,7 @@ export const startTurn = async (args: {
   const hooks = hooksOf(args)
   for (const hook of hooks?.beforeTurn ?? [])
     await hook.run({
-      threadId: toThreadId('t1'),
+      threadId: THREAD,
       projectDirectory: args.projectDirectory,
     })
 }
@@ -126,26 +150,34 @@ export const turn = async (args: {
 }
 
 export const touch = async (args: {
-  ctx: PluginPodContext
+  daemon: ReturnType<typeof fakeDaemon>
   name: string
   input: unknown
-}): Promise<void> => {
-  const hooks = hooksOf({ ctx: args.ctx, options: personal(null) })
+}): Promise<readonly EventDraft[]> => {
+  const hooks = hooksOf({ ctx: args.daemon.ctx, options: personal(null) })
   const call: ToolCall = {
     callId: toCallId('c1'),
     name: args.name,
     input: args.input,
     effect: EToolEffect.Read,
-    threadId: toThreadId('t1'),
+    threadId: THREAD,
   }
-  for (const hook of hooks?.afterTool ?? [])
-    await hook.run({
+  const drafts: EventDraft[] = []
+  for (const hook of hooks?.afterTool ?? []) {
+    const outcome = await hook.run({
       call,
       result: { ok: true, output: null, modelText: '' },
       projectDirectory: '/repo',
       signal: new AbortController().signal,
     })
+    drafts.push(...(outcome.drafts ?? []))
+  }
+  args.daemon.record(drafts)
+  return drafts
 }
+
+export const nestedKeysOf = (drafts: readonly EventDraft[]): readonly string[] =>
+  drafts.flatMap((draft) => (draft.type === 'context-loaded' ? [draft.key] : []))
 
 export const personal = (text: string | null): InstructionsPodOptions => ({
   personal: async () => text,

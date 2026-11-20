@@ -1,6 +1,11 @@
 import type { HookChainArgs } from '@dltech/atlas-agent'
 import type { CommandHandler } from '@dltech/atlas-commands'
-import type { PromptFragment, ToolDefinition } from '@dltech/atlas-core'
+import type {
+  PromptFragment,
+  SubscriptionEndRule,
+  SubscriptionEndRules,
+  ToolDefinition,
+} from '@dltech/atlas-core'
 import type { DaemonEventFrame } from '@dltech/atlas-protocol'
 
 import type { PluginPodContext, PodSlot } from './slots'
@@ -9,6 +14,7 @@ export type ComposedPod = {
   childDeny: readonly string[]
   tools(ctx: PluginPodContext): readonly ToolDefinition[]
   hooks(ctx: PluginPodContext): HookChainArgs
+  subscriptionEnds: SubscriptionEndRules
   prompts: readonly PromptFragment[]
   commands: ReadonlyMap<string, CommandHandler<unknown>>
   onDaemonEvent(frame: DaemonEventFrame): void
@@ -57,6 +63,16 @@ export const mergeMaps = <V>(args: {
   return merged
 }
 
+const mergeEndRules = (sets: readonly (SubscriptionEndRules | undefined)[]): SubscriptionEndRules =>
+  Object.freeze(
+    Object.fromEntries(
+      mergeMaps({
+        maps: sets.map((set) => new Map<string, SubscriptionEndRule>(Object.entries(set ?? {}))),
+        what: 'the subscription provider',
+      }),
+    ),
+  )
+
 export const composePod = (pods: readonly PodSlot[]): ComposedPod => {
   const prompts = Object.freeze(
     uniqueBy({
@@ -67,10 +83,12 @@ export const composePod = (pods: readonly PodSlot[]): ComposedPod => {
   )
   const commands = mergeMaps({ maps: pods.map((pod) => pod.commands), what: 'the pod command' })
   const childDeny = Object.freeze([...new Set(pods.flatMap((pod) => pod.childDeny ?? []))])
+  const subscriptionEnds = mergeEndRules(pods.map((pod) => pod.subscriptionEnds))
   return Object.freeze({
     prompts,
     commands,
     childDeny,
+    subscriptionEnds,
     tools: (ctx) =>
       uniqueBy({
         items: pods.flatMap((pod) => pod.tools?.(ctx) ?? []),

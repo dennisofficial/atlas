@@ -1,7 +1,15 @@
 import { join } from 'node:path'
 
 import type { RegisteredHook } from '@dltech/atlas-agent'
-import { EStage, type AfterTool, type BeforeStep, type BeforeTurn } from '@dltech/atlas-core'
+import {
+  EContextSlot,
+  EStage,
+  type AfterTool,
+  type BeforeStep,
+  type BeforeTurn,
+  type EventDraft,
+  type ThreadId,
+} from '@dltech/atlas-core'
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
 import { blockOf, instructionFileOf, PERSONAL_HEADER, projectHeader } from './blocks'
@@ -18,7 +26,7 @@ export type InstructionsPodOptions = {
   personal: () => Promise<string | null>
 }
 
-type Ctx = Pick<PluginPodContext, 'call' | 'log'>
+type Ctx = Pick<PluginPodContext, 'call' | 'log' | 'events'>
 
 const ORDER = { stage: EStage.Observe, nudge: 0 } as const
 
@@ -40,18 +48,76 @@ export const instructionsTurn = (args: {
 })
 
 export const instructionsTouch = (args: {
+  ctx: Ctx
   state: InstructionsPodState
 }): RegisteredHook<AfterTool> => ({
   name: 'instructions-touch',
   order: ORDER,
-  run: async ({ call, result }) => {
+  run: async ({ call, result, projectDirectory }) => {
     if (!result.ok) return {}
-    const touched = args.state.touched.get(call.threadId) ?? new Set<string>()
-    for (const directory of touchedDirectoriesOf(call.input)) touched.add(directory)
-    args.state.touched.set(call.threadId, touched)
-    return {}
+    const touched = touchedDirectoriesOf(call.input)
+    if (touched.length === 0) return {}
+    const drafts = await nestedDraftsOf({
+      ctx: args.ctx,
+      state: args.state,
+      threadId: call.threadId,
+      directory: args.state.directory ?? projectDirectory,
+      touched,
+    })
+    return drafts.length === 0 ? {} : { drafts }
   },
 })
+
+const turnOf = (state: InstructionsPodState): InstructionTurn => {
+  const turn = state.turn ?? { root: null, personal: null, files: new Map() }
+  state.turn = turn
+  return turn
+}
+
+const loadedNestedOf = (args: {
+  ctx: Ctx
+  state: InstructionsPodState
+  threadId: ThreadId
+}): Map<string, string> => {
+  const offered = args.state.offered.get(args.threadId) ?? new Map<string, string>()
+  args.state.offered.set(args.threadId, offered)
+  for (const event of args.ctx.events()) {
+    if (event.threadId !== args.threadId || event.type !== 'context-loaded') continue
+    if (event.slot !== EContextSlot.NestedInstructions) continue
+    offered.set(event.key, event.content)
+  }
+  return offered
+}
+
+const nestedDraftsOf = async (args: {
+  ctx: Ctx
+  state: InstructionsPodState
+  threadId: ThreadId
+  directory: string
+  touched: readonly string[]
+}): Promise<readonly EventDraft[]> => {
+  const turn = turnOf(args.state)
+  turn.root ??= repoRootOf({ ctx: args.ctx, directory: args.directory })
+  const root = await turn.root
+  const nested = nestedDirectoriesOf({
+    root,
+    covered: descentOf({ root, directory: args.directory }),
+    touched: args.touched,
+  })
+  if (nested.length === 0) return []
+  const offered = loadedNestedOf(args)
+  const drafts: EventDraft[] = []
+  for (const candidate of nested) {
+    const content = (
+      (await instructionFileOf({ ctx: args.ctx, directory: candidate, cache: turn.files })) ?? ''
+    ).trim()
+    const key = join(candidate, INSTRUCTION_FILE)
+    if (content === '' || offered.get(key) === content) continue
+    offered.set(key, content)
+    drafts.push({ type: 'context-loaded', slot: EContextSlot.NestedInstructions, key, content })
+  }
+  return drafts
+}
 
 export const instructionsBlocks = (args: {
   ctx: Ctx
@@ -77,10 +143,8 @@ const blocksOf = async (args: {
   options: InstructionsPodOptions
 }): Promise<readonly string[]> => {
   const directory = args.state.directory
-  const threadId = args.state.threadId
-  if (directory === null || threadId === null) return []
-  const turn = args.state.turn ?? { root: null, personal: null, files: new Map() }
-  args.state.turn = turn
+  if (directory === null || args.state.threadId === null) return []
+  const turn = turnOf(args.state)
   turn.root ??= repoRootOf({ ctx: args.ctx, directory })
   const root = await turn.root
 
@@ -91,13 +155,7 @@ const blocksOf = async (args: {
   })
   if (personal !== null) blocks.push(personal)
 
-  const descent = descentOf({ root, directory })
-  const nested = nestedDirectoriesOf({
-    root,
-    covered: descent,
-    touched: [...(args.state.touched.get(threadId) ?? [])],
-  })
-  for (const candidate of [...descent, ...nested]) {
+  for (const candidate of descentOf({ root, directory })) {
     const content = await instructionFileOf({
       ctx: args.ctx,
       directory: candidate,

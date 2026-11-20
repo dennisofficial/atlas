@@ -49,19 +49,21 @@ export const mcpPod = (args: McpPodArgs): PodSlot => {
   return {
     ...EMPTY_POD,
     tools: (ctx) => [...stores.of(ctx).tools(), new McpSignInTool(ctx, stores.of(ctx))],
-    hooks: (ctx) => ({
-      beforeTurn: [
-        {
-          name: 'mcp-connect',
-          order: { stage: EStage.Observe, nudge: 10 },
-          run: async () => {
-            await stores.of(ctx).boot()
-            return {}
+    hooks: (ctx) => {
+      const instructions = mcpInstructionsHook({ store: stores.of(ctx), offered })
+      return {
+        beforeTurn: [
+          {
+            name: 'mcp-connect',
+            order: { stage: EStage.Observe, nudge: 10 },
+            run: async (turn) => {
+              await stores.of(ctx).boot()
+              return await instructions.run(turn)
+            },
           },
-        },
-        mcpInstructionsHook({ store: stores.of(ctx), offered }),
-      ],
-    }),
+        ],
+      }
+    },
     commands: new Map([[mcpCommand.inboxKind, report]]),
   }
 }

@@ -9,6 +9,7 @@ import { JsonLog } from './json-log'
 import { AGENT_HOST_ENV, CIPHER, DB, LOG, POOL } from './tokens'
 
 const QUERY_TIMEOUT_MS = 10_000
+const AGENT_HOST_POOL_MIN_IDLE = 2
 
 @Global()
 @Module({})
@@ -24,6 +25,7 @@ export class CoreModule {
           useFactory: (agentHostEnv: AgentHostEnv): Pool =>
             createPool(databaseUrlWithTls(agentHostEnv.databaseUrl), {
               queryTimeoutMs: QUERY_TIMEOUT_MS,
+              minIdle: AGENT_HOST_POOL_MIN_IDLE,
             }),
           inject: [AGENT_HOST_ENV],
         },

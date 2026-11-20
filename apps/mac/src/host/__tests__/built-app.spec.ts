@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { existsSync, lstatSync, statSync } from 'node:fs'
+import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 import { symlinksUnder } from '../../../scripts/flatten-web-deps'
@@ -15,6 +15,17 @@ describe.skipIf(!built)('built app server', () => {
     expect(lstatSync(next).isSymbolicLink()).toBe(false)
     expect(statSync(join(next, 'dist', 'server', 'lib', 'start-server.js')).isFile()).toBe(true)
     expect(symlinksUnder(bundle)).toEqual([])
+  })
+
+  test('ships client analytics switched on and routed through the ingest rewrite', () => {
+    const routes = readFileSync(join(root, '.next', 'routes-manifest.json'), 'utf8')
+    expect(routes).toContain('"/ingest/:path*"')
+    const chunks = join(root, '.next', 'static', 'chunks')
+    const analytics = readdirSync(chunks)
+      .filter((name) => name.endsWith('.js'))
+      .map((name) => readFileSync(join(chunks, name), 'utf8'))
+      .find((source) => source.includes('api_host:"/ingest"'))
+    expect(analytics).toContain('NODE_ENV:"production"')
   })
 
   test('answers a dynamic route and its flight request', async () => {

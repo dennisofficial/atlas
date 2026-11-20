@@ -1,5 +1,5 @@
 import type { ModelPort, ThreadId } from '@dltech/atlas-core'
-import { ESpan, spanWith, type TracePort } from '@dltech/atlas-observability'
+import { ESpan, spanWith, type ETurnEntry, type TracePort } from '@dltech/atlas-observability'
 
 import type { AgentIntake } from '../intake/agent-intake'
 import type { LoopWatch } from '../loop/loop-watchdog'
@@ -83,6 +83,7 @@ export const traceTurn = (args: {
   trace: TracePort | undefined
   model: ModelPort
   threadId: ThreadId
+  entry: ETurnEntry
   run: () => Promise<TurnOutcome>
 }): Promise<TurnOutcome> =>
   spanWith(args.trace, {
@@ -90,6 +91,7 @@ export const traceTurn = (args: {
     root: true,
     fields: {
       threadId: args.threadId,
+      entry: args.entry,
       provider: args.model.identity.id,
       model: args.model.identity.modelId,
     },

@@ -17,6 +17,15 @@ describe('spanAttributesOf', () => {
     expect('sizes' in attributes).toBe(false)
   })
 
+  it('flattens hashes into hash-prefixed attributes', () => {
+    expect(
+      spanAttributesOf({
+        model: 'm',
+        hashes: { tools: '0a1b2c3d', 'system.memory-index': 'ffee0011' },
+      }),
+    ).toEqual({ model: 'm', 'hash.tools': '0a1b2c3d', 'hash.system.memory-index': 'ffee0011' })
+  })
+
   it('drops a field that carries no value', () => {
     expect(spanAttributesOf({ provider: 'anthropic', model: undefined })).toEqual({
       provider: 'anthropic',
