@@ -1,4 +1,4 @@
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { act } from 'react'
 
@@ -10,11 +10,11 @@ import { ThreadBackendProvider } from '../use-thread-backend'
 import { usePodStatus } from '../use-pod-status'
 
 beforeAll(() => {
-  GlobalRegistrator.register()
+  registerDom()
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
 })
 afterAll(async () => {
-  await GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 const flush = () => act(async () => new Promise<void>((resolve) => setTimeout(resolve, 0)))

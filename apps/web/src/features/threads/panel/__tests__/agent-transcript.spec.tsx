@@ -1,4 +1,4 @@
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'bun:test'
 import { act } from 'react'
 
@@ -12,14 +12,14 @@ import { AgentTranscriptBody } from '../agents/agent-transcript'
 let restoreViewport = () => {}
 
 beforeAll(() => {
-  GlobalRegistrator.register()
+  registerDom()
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
   restoreViewport = installVirtuaViewport()
 })
 
 afterAll(async () => {
   restoreViewport()
-  await GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 afterEach(() => {

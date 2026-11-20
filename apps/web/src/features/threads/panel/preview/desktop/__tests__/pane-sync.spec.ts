@@ -1,4 +1,4 @@
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 
 import { createPaneSync } from '../pane-sync'
@@ -6,11 +6,11 @@ import { fakeEnvironment, RECT, recorder, settle, slotAt, URL_A } from './pane-s
 
 describe('createPaneSync', () => {
   beforeAll(() => {
-    GlobalRegistrator.register()
+    registerDom()
   })
 
   afterAll(async () => {
-    await GlobalRegistrator.unregister()
+    await unregisterDom()
   })
 
   it('shows the shell pane where the slot sits', () => {

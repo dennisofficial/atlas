@@ -1,4 +1,4 @@
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { afterAll, beforeAll, describe, expect, it, mock } from 'bun:test'
 import { act } from 'react'
 
@@ -31,7 +31,7 @@ const { AgentTranscriptBody } = await import('../agents/agent-transcript')
 let restoreViewport = () => {}
 
 beforeAll(() => {
-  GlobalRegistrator.register()
+  registerDom()
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
   restoreViewport = installVirtuaViewport()
 })
@@ -40,7 +40,7 @@ afterAll(async () => {
   mock.module('@dltech/atlas-ui/ai/message', () => realExports)
   mock.module('@dltech/atlas-ui/ai/message-response', () => realResponseExports)
   restoreViewport()
-  await GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 const wire = (seq: number, body: Record<string, unknown>): WireEvent => ({

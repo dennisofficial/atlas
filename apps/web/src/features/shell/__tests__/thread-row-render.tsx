@@ -1,4 +1,4 @@
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { act, type ReactNode } from 'react'
 import type { Root } from 'react-dom/client'
 
@@ -129,7 +129,7 @@ export class RowHarness {
   archived: WireThread[] = []
 
   async start() {
-    GlobalRegistrator.register()
+    registerDom()
     globalThis.IS_REACT_ACT_ENVIRONMENT = true
     const { createRoot } = await import('react-dom/client')
     this.container = document.createElement('div')
@@ -140,7 +140,7 @@ export class RowHarness {
   async stop() {
     await act(async () => this.root?.unmount())
     this.container?.remove()
-    await GlobalRegistrator.unregister()
+    await unregisterDom()
   }
 
   async render({

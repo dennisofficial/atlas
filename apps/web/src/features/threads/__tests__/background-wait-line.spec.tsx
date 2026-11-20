@@ -1,4 +1,4 @@
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'bun:test'
 
 import { ETranscriptKind, type TranscriptRow } from '../data/transcript-items'
@@ -8,14 +8,14 @@ import { installVirtuaViewport } from './virtua-viewport'
 let restoreViewport = () => {}
 
 beforeAll(() => {
-  GlobalRegistrator.register()
+  registerDom()
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
   restoreViewport = installVirtuaViewport()
 })
 
 afterAll(async () => {
   restoreViewport()
-  await GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 afterEach(() => {

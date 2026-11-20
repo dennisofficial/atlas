@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act } from 'react'
 import type { Root } from 'react-dom/client'
@@ -13,7 +13,7 @@ import { HeadSection } from '../head-section'
 let root: Root
 let container: HTMLDivElement
 beforeEach(async () => {
-  GlobalRegistrator.register()
+  registerDom()
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
   const { createRoot } = await import('react-dom/client')
   container = document.createElement('div')
@@ -23,7 +23,7 @@ beforeEach(async () => {
 afterEach(async () => {
   await act(async () => root.unmount())
   container.remove()
-  await GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 async function renderWith(pod: PodStatus | null) {

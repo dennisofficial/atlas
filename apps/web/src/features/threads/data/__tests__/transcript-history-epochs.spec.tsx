@@ -1,4 +1,4 @@
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'bun:test'
 
 import { clearCloudCache } from '@/lib/query-client'
@@ -7,9 +7,9 @@ import type { EventsSnapshot } from '../events-snapshot'
 import { createTranscriptHistory } from '../transcript-history'
 import { event } from './live-thread-fixture'
 
-beforeAll(() => GlobalRegistrator.register())
+beforeAll(() => registerDom())
 afterAll(async () => {
-  await GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 afterEach(clearCloudCache)
 const snapshot = (historyRev: number): EventsSnapshot => ({

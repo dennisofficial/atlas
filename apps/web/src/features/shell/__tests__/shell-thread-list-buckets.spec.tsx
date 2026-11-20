@@ -1,4 +1,4 @@
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { act } from 'react'
 
@@ -9,12 +9,12 @@ import { ThreadActionsContext } from '../thread-actions-context'
 import { sessionOf, threadOf } from './fixtures'
 
 beforeAll(() => {
-  GlobalRegistrator.register()
+  registerDom()
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
 })
 
 afterAll(async () => {
-  await GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 const archivedEntries = (count: number) => [
