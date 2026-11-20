@@ -10,6 +10,7 @@
     "db:migrate:predeploy": "dotenvx run --strict -f .env.$APP_TIER.enc -- node scripts/predeploy.mjs",
     "db:plan": "bun run env:inject -- bun run --cwd ../../packages/db db:plan",
     "db:seed": "bun run env:inject -- bun run --cwd ../../packages/db db:seed",
+    "bench:stream": "bun bench/stream-catchup/main.ts",
     "db:up": "docker compose up -d postgres",
     "db:verify": "bun run env:inject -- bun run --cwd ../../packages/db db:verify",
     "dev": "GITHUB_SWEEPS_IN_PROCESS=1 bun run env:inject -- concurrently --kill-others --kill-signal SIGKILL --names api,trigger,trpc \"bun --watch src/main.ts\" \"trigger dev --profile atlas\" \"bun scripts/generate-trpc.ts --watch\"",
