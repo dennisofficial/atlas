@@ -20,6 +20,7 @@ describe('invalidInputDraft', () => {
   it('names the rejected field, what the tool takes, and that the call has to be made again', () => {
     const draft = invalidInputDraft({
       call,
+      toolName: 'bash',
       issues: missingCommand,
       parameters: { required: ['command'], optional: ['description', 'workdir'] },
     })
@@ -36,6 +37,7 @@ describe('invalidInputDraft', () => {
   it('still asks for another call when the schema names no parameters', () => {
     const draft = invalidInputDraft({
       call: { ...call, name: 'read' },
+      toolName: 'read',
       issues: missingCommand,
       parameters: { required: [], optional: [] },
     })
@@ -52,6 +54,7 @@ describe('invalidInputDraft', () => {
   it('says the input does not match when the schema reports no field at all', () => {
     const draft = invalidInputDraft({
       call,
+      toolName: 'bash',
       issues: [],
       parameters: { required: ['command'], optional: [] },
     })

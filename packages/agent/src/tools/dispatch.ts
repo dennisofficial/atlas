@@ -3,7 +3,9 @@ import {
   EBeforeToolDecision,
   hookOutcomeDrafts,
   isParkedOutcome,
+  modelFacingDeclarationsOf,
   parametersOf,
+  resolveToolCallOf,
   resolveBeforeTool,
   type ActiveWorktree,
   type CallId,
@@ -11,6 +13,7 @@ import {
   type EventDraft,
   type RunId,
   type ThreadId,
+  type ResolvedToolCall,
   type ToolCall,
   type ToolDefinition,
   type ToolOutcome,
@@ -104,18 +107,31 @@ export class HookedToolDispatcher extends ToolDispatcher {
 
   dispatch(args: DispatchArgs): Promise<readonly EventDraft[]> {
     const { call } = args
+    const resolved = resolveToolCallOf({
+      declarations: this.registry.declarations(),
+      name: call.name,
+      input: call.input,
+    })
     return spanWith(this.trace, {
       name: ESpan.Tool,
-      fields: { threadId: call.threadId, runId: call.runId, callId: call.callId, tool: call.name },
+      fields: {
+        threadId: call.threadId,
+        runId: call.runId,
+        callId: call.callId,
+        tool: resolved.name,
+      },
       run: async (span) => {
-        const drafts = await this.dispatchTraced(args)
+        const drafts = await this.dispatchTraced({ args, resolved })
         span.set({ outcome: outcomeOf(drafts) })
         return drafts
       },
     })
   }
 
-  private async dispatchTraced(args: DispatchArgs): Promise<readonly EventDraft[]> {
+  private async dispatchTraced(args: {
+    args: DispatchArgs
+    resolved: ResolvedToolCall
+  }): Promise<readonly EventDraft[]> {
     const {
       call,
       signal,
@@ -125,23 +141,42 @@ export class HookedToolDispatcher extends ToolDispatcher {
       events,
       onOutput,
       onDispatchStarted,
-    } = args
-    const definition = this.registry.find(call.name)
-    if (definition === undefined) {
-      const available = this.registry.declarations().map((declaration) => declaration.name)
+      onceLedger,
+    } = args.args
+    if (args.resolved.kind === 'refused') {
+      return [
+        {
+          type: 'tool-result',
+          callId: call.callId,
+          name: call.name,
+          output: undefined,
+          error: { message: args.resolved.reason },
+        },
+      ]
+    }
+
+    const target = args.resolved
+    const declaration = this.registry
+      .declarations()
+      .find((declared) => declared.name === target.name)
+    const definition = this.registry.find(target.name)
+    if (definition === undefined || declaration === undefined) {
+      const available = modelFacingDeclarationsOf(this.registry.declarations()).map(
+        (declared) => declared.name,
+      )
       return [unknownToolDraft({ call, available })]
     }
 
-    const parsed = definition.inputSchema.safeParse(call.input)
+    const parsed = definition.inputSchema.safeParse(target.input)
     if (!parsed.success) {
       return [
         invalidInputDraft({
           call,
+          toolName: target.name,
           issues: parsed.error.issues,
           parameters: parametersOf({
             inputSchema: definition.inputSchema,
-            jsonSchema: this.registry.declarations().find((declared) => declared.name === call.name)
-              ?.jsonSchema,
+            jsonSchema: declaration.jsonSchema,
           }),
         }),
       ]
@@ -149,7 +184,7 @@ export class HookedToolDispatcher extends ToolDispatcher {
 
     const candidate: ToolCall = {
       callId: call.callId,
-      name: call.name,
+      name: target.name,
       input: parsed.data,
       effect: definition.effect,
       threadId: call.threadId,
@@ -167,7 +202,7 @@ export class HookedToolDispatcher extends ToolDispatcher {
             projectDirectory,
             events,
             signal,
-            onceLedger: args.onceLedger,
+            onceLedger,
             runId: call.runId,
           }),
       }),
@@ -242,7 +277,7 @@ export class HookedToolDispatcher extends ToolDispatcher {
     return [
       ...drafts,
       resultDraft({
-        call: allowed,
+        call: { ...allowed, callId: call.callId, name: call.name },
         result,
         interrupted: signal.aborted,
         qualityReviews: qualityOutcome.reviews,

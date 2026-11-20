@@ -19,7 +19,7 @@ export class McpSignInTool extends SchemaTool<typeof signInSchema> {
   override readonly pathFields = TOUCHES_PATHS_IT_CANNOT_NAME
   readonly description = [
     'Sign in to an MCP server the roster shows as needs-auth: the result is a link the operator opens and approves in their browser, which creates the grant this session uses on the next turn.',
-    'Call it when an mcp__ tool answers that its server needs a sign-in, or when the mcp view reports needs-auth. Nothing is pasted back into the conversation, and the token never enters the transcript or the sandbox.',
+    'Call it when a tool answers that its MCP server needs a sign-in, or when the mcp view reports needs-auth. Nothing is pasted back into the conversation, and the token never enters the transcript or the sandbox.',
     'A stdio server starts a process with its own credentials and has no sign-in to start.',
   ].join(' ')
 
