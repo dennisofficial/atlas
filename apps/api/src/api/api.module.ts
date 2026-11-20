@@ -11,6 +11,7 @@ import { ClientVersionGuard } from '../_module/client-version/client-version.gua
 import { ClientVersionModule } from '../_module/client-version/client-version.module'
 import { ApiTrpcContext } from '../_module/trpc/api-trpc-context'
 import { ApiTrpcModule } from '../_module/trpc/api-trpc.module'
+import { ApiLatencyMiddleware } from '../_module/trpc/api-latency.middleware'
 import { HttpErrorMiddleware } from '../_module/trpc/http-error.middleware'
 import { ThrottleMiddleware } from '../_module/trpc/throttle.middleware'
 import { apiErrorFormatter } from '../_module/trpc/trpc-error-formatter'
@@ -79,7 +80,7 @@ import { ControlPlaneModule } from './platform/control/control-plane.module'
       basePath: '/v1/trpc',
       context: ApiTrpcContext,
       errorFormatter: apiErrorFormatter,
-      globalMiddlewares: [HttpErrorMiddleware, ThrottleMiddleware],
+      globalMiddlewares: [ApiLatencyMiddleware, HttpErrorMiddleware, ThrottleMiddleware],
       sse: { ping: { enabled: true, intervalMs: 20_000 } },
     }),
     AuthModule,

@@ -4,10 +4,17 @@ import { fromNodeHeaders } from 'better-auth/node'
 import type { Request, Response } from 'express'
 import { type Observable, catchError, tap, throwError } from 'rxjs'
 
-const SLOW_REQUEST_MS = 1000
+export const SLOW_REQUEST_MS = 1000
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi
 
 export type AuthenticatedRequest = Request & { user?: { id?: unknown } | null }
+
+export type ApiRequestSample = {
+  path: string
+  durationMs: number
+  status: number
+  failed: boolean
+}
 
 export const requestPathOf = (request: Pick<Request, 'path' | 'route'>): string => {
   const raw = (request.path ?? '').split('?')[0] ?? ''
@@ -16,7 +23,7 @@ export const requestPathOf = (request: Pick<Request, 'path' | 'route'>): string 
   return (request.route?.path ?? raw).replace(UUID, ':id')
 }
 
-const userIdOf = async (request: AuthenticatedRequest): Promise<string | undefined> => {
+export const userIdOf = async (request: AuthenticatedRequest): Promise<string | undefined> => {
   const attached = request.user?.id
   if (typeof attached === 'string') return attached
   try {
@@ -32,6 +39,33 @@ const userIdOf = async (request: AuthenticatedRequest): Promise<string | undefin
  * Emits `api_request` only for calls worth looking at — slower than a second, or failed — so the
  * volume stays low. A request with no authenticated user is skipped rather than attributed.
  */
+export const captureApiRequest = async (args: {
+  analytics: ProductAnalytics
+  userIdOf?: ((request: AuthenticatedRequest) => Promise<string | undefined>) | undefined
+  request: AuthenticatedRequest
+  sample: ApiRequestSample
+}): Promise<void> => {
+  try {
+    const userId = await (args.userIdOf ?? userIdOf)(args.request)
+    if (userId === undefined) return
+    args.analytics.capture({
+      userId,
+      event: 'api_request',
+      properties: {
+        path: args.sample.path,
+        duration_ms: args.sample.durationMs,
+        status: args.sample.status,
+        failed: args.sample.failed,
+      },
+    })
+  } catch {
+    // A latency sample is never worth faulting the request it measured.
+  }
+}
+
+export const worthReporting = (args: { durationMs: number; failed: boolean }): boolean =>
+  args.failed || args.durationMs >= SLOW_REQUEST_MS
+
 export class ApiLatencyInterceptor implements NestInterceptor {
   constructor(
     private readonly args: {
@@ -51,8 +85,13 @@ export class ApiLatencyInterceptor implements NestInterceptor {
 
     const record = (status: number, failed: boolean): void => {
       const durationMs = Math.round(now() - startedAt)
-      if (!failed && durationMs < SLOW_REQUEST_MS) return
-      void this.capture({ request, status, durationMs, failed })
+      if (!worthReporting({ durationMs, failed })) return
+      void captureApiRequest({
+        analytics: this.args.analytics,
+        request,
+        sample: { path: requestPathOf(request), durationMs, status, failed },
+        ...(this.args.userIdOf === undefined ? {} : { userIdOf: this.args.userIdOf }),
+      })
     }
 
     return next.handle().pipe(
@@ -62,29 +101,5 @@ export class ApiLatencyInterceptor implements NestInterceptor {
         return throwError(() => error)
       }),
     )
-  }
-
-  private async capture(args: {
-    request: AuthenticatedRequest
-    status: number
-    durationMs: number
-    failed: boolean
-  }): Promise<void> {
-    try {
-      const userId = await (this.args.userIdOf ?? userIdOf)(args.request)
-      if (userId === undefined) return
-      this.args.analytics.capture({
-        userId,
-        event: 'api_request',
-        properties: {
-          path: requestPathOf(args.request),
-          duration_ms: args.durationMs,
-          status: args.status,
-          failed: args.failed,
-        },
-      })
-    } catch {
-      // A latency sample is never worth faulting the request it measured.
-    }
   }
 }

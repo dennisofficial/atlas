@@ -83,7 +83,7 @@ Add a span where that time goes.
 `first_output_ms`:
 
 ```json
-{"query": {"serviceNames": ["atlas"], "dateRange": {"date_from": "-1d"}, "flatSpans": true,
+{"query": {"serviceNames": ["atlas-agent", "atlas"], "dateRange": {"date_from": "-1d"}, "flatSpans": true,
   "rootSpans": false, "orderBy": "duration",
   "filterGroup": [{"key": "name", "type": "span", "operator": "exact", "value": "model.call"}]}}
 ```
@@ -107,7 +107,7 @@ covers the conversation including `size.messages.context.<source>` envelopes suc
 `mcp-instructions`. `size.total` is the sum.
 
 ```json
-{"query": {"serviceNames": ["atlas"], "dateRange": {"date_from": "-1d"}, "flatSpans": true,
+{"query": {"serviceNames": ["atlas-agent", "atlas"], "dateRange": {"date_from": "-1d"}, "flatSpans": true,
   "rootSpans": false, "filterGroup": [
     {"key": "name", "type": "span", "operator": "exact", "value": "model.call"},
     {"key": "threadId", "type": "span", "operator": "exact", "value": "<thread id>"}]}}

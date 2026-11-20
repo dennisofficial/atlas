@@ -238,6 +238,24 @@ describe('analytics append hook', () => {
     expect(JSON.stringify(analytics.captured)).not.toContain('secret text')
   })
 
+  it('sends the denial class without the reason text', async () => {
+    const epoch = await seed(plane)
+    await append(plane, epoch, [
+      {
+        type: 'tool-denied',
+        callId: toCallId('call-1'),
+        name: 'write',
+        reason: 'refusing to write /home/u/.ssh/id_rsa',
+      },
+    ])
+
+    expect(analytics.captured[0]?.properties).toMatchObject({
+      tool: 'write',
+      reason_class: 'write-refusal',
+    })
+    expect(JSON.stringify(analytics.captured)).not.toContain('.ssh')
+  })
+
   it('never throws when capture throws', async () => {
     analytics.fail = true
     const epoch = await seed(plane)
