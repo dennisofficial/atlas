@@ -187,8 +187,10 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
       resolved,
       ackDaemons,
     })
+    const first = events[0]
+    if (first === undefined) return []
     const committed: Event[] = []
-    for (const event of events) {
+    for (const event of this.cache.eventsAfter(first.seq - 1)) {
       const loop = toLoopEvent({ event: this.cache.resolvedEvent(event) })
       if (loop !== undefined) committed.push(loop)
     }

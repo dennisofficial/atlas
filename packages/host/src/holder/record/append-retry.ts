@@ -1,4 +1,5 @@
 import {
+  canonicalEvent,
   chainHash,
   type BlobPayload,
   type RunId,
@@ -115,7 +116,11 @@ export class AppendRetry {
       return 'retry'
     }
     if (outcome.ok) {
-      this.args.cache.extend({ events: args.events, head: outcome.head, resolved: args.resolved })
+      this.args.cache.extend({
+        events: args.events.map((event) => canonicalEvent(event)),
+        head: outcome.head,
+        resolved: args.resolved,
+      })
       return 'committed'
     }
     const refusal = outcome.refusal
