@@ -83,7 +83,7 @@ describe('MCP tool names', () => {
       ['atlas', ['routine']],
     ])
     expect(deferredListingTextOf(declarations)).toBe(
-      'posthog: mcp__posthog__exec\nwispr-flow: mcp__wispr-flow__search_meetings\natlas: routine',
+      'atlas: routine\nposthog: mcp__posthog__exec\nwispr-flow: mcp__wispr-flow__search_meetings',
     )
   })
 })
