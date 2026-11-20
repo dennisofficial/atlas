@@ -183,6 +183,8 @@ export const pluginHooksOf = (args: {
     ...host,
     ...plugin,
     afterTool: [...(host.afterTool ?? []), ...(plugin.afterTool ?? [])],
+    trace: args.runtime.trace,
+    onMishap: (mishap) => args.ctx.log(`hook ${mishap.label} ${mishap.kind}: ${mishap.detail}`),
   })
 }
 

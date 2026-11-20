@@ -3,6 +3,7 @@ import type { CallId, RunId, ThreadId } from '@dltech/atlas-core'
 export enum ESpan {
   Turn = 'turn',
   TurnHooks = 'turn.hooks',
+  Hook = 'hook',
   ContextPrepare = 'context.prepare',
   ModelCall = 'model.call',
   ModelBackoff = 'model.backoff',
@@ -47,6 +48,8 @@ export type SpanFields = {
   readonly provider?: string | undefined
   readonly model?: string | undefined
   readonly tool?: string | undefined
+  readonly hook?: string | undefined
+  readonly phase?: string | undefined
   readonly status?: string | undefined
   readonly failureKind?: string | undefined
   readonly verdict?: string | undefined
