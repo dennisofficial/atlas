@@ -35,6 +35,7 @@ export type SessionViewModel = {
   plan: readonly PlanTask[]
   context: SessionContextModel | null
   spend: SpendTally | null
+  compute?: SessionViewOutput['compute'] | undefined
 }
 
 export const pullRequestEntryOf = (args: {
@@ -105,6 +106,7 @@ export const sessionViewModelOf = (view: SessionViewOutput | undefined): Session
       plan: [],
       context: null,
       spend: null,
+      compute: { costUsd: null, running: false, tick: null },
     }
   const primaryBranch = view.checkouts.primary?.branch
   return {
@@ -120,5 +122,6 @@ export const sessionViewModelOf = (view: SessionViewOutput | undefined): Session
     plan: planOfView(view.pluginViews),
     context: contextOfView(view),
     spend: view.spend.tally,
+    compute: view.compute,
   }
 }

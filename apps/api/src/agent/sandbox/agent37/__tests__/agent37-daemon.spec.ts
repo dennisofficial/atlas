@@ -67,6 +67,8 @@ const clientOf = (args: {
       return args.versions(probe)
     },
     signedUrl: async () => 'https://inst-1-3000.agent37.app/?a37_token=t',
+    usage: async () => ({ from: '', to: '' }),
+    events: async () => ({ from: '', to: '', events: [] }),
   }
   return { client, execs, probes }
 }

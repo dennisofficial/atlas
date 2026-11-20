@@ -118,6 +118,7 @@ describe('the client status fold', () => {
         at: 0,
         status: { state: ESessionStatus.Idle, lease: { epoch: 1, holderHostId: 7, live: true } },
         context: null,
+        compute: { costUsd: null, running: false, tick: null },
         spend: {
           rows: [],
           tally: {

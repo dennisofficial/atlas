@@ -1,4 +1,4 @@
-import { catalogOf, findCard, tallySpend } from '@dltech/atlas-core'
+import { catalogOf, findCard, tallySpend, type SandboxCompute } from '@dltech/atlas-core'
 import { generatedCards } from '@dltech/atlas-models'
 import type { SessionViewOutput } from '@dltech/atlas-protocol'
 
@@ -11,9 +11,12 @@ const catalogue = () => {
   return catalog
 }
 
+const NO_COMPUTE: SandboxCompute = { costUsd: null, running: false, tick: null }
+
 export const pricedView = (args: {
   at: number
   value: ControlSessionViewValue
+  compute?: SandboxCompute | undefined
 }): SessionViewOutput => {
   const { value } = args
   const rows = [...value.spend]
@@ -28,6 +31,7 @@ export const pricedView = (args: {
         priceOf: (ref) => findCard({ catalog: catalogue(), ref })?.cost,
       }),
     },
+    compute: args.compute ?? NO_COMPUTE,
     checkouts: {
       repos: value.checkouts.repos.map((repo) => ({
         ...repo,

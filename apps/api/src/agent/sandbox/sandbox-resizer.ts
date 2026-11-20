@@ -7,6 +7,7 @@ import { SandboxNotConfiguredError } from '../runtime/sandbox-not-configured-err
 import type { SandboxProviderRegistry } from './provider-registry'
 import type { PodResizeOutcome } from './sandbox-provider'
 import { sandboxProvidersOf, type SandboxProvidersEnv } from './sandbox-providers'
+import { recordSandboxRunClose, sandboxCumulativeCpuMsOf } from './sandbox-runs'
 
 export type SandboxResizer = {
   resize(args: { sandboxSessionId: string; vcpus: number }): Promise<PodResizeOutcome>
@@ -21,10 +22,14 @@ export const sandboxResizerOf = (args: {
     if (config.sandbox.configured === false) {
       throw new SandboxNotConfiguredError(config.sandbox.gap)
     }
-    return await args.sandbox.for(config.sandbox.provider).resize({
-      target: { sandboxSessionId, credentials: config.sandbox.credentials },
-      vcpus,
+    const sandbox = args.sandbox.for(config.sandbox.provider)
+    const target = { sandboxSessionId, credentials: config.sandbox.credentials }
+    const cpuCumulativeMs = await sandboxCumulativeCpuMsOf({ sandbox, target })
+    await recordSandboxRunClose({
+      sessionId: sandboxSessionId,
+      ...(cpuCumulativeMs === undefined ? {} : { cpuCumulativeMs }),
     })
+    return await sandbox.resize({ target, vcpus })
   },
 })
 

@@ -38,4 +38,13 @@ export abstract class SandboxProvider {
   abstract delete(args: { target: SandboxTarget }): Promise<void>
   /** Every pod sandbox this provider created for the credentials, all pages of them. */
   abstract list(args: { credentials: SandboxCredentials }): Promise<readonly SandboxListing[]>
+  async activeCpuMs(_args: { target: SandboxTarget }): Promise<number | undefined> {
+    return undefined
+  }
+  async instanceIdOf(_args: { target: SandboxTarget }): Promise<string | undefined> {
+    return undefined
+  }
+  podDiskGb(): number | undefined {
+    return undefined
+  }
 }

@@ -5,6 +5,7 @@ import {
   type VercelSdk,
 } from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
+import { recordSandboxRunClose } from '../../../agent/sandbox/sandbox-runs'
 import { podSessionOf } from '../../platform/sessions/session-of-thread'
 import { failureText } from '../github/github-sandbox-wake-boot'
 
@@ -41,6 +42,7 @@ export async function rollbackIfDestroyed(args: {
       )
     if (sandbox === undefined) return
     await sandbox.delete({ signal: AbortSignal.timeout(SANDBOX_DELETE_TIMEOUT_MS) })
+    await recordSandboxRunClose({ sessionId: await podSessionOf({ reader: db, threadId }) })
     log(`deleted sandbox ${name} that provisioning created after thread ${threadId} was destroyed`)
   } catch (failure) {
     log(

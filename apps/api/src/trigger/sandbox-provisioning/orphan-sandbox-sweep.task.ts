@@ -26,7 +26,9 @@ import {
 } from '../../api/cloud/sandbox-provisioning/v2-pod-sweep'
 import { VercelOrphanSandboxStore } from '../../api/cloud/sandbox-provisioning/vercel-orphan-sandbox-store'
 import { endPodTerminals } from '../../api/platform/sandboxes/pod-terminals'
-import type { AgentHostEnv, SandboxCredentials } from '../../agent'
+import { recordSandboxRunClose } from '../../agent/sandbox/sandbox-runs'
+import type { SandboxCredentials } from '../../agent/sandbox/sandbox-provider'
+import type { AgentHostEnv } from '../../agent/config/env'
 import { readAgentHostEnv } from '../../agent/config/env'
 import { isPodSandboxName } from '../../agent/sandbox/vercel-names'
 import { platformCredentialsOf } from '../../agent/config/platform-credentials'
@@ -165,6 +167,12 @@ export const orphanSandboxSweepTask = schedules.task({
         await db.orm.v2.V2Session.where((session) => session.id.in(sessionIds))
           .where((session) => session.archivedAt.isNotNull())
           .updateAndCount({ podRetiredAt: new Date() })
+      },
+      onStopped: async ({ podSessionId, cpuCumulativeMs }) => {
+        await recordSandboxRunClose({
+          sessionId: podSessionId,
+          ...(cpuCumulativeMs === undefined ? {} : { cpuCumulativeMs }),
+        })
       },
       endTerminals: (args) => endPodTerminals(args),
       now,

@@ -174,6 +174,17 @@ export class Agent37SandboxProvider extends SandboxProvider {
     }
   }
 
+  override async instanceIdOf(args: { target: SandboxTarget }): Promise<string | undefined> {
+    const instanceId = await this.args.instances.find({
+      podSessionId: args.target.sandboxSessionId,
+    })
+    return instanceId ?? undefined
+  }
+
+  override podDiskGb(): number {
+    return this.args.env.resources.disk
+  }
+
   async stop(args: { target: SandboxTarget }): Promise<void> {
     const instanceId = await this.args.instances.find({
       podSessionId: args.target.sandboxSessionId,

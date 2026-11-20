@@ -1,7 +1,12 @@
 import type { ControlPlane } from '@dltech/atlas-control'
 import type { HostTimers } from '@dltech/atlas-host'
 import type { LogPort, ProductAnalytics } from '@dltech/atlas-observability'
-import type { EStreamSurface, SessionChange, StreamServerMessage } from '@dltech/atlas-protocol'
+import type {
+  EStreamSurface,
+  SessionChange,
+  SessionViewOutput,
+  StreamServerMessage,
+} from '@dltech/atlas-protocol'
 
 import type { SubscriptionConnection } from './subscription-port'
 
@@ -18,6 +23,10 @@ export type FollowDeps = {
   recordSurface?: ((args: SurfaceRecord) => void) | undefined
   viewHead?: ((args: { sessionId: string; headSeq: number }) => void) | undefined
 }
+
+export type SessionComputeReader = (args: {
+  sessionId: string
+}) => Promise<SessionViewOutput['compute']>
 
 export type SurfaceRecord = {
   sessionId: string

@@ -76,6 +76,7 @@ export const viewModelFixture = (overrides: Partial<SessionViewModel> = {}): Ses
   plan: [],
   context: null,
   spend: null,
+  compute: { costUsd: null, running: false, tick: null },
   ...overrides,
 })
 

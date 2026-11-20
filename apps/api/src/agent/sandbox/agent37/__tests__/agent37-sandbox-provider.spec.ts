@@ -75,6 +75,8 @@ const fakeClient = (args: {
     },
     probe: async () => ({ status: 200, body: args.version }),
     signedUrl: async ({ id, port }) => `https://${id}-${port}.agent37.app/?a37_token=a37`,
+    usage: async () => ({ from: '', to: '' }),
+    events: async () => ({ from: '', to: '', events: [] }),
   }
   return { client, creates, execs, slept, resized, removed }
 }

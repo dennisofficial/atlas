@@ -39,6 +39,7 @@ namespace v2 {
     pullRequests    V2SessionPullRequest[]
     worktreeChanges V2WorktreeChanges[]
     terminals       V2Terminal[]
+    sandboxRuns     V2SandboxRun[]
 
     @@index([userId, createdAt])
     @@index([sandboxInstanceId])

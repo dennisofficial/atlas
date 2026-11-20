@@ -39,6 +39,53 @@ describe('tallying spend', () => {
   })
 })
 
+const priced = (costUsd: number): SpendRow => ({
+  ...row(),
+  costUsd,
+  unpricedTokens: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+})
+
+describe('tallying rows that state their own cost', () => {
+  it('adds the stated cost to the catalog price of the unpriced remainder', () => {
+    const tally = tallySpend({
+      rows: [
+        {
+          ...row(),
+          costUsd: 5,
+          unpricedTokens: {
+            inputTokens: 100_000,
+            outputTokens: 100_000,
+            cacheReadTokens: 0,
+            cacheWriteTokens: 0,
+          },
+        },
+      ],
+      priceOf,
+    })
+
+    expect(tally.costUsd).toBeCloseTo(5.3)
+    expect(tally.inputTokens).toBe(1_000_000)
+  })
+
+  it('takes a fully priced row at its stated cost whatever the catalog later says', () => {
+    const rows = [priced(5)]
+    const repriced = (): ModelCost => ({ inputPerMillion: 400, outputPerMillion: 800 })
+
+    expect(tallySpend({ rows, priceOf }).costUsd).toBeCloseTo(5)
+    expect(tallySpend({ rows, priceOf: repriced }).costUsd).toBeCloseTo(5)
+  })
+
+  it('keeps a stated cost when the catalog has no rate for the unpriced remainder', () => {
+    const tally = tallySpend({ rows: [priced(5), row({ providerId: 'codex' })], priceOf })
+
+    expect(tally.costUsd).toBeCloseTo(5)
+  })
+
+  it('falls back to the catalog for a row recorded with no stated cost', () => {
+    expect(tallySpend({ rows: [priced(5), row()], priceOf }).costUsd).toBeCloseTo(8)
+  })
+})
+
 describe('formatting dollars', () => {
   it('shows sub-cent amounts as a floor', () => {
     expect(formatUsd(0.004)).toBe('<$0.01')

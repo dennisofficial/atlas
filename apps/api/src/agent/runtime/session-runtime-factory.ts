@@ -24,6 +24,7 @@ import type { ProjectFilesSource } from '../config/project-files'
 import { SANDBOX_HOME_PATH, workspaceDirectoryOf } from '../sandbox/constants'
 import type { SandboxProviderRegistry } from '../sandbox/provider-registry'
 import type { SandboxTarget } from '../sandbox/sandbox-provider'
+import { recordSandboxRunOpen } from '../sandbox/sandbox-runs'
 import { sandboxNameOf } from '../sandbox/vercel-names'
 import { SandboxNotConfiguredError } from './sandbox-not-configured-error'
 import { PrepareSteps } from './prepare-steps'
@@ -136,6 +137,21 @@ export const createSessionRuntimeFactory = (
         })
       }
     }
+    const recordRun = async (endpoint: { vcpus?: number | undefined }): Promise<void> => {
+      const vcpus = endpoint.vcpus ?? desiredVcpus
+      if (vcpus === undefined) return
+      await recordSandboxRunOpen({
+        sessionId: sandboxSessionId,
+        provider: config.sandbox.provider,
+        vcpus,
+        sandbox: provider,
+        target,
+      })
+    }
+    const onWake = async (endpoint: { vcpus?: number | undefined }): Promise<void> => {
+      await recordApplied(endpoint)
+      await recordRun(endpoint)
+    }
     const steps = new PrepareSteps()
     const { calls } = daemonSessionOf({
       sessionId,
@@ -143,7 +159,7 @@ export const createSessionRuntimeFactory = (
       provider,
       target,
       ...(desiredVcpus === undefined ? {} : { vcpus: desiredVcpus }),
-      onWake: recordApplied,
+      onWake,
       daemonSecret: args.daemonSecret,
       timers: args.timers,
       signal,
