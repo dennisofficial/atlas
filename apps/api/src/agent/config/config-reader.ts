@@ -19,6 +19,7 @@ import {
 import type { SecretCipher } from './secret-cipher'
 import { skillIndexOf } from './skill-index'
 import { platformCredentialsOf } from './platform-credentials'
+import { BYOK_RETIRED_GAP } from '../runtime/sandbox-not-configured-error'
 
 type ModelChoiceRow = {
   modelRef: string
@@ -117,7 +118,7 @@ export class ConfigReader implements ConfigSource {
     vcpus: number | undefined
   }): SandboxConfig {
     if (args.credentialSource !== ECredentialSource.Platform) {
-      return { configured: false, provider: args.provider, gap: 'byok-retired' }
+      return { configured: false, provider: args.provider, gap: BYOK_RETIRED_GAP }
     }
     const credentials = platformCredentialsOf({ provider: args.provider, env: this.args.platform })
     if ('configured' in credentials) {

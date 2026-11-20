@@ -1,3 +1,5 @@
+export const BYOK_RETIRED_GAP = 'byok-retired'
+
 export class SandboxNotConfiguredError extends Error {
   constructor(public readonly gap: string) {
     super(`sandbox is not configured: ${gap}`)
