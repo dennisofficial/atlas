@@ -218,7 +218,7 @@ export class SessionsService {
       userId: args.userId,
       event: 'sessions_list_timed',
       properties: {
-        surface: 'trpc',
+        source: 'trpc',
         rows: sessions.length,
         duration_ms: durationMs,
         ...digestTimingProperties(timings),

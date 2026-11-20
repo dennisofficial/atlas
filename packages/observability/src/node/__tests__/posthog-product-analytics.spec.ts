@@ -2,7 +2,11 @@ import { describe, expect, it } from 'bun:test'
 import type { PostHog } from 'posthog-node'
 
 import { NullProductAnalytics } from '../../analytics/product-analytics'
-import { PosthogProductAnalytics, serverObservability } from '../posthog-product-analytics'
+import {
+  PosthogProductAnalytics,
+  serverObservability,
+  serverTraceOptions,
+} from '../posthog-product-analytics'
 
 type Capture = { distinctId: string; event: string; properties: Record<string, unknown> }
 
@@ -46,6 +50,22 @@ describe('PosthogProductAnalytics', () => {
     ])
   })
 
+  it('keeps the server base properties when a caller sets its own', () => {
+    const { client, captures } = fakeClient()
+    const analytics = new PosthogProductAnalytics({ client, version: '1.2.3' })
+
+    analytics.capture({
+      userId: 'user-1',
+      event: 'sessions_list_timed',
+      properties: { surface: 'trpc', atlas_version: 'caller' },
+    })
+
+    expect(captures[0]?.properties).toMatchObject({
+      surface: 'server',
+      atlas_version: '1.2.3',
+    })
+  })
+
   it('never throws when the client refuses the event', () => {
     const { client } = fakeClient({ throws: true })
     const analytics = new PosthogProductAnalytics({ client, version: '1.2.3' })
@@ -60,6 +80,16 @@ describe('PosthogProductAnalytics', () => {
     await analytics.flush()
 
     expect(shutdowns()).toBe(1)
+  })
+})
+
+describe('serverTraceOptions', () => {
+  it('sends v2 traces under their own service name so v1 traces stay separable', () => {
+    expect(serverTraceOptions('1.2.3')).toEqual({
+      serviceName: 'atlas-agent',
+      serviceVersion: '1.2.3',
+      maxSpanAgeMs: 24 * 60 * 60 * 1000,
+    })
   })
 })
 

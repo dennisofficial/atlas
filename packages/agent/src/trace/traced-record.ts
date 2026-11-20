@@ -22,30 +22,14 @@ export class TracedRecord extends AgentRecordPort {
   }
 
   ownEvents(args: { threadId: ThreadId; afterSeq?: number | undefined }): Promise<Event[]> {
-    return this.read({ threadId: args.threadId, run: () => this.inner.ownEvents(args) })
+    return this.inner.ownEvents(args)
   }
 
   composedEvents(args: { threadId: ThreadId }): Promise<Event[]> {
-    return this.read({ threadId: args.threadId, run: () => this.inner.composedEvents(args) })
+    return this.inner.composedEvents(args)
   }
 
   loopState(args: { threadId: ThreadId }): Promise<LoopState> {
-    return this.trace.span({
-      name: ESpan.RecordRead,
-      fields: { threadId: args.threadId },
-      run: () => this.inner.loopState(args),
-    })
-  }
-
-  private read(args: { threadId: ThreadId; run: () => Promise<Event[]> }): Promise<Event[]> {
-    return this.trace.span({
-      name: ESpan.RecordRead,
-      fields: { threadId: args.threadId },
-      run: async (span) => {
-        const events = await args.run()
-        span.set({ events: events.length })
-        return events
-      },
-    })
+    return this.inner.loopState(args)
   }
 }

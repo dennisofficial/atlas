@@ -5,16 +5,12 @@ import {
   type InboxEntry,
   type ThreadId,
 } from '@dltech/atlas-core'
-import {
-  HookedToolDispatcher,
-  LoopTurnRunner,
-  type PauseSignal,
-  settleCrashedCalls,
-} from '@dltech/atlas-agent'
+import { LoopTurnRunner, type PauseSignal, settleCrashedCalls } from '@dltech/atlas-agent'
 import { logFieldsOf } from '@dltech/atlas-observability'
 
 import { ScopedToolDispatcher } from '../calls/call-scope'
 import { BranchObserver } from './branch-observer'
+import { hookedToolsOf } from './hooked-tools'
 import { pluginPodOf } from './plugin-pod'
 import type { HeldSessionDeps } from './held-session-deps'
 import { LeaseLostError } from './record/record-adapter'
@@ -206,10 +202,7 @@ export const createLoopRunner = (args: {
     ...(runtime.mediaUrls === undefined ? {} : { mediaUrls: runtime.mediaUrls }),
     tools: () => pod.tools.declarations(),
     dispatch: new ScopedToolDispatcher(
-      new HookedToolDispatcher({
-        registry: pod.tools,
-        hooks: pod.hooks,
-      }),
+      hookedToolsOf({ registry: pod.tools, hooks: pod.hooks, trace: runtime.trace }),
     ),
     intake,
     output: args.turns.liveOutput({
