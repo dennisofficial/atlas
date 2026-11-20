@@ -145,6 +145,23 @@ describe('crashedCalls', () => {
     expect(pendingCalls(events).map((call) => call.callId)).toEqual([toCallId('call-1')])
   })
 
+  it('treats a dispatch the drain detached as merely pending again', () => {
+    const events = eventsFrom([
+      called({ callId: 'call-1', ordinal: 0 }),
+      dispatched('call-1'),
+      {
+        type: 'tool-dispatched',
+        callId: toCallId('call-1'),
+        name: 'bash',
+        detached: true,
+      },
+    ])
+
+    expect(dispatchedCalls(events).has(toCallId('call-1'))).toBe(false)
+    expect(crashedCalls(events)).toEqual([])
+    expect(pendingCalls(events).map((call) => call.callId)).toEqual([toCallId('call-1')])
+  })
+
   it('treats a reused call id redispatched without a marker as merely pending', () => {
     const events = eventsFrom([
       called({ callId: 'call-1', ordinal: 0 }),

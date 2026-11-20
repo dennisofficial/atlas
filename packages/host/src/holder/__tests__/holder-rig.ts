@@ -1,5 +1,5 @@
 import type { CommandRegistry } from '@dltech/atlas-commands'
-import { toThreadId, type ModelPort } from '@dltech/atlas-core'
+import { toThreadId, type ModelPort, type ToolDefinition } from '@dltech/atlas-core'
 import { ControlPlane } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 import {
@@ -58,6 +58,7 @@ export const makeRig = async (args: {
   watchedRepos?: (() => Promise<readonly string[]>) | undefined
   runningShells?: (() => Promise<number>) | undefined
   model?: (() => ModelPort) | undefined
+  hostTools?: readonly ToolDefinition[] | undefined
   terminalStreams?: (() => number) | undefined
   baseBranches?: Readonly<Record<string, string>> | undefined
   reasonOfStartError?: ((error: unknown) => string) | undefined
@@ -117,6 +118,7 @@ export const makeRig = async (args: {
     terminalStreams: args.terminalStreams,
     panelHolds: () => held?.demandOf().panel.countOf(SESSION) ?? 0,
     model: args.model,
+    hostTools: args.hostTools,
     baseBranches: args.baseBranches,
     uploads: args.uploads,
     prepare: args.prepare,

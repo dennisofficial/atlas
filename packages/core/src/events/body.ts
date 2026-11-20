@@ -138,7 +138,13 @@ export type EventBody =
       ordinal: number
       usage?: StepReading | undefined
     }
-  | { type: 'tool-dispatched'; callId: CallId; name: string; bootId?: string | undefined }
+  | {
+      type: 'tool-dispatched'
+      callId: CallId
+      name: string
+      bootId?: string | undefined
+      detached?: true | undefined
+    }
   | {
       type: 'tool-parked'
       callId: CallId

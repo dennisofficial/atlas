@@ -143,15 +143,32 @@ export class HeldSession {
     const startedAt = this.deps.timers.now()
     await new Promise<void>((resolve) => {
       const timer = this.deps.timers.setTimeout(() => {
-        this.logDrainCap({ startedAt })
-        this.turns.abort('handoff')
-        resolve()
+        void this.abortPastCap({ startedAt }).then(() => resolve())
       }, DRAIN_IN_FLIGHT_CAP_MS)
       void this.turns.whenIdle().then(() => {
         this.deps.timers.clearTimeout(timer)
         resolve()
       })
     })
+  }
+
+  private async abortPastCap(args: { startedAt: number }): Promise<void> {
+    this.logDrainCap(args)
+    await this.detachInFlightCalls()
+    this.turns.abort('handoff')
+  }
+
+  private async detachInFlightCalls(): Promise<void> {
+    const record = this.record
+    const state = record?.eventCache().loopState()
+    if (record === undefined || state === undefined) return
+    for (const call of crashedCallsOf(state)) {
+      await record.append({
+        threadId: call.threadId,
+        runId: this.deps.ids.nextRunId(),
+        drafts: [{ type: 'tool-dispatched', callId: call.callId, name: call.name, detached: true }],
+      })
+    }
   }
 
   private logDrainCap(args: { startedAt: number }): void {

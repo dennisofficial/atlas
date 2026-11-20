@@ -62,6 +62,7 @@ export const prepareDraft = async (
   draft: AppendBody,
 ): Promise<AppendBody | undefined> => {
   if (draft.type !== 'tool-dispatched') return draft
+  if (draft.detached === true) return draft
   const recorded = args.cache.bookkeeping().findDispatched(draft.callId)
   if (recorded !== undefined) {
     if (recorded.bootId !== undefined && recorded.bootId !== null) {

@@ -71,6 +71,11 @@ const callsPatch = (state: LoopState, event: Event): Patch => {
   }
 
   if (event.type === 'tool-dispatched') {
+    if (event.detached === true) {
+      return state.dispatched.has(event.callId)
+        ? { dispatched: without({ values: state.dispatched, value: event.callId }) }
+        : {}
+    }
     const isPending = state.pending.some((call) => call.callId === event.callId)
     if (!isPending || state.dispatched.has(event.callId)) return {}
     return { dispatched: new Set(state.dispatched).add(event.callId) }

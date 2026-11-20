@@ -124,6 +124,26 @@ describe('resumePlan', () => {
     expect(resumeDrafts(events)).toEqual([])
   })
 
+  it('continues with no nudge when a hand-off aborted the reply', () => {
+    const events = log([
+      { type: 'user-said', text: 'run it' },
+      { type: 'assistant-said', parts: [], interrupted: true, aborted: 'handoff' },
+    ])
+
+    expect(resumePlan(events)).toEqual({ kind: EResume.Continue, nudge: false })
+    expect(resumeDrafts(events)).toEqual([])
+  })
+
+  it('still nudges a plain interruption that carries no hand-off mark', () => {
+    const events = log([
+      { type: 'user-said', text: 'run it' },
+      { type: 'assistant-said', parts: [], interrupted: true },
+    ])
+
+    expect(resumePlan(events).kind).toBe(EResume.Nudge)
+    expect(resumeDrafts(events)).toEqual([{ type: 'nudge', text: RESUME_NUDGE, lifetimeSteps: 1 }])
+  })
+
   it('refuses to resume past an approval nobody answered', () => {
     const events = log([
       { type: 'user-said', text: 'delete it' },

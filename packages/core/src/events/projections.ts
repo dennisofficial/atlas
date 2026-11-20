@@ -78,7 +78,10 @@ export function dispatchedCalls(events: readonly Event[]): Set<CallId> {
       dispatched.delete(event.callId)
       continue
     }
-    if (event.type === 'tool-dispatched') dispatched.add(event.callId)
+    if (event.type === 'tool-dispatched') {
+      if (event.detached === true) dispatched.delete(event.callId)
+      else dispatched.add(event.callId)
+    }
   }
   return dispatched
 }

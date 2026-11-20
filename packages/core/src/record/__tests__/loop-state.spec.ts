@@ -29,6 +29,7 @@ import {
   owesEndingOf,
   pendingCallsOf,
   projectDirectoryOfState,
+  settleablePendingOf,
   resumeDraftsOf,
   resumePlanOf,
   stepLoopState,
@@ -237,6 +238,17 @@ describe('LoopState named cases', () => {
     expect(handoff.cutShortSincePrompt).toBe(false)
     expect(resumePlanOf(handoff)).toEqual({ kind: EResume.Continue, nudge: false })
     expect(resumeDraftsOf(handoff)).toEqual([])
+  })
+
+  it('leaves a call pending again once the drain detached its dispatch', () => {
+    const state = fold([
+      { type: 'tool-called', callId: id, name: 'bash', input: 1, ordinal: 0 },
+      { type: 'tool-dispatched', callId: id, name: 'bash' },
+      { type: 'tool-dispatched', callId: id, name: 'bash', detached: true },
+    ])
+
+    expect(crashedCallsOf(state)).toEqual([])
+    expect(settleablePendingOf(state).map((call) => call.callId)).toEqual([id])
   })
 
   it('calls a completed last reply a finished turn and nothing else', () => {
