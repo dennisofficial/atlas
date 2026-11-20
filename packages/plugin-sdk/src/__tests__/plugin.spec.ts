@@ -6,7 +6,7 @@ import {
   toThreadId,
   v2EventSchema,
 } from '@dltech/atlas-core'
-import type { V2Body, V2Event } from '@dltech/atlas-core'
+import type { SubscriptionEndRules, V2Body, V2Event } from '@dltech/atlas-core'
 
 import {
   composePlugins,
@@ -227,6 +227,25 @@ describe('composePlugins', () => {
   it('keeps commands in registration order', () => {
     const names = composePlugins([fixturePlugin, second]).commands.map((c) => c.spec.name)
     expect(names).toEqual(['probe-observe', 'probe-read'])
+  })
+
+  const withRules = (name: string, ruleSet: SubscriptionEndRules) =>
+    isolated({ name, pod: { ...EMPTY_POD, subscriptionEnds: ruleSet } })
+
+  it('merges the subscription end rules of every plugin', () => {
+    const rule = () => true
+    const composed = composePlugins([
+      withRules('a', { 'test.one': rule }),
+      withRules('b', { 'test.two': rule }),
+    ])
+    expect(Object.keys(composed.pod.subscriptionEnds)).toEqual(['test.one', 'test.two'])
+  })
+
+  it('refuses two plugins that declare the same subscription provider', () => {
+    const rule = () => true
+    expect(() =>
+      composePlugins([withRules('a', { 'test.one': rule }), withRules('b', { 'test.one': rule })]),
+    ).toThrow('two plugins register the subscription provider "test.one"')
   })
 })
 

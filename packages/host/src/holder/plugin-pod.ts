@@ -7,7 +7,7 @@ import {
   type ToolDeclaration,
   type ToolDefinition,
 } from '@dltech/atlas-core'
-import type { PluginPodContext, PodCrew } from '@dltech/atlas-plugin-sdk'
+import { mergeHooks, type PluginPodContext, type PodCrew } from '@dltech/atlas-plugin-sdk'
 import type { CallOp, CallResult } from '@dltech/atlas-protocol'
 
 import { newKey } from '../calls/remote-calls'
@@ -18,6 +18,7 @@ import { fireLive } from './ports'
 import { MirrorPlanHook } from './plan-mirror'
 import { podControlOf } from './pod-control'
 import { podSessionsOf } from './plugin-sessions'
+import { subscriptionEndHooksOf } from './subscription-end-hooks'
 import { modelFellBackDraft } from './crew/model-fell-back'
 import type { RoleModelChoice, SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
@@ -173,17 +174,23 @@ export const hostHooksOf = (): HookChainArgs => ({ afterTool: [new MirrorPlanHoo
 export const pluginHooksOf = (args: {
   runtime: SessionRuntime
   ctx: PluginPodContext
+  now: () => Date
 }): HookChain => {
   const { plugins } = args.runtime
   const host = hostHooksOf()
   if (plugins === undefined) return new HookChain(host)
 
-  const plugin = plugins.pod.hooks(args.ctx)
-  return new HookChain({
-    ...host,
-    ...plugin,
-    afterTool: [...(host.afterTool ?? []), ...(plugin.afterTool ?? [])],
-  })
+  return new HookChain(
+    mergeHooks([
+      host,
+      plugins.pod.hooks(args.ctx),
+      subscriptionEndHooksOf({
+        rules: plugins.pod.subscriptionEnds,
+        events: args.ctx.events,
+        now: args.now,
+      }),
+    ]),
+  )
 }
 
 export type PluginPod = { tools: ToolRegistry; hooks: HookChain }
@@ -202,7 +209,11 @@ export const pluginPodOf = (args: {
   }
   const ctx = pluginPodContextOf(args)
   const tools = pluginToolsOf({ runtime: args.runtime, ctx })
-  const hooks = pluginHooksOf({ runtime: args.runtime, ctx })
+  const hooks = pluginHooksOf({
+    runtime: args.runtime,
+    ctx,
+    now: () => new Date(args.deps.timers.now()),
+  })
   ctx.onDaemonEvent((frame) => plugins.pod.onDaemonEvent(frame))
   return { tools, hooks }
 }
