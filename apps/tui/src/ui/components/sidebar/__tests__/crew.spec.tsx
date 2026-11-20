@@ -300,6 +300,25 @@ describe('the crew panel splits into a teammate tier and a sub-agent tier', () =
     expect(frame).toContain('provider inference.net returned 402')
   })
 
+  it('folds a cause written across lines onto the one row', async () => {
+    const frame = (
+      await rowsOf({
+        subagents: [
+          row({
+            id: 's1',
+            status: EAgentStatus.Failed,
+            endedAt: '2026-01-01T00:01:00.000Z',
+            state: 'failed',
+            failureReason: '  provider\n\t returned 402 ',
+          }),
+        ],
+        cells: WIDTH,
+      })
+    ).join('\n')
+
+    expect(frame).toContain('provider returned 402')
+  })
+
   it('clips a long cause to the row rather than letting it wrap the panel', async () => {
     const lines = await rowsOf({
       subagents: [

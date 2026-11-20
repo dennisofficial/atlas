@@ -3,6 +3,7 @@
 ## Unified
 
 - `formatTokens` (k/m/b): tui `ui/theme.ts` and web `threads/panel/details/details-model.ts` now use `@dltech/atlas-client/crew` (`packages/client/src/crew/readout.ts`).
+- `oneLine` (`\s+` → space, trim): tui `store/sidebar-text.ts`, `sidebar/crew.tsx`, `lost-children-model.ts`, `lost-shells-model.ts` and web `details/crew-model.ts` now use `@dltech/atlas-core` (`packages/core/src/text/one-line.ts`).
 
 ## Ruled out (intentional divergence — do not re-investigate)
 
@@ -16,8 +17,8 @@
 
 ## Backlog (ranked)
 
-1. `oneLine` = `text.replace(/\s+/g, ' ').trim()`, 5 identical copies: tui `store/sidebar-text.ts:7`, `ui/components/sidebar/crew.tsx:83`, `ui/lost-children-model.ts:11`, `ui/lost-shells-model.ts:5`, web `threads/panel/details/crew-model.ts:130` → `packages/core`.
-2. `clip` (`slice(0, limit - 1)…`), 3 identical copies: core `assembly/rules/pr-event-block.ts:16`, `events/loop-watch.ts:20`, client `transcript/pr-event-line.ts:16` → `packages/core`.
+1. `clip` (`slice(0, limit - 1)…`), 3 identical copies: core `assembly/rules/pr-event-block.ts:16`, `events/loop-watch.ts:20`, client `transcript/pr-event-line.ts:16` → `packages/core`.
+2. Inline `replace(/\s+/g, ' ').trim()` that can now call core `oneLine`: core `shells/label.ts`, `shells/fallback-shell-name.ts`, `agents/name.ts`, `agents/label.ts`, `policy/classifier/verdict.ts`; web `data/processes-model.ts:49`; tui `shells-model.ts:109`. Skip v1 harness.
 3. `contextLabelOf` (200k / 1M), byte-equivalent in web `threads/data/model-options.ts:67` and mobile `composer/model-options.ts:52`. Mobile `EFFORT_LADDER`/`EFFORT_LABELS` re-declare what `@dltech/atlas-ui` already exports.
 4. Relative time: mobile `lib/relative-time.ts` and web `settings/data/personal/relative-time.ts` give identical output (only the argument keys differ) → `packages/core`.
 5. `parseRepoInput`, identical in web and prototype `new-project-repos.ts`; no package is shared by both apps yet, so it needs a home decision.
@@ -31,3 +32,9 @@
 
 - First run; created this file. Scanned packages/apps helpers and the UI layer.
 - Unified `formatTokens` (3 byte-identical copies → client). Pinned with a client spec (moved from tui), a web `tokenStatsOf` m/b case and a tui re-export spec, all mutation-checked.
+
+### 2026-11-20
+
+- No open Dup unifier or abstraction-routine PRs; the only open PR (#2465) touches none of these files.
+- Unified `oneLine` (5 identical copies → core `text/one-line.ts`). Pinned with a core spec plus new tui crew failure-line and lost-shells specs; mutation-checked (no newline fold, no trim).
+- Added backlog item 2: inline copies that can now call core `oneLine`.

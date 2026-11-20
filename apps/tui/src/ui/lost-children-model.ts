@@ -1,3 +1,4 @@
+import { oneLine } from '@dltech/atlas-core'
 import type { RecoveredAgents, UnloggedChild } from '@dltech/atlas-harness'
 
 export type LostChildRow = {
@@ -7,8 +8,6 @@ export type LostChildRow = {
 }
 
 const UNTITLED = 'an untitled sub-agent'
-
-const oneLine = (text: string): string => text.replace(/\s+/g, ' ').trim()
 
 /**
  * The title the child thread was opened under, which is the only name anything holds for it: the
