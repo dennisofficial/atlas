@@ -291,6 +291,33 @@ describe('GithubWebhookInboxService', () => {
     ).toBeNull()
   })
 
+  it('drops the payload of a processed delivery and keeps it on a dead letter', async () => {
+    const service = inbox()
+    await service.insert({ deliveryId: 'd-kept', event: 'pull_request', payload: { n: 7 } })
+    await service.insert({ deliveryId: 'd-dropped', event: 'pull_request', payload: { n: 8 } })
+    await db.orm.public.GithubWebhookInbox.where({ deliveryId: 'd-kept' }).updateAndCount({
+      attempts: MAX_ATTEMPTS - 1,
+      leaseUntil: null,
+    })
+
+    await service.markProcessed({ deliveryId: 'd-dropped' })
+    await service.handleReconcile({
+      process: async () => {
+        throw new Error('still broken')
+      },
+    })
+
+    const dropped = await db.orm.public.GithubWebhookInbox.where({
+      deliveryId: 'd-dropped',
+    }).first()
+    expect(dropped?.processedAt).not.toBeNull()
+    expect(dropped?.payload).toBeNull()
+
+    const kept = await db.orm.public.GithubWebhookInbox.where({ deliveryId: 'd-kept' }).first()
+    expect(kept?.deadAt).not.toBeNull()
+    expect(kept?.payload).toEqual({ n: 7 })
+  })
+
   it('holds no open transaction while the handler runs', async () => {
     const service = inbox()
     await service.insert({ deliveryId: 'd-tx', event: 'ping', payload: {} })

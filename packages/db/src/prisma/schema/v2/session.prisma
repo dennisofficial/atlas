@@ -42,6 +42,7 @@ namespace v2 {
     terminals       V2Terminal[]
     sandboxRuns     V2SandboxRun[]
 
+    @@index([mainThreadId])
     @@index([userId, createdAt])
     @@index([sandboxInstanceId])
   }

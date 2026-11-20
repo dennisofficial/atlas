@@ -2,7 +2,7 @@
 model GithubWebhookInbox {
   deliveryId      String                 @id
   event           String
-  payload         Jsonb
+  payload         Jsonb?
   receivedAt      TimestamptzJsDate(3)
   processedAt     TimestamptzJsDate(3)?
   processingError String?
@@ -11,6 +11,7 @@ model GithubWebhookInbox {
   nextAttemptAt   TimestamptzJsDate(3)?
   deadAt          TimestamptzJsDate(3)?
 
-  @@index([processedAt], map: "GithubWebhookInbox_processedAt_idx")
-  @@index([deadAt], map: "GithubWebhookInbox_deadAt_idx")
+  @@index([receivedAt], name: "GithubWebhookInbox_due_idx", where: sql`("processedAt" IS NULL AND "deadAt" IS NULL)`)
+  @@index([processedAt], name: "GithubWebhookInbox_processedAt_idx", where: sql`("processedAt" IS NOT NULL)`)
+  @@index([deadAt], name: "GithubWebhookInbox_deadAt_idx", where: sql`("deadAt" IS NOT NULL)`)
 }
