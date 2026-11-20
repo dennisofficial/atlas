@@ -28,11 +28,17 @@ export type SessionStreamTransport = {
   list(handlers: SessionStreamHandlers): SessionStreamSubscription
 }
 
+type ConnectionStateSignal = { state: string; error: unknown }
+
 type StreamObserver = {
   onData(frame: StreamServerMessage): void
   onError(failure: unknown): void
   onComplete(): void
+  onConnectionStateChange(state: ConnectionStateSignal): void
 }
+
+const isDroppedConnection = (state: ConnectionStateSignal): boolean =>
+  state.state === 'connecting' && state.error !== null && state.error !== undefined
 
 const isFrameStream = (value: unknown): value is AsyncIterable<unknown> =>
   typeof (value as { [Symbol.asyncIterator]?: unknown } | null)?.[Symbol.asyncIterator] ===
@@ -56,6 +62,12 @@ const openSubscription = (args: {
       }
     })()
   }
+  let teardown: (() => void) | undefined
+  const close = (): void => {
+    if (closed) return
+    closed = true
+    teardown?.()
+  }
   const subscription = args.run({
     onData: (value) => (isFrameStream(value) ? pump(value) : handleFrame(value)),
     onError: (failure) => {
@@ -67,14 +79,14 @@ const openSubscription = (args: {
     onComplete: () => {
       if (!closed) args.handlers.handleEnd()
     },
-  })
-  return {
-    close: () => {
-      if (closed) return
-      closed = true
-      subscription.unsubscribe()
+    onConnectionStateChange: (state) => {
+      if (closed || !isDroppedConnection(state)) return
+      close()
+      args.handlers.handleFailure(undefined)
     },
-  }
+  })
+  teardown = () => subscription.unsubscribe()
+  return { close }
 }
 
 export const sessionStreamTransport = (args: {
