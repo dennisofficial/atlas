@@ -3,7 +3,8 @@ import { SessionsClient } from '@dltech/atlas-harness'
 import { EEventsWatchFrame, mirrorsThreadState, type EventsWatchFrame } from '@dltech/atlas-wire'
 
 import type { ServeApp } from './serve-app'
-import { hydrateServeHistory } from './serve-hydrate'
+import { familyHeads, type FamilyParent } from './serve-family-heads'
+import { hydrateServeHistory, type HydrateResult } from './serve-hydrate'
 import { EServeEvent, type ServeLog } from './serve-log'
 import { wakeChildrenWithPendingInput } from './serve-pending-children'
 import type { ServeTurnDriver } from './turn-driver'
@@ -17,6 +18,10 @@ export type PullRemote = {
   clientVersion: string
   fetchFn: typeof fetch
 }
+
+export type FamilyHeadsOf = (
+  agents: readonly FamilyParent[],
+) => Promise<ReadonlyMap<ThreadId, number> | undefined>
 
 export type PullSubscribe = (args: { onTick: (frame?: EventsWatchFrame) => void }) => () => void
 
@@ -87,7 +92,10 @@ export function bindServePull(args: {
   }
   driver: Pick<ServeTurnDriver, 'run' | 'busy' | 'stoppedAt'>
   log: ServeLog
-  hydrate?: ((threadId: ThreadId) => Promise<unknown>) | undefined
+  hydrate?:
+    | ((threadId: ThreadId, remoteHead?: number) => Promise<HydrateResult | undefined>)
+    | undefined
+  heads?: FamilyHeadsOf | undefined
   subscribe?: PullSubscribe | undefined
 }): () => void {
   if (!mirrorsThreadState(args.env)) return () => undefined
@@ -98,34 +106,76 @@ export function bindServePull(args: {
     clientVersion: args.remote.clientVersion,
     fetchFn: args.remote.fetchFn,
   })
+  const knownHeads = new Map<ThreadId, number>()
   const hydrate =
     args.hydrate ??
-    ((asked: ThreadId) =>
-      hydrateServeHistory({ atlasHome: args.atlasHome, threadId: asked, sessions, log }))
+    ((asked: ThreadId, remoteHead?: number) =>
+      hydrateServeHistory({
+        atlasHome: args.atlasHome,
+        threadId: asked,
+        sessions,
+        log,
+        ...(remoteHead === undefined ? {} : { remoteHead }),
+      }))
   const subscribe = args.subscribe ?? watchEventsFor({ sessions, threadId, log })
 
-  const refreshChild = async (childId: ThreadId): Promise<void> => {
-    await hydrate(childId)
+  const hydrateThread = async (asked: ThreadId, remoteHead?: number): Promise<void> => {
+    const result = await hydrate(asked, remoteHead)
+    if (result !== undefined) knownHeads.set(asked, result.head)
+  }
+
+  const refreshRoot = async (): Promise<void> => {
+    await hydrateThread(threadId, knownHeads.get(threadId))
+    await app.log.refresh({ threadId })
+    const events = await app.log.readOwn({ threadId })
+    if (awaitsPulledInput(events, await driver.stoppedAt()) && !driver.busy())
+      driver.run({ resume: false, onlyIfIdle: true })
+  }
+
+  const headsOf = async (
+    agents: readonly FamilyParent[],
+  ): Promise<ReadonlyMap<ThreadId, number> | undefined> => {
+    const read =
+      args.heads ?? ((family) => familyHeads({ root: threadId, agents: family, threads: sessions }))
+    try {
+      return await read(agents)
+    } catch (failure) {
+      log({ event: EServeEvent.PullFailed, reason: `reading family heads: ${reasonOf(failure)}` })
+      return undefined
+    }
+  }
+
+  let currentHeads: ReadonlyMap<ThreadId, number> | undefined
+
+  const refreshChildIfMoved = async (childId: ThreadId): Promise<void> => {
+    const remote = currentHeads?.get(childId)
+    const known = knownHeads.get(childId)
+    if (remote !== undefined && known !== undefined && remote <= known) return
+    await hydrateThread(childId, remote)
     await app.log.refresh({ threadId: childId })
+  }
+
+  const sweepFamily = async (): Promise<void> => {
+    if (app.agents === undefined || app.roster === undefined) return
+    const agents = app.roster.snapshot().agents
+    if (agents.length === 0) return
+    currentHeads = await headsOf(agents)
+    // A message appended to a family (teammate) thread ticks the pod root's stream, not the
+    // child's — the watch is root-scoped — so a tick sweeps the family for unanswered input. The
+    // listing narrows that sweep to the children whose remote head moved, so an idle family costs
+    // one listing request rather than a history read per child.
+    await wakeChildrenWithPendingInput({
+      app: { log: app.log, roster: app.roster, agents: app.agents },
+      threadId,
+      log,
+      refreshChild: refreshChildIfMoved,
+    })
   }
 
   const pullOnce = async (): Promise<void> => {
     try {
-      await hydrate(threadId)
-      await app.log.refresh({ threadId })
-      const events = await app.log.readOwn({ threadId })
-      if (awaitsPulledInput(events, await driver.stoppedAt()) && !driver.busy())
-        driver.run({ resume: false, onlyIfIdle: true })
-      // A message appended to a family (teammate) thread ticks the pod root's stream, not the
-      // child's — the watch is root-scoped — so a tick sweeps the family for unanswered input.
-      if (app.agents !== undefined && app.roster !== undefined) {
-        await wakeChildrenWithPendingInput({
-          app: { log: app.log, roster: app.roster, agents: app.agents },
-          threadId,
-          log,
-          refreshChild,
-        })
-      }
+      await refreshRoot()
+      await sweepFamily()
     } catch (failure) {
       log({ event: EServeEvent.PullFailed, reason: reasonOf(failure) })
     }
