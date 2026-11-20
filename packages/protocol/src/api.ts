@@ -223,6 +223,7 @@ export const sessionSummarySchema = z.strictObject({
   primaryBranch: z.string().nullable().optional(),
   pullRequest: sessionRowPullRequestSchema.nullable().optional(),
   sandbox: sessionSandboxStatusSchema.nullable().optional(),
+  sandboxProvider: z.enum(ESandboxProvider).optional(),
 })
 
 export const sessionListOutputSchema = z.strictObject({

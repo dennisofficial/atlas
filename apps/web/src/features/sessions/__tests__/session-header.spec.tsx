@@ -176,6 +176,18 @@ describe('SessionHeader', () => {
     expect(html).not.toContain('Merge conflicts')
   })
 
+  it('does not tag a v2 session', () => {
+    const html = render({ entries: [] })
+    expect(html).not.toContain('>v2<')
+    expect(html).not.toContain('data-engine-tag')
+  })
+
+  it('does not tag a v2 session', () => {
+    const html = render({ entries: [] })
+    expect(html).not.toContain('>v2<')
+    expect(html).not.toContain('data-engine-tag')
+  })
+
   it('shows neither branch nor pull request when the view has none', () => {
     const html = render({ entries: [] })
     expect(html).not.toContain('data-session-branch')
