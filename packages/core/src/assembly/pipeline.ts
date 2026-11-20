@@ -9,6 +9,7 @@ import { agentEndingsBlock } from './rules/agent-endings-block'
 import { compactedHistory } from './rules/compacted-history'
 import { corruptImagesDropped, imagesInContext } from './rules/images'
 import { messagesFromEvents } from './rules/messages-from-events'
+import { noticeOrder } from './rules/notice-order'
 import { opensOnUserTurn } from './rules/opens-on-user-turn'
 import { runningAgentsBlock, type RunningAgentsSource } from './rules/running-agents-block'
 import { runningServicesBlock, type RunningServicesSource } from './rules/running-services-block'
@@ -40,6 +41,7 @@ export function defaultRules({
     systemPrompt({ prompt, launchDirectory }),
     messagesFromEvents(),
     agentEndingsBlock(),
+    noticeOrder(),
     compactedHistory(),
     opensOnUserTurn(),
     corruptImagesDropped(),
