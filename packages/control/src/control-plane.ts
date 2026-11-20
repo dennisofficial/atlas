@@ -52,7 +52,12 @@ import {
 } from './port'
 import { claimNextIn, wakeIn } from './claim-ops'
 import { markDigestPhase, withDigestViews, type DigestTimings } from './session-digest-view'
-import { readSessionViewWithCatchUp, type SessionViewRead } from './session-view-read'
+import {
+  readSessionBusyWithCatchUp,
+  readSessionViewWithCatchUp,
+  type SessionBusyRead,
+  type SessionViewRead,
+} from './session-view-read'
 import { readEventsIn, type ReadEventsPage } from './read-events'
 import { runRoutineIn, type RunRoutineParams, type RunRoutineResult } from './routine-ops'
 import {
@@ -368,6 +373,17 @@ export class ControlPlane {
 
   async readSessionView(params: { sessionId: string; threadId: string }): Promise<SessionViewRead> {
     return readSessionViewWithCatchUp({
+      store: this.store,
+      leases: this.leases,
+      nowIn: (tx) => this.nowIn(tx),
+      ...params,
+      eventSchema: this.eventSchema,
+      pluginViews: this.pluginViews,
+    })
+  }
+
+  async readSessionBusy(params: { sessionId: string; threadId: string }): Promise<SessionBusyRead> {
+    return readSessionBusyWithCatchUp({
       store: this.store,
       leases: this.leases,
       nowIn: (tx) => this.nowIn(tx),
