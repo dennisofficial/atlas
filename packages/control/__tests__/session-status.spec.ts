@@ -11,7 +11,7 @@ import {
   type V2Body,
 } from '@dltech/atlas-core'
 
-import { ECommandState } from '@dltech/atlas-protocol'
+import { ECommandState, ECredentialSource, ESandboxProvider } from '@dltech/atlas-protocol'
 
 import { ControlPlane, MessageOriginRequiredError, readSessionStatus } from '../src'
 import type { ControlTx } from '../src/port'
@@ -71,6 +71,8 @@ describe('readSessionStatus', () => {
       value: {
         state: ESessionStatus.Preparing,
         lease: { epoch: 0, holderHostId: null, live: false },
+        sandboxProvider: ESandboxProvider.Vercel,
+        credentialSource: ECredentialSource.Platform,
       },
     })
   })

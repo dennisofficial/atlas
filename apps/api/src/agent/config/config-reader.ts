@@ -158,6 +158,9 @@ export class ConfigReader implements ConfigSource {
         ...(args.vcpus === undefined ? {} : { vcpus: args.vcpus }),
       }
     }
+    if (args.provider !== ESandboxProvider.Vercel) {
+      return { configured: false, provider: args.provider, gap: 'provider-credential-mismatch' }
+    }
     const vercel = await this.vercelOf({ userId: args.userId, row: args.row })
     if (vercel.configured === false) {
       return { configured: false, provider: ESandboxProvider.Vercel, gap: vercel.gap }

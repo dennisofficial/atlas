@@ -38,11 +38,16 @@ const bundle = (): { bundle: { path: string }; cleanup: () => void } => {
   return { bundle: { path }, cleanup: () => rmSync(dir, { recursive: true }) }
 }
 
-const fakeClient = (args: { version: string; get?: Agent37Client['get'] }) => {
+const fakeClient = (args: {
+  version: string
+  get?: Agent37Client['get']
+  list?: Agent37Client['list']
+}) => {
   const creates: Agent37CreateArgs[] = []
   const execs: Agent37ExecArgs[] = []
   const slept: string[] = []
   const resized: Agent37ResizeArgs[] = []
+  const removed: string[] = []
   const client: Agent37Client = {
     create: async (body) => {
       creates.push(body)
@@ -50,8 +55,10 @@ const fakeClient = (args: { version: string; get?: Agent37Client['get'] }) => {
     },
     get:
       args.get ?? (async ({ id }) => ({ id, status: 'running', url: `https://${id}.agent37.app` })),
-    list: async () => ({ data: [] }),
-    remove: async () => undefined,
+    list: args.list ?? (async () => ({ data: [] })),
+    remove: async ({ id }) => {
+      removed.push(id)
+    },
     sleep: async ({ id }) => {
       slept.push(id)
     },
@@ -66,7 +73,7 @@ const fakeClient = (args: { version: string; get?: Agent37Client['get'] }) => {
     probe: async () => ({ status: 200, body: args.version }),
     signedUrl: async ({ id, port }) => `https://${id}-${port}.agent37.app/?a37_token=a37`,
   }
-  return { client, creates, execs, slept, resized }
+  return { client, creates, execs, slept, resized, removed }
 }
 
 const providerOf = (args: {
@@ -87,6 +94,9 @@ const providerOf = (args: {
       remember: async (params) => {
         remembered.push(params)
         stored = params.instanceId
+      },
+      forget: async () => {
+        stored = null
       },
     },
   })
@@ -180,15 +190,13 @@ describe('Agent37SandboxProvider.resize', () => {
     }
   })
 
-  it('refuses to resize a session with no instance to resize', async () => {
+  it('answers absent for a session with no instance, without asking agent37', async () => {
     const { bundle: b, cleanup } = bundle()
     const version = await agent37BundleVersionOf(b.path)
     const { client, resized } = fakeClient({ version })
     const { provider } = providerOf({ client, bundlePath: b.path, stored: null })
     try {
-      await expect(provider.resize({ target: TARGET, vcpus: 4 })).rejects.toThrow(
-        'no agent37 instance',
-      )
+      expect(await provider.resize({ target: TARGET, vcpus: 4 })).toBe('absent')
       expect(resized).toEqual([])
     } finally {
       cleanup()
@@ -196,15 +204,49 @@ describe('Agent37SandboxProvider.resize', () => {
   })
 })
 
-describe('Agent37SandboxProvider.stop', () => {
-  it('sleeps the remembered instance', async () => {
+describe('Agent37SandboxProvider.wake size', () => {
+  it('creates a new instance at the shape of the requested vcpus', async () => {
     const { bundle: b, cleanup } = bundle()
     const version = await agent37BundleVersionOf(b.path)
-    const { client, slept } = fakeClient({ version })
+    const { client, creates } = fakeClient({ version })
+    const { provider } = providerOf({ client, bundlePath: b.path })
+    try {
+      await provider.wake({ target: TARGET, signal: new AbortController().signal, vcpus: 4 })
+      expect(creates[0]?.resources).toEqual({ cpu: 4, memory: 8, disk: 20 })
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('leaves the shape to the template when no vcpus is asked for', async () => {
+    const { bundle: b, cleanup } = bundle()
+    const version = await agent37BundleVersionOf(b.path)
+    const { client, creates } = fakeClient({ version })
+    const { provider } = providerOf({ client, bundlePath: b.path })
+    try {
+      await provider.wake({ target: TARGET, signal: new AbortController().signal })
+      expect(creates[0]?.resources).toEqual(ENV.resources)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it("reports the instance's real cpu on the endpoint so the runtime records the applied size", async () => {
+    const { bundle: b, cleanup } = bundle()
+    const version = await agent37BundleVersionOf(b.path)
+    const { client } = fakeClient({
+      version,
+      get: async ({ id }) => ({
+        id,
+        status: 'running',
+        url: `https://${id}.agent37.app`,
+        resources: { cpu: 4, memory: 16, disk: 20 },
+      }),
+    })
     const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
     try {
-      await provider.stop({ target: TARGET })
-      expect(slept).toEqual(['inst-9'])
+      const endpoint = await provider.wake({ target: TARGET, signal: new AbortController().signal })
+      expect(endpoint.vcpus).toBe(4)
     } finally {
       cleanup()
     }

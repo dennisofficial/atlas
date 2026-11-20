@@ -1,4 +1,3 @@
-import { endPodTerminals } from '../../platform/sandboxes/pod-terminals'
 import { ESandboxState } from '../../platform/sandboxes/sandboxes.types'
 
 export const ORPHAN_SANDBOX_GRACE_MS = 24 * 60 * 60 * 1_000
@@ -51,6 +50,7 @@ export function planOrphanSandboxes(args: {
   sandboxes: readonly OrphanSandbox[]
   liveNames: ReadonlySet<string>
   retirableNames?: ReadonlySet<string>
+  ignoreName?: (name: string) => boolean
   now: Date
   graceMs?: number
 }): OrphanPlan {
@@ -59,6 +59,7 @@ export function planOrphanSandboxes(args: {
   const doomed: OrphanSandbox[] = []
   const stoppable: OrphanSandbox[] = []
   for (const sandbox of args.sandboxes) {
+    if (args.ignoreName?.(sandbox.name) === true) continue
     if (args.liveNames.has(sandbox.name)) continue
     if (sandbox.createdAt >= cutoff) continue
     if (sandbox.status === 'running') {
@@ -95,18 +96,6 @@ export function planSandboxStateReconcile(args: {
   return { park }
 }
 
-async function endTerminalsOf(args: {
-  names: readonly string[]
-  log: (line: string) => void
-}): Promise<void> {
-  if (args.names.length === 0) return
-  try {
-    await endPodTerminals({ sandboxNames: args.names })
-  } catch (failure) {
-    args.log(`could not end the terminals of ${args.names.join(', ')}: ${String(failure)}`)
-  }
-}
-
 async function runBounded<T>(args: {
   items: readonly T[]
   task: (item: T) => Promise<void>
@@ -122,6 +111,12 @@ export async function sweepOrphanSandboxes(args: {
   stores: readonly OrphanSandboxProject[]
   liveNames: () => Promise<ReadonlySet<string>>
   retirableNames?: () => Promise<ReadonlySet<string>>
+  /**
+   * Names this sweep leaves alone. A v2 pod belongs to the port-scoped sweep (`v2-pod-sweep.ts`),
+   * which knows its provider; this sweep only ever sees a Vercel project listing and would otherwise
+   * delete what the other just stopped.
+   */
+  ignoreName?: (name: string) => boolean
   onRetired?: (args: { name: string }) => Promise<void>
   onStopped?: (args: { name: string }) => Promise<void>
   reconcileStates?: SandboxStateReconciler
@@ -149,6 +144,7 @@ export async function sweepOrphanSandboxes(args: {
       sandboxes,
       liveNames,
       ...(retirableNames === undefined ? {} : { retirableNames }),
+      ...(args.ignoreName === undefined ? {} : { ignoreName: args.ignoreName }),
       now: args.now,
       ...(args.graceMs === undefined ? {} : { graceMs: args.graceMs }),
     })
@@ -164,15 +160,12 @@ export async function sweepOrphanSandboxes(args: {
       summary.failed += 1
       args.log(`${label}: ${name}: ${String(failure)}`)
     }
-    const stopped: string[] = []
-    const deleted: string[] = []
     await runBounded({
       items: plan.stop,
       task: async (sandbox) => {
         try {
           await store.stopSandbox({ name: sandbox.name })
           summary.stopped += 1
-          stopped.push(sandbox.name)
           await args.onStopped?.({ name: sandbox.name })
         } catch (failure) {
           failed(sandbox.name)(failure)
@@ -185,14 +178,12 @@ export async function sweepOrphanSandboxes(args: {
         try {
           await store.deleteSandbox({ name: sandbox.name })
           summary.deleted += 1
-          deleted.push(sandbox.name)
           await args.onRetired?.({ name: sandbox.name })
         } catch (failure) {
           failed(sandbox.name)(failure)
         }
       },
     })
-    await endTerminalsOf({ names: [...stopped, ...deleted], log: args.log })
   }
   return summary
 }

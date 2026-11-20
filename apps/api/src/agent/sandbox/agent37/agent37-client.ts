@@ -19,6 +19,8 @@ export type Agent37Instance = {
   url: string
   name?: string | undefined
   metadata?: Record<string, string> | undefined
+  /** Creation time in epoch seconds. */
+  created?: number | undefined
   resources?: Agent37Resources | undefined
 }
 
@@ -94,6 +96,10 @@ export class Agent37Error extends Error {
     this.retryable = args.retryable
   }
 }
+
+/** A late delete of an instance that is already gone must still count as success. */
+export const isAgent37Missing = (failure: unknown): boolean =>
+  failure instanceof Agent37Error && (failure.status === 404 || failure.code === 'not_found')
 
 // https://www.agent37.com/docs/agents-api/exec — a `409 try_again` follows a checkpoint or a host
 // move and clears within about a minute, so the budget spans one.

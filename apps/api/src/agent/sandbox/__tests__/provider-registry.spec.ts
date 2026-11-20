@@ -6,6 +6,8 @@ import {
   SandboxProvider,
   type DaemonEndpoint,
   type PodResizeOutcome,
+  type SandboxCredentials,
+  type SandboxListing,
   type SandboxTarget,
 } from '../sandbox-provider'
 
@@ -20,6 +22,12 @@ class StubSandbox extends SandboxProvider {
 
   async resize(_args: { target: SandboxTarget; vcpus: number }): Promise<PodResizeOutcome> {
     return 'restarted'
+  }
+
+  async delete(_args: { target: SandboxTarget }): Promise<void> {}
+
+  async list(_args: { credentials: SandboxCredentials }): Promise<readonly SandboxListing[]> {
+    return []
   }
 }
 

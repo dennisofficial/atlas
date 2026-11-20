@@ -9,6 +9,8 @@ import {
   type DaemonEndpoint,
   type SandboxTarget,
   type PodResizeOutcome,
+  type SandboxCredentials,
+  type SandboxListing,
 } from '../../sandbox/sandbox-provider'
 import { POD_IDLE_WINDOW_MS, startKeepAlive } from '../keep-alive'
 
@@ -32,6 +34,12 @@ class RecordingSandbox extends SandboxProvider {
 
   async resize(_args: { target: SandboxTarget; vcpus: number }): Promise<PodResizeOutcome> {
     return 'restarted'
+  }
+
+  async delete(_args: { target: SandboxTarget }): Promise<void> {}
+
+  async list(_args: { credentials: SandboxCredentials }): Promise<readonly SandboxListing[]> {
+    return []
   }
 }
 

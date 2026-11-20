@@ -1,6 +1,6 @@
 #!/bin/sh
-# https://www.agent37.com/docs/agents-api/exec — an Agent37 workspace kills every exec after about
-# a second, so the daemon boots from PID 1 here instead. Without ATLAS_DAEMON_BUNDLE_URL the script
+# An Agent37 instance stops when its image's main command exits, taking every exec with it, so this
+# script stays PID 1 and boots the daemon itself. Without ATLAS_DAEMON_BUNDLE_URL the script
 # is a plain entrypoint and every other sandbox provider sees the image it saw before.
 set -u
 

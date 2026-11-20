@@ -48,6 +48,7 @@ import {
 } from 'nestjs-trpc'
 import { z } from 'zod'
 import { PrSubscriptionLinks } from '../../../_core/ports/pr-subscription-links'
+import { podSessionIdOfSandboxName } from '../../../agent'
 import { meta } from '../../../_module/trpc/procedure-meta'
 import { NotificationsService } from '../notifications/notifications.service'
 import { podSessionOf } from '../sessions/session-of-thread'
@@ -113,7 +114,10 @@ export class SandboxSelfRouter {
     const sandbox = await identityOf(ctx)
     await this.vercel.stopSession({ ...sandbox, sessionId: input.sessionId })
     // Best-effort: the pod is already gone, so a failed terminal sweep must not fail the stop.
-    await endPodTerminals({ sandboxNames: [sandbox.name] }).catch(() => undefined)
+    const podSessionIds = [podSessionIdOfSandboxName(sandbox.name)].filter(
+      (podSessionId): podSessionId is string => podSessionId !== null,
+    )
+    await endPodTerminals({ podSessionIds }).catch(() => undefined)
   }
 
   @Mutation({

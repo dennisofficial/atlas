@@ -95,6 +95,20 @@ describe('ConfigReader', () => {
     expect(config.sandbox.provider).toBe(ESandboxProvider.Agent37)
   })
 
+  it('refuses a byok session pinned to agent37 instead of coercing it to vercel', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedVercel(db)
+    await db.orm.v2.V2Session.where({ id: 's-1' }).update({
+      sandboxProvider: ESandboxProvider.Agent37,
+    })
+    expect((await readerOver().read({ sessionId: 's-1' })).sandbox).toEqual({
+      configured: false,
+      provider: ESandboxProvider.Agent37,
+      gap: 'provider-credential-mismatch',
+    })
+  })
+
   it('runs the model the session names, over the configured default', async () => {
     const { db } = testDb()
     await seedOwner(db)

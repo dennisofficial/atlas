@@ -285,6 +285,8 @@ export const sessionStatusOutputSchema = z.strictObject({
   since: z.string().optional(),
   lease: sessionLeaseSchema,
   sandbox: sessionSandboxStatusSchema.nullable().optional(),
+  sandboxProvider: z.enum(ESandboxProvider).optional(),
+  credentialSource: z.enum(ECredentialSource).optional(),
   queued: z.array(sessionQueuedMessageSchema).optional(),
   commands: z.array(sessionCommandRowSchema).optional(),
   pod: z

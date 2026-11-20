@@ -9,6 +9,8 @@ import { daemonToken } from '@dltech/atlas-protocol/engine'
 import {
   SandboxProvider,
   type DaemonEndpoint,
+  type SandboxCredentials,
+  type SandboxListing,
   type SandboxTarget,
   type PodResizeOutcome,
 } from '../sandbox/sandbox-provider'
@@ -16,7 +18,7 @@ import { sandboxNameOf } from '../sandbox/vercel-names'
 
 const daemonEntry = join(import.meta.dir, '../../../../daemon/src/index.ts')
 
-type Running = { child: Bun.Subprocess; home: string; port: number }
+type Running = { child: Bun.Subprocess; home: string; port: number; createdAt: number }
 
 const localCredentials = {
   provider: ESandboxProvider.Vercel,
@@ -44,7 +46,12 @@ export class LocalSandboxProvider extends SandboxProvider {
       ATLAS_SANDBOX_NAME: sandboxName,
     }
     const spawned = await spawnDaemon({ entry: daemonEntry, env })
-    this.running.set(sandboxSessionId, { child: spawned.child, home, port: spawned.port })
+    this.running.set(sandboxSessionId, {
+      child: spawned.child,
+      home,
+      port: spawned.port,
+      createdAt: Date.now(),
+    })
     return this.endpointOf({ sandboxSessionId, port: spawned.port })
   }
 
@@ -62,6 +69,18 @@ export class LocalSandboxProvider extends SandboxProvider {
 
   async resize(_args: { target: SandboxTarget; vcpus: number }): Promise<PodResizeOutcome> {
     return 'restarted'
+  }
+
+  async delete(args: { target: SandboxTarget }): Promise<void> {
+    await this.stop(args)
+  }
+
+  async list(_args: { credentials: SandboxCredentials }): Promise<readonly SandboxListing[]> {
+    return [...this.running].map(([sandboxSessionId, running]) => ({
+      sandboxSessionId,
+      running: true,
+      createdAt: running.createdAt,
+    }))
   }
 
   async stopAll(): Promise<void> {

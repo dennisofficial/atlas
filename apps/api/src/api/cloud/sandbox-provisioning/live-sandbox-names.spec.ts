@@ -2,8 +2,14 @@ import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { describe, expect, it } from 'bun:test'
 import { sandboxNameFor } from '../../platform/sandboxes/sandbox-names'
+import { sandboxNameOf } from '../../../agent'
 import { seedThreadRow, seedUsers } from '../../../../test/session-seed'
-import { liveSandboxNames, retirableSandboxNames, v2PodNames } from './live-sandbox-names'
+import {
+  liveSandboxNames,
+  podStillRetirable,
+  retirableSandboxNames,
+  v2Pods,
+} from './live-sandbox-names'
 
 const NOW = new Date('2026-11-10T06:00:00Z')
 const hoursBefore = (hours: number): Date => new Date(NOW.getTime() - hours * 60 * 60 * 1_000)
@@ -72,22 +78,14 @@ describe('liveSandboxNames', () => {
     expect(names.has(sandboxNameFor({ threadId: 'thr-old' }))).toBe(false)
   })
 
-  it('names a v2 root pod by its session id and a peer by its pod session id', async () => {
-    await db.orm.public.User.create({
-      id: 'user-a',
-      email: 'a@example.test',
-      emailVerified: false,
-      name: 'A',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }).catch(() => undefined)
+  it('keeps v2 pods out of the v1 live names, which are what the legacy sweep compares', async () => {
     await v2Session({ id: 'v2-root' })
     await v2Session({ id: 'v2-peer', podSessionId: 'v2-root' })
 
     const names = await liveSandboxNames({ now: NOW })
 
-    expect(names.has('atlas-v2-v2-root')).toBe(true)
-    expect(names.has('atlas-v2-v2-peer')).toBe(false)
+    expect(names.has(sandboxNameOf('v2-root'))).toBe(false)
+    expect([...(await v2Pods({ now: NOW })).live]).toEqual(['v2-root'])
   })
 
   it('keeps a cloud sandbox archived inside the grace, and retires one archived past it', async () => {
@@ -127,14 +125,27 @@ describe('liveSandboxNames', () => {
     await v2Session({ id: 'v2-peer-fresh', podSessionId: 'v2-shared', archivedAt: hoursBefore(1) })
     await v2Session({ id: 'v2-live' })
 
-    const { live, retirable, sessionIdsByName } = await v2PodNames({ now: NOW })
+    const { live, retirable, sessionIdsByPod } = await v2Pods({ now: NOW })
 
-    expect(retirable.has('atlas-v2-v2-a')).toBe(true)
-    expect(retirable.has('atlas-v2-v2-fresh')).toBe(false)
-    expect(retirable.has('atlas-v2-v2-shared')).toBe(false)
-    expect(live.has('atlas-v2-v2-live')).toBe(true)
-    expect(live.has('atlas-v2-v2-fresh')).toBe(true)
-    expect(live.has('atlas-v2-v2-shared')).toBe(true)
-    expect(sessionIdsByName.get('atlas-v2-v2-a')).toEqual(['v2-a', 'v2-b'])
+    expect(retirable.has('v2-a')).toBe(true)
+    expect(retirable.has('v2-fresh')).toBe(false)
+    expect(retirable.has('v2-shared')).toBe(false)
+    expect(live.has('v2-live')).toBe(true)
+    expect(live.has('v2-fresh')).toBe(true)
+    expect(live.has('v2-shared')).toBe(true)
+    expect(sessionIdsByPod.get('v2-a')).toEqual(['v2-a', 'v2-b'])
+  })
+
+  it('says a pod is still retirable only while every session on it stays archived', async () => {
+    await v2Session({ id: 'v2-a', archivedAt: hoursBefore(25) })
+    await v2Session({ id: 'v2-b', podSessionId: 'v2-a', archivedAt: hoursBefore(25) })
+    await v2Session({ id: 'v2-fresh', podSessionId: 'v2-fresh', archivedAt: hoursBefore(1) })
+
+    expect(await podStillRetirable({ podSessionId: 'v2-a', now: NOW })).toBe(true)
+    expect(await podStillRetirable({ podSessionId: 'v2-unknown', now: NOW })).toBe(true)
+    expect(await podStillRetirable({ podSessionId: 'v2-fresh', now: NOW })).toBe(false)
+
+    await db.orm.v2.V2Session.where({ id: 'v2-b' }).updateAndCount({ archivedAt: null })
+    expect(await podStillRetirable({ podSessionId: 'v2-a', now: NOW })).toBe(false)
   })
 })

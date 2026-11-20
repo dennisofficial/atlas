@@ -15,6 +15,8 @@ export enum EPodResizeOutcome {
   Applied = 'applied',
   Stored = 'stored',
   Superseded = 'superseded',
+  Failed = 'failed',
+  Deferred = 'deferred',
 }
 
 export type PodResizeOutput = { outcome: EPodResizeOutcome }

@@ -50,6 +50,7 @@ const fakeSdk = () => {
     get: async () => {
       throw new Error('unused')
     },
+    list: async () => ({ toArray: async () => [] }),
   }
   return { sdk, creates }
 }
@@ -138,6 +139,7 @@ describe('VercelSandboxProvider.wake deadline', () => {
     get: async () => {
       throw new Error('unused')
     },
+    list: async () => ({ toArray: async () => [] }),
   })
 
   const providerOf = (args: { sdk: VercelSdk; path: string; wakeDeadlineMs?: number }) =>
@@ -208,6 +210,7 @@ describe('VercelSandboxProvider.keepAlive', () => {
     const sdk: VercelSdk = {
       getOrCreate: async () => sandbox as never,
       get: async () => sandbox as never,
+      list: async () => ({ toArray: async () => [] }),
     }
     const provider = new VercelSandboxProvider({
       image: 'atlas-sandbox:latest',
