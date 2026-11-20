@@ -20,11 +20,7 @@ const trailingUserRunStart = (messages: readonly AssembledMessage[]): number => 
   return start
 }
 
-/**
- * A notice that only reports something waits behind the ones that ask for action, so a finished
- * delegate's report is read as the task rather than as background noise under a setup line.
- * Messages that are not notices are a barrier: an informational notice never jumps one.
- */
+/** Only a notice jumps an informational notice: a setup line never buries the reply above it. */
 export function informationalNoticesLast({
   messages,
   informational,
