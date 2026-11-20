@@ -26,22 +26,24 @@ const fakeFetch = (answers: Answer[]) => {
 
 const instance = { id: 'ab12', status: 'running' as const, url: 'https://ab12.agent37.app' }
 
+const createArgs = {
+  template: 'atlas-sandbox',
+  type: 'vm' as const,
+  region: 'us' as const,
+  name: 'atlas-p1',
+  metadata: { atlasPodSessionId: 'p1' },
+  resources: { cpu: 2, memory: 4, disk: 20 },
+  mount_path: '/atlas',
+  auto_sleep: true,
+  idle_timeout_seconds: 1800,
+  env: {},
+}
+
 describe('liveAgent37Client', () => {
   it('creates on the API host with the key as a Bearer token', async () => {
     const { fetchImpl, calls } = fakeFetch([{ status: 201, body: instance }])
     const client = liveAgent37Client({ apiKey: 'sk_live_1', fetch: fetchImpl })
-    const created = await client.create({
-      template: 'atlas-sandbox',
-      type: 'vm',
-      region: 'us',
-      name: 'atlas-p1',
-      metadata: { atlasPodSessionId: 'p1' },
-      resources: { cpu: 2, memory: 4, disk: 20 },
-      mount_path: '/atlas',
-      auto_sleep: true,
-      idle_timeout_seconds: 1800,
-      env: {},
-    })
+    const created = await client.create(createArgs)
     expect(created.id).toBe('ab12')
     expect(calls[0]?.url).toBe('https://api.agent37.com/v1/instances')
     expect(calls[0]?.method).toBe('POST')
@@ -89,6 +91,45 @@ describe('liveAgent37Client', () => {
     ])
     const client = liveAgent37Client({
       apiKey: 'sk_live_4',
+      fetch: fetchImpl,
+      retry: { attempts: 2, delayMs: 1 },
+    })
+    await client.exec({ id: 'ab12', command: 'true' })
+    expect(calls).toHaveLength(2)
+  })
+
+  it('throws a 409 instance_limit_reached on the first call, keeping the reason agent37 gave', async () => {
+    const { fetchImpl, calls } = fakeFetch([
+      {
+        status: 409,
+        body: {
+          error: {
+            code: 'instance_limit_reached',
+            message: 'instance limit reached: 4 of 4 instances',
+          },
+        },
+      },
+    ])
+    const client = liveAgent37Client({
+      apiKey: 'sk_live_6',
+      fetch: fetchImpl,
+      retry: { attempts: 10, delayMs: 1 },
+    })
+    const failure = await client.create(createArgs).catch((error) => error)
+    expect(calls).toHaveLength(1)
+    expect(failure).toBeInstanceOf(Agent37Error)
+    expect((failure as Agent37Error).code).toBe('instance_limit_reached')
+    expect((failure as Agent37Error).retryable).toBe(false)
+    expect((failure as Agent37Error).detail).toBe('instance limit reached: 4 of 4 instances')
+  })
+
+  it('keeps a 503 retryable, since nothing in its body is an answer about the account', async () => {
+    const { fetchImpl, calls } = fakeFetch([
+      { status: 503, body: { error: { code: 'unavailable' } } },
+      { status: 200, body: { exit_code: 0, stdout: '', stderr: '', truncated: false } },
+    ])
+    const client = liveAgent37Client({
+      apiKey: 'sk_live_7',
       fetch: fetchImpl,
       retry: { attempts: 2, delayMs: 1 },
     })
