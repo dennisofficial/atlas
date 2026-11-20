@@ -23,44 +23,61 @@ A spec earns its place by failing when the behaviour it names breaks. A good uni
 ## Backlog
 
 Ordered by value. Each item fits in one sitting.
-1. **`declared-reality.spec.ts` deadlock**
-   (`packages/harness/src/services/__tests__/declared-reality.spec.ts`). Four specs hang in a
-   nested cloud sandbox but pass on CI and on clean main. First find the await that never settles,
-   using a rented runner or a macOS host. Change the specs only after that.
-2. **Awaitable tl;dr footer.** The detached footer write in `TldrTurnRunner`
-   (`loop/tldr-turn-runner.ts:70-76`) has no settle signal. Adding one would let the two absence
-   cases in `turn-wiring.spec.ts` drop their 400 ms waits. This is a production change, so the PR
-   stays open for Dennis.
-3. **Duplicates in `apps/*`.** There are 16 near-identical spec pairs, and the prototype mirror of
-   the web feature specs is the largest group. Merge each pair and keep the copy nearest its
-   source.
-4. **Assertion-free specs.** There are 21 dead or tautological specs in `packages/*`, plus 11 in
-   `apps/*` and `plugins/*`. Each one gets a real assertion or is deleted.
-5. **Composition roots without a spec:** `apps/tui/src/composition/overlay-stack.tsx` and
+1. **`apps/api/src/agent-boundary.spec.ts:100` is red on main, CI never reruns it.** Six files
+   import agent internals: `sessions.service.ts:64`, `pod-provision-rollback.ts:8`,
+   `pod-provision-run.ts:29` and `trigger/sandbox-cost/agent37-usage-reconcile.task.ts:7-9`.
+   The fix is production (export through `agent/index.ts`), so the PR stays open for Dennis.
+   Likely cause: the spec scans directories at runtime, so CI's `--changed` selection skips it.
+2. **`declared-reality.spec.ts` deadlock** (`packages/harness/src/services/__tests__/`). Four
+   specs hang in a nested cloud sandbox but pass on CI. Find the await that never settles first.
+3. **Real sleeps, measured 2026-11-20.** Test-only: `use-preview-origins.spec.tsx:102`
+   (4.7s, fake timers), `tool-container.spec.ts:270-274` (3.2s, await dispose),
+   `use-process-log.spec.tsx:47` (2.3s), `workspace-setup.spec.ts:153-166` (15s poll loops).
+   Production seam needed:
+   `serve/runtime-checkpoint-mirror.spec.ts:275` (7.2s file, the 5s abandon timeout).
+4. **Assertion-free specs: 19 left.** Top: `stream-ended.spec.ts:80` (assert
+   `{ parts: [], toolCalls: [], finishReason: 'other' }`), `github-pr-stream.router.spec.ts:76`,
+   `serve-drain-client.spec.ts:138,191`, `serve-hydrate.spec.ts:230`,
+   `cloud-service-oauth.spec.ts:88`, `boot-reporter.spec.ts:28`, `pod-rollover-stop.spec.ts:61`,
+   `prose-stream.bench.spec.tsx:58,73`.
+5. **Awaitable tl;dr footer.** `loop/tldr-turn-runner.ts:70-76` has no settle signal, so
+   `turn-wiring.spec.ts` keeps two 400 ms waits. Production change; PR stays open.
+6. **Duplicates in `apps/*`.** 16 near-identical spec pairs, mostly the web prototype mirror.
+   Also diff `sidebar-cache.spec.tsx` against `v2-sessions-cache.spec.tsx`.
+7. **Composition roots without a spec:** `apps/tui/src/composition/overlay-stack.tsx` and
    `apps/serve/src/serve-boot-finish.ts`.
-6. **Over-300-line specs** (212 files). Split them as they are touched, starting with
-   `packages/client/src/channel/__tests__/remote-delta-channel.spec.ts` (976 lines).
-7. **Slow tail kept on purpose.** Re-check only if it grows:
-   - `sandbox-client.spec.ts`: 10s, a real `AbortSignal.timeout`.
-   - `plugin-types/drift.spec.ts`: 15s, runs the generator.
-   - `local-process.spec.ts`: 5s, a SIGKILL grace period.
-   - The SSE PR recovery and watchdog specs.
-   - `mirror-upload`: 0.7–2.4s.
+8. **Over-300-line specs** (212 files). Split as touched, from `remote-delta-channel.spec.ts`.
+9. **Slow tail kept on purpose:** `sandbox-client` 10s, `plugin-types/drift` 15s,
+   `local-process` 5s, the SSE PR recovery and watchdog specs, `mirror-upload` 0.7–2.4s.
 
 ## Ruled out — do not re-investigate
 
-- **`apps/api/src/agent/agent-tools/__tests__/*`** are not dead clones. The fork they test is live
+- **`apps/api/src/agent/agent-tools/__tests__/*`** are not dead clones; the fork is live
   (`apps/api/src/agent/runtime/tools.ts:18-25`).
-- **`lockstep-stream.spec.ts` and `packages/control/__tests__/memory.spec.ts`** contain no `expect`
-  but are not dead. One throws past a deadline. The other runs the shared conformance suites.
-- **`apps/daemon/src/__tests__/conformance-bundle.spec.ts:14`** has an `it.skip` that guards an
-  unbuilt bundle. It is legitimate.
+- **`lockstep-stream.spec.ts` and `packages/control/__tests__/memory.spec.ts`** have no `expect`
+  but assert by throwing or through shared conformance suites.
+- **`apps/daemon/src/__tests__/conformance-bundle.spec.ts:14`** `it.skip` guards an unbuilt bundle.
 - **The 13 `adapter.available ? describe : describe.skip` gates** in
   `packages/harness/src/shells/__tests__/` are a deliberate platform seam.
-- **There is no vault KDF cost in `packages/harness/src/cloud/__tests__/`.** The slow cluster was
-  retry backoff, fixed on 2026-11-18.
-- **Convention drift:** no `.test.ts(x)` files, no Vitest outside `evals/`, and focused tests are
-  blocked by `noFocusedTests`. Specs outside `__tests__/` are sanctioned by `apps/api/AGENTS.md`.
+- **No vault KDF cost in `packages/harness/src/cloud/__tests__/`.** It was retry backoff.
+- **Expect-free bodies that do assert:** the `packages/syntax` lexical specs (`expectLexes`), and
+  specs that wait with throwing `waitFor`/`until`/`frameWhen`/`expectUntil` helpers.
+- **Postgres specs failing with `no test Postgres at localhost:55441`** are environmental. Run
+  `bun run --cwd packages/db db:test:up` first.
+- **Convention drift:** no `.test.ts(x)`, no Vitest outside `evals/`, `noFocusedTests` blocks
+  focused tests. Specs outside `__tests__/` are sanctioned by `apps/api/AGENTS.md`.
+
+## 2026-11-20
+
+- **`routine-service.spec.ts` was red on main from 09:00Z** (hard-coded next run). It now pins
+  the clock with `setSystemTime`, and the re-enable case asserts the exact next Monday.
+- **`sessions-subscription.spec.ts` was red after #2466** made Agent37 the default provider.
+- Main CI stayed green: its last run (08:56Z) beat the 09:00Z date, and `--changed` selection
+  did not pick `sessions-subscription` up. Unit specs must never read the real clock.
+- **`mark-read-scheduler.spec.ts`:** replaced `expect(true).toBe(true)` with a check that a
+  failed send leaves the scheduler sending later heads.
+- **Deleted `apps/tui/.../zz-debug.spec.tsx`**, a 2.6s `console.log` frame dump with no assertion.
+- Mutation checks: 6 product breaks, each turned the changed spec red. They are listed in the PR.
 
 ## 2026-11-19
 

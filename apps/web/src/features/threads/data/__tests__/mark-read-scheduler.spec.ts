@@ -52,12 +52,18 @@ describe('createMarkReadScheduler', () => {
     expect(sent).toEqual([4, 6])
   })
 
-  it('swallows send errors', async () => {
-    const { scheduler, fire } = harness(() => Promise.reject(new Error('boom')))
+  it('swallows a failed send and keeps sending later heads', async () => {
+    const attempted: number[] = []
+    const { scheduler, fire } = harness((seq) => {
+      attempted.push(seq)
+      return seq === 1 ? Promise.reject(new Error('boom')) : Promise.resolve()
+    })
     scheduler.push(1)
     fire()
     await Promise.resolve()
-    expect(true).toBe(true)
+    scheduler.push(6)
+    fire()
+    expect(attempted).toEqual([1, 6])
   })
 
   it('stop cancels the pending send', () => {

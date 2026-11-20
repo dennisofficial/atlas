@@ -67,7 +67,7 @@ describe('sessions subscription', () => {
       readSeq: null,
       spawnedBy: null,
       routineId: null,
-      sandboxProvider: ESandboxProvider.Vercel,
+      sandboxProvider: ESandboxProvider.Agent37,
       model: { ref: 'anthropic/claude-haiku-4-5', effort: 'medium', fast: false },
       status: { state: ESessionStatus.Preparing },
       primaryBranch: null,
@@ -91,7 +91,7 @@ describe('sessions subscription', () => {
       archivedAt: null,
       lastAssistantSeq: 0,
       readSeq: null,
-      sandboxProvider: ESandboxProvider.Vercel,
+      sandboxProvider: ESandboxProvider.Agent37,
     })
     await rig.plane.setSessionArchived({ sessionId: SESSION, archivedAt: AT })
     await rig.settled()
