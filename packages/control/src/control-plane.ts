@@ -438,7 +438,6 @@ export class ControlPlane {
       return await this.store.transact((tx) =>
         appendIn({
           tx,
-          leases: this.leases,
           eventSchema: this.eventSchema,
           pluginViews: this.pluginViews,
           appendHooks: this.appendHooks,

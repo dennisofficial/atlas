@@ -126,15 +126,31 @@ const releaseRig = async (scripts: {
   const state: ProbeState = { agentId: undefined, said: undefined, missing: undefined }
   const parent = new ScriptedModel(scripts.parent)
   const child = new ScriptedModel(scripts.child)
+  let built: Awaited<ReturnType<typeof makeRig>> | undefined
+  const childEnded = async (): Promise<boolean> => {
+    if (built === undefined) return false
+    const events = await eventsIn(built, THREAD_ID)
+    return events.some((event) => event.type === 'agent-ended')
+  }
+  const awaitChildEnded = async (): Promise<void> => {
+    for (let attempt = 0; attempt < 400; attempt += 1) {
+      if (await childEnded()) return
+      await new Promise((resolve) => setTimeout(resolve, 5))
+    }
+  }
   const model: ModelPort = {
     identity: parent.identity,
-    step: async (args) =>
-      (JSON.stringify(args.assembled).includes(CHILD_BRIEF) ? child : parent).step(args),
+    step: async (args) => {
+      if (JSON.stringify(args.assembled).includes(CHILD_BRIEF)) return child.step(args)
+      if (parent.requests.length === 1) await awaitChildEnded()
+      return parent.step(args)
+    },
   }
   const rig = await makeRig({
     plugins: composePlugins([releaseProbePlugin(state)]),
     model: () => model,
   })
+  built = rig
   await seedSession(rig)
   await rig.holder.start()
   return { rig, state }

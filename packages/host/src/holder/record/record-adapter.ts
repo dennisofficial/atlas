@@ -1,6 +1,5 @@
 import {
   chainEvents,
-  chainHash,
   toLoopEvent,
   type Event,
   type LoopState,
@@ -14,11 +13,11 @@ import type { LogPort } from '@dltech/atlas-observability'
 
 import type { RemoteCalls } from '../../calls/remote-calls'
 import type { HostTimers } from '../ports'
-import { AppendRetry } from './append-retry'
+import { AppendRetry, type DaemonAck } from './append-retry'
 import { LeaseLostError } from './lease-lost-error'
 import { RecordCache } from './record-cache'
 import { spillForAppend } from './record-spill'
-import { abortedOnHandoff, draftGroups, toRecordBody, type AppendBody } from './append-drafts'
+import { abortedOnHandoff, toRecordBody, type AppendBody } from './append-drafts'
 import { RecordCorruptionError } from './append-drafts'
 import { ackRecordedDaemonResults, prepareDraft } from './record-commit'
 
@@ -145,59 +144,55 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
     if (this.fenced) {
       throw new LeaseLostError('the holder self-fenced; no append is attempted', 'self-fenced')
     }
-    const committed: Event[] = []
-    let head = this.cache.currentHead()
-    for (const group of draftGroups(args.drafts)) {
-      const bodies: V2Body[] = []
-      const blobs: BlobWrite[] = []
-      const resolved = new Map<string, unknown>()
-      for (const raw of group) {
-        const draft = await prepareDraft(
-          {
-            cache: this.cache,
-            daemonTools: this.args.daemonTools,
-            remoteCalls: this.args.remoteCalls,
-          },
-          abortedOnHandoff(raw, this.draining),
-        )
-        if (draft === undefined) continue
-        const spilled = spillForAppend({
-          body: toRecordBody(draft),
-          thresholdBytes: this.args.blobSpillBytes ?? BLOB_SPILL_BYTES,
-          ...(this.args.log === undefined ? {} : { log: this.args.log }),
-        })
-        bodies.push(spilled.body)
-        blobs.push(...spilled.blobs)
-        for (const [hash, value] of spilled.resolved) resolved.set(hash, value)
-      }
-      if (bodies.length === 0) continue
-      const events = chainEvents({
-        threadId: args.threadId,
-        runId: args.runId,
-        epoch: this.args.epoch,
-        bodies,
-        from: head,
-        at: this.args.nowIso(),
-        ...(args.parentRunId === undefined ? {} : { parentRunId: args.parentRunId }),
+    const bodies: V2Body[] = []
+    const blobs: BlobWrite[] = []
+    const resolved = new Map<string, unknown>()
+    const ackDaemons: DaemonAck[] = []
+    for (const raw of args.drafts) {
+      const draft = await prepareDraft(
+        {
+          cache: this.cache,
+          daemonTools: this.args.daemonTools,
+          remoteCalls: this.args.remoteCalls,
+        },
+        abortedOnHandoff(raw, this.draining),
+      )
+      if (draft === undefined) continue
+      const spilled = spillForAppend({
+        body: toRecordBody(draft),
+        thresholdBytes: this.args.blobSpillBytes ?? BLOB_SPILL_BYTES,
+        ...(this.args.log === undefined ? {} : { log: this.args.log }),
       })
-      const last = events[events.length - 1]
-      if (last !== undefined) head = { seq: last.seq, hash: chainHash(last) }
-      const daemon = group.find((draft) => draft.type === 'tool-result')
-      await this.retry.commit({
-        threadId: args.threadId,
-        events,
-        blobs,
-        resolved,
-        ...(daemon === undefined || daemon.type !== 'tool-result'
-          ? {}
-          : { ackDaemon: { callId: daemon.callId, name: daemon.name, runId: args.runId } }),
-      })
-      for (const event of events) {
-        const loop = toLoopEvent({ event: this.cache.resolvedEvent(event) })
-        if (loop !== undefined) committed.push(loop)
+      bodies.push(spilled.body)
+      blobs.push(...spilled.blobs)
+      for (const [hash, value] of spilled.resolved) resolved.set(hash, value)
+      if (draft.type === 'tool-result') {
+        ackDaemons.push({ callId: draft.callId, name: draft.name, runId: args.runId })
       }
-      this.noteStep(committed)
     }
+    if (bodies.length === 0) return []
+    const events = chainEvents({
+      threadId: args.threadId,
+      runId: args.runId,
+      epoch: this.args.epoch,
+      bodies,
+      from: this.cache.currentHead(),
+      at: this.args.nowIso(),
+      ...(args.parentRunId === undefined ? {} : { parentRunId: args.parentRunId }),
+    })
+    await this.retry.commit({
+      threadId: args.threadId,
+      events,
+      blobs,
+      resolved,
+      ackDaemons,
+    })
+    const committed: Event[] = []
+    for (const event of events) {
+      const loop = toLoopEvent({ event: this.cache.resolvedEvent(event) })
+      if (loop !== undefined) committed.push(loop)
+    }
+    this.noteStep(committed)
     return committed
   }
 

@@ -220,6 +220,26 @@ export type ReadEventsParams = {
   onlyTypes?: readonly string[] | undefined
 }
 
+export type AppendOpening = {
+  row: ThreadRow
+  lease: Lease | undefined
+  mainThreadId: string
+  view: SessionViewRow | undefined
+}
+
+export type AppendCommit = {
+  events: readonly StoredEvent[]
+  head: {
+    threadId: string
+    expectedHeadSeq: number
+    headSeq: number
+    headHash: Hash
+    visibility: string
+  }
+  view?: SessionViewRow | undefined
+  change: SessionChange
+}
+
 export class SeqConflictError extends Error {
   constructor() {
     super('thread sequence conflict')
@@ -308,6 +328,8 @@ export interface ControlTx {
     visibility: string
     at: string
   }): Promise<void>
+  openAppend(threadId: string): Promise<AppendOpening | undefined>
+  commitAppend(params: AppendCommit): Promise<boolean>
   lockThread(threadId: string): Promise<ThreadRow | undefined>
   readThread(threadId: string): Promise<ThreadRow | undefined>
   readThreads(threadIds: readonly string[]): Promise<ThreadRow[]>
