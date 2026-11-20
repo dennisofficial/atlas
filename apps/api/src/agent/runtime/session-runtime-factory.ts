@@ -78,6 +78,13 @@ export type SessionRuntimeFactoryArgs = {
           vcpus: number
           generation: number
         }): Promise<boolean>
+        readSession(args: { sessionId: string }): Promise<
+          | {
+              podDesiredVcpus: number | null
+              podSizeGeneration: number
+            }
+          | undefined
+        >
       }
     | undefined
 }
@@ -108,14 +115,18 @@ export const createSessionRuntimeFactory = (
     const paths = sessionPathsOf({ sessionId, threadId })
     const podSize = config.podSize
     const desiredVcpus = podSize?.desiredVcpus ?? config.sandbox.vcpus
+    // A resize writes its desired size and generation on the pod row while this runtime is still
+    // the one waking its sandbox, so the size is read at wake time: the snapshot taken when the
+    // runtime was built predates the resize, and a pod never resized has no snapshot at all.
     const recordApplied = async (endpoint: { vcpus?: number | undefined }): Promise<void> => {
-      if (args.podSizing === undefined || podSize?.desiredVcpus === undefined) return
-      if (endpoint.vcpus !== podSize.desiredVcpus) return
+      if (args.podSizing === undefined || endpoint.vcpus === undefined) return
       try {
+        const pod = await args.podSizing.readSession({ sessionId: sandboxSessionId })
+        if (pod?.podDesiredVcpus !== endpoint.vcpus) return
         await args.podSizing.recordPodApplied({
-          sessionId,
+          sessionId: sandboxSessionId,
           vcpus: endpoint.vcpus,
-          generation: podSize.generation,
+          generation: pod.podSizeGeneration,
         })
       } catch (error) {
         args.log?.warn({
