@@ -93,6 +93,7 @@ export type {
   ControlPullRequest,
   ControlPullRequestState,
   ControlSessionViewValue,
+  SessionBusyRead,
   SessionViewRead,
 } from './session-view-read'
 export { emptyDigestTimings } from './session-digest-view'
