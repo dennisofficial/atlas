@@ -6,6 +6,7 @@ export * from './commands'
 export * from './event-catalog'
 export * from './presentation'
 export * from './run-target'
+export * from './subscription-endings'
 export * from './subscriptions-view'
 export * from './target'
 
