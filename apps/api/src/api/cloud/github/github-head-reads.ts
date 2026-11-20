@@ -4,8 +4,8 @@ import { githubFetch } from './github-fetch'
 import { rateLimitOf } from './github-rate-limit'
 import type { RestPullRequest } from './github-pull-request-mapping'
 import { GithubUserReadFailed } from './github-user-reads'
+import { GITHUB_API } from './github-user-http'
 
-const GITHUB_API = 'https://api.github.com'
 const DETAIL_CAP = 300
 const REQUEST_TIMEOUT_MS = 8_000
 const MAX_PULLS = 100
@@ -20,7 +20,6 @@ export const pullStateOf = (pull: RestPullRequest): string => {
 
 @Injectable()
 export class GithubHeadReads {
-  private readonly baseUrl = process.env.GITHUB_API_URL ?? GITHUB_API
   private readonly parents = new Map<string, string | null>()
 
   async pullsByHead(args: {
@@ -52,7 +51,7 @@ export class GithubHeadReads {
   private async get<T>(args: { token: string; path: string }): Promise<T> {
     const response = await githubFetch({
       source: EGithubCallSource.PollSweep,
-      url: `${this.baseUrl}${args.path}`,
+      url: `${GITHUB_API}${args.path}`,
       init: {
         headers: {
           authorization: `Bearer ${args.token}`,

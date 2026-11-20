@@ -7,8 +7,6 @@ export const GITHUB_REQUEST_TIMEOUT_MS = 8_000
 export const GITHUB_API = 'https://api.github.com'
 export const GITHUB_RATE_LIMIT_RETRY_MS = 60_000
 
-export const githubApiBaseUrlOf = (): string => process.env.GITHUB_API_URL ?? GITHUB_API
-
 export class GithubUserReadFailed extends Error {
   readonly rateLimited: boolean
 
@@ -40,14 +38,13 @@ export const githubHeadersOf = (args: { token: string }): Record<string, string>
 })
 
 export const githubJsonGet = async <T>(args: {
-  baseUrl: string
   source: EGithubCallSource
   token: string
   path: string
 }): Promise<T> => {
   const response = await githubFetch({
     source: args.source,
-    url: `${args.baseUrl}${args.path}`,
+    url: `${GITHUB_API}${args.path}`,
     init: {
       headers: githubHeadersOf({ token: args.token }),
       signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),

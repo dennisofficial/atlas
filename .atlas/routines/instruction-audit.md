@@ -1,50 +1,66 @@
 # Instruction audit
 
-Checkable rules taken from the repo's instruction files (`AGENTS.md`, `apps/*/AGENTS.md`,
-`packages/*/AGENTS.md`, `evals/**/AGENTS.md`). `deprecated/` is out of scope. Layering/import
-boundaries belong to the Abstraction police routine; test conventions to the Test audit routine.
+Checkable rules taken from the repo's instruction files (`AGENTS.md` = `CLAUDE.md`, `apps/*/AGENTS.md`,
+`apps/web/CLAUDE.md` = its `AGENTS.md`, `packages/*/AGENTS.md`, `evals/**/AGENTS.md`). `deprecated/` is
+out of scope. Layering/import boundaries belong to the Abstraction police routine; test conventions to
+the Test audit routine. Rule list rebuilt 2026-11-20 after #2425 and #2467 rewrote the instruction files.
 
 ## Rules
 
-| #   | Rule                                                                               | Source                      | Check                                                                               |
-| --- | ---------------------------------------------------------------------------------- | --------------------------- | ----------------------------------------------------------------------------------- |
-| R1  | Max 300 lines per file                                                             | `AGENTS.md:45`              | `wc -l` over tracked `*.ts(x)`, minus specs, fixtures, stories, generated, vendored |
-| R2  | No `as any`, `@ts-ignore`, `@ts-expect-error`                                      | `AGENTS.md:46`              | grep, ignoring prose in strings/comments                                            |
-| R3  | Value-union enums are `E`-prefixed                                                 | `AGENTS.md:52`              | grep `enum [^E]`                                                                    |
-| R4  | No tsyringe decorators outside `apps/api`                                          | `AGENTS.md:58`              | grep `@injectable(` / `@inject(`                                                    |
-| R5  | No comments / no JSDoc on internal code                                            | `AGENTS.md:53`              | grep `//`, `/**` in non-test source                                                 |
-| R6  | No npm/pnpm/yarn lockfiles                                                         | `AGENTS.md:100`             | `git ls-files`                                                                      |
-| R7  | `apps/api` app code never reads `process.env` (except `main.ts`, `auth.server.ts`) | `apps/api/AGENTS.md` Env    | grep                                                                                |
-| R8  | Every `.prisma` model file starts `// use prisma-8`, one model per file            | `packages/db/AGENTS.md`     | head/grep                                                                           |
-| R9  | Every lexical language has `languages/__tests__/<ft>.spec.ts`                      | `packages/syntax/AGENTS.md` | file listing                                                                        |
-| R10 | Every `ui` component / AI pattern has a sibling `.stories.tsx`                     | `packages/ui/AGENTS.md`     | file listing (also a spec)                                                          |
+| #   | Rule                                                                               | Source                                     | Check                                                                              |
+| --- | ---------------------------------------------------------------------------------- | ------------------------------------------ | ---------------------------------------------------------------------------------- |
+| R1  | Max 300 lines per file (vendored `ui` files exempt)                                | `AGENTS.md:45`, `packages/ui/AGENTS.md:65` | `wc -l` over tracked `*.ts(x)` minus specs, fixtures, stories, generated, vendored |
+| R2  | No `as any`, `@ts-ignore`, `@ts-expect-error`                                      | `AGENTS.md:46`                             | grep, ignoring generated, vendored and string fixtures                             |
+| R3  | Value-union enums are `E`-prefixed                                                 | `AGENTS.md:52`                             | grep `enum [^E]`                                                                   |
+| R4  | No tsyringe decorators outside `apps/api`                                          | `AGENTS.md:58`                             | grep `@injectable(` / `@inject(`                                                   |
+| R5  | No comments / no JSDoc on internal code                                            | `AGENTS.md:53`                             | grep `//`, `/**` in non-test source                                                |
+| R6  | No npm/pnpm/yarn lockfiles                                                         | `AGENTS.md:100`                            | `git ls-files`                                                                     |
+| R7  | `apps/api` app code never reads `process.env` (except `main.ts`, `auth.server.ts`) | `apps/api/AGENTS.md:291`                   | grep                                                                               |
+| R8  | Every `.prisma` model file starts `// use prisma-8`, one model per file            | `packages/db/AGENTS.md:13`                 | head/grep                                                                          |
+| R9  | Every lexical language has `languages/__tests__/<ft>.spec.ts`                      | `packages/syntax/AGENTS.md:5`              | file listing                                                                       |
+| R10 | Every `ui` component / AI pattern has a sibling `.stories.tsx`                     | `packages/ui/AGENTS.md:73`                 | `story-coverage.spec.ts`                                                           |
+| R11 | `apps/api` has no tsconfig path aliases                                            | `apps/api/AGENTS.md:171`                   | grep `"paths"` in tsconfig                                                         |
+| R12 | No `db.prisma`, no P2002/P2025 handling; queries go through `db.orm.public`        | `packages/db/AGENTS.md:88`                 | grep                                                                               |
+| R13 | No raw hex or arbitrary Tailwind value in `apps/web` screens                       | `packages/ui/AGENTS.md:53`                 | grep `#[0-9a-f]{3,8}` and `-\[` in `className`                                     |
+| R14 | Only `lucide-react` icons, no Radix                                                | `packages/ui/AGENTS.md:140`                | grep deps                                                                          |
+| R15 | Stories import from `@storybook/react`, never a framework package                  | `packages/ui/AGENTS.md:135`                | grep `*.stories.tsx`                                                               |
+| R16 | TUI: no inline `content={new StyledText(` ; clickables use `useClickRegion`        | `apps/tui/AGENTS.md:5,20`                  | grep                                                                               |
+
+R3, R4, R6, R8–R12, R14–R16 measured clean 2026-11-20. R13 not yet measured.
 
 ## Backlog (ranked)
 
-1. R7 — `process.env` in `apps/api` app code outside the sanctioned files:
-   `src/api/cloud/github/github-head-reads.ts:23`, `github-repo-reads.ts:53`,
-   `github-required-checks-read.ts:21`, `github-user-http.ts:10` (`GITHUB_API_URL`, a test-only
-   override), `github-sweep-scheduler.ts:14` (`GITHUB_SWEEPS_IN_PROCESS`),
-   `src/_core/config/env/env.module.ts:15`, `src/agent/config/env.ts:76`. Fix: add both keys to
-   `sections/github.ts` + tier files and read through `EnvService`.
-2. R1 — 68 production source files over 300 lines. Largest: `packages/core/src/settings/registry.ts`
-   (961), `packages/control/src/control-plane.ts` (620), `packages/control/src/postgres/postgres-store.ts`
-   (541), `packages/protocol/src/api.ts` (538), `apps/tui/src/composition/use-accounts.ts` (517),
-   `packages/harness/src/composition/compose.ts` (469), `apps/api/src/api/cloud/skills/skills.service.ts`
-   (467), `packages/core/src/images/png.ts` (459). One split per run.
-3. R5 — comment lines in 432 of the first 2000 non-test package source files; too broad to fix
-   wholesale, pick per-file alongside R1 splits.
+1. R7 — remaining `process.env` reads in `apps/api` app code: `src/api/cloud/github/github-sweep-scheduler.ts:14`
+   (`GITHUB_SWEEPS_IN_PROCESS`, set by `package.json` dev scripts; decides Nest providers at module-decoration
+   time, so it needs a module factory, not a field read), `src/api/platform/sandboxes/sandbox-principal-revocations.ts:20`
+   (`DATABASE_URL`; inject `EnvService` into `SandboxesService`), `src/_lib/version/api-version.ts:4`
+   (`ATLAS_APP_VERSION`), `src/_core/config/env/env.module.ts:15` (`NODE_ENV`), `src/agent/config/env.ts:130`
+   (default parameter), `src/agent/testing/*` (test rigs; candidate for ruled-out).
+2. R13 — measure `apps/web/src` for raw hex / arbitrary values.
+3. R1 — 68+ production source files over 300 lines. Largest: `packages/core/src/settings/registry.ts` (961),
+   `packages/control/src/control-plane.ts` (620), `packages/control/src/postgres/postgres-store.ts` (541),
+   `packages/protocol/src/api.ts` (538), `apps/tui/src/composition/use-accounts.ts` (517). One split per run.
+4. R5 — comment lines in ~430 package source files; pick per-file alongside R1 splits.
 
 ## Ruled out
 
-- R1 for `packages/db/migrations/**` (generated/self-emitted migrations), `packages/db/.agents/skills/**`
-  (vendored Prisma skill), `*.generated.ts`, `apps/*/prototype/**`, `**/spikes/**`, `apps/*/scripts/**`
-  bench/probe scripts: generated, vendored or throwaway.
+- R1 for `packages/db/migrations/**`, `packages/db/.agents/skills/**`, `*.generated.ts`, `contract.d.ts`,
+  `apps/*/prototype/**`, `**/spikes/**`, `apps/*/scripts/**`: generated, vendored or throwaway.
+- R2 hits in `packages/api-router/src/generated/**`, `packages/db/.agents/**`, JSON/string fixtures.
 - R7 for `src/api/hydrate-env.ts`, `src/api/validate-environment.ts`, `src/trigger/tier-env.ts`,
-  `src/trigger/github/github-sweep-graph.ts`: bootstrap code that runs before `EnvService` exists, the
-  same reason `main.ts` is sanctioned. Proposed: list them in `apps/api/AGENTS.md`.
+  `src/trigger/github/github-sweep-graph.ts`: bootstrap before `EnvService` exists; `apps/api/AGENTS.md:346-352`
+  itself sanctions the trigger path. Proposed: list them in `apps/api/AGENTS.md:291`.
+- `packages/harness/src/prompt/AGENTS.md`: nothing mechanically checkable.
 
 ## Runs
+
+### 2026-11-20
+
+- Rebuilt the rule list (R11–R16 added) after #2425/#2467 rewrote the instruction files. `CLAUDE.md` and
+  `apps/web/CLAUDE.md` are byte copies of their `AGENTS.md`.
+- Fixed R7 for `GITHUB_API_URL`: no tier, deploy target or script set it; only `github-head-reads.spec.ts`
+  did. The four GitHub read classes now use `GITHUB_API` from `github-user-http.ts`; the spec stubs `fetch`.
+  Pinned URLs with `github-user-reads.base-url.spec.ts`; proved the pins fail by changing `GITHUB_API`.
 
 ### 2026-11-19
 
