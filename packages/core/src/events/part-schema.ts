@@ -16,6 +16,7 @@ export const stepUsageSchema = z.object({
   contextWindow: z.number().int().positive().optional(),
   providerId: z.string().min(1).optional(),
   modelId: z.string().min(1).optional(),
+  costUsd: z.number().min(0).optional(),
 })
 
 export const assistantPartSchema = z.discriminatedUnion('type', [

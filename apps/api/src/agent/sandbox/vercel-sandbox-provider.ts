@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import type { Sandbox } from '@vercel/sandbox'
 
 import { ESandboxProvider } from '@dltech/atlas-protocol'
+import { VERCEL_CGROUP_CPU_BILLING_FACTOR } from '@dltech/atlas-core'
 import { daemonToken } from '@dltech/atlas-protocol/engine'
 
 import {
@@ -16,6 +17,7 @@ import { liveSdk, renewSessionDeadline, routedUrlOf, type VercelSdk } from './ve
 import { isSandboxMissing } from './vercel-errors'
 
 import { launchDaemon, type DaemonBundle } from './daemon-launch'
+import { daemonCpuUsecOf } from './daemon-cpu'
 import {
   SandboxProvider,
   type DaemonEndpoint,
@@ -29,6 +31,7 @@ import { abortedWake, WAKE_DEADLINE_MS } from './wake-deadline'
 
 /** Vercel's list endpoints reject a limit above 50. */
 const LIST_PAGE_LIMIT = 50
+const NS_PER_MS = 1_000
 
 export { WAKE_DEADLINE_MS }
 
@@ -36,6 +39,30 @@ const vercelCredentialsOf = (given: SandboxCredentials): VercelCredentials => {
   if (given.provider !== ESandboxProvider.Vercel)
     throw new Error(`VercelSandboxProvider cannot run a ${given.provider} sandbox`)
   return given
+}
+
+export const vercelBilledCpuMsOfUsec = (usec: number): number =>
+  Math.round((usec / NS_PER_MS) * VERCEL_CGROUP_CPU_BILLING_FACTOR)
+
+/** Vercel fills `totalActiveCpuDurationMs` in once the VM has finished stopping; a running sandbox reads 0. */
+const vercelCpuMsOf = async (args: {
+  sandbox: Sandbox
+  daemonSecret: string
+  sandboxSessionId: string
+}): Promise<number | undefined> => {
+  const usage = args.sandbox as { totalActiveCpuDurationMs?: number | undefined }
+  if (args.sandbox.status !== 'running')
+    return usage.totalActiveCpuDurationMs === undefined || usage.totalActiveCpuDurationMs === 0
+      ? undefined
+      : usage.totalActiveCpuDurationMs
+  const usec = await daemonCpuUsecOf({
+    sandbox: args.sandbox,
+    token: daemonToken({
+      secret: args.daemonSecret,
+      sandboxName: sandboxNameOf(args.sandboxSessionId),
+    }),
+  })
+  return usec === undefined ? undefined : vercelBilledCpuMsOfUsec(usec)
 }
 
 export class VercelSandboxProvider extends SandboxProvider {
@@ -135,6 +162,21 @@ export class VercelSandboxProvider extends SandboxProvider {
       signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
     })
     await sandbox.stop({ signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS) })
+  }
+
+  override async activeCpuMs(args: { target: SandboxTarget }): Promise<number | undefined> {
+    const credentials = vercelCredentialsOf(args.target.credentials)
+    const sandbox = await this.sdk.get({
+      ...credentials,
+      name: sandboxNameOf(args.target.sandboxSessionId),
+      resume: false,
+      signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
+    })
+    return await vercelCpuMsOf({
+      sandbox,
+      daemonSecret: this.args.daemonSecret,
+      sandboxSessionId: args.target.sandboxSessionId,
+    })
   }
 
   async keepAlive(args: { target: SandboxTarget; until: number }): Promise<void> {

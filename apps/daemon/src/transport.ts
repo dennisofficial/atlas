@@ -4,6 +4,8 @@ import {
   daemonTokenMatches,
 } from '@dltech/atlas-protocol/engine'
 
+import type { DaemonCpuReading } from './cpu'
+
 type SocketData = { link: EngineLink | null }
 
 export type DaemonListener = { port: number; stop(): void }
@@ -39,6 +41,7 @@ export const listenWebSocket = (args: {
   version: string
   drain(deadlineMs: number): void
   restart(): void
+  cpu(): DaemonCpuReading
 }): DaemonListener => {
   let draining = false
   const handleDrain = async (request: Request): Promise<Response> => {
@@ -68,6 +71,12 @@ export const listenWebSocket = (args: {
       if (request.method === 'POST' && pathname === '/restart') return handleRestart(request)
       if (request.method === 'GET' && pathname === '/version') {
         return new Response(args.version, { status: 200 })
+      }
+      if (request.method === 'GET' && pathname === '/cpu') {
+        if (!daemonTokenMatches({ want: args.token, token: bearerOf(request) })) {
+          return new Response('forbidden', { status: 403 })
+        }
+        return Response.json(args.cpu())
       }
       if (server.upgrade(request, { data: { link: null } })) return undefined
       return new Response('atlas-daemon', { status: 200 })

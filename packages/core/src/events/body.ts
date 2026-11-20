@@ -25,6 +25,7 @@ export type StepReading = ModelUsage & {
   contextWindow?: number | undefined
   providerId?: string | undefined
   modelId?: string | undefined
+  costUsd?: number | undefined
 }
 
 export enum ECompactionAnchor {

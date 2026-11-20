@@ -2,7 +2,9 @@ import {
   createBootReporter,
   EBootStep,
   EBootStepState,
+  SANDBOX_QUICK_TIMEOUT_MS,
   type BootStepEvent,
+  type VercelCredentials,
   type VercelSdk,
 } from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
@@ -24,8 +26,34 @@ import { clonePrefetcherOf } from './pod-clone-prefetch'
 import { workspaceSpecWriter } from './sandbox-provisioning-bootstrap'
 import { rollbackIfDestroyed } from './pod-provision-rollback'
 import { restartForResize, type ResizeRestartTiming } from './pod-resize-restart'
+import { recordSandboxRunClose } from '../../../agent/sandbox/sandbox-runs'
 import { stopSessionForRollover } from './pod-rollover-stop'
 import { claimHeld, markFailed, markRunning } from './sandbox-provisioning-rows'
+
+const billedCpuMsOf = (sandbox: {
+  totalActiveCpuDurationMs?: number | undefined
+}): number | undefined => {
+  const total = sandbox.totalActiveCpuDurationMs
+  return total === undefined || total === 0 ? undefined : total
+}
+
+const activeCpuMsOf = async (args: {
+  sdk: VercelSdk
+  credentials: VercelCredentials
+  name: string
+}): Promise<number | undefined> => {
+  try {
+    const sandbox = await args.sdk.get({
+      ...args.credentials,
+      name: args.name,
+      resume: false,
+      signal: AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS),
+    })
+    return billedCpuMsOf(sandbox as { totalActiveCpuDurationMs?: number | undefined })
+  } catch {
+    return undefined
+  }
+}
 
 export const PROVISION_TIMEOUT_MESSAGE = 'The sandbox took too long to start. Retry.'
 
@@ -94,6 +122,17 @@ export async function runPodProvision(args: {
         sessionId: payload.stopSessionId,
         log: deps.log,
         timing: deps.resizeTiming,
+        onStopped: async ({ sessionId }) => {
+          const cpuCumulativeMs = await activeCpuMsOf({
+            sdk: deps.sdk,
+            credentials,
+            name: row.name,
+          })
+          await recordSandboxRunClose({
+            sessionId,
+            ...(cpuCumulativeMs === undefined ? {} : { cpuCumulativeMs }),
+          })
+        },
       })
     }
     if (row.pendingVcpus !== null) {

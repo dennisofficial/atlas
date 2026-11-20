@@ -208,6 +208,7 @@ export class AiSdkModelPort extends ModelPort {
       imageTier: card?.imageTier ?? DEFAULT_IMAGE_TIER,
       ...(card?.image === undefined ? {} : { image: card.image }),
       ...(card === undefined ? {} : { contextWindow: card.contextWindow }),
+      ...(card?.cost === undefined ? {} : { cost: card.cost }),
     }
   }
 

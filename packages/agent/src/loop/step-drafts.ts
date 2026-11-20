@@ -1,12 +1,14 @@
 import {
-  contextWindowOf,
+  costOf,
   EFinishReason,
+  estimateCostUsd,
   type EventDraft,
   type ModelStepResult,
   type ModelToolCall,
   type ModelTraits,
   type ProviderIdentity,
   type StepReading,
+  tokenSpendOf,
 } from '@dltech/atlas-core'
 
 const INTERRUPTED_BEFORE_RUNNING = 'the developer interrupted the turn before this tool ran'
@@ -24,15 +26,28 @@ export type StepDraftsArgs = {
   model?: { identity?: ProviderIdentity; traits?: () => ModelTraits } | undefined
 }
 
+const costUsdOf = (args: {
+  usage: NonNullable<ModelStepResult['usage']>
+  cost: ReturnType<typeof costOf>
+}): number | undefined =>
+  args.cost === undefined
+    ? undefined
+    : estimateCostUsd({ spend: tokenSpendOf(args.usage), cost: args.cost })
+
 const readingOf = ({ result, model }: StepDraftsArgs): StepReading | undefined => {
   if (result.usage === undefined) return undefined
-  const contextWindow = model === undefined ? 0 : contextWindowOf(model)
+  const contextWindow = model === undefined ? 0 : (model.traits?.().contextWindow ?? 0)
+  const costUsd = costUsdOf({
+    usage: result.usage,
+    cost: model === undefined ? undefined : costOf(model),
+  })
   return {
     ...result.usage,
     ...(contextWindow > 0 ? { contextWindow } : {}),
     ...(model?.identity === undefined
       ? {}
       : { providerId: model.identity.id, modelId: model.identity.modelId }),
+    ...(costUsd === undefined ? {} : { costUsd }),
   }
 }
 

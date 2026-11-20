@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { NAMING_WINDOW_MS } from '@dltech/atlas-control'
 import { ESessionStatus } from '@dltech/atlas-core'
 import {
+  ESandboxProvider,
   EStreamErrorCode,
   EStreamSubscribeKind,
   STREAM_MAX_SESSION_SUBSCRIPTIONS,
@@ -66,6 +67,7 @@ describe('sessions subscription', () => {
       readSeq: null,
       spawnedBy: null,
       routineId: null,
+      sandboxProvider: ESandboxProvider.Vercel,
       model: { ref: 'anthropic/claude-haiku-4-5', effort: 'medium', fast: false },
       status: { state: ESessionStatus.Preparing },
       primaryBranch: null,
@@ -89,6 +91,7 @@ describe('sessions subscription', () => {
       archivedAt: null,
       lastAssistantSeq: 0,
       readSeq: null,
+      sandboxProvider: ESandboxProvider.Vercel,
     })
     await rig.plane.setSessionArchived({ sessionId: SESSION, archivedAt: AT })
     await rig.settled()

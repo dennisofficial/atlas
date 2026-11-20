@@ -314,6 +314,12 @@ describe('SessionsService status and events', () => {
         outputTokens: 10,
         cacheReadTokens: 0,
         cacheWriteTokens: 0,
+        unpricedTokens: {
+          inputTokens: 1000,
+          outputTokens: 10,
+          cacheReadTokens: 0,
+          cacheWriteTokens: 0,
+        },
       },
     ])
     expect(view.spend.tally).toMatchObject({ inputTokens: 1000, costUsd: null })

@@ -1,7 +1,13 @@
 'use client'
 
 import { formatElapsed } from '@dltech/atlas-client/transcript'
-import { formatUsd, type SpendTally } from '@dltech/atlas-core'
+import {
+  formatUsd,
+  sandboxComputeAt,
+  type SandboxCompute,
+  type SpendTally,
+} from '@dltech/atlas-core'
+import type { SessionViewOutput } from '@dltech/atlas-protocol'
 
 import { EHeaderState, STATE_LABEL } from '@/features/threads/data/header-model'
 import { useNowEvery } from '@/features/threads/data/use-now'
@@ -29,7 +35,26 @@ function elapsedOf(args: { startedAt: string | undefined; now: number }): string
   return formatElapsed(Math.max(0, args.now - started))
 }
 
-function SpendLine({ spend }: { spend: SpendTally | null }) {
+type SessionCompute = SessionViewOutput['compute']
+
+const SANDBOX_TICK_MS = 5_000
+
+function SandboxCost({ compute }: { compute: SandboxCompute | undefined }) {
+  const running = compute?.tick != null
+  const now = useNowEvery({ enabled: running, tickMs: SANDBOX_TICK_MS })
+  if (compute === undefined || compute.costUsd === null) return null
+  const aged = sandboxComputeAt({ compute, now })
+  if (aged.costUsd === null) return null
+  return <Stat value={formatUsd(aged.costUsd)} unit="sandbox" />
+}
+
+function SpendLine({
+  spend,
+  compute,
+}: {
+  spend: SpendTally | null
+  compute: SessionCompute | undefined
+}) {
   const stats = spend === null ? null : tokenStatsOf(spend)
   if (spend === null || stats === null) return null
   return (
@@ -40,6 +65,7 @@ function SpendLine({ spend }: { spend: SpendTally | null }) {
       {spend.costUsd === null ? null : <Stat value={formatUsd(spend.costUsd)} unit="spent" />}
       <Tokens stats={stats} />
       {stats.cached == null ? null : <Stat value={stats.cached} unit="cached" />}
+      <SandboxCost compute={compute} />
     </p>
   )
 }
@@ -63,7 +89,7 @@ export function SessionDetailsHeader() {
           </span>
         )}
       </div>
-      <SpendLine spend={view.spend} />
+      <SpendLine spend={view.spend} compute={view.compute} />
     </header>
   )
 }

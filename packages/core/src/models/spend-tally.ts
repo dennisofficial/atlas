@@ -2,12 +2,18 @@ import { estimateCostUsd, type TokenSpend } from './cost'
 import type { ModelCost } from './card'
 import type { ModelRef } from './ref'
 
-export type SpendRow = TokenSpend & ModelRef
+export type SpendRow = TokenSpend &
+  ModelRef & {
+    costUsd?: number | undefined
+    unpricedTokens?: TokenSpend | undefined
+  }
 
 export type SpendTally = TokenSpend & {
   uncachedInputTokens: number
   costUsd: number | null
 }
+
+export const unpricedTokensOf = (row: SpendRow): TokenSpend => row.unpricedTokens ?? row
 
 export function tallySpend(args: {
   rows: readonly SpendRow[]
@@ -25,10 +31,12 @@ export function tallySpend(args: {
     cacheReadTokens += row.cacheReadTokens
     cacheWriteTokens += row.cacheWriteTokens
 
+    if (row.costUsd !== undefined) costUsd = (costUsd ?? 0) + row.costUsd
+
     const cost = args.priceOf({ providerId: row.providerId, modelId: row.modelId })
     if (cost === undefined) continue
 
-    costUsd = (costUsd ?? 0) + estimateCostUsd({ spend: row, cost })
+    costUsd = (costUsd ?? 0) + estimateCostUsd({ spend: unpricedTokensOf(row), cost })
   }
 
   return {

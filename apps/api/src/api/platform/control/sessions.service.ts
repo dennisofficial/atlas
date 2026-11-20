@@ -54,7 +54,14 @@ import type { SessionPageOutput } from '@dltech/atlas-wire'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { SessionTitler } from '../../../_core/ports/session-titler'
-import { POD_OPS, PRODUCT_ANALYTICS, digestTimingProperties, type PodOps } from '../../../agent'
+import {
+  POD_OPS,
+  PRODUCT_ANALYTICS,
+  digestTimingProperties,
+  sandboxComputeFor,
+  type PodOps,
+} from '../../../agent'
+import { sandboxLiveCpuMs } from '../../../agent/sandbox/sandbox-live-cpu'
 import { PodSizingService, type PodSizing } from './pod-sizing.service'
 import { pageSessions, type PageBucket } from '../sessions/session-pages'
 import { COMMAND_REGISTRY, postCommand } from './command-registry'
@@ -421,12 +428,20 @@ export class SessionsService {
 
   async view(args: { userId: string; sessionId: string }): Promise<SessionViewOutput> {
     const session = await this.requireOwnedSession(args)
-    return pricedView(
-      await this.plane.readSessionView({
+    const [view, cumulativeCpuMs] = await Promise.all([
+      this.plane.readSessionView({
         sessionId: args.sessionId,
         threadId: session.mainThreadId,
       }),
-    )
+      sandboxLiveCpuMs({ sessionId: args.sessionId }),
+    ])
+    return pricedView({
+      ...view,
+      compute: await sandboxComputeFor({
+        sessionId: args.sessionId,
+        ...(cumulativeCpuMs === undefined ? {} : { cumulativeCpuMs }),
+      }),
+    })
   }
 
   async retry(args: { userId: string; sessionId: string }): Promise<SessionRetryOutput> {

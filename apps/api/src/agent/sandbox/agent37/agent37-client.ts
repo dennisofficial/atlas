@@ -1,4 +1,5 @@
 import { retrySleep, type RetryPolicy } from '../constants'
+import { agent37UsageClient, type Agent37UsageClient } from './agent37-usage'
 
 const API_BASE = 'https://api.agent37.com'
 const EXEC_BASE = 'https://sandbox.agent37.app'
@@ -65,7 +66,7 @@ export type Agent37ExecArgs = {
   user?: 'root'
 }
 
-export type Agent37Client = {
+export type Agent37Client = Agent37UsageClient & {
   create(args: Agent37CreateArgs): Promise<Agent37Instance>
   get(args: { id: string }): Promise<Agent37Instance>
   list(args?: { cursor?: string }): Promise<{ data: Agent37Instance[]; next?: string }>
@@ -264,6 +265,7 @@ export const liveAgent37Client = (args: {
         return { status: 0, body: '' }
       }
     },
+    ...agent37UsageClient((path) => call({ url: api(path), method: 'GET', headers: bearer })),
     signedUrl: async ({ id, port, ttlSeconds }) => {
       const answer = (await call({
         url: api(`/v1/instances/${id}/signed-url`),

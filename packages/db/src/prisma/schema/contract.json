@@ -264,6 +264,10 @@
       "model": "V2RoutineRun",
       "namespace": "v2"
     },
+    "V2SandboxRun": {
+      "model": "V2SandboxRun",
+      "namespace": "v2"
+    },
     "V2Session": {
       "model": "V2Session",
       "namespace": "v2"
@@ -9794,6 +9798,190 @@
               "table": "V2RoutineRun"
             }
           },
+          "V2SandboxRun": {
+            "fields": {
+              "activeCpuMs": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "awakeMs": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "costSource": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "costUsd": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/float8@1",
+                  "kind": "scalar"
+                }
+              },
+              "cpuBaselineMs": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "diskGb": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "endedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "memoryGb": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "provider": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "sandboxInstanceId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "sessionId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "startedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "userId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "vcpus": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "session": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "sessionId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "V2Session",
+                  "namespace": "v2"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "activeCpuMs": {
+                  "column": "activeCpuMs"
+                },
+                "awakeMs": {
+                  "column": "awakeMs"
+                },
+                "costSource": {
+                  "column": "costSource"
+                },
+                "costUsd": {
+                  "column": "costUsd"
+                },
+                "cpuBaselineMs": {
+                  "column": "cpuBaselineMs"
+                },
+                "diskGb": {
+                  "column": "diskGb"
+                },
+                "endedAt": {
+                  "column": "endedAt"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "memoryGb": {
+                  "column": "memoryGb"
+                },
+                "provider": {
+                  "column": "provider"
+                },
+                "sandboxInstanceId": {
+                  "column": "sandboxInstanceId"
+                },
+                "sessionId": {
+                  "column": "sessionId"
+                },
+                "startedAt": {
+                  "column": "startedAt"
+                },
+                "userId": {
+                  "column": "userId"
+                },
+                "vcpus": {
+                  "column": "vcpus"
+                }
+              },
+              "namespaceId": "v2",
+              "table": "V2SandboxRun"
+            }
+          },
           "V2Session": {
             "fields": {
               "archivedAt": {
@@ -10091,6 +10279,21 @@
                 },
                 "to": {
                   "model": "V2SessionPullRequest",
+                  "namespace": "v2"
+                }
+              },
+              "sandboxRuns": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "sessionId"
+                  ]
+                },
+                "to": {
+                  "model": "V2SandboxRun",
                   "namespace": "v2"
                 }
               },
@@ -18254,6 +18457,148 @@
               },
               "uniques": []
             },
+            "V2SandboxRun": {
+              "columns": {
+                "activeCpuMs": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": true
+                },
+                "awakeMs": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": true
+                },
+                "costSource": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "costUsd": {
+                  "codecId": "pg/float8@1",
+                  "dataType": "pg/float8",
+                  "nullable": true
+                },
+                "cpuBaselineMs": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": true
+                },
+                "diskGb": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": false
+                },
+                "endedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "memoryGb": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": false
+                },
+                "provider": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "sandboxInstanceId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "sessionId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "startedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "userId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "vcpus": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "name": "V2SandboxRun_sessionId_idx_29f415d4"
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "sessionId"
+                    ],
+                    "namespaceId": "v2",
+                    "tableName": "V2SandboxRun"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "v2",
+                    "tableName": "V2Session"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "sessionId"
+                  ],
+                  "name": "V2SandboxRun_sessionId_idx_29f415d4",
+                  "prefix": "V2SandboxRun_sessionId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "sessionId",
+                    "startedAt"
+                  ],
+                  "name": "V2SandboxRun_sessionId_startedAt_idx_e70936f3",
+                  "prefix": "V2SandboxRun_sessionId_startedAt_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "userId",
+                    "startedAt"
+                  ],
+                  "name": "V2SandboxRun_userId_startedAt_idx_91bd1466",
+                  "prefix": "V2SandboxRun_userId_startedAt_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": []
+            },
             "V2Session": {
               "columns": {
                 "archivedAt": {
@@ -19080,7 +19425,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "65e8ab17771d5cf4f5d0a9493da0d7d329095a90a570b74cf08d3bbb317f390d"
+    "storageHash": "76eef62c5f7a890871af1fa51b0bb2ffd26177915dc65c8049fb3f48c52e8607"
   },
   "execution": {
     "executionHash": "4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45",
