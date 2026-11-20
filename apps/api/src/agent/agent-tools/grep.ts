@@ -24,7 +24,7 @@ import { runSearcher } from './grep-run'
 import {
   messageOf,
   ripgrepBinaryOf,
-  searcherFor,
+  ripgrepSearcher,
   type Searcher,
   type SearchArguments,
 } from './grep-search'
@@ -198,7 +198,7 @@ export class GrepTool extends SchemaTool<typeof inputSchema> {
     const searcher =
       binary === null
         ? null
-        : searcherFor({
+        : ripgrepSearcher({
             pattern,
             searchPath,
             glob,
