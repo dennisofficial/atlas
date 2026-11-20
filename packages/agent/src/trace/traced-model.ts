@@ -1,5 +1,6 @@
 import {
   ModelPort,
+  requestHashesOf,
   requestSizeOf,
   type ChunkFilter,
   type ChunkType,
@@ -9,6 +10,7 @@ import {
 import {
   ESpan,
   ESpanMark,
+  ESpanSpeed,
   type SpanFields,
   type SpanHandle,
   type TracePort,
@@ -38,6 +40,7 @@ const resultFieldsOf = (result: ModelStepResult): SpanFields => ({
   outputTokens: result.usage?.outputTokens,
   cacheReadTokens: result.usage?.cacheReadTokens,
   cacheWriteTokens: result.usage?.cacheWriteTokens,
+  speed: result.ranFast === true ? ESpanSpeed.Fast : ESpanSpeed.Standard,
 })
 
 export class TracedModel extends ModelPort {
@@ -66,6 +69,7 @@ export class TracedModel extends ModelPort {
         provider: id,
         model: modelId,
         sizes: requestSizeOf({ assembled: args.assembled, tools: args.tools }),
+        hashes: requestHashesOf({ assembled: args.assembled, tools: args.tools }),
       },
       run: async (span) => {
         const result = await this.inner.step({

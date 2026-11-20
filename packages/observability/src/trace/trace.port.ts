@@ -23,6 +23,16 @@ export enum ESpanMark {
   FirstOutput = 'first_output',
 }
 
+export enum ETurnEntry {
+  Start = 'start',
+  Resume = 'resume',
+}
+
+export enum ESpanSpeed {
+  Fast = 'fast',
+  Standard = 'standard',
+}
+
 export enum ESpanOutcome {
   Ok = 'ok',
   Error = 'error',
@@ -42,6 +52,8 @@ export type SpanFields = {
   readonly verdict?: string | undefined
   readonly finishReason?: string | undefined
   readonly outcome?: ESpanOutcome | undefined
+  readonly entry?: ETurnEntry | undefined
+  readonly speed?: ESpanSpeed | undefined
   readonly step?: number | undefined
   readonly delayMs?: number | undefined
   readonly drafts?: number | undefined
@@ -52,6 +64,7 @@ export type SpanFields = {
   readonly cacheReadTokens?: number | undefined
   readonly cacheWriteTokens?: number | undefined
   readonly sizes?: Readonly<Record<string, number>> | undefined
+  readonly hashes?: Readonly<Record<string, string>> | undefined
 }
 
 export type SpanHandle = {
@@ -91,20 +104,28 @@ export const errorClassOf = (error: unknown): string =>
 export const markAttributeOf = (mark: ESpanMark): string => `${mark}_ms`
 
 const SIZE_ATTRIBUTE_PREFIX = 'size.'
+const HASH_ATTRIBUTE_PREFIX = 'hash.'
+
+const prefixed = <T>(args: {
+  prefix: string
+  values: Readonly<Record<string, T>> | undefined
+}): Record<string, T> =>
+  Object.fromEntries(
+    Object.entries(args.values ?? {}).map(([key, value]) => [`${args.prefix}${key}`, value]),
+  )
 
 export const spanAttributesOf = (
   fields: SpanFields | undefined,
 ): Record<string, string | number> => {
   if (fields === undefined) return {}
-  const { sizes, ...rest } = fields
+  const { sizes, hashes, ...rest } = fields
   return {
     ...Object.fromEntries(
       Object.entries(rest).filter(
         (entry): entry is [string, string | number] => entry[1] !== undefined,
       ),
     ),
-    ...Object.fromEntries(
-      Object.entries(sizes ?? {}).map(([key, value]) => [`${SIZE_ATTRIBUTE_PREFIX}${key}`, value]),
-    ),
+    ...prefixed({ prefix: SIZE_ATTRIBUTE_PREFIX, values: sizes }),
+    ...prefixed({ prefix: HASH_ATTRIBUTE_PREFIX, values: hashes }),
   }
 }
