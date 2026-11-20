@@ -143,7 +143,7 @@ export const duckDuckGo: SearchBackend = async ({ query, count, signal }) => {
       response = await ask({ query, signal })
     } catch (error) {
       if (signal.aborted) {
-        return { ok: false, reason: 'the developer interrupted the turn while searching' }
+        return { ok: false, reason: 'the operator interrupted the turn while searching' }
       }
       return {
         ok: false,

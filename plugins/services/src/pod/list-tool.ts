@@ -21,8 +21,8 @@ const description = [
   'List the services this session has started, running and ended alike.',
   'Set runningOnly to leave out the ones that have already ended.',
   'Each entry names its id, its declared name and command, whether it is still running, and its port.',
-  'A service started from .atlas/services.yaml whose declaration changed since it started is marked stale: restart it to apply the change.',
-  'Do not poll this to watch a service: if one dies you will be told.',
+  'A service started from .atlas/services.yaml whose declaration changed since it started is marked stale. Restart it to apply the change.',
+  'Do not poll this to watch a service. If one dies, you will be told.',
 ].join(' ')
 
 export class ServiceListTool extends SchemaTool<typeof inputSchema> {

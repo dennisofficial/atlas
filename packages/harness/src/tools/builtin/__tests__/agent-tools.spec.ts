@@ -409,7 +409,7 @@ describe('agent_stop', () => {
 
     expect(outcome.output).toMatchObject({ killedBy: EKilledBy.User })
     expect(outcome.output).not.toHaveProperty('stopRequestedBy')
-    expect(outcome.modelText).toContain('was stopped by the user')
+    expect(outcome.modelText).toContain('was stopped by the operator')
   })
 
   it('cannot reach a sibling, because the registry scopes every read to the owner', async () => {

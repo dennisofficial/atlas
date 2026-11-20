@@ -14,8 +14,9 @@ import { sessionsRefusal } from './outcome'
 const inputSchema = z.strictObject({})
 
 const description = [
-  'List this session’s nested teammates, newest first, with each one’s id, title and whether it',
-  'is working, idle, failed or archived, so a main session can see its workstream.',
+  'List this session’s nested teammates, newest first. Each line names the id, the title and',
+  'whether the teammate is working, idle, failed or archived. The parent agent can read the state of',
+  'its workstream from this list.',
 ].join(' ')
 
 const linesOf = (teammates: readonly SessionBrief[]): string[] =>

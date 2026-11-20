@@ -4,7 +4,10 @@ export class PreferDedicatedToolsFragment extends PromptFragment {
   readonly id = 'tools.prefer-dedicated'
 
   text(): string {
-    return 'Use the file tools to read, search, and edit files so Atlas can track reads and show changes.'
+    return [
+      'Use the file tools to read, search and edit files. The Atlas harness then records each read and',
+      'shows the change to the operator.',
+    ].join('\n')
   }
 }
 

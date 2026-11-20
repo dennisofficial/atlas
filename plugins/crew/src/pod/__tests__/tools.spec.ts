@@ -152,7 +152,7 @@ describe('agent_spawn', () => {
       },
     ])
     expect(textOf(outcome)).toBe(
-      'Started a sub-agent.\na1  general-purpose  trace the port\nIt runs in the background, and hands you its answer the moment it stops.',
+      'Started a sub-agent.\na1  general-purpose  trace the port\nIt runs in the background. It hands you its answer the moment it stops.',
     )
     expect(outcome.ok && outcome.output).toEqual({
       agentId: 'a1',
@@ -199,7 +199,7 @@ describe('agent_say', () => {
       { method: 'say', args: { agentId: 'a1', text: 'also check docs' } },
     ])
     expect(textOf(outcome)).toBe(
-      'Agent a1 is mid-step, so your message is queued and it will read it before its next one.',
+      'Sub-agent a1 is mid-step, so it queues your message and reads it before its next step.',
     )
   })
 
@@ -208,7 +208,7 @@ describe('agent_say', () => {
     const { ctx } = rig(crew.port)
     const outcome = await invoke({ ctx, name: 'agent_say', input: { agentId: 'a1', text: 'more' } })
     expect(textOf(outcome)).toBe(
-      'Agent a1 took your message and is running again; its answer reaches you when it stops.',
+      'Sub-agent a1 took your message and is running again. Its answer reaches you when it stops.',
     )
   })
 })
@@ -220,7 +220,7 @@ describe('agent_stop', () => {
     const outcome = await invoke({ ctx, name: 'agent_stop', input: { agentId: 'a1' } })
     expect(crew.calls).toEqual([{ method: 'stop', args: { agentId: 'a1' } }])
     expect(textOf(outcome)).toBe(
-      'Signalled agent a1 to stop. It ends after the step it is taking, and you will be handed how it ended.',
+      'Signalled sub-agent a1 to stop. It ends after the step it is taking. You will be handed how it ended.',
     )
   })
 
@@ -229,7 +229,7 @@ describe('agent_stop', () => {
     const { ctx } = rig(crew.port)
     const outcome = await invoke({ ctx, name: 'agent_stop', input: { agentId: 'a1' } })
     expect(textOf(outcome)).toBe(
-      'Agent a1 had already ended (finished), so nothing was interrupted.',
+      'Sub-agent a1 had already ended (finished), so nothing was interrupted.',
     )
   })
 })
@@ -280,7 +280,7 @@ describe('report_to_main', () => {
       { method: 'report', args: { kind: EReportKind.Done, text: 'The port is wired.' } },
     ])
     expect(textOf(outcome)).toBe(
-      'Your report is on its way to the main agent. Carry on, or end your turn if there is nothing else to do.',
+      'Your report is on its way to the parent agent. Continue, or end your turn if there is nothing else to do.',
     )
   })
 

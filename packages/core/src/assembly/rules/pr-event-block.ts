@@ -48,7 +48,7 @@ const failedVerdictSentence = (event: PrEvent): string => {
   }
   if (event.settled === false) {
     const lead = failed.length === 0 ? 'a check failed' : failedChecksCountPhrase(failed)
-    return `${lead}${tallySuffix(event)}${tipSuffix(event)} while CI is still running; another notice follows when CI finishes. ${event.url}`
+    return `${lead}${tallySuffix(event)}${tipSuffix(event)}. CI is still running, and another notice follows when it finishes. ${event.url}`
   }
   return `checks failed${tallySuffix(event)}${tipSuffix(event)}. ${event.url}`
 }

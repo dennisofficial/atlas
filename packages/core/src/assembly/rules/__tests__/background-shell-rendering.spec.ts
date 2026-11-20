@@ -192,7 +192,7 @@ describe('a shell that is waiting on input', () => {
     )
 
     expect(block).toContain(
-      'Use shell_input when input is supported; otherwise re-run it noninteractively',
+      'Use shell_input when input is supported. Otherwise re-run it noninteractively',
     )
     expect(block).not.toContain('Kill it with shell_kill and start it again')
   })

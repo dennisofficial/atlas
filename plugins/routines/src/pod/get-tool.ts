@@ -15,8 +15,8 @@ import { SCHEDULING } from './scheduling'
 const inputSchema = z.strictObject({ routineId: z.string().min(1) })
 
 const description = [
-  "Read one routine saved in this session's project: its name, cron, timezone, whether it is enabled, its model settings, when it next runs, the session its last run started and the full prompt it runs.",
-  'Use routine_list to find the routineId, and routine_get before routine_update when the prompt or the settings matter.',
+  "Read one routine saved in this session's project. The result gives its name, cron, timezone, whether it is enabled, its model settings, when it next runs, the session its last run started and the full prompt it runs.",
+  'Use routine_list to find the routineId. Call routine_get before routine_update when the prompt or the settings matter.',
   ...SCHEDULING,
 ].join(' ')
 

@@ -56,7 +56,7 @@ describe('envSecretsNoticeOf', () => {
     const notice = envSecretsNoticeOf(['API_KEY', 'GH_PAT'])
 
     expect(notice).toContain('API_KEY, GH_PAT')
-    expect(notice).toContain('never print, log or commit their values')
+    expect(notice).toContain('Never print, log or commit their values')
     expect(notice).toContain('without a restart')
   })
 })

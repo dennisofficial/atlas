@@ -31,11 +31,11 @@ const inputSchema = z.strictObject({
 })
 
 const description = [
-  'Write a text file, replacing it entirely if it already exists.',
-  'A relative path resolves against the project directory; missing parent directories are created.',
+  'Write a text file. If the file already exists, this replaces it entirely.',
+  'A relative path resolves against the project directory. Missing parent directories are created.',
   pathEnvironmentNote,
-  'Content is written byte for byte, so send the line endings you want the file to have.',
-  'Prefer the edit tool for changing part of an existing file.',
+  'Content is written byte for byte. Send the line endings you want the file to have.',
+  'Prefer the edit tool to change part of an existing file.',
 ].join(' ')
 
 export class WriteTool extends SchemaTool<typeof inputSchema> {

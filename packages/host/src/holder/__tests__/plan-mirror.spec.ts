@@ -19,7 +19,7 @@ const callOf = (args: { name: string; input: unknown }): ToolCall => ({
   threadId: toThreadId('thr-1'),
 })
 
-const okResult: ToolOutcome = { ok: true, output: { tasks: [] }, modelText: 'No plan yet.' }
+const okResult: ToolOutcome = { ok: true, output: { tasks: [] }, modelText: 'No task list yet.' }
 
 const run = (args: { call: ToolCall; result?: ToolOutcome }) =>
   new MirrorPlanHook().run({
@@ -38,14 +38,16 @@ describe('MirrorPlanHook', () => {
       }),
     })
 
-    expect(outcome.additionalContext).toContain('Your plan, as you last wrote it with task_write')
+    expect(outcome.additionalContext).toContain(
+      'Your task list, as you last wrote it with task_write',
+    )
     expect(outcome.additionalContext).toContain('#1 [in_progress] Build the tool')
   })
 
   it('says the plan is cleared when the list comes back empty', async () => {
     const outcome = await run({ call: callOf({ name: PLAN_TOOL_NAME, input: { tasks: [] } }) })
 
-    expect(outcome.additionalContext).toContain('You have no plan written')
+    expect(outcome.additionalContext).toContain('You have no task list written')
   })
 
   it('ignores every other tool', async () => {

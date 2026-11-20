@@ -15,8 +15,8 @@ const inputSchema = z.strictObject({})
 
 const description = [
   'List the operator’s sessions, newest first, with the current one marked. Each one is an',
-  'independent session with its own sandbox, branch and conversation, and each line names its id,',
-  'its title, whether it is working, idle, failed or archived, and whether it is this session.',
+  'independent session with its own sandbox, branch and transcript. Each line names the id, the',
+  'title, whether the session is working, idle, failed or archived, and whether it is this session.',
 ].join(' ')
 
 const linesOf = (sessions: readonly SessionBrief[]): string[] =>

@@ -73,9 +73,9 @@ export async function missingPathReason(args: {
 
   const entries = await closestEntriesOf({ directory, target: basename(path) })
   const listing =
-    entries.length === 0 ? 'it is empty' : `its closest entries are: ${entries.join(', ')}`
+    entries.length === 0 ? 'It is empty.' : `Its closest entries are: ${entries.join(', ')}`
 
   return directory === dirname(path)
-    ? `File does not exist: ${path}${anchor}. ${directory} is there; ${listing}`
-    : `File does not exist: ${path}${anchor}. ${directory} is the deepest directory that exists on that path; ${listing}`
+    ? `File does not exist: ${path}${anchor}. ${directory} is there. ${listing}`
+    : `File does not exist: ${path}${anchor}. ${directory} is the deepest directory that exists on that path. ${listing}`
 }

@@ -1,3 +1,4 @@
+import { isTeammateType } from '../../agents/kind'
 import { agentLabel } from '../../agents/label'
 import { systemNotice } from '../../context/envelope'
 import { agentEnding, countedNoun, EAgentStatus } from '../../agents/status'
@@ -12,21 +13,21 @@ import { defineRule, type Rule } from '../rule'
 const REPORTED_NOTHING = 'It reported nothing.'
 
 const NO_REPLY_CONTENT =
-  'It ended with no reply content: the provider dropped its final reply even after Atlas retried the request and nudged it, so Atlas ended the turn cleanly instead of failing the thread. There is no answer here to act on. Send it a message with agent_say to try again, or compensate for what it never delivered — do not read this as a quiet success.'
+  'It ended with no text. The provider dropped its end-turn message even after the Atlas harness retried the request and nudged it, so the harness ended the turn cleanly instead of failing the thread. There is no answer here to act on. Send it a message with agent_say to try again. Otherwise compensate for what it never delivered. Do not treat this as a quiet success.'
 
 const USER_STOPPED =
-  'The user stopped this agent deliberately; you did not, and nothing went wrong with it. Do not spawn it again to finish what it was doing unless the user asks.'
+  'The operator stopped this sub-agent deliberately. You did not stop it, and nothing went wrong with it. Do not spawn it again to finish its work unless the operator asks.'
 
 const LOST_AGENT =
-  'Nobody stopped this agent: the session it was running in went away before it could report. What it says here is only what it had said by then, and whatever it was doing may be half-applied. Its thread is intact, so check the work before redoing any of it, and let the user decide whether to resume it.'
+  'Nobody stopped this sub-agent. The session it ran in went away before it could report. What it says here is only what it had said by then. Whatever it was doing may be half-applied. Its thread is intact, so check the work before you redo any of it. Let the operator decide whether to resume it.'
 
 const RELOCATED =
-  'This agent was not stopped: the conversation moved where it runs, and the agent is resuming there. It will report again when it actually ends.'
+  'This sub-agent was not stopped. The session moved where it runs, and the sub-agent is resuming there. It will report again when the real ending arrives.'
 
-const RETRY = 'agent_say to it to retry: a message restarts it with its thread intact.'
+const RETRY = 'Send agent_say to retry it: a message restarts it with its thread intact.'
 
 const WEDGED =
-  'Its thread is corrupt: prompt assembly fails on every step, so a message cannot restart it — Atlas will not retry it. Spawn a fresh agent for anything still outstanding.'
+  'Its thread is corrupt: prompt assembly fails on every step, so a message cannot restart it. The harness will not retry it. Spawn a fresh sub-agent for anything still outstanding.'
 
 const wedged = (event: Ending): boolean =>
   event.status === EAgentStatus.Failed && event.failureKind === ERunFailureKind.ExchangeFault
@@ -44,12 +45,12 @@ const failedCauseAdvice = (event: Ending): readonly string[] => {
     return [`It failed on this error, not on its work: ${event.failureCause} ${WEDGED}`]
   }
   return [
-    `It failed on this error, not on its work: ${event.failureCause} Respawning the same agent the same way usually fails the same way — fix the cause, switch models, or do that slice yourself.`,
+    `It failed on this error, not on its work: ${event.failureCause} Respawning the same sub-agent the same way usually fails the same way. Fix the cause, switch models, or do that work yourself.`,
   ]
 }
 
 const NOT_YOUR_HISTORY =
-  'None of their own steps are in your history and none are coming: what each one reports here is all of it.'
+  'None of their own steps are in your history, and none are coming. What each one reports here is all of it.'
 
 type Ending = EventOfType<'agent-ended'>
 
@@ -78,11 +79,13 @@ const leftServicesAdvice = (event: Ending): readonly string[] =>
   event.leftServices === undefined || event.leftServices.length === 0
     ? []
     : [
-        `It left ${countedNoun({ count: event.leftServices.length, noun: 'service' })} running, which you own now: ${event.leftServices.join('; ')}. Stop ${event.leftServices.length === 1 ? 'it' : 'them'} with service_stop when no longer needed.`,
+        `It left ${countedNoun({ count: event.leftServices.length, noun: 'service' })} running, and you own ${event.leftServices.length === 1 ? 'it' : 'them'} now: ${event.leftServices.join('; ')}. Stop ${event.leftServices.length === 1 ? 'it' : 'them'} with service_stop when you no longer need ${event.leftServices.length === 1 ? 'it' : 'them'}.`,
       ]
 
 function sectionOf(event: Ending): string {
-  const headline = `Agent ${event.agentId} ${agentLabel(event)} ${agentEnding(event)}.`
+  const named = `${event.agentId} ${agentLabel(event)}`
+  const subject = isTeammateType(event.agentType) ? named : `Sub-agent ${named}`
+  const headline = `${subject} ${agentEnding(event)}.`
   return [headline, ...advice(event), ...leftServicesAdvice(event), reportOf(event)].join('\n\n')
 }
 

@@ -122,7 +122,7 @@ describe('runtime reminders across transitions', () => {
     const backOnHost = assembleWith({ drafts: [...BASE, ENTERED, TO_DOCKER, TO_HOST] })
 
     expect(textOf(inTree.messages.at(-1))).toContain(`Project directory: ${TREE}`)
-    expect(textOf(inDocker.messages.at(-1))).toContain('Execution location: a Docker container')
+    expect(textOf(inDocker.messages.at(-1))).toContain('Execution location: a Docker sandbox')
     for (const assembled of [inTree, backOnHost]) {
       for (const entry of assembled.messages) {
         expect(textOf(entry)).not.toContain('Execution location')

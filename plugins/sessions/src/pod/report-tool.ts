@@ -17,11 +17,12 @@ const inputSchema = z.strictObject({
 })
 
 const description = [
-  'Report to the session that created this one, which reads it as a message from you.',
-  'Use done when the work is finished, blocked when you cannot proceed, needs-decision when it',
-  'should weigh in, and progress for status it does not need to act on: done, blocked and',
-  'needs-decision wake it, progress waits for its next turn. Lead with the outcome and carry the',
-  'whole of it, because none of your steps are in its history.',
+  'Report to the parent agent in the session that created this one. It reads the report as a',
+  'message from you. Use done when the work is finished. Use blocked when you cannot proceed. Use',
+  'needs-decision when the parent agent should decide. Use progress for status it does not need to',
+  'act on. done, blocked and needs-decision wake it, and progress waits for its next turn. Lead with',
+  'the outcome and carry the whole of it, because none of your steps are in the history of that',
+  'session.',
 ].join(' ')
 
 export class ReportToSpawnerTool extends SchemaTool<typeof inputSchema> {
@@ -46,7 +47,7 @@ export class ReportToSpawnerTool extends SchemaTool<typeof inputSchema> {
         ok: true,
         output: { kind: input.kind },
         modelText:
-          'Your report is with the session that created you. Carry on, or end your turn if there is nothing else to do.',
+          'Your report is with the parent agent. Continue, or end your turn if there is nothing else to do.',
       }
     } catch (error) {
       return sessionsRefusal(error)

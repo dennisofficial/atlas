@@ -1,20 +1,20 @@
 # evals — shared agent-oriented AI evaluation workspace
 
-Canonical instructions for every agent working in or running the Atlas evals. Read this file in full
-before running any eval command — nested instructions load only for touched paths, so a bash-only command
-from the repo root does NOT load this automatically.
+These are the canonical instructions for every agent that works in or runs the Atlas evals. Read this
+file in full before you run any eval command. Nested instructions load only for touched paths, so a bash-only command
+from the repo root does not load this file automatically.
 
 ## What this workspace is
 
-Shared, development-only evaluation infrastructure for Atlas model-backed features (code quality first,
-compaction and others later). It is NOT a runtime package: nothing in packages/ or apps/ imports it, and it
-never joins a shipped binary. Evalite owns scheduling and result storage; Atlas owns feature adapters,
+Shared, development-only evaluation infrastructure for Atlas model-backed features. Code quality comes first.
+Compaction and others follow. It is NOT a runtime package: nothing in packages/ or apps/ imports it, and it
+never joins a shipped binary. Evalite owns scheduling and result storage. Atlas owns feature adapters,
 integrity validation and compact reporting.
 
 ## Commands
 
-All run from the repo root unless noted. Default mode is fake/no-network; a run NEVER contacts a model
-provider unless both `--live` and `ATLAS_EVAL_LIVE=1` are present.
+Run every command from the repo root unless the text says otherwise. The default mode is fake, with no network. A run
+NEVER contacts a model provider unless both `--live` and `ATLAS_EVAL_LIVE=1` are present.
 
 ```sh
 bun run --cwd evals typecheck
@@ -34,70 +34,75 @@ bun run --cwd evals eval:compare --baseline <run-dir> --candidate <run-dir>
 bun run --cwd evals eval:efficacy --run <run-dir> --dataset <manifest> --judgments <judgments.jsonl> --output-dir <new-report-dir>
 ```
 
-- The model defaults to the exported `JEV_QUALITY_MODEL` from `@dltech/atlas-core`. Passing `--model`
-  anything else marks the run not promotable.
-- Live mode additionally requires `ATLAS_EVAL_DECISIONS_URL` (and optionally `ATLAS_EVAL_DECISIONS_TOKEN`).
-  Missing endpoint configuration is a config error, never an implicit fallback.
-- `eval:compare` requires identical dataset version/hash, feature, requested model and mode; a mismatch is
-  reported as an explicit comparison failure, not averaged over.
-- `eval:efficacy` never executes the model. It replays a saved run against frozen independently reviewed
-  judgments, uses the production finding ledger for fresh-episode notification, and writes `report.json` /
-  `report.txt`. It is a nonpromotional diagnostic; zero denominators mean insufficient evidence, not success.
-- `eval:import-history` reads ONLY explicitly named `<session>/threads/*.events.jsonl` files. It writes raw,
-  private source under a fresh 0700 directory and its manifest marks that output unsanitized and not provider-ready.
+- The model defaults to the exported `JEV_QUALITY_MODEL` from `@dltech/atlas-core`. A `--model`
+  argument with any other value marks the run not promotable.
+- Live mode additionally requires `ATLAS_EVAL_DECISIONS_URL`, and optionally
+  `ATLAS_EVAL_DECISIONS_TOKEN`. Missing endpoint configuration is a config error, never an implicit
+  fallback.
+- `eval:compare` requires an identical dataset version and hash, feature, requested model and mode. A
+  mismatch is reported as an explicit comparison failure, and is not averaged over.
+- `eval:efficacy` never executes the model. It replays a saved run against frozen judgments that were
+  reviewed independently. It uses the production finding ledger for fresh-episode notification. It
+  writes `report.json` / `report.txt`. It is a diagnostic that cannot promote a change. Zero
+  denominators mean insufficient evidence, not success.
+- `eval:import-history` reads ONLY `<session>/threads/*.events.jsonl` files that the command names
+  explicitly. It writes raw, private source under a fresh 0700 directory. Its manifest marks that output unsanitized and not provider-ready.
 
 ## Modes and honesty
 
-- `mode=fake` runs exercise real request preparation, the real JevDecisionClient leaf and real
-  interpretation with an injected transport. Their artifacts say `mode: "fake"` and must NEVER be reported
+- A `mode=fake` run exercises real request preparation, the real JevDecisionClient leaf and real
+  interpretation, with an injected transport. Its artifacts say `mode: "fake"`. Never report such a run
   as live efficacy.
-- Engineering tests (`bun test`) are synthetic/fake only. Normal typecheck/test/build never initiates a
+- Engineering tests (`bun test`) are synthetic or fake only. Normal typecheck, test and build never start a
   model call.
 
 ## Artifact contract
 
-Every run writes one fresh UUID directory under `--output-parent` (never reuses or deletes earlier runs):
-- `invocation.manifest.json` — written BEFORE the child starts: code/adapter digests, dataset hash,
-  enabled policy ids, batch mode, exact planned case/trial/variant ids, deadlines, mode, start timestamp.
+Every run writes one fresh UUID directory under `--output-parent`. It never reuses or deletes an earlier run:
+- `invocation.manifest.json` — written BEFORE the child starts: the code and adapter digests, the dataset
+  hash, the enabled policy ids, the batch mode, the exact planned case, trial and variant ids, the
+  deadlines, the mode and the start timestamp.
 - `child.stdout.log` / `child.stderr.log` — complete child diagnostics.
-- `evalite.raw.json` — the child's raw export (freshness/cardinality-validated before use).
+- `evalite.raw.json` — the child's raw export, validated for freshness and cardinality before use.
 - `results.jsonl` — normalized rows: expected/actual, status, scores, timing breakdown per row.
 - `summary.json` + `summary.txt` — compact machine/agent summary. COMPLETE is marked only after integrity
   validation passes.
 
-Exit codes: 0 = complete quality success, 1 = complete quality regression, 2 = config/provider/runtime/
-integrity failure. A process failure is never a deterministic grade zero and vice versa.
+Exit codes: 0 = complete quality success, 1 = complete quality regression, 2 = a config, provider,
+runtime or integrity failure. A process failure is never a deterministic grade of zero, and a grade of
+zero is never a process failure.
 
-The supervised child runs with cwd in a gitignored `evals/.work/<uuid>/` folder INSIDE this workspace —
-that location is load-bearing (external module resolution for evalite/vitest), and the folder deliberately
-contains no `evalite.config.*` so no config can silently load. Work folders accumulate; prune
-`evals/.work/` manually when disk matters.
+The supervised child runs with its cwd in a gitignored `evals/.work/<uuid>/` folder INSIDE this workspace.
+That location is required, because evalite and vitest resolve external modules from it. The folder
+deliberately contains no `evalite.config.*`, so no config can load silently. Work folders accumulate.
+Prune `evals/.work/` by hand when disk space matters.
 
 ## Datasets and labels
 
-- Datasets are versioned: manifest.json (schema/input/expected/rubric/dataset versions, content hash,
-  split, exact case ids, metric gates) + cases.jsonl. `eval:validate` re-verifies hashes, counts, ids and
-  feature version agreement.
-- Primary scoring accepts ONLY review-state `accepted` cases. Provisional/quarantined cases are preserved
-  with reasons but excluded.
-- Expected labels are drafted offline and verified blind (verifier sees input/rubric, never the candidate
-  model output). `eval:label-review` refuses unverified cases. Changing a verified label means a new
-  dataset version and rerunning baseline AND candidate.
-- Real-session data enters only via `eval:export-examples` from explicitly named session dirs — the
-  exporter verifies digests, applies allowlisted redaction, re-parses redacted text, and records the
-  redaction map. `eval:import-history` is the complementary strict historical replay path: it may establish
-  provable creation, or complete before/after text only from a proven same-log write/diff chain. It rejects
-  opaque barriers, missing baselines and mismatching thread files rather than reading today's disk state.
+- Datasets are versioned. Each one holds manifest.json with the schema, input, expected, rubric and
+  dataset versions, the content hash, the split, the exact case ids and the metric gates, plus
+  cases.jsonl. `eval:validate` re-checks the hashes, the counts, the ids and the feature version
+  agreement.
+- Primary scoring accepts ONLY cases whose review state is `accepted`. A provisional or quarantined case is
+  kept with its reason, and is left out of scoring.
+- Expected labels are drafted offline and verified blind. The verifier sees the input and the rubric, never the candidate
+  model output. `eval:label-review` refuses an unverified case. Changing a verified label needs a new
+  dataset version, and the baseline AND the candidate run again.
+- Real-session data enters only through `eval:export-examples`, from session dirs that the command names
+  explicitly. The exporter verifies the digests, applies allowlisted redaction, parses the redacted
+  text again, and records the redaction map. `eval:import-history` is the complementary strict path for historical replay. It may establish
+  provable creation, or complete the before and after text, only from a proven same-log write or diff chain. It rejects
+  opaque barriers, missing baselines and mismatching thread files. It does not read the disk state of today.
   Nothing ever scans ATLAS_HOME.
-- Synthetic/fixture data lives under `evals/__fixtures__/` and is labelled synthetic; it is never counted
+- Synthetic and fixture data lives under `evals/__fixtures__/` and is labelled synthetic. It is never counted
   as real-session volume.
 
 ## Reading results
 
-Quality, operational failure and latency are separate dimensions. The terminal/summary reports status,
-unique cases/trials, error and inconclusive counts, per-metric values and baseline deltas, a handful of
-failure ids (expected -> actual), total failure count and the artifact path. Request targeted failures by
-id rather than dumping full artifacts into context.
+Quality, operational failure and latency are separate dimensions. The terminal report and `summary.txt` give the
+status, the unique case and trial counts, the error and inconclusive counts, the per-metric values and the baseline
+deltas. They also give a few failure ids as expected -> actual, the total failure count and the artifact path. Ask for
+a targeted failure by id. Do not dump a full artifact into the context window.
 
 ## Suite-specific instructions
 

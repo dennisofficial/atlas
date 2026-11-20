@@ -25,8 +25,8 @@ const inputSchema = z.strictObject({
 
 const description = [
   'Restart a service: stop it if it is running, then start it again.',
-  'Takes the id that service_start returned, or the name a project declares in .atlas/services.yaml; the restarted service gets a new id.',
-  'Restarting by name re-reads the declaration, so a changed command, env, port and health path apply, and its setup runs again when the declaration changed.',
+  'Takes the id that service_start returned, or the name a project declares in .atlas/services.yaml. The restarted service gets a new id.',
+  'Restarting by name re-reads the declaration, so a changed command, env, port and health path apply. Its setup runs again when the declaration changed.',
   'Use it after you change what the service runs.',
 ].join(' ')
 

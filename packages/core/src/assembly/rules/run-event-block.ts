@@ -15,7 +15,7 @@ const outcomeOf = (event: RunEvent): string => {
   const failed = event.failedJobs ?? []
   if (event.conclusion === 'success') return 'completed, all jobs passed'
   if (event.conclusion === 'failure' && failed.length > 0)
-    return `completed, failure — failed jobs: ${jobList(failed)}`
+    return `completed, failure. Failed jobs: ${jobList(failed)}`
   if (event.conclusion === 'failure') return 'completed, failure'
   if (event.conclusion === '') return `completed (${event.status})`
   return `completed, ${event.conclusion}`

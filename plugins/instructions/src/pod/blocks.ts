@@ -8,7 +8,7 @@ import { INSTRUCTION_FILE, MAX_INSTRUCTION_BYTES } from './sources'
 type Ctx = Pick<PluginPodContext, 'call'>
 
 export const PERSONAL_HEADER =
-  "The operator's personal instructions from Atlas Cloud, for every project:"
+  "The operator's personal instructions from Atlas Cloud. They apply to every project:"
 
 export const projectHeader = (path: string): string =>
   `Contents of ${path} (project instructions, checked into the codebase):`

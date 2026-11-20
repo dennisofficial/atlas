@@ -10,15 +10,16 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Desktop (Mac) build
 
-- The Mac app runs this app's own Next server on loopback (`output: 'standalone'`), supervised by the
-  desktop host. There is no static export and no `_` placeholder route: a dynamic id is a real param.
-- Next here is a router only. No `cookies()`/`headers()`, no server actions, no async pages, no route
-  handler that reads the request — `src/app/__tests__/no-server-behaviour.spec.ts` fails otherwise. The
-  API stays in `apps/api`.
-- Read a dynamic segment in a client component with `useRouteParam` (`src/lib/route-param.ts`), never by
-  parsing `usePathname()`.
+- The Mac app runs this app's own Next server on loopback (`output: 'standalone'`), and the desktop
+  host supervises it. There is no static export and no `_` placeholder route. A dynamic id is a real
+  param.
+- Next here is a router only. It uses no `cookies()` or `headers()`, no server actions, no async
+  pages and no route handler that reads the request. `src/app/__tests__/no-server-behaviour.spec.ts`
+  fails otherwise. The API stays in `apps/api`.
+- Read a dynamic segment in a client component with `useRouteParam` (`src/lib/route-param.ts`). Never read a dynamic segment by parsing `usePathname()`.
 - The `web-build` CI job builds this app on every PR whose change reaches it (`scripts/app-reach.ts`,
-  the dependency closure rather than a path list), and `mac-app-rehearsal` builds the packaged app —
-  and checks the built server answers flight requests — only when a change reaches `apps/mac`.
-- Interface changes reach the Mac as a web payload within minutes of a merge
-  (`.github/workflows/web-ota.yml`); a change under `apps/mac/src` still needs a release.
+  the dependency closure rather than a path list). The `mac-app-rehearsal` job builds the packaged
+  app, and checks that the built server answers flight requests, only when a change reaches
+  `apps/mac`.
+- An interface change reaches the Mac as a web payload within minutes of a merge
+  (`.github/workflows/web-ota.yml`). A change under `apps/mac/src` still needs a release.

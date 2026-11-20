@@ -120,7 +120,7 @@ describe('the skill tool', () => {
     const { ctx } = fakeDaemon({})
     const cloud = fakeCloud({ entries: [] })
     const loaded = await invoke({ ctx, cloud, name: 'skill', input: { name: 'atlas' } })
-    expect(textOf(loaded)).toContain('read a file it bundles by calling this tool again with path')
+    expect(textOf(loaded)).toContain('Read a file it bundles by calling this tool again with path')
 
     const reference = await invoke({
       ctx,

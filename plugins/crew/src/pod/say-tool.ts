@@ -16,9 +16,10 @@ const inputSchema = z.strictObject({
 })
 
 const description = [
-  'Send a sub-agent you started another message.',
-  'A sub-agent that is mid-step queues it and reads it before its next step;',
-  'one that has stopped takes it and runs again, and its answer reaches you when it stops.',
+  'Send another message to a sub-agent you started.',
+  'A sub-agent that is mid-step queues the message. It reads the message before its next step.',
+  'A sub-agent that has stopped takes the message and runs again.',
+  'Its answer reaches you when it stops.',
 ].join(' ')
 
 export class AgentSayTool extends SchemaTool<typeof inputSchema> {
@@ -39,8 +40,8 @@ export class AgentSayTool extends SchemaTool<typeof inputSchema> {
         ok: true,
         output: { agentId: input.agentId, queued: said.queued },
         modelText: said.queued
-          ? `Agent ${input.agentId} is mid-step, so your message is queued and it will read it before its next one.`
-          : `Agent ${input.agentId} took your message and is running again; its answer reaches you when it stops.`,
+          ? `Sub-agent ${input.agentId} is mid-step, so it queues your message and reads it before its next step.`
+          : `Sub-agent ${input.agentId} took your message and is running again. Its answer reaches you when it stops.`,
       }
     } catch (error) {
       return crewRefusal(error)

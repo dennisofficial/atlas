@@ -25,7 +25,7 @@ describe('contextBlock provenance', () => {
     expect(
       blockFor({ slot: EContextSlot.ProjectInstructions, key: '/repo/CLAUDE.local.md' }),
     ).toContain(
-      "Contents of /repo/CLAUDE.local.md (the user's private project instructions, not checked in):",
+      "Contents of /repo/CLAUDE.local.md (the operator's private project instructions, not checked in):",
     )
   })
 
@@ -45,7 +45,7 @@ describe('contextBlock provenance', () => {
     expect(
       blockFor({ slot: EContextSlot.UserInstructions, key: '/home/dev/.claude/CLAUDE.md' }),
     ).toContain(
-      "Contents of /home/dev/.claude/CLAUDE.md (the user's private global instructions for all projects):",
+      "Contents of /home/dev/.claude/CLAUDE.md (the operator's private global instructions for all projects):",
     )
   })
 

@@ -335,7 +335,7 @@ describe('list_teammates', () => {
 })
 
 describe('report_to_spawner', () => {
-  it('sends the kind and the text and says the report is with the spawner', async () => {
+  it('sends the kind and the text and says the report is with the parent agent', async () => {
     const sessions = fakeSessions()
     const { ctx } = rig(sessions.port)
     const outcome = await invoke({
@@ -350,7 +350,7 @@ describe('report_to_spawner', () => {
       },
     ])
     expect(outcome.ok && outcome.output).toEqual({ kind: EReportKind.Blocked })
-    expect(textOf(outcome)).toContain('created you')
+    expect(textOf(outcome)).toContain('with the parent agent')
   })
 
   it('turns a session with no spawner into the tool reason', async () => {

@@ -24,11 +24,11 @@ const inputSchema = z.strictObject({
 })
 
 const description = [
-  'Start a command as a background shell that outlives this turn and return its shellId at once.',
-  'Use it for dev servers, watchers and anything that will not finish on its own; bash is for commands you wait on.',
+  'Start a command as a background shell that outlives this turn, and return its shellId at once.',
+  'Use it for dev servers, watchers and anything that will not finish on its own. Use bash for a command you wait on.',
   'Its ending arrives on its own with its output, so never poll for it.',
   'Set input to true when the command will read from stdin, so shell_input can answer it.',
-  'Set description to a few words naming what it is for. Set timeoutMs to kill it if it outlives that ceiling.',
+  'Set description to a few words naming what the shell is for. Set timeoutMs to kill the shell if it outlives that ceiling.',
 ].join(' ')
 
 export class ShellTool extends SchemaTool<typeof inputSchema> {

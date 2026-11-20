@@ -58,7 +58,7 @@ describe('the sentence a parent reads about a delegate that stopped', () => {
 
   it('names the operator when the operator stopped it', () => {
     expect(agentEnding(ending({ status: EAgentStatus.Stopped, killedBy: EKilledBy.User }))).toBe(
-      'was stopped by the user after 4 turns and 11 tool calls',
+      'was stopped by the operator after 4 turns and 11 tool calls',
     )
   })
 
@@ -94,7 +94,7 @@ describe('the sentence a parent reads about a delegate that stopped', () => {
   it('says a paused child paused with the move, not that anyone stopped it', () => {
     const sentence = agentEnding(ending({ status: EAgentStatus.Paused }))
 
-    expect(sentence).toBe('was paused as the conversation moved, after 4 turns and 11 tool calls')
+    expect(sentence).toBe('was paused as the session moved, after 4 turns and 11 tool calls')
     expect(sentence).not.toContain('stopped')
   })
 
@@ -104,7 +104,7 @@ describe('the sentence a parent reads about a delegate that stopped', () => {
     )
 
     expect(sentence).toBe(
-      'moved with the conversation and is resuming there, after 4 turns and 11 tool calls',
+      'moved with the session and is resuming there, after 4 turns and 11 tool calls',
     )
     expect(sentence).not.toContain('stopped')
   })
