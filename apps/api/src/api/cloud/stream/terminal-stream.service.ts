@@ -37,7 +37,7 @@ export class TerminalStreamService {
     private readonly drain: DrainStateService,
     @Optional() @Inject(POD_OPS) private readonly ops: PodOps | null = null,
     @Optional() @Inject(TERMINAL_DEMAND) private readonly demand: TerminalDemand | null = null,
-    private readonly lifetimeMs: number = STREAM_LIFETIME_MS,
+    @Optional() private readonly lifetimeMs: number = STREAM_LIFETIME_MS,
   ) {}
 
   async *attach(args: TerminalStreamAttachArgs): AsyncGenerator<TerminalStreamFrame> {
