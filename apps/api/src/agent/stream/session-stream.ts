@@ -6,6 +6,7 @@ import {
   EStreamErrorCode,
   EStreamSubscribeKind,
   EStreamSurface,
+  STREAM_HEARTBEAT_MS,
   STREAM_PROTOCOL_VERSION,
   streamServerMessageSchema,
   type StreamServerMessage,
@@ -81,6 +82,11 @@ export const createSessionStream = (deps: SessionStreamDeps): SessionStream => {
     const { queue } = args
     const id = randomUUID()
     const flush = createTrailingFlush({ send: (frame) => queue.push(frame) })
+    let heartbeat: unknown
+    const armHeartbeat = (): void => {
+      deps.timers.clearTimeout(heartbeat)
+      heartbeat = deps.timers.setTimeout(() => queue.push({ type: 'pong' }), STREAM_HEARTBEAT_MS)
+    }
     const session = subscriptions.open({
       userId: args.userId,
       version: STREAM_PROTOCOL_VERSION,
@@ -97,6 +103,7 @@ export const createSessionStream = (deps: SessionStreamDeps): SessionStream => {
     if (args.signal?.aborted === true) queue.end()
     open.add(queue)
     try {
+      armHeartbeat()
       yield readyFrameOf({
         version: STREAM_PROTOCOL_VERSION,
         connectionId: id,
@@ -119,10 +126,12 @@ export const createSessionStream = (deps: SessionStreamDeps): SessionStream => {
           yield { type: 'going-away', reconnectAfterMs: step.reconnectAfterMs }
           return
         }
+        armHeartbeat()
         yield messageOf(step.frame)
         session.drain()
       }
     } finally {
+      deps.timers.clearTimeout(heartbeat)
       args.signal?.removeEventListener('abort', abort)
       open.delete(queue)
       queue.end()

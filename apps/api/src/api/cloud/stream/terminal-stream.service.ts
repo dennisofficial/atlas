@@ -11,9 +11,10 @@ import { PodParkedError } from '../../platform/control/pod-parked.error'
 import { TerminalService } from '../../platform/control/terminal.service'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { HOST_ABSENT } from './session-stream.router'
-import { TerminalStreamQueue } from './terminal-stream-queue'
+import { TerminalStreamQueue, type TerminalStreamCloseReason } from './terminal-stream-queue'
 
 const UNHELD_SESSION = 'no host picked this session up in time — retry the stream'
+const STREAM_LIFETIME_MS = 10 * 60_000
 
 type ReplayClose = 'asleep' | 'detached'
 
@@ -36,6 +37,7 @@ export class TerminalStreamService {
     private readonly drain: DrainStateService,
     @Optional() @Inject(POD_OPS) private readonly ops: PodOps | null = null,
     @Optional() @Inject(TERMINAL_DEMAND) private readonly demand: TerminalDemand | null = null,
+    @Optional() private readonly lifetimeMs: number = STREAM_LIFETIME_MS,
   ) {}
 
   async *attach(args: TerminalStreamAttachArgs): AsyncGenerator<TerminalStreamFrame> {
@@ -44,27 +46,48 @@ export class TerminalStreamService {
     if (ops === null) throw new ServiceUnavailableException(HOST_ABSENT)
     if (this.drain.isDraining())
       throw new ServiceUnavailableException('the api is restarting — retry the stream')
-    const release = this.demand?.hold(args.sessionId)
-    yield { type: 'ready', sessionId: args.sessionId }
     const queue = new TerminalStreamQueue(TERMINAL_STREAM_BUFFER_BYTES)
     const next = new Map<string, number>()
-    const held = await this.awaitHolder({ ops, args })
-    if (!held) {
+    const release = this.demand?.hold(args.sessionId) ?? null
+    let dispose: (() => void) | null = null
+    let ended = false
+    let lifetime: ReturnType<typeof setTimeout> | null = null
+    const end = (reason?: TerminalStreamCloseReason): void => {
+      if (ended) return
+      ended = true
+      if (lifetime !== null) clearTimeout(lifetime)
+      lifetime = null
+      args.signal?.removeEventListener('abort', abort)
+      const stopping = dispose
+      dispose = null
+      queue.end(reason)
+      stopping?.()
       release?.()
-      throw new ServiceUnavailableException(UNHELD_SESSION)
     }
-    const dispose = ops.events({
-      sessionId: args.sessionId,
-      listener: (frame) => this.forward({ frame, sessionId: args.sessionId, queue, next }),
-      onClose: (reason) => queue.end(this.drain.isDraining() ? 'restarted' : reason),
-    })
-    if (dispose === null) {
-      release?.()
-      throw new ServiceUnavailableException(UNHELD_SESSION)
+    function abort(): void {
+      end()
     }
-    const abort = (): void => queue.end()
-    args.signal?.addEventListener('abort', abort)
+    args.signal?.addEventListener('abort', abort, { once: true })
+    lifetime = setTimeout(() => end('detached'), this.lifetimeMs)
+    lifetime.unref()
     try {
+      yield { type: 'ready', sessionId: args.sessionId }
+      const held = await this.awaitHolder({ ops, args })
+      if (!held) throw new ServiceUnavailableException(UNHELD_SESSION)
+      if (ended) return
+      const registered = ops.events({
+        sessionId: args.sessionId,
+        listener: (frame) => this.forward({ frame, sessionId: args.sessionId, queue, next }),
+        onClose: (reason) => end(this.drain.isDraining() ? 'restarted' : reason),
+      })
+      if (registered === null) throw new ServiceUnavailableException(UNHELD_SESSION)
+      dispose = registered
+      if (ended) {
+        const stopping = dispose
+        dispose = null
+        stopping()
+        return
+      }
       const closed = yield* this.replay({
         userId: args.userId,
         sessionId: args.sessionId,
@@ -81,9 +104,7 @@ export class TerminalStreamService {
         yield frame
       }
     } finally {
-      args.signal?.removeEventListener('abort', abort)
-      dispose()
-      release?.()
+      end()
     }
   }
 

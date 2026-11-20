@@ -43,6 +43,17 @@ describe('follow catch-up', () => {
     expect(events.at(-1)?.seq).toBe(1_000)
   })
 
+  it('reads the head once for a catch-up of many pages', async () => {
+    await rig.seed({ events: 1_200 })
+    await rig.subscribe({ session: rig.open() })
+    await rig.untilSeq(1_200)
+    await rig.settled()
+
+    expect(rig.frames('events')).toHaveLength(6)
+    expect(rig.headReads).toBeLessThanOrEqual(3)
+    expect(rig.frames('events').at(-1)?.live).toBe(true)
+  })
+
   it('never calls a page live when the head it reports is ahead of it', async () => {
     await rig.seed({ events: 3 })
     let appended = false

@@ -145,6 +145,8 @@ export class FollowSubscription implements FollowTarget {
   private async drainPages(): Promise<void> {
     const { plane } = this.args.deps
     const threadId = this.requireThread()
+    let head = await plane.head({ threadId })
+    if (this.stopped) return
     for (;;) {
       if (!(await this.awaitDrained())) return
       this.dirty = false
@@ -155,11 +157,14 @@ export class FollowSubscription implements FollowTarget {
         visible: false,
         maxBytes: FOLLOW_PAGE_BYTES,
       })
-      const head = await plane.head({ threadId })
       if (this.stopped) return
       const last = page.events[page.events.length - 1]
       if (last === undefined && this.announcedLive) return
       if (last !== undefined) this.cursor = last.seq
+      if (page.next === undefined && (this.cursor ?? 0) >= head.seq) {
+        head = await plane.head({ threadId })
+        if (this.stopped) return
+      }
       const live = page.next === undefined && (this.cursor ?? 0) >= head.seq
       this.args.connection.send({
         type: 'events',

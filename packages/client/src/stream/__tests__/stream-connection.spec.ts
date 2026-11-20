@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import type { PluginViewFold } from '@dltech/atlas-core'
+import { STREAM_STALL_MS } from '@dltech/atlas-protocol'
 
 import { EStreamConnectionState } from '../connection-machine'
 import { createStreamConnection, type StreamConnectionArgs } from '../stream-connection'
@@ -14,6 +15,8 @@ import {
 } from './support'
 
 const READY = { type: 'ready', v: 1, connectionId: 'c1' } as const
+
+const BACKOFF_MS = 250
 
 const setup = (extra: { views?: StreamConnectionArgs['views'] } = {}) => {
   const clock = createFakeScheduler()
@@ -120,6 +123,77 @@ describe('the stream connection', () => {
     expect(list.getSnapshot()).toHaveLength(2)
     lists[0]?.handlers.handleFrame({ type: 'remove', id: 'l1', sessionId: 's2' })
     expect(list.getSnapshot()).toEqual(rows)
+  })
+
+  it('fails a silent subscription over and resumes from the frame it last saw', async () => {
+    const { connection, clock, follows } = setup()
+    connection.follow({ sessionId: 'session-1' })
+    await settle()
+    const events = mintUserEvents({ count: 3 })
+    const head = headOf(events)
+    follows[0]?.handlers.handleFrame(READY)
+    follows[0]?.handlers.handleFrame(eventsMessage({ id: 's1', events, live: true }))
+
+    clock.advance(STREAM_STALL_MS - 1)
+    expect(follows[0]?.closed).toBe(false)
+    clock.advance(1)
+    expect(follows[0]?.closed).toBe(true)
+    expect(connection.state()).toBe(EStreamConnectionState.Backoff)
+
+    clock.advance(BACKOFF_MS)
+    await settle()
+    expect(follows).toHaveLength(2)
+    expect(follows[1]?.input).toEqual({
+      sessionId: 'session-1',
+      afterSeq: head.seq,
+      afterHash: head.hash,
+    })
+  })
+
+  it('keeps a subscription open while frames and pongs arrive', async () => {
+    const { connection, clock, follows } = setup()
+    connection.follow({ sessionId: 'session-1' })
+    await settle()
+    follows[0]?.handlers.handleFrame(READY)
+
+    for (let beat = 0; beat < 3; beat += 1) {
+      clock.advance(STREAM_STALL_MS - 1_000)
+      follows[0]?.handlers.handleFrame({ type: 'pong' })
+    }
+
+    expect(follows[0]?.closed).toBe(false)
+    expect(connection.state()).toBe(EStreamConnectionState.Open)
+    expect(follows).toHaveLength(1)
+  })
+
+  it('never fires the watchdog of a closed connection', async () => {
+    const { connection, clock, follows } = setup()
+    connection.follow({ sessionId: 'session-1' })
+    await settle()
+    follows[0]?.handlers.handleFrame(READY)
+
+    connection.close()
+    expect(connection.state()).toBe(EStreamConnectionState.Closed)
+    clock.advance(STREAM_STALL_MS * 2)
+    await settle()
+
+    expect(follows).toHaveLength(1)
+    expect(connection.state()).toBe(EStreamConnectionState.Closed)
+    expect(clock.pendingCount()).toBe(0)
+  })
+
+  it('watches the sessions list for a stall too', async () => {
+    const { connection, clock, lists } = setup()
+    connection.followSessions()
+    await settle()
+    lists[0]?.handlers.handleFrame({ type: 'snapshot', id: 'l1', rows })
+
+    clock.advance(STREAM_STALL_MS)
+    expect(lists[0]?.closed).toBe(true)
+    clock.advance(BACKOFF_MS)
+    await settle()
+
+    expect(lists).toHaveLength(2)
   })
 
   it('reconnects the list after a drain too', async () => {
