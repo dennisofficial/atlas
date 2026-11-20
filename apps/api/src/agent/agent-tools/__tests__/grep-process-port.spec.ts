@@ -111,6 +111,46 @@ describe('GrepTool over a ProcessPort', () => {
     expect(processes.spawned[0]?.cmd[0]).toBe('/container/bin/rg')
   })
 
+  it('spawns ripgrep with the search flags in a fixed order', async () => {
+    const processes = new FakeProcesses('/container/bin/rg')
+
+    await new GrepTool(processes, fakeFiles([])).invoke({
+      input: { pattern: 'needle', glob: '*.ts', caseInsensitive: true, context: 2 },
+      signal: new AbortController().signal,
+      idempotencyKey: 'grep-process-port-flags',
+      projectDirectory: '/work',
+      threadId: toThreadId('thread-1'),
+    })
+
+    expect(processes.spawned[0]?.cmd).toEqual([
+      '/container/bin/rg',
+      '--with-filename',
+      '--hidden',
+      '--follow',
+      '--glob',
+      '!.git',
+      '--glob',
+      '!.svn',
+      '--glob',
+      '!.hg',
+      '--glob',
+      '!.jj',
+      '--glob',
+      '!.sl',
+      '--max-columns',
+      '500',
+      '--line-number',
+      '--ignore-case',
+      '--context',
+      '2',
+      '--glob',
+      '*.ts',
+      '--regexp',
+      'needle',
+      '/work',
+    ])
+  })
+
   it('falls back to POSIX grep when the port has no ripgrep', async () => {
     const processes = new FakeProcesses(null, '', 0)
 

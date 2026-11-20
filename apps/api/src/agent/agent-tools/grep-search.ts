@@ -16,7 +16,7 @@ export type SearchArguments = {
 export const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
 
-function ripgrepSearcher(args: SearchArguments & { binary: string }): Searcher {
+export function ripgrepSearcher(args: SearchArguments & { binary: string }): Searcher {
   return {
     name: 'ripgrep',
     command: [
@@ -36,10 +36,6 @@ function ripgrepSearcher(args: SearchArguments & { binary: string }): Searcher {
       args.searchPath,
     ],
   }
-}
-
-export function searcherFor(args: SearchArguments & { binary: string }): Searcher {
-  return ripgrepSearcher({ ...args })
 }
 
 export async function ripgrepBinaryOf(args: {
