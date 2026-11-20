@@ -2,12 +2,14 @@ import type { ModelPort, ThreadId } from '@dltech/atlas-core'
 import { ESpan, spanWith, type ETurnEntry, type TracePort } from '@dltech/atlas-observability'
 
 import type { AgentIntake } from '../intake/agent-intake'
+import { turnWaitOf } from './turn-wait'
 import type { LoopWatch } from '../loop/loop-watchdog'
 import { sleepUnlessAborted, type RetryDeps } from '../loop/retrying-step'
 import type { TurnDeps } from '../loop/run-turn'
 import { ETurnStatus, type TurnOutcome } from '../loop/turn-outcome'
 import { TracedModel } from './traced-model'
 import { TracedRecord } from './traced-record'
+import type { AgentRecordPort } from '../record/agent-record.port'
 
 const tracedIntake = ({
   intake,
@@ -79,14 +81,24 @@ export function tracedTurnDeps(deps: TurnDeps): TurnDeps {
   }
 }
 
-export const traceTurn = (args: {
+export const traceTurn = async (args: {
   trace: TracePort | undefined
   model: ModelPort
+  record: AgentRecordPort
   threadId: ThreadId
   entry: ETurnEntry
   run: () => Promise<TurnOutcome>
-}): Promise<TurnOutcome> =>
-  spanWith(args.trace, {
+}): Promise<TurnOutcome> => {
+  const wait =
+    args.trace === undefined
+      ? undefined
+      : await turnWaitOf({
+          record: args.record,
+          threadId: args.threadId,
+          entry: args.entry,
+          now: Date.now(),
+        })
+  return spanWith(args.trace, {
     name: ESpan.Turn,
     root: true,
     fields: {
@@ -94,6 +106,7 @@ export const traceTurn = (args: {
       entry: args.entry,
       provider: args.model.identity.id,
       model: args.model.identity.modelId,
+      ...wait,
     },
     run: async (span) => {
       const outcome = await args.run()
@@ -107,3 +120,4 @@ export const traceTurn = (args: {
       return outcome
     },
   })
+}

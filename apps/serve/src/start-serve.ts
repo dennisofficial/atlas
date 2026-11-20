@@ -1,3 +1,4 @@
+import { ESpan } from '@dltech/atlas-observability'
 import {
   applyServePriority,
   atlasDirectory,
@@ -10,6 +11,7 @@ import type { ServeArgs, ServeHandle } from './serve-args'
 import { finishServeBoot } from './serve-boot-finish'
 import { listenWhileBooting } from './serve-boot-listener'
 import { serveConfig } from './serve-config'
+import { serveTracer } from './serve-boot-trace'
 import { createServeLog, EServeEvent, LoggingNoticePort } from './serve-log'
 
 const BOX_SWEEP_INTERVAL_MS = 60_000
@@ -30,6 +32,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
       : undefined
   boxSweeper?.unref()
   const atlasHome = atlasDirectory()
+  const trace = serveTracer({ env, atlasHome })
   const sandboxSessionId = env.ATLAS_SANDBOX_SESSION_ID ?? ''
   const boot = listenWhileBooting({
     port: wanted,
@@ -42,19 +45,26 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
   })
 
   try {
-    const handle = await finishServeBoot({
-      serveArgs: args,
-      env,
-      threadId,
-      token,
-      controlPlaneUrl,
-      cwd,
-      startedAt,
-      log,
-      notice,
-      atlasHome,
-      sandboxSessionId,
-      boot,
+    const handle = await trace.span({
+      name: ESpan.PodBoot,
+      root: true,
+      fields: { threadId },
+      run: () =>
+        finishServeBoot({
+          serveArgs: args,
+          env,
+          threadId,
+          token,
+          controlPlaneUrl,
+          cwd,
+          startedAt,
+          log,
+          notice,
+          atlasHome,
+          sandboxSessionId,
+          boot,
+          trace,
+        }),
     })
     return {
       ...handle,

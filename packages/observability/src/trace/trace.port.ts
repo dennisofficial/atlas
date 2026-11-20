@@ -16,6 +16,15 @@ export enum ESpan {
   ToolInvoke = 'tool.invoke',
   ToolQuality = 'tool.quality',
   ToolAfterHooks = 'tool.after-hooks',
+  PodBoot = 'pod.boot',
+  PodBootClone = 'pod.boot.clone',
+  PodBootSettings = 'pod.boot.settings',
+  PodBootHydrate = 'pod.boot.hydrate',
+  PodBootCompose = 'pod.boot.compose',
+  PodProvision = 'pod.provision',
+  PodProvisionSandbox = 'pod.provision.sandbox',
+  PodProvisionAgent = 'pod.provision.agent',
+  PromptSend = 'prompt.send',
 }
 
 export enum ESpanMark {
@@ -27,6 +36,11 @@ export enum ESpanMark {
 export enum ETurnEntry {
   Start = 'start',
   Resume = 'resume',
+}
+
+export enum EWake {
+  Warm = 'warm',
+  Cold = 'cold',
 }
 
 export enum ESpanSpeed {
@@ -56,6 +70,8 @@ export type SpanFields = {
   readonly finishReason?: string | undefined
   readonly outcome?: ESpanOutcome | undefined
   readonly entry?: ETurnEntry | undefined
+  readonly wake?: EWake | undefined
+  readonly queuedMs?: number | undefined
   readonly speed?: ESpanSpeed | undefined
   readonly step?: number | undefined
   readonly delayMs?: number | undefined

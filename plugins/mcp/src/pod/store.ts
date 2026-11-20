@@ -1,5 +1,5 @@
-import type { EDefinitionOrigin, ToolDefinition } from '@dltech/atlas-core'
-import { MacOfflineError, type PluginPodContext } from '@dltech/atlas-plugin-sdk'
+import type { ToolDefinition } from '@dltech/atlas-core'
+import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
 import type { McpServerChanged, McpServerRemoved } from '../core'
 import type { LoadedMcpEntry, McpRejection } from '../core'
@@ -13,90 +13,11 @@ import {
 import { bridgeNameOf, McpBridgeTool } from './bridge-tool'
 import { McpSignInBook } from './sign-in-book'
 import { fileReaderOf, loadMcpConfig, type McpConfigPort } from './config'
-import { HttpClient } from './http'
-import { ProxyClient } from './proxy'
-import { StdioClient } from './stdio'
-import {
-  McpTransportError,
-  McpUnauthorizedError,
-  messageOf,
-  type McpCallResult,
-  type McpToolInfo,
-  type McpTransportClient,
-} from './types'
+import { openHeld, sameSpec, withBudget, type Held } from './connect'
+import { EMcpServerStatus, reasonOf, viewStatusOf, type McpServerState } from './server-status'
+import { messageOf, type McpCallResult, type McpTransportClient } from './types'
 
-export enum EMcpServerStatus {
-  Connected = 'connected',
-  Failed = 'failed',
-  NeedsAuth = 'needs-auth',
-  Unavailable = 'unavailable',
-}
-
-export type McpServerState = {
-  name: string
-  origin: EDefinitionOrigin
-  transport: 'stdio' | 'http' | null
-  status: EMcpServerStatus
-  tools: number
-  reason: string | undefined
-}
-
-type Held = {
-  spec: LoadedMcpEntry
-  client: McpTransportClient
-  status: EMcpServerStatus
-  tools: readonly McpToolInfo[]
-  reason: string | undefined
-  instructions: string | undefined
-}
-
-const CONNECT_TIMEOUT_MS = 30_000
-
-const RECONCILE_BUDGET_MS = 5_000
-
-const reasonOf = (error: unknown): string => {
-  if (error instanceof McpTransportError) return [error.message, ...error.stderr].join('\n').trim()
-  return messageOf(error)
-}
-
-const withCeiling = async <T>(args: {
-  ms: number
-  message: string
-  run: () => Promise<T>
-}): Promise<T> => {
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new McpTransportError(args.message)), args.ms)
-  })
-  try {
-    return await Promise.race([args.run(), timeout])
-  } finally {
-    clearTimeout(timer)
-  }
-}
-
-const withBudget = async (args: { ms: number; run: () => Promise<unknown> }): Promise<void> => {
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const timeout = new Promise<void>((resolve) => {
-    timer = setTimeout(resolve, args.ms)
-  })
-  try {
-    await Promise.race([args.run(), timeout])
-  } finally {
-    clearTimeout(timer)
-  }
-}
-
-const viewStatusOf = (status: EMcpServerStatus): EMcpViewStatus => {
-  if (status === EMcpServerStatus.Connected) return EMcpViewStatus.Connected
-  if (status === EMcpServerStatus.NeedsAuth) return EMcpViewStatus.NeedsAuth
-  if (status === EMcpServerStatus.Unavailable) return EMcpViewStatus.Unavailable
-  return EMcpViewStatus.Failed
-}
-
-const sameSpec = (left: LoadedMcpEntry, right: LoadedMcpEntry): boolean =>
-  JSON.stringify([left.transport, left.disabled, left.proxy]) ===
-  JSON.stringify([right.transport, right.disabled, right.proxy])
+export { EMcpServerStatus, type McpServerState } from './server-status'
 
 export class McpStore {
   private readonly held = new Map<string, Held>()
@@ -104,6 +25,8 @@ export class McpStore {
   private published = new Map<string, McpServerRow>()
   private readonly signIns = new McpSignInBook()
   private started = false
+  private reconciling: Promise<void> | null = null
+  private rerun = false
 
   constructor(
     private readonly args: {
@@ -116,7 +39,7 @@ export class McpStore {
 
   async boot(): Promise<void> {
     if (this.started) {
-      await this.reconcile()
+      this.refresh()
       return
     }
     this.started = true
@@ -124,6 +47,16 @@ export class McpStore {
     this.rejections = merged.rejections
     await Promise.allSettled(merged.servers.map(async (spec) => await this.ensure(spec)))
     await this.publish()
+  }
+
+  refresh(): void {
+    if (this.reconciling !== null) {
+      this.rerun = true
+      return
+    }
+    this.reconciling = this.drainRefreshes().finally(() => {
+      this.reconciling = null
+    })
   }
 
   async reconcile(): Promise<void> {
@@ -137,13 +70,10 @@ export class McpStore {
       await held.client.close()
     }
 
-    await withBudget({
-      ms: this.args.reconcileBudgetMs,
-      run: async () => {
-        await Promise.allSettled(merged.servers.map(async (spec) => await this.ensure(spec)))
-      },
-    })
+    const ensured = Promise.allSettled(merged.servers.map(async (spec) => await this.ensure(spec)))
+    await withBudget({ ms: this.args.reconcileBudgetMs, run: async () => await ensured })
     await this.publish()
+    await ensured
   }
 
   tools(): readonly ToolDefinition[] {
@@ -233,6 +163,19 @@ export class McpStore {
     this.signIns.note(pending)
   }
 
+  specOf(name: string): LoadedMcpEntry | undefined {
+    return this.held.get(name)?.spec
+  }
+
+  private async drainRefreshes(): Promise<void> {
+    do {
+      this.rerun = false
+      await this.reconcile().catch((error: unknown) => {
+        this.args.ctx.log(`mcp: re-reading the servers failed: ${messageOf(error)}`)
+      })
+    } while (this.rerun)
+  }
+
   private async publish(): Promise<void> {
     const rows = this.rows()
     const next = new Map(rows.map((row) => [row.name, row]))
@@ -291,10 +234,6 @@ export class McpStore {
     }
   }
 
-  specOf(name: string): LoadedMcpEntry | undefined {
-    return this.held.get(name)?.spec
-  }
-
   private async tokenOf(spec: LoadedMcpEntry): Promise<string | undefined> {
     const transport = spec.transport
     if (transport?.kind !== 'http') return undefined
@@ -331,108 +270,13 @@ export class McpStore {
       await existing.client.close()
     }
 
-    const opened = await this.open(spec)
-    this.held.set(spec.name, opened)
-  }
-
-  private async open(spec: LoadedMcpEntry): Promise<Held> {
-    const transport = spec.transport
-    if (transport === undefined) {
-      return {
-        spec,
-        client: new HttpClient({
-          serverId: spec.name,
-          transport: { kind: 'http', url: 'http://localhost' },
-        }),
-        status: EMcpServerStatus.Failed,
-        tools: [],
-        reason: 'the server has no transport',
-        instructions: undefined,
-      }
-    }
-
-    const token = spec.proxy === true ? undefined : (spec.accessToken ?? (await this.tokenOf(spec)))
-    const client: McpTransportClient =
-      spec.proxy === true
-        ? new ProxyClient({
-            control: this.args.ctx.control.mcp,
-            serverId: spec.name,
-            transport,
-            onClosed: (reason) => void this.markFailed({ name: spec.name, client, reason }),
-          })
-        : transport.kind === 'http'
-          ? new HttpClient({
-              serverId: spec.name,
-              transport,
-              ...(token === undefined ? {} : { accessToken: token }),
-            })
-          : new StdioClient({
-              ctx: this.args.ctx,
-              serverId: spec.name,
-              transport,
-              onExit: (reason) => void this.markFailed({ name: spec.name, client, reason }),
-            })
-
-    try {
-      const connection = await withCeiling({
-        ms: this.args.connectTimeoutMs,
-        message: `the '${spec.name}' MCP server did not answer initialize within ${this.args.connectTimeoutMs} ms`,
-        run: () => client.connect(),
-      })
-      return {
-        spec,
-        client,
-        status: EMcpServerStatus.Connected,
-        tools: connection.tools,
-        reason: undefined,
-        instructions: connection.instructions,
-      }
-    } catch (error) {
-      await client.close().catch(() => undefined)
-      return {
-        spec,
-        client,
-        status:
-          error instanceof MacOfflineError
-            ? EMcpServerStatus.Unavailable
-            : error instanceof McpUnauthorizedError
-              ? EMcpServerStatus.NeedsAuth
-              : EMcpServerStatus.Failed,
-        tools: [],
-        reason: reasonOf(error),
-        instructions: undefined,
-      }
-    }
-  }
-}
-
-export class McpStores {
-  private readonly stores = new WeakMap<PluginPodContext, McpStore>()
-  private readonly bySession = new Map<string, McpStore>()
-
-  constructor(
-    private readonly args: {
-      config: McpConfigPort
-      connectTimeoutMs?: number
-      reconcileBudgetMs?: number
-    },
-  ) {}
-
-  forSession(sessionId: string): McpStore | undefined {
-    return this.bySession.get(sessionId)
-  }
-
-  of(ctx: PluginPodContext): McpStore {
-    const kept = this.stores.get(ctx)
-    if (kept !== undefined) return kept
-    const store = new McpStore({
-      ctx,
-      config: this.args.config,
-      connectTimeoutMs: this.args.connectTimeoutMs ?? CONNECT_TIMEOUT_MS,
-      reconcileBudgetMs: this.args.reconcileBudgetMs ?? RECONCILE_BUDGET_MS,
+    const opened = await openHeld({
+      spec,
+      ctx: this.args.ctx,
+      connectTimeoutMs: this.args.connectTimeoutMs,
+      token: async (entry) => await this.tokenOf(entry),
+      onClosed: (closed) => void this.markFailed(closed),
     })
-    this.stores.set(ctx, store)
-    this.bySession.set(ctx.sessionId, store)
-    return store
+    this.held.set(spec.name, opened)
   }
 }

@@ -8,6 +8,8 @@ import {
   type VercelSdk,
 } from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
+import type { ThreadId } from '@dltech/atlas-core'
+import { ESpan, spanWith, type TracePort } from '@dltech/atlas-observability'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { podSessionOf, sessionOfThread } from '../../platform/sessions/session-of-thread'
 import { recordBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
@@ -68,9 +70,23 @@ export type PodProvisionDeps = {
   log: (line: string) => void
   telemetryPepper?: string | undefined
   resizeTiming?: ResizeRestartTiming | undefined
+  trace?: TracePort | undefined
 }
 
 export async function runPodProvision(args: {
+  payload: PodProvisionPayload
+  deps: PodProvisionDeps
+}): Promise<PodProvisionOutput> {
+  const { payload, deps } = args
+  return spanWith(deps.trace, {
+    name: ESpan.PodProvision,
+    root: true,
+    fields: { threadId: payload.threadId as ThreadId },
+    run: () => provisionClaimed({ payload, deps }),
+  })
+}
+
+async function provisionClaimed(args: {
   payload: PodProvisionPayload
   deps: PodProvisionDeps
 }): Promise<PodProvisionOutput> {
@@ -164,6 +180,7 @@ export async function runPodProvision(args: {
       }),
       reporter,
       prefetchClone,
+      trace: deps.trace,
       prepare: workspaceSpecWriter({ projectId: session.projectId, model: thread.modelRef }),
     })
     await reporter.flush()

@@ -6,6 +6,7 @@ import { createTranscriptHistory } from './transcript-history'
 import { useThreadBackend } from './use-thread-backend'
 import { useLiveThread } from './use-live-thread'
 import { useThreadEvents } from './use-thread-events'
+import { usePromptLatencyWatch } from './use-prompt-latency-watch'
 import type { ThreadModelChoice } from './live-thread-view'
 import type { ThreadSignalHub } from './thread-signal-hub'
 import { pollingEnabledFor, threadSourceOf, type ThreadSource } from './thread-source'
@@ -56,5 +57,7 @@ export function useThreadSource(args: {
     activityOverrides.markWorking(threadId)
     return () => activityOverrides.clearPending(threadId)
   }, [liveWorking, threadId])
-  return threadSourceOf({ live, polled })
+  const source = threadSourceOf({ live, polled })
+  usePromptLatencyWatch({ threadId, signals: args.signals, events: source.events })
+  return source
 }

@@ -3,6 +3,7 @@ import type { ThreadMessageReply } from '@dltech/atlas-wire/web'
 
 import { attachmentsFieldOf } from './composer-attachments'
 import type { LiveSend } from './live-thread-view'
+import { EPromptPath, promptLatency } from './prompt-latency'
 import { postMessage } from './threads-api'
 
 export async function sendMessage(args: {
@@ -33,7 +34,19 @@ export async function deliverMessage(args: {
     requestId: message.sendId,
     ...attachmentsFieldOf(message.attachments),
   }
-  if (liveSend(live)) return
+  if (liveSend(live)) {
+    promptLatency.markPath({
+      threadId: message.threadId,
+      sendId: message.sendId,
+      path: EPromptPath.Live,
+    })
+    return
+  }
+  promptLatency.markPath({
+    threadId: message.threadId,
+    sendId: message.sendId,
+    path: EPromptPath.Queued,
+  })
   const reply = await sendMessage(message)
   if (reply.error !== undefined) throw new Error(reply.error)
 }

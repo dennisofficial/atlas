@@ -11,7 +11,13 @@ import {
   EMPTY_SESSIONS,
   EMPTY_WORKTREES,
 } from '@dltech/atlas-plugin-sdk'
-import { ECallStatus, type CallOp, type CallResult } from '@dltech/atlas-protocol'
+import {
+  ECallStatus,
+  type CallOp,
+  type CallResult,
+  type DaemonEvent,
+  type DaemonEventFrame,
+} from '@dltech/atlas-protocol'
 
 import { crewPod } from '..'
 
@@ -25,6 +31,7 @@ const failed = (op: string, message: string): CallResult =>
 
 export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
   const calls: CallOp[] = []
+  const watchers = new Set<(frame: DaemonEventFrame) => void>()
 
   const call = async (op: CallOp): Promise<CallResult> => {
     calls.push(op)
@@ -50,6 +57,8 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
         }))
       return ok(op.op, entries)
     }
+    if (op.op === 'watch.start') return ok(op.op, op.roots)
+    if (op.op === 'watch.stop') return ok(op.op, null)
     if (op.op === 'readFile') {
       const node = nodes[op.path]
       if (node === undefined || node.kind !== 'file')
@@ -59,7 +68,18 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
     return failed(op.op, 'not a files op')
   }
 
-  return { call, calls }
+  const onDaemonEvent = (listener: (frame: DaemonEventFrame) => void): (() => void) => {
+    watchers.add(listener)
+    return () => {
+      watchers.delete(listener)
+    }
+  }
+
+  const emit = (event: DaemonEvent): void => {
+    for (const listener of watchers) listener({ kind: 'event', event })
+  }
+
+  return { call, calls, onDaemonEvent, emit }
 }
 
 export const dirs = (...paths: readonly string[]): Record<string, FakeNode> =>
@@ -125,10 +145,10 @@ export const rig = (args: { nodes?: Record<string, FakeNode>; crew?: PodCrew } =
     events: () => [],
     call: daemon.call,
     live: () => undefined,
-    onDaemonEvent: () => () => undefined,
+    onDaemonEvent: daemon.onDaemonEvent,
     log: () => undefined,
   }
-  return { ctx, calls: daemon.calls }
+  return { ctx, calls: daemon.calls, emit: daemon.emit }
 }
 
 export const invoke = async (args: {
