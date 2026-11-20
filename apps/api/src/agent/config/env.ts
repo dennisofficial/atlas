@@ -1,4 +1,4 @@
-import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 export class AgentHostEnvError extends Error {
   constructor(public readonly missing: readonly string[]) {
@@ -40,7 +40,7 @@ const DEFAULT_AGENT37_MEMORY_GB = 4
 const DEFAULT_AGENT37_DISK_GB = 64
 
 const defaultDaemonBundlePath = (): string =>
-  join(import.meta.dir, '../../../../daemon/bin/daemon.js')
+  fileURLToPath(new URL('../../../../daemon/bin/daemon.js', import.meta.url))
 
 const take = (env: Record<string, string | undefined>, name: string): string | undefined => {
   const value = env[name]

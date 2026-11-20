@@ -1,4 +1,5 @@
 import {
+  catalogText,
   EToolEffect,
   ESubscriptionActor,
   SchemaTool,
@@ -9,7 +10,7 @@ import {
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 import { z } from 'zod'
 
-import { GITHUB_PROVIDER, GITHUB_RUN_PROVIDER } from '../core'
+import { GITHUB_PROVIDER, GITHUB_RUN_PROVIDER, PULL_REQUEST_EVENTS } from '../core'
 import {
   githubSubscriptionsOf,
   isGithubProvider,
@@ -22,6 +23,7 @@ const subscribeInput = z.strictObject({
   provider: z.string().min(1),
   target: z.string().optional(),
   expiresInMinutes: z.number().positive().optional(),
+  events: z.array(z.string().min(1)).optional(),
 })
 const unsubscribeInput = z.strictObject({ subscriptionId: z.string().min(1) })
 const listInput = z.strictObject({})
@@ -32,7 +34,10 @@ export const SUBSCRIBE_DESCRIPTION = [
   'Call list_subscriptions to see the available providers and the target syntax each one takes.',
   'Omit target when the provider can work it out from this conversation, such as the pull request or run of the current branch.',
   'Set expiresInMinutes to end the subscription on its own after that long.',
-  'Subscribing again to the same target returns the existing subscription.',
+  'Subscribing again to the same target returns the existing subscription, or updates its filter when events differ.',
+  'Set events to receive only some kinds of occurrence; omit it to receive everything. Occurrences that end a subscription, such as a pull request merging, always arrive.',
+  `${GITHUB_PROVIDER} events: ${catalogText(PULL_REQUEST_EVENTS)}.`,
+  `${GITHUB_RUN_PROVIDER} takes no events filter: every run completion is delivered.`,
 ].join(' ')
 
 export class SubscribeTool extends SchemaTool<typeof subscribeInput> {
@@ -68,15 +73,18 @@ export class SubscribeTool extends SchemaTool<typeof subscribeInput> {
       cwd: projectDirectory,
       by: ESubscriptionActor.Agent,
       expiresAt,
+      requestedEvents: input.events,
     })
     if (!outcome.ok) return { ok: false, reason: outcome.error }
-    const { subscription, existed } = outcome
+    const { subscription, existed, updated } = outcome
     const expiry =
       subscription.expiresAt === undefined ? 'no expiry' : `expires ${subscription.expiresAt}`
+    const headline =
+      updated === true ? 'Updated filter on' : existed ? 'Already subscribed to' : 'Subscribed to'
     return {
       ok: true,
       output: { subscriptionId: subscription.id, existed },
-      modelText: `${existed ? 'Already subscribed' : 'Subscribed'} to ${subscription.label} (id ${subscription.id}, ${expiry}).`,
+      modelText: `${headline} ${subscription.label} (id ${subscription.id}, ${expiry}).`,
     }
   }
 }

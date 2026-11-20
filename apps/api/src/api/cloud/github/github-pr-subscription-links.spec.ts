@@ -11,7 +11,9 @@ import { GithubPrSubscriptionLinks } from './github-pr-subscription-links'
 const THREAD = 'thr-1'
 const USER = 'usr-1'
 
-const createdEvent = (args: { repo?: string; number?: number; provider?: string } = {}) => ({
+const createdEvent = (
+  args: { repo?: string; number?: number; provider?: string; events?: readonly string[] } = {},
+) => ({
   type: 'subscription-created',
   body: JSON.stringify({
     type: 'subscription-created',
@@ -20,6 +22,7 @@ const createdEvent = (args: { repo?: string; number?: number; provider?: string 
     target: { repo: args.repo ?? 'github.com/compai/app', number: args.number ?? 42 },
     label: 'compai/app#42',
     createdBy: 'agent',
+    ...(args.events === undefined ? {} : { events: args.events }),
   }),
 })
 
@@ -78,6 +81,45 @@ describe('GithubPrSubscriptionLinks', () => {
       branch: '#42',
       threadId: THREAD,
     })
+  })
+
+  it('writes the subscription filter onto the link row', async () => {
+    await serviceWith().syncFromEvents({
+      userId: USER,
+      threadId: THREAD,
+      events: [createdEvent({ events: ['state'] })],
+    })
+
+    const [row] = await linkRows()
+    expect(row?.events).toEqual(['state'])
+  })
+
+  it('replaces the filter when the conversation re-subscribes with a different one', async () => {
+    await serviceWith().syncFromEvents({
+      userId: USER,
+      threadId: THREAD,
+      events: [createdEvent({ events: ['state'] })],
+    })
+    await serviceWith().syncFromEvents({
+      userId: USER,
+      threadId: THREAD,
+      events: [createdEvent({ events: ['comments', 'ci'] })],
+    })
+
+    const rows = await linkRows()
+    expect(rows).toHaveLength(1)
+    expect(rows[0]?.events).toEqual(['comments', 'ci'])
+  })
+
+  it('leaves a link unfiltered when the subscription names no events', async () => {
+    await serviceWith().syncFromEvents({
+      userId: USER,
+      threadId: THREAD,
+      events: [createdEvent()],
+    })
+
+    const [row] = await linkRows()
+    expect(row?.events).toEqual([])
   })
 
   it("a conversation link does not steal another principal's row for the same pull request", async () => {

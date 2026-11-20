@@ -26,7 +26,12 @@ import {
   type Agent37Env,
   type Agent37InstanceIds,
 } from './agent37-instances'
-import { isAgent37Missing, liveAgent37Client, type Agent37Client } from './agent37-client'
+import {
+  Agent37Error,
+  isAgent37Missing,
+  liveAgent37Client,
+  type Agent37Client,
+} from './agent37-client'
 import { agent37ShapeOfVcpus } from './agent37-resize'
 
 const apiKeyOf = (given: SandboxCredentials): string => {
@@ -44,6 +49,18 @@ const unavailable = (args: { sessionId: string; error: unknown }): SandboxUnavai
       args.error instanceof Error ? args.error.message : String(args.error)
     }`,
   )
+
+// https://www.agent37.com/docs/agents-api/errors — the account is out of instances or the region is
+// out of room; neither is the session's fault, so the reader gets the next step instead of a status.
+const CAPACITY_MESSAGES: Record<string, string> = {
+  instance_limit_reached:
+    'Agent37 is at its instance limit. Archive a few sessions or raise your Agent37 tier, then retry',
+  capacity_unavailable: 'Agent37 has no capacity for this sandbox right now. Retry in a minute',
+  no_capacity: 'Agent37 has no capacity for this sandbox right now. Retry in a minute',
+}
+
+const capacityMessageOf = (error: unknown): string | undefined =>
+  error instanceof Agent37Error ? CAPACITY_MESSAGES[error.code] : undefined
 
 export class Agent37SandboxProvider extends SandboxProvider {
   constructor(
@@ -151,6 +168,8 @@ export class Agent37SandboxProvider extends SandboxProvider {
       })
     } catch (error) {
       if (error instanceof SandboxUnavailableError) throw error
+      const capacity = capacityMessageOf(error)
+      if (capacity !== undefined) throw new SandboxUnavailableError(capacity)
       throw unavailable({ sessionId, error })
     }
   }

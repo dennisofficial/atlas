@@ -23,6 +23,7 @@ export type {
   PrHead,
   PrStateRow,
   SubscriptionLease,
+  SubscriptionLeaseKey,
   SessionBranchRow,
   SessionDigestRow,
   SessionViewRow,

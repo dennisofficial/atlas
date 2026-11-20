@@ -13,6 +13,11 @@ import type { LogPort } from '@dltech/atlas-observability'
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
 
+const SANDBOX_UNAVAILABLE_NAME = 'SandboxUnavailableError'
+
+const isSandboxUnavailable = (error: unknown): boolean =>
+  error instanceof Error && error.name === SANDBOX_UNAVAILABLE_NAME
+
 const MAX_REPORTED_ISSUES = 3
 
 export async function markDispatchStarted(args: {
@@ -37,6 +42,7 @@ export async function markDispatchStarted(args: {
       data: { tool: args.call.name },
       ...logFieldsOf({ error }),
     })
+    if (isSandboxUnavailable(error)) return message
     return `the dispatch marker for ${args.call.name} did not persist, so the call was not run: ${message}`
   }
 }

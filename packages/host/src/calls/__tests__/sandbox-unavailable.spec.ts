@@ -3,10 +3,33 @@ import { describe, expect, it } from 'bun:test'
 import { ECallStatus } from '@dltech/atlas-protocol'
 import { createInMemoryDaemon, inMemoryDaemonToken } from '@dltech/atlas-protocol/testing'
 
-import { RemoteCalls, SandboxUnavailableError, systemTimers, type DaemonConnector } from '../..'
+import {
+  RemoteCalls,
+  SANDBOX_OFFLINE_GUIDANCE,
+  SandboxUnavailableError,
+  systemTimers,
+  type DaemonConnector,
+} from '../..'
 
 const SANDBOX = 'atlas-v2-unavailable-test'
 const SECRET = 'unavailable-test-secret'
+
+describe('the text a model reads when its sandbox is down', () => {
+  it('keeps the reason, says nothing ran, and tells the agent to stop and tell the operator', () => {
+    const error = new SandboxUnavailableError(
+      'sandbox for s-1 is unavailable: wake failed: no answer on port 3000',
+    )
+
+    expect(error.message).toBe(
+      `sandbox for s-1 is unavailable: wake failed: no answer on port 3000. Nothing ran. ${SANDBOX_OFFLINE_GUIDANCE}`,
+    )
+    expect(error.message).toContain('The sandbox is offline')
+    expect(error.message).toContain('retrying tool calls will not help')
+    expect(error.message).toContain('end your turn')
+    expect(error.message).not.toContain('wakes it again')
+    expect(error.name).toBe('SandboxUnavailableError')
+  })
+})
 
 describe('a daemon link that gave up on an unavailable sandbox', () => {
   it('fails the waiting calls, then reconnects on the next call instead of staying dead', async () => {

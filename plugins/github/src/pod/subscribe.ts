@@ -1,9 +1,19 @@
-import { ESubscriptionActor, ESubscriptionEnd, type Event, type V2Event } from '@dltech/atlas-core'
+import {
+  catalogText,
+  ESubscriptionActor,
+  ESubscriptionEnd,
+  filterLabelSuffix,
+  resolveEventFilter,
+  type Event,
+  type V2Event,
+} from '@dltech/atlas-core'
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
 import {
+  eventCatalogOf,
   GITHUB_PROVIDER,
   GITHUB_RUN_PROVIDER,
+  PULL_REQUEST_EVENTS,
   runTargetOf,
   sameRunTarget,
   sameTarget,
@@ -31,6 +41,7 @@ export type SubscribeOutcome =
       ok: true
       subscription: SubscriptionRow | { id: string; label: string; expiresAt?: string }
       existed: boolean
+      updated?: boolean
     }
   | { ok: false; error: string }
 
@@ -76,6 +87,9 @@ const holdsTarget = (args: {
   return held !== null && wanted !== null && sameTarget(held, wanted)
 }
 
+const sameEvents = (held: readonly string[], wanted: readonly string[]): boolean =>
+  held.length === wanted.length && wanted.every((name) => held.includes(name))
+
 export const subscribeTo = async (args: {
   ctx: Appender
   events: readonly (Event | V2Event)[]
@@ -85,9 +99,16 @@ export const subscribeTo = async (args: {
   by: ESubscriptionActor
   expiresAt?: string | undefined
   explicitOnly?: boolean | undefined
+  requestedEvents?: readonly string[] | undefined
   newId?: () => string
 }): Promise<SubscribeOutcome> => {
   const provider = args.provider ?? GITHUB_PROVIDER
+  const filter = resolveEventFilter({
+    catalog: eventCatalogOf(provider),
+    requested: args.requestedEvents,
+    provider,
+  })
+  if (!filter.ok) return { ok: false, error: filter.error }
   const resolved = await resolveProviderTarget({
     ctx: args.ctx,
     provider,
@@ -96,10 +117,34 @@ export const subscribeTo = async (args: {
     explicitOnly: args.explicitOnly,
   })
   if ('error' in resolved) return { ok: false, error: resolved.error }
+  const label = resolved.label + filterLabelSuffix(filter.events)
   const held = githubSubscriptionsOf(args.events).find((row) =>
     holdsTarget({ row, provider, target: resolved.target }),
   )
-  if (held !== undefined) return { ok: true, subscription: held, existed: true }
+  if (held !== undefined) {
+    if (args.requestedEvents === undefined || sameEvents(held.events, filter.events)) {
+      return { ok: true, subscription: held, existed: true }
+    }
+    const expiresAt = args.expiresAt ?? held.expiresAt
+    await args.ctx.append([
+      {
+        type: 'subscription-created',
+        subscriptionId: held.id,
+        provider,
+        target: resolved.target,
+        label,
+        createdBy: args.by,
+        ...(expiresAt === undefined ? {} : { expiresAt }),
+        ...(filter.events.length === 0 ? {} : { events: filter.events }),
+      },
+    ])
+    return {
+      ok: true,
+      existed: true,
+      updated: true,
+      subscription: { id: held.id, label, ...(expiresAt === undefined ? {} : { expiresAt }) },
+    }
+  }
   const id = (args.newId ?? crypto.randomUUID.bind(crypto))()
   await args.ctx.append([
     {
@@ -107,9 +152,10 @@ export const subscribeTo = async (args: {
       subscriptionId: id,
       provider,
       target: resolved.target,
-      label: resolved.label,
+      label,
       createdBy: args.by,
       ...(args.expiresAt === undefined ? {} : { expiresAt: args.expiresAt }),
+      ...(filter.events.length === 0 ? {} : { events: filter.events }),
     },
   ])
   return {
@@ -117,7 +163,7 @@ export const subscribeTo = async (args: {
     existed: false,
     subscription: {
       id,
-      label: resolved.label,
+      label,
       ...(args.expiresAt === undefined ? {} : { expiresAt: args.expiresAt }),
     },
   }
@@ -159,7 +205,7 @@ const RUN_HINT =
   'Blank for this push\u2019s run, or #<run id>, owner/repo#<run id> or a run URL for that one run, or <workflow>@<branch> for every run of it on that branch from then on.'
 
 const PROVIDER_LINES: readonly string[] = [
-  `${GITHUB_PROVIDER}  a GitHub pull request  target: ${PULL_REQUEST_HINT}`,
+  `${GITHUB_PROVIDER}  a GitHub pull request  target: ${PULL_REQUEST_HINT}  events: ${catalogText(PULL_REQUEST_EVENTS)}`,
   `${GITHUB_RUN_PROVIDER}  workflow runs finishing (success, failure, cancelled)  target: ${RUN_HINT}`,
 ]
 

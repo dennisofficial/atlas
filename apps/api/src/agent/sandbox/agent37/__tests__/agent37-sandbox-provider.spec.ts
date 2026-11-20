@@ -7,12 +7,15 @@ import { join } from 'node:path'
 import { ESandboxProvider } from '@dltech/atlas-protocol'
 import { daemonToken } from '@dltech/atlas-protocol/engine'
 
+import { SandboxUnavailableError } from '@dltech/atlas-host'
+
 import type { SandboxTarget } from '../../sandbox-provider'
-import type {
-  Agent37Client,
-  Agent37CreateArgs,
-  Agent37ExecArgs,
-  Agent37ResizeArgs,
+import {
+  Agent37Error,
+  type Agent37Client,
+  type Agent37CreateArgs,
+  type Agent37ExecArgs,
+  type Agent37ResizeArgs,
 } from '../agent37-client'
 import { agent37BundleVersionOf } from '../agent37-daemon'
 import { agent37InstanceNameOf, type Agent37Env } from '../agent37-instances'
@@ -201,6 +204,66 @@ describe('Agent37SandboxProvider.resize', () => {
     } finally {
       cleanup()
     }
+  })
+})
+
+const refusingClient = (failure: Error): Agent37Client => {
+  const { client } = fakeClient({ version: 'unused' })
+  return {
+    ...client,
+    create: async () => {
+      throw failure
+    },
+  }
+}
+
+const wakeFailureOf = async (failure: Error): Promise<SandboxUnavailableError> => {
+  const { bundle: b, cleanup } = bundle()
+  const { provider } = providerOf({ client: refusingClient(failure), bundlePath: b.path })
+  try {
+    const waking = provider.wake({ target: TARGET, signal: new AbortController().signal })
+    const caught = await waking.catch((error: unknown) => error)
+    expect(caught).toBeInstanceOf(SandboxUnavailableError)
+    return caught as SandboxUnavailableError
+  } finally {
+    cleanup()
+  }
+}
+
+describe('Agent37SandboxProvider.wake capacity', () => {
+  it('reads an instance limit as the next step, without the session id or the http status', async () => {
+    const failure = await wakeFailureOf(
+      new Agent37Error({
+        status: 409,
+        code: 'instance_limit_reached',
+        retryable: false,
+        detail: 'instance limit reached: 4 of 4 instances',
+      }),
+    )
+    expect(failure.message).toStartWith(
+      'Agent37 is at its instance limit. Archive a few sessions or raise your Agent37 tier, then retry.',
+    )
+    expect(failure.message).not.toContain('pod-1')
+    expect(failure.message).not.toContain('409')
+    expect(failure.message).not.toContain('instance_limit_reached')
+  })
+
+  it('reads a capacity refusal as retrying in a minute', async () => {
+    const failure = await wakeFailureOf(
+      new Agent37Error({ status: 409, code: 'capacity_unavailable', retryable: false }),
+    )
+    expect(failure.message).toStartWith(
+      'Agent37 has no capacity for this sandbox right now. Retry in a minute.',
+    )
+  })
+
+  it('keeps the session id and agent37 text for any other failure', async () => {
+    const failure = await wakeFailureOf(
+      new Agent37Error({ status: 500, code: 'internal', retryable: false }),
+    )
+    expect(failure.message).toStartWith(
+      'sandbox for pod-1 is unavailable: agent37 refused the call: 500 internal',
+    )
   })
 })
 

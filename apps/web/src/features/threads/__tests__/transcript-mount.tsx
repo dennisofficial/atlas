@@ -5,6 +5,7 @@ import type { QueuedMessageEntry } from '@dltech/atlas-ui/ai/queued-messages'
 import { NOTHING_IN_BACKGROUND, type BackgroundWork } from '@dltech/atlas-client/crew'
 
 import { createTestQueryClient, TestQueryProvider } from '@/lib/__tests__/query-test-provider'
+import type { BootView } from '../data/boot-view'
 import { ETranscriptKind, type TranscriptRow } from '../data/transcript-items'
 import { EMPTY_DETAILS } from '../panel/details/details-input'
 import { ThreadPanelProvider, type ThreadPanelValue } from '../panel/thread-panel-context'
@@ -59,6 +60,8 @@ export const mountWith = async (args: {
   background?: BackgroundWork
   staged?: readonly QueuedMessageEntry[]
   onLoadOlder?: () => Promise<number>
+  boot?: BootView | null
+  onRetryBoot?: () => void
 }) => {
   const { createRoot } = await import('react-dom/client')
   const container = document.createElement('div')
@@ -75,9 +78,10 @@ export const mountWith = async (args: {
             pod={null}
             working={args.working ?? false}
             background={args.background ?? NOTHING_IN_BACKGROUND}
-            onRetryBoot={() => undefined}
+            onRetryBoot={args.onRetryBoot ?? (() => undefined)}
             rewind={args.rewind}
             summarise={args.summarise ?? null}
+            {...(args.boot === undefined ? {} : { boot: args.boot })}
             {...(args.staged === undefined ? {} : { staged: args.staged })}
             {...(args.onLoadOlder === undefined ? {} : { onLoadOlder: args.onLoadOlder })}
           />

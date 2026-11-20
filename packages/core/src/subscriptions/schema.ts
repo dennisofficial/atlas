@@ -11,6 +11,7 @@ export const subscriptionCreatedSchema = z.object({
   label: z.string(),
   createdBy: z.enum(ESubscriptionActor),
   expiresAt: z.string().min(1).optional(),
+  events: z.array(z.string().min(1)).readonly().optional(),
 })
 
 export const subscriptionChangedSchema = z.object({

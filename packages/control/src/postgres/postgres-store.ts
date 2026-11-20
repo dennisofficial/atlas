@@ -25,6 +25,7 @@ import {
   type ThreadRow,
   type ControlSessionRow,
   type SubscriptionLease,
+  type SubscriptionLeaseKey,
   type TrackingTarget,
   type SessionDigestRow,
   type SessionListParams,
@@ -455,7 +456,7 @@ class PostgresTx implements ControlTx {
     await upsertSubscriptionLeaseIn({ tx: this.tx, ...params })
   }
 
-  async deleteSubscriptionLease(params: SubscriptionLease): Promise<boolean> {
+  async deleteSubscriptionLease(params: SubscriptionLeaseKey): Promise<boolean> {
     return deleteSubscriptionLeaseIn({ tx: this.tx, ...params })
   }
 

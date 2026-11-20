@@ -103,8 +103,9 @@ export function deriveStatus(args: {
 
   const open = openTurnStatus({ facts, live: args.live, nowMs: Date.parse(args.now) })
   if (open !== undefined) return open
-  if (args.live && hasBackground(facts.background)) {
-    return { state: ESessionStatus.WaitingForBackground, since: idleSinceOf(facts) }
+  if (hasBackground(facts.background)) {
+    const state = args.live ? ESessionStatus.WaitingForBackground : ESessionStatus.Resuming
+    return { state, since: idleSinceOf(facts) }
   }
   return { state: ESessionStatus.Idle, since: idleSinceOf(facts) }
 }

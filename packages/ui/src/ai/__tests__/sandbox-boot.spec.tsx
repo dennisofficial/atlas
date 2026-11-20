@@ -54,10 +54,8 @@ describe('sandboxBootSummary', () => {
     expect(sandboxBootSummary({ steps: list, state: Done })).toBeUndefined()
   })
 
-  it('prefers the error text, then the failed step label', () => {
-    const failed = steps([Done, Error])
-    expect(sandboxBootSummary({ steps: failed, state: Error, error: 'boom' })).toBe('boom')
-    expect(sandboxBootSummary({ steps: failed, state: Error })).toBe('Step label 1')
+  it('leaves the failed row to its title alone', () => {
+    expect(sandboxBootSummary({ steps: steps([Done, Error]), state: Error })).toBeUndefined()
   })
 
   it('has no summary while pending', () => {
@@ -91,14 +89,37 @@ describe('SandboxBoot', () => {
     expect(html).not.toContain('Retry')
   })
 
-  it('renders open on error with the failed step detail in destructive tone', () => {
+  it('renders open on error with the failed step title and the error in a card', () => {
     const html = render({ steps: steps([Done, Error, Pending]), state: Error })
 
     expect(html).toContain('Sandbox failed to start')
     expect(html).toContain('data-status="error"')
     expect(html).toContain('Step label 1')
-    expect(html).toContain(CLONE_ERROR)
-    expect(html).toContain('text-destructive')
+    expect(html).toContain('data-slot="sandbox-boot-error"')
+    expect(html).toContain('>Sandbox<')
+    expect(html.split(CLONE_ERROR)).toHaveLength(2)
+  })
+
+  it('keeps every line of the error and wraps it in a scrollable card', () => {
+    const multiline =
+      'sandbox daemon did not answer atlas-daemon on port 3000\ntail:\nline one\nline two'
+    const html = render({
+      steps: [{ id: 'sandbox', label: 'Starting sandbox', state: Error, detail: multiline }],
+      state: Error,
+      error: multiline,
+    })
+
+    expect(html.split('sandbox-boot-error')).toHaveLength(2)
+    expect(html).toContain('line one\nline two')
+    expect(html).toContain('data-wrap')
+    expect(html).toContain('max-h-64')
+  })
+
+  it('falls back to the error prop when no step carries it', () => {
+    const html = render({ steps: steps([Done]), state: Error, error: 'daemon did not answer' })
+
+    expect(html).toContain('data-slot="sandbox-boot-error"')
+    expect(html).toContain('daemon did not answer')
   })
 
   it('shows Retry only on error and only with onRetry', () => {
