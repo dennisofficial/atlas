@@ -2,6 +2,8 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   EToolEffect,
+  INBOX_KIND_EVENT,
+  inboxEventOf,
   ToolDefinition,
   type ModelPort,
   type ToolOutcome,
@@ -158,6 +160,38 @@ const ofType = (args: { events: readonly V2Event[]; type: string }): V2Event[] =
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
+const queuedEndings = async (args: {
+  rig: Awaited<ReturnType<typeof makeRig>>
+  agentId: string
+}): Promise<number[]> =>
+  (await args.rig.plane.readInbox({ sessionId: SESSION, afterId: 0, limit: 200 })).flatMap(
+    (entry) => {
+      if (entry.kind !== INBOX_KIND_EVENT) return []
+      const read = inboxEventOf(entry.payload)
+      return read.ok && read.event.type === 'agent-ended' && read.event.agentId === args.agentId
+        ? [entry.inboxId]
+        : []
+    },
+  )
+
+const untilParentDrainsEnding = async (args: {
+  rig: Awaited<ReturnType<typeof makeRig>>
+  agentId: string
+}): Promise<V2Event[]> => {
+  const queued = await flushUntil({
+    check: async () => (await queuedEndings(args)).length > 0,
+    attempts: 200,
+    clock: args.rig.clock,
+    advanceMs: 5_000,
+  })
+  expect(queued).toBe(true)
+  expect(await queuedEndings(args)).toHaveLength(1)
+  await args.rig.bus.wake(SESSION)
+  const events = await untilEvents({ rig: args.rig, threadId: THREAD_ID, type: 'agent-ended' })
+  expect(await queuedEndings(args)).toEqual([])
+  return events
+}
+
 const drainPastCap = async (rig: Awaited<ReturnType<typeof makeRig>>): Promise<void> => {
   const draining = rig.holder.drain()
   await rig.flush()
@@ -212,16 +246,8 @@ describe('a host handoff while a sub-agent runs', () => {
     await b.holder.start()
     await a.bus.wake(SESSION)
 
-    const resumed = await flushUntil({
-      check: async () =>
-        (await eventsIn({ rig: a, threadId: THREAD_ID })).some(
-          (event) => event.type === 'agent-ended' && event.agentId === childId,
-        ),
-      attempts: 200,
-      clock: a.clock,
-      advanceMs: 5_000,
-    })
-    expect(resumed).toBe(true)
+    const resumed = await untilParentDrainsEnding({ rig: a, agentId: childId })
+    expect(resumed).not.toEqual([])
 
     const parent = await eventsIn({ rig: a, threadId: THREAD_ID })
     expect(endingsOf({ events: parent, agentId: childId })).toMatchObject([
@@ -327,7 +353,7 @@ describe('a drain with a daemon call outstanding in a sub-agent', () => {
     await sleep(600)
     const results = await untilEvents({ rig: a, threadId: childId, type: 'tool-result' })
     expect(results).toMatchObject([{ callId: 'child-bash' }])
-    const parent = await untilEvents({ rig: a, threadId: THREAD_ID, type: 'agent-ended' })
+    const parent = await untilParentDrainsEnding({ rig: a, agentId: childId })
     expect(endingsOf({ events: parent, agentId: childId })).toMatchObject([
       { status: 'finished', prose: CHILD_ANSWER },
     ])
@@ -384,7 +410,7 @@ describe('steering a sub-agent across a handoff', () => {
     await b.holder.start()
     await a.bus.wake(SESSION)
 
-    const parent = await untilEvents({ rig: a, threadId: THREAD_ID, type: 'agent-ended' })
+    const parent = await untilParentDrainsEnding({ rig: a, agentId: childId })
     expect(endingsOf({ events: parent, agentId: childId })).toMatchObject([
       { status: 'finished', prose: CHILD_ANSWER },
     ])
@@ -442,7 +468,7 @@ describe('two host handoffs in a row', () => {
     await c.holder.start()
     await a.bus.wake(SESSION)
 
-    const ended = await untilEvents({ rig: a, threadId: THREAD_ID, type: 'agent-ended' })
+    const ended = await untilParentDrainsEnding({ rig: a, agentId: childId })
     expect(endingsOf({ events: ended, agentId: childId })).toMatchObject([
       { status: 'finished', prose: CHILD_ANSWER },
     ])

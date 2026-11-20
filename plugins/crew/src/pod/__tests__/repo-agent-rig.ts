@@ -142,6 +142,7 @@ export const rig = (args: { nodes?: Record<string, FakeNode>; crew?: PodCrew } =
       },
     },
     append: async () => undefined,
+    notify: async () => undefined,
     events: () => [],
     call: daemon.call,
     live: () => undefined,

@@ -177,11 +177,37 @@ describe('InboxIntake events', () => {
     expect(rig.appends).toHaveLength(before)
   })
 
-  it('stages no pending input for an event, prepared or not', async () => {
+  it('stages an event as an input-posted that carries the event, prepared or not', async () => {
     const rig = rigOf([entryOf({ inboxId: 1, event: prEvent })])
     await rig.intake.logStaged({ prepared: () => true, willDrain: () => false })
-    expect(rig.appends).toEqual([])
+    expect(rig.appends).toEqual([
+      [
+        {
+          type: 'input-posted',
+          inboxId: 1,
+          kind: 'event',
+          postedAt: new Date(NOW).toISOString(),
+          event: prEvent,
+        },
+      ],
+    ])
     await rig.intake.logStaged({ prepared: () => false, willDrain: () => false })
-    expect(rig.appends).toEqual([])
+    expect(rig.appends).toHaveLength(1)
+  })
+
+  it('stages a fresh event while the workspace is unprepared', async () => {
+    const rig = rigOf([entryOf({ inboxId: 2, event: prEvent })])
+    await rig.intake.logStaged({ prepared: () => false, willDrain: () => false })
+    expect(rig.appends).toEqual([
+      [
+        {
+          type: 'input-posted',
+          inboxId: 2,
+          kind: 'event',
+          postedAt: new Date(NOW).toISOString(),
+          event: prEvent,
+        },
+      ],
+    ])
   })
 })

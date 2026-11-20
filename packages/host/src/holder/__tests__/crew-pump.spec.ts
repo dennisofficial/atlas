@@ -154,6 +154,35 @@ const childIdOf = (events: readonly V2Event[]): string => {
   return spawned.agentId
 }
 
+const endingQueued = async (rig: Awaited<ReturnType<typeof makeRig>>): Promise<boolean> =>
+  (await rig.plane.readInbox({ sessionId: SESSION, afterId: 0, limit: 200 })).some(
+    (entry) => entry.kind === 'event' && entry.payload.includes('"agent-ended"'),
+  )
+
+const drainedEnding = async (
+  rig: Awaited<ReturnType<typeof makeRig>>,
+): Promise<readonly string[]> => {
+  const queued = await flushUntil({
+    check: async () => await endingQueued(rig),
+    clock: rig.clock,
+    advanceMs: 60_000,
+    attempts: 200,
+  })
+  if (!queued) return []
+  const notices = (await rig.plane.readInbox({ sessionId: SESSION, afterId: 0, limit: 200 }))
+    .filter((entry) => entry.kind === 'event')
+    .map((entry) => entry.payload)
+  await rig.wake()
+  const appended = await flushUntil({
+    check: async () =>
+      (await eventsIn(rig, THREAD_ID)).some((event) => event.type === 'agent-ended'),
+    clock: rig.clock,
+    advanceMs: 60_000,
+    attempts: 200,
+  })
+  return appended ? notices : []
+}
+
 const saidTexts = (events: readonly V2Event[]): string[] =>
   events.flatMap((event) =>
     event.type === 'assistant-said'
@@ -233,19 +262,12 @@ describe('a sub-agent after its first turn', () => {
 
     await rig.post('spawn one')
     await rig.wake()
-    const ended = await flushUntil({
-      check: async () =>
-        (await eventsIn(rig, THREAD_ID)).some((event) => event.type === 'agent-ended'),
-      clock: rig.clock,
-      advanceMs: 60_000,
-      attempts: 200,
-    })
-    expect(ended).toBe(true)
+    const ended = await drainedEnding(rig)
+    expect(ended).not.toEqual([])
     await rig.flush()
     const childId = childIdOf(await eventsIn(rig, THREAD_ID))
     const before = await eventsIn(rig, childId)
 
-    await rig.wake()
     const idled = await flushUntil({
       check: async () => saidTexts(await eventsIn(rig, THREAD_ID)).length === 2,
       clock: rig.clock,
@@ -276,12 +298,8 @@ describe('a sub-agent after its first turn', () => {
 
     await rig.post('spawn one')
     await rig.wake()
-    const ended = await flushUntil({
-      check: async () =>
-        (await eventsIn(rig, THREAD_ID)).some((event) => event.type === 'agent-ended'),
-      clock: rig.clock,
-    })
-    expect(ended).toBe(true)
+    const notices = await drainedEnding(rig)
+    expect(notices).not.toEqual([])
     const childId = childIdOf(await eventsIn(rig, THREAD_ID))
 
     const parentEvents = await eventsIn(rig, THREAD_ID)
@@ -296,9 +314,12 @@ describe('a sub-agent after its first turn', () => {
     const payloads = inbox.filter((entry) => entry.kind === 'message').map((entry) => entry.payload)
     expect(payloads.filter((payload) => payload.includes(PROGRESS_TEXT))).toEqual([])
     expect(payloads.filter((payload) => payload.includes(childId))).toEqual([])
-    expect(inbox.filter((entry) => entry.kind === 'agent-notice')).toHaveLength(1)
+    expect(inbox.filter((entry) => entry.kind === 'agent-notice')).toEqual([])
+    expect(notices.filter((payload) => payload.includes('"agent-reported"'))).toEqual([])
+    const endings = notices.filter((payload) => payload.includes('"agent-ended"'))
+    expect(endings).toHaveLength(1)
+    expect(endings[0]?.includes('child finished')).toBe(true)
     const said = parentEvents.filter((event) => event.type === 'user-said')
     expect(said.filter((event) => event.via === 'child-agent')).toEqual([])
-    expect(payloads.some((payload) => payload.includes('child finished'))).toBe(false)
   })
 })

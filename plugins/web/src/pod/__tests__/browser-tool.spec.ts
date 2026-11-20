@@ -40,6 +40,7 @@ const ctxOf = (args: {
     crew: {} as never,
     sessions: {} as never,
     worktrees: {} as never,
+    notify: unsupported,
     append: unsupported,
     events: () => [],
     call: async (op, options) => {

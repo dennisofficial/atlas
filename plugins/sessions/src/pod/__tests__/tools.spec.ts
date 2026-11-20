@@ -75,6 +75,7 @@ const rig = (sessions: PodSessions) => {
     sessions,
     crew: EMPTY_CREW,
     worktrees: EMPTY_WORKTREES,
+    notify: async () => undefined,
     control: {
       exposePort: async () => {
         throw new Error('this rig exposes no port')

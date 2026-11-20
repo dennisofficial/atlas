@@ -6,10 +6,10 @@ import {
   failedCheckConclusionLabel,
   reviewCommentPlace,
   stripHtmlComments,
-  type EventOfType,
+  type EventBody,
 } from '@dltech/atlas-core'
 
-type PrEvent = EventOfType<'pr-event'>
+type PrEvent = Extract<EventBody, { type: 'pr-event' }>
 
 const LINE_CLIP = 120
 

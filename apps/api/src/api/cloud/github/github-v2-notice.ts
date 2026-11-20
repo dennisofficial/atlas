@@ -125,7 +125,7 @@ export async function noticeV2Sessions(args: {
     repoFullName: event.repoFullName,
     prNumber: event.prNumber,
   }).first()
-  const payload = inboxEventPayloadOf(prEventBodyOf({ event, tally: state }))
+  const payload = inboxEventPayloadOf({ event: prEventBodyOf({ event, tally: state }) })
   let posted = 0
   for (const target of targets) {
     const claimed = await tx.orm.public.GithubPrEventDelivery.createAndCount(

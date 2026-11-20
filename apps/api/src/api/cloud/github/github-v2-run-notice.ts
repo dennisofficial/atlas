@@ -14,15 +14,17 @@ export async function postRunNoticeV2Sessions(args: {
   const thread = await tx.orm.v2.V2Thread.where({ id: subscription.threadId }).first()
   if (thread === null) return false
   const payload = inboxEventPayloadOf({
-    type: 'run-event',
-    repo: subscription.repoFullName,
-    workflowRunId: Number(args.run.id),
-    workflow: args.run.name,
-    branch: args.run.headBranch,
-    url: args.run.url,
-    status: args.run.status,
-    conclusion: args.run.conclusion ?? '',
-    failedJobs: args.run.failedJobs,
+    event: {
+      type: 'run-event',
+      repo: subscription.repoFullName,
+      workflowRunId: Number(args.run.id),
+      workflow: args.run.name,
+      branch: args.run.headBranch,
+      url: args.run.url,
+      status: args.run.status,
+      conclusion: args.run.conclusion ?? '',
+      failedJobs: args.run.failedJobs,
+    },
   })
   await postInboxEntryIn({
     tx,

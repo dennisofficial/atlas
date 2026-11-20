@@ -2,6 +2,7 @@ import type { HookChainArgs } from '@dltech/atlas-agent'
 import type { TranscriptEntryFold } from '@dltech/atlas-client/transcript'
 import type { CommandHandler, ControlCommandHandler } from '@dltech/atlas-commands'
 import type {
+  EventBody,
   EventDraft,
   PluginEventBody,
   PromptFragment,
@@ -89,6 +90,8 @@ export type PluginPodContext = {
   sessions: PodSessions
   worktrees: PodWorktrees
   append(drafts: readonly (EventDraft | RecordBody | PluginEventBody)[]): Promise<void>
+  /** Delivers a turn-taking notice through the agent's queue. */
+  notify(event: EventBody, options: { key: string }): Promise<void>
   events(): readonly V2Event[]
   call(
     op: CallOp,

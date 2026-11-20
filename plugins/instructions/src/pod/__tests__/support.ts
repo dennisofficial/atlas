@@ -104,6 +104,7 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
     append: async () => undefined,
+    notify: async () => undefined,
     events: () => events,
     call,
     onDaemonEvent: (_listener: (frame: DaemonEventFrame) => void) => () => undefined,

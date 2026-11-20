@@ -1,7 +1,8 @@
 import { z } from 'zod'
 
 import { attachmentSchema } from '../attachments/attachment-schema'
-import { EMessageOrigin } from '../events/body'
+import { EMessageOrigin, type EventBody } from '../events/body'
+import { eventBodySchema } from '../events/schema'
 import { inputMessageSchema, type InputMessage, type InputMessageRowFields } from './input-message'
 
 export const INPUT_KIND_COMMAND_PREFIX = 'command:'
@@ -29,6 +30,7 @@ export type InputPosted = {
   kind: string
   postedAt: string
   message?: InputMessage | undefined
+  event?: EventBody | undefined
   callId?: string | undefined
   sealedValue?: string | undefined
 } & InputMessageRowFields
@@ -63,6 +65,7 @@ export const inputPostedSchema = z.object({
   kind: z.string().min(1),
   postedAt: z.string().min(1),
   message: inputMessageSchema.optional(),
+  event: eventBodySchema.optional(),
   clientId: z.string().min(1).optional(),
   callId: z.string().min(1).optional(),
   sealedValue: z.string().min(1).optional(),

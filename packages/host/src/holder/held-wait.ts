@@ -1,6 +1,6 @@
 import { EInputConsumed, type InboxEntry } from '@dltech/atlas-core'
 
-import { logPendingMessageIdsOf } from './held-inbox'
+import { logPendingInputIdsOf } from './held-inbox'
 import { INBOX_KIND_STOP } from './inbox-intake'
 import type { SessionRecord } from './record/record-adapter'
 import type { HeldSessionDeps } from './held-session-deps'
@@ -23,7 +23,7 @@ export const consumeStops = async (args: {
   }
   const prepared = record.eventCache().bookkeeping().workspace().prepared
   const stopHead = Math.max(0, ...args.entries.filter(isStopEntry).map((entry) => entry.inboxId))
-  const logged = prepared ? [] : logPendingMessageIdsOf(record.eventCache().eventsAfter(0))
+  const logged = prepared ? [] : logPendingInputIdsOf(record.eventCache().eventsAfter(0))
   for (const entry of args.entries) {
     const covered = !prepared && entry.inboxId < stopHead
     if (entry.kind === INBOX_KIND_STOP) {

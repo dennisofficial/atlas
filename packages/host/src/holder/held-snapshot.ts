@@ -15,7 +15,7 @@ import { countRunningShells } from './held-shells'
 import {
   actionableEntries,
   isStop,
-  logPendingMessageIdsOf,
+  logPendingInputIdsOf,
   readFullInbox,
   stopSettledPromptOf,
   understandsCommand,
@@ -73,7 +73,7 @@ export const readHeldAction = async (args: {
   const resumeEvents = cache?.loopEventsAfter(args.resumeAfterSeq) ?? []
   const entries = await readFullInbox(deps)
   const resolvable = entries.filter((entry) => understandsCommand(deps, entry))
-  const logIds = logPendingMessageIdsOf(events)
+  const logIds = logPendingInputIdsOf(events)
   const workspace = workspaceStateFrom({
     record: args.record?.eventCache().bookkeeping().workspace() ?? NO_WORKSPACE_RECORD,
     preparing: args.preparing,

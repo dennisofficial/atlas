@@ -103,6 +103,7 @@ export const rig = (memory: PodMemory = fakeMemory().port) => {
       memory,
     },
     append: async () => undefined,
+    notify: async () => undefined,
     events: () => [],
     call: async () => {
       throw new Error('this rig calls no daemon')

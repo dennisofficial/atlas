@@ -1,5 +1,10 @@
 import { HookChain, LoopTurnRunner, type AgentIntake } from '@dltech/atlas-agent'
-import { modelFacingDeclarationsOf, type ThreadId, type ModelRef } from '@dltech/atlas-core'
+import {
+  modelFacingDeclarationsOf,
+  type EventBody,
+  type ThreadId,
+  type ModelRef,
+} from '@dltech/atlas-core'
 import type { PodCrew } from '@dltech/atlas-plugin-sdk'
 
 import { ScopedToolDispatcher } from '../../calls/call-scope'
@@ -22,6 +27,7 @@ export const childRunnerOf = (args: {
   signal: AbortSignal
   crew: PodCrew
   intake: AgentIntake
+  notify(event: EventBody): Promise<void>
   isDraining(): boolean
   onFallback?: ((refs: { from: ModelRef; to: ModelRef }) => void | Promise<void>) | undefined
 }): LoopTurnRunner => {
@@ -33,6 +39,7 @@ export const childRunnerOf = (args: {
     threadId: args.agentId,
     signal: args.signal,
     crew: args.crew,
+    notify: (event) => args.notify(event),
   })
   const registry = new DeniedToolRegistry(
     pluginToolsOf({ runtime, ctx }),

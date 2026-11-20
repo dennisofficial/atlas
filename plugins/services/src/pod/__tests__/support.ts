@@ -1,6 +1,7 @@
 import { podControlStub } from '@dltech/atlas-plugin-sdk/testing'
 import {
   toThreadId,
+  type EventBody,
   type EventDraft,
   type PluginEventBody,
   type RecordBody,
@@ -82,6 +83,7 @@ export const rig = (options: { control?: PodControl; env?: Record<string, string
     }
   }
 
+  const notices: { event: EventBody; key: string }[] = []
   const ctx: PluginPodContext = {
     control: options.control ?? podControlStub,
     crew: EMPTY_CREW,
@@ -89,6 +91,9 @@ export const rig = (options: { control?: PodControl; env?: Record<string, string
     worktrees: EMPTY_WORKTREES,
     sessionId: 's1',
     append,
+    notify: async (event, options) => {
+      notices.push({ event, key: options.key })
+    },
     events: () => log,
     call,
     live: () => undefined,
@@ -100,7 +105,7 @@ export const rig = (options: { control?: PodControl; env?: Record<string, string
     ...(options.env === undefined ? {} : { env: async () => options.env ?? {} }),
   }
 
-  return { ctx, log, calls, listeners, fs }
+  return { ctx, log, calls, listeners, fs, notices }
 }
 
 export const writeDeclared = (harness: { fs: MemoryFileSystem }, content: string): void => {

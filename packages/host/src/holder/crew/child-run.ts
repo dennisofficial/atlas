@@ -3,6 +3,7 @@ import {
   EKilledBy,
   EReportKind,
   finishedTurnOf,
+  type EventBody,
   isResumableOf,
   saidBody,
   type ThreadId,
@@ -26,7 +27,8 @@ import {
 import { DRAIN_IN_FLIGHT_CAP_MS } from '../drain-cap'
 import { childRunnerOf } from './child-runner'
 import { ChildTranscript } from './child-transcript'
-import { driveTurns, type DriveArgs } from './child-turns'
+import { driveLifecycle, type DriveArgs } from './child-turns'
+import { lastSeqOf } from './child-reports'
 import {
   adoptRecordOf,
   childRecordOf,
@@ -73,6 +75,7 @@ export class ChildRun {
       agentId,
       agentType: args.agentType,
       intent: args.intent,
+      lastSeq: () => lastSeqOf(this.record.eventCache().eventsAfter(0)),
     })
   }
 
@@ -138,6 +141,11 @@ export class ChildRun {
     }
     this.begin({ text, restart: this.ending !== undefined })
     return { queued: false, snapshot: this.snapshot() }
+  }
+
+  async notice(event: EventBody): Promise<void> {
+    this.intake.accept(event)
+    if (this.pump === undefined) this.begin({ resume: true })
   }
 
   continueTurn(): void {
@@ -237,11 +245,6 @@ export class ChildRun {
     const abort = new AbortController()
     this.listeners = listeners
     this.abort = abort
-    this.stopping = false
-    this.ending = undefined
-    this.endedAt = undefined
-    this.killedBy = undefined
-    this.failure = undefined
     try {
       this.runner = childRunnerOf({
         deps: this.args.deps,
@@ -252,10 +255,11 @@ export class ChildRun {
         signal: listeners.signal,
         crew: this.port(),
         intake: this.intake,
+        notify: (event) => this.notice(event),
         isDraining: () => this.handingOff,
         onFallback: (refs) => this.transcript.fellBack(refs),
       })
-      const outcome = await driveTurns({
+      await driveLifecycle({
         drive,
         runner: this.runner,
         intake: this.intake,
@@ -264,8 +268,11 @@ export class ChildRun {
         signal: abort.signal,
         stopped: () => this.stopping,
         restarted: (via) => this.transcript.restarted({ via }),
+        owedTurn: () => !this.stopping && this.intake.pending > 0,
+        handingOff: () => this.handingOff,
+        reset: () => this.resetDrive(),
+        settle: (outcome) => this.settle(outcome),
       })
-      await this.settle(outcome)
     } catch (error) {
       await this.settleFailure(error)
     } finally {
@@ -274,6 +281,14 @@ export class ChildRun {
       this.listeners = undefined
       listeners.abort()
     }
+  }
+
+  private resetDrive(): void {
+    this.stopping = false
+    this.ending = undefined
+    this.endedAt = undefined
+    this.killedBy = undefined
+    this.failure = undefined
   }
 
   private async settle(outcome: TurnOutcome): Promise<void> {
