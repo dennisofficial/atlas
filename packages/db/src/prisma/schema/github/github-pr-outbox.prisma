@@ -16,5 +16,7 @@ model GithubPrOutbox {
   attempts       Int                  @default(0)
   lastError      String?
 
-  @@index([dispatchedAt, createdAt], map: "GithubPrOutbox_pending_idx")
+  @@index([createdAt], name: "GithubPrOutbox_pending_idx", where: sql`("dispatchedAt" IS NULL AND "deadLetteredAt" IS NULL)`)
+  @@index([parkedSince], name: "GithubPrOutbox_parked_idx", where: sql`("dispatchedAt" IS NULL AND "deadLetteredAt" IS NULL AND "parkedSince" IS NOT NULL)`)
+  @@index([nextAttemptAt], name: "GithubPrOutbox_retry_idx", where: sql`("dispatchedAt" IS NULL AND "deadLetteredAt" IS NULL AND "nextAttemptAt" IS NOT NULL)`)
 }

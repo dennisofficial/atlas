@@ -4154,7 +4154,7 @@
                 }
               },
               "payload": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/jsonb@1",
                   "kind": "scalar"
@@ -13573,11 +13573,30 @@
               "indexes": [
                 {
                   "columns": [
-                    "dispatchedAt",
+                    "parkedSince"
+                  ],
+                  "name": "GithubPrOutbox_parked_idx_420727ba",
+                  "prefix": "GithubPrOutbox_parked_idx",
+                  "unique": false,
+                  "where": "(\"dispatchedAt\" IS NULL AND \"deadLetteredAt\" IS NULL AND \"parkedSince\" IS NOT NULL)"
+                },
+                {
+                  "columns": [
                     "createdAt"
                   ],
-                  "name": "GithubPrOutbox_pending_idx",
-                  "unique": false
+                  "name": "GithubPrOutbox_pending_idx_93d474b5",
+                  "prefix": "GithubPrOutbox_pending_idx",
+                  "unique": false,
+                  "where": "(\"dispatchedAt\" IS NULL AND \"deadLetteredAt\" IS NULL)"
+                },
+                {
+                  "columns": [
+                    "nextAttemptAt"
+                  ],
+                  "name": "GithubPrOutbox_retry_idx_ceb33cdb",
+                  "prefix": "GithubPrOutbox_retry_idx",
+                  "unique": false,
+                  "where": "(\"dispatchedAt\" IS NULL AND \"deadLetteredAt\" IS NULL AND \"nextAttemptAt\" IS NOT NULL)"
                 }
               ],
               "primaryKey": {
@@ -14277,13 +14296,6 @@
               "indexes": [
                 {
                   "columns": [
-                    "liveUntil"
-                  ],
-                  "name": "GithubTrackingTarget_liveUntil_idx",
-                  "unique": false
-                },
-                {
-                  "columns": [
                     "liveUntil",
                     "nextDueAt"
                   ],
@@ -14372,7 +14384,7 @@
                 "payload": {
                   "codecId": "pg/jsonb@1",
                   "dataType": "pg/jsonb",
-                  "nullable": false
+                  "nullable": true
                 },
                 "processedAt": {
                   "codecId": "pg/timestamptz-date@1",
@@ -14402,15 +14414,28 @@
                   "columns": [
                     "deadAt"
                   ],
-                  "name": "GithubWebhookInbox_deadAt_idx",
-                  "unique": false
+                  "name": "GithubWebhookInbox_deadAt_idx_fcda36f6",
+                  "prefix": "GithubWebhookInbox_deadAt_idx",
+                  "unique": false,
+                  "where": "(\"deadAt\" IS NOT NULL)"
+                },
+                {
+                  "columns": [
+                    "receivedAt"
+                  ],
+                  "name": "GithubWebhookInbox_due_idx_c3c7694b",
+                  "prefix": "GithubWebhookInbox_due_idx",
+                  "unique": false,
+                  "where": "(\"processedAt\" IS NULL AND \"deadAt\" IS NULL)"
                 },
                 {
                   "columns": [
                     "processedAt"
                   ],
-                  "name": "GithubWebhookInbox_processedAt_idx",
-                  "unique": false
+                  "name": "GithubWebhookInbox_processedAt_idx_be4956e2",
+                  "prefix": "GithubWebhookInbox_processedAt_idx",
+                  "unique": false,
+                  "where": "(\"processedAt\" IS NOT NULL)"
                 }
               ],
               "primaryKey": {
@@ -18544,7 +18569,7 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "V2SandboxRun_sessionId_idx_29f415d4"
+                    "name": "V2SandboxRun_sessionId_startedAt_idx_e70936f3"
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
@@ -18565,14 +18590,6 @@
                 }
               ],
               "indexes": [
-                {
-                  "columns": [
-                    "sessionId"
-                  ],
-                  "name": "V2SandboxRun_sessionId_idx_29f415d4",
-                  "prefix": "V2SandboxRun_sessionId_idx",
-                  "unique": false
-                },
                 {
                   "columns": [
                     "sessionId",
@@ -18799,6 +18816,14 @@
               "indexes": [
                 {
                   "columns": [
+                    "mainThreadId"
+                  ],
+                  "name": "V2Session_mainThreadId_idx_60785a54",
+                  "prefix": "V2Session_mainThreadId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
                     "sandboxInstanceId"
                   ],
                   "name": "V2Session_sandboxInstanceId_idx_c3850fdd",
@@ -18856,7 +18881,7 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "V2SessionBranch_sessionId_idx_29f415d4"
+                    "primaryKey": true
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
@@ -18885,14 +18910,6 @@
                   "name": "V2SessionBranch_headRepo_branch_idx_2f926fb3",
                   "prefix": "V2SessionBranch_headRepo_branch_idx",
                   "unique": false
-                },
-                {
-                  "columns": [
-                    "sessionId"
-                  ],
-                  "name": "V2SessionBranch_sessionId_idx_29f415d4",
-                  "prefix": "V2SessionBranch_sessionId_idx",
-                  "unique": false
                 }
               ],
               "primaryKey": {
@@ -18900,7 +18917,8 @@
                   "sessionId",
                   "headRepo",
                   "branch"
-                ]
+                ],
+                "name": "V2SessionBranch_pkey"
               },
               "uniques": []
             },
@@ -19115,7 +19133,7 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "V2Terminal_sessionId_idx_29f415d4"
+                    "primaryKey": true
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
@@ -19135,21 +19153,13 @@
                   }
                 }
               ],
-              "indexes": [
-                {
-                  "columns": [
-                    "sessionId"
-                  ],
-                  "name": "V2Terminal_sessionId_idx_29f415d4",
-                  "prefix": "V2Terminal_sessionId_idx",
-                  "unique": false
-                }
-              ],
+              "indexes": [],
               "primaryKey": {
                 "columns": [
                   "sessionId",
                   "terminalId"
-                ]
+                ],
+                "name": "V2Terminal_pkey"
               },
               "uniques": [
                 {
@@ -19425,7 +19435,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "76eef62c5f7a890871af1fa51b0bb2ffd26177915dc65c8049fb3f48c52e8607"
+    "storageHash": "5e85d8cdcd62571cf9e061d2d249db49c7b6c39f6d336e6cb5e8b35a04d52b4b"
   },
   "execution": {
     "executionHash": "4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45",

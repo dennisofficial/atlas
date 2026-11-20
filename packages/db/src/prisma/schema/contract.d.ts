@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'76eef62c5f7a890871af1fa51b0bb2ffd26177915dc65c8049fb3f48c52e8607'>;
+  StorageHashBase<'5e85d8cdcd62571cf9e061d2d249db49c7b6c39f6d336e6cb5e8b35a04d52b4b'>;
 export type ExecutionHash =
   ExecutionHashBase<'4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45'>;
 export type ProfileHash =
@@ -3621,8 +3621,24 @@ type ContractBase = Omit<
               uniques: readonly [{ readonly columns: readonly ['dedupeKey'] }];
               indexes: readonly [
                 {
-                  readonly name: 'GithubPrOutbox_pending_idx';
-                  readonly columns: readonly ['dispatchedAt', 'createdAt'];
+                  readonly name: 'GithubPrOutbox_parked_idx_420727ba';
+                  readonly prefix: 'GithubPrOutbox_parked_idx';
+                  readonly columns: readonly ['parkedSince'];
+                  readonly where: '("dispatchedAt" IS NULL AND "deadLetteredAt" IS NULL AND "parkedSince" IS NOT NULL)';
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'GithubPrOutbox_pending_idx_93d474b5';
+                  readonly prefix: 'GithubPrOutbox_pending_idx';
+                  readonly columns: readonly ['createdAt'];
+                  readonly where: '("dispatchedAt" IS NULL AND "deadLetteredAt" IS NULL)';
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'GithubPrOutbox_retry_idx_ceb33cdb';
+                  readonly prefix: 'GithubPrOutbox_retry_idx';
+                  readonly columns: readonly ['nextAttemptAt'];
+                  readonly where: '("dispatchedAt" IS NULL AND "deadLetteredAt" IS NULL AND "nextAttemptAt" IS NOT NULL)';
                   readonly unique: false;
                 },
               ];
@@ -4221,11 +4237,6 @@ type ContractBase = Omit<
               ];
               indexes: readonly [
                 {
-                  readonly name: 'GithubTrackingTarget_liveUntil_idx';
-                  readonly columns: readonly ['liveUntil'];
-                  readonly unique: false;
-                },
-                {
                   readonly name: 'GithubTrackingTarget_liveUntil_nextDueAt_idx';
                   readonly columns: readonly ['liveUntil', 'nextDueAt'];
                   readonly unique: false;
@@ -4304,7 +4315,7 @@ type ContractBase = Omit<
                 readonly payload: {
                   readonly dataType: 'pg/jsonb';
                   readonly codecId: 'pg/jsonb@1';
-                  readonly nullable: false;
+                  readonly nullable: true;
                   readonly many: false;
                 };
                 readonly processedAt: {
@@ -4332,13 +4343,24 @@ type ContractBase = Omit<
               uniques: readonly [];
               indexes: readonly [
                 {
-                  readonly name: 'GithubWebhookInbox_deadAt_idx';
+                  readonly name: 'GithubWebhookInbox_deadAt_idx_fcda36f6';
+                  readonly prefix: 'GithubWebhookInbox_deadAt_idx';
                   readonly columns: readonly ['deadAt'];
+                  readonly where: '("deadAt" IS NOT NULL)';
                   readonly unique: false;
                 },
                 {
-                  readonly name: 'GithubWebhookInbox_processedAt_idx';
+                  readonly name: 'GithubWebhookInbox_due_idx_c3c7694b';
+                  readonly prefix: 'GithubWebhookInbox_due_idx';
+                  readonly columns: readonly ['receivedAt'];
+                  readonly where: '("processedAt" IS NULL AND "deadAt" IS NULL)';
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'GithubWebhookInbox_processedAt_idx_be4956e2';
+                  readonly prefix: 'GithubWebhookInbox_processedAt_idx';
                   readonly columns: readonly ['processedAt'];
+                  readonly where: '("processedAt" IS NOT NULL)';
                   readonly unique: false;
                 },
               ];
@@ -7794,12 +7816,6 @@ type ContractBase = Omit<
               uniques: readonly [];
               indexes: readonly [
                 {
-                  readonly name: 'V2SandboxRun_sessionId_idx_29f415d4';
-                  readonly prefix: 'V2SandboxRun_sessionId_idx';
-                  readonly columns: readonly ['sessionId'];
-                  readonly unique: false;
-                },
-                {
                   readonly name: 'V2SandboxRun_sessionId_startedAt_idx_e70936f3';
                   readonly prefix: 'V2SandboxRun_sessionId_startedAt_idx';
                   readonly columns: readonly ['sessionId', 'startedAt'];
@@ -8046,6 +8062,12 @@ type ContractBase = Omit<
               uniques: readonly [];
               indexes: readonly [
                 {
+                  readonly name: 'V2Session_mainThreadId_idx_60785a54';
+                  readonly prefix: 'V2Session_mainThreadId_idx';
+                  readonly columns: readonly ['mainThreadId'];
+                  readonly unique: false;
+                },
+                {
                   readonly name: 'V2Session_sandboxInstanceId_idx_c3850fdd';
                   readonly prefix: 'V2Session_sandboxInstanceId_idx';
                   readonly columns: readonly ['sandboxInstanceId'];
@@ -8094,19 +8116,16 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
               };
-              primaryKey: { readonly columns: readonly ['sessionId', 'headRepo', 'branch'] };
+              primaryKey: {
+                readonly columns: readonly ['sessionId', 'headRepo', 'branch'];
+                readonly name: 'V2SessionBranch_pkey';
+              };
               uniques: readonly [];
               indexes: readonly [
                 {
                   readonly name: 'V2SessionBranch_headRepo_branch_idx_2f926fb3';
                   readonly prefix: 'V2SessionBranch_headRepo_branch_idx';
                   readonly columns: readonly ['headRepo', 'branch'];
-                  readonly unique: false;
-                },
-                {
-                  readonly name: 'V2SessionBranch_sessionId_idx_29f415d4';
-                  readonly prefix: 'V2SessionBranch_sessionId_idx';
-                  readonly columns: readonly ['sessionId'];
                   readonly unique: false;
                 },
               ];
@@ -8300,16 +8319,12 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
               };
-              primaryKey: { readonly columns: readonly ['sessionId', 'terminalId'] };
+              primaryKey: {
+                readonly columns: readonly ['sessionId', 'terminalId'];
+                readonly name: 'V2Terminal_pkey';
+              };
               uniques: readonly [{ readonly columns: readonly ['sessionId', 'ordinal'] }];
-              indexes: readonly [
-                {
-                  readonly name: 'V2Terminal_sessionId_idx_29f415d4';
-                  readonly prefix: 'V2Terminal_sessionId_idx';
-                  readonly columns: readonly ['sessionId'];
-                  readonly unique: false;
-                },
-              ];
+              indexes: readonly [];
               foreignKeys: readonly [
                 {
                   readonly source: {
@@ -11104,7 +11119,7 @@ type ContractBase = Omit<
                 };
               };
               readonly payload: {
-                readonly nullable: false;
+                readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
               };
               readonly processedAt: {
