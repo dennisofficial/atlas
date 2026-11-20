@@ -39,4 +39,4 @@
 - No open Dup unifier or abstraction-routine PRs; the only open PR (#2465) touches none of these files.
 - Unified `oneLine` (5 identical copies → core `text/one-line.ts`). Pinned with a core spec plus new tui crew failure-line and lost-shells specs; mutation-checked (no newline fold, no trim).
 - Added backlog item 2: inline copies that can now call core `oneLine`.
-- CI: two `app-project-resolution` specs were red on clean main (fixture missed #2423's tRPC body decoding); fixed in the same PR.
+- CI: 4 tui specs red on clean main, unseen by incremental CI: `app-project-resolution` (2) and `live-pod` missed #2423 body decoding; `pr-event-entry` missed #2408 wording. Fixed here.
