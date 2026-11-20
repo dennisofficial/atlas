@@ -140,11 +140,15 @@ export type SubscriptionSubject =
   | { kind: 'pull-request'; number: number }
   | { kind: 'workflow-run'; selector: string }
 
-export type SubscriptionLease = {
+export type SubscriptionLeaseKey = {
   userId: string
   threadId: string
   repo: string
   subject: SubscriptionSubject
+}
+
+export type SubscriptionLease = SubscriptionLeaseKey & {
+  events: readonly string[]
 }
 
 export const subscriptionSubjectKey = (subject: SubscriptionSubject): string =>
@@ -364,7 +368,7 @@ export interface ControlTx {
   sessionsTrackingPullRequest(pullRequest: PrRef): Promise<string[]>
   readTrackedPullRequests(sessionIds: readonly string[]): Promise<TrackedPullRequestRow[]>
   upsertSubscriptionLease(params: SubscriptionLease & { expiresAt: string }): Promise<void>
-  deleteSubscriptionLease(params: SubscriptionLease): Promise<boolean>
+  deleteSubscriptionLease(params: SubscriptionLeaseKey): Promise<boolean>
   upsertTrackingTarget(params: TrackingTarget): Promise<void>
   hostPresent(hostId: number): Promise<boolean>
   hostsPresent(hostIds: readonly number[]): Promise<ReadonlySet<number>>

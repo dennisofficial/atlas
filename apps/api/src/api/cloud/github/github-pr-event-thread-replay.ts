@@ -1,5 +1,6 @@
 import { db, type Row } from '@dltech/atlas-db'
 import { PARK_WAKE_WINDOW_MS } from './github-delivery-routing'
+import { wantsPrEvent } from './github-event-filter'
 import { eventDtoOf, REPLAY_LEASE_MS } from './github-pr-event-mailbox.service'
 import { claimDeliveries } from './github-pr-event-claim'
 import { teammateThreadIds } from '../../platform/sessions/thread-subscriptions'
@@ -68,7 +69,9 @@ async function replayLinked(args: {
     })
       .where((event) => event.createdAt.gte(since))
       .all()
-    candidates.push(...rows)
+    candidates.push(
+      ...rows.filter((row) => wantsPrEvent({ events: subscription.events, kind: row.kind })),
+    )
   }
   if (candidates.length === 0) return []
 

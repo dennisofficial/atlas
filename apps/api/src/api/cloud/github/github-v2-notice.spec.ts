@@ -10,7 +10,12 @@ import {
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
-import { prEventRows, seedPrState, seedSubscription } from '../../../../test/github-seed'
+import {
+  prEventRows,
+  seedPrEvent,
+  seedPrState,
+  seedSubscription,
+} from '../../../../test/github-seed'
 import { seedHeadChecks } from './github-pr-checks.fixture'
 import {
   CHECK_SUITE_PAYLOAD,
@@ -65,7 +70,9 @@ describe('v2 session notice for a PR event', () => {
       }),
     })
 
-  const seedWatchedPr = async (over: { threadId?: string; liveUntil?: Date } = {}) => {
+  const seedWatchedPr = async (
+    over: { threadId?: string; liveUntil?: Date; events?: readonly string[] } = {},
+  ) => {
     await seedHook({ createdBy: 'usr-creator' })
     await seedSubscription({
       userId: 'usr-a',
@@ -73,8 +80,15 @@ describe('v2 session notice for a PR event', () => {
       branch: '#42',
       threadId: over.threadId ?? THREAD,
       ...(over.liveUntil === undefined ? {} : { liveUntil: over.liveUntil }),
+      ...(over.events === undefined ? {} : { events: [...over.events] }),
     })
     await seedPrState({ ...FILLED_PR_STATE, checksRunning: 1, checksPassed: 0 })
+  }
+
+  const noticeOf = async (kind: string): Promise<number> => {
+    const event = await seedPrEvent({ userId: 'usr-a', kind })
+    const { noticeV2Sessions } = await import('./github-v2-notice')
+    return db.transaction((tx) => noticeV2Sessions({ tx, event }))
   }
 
   it('posts one event naming the PR, its checks tally and its mergeability', async () => {
@@ -154,5 +168,39 @@ describe('v2 session notice for a PR event', () => {
 
     expect(await inboxOf(SESSION)).toEqual([])
     expect(await prEventRows()).toHaveLength(1)
+  })
+
+  it('notifies a subscription filtered to state when the pull request reaches a state', async () => {
+    await seedWatchedPr({ events: ['state'] })
+
+    expect(await noticeOf('state')).toBe(1)
+    expect(await inboxOf(SESSION)).toHaveLength(1)
+  })
+
+  it('says nothing to a subscription that filtered the kind out', async () => {
+    await seedWatchedPr({ events: ['state'] })
+
+    expect(await noticeOf('comment')).toBe(0)
+    expect(await noticeOf('verdict')).toBe(0)
+    expect(await inboxOf(SESSION)).toEqual([])
+  })
+
+  it('notifies a subscription with no filter about every kind', async () => {
+    await seedWatchedPr()
+
+    expect(await noticeOf('comment')).toBe(1)
+    expect(await noticeOf('verdict')).toBe(1)
+  })
+
+  it('notifies a thread that holds one wanting row and one filtered-out row', async () => {
+    await seedWatchedPr({ events: ['state'] })
+    await seedSubscription({
+      userId: 'usr-a',
+      prNumber: 42,
+      branch: '#42-alt',
+      threadId: THREAD,
+    })
+
+    expect(await noticeOf('comment')).toBe(1)
   })
 })

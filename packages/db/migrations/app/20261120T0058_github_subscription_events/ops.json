@@ -1,0 +1,107 @@
+[
+  {
+    "id": "column.public.GithubSubscription.events",
+    "label": "Add column \"events\" to \"GithubSubscription\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "events",
+        "table": "GithubSubscription"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"events\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubSubscription",
+          "events"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"events\"",
+        "sql": "ALTER TABLE \"public\".\"GithubSubscription\" ADD COLUMN \"events\" text[] DEFAULT '{}' NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"events\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubSubscription",
+          "events"
+        ]
+      },
+      {
+        "description": "verify column \"events\" has type \"text[]\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "GithubSubscription",
+          "events",
+          "text[]"
+        ]
+      },
+      {
+        "description": "verify column \"events\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "GithubSubscription",
+          "events",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.GithubSubscription.GithubSubscription_events_elem_not_null_3fea1ac8",
+    "label": "Add check constraint \"GithubSubscription_events_elem_not_null_3fea1ac8\" on \"GithubSubscription\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "GithubSubscription_events_elem_not_null_3fea1ac8",
+        "table": "GithubSubscription"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"GithubSubscription_events_elem_not_null_3fea1ac8\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "GithubSubscription_events_elem_not_null_3fea1ac8",
+          "public",
+          "\"public\".\"GithubSubscription\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"GithubSubscription_events_elem_not_null_3fea1ac8\"",
+        "sql": "ALTER TABLE \"public\".\"GithubSubscription\" ADD CONSTRAINT \"GithubSubscription_events_elem_not_null_3fea1ac8\" CHECK (array_position(\"events\", NULL) IS NULL)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify check constraint \"GithubSubscription_events_elem_not_null_3fea1ac8\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4)) AS \"result\"",
+        "params": [
+          "GithubSubscription_events_elem_not_null_3fea1ac8",
+          "public",
+          "\"public\".\"GithubSubscription\"",
+          "c"
+        ]
+      }
+    ]
+  }
+]

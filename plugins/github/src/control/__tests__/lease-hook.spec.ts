@@ -26,6 +26,7 @@ const created = (args: {
   provider?: string
   target?: unknown
   expiresAt?: string
+  events?: readonly string[]
 }): V2Body => ({
   type: 'subscription-created',
   subscriptionId: args.id,
@@ -37,6 +38,7 @@ const created = (args: {
   label: 'dltech/atlas#7',
   createdBy: ESubscriptionActor.Agent,
   ...(args.expiresAt === undefined ? {} : { expiresAt: args.expiresAt }),
+  ...(args.events === undefined ? {} : { events: args.events }),
 })
 
 const ended = (id: string): V2Body => ({
@@ -127,6 +129,14 @@ describe('github subscription lease hook on append (postgres)', () => {
     )
   })
 
+  it('writes the events filter on create and on a later re-subscribe', async () => {
+    const { append, rows } = await setup()
+    await append([created({ id: 'a', events: ['state', 'ci'] })])
+    expect((await rows())[0]?.events).toEqual(['state', 'ci'])
+    await append([created({ id: 'a', events: ['state'] })])
+    expect((await rows())[0]?.events).toEqual(['state'])
+  })
+
   it('is idempotent for a second subscription to the same pull request', async () => {
     const { append, rows } = await setup()
     await append([created({ id: 'a' })])
@@ -208,11 +218,20 @@ describe('github subscription lease on append (memory)', () => {
         threadId: THREAD,
         repo: 'github.com/dltech/atlas',
         subject: { kind: 'pull-request', number: 7 },
+        events: [],
         expiresAt: new Date(Date.parse(AT) + DEFAULT_SUBSCRIPTION_TTL_MS).toISOString(),
       },
     ])
     await append([ended('p')])
     expect(leases()).toEqual([])
+  })
+
+  it('keeps the events filter on the lease and clears it on a re-subscribe without one', async () => {
+    const { append, leases } = await planeWith()
+    await append([created({ id: 'p', events: ['state'] })])
+    expect(leases()[0]?.events).toEqual(['state'])
+    await append([created({ id: 'p' })])
+    expect(leases()[0]?.events).toEqual([])
   })
 
   it('leases a pinned run and removes it when the subscription ends', async () => {

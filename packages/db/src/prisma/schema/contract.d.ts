@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'f7543aa4035670134d8a1239a96708503be0cb7ff56d300ae497ebe2fbdfca19'>;
+  StorageHashBase<'47438aeb553b3ddbb60cfc40385b576cfe9ad65d699dfcb1063c5ca3f661d657'>;
 export type ExecutionHash =
   ExecutionHashBase<'4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45'>;
 export type ProfileHash =
@@ -663,6 +663,7 @@ export namespace Models {
     branch: FieldOutputTypes['public']['GithubSubscription']['branch'];
     createdAt: FieldOutputTypes['public']['GithubSubscription']['createdAt'];
     deliveredRunId: FieldOutputTypes['public']['GithubSubscription']['deliveredRunId'];
+    events: FieldOutputTypes['public']['GithubSubscription']['events'];
     expiresAt: FieldOutputTypes['public']['GithubSubscription']['expiresAt'];
     id: FieldOutputTypes['public']['GithubSubscription']['id'];
     kind: FieldOutputTypes['public']['GithubSubscription']['kind'];
@@ -3937,6 +3938,16 @@ type ContractBase = Omit<
                     readonly value: DefaultLiteralValue<'pg/text@1', ''>;
                   };
                   readonly many: false;
+                };
+                readonly events: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', readonly []>;
+                  };
+                  readonly many: { readonly elementNullable: false };
                 };
                 readonly expiresAt: {
                   readonly dataType: 'pg/timestamptz';
@@ -10683,6 +10694,11 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly events: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+                readonly many: { readonly elementNullable: false };
+              };
               readonly expiresAt: {
                 readonly nullable: false;
                 readonly type: {
@@ -10754,6 +10770,7 @@ type ContractBase = Omit<
                 readonly branch: { readonly column: 'branch' };
                 readonly createdAt: { readonly column: 'createdAt' };
                 readonly deliveredRunId: { readonly column: 'deliveredRunId' };
+                readonly events: { readonly column: 'events' };
                 readonly expiresAt: { readonly column: 'expiresAt' };
                 readonly id: { readonly column: 'id' };
                 readonly kind: { readonly column: 'kind' };

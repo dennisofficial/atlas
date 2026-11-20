@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common'
-import { and, db, or } from '@dltech/atlas-db'
+import { and, db, or, type Row } from '@dltech/atlas-db'
 import { editExcerptOf } from './github-comment-edit-excerpt'
 import { subscriptionLiveWhere } from './github-delivery-routing'
+import { wantsPrEvent } from './github-event-filter'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { reviewCommentLocationOf } from './github-review-comment-location'
 import { EPrEventKind, type GithubPrEventPayload } from './github-realtime.types'
@@ -113,6 +114,7 @@ export class GithubPrDiscussionDeliveryService {
     const userIds = await this.resolveSubscribers({
       repoFullName: args.repoFullName,
       prNumber: args.prNumber,
+      kind: args.kind,
     })
     if (userIds.length === 0) return
     await this.mailbox.record({
@@ -128,6 +130,7 @@ export class GithubPrDiscussionDeliveryService {
   private async resolveSubscribers(args: {
     repoFullName: string
     prNumber: number
+    kind: EPrEventKind
   }): Promise<string[]> {
     const subscribers = await db.orm.public.GithubSubscription.where({
       repoFullName: args.repoFullName,
@@ -143,19 +146,33 @@ export class GithubPrDiscussionDeliveryService {
     const branches = subscribers
       .filter((subscriber) => subscriber.prNumber === null)
       .map((subscriber) => subscriber.branch)
-    if (branches.length === 0) {
-      return [...new Set(subscribers.map((subscriber) => subscriber.userId))]
-    }
+    const matched =
+      branches.length === 0
+        ? subscribers
+        : await this.subscribersOnHeadBranch({
+            repoFullName: args.repoFullName,
+            subscribers,
+            prNumber: args.prNumber,
+          })
+    const wanted = matched.filter((subscriber) =>
+      wantsPrEvent({ events: subscriber.events, kind: args.kind }),
+    )
+    return [...new Set(wanted.map((subscriber) => subscriber.userId))]
+  }
 
+  private async subscribersOnHeadBranch(args: {
+    repoFullName: string
+    subscribers: Row<'GithubSubscription'>[]
+    prNumber: number
+  }): Promise<Row<'GithubSubscription'>[]> {
     const head = await db.orm.public.GithubPrState.first({
       repoFullName: args.repoFullName,
       prNumber: args.prNumber,
     })
-    const matched = subscribers.filter(
+    return args.subscribers.filter(
       (subscriber) =>
         subscriber.prNumber === args.prNumber ||
         (head !== null && subscriber.branch === head.headBranch),
     )
-    return [...new Set(matched.map((subscriber) => subscriber.userId))]
   }
 }

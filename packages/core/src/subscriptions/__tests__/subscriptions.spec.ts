@@ -17,6 +17,7 @@ const created = (over: {
   id: string
   at?: string
   thread?: string
+  events?: readonly string[]
 }): [EventDraft, string, string] => [
   {
     type: 'subscription-created',
@@ -26,6 +27,7 @@ const created = (over: {
     label: `PR ${over.id}`,
     createdBy: ESubscriptionActor.Agent,
     expiresAt: '2026-10-29T00:00:00.000Z',
+    ...(over.events === undefined ? {} : { events: over.events }),
   },
   over.thread ?? 'thread-a',
   over.at ?? '2026-10-28T10:00:00.000Z',
@@ -76,8 +78,17 @@ describe('subscriptionsOf', () => {
       createdBy: ESubscriptionActor.Agent,
       status: ESubscriptionStatus.Active,
       expiresAt: '2026-10-29T00:00:00.000Z',
+      events: [],
       createdAt: '2026-10-28T09:00:00.000Z',
     })
+  })
+
+  it('keeps the events a subscription was created with, and none when it names none', () => {
+    const live = subscriptionsOf(
+      stamp([created({ id: 's1', events: ['state'] }), created({ id: 's2' })]),
+    )
+
+    expect(live.map((subscription) => subscription.events)).toEqual([['state'], []])
   })
 
   it('pauses and resumes', () => {

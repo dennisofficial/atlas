@@ -18,6 +18,7 @@ export const subscriptionRowSchema = z.object({
   createdBy: z.enum(ESubscriptionActor),
   status: z.enum(ESubscriptionStatus),
   expiresAt: z.string().optional(),
+  events: z.array(z.string()).readonly().default([]),
   createdAt: z.string(),
 })
 
@@ -40,6 +41,7 @@ export const foldSubscriptions = (
       createdBy: event.createdBy,
       status: ESubscriptionStatus.Active,
       ...(event.expiresAt === undefined ? {} : { expiresAt: event.expiresAt }),
+      events: event.events ?? [],
       createdAt: event.at,
     }
     return [...state.filter((kept) => kept.id !== row.id), row]

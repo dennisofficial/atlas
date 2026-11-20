@@ -9,7 +9,13 @@ type CreatedBody = {
   subscriptionId?: unknown
   provider?: unknown
   target?: unknown
+  events?: unknown
 }
+
+const eventsOf = (body: CreatedBody): readonly string[] =>
+  Array.isArray(body.events)
+    ? body.events.filter((event): event is string => typeof event === 'string')
+    : []
 
 type LeaseOf = {
   repo: string
@@ -82,6 +88,7 @@ export const subscriptionLeaseHook: AppendHook = {
         threadId: event.threadId,
         repo: lease.repo,
         subject: lease.subject,
+        events: eventsOf({ events: event.events }),
         expiresAt,
       })
       if (lease.subject.kind === 'pull-request') {
