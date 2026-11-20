@@ -165,7 +165,7 @@ describe('sessionViewModelOf', () => {
       plan: [],
       context: null,
       spend: null,
-      compute: { costUsd: null, running: false },
+      compute: { costUsd: null, running: false, tick: null },
     })
   })
 
