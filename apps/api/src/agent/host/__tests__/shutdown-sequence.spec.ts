@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'bun:test'
-import type { HostTimers } from '@dltech/atlas-host'
+import {
+  DRAIN_HANDOFF_BUDGET_MS,
+  DRAIN_IN_FLIGHT_CAP_MS,
+  type HostTimers,
+} from '@dltech/atlas-host'
 import { LogPort } from '@dltech/atlas-observability'
 import type { StreamServerMessage } from '@dltech/atlas-protocol'
 
@@ -7,11 +11,7 @@ import { createSessionStream } from '../../stream/session-stream'
 import { STREAM_DRAIN_RECONNECT_SPREAD_MS } from '../../stream/stream-limits'
 import type { SubscriptionPort } from '../../stream/subscription-port'
 import { createUserSlots } from '../../stream/user-slots'
-import {
-  HostShutdownSequence,
-  LEASE_HANDOFF_MS,
-  type HostShutdownSequenceArgs,
-} from '../shutdown-sequence'
+import { HostShutdownSequence, type HostShutdownSequenceArgs } from '../shutdown-sequence'
 
 class MemoryLog extends LogPort {
   readonly messages: string[] = []
@@ -150,7 +150,8 @@ describe('HostShutdownSequence', () => {
       expect(away.reconnectAfterMs).toBe(STREAM_DRAIN_RECONNECT_SPREAD_MS)
     }
     expect((await open.next()).done).toBe(true)
-    expect(LEASE_HANDOFF_MS).toBeLessThanOrEqual(1_000)
+    expect(DRAIN_HANDOFF_BUDGET_MS).toBeGreaterThan(DRAIN_IN_FLIGHT_CAP_MS)
+    expect(DRAIN_HANDOFF_BUDGET_MS).toBeLessThan(300_000)
   })
 
   it('warns and returns instead of exiting when the hand-off outlives its budget', async () => {

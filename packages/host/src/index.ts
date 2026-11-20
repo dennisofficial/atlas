@@ -38,6 +38,11 @@ export {
   DaemonProcessPort,
   DEFAULT_SANDBOX_COMMANDS,
 } from './calls/ports/process'
+export {
+  DRAIN_HANDOFF_BUDGET_MS,
+  DRAIN_IN_FLIGHT_CAP_MS,
+  LEASE_HAND_BACK_MARGIN_MS,
+} from './holder/drain-cap'
 export { PodCalls, type PodCallOutcome } from './holder/pod-calls'
 export { SessionHolder } from './holder/session-holder'
 export { TerminalDemand } from './holder/terminal-demand'

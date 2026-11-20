@@ -107,6 +107,7 @@ const coreEventBodySchema = z.discriminatedUnion('type', [
     callId: callIdSchema,
     name: z.string(),
     bootId: z.string().min(1).optional(),
+    detached: z.literal(true).optional(),
   }),
   z.object({
     type: z.literal('tool-parked'),

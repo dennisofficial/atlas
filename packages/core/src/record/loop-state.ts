@@ -2,7 +2,7 @@ import { isTurnTaking } from '../agents/kind'
 import type { EventDraft, EventType } from '../events/body'
 import type { Event, EventOfType } from '../events/envelope'
 import type { CallId } from '../events/ids'
-import type { PendingCall } from '../events/projections'
+import { handoffAborted, type PendingCall } from '../events/projections'
 import {
   APPROVAL_WAITING,
   carriesInterruption,
@@ -71,6 +71,11 @@ const callsPatch = (state: LoopState, event: Event): Patch => {
   }
 
   if (event.type === 'tool-dispatched') {
+    if (event.detached === true) {
+      return state.dispatched.has(event.callId)
+        ? { dispatched: without({ values: state.dispatched, value: event.callId }) }
+        : {}
+    }
     const isPending = state.pending.some((call) => call.callId === event.callId)
     if (!isPending || state.dispatched.has(event.callId)) return {}
     return { dispatched: new Set(state.dispatched).add(event.callId) }
@@ -117,6 +122,7 @@ const promptPatch = (event: Event): Patch => {
   }
   if (event.type === 'nudge') return { cutShortSincePrompt: false, stoppedSincePrompt: false }
   if (event.type === 'assistant-said') {
+    if (handoffAborted(event)) return {}
     return {
       lastAssistant: event,
       ...(carriesInterruption(event) ? { cutShortSincePrompt: true } : {}),
@@ -146,7 +152,7 @@ export function stepLoopState(state: LoopState, event: Event): LoopState {
     ...state,
     empty: false,
     lastSeq: event.seq,
-    ...(isTurnTaking(event) ? { lastTurnType: event.type } : {}),
+    ...(isTurnTaking(event) && !handoffAborted(event) ? { lastTurnType: event.type } : {}),
     ...callsPatch(state, event),
     ...parkedPatch(state, event),
     ...approvalsPatch(state, event),

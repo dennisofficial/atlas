@@ -1,5 +1,5 @@
 import type { BeforeApplicationShutdown, OnApplicationShutdown } from '@nestjs/common'
-import type { HostPresence } from '@dltech/atlas-host'
+import { DRAIN_HANDOFF_BUDGET_MS, type HostPresence } from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
 import type { PgWakeListener } from '../bus/pg-wake-listener'
@@ -21,7 +21,7 @@ export type HostShutdownSequenceArgs = {
   handoffBudgetMs?: number
 }
 
-export const LEASE_HANDOFF_MS = 1_000
+export { DRAIN_HANDOFF_BUDGET_MS }
 
 export class HostShutdownSequence implements BeforeApplicationShutdown, OnApplicationShutdown {
   private readonly args: HostShutdownSequenceArgs
@@ -31,7 +31,7 @@ export class HostShutdownSequence implements BeforeApplicationShutdown, OnApplic
   }
 
   async beforeApplicationShutdown(): Promise<void> {
-    const budget = this.args.handoffBudgetMs ?? LEASE_HANDOFF_MS
+    const budget = this.args.handoffBudgetMs ?? DRAIN_HANDOFF_BUDGET_MS
     this.args.log.info({ source: 'main', message: 'draining' })
     this.args.stream.drain()
     if (await this.handBackWithin(budget)) return

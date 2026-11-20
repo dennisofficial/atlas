@@ -87,7 +87,9 @@ export async function runTrackedTurn(
       settlePending: deps.settlePending,
       settleAttempted: position.settleAttempted,
       signal: abortSignal,
+      ...(pause === undefined ? {} : { pause }),
     })
+    if (settled.kind === 'handoffPaused') return { status: ETurnStatus.HandoffPaused, runId }
     if (settled.kind === 'paused')
       return { status: ETurnStatus.Paused, runId, callId: settled.callId, reason: settled.reason }
     if (settled.kind === 'stalled') {
@@ -217,6 +219,7 @@ export async function runTrackedTurn(
         }),
         normalizeFailure: deps.normalizeFailure,
         prepare: prepareAttempt,
+        ...(pause === undefined ? {} : { pause }),
       })
 
     let stepped = await stepOnce()

@@ -29,12 +29,15 @@ import {
   owesEndingOf,
   pendingCallsOf,
   projectDirectoryOfState,
+  settleablePendingOf,
   resumeDraftsOf,
   resumePlanOf,
   stepLoopState,
 } from '../loop-state'
 
 const launchDirectory = '/launch'
+
+const lastAssistantOf = (state: LoopState) => state.lastAssistant
 
 const callId = fc.constantFrom(...['a', 'b', 'c'].map(toCallId))
 const interrupted = fc.constantFrom(true, false, undefined)
@@ -224,6 +227,28 @@ describe('LoopState named cases', () => {
     const nudged = fold([...interruptedReply, { type: 'nudge', text: 'n', lifetimeSteps: 1 }])
     expect(resumePlanOf(nudged)).toEqual({ kind: EResume.Continue, nudge: false })
     expect(resumeDraftsOf(nudged)).toEqual([])
+  })
+
+  it('treats a handoff-aborted reply as invisible: continue, never nudge', () => {
+    const handoff = fold([
+      { type: 'user-said', text: 'go' },
+      { type: 'assistant-said', parts: [], interrupted: true, aborted: 'handoff' },
+    ])
+    expect(lastAssistantOf(handoff)).toBeUndefined()
+    expect(handoff.cutShortSincePrompt).toBe(false)
+    expect(resumePlanOf(handoff)).toEqual({ kind: EResume.Continue, nudge: false })
+    expect(resumeDraftsOf(handoff)).toEqual([])
+  })
+
+  it('leaves a call pending again once the drain detached its dispatch', () => {
+    const state = fold([
+      { type: 'tool-called', callId: id, name: 'bash', input: 1, ordinal: 0 },
+      { type: 'tool-dispatched', callId: id, name: 'bash' },
+      { type: 'tool-dispatched', callId: id, name: 'bash', detached: true },
+    ])
+
+    expect(crashedCallsOf(state)).toEqual([])
+    expect(settleablePendingOf(state).map((call) => call.callId)).toEqual([id])
   })
 
   it('calls a completed last reply a finished turn and nothing else', () => {

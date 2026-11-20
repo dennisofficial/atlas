@@ -189,14 +189,17 @@ describe('a session end with an adopted child that never got going', () => {
 const isFinalAnswer = (events: readonly unknown[]): boolean =>
   events.some((event) => (event as { type?: string }).type === 'assistant-said')
 
-const drainOnFinalAppend = (args: { rig: Rig; state: { drained: boolean } }): void => {
+const drainOnFinalAppend = (args: {
+  rig: Rig
+  state: { drained: boolean; draining: Promise<void> | undefined }
+}): void => {
   const append = args.rig.plane.append.bind(args.rig.plane)
   args.rig.plane.append = async (params: Parameters<typeof append>[0]) => {
     const outcome = await append(params)
     if (args.state.drained || params.threadId !== CHILD) return outcome
     if (!isFinalAnswer(params.events)) return outcome
     args.state.drained = true
-    await args.rig.holder.drain()
+    args.state.draining = args.rig.holder.drain()
     return outcome
   }
 }
@@ -204,7 +207,10 @@ const drainOnFinalAppend = (args: { rig: Rig; state: { drained: boolean } }): vo
 describe('a drain that lands between a child final message and its ending', () => {
   it('wants a holder after the drain, which ends the child once', async () => {
     const rig = await seedTakeover({ child: RESUMABLE_CHILD, script: [{ text: ANSWER }] })
-    const state = { drained: false }
+    const state: { drained: boolean; draining: Promise<void> | undefined } = {
+      drained: false,
+      draining: undefined,
+    }
     drainOnFinalAppend({ rig, state })
 
     const answered = await waitFor({
@@ -213,6 +219,7 @@ describe('a drain that lands between a child final message and its ending', () =
       advanceMs: 5_000,
     })
     expect(answered).toBe(true)
+    await state.draining
     await rig.flush()
 
     const child = await eventsIn({ rig, threadId: CHILD })

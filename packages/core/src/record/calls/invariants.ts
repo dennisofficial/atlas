@@ -12,6 +12,7 @@ export type RecordWrite = {
   callId: string | undefined
   epoch: number
   committed: boolean
+  detached?: boolean | undefined
 }
 
 export type CallHistory = {
@@ -53,7 +54,9 @@ export function checkCallHistory(args: {
   if (options.final) {
     const unsettled = history.keys.some((key) => {
       const committed = history.writes.filter((write) => write.callId === key && write.committed)
-      const dispatched = committed.filter((write) => write.type === 'tool-dispatched').length
+      const dispatched = committed.filter(
+        (write) => write.type === 'tool-dispatched' && write.detached !== true,
+      ).length
       const settled = committed.filter(isResultLike).length
       return dispatched > 0 && settled !== dispatched
     })

@@ -17,7 +17,9 @@ import {
 
 import type { AgentRecordPort } from '../record/agent-record.port'
 import type { OnceLedger } from './once-ledger.port'
+import type { PauseSignal } from './pause-signal'
 
+import { detachedDispatchDraft } from '../tools/dispatch-drafts'
 import type { DispatchableCall, ToolDispatcher } from '../tools/dispatch'
 
 export type ToolOutputNotice = ToolOutputChunk & { callId: CallId }
@@ -27,12 +29,21 @@ export type OnToolOutputNotice = (args: ToolOutputNotice) => void
 export type SettledPending = {
   paused?: { callId: CallId; reason: string }
   parked?: { callId: CallId; name: string }
+  handoffPaused?: true
 }
 
 export type SettlePending = (args: {
   threadId: ThreadId
   signal: AbortSignal
+  pause?: PauseSignal | undefined
 }) => Promise<SettledPending>
+
+const hostDetachedOnHandoff = (args: {
+  signal: AbortSignal
+  detach: ((name: string) => boolean) | undefined
+  name: string
+}): boolean =>
+  args.signal.aborted && args.signal.reason === 'handoff' && args.detach?.(args.name) === false
 
 export function createSettlePending(deps: {
   record: AgentRecordPort
@@ -76,7 +87,8 @@ export function createSettlePending(deps: {
     })
   }
 
-  return async ({ threadId, signal }) => {
+  return async ({ threadId, signal, pause }) => {
+    const paused = (): boolean => pause?.paused === true
     const events = await deps.record.composedEvents({ threadId })
     const state = await deps.record.loopState({ threadId })
 
@@ -91,12 +103,15 @@ export function createSettlePending(deps: {
 
     for (const [index, run] of runs.entries()) {
       if (signal.aborted) return {}
+      if (paused()) return { handoffPaused: true }
 
       const current = index === 0 ? events : await deps.record.composedEvents({ threadId })
       const projectDirectory = activeWorktree?.path ?? homeDirectory
       const detach = deps.detachTool
+      const detaching = signal.aborted || paused()
       const settled = await Promise.all(
         run.map(async (call) => {
+          if (detaching) return []
           const drafts = await settleOne({
             call,
             events: current,
@@ -105,7 +120,15 @@ export function createSettlePending(deps: {
             homeDirectory,
             activeWorktree,
           })
-          if (signal.aborted && detach?.(call.name)) return []
+          if (hostDetachedOnHandoff({ signal, detach, name: call.name })) {
+            await deps.record.append({
+              threadId,
+              runId: call.runId,
+              drafts: [detachedDispatchDraft(call)],
+            })
+            return []
+          }
+          if ((signal.aborted || paused()) && detach?.(call.name) === true) return []
           if (drafts.length > 0) await deps.record.append({ threadId, runId: call.runId, drafts })
           return drafts
         }),

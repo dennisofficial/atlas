@@ -16,6 +16,7 @@ import {
 import { ScriptedModel, type ScriptedModelStep } from '@dltech/atlas-agent/testing'
 import { z } from 'zod'
 
+import { DRAIN_IN_FLIGHT_CAP_MS } from '../drain-cap'
 import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID } from './holder-rig'
 
 const CHILD_BRIEF = 'TAKEOVER-BRIEF take the long way'
@@ -155,8 +156,17 @@ const endingsOf = (args: { events: readonly V2Event[]; agentId: string }): V2Eve
 const ofType = (args: { events: readonly V2Event[]; type: string }): V2Event[] =>
   args.events.filter((event) => event.type === args.type)
 
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+
+const drainPastCap = async (rig: Awaited<ReturnType<typeof makeRig>>): Promise<void> => {
+  const draining = rig.holder.drain()
+  await rig.flush()
+  rig.clock.advance(DRAIN_IN_FLIGHT_CAP_MS)
+  await draining
+}
+
 describe('a host handoff while a sub-agent runs', () => {
-  it('leaves the child unended on drain and the next holder resumes its turn', async () => {
+  it('waits out the cap for a stalled child, leaves it unended, and the next holder resumes its turn', async () => {
     const state: ProbeState = { agentId: undefined }
     const a = await makeRig({
       plugins: composePlugins([probePlugin(state)]),
@@ -181,7 +191,7 @@ describe('a host handoff while a sub-agent runs', () => {
     expect(stepping).toBe(true)
 
     const before = Date.now()
-    await a.holder.drain()
+    await drainPastCap(a)
     expect(Date.now() - before).toBeLessThan(2_000)
 
     const drained = await eventsIn({ rig: a, threadId: THREAD_ID })
@@ -276,7 +286,7 @@ const untilEvents = async (args: {
 }
 
 describe('a drain with a daemon call outstanding in a sub-agent', () => {
-  it('detaches the call instead of settling it, and the next holder collects it once', async () => {
+  it('detaches the call at once, and the next holder reattaches it so the child finishes', async () => {
     const state: ProbeState = { agentId: undefined }
     const a = await makeRig({
       plugins: composePlugins([probePlugin(state)]),
@@ -298,6 +308,7 @@ describe('a drain with a daemon call outstanding in a sub-agent', () => {
 
     const drainedChild = await eventsIn({ rig: a, threadId: childId })
     expect(ofType({ events: drainedChild, type: 'tool-result' })).toEqual([])
+    expect(ofType({ events: drainedChild, type: 'nudge' })).toEqual([])
     expect(
       endingsOf({ events: await eventsIn({ rig: a, threadId: THREAD_ID }), agentId: childId }),
     ).toEqual([])
@@ -313,7 +324,7 @@ describe('a drain with a daemon call outstanding in a sub-agent', () => {
     })
     await b.holder.start()
     await a.bus.wake(SESSION)
-
+    await sleep(600)
     const results = await untilEvents({ rig: a, threadId: childId, type: 'tool-result' })
     expect(results).toMatchObject([{ callId: 'child-bash' }])
     const parent = await untilEvents({ rig: a, threadId: THREAD_ID, type: 'agent-ended' })
@@ -321,9 +332,14 @@ describe('a drain with a daemon call outstanding in a sub-agent', () => {
       { status: 'finished', prose: CHILD_ANSWER },
     ])
     expect(a.daemon.runCount()).toBe(1)
+
+    const settledChild = await eventsIn({ rig: a, threadId: childId })
+    const settledResults = ofType({ events: settledChild, type: 'tool-result' })
+    expect(settledResults).toHaveLength(1)
     expect(
-      ofType({ events: await eventsIn({ rig: a, threadId: childId }), type: 'tool-result' }).length,
-    ).toBe(1)
+      settledResults.filter((event) => (event as { interrupted?: boolean }).interrupted === true),
+    ).toEqual([])
+    expect(ofType({ events: settledChild, type: 'nudge' })).toEqual([])
   }, 25_000)
 })
 
@@ -346,7 +362,7 @@ describe('steering a sub-agent across a handoff', () => {
     const childId = await spawnedChild(a)
     await untilEvents({ rig: a, threadId: THREAD_ID, type: 'assistant-said' })
 
-    await a.holder.drain()
+    await drainPastCap(a)
 
     const said = (await eventsIn({ rig: a, threadId: childId })).filter(
       (event) => event.type === 'user-said',
@@ -391,7 +407,7 @@ describe('two host handoffs in a row', () => {
     await a.wake()
     const childId = await spawnedChild(a)
     await untilEvents({ rig: a, threadId: childId, type: 'user-said' })
-    await a.holder.drain()
+    await drainPastCap(a)
 
     const b = await makeRig({
       plane: a.plane,
@@ -412,7 +428,7 @@ describe('two host handoffs in a row', () => {
       advanceMs: 5_000,
     })
     expect(relocated).toBe(true)
-    await b.holder.drain()
+    await drainPastCap(b)
 
     const c = await makeRig({
       plane: a.plane,

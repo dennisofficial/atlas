@@ -78,7 +78,10 @@ export function dispatchedCalls(events: readonly Event[]): Set<CallId> {
       dispatched.delete(event.callId)
       continue
     }
-    if (event.type === 'tool-dispatched') dispatched.add(event.callId)
+    if (event.type === 'tool-dispatched') {
+      if (event.detached === true) dispatched.delete(event.callId)
+      else dispatched.add(event.callId)
+    }
   }
   return dispatched
 }
@@ -151,7 +154,10 @@ export function inputForCall({
     ?.input
 }
 
+export const handoffAborted = (event: Event): boolean =>
+  event.type === 'assistant-said' && event.aborted === 'handoff'
+
 export function awaitsReply(events: readonly Event[]): boolean {
-  const lastTurn = events.filter(isTurnTaking).at(-1)
+  const lastTurn = events.filter((event) => isTurnTaking(event) && !handoffAborted(event)).at(-1)
   return lastTurn !== undefined && lastTurn.type !== 'assistant-said'
 }

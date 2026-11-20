@@ -98,14 +98,14 @@ export class CrewRoom {
 
   async close(args: { draining: boolean }): Promise<void> {
     if (args.draining) {
-      this.pauseAll()
+      await this.pauseAll()
       return
     }
     await this.stopAll()
   }
 
-  pauseAll(): void {
-    for (const run of this.runs.values()) run.pause()
+  async pauseAll(): Promise<void> {
+    await Promise.all([...this.runs.values()].map((run) => run.pause()))
     this.disposeAll()
   }
 

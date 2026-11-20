@@ -128,8 +128,11 @@ describe.skipIf(REDIS_URL === undefined)('F12 SIGTERM during a 5-minute bash', (
     const dispatches = events.filter(
       (row) => row.type === 'tool-dispatched' && callIdOf(row) === 'c1',
     )
+    const detached = dispatches.filter(
+      (row) => (row.event as { detached?: boolean }).detached === true,
+    )
     const results = events.filter((row) => row.type === 'tool-result' && callIdOf(row) === 'c1')
-    expect(dispatches.length).toBe(1)
+    expect(dispatches.length - detached.length).toBe(1)
     expect(results.length).toBe(1)
     expect(results.filter(isDoneResult).length).toBe(1)
 

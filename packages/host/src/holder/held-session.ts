@@ -1,4 +1,5 @@
 import {
+  crashedCallsOf,
   crashLooped,
   EHeldAction,
   EHeldOutcome,
@@ -33,6 +34,7 @@ import type { HeldSessionDeps } from './held-session-deps'
 import { HeldTurns } from './held-turns'
 import { TakeOver } from './held-takeover'
 import { quarantineOutcome } from './start-failure-record'
+import { DRAIN_IN_FLIGHT_CAP_MS } from './drain-cap'
 import { HeldEnding } from './held-ending'
 import { HeldObservation } from './held-observation'
 
@@ -123,15 +125,61 @@ export class HeldSession {
 
   async handoff(): Promise<void> {
     this.beginDrain()
-    this.crew?.pauseAll()
     this.runtime?.remoteCalls.handoff()
-    this.turns.abort('handoff')
+    const children = this.crew?.pauseAll()
+    await this.settleInFlight()
+    await children
     await this.ending.handBack({
       needsHolder: await drainNeedsHolder({
         deps: this.deps,
         record: this.record,
         turnRunning: this.turns.turnRunning,
       }),
+    })
+  }
+
+  private async settleInFlight(): Promise<void> {
+    if (!this.turns.turnRunning) return
+    const startedAt = this.deps.timers.now()
+    await new Promise<void>((resolve) => {
+      const timer = this.deps.timers.setTimeout(() => {
+        void this.abortPastCap({ startedAt }).then(() => resolve())
+      }, DRAIN_IN_FLIGHT_CAP_MS)
+      void this.turns.whenIdle().then(() => {
+        this.deps.timers.clearTimeout(timer)
+        resolve()
+      })
+    })
+  }
+
+  private async abortPastCap(args: { startedAt: number }): Promise<void> {
+    this.logDrainCap(args)
+    await this.detachInFlightCalls()
+    this.turns.abort('handoff')
+  }
+
+  private async detachInFlightCalls(): Promise<void> {
+    const record = this.record
+    const state = record?.eventCache().loopState()
+    if (record === undefined || state === undefined) return
+    const daemonTools = this.runtime?.daemonTools
+    for (const call of crashedCallsOf(state)) {
+      if (daemonTools?.has(call.name) === true) continue
+      await record.append({
+        threadId: call.threadId,
+        runId: this.deps.ids.nextRunId(),
+        drafts: [{ type: 'tool-dispatched', callId: call.callId, name: call.name, detached: true }],
+      })
+    }
+  }
+
+  private logDrainCap(args: { startedAt: number }): void {
+    const state = this.record?.eventCache().loopState()
+    const call = state === undefined ? undefined : crashedCallsOf(state)[0]
+    const inFlight = call === undefined ? 'an in-flight model step' : `the tool call ${call.name}`
+    this.deps.log?.warn({
+      source: 'holder.drain',
+      message: `session ${this.sessionId} ran ${inFlight} for ${this.deps.timers.now() - args.startedAt}ms, past the ${DRAIN_IN_FLIGHT_CAP_MS}ms drain cap; aborting the turn`,
     })
   }
 

@@ -1,6 +1,7 @@
 import type { ERetryReason, ScheduledRetry } from '@dltech/atlas-core'
 
 import type { OnceLedger } from './once-ledger.port'
+import type { PauseSignal } from './pause-signal'
 
 export type RetryNotice = {
   attempt: number
@@ -25,6 +26,10 @@ export class HandoffAborted extends Error {
 
 export const throwIfHandoff = (signal: AbortSignal): void => {
   if (signal.aborted && signal.reason === 'handoff') throw new HandoffAborted()
+}
+
+export const throwIfPaused = (pause: PauseSignal | undefined): void => {
+  if (pause?.paused === true) throw new HandoffAborted()
 }
 
 export function sleepUnlessAborted(args: { ms: number; signal: AbortSignal }): Promise<void> {

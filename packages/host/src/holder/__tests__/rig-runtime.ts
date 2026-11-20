@@ -103,6 +103,7 @@ export const makeRuntimeFactory = (args: {
   subscribePrepareOutput?: ((listener: (text: string) => void) => void) | undefined
   subscribeSetup?: ((listener: (lifecycle: SetupLifecycle) => void) => void) | undefined
   model?: (() => ModelPort) | undefined
+  hostTools?: readonly ToolDefinition[] | undefined
   baseBranches?: Readonly<Record<string, string>> | undefined
   uploads?: SaidUploadsPort | undefined
   connectGate?: Promise<void> | undefined
@@ -149,7 +150,7 @@ export const makeRuntimeFactory = (args: {
       },
       choiceFor: (request) => request.root ?? RIG_MODEL_CHOICE,
       modelLabelOf: (ref) => refKey(ref),
-      tools: fakeToolRegistry([new BashTool(calls)]),
+      tools: fakeToolRegistry([new BashTool(calls), ...(args.hostTools ?? [])]),
       daemonTools: new Set(['bash']),
       ackedScopes,
       effectOf: () => EToolEffect.Read,
