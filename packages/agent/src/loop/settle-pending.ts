@@ -81,6 +81,7 @@ export function createSettlePending(deps: {
   }
 
   return async ({ threadId, signal, pause }) => {
+    const paused = (): boolean => pause !== undefined && pause.paused
     const events = await deps.record.composedEvents({ threadId })
     const state = await deps.record.loopState({ threadId })
 
@@ -95,13 +96,15 @@ export function createSettlePending(deps: {
 
     for (const [index, run] of runs.entries()) {
       if (signal.aborted) return {}
-      if (pause?.paused === true) return { handoffPaused: true }
+      if (paused()) return { handoffPaused: true }
 
       const current = index === 0 ? events : await deps.record.composedEvents({ threadId })
       const projectDirectory = activeWorktree?.path ?? homeDirectory
       const detach = deps.detachTool
+      const detaching = signal.aborted || paused()
       const settled = await Promise.all(
         run.map(async (call) => {
+          if (detaching) return []
           const drafts = await settleOne({
             call,
             events: current,
@@ -110,7 +113,7 @@ export function createSettlePending(deps: {
             homeDirectory,
             activeWorktree,
           })
-          if (signal.aborted && detach?.(call.name)) {
+          if ((signal.aborted || paused()) && detach?.(call.name) === true) {
             await deps.record.append({
               threadId,
               runId: call.runId,

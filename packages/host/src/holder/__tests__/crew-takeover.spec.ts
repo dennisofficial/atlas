@@ -284,7 +284,7 @@ const untilEvents = async (args: {
 }
 
 describe('a drain with a daemon call outstanding in a sub-agent', () => {
-  it('lets the call settle before hand-back, and the next holder resumes the child without rerunning it', async () => {
+  it('detaches the call at once and leaves the child unended', async () => {
     const state: ProbeState = { agentId: undefined }
     const a = await makeRig({
       plugins: composePlugins([probePlugin(state)]),
@@ -305,10 +305,7 @@ describe('a drain with a daemon call outstanding in a sub-agent', () => {
     await a.holder.drain()
 
     const drainedChild = await eventsIn({ rig: a, threadId: childId })
-    const drainedResults = ofType({ events: drainedChild, type: 'tool-result' })
-    expect(drainedResults).toMatchObject([{ callId: 'child-bash' }])
-    expect(drainedResults).toHaveLength(1)
-    expect(drainedResults[0]).not.toMatchObject({ interrupted: true })
+    expect(ofType({ events: drainedChild, type: 'tool-result' })).toEqual([])
     expect(ofType({ events: drainedChild, type: 'nudge' })).toEqual([])
     expect(
       endingsOf({ events: await eventsIn({ rig: a, threadId: THREAD_ID }), agentId: childId }),
@@ -326,14 +323,18 @@ describe('a drain with a daemon call outstanding in a sub-agent', () => {
     await b.holder.start()
     await a.bus.wake(SESSION)
 
-    const parent = await untilEvents({ rig: a, threadId: THREAD_ID, type: 'agent-ended' })
-    expect(endingsOf({ events: parent, agentId: childId })).toMatchObject([
-      { status: 'finished', prose: CHILD_ANSWER },
+    const detached = ofType({
+      events: await eventsIn({ rig: a, threadId: childId }),
+      type: 'tool-dispatched',
+    })
+    expect(detached.map((event) => (event as { detached?: boolean }).detached)).toEqual([
+      undefined,
+      true,
     ])
     expect(a.daemon.runCount()).toBe(1)
     expect(
-      ofType({ events: await eventsIn({ rig: a, threadId: childId }), type: 'tool-result' }).length,
-    ).toBe(1)
+      ofType({ events: await eventsIn({ rig: a, threadId: childId }), type: 'nudge' }),
+    ).toEqual([])
   }, 25_000)
 })
 

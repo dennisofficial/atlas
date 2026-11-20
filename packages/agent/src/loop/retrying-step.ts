@@ -13,6 +13,7 @@ import {
   type ToolDeclaration,
 } from '@dltech/atlas-core'
 
+import type { PauseSignal } from './pause-signal'
 import { preparedFailureMessage, type PreparedStep } from './step-prepare'
 
 import { blockedErrorOf, type ModelAdmissionBlockedError } from '../model/admission-blocked'
@@ -26,6 +27,7 @@ import {
   settleRecordedDeadline,
   sleepUnlessAborted,
   throwIfHandoff,
+  throwIfPaused,
   type RetryLedgerRef,
   type Waiting,
 } from './retry-ledger'
@@ -126,6 +128,7 @@ export async function takeModelStepWithRetry(args: {
   retry?: RetryDeps | undefined
   normalizeFailure: NormalizeFailure
   prepare?: (() => Promise<PreparedStep>) | undefined
+  pause?: PauseSignal | undefined
 }): Promise<SteppedTurn> {
   const policy = args.retry?.policy ?? DEFAULT_RETRY_POLICY
   const sleep = args.retry?.sleep ?? sleepUnlessAborted
@@ -135,6 +138,10 @@ export async function takeModelStepWithRetry(args: {
 
   let wake = new AbortController()
   const stopWatching = args.retry?.clockJumps?.onJump(() => wake.abort())
+  const handoff = new AbortController()
+  const stopPause = args.pause?.onPause(() => handoff.abort())
+  const sleepSignal =
+    args.pause === undefined ? args.signal : AbortSignal.any([args.signal, handoff.signal])
 
   try {
     let attempts = 0
@@ -151,7 +158,7 @@ export async function takeModelStepWithRetry(args: {
         sleep: async (ms) => {
           await interruptibleSleep({
             ms,
-            callerSignal: args.signal,
+            callerSignal: sleepSignal,
             jumpSignal: wake.signal,
             sleep,
           })
@@ -159,6 +166,7 @@ export async function takeModelStepWithRetry(args: {
         },
       })
       throwIfHandoff(args.signal)
+      throwIfPaused(args.pause)
       if (args.signal.aborted) {
         return {
           ok: false,
@@ -190,6 +198,7 @@ export async function takeModelStepWithRetry(args: {
       }
 
       throwIfHandoff(args.signal)
+      throwIfPaused(args.pause)
       if (args.signal.aborted) return settled()
 
       if (attempt.blocked !== undefined) {
@@ -257,12 +266,13 @@ export async function takeModelStepWithRetry(args: {
             })
       await interruptibleSleep({
         ms: waitMs,
-        callerSignal: args.signal,
+        callerSignal: sleepSignal,
         jumpSignal: wake.signal,
         sleep,
       })
       if (wake.signal.aborted) wake = new AbortController()
       throwIfHandoff(args.signal)
+      throwIfPaused(args.pause)
       if (args.signal.aborted) return settled()
 
       if (args.prepare !== undefined) {
@@ -280,5 +290,6 @@ export async function takeModelStepWithRetry(args: {
     }
   } finally {
     stopWatching?.()
+    stopPause?.()
   }
 }

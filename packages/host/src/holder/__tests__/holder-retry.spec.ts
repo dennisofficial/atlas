@@ -48,9 +48,9 @@ const notBeforeOf = (fact: Extract<V2Event, { type: 'retry-scheduled' }>): numbe
   Date.parse(fact.notBefore)
 
 describe('holder retry deadlines', () => {
-  it('a handoff mid-backoff waits out the deadline for the retry, then hands the turn back', async () => {
+  it('a handoff mid-backoff revokes at once; B waits out the recorded deadline', async () => {
     const a = await makeRig({
-      script: [{ throws: new Error('transient boom') }, { text: 'a answer' }],
+      script: [{ throws: new Error('transient boom') }],
     })
     await seedSession(a)
     await a.holder.start()
@@ -76,38 +76,38 @@ describe('holder retry deadlines', () => {
     })
     await b.holder.start()
 
-    const draining = a.holder.drain()
-    await a.flush()
+    await a.holder.drain()
 
-    const modelA = scriptedModelOf(a)
-    expect(modelA.requests).toHaveLength(1)
+    expect((await a.events()).some((event) => event.type === 'run-failed')).toBe(false)
+
+    const claimed = await flushUntil({
+      check: () => b.holder.heldIds().length === 1,
+      clock: a.clock,
+      advanceMs: 300,
+    })
+    expect(claimed).toBe(true)
+    const lease = await b.plane.currentLease({ sessionId: SESSION })
+    expect(lease.lease.holderHostId).toBe(b.hostId())
+    expect(lease.lease.epoch).toBeGreaterThan(1)
+
+    const modelB = scriptedModelOf(b)
+    expect(modelB.requests).toHaveLength(0)
+
     while (a.clock.now() < notBeforeMs) {
       a.clock.advance(Math.min(100, notBeforeMs - a.clock.now()))
       await b.flush()
-      if (a.clock.now() < notBeforeMs) expect(modelA.requests).toHaveLength(1)
+      if (a.clock.now() < notBeforeMs) expect(modelB.requests).toHaveLength(0)
     }
-    const retried = await flushUntil({ check: () => modelA.requests.length > 1 })
-    expect(retried).toBe(true)
+    const called = await flushUntil({ check: () => modelB.requests.length > 0 })
+    expect(called).toBe(true)
     expect(a.clock.now()).toBeGreaterThanOrEqual(notBeforeMs)
-
-    await draining
-
-    expect((await a.events()).some((event) => event.type === 'run-failed')).toBe(false)
-    expect(b.runtimes.flatMap((runtime) => (runtime.model as ScriptedModel).requests)).toHaveLength(
-      0,
-    )
 
     expect(retryFacts(await fullEvents(a)).filter((event) => event.key === fact.key)).toHaveLength(
       1,
     )
-    const saids = (await fullEvents(a)).filter(
-      (event): event is Extract<V2Event, { type: 'assistant-said' }> =>
-        event.type === 'assistant-said',
-    )
-    expect(saids).toHaveLength(1)
-    expect(saids[0]?.interrupted).toBeUndefined()
-    expect(saids[0]?.aborted).toBeUndefined()
-    const lease = await b.plane.currentLease({ sessionId: SESSION })
-    expect(lease.lease.holderHostId).toBeNull()
+    const answered = await flushUntil({
+      check: async () => (await a.events()).some((event) => event.type === 'assistant-said'),
+    })
+    expect(answered).toBe(true)
   }, 20_000)
 })

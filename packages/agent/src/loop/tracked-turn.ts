@@ -219,6 +219,7 @@ export async function runTrackedTurn(
         }),
         normalizeFailure: deps.normalizeFailure,
         prepare: prepareAttempt,
+        ...(pause === undefined ? {} : { pause }),
       })
 
     let stepped = await stepOnce()

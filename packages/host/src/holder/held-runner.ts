@@ -216,7 +216,7 @@ export const createLoopRunner = (args: {
       headSeq: () => record.eventCache().currentHead().seq,
       epoch: args.epoch,
     }),
-    detachTool: () => args.isDraining(),
+    detachTool: (tool) => args.isDraining() && runtime.daemonTools.has(tool),
     launchDirectory: runtime.launchDirectory,
     normalizeFailure: runtime.normalizeFailure,
     retry: retryDepsFromTimers(deps.timers),
