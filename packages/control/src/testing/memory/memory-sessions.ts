@@ -49,6 +49,7 @@ export const setSessionPodDesiredIn = (params: {
   row.podDesiredVcpus = params.vcpus
   row.podSizeGeneration = params.generation
   row.podResizeError = null
+  row.podWaitingSince = null
   return true
 }
 
@@ -63,6 +64,7 @@ export const setSessionPodAppliedIn = (params: {
   row.podActualVcpus = params.vcpus
   row.podAppliedGeneration = params.generation
   row.podResizeError = null
+  row.podWaitingSince = null
   return true
 }
 
@@ -75,6 +77,19 @@ export const setSessionPodFailedIn = (params: {
   const row = params.state.sessions.get(params.sessionId)
   if (row === undefined || row.podSizeGeneration !== params.generation) return false
   row.podResizeError = params.error
+  row.podWaitingSince = null
+  return true
+}
+
+export const setSessionPodWaitingIn = (params: {
+  state: State
+  sessionId: string
+  generation: number
+  since: string | null
+}): boolean => {
+  const row = params.state.sessions.get(params.sessionId)
+  if (row === undefined || row.podSizeGeneration !== params.generation) return false
+  row.podWaitingSince = params.since
   return true
 }
 
@@ -200,6 +215,7 @@ export const createSessionIn = (params: {
     podActualVcpus: null,
     podAppliedGeneration: null,
     podResizeError: null,
+    podWaitingSince: null,
     routineId: params.routineId ?? null,
   })
   state.leases.set(params.sessionId, {

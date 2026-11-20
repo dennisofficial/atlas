@@ -62,6 +62,7 @@ export const toSessionRow = (row: {
   podActualVcpus: number | null
   podAppliedGeneration: number | null
   podResizeError: string | null
+  podWaitingSince: Date | null
   routineId: string | null
 }): ControlSessionRow => ({
   sessionId: row.id,
@@ -88,6 +89,7 @@ export const toSessionRow = (row: {
   podActualVcpus: row.podActualVcpus,
   podAppliedGeneration: row.podAppliedGeneration,
   podResizeError: row.podResizeError,
+  podWaitingSince: row.podWaitingSince === null ? null : iso(row.podWaitingSince),
   routineId: row.routineId,
 })
 

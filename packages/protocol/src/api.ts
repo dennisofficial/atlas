@@ -293,7 +293,7 @@ export const sessionStatusOutputSchema = z.strictObject({
     .strictObject({
       desiredVcpus: z.number().int().min(1).optional(),
       actualVcpus: z.number().int().min(1).optional(),
-      phase: z.enum(['steady', 'resizing', 'failed']),
+      phase: z.enum(['steady', 'resizing', 'waiting', 'failed']),
       error: z.string().optional(),
     })
     .optional(),

@@ -54,6 +54,10 @@ export function buildPodResizeGraph(): PodResizeGraph {
         await plane.recordPodFailed(args)
         triggerLog.warn(`pod-resize for ${args.sessionId} failed: ${args.error}`)
       },
+      recordWaiting: async (args) => {
+        await plane.recordPodWaiting({ ...args, since: new Date().toISOString() })
+        triggerLog.log(`pod-resize for ${args.sessionId} waits for the pod to go idle`)
+      },
       busy: (args) => busyOf({ plane, sessionId: args.sessionId }),
       requeue: async (args) => {
         const payload = { ...args.payload, waits: (args.payload.waits ?? 0) + 1 }

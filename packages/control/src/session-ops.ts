@@ -171,6 +171,17 @@ export const recordPodAppliedIn = async (params: {
   return changed
 }
 
+export const recordPodWaitingIn = async (params: {
+  tx: ControlTx
+  sessionId: string
+  generation: number
+  since: string | null
+}): Promise<boolean> => {
+  const changed = await params.tx.setSessionPodWaiting(params)
+  if (changed) await params.tx.announce({ sessionId: params.sessionId })
+  return changed
+}
+
 export const recordPodFailedIn = async (params: {
   tx: ControlTx
   sessionId: string

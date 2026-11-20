@@ -102,6 +102,54 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
       await markPrepared({ sessionId: seed.sessionId, threadId })
     }
 
+    describe('pod resize waiting', () => {
+      const waitAt = after({ iso: T0, offsetMs: 1000 })
+      const podThread = `t-${SESSION}`
+
+      const podOf = async (): Promise<unknown> =>
+        (await plane.readSessionView({ sessionId: SESSION, threadId: podThread })).value.status.pod
+
+      it('holds the waiting phase until the size applies', async () => {
+        await seedSession({ sessionId: SESSION, offsetMs: 0 })
+        const generation = await plane.recordPodDesired({ sessionId: SESSION, vcpus: 4 })
+        expect(
+          await plane.recordPodWaiting({ sessionId: SESSION, generation, since: waitAt }),
+        ).toBe(true)
+        expect((await plane.readSession({ sessionId: SESSION }))?.podWaitingSince).toBe(waitAt)
+        expect(await podOf()).toEqual({ desiredVcpus: 4, phase: 'waiting' })
+
+        expect(await plane.recordPodApplied({ sessionId: SESSION, vcpus: 4, generation })).toBe(
+          true,
+        )
+        expect((await plane.readSession({ sessionId: SESSION }))?.podWaitingSince).toBeNull()
+        expect(await podOf()).toEqual({ desiredVcpus: 4, actualVcpus: 4, phase: 'steady' })
+      })
+
+      it('drops the wait when a newer resize supersedes it', async () => {
+        await seedSession({ sessionId: SESSION, offsetMs: 0 })
+        const first = await plane.recordPodDesired({ sessionId: SESSION, vcpus: 4 })
+        await plane.recordPodWaiting({ sessionId: SESSION, generation: first, since: waitAt })
+
+        const second = await plane.recordPodDesired({ sessionId: SESSION, vcpus: 8 })
+        expect((await plane.readSession({ sessionId: SESSION }))?.podWaitingSince).toBeNull()
+        expect(
+          await plane.recordPodWaiting({ sessionId: SESSION, generation: first, since: waitAt }),
+        ).toBe(false)
+        expect(await podOf()).toEqual({ desiredVcpus: 8, phase: 'resizing' })
+        expect(second).toBe(first + 1)
+      })
+
+      it('drops the wait when the resize fails', async () => {
+        await seedSession({ sessionId: SESSION, offsetMs: 0 })
+        const generation = await plane.recordPodDesired({ sessionId: SESSION, vcpus: 4 })
+        await plane.recordPodWaiting({ sessionId: SESSION, generation, since: waitAt })
+
+        await plane.recordPodFailed({ sessionId: SESSION, generation, error: 'no sandbox' })
+        expect((await plane.readSession({ sessionId: SESSION }))?.podWaitingSince).toBeNull()
+        expect(await podOf()).toEqual({ desiredVcpus: 4, phase: 'failed', error: 'no sandbox' })
+      })
+    })
+
     it('creates a session and its main thread in one transaction', async () => {
       await plane.createSession({
         sessionId: SESSION,
@@ -135,6 +183,7 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
         podActualVcpus: null,
         podAppliedGeneration: null,
         podResizeError: null,
+        podWaitingSince: null,
         routineId: null,
       })
       expect(await plane.head({ threadId: THREAD })).toEqual({ seq: 0, hash: expect.any(String) })

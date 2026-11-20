@@ -19,6 +19,7 @@ export type PodResizeDeps = {
   rewake(args: { sessionId: string }): Promise<unknown>
   held(args: { sessionId: string }): Promise<boolean>
   recordFailed(args: { sessionId: string; generation: number; error: string }): Promise<unknown>
+  recordWaiting(args: { sessionId: string; generation: number }): Promise<unknown>
   busy(args: { sessionId: string }): Promise<PodBusy>
   requeue(args: { payload: PodResizePayload; delaySeconds: number }): Promise<unknown>
 }
@@ -40,6 +41,10 @@ export const runPodResize = async (args: {
     return { outcome: EPodResizeOutcome.Superseded }
   }
   if (payload.whenIdle === true && (await deps.busy({ sessionId: payload.sessionId })).busy) {
+    await deps.recordWaiting({
+      sessionId: payload.sessionId,
+      generation: payload.generation,
+    })
     await deps.requeue({ payload, delaySeconds: POD_RESIZE_WAIT_SECONDS })
     return { outcome: EPodResizeOutcome.Waiting }
   }
