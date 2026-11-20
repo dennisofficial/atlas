@@ -37,9 +37,11 @@ const remoteHeadOf = async (args: {
   past: readonly WireEvent[]
   localHead: number
   threadId: ThreadId
+  knownRemoteHead?: number | undefined
   sessions: Pick<SessionsClient, 'threadHead'>
 }): Promise<number> => {
   if (args.past.length > 0) return Math.max(...args.past.map((row) => row.seq))
+  if (args.knownRemoteHead !== undefined) return args.knownRemoteHead
   if (args.localHead === 0) return 0
   return await args.sessions.threadHead({ threadId: args.threadId })
 }
@@ -50,6 +52,8 @@ export async function hydrateServeHistory(args: {
   sessions: Pick<SessionsClient, 'readEvents' | 'threadHead'>
   log: ServeLog
   writer?: MirrorWriter | undefined
+  /** The remote head the caller already holds, so an empty page costs no extra head read. */
+  remoteHead?: number | undefined
 }): Promise<HydrateResult> {
   const { atlasHome, threadId, log } = args
   const registry = registryFor({ home: atlasHome })
@@ -58,7 +62,13 @@ export async function hydrateServeHistory(args: {
 
   const wire = await args.sessions.readEvents({ threadId, own: true, fromSeq: localHead + 1 })
   const past = wire.filter((row) => row.seq > localHead).sort((a, b) => a.seq - b.seq)
-  const remoteHead = await remoteHeadOf({ past, localHead, threadId, sessions: args.sessions })
+  const remoteHead = await remoteHeadOf({
+    past,
+    localHead,
+    threadId,
+    knownRemoteHead: args.remoteHead,
+    sessions: args.sessions,
+  })
 
   const events: Event[] = []
   let skipped = 0

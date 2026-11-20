@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'bun:test'
 
 import {
+  EAgentStatus,
   ENoticeStage,
   EPrEventKind,
   stampDrafts,
@@ -9,12 +10,15 @@ import {
   toRunId,
   toThreadId,
   type Event,
-  type EventId,
   type EventDraft,
+  type EventId,
+  type ThreadId,
 } from '@dltech/atlas-core'
 
+import type { AgentSnapshot } from '@dltech/atlas-harness'
 import { EEventsWatchFrame, type EventsWatchFrame } from '@dltech/atlas-wire'
 
+import type { HydrateResult } from '../serve-hydrate'
 import { EServeEvent, type ServeLogLine } from '../serve-log'
 import { bindServePull, watchEventsFor, type PullSubscribe } from '../serve-pull'
 
@@ -56,6 +60,13 @@ const settle = async (): Promise<void> => {
   for (let turn = 0; turn < 10; turn += 1) await Promise.resolve()
 }
 
+const hydrateResult = (head: number): HydrateResult => ({
+  imported: 0,
+  skipped: 0,
+  head,
+  remoteHead: head,
+})
+
 const setup = (
   args: {
     tail?: Event[]
@@ -67,7 +78,11 @@ const setup = (
   const runs: unknown[] = []
   const lines: ServeLogLine[] = []
   const ticks: Array<(frame?: EventsWatchFrame) => void> = []
-  const hydrates = { calls: 0, next: async (): Promise<unknown> => undefined }
+  const hydrates = {
+    calls: 0,
+    remoteHeads: [] as Array<number | undefined>,
+    next: async (): Promise<HydrateResult | undefined> => hydrateResult(0),
+  }
   let detached = 0
   const subscribe: PullSubscribe = ({ onTick }) => {
     ticks.push(onTick)
@@ -90,8 +105,9 @@ const setup = (
       stoppedAt: args.stoppedAt ?? (async () => undefined),
     },
     log: (line) => lines.push(line),
-    hydrate: () => {
+    hydrate: (_asked, remoteHead) => {
       hydrates.calls += 1
+      hydrates.remoteHeads.push(remoteHead)
       return hydrates.next()
     },
     subscribe,
@@ -209,8 +225,8 @@ describe('bindServePull', () => {
     const pull = setup()
     let release: () => void = () => undefined
     pull.hydrates.next = () =>
-      new Promise<void>((resolve) => {
-        release = resolve
+      new Promise<HydrateResult | undefined>((resolve) => {
+        release = () => resolve(undefined)
       })
     pull.tick()
     await settle()
@@ -261,25 +277,30 @@ describe('bindServePull', () => {
     expect(pull.hydrates.calls).toBe(0)
   })
 
-  it('sweeps the family on a tick and wakes a settled child with unanswered input', async () => {
-    const child = toThreadId('thread-child')
-    const woken: string[] = []
-    const settled: import('@dltech/atlas-harness').AgentSnapshot = {
-      agentId: child,
-      spawnedBy: threadId,
-      agentType: 'teammate',
-      intent: 'help',
-      status: 'stopped' as never,
-      turns: 1,
-      toolCalls: 0,
-      lastTool: undefined,
-      startedAt: '2026-10-29T00:00:00.000Z',
-      endedAt: '2026-10-29T01:00:00.000Z',
-    }
-    const pull = setup({
-      tail: [eventOf({ seq: 1, type: 'user-said' }), eventOf({ seq: 2, type: 'assistant-said' })],
-    })
-    pull.detach()
+  const child = toThreadId('thread-child')
+
+  const settledChild = (): AgentSnapshot => ({
+    agentId: child,
+    spawnedBy: threadId,
+    agentType: 'teammate',
+    intent: 'help',
+    status: EAgentStatus.Stopped,
+    turns: 1,
+    toolCalls: 0,
+    lastTool: undefined,
+    startedAt: '2026-10-29T00:00:00.000Z',
+    endedAt: '2026-10-29T01:00:00.000Z',
+  })
+
+  const familyPull = (args: {
+    heads: () => ReadonlyMap<ThreadId, number>
+    childTail: () => Event[]
+  }) => {
+    const hydrates: ThreadId[] = []
+    const remoteHeads: Array<number | undefined> = []
+    const woken: ThreadId[] = []
+    const ticks: Array<(frame?: EventsWatchFrame) => void> = []
+    const listings = { calls: 0 }
     const detach = bindServePull({
       env,
       threadId,
@@ -287,17 +308,14 @@ describe('bindServePull', () => {
       remote,
       app: {
         log: {
-          readOwn: async (given: { threadId: string }) =>
-            given.threadId === child
-              ? [eventOf({ seq: 1, type: 'user-said' })]
-              : [
-                  eventOf({ seq: 1, type: 'user-said' }),
-                  eventOf({ seq: 2, type: 'assistant-said' }),
-                ],
+          readOwn: async (asked: { threadId: string }) =>
+            asked.threadId === child
+              ? args.childTail()
+              : [eventOf({ seq: 2, type: 'assistant-said' })],
           refresh: async () => undefined,
         },
         roster: {
-          snapshot: () => ({ shells: [], agents: [settled], services: [] }),
+          snapshot: () => ({ shells: [], agents: [settledChild()], services: [] }),
           subscribe: () => () => undefined,
         },
         agents: {
@@ -305,23 +323,82 @@ describe('bindServePull', () => {
           resume: async () => ({ ok: false as const, reason: 'not stepping' }),
           stop: async () => ({ ok: false as const, reason: 'no' }),
           wake: async (given: { agentId: string }) => {
-            woken.push(given.agentId)
-            return { ok: true as const, snapshot: settled }
+            woken.push(toThreadId(given.agentId))
+            return { ok: true as const, snapshot: settledChild() }
           },
         },
       },
       driver: { run: () => undefined, busy: () => false, stoppedAt: async () => undefined },
       log: () => undefined,
-      hydrate: async () => undefined,
+      hydrate: async (asked, remoteHead) => {
+        hydrates.push(asked)
+        remoteHeads.push(remoteHead)
+        return hydrateResult(asked === child ? (args.heads().get(child) ?? 0) : 0)
+      },
+      heads: async () => {
+        listings.calls += 1
+        return args.heads()
+      },
       subscribe: ({ onTick }) => {
-        onTick({ type: EEventsWatchFrame.Tick })
+        ticks.push(onTick)
         return () => undefined
       },
     })
-    await settle()
-    detach()
+    const tick = async (): Promise<void> => {
+      for (const onTick of ticks) onTick({ type: EEventsWatchFrame.Tick })
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    }
+    return {
+      detach,
+      tick,
+      woken,
+      listings,
+      childHydrates: () => hydrates.filter((asked) => asked === child).length,
+      childRemoteHeads: () => remoteHeads.filter((_, index) => hydrates[index] === child),
+    }
+  }
 
-    expect(woken).toEqual([child])
+  it('reads no child history on a tick when no family head moved', async () => {
+    const heads = new Map<ThreadId, number>([[child, 5]])
+    const pull = familyPull({ heads: () => heads, childTail: () => [] })
+
+    await pull.tick()
+    expect(pull.childHydrates()).toBe(1)
+    await pull.tick()
+    expect(pull.childHydrates()).toBe(1)
+    expect(pull.listings.calls).toBe(2)
+    pull.detach()
+  })
+
+  it('hydrates and wakes a child whose remote head moved', async () => {
+    const heads = new Map<ThreadId, number>([[child, 5]])
+    const state = { tail: [eventOf({ seq: 1, type: 'assistant-said' })] as Event[] }
+    const pull = familyPull({ heads: () => heads, childTail: () => state.tail })
+
+    await pull.tick()
+    expect(pull.woken).toEqual([])
+
+    state.tail = [eventOf({ seq: 1, type: 'user-said' })]
+    heads.set(child, 6)
+    await pull.tick()
+
+    expect(pull.childHydrates()).toBe(2)
+    expect(pull.woken).toEqual([child])
+    pull.detach()
+  })
+
+  it('catches a child up once after a reconnect, then leaves it alone', async () => {
+    const heads = new Map<ThreadId, number>([[child, 5]])
+    const pull = familyPull({ heads: () => heads, childTail: () => [] })
+    await pull.tick()
+
+    heads.set(child, 9)
+    await pull.tick()
+    await pull.tick()
+
+    expect(pull.childHydrates()).toBe(2)
+    expect(pull.childRemoteHeads()).toEqual([5, 9])
+    pull.detach()
   })
 })
 

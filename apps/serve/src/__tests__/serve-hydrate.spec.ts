@@ -162,6 +162,32 @@ describe('hydrateServeHistory', () => {
     expect(result).toEqual({ imported: 0, skipped: 0, head: 2, remoteHead: 2 })
   })
 
+  it('takes the remote head the caller already holds instead of reading it again', async () => {
+    const home = newHome()
+    await hydrate({ home, rows: [userSaid(1, 'one'), userSaid(2, 'two')] })
+    registryFor({ home }).invalidateSession({
+      sessionDir: sessionDirectory({ home, sessionId: threadId }),
+    })
+    let headReads = 0
+
+    const result = await hydrateServeHistory({
+      atlasHome: home,
+      threadId,
+      log: () => undefined,
+      remoteHead: 2,
+      sessions: {
+        readEvents: async () => [],
+        threadHead: async () => {
+          headReads += 1
+          return 2
+        },
+      },
+    })
+
+    expect(result).toEqual({ imported: 0, skipped: 0, head: 2, remoteHead: 2 })
+    expect(headReads).toBe(0)
+  })
+
   it('imports nothing and leaves no log when Postgres holds nothing', async () => {
     const home = newHome()
 
