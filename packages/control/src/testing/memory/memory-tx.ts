@@ -3,6 +3,8 @@ import type { SessionChange } from '@dltech/atlas-protocol'
 
 import {
   type AdvanceRoutineParams,
+  type AppendCommit,
+  type AppendOpening,
   type BlobRefWrite,
   type BlobRow,
   type BlobWrite,
@@ -53,6 +55,7 @@ import {
   readChangesIn,
   upsertChangesIn,
 } from './memory-changes'
+import { commitAppendIn, openAppendIn } from './memory-append'
 import { insertEventsIn, readEventsIn } from './memory-events'
 import { claimNeedingIn } from './memory-claim-next'
 import { leasesHeldByIn, writeLeaseIn } from './memory-leases'
@@ -195,6 +198,14 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
   }
 
   async useSnapshot(): Promise<void> {}
+
+  async openAppend(threadId: string): Promise<AppendOpening | undefined> {
+    return openAppendIn({ state: this.state, threadId })
+  }
+
+  async commitAppend(params: AppendCommit): Promise<boolean> {
+    return commitAppendIn({ state: this.state, pending: this.pending, ...params })
+  }
 
   async lockThread(threadId: string): Promise<ThreadRow | undefined> {
     return this.readThread(threadId)

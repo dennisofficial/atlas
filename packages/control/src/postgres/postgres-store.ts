@@ -5,6 +5,8 @@ import type { SessionChange } from '@dltech/atlas-protocol'
 import {
   ControlStorePort,
   type AdvanceRoutineParams,
+  type AppendCommit,
+  type AppendOpening,
   type BlobRefWrite,
   type BlobRow,
   type BlobWrite,
@@ -58,6 +60,7 @@ import {
   insertBlobRows,
   readBlobRow,
 } from './postgres-blobs'
+import { commitAppendIn, openAppendIn } from './postgres-append'
 import { writeLeaseIn } from './postgres-leases'
 import { announceIn, notifyWakeIn } from './postgres-notify'
 import { hostPresentIn, hostsPresentIn } from './postgres-presence'
@@ -268,6 +271,14 @@ class PostgresTx implements ControlTx {
       visibility: params.visibility,
       createdAt: new Date(params.at),
     })
+  }
+
+  async openAppend(threadId: string): Promise<AppendOpening | undefined> {
+    return openAppendIn({ tx: this.tx, threadId })
+  }
+
+  async commitAppend(params: AppendCommit): Promise<boolean> {
+    return commitAppendIn({ tx: this.tx, ...params })
   }
 
   async lockThread(threadId: string): Promise<ThreadRow | undefined> {

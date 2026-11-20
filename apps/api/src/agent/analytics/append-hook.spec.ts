@@ -275,8 +275,7 @@ describe('analytics append hook', () => {
       { type: 'tool-denied', callId: toCallId('call-2'), name: 'edit', reason: 'no' },
     ])
 
-    // One read refreshes the session view inside the append; the hook adds exactly one more.
     expect(analytics.captured).toHaveLength(2)
-    expect(store.reads).toBe(2)
+    expect(store.reads).toBe(1)
   })
 })

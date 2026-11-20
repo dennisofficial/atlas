@@ -180,8 +180,8 @@ export const pluginHooksOf = (args: {
   const host = hostHooksOf()
   if (plugins === undefined) return new HookChain(host)
 
-  return new HookChain(
-    mergeHooks([
+  return new HookChain({
+    ...mergeHooks([
       host,
       plugins.pod.hooks(args.ctx),
       subscriptionEndHooksOf({
@@ -190,7 +190,9 @@ export const pluginHooksOf = (args: {
         now: args.now,
       }),
     ]),
-  )
+    trace: args.runtime.trace,
+    onMishap: (mishap) => args.ctx.log(`hook ${mishap.label} ${mishap.kind}: ${mishap.detail}`),
+  })
 }
 
 export type PluginPod = { tools: ToolRegistry; hooks: HookChain }

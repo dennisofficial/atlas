@@ -30,18 +30,18 @@ const holdPresence = async (hostId: number): Promise<void> => {
 }
 
 class GatedStore extends PostgresControlStore {
-  onLeaseShared: (() => Promise<void>) | undefined
+  onAppendOpened: (() => Promise<void>) | undefined
 
   override transact<T>(work: (tx: ControlTx) => Promise<T>): Promise<T> {
     return super.transact((tx) =>
       work(
         new Proxy(tx, {
           get: (target, key, receiver) => {
-            if (key !== 'shareLease') return Reflect.get(target, key, receiver)
-            return async (sessionId: string) => {
-              const lease = await target.shareLease(sessionId)
-              await this.onLeaseShared?.()
-              return lease
+            if (key !== 'openAppend') return Reflect.get(target, key, receiver)
+            return async (threadId: string) => {
+              const opening = await target.openAppend(threadId)
+              await this.onAppendOpened?.()
+              return opening
             }
           },
         }),
@@ -59,12 +59,12 @@ it('postgres: an in-flight append holds the lease FOR SHARE, so claimNext skips 
   const { epoch } = await plane.grant({ sessionId: SESSION, hostId: 101 })
   await holdPresence(102)
 
-  let shared!: () => void
+  let opened!: () => void
   let release!: () => void
-  const isShared = new Promise<void>((resolve) => (shared = resolve))
+  const isOpen = new Promise<void>((resolve) => (opened = resolve))
   const gate = new Promise<void>((resolve) => (release = resolve))
-  gated.onLeaseShared = async () => {
-    shared()
+  gated.onAppendOpened = async () => {
+    opened()
     await gate
   }
   const appending = appender.append({
@@ -72,7 +72,7 @@ it('postgres: an in-flight append holds the lease FOR SHARE, so claimNext skips 
     epoch,
     events: mint({ bodies: [said('in flight')], epoch }),
   })
-  await isShared
+  await isOpen
 
   expect((await plane.claimNext({ hostId: 102, limit: 5 })).leases).toEqual([])
 
@@ -81,7 +81,7 @@ it('postgres: an in-flight append holds the lease FOR SHARE, so claimNext skips 
   const claimed = (await plane.claimNext({ hostId: 102, limit: 5 })).leases
   expect(claimed).toMatchObject([{ epoch: epoch + 1, holderHostId: 102 }])
 
-  gated.onLeaseShared = undefined
+  gated.onAppendOpened = undefined
   const head = await plane.head({ threadId: THREAD })
   const late = await appender.append({
     threadId: THREAD,
