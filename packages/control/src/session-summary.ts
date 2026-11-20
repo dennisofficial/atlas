@@ -54,6 +54,7 @@ export const sessionSummaryOf = (args: {
     nested: digest.nested,
     routineId: digest.routineId ?? null,
     model: sessionModelChoiceOf(digest),
+    sandboxProvider: digest.sandboxProvider as SessionSummary['sandboxProvider'],
     ...(view === null || view === undefined ? {} : rowViewOf(view)),
   }
 }

@@ -1,7 +1,9 @@
 import { Archive, ArchiveRestore, CalendarClock, CircleCheck, Pin, RotateCcw } from 'lucide-react'
 import Link from 'next/link'
 
+import { ESandboxProvider } from '@dltech/atlas-protocol'
 import { NamingTitle } from '@dltech/atlas-ui/ai/naming-title'
+import { Badge } from '@dltech/atlas-ui/components/badge'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 import type { WireThread } from '@dltech/atlas-wire/web'
 import { relativeTime } from '@/features/settings/data/personal/relative-time'
@@ -22,6 +24,9 @@ import { CompactWorkIcon, ThreadWorkSummary } from './thread-pr-presentation'
 import { EThreadStatus, isUnread, isWorking, threadStatusOf } from './thread-status'
 import { v2SessionHref } from './v2-rows'
 import { v2IsUnread, v2StatusIconOf, type V2RowView } from './v2-status'
+
+const MARKER_CLASS =
+  'h-4 shrink-0 px-1 font-mono text-[10px] font-normal text-muted-foreground group-data-[collapsible=icon]:hidden'
 
 export interface ThreadRowBodyProps {
   thread: WireThread
@@ -154,13 +159,15 @@ export function ThreadRowBody({
               className={cn('flex-1', working && 'shimmer motion-reduce:shimmer-none')}
             />
           </span>
-          {v2 ? (
-            <span
-              data-engine-tag="v2"
-              className="shrink-0 rounded-sm border px-1 font-mono text-[10px] leading-4 text-muted-foreground group-data-[collapsible=icon]:hidden"
-            >
-              v2
-            </span>
+          {v2 ? null : (
+            <Badge variant="outline" data-engine-tag="v1" className={MARKER_CLASS}>
+              v1
+            </Badge>
+          )}
+          {v2 && v2View?.sandboxProvider === ESandboxProvider.Vercel ? (
+            <Badge variant="outline" data-sandbox-provider="vercel" className={MARKER_CLASS}>
+              Vercel
+            </Badge>
           ) : null}
           {v2View?.routineId === undefined ? null : (
             <CalendarClock

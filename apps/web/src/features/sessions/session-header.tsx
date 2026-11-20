@@ -190,7 +190,6 @@ export function SessionHeader({
           <NamingTitle title={title} naming={naming} fallback="Session" />
         </h1>
         <RenameAction sessionId={sessionId} title={title} />
-        <Badge variant="outline">v2</Badge>
         {routineId === null ? null : (
           <Badge variant="outline" data-session-routine>
             routine

@@ -44,6 +44,12 @@ describe('ThreadHeader', () => {
     expect(render({ state: EHeaderState.NeedsYou })).toContain('Needs you')
   })
 
+  it('marks a v1 session in the header', () => {
+    const html = render({})
+    expect(html).toContain('data-engine-tag="v1"')
+    expect(html).toContain('>v1<')
+  })
+
   it('keeps the mobile panel button', () => {
     const html = render({})
     expect(html).toContain('aria-label="Open panel"')

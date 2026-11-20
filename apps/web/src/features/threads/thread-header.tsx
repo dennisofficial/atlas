@@ -102,6 +102,13 @@ export function ThreadHeader(props: ThreadHeaderProps) {
             <NamingTitle title={title} naming={naming} />
           </h1>
         )}
+        <Badge
+          variant="outline"
+          data-engine-tag="v1"
+          className="h-4 shrink-0 px-1 font-mono text-[10px] font-normal text-muted-foreground"
+        >
+          v1
+        </Badge>
       </div>
       <div className="flex shrink-0 items-center gap-2">
         {local ? <LocalPodIcon /> : null}
