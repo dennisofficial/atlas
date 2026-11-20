@@ -1,5 +1,6 @@
 import {
   ModelPort,
+  requestSizeOf,
   type ChunkFilter,
   type ChunkType,
   type ModelStepResult,
@@ -61,7 +62,11 @@ export class TracedModel extends ModelPort {
     const { id, modelId } = this.inner.identity
     return this.trace.span({
       name: ESpan.ModelCall,
-      fields: { provider: id, model: modelId },
+      fields: {
+        provider: id,
+        model: modelId,
+        sizes: requestSizeOf({ assembled: args.assembled, tools: args.tools }),
+      },
       run: async (span) => {
         const result = await this.inner.step({
           ...args,

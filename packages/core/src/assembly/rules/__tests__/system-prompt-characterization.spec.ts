@@ -34,7 +34,9 @@ const systemOf = (prompt: CompiledPrompt, earlier: readonly SystemBlock[] = []) 
 
 describe('what reaches the provider, pinned byte for byte', () => {
   it('is the compiled text with every newline and blank line exactly as compiled', () => {
-    expect(systemOf(promptOf([{ text: DOCTRINE }]))).toEqual([{ text: DOCTRINE }])
+    expect(systemOf(promptOf([{ text: DOCTRINE }]))).toEqual([
+      { text: DOCTRINE, source: 'system-prompt' },
+    ])
   })
 
   it('applies no trimming, wrapping, prefix or suffix of its own', () => {
@@ -43,8 +45,11 @@ describe('what reaches the provider, pinned byte for byte', () => {
     expect(systemOf(promptOf([{ text: ragged }]))[0]?.text).toBe(ragged)
   })
 
-  it('carries a block holding text and nothing else when the compile gave nothing else', () => {
-    expect(Object.keys(systemOf(promptOf([{ text: DOCTRINE }]))[0] ?? {})).toEqual(['text'])
+  it('carries a block holding the compiled text and its source, and nothing else', () => {
+    expect(Object.keys(systemOf(promptOf([{ text: DOCTRINE }]))[0] ?? {})).toEqual([
+      'text',
+      'source',
+    ])
   })
 
   it('keeps the providerOptions the compile put on a block', () => {
@@ -53,15 +58,15 @@ describe('what reaches the provider, pinned byte for byte', () => {
       providerOptions: { anthropic: { cacheControl: { type: 'ephemeral' } } },
     }
 
-    expect(systemOf(promptOf([marked]))).toEqual([marked])
+    expect(systemOf(promptOf([marked]))).toEqual([{ ...marked, source: 'system-prompt' }])
   })
 })
 
 describe('how many blocks the rule emits', () => {
   it('emits one system block per compiled block, in compiled order, unjoined', () => {
     expect(systemOf(promptOf([{ text: 'first' }, { text: 'second' }]))).toEqual([
-      { text: 'first' },
-      { text: 'second' },
+      { text: 'first', source: 'system-prompt' },
+      { text: 'second', source: 'system-prompt' },
     ])
   })
 
@@ -84,7 +89,7 @@ describe('what the rule does to the assembly it was handed', () => {
   it('appends after the blocks already there and leaves them untouched', () => {
     expect(systemOf(promptOf([{ text: DOCTRINE }]), [{ text: 'earlier' }])).toEqual([
       { text: 'earlier' },
-      { text: DOCTRINE },
+      { text: DOCTRINE, source: 'system-prompt' },
     ])
   })
 

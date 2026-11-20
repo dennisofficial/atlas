@@ -51,6 +51,7 @@ export type SpanFields = {
   readonly outputTokens?: number | undefined
   readonly cacheReadTokens?: number | undefined
   readonly cacheWriteTokens?: number | undefined
+  readonly sizes?: Readonly<Record<string, number>> | undefined
 }
 
 export type SpanHandle = {
@@ -89,9 +90,21 @@ export const errorClassOf = (error: unknown): string =>
 
 export const markAttributeOf = (mark: ESpanMark): string => `${mark}_ms`
 
-export const spanAttributesOf = (fields: SpanFields | undefined): Record<string, string | number> =>
-  Object.fromEntries(
-    Object.entries(fields ?? {}).filter(
-      (entry): entry is [string, string | number] => entry[1] !== undefined,
+const SIZE_ATTRIBUTE_PREFIX = 'size.'
+
+export const spanAttributesOf = (
+  fields: SpanFields | undefined,
+): Record<string, string | number> => {
+  if (fields === undefined) return {}
+  const { sizes, ...rest } = fields
+  return {
+    ...Object.fromEntries(
+      Object.entries(rest).filter(
+        (entry): entry is [string, string | number] => entry[1] !== undefined,
+      ),
     ),
-  )
+    ...Object.fromEntries(
+      Object.entries(sizes ?? {}).map(([key, value]) => [`${SIZE_ATTRIBUTE_PREFIX}${key}`, value]),
+    ),
+  }
+}

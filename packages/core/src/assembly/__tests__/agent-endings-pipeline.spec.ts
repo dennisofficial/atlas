@@ -226,7 +226,7 @@ describe('the block at the tail of the prompt', () => {
 
     expect(endingBlocksOf(assembled)).toHaveLength(1)
     expect(textsOf(assembled).at(-1)).toContain('Project directory: /w/tree')
-    expect(assembled.system).toEqual([{ text: DOCTRINE }])
+    expect(assembled.system).toEqual([{ text: DOCTRINE, source: 'system-prompt' }])
   })
 
   it('takes the cache breakpoint as the newest durable block, ahead of the workspace reminder', () => {

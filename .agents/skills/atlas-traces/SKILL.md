@@ -49,6 +49,7 @@ A sub-agent's turn is its own trace, not a child of the tool call that spawned i
 | `inputTokens`, `outputTokens` | `model.call` | Token counts for the attempt |
 | `cacheReadTokens`, `cacheWriteTokens` | `model.call` | Prompt cache read back and written by this attempt |
 | `finishReason`, `toolCalls` | `model.call` | Why the step stopped and how many tools it asked for |
+| `size.*` | `model.call` | Characters per part of the request: `size.system.<source>`, `size.tools.builtin`, `size.tools.mcp.<server>`, their `.count`, `size.messages`, `size.messages.context.<source>`, `size.total` |
 | `delayMs` | `model.backoff` | Planned retry delay |
 | `tool`, `outcome` | `tool` | Tool name; `ok`, `error` or `denied` |
 | `drafts`, `events` | record and intake spans | How many events were written or read |
@@ -96,6 +97,25 @@ call actually ran, find its `callId` in the session's event log.
 
 **Retries.** Look for `model.backoff` spans and more than one `model.call` per step. Failed attempts
 carry `error.class`.
+
+**What is the prompt made of?** Query `model.call` as flat spans, filtered to one `threadId`, and
+take the thread's first step (a fresh session's first call is where the fixed prefix dominates).
+Read the `size.*` attributes: `size.system.<source>` splits the system prompt by producer
+(`system-prompt`, `instructions`, `memory-index`, `skills-listing`, `repo-agents`),
+`size.tools.builtin` and `size.tools.mcp.<server>` split the tool declarations, and `size.messages`
+covers the conversation including `size.messages.context.<source>` envelopes such as
+`mcp-instructions`. `size.total` is the sum.
+
+```json
+{"query": {"serviceNames": ["atlas"], "dateRange": {"date_from": "-1d"}, "flatSpans": true,
+  "rootSpans": false, "filterGroup": [
+    {"key": "name", "type": "span", "operator": "exact", "value": "model.call"},
+    {"key": "threadId", "type": "span", "operator": "exact", "value": "<thread id>"}]}}
+```
+
+Characters to tokens is roughly chars / 4; calibrate against `inputTokens` on the same span (the
+ratio holds best on English prose and drifts on JSON, code and system text). A part that is large
+but rarely changes is a caching candidate; one that grows every step is a budget problem.
 
 **Prompt-cache health.** Order a session's `model.call` spans by timestamp (filter on `threadId`
 via its turns) and read `cacheReadTokens` and `cacheWriteTokens` step by step.
