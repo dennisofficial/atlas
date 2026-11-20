@@ -14,7 +14,6 @@ export const createSessionIn = async (params: {
   mainThreadId: string
   model?: SessionModelAsk | undefined
   sandboxProvider?: string | undefined
-  credentialSource?: string | undefined
   sandboxInstanceId?: string | null | undefined
   spawnedBySessionId?: string | undefined
   nested?: boolean | undefined
@@ -32,7 +31,7 @@ export const createSessionIn = async (params: {
   await tx.createSession({
     ...session,
     sandboxProvider: params.sandboxProvider ?? ESandboxProvider.Vercel,
-    credentialSource: params.credentialSource ?? ECredentialSource.Platform,
+    credentialSource: ECredentialSource.Platform,
     sandboxInstanceId: params.sandboxInstanceId ?? null,
     ...resolved,
   })

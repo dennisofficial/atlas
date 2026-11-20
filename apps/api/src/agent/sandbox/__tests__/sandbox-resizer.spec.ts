@@ -64,7 +64,6 @@ const setup = (platform: Pick<AgentHostEnv, 'platformVercel' | 'agent37'> = PLAT
     config: new ConfigReader({
       db,
       cipher,
-      vercel: { refresh: async (): Promise<string> => 'refreshed-token' },
       platform,
     }),
     sandbox: sandboxRegistryOf(
@@ -88,27 +87,18 @@ const pin = async (args: {
 }
 
 describe('sandboxResizerOf', () => {
-  it('resizes a byok vercel session through the vercel adapter with the owner credential', async () => {
+  it('refuses a session still pinned to byok instead of resizing it on the owner credential', async () => {
     const { db, vercel, agent37, resizer } = setup()
     await seedOwner(db)
     await seedVercel(db)
+    await db.orm.v2.V2Session.where({ id: 's-1' }).update({
+      credentialSource: ECredentialSource.Byok,
+    })
 
-    await resizer.resize({ sandboxSessionId: 's-1', vcpus: 4 })
-
-    expect(vercel.resizes).toEqual([
-      {
-        target: {
-          sandboxSessionId: 's-1',
-          credentials: {
-            provider: ESandboxProvider.Vercel,
-            token: 'vercel-token',
-            teamId: 'team-1',
-            projectId: 'vproj-1',
-          },
-        },
-        vcpus: 4,
-      },
-    ])
+    await expect(resizer.resize({ sandboxSessionId: 's-1', vcpus: 4 })).rejects.toMatchObject({
+      gap: 'byok-retired',
+    })
+    expect(vercel.resizes).toEqual([])
     expect(agent37.resizes).toEqual([])
   })
 

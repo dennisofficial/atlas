@@ -77,55 +77,8 @@ describe('SessionsService command', () => {
     },
   )
 
-  it('refuses a BYOK resize outside the connected Vercel plan without touching the pod', async () => {
-    const seen: { userId: string; vcpus: number }[] = []
-    const context = setup({
-      planGate: {
-        assertWithinPlan: async (args) => {
-          seen.push(args)
-          throw new BadRequestException('16 vCPU exceeds the plan')
-        },
-      },
-    })
-    const sessionId = 'byok-session'
-    await context.store.transact((tx) =>
-      tx.createSession({
-        sessionId,
-        userId: 'user-a',
-        projectId: 'proj-a',
-        mainThreadId: 'byok-thread',
-        modelRef: 'anthropic/claude-sonnet-4-5',
-        modelEffort: 'medium',
-        modelFast: false,
-        sandboxProvider: 'vercel',
-        credentialSource: 'byok',
-        sandboxInstanceId: null,
-        at: NOW,
-      }),
-    )
-
-    const refused = context.service.command({
-      userId: 'user-a',
-      sessionId,
-      name: 'resize',
-      args: { vcpus: 16 },
-    })
-
-    await expect(refused).rejects.toBeInstanceOf(BadRequestException)
-    expect(seen).toEqual([{ userId: 'user-a', vcpus: 16 }])
-    expect(context.dispatcher.dispatches).toEqual([])
-    expect(await inboxOf({ plane: context.plane, sessionId })).toEqual([])
-  })
-
-  it('refuses a platform-credential resize above 8 vCPU without consulting the Vercel plan', async () => {
-    const seen: number[] = []
-    const context = setup({
-      planGate: {
-        assertWithinPlan: async (args) => {
-          seen.push(args.vcpus)
-        },
-      },
-    })
+  it('refuses a Vercel resize above the 8 vCPU platform cap without touching the pod', async () => {
+    const context = setup()
     const created = await context.service.create({ userId: 'user-a', projectId: 'proj-a' })
 
     const refused = context.service.command({
@@ -136,8 +89,8 @@ describe('SessionsService command', () => {
     })
 
     await expect(refused).rejects.toBeInstanceOf(BadRequestException)
-    expect(seen).toEqual([])
     expect(context.dispatcher.dispatches).toEqual([])
+    expect(await inboxOf({ plane: context.plane, sessionId: created.sessionId })).toEqual([])
   })
 
   it('refuses an Agent37 resize off the Agent37 cpu counts whatever the Vercel plan says', async () => {
