@@ -214,7 +214,7 @@ describe('GithubPrStore.apply', () => {
 describe('GithubPrStore.apply on a tracked head nobody subscribed to', () => {
   useTestDatabase()
 
-  it('derives the row but writes no event, delivery, inbox, wake or outbox row', async () => {
+  it('derives the row but writes no event, delivery, inbox or wake', async () => {
     const { store, wake, changedThreads } = rig()
 
     const applied = await store.apply(applyArgs([pull()]))
@@ -226,6 +226,6 @@ describe('GithubPrStore.apply on a tracked head nobody subscribed to', () => {
     expect(await db.orm.public.GithubWebhookInbox.all()).toHaveLength(0)
     expect(wake.notifyEvent).not.toHaveBeenCalled()
     expect(changedThreads).toHaveLength(0)
-    expect(await db.orm.public.GithubPrOutbox.all()).toHaveLength(0)
+    expect((await db.orm.public.GithubPrOutbox.all()).map((row) => row.kind)).toEqual(['fanout'])
   })
 })

@@ -130,22 +130,19 @@ export class GithubPrStore {
       const threads = [...new Set(subscribers.map((held) => held.threadId))].filter(
         (threadId) => threadId !== '',
       )
-      const userIds = [...new Set(subscribers.map((held) => held.userId))]
-
       return await GithubPrOutboxWriter.write({
         tx: scope,
         repoFullName,
         prNumber: args.prNumber,
         effects: [
-          ...(userIds.length === 0
-            ? []
-            : [
-                {
-                  kind: 'fanout' as const,
-                  payload: { userIds, state: dtoOf(row) },
-                  dedupeKey: `fanout:${frame}`,
-                },
-              ]),
+          {
+            kind: 'fanout',
+            payload: {
+              userIds: [...new Set(subscribers.map((held) => held.userId))],
+              state: dtoOf(row),
+            },
+            dedupeKey: `fanout:${frame}`,
+          },
           ...threads.map((threadId) => ({
             kind: 'thread-signal' as const,
             payload: { threadId },
@@ -347,21 +344,15 @@ export class GithubPrStore {
     const threads = [...new Set(args.subscribers.map((held) => held.threadId))].filter(
       (threadId) => threadId !== '',
     )
-    const userIds = this.recipientsOf({ ...args.args, subscribers: args.subscribers })
-
     return [
-      ...(userIds.length === 0
-        ? []
-        : [
-            {
-              kind: 'fanout' as const,
-              payload: {
-                userIds,
-                state: dtoOf(args.row),
-              },
-              dedupeKey: `fanout:${frame}`,
-            },
-          ]),
+      {
+        kind: 'fanout',
+        payload: {
+          userIds: this.recipientsOf({ ...args.args, subscribers: args.subscribers }),
+          state: dtoOf(args.row),
+        },
+        dedupeKey: `fanout:${frame}`,
+      },
       ...threads.map((threadId) => ({
         kind: 'thread-signal' as const,
         payload: { threadId },
