@@ -118,7 +118,7 @@ describe('Agent37SandboxProvider.wake', () => {
       expect(creates).toHaveLength(1)
       expect(execs).toHaveLength(0)
       expect(remembered).toEqual([{ podSessionId: 'pod-1', instanceId: 'inst-1' }])
-      expect(endpoint.url).toBe('wss://inst-1-3000.agent37.app/?a37_token=a37')
+      expect(endpoint.url).toBe('wss://inst-1-47300.agent37.app/?a37_token=a37')
       expect(endpoint.sandboxName).toBe(agent37InstanceNameOf('pod-1'))
       expect(endpoint.token).toBe(
         daemonToken({ secret: 'secret', sandboxName: agent37InstanceNameOf('pod-1') }),
@@ -157,7 +157,7 @@ describe('Agent37SandboxProvider.wake', () => {
 
       expect(creates).toHaveLength(0)
       expect(execs).toHaveLength(0)
-      expect(endpoint.url).toContain('inst-9-3000')
+      expect(endpoint.url).toContain('inst-9-47300')
     } finally {
       cleanup()
     }
@@ -171,7 +171,7 @@ describe('Agent37SandboxProvider.wake', () => {
     try {
       await provider.wake({ target: TARGET, signal: new AbortController().signal })
       expect(creates[0]?.env.ATLAS_DAEMON_BUNDLE_URL).toBe(BUNDLE_URL)
-      expect(creates[0]?.env.PORT).toBe('3000')
+      expect(creates[0]?.env.ATLAS_DAEMON_PORT).toBe('47300')
       expect(creates[0]?.env.DAEMON_TOKEN).toBeString()
     } finally {
       cleanup()

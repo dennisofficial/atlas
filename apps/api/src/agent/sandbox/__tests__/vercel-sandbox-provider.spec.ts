@@ -74,7 +74,7 @@ describe('VercelSandboxProvider.wake', () => {
 
       expect(sandboxNameOf('s1')).toBe('atlas-v2-s1')
       expect(endpoint.sandboxName).toBe('atlas-v2-s1')
-      expect(endpoint.url).toBe('wss://route-3000.vercel.run')
+      expect(endpoint.url).toBe('wss://route-47300.vercel.run')
       expect(endpoint.token).toBe(daemonToken({ secret: 'top-secret', sandboxName: 'atlas-v2-s1' }))
 
       expect(creates.length).toBe(1)

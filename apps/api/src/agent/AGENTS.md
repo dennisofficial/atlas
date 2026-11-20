@@ -45,7 +45,7 @@ tunnels and DNS routes for `exposePort`. `AGENT_HOST_PUBLIC_URL` seals the MCP O
 so production keeps it at `https://api.byatlas.io`.
 
 `AGENT37_TEMPLATE_ID` names the workspace template that `scripts/agent37-register-template.ts`
-registers from `ghcr.io/dennisofficial/atlas-sandbox` (name `atlas-sandbox`, `default_port` 3000).
+registers from `ghcr.io/dennisofficial/atlas-sandbox` (name `atlas-sandbox`, `default_port` 47300, the daemon port).
 The `retag` job in `.github/workflows/sandbox-image.yml` runs that script on every release with the
 `sha-<7>` tag the `publish` job pushed, so the template's digest moves together with the image the
 Vercel provider gets.

@@ -50,14 +50,22 @@ describe('renewSessionDeadline', () => {
 })
 
 describe('routedUrlOf', () => {
-  const sandboxWith = (url: string | undefined) =>
-    ({
+  const sandboxWith = (url: string | undefined, routedOnUpdate?: string) => {
+    let route = url
+    const updates: unknown[] = []
+    const sandbox = {
       name: 'atlas-v2-abc',
       domain: () => {
-        if (url === undefined) throw new Error('no route for port 3000')
-        return url
+        if (route === undefined) throw new Error('no route for port 47300')
+        return route
       },
-    }) as unknown as Sandbox
+      update: async (params: unknown) => {
+        updates.push(params)
+        route = routedOnUpdate
+      },
+    } as unknown as Sandbox
+    return Object.assign(sandbox, { updates })
+  }
 
   it('returns the known route without fetching the sandbox again', async () => {
     let fetched = 0
@@ -87,7 +95,14 @@ describe('routedUrlOf', () => {
     expect(Date.now() - started).toBeLessThan(500)
   })
 
-  it('fails with the cause when the fresh sandbox has no route either', async () => {
+  it('asks for the daemon port on a sandbox created before it moved, then reads the route', async () => {
+    const fresh = sandboxWith(undefined, 'https://added.vercel.run')
+    const url = await routedUrlOf({ sandbox: sandboxWith(undefined), refetch: async () => fresh })
+    expect(url).toBe('https://added.vercel.run')
+    expect(fresh.updates).toEqual([{ ports: [47300] }])
+  })
+
+  it('fails with the cause when the fresh sandbox has no route even after asking', async () => {
     let fetched = 0
     await expect(
       routedUrlOf({
