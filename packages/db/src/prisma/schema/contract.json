@@ -10129,6 +10129,16 @@
                   "kind": "scalar"
                 }
               },
+              "podWaitingSince": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
               "projectId": {
                 "nullable": true,
                 "type": {
@@ -10407,6 +10417,9 @@
                 },
                 "podSizeGeneration": {
                   "column": "podSizeGeneration"
+                },
+                "podWaitingSince": {
+                  "column": "podWaitingSince"
                 },
                 "projectId": {
                   "column": "projectId"
@@ -18711,6 +18724,14 @@
                   },
                   "nullable": false
                 },
+                "podWaitingSince": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
                 "projectId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -19404,7 +19425,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "c585241222fe38f66f6888b574190f11c23f2088151b962b20b0228b473b0f4a"
+    "storageHash": "76eef62c5f7a890871af1fa51b0bb2ffd26177915dc65c8049fb3f48c52e8607"
   },
   "execution": {
     "executionHash": "4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45",

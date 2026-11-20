@@ -76,6 +76,7 @@ import {
   setSessionPodAppliedIn,
   setSessionPodDesiredIn,
   setSessionPodFailedIn,
+  setSessionPodWaitingIn,
   setSessionTitleIfUntitledIn,
   setSessionTitleIn,
 } from './postgres-session-writes'
@@ -175,15 +176,39 @@ class PostgresTx implements ControlTx {
   }
 
   async setSessionPodDesired(params: Parameters<ControlTx['setSessionPodDesired']>[0]) {
-    return setSessionPodDesiredIn({ tx: this.tx, ...params })
+    return setSessionPodDesiredIn({
+      tx: this.tx,
+      sessionId: params.sessionId,
+      vcpus: params.vcpus,
+      generation: params.generation,
+    })
   }
 
   async setSessionPodApplied(params: Parameters<ControlTx['setSessionPodApplied']>[0]) {
-    return setSessionPodAppliedIn({ tx: this.tx, ...params })
+    return setSessionPodAppliedIn({
+      tx: this.tx,
+      sessionId: params.sessionId,
+      vcpus: params.vcpus,
+      generation: params.generation,
+    })
   }
 
   async setSessionPodFailed(params: Parameters<ControlTx['setSessionPodFailed']>[0]) {
-    return setSessionPodFailedIn({ tx: this.tx, ...params })
+    return setSessionPodFailedIn({
+      tx: this.tx,
+      sessionId: params.sessionId,
+      generation: params.generation,
+      error: params.error,
+    })
+  }
+
+  async setSessionPodWaiting(params: Parameters<ControlTx['setSessionPodWaiting']>[0]) {
+    return setSessionPodWaitingIn({
+      tx: this.tx,
+      sessionId: params.sessionId,
+      generation: params.generation,
+      since: params.since,
+    })
   }
 
   async setSessionArchived(params: { sessionId: string; archivedAt: string | null }) {

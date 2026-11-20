@@ -13,6 +13,7 @@ export interface JobDispatch<TTask extends AnyTask> {
   payload: TaskPayload<TTask>
   idempotencyKey: string
   tags?: string[]
+  delay?: string
 }
 
 export class JobDispatchError extends Error {

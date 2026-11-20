@@ -59,10 +59,10 @@ export class GithubAppSyncService {
   }
 
   async syncUnknownInstallation(args: { installationId: number }): Promise<void> {
-    const known = await this.installations.read({
+    const known = await this.installations.isKnown({
       installationId: BigInt(args.installationId),
     })
-    if (known !== null) return
+    if (known) return
     await this.syncGated({
       key: `unknown:${args.installationId}`,
       ttlMs: UNKNOWN_INSTALLATION_DEBOUNCE_MS,

@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'c585241222fe38f66f6888b574190f11c23f2088151b962b20b0228b473b0f4a'>;
+  StorageHashBase<'76eef62c5f7a890871af1fa51b0bb2ffd26177915dc65c8049fb3f48c52e8607'>;
 export type ExecutionHash =
   ExecutionHashBase<'4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45'>;
 export type ProfileHash =
@@ -1359,6 +1359,7 @@ export namespace Models {
     podRetiredAt: FieldOutputTypes['v2']['V2Session']['podRetiredAt'];
     podSessionId: FieldOutputTypes['v2']['V2Session']['podSessionId'];
     podSizeGeneration: FieldOutputTypes['v2']['V2Session']['podSizeGeneration'];
+    podWaitingSince: FieldOutputTypes['v2']['V2Session']['podWaitingSince'];
     projectId: FieldOutputTypes['v2']['V2Session']['projectId'];
     readSeq: FieldOutputTypes['v2']['V2Session']['readSeq'];
     routineId: FieldOutputTypes['v2']['V2Session']['routineId'];
@@ -7960,6 +7961,13 @@ type ContractBase = Omit<
                     readonly kind: 'literal';
                     readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
                   };
+                  readonly many: false;
+                };
+                readonly podWaitingSince: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
                 readonly projectId: {
@@ -14903,6 +14911,14 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
+              readonly podWaitingSince: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
               readonly projectId: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -15072,6 +15088,7 @@ type ContractBase = Omit<
                 readonly podRetiredAt: { readonly column: 'podRetiredAt' };
                 readonly podSessionId: { readonly column: 'podSessionId' };
                 readonly podSizeGeneration: { readonly column: 'podSizeGeneration' };
+                readonly podWaitingSince: { readonly column: 'podWaitingSince' };
                 readonly projectId: { readonly column: 'projectId' };
                 readonly readSeq: { readonly column: 'readSeq' };
                 readonly routineId: { readonly column: 'routineId' };

@@ -1,4 +1,5 @@
 import type { ControlSessionRow } from '@dltech/atlas-control'
+import type { PodBusy } from '@dltech/atlas-core'
 
 import type { PodResizeOutcome } from '../../../agent'
 import {
@@ -17,10 +18,16 @@ export type PodResizeDeps = {
   resize(args: { sandboxSessionId: string; vcpus: number }): Promise<PodResizeOutcome>
   rewake(args: { sessionId: string }): Promise<unknown>
   held(args: { sessionId: string }): Promise<boolean>
+  recordApplied(args: { sessionId: string; vcpus: number; generation: number }): Promise<unknown>
   recordFailed(args: { sessionId: string; generation: number; error: string }): Promise<unknown>
+  recordWaiting(args: { sessionId: string; generation: number }): Promise<unknown>
+  busy(args: { sessionId: string }): Promise<PodBusy>
+  requeue(args: { payload: PodResizePayload; delaySeconds: number }): Promise<unknown>
 }
 
 export const NO_SANDBOX_TO_RESIZE = 'No sandbox to resize'
+
+export const POD_RESIZE_WAIT_SECONDS = 30
 
 export const failureText = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
@@ -33,6 +40,14 @@ export const runPodResize = async (args: {
   const session = await deps.session({ sessionId: payload.sessionId })
   if (session === undefined || session.podSizeGeneration !== payload.generation) {
     return { outcome: EPodResizeOutcome.Superseded }
+  }
+  if (payload.whenIdle === true && (await deps.busy({ sessionId: payload.sessionId })).busy) {
+    await deps.recordWaiting({
+      sessionId: payload.sessionId,
+      generation: payload.generation,
+    })
+    await deps.requeue({ payload, delaySeconds: POD_RESIZE_WAIT_SECONDS })
+    return { outcome: EPodResizeOutcome.Waiting }
   }
   const vcpus = session.podDesiredVcpus ?? payload.vcpus
   const sandboxSessionId = session.podSessionId ?? session.sessionId
@@ -50,7 +65,17 @@ export const runPodResize = async (args: {
   if (resized === 'stored' && !(await deps.held({ sessionId: sandboxSessionId }))) {
     return { outcome: EPodResizeOutcome.Deferred }
   }
-  // the restart stopped the pod: nothing else would wake it, so the applied size stays unrecorded
+  // A restart has already recreated the container at the new shape, so the size is applied before
+  // anything wakes the pod again: the re-wake below can fail, be claimed elsewhere, or never report
+  // the instance's cpu, and the generation this resize was asked for is known here either way.
+  if (resized === 'restarted') {
+    await deps.recordApplied({
+      sessionId: sandboxSessionId,
+      vcpus,
+      generation: payload.generation,
+    })
+  }
+  // the restart stopped the pod: nothing else would wake it
   await deps.rewake({ sessionId: sandboxSessionId })
   return { outcome: EPodResizeOutcome.Applied }
 }

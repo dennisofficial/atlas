@@ -115,6 +115,8 @@ export async function headChecksOf(args: {
   repoFullName: string
   headSha: string
   baseBranch: string
+  commitChecks?: readonly CheckIdentityRow[] | undefined
+  requiredContexts?: readonly string[] | undefined
 }): Promise<{
   derived: DerivedChecks
   identities: CheckIdentity[]
@@ -124,16 +126,20 @@ export async function headChecksOf(args: {
   const requiredContexts =
     args.baseBranch === ''
       ? []
-      : ((
+      : (args.requiredContexts ??
+        (
           await args.tx.orm.public.GithubBranchProtection.where({
             repoFullName: args.repoFullName,
             baseBranch: args.baseBranch,
           }).first()
-        )?.requiredContexts ?? [])
-  const rows = await args.tx.orm.public.GithubCommitCheck.where({
-    repoFullName: args.repoFullName,
-    headSha: args.headSha,
-  }).all()
+        )?.requiredContexts ??
+        [])
+  const rows =
+    args.commitChecks ??
+    (await args.tx.orm.public.GithubCommitCheck.where({
+      repoFullName: args.repoFullName,
+      headSha: args.headSha,
+    }).all())
   const identities = checkIdentitiesOf(rows)
   const derived = derivedChecksOf({ attempts: identities, headSha: args.headSha, requiredContexts })
   const missing = missingRequiredContextsOf({

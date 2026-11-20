@@ -9,6 +9,8 @@ import type {
 
 export type RepoCoverage = ReadonlySet<string>
 
+const KNOWN_INSTALLATION_TTL_MS = 60 * 1_000
+
 export const reposWithChangedCoverage = (args: {
   before: RepoCoverage
   after: RepoCoverage
@@ -39,6 +41,8 @@ const coverageOf = (row: CoverageFields): RepoCoverage =>
  */
 @Injectable()
 export class GithubAppInstallationsService {
+  private readonly known = new Map<string, number>()
+
   async installationForRepo(args: { repoFullName: string }): Promise<bigint | null> {
     const match = await db.orm.public.GithubAppInstallation.select('installationId')
       .where({ suspendedAt: null })
@@ -59,6 +63,23 @@ export class GithubAppInstallationsService {
     return db.orm.public.GithubAppInstallation.select('accountLogin').first({
       installationId: args.installationId,
     })
+  }
+
+  async isKnown(args: { installationId: bigint }): Promise<boolean> {
+    const key = String(args.installationId)
+    const until = this.known.get(key)
+    if (until !== undefined && until > Date.now()) return true
+    const held = await this.read({ installationId: args.installationId })
+    if (held === null) {
+      this.known.delete(key)
+      return false
+    }
+    this.remember({ installationId: args.installationId })
+    return true
+  }
+
+  forget(args: { installationId: bigint }): void {
+    this.known.delete(String(args.installationId))
   }
 
   async coveredRepos(): Promise<RepoCoverage> {
@@ -88,6 +109,7 @@ export class GithubAppInstallationsService {
       create: { installationId, ...fields },
       update: fields,
     })
+    this.remember({ installationId })
   }
 
   async retainOnly(args: { installationIds: bigint[] }): Promise<void> {
@@ -96,6 +118,7 @@ export class GithubAppInstallationsService {
     for (const { installationId } of rows) {
       if (keep.has(installationId)) continue
       await db.orm.public.GithubAppInstallation.where({ installationId }).deleteAndCount()
+      this.forget({ installationId })
     }
   }
 
@@ -105,6 +128,7 @@ export class GithubAppInstallationsService {
     const before = await this.coverageOf({ installationId })
     if (payload.action === 'deleted') {
       await db.orm.public.GithubAppInstallation.where({ installationId }).deleteAndCount()
+      this.forget({ installationId })
       await this.markChangedDue({ before, after: new Set() })
       return
     }
@@ -129,6 +153,7 @@ export class GithubAppInstallationsService {
         suspendedAt,
       },
     })
+    this.remember({ installationId })
     await this.markChangedDue({
       before,
       after: coverageOf({ repos, suspendedAt }),
@@ -152,6 +177,10 @@ export class GithubAppInstallationsService {
     const repos = [...new Set([...kept.map(normalizedRepo), ...added])]
     await db.orm.public.GithubAppInstallation.where({ installationId }).update({ repos })
     await this.markChangedDue({ before, after: coverageOf({ ...held, repos }) })
+  }
+
+  private remember(args: { installationId: bigint }): void {
+    this.known.set(String(args.installationId), Date.now() + KNOWN_INSTALLATION_TTL_MS)
   }
 
   private async coverageOf(args: { installationId: bigint }): Promise<RepoCoverage> {

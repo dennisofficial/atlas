@@ -6,7 +6,7 @@ import type { ThreadSignalsService } from '../../platform/sessions/thread-signal
 import type { GithubPrFanoutService } from './github-pr-fanout.service'
 import {
   claimPrOutboxRows,
-  completePrOutboxRow,
+  completePrOutboxRows,
   failPrOutboxRow,
   holdsPrOutboxLease,
   type PrOutboxClaim,
@@ -132,8 +132,26 @@ export class GithubPrOutboxDispatcher {
         `github pr outbox ${row.kind} ${row.id} dead-lettered after ${row.attempts} attempts: ${row.lastError ?? 'no error recorded'}`,
       )
     }
+    const completed: string[] = []
     for (const row of claimed.rows) {
-      await this.run({ row, token: claimed.token, leaseUntil: claimed.leaseUntil })
+      if (await this.run({ row, token: claimed.token, leaseUntil: claimed.leaseUntil })) {
+        completed.push(row.id)
+      }
+    }
+    await this.complete({ ids: completed, token: claimed.token })
+  }
+
+  private async complete(args: { ids: readonly string[]; token: string }): Promise<void> {
+    if (args.ids.length === 0) return
+    const completed = await completePrOutboxRows({
+      ids: args.ids,
+      token: args.token,
+      now: this.now(),
+    })
+    if (completed < args.ids.length) {
+      this.logger.warn(
+        `github pr outbox lost the claim on ${args.ids.length - completed} of ${args.ids.length} rows before their effects finished; they will run again`,
+      )
     }
   }
 
@@ -147,14 +165,14 @@ export class GithubPrOutboxDispatcher {
     row: Row<'GithubPrOutbox'>
     token: string
     leaseUntil: Date
-  }): Promise<void> {
+  }): Promise<boolean> {
     const { row, token } = args
     const now = this.now()
     if (!(await holdsPrOutboxLease({ id: row.id, token, leaseUntil: args.leaseUntil, now }))) {
       this.logger.warn(
         `github pr outbox ${row.kind} ${row.id} was reclaimed before its effect ran; its new owner will run it`,
       )
-      return
+      return false
     }
     try {
       await this.perform(row)
@@ -165,13 +183,11 @@ export class GithubPrOutboxDispatcher {
           ? `github pr outbox ${row.kind} ${row.id} parked without spending an attempt: ${record.lastError}`
           : `github pr outbox ${row.kind} ${row.id} failed on attempt ${record.attempts}${record.deadLettered ? ' and was dead-lettered' : ''}: ${record.lastError}`,
       )
-      return
+
+      return false
     }
-    if (!(await completePrOutboxRow({ id: row.id, token, now: this.now() }))) {
-      this.logger.warn(
-        `github pr outbox ${row.kind} ${row.id} lost its claim before its effect finished; it will run again`,
-      )
-    }
+
+    return true
   }
 
   private async perform(row: Row<'GithubPrOutbox'>): Promise<void> {

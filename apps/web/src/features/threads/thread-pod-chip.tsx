@@ -1,5 +1,6 @@
 'use client'
 
+import { podBusyFactsOf, podBusyOf } from '@dltech/atlas-core'
 import { PodStatusChip } from '@dltech/atlas-ui/ai/pod-status-chip'
 import {
   EVercelPlan,
@@ -9,8 +10,9 @@ import {
 } from '@dltech/atlas-wire/web'
 
 import {
-  RestartConfirmDialog,
+  ResizeBusyDialog,
   useResizeConfirmation,
+  type ResizeRequest,
 } from '@/features/pods/pod-resize-confirmation'
 import { useVercelPlan } from '@/features/settings/data/user/use-vercel-plan'
 
@@ -19,13 +21,21 @@ import { chipStatusOf } from './data/pod-chip-model'
 export type ThreadPodChipProps = {
   pod: PodStatus | null
   working: boolean
-  onResize: (vcpus: number) => Promise<void>
+  onResize: (request: ResizeRequest) => Promise<void>
   settingsHref?: string | undefined
   plan?: EVercelPlan | undefined
 }
 
 export function ThreadPodChip({ pod, working, onResize, settingsHref, plan }: ThreadPodChipProps) {
-  const { confirmation, handleResize } = useResizeConfirmation({ busy: working, onResize })
+  const busy = podBusyOf({
+    ...podBusyFactsOf({ state: undefined, shellsRunning: 0, servicesRunning: 0 }),
+    turnInFlight: working,
+  })
+  const { confirmation, handleResize } = useResizeConfirmation({
+    busy,
+    onResize,
+    canWait: false,
+  })
   const effective = plan ?? EVercelPlan.Unknown
   const status = chipStatusOf(pod)
   if (status === null) return null
@@ -39,7 +49,7 @@ export function ThreadPodChip({ pod, working, onResize, settingsHref, plan }: Th
         planCapHint={vercelPlanCapNote(effective)}
         settingsHref={settingsHref}
       />
-      <RestartConfirmDialog confirmation={confirmation} />
+      <ResizeBusyDialog confirmation={confirmation} />
     </>
   )
 }

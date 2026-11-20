@@ -6,6 +6,7 @@ import {
   CheckIcon,
   CopyIcon,
   HistoryIcon,
+  MessageSquareShareIcon,
   PencilIcon,
   RefreshCcwIcon,
   ThumbsDownIcon,
@@ -192,20 +193,19 @@ export function AgentMessage({
     <Message>
       <MessageContent>
         <SpeakerName author={author} />
-        {caption === undefined ? null : (
-          <span data-slot="message-caption" className="text-xs font-medium text-muted-foreground">
-            {caption}
-          </span>
+        {caption === undefined ? (
+          <div className="text-sm leading-relaxed text-pretty">
+            {children}
+            {streaming && caret ? (
+              <span
+                aria-hidden
+                className="ml-1 inline-block h-[1.05em] w-0.5 translate-y-0.5 animate-pulse bg-primary"
+              />
+            ) : null}
+          </div>
+        ) : (
+          <InboundBubble caption={caption}>{children}</InboundBubble>
         )}
-        <div className="text-sm leading-relaxed text-pretty">
-          {children}
-          {streaming && caret ? (
-            <span
-              aria-hidden
-              className="ml-1 inline-block h-[1.05em] w-0.5 translate-y-0.5 animate-pulse bg-primary"
-            />
-          ) : null}
-        </div>
         {timestamp || showActions ? (
           <MessageFooter>
             <FooterRow>
@@ -243,6 +243,23 @@ export function AgentMessage({
         ) : null}
       </MessageContent>
     </Message>
+  )
+}
+
+function InboundBubble({ caption, children }: { caption: string; children: ReactNode }) {
+  return (
+    <Bubble variant="outline" data-inbound="">
+      <BubbleContent className="flex flex-col gap-1.5 text-pretty">
+        <span
+          data-slot="message-caption"
+          className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground"
+        >
+          <MessageSquareShareIcon aria-hidden className="size-3.5" />
+          {caption}
+        </span>
+        <div>{children}</div>
+      </BubbleContent>
+    </Bubble>
   )
 }
 

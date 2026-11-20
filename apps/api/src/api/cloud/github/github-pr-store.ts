@@ -12,7 +12,8 @@ import { branchRoutingOf, dtoOf, subscriberWhereOf } from './github-delivery-rou
 import type { BranchProtectionRead } from './github-branch-protection'
 import { rememberBranchProtection } from './github-branch-protection'
 import {
-  commitChecksTally,
+  commitChecksTallyOf,
+  readCommitChecks,
   recordCommitChecks,
   type CommitCheckInput,
 } from './github-commit-checks'
@@ -29,7 +30,7 @@ import {
 } from './github-pr-outbox'
 import { settlementSnapshotOf, snapshotOfLocked } from './github-pr-head-checks'
 import { reconcileOutboxEffectsOf } from './github-pr-reconcile-effects'
-import { foldStateOfRow, headChecksOf } from './github-pr-row-fold'
+import { foldStateOfRow, headChecksOf, type CheckIdentityRow } from './github-pr-row-fold'
 import { writePrProvenance, writePrStateRow } from './github-pr-state-row-write'
 import { deliverPrTransitions } from './github-pr-transition-push'
 
@@ -129,7 +130,6 @@ export class GithubPrStore {
       const threads = [...new Set(subscribers.map((held) => held.threadId))].filter(
         (threadId) => threadId !== '',
       )
-
       return await GithubPrOutboxWriter.write({
         tx: scope,
         repoFullName,
@@ -162,13 +162,15 @@ export class GithubPrStore {
     const repoFullName = normalizedRepo(args.repoFullName)
     const write = await db.transaction(async (tx) => {
       const scope = await lockPrScope({ tx, repoFullName })
-      await recordCommitChecks({
+      const held = await readCommitChecks({ tx: scope, repoFullName, headSha: args.headSha })
+      const recorded = await recordCommitChecks({
         tx: scope,
         repoFullName,
         headSha: args.headSha,
         checks: args.checks,
+        held,
       })
-      const tally = await commitChecksTally({ tx: scope, repoFullName, headSha: args.headSha })
+      const tally = commitChecksTallyOf(recorded)
       const affected = await affectedPrsBySha({ tx: scope, repoFullName, sha: args.headSha })
       const outboxIds: string[] = []
       const awaitingSettle: number[] = []
@@ -182,6 +184,8 @@ export class GithubPrStore {
           repoFullName,
           prNumber: pr.prNumber,
           observations: [],
+          commitChecks: { headSha: args.headSha, rows: recorded },
+          stored: pr,
         })
         outboxIds.push(...applied.outboxIds)
       }
@@ -193,20 +197,28 @@ export class GithubPrStore {
   }
 
   private async writeWithin(
-    args: PrApplyArgs & { tx: PrScopeTx; repoFullName: string },
+    args: PrApplyArgs & {
+      tx: PrScopeTx
+      repoFullName: string
+      commitChecks?: { headSha: string; rows: readonly CheckIdentityRow[] }
+      stored?: Row<'GithubPrState'>
+    },
   ): Promise<PrScopeApplyResult> {
     const tx = args.tx
-    if (args.protection !== undefined) {
-      await rememberBranchProtection({
-        tx,
+    const protection =
+      args.protection === undefined
+        ? null
+        : await rememberBranchProtection({
+            tx,
+            repoFullName: args.repoFullName,
+            protection: args.protection,
+          })
+    const stored =
+      args.stored ??
+      (await tx.orm.public.GithubPrState.where({
         repoFullName: args.repoFullName,
-        protection: args.protection,
-      })
-    }
-    const stored = await tx.orm.public.GithubPrState.where({
-      repoFullName: args.repoFullName,
-      prNumber: args.prNumber,
-    }).first()
+        prNumber: args.prNumber,
+      }).first())
     const storedState = foldStateOfRow(stored)
     const folded = foldPrObservations({
       state: storedState,
@@ -216,7 +228,16 @@ export class GithubPrStore {
       return { applied: false, row: stored, changed: [], outboxIds: [] }
     }
     const { headSha, baseBranch } = folded.state.pull
-    const head = await headChecksOf({ tx, repoFullName: args.repoFullName, headSha, baseBranch })
+    const head = await headChecksOf({
+      tx,
+      repoFullName: args.repoFullName,
+      headSha,
+      baseBranch,
+      commitChecks: args.commitChecks?.headSha === headSha ? args.commitChecks.rows : undefined,
+      ...(protection === null || protection.baseBranch !== baseBranch
+        ? {}
+        : { requiredContexts: protection.requiredContexts }),
+    })
     const checked = withDerivedChecks({ derived: head.derived, state: folded.state })
     const state = checked.state
     if (state === null) return { applied: false, row: stored, changed: [], outboxIds: [] }
@@ -331,7 +352,6 @@ export class GithubPrStore {
     const threads = [...new Set(args.subscribers.map((held) => held.threadId))].filter(
       (threadId) => threadId !== '',
     )
-
     return [
       {
         kind: 'fanout',

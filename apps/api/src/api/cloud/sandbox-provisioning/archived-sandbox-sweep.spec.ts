@@ -32,7 +32,7 @@ describe('sweepArchivedSandboxes', () => {
   })
 
   it('pays for an archived pod for one day and no longer', () => {
-    expect(ARCHIVED_SANDBOX_GRACE_MS).toBe(24 * 60 * 60 * 1_000)
+    expect(ARCHIVED_SANDBOX_GRACE_MS).toBe(6 * 60 * 60 * 1_000)
   })
 
   it('retires the pod of an API-provisioned session archived beyond the grace, keeping its row', async () => {

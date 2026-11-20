@@ -167,7 +167,7 @@ describe('SessionsService command', () => {
     expect(context.dispatcher.dispatches).toEqual([
       {
         payload: { sessionId: created.sessionId, generation: 1, vcpus: 8 },
-        idempotencyKey: `pod-resize:${created.sessionId}:1`,
+        idempotencyKey: `pod-resize:${created.sessionId}:1:0`,
       },
     ])
   })
@@ -185,7 +185,7 @@ describe('SessionsService command', () => {
     expect(dispatcher.dispatches).toEqual([
       {
         payload: { sessionId, generation: 1, vcpus: 4 },
-        idempotencyKey: `pod-resize:${sessionId}:1`,
+        idempotencyKey: `pod-resize:${sessionId}:1:0`,
       },
     ])
     const view = await plane.readSessionView({ sessionId, threadId: row?.mainThreadId ?? '' })
@@ -202,8 +202,8 @@ describe('SessionsService command', () => {
     expect(row?.podSizeGeneration).toBe(2)
     expect(row?.podDesiredVcpus).toBe(8)
     expect(dispatcher.dispatches.map((entry) => entry.idempotencyKey)).toEqual([
-      `pod-resize:${sessionId}:1`,
-      `pod-resize:${sessionId}:2`,
+      `pod-resize:${sessionId}:1:0`,
+      `pod-resize:${sessionId}:2:0`,
     ])
   })
 

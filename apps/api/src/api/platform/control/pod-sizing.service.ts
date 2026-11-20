@@ -28,13 +28,18 @@ export class PodSizingService implements PodSizing {
     session: ControlSessionRow
   }): ControlCommandHandler<ControlPlane, unknown> {
     return async ({ args: raw }) => {
-      const { vcpus } = resizeArgs.parse(raw)
+      const { vcpus, whenIdle } = resizeArgs.parse(raw)
       const limit = vcpuLimitOf(args.session)
       if (limit === null) await this.planGate.assertWithinPlan({ userId: args.userId, vcpus })
       else assertWithinVcpuLimit({ vcpus, limit })
       const sessionId = args.session.podSessionId ?? args.session.sessionId
       const generation = await this.plane.recordPodDesired({ sessionId, vcpus })
-      const payload = { sessionId, generation, vcpus }
+      const payload = {
+        sessionId,
+        generation,
+        vcpus,
+        ...(whenIdle === undefined ? {} : { whenIdle }),
+      }
       await this.dispatcher.dispatch({
         task: podResizeTaskContract,
         payload,

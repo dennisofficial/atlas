@@ -3,7 +3,7 @@ import type { ThreadSignalsService } from '../../platform/sessions/thread-signal
 import { notifyPrincipalRevoked } from '../../platform/sandboxes/sandbox-principal-notify'
 import type { VercelSandboxClient } from '../../platform/sandboxes/vercel-sandbox.client'
 
-export const ARCHIVED_SANDBOX_GRACE_MS = 24 * 60 * 60 * 1_000
+export const ARCHIVED_SANDBOX_GRACE_MS = 6 * 60 * 60 * 1_000
 
 export type ArchivedSandboxSweepDeps = {
   deleteSandbox: VercelSandboxClient['delete']
