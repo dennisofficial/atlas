@@ -1,11 +1,10 @@
 'use client'
 
 import { AlertCircle } from 'lucide-react'
-import { useEffect } from 'react'
 
 import { Button } from '@dltech/atlas-ui/components/button'
 
-import { captureException } from '@/lib/analytics/analytics'
+import { ErrorDetails } from '@/features/errors/error-details'
 
 import './globals.css'
 
@@ -16,10 +15,6 @@ export default function GlobalError({
   error: Error & { digest?: string }
   reset: () => void
 }) {
-  useEffect(() => {
-    captureException(error)
-  }, [error])
-
   return (
     <html lang="en">
       <body>
@@ -33,6 +28,7 @@ export default function GlobalError({
               Atlas hit an unexpected error. Try again, and if it keeps failing, reload the page.
             </span>
           </div>
+          <ErrorDetails error={error} />
           <Button variant="outline" onClick={reset}>
             Try again
           </Button>

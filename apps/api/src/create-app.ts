@@ -9,6 +9,7 @@ import { PRODUCT_ANALYTICS } from './agent'
 import { ApiLatencyInterceptor } from './api/api-latency.interceptor'
 import { GlobalExceptionFilter } from './api/global-exception.filter'
 import { trustedOriginsOf } from './api/platform/desktop-auth/trusted-origins'
+import { REQUEST_ID_HEADER, requestIdMiddleware } from './api/request-id.middleware'
 import { EnvService } from './_core/config/env/env.service'
 import { decodeAtlasB64Body } from './_lib/atlas-b64-body'
 import { JSON_BODY_LIMIT } from './_lib/body-limits'
@@ -48,8 +49,14 @@ export const corsOptionsFor = (args: {
       }),
     ),
   credentials: true,
-  allowedHeaders: ['authorization', 'content-type', 'atlas-client-version', 'trpc-accept'],
-  exposedHeaders: ['set-auth-token'],
+  allowedHeaders: [
+    'authorization',
+    'content-type',
+    'atlas-client-version',
+    'trpc-accept',
+    REQUEST_ID_HEADER,
+  ],
+  exposedHeaders: ['set-auth-token', REQUEST_ID_HEADER],
 })
 
 export async function createApp(
@@ -61,6 +68,7 @@ export async function createApp(
     rawBody: true,
   })
 
+  app.use(requestIdMiddleware())
   app.use(helmet())
   const trustedOrigins = trustedOriginsOf(app.get(EnvService))
   // The web app calls api.byatlas.io cross-origin with the session cookie, so credentialed CORS
