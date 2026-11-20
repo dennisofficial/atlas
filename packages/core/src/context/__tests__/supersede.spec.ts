@@ -4,7 +4,7 @@ import { log } from '../../assembly/__tests__/log-fixture'
 import type { EventDraft } from '../../events/body'
 import type { Event } from '../../events/envelope'
 import { EContextSlot } from '../slot'
-import { currentContextEvents, supersededContextIds } from '../supersede'
+import { currentContextEvents, supersededContextIds, withoutRepeatedContext } from '../supersede'
 
 const loaded = (args: { slot: string; key: string; content: string }): EventDraft => ({
   type: 'context-loaded',
@@ -155,5 +155,79 @@ describe('currentContextEvents', () => {
     ])
 
     expect(idsOf([...currentContextEvents(events)])).toEqual(['event-1'])
+  })
+})
+
+describe('withoutRepeatedContext', () => {
+  const repeated = (args: {
+    events: readonly Event[]
+    drafts: readonly EventDraft[]
+  }): readonly EventDraft[] => withoutRepeatedContext(args)
+
+  it('drops a draft that repeats what the log already holds', () => {
+    const events = log([
+      loaded({ slot: EContextSlot.McpInstructions, key: 'acme', content: 'use docs' }),
+    ])
+
+    expect(
+      repeated({
+        events,
+        drafts: [loaded({ slot: EContextSlot.McpInstructions, key: 'acme', content: 'use docs' })],
+      }),
+    ).toEqual([])
+  })
+
+  it('keeps a draft whose content changed', () => {
+    const events = log([
+      loaded({ slot: EContextSlot.McpInstructions, key: 'acme', content: 'old' }),
+    ])
+    const draft = loaded({ slot: EContextSlot.McpInstructions, key: 'acme', content: 'new' })
+
+    expect(repeated({ events, drafts: [draft] })).toEqual([draft])
+  })
+
+  it('keeps a tombstone for a key that is currently loaded', () => {
+    const events = log([
+      loaded({ slot: EContextSlot.McpInstructions, key: 'acme', content: 'use docs' }),
+    ])
+    const tombstone = loaded({ slot: EContextSlot.McpInstructions, key: 'acme', content: '' })
+
+    expect(repeated({ events, drafts: [tombstone] })).toEqual([tombstone])
+  })
+
+  it('drops a tombstone for a key that is already empty', () => {
+    const events = log([loaded({ slot: EContextSlot.McpInstructions, key: 'acme', content: '' })])
+
+    expect(
+      repeated({
+        events,
+        drafts: [loaded({ slot: EContextSlot.McpInstructions, key: 'acme', content: '' })],
+      }),
+    ).toEqual([])
+  })
+
+  it('keeps a draft for a key the log has never seen', () => {
+    const events = log([
+      loaded({ slot: EContextSlot.McpInstructions, key: 'acme', content: 'use docs' }),
+    ])
+    const other = loaded({ slot: EContextSlot.McpInstructions, key: 'other', content: 'use docs' })
+
+    expect(repeated({ events, drafts: [other] })).toEqual([other])
+  })
+
+  it('passes every draft that is not context through untouched', () => {
+    const events = log([
+      loaded({ slot: EContextSlot.McpInstructions, key: 'acme', content: 'use docs' }),
+    ])
+    const said: EventDraft = { type: 'user-said', text: 'hi' }
+
+    expect(repeated({ events, drafts: [said] })).toEqual([said])
+  })
+
+  it('drops the second of two identical drafts in one batch', () => {
+    const first = loaded({ slot: EContextSlot.McpInstructions, key: 'acme', content: 'use docs' })
+    const second = loaded({ slot: EContextSlot.McpInstructions, key: 'acme', content: 'use docs' })
+
+    expect(repeated({ events: [], drafts: [first, second] })).toEqual([first])
   })
 })
