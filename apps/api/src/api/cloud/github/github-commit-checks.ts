@@ -9,7 +9,7 @@ import {
 } from '@dltech/atlas-core'
 import { db, type Row, type Tx } from '@dltech/atlas-db'
 import { normalizedRepo } from './github-pr-identity'
-import { checkIdentitiesOf } from './github-pr-row-fold'
+import { checkIdentitiesOf, type CheckIdentityRow } from './github-pr-row-fold'
 import { lockPrScope } from './github-pr-lock'
 import type { GithubPrCheckAnnotation } from './github-realtime.types'
 
@@ -109,7 +109,7 @@ export async function recordCommitChecksLocked(args: {
   })
 }
 
-type HeldCommitCheck = Pick<
+export type HeldCommitCheck = Pick<
   Row<'GithubCommitCheck'>,
   | 'checkKey'
   | 'sourceId'
@@ -196,17 +196,12 @@ function heldMatchesWrite(args: { held: HeldCommitCheck; write: CommitCheckWrite
   return stableJson(held.annotations) === stableJson(write.annotations)
 }
 
-export async function recordCommitChecks(args: {
+export async function readCommitChecks(args: {
   tx: Tx
   repoFullName: string
   headSha: string
-  checks: readonly CommitCheckInput[]
-}): Promise<void> {
-  if (args.checks.length === 0) return
-  const repoFullName = normalizedRepo(args.repoFullName)
-  const observedAt = new Date()
-  const { tx } = args
-  const existing = await tx.orm.public.GithubCommitCheck.select(
+}): Promise<HeldCommitCheck[]> {
+  return await args.tx.orm.public.GithubCommitCheck.select(
     'checkKey',
     'sourceId',
     'name',
@@ -222,8 +217,23 @@ export async function recordCommitChecks(args: {
     'annotations',
     'updatedAt',
   )
-    .where({ repoFullName, headSha: args.headSha })
+    .where({ repoFullName: normalizedRepo(args.repoFullName), headSha: args.headSha })
     .all()
+}
+
+export async function recordCommitChecks(args: {
+  tx: Tx
+  repoFullName: string
+  headSha: string
+  checks: readonly CommitCheckInput[]
+  held?: readonly HeldCommitCheck[]
+}): Promise<readonly HeldCommitCheck[]> {
+  if (args.checks.length === 0) return args.held ?? []
+  const repoFullName = normalizedRepo(args.repoFullName)
+  const observedAt = new Date()
+  const { tx } = args
+  const existing =
+    args.held ?? (await readCommitChecks({ tx, repoFullName, headSha: args.headSha }))
   const byKey = new Map(existing.map((row) => [row.checkKey, row]))
   for (const check of args.checks) {
     const fields = writeOf(check)
@@ -257,6 +267,14 @@ export async function recordCommitChecks(args: {
       updatedAt: observedAt,
     })
   }
+
+  return [...byKey.values()]
+}
+
+export function commitChecksTallyOf(rows: readonly CheckIdentityRow[]): ChecksCount {
+  const latest = latestCheckAttempts({ attempts: checkIdentitiesOf(rows) })
+
+  return checksTally(latest.map((attempt) => attempt.outcome))
 }
 
 export async function commitChecksTally(args: {
@@ -264,13 +282,7 @@ export async function commitChecksTally(args: {
   repoFullName: string
   headSha: string
 }): Promise<ChecksCount> {
-  const rows = await args.tx.orm.public.GithubCommitCheck.where({
-    repoFullName: normalizedRepo(args.repoFullName),
-    headSha: args.headSha,
-  }).all()
-  const latest = latestCheckAttempts({ attempts: checkIdentitiesOf(rows) })
-
-  return checksTally(latest.map((attempt) => attempt.outcome))
+  return commitChecksTallyOf(await readCommitChecks(args))
 }
 
 export async function pruneCommitChecks(args: { now: Date }): Promise<void> {
