@@ -77,7 +77,10 @@ describe('createWebUpdater', () => {
   })
 
   test('does no work when the payload is already current', async () => {
-    const fake = fakePorts({ state: { current: manifestOf().hash }, complete: [manifestOf().hash] })
+    const fake = fakePorts({
+      state: { current: manifestOf().hash, appVersion: '1.0.0' },
+      complete: [manifestOf().hash],
+    })
     const updater = updaterOf(fake)
     const status = await updater.check()
     expect(status).toEqual({
@@ -86,6 +89,28 @@ describe('createWebUpdater', () => {
       builtAt: manifestOf().builtAt,
     })
     expect(fake.payloadFs.calls).toEqual([])
+  })
+
+  test('keeps an installed payload ready across later checks until it is applied', async () => {
+    const fake = fakePorts()
+    const updater = updaterOf(fake)
+    await updater.check()
+    await updater.check()
+    expect(updater.status().state).toBe(EWebPayloadState.Ready)
+    expect(updater.pending()).toBe(manifestOf().hash)
+    updater.applied()
+    expect((await updater.check()).state).toBe(EWebPayloadState.Idle)
+  })
+
+  test('reinstalls the current payload once the app itself has updated', async () => {
+    const fake = fakePorts({
+      state: { current: manifestOf().hash, appVersion: '0.9.0' },
+      complete: [manifestOf().hash],
+    })
+    const updater = updaterOf(fake)
+    expect((await updater.check()).state).toBe(EWebPayloadState.Ready)
+    expect(updater.pending()).toBe(manifestOf().hash)
+    expect(await updater.installedRoot()).toBe(manifestOf().hash)
   })
 
   test('refuses a payload that needs a newer app', async () => {

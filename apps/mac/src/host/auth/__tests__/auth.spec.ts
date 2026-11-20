@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { trpcBodyOf } from '../../__tests__/trpc-body'
 import { SESSION_COOKIE } from '../../guard'
 import { createDesktopHost, type IDesktopHost } from '../../index'
 import { createAuthService, ECallbackOutcome } from '../auth-service'
@@ -29,7 +30,7 @@ beforeAll(() => {
       const path = new URL(request.url).pathname
       upstreamSeen.push({ path, authorization: request.headers.get('authorization') })
       if (path === '/v1/trpc/desktopAuth.exchange') {
-        exchanges.push(await request.json())
+        exchanges.push(await trpcBodyOf(request))
         if (exchangeStatus !== 200) {
           return Response.json(
             { error: { message: 'bad', code: -32600, data: {} } },
