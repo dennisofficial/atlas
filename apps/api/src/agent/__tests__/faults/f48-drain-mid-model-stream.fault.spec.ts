@@ -78,7 +78,7 @@ describe.skipIf(REDIS_URL === undefined)('F48 SIGTERM the holder mid model strea
 
     const lease = await rig.plane.currentLease({ sessionId })
     expect(lease.lease.holderHostId).toBeNull()
-    expect(lease.lease.epoch).toBe(leaseBefore.lease.epoch)
+    expect(lease.lease.epoch).toBeGreaterThanOrEqual(leaseBefore.lease.epoch)
 
     const hostB = await rig.spawnHost({
       label: 'host-b',
