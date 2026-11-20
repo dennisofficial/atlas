@@ -1,4 +1,6 @@
-import { SANDBOX_HOME_PATH, SANDBOX_SERVE_PORT } from '../constants'
+import { DAEMON_PORT, DAEMON_PORT_ENV } from '@dltech/atlas-protocol'
+
+import { SANDBOX_HOME_PATH } from '../constants'
 
 import {
   AGENT37_POD_SESSION_KEY,
@@ -35,6 +37,6 @@ export const agent37CreateBodyOf = (args: {
     DAEMON_TOKEN: args.token,
     ATLAS_DAEMON_BUNDLE_URL: args.bundleUrl,
     ATLAS_SANDBOX_NAME: args.sandboxName,
-    PORT: String(SANDBOX_SERVE_PORT),
+    [DAEMON_PORT_ENV]: String(DAEMON_PORT),
   },
 })

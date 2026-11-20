@@ -1,8 +1,10 @@
+import { DAEMON_PORT } from '@dltech/atlas-protocol'
+
 const IMAGE = 'ghcr.io/dennisofficial/atlas-sandbox'
 const REGISTRY = 'https://ghcr.io'
 const TEMPLATE_NAME = 'atlas-sandbox'
 const TEMPLATES = 'https://api.agent37.com/v1/templates'
-const DEFAULT_PORT = 3000
+const DEFAULT_PORT = DAEMON_PORT
 
 type Template = { name?: string; revision?: number | null; image_ref?: string }
 

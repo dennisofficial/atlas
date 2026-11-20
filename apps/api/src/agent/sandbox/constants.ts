@@ -1,7 +1,6 @@
 import { repoNameOfRemoteUrl } from '@dltech/atlas-core'
 
 export const SANDBOX_REGION = 'iad1'
-export const SANDBOX_SERVE_PORT = 3000
 export const SANDBOX_HOME_PATH = '/atlas/home'
 export const WORKSPACES_PATH = '/atlas/workspaces'
 export const NO_REPO_WORKSPACE_PATH = `${WORKSPACES_PATH}/workspace`

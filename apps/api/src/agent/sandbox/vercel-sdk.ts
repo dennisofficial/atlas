@@ -1,6 +1,8 @@
 import { Sandbox } from '@vercel/sandbox'
 
-import { SANDBOX_QUICK_TIMEOUT_MS, SANDBOX_SERVE_PORT } from './constants'
+import { DAEMON_PORT } from '@dltech/atlas-protocol'
+
+import { SANDBOX_QUICK_TIMEOUT_MS } from './constants'
 
 export type VercelListedSandbox = {
   name: string
@@ -36,7 +38,7 @@ export const liveSdk: VercelSdk = {
 
 const routeOf = (sandbox: Sandbox): string | undefined => {
   try {
-    return sandbox.domain(SANDBOX_SERVE_PORT)
+    return sandbox.domain(DAEMON_PORT)
   } catch {
     return undefined
   }
@@ -51,8 +53,11 @@ export const routedUrlOf = async (args: {
   const fresh = await args.refetch()
   const refreshed = routeOf(fresh)
   if (refreshed !== undefined) return refreshed
+  await fresh.update({ ports: [DAEMON_PORT] })
+  const added = routeOf(fresh)
+  if (added !== undefined) return added
   throw new Error(
-    `sandbox ${fresh.name} has no route for port ${SANDBOX_SERVE_PORT}; it was not requested in ports or the sandbox was recreated without it`,
+    `sandbox ${fresh.name} has no route for port ${DAEMON_PORT} even after asking for it`,
   )
 }
 

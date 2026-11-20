@@ -66,7 +66,7 @@ const clientOf = (args: {
       probes.push(probe)
       return args.versions(probe)
     },
-    signedUrl: async () => 'https://inst-1-3000.agent37.app/?a37_token=t',
+    signedUrl: async () => 'https://inst-1-47300.agent37.app/?a37_token=t',
   }
   return { client, execs, probes }
 }
@@ -122,7 +122,7 @@ describe('waitForAgent37Daemon', () => {
         budgetMs: 10_000,
       })
       expect(execs).toHaveLength(0)
-      expect(probes).toEqual([{ id: 'inst-1', port: 3000, path: '/version' }])
+      expect(probes).toEqual([{ id: 'inst-1', port: 47300, path: '/version' }])
     } finally {
       bundle.cleanup()
     }
@@ -153,7 +153,7 @@ describe('waitForAgent37Daemon', () => {
       expect(execs).toHaveLength(0)
       expect(probes[1]).toEqual({
         id: 'inst-1',
-        port: 3000,
+        port: 47300,
         path: '/restart',
         method: 'POST',
         authorization: 'Bearer daemon-token',

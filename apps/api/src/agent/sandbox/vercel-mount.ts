@@ -1,11 +1,12 @@
 import type { Sandbox } from '@vercel/sandbox'
 
+import { DAEMON_PORT } from '@dltech/atlas-protocol'
+
 import {
   retrySleep,
   SANDBOX_HOME_PATH,
   SANDBOX_LAUNCH_TIMEOUT_MS,
   SANDBOX_REGION,
-  SANDBOX_SERVE_PORT,
   SANDBOX_SNAPSHOT_RETENTION,
   SANDBOX_TIMEOUT_MS,
   type RetryPolicy,
@@ -44,7 +45,7 @@ export async function mountWithRetries(args: {
       return await args.sdk.getOrCreate({
         ...args.credentials,
         name: args.name,
-        ports: [SANDBOX_SERVE_PORT],
+        ports: [DAEMON_PORT],
         timeout: SANDBOX_TIMEOUT_MS,
         region: SANDBOX_REGION,
         persistent: true,
@@ -55,7 +56,6 @@ export async function mountWithRetries(args: {
         onCreate: args.onCreate,
         env: {
           ATLAS_SERVE_TOKEN: args.token,
-          ATLAS_SERVE_PORT: String(SANDBOX_SERVE_PORT),
           ATLAS_THREAD_ID: args.threadId,
           ATLAS_CLOUD_URL: args.cloudUrl,
           ATLAS_HOME: SANDBOX_HOME_PATH,

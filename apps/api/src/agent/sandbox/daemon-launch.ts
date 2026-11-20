@@ -2,7 +2,9 @@ import { createHash } from 'node:crypto'
 import { dirname } from 'node:path'
 
 import type { Sandbox } from '@vercel/sandbox'
-import { SANDBOX_HOME_PATH, SANDBOX_SERVE_PORT } from './constants'
+import { DAEMON_PORT as DAEMON_LISTEN_PORT, DAEMON_PORT_ENV } from '@dltech/atlas-protocol'
+
+import { SANDBOX_HOME_PATH } from './constants'
 import { sandboxSh } from './sandbox-sh'
 
 const DAEMON_HOME = `${SANDBOX_HOME_PATH}/.atlas/daemon`
@@ -16,7 +18,7 @@ const DAEMON_LOG_PATH = `${DAEMON_HOME}/daemon.log`
 // each agent shell the image's bun instead of the version the repository pins. Resolve the
 // concrete install the image baked; the glob covers an image whose mise cannot answer from `/`.
 const BUN_RESOLVE = `BUN="$(cd / && mise which bun 2>/dev/null | head -n 1)"; if [ ! -x "$BUN" ]; then BUN=/opt/mise/installs/bun/latest/bin/bun; [ -x "$BUN" ] || BUN="$(ls -d /opt/mise/installs/bun/*/bin/bun 2>/dev/null | head -n 1)"; fi; if [ ! -x "$BUN" ]; then echo "atlas: no concrete bun under /opt/mise/installs/bun to boot the daemon" >&2; exit 78; fi`
-const DAEMON_PORT = String(SANDBOX_SERVE_PORT)
+const DAEMON_PORT = String(DAEMON_LISTEN_PORT)
 const QUICK_COMMAND_TIMEOUT_MS = 15_000
 const DEFAULT_LISTEN_BUDGET_MS = 30_000
 const LISTEN_POLL_MS = 500
@@ -188,7 +190,7 @@ export const launchDaemon = async (args: {
     env: {
       DAEMON_TOKEN: token,
       ATLAS_SANDBOX_NAME: args.sandboxName,
-      PORT: DAEMON_PORT,
+      [DAEMON_PORT_ENV]: DAEMON_PORT,
     },
   })
 
