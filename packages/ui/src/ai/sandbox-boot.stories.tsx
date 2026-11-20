@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react'
 
 import { Chat, ChatItem } from './chat'
 import { UserMessage } from './message'
-import { SandboxBoot } from './sandbox-boot'
+import { EBootStepState, SandboxBoot } from './sandbox-boot'
 
 import {
   CLONE_FAILS_SNAPSHOT,
@@ -67,4 +67,26 @@ export const Live: Story = {
 
 export const LiveCloneFails: Story = {
   render: () => <LiveBoot outcome={EBootOutcome.CloneFails} />,
+}
+
+const DAEMON_LOG = `sandbox daemon did not answer atlas-daemon on port 3000 within 30s; its log is at /var/log/atlas/daemon.log, tail:
+[12:00:01] atlas-serve 0.42.1 starting
+[12:00:31] no health response on :3000`
+
+export const SandboxFails: Story = {
+  args: {
+    steps: [
+      {
+        id: 'provision',
+        label: 'Create sandbox',
+        state: EBootStepState.Done,
+        detail: 'Vercel · iad1 · 4 vCPU',
+      },
+      { id: 'serve', label: 'Start Atlas', state: EBootStepState.Error, detail: DAEMON_LOG },
+      { id: 'clone', label: 'Clone repository', state: EBootStepState.Pending },
+    ],
+    state: EBootStepState.Error,
+    error: DAEMON_LOG,
+    onRetry: () => {},
+  },
 }

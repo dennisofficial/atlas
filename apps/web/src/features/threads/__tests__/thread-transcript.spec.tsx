@@ -3,7 +3,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'bun:test'
 import { act } from 'react'
 
 import { EToolKind, EToolState } from '@dltech/atlas-ui/ai/tool'
-import type { WireEvent } from '@dltech/atlas-wire/web'
+import { EBootStep, EBootStepState, type WireEvent } from '@dltech/atlas-wire/web'
 
 import { eventsFromWire } from '@dltech/atlas-client/transcript'
 import {
@@ -12,6 +12,7 @@ import {
   transcriptViewOf,
   type TranscriptRow,
 } from '../data/transcript-items'
+import type { BootView } from '../data/boot-view'
 import { mount, mountWith, rewindButton } from './transcript-mount'
 import { installVirtuaViewport } from './virtua-viewport'
 
@@ -293,5 +294,53 @@ describe('ThreadTranscript staged rows', () => {
     )
     const stagedIndex = ids.indexOf('client-a')
     expect(stagedIndex).toBeGreaterThan(ids.indexOf('evt_2'))
+  })
+})
+
+describe('ThreadTranscript sandbox boot', () => {
+  const DAEMON_ERROR = 'sandbox daemon did not answer atlas-daemon on port 3000\nlog line one'
+  const failedBoot: BootView = {
+    state: EBootStepState.Error,
+    error: DAEMON_ERROR,
+    steps: [
+      { id: EBootStep.Provision, label: 'Create sandbox', state: EBootStepState.Done },
+      {
+        id: EBootStep.Serve,
+        label: 'Start Atlas',
+        state: EBootStepState.Error,
+        detail: DAEMON_ERROR,
+      },
+    ],
+  }
+  const retryButton = () =>
+    [...document.body.querySelectorAll('button')].find((button) =>
+      button.textContent?.includes('Retry'),
+    ) ?? null
+
+  it('retries a failed sandbox startup', async () => {
+    let retried = 0
+    await mountWith({
+      rewind: null,
+      boot: failedBoot,
+      onRetryBoot: () => {
+        retried += 1
+      },
+    })
+
+    const button = retryButton()
+    expect(button).not.toBeNull()
+    await act(async () =>
+      button?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })),
+    )
+    expect(retried).toBe(1)
+  })
+
+  it('shows the startup error in a labelled card under the failed row', async () => {
+    await mountWith({ rewind: null, boot: failedBoot })
+
+    const card = document.body.querySelector('[data-slot="sandbox-boot-error"]')
+    expect(card?.textContent).toContain('Sandbox')
+    expect(card?.textContent).toContain('sandbox daemon did not answer')
+    expect(document.body.textContent).toContain('Sandbox failed to start')
   })
 })
