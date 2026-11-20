@@ -42,14 +42,46 @@ const until = async (check: () => boolean): Promise<void> => {
   }
 }
 
-describe('a host-side call the drain detaches', () => {
-  it('records a detached marker so the next host re-dispatches rather than settling a crash', async () => {
+describe('a call the drain detaches', () => {
+  it('marks a host-side call detached so the next host re-dispatches rather than settling a crash', async () => {
+    const tool = new GatedTool()
+    const rig = rigOf({
+      script: [{ calls: [{ callId: 'call-1', name: 'slow', input: {} }] }, { text: 'done' }],
+      tools: [tool],
+      overrides: { detachTool: () => false },
+    })
+    await rig.record.append({
+      threadId: THREAD,
+      runId: RUN,
+      drafts: [{ type: 'user-said', text: 'run it' }],
+    })
+
+    const abort = new AbortController()
+    const turn = rig.runner.runTurn({ threadId: THREAD, signal: abort.signal })
+    await until(() => tool.started)
+    abort.abort('handoff')
+    tool.releaseNow()
+    await turn
+
+    const events = rig.record.eventsOf(THREAD)
+    const dispatches = events.filter((event) => event.type === 'tool-dispatched')
+    expect(
+      dispatches.map((event) => (event.type === 'tool-dispatched' ? event.detached : undefined)),
+    ).toEqual([undefined, true])
+    expect(events.some((event) => event.type === 'tool-result')).toBe(false)
+
+    const state = loopStateOf({ events })
+    expect(crashedCallsOf(state)).toEqual([])
+    expect(settleablePendingOf(state).map((call) => call.callId)).toEqual([CALL])
+  })
+
+  it('leaves a daemon call on its plain dispatch so the next host reattaches it', async () => {
     const tool = new GatedTool()
     let draining = false
     const rig = rigOf({
       script: [{ calls: [{ callId: 'call-1', name: 'slow', input: {} }] }, { text: 'done' }],
       tools: [tool],
-      overrides: { detachTool: () => draining },
+      overrides: { detachTool: (name) => draining && name === 'slow' },
     })
     await rig.record.append({
       threadId: THREAD,
@@ -69,11 +101,10 @@ describe('a host-side call the drain detaches', () => {
     const dispatches = events.filter((event) => event.type === 'tool-dispatched')
     expect(
       dispatches.map((event) => (event.type === 'tool-dispatched' ? event.detached : undefined)),
-    ).toEqual([undefined, true])
+    ).toEqual([undefined])
     expect(events.some((event) => event.type === 'tool-result')).toBe(false)
 
     const state = loopStateOf({ events })
-    expect(crashedCallsOf(state)).toEqual([])
-    expect(settleablePendingOf(state).map((call) => call.callId)).toEqual([CALL])
+    expect(crashedCallsOf(state).map((call) => call.callId)).toEqual([CALL])
   })
 })

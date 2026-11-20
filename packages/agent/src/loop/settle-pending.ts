@@ -38,6 +38,13 @@ export type SettlePending = (args: {
   pause?: PauseSignal | undefined
 }) => Promise<SettledPending>
 
+const hostDetachedOnHandoff = (args: {
+  signal: AbortSignal
+  detach: ((name: string) => boolean) | undefined
+  name: string
+}): boolean =>
+  args.signal.aborted && args.signal.reason === 'handoff' && args.detach?.(args.name) === false
+
 export function createSettlePending(deps: {
   record: AgentRecordPort
   dispatch: ToolDispatcher
@@ -113,7 +120,7 @@ export function createSettlePending(deps: {
             homeDirectory,
             activeWorktree,
           })
-          if ((signal.aborted || paused()) && detach?.(call.name) === true) {
+          if (hostDetachedOnHandoff({ signal, detach, name: call.name })) {
             await deps.record.append({
               threadId,
               runId: call.runId,
@@ -121,6 +128,7 @@ export function createSettlePending(deps: {
             })
             return []
           }
+          if ((signal.aborted || paused()) && detach?.(call.name) === true) return []
           if (drafts.length > 0) await deps.record.append({ threadId, runId: call.runId, drafts })
           return drafts
         }),

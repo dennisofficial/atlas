@@ -156,6 +156,8 @@ const endingsOf = (args: { events: readonly V2Event[]; agentId: string }): V2Eve
 const ofType = (args: { events: readonly V2Event[]; type: string }): V2Event[] =>
   args.events.filter((event) => event.type === args.type)
 
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+
 const drainPastCap = async (rig: Awaited<ReturnType<typeof makeRig>>): Promise<void> => {
   const draining = rig.holder.drain()
   await rig.flush()
@@ -284,7 +286,7 @@ const untilEvents = async (args: {
 }
 
 describe('a drain with a daemon call outstanding in a sub-agent', () => {
-  it('detaches the call at once and leaves the child unended', async () => {
+  it('detaches the call at once, and the next holder reattaches it so the child finishes', async () => {
     const state: ProbeState = { agentId: undefined }
     const a = await makeRig({
       plugins: composePlugins([probePlugin(state)]),
@@ -322,19 +324,22 @@ describe('a drain with a daemon call outstanding in a sub-agent', () => {
     })
     await b.holder.start()
     await a.bus.wake(SESSION)
-
-    const detached = ofType({
-      events: await eventsIn({ rig: a, threadId: childId }),
-      type: 'tool-dispatched',
-    })
-    expect(detached.map((event) => (event as { detached?: boolean }).detached)).toEqual([
-      undefined,
-      true,
+    await sleep(600)
+    const results = await untilEvents({ rig: a, threadId: childId, type: 'tool-result' })
+    expect(results).toMatchObject([{ callId: 'child-bash' }])
+    const parent = await untilEvents({ rig: a, threadId: THREAD_ID, type: 'agent-ended' })
+    expect(endingsOf({ events: parent, agentId: childId })).toMatchObject([
+      { status: 'finished', prose: CHILD_ANSWER },
     ])
     expect(a.daemon.runCount()).toBe(1)
+
+    const settledChild = await eventsIn({ rig: a, threadId: childId })
+    const settledResults = ofType({ events: settledChild, type: 'tool-result' })
+    expect(settledResults).toHaveLength(1)
     expect(
-      ofType({ events: await eventsIn({ rig: a, threadId: childId }), type: 'nudge' }),
+      settledResults.filter((event) => (event as { interrupted?: boolean }).interrupted === true),
     ).toEqual([])
+    expect(ofType({ events: settledChild, type: 'nudge' })).toEqual([])
   }, 25_000)
 })
 

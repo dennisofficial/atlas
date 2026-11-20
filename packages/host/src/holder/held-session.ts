@@ -162,7 +162,9 @@ export class HeldSession {
     const record = this.record
     const state = record?.eventCache().loopState()
     if (record === undefined || state === undefined) return
+    const daemonTools = this.runtime?.daemonTools
     for (const call of crashedCallsOf(state)) {
+      if (daemonTools?.has(call.name) === true) continue
       await record.append({
         threadId: call.threadId,
         runId: this.deps.ids.nextRunId(),
