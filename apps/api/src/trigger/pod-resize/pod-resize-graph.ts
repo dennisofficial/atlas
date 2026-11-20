@@ -4,7 +4,7 @@ import { db } from '@dltech/atlas-db'
 import { readAgentHostEnv } from '../../agent/config/env'
 import { SecretCipher } from '../../agent/config/secret-cipher'
 import { podResizerOf } from '../../agent/sandbox/sandbox-resizer'
-import type { PodResizeDeps } from '../../api/platform/control/pod-resize-run'
+import { failureText, type PodResizeDeps } from '../../api/platform/control/pod-resize-run'
 import { triggerLog } from '../trigger-logger'
 
 export type PodResizeGraph = { deps: PodResizeDeps }
@@ -22,6 +22,20 @@ export function buildPodResizeGraph(): PodResizeGraph {
         triggerLog.log(`rewaking ${args.sessionId} at its new size`)
       },
       held: async (args) => (await plane.currentLease(args)).live,
+      recordApplied: async (args) => {
+        try {
+          const recorded = await plane.recordPodApplied(args)
+          triggerLog.log(
+            `pod-resize applied ${args.vcpus} vCPU as generation ${args.generation} for ${args.sessionId}${
+              recorded ? '' : ' (a newer resize superseded it)'
+            }`,
+          )
+        } catch (error) {
+          triggerLog.warn(
+            `recording the applied pod size for ${args.sessionId} failed: ${failureText(error)}`,
+          )
+        }
+      },
       recordFailed: async (args) => {
         await plane.recordPodFailed(args)
         triggerLog.warn(`pod-resize for ${args.sessionId} failed: ${args.error}`)

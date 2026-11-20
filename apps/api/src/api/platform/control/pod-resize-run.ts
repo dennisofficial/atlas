@@ -17,6 +17,7 @@ export type PodResizeDeps = {
   resize(args: { sandboxSessionId: string; vcpus: number }): Promise<PodResizeOutcome>
   rewake(args: { sessionId: string }): Promise<unknown>
   held(args: { sessionId: string }): Promise<boolean>
+  recordApplied(args: { sessionId: string; vcpus: number; generation: number }): Promise<unknown>
   recordFailed(args: { sessionId: string; generation: number; error: string }): Promise<unknown>
 }
 
@@ -50,7 +51,17 @@ export const runPodResize = async (args: {
   if (resized === 'stored' && !(await deps.held({ sessionId: sandboxSessionId }))) {
     return { outcome: EPodResizeOutcome.Deferred }
   }
-  // the restart stopped the pod: nothing else would wake it, so the applied size stays unrecorded
+  // A restart has already recreated the container at the new shape, so the size is applied before
+  // anything wakes the pod again: the re-wake below can fail, be claimed elsewhere, or never report
+  // the instance's cpu, and the generation this resize was asked for is known here either way.
+  if (resized === 'restarted') {
+    await deps.recordApplied({
+      sessionId: sandboxSessionId,
+      vcpus,
+      generation: payload.generation,
+    })
+  }
+  // the restart stopped the pod: nothing else would wake it
   await deps.rewake({ sessionId: sandboxSessionId })
   return { outcome: EPodResizeOutcome.Applied }
 }
