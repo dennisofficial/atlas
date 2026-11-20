@@ -66,6 +66,7 @@ describe('sessions subscription', () => {
       readSeq: null,
       spawnedBy: null,
       routineId: null,
+      sandboxProvider: 'vercel',
       model: { ref: 'anthropic/claude-haiku-4-5', effort: 'medium', fast: false },
       status: { state: ESessionStatus.Preparing },
       primaryBranch: null,
