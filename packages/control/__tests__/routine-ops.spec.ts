@@ -7,6 +7,7 @@ import {
   type V2Body,
   type V2Event,
 } from '@dltech/atlas-core'
+import { DEFAULT_SANDBOX_PROVIDER } from '@dltech/atlas-protocol'
 
 import { ControlPlane } from '../src/control-plane'
 import type { RoutineRow } from '../src/port'
@@ -90,6 +91,7 @@ describe('ControlPlane.runRoutine', () => {
       modelRef: 'anthropic/claude-sonnet-4-6',
       modelEffort: 'high',
       modelFast: false,
+      sandboxProvider: DEFAULT_SANDBOX_PROVIDER,
     })
     const inbox = await plane.readInbox({ sessionId: 'session-1', afterId: 0, limit: 10 })
     expect(inbox).toHaveLength(1)

@@ -1,7 +1,11 @@
 import { z } from 'zod'
 import type { Db } from '@dltech/atlas-db'
 import { decodeSettingValue, validateCloudSetting } from '@dltech/atlas-core'
-import { ECredentialSource, ESandboxProvider } from '@dltech/atlas-protocol'
+import {
+  DEFAULT_SANDBOX_PROVIDER,
+  ECredentialSource,
+  ESandboxProvider,
+} from '@dltech/atlas-protocol'
 
 import type {
   AgentHostConfig,
@@ -31,7 +35,7 @@ type ModelChoiceRow = {
 
 const sandboxProviderOf = (pinned: string | null | undefined): ESandboxProvider => {
   const value = pinned?.trim() ?? ''
-  if (value === '') return ESandboxProvider.Vercel
+  if (value === '') return DEFAULT_SANDBOX_PROVIDER
   return z.nativeEnum(ESandboxProvider).parse(value)
 }
 

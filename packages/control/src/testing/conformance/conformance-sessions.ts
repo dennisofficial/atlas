@@ -170,7 +170,7 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
         modelRef: 'anthropic/claude-haiku-4-5',
         modelEffort: 'medium',
         modelFast: false,
-        sandboxProvider: 'vercel',
+        sandboxProvider: 'agent37',
         credentialSource: 'platform',
         sandboxInstanceId: null,
         sandboxStatus: null,

@@ -341,25 +341,15 @@ describe('SessionsService model choice', () => {
 })
 
 describe('SessionsService sandbox provider', () => {
-  it('pins vercel and platform credentials when the caller names no provider', async () => {
+  it('pins agent37 and platform credentials when the caller names no provider', async () => {
     const { plane, service } = setup()
 
     const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
 
     const row = await plane.readSession({ sessionId: created.sessionId })
-    expect(row?.sandboxProvider).toBe(ESandboxProvider.Vercel)
+    expect(row?.sandboxProvider).toBe(ESandboxProvider.Agent37)
     expect(row?.credentialSource).toBe(ECredentialSource.Platform)
     expect(row?.sandboxInstanceId).toBeNull()
-  })
-
-  it('takes the default provider from the environment', async () => {
-    const { plane, service } = setup({ env: { SANDBOX_PROVIDER_DEFAULT: 'agent37' } })
-
-    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
-
-    expect((await plane.readSession({ sessionId: created.sessionId }))?.sandboxProvider).toBe(
-      ESandboxProvider.Agent37,
-    )
   })
 
   it('pins the provider the caller names', async () => {
@@ -368,11 +358,11 @@ describe('SessionsService sandbox provider', () => {
     const created = await service.create({
       userId: 'user-a',
       projectId: 'proj-a',
-      provider: 'agent37',
+      provider: 'vercel',
     })
 
     expect((await plane.readSession({ sessionId: created.sessionId }))?.sandboxProvider).toBe(
-      ESandboxProvider.Agent37,
+      ESandboxProvider.Vercel,
     )
   })
 

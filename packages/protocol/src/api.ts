@@ -63,6 +63,8 @@ export enum ESandboxProvider {
   Agent37 = 'agent37',
 }
 
+export const DEFAULT_SANDBOX_PROVIDER = ESandboxProvider.Agent37
+
 export enum ECredentialSource {
   Byok = 'byok',
   Platform = 'platform',

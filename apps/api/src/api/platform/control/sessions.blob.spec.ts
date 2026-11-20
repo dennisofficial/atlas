@@ -14,7 +14,6 @@ import {
   type V2Body,
 } from '@dltech/atlas-core'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { EnvService } from '../../../_core/config/env/env.service'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { NoSessionTitler } from '../../../_core/ports/session-titler'
 import { FakeMediaRegistry } from './media-registry.fake'
@@ -46,7 +45,6 @@ describe('SessionsService blob reads', () => {
       new FakeMediaRegistry(),
       new FakeMediaStore(),
       composeCommands([]),
-      new EnvService({ SANDBOX_PROVIDER_DEFAULT: 'vercel' }),
       { resizeHandler: () => async () => undefined },
     )
     return { plane, service }
