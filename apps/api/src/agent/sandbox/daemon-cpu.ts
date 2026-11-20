@@ -1,6 +1,6 @@
+import { DAEMON_PORT } from '@dltech/atlas-protocol'
 import type { Sandbox } from '@vercel/sandbox'
 
-import { SANDBOX_SERVE_PORT } from './constants'
 import { sandboxSh } from './sandbox-sh'
 
 const DAEMON_CPU_TIMEOUT_MS = 10_000
@@ -28,7 +28,7 @@ export const daemonCpuUsecOf = async (args: {
   try {
     const run = await sandboxSh({
       sandbox: args.sandbox,
-      script: `curl -s -m 5 -H "authorization: Bearer $${TOKEN_ENV}" 'http://localhost:${SANDBOX_SERVE_PORT}/cpu'`,
+      script: `curl -s -m 5 -H "authorization: Bearer $${TOKEN_ENV}" 'http://localhost:${DAEMON_PORT}/cpu'`,
       timeoutMs: args.timeoutMs ?? DAEMON_CPU_TIMEOUT_MS,
       env: { [TOKEN_ENV]: args.token },
     })
