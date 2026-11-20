@@ -1,4 +1,6 @@
 import { Logger } from '@nestjs/common'
+import type { ThreadId } from '@dltech/atlas-core'
+import { ESpan, spanWith, type TracePort } from '@dltech/atlas-observability'
 import type { Sandbox } from '@vercel/sandbox'
 
 import {
@@ -42,7 +44,21 @@ export type WakeBootArgs = {
   prepare?: ((sandbox: Sandbox) => Promise<void>) | undefined
   /** Starts a detached clone on a sandbox Vercel created fresh, before serve downloads and launches. */
   prefetchClone?: ((sandbox: Sandbox) => Promise<void>) | undefined
+  /** Nests the sandbox and serve-launch phases in its trace; absent outside a pod.provision trace. */
+  trace?: TracePort | undefined
 }
+
+const provisionPhase = <T>(args: {
+  trace: TracePort | undefined
+  name: ESpan
+  threadId: string
+  run: () => Promise<T>
+}): Promise<T> =>
+  spanWith(args.trace, {
+    name: args.name,
+    fields: { threadId: args.threadId as ThreadId },
+    run: args.run,
+  })
 
 export type WakeBootResult = { serveUrl: string; created: boolean }
 
@@ -101,10 +117,16 @@ export class VercelSandboxWakeBoot implements SandboxWakeBoot {
     const reporter = args.reporter ?? NOOP_BOOT_REPORTER
     let created = false
     try {
-      const sandbox = await reporter.track({
-        step: EBootStep.Provision,
-        work: () => this.mount({ args, onCreate: () => (created = true) }),
-        outcomeOf: () => (created ? EBootStepOutcome.Created : EBootStepOutcome.Resumed),
+      const sandbox = await provisionPhase({
+        trace: args.trace,
+        name: ESpan.PodProvisionSandbox,
+        threadId: args.threadId,
+        run: () =>
+          reporter.track({
+            step: EBootStep.Provision,
+            work: () => this.mount({ args, onCreate: () => (created = true) }),
+            outcomeOf: () => (created ? EBootStepOutcome.Created : EBootStepOutcome.Resumed),
+          }),
       })
       if (created) {
         await this.prefetch({ sandbox, args })
@@ -112,13 +134,19 @@ export class VercelSandboxWakeBoot implements SandboxWakeBoot {
       }
       const token = created ? args.freshToken : args.resumeToken
       if (token === undefined) throw new ResumeTokenMissingError(args.name)
-      const serveUrl = await reporter.track({
-        step: EBootStep.Serve,
-        work: async () => {
-          await args.prepare?.(sandbox)
-          await this.launchServe({ sandbox, token, args })
-          return routedUrlWithRetries(sandbox)
-        },
+      const serveUrl = await provisionPhase({
+        trace: args.trace,
+        name: ESpan.PodProvisionAgent,
+        threadId: args.threadId,
+        run: () =>
+          reporter.track({
+            step: EBootStep.Serve,
+            work: async () => {
+              await args.prepare?.(sandbox)
+              await this.launchServe({ sandbox, token, args })
+              return routedUrlWithRetries(sandbox)
+            },
+          }),
       })
       return { serveUrl, created }
     } catch (failure) {

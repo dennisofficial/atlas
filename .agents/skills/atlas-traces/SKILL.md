@@ -39,13 +39,47 @@ turn                        root, one fresh trace per turn
 A sub-agent's turn is its own trace, not a child of the tool call that spawned it. Join them on
 `threadId`.
 
+A cloud pod boots under its own trace (service `atlas-agent`), one per serve process:
+
+```
+pod.boot                    root, one fresh trace per serve process
+├ pod.boot.clone            fetching the workspace spec and materializing the repo
+├ pod.boot.settings         cloud state, settings and file mounts
+├ pod.boot.hydrate          reading the session's event log back
+└ pod.boot.compose          composing the harness: tools, hooks, plugins, mcp
+```
+
+`sandbox-setup` and the mcp connect happen inside `pod.boot.compose`; a long boot is the phase
+with the large self time, not the root.
+
+What the API sends ahead of the pod is its own trace (service `atlas-agent`, from apps/api):
+
+```
+prompt.send                 root, one per tRPC threadMessages.send
+```
+
+The pod is provisioned before it boots (apps/api, service `atlas-agent`). The `pod-provision`
+Trigger.dev task opens the trace and shuts the tracer down before the task process exits:
+
+```
+pod.provision               root, one per pod-provision run
+├ pod.provision.sandbox     mounting the sandbox: a fresh create or a resume from its snapshot
+└ pod.provision.agent       preparing the workspace, launching serve, waiting for its url to route
+```
+
+`pod.provision` covers the whole wait from the claimed prompt to a running pod, so a run whose
+claim was superseded shows a root with no children. The stretch from `pod.provision.agent` ending
+to the first `pod.boot` span is serve starting up.
+
 ## Fields
 
 | Field | On | Meaning |
 | --- | --- | --- |
-| `threadId`, `runId` | `turn`, `tool`, record spans | Join keys into the session's event log |
+| `threadId`, `runId` | `turn`, `tool`, record spans, `pod.boot*`, `pod.provision*`, `prompt.send` | Join keys into the session's event log |
 | `callId` | `tool` | The tool call id in the event log; the full command or input lives there, never in the span |
 | `status` | `turn` | How the turn ended (`completed`, `failed`, `interrupted`, ...) |
+| `queuedMs` | `turn` | Pod wall time at turn start minus the `at` of the operator prompt the turn answers — the server-stored prompt → turn start stretch. Absent when the turn was not started by a prompt (a notice or timer woke it) and on a resume |
+| `wake` | `turn` | `cold` for the first turn on a thread in this pod process (the thread's first turn after a serve boot), `warm` for every later turn on that thread |
 | `provider`, `model` | `turn`, `model.call` | Which model ran |
 | `first_chunk_ms` | `model.call` | Time from request to the first streamed chunk of any kind |
 | `first_reasoning_ms` | `model.call` | Time to the first thinking chunk; absent when the model did not think |

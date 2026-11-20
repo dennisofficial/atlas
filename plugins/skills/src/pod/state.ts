@@ -5,6 +5,7 @@ import type { SkillCatalogue } from './catalogue'
 export type SkillsWatch = {
   directory: string
   watchId: string
+  armed: boolean
   off(): void
   pending: Promise<void>
 }

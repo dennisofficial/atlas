@@ -122,6 +122,31 @@ describe('the watched skill index', () => {
     expect(blocks.join('\n')).not.toContain('alpha')
   })
 
+  it('arms the watch once the skills directory appears, then stops re-reading', async () => {
+    const { daemon, ctx, cloud, appended, nodes } = rig({
+      '/repo': { kind: 'dir' },
+      '/repo/.atlas': { kind: 'dir' },
+      '/repo/.agents': { kind: 'dir' },
+    })
+    await turn({ ctx, cloud })
+    expect(watchStarts(daemon.calls)).toBe(1)
+    expect(appended).toHaveLength(1)
+
+    nodes['/repo/.agents/skills'] = { kind: 'dir' }
+    addSkill({ nodes, root: '/repo/.agents/skills', name: 'alpha', description: 'does alpha' })
+
+    const armed = await turn({ ctx, cloud })
+    expect(watchStarts(daemon.calls)).toBe(2)
+    expect(repoRowsOf(appended.at(-1))).toEqual([
+      { name: 'alpha', description: 'does alpha', argumentHint: null, origin: ESkillOrigin.Repo },
+    ])
+    expect(armed.join('\n')).toContain('alpha: does alpha')
+
+    const settled = daemon.calls.length
+    await turn({ ctx, cloud })
+    expect(daemon.calls.length).toBe(settled)
+  })
+
   it('ignores a change reported for another watcher', async () => {
     const { daemon, ctx, cloud, appended, nodes } = rig(emptyRepo())
     await turn({ ctx, cloud })

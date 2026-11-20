@@ -31,18 +31,20 @@ export const skillsCatalogueHook = (args: {
   order: ORDER,
   awaited: true,
   run: async ({ projectDirectory }) => {
-    args.state.directory = projectDirectory
     const started = await watchSkills({
       ctx: args.ctx,
       state: args.state,
       cloud: args.options.cloud,
       directory: projectDirectory,
     })
+    if (!started && args.state.catalogue?.directory === projectDirectory) return {}
+    args.state.directory = projectDirectory
     const catalogue = await catalogueFor({
       ctx: args.ctx,
       state: args.state,
       cloud: args.options.cloud,
       directory: projectDirectory,
+      refresh: true,
     })
     if (started) await emitSkillsChanged({ ctx: args.ctx, catalogue })
     return {}

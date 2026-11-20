@@ -33,7 +33,6 @@ const refresh = async (args: {
   cloud: CloudSkillSource
   directory: string
 }): Promise<void> => {
-  args.state.catalogue = null
   const catalogue = await catalogueFor({
     ctx: args.ctx,
     state: args.state,
@@ -59,6 +58,15 @@ const queueRefresh = (args: {
     })
 }
 
+const armedOf = async (args: { ctx: Ctx; roots: readonly string[] }): Promise<boolean> => {
+  for (const root of args.roots) {
+    const found = await args.ctx.call({ op: 'stat', path: root })
+    if (found.status !== ECallStatus.Ok || found.op !== 'stat' || !found.value.isDirectory)
+      return false
+  }
+  return true
+}
+
 const stopWatch = async (args: { ctx: Ctx; state: SkillsPodState }): Promise<void> => {
   const watch = args.state.watch
   if (watch === null) return
@@ -67,20 +75,18 @@ const stopWatch = async (args: { ctx: Ctx; state: SkillsPodState }): Promise<voi
   await args.ctx.call({ op: 'watch.stop', watchId: watch.watchId })
 }
 
-export const watchSkills = async (args: {
+const startWatch = async (args: {
   ctx: Ctx
   state: SkillsPodState
   cloud: CloudSkillSource
   directory: string
 }): Promise<boolean> => {
-  if (args.state.watch?.directory === args.directory) return false
-  await stopWatch(args)
-
   const watchId = watchIdOf(args.ctx.sessionId)
+  const roots = rootsOf(args.directory)
   const started = await args.ctx.call({
     op: 'watch.start',
     watchId,
-    roots: [...rootsOf(args.directory)],
+    roots: [...roots],
   })
   if (started.status !== ECallStatus.Ok || started.op !== 'watch.start') {
     args.ctx.log(
@@ -94,6 +100,30 @@ export const watchSkills = async (args: {
     if (event.type !== 'watch.changed' || event.watchId !== watchId) return
     queueRefresh(args)
   })
-  args.state.watch = { directory: args.directory, watchId, off, pending: Promise.resolve() }
+  args.state.watch = {
+    directory: args.directory,
+    watchId,
+    armed: await armedOf({ ctx: args.ctx, roots }),
+    off,
+    pending: Promise.resolve(),
+  }
   return true
+}
+
+export const watchSkills = async (args: {
+  ctx: Ctx
+  state: SkillsPodState
+  cloud: CloudSkillSource
+  directory: string
+}): Promise<boolean> => {
+  const watch = args.state.watch
+  if (watch?.directory === args.directory) {
+    if (watch.armed) return false
+    const armed = await armedOf({ ctx: args.ctx, roots: rootsOf(args.directory) })
+    if (!armed) return false
+    await stopWatch(args)
+    return await startWatch(args)
+  }
+  await stopWatch(args)
+  return await startWatch(args)
 }

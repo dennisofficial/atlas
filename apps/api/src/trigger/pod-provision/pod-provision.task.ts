@@ -15,7 +15,7 @@ import { workerPodProvisionGraph } from './pod-provision-graph'
 export async function runPodProvisionTask(
   payload: PodProvisionPayload,
 ): Promise<PodProvisionOutput> {
-  const { deps, dispose } = workerPodProvisionGraph()
+  const { deps, dispose } = workerPodProvisionGraph({ threadId: payload.threadId })
   try {
     return await runPodProvision({ payload, deps })
   } finally {

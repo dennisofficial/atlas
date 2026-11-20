@@ -3,10 +3,10 @@ import { EStage, type BeforeStep, type BeforeTurn } from '@dltech/atlas-core'
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
 import { repoAgentListingOf } from './listing'
-import { discoverRepoAgentTypes } from './repo-agent-types'
 import type { CrewPodState } from './state'
+import { syncRepoAgentTypes } from './watch'
 
-type Ctx = Pick<PluginPodContext, 'call'>
+type Ctx = Pick<PluginPodContext, 'call' | 'log' | 'onDaemonEvent' | 'sessionId'>
 
 const ORDER = { stage: EStage.Observe, nudge: 0 }
 
@@ -18,10 +18,11 @@ export const repoAgentTypesHook = (args: {
   order: ORDER,
   awaited: true,
   run: async ({ projectDirectory }) => {
-    args.state.directory = projectDirectory
-    const found = await discoverRepoAgentTypes({ ctx: args.ctx, projectDirectory })
-    args.state.types = found.types
-    args.state.refusals = found.refusals
+    await syncRepoAgentTypes({
+      ctx: args.ctx,
+      state: args.state,
+      directory: projectDirectory,
+    })
     return {}
   },
 })
