@@ -87,13 +87,20 @@ export class Agent37Error extends Error {
   readonly code: string
   readonly status: number
   readonly retryable: boolean
+  readonly detail: string | undefined
 
-  constructor(args: { status: number; code: string; retryable: boolean }) {
+  constructor(args: {
+    status: number
+    code: string
+    retryable: boolean
+    detail?: string | undefined
+  }) {
     super(`agent37 refused the call: ${args.status} ${args.code}`)
     this.name = 'Agent37Error'
     this.status = args.status
     this.code = args.code
     this.retryable = args.retryable
+    this.detail = args.detail
   }
 }
 
@@ -105,7 +112,7 @@ export const isAgent37Missing = (failure: unknown): boolean =>
 // move and clears within about a minute, so the budget spans one.
 export const agent37ExecRetry: RetryPolicy = { attempts: 10, delayMs: 6_000 }
 
-const RETRYABLE_STATUSES = new Set([409, 502, 503])
+const TRANSPORT_STATUSES = new Set([502, 503])
 
 // https://www.agent37.com/docs/agents-api/errors — sandbox.agent37.app answers a flat
 // `{"error": "not_found"}` instead of the `{"error": {"code": …}}` envelope.
@@ -116,6 +123,18 @@ const errorCodeOf = (body: unknown): string | undefined => {
   if (typeof error !== 'object' || error === null || !('code' in error)) return undefined
   return typeof error.code === 'string' ? error.code : undefined
 }
+
+const errorDetailOf = (body: unknown): string | undefined => {
+  if (typeof body !== 'object' || body === null || !('error' in body)) return undefined
+  const error = body.error
+  if (typeof error !== 'object' || error === null || !('message' in error)) return undefined
+  return typeof error.message === 'string' ? error.message : undefined
+}
+
+// Only a 409 `try_again` clears on its own: `instance_limit_reached` and `capacity_unavailable`
+// are answers about the account, so retrying them for a minute spends the wake without changing it.
+const retryableOf = (args: { status: number; code: string }): boolean =>
+  TRANSPORT_STATUSES.has(args.status) || (args.status === 409 && args.code === 'try_again')
 
 export const liveAgent37Client = (args: {
   apiKey: string
@@ -146,9 +165,15 @@ export const liveAgent37Client = (args: {
       const body: unknown = text === '' ? undefined : JSON.parse(text)
       if (response.ok) return body
       const code = errorCodeOf(body) ?? 'unknown'
-      const retryable = RETRYABLE_STATUSES.has(response.status)
+      const retryable = retryableOf({ status: response.status, code })
       if (!retryable || attempt >= retry.attempts) {
-        throw new Agent37Error({ status: response.status, code, retryable })
+        const detail = errorDetailOf(body)
+        throw new Agent37Error({
+          status: response.status,
+          code,
+          retryable,
+          ...(detail === undefined ? {} : { detail }),
+        })
       }
       await retrySleep(retry)
     }
