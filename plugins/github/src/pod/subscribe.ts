@@ -2,6 +2,7 @@ import {
   catalogText,
   ESubscriptionActor,
   ESubscriptionEnd,
+  type ESubscriptionStatus,
   filterLabelSuffix,
   resolveEventFilter,
   type Event,
@@ -167,6 +168,32 @@ export const subscribeTo = async (args: {
       ...(args.expiresAt === undefined ? {} : { expiresAt: args.expiresAt }),
     },
   }
+}
+
+export const changeSubscriptionStatus = async (args: {
+  ctx: Pick<PluginPodContext, 'append'>
+  events: readonly (Event | V2Event)[]
+  subscriptionId: string
+  status: ESubscriptionStatus
+  by: ESubscriptionActor
+}): Promise<{ ok: true; label: string; changed: boolean } | { ok: false; error: string }> => {
+  const found = githubSubscriptionsOf(args.events).find((row) => row.id === args.subscriptionId)
+  if (found === undefined) {
+    return {
+      ok: false,
+      error: `This session has no subscription "${args.subscriptionId}". list_subscriptions shows the ones it has.`,
+    }
+  }
+  if (found.status === args.status) return { ok: true, label: found.label, changed: false }
+  await args.ctx.append([
+    {
+      type: 'subscription-changed',
+      subscriptionId: found.id,
+      status: args.status,
+      by: args.by,
+    },
+  ])
+  return { ok: true, label: found.label, changed: true }
 }
 
 export const unsubscribeFrom = async (args: {

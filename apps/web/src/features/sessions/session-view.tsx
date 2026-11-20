@@ -52,6 +52,7 @@ import { ConnectionLine } from './connection-line'
 import { QueuedDock } from './queued-dock'
 import { RefusalRows } from './refusal-rows'
 import { SessionPreviewsProvider } from './panel/browser/previews-provider'
+import { ESessionPaneTab } from './panel/pane-tab'
 import { useSessionPane } from './panel/pane-state'
 import { SessionPaneProvider } from './panel/pane-value'
 import { SessionPaneLayout } from './panel/session-pane-layout'
@@ -239,7 +240,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
               naming={listed?.naming ?? false}
               branch={model.branch}
               entries={model.entries}
-              subscriptions={model.subscriptions}
+              subscriptions={model.subscriptionRows}
               shells={model.shells}
               shellTails={wiring.shellTails}
               crew={model.crew}
@@ -248,6 +249,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
               paneCollapsed={pane.collapsed}
               onTogglePane={pane.toggleCollapsed}
               onOpenPane={pane.openPane}
+              onOpenDetails={() => pane.setTab(ESessionPaneTab.Details)}
               onOpenPreview={wiring.openBrowser}
             />
             <SessionPaneLayout

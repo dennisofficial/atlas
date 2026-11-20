@@ -2,8 +2,9 @@
 
 import { Bell, GitBranch, Globe, PanelRightIcon } from 'lucide-react'
 
+import { ESubscriptionStatus } from '@dltech/atlas-core'
 import type { CrewRoster, CrewRow } from '@dltech/atlas-plugin-crew/client'
-import type { SubscribedPullRequest } from '@dltech/atlas-plugin-github/client'
+import type { SubscriptionListRow } from '@dltech/atlas-plugin-github/client'
 import type { PreviewItem } from '@dltech/atlas-plugin-services/client'
 import type { ShellRoster } from '@dltech/atlas-plugin-shells/client'
 
@@ -60,30 +61,21 @@ function HeaderPullRequest({ pinned, count }: { pinned: PullRequestEntry; count:
   )
 }
 
-function HeaderSubscriptions({
-  subscriptions,
-}: {
-  subscriptions: readonly SubscribedPullRequest[]
-}) {
+function HeaderSubscriptions({ count, onOpen }: { count: number; onOpen?: () => void }) {
+  const label = `${count} ${count === 1 ? 'subscription' : 'subscriptions'}`
   return (
-    <span
+    <Button
       data-session-subscriptions
-      className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground"
+      variant="ghost"
+      size="sm"
+      title={label}
+      aria-label={label}
+      className="text-xs text-muted-foreground tabular-nums"
+      onClick={onOpen}
     >
-      <Bell className="size-3" aria-label="Subscribed to" role="img" />
-      {subscriptions.map((subscription) => (
-        <a
-          key={subscription.url}
-          href={subscription.url}
-          target="_blank"
-          rel="noreferrer"
-          title={subscription.label}
-          className="font-mono underline-offset-2 hover:underline"
-        >
-          #{subscription.number}
-        </a>
-      ))}
-    </span>
+      <Bell className="size-3" aria-hidden />
+      <span className="font-mono">{count}</span>
+    </Button>
   )
 }
 
@@ -161,6 +153,7 @@ export function SessionHeader({
   paneCollapsed = false,
   onTogglePane,
   onOpenPane,
+  onOpenDetails,
   onOpenPreview,
 }: {
   sessionId: string
@@ -170,7 +163,7 @@ export function SessionHeader({
   naming: boolean
   branch: string | undefined
   entries: readonly PullRequestEntry[]
-  subscriptions: readonly SubscribedPullRequest[]
+  subscriptions: readonly SubscriptionListRow[]
   shells: ShellRoster
   shellTails: Readonly<Record<string, string>>
   crew: CrewRoster
@@ -179,9 +172,13 @@ export function SessionHeader({
   paneCollapsed?: boolean
   onTogglePane?: () => void
   onOpenPane?: () => void
+  onOpenDetails?: () => void
   onOpenPreview: (url: string) => void
 }) {
   const pinned = pinnedPullRequestOf(entries)
+  const activeSubscriptions = subscriptions.filter(
+    (subscription) => subscription.status === ESubscriptionStatus.Active,
+  ).length
   return (
     <header
       data-chrome="titlebar"
@@ -208,7 +205,9 @@ export function SessionHeader({
           </Badge>
         )}
         {pinned === undefined ? null : <HeaderPullRequest pinned={pinned} count={entries.length} />}
-        {subscriptions.length === 0 ? null : <HeaderSubscriptions subscriptions={subscriptions} />}
+        {activeSubscriptions === 0 ? null : (
+          <HeaderSubscriptions count={activeSubscriptions} onOpen={onOpenDetails} />
+        )}
         {shells.running === 0 ? null : <HeaderShells shells={shells} tails={shellTails} />}
         {crew.total === 0 ? null : <HeaderCrew roster={crew} rows={crewRows} />}
         {previews.length === 0 ? null : (

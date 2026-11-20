@@ -7,7 +7,10 @@ import {
 } from '@dltech/atlas-plugin-crew/client'
 import {
   subscribedPullRequestsOf,
+  subscriptionRowsOf,
+  withPullRequestDetails,
   type SubscribedPullRequest,
+  type SubscriptionListRow,
 } from '@dltech/atlas-plugin-github/client'
 import { previewsOfView, type PreviewItem } from '@dltech/atlas-plugin-services/client'
 import { planOfView } from '@dltech/atlas-plugin-sessions/client'
@@ -28,6 +31,7 @@ export type SessionViewModel = {
   branch: string | undefined
   entries: PullRequestEntry[]
   subscriptions: readonly SubscribedPullRequest[]
+  subscriptionRows: readonly SubscriptionListRow[]
   shells: ShellRoster
   crew: CrewRoster
   crewRows: readonly CrewRow[]
@@ -98,6 +102,7 @@ export const sessionViewModelOf = (view: SessionViewOutput | undefined): Session
       branch: undefined,
       entries: [],
       subscriptions: [],
+      subscriptionRows: [],
       shells: { running: 0, awaitingInput: false, labels: [], rows: [] },
       crew: { running: 0, total: 0 },
       crewRows: [],
@@ -107,12 +112,17 @@ export const sessionViewModelOf = (view: SessionViewOutput | undefined): Session
       spend: null,
     }
   const primaryBranch = view.checkouts.primary?.branch
+  const entries = view.pullRequests.map((pullRequest) =>
+    pullRequestEntryOf({ pullRequest, primaryBranch }),
+  )
   return {
     branch: primaryBranch,
-    entries: view.pullRequests.map((pullRequest) =>
-      pullRequestEntryOf({ pullRequest, primaryBranch }),
-    ),
+    entries,
     subscriptions: subscribedPullRequestsOf(view.pluginViews),
+    subscriptionRows: withPullRequestDetails({
+      rows: subscriptionRowsOf(view.pluginViews),
+      pullRequests: entries,
+    }),
     shells: shellRosterOf(view.pluginViews),
     crew: crewRosterOf(view.pluginViews),
     crewRows: crewOfView(view.pluginViews),

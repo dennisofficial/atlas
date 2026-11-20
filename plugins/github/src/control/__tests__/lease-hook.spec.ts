@@ -271,8 +271,12 @@ describe('github subscription lease on append (memory)', () => {
 })
 
 describe('github plugin slots', () => {
-  it('declares the subscribe and unsubscribe pod commands and one view', () => {
-    expect(githubCoreSlots.commands.map((c) => c.spec.name)).toEqual(['subscribe', 'unsubscribe'])
+  it('declares the subscribe, unsubscribe and status pod commands and one view', () => {
+    expect(githubCoreSlots.commands.map((c) => c.spec.name)).toEqual([
+      'subscribe',
+      'unsubscribe',
+      'set-subscription-status',
+    ])
     expect(githubCoreSlots.views.map((v) => v.name)).toEqual(['subscriptions'])
   })
 })

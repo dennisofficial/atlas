@@ -1,5 +1,5 @@
 import { defineCommand } from '@dltech/atlas-commands'
-import { ECommandGroup, ECommandTiming } from '@dltech/atlas-core'
+import { ECommandGroup, ECommandTiming, ESubscriptionStatus } from '@dltech/atlas-core'
 import { z } from 'zod'
 
 export const subscribeArgs = z.strictObject({
@@ -9,6 +9,11 @@ export const subscribeArgs = z.strictObject({
 })
 
 export const unsubscribeArgs = z.strictObject({ subscriptionId: z.string().min(1) })
+
+export const setSubscriptionStatusArgs = z.strictObject({
+  subscriptionId: z.string().min(1),
+  status: z.enum(ESubscriptionStatus),
+})
 
 export const subscribeCommand = defineCommand({
   spec: {
@@ -27,6 +32,17 @@ export const unsubscribeCommand = defineCommand({
     summary: "end one of this session's subscriptions",
     group: ECommandGroup.Session,
     args: unsubscribeArgs,
+    timing: ECommandTiming.Settled,
+    handledIn: 'pod',
+  },
+})
+
+export const setSubscriptionStatusCommand = defineCommand({
+  spec: {
+    name: 'set-subscription-status',
+    summary: "pause or resume one of this session's subscriptions",
+    group: ECommandGroup.Session,
+    args: setSubscriptionStatusArgs,
     timing: ECommandTiming.Settled,
     handledIn: 'pod',
   },
