@@ -57,6 +57,7 @@ const clientOf = (args: {
     list: async () => ({ data: [] }),
     remove: async () => undefined,
     sleep: async () => undefined,
+    start: async ({ id }) => ({ id, status: 'running' }),
     resize: async ({ id }) => ({ ...INSTANCE, id }),
     exec: async (body) => {
       execs.push(body)

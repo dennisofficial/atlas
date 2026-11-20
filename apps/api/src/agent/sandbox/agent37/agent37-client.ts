@@ -71,6 +71,7 @@ export type Agent37Client = {
   list(args?: { cursor?: string }): Promise<{ data: Agent37Instance[]; next?: string }>
   remove(args: { id: string }): Promise<void>
   sleep(args: { id: string }): Promise<void>
+  start(args: { id: string }): Promise<Pick<Agent37Instance, 'id' | 'status'>>
   resize(args: Agent37ResizeArgs): Promise<Agent37Instance>
   exec(args: Agent37ExecArgs): Promise<Agent37ExecResult | Agent37Pid>
   probe(args: {
@@ -211,6 +212,14 @@ export const liveAgent37Client = (args: {
     sleep: async ({ id }) => {
       await call({ url: api(`/v1/instances/${id}/sleep`), method: 'POST', headers: bearer })
     },
+    // https://www.agent37.com/docs/agents-api/instances/start — answers only `id` and `status`.
+    start: ({ id }) =>
+      call({
+        url: api(`/v1/instances/${id}/start`),
+        method: 'POST',
+        headers: bearer,
+        timeoutMs: 15 * 60_000,
+      }) as Promise<Pick<Agent37Instance, 'id' | 'status'>>,
     // https://www.agent37.com/docs/agents-api/instances/resize — a host move can run past the
     // request and answer 202 while the instance is still `updating`, so this waits like create.
     resize: ({ id, cpu, memory, disk }) =>

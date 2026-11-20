@@ -58,6 +58,7 @@ const fakeClient = (
       removed.push(id)
     },
     sleep: async () => undefined,
+    start: async ({ id }) => ({ id, status: 'running' }),
     resize: async (body) => ({ id: body.id, status: 'running', url: '' }),
     exec: async () => ({ exit_code: 0, stdout: '', stderr: '', truncated: false }),
     probe: async () => ({ status: 200, body: '' }),
