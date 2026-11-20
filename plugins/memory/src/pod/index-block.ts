@@ -21,7 +21,10 @@ export const withMemoryIndex = async (args: {
     await state.loading
   }
   if (state.text === null) return args.assembled
-  return { ...args.assembled, system: [...args.assembled.system, { text: state.text }] }
+  return {
+    ...args.assembled,
+    system: [...args.assembled.system, { text: state.text, source: 'memory-index' }],
+  }
 }
 
 const load = async (args: {

@@ -37,6 +37,6 @@ export const repoAgentListingHook = (args: {
       refusals: args.state.refusals,
     })
     if (listing === '') return assembled
-    return { ...assembled, system: [...assembled.system, { text: listing }] }
+    return { ...assembled, system: [...assembled.system, { text: listing, source: 'repo-agents' }] }
   },
 })

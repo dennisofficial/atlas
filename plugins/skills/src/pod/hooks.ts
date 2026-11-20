@@ -67,6 +67,9 @@ export const skillsListingHook = (args: {
     if (catalogue === null) return assembled
     const listing = skillListingOf({ catalogue, budgetChars: SKILL_LISTING_BUDGET_CHARS })
     if (listing === '') return assembled
-    return { ...assembled, system: [...assembled.system, { text: listing }] }
+    return {
+      ...assembled,
+      system: [...assembled.system, { text: listing, source: 'skills-listing' }],
+    }
   },
 })

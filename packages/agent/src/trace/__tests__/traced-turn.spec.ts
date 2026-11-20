@@ -41,6 +41,8 @@ describe('traced turn', () => {
     expect(calls).toHaveLength(2)
     expect(calls.every((call) => call.parent === turn)).toBe(true)
     expect(calls[0]?.fields.toolCalls).toBe(1)
+    expect(calls[0]?.fields.sizes?.total).toBeGreaterThan(0)
+    expect(calls[0]?.fields.sizes?.messages).toBeGreaterThan(0)
 
     const [toolSpan] = trace.named(ESpan.Tool)
     expect(toolSpan?.fields).toMatchObject({ tool: 'read', callId: 'c1', outcome: ESpanOutcome.Ok })

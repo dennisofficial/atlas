@@ -18,8 +18,9 @@ export function systemPrompt({
     apply: (input, ctx) => ({
       system: [
         ...input.system,
-        ...prompt({ projectDirectory: projectDirectoryOf({ events: ctx.events, launchDirectory }) })
-          .blocks,
+        ...prompt({
+          projectDirectory: projectDirectoryOf({ events: ctx.events, launchDirectory }),
+        }).blocks.map((block) => ({ ...block, source: 'system-prompt' })),
       ],
       messages: input.messages,
     }),
