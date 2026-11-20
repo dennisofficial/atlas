@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { NAMING_WINDOW_MS } from '@dltech/atlas-control'
 import { ESessionStatus } from '@dltech/atlas-core'
 import {
+  ESandboxProvider,
   EStreamErrorCode,
   EStreamSubscribeKind,
   STREAM_MAX_SESSION_SUBSCRIPTIONS,
