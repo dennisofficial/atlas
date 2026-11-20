@@ -1,7 +1,5 @@
 import {
-  CallInterruptedError,
   EBeforeToolDecision,
-  hookOutcomeDrafts,
   isParkedOutcome,
   modelFacingDeclarationsOf,
   parametersOf,
@@ -15,13 +13,10 @@ import {
   type ThreadId,
   type ResolvedToolCall,
   type ToolCall,
-  type ToolDefinition,
-  type ToolOutcome,
   type OnToolOutput,
   type WorkspacePort,
 } from '@dltech/atlas-core'
 
-import { logFieldsOf } from '@dltech/atlas-observability'
 import type { OnHookMishap } from '../hooks/budget'
 import type { HookChain } from '../hooks/registry'
 import type { OnceLedger } from '../loop/once-ledger.port'
@@ -33,6 +28,7 @@ import {
   unknownToolDraft,
 } from './dispatch-drafts'
 import { observeAfterTool } from './dispatch-observe'
+import { invokeTool } from './invoke-tool'
 import { NO_QUALITY_STAGE, type QualityStagePort } from './quality-stage'
 import type { ToolRegistry } from './registry'
 import { parkedDraftOf, resultDraft } from './tool-result-draft'
@@ -67,9 +63,6 @@ export type DispatchArgs = {
 export abstract class ToolDispatcher {
   abstract dispatch(args: DispatchArgs): Promise<readonly EventDraft[]>
 }
-
-const messageOf = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error)
 
 const outcomeOf = (drafts: readonly EventDraft[]): ESpanOutcome => {
   if (drafts.some((draft) => draft.type === 'tool-denied')) return ESpanOutcome.Denied
@@ -231,7 +224,8 @@ export class HookedToolDispatcher extends ToolDispatcher {
     const result = await spanWith(this.trace, {
       name: ESpan.ToolInvoke,
       run: () =>
-        this.invokeTool({
+        invokeTool({
+          logPort: this.logPort,
           definition,
           call: allowed,
           signal,
@@ -285,42 +279,5 @@ export class HookedToolDispatcher extends ToolDispatcher {
       ...afterTool,
       ...(qualityOutcome.nudge === undefined ? [] : [qualityOutcome.nudge]),
     ]
-  }
-
-  private async invokeTool(args: {
-    definition: ToolDefinition
-    call: ToolCall
-    signal: AbortSignal
-    idempotencyKey: string
-    projectDirectory: string
-    homeDirectory: string | undefined
-    activeWorktree: ActiveWorktree | undefined
-    threadId: ThreadId
-    onOutput: OnToolOutput | undefined
-    captureFileChanges: boolean
-  }): Promise<ToolOutcome> {
-    try {
-      return await args.definition.invoke({
-        input: args.call.input,
-        signal: args.signal,
-        idempotencyKey: args.idempotencyKey,
-        projectDirectory: args.projectDirectory,
-        homeDirectory: args.homeDirectory,
-        activeWorktree: args.activeWorktree,
-        threadId: args.threadId,
-        onOutput: args.onOutput,
-        ...(args.captureFileChanges ? { captureFileChanges: true } : {}),
-      })
-    } catch (error) {
-      if (error instanceof CallInterruptedError) throw error
-      this.logPort?.error({
-        source: 'tools.dispatch',
-        message: `the ${args.call.name} tool threw`,
-        threadId: args.threadId,
-        data: { tool: args.call.name },
-        ...logFieldsOf({ error }),
-      })
-      return { ok: false, reason: `the ${args.call.name} tool threw: ${messageOf(error)}` }
-    }
   }
 }
