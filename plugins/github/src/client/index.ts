@@ -1,7 +1,11 @@
 import { pluginViewOf } from '@dltech/atlas-client/stream'
 import type { ClientSlot } from '@dltech/atlas-plugin-sdk'
 
-import { ESubscriptionStatus } from '@dltech/atlas-core'
+import {
+  ESubscriptionActor,
+  ESubscriptionStatus,
+  type SubscriptionPresentation,
+} from '@dltech/atlas-core'
 
 import {
   GITHUB_PROVIDER,
@@ -29,6 +33,31 @@ export const subscriptionsOfView = (
     name: SUBSCRIPTIONS_VIEW,
     schema: subscriptionsViewSchema,
   }) ?? []
+
+export type SubscriptionListRow = {
+  id: string
+  provider: string
+  status: ESubscriptionStatus
+  createdBy: ESubscriptionActor
+  threadId: string
+  expiresAt?: string
+  held: number
+  presentation: SubscriptionPresentation
+}
+
+export const subscriptionRowsOf = (
+  views: Readonly<Record<string, unknown>>,
+): readonly SubscriptionListRow[] =>
+  subscriptionsOfView(views).map((row) => ({
+    id: row.id,
+    provider: row.provider,
+    status: row.status,
+    createdBy: row.createdBy,
+    threadId: row.threadId,
+    ...(row.expiresAt === undefined ? {} : { expiresAt: row.expiresAt }),
+    held: row.held,
+    presentation: row.presentation,
+  }))
 
 export type SubscribedPullRequest = {
   id: string

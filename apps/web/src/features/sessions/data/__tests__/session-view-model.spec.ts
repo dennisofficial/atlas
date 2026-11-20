@@ -203,6 +203,13 @@ describe('sessionViewModelOf', () => {
       createdBy: 'agent',
       status: 'active',
       createdAt: '2026-11-08T10:00:00.000Z',
+      held: 0,
+      presentation: {
+        icon: 'git-pull-request',
+        tone: 'open',
+        title: 'owner/atlas#31',
+        meta: ['Pull request', 'all events'],
+      },
     }
     const model = sessionViewModelOf(viewOf({ pluginViews: { subscriptions: [row] } }))
     expect(model.subscriptions).toEqual([
