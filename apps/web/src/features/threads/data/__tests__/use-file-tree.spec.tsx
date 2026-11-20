@@ -1,4 +1,4 @@
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -10,11 +10,11 @@ import { EFileTreeStatus, useFileTree, type FileTreeState } from '../use-file-tr
 import type { FileTreeChannel, TreeEntry } from '../file-tree-source'
 
 beforeAll(() => {
-  GlobalRegistrator.register()
+  registerDom()
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
 })
 afterAll(async () => {
-  await GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 const TREE: Record<string, TreeEntry[]> = {

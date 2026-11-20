@@ -1,4 +1,4 @@
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { act, type ReactNode } from 'react'
 
@@ -20,14 +20,14 @@ const WEB: PreviewPort = {
 const originalError = console.error
 
 beforeAll(() => {
-  GlobalRegistrator.register()
+  registerDom()
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
   console.error = () => undefined
 })
 
 afterAll(async () => {
   console.error = originalError
-  await GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 const settle = () => act(async () => new Promise<void>((done) => setTimeout(done, 20)))

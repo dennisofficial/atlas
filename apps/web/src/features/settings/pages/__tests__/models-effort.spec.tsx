@@ -1,4 +1,4 @@
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { afterAll, afterEach, describe, expect, it, mock } from 'bun:test'
 import * as realNavigation from 'next/navigation'
 import type { ReactElement } from 'react'
@@ -11,7 +11,7 @@ mock.module('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
 }))
 
-GlobalRegistrator.register()
+registerDom()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
 const { ModelsEditor } = await import('../models-effort')
@@ -22,7 +22,7 @@ const { EProviderId } = await import('../../fixtures/settings-agent')
 
 afterAll(async () => {
   mock.module('next/navigation', () => realNavigation)
-  await GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 let root: { render: (node: ReactElement) => void; unmount: () => void } | null = null

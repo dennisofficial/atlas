@@ -1,14 +1,14 @@
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 
 import { isDragRegionTarget } from '../drag-target'
 import { handleDocumentDoubleClick, TITLEBAR_DOUBLE_CLICK_PATH } from '../titlebar-double-click'
 
 beforeAll(() => {
-  GlobalRegistrator.register()
+  registerDom()
 })
 afterAll(async () => {
-  await GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 function mount(html: string): HTMLElement {

@@ -1,4 +1,4 @@
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 
 import type { PaneRect } from '../pane-command'
@@ -18,11 +18,11 @@ const elementWith = (rect: { left: number; top: number; width: number; height: n
 }
 
 beforeAll(() => {
-  GlobalRegistrator.register()
+  registerDom()
 })
 
 afterAll(async () => {
-  await GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 describe('windowRectOf', () => {
