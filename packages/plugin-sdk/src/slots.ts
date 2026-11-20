@@ -6,6 +6,7 @@ import type {
   PluginEventBody,
   PromptFragment,
   RecordBody,
+  SubscriptionEndRules,
   ToolDefinition,
   V2Event,
 } from '@dltech/atlas-core'
@@ -103,6 +104,7 @@ export type PodSlot = {
   childDeny?: readonly string[] | undefined
   tools?(ctx: PluginPodContext): readonly ToolDefinition[]
   hooks?(ctx: PluginPodContext): HookChainArgs
+  subscriptionEnds?: SubscriptionEndRules | undefined
   prompts: readonly PromptFragment[]
   commands: ReadonlyMap<string, CommandHandler<unknown>>
   onDaemonEvent?(frame: DaemonEventFrame): void
