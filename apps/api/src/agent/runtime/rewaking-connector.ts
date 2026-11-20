@@ -27,9 +27,7 @@ export const rewakingConnector = (args: {
     if (args.signal.aborted) throw unavailable('the session lifetime ended')
     if (rewakesWithoutConnect >= REWAKES_BEFORE_GIVING_UP) {
       rewakesWithoutConnect = 0
-      throw unavailable(
-        `its daemon did not answer after ${REWAKES_BEFORE_GIVING_UP} wakes; the next call wakes it again`,
-      )
+      throw unavailable(`its daemon did not answer after ${REWAKES_BEFORE_GIVING_UP} wakes`)
     }
     failedConnects = 0
     rewakesWithoutConnect += 1
@@ -45,7 +43,7 @@ export const rewakingConnector = (args: {
       if (error instanceof SandboxUnavailableError) throw error
       failedConnects = FAILED_CONNECTS_BEFORE_REWAKE
       const reason = error instanceof Error ? error.message : String(error)
-      throw unavailable(`wake failed: ${reason}; the next call wakes it again`)
+      throw unavailable(`wake failed: ${reason}`)
     }
     const connect = webSocketConnector({ url })
     return async (handlers) => {

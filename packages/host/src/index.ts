@@ -3,6 +3,7 @@ export {
   OpMismatchError,
   ProtocolViolationError,
   ReadyTimeoutError,
+  SANDBOX_OFFLINE_GUIDANCE,
   SandboxUnavailableError,
   isReadOnlyOp,
 } from './calls/errors'
