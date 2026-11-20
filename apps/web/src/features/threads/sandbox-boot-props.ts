@@ -8,6 +8,7 @@ const UI_STATE: Record<EBootStepState, EUiBootState> = {
   [EBootStepState.Running]: EUiBootState.Running,
   [EBootStepState.Done]: EUiBootState.Done,
   [EBootStepState.Error]: EUiBootState.Error,
+  [EBootStepState.Interrupted]: EUiBootState.Interrupted,
 }
 
 export function sandboxBootPropsOf(view: BootView) {

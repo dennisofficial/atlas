@@ -17,6 +17,7 @@ export enum EBootStepState {
   Running = 'running',
   Done = 'done',
   Error = 'error',
+  Interrupted = 'interrupted',
 }
 
 export interface SandboxBootChild {
@@ -50,6 +51,7 @@ const STEP_STATUS = {
   [EBootStepState.Running]: EStepStatus.Running,
   [EBootStepState.Done]: EStepStatus.Done,
   [EBootStepState.Error]: EStepStatus.Error,
+  [EBootStepState.Interrupted]: EStepStatus.Running,
 } as const
 
 const TITLES = {
@@ -57,6 +59,7 @@ const TITLES = {
   [EBootStepState.Running]: 'Starting sandbox',
   [EBootStepState.Done]: 'Sandbox ready',
   [EBootStepState.Error]: 'Sandbox failed to start',
+  [EBootStepState.Interrupted]: 'Setup restarted · running again',
 } as const
 
 const ERROR_LABEL = 'Sandbox'
@@ -172,7 +175,10 @@ export function SandboxBoot({
   className,
 }: SandboxBootProps) {
   const status = STEP_STATUS[state]
-  const open = state === EBootStepState.Running || state === EBootStepState.Error
+  const open =
+    state === EBootStepState.Running ||
+    state === EBootStepState.Interrupted ||
+    state === EBootStepState.Error
   const showRetry = state === EBootStepState.Error && onRetry !== undefined
   const headerError =
     state === EBootStepState.Error && error !== undefined && !steps.some(carriesError)

@@ -18,6 +18,7 @@ export enum EBootStepState {
   Running = 'running',
   Done = 'done',
   Error = 'error',
+  Interrupted = 'interrupted',
 }
 
 export enum EBootStepOutcome {

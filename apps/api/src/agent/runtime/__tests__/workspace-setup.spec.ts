@@ -643,7 +643,7 @@ describe('a setup script left running by an earlier host', () => {
     hostB.calls.close()
   }, 90_000)
 
-  it('fails it as interrupted, and runs nothing, when the restarted sandbox no longer holds it', async () => {
+  it('reports it interrupted, and runs nothing, when the restarted sandbox no longer holds it', async () => {
     const sessionId = 'setup-session-lost'
     const root = mkdtempSync(join(tmpdir(), 'atlas-workspace-lost-'))
     const launchDirectory = join(root, 'workspace')
@@ -674,7 +674,7 @@ describe('a setup script left running by an earlier host', () => {
     expect(finished).toMatchObject({ phase: ESetupPhase.Finished, ok: false })
     expect(steps.at(-1)).toMatchObject({
       step: EWorkspaceStep.Setup,
-      state: EWorkspaceStepState.Failed,
+      state: EWorkspaceStepState.Interrupted,
       reason: SETUP_INTERRUPTED_REASON,
     })
     expect(existsSync(join(launchDirectory, 'setup-ran.txt'))).toBe(false)

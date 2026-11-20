@@ -194,7 +194,7 @@ describe('workspace steps that fail without blocking', () => {
     expect(result).toEqual({ ok: true })
     expect(steps.at(-1)).toMatchObject({
       step: EWorkspaceStep.Setup,
-      state: EWorkspaceStepState.Failed,
+      state: EWorkspaceStepState.Interrupted,
       reason: SETUP_INTERRUPTED_REASON,
     })
     expect(setups.at(-1)).toMatchObject({ phase: ESetupPhase.Finished, ok: false })

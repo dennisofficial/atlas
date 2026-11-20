@@ -335,6 +335,30 @@ describe('ThreadTranscript sandbox boot', () => {
     expect(retried).toBe(1)
   })
 
+  it('shows an interrupted setup as restarting, not as a failed start', async () => {
+    await mountWith({
+      rewind: null,
+      onRetryBoot: () => {},
+      boot: {
+        state: EBootStepState.Running,
+        steps: [
+          { id: EBootStep.Provision, label: 'Create sandbox', state: EBootStepState.Done },
+          {
+            id: EBootStep.Setup,
+            label: 'Setup restarted · running again',
+            state: EBootStepState.Interrupted,
+            command: 'bun install',
+          },
+        ],
+      },
+    })
+
+    expect(document.body.textContent).toContain('Setup restarted · running again')
+    expect(document.body.textContent).not.toContain('Sandbox failed to start')
+    expect(document.body.querySelector('[data-slot="sandbox-boot-error"]')).toBeNull()
+    expect(retryButton()).toBeNull()
+  })
+
   it('shows the startup error in a labelled card under the failed row', async () => {
     await mountWith({ rewind: null, boot: failedBoot })
 
