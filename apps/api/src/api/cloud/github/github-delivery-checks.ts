@@ -10,7 +10,7 @@ import { GithubDeliveryFillDeferred, type FillFields, type RestFill } from './gi
 import { normalizedRepo } from './github-pr-identity'
 import { lockPrScope } from './github-pr-lock'
 import type { GithubPrStore } from './github-pr-store'
-import { headShaPrNumbers, inWatchScope } from './github-watch-scope'
+import { inWatchScope } from './github-watch-scope'
 import { CheckAnnotationFetcher, type FetchAnnotations } from './github-check-annotations'
 import type {
   GithubCheckRunWebhookPayload,
@@ -128,19 +128,10 @@ export class GithubDeliveryChecks {
     prNumbers: readonly number[]
     branch: string | null
   }): Promise<boolean> {
-    const prNumbers =
-      args.prNumbers.length > 0
-        ? args.prNumbers
-        : [
-            ...(await headShaPrNumbers({
-              repoFullName: args.repoFullName,
-              headSha: args.headSha,
-            })),
-          ]
-
     return await inWatchScope({
       repoFullName: args.repoFullName,
-      prNumbers,
+      prNumbers: args.prNumbers,
+      ...(args.prNumbers.length === 0 ? { headSha: args.headSha } : {}),
       heads: args.branch === null ? [] : [{ repoFullName: args.repoFullName, branch: args.branch }],
     })
   }
