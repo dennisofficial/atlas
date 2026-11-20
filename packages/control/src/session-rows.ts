@@ -26,6 +26,7 @@ export type ControlSessionRow = {
   podActualVcpus: number | null
   podAppliedGeneration: number | null
   podResizeError: string | null
+  podWaitingSince: string | null
   routineId: string | null
 }
 

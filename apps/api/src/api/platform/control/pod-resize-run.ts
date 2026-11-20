@@ -1,4 +1,5 @@
 import type { ControlSessionRow } from '@dltech/atlas-control'
+import type { PodBusy } from '@dltech/atlas-core'
 
 import type { PodResizeOutcome } from '../../../agent'
 import {
@@ -19,9 +20,14 @@ export type PodResizeDeps = {
   held(args: { sessionId: string }): Promise<boolean>
   recordApplied(args: { sessionId: string; vcpus: number; generation: number }): Promise<unknown>
   recordFailed(args: { sessionId: string; generation: number; error: string }): Promise<unknown>
+  recordWaiting(args: { sessionId: string; generation: number }): Promise<unknown>
+  busy(args: { sessionId: string }): Promise<PodBusy>
+  requeue(args: { payload: PodResizePayload; delaySeconds: number }): Promise<unknown>
 }
 
 export const NO_SANDBOX_TO_RESIZE = 'No sandbox to resize'
+
+export const POD_RESIZE_WAIT_SECONDS = 30
 
 export const failureText = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
@@ -34,6 +40,14 @@ export const runPodResize = async (args: {
   const session = await deps.session({ sessionId: payload.sessionId })
   if (session === undefined || session.podSizeGeneration !== payload.generation) {
     return { outcome: EPodResizeOutcome.Superseded }
+  }
+  if (payload.whenIdle === true && (await deps.busy({ sessionId: payload.sessionId })).busy) {
+    await deps.recordWaiting({
+      sessionId: payload.sessionId,
+      generation: payload.generation,
+    })
+    await deps.requeue({ payload, delaySeconds: POD_RESIZE_WAIT_SECONDS })
+    return { outcome: EPodResizeOutcome.Waiting }
   }
   const vcpus = session.podDesiredVcpus ?? payload.vcpus
   const sandboxSessionId = session.podSessionId ?? session.sessionId

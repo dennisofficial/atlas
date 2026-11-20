@@ -32,6 +32,12 @@ describe('chipLabel', () => {
     expect(chipLabel({ ...RUNNING, state: EPodState.Parked, pendingVcpus: 8 })).toBe('Parked')
   })
 
+  it('names the size a waiting resize will apply', () => {
+    expect(chipLabel({ ...RUNNING, pendingVcpus: 8, phase: 'waiting' })).toBe(
+      'Waiting to resize · 8 vCPU · 16 GB',
+    )
+  })
+
   it('names the target size of a pushed resize', () => {
     expect(chipLabel({ ...RUNNING, pendingVcpus: 8, phase: 'resizing' })).toBe(
       'Resizing · 8 vCPU · 16 GB',

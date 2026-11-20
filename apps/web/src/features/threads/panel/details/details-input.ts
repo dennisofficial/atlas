@@ -9,7 +9,7 @@ export type DetailsInput = {
   worktreePath: string | undefined
   pullRequests: PullRequestsView
   settingsHref: string | undefined
-  onResize: (vcpus: number) => Promise<void>
+  onResize: (request: { vcpus: number }) => Promise<void>
 }
 
 export const EMPTY_DETAILS: DetailsInput = {

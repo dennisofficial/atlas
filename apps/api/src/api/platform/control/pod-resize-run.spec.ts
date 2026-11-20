@@ -3,6 +3,7 @@ import { EPodResizeOutcome } from './pod-resize.contract'
 import {
   failureText,
   NO_SANDBOX_TO_RESIZE,
+  POD_RESIZE_WAIT_SECONDS,
   runPodResize,
   type PodResizeDeps,
   type PodResizeSession,
@@ -21,6 +22,8 @@ const depsOf = (over: Partial<PodResizeDeps> = {}) => {
   const rewakes: { sessionId: string }[] = []
   const applied: { sessionId: string; vcpus: number; generation: number }[] = []
   const failures: { sessionId: string; generation: number; error: string }[] = []
+  const requeues: { payload: unknown; delaySeconds: number }[] = []
+  const waits: { sessionId: string; generation: number }[] = []
   const deps: PodResizeDeps = {
     session: async () => sessionOf(),
     resize: async (args) => {
@@ -37,9 +40,16 @@ const depsOf = (over: Partial<PodResizeDeps> = {}) => {
     recordFailed: async (args) => {
       failures.push(args)
     },
+    busy: async () => ({ busy: false, running: [] }),
+    recordWaiting: async (args) => {
+      waits.push(args)
+    },
+    requeue: async (args) => {
+      requeues.push(args)
+    },
     ...over,
   }
-  return { deps, resizes, rewakes, applied, failures }
+  return { deps, resizes, rewakes, applied, failures, requeues, waits }
 }
 
 const payload = { sessionId: 'session-a', generation: 2, vcpus: 4 }
@@ -156,6 +166,58 @@ describe('runPodResize', () => {
     expect(applied).toEqual([])
     expect(failures).toEqual([])
     expect(rewakes).toEqual([])
+  })
+})
+
+describe('runPodResize waiting for the pod to go idle', () => {
+  const waitingPayload = { sessionId: 'session-a', generation: 2, vcpus: 4, whenIdle: true }
+
+  it('requeues itself instead of resizing while the pod is busy, and marks the wait', async () => {
+    const { deps, resizes, rewakes, requeues, waits } = depsOf({
+      busy: async () => ({ busy: true, running: ['2 shells'] }),
+    })
+
+    expect(await runPodResize({ payload: waitingPayload, deps })).toEqual({
+      outcome: EPodResizeOutcome.Waiting,
+    })
+    expect(waits).toEqual([{ sessionId: 'session-a', generation: 2 }])
+    expect(resizes).toEqual([])
+    expect(rewakes).toEqual([])
+    expect(requeues).toEqual([{ payload: waitingPayload, delaySeconds: POD_RESIZE_WAIT_SECONDS }])
+  })
+
+  it('resizes once the pod is idle, marking no wait', async () => {
+    const { deps, resizes, requeues, waits } = depsOf()
+
+    expect(await runPodResize({ payload: waitingPayload, deps })).toEqual({
+      outcome: EPodResizeOutcome.Applied,
+    })
+    expect(resizes).toEqual([{ sandboxSessionId: 'session-a', vcpus: 4 }])
+    expect(requeues).toEqual([])
+    expect(waits).toEqual([])
+  })
+
+  it('resizes at once when no wait was asked for, however busy the pod is', async () => {
+    const { deps, resizes, requeues } = depsOf({
+      busy: async () => ({ busy: true, running: ['Agent turn'] }),
+    })
+
+    expect(await runPodResize({ payload, deps })).toEqual({ outcome: EPodResizeOutcome.Applied })
+    expect(resizes).toEqual([{ sandboxSessionId: 'session-a', vcpus: 4 }])
+    expect(requeues).toEqual([])
+  })
+
+  it('drops a waiting run a newer generation superseded before it saw the pod', async () => {
+    const { deps, requeues, resizes } = depsOf({
+      session: async () => sessionOf({ podSizeGeneration: 3 }),
+      busy: async () => ({ busy: true, running: ['2 shells'] }),
+    })
+
+    expect(await runPodResize({ payload: waitingPayload, deps })).toEqual({
+      outcome: EPodResizeOutcome.Superseded,
+    })
+    expect(requeues).toEqual([])
+    expect(resizes).toEqual([])
   })
 })
 

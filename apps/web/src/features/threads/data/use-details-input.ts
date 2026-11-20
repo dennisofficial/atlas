@@ -13,7 +13,7 @@ export function useDetailsInput(args: {
   thread: WireThread | undefined
   events: readonly Event[]
   pullRequests: PullRequestsView
-  onResize: (vcpus: number) => Promise<void>
+  onResize: (request: { vcpus: number }) => Promise<void>
 }): DetailsInput {
   const { thread, events, pullRequests, onResize } = args
   return useMemo(

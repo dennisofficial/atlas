@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 
+import type { PodBusy } from '@dltech/atlas-core'
 import { ResizeDeclinedError } from '@dltech/atlas-ui/ai/pod-status-chip'
 import {
   AlertDialog,
@@ -19,28 +20,41 @@ export const TURN_RESTART_BODY = 'The current turn stops and running processes e
 export const POD_RESTART_BODY =
   'Running shells and services stop while the sandbox restarts. Files are kept and the agent keeps working.'
 
+export type ResizeRequest = {
+  vcpus: number
+  whenIdle: boolean
+}
+
 type Confirmation = {
-  accept: () => void
+  running: readonly string[]
+  canWait: boolean
+  wait: () => void
+  force: () => void
   decline: () => void
 }
 
 export function useResizeConfirmation(args: {
-  busy: boolean
-  onResize: (vcpus: number) => Promise<void>
+  busy: PodBusy
+  onResize: (request: ResizeRequest) => Promise<void>
+  canWait?: boolean
 }) {
-  const { busy, onResize } = args
+  const { busy, onResize, canWait = true } = args
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
 
   const askFirst = (vcpus: number) =>
     new Promise<void>((resolve, reject) => {
       let settled = false
+      const settle = (request: ResizeRequest) => {
+        if (settled) return
+        settled = true
+        setConfirmation(null)
+        onResize(request).then(resolve, reject)
+      }
       setConfirmation({
-        accept: () => {
-          if (settled) return
-          settled = true
-          setConfirmation(null)
-          onResize(vcpus).then(resolve, reject)
-        },
+        running: busy.running,
+        canWait,
+        wait: () => settle({ vcpus, whenIdle: true }),
+        force: () => settle({ vcpus, whenIdle: false }),
         decline: () => {
           if (settled) return
           settled = true
@@ -50,12 +64,15 @@ export function useResizeConfirmation(args: {
       })
     })
 
-  return { confirmation, handleResize: busy ? askFirst : onResize }
+  const handleResize = (vcpus: number) =>
+    busy.busy ? askFirst(vcpus) : onResize({ vcpus, whenIdle: false })
+
+  return { confirmation, handleResize }
 }
 
-export function RestartConfirmDialog({
+export function ResizeBusyDialog({
   confirmation,
-  body = TURN_RESTART_BODY,
+  body = POD_RESTART_BODY,
 }: {
   confirmation: Confirmation | null
   body?: string
@@ -68,12 +85,21 @@ export function RestartConfirmDialog({
     <AlertDialog open={confirmation !== null} onOpenChange={handleOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Restart the sandbox now?</AlertDialogTitle>
-          <AlertDialogDescription>{body}</AlertDialogDescription>
+          <AlertDialogTitle>Resize a pod that is working?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {confirmation === null || confirmation.running.length === 0
+              ? body
+              : `${confirmation.running.join(', ')} running. ${body}`}
+          </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Keep working</AlertDialogCancel>
-          <AlertDialogAction onClick={() => confirmation?.accept()}>Restart</AlertDialogAction>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          {confirmation?.canWait === false ? null : (
+            <AlertDialogAction variant="outline" onClick={() => confirmation?.wait()}>
+              Wait until idle
+            </AlertDialogAction>
+          )}
+          <AlertDialogAction onClick={() => confirmation?.force()}>Force restart</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

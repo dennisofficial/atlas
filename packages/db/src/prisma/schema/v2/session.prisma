@@ -28,6 +28,7 @@ namespace v2 {
     podActualVcpus     Int?
     podAppliedGeneration Int?
     podResizeError     String?
+    podWaitingSince    TimestamptzJsDate(3)?
     routineId          String?
     readSeq            Int?
     lastSurface        String                @default("web")

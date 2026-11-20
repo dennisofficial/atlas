@@ -69,6 +69,7 @@ import {
   recordPodAppliedIn,
   recordPodDesiredIn,
   recordPodFailedIn,
+  recordPodWaitingIn,
   renameIn,
   setSessionModelIn,
   titleUntitledIn,
@@ -202,6 +203,14 @@ export class ControlPlane {
     error: string
   }): Promise<boolean> {
     return this.store.transact((tx) => recordPodFailedIn({ tx, ...params }))
+  }
+
+  async recordPodWaiting(params: {
+    sessionId: string
+    generation: number
+    since: string
+  }): Promise<boolean> {
+    return this.store.transact((tx) => recordPodWaitingIn({ tx, ...params }))
   }
 
   async spawnPeer(params: {

@@ -132,7 +132,14 @@ export const podStatusOf = (session: ControlSessionRow | undefined): SessionStat
   if (desiredVcpus === undefined && actualVcpus === undefined) return undefined
   const pending =
     desiredVcpus !== undefined && session.podAppliedGeneration !== session.podSizeGeneration
-  const phase = session.podResizeError !== null ? 'failed' : pending ? 'resizing' : 'steady'
+  const phase =
+    session.podResizeError !== null
+      ? 'failed'
+      : session.podWaitingSince !== null
+        ? 'waiting'
+        : pending
+          ? 'resizing'
+          : 'steady'
   return {
     ...(desiredVcpus === undefined ? {} : { desiredVcpus }),
     ...(actualVcpus === undefined ? {} : { actualVcpus }),

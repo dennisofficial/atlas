@@ -15,7 +15,7 @@ export class ResizeDeclinedError extends Error {
 
 const RAM_PER_VCPU_GB = 2
 
-export type EPodResizePhase = 'steady' | 'resizing' | 'failed'
+export type EPodResizePhase = 'steady' | 'resizing' | 'waiting' | 'failed'
 
 export interface PodStatus {
   state: EPodState
@@ -51,6 +51,7 @@ export function chipLabel(status: PodStatus): string {
   const restarting = status.state !== EPodState.Parked && status.state !== EPodState.Stopped
   if (status.phase === 'failed') return 'Resize failed'
   if (restarting && status.pendingVcpus !== undefined) {
+    if (status.phase === 'waiting') return `Waiting to resize · ${sizeLabel(status.pendingVcpus)}`
     return status.phase === 'resizing'
       ? `Resizing · ${sizeLabel(status.pendingVcpus)}`
       : `Restarting · ${sizeLabel(status.pendingVcpus)}`

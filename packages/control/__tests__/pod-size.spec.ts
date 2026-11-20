@@ -75,6 +75,39 @@ describe('pod size', () => {
     expect(await podOf(plane)).toEqual({ desiredVcpus: 8, phase: 'resizing' })
   })
 
+  it('holds the waiting phase until the size applies', async () => {
+    const { plane } = await seed()
+    const generation = await plane.recordPodDesired({ sessionId: SESSION, vcpus: 8 })
+
+    expect(await plane.recordPodWaiting({ sessionId: SESSION, generation, since: NOW })).toBe(true)
+    expect(await podOf(plane)).toEqual({ desiredVcpus: 8, phase: 'waiting' })
+
+    await plane.recordPodApplied({ sessionId: SESSION, vcpus: 8, generation })
+    expect(await podOf(plane)).toEqual({ desiredVcpus: 8, actualVcpus: 8, phase: 'steady' })
+  })
+
+  it('drops the wait when a newer resize, a failure or an apply of an old generation arrives', async () => {
+    const { plane } = await seed()
+    const generation = await plane.recordPodDesired({ sessionId: SESSION, vcpus: 4 })
+    await plane.recordPodWaiting({ sessionId: SESSION, generation, since: NOW })
+
+    expect(
+      await plane.recordPodWaiting({
+        sessionId: SESSION,
+        generation: generation + 1,
+        since: NOW,
+      }),
+    ).toBe(false)
+    expect(await podOf(plane)).toEqual({ desiredVcpus: 4, phase: 'waiting' })
+
+    await plane.recordPodFailed({ sessionId: SESSION, generation, error: 'no sandbox' })
+    expect(await podOf(plane)).toEqual({
+      desiredVcpus: 4,
+      phase: 'failed',
+      error: 'no sandbox',
+    })
+  })
+
   it('leaves the status without pod state when no resize was ever asked for', async () => {
     const { plane } = await seed()
 
