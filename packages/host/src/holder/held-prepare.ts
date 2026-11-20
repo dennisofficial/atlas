@@ -5,6 +5,7 @@ import {
   setupFinishedText,
   setupStartedText,
   setupInFlightOf,
+  withoutRepeatedContext,
   workspaceStepsOf,
   type EventDraft,
   type RunId,
@@ -257,7 +258,10 @@ export class HeldPrepare {
       return
     }
     const warnings = result.warnings ?? []
-    const notices = (result.notices ?? []).map(bootDraftOf)
+    const notices = withoutRepeatedContext({
+      events: await args.record.composedEvents({ threadId: args.threadId }),
+      drafts: (result.notices ?? []).map(bootDraftOf),
+    })
     const drafts: AppendBody[] = [...started, ...baseFactDraftsOf(result.bases), ...notices]
     if (warnings.length > 0) {
       drafts.push({
