@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import {
-  API_PROVISIONED_ENV,
-  isLocalPod,
-  mirrorsThreadState,
-  writesBehind,
-} from '../boot-progress-wire'
+import { API_PROVISIONED_ENV, isLocalPod, mirrorsThreadState, writesBehind } from '../serve-env'
 
 describe('writesBehind', () => {
   it('holds for an api-provisioned pod and for any pod told a url and a token', () => {

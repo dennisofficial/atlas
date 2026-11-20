@@ -1,4 +1,4 @@
-import { API_PROVISIONED_ENV } from './boot-progress-wire.js'
+import { API_PROVISIONED_ENV } from '@dltech/atlas-core'
 
 /**
  * Injected at `Sandbox.create` and never fetchable afterwards: the session token is minted by the
