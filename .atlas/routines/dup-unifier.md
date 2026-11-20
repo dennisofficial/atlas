@@ -24,7 +24,8 @@
 5. `parseRepoInput`, identical in web and prototype `new-project-repos.ts`; no package is shared by both apps yet, so it needs a home decision.
 6. `initialsOf`: web `settings/session/initials.ts` vs mobile `drawer-content.tsx:64` (first+last vs first two words; `?` vs `''` for empty). Not behaviour-preserving, so it needs a product call.
 7. PR state → icon/label/tone tables (5 web copies plus mobile and tui): aria labels and unknown-state handling diverge.
-8. `repoFullNameOf`: control `repo-name.ts` (case-insensitive, lowercases) vs core `pr-failed-checks-lines.ts:10`.
+8. `trpcBodyOf` test decoder, 3 identical copies: harness `cloud/__tests__/trpc-body.ts`, serve `__tests__/trpc-body.ts`, tui `composition/__tests__/trpc-body.ts` (all v1 side; `api-router` spec has a fourth inline variant).
+9. `repoFullNameOf`: control `repo-name.ts` (case-insensitive, lowercases) vs core `pr-failed-checks-lines.ts:10`.
 
 ## Runs
 
@@ -38,3 +39,4 @@
 - No open Dup unifier or abstraction-routine PRs; the only open PR (#2465) touches none of these files.
 - Unified `oneLine` (5 identical copies → core `text/one-line.ts`). Pinned with a core spec plus new tui crew failure-line and lost-shells specs; mutation-checked (no newline fold, no trim).
 - Added backlog item 2: inline copies that can now call core `oneLine`.
+- CI: two `app-project-resolution` specs were red on clean main (fixture missed #2423's tRPC body decoding); fixed in the same PR.
