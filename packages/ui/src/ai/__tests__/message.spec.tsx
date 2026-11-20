@@ -112,6 +112,24 @@ describe('UserMessage', () => {
   })
 })
 
+describe('AgentMessage from another sender', () => {
+  it('wraps the caption and text in one bubble', async () => {
+    const container = await render(
+      <AgentMessage caption="From Fix login">Login works.</AgentMessage>,
+    )
+    const bubble = container.querySelector('[data-slot="bubble"][data-inbound]')
+    expect(bubble?.querySelector('[data-slot="message-caption"]')?.textContent).toBe(
+      'From Fix login',
+    )
+    expect(bubble?.textContent).toContain('Login works.')
+  })
+
+  it('renders its own words without a bubble', async () => {
+    const container = await render(<AgentMessage>Done.</AgentMessage>)
+    expect(container.querySelector('[data-slot="bubble"]')).toBeNull()
+  })
+})
+
 describe('UserMessage footer', () => {
   it('copies the raw text, not the rendered children', async () => {
     const written = installClipboard()

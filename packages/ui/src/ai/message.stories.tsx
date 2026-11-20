@@ -140,6 +140,20 @@ function FeedbackDemo() {
 
 export const Feedback: Story = { render: () => <FeedbackDemo /> }
 
+export const FromAnotherSession: Story = {
+  render: () => (
+    <AgentMessage
+      author="Atlas"
+      caption="From Missing Bun Version"
+      timestamp="7:47 PM"
+      copyText="…"
+    >
+      The sandbox outage is fixed: #2432 deployed the corrected daemon boot script. Run one{' '}
+      <code>pwd</code> to confirm, then resume where you left off.
+    </AgentMessage>
+  ),
+}
+
 export const Harness: Story = {
   render: () => <HarnessMessage>Turn complete · 2 files changed</HarnessMessage>,
 }
