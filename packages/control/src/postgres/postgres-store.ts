@@ -175,15 +175,15 @@ class PostgresTx implements ControlTx {
   }
 
   async setSessionPodDesired(params: Parameters<ControlTx['setSessionPodDesired']>[0]) {
-    return setSessionPodDesiredIn({ tx: this.tx, ...params })
+    return setSessionPodDesiredIn({ ...params, tx: this.tx })
   }
 
   async setSessionPodApplied(params: Parameters<ControlTx['setSessionPodApplied']>[0]) {
-    return setSessionPodAppliedIn({ tx: this.tx, ...params })
+    return setSessionPodAppliedIn({ ...params, tx: this.tx })
   }
 
   async setSessionPodFailed(params: Parameters<ControlTx['setSessionPodFailed']>[0]) {
-    return setSessionPodFailedIn({ tx: this.tx, ...params })
+    return setSessionPodFailedIn({ ...params, tx: this.tx })
   }
 
   async setSessionArchived(params: { sessionId: string; archivedAt: string | null }) {

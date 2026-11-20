@@ -166,8 +166,9 @@ export const recordPodAppliedIn = async (params: {
   vcpus: number
   generation: number
 }): Promise<boolean> => {
-  const changed = await params.tx.setSessionPodApplied(params)
-  if (changed) await params.tx.announce({ sessionId: params.sessionId })
+  const { tx, ...applied } = params
+  const changed = await tx.setSessionPodApplied(applied)
+  if (changed) await tx.announce({ sessionId: params.sessionId })
   return changed
 }
 
@@ -177,7 +178,8 @@ export const recordPodFailedIn = async (params: {
   generation: number
   error: string
 }): Promise<boolean> => {
-  const changed = await params.tx.setSessionPodFailed(params)
-  if (changed) await params.tx.announce({ sessionId: params.sessionId })
+  const { tx, ...failed } = params
+  const changed = await tx.setSessionPodFailed(failed)
+  if (changed) await tx.announce({ sessionId: params.sessionId })
   return changed
 }
