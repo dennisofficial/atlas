@@ -1,4 +1,5 @@
 import {
+  canonicalEvent,
   canonicalJson,
   EMPTY_VISIBILITY,
   v2EventSchema,
@@ -54,5 +55,5 @@ export function decodeStoredEvent(
   if (parsed.data.seq !== row.seq || parsed.data.threadId !== row.threadId) {
     throw new RecordCorruptError(`stored event ${row.threadId}:${row.seq} disagrees with its row`)
   }
-  return parsed.data
+  return canonicalEvent(parsed.data)
 }
