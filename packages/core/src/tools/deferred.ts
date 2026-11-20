@@ -57,8 +57,14 @@ export const toolNamesByServerOf = (
   return groups
 }
 
+const byCodeUnit = (left: string, right: string): number =>
+  left < right ? -1 : left > right ? 1 : 0
+
 export const serverListingTextOf = (groups: ReadonlyMap<string, readonly string[]>): string =>
-  [...groups].map(([server, names]) => `${server}: ${names.join(', ')}`).join('\n')
+  [...groups]
+    .sort(([left], [right]) => byCodeUnit(left, right))
+    .map(([server, names]) => `${server}: ${[...names].sort(byCodeUnit).join(', ')}`)
+    .join('\n')
 
 export const deferredListingTextOf = (declarations: readonly ToolDeclaration[]): string =>
   serverListingTextOf(toolNamesByServerOf(declarations))

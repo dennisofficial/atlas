@@ -36,7 +36,7 @@ describe('the deferred listing hook', () => {
     const text = next.system[0]?.text
     expect(text).toContain("Call tool_search to get a tool's schema, then call_tool to run it.")
     expect(text).toContain('docs: mcp__docs__search')
-    expect(text).toContain('events: mcp__events__list, mcp__events__drop')
+    expect(text).toContain('events: mcp__events__drop, mcp__events__list')
   })
 
   it('adds nothing when no MCP server has tools', async () => {
