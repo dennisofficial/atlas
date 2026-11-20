@@ -1,6 +1,6 @@
 import { effortRungOf, parseRef, type ModelChoice } from '@dltech/atlas-core'
 import type { SessionModelAsk } from '@dltech/atlas-models'
-import { ECredentialSource, ESandboxProvider } from '@dltech/atlas-protocol'
+import { DEFAULT_SANDBOX_PROVIDER, ECredentialSource } from '@dltech/atlas-protocol'
 
 import { EMPTY_VISIBILITY_TEXT } from './stored-event'
 import type { ControlSessionRow, ControlTx, SessionModelRow } from './port'
@@ -30,7 +30,7 @@ export const createSessionIn = async (params: {
   })
   await tx.createSession({
     ...session,
-    sandboxProvider: params.sandboxProvider ?? ESandboxProvider.Vercel,
+    sandboxProvider: params.sandboxProvider ?? DEFAULT_SANDBOX_PROVIDER,
     credentialSource: ECredentialSource.Platform,
     sandboxInstanceId: params.sandboxInstanceId ?? null,
     ...resolved,

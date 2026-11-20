@@ -71,7 +71,7 @@ describe('readSessionStatus', () => {
       value: {
         state: ESessionStatus.Preparing,
         lease: { epoch: 0, holderHostId: null, live: false },
-        sandboxProvider: ESandboxProvider.Vercel,
+        sandboxProvider: ESandboxProvider.Agent37,
         credentialSource: ECredentialSource.Platform,
       },
     })

@@ -13,7 +13,6 @@ import { FakeMediaStore } from '@dltech/atlas-media/testing'
 import type { ProductAnalytics } from '@dltech/atlas-observability'
 import { ControlPlane, INBOX_KIND_WITHDRAW, withdrawPayloadOf } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
-import { EnvService } from '../../../_core/config/env/env.service'
 import type { PodOps } from '../../../agent'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { NoSessionTitler } from '../../../_core/ports/session-titler'
@@ -121,7 +120,6 @@ export class FakePodResizeDispatcher {
 
 export const setupSessionsService = (
   over: {
-    env?: Record<string, string>
     dispatcher?: FakePodResizeDispatcher
     ops?: PodOps | null
     analytics?: ProductAnalytics | null
@@ -143,7 +141,6 @@ export const setupSessionsService = (
     registry,
     mediaStore,
     composeCommands([TEST_COMMAND, modelSet, resize]),
-    new EnvService({ SANDBOX_PROVIDER_DEFAULT: 'vercel', ...over.env }),
     podSizing,
     over.ops ?? null,
     over.analytics ?? null,

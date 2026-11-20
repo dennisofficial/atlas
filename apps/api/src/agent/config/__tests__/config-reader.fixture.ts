@@ -2,6 +2,8 @@ import { createDb, createPool, type Db, type Pool } from '@dltech/atlas-db'
 import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 
+import { ESandboxProvider } from '@dltech/atlas-protocol'
+
 import { SecretCipher } from '../secret-cipher'
 
 export const KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
@@ -25,6 +27,7 @@ export const seedOwner = async (db: Db): Promise<void> => {
     userId: 'user-1',
     projectId: 'proj-1',
     mainThreadId: 't-1',
+    sandboxProvider: ESandboxProvider.Vercel,
   })
 }
 
