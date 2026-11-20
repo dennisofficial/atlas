@@ -20,6 +20,7 @@ const sessionOf = (over: Partial<PodResizeSession> = {}): PodResizeSession => ({
 const depsOf = (over: Partial<PodResizeDeps> = {}) => {
   const resizes: { sandboxSessionId: string; vcpus: number }[] = []
   const rewakes: { sessionId: string }[] = []
+  const applied: { sessionId: string; vcpus: number; generation: number }[] = []
   const failures: { sessionId: string; generation: number; error: string }[] = []
   const requeues: { payload: unknown; delaySeconds: number }[] = []
   const waits: { sessionId: string; generation: number }[] = []
@@ -33,6 +34,9 @@ const depsOf = (over: Partial<PodResizeDeps> = {}) => {
       rewakes.push(args)
     },
     held: async () => false,
+    recordApplied: async (args) => {
+      applied.push(args)
+    },
     recordFailed: async (args) => {
       failures.push(args)
     },
@@ -45,7 +49,7 @@ const depsOf = (over: Partial<PodResizeDeps> = {}) => {
     },
     ...over,
   }
-  return { deps, resizes, rewakes, failures, requeues, waits }
+  return { deps, resizes, rewakes, applied, failures, requeues, waits }
 }
 
 const payload = { sessionId: 'session-a', generation: 2, vcpus: 4 }
@@ -59,6 +63,25 @@ describe('runPodResize', () => {
     })
     expect(resizes).toEqual([{ sandboxSessionId: 'session-a', vcpus: 4 }])
     expect(rewakes).toEqual([{ sessionId: 'session-a' }])
+  })
+
+  it('records the applied size itself when the provider recreated the container', async () => {
+    const { deps, applied, rewakes } = depsOf()
+
+    await runPodResize({ payload, deps })
+
+    expect(applied).toEqual([{ sessionId: 'session-a', vcpus: 4, generation: 2 }])
+    expect(rewakes).toEqual([{ sessionId: 'session-a' }])
+  })
+
+  it('records the applied size on the shared parent pod a sub-agent session resized', async () => {
+    const { deps, applied } = depsOf({
+      session: async () => sessionOf({ podSessionId: 'parent-a' }),
+    })
+
+    await runPodResize({ payload, deps })
+
+    expect(applied).toEqual([{ sessionId: 'parent-a', vcpus: 4, generation: 2 }])
   })
 
   it('exits when a newer generation superseded this one', async () => {
@@ -102,10 +125,15 @@ describe('runPodResize', () => {
   })
 
   it('rewakes a pod a retry finds already stopped while a host still holds it', async () => {
-    const { deps, rewakes } = depsOf({ resize: async () => 'stored', held: async () => true })
+    const { deps, applied, rewakes } = depsOf({
+      resize: async () => 'stored',
+      held: async () => true,
+    })
 
     expect(await runPodResize({ payload, deps })).toEqual({ outcome: EPodResizeOutcome.Applied })
     expect(rewakes).toEqual([{ sessionId: 'session-a' }])
+    // a stored size is applied by the wake that follows, which is where it gets recorded
+    expect(applied).toEqual([])
   })
 
   it('fails a resize with no sandbox to resize and records the error', async () => {
@@ -119,21 +147,23 @@ describe('runPodResize', () => {
   })
 
   it('records nothing for a deferred resize', async () => {
-    const { deps, failures } = depsOf({ resize: async () => 'stored' })
+    const { deps, applied, failures } = depsOf({ resize: async () => 'stored' })
 
     await runPodResize({ payload, deps })
 
+    expect(applied).toEqual([])
     expect(failures).toEqual([])
   })
 
   it('rethrows the apply failure without recording it or rewaking', async () => {
-    const { deps, failures, rewakes } = depsOf({
+    const { deps, applied, failures, rewakes } = depsOf({
       resize: async () => {
         throw new Error('sandbox refused the resize')
       },
     })
 
     await expect(runPodResize({ payload, deps })).rejects.toThrow('sandbox refused the resize')
+    expect(applied).toEqual([])
     expect(failures).toEqual([])
     expect(rewakes).toEqual([])
   })

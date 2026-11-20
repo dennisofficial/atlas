@@ -209,16 +209,19 @@ export async function holdsPrOutboxLease(args: {
   return renewPrOutboxLease({ id: args.id, token: args.token, now: args.now })
 }
 
-export async function completePrOutboxRow(args: {
-  id: string
+/**
+ * Completes every row one claim ran, in one statement: a claim's effects are few and adjacent, and
+ * a completion per row spent a round trip on each. Returns how many rows the batch completed.
+ */
+export async function completePrOutboxRows(args: {
+  ids: readonly string[]
   token: string
   now: Date
-}): Promise<boolean> {
-  const completed = await db.orm.public.GithubPrOutbox.where({
-    id: args.id,
-    dispatchedAt: null,
-    deadLetteredAt: null,
-  })
+}): Promise<number> {
+  if (args.ids.length === 0) return 0
+
+  return await db.orm.public.GithubPrOutbox.where((row) => row.id.in([...args.ids]))
+    .where({ dispatchedAt: null, deadLetteredAt: null })
     .where((row) => row.leaseOwner.eq(args.token))
     .updateAndCount({
       dispatchedAt: args.now,
@@ -227,8 +230,6 @@ export async function completePrOutboxRow(args: {
       parkedSince: null,
       lastError: null,
     })
-
-  return completed > 0
 }
 
 const parkUntilOf = (args: { failure: unknown; now: Date }): Date | undefined => {

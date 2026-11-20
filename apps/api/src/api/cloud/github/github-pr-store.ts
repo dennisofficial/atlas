@@ -185,6 +185,7 @@ export class GithubPrStore {
           prNumber: pr.prNumber,
           observations: [],
           commitChecks: { headSha: args.headSha, rows: recorded },
+          stored: pr,
         })
         outboxIds.push(...applied.outboxIds)
       }
@@ -200,20 +201,24 @@ export class GithubPrStore {
       tx: PrScopeTx
       repoFullName: string
       commitChecks?: { headSha: string; rows: readonly CheckIdentityRow[] }
+      stored?: Row<'GithubPrState'>
     },
   ): Promise<PrScopeApplyResult> {
     const tx = args.tx
-    if (args.protection !== undefined) {
-      await rememberBranchProtection({
-        tx,
+    const protection =
+      args.protection === undefined
+        ? null
+        : await rememberBranchProtection({
+            tx,
+            repoFullName: args.repoFullName,
+            protection: args.protection,
+          })
+    const stored =
+      args.stored ??
+      (await tx.orm.public.GithubPrState.where({
         repoFullName: args.repoFullName,
-        protection: args.protection,
-      })
-    }
-    const stored = await tx.orm.public.GithubPrState.where({
-      repoFullName: args.repoFullName,
-      prNumber: args.prNumber,
-    }).first()
+        prNumber: args.prNumber,
+      }).first())
     const storedState = foldStateOfRow(stored)
     const folded = foldPrObservations({
       state: storedState,
@@ -229,6 +234,9 @@ export class GithubPrStore {
       headSha,
       baseBranch,
       commitChecks: args.commitChecks?.headSha === headSha ? args.commitChecks.rows : undefined,
+      ...(protection === null || protection.baseBranch !== baseBranch
+        ? {}
+        : { requiredContexts: protection.requiredContexts }),
     })
     const checked = withDerivedChecks({ derived: head.derived, state: folded.state })
     const state = checked.state

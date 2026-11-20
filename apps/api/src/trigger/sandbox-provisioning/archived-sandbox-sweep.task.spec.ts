@@ -4,6 +4,7 @@ import { EnvService } from '../../_core/config/env/env.service'
 mock.module('@trigger.dev/sdk', () => ({
   schemaTask: <T>(definition: T): T => definition,
   schedules: { task: <T>(definition: T): T => definition },
+  logger: { log: () => undefined, warn: () => undefined, error: () => undefined },
   TriggerClient: class {
     readonly tasks = { trigger: async () => ({ id: 'run_stub' }) }
   },

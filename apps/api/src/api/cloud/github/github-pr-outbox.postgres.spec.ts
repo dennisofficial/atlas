@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'bun:test'
 import { recordingSignals } from '../../platform/sessions/thread-signals.fixture'
 import {
   claimPrOutboxRows,
-  completePrOutboxRow,
+  completePrOutboxRows,
   PR_OUTBOX_LEASE_MS,
   PR_OUTBOX_MAX_ATTEMPTS,
 } from './github-pr-outbox-lease'
@@ -126,7 +126,7 @@ describe('GithubPrOutboxDispatcher leases', () => {
     const fresh = await claimPrOutboxRows({ now: AT, limit: 1 })
     expect(fresh.rows.map((held) => held.id)).toEqual([row.id])
 
-    expect(await completePrOutboxRow({ id: row.id, token: stale.token, now: AT })).toBe(false)
+    expect(await completePrOutboxRows({ ids: [row.id], token: stale.token, now: AT })).toBe(0)
     expect((await reload(row.id))?.dispatchedAt).toBeNull()
   })
 
