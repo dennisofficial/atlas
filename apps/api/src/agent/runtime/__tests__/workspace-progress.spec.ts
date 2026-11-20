@@ -135,7 +135,7 @@ describe('workspace setup output', () => {
   it('records the failing output on the failed step and in the finished lifecycle', async () => {
     const processes = new RecordingProcessPort({
       chunks: ['boom\n'],
-      exitCodeOf: () => 2,
+      exitCodeOf: (call) => (call.cmd.at(-1) === 'exit 2' ? 2 : 0),
     })
     const { result, steps, setups } = await prepare({
       processes,
@@ -184,7 +184,7 @@ describe('workspace steps that fail without blocking', () => {
   it('records a setup the pod no longer holds as interrupted, and never runs it a second time', async () => {
     const processes = new RecordingProcessPort({
       outcomeOf: (call) =>
-        call.cmd[0] === 'sh' ? { kind: EProcessOutcome.Interrupted } : undefined,
+        call.cmd.at(-1) === 'bun install' ? { kind: EProcessOutcome.Interrupted } : undefined,
     })
     const { result, steps, setups } = await prepare({
       processes,
@@ -198,7 +198,7 @@ describe('workspace steps that fail without blocking', () => {
       reason: SETUP_INTERRUPTED_REASON,
     })
     expect(setups.at(-1)).toMatchObject({ phase: ESetupPhase.Finished, ok: false })
-    expect(processes.spawned.filter((call) => call.cmd[0] === 'sh')).toHaveLength(1)
+    expect(processes.spawned.filter((call) => call.cmd.at(-1) === 'bun install')).toHaveLength(1)
   })
 
   it('still fails the prepare when the sandbox cannot be reached', async () => {
