@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 
+import { DAEMON_PORT, DAEMON_PORT_ENV } from '@dltech/atlas-protocol'
 import { DaemonEngine } from '@dltech/atlas-protocol/engine'
 
 import { sanitizeChildEnv } from './child-env'
@@ -75,7 +76,7 @@ const handleRestart = (): void => {
 
 const listener = listenWebSocket({
   engine,
-  port: Number(env.PORT ?? 3000),
+  port: Number(env[DAEMON_PORT_ENV] ?? DAEMON_PORT),
   token,
   version: DAEMON_VERSION,
   drain: handleDrain,

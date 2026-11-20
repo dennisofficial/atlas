@@ -1,0 +1,3 @@
+export const DAEMON_PORT = 47300
+
+export const DAEMON_PORT_ENV = 'ATLAS_DAEMON_PORT'

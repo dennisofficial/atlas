@@ -1,10 +1,9 @@
 import { createHash } from 'node:crypto'
 
-import { SANDBOX_SERVE_PORT } from '../constants'
+import { DAEMON_PORT } from '@dltech/atlas-protocol'
 
 import type { Agent37Client } from './agent37-client'
 
-const DAEMON_PORT = SANDBOX_SERVE_PORT
 const DEFAULT_LISTEN_BUDGET_MS = 3 * 60_000
 const LISTEN_POLL_MS = 1_000
 const READY_POLL_MS = 2_000
