@@ -1,5 +1,4 @@
-import { ControlPlane } from '@dltech/atlas-control'
-import { PostgresControlStore } from '@dltech/atlas-control/postgres'
+import type { ControlPlane } from '@dltech/atlas-control'
 import { db } from '@dltech/atlas-db'
 import { podBusyFactsOf, podBusyOf } from '@dltech/atlas-core'
 import { shellRosterOf } from '@dltech/atlas-plugin-shells/client'
@@ -10,6 +9,7 @@ import { podResizerOf } from '../../agent/sandbox/sandbox-resizer'
 import { failureText, type PodResizeDeps } from '../../api/platform/control/pod-resize-run'
 import { podResizeTaskContract } from '../../api/platform/control/pod-resize.contract'
 import { TriggerJobDispatcher } from '../../_lib/trigger/trigger-job-dispatcher'
+import { triggerControlPlane } from '../control-plane'
 import { workerEnvService } from '../github/github-sweep-graph'
 import { triggerLog } from '../trigger-logger'
 
@@ -19,24 +19,23 @@ const busyOf = async (args: { plane: ControlPlane; sessionId: string }) => {
   const session = await args.plane.readSession({ sessionId: args.sessionId })
   if (session === undefined)
     return podBusyOf(podBusyFactsOf({ state: undefined, shellsRunning: 0, servicesRunning: 0 }))
-  const view = await args.plane.readSessionView({
+  const busy = await args.plane.readSessionBusy({
     sessionId: args.sessionId,
     threadId: session.mainThreadId,
   })
   return podBusyOf(
     podBusyFactsOf({
-      state: view.value.status.state,
-      shellsRunning: shellRosterOf(view.value.pluginViews).running,
-      servicesRunning: servicesOfView(view.value.pluginViews).filter(
-        (row) => row.status === 'running',
-      ).length,
+      state: busy.status.state,
+      shellsRunning: shellRosterOf(busy.pluginViews).running,
+      servicesRunning: servicesOfView(busy.pluginViews).filter((row) => row.status === 'running')
+        .length,
     }),
   )
 }
 
 export function buildPodResizeGraph(): PodResizeGraph {
   const env = readAgentHostEnv()
-  const plane = new ControlPlane({ store: new PostgresControlStore(db) })
+  const plane = triggerControlPlane()
   const resizer = podResizerOf({ env, db, cipher: new SecretCipher(env.secretsEncryptionKey) })
   const dispatcher = new TriggerJobDispatcher({
     secretKey: workerEnvService().get('TRIGGER_SECRET_KEY'),

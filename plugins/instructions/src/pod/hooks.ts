@@ -62,7 +62,10 @@ export const instructionsBlocks = (args: {
   run: async ({ assembled }) => {
     const blocks = await blocksOf(args)
     if (blocks.length === 0) return assembled
-    return { ...assembled, system: [...assembled.system, ...blocks.map((text) => ({ text }))] }
+    return {
+      ...assembled,
+      system: [...assembled.system, ...blocks.map((text) => ({ text, source: 'instructions' }))],
+    }
   },
 })
 

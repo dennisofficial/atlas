@@ -16,12 +16,17 @@ export interface AnalyticsClient {
   capture: (event: string, props: Record<string, unknown>) => void
   identify: (userId: string, props: Record<string, unknown>) => void
   reset: () => void
-  captureException: (error: unknown) => void
+  captureException: (error: unknown, props?: Record<string, unknown>) => void
 }
 
 export type AnalyticsEnv = Record<string, string | undefined>
 
-export function isAnalyticsEnabled(env: AnalyticsEnv = process.env): boolean {
+const buildEnv: AnalyticsEnv = {
+  NODE_ENV: process.env.NODE_ENV,
+  NEXT_PUBLIC_POSTHOG_ENABLED: process.env.NEXT_PUBLIC_POSTHOG_ENABLED,
+}
+
+export function isAnalyticsEnabled(env: AnalyticsEnv = buildEnv): boolean {
   if (env.NODE_ENV === 'test') return false
   return env.NODE_ENV === 'production' || env.NEXT_PUBLIC_POSTHOG_ENABLED === '1'
 }
@@ -37,7 +42,7 @@ const posthogClient: AnalyticsClient = {
   capture: (event, props) => posthog.capture(event, props),
   identify: (userId, props) => posthog.identify(userId, props),
   reset: () => posthog.reset(),
-  captureException: (error) => posthog.captureException(error),
+  captureException: (error, props) => posthog.captureException(error, props),
 }
 
 let client: AnalyticsClient | undefined
@@ -75,8 +80,9 @@ export function resetAnalytics(): void {
   client?.reset()
 }
 
-export function captureException(error: unknown): void {
-  client?.captureException(error)
+export function captureException(error: unknown, props: Record<string, unknown> = {}): void {
+  if (client === undefined) initAnalytics()
+  client?.captureException(error, props)
 }
 
 export function isAnalyticsReady(): boolean {

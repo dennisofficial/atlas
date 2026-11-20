@@ -97,8 +97,25 @@ describe('resetAnalytics and captureException', () => {
     captureException(error)
     expect(calls).toEqual([
       { name: 'reset', args: [] },
-      { name: 'captureException', args: [error] },
+      { name: 'captureException', args: [error, {}] },
     ])
+  })
+
+  it('attaches the reference id so the exception can be searched for', () => {
+    const { client, calls } = fakeClient()
+    initAnalytics({ enabled: true, client })
+    const error = new Error('boom')
+    captureException(error, { reference_id: 'err_abc', request_id: 'req_abc' })
+    expect(calls).toEqual([
+      {
+        name: 'captureException',
+        args: [error, { reference_id: 'err_abc', request_id: 'req_abc' }],
+      },
+    ])
+  })
+
+  it('reports an exception even before the provider has initialised', () => {
+    expect(() => captureException(new Error('boom'), { reference_id: 'err_abc' })).not.toThrow()
   })
 })
 

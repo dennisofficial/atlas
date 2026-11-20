@@ -90,6 +90,7 @@ describe('sessions subscription', () => {
       archivedAt: null,
       lastAssistantSeq: 0,
       readSeq: null,
+      sandboxProvider: 'vercel',
     })
     await rig.plane.setSessionArchived({ sessionId: SESSION, archivedAt: AT })
     await rig.settled()

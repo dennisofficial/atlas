@@ -35,7 +35,7 @@ describe('defaultRules', () => {
       ctx: contextFor({ events }),
     })
 
-    expect(assembled.system).toEqual([{ text: DOCTRINE }])
+    expect(assembled.system).toEqual([{ text: DOCTRINE, source: 'system-prompt' }])
     expect(assembled.messages.map((entry) => entry.origin.seq)).toEqual([1, 2, 3, 3])
     expect(trace.map((step) => step.name)).toEqual([
       'systemPrompt',
@@ -59,7 +59,9 @@ describe('defaultRules', () => {
 
     const { assembled } = assemble({ rules, ctx: contextFor({ events: log([]) }) })
 
-    expect(assembled.system).toEqual([{ text: 'The project directory is /w.' }])
+    expect(assembled.system).toEqual([
+      { text: 'The project directory is /w.', source: 'system-prompt' },
+    ])
   })
 
   it('sends no system block at all when the registry compiled none', () => {
@@ -80,8 +82,8 @@ describe('defaultRules', () => {
     held = compiled('second')
     const after = assemble({ rules, ctx }).assembled.system
 
-    expect(before).toEqual([{ text: 'first' }])
-    expect(after).toEqual([{ text: 'second' }])
+    expect(before).toEqual([{ text: 'first', source: 'system-prompt' }])
+    expect(after).toEqual([{ text: 'second', source: 'system-prompt' }])
   })
 
   it('keeps a rule failure skippable rather than fatal, and still emits the prompt', () => {
@@ -100,7 +102,7 @@ describe('defaultRules', () => {
       ctx: contextFor({ events: log([{ type: 'user-said', text: 'hello' }]) }),
     })
 
-    expect(assembled.system).toEqual([{ text: DOCTRINE }])
+    expect(assembled.system).toEqual([{ text: DOCTRINE, source: 'system-prompt' }])
     expect(trace.at(-1)?.name).toBe('exploding')
   })
 })
