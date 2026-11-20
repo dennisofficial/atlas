@@ -83,11 +83,15 @@ export function createWebUpdater({
       const manifest = parseManifest({ input: await ports.fetchJson(manifestUrl) })
       if (manifest === undefined) return fail('the update manifest is invalid')
       const state = await ports.fs.readState(home)
-      const decision = decidePayload({ manifest, current: state.current, contract })
+      const current = state.appVersion === appVersion ? state.current : undefined
+      const decision = decidePayload({ manifest, current, contract })
       if (decision.decision === EPayloadDecision.Refuse) return fail(decision.reason)
       if (decision.decision === EPayloadDecision.Current) {
-        pending = undefined
-        status = { state: EWebPayloadState.Idle, ...buildOf(manifest) }
+        const waiting = pending === manifest.hash
+        status = {
+          state: waiting ? EWebPayloadState.Ready : EWebPayloadState.Idle,
+          ...buildOf(manifest),
+        }
         return status
       }
       const result = await installPayload({

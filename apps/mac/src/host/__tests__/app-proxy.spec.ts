@@ -58,6 +58,11 @@ describe('app proxy', () => {
     expect(appRoute.status).toBe(200)
   })
 
+  test('sends analytics ingest to the app server, whose rewrite reaches PostHog', async () => {
+    await fetch(`${host.url}/ingest/e/?ver=1`, { method: 'POST', body: '{}' })
+    expect(seen).toMatchObject({ method: 'POST', url: '/ingest/e/?ver=1' })
+  })
+
   test('returns 502 when the app server is down', async () => {
     const dead = createDesktopHost({ appOrigin: 'http://127.0.0.1:1', secret: 's' })
     const res = await fetch(`${dead.url}/threads/abc`)
