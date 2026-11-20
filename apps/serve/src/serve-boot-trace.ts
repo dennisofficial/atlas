@@ -4,14 +4,11 @@ import { serverObservability, telemetryDistinctId } from '@dltech/atlas-observab
 
 import { serveClientVersionOf } from './serve-version'
 
-export const serveTracer = (args: {
-  env: Record<string, string | undefined>
-  atlasHome: string
-}): TracePort =>
+export const serveTracer = (args: { atlasHome: string }): TracePort =>
   serverObservability({
     version: serveClientVersionOf({ requested: undefined }),
-    env: args.env,
-  }).traceFor(telemetryDistinctId({ atlasHome: args.atlasHome, env: args.env }))
+    env: process.env,
+  }).traceFor(telemetryDistinctId({ atlasHome: args.atlasHome, env: process.env }))
 
 export const bootPhase = <T>(args: {
   trace: TracePort

@@ -32,7 +32,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
       : undefined
   boxSweeper?.unref()
   const atlasHome = atlasDirectory()
-  const trace = serveTracer({ env, atlasHome })
+  const trace = serveTracer({ atlasHome })
   const sandboxSessionId = env.ATLAS_SANDBOX_SESSION_ID ?? ''
   const boot = listenWhileBooting({
     port: wanted,
