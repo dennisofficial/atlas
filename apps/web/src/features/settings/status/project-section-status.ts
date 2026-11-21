@@ -9,8 +9,7 @@ export const PROJECT_SECTION_STATUS: Record<EProjectSettingsSection, PageStatusI
       'Repository, base branch and additional repositories reach sandboxes; name, description and ship behavior are saved only.',
   },
   [EProjectSettingsSection.Sandbox]: {
-    status: EPageStatus.Stored,
-    detail: "Size and setup script are saved; sandboxes don't apply them yet.",
+    status: EPageStatus.Live,
   },
   [EProjectSettingsSection.Secrets]: {
     status: EPageStatus.Live,

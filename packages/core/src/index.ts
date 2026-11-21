@@ -143,6 +143,7 @@ export * from './agents/crew-standing'
 export * from './agents/crew-fold'
 
 export * from './lifecycle/lifecycle'
+export * from './pod/agent37-sizes'
 export * from './pod/pod-busy'
 export * from './pod/pod-metrics'
 export * from './pod/pod-shapes'
