@@ -53,7 +53,7 @@ export const COMMAND_CATALOGUE: Readonly<Record<ECommand, CommandDefinition>> = 
   }),
   [ECommand.Container]: define({
     command: ECommand.Container,
-    summary: 'say where this conversation runs; switch a host-born thread between host and docker',
+    summary: 'say where this session runs; switch a host-born thread between host and docker',
     argumentHint: '[off|docker|resources]',
     group: ECommandGroup.Session,
     timing: ECommandTiming.Immediate,
@@ -94,7 +94,7 @@ export const COMMAND_CATALOGUE: Readonly<Record<ECommand, CommandDefinition>> = 
   }),
   [ECommand.Rotate]: define({
     command: ECommand.Rotate,
-    summary: 'hand this conversation to a fresh main thread, carrying a summary forward',
+    summary: 'hand this session to a fresh main thread, carrying a summary forward',
     argumentHint: '[instructions]',
     group: ECommandGroup.Context,
     timing: ECommandTiming.Settled,
@@ -102,15 +102,15 @@ export const COMMAND_CATALOGUE: Readonly<Record<ECommand, CommandDefinition>> = 
   }),
   [ECommand.Rewind]: define({
     command: ECommand.Rewind,
-    summary: 'go back to an earlier message, summarise around it, or fork the conversation from it',
+    summary: 'go back to an earlier message, summarise around it, or fork the thread from it',
     group: ECommandGroup.Context,
     timing: ECommandTiming.Settled,
     echo: ECommandEcho.Silent,
   }),
   [ECommand.Resume]: define({
     command: ECommand.Resume,
-    summary: 'switch to another conversation in this workspace',
-    argumentHint: '[conversation]',
+    summary: 'switch to another session in this workspace',
+    argumentHint: '[session]',
     group: ECommandGroup.Session,
     timing: ECommandTiming.Settled,
     echo: ECommandEcho.Silent,
@@ -118,7 +118,7 @@ export const COMMAND_CATALOGUE: Readonly<Record<ECommand, CommandDefinition>> = 
   }),
   [ECommand.Rename]: define({
     command: ECommand.Rename,
-    summary: 'name this conversation, or have it named again from the transcript',
+    summary: 'name this thread, or have it named again from the transcript',
     argumentHint: '[name]',
     group: ECommandGroup.Session,
     timing: ECommandTiming.Immediate,
@@ -134,7 +134,7 @@ export const COMMAND_CATALOGUE: Readonly<Record<ECommand, CommandDefinition>> = 
   [ECommand.New]: define({
     command: ECommand.New,
     aliases: ['clear'],
-    summary: 'start a fresh conversation',
+    summary: 'start a fresh session',
     group: ECommandGroup.Session,
     timing: ECommandTiming.Settled,
     echo: ECommandEcho.Silent,
@@ -151,7 +151,7 @@ export const COMMAND_CATALOGUE: Readonly<Record<ECommand, CommandDefinition>> = 
   }),
   [ECommand.Restart]: define({
     command: ECommand.Restart,
-    summary: 'restart atlas, resuming this conversation',
+    summary: 'restart atlas, resuming this session',
     group: ECommandGroup.Session,
     timing: ECommandTiming.Immediate,
     echo: ECommandEcho.Silent,
@@ -160,7 +160,7 @@ export const COMMAND_CATALOGUE: Readonly<Record<ECommand, CommandDefinition>> = 
   }),
   [ECommand.Wake]: define({
     command: ECommand.Wake,
-    summary: "wake this conversation's cloud sandbox",
+    summary: "wake this session's cloud sandbox",
     group: ECommandGroup.Session,
     timing: ECommandTiming.Immediate,
     echo: ECommandEcho.Silent,

@@ -61,6 +61,7 @@ export const sessionEnvironmentOf = (paths: SessionPaths): Record<string, string
 })
 
 export const sessionDirectoriesDescription = [
+  // Glossary: "conversation" here means the session, which every thread it spawns shares (CONTEXT.md).
   `${ATLAS_SESSION_DIR_ENV} is the session directory, shared by the conversation and every agent it spawns;`,
   `${ATLAS_CONTEXT_DIR_ENV} is $${ATLAS_SESSION_DIR_ENV}/${CONTEXT_DIRECTORY_NAME}, the shared context folder that survives compaction;`,
   `${ATLAS_THREAD_DIR_ENV} is $${ATLAS_SESSION_DIR_ENV}/${THREADS_DIRECTORY_NAME}/<thread id>, private to the calling thread.`,

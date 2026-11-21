@@ -28,6 +28,7 @@ export const supervisedAgentSchema = z.object({
 })
 export type SupervisedAgentInput = z.infer<typeof supervisedAgentSchema>
 
+// Glossary: creates a session and its main thread, so the input carries no session id (CONTEXT.md).
 export const createThreadInputSchema = z.object({
   id: z.string().min(1).optional(),
   title: z.string().optional(),

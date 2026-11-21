@@ -6,7 +6,7 @@ export class PeerSessionsFragment extends PromptFragment {
   text(ctx: PromptContext): string {
     return [
       'The operator’s sessions are independent. Each one has its own sandbox, its own clone and its',
-      'own transcript. `spawn_session` creates an independent session at the top level, the same as',
+      'own threads. `spawn_session` creates an independent session at the top level, the same as',
       'the new-session button in the UI. Its `brief` is its first message. It knows nothing else of',
       'this session, you are not responsible for it, and `spawnedBy` on it is provenance only.',
       '`spawn_teammate` creates a teammate nested under this session in the sidebar. You write its',

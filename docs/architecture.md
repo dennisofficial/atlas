@@ -1,5 +1,8 @@
 # Atlas architecture
 
+This file describes v1 and predates the glossary: its "session", "conversation" and "thread" mostly
+name what [CONTEXT.md](../CONTEXT.md) calls a **thread**.
+
 Authoritative. Where the code disagrees about _mechanism_, the code wins; where it disagrees about
 _intent_, change the code. Every load-bearing claim here was established by a spike, not by argument
 — evidence in `docs/research/`, seams in `docs/core-contract.md`.
@@ -321,11 +324,11 @@ cannot undo the quit choice. Caffeinate remains tied to Atlas, not an invisible 
 
 **A shell belongs to the thread that started it.** The registry is one object for the process, but every
 read is scoped to an owner: `start` records the thread, and `list`, `read`, `peek`, `kill`,
-`pendingNotices` and `drainNotifications` all take one. A conversation is therefore never told about,
-and cannot kill, a shell another conversation is running — the model asking `shell_list` in B does not
-learn about a `bash_3` it never started. Endings route to the owning thread's log rather than to
-whichever turn drains first, which is why switching conversations keeps a queued ending instead of
-discarding it. Two reads stay deliberately global: `listEverywhere`, because the exit guard must name
+`pendingNotices` and `drainNotifications` all take one. A thread is therefore never told about, and
+cannot kill, a shell another thread is running — the model asking `shell_list` in B does not learn
+about a `bash_3` it never started. Endings route to the owning thread's log rather than to whichever
+turn drains first, which is why switching threads keeps a queued ending instead of discarding it.
+Two reads stay deliberately global: `listEverywhere`, because the exit guard must name
 every shell affected by the quit decision whoever started it, and `closeAll`, for an explicit
 process-wide stop.
 
@@ -404,7 +407,7 @@ started it, phrased as infrastructure rather than completed work, with the same 
 attribution so a user-stopped server is never re-started by a helpful model.
 
 **Listing and stopping are session-global; only endings are owned.** Any thread may `service_list`
-or `service_stop` what any thread started — a conversation opened after the stack came up must be
+or `service_stop` what any thread started — a thread opened after the stack came up must be
 able to discover it, and the running-services reminder at the prompt tail is what keeps the model
 from polling to find out. `stop` escalates by pure rule (`core/services/lifecycle`): first stop
 SIGTERMs the process group, every stop after SIGKILLs, and a confirmed-dead service is answered in
@@ -485,7 +488,7 @@ pod, not the operator's Mac pane.
 **A sub-agent is a first-class Atlas thread that Atlas spawned**, not `runTurn` called recursively
 with different arguments. It has its own thread row, its own event log, its own loop and its own context window;
 it runs in the background; it is listed in its spawner's Agents pane while it runs; and the operator
-can open it, read it and type into it exactly as they read the main conversation. A sub-agent is a
+can open it, read it and type into it exactly as they read the main thread. A sub-agent is a
 thread inside its spawner's session, never a session of its own, so the session list (the web
 sidebar) never shows it. A teammate is the exception: it is its own session, managed by the session
 that spawned it, and the sidebar nests it under that session. Every one of those properties
@@ -911,28 +914,28 @@ yet — it is groundwork for the sub-agent prompt and a transcript label, not a 
 Two members and not three: the brief is the parent's voice like any other steer, and its separate
 role as the standing objective is an axis already carried by its position at the head of the log.
 
-**Delegated spend is one conversation-level line, not a per-turn column.** A child's turns carry no
+**Delegated spend is one thread-level line, not a per-turn column.** A child's turns carry no
 parent `runId`, so attaching their cost to whichever parent turn happened to be open would be an
 invented attribution — and one that double-counts as soon as two children overlap. So
-`forThreadTree` surfaces in the session header, for the conversation as a whole: the counter up
+`forThreadTree` surfaces in the session header, for the thread as a whole: the counter up
 top is the session's cost, sub-agents included.
 
 **It is a tri-state rather than a number.** `ESpendReading` is `Counted` with totals or
 `Unavailable`, and a failed read renders "could not be totalled" rather than zero, because zero is
 a claim and it is the wrong one — it reads as "the sub-agents were free". `readThreadSpend` falls
-back to `forThread` so the conversation still opens carrying its own turns, and raises a warn
+back to `forThread` so the thread still opens carrying its own turns, and raises a warn
 notice naming the cause. `SupervisionTreeTooDeep` is unreachable while depth is capped at one; the
 catch exists so that the day the cap moves, the failure is a missing cost line rather than a
-conversation that will not open. The catch is insurance, not evidence that the throw is routine.
+thread that will not open. The catch is insurance, not evidence that the throw is routine.
 
 ## Compaction
 
-A long conversation walks into the context ceiling, so `assemble` re-deriving the whole prompt from the
+A long thread walks into the context ceiling, so `assemble` re-deriving the whole prompt from the
 log every step is not sustainable on its own. Compaction is what bounds it, and the shape it takes is
 decided by one question: does it destroy the rows it compacts?
 
 **One thread, one log.** The log _is_ the thread, so every operation that adjusts context acts on the
-current log rather than producing a second conversation. Rewind truncates it. Compaction replaces a range of it with a summary.
+current log rather than producing a second thread. Rewind truncates it. Compaction replaces a range of it with a summary.
 A sub-agent may one day inherit its parent's prefix **by reference**, which would be safe precisely
 because that child is read-only over the inherited rows and its depth is bounded by agent nesting
 rather than by how many times a human pressed undo. **Inheritance would be the spawning agent's
@@ -1186,11 +1189,11 @@ and a Haiku model is already provisioned, so the seam is there when the index st
 
 ## Three timelines
 
-| Timeline                                                      | Owner                                | Restored by                         |
-| ------------------------------------------------------------- | ------------------------------------ | ----------------------------------- |
-| **Conversation** — messages, reasoning, tool calls, approvals | EventLog (per-session JSONL)         | move the thread head                |
-| **Control** — pending tool, retries, interrupt reason         | _derived from the log_               | re-read the log                     |
-| **World** — files, git index, worktree, subprocesses          | Execution ports and external systems | not restored by conversation rewind |
+| Timeline                                                | Owner                                | Restored by                   |
+| ------------------------------------------------------- | ------------------------------------ | ----------------------------- |
+| **Thread** — messages, reasoning, tool calls, approvals | EventLog (per-session JSONL)         | move the thread head          |
+| **Control** — pending tool, retries, interrupt reason   | _derived from the log_               | re-read the log               |
+| **World** — files, git index, worktree, subprocesses    | Execution ports and external systems | not restored by thread rewind |
 
 The middle row is where frameworks want to sell you a checkpointer. We don't have one because we
 don't need one.
@@ -1200,7 +1203,7 @@ It does not restore file contents or the Git index. Fork creates a new thread wi
 history; neither operation treats a historical snapshot as authority over the current workspace.
 Tool dispatch carries `idempotencyKey: ${runId}:${callId}` independently of these history operations.
 
-### Where the session is, is Conversation
+### Where the session is, is its thread
 
 There are two directories, and they answer different questions.
 
@@ -1229,7 +1232,7 @@ ran it — which ends with the call.
 The project directory is not held anywhere: it is
 `projectDirectoryOf({ events, launchDirectory })`, the path of the last unclosed `worktree-entered`
 in the log, falling back to `homeDirectoryOf` over the same log — the latest `returnTo`, or the
-launch directory when no exit has recorded one. That fold sits in the Conversation row so that
+launch directory when no exit has recorded one. That fold sits in the Thread row so that
 rewind, fork and resume agree about it without a second record to keep in step; a mutable holder in
 the container would have been the checkpointer the two rules exist to refuse. `enter_worktree`
 moves it the only way anything moves here — tool output an `AfterTool` hook turns into an event,
@@ -1640,19 +1643,19 @@ that provider session after publishing its finalized report; waking requires a n
 
 ## Which model answers
 
-**Two preferences, one picker.** A conversation carries the model it was last switched to, in
+**Two preferences, one picker.** A thread carries the model it was last switched to, in
 `Thread.modelRef` / `Thread.modelEffort`; the models settings page carries `model.id` /
-`model.effort`, which is only what a conversation with nothing of its own begins on. The switcher
-(`ctrl+p`, `/model`) writes the conversation. Every model row on the models page opens the same
+`model.effort`, which is only what a thread with nothing of its own begins on. The switcher
+(`ctrl+p`, `/model`) writes the thread. Every model row on the models page opens the same
 picker set on that row, and writes that instead.
 
 The split exists because the old arrangement had exactly one remembered pair for the whole machine,
-so two terminals on two conversations fought over it — switching one to Haiku switched the other on
-its next launch. A thread column and not an event, because a model is how a conversation is being
+so two terminals on two threads fought over it — switching one to Haiku switched the other on
+its next launch. A thread column and not an event, because a model is how a thread is being
 worked rather than something that happened in it: rewinding past a switch should not undo it, and a
 fork carries the parent's pair forward.
 
-Resolution order, most specific first: `--model` for the conversation the process launches on, then
+Resolution order, most specific first: `--model` for the thread the process launches on, then
 the thread's own pair, then the settings default, then `fallbackRef` — the shipped Anthropic
 default when its provider is set up, the first reachable provider's first card when it is not,
 because a default nobody can run is no default at all. A thread naming a model that left the
@@ -1663,10 +1666,10 @@ that offered it.
 Model and effort resolve along two separate chains, because a type may want a different model
 without changing how hard it thinks: the model walks type settings row, definition pin, sub-agent
 role row, spawner; the effort walks type effort row, sub-agent effort row, spawner's effort, main
-conversation. An effort row left on `inherit` is still resolved at spawn and saved with the pair,
+thread. An effort row left on `inherit` is still resolved at spawn and saved with the pair,
 so it costs nothing to leave every row unset. Teammates skip both sub-agent role rows and inherit
 the main agent's current pair unless explicitly set. A teammate's sub-agents inherit the teammate's
-pair, not the main conversation's. The chosen pair is stored in the child's existing thread
+pair, not the main thread's. The chosen pair is stored in the child's existing thread
 metadata before the spawn is published, and the runner builds a fixed model and prompt from it.
 Changing the parent or settings affects new children only; steering, waking, resuming, and
 relocating a child retain its saved pair. Older children with no recorded pair resolve and save
@@ -1696,8 +1699,8 @@ itself when the row is fixed. A first launch with no settings file and no reacha
 held at an onboarding screen until the four picks are made.
 
 `useThreadModel` reads the default where a thread is adopted rather than following it, so raising
-the default reaches the next conversation instead of the one on screen. A conversation is written
-down the moment its thread row exists, which is why an untouched new conversation still records what
+the default reaches the next thread instead of the one on screen. A thread is written
+down the moment its thread row exists, which is why an untouched new thread still records what
 it actually ran on rather than re-deriving it from a default that may have moved since.
 
 ## Notices

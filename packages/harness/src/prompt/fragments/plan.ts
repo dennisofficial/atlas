@@ -5,6 +5,7 @@ export class TaskListFragment extends PromptFragment {
 
   text(): string {
     return [
+      // Glossary: "conversation" here means the thread (CONTEXT.md).
       'task_write keeps a checklist beside the conversation that the developer can watch. Open one for',
       'work of several distinct steps the developer would want to follow, or an explicit list; skip it for',
       'a single step and for a question.',

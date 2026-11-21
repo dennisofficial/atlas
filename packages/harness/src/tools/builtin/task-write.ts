@@ -11,6 +11,7 @@ import {
   type ToolRun,
 } from '@dltech/atlas-core'
 
+// Glossary: "conversation" here means the thread the checklist renders beside (CONTEXT.md).
 const description = [
   'Write your plan down where the developer can see it: it renders as a checklist beside the conversation.',
   '',

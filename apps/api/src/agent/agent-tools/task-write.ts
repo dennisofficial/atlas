@@ -12,7 +12,7 @@ import {
 } from '@dltech/atlas-core'
 
 const description = [
-  'Write the task list where the operator can see it. It renders as a checklist beside the conversation.',
+  'Write the task list where the operator can see it. It renders as a checklist beside the thread.',
   '',
   'Send the WHOLE task list every time. This call replaces the list. Keep the tasks that still matter and remove the ones that no longer matter. Numbers follow position, so do not choose them yourself.',
   '',

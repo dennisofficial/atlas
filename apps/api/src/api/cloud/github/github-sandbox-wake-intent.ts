@@ -47,7 +47,7 @@ export function wakeEventKeyOf(args: { threadId: string; event: WakePrEvent }): 
 /**
  * The durable half of a wake: the event becomes a `pr-event` row on the thread before the boot,
  * so a clientless pod pulls it on hydrate and runs the turn (it is turn-taking, so awaitsReply
- * holds). The appended row carries the conversation subscription's id, so a connected harness
+ * holds). The appended row carries the thread subscription's id, so a connected harness
  * provider dedupes it against the same event arriving over the live SSE stream.
  */
 export async function appendWakeIntent(args: {

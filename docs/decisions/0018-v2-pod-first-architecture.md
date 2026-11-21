@@ -6,7 +6,7 @@ Accepted 2026-11-01.
 
 v1 was born as one process: the TUI owned the loop, the log, the metadata and the UI. Pods moved
 the loop into a container and adapted that design with best-effort replication, so most state now
-has two or three writers. A census found six conversation-seq allocators (four in the pod, two in
+has two or three writers. A census found six thread-seq allocators (four in the pod, two in
 the API), nine API paths that allocate event seqs, and twelve kinds of change either side can
 start. On 2026-11-01 the API's send path and the pod's local log both minted seq 466 within four
 seconds. The API refused the pod's row, nothing healed the fork, and 560 events of derived state

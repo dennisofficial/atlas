@@ -228,7 +228,7 @@ export class SandboxesService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * A sandbox token reaches the conversation it serves: the sandbox's own thread plus the
+   * A sandbox token reaches the threads it serves: the sandbox's own thread plus the
    * sub-agent threads it spawns (spawnerThreadId points at the root). Sub-agents cannot spawn
    * sub-agents of their own, so the family is exactly one level deep.
    */

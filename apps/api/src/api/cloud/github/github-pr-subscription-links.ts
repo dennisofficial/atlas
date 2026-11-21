@@ -30,11 +30,11 @@ const failureText = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
 
 /**
- * Bridges the harness's conversation-level subscriptions (subscription-created/-changed/-ended
+ * Bridges the harness's thread-level subscriptions (subscription-created/-changed/-ended
  * events on the thread) to the GithubSubscription rows delivery and the sandbox wake resolve
  * targets from. The row is the same one a sandbox-linked subscribe writes — one table, one set of
  * delivery semantics — so subscriberWhere, the mailbox, the wake and the local-pod fanout all see
- * a conversation subscription without a second read path.
+ * a thread subscription without a second read path.
  */
 @Injectable()
 export class GithubPrSubscriptionLinks extends PrSubscriptionLinks {

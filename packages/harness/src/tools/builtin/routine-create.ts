@@ -30,6 +30,7 @@ const inputSchema = z.strictObject({
   enabled: z.boolean().optional(),
 })
 
+// Glossary: "conversation" here means the thread the routine's prompt must stand without (CONTEXT.md).
 const description = [
   "Create a routine: a prompt this session's Atlas Cloud project runs on a cron, in a fresh session, at each scheduled time.",
   'timezone has no default here, so pass one: an IANA zone such as Europe/London or UTC.',

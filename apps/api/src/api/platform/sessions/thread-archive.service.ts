@@ -75,7 +75,7 @@ export class ThreadArchiveService {
   }
 
   /**
-   * Archiving ends every conversation subscription the session holds: the harness restores them
+   * Archiving ends every thread subscription the session holds: the harness restores them
    * from the log when the thread is unarchived, and the wake-link rows stop delivery at once.
    */
   private async endSubscriptions(args: { userId: string; sessionId: string }): Promise<void> {

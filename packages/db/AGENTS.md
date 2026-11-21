@@ -20,7 +20,7 @@ data on Prisma 8 is stale. After a Prisma bump, run `bunx prisma skills sync`. T
   no `Temporal`, so the Node 24 trigger.dev worker runs it. `TimestamptzString` returns Postgres's
   own text (`2026-10-22 02:04:33.807+00`). That text is not ISO and would change the API's wire
   format. `src/__tests__/timestamp-wire.spec.ts` fails if a timestamp column regresses.
-- better-auth writes `User`, `Session`, `Account`, `Verification` and `DeviceCode` through the
+- better-auth writes `User`, `AuthSession`, `Account`, `Verification` and `DeviceCode` through the
   shared pool, so their model and field names must match its schema. The auth spec in `apps/api/src/api/platform/auth/` fails when they drift.
 - An `upsert` target (`conflictOn`) must be the primary key or a `@@unique`. A unique _index_
   (`@@index(..., unique: true)`) does not qualify.

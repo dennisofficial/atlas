@@ -17,6 +17,7 @@ export const NOT_SIGNED_IN = 'Not signed in to Atlas Cloud'
 export const NOT_IN_A_PROJECT =
   'this session has no Atlas Cloud project, and routines belong to a project'
 
+// Glossary: "conversation" here means the thread that called the tool (CONTEXT.md).
 export const SCHEDULING: readonly string[] = [
   'A routine schedules a saved prompt to run on a cron in a fresh session each run; it is not a reminder kept in this conversation.',
   'cron is five fields — minute hour day-of-month month weekday — read in the routine\'s IANA timezone, so "0 9 * * 1-5" is 09:00 on weekdays.',

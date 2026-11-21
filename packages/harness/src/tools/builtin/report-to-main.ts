@@ -16,6 +16,7 @@ const inputSchema = z.strictObject({
   text: z.string().min(1),
 })
 
+// Glossary: "conversation" here means the teammate's own thread (CONTEXT.md).
 const description = [
   'Report to the main agent: the peer session that spawned you and coordinates the work beside you.',
   'Only teammates report this way, and it is how the main agent hears from you. The operator you answer to directly, in your own conversation \u2014 never through a report.',

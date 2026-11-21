@@ -232,8 +232,8 @@ describe('a durable head that reads off the wire', () => {
     receive({ kind: EServeFrame.Ready, seq: 4, protocol: CHANNEL_PROTOCOL_MIN_VERSION - 1 })
 
     expect(channel.connection().state).toBe(EConnectionView.Disconnected)
-    expect(channel.connection().detail).toContain('re-open the conversation')
-    expect(failures[0]).toContain('re-open the conversation')
+    expect(channel.connection().detail).toContain('re-open the thread')
+    expect(failures[0]).toContain('re-open the thread')
   })
 
   it('attaches to an older serve inside its protocol range and reads its capabilities', () => {

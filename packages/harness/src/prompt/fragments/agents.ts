@@ -21,6 +21,7 @@ export class DelegationFragment extends PromptFragment {
       'Keep a task yourself only when it is smaller than the brief that would describe it — a couple',
       'of tool calls with no plan needed. Anything you would write a plan file, a checklist, or',
       'ordered slices for is already past that line: the slices that do not depend on this',
+      // Glossary: "conversation" here means the thread (CONTEXT.md).
       'conversation go to agents now, not after you have built them yourself.',
       '',
       'Bounded tasks go to sub-agents: a search across files, an audit, a review, a slice of a change',

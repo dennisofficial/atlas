@@ -47,6 +47,7 @@ export const oauthAccessTokenRequestSchema = z.strictObject({
 })
 export type OauthAccessTokenRequest = z.infer<typeof oauthAccessTokenRequestSchema>
 
+// Glossary: assigns the connection to the pod owned by this thread's session (CONTEXT.md).
 export const assignConnectionSandboxSchema = z.strictObject({
   connectionId: oauthConnectionIdSchema,
   threadId: z.string().min(1),

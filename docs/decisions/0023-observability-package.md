@@ -5,7 +5,7 @@ package to the map in [0019](0019-v2-package-map.md).
 
 ## Context
 
-Atlas records what happened outside the conversation in three places, none of them in one home:
+Atlas records what happened outside the thread record in three places, none of them in one home:
 - Product telemetry: `TelemetryPort` and the telemetry policy sat in `core`, the PostHog adapter,
   the distinct-id file and the reason/feature classifiers in `harness/src/telemetry`.
 - The operational log: `LogPort` sat in `core`, `logFieldsOf` in `agent`, `JsonlLog` in
@@ -20,7 +20,7 @@ the exporters cannot live there.
 ## Decision
 
 **`packages/observability` (`@dltech/atlas-observability`) owns everything Atlas records about
-itself that is not the conversation record.**
+itself that is not the thread record.**
 
 | Subpath | Holds                                                                                                        | May import        |
 | ------- | ------------------------------------------------------------------------------------------------------------ | ----------------- |
@@ -31,7 +31,7 @@ The package registers `TelemetryPort` and `LogPort` in the port registry by decl
 as `harness` does for its own ports.
 
 Tracing joins as a `TracePort` and span vocabulary on `.`, exporters on `/node`, when its slice is
-specified. Spans never go into the conversation event log.
+specified. Spans never go into the thread's event log.
 
 Staying put for now: `JsonlLog` (it writes through the session registry in `harness/src/store`)
 and `ObservingToolDispatcher` (it extends the dispatcher, now in `harness/src/tools`).

@@ -25,6 +25,7 @@ const inputSchema = z.strictObject({
   brief: z.string().min(1),
 })
 
+// Glossary: "conversation" here means the thread, the sub-agent's own and the caller's (CONTEXT.md).
 const PROSE = [
   'Start a sub-agent: a second agent with its own conversation and its own context window, working on one task you hand it.',
   'It has the same tools you have and cannot spawn sub-agents of its own.',

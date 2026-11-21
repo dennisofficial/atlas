@@ -16,6 +16,7 @@ import type { SandboxAttachmentDto, SandboxListEntryDto } from './sandboxes.type
 
 const clientRead = meta({ throttle: { limit: CLIENT_READ_LIMIT_PER_MINUTE, ttlMs: 60_000 } })
 
+// Glossary: claim and destroy take a thread but act on its session's pod, and claim creates that session when the thread is new (CONTEXT.md).
 @Router({ alias: 'sandboxes' })
 @UseMiddlewares(SessionMiddleware)
 export class SandboxesRouter {

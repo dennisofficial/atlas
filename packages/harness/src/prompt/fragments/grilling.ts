@@ -30,6 +30,7 @@ export class GrillingCeremonyFragment extends VolatilePromptFragment {
       'your recommended answer first so they confirm or redirect rather than compose. If a question can be',
       'answered by reading the repo, read the repo instead of asking.',
       '',
+      // Glossary: "conversation" here means the thread (CONTEXT.md).
       'Four moves run throughout the conversation, not just at decision points:',
       '  Sharpen terminology — when a vague or overloaded term appears, propose the precise canonical word',
       '    and pin it down; when it conflicts with language the repo already uses, say so immediately.',

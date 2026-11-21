@@ -31,6 +31,7 @@ const asCheckpointJson = (input: RuntimeCheckpoint): CheckpointJson =>
 export class SandboxCheckpointRouter {
   constructor(private readonly signals: ThreadSignalsService) {}
 
+  // Glossary: reads the checkpoint of the pod owned by this thread's session (CONTEXT.md).
   @Query({
     input: sandboxThreadInputSchema,
     output: readRuntimeCheckpointReplySchema,

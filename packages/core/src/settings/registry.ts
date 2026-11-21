@@ -302,7 +302,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'Project context',
     label: 'Reload on change',
     description:
-      'Re-read the instruction files at every turn, so editing one takes effect in the conversation you are already in. Unchanged files cost nothing; a changed one is appended again and supersedes what the model was reading. Turning this off freezes the instructions as they were when the conversation opened.',
+      'Re-read the instruction files at every turn, so editing one takes effect in the thread you are already in. Unchanged files cost nothing; a changed one is appended again and supersedes what the model was reading. Turning this off freezes the instructions as they were when the thread opened.',
     environmentVariable: 'ATLAS_RELOAD_INSTRUCTIONS',
     kind: ESettingKind.Toggle,
     fallback: true,
@@ -365,7 +365,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'Usage meters',
     label: 'Meters in the footer',
     description:
-      "Which meters the footer carries. The context meter reports the window the current conversation occupies; the session and weekly meters report how much of the account's own rate limits have been spent, read from Anthropic rather than counted here. Narrowing this does not stop Atlas reading them, it stops the footer spelling them out.",
+      "Which meters the footer carries. The context meter reports the window the current thread occupies; the session and weekly meters report how much of the account's own rate limits have been spent, read from Anthropic rather than counted here. Narrowing this does not stop Atlas reading them, it stops the footer spelling them out.",
     environmentVariable: 'ATLAS_FOOTER_METERS',
     kind: ESettingKind.Choice,
     fallback: 'all',
@@ -461,7 +461,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'Development',
     label: 'Restart atlas-dev when it goes stale',
     description:
-      'Only an atlas-dev session can go stale — one running straight from the source tree, while the tree moves under it. When it does, the session exits at the end of the next turn and the wrapper rebuilds from source and relaunches, resuming the conversation where it was. The restart never fires while tasks are still running, a message is queued or half-typed, or an approval is waiting — then the stale notice stands instead, and the restart waits for a clean moment. Off means the notice is all you ever get.',
+      'Only an atlas-dev session can go stale — one running straight from the source tree, while the tree moves under it. When it does, the session exits at the end of the next turn and the wrapper rebuilds from source and relaunches, resuming the session where it was. The restart never fires while tasks are still running, a message is queued or half-typed, or an approval is waiting — then the stale notice stands instead, and the restart waits for a clean moment. Off means the notice is all you ever get.',
     environmentVariable: 'ATLAS_AUTO_RESTART',
     kind: ESettingKind.Toggle,
     fallback: true,
@@ -605,7 +605,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'Model',
     label: 'Default model',
     description:
-      'The model a conversation starts on when it has not been given one of its own. Every conversation remembers the model it was last switched to, so this is only what a new one begins with — which is why the switcher no longer writes it and this row does. --model outranks it for one launch.',
+      'The model a session starts on when it has not been given one of its own. Every session remembers the model it was last switched to, so this is only what a new one begins with — which is why the switcher no longer writes it and this row does. --model outranks it for one launch.',
     environmentVariable: 'ATLAS_MODEL',
     kind: ESettingKind.Model,
     fallback: '',
@@ -617,7 +617,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'Model',
     label: 'Default effort',
     description:
-      'How much thinking a model that takes a budget is given before it answers, for a conversation that has not been given an effort of its own. Choosing a default model beside this sets both at once; a model that offers no budget ignores it.',
+      'How much thinking a model that takes a budget is given before it answers, for a session that has not been given an effort of its own. Choosing a default model beside this sets both at once; a model that offers no budget ignores it.',
     environmentVariable: 'ATLAS_EFFORT',
     kind: ESettingKind.Choice,
     fallback: DEFAULT_EFFORT,
@@ -629,7 +629,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'Model',
     label: 'Fast mode',
     description:
-      'Start new conversations in fast mode on models that offer it: Claude Opus 5.5 and Opus 5, and the Codex models whose plan lists a fast tier. The same model answers faster at a higher price — a Claude plan pays for it from usage credits at twice the API rate, a ChatGPT plan spends its included usage 2.5 times as fast. Each conversation can still switch it on or off beside its effort.',
+      'Start new sessions in fast mode on models that offer it: Claude Opus 5.5 and Opus 5, and the Codex models whose plan lists a fast tier. The same model answers faster at a higher price — a Claude plan pays for it from usage credits at twice the API rate, a ChatGPT plan spends its included usage 2.5 times as fast. Each session can still switch it on or off beside its effort.',
     environmentVariable: 'ATLAS_FAST',
     kind: ESettingKind.Toggle,
     fallback: false,
@@ -640,7 +640,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'Background processes',
     label: 'Quick calls',
     description:
-      'The model the quick background calls run on — tl;dr footers, session titles and the nudge judge — all of which pin a low effort and never read the conversation\u2019s own model. Left empty, they follow the default model. One choice serves them all: it is how you move the quick tier onto a cheaper model, or onto another provider when the usual one is having a bad day.',
+      'The model the quick background calls run on — tl;dr footers, session titles and the nudge judge — all of which pin a low effort and never read the session\u2019s own model. Left empty, they follow the default model. One choice serves them all: it is how you move the quick tier onto a cheaper model, or onto another provider when the usual one is having a bad day.',
     environmentVariable: 'ATLAS_QUICK_MODEL',
     kind: ESettingKind.Model,
     fallback: '',
@@ -653,7 +653,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'Background processes',
     label: 'Compaction',
     description:
-      'The model that summarises older turns when the context window fills, both for the automatic compaction and for /compact. The summary is all the next turn sees of what it replaces, so a weak model here costs the conversation its memory. Left empty, it follows the default model.',
+      'The model that summarises older turns when the context window fills, both for the automatic compaction and for /compact. The summary is all the next turn sees of what it replaces, so a weak model here costs the thread its memory. Left empty, it follows the default model.',
     environmentVariable: 'ATLAS_COMPACTION_MODEL',
     kind: ESettingKind.Model,
     fallback: '',
@@ -666,11 +666,11 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'Background processes',
     label: 'Sub-agents',
     description:
-      'The model every sub-agent runs on unless its own type is given one below or pins one in its definition. Left empty, a sub-agent runs on whatever model the conversation that spawned it is on.',
+      'The model every sub-agent runs on unless its own type is given one below or pins one in its definition. Left empty, a sub-agent runs on whatever model the thread that spawned it is on.',
     environmentVariable: 'ATLAS_SUBAGENT_MODEL',
     kind: ESettingKind.Model,
     fallback: '',
-    unsetLabel: 'inherit conversation',
+    unsetLabel: 'inherit thread',
   },
   {
     id: ESettingId.SubagentEffort,
@@ -791,7 +791,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'Execution',
     label: 'Where sessions run',
     description:
-      'Where a conversation that has not been given a location of its own executes its tools. Every conversation remembers the location it was last switched to, so this is only what a new one begins with — /container writes the conversation, and --execution-location outranks this row for one launch.',
+      'Where a session that has not been given a location of its own executes its tools. Every session remembers the location it was last switched to, so this is only what a new one begins with — /container writes the session, and --execution-location outranks this row for one launch.',
     environmentVariable: 'ATLAS_EXECUTION_LOCATION',
     kind: ESettingKind.Choice,
     fallback: EExecutionLocation.Host,
@@ -807,7 +807,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'Execution',
     label: 'Container CPUs',
     description:
-      'How many cores each sandboxed conversation may use, as a ceiling the daemon enforces rather than a reservation. Every container gets this many, so a machine running several sandboxes at once can be oversubscribed — Atlas warns when the running total outruns the machine rather than pretending the limit is a guarantee. Set to zero for no ceiling at all, and the container shares the daemon like any other workload on it.',
+      'How many cores each sandboxed session may use, as a ceiling the daemon enforces rather than a reservation. Every container gets this many, so a machine running several sandboxes at once can be oversubscribed — Atlas warns when the running total outruns the machine rather than pretending the limit is a guarantee. Set to zero for no ceiling at all, and the container shares the daemon like any other workload on it.',
     environmentVariable: 'ATLAS_CONTAINER_CPUS',
     kind: ESettingKind.Range,
     fallback: 4,
@@ -824,7 +824,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'Execution',
     label: 'Container memory',
     description:
-      'How much memory each sandboxed conversation may use, in gigabytes, as a hard ceiling — a container that crosses it is killed by the daemon, which looks like a stack dying for no reason. Every container gets this much, and stopped containers keep their disk but hold no memory, so the number only competes with the sandboxes actually running. Set to zero for no ceiling — a runaway process can then take the whole daemon down, other sandboxes included.',
+      'How much memory each sandboxed session may use, in gigabytes, as a hard ceiling — a container that crosses it is killed by the daemon, which looks like a stack dying for no reason. Every container gets this much, and stopped containers keep their disk but hold no memory, so the number only competes with the sandboxes actually running. Set to zero for no ceiling — a runaway process can then take the whole daemon down, other sandboxes included.',
     environmentVariable: 'ATLAS_CONTAINER_MEMORY',
     kind: ESettingKind.Range,
     fallback: 8,
@@ -841,7 +841,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'Execution',
     label: 'Stop an idle container after',
     description:
-      'How many minutes a sandboxed conversation may go without a bash call before Atlas stops its container. Stopping keeps the container\u2019s disk — the installed dependencies and build caches — so the next session brings it back in about a second, and a background shell that is still running always holds the stop off, so a dev server is never taken down by this.',
+      'How many minutes a sandboxed session may go without a bash call before Atlas stops its container. Stopping keeps the container\u2019s disk — the installed dependencies and build caches — so the next session brings it back in about a second, and a background shell that is still running always holds the stop off, so a dev server is never taken down by this.',
     environmentVariable: 'ATLAS_CONTAINER_IDLE_MINUTES',
     kind: ESettingKind.Range,
     fallback: DEFAULT_CONTAINER_IDLE_MINUTES,
@@ -857,7 +857,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'Cloud sandboxes',
     label: 'Vercel token',
     description:
-      'The Vercel access token a cloud conversation runs on — the sandbox is created on your own Vercel account, never on one Atlas operates, so /container cloud costs and quotas are yours. Create one under your Vercel account settings. Atlas never reads it from the environment and never writes it to a settings file: it is sealed in the secrets file beside the account vault, and only the last four characters are ever shown again.',
+      'The Vercel access token a cloud session runs on — the sandbox is created on your own Vercel account, never on one Atlas operates, so /container cloud costs and quotas are yours. Create one under your Vercel account settings. Atlas never reads it from the environment and never writes it to a settings file: it is sealed in the secrets file beside the account vault, and only the last four characters are ever shown again.',
     kind: ESettingKind.Secret,
     fallback: '',
     masked: true,
@@ -907,7 +907,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'Pull requests',
     label: 'CI verdict timing',
     description:
-      'When Atlas Cloud counts a pull request\u2019s checks as a verdict worth waking a parked sandbox for. Fail fast reports the first failed check the moment it lands, so a conversation parked on a green-or-nothing gate wakes as early as possible; settled waits until every check has finished and reports the outcome once. Fail fast is the default and matches what a live client already sees.',
+      'When Atlas Cloud counts a pull request\u2019s checks as a verdict worth waking a parked sandbox for. Fail fast reports the first failed check the moment it lands, so a session parked on a green-or-nothing gate wakes as early as possible; settled waits until every check has finished and reports the outcome once. Fail fast is the default and matches what a live client already sees.',
     environmentVariable: 'ATLAS_PR_VERDICT_TIMING',
     kind: ESettingKind.Choice,
     fallback: 'fail-fast',
@@ -922,7 +922,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'Pull requests',
     label: 'Muted edit authors',
     description:
-      'Edits to pull request comments by these authors never reach a subscribed conversation. Comma-separated GitHub logins; a bot\u2019s [bot] suffix is optional. Status bots that rewrite one comment on every deploy belong here.',
+      'Edits to pull request comments by these authors never reach a subscribed thread. Comma-separated GitHub logins; a bot\u2019s [bot] suffix is optional. Status bots that rewrite one comment on every deploy belong here.',
     writeLayer: ESettingsLayer.Project,
     kind: ESettingKind.Text,
     fallback: PR_EDIT_MUTED_AUTHORS_FALLBACK,
@@ -933,7 +933,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'Pull requests',
     label: 'Urgent edit authors',
     description:
-      'Edits to pull request comments by these authors wake a subscribed conversation at once instead of arriving with the next batch of routine updates. Use it for review bots that report by editing one comment, such as chatgpt-codex-connector.',
+      'Edits to pull request comments by these authors wake a subscribed thread at once instead of arriving with the next batch of routine updates. Use it for review bots that report by editing one comment, such as chatgpt-codex-connector.',
     writeLayer: ESettingsLayer.Project,
     kind: ESettingKind.Text,
     fallback: PR_EDIT_URGENT_AUTHORS_FALLBACK,

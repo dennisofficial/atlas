@@ -41,6 +41,7 @@ const compactionCrashed = (fault: unknown): string =>
   `compacting the history did not finish, so nothing was changed: ${fault instanceof Error ? fault.message : String(fault)}`
 
 const compactionNotice = (usedPercent: number): string =>
+  // Glossary: "conversation" here means the thread's history (CONTEXT.md).
   `The window reached ${usedPercent}% — summarising the earlier turns so the conversation fits again.`
 
 /**
@@ -141,6 +142,7 @@ export function createTurnPolicyRunner(args: {
           key: 'auto-compaction',
           tone: ENoticeTone.Done,
           ttlMs: NOTICE_MS,
+          // Glossary: "conversation" here means the thread's history (CONTEXT.md).
           text: `Summarised ${result.replaced} earlier events so the conversation fits the window again.`,
         })
       }

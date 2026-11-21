@@ -16,7 +16,7 @@ v1 was born as one process: the TUI owned the loop, the log, the metadata and th
 [docs/architecture.md](../architecture.md) ("One record") held because there was one place to
 write. Pods moved the loop into a container, and every piece of state that used to have one home
 now has two or three, joined by best-effort replication with no ownership rules:
-- Six places assign conversation seqs: four in the pod, two in the API
+- Six places assign thread seqs: four in the pod, two in the API
   ([pod-side-state](research/pod-side-state.md)).
 - Nine API code paths append to the event log; the pod appends in about 60 more
   ([control-plane-state](research/control-plane-state.md)).
@@ -34,7 +34,7 @@ Patching each seam keeps the fork. v2 changes who owns what and keeps the busine
 ## 2. What stays
 
 - `core` stays pure. Context is still a fresh projection of the log on every step (rule 1).
-- The event log is still the one record of a conversation (rule 2). v2 enforces it across tiers.
+- The event log is still the one record of a thread (rule 2). v2 enforces it across tiers.
 - The loop, tools, providers, assembly, compaction logic, prompts, hooks, skills and sub-agent
   semantics move over and are not rewritten.
 - The port registry idea: every capability declares its runtime binding and its transport.
@@ -49,11 +49,11 @@ Patching each seam keeps the fork. v2 changes who owns what and keeps the busine
                        local: atlasd over SQLite [D2, open]) cloud Vercel sandbox daemon | local docker | in-process
 ```
 
-| Tier                   | Owns                                                                                                                                                                                                                                                                                           | Does not own                                                                 |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| **Client**             | Rendering views, sending commands, caches and drafts                                                                                                                                                                                                                                           | Any fact. It never infers state with heuristics                              |
-| **Control plane (CP)** | The durable record, the inbox, holder leases, materialized views, external observations (GitHub), config, credentials, identity                                                                                                                                                                | Allocating conversation seqs; the workspace                                  |
-| **Runtime**            | Split by [0021](../decisions/0021-v2-loop-runs-on-the-agent-host.md): the **agent host** runs the loop for the sessions it holds and allocates conversation seqs; the **sandbox** holds the world (workspace, git, processes, files) and executes what the agent host calls through its daemon | The durable record. A sandbox disk is a cache of the record plus world state |
+| Tier                   | Owns                                                                                                                                                                                                                                                                                     | Does not own                                                                 |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| **Client**             | Rendering views, sending commands, caches and drafts                                                                                                                                                                                                                                     | Any fact. It never infers state with heuristics                              |
+| **Control plane (CP)** | The durable record, the inbox, holder leases, materialized views, external observations (GitHub), config, credentials, identity                                                                                                                                                          | Allocating thread seqs; the workspace                                        |
+| **Runtime**            | Split by [0021](../decisions/0021-v2-loop-runs-on-the-agent-host.md): the **agent host** runs the loop for the sessions it holds and allocates thread seqs; the **sandbox** holds the world (workspace, git, processes, files) and executes what the agent host calls through its daemon | The durable record. A sandbox disk is a cache of the record plus world state |
 
 Clients and pods are agnostic to where the other is: a client talks to _a_ control plane, a pod
 talks to _a_ control plane, and neither needs to know whether the other is local or cloud.
@@ -179,7 +179,7 @@ wake, not a stream the pod holds open:
 
 | State                                    | v1 writers today                                                      | v2 single writer                                                         | Replicas                                                                 |
 | ---------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
-| Conversation events / seq                | pod (4 allocators) + API (send, append, open, wake, archive, history) | holder (an agent host, 0021)                                             | CP record (durable), clients (views, log suffix)                         |
+| Thread events / seq                      | pod (4 allocators) + API (send, append, open, wake, archive, history) | holder (an agent host, 0021)                                             | CP record (durable), clients (views, log suffix)                         |
 | Operator input                           | WS send (pod intake) + API send (Postgres append)                     | CP inbox                                                                 | pod consumes; `input-consumed` in log                                    |
 | History edits                            | API rewind/replace/summarise/fork + pod rewind/compact/loop-cut       | holder, as appended events (P5)                                          | none needed                                                              |
 | Child / teammate threads                 | API create/open + pod spawn + registerChild                           | holder mints and logs `agent-spawned`; CP materializes rows from the log | CP rows are a view                                                       |
@@ -273,9 +273,9 @@ Rules:
 ## 9. Order of work
 
 [roadmap.md](roadmap.md) has the slices, their exit criteria, the current state and the
-session-per-slice workflow. Each slice gets a spec in [slices/](slices/) before it is built, and
+one-slice-per-run workflow. Each slice gets a spec in [slices/](slices/) before it is built, and
 merges to `main` with v1 still working, so it can be tested between sessions. The first milestone
-is a real cloud session on v2 from the web, with basic chat and tools.
+is a real cloud session on v2 from the web, with a working thread and tools.
 
 ## 10. Risks
 
@@ -324,7 +324,7 @@ harness's event loop.
 **R3. Workloads have a memory ceiling.** `memory.max` on the workload group (measured available)
 makes the kernel OOM-kill inside `atlas-work` before the sandbox runs out, so the daemon never competes
 with a hog for the last page. The daemon reads `memory.events` and reports which
-workload was killed and why, so the agent sees it in its context and the operator in the transcript.
+workload was killed and why, so the agent sees it in its context and the operator in the thread view.
 The kill scope (one shared group or a child per thread or workload) is fixed in the slice 3 spec.
 
 **R4. Liveness does not wait on the loop.** The agent host renews the lease on its own timer,
@@ -576,7 +576,7 @@ sidebar's Inactive window (`apps/web/src/features/shell/thread-partition.ts`, `I
 **A7. Sandboxes stop sooner.** The loop runs on the worker (0021), so a sandbox is needed only while
 tools, shells or services run. Its idle stop drops from v1's 30 minutes
 (`apps/serve/src/idle-stop.ts`) to 5–10 minutes; slice 3 measures resume latency before the number
-is fixed. The worker keeps the lease and the conversation, and the next tool call reprovisions.
+is fixed. The worker keeps the lease and the running thread, and the next tool call reprovisions.
 
 | Slice                 | Owns                                                                                 |
 | --------------------- | ------------------------------------------------------------------------------------ |

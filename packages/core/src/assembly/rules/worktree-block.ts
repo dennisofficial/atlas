@@ -28,7 +28,7 @@ const RESOLUTION_LINE =
   'Paths you pass to a tool resolve against it and a bash command starts there.'
 
 const CLOUD_LOCATION_LINE =
-  "Execution location: a cloud sandbox with full isolation — this filesystem, /tmp, and localhost belong to the sandbox. The operator's machine cannot see any of it. Hand files over through the conversation or an exposed port."
+  "Execution location: a cloud sandbox with full isolation — this filesystem, /tmp, and localhost belong to the sandbox. The operator's machine cannot see any of it. Hand files over through the thread or an exposed port."
 
 const DOCKER_LOCATION_LINE =
   "Execution location: a Docker sandbox on the operator's machine — only the project directory and explicitly mounted paths are shared with the operator's machine. Everything else you write, /tmp included, stays inside the sandbox."

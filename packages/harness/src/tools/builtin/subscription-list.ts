@@ -13,6 +13,7 @@ import { ownedBy, type SubscriptionToolDeps } from '../../subscriptions/tool-dep
 
 const inputSchema = z.strictObject({})
 
+// Glossary: "conversation" here means the thread whose subscriptions are listed (CONTEXT.md).
 const description = [
   "List this conversation's subscriptions with their id, provider, status, who created them, expiry and how many occurrences are being held for the next batch.",
   'Also lists the providers available to subscribe to, with a summary and the target syntax each takes.',

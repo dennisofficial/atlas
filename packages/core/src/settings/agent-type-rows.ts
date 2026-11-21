@@ -50,7 +50,7 @@ const rowParts = (type: AgentTypeModelSource): AgentTypeRowParts => {
 const modelDescription = (type: AgentTypeModelSource, teammate: boolean): string =>
   teammate
     ? "The model teammates run on. Left empty they follow the main agent's current model and effort. Changes apply to new teammates only."
-    : `The model ${type.name} sub-agents run on. Left empty they follow a model the type itself pins, then the sub-agent model above, then the conversation's own model. Changes apply to new sub-agents only.`
+    : `The model ${type.name} sub-agents run on. Left empty they follow a model the type itself pins, then the sub-agent model above, then the session's own model. Changes apply to new sub-agents only.`
 
 const effortDescription = (type: AgentTypeModelSource, teammate: boolean): string =>
   teammate

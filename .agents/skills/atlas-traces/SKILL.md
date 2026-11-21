@@ -144,7 +144,7 @@ take the thread's first step (a fresh session's first call is where the fixed pr
 Read the `size.*` attributes: `size.system.<source>` splits the system prompt by producer
 (`system-prompt`, `instructions`, `memory-index`, `skills-listing`, `repo-agents`),
 `size.tools.builtin` and `size.tools.mcp.<server>` split the tool declarations, and `size.messages`
-covers the conversation including `size.messages.context.<source>` envelopes such as
+covers the thread including `size.messages.context.<source>` envelopes such as
 `mcp-instructions`. `size.total` is the sum.
 
 ```json

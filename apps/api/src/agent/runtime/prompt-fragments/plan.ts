@@ -5,7 +5,7 @@ export class TaskListFragment extends PromptFragment {
 
   text(): string {
     return [
-      'task_write keeps a task list beside the conversation that the operator can watch. Open one for',
+      'task_write keeps a task list beside the thread that the operator can watch. Open one for',
       'work of several distinct steps the operator would want to follow. Open one for an explicit',
       'list. Skip it for a single step. Skip it for a question.',
       '',

@@ -13,6 +13,7 @@ import { ownedBy, type SubscriptionToolDeps } from '../../subscriptions/tool-dep
 
 const inputSchema = z.strictObject({ subscriptionId: z.string().min(1) })
 
+// Glossary: "conversation" here means the thread that owns the subscription (CONTEXT.md).
 const description =
   "End one of this conversation's subscriptions by its id, so its source stops waking you. subscription_list shows the ids."
 

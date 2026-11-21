@@ -2,7 +2,7 @@ import { EExecutionLocation } from '../execution/location'
 
 export const NOTHING_TO_ROTATE = 'nothing to rotate: the thread has no events yet'
 
-export const NOT_IN_THE_CLOUD = 'this conversation is not parked in the cloud'
+export const NOT_IN_THE_CLOUD = 'this session is not parked in the cloud'
 
 export enum ECompactScope {
   Recent = 'recent',
@@ -17,7 +17,7 @@ export const scopeOfArgument = (argumentText: string): ECompactScope | null => {
 }
 
 export const unknownScopeReason = (argumentText: string): string =>
-  `/compact takes no argument, or "all" to compact the whole conversation — not ${argumentText.trim()}`
+  `/compact takes no argument, or "all" to compact the whole thread — not ${argumentText.trim()}`
 
 export enum EContainerAsk {
   Current = 'current',
@@ -37,7 +37,7 @@ export const containerAskOfArgument = (
 }
 
 export const unknownContainerReason = (argumentText: string): string =>
-  `/container takes no argument to say where this conversation was born, "off" | "docker" to switch a host-born thread's tool environment, or "resources" to resize a cloud sandbox — threads never move to or from the cloud; not ${argumentText.trim()}`
+  `/container takes no argument to say where this session was born, "off" | "docker" to switch a host-born thread's tool environment, or "resources" to resize a cloud sandbox — threads never move to or from the cloud; not ${argumentText.trim()}`
 
 export const instructionsOfArgument = (argumentText: string): string | undefined => {
   const trimmed = argumentText.trim()
@@ -64,7 +64,7 @@ export const unknownMcpReason = (argumentText: string): string =>
   `/mcp takes no argument, or "signin <name>" to sign a server in — not ${argumentText.trim()}`
 
 export const NOTHING_SAID_YET =
-  '/rename has nothing to read yet — say what this conversation should be called, as in /rename Doing something cool'
+  '/rename has nothing to read yet — say what this thread should be called, as in /rename Doing something cool'
 
 export const NO_NAME_CAME_BACK =
-  '/rename could not think of a name for this conversation — say one, as in /rename Doing something cool'
+  '/rename could not think of a name for this thread — say one, as in /rename Doing something cool'

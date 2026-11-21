@@ -58,7 +58,7 @@ describe('compactedHistory', () => {
       {
         role: 'user',
         text: expect.stringMatching(
-          /^<system-context source="compaction"[^>]*>\n[\s\S]*Earlier turns of this session, compacted to save context:\n\nA parser was written\.\n<\/system-context>$/,
+          /^<system-context source="compaction"[^>]*>\n[\s\S]*Earlier turns of this thread, compacted to save context:\n\nA parser was written\.\n<\/system-context>$/,
         ),
       },
       { role: 'user', text: operatorSaidAs('now the formatter') },

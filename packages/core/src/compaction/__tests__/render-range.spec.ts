@@ -81,7 +81,7 @@ describe('transcriptOfRange', () => {
     const events = eventsFrom([compacted(4, 'A parser was written.'), said('now the lexer')])
 
     expect(transcriptOfRange({ events, throughSeq: 2 })).toBe(
-      'Summary of this session before this point: A parser was written.\nOperator: now the lexer',
+      'Summary of this thread before this point: A parser was written.\nOperator: now the lexer',
     )
   })
 
@@ -233,7 +233,7 @@ describe('transcriptOfRange', () => {
     ])
 
     expect(transcriptOfRange({ events, throughSeq: 6, proseOnly: true })).toBe(
-      'Summary of this session before this point: A parser was written.\n' +
+      'Summary of this thread before this point: A parser was written.\n' +
         'Operator: now the lexer\n' +
         'Atlas: lexer done',
     )
