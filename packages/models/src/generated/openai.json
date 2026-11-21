@@ -786,6 +786,64 @@
   {
     "ref": {
       "providerId": "openai",
+      "modelId": "gpt-6.2-astra"
+    },
+    "label": "GPT-6.2 Astra",
+    "api": "openai-responses",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 8,
+      "outputPerMillion": 40,
+      "cacheReadPerMillion": 0.4,
+      "cacheWritePerMillion": 10
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "openai",
+      "modelId": "gpt-6.2-sol"
+    },
+    "label": "GPT-6.2 Sol",
+    "api": "openai-responses",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 2,
+      "outputPerMillion": 10,
+      "cacheReadPerMillion": 0.1,
+      "cacheWritePerMillion": 2.5
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "openai",
       "modelId": "gpt-daybreak-blue-latest"
     },
     "label": "Daybreak Blue",
