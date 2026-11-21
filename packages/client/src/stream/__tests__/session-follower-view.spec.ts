@@ -6,6 +6,7 @@ import {
   type SpendTally,
 } from '@dltech/atlas-core'
 import {
+  ESandboxStatus,
   EStreamResetReason,
   type SessionStatusOutput,
   type StreamServerMessage,
@@ -36,6 +37,7 @@ const sessionView = (params: {
   live?: boolean
   pullRequestState?: string
   pluginViews?: Readonly<Record<string, unknown>>
+  extra?: Partial<SessionStatusOutput>
 }): StreamServerMessage => ({
   type: 'view',
   id: 's1',
@@ -43,7 +45,10 @@ const sessionView = (params: {
   at: params.at,
   value: {
     at: params.at,
-    status: statusOf(params.state ?? ESessionStatus.Idle, params.live ?? true),
+    status: {
+      ...statusOf(params.state ?? ESessionStatus.Idle, params.live ?? true),
+      ...params.extra,
+    },
     context: null,
     spend: { rows: [], tally },
     compute: { costUsd: null, running: false, tick: null },
@@ -108,6 +113,27 @@ describe('the session follower frame facts', () => {
     expect(view?.status.lease).toEqual({ epoch: 1, holderHostId: 7, live: true })
     expect(view?.pullRequests[0]?.state?.state).toBe('open')
     expect(view?.pluginViews).toEqual({})
+  })
+
+  it('keeps the pod and sandbox the control plane reports on the frame', () => {
+    const follower = setup()
+    seed(follower)
+    const pod: SessionStatusOutput['pod'] = {
+      shape: { vcpus: 4, memoryGb: 8 },
+      actualVcpus: 4,
+      phase: 'steady',
+      sizing: { cap: 8, offered: [{ vcpus: 4, memoryGb: 8 }], unavailable: [] },
+    }
+    follower.handleMessage(
+      sessionView({
+        at: 3,
+        extra: { pod, sandbox: { status: ESandboxStatus.Running, at: '2026-11-21T10:00:00.000Z' } },
+      }),
+    )
+    const status = follower.getSnapshot().status
+    expect(status?.pod).toEqual(pod)
+    expect(status?.sandbox?.status).toBe(ESandboxStatus.Running)
+    expect(follower.getSnapshot().view?.status.pod).toEqual(pod)
   })
 
   it('discards a session view whose position is behind the cursor', () => {
