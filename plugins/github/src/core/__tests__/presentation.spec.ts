@@ -159,7 +159,7 @@ describe('subscription rows carry their presentation', () => {
     })
   })
 
-  it('re-presents a row when its status changes, keeping what it held', () => {
+  it('keeps a row and its presentation when an older log carries a status change', () => {
     const [changed] = subscriptionsOfEvents(
       eventsOf([
         created({
@@ -178,7 +178,6 @@ describe('subscription rows carry their presentation', () => {
         },
       ]),
     )
-    expect(changed?.status).toBe(ESubscriptionStatus.Paused)
     expect(changed?.presentation.icon).toBe('git-pull-request')
     expect(changed?.held).toBe(0)
   })

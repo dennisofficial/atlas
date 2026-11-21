@@ -1,15 +1,15 @@
 'use client'
 
-import { ESubscriptionStatus } from '@dltech/atlas-core'
 import type { SubscriptionListRow } from '@dltech/atlas-plugin-github/client'
 import { Button } from '@dltech/atlas-ui/components/button'
-import { Switch } from '@dltech/atlas-ui/components/switch'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 import { Bell, Trash2Icon } from 'lucide-react'
 import { DynamicIcon } from 'lucide-react/dynamic'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 
 import { useNowEvery } from '@/features/threads/data/use-now'
+import { messageOf } from '@/features/threads/data/use-send'
 
 import { sessionsApi } from '../../data/sessions-api'
 import { useSessionPaneValue } from '../pane-value'
@@ -17,7 +17,6 @@ import { Row, SectionHead } from './rows'
 import {
   iconNameOf,
   removeCommandOf,
-  statusCommandOf,
   SUBSCRIPTION_TONE_CLASS,
   subscriptionMetaOf,
   subscriptionTitleOf,
@@ -47,16 +46,14 @@ function SubscriptionIcon({ row }: { row: SubscriptionListRow }) {
 function SubscriptionRowItem(props: {
   row: SubscriptionListRow
   now: number
-  busy: boolean
-  onCommand: (command: SubscriptionCommand) => void
+  onRemove: () => void
 }) {
   const { row, now } = props
-  const active = row.status === ESubscriptionStatus.Active
   const meta = subscriptionMetaOf({ row, now })
   const title = subscriptionTitleOf(row.presentation.title)
 
   return (
-    <div data-subscription-row={row.id} className={cn(!active && 'opacity-50')}>
+    <div data-subscription-row={row.id}>
       <Row
         leading={<SubscriptionIcon row={row} />}
         title={
@@ -66,32 +63,17 @@ function SubscriptionRowItem(props: {
             {title.text}
           </span>
         }
-        meta={
-          <span>
-            {meta.paused ? <span className="font-medium">Paused · </span> : null}
-            {meta.text}
-          </span>
-        }
+        meta={<span>{meta}</span>}
         trailing={
-          <>
-            <Switch
-              size="sm"
-              checked={active}
-              disabled={props.busy}
-              aria-label={`${active ? 'Pause' : 'Resume'} ${row.presentation.title}`}
-              onCheckedChange={(checked) => props.onCommand(statusCommandOf(row, checked))}
-            />
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              disabled={props.busy}
-              aria-label={`Remove ${row.presentation.title}`}
-              className="text-muted-foreground"
-              onClick={() => props.onCommand(removeCommandOf(row))}
-            >
-              <Trash2Icon />
-            </Button>
-          </>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label={`Remove ${row.presentation.title}`}
+            className="text-muted-foreground"
+            onClick={props.onRemove}
+          >
+            <Trash2Icon />
+          </Button>
         }
       />
     </div>
@@ -102,45 +84,50 @@ export function SessionSubscriptionsSection({ run = runThroughApi }: { run?: Sub
   const { sessionId, view } = useSessionPaneValue()
   const rows = view.subscriptionRows
   const [expanded, setExpanded] = useState(false)
-  const [busy, setBusy] = useState<ReadonlySet<string>>(new Set())
+  const [removing, setRemoving] = useState<ReadonlySet<string>>(new Set())
   const now = useNowEvery({
     enabled: rows.some((row) => row.expiresAt !== undefined),
     tickMs: TICK_MS,
   })
-  if (rows.length === 0) return null
-  const visible = expanded ? rows : rows.slice(0, VISIBLE_ROWS)
+
+  useEffect(() => {
+    const live = new Set(rows.map((row) => row.id))
+    const stale = [...removing].filter((id) => !live.has(id))
+    if (stale.length === 0) return
+    setRemoving((current) => new Set([...current].filter((id) => live.has(id))))
+  }, [removing, rows])
+
+  const shown = rows.filter((row) => !removing.has(row.id))
+  if (shown.length === 0) return null
+  const visible = expanded ? shown : shown.slice(0, VISIBLE_ROWS)
   const handleToggle = () => setExpanded((held) => !held)
-  const handleCommand = (command: SubscriptionCommand) => {
-    const { subscriptionId } = command.args
-    setBusy((current) => new Set(current).add(subscriptionId))
-    void run({ sessionId, command }).finally(() =>
-      setBusy((current) => {
-        const next = new Set(current)
-        next.delete(subscriptionId)
-        return next
-      }),
-    )
+  const restore = (subscriptionId: string) =>
+    setRemoving((current) => {
+      const next = new Set(current)
+      next.delete(subscriptionId)
+      return next
+    })
+  const handleRemove = (row: SubscriptionListRow) => {
+    setRemoving((current) => new Set(current).add(row.id))
+    run({ sessionId, command: removeCommandOf(row) }).catch((failure: unknown) => {
+      restore(row.id)
+      toast.error(messageOf(failure))
+    })
   }
 
   return (
     <section data-session-subscriptions aria-label="Subscriptions" className="flex flex-col">
-      <SectionHead title="Subscriptions" count={rows.length} />
+      <SectionHead title="Subscriptions" count={shown.length} />
       {visible.map((row) => (
-        <SubscriptionRowItem
-          key={row.id}
-          row={row}
-          now={now}
-          busy={busy.has(row.id)}
-          onCommand={handleCommand}
-        />
+        <SubscriptionRowItem key={row.id} row={row} now={now} onRemove={() => handleRemove(row)} />
       ))}
-      {rows.length > VISIBLE_ROWS ? (
+      {shown.length > VISIBLE_ROWS ? (
         <button
           type="button"
           onClick={handleToggle}
           className="mt-0.5 ml-[1.625rem] w-fit rounded-sm text-[11px] leading-4 text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
         >
-          {expanded ? 'Show fewer' : `Show all (${rows.length})`}
+          {expanded ? 'Show fewer' : `Show all (${shown.length})`}
         </button>
       ) : null}
     </section>

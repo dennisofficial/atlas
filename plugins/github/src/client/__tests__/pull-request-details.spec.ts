@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ESubscriptionActor, ESubscriptionStatus, ESubscriptionTone } from '@dltech/atlas-core'
+import { ESubscriptionActor, ESubscriptionTone } from '@dltech/atlas-core'
 
 import { subscriptionRowsOf, withPullRequestDetails, type SubscriptionListRow } from '..'
 
 const rowOf = (overrides: Partial<SubscriptionListRow> = {}): SubscriptionListRow => ({
   id: 's1',
   provider: 'github.pull-request',
-  status: ESubscriptionStatus.Active,
   createdBy: ESubscriptionActor.Agent,
   threadId: 't1',
   number: 31,
@@ -24,7 +23,6 @@ const rowOf = (overrides: Partial<SubscriptionListRow> = {}): SubscriptionListRo
 const runRow = (): SubscriptionListRow => ({
   id: 'r1',
   provider: 'github.workflow-run',
-  status: ESubscriptionStatus.Active,
   createdBy: ESubscriptionActor.Agent,
   threadId: 't1',
   held: 0,
@@ -47,7 +45,6 @@ describe('subscriptionRowsOf', () => {
           label: 'owner/atlas#31',
           threadId: 't1',
           createdBy: 'agent',
-          status: 'active',
           createdAt: '2026-11-08T10:00:00.000Z',
           held: 0,
           presentation: rowOf().presentation,
@@ -102,16 +99,6 @@ describe('withPullRequestDetails', () => {
     expect(row?.presentation.icon).toBe('git-pull-request')
     expect(row?.presentation.tone).toBe(ESubscriptionTone.Open)
     expect(row?.presentation.title).toBe('#31 Mystery')
-  })
-
-  it('enriches a paused row as well', () => {
-    const [row] = withPullRequestDetails({
-      rows: [rowOf({ status: ESubscriptionStatus.Paused })],
-      pullRequests: [{ number: 31, title: 'Paused work', state: 'merged' }],
-    })
-    expect(row?.status).toBe(ESubscriptionStatus.Paused)
-    expect(row?.presentation.title).toBe('#31 Paused work')
-    expect(row?.presentation.tone).toBe(ESubscriptionTone.Merged)
   })
 
   it('leaves rows of other providers and unmatched numbers untouched', () => {

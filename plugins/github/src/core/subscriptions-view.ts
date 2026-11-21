@@ -21,7 +21,6 @@ export const subscriptionRowSchema = z.object({
   label: z.string(),
   threadId: z.string().min(1),
   createdBy: z.enum(ESubscriptionActor),
-  status: z.enum(ESubscriptionStatus),
   expiresAt: z.string().optional(),
   events: z.array(z.string()).readonly().default([]),
   createdAt: z.string(),
@@ -42,7 +41,8 @@ const presented = (row: SubscriptionRowFields): SubscriptionPresentation =>
       provider: row.provider,
       label: row.label,
       target: row.target,
-      status: row.status,
+      // Glossary: status is v1's active/paused field; a v2 subscription is live or gone.
+      status: ESubscriptionStatus.Active,
       events: row.events,
     },
     presenters: githubPresenters,
@@ -60,20 +60,12 @@ export const foldSubscriptions = (
       label: event.label,
       threadId: event.threadId,
       createdBy: event.createdBy,
-      status: ESubscriptionStatus.Active,
       ...(event.expiresAt === undefined ? {} : { expiresAt: event.expiresAt }),
       events: event.events ?? [],
       createdAt: event.at,
     }
     const row: SubscriptionRow = { ...fields, held: 0, presentation: presented(fields) }
     return [...state.filter((kept) => kept.id !== row.id), row]
-  }
-  if (event.type === 'subscription-changed') {
-    return state.map((kept) => {
-      if (kept.id !== event.subscriptionId) return kept
-      const fields: SubscriptionRowFields = { ...kept, status: event.status }
-      return { ...fields, held: kept.held, presentation: presented(fields) }
-    })
   }
   if (event.type === 'subscription-ended') {
     return state.filter((kept) => kept.id !== event.subscriptionId)

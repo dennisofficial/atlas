@@ -12,7 +12,7 @@ describe('native commands', () => {
 
   it('has a pod handler for every pod command and a control handler for every control command', () => {
     for (const command of nativeCommands) {
-      if (command.spec.handledIn === 'pod') {
+      if (command.spec.handledIn === 'holder') {
         expect(nativeCommandHandlers.has(command.inboxKind)).toBe(true)
         expect(nativeControlHandlers.has(command.spec.name)).toBe(false)
       } else {

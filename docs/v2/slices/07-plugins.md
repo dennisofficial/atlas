@@ -214,7 +214,8 @@ the agent can subscribe to a PR and be told when it moves.
   `pr-linker.ts`, and the PR finder (it lived at `apps/agent-host/src/github/`; now `plugins/github/src/pod/finder.ts`, §8.2).
 
 **Declares:**
-- **Events:** `subscription-created`, `subscription-changed`, `subscription-ended` (v1 bodies in
+- **Events:** `subscription-created`, `subscription-ended`; `subscription-changed` is only read
+  from older logs, where v2 ignores it because a v2 subscription has no paused state (v1 bodies in
   `packages/core/src/events/subscription-body.ts`; they are already core `EventBody` members, so the
   plugin's `events` list is empty and its schemas stay in core), and `pull-request-observed` if a PR
   change is worth a log row rather than a view update.

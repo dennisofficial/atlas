@@ -3,7 +3,7 @@ import { ECommandGroup, ECommandTiming } from '@dltech/atlas-core'
 import { z } from 'zod'
 import { commandOf, composeCommands, defineCommand } from '../registry'
 
-const specOf = (name: string, handledIn: 'pod' | 'control' = 'pod') => ({
+const specOf = (name: string, handledIn: 'holder' | 'control' = 'holder') => ({
   name,
   summary: `${name} summary`,
   group: ECommandGroup.Session,

@@ -267,7 +267,7 @@ const ping = defineCommand({
     group: ECommandGroup.Session,
     args: z.strictObject({ word: z.string() }),
     timing: ECommandTiming.Settled,
-    handledIn: 'pod',
+    handledIn: 'holder',
   },
 })
 

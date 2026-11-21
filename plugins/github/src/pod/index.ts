@@ -13,7 +13,7 @@ export type { GitIdentity, IdentityLookup } from './identity'
 
 export const githubPod: PodSlot = {
   ...EMPTY_POD,
-  childDeny: ['subscription', 'set-subscription-status'],
+  childDeny: ['subscription'],
   tools: (ctx) => [new SubscriptionTool(ctx)],
   hooks: ciWatchHooks,
   subscriptionEnds: githubSubscriptionEnds,
