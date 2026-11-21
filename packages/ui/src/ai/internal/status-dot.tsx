@@ -15,8 +15,13 @@ const TONE_CLASS: Record<EStatusTone, string> = {
   [EStatusTone.Error]: 'bg-destructive',
 }
 
-export function StatusDot({ tone }: { tone: EStatusTone }) {
-  return <span aria-hidden className={cn('size-1.5 shrink-0 rounded-full', TONE_CLASS[tone])} />
+export function StatusDot({ tone, className }: { tone: EStatusTone; className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={cn('size-1.5 shrink-0 rounded-full', TONE_CLASS[tone], className)}
+    />
+  )
 }
 
 export function InlineSpinner() {

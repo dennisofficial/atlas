@@ -122,7 +122,7 @@ export function SeriesKey({
 export function MetricSignals({ throttled, oomKills }: { throttled: boolean; oomKills: number }) {
   if (!throttled && oomKills === 0) return null
   return (
-    <span className="flex items-center gap-2.5 text-xs">
+    <span className="flex items-center gap-2.5 text-[11px] leading-4">
       {throttled ? (
         <span className="flex items-center gap-1 text-warning">
           <ZapIcon aria-hidden className="size-3" />

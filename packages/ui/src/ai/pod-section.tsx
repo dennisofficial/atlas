@@ -73,67 +73,71 @@ export function PodSection(props: PodSectionProps) {
         onStart={props.onStart}
         onStop={props.onStop}
       />
-      {running ? (
-        <div className="flex flex-col gap-1.5">
-          <div className="flex min-w-0 flex-col gap-0.5 px-1 text-xs">
-            <SeriesKey label="CPU" value={view.cpuLabel} swatch="bg-primary" />
-            <SeriesKey label="RAM" value={view.ramLabel} swatch="bg-muted-foreground" />
+      <div className="flex flex-col gap-2 pl-[1.625rem]">
+        {running ? (
+          <div className="flex flex-col gap-1.5">
+            <div className="flex min-w-0 flex-col gap-0.5 text-[11px] leading-4">
+              <SeriesKey label="CPU" value={view.cpuLabel} swatch="bg-primary" />
+              <SeriesKey label="RAM" value={view.ramLabel} swatch="bg-muted-foreground" />
+            </div>
+            <div className="h-20">
+              <ChartContainer
+                config={COMBINED_CONFIG}
+                className="aspect-auto h-full w-full"
+                initialDimension={{ width: 296, height: 80 }}
+                role="img"
+                aria-label="CPU and RAM over the last 15 minutes"
+              >
+                <AreaChart data={data} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
+                  <YAxis hide domain={[0, 100]} />
+                  <Area
+                    dataKey="ram"
+                    type="monotone"
+                    stroke="var(--color-ram)"
+                    strokeWidth={1.5}
+                    fill="var(--color-ram)"
+                    fillOpacity={0.06}
+                    dot={false}
+                    isAnimationActive={false}
+                  />
+                  <Area
+                    dataKey="cpu"
+                    type="monotone"
+                    stroke="var(--color-cpu)"
+                    strokeWidth={1.5}
+                    fill="var(--color-cpu)"
+                    fillOpacity={0.1}
+                    dot={false}
+                    isAnimationActive={false}
+                  />
+                </AreaChart>
+              </ChartContainer>
+            </div>
           </div>
-          <div className="h-20">
-            <ChartContainer
-              config={COMBINED_CONFIG}
-              className="aspect-auto h-full w-full"
-              initialDimension={{ width: 296, height: 80 }}
-              role="img"
-              aria-label="CPU and RAM over the last 15 minutes"
-            >
-              <AreaChart data={data} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
-                <YAxis hide domain={[0, 100]} />
-                <Area
-                  dataKey="ram"
-                  type="monotone"
-                  stroke="var(--color-ram)"
-                  strokeWidth={1.5}
-                  fill="var(--color-ram)"
-                  fillOpacity={0.06}
-                  dot={false}
-                  isAnimationActive={false}
-                />
-                <Area
-                  dataKey="cpu"
-                  type="monotone"
-                  stroke="var(--color-cpu)"
-                  strokeWidth={1.5}
-                  fill="var(--color-cpu)"
-                  fillOpacity={0.1}
-                  dot={false}
-                  isAnimationActive={false}
-                />
-              </AreaChart>
-            </ChartContainer>
+        ) : (
+          <div className="flex h-20 items-center justify-center rounded-lg border border-dashed border-border px-3">
+            <p className="text-center text-[11px] leading-4 text-muted-foreground">
+              {QUIET_TEXT[props.state]}
+            </p>
           </div>
+        )}
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[11px] leading-4 text-muted-foreground">
+          <span>{running ? WINDOW_LABEL : 'No live usage'}</span>
+          <MetricSignals throttled={props.throttled === true} oomKills={props.oomKills ?? 0} />
         </div>
-      ) : (
-        <div className="flex h-20 items-center justify-center rounded-lg border border-dashed border-border px-3">
-          <p className="text-center text-xs text-muted-foreground">{QUIET_TEXT[props.state]}</p>
-        </div>
-      )}
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1 text-xs text-muted-foreground">
-        <span>{running ? WINDOW_LABEL : 'No live usage'}</span>
-        <MetricSignals throttled={props.throttled === true} oomKills={props.oomKills ?? 0} />
+        <PodSizeControl
+          shape={props.shape}
+          shapes={props.shapes}
+          unavailable={props.unavailable}
+          pendingShape={props.pendingShape}
+          resizeError={props.resizeError}
+          disabled={
+            !canResize(props.state) || props.stopping === true || props.pendingShape !== undefined
+          }
+          defaultOpen={props.defaultSizeMenuOpen === true}
+          onResize={props.onResize}
+        />
       </div>
-      <PodSizeControl
-        shape={props.shape}
-        shapes={props.shapes}
-        unavailable={props.unavailable}
-        pendingShape={props.pendingShape}
-        resizeError={props.resizeError}
-        disabled={
-          !canResize(props.state) || props.stopping === true || props.pendingShape !== undefined
-        }
-        defaultOpen={props.defaultSizeMenuOpen === true}
-        onResize={props.onResize}
-      />
       {props.confirmAction === undefined ? null : (
         <AlertDialog open>
           <PodActionConfirm

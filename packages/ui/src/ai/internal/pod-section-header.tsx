@@ -73,10 +73,12 @@ export function PodSectionHeader({
   }
 
   return (
-    <div className="flex items-center justify-between gap-2 px-1">
-      <span className="flex min-w-0 items-center gap-2">
-        {pending ? <InlineSpinner /> : <StatusDot tone={STATE_TONE[state]} />}
-        <span className="truncate text-sm">{stateTextOf({ state, resizing })}</span>
+    <div className="flex items-center justify-between gap-2">
+      <span className="flex min-w-0 items-center gap-2.5">
+        <span className="flex h-4 w-4 shrink-0 items-center justify-center">
+          {pending ? <InlineSpinner /> : <StatusDot tone={STATE_TONE[state]} className="size-2" />}
+        </span>
+        <span className="truncate text-[13px] leading-4">{stateTextOf({ state, resizing })}</span>
       </span>
       <Tooltip>
         <TooltipTrigger

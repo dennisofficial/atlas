@@ -96,9 +96,9 @@ export function PodSizeControl({
   }
 
   return (
-    <div className="flex flex-col gap-1.5 px-1">
+    <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-xs text-muted-foreground">Size</span>
+        <span className="text-[11px] leading-4 text-muted-foreground">Size</span>
         <Select
           items={options.map((option) => ({ value: option.key, label: option.label }))}
           value={podShapeKey(shape)}
@@ -140,7 +140,7 @@ export function PodSizeControl({
         </p>
       ) : null}
       {!failed && pendingShape !== undefined ? (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-[11px] leading-4 text-muted-foreground">
           Resizing to {podShapeLabel(pendingShape)} — the pod restarts
         </p>
       ) : null}
