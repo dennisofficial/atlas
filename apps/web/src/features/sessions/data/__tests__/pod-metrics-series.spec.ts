@@ -38,6 +38,14 @@ describe('seriesAfter', () => {
     expect(series).toEqual([mapped(1_000), mapped(4_000, 1)])
   })
 
+  it('keeps the series as it is when the frame only says why usage is missing', () => {
+    const series = seriesAfter({
+      series: [mapped(1_000)],
+      frame: { type: 'unavailable', reason: 'pod metrics are not readable' },
+    })
+    expect(series).toEqual([mapped(1_000)])
+  })
+
   it('keeps the series bounded to the ring size', () => {
     const series = Array.from({ length: POD_METRICS_SERIES_LIMIT }, (_value, index) =>
       mapped(index * 1_000),

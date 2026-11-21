@@ -399,6 +399,7 @@ export const podMetricsFrameSchema = z.discriminatedUnion('type', [
     samples: z.array(podSampleSchema).max(METRICS_RING_SIZE),
   }),
   z.strictObject({ type: z.literal('sample'), sample: podSampleSchema }),
+  z.strictObject({ type: z.literal('unavailable'), reason: z.string() }),
 ])
 
 export type SessionPodMetricsInput = z.infer<typeof sessionPodMetricsInputSchema>

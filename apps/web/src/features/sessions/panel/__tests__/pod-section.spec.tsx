@@ -208,6 +208,12 @@ describe('PodPaneSection', () => {
     expect(asleep).toContain('No live usage — pod asleep')
   })
 
+  it('says usage is unavailable when the pod cannot report it', () => {
+    const html = renderToStaticMarkup(sectionOf({ usageUnavailable: true, series: [] }))
+    expect(html).toContain('Usage unavailable')
+    expect(html).not.toContain('CPU and RAM over the last 15 minutes')
+  })
+
   it('keeps the throttle and OOM signals from the latest sample', () => {
     const html = renderToStaticMarkup(
       sectionOf({ series: [sample({ throttled: true, oomKills: 2 })] }),

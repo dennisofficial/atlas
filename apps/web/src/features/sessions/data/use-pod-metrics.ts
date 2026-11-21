@@ -11,15 +11,19 @@ import { type PodMetricsSample, seriesAfter } from './pod-metrics-series'
 const NONE: readonly PodMetricsSample[] = []
 const RESUBSCRIBE_MS = 2_000
 
-export function usePodMetrics(args: {
-  sessionId: string
-  enabled?: boolean
-}): readonly PodMetricsSample[] {
+export type PodMetricsState = {
+  series: readonly PodMetricsSample[]
+  unavailable: boolean
+}
+
+const IDLE: PodMetricsState = { series: NONE, unavailable: false }
+
+export function usePodMetrics(args: { sessionId: string; enabled?: boolean }): PodMetricsState {
   const { sessionId } = args
   const enabled = args.enabled ?? true
-  const [series, setSeries] = useState<readonly PodMetricsSample[]>(NONE)
+  const [state, setState] = useState<PodMetricsState>(IDLE)
   useEffect(() => {
-    setSeries(NONE)
+    setState(IDLE)
     if (!enabled) return
     let stopped = false
     let active: { unsubscribe: () => void } | undefined
@@ -44,7 +48,16 @@ export function usePodMetrics(args: {
           onData: (value: unknown) => {
             const frame = podMetricsFrameSchema.safeParse(value)
             if (!frame.success) return
-            setSeries((current) => seriesAfter({ series: current, frame: frame.data }))
+            if (frame.data.type === 'unavailable') {
+              stopped = true
+              close()
+              setState((current) => ({ series: current.series, unavailable: true }))
+              return
+            }
+            setState((current) => ({
+              series: seriesAfter({ series: current.series, frame: frame.data }),
+              unavailable: false,
+            }))
           },
           onError: () => resubscribe(),
           onComplete: () => resubscribe(),
@@ -59,5 +72,5 @@ export function usePodMetrics(args: {
       close()
     }
   }, [enabled, sessionId])
-  return enabled ? series : NONE
+  return enabled ? state : IDLE
 }

@@ -1,4 +1,4 @@
-import { Inject, Injectable, Optional, ServiceUnavailableException } from '@nestjs/common'
+import { Inject, Injectable, Logger, Optional, ServiceUnavailableException } from '@nestjs/common'
 import type { EventFrame, PodCallOutcome } from '@dltech/atlas-host'
 import {
   ECallStatus,
@@ -11,6 +11,7 @@ import { PodMetricsQueue } from './pod-metrics-queue'
 import { SessionsService } from './sessions.service'
 
 const HOST_ABSENT = 'pod metrics are not running in this process'
+const UNREADABLE = 'pod metrics are not readable'
 const UNHELD_RECHECK_MS = 5_000
 
 const sampleOf = (frame: EventFrame): PodSample | null => {
@@ -18,12 +19,14 @@ const sampleOf = (frame: EventFrame): PodSample | null => {
   return parsed.success ? parsed.data.sample : null
 }
 
-const backlogOf = (outcome: PodCallOutcome): PodSample[] | null => {
-  if (outcome.state === 'unavailable') return null
+type Backlog = { samples: PodSample[] } | { reason: string }
+
+const backlogOf = (outcome: PodCallOutcome): Backlog => {
+  if (outcome.state === 'unavailable') return { reason: UNREADABLE }
   const result = outcome.result
-  if (result.status !== ECallStatus.Ok) return null
-  if (result.op !== 'metrics.subscribe') return null
-  return [...result.value.samples]
+  if (result.status !== ECallStatus.Ok) return { reason: result.error.message }
+  if (result.op !== 'metrics.subscribe') return { reason: UNREADABLE }
+  return { samples: [...result.value.samples] }
 }
 
 export type PodMetricsWatchArgs = {
@@ -40,10 +43,16 @@ type WatchState = {
   newest: number
 }
 
-type StartOutcome = PodSample[] | 'unavailable' | 'unheld' | 'stopped'
+type StartOutcome =
+  | { state: 'samples'; samples: PodSample[] }
+  | { state: 'unavailable'; reason: string }
+  | { state: 'unheld' }
+  | { state: 'stopped' }
 
 @Injectable()
 export class PodMetricsService {
+  private readonly logger = new Logger(PodMetricsService.name)
+
   constructor(
     private readonly sessions: SessionsService,
     @Optional() @Inject(POD_OPS) private readonly ops: PodOps | null = null,
@@ -80,8 +89,14 @@ export class PodMetricsService {
           queue,
           state,
         })
-        if (started === 'stopped' || started === 'unavailable') return
-        if (started === 'unheld') {
+        if (started.state === 'stopped') return
+        if (started.state === 'unavailable') {
+          if (state.ended) return
+          this.logger.warn({ sessionId: args.sessionId, reason: started.reason })
+          yield { type: 'unavailable', reason: started.reason }
+          return
+        }
+        if (started.state === 'unheld') {
           await this.recheck({
             state,
             ...(args.signal === undefined ? {} : { signal: args.signal }),
@@ -89,9 +104,9 @@ export class PodMetricsService {
           continue
         }
         if (state.ended) return
-        if (started.length > 0) {
-          state.newest = Math.max(state.newest, started.at(-1)?.at ?? 0)
-          yield { type: 'samples', samples: started }
+        if (started.samples.length > 0) {
+          state.newest = Math.max(state.newest, started.samples.at(-1)?.at ?? 0)
+          yield { type: 'samples', samples: started.samples }
         }
         for (;;) {
           const sample = await queue.next()
@@ -124,17 +139,17 @@ export class PodMetricsService {
       },
       onClose: () => args.queue.end(),
     })
-    if (registered === null) return 'unheld'
+    if (registered === null) return { state: 'unheld' }
     args.state.dispose = registered
-    if (args.state.ended) return 'stopped'
+    if (args.state.ended) return { state: 'stopped' }
     const outcome = await args.ops.invoke({
       sessionId: args.sessionId,
       op: { op: 'metrics.subscribe' },
     })
     const backlog = backlogOf(outcome)
-    if (backlog === null) return 'unavailable'
+    if ('reason' in backlog) return { state: 'unavailable', reason: backlog.reason }
     args.state.subscribed = true
-    return backlog
+    return { state: 'samples', samples: backlog.samples }
   }
 
   private recheck(args: { state: WatchState; signal?: AbortSignal | undefined }): Promise<void> {

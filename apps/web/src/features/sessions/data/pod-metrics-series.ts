@@ -26,7 +26,9 @@ const bounded = (samples: PodMetricsSample[]): PodMetricsSample[] =>
 export const seriesAfter = (args: {
   series: readonly PodMetricsSample[]
   frame: PodMetricsFrame
-}): PodMetricsSample[] =>
-  args.frame.type === 'samples'
-    ? bounded(args.frame.samples.map(podMetricsSampleOf))
-    : bounded([...args.series, podMetricsSampleOf(args.frame.sample)])
+}): PodMetricsSample[] => {
+  if (args.frame.type === 'samples') return bounded(args.frame.samples.map(podMetricsSampleOf))
+  if (args.frame.type === 'sample')
+    return bounded([...args.series, podMetricsSampleOf(args.frame.sample)])
+  return [...args.series]
+}
