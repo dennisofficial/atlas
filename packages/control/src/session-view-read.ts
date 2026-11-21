@@ -1,5 +1,7 @@
 import {
   messageAfterFailureOf,
+  type PodShape,
+  podSizingOf,
   sessionViewOf,
   type Lease,
   type PendingInputsState,
@@ -126,13 +128,17 @@ export const trackedPullRequestsOf = async (args: {
   return rows.map(pullRequestOf)
 }
 
+const shapeOf = (row: { vcpus: number | null; memoryGb: number | null }): PodShape | undefined =>
+  row.vcpus === null || row.memoryGb === null
+    ? undefined
+    : { vcpus: row.vcpus, memoryGb: row.memoryGb }
+
 export const podStatusOf = (session: ControlSessionRow | undefined): SessionStatusOutput['pod'] => {
   if (session === undefined) return undefined
-  const desiredVcpus = session.podDesiredVcpus ?? undefined
-  const actualVcpus = session.podActualVcpus ?? undefined
-  if (desiredVcpus === undefined && actualVcpus === undefined) return undefined
+  const actual = shapeOf({ vcpus: session.podActualVcpus, memoryGb: session.podActualMemoryGb })
+  const desired = shapeOf({ vcpus: session.podDesiredVcpus, memoryGb: session.podDesiredMemoryGb })
   const pending =
-    desiredVcpus !== undefined && session.podAppliedGeneration !== session.podSizeGeneration
+    desired !== undefined && session.podAppliedGeneration !== session.podSizeGeneration
   const phase =
     session.podResizeError !== null
       ? 'failed'
@@ -142,10 +148,11 @@ export const podStatusOf = (session: ControlSessionRow | undefined): SessionStat
           ? 'resizing'
           : 'steady'
   return {
-    ...(desiredVcpus === undefined ? {} : { desiredVcpus }),
-    ...(actualVcpus === undefined ? {} : { actualVcpus }),
+    ...(actual === undefined ? {} : { shape: actual, actualVcpus: actual.vcpus }),
+    ...(desired === undefined ? {} : { desiredShape: desired, desiredVcpus: desired.vcpus }),
     phase,
     ...(session.podResizeError === null ? {} : { error: session.podResizeError }),
+    sizing: podSizingOf({ sandboxProvider: session.sandboxProvider }),
   }
 }
 

@@ -1,14 +1,11 @@
+import { AGENT37_POD_SHAPES } from '@dltech/atlas-core'
+
 export type Agent37Shape = { cpu: number; memory: number }
 
-// https://www.agent37.com/docs/agents-api/instances/resize — resize never adjusts a shape for you,
-// so every vCPU count maps onto one of the vm shapes the platform accepts.
-export const AGENT37_VM_SHAPES: readonly Agent37Shape[] = [
-  { cpu: 2, memory: 4 },
-  { cpu: 4, memory: 8 },
-  { cpu: 4, memory: 16 },
-  { cpu: 4, memory: 32 },
-  { cpu: 8, memory: 64 },
-]
+export const AGENT37_VM_SHAPES: readonly Agent37Shape[] = AGENT37_POD_SHAPES.map((shape) => ({
+  cpu: shape.vcpus,
+  memory: shape.memoryGb,
+}))
 
 export const agent37ShapeOfVcpus = (vcpus: number): Agent37Shape => {
   const fitting = AGENT37_VM_SHAPES.filter((shape) => shape.cpu >= vcpus)

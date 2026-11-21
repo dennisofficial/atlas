@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import type { Sandbox } from '@vercel/sandbox'
 
 import { ESandboxProvider } from '@dltech/atlas-protocol'
-import { VERCEL_CGROUP_CPU_BILLING_FACTOR } from '@dltech/atlas-core'
+import { type PodShape, VERCEL_CGROUP_CPU_BILLING_FACTOR } from '@dltech/atlas-core'
 import { daemonToken } from '@dltech/atlas-protocol/engine'
 
 import {
@@ -195,7 +195,7 @@ export class VercelSandboxProvider extends SandboxProvider {
     })
   }
 
-  async resize(args: { target: SandboxTarget; vcpus: number }): Promise<PodResizeOutcome> {
+  async resize(args: { target: SandboxTarget; shape: PodShape }): Promise<PodResizeOutcome> {
     const credentials = vercelCredentialsOf(args.target.credentials)
     const signal = AbortSignal.timeout(SANDBOX_QUICK_TIMEOUT_MS)
     let sandbox: Sandbox
@@ -210,7 +210,7 @@ export class VercelSandboxProvider extends SandboxProvider {
       if (isSandboxMissing(failure)) return 'absent'
       throw failure
     }
-    await sandbox.update({ resources: { vcpus: args.vcpus } }, { signal })
+    await sandbox.update({ resources: { vcpus: args.shape.vcpus } }, { signal })
     if (sandbox.status === 'stopped') return 'stored'
     await sandbox.stop({ signal })
     return 'restarted'

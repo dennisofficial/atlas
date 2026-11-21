@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'146b406219be1abe18c62f1a1110703555fc61a7afece7555a592afb45e52c4b'>;
+  StorageHashBase<'f13535a1ebf4df5f3c2aa8979830f5e10f36fe0c7d49cc29dff96003e7be2b09'>;
 export type ExecutionHash =
   ExecutionHashBase<'4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45'>;
 export type ProfileHash =
@@ -1353,8 +1353,10 @@ export namespace Models {
     modelRef: FieldOutputTypes['v2']['V2Session']['modelRef'];
     nested: FieldOutputTypes['v2']['V2Session']['nested'];
     nextInboxId: FieldOutputTypes['v2']['V2Session']['nextInboxId'];
+    podActualMemoryGb: FieldOutputTypes['v2']['V2Session']['podActualMemoryGb'];
     podActualVcpus: FieldOutputTypes['v2']['V2Session']['podActualVcpus'];
     podAppliedGeneration: FieldOutputTypes['v2']['V2Session']['podAppliedGeneration'];
+    podDesiredMemoryGb: FieldOutputTypes['v2']['V2Session']['podDesiredMemoryGb'];
     podDesiredVcpus: FieldOutputTypes['v2']['V2Session']['podDesiredVcpus'];
     podResizeError: FieldOutputTypes['v2']['V2Session']['podResizeError'];
     podRetiredAt: FieldOutputTypes['v2']['V2Session']['podRetiredAt'];
@@ -7944,6 +7946,12 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly many: false;
                 };
+                readonly podActualMemoryGb: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
                 readonly podActualVcpus: {
                   readonly dataType: 'pg/int4';
                   readonly codecId: 'pg/int4@1';
@@ -7951,6 +7959,12 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly podAppliedGeneration: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly podDesiredMemoryGb: {
                   readonly dataType: 'pg/int4';
                   readonly codecId: 'pg/int4@1';
                   readonly nullable: true;
@@ -14911,11 +14925,19 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
+              readonly podActualMemoryGb: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
               readonly podActualVcpus: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
               readonly podAppliedGeneration: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly podDesiredMemoryGb: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
@@ -15113,8 +15135,10 @@ type ContractBase = Omit<
                 readonly modelRef: { readonly column: 'modelRef' };
                 readonly nested: { readonly column: 'nested' };
                 readonly nextInboxId: { readonly column: 'nextInboxId' };
+                readonly podActualMemoryGb: { readonly column: 'podActualMemoryGb' };
                 readonly podActualVcpus: { readonly column: 'podActualVcpus' };
                 readonly podAppliedGeneration: { readonly column: 'podAppliedGeneration' };
+                readonly podDesiredMemoryGb: { readonly column: 'podDesiredMemoryGb' };
                 readonly podDesiredVcpus: { readonly column: 'podDesiredVcpus' };
                 readonly podResizeError: { readonly column: 'podResizeError' };
                 readonly podRetiredAt: { readonly column: 'podRetiredAt' };

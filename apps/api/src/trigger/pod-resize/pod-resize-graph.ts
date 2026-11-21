@@ -53,7 +53,7 @@ export function buildPodResizeGraph(): PodResizeGraph {
         try {
           const recorded = await plane.recordPodApplied(args)
           triggerLog.log(
-            `pod-resize applied ${args.vcpus} vCPU as generation ${args.generation} for ${args.sessionId}${
+            `pod-resize applied ${args.vcpus} vCPU / ${args.memoryGb} GB as generation ${args.generation} for ${args.sessionId}${
               recorded ? '' : ' (a newer resize superseded it)'
             }`,
           )

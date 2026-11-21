@@ -282,6 +282,19 @@ export const sessionMarkReadOutputSchema = z.strictObject({
   readSeq: z.number().int().min(0),
 })
 
+export const podShapeSchema = z.strictObject({
+  vcpus: z.number().int().min(1),
+  memoryGb: z.number().int().min(1),
+})
+
+export type PodShapeOutput = z.infer<typeof podShapeSchema>
+
+export const podSizingOutputSchema = z.strictObject({
+  cap: z.number().int().min(1),
+  offered: z.array(podShapeSchema),
+  unavailable: z.array(z.strictObject({ shape: podShapeSchema, reason: z.string().min(1) })),
+})
+
 export const sessionStatusOutputSchema = z.strictObject({
   state: z.enum(ESessionStatus),
   reason: z.string().optional(),
@@ -294,10 +307,13 @@ export const sessionStatusOutputSchema = z.strictObject({
   commands: z.array(sessionCommandRowSchema).optional(),
   pod: z
     .strictObject({
+      shape: podShapeSchema.optional(),
+      desiredShape: podShapeSchema.optional(),
       desiredVcpus: z.number().int().min(1).optional(),
       actualVcpus: z.number().int().min(1).optional(),
       phase: z.enum(['steady', 'resizing', 'waiting', 'failed']),
       error: z.string().optional(),
+      sizing: podSizingOutputSchema.optional(),
     })
     .optional(),
 })

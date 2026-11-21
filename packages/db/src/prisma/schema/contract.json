@@ -10087,6 +10087,13 @@
                   "kind": "scalar"
                 }
               },
+              "podActualMemoryGb": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
               "podActualVcpus": {
                 "nullable": true,
                 "type": {
@@ -10095,6 +10102,13 @@
                 }
               },
               "podAppliedGeneration": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "podDesiredMemoryGb": {
                 "nullable": true,
                 "type": {
                   "codecId": "pg/int4@1",
@@ -10407,11 +10421,17 @@
                 "nextInboxId": {
                   "column": "nextInboxId"
                 },
+                "podActualMemoryGb": {
+                  "column": "podActualMemoryGb"
+                },
                 "podActualVcpus": {
                   "column": "podActualVcpus"
                 },
                 "podAppliedGeneration": {
                   "column": "podAppliedGeneration"
+                },
+                "podDesiredMemoryGb": {
+                  "column": "podDesiredMemoryGb"
                 },
                 "podDesiredVcpus": {
                   "column": "podDesiredVcpus"
@@ -18723,12 +18743,22 @@
                   "dataType": "pg/int4",
                   "nullable": false
                 },
+                "podActualMemoryGb": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": true
+                },
                 "podActualVcpus": {
                   "codecId": "pg/int4@1",
                   "dataType": "pg/int4",
                   "nullable": true
                 },
                 "podAppliedGeneration": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": true
+                },
+                "podDesiredMemoryGb": {
                   "codecId": "pg/int4@1",
                   "dataType": "pg/int4",
                   "nullable": true
@@ -19459,7 +19489,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "146b406219be1abe18c62f1a1110703555fc61a7afece7555a592afb45e52c4b"
+    "storageHash": "f13535a1ebf4df5f3c2aa8979830f5e10f36fe0c7d49cc29dff96003e7be2b09"
   },
   "execution": {
     "executionHash": "4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45",

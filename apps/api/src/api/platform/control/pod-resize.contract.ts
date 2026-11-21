@@ -7,6 +7,7 @@ export const podResizePayloadSchema = z.object({
   sessionId: z.string().min(1),
   generation: z.number().int().min(1),
   vcpus: z.number().int().min(1),
+  memoryGb: z.number().int().min(1),
   whenIdle: z.boolean().optional(),
   waits: z.number().int().min(0).optional(),
 })

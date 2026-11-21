@@ -22,8 +22,10 @@ export type ControlSessionRow = {
   nested: boolean
   podSessionId: string | null
   podDesiredVcpus: number | null
+  podDesiredMemoryGb: number | null
   podSizeGeneration: number
   podActualVcpus: number | null
+  podActualMemoryGb: number | null
   podAppliedGeneration: number | null
   podResizeError: string | null
   podWaitingSince: string | null

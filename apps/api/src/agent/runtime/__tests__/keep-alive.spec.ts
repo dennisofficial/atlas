@@ -1,3 +1,4 @@
+import type { PodShape } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
 import type { HostTimers } from '@dltech/atlas-host'
@@ -32,7 +33,7 @@ class RecordingSandbox extends SandboxProvider {
     this.pushed.push(args.until)
   }
 
-  async resize(_args: { target: SandboxTarget; vcpus: number }): Promise<PodResizeOutcome> {
+  async resize(_args: { target: SandboxTarget; shape: PodShape }): Promise<PodResizeOutcome> {
     return 'restarted'
   }
 

@@ -14,20 +14,21 @@ const sessionOf = (over: Partial<PodResizeSession> = {}): PodResizeSession => ({
   podSessionId: null,
   podSizeGeneration: 2,
   podDesiredVcpus: 4,
+  podDesiredMemoryGb: 16,
   ...over,
 })
 
 const depsOf = (over: Partial<PodResizeDeps> = {}) => {
-  const resizes: { sandboxSessionId: string; vcpus: number }[] = []
+  const resizes: { sandboxSessionId: string; shape: { vcpus: number; memoryGb: number } }[] = []
   const rewakes: { sessionId: string }[] = []
-  const applied: { sessionId: string; vcpus: number; generation: number }[] = []
+  const applied: { sessionId: string; vcpus: number; memoryGb: number; generation: number }[] = []
   const failures: { sessionId: string; generation: number; error: string }[] = []
   const requeues: { payload: unknown; delaySeconds: number }[] = []
   const waits: { sessionId: string; generation: number }[] = []
   const deps: PodResizeDeps = {
     session: async () => sessionOf(),
     resize: async (args) => {
-      resizes.push({ sandboxSessionId: args.sandboxSessionId, vcpus: args.vcpus })
+      resizes.push({ sandboxSessionId: args.sandboxSessionId, shape: args.shape })
       return 'restarted'
     },
     rewake: async (args) => {
@@ -52,7 +53,7 @@ const depsOf = (over: Partial<PodResizeDeps> = {}) => {
   return { deps, resizes, rewakes, applied, failures, requeues, waits }
 }
 
-const payload = { sessionId: 'session-a', generation: 2, vcpus: 4 }
+const payload = { sessionId: 'session-a', generation: 2, vcpus: 4, memoryGb: 16 }
 
 describe('runPodResize', () => {
   it('stores the desired size on the session pod, reports the restart and rewakes it', async () => {
@@ -61,7 +62,7 @@ describe('runPodResize', () => {
     expect(await runPodResize({ payload, deps })).toEqual({
       outcome: EPodResizeOutcome.Applied,
     })
-    expect(resizes).toEqual([{ sandboxSessionId: 'session-a', vcpus: 4 }])
+    expect(resizes).toEqual([{ sandboxSessionId: 'session-a', shape: { vcpus: 4, memoryGb: 16 } }])
     expect(rewakes).toEqual([{ sessionId: 'session-a' }])
   })
 
@@ -70,7 +71,7 @@ describe('runPodResize', () => {
 
     await runPodResize({ payload, deps })
 
-    expect(applied).toEqual([{ sessionId: 'session-a', vcpus: 4, generation: 2 }])
+    expect(applied).toEqual([{ sessionId: 'session-a', vcpus: 4, memoryGb: 16, generation: 2 }])
     expect(rewakes).toEqual([{ sessionId: 'session-a' }])
   })
 
@@ -81,7 +82,7 @@ describe('runPodResize', () => {
 
     await runPodResize({ payload, deps })
 
-    expect(applied).toEqual([{ sessionId: 'parent-a', vcpus: 4, generation: 2 }])
+    expect(applied).toEqual([{ sessionId: 'parent-a', vcpus: 4, memoryGb: 16, generation: 2 }])
   })
 
   it('exits when a newer generation superseded this one', async () => {
@@ -112,7 +113,7 @@ describe('runPodResize', () => {
 
     await runPodResize({ payload, deps })
 
-    expect(resizes).toEqual([{ sandboxSessionId: 'parent-a', vcpus: 4 }])
+    expect(resizes).toEqual([{ sandboxSessionId: 'parent-a', shape: { vcpus: 4, memoryGb: 16 } }])
     expect(rewakes).toEqual([{ sessionId: 'parent-a' }])
   })
 
@@ -170,7 +171,13 @@ describe('runPodResize', () => {
 })
 
 describe('runPodResize waiting for the pod to go idle', () => {
-  const waitingPayload = { sessionId: 'session-a', generation: 2, vcpus: 4, whenIdle: true }
+  const waitingPayload = {
+    sessionId: 'session-a',
+    generation: 2,
+    vcpus: 4,
+    memoryGb: 16,
+    whenIdle: true,
+  }
 
   it('requeues itself instead of resizing while the pod is busy, and marks the wait', async () => {
     const { deps, resizes, rewakes, requeues, waits } = depsOf({
@@ -192,7 +199,7 @@ describe('runPodResize waiting for the pod to go idle', () => {
     expect(await runPodResize({ payload: waitingPayload, deps })).toEqual({
       outcome: EPodResizeOutcome.Applied,
     })
-    expect(resizes).toEqual([{ sandboxSessionId: 'session-a', vcpus: 4 }])
+    expect(resizes).toEqual([{ sandboxSessionId: 'session-a', shape: { vcpus: 4, memoryGb: 16 } }])
     expect(requeues).toEqual([])
     expect(waits).toEqual([])
   })
@@ -203,7 +210,7 @@ describe('runPodResize waiting for the pod to go idle', () => {
     })
 
     expect(await runPodResize({ payload, deps })).toEqual({ outcome: EPodResizeOutcome.Applied })
-    expect(resizes).toEqual([{ sandboxSessionId: 'session-a', vcpus: 4 }])
+    expect(resizes).toEqual([{ sandboxSessionId: 'session-a', shape: { vcpus: 4, memoryGb: 16 } }])
     expect(requeues).toEqual([])
   })
 

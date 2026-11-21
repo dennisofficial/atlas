@@ -183,6 +183,7 @@ class PostgresTx implements ControlTx {
       tx: this.tx,
       sessionId: params.sessionId,
       vcpus: params.vcpus,
+      memoryGb: params.memoryGb,
       generation: params.generation,
     })
   }
@@ -192,6 +193,7 @@ class PostgresTx implements ControlTx {
       tx: this.tx,
       sessionId: params.sessionId,
       vcpus: params.vcpus,
+      memoryGb: params.memoryGb,
       generation: params.generation,
     })
   }

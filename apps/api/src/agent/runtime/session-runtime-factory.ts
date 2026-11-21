@@ -79,11 +79,13 @@ export type SessionRuntimeFactoryArgs = {
         recordPodApplied(args: {
           sessionId: string
           vcpus: number
+          memoryGb: number
           generation: number
         }): Promise<boolean>
         readSession(args: { sessionId: string }): Promise<
           | {
               podDesiredVcpus: number | null
+              podDesiredMemoryGb: number | null
               podSizeGeneration: number
             }
           | undefined
@@ -126,9 +128,11 @@ export const createSessionRuntimeFactory = (
       try {
         const pod = await args.podSizing.readSession({ sessionId: sandboxSessionId })
         if (pod?.podDesiredVcpus !== endpoint.vcpus) return
+        if (pod.podDesiredMemoryGb === null) return
         await args.podSizing.recordPodApplied({
           sessionId: sandboxSessionId,
           vcpus: endpoint.vcpus,
+          memoryGb: pod.podDesiredMemoryGb,
           generation: pod.podSizeGeneration,
         })
       } catch (error) {

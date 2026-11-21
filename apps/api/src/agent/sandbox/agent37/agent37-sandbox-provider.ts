@@ -1,3 +1,4 @@
+import type { PodShape } from '@dltech/atlas-core'
 import { ESandboxProvider } from '@dltech/atlas-protocol'
 import { daemonToken } from '@dltech/atlas-protocol/engine'
 import { SandboxUnavailableError } from '@dltech/atlas-host'
@@ -33,7 +34,6 @@ import {
   liveAgent37Client,
   type Agent37Client,
 } from './agent37-client'
-import { agent37ShapeOfVcpus } from './agent37-resize'
 
 const apiKeyOf = (given: SandboxCredentials): string => {
   if (given.provider !== ESandboxProvider.Agent37) {
@@ -198,12 +198,12 @@ export class Agent37SandboxProvider extends SandboxProvider {
     await this.clientOf(apiKeyOf(args.target.credentials)).sleep({ id: instanceId })
   }
 
-  async resize(args: { target: SandboxTarget; vcpus: number }): Promise<PodResizeOutcome> {
+  async resize(args: { target: SandboxTarget; shape: PodShape }): Promise<PodResizeOutcome> {
     const podSessionId = args.target.sandboxSessionId
     const instanceId = await this.args.instances.find({ podSessionId })
     if (instanceId === null) return 'absent'
     const client = this.clientOf(apiKeyOf(args.target.credentials))
-    const shape = agent37ShapeOfVcpus(args.vcpus)
+    const shape = { cpu: args.shape.vcpus, memory: args.shape.memoryGb }
     const instance = await client.get({ id: instanceId })
     if (instance.resources?.cpu === shape.cpu && instance.resources.memory === shape.memory) {
       return 'stored'

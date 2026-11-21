@@ -199,14 +199,16 @@ describe('Agent37SandboxProvider.wake', () => {
 })
 
 describe('Agent37SandboxProvider.resize', () => {
-  it('resizes the remembered instance to the nearest vm shape, leaving disk alone', async () => {
+  it('resizes the remembered instance to the vm shape it was asked for, leaving disk alone', async () => {
     const { bundle: b, cleanup } = bundle()
     const version = await agent37BundleVersionOf(b.path)
     const { client, started, resized } = fakeClient({ version })
     const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
     try {
-      expect(await provider.resize({ target: TARGET, vcpus: 3 })).toBe('restarted')
-      expect(resized).toEqual([{ id: 'inst-9', cpu: 4, memory: 8 }])
+      expect(await provider.resize({ target: TARGET, shape: { vcpus: 4, memoryGb: 16 } })).toBe(
+        'restarted',
+      )
+      expect(resized).toEqual([{ id: 'inst-9', cpu: 4, memory: 16 }])
       expect(started).toEqual([])
     } finally {
       cleanup()
@@ -219,7 +221,9 @@ describe('Agent37SandboxProvider.resize', () => {
     const { client, started, resized } = fakeClient({ version, status: 'sleeping' })
     const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
     try {
-      expect(await provider.resize({ target: TARGET, vcpus: 2 })).toBe('restarted')
+      expect(await provider.resize({ target: TARGET, shape: { vcpus: 2, memoryGb: 4 } })).toBe(
+        'restarted',
+      )
       expect(started).toEqual(['inst-9'])
       expect(resized).toEqual([{ id: 'inst-9', cpu: 2, memory: 4 }])
     } finally {
@@ -237,7 +241,9 @@ describe('Agent37SandboxProvider.resize', () => {
     })
     const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
     try {
-      expect(await provider.resize({ target: TARGET, vcpus: 3 })).toBe('stored')
+      expect(await provider.resize({ target: TARGET, shape: { vcpus: 4, memoryGb: 8 } })).toBe(
+        'stored',
+      )
       expect(started).toEqual([])
       expect(resized).toEqual([])
     } finally {
@@ -251,7 +257,9 @@ describe('Agent37SandboxProvider.resize', () => {
     const { client, resized } = fakeClient({ version })
     const { provider } = providerOf({ client, bundlePath: b.path, stored: null })
     try {
-      expect(await provider.resize({ target: TARGET, vcpus: 4 })).toBe('absent')
+      expect(await provider.resize({ target: TARGET, shape: { vcpus: 4, memoryGb: 8 } })).toBe(
+        'absent',
+      )
       expect(resized).toEqual([])
     } finally {
       cleanup()

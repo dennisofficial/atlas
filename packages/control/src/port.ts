@@ -289,11 +289,13 @@ export interface ControlTx {
   setSessionPodDesired(params: {
     sessionId: string
     vcpus: number
+    memoryGb: number
     generation: number
   }): Promise<boolean>
   setSessionPodApplied(params: {
     sessionId: string
     vcpus: number
+    memoryGb: number
     generation: number
   }): Promise<boolean>
   setSessionPodFailed(params: {

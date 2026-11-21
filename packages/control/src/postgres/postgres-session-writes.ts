@@ -202,12 +202,14 @@ export const setSessionPodDesiredIn = async (params: {
   tx: Tx
   sessionId: string
   vcpus: number
+  memoryGb: number
   generation: number
 }): Promise<boolean> => {
   const changed = await params.tx.orm.v2.V2Session.where({
     id: params.sessionId,
   }).updateAndCount({
     podDesiredVcpus: params.vcpus,
+    podDesiredMemoryGb: params.memoryGb,
     podSizeGeneration: params.generation,
     podResizeError: null,
     podWaitingSince: null,
@@ -219,6 +221,7 @@ export const setSessionPodAppliedIn = async (params: {
   tx: Tx
   sessionId: string
   vcpus: number
+  memoryGb: number
   generation: number
 }): Promise<boolean> => {
   const changed = await params.tx.orm.v2.V2Session.where({
@@ -226,6 +229,7 @@ export const setSessionPodAppliedIn = async (params: {
     podSizeGeneration: params.generation,
   }).updateAndCount({
     podActualVcpus: params.vcpus,
+    podActualMemoryGb: params.memoryGb,
     podAppliedGeneration: params.generation,
     podResizeError: null,
     podWaitingSince: null,
