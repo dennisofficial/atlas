@@ -13613,6 +13613,15 @@
               "indexes": [
                 {
                   "columns": [
+                    "dispatchedAt"
+                  ],
+                  "name": "GithubPrOutbox_dispatched_idx_be1dcc49",
+                  "prefix": "GithubPrOutbox_dispatched_idx",
+                  "unique": false,
+                  "where": "(\"dispatchedAt\" IS NOT NULL)"
+                },
+                {
+                  "columns": [
                     "parkedSince"
                   ],
                   "name": "GithubPrOutbox_parked_idx_420727ba",
@@ -19504,7 +19513,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "49996ca5c4f3f35d0cddd0e5a98397a2104b25dd3d3d67a605946e838d9529c4"
+    "storageHash": "c746171405bfe47231db56934b722ceb1571a3839b181bde4cf88a4c8c39b411"
   },
   "execution": {
     "executionHash": "4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45",

@@ -9,7 +9,7 @@ import {
   PR_OUTBOX_LEASE_MS,
   PR_OUTBOX_MAX_ATTEMPTS,
 } from './github-pr-outbox-lease'
-import { GithubPrOutboxDispatcher } from './github-pr-outbox'
+import { GithubPrOutboxDispatcher, PR_OUTBOX_RETENTION_MS } from './github-pr-outbox'
 import { GithubHttpBudgetUnavailable } from './github-request-budget'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 
@@ -316,5 +316,48 @@ describe('GithubPrOutboxDispatcher leases', () => {
     expect(stored?.deadLetteredAt).not.toBeNull()
     expect(await db.orm.public.GithubPrOutbox.all()).toHaveLength(1)
     expect(await dispatcher.drain()).toBe(0)
+  })
+})
+
+describe('GithubPrOutboxDispatcher prune', () => {
+  useTestDatabase()
+
+  it('deletes the dispatched rows past the retention window and keeps every other row', async () => {
+    const stale = new Date(AT.getTime() - PR_OUTBOX_RETENTION_MS - 1_000)
+    const fresh = new Date(AT.getTime() - PR_OUTBOX_RETENTION_MS + 1_000)
+    const dispatchedStale = await db.orm.public.GithubPrOutbox.create({
+      ...signalRow({ createdAt: stale }),
+      dispatchedAt: stale,
+    })
+    const dispatchedFresh = await db.orm.public.GithubPrOutbox.create({
+      ...signalRow({ createdAt: fresh }),
+      dispatchedAt: fresh,
+    })
+    const pending = await db.orm.public.GithubPrOutbox.create(signalRow({ createdAt: stale }))
+    const deadLettered = await db.orm.public.GithubPrOutbox.create({
+      ...fanoutRow({ createdAt: stale }),
+      deadLetteredAt: stale,
+    })
+    const { dispatcher } = rig({ now: () => AT })
+
+    expect(await dispatcher.prune({ now: AT })).toBe(1)
+
+    const remaining = (await db.orm.public.GithubPrOutbox.all()).map((row) => row.id)
+    expect(remaining).not.toContain(dispatchedStale.id)
+    expect(remaining.sort()).toEqual([dispatchedFresh.id, pending.id, deadLettered.id].sort())
+    expect(await reload(pending.id)).not.toBeNull()
+    expect(await reload(deadLettered.id)).not.toBeNull()
+  })
+
+  it('keeps a dispatched row sitting exactly on the retention boundary', async () => {
+    const boundary = new Date(AT.getTime() - PR_OUTBOX_RETENTION_MS)
+    const row = await db.orm.public.GithubPrOutbox.create({
+      ...signalRow({ createdAt: boundary }),
+      dispatchedAt: boundary,
+    })
+    const { dispatcher } = rig({ now: () => AT })
+
+    expect(await dispatcher.prune({ now: AT })).toBe(0)
+    expect(await reload(row.id)).not.toBeNull()
   })
 })
