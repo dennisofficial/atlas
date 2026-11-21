@@ -65,7 +65,7 @@ jobs:
           fi
 
           approved_any=
-          for pr_json in $(jq -cs 'add | .[] | @base64' <(echo "$catalogue") <(echo "$others")); do
+          for pr_json in $(jq -rcs 'add | .[] | @base64' <(echo "$catalogue") <(echo "$others")); do
             pr_json=$(base64 -d <<<"$pr_json")
             pr=$(jq -r .number <<<"$pr_json")
             branch=$(jq -r .headRefName <<<"$pr_json")
