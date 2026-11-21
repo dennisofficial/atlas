@@ -82,7 +82,7 @@ export class PodMetricsService {
     }
     args.signal?.addEventListener('abort', stop, { once: true })
     try {
-      for (;;) {
+      while (!state.ended) {
         const started = await this.start({
           ops,
           sessionId: args.sessionId,
