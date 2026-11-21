@@ -1,5 +1,12 @@
 import type { RegisteredHook } from '@dltech/atlas-agent'
-import { EStage, type BeforeStep } from '@dltech/atlas-core'
+import {
+  EContextSlot,
+  EStage,
+  type AfterTool,
+  type BeforeStep,
+  type EventDraft,
+  type V2Event,
+} from '@dltech/atlas-core'
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 import { readResource } from '@dltech/atlas-plugin-sdk'
 
@@ -9,11 +16,13 @@ import {
   type InstructionsPodOptions,
   type InstructionsSnapshot,
 } from './resources'
-import { descentOf, nestedDirectoriesOf, touchedSincePromptOf } from './sources'
+import { descentOf, nestedDirectoriesOf, touchedDirectoriesOf } from './sources'
 
 type Ctx = Pick<PluginPodContext, 'events' | 'log'>
 
 const ORDER = { stage: EStage.Observe, nudge: 0 } as const
+
+const NESTED_SLOT = EContextSlot.NestedInstructions
 
 export const instructionsBlocks = (args: {
   ctx: Ctx
@@ -23,9 +32,9 @@ export const instructionsBlocks = (args: {
   order: ORDER,
   awaited: true,
   run: async ({ assembled }) => {
-    const snapshot = readResource({ ctx: args.ctx, resource: instructionsResource(args.options) })
+    const snapshot = snapshotOf(args)
     if (snapshot === undefined) return assembled
-    const blocks = blocksOf({ snapshot, touched: touchedSincePromptOf(args.ctx.events()) })
+    const blocks = descentBlocksOf({ snapshot })
     if (blocks.length === 0) return assembled
     return {
       ...assembled,
@@ -34,23 +43,72 @@ export const instructionsBlocks = (args: {
   },
 })
 
-const blocksOf = (args: {
+export const instructionsTouch = (args: {
+  ctx: Ctx
+  options: InstructionsPodOptions
+}): RegisteredHook<AfterTool> => ({
+  name: 'instructions-touch',
+  order: ORDER,
+  run: async ({ call, result }) => {
+    if (!result.ok) return {}
+    const touched = touchedDirectoriesOf(call.input)
+    if (touched.length === 0) return {}
+    const snapshot = snapshotOf(args)
+    if (snapshot === undefined) return {}
+    const drafts = nestedDraftsOf({
+      snapshot,
+      touched,
+      recorded: recordedNestedOf(args.ctx.events()),
+    })
+    return drafts.length === 0 ? {} : { drafts }
+  },
+})
+
+const snapshotOf = (args: {
+  ctx: Ctx
+  options: InstructionsPodOptions
+}): InstructionsSnapshot | undefined =>
+  readResource({ ctx: args.ctx, resource: instructionsResource(args.options) })
+
+const recordedNestedOf = (events: readonly V2Event[]): ReadonlyMap<string, string> => {
+  const recorded = new Map<string, string>()
+  for (const event of events) {
+    if (event.type !== 'context-loaded' || event.slot !== NESTED_SLOT) continue
+    recorded.set(event.key, event.content)
+  }
+  return recorded
+}
+
+const nestedDraftsOf = (args: {
   snapshot: InstructionsSnapshot
   touched: readonly string[]
-}): readonly string[] => {
+  recorded: ReadonlyMap<string, string>
+}): readonly EventDraft[] => {
+  const { snapshot } = args
+  const directories = nestedDirectoriesOf({
+    root: snapshot.root,
+    covered: descentOf({ root: snapshot.root, directory: snapshot.directory }),
+    touched: args.touched,
+  })
+
+  const drafts: EventDraft[] = []
+  for (const directory of directories) {
+    const key = instructionPathOf(directory)
+    const content = (snapshot.files[key] ?? '').trim()
+    if (content === '' || args.recorded.get(key) === content) continue
+    drafts.push({ type: 'context-loaded', slot: NESTED_SLOT, key, content })
+  }
+  return drafts
+}
+
+const descentBlocksOf = (args: { snapshot: InstructionsSnapshot }): readonly string[] => {
   const { snapshot } = args
   const blocks: string[] = []
 
   const personal = blockOf({ header: PERSONAL_HEADER, content: snapshot.personal ?? '' })
   if (personal !== null) blocks.push(personal)
 
-  const descent = descentOf({ root: snapshot.root, directory: snapshot.directory })
-  const nested = nestedDirectoriesOf({
-    root: snapshot.root,
-    covered: descent,
-    touched: args.touched,
-  })
-  for (const directory of [...descent, ...nested]) {
+  for (const directory of descentOf({ root: snapshot.root, directory: snapshot.directory })) {
     const path = instructionPathOf(directory)
     const content = snapshot.files[path]
     if (content === undefined) continue

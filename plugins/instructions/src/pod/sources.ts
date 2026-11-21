@@ -1,6 +1,5 @@
 import { dirname, isAbsolute, join } from 'node:path'
 
-import type { V2Event } from '@dltech/atlas-core'
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
 import { statOf } from './daemon'
@@ -80,18 +79,6 @@ export const touchedDirectoriesOf = (input: unknown): readonly string[] => {
     if (typeof value !== 'string' || !isAbsolute(value)) continue
     directories.add(value)
     directories.add(dirname(value))
-  }
-  return [...directories]
-}
-
-export const touchedSincePromptOf = (events: readonly V2Event[]): readonly string[] => {
-  const directories = new Set<string>()
-  for (let index = events.length - 1; index >= 0; index -= 1) {
-    const event = events[index]
-    if (event === undefined) continue
-    if (event.type === 'user-said') break
-    if (event.type !== 'tool-called') continue
-    for (const directory of touchedDirectoriesOf(event.input)) directories.add(directory)
   }
   return [...directories]
 }

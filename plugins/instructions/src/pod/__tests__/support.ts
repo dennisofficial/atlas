@@ -1,8 +1,10 @@
 import {
+  EToolEffect,
   toCallId,
   toThreadId,
   type Assembled,
   type EventDraft,
+  type ToolOutcome,
   type V2Event,
 } from '@dltech/atlas-core'
 import {
@@ -33,6 +35,8 @@ const failed = (op: string, message: string): CallResult =>
   ({ status: ECallStatus.Failed, op, error: { code: 'not-found', message } }) as CallResult
 
 export const THREAD = toThreadId('t1')
+
+const TOOL_OK: ToolOutcome = { ok: true, output: null, modelText: '' }
 
 export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
   const calls: CallOp[] = []
@@ -108,6 +112,8 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
   return { ctx, calls, nodes, events }
 }
 
+type FakeDaemon = ReturnType<typeof fakeDaemon>
+
 const hooksOf = (args: { ctx: PluginPodContext; options: InstructionsPodOptions }) =>
   instructionsPodOf(args.options).hooks?.(args.ctx)
 
@@ -152,11 +158,12 @@ export const turn = async (args: {
 }
 
 export const touch = async (args: {
-  ctx: PluginPodContext
+  daemon: FakeDaemon
   name: string
   input: unknown
-}): Promise<void> => {
-  await args.ctx.append([
+  options?: InstructionsPodOptions | undefined
+}): Promise<readonly EventDraft[]> => {
+  await args.daemon.ctx.append([
     {
       type: 'tool-called',
       callId: toCallId('c1'),
@@ -165,6 +172,25 @@ export const touch = async (args: {
       ordinal: 0,
     },
   ])
+  const hooks = hooksOf({ ctx: args.daemon.ctx, options: args.options ?? personal(null) })
+  const drafts: EventDraft[] = []
+  for (const hook of hooks?.afterTool ?? []) {
+    const outcome = await hook.run({
+      call: {
+        callId: toCallId('c1'),
+        name: args.name,
+        input: args.input,
+        effect: EToolEffect.Read,
+        threadId: THREAD,
+      },
+      result: TOOL_OK,
+      projectDirectory: '/repo',
+      signal: new AbortController().signal,
+    })
+    drafts.push(...(outcome.drafts ?? []))
+  }
+  if (drafts.length > 0) await args.daemon.ctx.append(drafts)
+  return drafts
 }
 
 export const nestedKeysOf = (drafts: readonly EventDraft[]): readonly string[] =>

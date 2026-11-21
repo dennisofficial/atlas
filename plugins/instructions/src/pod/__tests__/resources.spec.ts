@@ -2,7 +2,17 @@ import { describe, expect, it } from 'bun:test'
 
 import { PERSONAL_HEADER, projectHeader } from '..'
 import { instructionsResource } from '../resources'
-import { type FakeNode, fakeDaemon, file, personal, startTurn, step, touch, turn } from './support'
+import {
+  type FakeNode,
+  fakeDaemon,
+  file,
+  personal,
+  nestedKeysOf,
+  startTurn,
+  step,
+  touch,
+  turn,
+} from './support'
 
 const repo = (extra: Record<string, FakeNode> = {}): Record<string, FakeNode> => ({
   '/repo': { kind: 'dir' },
@@ -59,7 +69,7 @@ describe('the instructions resource', () => {
     expect(daemon.calls).toEqual([])
   })
 
-  it('adds a nested file for a directory a tool touched, still with zero daemon calls', async () => {
+  it('records a nested file for a directory a tool touched, still with zero daemon calls', async () => {
     const daemon = fakeDaemon(
       repo({
         '/repo/AGENTS.md': file('root rules'),
@@ -70,15 +80,18 @@ describe('the instructions resource', () => {
     )
     const options = personal(null)
     await startTurn({ ctx: daemon.ctx, options, projectDirectory: '/repo' })
-    await touch({ ctx: daemon.ctx, name: 'read', input: { path: '/repo/packages/x/a.ts' } })
     daemon.calls.length = 0
 
+    const drafts = await touch({
+      daemon,
+      name: 'read',
+      input: { path: '/repo/packages/x/a.ts' },
+      options,
+    })
     const blocks = await step({ ctx: daemon.ctx, options })
 
-    expect(blocks).toEqual([
-      `${projectHeader('/repo/AGENTS.md')}\n\nroot rules`,
-      `${projectHeader('/repo/packages/x/AGENTS.md')}\n\nx rules`,
-    ])
+    expect(nestedKeysOf(drafts)).toEqual(['/repo/packages/x/AGENTS.md'])
+    expect(blocks).toEqual([`${projectHeader('/repo/AGENTS.md')}\n\nroot rules`])
     expect(daemon.calls).toEqual([])
   })
 })
