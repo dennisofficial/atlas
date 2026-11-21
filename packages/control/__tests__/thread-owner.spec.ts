@@ -64,6 +64,25 @@ describe('threadOwnerOf', () => {
     })
   })
 
+  it('resolves a sub-agent thread through the session that holds it', async () => {
+    const { db } = currentDb()
+    await seedThread({ db, threadId: 'thr-1', repo: 'dennisofficial/atlas' })
+    await db.orm.v2.V2Thread.create({
+      id: 'brn-1',
+      sessionId: 'ses-1',
+      headSeq: 0,
+      headHash: 'genesis',
+      visibility: '',
+      createdAt: new Date(),
+    })
+
+    await expect(threadOwnerOf({ handle: db, threadId: 'brn-1' })).resolves.toEqual({
+      userId: 'usr-1',
+      projectId: 'prj-1',
+      project: 'dennisofficial/atlas',
+    })
+  })
+
   it('refuses a thread no session owns', async () => {
     const { db } = currentDb()
     await seedThread({ db, threadId: 'thr-1', repo: null })

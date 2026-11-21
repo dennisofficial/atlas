@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { memoryPod, stateFor } from '..'
+import { memoryPod } from '..'
 import { MemoryTool } from '../memory-tool'
 import { fakeMemory, invoke, rig, textOf } from './support'
 
@@ -21,15 +21,13 @@ describe('the memory tool', () => {
     expect(tools.map((tool) => tool.name)).toEqual(['memory'])
   })
 
-  it('write saves it and reloads the index', async () => {
+  it('write saves it', async () => {
     const memory = fakeMemory()
     const { ctx } = rig(memory.port)
     const outcome = await invoke({ ctx, name: 'memory', input: { action: 'write', ...saved } })
     expect(outcome.ok).toBe(true)
     expect(memory.rows.get('global:dennis-prefers-bun')?.revision).toBe(1)
     expect(textOf(outcome)).toBe('Remembered dennis-prefers-bun (global, revision 1).')
-    expect(memory.calls).toEqual(['list'])
-    expect(stateFor(ctx).text).toContain('- dennis-prefers-bun — The workspace runs on Bun')
   })
 
   it('write reports a replacement as a new revision', async () => {
@@ -77,7 +75,6 @@ describe('the memory tool', () => {
     })
     expect(textOf(edited)).toBe('Edited dennis-prefers-bun (global, revision 2).')
     expect(memory.rows.get('global:dennis-prefers-bun')?.body).toContain('run as raw TS')
-    expect(stateFor(ctx).stale).toBe(true)
   })
 
   it('edit surfaces the refusal of a stale revision', async () => {
@@ -160,7 +157,7 @@ describe('the memory tool', () => {
 
   it('carries every field in one input schema, with action required', async () => {
     const { ctx } = rig()
-    const tool = new MemoryTool(ctx, stateFor(ctx))
+    const tool = new MemoryTool(ctx)
     expect(Object.keys(tool.inputSchema.shape).sort()).toEqual([
       'action',
       'body',

@@ -5,7 +5,6 @@ import type { EMemoryScope, EMemoryType } from '@dltech/atlas-core'
 import { addressOf, kindOf } from './address'
 import { memoryRefusal, scopeLabelOf } from './outcome'
 import { reconcileNoticeAfterChange } from './reconcile'
-import { markStale, type MemoryPodState } from './state'
 
 export type MemoryWriteInput = {
   scope: EMemoryScope
@@ -17,7 +16,6 @@ export type MemoryWriteInput = {
 
 export const writeMemory = async (args: {
   ctx: PluginPodContext
-  state: MemoryPodState
   input: MemoryWriteInput
 }): Promise<ToolOutcome> => {
   const overBudget = descriptionBudgetRefusal(args.input.description)
@@ -29,12 +27,7 @@ export const writeMemory = async (args: {
       type: kindOf(args.input.type),
       body: args.input.body,
     })
-    markStale(args.state)
-    const notice = await reconcileNoticeAfterChange({
-      ctx: args.ctx,
-      state: args.state,
-      mayFire: true,
-    })
+    const notice = await reconcileNoticeAfterChange({ ctx: args.ctx, mayFire: true })
     const remembered = `Remembered ${saved.name} (${scopeLabelOf(saved.scope)}, revision ${saved.revision}).`
     return {
       ok: true,

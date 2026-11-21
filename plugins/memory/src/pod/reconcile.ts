@@ -6,8 +6,7 @@ import {
 } from '@dltech/atlas-core'
 import { crossLatch, type MemorySnapshot, type PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
-import { currentMemoryIndex } from './index-block'
-import type { MemoryPodState } from './state'
+import { memoryIndexOf } from '../core'
 
 export const MEMORY_RECONCILE_LATCH = 'memory-reconcile'
 
@@ -23,14 +22,12 @@ const entriesOf = (snapshot: MemorySnapshot): readonly ReconcileEntry[] =>
 
 export const reconcileNoticeAfterChange = async (args: {
   ctx: Pick<PluginPodContext, 'control' | 'append' | 'events' | 'log'>
-  state: MemoryPodState
   mayFire: boolean
 }): Promise<string | undefined> => {
   try {
-    await currentMemoryIndex(args)
-    const { text, snapshot, failed } = args.state
-    if (failed || text === null || snapshot === null) return undefined
-    const pressure = indexPressureOf(text.length)
+    const snapshot = await args.ctx.control.memory.list()
+    const indexChars = memoryIndexOf(snapshot).length
+    const pressure = indexPressureOf(indexChars)
     const fire = await crossLatch({
       ctx: args.ctx,
       name: MEMORY_RECONCILE_LATCH,
@@ -38,11 +35,7 @@ export const reconcileNoticeAfterChange = async (args: {
       mayFire: args.mayFire,
     })
     if (!fire) return undefined
-    const content = reconcileNoticeOf({
-      pressure,
-      indexChars: text.length,
-      entries: entriesOf(snapshot),
-    })
+    const content = reconcileNoticeOf({ pressure, indexChars, entries: entriesOf(snapshot) })
     return systemNotice({ kind: 'memory-reconcile', content })
   } catch (error) {
     args.ctx.log(`memory: the reconcile check failed: ${String(error)}`)

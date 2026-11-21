@@ -25,5 +25,6 @@ export function createAnthropicModel(args: ProviderModelArgs): LanguageModelV4 {
   return withFastFallback({
     build,
     requested: () => runsFast({ card: args.card, fast: args.fast }),
+    ...(args.onFastRefused === undefined ? {} : { onRefused: args.onFastRefused }),
   })
 }

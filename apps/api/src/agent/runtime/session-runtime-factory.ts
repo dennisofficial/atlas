@@ -44,6 +44,7 @@ import { ShellEnvCell } from './shell-env'
 import { envSecretsRefresher } from './env-secrets-refresh'
 import { githubTokenRefresher } from './github-token-refresh'
 import { pathEnvironmentOf, sessionPathsOf, shellEnvironmentOf } from './session-paths'
+import { fastRefusalHandler, type FastRefusalSessions } from './fast-refusal'
 import { sessionModelsOf, type SessionModels } from './model-port'
 import { modelLabelOf } from '../config/model-labels'
 import { workspaceRepoMap } from './workspace-repo-map'
@@ -72,6 +73,7 @@ export type SessionRuntimeFactoryArgs = {
   projectFiles?: ProjectFilesSource | undefined
   terminalStreams?: ((sessionId: string) => number) | undefined
   panelHolds?: ((sessionId: string) => number) | undefined
+  sessions?: FastRefusalSessions | undefined
   podSizing?:
     | {
         recordPodApplied(args: {
@@ -245,6 +247,16 @@ export const createSessionRuntimeFactory = (
     const registry = new InMemoryToolRegistry(tools)
     const byName = new Map(tools.map((tool) => [tool.name, tool]))
 
+    const onFastRefused =
+      args.sessions === undefined
+        ? undefined
+        : fastRefusalHandler({
+            sessions: args.sessions,
+            sessionId,
+            choice: () => models.modelChoice(),
+            log: args.log,
+          })
+
     let models: SessionModels
     try {
       models = sessionModelsOf({
@@ -256,6 +268,7 @@ export const createSessionRuntimeFactory = (
         tokens: args.tokens,
         media: args.media,
         log: args.log,
+        onFastRefused,
       })
     } catch (error) {
       calls.close()

@@ -123,12 +123,23 @@ const close = (record: WatchRecord): void => {
   closeWatchers(record)
 }
 
+const sameSpec = (args: { existing: WatchRecord; op: WatchStartOp }): boolean => {
+  const { existing, op } = args
+  if (existing.roots.length !== op.roots.length) return false
+  if (!existing.roots.every((root, index) => root === op.roots[index])) return false
+  const asked = op.basenames === undefined ? null : new Set(op.basenames)
+  if (existing.basenames === null || asked === null) return existing.basenames === asked
+  if (existing.basenames.size !== asked.size) return false
+  return [...asked].every((name) => existing.basenames?.has(name) === true)
+}
+
 export const watchGroup: DaemonGroupFactory = (ctx: GroupContext): DaemonGroup => {
   const records = new Map<string, WatchRecord>()
   const instance = randomUUID()
 
   const start = (op: WatchStartOp): string[] => {
     const existing = records.get(op.watchId)
+    if (existing !== undefined && sameSpec({ existing, op })) return [...existing.armed]
     if (existing !== undefined) close(existing)
     const record: WatchRecord = {
       watchId: op.watchId,
