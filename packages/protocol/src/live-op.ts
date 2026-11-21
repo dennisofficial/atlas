@@ -22,6 +22,8 @@ export const CP_POD_OPS = [
   'terminal.resize',
   'terminal.close',
   'terminal.read',
+  'metrics.subscribe',
+  'metrics.unsubscribe',
 ] as const
 
 export const LIVE_OP_MAX_BYTES = 1_048_576

@@ -1,4 +1,14 @@
-import { Ctx, Input, Mutation, Query, Router, UseMiddlewares } from 'nestjs-trpc'
+import {
+  type ProcedureOptions,
+  Ctx,
+  Input,
+  Mutation,
+  Options,
+  Query,
+  Router,
+  Subscription,
+  UseMiddlewares,
+} from 'nestjs-trpc'
 import { TRPCError } from '@trpc/server'
 import {
   sessionArchiveInputSchema,
@@ -29,6 +39,10 @@ import {
   sessionWakeInputSchema,
   sessionWakeOutputSchema,
   sessionViewOutputSchema,
+  sessionPodMetricsInputSchema,
+  podMetricsFrameSchema,
+  type PodMetricsFrame,
+  type SessionPodMetricsInput,
   sessionStatusInputSchema,
   sessionStatusOutputSchema,
   sessionStopInputSchema,
@@ -78,6 +92,7 @@ import {
 } from '@dltech/atlas-wire'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
 import { ChangesService } from './changes.service'
+import { PodMetricsService } from './pod-metrics.service'
 import { SessionsService } from './sessions.service'
 
 @Router({ alias: 'sessions' })
@@ -86,6 +101,7 @@ export class SessionsRouter {
   constructor(
     private readonly sessions: SessionsService,
     private readonly changesService: ChangesService,
+    private readonly metrics: PodMetricsService,
   ) {}
 
   private refuseBatched(ctx: SessionTrpcCtx): void {
@@ -219,5 +235,18 @@ export class SessionsRouter {
   @Query({ input: sessionViewInputSchema, output: sessionViewOutputSchema })
   view(@Input() input: SessionViewInput, @Ctx() ctx: SessionTrpcCtx): Promise<SessionViewOutput> {
     return this.sessions.view({ userId: ctx.auth.userId, sessionId: input.sessionId })
+  }
+
+  @Subscription({ input: sessionPodMetricsInputSchema, output: podMetricsFrameSchema })
+  podMetrics(
+    @Input() input: SessionPodMetricsInput,
+    @Ctx() ctx: SessionTrpcCtx,
+    @Options() opts: ProcedureOptions,
+  ): AsyncGenerator<PodMetricsFrame> {
+    return this.metrics.watch({
+      userId: ctx.auth.userId,
+      sessionId: input.sessionId,
+      signal: opts.signal,
+    })
   }
 }
