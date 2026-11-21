@@ -3,6 +3,7 @@
 import { Button } from '#components/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '#components/tooltip'
 import { PowerIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
 
 import { EPodState } from '../pod-status'
 import { EStatusTone, InlineSpinner, StatusDot } from './status-dot'
@@ -50,6 +51,7 @@ export interface PodSectionHeaderProps {
   state: EPodState
   stopping?: boolean | undefined
   resizing?: boolean | undefined
+  sizeControl?: ReactNode
   onStart?: (() => void) | undefined
   onStop?: (() => void) | undefined
 }
@@ -58,6 +60,7 @@ export function PodSectionHeader({
   state,
   stopping = false,
   resizing = false,
+  sizeControl,
   onStart,
   onStop,
 }: PodSectionHeaderProps) {
@@ -80,22 +83,25 @@ export function PodSectionHeader({
         </span>
         <span className="truncate text-[13px] leading-4">{stateTextOf({ state, resizing })}</span>
       </span>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={label}
-              disabled={busy}
-              onClick={handlePower}
-            />
-          }
-        >
-          {busy ? <InlineSpinner /> : <PowerIcon aria-hidden />}
-        </TooltipTrigger>
-        <TooltipContent>{label}</TooltipContent>
-      </Tooltip>
+      <span className="flex shrink-0 items-center gap-1">
+        {sizeControl}
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={label}
+                disabled={busy}
+                onClick={handlePower}
+              />
+            }
+          >
+            {busy ? <InlineSpinner /> : <PowerIcon aria-hidden />}
+          </TooltipTrigger>
+          <TooltipContent>{label}</TooltipContent>
+        </Tooltip>
+      </span>
     </div>
   )
 }

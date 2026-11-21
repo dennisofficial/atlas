@@ -8,7 +8,7 @@ import { Area, AreaChart, YAxis } from 'recharts'
 import { EPodAction, PodActionConfirm } from './internal/pod-action-confirm'
 import { MetricSignals } from './internal/pod-metrics-parts'
 import { PodSectionHeader } from './internal/pod-section-header'
-import { PodSizeControl } from './internal/pod-size-control'
+import { PodSizeSelect, PodSizeStatus, type PodSizeControlProps } from './internal/pod-size-control'
 import { podMetricViewOf, ramPercentOf, type PodMetricsSample } from './pod-metrics-model'
 import type { PodShape, UnavailablePodShape } from './pod-shapes'
 import { canResize, EPodState } from './pod-status'
@@ -138,12 +138,25 @@ export function PodSection(props: PodSectionProps) {
     ram: ramPercentOf({ sample, limitGb: view.ramLimitGb }),
   }))
 
+  const sizeProps: PodSizeControlProps = {
+    shape: props.shape,
+    shapes: props.shapes,
+    unavailable: props.unavailable,
+    pendingShape: props.pendingShape,
+    resizeError: props.resizeError,
+    disabled:
+      !canResize(props.state) || props.stopping === true || props.pendingShape !== undefined,
+    defaultOpen: props.defaultSizeMenuOpen === true,
+    onResize: props.onResize,
+  }
+
   return (
     <div className="flex flex-col gap-2">
       <PodSectionHeader
         state={props.state}
         stopping={props.stopping === true}
         resizing={props.pendingShape !== undefined && props.resizeError === undefined}
+        sizeControl={<PodSizeSelect {...sizeProps} />}
         onStart={props.onStart}
         onStop={props.onStop}
       />
@@ -166,18 +179,7 @@ export function PodSection(props: PodSectionProps) {
       </div>
       <div className="flex flex-col gap-2 pl-[1.625rem]">
         <MetricSignals throttled={props.throttled === true} oomKills={props.oomKills ?? 0} />
-        <PodSizeControl
-          shape={props.shape}
-          shapes={props.shapes}
-          unavailable={props.unavailable}
-          pendingShape={props.pendingShape}
-          resizeError={props.resizeError}
-          disabled={
-            !canResize(props.state) || props.stopping === true || props.pendingShape !== undefined
-          }
-          defaultOpen={props.defaultSizeMenuOpen === true}
-          onResize={props.onResize}
-        />
+        <PodSizeStatus {...sizeProps} />
       </div>
       {props.confirmAction === undefined ? null : (
         <AlertDialog open>

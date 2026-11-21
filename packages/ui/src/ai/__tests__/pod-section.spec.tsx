@@ -88,9 +88,11 @@ describe('pod section chart', () => {
 })
 
 describe('pod size control', () => {
-  it('shows the current shape behind a Size label', () => {
+  it('shows the current shape in the header beside the power button', () => {
     const html = htmlOf()
-    expect(html).toContain('Size')
+    expect(html.indexOf('aria-label="Pod size"')).toBeLessThan(
+      html.indexOf('aria-label="Stop pod"'),
+    )
     expect(html).toContain('aria-label="Pod size"')
     expect(html).toContain(podShapeLabel(POD_SECTION_SHAPE))
   })
