@@ -45,6 +45,13 @@ describe('pod section header', () => {
     expect(htmlOf({ state: EPodState.Stopped })).toContain('Stopped')
   })
 
+  it('reads resizing instead of running while a resize is in flight', () => {
+    const html = htmlOf({ pendingShape: { vcpus: 8, memoryGb: 64 } })
+    expect(html).toContain('Resizing…')
+    expect(html).not.toContain('>Running<')
+    expect(html).toContain('aria-label="Resizing pod"')
+  })
+
   it('spins and disables the power button while the pod comes up or a stop is in flight', () => {
     expect(htmlOf({ state: EPodState.Starting })).toContain('aria-label="Starting pod"')
     expect(htmlOf({ state: EPodState.Starting })).toContain('disabled')

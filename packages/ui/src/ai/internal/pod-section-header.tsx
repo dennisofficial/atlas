@@ -27,8 +27,21 @@ function wakingOf(state: EPodState): boolean {
   return state === EPodState.Starting || state === EPodState.Resuming
 }
 
-function powerLabelOf({ state, stopping }: { state: EPodState; stopping: boolean }): string {
+function stateTextOf({ state, resizing }: { state: EPodState; resizing: boolean }): string {
+  return resizing ? 'Resizing…' : STATE_TEXT[state]
+}
+
+function powerLabelOf({
+  state,
+  stopping,
+  resizing,
+}: {
+  state: EPodState
+  stopping: boolean
+  resizing: boolean
+}): string {
   if (stopping) return 'Stopping pod'
+  if (resizing) return 'Resizing pod'
   if (wakingOf(state)) return 'Starting pod'
   return state === EPodState.Running ? 'Stop pod' : 'Start pod'
 }
@@ -36,6 +49,7 @@ function powerLabelOf({ state, stopping }: { state: EPodState; stopping: boolean
 export interface PodSectionHeaderProps {
   state: EPodState
   stopping?: boolean | undefined
+  resizing?: boolean | undefined
   onStart?: (() => void) | undefined
   onStop?: (() => void) | undefined
 }
@@ -43,11 +57,13 @@ export interface PodSectionHeaderProps {
 export function PodSectionHeader({
   state,
   stopping = false,
+  resizing = false,
   onStart,
   onStop,
 }: PodSectionHeaderProps) {
-  const label = powerLabelOf({ state, stopping })
-  const busy = stopping || wakingOf(state)
+  const label = powerLabelOf({ state, stopping, resizing })
+  const pending = resizing || wakingOf(state)
+  const busy = stopping || pending
   const running = state === EPodState.Running
 
   const handlePower = () => {
@@ -59,8 +75,8 @@ export function PodSectionHeader({
   return (
     <div className="flex items-center justify-between gap-2 px-1">
       <span className="flex min-w-0 items-center gap-2">
-        {wakingOf(state) ? <InlineSpinner /> : <StatusDot tone={STATE_TONE[state]} />}
-        <span className="truncate text-sm">{STATE_TEXT[state]}</span>
+        {pending ? <InlineSpinner /> : <StatusDot tone={STATE_TONE[state]} />}
+        <span className="truncate text-sm">{stateTextOf({ state, resizing })}</span>
       </span>
       <Tooltip>
         <TooltipTrigger

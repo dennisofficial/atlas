@@ -69,6 +69,7 @@ export function PodSection(props: PodSectionProps) {
       <PodSectionHeader
         state={props.state}
         stopping={props.stopping === true}
+        resizing={props.pendingShape !== undefined && props.resizeError === undefined}
         onStart={props.onStart}
         onStop={props.onStop}
       />

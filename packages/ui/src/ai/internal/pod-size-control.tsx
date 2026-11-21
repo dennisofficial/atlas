@@ -110,11 +110,11 @@ export function PodSizeControl({
             {pendingShape === undefined ? null : <InlineSpinner />}
             <SelectValue />
           </SelectTrigger>
-          <SelectContent align="end">
+          <SelectContent align="end" className="w-auto min-w-(--anchor-width)">
             {options.map((option) => (
               <SelectItem key={option.key} value={option.key} disabled={option.disabled}>
-                <span className="flex flex-col whitespace-normal">
-                  <span>{option.label}</span>
+                <span className="flex flex-col">
+                  <span className="whitespace-nowrap">{option.label}</span>
                   {option.reason === undefined ? null : (
                     <span className="text-xs text-muted-foreground">{option.reason}</span>
                   )}
