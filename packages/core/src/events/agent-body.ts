@@ -65,6 +65,7 @@ export type AgentEventBody =
 export enum EModelFallbackReason {
   ProviderNotConnected = 'provider-not-connected',
   CredentialFailed = 'credential-failed',
+  FastCreditsRequired = 'fast-credits-required',
 }
 
 export type ModelFellBackBody = Extract<AgentEventBody, { type: 'model-fell-back' }>
