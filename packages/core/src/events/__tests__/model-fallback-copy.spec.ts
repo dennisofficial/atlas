@@ -30,6 +30,15 @@ describe('modelFallbackCopy', () => {
     )
   })
 
+  it('says fast mode is off and how to turn it back on', () => {
+    const copy = modelFallbackCopy(body(EModelFallbackReason.FastCreditsRequired))
+
+    expect(copy.title).toBe('Fast mode off')
+    expect(copy.detail).toBe(
+      'Anthropic requires usage credits for fast mode on a Claude plan. Turn them on at claude.ai/settings/usage, then switch fast back on. This reply runs at standard speed.',
+    )
+  })
+
   it('falls back to a plain provider word when the ref names no known provider', () => {
     const copy = modelFallbackCopy({
       ...body(EModelFallbackReason.ProviderNotConnected),

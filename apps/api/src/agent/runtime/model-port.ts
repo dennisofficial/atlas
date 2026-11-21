@@ -9,6 +9,7 @@ import type { MediaSigner } from '../media/media-signer'
 import { signerUrls } from '../media/media-urls'
 import { AiSdkModelPort } from '../model/ai-sdk-model-port'
 import { LiveModelPort } from '../model/live-model-port'
+import type { FastRefusal } from '../model/providers/fast-fallback'
 import { createProviderModel } from '../model/providers'
 import type { ModelTokenService } from '../tokens/model-token-service'
 
@@ -17,6 +18,7 @@ type PortDeps = {
   tokens: Pick<ModelTokenService, 'issue'>
   media?: MediaSigner | undefined
   log?: LogPort | undefined
+  onFastRefused?: ((refusal: FastRefusal) => Promise<void> | void) | undefined
 }
 
 export type SessionModels = {
@@ -40,6 +42,7 @@ export const modelPortOf = (args: PortDeps & { resolved: ResolvedRoleModel }): A
       ...(config.configured === true ? { accountId: toAccountId(config.accountId) } : {}),
       effort: () => choice.effort,
       fast: () => choice.fast,
+      ...(args.onFastRefused === undefined ? {} : { onFastRefused: args.onFastRefused }),
     }),
     card: () => findCard({ catalog: generatedCatalogue(), ref }),
     ...(args.log === undefined ? {} : { log: args.log }),
@@ -93,6 +96,7 @@ export const sessionModelsOf = (args: {
   tokens: Pick<ModelTokenService, 'issue'>
   media?: MediaSigner | undefined
   log?: LogPort | undefined
+  onFastRefused?: ((refusal: FastRefusal) => Promise<void> | void) | undefined
 }): SessionModels => {
   const override = args.override
   if (override === undefined) {
@@ -103,6 +107,7 @@ export const sessionModelsOf = (args: {
       tokens: args.tokens,
       media: args.media,
       log: args.log,
+      onFastRefused: args.onFastRefused,
     })
   }
   return fixedSessionModelsOf({

@@ -27,5 +27,11 @@ export function modelFallbackCopy(body: ModelFellBackBody): ModelFallbackCopy {
         title,
         detail: `${body.from.label} failed on its ${provider} credential, so it switched to the main agent's model for the rest of this run.`,
       }
+    case EModelFallbackReason.FastCreditsRequired:
+      return {
+        title: 'Fast mode off',
+        detail:
+          'Anthropic requires usage credits for fast mode on a Claude plan. Turn them on at claude.ai/settings/usage, then switch fast back on. This reply runs at standard speed.',
+      }
   }
 }
