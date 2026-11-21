@@ -5,7 +5,10 @@ on:
     branches: [main]
     # Only the image's own bytes matter: a merge that touches neither the context nor this
     # workflow would republish the identical image under a new sha tag.
-    paths: ['apps/serve/sandbox-image/**', '.github/workflows/sandbox-image.yml']
+    paths:
+      - 'apps/serve/sandbox-image/**'
+      - '!apps/serve/sandbox-image/README.md'
+      - '.github/workflows/sandbox-image.yml'
   # The retag job runs by dispatch, not on the release event: the release job in ci.yml
   # creates the release with GITHUB_TOKEN, and GitHub never starts workflow runs from events
   # that token caused. https://docs.github.com/actions/using-workflows/triggering-a-workflow
@@ -54,15 +57,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # tree-<hash> names the image by the git tree of its build context, so a release whose context
-      # matches an image ghcr already holds reuses that image instead of rebuilding: a rebuild of the
-      # same files is never byte-identical (apt pulls the day's packages, BuildKit stamps the build
-      # time), and every new digest re-pins the Agent37 template and marks each instance outdated.
+      # tree-<hash> names the image by the files of its build context, README aside, so a release whose
+      # context matches an image ghcr already holds reuses that image instead of rebuilding: a rebuild
+      # that misses the layer cache is not byte-identical (apt pulls the day's packages, BuildKit
+      # stamps the build time), and every new digest re-pins the Agent37 template and marks each
+      # instance outdated.
       - name: compute tags
         id: meta
         run: |
           set -euo pipefail
-          tree_tag="tree-$(git rev-parse HEAD:apps/serve/sandbox-image | cut -c1-12)"
+          tree_tag="tree-$(git ls-tree HEAD apps/serve/sandbox-image/ \
+            | grep -v '/README.md$' | git hash-object --stdin | cut -c1-12)"
           echo "sha_tag=sha-$(git rev-parse HEAD | cut -c1-7)" >> "$GITHUB_OUTPUT"
           echo "tree_tag=${tree_tag}" >> "$GITHUB_OUTPUT"
           if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] \
