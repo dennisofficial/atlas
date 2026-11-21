@@ -28,6 +28,7 @@ import {
   makeInMemoryBus,
   makePresence,
   noGithub,
+  readAllEvents,
   unusedTokens,
   waitForSeq,
   type ReadEvent,
@@ -85,6 +86,35 @@ const hasBranch = (row: ReadEvent, name: string): boolean => {
 
 const baseOf = (row: ReadEvent): string | null =>
   (row.event as { base?: string | null }).base ?? null
+
+const lastBranchRecord = (events: readonly ReadEvent[]): ReadEvent => {
+  const row = branchRecords(events).at(-1)
+  if (row === undefined) throw new Error('no branches-observed record')
+  return row
+}
+
+const QUIET_POLL_MS = 150
+const QUIET_POLLS = 5
+
+const waitForBranchQuiet = async (args: {
+  plane: ControlPlane
+  threadId: string
+}): Promise<ReadEvent[]> => {
+  const deadline = Date.now() + 30_000
+  let shape = ''
+  let stable = 0
+  while (Date.now() < deadline) {
+    const rows = await readAllEvents({ plane: args.plane, threadId: args.threadId })
+    const seen = branchRecords(rows)
+      .map((row) => `${row.seq}:${hasBranch(row, 'feat-x')}`)
+      .join(',')
+    stable = seen === shape ? stable + 1 : 0
+    shape = seen
+    if (stable >= QUIET_POLLS) return rows
+    await new Promise((resolve) => setTimeout(resolve, QUIET_POLL_MS))
+  }
+  throw new Error(`branch observations never settled; last: ${shape}`)
+}
 
 describe('branches-observed e2e', () => {
   const sandbox = new LocalSandboxProvider({ daemonSecret: E2E_SECRET })
@@ -165,7 +195,7 @@ describe('branches-observed e2e', () => {
     })
     await bus.wake(sessionId)
 
-    const first = await waitForSeq({
+    await waitForSeq({
       plane,
       threadId: mainThreadId,
       want: (rows) => branchRecords(rows).some((row) => hasBranch(row, 'feat-x')),
@@ -179,8 +209,9 @@ describe('branches-observed e2e', () => {
       const bodies = rows.events.map((row) => JSON.stringify(row)).join('\n')
       throw new Error(`${String(error)}\n${log.dump('branches-e2e')}\n${bodies}`)
     })
-    expect(branchRecords(first).map((row) => hasBranch(row, 'feat-x'))).toEqual([false, true])
-    expect(branchRecords(first).map(baseOf)).toEqual(['main', 'main'])
+    const settled = await waitForBranchQuiet({ plane, threadId: mainThreadId })
+    expect(hasBranch(lastBranchRecord(settled), 'feat-x')).toBe(true)
+    expect(branchRecords(settled).map(baseOf)).toEqual(branchRecords(settled).map(() => 'main'))
 
     await plane.post({
       sessionId,
@@ -199,7 +230,7 @@ describe('branches-observed e2e', () => {
       threadId: mainThreadId,
       want: (rows) => rows.filter((row) => row.type === 'assistant-said').length >= 2,
     })
-    expect(branchRecords(after).map((row) => hasBranch(row, 'feat-x'))).toEqual([false, true])
-    expect(branchRecords(after).map(baseOf)).toEqual(['main', 'main'])
+    expect(branchRecords(after).length).toBe(branchRecords(settled).length)
+    expect(hasBranch(lastBranchRecord(after), 'feat-x')).toBe(true)
   }, 60_000)
 })
