@@ -41,12 +41,14 @@ const operationsOf = (args: {
   held: boolean
   backlog?: PodSample[] | null
   onCall?: (op: string) => void
+  awaitSubscribe?: Promise<void> | undefined
 }) => {
   const state: {
+    held: boolean
     listener: ((frame: EventFrame) => void) | undefined
     close: (() => void) | undefined
     dispose: ReturnType<typeof vi.fn>
-  } = { listener: undefined, close: undefined, dispose: vi.fn() }
+  } = { held: args.held, listener: undefined, close: undefined, dispose: vi.fn() }
   const invoke = vi.fn(async (input: { op: { op: string } }) => {
     args.onCall?.(input.op.op)
     if (input.op.op === 'metrics.unsubscribe')
@@ -54,18 +56,17 @@ const operationsOf = (args: {
         state: 'ok',
         result: { status: ECallStatus.Ok, op: 'metrics.unsubscribe', value: null },
       }
+    await args.awaitSubscribe
     return outcomeOf(args.backlog === undefined ? [] : args.backlog)
   })
-  const ops = {
-    invoke,
-    events: vi.fn((input: { listener: (frame: EventFrame) => void; onClose?: () => void }) => {
-      state.listener = input.listener
-      state.close = input.onClose
-      return args.held ? state.dispose : null
-    }),
-    hold: vi.fn(() => true),
-  }
-  return { ops: ops as unknown as PodOps, invoke, state }
+  const events = vi.fn((input: { listener: (frame: EventFrame) => void; onClose?: () => void }) => {
+    if (!state.held) return null
+    state.listener = input.listener
+    state.close = input.onClose
+    return state.dispose
+  })
+  const ops = { invoke, events, hold: vi.fn(() => true) }
+  return { ops: ops as unknown as PodOps, invoke, events, state }
 }
 
 const collect = (generator: AsyncGenerator<PodMetricsFrame>) => {
@@ -91,8 +92,12 @@ const watch = (service: PodMetricsService, signal?: AbortSignal) =>
     ...(signal === undefined ? {} : { signal }),
   })
 
-const serviceOf = (args: { sessions: ReturnType<typeof sessionsOf>; ops: PodOps | null }) =>
-  new PodMetricsService(args.sessions as unknown as SessionsService, args.ops)
+const serviceOf = (args: {
+  sessions: ReturnType<typeof sessionsOf>
+  ops: PodOps | null
+  unheldRecheckMs?: number
+}) =>
+  new PodMetricsService(args.sessions as unknown as SessionsService, args.ops, args.unheldRecheckMs)
 
 describe('PodMetricsService', () => {
   it('refuses a session the operator does not own', async () => {
@@ -111,13 +116,26 @@ describe('PodMetricsService', () => {
     )
   })
 
-  it('yields nothing when no pod is held for the session', async () => {
+  it('stays open and rechecks while no host of this process holds the pod', async () => {
     const sessions = sessionsOf()
-    const { ops, invoke } = operationsOf({ held: false })
-    const run = collect(watch(serviceOf({ sessions, ops })))
-    await run.done
+    const { ops, invoke, events, state } = operationsOf({ held: false })
+    const abort = new AbortController()
+    let finished = false
+    const run = collect(watch(serviceOf({ sessions, ops, unheldRecheckMs: 2 }), abort.signal))
+    void run.done.then(() => {
+      finished = true
+    })
+    await until(() => events.mock.calls.length >= 3)
+    expect(finished).toBe(false)
     expect(run.frames).toEqual([])
     expect(invoke).not.toHaveBeenCalled()
+    state.held = true
+    await until(() => state.listener !== undefined)
+    state.listener?.(frameOf(sample(2_000)))
+    await until(() => run.frames.length === 1)
+    abort.abort()
+    await run.done
+    expect(run.frames).toEqual([{ type: 'sample', sample: sample(2_000) }])
   })
 
   it('yields nothing when the pod cannot read its cgroup counters', async () => {
@@ -166,6 +184,29 @@ describe('PodMetricsService', () => {
     await until(() => state.listener !== undefined)
     abort.abort()
     await run.done
+    expect(calls).toEqual(['metrics.subscribe', 'metrics.unsubscribe'])
+    expect(state.dispose).toHaveBeenCalled()
+  })
+
+  it('unsubscribes when the client goes away before the subscribe answers', async () => {
+    const sessions = sessionsOf()
+    const calls: string[] = []
+    let answer: () => void = () => undefined
+    const inFlight = new Promise<void>((resolve) => {
+      answer = resolve
+    })
+    const { ops, state } = operationsOf({
+      held: true,
+      onCall: (op) => calls.push(op),
+      awaitSubscribe: inFlight,
+    })
+    const abort = new AbortController()
+    const run = collect(watch(serviceOf({ sessions, ops }), abort.signal))
+    await until(() => calls.includes('metrics.subscribe'))
+    abort.abort()
+    answer()
+    await run.done
+    expect(run.frames).toEqual([])
     expect(calls).toEqual(['metrics.subscribe', 'metrics.unsubscribe'])
     expect(state.dispose).toHaveBeenCalled()
   })
