@@ -19,6 +19,10 @@ function isBodyEdit(payload: { action: string; changes?: GithubWebhookCommentCha
   return payload.action === 'edited' && payload.changes?.body !== undefined
 }
 
+function isBareCommentReview(review: { state: string; body: string | null }): boolean {
+  return review.state === 'commented' && (review.body ?? '').trim() === ''
+}
+
 function commentPayloadOf({
   payload,
   edited,
@@ -74,6 +78,7 @@ export class GithubPrDiscussionDeliveryService {
   async handlePullRequestReview(payload: GithubPullRequestReviewWebhookPayload): Promise<void> {
     if (payload.action !== 'submitted') return
     if (!RECORDED_REVIEW_STATES.has(payload.review.state)) return
+    if (isBareCommentReview(payload.review)) return
     await this.recordToSubscribers({
       repoFullName: payload.repository.full_name,
       prNumber: payload.pull_request.number,
