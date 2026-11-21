@@ -1,11 +1,4 @@
-import {
-  composePlugins,
-  definePlugin,
-  EMPTY_CONTROL,
-  EMPTY_POD,
-  type Plugin,
-  type PluginPodContext,
-} from '@dltech/atlas-plugin-sdk'
+import { composePlugins, definePlugin, EMPTY_CONTROL, type Plugin } from '@dltech/atlas-plugin-sdk'
 import { githubControl } from '@dltech/atlas-plugin-github/control'
 import { githubCoreSlots } from '@dltech/atlas-plugin-github/core'
 import { githubPod } from '@dltech/atlas-plugin-github/pod'
@@ -57,14 +50,14 @@ const skillCloud = skillCloudPort()
 
 const personalInstructions = instructionsPort()
 
-const instructionsPodFor = (ctx: PluginPodContext) =>
-  instructionsPodOf({ personal: () => personalInstructions.personal(ctx.sessionId) })
+const instructionsPod = instructionsPodOf({
+  personal: async (ctx) => await personalInstructions.personal(ctx.sessionId),
+})
 
-const skillsPodFor = (ctx: PluginPodContext) =>
-  skillsPodOf({
-    cloud: skillCloud.source(ctx.sessionId),
-    writes: skillCloud.writer(ctx.sessionId),
-  })
+const skillsPod = skillsPodOf({
+  cloud: (ctx) => skillCloud.source(ctx.sessionId),
+  writes: (ctx) => skillCloud.writer(ctx.sessionId),
+})
 
 export const registeredPlugins: readonly Plugin[] = [
   definePlugin({
@@ -134,10 +127,7 @@ export const registeredPlugins: readonly Plugin[] = [
   definePlugin({
     name: 'instructions',
     ...instructionsCoreSlots,
-    pod: {
-      ...EMPTY_POD,
-      hooks: (ctx) => instructionsPodFor(ctx).hooks?.(ctx) ?? {},
-    },
+    pod: instructionsPod,
     control: EMPTY_CONTROL,
     client: { hooks: [] },
     transport: 'none',
@@ -145,11 +135,7 @@ export const registeredPlugins: readonly Plugin[] = [
   definePlugin({
     name: 'skills',
     ...skillsCoreSlots,
-    pod: {
-      ...EMPTY_POD,
-      tools: (ctx) => skillsPodFor(ctx).tools?.(ctx) ?? [],
-      hooks: (ctx) => skillsPodFor(ctx).hooks?.(ctx) ?? {},
-    },
+    pod: skillsPod,
     control: EMPTY_CONTROL,
     client: skillsClient,
     transport: 'stream',

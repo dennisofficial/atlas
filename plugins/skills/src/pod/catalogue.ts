@@ -1,7 +1,9 @@
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
+import { z } from 'zod'
 
 import {
   ESkillOrigin,
+  ESkillWarning,
   frontmatterOf,
   resolveSkillShadowing,
   skillFrontmatterOf,
@@ -11,13 +13,43 @@ import {
 import { BUILT_IN_SKILLS } from './builtin.generated'
 import type { CloudSkillSource, CloudSkillText } from './port'
 import { discoverRepoSkills } from './repo-source'
-import type { BuiltInCatalogueSkill, CatalogueSkill, CloudCatalogueSkill } from './types'
+import type {
+  BuiltInCatalogueSkill,
+  CatalogueSkill,
+  CloudCatalogueSkill,
+  RepoCatalogueSkill,
+} from './types'
 
 export type ShadowedSkillRow = { name: string; origin: ESkillOrigin; shadowedBy: ESkillOrigin }
 
 export type SkillCatalogue = {
   directory: string
   skills: readonly CatalogueSkill[]
+  shadowed: readonly ShadowedSkillRow[]
+}
+
+type OptionalSkillField = 'whenToUse' | 'argumentHint'
+
+export type SnapshottedRepoSkill = Omit<RepoCatalogueSkill, OptionalSkillField> & {
+  whenToUse?: string | undefined
+  argumentHint?: string | undefined
+}
+
+export type SnapshottedCloudSkill = Omit<CloudCatalogueSkill, OptionalSkillField> & {
+  whenToUse?: string | undefined
+  argumentHint?: string | undefined
+}
+
+export type SnapshottedBuiltInSkill = { name: string; origin: ESkillOrigin.BuiltIn }
+
+export type SnapshottedSkill =
+  | SnapshottedRepoSkill
+  | SnapshottedCloudSkill
+  | SnapshottedBuiltInSkill
+
+export type SnapshottedCatalogue = {
+  directory: string
+  skills: readonly SnapshottedSkill[]
   shadowed: readonly ShadowedSkillRow[]
 }
 
@@ -85,6 +117,87 @@ export const skillsChangedOf = (catalogue: SkillCatalogue): SkillsChanged => ({
       origin: skill.origin,
     })),
 })
+
+export const SKILL_SCOPE = ['user', 'project'] as const
+
+const warningSchema = z.object({ code: z.enum(ESkillWarning), detail: z.string() })
+
+const skillFields = {
+  name: z.string(),
+  description: z.string(),
+  whenToUse: z.string().optional(),
+  userInvocable: z.boolean(),
+  modelInvocable: z.boolean(),
+  argumentHint: z.string().optional(),
+  warnings: z.array(warningSchema),
+}
+
+const snapshottedSkillSchema = z.discriminatedUnion('origin', [
+  z.object({
+    ...skillFields,
+    origin: z.literal(ESkillOrigin.Repo),
+    directory: z.string(),
+    entryPath: z.string(),
+  }),
+  z.object({
+    ...skillFields,
+    origin: z.literal(ESkillOrigin.CloudUser),
+    directory: z.null(),
+    scope: z.enum(SKILL_SCOPE),
+  }),
+  z.object({
+    ...skillFields,
+    origin: z.literal(ESkillOrigin.CloudProject),
+    directory: z.null(),
+    scope: z.enum(SKILL_SCOPE),
+  }),
+  z.object({ name: z.string(), origin: z.literal(ESkillOrigin.BuiltIn) }),
+])
+
+export const snapshottedCatalogueSchema: z.ZodType<SnapshottedCatalogue> = z.object({
+  directory: z.string(),
+  skills: z.array(snapshottedSkillSchema),
+  shadowed: z.array(
+    z.object({
+      name: z.string(),
+      origin: z.enum(ESkillOrigin),
+      shadowedBy: z.enum(ESkillOrigin),
+    }),
+  ),
+})
+
+export const snapshottedCatalogueOf = (catalogue: SkillCatalogue): SnapshottedCatalogue => {
+  const skills: SnapshottedSkill[] = []
+  for (const skill of catalogue.skills) {
+    if (skill.origin === ESkillOrigin.BuiltIn) {
+      skills.push({ name: skill.name, origin: skill.origin })
+      continue
+    }
+    skills.push(skill)
+  }
+  return { directory: catalogue.directory, skills, shadowed: catalogue.shadowed }
+}
+
+const builtInsByName = (): ReadonlyMap<string, BuiltInCatalogueSkill> =>
+  new Map(builtIns().map((skill) => [skill.name, skill]))
+
+export const catalogueOfSnapshot = (snapshot: SnapshottedCatalogue): SkillCatalogue => {
+  const builtInByName = builtInsByName()
+  const skills: CatalogueSkill[] = []
+  for (const skill of snapshot.skills) {
+    if (skill.origin !== ESkillOrigin.BuiltIn) {
+      skills.push({
+        ...skill,
+        whenToUse: skill.whenToUse,
+        argumentHint: skill.argumentHint,
+      })
+      continue
+    }
+    const builtIn = builtInByName.get(skill.name)
+    if (builtIn !== undefined) skills.push(builtIn)
+  }
+  return { directory: snapshot.directory, skills, shadowed: snapshot.shadowed }
+}
 
 export const buildCatalogue = async (args: {
   ctx: Pick<PluginPodContext, 'call' | 'log'>

@@ -1,6 +1,7 @@
 import type { ThreadId } from '@dltech/atlas-core'
 import { EMPTY_MCP_CONTROL } from '@dltech/atlas-plugin-sdk'
 import type {
+  ECloudSetting,
   MemoryAddress,
   MemoryEntry,
   MemoryKind,
@@ -30,6 +31,7 @@ export type PodControlClient = {
   webSearch: {
     config(args: Called): Promise<WebSearchConfig>
   }
+  settingsVersions(args: Called): Promise<Readonly<Record<ECloudSetting, string>>>
   memory: {
     list(args: Called): Promise<MemorySnapshot>
     read(args: Called & MemoryAddress): Promise<MemoryEntry | null>
@@ -96,6 +98,10 @@ export const podControlOf = (args: {
       const message = failure instanceof Error ? failure.message : String(failure)
       throw new Error(`could not expose port ${port}: ${message}`)
     }
+  },
+  settingsVersions: async () => {
+    if (args.client === undefined) throw unreachable()
+    return await args.client.settingsVersions({ threadId: args.threadId })
   },
   mcp: args.mcp ?? EMPTY_MCP_CONTROL,
   routines: routinesOf({ client: args.client, threadId: args.threadId }),

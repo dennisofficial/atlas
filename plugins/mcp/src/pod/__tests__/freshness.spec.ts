@@ -1,88 +1,81 @@
-import { EContextSlot, orderHooks, toThreadId, type EventDraft } from '@dltech/atlas-core'
-import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
+import { EContextSlot, EDefinitionOrigin } from '@dltech/atlas-core'
+
+import { EMcpViewStatus } from '../../core'
 import { describe, expect, it } from 'bun:test'
 
-import { EMcpViewStatus, type McpCloudRow } from '../../core'
-import { mcpPod } from '..'
-import { McpStore } from '../store'
-import { fakeDaemon, rig } from './support'
+import { mcpToolsResource, MCP_TOOLS } from '../resources'
+import { McpSignInBook } from '../sign-in-book'
+import { EMcpServerStatus, type McpToolsSnapshot } from '../snapshot'
+import { fakeDaemon, recordingRig, snapshotEventOf } from './support'
 
-const docsTransport = { kind: 'stdio' as const, command: 'bun', args: ['run', 'server'] }
+const snapshotOf = (args: { instructions?: string; configHash?: string }): McpToolsSnapshot => ({
+  configHash: args.configHash ?? 'h',
+  directory: '/repo',
+  servers: [
+    {
+      name: 'echo',
+      origin: EDefinitionOrigin.User,
+      transportKind: 'stdio',
+      configHash: args.configHash ?? 'c1',
+      status: EMcpServerStatus.Connected,
+      tools: [{ name: 'search' }],
+      ...(args.instructions === undefined ? {} : { instructions: args.instructions }),
+    },
+  ],
+})
 
-const searchTool = {
-  name: 'search',
-  description: 'Find documentation',
-  inputSchema: { type: 'object' },
-  annotations: { readOnlyHint: true },
-}
-
-const rowsOf = (): readonly McpCloudRow[] => [
-  { source: 'user', spec: { name: 'docs', transport: docsTransport } },
-]
-
-type Appended = Parameters<NonNullable<PluginPodContext['append']>>[0]
+const resourceOf = () =>
+  mcpToolsResource({
+    config: { read: async () => ({ rows: [], rejections: [] }) },
+    connectTimeoutMs: 200,
+    signIns: new McpSignInBook(),
+  })
 
 describe('instructions in the turn that connects', () => {
-  it('emits the context-loaded draft in the very first turn a server connects', async () => {
-    const daemon = fakeDaemon({
-      echo: { tools: [searchTool], instructions: 'Echo round trips.' },
+  it('emits the context-loaded draft in the very first turn a server connects', () => {
+    const { ctx } = recordingRig(fakeDaemon())
+    const drafts = resourceOf().announce?.(snapshotOf({ instructions: 'Echo round trips.' }), ctx)
+
+    expect(drafts ?? []).toContainEqual({
+      type: 'context-loaded',
+      slot: EContextSlot.McpInstructions,
+      key: 'echo',
+      content: 'Echo round trips.',
     })
-    const pod = mcpPod({
-      config: {
-        read: async () => ({
-          rows: [{ source: 'user', spec: { name: 'echo', transport: docsTransport } }],
-          rejections: [],
-        }),
-      },
-    })
-    const hooks = pod.hooks?.(rig(daemon)) ?? {}
-    const drafts: EventDraft[] = []
-    for (const hook of orderHooks(hooks.beforeTurn ?? [])) {
-      const outcome = await hook.run({ threadId: toThreadId('t1'), projectDirectory: '/repo' })
-      drafts.push(...(outcome.drafts ?? []))
-    }
-    expect(drafts).toEqual([
-      {
-        type: 'context-loaded',
-        slot: EContextSlot.McpInstructions,
-        key: 'echo',
-        content: 'Echo round trips.',
-      },
-    ])
   })
 })
 
-describe('a server that dies mid-turn', () => {
-  it('flips its row to failed with the exit reason and publishes it, with no reconcile', async () => {
-    const daemon = fakeDaemon({ docs: { tools: [searchTool] } })
-    let nextAppend: (drafts: Appended) => void = () => undefined
-    const ctx = {
-      ...rig(daemon),
-      append: async (drafts: Appended): Promise<void> => {
-        nextAppend(drafts)
-      },
+describe('a server that failed', () => {
+  it('keeps its reason until the config changes, and republishes only then', () => {
+    const failed: McpToolsSnapshot = {
+      configHash: 'h2',
+      directory: '/repo',
+      servers: [
+        {
+          name: 'echo',
+          origin: EDefinitionOrigin.User,
+          transportKind: 'stdio',
+          configHash: 'c2',
+          status: EMcpServerStatus.Failed,
+          reason: 'the server exited with code 1',
+          tools: [],
+        },
+      ],
     }
-    const store = new McpStore({
-      ctx,
-      config: { read: async () => ({ rows: rowsOf(), rejections: [] }) },
-      connectTimeoutMs: 200,
-      reconcileBudgetMs: 200,
+    const { ctx } = recordingRig(fakeDaemon(), {
+      records: [snapshotEventOf({ resource: MCP_TOOLS, value: snapshotOf({}) })],
     })
-    await store.boot()
-    expect(store.rows()[0]?.status).toBe(EMcpViewStatus.Connected)
 
-    const flipped = new Promise<Appended>((resolve) => {
-      nextAppend = resolve
-    })
-    daemon.kill('docs')
-    const drafts = await flipped
-
-    expect(drafts).toHaveLength(1)
-    expect(drafts[0]).toMatchObject({
+    expect(resourceOf().announce?.(failed, ctx)).toContainEqual({
       type: 'mcp-server-changed',
-      row: { name: 'docs', status: EMcpViewStatus.Failed },
+      row: {
+        name: 'echo',
+        transport: 'stdio',
+        status: EMcpViewStatus.Failed,
+        toolCount: 0,
+        reason: 'the server exited with code 1',
+        layer: EDefinitionOrigin.User,
+      },
     })
-    expect(store.rows()[0]?.status).toBe(EMcpViewStatus.Failed)
-    expect(store.rows()[0]?.reason).toContain('SIGTERM')
   })
 })

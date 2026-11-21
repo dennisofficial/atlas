@@ -1,41 +1,17 @@
-import { EDefinitionOrigin, EToolEffect, toThreadId } from '@dltech/atlas-core'
+import { EDefinitionOrigin, EToolEffect } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
-import { EMcpRejection, EMcpViewStatus, type McpCloudRow } from '../../core'
+import { mcpCommand, type McpCloudRow } from '../../core'
+import { EMcpRejection, EMcpViewStatus } from '../../core'
 import { mcpPod } from '..'
 import { McpBridgeTool } from '../bridge-tool'
-import { EMcpServerStatus, McpStore } from '../store'
-import { fakeDaemon, fakeProxyControl, invocation, rig, type FakeBehaviour } from './support'
+import { mcpConfigResource } from '../resources'
+import { rowsOf } from '../roster'
+import { EMcpServerStatus } from '../snapshot'
+import { fakeDaemon, loadConfig, loadTools, recordingRig, snapshotEventOf } from './support'
+import { MCP_TOOLS } from '../resources'
 
 const docsTransport = { kind: 'stdio' as const, command: 'bun', args: ['run', 'server'] }
-
-const rowsOf = (transport = docsTransport): readonly McpCloudRow[] => [
-  { source: 'user', spec: { name: 'docs', transport } },
-]
-
-const start = async (args: {
-  behaviours?: Readonly<Record<string, FakeBehaviour>>
-  rows?: readonly McpCloudRow[]
-  repoFiles?: Readonly<Record<string, string>>
-  eventLineBytes?: number
-  proxy?: ReturnType<typeof fakeProxyControl>
-}) => {
-  const daemon = fakeDaemon(
-    args.behaviours ?? {},
-    args.eventLineBytes === undefined ? {} : { eventLineBytes: args.eventLineBytes },
-  )
-  for (const [path, text] of Object.entries(args.repoFiles ?? {})) daemon.files.set(path, text)
-  const config = { read: async () => ({ rows: args.rows ?? rowsOf(), rejections: [] }) }
-  const ctx = rig(daemon, args.proxy === undefined ? {} : { mcp: args.proxy.control })
-  const store = new McpStore({
-    ctx,
-    config,
-    connectTimeoutMs: 200,
-    reconcileBudgetMs: 200,
-  })
-  await store.boot()
-  return { daemon, ctx, store, config }
-}
 
 const searchTool = {
   name: 'search',
@@ -44,250 +20,129 @@ const searchTool = {
   annotations: { readOnlyHint: true },
 }
 
-const proxiedRows: readonly McpCloudRow[] = [
-  {
-    source: 'user',
-    spec: { name: 'paper', transport: { kind: 'stdio', command: 'paper' }, proxy: true },
-  },
+const rowsOfCloud = (): readonly McpCloudRow[] => [
+  { source: 'user', spec: { name: 'docs', transport: docsTransport } },
 ]
-
-describe('a proxied server', () => {
-  it('is listed as unavailable, without tools, when the Mac is closed', async () => {
-    const proxy = fakeProxyControl({ online: false })
-
-    const { daemon, store } = await start({ rows: proxiedRows, proxy })
-
-    expect(store.servers()).toEqual([
-      {
-        name: 'paper',
-        origin: EDefinitionOrigin.User,
-        transport: 'stdio',
-        status: EMcpServerStatus.Unavailable,
-        tools: 0,
-        reason: 'Mac app offline',
-      },
-    ])
-    expect(store.tools()).toEqual([])
-    expect(store.rows()).toEqual([
-      {
-        name: 'paper',
-        transport: 'stdio',
-        status: EMcpViewStatus.Unavailable,
-        toolCount: 0,
-        reason: 'Mac app offline',
-        layer: EDefinitionOrigin.User,
-      },
-    ])
-    expect(daemon.spawns).toEqual([])
-  })
-
-  it('connects through the Mac while it is online and follows it offline and back on reconcile', async () => {
-    const proxy = fakeProxyControl({ behaviours: { paper: { tools: [searchTool] } } })
-
-    const { daemon, store } = await start({ rows: proxiedRows, proxy })
-
-    expect(store.servers()[0]?.status).toBe(EMcpServerStatus.Connected)
-    expect(store.tools().map((tool) => tool.name)).toEqual(['mcp__paper__search'])
-    expect(daemon.spawns).toEqual([])
-    expect(proxy.opens[0]).toMatchObject({
-      name: 'paper',
-      transport: { kind: 'stdio', command: 'paper' },
-    })
-
-    proxy.setOnline(false)
-    proxy.closeChannels('mac-disconnected')
-    await store.reconcile()
-    expect(store.servers()[0]).toMatchObject({
-      status: EMcpServerStatus.Unavailable,
-      reason: 'Mac app offline',
-      tools: 0,
-    })
-    expect(store.tools()).toEqual([])
-
-    proxy.setOnline(true)
-    await store.reconcile()
-    expect(store.servers()[0]).toMatchObject({ status: EMcpServerStatus.Connected, tools: 1 })
-  })
-})
-
-describe('lifecycle', () => {
-  it('connects a stdio server in the sandbox and lists its tools', async () => {
-    const { daemon, store } = await start({
-      behaviours: { docs: { tools: [searchTool, { name: 'read' }], instructions: 'Docs first.' } },
-    })
-    expect(store.servers()).toEqual([
-      {
-        name: 'docs',
-        origin: EDefinitionOrigin.User,
-        transport: 'stdio',
-        status: EMcpServerStatus.Connected,
-        tools: 2,
-        reason: undefined,
-      },
-    ])
-    expect(store.instructionsOf('docs')).toBe('Docs first.')
-    expect(daemon.spawns).toHaveLength(1)
-    expect(daemon.spawns[0]?.command).toBe('bun')
-    expect(daemon.spawns[0]?.args).toEqual(['run', 'server'])
-    expect(daemon.spawns[0]?.env).toBeUndefined()
-  })
-
-  it('resolves responses from daemon frames without reading the line buffer', async () => {
-    const { daemon } = await start({ behaviours: { docs: { tools: [searchTool] } } })
-    expect(daemon.reads()).toBe(0)
-  })
-
-  it('recovers a line the daemon refused to publish through mcp.read', async () => {
-    const { daemon, store } = await start({
-      behaviours: { docs: { tools: [searchTool] } },
-      eventLineBytes: 80,
-    })
-    expect(store.servers()[0]?.status).toBe(EMcpServerStatus.Connected)
-    expect(store.tools().map((tool) => tool.name)).toEqual(['mcp__docs__search'])
-    expect(daemon.reads()).toBeGreaterThan(0)
-  })
-
-  it('reports a failed server with the first lines of its stderr', async () => {
-    const { store } = await start({
-      behaviours: {
-        docs: {
-          exit: { exitCode: 1, signal: null },
-          stderr: ['Error: missing token', '    at boot (server.ts:1:1)'],
-        },
-      },
-    })
-    const [server] = store.servers()
-    expect(server?.status).toBe(EMcpServerStatus.Failed)
-    expect(server?.reason).toContain('Error: missing token')
-    expect(server?.reason).toContain('exited with code 1')
-    expect(store.tools()).toEqual([])
-  })
-
-  it('reuses a live connection, drops a removed server and starts a new one on reconcile', async () => {
-    const daemon = fakeDaemon({
-      docs: { tools: [searchTool] },
-      tickets: { tools: [{ name: 'list' }] },
-    })
-    let rows: readonly McpCloudRow[] = [
-      { source: 'user', spec: { name: 'docs', transport: docsTransport } },
-    ]
-    const store = new McpStore({
-      ctx: rig(daemon),
-      config: { read: async () => ({ rows, rejections: [] }) },
-      connectTimeoutMs: 200,
-      reconcileBudgetMs: 200,
-    })
-    await store.boot()
-    expect(daemon.spawns.map((spawn) => spawn.serverId)).toEqual(['docs'])
-
-    await store.reconcile()
-    expect(daemon.spawns).toHaveLength(1)
-
-    rows = [{ source: 'project', spec: { name: 'tickets', transport: docsTransport } }]
-    await store.reconcile()
-    expect(daemon.closed).toContain('docs')
-    expect(daemon.spawns.map((spawn) => spawn.serverId)).toEqual(['docs', 'tickets'])
-    expect(store.servers().map((server) => server.name)).toEqual(['tickets'])
-  })
-})
 
 describe('config through the pod', () => {
   it('lets a repo file override a cloud row', async () => {
-    const { daemon } = await start({
-      repoFiles: {
-        '/repo/.atlas/mcp.json': JSON.stringify({
-          mcpServers: { docs: { transport: { kind: 'stdio', command: 'repo-server' } } },
-        }),
-      },
-    })
+    const daemon = fakeDaemon()
+    daemon.files.set(
+      '/repo/.atlas/mcp.json',
+      JSON.stringify({
+        mcpServers: { docs: { transport: { kind: 'stdio', command: 'repo-server' } } },
+      }),
+    )
+    await loadTools({ daemon, rows: rowsOfCloud() })
+
     expect(daemon.spawns[0]?.command).toBe('repo-server')
   })
 
   it('lets a repo disabled stub hide the cloud row it names', async () => {
-    const { daemon, store } = await start({
-      repoFiles: {
-        '/repo/.atlas/mcp.json': JSON.stringify({ mcpServers: { docs: { disabled: true } } }),
-      },
-    })
-    expect(store.servers()).toEqual([])
-    expect(daemon.spawns).toEqual([])
-  })
+    const daemon = fakeDaemon()
+    daemon.files.set(
+      '/repo/.atlas/mcp.json',
+      JSON.stringify({ mcpServers: { docs: { disabled: true } } }),
+    )
+    const { snapshot } = await loadConfig({ daemon, rows: rowsOfCloud() })
 
-  it('turns an entry that fails to parse into a failed row carrying the parse detail', async () => {
-    const { store } = await start({
-      rows: [],
-      repoFiles: { '/repo/.atlas/mcp.json': JSON.stringify({ mcpServers: { docs: {} } }) },
-    })
-    const [row] = store.rows()
-    expect(row?.name).toBe('docs')
-    expect(row?.transport).toBeNull()
-    expect(row?.status).toBe(EMcpViewStatus.Failed)
-    expect(row?.toolCount).toBe(0)
-    expect(row?.reason).toContain('transport')
+    expect(snapshot.servers).toEqual([])
   })
 
   it("reads Claude's .mcp.json when no native definition names the server", async () => {
-    const { daemon } = await start({
-      rows: [],
-      repoFiles: {
-        '/repo/.mcp.json': JSON.stringify({ docs: { command: 'compat-server' } }),
+    const daemon = fakeDaemon()
+    daemon.files.set('/repo/.mcp.json', JSON.stringify({ docs: { command: 'compat-server' } }))
+    await loadTools({ daemon, rows: [] })
+
+    expect(daemon.spawns[0]?.command).toBe('compat-server')
+  })
+
+  it('turns an entry that fails to parse into a rejection carrying the parse detail', async () => {
+    const daemon = fakeDaemon()
+    daemon.files.set('/repo/.atlas/mcp.json', JSON.stringify({ mcpServers: { docs: {} } }))
+    const { snapshot } = await loadConfig({ daemon, rows: [] })
+
+    expect(snapshot.rejections[0]?.name).toBe('docs')
+    expect(snapshot.rejections[0]?.detail).toContain('transport')
+  })
+
+  it('carries a cloud rejection beside the servers that did load', async () => {
+    const daemon = fakeDaemon()
+    const resource = mcpConfigResource({
+      config: {
+        read: async () => ({
+          rows: rowsOfCloud(),
+          rejections: [
+            {
+              rejection: EMcpRejection.Unreadable,
+              name: 'sealed',
+              definedIn: 'the cloud',
+              origin: EDefinitionOrigin.User,
+              detail: 'malformed encrypted secret blob',
+            },
+          ],
+        }),
       },
     })
-    expect(daemon.spawns[0]?.command).toBe('compat-server')
+    const { ctx } = recordingRig(daemon)
+    const snapshot = await resource.load({ ctx, directory: '/repo' })
+
+    expect(snapshot.servers.map((server) => server.name)).toEqual(['docs'])
+    expect(snapshot.rejections.map((rejection) => rejection.name)).toEqual(['sealed'])
   })
 })
 
-describe('bridge tools', () => {
-  const boot = async (behaviours: Readonly<Record<string, FakeBehaviour>>) => {
-    const { ctx } = await start({ behaviours })
-    const pod = mcpPod({ config: { read: async () => ({ rows: rowsOf(), rejections: [] }) } })
-    const hooks = pod.hooks?.(ctx)
-    await hooks?.beforeTurn?.[0]?.run({ threadId: toThreadId('t1'), projectDirectory: '/repo' })
-    return pod.tools?.(ctx) ?? []
+describe('bridge tools from a recorded snapshot', () => {
+  const boot = async (
+    tools: readonly {
+      name: string
+      annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean }
+    }[],
+  ) => {
+    const daemon = fakeDaemon({ 's1.docs': { tools } })
+    const record = {
+      configHash: 'h',
+      directory: '/repo',
+      servers: [
+        {
+          name: 'docs',
+          origin: EDefinitionOrigin.User,
+          transportKind: 'stdio' as const,
+          configHash: 'c1',
+          status: EMcpServerStatus.Connected,
+          tools: tools.length > 0 ? [searchTool] : [],
+        },
+      ],
+    }
+    const { ctx } = recordingRig(daemon, {
+      records: [snapshotEventOf({ resource: MCP_TOOLS, value: record })],
+    })
+    const pod = mcpPod({ config: { read: async () => ({ rows: [], rejections: [] }) } })
+    return { tools: pod.tools?.(ctx) ?? [], daemon }
   }
 
   it('names tools mcp__<server>__<tool> and carries the server schema', async () => {
-    const tools = await boot({ docs: { tools: [searchTool] } })
-    const [tool] = tools
-    expect(tool?.name).toBe('mcp__docs__search')
+    const { tools } = await boot([searchTool])
+    const tool = tools.find((candidate) => candidate.name === 'mcp__docs__search')
+
     expect(tool?.description).toBe('Find documentation')
     expect((tool as McpBridgeTool).jsonSchema).toEqual({ type: 'object' })
     expect(tool?.effect).toBe(EToolEffect.Read)
     expect(tool?.isConcurrencySafe?.({})).toBe(true)
   })
 
-  it('maps the effect from the annotations and defaults to Write', async () => {
-    const tools = await boot({
-      docs: {
-        tools: [
-          { name: 'search', annotations: { readOnlyHint: true } },
-          { name: 'drop', annotations: { destructiveHint: true } },
-          { name: 'write' },
-        ],
-      },
-    })
-    const effects = Object.fromEntries(
-      tools
-        .filter((tool) => tool.name.startsWith('mcp__docs__'))
-        .map((tool) => [tool.name, tool.effect]),
-    )
-    expect(effects).toEqual({
-      mcp__docs__search: EToolEffect.Read,
-      mcp__docs__drop: EToolEffect.Destructive,
-      mcp__docs__write: EToolEffect.Write,
-    })
-  })
-
-  it('round-trips a tools/call and renders structuredContent', async () => {
-    const tools = await boot({
-      docs: {
-        tools: [searchTool],
-        answer: () => ({ structuredContent: { hits: 2 }, content: [{ type: 'text', text: 'x' }] }),
-      },
-    })
-    const outcome = await tools[0]?.invoke(invocation({ query: 'hooks' }))
-    expect(outcome?.ok).toBe(true)
-    if (outcome?.ok === true) expect(outcome.modelText).toContain('hits')
+  it('maps the effect from the annotations', () => {
+    expect(
+      new McpBridgeTool({
+        server: 'docs',
+        info: { name: 'drop', annotations: { destructiveHint: true } },
+        caller: () => undefined,
+      }).effect,
+    ).toBe(EToolEffect.Destructive)
+    expect(
+      new McpBridgeTool({ server: 'docs', info: { name: 'write' }, caller: () => undefined })
+        .effect,
+    ).toBe(EToolEffect.Write)
   })
 
   it('answers a call to a server that is not connected', async () => {
@@ -296,64 +151,66 @@ describe('bridge tools', () => {
       info: { name: 'search' },
       caller: () => undefined,
     })
-    expect(await tool.invoke(invocation({}))).toEqual({
-      ok: false,
-      reason: "the 'gone' MCP server is not connected",
-    })
+    expect(
+      await tool.invoke({
+        input: {},
+        signal: new AbortController().signal,
+        idempotencyKey: 'k',
+        projectDirectory: '/repo',
+        threadId: 't1' as never,
+      }),
+    ).toEqual({ ok: false, reason: "the 'gone' MCP server is not connected" })
   })
 })
 
-describe('session context', () => {
-  it('asks the config port for the session it holds and skips repo files without a directory', async () => {
-    const daemon = fakeDaemon({ docs: { tools: [] } })
-    const asked: string[] = []
-    const store = new McpStore({
-      ctx: { ...rig(daemon), sessionId: 'ses_9', workspaceDirectory: null },
-      config: {
-        read: async (session) => {
-          asked.push(session.sessionId)
-          return { rows: rowsOf(), rejections: [] }
-        },
-      },
-      connectTimeoutMs: 200,
-      reconcileBudgetMs: 200,
-    })
-    await store.boot()
-    expect(asked).toEqual(['ses_9'])
-    expect(store.servers().map((server) => server.name)).toEqual(['docs'])
-  })
-
-  it('carries a cloud rejection beside the servers that did load', async () => {
-    const daemon = fakeDaemon({ docs: { tools: [] } })
-    const store = new McpStore({
-      ctx: rig(daemon),
-      config: {
-        read: async () => ({
-          rows: rowsOf(),
-          rejections: [
-            {
-              rejection: EMcpRejection.Unreadable,
-              name: 'sealed',
-              definedIn: 'the cloud',
-              origin: EDefinitionOrigin.User,
-              detail: 'malformed encrypted secret blob (expected iv.tag.ciphertext)',
+describe('the mcp report command', () => {
+  it('renders the rows the session recorded, without asking the pod', async () => {
+    const pod = mcpPod({ config: { read: async () => ({ rows: [], rejections: [] }) } })
+    const report = pod.commands.get(mcpCommand.inboxKind)
+    const appended: unknown[] = []
+    const result = await report?.({
+      args: undefined,
+      sessionId: 's1',
+      inboxId: 1,
+      visibleEvents: () =>
+        [snapshotEventOf({ resource: 'mcp-server-changed', value: null }) as never].flatMap(() => [
+          {
+            type: 'mcp-server-changed',
+            row: {
+              name: 'docs',
+              transport: 'stdio',
+              status: EMcpViewStatus.Connected,
+              toolCount: 1,
+              layer: EDefinitionOrigin.User,
             },
-          ],
-        }),
-      },
-      connectTimeoutMs: 200,
-      reconcileBudgetMs: 200,
+          } as never,
+        ]),
+      append: async (drafts) => void appended.push(...drafts),
+      log: () => undefined,
     })
-    await store.boot()
-    expect(store.servers().map((server) => server.name)).toEqual(['docs'])
-    expect(store.rejectionsOf().map((rejection) => rejection.name)).toEqual(['sealed'])
-    expect(store.rows().map((row) => [row.name, row.status, row.reason])).toEqual([
-      ['docs', EMcpViewStatus.Connected, undefined],
-      [
-        'sealed',
-        EMcpViewStatus.Failed,
-        'malformed encrypted secret blob (expected iv.tag.ciphertext)',
+
+    expect(result).toEqual({ kind: 'done' })
+    expect(JSON.stringify(appended)).toContain('docs Connected 1 tool user')
+  })
+})
+
+describe('rowsOf', () => {
+  it('renders a failed server beside the rejections it kept', () => {
+    const rows = rowsOf({
+      configHash: 'h',
+      directory: '/repo',
+      servers: [
+        {
+          name: 'docs',
+          origin: EDefinitionOrigin.User,
+          transportKind: 'stdio',
+          configHash: 'c',
+          status: EMcpServerStatus.Failed,
+          reason: 'boom',
+          tools: [],
+        },
       ],
-    ])
+    })
+    expect(rows[0]).toMatchObject({ name: 'docs', status: EMcpViewStatus.Failed, reason: 'boom' })
   })
 })

@@ -5,10 +5,11 @@ import {
   type ToolOutcome,
   type ToolRun,
 } from '@dltech/atlas-core'
-import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
+import { readResource, type PluginPodContext, type PodResource } from '@dltech/atlas-plugin-sdk'
 import { z } from 'zod'
 
-import type { McpStore } from './store'
+import type { McpSignInBook } from './sign-in-book'
+import type { McpConfigSnapshot } from './snapshot'
 
 const signInSchema = z.strictObject({ name: z.string().min(1) })
 
@@ -25,43 +26,47 @@ export class McpSignInTool extends SchemaTool<typeof signInSchema> {
   ].join(' ')
 
   constructor(
-    private readonly ctx: PluginPodContext,
-    private readonly store: McpStore,
+    private readonly args: {
+      ctx: PluginPodContext
+      resource: PodResource<McpConfigSnapshot>
+      signIns: McpSignInBook
+    },
   ) {
     super()
   }
 
   protected override async run({ input }: ToolRun<typeof signInSchema>): Promise<ToolOutcome> {
-    const spec = this.store.specOf(input.name)
-    if (spec === undefined)
+    const snapshot = readResource({ ctx: this.args.ctx, resource: this.args.resource })
+    const server = snapshot?.servers.find((candidate) => candidate.name === input.name)
+    if (server === undefined)
       return {
         ok: false,
         reason: `no MCP server is named ${input.name} in this session; the mcp view lists the ones it has`,
       }
-    const transport = spec.transport
+    const transport = server.transport
     if (transport?.kind !== 'http')
       return {
         ok: false,
-        reason: `the ${spec.name} MCP server starts a process that carries its own credentials, so it has no sign-in to start`,
+        reason: `the ${server.name} MCP server starts a process that carries its own credentials, so it has no sign-in to start`,
       }
 
-    const begun = await this.ctx.control.mcp.begin({
-      name: spec.name,
-      source: spec.source,
+    const begun = await this.args.ctx.control.mcp.begin({
+      name: server.name,
+      source: server.source,
       url: transport.url,
     })
     if (!begun.ok) return { ok: false, reason: begun.reason }
 
-    await this.recordCard({ server: spec.name, url: begun.url, expiresAt: begun.expiresAt })
-    this.store.noteSignInStarted({
-      server: spec.name,
+    await this.recordCard({ server: server.name, url: begun.url, expiresAt: begun.expiresAt })
+    this.args.signIns.note({
+      server: server.name,
       ...(begun.expiresAt === undefined ? {} : { expiresAt: begun.expiresAt }),
     })
 
     return {
       ok: true,
-      output: { name: spec.name, url: begun.url },
-      modelText: `A sign-in card for the ${spec.name} MCP server is now in the transcript. The operator opens it and approves at the provider. The next turn connects the server. Nothing is pasted back here.`,
+      output: { name: server.name, url: begun.url },
+      modelText: `A sign-in card for the ${server.name} MCP server is now in the transcript. The operator opens it and approves at the provider. The next turn connects the server. Nothing is pasted back here.`,
     }
   }
 
@@ -71,17 +76,19 @@ export class McpSignInTool extends SchemaTool<typeof signInSchema> {
     expiresAt: string | undefined
   }): Promise<void> {
     try {
-      await this.ctx.append([
+      await this.args.ctx.append([
         {
           type: 'mcp-sign-in-started',
           server: args.server,
           url: args.url,
           ...(args.expiresAt === undefined ? {} : { expiresAt: args.expiresAt }),
-          sessionId: this.ctx.sessionId,
+          sessionId: this.args.ctx.sessionId,
         },
       ])
     } catch (error) {
-      this.ctx.log(`mcp: recording the sign-in card for ${args.server} failed: ${String(error)}`)
+      this.args.ctx.log(
+        `mcp: recording the sign-in card for ${args.server} failed: ${String(error)}`,
+      )
     }
   }
 }

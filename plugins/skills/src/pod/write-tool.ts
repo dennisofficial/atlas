@@ -7,8 +7,7 @@ import {
 } from '@dltech/atlas-core'
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
-import type { SkillsPodOptions } from './hooks'
-import type { SkillsPodState } from './state'
+import type { SkillsPodOptions } from './resources'
 import { deleteSkill, editSkill, installSkill } from './write-actions'
 import { ESkillAction, requiredRefusal, skillManageSchema } from './write-support'
 
@@ -33,7 +32,6 @@ export class SkillManageTool extends SchemaTool<typeof skillManageSchema> {
 
   constructor(
     private readonly ctx: PluginPodContext,
-    private readonly state: SkillsPodState,
     private readonly options: SkillsPodOptions,
   ) {
     super()
@@ -48,7 +46,6 @@ export class SkillManageTool extends SchemaTool<typeof skillManageSchema> {
 
     const deps = {
       ctx: this.ctx,
-      state: this.state,
       options: this.options,
       projectDirectory,
     }

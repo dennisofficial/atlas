@@ -1,73 +1,24 @@
 import type { RegisteredHook } from '@dltech/atlas-agent'
-import {
-  EStage,
-  SKILL_LISTING_BUDGET_CHARS,
-  type BeforeStep,
-  type BeforeTurn,
-} from '@dltech/atlas-core'
+import { EStage, SKILL_LISTING_BUDGET_CHARS, type BeforeStep } from '@dltech/atlas-core'
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
-import { catalogueFor } from './catalogue-source'
+import { catalogueOf } from './catalogue-source'
 import { skillListingOf } from './listing'
-import type { CloudSkillSource, CloudSkillWriter } from './port'
-import type { SkillsPodState } from './state'
-import { emitSkillsChanged, watchSkills } from './watch'
+import type { SkillsPodOptions } from './resources'
 
-export type SkillsPodOptions = {
-  cloud: CloudSkillSource
-  writes?: CloudSkillWriter | undefined
-}
-
-type Ctx = Pick<PluginPodContext, 'call' | 'log' | 'onDaemonEvent' | 'append' | 'sessionId'>
+type Ctx = PluginPodContext
 
 const ORDER = { stage: EStage.Observe, nudge: 0 }
 
-export const skillsCatalogueHook = (args: {
-  ctx: Ctx
-  state: SkillsPodState
-  options: SkillsPodOptions
-}): RegisteredHook<BeforeTurn> => ({
-  name: 'skills-catalogue',
-  order: ORDER,
-  awaited: true,
-  run: async ({ projectDirectory }) => {
-    const started = await watchSkills({
-      ctx: args.ctx,
-      state: args.state,
-      cloud: args.options.cloud,
-      directory: projectDirectory,
-    })
-    if (!started && args.state.catalogue?.directory === projectDirectory) return {}
-    args.state.directory = projectDirectory
-    const catalogue = await catalogueFor({
-      ctx: args.ctx,
-      state: args.state,
-      cloud: args.options.cloud,
-      directory: projectDirectory,
-      refresh: true,
-    })
-    if (started) await emitSkillsChanged({ ctx: args.ctx, catalogue })
-    return {}
-  },
-})
-
 export const skillsListingHook = (args: {
   ctx: Ctx
-  state: SkillsPodState
   options: SkillsPodOptions
 }): RegisteredHook<BeforeStep> => ({
   name: 'skills-listing',
   order: ORDER,
   awaited: true,
   run: async ({ assembled }) => {
-    const directory = args.state.directory
-    if (directory === null) return assembled
-    const catalogue = await catalogueFor({
-      ctx: args.ctx,
-      state: args.state,
-      cloud: args.options.cloud,
-      directory,
-    })
+    const catalogue = await catalogueOf({ ctx: args.ctx, options: args.options })
     if (catalogue === null) return assembled
     const listing = skillListingOf({ catalogue, budgetChars: SKILL_LISTING_BUDGET_CHARS })
     if (listing === '') return assembled

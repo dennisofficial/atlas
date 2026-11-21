@@ -93,17 +93,3 @@ export const discoverRepoAgentTypes = async (args: {
 
   return { types, refusals }
 }
-
-export const repoAgentTypeOf = async (args: {
-  ctx: Ctx
-  projectDirectory: string
-  name: string
-  signal?: AbortSignal | undefined
-}): Promise<RepoAgentType | undefined> => {
-  const found = await discoverRepoAgentTypes({
-    ctx: args.ctx,
-    projectDirectory: args.projectDirectory,
-    signal: args.signal,
-  })
-  return found.types.find((type) => type.name === args.name)
-}

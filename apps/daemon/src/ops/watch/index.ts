@@ -1,5 +1,6 @@
+import { randomUUID } from 'node:crypto'
 import { type FSWatcher, realpathSync, watch } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 
 import type { WatchStartOp } from '@dltech/atlas-protocol'
 import {
@@ -14,7 +15,9 @@ const DEFAULT_DEBOUNCE_MS = 150
 type WatchRecord = {
   watchId: string
   roots: readonly string[]
+  basenames: ReadonlySet<string> | null
   debounceMs: number
+  seq: number
   watchers: Map<string, FSWatcher>
   missing: Set<string>
   armed: string[]
@@ -47,12 +50,28 @@ const closeWatchers = (record: WatchRecord): void => {
   record.armed = []
 }
 
+const underRoot = (args: { path: string; roots: Iterable<string> }): boolean => {
+  for (const root of args.roots) {
+    if (args.path === root || root.startsWith(`${args.path}/`)) return true
+  }
+  return false
+}
+
+const keeps = (args: { record: WatchRecord; path: string }): boolean => {
+  const { record, path } = args
+  if (record.basenames === null) return true
+  if (record.basenames.has(basename(path))) return true
+  return underRoot({ path, roots: [...record.missing, ...record.roots] })
+}
+
 const settle = (args: { record: WatchRecord; ctx: GroupContext }): void => {
   const { record, ctx } = args
   record.timer = null
-  const paths = [...record.pending].sort()
+  const pending = [...record.pending].sort()
   record.pending.clear()
+  const paths = pending.filter((path) => keeps({ record, path }))
   if (paths.length === 0) return
+  record.seq += 1
   ctx.publish({ type: 'watch.changed', watchId: record.watchId, paths })
 }
 
@@ -74,6 +93,7 @@ const armRoot = (args: { record: WatchRecord; ctx: GroupContext; root: string })
       watch(ancestor, { persistent: true, recursive: false }, (_event, filename) => {
         record.pending.add(filename === null ? root : join(ancestor, filename))
         schedule({ record, ctx })
+        armMissing({ record, ctx })
       }),
     )
     return
@@ -105,6 +125,7 @@ const close = (record: WatchRecord): void => {
 
 export const watchGroup: DaemonGroupFactory = (ctx: GroupContext): DaemonGroup => {
   const records = new Map<string, WatchRecord>()
+  const instance = randomUUID()
 
   const start = (op: WatchStartOp): string[] => {
     const existing = records.get(op.watchId)
@@ -112,7 +133,9 @@ export const watchGroup: DaemonGroupFactory = (ctx: GroupContext): DaemonGroup =
     const record: WatchRecord = {
       watchId: op.watchId,
       roots: op.roots,
+      basenames: op.basenames === undefined ? null : new Set(op.basenames),
       debounceMs: op.debounceMs ?? DEFAULT_DEBOUNCE_MS,
+      seq: 0,
       watchers: new Map(),
       missing: new Set(),
       armed: [],
@@ -129,6 +152,17 @@ export const watchGroup: DaemonGroupFactory = (ctx: GroupContext): DaemonGroup =
     name: 'watch',
     ops: [
       defineOp({ op: 'watch.start', run: ({ op }) => Promise.resolve(start(op)) }),
+      defineOp({
+        op: 'watch.status',
+        run: ({ op }) =>
+          Promise.resolve({
+            instance,
+            watches: op.watchIds.flatMap((watchId) => {
+              const record = records.get(watchId)
+              return record === undefined ? [] : [{ watchId, seq: record.seq }]
+            }),
+          }),
+      }),
       defineOp({
         op: 'watch.stop',
         run: ({ op }) => {

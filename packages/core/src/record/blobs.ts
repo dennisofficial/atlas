@@ -58,6 +58,7 @@ export const spillableFieldOf = (body: V2Body): SpillableField | undefined => {
   if (body.type === 'tool-called') return 'input'
   if (body.type === 'tool-result') return 'output'
   if (body.type === 'fact-recorded') return 'value'
+  if (body.type === 'resource-loaded') return 'value'
   return undefined
 }
 
@@ -65,6 +66,7 @@ const fieldValue = (body: V2Body, field: SpillableField): unknown => {
   if (body.type === 'tool-called' && field === 'input') return body.input
   if (body.type === 'tool-result' && field === 'output') return body.output
   if (body.type === 'fact-recorded' && field === 'value') return body.value
+  if (body.type === 'resource-loaded' && field === 'value') return body.value
   return undefined
 }
 
@@ -72,6 +74,7 @@ const withField = <T extends V2Body>(body: T, field: SpillableField, value: unkn
   if (body.type === 'tool-called' && field === 'input') return { ...body, input: value } as T
   if (body.type === 'tool-result' && field === 'output') return { ...body, output: value } as T
   if (body.type === 'fact-recorded' && field === 'value') return { ...body, value } as T
+  if (body.type === 'resource-loaded' && field === 'value') return { ...body, value } as T
   return body
 }
 

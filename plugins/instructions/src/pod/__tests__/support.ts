@@ -1,13 +1,10 @@
 import {
   EToolEffect,
   toCallId,
-  toEventId,
-  toRunId,
   toThreadId,
   type Assembled,
   type EventDraft,
-  type Hash,
-  type ToolCall,
+  type ToolOutcome,
   type V2Event,
 } from '@dltech/atlas-core'
 import {
@@ -17,6 +14,8 @@ import {
   EMPTY_SESSIONS,
   EMPTY_WORKTREES,
   type PluginPodContext,
+  EMPTY_POD_RESOURCES,
+  UNVERSIONED_SETTINGS,
 } from '@dltech/atlas-plugin-sdk'
 import {
   ECallStatus,
@@ -35,27 +34,13 @@ const ok = (op: string, value: unknown): CallResult =>
 const failed = (op: string, message: string): CallResult =>
   ({ status: ECallStatus.Failed, op, error: { code: 'not-found', message } }) as CallResult
 
-const stampedOf = (args: { draft: EventDraft; seq: number }): V2Event =>
-  ({
-    ...args.draft,
-    id: toEventId(`e-${args.seq}`),
-    seq: args.seq,
-    threadId: THREAD,
-    runId: toRunId('r1'),
-    depth: 0,
-    at: '2026-11-20T00:00:00.000Z',
-    epoch: 0,
-    prevHash: '0' as Hash,
-  }) as V2Event
-
 export const THREAD = toThreadId('t1')
+
+const TOOL_OK: ToolOutcome = { ok: true, output: null, modelText: '' }
 
 export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
   const calls: CallOp[] = []
   const events: V2Event[] = []
-  const record = (drafts: readonly EventDraft[]): void => {
-    for (const draft of drafts) events.push(stampedOf({ draft, seq: events.length + 1 }))
-  }
 
   const call = async (op: CallOp): Promise<CallResult> => {
     calls.push(op)
@@ -70,6 +55,14 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
         isDirectory: node.kind === 'dir',
       })
     }
+    if (op.op === 'glob') {
+      const prefix = op.cwd.endsWith('/') ? op.cwd : `${op.cwd}/`
+      const found = Object.keys(nodes)
+        .filter((path) => path.startsWith(prefix))
+        .map((path) => path.slice(prefix.length))
+        .filter((path) => path === 'AGENTS.md' || path.endsWith('/AGENTS.md'))
+      return ok(op.op, found.sort())
+    }
     if (op.op === 'readFile') {
       const node = nodes[op.path]
       if (node === undefined || node.kind !== 'file')
@@ -82,6 +75,7 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
   const ctx: PluginPodContext = {
     sessionId: 's1',
     control: {
+      settingsVersions: async () => UNVERSIONED_SETTINGS,
       exposePort: async () => {
         throw new Error('this rig exposes no port')
       },
@@ -100,10 +94,13 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
       webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
       routines: EMPTY_ROUTINES,
     },
+    resources: EMPTY_POD_RESOURCES,
     crew: EMPTY_CREW,
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
-    append: async () => undefined,
+    append: async (drafts) => {
+      for (const draft of drafts) events.push(draft as unknown as V2Event)
+    },
     notify: async () => undefined,
     events: () => events,
     call,
@@ -112,23 +109,33 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
     log: () => undefined,
   }
 
-  return { ctx, calls, nodes, events, record }
+  return { ctx, calls, nodes, events }
 }
+
+type FakeDaemon = ReturnType<typeof fakeDaemon>
 
 const hooksOf = (args: { ctx: PluginPodContext; options: InstructionsPodOptions }) =>
   instructionsPodOf(args.options).hooks?.(args.ctx)
+
+export const refresh = async (args: {
+  ctx: PluginPodContext
+  options: InstructionsPodOptions
+  projectDirectory: string
+}): Promise<void> => {
+  for (const resource of instructionsPodOf(args.options).resources ?? []) {
+    const value = await resource.load({ ctx: args.ctx, directory: args.projectDirectory })
+    await args.ctx.append([
+      { type: 'resource-loaded', resource: resource.name, fingerprint: 'rig', value },
+    ])
+  }
+}
 
 export const startTurn = async (args: {
   ctx: PluginPodContext
   options: InstructionsPodOptions
   projectDirectory: string
 }): Promise<void> => {
-  const hooks = hooksOf(args)
-  for (const hook of hooks?.beforeTurn ?? [])
-    await hook.run({
-      threadId: THREAD,
-      projectDirectory: args.projectDirectory,
-    })
+  await refresh(args)
 }
 
 export const step = async (args: {
@@ -151,29 +158,38 @@ export const turn = async (args: {
 }
 
 export const touch = async (args: {
-  daemon: ReturnType<typeof fakeDaemon>
+  daemon: FakeDaemon
   name: string
   input: unknown
+  options?: InstructionsPodOptions | undefined
 }): Promise<readonly EventDraft[]> => {
-  const hooks = hooksOf({ ctx: args.daemon.ctx, options: personal(null) })
-  const call: ToolCall = {
-    callId: toCallId('c1'),
-    name: args.name,
-    input: args.input,
-    effect: EToolEffect.Read,
-    threadId: THREAD,
-  }
+  await args.daemon.ctx.append([
+    {
+      type: 'tool-called',
+      callId: toCallId('c1'),
+      name: args.name,
+      input: args.input,
+      ordinal: 0,
+    },
+  ])
+  const hooks = hooksOf({ ctx: args.daemon.ctx, options: args.options ?? personal(null) })
   const drafts: EventDraft[] = []
   for (const hook of hooks?.afterTool ?? []) {
     const outcome = await hook.run({
-      call,
-      result: { ok: true, output: null, modelText: '' },
+      call: {
+        callId: toCallId('c1'),
+        name: args.name,
+        input: args.input,
+        effect: EToolEffect.Read,
+        threadId: THREAD,
+      },
+      result: TOOL_OK,
       projectDirectory: '/repo',
       signal: new AbortController().signal,
     })
     drafts.push(...(outcome.drafts ?? []))
   }
-  args.daemon.record(drafts)
+  if (drafts.length > 0) await args.daemon.ctx.append(drafts)
   return drafts
 }
 

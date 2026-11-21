@@ -7,7 +7,7 @@ import type {
   CloudSkillWriteResult,
   CloudSkillWriter,
 } from '../port'
-import { fakeCloud, fakeDaemon, invoke, skillDir, textOf, turn } from './support'
+import { fakeDaemon, invoke, skillDir, textOf, turn } from './support'
 
 type Stored = {
   scope: 'user' | 'project'
@@ -245,7 +245,7 @@ describe('skill_manage as one tool', () => {
 
   it('declares one tool beside skill', () => {
     const { ctx } = fakeDaemon({ '/repo/.git': { kind: 'dir' } })
-    const names = skillsPodOf({ cloud: cloudStore().source })
+    const names = skillsPodOf({ cloud: () => cloudStore().source })
       .tools?.(ctx)
       .map((tool) => tool.name)
     expect(names).toEqual(['skill', 'skill_manage'])

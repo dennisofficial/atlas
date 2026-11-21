@@ -17,6 +17,7 @@ import type { CallOp, CallResult, DaemonEventFrame, LiveFrame } from '@dltech/at
 import type { PodCrew } from './crew'
 import { MacOfflineError, type PodMcpProxyChannel, type PodMcpProxyTransport } from './mcp-proxy'
 import type { PodMemory } from './memory'
+import type { ECloudSetting, PodResource, PodResources } from './resources'
 import type { PodRoutines } from './routines'
 import type { PodSessions } from './sessions'
 import type { PodWorktrees } from './worktrees'
@@ -76,6 +77,7 @@ export const EMPTY_MCP_CONTROL: PodMcpControl = {
 
 export type PodControl = {
   exposePort(args: { port: number }): Promise<{ url: string; tunnelToken: string }>
+  settingsVersions(): Promise<Readonly<Record<ECloudSetting, string>>>
   memory: PodMemory
   webSearch: PodWebSearch
   mcp: PodMcpControl
@@ -89,6 +91,7 @@ export type PluginPodContext = {
   crew: PodCrew
   sessions: PodSessions
   worktrees: PodWorktrees
+  resources: PodResources
   append(drafts: readonly (EventDraft | RecordBody | PluginEventBody)[]): Promise<void>
   /** Delivers a turn-taking notice through the agent's queue. */
   notify(event: EventBody, options: { key: string }): Promise<void>
@@ -110,6 +113,7 @@ export type PodSlot = {
   subscriptionEnds?: SubscriptionEndRules | undefined
   prompts: readonly PromptFragment[]
   commands: ReadonlyMap<string, CommandHandler<unknown>>
+  resources?: readonly PodResource<unknown>[] | undefined
   onDaemonEvent?(frame: DaemonEventFrame): void
 }
 

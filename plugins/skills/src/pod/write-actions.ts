@@ -2,8 +2,7 @@ import type { ToolOutcome } from '@dltech/atlas-core'
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
 import { ESkillOrigin } from '../core'
-import { catalogueFor } from './catalogue-source'
-import type { SkillsPodOptions } from './hooks'
+import { catalogueOf } from './catalogue-source'
 import {
   hasClone,
   removeRepoSkillDirectory,
@@ -11,8 +10,7 @@ import {
   SKILL_ENTRY_PATH,
   writeRepoSkillFile,
 } from './repo-writes'
-import type { SkillsPodState } from './state'
-import { forgetCatalogue } from './state'
+import { SKILLS_RESOURCE, type SkillsPodOptions } from './resources'
 import {
   builtInRefusal,
   cloudMissing,
@@ -30,7 +28,6 @@ import {
 
 type ActionDeps = {
   ctx: PluginPodContext
-  state: SkillsPodState
   options: SkillsPodOptions
   projectDirectory: string
 }
@@ -54,7 +51,7 @@ export const installSkill = async (
       body: input.body,
     })
     if (!written.ok) return { ok: false, reason: written.reason }
-    forgetCatalogue(args.state)
+    await args.ctx.resources.reload(SKILLS_RESOURCE)
     return {
       ok: true,
       output: { name: input.name, layer: input.layer, path: written.path },
@@ -62,19 +59,19 @@ export const installSkill = async (
     }
   }
 
-  if (args.options.writes === undefined) return cloudMissing()
+  const writes = args.options.writes?.(args.ctx)
+  if (writes === undefined) return cloudMissing()
   const elsewhere = elsewhereOf({
-    catalogue: await catalogueFor({
+    catalogue: await catalogueOf({
       ctx: args.ctx,
-      state: args.state,
-      cloud: args.options.cloud,
+      options: args.options,
       directory: args.projectDirectory,
     }),
     name: input.name,
     layer: input.layer,
   })
   if (elsewhere !== undefined) return { ok: false, reason: elsewhere }
-  const result = await args.options.writes.write({
+  const result = await writes.write({
     scope,
     name: input.name,
     path: SKILL_ENTRY_PATH,
@@ -83,7 +80,7 @@ export const installSkill = async (
     baseRevision: 0,
   })
   if (!result.ok) return refused(result, input.name)
-  forgetCatalogue(args.state)
+  await args.ctx.resources.reload(SKILLS_RESOURCE)
   return {
     ok: true,
     output: { name: input.name, layer: input.layer, revision: result.revision },
@@ -105,10 +102,9 @@ export const editSkill = async (
     return { ok: false, reason: builtInRefusal(input.name) }
 
   if (scope === null) {
-    const catalogue = await catalogueFor({
+    const catalogue = await catalogueOf({
       ctx: args.ctx,
-      state: args.state,
-      cloud: args.options.cloud,
+      options: args.options,
       directory: args.projectDirectory,
     })
     const elsewhere = elsewhereOf({ catalogue, name: input.name, layer: input.layer })
@@ -129,7 +125,7 @@ export const editSkill = async (
       body: input.body,
     })
     if (!written.ok) return { ok: false, reason: written.reason }
-    forgetCatalogue(args.state)
+    await args.ctx.resources.reload(SKILLS_RESOURCE)
     return {
       ok: true,
       output: { name: input.name, layer: input.layer, path: written.path },
@@ -137,19 +133,19 @@ export const editSkill = async (
     }
   }
 
-  if (args.options.writes === undefined) return cloudMissing()
+  const writes = args.options.writes?.(args.ctx)
+  if (writes === undefined) return cloudMissing()
   const elsewhere = elsewhereOf({
-    catalogue: await catalogueFor({
+    catalogue: await catalogueOf({
       ctx: args.ctx,
-      state: args.state,
-      cloud: args.options.cloud,
+      options: args.options,
       directory: args.projectDirectory,
     }),
     name: input.name,
     layer: input.layer,
   })
   if (elsewhere !== undefined) return { ok: false, reason: elsewhere }
-  const result = await args.options.writes.write({
+  const result = await writes.write({
     scope,
     name: input.name,
     path,
@@ -158,7 +154,7 @@ export const editSkill = async (
     baseRevision: input.baseRevision ?? null,
   })
   if (!result.ok) return refused(result, input.name)
-  forgetCatalogue(args.state)
+  await args.ctx.resources.reload(SKILLS_RESOURCE)
   return {
     ok: true,
     output: { name: input.name, layer: input.layer, revision: result.revision },
@@ -183,10 +179,9 @@ export const deleteSkill = async (
         reason:
           'this session has no clone, so it has no <repo>/.agents/skills directory to delete from. Use layer user or layer project instead',
       }
-    const catalogue = await catalogueFor({
+    const catalogue = await catalogueOf({
       ctx: args.ctx,
-      state: args.state,
-      cloud: args.options.cloud,
+      options: args.options,
       directory: args.projectDirectory,
     })
     const elsewhere = elsewhereOf({ catalogue, name: input.name, layer: input.layer })
@@ -206,7 +201,7 @@ export const deleteSkill = async (
       }),
     })
     if (!removed.ok) return { ok: false, reason: removed.reason }
-    forgetCatalogue(args.state)
+    await args.ctx.resources.reload(SKILLS_RESOURCE)
     return {
       ok: true,
       output: { name: input.name, layer: input.layer, path: removed.path },
@@ -214,21 +209,21 @@ export const deleteSkill = async (
     }
   }
 
-  if (args.options.writes === undefined) return cloudMissing()
+  const writes = args.options.writes?.(args.ctx)
+  if (writes === undefined) return cloudMissing()
   const elsewhere = elsewhereOf({
-    catalogue: await catalogueFor({
+    catalogue: await catalogueOf({
       ctx: args.ctx,
-      state: args.state,
-      cloud: args.options.cloud,
+      options: args.options,
       directory: args.projectDirectory,
     }),
     name: input.name,
     layer: input.layer,
   })
   if (elsewhere !== undefined) return { ok: false, reason: elsewhere }
-  const result = await args.options.writes.remove({ scope, name: input.name })
+  const result = await writes.remove({ scope, name: input.name })
   if (!result.ok) return { ok: false, reason: result.reason }
-  forgetCatalogue(args.state)
+  await args.ctx.resources.reload(SKILLS_RESOURCE)
   return {
     ok: true,
     output: { name: input.name, layer: input.layer },

@@ -22,6 +22,13 @@ const repo = (extra: Record<string, FakeNode> = {}): Record<string, FakeNode> =>
   ...extra,
 })
 
+const nested = (key: string, content: string) => ({
+  type: 'context-loaded' as const,
+  slot: EContextSlot.NestedInstructions,
+  key,
+  content,
+})
+
 describe('the instructions plugin', () => {
   it('puts the personal block first, then AGENTS.md from the root down to the directory', async () => {
     const daemon = fakeDaemon(
@@ -73,7 +80,6 @@ describe('the instructions plugin', () => {
     })
 
     expect(blocks).toEqual([`${projectHeader('/repo/AGENTS.md')}\n\nroot rules`])
-    expect(readFiles(daemon.calls)).not.toContain('/repo/packages/AGENTS.md')
   })
 
   it('records a nested AGENTS.md as context once a tool touches a directory below the working directory', async () => {
@@ -88,22 +94,18 @@ describe('the instructions plugin', () => {
     )
     const options = personal(null)
 
-    await turn({ ctx: daemon.ctx, options, projectDirectory: '/repo' })
-    const drafts = await touch({ daemon, name: 'read', input: { path: '/repo/packages/x/a.ts' } })
+    const first = await turn({ ctx: daemon.ctx, options, projectDirectory: '/repo' })
+    expect(first).toEqual([`${projectHeader('/repo/AGENTS.md')}\n\nroot rules`])
+
+    const drafts = await touch({
+      daemon,
+      name: 'read',
+      input: { path: '/repo/packages/x/a.ts' },
+    })
 
     expect(drafts).toEqual([
-      {
-        type: 'context-loaded',
-        slot: EContextSlot.NestedInstructions,
-        key: '/repo/packages/AGENTS.md',
-        content: 'package rules',
-      },
-      {
-        type: 'context-loaded',
-        slot: EContextSlot.NestedInstructions,
-        key: '/repo/packages/x/AGENTS.md',
-        content: 'x rules',
-      },
+      nested('/repo/packages/AGENTS.md', 'package rules'),
+      nested('/repo/packages/x/AGENTS.md', 'x rules'),
     ])
     expect(await touch({ daemon, name: 'read', input: { path: '/repo/packages/x/b.ts' } })).toEqual(
       [],
@@ -157,6 +159,24 @@ describe('the instructions plugin', () => {
     ])
   })
 
+  it('renders the same blocks on a fresh host from the recorded snapshot', async () => {
+    const nodes = repo({
+      '/repo/AGENTS.md': file('root rules'),
+      '/repo/packages': { kind: 'dir' },
+      '/repo/packages/AGENTS.md': file('package rules'),
+    })
+    const options = personal('be brief')
+
+    const daemon = fakeDaemon(nodes)
+    const opening = await turn({ ctx: daemon.ctx, options, projectDirectory: '/repo' })
+
+    const fresh = fakeDaemon(nodes)
+    fresh.events.push(...daemon.events)
+    const resumed = await turn({ ctx: fresh.ctx, options, projectDirectory: '/repo' })
+
+    expect(resumed).toEqual(opening)
+  })
+
   it('does not repeat a nested file the root-to-directory descent already carries', async () => {
     const daemon = fakeDaemon(
       repo({
@@ -197,7 +217,7 @@ describe('the instructions plugin', () => {
       repo({
         '/repo/AGENTS.md': file('root rules'),
         '/repo/big': { kind: 'dir' },
-        '/repo/big/AGENTS.md': file('large rules', 100 * 1024 + 1),
+        '/repo/big/AGENTS.md': file('x'.repeat(100 * 1024 + 1)),
         '/repo/deep': { kind: 'dir' },
         '/repo/deep/AGENTS.md': file('deep rules'),
         '/repo/bare': { kind: 'dir' },
@@ -213,7 +233,6 @@ describe('the instructions plugin', () => {
 
     expect(nestedKeysOf([...deep, ...bare, ...big])).toEqual(['/repo/deep/AGENTS.md'])
     expect(blocks).toEqual([`${projectHeader('/repo/AGENTS.md')}\n\nroot rules`])
-    expect(readFiles(daemon.calls)).not.toContain('/repo/big/AGENTS.md')
   })
 
   it('reads no CLAUDE.md or ATLAS.md, whatever a repository holds', async () => {

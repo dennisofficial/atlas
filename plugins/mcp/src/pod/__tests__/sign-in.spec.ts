@@ -1,15 +1,18 @@
-import { describe, expect, it } from 'bun:test'
 import {
   EMPTY_MCP_CONTROL,
   type McpSignInBegin,
   type PluginPodContext,
 } from '@dltech/atlas-plugin-sdk'
 import { podControlStub } from '@dltech/atlas-plugin-sdk/testing'
+import { describe, expect, it } from 'bun:test'
 
-import { LINK_EXPIRED_REASON, type McpCloudRow } from '../../core'
+import { EDefinitionOrigin } from '@dltech/atlas-core'
+
+import { EMcpSignInResult, EMcpViewStatus, type McpCloudRow } from '../../core'
+import { MCP_CONFIG, mcpConfigResource } from '../resources'
+import { McpSignInBook } from '../sign-in-book'
 import { McpSignInTool } from '../sign-in'
-import { McpStore } from '../store'
-import { fakeDaemon, invocation, rig } from './support'
+import { fakeDaemon, invocation, recordingRig, snapshotEventOf } from './support'
 
 const SERVER_URL = 'https://mcp.test/mcp'
 
@@ -17,210 +20,124 @@ const AUTHORIZE_URL = 'https://provider.test/authorize?client_id=c&code_challeng
 
 const EXPIRES_AT = '2026-11-10T12:10:00.000Z'
 
-type Captured = { method: string; headers: Record<string, string>; body: Record<string, unknown> }
-
 type Draft = { type: string } & Record<string, unknown>
 
-const json = (value: unknown): Response =>
-  new Response(JSON.stringify(value), { headers: { 'content-type': 'application/json' } })
-
-const handshake = (request: Captured): Response => {
-  if (request.method === 'DELETE') return new Response(null, { status: 200 })
-  if (request.body['method'] === 'initialize')
-    return json({
-      jsonrpc: '2.0',
-      id: request.body['id'],
-      result: { protocolVersion: '2025-06-18', capabilities: {}, serverInfo: { name: 's' } },
-    })
-  return new Response(null, { status: 202 })
-}
-
-const stubFetch = (answer: (request: Captured) => Response): (() => void) => {
-  const original = globalThis.fetch
-  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-    const request: Captured = {
-      method: init?.method ?? 'GET',
-      headers: Object.fromEntries(new Headers(init?.headers).entries()),
-      body:
-        typeof init?.body === 'string' ? (JSON.parse(init.body) as Record<string, unknown>) : {},
-    }
-    return answer(request)
-  }) as typeof globalThis.fetch
-  return () => {
-    globalThis.fetch = original
-  }
-}
-
-const unauthorized = (request: Captured): Response =>
-  request.method === 'DELETE'
-    ? new Response(null, { status: 200 })
-    : new Response('no', { status: 401 })
-
-const needsAuthRows: readonly McpCloudRow[] = [
-  { source: 'user', spec: { name: 'posthog', transport: { kind: 'http', url: SERVER_URL } } },
+const rowsOf = (transport: Record<string, unknown>): readonly McpCloudRow[] => [
+  { source: 'user', spec: { name: 'posthog', transport } },
 ]
 
-const start = async (args: { begin?: () => Promise<McpSignInBegin> } = {}) => {
+const start = async (
+  args: { rows?: readonly McpCloudRow[]; begin?: () => Promise<McpSignInBegin> } = {},
+) => {
+  const rows = args.rows ?? rowsOf({ kind: 'http', url: SERVER_URL })
   const appended: Draft[] = []
-  const config = { read: async () => ({ rows: needsAuthRows, rejections: [] }) }
-  const held = { token: undefined as string | undefined }
+  const recording = recordingRig(fakeDaemon())
+  const config = mcpConfigResource({ config: { read: async () => ({ rows, rejections: [] }) } })
+  const snapshot = await config.load({ ctx: recording.ctx, directory: '/repo' })
+  const signIns = new McpSignInBook()
   const ctx: PluginPodContext = {
-    ...rig(fakeDaemon()),
+    ...recording.ctx,
     control: {
       ...podControlStub,
       mcp: {
         ...EMPTY_MCP_CONTROL,
-        token: async () => held.token,
         begin: async () =>
           args.begin === undefined
             ? { ok: true, url: AUTHORIZE_URL, expiresAt: EXPIRES_AT }
             : await args.begin(),
       },
     },
+    events: () => [snapshotEventOf({ resource: MCP_CONFIG, value: snapshot })],
     append: async (drafts) => {
       appended.push(...(drafts as unknown as Draft[]))
     },
   }
-  const store = new McpStore({ ctx, config, connectTimeoutMs: 200, reconcileBudgetMs: 200 })
-  await store.boot()
   return {
     appended,
-    store,
-    tool: new McpSignInTool(ctx, store),
-    grant: (token: string) => {
-      held.token = token
-    },
+    signIns,
+    tool: new McpSignInTool({ ctx, resource: config, signIns }),
   }
 }
 
 const startedCards = (appended: readonly Draft[]): Draft[] =>
   appended.filter((draft) => draft.type === 'mcp-sign-in-started')
 
-const resolutions = (appended: readonly Draft[]): Draft[] =>
-  appended.filter((draft) => draft.type === 'mcp-sign-in-resolved')
-
 describe('operator_mcp_sign_in drawing a card', () => {
   it('answers in plain text and draws nothing when the session has no such server', async () => {
-    const restore = stubFetch(unauthorized)
-    try {
-      const { appended, tool } = await start()
+    const { appended, tool } = await start()
 
-      expect(await tool.invoke(invocation({ name: 'ghost' }))).toEqual({
-        ok: false,
-        reason: 'no MCP server is named ghost in this session; the mcp view lists the ones it has',
-      })
-      expect(startedCards(appended)).toEqual([])
-    } finally {
-      restore()
-    }
+    expect(await tool.invoke(invocation({ name: 'ghost' }))).toEqual({
+      ok: false,
+      reason: 'no MCP server is named ghost in this session; the mcp view lists the ones it has',
+    })
+    expect(startedCards(appended)).toEqual([])
   })
 
   it('answers in plain text and draws nothing when the provider refuses to start a flow', async () => {
-    const restore = stubFetch(unauthorized)
-    try {
-      const { appended, tool } = await start({
-        begin: async () => ({ ok: false, reason: 'the provider refuses dynamic registration' }),
-      })
+    const { appended, tool } = await start({
+      begin: async () => ({ ok: false, reason: 'no grant' }),
+    })
 
-      expect(await tool.invoke(invocation({ name: 'posthog' }))).toEqual({
-        ok: false,
-        reason: 'the provider refuses dynamic registration',
-      })
-      expect(startedCards(appended)).toEqual([])
-    } finally {
-      restore()
-    }
+    expect(await tool.invoke(invocation({ name: 'posthog' }))).toEqual({
+      ok: false,
+      reason: 'no grant',
+    })
+    expect(startedCards(appended)).toEqual([])
   })
 
-  it('draws a card that carries the link and keeps it out of the text', async () => {
-    const restore = stubFetch(unauthorized)
-    try {
-      const { appended, tool } = await start()
+  it('refuses a stdio server, which carries its own credentials', async () => {
+    const { tool } = await start({ rows: rowsOf({ kind: 'stdio', command: 'paper' }) })
 
-      const outcome = await tool.invoke(invocation({ name: 'posthog' }))
-
-      expect(outcome.ok).toBe(true)
-      if (outcome.ok !== true) return
-      expect(outcome.modelText).toContain('posthog')
-      expect(outcome.modelText).toContain('card')
-      expect(outcome.modelText).not.toContain(AUTHORIZE_URL)
-      expect(startedCards(appended)).toEqual([
-        {
-          type: 'mcp-sign-in-started',
-          server: 'posthog',
-          url: AUTHORIZE_URL,
-          expiresAt: EXPIRES_AT,
-          sessionId: 's1',
-        },
-      ])
-    } finally {
-      restore()
-    }
-  })
-})
-
-describe('operator_mcp_sign_in resolving its card', () => {
-  it('says connected once the grant lands and the next turn connects the server', async () => {
-    const restore401 = stubFetch(unauthorized)
-    const begun = await start()
-    await begun.tool.invoke(invocation({ name: 'posthog' }))
-    restore401()
-
-    const restoreOk = stubFetch(handshake)
-    try {
-      begun.grant('token-1')
-      await begun.store.reconcile()
-
-      expect(resolutions(begun.appended)).toEqual([
-        { type: 'mcp-sign-in-resolved', server: 'posthog', result: 'connected', sessionId: 's1' },
-      ])
-    } finally {
-      restoreOk()
-    }
+    expect(await tool.invoke(invocation({ name: 'posthog' }))).toEqual({
+      ok: false,
+      reason:
+        'the posthog MCP server starts a process that carries its own credentials, so it has no sign-in to start',
+    })
   })
 
-  it('says the link expired when the turn lands after it died', async () => {
-    const restore = stubFetch(unauthorized)
-    try {
-      const { appended, store, tool } = await start({
-        begin: async () => ({
-          ok: true,
-          url: AUTHORIZE_URL,
-          expiresAt: '2020-01-01T00:00:00.000Z',
-        }),
-      })
-      await tool.invoke(invocation({ name: 'posthog' }))
-      await store.reconcile()
+  it('records the card and remembers the flow for the server', async () => {
+    const begun: string[] = []
+    const { appended, signIns, tool } = await start({
+      begin: async () => {
+        begun.push('posthog')
+        return { ok: true, url: AUTHORIZE_URL, expiresAt: EXPIRES_AT }
+      },
+    })
 
-      expect(resolutions(appended)).toEqual([
-        {
-          type: 'mcp-sign-in-resolved',
-          server: 'posthog',
-          result: 'failed',
-          sessionId: 's1',
-          reason: LINK_EXPIRED_REASON,
-        },
-      ])
-    } finally {
-      restore()
-    }
-  })
+    const outcome = await tool.invoke(invocation({ name: 'posthog' }))
 
-  it('resolves a card once and never again', async () => {
-    const restore401 = stubFetch(unauthorized)
-    const begun = await start()
-    await begun.tool.invoke(invocation({ name: 'posthog' }))
-    restore401()
-
-    const restoreOk = stubFetch(handshake)
-    try {
-      begun.grant('token-1')
-      await begun.store.reconcile()
-      await begun.store.reconcile()
-
-      expect(resolutions(begun.appended)).toHaveLength(1)
-    } finally {
-      restoreOk()
-    }
+    expect(outcome?.ok).toBe(true)
+    expect(begun).toEqual(['posthog'])
+    expect(startedCards(appended)).toEqual([
+      {
+        type: 'mcp-sign-in-started',
+        server: 'posthog',
+        url: AUTHORIZE_URL,
+        expiresAt: EXPIRES_AT,
+        sessionId: 's1',
+      },
+    ])
+    expect(
+      signIns.resolutionsOf({
+        sessionId: 's1',
+        rows: [
+          {
+            name: 'posthog',
+            transport: 'http',
+            status: EMcpViewStatus.Connected,
+            toolCount: 1,
+            layer: EDefinitionOrigin.User,
+          },
+        ],
+        now: Date.parse('2026-11-20T12:00:00.000Z'),
+      }),
+    ).toEqual([
+      {
+        type: 'mcp-sign-in-resolved',
+        server: 'posthog',
+        result: EMcpSignInResult.Connected,
+        sessionId: 's1',
+      },
+    ])
   })
 })
