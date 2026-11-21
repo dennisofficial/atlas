@@ -25,6 +25,8 @@ import {
   sessionPostOutputSchema,
   sessionRetryInputSchema,
   sessionRetryOutputSchema,
+  sessionSleepPodInputSchema,
+  sessionSleepPodOutputSchema,
   sessionViewInputSchema,
   sessionWakeInputSchema,
   sessionWakeOutputSchema,
@@ -59,6 +61,8 @@ import {
   type SessionPostOutput,
   type SessionRetryInput,
   type SessionRetryOutput,
+  type SessionSleepPodInput,
+  type SessionSleepPodOutput,
   type SessionViewInput,
   type SessionViewOutput,
   type SessionWakeInput,
@@ -205,6 +209,24 @@ export class SessionsRouter {
   wake(@Input() input: SessionWakeInput, @Ctx() ctx: SessionTrpcCtx): Promise<SessionWakeOutput> {
     this.refuseBatched(ctx)
     return this.sessions.wake({ userId: ctx.auth.userId, sessionId: input.sessionId })
+  }
+
+  @Mutation({ input: sessionSleepPodInputSchema, output: sessionSleepPodOutputSchema })
+  sleepPod(
+    @Input() input: SessionSleepPodInput,
+    @Ctx() ctx: SessionTrpcCtx,
+  ): Promise<SessionSleepPodOutput> {
+    this.refuseBatched(ctx)
+    return this.sessions.sleepPod({ userId: ctx.auth.userId, ...input })
+  }
+
+  @Mutation({ input: sessionWakeInputSchema, output: sessionWakeOutputSchema })
+  wakePod(
+    @Input() input: SessionWakeInput,
+    @Ctx() ctx: SessionTrpcCtx,
+  ): Promise<SessionWakeOutput> {
+    this.refuseBatched(ctx)
+    return this.sessions.wakePod({ userId: ctx.auth.userId, sessionId: input.sessionId })
   }
 
   @Mutation({ input: sessionHoldPodInputSchema, output: sessionHoldPodOutputSchema })

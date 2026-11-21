@@ -13,6 +13,7 @@ const CALLER_DIRS = ['api', '_core', '_lib', '_module', 'trigger']
 // agent values they construct their dependencies from out of their own modules. An entry whose file
 // stops importing agent internals fails the suite.
 const TRIGGER_VALUE_IMPORTS = new Set([
+  'trigger/pod-power/pod-sleep-graph.ts',
   'trigger/pod-resize/pod-resize-graph.ts',
   'trigger/sandbox-provisioning/orphan-sandbox-sweep.task.ts',
 ])

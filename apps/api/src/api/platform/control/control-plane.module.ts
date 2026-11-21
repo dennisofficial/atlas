@@ -23,6 +23,7 @@ import { SessionsRouter } from './sessions.router'
 import { TerminalRouter } from './terminal.router'
 import { TerminalService } from './terminal.service'
 import { SessionsService } from './sessions.service'
+import { PodPowerService } from './pod-power.service'
 import { PodSizingService } from './pod-sizing.service'
 import { SandboxesModule } from '../sandboxes/sandboxes.module'
 
@@ -50,6 +51,7 @@ export const controlPlaneProvider: Provider = {
     { provide: COMMAND_REGISTRY, useFactory: nativeCommandRegistry },
     SessionsService,
     PodSizingService,
+    PodPowerService,
     SessionsRouter,
     FilesService,
     FilesRouter,

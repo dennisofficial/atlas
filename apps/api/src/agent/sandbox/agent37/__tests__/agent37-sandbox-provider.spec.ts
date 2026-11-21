@@ -182,6 +182,36 @@ describe('Agent37SandboxProvider.wake', () => {
     }
   })
 
+  it('starts a sleeping instance before waiting for its daemon', async () => {
+    const { bundle: b, cleanup } = bundle()
+    const version = await agent37BundleVersionOf(b.path)
+    const { client, creates, started } = fakeClient({ version, status: 'sleeping' })
+    const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
+    try {
+      const endpoint = await provider.wake({ target: TARGET, signal: new AbortController().signal })
+
+      expect(started).toEqual(['inst-9'])
+      expect(creates).toHaveLength(0)
+      expect(endpoint.url).toContain('inst-9-47300')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('leaves a running instance alone, without a start', async () => {
+    const { bundle: b, cleanup } = bundle()
+    const version = await agent37BundleVersionOf(b.path)
+    const { client, started } = fakeClient({ version, status: 'running' })
+    const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
+    try {
+      await provider.wake({ target: TARGET, signal: new AbortController().signal })
+
+      expect(started).toEqual([])
+    } finally {
+      cleanup()
+    }
+  })
+
   it('carries the bundle URL, the daemon token and the port in the create env', async () => {
     const { bundle: b, cleanup } = bundle()
     const version = await agent37BundleVersionOf(b.path)
