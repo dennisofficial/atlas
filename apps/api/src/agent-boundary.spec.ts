@@ -9,12 +9,15 @@ const API_DIR = path.join(SRC_ROOT, 'api')
 const CALLER_DIRS = ['api', '_core', '_lib', '_module', 'trigger']
 
 // A trigger task bundle must not carry the agent barrel: it drags Nest's runtime packages into the
-// deployed task (see src/trigger/trigger-bundle.spec.ts). These two graphs therefore import the few
-// agent values they construct their dependencies from out of their own modules. An entry whose file
-// stops importing agent internals fails the suite.
+// deployed task (see src/trigger/trigger-bundle.spec.ts). These graphs, and the api modules only they
+// load, therefore import the few agent values they construct their dependencies from out of their own
+// modules. An entry whose file stops importing agent internals fails the suite.
 const TRIGGER_VALUE_IMPORTS = new Set([
+  'api/cloud/sandbox-provisioning/pod-provision-rollback.ts',
+  'api/cloud/sandbox-provisioning/pod-provision-run.ts',
   'trigger/pod-power/pod-sleep-graph.ts',
   'trigger/pod-resize/pod-resize-graph.ts',
+  'trigger/sandbox-cost/agent37-usage-reconcile.task.ts',
   'trigger/sandbox-provisioning/orphan-sandbox-sweep.task.ts',
 ])
 

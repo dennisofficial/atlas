@@ -86,3 +86,4 @@ export {
   recordSandboxRunCloseForInstance,
   sandboxComputeFor,
 } from './sandbox/sandbox-runs'
+export { sandboxLiveCpuMs } from './sandbox/sandbox-live-cpu'

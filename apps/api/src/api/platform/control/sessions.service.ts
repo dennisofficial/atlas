@@ -60,9 +60,9 @@ import {
   PRODUCT_ANALYTICS,
   digestTimingProperties,
   sandboxComputeFor,
+  sandboxLiveCpuMs,
   type PodOps,
 } from '../../../agent'
-import { sandboxLiveCpuMs } from '../../../agent/sandbox/sandbox-live-cpu'
 import { PodPowerService, type PodPower } from './pod-power.service'
 import { PodSizingService, type PodSizing } from './pod-sizing.service'
 import { pageSessions, type PageBucket } from '../sessions/session-pages'
