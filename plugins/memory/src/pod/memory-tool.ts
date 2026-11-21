@@ -18,7 +18,6 @@ import { z } from 'zod'
 import { deleteMemory } from './delete'
 import { editMemory } from './edit'
 import { readMemory, type MemoryAddressInput } from './read'
-import type { MemoryPodState } from './state'
 import { writeMemory } from './write'
 
 export enum EMemoryAction {
@@ -87,10 +86,7 @@ export class MemoryTool extends SchemaTool<typeof inputSchema> {
   readonly inputSchema = inputSchema
   override readonly pathFields = TAKES_NO_PATHS
 
-  constructor(
-    private readonly ctx: PluginPodContext,
-    private readonly state: MemoryPodState,
-  ) {
+  constructor(private readonly ctx: PluginPodContext) {
     super()
   }
 
@@ -107,7 +103,6 @@ export class MemoryTool extends SchemaTool<typeof inputSchema> {
         return missingRefusal(input.action)
       return await writeMemory({
         ctx: this.ctx,
-        state: this.state,
         input: { ...address, description: text, type, body },
       })
     }
@@ -118,13 +113,12 @@ export class MemoryTool extends SchemaTool<typeof inputSchema> {
         return missingRefusal(input.action)
       return await editMemory({
         ctx: this.ctx,
-        state: this.state,
         input: { ...address, old, new: next, revision },
       })
     }
 
     if (input.action === EMemoryAction.Delete)
-      return await deleteMemory({ ctx: this.ctx, state: this.state, input: address })
+      return await deleteMemory({ ctx: this.ctx, input: address })
 
     return await readMemory({ ctx: this.ctx, input: address })
   }
