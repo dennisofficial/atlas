@@ -27,8 +27,9 @@ permissions:
 # sha-<commit> tags. Runs must stack up and each publish its own sha tag; latest is
 # last-writer-wins and self-heals.
 #
-# VCR gets no per-merge push: the retag job below pushes `latest` only, once per release.
-# Serve is not baked in, so nothing about the image is version-specific.
+# VCR gets no per-merge push: the retag job below pushes `latest` only, and only for a release
+# whose image differs from the one the Agent37 template already pins. Serve is not baked in, so
+# nothing about the image is version-specific.
 
 env:
   IMAGE: ghcr.io/${{ github.repository_owner }}/atlas-sandbox
@@ -53,11 +54,31 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: compute tag
+      # tree-<hash> names the image by the git tree of its build context, so a release whose context
+      # matches an image ghcr already holds reuses that image instead of rebuilding: a rebuild of the
+      # same files is never byte-identical (apt pulls the day's packages, BuildKit stamps the build
+      # time), and every new digest re-pins the Agent37 template and marks each instance outdated.
+      - name: compute tags
         id: meta
-        run: echo "sha_tag=sha-$(git rev-parse HEAD | cut -c1-7)" >> "$GITHUB_OUTPUT"
+        run: |
+          set -euo pipefail
+          tree_tag="tree-$(git rev-parse HEAD:apps/serve/sandbox-image | cut -c1-12)"
+          echo "sha_tag=sha-$(git rev-parse HEAD | cut -c1-7)" >> "$GITHUB_OUTPUT"
+          echo "tree_tag=${tree_tag}" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] \
+            && docker buildx imagetools inspect "${IMAGE}:${tree_tag}" >/dev/null 2>&1; then
+            echo "prebuilt=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: tag the release commit with the image its context already built
+        if: steps.meta.outputs.prebuilt == 'true'
+        env:
+          SHA_TAG: ${{ steps.meta.outputs.sha_tag }}
+          TREE_TAG: ${{ steps.meta.outputs.tree_tag }}
+        run: docker buildx imagetools create -t "${IMAGE}:${SHA_TAG}" "${IMAGE}:${TREE_TAG}"
 
       - uses: docker/build-push-action@v7
+        if: steps.meta.outputs.prebuilt != 'true'
         env:
           # Build records are ~7,000 tiny artifacts that count against Actions storage.
           DOCKER_BUILD_RECORD_UPLOAD: false
@@ -67,6 +88,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: |
             ${{ env.IMAGE }}:${{ steps.meta.outputs.sha_tag }}
+            ${{ env.IMAGE }}:${{ steps.meta.outputs.tree_tag }}
             ${{ env.IMAGE }}:latest
           # Registry-backed cache, not type=gha: legacy CI proved the 10 GB gha
           # cache evicts its own Docker blobs, forcing cold builds.
@@ -96,26 +118,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: docker/login-action@v4
-        if: vars.VERCEL_VCR_ENABLED == 'true'
-        with:
-          registry: vcr.vercel.com
-          username: team_GR4aCzLIY5D3YYWgITz3Tere
-          password: ${{ secrets.VERCEL_TOKEN }}
-
-      - name: publish the latest VCR image
-        if: vars.VERCEL_VCR_ENABLED == 'true'
-        uses: docker/build-push-action@v7
-        env:
-          DOCKER_BUILD_RECORD_UPLOAD: false
-        with:
-          context: apps/serve/sandbox-image
-          platforms: linux/amd64
-          provenance: false
-          tags: ${{ env.VCR_IMAGE }}:latest
-          outputs: type=image,push=true,oci-mediatypes=true,compression=zstd,compression-level=3,force-compression=true
-          cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache
 
       - uses: oven-sh/setup-bun@v2.2.0
 
@@ -149,10 +151,43 @@ jobs:
           fi
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
 
+      - name: check whether the agent37 template already pins this image
+        id: template
+        env:
+          DOTENV_PRIVATE_KEY_PRODUCTION_ENC: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION_ENC }}
+        run: |
+          set -euo pipefail
+          state="$(bunx dotenvx run -f apps/api/.env.production.enc -- \
+            bun apps/api/scripts/agent37-register-template.ts --check \
+              --tag '${{ steps.release-image.outputs.digest }}' | tail -n 1)"
+          case "$state" in current | stale) ;; *) echo "unexpected check answer: $state" >&2; exit 1 ;; esac
+          echo "state=$state" >> "$GITHUB_OUTPUT"
+          echo "agent37 template is $state for ${{ steps.release-image.outputs.digest }}"
+
+      - uses: docker/login-action@v4
+        if: vars.VERCEL_VCR_ENABLED == 'true' && steps.template.outputs.state == 'stale'
+        with:
+          registry: vcr.vercel.com
+          username: team_GR4aCzLIY5D3YYWgITz3Tere
+          password: ${{ secrets.VERCEL_TOKEN }}
+
+      - name: publish the latest VCR image
+        if: vars.VERCEL_VCR_ENABLED == 'true' && steps.template.outputs.state == 'stale'
+        uses: docker/build-push-action@v7
+        env:
+          DOCKER_BUILD_RECORD_UPLOAD: false
+        with:
+          context: apps/serve/sandbox-image
+          platforms: linux/amd64
+          provenance: false
+          tags: ${{ env.VCR_IMAGE }}:latest
+          outputs: type=image,push=true,oci-mediatypes=true,compression=zstd,compression-level=3,force-compression=true
+          cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache
+
       # After the push, never before: the fresh image now holds `latest`, and every image a
       # sandbox (running or stopped) still references is spared so resumes keep working.
       - name: prune VCR images to latest plus in-use
-        if: vars.VERCEL_VCR_ENABLED == 'true'
+        if: vars.VERCEL_VCR_ENABLED == 'true' && steps.template.outputs.state == 'stale'
         continue-on-error: true
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -167,6 +202,7 @@ jobs:
       # way a tag can. Runs whether or not VCR is enabled: the template is what every Agent37 pod
       # boots from.
       - name: register the agent37 template
+        if: steps.template.outputs.state == 'stale'
         env:
           DOTENV_PRIVATE_KEY_PRODUCTION_ENC: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION_ENC }}
         run: |

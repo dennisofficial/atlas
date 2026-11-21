@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import { expectedRefOf, sourceOf, verifyTemplate } from './agent37-register-template'
+import {
+  expectedRefOf,
+  isTemplateCurrent,
+  sourceOf,
+  verifyTemplate,
+} from './agent37-register-template'
 
 const REF = 'ghcr.io/dennisofficial/atlas-sandbox'
 const DIGEST = 'sha256:9f1c0c4e6b1d2a3f4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3'
@@ -65,6 +70,34 @@ describe('expectedRefOf', () => {
     }) as unknown as typeof fetch
     expect(await expectedRefOf('sha-abc1234')).toBe(`${REF}@${DIGEST}`)
     expect(calls[1]).toBe('https://ghcr.io/v2/dennisofficial/atlas-sandbox/manifests/sha-abc1234')
+  })
+})
+
+describe('isTemplateCurrent', () => {
+  const answer = (args: { status: number; body: unknown }): void => {
+    globalThis.fetch = (async (): Promise<Response> => answerOf(args)) as unknown as typeof fetch
+  }
+
+  it('is current when the template already pins the expected image', async () => {
+    answer({ status: 200, body: { name: 'atlas-sandbox', image_ref: `${REF}@${DIGEST}` } })
+    expect(await isTemplateCurrent({ apiKey: 'k', expectedRef: `${REF}@${DIGEST}` })).toBe(true)
+  })
+
+  it('is stale when the template pins another image', async () => {
+    answer({ status: 200, body: { name: 'atlas-sandbox', image_ref: `${REF}@sha256:old` } })
+    expect(await isTemplateCurrent({ apiKey: 'k', expectedRef: `${REF}@${DIGEST}` })).toBe(false)
+  })
+
+  it('is stale when the template does not exist yet', async () => {
+    answer({ status: 404, body: { error: 'not_found' } })
+    expect(await isTemplateCurrent({ apiKey: 'k', expectedRef: `${REF}@${DIGEST}` })).toBe(false)
+  })
+
+  it('refuses any other answer', async () => {
+    answer({ status: 500, body: { error: 'boom' } })
+    await expect(
+      isTemplateCurrent({ apiKey: 'k', expectedRef: `${REF}@${DIGEST}` }),
+    ).rejects.toThrow('agent37 refused to read template atlas-sandbox: 500')
   })
 })
 

@@ -105,6 +105,22 @@ const upsertTemplate = async (args: { apiKey: string; imageRef: string }): Promi
   return answer.body as Template
 }
 
+export const isTemplateCurrent = async (args: {
+  apiKey: string
+  expectedRef: string
+}): Promise<boolean> => {
+  const existing = await callTemplate({
+    apiKey: args.apiKey,
+    path: `/${TEMPLATE_NAME}`,
+    method: 'GET',
+  })
+  if (existing.status === 404) return false
+  if (existing.status !== 200) {
+    throw refusal({ step: 'read', status: existing.status, body: existing.body })
+  }
+  return (existing.body as Template).image_ref === args.expectedRef
+}
+
 /** Reads the template back: the write is only done if the stored image is the one we meant. */
 export const verifyTemplate = async (args: {
   apiKey: string
@@ -135,6 +151,11 @@ const main = async (): Promise<number> => {
   }
   try {
     const expectedRef = await expectedRefOf(sourceOf(process.argv, process.env))
+    if (process.argv.includes('--check')) {
+      const current = await isTemplateCurrent({ apiKey, expectedRef })
+      process.stdout.write(`${current ? 'current' : 'stale'}\n`)
+      return 0
+    }
     const written = await upsertTemplate({ apiKey, imageRef: expectedRef })
     const template = await verifyTemplate({ apiKey, expectedRef })
     process.stdout.write(
