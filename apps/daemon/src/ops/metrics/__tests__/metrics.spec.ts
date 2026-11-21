@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -45,7 +45,11 @@ const writeCgroup = async (root: string, state: Cgroup): Promise<void> => {
 const rig = (root: string) => {
   const events: DaemonEvent[] = []
   const group = metricsGroup({
-    env: { ATLAS_DAEMON_CGROUP_ROOT: root, [METRICS_INTERVAL_ENV]: String(INTERVAL_MS) },
+    env: {
+      ATLAS_DAEMON_CGROUP_ROOT: root,
+      ATLAS_DAEMON_PROC_ROOT: join(root, 'proc'),
+      [METRICS_INTERVAL_ENV]: String(INTERVAL_MS),
+    },
     home: root,
   })({ publish: (event) => events.push(event) })
   const ctx: CallContext = {
@@ -79,7 +83,36 @@ const waitUntil = async (ready: () => boolean, ms = 2_000): Promise<void> => {
   throw new Error('no sample arrived in time')
 }
 
+const writeVm = async (root: string, args: { usageUsec: number; availableKib: number }) => {
+  await mkdir(join(root, 'proc'), { recursive: true })
+  await writeFile(join(root, 'cpu.stat'), `usage_usec ${args.usageUsec}\nthrottled_usec 0\n`)
+  await writeFile(join(root, 'cpu.max'), 'max 100000\n')
+  await writeFile(
+    join(root, 'proc', 'meminfo'),
+    `MemTotal:        8388608 kB\nMemFree:         1000 kB\nMemAvailable:    ${args.availableKib} kB\n`,
+  )
+  await writeFile(join(root, 'proc', 'vmstat'), 'pgfault 10\noom_kill 2\n')
+}
+
 describe('the daemon metrics op', () => {
+  it('reads memory from the machine when the cgroup root has no memory controller', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'atlas-metrics-'))
+    await writeVm(root, { usageUsec: 1_000_000, availableKib: 6_291_456 })
+    const watch = rig(root)
+    try {
+      await watch.call({ op: 'metrics.subscribe' })
+      await writeVm(root, { usageUsec: 1_200_000, availableKib: 4_194_304 })
+      await waitUntil(() => watch.samples().length > 0)
+      const sample = watch.samples().at(-1)?.sample
+      expect(sample?.ramLimitBytes).toBe(8 * 1024 ** 3)
+      expect(sample?.ramBytes).toBe(4 * 1024 ** 3)
+      expect(sample?.oomKills).toBe(2)
+    } finally {
+      await watch.stop()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
   it('answers with an empty backlog and streams samples while subscribed', async () => {
     const root = await mkdtemp(join(tmpdir(), 'atlas-metrics-'))
     await writeCgroup(root, cgroupOf())
