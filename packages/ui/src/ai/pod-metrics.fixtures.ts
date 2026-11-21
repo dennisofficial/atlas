@@ -6,6 +6,10 @@ export const POD_SAMPLE_COUNT = 300
 
 export const POD_STATUS_RUNNING = { state: EPodState.Running, vcpus: 4 } as const
 
+export const POD_SECTION_SIZES: readonly number[] = [2, 4, 8]
+
+export const POD_PLAN_CAP = 8
+
 export const POD_SIZES: readonly number[] = [
   1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32,
 ]
