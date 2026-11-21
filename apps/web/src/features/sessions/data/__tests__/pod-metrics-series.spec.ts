@@ -13,7 +13,13 @@ const sample = (at: number, ramBytes = 2 * 1024 ** 3): PodSample => ({
   oomKills: 0,
 })
 
-const mapped = (at: number, ramGb = 2): PodMetricsSample => ({ t: at, cpu: 42, ramGb })
+const mapped = (at: number, ramGb = 2): PodMetricsSample => ({
+  t: at,
+  cpu: 42,
+  ramGb,
+  throttled: false,
+  oomKills: 0,
+})
 
 describe('seriesAfter', () => {
   it('replaces the series with a backlog frame', () => {

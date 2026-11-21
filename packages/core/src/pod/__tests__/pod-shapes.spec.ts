@@ -18,7 +18,7 @@ const vercel = podSizingOf({ sandboxProvider: 'vercel' })
 
 describe('podSizingOf', () => {
   it('offers an Agent37 pod the five vm shapes, including three at 4 vCPU', () => {
-    expect(agent37.offered).toEqual(AGENT37_POD_SHAPES)
+    expect(agent37.offered).toEqual([...AGENT37_POD_SHAPES])
     expect(agent37.offered.filter((shape) => shape.vcpus === 4)).toEqual([
       { vcpus: 4, memoryGb: 8 },
       { vcpus: 4, memoryGb: 16 },

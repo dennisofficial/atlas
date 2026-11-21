@@ -7,6 +7,7 @@ import {
   UNTHROTTLED_RATE_LIMIT,
 } from '../../../_module/trpc/trpc-middleware.fixture'
 import { ChangesService } from './changes.service'
+import { PodMetricsService } from './pod-metrics.service'
 import { SessionsRouter } from './sessions.router'
 import { SessionsService } from './sessions.service'
 
@@ -30,6 +31,8 @@ export const sessions = {
 
 export const changes = { changes: vi.fn(), content: vi.fn() }
 
+export const metrics = { watch: vi.fn() }
+
 export const createSessionsApp = (): Promise<NestExpressApplication> =>
   createMiddlewareApp({
     rateLimit: UNTHROTTLED_RATE_LIMIT,
@@ -38,6 +41,7 @@ export const createSessionsApp = (): Promise<NestExpressApplication> =>
       SessionMiddleware,
       { provide: SessionsService, useValue: sessions },
       { provide: ChangesService, useValue: changes },
+      { provide: PodMetricsService, useValue: metrics },
       {
         provide: SESSION_VERIFIER,
         useValue: {

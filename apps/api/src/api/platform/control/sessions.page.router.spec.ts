@@ -9,6 +9,7 @@ import { as } from '../../../_module/trpc/trpc-middleware.fixture'
 import { createMixedApp } from '../accounts/accounts.router.fixture'
 import { pageSessions } from '../sessions/session-pages'
 import { ChangesService } from './changes.service'
+import { PodMetricsService } from './pod-metrics.service'
 import { SessionsRouter } from './sessions.router'
 import { SessionsService } from './sessions.service'
 
@@ -42,6 +43,7 @@ describe('sessions.page', () => {
         SessionMiddleware,
         { provide: SessionsService, useValue: { page: pageSessions } },
         { provide: ChangesService, useValue: {} },
+        { provide: PodMetricsService, useValue: {} },
         {
           provide: SESSION_VERIFIER,
           useValue: {

@@ -8,12 +8,16 @@ export type PodMetricsSample = {
   t: number
   cpu: number
   ramGb: number
+  throttled: boolean
+  oomKills: number
 }
 
 export const podMetricsSampleOf = (sample: PodSample): PodMetricsSample => ({
   t: sample.at,
   cpu: sample.cpuPercent,
   ramGb: sample.ramBytes / GIGABYTE,
+  throttled: sample.throttled,
+  oomKills: sample.oomKills,
 })
 
 const bounded = (samples: PodMetricsSample[]): PodMetricsSample[] =>
