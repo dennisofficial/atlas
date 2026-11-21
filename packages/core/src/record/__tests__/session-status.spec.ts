@@ -7,6 +7,7 @@ import { EModelWaitCause, EWaitEpisodeKind } from '../../model-recovery/waiting'
 import { EProviderFailureKind } from '../../models/provider-failure'
 import { ERetryReason } from '../../models/retry'
 import { EFinishReason } from '../../stream/chunk'
+import { ESubscriptionActor, ESubscriptionEnd } from '../../subscriptions/subscription'
 import { chainEvents } from '../chain-events'
 import { EInputConsumed, type Hash, type V2Body, type V2Event } from '../event'
 import { ESessionStatus, sessionStatusOf } from '../session-status'
@@ -114,6 +115,14 @@ const inputConsumed = (consumed: EInputConsumed = EInputConsumed.Stop): V2Event 
   type: 'input-consumed',
   inboxId: 7,
   consumed,
+})
+
+const subscriptionEnded = (): V2Event => ({
+  ...envelope(),
+  type: 'subscription-ended',
+  subscriptionId: 'sub_1',
+  reason: ESubscriptionEnd.Completed,
+  by: ESubscriptionActor.Provider,
 })
 
 const otherFact = (): V2Event => ({
@@ -360,6 +369,27 @@ describe('sessionStatusOf a step finish reason', () => {
 })
 
 describe('sessionStatusOf record-only events after the turn', () => {
+  it('reports idle when the after-turn hook ends a subscription after the reply', () => {
+    const result = status({
+      events: [userSaid(), assistantSaid(), subscriptionEnded()],
+      live: true,
+    })
+    expect(result.state).toBe(ESessionStatus.Idle)
+  })
+
+  it('reports idle when a subscription ends after the reply with no live lease', () => {
+    const result = status({ events: [userSaid(), assistantSaid(), subscriptionEnded()] })
+    expect(result.state).toBe(ESessionStatus.Idle)
+  })
+
+  it('keeps running-tool when a subscription ends mid-turn', () => {
+    const result = status({
+      events: [userSaid(), toolDispatched(), subscriptionEnded()],
+      live: true,
+    })
+    expect(result.state).toBe(ESessionStatus.RunningTool)
+  })
+
   it('reports idle when the host links a pull request after the reply', () => {
     const result = status({
       events: [userSaid(), assistantSaid(), branchesObserved(), pullRequestLinked()],
