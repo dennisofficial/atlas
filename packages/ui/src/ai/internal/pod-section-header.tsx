@@ -96,7 +96,7 @@ export function PodSectionHeader({
               />
             }
           >
-            {busy ? <InlineSpinner /> : <PowerIcon aria-hidden />}
+            {stopping || wakingOf(state) ? <InlineSpinner /> : <PowerIcon aria-hidden />}
           </TooltipTrigger>
           <TooltipContent>{label}</TooltipContent>
         </Tooltip>
