@@ -15,6 +15,7 @@ type Opened = {
 const opened: Opened[] = []
 
 mock.module('@/lib/api-client', () => ({
+  cloudCall: <T>(promise: Promise<T>): Promise<T> => promise,
   api: {
     sessions: {
       podMetrics: {
