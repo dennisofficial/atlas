@@ -22,9 +22,10 @@ export const readMemory = async (args: {
         name: entry.name,
         type: entry.type,
         revision: entry.revision,
+        updatedAt: entry.updatedAt,
         lines: entry.body.split('\n').length,
       },
-      modelText: `${entry.name} (${scopeLabelOf(entry.scope)}, ${entry.type}, revision ${entry.revision})\n${entry.description}\n\n${entry.body}`,
+      modelText: `${entry.name} (${scopeLabelOf(entry.scope)}, ${entry.type}, revision ${entry.revision}, updated ${entry.updatedAt.slice(0, 10)})\n${entry.description}\n\n${entry.body}`,
     }
   } catch (error) {
     return memoryRefusal(error)

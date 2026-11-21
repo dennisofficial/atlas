@@ -1,9 +1,10 @@
-import type { ToolOutcome } from '@dltech/atlas-core'
+import { descriptionBudgetRefusal, type ToolOutcome } from '@dltech/atlas-core'
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 import type { EMemoryScope, EMemoryType } from '@dltech/atlas-core'
 
 import { addressOf, kindOf } from './address'
 import { memoryRefusal, scopeLabelOf } from './outcome'
+import { reconcileNoticeAfterChange } from './reconcile'
 
 export type MemoryWriteInput = {
   scope: EMemoryScope
@@ -17,6 +18,8 @@ export const writeMemory = async (args: {
   ctx: PluginPodContext
   input: MemoryWriteInput
 }): Promise<ToolOutcome> => {
+  const overBudget = descriptionBudgetRefusal(args.input.description)
+  if (overBudget !== undefined) return { ok: false, reason: overBudget }
   try {
     const saved = await args.ctx.control.memory.write({
       ...addressOf(args.input),
@@ -24,6 +27,8 @@ export const writeMemory = async (args: {
       type: kindOf(args.input.type),
       body: args.input.body,
     })
+    const notice = await reconcileNoticeAfterChange({ ctx: args.ctx, mayFire: true })
+    const remembered = `Remembered ${saved.name} (${scopeLabelOf(saved.scope)}, revision ${saved.revision}).`
     return {
       ok: true,
       output: {
@@ -31,8 +36,9 @@ export const writeMemory = async (args: {
         name: saved.name,
         revision: saved.revision,
         created: saved.revision === 1,
+        ...(notice === undefined ? {} : { reconcile: true }),
       },
-      modelText: `Remembered ${saved.name} (${scopeLabelOf(saved.scope)}, revision ${saved.revision}).`,
+      modelText: notice === undefined ? remembered : `${remembered}\n\n${notice}`,
     }
   } catch (error) {
     return memoryRefusal(error)

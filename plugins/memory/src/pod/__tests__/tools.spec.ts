@@ -112,7 +112,7 @@ describe('the memory tool', () => {
     expect(refused.ok).toBe(false)
   })
 
-  it('takes a body of up to 20000 characters and a description of up to 300', async () => {
+  it('takes a body of up to 20000 characters and a description of up to 200', async () => {
     const { ctx } = rig(fakeMemory().port)
     const outcome = await invoke({
       ctx,
@@ -122,7 +122,7 @@ describe('the memory tool', () => {
         ...saved,
         scope: 'project',
         body: 'x'.repeat(20_000),
-        description: 'd'.repeat(300),
+        description: 'd'.repeat(200),
       },
     })
     expect(outcome.ok).toBe(true)
