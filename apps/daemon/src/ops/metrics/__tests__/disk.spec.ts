@@ -7,7 +7,7 @@ import { describe, expect, it } from 'bun:test'
 import type { DaemonEvent } from '@dltech/atlas-protocol'
 import type { CallContext } from '@dltech/atlas-protocol/engine'
 
-import { METRICS_DISK_ROOT_ENV, readPodDisk } from '../cgroup'
+import { METRICS_DISK_ROOT_ENV, readFirstPodDisk, readPodDisk } from '../cgroup'
 import { METRICS_INTERVAL_ENV, metricsGroup } from '..'
 
 const withRoot = async (run: (root: string) => Promise<void>): Promise<void> => {
@@ -32,6 +32,16 @@ describe('readPodDisk', () => {
 
   it('reports no disk figures for a path that does not exist', () => {
     expect(readPodDisk({ root: join(tmpdir(), 'atlas-missing-disk-root') })).toBeNull()
+  })
+})
+
+describe('readFirstPodDisk', () => {
+  it('reads the pod volume first and falls back when it is not mounted', async () => {
+    await withRoot(async (root) => {
+      const missing = join(tmpdir(), 'atlas-missing-volume')
+      expect(readFirstPodDisk({ roots: [missing, root] })).toEqual(readPodDisk({ root }))
+      expect(readFirstPodDisk({ roots: [missing] })).toBeNull()
+    })
   })
 })
 

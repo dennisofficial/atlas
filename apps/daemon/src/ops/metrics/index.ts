@@ -20,9 +20,10 @@ import {
   METRICS_CGROUP_ROOT_ENV,
   METRICS_DISK_ROOT_ENV,
   METRICS_PROC_ROOT_ENV,
+  SANDBOX_VOLUME_ROOT,
   podVcpusOf,
+  readFirstPodDisk,
   readPodCounters,
-  readPodDisk,
 } from './cgroup'
 
 export const METRICS_INTERVAL_ENV = 'ATLAS_METRICS_INTERVAL_MS'
@@ -50,7 +51,9 @@ export const metricsGroup =
   (groupCtx: GroupContext): DaemonGroup => {
     const root = deps.env[METRICS_CGROUP_ROOT_ENV] ?? CGROUP_ROOT
     const proc = deps.env[METRICS_PROC_ROOT_ENV] ?? '/proc'
-    const diskRoot = deps.env[METRICS_DISK_ROOT_ENV] ?? deps.home
+    const explicitDiskRoot = deps.env[METRICS_DISK_ROOT_ENV]
+    const diskRoots =
+      explicitDiskRoot === undefined ? [SANDBOX_VOLUME_ROOT, deps.home] : [explicitDiskRoot]
     const intervalMs = intervalOf(deps.env)
     const vcpus = podVcpusOf({ root, fallback: availableParallelism() })
     const ring: PodSample[] = []
@@ -62,7 +65,7 @@ export const metricsGroup =
     const countersNow = (): PodCgroupCounters | null => {
       const counters = readPodCounters({ root, proc })
       if (counters === null) return null
-      return { ...counters, ...(readPodDisk({ root: diskRoot }) ?? {}) }
+      return { ...counters, ...(readFirstPodDisk({ roots: diskRoots }) ?? {}) }
     }
 
     const sample = (): void => {
