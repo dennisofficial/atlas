@@ -1,51 +1,69 @@
 import { describe, expect, it } from 'bun:test'
 import { BadRequestException } from '@nestjs/common'
+import { AGENT37_POD_SHAPES, POD_SHAPE_ENTERPRISE_REASON } from '@dltech/atlas-core'
 import { ESandboxProvider } from '@dltech/atlas-protocol'
 
-import {
-  AGENT37_VCPU_SIZES,
-  assertWithinVcpuLimit,
-  PLATFORM_VCPU_CAP,
-  vcpuLimitOf,
-} from './pod-vcpu-limit'
+import { assertWithinShapeLimit, podSizingLimitOf } from './pod-vcpu-limit'
 
-describe('vcpuLimitOf', () => {
-  it('caps a Vercel pod at 8 whatever plan the owner used to connect', () => {
-    expect(vcpuLimitOf({ sandboxProvider: ESandboxProvider.Vercel })).toEqual({
-      cap: PLATFORM_VCPU_CAP,
-    })
+describe('podSizingLimitOf', () => {
+  it('offers an Agent37 pod its five vm shapes and nothing it cannot run', () => {
+    const agent37 = podSizingLimitOf({ sandboxProvider: ESandboxProvider.Agent37 })
+    expect(agent37.cap).toBe(8)
+    expect(agent37.offered).toEqual([...AGENT37_POD_SHAPES])
+    expect(agent37.unavailable).toEqual([])
   })
 
-  it('caps an Agent37 session at 8 and only at the Agent37 cpu counts', () => {
-    expect(vcpuLimitOf({ sandboxProvider: ESandboxProvider.Agent37 })).toEqual({
-      cap: PLATFORM_VCPU_CAP,
-      sizes: AGENT37_VCPU_SIZES,
-    })
+  it('offers a Vercel pod 2 GB a vCPU up to 8 and names the plan past it', () => {
+    const vercel = podSizingLimitOf({ sandboxProvider: ESandboxProvider.Vercel })
+    expect(vercel.offered.map((shape) => shape.vcpus)).toEqual([1, 2, 4, 6, 8])
+    expect(vercel.offered.at(-1)).toEqual({ vcpus: 8, memoryGb: 16 })
+    expect(vercel.unavailable[0]?.reason).toBe(POD_SHAPE_ENTERPRISE_REASON)
   })
 })
 
-describe('assertWithinVcpuLimit', () => {
-  const vercel = vcpuLimitOf({ sandboxProvider: ESandboxProvider.Vercel })
+describe('assertWithinShapeLimit', () => {
+  const vercel = podSizingLimitOf({ sandboxProvider: ESandboxProvider.Vercel })
+  const agent37 = podSizingLimitOf({ sandboxProvider: ESandboxProvider.Agent37 })
 
-  it('accepts 8 on a Vercel pod', () => {
-    expect(() => assertWithinVcpuLimit({ vcpus: 8, limit: vercel })).not.toThrow()
+  it('accepts 8 vCPU and 16 GB on a Vercel pod', () => {
+    expect(() =>
+      assertWithinShapeLimit({ shape: { vcpus: 8, memoryGb: 16 }, sizing: vercel }),
+    ).not.toThrow()
   })
 
-  it('refuses 16 on a Vercel pod', () => {
-    expect(() => assertWithinVcpuLimit({ vcpus: 16, limit: vercel })).toThrow(BadRequestException)
+  it('refuses 16 vCPU on a Vercel pod with the cap', () => {
+    expect(() =>
+      assertWithinShapeLimit({ shape: { vcpus: 16, memoryGb: 32 }, sizing: vercel }),
+    ).toThrow(/exceeds the 8 vCPU cap/)
   })
 
-  it('refuses 3 on an Agent37 pod', () => {
-    const agent37 = vcpuLimitOf({ sandboxProvider: ESandboxProvider.Agent37 })
-    expect(() => assertWithinVcpuLimit({ vcpus: 3, limit: agent37 })).toThrow(
-      /not a size this sandbox runs at/,
-    )
+  it('accepts the 4 vCPU, 32 GB shape an Agent37 pod can grow into', () => {
+    expect(() =>
+      assertWithinShapeLimit({ shape: { vcpus: 4, memoryGb: 32 }, sizing: agent37 }),
+    ).not.toThrow()
   })
 
-  it('refuses 16 on an Agent37 pod', () => {
-    const agent37 = vcpuLimitOf({ sandboxProvider: ESandboxProvider.Agent37 })
-    expect(() => assertWithinVcpuLimit({ vcpus: 16, limit: agent37 })).toThrow(
-      /not a size this sandbox runs at/,
-    )
+  it('refuses 4 vCPU with 12 GB on an Agent37 pod, naming the memory it runs at', () => {
+    expect(() =>
+      assertWithinShapeLimit({ shape: { vcpus: 4, memoryGb: 12 }, sizing: agent37 }),
+    ).toThrow(/runs at 8 GB or 16 GB or 32 GB/)
+  })
+
+  it('refuses 8 vCPU with 16 GB on an Agent37 pod rather than infer 2 GB a vCPU', () => {
+    expect(() =>
+      assertWithinShapeLimit({ shape: { vcpus: 8, memoryGb: 16 }, sizing: agent37 }),
+    ).toThrow(/64 GB/)
+  })
+
+  it('refuses 3 vCPU on an Agent37 pod', () => {
+    expect(() =>
+      assertWithinShapeLimit({ shape: { vcpus: 3, memoryGb: 6 }, sizing: agent37 }),
+    ).toThrow(/not a size this sandbox runs at/)
+  })
+
+  it('refuses 16 vCPU on an Agent37 pod with the cap', () => {
+    expect(() =>
+      assertWithinShapeLimit({ shape: { vcpus: 16, memoryGb: 32 }, sizing: agent37 }),
+    ).toThrow(BadRequestException)
   })
 })

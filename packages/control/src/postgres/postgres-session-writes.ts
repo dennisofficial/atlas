@@ -1,6 +1,7 @@
 import type { Tx } from '@dltech/atlas-db'
 
 import type { ControlSessionRow } from '../port'
+import { announceIn } from './postgres-notify'
 import { toSessionRow } from './postgres-rows'
 
 export const createSessionIn = async (params: {
@@ -120,14 +121,24 @@ export const setSandboxStatusIn = async (params: {
   tx: Tx
   sandboxInstanceId: string
   status: string
+  reason?: string | undefined
   at: string
 }): Promise<boolean> => {
-  const statement = params.tx.raw.sql`UPDATE "v2"."V2Session"
-      SET "sandboxStatus" = ${params.status}, "sandboxStatusAt" = ${params.at}::timestamptz
+  const rows = await params.tx.query(
+    params.tx.raw.sql`UPDATE "v2"."V2Session"
+      SET "sandboxStatus" = ${params.status},
+        "sandboxStatusReason" = NULLIF(${params.reason ?? ''}, ''),
+        "sandboxStatusAt" = ${params.at}::timestamptz
       WHERE "sandboxInstanceId" = ${params.sandboxInstanceId}
-        AND ("sandboxStatusAt" IS NULL OR "sandboxStatusAt" < ${params.at}::timestamptz)`
-  const { affectedRows } = await params.tx.execute(statement.affectedCount().build())
-  return affectedRows > 0
+        AND ("sandboxStatusAt" IS NULL OR "sandboxStatusAt" < ${params.at}::timestamptz)
+      RETURNING "id"`
+      .returnsRow({ id: 'pg/text@1' })
+      .build(),
+  )
+  const sessionId = rows[0]?.id
+  if (sessionId === undefined) return false
+  await announceIn({ tx: params.tx, change: { sessionId } })
+  return true
 }
 
 export const setSessionArchivedIn = async (params: {
@@ -202,12 +213,14 @@ export const setSessionPodDesiredIn = async (params: {
   tx: Tx
   sessionId: string
   vcpus: number
+  memoryGb: number
   generation: number
 }): Promise<boolean> => {
   const changed = await params.tx.orm.v2.V2Session.where({
     id: params.sessionId,
   }).updateAndCount({
     podDesiredVcpus: params.vcpus,
+    podDesiredMemoryGb: params.memoryGb,
     podSizeGeneration: params.generation,
     podResizeError: null,
     podWaitingSince: null,
@@ -219,6 +232,7 @@ export const setSessionPodAppliedIn = async (params: {
   tx: Tx
   sessionId: string
   vcpus: number
+  memoryGb: number
   generation: number
 }): Promise<boolean> => {
   const changed = await params.tx.orm.v2.V2Session.where({
@@ -226,6 +240,7 @@ export const setSessionPodAppliedIn = async (params: {
     podSizeGeneration: params.generation,
   }).updateAndCount({
     podActualVcpus: params.vcpus,
+    podActualMemoryGb: params.memoryGb,
     podAppliedGeneration: params.generation,
     podResizeError: null,
     podWaitingSince: null,

@@ -5,6 +5,18 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { ControlPlane } from '../src/control-plane'
 import { PostgresControlStore } from '../src/postgres'
 
+const AGENT37_SIZING = {
+  cap: 8,
+  offered: [
+    { vcpus: 2, memoryGb: 4 },
+    { vcpus: 4, memoryGb: 8 },
+    { vcpus: 4, memoryGb: 16 },
+    { vcpus: 4, memoryGb: 32 },
+    { vcpus: 8, memoryGb: 64 },
+  ],
+  unavailable: [],
+}
+
 const SESSION = 'session-pod-size-pg'
 const THREAD = 'thread-pod-size-pg'
 
@@ -32,15 +44,32 @@ describe('pod size on postgres', () => {
 
   it('records the applied size for the current generation', async () => {
     const control = await seeded()
-    const generation = await control.recordPodDesired({ sessionId: SESSION, vcpus: 2 })
+    const generation = await control.recordPodDesired({
+      sessionId: SESSION,
+      vcpus: 2,
+      memoryGb: 4,
+    })
 
-    expect(await control.recordPodApplied({ sessionId: SESSION, vcpus: 2, generation })).toBe(true)
-    expect(await podOf(control)).toEqual({ desiredVcpus: 2, actualVcpus: 2, phase: 'steady' })
+    expect(
+      await control.recordPodApplied({ sessionId: SESSION, vcpus: 2, memoryGb: 4, generation }),
+    ).toBe(true)
+    expect(await podOf(control)).toEqual({
+      shape: { vcpus: 2, memoryGb: 4 },
+      actualVcpus: 2,
+      desiredShape: { vcpus: 2, memoryGb: 4 },
+      desiredVcpus: 2,
+      phase: 'steady',
+      sizing: AGENT37_SIZING,
+    })
   })
 
   it('records a failed resize as the error on the row', async () => {
     const control = await seeded()
-    const generation = await control.recordPodDesired({ sessionId: SESSION, vcpus: 2 })
+    const generation = await control.recordPodDesired({
+      sessionId: SESSION,
+      vcpus: 2,
+      memoryGb: 4,
+    })
 
     expect(
       await control.recordPodFailed({
@@ -50,20 +79,48 @@ describe('pod size on postgres', () => {
       }),
     ).toBe(true)
     expect(await podOf(control)).toEqual({
+      desiredShape: { vcpus: 2, memoryGb: 4 },
       desiredVcpus: 2,
       phase: 'failed',
       error: 'No sandbox to resize',
+      sizing: AGENT37_SIZING,
     })
   })
 
   it('ignores an apply for a generation a newer resize superseded', async () => {
     const control = await seeded()
-    const first = await control.recordPodDesired({ sessionId: SESSION, vcpus: 2 })
-    await control.recordPodDesired({ sessionId: SESSION, vcpus: 8 })
+    const first = await control.recordPodDesired({
+      sessionId: SESSION,
+      vcpus: 2,
+      memoryGb: 4,
+    })
+    await control.recordPodDesired({ sessionId: SESSION, vcpus: 8, memoryGb: 64 })
 
     expect(
-      await control.recordPodApplied({ sessionId: SESSION, vcpus: 2, generation: first }),
+      await control.recordPodApplied({
+        sessionId: SESSION,
+        vcpus: 2,
+        memoryGb: 4,
+        generation: first,
+      }),
     ).toBe(false)
-    expect(await podOf(control)).toEqual({ desiredVcpus: 8, phase: 'resizing' })
+    expect(await podOf(control)).toEqual({
+      desiredShape: { vcpus: 8, memoryGb: 64 },
+      desiredVcpus: 8,
+      phase: 'resizing',
+      sizing: AGENT37_SIZING,
+    })
+  })
+
+  it('reports the cpu of a pod recorded before its memory was stored', async () => {
+    const control = await seeded()
+    await testDb().db.orm.v2.V2Session.where({ id: SESSION }).updateAndCount({ podActualVcpus: 4 })
+
+    expect(await podOf(control)).toEqual({
+      shape: { vcpus: 4, memoryGb: null },
+      actualVcpus: 4,
+      phase: 'steady',
+      sizing: AGENT37_SIZING,
+    })
   })
 })

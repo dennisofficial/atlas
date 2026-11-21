@@ -1,3 +1,4 @@
+import type { PodShape } from '@dltech/atlas-core'
 import { EEffort } from '@dltech/atlas-core'
 import { ESandboxProvider } from '@dltech/atlas-protocol'
 import { singleProviderRegistry } from '../../testing/sandbox-registry'
@@ -90,7 +91,7 @@ class FakeSandbox extends SandboxProvider {
     this.keptAlive.push(args.target.sandboxSessionId)
   }
 
-  async resize(_args: { target: SandboxTarget; vcpus: number }): Promise<PodResizeOutcome> {
+  async resize(_args: { target: SandboxTarget; shape: PodShape }): Promise<PodResizeOutcome> {
     return 'restarted'
   }
 

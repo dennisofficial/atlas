@@ -1,3 +1,4 @@
+import type { PodShape } from '@dltech/atlas-core'
 import { EEffort } from '@dltech/atlas-core'
 import { ESandboxProvider } from '@dltech/atlas-protocol'
 import { describe, expect, it } from 'bun:test'
@@ -62,7 +63,7 @@ class CpuSandbox extends SandboxProvider {
 
   async keepAlive(_args: { target: SandboxTarget; until: number }): Promise<void> {}
 
-  async resize(_args: { target: SandboxTarget; vcpus: number }): Promise<PodResizeOutcome> {
+  async resize(_args: { target: SandboxTarget; shape: PodShape }): Promise<PodResizeOutcome> {
     return 'stored'
   }
 

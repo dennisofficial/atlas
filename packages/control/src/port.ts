@@ -282,6 +282,7 @@ export interface ControlTx {
   setSandboxStatus(params: {
     sandboxInstanceId: string
     status: string
+    reason?: string | undefined
     at: string
   }): Promise<boolean>
   readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined>
@@ -289,11 +290,13 @@ export interface ControlTx {
   setSessionPodDesired(params: {
     sessionId: string
     vcpus: number
+    memoryGb: number
     generation: number
   }): Promise<boolean>
   setSessionPodApplied(params: {
     sessionId: string
     vcpus: number
+    memoryGb: number
     generation: number
   }): Promise<boolean>
   setSessionPodFailed(params: {

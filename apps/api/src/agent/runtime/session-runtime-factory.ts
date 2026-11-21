@@ -23,7 +23,7 @@ import type { EnvSecretsSource } from '../config/env-secrets'
 import type { ProjectFilesSource } from '../config/project-files'
 import { SANDBOX_HOME_PATH, workspaceDirectoryOf } from '../sandbox/constants'
 import type { SandboxProviderRegistry } from '../sandbox/provider-registry'
-import type { SandboxTarget } from '../sandbox/sandbox-provider'
+import type { DaemonEndpoint, SandboxTarget } from '../sandbox/sandbox-provider'
 import { recordSandboxRunOpen } from '../sandbox/sandbox-runs'
 import { sandboxNameOf } from '../sandbox/vercel-names'
 import { SandboxNotConfiguredError } from './sandbox-not-configured-error'
@@ -79,11 +79,13 @@ export type SessionRuntimeFactoryArgs = {
         recordPodApplied(args: {
           sessionId: string
           vcpus: number
+          memoryGb: number
           generation: number
         }): Promise<boolean>
         readSession(args: { sessionId: string }): Promise<
           | {
               podDesiredVcpus: number | null
+              podDesiredMemoryGb: number | null
               podSizeGeneration: number
             }
           | undefined
@@ -121,14 +123,16 @@ export const createSessionRuntimeFactory = (
     // A resize writes its desired size and generation on the pod row while this runtime is still
     // the one waking its sandbox, so the size is read at wake time: the snapshot taken when the
     // runtime was built predates the resize, and a pod never resized has no snapshot at all.
-    const recordApplied = async (endpoint: { vcpus?: number | undefined }): Promise<void> => {
-      if (args.podSizing === undefined || endpoint.vcpus === undefined) return
+    const recordApplied = async (endpoint: DaemonEndpoint): Promise<void> => {
+      const { vcpus, memoryGb } = endpoint
+      if (args.podSizing === undefined || vcpus === undefined || memoryGb === undefined) return
       try {
         const pod = await args.podSizing.readSession({ sessionId: sandboxSessionId })
-        if (pod?.podDesiredVcpus !== endpoint.vcpus) return
+        if (pod?.podDesiredVcpus !== vcpus || pod.podDesiredMemoryGb !== memoryGb) return
         await args.podSizing.recordPodApplied({
           sessionId: sandboxSessionId,
-          vcpus: endpoint.vcpus,
+          vcpus,
+          memoryGb,
           generation: pod.podSizeGeneration,
         })
       } catch (error) {
@@ -139,7 +143,7 @@ export const createSessionRuntimeFactory = (
         })
       }
     }
-    const recordRun = async (endpoint: { vcpus?: number | undefined }): Promise<void> => {
+    const recordRun = async (endpoint: DaemonEndpoint): Promise<void> => {
       const vcpus = endpoint.vcpus ?? desiredVcpus
       if (vcpus === undefined) return
       await recordSandboxRunOpen({
@@ -150,7 +154,7 @@ export const createSessionRuntimeFactory = (
         target,
       })
     }
-    const onWake = async (endpoint: { vcpus?: number | undefined }): Promise<void> => {
+    const onWake = async (endpoint: DaemonEndpoint): Promise<void> => {
       await recordApplied(endpoint)
       await recordRun(endpoint)
     }

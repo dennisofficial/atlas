@@ -1,3 +1,4 @@
+import { and, or } from '@dltech/atlas-db'
 import type { Db } from '@dltech/atlas-db'
 
 import type { Agent37InstanceIds } from './agent37-instances'
@@ -27,5 +28,18 @@ export const agent37InstanceIdsOf = (db: Db): Agent37InstanceIds => ({
     const row = await rowOf(db, podSessionId)
     if (row === null) return
     await db.orm.v2.V2Session.where({ id: row.id }).updateAndCount({ sandboxInstanceId: null })
+  },
+  // The guard rides on the update itself: a webhook that lands between the row lookup and this
+  // statement still wins, because the comparison happens inside the write.
+  seedStatus: async ({ podSessionId, status, at }) => {
+    const row = await rowOf(db, podSessionId)
+    if (row === null) return
+    const stamped = new Date(at)
+    await db.orm.v2.V2Session.where((session) =>
+      and(
+        session.id.eq(row.id),
+        or(session.sandboxStatusAt.isNull(), session.sandboxStatusAt.lt(stamped)),
+      ),
+    ).updateAndCount({ sandboxStatus: status, sandboxStatusAt: stamped })
   },
 })

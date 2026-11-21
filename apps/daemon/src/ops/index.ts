@@ -6,6 +6,7 @@ import { execGroup } from './exec'
 import { filesGroup } from './files'
 import { gitGroup } from './git'
 import { mcpGroup } from './mcp'
+import { metricsGroup } from './metrics'
 import { previewsGroup } from './previews'
 import { servicesGroup } from './services'
 import { terminalGroup } from './terminal'
@@ -18,6 +19,7 @@ export const daemonGroups = (deps: DaemonOpsDeps): readonly DaemonGroupFactory[]
   filesGroup(deps),
   gitGroup(deps),
   mcpGroup(deps),
+  metricsGroup(deps),
   previewsGroup(deps),
   servicesGroup(deps),
   terminalGroup(deps),

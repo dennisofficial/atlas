@@ -104,6 +104,7 @@ const providerOf = (args: {
   stored?: string | null
 }) => {
   const remembered: Array<{ podSessionId: string; instanceId: string }> = []
+  const seeded: Array<{ podSessionId: string; status: Agent37Status; at: string }> = []
   let stored = args.stored ?? null
   const provider = new Agent37SandboxProvider({
     env: ENV,
@@ -120,9 +121,12 @@ const providerOf = (args: {
       forget: async () => {
         stored = null
       },
+      seedStatus: async (params) => {
+        seeded.push(params)
+      },
     },
   })
-  return { provider, remembered }
+  return { provider, remembered, seeded }
 }
 
 describe('Agent37SandboxProvider.wake', () => {
@@ -130,13 +134,14 @@ describe('Agent37SandboxProvider.wake', () => {
     const { bundle: b, cleanup } = bundle()
     const version = await agent37BundleVersionOf(b.path)
     const { client, creates, execs } = fakeClient({ version })
-    const { provider, remembered } = providerOf({ client, bundlePath: b.path })
+    const { provider, remembered, seeded } = providerOf({ client, bundlePath: b.path })
     try {
       const endpoint = await provider.wake({ target: TARGET, signal: new AbortController().signal })
 
       expect(creates).toHaveLength(1)
       expect(execs).toHaveLength(0)
       expect(remembered).toEqual([{ podSessionId: 'pod-1', instanceId: 'inst-1' }])
+      expect(seeded.map((seed) => [seed.podSessionId, seed.status])).toEqual([['pod-1', 'running']])
       expect(endpoint.url).toBe('wss://inst-1-47300.agent37.app/?a37_token=a37')
       expect(endpoint.sandboxName).toBe(agent37InstanceNameOf('pod-1'))
       expect(endpoint.token).toBe(
@@ -169,14 +174,45 @@ describe('Agent37SandboxProvider.wake', () => {
   it('wakes a known instance without creating another and without an exec', async () => {
     const { bundle: b, cleanup } = bundle()
     const version = await agent37BundleVersionOf(b.path)
-    const { client, creates, execs } = fakeClient({ version })
-    const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
+    const { client, creates, execs } = fakeClient({ version, status: 'waking' })
+    const { provider, seeded } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
     try {
       const endpoint = await provider.wake({ target: TARGET, signal: new AbortController().signal })
 
       expect(creates).toHaveLength(0)
       expect(execs).toHaveLength(0)
+      expect(seeded.map((seed) => [seed.podSessionId, seed.status])).toEqual([['pod-1', 'waking']])
       expect(endpoint.url).toContain('inst-9-47300')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('starts a sleeping instance before waiting for its daemon', async () => {
+    const { bundle: b, cleanup } = bundle()
+    const version = await agent37BundleVersionOf(b.path)
+    const { client, creates, started } = fakeClient({ version, status: 'sleeping' })
+    const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
+    try {
+      const endpoint = await provider.wake({ target: TARGET, signal: new AbortController().signal })
+
+      expect(started).toEqual(['inst-9'])
+      expect(creates).toHaveLength(0)
+      expect(endpoint.url).toContain('inst-9-47300')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('leaves a running instance alone, without a start', async () => {
+    const { bundle: b, cleanup } = bundle()
+    const version = await agent37BundleVersionOf(b.path)
+    const { client, started } = fakeClient({ version, status: 'running' })
+    const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
+    try {
+      await provider.wake({ target: TARGET, signal: new AbortController().signal })
+
+      expect(started).toEqual([])
     } finally {
       cleanup()
     }
@@ -196,17 +232,57 @@ describe('Agent37SandboxProvider.wake', () => {
       cleanup()
     }
   })
+
+  it('carries the memory the instance reports on the endpoint', async () => {
+    const { bundle: b, cleanup } = bundle()
+    const version = await agent37BundleVersionOf(b.path)
+    const { client } = fakeClient({ version, resources: { cpu: 4, memory: 32, disk: 20 } })
+    const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
+    try {
+      const endpoint = await provider.wake({ target: TARGET, signal: new AbortController().signal })
+
+      expect(endpoint.vcpus).toBe(4)
+      expect(endpoint.memoryGb).toBe(32)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('stamps the seed before it reads the instance, so a webhook from after the read wins', async () => {
+    const { bundle: b, cleanup } = bundle()
+    const version = await agent37BundleVersionOf(b.path)
+    let readAt = 0
+    const { client } = fakeClient({
+      version,
+      get: async ({ id }) => {
+        readAt = Date.now()
+        await new Promise((resolve) => setTimeout(resolve, 25))
+        return { id, status: 'running', url: `https://${id}.agent37.app` }
+      },
+    })
+    const { provider, seeded } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
+    try {
+      await provider.wake({ target: TARGET, signal: new AbortController().signal })
+
+      expect(readAt).toBeGreaterThan(0)
+      expect(Date.parse(seeded[0]?.at ?? '')).toBeLessThanOrEqual(readAt)
+    } finally {
+      cleanup()
+    }
+  })
 })
 
 describe('Agent37SandboxProvider.resize', () => {
-  it('resizes the remembered instance to the nearest vm shape, leaving disk alone', async () => {
+  it('resizes the remembered instance to the vm shape it was asked for, leaving disk alone', async () => {
     const { bundle: b, cleanup } = bundle()
     const version = await agent37BundleVersionOf(b.path)
     const { client, started, resized } = fakeClient({ version })
     const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
     try {
-      expect(await provider.resize({ target: TARGET, vcpus: 3 })).toBe('restarted')
-      expect(resized).toEqual([{ id: 'inst-9', cpu: 4, memory: 8 }])
+      expect(await provider.resize({ target: TARGET, shape: { vcpus: 4, memoryGb: 16 } })).toBe(
+        'restarted',
+      )
+      expect(resized).toEqual([{ id: 'inst-9', cpu: 4, memory: 16 }])
       expect(started).toEqual([])
     } finally {
       cleanup()
@@ -219,7 +295,9 @@ describe('Agent37SandboxProvider.resize', () => {
     const { client, started, resized } = fakeClient({ version, status: 'sleeping' })
     const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
     try {
-      expect(await provider.resize({ target: TARGET, vcpus: 2 })).toBe('restarted')
+      expect(await provider.resize({ target: TARGET, shape: { vcpus: 2, memoryGb: 4 } })).toBe(
+        'restarted',
+      )
       expect(started).toEqual(['inst-9'])
       expect(resized).toEqual([{ id: 'inst-9', cpu: 2, memory: 4 }])
     } finally {
@@ -237,7 +315,9 @@ describe('Agent37SandboxProvider.resize', () => {
     })
     const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
     try {
-      expect(await provider.resize({ target: TARGET, vcpus: 3 })).toBe('stored')
+      expect(await provider.resize({ target: TARGET, shape: { vcpus: 4, memoryGb: 8 } })).toBe(
+        'stored',
+      )
       expect(started).toEqual([])
       expect(resized).toEqual([])
     } finally {
@@ -251,7 +331,9 @@ describe('Agent37SandboxProvider.resize', () => {
     const { client, resized } = fakeClient({ version })
     const { provider } = providerOf({ client, bundlePath: b.path, stored: null })
     try {
-      expect(await provider.resize({ target: TARGET, vcpus: 4 })).toBe('absent')
+      expect(await provider.resize({ target: TARGET, shape: { vcpus: 4, memoryGb: 8 } })).toBe(
+        'absent',
+      )
       expect(resized).toEqual([])
     } finally {
       cleanup()

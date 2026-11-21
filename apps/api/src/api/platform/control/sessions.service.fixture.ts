@@ -18,6 +18,7 @@ import { BackgroundWork } from '../../../_core/ports/background-work'
 import { NoSessionTitler } from '../../../_core/ports/session-titler'
 import { FakeMediaRegistry } from './media-registry.fake'
 import { SessionsService } from './sessions.service'
+import { PodPowerService } from './pod-power.service'
 import { PodSizingService } from './pod-sizing.service'
 import { JobDispatcher, type JobDispatch } from '../../../_core/ports/job-dispatcher'
 import { ProjectAccess } from './project-access'
@@ -133,6 +134,7 @@ export const setupSessionsService = (
   const projects = new RecordingProjectAccess()
   const dispatcher = over.dispatcher ?? new FakePodResizeDispatcher()
   const podSizing = new PodSizingService(plane, dispatcher as unknown as JobDispatcher)
+  const podPower = new PodPowerService(plane, dispatcher as unknown as JobDispatcher)
   const service = new SessionsService(
     plane,
     projects,
@@ -142,6 +144,7 @@ export const setupSessionsService = (
     mediaStore,
     composeCommands([TEST_COMMAND, modelSet, resize]),
     podSizing,
+    podPower,
     over.ops ?? null,
     over.analytics ?? null,
   )
@@ -153,6 +156,7 @@ export const setupSessionsService = (
     store,
     projects,
     dispatcher,
+    podPower,
     analytics: over.analytics ?? null,
   }
 }

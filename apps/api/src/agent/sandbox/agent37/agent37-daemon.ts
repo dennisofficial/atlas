@@ -107,6 +107,28 @@ export const waitForAgent37Instance = async (args: {
   )
 }
 
+const ASLEEP_STATUSES: ReadonlySet<string> = new Set(['sleeping', 'stopped'])
+
+/**
+ * https://www.agent37.com/docs/agents-api/instances/start — a checkpointed instance answers nothing
+ * on its ports until it is started, so a wake that only waited for the daemon spent its budget on a
+ * pod that was never coming back.
+ */
+export const startAgent37InstanceIfAsleep = async (args: {
+  client: Agent37Client
+  id: string
+  log?: ((line: string) => void) | undefined
+}): Promise<void> => {
+  const instance = await args.client.get({ id: args.id })
+  if (!ASLEEP_STATUSES.has(instance.status)) return
+  await args.client.start({ id: args.id })
+  await waitForAgent37Instance({
+    client: args.client,
+    instanceId: args.id,
+    ...(args.log === undefined ? {} : { log: args.log }),
+  })
+}
+
 const daemonReportOf = async (args: {
   client: Agent37Client
   instanceId: string

@@ -24,29 +24,33 @@ export const setSandboxStatusIn = (params: {
   state: State
   sandboxInstanceId: string
   status: string
+  reason?: string | undefined
   at: string
-}): boolean => {
+}): string | null => {
   const row = [...params.state.sessions.values()].find(
     (session) => session.sandboxInstanceId === params.sandboxInstanceId,
   )
-  if (row === undefined) return false
+  if (row === undefined) return null
   if (row.sandboxStatusAt !== null && Date.parse(row.sandboxStatusAt) >= Date.parse(params.at)) {
-    return false
+    return null
   }
   row.sandboxStatus = params.status
   row.sandboxStatusAt = params.at
-  return true
+  row.sandboxStatusReason = params.reason ?? null
+  return row.sessionId
 }
 
 export const setSessionPodDesiredIn = (params: {
   state: State
   sessionId: string
   vcpus: number
+  memoryGb: number
   generation: number
 }): boolean => {
   const row = params.state.sessions.get(params.sessionId)
   if (row === undefined) return false
   row.podDesiredVcpus = params.vcpus
+  row.podDesiredMemoryGb = params.memoryGb
   row.podSizeGeneration = params.generation
   row.podResizeError = null
   row.podWaitingSince = null
@@ -57,11 +61,13 @@ export const setSessionPodAppliedIn = (params: {
   state: State
   sessionId: string
   vcpus: number
+  memoryGb: number
   generation: number
 }): boolean => {
   const row = params.state.sessions.get(params.sessionId)
   if (row === undefined || row.podSizeGeneration !== params.generation) return false
   row.podActualVcpus = params.vcpus
+  row.podActualMemoryGb = params.memoryGb
   row.podAppliedGeneration = params.generation
   row.podResizeError = null
   row.podWaitingSince = null
@@ -207,12 +213,15 @@ export const createSessionIn = (params: {
     sandboxInstanceId: params.sandboxInstanceId,
     sandboxStatus: null,
     sandboxStatusAt: null,
+    sandboxStatusReason: null,
     spawnedBySessionId: params.spawnedBySessionId ?? null,
     nested: params.nested ?? true,
     podSessionId: params.podSessionId ?? null,
     podDesiredVcpus: null,
+    podDesiredMemoryGb: null,
     podSizeGeneration: 0,
     podActualVcpus: null,
+    podActualMemoryGb: null,
     podAppliedGeneration: null,
     podResizeError: null,
     podWaitingSince: null,

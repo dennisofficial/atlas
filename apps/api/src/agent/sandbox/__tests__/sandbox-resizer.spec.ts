@@ -2,6 +2,8 @@ import { describe, expect, it } from 'bun:test'
 import { ECredentialSource, ESandboxProvider } from '@dltech/atlas-protocol'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 
+import type { PodShape } from '@dltech/atlas-core'
+
 import type { AgentHostEnv } from '../../config/env'
 import { ConfigReader } from '../../config/config-reader'
 import { cipher, seedOwner, seedVercel } from '../../config/__tests__/config-reader.fixture'
@@ -19,6 +21,9 @@ import { sandboxResizerOf, type SandboxResizer } from '../sandbox-resizer'
 
 const testDb = useTestDatabase()
 
+const VERCEL_4: PodShape = { vcpus: 4, memoryGb: 8 }
+const VERCEL_8: PodShape = { vcpus: 8, memoryGb: 16 }
+
 const PLATFORM: Pick<AgentHostEnv, 'platformVercel' | 'agent37'> = {
   platformVercel: { token: 'platform-token', teamId: 'platform-team', projectId: 'platform-proj' },
   agent37: {
@@ -34,7 +39,7 @@ const NO_PLATFORM: Pick<AgentHostEnv, 'platformVercel' | 'agent37'> = {
 }
 
 class RecordingSandbox extends SandboxProvider {
-  readonly resizes: { target: SandboxTarget; vcpus: number }[] = []
+  readonly resizes: { target: SandboxTarget; shape: PodShape }[] = []
 
   async wake(_args: { target: SandboxTarget; signal: AbortSignal }): Promise<DaemonEndpoint> {
     throw new Error('a resize never wakes')
@@ -44,7 +49,7 @@ class RecordingSandbox extends SandboxProvider {
 
   async keepAlive(_args: { target: SandboxTarget; until: number }): Promise<void> {}
 
-  async resize(args: { target: SandboxTarget; vcpus: number }): Promise<PodResizeOutcome> {
+  async resize(args: { target: SandboxTarget; shape: PodShape }): Promise<PodResizeOutcome> {
     this.resizes.push(args)
     return 'restarted'
   }
@@ -95,7 +100,9 @@ describe('sandboxResizerOf', () => {
       credentialSource: ECredentialSource.Byok,
     })
 
-    await expect(resizer.resize({ sandboxSessionId: 's-1', vcpus: 4 })).rejects.toMatchObject({
+    await expect(
+      resizer.resize({ sandboxSessionId: 's-1', shape: VERCEL_4 }),
+    ).rejects.toMatchObject({
       gap: 'byok-retired',
     })
     expect(vercel.resizes).toEqual([])
@@ -107,7 +114,7 @@ describe('sandboxResizerOf', () => {
     await seedOwner(db)
     await pin({ db, provider: ESandboxProvider.Vercel })
 
-    await resizer.resize({ sandboxSessionId: 's-1', vcpus: 8 })
+    await resizer.resize({ sandboxSessionId: 's-1', shape: VERCEL_8 })
 
     expect(vercel.resizes).toEqual([
       {
@@ -120,7 +127,7 @@ describe('sandboxResizerOf', () => {
             projectId: 'platform-proj',
           },
         },
-        vcpus: 8,
+        shape: VERCEL_8,
       },
     ])
   })
@@ -130,7 +137,7 @@ describe('sandboxResizerOf', () => {
     await seedOwner(db)
     await pin({ db, provider: ESandboxProvider.Agent37 })
 
-    await resizer.resize({ sandboxSessionId: 's-1', vcpus: 4 })
+    await resizer.resize({ sandboxSessionId: 's-1', shape: VERCEL_4 })
 
     expect(agent37.resizes).toEqual([
       {
@@ -138,7 +145,7 @@ describe('sandboxResizerOf', () => {
           sandboxSessionId: 's-1',
           credentials: { provider: ESandboxProvider.Agent37, apiKey: 'a37-platform-key' },
         },
-        vcpus: 4,
+        shape: VERCEL_4,
       },
     ])
     expect(vercel.resizes).toEqual([])
@@ -149,9 +156,9 @@ describe('sandboxResizerOf', () => {
     await seedOwner(db)
     await pin({ db, provider: ESandboxProvider.Vercel })
 
-    await expect(resizer.resize({ sandboxSessionId: 's-1', vcpus: 4 })).rejects.toBeInstanceOf(
-      SandboxNotConfiguredError,
-    )
+    await expect(
+      resizer.resize({ sandboxSessionId: 's-1', shape: VERCEL_4 }),
+    ).rejects.toBeInstanceOf(SandboxNotConfiguredError)
     expect(vercel.resizes).toEqual([])
     expect(agent37.resizes).toEqual([])
   })

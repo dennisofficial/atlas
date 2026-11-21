@@ -72,6 +72,20 @@ describe('readSessionStatus', () => {
       value: {
         state: ESessionStatus.Preparing,
         lease: { epoch: 0, holderHostId: null, live: false },
+        pod: {
+          phase: 'steady',
+          sizing: {
+            cap: 8,
+            offered: [
+              { vcpus: 2, memoryGb: 4 },
+              { vcpus: 4, memoryGb: 8 },
+              { vcpus: 4, memoryGb: 16 },
+              { vcpus: 4, memoryGb: 32 },
+              { vcpus: 8, memoryGb: 64 },
+            ],
+            unavailable: [],
+          },
+        },
         sandboxProvider: ESandboxProvider.Agent37,
         credentialSource: ECredentialSource.Platform,
       },

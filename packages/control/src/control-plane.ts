@@ -184,18 +184,24 @@ export class ControlPlane {
   async setSandboxStatus(params: {
     sandboxInstanceId: string
     status: string
+    reason?: string | undefined
     at: string
   }): Promise<boolean> {
     return this.store.transact((tx) => tx.setSandboxStatus(params))
   }
 
-  async recordPodDesired(params: { sessionId: string; vcpus: number }): Promise<number> {
+  async recordPodDesired(params: {
+    sessionId: string
+    vcpus: number
+    memoryGb: number
+  }): Promise<number> {
     return this.store.transact((tx) => recordPodDesiredIn({ tx, ...params }))
   }
 
   async recordPodApplied(params: {
     sessionId: string
     vcpus: number
+    memoryGb: number
     generation: number
   }): Promise<boolean> {
     return this.store.transact((tx) => recordPodAppliedIn({ tx, ...params }))

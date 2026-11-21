@@ -1,5 +1,10 @@
 import {
+  AGENT37_POD_SHAPES,
+  AGENT37_SANDBOX_PROVIDER,
   messageAfterFailureOf,
+  type PodShape,
+  podSizingOf,
+  SANDBOX_MEMORY_GB_PER_VCPU,
   sessionViewOf,
   type Lease,
   type PendingInputsState,
@@ -11,9 +16,11 @@ import {
 } from '@dltech/atlas-core'
 import {
   sessionSandboxStatusSchema,
+  type PodShapeViewOutput,
   type SessionCommandRow,
   type SessionStatusOutput,
 } from '@dltech/atlas-protocol'
+
 import type { z } from 'zod'
 
 import { UnknownThreadError } from './errors'
@@ -126,13 +133,37 @@ export const trackedPullRequestsOf = async (args: {
   return rows.map(pullRequestOf)
 }
 
+const shapeOf = (row: { vcpus: number | null; memoryGb: number | null }): PodShape | undefined =>
+  row.vcpus === null || row.memoryGb === null
+    ? undefined
+    : { vcpus: row.vcpus, memoryGb: row.memoryGb }
+
+const exactMemoryOf = (args: { sandboxProvider: string; vcpus: number }): number | null => {
+  if (args.sandboxProvider !== AGENT37_SANDBOX_PROVIDER) {
+    return args.vcpus * SANDBOX_MEMORY_GB_PER_VCPU
+  }
+  const memories = new Set(
+    AGENT37_POD_SHAPES.filter((shape) => shape.vcpus === args.vcpus).map((shape) => shape.memoryGb),
+  )
+  return memories.size === 1 ? ([...memories][0] ?? null) : null
+}
+
+const actualShapeOf = (session: ControlSessionRow): PodShapeViewOutput | undefined => {
+  if (session.podActualVcpus === null) return undefined
+  return {
+    vcpus: session.podActualVcpus,
+    memoryGb:
+      session.podActualMemoryGb ??
+      exactMemoryOf({ sandboxProvider: session.sandboxProvider, vcpus: session.podActualVcpus }),
+  }
+}
+
 export const podStatusOf = (session: ControlSessionRow | undefined): SessionStatusOutput['pod'] => {
   if (session === undefined) return undefined
-  const desiredVcpus = session.podDesiredVcpus ?? undefined
-  const actualVcpus = session.podActualVcpus ?? undefined
-  if (desiredVcpus === undefined && actualVcpus === undefined) return undefined
+  const actual = actualShapeOf(session)
+  const desired = shapeOf({ vcpus: session.podDesiredVcpus, memoryGb: session.podDesiredMemoryGb })
   const pending =
-    desiredVcpus !== undefined && session.podAppliedGeneration !== session.podSizeGeneration
+    desired !== undefined && session.podAppliedGeneration !== session.podSizeGeneration
   const phase =
     session.podResizeError !== null
       ? 'failed'
@@ -142,10 +173,11 @@ export const podStatusOf = (session: ControlSessionRow | undefined): SessionStat
           ? 'resizing'
           : 'steady'
   return {
-    ...(desiredVcpus === undefined ? {} : { desiredVcpus }),
-    ...(actualVcpus === undefined ? {} : { actualVcpus }),
+    ...(actual === undefined ? {} : { shape: actual, actualVcpus: actual.vcpus }),
+    ...(desired === undefined ? {} : { desiredShape: desired, desiredVcpus: desired.vcpus }),
     phase,
     ...(session.podResizeError === null ? {} : { error: session.podResizeError }),
+    sizing: podSizingOf({ sandboxProvider: session.sandboxProvider }),
   }
 }
 
@@ -155,6 +187,7 @@ const sandboxOf = (session: ControlSessionRow | undefined): SessionStatusOutput[
   const parsed = sessionSandboxStatusSchema.safeParse({
     status: session.sandboxStatus,
     at: session.sandboxStatusAt,
+    ...(session.sandboxStatusReason === null ? {} : { reason: session.sandboxStatusReason }),
   })
   return parsed.success ? parsed.data : undefined
 }

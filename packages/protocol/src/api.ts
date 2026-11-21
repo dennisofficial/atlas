@@ -10,6 +10,7 @@ import {
 import { z } from 'zod'
 
 import { changeFileStatusSchema, changeSideSchema } from './changes-state'
+import { METRICS_RING_SIZE, podSampleSchema } from './ops/metrics'
 import { sessionCommandRowSchema } from './command-row'
 import { inboxMediaSchema, sessionPostMediaListSchema } from './media'
 
@@ -202,6 +203,7 @@ export const sessionModelChoiceOf = (row: {
 export const sessionSandboxStatusSchema = z.strictObject({
   status: z.nativeEnum(ESandboxStatus),
   at: z.string().min(1),
+  reason: z.string().optional(),
 })
 
 export type SessionSandboxStatus = z.infer<typeof sessionSandboxStatusSchema>
@@ -282,6 +284,26 @@ export const sessionMarkReadOutputSchema = z.strictObject({
   readSeq: z.number().int().min(0),
 })
 
+export const podShapeSchema = z.strictObject({
+  vcpus: z.number().int().min(1),
+  memoryGb: z.number().int().min(1),
+})
+
+export type PodShapeOutput = z.infer<typeof podShapeSchema>
+
+export const podShapeViewSchema = z.strictObject({
+  vcpus: z.number().int().min(1),
+  memoryGb: z.number().int().min(1).nullable(),
+})
+
+export type PodShapeViewOutput = z.infer<typeof podShapeViewSchema>
+
+export const podSizingOutputSchema = z.strictObject({
+  cap: z.number().int().min(1),
+  offered: z.array(podShapeSchema),
+  unavailable: z.array(z.strictObject({ shape: podShapeSchema, reason: z.string().min(1) })),
+})
+
 export const sessionStatusOutputSchema = z.strictObject({
   state: z.enum(ESessionStatus),
   reason: z.string().optional(),
@@ -294,10 +316,13 @@ export const sessionStatusOutputSchema = z.strictObject({
   commands: z.array(sessionCommandRowSchema).optional(),
   pod: z
     .strictObject({
+      shape: podShapeViewSchema.optional(),
+      desiredShape: podShapeSchema.optional(),
       desiredVcpus: z.number().int().min(1).optional(),
       actualVcpus: z.number().int().min(1).optional(),
       phase: z.enum(['steady', 'resizing', 'waiting', 'failed']),
       error: z.string().optional(),
+      sizing: podSizingOutputSchema.optional(),
     })
     .optional(),
 })
@@ -325,6 +350,15 @@ export const sessionWakeOutputSchema = z.strictObject({
 })
 export type SessionWakeInput = z.infer<typeof sessionWakeInputSchema>
 export type SessionWakeOutput = z.infer<typeof sessionWakeOutputSchema>
+
+export const sessionSleepPodInputSchema = z.strictObject({
+  sessionId: z.string().min(1),
+  force: z.boolean().optional(),
+})
+
+export const sessionSleepPodOutputSchema = z.strictObject({ state: z.enum(['sleeping']) })
+export type SessionSleepPodInput = z.infer<typeof sessionSleepPodInputSchema>
+export type SessionSleepPodOutput = z.infer<typeof sessionSleepPodOutputSchema>
 
 export const sessionHoldPodInputSchema = z.strictObject({
   sessionId: z.string().min(1),
@@ -354,6 +388,21 @@ export const sessionPodResourcesOutputSchema = z
 
 export type SessionPodResourcesInput = z.infer<typeof sessionPodResourcesInputSchema>
 export type SessionPodResourcesOutput = z.infer<typeof sessionPodResourcesOutputSchema>
+
+export const sessionPodMetricsInputSchema = z.strictObject({
+  sessionId: z.string().min(1),
+})
+
+export const podMetricsFrameSchema = z.discriminatedUnion('type', [
+  z.strictObject({
+    type: z.literal('samples'),
+    samples: z.array(podSampleSchema).max(METRICS_RING_SIZE),
+  }),
+  z.strictObject({ type: z.literal('sample'), sample: podSampleSchema }),
+])
+
+export type SessionPodMetricsInput = z.infer<typeof sessionPodMetricsInputSchema>
+export type PodMetricsFrame = z.infer<typeof podMetricsFrameSchema>
 
 export const sessionRetryOutputSchema = z.strictObject({ inboxId: z.number().int().min(1) })
 

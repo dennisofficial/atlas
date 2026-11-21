@@ -19,6 +19,8 @@ export type EPodResizePhase = 'steady' | 'resizing' | 'waiting' | 'failed'
 
 export interface PodStatus {
   state: EPodState
+  label?: string
+  reason?: string
   vcpus?: number
   podId?: string
   region?: string
@@ -50,6 +52,7 @@ export function showsSize(state: EPodState): boolean {
 export function chipLabel(status: PodStatus): string {
   const restarting = status.state !== EPodState.Parked && status.state !== EPodState.Stopped
   if (status.phase === 'failed') return 'Resize failed'
+  if (status.label !== undefined) return status.label
   if (restarting && status.pendingVcpus !== undefined) {
     if (status.phase === 'waiting') return `Waiting to resize · ${sizeLabel(status.pendingVcpus)}`
     return status.phase === 'resizing'

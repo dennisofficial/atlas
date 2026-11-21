@@ -105,48 +105,108 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
     describe('pod resize waiting', () => {
       const waitAt = after({ iso: T0, offsetMs: 1000 })
       const podThread = `t-${SESSION}`
+      const VERCEL_SIZING = {
+        cap: 8,
+        offered: [
+          { vcpus: 1, memoryGb: 2 },
+          { vcpus: 2, memoryGb: 4 },
+          { vcpus: 4, memoryGb: 8 },
+          { vcpus: 6, memoryGb: 12 },
+          { vcpus: 8, memoryGb: 16 },
+        ],
+        unavailable: [
+          { shape: { vcpus: 10, memoryGb: 20 }, reason: 'Needs Enterprise plan' },
+          { shape: { vcpus: 12, memoryGb: 24 }, reason: 'Needs Enterprise plan' },
+          { shape: { vcpus: 14, memoryGb: 28 }, reason: 'Needs Enterprise plan' },
+          { shape: { vcpus: 16, memoryGb: 32 }, reason: 'Needs Enterprise plan' },
+          { shape: { vcpus: 18, memoryGb: 36 }, reason: 'Needs Enterprise plan' },
+          { shape: { vcpus: 20, memoryGb: 40 }, reason: 'Needs Enterprise plan' },
+          { shape: { vcpus: 22, memoryGb: 44 }, reason: 'Needs Enterprise plan' },
+          { shape: { vcpus: 24, memoryGb: 48 }, reason: 'Needs Enterprise plan' },
+          { shape: { vcpus: 26, memoryGb: 52 }, reason: 'Needs Enterprise plan' },
+          { shape: { vcpus: 28, memoryGb: 56 }, reason: 'Needs Enterprise plan' },
+          { shape: { vcpus: 30, memoryGb: 60 }, reason: 'Needs Enterprise plan' },
+          { shape: { vcpus: 32, memoryGb: 64 }, reason: 'Needs Enterprise plan' },
+        ],
+      }
 
       const podOf = async (): Promise<unknown> =>
         (await plane.readSessionView({ sessionId: SESSION, threadId: podThread })).value.status.pod
 
-      it('holds the waiting phase until the size applies', async () => {
+      it('holds the waiting phase until the shape applies', async () => {
         await seedSession({ sessionId: SESSION, offsetMs: 0 })
-        const generation = await plane.recordPodDesired({ sessionId: SESSION, vcpus: 4 })
+        const generation = await plane.recordPodDesired({
+          sessionId: SESSION,
+          vcpus: 4,
+          memoryGb: 8,
+        })
         expect(
           await plane.recordPodWaiting({ sessionId: SESSION, generation, since: waitAt }),
         ).toBe(true)
         expect((await plane.readSession({ sessionId: SESSION }))?.podWaitingSince).toBe(waitAt)
-        expect(await podOf()).toEqual({ desiredVcpus: 4, phase: 'waiting' })
+        expect(await podOf()).toEqual({
+          desiredShape: { vcpus: 4, memoryGb: 8 },
+          desiredVcpus: 4,
+          phase: 'waiting',
+          sizing: VERCEL_SIZING,
+        })
 
-        expect(await plane.recordPodApplied({ sessionId: SESSION, vcpus: 4, generation })).toBe(
-          true,
-        )
+        expect(
+          await plane.recordPodApplied({
+            sessionId: SESSION,
+            vcpus: 4,
+            memoryGb: 8,
+            generation,
+          }),
+        ).toBe(true)
         expect((await plane.readSession({ sessionId: SESSION }))?.podWaitingSince).toBeNull()
-        expect(await podOf()).toEqual({ desiredVcpus: 4, actualVcpus: 4, phase: 'steady' })
+        expect(await podOf()).toEqual({
+          shape: { vcpus: 4, memoryGb: 8 },
+          actualVcpus: 4,
+          desiredShape: { vcpus: 4, memoryGb: 8 },
+          desiredVcpus: 4,
+          phase: 'steady',
+          sizing: VERCEL_SIZING,
+        })
       })
 
       it('drops the wait when a newer resize supersedes it', async () => {
         await seedSession({ sessionId: SESSION, offsetMs: 0 })
-        const first = await plane.recordPodDesired({ sessionId: SESSION, vcpus: 4 })
+        const first = await plane.recordPodDesired({ sessionId: SESSION, vcpus: 4, memoryGb: 8 })
         await plane.recordPodWaiting({ sessionId: SESSION, generation: first, since: waitAt })
 
-        const second = await plane.recordPodDesired({ sessionId: SESSION, vcpus: 8 })
+        const second = await plane.recordPodDesired({ sessionId: SESSION, vcpus: 8, memoryGb: 16 })
         expect((await plane.readSession({ sessionId: SESSION }))?.podWaitingSince).toBeNull()
         expect(
           await plane.recordPodWaiting({ sessionId: SESSION, generation: first, since: waitAt }),
         ).toBe(false)
-        expect(await podOf()).toEqual({ desiredVcpus: 8, phase: 'resizing' })
+        expect(await podOf()).toEqual({
+          desiredShape: { vcpus: 8, memoryGb: 16 },
+          desiredVcpus: 8,
+          phase: 'resizing',
+          sizing: VERCEL_SIZING,
+        })
         expect(second).toBe(first + 1)
       })
 
       it('drops the wait when the resize fails', async () => {
         await seedSession({ sessionId: SESSION, offsetMs: 0 })
-        const generation = await plane.recordPodDesired({ sessionId: SESSION, vcpus: 4 })
+        const generation = await plane.recordPodDesired({
+          sessionId: SESSION,
+          vcpus: 4,
+          memoryGb: 8,
+        })
         await plane.recordPodWaiting({ sessionId: SESSION, generation, since: waitAt })
 
         await plane.recordPodFailed({ sessionId: SESSION, generation, error: 'no sandbox' })
         expect((await plane.readSession({ sessionId: SESSION }))?.podWaitingSince).toBeNull()
-        expect(await podOf()).toEqual({ desiredVcpus: 4, phase: 'failed', error: 'no sandbox' })
+        expect(await podOf()).toEqual({
+          desiredShape: { vcpus: 4, memoryGb: 8 },
+          desiredVcpus: 4,
+          phase: 'failed',
+          error: 'no sandbox',
+          sizing: VERCEL_SIZING,
+        })
       })
     })
 
@@ -175,12 +235,15 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
         sandboxInstanceId: null,
         sandboxStatus: null,
         sandboxStatusAt: null,
+        sandboxStatusReason: null,
         spawnedBySessionId: null,
         nested: true,
         podSessionId: null,
         podDesiredVcpus: null,
+        podDesiredMemoryGb: null,
         podSizeGeneration: 0,
         podActualVcpus: null,
+        podActualMemoryGb: null,
         podAppliedGeneration: null,
         podResizeError: null,
         podWaitingSince: null,
@@ -226,19 +289,31 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
         await plane.setSandboxStatus({
           sandboxInstanceId: 'unknown-instance',
           status: 'running',
+          reason: 'no such instance',
           at: newer,
         }),
       ).toBe(false)
       expect(
-        await plane.setSandboxStatus({ sandboxInstanceId: 'inst-1', status: 'running', at: newer }),
+        await plane.setSandboxStatus({
+          sandboxInstanceId: 'inst-1',
+          status: 'running',
+          reason: 'booted',
+          at: newer,
+        }),
       ).toBe(true)
       expect(
-        await plane.setSandboxStatus({ sandboxInstanceId: 'inst-1', status: 'sleeping', at: T0 }),
+        await plane.setSandboxStatus({
+          sandboxInstanceId: 'inst-1',
+          status: 'sleeping',
+          reason: 'idle timeout',
+          at: T0,
+        }),
       ).toBe(false)
 
       const row = await plane.readSession({ sessionId: SESSION })
       expect(row?.sandboxStatus).toBe('running')
       expect(row?.sandboxStatusAt).toBe(newer)
+      expect(row?.sandboxStatusReason).toBe('booted')
     })
 
     it('pins the complete model the session was created with', async () => {

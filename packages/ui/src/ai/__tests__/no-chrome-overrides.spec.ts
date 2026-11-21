@@ -29,6 +29,12 @@ const ALLOWED: AllowedOverride[] = [
     token: 'gap-3',
     reason: 'spaces the children the pattern composes in the hover body',
   },
+  {
+    file: 'message.tsx',
+    component: 'BubbleContent',
+    token: 'gap-1.5',
+    reason: 'spaces the caption and body the inbound bubble composes',
+  },
 ]
 
 const SRC_ROOT = join(import.meta.dir, '..', '..')

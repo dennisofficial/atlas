@@ -149,12 +149,18 @@ export const recordPodDesiredIn = async (params: {
   tx: ControlTx
   sessionId: string
   vcpus: number
+  memoryGb: number
 }): Promise<number> => {
   const { tx, sessionId } = params
   const session = await tx.lockSession(sessionId)
   if (session === undefined) throw new Error(`unknown session ${sessionId}`)
   const generation = session.podSizeGeneration + 1
-  await tx.setSessionPodDesired({ sessionId, vcpus: params.vcpus, generation })
+  await tx.setSessionPodDesired({
+    sessionId,
+    vcpus: params.vcpus,
+    memoryGb: params.memoryGb,
+    generation,
+  })
   await tx.announce({ sessionId })
   return generation
 }
@@ -163,6 +169,7 @@ export const recordPodAppliedIn = async (params: {
   tx: ControlTx
   sessionId: string
   vcpus: number
+  memoryGb: number
   generation: number
 }): Promise<boolean> => {
   const { tx, ...applied } = params

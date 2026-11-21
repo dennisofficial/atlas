@@ -1,3 +1,4 @@
+import type { PodShape } from '@dltech/atlas-core'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -67,7 +68,7 @@ export class LocalSandboxProvider extends SandboxProvider {
 
   async keepAlive(_args: { target: SandboxTarget; until: number }): Promise<void> {}
 
-  async resize(_args: { target: SandboxTarget; vcpus: number }): Promise<PodResizeOutcome> {
+  async resize(_args: { target: SandboxTarget; shape: PodShape }): Promise<PodResizeOutcome> {
     return 'restarted'
   }
 

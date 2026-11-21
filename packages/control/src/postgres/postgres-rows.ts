@@ -59,12 +59,15 @@ export const toSessionRow = (row: {
   sandboxInstanceId: string | null
   sandboxStatus: string | null
   sandboxStatusAt: Date | null
+  sandboxStatusReason: string | null
   spawnedBySessionId: string | null
   nested: boolean
   podSessionId: string | null
   podDesiredVcpus: number | null
+  podDesiredMemoryGb: number | null
   podSizeGeneration: number
   podActualVcpus: number | null
+  podActualMemoryGb: number | null
   podAppliedGeneration: number | null
   podResizeError: string | null
   podWaitingSince: Date | null
@@ -86,12 +89,15 @@ export const toSessionRow = (row: {
   sandboxInstanceId: row.sandboxInstanceId,
   sandboxStatus: row.sandboxStatus,
   sandboxStatusAt: row.sandboxStatusAt === null ? null : iso(row.sandboxStatusAt),
+  sandboxStatusReason: row.sandboxStatusReason,
   spawnedBySessionId: row.spawnedBySessionId,
   nested: row.nested,
   podSessionId: row.podSessionId,
   podDesiredVcpus: row.podDesiredVcpus,
+  podDesiredMemoryGb: row.podDesiredMemoryGb,
   podSizeGeneration: row.podSizeGeneration,
   podActualVcpus: row.podActualVcpus,
+  podActualMemoryGb: row.podActualMemoryGb,
   podAppliedGeneration: row.podAppliedGeneration,
   podResizeError: row.podResizeError,
   podWaitingSince: row.podWaitingSince === null ? null : iso(row.podWaitingSince),

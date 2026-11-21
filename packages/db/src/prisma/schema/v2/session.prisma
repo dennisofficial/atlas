@@ -19,13 +19,16 @@ namespace v2 {
     sandboxInstanceId String?
     sandboxStatus     String?
     sandboxStatusAt   TimestamptzJsDate(3)?
+    sandboxStatusReason String?
     spawnedBySessionId String?
     nested             Boolean               @default(true)
     podSessionId       String?
     podRetiredAt       TimestamptzJsDate(3)?
     podDesiredVcpus    Int?
+    podDesiredMemoryGb Int?
     podSizeGeneration  Int                   @default(0)
     podActualVcpus     Int?
+    podActualMemoryGb  Int?
     podAppliedGeneration Int?
     podResizeError     String?
     podWaitingSince    TimestamptzJsDate(3)?

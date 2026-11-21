@@ -1,5 +1,5 @@
 import type { ControlSessionRow } from '@dltech/atlas-control'
-import type { PodBusy } from '@dltech/atlas-core'
+import type { PodBusy, PodShape } from '@dltech/atlas-core'
 
 import type { PodResizeOutcome } from '../../../agent'
 import {
@@ -10,15 +10,20 @@ import {
 
 export type PodResizeSession = Pick<
   ControlSessionRow,
-  'sessionId' | 'podSessionId' | 'podSizeGeneration' | 'podDesiredVcpus'
+  'sessionId' | 'podSessionId' | 'podSizeGeneration' | 'podDesiredVcpus' | 'podDesiredMemoryGb'
 >
 
 export type PodResizeDeps = {
   session(args: { sessionId: string }): Promise<PodResizeSession | undefined>
-  resize(args: { sandboxSessionId: string; vcpus: number }): Promise<PodResizeOutcome>
+  resize(args: { sandboxSessionId: string; shape: PodShape }): Promise<PodResizeOutcome>
   rewake(args: { sessionId: string }): Promise<unknown>
   held(args: { sessionId: string }): Promise<boolean>
-  recordApplied(args: { sessionId: string; vcpus: number; generation: number }): Promise<unknown>
+  recordApplied(args: {
+    sessionId: string
+    vcpus: number
+    memoryGb: number
+    generation: number
+  }): Promise<unknown>
   recordFailed(args: { sessionId: string; generation: number; error: string }): Promise<unknown>
   recordWaiting(args: { sessionId: string; generation: number }): Promise<unknown>
   busy(args: { sessionId: string }): Promise<PodBusy>
@@ -49,9 +54,12 @@ export const runPodResize = async (args: {
     await deps.requeue({ payload, delaySeconds: POD_RESIZE_WAIT_SECONDS })
     return { outcome: EPodResizeOutcome.Waiting }
   }
-  const vcpus = session.podDesiredVcpus ?? payload.vcpus
+  const shape = {
+    vcpus: session.podDesiredVcpus ?? payload.vcpus,
+    memoryGb: session.podDesiredMemoryGb ?? payload.memoryGb,
+  }
   const sandboxSessionId = session.podSessionId ?? session.sessionId
-  const resized = await deps.resize({ sandboxSessionId, vcpus })
+  const resized = await deps.resize({ sandboxSessionId, shape })
   if (resized === 'absent') {
     // nothing will ever apply this size: say so rather than claim it was stored
     await deps.recordFailed({
@@ -71,7 +79,8 @@ export const runPodResize = async (args: {
   if (resized === 'restarted') {
     await deps.recordApplied({
       sessionId: sandboxSessionId,
-      vcpus,
+      vcpus: shape.vcpus,
+      memoryGb: shape.memoryGb,
       generation: payload.generation,
     })
   }

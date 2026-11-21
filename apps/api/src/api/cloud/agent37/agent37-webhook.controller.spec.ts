@@ -18,9 +18,19 @@ const AT = '2026-11-19T12:00:00.123Z'
 function controllerWith(
   env: Record<string, string | undefined> = { AGENT37_WEBHOOK_SECRET: SECRET },
 ) {
-  const applied: Array<{ instanceId: string; status: ESandboxStatus; at: string }> = []
+  const applied: Array<{
+    instanceId: string
+    status: ESandboxStatus
+    reason?: string | undefined
+    at: string
+  }> = []
   const statuses = {
-    applyStatus: async (args: { instanceId: string; status: ESandboxStatus; at: string }) => {
+    applyStatus: async (args: {
+      instanceId: string
+      status: ESandboxStatus
+      reason?: string | undefined
+      at: string
+    }) => {
       applied.push(args)
       return args.instanceId === INSTANCE
     },
@@ -34,14 +44,24 @@ function controllerWith(
 type StatusEventBody = {
   type: string
   timestamp: string
-  data: { id: string; status: string; previous_status?: string | undefined }
+  data: {
+    id: string
+    status: string
+    previous_status?: string | undefined
+    status_reason?: { message?: string } | undefined
+  }
 }
 
-function eventOf(patch: { type?: string; status?: string } = {}): StatusEventBody {
+function eventOf(patch: { type?: string; status?: string; reason?: string } = {}): StatusEventBody {
   return {
     type: patch.type ?? 'instance.status.updated',
     timestamp: AT,
-    data: { id: INSTANCE, status: patch.status ?? 'running', previous_status: 'starting' },
+    data: {
+      id: INSTANCE,
+      status: patch.status ?? 'running',
+      previous_status: 'starting',
+      ...(patch.reason === undefined ? {} : { status_reason: { message: patch.reason } }),
+    },
   }
 }
 
@@ -85,6 +105,22 @@ describe('Agent37WebhookController', () => {
     const body = { ...eventOf(), data: { id: 'unknown', status: 'running' } }
 
     expect(await deliver({ controller, body })).toEqual({ received: true })
+  })
+
+  it('carries the declared status reason through to the session write', async () => {
+    const { controller, applied } = controllerWith()
+
+    expect(
+      await deliver({ controller, body: eventOf({ status: 'sleeping', reason: 'idle timeout' }) }),
+    ).toEqual({ received: true })
+    expect(applied).toEqual([
+      {
+        instanceId: INSTANCE,
+        status: ESandboxStatus.Sleeping,
+        reason: 'idle timeout',
+        at: AT,
+      },
+    ])
   })
 
   it('refuses a delivery when the secret is not configured', async () => {

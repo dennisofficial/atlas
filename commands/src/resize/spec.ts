@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 export const resizeArgs = z.strictObject({
   vcpus: sandboxVcpusSchema,
+  memoryGb: z.number().int().min(1),
   whenIdle: z.boolean().optional(),
 })
 

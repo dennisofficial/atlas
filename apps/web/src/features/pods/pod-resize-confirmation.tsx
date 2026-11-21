@@ -3,6 +3,7 @@
 import { useState } from 'react'
 
 import type { PodBusy } from '@dltech/atlas-core'
+import type { PodShape } from '@dltech/atlas-ui/ai/pod-section'
 import { ResizeDeclinedError } from '@dltech/atlas-ui/ai/pod-status-chip'
 import {
   AlertDialog,
@@ -25,6 +26,11 @@ export type ResizeRequest = {
   whenIdle: boolean
 }
 
+export type PodShapeRequest = {
+  shape: PodShape
+  whenIdle: boolean
+}
+
 type Confirmation = {
   running: readonly string[]
   canWait: boolean
@@ -33,28 +39,28 @@ type Confirmation = {
   decline: () => void
 }
 
-export function useResizeConfirmation(args: {
+function useBusyConfirmation<S>(args: {
   busy: PodBusy
-  onResize: (request: ResizeRequest) => Promise<void>
-  canWait?: boolean
+  canWait: boolean
+  apply: (size: S, whenIdle: boolean) => Promise<void>
 }) {
-  const { busy, onResize, canWait = true } = args
+  const { busy, canWait, apply } = args
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
 
-  const askFirst = (vcpus: number) =>
+  const askFirst = (size: S) =>
     new Promise<void>((resolve, reject) => {
       let settled = false
-      const settle = (request: ResizeRequest) => {
+      const settle = (whenIdle: boolean) => {
         if (settled) return
         settled = true
         setConfirmation(null)
-        onResize(request).then(resolve, reject)
+        apply(size, whenIdle).then(resolve, reject)
       }
       setConfirmation({
         running: busy.running,
         canWait,
-        wait: () => settle({ vcpus, whenIdle: true }),
-        force: () => settle({ vcpus, whenIdle: false }),
+        wait: () => settle(true),
+        force: () => settle(false),
         decline: () => {
           if (settled) return
           settled = true
@@ -64,10 +70,37 @@ export function useResizeConfirmation(args: {
       })
     })
 
-  const handleResize = (vcpus: number) =>
-    busy.busy ? askFirst(vcpus) : onResize({ vcpus, whenIdle: false })
+  const confirm = (size: S) => (busy.busy ? askFirst(size) : apply(size, false))
 
-  return { confirmation, handleResize }
+  return { confirmation, confirm }
+}
+
+export function useResizeConfirmation(args: {
+  busy: PodBusy
+  onResize: (request: ResizeRequest) => Promise<void>
+  canWait?: boolean
+}) {
+  const { busy, onResize, canWait = true } = args
+  const { confirmation, confirm } = useBusyConfirmation<number>({
+    busy,
+    canWait,
+    apply: (vcpus, whenIdle) => onResize({ vcpus, whenIdle }),
+  })
+  return { confirmation, handleResize: confirm }
+}
+
+export function useShapeResizeConfirmation(args: {
+  busy: PodBusy
+  onResize: (request: PodShapeRequest) => Promise<void>
+  canWait?: boolean
+}) {
+  const { busy, onResize, canWait = true } = args
+  const { confirmation, confirm } = useBusyConfirmation<PodShape>({
+    busy,
+    canWait,
+    apply: (shape, whenIdle) => onResize({ shape, whenIdle }),
+  })
+  return { confirmation, handleResize: confirm }
 }
 
 export function ResizeBusyDialog({
