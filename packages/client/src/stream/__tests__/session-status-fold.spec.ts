@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import {
   ERetryReason,
   ESessionStatus,
+  ETurnCause,
   toCallId,
   type LogHead,
   type V2Body,
@@ -16,6 +17,7 @@ const SESSION = 'session-1'
 const FUTURE = new Date(60_000).toISOString()
 
 const userSaid: V2Body = { type: 'user-said', text: 'hi' }
+const turnStarted: V2Body = { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input }
 const finalReply: V2Body = { type: 'assistant-said', parts: [{ type: 'text', text: 'done' }] }
 const toolCall: V2Body = {
   type: 'tool-called',
@@ -84,13 +86,13 @@ describe('the client status fold', () => {
 
   it('shows thinking while a tool call is being prepared', () => {
     const { follower } = setup()
-    say({ follower, bodies: [userSaid, toolCall] })
+    say({ follower, bodies: [turnStarted, userSaid, toolCall] })
     expect(follower.getSnapshot().status?.state).toBe(ESessionStatus.Thinking)
   })
 
   it('shows running-tool from a dispatched call', () => {
     const { follower } = setup()
-    say({ follower, bodies: [userSaid, toolRunning] })
+    say({ follower, bodies: [turnStarted, userSaid, toolRunning] })
     expect(follower.getSnapshot().status).toEqual({
       state: ESessionStatus.RunningTool,
       reason: 'bash',
@@ -101,7 +103,7 @@ describe('the client status fold', () => {
 
   it('shows waiting-for-operator from a parked call', () => {
     const { follower } = setup()
-    say({ follower, bodies: [userSaid, parked] })
+    say({ follower, bodies: [turnStarted, userSaid, parked] })
     const status = follower.getSnapshot().status
     expect(status?.state).toBe(ESessionStatus.WaitingForOperator)
     expect(status?.reason).toBe('bash')
@@ -118,6 +120,7 @@ describe('the client status fold', () => {
         at: 0,
         status: { state: ESessionStatus.Idle, lease: { epoch: 1, holderHostId: 7, live: true } },
         context: null,
+        compute: { costUsd: null, running: false, tick: null },
         spend: {
           rows: [],
           tally: {
@@ -134,7 +137,7 @@ describe('the client status fold', () => {
         pluginViews: {},
       },
     })
-    say({ follower, bodies: [userSaid, retry] })
+    say({ follower, bodies: [turnStarted, userSaid, retry] })
     expect(follower.getSnapshot().status?.state).toBe(ESessionStatus.WaitingToRetry)
     advance(60_000)
     expect(follower.getSnapshot().status?.state).toBe(ESessionStatus.Thinking)
@@ -159,7 +162,7 @@ describe('the client status fold', () => {
     expect(snapshot.fromCache).toBe(true)
     expect(snapshot.status?.state).toBe(ESessionStatus.Idle)
     expect(snapshot.view?.at).toBe(2)
-    say({ follower: restored.follower, bodies: [toolCall], from: headOf(events) })
+    say({ follower: restored.follower, bodies: [turnStarted, toolCall], from: headOf(events) })
     expect(restored.follower.getSnapshot().status?.state).toBe(ESessionStatus.Thinking)
   })
 })

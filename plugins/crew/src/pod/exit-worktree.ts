@@ -15,13 +15,12 @@ const inputSchema = z.strictObject({
 })
 
 const description = [
-  "Leave the worktree the session is in and return to the repository's main checkout.",
-  'keep leaves the worktree and its branch on disk to come back to; remove deletes both.',
-  'remove only ever touches a worktree Atlas created with enter_worktree name or agent_spawn worktree. One the session merely entered by path, or was launched inside, already existed, so it is left on disk whichever action is asked for, and the developer removes it themselves.',
-  'Call it only when the developer asks to leave, never on your own initiative, and never as tidying up after finishing a task.',
-  'A remove is refused while the worktree holds uncommitted changes, or commits that are on neither its upstream nor the ref the branch was cut from, or when Atlas cannot tell what is not pushed; the refusal names what would be lost.',
-  'discardChanges forces that removal through, so ask the developer before setting it rather than deciding for them.',
-  'When the session is not in a worktree this does nothing at all and says so, leaving every file where it is.',
+  "Leave the worktree the session is in. The session returns to the repository's main checkout.",
+  'keep leaves the worktree and its branch on disk, so the session can come back to them. remove deletes both.',
+  'remove only touches a worktree that Atlas created with enter_worktree name or agent_spawn worktree. A worktree the session entered by path, or was launched inside, already existed: Atlas leaves it on disk whichever action is asked for, and the operator removes it.',
+  'Call it only when the operator asks to leave. Never call it on your own initiative, and never to tidy up after finishing the work.',
+  'A remove is refused in three cases: the worktree holds uncommitted changes, or commits that are on neither its upstream nor the ref the branch was cut from, and Atlas cannot tell what is not pushed. The refusal names what would be lost. discardChanges forces that removal. Ask the operator before you set it, and do not decide for the operator.',
+  'When the session is not in a worktree, this does nothing and says so. Every file stays where it is.',
 ].join(' ')
 
 const lostFilesOf = (state: WorktreeState): string => {
@@ -32,14 +31,14 @@ const lostFilesOf = (state: WorktreeState): string => {
 const removeRefusalOf = (args: { path: string; state: WorktreeState }): string | undefined => {
   const { path, state } = args
   if (state.changedCount > 0) {
-    return `removing the worktree at ${path} would lose ${lostFilesOf(state)}. Tell the developer what is there and let them decide: they can commit and push it, exit with keep instead, or ask you to call this again with discardChanges set.`
+    return `removing the worktree at ${path} would lose ${lostFilesOf(state)}. Tell the operator what is in the worktree and let them decide. They can commit and push it, exit with keep instead, or ask you to call this again with discardChanges set.`
   }
   if (state.unpushed === null) {
-    return `removing the worktree at ${path} cannot tell what is not pushed from here, so it needs the developer's go-ahead. Tell them the worktree holds no uncommitted changes, but with no upstream branch or base branch Atlas cannot count the commits it would lose, and call again with discardChanges set if they agree it should go.`
+    return `removing the worktree at ${path} cannot tell what is not pushed from here, so it needs the approval of the operator. Tell them the worktree holds no uncommitted changes. With no upstream branch or base branch Atlas cannot count the commits it would lose. Call again with discardChanges set if they agree it should go.`
   }
   const { count, against } = state.unpushed
   if (count > 0) {
-    return `removing the worktree at ${path} would lose ${count} ${count === 1 ? 'commit that is' : 'commits that are'} not on ${against}. Tell the developer what is there and let them decide: they can push it, exit with keep instead, or ask you to call this again with discardChanges set.`
+    return `removing the worktree at ${path} would lose ${count} ${count === 1 ? 'commit that is' : 'commits that are'} not on ${against}. Tell the operator what is in the worktree and let them decide. They can push it, exit with keep instead, or ask you to call this again with discardChanges set.`
   }
   return undefined
 }
@@ -88,7 +87,7 @@ export class ExitWorktreeTool extends SchemaTool<typeof inputSchema> {
       return {
         ok: true,
         output: { exitedWorktree: { path, action: EWorktreeExit.Keep, returnTo } },
-        modelText: `Left the worktree at ${path}. Atlas did not create it - the session entered one that already existed - so it stays on disk with its branch and nothing was removed. Tell the developer that, and let them remove it themselves if they want it gone. ${landing}`,
+        modelText: `Left the worktree at ${path}. Atlas did not create it - the session entered one that already existed - so it stays on disk with its branch and nothing was removed. Tell the operator that. Let them remove it if they want it gone. ${landing}`,
       }
     }
 

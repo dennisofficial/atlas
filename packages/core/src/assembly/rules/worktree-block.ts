@@ -16,22 +16,22 @@ const branchLineOf = (worktree: ActiveWorktree): string => {
   }
   const upstream =
     worktree.base === undefined ? 'which has no upstream' : `which tracks ${worktree.base}`
-  return `on branch ${worktree.branch}, ${upstream}. It already existed before this session and Atlas did not create it.`
+  return `on branch ${worktree.branch}, ${upstream}. It already existed before this session and the Atlas harness did not create it.`
 }
 
 const leavingLineOf = (worktree: ActiveWorktree): string =>
   worktree.adopted
-    ? "exit_worktree returns the session to the repository's main checkout and leaves this worktree exactly where it is; it will not remove a worktree Atlas did not create."
-    : "exit_worktree returns the session to the repository's main checkout, keeping or removing this worktree as the developer asks."
+    ? "exit_worktree returns the session to the repository's main checkout and leaves this worktree exactly where it is. It will not remove a worktree the Atlas harness did not create."
+    : "exit_worktree returns the session to the repository's main checkout, keeping or removing this worktree as the operator asks."
 
 const RESOLUTION_LINE =
   'Paths you pass to a tool resolve against it and a bash command starts there.'
 
 const CLOUD_LOCATION_LINE =
-  "Execution location: a cloud sandbox with full isolation — this filesystem, /tmp, and localhost belong to the sandbox; the operator's machine cannot see any of it. Hand files over through the conversation or an exposed port."
+  "Execution location: a cloud sandbox with full isolation — this filesystem, /tmp, and localhost belong to the sandbox. The operator's machine cannot see any of it. Hand files over through the conversation or an exposed port."
 
 const DOCKER_LOCATION_LINE =
-  "Execution location: a Docker container on the operator's machine — only the project directory and explicitly mounted paths are shared with the host; everything else you write, /tmp included, stays inside the container."
+  "Execution location: a Docker sandbox on the operator's machine — only the project directory and explicitly mounted paths are shared with the operator's machine. Everything else you write, /tmp included, stays inside the sandbox."
 
 const locationLineOf = (location: EExecutionLocation): string | undefined => {
   if (location === EExecutionLocation.Cloud) return CLOUD_LOCATION_LINE
@@ -56,7 +56,7 @@ export function projectDirectoryNote(args: {
   return [
     `Project directory: ${worktree.path}, a git worktree ${branchLineOf(worktree)}`,
     RESOLUTION_LINE,
-    `The repository's main checkout is at ${args.mainCheckout}; it stays unchanged unless the developer asks for changes there, and you reach it only with absolute paths.`,
+    `The repository's main checkout is at ${args.mainCheckout}. It stays unchanged unless the operator asks for changes there. You reach it only with absolute paths.`,
     leavingLineOf(worktree),
     locationLine,
   ]

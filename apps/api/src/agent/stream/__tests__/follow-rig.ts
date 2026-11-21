@@ -43,6 +43,7 @@ export class FollowRig {
   readonly surfaces: SurfaceRecord[] = []
   buffered = 0
   reads = 0
+  headReads = 0
   onRead: (() => Promise<void>) | undefined
   readonly follow: FollowSubscriptions
   private epoch = 0
@@ -57,7 +58,10 @@ export class FollowRig {
   constructor(args: { live?: LiveSource } = {}) {
     const plane: FollowPlane = {
       readSession: (params) => this.plane.readSession(params),
-      head: (params) => this.plane.head(params),
+      head: (params) => {
+        this.headReads += 1
+        return this.plane.head(params)
+      },
       readEvents: async (params) => {
         this.reads += 1
         const page = await this.plane.readEvents(params)

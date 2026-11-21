@@ -84,6 +84,18 @@ describe('liveAgent37Client', () => {
     expect(resized.resources).toEqual({ cpu: 4, memory: 8, disk: 20 })
   })
 
+  it('starts a stopped instance on the API host', async () => {
+    const { fetchImpl, calls } = fakeFetch([
+      { status: 200, body: { id: 'ab12', status: 'running' } },
+    ])
+    const client = liveAgent37Client({ apiKey: 'sk_live_6', fetch: fetchImpl })
+    const started = await client.start({ id: 'ab12' })
+    expect(calls[0]?.url).toBe('https://api.agent37.com/v1/instances/ab12/start')
+    expect(calls[0]?.method).toBe('POST')
+    expect(calls[0]?.headers.Authorization).toBe('Bearer sk_live_6')
+    expect(started.status).toBe('running')
+  })
+
   it('retries a 409 try_again once and returns the answer that follows', async () => {
     const { fetchImpl, calls } = fakeFetch([
       { status: 409, body: { error: { code: 'try_again' } } },

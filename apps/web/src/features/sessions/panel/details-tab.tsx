@@ -7,6 +7,7 @@ import { SessionDetailsHeader } from './details/header-section'
 import { SessionPodSection } from './details/pod-section'
 import { SessionServicesSection } from './details/services-section'
 import { SessionShellsSection } from './details/shells-section'
+import { SessionSubscriptionsSection } from './details/subscriptions-section'
 import { SessionTodoSection } from './details/todo-section'
 
 export function SessionDetailsTab() {
@@ -22,6 +23,7 @@ export function SessionDetailsTab() {
         <SessionTodoSection tasks={view.plan} />
       </div>
       <SessionGithubSection />
+      <SessionSubscriptionsSection />
       <SessionServicesSection />
       <SessionCrewSection />
       <SessionShellsSection />

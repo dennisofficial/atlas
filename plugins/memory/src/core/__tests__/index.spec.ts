@@ -38,6 +38,35 @@ describe('memoryIndexOf', () => {
   it('says none yet for a scope with no entries', () => {
     expect(memoryIndexOf({ project: 'o/r', memories: [] })).toContain('(none yet)')
   })
+
+  it('renders byte-identical text when the same entries arrive in another order', () => {
+    const memories = [
+      summary({ name: 'delta-prefers-bun' }),
+      summary({ name: 'alpha-runs-tests-first' }),
+      summary({ scope: 'project', project: 'o/r', name: 'charlie-uses-biome' }),
+      summary({ scope: 'project', project: 'o/r', name: 'bravo-keeps-prs-small' }),
+    ]
+    const rendered = memoryIndexOf({ project: 'o/r', memories })
+    const shuffled = memoryIndexOf({
+      project: 'o/r',
+      memories: [memories[2]!, memories[0]!, memories[3]!, memories[1]!],
+    })
+    expect(shuffled).toBe(rendered)
+    expect(rendered.length).toBe(
+      memoryIndexOf({ project: 'o/r', memories: [...memories].reverse() }).length,
+    )
+  })
+
+  it('lists each scope in name order, whatever order the list arrives in', () => {
+    const memories = [
+      summary({ name: 'zeta' }),
+      summary({ name: 'alpha' }),
+      summary({ name: 'mid' }),
+    ]
+    const text = memoryIndexOf({ project: null, memories })
+    expect(text.indexOf('- alpha')).toBeLessThan(text.indexOf('- mid'))
+    expect(text.indexOf('- mid')).toBeLessThan(text.indexOf('- zeta'))
+  })
 })
 
 describe('unavailableIndexOf', () => {

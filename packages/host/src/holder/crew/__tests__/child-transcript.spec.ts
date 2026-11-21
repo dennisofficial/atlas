@@ -33,6 +33,7 @@ const label = (ref: { providerId: string; modelId: string }): string => `${ref.m
 const transcriptOf = (
   choice: RoleModelChoice,
   posted: string[],
+  seq = 0,
 ): { transcript: ChildTranscript; appends: EventDraft[][] } => {
   const appends: EventDraft[][] = []
   const deps = {
@@ -42,12 +43,14 @@ const transcriptOf = (
       post: async (message: { payload: string }) => {
         posted.push(message.payload)
       },
+      readInbox: async () => [],
     },
   } as unknown as HeldSessionDeps
   const record = {
     append: async (args: { drafts: readonly EventDraft[] }) => {
       appends.push([...args.drafts])
     },
+    eventCache: () => ({ eventsAfter: () => [] }),
   } as unknown as SessionRecord
   const transcript = new ChildTranscript({
     deps,
@@ -58,6 +61,7 @@ const transcriptOf = (
     agentId: CHILD,
     agentType: ROLE,
     intent: 'probe',
+    lastSeq: () => seq,
   })
   return { transcript, appends }
 }
@@ -110,9 +114,9 @@ describe('ChildTranscript', () => {
     ])
   })
 
-  it('wakes the parent once, when the ending follows a waking report', async () => {
+  it('posts the ending as its own notice even when a report already woke the parent', async () => {
     const posted: string[] = []
-    const { transcript } = transcriptOf(MAIN, posted)
+    const { transcript } = transcriptOf(MAIN, posted, 12)
     await transcript.reported({ kind: EReportKind.Blocked, text: 'stuck' })
     await transcript.ended({
       progress: { turns: 1, toolCalls: 0, prose: '', lastTool: undefined },
@@ -120,6 +124,10 @@ describe('ChildTranscript', () => {
       failure: undefined,
       killedBy: undefined,
     })
-    expect(posted).toHaveLength(1)
+    expect(posted).toHaveLength(2)
+    expect(posted[0]).toContain('"agent-reported"')
+    expect(posted[1]).toContain('"agent-ended"')
+    expect(JSON.parse(posted[0] ?? '{}').clientId).toBe(`agent-reported:${CHILD}:12`)
+    expect(JSON.parse(posted[1] ?? '{}').clientId).toBe(`agent-ended:${CHILD}:12`)
   })
 })

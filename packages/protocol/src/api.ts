@@ -63,6 +63,8 @@ export enum ESandboxProvider {
   Agent37 = 'agent37',
 }
 
+export const DEFAULT_SANDBOX_PROVIDER = ESandboxProvider.Agent37
+
 export enum ECredentialSource {
   Byok = 'byok',
   Platform = 'platform',
@@ -223,6 +225,7 @@ export const sessionSummarySchema = z.strictObject({
   primaryBranch: z.string().nullable().optional(),
   pullRequest: sessionRowPullRequestSchema.nullable().optional(),
   sandbox: sessionSandboxStatusSchema.nullable().optional(),
+  sandboxProvider: z.enum(ESandboxProvider).optional(),
 })
 
 export const sessionListOutputSchema = z.strictObject({
@@ -279,6 +282,19 @@ export const sessionMarkReadOutputSchema = z.strictObject({
   readSeq: z.number().int().min(0),
 })
 
+export const podShapeSchema = z.strictObject({
+  vcpus: z.number().int().min(1),
+  memoryGb: z.number().int().min(1),
+})
+
+export type PodShapeOutput = z.infer<typeof podShapeSchema>
+
+export const podSizingOutputSchema = z.strictObject({
+  cap: z.number().int().min(1),
+  offered: z.array(podShapeSchema),
+  unavailable: z.array(z.strictObject({ shape: podShapeSchema, reason: z.string().min(1) })),
+})
+
 export const sessionStatusOutputSchema = z.strictObject({
   state: z.enum(ESessionStatus),
   reason: z.string().optional(),
@@ -291,10 +307,13 @@ export const sessionStatusOutputSchema = z.strictObject({
   commands: z.array(sessionCommandRowSchema).optional(),
   pod: z
     .strictObject({
+      shape: podShapeSchema.optional(),
+      desiredShape: podShapeSchema.optional(),
       desiredVcpus: z.number().int().min(1).optional(),
       actualVcpus: z.number().int().min(1).optional(),
-      phase: z.enum(['steady', 'resizing', 'failed']),
+      phase: z.enum(['steady', 'resizing', 'waiting', 'failed']),
       error: z.string().optional(),
+      sizing: podSizingOutputSchema.optional(),
     })
     .optional(),
 })
@@ -371,6 +390,8 @@ export const sessionSpendRowSchema = z.strictObject({
   providerId: z.string(),
   modelId: z.string(),
   ...tokenSpendShape,
+  costUsd: z.number().min(0).optional(),
+  unpricedTokens: z.strictObject(tokenSpendShape).optional(),
 })
 
 export const sessionSpendTallySchema = z.strictObject({
@@ -429,6 +450,13 @@ export const sessionViewOutputSchema = z.strictObject({
   spend: z.strictObject({
     rows: z.array(sessionSpendRowSchema),
     tally: sessionSpendTallySchema,
+  }),
+  compute: z.strictObject({
+    costUsd: z.number().nullable(),
+    running: z.boolean(),
+    tick: z
+      .strictObject({ at: z.number().int().min(0), rateUsdPerHour: z.number().min(0) })
+      .nullable(),
   }),
   checkouts: sessionCheckoutsSchema,
   pullRequests: z.array(sessionLinkedPullRequestSchema),

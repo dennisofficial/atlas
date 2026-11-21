@@ -23,7 +23,11 @@ describe('SessionHolder prepare notices', () => {
     })
 
     expect(prepared).toBe(true)
-    expect(await typesOf(rig)).toEqual(['context-loaded', 'workspace-prepared'])
+    expect(await typesOf(rig)).toEqual([
+      'workspace-attempt-started',
+      'context-loaded',
+      'workspace-prepared',
+    ])
     const page = await rig.plane.readEvents({
       threadId: THREAD_ID,
       afterSeq: 0,
@@ -54,6 +58,7 @@ describe('SessionHolder prepare notices', () => {
     })
 
     expect(await typesOf(rig)).toEqual([
+      'workspace-attempt-started',
       'context-loaded',
       'sandbox-setup-reported',
       'workspace-prepared',

@@ -70,6 +70,8 @@ export function changeRegistry(change: (registry: FrameRegistry) => FrameRegistr
   for (const listener of listeners) listener()
 }
 
+export const resetFrameRegistry = (): void => changeRegistry(() => EMPTY_REGISTRY)
+
 const subscribe = (listener: () => void) => {
   listeners.add(listener)
   return () => void listeners.delete(listener)

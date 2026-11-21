@@ -9,6 +9,8 @@ import {
   EMPTY_MCP_CONTROL,
   EMPTY_ROUTINES,
   EMPTY_WORKTREES,
+  EMPTY_POD_RESOURCES,
+  UNVERSIONED_SETTINGS,
 } from '@dltech/atlas-plugin-sdk'
 
 import { sessionsPod } from '..'
@@ -73,9 +75,12 @@ const rig = (sessions: PodSessions) => {
   const ctx: PluginPodContext = {
     sessionId: 's1',
     sessions,
+    resources: EMPTY_POD_RESOURCES,
     crew: EMPTY_CREW,
     worktrees: EMPTY_WORKTREES,
+    notify: async () => undefined,
     control: {
+      settingsVersions: async () => UNVERSIONED_SETTINGS,
       exposePort: async () => {
         throw new Error('this rig exposes no port')
       },
@@ -335,7 +340,7 @@ describe('list_teammates', () => {
 })
 
 describe('report_to_spawner', () => {
-  it('sends the kind and the text and says the report is with the spawner', async () => {
+  it('sends the kind and the text and says the report is with the parent agent', async () => {
     const sessions = fakeSessions()
     const { ctx } = rig(sessions.port)
     const outcome = await invoke({
@@ -350,7 +355,7 @@ describe('report_to_spawner', () => {
       },
     ])
     expect(outcome.ok && outcome.output).toEqual({ kind: EReportKind.Blocked })
-    expect(textOf(outcome)).toContain('created you')
+    expect(textOf(outcome)).toContain('with the parent agent')
   })
 
   it('turns a session with no spawner into the tool reason', async () => {

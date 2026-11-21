@@ -1,4 +1,4 @@
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import {
   afterAll,
   afterEach,
@@ -31,12 +31,12 @@ mock.module('next/navigation', () => ({
 let root: Root | null = null
 
 beforeAll(() => {
-  GlobalRegistrator.register()
+  registerDom()
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
 })
 
 afterAll(async () => {
-  await GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 beforeEach(() => {

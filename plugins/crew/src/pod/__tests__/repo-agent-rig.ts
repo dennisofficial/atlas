@@ -1,6 +1,6 @@
 import { basename, dirname } from 'node:path'
 
-import { EAgentStatus, toThreadId, type Assembled } from '@dltech/atlas-core'
+import { EAgentStatus, toThreadId, type Assembled, type V2Event } from '@dltech/atlas-core'
 import {
   type PluginPodContext,
   type PodCrew,
@@ -10,8 +10,16 @@ import {
   EMPTY_ROUTINES,
   EMPTY_SESSIONS,
   EMPTY_WORKTREES,
+  EMPTY_POD_RESOURCES,
+  UNVERSIONED_SETTINGS,
 } from '@dltech/atlas-plugin-sdk'
-import { ECallStatus, type CallOp, type CallResult } from '@dltech/atlas-protocol'
+import {
+  ECallStatus,
+  type CallOp,
+  type CallResult,
+  type DaemonEvent,
+  type DaemonEventFrame,
+} from '@dltech/atlas-protocol'
 
 import { crewPod } from '..'
 
@@ -25,6 +33,7 @@ const failed = (op: string, message: string): CallResult =>
 
 export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
   const calls: CallOp[] = []
+  const watchers = new Set<(frame: DaemonEventFrame) => void>()
 
   const call = async (op: CallOp): Promise<CallResult> => {
     calls.push(op)
@@ -50,6 +59,8 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
         }))
       return ok(op.op, entries)
     }
+    if (op.op === 'watch.start') return ok(op.op, op.roots)
+    if (op.op === 'watch.stop') return ok(op.op, null)
     if (op.op === 'readFile') {
       const node = nodes[op.path]
       if (node === undefined || node.kind !== 'file')
@@ -59,7 +70,18 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
     return failed(op.op, 'not a files op')
   }
 
-  return { call, calls }
+  const onDaemonEvent = (listener: (frame: DaemonEventFrame) => void): (() => void) => {
+    watchers.add(listener)
+    return () => {
+      watchers.delete(listener)
+    }
+  }
+
+  const emit = (event: DaemonEvent): void => {
+    for (const listener of watchers) listener({ kind: 'event', event })
+  }
+
+  return { call, calls, onDaemonEvent, emit }
 }
 
 export const dirs = (...paths: readonly string[]): Record<string, FakeNode> =>
@@ -97,8 +119,10 @@ export const fakeCrew = () => {
 
 export const rig = (args: { nodes?: Record<string, FakeNode>; crew?: PodCrew } = {}) => {
   const daemon = fakeDaemon(args.nodes ?? {})
+  const events: V2Event[] = []
   const ctx: PluginPodContext = {
     sessionId: 's1',
+    resources: EMPTY_POD_RESOURCES,
     crew: args.crew ?? fakeCrew().port,
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
@@ -106,6 +130,7 @@ export const rig = (args: { nodes?: Record<string, FakeNode>; crew?: PodCrew } =
       mcp: EMPTY_MCP_CONTROL,
       webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
       routines: EMPTY_ROUTINES,
+      settingsVersions: async () => UNVERSIONED_SETTINGS,
       exposePort: async () => {
         throw new Error('this rig exposes no port')
       },
@@ -121,14 +146,32 @@ export const rig = (args: { nodes?: Record<string, FakeNode>; crew?: PodCrew } =
         delete: async () => false,
       },
     },
-    append: async () => undefined,
-    events: () => [],
+    append: async (drafts) => {
+      for (const draft of drafts) events.push(draft as unknown as V2Event)
+    },
+    notify: async () => undefined,
+    events: () => events,
     call: daemon.call,
     live: () => undefined,
-    onDaemonEvent: () => () => undefined,
+    onDaemonEvent: daemon.onDaemonEvent,
     log: () => undefined,
   }
-  return { ctx, calls: daemon.calls }
+  return { ctx, calls: daemon.calls, events }
+}
+
+export const refresh = async (args: {
+  ctx: PluginPodContext
+  projectDirectory?: string
+}): Promise<void> => {
+  for (const resource of crewPod.resources ?? []) {
+    const value = await resource.load({
+      ctx: args.ctx,
+      directory: args.projectDirectory ?? '/work',
+    })
+    await args.ctx.append([
+      { type: 'resource-loaded', resource: resource.name, fingerprint: 'rig', value },
+    ])
+  }
 }
 
 export const invoke = async (args: {
@@ -166,6 +209,7 @@ export const turn = async (args: {
   ctx: PluginPodContext
   projectDirectory?: string
   assembled?: Assembled
+  refresh?: boolean
 }): Promise<readonly string[]> => {
   const hooks = crewPod.hooks?.(args.ctx)
   for (const hook of hooks?.beforeTurn ?? [])
@@ -173,6 +217,7 @@ export const turn = async (args: {
       threadId: toThreadId('t1'),
       projectDirectory: args.projectDirectory ?? '/work',
     })
+  if (args.refresh !== false) await refresh(args)
   let assembled = args.assembled ?? mainThreadPrompt()
   for (const hook of hooks?.beforeStep ?? []) assembled = await hook.run({ assembled, trace: [] })
   return assembled.system.map((block) => block.text)

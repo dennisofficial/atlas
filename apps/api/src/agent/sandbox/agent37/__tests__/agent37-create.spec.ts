@@ -40,7 +40,8 @@ describe('agent37CreateBodyOf', () => {
       daemonToken({ secret: 'secret', sandboxName: 'atlas-pod-1' }),
     )
     expect(body.env.ATLAS_SANDBOX_NAME).toBe('atlas-pod-1')
-    expect(body.env.PORT).toBe('3000')
+    expect(body.env.ATLAS_DAEMON_PORT).toBe('47300')
+    expect(body.env.PORT).toBeUndefined()
     expect(body.env.ATLAS_DAEMON_BUNDLE_URL).toBe('https://api.byatlas.io/agent/daemon/bundle')
   })
 

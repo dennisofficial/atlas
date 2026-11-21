@@ -13,6 +13,7 @@ import { App } from '../app'
 import { fakeBridge, type FakeBridge } from '../cloud/__tests__/fixture'
 import { unstartedConversation } from '../open-conversation'
 import { editorIn, promiseGate, until } from './app-fixture'
+import { trpcBodyOf } from './trpc-body'
 import { fakeApp, fakeCloud, fakeSignedOutCloud, scriptedModelPort, type FakeApp } from './fake-app'
 
 export const ACME_ORIGIN = 'https://github.com/acme/widgets.git'
@@ -73,7 +74,7 @@ export const fakeProjectsApi = (
       })
     if (init?.method === 'POST') {
       if (args.createFails === true) return trpcBadRequest('projects are read-only')
-      const body = JSON.parse(String(init.body)) as CreatedProject
+      const body = trpcBodyOf(String(init.body)) as CreatedProject
       created.push(body)
       return trpcData(projectOf({ id: 'proj-new', name: body.name, repo: body.repo }))
     }

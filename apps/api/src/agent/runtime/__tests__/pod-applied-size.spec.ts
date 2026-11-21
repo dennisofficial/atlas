@@ -1,3 +1,4 @@
+import type { PodShape } from '@dltech/atlas-core'
 import { EEffort, toThreadId } from '@dltech/atlas-core'
 import { ESandboxProvider } from '@dltech/atlas-protocol'
 import { ScriptedModel } from '@dltech/atlas-agent/testing'
@@ -71,7 +72,7 @@ class RestartingPodSandbox extends SandboxProvider {
   async stop(): Promise<void> {}
   async keepAlive(): Promise<void> {}
 
-  async resize(_args: { target: SandboxTarget; vcpus: number }): Promise<PodResizeOutcome> {
+  async resize(_args: { target: SandboxTarget; shape: PodShape }): Promise<PodResizeOutcome> {
     return 'restarted'
   }
 
@@ -82,14 +83,28 @@ class RestartingPodSandbox extends SandboxProvider {
   }
 }
 
-type PodRow = { podDesiredVcpus: number | null; podSizeGeneration: number }
+type PodRow = {
+  podDesiredVcpus: number | null
+  podDesiredMemoryGb: number | null
+  podSizeGeneration: number
+}
 
 const sizingOf = (rows: Record<string, PodRow>) => {
-  const recorded: { sessionId: string; vcpus: number; generation: number }[] = []
+  const recorded: {
+    sessionId: string
+    vcpus: number
+    memoryGb: number
+    generation: number
+  }[] = []
   return {
     recorded,
     podSizing: {
-      recordPodApplied: async (args: { sessionId: string; vcpus: number; generation: number }) => {
+      recordPodApplied: async (args: {
+        sessionId: string
+        vcpus: number
+        memoryGb: number
+        generation: number
+      }) => {
         const row = rows[args.sessionId]
         if (row === undefined || row.podSizeGeneration !== args.generation) return false
         recorded.push(args)
@@ -126,7 +141,7 @@ const until = async (check: () => boolean): Promise<void> => {
 describe('recording the applied pod size', () => {
   it('records the size a resize wrote while the runtime was already built', async () => {
     const rows: Record<string, PodRow> = {
-      'pod-a': { podDesiredVcpus: null, podSizeGeneration: 0 },
+      'pod-a': { podDesiredVcpus: null, podDesiredMemoryGb: null, podSizeGeneration: 0 },
     }
     const { recorded, podSizing } = sizingOf(rows)
     const sandbox = new RestartingPodSandbox([4, 2])
@@ -138,16 +153,18 @@ describe('recording the applied pod size', () => {
       signal: new AbortController().signal,
     })
     // the resize lands after the runtime is built: 2 vCPU as generation 1 on the pod row
-    rows['pod-a'] = { podDesiredVcpus: 2, podSizeGeneration: 1 }
+    rows['pod-a'] = { podDesiredVcpus: 2, podDesiredMemoryGb: 4, podSizeGeneration: 1 }
     await until(() => recorded.length > 0)
     await runtime.stop()
 
     expect(sandbox.reported.slice(0, 2)).toEqual([4, 2])
-    expect(recorded[0]).toEqual({ sessionId: 'pod-a', vcpus: 2, generation: 1 })
+    expect(recorded[0]).toEqual({ sessionId: 'pod-a', vcpus: 2, memoryGb: 4, generation: 1 })
   })
 
   it('records on the pod row a sub-agent session shares', async () => {
-    const rows: Record<string, PodRow> = { 'pod-a': { podDesiredVcpus: 2, podSizeGeneration: 1 } }
+    const rows: Record<string, PodRow> = {
+      'pod-a': { podDesiredVcpus: 2, podDesiredMemoryGb: 4, podSizeGeneration: 1 },
+    }
     const { recorded, podSizing } = sizingOf(rows)
     const sandbox = new RestartingPodSandbox([2])
     const runtime = await build({ sandbox, podSizing })({
@@ -160,11 +177,13 @@ describe('recording the applied pod size', () => {
     await until(() => recorded.length > 0)
     await runtime.stop()
 
-    expect(recorded[0]).toEqual({ sessionId: 'pod-a', vcpus: 2, generation: 1 })
+    expect(recorded[0]).toEqual({ sessionId: 'pod-a', vcpus: 2, memoryGb: 4, generation: 1 })
   })
 
   it('records nothing when the sandbox came back at another size', async () => {
-    const rows: Record<string, PodRow> = { 'pod-a': { podDesiredVcpus: 4, podSizeGeneration: 2 } }
+    const rows: Record<string, PodRow> = {
+      'pod-a': { podDesiredVcpus: 4, podDesiredMemoryGb: 8, podSizeGeneration: 2 },
+    }
     const { recorded, podSizing } = sizingOf(rows)
     const sandbox = new RestartingPodSandbox([2])
     const runtime = await build({ sandbox, podSizing })({
@@ -182,7 +201,7 @@ describe('recording the applied pod size', () => {
 
   it('records nothing when nothing was ever asked for', async () => {
     const rows: Record<string, PodRow> = {
-      'pod-a': { podDesiredVcpus: null, podSizeGeneration: 0 },
+      'pod-a': { podDesiredVcpus: null, podDesiredMemoryGb: null, podSizeGeneration: 0 },
     }
     const { recorded, podSizing } = sizingOf(rows)
     const sandbox = new RestartingPodSandbox([4])

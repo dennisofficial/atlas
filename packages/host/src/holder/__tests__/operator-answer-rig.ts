@@ -85,6 +85,7 @@ const answerEntryOf = (payload: JsonValue): InboxEntry => ({
   payload: JSON.stringify(payload),
   postedAt: '2026-11-12T03:00:00.000Z',
   consumedSeq: null,
+  threadId: null,
   senderSessionId: null,
 })
 

@@ -36,17 +36,40 @@ if ! /usr/bin/docker info >/dev/null 2>&1; then
     --userland-proxy=false >>"$DAEMON_HOME/dockerd.log" 2>&1 &
 fi
 
+# A host that restarts the daemon pins the fetch to its own bundle, so a rolling deploy of the api
+# cannot hand the sandbox whichever generation answers. The pin holds until the next restart asks for
+# another bundle. Twenty misses fall back to the unversioned url, because the pinning host may be gone.
+RESTART_HINT="$DAEMON_HOME/next-bundle-url"
+FETCH_URL="$BUNDLE_URL"
+MISSES=0
+
 while :; do
+  if [ -f "$RESTART_HINT" ]; then
+    PINNED="$(head -n 1 "$RESTART_HINT")"
+    rm -f "$RESTART_HINT"
+    if [ -n "$PINNED" ]; then
+      FETCH_URL="$PINNED"
+      MISSES=0
+    fi
+  fi
   if curl -fsSL \
     -H "Authorization: Bearer ${DAEMON_TOKEN:-}" \
     -H "X-Atlas-Sandbox: ${ATLAS_SANDBOX_NAME:-}" \
-    "$BUNDLE_URL" -o "$DAEMON_HOME/daemon.js.next"; then
+    "$FETCH_URL" -o "$DAEMON_HOME/daemon.js.next"; then
     mv "$DAEMON_HOME/daemon.js.next" "$DAEMON_HOME/daemon.js"
+    MISSES=0
+  else
+    MISSES=$((MISSES + 1))
+    if [ "$MISSES" -ge 20 ]; then
+      FETCH_URL="$BUNDLE_URL"
+      MISSES=0
+    fi
   fi
   if [ -f "$DAEMON_HOME/daemon.js" ]; then
     ATLAS_DAEMON_BUNDLE_VERSION="$(sha256sum "$DAEMON_HOME/daemon.js" | cut -d' ' -f1)"
     printf '%s\n' "$ATLAS_DAEMON_BUNDLE_VERSION" >"$DAEMON_HOME/version"
     ATLAS_DAEMON_BUNDLE_VERSION="$ATLAS_DAEMON_BUNDLE_VERSION" \
+      ATLAS_DAEMON_RESTART_HINT="$RESTART_HINT" \
       "$BUN" "$DAEMON_HOME/daemon.js" >>"$DAEMON_HOME/daemon.log" 2>&1
   fi
   sleep 1

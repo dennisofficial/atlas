@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 
+import { skillsPodOf } from '..'
 import type {
   CloudSkillEntry,
   CloudSkillSource,
   CloudSkillWriteResult,
   CloudSkillWriter,
 } from '../port'
-import { fakeCloud, fakeDaemon, invoke, skillDir, textOf, turn } from './support'
+import { fakeDaemon, invoke, skillDir, textOf, turn } from './support'
 
 type Stored = {
   scope: 'user' | 'project'
@@ -82,7 +83,7 @@ const cloudStore = () => {
   return { rows, source, writes }
 }
 
-describe('skill_install, skill_edit and skill_delete in the cloud', () => {
+describe('skill_manage in the cloud', () => {
   it('installs a skill and the next turn lists it with the description its frontmatter carries', async () => {
     const store = cloudStore()
     const { ctx } = fakeDaemon({ '/repo/.git': { kind: 'dir' } })
@@ -91,8 +92,9 @@ describe('skill_install, skill_edit and skill_delete in the cloud', () => {
       ctx,
       cloud: store.source,
       writes: store.writes,
-      name: 'skill_install',
+      name: 'skill_manage',
       input: {
+        action: 'install',
         layer: 'project',
         name: 'gamma',
         body: skillDir('gamma', 'body of gamma'),
@@ -112,16 +114,22 @@ describe('skill_install, skill_edit and skill_delete in the cloud', () => {
       ctx,
       cloud: store.source,
       writes: store.writes,
-      name: 'skill_install',
-      input: { layer: 'user', name: 'gamma', body: skillDir('gamma', 'one') },
+      name: 'skill_manage',
+      input: { action: 'install', layer: 'user', name: 'gamma', body: skillDir('gamma', 'one') },
     })
 
     const edited = await invoke({
       ctx,
       cloud: store.source,
       writes: store.writes,
-      name: 'skill_edit',
-      input: { name: 'gamma', layer: 'user', body: skillDir('gamma', 'two'), baseRevision: 1 },
+      name: 'skill_manage',
+      input: {
+        action: 'edit',
+        name: 'gamma',
+        layer: 'user',
+        body: skillDir('gamma', 'two'),
+        baseRevision: 1,
+      },
     })
     expect(edited.ok).toBe(true)
     expect(textOf(edited)).toContain('now at revision 2')
@@ -130,8 +138,14 @@ describe('skill_install, skill_edit and skill_delete in the cloud', () => {
       ctx,
       cloud: store.source,
       writes: store.writes,
-      name: 'skill_edit',
-      input: { name: 'gamma', layer: 'user', body: skillDir('gamma', 'three'), baseRevision: 1 },
+      name: 'skill_manage',
+      input: {
+        action: 'edit',
+        name: 'gamma',
+        layer: 'user',
+        body: skillDir('gamma', 'three'),
+        baseRevision: 1,
+      },
     })
     expect(stale.ok).toBe(false)
     expect(textOf(stale)).toContain('changed since baseRevision 1')
@@ -145,16 +159,16 @@ describe('skill_install, skill_edit and skill_delete in the cloud', () => {
       ctx,
       cloud: store.source,
       writes: store.writes,
-      name: 'skill_install',
-      input: { layer: 'user', name: 'gamma', body: skillDir('gamma', 'one') },
+      name: 'skill_manage',
+      input: { action: 'install', layer: 'user', name: 'gamma', body: skillDir('gamma', 'one') },
     })
 
     const outcome = await invoke({
       ctx,
       cloud: store.source,
       writes: store.writes,
-      name: 'skill_edit',
-      input: { name: 'gamma', layer: 'user', body: skillDir('gamma', 'two') },
+      name: 'skill_manage',
+      input: { action: 'edit', name: 'gamma', layer: 'user', body: skillDir('gamma', 'two') },
     })
     expect(outcome.ok).toBe(false)
     expect(textOf(outcome)).toContain('revision 1 with hash h-gamma')
@@ -167,16 +181,16 @@ describe('skill_install, skill_edit and skill_delete in the cloud', () => {
       ctx,
       cloud: store.source,
       writes: store.writes,
-      name: 'skill_install',
-      input: { layer: 'user', name: 'gamma', body: skillDir('gamma', 'one') },
+      name: 'skill_manage',
+      input: { action: 'install', layer: 'user', name: 'gamma', body: skillDir('gamma', 'one') },
     })
 
     const deleted = await invoke({
       ctx,
       cloud: store.source,
       writes: store.writes,
-      name: 'skill_delete',
-      input: { name: 'gamma', layer: 'user' },
+      name: 'skill_manage',
+      input: { action: 'delete', name: 'gamma', layer: 'user' },
     })
     expect(deleted.ok).toBe(true)
 
@@ -192,8 +206,8 @@ describe('skill_install, skill_edit and skill_delete in the cloud', () => {
         ctx,
         cloud: store.source,
         writes: store.writes,
-        name: 'skill_delete',
-        input: { name: 'commit', layer },
+        name: 'skill_manage',
+        input: { action: 'delete', name: 'commit', layer },
       })
       expect(outcome.ok).toBe(false)
       expect(textOf(outcome)).toContain('ships compiled into Atlas')
@@ -207,10 +221,41 @@ describe('skill_install, skill_edit and skill_delete in the cloud', () => {
     const outcome = await invoke({
       ctx,
       cloud: store.source,
-      name: 'skill_install',
-      input: { layer: 'user', name: 'gamma', body: skillDir('gamma', 'one') },
+      name: 'skill_manage',
+      input: { action: 'install', layer: 'user', name: 'gamma', body: skillDir('gamma', 'one') },
     })
     expect(outcome.ok).toBe(false)
     expect(textOf(outcome)).toContain('cannot write cloud skills')
+  })
+})
+
+describe('skill_manage as one tool', () => {
+  const missing = async (input: unknown) => {
+    const store = cloudStore()
+    const { ctx } = fakeDaemon({ '/repo/.git': { kind: 'dir' } })
+    const outcome = await invoke({
+      ctx,
+      cloud: store.source,
+      writes: store.writes,
+      name: 'skill_manage',
+      input,
+    })
+    return outcome.ok ? '' : outcome.reason
+  }
+
+  it('declares one tool beside skill', () => {
+    const { ctx } = fakeDaemon({ '/repo/.git': { kind: 'dir' } })
+    const names = skillsPodOf({ cloud: () => cloudStore().source })
+      .tools?.(ctx)
+      .map((tool) => tool.name)
+    expect(names).toEqual(['skill', 'skill_manage'])
+  })
+
+  it.each([
+    ['install', { action: 'install', layer: 'user', name: 'gamma' }, 'body'],
+    ['edit', { action: 'edit', name: 'gamma', body: 'x' }, 'layer'],
+    ['delete', { action: 'delete', name: 'gamma' }, 'layer'],
+  ])('names the action and the field it is missing: %s', async (action, input, field) => {
+    expect(await missing(input)).toContain(`✖ action ${action} needs ${field}`)
   })
 })

@@ -11,6 +11,8 @@ type Send = (args: {
   text: string
   attachments: Attachments['attachments']
   liveSend: LiveSend
+  podState: string
+  turnWasRunning: boolean
 }) => Promise<Handoff | null>
 
 export function useThreadSubmit(args: {
@@ -21,6 +23,8 @@ export function useThreadSubmit(args: {
   sendLive: LiveSend
   setDraft: Dispatch<SetStateAction<string>>
   onSent: (sent: Handoff) => void
+  podState: string
+  turnWasRunning: boolean
 }) {
   const { threadId, attachments } = args
   return async (text: string) => {
@@ -34,6 +38,8 @@ export function useThreadSubmit(args: {
       text,
       attachments: attachments.attachments,
       liveSend: args.sendLive,
+      podState: args.podState,
+      turnWasRunning: args.turnWasRunning,
     })
     if (sent === null) return
     attachments.clear()

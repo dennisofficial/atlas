@@ -155,7 +155,7 @@ describe('handing a PR event to the model', () => {
     )
 
     expect(block).toContain(
-      `a check failed while CI is still running; another notice follows when CI finishes. ${URL}`,
+      `a check failed. CI is still running, and another notice follows when it finishes. ${URL}`,
     )
   })
 
@@ -328,7 +328,7 @@ describe('naming the checks behind a failed verdict', () => {
       ],
     })
 
-    expect(block).toContain('2 checks failed while CI is still running')
+    expect(block).toContain('2 checks failed. CI is still running')
     expect(block).toContain('- typecheck (github-actions) https://github.com/owner/repo/runs/7')
     expect(block).toContain('    logs: gh run view --job 7 --log-failed -R owner/repo')
     expect(block).toContain('- vercel\n    Build failed')

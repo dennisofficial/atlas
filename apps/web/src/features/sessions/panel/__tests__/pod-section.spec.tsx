@@ -1,28 +1,29 @@
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { afterAll, afterEach, beforeAll, describe, expect, it, mock } from 'bun:test'
 import { act, useState } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
+import type { PodBusy } from '@dltech/atlas-core'
 import { ResizeDeclinedError } from '@dltech/atlas-ui/ai/pod-status-chip'
-import { EVercelPlan } from '@dltech/atlas-wire/web'
 
 import {
   POD_RESTART_BODY,
-  RestartConfirmDialog,
+  ResizeBusyDialog,
   useResizeConfirmation,
+  type ResizeRequest,
 } from '@/features/pods/pod-resize-confirmation'
 
 import { resizePod } from '../../data/pod-resources'
-import { podBusyOf, PodStatusSection, podSizesOf } from '../details/pod-section'
+import { PLATFORM_POD_SIZES, PodStatusSection, podBusyOfView } from '../details/pod-section'
 import { paneValueFixture, previewFixture, populatedPaneValue, viewModelFixture } from './fixture'
 
 beforeAll(() => {
-  GlobalRegistrator.register()
+  registerDom()
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
 })
 
 afterAll(async () => {
-  await GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 afterEach(() => {
@@ -46,15 +47,16 @@ const click = (element: Element | null | undefined) =>
 const buttonNamed = (name: string) =>
   [...document.body.querySelectorAll('button')].find((button) => button.textContent?.includes(name))
 
+const idle: PodBusy = { busy: false, running: [] }
+
 const sectionOf = (args: {
-  onResize: (vcpus: number) => Promise<void>
-  busy?: boolean
+  onResize: (request: ResizeRequest) => Promise<void>
+  busy?: PodBusy
 }): React.ReactElement => (
   <PodStatusSection
     pod={{ desiredVcpus: 2, actualVcpus: 2, phase: 'steady' }}
     live
-    busy={args.busy ?? false}
-    plan={EVercelPlan.Unknown}
+    busy={args.busy ?? idle}
     settingsHref="/settings/usage-sandboxes"
     onResize={args.onResize}
   />
@@ -62,10 +64,10 @@ const sectionOf = (args: {
 
 function Harness(props: {
   view: ReturnType<typeof viewModelFixture>
-  onResize: (vcpus: number) => Promise<void>
+  onResize: (request: ResizeRequest) => Promise<void>
 }) {
   const { confirmation, handleResize } = useResizeConfirmation({
-    busy: podBusyOf(props.view),
+    busy: podBusyOfView(props.view, undefined),
     onResize: props.onResize,
   })
   const [outcome, setOutcome] = useState('pending')
@@ -82,53 +84,14 @@ function Harness(props: {
       </button>
       <output>{outcome}</output>
       <output>{confirmation === null ? 'closed' : 'asking'}</output>
-      <button type="button" onClick={() => confirmation?.accept()}>
-        accept
-      </button>
-      <RestartConfirmDialog confirmation={confirmation} body={POD_RESTART_BODY} />
+      <ResizeBusyDialog confirmation={confirmation} body={POD_RESTART_BODY} />
     </>
   )
 }
 
-describe('podSizesOf', () => {
-  it('keeps the plan-capped sizes for a Vercel pod on the team own credentials', () => {
-    expect(
-      podSizesOf({
-        sandboxProvider: 'vercel',
-        credentialSource: 'byok',
-        plan: EVercelPlan.Hobby,
-      }),
-    ).toEqual({ sizes: [1, 2, 4], planCapHint: 'Hobby plan: up to 4 vCPU' })
-  })
-
-  it('offers 2, 4 and 8 with no Vercel plan hint for an Agent37 pod', () => {
-    expect(
-      podSizesOf({
-        sandboxProvider: 'agent37',
-        credentialSource: 'platform',
-        plan: EVercelPlan.Hobby,
-      }),
-    ).toEqual({ sizes: [2, 4, 8], planCapHint: undefined })
-  })
-
-  it('offers 2, 4 and 8 with no Vercel plan hint for a Vercel pod on Atlas credentials', () => {
-    expect(
-      podSizesOf({
-        sandboxProvider: 'vercel',
-        credentialSource: 'platform',
-        plan: EVercelPlan.Hobby,
-      }),
-    ).toEqual({ sizes: [2, 4, 8], planCapHint: undefined })
-  })
-
-  it('falls back to the plan-capped sizes when the session reports no provider', () => {
-    expect(
-      podSizesOf({
-        sandboxProvider: undefined,
-        credentialSource: undefined,
-        plan: EVercelPlan.Pro,
-      }),
-    ).toEqual({ sizes: [1, 2, 4, 6, 8], planCapHint: 'Pro plan: up to 8 vCPU' })
+describe('PLATFORM_POD_SIZES', () => {
+  it('offers the 2, 4 and 8 vCPU sizes every platform sandbox runs at', () => {
+    expect(PLATFORM_POD_SIZES).toEqual([2, 4, 8])
   })
 })
 
@@ -138,8 +101,7 @@ describe('PodStatusSection', () => {
       <PodStatusSection
         pod={undefined}
         live
-        busy
-        plan={EVercelPlan.Unknown}
+        busy={idle}
         settingsHref="/settings/usage-sandboxes"
         onResize={async () => undefined}
       />,
@@ -160,8 +122,7 @@ describe('PodStatusSection', () => {
       <PodStatusSection
         pod={{ desiredVcpus: 8, actualVcpus: 2, phase: 'resizing' }}
         live
-        busy={false}
-        plan={EVercelPlan.Unknown}
+        busy={idle}
         settingsHref="/settings/usage-sandboxes"
         onResize={async () => undefined}
       />,
@@ -179,8 +140,7 @@ describe('PodStatusSection', () => {
           error: 'vCPUs above 8 need an Enterprise plan',
         }}
         live
-        busy={false}
-        plan={EVercelPlan.Unknown}
+        busy={idle}
         settingsHref="/settings/usage-sandboxes"
         onResize={async () => undefined}
       />,
@@ -193,10 +153,8 @@ describe('PodStatusSection', () => {
       <PodStatusSection
         pod={{ desiredVcpus: 2, actualVcpus: 2, phase: 'steady' }}
         live
-        busy={false}
-        plan={EVercelPlan.Unknown}
+        busy={idle}
         sandboxProvider="agent37"
-        credentialSource="platform"
         settingsHref="/settings/usage-sandboxes"
         onResize={async () => undefined}
       />,
@@ -210,8 +168,7 @@ describe('PodStatusSection', () => {
       <PodStatusSection
         pod={{ desiredVcpus: 2, actualVcpus: 2, phase: 'steady' }}
         live={false}
-        busy={false}
-        plan={EVercelPlan.Unknown}
+        busy={idle}
         settingsHref="/settings/usage-sandboxes"
         onResize={async () => undefined}
       />,
@@ -225,21 +182,49 @@ describe('pod resize confirmation', () => {
     const onResize = mock(() => Promise.resolve())
     const unmount = await mount(<Harness view={viewModelFixture()} onResize={onResize} />)
     await click(buttonNamed('start'))
-    expect(onResize).toHaveBeenCalledWith(8)
+    expect(onResize).toHaveBeenCalledWith({ vcpus: 8, whenIdle: false })
     expect(document.body.textContent).toContain('closed')
     expect(document.body.textContent).toContain('applied')
     await unmount()
   })
 
-  it('asks first with a running shell and resizes only on Restart', async () => {
+  it('asks first with a running shell and names what is running', async () => {
     const onResize = mock(() => Promise.resolve())
     const unmount = await mount(<Harness view={populatedPaneValue().view} onResize={onResize} />)
     await click(buttonNamed('start'))
     expect(document.body.textContent).toContain('asking')
+    expect(document.body.textContent).toContain('1 shell')
     expect(onResize).not.toHaveBeenCalled()
-    await click(buttonNamed('accept'))
-    expect(onResize).toHaveBeenCalledWith(8)
+    await unmount()
+  })
+
+  it('offers cancel, wait and force restart on a busy pod', async () => {
+    const unmount = await mount(
+      <Harness view={populatedPaneValue().view} onResize={mock(() => Promise.resolve())} />,
+    )
+    await click(buttonNamed('start'))
+    expect(buttonNamed('Cancel')).toBeDefined()
+    expect(buttonNamed('Wait until idle')).toBeDefined()
+    expect(buttonNamed('Force restart')).toBeDefined()
+    await unmount()
+  })
+
+  it('resizes now on force restart', async () => {
+    const onResize = mock(() => Promise.resolve())
+    const unmount = await mount(<Harness view={populatedPaneValue().view} onResize={onResize} />)
+    await click(buttonNamed('start'))
+    await click(buttonNamed('Force restart'))
+    expect(onResize).toHaveBeenCalledWith({ vcpus: 8, whenIdle: false })
     expect(document.body.textContent).toContain('applied')
+    await unmount()
+  })
+
+  it('asks the server to wait for idle on wait until idle', async () => {
+    const onResize = mock(() => Promise.resolve())
+    const unmount = await mount(<Harness view={populatedPaneValue().view} onResize={onResize} />)
+    await click(buttonNamed('start'))
+    await click(buttonNamed('Wait until idle'))
+    expect(onResize).toHaveBeenCalledWith({ vcpus: 8, whenIdle: true })
     await unmount()
   })
 
@@ -248,6 +233,7 @@ describe('pod resize confirmation', () => {
     const unmount = await mount(<Harness view={view} onResize={mock(() => Promise.resolve())} />)
     await click(buttonNamed('start'))
     expect(document.body.textContent).toContain('asking')
+    expect(document.body.textContent).toContain('1 service')
     await unmount()
   })
 
@@ -255,7 +241,7 @@ describe('pod resize confirmation', () => {
     const onResize = mock(() => Promise.resolve())
     const unmount = await mount(<Harness view={populatedPaneValue().view} onResize={onResize} />)
     await click(buttonNamed('start'))
-    await click(buttonNamed('Keep working'))
+    await click(buttonNamed('Cancel'))
     expect(onResize).not.toHaveBeenCalled()
     expect(document.body.textContent).toContain('declined')
     await unmount()
@@ -269,19 +255,28 @@ describe('pod resize confirmation', () => {
 })
 
 describe('resizePod', () => {
-  it('posts the resize command for the session', async () => {
+  it('posts the resize command with the wait choice', async () => {
     const command = mock(() => Promise.resolve({}))
-    await resizePod({ api: { command }, sessionId: 'ses-1', vcpus: 8 })
-    expect(command).toHaveBeenCalledWith({ sessionId: 'ses-1', name: 'resize', args: { vcpus: 8 } })
+    await resizePod({ api: { command }, sessionId: 'ses-1', vcpus: 8, whenIdle: true })
+    expect(command).toHaveBeenCalledWith({
+      sessionId: 'ses-1',
+      name: 'resize',
+      args: { vcpus: 8, whenIdle: true },
+    })
   })
 })
 
-describe('podBusyOf', () => {
+describe('podBusyOfView', () => {
   it('is idle with no shells and no services', () => {
-    expect(podBusyOf(paneValueFixture().view)).toBe(false)
+    expect(podBusyOfView(paneValueFixture().view, 'idle')).toEqual({ busy: false, running: [] })
   })
 
   it('is busy with a running shell or a running service', () => {
-    expect(podBusyOf(populatedPaneValue().view)).toBe(true)
+    expect(podBusyOfView(populatedPaneValue().view, 'idle').busy).toBe(true)
+  })
+
+  it('counts a turn in flight and a running setup script', () => {
+    expect(podBusyOfView(paneValueFixture().view, 'thinking').running).toEqual(['Agent turn'])
+    expect(podBusyOfView(paneValueFixture().view, 'preparing').running).toEqual(['Setup script'])
   })
 })

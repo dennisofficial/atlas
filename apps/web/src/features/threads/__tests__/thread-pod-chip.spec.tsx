@@ -1,4 +1,4 @@
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { afterAll, afterEach, beforeAll, describe, expect, it, mock } from 'bun:test'
 import { act, useState } from 'react'
 
@@ -10,12 +10,12 @@ import { useResizeConfirmation } from '@/features/pods/pod-resize-confirmation'
 import { ThreadPodChip } from '../thread-pod-chip'
 
 beforeAll(() => {
-  GlobalRegistrator.register()
+  registerDom()
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
 })
 
 afterAll(async () => {
-  await GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 afterEach(() => {
@@ -39,9 +39,13 @@ const click = (element: Element | null | undefined) =>
 const buttonNamed = (name: string) =>
   [...document.body.querySelectorAll('button')].find((button) => button.textContent?.includes(name))
 
-function Harness(props: { working: boolean; onResize: (vcpus: number) => Promise<void> }) {
+function Harness(props: {
+  working: boolean
+  onResize: (request: { vcpus: number }) => Promise<void>
+}) {
   const { working, onResize } = props
-  const { confirmation, handleResize } = useResizeConfirmation({ busy: working, onResize })
+  const busy = { busy: working, running: working ? ['Agent turn'] : [] }
+  const { confirmation, handleResize } = useResizeConfirmation({ busy, onResize, canWait: false })
   const [outcome, setOutcome] = useState('pending')
   const handleStart = () =>
     handleResize(8).then(
@@ -56,8 +60,8 @@ function Harness(props: { working: boolean; onResize: (vcpus: number) => Promise
       </button>
       <output>{outcome}</output>
       <output>{confirmation === null ? 'closed' : 'asking'}</output>
-      <button type="button" onClick={() => confirmation?.accept()}>
-        accept
+      <button type="button" onClick={() => confirmation?.force()}>
+        force
       </button>
       <button type="button" onClick={() => confirmation?.decline()}>
         decline
@@ -100,20 +104,20 @@ describe('useResizeConfirmation', () => {
     const onResize = mock(() => Promise.resolve())
     const unmount = await mount(<Harness working={false} onResize={onResize} />)
     await click(buttonNamed('start'))
-    expect(onResize).toHaveBeenCalledWith(8)
+    expect(onResize).toHaveBeenCalledWith({ vcpus: 8, whenIdle: false })
     expect(document.body.textContent).toContain('closed')
     expect(document.body.textContent).toContain('applied')
     await unmount()
   })
 
-  it('confirms first mid-turn and resizes only on Restart', async () => {
+  it('confirms first mid-turn and resizes only on force restart', async () => {
     const onResize = mock(() => Promise.resolve())
     const unmount = await mount(<Harness working onResize={onResize} />)
     await click(buttonNamed('start'))
     expect(document.body.textContent).toContain('asking')
     expect(onResize).not.toHaveBeenCalled()
-    await click(buttonNamed('accept'))
-    expect(onResize).toHaveBeenCalledWith(8)
+    await click(buttonNamed('force'))
+    expect(onResize).toHaveBeenCalledWith({ vcpus: 8, whenIdle: false })
     expect(document.body.textContent).toContain('applied')
     await unmount()
   })

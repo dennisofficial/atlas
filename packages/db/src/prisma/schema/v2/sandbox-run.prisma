@@ -1,0 +1,24 @@
+// use prisma-8
+namespace v2 {
+  model V2SandboxRun {
+    id                String   @id
+    sessionId         String
+    userId            String
+    provider          String
+    sandboxInstanceId String?
+    vcpus             Int
+    memoryGb          Int
+    diskGb            Int
+    startedAt         TimestamptzJsDate(3)
+    endedAt           TimestamptzJsDate(3)?
+    activeCpuMs       Int?
+    cpuBaselineMs     Int?
+    awakeMs           Int?
+    costUsd           Float?
+    costSource        String?
+    session           V2Session @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "V2SandboxRun_sessionId_startedAt_idx_e70936f3")
+
+    @@index([sessionId, startedAt])
+    @@index([userId, startedAt])
+  }
+}

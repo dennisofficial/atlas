@@ -17,10 +17,13 @@ const inputSchema = z.strictObject({
 })
 
 const description = [
-  'Report to the main agent that spawned you.',
-  'Use done when the work is finished, blocked when you cannot proceed,',
-  'needs-decision when the main agent should weigh in, and progress for status it does not need to act on.',
-  'Lead with the outcome and carry the whole of it, because none of your steps are in its history.',
+  'Report to the parent agent that started you.',
+  'Use done when the work is finished.',
+  'Use blocked when you cannot proceed.',
+  'Use needs-decision when the parent agent should decide.',
+  'Use progress for status that the parent agent does not need to act on.',
+  'Lead with the outcome.',
+  'Carry the whole outcome, because none of your steps are in the history of the parent agent.',
 ].join(' ')
 
 export class ReportToMainTool extends SchemaTool<typeof inputSchema> {
@@ -41,7 +44,7 @@ export class ReportToMainTool extends SchemaTool<typeof inputSchema> {
         ok: true,
         output: { agentId: snapshot.agentId, kind: input.kind },
         modelText:
-          'Your report is on its way to the main agent. Carry on, or end your turn if there is nothing else to do.',
+          'Your report is on its way to the parent agent. Continue, or end your turn if there is nothing else to do.',
       }
     } catch (error) {
       return crewRefusal(error)

@@ -1,8 +1,7 @@
+import { oneLine } from '@dltech/atlas-core'
 import type { LostShell } from '@dltech/atlas-harness'
 
 export const hasLostShells = (lostShells: readonly LostShell[]): boolean => lostShells.length > 0
-
-const oneLine = (text: string): string => text.replace(/\s+/g, ' ').trim()
 
 const shellName = (shell: LostShell): string => {
   const described = shell.description === undefined ? '' : oneLine(shell.description)

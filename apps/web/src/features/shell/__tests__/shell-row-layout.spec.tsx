@@ -3,6 +3,8 @@ import { renderToStaticMarkup } from 'react-dom/server'
 
 import { SidebarProvider } from '@dltech/atlas-ui/components/sidebar'
 
+import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
+
 import { ThreadRow } from '../shell-thread-row'
 import { ThreadActionsContext } from '../thread-actions-context'
 import { v2RowOf } from '../v2-rows'
@@ -31,8 +33,7 @@ describe('sidebar row action layout', () => {
   })
 
   it('keeps the actions outside the link and in the trailing cell', async () => {
-    const { GlobalRegistrator } = await import('@happy-dom/global-registrator')
-    GlobalRegistrator.register()
+    registerDom()
     try {
       const doc = documentOf(render(v1))
       const trailing = doc.querySelector('[data-row-trailing]')
@@ -41,7 +42,7 @@ describe('sidebar row action layout', () => {
       expect(link?.querySelector('button')).toBeNull()
       expect(link?.contains(trailing ?? null)).toBe(false)
     } finally {
-      await GlobalRegistrator.unregister()
+      await unregisterDom()
     }
   })
 

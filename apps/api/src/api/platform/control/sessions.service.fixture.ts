@@ -13,10 +13,8 @@ import { FakeMediaStore } from '@dltech/atlas-media/testing'
 import type { ProductAnalytics } from '@dltech/atlas-observability'
 import { ControlPlane, INBOX_KIND_WITHDRAW, withdrawPayloadOf } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
-import { EnvService } from '../../../_core/config/env/env.service'
 import type { PodOps } from '../../../agent'
 import { BackgroundWork } from '../../../_core/ports/background-work'
-import { PodPlanGate } from '../../../_core/ports/pod-plan-gate'
 import { NoSessionTitler } from '../../../_core/ports/session-titler'
 import { FakeMediaRegistry } from './media-registry.fake'
 import { SessionsService } from './sessions.service'
@@ -122,8 +120,6 @@ export class FakePodResizeDispatcher {
 
 export const setupSessionsService = (
   over: {
-    env?: Record<string, string>
-    planGate?: PodPlanGate
     dispatcher?: FakePodResizeDispatcher
     ops?: PodOps | null
     analytics?: ProductAnalytics | null
@@ -135,9 +131,8 @@ export const setupSessionsService = (
   const registry = new FakeMediaRegistry()
   const mediaStore = new FakeMediaStore()
   const projects = new RecordingProjectAccess()
-  const planGate: PodPlanGate = over.planGate ?? { assertWithinPlan: async () => undefined }
   const dispatcher = over.dispatcher ?? new FakePodResizeDispatcher()
-  const podSizing = new PodSizingService(plane, dispatcher as unknown as JobDispatcher, planGate)
+  const podSizing = new PodSizingService(plane, dispatcher as unknown as JobDispatcher)
   const service = new SessionsService(
     plane,
     projects,
@@ -146,7 +141,6 @@ export const setupSessionsService = (
     registry,
     mediaStore,
     composeCommands([TEST_COMMAND, modelSet, resize]),
-    new EnvService({ SANDBOX_PROVIDER_DEFAULT: 'vercel', ...over.env }),
     podSizing,
     over.ops ?? null,
     over.analytics ?? null,

@@ -17,7 +17,7 @@ import { nullUnlessInterrupted } from './interrupted'
 import { writeFileAtomically } from './atomic-write'
 import { FileWriteGuardPort, SerializedWrites } from './write-guard'
 import { captureText, captureUnavailableFault, makeChange } from './capture-text'
-import { filePathSchema, pathEnvironmentNote, resolveToolPath, toLf } from './file-text'
+import { filePathSchema, resolveToolPath, toLf } from './file-text'
 import type { PathEnvironment } from '../runtime/session-paths'
 import { replaceInContent } from './replace-text'
 import { renderUnifiedDiff } from './unified-diff'
@@ -30,11 +30,8 @@ const inputSchema = z.strictObject({
 })
 
 const description = [
-  'Replace an exact string in a text file.',
-  'A relative path resolves against the project directory.',
-  pathEnvironmentNote,
-  'oldString must match the file exactly, including indentation, and must be unique unless replaceAll is true.',
-  'An empty oldString creates the file with newString as its whole content.',
+  'Replace an exact string in a text file. A relative path resolves against the project directory.',
+  'oldString must match the file exactly, including indentation, and be unique unless replaceAll is true. An empty oldString creates the file with newString as its whole content.',
   'Lines the edit does not touch keep their exact bytes, line endings included.',
 ].join(' ')
 
@@ -57,12 +54,12 @@ async function createFile(args: {
     return {
       ok: false,
       reason:
-        'An empty oldString with an empty newString names nothing to replace and nothing to write. Use the write tool with an empty content to create or empty a file.',
+        'An empty oldString with an empty newString names nothing to replace and nothing to write. Use the write tool with empty content to create a file or empty a file.',
     }
   }
 
   if (args.existing !== null && args.existing.trim() !== '') {
-    return { ok: false, reason: 'Cannot create new file - file already exists.' }
+    return { ok: false, reason: 'Cannot create new file: the file already exists.' }
   }
 
   await writeFileAtomically({

@@ -158,6 +158,7 @@ describe('sessionViewModelOf', () => {
       branch: undefined,
       entries: [],
       subscriptions: [],
+      subscriptionRows: [],
       shells: { running: 0, awaitingInput: false, labels: [], rows: [] },
       crew: { running: 0, total: 0 },
       crewRows: [],
@@ -165,6 +166,7 @@ describe('sessionViewModelOf', () => {
       plan: [],
       context: null,
       spend: null,
+      compute: { costUsd: null, running: false, tick: null },
     })
   })
 
@@ -203,6 +205,13 @@ describe('sessionViewModelOf', () => {
       createdBy: 'agent',
       status: 'active',
       createdAt: '2026-11-08T10:00:00.000Z',
+      held: 0,
+      presentation: {
+        icon: 'git-pull-request',
+        tone: 'open',
+        title: 'owner/atlas#31',
+        meta: ['Pull request', 'all events'],
+      },
     }
     const model = sessionViewModelOf(viewOf({ pluginViews: { subscriptions: [row] } }))
     expect(model.subscriptions).toEqual([
@@ -213,6 +222,30 @@ describe('sessionViewModelOf', () => {
         url: 'https://github.com/owner/atlas/pull/31',
       },
     ])
+  })
+
+  it('titles a subscription row with the pull request title and state it already knows', () => {
+    const row = {
+      id: 's1',
+      provider: 'github.pull-request',
+      target: { repo: 'github.com/owner/atlas', number: 7 },
+      label: 'owner/atlas#7',
+      threadId: 't1',
+      createdBy: 'agent',
+      status: 'active',
+      createdAt: '2026-11-08T10:00:00.000Z',
+      held: 0,
+      presentation: {
+        icon: 'git-pull-request',
+        tone: 'open',
+        title: 'owner/atlas#7',
+        meta: ['Pull request', 'all events'],
+      },
+    }
+    const model = sessionViewModelOf(
+      viewOf({ pullRequests: [linked], pluginViews: { subscriptions: [row] } }),
+    )
+    expect(model.subscriptionRows.map((entry) => entry.presentation.title)).toEqual(['#7 Fix it'])
   })
 
   it('rosters the running shells from the plugin view', () => {

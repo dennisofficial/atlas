@@ -202,14 +202,17 @@ export const setSessionPodDesiredIn = async (params: {
   tx: Tx
   sessionId: string
   vcpus: number
+  memoryGb: number
   generation: number
 }): Promise<boolean> => {
   const changed = await params.tx.orm.v2.V2Session.where({
     id: params.sessionId,
   }).updateAndCount({
     podDesiredVcpus: params.vcpus,
+    podDesiredMemoryGb: params.memoryGb,
     podSizeGeneration: params.generation,
     podResizeError: null,
+    podWaitingSince: null,
   })
   return changed === 1
 }
@@ -218,6 +221,7 @@ export const setSessionPodAppliedIn = async (params: {
   tx: Tx
   sessionId: string
   vcpus: number
+  memoryGb: number
   generation: number
 }): Promise<boolean> => {
   const changed = await params.tx.orm.v2.V2Session.where({
@@ -225,8 +229,10 @@ export const setSessionPodAppliedIn = async (params: {
     podSizeGeneration: params.generation,
   }).updateAndCount({
     podActualVcpus: params.vcpus,
+    podActualMemoryGb: params.memoryGb,
     podAppliedGeneration: params.generation,
     podResizeError: null,
+    podWaitingSince: null,
   })
   return changed === 1
 }
@@ -240,6 +246,21 @@ export const setSessionPodFailedIn = async (params: {
   const changed = await params.tx.orm.v2.V2Session.where({
     id: params.sessionId,
     podSizeGeneration: params.generation,
-  }).updateAndCount({ podResizeError: params.error })
+  }).updateAndCount({ podResizeError: params.error, podWaitingSince: null })
+  return changed === 1
+}
+
+export const setSessionPodWaitingIn = async (params: {
+  tx: Tx
+  sessionId: string
+  generation: number
+  since: string | null
+}): Promise<boolean> => {
+  const changed = await params.tx.orm.v2.V2Session.where({
+    id: params.sessionId,
+    podSizeGeneration: params.generation,
+  }).updateAndCount({
+    podWaitingSince: params.since === null ? null : new Date(params.since),
+  })
   return changed === 1
 }

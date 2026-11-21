@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { toThreadId, type Assembled } from '@dltech/atlas-core'
+import { toThreadId, type Assembled, type V2Event } from '@dltech/atlas-core'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import type { Db } from '@dltech/atlas-db'
 import { SKILL_LISTING_HEADING, skillsPodOf } from '@dltech/atlas-plugin-skills/pod'
@@ -18,11 +18,25 @@ const readAs = async (args: {
   db: Db
 }): Promise<{ listing: string; load: (name: string) => Promise<string> }> => {
   const port = skillCloudPort({ db: args.db })
-  const pod = skillsPodOf({ cloud: port.source(SESSION), writes: port.writer(SESSION) })
-  const ctx = podContextOf(SESSION)
+  const pod = skillsPodOf({
+    cloud: () => port.source(SESSION),
+    writes: () => port.writer(SESSION),
+  })
+  const events: V2Event[] = []
+  const ctx = {
+    ...podContextOf(SESSION),
+    append: async (drafts: readonly unknown[]) => {
+      for (const draft of drafts) events.push(draft as V2Event)
+    },
+    events: () => events,
+  }
+  for (const resource of pod.resources ?? []) {
+    const value = await resource.load({ ctx, directory: '/repo' })
+    await ctx.append([
+      { type: 'resource-loaded', resource: resource.name, fingerprint: 'rig', value },
+    ])
+  }
   const hooks = pod.hooks?.(ctx)
-  for (const hook of hooks?.beforeTurn ?? [])
-    await hook.run({ threadId: toThreadId('t-1'), projectDirectory: '/repo' })
   let assembled: Assembled = { system: [], messages: [] }
   for (const hook of hooks?.beforeStep ?? []) assembled = await hook.run({ assembled, trace: [] })
   const tool = pod.tools?.(ctx).find((candidate) => candidate.name === 'skill')

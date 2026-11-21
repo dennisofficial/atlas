@@ -47,7 +47,7 @@ describe('TaskWriteTool', () => {
     const outcome = await invoke(tool, { tasks: [] })
 
     expect(outcome.ok).toBe(true)
-    expect(String(outcome.modelText)).toBe('No plan yet.')
+    expect(String(outcome.modelText)).toBe('No task list yet.')
   })
 
   it('refuses more tasks than the panel holds', async () => {

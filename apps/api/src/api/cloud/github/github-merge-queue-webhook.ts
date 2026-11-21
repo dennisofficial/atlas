@@ -45,12 +45,14 @@ export const mergeQueueEventOf = (args: {
   move: EMergeQueueMove
 }): string =>
   inboxEventPayloadOf({
-    type: 'pr-event',
-    repo: `github.com/${args.repoFullName}`,
-    prNumber: args.prNumber,
-    kind: EPrEventKind.MergeQueue,
-    url: `https://github.com/${args.repoFullName}/pull/${args.prNumber}`,
-    queue: args.move,
+    event: {
+      type: 'pr-event',
+      repo: `github.com/${args.repoFullName}`,
+      prNumber: args.prNumber,
+      kind: EPrEventKind.MergeQueue,
+      url: `https://github.com/${args.repoFullName}/pull/${args.prNumber}`,
+      queue: args.move,
+    },
   })
 
 async function subscribedThreadIds(args: {

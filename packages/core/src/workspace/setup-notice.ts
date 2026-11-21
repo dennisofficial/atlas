@@ -42,7 +42,7 @@ const outputTailOf = (output: string): string => {
 export const setupStartedText = (args: { script: string }): string =>
   [
     `The project setup script started in the background: ${scriptOf(args.script)}`,
-    'It installs the dependencies and tools this workspace needs, so anything that fails on a missing dependency may work once it ends. A notice follows when it does.',
+    'It installs the dependencies and tools this project directory needs. Work that failed because a dependency was missing may succeed afterward. A notice follows when the script ends.',
   ].join('\n\n')
 
 export const setupFinishedText = (args: {

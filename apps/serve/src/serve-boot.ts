@@ -21,6 +21,7 @@ import {
   threadMetaFile,
   threadMetaSchema,
 } from '@dltech/atlas-harness'
+import { ESpan, NullTracer, type TracePort } from '@dltech/atlas-observability'
 import { EBootStep, NOOP_BOOT_REPORTER, type BootReporter } from '@dltech/atlas-wire'
 
 import {
@@ -44,6 +45,7 @@ import {
 import { projectWorkspaceSpecFetcher } from './project-workspace-spec'
 import { applyPublishedBundle, startBundleFetch } from './published-bundle'
 import { applySigningKey, startSigningKeyFetch } from './signing-key-env'
+import { bootPhase } from './serve-boot-trace'
 import { trackClone } from './serve-boot-reporter'
 import { trackContainerSetup } from './serve-boot-setup-step'
 import { EServeEvent, type ServeLog } from './serve-log'
@@ -89,8 +91,10 @@ export async function bootServeFiles(args: {
   reporter?: BootReporter | undefined
   notice?: NoticePort | undefined
   containerSetup?: ContainerSetup | undefined
+  trace?: TracePort | undefined
 }) {
   const { env, threadId, atlasHome, log, notice } = args
+  const trace = args.trace ?? new NullTracer()
   const reporter = args.reporter ?? NOOP_BOOT_REPORTER
   const fetchSpecOnce = lazy(
     projectWorkspaceSpecFetcher({
@@ -121,13 +125,18 @@ export async function bootServeFiles(args: {
   const cwd = resolved.workspaceDir ?? args.cwd
   const profile = args.profile ?? createEnvironmentProfile({ env })
   const ensureWorkspace = args.ensureWorkspace ?? createEnsureWorkspace({ profile })
-  const workspace: WorkspaceReadiness =
-    resolved.reason === null
-      ? await trackClone({
-          reporter,
-          work: (progress) => ensureWorkspace({ cwd, fetchSpec: fetchSpecOnce, progress }),
-        })
-      : { state: EWorkspaceState.Failed, step: EWorkspaceStep.Fetch, reason: resolved.reason }
+  const workspace: WorkspaceReadiness = await bootPhase({
+    trace,
+    threadId,
+    name: ESpan.PodBootClone,
+    run: async () =>
+      resolved.reason === null
+        ? trackClone({
+            reporter,
+            work: (progress) => ensureWorkspace({ cwd, fetchSpec: fetchSpecOnce, progress }),
+          })
+        : { state: EWorkspaceState.Failed, step: EWorkspaceStep.Fetch, reason: resolved.reason },
+  })
   const workspaceMs = Date.now() - workspaceStartedAt
   log({ event: EServeEvent.BootPhase, phase: 'clone', ms: workspaceMs })
 
@@ -184,9 +193,15 @@ export async function bootServeFiles(args: {
     },
   })
   const settingsStartedAt = Date.now()
-  const fileMounts = await reporter.track({
-    step: EBootStep.Settings,
-    work: () => refreshCloudState.boot(prefetchedCloudState),
+  const fileMounts = await bootPhase({
+    trace,
+    threadId,
+    name: ESpan.PodBootSettings,
+    run: () =>
+      reporter.track({
+        step: EBootStep.Settings,
+        work: () => refreshCloudState.boot(prefetchedCloudState),
+      }),
   })
   log({ event: EServeEvent.BootPhase, phase: 'settings', ms: Date.now() - settingsStartedAt })
 

@@ -1,7 +1,12 @@
 import { pluginViewOf } from '@dltech/atlas-client/stream'
 import type { ClientSlot } from '@dltech/atlas-plugin-sdk'
 
-import { ESubscriptionStatus } from '@dltech/atlas-core'
+import {
+  ESubscriptionActor,
+  ESubscriptionStatus,
+  ESubscriptionTone,
+  type SubscriptionPresentation,
+} from '@dltech/atlas-core'
 
 import {
   GITHUB_PROVIDER,
@@ -29,6 +34,79 @@ export const subscriptionsOfView = (
     name: SUBSCRIPTIONS_VIEW,
     schema: subscriptionsViewSchema,
   }) ?? []
+
+export type SubscriptionListRow = {
+  id: string
+  provider: string
+  status: ESubscriptionStatus
+  createdBy: ESubscriptionActor
+  threadId: string
+  number?: number
+  expiresAt?: string
+  held: number
+  presentation: SubscriptionPresentation
+}
+
+export const subscriptionRowsOf = (
+  views: Readonly<Record<string, unknown>>,
+): readonly SubscriptionListRow[] =>
+  subscriptionsOfView(views).map((row) => {
+    const target = targetOf(row.target)
+    return {
+      id: row.id,
+      provider: row.provider,
+      status: row.status,
+      createdBy: row.createdBy,
+      threadId: row.threadId,
+      ...(target === null ? {} : { number: target.number }),
+      ...(row.expiresAt === undefined ? {} : { expiresAt: row.expiresAt }),
+      held: row.held,
+      presentation: row.presentation,
+    }
+  })
+
+export type PullRequestDetail = {
+  number: number
+  title?: string | undefined
+  state?: string | undefined
+}
+
+const PULL_REQUEST_STATE: Readonly<Record<string, { icon: string; tone: ESubscriptionTone }>> = {
+  open: { icon: 'git-pull-request', tone: ESubscriptionTone.Open },
+  draft: { icon: 'git-pull-request-draft', tone: ESubscriptionTone.Neutral },
+  merged: { icon: 'git-merge', tone: ESubscriptionTone.Merged },
+  closed: { icon: 'git-pull-request-closed', tone: ESubscriptionTone.Closed },
+}
+
+const pullRequestTitleOf = (pullRequest: PullRequestDetail): string =>
+  pullRequest.title === undefined || pullRequest.title.length === 0
+    ? `#${pullRequest.number}`
+    : `#${pullRequest.number} ${pullRequest.title}`
+
+export const withPullRequestDetails = (args: {
+  rows: readonly SubscriptionListRow[]
+  pullRequests: readonly PullRequestDetail[]
+}): readonly SubscriptionListRow[] => {
+  const byNumber = new Map(
+    args.pullRequests.map((pullRequest) => [pullRequest.number, pullRequest]),
+  )
+  return args.rows.map((row) => {
+    if (row.provider !== GITHUB_PROVIDER || row.number === undefined) return row
+    const pullRequest = byNumber.get(row.number)
+    if (pullRequest === undefined) return row
+    const state =
+      pullRequest.state === undefined ? undefined : PULL_REQUEST_STATE[pullRequest.state]
+    return {
+      ...row,
+      presentation: {
+        ...row.presentation,
+        icon: state === undefined ? row.presentation.icon : state.icon,
+        tone: state === undefined ? row.presentation.tone : state.tone,
+        title: pullRequestTitleOf(pullRequest),
+      },
+    }
+  })
+}
 
 export type SubscribedPullRequest = {
   id: string

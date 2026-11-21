@@ -1,5 +1,5 @@
 import type { PluginViewFold, V2Event } from '@dltech/atlas-core'
-import type { StreamServerMessage } from '@dltech/atlas-protocol'
+import { STREAM_STALL_MS, type StreamServerMessage } from '@dltech/atlas-protocol'
 import type { z } from 'zod'
 
 import {
@@ -48,12 +48,14 @@ type Followed = {
   follower: SessionFollower
   subscription: StreamSubscription | undefined
   epoch: number
+  watchdog: unknown
 }
 
 type Listed = {
   list: SessionsList
   subscription: StreamSubscription | undefined
   epoch: number
+  watchdog: unknown
 }
 
 export const createStreamConnection = (args: StreamConnectionArgs): StreamConnection => {
@@ -68,8 +70,15 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
 
   const stopSubscription = (holder: Followed | Listed): void => {
     holder.epoch += 1
+    clearWatchdog(holder)
     holder.subscription?.close()
     holder.subscription = undefined
+  }
+
+  function clearWatchdog(holder: Followed | Listed): void {
+    if (holder.watchdog === undefined) return
+    scheduler.clearTimeout(holder.watchdog)
+    holder.watchdog = undefined
   }
 
   function dispatch(input: ConnectionInput): void {
@@ -98,9 +107,22 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
   const handlersOf = (holder: Followed | Listed, onFrame: (frame: StreamServerMessage) => void) => {
     const epoch = holder.epoch
     const current = (): boolean => epoch === holder.epoch
+    const watchdog = (): void => {
+      if (!current()) return
+      clearWatchdog(holder)
+      holder.watchdog = scheduler.setTimeout(() => {
+        if (!current()) return
+        holder.watchdog = undefined
+        stopSubscription(holder)
+        dispatch({ type: 'failure', status: undefined })
+      }, STREAM_STALL_MS)
+    }
+    watchdog()
     return {
       handleFrame: (frame: StreamServerMessage): void => {
-        if (current() && !lifecycle(holder, frame)) onFrame(frame)
+        if (!current()) return
+        watchdog()
+        if (!lifecycle(holder, frame)) onFrame(frame)
       },
       handleFailure: (status: number | undefined): void => {
         if (current()) dispatch({ type: 'failure', status })
@@ -221,6 +243,7 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
       }),
       subscription: undefined,
       epoch: 0,
+      watchdog: undefined,
     }
     if (machine.phase === EStreamConnectionState.Closed && machine.reason === undefined) {
       dispatch({ type: 'connect' })
@@ -241,7 +264,12 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
   }
 
   const followSessions: StreamConnection['followSessions'] = () => {
-    const entry: Listed = { list: createSessionsList(), subscription: undefined, epoch: 0 }
+    const entry: Listed = {
+      list: createSessionsList(),
+      subscription: undefined,
+      epoch: 0,
+      watchdog: undefined,
+    }
     if (machine.phase === EStreamConnectionState.Closed && machine.reason === undefined) {
       dispatch({ type: 'connect' })
     } else {

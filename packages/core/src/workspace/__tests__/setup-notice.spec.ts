@@ -7,7 +7,7 @@ describe('setupStartedText', () => {
     const text = setupStartedText({ script: 'bun install' })
     expect(text).toContain('started in the background: `bun install`')
     expect(text).toContain('in the background')
-    expect(text).toContain('A notice follows when it does.')
+    expect(text).toContain('A notice follows when the script ends.')
     expect(text).not.toContain('```')
   })
 

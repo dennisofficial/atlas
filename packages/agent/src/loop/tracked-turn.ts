@@ -7,6 +7,7 @@ import {
   projectDirectoryOfState,
   settleablePendingOf,
   retriableEmptyStep,
+  withoutRepeatedContext,
   type ThreadId,
   type RunId,
 } from '@dltech/atlas-core'
@@ -72,7 +73,13 @@ export async function runTrackedTurn(
     name: ESpan.TurnHooks,
     run: async () => (await deps.hooks?.beforeTurn({ threadId, projectDirectory })) ?? [],
   })
-  if (opening.length > 0) await record.append({ threadId, runId, drafts: opening })
+  if (opening.length > 0) {
+    const drafts = withoutRepeatedContext({
+      events: await record.composedEvents({ threadId }),
+      drafts: opening,
+    })
+    if (drafts.length > 0) await record.append({ threadId, runId, drafts })
+  }
 
   for (;;) {
     if (pause?.paused === true) return { status: ETurnStatus.HandoffPaused, runId }

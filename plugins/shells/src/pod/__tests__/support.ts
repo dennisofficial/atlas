@@ -1,6 +1,7 @@
 import { podControlStub } from '@dltech/atlas-plugin-sdk/testing'
 import {
   toThreadId,
+  type EventBody,
   type EventDraft,
   type PluginEventBody,
   type RecordBody,
@@ -11,6 +12,7 @@ import {
   EMPTY_SESSIONS,
   EMPTY_WORKTREES,
   type PluginPodContext,
+  EMPTY_POD_RESOURCES,
 } from '@dltech/atlas-plugin-sdk'
 import {
   ECallStatus,
@@ -37,6 +39,7 @@ export const rig = () => {
   const shells = new Map<string, FakeShell>()
   const listeners = new Set<(frame: DaemonEventFrame) => void>()
   const calls: CallOp[] = []
+  const failing = new Set<string>()
   const liveFrames: LiveFrame[] = []
 
   const append = async (drafts: readonly (EventDraft | RecordBody | PluginEventBody)[]) => {
@@ -69,6 +72,7 @@ export const rig = () => {
 
   const call = async (op: CallOp): Promise<CallResult> => {
     calls.push(op)
+    if (failing.has(op.op)) return failed(op.op, 'the daemon is gone')
     if (op.op === 'shells.launch') {
       const info: ShellInfo = {
         shellId: op.shellId,
@@ -109,13 +113,18 @@ export const rig = () => {
     return ok(op.op, shell.info)
   }
 
+  const notices: { event: EventBody; key: string }[] = []
   const ctx: PluginPodContext = {
     control: podControlStub,
+    resources: EMPTY_POD_RESOURCES,
     crew: EMPTY_CREW,
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
     sessionId: 's1',
     append,
+    notify: async (event, options) => {
+      notices.push({ event, key: options.key })
+    },
     events: () => log,
     call,
     live: (frame) => liveFrames.push(frame),
@@ -143,7 +152,20 @@ export const rig = () => {
     return { kind: 'event', event: { type: 'shells.ended', shellId, info: shell.info } }
   }
 
-  return { ctx, log, shells, calls, liveFrames, print, output, finish, frame, listeners }
+  return {
+    ctx,
+    log,
+    shells,
+    calls,
+    liveFrames,
+    print,
+    output,
+    finish,
+    frame,
+    listeners,
+    notices,
+    failing,
+  }
 }
 
 export const invoke = async (args: {

@@ -90,12 +90,23 @@ describe('SessionDetailsTab', () => {
     expect(render(populatedPaneValue())).not.toContain('aria-label="Todo"')
   })
 
-  it('drops the checkout lines and the subscription list', () => {
+  it('drops the checkout lines and the GitHub section', () => {
     const html = render(populatedPaneValue())
     expect(html).not.toContain('main → dennis/v2-session-pane')
     expect(html).not.toContain('/work/wt')
     expect(html).not.toContain('aria-label="GitHub"')
-    expect(html).not.toContain('aria-label="Subscriptions"')
+  })
+
+  it('lists the subscriptions under the pull requests', () => {
+    const html = render(populatedPaneValue())
+    const subscriptions = html.indexOf('aria-label="Subscriptions"')
+    expect(subscriptions).toBeGreaterThan(html.indexOf('aria-label="Pull requests"'))
+    expect(subscriptions).toBeLessThan(html.indexOf('aria-label="Services"'))
+    expect(html).toContain('Add the session pane')
+  })
+
+  it('has no subscriptions section when the session follows nothing', () => {
+    expect(render(paneValueFixture())).not.toContain('aria-label="Subscriptions"')
   })
 
   it('leaves an empty slot for the todo section above the lists', () => {

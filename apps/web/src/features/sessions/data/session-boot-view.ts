@@ -28,6 +28,13 @@ const ACTIVE_LABELS: Record<EWorkspaceStep, string> = {
   [EWorkspaceStep.Setup]: 'Running setup script',
 }
 
+const INTERRUPTED_LABELS: Record<EWorkspaceStep, string> = {
+  [EWorkspaceStep.Sandbox]: 'Sandbox restarted · starting again',
+  [EWorkspaceStep.Daemon]: 'Daemon restarted · starting again',
+  [EWorkspaceStep.Clone]: 'Clone interrupted · running again',
+  [EWorkspaceStep.Setup]: 'Setup restarted · running again',
+}
+
 const DONE_LABELS: Record<EWorkspaceStep, string> = {
   [EWorkspaceStep.Sandbox]: 'Sandbox started',
   [EWorkspaceStep.Daemon]: 'Daemon started',
@@ -76,6 +83,7 @@ const stateOf = (args: {
   const { recorded, phase } = args
   if (recorded?.state === EWorkspaceStepState.Done) return EBootStepState.Done
   if (recorded?.state === EWorkspaceStepState.Failed) return EBootStepState.Error
+  if (recorded?.state === EWorkspaceStepState.Interrupted) return EBootStepState.Interrupted
   if (recorded?.state === EWorkspaceStepState.Started) {
     const runsPastPrepare = args.step === EWorkspaceStep.Setup && phase === 'settled'
     return phase === 'live' || phase === 'catching-up' || runsPastPrepare
@@ -86,7 +94,7 @@ const stateOf = (args: {
   if (phase === 'settled') {
     return args.previousDone ? EBootStepState.Done : EBootStepState.Pending
   }
-  return phase === 'live' && args.previousDone ? EBootStepState.Running : EBootStepState.Pending
+  return EBootStepState.Pending
 }
 
 const repoChildrenOf = (recorded: WorkspaceStepStatus | undefined): BootStepChild[] | undefined =>
@@ -101,7 +109,7 @@ const outputOf = (args: {
   state: EBootStepState
   liveOutput: string | undefined
 }): string | undefined =>
-  args.state === EBootStepState.Running
+  args.state === EBootStepState.Running || args.state === EBootStepState.Interrupted
     ? (args.liveOutput ?? args.recorded.output)
     : args.recorded.output
 
@@ -121,7 +129,9 @@ const stepViewOf = (args: {
   const label =
     state === EBootStepState.Done
       ? doneLabelOf({ step, outcome: recorded?.outcome })
-      : ACTIVE_LABELS[step]
+      : state === EBootStepState.Interrupted
+        ? INTERRUPTED_LABELS[step]
+        : ACTIVE_LABELS[step]
   const detail = state === EBootStepState.Error ? recorded?.reason : undefined
   return {
     id: BOOT_STEP[step],

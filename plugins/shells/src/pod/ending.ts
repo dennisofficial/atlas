@@ -27,7 +27,7 @@ export const recordShellEnding = async (args: {
       : { text: '', droppedCharacters: 0, remainingCharacters: 0, info }
     const outcome = outcomeOf(info)
     const started = startedOf({ events: ctx.events(), shellId })
-    await ctx.append([
+    await ctx.notify(
       {
         type: 'background-shell-ended',
         shellId,
@@ -40,7 +40,8 @@ export const recordShellEnding = async (args: {
         droppedCharacters: delta.droppedCharacters,
         remainingCharacters: delta.remainingCharacters,
       },
-    ])
+      { key: `background-shell-ended:${shellId}` },
+    )
     state.cursors.reset(shellId)
   } catch (error) {
     state.endings.delete(shellId)

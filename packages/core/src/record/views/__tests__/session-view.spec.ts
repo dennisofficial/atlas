@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 
+import { tokenSpendOf } from '../../../models/cost'
 import { contextMeterOf, type ContextMeter } from '../../context-meter'
 import type { V2Event } from '../../event'
 import { sessionStatusOf } from '../../session-status'
@@ -80,7 +81,7 @@ const spendOracle = (events: readonly V2Event[]) => {
     row.cacheWriteTokens += usage.cacheWriteTokens ?? 0
     rows.set(key, row)
   }
-  return [...rows.values()]
+  return [...rows.values()].map((row) => ({ ...row, unpricedTokens: tokenSpendOf(row) }))
 }
 
 describe('session view fold against the whole-log oracles', () => {

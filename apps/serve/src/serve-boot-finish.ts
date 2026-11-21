@@ -1,14 +1,9 @@
-import {
-  EServeFrame,
-  createSessionContextReader,
-  type ServeFrame,
-  type StepId,
-} from '@dltech/atlas-harness'
+import { EServeFrame, type ServeFrame, type StepId } from '@dltech/atlas-harness'
+import type { TracePort } from '@dltech/atlas-observability'
 import { admissionClosedFor } from '@dltech/atlas-wire'
 
 import type { ThreadId } from '@dltech/atlas-core'
 
-import { createChannelBridge } from './channel-bridge'
 import { DEFAULT_DRAIN_DEADLINE_MS } from './drain-deadline'
 import {
   createFrameBuffer,
@@ -35,10 +30,9 @@ import { createServeDriver } from './serve-driver'
 import { redeliverThrough } from './serve-redelivery'
 import { handlerOptionsOf } from './serve-handler-options'
 import { EServeEvent, type LoggingNoticePort, type ServeLog } from './serve-log'
-import { bindServeSubscriptions } from './serve-subscriptions'
 import { subscribeLegacyWake } from './serve-wake'
-import { createBootedSessionHandlers } from './serve-session-handlers'
 import { createServeWorkspaceSession } from './serve-workspace-session'
+import { bindBootedSession } from './serve-boot-session-wiring'
 
 export async function finishServeBoot(args: {
   serveArgs: ServeArgs
@@ -53,6 +47,7 @@ export async function finishServeBoot(args: {
   atlasHome: string
   sandboxSessionId: string
   boot: BootListener
+  trace: TracePort
 }): Promise<ServeHandle> {
   const { serveArgs, env, threadId, token, controlPlaneUrl, startedAt, log } = args
   const { atlasHome, sandboxSessionId, boot } = args
@@ -148,42 +143,21 @@ export async function finishServeBoot(args: {
       driver.sayOrRun()
     },
   })
-  const contextReader = createSessionContextReader({ threadId, home: atlasHome })
-  const handlers = createBootedSessionHandlers({
+  const { handlers, detachSubscriptions, bridge } = bindBootedSession({
     app,
     threadId,
     atlasHome,
     workspace,
     buffer,
     driver,
-    contextReader,
     admissionClosed,
     checkpoint: checkpoint.current,
-    checkpointChanged: () => captureRunning(),
     inFlight: () => inFlight(),
     liveStepId: () => liveStepId(),
     log,
     options: handlerOptionsOf({ app, log, persist: { ...args, clientVersion, fetchFn } }),
-  })
-  const detachSubscriptions = bindServeSubscriptions({
-    app,
-    threadId,
-    buffer,
-    handlers,
-    contextReader,
     note,
     captureRunning: () => captureRunning(),
-  })
-  const bridge = createChannelBridge({
-    channel: app.channel,
-    threadId,
-    buffer,
-    onFrame: (frame) => {
-      handlers.broadcast(frame)
-      if (frame.kind !== EServeFrame.Signal) return
-      if (frame.signal.type === 'events-appended' || frame.signal.type === 'step-ended')
-        captureRunning()
-    },
   })
   inFlight = bridge.inFlight
   liveStepId = bridge.liveStepId

@@ -36,8 +36,8 @@ describe('the memory fragment in the composed prompt', () => {
       state: { ...newMemoryIndexState(), text: 'INDEX' },
     }).text()
 
-    expect(text).toContain('write_memory')
-    expect(text).toContain('read_memory')
+    expect(text).toContain('`memory` with `action: write`')
+    expect(text).toContain('`action: read`')
     expect(text).toContain('## What you remember\n\nINDEX')
   })
 

@@ -6,7 +6,7 @@ import { join } from 'node:path'
 
 import { daemonToken } from '@dltech/atlas-protocol/engine'
 
-import { daemonBundleAnswerOf } from '../daemon-bundle'
+import { daemonBundleAnswerOf, daemonBundleVersionOf } from '../daemon-bundle'
 
 const SECRET = 'daemon-secret'
 const SANDBOX = 'atlas-pod-1'
@@ -26,12 +26,18 @@ const bundleAt = (content: string): string => {
   return path
 }
 
-const answerOf = (args: { path: string; authorization?: string; sandboxName?: string }) =>
+const answerOf = (args: {
+  path: string
+  authorization?: string
+  sandboxName?: string
+  version?: string
+}) =>
   daemonBundleAnswerOf({
     secret: SECRET,
     path: args.path,
     authorization: args.authorization,
     sandboxName: args.sandboxName,
+    version: args.version,
   })
 
 describe('daemonBundleAnswerOf', () => {
@@ -63,6 +69,38 @@ describe('daemonBundleAnswerOf', () => {
     })
     expect(await answerOf({ path, authorization: `Bearer ${TOKEN}` })).toEqual({
       kind: 'forbidden',
+    })
+  })
+
+  it('serves the bundle a restart pinned by its version', async () => {
+    const content = 'console.log("pinned")\n'
+    const path = bundleAt(content)
+    const version = daemonBundleVersionOf(new TextEncoder().encode(content))
+
+    const answer = await answerOf({
+      path,
+      authorization: `Bearer ${TOKEN}`,
+      sandboxName: SANDBOX,
+      version,
+    })
+
+    expect(answer.kind).toBe('bundle')
+  })
+
+  it('answers mismatch with its own version when another generation pinned the bundle', async () => {
+    const content = 'console.log("newer")\n'
+    const path = bundleAt(content)
+
+    const answer = await answerOf({
+      path,
+      authorization: `Bearer ${TOKEN}`,
+      sandboxName: SANDBOX,
+      version: 'b'.repeat(64),
+    })
+
+    expect(answer).toEqual({
+      kind: 'mismatch',
+      version: daemonBundleVersionOf(new TextEncoder().encode(content)),
     })
   })
 

@@ -2,24 +2,22 @@ import {
   EHeldAction,
   EToolEffect,
   isResumableOf,
+  modelFacingDeclarationsOf,
   type InboxEntry,
   type ThreadId,
 } from '@dltech/atlas-core'
-import {
-  HookedToolDispatcher,
-  LoopTurnRunner,
-  type PauseSignal,
-  settleCrashedCalls,
-} from '@dltech/atlas-agent'
+import { LoopTurnRunner, type PauseSignal, settleCrashedCalls } from '@dltech/atlas-agent'
 import { logFieldsOf } from '@dltech/atlas-observability'
 
 import { ScopedToolDispatcher } from '../calls/call-scope'
 import { BranchObserver } from './branch-observer'
+import { hookedToolsOf } from './hooked-tools'
 import { pluginPodOf } from './plugin-pod'
 import type { HeldSessionDeps } from './held-session-deps'
 import { LeaseLostError } from './record/record-adapter'
 import type { HeldTurns } from './held-turns'
 import { InboxIntake } from './inbox-intake'
+import { EIntakeScope } from './intake-scope'
 import { openChildren, type OpenChild } from './crew/open-children'
 import { operatorAnswersOf } from './operator-answer'
 import type { PodCrew } from '@dltech/atlas-plugin-sdk'
@@ -50,6 +48,7 @@ export const logReconcileFault = (args: { deps: HeldSessionDeps; error: unknown 
 export const startHeldTurn = (args: {
   deps: HeldSessionDeps
   turns: HeldTurns
+  record: SessionRecord
   pause: PauseSignal
   runner: LoopTurnRunner
   threadId: ThreadId
@@ -61,6 +60,7 @@ export const startHeldTurn = (args: {
   void args.turns
     .drive({
       runner: args.runner,
+      record: args.record,
       threadId: args.threadId,
       pause: args.pause,
       resume: args.resume,
@@ -107,7 +107,9 @@ export const settleAndCheckResume = async (args: {
     threadId,
     effectOf: (name) => (runtime.daemonTools.has(name) ? EToolEffect.Read : runtime.effectOf(name)),
   })
-  await args.crew.adoptAll(await openChildren({ record, threadId }))
+  await args.crew.adoptAll(
+    await openChildren({ record, plane: deps.plane, sessionId: deps.sessionId, threadId }),
+  )
   return isResumableOf(await record.loopState({ threadId }))
 }
 
@@ -136,6 +138,11 @@ export const createBranchObserver = (args: {
         const fact = book().fact(`base:${repo}`)
         return fact.found && typeof fact.value === 'string' ? fact.value : undefined
       },
+      hasObservation: () =>
+        record
+          .eventCache()
+          .eventsAfter(0)
+          .some((event) => event.type === 'branches-observed'),
     },
     remoteCalls: runtime.remoteCalls,
     threadId,
@@ -187,6 +194,7 @@ export const createLoopRunner = (args: {
     record,
     threadId,
     runId: () => deps.ids.nextRunId(),
+    scope: EIntakeScope.Main,
     commands: deps.commands,
     handlers: deps.commandHandlers,
     model: runtime.model,
@@ -204,12 +212,9 @@ export const createLoopRunner = (args: {
     ...(runtime.plugins === undefined ? {} : { hooks: pod.hooks }),
     ...(runtime.uploads === undefined ? {} : { uploads: runtime.uploads }),
     ...(runtime.mediaUrls === undefined ? {} : { mediaUrls: runtime.mediaUrls }),
-    tools: () => pod.tools.declarations(),
+    tools: () => modelFacingDeclarationsOf(pod.tools.declarations()),
     dispatch: new ScopedToolDispatcher(
-      new HookedToolDispatcher({
-        registry: pod.tools,
-        hooks: pod.hooks,
-      }),
+      hookedToolsOf({ registry: pod.tools, hooks: pod.hooks, trace: runtime.trace }),
     ),
     intake,
     output: args.turns.liveOutput({

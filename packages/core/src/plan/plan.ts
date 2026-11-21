@@ -37,7 +37,7 @@ export type PlanTask = {
   activeForm?: string | undefined
 }
 
-export const NO_PLAN = 'No plan yet.'
+export const NO_PLAN = 'No task list yet.'
 
 export function planTasks(written: readonly WrittenTask[]): readonly PlanTask[] {
   return written.map((task, index) => ({
@@ -59,9 +59,9 @@ export function renderPlan(tasks: readonly PlanTask[]): string {
   return tasks.map(lineOf).join('\n')
 }
 
-const PLAN_PREFACE = 'Your plan, as you last wrote it with task_write:'
+const PLAN_PREFACE = 'Your task list, as you last wrote it with task_write:'
 
-const PLAN_CLEARED = 'You have no plan written. Call task_write if the work needs one.'
+const PLAN_CLEARED = 'You have no task list written. Call task_write if the work needs one.'
 
 export function planReminder(tasks: readonly PlanTask[]): string {
   if (tasks.length === 0) return PLAN_CLEARED

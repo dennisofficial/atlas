@@ -80,7 +80,7 @@ export const daemonTestEnv = (
   ATLAS_DAEMON_HOME: join(home, 'daemon'),
   ...(options?.realCgroups === true ? {} : { ATLAS_DAEMON_CGROUP_ROOT: fakeCgroupRoot(home) }),
   ATLAS_RG_PATH: rgPath,
-  PORT: '0',
+  ATLAS_DAEMON_PORT: '0',
 })
 
 export const connectWebSocket = async (port: number): Promise<DaemonSession> => {

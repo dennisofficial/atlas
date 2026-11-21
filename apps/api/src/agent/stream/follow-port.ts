@@ -1,7 +1,12 @@
 import { pricedView, type ChangeFeed } from '@dltech/atlas-control'
 
 import { FollowSession } from './follow-session'
-import type { FollowDeps, FollowTarget, SubscriptionIndex } from './follow-types'
+import type {
+  FollowDeps,
+  FollowTarget,
+  SessionComputeReader,
+  SubscriptionIndex,
+} from './follow-types'
 import type { LiveSource } from './live-source'
 import { LiveOverlay } from './overlay/live-overlay'
 import { SessionsListIndex } from './sessions-list'
@@ -12,7 +17,11 @@ import type { SubscriptionPort } from './subscription-port'
 export type FollowSubscriptions = SubscriptionPort & { close(): void }
 
 export const createFollowSubscriptions = (
-  args: FollowDeps & { feed: ChangeFeed; live?: LiveSource | undefined },
+  args: FollowDeps & {
+    feed: ChangeFeed
+    live?: LiveSource | undefined
+    compute?: SessionComputeReader | undefined
+  },
 ): FollowSubscriptions => {
   const { timers, log } = args
   const plane = sharedReads(args.plane)
@@ -26,8 +35,11 @@ export const createFollowSubscriptions = (
           onFrameWhileDead: (sessionId) => sessionViews.recheck(sessionId),
         })
   const sessionViews: SessionViews = new SessionViews({
-    read: async ({ sessionId, threadId }) =>
-      pricedView(await plane.readSessionView({ sessionId, threadId })),
+    read: async ({ sessionId, threadId }) => {
+      const value = await plane.readSessionView({ sessionId, threadId })
+      if (args.compute === undefined) return pricedView(value)
+      return pricedView({ ...value, compute: await args.compute({ sessionId }) })
+    },
     timers,
     log,
     onLiveness: (liveness) => overlay?.liveness(liveness),

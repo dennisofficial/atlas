@@ -7,6 +7,7 @@ import {
   type ToolOutcome,
 } from '@dltech/atlas-core'
 import {
+  ECloudSetting,
   composePlugins,
   definePlugin,
   EMPTY_CONTROL,
@@ -96,6 +97,12 @@ const memoryStub: PodControlClient['memory'] = {
   remove: async () => false,
 }
 
+const versionsStub = async (): Promise<Readonly<Record<ECloudSetting, string>>> => ({
+  [ECloudSetting.McpServers]: 'unversioned',
+  [ECloudSetting.Skills]: 'unversioned',
+  [ECloudSetting.PersonalInstructions]: 'unversioned',
+})
+
 const recordingClient = (): PodControlClient & { calls: { threadId: string; port: number }[] } => {
   const calls: { threadId: string; port: number }[] = []
   return {
@@ -106,6 +113,7 @@ const recordingClient = (): PodControlClient & { calls: { threadId: string; port
     },
     memory: memoryStub,
     routines: routinesStub,
+    settingsVersions: versionsStub,
     webSearch: { config: async () => ({ backend: 'bing', key: undefined }) },
   }
 }
@@ -131,6 +139,7 @@ describe('podControlOf', () => {
       client: {
         memory: memoryStub,
         routines: routinesStub,
+        settingsVersions: versionsStub,
         webSearch: { config: async () => ({ backend: 'bing', key: undefined }) },
         exposePort: async () => {
           throw new Error('the control plane said no')
@@ -175,6 +184,7 @@ describe('a plugin tool reaching ctx.control', () => {
       control: {
         memory: memoryStub,
         routines: routinesStub,
+        settingsVersions: versionsStub,
         webSearch: { config: async () => ({ backend: 'bing', key: undefined }) },
         exposePort: async () => {
           throw new Error('the control plane rejected the call (500): boom')
@@ -196,6 +206,7 @@ describe('podControlOf wiring', () => {
     const client = {
       memory: memoryStub,
       routines: routinesStub,
+      settingsVersions: versionsStub,
       webSearch: { config: async () => ({ backend: 'bing', key: undefined }) },
       exposePort: vi.fn(async () => ({ url: 'u', tunnelToken: 't' })),
     }

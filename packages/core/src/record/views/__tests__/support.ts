@@ -9,6 +9,7 @@ import { ERetryReason } from '../../../models/retry'
 import { EFinishReason } from '../../../stream/chunk'
 import { chainEvents } from '../../chain-events'
 import { EInputConsumed, type V2Body, type V2Event } from '../../event'
+import { ETurnCause, ETurnEndedBy, ETurnOutcome } from '../../turns'
 import { EWorkspaceStep, EWorkspaceStepState } from '../../workspace'
 
 export const NOW = '2026-11-03T12:00:00.000Z'
@@ -51,6 +52,8 @@ const TURN_KINDS = [
   'stop-consumed',
   'message-consumed',
   'fact',
+  'turn-start',
+  'turn-end',
 ] as const
 
 const EDIT_KINDS = ['rewind', 'summarise'] as const
@@ -216,6 +219,17 @@ const bodyOf = (op: Op, seq: number): V2Body => {
       return { type: 'input-consumed', inboxId: 1, consumed: EInputConsumed.Message }
     case 'fact':
       return { type: 'fact-recorded', key: 'k', kind: 'note' }
+    case 'turn-start':
+      return { type: 'turn-started', turnId: `turn-${op.a % 3}`, cause: ETurnCause.Input }
+    case 'turn-end':
+      return {
+        type: 'turn-ended',
+        turnId: `turn-${op.a % 3}`,
+        outcome: [ETurnOutcome.Completed, ETurnOutcome.Stopped, ETurnOutcome.Failed][
+          op.b % 3
+        ] as ETurnOutcome,
+        by: ETurnEndedBy.Agent,
+      }
     case 'branches':
       return branchesBody(op)
     case 'pr':

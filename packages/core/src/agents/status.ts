@@ -33,14 +33,14 @@ export const attributedStop = ({
 }): EKilledBy | undefined => (status === EAgentStatus.Stopped ? killedBy : undefined)
 
 function stopped(killedBy: EKilledBy | undefined): string {
-  if (killedBy === EKilledBy.User) return 'was stopped by the user after'
+  if (killedBy === EKilledBy.User) return 'was stopped by the operator after'
   if (killedBy === EKilledBy.Model) return 'was stopped at your request after'
   if (killedBy === EKilledBy.SessionEnd) return 'was stopped when the sandbox went to sleep, after'
   if (killedBy === EKilledBy.Unrecorded) {
     return 'was lost before anything recorded how it ended, after'
   }
   if (killedBy === EKilledBy.ContainerSwitch) {
-    return 'moved with the conversation and is resuming there, after'
+    return 'moved with the session and is resuming there, after'
   }
   return 'was stopped after'
 }
@@ -52,7 +52,7 @@ function outcome(ending: AgentEnding): string {
   if (ending.status === EAgentStatus.Blocked) {
     return 'is blocked on an approval it cannot answer, after'
   }
-  if (ending.status === EAgentStatus.Paused) return 'was paused as the conversation moved, after'
+  if (ending.status === EAgentStatus.Paused) return 'was paused as the session moved, after'
   if (ending.status === EAgentStatus.WaitingForModel) {
     return 'is waiting for model access, after'
   }

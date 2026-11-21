@@ -1,4 +1,4 @@
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'bun:test'
 import { act, useState } from 'react'
 import type { Root } from 'react-dom/client'
@@ -12,7 +12,7 @@ let container: HTMLDivElement | null = null
 let current: ProjectDraft = emptyDraft()
 
 beforeAll(async () => {
-  GlobalRegistrator.register()
+  registerDom()
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
   SecretsEditor = (await import('../new-project-secrets-editor')).SecretsEditor
 })
@@ -25,7 +25,7 @@ afterEach(async () => {
 })
 
 afterAll(async () => {
-  await GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 function Editor() {

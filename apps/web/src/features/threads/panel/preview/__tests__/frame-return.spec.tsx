@@ -1,11 +1,12 @@
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
+import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
 import { act, type ReactNode } from 'react'
 
 import { EPreviewStatus, type PreviewPort } from '@dltech/atlas-ui/ai/preview-browser'
 
 import type { PreviewsState } from '../../../data/use-previews'
 import type { ThreadPanelValue } from '../../thread-panel-context'
+import { resetPreviewState } from './reset-preview-state'
 
 const URL_A = 'https://3000-abcdefghij.byatlas.dev/'
 
@@ -20,14 +21,18 @@ const WEB: PreviewPort = {
 const originalError = console.error
 
 beforeAll(() => {
-  GlobalRegistrator.register()
+  registerDom()
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
   console.error = () => undefined
 })
 
 afterAll(async () => {
   console.error = originalError
-  await GlobalRegistrator.unregister()
+  await unregisterDom()
+})
+
+beforeEach(() => {
+  resetPreviewState()
 })
 
 const settle = () => act(async () => new Promise<void>((done) => setTimeout(done, 20)))

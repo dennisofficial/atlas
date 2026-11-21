@@ -27,6 +27,15 @@ describe('podChipStatusOf', () => {
     ).toEqual({ state: EPodState.Running, vcpus: 4, pendingVcpus: 8, phase: 'resizing' })
   })
 
+  it('keeps the applied size and names the target while the resize waits for idle', () => {
+    expect(
+      podChipStatusOf({
+        pod: { desiredVcpus: 8, actualVcpus: 4, phase: 'waiting' },
+        live: true,
+      }),
+    ).toEqual({ state: EPodState.Running, vcpus: 4, pendingVcpus: 8, phase: 'waiting' })
+  })
+
   it('carries the error of a failed resize', () => {
     expect(
       podChipStatusOf({

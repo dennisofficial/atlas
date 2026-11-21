@@ -13,7 +13,8 @@ const inputSchema = z.strictObject({})
 const description = [
   'List the git worktrees of the repository the session is in, with the branch each one is on.',
   'The main checkout is marked, as is whichever worktree the session is standing in.',
-  'Read it before entering a worktree by path, or to tell the developer what work is already laid out.',
+  'Read it before you enter a worktree by path.',
+  'Read it to tell the operator what work already exists in a worktree.',
 ].join(' ')
 
 const lineFor = (args: { record: WorktreeRecord; current: string }): string => {
@@ -33,6 +34,7 @@ export class WorktreeListTool extends SchemaTool<typeof inputSchema> {
   readonly effect = EToolEffect.Read
   override readonly isConcurrencySafe = (): boolean => true
   readonly inputSchema = inputSchema
+  readonly deferred = true
   override readonly pathFields = TAKES_NO_PATHS
 
   constructor(private readonly ctx: PluginPodContext) {

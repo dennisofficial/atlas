@@ -14,32 +14,28 @@ export function bashDescription({
   maximumTimeoutMs: number
 }): string {
   return [
-    'Run a command in bash. Every call starts in the project directory; to run elsewhere, pass the',
-    'directory as workdir rather than opening with cd - a cd moves only the process that runs it, and',
-    'nothing carries between calls: a shell variable, background job or cd dies with the call.',
-    'stdout and stderr come back as one string, all of stdout first, and only the tail is kept once',
-    'output grows past the cap. A non-zero exit is reported with its code. Times out after',
-    `${defaultTimeoutMs} ms unless timeoutMs says otherwise, never past ${maximumTimeoutMs} ms. Every`,
-    'call carries a description: a few imperative words naming the job, which the developer reads in',
+    'Run a command in bash. Every call starts in the project directory. To run elsewhere, pass workdir rather',
+    'than opening with cd. Nothing carries between calls: a shell variable, a background job or a cd dies',
+    'with the call. stdout and stderr come back as one string, all of stdout first, and only the tail is kept',
+    'past the cap. A non-zero exit reports its code. A call times out after',
+    `${defaultTimeoutMs} ms unless timeoutMs says otherwise, and never past ${maximumTimeoutMs} ms.`,
+    'Every call carries a description: a few imperative words naming the job, which the operator reads in',
     'place of the command.',
-    'Background bash is for finite jobs - builds, test runs, installs, migrations - not for servers that',
-    'run until stopped; declared services start with service_start({ name }), one-off servers through service_start with a command. Start a slow command with',
-    'runInBackground to get a shell id back at once; the shell',
-    'outlives the turn that started it and reconnects after an Atlas restart. Full background output',
-    'is saved in the owning thread’s session folder; the returned output path can be read or grepped.',
-    `shell_input writes to a durable shell’s stdin. ${ATLAS_SESSION_DIR_ENV} and ${ATLAS_CONTEXT_DIR_ENV} name`,
-    `the session directories shared by the conversation and its agents. ${ATLAS_THREAD_DIR_ENV} names the`,
-    'thread directory private to the calling thread.',
-    `Scratch files, probes, and one-off downloads belong in $${ATLAS_SESSION_DIR_ENV}/scratch, never loose in the Atlas home directory.`,
-    'The output file does not rotate. A 5 GiB kernel file-size limit bounds regular-file writes for background commands.',
-    'A server - a dev server, a database, anything that listens',
-    'until stopped - belongs on service_start instead, which also publishes its port. A watch pattern delivers matching lines as',
-    'they arrive; match failure markers as well as success, since silence is indistinguishable from',
-    'progress. A background shell that prints nothing for 30 minutes is killed, and that ending wakes',
-    'you like any other. Commands that wait idly - sleeps, poll loops, foreground watches,',
-    'do-nothing ticks - are refused.',
-    'shell_output reads a shell that will not end on its own, shell_list shows what is running, and',
-    'shell_kill stops one.',
+    'Background bash is for finite jobs: builds, test runs, installs, migrations. It is not for a server that',
+    'runs until stopped; start one with `service` action `start`, which also publishes its port.',
+    'Run a slow command with runInBackground to get a shell id at once. The shell outlives the turn and',
+    'reconnects after the Atlas harness restarts. Its full output is saved in the session folder of the',
+    'owning thread; read the returned output path or grep it. The file does not rotate, and a 5 GiB kernel',
+    'file-size limit bounds regular-file writes.',
+    `shell_input writes to the stdin of a durable shell. ${ATLAS_SESSION_DIR_ENV} and ${ATLAS_CONTEXT_DIR_ENV} name`,
+    `the session directories shared by the session, its sub-agents and its teammates.`,
+    `${ATLAS_THREAD_DIR_ENV} names the thread directory private to the calling thread.`,
+    `Put scratch files, probes and one-off downloads in $${ATLAS_SESSION_DIR_ENV}/scratch, never loose in the Atlas home directory.`,
+    'A watch pattern delivers matching lines as they arrive. Match the failure markers as well as the success',
+    'markers: a watch that matches only success cannot tell a slow command from a failed one.',
+    'A background shell silent for 30 minutes is killed, and that ending wakes you like any other.',
+    'Commands that wait idly - sleeps, poll loops, foreground watches, do-nothing ticks - are refused.',
+    'shell_output reads a shell that will not end on its own. shell_list shows what is running.',
   ].join(' ')
 }
 
@@ -47,8 +43,8 @@ export function watchClause({ watch }: { watch: string | undefined }): readonly 
   if (watch === undefined) return []
 
   return [
-    `Lines matching ${watch} reach you as they are printed, batched rather than one by one, and after`,
-    `${MATCHED_LINES_CAP} of them the watch disarms and says so while the shell carries on.`,
+    `Lines matching ${watch} reach you as they are printed, batched rather than one by one. After`,
+    `${MATCHED_LINES_CAP} of them the watch disarms and says so, and the shell carries on.`,
     'A match neither consumes nor is consumed by shell_output.',
   ]
 }
@@ -56,7 +52,9 @@ export function watchClause({ watch }: { watch: string | undefined }): readonly 
 export function ceilingClause({ timeoutMs }: { timeoutMs: number | undefined }): readonly string[] {
   if (timeoutMs === undefined) return []
 
-  return [`It is killed if it outlives ${timeoutMs} ms, and the killing reaches you as its ending.`]
+  return [
+    `The shell is killed if it outlives ${timeoutMs} ms. The killing reaches you as its ending.`,
+  ]
 }
 
 export const MATCHED_LINES_CAP = 200
@@ -65,33 +63,33 @@ const NATIVE_WAITS = 'gh run watch --exit-status, gh pr checks --watch'
 
 export function noOpRefusal(): string {
   return [
-    'this command does nothing: it would return at once with nothing printed and nothing changed, so the only thing calling it spends is the turn itself, and calling it again spends another.',
-    'If the point was to wait on a background shell, a turn does not wait by calling tools - it waits by ending. End the turn with no tool call, and the shell ending or a watch match will wake you.',
+    'this command does nothing: it returns at once with nothing printed and nothing changed. The only thing the call spends is the turn itself, and a second call spends another turn.',
+    'A turn does not wait by calling tools. It waits by ending: end the turn with no tool call, and the shell ending or a watch match will wake you.',
     'If nothing is running the slow work yet, start it with runInBackground and a watch instead of ticking.',
   ].join(' ')
 }
 
 export function watchRefusal(): string {
   return [
-    'this command only ends when what it watches ends, so in the foreground it holds the whole turn open for minutes nothing else can use.',
-    'Start this exact command with runInBackground instead: its ending reaches you with an output excerpt and the full log path, and a watch pattern naming both the outcome you want and the failures that would end the wait can wake you sooner.',
-    'If the point was a one-shot look, run the one-shot form - gh run view, gh pr checks without --watch, tail without -f.',
+    'this command only ends when what it watches ends, so in the foreground it holds the whole turn open for minutes that nothing else can use.',
+    'Start this exact command with runInBackground instead. Its ending reaches you with an output excerpt and the full log path. A watch pattern naming both the outcome you want and the failures that would end the wait can wake you sooner.',
+    'If the point was a one-shot look, run the one-shot form: gh run view, gh pr checks without --watch, tail without -f.',
   ].join(' ')
 }
 
 export function truncatedWatchRefusal(): string {
   return [
-    'piping a CI watch through tail or head keeps only its last lines, and the lines that name a failing check are the ones that fall off - a green-looking tail has merged a red run before.',
-    'Run the watch untruncated with runInBackground: its ending carries an output excerpt and the path to the complete spool, so failing lines remain available through Read or Grep.',
+    'piping a CI watch through tail or head keeps only its last lines, and the lines that name a failing check are the ones that fall off. A truncated tail previously led to a merge despite a failed CI run.',
+    'Run the watch untruncated with runInBackground. Its ending carries an output excerpt and the path to the complete spool, so the failing lines remain available through Read or Grep.',
   ].join(' ')
 }
 
 export function idlingRefusal(args: { command: string; timeoutMs: number }): string {
   const idle = readIdling(args)
   if (idle.unbounded) {
-    return `this loop has no end: it polls until the ${args.timeoutMs} ms timeout kills the turn, and nothing it could learn arrives sooner for the waiting. Start this exact command with runInBackground - give it a watch naming both the outcome you want and the failures that would end the wait, and timeoutMs as a ceiling - or drop the loop for the blocking wait the underlying tool already has, itself started with runInBackground: ${NATIVE_WAITS}`
+    return `this loop has no end: it polls until the ${args.timeoutMs} ms timeout kills the turn, and nothing it could learn arrives sooner for the waiting. Start this exact command with runInBackground: give it a watch naming both the outcome you want and the failures that would end the wait, and timeoutMs as a ceiling. Otherwise drop the loop for the blocking wait the underlying tool already has, itself started with runInBackground: ${NATIVE_WAITS}`
   }
 
   const across = idle.iterations === undefined ? '' : ` across ${idle.iterations} iterations`
-  return `this command spends ${idle.seconds} seconds asleep${across}, and nothing advances while it does. Start this exact command with runInBackground, whose ending is delivered to you wherever you are and which takes a watch to tell you about a matching line before then, or drop the poll for the blocking wait the underlying tool already has, itself started with runInBackground: ${NATIVE_WAITS}`
+  return `this command spends ${idle.seconds} seconds asleep${across}, and nothing advances while it does. Start this exact command with runInBackground: its ending is delivered to you wherever you are, and a watch tells you about a matching line before then. Otherwise drop the poll for the blocking wait the underlying tool already has, itself started with runInBackground: ${NATIVE_WAITS}`
 }

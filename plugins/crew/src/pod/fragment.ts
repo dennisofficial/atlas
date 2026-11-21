@@ -9,12 +9,12 @@ export class CrewFragment extends PromptFragment {
 
   text(): string {
     return [
-      'You may spawn sub-agents with `agent_spawn`, and each one works in the background while you',
-      'carry on: its answer reaches you the moment it stops. A sub-agent starts with nothing of this',
-      'conversation, so its brief is the whole of what it knows — say what to do, where, and what to',
-      'report back. A child you put in a worktree may commit on its own branch, push it and open a',
-      'pull request with `gh`, and it must report the URL. `agent_say` messages one you started,',
-      '`agent_stop` ends one, and `agent_list` shows what you have started and how each one ended.',
+      'You can spawn sub-agents with `agent_spawn`. Each one works in the background while you carry',
+      'on, and its answer reaches you the moment it stops. A sub-agent starts with nothing of this',
+      'session, so its brief is the whole of what it knows. Say what to do, where, and what to report',
+      'back. A sub-agent you put in a worktree can commit on its own branch, push it and open a',
+      'pull request with `gh`. It must report the URL. `agent_say` messages one you started.',
+      '`agent_stop` ends one. `agent_list` shows what you have started, and how each one ended.',
       '',
       'The agent types:',
       types,

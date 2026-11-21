@@ -19,6 +19,10 @@ export enum EKilledBy {
   Fault = 'fault',
 }
 
+export enum EShellEndCause {
+  SandboxStopped = 'sandbox-stopped',
+}
+
 export type ShellEnding = {
   status: EShellStatus
   exitCode?: number | undefined
@@ -33,7 +37,7 @@ export function shellFailed(ending: ShellEnding): boolean {
 }
 
 function killEnding(killedBy: EKilledBy | undefined): string {
-  if (killedBy === EKilledBy.User) return 'was killed by the user'
+  if (killedBy === EKilledBy.User) return 'was killed by the operator'
   if (killedBy === EKilledBy.Model) return 'was killed at your request'
   if (killedBy === EKilledBy.SessionEnd) return 'was killed when the sandbox went to sleep'
   if (killedBy === EKilledBy.Timeout) return 'was killed for outliving its timeout'

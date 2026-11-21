@@ -309,10 +309,10 @@ const render = (session: ReturnType<typeof v2RowOf>, activeId: string | null = n
   )
 
 describe('ThreadRow for a v2 session', () => {
-  it('shows the v2 tag, links to the session and offers archive and unarchive', () => {
+  it('links to the session and offers archive and unarchive, without an engine tag', () => {
     const html = render(v2RowOf(summary()))
     expect(html).toContain('href="/sessions/v2-a"')
-    expect(html).toContain('data-engine-tag="v2"')
+    expect(html).not.toContain('data-engine-tag')
     expect(html).toContain('Fix login')
     expect(html).toContain('Archive thread')
     expect(html).not.toContain('Pinned')
@@ -324,9 +324,10 @@ describe('ThreadRow for a v2 session', () => {
     expect(render(v2RowOf(summary()), 'v2-a')).toContain('aria-current="page"')
   })
 
-  it('leaves v1 rows untagged', () => {
+  it('tags a v1 row and never a sandbox provider', () => {
     const html = render(sessionOf(threadOf({ id: 'solo', title: 'Solo' })))
-    expect(html).not.toContain('data-engine-tag')
+    expect(html).toContain('data-engine-tag="v1"')
+    expect(html).not.toContain('data-sandbox-provider')
     expect(html).toContain('href="/threads/solo"')
     expect(html).toContain('Archive thread')
   })

@@ -1,10 +1,12 @@
 import { retryOnConnectionLoss, type Db, type Tx } from '@dltech/atlas-db'
-import { GENESIS_HASH, type InboxEntry, type Lease } from '@dltech/atlas-core'
+import { GENESIS_HASH, type InboxEntry, type Lease, type ThreadId } from '@dltech/atlas-core'
 import type { SessionChange } from '@dltech/atlas-protocol'
 
 import {
   ControlStorePort,
   type AdvanceRoutineParams,
+  type AppendCommit,
+  type AppendOpening,
   type BlobRefWrite,
   type BlobRow,
   type BlobWrite,
@@ -58,6 +60,7 @@ import {
   insertBlobRows,
   readBlobRow,
 } from './postgres-blobs'
+import { commitAppendIn, openAppendIn } from './postgres-append'
 import { writeLeaseIn } from './postgres-leases'
 import { announceIn, notifyWakeIn } from './postgres-notify'
 import { hostPresentIn, hostsPresentIn } from './postgres-presence'
@@ -76,6 +79,7 @@ import {
   setSessionPodAppliedIn,
   setSessionPodDesiredIn,
   setSessionPodFailedIn,
+  setSessionPodWaitingIn,
   setSessionTitleIfUntitledIn,
   setSessionTitleIn,
 } from './postgres-session-writes'
@@ -175,15 +179,41 @@ class PostgresTx implements ControlTx {
   }
 
   async setSessionPodDesired(params: Parameters<ControlTx['setSessionPodDesired']>[0]) {
-    return setSessionPodDesiredIn({ ...params, tx: this.tx })
+    return setSessionPodDesiredIn({
+      tx: this.tx,
+      sessionId: params.sessionId,
+      vcpus: params.vcpus,
+      memoryGb: params.memoryGb,
+      generation: params.generation,
+    })
   }
 
   async setSessionPodApplied(params: Parameters<ControlTx['setSessionPodApplied']>[0]) {
-    return setSessionPodAppliedIn({ ...params, tx: this.tx })
+    return setSessionPodAppliedIn({
+      tx: this.tx,
+      sessionId: params.sessionId,
+      vcpus: params.vcpus,
+      memoryGb: params.memoryGb,
+      generation: params.generation,
+    })
   }
 
   async setSessionPodFailed(params: Parameters<ControlTx['setSessionPodFailed']>[0]) {
-    return setSessionPodFailedIn({ ...params, tx: this.tx })
+    return setSessionPodFailedIn({
+      tx: this.tx,
+      sessionId: params.sessionId,
+      generation: params.generation,
+      error: params.error,
+    })
+  }
+
+  async setSessionPodWaiting(params: Parameters<ControlTx['setSessionPodWaiting']>[0]) {
+    return setSessionPodWaitingIn({
+      tx: this.tx,
+      sessionId: params.sessionId,
+      generation: params.generation,
+      since: params.since,
+    })
   }
 
   async setSessionArchived(params: { sessionId: string; archivedAt: string | null }) {
@@ -243,6 +273,14 @@ class PostgresTx implements ControlTx {
       visibility: params.visibility,
       createdAt: new Date(params.at),
     })
+  }
+
+  async openAppend(threadId: string): Promise<AppendOpening | undefined> {
+    return openAppendIn({ tx: this.tx, threadId })
+  }
+
+  async commitAppend(params: AppendCommit): Promise<boolean> {
+    return commitAppendIn({ tx: this.tx, ...params })
   }
 
   async lockThread(threadId: string): Promise<ThreadRow | undefined> {
@@ -399,7 +437,11 @@ class PostgresTx implements ControlTx {
     return deleteInboxEntryIn({ tx: this.tx, ...params })
   }
 
-  async recentInboxEntries(params: { sessionId: string; limit: number }) {
+  async recentInboxEntries(params: {
+    sessionId: string
+    limit: number
+    forThread: ThreadId | null
+  }) {
     return recentInboxEntriesIn({ tx: this.tx, ...params })
   }
 
@@ -408,6 +450,7 @@ class PostgresTx implements ControlTx {
     afterId: number
     limit: number
     excludeKind?: string | undefined
+    forThread: ThreadId | null
   }) {
     return readInboxEntriesIn({ tx: this.tx, ...params })
   }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { ESessionStatus, EShellStatus } from '@dltech/atlas-core'
+import { ESessionStatus, EShellStatus, ETurnCause, type V2Body } from '@dltech/atlas-core'
 import {
   EStreamBlockKind,
   EStreamErrorCode,
@@ -10,7 +10,10 @@ import {
 import { EStreamConnectionState } from '../connection-machine'
 import { memorySessionLog, type SessionLog } from '../session-log'
 import { createSessionFollower, ESessionConnection } from '../session-follower'
-import { createFakeScheduler, eventsMessage, headOf, mintUserEvents } from './support'
+import { createFakeScheduler, eventsMessage, headOf, mintEvents, mintUserEvents } from './support'
+
+const turnStarted: V2Body = { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input }
+const openTurn = () => mintEvents({ bodies: [turnStarted, { type: 'user-said', text: 'a' }] })
 
 const statusView = (params: { at: number; state?: ESessionStatus }): StreamServerMessage => ({
   type: 'view',
@@ -35,6 +38,7 @@ const sessionView = (params: { at: number; live: boolean }): StreamServerMessage
       lease: { epoch: 1, holderHostId: 7, live: params.live },
     },
     context: null,
+    compute: { costUsd: null, running: false, tick: null },
     spend: {
       rows: [],
       tally: {
@@ -76,10 +80,8 @@ describe('the session follower', () => {
 
   it('keeps the log-derived status when a status frame disagrees', () => {
     const { follower } = setup()
-    follower.handleMessage(
-      eventsMessage({ id: 's1', events: mintUserEvents({ count: 3 }), live: true }),
-    )
-    follower.handleMessage(statusView({ at: 3, state: ESessionStatus.Idle }))
+    follower.handleMessage(eventsMessage({ id: 's1', events: openTurn(), live: true }))
+    follower.handleMessage(statusView({ at: 2, state: ESessionStatus.Idle }))
     const status = follower.getSnapshot().status
     expect(status?.state).toBe(ESessionStatus.Resuming)
     expect(status?.lease).toEqual({ epoch: 0, holderHostId: null, live: false })
@@ -261,16 +263,19 @@ describe('live shell output', () => {
       eventsMessage({
         id: 's1',
         live: true,
-        events: mintUserEvents({ count: 1 }).map((event) => ({
-          ...event,
-          type: 'background-shell-ended' as const,
-          shellId: 'shell-1',
-          command: 'ticker',
-          status: EShellStatus.Exited,
-          output: 'one\n',
-          droppedCharacters: 0,
-          remainingCharacters: 0,
-        })),
+        events: mintEvents({
+          bodies: [
+            {
+              type: 'background-shell-ended',
+              shellId: 'shell-1',
+              command: 'ticker',
+              status: EShellStatus.Exited,
+              output: 'one\n',
+              droppedCharacters: 0,
+              remainingCharacters: 0,
+            },
+          ],
+        }),
       }),
     )
 

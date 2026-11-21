@@ -14,12 +14,16 @@ import {
   type InputRefused,
   type InputWithdrawn,
 } from './input-events'
+import { resourceLoadedSchema, type ResourceLoaded } from './resource-loaded'
 import { retryScheduledSchema, type RetryScheduled } from './retry-scheduled'
 import { sessionStartFailedSchema, type SessionStartFailed } from './start-failure'
+import { turnEndedSchema, turnStartedSchema, type TurnEnded, type TurnStarted } from './turns'
 import {
+  workspaceAttemptStartedSchema,
   workspacePrepareFailedSchema,
   workspacePreparedSchema,
   workspaceStepSchema,
+  type WorkspaceAttemptStarted,
   type WorkspacePrepared,
   type WorkspacePrepareFailed,
   type WorkspaceStep,
@@ -68,11 +72,15 @@ export type RecordBody =
   | { type: 'idle-released'; inboxHead: number }
   | { type: 'fact-recorded'; key: string; kind: string; value?: unknown }
   | RetryScheduled
+  | ResourceLoaded
   | BranchesObserved
   | WorkspacePrepared
   | WorkspacePrepareFailed
   | WorkspaceStep
+  | WorkspaceAttemptStarted
   | SessionStartFailed
+  | TurnStarted
+  | TurnEnded
 
 export type V2Body =
   | Exclude<EventBody, { type: 'history-compacted' }>
@@ -142,11 +150,15 @@ const recordBodySchema: z.ZodType<RecordBody> = z.discriminatedUnion('type', [
     value: z.unknown().optional(),
   }),
   retryScheduledSchema,
+  resourceLoadedSchema,
   branchesObservedSchema,
   workspacePreparedSchema,
   workspacePrepareFailedSchema,
   workspaceStepSchema,
+  workspaceAttemptStartedSchema,
   sessionStartFailedSchema,
+  turnStartedSchema,
+  turnEndedSchema,
 ])
 
 const RECORD_TYPE_TABLE = {
@@ -159,11 +171,15 @@ const RECORD_TYPE_TABLE = {
   'idle-released': true,
   'fact-recorded': true,
   'retry-scheduled': true,
+  'resource-loaded': true,
   'branches-observed': true,
   'workspace-prepared': true,
   'workspace-prepare-failed': true,
   'workspace-step': true,
+  'workspace-attempt-started': true,
   'session-start-failed': true,
+  'turn-started': true,
+  'turn-ended': true,
 } satisfies Record<RecordBody['type'], true>
 
 export const RECORD_ONLY_TYPES: ReadonlySet<V2EventType> = new Set<V2EventType>(

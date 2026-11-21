@@ -27,12 +27,14 @@ import { HeldPrepare } from './held-prepare'
 import { readHeldAction } from './held-snapshot'
 import { drainNeedsHolder } from './held-needs-holder'
 import { lostOutcome } from './lost-outcome'
+import { closeOpenTurn } from './orphan-turn'
+import { STOPPED_BY_OPERATOR } from './turn-boundary'
 import { consumeStops } from './held-wait'
 import { Reconciler } from './reconciler'
 import type { SessionRecord } from './record/record-adapter'
 import type { HeldSessionDeps } from './held-session-deps'
 import { HeldTurns } from './held-turns'
-import { TakeOver } from './held-takeover'
+import { ETakeoverLap, TakeOver } from './held-takeover'
 import { quarantineOutcome } from './start-failure-record'
 import { DRAIN_IN_FLIGHT_CAP_MS } from './drain-cap'
 import { HeldEnding } from './held-ending'
@@ -217,8 +219,9 @@ export class HeldSession {
     if (crashLooped(lease)) {
       return this.ending.finish(await quarantineOutcome({ deps, lease, threadId }))
     }
-    this.takeOver = new TakeOver(deps, args.claimMs ?? 0)
-    const { runtime, record } = await this.takeOver.open({
+    const takeOver = new TakeOver(deps, args.claimMs ?? 0)
+    this.takeOver = takeOver
+    const { runtime, record } = await takeOver.open({
       threadId,
       epoch: lease.epoch,
       signal: this.lifetimeAbort.signal,
@@ -256,8 +259,12 @@ export class HeldSession {
     this.observation.start()
     this.logStaged = logStaged
     this.runCommands = runCommands
-    await settleAndCheckResume({ deps, runtime, record, threadId, crew })
-    await recoverCommands()
+    await takeOver.lapped({
+      lap: ETakeoverLap.Settle,
+      work: () => settleAndCheckResume({ deps, runtime, record, threadId, crew }),
+    })
+    await takeOver.lapped({ lap: ETakeoverLap.Commands, work: recoverCommands })
+    void branchesStarted.then(() => takeOver.branchesSettled())
     this.branchesReady = branchesStarted
     const completion = this.ending.waitForDrive()
     if (this.lifetimeAbort.signal.aborted || this.ending.outcome !== undefined) return
@@ -271,21 +278,30 @@ export class HeldSession {
     await completion
   }
 
+  private async lapped<T>(args: { lap: ETakeoverLap; work: () => Promise<T> }): Promise<T> {
+    const takeOver = this.takeOver
+    return takeOver === undefined ? args.work() : takeOver.lapped(args)
+  }
+
   private async step(args: { runner: LoopTurnRunner; threadId: ThreadId }): Promise<void> {
     if (this.ending.outcome !== undefined) return
     const deps = this.deps
     const turnRunning = this.turns.turnRunning
     if (this.draining) return turnRunning ? undefined : this.ending.finish(EHeldOutcome.Drained)
-    const { entries, action, resumable, inboxHead, failure } = await readHeldAction({
-      deps,
-      draining: this.draining,
-      turnRunning,
-      resumeAfterSeq: this.resumeAfterSeq,
-      runtime: this.runtime,
-      record: this.record,
-      preparing: this.prepare.running,
-      setupRunning: this.prepare.hasSetupRunning,
-      childrenRunning: this.crew?.runningCount() ?? 0,
+    const { entries, action, resumable, inboxHead, failure } = await this.lapped({
+      lap: ETakeoverLap.Decide,
+      work: () =>
+        readHeldAction({
+          deps,
+          draining: this.draining,
+          turnRunning,
+          resumeAfterSeq: this.resumeAfterSeq,
+          runtime: this.runtime,
+          record: this.record,
+          preparing: this.prepare.running,
+          setupRunning: this.prepare.hasSetupRunning,
+          childrenRunning: this.crew?.runningCount() ?? 0,
+        }),
     })
     if (action === EHeldAction.AbortTurn) return this.turns.abort(OPERATOR_STOP_REASON)
     if (action !== EHeldAction.StartTurn) await this.logStaged?.()
@@ -298,6 +314,8 @@ export class HeldSession {
         await settleOperatorOnStop({ deps, record: this.record, runtime: this.runtime })
         await this.prepare.failStopped()
         await consumeStops({ deps, record: this.record, entries })
+        if (!this.turns.turnRunning)
+          await closeOpenTurn({ deps, record: this.record, ending: STOPPED_BY_OPERATOR })
         this.resumeAfterSeq = this.record?.eventCache().currentHead().seq ?? this.resumeAfterSeq
         this.reconciler?.request()
         return
@@ -312,11 +330,14 @@ export class HeldSession {
       case EHeldAction.StartTurn: {
         await this.branchesReady
         if (this.draining || this.ending.outcome !== undefined) return
+        const record = this.record
+        if (record === undefined) return
         this.takeOver?.firstStep()
-        this.resumeAfterSeq = this.record?.eventCache().currentHead().seq ?? this.resumeAfterSeq
+        this.resumeAfterSeq = record.eventCache().currentHead().seq ?? this.resumeAfterSeq
         startHeldTurn({
           deps,
           turns: this.turns,
+          record,
           pause: this.pause,
           runner: args.runner,
           threadId: args.threadId,

@@ -9,6 +9,8 @@ import {
   EMPTY_WORKTREES,
   type PluginPodContext,
   type PodControl,
+  EMPTY_POD_RESOURCES,
+  UNVERSIONED_SETTINGS,
 } from '@dltech/atlas-plugin-sdk'
 
 import { operatorPod } from '..'
@@ -21,6 +23,7 @@ const unavailable = async (): Promise<never> => {
 }
 
 const control: PodControl = {
+  settingsVersions: async () => UNVERSIONED_SETTINGS,
   exposePort: unavailable,
   mcp: EMPTY_MCP_CONTROL,
   webSearch: { config: unavailable },
@@ -37,9 +40,11 @@ const control: PodControl = {
 const ctx: PluginPodContext = {
   sessionId: 's1',
   control,
+  resources: EMPTY_POD_RESOURCES,
   crew: EMPTY_CREW,
   sessions: EMPTY_SESSIONS,
   worktrees: EMPTY_WORKTREES,
+  notify: async () => undefined,
   append: async () => undefined,
   events: () => [],
   call: unavailable,

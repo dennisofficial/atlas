@@ -115,23 +115,23 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
       },
       modelText: [
         `Started in the background as shell ${shellId}, and it outlives this turn.`,
-        'It outlives an interrupt too: stopping a turn stops the turn, not the shell, so nothing here needed nohup,',
-        'setsid, a detached subprocess or a sentinel file. Its supervisor preserves output, input, and exit status across Atlas restarts.',
-        'Quitting detaches by default; shell_kill, a confirmed stop, and execution-location moves stop the command.',
-        'Its ending will be delivered with a bounded output excerpt and the full output file path.',
-        'A prompt can be answered with shell_input; interactive terminal programs still require a terminal, not this pipe.',
+        'It outlives an interrupt too: stopping a turn stops the turn, not the shell. The command needs no nohup,',
+        'setsid, detached subprocess or sentinel file. Its supervisor keeps output, input and exit status across Atlas restarts.',
+        'Quitting detaches by default. shell_kill, a confirmed stop and an execution-location move stop the command.',
+        'Its ending is delivered with a bounded output excerpt and the full output file path.',
+        'shell_input answers a prompt. An interactive terminal program still needs a terminal, not this pipe.',
         ...(started.snapshot.outputPath === undefined
           ? []
           : [
               `Output is being written to: ${started.snapshot.outputPath}. Use Read or Grep on that file for full history.`,
             ]),
-        'A kill you asked for still lands that way: shell_kill waits for the death and hands you everything the shell printed as its result,',
-        'and the ending is written to the durable log and announced like every other, so you can be told the same death twice - once as the tool result, once as the ending.',
+        'A kill you asked for lands that way too: shell_kill waits for the death and hands you everything the shell printed as its result.',
+        'The ending is also written to the durable log and announced like every other ending, so you can be told the same death twice - once as the tool result, once as the ending.',
         ...watchClause({ watch: args.watch }),
         ...ceilingClause({ timeoutMs: args.timeoutMs }),
-        'So do not wait on it: no sleeping, no polling, no idle loop, and no do-nothing command to pass the time - a tick only spins the turn. Take up other work, or end the turn and be woken.',
-        `Use shell_output({ shellId: "${shellId}" }) for unread output, shell_input to send input, and shell_kill to stop it.`,
-        `${ATLAS_SESSION_DIR_ENV} and ${ATLAS_THREAD_DIR_ENV} locate this agent’s session and thread data, ${ATLAS_CONTEXT_DIR_ENV} the session’s shared context folder; ATLAS_SHELL_DIR locates this shell’s spool.`,
+        'Do not wait on it: no sleeping, no polling, no idle loop, no do-nothing command to pass the time. A tick only spins the turn. Take other work, or end the turn and be woken.',
+        `Use shell_output({ shellId: "${shellId}" }) for unread output. Use shell_input to send input. Use shell_kill to stop it.`,
+        `${ATLAS_SESSION_DIR_ENV} and ${ATLAS_THREAD_DIR_ENV} locate the session and thread data of this agent. ${ATLAS_CONTEXT_DIR_ENV} locates the shared context folder of the session. ATLAS_SHELL_DIR locates the spool of this shell.`,
       ].join(' '),
     }
   }
@@ -144,7 +144,7 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
     onOutput,
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
     if (signal.aborted)
-      return { ok: false, reason: 'the developer interrupted the turn before the command started' }
+      return { ok: false, reason: 'the operator interrupted the turn before the command started' }
 
     const { command, timeoutMs } = input
     const cwd = input.workdir ?? projectDirectory
@@ -153,7 +153,7 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
       return {
         ok: false,
         reason:
-          'watch reads the lines of a shell that is still running, so it needs runInBackground: true; a foreground command hands you all of its output the moment it returns, so there is nothing for a watch to be earlier than',
+          'watch reads the lines of a shell that is still running, so it needs runInBackground: true. A foreground command hands you all of its output the moment it returns, so there is nothing for a watch to be earlier than',
       }
     }
 
@@ -236,7 +236,7 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
     if (signal.aborted && !timedOut) {
       return {
         ok: false,
-        reason: 'the developer interrupted the turn while the command was running',
+        reason: 'the operator interrupted the turn while the command was running',
       }
     }
 

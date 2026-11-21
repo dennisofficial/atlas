@@ -72,6 +72,7 @@ export function unknownToolDraft(args: {
 
 export function invalidInputDraft(args: {
   call: DispatchableCall
+  toolName: string
   issues: readonly { path: readonly PropertyKey[]; message: string }[]
   parameters: ToolParameters
 }): EventDraft {
@@ -90,10 +91,10 @@ export function invalidInputDraft(args: {
     output: undefined,
     error: {
       message: [
-        `the ${args.call.name} tool rejected this input: ${problems === '' ? 'it does not match the schema' : problems}.`,
+        `the ${args.toolName} tool rejected this input: ${problems === '' ? 'it does not match the schema' : problems}.`,
         'Nothing ran.',
-        toolTakesClause({ name: args.call.name, parameters: args.parameters }),
-        `Call ${args.call.name} again with the required fields set.`,
+        toolTakesClause({ name: args.toolName, parameters: args.parameters }),
+        `Call ${args.toolName} again with the required fields set.`,
       ]
         .filter((part) => part !== '')
         .join(' '),

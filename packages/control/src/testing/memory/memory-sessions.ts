@@ -42,13 +42,16 @@ export const setSessionPodDesiredIn = (params: {
   state: State
   sessionId: string
   vcpus: number
+  memoryGb: number
   generation: number
 }): boolean => {
   const row = params.state.sessions.get(params.sessionId)
   if (row === undefined) return false
   row.podDesiredVcpus = params.vcpus
+  row.podDesiredMemoryGb = params.memoryGb
   row.podSizeGeneration = params.generation
   row.podResizeError = null
+  row.podWaitingSince = null
   return true
 }
 
@@ -56,13 +59,16 @@ export const setSessionPodAppliedIn = (params: {
   state: State
   sessionId: string
   vcpus: number
+  memoryGb: number
   generation: number
 }): boolean => {
   const row = params.state.sessions.get(params.sessionId)
   if (row === undefined || row.podSizeGeneration !== params.generation) return false
   row.podActualVcpus = params.vcpus
+  row.podActualMemoryGb = params.memoryGb
   row.podAppliedGeneration = params.generation
   row.podResizeError = null
+  row.podWaitingSince = null
   return true
 }
 
@@ -75,6 +81,19 @@ export const setSessionPodFailedIn = (params: {
   const row = params.state.sessions.get(params.sessionId)
   if (row === undefined || row.podSizeGeneration !== params.generation) return false
   row.podResizeError = params.error
+  row.podWaitingSince = null
+  return true
+}
+
+export const setSessionPodWaitingIn = (params: {
+  state: State
+  sessionId: string
+  generation: number
+  since: string | null
+}): boolean => {
+  const row = params.state.sessions.get(params.sessionId)
+  if (row === undefined || row.podSizeGeneration !== params.generation) return false
+  row.podWaitingSince = params.since
   return true
 }
 
@@ -196,10 +215,13 @@ export const createSessionIn = (params: {
     nested: params.nested ?? true,
     podSessionId: params.podSessionId ?? null,
     podDesiredVcpus: null,
+    podDesiredMemoryGb: null,
     podSizeGeneration: 0,
     podActualVcpus: null,
+    podActualMemoryGb: null,
     podAppliedGeneration: null,
     podResizeError: null,
+    podWaitingSince: null,
     routineId: params.routineId ?? null,
   })
   state.leases.set(params.sessionId, {

@@ -1,22 +1,35 @@
 import { HookChain, ToolRegistry, type HookChainArgs } from '@dltech/atlas-agent'
 import {
   EModelFallbackReason,
+  INBOX_KIND_EVENT,
   TEAMMATE_AGENT_TYPE,
+  inboxEventPayloadOf,
+  projectDirectoryOfState,
+  type EventBody,
   type EventDraft,
   type ThreadId,
   type ToolDeclaration,
   type ToolDefinition,
+  type V2Event,
 } from '@dltech/atlas-core'
-import type { PluginPodContext, PodCrew } from '@dltech/atlas-plugin-sdk'
-import type { CallOp, CallResult } from '@dltech/atlas-protocol'
+import {
+  mergeHooks,
+  type PluginPodContext,
+  type PodCrew,
+  type PodResources,
+} from '@dltech/atlas-plugin-sdk'
 
-import { newKey } from '../calls/remote-calls'
 import { worktreesOf } from './checkouts'
+import { deferredListingHook } from './deferred-listing'
+import { withDiscoveryTools } from './discovery'
 import type { HeldSessionDeps } from './held-session-deps'
 import { fireLive } from './ports'
 import { MirrorPlanHook } from './plan-mirror'
+import { pluginCallOf } from './plugin-call'
 import { podControlOf } from './pod-control'
+import { pluginResourcesHook, reloadResource } from './plugin-resources'
 import { podSessionsOf } from './plugin-sessions'
+import { subscriptionEndHooksOf } from './subscription-end-hooks'
 import { modelFellBackDraft } from './crew/model-fell-back'
 import type { RoleModelChoice, SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
@@ -82,26 +95,45 @@ const teammateFallbackOf = (args: {
   },
 })
 
-export const pluginCallOf = (args: {
-  invoke: (call: {
-    key: string
-    op: CallOp
-    signal?: AbortSignal | undefined
-    onOutput?: ((bytes: Uint8Array) => void) | undefined
-  }) => Promise<CallResult>
-  env?: (() => Promise<Record<string, string>>) | undefined
-}): PluginPodContext['call'] => {
-  const withEnv = async (op: CallOp): Promise<CallOp> => {
-    if (op.op !== 'exec' || args.env === undefined) return op
-    return { ...op, env: { ...(await args.env()), ...op.env } }
+const podResourcesOf = (args: {
+  runtime: SessionRuntime
+  record: SessionRecord
+  threadId: ThreadId
+  ctx: () => PluginPodContext
+}): PodResources => {
+  const declared = args.runtime.plugins?.pod.resources ?? []
+  return {
+    reload: async (name) => {
+      const resource = declared.find((candidate) => candidate.name === name)
+      if (resource === undefined) return
+      const state = await args.record.loopState({ threadId: args.threadId })
+      await reloadResource({
+        ctx: args.ctx(),
+        resource,
+        directory: projectDirectoryOfState({
+          state,
+          launchDirectory: args.runtime.launchDirectory,
+        }),
+      })
+    },
   }
-  return async (op, options) =>
-    args.invoke({
-      key: newKey(),
-      op: await withEnv(op),
-      signal: options?.signal,
-      onOutput: options?.onOutput,
-    })
+}
+
+const postNoticeToSession = async (args: {
+  deps: HeldSessionDeps
+  event: EventBody
+  key: string
+}): Promise<void> => {
+  await args.deps.plane.post({
+    sessionId: args.deps.sessionId,
+    kind: INBOX_KIND_EVENT,
+    payload: inboxEventPayloadOf({ event: args.event, clientId: args.key }),
+  })
+}
+
+export const resolvedEventsOf = (record: SessionRecord): readonly V2Event[] => {
+  const cache = record.eventCache()
+  return cache.eventsAfter(0).map((event) => cache.resolvedEvent(event))
 }
 
 export const pluginPodContextOf = (args: {
@@ -111,12 +143,13 @@ export const pluginPodContextOf = (args: {
   threadId: ThreadId
   signal: AbortSignal
   crew: PodCrew
+  notify?: ((event: EventBody, options: { key: string }) => Promise<void>) | undefined
 }): PluginPodContext => {
   const { deps, runtime, record, threadId } = args
   const append = async (drafts: readonly EventDraft[]): Promise<void> => {
     await record.append({ threadId, runId: deps.ids.nextRunId(), drafts })
   }
-  return {
+  const ctx: PluginPodContext = {
     sessionId: deps.sessionId,
     workspaceDirectory: runtime.launchDirectory,
     control: podControlOf({
@@ -133,7 +166,11 @@ export const pluginPodContextOf = (args: {
     }),
     worktrees: worktreesOf({ calls: runtime.remoteCalls }),
     append,
-    events: () => record.eventCache().eventsAfter(0),
+    notify: async (event, options) =>
+      await (args.notify === undefined
+        ? postNoticeToSession({ deps, event, key: options.key })
+        : args.notify(event, options)),
+    events: () => resolvedEventsOf(record),
     call: pluginCallOf({
       invoke: (call) => runtime.remoteCalls.invoke(call),
       ...(runtime.env === undefined ? {} : { env: runtime.env }),
@@ -145,11 +182,18 @@ export const pluginPodContextOf = (args: {
       return off
     },
     log: (message) => deps.log?.info({ source: 'holder.plugin', message }),
+    resources: podResourcesOf({ runtime, record, threadId, ctx: () => ctx }),
     ...(runtime.env === undefined ? {} : { env: runtime.env }),
   }
+  return ctx
 }
 
 export const pluginToolsOf = (args: {
+  runtime: SessionRuntime
+  ctx: PluginPodContext
+}): ToolRegistry => withDiscoveryTools(composedToolsOf(args))
+
+const composedToolsOf = (args: {
   runtime: SessionRuntime
   ctx: PluginPodContext
 }): ToolRegistry => {
@@ -162,21 +206,50 @@ export const pluginToolsOf = (args: {
   )
 }
 
-export const hostHooksOf = (): HookChainArgs => ({ afterTool: [new MirrorPlanHook()] })
+export const hostHooksOf = (args: {
+  declarations: () => readonly ToolDeclaration[]
+}): HookChainArgs => ({
+  beforeStep: [deferredListingHook({ declarations: args.declarations })],
+  afterTool: [new MirrorPlanHook()],
+})
 
 export const pluginHooksOf = (args: {
   runtime: SessionRuntime
   ctx: PluginPodContext
+  declarations: () => readonly ToolDeclaration[]
+  now: () => Date
+  sharedEvents?: (() => readonly V2Event[]) | undefined
 }): HookChain => {
   const { plugins } = args.runtime
-  const host = hostHooksOf()
+  const host = hostHooksOf({ declarations: args.declarations })
   if (plugins === undefined) return new HookChain(host)
 
   const plugin = plugins.pod.hooks(args.ctx)
+  const resources =
+    plugins.pod.resources.length === 0
+      ? []
+      : [
+          pluginResourcesHook({
+            ctx: args.ctx,
+            resources: plugins.pod.resources,
+            trace: args.runtime.trace,
+            shared: args.sharedEvents,
+          }),
+        ]
+  const merged = mergeHooks([
+    host,
+    plugin,
+    subscriptionEndHooksOf({
+      rules: plugins.pod.subscriptionEnds,
+      events: args.ctx.events,
+      now: args.now,
+    }),
+  ])
   return new HookChain({
-    ...host,
-    ...plugin,
-    afterTool: [...(host.afterTool ?? []), ...(plugin.afterTool ?? [])],
+    ...merged,
+    beforeTurn: [...resources, ...(merged.beforeTurn ?? [])],
+    trace: args.runtime.trace,
+    onMishap: (mishap) => args.ctx.log(`hook ${mishap.label} ${mishap.kind}: ${mishap.detail}`),
   })
 }
 
@@ -192,11 +265,18 @@ export const pluginPodOf = (args: {
 }): PluginPod => {
   const { plugins } = args.runtime
   if (plugins === undefined) {
-    return { tools: args.runtime.tools, hooks: new HookChain(hostHooksOf()) }
+    const tools = withDiscoveryTools(args.runtime.tools)
+    const hooks = new HookChain(hostHooksOf({ declarations: () => tools.declarations() }))
+    return { tools, hooks }
   }
   const ctx = pluginPodContextOf(args)
   const tools = pluginToolsOf({ runtime: args.runtime, ctx })
-  const hooks = pluginHooksOf({ runtime: args.runtime, ctx })
+  const hooks = pluginHooksOf({
+    runtime: args.runtime,
+    ctx,
+    declarations: () => tools.declarations(),
+    now: () => new Date(args.deps.timers.now()),
+  })
   ctx.onDaemonEvent((frame) => plugins.pod.onDaemonEvent(frame))
   return { tools, hooks }
 }

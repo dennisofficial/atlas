@@ -1,3 +1,4 @@
+import type { ModelUsage } from '../stream/chunk'
 import type { ModelCost } from './card'
 
 const PER_MILLION = 1_000_000
@@ -19,6 +20,13 @@ export type TokenSpend = {
   cacheReadTokens: number
   cacheWriteTokens: number
 }
+
+export const tokenSpendOf = (usage: ModelUsage): TokenSpend => ({
+  inputTokens: usage.inputTokens,
+  outputTokens: usage.outputTokens,
+  cacheReadTokens: usage.cacheReadTokens ?? 0,
+  cacheWriteTokens: usage.cacheWriteTokens ?? 0,
+})
 
 /**
  * Cache reads and writes are counted inside `inputTokens` rather than on top of it, so the tokens

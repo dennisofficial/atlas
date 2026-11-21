@@ -6,22 +6,17 @@ import {
   type TurnOutcome,
 } from '@dltech/atlas-agent'
 
-export type DriveArgs = { text: string; restart: boolean } | { resume: true }
-
-type Queued = { readonly pending: number }
+export type DriveArgs = { restart: boolean } | { resume: true }
 
 type TurnArgs = {
   runner: LoopTurnRunner
-  intake: Queued
   pause: PauseSignal
   threadId: ThreadId
   signal: AbortSignal
 }
 
-const turn = (args: TurnArgs, text: string | undefined): Promise<TurnOutcome> => {
-  const request = { threadId: args.threadId, signal: args.signal, pause: args.pause }
-  return text === undefined ? args.runner.runTurn(request) : args.runner.say({ ...request, text })
-}
+const turn = (args: TurnArgs): Promise<TurnOutcome> =>
+  args.runner.runTurn({ threadId: args.threadId, signal: args.signal, pause: args.pause })
 
 const firstTurn = async (
   args: TurnArgs & { drive: DriveArgs; restarted(via: EAgentRestart): Promise<void> },
@@ -34,19 +29,39 @@ const firstTurn = async (
     })
   }
   if (args.drive.restart) await args.restarted(EAgentRestart.Message)
-  return turn(args, args.drive.text)
+  return turn(args)
 }
 
-export const driveTurns = async (
+const resumesAfter = (outcome: TurnOutcome): boolean =>
+  outcome.status === ETurnStatus.Completed || outcome.status === ETurnStatus.Idle
+
+export const driveLifecycle = async (
   args: TurnArgs & {
     drive: DriveArgs
     stopped(): boolean
     restarted(via: EAgentRestart): Promise<void>
+    owedTurn(): boolean | Promise<boolean>
+    handingOff(): boolean
+    reset(): void
+    settle(outcome: TurnOutcome): Promise<void>
   },
-): Promise<TurnOutcome> => {
-  let outcome = await firstTurn(args)
-  while (outcome.status === ETurnStatus.Completed && !args.stopped() && args.intake.pending > 0) {
-    outcome = await turn(args, undefined)
+): Promise<void> => {
+  let next: DriveArgs = args.drive
+  for (;;) {
+    args.reset()
+    const outcome = await firstTurn({
+      runner: args.runner,
+      pause: args.pause,
+      threadId: args.threadId,
+      signal: args.signal,
+      drive: next,
+      restarted: args.restarted,
+    })
+    if (args.handingOff()) return
+    if (!resumesAfter(outcome) || !(await args.owedTurn())) {
+      await args.settle(outcome)
+      if (!resumesAfter(outcome) || !(await args.owedTurn())) return
+    }
+    next = { resume: true }
   }
-  return outcome
 }

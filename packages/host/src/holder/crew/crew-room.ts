@@ -1,4 +1,4 @@
-import { EKilledBy, lostAgentEnding, type ThreadId } from '@dltech/atlas-core'
+import { EKilledBy, lostAgentEnding, type AgentLost, type ThreadId } from '@dltech/atlas-core'
 import type {
   PodCrew,
   SubagentSaid,
@@ -7,6 +7,7 @@ import type {
 } from '@dltech/atlas-plugin-sdk'
 
 import { ChildRun, type ChildRunArgs } from './child-run'
+import { endingKeyOf, postNotice, threadLastSeq } from './child-reports'
 import { settledChildOf, type OpenChild } from './open-children'
 
 export type CrewRoomArgs = Omit<ChildRunArgs, 'agentType' | 'intent'>
@@ -29,7 +30,7 @@ export class CrewRoom {
       ...(args.worktree === undefined ? {} : { worktree: args.worktree }),
     })
     this.runs.set(run.agentId, run)
-    void run.say(args.prompt)
+    await run.say(args.prompt)
     return run.snapshot()
   }
 
@@ -38,20 +39,21 @@ export class CrewRoom {
   }
 
   async adopt(child: OpenChild): Promise<void> {
-    const run = await ChildRun.adopt({
+    const adopted = await ChildRun.adopt({
       ...this.args,
       agentType: child.agentType,
       intent: child.intent,
       agentId: child.agentId,
       spawnedAt: child.spawnedAt,
       ...(child.worktree === undefined ? {} : { worktree: child.worktree }),
+      ...(child.settled === undefined ? {} : { settled: child.settled }),
     })
-    if (run === undefined) {
-      await this.lose(child)
+    if (!adopted.ok) {
+      await this.lose({ child, lost: adopted.lost })
       return
     }
-    this.runs.set(run.agentId, run)
-    run.continueTurn()
+    this.runs.set(adopted.run.agentId, adopted.run)
+    await adopted.run.continueTurn()
   }
 
   async say(args: { agentId: string; text: string }): Promise<SubagentSaid> {
@@ -125,7 +127,7 @@ export class CrewRoom {
       threadId: this.args.parentThreadId,
       agentId,
     })
-    const run =
+    const adopted =
       settled === undefined
         ? undefined
         : await ChildRun.adopt({
@@ -137,21 +139,23 @@ export class CrewRoom {
             settled: { status: settled.status, endedAt: settled.endedAt },
             ...(settled.worktree === undefined ? {} : { worktree: settled.worktree }),
           })
-    if (run === undefined) throw new Error(`no sub-agent ${agentId} in this session`)
-    this.runs.set(run.agentId, run)
-    return run
+    if (adopted?.ok !== true) throw new Error(`no sub-agent ${agentId} in this session`)
+    this.runs.set(adopted.run.agentId, adopted.run)
+    return adopted.run
   }
 
-  private async lose(child: OpenChild): Promise<void> {
-    await this.args.parentRecord.append({
-      threadId: this.args.parentThreadId,
-      runId: this.args.deps.ids.nextRunId(),
-      drafts: [
-        lostAgentEnding({
-          agent: child,
-          progress: { turns: 0, toolCalls: 0, prose: '' },
-        }),
-      ],
+  private async lose(args: { child: OpenChild; lost: AgentLost }): Promise<void> {
+    const seq = await threadLastSeq({
+      plane: this.args.deps.plane,
+      threadId: args.child.agentId,
+    }).catch(() => 0)
+    await postNotice(this.args, {
+      event: lostAgentEnding({
+        agent: args.child,
+        progress: { turns: 0, toolCalls: 0, prose: '' },
+        lost: args.lost,
+      }),
+      key: endingKeyOf({ agentId: args.child.agentId, seq }),
     })
   }
 

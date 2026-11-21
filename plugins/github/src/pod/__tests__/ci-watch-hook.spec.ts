@@ -18,6 +18,7 @@ import {
   EMPTY_SESSIONS,
   EMPTY_WORKTREES,
   type PluginPodContext,
+  EMPTY_POD_RESOURCES,
 } from '@dltech/atlas-plugin-sdk'
 
 import type { PullRequestTarget, RunTarget } from '../../core'
@@ -56,9 +57,11 @@ const rig = (answers: Record<string, ReturnType<typeof exec>>) => {
   }
   const ctx: PluginPodContext = {
     control: podControlStub,
+    resources: EMPTY_POD_RESOURCES,
     crew: EMPTY_CREW,
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
+    notify: async () => undefined,
     sessionId: 's1',
     append,
     events: () => log,

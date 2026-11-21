@@ -28,6 +28,7 @@ import {
 import { MediaStore } from '@dltech/atlas-media'
 import type { ProductAnalytics } from '@dltech/atlas-observability'
 import {
+  DEFAULT_SANDBOX_PROVIDER,
   ECredentialSource,
   ESandboxProvider,
   EWithdrawRefusal,
@@ -51,10 +52,16 @@ import {
   type SessionWithdrawOutput,
 } from '@dltech/atlas-protocol'
 import type { SessionPageOutput } from '@dltech/atlas-wire'
-import { EnvService } from '../../../_core/config/env/env.service'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { SessionTitler } from '../../../_core/ports/session-titler'
-import { POD_OPS, PRODUCT_ANALYTICS, digestTimingProperties, type PodOps } from '../../../agent'
+import {
+  POD_OPS,
+  PRODUCT_ANALYTICS,
+  digestTimingProperties,
+  sandboxComputeFor,
+  type PodOps,
+} from '../../../agent'
+import { sandboxLiveCpuMs } from '../../../agent/sandbox/sandbox-live-cpu'
 import { PodSizingService, type PodSizing } from './pod-sizing.service'
 import { pageSessions, type PageBucket } from '../sessions/session-pages'
 import { COMMAND_REGISTRY, postCommand } from './command-registry'
@@ -89,7 +96,6 @@ export class SessionsService {
     @Inject(MediaRegistry) private readonly media: MediaRegistry,
     @Inject(MediaStore) private readonly store: MediaStore,
     @Inject(COMMAND_REGISTRY) private readonly commands: CommandRegistry,
-    @Inject(EnvService) private readonly env: EnvService,
     @Inject(PodSizingService) private readonly podSizing: PodSizing,
     @Optional() @Inject(POD_OPS) private readonly ops: PodOps | null = null,
     @Optional()
@@ -181,7 +187,7 @@ export class SessionsService {
   }
 
   private sandboxProviderOf(provider: string | undefined): ESandboxProvider {
-    const picked = provider ?? this.env.get('SANDBOX_PROVIDER_DEFAULT')
+    const picked = provider ?? DEFAULT_SANDBOX_PROVIDER
     const known = Object.values(ESandboxProvider).find((value) => value === picked)
     if (known === undefined) throw new BadRequestException(`unknown sandbox provider ${picked}`)
     return known
@@ -212,7 +218,7 @@ export class SessionsService {
       userId: args.userId,
       event: 'sessions_list_timed',
       properties: {
-        surface: 'trpc',
+        source: 'trpc',
         rows: sessions.length,
         duration_ms: durationMs,
         ...digestTimingProperties(timings),
@@ -421,12 +427,20 @@ export class SessionsService {
 
   async view(args: { userId: string; sessionId: string }): Promise<SessionViewOutput> {
     const session = await this.requireOwnedSession(args)
-    return pricedView(
-      await this.plane.readSessionView({
+    const [view, cumulativeCpuMs] = await Promise.all([
+      this.plane.readSessionView({
         sessionId: args.sessionId,
         threadId: session.mainThreadId,
       }),
-    )
+      sandboxLiveCpuMs({ sessionId: args.sessionId }),
+    ])
+    return pricedView({
+      ...view,
+      compute: await sandboxComputeFor({
+        sessionId: args.sessionId,
+        ...(cumulativeCpuMs === undefined ? {} : { cumulativeCpuMs }),
+      }),
+    })
   }
 
   async retry(args: { userId: string; sessionId: string }): Promise<SessionRetryOutput> {

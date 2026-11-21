@@ -25,6 +25,20 @@ export const statOf = async (args: { ctx: Ctx; path: string }): Promise<DaemonCa
   return { ok: true, value: answer.value.value }
 }
 
+export const pathsOf = async (args: {
+  ctx: Ctx
+  pattern: string
+  cwd: string
+}): Promise<DaemonCall<readonly string[]>> => {
+  const answer = await run({
+    ctx: args.ctx,
+    op: { op: 'glob', pattern: args.pattern, cwd: args.cwd },
+  })
+  if (!answer.ok) return answer
+  if (answer.value.op !== 'glob') return { ok: false, reason: WRONG_ANSWER }
+  return { ok: true, value: answer.value.value }
+}
+
 export const textOf = async (args: { ctx: Ctx; path: string }): Promise<DaemonCall<string>> => {
   const answer = await run({ ctx: args.ctx, op: { op: 'readFile', path: args.path } })
   if (!answer.ok) return answer

@@ -1,24 +1,17 @@
 import { EMPTY_POD, type PodSlot } from '@dltech/atlas-plugin-sdk'
 
-import {
-  instructionsBlocks,
-  instructionsTouch,
-  instructionsTurn,
-  type InstructionsPodOptions,
-} from './hooks'
-import { stateFor } from './state'
+import { instructionsBlocks, instructionsTouch } from './hooks'
+import { instructionsResource, type InstructionsPodOptions } from './resources'
 
-export type { InstructionsPodOptions } from './hooks'
+export type { InstructionsPodOptions } from './resources'
 export { PERSONAL_HEADER, projectHeader } from './blocks'
+export { INSTRUCTIONS_RESOURCE, instructionsResource } from './resources'
 
 export const instructionsPodOf = (options: InstructionsPodOptions): PodSlot => ({
   ...EMPTY_POD,
-  hooks: (ctx) => {
-    const state = stateFor(ctx)
-    return {
-      beforeTurn: [instructionsTurn({ state })],
-      beforeStep: [instructionsBlocks({ ctx, state, options })],
-      afterTool: [instructionsTouch({ state })],
-    }
-  },
+  resources: [instructionsResource(options)],
+  hooks: (ctx) => ({
+    beforeStep: [instructionsBlocks({ ctx, options })],
+    afterTool: [instructionsTouch({ ctx, options })],
+  }),
 })

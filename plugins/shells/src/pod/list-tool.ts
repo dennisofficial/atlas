@@ -18,11 +18,9 @@ import { outcomeOf, startedOf } from './status'
 const inputSchema = z.strictObject({ runningOnly: z.boolean().optional() })
 
 const description = [
-  'List the background shells this conversation has started, running and finished alike.',
-  'Set runningOnly to leave out the ones that have already ended.',
-  'Each entry names its shellId, its command, whether it is still running, and how much it has printed.',
+  'List the background shells this session has started, running and finished alike, with shellId, command, state and how much each printed. Set runningOnly to leave out the ones that have ended.',
   'A shell marked as awaiting input may need an answer through shell_input.',
-  'Reading a shell with shell_output does not appear here; this only says what exists.',
+  'Reading a shell with shell_output does not show here. This list only says what exists.',
 ].join(' ')
 
 export class ShellListTool extends SchemaTool<typeof inputSchema> {
@@ -57,7 +55,7 @@ export class ShellListTool extends SchemaTool<typeof inputSchema> {
         modelText:
           input.runningOnly === true
             ? 'No background shell is running.'
-            : 'This conversation has started no background shells.',
+            : 'This session has started no background shells.',
       }
     }
     const rows = shown.map((info) => {

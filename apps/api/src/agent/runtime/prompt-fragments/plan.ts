@@ -5,13 +5,13 @@ export class TaskListFragment extends PromptFragment {
 
   text(): string {
     return [
-      'task_write keeps a checklist beside the conversation that the developer can watch. Open one for',
-      'work of several distinct steps the developer would want to follow, or an explicit list; skip it for',
-      'a single step and for a question.',
+      'task_write keeps a task list beside the conversation that the operator can watch. Open one for',
+      'work of several distinct steps the operator would want to follow. Open one for an explicit',
+      'list. Skip it for a single step. Skip it for a question.',
       '',
-      'Replace the whole list on every call rather than appending. Keep exactly one task in progress and',
-      'close each task as it finishes. A failing test, partial change, or unresolved error keeps a task',
-      'open, and what blocked it becomes a task of its own.',
+      'Replace the whole list on every call. Do not append to it. Keep exactly one task in progress.',
+      'Close each task as it finishes. A failing test, a partial change or an unresolved error keeps a',
+      'task open. What blocked it becomes a task of its own.',
     ].join('\n')
   }
 }

@@ -1,4 +1,4 @@
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'bun:test'
 import { act } from 'react'
 
@@ -19,14 +19,14 @@ import { installVirtuaViewport } from './virtua-viewport'
 let restoreViewport = () => {}
 
 beforeAll(() => {
-  GlobalRegistrator.register()
+  registerDom()
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
   restoreViewport = installVirtuaViewport()
 })
 
 afterAll(async () => {
   restoreViewport()
-  await GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 afterEach(() => {
@@ -333,6 +333,30 @@ describe('ThreadTranscript sandbox boot', () => {
       button?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })),
     )
     expect(retried).toBe(1)
+  })
+
+  it('shows an interrupted setup as restarting, not as a failed start', async () => {
+    await mountWith({
+      rewind: null,
+      onRetryBoot: () => {},
+      boot: {
+        state: EBootStepState.Running,
+        steps: [
+          { id: EBootStep.Provision, label: 'Create sandbox', state: EBootStepState.Done },
+          {
+            id: EBootStep.Setup,
+            label: 'Setup restarted · running again',
+            state: EBootStepState.Interrupted,
+            command: 'bun install',
+          },
+        ],
+      },
+    })
+
+    expect(document.body.textContent).toContain('Setup restarted · running again')
+    expect(document.body.textContent).not.toContain('Sandbox failed to start')
+    expect(document.body.querySelector('[data-slot="sandbox-boot-error"]')).toBeNull()
+    expect(retryButton()).toBeNull()
   })
 
   it('shows the startup error in a labelled card under the failed row', async () => {

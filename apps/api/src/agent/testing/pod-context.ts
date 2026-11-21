@@ -5,12 +5,15 @@ import {
   type PluginPodContext,
   EMPTY_MCP_CONTROL,
   EMPTY_ROUTINES,
+  EMPTY_POD_RESOURCES,
+  UNVERSIONED_SETTINGS,
 } from '@dltech/atlas-plugin-sdk'
 import { ECallStatus, type CallOp, type CallResult } from '@dltech/atlas-protocol'
 
 export const podContextOf = (sessionId: string): PluginPodContext => ({
   sessionId,
   control: {
+    settingsVersions: async () => UNVERSIONED_SETTINGS,
     exposePort: async () => {
       throw new Error('this rig exposes no port')
     },
@@ -32,7 +35,9 @@ export const podContextOf = (sessionId: string): PluginPodContext => ({
   crew: EMPTY_CREW,
   sessions: EMPTY_SESSIONS,
   worktrees: EMPTY_WORKTREES,
+  resources: EMPTY_POD_RESOURCES,
   append: async () => undefined,
+  notify: async () => undefined,
   events: () => [],
   call: async (op: CallOp): Promise<CallResult> =>
     ({

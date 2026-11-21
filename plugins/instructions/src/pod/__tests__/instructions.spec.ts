@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 
+import { EContextSlot } from '@dltech/atlas-core'
+
 import { PERSONAL_HEADER, projectHeader } from '..'
 import {
   type FakeNode,
   fakeDaemon,
   file,
+  nestedKeysOf,
   personal,
   readFiles,
   startTurn,
@@ -17,6 +20,13 @@ const repo = (extra: Record<string, FakeNode> = {}): Record<string, FakeNode> =>
   '/repo': { kind: 'dir' },
   '/repo/.git': { kind: 'dir' },
   ...extra,
+})
+
+const nested = (key: string, content: string) => ({
+  type: 'context-loaded' as const,
+  slot: EContextSlot.NestedInstructions,
+  key,
+  content,
 })
 
 describe('the instructions plugin', () => {
@@ -70,10 +80,9 @@ describe('the instructions plugin', () => {
     })
 
     expect(blocks).toEqual([`${projectHeader('/repo/AGENTS.md')}\n\nroot rules`])
-    expect(readFiles(daemon.calls)).not.toContain('/repo/packages/AGENTS.md')
   })
 
-  it('adds a nested AGENTS.md once a tool touches a directory below the working directory', async () => {
+  it('records a nested AGENTS.md as context once a tool touches a directory below the working directory', async () => {
     const daemon = fakeDaemon(
       repo({
         '/repo/AGENTS.md': file('root rules'),
@@ -88,14 +97,84 @@ describe('the instructions plugin', () => {
     const first = await turn({ ctx: daemon.ctx, options, projectDirectory: '/repo' })
     expect(first).toEqual([`${projectHeader('/repo/AGENTS.md')}\n\nroot rules`])
 
-    await touch({ ctx: daemon.ctx, name: 'read', input: { path: '/repo/packages/x/a.ts' } })
-    const second = await step({ ctx: daemon.ctx, options })
+    const drafts = await touch({
+      daemon,
+      name: 'read',
+      input: { path: '/repo/packages/x/a.ts' },
+    })
 
-    expect(second).toEqual([
-      `${projectHeader('/repo/AGENTS.md')}\n\nroot rules`,
-      `${projectHeader('/repo/packages/AGENTS.md')}\n\npackage rules`,
-      `${projectHeader('/repo/packages/x/AGENTS.md')}\n\nx rules`,
+    expect(drafts).toEqual([
+      nested('/repo/packages/AGENTS.md', 'package rules'),
+      nested('/repo/packages/x/AGENTS.md', 'x rules'),
     ])
+    expect(await touch({ daemon, name: 'read', input: { path: '/repo/packages/x/b.ts' } })).toEqual(
+      [],
+    )
+  })
+
+  it('keeps the system blocks byte-identical across a mid-turn discovery, the next turn and a fresh host', async () => {
+    const nodes = repo({
+      '/repo/AGENTS.md': file('root rules'),
+      '/repo/packages': { kind: 'dir' },
+      '/repo/packages/AGENTS.md': file('package rules'),
+    })
+    const daemon = fakeDaemon(nodes)
+    const options = personal('be brief')
+
+    const opening = await turn({ ctx: daemon.ctx, options, projectDirectory: '/repo' })
+    await touch({ daemon, name: 'read', input: { path: '/repo/packages/a.ts' } })
+    const midTurn = await step({ ctx: daemon.ctx, options })
+    const nextTurn = await turn({ ctx: daemon.ctx, options, projectDirectory: '/repo' })
+
+    const fresh = fakeDaemon(nodes)
+    fresh.events.push(...daemon.events)
+    const resumed = await turn({ ctx: fresh.ctx, options, projectDirectory: '/repo' })
+    const again = await touch({
+      daemon: fresh,
+      name: 'read',
+      input: { path: '/repo/packages/b.ts' },
+    })
+
+    expect(midTurn).toEqual(opening)
+    expect(nextTurn).toEqual(opening)
+    expect(resumed).toEqual(opening)
+    expect(again).toEqual([])
+  })
+
+  it('records a nested file again only when its content changed', async () => {
+    const daemon = fakeDaemon(
+      repo({ '/repo/infra': { kind: 'dir' }, '/repo/infra/AGENTS.md': file('first edition') }),
+    )
+    const options = personal(null)
+
+    await startTurn({ ctx: daemon.ctx, options, projectDirectory: '/repo' })
+    await touch({ daemon, name: 'bash', input: { workdir: '/repo/infra' } })
+    const node = daemon.nodes['/repo/infra/AGENTS.md']
+    if (node?.kind === 'file') node.text = 'second edition'
+    await startTurn({ ctx: daemon.ctx, options, projectDirectory: '/repo' })
+    const drafts = await touch({ daemon, name: 'bash', input: { workdir: '/repo/infra' } })
+
+    expect(drafts.map((draft) => (draft.type === 'context-loaded' ? draft.content : ''))).toEqual([
+      'second edition',
+    ])
+  })
+
+  it('renders the same blocks on a fresh host from the recorded snapshot', async () => {
+    const nodes = repo({
+      '/repo/AGENTS.md': file('root rules'),
+      '/repo/packages': { kind: 'dir' },
+      '/repo/packages/AGENTS.md': file('package rules'),
+    })
+    const options = personal('be brief')
+
+    const daemon = fakeDaemon(nodes)
+    const opening = await turn({ ctx: daemon.ctx, options, projectDirectory: '/repo' })
+
+    const fresh = fakeDaemon(nodes)
+    fresh.events.push(...daemon.events)
+    const resumed = await turn({ ctx: fresh.ctx, options, projectDirectory: '/repo' })
+
+    expect(resumed).toEqual(opening)
   })
 
   it('does not repeat a nested file the root-to-directory descent already carries', async () => {
@@ -111,11 +190,11 @@ describe('the instructions plugin', () => {
     const options = personal(null)
 
     await startTurn({ ctx: daemon.ctx, options, projectDirectory: '/repo/apps' })
-    await touch({ ctx: daemon.ctx, name: 'edit', input: { path: '/repo/apps/src/a.ts' } })
+    const drafts = await touch({ daemon, name: 'edit', input: { path: '/repo/apps/src/a.ts' } })
     const blocks = await step({ ctx: daemon.ctx, options })
 
+    expect(nestedKeysOf(drafts)).toEqual(['/repo/apps/src/AGENTS.md'])
     expect(blocks.filter((block) => block.includes('/repo/apps/AGENTS.md'))).toHaveLength(1)
-    expect(blocks).toContain(`${projectHeader('/repo/apps/src/AGENTS.md')}\n\nsrc rules`)
   })
 
   it('follows a bash workdir into a nested directory', async () => {
@@ -126,13 +205,11 @@ describe('the instructions plugin', () => {
         '/repo/infra/AGENTS.md': file('infra rules'),
       }),
     )
-    const options = personal(null)
 
-    await startTurn({ ctx: daemon.ctx, options, projectDirectory: '/repo' })
-    await touch({ ctx: daemon.ctx, name: 'bash', input: { workdir: '/repo/infra' } })
-    const blocks = await step({ ctx: daemon.ctx, options })
+    await startTurn({ ctx: daemon.ctx, options: personal(null), projectDirectory: '/repo' })
+    const drafts = await touch({ daemon, name: 'bash', input: { workdir: '/repo/infra' } })
 
-    expect(blocks).toContain(`${projectHeader('/repo/infra/AGENTS.md')}\n\ninfra rules`)
+    expect(nestedKeysOf(drafts)).toEqual(['/repo/infra/AGENTS.md'])
   })
 
   it('skips a file that is missing and one over the size cap', async () => {
@@ -140,7 +217,7 @@ describe('the instructions plugin', () => {
       repo({
         '/repo/AGENTS.md': file('root rules'),
         '/repo/big': { kind: 'dir' },
-        '/repo/big/AGENTS.md': file('large rules', 100 * 1024 + 1),
+        '/repo/big/AGENTS.md': file('x'.repeat(100 * 1024 + 1)),
         '/repo/deep': { kind: 'dir' },
         '/repo/deep/AGENTS.md': file('deep rules'),
         '/repo/bare': { kind: 'dir' },
@@ -148,16 +225,14 @@ describe('the instructions plugin', () => {
     )
     const options = personal(null)
 
-    await startTurn({ ctx: daemon.ctx, options, projectDirectory: '/repo/big' })
-    await touch({ ctx: daemon.ctx, name: 'read', input: { path: '/repo/deep/a.ts' } })
-    await touch({ ctx: daemon.ctx, name: 'read', input: { path: '/repo/bare/a.ts' } })
+    await startTurn({ ctx: daemon.ctx, options, projectDirectory: '/repo' })
+    const deep = await touch({ daemon, name: 'read', input: { path: '/repo/deep/a.ts' } })
+    const bare = await touch({ daemon, name: 'read', input: { path: '/repo/bare/a.ts' } })
+    const big = await touch({ daemon, name: 'read', input: { path: '/repo/big/a.ts' } })
     const blocks = await step({ ctx: daemon.ctx, options })
 
-    expect(blocks).toEqual([
-      `${projectHeader('/repo/AGENTS.md')}\n\nroot rules`,
-      `${projectHeader('/repo/deep/AGENTS.md')}\n\ndeep rules`,
-    ])
-    expect(readFiles(daemon.calls)).not.toContain('/repo/big/AGENTS.md')
+    expect(nestedKeysOf([...deep, ...bare, ...big])).toEqual(['/repo/deep/AGENTS.md'])
+    expect(blocks).toEqual([`${projectHeader('/repo/AGENTS.md')}\n\nroot rules`])
   })
 
   it('reads no CLAUDE.md or ATLAS.md, whatever a repository holds', async () => {

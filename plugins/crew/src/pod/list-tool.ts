@@ -14,8 +14,8 @@ const inputSchema = z.strictObject({})
 
 const description = [
   'List the sub-agents you have started, running and finished alike.',
-  'Each entry names its agentId, its type, its intent and how it ended,',
-  'with its turns, its tool calls and the last tool it used.',
+  'Each entry names its agentId, its agent type, its intent and how it ended.',
+  'It also gives its turns, its tool calls and the last tool it used.',
 ].join(' ')
 
 const lineOf = (snapshot: SubagentSnapshot): string => {
@@ -32,6 +32,7 @@ export class AgentListTool extends SchemaTool<typeof inputSchema> {
   readonly effect = EToolEffect.Read
   override readonly isConcurrencySafe = (): boolean => true
   readonly inputSchema = inputSchema
+  readonly deferred = true
   override readonly pathFields = TAKES_NO_PATHS
 
   constructor(private readonly ctx: PluginPodContext) {

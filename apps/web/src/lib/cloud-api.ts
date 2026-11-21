@@ -6,13 +6,22 @@ import { apiUrl } from './api-base-url'
 export class CloudApiError extends Error {
   readonly status: number
   readonly code: string | undefined
+  readonly requestId: string | undefined
 
-  constructor(args: { message: string; status: number; code?: string | undefined }) {
+  constructor(args: {
+    message: string
+    status: number
+    code?: string | undefined
+    requestId?: string | undefined
+  }) {
     super(args.message)
     this.status = args.status
     this.code = args.code
+    this.requestId = args.requestId
   }
 }
+
+const REQUEST_ID_HEADER = 'x-request-id'
 
 export enum EHttpMethod {
   Get = 'GET',
@@ -51,6 +60,7 @@ async function send(args: CloudRequest): Promise<Response> {
     message: messageOf(body, `Atlas Cloud answered ${response.status}`),
     status: response.status,
     code: typeof body.code === 'string' ? body.code : undefined,
+    requestId: response.headers.get(REQUEST_ID_HEADER) ?? undefined,
   })
 }
 

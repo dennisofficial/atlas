@@ -10,7 +10,7 @@ const NAME_WITH_OWNER = /^[\w.-]+\/[\w.-]+$/
 
 export const BAD_NUMBER_ERROR = 'A pull request number starts at 1'
 export const NO_PULL_REQUEST_ERROR =
-  'This checkout has no pull request; pass #number, owner/repo#number or a URL'
+  'This project directory has no pull request. Pass #number, owner/repo#number or a URL'
 export const NO_REPOSITORY_ERROR =
   'No GitHub repository to take a number from; pass owner/repo#number or a pull request URL'
 export const UNRECOGNIZED_ERROR =

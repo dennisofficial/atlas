@@ -7,18 +7,49 @@ import { causeChainOf } from '@dltech/atlas-agent'
 // request at standard speed and turns fast mode off: https://code.claude.com/docs/en/fast-mode
 const FAST_REFUSAL_STATUSES: ReadonlySet<number> = new Set([429, 529])
 const FAST_REFUSAL_TEXT = /fast mode|usage credits|extra usage/i
+const CREDITS_REQUIRED_TEXT = /usage credits|extra usage/i
 
-export const isFastRefusal = (error: unknown): boolean =>
-  causeChainOf(error).some(
-    (link) =>
+export enum EFastRefusal {
+  CreditsRequired = 'credits-required',
+  RateLimited = 'rate-limited',
+}
+
+export type FastRefusal = { kind: EFastRefusal; status?: number | undefined; message: string }
+
+const refusalTextOf = (link: APICallError): string =>
+  [link.message, link.responseBody]
+    .filter((part): part is string => part !== undefined && part !== '')
+    .join(' ')
+
+const refusalLinkOf = (error: unknown): APICallError | undefined =>
+  causeChainOf(error).find(
+    (link): link is APICallError =>
       APICallError.isInstance(link) &&
       (FAST_REFUSAL_STATUSES.has(link.statusCode ?? 0) ||
-        FAST_REFUSAL_TEXT.test(`${link.message} ${link.responseBody ?? ''}`)),
+        FAST_REFUSAL_TEXT.test(refusalTextOf(link))),
   )
+
+export const fastRefusalOf = (error: unknown): FastRefusal | undefined => {
+  const link = refusalLinkOf(error)
+  if (link === undefined) return undefined
+  const message = refusalTextOf(link)
+  return {
+    kind: CREDITS_REQUIRED_TEXT.test(message)
+      ? EFastRefusal.CreditsRequired
+      : EFastRefusal.RateLimited,
+    ...(link.statusCode === undefined ? {} : { status: link.statusCode }),
+    message,
+  }
+}
+
+export const isFastRefusal = (error: unknown): boolean => fastRefusalOf(error) !== undefined
+
+type FastRefusedListener = (refusal: FastRefusal) => Promise<void> | void
 
 export function withFastFallback(args: {
   build: (fast: boolean) => LanguageModelV4
   requested: () => boolean
+  onRefused?: FastRefusedListener | undefined
 }): LanguageModelV4 {
   const fast = args.build(true)
   const standard = args.build(false)
@@ -30,7 +61,9 @@ export function withFastFallback(args: {
     try {
       return await call(fast)
     } catch (error) {
-      if (!isFastRefusal(error)) throw error
+      const refusal = fastRefusalOf(error)
+      if (refusal === undefined) throw error
+      await args.onRefused?.(refusal)
       return call(standard)
     }
   }

@@ -22,7 +22,7 @@ import {
   captureUnavailableFault,
   makeChange,
 } from './capture-text'
-import { filePathSchema, pathEnvironmentNote, resolveToolPath } from './file-text'
+import { filePathSchema, resolveToolPath } from './file-text'
 import type { PathEnvironment } from '../runtime/session-paths'
 
 const inputSchema = z.strictObject({
@@ -31,11 +31,9 @@ const inputSchema = z.strictObject({
 })
 
 const description = [
-  'Write a text file, replacing it entirely if it already exists.',
-  'A relative path resolves against the project directory; missing parent directories are created.',
-  pathEnvironmentNote,
+  'Write a text file. If the file already exists, this replaces it entirely. A relative path resolves against the project directory, and missing parent directories are created.',
   'Content is written byte for byte, so send the line endings you want the file to have.',
-  'Prefer the edit tool for changing part of an existing file.',
+  'Prefer the edit tool to change part of an existing file.',
 ].join(' ')
 
 export class WriteTool extends SchemaTool<typeof inputSchema> {

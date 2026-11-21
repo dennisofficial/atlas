@@ -1,4 +1,4 @@
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { afterAll, afterEach, beforeAll, describe, expect, it, mock } from 'bun:test'
 import { act } from 'react'
 import type { Root } from 'react-dom/client'
@@ -34,14 +34,14 @@ let root: Root | null = null
 let container: HTMLDivElement | null = null
 
 beforeAll(() => {
-  GlobalRegistrator.register()
+  registerDom()
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
 })
 
 afterAll(async () => {
   mock.module('sonner', () => realSonnerExports)
   mock.module('@/features/threads/data/image-encode', () => realEncode)
-  await GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 afterEach(async () => {

@@ -29,6 +29,10 @@ describe('McpEditTool', () => {
     expect(toolFor().name).toBe('mcp-edit')
   })
 
+  it('stays deferred, so its schema costs no prompt space', () => {
+    expect(toolFor().deferred).toBe(true)
+  })
+
   it('adds a server and lists it with its transport', async () => {
     const tool = toolFor()
 
@@ -102,7 +106,7 @@ describe('McpEditTool', () => {
     const outcome = await invoke(toolFor(fake), { action: 'enable', name: 'paused' })
     expect(outcome).toEqual({
       ok: false,
-      reason: 'mcp server "paused" has no transport; add it with a transport to enable it',
+      reason: 'mcp server "paused" has no transport. Add a transport to enable it.',
     })
   })
 

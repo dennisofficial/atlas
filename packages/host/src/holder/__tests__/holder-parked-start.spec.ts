@@ -38,6 +38,7 @@ describe('SessionHolder first turn on a parked sandbox', () => {
       connectGate: gate.promise,
     })
     await b.holder.start()
+    const beforeSecondTurn = (await a.events()).length
     await a.post('again')
     await a.bus.wake(SESSION)
 
@@ -45,9 +46,9 @@ describe('SessionHolder first turn on a parked sandbox', () => {
     expect(thinking).toBe(true)
     const beforeGate = await a.events()
     expect(beforeGate.filter((event) => event.type === 'user-said')).toHaveLength(2)
-    expect(beforeGate.some((event) => event.type === 'tool-dispatched' && event.seq > 5)).toBe(
-      false,
-    )
+    expect(
+      beforeGate.some((event) => event.type === 'tool-dispatched' && event.seq > beforeSecondTurn),
+    ).toBe(false)
     expect(a.daemon.runCount()).toBe(1)
     expect(b.runtimes.flatMap((runtime) => runtime.ackedScopes)).toEqual([])
 

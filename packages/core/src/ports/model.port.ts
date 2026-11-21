@@ -4,6 +4,7 @@ import { DEFAULT_IMAGE_TIER, type EImageTier } from '../images/projection'
 import type { AssistantPart } from '../events/body'
 import type { CallId } from '../events/ids'
 import type { ProviderIdentity } from '../provider'
+import type { ModelCost } from '../models/card'
 import type { Chunk, EFinishReason, ModelUsage } from '../stream/chunk'
 import type { ToolDeclaration } from '../tools/tool'
 
@@ -23,6 +24,7 @@ export type ModelTraits = {
   imageTier?: EImageTier | undefined
   image?: ImageCapabilities | undefined
   contextWindow?: number | undefined
+  cost?: ModelCost | undefined
 }
 
 export const CONTEXT_WINDOW_UNMEASURED = 0
@@ -32,6 +34,9 @@ export const imageTierOf = (model: { traits?: () => ModelTraits }): EImageTier =
 
 export const contextWindowOf = (model: { traits?: () => ModelTraits }): number =>
   model.traits?.().contextWindow ?? CONTEXT_WINDOW_UNMEASURED
+
+export const costOf = (model: { traits?: () => ModelTraits }): ModelCost | undefined =>
+  model.traits?.().cost
 
 export abstract class ModelPort {
   abstract readonly identity: ProviderIdentity

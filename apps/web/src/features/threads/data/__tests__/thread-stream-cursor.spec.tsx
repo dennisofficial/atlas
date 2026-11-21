@@ -1,4 +1,4 @@
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { EThreadStreamFrame, type ThreadStreamFrame } from '@dltech/atlas-wire/web'
 import { act } from 'react'
@@ -16,11 +16,11 @@ import { useThreadSignals } from '../use-thread-signals'
 import { event } from './live-thread-fixture'
 
 beforeAll(() => {
-  GlobalRegistrator.register()
+  registerDom()
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
 })
 afterAll(async () => {
-  await GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 const noop = () => undefined
 const handlers = (onData: (frame: ThreadStreamFrame) => void): ThreadStreamHandlers => ({

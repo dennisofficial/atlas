@@ -28,12 +28,13 @@ import {
 import { recordEscapedFailure, recordRunFailure } from './recorded-failures'
 import { HandoffAborted } from './retry-ledger'
 import { appendResumeDrafts } from './resume-turn'
-import { createSettlePending } from './settle-pending'
-import { runTrackedTurn, type TrackedTurnDeps } from './tracked-turn'
+import { runTrackedTurn } from './tracked-turn'
+import { trackedDepsOf } from './tracked-deps'
+import type { TrackedTurnDeps } from './tracked-turn-deps'
 import { ETurnStatus, type TurnOutcome } from './turn-outcome'
 import { TurnRunner } from './turn-runner.port'
 import type { TurnDeps } from './turn-deps'
-import type { LogPort, TracePort } from '@dltech/atlas-observability'
+import { ETurnEntry, type LogPort, type TracePort } from '@dltech/atlas-observability'
 import { traceTurn, tracedTurnDeps } from '../trace/traced-turn-deps'
 
 export type { PendingDrain }
@@ -72,48 +73,7 @@ export class LoopTurnRunner extends TurnRunner {
     this.normalizeFailure = deps.normalizeFailure
     this.failureDiagnostics = deps.failureDiagnostics
 
-    const tools = deps.tools ?? (() => [])
-    this.tracked = {
-      record: deps.record,
-      modelContext: deps.modelContext,
-      model: deps.model,
-      ids: deps.ids,
-      assembly: deps.assembly,
-      tools,
-      onChunk: deps.onChunk,
-      streamOutput: deps.output,
-      hooks: deps.hooks,
-      uploads: deps.uploads,
-      mediaUrls: deps.mediaUrls,
-      intake: deps.intake,
-      settlePending:
-        deps.dispatch === undefined
-          ? undefined
-          : createSettlePending({
-              record: deps.record,
-              dispatch: deps.dispatch,
-              tools,
-              launchDirectory: deps.launchDirectory,
-              onceLedger: deps.onceLedger,
-              detachTool: deps.detachTool,
-              onToolOutput:
-                deps.output === undefined
-                  ? undefined
-                  : (output) => deps.output?.emit({ type: 'tool-output', output }),
-            }),
-      onceLedger: deps.onceLedger,
-      applyLoopCut: deps.applyLoopCut,
-      onLoopCut: deps.onLoopCut,
-      watchLoop: deps.watchLoop,
-      onLoopWatch: deps.onLoopWatch,
-      onLoopWatchCut: deps.onLoopWatchCut,
-      onLoopStop: deps.onLoopStop,
-      launchDirectory: deps.launchDirectory,
-      retry: deps.retry,
-      waitState: deps.waitState,
-      normalizeFailure: deps.normalizeFailure,
-      trace: deps.trace,
-    }
+    this.tracked = trackedDepsOf(deps)
   }
 
   private retryFor({ threadId }: { threadId: ThreadId }): RetryDeps | undefined {
@@ -182,14 +142,15 @@ export class LoopTurnRunner extends TurnRunner {
       threadId,
       expandContext: this.expandContext,
     })
-    return this.runTurn({
+    return this.tracedTurn({
       threadId,
+      entry: ETurnEntry.Resume,
       ...(signal === undefined ? {} : { signal }),
       ...(pause === undefined ? {} : { pause }),
     })
   }
 
-  async runTurn({
+  runTurn({
     threadId,
     signal,
     pause,
@@ -198,10 +159,31 @@ export class LoopTurnRunner extends TurnRunner {
     signal?: AbortSignal
     pause?: PauseSignal
   }): Promise<TurnOutcome> {
+    return this.tracedTurn({
+      threadId,
+      entry: ETurnEntry.Start,
+      ...(signal === undefined ? {} : { signal }),
+      ...(pause === undefined ? {} : { pause }),
+    })
+  }
+
+  private tracedTurn({
+    threadId,
+    entry,
+    signal,
+    pause,
+  }: {
+    threadId: ThreadId
+    entry: ETurnEntry
+    signal?: AbortSignal
+    pause?: PauseSignal
+  }): Promise<TurnOutcome> {
     return traceTurn({
       trace: this.trace,
       model: this.model,
+      record: this.record,
       threadId,
+      entry,
       run: () =>
         this.runTracedTurn({
           threadId,

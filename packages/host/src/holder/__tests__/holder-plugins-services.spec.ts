@@ -61,12 +61,18 @@ describe('a session that registers the services plugin', () => {
         calls: [
           {
             callId: 'c1',
-            name: 'service_start',
-            input: { description: 'web', command: 'listen', workdir: '/', port: 3000 },
+            name: 'service',
+            input: {
+              action: 'start',
+              description: 'web',
+              command: 'listen',
+              workdir: '/',
+              port: 3000,
+            },
           },
         ],
       },
-      { calls: [{ callId: 'c2', name: 'service_list', input: {} }] },
+      { calls: [{ callId: 'c2', name: 'service', input: { action: 'list' } }] },
       { text: 'started' },
     ]
     const rig = await servicesRig(script)
@@ -94,7 +100,7 @@ describe('a session that registers the services plugin', () => {
     ])
 
     script.push(
-      { calls: [{ callId: 'c3', name: 'service_stop', input: { serviceId } }] },
+      { calls: [{ callId: 'c3', name: 'service', input: { action: 'stop', serviceId } }] },
       { text: 'stopped' },
     )
     await rig.post('stop it')

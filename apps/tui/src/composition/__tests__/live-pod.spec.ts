@@ -4,6 +4,7 @@ import { toThreadId } from '@dltech/atlas-core'
 import { atlasDirectory, type OrphanPodSweep } from '@dltech/atlas-harness'
 
 import { fakeApp, fakeCloud, fakeSignedOutCloud, scriptedModelPort } from './fake-app'
+import { trpcBodyOf } from './trpc-body'
 import { cloudUrlOf } from '../live-cloud'
 import {
   dockerRefusal,
@@ -42,7 +43,7 @@ describe('livePodBridgeOptionsFor', () => {
           method: request.method,
           path: new URL(request.url).pathname,
           auth: request.headers.get('authorization'),
-          body: await request.json(),
+          body: trpcBodyOf(await request.text()),
         })
         return Response.json({ result: { data: null } })
       },

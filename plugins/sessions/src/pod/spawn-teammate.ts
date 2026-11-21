@@ -16,9 +16,9 @@ const inputSchema = z.strictObject({
 })
 
 const description = [
-  'Create a teammate nested under this one in the sidebar, the shape for a workstream you are',
-  'responsible for: you write its brief, so `brief` is its first message and the whole of what it',
-  'knows of this conversation, and it reports back to you with `report_to_spawner`.',
+  'Create a teammate nested under this session in the sidebar. It is the shape for a workstream',
+  'that you are responsible for. You write its brief, so `brief` is its first message and the whole',
+  'of what it knows of this session. It reports back to you with `report_to_spawner`.',
 ].join(' ')
 
 const modelTextOf = (args: { sessionId: string; briefed: boolean }): string =>
@@ -31,6 +31,7 @@ export class SpawnTeammateTool extends SchemaTool<typeof inputSchema> {
   readonly description = description
   readonly effect = EToolEffect.Write
   readonly inputSchema = inputSchema
+  readonly deferred = true
   override readonly pathFields = TAKES_NO_PATHS
 
   constructor(private readonly ctx: PluginPodContext) {

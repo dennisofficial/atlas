@@ -1,3 +1,4 @@
+import type { PodShape } from '@dltech/atlas-core'
 import { ESandboxProvider } from '@dltech/atlas-protocol'
 import { daemonToken } from '@dltech/atlas-protocol/engine'
 import { SandboxUnavailableError } from '@dltech/atlas-host'
@@ -15,6 +16,7 @@ import {
 import { agent37CreateBodyOf } from './agent37-create'
 import {
   agent37BundleVersionOf,
+  pinnedDaemonBundleUrlOf,
   waitForAgent37Daemon,
   waitForAgent37Instance,
   type Agent37DaemonBundle,
@@ -32,7 +34,6 @@ import {
   liveAgent37Client,
   type Agent37Client,
 } from './agent37-client'
-import { agent37ShapeOfVcpus } from './agent37-resize'
 
 const apiKeyOf = (given: SandboxCredentials): string => {
   if (given.provider !== ESandboxProvider.Agent37) {
@@ -120,10 +121,14 @@ export class Agent37SandboxProvider extends SandboxProvider {
   private async ensureDaemon(args: { target: SandboxTarget; instanceId: string }): Promise<void> {
     const client = this.clientOf(apiKeyOf(args.target.credentials))
     const sandboxName = agent37InstanceNameOf(args.target.sandboxSessionId)
+    const version = await agent37BundleVersionOf(this.args.daemonBundle.path)
     await waitForAgent37Daemon({
       client,
       instanceId: args.instanceId,
-      version: await agent37BundleVersionOf(this.args.daemonBundle.path),
+      want: {
+        version,
+        url: pinnedDaemonBundleUrlOf({ url: this.args.daemonBundleUrl, version }),
+      },
       token: this.tokenOf(sandboxName),
       ...(this.args.log === undefined ? {} : { log: this.args.log }),
     })
@@ -174,6 +179,17 @@ export class Agent37SandboxProvider extends SandboxProvider {
     }
   }
 
+  override async instanceIdOf(args: { target: SandboxTarget }): Promise<string | undefined> {
+    const instanceId = await this.args.instances.find({
+      podSessionId: args.target.sandboxSessionId,
+    })
+    return instanceId ?? undefined
+  }
+
+  override podDiskGb(): number {
+    return this.args.env.resources.disk
+  }
+
   async stop(args: { target: SandboxTarget }): Promise<void> {
     const instanceId = await this.args.instances.find({
       podSessionId: args.target.sandboxSessionId,
@@ -182,18 +198,27 @@ export class Agent37SandboxProvider extends SandboxProvider {
     await this.clientOf(apiKeyOf(args.target.credentials)).sleep({ id: instanceId })
   }
 
-  async resize(args: { target: SandboxTarget; vcpus: number }): Promise<PodResizeOutcome> {
+  async resize(args: { target: SandboxTarget; shape: PodShape }): Promise<PodResizeOutcome> {
     const podSessionId = args.target.sandboxSessionId
     const instanceId = await this.args.instances.find({ podSessionId })
     if (instanceId === null) return 'absent'
-    const shape = agent37ShapeOfVcpus(args.vcpus)
-    // A resize recreates the container in place (https://www.agent37.com/docs/agents-api/instances/resize),
-    // so a sleeping instance comes back running at the new shape instead of storing it for its next wake.
-    await this.clientOf(apiKeyOf(args.target.credentials)).resize({
-      id: instanceId,
-      cpu: shape.cpu,
-      memory: shape.memory,
-    })
+    const client = this.clientOf(apiKeyOf(args.target.credentials))
+    const shape = { cpu: args.shape.vcpus, memory: args.shape.memoryGb }
+    const instance = await client.get({ id: instanceId })
+    if (instance.resources?.cpu === shape.cpu && instance.resources.memory === shape.memory) {
+      return 'stored'
+    }
+    // https://www.agent37.com/docs/agents-api/instances/resize — only a running instance can be
+    // resized, so a sleeping one is started first and holds the shape once it is running.
+    if (instance.status !== 'running') {
+      await client.start({ id: instanceId })
+      await waitForAgent37Instance({
+        client,
+        instanceId,
+        ...(this.args.log === undefined ? {} : { log: this.args.log }),
+      })
+    }
+    await client.resize({ id: instanceId, cpu: shape.cpu, memory: shape.memory })
     return 'restarted'
   }
 

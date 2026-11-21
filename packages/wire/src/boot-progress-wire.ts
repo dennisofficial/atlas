@@ -18,6 +18,7 @@ export enum EBootStepState {
   Running = 'running',
   Done = 'done',
   Error = 'error',
+  Interrupted = 'interrupted',
 }
 
 export enum EBootStepOutcome {
@@ -42,27 +43,14 @@ export const BOOT_STEP_ORDER: readonly EBootStep[] = [
 ]
 
 export const BOOT_STEP_EVENT_TYPE = 'sandbox-boot-step'
-/**
- * Set to '1' on a sandbox the API provisioned. Serve then reports boot steps and routes port
- * exposure and stop through the API, because such a sandbox carries no Vercel credentials.
- */
-export const API_PROVISIONED_ENV = 'ATLAS_API_PROVISIONED'
-
-export const isApiProvisioned = (env: Record<string, string | undefined>): boolean =>
-  env[API_PROVISIONED_ENV] === '1'
-
-const present = (value: string | undefined): boolean => value !== undefined && value.trim() !== ''
-
-export const writesBehind = (env: Record<string, string | undefined>): boolean =>
-  isApiProvisioned(env) || (present(env.ATLAS_CLOUD_URL) && present(env.ATLAS_SERVE_TOKEN))
-
-export const POD_NAME_ENV = 'ATLAS_POD_NAME'
-
-export const isLocalPod = (env: Record<string, string | undefined>): boolean =>
-  present(env[POD_NAME_ENV])
-
-export const mirrorsThreadState = (env: Record<string, string | undefined>): boolean =>
-  writesBehind(env) && !isLocalPod(env)
+export {
+  API_PROVISIONED_ENV,
+  isApiProvisioned,
+  isLocalPod,
+  mirrorsThreadState,
+  POD_NAME_ENV,
+  writesBehind,
+} from '@dltech/atlas-core'
 
 export const MAX_BOOT_STEP_TEXT = 2000
 export const MAX_CLONE_REPOS = 20

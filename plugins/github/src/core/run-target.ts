@@ -15,7 +15,7 @@ const WORKFLOW_PATH = /^[\w./-]+$/
 export const BAD_RUN_ID_ERROR = 'A workflow run id starts at 1'
 
 export const NO_RUN_ERROR =
-  'No workflow run exists for this checkout yet; pass #<run id>, a run URL, or <workflow>@<branch>'
+  'No workflow run exists for this project directory yet. Pass #<run id>, a run URL, or <workflow>@<branch>'
 
 export const NO_RUN_REPOSITORY_ERROR =
   'No GitHub repository to take a run from; pass owner/repo#<run id> or a run URL'
@@ -24,7 +24,7 @@ export const UNRECOGNIZED_RUN_ERROR =
   'Not a workflow run reference; pass nothing, #<run id>, owner/repo#<run id>, a github.com run URL, or <workflow>@<branch>'
 
 export const GITHUB_EVENT_RUN_ERROR =
-  'A workflow selector needs the checkout to name its repository; pass owner/repo#<run id> or a run URL'
+  'A workflow selector needs the project directory to name its repository. Pass owner/repo#<run id> or a run URL'
 
 export type RunTarget =
   | { kind: 'run'; repo: string; runId: number }

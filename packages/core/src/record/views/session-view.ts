@@ -17,7 +17,7 @@ import { initialStatusFacts, stepStatusFacts, type StatusFacts } from './status-
 import type { PluginViewFold } from './plugin-view'
 import type { SessionStatus } from './status-types'
 
-export const SESSION_VIEW_VERSION = 9
+export const SESSION_VIEW_VERSION = 11
 
 export type SessionViewState = {
   version: number

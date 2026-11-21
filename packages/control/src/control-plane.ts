@@ -8,6 +8,7 @@ import {
   type RevokeResult,
   type V2Event,
   type V2EventType,
+  type ThreadId,
 } from '@dltech/atlas-core'
 import type { SessionModelAsk } from '@dltech/atlas-models'
 import type { z } from 'zod'
@@ -52,7 +53,12 @@ import {
 } from './port'
 import { claimNextIn, wakeIn } from './claim-ops'
 import { markDigestPhase, withDigestViews, type DigestTimings } from './session-digest-view'
-import { readSessionViewWithCatchUp, type SessionViewRead } from './session-view-read'
+import {
+  readSessionBusyWithCatchUp,
+  readSessionViewWithCatchUp,
+  type SessionBusyRead,
+  type SessionViewRead,
+} from './session-view-read'
 import { readEventsIn, type ReadEventsPage } from './read-events'
 import { runRoutineIn, type RunRoutineParams, type RunRoutineResult } from './routine-ops'
 import {
@@ -69,6 +75,7 @@ import {
   recordPodAppliedIn,
   recordPodDesiredIn,
   recordPodFailedIn,
+  recordPodWaitingIn,
   renameIn,
   setSessionModelIn,
   titleUntitledIn,
@@ -125,7 +132,6 @@ export class ControlPlane {
     mainThreadId: string
     model?: SessionModelAsk | undefined
     sandboxProvider?: string | undefined
-    credentialSource?: string | undefined
     sandboxInstanceId?: string | null | undefined
     routineId?: string | undefined
   }): Promise<SessionModelRow> {
@@ -142,7 +148,6 @@ export class ControlPlane {
     mainThreadId: string
     model?: SessionModelAsk | undefined
     sandboxProvider?: string | undefined
-    credentialSource?: string | undefined
     sandboxInstanceId?: string | null | undefined
     routineId?: string | undefined
     message: { kind: string; payload: string }
@@ -184,13 +189,18 @@ export class ControlPlane {
     return this.store.transact((tx) => tx.setSandboxStatus(params))
   }
 
-  async recordPodDesired(params: { sessionId: string; vcpus: number }): Promise<number> {
+  async recordPodDesired(params: {
+    sessionId: string
+    vcpus: number
+    memoryGb: number
+  }): Promise<number> {
     return this.store.transact((tx) => recordPodDesiredIn({ tx, ...params }))
   }
 
   async recordPodApplied(params: {
     sessionId: string
     vcpus: number
+    memoryGb: number
     generation: number
   }): Promise<boolean> {
     return this.store.transact((tx) => recordPodAppliedIn({ tx, ...params }))
@@ -202,6 +212,14 @@ export class ControlPlane {
     error: string
   }): Promise<boolean> {
     return this.store.transact((tx) => recordPodFailedIn({ tx, ...params }))
+  }
+
+  async recordPodWaiting(params: {
+    sessionId: string
+    generation: number
+    since: string
+  }): Promise<boolean> {
+    return this.store.transact((tx) => recordPodWaitingIn({ tx, ...params }))
   }
 
   async spawnPeer(params: {
@@ -370,6 +388,17 @@ export class ControlPlane {
     })
   }
 
+  async readSessionBusy(params: { sessionId: string; threadId: string }): Promise<SessionBusyRead> {
+    return readSessionBusyWithCatchUp({
+      store: this.store,
+      leases: this.leases,
+      nowIn: (tx) => this.nowIn(tx),
+      ...params,
+      eventSchema: this.eventSchema,
+      pluginViews: this.pluginViews,
+    })
+  }
+
   async claimNext(params: { hostId: number; limit: number }): Promise<ClaimedBatch> {
     if (params.limit <= 0) return { leases: [], nextRetryAt: null }
     return this.store.transact(async (tx) =>
@@ -415,7 +444,6 @@ export class ControlPlane {
       return await this.store.transact((tx) =>
         appendIn({
           tx,
-          leases: this.leases,
           eventSchema: this.eventSchema,
           pluginViews: this.pluginViews,
           appendHooks: this.appendHooks,
@@ -554,6 +582,7 @@ export class ControlPlane {
     sessionId: string
     kind: string
     payload: string
+    threadId?: ThreadId | undefined
   }): Promise<{ inboxId: number }> {
     return this.store.transact(async (tx) => postIn({ tx, ...params, at: await this.nowIn(tx) }))
   }
@@ -578,9 +607,14 @@ export class ControlPlane {
     sessionId: string
     afterId: number
     limit: number
+    forThread?: ThreadId | null
   }): Promise<InboxEntry[]> {
     return this.store.transact((tx) =>
-      tx.readInboxEntries({ ...params, limit: clampLimit(params.limit) }),
+      tx.readInboxEntries({
+        ...params,
+        forThread: params.forThread ?? null,
+        limit: clampLimit(params.limit),
+      }),
     )
   }
 

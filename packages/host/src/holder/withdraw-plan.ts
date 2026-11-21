@@ -1,5 +1,10 @@
 import { INBOX_KIND_WITHDRAW, withdrawPayloadOf } from '@dltech/atlas-control'
-import type { InboxEntry, RecordBody } from '@dltech/atlas-core'
+import {
+  isMessageInputKind,
+  type InboxEntry,
+  type PendingInput,
+  type RecordBody,
+} from '@dltech/atlas-core'
 
 import type { AppendDrafts } from './staged-log'
 
@@ -7,7 +12,7 @@ export type WithdrawPlan = { drafts: RecordBody[]; withdrawn?: number | undefine
 
 export type WithdrawLookup = {
   stagedOf: (inboxId: number) => InboxEntry | undefined
-  postedInboxIds: () => ReadonlySet<number>
+  pendingOf: (inboxId: number) => PendingInput | undefined
   postedDraftsOf: (entry: InboxEntry) => RecordBody[]
 }
 
@@ -22,9 +27,22 @@ export const withdrawPlanOf = (params: {
       drafts: [{ type: 'input-refused', inboxId: entry.inboxId, reason: 'unreadable withdraw' }],
     }
   }
-  const pending = lookup.postedInboxIds()
   const staged = lookup.stagedOf(payload.targetInboxId)
-  if (staged !== undefined && staged.consumedSeq === null && !pending.has(staged.inboxId)) {
+  const pending = lookup.pendingOf(payload.targetInboxId)
+  const kind = staged?.kind ?? pending?.kind
+  if (kind !== undefined && !isMessageInputKind(kind)) {
+    return {
+      drafts: [
+        {
+          type: 'input-refused',
+          inboxId: entry.inboxId,
+          targetInboxId: payload.targetInboxId,
+          reason: 'only a message can be withdrawn',
+        },
+      ],
+    }
+  }
+  if (staged !== undefined && staged.consumedSeq === null && pending === undefined) {
     return {
       drafts: [
         ...lookup.postedDraftsOf(staged),
@@ -33,7 +51,7 @@ export const withdrawPlanOf = (params: {
       withdrawn: staged.inboxId,
     }
   }
-  if (pending.has(payload.targetInboxId)) {
+  if (pending !== undefined) {
     return {
       drafts: [
         {

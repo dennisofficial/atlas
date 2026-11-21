@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EFinishReason, ERunFailureKind, type Chunk } from '@dltech/atlas-core'
-import { ESpan, ESpanMark, ESpanOutcome } from '@dltech/atlas-observability'
+import { ESpan, ESpanMark, ESpanOutcome, ESpanSpeed, ETurnEntry } from '@dltech/atlas-observability'
 import { RecordingTracer } from '@dltech/atlas-observability/testing'
 
 import { THREAD, rigOf } from '../../__tests__/exit-fixture'
@@ -35,12 +35,17 @@ describe('traced turn', () => {
       threadId: THREAD,
       provider: 'scripted',
       status: 'completed',
+      entry: ETurnEntry.Start,
     })
 
     const calls = trace.named(ESpan.ModelCall)
     expect(calls).toHaveLength(2)
     expect(calls.every((call) => call.parent === turn)).toBe(true)
     expect(calls[0]?.fields.toolCalls).toBe(1)
+    expect(calls[0]?.fields.sizes?.total).toBeGreaterThan(0)
+    expect(calls[0]?.fields.sizes?.messages).toBeGreaterThan(0)
+    expect(calls[0]?.fields.hashes?.tools).toMatch(/^[0-9a-f]{8}$/)
+    expect(calls[0]?.fields.speed).toBe(ESpanSpeed.Standard)
 
     const [toolSpan] = trace.named(ESpan.Tool)
     expect(toolSpan?.fields).toMatchObject({ tool: 'read', callId: 'c1', outcome: ESpanOutcome.Ok })
@@ -51,6 +56,22 @@ describe('traced turn', () => {
     expect(trace.named(ESpan.ContextPrepare).length).toBeGreaterThanOrEqual(2)
     expect(trace.named(ESpan.RecordAppend).length).toBeGreaterThan(0)
     expect(trace.spans.every((span) => span.ended)).toBe(true)
+  })
+
+  it('marks a turn resumed from the log apart from one a message started', async () => {
+    const trace = new RecordingTracer()
+    const { runner } = rigOf({
+      script: [{ text: 'first' }, { text: 'again' }],
+      overrides: { trace },
+    })
+
+    await runner.say({ threadId: THREAD, text: 'go' })
+    await runner.resume({ threadId: THREAD })
+
+    expect(trace.named(ESpan.Turn).map((turn) => turn.fields.entry)).toEqual([
+      ETurnEntry.Start,
+      ETurnEntry.Resume,
+    ])
   })
 
   it('names on the turn span why the turn failed', async () => {
@@ -100,7 +121,7 @@ describe('TracedModel', () => {
             { type: 'text-delta', id: 't', text: 'b' },
           ]
           for (const chunk of chunks) onChunk?.(chunk)
-          return { parts: [], toolCalls: [], finishReason: EFinishReason.Stop }
+          return { parts: [], toolCalls: [], finishReason: EFinishReason.Stop, ranFast: true }
         },
       },
     })
@@ -127,5 +148,6 @@ describe('TracedModel', () => {
       ESpanMark.FirstOutput,
     ])
     expect(seen).toEqual(['reasoning-delta', 'text-delta', 'text-delta'])
+    expect(call?.fields.speed).toBe(ESpanSpeed.Fast)
   })
 })

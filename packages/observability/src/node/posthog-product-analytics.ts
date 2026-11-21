@@ -8,10 +8,10 @@ import {
 import { NullTracer, type TracePort } from '../trace/trace.port'
 import { telemetryEnabled } from '../telemetry/telemetry-policy'
 import {
+  AGENT_TRACE_SERVICE_NAME,
   LONGEST_TRACED_TURN_MS,
   POSTHOG_HOST,
   POSTHOG_KEY,
-  TRACE_SERVICE_NAME,
 } from './posthog-config'
 import { PosthogTracer } from './posthog-tracer'
 
@@ -48,6 +48,12 @@ export class PosthogProductAnalytics extends ProductAnalytics {
   }
 }
 
+export const serverTraceOptions = (version: string) => ({
+  serviceName: AGENT_TRACE_SERVICE_NAME,
+  serviceVersion: version,
+  maxSpanAgeMs: LONGEST_TRACED_TURN_MS,
+})
+
 export type ServerObservability = {
   readonly analytics: ProductAnalytics
   traceFor(distinctId: string): TracePort
@@ -64,11 +70,7 @@ export function serverObservability(args: {
   try {
     const client = new PostHog(POSTHOG_KEY, {
       host: POSTHOG_HOST,
-      traces: {
-        serviceName: TRACE_SERVICE_NAME,
-        serviceVersion: args.version,
-        maxSpanAgeMs: LONGEST_TRACED_TURN_MS,
-      },
+      traces: serverTraceOptions(args.version),
     })
     return {
       analytics: new PosthogProductAnalytics({ client, version: args.version }),

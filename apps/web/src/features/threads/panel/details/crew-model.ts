@@ -3,6 +3,7 @@ import {
   catalogOf,
   findCard,
   foldCrew,
+  oneLine,
   standingsOfCrew,
   EAgentStatus,
   type CrewMember,
@@ -126,8 +127,6 @@ const msOf = (iso: string | undefined): number | undefined => {
   const parsed = Date.parse(iso)
   return Number.isNaN(parsed) ? undefined : parsed
 }
-
-const oneLine = (text: string): string => text.replace(/\s+/g, ' ').trim()
 
 export function crewRowsOf(args: {
   entries: readonly CrewEntry[]

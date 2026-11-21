@@ -1,15 +1,16 @@
+import { HookChain, LoopTurnRunner, type AgentIntake } from '@dltech/atlas-agent'
 import {
-  HookChain,
-  HookedToolDispatcher,
-  LoopTurnRunner,
-  type AgentIntake,
-} from '@dltech/atlas-agent'
-import type { ThreadId, ModelRef } from '@dltech/atlas-core'
+  modelFacingDeclarationsOf,
+  type EventBody,
+  type ThreadId,
+  type ModelRef,
+} from '@dltech/atlas-core'
 import type { PodCrew } from '@dltech/atlas-plugin-sdk'
 
 import { ScopedToolDispatcher } from '../../calls/call-scope'
 import type { HeldSessionDeps } from '../held-session-deps'
-import { pluginHooksOf, pluginPodContextOf, pluginToolsOf } from '../plugin-pod'
+import { pluginHooksOf, pluginPodContextOf, pluginToolsOf, resolvedEventsOf } from '../plugin-pod'
+import { hookedToolsOf } from '../hooked-tools'
 import type { RoleModelChoice, SessionRuntime } from '../ports'
 import type { SessionRecord } from '../record/record-adapter'
 import { V2OnceLedger } from '../record/v2-once-ledger'
@@ -25,7 +26,9 @@ export const childRunnerOf = (args: {
   model: RoleModelChoice
   signal: AbortSignal
   crew: PodCrew
+  parentRecord: SessionRecord
   intake: AgentIntake
+  notify(event: EventBody, options: { key: string }): Promise<void>
   isDraining(): boolean
   onFallback?: ((refs: { from: ModelRef; to: ModelRef }) => void | Promise<void>) | undefined
 }): LoopTurnRunner => {
@@ -37,12 +40,19 @@ export const childRunnerOf = (args: {
     threadId: args.agentId,
     signal: args.signal,
     crew: args.crew,
+    notify: (event, options) => args.notify(event, options),
   })
   const registry = new DeniedToolRegistry(
     pluginToolsOf({ runtime, ctx }),
     runtime.plugins?.pod.childDeny ?? [],
   )
-  const hooks: HookChain = pluginHooksOf({ runtime, ctx })
+  const hooks: HookChain = pluginHooksOf({
+    runtime,
+    ctx,
+    declarations: () => registry.declarations(),
+    now: () => new Date(deps.timers.now()),
+    sharedEvents: () => resolvedEventsOf(args.parentRecord),
+  })
   return new LoopTurnRunner({
     record,
     modelContext: record,
@@ -55,8 +65,8 @@ export const childRunnerOf = (args: {
     ids: deps.ids,
     assembly: runtime.assembly,
     hooks,
-    tools: () => registry.declarations(),
-    dispatch: new ScopedToolDispatcher(new HookedToolDispatcher({ registry, hooks })),
+    tools: () => modelFacingDeclarationsOf(registry.declarations()),
+    dispatch: new ScopedToolDispatcher(hookedToolsOf({ registry, hooks, trace: runtime.trace })),
     intake: args.intake,
     detachTool: (tool) => args.isDraining() && runtime.daemonTools.has(tool),
     launchDirectory: runtime.launchDirectory,

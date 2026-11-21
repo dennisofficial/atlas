@@ -1,4 +1,5 @@
 import type { ThreadId } from '@dltech/atlas-core'
+import { ESpan, type TracePort } from '@dltech/atlas-observability'
 import { contextDirectory, sessionDirectory } from '@dltech/atlas-harness'
 
 import type { ServeArgs } from './serve-args'
@@ -12,6 +13,7 @@ import { apiThreadModel } from './serve-thread-model-boot'
 import { createRedeliveryHolder } from './serve-redelivery'
 import { bindServeWriteBehind } from './serve-write-behind'
 import { EServeEvent, type LoggingNoticePort, type ServeLog } from './serve-log'
+import { bootPhase } from './serve-boot-trace'
 import { fileMountNoticeOf } from './file-mount-notice'
 import { envSecretsNoticeOf } from './env-secrets-notice'
 import { createServeRotationRecovery } from './serve-rotation-recovery'
@@ -28,8 +30,10 @@ export async function bootServeApp(args: {
   notice: LoggingNoticePort
   atlasHome: string
   sandboxSessionId: string
+  trace: TracePort
 }) {
-  const { serveArgs, env, threadId, token, controlPlaneUrl, cwd, log, notice, atlasHome } = args
+  const { serveArgs, env, threadId, token, controlPlaneUrl, cwd, log, notice, atlasHome, trace } =
+    args
   const fetchFn = serveArgs.fetchFn ?? fetch
   const clientVersion = serveClientVersionOf({ requested: serveArgs.clientVersion })
   const remote = { controlPlaneUrl, token, clientVersion, fetchFn }
@@ -55,6 +59,7 @@ export async function bootServeApp(args: {
         contextFiles: serveArgs.contextFiles,
         reporter,
         notice: collected.port,
+        trace,
         ...remote,
       })
     let hydrated: { remoteHead: number } | undefined
@@ -63,30 +68,35 @@ export async function bootServeApp(args: {
       strictSink: strictBootSinkFor({ env, ...remote }),
       work: async () => {
         const hydrateStartedAt = Date.now()
-        hydrated = await hydrateWhenRegistered({
-          env,
-          atlasHome,
+        hydrated = await bootPhase({
+          trace,
           threadId,
-          log,
-          ...remote,
+          name: ESpan.PodBootHydrate,
+          run: () => hydrateWhenRegistered({ env, atlasHome, threadId, log, ...remote }),
         })
         log({ event: EServeEvent.BootPhase, phase: 'hydrate', ms: Date.now() - hydrateStartedAt })
         const composeStartedAt = Date.now()
-        const composed = await composeBootApp({
-          apiModel: prefetchedModel,
-          compose: serveArgs.compose,
-          model: serveArgs.model,
-          spec,
-          identity,
+        const composed = await bootPhase({
+          trace,
           threadId,
-          cwd: activeCwd,
-          atlasHome,
-          controlPlaneUrl,
-          token,
-          clientVersion,
-          env,
-          notice,
-          fetchFn,
+          name: ESpan.PodBootCompose,
+          run: () =>
+            composeBootApp({
+              apiModel: prefetchedModel,
+              compose: serveArgs.compose,
+              model: serveArgs.model,
+              spec,
+              identity,
+              threadId,
+              cwd: activeCwd,
+              atlasHome,
+              controlPlaneUrl,
+              token,
+              clientVersion,
+              env,
+              notice,
+              fetchFn,
+            }),
         })
         log({ event: EServeEvent.BootPhase, phase: 'compose', ms: Date.now() - composeStartedAt })
         return composed

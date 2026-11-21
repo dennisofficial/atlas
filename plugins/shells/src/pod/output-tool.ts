@@ -17,13 +17,14 @@ import { EShellStatus } from '@dltech/atlas-core'
 
 const inputSchema = z.strictObject({ shellId: z.string().min(1) })
 
+export const awaitingInputKeyOf = (args: { shellId: string; offset: number }): string =>
+  `background-shell-awaiting-input:${args.shellId}:${args.offset}`
+
 const description = [
-  'Read what a background shell has printed since the last time it was read.',
-  'Each call consumes what it returns, so two calls never hand back the same output twice.',
-  'stdout and stderr are interleaved in arrival order, and the shell is not disturbed by being read.',
-  'A shell that has ended already handed you its ending and its output, so there is nothing to read unless that notice said characters were still waiting.',
-  'Reach for it only when you need what a still-running shell has printed - the startup log of a dev server, the first failures of a watch.',
-  'Never call it to find out whether a shell has finished, nor whether one is stuck on a prompt: both come to you on their own, so asking is always wasted.',
+  'Read what a background shell has printed since the last read. Each call consumes what it returns, so two calls never hand back the same output twice.',
+  'stdout and stderr are interleaved in arrival order, and the read does not disturb the shell. A shell that has ended already handed you its ending and its output, so there is nothing to read unless that notice said characters were still waiting.',
+  'Use it only when you need what a still-running shell has printed: the startup log of a dev server, the first failures of a watch.',
+  'Never call it to find out whether a shell has finished or is stuck on a prompt. Both come to you on their own, so the call is wasted.',
 ].join(' ')
 
 export class ShellOutputTool extends SchemaTool<typeof inputSchema> {
@@ -46,6 +47,7 @@ export class ShellOutputTool extends SchemaTool<typeof inputSchema> {
     signal,
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
     const { shellId } = input
+    const offset = this.state.cursors.get(shellId)
     const read = await readDelta({
       ctx: this.ctx,
       cursors: this.state.cursors,
@@ -58,7 +60,7 @@ export class ShellOutputTool extends SchemaTool<typeof inputSchema> {
     if (running && !this.state.awaiting.has(shellId) && looksLikePrompt(delta.text)) {
       this.state.awaiting.add(shellId)
       const started = startedOf({ events: this.ctx.events(), shellId })
-      await this.ctx.append([
+      await this.ctx.notify(
         {
           type: 'background-shell-awaiting-input',
           shellId,
@@ -69,7 +71,8 @@ export class ShellOutputTool extends SchemaTool<typeof inputSchema> {
           remainingCharacters: delta.remainingCharacters,
           inputSupported: this.state.inputs.has(shellId),
         },
-      ])
+        { key: awaitingInputKeyOf({ shellId, offset }) },
+      )
     }
     return {
       ok: true,

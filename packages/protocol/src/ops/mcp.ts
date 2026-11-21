@@ -19,11 +19,17 @@ export const mcpSpawnOpSchema = z
     args: z.array(z.string()).readonly().optional(),
     env: z.record(z.string(), z.string()).optional(),
     cwd: z.string().min(1).optional(),
+    specHash: z.string().min(1).optional(),
   })
   .strict()
 
 export const mcpSpawnResultSchema = z
-  .object({ serverId: serverIdSchema, pid: z.number().int().min(0) })
+  .object({
+    serverId: serverIdSchema,
+    pid: z.number().int().min(0),
+    attached: z.boolean(),
+    seq: z.number().int().min(0),
+  })
   .strict()
 
 export const mcpSendOpSchema = z

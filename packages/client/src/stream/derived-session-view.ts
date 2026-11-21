@@ -96,6 +96,7 @@ export const deriveViewOf = (args: {
   status: deriveStatusOf(args),
   context: meterOf(args.window.view.meter),
   spend: { rows: [...args.window.view.spend.rows], tally: args.frame.spendTally },
+  compute: { costUsd: null, running: false, tick: null },
   checkouts: checkoutsOutOf(args.window),
   pullRequests: args.frame.pullRequests,
   pluginViews: args.window.view.pluginViews,

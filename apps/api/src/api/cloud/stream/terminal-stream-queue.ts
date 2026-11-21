@@ -16,8 +16,13 @@ export class TerminalStreamQueue {
   push(frame: TerminalStreamFrame): void {
     if (this.ended) return
     if (frame.type === 'output') {
-      this.makeRoom({ terminalId: frame.terminalId, size: bytesOf(frame) })
-      this.bytes += bytesOf(frame)
+      if (frame.data.length > this.capacity) {
+        this.addGap(frame.terminalId, frame.offset)
+        this.wake()
+        return
+      }
+      this.evict(frame.data.length)
+      this.bytes += frame.data.length
     }
     this.frames.push(frame)
     this.wake()
@@ -40,18 +45,30 @@ export class TerminalStreamQueue {
     return frame
   }
 
-  private makeRoom(args: { terminalId: string; size: number }): void {
-    if (this.bytes + args.size <= this.capacity) return
-    const oldest = this.frames.find(
-      (frame) => frame.type === 'output' && frame.terminalId === args.terminalId,
-    )
-    if (oldest === undefined || oldest.type !== 'output') return
+  private evict(needed: number): void {
+    if (this.bytes + needed <= this.capacity) return
+    const gaps = new Map<string, number>()
     this.frames = this.frames.filter((frame) => {
-      if (frame.type !== 'output' || frame.terminalId !== args.terminalId) return true
+      if (frame.type !== 'output' || this.bytes + needed <= this.capacity) return true
+      const gap = gaps.get(frame.terminalId)
+      if (gap === undefined || frame.offset < gap) gaps.set(frame.terminalId, frame.offset)
       this.bytes -= frame.data.length
       return false
     })
-    this.frames.push({ type: 'gap', terminalId: args.terminalId, offset: oldest.offset })
+    for (const [terminalId, offset] of gaps) this.addGap(terminalId, offset)
+  }
+
+  private addGap(terminalId: string, offset: number): void {
+    const index = this.frames.findIndex(
+      (frame) => frame.type === 'gap' && frame.terminalId === terminalId,
+    )
+    const existing = this.frames[index]
+    if (existing === undefined) {
+      this.frames.push({ type: 'gap', terminalId, offset })
+      return
+    }
+    if (existing.type !== 'gap' || existing.offset <= offset) return
+    this.frames[index] = { type: 'gap', terminalId, offset }
   }
 
   private wake(): void {

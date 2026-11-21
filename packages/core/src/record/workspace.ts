@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import type { V2Event } from './event'
 import { INBOX_KIND_STOP, type InboxEntry } from './inbox'
+import { withinLatestAttempt } from './workspace-attempts'
 
 export const workspacePreparedSchema = z.object({
   type: z.literal('workspace-prepared'),
@@ -12,6 +13,12 @@ export const workspacePrepareFailedSchema = z.object({
   type: z.literal('workspace-prepare-failed'),
   reason: z.string(),
   inboxHead: z.number().int().min(0),
+  attempt: z.number().int().min(1).optional(),
+})
+
+export const workspaceAttemptStartedSchema = z.object({
+  type: z.literal('workspace-attempt-started'),
+  attempt: z.number().int().min(1),
 })
 
 export enum EWorkspaceStep {
@@ -25,6 +32,7 @@ export enum EWorkspaceStepState {
   Started = 'started',
   Done = 'done',
   Failed = 'failed',
+  Interrupted = 'interrupted',
 }
 
 export enum EWorkspaceStepOutcome {
@@ -54,6 +62,7 @@ export const workspaceStepSchema = z.object({
   repos: z.array(workspaceStepRepoSchema).optional(),
   command: z.string().optional(),
   output: z.string().optional(),
+  attempt: z.number().int().min(1).optional(),
 })
 
 export type WorkspaceStepRepo = z.infer<typeof workspaceStepRepoSchema>
@@ -63,6 +72,7 @@ export type WorkspaceStepReport = Omit<WorkspaceStep, 'type'>
 
 export type WorkspacePrepared = z.infer<typeof workspacePreparedSchema>
 export type WorkspacePrepareFailed = z.infer<typeof workspacePrepareFailedSchema>
+export type WorkspaceAttemptStarted = z.infer<typeof workspaceAttemptStartedSchema>
 
 export enum EWorkspaceState {
   Unprepared = 'unprepared',
@@ -80,8 +90,13 @@ export const isWorkspacePrepared = (events: readonly V2Event[]): boolean =>
   events.some(countsAsPrepared)
 
 export const lastPrepareFailure = (events: readonly V2Event[]): PrepareFailure | undefined => {
-  const failed = events.findLast((event) => event.type === 'workspace-prepare-failed')
-  if (failed === undefined || failed.type !== 'workspace-prepare-failed') return undefined
+  const failures = withinLatestAttempt({
+    events,
+    keep: (event): event is Extract<V2Event, { type: 'workspace-prepare-failed' }> =>
+      event.type === 'workspace-prepare-failed',
+  })
+  const failed = failures.at(-1)
+  if (failed === undefined) return undefined
   return { inboxHead: failed.inboxHead, reason: failed.reason, at: failed.at }
 }
 

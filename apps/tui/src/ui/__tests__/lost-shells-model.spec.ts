@@ -29,6 +29,13 @@ describe('lost shells', () => {
     expect(lostShellsNotice([shell()])).toContain('bun run build')
   })
 
+  it('folds a name written across lines onto one, falling back past a blank description', () => {
+    expect(lostShellsNotice([shell({ description: '  Run\n\t suite ' })])).toContain('Run suite')
+    expect(lostShellsNotice([shell({ description: ' \n ', command: 'bun\n  test' })])).toContain(
+      'bun test',
+    )
+  })
+
   it('says they died with the last process rather than that they finished', () => {
     expect(lostShellsNotice([shell()])).toContain('died with the last process')
   })

@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
 import { EMessageOrigin, EReportKind, inboxEventOf, toThreadId } from '@dltech/atlas-core'
 
+import { DEFAULT_SANDBOX_PROVIDER } from '@dltech/atlas-protocol'
+
 import { ControlPlane } from '../../control-plane'
 import type { ConformanceParams } from './conformance'
 import { freshHosts } from './conformance-fresh-hosts'
@@ -66,6 +68,15 @@ export function describeControlPlanePeers(params: ConformanceParams): void {
         text: 'Take the parser.',
         via: EMessageOrigin.PeerAgent,
       })
+    })
+
+    it('gives a spawned session the default sandbox provider, not its spawner one', async () => {
+      await plane.createSession(createSessionParams({ sessionId: SESSION, mainThreadId: THREAD }))
+      await spawn({ sessionId: 'peer-1', mainThreadId: 'peer-thread-1' })
+      expect((await plane.readSession({ sessionId: SESSION }))?.sandboxProvider).toBe('vercel')
+      expect((await plane.readSession({ sessionId: 'peer-1' }))?.sandboxProvider).toBe(
+        DEFAULT_SANDBOX_PROVIDER,
+      )
     })
 
     it('nests a spawned session by default and lets it be flat instead', async () => {

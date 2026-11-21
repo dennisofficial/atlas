@@ -117,7 +117,7 @@ export const rebuildFromLog = async (args: {
   }
 }
 
-const branchRowsOf = (args: {
+export const branchRowsOf = (args: {
   sessionId: string
   events: readonly V2Event[]
 }): SessionBranchRow[] =>
@@ -152,18 +152,17 @@ const persistIn = async (args: {
   await tx.insertSessionBranches(args.branches)
 }
 
-export const ensureSessionViewIn = async (args: {
+export const catchUpSessionViewIn = async (args: {
   tx: ControlTx
   sessionId: string
-  threadId: string
+  row: ThreadRow
+  existing: SessionViewRow | undefined
   eventSchema?: z.ZodType<V2Event> | undefined
   pluginViews?: readonly PluginViewFold[] | undefined
-}): Promise<LoadedView> => {
-  const { tx, sessionId, threadId } = args
-  const row = await tx.readThread(threadId)
-  if (row === undefined) throw new UnknownThreadError(threadId)
-  const existing = usableState(await tx.readSessionView(sessionId))
-  if (existing !== undefined && existing.at >= row.headSeq) return { row, state: existing }
+}): Promise<SessionViewState> => {
+  const { tx, sessionId, row } = args
+  const existing = usableState(args.existing)
+  if (existing !== undefined && existing.at >= row.headSeq) return existing
 
   let state = existing ?? initialSessionViewState
   let rebuild = false
@@ -197,23 +196,32 @@ export const ensureSessionViewIn = async (args: {
   await persistIn({
     tx,
     sessionId,
-    threadId,
+    threadId: row.threadId,
     state,
     branches: branchRowsOf({ sessionId, events: folded }),
   })
-  return { row, state }
+  return state
 }
 
-export const ensureMainThreadViewIn = async (args: {
+export const ensureSessionViewIn = async (args: {
   tx: ControlTx
   sessionId: string
   threadId: string
   eventSchema?: z.ZodType<V2Event> | undefined
   pluginViews?: readonly PluginViewFold[] | undefined
-}): Promise<LoadedView | undefined> => {
-  const session = await args.tx.readSession({ sessionId: args.sessionId })
-  if (session?.mainThreadId !== args.threadId) return undefined
-  return ensureSessionViewIn(args)
+}): Promise<LoadedView> => {
+  const { tx, sessionId, threadId } = args
+  const row = await tx.readThread(threadId)
+  if (row === undefined) throw new UnknownThreadError(threadId)
+  const state = await catchUpSessionViewIn({
+    tx,
+    sessionId,
+    row,
+    existing: await tx.readSessionView(sessionId),
+    eventSchema: args.eventSchema,
+    pluginViews: args.pluginViews,
+  })
+  return { row, state }
 }
 
 export const appendToViewIn = async (args: {

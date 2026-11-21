@@ -7,6 +7,7 @@ import { EShellStatus } from '../../shells/status'
 import { EFinishReason } from '../../stream/chunk'
 import type { Hash, V2Body, V2Event } from '../event'
 import { ESessionStatus, sessionStatusOf } from '../session-status'
+import { ETurnCause, ETurnEndedBy, ETurnOutcome } from '../turns'
 
 const NOW = '2026-11-19T12:00:00.000Z'
 const CHILD = toThreadId('child')
@@ -28,6 +29,13 @@ const eventsOf = (bodies: readonly V2Body[]): V2Event[] =>
   )
 
 const userSaid: V2Body = { type: 'user-said', text: 'hi' }
+const turnStarted: V2Body = { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input }
+const turnEnded: V2Body = {
+  type: 'turn-ended',
+  turnId: 'turn-1',
+  outcome: ETurnOutcome.Completed,
+  by: ETurnEndedBy.Agent,
+}
 const assistantDone: V2Body = { type: 'assistant-said', parts: [], finish: EFinishReason.Stop }
 const shellStarted: V2Body = {
   type: 'background-shell-started',
@@ -67,13 +75,13 @@ const statusOf = (bodies: readonly V2Body[], live = true) =>
 
 describe('background work in the session status', () => {
   it('waits for background work while a sub-agent runs after the turn ended', () => {
-    expect(statusOf([userSaid, agentSpawned, assistantDone])).toBe(
+    expect(statusOf([turnStarted, userSaid, agentSpawned, assistantDone, turnEnded])).toBe(
       ESessionStatus.WaitingForBackground,
     )
   })
 
   it('waits for background work while a shell runs after the turn ended', () => {
-    expect(statusOf([userSaid, shellStarted, assistantDone])).toBe(
+    expect(statusOf([turnStarted, userSaid, shellStarted, assistantDone, turnEnded])).toBe(
       ESessionStatus.WaitingForBackground,
     )
   })
@@ -81,29 +89,37 @@ describe('background work in the session status', () => {
   it('goes idle once every background run ended', () => {
     expect(
       statusOf([
+        turnStarted,
         userSaid,
         agentSpawned,
         shellStarted,
         assistantDone,
+        turnEnded,
         agentEnded,
         shellEnded,
-        assistantDone,
       ]),
     ).toBe(ESessionStatus.Idle)
   })
 
   it('keeps the open turn status while the turn runs', () => {
-    expect(statusOf([userSaid, agentSpawned])).toBe(ESessionStatus.Thinking)
+    expect(statusOf([turnStarted, userSaid, agentSpawned])).toBe(ESessionStatus.Thinking)
   })
 
   it('reads as resuming while background work runs and no host holds the session', () => {
-    expect(statusOf([userSaid, agentSpawned, assistantDone], false)).toBe(ESessionStatus.Resuming)
-    expect(statusOf([userSaid, shellStarted, assistantDone], false)).toBe(ESessionStatus.Resuming)
+    expect(statusOf([turnStarted, userSaid, agentSpawned, assistantDone, turnEnded], false)).toBe(
+      ESessionStatus.Resuming,
+    )
+    expect(statusOf([turnStarted, userSaid, shellStarted, assistantDone, turnEnded], false)).toBe(
+      ESessionStatus.Resuming,
+    )
   })
 
   it('stays idle without a host once background work ended', () => {
     expect(
-      statusOf([userSaid, shellStarted, assistantDone, shellEnded, assistantDone], false),
+      statusOf(
+        [turnStarted, userSaid, shellStarted, assistantDone, turnEnded, shellEnded, assistantDone],
+        false,
+      ),
     ).toBe(ESessionStatus.Idle)
   })
 })

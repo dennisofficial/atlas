@@ -24,19 +24,19 @@ export const nameComplaint = (name: string): string | undefined => {
     return `a worktree name is at most ${MAX_WORKTREE_NAME_LENGTH} characters, and "${name}" is ${name.length}`
   }
   if (!WORKTREE_NAME_PATTERN.test(name)) {
-    return `"${name}" is not a usable worktree name: each slash-separated segment may hold only letters, digits, dots, underscores and dashes, and must begin with a letter or digit`
+    return `"${name}" is not a usable worktree name. Each slash-separated segment may hold only letters, digits, dots, underscores and dashes. Each segment must begin with a letter or digit.`
   }
   return undefined
 }
 
 const refusalOf = (record: WorktreeRecord): string | undefined => {
   if (record.isMain) {
-    return `${record.path} is the main checkout of the repository, not a worktree of it. exit_worktree returns the session there; there is nothing to enter.`
+    return `${record.path} is the main checkout of the repository, not a worktree of it. exit_worktree returns the session there. There is nothing to enter.`
   }
   if (record.bare)
     return `the worktree at ${record.path} is bare, so it has no working tree to run in`
   if (record.prunable) {
-    return `git considers the worktree at ${record.path} prunable, so it is not a checkout the session can work in. Tell the developer and let them repair it or run git worktree prune.`
+    return `git considers the worktree at ${record.path} prunable, so the session cannot work in it. Tell the operator and let them repair it or run git worktree prune.`
   }
   if (record.detached || record.branch === null) {
     return `the worktree at ${record.path} has a detached HEAD, so there is no branch to work on`
@@ -101,7 +101,7 @@ export const adoptedTextOf = (args: {
     `Moved into the existing worktree at ${args.entry.path}, on branch ${args.entry.branch}.`,
     `Atlas did not create it, so exit_worktree will leave it on disk however it is called.`,
     stateLine(args.state),
-    'That worktree is the project directory now: a path you pass to a tool resolves against it, and a bash command starts there.',
+    'That worktree is the project directory now. A path you pass to a tool resolves against it. A bash command starts there.',
   ].join(' ')
 
 export async function enterByName(args: {
@@ -115,7 +115,7 @@ export async function enterByName(args: {
   if (args.activeWorktree !== undefined) {
     return {
       ok: false,
-      reason: `the session is already in the worktree at ${args.activeWorktree.path}. Leave it with exit_worktree before creating another, or switch straight to an existing one by passing its path.`,
+      reason: `the session is already in the worktree at ${args.activeWorktree.path}. Leave it with exit_worktree before creating another, or enter an existing one by passing its path.`,
     }
   }
   try {
@@ -130,8 +130,9 @@ export async function enterByName(args: {
               `The fetch from origin failed, so the branch was cut from whatever ${entry.base} already pointed at locally.`,
             ]
           : []),
-        'That worktree is the project directory now: a path you pass to a tool resolves against it, and a bash command starts there.',
-        'The repository this worktree came from stays checked out where it was; leave that checkout alone.',
+        'That worktree is the project directory now. A path you pass to a tool resolves against it. A bash command starts there.',
+        'The repository this worktree came from stays checked out where it was.',
+        'Leave it alone.',
       ].join(' '),
     }
   } catch (error) {
@@ -194,7 +195,7 @@ export async function enterByPath(args: {
       ok: true,
       entry,
       text: ours
-        ? `Moved into the worktree at ${entry.path}, on branch ${entry.branch}, which this session created. ${stateLine(state)} That worktree is the project directory now: a path you pass to a tool resolves against it, and a bash command starts there.`
+        ? `Moved into the worktree at ${entry.path}, on branch ${entry.branch}, which this session created. ${stateLine(state)} That worktree is the project directory now. A path you pass to a tool resolves against it. A bash command starts there.`
         : adoptedTextOf({ entry, state }),
     }
   } catch (error) {

@@ -92,7 +92,7 @@ describe('runtime reminders across transitions', () => {
       const after = assembleWith({ drafts: [...BASE, transition] })
 
       expect(after.system).toEqual(before.system)
-      expect(after.system).toEqual([{ text: DOCTRINE }])
+      expect(after.system).toEqual([{ text: DOCTRINE, source: 'system-prompt' }])
       expect(after.messages.slice(0, 2)).toEqual(before.messages.slice(0, 2))
     })
   }
@@ -111,7 +111,7 @@ describe('runtime reminders across transitions', () => {
     ]
 
     for (const step of steps) {
-      expect(step.system).toEqual([{ text: DOCTRINE }])
+      expect(step.system).toEqual([{ text: DOCTRINE, source: 'system-prompt' }])
       expect(step.messages.slice(0, 2)).toEqual(baseline.messages.slice(0, 2))
     }
   })
@@ -122,7 +122,7 @@ describe('runtime reminders across transitions', () => {
     const backOnHost = assembleWith({ drafts: [...BASE, ENTERED, TO_DOCKER, TO_HOST] })
 
     expect(textOf(inTree.messages.at(-1))).toContain(`Project directory: ${TREE}`)
-    expect(textOf(inDocker.messages.at(-1))).toContain('Execution location: a Docker container')
+    expect(textOf(inDocker.messages.at(-1))).toContain('Execution location: a Docker sandbox')
     for (const assembled of [inTree, backOnHost]) {
       for (const entry of assembled.messages) {
         expect(textOf(entry)).not.toContain('Execution location')

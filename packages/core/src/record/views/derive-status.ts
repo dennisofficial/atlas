@@ -1,3 +1,4 @@
+import type { OpenTurn } from '../turns'
 import { hasBackground } from './background-facts'
 import type { StatusFacts } from './status-facts'
 import { queuedSinceOf, type PendingInputsState } from '../pending-inputs'
@@ -17,14 +18,22 @@ const workspaceStatusOf = (args: {
 const pendingRetry = (args: { facts: StatusFacts; nowMs: number }) =>
   args.facts.retries.findLast((retry) => Date.parse(retry.notBefore) > args.nowMs)
 
+const sinceWithinTurn = (args: { facts: StatusFacts; open: OpenTurn }): string => {
+  const at = args.facts.turn?.at
+  if (at === undefined) return args.open.startedAt
+  return Date.parse(at) >= Date.parse(args.open.startedAt) ? at : args.open.startedAt
+}
+
 const openTurnStatus = (args: {
   facts: StatusFacts
   live: boolean
   nowMs: number
 }): SessionStatus | undefined => {
   const { facts, live, nowMs } = args
+  const open = facts.openTurn
+  if (open === null) return undefined
   const turn = facts.turn
-  if (turn === null || turn.endsTurn || facts.stopAfterTurn) return undefined
+  const since = sinceWithinTurn({ facts, open })
 
   const wait = facts.credentialWait
   if (wait !== null) {
@@ -49,17 +58,18 @@ const openTurnStatus = (args: {
     return { state: ESessionStatus.WaitingForOperator, reason: parked.name, since: parked.at }
   }
 
-  if (turn.type === 'tool-dispatched') {
-    return { state: ESessionStatus.RunningTool, reason: turn.toolName ?? undefined, since: turn.at }
+  if (turn?.type === 'tool-dispatched') {
+    return { state: ESessionStatus.RunningTool, reason: turn.toolName ?? undefined, since }
   }
-  if (turn.type === 'tool-called' || turn.type === 'tool-denied') {
-    return { state: ESessionStatus.Thinking, since: turn.at }
+  if (turn?.type === 'tool-called' || turn?.type === 'tool-denied') {
+    return { state: ESessionStatus.Thinking, since }
   }
-  if (!live) return { state: ESessionStatus.Resuming, since: turn.at }
-  return { state: ESessionStatus.Thinking, since: turn.at }
+  if (!live) return { state: ESessionStatus.Resuming, since }
+  return { state: ESessionStatus.Thinking, since }
 }
 
-const idleSinceOf = (facts: StatusFacts): string | undefined => facts.stoppedAt ?? facts.turn?.at
+const idleSinceOf = (facts: StatusFacts): string | undefined =>
+  facts.lastTurnEnd?.at ?? facts.turn?.at
 
 export function deriveStatus(args: {
   facts: StatusFacts

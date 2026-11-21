@@ -1,58 +1,35 @@
-import {
-  EContextSlot,
-  EStage,
-  type BeforeTurn,
-  type EventDraft,
-  type HookOrder,
-  type ThreadId,
-} from '@dltech/atlas-core'
+import { EContextSlot, type EventDraft, type V2Event } from '@dltech/atlas-core'
 
-import type { McpStore } from './store'
+const SLOT = EContextSlot.McpInstructions
 
-export type McpInstructionsHook = {
-  name: string
-  order: HookOrder
-  run: BeforeTurn
+const offeredOf = (events: readonly V2Event[]): ReadonlyMap<string, string> => {
+  const offered = new Map<string, string>()
+  for (const event of events) {
+    if (event.type !== 'context-loaded' || event.slot !== SLOT) continue
+    if (event.content === '') offered.delete(event.key)
+    else offered.set(event.key, event.content)
+  }
+  return offered
 }
 
-export const mcpInstructionsOf = (args: {
-  live: ReadonlyMap<string, string>
-  offered: Set<string>
-}): EventDraft[] => {
-  const drafts: EventDraft[] = []
-  for (const [name, instructions] of args.live) {
-    if (args.offered.has(name)) continue
-    drafts.push({
-      type: 'context-loaded',
-      slot: EContextSlot.McpInstructions,
-      key: name,
-      content: instructions,
-    })
-    args.offered.add(name)
-  }
-  for (const name of [...args.offered]) {
-    if (args.live.has(name)) continue
-    drafts.push({
-      type: 'context-loaded',
-      slot: EContextSlot.McpInstructions,
-      key: name,
-      content: '',
-    })
-    args.offered.delete(name)
-  }
-  return drafts
-}
-
-export const mcpInstructionsHook = (args: {
-  store: McpStore
-  offered: Map<ThreadId, Set<string>>
-}): McpInstructionsHook => ({
-  name: 'mcp-instructions',
-  order: { stage: EStage.Observe, nudge: 20 },
-  run: async ({ threadId }) => {
-    const offered = args.offered.get(threadId) ?? new Set<string>()
-    const drafts = mcpInstructionsOf({ live: args.store.instructionsByServer(), offered })
-    args.offered.set(threadId, offered)
-    return drafts.length === 0 ? {} : { drafts }
-  },
+const draftOf = (args: { key: string; content: string }): EventDraft => ({
+  type: 'context-loaded',
+  slot: SLOT,
+  key: args.key,
+  content: args.content,
 })
+
+export const mcpInstructionsDraftsOf = (args: {
+  events: readonly V2Event[]
+  next: ReadonlyMap<string, string>
+}): readonly EventDraft[] => {
+  const offered = offeredOf(args.events)
+  return [
+    ...[...args.next]
+      .filter(([key, content]) => offered.get(key) !== content)
+      .map(([key, content]) => draftOf({ key, content })),
+    ...[...offered.keys()]
+      .filter((key) => !args.next.has(key))
+      .map((key) => draftOf({ key, content: '' })),
+  ]
+}

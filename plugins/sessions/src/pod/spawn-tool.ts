@@ -16,10 +16,10 @@ const inputSchema = z.strictObject({
 })
 
 const description = [
-  'Create an independent session of the operator’s: its own sandbox, its own clone and its own',
-  'conversation, appearing at the top level of their sidebar beside this one, the same as one',
-  'made with the new-session button, so `brief` is its first message and the whole of what it',
-  'knows of this conversation. You are not responsible for it, and it reports to no one.',
+  'Create an independent session of the operator’s, with its own sandbox, its own clone and its',
+  'own transcript. It appears at the top level of the operator’s sidebar beside this one, the',
+  'same as a session made with the new-session button. `brief` is its first message, and the whole',
+  'of what it knows of this session. You are not responsible for it, and it reports to no one.',
 ].join(' ')
 
 const modelTextOf = (args: { sessionId: string; briefed: boolean }): string =>
@@ -32,6 +32,7 @@ export class SpawnSessionTool extends SchemaTool<typeof inputSchema> {
   readonly description = description
   readonly effect = EToolEffect.Write
   readonly inputSchema = inputSchema
+  readonly deferred = true
   override readonly pathFields = TAKES_NO_PATHS
 
   constructor(private readonly ctx: PluginPodContext) {

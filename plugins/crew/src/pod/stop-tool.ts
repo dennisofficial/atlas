@@ -15,8 +15,9 @@ const inputSchema = z.strictObject({ agentId: z.string().min(1) })
 
 const description = [
   'Stop a sub-agent you started.',
-  'It ends after the step it is taking, and you are handed how it ended.',
-  'Stopping one that has already ended changes nothing.',
+  'It ends after the step it is taking.',
+  'You are handed how it ended.',
+  'Stopping a sub-agent that has already ended changes nothing.',
 ].join(' ')
 
 const hadEnded = (before: SubagentSnapshot): boolean =>
@@ -44,8 +45,8 @@ export class AgentStopTool extends SchemaTool<typeof inputSchema> {
         output: { agentId: snapshot.agentId, status: snapshot.status },
         modelText:
           before !== undefined && hadEnded(before)
-            ? `Agent ${input.agentId} had already ended (${before.status}), so nothing was interrupted.`
-            : `Signalled agent ${input.agentId} to stop. It ends after the step it is taking, and you will be handed how it ended.`,
+            ? `Sub-agent ${input.agentId} had already ended (${before.status}), so nothing was interrupted.`
+            : `Signalled sub-agent ${input.agentId} to stop. It ends after the step it is taking. You will be handed how it ended.`,
       }
     } catch (error) {
       return crewRefusal(error)

@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { ControlPlane } from '@dltech/atlas-control'
-import type { ESandboxStatus } from '@dltech/atlas-protocol'
+import { ESandboxStatus } from '@dltech/atlas-protocol'
+import { recordSandboxRunCloseForInstance } from '../../../agent'
 
 @Injectable()
 export class Agent37WebhookService {
@@ -11,10 +12,19 @@ export class Agent37WebhookService {
     status: ESandboxStatus
     at: string
   }): Promise<boolean> {
-    return this.plane.setSandboxStatus({
+    const applied = await this.plane.setSandboxStatus({
       sandboxInstanceId: args.instanceId,
       status: args.status,
       at: args.at,
     })
+    if (
+      applied &&
+      (args.status === ESandboxStatus.Sleeping || args.status === ESandboxStatus.Stopped)
+    )
+      await recordSandboxRunCloseForInstance({
+        sandboxInstanceId: args.instanceId,
+        at: Date.parse(args.at),
+      })
+    return applied
   }
 }

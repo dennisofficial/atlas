@@ -66,8 +66,8 @@ describe('handing an ended service to the model', () => {
       ended({ status: EServiceStatus.Killed, killedBy: EKilledBy.User, exitCode: undefined }),
     )
 
-    expect(block).toContain('was stopped by the user')
-    expect(block).toContain('do not restart it')
+    expect(block).toContain('was stopped by the operator')
+    expect(block).toContain('Do not restart it')
   })
 
   it('tells the model when the stop was its own, so it does not read it as interference', () => {
@@ -76,7 +76,7 @@ describe('handing an ended service to the model', () => {
     )
 
     expect(block).toContain('was stopped at your request')
-    expect(block).not.toContain('do not restart it')
+    expect(block).not.toContain('Do not restart it')
   })
 
   it('tells the model the service went down with the sleeping sandbox and is its to start again', () => {
@@ -125,7 +125,7 @@ describe('the running-services reminder', () => {
     expect(reminder).not.toContain('you are told if one exits')
     expect(reminder).toContain('exit notice goes only to the thread that started the service')
     expect(reminder).toContain('another thread is not told when one exits')
-    expect(reminder).toContain('service_stop({ id }) applies when that tool is available')
+    expect(reminder).toContain('Stop one with `service` action `stop` when that tool is available')
     expect(reminder).not.toMatch(/never|polling|service_list/)
   })
 })

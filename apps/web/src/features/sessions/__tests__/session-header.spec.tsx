@@ -1,11 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { renderToStaticMarkup } from 'react-dom/server'
 
+import { ESubscriptionActor, ESubscriptionStatus, ESubscriptionTone } from '@dltech/atlas-core'
 import type { CrewRow } from '@dltech/atlas-plugin-crew/client'
-import type { SubscribedPullRequest } from '@dltech/atlas-plugin-github/client'
+import type { SubscriptionListRow } from '@dltech/atlas-plugin-github/client'
 import type { PreviewItem } from '@dltech/atlas-plugin-services/client'
 import type { ShellRoster } from '@dltech/atlas-plugin-shells/client'
 import { SidebarProvider } from '@dltech/atlas-ui/components/sidebar'
@@ -32,11 +33,22 @@ const entry = (overrides: Partial<PullRequestEntry> = {}): PullRequestEntry => (
   ...overrides,
 })
 
-const subscribed: SubscribedPullRequest = {
+const subscriptionRow = (overrides: Partial<SubscriptionListRow> = {}): SubscriptionListRow => ({
+  id: 'sub_31',
+  provider: 'github.pull-request',
+  status: ESubscriptionStatus.Active,
+  createdBy: ESubscriptionActor.Agent,
+  threadId: 't1',
   number: 31,
-  label: 'owner/atlas#31',
-  url: 'https://github.com/owner/atlas/pull/31',
-}
+  held: 0,
+  presentation: {
+    icon: 'git-pull-request',
+    tone: ESubscriptionTone.Open,
+    title: '#31 Follow it',
+    meta: ['Pull request', 'all events'],
+  },
+  ...overrides,
+})
 
 const preview = (overrides: Partial<PreviewItem> = {}): PreviewItem => ({
   serviceId: 'svc1',
@@ -61,7 +73,7 @@ type HeaderProps = {
   branch?: string
   routineId?: string | null
   entries: PullRequestEntry[]
-  subscriptions?: SubscribedPullRequest[]
+  subscriptions?: SubscriptionListRow[]
   shells?: ShellRoster
   shellTails?: Readonly<Record<string, string>>
   crewRows?: readonly CrewRow[]
@@ -69,6 +81,7 @@ type HeaderProps = {
   paneCollapsed?: boolean
   onTogglePane?: () => void
   onOpenPane?: () => void
+  onOpenDetails?: () => void
   onOpenPreview?: (url: string) => void
 }
 
@@ -94,6 +107,7 @@ const headerOf = (props: HeaderProps) => (
       paneCollapsed={props.paneCollapsed}
       onTogglePane={props.onTogglePane}
       onOpenPane={props.onOpenPane}
+      onOpenDetails={props.onOpenDetails}
       onOpenPreview={props.onOpenPreview ?? (() => undefined)}
     />
   </SidebarProvider>
@@ -102,12 +116,12 @@ const headerOf = (props: HeaderProps) => (
 const render = (props: HeaderProps) => renderToStaticMarkup(headerOf(props))
 
 beforeAll(() => {
-  GlobalRegistrator.register()
+  registerDom()
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
 })
 
 afterAll(async () => {
-  await GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 describe('SessionHeader', () => {
@@ -162,21 +176,57 @@ describe('SessionHeader', () => {
     expect(html).not.toContain('Merge conflicts')
   })
 
+  it('does not tag a v2 session', () => {
+    const html = render({ entries: [] })
+    expect(html).not.toContain('>v2<')
+    expect(html).not.toContain('data-engine-tag')
+  })
+
+  it('does not tag a v2 session', () => {
+    const html = render({ entries: [] })
+    expect(html).not.toContain('>v2<')
+    expect(html).not.toContain('data-engine-tag')
+  })
+
   it('shows neither branch nor pull request when the view has none', () => {
     const html = render({ entries: [] })
     expect(html).not.toContain('data-session-branch')
     expect(html).not.toContain('data-session-pr')
   })
 
-  it('lists the pull requests the session is subscribed to, each linking to its url', () => {
-    const html = render({ entries: [], subscriptions: [subscribed] })
+  it('counts every active subscription behind a bell', () => {
+    const html = render({
+      entries: [],
+      subscriptions: [
+        subscriptionRow(),
+        subscriptionRow({ id: 'sub_32', provider: 'github.workflow-run', number: undefined }),
+      ],
+    })
     expect(html).toContain('data-session-subscriptions')
-    expect(html).toContain('href="https://github.com/owner/atlas/pull/31"')
-    expect(html).toContain('#31')
+    expect(html).toContain('aria-label="2 subscriptions"')
+    expect(html).toContain('title="2 subscriptions"')
+    expect(html).toContain('>2<')
   })
 
-  it('shows no subscription indicator without subscriptions', () => {
+  it('counts only the active subscriptions', () => {
+    const html = render({
+      entries: [],
+      subscriptions: [
+        subscriptionRow(),
+        subscriptionRow({ id: 'sub_32', status: ESubscriptionStatus.Paused }),
+      ],
+    })
+    expect(html).toContain('aria-label="1 subscription"')
+  })
+
+  it('shows no subscription indicator without an active subscription', () => {
     expect(render({ entries: [entry()] })).not.toContain('data-session-subscriptions')
+    expect(
+      render({
+        entries: [],
+        subscriptions: [subscriptionRow({ status: ESubscriptionStatus.Paused })],
+      }),
+    ).not.toContain('data-session-subscriptions')
   })
 
   it('shows the running shell count titled with their labels', () => {

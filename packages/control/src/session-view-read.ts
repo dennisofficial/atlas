@@ -1,9 +1,12 @@
 import {
   messageAfterFailureOf,
+  type PodShape,
+  podSizingOf,
   sessionViewOf,
   type Lease,
   type PendingInputsState,
   type PluginViewFold,
+  type SessionStatus,
   type SessionViewState,
   type SessionViewValue,
   type V2Event,
@@ -125,19 +128,31 @@ export const trackedPullRequestsOf = async (args: {
   return rows.map(pullRequestOf)
 }
 
+const shapeOf = (row: { vcpus: number | null; memoryGb: number | null }): PodShape | undefined =>
+  row.vcpus === null || row.memoryGb === null
+    ? undefined
+    : { vcpus: row.vcpus, memoryGb: row.memoryGb }
+
 export const podStatusOf = (session: ControlSessionRow | undefined): SessionStatusOutput['pod'] => {
   if (session === undefined) return undefined
-  const desiredVcpus = session.podDesiredVcpus ?? undefined
-  const actualVcpus = session.podActualVcpus ?? undefined
-  if (desiredVcpus === undefined && actualVcpus === undefined) return undefined
+  const actual = shapeOf({ vcpus: session.podActualVcpus, memoryGb: session.podActualMemoryGb })
+  const desired = shapeOf({ vcpus: session.podDesiredVcpus, memoryGb: session.podDesiredMemoryGb })
   const pending =
-    desiredVcpus !== undefined && session.podAppliedGeneration !== session.podSizeGeneration
-  const phase = session.podResizeError !== null ? 'failed' : pending ? 'resizing' : 'steady'
+    desired !== undefined && session.podAppliedGeneration !== session.podSizeGeneration
+  const phase =
+    session.podResizeError !== null
+      ? 'failed'
+      : session.podWaitingSince !== null
+        ? 'waiting'
+        : pending
+          ? 'resizing'
+          : 'steady'
   return {
-    ...(desiredVcpus === undefined ? {} : { desiredVcpus }),
-    ...(actualVcpus === undefined ? {} : { actualVcpus }),
+    ...(actual === undefined ? {} : { shape: actual, actualVcpus: actual.vcpus }),
+    ...(desired === undefined ? {} : { desiredShape: desired, desiredVcpus: desired.vcpus }),
     phase,
     ...(session.podResizeError === null ? {} : { error: session.podResizeError }),
+    sizing: podSizingOf({ sandboxProvider: session.sandboxProvider }),
   }
 }
 
@@ -220,29 +235,45 @@ export const readSessionViewIn = async (args: {
   }
 }
 
+export type SessionBusyRead = {
+  at: number
+  status: SessionStatus
+  pluginViews: Readonly<Record<string, unknown>>
+}
+
+export const readSessionBusyIn = async (args: {
+  tx: ControlTx
+  leases: LeaseOps
+  sessionId: string
+  threadId: string
+  now: string
+}): Promise<SessionBusyRead | undefined> => {
+  const { tx, sessionId, threadId } = args
+  const row = await tx.readThread(threadId)
+  if (row === undefined) throw new UnknownThreadError(threadId)
+  const state = usableState(await tx.readSessionView(sessionId))
+  if (state === undefined || state.at !== row.headSeq) return undefined
+  const live = await liveViewIn({ ...args, state })
+  return { at: state.at, status: live.value.status, pluginViews: live.value.pluginViews }
+}
+
 const VIEW_READ_ATTEMPTS = 5
 
-export const readSessionViewWithCatchUp = async (args: {
+type CatchUpArgs<T> = {
   store: ControlStorePort
-  leases: LeaseOps
-  nowIn: (tx: ControlTx) => Promise<string>
   sessionId: string
   threadId: string
   eventSchema?: z.ZodType<V2Event> | undefined
   pluginViews?: readonly PluginViewFold[] | undefined
-}): Promise<SessionViewRead> => {
+  readIn: (tx: ControlTx) => Promise<T | undefined>
+}
+
+const withCatchUp = async <T>(args: CatchUpArgs<T>): Promise<T> => {
   const { store, sessionId, threadId } = args
   for (let attempt = 0; attempt < VIEW_READ_ATTEMPTS; attempt += 1) {
     const read = await store.transact(async (tx) => {
       await tx.useSnapshot()
-      return readSessionViewIn({
-        tx,
-        leases: args.leases,
-        sessionId,
-        threadId,
-        now: await args.nowIn(tx),
-        eventSchema: args.eventSchema,
-      })
+      return args.readIn(tx)
     })
     if (read !== undefined) return read
     await store.transact(async (tx) => {
@@ -258,3 +289,46 @@ export const readSessionViewWithCatchUp = async (args: {
   }
   throw new Error(`session view of ${sessionId} kept changing under the read`)
 }
+
+export const readSessionViewWithCatchUp = (args: {
+  store: ControlStorePort
+  leases: LeaseOps
+  nowIn: (tx: ControlTx) => Promise<string>
+  sessionId: string
+  threadId: string
+  eventSchema?: z.ZodType<V2Event> | undefined
+  pluginViews?: readonly PluginViewFold[] | undefined
+}): Promise<SessionViewRead> =>
+  withCatchUp({
+    ...args,
+    readIn: async (tx) =>
+      readSessionViewIn({
+        tx,
+        leases: args.leases,
+        sessionId: args.sessionId,
+        threadId: args.threadId,
+        now: await args.nowIn(tx),
+        eventSchema: args.eventSchema,
+      }),
+  })
+
+export const readSessionBusyWithCatchUp = (args: {
+  store: ControlStorePort
+  leases: LeaseOps
+  nowIn: (tx: ControlTx) => Promise<string>
+  sessionId: string
+  threadId: string
+  eventSchema?: z.ZodType<V2Event> | undefined
+  pluginViews?: readonly PluginViewFold[] | undefined
+}): Promise<SessionBusyRead> =>
+  withCatchUp({
+    ...args,
+    readIn: async (tx) =>
+      readSessionBusyIn({
+        tx,
+        leases: args.leases,
+        sessionId: args.sessionId,
+        threadId: args.threadId,
+        now: await args.nowIn(tx),
+      }),
+  })

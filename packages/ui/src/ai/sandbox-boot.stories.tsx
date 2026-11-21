@@ -69,9 +69,9 @@ export const LiveCloneFails: Story = {
   render: () => <LiveBoot outcome={EBootOutcome.CloneFails} />,
 }
 
-const DAEMON_LOG = `sandbox daemon did not answer atlas-daemon on port 3000 within 30s; its log is at /var/log/atlas/daemon.log, tail:
+const DAEMON_LOG = `sandbox daemon did not answer atlas-daemon on port 47300 within 30s; its log is at /var/log/atlas/daemon.log, tail:
 [12:00:01] atlas-serve 0.42.1 starting
-[12:00:31] no health response on :3000`
+[12:00:31] no health response on :47300`
 
 export const SandboxFails: Story = {
   args: {

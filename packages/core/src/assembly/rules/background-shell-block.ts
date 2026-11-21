@@ -3,23 +3,26 @@ import type { EventOfType } from '../../events/envelope'
 import { elapsedPhrase } from '../../shells/elapsed'
 import { shellLabel } from '../../shells/label'
 import type { ShellEventContext } from '../../shells/lifecycle'
-import { EKilledBy, shellEnding } from '../../shells/status'
+import { EKilledBy, EShellEndCause, shellEnding } from '../../shells/status'
 
 const PRINTED_NOTHING = 'It printed nothing.'
 
 type Ending = Parameters<typeof shellEnding>[0]
 
 const finalOutputNote = (ending: Ending): string =>
-  `[This process is no longer running: it ${shellEnding(ending)}. What follows is its final, complete output — not a snapshot of a live job. Do not wait for it, poll it, or expect more from it.]`
+  `[This process is no longer running: it ${shellEnding(ending)}. What follows is its final, complete output — not a snapshot of a live job. Do not wait for it, do not poll it, and expect no more from it.]`
 
 const USER_KILLED =
-  'The user stopped this shell deliberately. Nothing is wrong; do not restart it, work around it, or spend another run reproducing what it was doing unless the user asks.'
+  'The operator stopped this background shell deliberately. Nothing is wrong. Do not restart it, do not work around it, and do not spend another run reproducing what it was doing unless the operator asks.'
+
+const SANDBOX_STOPPED =
+  'The sandbox it ran in stopped, so it ended with the sandbox. Nothing it was doing failed on its own. Start it again if you still need what it was doing.'
 
 const droppedNote = (characters: number): string =>
   `[${characters} characters were lost before this point: the shell printed faster than it was read.]`
 
 const remainingNote = (args: { characters: number; shellId: string }): string =>
-  `[${args.characters} more characters are waiting — call shell_output({ shellId: "${args.shellId}" }) for the rest.]`
+  `[${args.characters} more characters are waiting. Call shell_output({ shellId: "${args.shellId}" }) for the rest.]`
 
 const OUTPUT_TAIL_CHARACTERS = 8_000
 
@@ -40,7 +43,7 @@ const outputPathNote = (args: { path: string; event: OutputPointer }): string =>
     event.outputStart !== undefined && event.outputEnd !== undefined
       ? ` Recorded source range: bytes ${event.outputStart} to ${event.outputEnd} of that file; the text shown here is an excerpt of it.`
       : ''
-  return `Full output is saved at ${path}.${range} Use read or grep on that path for anything not shown here.`
+  return `Full output is saved at ${path}.${range} Use read or grep on that path for anything you do not see here.`
 }
 
 function cappedTail(output: string): string[] {
@@ -56,7 +59,7 @@ const alreadyEnded = (args: {
   event: { shellId: string; command: string; description?: string | undefined }
   ended: NonNullable<ShellEventContext['endedBefore']>
 }): string =>
-  `Background shell ${args.event.shellId} ${shellLabel(args.event)} had already ended before this was recorded: it ${shellEnding(args.ended)}. Its ending appears earlier in this conversation. The shell is not running, there is nothing to wait for, and no further input or check-in can reach it.`
+  `Background shell ${args.event.shellId} ${shellLabel(args.event)} had already ended before this was recorded: it ${shellEnding(args.ended)}. Its ending appears earlier in this session. The shell is not running, there is nothing to wait for, and no further input or check-in can reach it.`
 
 export function backgroundShellBlock(
   event: EventOfType<'background-shell-ended'>,
@@ -65,9 +68,11 @@ export function backgroundShellBlock(
   const path = pathOf({ event, context })
   const printed =
     path === undefined ? 'Everything it printed follows' : 'The end of what it printed follows'
-  const headline = `Background shell ${event.shellId} ${shellLabel(event)} ${shellEnding(event)}. ${printed}; it has not been read yet.`
+  const headline = `Background shell ${event.shellId} ${shellLabel(event)} ${shellEnding(event)}. ${printed}. It has not been read yet.`
 
   const sections = [headline]
+
+  if (event.cause === EShellEndCause.SandboxStopped) sections.push(SANDBOX_STOPPED)
 
   if (event.killedBy === EKilledBy.User) sections.push(USER_KILLED)
 
@@ -91,7 +96,7 @@ export function backgroundShellBlock(
 }
 
 const AWAITING_WITHOUT_STDIN =
-  'Its stdin is closed, so nothing can answer it and it will never end on its own. Use shell_input when input is supported; otherwise re-run it noninteractively (shell_kill the stuck one first). Waiting changes nothing: no ending is coming.'
+  'Its stdin is closed, so nothing can answer it and it will never end on its own. Use shell_input when input is supported. Otherwise re-run it noninteractively, and shell_kill the stuck one first. Waiting changes nothing: no ending is coming.'
 
 const AWAITING_WITH_STDIN =
   'Answer it with shell_input({ shellId }), or stop it with shell_kill. It stays alive, waiting, until one of those happens.'
@@ -142,7 +147,7 @@ const coverageNote = (pattern: string): string =>
   `These are only the lines matching /${pattern}/. Everything else the shell printed is not here, so nothing above rules out a failure the pattern does not name. Silence from this watch is not evidence that the run is healthy.`
 
 const WATCH_DISARMED =
-  'The watch has stopped: this shell matched the most lines a watch is allowed to carry, so no further matches will be reported. That says nothing about the shell itself.'
+  'The watch has stopped: this shell matched the most lines a watch can carry, so no further matches will be reported. That says nothing about the shell itself.'
 
 const matchedLineCount = (count: number): string => (count === 1 ? '1 line' : `${count} lines`)
 
@@ -171,10 +176,10 @@ export function backgroundShellMatchedBlock(
 }
 
 const STILL_RUNNING_NOT_ENDED =
-  'This is a scheduled check-in, not an ending: the shell is still running, and when it ends you will be told, along with everything it printed.'
+  'This is a scheduled check-in, not an ending: the shell is still running. When it ends you will be told, along with everything it printed.'
 
 const stillRunningExits = (shellId: string): string =>
-  `Three ways out: read it with shell_output({ shellId: "${shellId}" }) to see how it is doing, stop it with shell_kill({ shellId: "${shellId}" }), or - if it is meant to stay up, like a dev server or a watcher - kill it and start it again with service_start, which never times out and never asks for attention. If it is making progress and simply needs the time, do nothing.`
+  `Three ways out: read it with shell_output({ shellId: "${shellId}" }) to see how it is doing, stop it with shell_kill({ shellId: "${shellId}" }), or, if it is meant to stay up like a service or a watcher, kill it and start it again with \`service\` action \`start\`. A service never times out and never asks for attention. If it is making progress and simply needs the time, do nothing.`
 
 export function backgroundShellStillRunningBlock(
   event: EventOfType<'background-shell-still-running'>,

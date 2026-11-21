@@ -13,6 +13,7 @@ type Exit = { exitCode: number; signal: string | null }
 
 type FakeServer = {
   serverId: string
+  specHash: string | undefined
   pid: number
   lines: BufferedLine[]
   stderr: string[]
@@ -49,10 +50,11 @@ export const fakeMcpGroup = (): DaemonGroupFactory => {
   return (ctx: GroupContext): DaemonGroup => {
     const servers = new Map<string, FakeServer>()
 
-    const spawn = (serverId: string): FakeServer => {
+    const spawn = (serverId: string, specHash: string | undefined): FakeServer => {
       let settleClosed: (exit: Exit) => void = () => {}
       const server: FakeServer = {
         serverId,
+        specHash,
         pid: nextPid++,
         lines: [],
         stderr: [],
@@ -87,15 +89,26 @@ export const fakeMcpGroup = (): DaemonGroupFactory => {
         defineOp({
           op: 'mcp.spawn',
           run: async ({ op }) => {
-            if (servers.has(op.serverId)) {
-              throw new CallFailureError({
-                code: ECallFailure.AlreadyExists,
-                message: `an mcp server '${op.serverId}' is already running`,
-              })
+            const held = servers.get(op.serverId)
+            if (held !== undefined) {
+              if (
+                held.ended === null &&
+                op.specHash !== undefined &&
+                held.specHash === op.specHash
+              ) {
+                return {
+                  serverId: op.serverId,
+                  pid: held.pid,
+                  attached: true,
+                  seq: held.seq,
+                }
+              }
+              held.close()
+              servers.delete(op.serverId)
             }
-            const server = spawn(op.serverId)
+            const server = spawn(op.serverId, op.specHash)
             servers.set(op.serverId, server)
-            return { serverId: op.serverId, pid: server.pid }
+            return { serverId: op.serverId, pid: server.pid, attached: false, seq: 0 }
           },
         }),
         defineOp({

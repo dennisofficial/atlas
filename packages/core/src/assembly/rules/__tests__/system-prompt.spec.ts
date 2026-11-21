@@ -22,7 +22,7 @@ describe('systemPrompt', () => {
   it('pushes the compiled blocks onto the system it was handed', () => {
     const assembled = fixed(compiled('doctrine'))({ system: [], messages: [] }, ctx)
 
-    expect(assembled.system).toEqual([{ text: 'doctrine' }])
+    expect(assembled.system).toEqual([{ text: 'doctrine', source: 'system-prompt' }])
   })
 
   it('appends after the blocks already there and leaves them untouched', () => {
@@ -31,7 +31,10 @@ describe('systemPrompt', () => {
       ctx,
     )
 
-    expect(assembled.system).toEqual([{ text: 'earlier' }, { text: 'doctrine' }])
+    expect(assembled.system).toEqual([
+      { text: 'earlier' },
+      { text: 'doctrine', source: 'system-prompt' },
+    ])
   })
 
   it('leaves the messages exactly as they arrived', () => {
@@ -92,8 +95,10 @@ describe('what the rule compiles, and what it only reads', () => {
 
     held = compiled('doctrine for haiku')
 
-    expect(before).toEqual([{ text: 'doctrine for opus' }])
-    expect(rule({ system: [], messages: [] }, ctx).system).toEqual([{ text: 'doctrine for haiku' }])
+    expect(before).toEqual([{ text: 'doctrine for opus', source: 'system-prompt' }])
+    expect(rule({ system: [], messages: [] }, ctx).system).toEqual([
+      { text: 'doctrine for haiku', source: 'system-prompt' },
+    ])
   })
 
   it('hands the source the launch directory while no worktree has been entered', () => {

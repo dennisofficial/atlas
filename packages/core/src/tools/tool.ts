@@ -165,6 +165,7 @@ export type ToolDeclaration = {
   name: string
   description: string
   effect: EToolEffect
+  deferred?: true | undefined
   inputSchema: ZodType
   jsonSchema?: unknown
   pathFields?: PathFieldClaim

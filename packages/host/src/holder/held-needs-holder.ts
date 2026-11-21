@@ -10,13 +10,13 @@ import {
 import {
   actionableEntries,
   isStop,
-  logPendingMessageIdsOf,
+  logPendingInputIdsOf,
   readFullInbox,
   stopSettledPromptOf,
   understandsCommand,
   waitingInputIdsOf,
 } from './held-inbox'
-import { childrenAtWorkOf, openChildrenOf } from './crew/open-children'
+import { childrenAtWorkOf, spawnedChildrenOf } from './crew/open-children'
 import type { HeldSessionDeps } from './held-session-deps'
 import type { SessionRecord } from './record/record-adapter'
 
@@ -32,7 +32,7 @@ export const drainNeedsHolder = async (args: {
     )
     const events = cache?.eventsAfter(0) ?? []
     if (setupInFlightOf(events)) return true
-    const logIds = logPendingMessageIdsOf(events)
+    const logIds = logPendingInputIdsOf(events)
     const workspace = workspaceStateFrom({
       record: cache?.bookkeeping().workspace() ?? NO_WORKSPACE_RECORD,
       preparing: false,
@@ -41,11 +41,16 @@ export const drainNeedsHolder = async (args: {
         ...logIds,
       ],
     })
-    const children = openChildrenOf(cache?.visibleLoopEvents() ?? [])
+    const children = spawnedChildrenOf(cache?.visibleLoopEvents() ?? [])
     const state = cache?.loopState() ?? initialLoopState()
     return drainWantsHolder({
       turn: args.turnRunning ? 'running' : 'idle',
-      childrenRunning: (await childrenAtWorkOf({ plane: args.deps.plane, children })) > 0,
+      childrenRunning:
+        (await childrenAtWorkOf({
+          plane: args.deps.plane,
+          sessionId: args.deps.sessionId,
+          children,
+        })) > 0,
       resumable: isResumableOf(state) && !stopSettledPromptOf(events),
       messagePending:
         actionableEntries({ entries, failure: workspace.failure }).length > 0 ||

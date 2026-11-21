@@ -58,10 +58,13 @@ const fakeClient = (
       removed.push(id)
     },
     sleep: async () => undefined,
+    start: async ({ id }) => ({ id, status: 'running' }),
     resize: async (body) => ({ id: body.id, status: 'running', url: '' }),
     exec: async () => ({ exit_code: 0, stdout: '', stderr: '', truncated: false }),
     probe: async () => ({ status: 200, body: '' }),
     signedUrl: async ({ id, port }) => `https://${id}-${port}.agent37.app/?a37_token=a37`,
+    usage: async () => ({ from: '', to: '' }),
+    events: async () => ({ from: '', to: '', events: [] }),
   }
   return { client, removed }
 }

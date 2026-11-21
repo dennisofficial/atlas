@@ -1,6 +1,6 @@
 import { effortRungOf, parseRef, type ModelChoice } from '@dltech/atlas-core'
 import type { SessionModelAsk } from '@dltech/atlas-models'
-import { ECredentialSource, ESandboxProvider } from '@dltech/atlas-protocol'
+import { DEFAULT_SANDBOX_PROVIDER, ECredentialSource } from '@dltech/atlas-protocol'
 
 import { EMPTY_VISIBILITY_TEXT } from './stored-event'
 import type { ControlSessionRow, ControlTx, SessionModelRow } from './port'
@@ -14,7 +14,6 @@ export const createSessionIn = async (params: {
   mainThreadId: string
   model?: SessionModelAsk | undefined
   sandboxProvider?: string | undefined
-  credentialSource?: string | undefined
   sandboxInstanceId?: string | null | undefined
   spawnedBySessionId?: string | undefined
   nested?: boolean | undefined
@@ -31,8 +30,8 @@ export const createSessionIn = async (params: {
   })
   await tx.createSession({
     ...session,
-    sandboxProvider: params.sandboxProvider ?? ESandboxProvider.Vercel,
-    credentialSource: params.credentialSource ?? ECredentialSource.Platform,
+    sandboxProvider: params.sandboxProvider ?? DEFAULT_SANDBOX_PROVIDER,
+    credentialSource: ECredentialSource.Platform,
     sandboxInstanceId: params.sandboxInstanceId ?? null,
     ...resolved,
   })
@@ -150,12 +149,18 @@ export const recordPodDesiredIn = async (params: {
   tx: ControlTx
   sessionId: string
   vcpus: number
+  memoryGb: number
 }): Promise<number> => {
   const { tx, sessionId } = params
   const session = await tx.lockSession(sessionId)
   if (session === undefined) throw new Error(`unknown session ${sessionId}`)
   const generation = session.podSizeGeneration + 1
-  await tx.setSessionPodDesired({ sessionId, vcpus: params.vcpus, generation })
+  await tx.setSessionPodDesired({
+    sessionId,
+    vcpus: params.vcpus,
+    memoryGb: params.memoryGb,
+    generation,
+  })
   await tx.announce({ sessionId })
   return generation
 }
@@ -164,11 +169,23 @@ export const recordPodAppliedIn = async (params: {
   tx: ControlTx
   sessionId: string
   vcpus: number
+  memoryGb: number
   generation: number
 }): Promise<boolean> => {
   const { tx, ...applied } = params
   const changed = await tx.setSessionPodApplied(applied)
   if (changed) await tx.announce({ sessionId: params.sessionId })
+  return changed
+}
+
+export const recordPodWaitingIn = async (params: {
+  tx: ControlTx
+  sessionId: string
+  generation: number
+  since: string | null
+}): Promise<boolean> => {
+  const changed = await params.tx.setSessionPodWaiting(params)
+  if (changed) await params.tx.announce({ sessionId: params.sessionId })
   return changed
 }
 

@@ -46,6 +46,7 @@ const sessionView = (params: {
     status: statusOf(params.state ?? ESessionStatus.Idle, params.live ?? true),
     context: null,
     spend: { rows: [], tally },
+    compute: { costUsd: null, running: false, tick: null },
     checkouts: { repos: [], primary: null },
     pullRequests: [
       {

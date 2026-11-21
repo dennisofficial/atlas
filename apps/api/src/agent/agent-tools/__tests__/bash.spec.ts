@@ -169,7 +169,7 @@ describe('BashTool', () => {
 
     expect(await outcome).toEqual({
       ok: false,
-      reason: 'the developer interrupted the turn while the command was running',
+      reason: 'the operator interrupted the turn while the command was running',
     })
   }, 15_000)
 })
@@ -263,7 +263,7 @@ describe('refusing to idle', () => {
     expect(outcome.ok).toBe(false)
     const reason = !outcome.ok ? outcome.reason : ''
     expect(reason).toContain('does nothing')
-    expect(reason).toContain('it waits by ending')
+    expect(reason).toContain('It waits by ending')
     expect(reason).toContain('runInBackground')
   }, 30_000)
 

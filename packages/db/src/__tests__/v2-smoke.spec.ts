@@ -35,6 +35,7 @@ const sessionRow = () => ({
   podActualVcpus: null,
   podAppliedGeneration: null,
   podResizeError: null,
+  podWaitingSince: null,
 })
 
 describe('v2 namespace client', () => {

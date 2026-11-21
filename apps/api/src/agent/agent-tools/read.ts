@@ -17,7 +17,7 @@ import {
 import { z } from 'zod'
 
 import { nullUnlessInterrupted } from './interrupted'
-import { filePathSchema, pathEnvironmentNote, resolveToolPath } from './file-text'
+import { filePathSchema, resolveToolPath } from './file-text'
 import { missingPathReason } from './missing-path'
 import { readFile } from './read-file'
 import { readImage } from './read-image'
@@ -40,15 +40,11 @@ const inputSchema = z.strictObject({
 })
 
 const description = [
-  'Read a file from the filesystem.',
-  'A relative path resolves against the project directory.',
-  pathEnvironmentNote,
-  'A PNG, JPEG, GIF or WebP file comes back as a picture you can look at, and which the operator may see rendered inline, provided it is small enough to send.',
-  'A PDF comes back as a file you can read natively, provided it is small enough to send.',
-  'Output is line-numbered, tab-separated, one line per file line.',
-  'Use offset to start at a given 1-based line and limit to cap how many lines come back.',
-  `At most ${DEFAULT_LINE_LIMIT} lines come back at a time and each line is clipped at ${MAX_LINE_CHARS} characters;`,
-  'when that happens the result says so and names the line to resume from.',
+  'Read a file from the filesystem. A relative path resolves against the project directory.',
+  'A PNG, JPEG, GIF or WebP file comes back as a picture you can look at when it is small enough to send. The operator may see the picture rendered inline.',
+  'A PDF comes back as a file you can read natively, when it is small enough to send.',
+  'Output is line-numbered and tab-separated, one output line per line of the file. Use offset to start at a given 1-based line, and limit to cap how many come back.',
+  `At most ${DEFAULT_LINE_LIMIT} lines come back at a time, each clipped at ${MAX_LINE_CHARS} characters. When that happens, the result says so and names the line to resume from.`,
   'Use grep to find what you need in a file too large to take in one read.',
 ].join(' ')
 
@@ -123,7 +119,7 @@ function scanLines(args: { content: string; firstLine: number; limit: number }):
 const utf8Decoder = new TextDecoder()
 
 const resumeAt = (nextLine: number): string =>
-  `Read on with offset ${nextLine}, or use grep to jump to what you need.`
+  `Choose one: read the next lines with offset ${nextLine}, or use grep to find what you need.`
 
 function noticeFor(args: { path: string; scan: Selection }): string | undefined {
   const { path, scan } = args
@@ -139,12 +135,12 @@ function noticeFor(args: { path: string; scan: Selection }): string | undefined 
   }
   if (scan.clipped === 1) {
     notes.push(
-      `1 line ran past ${MAX_LINE_CHARS} characters and was clipped, so ${path} is not shown in full.`,
+      `1 line ran past ${MAX_LINE_CHARS} characters and was clipped. ${path} is not shown in full.`,
     )
   }
   if (scan.clipped > 1) {
     notes.push(
-      `${scan.clipped} lines ran past ${MAX_LINE_CHARS} characters and were clipped, so ${path} is not shown in full.`,
+      `${scan.clipped} lines ran past ${MAX_LINE_CHARS} characters and were clipped. ${path} is not shown in full.`,
     )
   }
 
@@ -214,7 +210,7 @@ export class ReadTool extends SchemaTool<typeof inputSchema> {
     if (stats.isDirectory()) {
       return {
         ok: false,
-        reason: `${path} is a directory; use glob or grep to inspect its contents.`,
+        reason: `${path} is a directory. Use glob or grep to inspect its contents.`,
       }
     }
     if (!stats.isFile()) return { ok: false, reason: `${path} is not a regular file.` }
@@ -269,7 +265,7 @@ export class ReadTool extends SchemaTool<typeof inputSchema> {
         modelText:
           scan.totalLines === 0
             ? `${path} exists but is empty.`
-            : `${path} has ${scan.totalLines} lines; line ${firstLine} is past the end of the file.`,
+            : `${path} has ${scan.totalLines} lines. Line ${firstLine} is past the end of the file.`,
       }
     }
 

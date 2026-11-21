@@ -1,4 +1,4 @@
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock } from 'bun:test'
 import { EChangeFileStatus, type SessionChangesOutput } from '@dltech/atlas-protocol'
 import { act } from 'react'
@@ -60,13 +60,13 @@ const file = (overrides: Record<string, unknown> = {}) => ({
 const roots = new Set<Root>()
 
 beforeAll(() => {
-  GlobalRegistrator.register()
+  registerDom()
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
 })
 
 afterAll(async () => {
   globalThis.fetch = realFetch
-  await GlobalRegistrator.unregister()
+  await unregisterDom()
 })
 
 beforeEach(() => {

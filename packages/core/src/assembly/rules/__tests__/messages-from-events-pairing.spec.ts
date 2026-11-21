@@ -149,7 +149,7 @@ describe('messagesFromEvents pairing every call with a result', () => {
               toolName: 'write',
               output: {
                 type: 'error-text',
-                value: 'This tool call did not complete and produced no result.',
+                value: 'This tool call did not complete and returned no result.',
               },
             },
           ],
@@ -512,7 +512,7 @@ describe('messagesFromEvents pairing every call with a result', () => {
       toolCallId: 'call-0~2',
       output: {
         type: 'error-text',
-        value: 'This tool call did not complete and produced no result.',
+        value: 'This tool call did not complete and returned no result.',
       },
     })
     expect(exchangeFaults(assembled)).toEqual([])

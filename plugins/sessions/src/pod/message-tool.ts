@@ -16,8 +16,8 @@ const inputSchema = z.strictObject({
 })
 
 const description = [
-  'Message any session of the operator’s. Each session keeps its own conversation and its own',
-  'sandbox, and its answer arrives as a message from it; the spawn link grants nothing.',
+  'Message any session of the operator’s. Each session keeps its own transcript and its own',
+  'sandbox. Its answer arrives as a message from it. The spawn link grants nothing.',
 ].join(' ')
 
 export class MessageSessionTool extends SchemaTool<typeof inputSchema> {
@@ -25,6 +25,7 @@ export class MessageSessionTool extends SchemaTool<typeof inputSchema> {
   readonly description = description
   readonly effect = EToolEffect.Write
   readonly inputSchema = inputSchema
+  readonly deferred = true
   override readonly pathFields = TAKES_NO_PATHS
 
   constructor(private readonly ctx: PluginPodContext) {
@@ -38,7 +39,7 @@ export class MessageSessionTool extends SchemaTool<typeof inputSchema> {
       return {
         ok: true,
         output: { ok: true },
-        modelText: `Your message to session ${input.sessionId} is queued; it reads it at its next turn.`,
+        modelText: `Your message to session ${input.sessionId} is queued. The session reads it at its next turn.`,
       }
     } catch (error) {
       return sessionsRefusal(error)

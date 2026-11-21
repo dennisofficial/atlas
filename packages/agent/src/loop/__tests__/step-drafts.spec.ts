@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EFinishReason, toCallId, type ModelStepResult } from '@dltech/atlas-core'
+import {
+  EFinishReason,
+  toCallId,
+  type EventDraft,
+  type ModelCost,
+  type ModelStepResult,
+} from '@dltech/atlas-core'
 
 import { draftsFor, interruptedDrafts } from '../step-drafts'
 
@@ -102,5 +108,37 @@ describe('the step usage a draft carries', () => {
   it('survives an interrupted step', () => {
     const drafts = interruptedDrafts(stepOf({ toolCalls: [call] }))
     expect(drafts[0]).toMatchObject({ type: 'tool-called', usage })
+  })
+})
+
+const SONNET: ModelCost = { inputPerMillion: 3, outputPerMillion: 15 }
+
+const usageOf = (drafts: readonly EventDraft[]) => {
+  const [first] = drafts
+  if (first === undefined) return undefined
+  return first.type === 'assistant-said' || first.type === 'tool-called' ? first.usage : undefined
+}
+
+describe('the cost a draft states', () => {
+  it('prices the step from the rate the model carries', () => {
+    const drafts = draftsFor({
+      result: result({ toolCalls: [call] }),
+      model: { traits: () => ({ cost: SONNET }) },
+    })
+
+    expect(usageOf(drafts)?.costUsd).toBeCloseTo(0.12 + 0.018)
+  })
+
+  it('leaves the cost off when the model publishes no rate', () => {
+    const drafts = draftsFor({
+      result: result({ toolCalls: [call] }),
+      model: { traits: () => ({ contextWindow: WINDOW }) },
+    })
+
+    expect(usageOf(drafts)).not.toHaveProperty('costUsd')
+  })
+
+  it('leaves the cost off when no model is known', () => {
+    expect(usageOf(draftsFor(stepOf({ toolCalls: [call] })))).not.toHaveProperty('costUsd')
   })
 })

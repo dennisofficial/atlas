@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { CredentialsUnavailableError } from '../config/agent-host-credential-port'
 import { SessionNotFoundError } from '../config/config-reader'
+import { BYOK_RETIRED_GAP } from '../runtime/sandbox-not-configured-error'
 import { SandboxNotConfiguredError } from '../runtime/session-runtime-factory'
 import { startFailureReason } from '../start-failure-reason'
 
@@ -9,6 +10,12 @@ describe('startFailureReason', () => {
   it('tells the user what to do about a missing sandbox connection', () => {
     expect(startFailureReason(new SandboxNotConfiguredError('user-credential'))).toBe(
       'This project has no sandbox connection. Connect Vercel in Settings, then retry.',
+    )
+  })
+
+  it('tells the user a session on a retired own Vercel key needs a new session', () => {
+    expect(startFailureReason(new SandboxNotConfiguredError(BYOK_RETIRED_GAP))).toBe(
+      "This session ran on your own Vercel key, which Atlas no longer supports. Start a new session to continue on Atlas's sandboxes.",
     )
   })
 

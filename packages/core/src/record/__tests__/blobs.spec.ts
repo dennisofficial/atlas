@@ -73,6 +73,24 @@ describe('spillBody', () => {
     ])
   })
 
+  it('spills a resource snapshot value', () => {
+    const value = { payload: 'x'.repeat(4000) }
+    const body: V2Body = {
+      type: 'resource-loaded',
+      resource: 'mcp',
+      fingerprint: 'instance-1:3:v1:/work',
+      value,
+    }
+    const spilled = spillBody({ body, thresholdBytes })
+    expect(blobRefsOf(spilled.body)).toEqual([expect.objectContaining({ field: 'value' })])
+    const blob = spilled.blobs[0]
+    if (blob === undefined) throw new Error('expected a spill')
+    const values = new Map<string, unknown>([[blob.hash, blobValueOf(blob.bytes)]])
+    const resolved = resolveBody({ body: spilled.body, values })
+    if (resolved.type !== 'resource-loaded') throw new Error('type drifted')
+    expect(canonicalJson(resolved.value)).toBe(canonicalJson(value))
+  })
+
   it('hashes the canonical JSON, so key order does not matter', () => {
     const left = spillBody({
       body: toolResult({ a: 'p'.repeat(500), b: 2 }),

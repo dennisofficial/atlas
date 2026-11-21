@@ -43,6 +43,7 @@ type ProbeArgs = {
   path?: string
   method?: 'GET' | 'POST'
   authorization?: string
+  body?: string
 }
 
 const clientOf = (args: {
@@ -57,6 +58,7 @@ const clientOf = (args: {
     list: async () => ({ data: [] }),
     remove: async () => undefined,
     sleep: async () => undefined,
+    start: async ({ id }) => ({ id, status: 'running' }),
     resize: async ({ id }) => ({ ...INSTANCE, id }),
     exec: async (body) => {
       execs.push(body)
@@ -66,7 +68,9 @@ const clientOf = (args: {
       probes.push(probe)
       return args.versions(probe)
     },
-    signedUrl: async () => 'https://inst-1-3000.agent37.app/?a37_token=t',
+    signedUrl: async () => 'https://inst-1-47300.agent37.app/?a37_token=t',
+    usage: async () => ({ from: '', to: '' }),
+    events: async () => ({ from: '', to: '', events: [] }),
   }
   return { client, execs, probes }
 }
@@ -117,12 +121,12 @@ describe('waitForAgent37Daemon', () => {
       await waitForAgent37Daemon({
         client,
         instanceId: 'inst-1',
-        version: bundle.version,
+        want: { version: bundle.version, url: 'https://api/agent/daemon/bundle' },
         token: 'daemon-token',
         budgetMs: 10_000,
       })
       expect(execs).toHaveLength(0)
-      expect(probes).toEqual([{ id: 'inst-1', port: 3000, path: '/version' }])
+      expect(probes).toEqual([{ id: 'inst-1', port: 47300, path: '/version' }])
     } finally {
       bundle.cleanup()
     }
@@ -146,17 +150,21 @@ describe('waitForAgent37Daemon', () => {
       await waitForAgent37Daemon({
         client,
         instanceId: 'inst-1',
-        version: bundle.version,
+        want: { version: bundle.version, url: 'https://api/agent/daemon/bundle' },
         token: 'daemon-token',
         budgetMs: 10_000,
       })
       expect(execs).toHaveLength(0)
       expect(probes[1]).toEqual({
         id: 'inst-1',
-        port: 3000,
+        port: 47300,
         path: '/restart',
         method: 'POST',
         authorization: 'Bearer daemon-token',
+        body: JSON.stringify({
+          bundleUrl: 'https://api/agent/daemon/bundle',
+          bundleVersion: bundle.version,
+        }),
       })
     } finally {
       bundle.cleanup()
@@ -169,7 +177,7 @@ describe('waitForAgent37Daemon', () => {
       waitForAgent37Daemon({
         client,
         instanceId: 'inst-1',
-        version: 'expected',
+        want: { version: 'expected', url: 'https://api/agent/daemon/bundle' },
         token: 'daemon-token',
         budgetMs: 250,
       }),

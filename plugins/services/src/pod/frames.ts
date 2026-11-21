@@ -61,7 +61,7 @@ export const recordServiceFrame = async (args: {
       stoppedByModel: state.stopping.has(serviceId),
     })
     const tail = await tailOf({ ctx, serviceId })
-    await ctx.append([
+    await ctx.notify(
       {
         type: 'service-ended',
         serviceId,
@@ -73,7 +73,8 @@ export const recordServiceFrame = async (args: {
         tail,
         ...(state.restarting.has(serviceId) ? { restarting: true as const } : {}),
       },
-    ])
+      { key: `service-ended:${serviceId}` },
+    )
     if (!state.restarting.has(serviceId)) {
       const row = servicesOfEvents(ctx.events()).find((kept) => kept.serviceId === serviceId)
       await stopPreview({ ctx, port: row?.port })

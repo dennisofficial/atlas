@@ -77,8 +77,8 @@ describe('handing a finished background shell to the model', () => {
       }),
     )
 
-    expect(block).toContain('was killed by the user')
-    expect(block).toContain('do not restart it')
+    expect(block).toContain('was killed by the operator')
+    expect(block).toContain('Do not restart it')
   })
 
   it('tells the model when the kill was its own, so it does not read it as interference', () => {
@@ -91,7 +91,7 @@ describe('handing a finished background shell to the model', () => {
     )
 
     expect(block).toContain('was killed at your request')
-    expect(block).not.toContain('do not restart it')
+    expect(block).not.toContain('Do not restart it')
   })
 
   it('names a failing exit code', () => {
@@ -246,7 +246,7 @@ describe('checking in on a background shell that has not ended', () => {
 
     expect(block).toContain('has not ended')
     expect(block).toContain('scheduled check-in, not an ending')
-    expect(block).toContain('when it ends you will be told')
+    expect(block).toContain('When it ends you will be told')
   })
 
   it('shows a chatty shell its own latest output, so a stuck poll loop is visible', () => {
@@ -263,12 +263,12 @@ describe('checking in on a background shell that has not ended', () => {
     expect(block).not.toContain('most recent output')
   })
 
-  it('names the three ways out, including service_start for something meant to stay up', () => {
+  it('names the three ways out, including the service tool for something meant to stay up', () => {
     const block = backgroundShellStillRunningBlock(stillRunning())
 
     expect(block).toContain('shell_output({ shellId: "bash_27" })')
     expect(block).toContain('shell_kill({ shellId: "bash_27" })')
-    expect(block).toContain('service_start')
+    expect(block).toContain('`service` action `start`')
     expect(block).toContain('do nothing')
   })
 

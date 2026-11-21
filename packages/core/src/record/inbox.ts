@@ -1,6 +1,8 @@
+import type { ThreadId } from '../events/ids'
+
 export const INBOX_KIND_STOP = 'stop'
 export const INBOX_KIND_RETRY = 'retry'
-export const INBOX_KIND_AGENT_NOTICE = 'agent-notice'
+export const INBOX_KIND_RECORD = 'record'
 
 export type InboxEntry = {
   sessionId: string
@@ -9,6 +11,7 @@ export type InboxEntry = {
   payload: string
   postedAt: string
   consumedSeq: number | null
+  threadId: ThreadId | null
   senderSessionId: string | null
 }
 

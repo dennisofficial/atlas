@@ -1,3 +1,4 @@
+import type { PodShape } from '@dltech/atlas-core'
 import { ESandboxProvider } from '@dltech/atlas-protocol'
 
 export type SandboxCredentials =
@@ -30,7 +31,7 @@ export abstract class SandboxProvider {
   }): Promise<DaemonEndpoint>
   abstract stop(args: { target: SandboxTarget }): Promise<void>
   abstract keepAlive(args: { target: SandboxTarget; until: number }): Promise<void>
-  abstract resize(args: { target: SandboxTarget; vcpus: number }): Promise<PodResizeOutcome>
+  abstract resize(args: { target: SandboxTarget; shape: PodShape }): Promise<PodResizeOutcome>
   /**
    * Idempotent: a sandbox that is already gone is success, and a running one is left untouched —
    * only stopped storage is deleted, so a pod that came alive is never deleted under its user.
@@ -38,4 +39,13 @@ export abstract class SandboxProvider {
   abstract delete(args: { target: SandboxTarget }): Promise<void>
   /** Every pod sandbox this provider created for the credentials, all pages of them. */
   abstract list(args: { credentials: SandboxCredentials }): Promise<readonly SandboxListing[]>
+  async activeCpuMs(_args: { target: SandboxTarget }): Promise<number | undefined> {
+    return undefined
+  }
+  async instanceIdOf(_args: { target: SandboxTarget }): Promise<string | undefined> {
+    return undefined
+  }
+  podDiskGb(): number | undefined {
+    return undefined
+  }
 }

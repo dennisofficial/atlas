@@ -1,4 +1,4 @@
-import type { Hash, InboxEntry, Lease } from '@dltech/atlas-core'
+import { type Hash, type InboxEntry, type Lease, toThreadId } from '@dltech/atlas-core'
 
 import type {
   ControlSessionRow,
@@ -34,8 +34,13 @@ export const toInbox = (row: {
   payload: string
   postedAt: Date
   consumedSeq: number | null
+  threadId: string | null
   senderSessionId: string | null
-}): InboxEntry => ({ ...row, postedAt: iso(row.postedAt) })
+}): InboxEntry => ({
+  ...row,
+  postedAt: iso(row.postedAt),
+  threadId: row.threadId === null ? null : toThreadId(row.threadId),
+})
 
 export const toSessionRow = (row: {
   id: string
@@ -58,10 +63,13 @@ export const toSessionRow = (row: {
   nested: boolean
   podSessionId: string | null
   podDesiredVcpus: number | null
+  podDesiredMemoryGb: number | null
   podSizeGeneration: number
   podActualVcpus: number | null
+  podActualMemoryGb: number | null
   podAppliedGeneration: number | null
   podResizeError: string | null
+  podWaitingSince: Date | null
   routineId: string | null
 }): ControlSessionRow => ({
   sessionId: row.id,
@@ -84,10 +92,13 @@ export const toSessionRow = (row: {
   nested: row.nested,
   podSessionId: row.podSessionId,
   podDesiredVcpus: row.podDesiredVcpus,
+  podDesiredMemoryGb: row.podDesiredMemoryGb,
   podSizeGeneration: row.podSizeGeneration,
   podActualVcpus: row.podActualVcpus,
+  podActualMemoryGb: row.podActualMemoryGb,
   podAppliedGeneration: row.podAppliedGeneration,
   podResizeError: row.podResizeError,
+  podWaitingSince: row.podWaitingSince === null ? null : iso(row.podWaitingSince),
   routineId: row.routineId,
 })
 

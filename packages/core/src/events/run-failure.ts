@@ -19,6 +19,7 @@ export enum ERunFailureKind {
   ToolSettlement = 'tool-settlement',
   FinishFault = 'finish-fault',
   AgentFailed = 'agent-failed',
+  Lost = 'lost',
   Crashed = 'crashed',
   Other = 'other',
 }
@@ -130,6 +131,7 @@ export function remediesOf(kind: ERunFailureKind): readonly ERunRemedy[] {
     case ERunFailureKind.RequestTooLarge:
       return [ERunRemedy.Compact, ERunRemedy.Retry]
     case ERunFailureKind.AgentFailed:
+    case ERunFailureKind.Lost:
       return [ERunRemedy.OpenAgent]
     case ERunFailureKind.Network:
     case ERunFailureKind.Stalled:

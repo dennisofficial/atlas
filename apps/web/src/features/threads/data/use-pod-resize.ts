@@ -6,9 +6,9 @@ export function usePodResize(args: { threadId: string; refresh: () => void }) {
   const { threadId, refresh } = args
   const { resize } = useThreadBackend()
   return useCallback(
-    async (vcpus: number) => {
+    async (request: { vcpus: number }) => {
       try {
-        await resize({ threadId, vcpus })
+        await resize({ threadId, vcpus: request.vcpus })
       } finally {
         refresh()
       }

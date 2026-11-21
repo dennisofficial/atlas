@@ -5,7 +5,7 @@ import {
   DETAIL_CAP,
   GithubUserReadFailed,
   GITHUB_REQUEST_TIMEOUT_MS,
-  githubApiBaseUrlOf,
+  GITHUB_API,
   githubHeadersOf,
   githubJsonGet,
 } from './github-user-http'
@@ -40,12 +40,10 @@ export interface HookConfig {
 
 /**
  * Every GitHub read in the realtime flow uses whichever token its caller passes: a user's OAuth
- * token, or the GitHub App installation token for a repo the app covers. Injectable so the base
- * URL is test-overridable.
+ * token, or the GitHub App installation token for a repo the app covers.
  */
 @Injectable()
 export class GithubUserReads {
-  private readonly baseUrl = githubApiBaseUrlOf()
   private readonly requiredChecks = new GithubRequiredChecksRead()
 
   readCheckAnnotations(args: {
@@ -156,7 +154,7 @@ export class GithubUserReads {
   }): Promise<CreateHookResult> {
     const response = await githubFetch({
       source: args.source,
-      url: `${this.baseUrl}/repos/${args.owner}/${args.repo}/hooks`,
+      url: `${GITHUB_API}/repos/${args.owner}/${args.repo}/hooks`,
       init: {
         method: 'POST',
         headers: githubHeadersOf({ token: args.token }),
@@ -196,7 +194,7 @@ export class GithubUserReads {
   }): Promise<'found' | 'missing' | 'unauthorized'> {
     const response = await githubFetch({
       source: args.source,
-      url: `${this.baseUrl}/repos/${args.owner}/${args.repo}/hooks/${args.hookId}`,
+      url: `${GITHUB_API}/repos/${args.owner}/${args.repo}/hooks/${args.hookId}`,
       init: {
         headers: githubHeadersOf({ token: args.token }),
         signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
@@ -237,7 +235,7 @@ export class GithubUserReads {
   }): Promise<void> {
     const response = await githubFetch({
       source: args.source,
-      url: `${this.baseUrl}/repos/${args.owner}/${args.repo}/hooks/${args.hookId}`,
+      url: `${GITHUB_API}/repos/${args.owner}/${args.repo}/hooks/${args.hookId}`,
       init: {
         method: 'PATCH',
         headers: githubHeadersOf({ token: args.token }),
@@ -263,7 +261,7 @@ export class GithubUserReads {
   }): Promise<'deleted' | 'unauthorized'> {
     const response = await githubFetch({
       source: args.source,
-      url: `${this.baseUrl}/repos/${args.owner}/${args.repo}/hooks/${args.hookId}`,
+      url: `${GITHUB_API}/repos/${args.owner}/${args.repo}/hooks/${args.hookId}`,
       init: {
         method: 'DELETE',
         headers: githubHeadersOf({ token: args.token }),
@@ -295,6 +293,6 @@ export class GithubUserReads {
   }
 
   private get<T>(args: { source: EGithubCallSource; token: string; path: string }): Promise<T> {
-    return githubJsonGet({ baseUrl: this.baseUrl, ...args })
+    return githubJsonGet(args)
   }
 }

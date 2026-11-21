@@ -1,10 +1,12 @@
 import {
   ESetupPhase,
   EWorkspaceStep,
-  EWorkspaceStepState,
+  INBOX_KIND_EVENT,
+  inboxEventPayloadOf,
   setupFinishedText,
   setupStartedText,
   setupInFlightOf,
+  withoutRepeatedContext,
   workspaceStepsOf,
   type EventDraft,
   type RunId,
@@ -15,14 +17,20 @@ import { logFieldsOf } from '@dltech/atlas-observability'
 import { setupOutputCallId } from '@dltech/atlas-protocol'
 
 import { baseFactDraftsOf } from './held-prepare-bases'
+import {
+  appendAttemptStarted,
+  appendSetupStep,
+  attemptFieldOf,
+  elapsedMsOf,
+  prepareAttemptOf,
+  stoppedSetupDraftsOf,
+} from './prepare-attempt'
 import type { HeldSessionDeps } from './held-session-deps'
 import { fireLive, type PrepareResult, type SessionRuntime, type SetupLifecycle } from './ports'
 import { bootDraftOf, setupNoticesOf } from './prepare-notices'
 import type { AppendBody } from './record/append-drafts'
 import type { SessionRecord } from './record/record-adapter'
 import { setupWarningText } from './setup-warning'
-
-const SETUP_STOPPED_REASON = 'setup was stopped with the session'
 
 const appendFailureReporter =
   (deps: HeldSessionDeps, verb: string) =>
@@ -38,6 +46,7 @@ export class HeldPrepare {
   private setupRunning = false
   private resuming = false
   private joined = false
+  private attempt: number | undefined
   private script: string | undefined
   private setupStartedAt = 0
   private startedText: string | undefined
@@ -80,13 +89,25 @@ export class HeldPrepare {
     const setup = workspaceStepsOf(recorded)[EWorkspaceStep.Setup]
     this.resuming = setupInFlightOf(recorded)
     this.joined = this.resuming
+    this.attempt = prepareAttemptOf({ events: recorded, resuming: this.resuming })
     this.script = setup?.command
     this.setupStartedAt = setup === undefined ? 0 : Date.parse(setup.at)
     this.setupRunning = this.resuming
     const { deps } = this.args
     const runId: RunId = deps.ids.nextRunId()
     let failed = false
-    this.steps = Promise.resolve()
+    this.steps =
+      this.attempt === undefined || this.resuming
+        ? Promise.resolve()
+        : appendAttemptStarted({
+            record: args.record,
+            threadId: args.threadId,
+            runId,
+            attempt: this.attempt,
+            abandoned: () => this.args.abandoned(),
+          }).catch(
+            appendFailureReporter(this.args.deps, 'recording the start of a prepare attempt'),
+          )
     const onStep = (step: WorkspaceStepReport): void => {
       this.steps = this.steps.then(() => this.recordStep({ ...args, runId, step }))
     }
@@ -164,34 +185,17 @@ export class HeldPrepare {
       .append({
         threadId: target.threadId,
         runId: this.args.deps.ids.nextRunId(),
-        drafts: [
-          {
-            type: 'workspace-step',
-            step: EWorkspaceStep.Setup,
-            state: EWorkspaceStepState.Failed,
-            reason: SETUP_STOPPED_REASON,
-            ...(script === '' ? {} : { command: script }),
-          },
-          {
-            type: 'sandbox-setup-reported',
-            text: setupFinishedText({
-              script,
-              ok: false,
-              durationMs: this.elapsedMs(),
-              output: '',
-            }),
-            failed: true,
-            phase: ESetupPhase.Finished,
-          },
-        ],
+        drafts: stoppedSetupDraftsOf({
+          script,
+          attempt: this.attempt,
+          durationMs: this.elapsedMs(),
+        }),
       })
       .catch(appendFailureReporter(this.args.deps, 'recording the stop of the setup'))
   }
 
   private elapsedMs(): number {
-    // with no recorded start, now - 0 would report the whole Unix epoch as the duration
-    if (this.setupStartedAt === 0) return 0
-    return Math.max(0, this.args.deps.timers.now() - this.setupStartedAt)
+    return elapsedMsOf({ startedAt: this.setupStartedAt, nowMs: this.args.deps.timers.now() })
   }
 
   private async flushSetupEnd(): Promise<void> {
@@ -201,18 +205,19 @@ export class HeldPrepare {
     await this.steps
     // a replayed lifecycle, or an end an earlier host already recorded, is reported once
     if (!this.args.abandoned() && !setupNoticesOf(target.record).has(ESetupPhase.Finished)) {
-      await target.record
-        .append({
-          threadId: target.threadId,
-          runId: this.args.deps.ids.nextRunId(),
-          drafts: [
-            {
+      await this.args.deps.plane
+        .post({
+          sessionId: this.args.deps.sessionId,
+          kind: INBOX_KIND_EVENT,
+          payload: inboxEventPayloadOf({
+            event: {
               type: 'sandbox-setup-reported',
               text: finished.text,
               failed: finished.failed,
               phase: ESetupPhase.Finished,
             },
-          ],
+            clientId: `sandbox-setup-finished:${this.args.deps.sessionId}`,
+          }),
         })
         .catch(appendFailureReporter(this.args.deps, 'recording the end of the setup'))
     }
@@ -226,14 +231,11 @@ export class HeldPrepare {
     runId: RunId
     step: WorkspaceStepReport
   }): Promise<void> {
-    if (this.args.abandoned()) return
-    await args.record
-      .append({
-        threadId: args.threadId,
-        runId: args.runId,
-        drafts: [{ type: 'workspace-step', ...args.step }],
-      })
-      .catch(appendFailureReporter(this.args.deps, 'recording a prepare step'))
+    await appendSetupStep({
+      ...args,
+      attempt: this.attempt,
+      abandoned: () => this.args.abandoned(),
+    }).catch(appendFailureReporter(this.args.deps, 'recording a prepare step'))
   }
 
   private async record(args: {
@@ -251,13 +253,21 @@ export class HeldPrepare {
         threadId: args.threadId,
         runId,
         drafts: [
-          { type: 'workspace-prepare-failed', reason: result.reason, inboxHead: args.inboxHead },
+          {
+            type: 'workspace-prepare-failed',
+            reason: result.reason,
+            inboxHead: args.inboxHead,
+            ...attemptFieldOf(this.attempt),
+          },
         ],
       })
       return
     }
     const warnings = result.warnings ?? []
-    const notices = (result.notices ?? []).map(bootDraftOf)
+    const notices = withoutRepeatedContext({
+      events: await args.record.composedEvents({ threadId: args.threadId }),
+      drafts: (result.notices ?? []).map(bootDraftOf),
+    })
     const drafts: AppendBody[] = [...started, ...baseFactDraftsOf(result.bases), ...notices]
     if (warnings.length > 0) {
       drafts.push({

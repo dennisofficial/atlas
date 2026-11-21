@@ -1,6 +1,14 @@
-import { EAgentStatus, ESessionStatus, type PlanTask, type SpendTally } from '@dltech/atlas-core'
+import {
+  EAgentStatus,
+  ESessionStatus,
+  ESubscriptionActor,
+  ESubscriptionStatus,
+  ESubscriptionTone,
+  type PlanTask,
+  type SpendTally,
+} from '@dltech/atlas-core'
 import type { CrewRow } from '@dltech/atlas-plugin-crew/client'
-import type { SubscribedPullRequest } from '@dltech/atlas-plugin-github/client'
+import type { SubscribedPullRequest, SubscriptionListRow } from '@dltech/atlas-plugin-github/client'
 import type { PreviewItem } from '@dltech/atlas-plugin-services/client'
 import type { SessionStatusOutput, SessionViewOutput } from '@dltech/atlas-protocol'
 
@@ -47,6 +55,25 @@ export const subscriptionFixture: SubscribedPullRequest = {
   url: 'https://github.com/owner/atlas/pull/7',
 }
 
+export const subscriptionRowFixture = (
+  overrides: Partial<SubscriptionListRow> = {},
+): SubscriptionListRow => ({
+  id: 'sub_7',
+  provider: 'github.pull-request',
+  status: ESubscriptionStatus.Active,
+  createdBy: ESubscriptionActor.Agent,
+  threadId: 't1',
+  number: 7,
+  held: 0,
+  presentation: {
+    icon: 'git-pull-request',
+    tone: ESubscriptionTone.Open,
+    title: '#7 Add the session pane',
+    meta: ['Pull request', 'all events'],
+  },
+  ...overrides,
+})
+
 export const previewFixture: PreviewItem = {
   serviceId: 'svc-web',
   label: 'web',
@@ -69,6 +96,7 @@ export const viewModelFixture = (overrides: Partial<SessionViewModel> = {}): Ses
   branch: undefined,
   entries: [],
   subscriptions: [],
+  subscriptionRows: [],
   shells: { running: 0, awaitingInput: false, labels: [], rows: [] },
   crew: { running: 0, total: 0 },
   crewRows: [],
@@ -76,6 +104,7 @@ export const viewModelFixture = (overrides: Partial<SessionViewModel> = {}): Ses
   plan: [],
   context: null,
   spend: null,
+  compute: { costUsd: null, running: false, tick: null },
   ...overrides,
 })
 
@@ -104,6 +133,7 @@ export const populatedPaneValue = (): SessionPaneValue =>
       branch: 'dennis/v2-session-pane',
       entries: [pullRequestFixture],
       subscriptions: [subscriptionFixture],
+      subscriptionRows: [subscriptionRowFixture()],
       shells: {
         running: 1,
         awaitingInput: false,

@@ -1,4 +1,4 @@
-import { toThreadId } from '@dltech/atlas-core'
+import { toThreadId, type V2Event } from '@dltech/atlas-core'
 import {
   type MemoryKind,
   type MemoryScope,
@@ -10,6 +10,8 @@ import {
   EMPTY_ROUTINES,
   EMPTY_SESSIONS,
   EMPTY_WORKTREES,
+  EMPTY_POD_RESOURCES,
+  UNVERSIONED_SETTINGS,
 } from '@dltech/atlas-plugin-sdk'
 
 import { memoryPod } from '..'
@@ -88,8 +90,10 @@ export const fakeMemory = (args: { project?: string | null } = {}) => {
 }
 
 export const rig = (memory: PodMemory = fakeMemory().port) => {
+  const log: V2Event[] = []
   const ctx: PluginPodContext = {
     sessionId: 's1',
+    resources: EMPTY_POD_RESOURCES,
     crew: EMPTY_CREW,
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
@@ -97,13 +101,19 @@ export const rig = (memory: PodMemory = fakeMemory().port) => {
       mcp: EMPTY_MCP_CONTROL,
       webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
       routines: EMPTY_ROUTINES,
+      settingsVersions: async () => UNVERSIONED_SETTINGS,
       exposePort: async () => {
         throw new Error('this rig exposes no port')
       },
       memory,
     },
-    append: async () => undefined,
-    events: () => [],
+    append: async (drafts) => {
+      for (const body of drafts) {
+        log.push({ ...body, id: `e${log.length + 1}`, seq: log.length + 1 } as unknown as V2Event)
+      }
+    },
+    notify: async () => undefined,
+    events: () => log,
     call: async () => {
       throw new Error('this rig calls no daemon')
     },
@@ -111,7 +121,7 @@ export const rig = (memory: PodMemory = fakeMemory().port) => {
     onDaemonEvent: () => () => undefined,
     log: () => undefined,
   }
-  return { ctx }
+  return { ctx, log }
 }
 
 export const invoke = async (args: { ctx: PluginPodContext; name: string; input: unknown }) => {

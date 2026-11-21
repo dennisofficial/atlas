@@ -20,7 +20,7 @@ const steps = (states: EBootStepState[]): SandboxBootStep[] =>
     detail: state === EBootStepState.Error ? CLONE_ERROR : `detail ${index}`,
   }))
 
-const { Pending, Running, Done, Error } = EBootStepState
+const { Pending, Running, Done, Error, Interrupted } = EBootStepState
 
 const render = (props: Partial<SandboxBootProps> = {}) =>
   renderToStaticMarkup(
@@ -38,6 +38,7 @@ describe('sandboxBootTitle', () => {
     expect(sandboxBootTitle(Done)).toBe('Sandbox ready')
     expect(sandboxBootTitle(Error)).toBe('Sandbox failed to start')
     expect(sandboxBootTitle(Pending)).toBe('Waiting for sandbox')
+    expect(sandboxBootTitle(Interrupted)).toBe('Setup restarted · running again')
   })
 })
 
@@ -120,6 +121,27 @@ describe('SandboxBoot', () => {
 
     expect(html).toContain('data-slot="sandbox-boot-error"')
     expect(html).toContain('daemon did not answer')
+  })
+
+  it('renders an interrupted setup as running, without a failure title or Retry', () => {
+    const html = render({
+      steps: [
+        {
+          id: 'setup',
+          label: 'Setup restarted · running again',
+          state: Interrupted,
+          command: 'bun install',
+        },
+      ],
+      state: Interrupted,
+      onRetry: () => {},
+    })
+
+    expect(html).toContain('Setup restarted · running again')
+    expect(html).toContain('data-status="running"')
+    expect(html).not.toContain('Sandbox failed to start')
+    expect(html).not.toContain('sandbox-boot-error')
+    expect(html).not.toContain('Retry')
   })
 
   it('shows Retry only on error and only with onRetry', () => {

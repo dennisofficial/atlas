@@ -1,8 +1,10 @@
-import type { InboxEntry, Lease } from '@dltech/atlas-core'
+import type { InboxEntry, Lease, ThreadId } from '@dltech/atlas-core'
 import type { SessionChange } from '@dltech/atlas-protocol'
 
 import {
   type AdvanceRoutineParams,
+  type AppendCommit,
+  type AppendOpening,
   type BlobRefWrite,
   type BlobRow,
   type BlobWrite,
@@ -53,6 +55,7 @@ import {
   readChangesIn,
   upsertChangesIn,
 } from './memory-changes'
+import { commitAppendIn, openAppendIn } from './memory-append'
 import { insertEventsIn, readEventsIn } from './memory-events'
 import { claimNeedingIn } from './memory-claim-next'
 import { leasesHeldByIn, writeLeaseIn } from './memory-leases'
@@ -70,6 +73,7 @@ import {
   setSessionPodAppliedIn,
   setSessionPodDesiredIn,
   setSessionPodFailedIn,
+  setSessionPodWaitingIn,
   setSessionReadSeqIn,
   setSessionTitleIfUntitledIn,
   setSessionTitleIn,
@@ -145,6 +149,10 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
     return setSessionPodFailedIn({ state: this.state, ...params })
   }
 
+  async setSessionPodWaiting(params: Parameters<ControlTx['setSessionPodWaiting']>[0]) {
+    return setSessionPodWaitingIn({ state: this.state, ...params })
+  }
+
   async setSessionArchived(params: { sessionId: string; archivedAt: string | null }) {
     return setSessionArchivedIn({ state: this.state, ...params })
   }
@@ -190,6 +198,14 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
   }
 
   async useSnapshot(): Promise<void> {}
+
+  async openAppend(threadId: string): Promise<AppendOpening | undefined> {
+    return openAppendIn({ state: this.state, threadId })
+  }
+
+  async commitAppend(params: AppendCommit): Promise<boolean> {
+    return commitAppendIn({ state: this.state, pending: this.pending, ...params })
+  }
 
   async lockThread(threadId: string): Promise<ThreadRow | undefined> {
     return this.readThread(threadId)
@@ -358,11 +374,16 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
     afterId: number
     limit: number
     excludeKind?: string | undefined
+    forThread: ThreadId | null
   }) {
     return readInboxEntriesIn({ state: this.state, ...params })
   }
 
-  async recentInboxEntries(params: { sessionId: string; limit: number }) {
+  async recentInboxEntries(params: {
+    sessionId: string
+    limit: number
+    forThread: ThreadId | null
+  }) {
     return recentInboxEntriesIn({ state: this.state, ...params })
   }
 

@@ -3,7 +3,7 @@ import type { AssembledMessage } from '../assembled'
 import { defineRule, type Rule } from '../rule'
 
 export const OMITTED_HISTORY =
-  'Earlier turns of this conversation are not part of this context. The exchange below picks up partway through.'
+  'Earlier turns of this session are not part of this context. The turns below begin partway through.'
 
 const omittedMessage = (first: AssembledMessage): AssembledMessage => ({
   message: {

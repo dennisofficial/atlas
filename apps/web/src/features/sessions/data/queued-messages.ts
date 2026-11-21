@@ -1,16 +1,19 @@
 import {
   EAttachmentStore,
   pendingMessagesOf,
+  pendingNoticesOf,
   type Attachment,
   type PendingInput,
   type PendingInputsState,
 } from '@dltech/atlas-core'
 import type { StagedInput } from '@dltech/atlas-client/stream'
+import { queuedNoticeLineOf } from '@dltech/atlas-client/transcript'
 import {
   EQueuedAttachmentKind,
   type QueuedAttachment,
   type QueuedMessageEntry,
 } from '@dltech/atlas-ui/ai/queued-messages'
+import type { QueuedNotice } from '@dltech/atlas-ui/ai/queued-notices'
 
 const NO_URLS: ReadonlyMap<string, string> = new Map()
 
@@ -81,6 +84,12 @@ export const visibleQueuedOf = (args: {
       urls: args.urls ?? NO_URLS,
     }),
   )
+
+export const queuedNoticesOf = (pending: PendingInputsState): QueuedNotice[] =>
+  pendingNoticesOf(pending).flatMap((input) => {
+    const line = input.event === undefined ? undefined : queuedNoticeLineOf(input.event)
+    return line === undefined ? [] : [{ id: String(input.inboxId), ...line }]
+  })
 
 export const stagedQueuedOf = (args: {
   staged: readonly StagedMessage[]

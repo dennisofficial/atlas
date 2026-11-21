@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it, setSystemTime } from 'bun:test'
 
 import type { RoutineRow } from '../src/routine-rows'
 import type { RoutinePatch } from '../src/routine-crud'
@@ -94,6 +94,9 @@ const input = {
 }
 
 describe('routineCreateOf', () => {
+  beforeEach(() => setSystemTime(new Date('2026-11-19T10:00:00.000Z')))
+  afterEach(() => setSystemTime())
+
   it('builds the row with its next run in the routine timezone', async () => {
     const { plane, routines } = fakePlane()
     const routine = await routineCreateOf({ plane, userId: 'u1', input })
@@ -129,6 +132,8 @@ describe('routineCreateOf', () => {
 })
 
 describe('routine scoping', () => {
+  afterEach(() => setSystemTime())
+
   it('lists only the routines of the project asked for', async () => {
     const { plane } = fakePlane([rowOf(), rowOf({ routineId: 'r2', projectId: 'p2' })])
     const listed = await routineListOf({ plane, userId: 'u1', projectId: 'p1' })
@@ -176,6 +181,7 @@ describe('routine scoping', () => {
   })
 
   it('recomputes the next run when a routine is re-enabled', async () => {
+    setSystemTime(new Date('2026-11-21T10:00:00.000Z'))
     const { plane } = fakePlane([rowOf({ enabled: false })])
     const routine = await routineUpdateOf({
       plane,
@@ -183,7 +189,7 @@ describe('routine scoping', () => {
       input: { routineId: 'r1', enabled: true },
     })
     expect(routine.enabled).toBe(true)
-    expect(routine.nextRunAt > '2026-11-19T00:00:00.000Z').toBe(true)
+    expect(routine.nextRunAt).toBe('2026-11-23T09:00:00.000Z')
   })
 
   it('removes nothing when the routine belongs to another project', async () => {

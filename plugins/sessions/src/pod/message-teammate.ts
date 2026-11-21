@@ -16,7 +16,7 @@ const inputSchema = z.strictObject({
 })
 
 const description = [
-  'Message one of this session’s nested teammates, which reports back to you; any session that is',
+  'Message one of this session’s nested teammates, which reports back to you. Any session that is',
   'not a nested teammate of this one is refused.',
 ].join(' ')
 
@@ -25,6 +25,7 @@ export class MessageTeammateTool extends SchemaTool<typeof inputSchema> {
   readonly description = description
   readonly effect = EToolEffect.Write
   readonly inputSchema = inputSchema
+  readonly deferred = true
   override readonly pathFields = TAKES_NO_PATHS
 
   constructor(private readonly ctx: PluginPodContext) {
@@ -41,7 +42,7 @@ export class MessageTeammateTool extends SchemaTool<typeof inputSchema> {
       return {
         ok: true,
         output: { ok: true },
-        modelText: `Your message to teammate ${input.teammateId} is queued; it reads it at its next turn.`,
+        modelText: `Your message to teammate ${input.teammateId} is queued. The teammate reads it at its next turn.`,
       }
     } catch (error) {
       return sessionsRefusal(error)

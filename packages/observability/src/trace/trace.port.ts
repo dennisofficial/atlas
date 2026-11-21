@@ -3,6 +3,7 @@ import type { CallId, RunId, ThreadId } from '@dltech/atlas-core'
 export enum ESpan {
   Turn = 'turn',
   TurnHooks = 'turn.hooks',
+  Hook = 'hook',
   ContextPrepare = 'context.prepare',
   ModelCall = 'model.call',
   ModelBackoff = 'model.backoff',
@@ -15,12 +16,41 @@ export enum ESpan {
   ToolInvoke = 'tool.invoke',
   ToolQuality = 'tool.quality',
   ToolAfterHooks = 'tool.after-hooks',
+  PodBoot = 'pod.boot',
+  PodBootClone = 'pod.boot.clone',
+  PodBootSettings = 'pod.boot.settings',
+  PodBootHydrate = 'pod.boot.hydrate',
+  PodBootCompose = 'pod.boot.compose',
+  PodProvision = 'pod.provision',
+  PodProvisionSandbox = 'pod.provision.sandbox',
+  PodProvisionAgent = 'pod.provision.agent',
+  PromptSend = 'prompt.send',
+  ResourceStatus = 'resource.status',
+  ResourceVersions = 'resource.versions',
+  ResourceArm = 'resource.arm',
+  ResourceLoad = 'resource.load',
+  ResourceAppend = 'resource.append',
 }
 
 export enum ESpanMark {
   FirstChunk = 'first_chunk',
   FirstReasoning = 'first_reasoning',
   FirstOutput = 'first_output',
+}
+
+export enum ETurnEntry {
+  Start = 'start',
+  Resume = 'resume',
+}
+
+export enum EWake {
+  Warm = 'warm',
+  Cold = 'cold',
+}
+
+export enum ESpanSpeed {
+  Fast = 'fast',
+  Standard = 'standard',
 }
 
 export enum ESpanOutcome {
@@ -37,11 +67,18 @@ export type SpanFields = {
   readonly provider?: string | undefined
   readonly model?: string | undefined
   readonly tool?: string | undefined
+  readonly hook?: string | undefined
+  readonly resource?: string | undefined
+  readonly phase?: string | undefined
   readonly status?: string | undefined
   readonly failureKind?: string | undefined
   readonly verdict?: string | undefined
   readonly finishReason?: string | undefined
   readonly outcome?: ESpanOutcome | undefined
+  readonly entry?: ETurnEntry | undefined
+  readonly wake?: EWake | undefined
+  readonly queuedMs?: number | undefined
+  readonly speed?: ESpanSpeed | undefined
   readonly step?: number | undefined
   readonly delayMs?: number | undefined
   readonly drafts?: number | undefined
@@ -51,6 +88,8 @@ export type SpanFields = {
   readonly outputTokens?: number | undefined
   readonly cacheReadTokens?: number | undefined
   readonly cacheWriteTokens?: number | undefined
+  readonly sizes?: Readonly<Record<string, number>> | undefined
+  readonly hashes?: Readonly<Record<string, string>> | undefined
 }
 
 export type SpanHandle = {
@@ -89,9 +128,29 @@ export const errorClassOf = (error: unknown): string =>
 
 export const markAttributeOf = (mark: ESpanMark): string => `${mark}_ms`
 
-export const spanAttributesOf = (fields: SpanFields | undefined): Record<string, string | number> =>
+const SIZE_ATTRIBUTE_PREFIX = 'size.'
+const HASH_ATTRIBUTE_PREFIX = 'hash.'
+
+const prefixed = <T>(args: {
+  prefix: string
+  values: Readonly<Record<string, T>> | undefined
+}): Record<string, T> =>
   Object.fromEntries(
-    Object.entries(fields ?? {}).filter(
-      (entry): entry is [string, string | number] => entry[1] !== undefined,
-    ),
+    Object.entries(args.values ?? {}).map(([key, value]) => [`${args.prefix}${key}`, value]),
   )
+
+export const spanAttributesOf = (
+  fields: SpanFields | undefined,
+): Record<string, string | number> => {
+  if (fields === undefined) return {}
+  const { sizes, hashes, ...rest } = fields
+  return {
+    ...Object.fromEntries(
+      Object.entries(rest).filter(
+        (entry): entry is [string, string | number] => entry[1] !== undefined,
+      ),
+    ),
+    ...prefixed({ prefix: SIZE_ATTRIBUTE_PREFIX, values: sizes }),
+    ...prefixed({ prefix: HASH_ATTRIBUTE_PREFIX, values: hashes }),
+  }
+}

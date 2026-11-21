@@ -5,7 +5,7 @@ import type { Event } from '../../events/envelope'
 import type { AssembledMessage } from '../assembled'
 import { defineRule, type Rule } from '../rule'
 
-const COMPACTION_PREFACE = 'Earlier turns of this conversation, compacted to save context:'
+const COMPACTION_PREFACE = 'Earlier turns of this session, compacted to save context:'
 
 const compactionBlock = (summary: string): string =>
   systemContext({

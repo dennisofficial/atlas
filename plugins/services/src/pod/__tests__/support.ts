@@ -1,6 +1,7 @@
 import { podControlStub } from '@dltech/atlas-plugin-sdk/testing'
 import {
   toThreadId,
+  type EventBody,
   type EventDraft,
   type PluginEventBody,
   type RecordBody,
@@ -12,6 +13,8 @@ import {
   EMPTY_WORKTREES,
   type PluginPodContext,
   type PodControl,
+  EMPTY_POD_RESOURCES,
+  UNVERSIONED_SETTINGS,
 } from '@dltech/atlas-plugin-sdk'
 import {
   CallFailureError,
@@ -28,6 +31,7 @@ export type CallOptions = { signal?: AbortSignal; onOutput?(bytes: Uint8Array): 
 
 export const controlOf = (args: { url: string; tunnelToken?: string }): PodControl => ({
   ...podControlStub,
+  settingsVersions: async () => UNVERSIONED_SETTINGS,
   exposePort: async () => ({
     url: args.url,
     tunnelToken: args.tunnelToken ?? 'tunnel-token',
@@ -82,13 +86,18 @@ export const rig = (options: { control?: PodControl; env?: Record<string, string
     }
   }
 
+  const notices: { event: EventBody; key: string }[] = []
   const ctx: PluginPodContext = {
     control: options.control ?? podControlStub,
+    resources: EMPTY_POD_RESOURCES,
     crew: EMPTY_CREW,
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
     sessionId: 's1',
     append,
+    notify: async (event, options) => {
+      notices.push({ event, key: options.key })
+    },
     events: () => log,
     call,
     live: () => undefined,
@@ -100,7 +109,7 @@ export const rig = (options: { control?: PodControl; env?: Record<string, string
     ...(options.env === undefined ? {} : { env: async () => options.env ?? {} }),
   }
 
-  return { ctx, log, calls, listeners, fs }
+  return { ctx, log, calls, listeners, fs, notices }
 }
 
 export const writeDeclared = (harness: { fs: MemoryFileSystem }, content: string): void => {

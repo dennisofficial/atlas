@@ -10,6 +10,8 @@ import {
   EMPTY_MCP_CONTROL,
   EMPTY_ROUTINES,
   EMPTY_SESSIONS,
+  EMPTY_POD_RESOURCES,
+  UNVERSIONED_SETTINGS,
 } from '@dltech/atlas-plugin-sdk'
 
 import { crewPod } from '..'
@@ -134,6 +136,7 @@ export const rig = (
 ) => {
   const ctx: PluginPodContext = {
     sessionId: 's1',
+    resources: EMPTY_POD_RESOURCES,
     crew: args.crew ?? fakeCrew().port,
     sessions: EMPTY_SESSIONS,
     worktrees: args.worktrees ?? fakeWorktrees().port,
@@ -141,6 +144,7 @@ export const rig = (
       mcp: EMPTY_MCP_CONTROL,
       webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
       routines: EMPTY_ROUTINES,
+      settingsVersions: async () => UNVERSIONED_SETTINGS,
       exposePort: async () => {
         throw new Error('this rig exposes no port')
       },
@@ -157,6 +161,7 @@ export const rig = (
       },
     },
     append: async () => undefined,
+    notify: async () => undefined,
     events: () => args.events ?? [],
     call: async () => {
       throw new Error('this rig calls no daemon')

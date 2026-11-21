@@ -1,12 +1,11 @@
 import type { Db } from '@dltech/atlas-db'
 
-import { VercelTokenRefresher } from '../tokens/vercel-token-refresher'
 import type { ConfigSource } from './agent-host-config'
 import { ConfigReader } from './config-reader'
 import type { AgentHostEnv } from './env'
 import type { SecretCipher } from './secret-cipher'
 
-export type ConfigSourceEnv = Pick<AgentHostEnv, 'vercelOauth' | 'platformVercel' | 'agent37'>
+export type ConfigSourceEnv = Pick<AgentHostEnv, 'platformVercel' | 'agent37'>
 
 export const configSourceOf = (args: {
   env: ConfigSourceEnv
@@ -16,10 +15,5 @@ export const configSourceOf = (args: {
   new ConfigReader({
     db: args.db,
     cipher: args.cipher,
-    vercel: new VercelTokenRefresher({
-      db: args.db,
-      cipher: args.cipher,
-      oauth: args.env.vercelOauth,
-    }),
     platform: { platformVercel: args.env.platformVercel, agent37: args.env.agent37 },
   })

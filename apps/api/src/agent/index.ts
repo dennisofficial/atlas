@@ -80,3 +80,9 @@ export {
   type SessionRuntimeFactoryArgs,
 } from './runtime/session-runtime-factory'
 export type { VercelCredentials } from './sandbox/constants'
+
+export {
+  recordSandboxRunClose,
+  recordSandboxRunCloseForInstance,
+  sandboxComputeFor,
+} from './sandbox/sandbox-runs'

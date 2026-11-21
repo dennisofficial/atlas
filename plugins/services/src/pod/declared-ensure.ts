@@ -11,7 +11,7 @@ import type { ServicePodState } from './state'
 const SETUP_TAIL_CHARACTERS = 2_000
 
 const ADVICE =
-  'Their endings arrive on their own, so do not poll for them; service_list shows what is running and its port.'
+  'Their endings arrive on their own, so do not poll for them; `service` with action `list` shows what is running and its port.'
 
 const tailOf = (text: string): string => text.trimEnd().slice(-SETUP_TAIL_CHARACTERS)
 

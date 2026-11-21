@@ -6,6 +6,8 @@ import {
   EMPTY_WORKTREES,
   type PluginPodContext,
   type PodRoutines,
+  EMPTY_POD_RESOURCES,
+  UNVERSIONED_SETTINGS,
 } from '@dltech/atlas-plugin-sdk'
 import type { Routine } from '@dltech/atlas-protocol'
 
@@ -97,12 +99,14 @@ export const fakeRoutines = (
 export const rig = (routines: PodRoutines = fakeRoutines().port) => {
   const ctx: PluginPodContext = {
     sessionId: 's1',
+    resources: EMPTY_POD_RESOURCES,
     crew: EMPTY_CREW,
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
     control: {
       mcp: EMPTY_MCP_CONTROL,
       webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
+      settingsVersions: async () => UNVERSIONED_SETTINGS,
       exposePort: async () => {
         throw new Error('this rig exposes no port')
       },
@@ -120,6 +124,7 @@ export const rig = (routines: PodRoutines = fakeRoutines().port) => {
       },
     },
     append: async () => undefined,
+    notify: async () => undefined,
     events: () => [],
     call: async () => {
       throw new Error('this rig calls no daemon')
@@ -131,9 +136,9 @@ export const rig = (routines: PodRoutines = fakeRoutines().port) => {
   return { ctx }
 }
 
-export const invoke = async (args: { ctx: PluginPodContext; name: string; input: unknown }) => {
-  const tool = routinesPod.tools?.(args.ctx).find((candidate) => candidate.name === args.name)
-  if (tool === undefined) throw new Error(`no tool ${args.name}`)
+export const invoke = async (args: { ctx: PluginPodContext; input: unknown }) => {
+  const tool = routinesPod.tools?.(args.ctx).find((candidate) => candidate.name === 'routine')
+  if (tool === undefined) throw new Error('no routine tool')
   return tool.invoke({
     input: args.input,
     signal: new AbortController().signal,

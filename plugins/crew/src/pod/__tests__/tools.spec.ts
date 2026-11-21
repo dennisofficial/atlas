@@ -1,99 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EAgentStatus, EReportKind, toThreadId } from '@dltech/atlas-core'
-import {
-  type PluginPodContext,
-  type PodCrew,
-  type SubagentSnapshot,
-  EMPTY_CREW,
-  EMPTY_MCP_CONTROL,
-  EMPTY_ROUTINES,
-  EMPTY_SESSIONS,
-  EMPTY_WORKTREES,
-} from '@dltech/atlas-plugin-sdk'
-import { ECallStatus, type CallResult } from '@dltech/atlas-protocol'
+import { EMPTY_CREW, type PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
 import { CREW_AGENT_TYPES, crewAgentTypeOf } from '../../core'
 import { crewPod } from '..'
-
-const startedAt = '2026-11-09T10:00:00.000Z'
-
-const snapshotOf = (overrides: Partial<SubagentSnapshot> = {}): SubagentSnapshot => ({
-  agentId: 'a1',
-  agentType: 'general-purpose',
-  intent: 'trace the port',
-  status: EAgentStatus.Running,
-  turns: 0,
-  toolCalls: 0,
-  startedAt,
-  ...overrides,
-})
-
-type Call = { method: string; args: unknown }
-
-const fakeCrew = (args: { queued?: boolean; held?: readonly SubagentSnapshot[] } = {}) => {
-  const calls: Call[] = []
-  const port: PodCrew = {
-    spawn: async (spawnArgs) => {
-      calls.push({ method: 'spawn', args: spawnArgs })
-      return snapshotOf({ agentType: spawnArgs.agentType, intent: spawnArgs.intent })
-    },
-    say: async (sayArgs) => {
-      calls.push({ method: 'say', args: sayArgs })
-      return { queued: args.queued ?? true, snapshot: snapshotOf({ agentId: sayArgs.agentId }) }
-    },
-    stop: async (stopArgs) => {
-      calls.push({ method: 'stop', args: stopArgs })
-      return snapshotOf({ agentId: stopArgs.agentId, status: EAgentStatus.Stopped })
-    },
-    list: () => args.held ?? [],
-    report: async (reportArgs) => {
-      calls.push({ method: 'report', args: reportArgs })
-      return snapshotOf({ agentId: 'main' })
-    },
-  }
-  return { port, calls }
-}
-
-const rig = (crew: PodCrew) => {
-  const ctx: PluginPodContext = {
-    sessionId: 's1',
-    crew,
-    sessions: EMPTY_SESSIONS,
-    worktrees: EMPTY_WORKTREES,
-    control: {
-      mcp: EMPTY_MCP_CONTROL,
-      webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
-      routines: EMPTY_ROUTINES,
-      exposePort: async () => {
-        throw new Error('this rig exposes no port')
-      },
-      memory: {
-        list: async () => ({ project: null, memories: [] }),
-        read: async () => null,
-        write: async () => {
-          throw new Error('this rig writes no memory')
-        },
-        edit: async () => {
-          throw new Error('this rig edits no memory')
-        },
-        delete: async () => false,
-      },
-    },
-    append: async () => undefined,
-    events: () => [],
-    call: async () =>
-      ({
-        status: ECallStatus.Failed,
-        op: 'readDirectory',
-        error: { code: 'not-found', message: 'this rig has no repository' },
-      }) as CallResult,
-    live: () => undefined,
-    onDaemonEvent: () => () => undefined,
-    log: () => undefined,
-  }
-  return { ctx }
-}
+import { snapshotOf, fakeCrew, rig } from './crew-tools-rig'
 
 const invoke = async (args: { ctx: PluginPodContext; name: string; input: unknown }) => {
   const tool = crewPod.tools?.(args.ctx).find((candidate) => candidate.name === args.name)
@@ -152,7 +64,7 @@ describe('agent_spawn', () => {
       },
     ])
     expect(textOf(outcome)).toBe(
-      'Started a sub-agent.\na1  general-purpose  trace the port\nIt runs in the background, and hands you its answer the moment it stops.',
+      'Started a sub-agent.\na1  general-purpose  trace the port\nIt runs in the background. It hands you its answer the moment it stops.',
     )
     expect(outcome.ok && outcome.output).toEqual({
       agentId: 'a1',
@@ -199,7 +111,7 @@ describe('agent_say', () => {
       { method: 'say', args: { agentId: 'a1', text: 'also check docs' } },
     ])
     expect(textOf(outcome)).toBe(
-      'Agent a1 is mid-step, so your message is queued and it will read it before its next one.',
+      'Sub-agent a1 is mid-step, so it queues your message and reads it before its next step.',
     )
   })
 
@@ -208,7 +120,7 @@ describe('agent_say', () => {
     const { ctx } = rig(crew.port)
     const outcome = await invoke({ ctx, name: 'agent_say', input: { agentId: 'a1', text: 'more' } })
     expect(textOf(outcome)).toBe(
-      'Agent a1 took your message and is running again; its answer reaches you when it stops.',
+      'Sub-agent a1 took your message and is running again. Its answer reaches you when it stops.',
     )
   })
 })
@@ -220,7 +132,7 @@ describe('agent_stop', () => {
     const outcome = await invoke({ ctx, name: 'agent_stop', input: { agentId: 'a1' } })
     expect(crew.calls).toEqual([{ method: 'stop', args: { agentId: 'a1' } }])
     expect(textOf(outcome)).toBe(
-      'Signalled agent a1 to stop. It ends after the step it is taking, and you will be handed how it ended.',
+      'Signalled sub-agent a1 to stop. It ends after the step it is taking. You will be handed how it ended.',
     )
   })
 
@@ -229,7 +141,7 @@ describe('agent_stop', () => {
     const { ctx } = rig(crew.port)
     const outcome = await invoke({ ctx, name: 'agent_stop', input: { agentId: 'a1' } })
     expect(textOf(outcome)).toBe(
-      'Agent a1 had already ended (finished), so nothing was interrupted.',
+      'Sub-agent a1 had already ended (finished), so nothing was interrupted.',
     )
   })
 })
@@ -280,7 +192,7 @@ describe('report_to_main', () => {
       { method: 'report', args: { kind: EReportKind.Done, text: 'The port is wired.' } },
     ])
     expect(textOf(outcome)).toBe(
-      'Your report is on its way to the main agent. Carry on, or end your turn if there is nothing else to do.',
+      'Your report is on its way to the parent agent. Continue, or end your turn if there is nothing else to do.',
     )
   })
 

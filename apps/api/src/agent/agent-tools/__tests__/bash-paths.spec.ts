@@ -7,7 +7,7 @@ describe('the bash session paths contract', () => {
     const description = bashDescription({ defaultTimeoutMs: 120_000, maximumTimeoutMs: 600_000 })
 
     expect(description).toContain(
-      'ATLAS_SESSION_DIR and ATLAS_CONTEXT_DIR name the session directories shared by the conversation and its agents',
+      'ATLAS_SESSION_DIR and ATLAS_CONTEXT_DIR name the session directories shared by the session, its sub-agents and its teammates',
     )
     expect(description).toContain(
       'ATLAS_THREAD_DIR names the thread directory private to the calling thread',

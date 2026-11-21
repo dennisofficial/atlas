@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
-import { toCallId } from '../../events/ids'
+import { EAgentStatus } from '../../agents/status'
+import { toCallId, toThreadId } from '../../events/ids'
 import { chainEvents } from '../chain-events'
 import type { V2Body, V2Event } from '../event'
 import { EInputKind, commandInputKind } from '../input-events'
@@ -8,11 +9,13 @@ import {
   EMPTY_PENDING,
   pendingInputsOf,
   pendingMessagesOf,
+  pendingNoticesOf,
   queuedSinceOf,
   stepPending,
 } from '../pending-inputs'
 import { initialStatusFacts, stepStatusFacts } from '../views/status-facts'
 import { deriveStatus } from '../views/derive-status'
+import { ETurnCause } from '../turns'
 import { ESessionStatus } from '../views/status-types'
 import { mint, NOW, runId, threadId } from './support'
 
@@ -44,6 +47,8 @@ const said = (args: { inboxId?: number; text?: string }): V2Body => ({
 })
 
 const message = (text: string): V2Body => said({ text })
+
+const turnStarted: V2Body = { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input }
 
 describe('stepPending', () => {
   it('drops a posted message once user-said carries its inboxId', () => {
@@ -158,6 +163,39 @@ describe('stepPending', () => {
   })
 })
 
+describe('pendingNoticesOf', () => {
+  const ended = {
+    type: 'agent-ended' as const,
+    agentId: toThreadId('agent-1'),
+    agentType: 'general-purpose',
+    intent: 'look around',
+    status: EAgentStatus.Finished,
+    prose: 'done',
+    turns: 1,
+    toolCalls: 3,
+  }
+
+  it('keeps the event a notice arrived with and leaves it out of the messages', () => {
+    const state = pendingInputsOf(
+      log([{ type: 'input-posted', inboxId: 11, kind: 'event', postedAt: NOW, event: ended }]),
+    )
+    expect(pendingMessagesOf(state)).toEqual([])
+    expect(pendingNoticesOf(state)).toMatchObject([
+      { inboxId: 11, kind: 'event', event: { type: 'agent-ended', agentId: 'agent-1' } },
+    ])
+  })
+
+  it('drops a notice once the drain consumes it', () => {
+    const state = pendingInputsOf(
+      log([
+        { type: 'input-posted', inboxId: 12, kind: 'event', postedAt: NOW, event: ended },
+        { type: 'input-consumed', inboxId: 12 },
+      ]),
+    )
+    expect(pendingNoticesOf(state)).toEqual([])
+  })
+})
+
 describe('queuedSinceOf', () => {
   it('dates the queue from the message at its head', () => {
     const state = pendingInputsOf(
@@ -187,7 +225,11 @@ describe('status from the pending fold', () => {
   })
 
   it('leaves queued once the message is drained into user-said', () => {
-    const events = log([posted({ inboxId: 1, postedAt: EARLIER }), said({ inboxId: 1 })])
+    const events = log([
+      turnStarted,
+      posted({ inboxId: 1, postedAt: EARLIER }),
+      said({ inboxId: 1 }),
+    ])
     expect(status({ events }).state).toBe(ESessionStatus.Thinking)
   })
 
@@ -205,6 +247,7 @@ describe('status from the pending fold', () => {
 
   it('reports queued over a running turn and gives the turn its status back once drained', () => {
     const running: V2Body[] = [
+      turnStarted,
       { type: 'tool-dispatched', callId: toCallId('call-1'), name: 'bash' },
     ]
     const queued = log([...running, posted({ inboxId: 1, postedAt: EARLIER })])

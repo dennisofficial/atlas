@@ -11,6 +11,7 @@ import { ClientVersionGuard } from '../_module/client-version/client-version.gua
 import { ClientVersionModule } from '../_module/client-version/client-version.module'
 import { ApiTrpcContext } from '../_module/trpc/api-trpc-context'
 import { ApiTrpcModule } from '../_module/trpc/api-trpc.module'
+import { ApiLatencyMiddleware } from '../_module/trpc/api-latency.middleware'
 import { HttpErrorMiddleware } from '../_module/trpc/http-error.middleware'
 import { ThrottleMiddleware } from '../_module/trpc/throttle.middleware'
 import { apiErrorFormatter } from '../_module/trpc/trpc-error-formatter'
@@ -56,7 +57,6 @@ import { SkillCatalogueModule } from './cloud/skill-catalogue/skill-catalogue.mo
 import { SkillsModule } from './cloud/skills/skills.module'
 import { UserFilesModule } from './cloud/user-files/user-files.module'
 import { UserVercelModule } from './cloud/user-vercel/user-vercel.module'
-import { PodPlanGateModule } from './cloud/user-vercel/pod-plan-gate.module'
 import { SessionTitlerModule } from './cloud/thread-titling/session-titler.module'
 import { ControlPlaneModule } from './platform/control/control-plane.module'
 
@@ -80,7 +80,7 @@ import { ControlPlaneModule } from './platform/control/control-plane.module'
       basePath: '/v1/trpc',
       context: ApiTrpcContext,
       errorFormatter: apiErrorFormatter,
-      globalMiddlewares: [HttpErrorMiddleware, ThrottleMiddleware],
+      globalMiddlewares: [ApiLatencyMiddleware, HttpErrorMiddleware, ThrottleMiddleware],
       sse: { ping: { enabled: true, intervalMs: 20_000 } },
     }),
     AuthModule,
@@ -101,7 +101,6 @@ import { ControlPlaneModule } from './platform/control/control-plane.module'
     SkillCatalogueModule,
     SkillsModule,
     UserVercelModule,
-    PodPlanGateModule,
     McpServersModule,
     McpOauthModule,
     OperatorRequestsModule,

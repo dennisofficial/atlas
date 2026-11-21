@@ -1,9 +1,10 @@
-import { SANDBOX_SERVE_PORT } from '../constants'
+import { DAEMON_PORT } from '@dltech/atlas-protocol'
+
 import type { DaemonEndpoint } from '../sandbox-provider'
 
 import type { Agent37Client } from './agent37-client'
 
-export const AGENT37_DAEMON_PORT = SANDBOX_SERVE_PORT
+export const AGENT37_DAEMON_PORT = DAEMON_PORT
 export const AGENT37_SIGNED_TTL_SECONDS = 7 * 24 * 60 * 60
 
 // https://www.agent37.com/docs/agents-api/urls — every port answers at

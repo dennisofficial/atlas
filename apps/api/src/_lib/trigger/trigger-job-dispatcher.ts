@@ -15,12 +15,14 @@ export class TriggerJobDispatcher extends JobDispatcher {
     payload,
     idempotencyKey,
     tags,
+    delay,
   }: JobDispatch<TTask>): Promise<{ runId: string }> {
     try {
       const validated = task.schema.parse(payload)
       const handle = await this.client.tasks.trigger<TTask>(task.id, validated, {
         idempotencyKey,
         ...(tags === undefined ? {} : { tags }),
+        ...(delay === undefined ? {} : { delay }),
       })
       return { runId: handle.id }
     } catch (cause) {

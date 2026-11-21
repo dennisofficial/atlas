@@ -136,7 +136,7 @@ describe('launchDaemon', () => {
       expect(detached[0]?.env).toEqual({
         DAEMON_TOKEN: 'tok-1',
         ATLAS_SANDBOX_NAME: 'atlas-v2-s1',
-        PORT: '3000',
+        ATLAS_DAEMON_PORT: '47300',
       })
       const foreground = commands.filter((command) => command.detached !== true)
       for (const command of foreground) {
@@ -210,7 +210,7 @@ describe('launchDaemon', () => {
       const drains = commands.filter(isDrain)
       expect(drains.length).toBe(1)
       expect(drains[0]?.env).toEqual({ ATLAS_DRAIN_TOKEN: 'tok-1' })
-      expect(drains[0]?.args[1]).toContain('http://localhost:3000/drain')
+      expect(drains[0]?.args[1]).toContain('http://localhost:47300/drain')
       expect(drains[0]?.args[1]).toContain('{"deadlineMs":600000}')
       expect(commands.some(isKill)).toBe(false)
       expect(listeningAtBoot).toEqual([false])

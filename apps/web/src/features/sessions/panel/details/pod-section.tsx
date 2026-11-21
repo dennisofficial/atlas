@@ -1,21 +1,17 @@
 'use client'
 
+import { podBusyFactsOf, podBusyOf, type PodBusy } from '@dltech/atlas-core'
 import { PodStatusChip } from '@dltech/atlas-ui/ai/pod-status-chip'
 import { Badge } from '@dltech/atlas-ui/components/badge'
-import {
-  ECredentialSource,
-  ESandboxProvider,
-  type SessionStatusOutput,
-} from '@dltech/atlas-protocol'
-import { type EVercelPlan, sandboxSizesOfPlan, vercelPlanCapNote } from '@dltech/atlas-wire/web'
+import { ESandboxProvider, type SessionStatusOutput } from '@dltech/atlas-protocol'
 
 import { hrefOfPage, ESettingsPage } from '@/features/settings/settings-nav'
 import { sandboxSettingsHrefOf } from '@/features/threads/data/header-model'
-import { useVercelPlan } from '@/features/settings/data/user/use-vercel-plan'
 import {
   POD_RESTART_BODY,
-  RestartConfirmDialog,
+  ResizeBusyDialog,
   useResizeConfirmation,
+  type ResizeRequest,
 } from '@/features/pods/pod-resize-confirmation'
 
 import { podChipStatusOf } from '../../data/pod-chip-status'
@@ -24,27 +20,17 @@ import { sessionsApi } from '../../data/sessions-api'
 import type { SessionViewModel } from '../../data/session-view-model'
 import { useSessionPaneValue } from '../pane-value'
 
-export const podBusyOf = (view: SessionViewModel): boolean =>
-  view.shells.running > 0 || view.previews.length > 0
+export const podBusyOfView = (view: SessionViewModel, state: string | undefined): PodBusy =>
+  podBusyOf(
+    podBusyFactsOf({
+      state: state as never,
+      shellsRunning: view.shells.running,
+      servicesRunning: view.previews.length,
+    }),
+  )
 
-/** The sizes a pod on Atlas credentials or Agent37 runs at — its own cap, not the Vercel plan's. */
+/** The sizes a pod on the platform's own credentials runs at — its own cap, not a Vercel plan's. */
 export const PLATFORM_POD_SIZES: readonly number[] = [2, 4, 8]
-
-export type PodSizes = { sizes: readonly number[]; planCapHint: string | undefined }
-
-/** Only a Vercel pod on the team's own credentials is limited by that team's plan. */
-export const podSizesOf = (args: {
-  sandboxProvider: string | undefined
-  credentialSource: string | undefined
-  plan: EVercelPlan
-}): PodSizes => {
-  const vercelByok =
-    args.sandboxProvider !== ESandboxProvider.Agent37 &&
-    args.credentialSource !== ECredentialSource.Platform
-  return vercelByok
-    ? { sizes: sandboxSizesOfPlan(args.plan), planCapHint: vercelPlanCapNote(args.plan) }
-    : { sizes: PLATFORM_POD_SIZES, planCapHint: undefined }
-}
 
 const settingsHrefOf = (projectId: string | undefined): string =>
   sandboxSettingsHrefOf({ projectId: projectId ?? null }) ??
@@ -53,30 +39,26 @@ const settingsHrefOf = (projectId: string | undefined): string =>
 export type PodStatusSectionProps = {
   pod: SessionStatusOutput['pod']
   live: boolean
-  busy: boolean
-  plan: EVercelPlan
+  busy: PodBusy
   sandboxProvider?: string | undefined
-  credentialSource?: string | undefined
   settingsHref: string
-  onResize: (vcpus: number) => Promise<void>
+  onResize: (request: ResizeRequest) => Promise<void>
 }
 
 export const sandboxProviderLabelOf = (provider: string): string =>
   provider === ESandboxProvider.Agent37 ? 'Agent37' : 'Vercel'
 
 export function PodStatusSection(props: PodStatusSectionProps) {
-  const { pod, live, busy, plan, sandboxProvider, credentialSource, settingsHref, onResize } = props
+  const { pod, live, busy, sandboxProvider, settingsHref, onResize } = props
   const { confirmation, handleResize } = useResizeConfirmation({ busy, onResize })
   const status = podChipStatusOf({ pod, live })
   if (status === null) return null
-  const { sizes, planCapHint } = podSizesOf({ sandboxProvider, credentialSource, plan })
   return (
     <section data-session-pod aria-label="Pod" className="flex items-center gap-2">
       <PodStatusChip
         status={status}
-        sizes={sizes}
+        sizes={PLATFORM_POD_SIZES}
         onResize={handleResize}
-        planCapHint={planCapHint}
         settingsHref={settingsHref}
       />
       {sandboxProvider === undefined ? null : (
@@ -84,27 +66,24 @@ export function PodStatusSection(props: PodStatusSectionProps) {
           {sandboxProviderLabelOf(sandboxProvider)}
         </Badge>
       )}
-      <RestartConfirmDialog confirmation={confirmation} body={POD_RESTART_BODY} />
+      <ResizeBusyDialog confirmation={confirmation} body={POD_RESTART_BODY} />
     </section>
   )
 }
 
 export function SessionPodSection() {
   const { sessionId, view, status, projectId } = useSessionPaneValue()
-  const plan = useVercelPlan()
 
-  const handleResize = async (vcpus: number) => {
-    await resizePod({ api: sessionsApi, sessionId, vcpus })
+  const handleResize = async (request: ResizeRequest) => {
+    await resizePod({ api: sessionsApi, sessionId, ...request })
   }
 
   return (
     <PodStatusSection
       pod={status?.pod}
       live={status?.lease.live ?? false}
-      busy={podBusyOf(view)}
-      plan={plan}
+      busy={podBusyOfView(view, status?.state)}
       sandboxProvider={status?.sandboxProvider}
-      credentialSource={status?.credentialSource}
       settingsHref={settingsHrefOf(projectId)}
       onResize={handleResize}
     />

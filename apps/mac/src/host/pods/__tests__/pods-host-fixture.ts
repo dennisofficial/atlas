@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import type { PodBridgeDriver } from '@dltech/atlas-harness'
 import { openLocalStore } from '../local-store'
 import { createDesktopHost, type IDesktopHost } from '../../index'
+import { trpcBodyOf } from '../../__tests__/trpc-body'
 import { SESSION_COOKIE } from '../../guard'
 import { createTokenStore } from '../../auth/token-store'
 
@@ -70,7 +71,7 @@ export function useDesktopHost(): void {
           cookie: request.headers.get('cookie'),
           origin: request.headers.get('origin'),
         })
-        leaseBodies.push(await request.json())
+        leaseBodies.push(await trpcBodyOf(request))
         if (leaseStatus !== 200) {
           return Response.json(
             {

@@ -1,5 +1,6 @@
 import {
   EToolEffect,
+  MCP_TOOL_PREFIX,
   ToolDefinition,
   type ModelPart,
   type ToolInvocation,
@@ -10,7 +11,7 @@ import { z } from 'zod'
 import { renderCall } from './render'
 import { McpUnauthorizedError, messageOf, type McpCallResult, type McpToolInfo } from './types'
 
-export const MCP_NAME_PREFIX = 'mcp__'
+export const MCP_NAME_PREFIX = MCP_TOOL_PREFIX
 
 export type McpToolCaller = {
   name: string
@@ -35,6 +36,7 @@ export class McpBridgeTool extends ToolDefinition {
   readonly server: string
   readonly tool: string
   readonly jsonSchema: unknown
+  readonly deferred = true
   private readonly caller: () => McpToolCaller | undefined
 
   constructor(args: {
@@ -65,7 +67,7 @@ export class McpBridgeTool extends ToolDefinition {
       if (error instanceof McpUnauthorizedError)
         return {
           ok: false,
-          reason: `the '${this.server}' MCP server needs a sign-in; call operator_mcp_sign_in to start one`,
+          reason: `the '${this.server}' MCP server needs a sign-in. Call operator_mcp_sign_in to start one`,
         }
       return {
         ok: false,

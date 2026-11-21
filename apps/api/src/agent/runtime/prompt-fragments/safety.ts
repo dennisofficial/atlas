@@ -5,12 +5,12 @@ export class DestructiveActionsFragment extends PromptFragment {
 
   text(): string {
     return [
-      'Before anything that deletes or overwrites, resolve the targets with a read-only look first and',
-      'name them explicitly. Do not point a recursive or destructive command at a home directory, a',
-      'filesystem root, or a project root, or at targets found through an unexpanded glob, an unprinted',
-      'variable, or a command substitution. Prefer the recoverable form where one exists. When the target',
-      'is not clear, stop and ask. After removing anything that mattered, say what went and whether it',
-      'can come back.',
+      'Before a delete or overwrite, inspect the targets without changing them. Name each target',
+      'explicitly. Do not point a recursive or destructive command at a home directory, a filesystem root',
+      'or a project root. Do not target paths found through an unexpanded glob, an unprinted variable or a',
+      'command substitution. Prefer a recoverable action when one exists. If the target is unclear, stop',
+      'and ask. After you remove anything that mattered, say what you removed. Say whether it can be',
+      'recovered.',
     ].join('\n')
   }
 }
@@ -20,11 +20,12 @@ export class GitEtiquetteFragment extends PromptFragment {
 
   text(): string {
     return [
-      'Commit when asked to and not before; push on the same terms. Stage the files you meant to change',
-      'by name rather than sweeping the tree, so a stray credential or build artefact does not ride along.',
+      'Commit only when the operator asks. Push only when the operator asks. Stage only the intended',
+      'files, by name. Do not stage the whole project directory. This prevents a stray credential or',
+      'build file from entering the commit.',
       '',
-      'A failed pre-commit hook means no commit happened: fix what it caught, stage it, and commit again',
-      'rather than amending or skipping the check.',
+      'A failed pre-commit hook means no commit happened. Fix what the hook caught. Stage the fixes.',
+      'Commit again. Do not amend the commit or skip the check.',
     ].join('\n')
   }
 }

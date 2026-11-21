@@ -24,6 +24,7 @@ import type { ProjectFilesSource } from '../config/project-files'
 import { SANDBOX_HOME_PATH, workspaceDirectoryOf } from '../sandbox/constants'
 import type { SandboxProviderRegistry } from '../sandbox/provider-registry'
 import type { SandboxTarget } from '../sandbox/sandbox-provider'
+import { recordSandboxRunOpen } from '../sandbox/sandbox-runs'
 import { sandboxNameOf } from '../sandbox/vercel-names'
 import { SandboxNotConfiguredError } from './sandbox-not-configured-error'
 import { PrepareSteps } from './prepare-steps'
@@ -43,6 +44,7 @@ import { ShellEnvCell } from './shell-env'
 import { envSecretsRefresher } from './env-secrets-refresh'
 import { githubTokenRefresher } from './github-token-refresh'
 import { pathEnvironmentOf, sessionPathsOf, shellEnvironmentOf } from './session-paths'
+import { fastRefusalHandler, type FastRefusalSessions } from './fast-refusal'
 import { sessionModelsOf, type SessionModels } from './model-port'
 import { modelLabelOf } from '../config/model-labels'
 import { workspaceRepoMap } from './workspace-repo-map'
@@ -71,16 +73,19 @@ export type SessionRuntimeFactoryArgs = {
   projectFiles?: ProjectFilesSource | undefined
   terminalStreams?: ((sessionId: string) => number) | undefined
   panelHolds?: ((sessionId: string) => number) | undefined
+  sessions?: FastRefusalSessions | undefined
   podSizing?:
     | {
         recordPodApplied(args: {
           sessionId: string
           vcpus: number
+          memoryGb: number
           generation: number
         }): Promise<boolean>
         readSession(args: { sessionId: string }): Promise<
           | {
               podDesiredVcpus: number | null
+              podDesiredMemoryGb: number | null
               podSizeGeneration: number
             }
           | undefined
@@ -123,9 +128,11 @@ export const createSessionRuntimeFactory = (
       try {
         const pod = await args.podSizing.readSession({ sessionId: sandboxSessionId })
         if (pod?.podDesiredVcpus !== endpoint.vcpus) return
+        if (pod.podDesiredMemoryGb === null) return
         await args.podSizing.recordPodApplied({
           sessionId: sandboxSessionId,
           vcpus: endpoint.vcpus,
+          memoryGb: pod.podDesiredMemoryGb,
           generation: pod.podSizeGeneration,
         })
       } catch (error) {
@@ -136,6 +143,21 @@ export const createSessionRuntimeFactory = (
         })
       }
     }
+    const recordRun = async (endpoint: { vcpus?: number | undefined }): Promise<void> => {
+      const vcpus = endpoint.vcpus ?? desiredVcpus
+      if (vcpus === undefined) return
+      await recordSandboxRunOpen({
+        sessionId: sandboxSessionId,
+        provider: config.sandbox.provider,
+        vcpus,
+        sandbox: provider,
+        target,
+      })
+    }
+    const onWake = async (endpoint: { vcpus?: number | undefined }): Promise<void> => {
+      await recordApplied(endpoint)
+      await recordRun(endpoint)
+    }
     const steps = new PrepareSteps()
     const { calls } = daemonSessionOf({
       sessionId,
@@ -143,7 +165,7 @@ export const createSessionRuntimeFactory = (
       provider,
       target,
       ...(desiredVcpus === undefined ? {} : { vcpus: desiredVcpus }),
-      onWake: recordApplied,
+      onWake,
       daemonSecret: args.daemonSecret,
       timers: args.timers,
       signal,
@@ -229,6 +251,16 @@ export const createSessionRuntimeFactory = (
     const registry = new InMemoryToolRegistry(tools)
     const byName = new Map(tools.map((tool) => [tool.name, tool]))
 
+    const onFastRefused =
+      args.sessions === undefined
+        ? undefined
+        : fastRefusalHandler({
+            sessions: args.sessions,
+            sessionId,
+            choice: () => models.modelChoice(),
+            log: args.log,
+          })
+
     let models: SessionModels
     try {
       models = sessionModelsOf({
@@ -240,6 +272,7 @@ export const createSessionRuntimeFactory = (
         tokens: args.tokens,
         media: args.media,
         log: args.log,
+        onFastRefused,
       })
     } catch (error) {
       calls.close()

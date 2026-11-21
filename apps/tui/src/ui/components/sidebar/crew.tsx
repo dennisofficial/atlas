@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 
-import { foldCrew, type ECrewStanding } from '@dltech/atlas-core'
+import { foldCrew, oneLine, type ECrewStanding } from '@dltech/atlas-core'
 
 import { pullRequestChip } from '../../../plugins/github/pull-request-pill'
 import { crewTiersOf, type SidebarTeammate } from '../../../store/sidebar-model'
@@ -80,8 +80,7 @@ function FailureLine(props: { subagent: SidebarSubagent; cells: number }): React
   const reason = props.subagent.failureReason
   if (reason === null || reason === undefined) return null
 
-  const oneLine = reason.replace(/\s+/g, ' ').trim()
-  const text = truncateCells({ text: `${TITLE_INDENT}${oneLine}`, cells: props.cells })
+  const text = truncateCells({ text: `${TITLE_INDENT}${oneLine(reason)}`, cells: props.cells })
 
   return (
     <text>

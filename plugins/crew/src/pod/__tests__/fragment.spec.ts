@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { CrewFragment } from '../fragment'
 
 describe('the crew fragment', () => {
-  it('states that a child in a worktree may commit, push and open a PR, and must report the URL', () => {
+  it('states that a sub-agent in a worktree can commit, push and open a PR, and must report the URL', () => {
     const text = new CrewFragment().text()
     expect(text).toContain('commit on its own branch')
     expect(text).toContain('push it and open a')
