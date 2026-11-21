@@ -5,7 +5,6 @@ import { Suspense, useCallback, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 import type { Attachment } from '@dltech/atlas-core'
-import { ESandboxProvider } from '@dltech/atlas-protocol'
 import type { Project } from '@dltech/atlas-wire/web'
 
 import { createLocalThread, newLocalThreadId } from '@/features/desktop/create-local-thread'
@@ -15,8 +14,12 @@ import { createSessionWithMessage } from '@/features/sessions/data/create-sessio
 import { sessionStream } from '@/features/sessions/data/session-stream'
 import { sessionsApi } from '@/features/sessions/data/sessions-api'
 import { useSessionAttachments } from '@/features/sessions/data/use-session-attachments'
-import { EEngine, EngineToggle } from '@/features/sessions/engine-toggle'
-import { ProviderToggle } from '@/features/sessions/provider-toggle'
+import {
+  DEFAULT_RUNTIME,
+  EEngine,
+  RuntimeMenu,
+  runtimeTargetOf,
+} from '@/features/sessions/runtime-menu'
 import { QueryGate } from '@/features/settings/data/shared/query-gate'
 import { NewThreadSkeleton } from '@/features/projects/project-skeletons'
 import { createdThreads } from '@/features/shell/created-threads'
@@ -70,8 +73,8 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
   const [creating, setCreating] = useState(false)
   const desktop = useDesktop()
   const [runner, setRunner] = useState(ERunnerChoice.Cloud)
-  const [engine, setEngine] = useState(EEngine.V2)
-  const [provider, setProvider] = useState(ESandboxProvider.Vercel)
+  const [runtime, setRuntime] = useState(DEFAULT_RUNTIME)
+  const target = runtimeTargetOf(runtime)
   const attempt = useRef<{
     text: string
     attachments: Attachment[]
@@ -83,7 +86,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
     desktop.present && desktop.docker && runner === ERunnerChoice.ThisMac && projectId !== null
   const onThisMac = desktop.present && runner === ERunnerChoice.ThisMac
   const projectName = projects.find((project) => project.id === projectId)?.name ?? null
-  const v2 = engine === EEngine.V2 && !onThisMac
+  const v2 = target.engine === EEngine.V2 && !onThisMac
 
   const clearDraft = useCallback(() => setDraft(''), [])
   const commands = useNewThreadCommands({ clearDraft })
@@ -160,7 +163,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
         media,
         uploads,
         ...createFieldsOf(selection),
-        provider,
+        ...(target.engine === EEngine.V2 ? { provider: target.provider } : {}),
       })
       session.clear()
       drafts.handleSent(text)
@@ -185,8 +188,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
         placeholder="Describe a task for Atlas…"
       >
         <RunnerToggle desktop={desktop} value={runner} onValueChange={setRunner} />
-        {onThisMac ? null : <EngineToggle value={engine} onValueChange={setEngine} />}
-        {v2 ? <ProviderToggle value={provider} onValueChange={setProvider} /> : null}
+        {onThisMac ? null : <RuntimeMenu value={runtime} onValueChange={setRuntime} />}
         <ModelPickerControls
           picker={picker}
           selection={selection}

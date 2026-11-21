@@ -133,6 +133,20 @@ export const HARNESS_SETTING_ENTRIES = [
     fallback: EWebSearchBackendWire.Bing,
     consumer: ESettingConsumer.Harness,
   }),
+  ...['context.projectInstructions', 'context.userInstructions', 'context.reload'].map((key) =>
+    settingEntry({
+      key,
+      schema: z.boolean(),
+      fallback: true,
+      consumer: ESettingConsumer.Harness,
+    }),
+  ),
+  settingEntry({
+    key: 'context.filenames',
+    schema: z.enum(['both', 'claude', 'agents', 'none']),
+    fallback: 'both',
+    consumer: ESettingConsumer.Harness,
+  }),
   settingEntry({
     key: 'skills.suggest',
     schema: z.boolean(),
