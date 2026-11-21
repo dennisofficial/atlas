@@ -25,6 +25,7 @@ const digest = (patch: Partial<ControlSessionDigest> = {}): ControlSessionDigest
   sandboxInstanceId: null,
   sandboxStatus: null,
   sandboxStatusAt: null,
+  sandboxStatusReason: null,
   spawnedBySessionId: null,
   nested: true,
   podSessionId: null,

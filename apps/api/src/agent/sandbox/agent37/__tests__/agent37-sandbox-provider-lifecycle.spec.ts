@@ -87,6 +87,7 @@ const providerOf = (args: { client: Agent37Client; stored?: string | null }) => 
         forgotten.push(podSessionId)
         stored = null
       },
+      seedStatus: async () => undefined,
     },
   })
   return { provider, forgotten, stored: () => stored }

@@ -18,6 +18,7 @@ export type ControlSessionRow = {
   sandboxInstanceId: string | null
   sandboxStatus: string | null
   sandboxStatusAt: string | null
+  sandboxStatusReason: string | null
   spawnedBySessionId: string | null
   nested: boolean
   podSessionId: string | null

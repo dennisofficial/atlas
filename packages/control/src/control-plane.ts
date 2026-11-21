@@ -184,6 +184,7 @@ export class ControlPlane {
   async setSandboxStatus(params: {
     sandboxInstanceId: string
     status: string
+    reason?: string | undefined
     at: string
   }): Promise<boolean> {
     return this.store.transact((tx) => tx.setSandboxStatus(params))

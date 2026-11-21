@@ -42,7 +42,7 @@ const apiKeyOf = (given: SandboxCredentials): string => {
   return given.apiKey
 }
 
-type Resolved = { instanceId: string; sandboxName: string }
+type Resolved = { instanceId: string; sandboxName: string; created: boolean }
 
 const unavailable = (args: { sessionId: string; error: unknown }): SandboxUnavailableError =>
   new SandboxUnavailableError(
@@ -95,7 +95,7 @@ export class Agent37SandboxProvider extends SandboxProvider {
     const podSessionId = args.target.sandboxSessionId
     const sandboxName = agent37InstanceNameOf(podSessionId)
     const known = await this.args.instances.find({ podSessionId })
-    if (known !== null) return { instanceId: known, sandboxName }
+    if (known !== null) return { instanceId: known, sandboxName, created: false }
     const client = this.clientOf(apiKeyOf(args.target.credentials))
     const instance = await client.create(
       agent37CreateBodyOf({
@@ -115,7 +115,13 @@ export class Agent37SandboxProvider extends SandboxProvider {
       ...(this.args.log === undefined ? {} : { log: this.args.log }),
     })
     args.signal.throwIfAborted()
-    return { instanceId: instance.id, sandboxName }
+    const declared = await client.get({ id: instance.id })
+    await this.args.instances.seedStatus({
+      podSessionId,
+      status: declared.status,
+      at: new Date().toISOString(),
+    })
+    return { instanceId: instance.id, sandboxName, created: true }
   }
 
   private async ensureDaemon(args: { target: SandboxTarget; instanceId: string }): Promise<void> {
@@ -164,6 +170,13 @@ export class Agent37SandboxProvider extends SandboxProvider {
       const client = this.clientOf(apiKeyOf(args.target.credentials))
       // The endpoint carries the instance's real cpu so the runtime can record the size as applied.
       const instance = await client.get({ id: resolved.instanceId })
+      if (!resolved.created) {
+        await this.args.instances.seedStatus({
+          podSessionId: sessionId,
+          status: instance.status,
+          at: new Date().toISOString(),
+        })
+      }
       return await agent37EndpointOf({
         client,
         instanceId: resolved.instanceId,
