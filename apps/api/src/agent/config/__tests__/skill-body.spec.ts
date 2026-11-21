@@ -77,6 +77,76 @@ describe('skillTextOf', () => {
     expect(texts.every((one) => one.text === 'body')).toBe(true)
   })
 
+  it('reads a lowercase entry file and skips a skill that has none', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedSkill({ db, name: 'lower', scope: 'user', entryPath: 'skill.md' })
+    const bare = await db.orm.public.Skill.create({
+      name: 'bare',
+      description: 'bare description',
+      userId: 'user-1',
+    })
+    await seedFile({ db, skillId: bare.id, path: 'references/one.md', text: 'one' })
+    await seedSkill({ db, name: 'gamma', scope: 'user' })
+    await seedSkill({ db, name: 'delta', scope: 'project', entryPath: 'Skill.Md' })
+
+    expect(await skillTextOf({ db, owner: OWNER, scope: 'user', name: 'lower' })).toMatchObject({
+      text: 'body',
+      revision: 1,
+      hash: 'h',
+    })
+    const texts = await skillFrontmattersOf({ db, owner: OWNER })
+    expect(texts.map((one) => `${one.scope}:${one.name}`)).toEqual([
+      'user:lower',
+      'user:gamma',
+      'project:delta',
+    ])
+    expect(texts.every((one) => one.text === 'body')).toBe(true)
+  })
+
+  it('matches a custom path literally, so _ and % select only that file', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedSkill({ db, name: 'alpha', scope: 'user' })
+    const skill = await db.orm.public.Skill.first({ userId: 'user-1', name: 'alpha' })
+    if (skill === null || skill === undefined) throw new Error('the fixture seeded no skill')
+    await seedFile({ db, skillId: skill.id, path: 'refs/one_two.md', text: 'underscore' })
+    await seedFile({ db, skillId: skill.id, path: 'refs/oneXtwo.md', text: 'star' })
+    await seedFile({ db, skillId: skill.id, path: 'refs/50%.md', text: 'percent' })
+    await seedFile({ db, skillId: skill.id, path: 'refs/50X.md', text: 'other' })
+
+    expect(
+      await skillTextOf({
+        db,
+        owner: OWNER,
+        scope: 'user',
+        name: 'alpha',
+        path: 'refs/one_two.md',
+      }),
+    ).toMatchObject({ text: 'underscore' })
+    expect(
+      await skillTextOf({
+        db,
+        owner: OWNER,
+        scope: 'user',
+        name: 'alpha',
+        path: 'refs/50%.md',
+      }),
+    ).toMatchObject({ text: 'percent' })
+    expect(
+      await skillTextOf({
+        db,
+        owner: OWNER,
+        scope: 'user',
+        name: 'alpha',
+        path: 'refs/oneXtwo.md',
+      }),
+    ).toMatchObject({ text: 'star' })
+    expect(
+      await skillTextOf({ db, owner: OWNER, scope: 'user', name: 'alpha', path: 'refs/50.md' }),
+    ).toBeNull()
+  })
+
   it('answers null for an unknown skill, an unknown file, and the other scope', async () => {
     const { db } = testDb()
     await seedOwner(db)
