@@ -3,7 +3,11 @@ import { randomUUID } from 'node:crypto'
 import type { Sandbox } from '@vercel/sandbox'
 
 import { ESandboxProvider } from '@dltech/atlas-protocol'
-import { type PodShape, VERCEL_CGROUP_CPU_BILLING_FACTOR } from '@dltech/atlas-core'
+import {
+  type PodShape,
+  SANDBOX_MEMORY_GB_PER_VCPU,
+  VERCEL_CGROUP_CPU_BILLING_FACTOR,
+} from '@dltech/atlas-core'
 import { daemonToken } from '@dltech/atlas-protocol/engine'
 
 import {
@@ -151,6 +155,7 @@ export class VercelSandboxProvider extends SandboxProvider {
       token,
       sandboxName,
       ...(vcpus === undefined ? {} : { vcpus }),
+      ...(vcpus === undefined ? {} : { memoryGb: vcpus * SANDBOX_MEMORY_GB_PER_VCPU }),
     }
   }
 

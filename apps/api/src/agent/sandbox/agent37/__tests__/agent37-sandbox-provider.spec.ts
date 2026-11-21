@@ -232,6 +232,44 @@ describe('Agent37SandboxProvider.wake', () => {
       cleanup()
     }
   })
+
+  it('carries the memory the instance reports on the endpoint', async () => {
+    const { bundle: b, cleanup } = bundle()
+    const version = await agent37BundleVersionOf(b.path)
+    const { client } = fakeClient({ version, resources: { cpu: 4, memory: 32, disk: 20 } })
+    const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
+    try {
+      const endpoint = await provider.wake({ target: TARGET, signal: new AbortController().signal })
+
+      expect(endpoint.vcpus).toBe(4)
+      expect(endpoint.memoryGb).toBe(32)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('stamps the seed before it reads the instance, so a webhook from after the read wins', async () => {
+    const { bundle: b, cleanup } = bundle()
+    const version = await agent37BundleVersionOf(b.path)
+    let readAt = 0
+    const { client } = fakeClient({
+      version,
+      get: async ({ id }) => {
+        readAt = Date.now()
+        await new Promise((resolve) => setTimeout(resolve, 25))
+        return { id, status: 'running', url: `https://${id}.agent37.app` }
+      },
+    })
+    const { provider, seeded } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
+    try {
+      await provider.wake({ target: TARGET, signal: new AbortController().signal })
+
+      expect(readAt).toBeGreaterThan(0)
+      expect(Date.parse(seeded[0]?.at ?? '')).toBeLessThanOrEqual(readAt)
+    } finally {
+      cleanup()
+    }
+  })
 })
 
 describe('Agent37SandboxProvider.resize', () => {

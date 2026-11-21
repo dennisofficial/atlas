@@ -12,6 +12,7 @@ export type DaemonEndpoint = {
   token: string
   sandboxName: string
   vcpus?: number | undefined
+  memoryGb?: number | undefined
 }
 
 export type PodResizeOutcome = 'restarted' | 'stored' | 'absent'

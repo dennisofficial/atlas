@@ -291,6 +291,13 @@ export const podShapeSchema = z.strictObject({
 
 export type PodShapeOutput = z.infer<typeof podShapeSchema>
 
+export const podShapeViewSchema = z.strictObject({
+  vcpus: z.number().int().min(1),
+  memoryGb: z.number().int().min(1).nullable(),
+})
+
+export type PodShapeViewOutput = z.infer<typeof podShapeViewSchema>
+
 export const podSizingOutputSchema = z.strictObject({
   cap: z.number().int().min(1),
   offered: z.array(podShapeSchema),
@@ -309,7 +316,7 @@ export const sessionStatusOutputSchema = z.strictObject({
   commands: z.array(sessionCommandRowSchema).optional(),
   pod: z
     .strictObject({
-      shape: podShapeSchema.optional(),
+      shape: podShapeViewSchema.optional(),
       desiredShape: podShapeSchema.optional(),
       desiredVcpus: z.number().int().min(1).optional(),
       actualVcpus: z.number().int().min(1).optional(),

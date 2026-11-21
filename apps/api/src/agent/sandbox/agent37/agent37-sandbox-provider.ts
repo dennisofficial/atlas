@@ -116,11 +116,12 @@ export class Agent37SandboxProvider extends SandboxProvider {
       ...(this.args.log === undefined ? {} : { log: this.args.log }),
     })
     args.signal.throwIfAborted()
+    const readAt = new Date().toISOString()
     const declared = await client.get({ id: instance.id })
     await this.args.instances.seedStatus({
       podSessionId,
       status: declared.status,
-      at: new Date().toISOString(),
+      at: readAt,
     })
     return { instanceId: instance.id, sandboxName, created: true }
   }
@@ -170,13 +171,14 @@ export class Agent37SandboxProvider extends SandboxProvider {
       const client = this.clientOf(apiKeyOf(args.target.credentials))
       await startAgent37InstanceIfAsleep({ client, id: resolved.instanceId, log: this.args.log })
       await this.ensureDaemon({ target: args.target, instanceId: resolved.instanceId })
-      // The endpoint carries the instance's real cpu so the runtime can record the size as applied.
+      // The endpoint carries the instance's real shape so the runtime can record it as applied.
+      const readAt = new Date().toISOString()
       const instance = await client.get({ id: resolved.instanceId })
       if (!resolved.created) {
         await this.args.instances.seedStatus({
           podSessionId: sessionId,
           status: instance.status,
-          at: new Date().toISOString(),
+          at: readAt,
         })
       }
       return await agent37EndpointOf({
@@ -185,6 +187,9 @@ export class Agent37SandboxProvider extends SandboxProvider {
         token: this.tokenOf(resolved.sandboxName),
         sandboxName: resolved.sandboxName,
         ...(instance.resources?.cpu === undefined ? {} : { vcpus: instance.resources.cpu }),
+        ...(instance.resources?.memory === undefined
+          ? {}
+          : { memoryGb: instance.resources.memory }),
       })
     } catch (error) {
       if (error instanceof SandboxUnavailableError) throw error

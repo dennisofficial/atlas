@@ -55,18 +55,26 @@ const source: ConfigSource = {
 
 class RestartingPodSandbox extends SandboxProvider {
   wakes = 0
-  reported: number[] = []
+  reported: PodShape[] = []
 
-  constructor(private readonly sizes: readonly number[]) {
+  constructor(private readonly shapes: readonly PodShape[]) {
     super()
   }
 
   async wake(_args: { target: SandboxTarget; signal: AbortSignal }): Promise<DaemonEndpoint> {
-    const vcpus = this.sizes[Math.min(this.wakes, this.sizes.length - 1)] ?? this.sizes[0]
+    const shape = this.shapes[Math.min(this.wakes, this.shapes.length - 1)] ?? this.shapes[0]
     this.wakes += 1
-    this.reported.push(vcpus ?? 0)
+    if (shape === undefined)
+      return { url: `ws://127.0.0.1:1/${this.wakes}`, token: 't', sandboxName: 'n' }
+    this.reported.push(shape)
     // a dead url: the connector wakes again, the way it does when a resize restarted the container
-    return { url: `ws://127.0.0.1:1/${this.wakes}`, token: 't', sandboxName: 'n', vcpus }
+    return {
+      url: `ws://127.0.0.1:1/${this.wakes}`,
+      token: 't',
+      sandboxName: 'n',
+      vcpus: shape.vcpus,
+      memoryGb: shape.memoryGb,
+    }
   }
 
   async stop(): Promise<void> {}
@@ -144,7 +152,10 @@ describe('recording the applied pod size', () => {
       'pod-a': { podDesiredVcpus: null, podDesiredMemoryGb: null, podSizeGeneration: 0 },
     }
     const { recorded, podSizing } = sizingOf(rows)
-    const sandbox = new RestartingPodSandbox([4, 2])
+    const sandbox = new RestartingPodSandbox([
+      { vcpus: 4, memoryGb: 8 },
+      { vcpus: 2, memoryGb: 4 },
+    ])
     const runtime = await build({ sandbox, podSizing })({
       sessionId: 'pod-a',
       podSessionId: 'pod-a',
@@ -157,7 +168,10 @@ describe('recording the applied pod size', () => {
     await until(() => recorded.length > 0)
     await runtime.stop()
 
-    expect(sandbox.reported.slice(0, 2)).toEqual([4, 2])
+    expect(sandbox.reported.slice(0, 2)).toEqual([
+      { vcpus: 4, memoryGb: 8 },
+      { vcpus: 2, memoryGb: 4 },
+    ])
     expect(recorded[0]).toEqual({ sessionId: 'pod-a', vcpus: 2, memoryGb: 4, generation: 1 })
   })
 
@@ -166,7 +180,7 @@ describe('recording the applied pod size', () => {
       'pod-a': { podDesiredVcpus: 2, podDesiredMemoryGb: 4, podSizeGeneration: 1 },
     }
     const { recorded, podSizing } = sizingOf(rows)
-    const sandbox = new RestartingPodSandbox([2])
+    const sandbox = new RestartingPodSandbox([{ vcpus: 2, memoryGb: 4 }])
     const runtime = await build({ sandbox, podSizing })({
       sessionId: 'child-a',
       podSessionId: 'pod-a',
@@ -185,7 +199,26 @@ describe('recording the applied pod size', () => {
       'pod-a': { podDesiredVcpus: 4, podDesiredMemoryGb: 8, podSizeGeneration: 2 },
     }
     const { recorded, podSizing } = sizingOf(rows)
-    const sandbox = new RestartingPodSandbox([2])
+    const sandbox = new RestartingPodSandbox([{ vcpus: 2, memoryGb: 4 }])
+    const runtime = await build({ sandbox, podSizing })({
+      sessionId: 'pod-a',
+      podSessionId: 'pod-a',
+      threadId: toThreadId('t-pod-a'),
+      epoch: 1,
+      signal: new AbortController().signal,
+    })
+    await until(() => sandbox.wakes >= 3)
+    await runtime.stop()
+
+    expect(recorded).toEqual([])
+  })
+
+  it('records nothing when the sandbox came back at the cpu count but another memory', async () => {
+    const rows: Record<string, PodRow> = {
+      'pod-a': { podDesiredVcpus: 4, podDesiredMemoryGb: 32, podSizeGeneration: 2 },
+    }
+    const { recorded, podSizing } = sizingOf(rows)
+    const sandbox = new RestartingPodSandbox([{ vcpus: 4, memoryGb: 8 }])
     const runtime = await build({ sandbox, podSizing })({
       sessionId: 'pod-a',
       podSessionId: 'pod-a',
@@ -204,7 +237,7 @@ describe('recording the applied pod size', () => {
       'pod-a': { podDesiredVcpus: null, podDesiredMemoryGb: null, podSizeGeneration: 0 },
     }
     const { recorded, podSizing } = sizingOf(rows)
-    const sandbox = new RestartingPodSandbox([4])
+    const sandbox = new RestartingPodSandbox([{ vcpus: 4, memoryGb: 8 }])
     const runtime = await build({ sandbox, podSizing })({
       sessionId: 'pod-a',
       podSessionId: 'pod-a',
