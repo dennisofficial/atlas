@@ -42,7 +42,7 @@ import {
   sessionWakeOutputSchema,
   sessionViewOutputSchema,
   sessionPodMetricsInputSchema,
-  podMetricsFrameSchema,
+  podMetricsStreamOutputSchema,
   type PodMetricsFrame,
   type SessionPodMetricsInput,
   sessionStatusInputSchema,
@@ -259,7 +259,7 @@ export class SessionsRouter {
     return this.sessions.view({ userId: ctx.auth.userId, sessionId: input.sessionId })
   }
 
-  @Subscription({ input: sessionPodMetricsInputSchema, output: podMetricsFrameSchema })
+  @Subscription({ input: sessionPodMetricsInputSchema, output: podMetricsStreamOutputSchema })
   podMetrics(
     @Input() input: SessionPodMetricsInput,
     @Ctx() ctx: SessionTrpcCtx,

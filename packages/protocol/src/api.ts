@@ -404,6 +404,12 @@ export const podMetricsFrameSchema = z.discriminatedUnion('type', [
 export type SessionPodMetricsInput = z.infer<typeof sessionPodMetricsInputSchema>
 export type PodMetricsFrame = z.infer<typeof podMetricsFrameSchema>
 
+const isPodMetricsStream = (value: unknown): value is AsyncIterable<PodMetricsFrame> =>
+  typeof (value as { [Symbol.asyncIterator]?: unknown })[Symbol.asyncIterator] === 'function'
+
+export const podMetricsStreamOutputSchema =
+  z.custom<AsyncIterable<PodMetricsFrame>>(isPodMetricsStream)
+
 export const sessionRetryOutputSchema = z.strictObject({ inboxId: z.number().int().min(1) })
 
 export const sessionStopOutputSchema = z.strictObject({ inboxId: z.number().int().min(1) })

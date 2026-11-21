@@ -128,7 +128,10 @@ export const createSessionRuntimeFactory = (
       if (args.podSizing === undefined || vcpus === undefined || memoryGb === undefined) return
       try {
         const pod = await args.podSizing.readSession({ sessionId: sandboxSessionId })
-        if (pod?.podDesiredVcpus !== vcpus || pod.podDesiredMemoryGb !== memoryGb) return
+        if (pod === undefined || pod === null) return
+        const neverResized = pod.podDesiredVcpus === null
+        const reachedDesired = pod.podDesiredVcpus === vcpus && pod.podDesiredMemoryGb === memoryGb
+        if (!neverResized && !reachedDesired) return
         await args.podSizing.recordPodApplied({
           sessionId: sandboxSessionId,
           vcpus,

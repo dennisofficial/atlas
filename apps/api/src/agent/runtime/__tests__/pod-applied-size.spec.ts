@@ -172,7 +172,26 @@ describe('recording the applied pod size', () => {
       { vcpus: 4, memoryGb: 8 },
       { vcpus: 2, memoryGb: 4 },
     ])
-    expect(recorded[0]).toEqual({ sessionId: 'pod-a', vcpus: 2, memoryGb: 4, generation: 1 })
+    expect(recorded).toContainEqual({ sessionId: 'pod-a', vcpus: 2, memoryGb: 4, generation: 1 })
+  })
+
+  it('records the observed size of a pod that was never resized', async () => {
+    const rows: Record<string, PodRow> = {
+      'pod-a': { podDesiredVcpus: null, podDesiredMemoryGb: null, podSizeGeneration: 0 },
+    }
+    const { recorded, podSizing } = sizingOf(rows)
+    const sandbox = new RestartingPodSandbox([{ vcpus: 4, memoryGb: 8 }])
+    const runtime = await build({ sandbox, podSizing })({
+      sessionId: 'pod-a',
+      podSessionId: 'pod-a',
+      threadId: toThreadId('t-pod-a'),
+      epoch: 1,
+      signal: new AbortController().signal,
+    })
+    await until(() => recorded.length > 0)
+    await runtime.stop()
+
+    expect(recorded[0]).toEqual({ sessionId: 'pod-a', vcpus: 4, memoryGb: 8, generation: 0 })
   })
 
   it('records on the pod row a sub-agent session shares', async () => {
@@ -216,25 +235,6 @@ describe('recording the applied pod size', () => {
   it('records nothing when the sandbox came back at the cpu count but another memory', async () => {
     const rows: Record<string, PodRow> = {
       'pod-a': { podDesiredVcpus: 4, podDesiredMemoryGb: 32, podSizeGeneration: 2 },
-    }
-    const { recorded, podSizing } = sizingOf(rows)
-    const sandbox = new RestartingPodSandbox([{ vcpus: 4, memoryGb: 8 }])
-    const runtime = await build({ sandbox, podSizing })({
-      sessionId: 'pod-a',
-      podSessionId: 'pod-a',
-      threadId: toThreadId('t-pod-a'),
-      epoch: 1,
-      signal: new AbortController().signal,
-    })
-    await until(() => sandbox.wakes >= 3)
-    await runtime.stop()
-
-    expect(recorded).toEqual([])
-  })
-
-  it('records nothing when nothing was ever asked for', async () => {
-    const rows: Record<string, PodRow> = {
-      'pod-a': { podDesiredVcpus: null, podDesiredMemoryGb: null, podSizeGeneration: 0 },
     }
     const { recorded, podSizing } = sizingOf(rows)
     const sandbox = new RestartingPodSandbox([{ vcpus: 4, memoryGb: 8 }])
