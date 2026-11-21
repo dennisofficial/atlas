@@ -117,6 +117,8 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2.2.0
 
+      - run: bun install --frozen-lockfile
+
       # The Agent37 template is pinned by digest, never by a tag a later merge can move, so
       # resolve the digest ghcr holds for the release commit here and hand it to the register
       # step. linux/amd64 first, the same choice agent37-register-template.ts's registryDigestOf
@@ -167,8 +169,6 @@ jobs:
           DOTENV_PRIVATE_KEY_PRODUCTION_ENC: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION_ENC }}
         run: |
           set -euo pipefail
-          # This job installs no workspace deps, so `bunx dotenvx` would fetch the unrelated npm
-          # package of that name: name the real one at the version the root package.json asks for.
-          bunx --package @dotenvx/dotenvx@^1.71.0 dotenvx run -f apps/api/.env.production.enc -- \
+          bunx dotenvx run -f apps/api/.env.production.enc -- \
             bun apps/api/scripts/agent37-register-template.ts \
               --tag '${{ steps.release-image.outputs.digest }}'
