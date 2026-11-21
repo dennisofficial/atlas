@@ -6,6 +6,8 @@ export type SkillScopeName = 'user' | 'project'
 
 const ENTRY_PATH = 'SKILL.md'
 
+const likeLiteralOf = (path: string): string => path.replace(/[\\%_]/g, '\\$&')
+
 const ownerWhere = (args: {
   owner: SkillOwner
   scope: SkillScopeName
@@ -15,6 +17,19 @@ const ownerWhere = (args: {
 }
 
 export type SkillBody = { text: string; revision: number; hash: string }
+
+const fileOf = async (args: {
+  db: Db
+  skillId: string
+  path: string
+}): Promise<{ content: Uint8Array; revision: number; contentHash: string } | null> => {
+  const files = await args.db.orm.public.SkillFile.where((file) => file.skillId.eq(args.skillId))
+    .where((file) => file.path.ilike(likeLiteralOf(args.path)))
+    .select('path', 'content', 'revision', 'contentHash')
+    .all()
+  const wanted = args.path.toLowerCase()
+  return files.find((file) => file.path.toLowerCase() === wanted) ?? null
+}
 
 export const skillTextOf = async (args: {
   db: Db
@@ -31,16 +46,17 @@ export const skillTextOf = async (args: {
   })
   if (skill === null || skill === undefined) return null
 
-  const files = await args.db.orm.public.SkillFile.where({ skillId: skill.id }).all()
-  const wanted = (args.path ?? ENTRY_PATH).toLowerCase()
-  const found = files.find((file) => file.path.toLowerCase() === wanted)
-  return found === undefined
-    ? null
-    : {
-        text: Buffer.from(found.content).toString('utf8'),
-        revision: found.revision,
-        hash: found.contentHash,
-      }
+  const found = await fileOf({
+    db: args.db,
+    skillId: skill.id,
+    path: args.path ?? ENTRY_PATH,
+  })
+  if (found === null) return null
+  return {
+    text: Buffer.from(found.content).toString('utf8'),
+    revision: found.revision,
+    hash: found.contentHash,
+  }
 }
 
 export type CloudSkillText = { scope: SkillScopeName; name: string; text: string }
@@ -61,22 +77,31 @@ const skillRowsOf = async (args: {
   ]
 }
 
+const entryTextsOf = async (args: {
+  db: Db
+  skillIds: readonly string[]
+}): Promise<Map<string, string>> => {
+  const files = await args.db.orm.public.SkillFile.where((file) => file.skillId.in(args.skillIds))
+    .where((file) => file.path.ilike(ENTRY_PATH))
+    .select('skillId', 'content')
+    .all()
+  const texts = new Map<string, string>()
+  for (const file of files) {
+    if (texts.has(file.skillId)) continue
+    texts.set(file.skillId, Buffer.from(file.content).toString('utf8'))
+  }
+  return texts
+}
+
 export const skillFrontmattersOf = async (args: {
   db: Db
   owner: SkillOwner
 }): Promise<readonly CloudSkillText[]> => {
   const rows = await skillRowsOf(args)
-  const texts = await Promise.all(
-    rows.map(async (row): Promise<CloudSkillText | undefined> => {
-      const files = await args.db.orm.public.SkillFile.where({ skillId: row.id }).all()
-      const entry = files.find((file) => file.path.toLowerCase() === ENTRY_PATH.toLowerCase())
-      if (entry === undefined) return undefined
-      return {
-        scope: row.scope,
-        name: row.name,
-        text: Buffer.from(entry.content).toString('utf8'),
-      }
-    }),
-  )
-  return texts.filter((one): one is CloudSkillText => one !== undefined)
+  if (rows.length === 0) return []
+  const texts = await entryTextsOf({ db: args.db, skillIds: rows.map((row) => row.id) })
+  return rows.flatMap((row): CloudSkillText[] => {
+    const text = texts.get(row.id)
+    return text === undefined ? [] : [{ scope: row.scope, name: row.name, text }]
+  })
 }

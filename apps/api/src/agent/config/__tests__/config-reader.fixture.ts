@@ -111,6 +111,7 @@ export const seedSkill = async (args: {
   name: string
   scope: 'user' | 'project'
   description?: string
+  entryPath?: string
 }): Promise<void> => {
   const owner = args.scope === 'user' ? { userId: 'user-1' } : { projectId: 'proj-1' }
   const skill = await args.db.orm.public.Skill.create({
@@ -120,7 +121,7 @@ export const seedSkill = async (args: {
   })
   await args.db.orm.public.SkillFile.create({
     skillId: skill.id,
-    path: 'SKILL.md',
+    path: args.entryPath ?? 'SKILL.md',
     revision: 1,
     contentHash: 'h',
     content: Buffer.from('body'),
