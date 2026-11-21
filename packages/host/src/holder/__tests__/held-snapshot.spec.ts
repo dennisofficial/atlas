@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 
+import { composeCommands, defineCommand, type Command } from '@dltech/atlas-commands'
 import {
   chainEvents,
+  ECommandGroup,
+  ECommandTiming,
   EHeldAction,
   EInputConsumed,
   ESetupPhase,
@@ -9,10 +12,12 @@ import {
   visibleLoopEvents,
   toRunId,
   toThreadId,
+  type InboxEntry,
   type V2Body,
   type V2Event,
 } from '@dltech/atlas-core'
 import type { ControlPlane } from '@dltech/atlas-control'
+import { z } from 'zod'
 
 import { readHeldAction } from '../held-snapshot'
 import type { HeldSessionDeps } from '../held-session-deps'
@@ -185,5 +190,109 @@ describe('readHeldAction over a shell ending that lands after the turn', () => {
   it('does not start another turn for an ending a turn already covered', async () => {
     const events = eventsOf([said('watch it'), replied(), shellEnded()])
     expect(await actionOf({ events, resumeAfterSeq: events.length })).toBe(EHeldAction.Wait)
+  })
+})
+
+const commandOf = (args: { name: string; timing: ECommandTiming }): Command =>
+  defineCommand({
+    spec: {
+      name: args.name,
+      summary: args.name,
+      group: ECommandGroup.Session,
+      args: z.strictObject({}),
+      timing: args.timing,
+      handledIn: 'holder',
+    },
+  })
+
+const entryOf = (command: Command): InboxEntry => ({
+  sessionId: 'session-1',
+  inboxId: 4,
+  kind: command.inboxKind,
+  payload: '{}',
+  postedAt: '2026-11-12T03:00:00.000Z',
+  consumedSeq: null,
+  threadId: null,
+  senderSessionId: null,
+})
+
+const commandDepsOf = (args: {
+  command: Command
+  inbox: InboxEntry | undefined
+}): HeldSessionDeps =>
+  ({
+    sessionId: 'session-1',
+    plane: {
+      readInbox: async () => (args.inbox === undefined ? [] : [args.inbox]),
+      readInboxEntry: async () => undefined,
+    },
+    timers: { now: () => 0 },
+    commands: composeCommands([args.command]),
+    commandHandlers: new Map([[args.command.inboxKind, async () => ({ kind: 'done' })]]),
+  }) as unknown as HeldSessionDeps
+
+const commandActionOf = async (args: {
+  command: Command
+  turnRunning: boolean
+  staged?: boolean
+}): Promise<EHeldAction> => {
+  const entry = entryOf(args.command)
+  const staged = args.staged === true
+  const deps = commandDepsOf({ command: args.command, inbox: staged ? undefined : entry })
+  const { action } = await readHeldAction({
+    deps,
+    draining: false,
+    turnRunning: args.turnRunning,
+    resumeAfterSeq: 0,
+    runtime: undefined,
+    record: recordOf(
+      staged
+        ? eventsOf([
+            {
+              type: 'input-posted',
+              inboxId: entry.inboxId,
+              kind: entry.kind,
+              postedAt: entry.postedAt,
+            },
+          ])
+        : [],
+    ),
+    preparing: false,
+    setupRunning: false,
+    childrenRunning: 0,
+  })
+  return action
+}
+
+describe('readHeldAction over a pending command', () => {
+  const immediate = commandOf({ name: 'listen', timing: ECommandTiming.Immediate })
+  const settled = commandOf({ name: 'prune', timing: ECommandTiming.Settled })
+
+  it('asks for the immediate run while the turn is still running', async () => {
+    expect(await commandActionOf({ command: immediate, turnRunning: true })).toBe(
+      EHeldAction.RunImmediate,
+    )
+  })
+
+  it('keeps a settled command waiting for the turn to close', async () => {
+    expect(await commandActionOf({ command: settled, turnRunning: true })).toBe(EHeldAction.Wait)
+  })
+
+  it('hands an immediate command to the starting step once the turn has closed', async () => {
+    expect(await commandActionOf({ command: immediate, turnRunning: false })).toBe(
+      EHeldAction.StartTurn,
+    )
+  })
+
+  it('asks for the immediate run of a command only the log holds, while the turn runs', async () => {
+    expect(await commandActionOf({ command: immediate, turnRunning: true, staged: true })).toBe(
+      EHeldAction.RunImmediate,
+    )
+  })
+
+  it('keeps a settled command the log holds waiting for the turn to close', async () => {
+    expect(await commandActionOf({ command: settled, turnRunning: true, staged: true })).toBe(
+      EHeldAction.Wait,
+    )
   })
 })

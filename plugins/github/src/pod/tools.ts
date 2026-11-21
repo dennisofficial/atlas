@@ -55,7 +55,7 @@ const inputSchema = baseSchema.superRefine((input, context) => {
 
 const description = [
   'Subscribe this session to an external event source, so its occurrences reach you as notices that wake you. Nothing notifies you about a source you have not subscribed to.',
-  'action subscribe needs provider, and takes target, events and expiresInMinutes. action unsubscribe needs subscriptionId and ends one subscription. action list shows every subscription with its id, label, status, who created it and expiry, plus the providers you can subscribe to.',
+  'action subscribe needs provider, and takes target, events and expiresInMinutes. action unsubscribe needs subscriptionId and ends one subscription. action list shows every subscription with its id, label, who created it and expiry, plus the providers you can subscribe to.',
   `The providers are ${GITHUB_PROVIDER} and ${GITHUB_RUN_PROVIDER}.`,
   'target is the source: owner/repo#123, a pull request URL or a run URL. Omit it when the provider works it out from this session, such as the pull request or the run of the current branch.',
   'expiresInMinutes ends the subscription after that long.',

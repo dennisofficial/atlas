@@ -4,6 +4,7 @@ export enum EHeldAction {
   AbortTurn = 'abort-turn',
   ConsumeStop = 'consume-stop',
   Prepare = 'prepare',
+  RunImmediate = 'run-immediate',
   StartTurn = 'start-turn',
   Release = 'release',
   Wait = 'wait',
@@ -14,6 +15,7 @@ export type HeldSnapshot = {
   turn: 'idle' | 'running'
   stopPending: boolean
   messagePending: boolean
+  immediatePending: boolean
   resumable: boolean
   idleDue: boolean
   workspace: EWorkspaceState
@@ -35,7 +37,9 @@ export const decideHeldAction = (snapshot: HeldSnapshot): EHeldAction => {
   if (snapshot.stopPending) {
     return snapshot.turn === 'running' ? EHeldAction.AbortTurn : EHeldAction.ConsumeStop
   }
-  if (snapshot.turn === 'running') return EHeldAction.Wait
+  if (snapshot.turn === 'running') {
+    return snapshot.immediatePending ? EHeldAction.RunImmediate : EHeldAction.Wait
+  }
   switch (snapshot.workspace) {
     case EWorkspaceState.Unprepared:
       return EHeldAction.Prepare

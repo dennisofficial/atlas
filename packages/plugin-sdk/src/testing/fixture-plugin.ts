@@ -57,7 +57,7 @@ export const probeObserve = defineCommand({
     group: ECommandGroup.Session,
     args: probeArgs,
     timing: ECommandTiming.Settled,
-    handledIn: 'pod',
+    handledIn: 'holder',
   },
 })
 

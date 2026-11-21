@@ -226,7 +226,7 @@ _Updated at the end of every slice. Last update: 2026-11-17._
 - **Done 2026-11-08: slice 6, `plugin-sdk` and `commands`** ([spec](slices/06-commands.md); PRs #2002,
   #2003, #2005, #2006, #2007, #2008). `core` gained the type-level event registry and the composed
   decoder, `packages/plugin-sdk` the slot-complete contract (proven by a fixture plugin), and
-  `packages/commands` the command contract: one spec per capability, `handledIn: 'pod' | 'control'`,
+  `packages/commands` the command contract: one spec per capability, `handledIn: 'holder' | 'control'`,
   and a single `sessions.command` that validates and posts `command:<name>` into the inbox. The
   holder runs a command between turns, appends `input-refused` when it refuses, and never mid-turn.
   A v2 session can now be rewound from a message (spend holds, the meter drops), summarised up to a

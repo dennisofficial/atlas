@@ -1,4 +1,4 @@
-import { ESubscriptionActor, ESubscriptionStatus, ESubscriptionTone } from '@dltech/atlas-core'
+import { ESubscriptionActor, ESubscriptionTone } from '@dltech/atlas-core'
 import type { SubscriptionListRow } from '@dltech/atlas-plugin-github/client'
 import { iconNames, type IconName } from 'lucide-react/dynamic'
 
@@ -42,12 +42,7 @@ export function expiryTextOf(args: { expiresAt: string | undefined; now: number 
   return `Expires in ${Math.round(hours / DAY_HOURS)}d`
 }
 
-export type SubscriptionMeta = { paused: boolean; text: string }
-
-export const subscriptionMetaOf = (args: {
-  row: SubscriptionListRow
-  now: number
-}): SubscriptionMeta => {
+export const subscriptionMetaOf = (args: { row: SubscriptionListRow; now: number }): string => {
   const { row, now } = args
   const parts = [
     row.presentation.meta.join(' · '),
@@ -55,10 +50,7 @@ export const subscriptionMetaOf = (args: {
     row.held > 0 ? `${row.held} held` : null,
     expiryTextOf({ expiresAt: row.expiresAt, now }),
   ]
-  return {
-    paused: row.status === ESubscriptionStatus.Paused,
-    text: parts.filter((part) => part !== null && part.length > 0).join(' · '),
-  }
+  return parts.filter((part) => part !== null && part.length > 0).join(' · ')
 }
 
 export type SubscriptionTitle = { number: string | undefined; text: string }
@@ -71,23 +63,7 @@ export const subscriptionTitleOf = (title: string): SubscriptionTitle => {
   return { number: match[1], text: match[2] ?? '' }
 }
 
-export type SubscriptionCommand =
-  | {
-      name: 'set-subscription-status'
-      args: { subscriptionId: string; status: ESubscriptionStatus }
-    }
-  | { name: 'unsubscribe'; args: { subscriptionId: string } }
-
-export const statusCommandOf = (
-  row: SubscriptionListRow,
-  active: boolean,
-): SubscriptionCommand => ({
-  name: 'set-subscription-status',
-  args: {
-    subscriptionId: row.id,
-    status: active ? ESubscriptionStatus.Active : ESubscriptionStatus.Paused,
-  },
-})
+export type SubscriptionCommand = { name: 'unsubscribe'; args: { subscriptionId: string } }
 
 export const removeCommandOf = (row: SubscriptionListRow): SubscriptionCommand => ({
   name: 'unsubscribe',

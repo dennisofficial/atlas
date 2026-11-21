@@ -172,7 +172,7 @@ context had no plane; `model` when summarise needed one, threaded from `runtime.
 web action is a small data module beside its surface (`session-rewind.ts`, `session-summarise.ts`,
 `rename-session.ts`).
 
-**`handledIn`.** `CommandSpec.handledIn: 'pod' | 'control'` marks the difference. A `control` command
+**`handledIn`.** `CommandSpec.handledIn: 'holder' | 'control'` marks the difference. A `control` command
 never enters `byInboxKind`, so a holder can never pick one up; `sessions.command` runs it inline and
 answers `{}`.
 
@@ -187,7 +187,7 @@ composed registry, validates `args` with that command's schema, and posts an inb
 `` `command:${name}` `` whose payload is the args JSON — `sessions.retry`'s shape
 (`sessions.service.ts:285-287`), with ownership checked as `requireOwnedSession` does
 (`:289-297`). An unknown name or invalid args is a `BAD_REQUEST` and posts nothing. A client can only
-run a command the server knows. The output is `{ inboxId?: number }`: present for a pod command,
+run a command the server knows. The output is `{ inboxId?: number }`: present for a holder command,
 absent for a control command.
 
 **Intake: the holder runs commands between turns.** `InboxIntake` (`inbox-intake.ts:28`) takes the

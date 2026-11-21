@@ -43,6 +43,9 @@ import {
 import { resolveWithdraws, type WithdrawLookup } from './withdraw-plan'
 import { supersededRewindIdsOf } from './rewind-dedupe'
 
+const consumedInboxIdsOf = (events: readonly V2Event[]): ReadonlySet<number> =>
+  new Set(events.flatMap((event) => (event.type === 'input-consumed' ? [event.inboxId] : [])))
+
 export { INBOX_KIND_STOP }
 
 export type InboxIntakeArgs = {
@@ -121,9 +124,10 @@ export class InboxIntake implements AgentIntake {
       const glue = this.commandGlue()
       const events = this.events()
       const superseded = supersededRewindIdsOf({ entries, events })
+      const consumed = consumedInboxIdsOf(events)
       let ran = false
       for (const entry of entries) {
-        if (!isCommandKind(entry.kind)) continue
+        if (!isCommandKind(entry.kind) || consumed.has(entry.inboxId)) continue
         if (superseded.has(entry.inboxId)) {
           await consumeQuietly({ ...glue, entry })
           ran = true

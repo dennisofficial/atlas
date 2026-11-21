@@ -2,7 +2,6 @@ import {
   EAgentStatus,
   ESessionStatus,
   ESubscriptionActor,
-  ESubscriptionStatus,
   ESubscriptionTone,
   type PlanTask,
   type SpendTally,
@@ -60,7 +59,6 @@ export const subscriptionRowFixture = (
 ): SubscriptionListRow => ({
   id: 'sub_7',
   provider: 'github.pull-request',
-  status: ESubscriptionStatus.Active,
   createdBy: ESubscriptionActor.Agent,
   threadId: 't1',
   number: 7,
