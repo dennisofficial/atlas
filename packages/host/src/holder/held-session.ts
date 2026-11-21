@@ -17,6 +17,7 @@ import { CrewRoom } from './crew'
 import {
   logDriveFault,
   logReconcileFault,
+  ranImmediateCommands,
   ranQueuedCommand,
   settleAndCheckResume,
   startHeldTurn,
@@ -26,6 +27,7 @@ import { teardownHeld } from './held-teardown'
 import { HeldPrepare } from './held-prepare'
 import { readHeldAction } from './held-snapshot'
 import { drainNeedsHolder } from './held-needs-holder'
+import { immediateCommandEntries } from './held-inbox'
 import { lostOutcome } from './lost-outcome'
 import { closeOpenTurn } from './orphan-turn'
 import { STOPPED_BY_OPERATOR } from './turn-boundary'
@@ -305,7 +307,32 @@ export class HeldSession {
     })
     if (action === EHeldAction.AbortTurn) return this.turns.abort(OPERATOR_STOP_REASON)
     if (action !== EHeldAction.StartTurn) await this.logStaged?.()
-    if (await ranQueuedCommand({ action, entries, turnRunning, runCommands: this.runCommands })) {
+    const immediate = await immediateCommandEntries({
+      deps,
+      entries,
+      events: this.record?.eventCache().eventsAfter(0) ?? [],
+      failure,
+    })
+    if (
+      await ranImmediateCommands({
+        action,
+        entries: immediate,
+        turnRunning,
+        runCommands: this.runCommands,
+      })
+    ) {
+      this.reconciler?.request()
+      return
+    }
+    const queued = action === EHeldAction.RunImmediate ? [] : entries
+    if (
+      await ranQueuedCommand({
+        action,
+        entries: queued,
+        turnRunning,
+        runCommands: this.runCommands,
+      })
+    ) {
       this.reconciler?.request()
       return
     }
@@ -355,6 +382,7 @@ export class HeldSession {
         await this.ending.releaseIdle({ entries, failure, threadId: args.threadId })
         return
       }
+      case EHeldAction.RunImmediate:
       case EHeldAction.Wait: {
         return
       }

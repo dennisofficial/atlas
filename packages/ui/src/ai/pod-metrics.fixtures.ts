@@ -80,6 +80,19 @@ export function generatePodSeries({
 
 export const POD_SERIES: readonly PodMetricsSample[] = generatePodSeries()
 
+export const POD_DISK_GB = 20
+
+const withDiskOf = (series: readonly PodMetricsSample[], limitGb: number) =>
+  series.map((sample, index) => ({
+    ...sample,
+    diskUsedGb: 11 + (index / Math.max(1, series.length - 1)) * 3.2,
+    diskLimitGb: limitGb,
+  }))
+
+export const POD_SERIES_WITH_DISK: readonly PodMetricsSample[] = withDiskOf(POD_SERIES, POD_DISK_GB)
+
+export const POD_SERIES_DISK_FULL: readonly PodMetricsSample[] = withDiskOf(POD_SERIES, 100)
+
 export function nextPodSample({
   series,
   random = Math.random,
@@ -102,5 +115,8 @@ export function nextPodSample({
       min: RAM_FLOOR - 0.1,
       max: RAM_CEILING + 0.6,
     }),
+    ...(last?.diskUsedGb === undefined
+      ? {}
+      : { diskUsedGb: last.diskUsedGb, diskLimitGb: last.diskLimitGb }),
   }
 }

@@ -4,6 +4,8 @@ export interface PodMetricsSample {
   t: number
   cpu: number
   ramGb: number
+  diskUsedGb?: number | undefined
+  diskLimitGb?: number | undefined
 }
 
 export interface PodMetricView {
@@ -37,6 +39,21 @@ export function ramPercentOf({
 }): number {
   if (limitGb <= 0) return 0
   return clamp({ value: (sample.ramGb / limitGb) * 100, min: 0, max: 100 })
+}
+
+export function diskPercentOf({ sample }: { sample: PodMetricsSample }): number {
+  const limitGb = sample.diskLimitGb
+  if (limitGb === undefined || limitGb <= 0 || sample.diskUsedGb === undefined) return 0
+  return clamp({ value: (sample.diskUsedGb / limitGb) * 100, min: 0, max: 100 })
+}
+
+export function podDiskOf(
+  series: readonly PodMetricsSample[],
+): { usedGb: number; limitGb: number } | undefined {
+  const sample = latestOf(series)
+  if (sample?.diskUsedGb === undefined) return undefined
+  if (sample.diskLimitGb === undefined || sample.diskLimitGb <= 0) return undefined
+  return { usedGb: sample.diskUsedGb, limitGb: sample.diskLimitGb }
 }
 
 export function formatCpu(percent: number): string {

@@ -59,7 +59,7 @@ describe('subscriptions view', () => {
     expect(ended.map((row) => row.id)).toEqual(['b'])
   })
 
-  it('applies a status change and ignores one for an unknown id', () => {
+  it('keeps a subscription live when an older log carries a status change', () => {
     const state = subscriptionsOfEvents(
       eventsOf([
         created('a'),
@@ -69,16 +69,10 @@ describe('subscriptions view', () => {
           status: ESubscriptionStatus.Paused,
           by: ESubscriptionActor.Operator,
         },
-        {
-          type: 'subscription-changed',
-          subscriptionId: 'zzz',
-          status: ESubscriptionStatus.Paused,
-          by: ESubscriptionActor.Operator,
-        },
       ]),
     )
-    expect(state).toHaveLength(1)
-    expect(state[0]?.status).toBe(ESubscriptionStatus.Paused)
+    expect(state.map((row) => row.id)).toEqual(['a'])
+    expect(state[0]?.presentation.icon).toBe('git-pull-request')
   })
 
   it('carries the events filter, replacing it on a later created for the same id', () => {

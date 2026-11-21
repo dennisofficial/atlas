@@ -65,6 +65,7 @@ export const toSessionRow = (row: {
   podSessionId: string | null
   podDesiredVcpus: number | null
   podDesiredMemoryGb: number | null
+  podDesiredDiskGb: number | null
   podSizeGeneration: number
   podActualVcpus: number | null
   podActualMemoryGb: number | null
@@ -95,6 +96,7 @@ export const toSessionRow = (row: {
   podSessionId: row.podSessionId,
   podDesiredVcpus: row.podDesiredVcpus,
   podDesiredMemoryGb: row.podDesiredMemoryGb,
+  podDesiredDiskGb: row.podDesiredDiskGb,
   podSizeGeneration: row.podSizeGeneration,
   podActualVcpus: row.podActualVcpus,
   podActualMemoryGb: row.podActualMemoryGb,

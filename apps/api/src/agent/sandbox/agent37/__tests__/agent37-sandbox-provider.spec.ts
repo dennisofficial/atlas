@@ -93,6 +93,13 @@ const fakeClient = (args: {
     probe: async () => ({ status: 200, body: args.version }),
     signedUrl: async ({ id, port }) => `https://${id}-${port}.agent37.app/?a37_token=a37`,
     usage: async () => ({ from: '', to: '' }),
+    metrics: async () => ({
+      series: {},
+      limits: { cpu_cores: 0, memory_bytes: 0, disk_bytes: 0 },
+      hours: 1,
+      step_seconds: 60,
+      fetched_at: 0,
+    }),
     events: async () => ({ from: '', to: '', events: [] }),
   }
   return { client, creates, execs, slept, started, resized, removed }
@@ -243,6 +250,7 @@ describe('Agent37SandboxProvider.wake', () => {
 
       expect(endpoint.vcpus).toBe(4)
       expect(endpoint.memoryGb).toBe(32)
+      expect(endpoint.diskGb).toBe(20)
     } finally {
       cleanup()
     }
@@ -320,6 +328,74 @@ describe('Agent37SandboxProvider.resize', () => {
       )
       expect(started).toEqual([])
       expect(resized).toEqual([])
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('sends only the disk when the shape already matches and the disk has to grow', async () => {
+    const { bundle: b, cleanup } = bundle()
+    const version = await agent37BundleVersionOf(b.path)
+    const { client, started, resized } = fakeClient({
+      version,
+      status: 'sleeping',
+      resources: { cpu: 4, memory: 16, disk: 20 },
+    })
+    const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
+    try {
+      expect(
+        await provider.resize({
+          target: TARGET,
+          shape: { vcpus: 4, memoryGb: 16 },
+          diskGb: 30,
+        }),
+      ).toBe('restarted')
+      expect(resized).toEqual([{ id: 'inst-9', disk: 30 }])
+      expect(started).toEqual(['inst-9'])
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('stores a pod whose cpu, memory and disk are already at the target', async () => {
+    const { bundle: b, cleanup } = bundle()
+    const version = await agent37BundleVersionOf(b.path)
+    const { client, resized } = fakeClient({
+      version,
+      resources: { cpu: 4, memory: 16, disk: 40 },
+    })
+    const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
+    try {
+      expect(
+        await provider.resize({
+          target: TARGET,
+          shape: { vcpus: 4, memoryGb: 16 },
+          diskGb: 40,
+        }),
+      ).toBe('stored')
+      expect(resized).toEqual([])
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('never sends a smaller disk, because agent37 cannot shrink one', async () => {
+    const { bundle: b, cleanup } = bundle()
+    const version = await agent37BundleVersionOf(b.path)
+    const { client, resized } = fakeClient({
+      version,
+      resources: { cpu: 4, memory: 8, disk: 64 },
+    })
+    const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
+    try {
+      expect(
+        await provider.resize({
+          target: TARGET,
+          shape: { vcpus: 4, memoryGb: 16 },
+          diskGb: 30,
+        }),
+      ).toBe('restarted')
+      expect(resized).toEqual([{ id: 'inst-9', memory: 16 }])
     } finally {
       cleanup()
     }

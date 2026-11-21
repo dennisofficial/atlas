@@ -1,4 +1,5 @@
 import { retrySleep, type RetryPolicy } from '../constants'
+import { agent37MetricsClient, type Agent37MetricsClient } from './agent37-metrics'
 import { agent37UsageClient, type Agent37UsageClient } from './agent37-usage'
 
 const API_BASE = 'https://api.agent37.com'
@@ -70,25 +71,26 @@ export type Agent37ExecArgs = {
   user?: 'root'
 }
 
-export type Agent37Client = Agent37UsageClient & {
-  create(args: Agent37CreateArgs): Promise<Agent37Instance>
-  get(args: { id: string }): Promise<Agent37Instance>
-  list(args?: { cursor?: string }): Promise<{ data: Agent37Instance[]; next?: string }>
-  remove(args: { id: string }): Promise<void>
-  sleep(args: { id: string }): Promise<void>
-  start(args: { id: string }): Promise<Pick<Agent37Instance, 'id' | 'status'>>
-  resize(args: Agent37ResizeArgs): Promise<Agent37Instance>
-  exec(args: Agent37ExecArgs): Promise<Agent37ExecResult | Agent37Pid>
-  probe(args: {
-    id: string
-    port: number
-    path?: string
-    method?: 'GET' | 'POST'
-    authorization?: string
-    body?: string
-  }): Promise<Agent37Answer>
-  signedUrl(args: { id: string; port: number; ttlSeconds: number }): Promise<string>
-}
+export type Agent37Client = Agent37UsageClient &
+  Agent37MetricsClient & {
+    create(args: Agent37CreateArgs): Promise<Agent37Instance>
+    get(args: { id: string }): Promise<Agent37Instance>
+    list(args?: { cursor?: string }): Promise<{ data: Agent37Instance[]; next?: string }>
+    remove(args: { id: string }): Promise<void>
+    sleep(args: { id: string }): Promise<void>
+    start(args: { id: string }): Promise<Pick<Agent37Instance, 'id' | 'status'>>
+    resize(args: Agent37ResizeArgs): Promise<Agent37Instance>
+    exec(args: Agent37ExecArgs): Promise<Agent37ExecResult | Agent37Pid>
+    probe(args: {
+      id: string
+      port: number
+      path?: string
+      method?: 'GET' | 'POST'
+      authorization?: string
+      body?: string
+    }): Promise<Agent37Answer>
+    signedUrl(args: { id: string; port: number; ttlSeconds: number }): Promise<string>
+  }
 
 export class Agent37Error extends Error {
   readonly code: string
@@ -277,6 +279,7 @@ export const liveAgent37Client = (args: {
       }
     },
     ...agent37UsageClient((path) => call({ url: api(path), method: 'GET', headers: bearer })),
+    ...agent37MetricsClient((path) => call({ url: api(path), method: 'GET', headers: bearer })),
     signedUrl: async ({ id, port, ttlSeconds }) => {
       const answer = (await call({
         url: api(`/v1/instances/${id}/signed-url`),

@@ -64,6 +64,15 @@ const CAPACITY_MESSAGES: Record<string, string> = {
 const capacityMessageOf = (error: unknown): string | undefined =>
   error instanceof Agent37Error ? CAPACITY_MESSAGES[error.code] : undefined
 
+const grownDiskOf = (args: {
+  current: number | undefined
+  wanted: number | undefined
+}): number | undefined => {
+  if (args.wanted === undefined) return undefined
+  if (args.current !== undefined && args.current >= args.wanted) return undefined
+  return args.wanted
+}
+
 export class Agent37SandboxProvider extends SandboxProvider {
   constructor(
     private readonly args: {
@@ -190,6 +199,7 @@ export class Agent37SandboxProvider extends SandboxProvider {
         ...(instance.resources?.memory === undefined
           ? {}
           : { memoryGb: instance.resources.memory }),
+        ...(instance.resources?.disk === undefined ? {} : { diskGb: instance.resources.disk }),
       })
     } catch (error) {
       if (error instanceof SandboxUnavailableError) throw error
@@ -218,16 +228,22 @@ export class Agent37SandboxProvider extends SandboxProvider {
     await this.clientOf(apiKeyOf(args.target.credentials)).sleep({ id: instanceId })
   }
 
-  async resize(args: { target: SandboxTarget; shape: PodShape }): Promise<PodResizeOutcome> {
+  async resize(args: {
+    target: SandboxTarget
+    shape: PodShape
+    diskGb?: number | undefined
+  }): Promise<PodResizeOutcome> {
     const podSessionId = args.target.sandboxSessionId
     const instanceId = await this.args.instances.find({ podSessionId })
     if (instanceId === null) return 'absent'
     const client = this.clientOf(apiKeyOf(args.target.credentials))
-    const shape = { cpu: args.shape.vcpus, memory: args.shape.memoryGb }
     const instance = await client.get({ id: instanceId })
-    if (instance.resources?.cpu === shape.cpu && instance.resources.memory === shape.memory) {
-      return 'stored'
-    }
+    const cpu = args.shape.vcpus
+    const memory = args.shape.memoryGb
+    const disk = grownDiskOf({ current: instance.resources?.disk, wanted: args.diskGb })
+    const cpuAtTarget = instance.resources?.cpu === cpu
+    const memoryAtTarget = instance.resources?.memory === memory
+    if (cpuAtTarget && memoryAtTarget && disk === undefined) return 'stored'
     // https://www.agent37.com/docs/agents-api/instances/resize — only a running instance can be
     // resized, so a sleeping one is started first and holds the shape once it is running.
     if (instance.status !== 'running') {
@@ -238,7 +254,12 @@ export class Agent37SandboxProvider extends SandboxProvider {
         ...(this.args.log === undefined ? {} : { log: this.args.log }),
       })
     }
-    await client.resize({ id: instanceId, cpu: shape.cpu, memory: shape.memory })
+    await client.resize({
+      id: instanceId,
+      ...(cpuAtTarget ? {} : { cpu }),
+      ...(memoryAtTarget ? {} : { memory }),
+      ...(disk === undefined ? {} : { disk }),
+    })
     return 'restarted'
   }
 

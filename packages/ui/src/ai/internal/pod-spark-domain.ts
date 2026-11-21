@@ -13,12 +13,33 @@ export interface PodSparkPoint {
   cpu: number
   ram: number
   ramGb: number
+  disk?: number | undefined
+  diskUsedGb?: number | undefined
+  diskLimitGb?: number | undefined
+}
+
+export interface PodSparkDisk {
+  usedGb: number
+  limitGb: number
 }
 
 export interface PodSparkTip {
   time: string
   cpu: string
   ram: string
+  disk: string | null
+}
+
+export function podSparkValuesOf(points: readonly PodSparkPoint[]): number[] {
+  return points.flatMap((point) =>
+    point.disk === undefined ? [point.cpu, point.ram] : [point.cpu, point.ram, point.disk],
+  )
+}
+
+export function podSparkDiskOf(point: PodSparkPoint): PodSparkDisk | undefined {
+  const limitGb = point.diskLimitGb
+  if (limitGb === undefined || limitGb <= 0 || point.diskUsedGb === undefined) return undefined
+  return { usedGb: point.diskUsedGb, limitGb }
 }
 
 export function podSparkDomainOf(values: readonly number[]): [number, number] {
@@ -83,16 +104,19 @@ export function podSparkTipOf({
   cpu,
   usedGb,
   limitGb,
+  disk,
 }: {
   at: number
   cpu: number
   usedGb: number
   limitGb: number
+  disk?: PodSparkDisk | undefined
 }): PodSparkTip {
   return {
     time: timeLabelOf(at),
     cpu: formatCpu(cpu),
     ram: formatRam({ usedGb, limitGb }),
+    disk: disk === undefined ? null : formatRam(disk),
   }
 }
 

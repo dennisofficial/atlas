@@ -214,6 +214,7 @@ export const setSessionPodDesiredIn = async (params: {
   sessionId: string
   vcpus: number
   memoryGb: number
+  diskGb?: number | undefined
   generation: number
 }): Promise<boolean> => {
   const changed = await params.tx.orm.v2.V2Session.where({
@@ -221,6 +222,7 @@ export const setSessionPodDesiredIn = async (params: {
   }).updateAndCount({
     podDesiredVcpus: params.vcpus,
     podDesiredMemoryGb: params.memoryGb,
+    ...(params.diskGb === undefined ? {} : { podDesiredDiskGb: params.diskGb }),
     podSizeGeneration: params.generation,
     podResizeError: null,
     podWaitingSince: null,

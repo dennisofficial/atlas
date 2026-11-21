@@ -2,10 +2,12 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   POD_SERIES_WINDOW_MS,
+  podSparkDiskOf,
   podSparkDomainOf,
   podSparkNearest,
   podSparkTimeAt,
   podSparkTipOf,
+  podSparkValuesOf,
   podSparkWindowOf,
 } from '../internal/pod-spark-domain'
 
@@ -83,6 +85,39 @@ describe('podSparkNearest', () => {
   })
 })
 
+describe('podSparkValuesOf', () => {
+  it('keeps the disk out of the axis for a pod without one', () => {
+    expect(podSparkValuesOf([{ at: 0, cpu: 12, ram: 40, ramGb: 1.6 }])).toEqual([12, 40])
+  })
+
+  it('widens the axis to hold the disk line', () => {
+    expect(podSparkValuesOf([{ at: 0, cpu: 12, ram: 40, ramGb: 1.6, disk: 91 }])).toEqual([
+      12, 40, 91,
+    ])
+    expect(
+      podSparkDomainOf(podSparkValuesOf([{ at: 0, cpu: 12, ram: 40, ramGb: 1.6, disk: 91 }])),
+    ).toEqual([8, 95])
+  })
+})
+
+describe('podSparkDiskOf', () => {
+  it('reads used and limit off a sample that reports disk', () => {
+    expect(
+      podSparkDiskOf({ at: 0, cpu: 12, ram: 40, ramGb: 1.6, diskUsedGb: 11.4, diskLimitGb: 20 }),
+    ).toEqual({ usedGb: 11.4, limitGb: 20 })
+  })
+
+  it('has nothing to draw without both numbers', () => {
+    expect(podSparkDiskOf({ at: 0, cpu: 12, ram: 40, ramGb: 1.6 })).toBeUndefined()
+    expect(
+      podSparkDiskOf({ at: 0, cpu: 12, ram: 40, ramGb: 1.6, diskUsedGb: 11.4 }),
+    ).toBeUndefined()
+    expect(
+      podSparkDiskOf({ at: 0, cpu: 12, ram: 40, ramGb: 1.6, diskUsedGb: 11.4, diskLimitGb: 0 }),
+    ).toBeUndefined()
+  })
+})
+
 describe('podSparkTipOf', () => {
   it('reads like the legend, with the local time of the sample', () => {
     const at = new Date(2026, 10, 21, 14, 32, 7).getTime()
@@ -90,6 +125,25 @@ describe('podSparkTipOf', () => {
       time: '14:32:07',
       cpu: '42%',
       ram: '1.7 / 8 GB',
+      disk: null,
+    })
+  })
+
+  it('adds the disk line in the words of the Disk legend row', () => {
+    const at = new Date(2026, 10, 21, 14, 32, 7).getTime()
+    expect(
+      podSparkTipOf({
+        at,
+        cpu: 41.6,
+        usedGb: 1.72,
+        limitGb: 8,
+        disk: { usedGb: 11.4, limitGb: 20 },
+      }),
+    ).toEqual({
+      time: '14:32:07',
+      cpu: '42%',
+      ram: '1.7 / 8 GB',
+      disk: '11.4 / 20 GB',
     })
   })
 })

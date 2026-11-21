@@ -241,6 +241,7 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
         podSessionId: null,
         podDesiredVcpus: null,
         podDesiredMemoryGb: null,
+        podDesiredDiskGb: null,
         podSizeGeneration: 0,
         podActualVcpus: null,
         podActualMemoryGb: null,

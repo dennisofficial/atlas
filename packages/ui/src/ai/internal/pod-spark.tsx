@@ -5,10 +5,12 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 import { Area, AreaChart, XAxis, YAxis } from 'recharts'
 
 import {
+  podSparkDiskOf,
   podSparkDomainOf,
   podSparkNearest,
   podSparkTimeAt,
   podSparkTipOf,
+  podSparkValuesOf,
   podSparkWindowOf,
   type PodSparkPoint,
 } from './pod-spark-domain'
@@ -16,6 +18,7 @@ import {
 const COMBINED_CONFIG = {
   cpu: { label: 'CPU', color: 'var(--primary)' },
   ram: { label: 'RAM', color: 'var(--muted-foreground)' },
+  disk: { label: 'Disk', color: 'var(--chart-2)' },
 } satisfies ChartConfig
 
 export interface PodUsageSparkProps {
@@ -28,8 +31,9 @@ export function PodUsageSpark({ data, limitGb, defaultActiveIndex }: PodUsageSpa
   const [active, setActive] = useState<number | null>(defaultActiveIndex ?? null)
   const plot = useRef<HTMLDivElement>(null)
   const dragging = useRef(false)
+  const withDisk = data.some((entry) => entry.disk !== undefined)
   const [from, to] = podSparkWindowOf({ samples: data })
-  const [low, high] = podSparkDomainOf(data.flatMap((point) => [point.cpu, point.ram]))
+  const [low, high] = podSparkDomainOf(podSparkValuesOf(data))
   const point = active === null ? null : (data[active] ?? null)
 
   useEffect(() => {
@@ -80,10 +84,16 @@ export function PodUsageSpark({ data, limitGb, defaultActiveIndex }: PodUsageSpa
   const tip =
     point === null
       ? null
-      : podSparkTipOf({ at: point.at, cpu: point.cpu, usedGb: point.ramGb, limitGb })
+      : podSparkTipOf({
+          at: point.at,
+          cpu: point.cpu,
+          usedGb: point.ramGb,
+          limitGb,
+          disk: podSparkDiskOf(point),
+        })
 
   return (
-    <div className="relative h-10 w-28 shrink-0 rounded-md border border-border bg-muted/30 p-1">
+    <div className="relative h-full min-h-10 w-28 shrink-0 rounded-md border border-border bg-muted/30 p-1">
       <div
         ref={plot}
         data-slot="pod-spark-plot"
@@ -99,11 +109,27 @@ export function PodUsageSpark({ data, limitGb, defaultActiveIndex }: PodUsageSpa
           className="aspect-auto h-full w-full"
           initialDimension={{ width: 104, height: 32 }}
           role="img"
-          aria-label="CPU and RAM over the last 15 minutes"
+          aria-label={
+            withDisk
+              ? 'CPU, RAM and disk over the last 15 minutes'
+              : 'CPU and RAM over the last 15 minutes'
+          }
         >
           <AreaChart data={[...data]} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
             <XAxis hide type="number" dataKey="at" domain={[from, to]} />
             <YAxis hide domain={[low, high]} />
+            {withDisk ? (
+              <Area
+                dataKey="disk"
+                type="monotone"
+                stroke="var(--color-disk)"
+                strokeWidth={1.25}
+                fill="var(--color-disk)"
+                fillOpacity={0.06}
+                dot={false}
+                isAnimationActive={false}
+              />
+            ) : null}
             <Area
               dataKey="ram"
               type="monotone"
@@ -141,6 +167,12 @@ export function PodUsageSpark({ data, limitGb, defaultActiveIndex }: PodUsageSpa
             <span aria-hidden className="size-1.5 rounded-[1px] bg-muted-foreground" />
             RAM {tip.ram}
           </span>
+          {tip.disk === null ? null : (
+            <span className="flex items-center gap-1 tabular-nums">
+              <span aria-hidden className="size-1.5 rounded-[1px] bg-chart-2" />
+              Disk {tip.disk}
+            </span>
+          )}
         </div>
       )}
     </div>

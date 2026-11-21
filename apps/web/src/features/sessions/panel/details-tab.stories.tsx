@@ -1,4 +1,4 @@
-import { ESubscriptionActor, ESubscriptionStatus, ESubscriptionTone } from '@dltech/atlas-core'
+import { ESubscriptionActor, ESubscriptionTone } from '@dltech/atlas-core'
 import type { SubscriptionListRow } from '@dltech/atlas-plugin-github/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
@@ -73,7 +73,6 @@ const subscriptionRows = (): readonly SubscriptionListRow[] => {
     subscriptionRowFixture({
       id: 'sub_2424',
       number: 2424,
-      status: ESubscriptionStatus.Paused,
       presentation: {
         icon: 'git-pull-request',
         tone: ESubscriptionTone.Open,

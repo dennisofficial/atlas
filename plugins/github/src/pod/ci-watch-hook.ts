@@ -1,7 +1,6 @@
 import {
   EBeforeToolDecision,
   EStage,
-  ESubscriptionStatus,
   type BeforeToolOutcome,
   type Event,
   type V2Event,
@@ -44,11 +43,7 @@ const holdsPullRequest = (args: {
 }): boolean =>
   githubSubscriptionsOf(args.events).some((row) => {
     const target = targetOf(row.target)
-    return (
-      row.status === ESubscriptionStatus.Active &&
-      target !== null &&
-      sameTarget(target, { repo: args.repo, number: args.number })
-    )
+    return target !== null && sameTarget(target, { repo: args.repo, number: args.number })
   })
 
 const holdsWorkflowRun = (args: {
@@ -57,8 +52,7 @@ const holdsWorkflowRun = (args: {
   branch: string
 }): boolean =>
   githubSubscriptionsOf(args.events).some((row) => {
-    if (row.provider !== GITHUB_RUN_PROVIDER || row.status !== ESubscriptionStatus.Active)
-      return false
+    if (row.provider !== GITHUB_RUN_PROVIDER) return false
     const target = runTargetOf(row.target)
     if (target === null || target.repo !== args.repo) return false
     return target.kind === 'run' || target.branch === args.branch

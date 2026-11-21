@@ -4,14 +4,12 @@ import { ESubscriptionActor } from '@dltech/atlas-core'
 import {
   GITHUB_PROVIDER,
   GITHUB_RUN_PROVIDER,
-  setSubscriptionStatusArgs,
-  setSubscriptionStatusCommand,
   subscribeArgs,
   subscribeCommand,
   unsubscribeArgs,
   unsubscribeCommand,
 } from '../core'
-import { changeSubscriptionStatus, subscribeTo, unsubscribeFrom } from './subscribe'
+import { subscribeTo, unsubscribeFrom } from './subscribe'
 
 const NEEDS_EXPLICIT_TARGET =
   'The subscribe command needs an explicit reference, such as owner/repo#number, a pull request URL, a run URL or owner/repo#<run id>. The sandbox cannot read a clone from a command'
@@ -54,20 +52,6 @@ export const podCommands: ReadonlyMap<string, CommandHandler<unknown>> = new Map
         ctx: { append: context.append },
         events: context.visibleEvents(),
         subscriptionId: parsed.subscriptionId,
-        by: ESubscriptionActor.Operator,
-      })
-      return outcome.ok ? { kind: 'done' } : { kind: 'refused', reason: outcome.error }
-    },
-  ],
-  [
-    setSubscriptionStatusCommand.inboxKind,
-    async (context) => {
-      const parsed = setSubscriptionStatusArgs.parse(context.args)
-      const outcome = await changeSubscriptionStatus({
-        ctx: { append: context.append },
-        events: context.visibleEvents(),
-        subscriptionId: parsed.subscriptionId,
-        status: parsed.status,
         by: ESubscriptionActor.Operator,
       })
       return outcome.ok ? { kind: 'done' } : { kind: 'refused', reason: outcome.error }

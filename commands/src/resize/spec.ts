@@ -2,9 +2,13 @@ import { defineCommand } from '@dltech/atlas-commands'
 import { ECommandGroup, ECommandTiming, sandboxVcpusSchema } from '@dltech/atlas-core'
 import { z } from 'zod'
 
+// https://www.agent37.com/docs/agents-api/instance-sizing.md — an Agent37 VM disk tops out at 100 GB
+export const RESIZE_MAX_DISK_GB = 100
+
 export const resizeArgs = z.strictObject({
   vcpus: sandboxVcpusSchema,
   memoryGb: z.number().int().min(1),
+  diskGb: z.number().int().min(1).max(RESIZE_MAX_DISK_GB).optional(),
   whenIdle: z.boolean().optional(),
 })
 

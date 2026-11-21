@@ -3,12 +3,20 @@
 import { AlertDialog } from '#components/alert-dialog'
 import { MoonIcon } from 'lucide-react'
 
+import { PodDiskSelect } from './internal/pod-disk-control'
 import { EPodAction, PodActionConfirm } from './internal/pod-action-confirm'
 import { MetricSignals } from './internal/pod-metrics-parts'
 import { PodSectionHeader } from './internal/pod-section-header'
 import { PodSizeSelect, PodSizeStatus, type PodSizeControlProps } from './internal/pod-size-control'
 import { PodUsageSpark } from './internal/pod-spark'
-import { podMetricViewOf, ramPercentOf, type PodMetricsSample } from './pod-metrics-model'
+import {
+  diskPercentOf,
+  formatRam,
+  podDiskOf,
+  podMetricViewOf,
+  ramPercentOf,
+  type PodMetricsSample,
+} from './pod-metrics-model'
 import type { PodShape, UnavailablePodShape } from './pod-shapes'
 import { canResize, EPodState } from './pod-status'
 
@@ -34,6 +42,8 @@ export interface PodSectionProps {
   onStart?: (() => void) | undefined
   onStop?: (() => void) | undefined
   onResize?: ((shape: PodShape) => void) | undefined
+  diskGrow?: boolean | undefined
+  onGrowDisk?: ((diskGb: number) => void) | undefined
   onConfirm?: (() => void) | undefined
   onCancel?: (() => void) | undefined
 }
@@ -100,11 +110,15 @@ export function PodSection(props: PodSectionProps) {
     ramLimitGb: props.shape.memoryGb,
   })
   const running = props.state === EPodState.Running
+  const disk = podDiskOf(props.series)
   const data = props.series.map((sample) => ({
     at: sample.t,
     cpu: sample.cpu,
     ram: ramPercentOf({ sample, limitGb: view.ramLimitGb }),
     ramGb: sample.ramGb,
+    disk: sample.diskUsedGb === undefined ? undefined : diskPercentOf({ sample }),
+    diskUsedGb: sample.diskUsedGb,
+    diskLimitGb: sample.diskLimitGb,
   }))
 
   const sizeProps: PodSizeControlProps = {
@@ -142,7 +156,19 @@ export function PodSection(props: PodSectionProps) {
           swatch="bg-muted-foreground"
           row="row-start-2"
         />
-        <div className="col-start-3 row-span-2 row-start-1">
+        {disk === undefined ? null : (
+          <PodSeriesRow
+            label="Disk"
+            value={formatRam({ usedGb: disk.usedGb, limitGb: disk.limitGb })}
+            swatch="bg-chart-2"
+            row="row-start-3"
+          />
+        )}
+        <div
+          className={`col-start-3 row-start-1 flex items-center self-stretch ${
+            disk !== undefined && props.diskGrow !== true ? 'row-span-3' : 'row-span-2'
+          }`}
+        >
           {running && props.usageUnavailable !== true ? (
             <PodUsageSpark
               data={data}
@@ -153,6 +179,15 @@ export function PodSection(props: PodSectionProps) {
             <PodUsageIdle state={props.state} unavailable={props.usageUnavailable === true} />
           )}
         </div>
+        {disk === undefined || props.diskGrow !== true ? null : (
+          <div className="col-start-3 row-start-3 flex justify-end">
+            <PodDiskSelect
+              limitGb={disk.limitGb}
+              disabled={sizeProps.disabled}
+              onGrow={props.onGrowDisk}
+            />
+          </div>
+        )}
       </div>
       <div className="flex flex-col gap-2 pl-[1.625rem]">
         <MetricSignals throttled={props.throttled === true} oomKills={props.oomKills ?? 0} />

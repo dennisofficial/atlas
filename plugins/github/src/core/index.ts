@@ -1,4 +1,4 @@
-import { setSubscriptionStatusCommand, subscribeCommand, unsubscribeCommand } from './commands'
+import { subscribeCommand, unsubscribeCommand } from './commands'
 import { subscriptionsView } from './subscriptions-view'
 
 export * from './ci-watch'
@@ -13,5 +13,5 @@ export * from './target'
 export const githubCoreSlots = {
   events: [] as readonly never[],
   views: [subscriptionsView],
-  commands: [subscribeCommand, unsubscribeCommand, setSubscriptionStatusCommand],
+  commands: [subscribeCommand, unsubscribeCommand],
 } as const

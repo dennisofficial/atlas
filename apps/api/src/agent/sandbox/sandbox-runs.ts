@@ -93,9 +93,14 @@ export const recordSandboxRunOpen = async (args: {
   vcpus: number
   sandbox: SandboxProvider
   target: SandboxTarget
+  diskGb?: number | undefined
 }): Promise<void> => {
   const provider = costProviderOf(args.provider)
-  const size = sandboxPodSizeOf({ provider, vcpus: args.vcpus, diskGb: diskGbOf(args.sandbox) })
+  const size = sandboxPodSizeOf({
+    provider,
+    vcpus: args.vcpus,
+    diskGb: args.diskGb ?? diskGbOf(args.sandbox),
+  })
   const [baseline, sandboxInstanceId] = await Promise.all([
     provider === ESandboxCostProvider.Vercel
       ? sandboxCumulativeCpuMsOf({ sandbox: args.sandbox, target: args.target })

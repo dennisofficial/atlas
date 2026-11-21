@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ESubscriptionActor, ESubscriptionStatus, ESubscriptionTone } from '@dltech/atlas-core'
+import { ESubscriptionActor, ESubscriptionTone } from '@dltech/atlas-core'
 
 import { subscriptionRowsOf, subscribedPullRequestsOf } from '..'
 
@@ -11,7 +11,6 @@ const row = (overrides: Record<string, unknown> = {}) => ({
   label: 'owner/atlas#31',
   threadId: 't1',
   createdBy: 'agent',
-  status: 'active',
   createdAt: '2026-11-08T10:00:00.000Z',
   held: 0,
   presentation: {
@@ -35,7 +34,6 @@ const run = () => ({
   label: 'owner/atlas deploy.yml@main',
   threadId: 't1',
   createdBy: 'agent',
-  status: 'active',
   expiresAt: '2026-11-08T12:00:00.000Z',
   createdAt: '2026-11-08T10:00:00.000Z',
   held: 0,
@@ -63,13 +61,9 @@ describe('subscribedPullRequestsOf', () => {
     ])
   })
 
-  it('skips paused rows, other providers and targets it cannot read', () => {
+  it('skips other providers and targets it cannot read', () => {
     const views = {
-      subscriptions: [
-        row({ status: 'paused' }),
-        row({ provider: 'slack.channel' }),
-        row({ target: { channel: 'x' } }),
-      ],
+      subscriptions: [row({ provider: 'slack.channel' }), row({ target: { channel: 'x' } })],
     }
     expect(subscribedPullRequestsOf(views)).toEqual([])
   })
@@ -80,19 +74,14 @@ describe('subscriptionRowsOf', () => {
     expect(subscriptionRowsOf({})).toEqual([])
   })
 
-  it('lists every provider and both statuses with the presentation the plugin gave', () => {
+  it('lists every provider with the presentation the plugin gave', () => {
     const rows = subscriptionRowsOf({
-      subscriptions: [row(), row({ id: 's2', status: 'paused' }), run()],
+      subscriptions: [row(), row({ id: 's2' }), run()],
     })
-    expect(rows.map((entry) => [entry.id, entry.status])).toEqual([
-      ['s1', ESubscriptionStatus.Active],
-      ['s2', ESubscriptionStatus.Paused],
-      ['r1', ESubscriptionStatus.Active],
-    ])
+    expect(rows.map((entry) => entry.id)).toEqual(['s1', 's2', 'r1'])
     expect(rows[2]).toEqual({
       id: 'r1',
       provider: 'github.workflow-run',
-      status: ESubscriptionStatus.Active,
       createdBy: ESubscriptionActor.Agent,
       threadId: 't1',
       expiresAt: '2026-11-08T12:00:00.000Z',

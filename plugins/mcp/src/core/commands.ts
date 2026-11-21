@@ -10,7 +10,7 @@ export const mcpCommand = defineCommand({
     summary: 'list this session MCP servers with their status, tool count and layer',
     group: ECommandGroup.Session,
     args: mcpArgs,
-    timing: ECommandTiming.Settled,
-    handledIn: 'pod',
+    timing: ECommandTiming.Immediate,
+    handledIn: 'holder',
   },
 })

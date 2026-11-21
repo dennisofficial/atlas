@@ -15,17 +15,22 @@ import {
 import { EPodState } from './pod-status'
 
 const SERIES_END_AT = Date.parse('2026-11-21T14:41:00Z')
+const DISK_LIMIT_GB = 20
+const DISK_FULL_LIMIT_GB = 100
 
 function storySeriesOf({
   samples,
   spikeAt,
+  disk,
 }: {
   samples: number
   spikeAt: number
+  disk?: { usedGb: number; limitGb: number } | undefined
 }): readonly PodMetricsSample[] {
   const start = SERIES_END_AT - (samples - 1) * POD_SAMPLE_MS
   return Array.from({ length: samples }, (_, index) => {
     const spike = index === spikeAt ? 1 : 0
+    const share = samples <= 1 ? 0 : index / (samples - 1)
     return {
       t: start + index * POD_SAMPLE_MS,
       cpu: clamp({
@@ -38,6 +43,9 @@ function storySeriesOf({
         min: 1.62,
         max: 1.86,
       }),
+      ...(disk === undefined
+        ? {}
+        : { diskUsedGb: disk.usedGb + share * 3.2, diskLimitGb: disk.limitGb }),
     }
   })
 }
@@ -47,6 +55,16 @@ const STORY_SHAPE = { vcpus: 4, memoryGb: 8 }
 const RUNNING_SERIES = storySeriesOf({ samples: 300, spikeAt: 220 })
 const RECENT_SERIES = storySeriesOf({ samples: 100, spikeAt: 62 })
 const FRESH_SERIES = storySeriesOf({ samples: 20, spikeAt: 14 })
+const DISK_SERIES = storySeriesOf({
+  samples: 300,
+  spikeAt: 220,
+  disk: { usedGb: 11, limitGb: DISK_LIMIT_GB },
+})
+const DISK_FULL_SERIES = storySeriesOf({
+  samples: 300,
+  spikeAt: 220,
+  disk: { usedGb: 11, limitGb: DISK_FULL_LIMIT_GB },
+})
 
 interface PodSectionStoryArgs extends PodSectionProps {
   live: boolean
@@ -92,6 +110,7 @@ const meta = {
     onStart: () => {},
     onStop: () => {},
     onResize: () => {},
+    onGrowDisk: () => {},
   },
   parameters: { layout: 'centered' },
   render: (args) => <Stage {...args} />,
@@ -112,6 +131,16 @@ export const TooltipOpen: Story = { args: { defaultActiveIndex: 220 } }
 export const RunningLive: Story = { args: { live: true } }
 
 export const Throttled: Story = { args: { throttled: true, oomKills: 2 } }
+
+export const WithDisk: Story = { args: { series: DISK_SERIES } }
+
+export const DiskGrow: Story = { args: { series: DISK_SERIES, diskGrow: true } }
+
+export const DiskAtMaximum: Story = { args: { series: DISK_FULL_SERIES, diskGrow: true } }
+
+export const TooltipOpenWithDisk: Story = {
+  args: { series: DISK_SERIES, diskGrow: true, defaultActiveIndex: 220 },
+}
 
 export const Resizing: Story = { args: { pendingShape: { vcpus: 8, memoryGb: 64 } } }
 

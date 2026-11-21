@@ -4,7 +4,7 @@ import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { renderToStaticMarkup } from 'react-dom/server'
 
-import { ESubscriptionActor, ESubscriptionStatus, ESubscriptionTone } from '@dltech/atlas-core'
+import { ESubscriptionActor, ESubscriptionTone } from '@dltech/atlas-core'
 import type { CrewRow } from '@dltech/atlas-plugin-crew/client'
 import type { SubscriptionListRow } from '@dltech/atlas-plugin-github/client'
 import type { PreviewItem } from '@dltech/atlas-plugin-services/client'
@@ -36,7 +36,6 @@ const entry = (overrides: Partial<PullRequestEntry> = {}): PullRequestEntry => (
 const subscriptionRow = (overrides: Partial<SubscriptionListRow> = {}): SubscriptionListRow => ({
   id: 'sub_31',
   provider: 'github.pull-request',
-  status: ESubscriptionStatus.Active,
   createdBy: ESubscriptionActor.Agent,
   threadId: 't1',
   number: 31,
@@ -208,25 +207,8 @@ describe('SessionHeader', () => {
     expect(html).toContain('>2<')
   })
 
-  it('counts only the active subscriptions', () => {
-    const html = render({
-      entries: [],
-      subscriptions: [
-        subscriptionRow(),
-        subscriptionRow({ id: 'sub_32', status: ESubscriptionStatus.Paused }),
-      ],
-    })
-    expect(html).toContain('aria-label="1 subscription"')
-  })
-
-  it('shows no subscription indicator without an active subscription', () => {
+  it('shows no subscription indicator without a subscription', () => {
     expect(render({ entries: [entry()] })).not.toContain('data-session-subscriptions')
-    expect(
-      render({
-        entries: [],
-        subscriptions: [subscriptionRow({ status: ESubscriptionStatus.Paused })],
-      }),
-    ).not.toContain('data-session-subscriptions')
   })
 
   it('shows the running shell count titled with their labels', () => {

@@ -7,5 +7,5 @@ export type CommandSpec = {
   group: ECommandGroup
   args: z.ZodType
   timing: ECommandTiming
-  handledIn: 'pod' | 'control'
+  handledIn: 'holder' | 'control'
 }

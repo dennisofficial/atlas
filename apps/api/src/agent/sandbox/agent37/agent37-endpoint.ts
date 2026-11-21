@@ -18,6 +18,7 @@ export const agent37EndpointOf = async (args: {
   sandboxName: string
   vcpus?: number | undefined
   memoryGb?: number | undefined
+  diskGb?: number | undefined
 }): Promise<DaemonEndpoint> => {
   const signed = await args.client.signedUrl({
     id: args.instanceId,
@@ -30,5 +31,6 @@ export const agent37EndpointOf = async (args: {
     sandboxName: args.sandboxName,
     ...(args.vcpus === undefined ? {} : { vcpus: args.vcpus }),
     ...(args.memoryGb === undefined ? {} : { memoryGb: args.memoryGb }),
+    ...(args.diskGb === undefined ? {} : { diskGb: args.diskGb }),
   }
 }

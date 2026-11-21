@@ -13,6 +13,6 @@ export const summarise = defineCommand({
     group: ECommandGroup.Context,
     args: summariseArgs,
     timing: ECommandTiming.Settled,
-    handledIn: 'pod',
+    handledIn: 'holder',
   },
 })

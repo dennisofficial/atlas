@@ -2,7 +2,6 @@
 
 import { Bell, GitBranch, Globe, PanelRightIcon } from 'lucide-react'
 
-import { ESubscriptionStatus } from '@dltech/atlas-core'
 import type { CrewRoster, CrewRow } from '@dltech/atlas-plugin-crew/client'
 import type { SubscriptionListRow } from '@dltech/atlas-plugin-github/client'
 import type { PreviewItem } from '@dltech/atlas-plugin-services/client'
@@ -176,9 +175,6 @@ export function SessionHeader({
   onOpenPreview: (url: string) => void
 }) {
   const pinned = pinnedPullRequestOf(entries)
-  const activeSubscriptions = subscriptions.filter(
-    (subscription) => subscription.status === ESubscriptionStatus.Active,
-  ).length
   return (
     <header
       data-chrome="titlebar"
@@ -204,8 +200,8 @@ export function SessionHeader({
           </Badge>
         )}
         {pinned === undefined ? null : <HeaderPullRequest pinned={pinned} count={entries.length} />}
-        {activeSubscriptions === 0 ? null : (
-          <HeaderSubscriptions count={activeSubscriptions} onOpen={onOpenDetails} />
+        {subscriptions.length === 0 ? null : (
+          <HeaderSubscriptions count={subscriptions.length} onOpen={onOpenDetails} />
         )}
         {shells.running === 0 ? null : <HeaderShells shells={shells} tails={shellTails} />}
         {crew.total === 0 ? null : <HeaderCrew roster={crew} rows={crewRows} />}

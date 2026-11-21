@@ -3,7 +3,6 @@ import type { ClientSlot } from '@dltech/atlas-plugin-sdk'
 
 import {
   ESubscriptionActor,
-  ESubscriptionStatus,
   ESubscriptionTone,
   type SubscriptionPresentation,
 } from '@dltech/atlas-core'
@@ -38,7 +37,6 @@ export const subscriptionsOfView = (
 export type SubscriptionListRow = {
   id: string
   provider: string
-  status: ESubscriptionStatus
   createdBy: ESubscriptionActor
   threadId: string
   number?: number
@@ -55,7 +53,6 @@ export const subscriptionRowsOf = (
     return {
       id: row.id,
       provider: row.provider,
-      status: row.status,
       createdBy: row.createdBy,
       threadId: row.threadId,
       ...(target === null ? {} : { number: target.number }),
@@ -119,7 +116,7 @@ export const subscribedPullRequestsOf = (
   views: Readonly<Record<string, unknown>>,
 ): readonly SubscribedPullRequest[] =>
   subscriptionsOfView(views).flatMap((row) => {
-    if (row.provider !== GITHUB_PROVIDER || row.status !== ESubscriptionStatus.Active) return []
+    if (row.provider !== GITHUB_PROVIDER) return []
     const target = targetOf(row.target)
     if (target === null) return []
     return [

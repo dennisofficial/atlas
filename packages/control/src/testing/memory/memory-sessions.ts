@@ -45,12 +45,14 @@ export const setSessionPodDesiredIn = (params: {
   sessionId: string
   vcpus: number
   memoryGb: number
+  diskGb?: number | undefined
   generation: number
 }): boolean => {
   const row = params.state.sessions.get(params.sessionId)
   if (row === undefined) return false
   row.podDesiredVcpus = params.vcpus
   row.podDesiredMemoryGb = params.memoryGb
+  if (params.diskGb !== undefined) row.podDesiredDiskGb = params.diskGb
   row.podSizeGeneration = params.generation
   row.podResizeError = null
   row.podWaitingSince = null
@@ -219,6 +221,7 @@ export const createSessionIn = (params: {
     podSessionId: params.podSessionId ?? null,
     podDesiredVcpus: null,
     podDesiredMemoryGb: null,
+    podDesiredDiskGb: null,
     podSizeGeneration: 0,
     podActualVcpus: null,
     podActualMemoryGb: null,

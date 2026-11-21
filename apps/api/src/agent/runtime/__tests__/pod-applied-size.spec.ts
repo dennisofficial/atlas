@@ -57,7 +57,10 @@ class RestartingPodSandbox extends SandboxProvider {
   wakes = 0
   reported: PodShape[] = []
 
-  constructor(private readonly shapes: readonly PodShape[]) {
+  constructor(
+    private readonly shapes: readonly PodShape[],
+    private readonly diskGb: number | undefined = undefined,
+  ) {
     super()
   }
 
@@ -74,6 +77,7 @@ class RestartingPodSandbox extends SandboxProvider {
       sandboxName: 'n',
       vcpus: shape.vcpus,
       memoryGb: shape.memoryGb,
+      ...(this.diskGb === undefined ? {} : { diskGb: this.diskGb }),
     }
   }
 
@@ -94,8 +98,17 @@ class RestartingPodSandbox extends SandboxProvider {
 type PodRow = {
   podDesiredVcpus: number | null
   podDesiredMemoryGb: number | null
+  podDesiredDiskGb: number | null
   podSizeGeneration: number
 }
+
+const rowOf = (over: Partial<PodRow> = {}): PodRow => ({
+  podDesiredVcpus: null,
+  podDesiredMemoryGb: null,
+  podDesiredDiskGb: null,
+  podSizeGeneration: 0,
+  ...over,
+})
 
 const sizingOf = (rows: Record<string, PodRow>) => {
   const recorded: {
@@ -140,6 +153,25 @@ const build = (args: {
     podSizing: args.podSizing,
   })
 
+const startOf = (args: {
+  sandbox: SandboxProvider
+  podSizing: ReturnType<typeof sizingOf>['podSizing']
+}) =>
+  build(args)({
+    sessionId: 'pod-a',
+    podSessionId: 'pod-a',
+    threadId: toThreadId('t-pod-a'),
+    epoch: 1,
+    signal: new AbortController().signal,
+  })
+
+const DISK_ROW = rowOf({
+  podDesiredVcpus: 4,
+  podDesiredMemoryGb: 16,
+  podDesiredDiskGb: 30,
+  podSizeGeneration: 1,
+})
+
 const until = async (check: () => boolean): Promise<void> => {
   for (let index = 0; index < 400 && !check(); index += 1) {
     await new Promise((resolve) => setTimeout(resolve, 10))
@@ -148,9 +180,7 @@ const until = async (check: () => boolean): Promise<void> => {
 
 describe('recording the applied pod size', () => {
   it('records the size a resize wrote while the runtime was already built', async () => {
-    const rows: Record<string, PodRow> = {
-      'pod-a': { podDesiredVcpus: null, podDesiredMemoryGb: null, podSizeGeneration: 0 },
-    }
+    const rows: Record<string, PodRow> = { 'pod-a': rowOf() }
     const { recorded, podSizing } = sizingOf(rows)
     const sandbox = new RestartingPodSandbox([
       { vcpus: 4, memoryGb: 8 },
@@ -164,7 +194,7 @@ describe('recording the applied pod size', () => {
       signal: new AbortController().signal,
     })
     // the resize lands after the runtime is built: 2 vCPU as generation 1 on the pod row
-    rows['pod-a'] = { podDesiredVcpus: 2, podDesiredMemoryGb: 4, podSizeGeneration: 1 }
+    rows['pod-a'] = rowOf({ podDesiredVcpus: 2, podDesiredMemoryGb: 4, podSizeGeneration: 1 })
     await until(() => recorded.length > 0)
     await runtime.stop()
 
@@ -176,9 +206,7 @@ describe('recording the applied pod size', () => {
   })
 
   it('records the observed size of a pod that was never resized', async () => {
-    const rows: Record<string, PodRow> = {
-      'pod-a': { podDesiredVcpus: null, podDesiredMemoryGb: null, podSizeGeneration: 0 },
-    }
+    const rows: Record<string, PodRow> = { 'pod-a': rowOf() }
     const { recorded, podSizing } = sizingOf(rows)
     const sandbox = new RestartingPodSandbox([{ vcpus: 4, memoryGb: 8 }])
     const runtime = await build({ sandbox, podSizing })({
@@ -196,7 +224,7 @@ describe('recording the applied pod size', () => {
 
   it('records on the pod row a sub-agent session shares', async () => {
     const rows: Record<string, PodRow> = {
-      'pod-a': { podDesiredVcpus: 2, podDesiredMemoryGb: 4, podSizeGeneration: 1 },
+      'pod-a': rowOf({ podDesiredVcpus: 2, podDesiredMemoryGb: 4, podSizeGeneration: 1 }),
     }
     const { recorded, podSizing } = sizingOf(rows)
     const sandbox = new RestartingPodSandbox([{ vcpus: 2, memoryGb: 4 }])
@@ -215,7 +243,7 @@ describe('recording the applied pod size', () => {
 
   it('records nothing when the sandbox came back at another size', async () => {
     const rows: Record<string, PodRow> = {
-      'pod-a': { podDesiredVcpus: 4, podDesiredMemoryGb: 8, podSizeGeneration: 2 },
+      'pod-a': rowOf({ podDesiredVcpus: 4, podDesiredMemoryGb: 8, podSizeGeneration: 2 }),
     }
     const { recorded, podSizing } = sizingOf(rows)
     const sandbox = new RestartingPodSandbox([{ vcpus: 2, memoryGb: 4 }])
@@ -234,7 +262,7 @@ describe('recording the applied pod size', () => {
 
   it('records nothing when the sandbox came back at the cpu count but another memory', async () => {
     const rows: Record<string, PodRow> = {
-      'pod-a': { podDesiredVcpus: 4, podDesiredMemoryGb: 32, podSizeGeneration: 2 },
+      'pod-a': rowOf({ podDesiredVcpus: 4, podDesiredMemoryGb: 32, podSizeGeneration: 2 }),
     }
     const { recorded, podSizing } = sizingOf(rows)
     const sandbox = new RestartingPodSandbox([{ vcpus: 4, memoryGb: 8 }])
@@ -249,5 +277,21 @@ describe('recording the applied pod size', () => {
     await runtime.stop()
 
     expect(recorded).toEqual([])
+  })
+
+  it('records a resize that grew the disk only once the pod reports the bigger disk', async () => {
+    const rows: Record<string, PodRow> = { 'pod-a': DISK_ROW }
+    const { recorded, podSizing } = sizingOf(rows)
+    const small = new RestartingPodSandbox([{ vcpus: 4, memoryGb: 16 }], 20)
+    const first = await startOf({ sandbox: small, podSizing })
+    await until(() => small.wakes >= 3)
+    await first.stop()
+    expect(recorded).toEqual([])
+
+    const grown = new RestartingPodSandbox([{ vcpus: 4, memoryGb: 16 }], 30)
+    const second = await startOf({ sandbox: grown, podSizing })
+    await until(() => recorded.length > 0)
+    await second.stop()
+    expect(recorded).toContainEqual({ sessionId: 'pod-a', vcpus: 4, memoryGb: 16, generation: 1 })
   })
 })

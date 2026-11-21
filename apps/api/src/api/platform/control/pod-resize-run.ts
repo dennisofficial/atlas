@@ -10,12 +10,21 @@ import {
 
 export type PodResizeSession = Pick<
   ControlSessionRow,
-  'sessionId' | 'podSessionId' | 'podSizeGeneration' | 'podDesiredVcpus' | 'podDesiredMemoryGb'
+  | 'sessionId'
+  | 'podSessionId'
+  | 'podSizeGeneration'
+  | 'podDesiredVcpus'
+  | 'podDesiredMemoryGb'
+  | 'podDesiredDiskGb'
 >
 
 export type PodResizeDeps = {
   session(args: { sessionId: string }): Promise<PodResizeSession | undefined>
-  resize(args: { sandboxSessionId: string; shape: PodShape }): Promise<PodResizeOutcome>
+  resize(args: {
+    sandboxSessionId: string
+    shape: PodShape
+    diskGb?: number | undefined
+  }): Promise<PodResizeOutcome>
   rewake(args: { sessionId: string }): Promise<unknown>
   held(args: { sessionId: string }): Promise<boolean>
   recordApplied(args: {
@@ -59,7 +68,12 @@ export const runPodResize = async (args: {
     memoryGb: session.podDesiredMemoryGb ?? payload.memoryGb,
   }
   const sandboxSessionId = session.podSessionId ?? session.sessionId
-  const resized = await deps.resize({ sandboxSessionId, shape })
+  const diskGb = session.podDesiredDiskGb ?? payload.diskGb
+  const resized = await deps.resize({
+    sandboxSessionId,
+    shape,
+    ...(diskGb === undefined ? {} : { diskGb }),
+  })
   if (resized === 'absent') {
     // nothing will ever apply this size: say so rather than claim it was stored
     await deps.recordFailed({

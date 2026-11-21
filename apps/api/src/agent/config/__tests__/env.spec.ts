@@ -85,7 +85,7 @@ describe('readAgentHostEnv', () => {
     ).toEqual({
       apiKey: 'key',
       template: 'atlas-sandbox@3',
-      resources: { cpu: 2, memory: 4, disk: 64 },
+      resources: { cpu: 2, memory: 4, disk: 20 },
     })
     expect(
       readAgentHostEnv({

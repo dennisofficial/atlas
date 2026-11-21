@@ -8,6 +8,7 @@ const base: HeldSnapshot = {
   turn: 'idle',
   stopPending: false,
   messagePending: false,
+  immediatePending: false,
   resumable: false,
   idleDue: false,
   workspace: EWorkspaceState.Prepared,
@@ -40,6 +41,31 @@ const cases: { name: string; snapshot: HeldSnapshot; action: EHeldAction }[] = [
     name: 'a message waits for the running turn',
     snapshot: { ...base, turn: 'running', messagePending: true },
     action: EHeldAction.Wait,
+  },
+  {
+    name: 'an immediate command runs during the turn',
+    snapshot: { ...base, turn: 'running', immediatePending: true },
+    action: EHeldAction.RunImmediate,
+  },
+  {
+    name: 'an immediate command runs during a turn that also has a message pending',
+    snapshot: { ...base, turn: 'running', immediatePending: true, messagePending: true },
+    action: EHeldAction.RunImmediate,
+  },
+  {
+    name: 'a stop beats an immediate command',
+    snapshot: { ...base, turn: 'running', stopPending: true, immediatePending: true },
+    action: EHeldAction.AbortTurn,
+  },
+  {
+    name: 'an immediate command waits while draining',
+    snapshot: { ...base, turn: 'running', immediatePending: true, draining: true },
+    action: EHeldAction.Wait,
+  },
+  {
+    name: 'an immediate command never holds an idle session open',
+    snapshot: { ...base, immediatePending: true, idleDue: true },
+    action: EHeldAction.Release,
   },
   {
     name: 'an idle-due session releases',

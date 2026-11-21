@@ -1,4 +1,8 @@
 export {
+  AGENT37_SIZE_OPTIONS,
+  AGENT37_SIZE_VCPUS,
+  agent37ShapeOfVcpus,
+  agent37SizeOptionOf,
   DEFAULT_DECISIONS_MODEL_WIRE,
   DEFAULT_DECISIONS_PROVIDER_WIRE,
   DEFAULT_SANDBOX_VCPUS,
@@ -27,3 +31,5 @@ export {
   vercelPlanCapNote,
   vercelPlanSchema,
 } from '@dltech/atlas-core'
+
+export type { Agent37SizeOption } from '@dltech/atlas-core'

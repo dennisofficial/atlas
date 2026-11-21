@@ -4,12 +4,14 @@ import { act, useState } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 import { EPodState, ResizeDeclinedError } from '@dltech/atlas-ui/ai/pod-status-chip'
-import { ESandboxStatus } from '@dltech/atlas-protocol'
+import { ESandboxProvider, ESandboxStatus } from '@dltech/atlas-protocol'
 
 import {
   POD_RESTART_BODY,
   ResizeBusyDialog,
+  useDiskResizeConfirmation,
   useShapeResizeConfirmation,
+  type PodDiskRequest,
   type PodShapeRequest,
 } from '@/features/pods/pod-resize-confirmation'
 
@@ -67,6 +69,9 @@ const sample = (overrides: Partial<PodMetricsSample> = {}): PodMetricsSample => 
   ...overrides,
 })
 
+const diskSample = (overrides: Partial<PodMetricsSample> = {}): PodMetricsSample =>
+  sample({ diskUsedGb: 14.2, diskLimitGb: 20, ...overrides })
+
 const sectionOf = (overrides: Partial<React.ComponentProps<typeof PodPaneSection>> = {}) => (
   <PodPaneSection
     state={EPodState.Running}
@@ -76,6 +81,7 @@ const sectionOf = (overrides: Partial<React.ComponentProps<typeof PodPaneSection
       { vcpus: 4, memoryGb: 16 },
     ]}
     unavailable={[]}
+    agent37={false}
     series={[sample()]}
     power={powerOf()}
     onStart={() => undefined}
@@ -83,6 +89,7 @@ const sectionOf = (overrides: Partial<React.ComponentProps<typeof PodPaneSection
     onConfirm={() => undefined}
     onCancel={() => undefined}
     onResize={() => undefined}
+    onGrowDisk={() => undefined}
     {...overrides}
   />
 )
@@ -118,8 +125,19 @@ describe('podSectionViewOf', () => {
         { vcpus: 8, memoryGb: 64 },
       ],
       unavailable: [{ shape: { vcpus: 8, memoryGb: 64 }, reason: 'Needs Pro plan' }],
+      agent37: false,
       pendingShape: { vcpus: 8, memoryGb: 64 },
     })
+  })
+
+  it('knows an Agent37 pod, the only one whose disk the operator can grow', () => {
+    const pod = { phase: 'steady' as const, sizing: { cap: 8, offered: [], unavailable: [] } }
+    expect(
+      podSectionViewOf({ pod, live: true, sandboxProvider: ESandboxProvider.Agent37 })?.agent37,
+    ).toBe(true)
+    expect(
+      podSectionViewOf({ pod, live: true, sandboxProvider: ESandboxProvider.Vercel })?.agent37,
+    ).toBe(false)
   })
 
   it('takes the state the sandbox declares over the lease', () => {
@@ -226,6 +244,19 @@ describe('PodPaneSection', () => {
     const html = renderToStaticMarkup(sectionOf({ state: EPodState.Parked, series: [] }))
     expect(html).toContain('aria-label="Start pod"')
     expect(html).not.toContain('aria-label="Stop pod"')
+  })
+
+  it('shows the disk row and the grow control on an Agent37 pod', () => {
+    const html = renderToStaticMarkup(sectionOf({ agent37: true, series: [diskSample()] }))
+    expect(html).toContain('Disk')
+    expect(html).toContain('14.2 / 20 GB')
+    expect(html).toContain('aria-label="Increase disk"')
+  })
+
+  it('keeps the grow control off a pod whose provider has no disk to grow', () => {
+    const html = renderToStaticMarkup(sectionOf({ agent37: false, series: [diskSample()] }))
+    expect(html).toContain('Disk')
+    expect(html).not.toContain('aria-label="Increase disk"')
   })
 
   it('does not echo the pending size below the chart', () => {
@@ -338,6 +369,50 @@ function Harness(props: {
   )
 }
 
+describe('disk grow confirmation', () => {
+  it('names the target disk while it asks and waits for idle when told to', async () => {
+    const onGrow = mock((_request: PodDiskRequest) => Promise.resolve())
+    const unmount = await mount(<DiskHarness view={populatedPaneValue().view} onGrow={onGrow} />)
+    await click(buttonNamed('grow'))
+    expect(document.body.textContent).toContain(
+      'The pod restarts with a 30 GB disk. Files are kept.',
+    )
+    expect(onGrow).not.toHaveBeenCalled()
+    await click(buttonNamed('Wait until idle'))
+    expect(onGrow).toHaveBeenCalledWith({ diskGb: 30, whenIdle: true })
+    await unmount()
+  })
+
+  it('grows at once when nothing is running', async () => {
+    const onGrow = mock((_request: PodDiskRequest) => Promise.resolve())
+    const unmount = await mount(<DiskHarness view={viewModelFixture()} onGrow={onGrow} />)
+    await click(buttonNamed('grow'))
+    expect(onGrow).toHaveBeenCalledWith({ diskGb: 30, whenIdle: false })
+    await unmount()
+  })
+})
+
+function DiskHarness(props: {
+  view: ReturnType<typeof viewModelFixture>
+  onGrow: (request: PodDiskRequest) => Promise<void>
+}) {
+  const { confirmation, handleGrow } = useDiskResizeConfirmation({
+    busy: podBusyOfView(props.view, undefined),
+    onResize: props.onGrow,
+  })
+  const handleClick = () => {
+    handleGrow(30).catch(() => undefined)
+  }
+  return (
+    <>
+      <button type="button" onClick={handleClick}>
+        grow
+      </button>
+      <ResizeBusyDialog confirmation={confirmation} />
+    </>
+  )
+}
+
 describe('resizePod', () => {
   it('posts the shape and the wait choice', async () => {
     const command = mock(() => Promise.resolve({}))
@@ -352,6 +427,23 @@ describe('resizePod', () => {
       sessionId: 'ses-1',
       name: 'resize',
       args: { vcpus: 8, memoryGb: 64, whenIdle: true },
+    })
+  })
+
+  it('posts the bigger disk beside the shape the pod already runs at', async () => {
+    const command = mock(() => Promise.resolve({}))
+    await resizePod({
+      api: { command },
+      sessionId: 'ses-1',
+      vcpus: 4,
+      memoryGb: 16,
+      diskGb: 30,
+      whenIdle: false,
+    })
+    expect(command).toHaveBeenCalledWith({
+      sessionId: 'ses-1',
+      name: 'resize',
+      args: { vcpus: 4, memoryGb: 16, diskGb: 30, whenIdle: false },
     })
   })
 })
