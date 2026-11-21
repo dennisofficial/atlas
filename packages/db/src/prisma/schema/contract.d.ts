@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'49996ca5c4f3f35d0cddd0e5a98397a2104b25dd3d3d67a605946e838d9529c4'>;
+  StorageHashBase<'c746171405bfe47231db56934b722ceb1571a3839b181bde4cf88a4c8c39b411'>;
 export type ExecutionHash =
   ExecutionHashBase<'4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45'>;
 export type ProfileHash =
@@ -3624,6 +3624,13 @@ type ContractBase = Omit<
               primaryKey: { readonly columns: readonly ['id'] };
               uniques: readonly [{ readonly columns: readonly ['dedupeKey'] }];
               indexes: readonly [
+                {
+                  readonly name: 'GithubPrOutbox_dispatched_idx_be1dcc49';
+                  readonly prefix: 'GithubPrOutbox_dispatched_idx';
+                  readonly columns: readonly ['dispatchedAt'];
+                  readonly where: '("dispatchedAt" IS NOT NULL)';
+                  readonly unique: false;
+                },
                 {
                   readonly name: 'GithubPrOutbox_parked_idx_420727ba';
                   readonly prefix: 'GithubPrOutbox_parked_idx';
