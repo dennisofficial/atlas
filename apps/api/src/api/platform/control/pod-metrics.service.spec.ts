@@ -149,6 +149,18 @@ describe('PodMetricsService', () => {
     expect(run.frames).toEqual([{ type: 'sample', sample: sample(2_000) }])
   })
 
+  it('ends without asking for the pod again when the client leaves while the pod is unheld', async () => {
+    const sessions = sessionsOf()
+    const { ops, events } = operationsOf({ held: false })
+    const abort = new AbortController()
+    const run = collect(watch(serviceOf({ sessions, ops, unheldRecheckMs: 60_000 }), abort.signal))
+    await until(() => events.mock.calls.length === 1)
+    abort.abort()
+    await run.done
+    expect(events).toHaveBeenCalledTimes(1)
+    expect(run.frames).toEqual([])
+  })
+
   it('says usage is unavailable when the pod is asleep', async () => {
     const sessions = sessionsOf()
     const { ops } = operationsOf({ held: true, backlog: null })
