@@ -41,7 +41,7 @@ jobs:
             --branch "$branch" \
             --message "fix(harness): bump claude code attribution version to $version" \
             -- "$attribution"
-          gh pr create \
+          gh pr create --head "$branch" --base main \
             --title "fix(harness): bump claude code attribution version to $version" \
             --body "Automated bump of \`CLAUDE_CODE_VERSION\` to the latest \`@anthropic-ai/claude-code\` release ($version). Queued for auto-merge; lands once ci is green."
           gh pr merge --squash --auto "$(gh pr list --head "$branch" --json number --jq '.[0].number')"

@@ -40,7 +40,7 @@ jobs:
             --branch "$branch" \
             --message "chore(models): regenerate model catalogue" \
             -- packages/models/src/generated
-          gh pr create --title "chore(models): regenerate model catalogue" \
+          gh pr create --head "$branch" --base main --title "chore(models): regenerate model catalogue" \
             --body "Automated refresh from models.dev + api.inference.net. Queued for auto-merge; lands once ci is green."
           pr=$(gh pr list --head "$branch" --json number --jq '.[0].number')
           gh pr merge --squash --auto "$pr"
