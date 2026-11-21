@@ -19,6 +19,7 @@ namespace v2 {
     sandboxInstanceId String?
     sandboxStatus     String?
     sandboxStatusAt   TimestamptzJsDate(3)?
+    sandboxStatusReason String?
     spawnedBySessionId String?
     nested             Boolean               @default(true)
     podSessionId       String?

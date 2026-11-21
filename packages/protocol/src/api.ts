@@ -202,6 +202,7 @@ export const sessionModelChoiceOf = (row: {
 export const sessionSandboxStatusSchema = z.strictObject({
   status: z.nativeEnum(ESandboxStatus),
   at: z.string().min(1),
+  reason: z.string().optional(),
 })
 
 export type SessionSandboxStatus = z.infer<typeof sessionSandboxStatusSchema>

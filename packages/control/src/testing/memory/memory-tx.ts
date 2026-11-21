@@ -123,7 +123,10 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
   }
 
   async setSandboxStatus(params: Parameters<ControlTx['setSandboxStatus']>[0]) {
-    return setSandboxStatusIn({ state: this.state, ...params })
+    const sessionId = setSandboxStatusIn({ state: this.state, ...params })
+    if (sessionId === null) return false
+    this.pending.push({ sessionId })
+    return true
   }
 
   async readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined> {

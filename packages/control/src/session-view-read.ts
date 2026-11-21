@@ -162,6 +162,7 @@ const sandboxOf = (session: ControlSessionRow | undefined): SessionStatusOutput[
   const parsed = sessionSandboxStatusSchema.safeParse({
     status: session.sandboxStatus,
     at: session.sandboxStatusAt,
+    ...(session.sandboxStatusReason === null ? {} : { reason: session.sandboxStatusReason }),
   })
   return parsed.success ? parsed.data : undefined
 }

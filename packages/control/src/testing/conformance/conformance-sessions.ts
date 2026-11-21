@@ -235,6 +235,7 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
         sandboxInstanceId: null,
         sandboxStatus: null,
         sandboxStatusAt: null,
+        sandboxStatusReason: null,
         spawnedBySessionId: null,
         nested: true,
         podSessionId: null,
@@ -288,19 +289,31 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
         await plane.setSandboxStatus({
           sandboxInstanceId: 'unknown-instance',
           status: 'running',
+          reason: 'no such instance',
           at: newer,
         }),
       ).toBe(false)
       expect(
-        await plane.setSandboxStatus({ sandboxInstanceId: 'inst-1', status: 'running', at: newer }),
+        await plane.setSandboxStatus({
+          sandboxInstanceId: 'inst-1',
+          status: 'running',
+          reason: 'booted',
+          at: newer,
+        }),
       ).toBe(true)
       expect(
-        await plane.setSandboxStatus({ sandboxInstanceId: 'inst-1', status: 'sleeping', at: T0 }),
+        await plane.setSandboxStatus({
+          sandboxInstanceId: 'inst-1',
+          status: 'sleeping',
+          reason: 'idle timeout',
+          at: T0,
+        }),
       ).toBe(false)
 
       const row = await plane.readSession({ sessionId: SESSION })
       expect(row?.sandboxStatus).toBe('running')
       expect(row?.sandboxStatusAt).toBe(newer)
+      expect(row?.sandboxStatusReason).toBe('booted')
     })
 
     it('pins the complete model the session was created with', async () => {

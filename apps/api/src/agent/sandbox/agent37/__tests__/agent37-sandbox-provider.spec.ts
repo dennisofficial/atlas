@@ -104,6 +104,7 @@ const providerOf = (args: {
   stored?: string | null
 }) => {
   const remembered: Array<{ podSessionId: string; instanceId: string }> = []
+  const seeded: Array<{ podSessionId: string; status: Agent37Status; at: string }> = []
   let stored = args.stored ?? null
   const provider = new Agent37SandboxProvider({
     env: ENV,
@@ -120,9 +121,12 @@ const providerOf = (args: {
       forget: async () => {
         stored = null
       },
+      seedStatus: async (params) => {
+        seeded.push(params)
+      },
     },
   })
-  return { provider, remembered }
+  return { provider, remembered, seeded }
 }
 
 describe('Agent37SandboxProvider.wake', () => {
@@ -130,13 +134,14 @@ describe('Agent37SandboxProvider.wake', () => {
     const { bundle: b, cleanup } = bundle()
     const version = await agent37BundleVersionOf(b.path)
     const { client, creates, execs } = fakeClient({ version })
-    const { provider, remembered } = providerOf({ client, bundlePath: b.path })
+    const { provider, remembered, seeded } = providerOf({ client, bundlePath: b.path })
     try {
       const endpoint = await provider.wake({ target: TARGET, signal: new AbortController().signal })
 
       expect(creates).toHaveLength(1)
       expect(execs).toHaveLength(0)
       expect(remembered).toEqual([{ podSessionId: 'pod-1', instanceId: 'inst-1' }])
+      expect(seeded.map((seed) => [seed.podSessionId, seed.status])).toEqual([['pod-1', 'running']])
       expect(endpoint.url).toBe('wss://inst-1-47300.agent37.app/?a37_token=a37')
       expect(endpoint.sandboxName).toBe(agent37InstanceNameOf('pod-1'))
       expect(endpoint.token).toBe(
@@ -169,13 +174,14 @@ describe('Agent37SandboxProvider.wake', () => {
   it('wakes a known instance without creating another and without an exec', async () => {
     const { bundle: b, cleanup } = bundle()
     const version = await agent37BundleVersionOf(b.path)
-    const { client, creates, execs } = fakeClient({ version })
-    const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
+    const { client, creates, execs } = fakeClient({ version, status: 'waking' })
+    const { provider, seeded } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
     try {
       const endpoint = await provider.wake({ target: TARGET, signal: new AbortController().signal })
 
       expect(creates).toHaveLength(0)
       expect(execs).toHaveLength(0)
+      expect(seeded.map((seed) => [seed.podSessionId, seed.status])).toEqual([['pod-1', 'waking']])
       expect(endpoint.url).toContain('inst-9-47300')
     } finally {
       cleanup()

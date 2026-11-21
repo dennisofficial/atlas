@@ -282,6 +282,7 @@ export interface ControlTx {
   setSandboxStatus(params: {
     sandboxInstanceId: string
     status: string
+    reason?: string | undefined
     at: string
   }): Promise<boolean>
   readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined>

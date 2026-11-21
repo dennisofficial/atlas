@@ -10215,6 +10215,13 @@
                   }
                 }
               },
+              "sandboxStatusReason": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "spawnedBySessionId": {
                 "nullable": true,
                 "type": {
@@ -10471,6 +10478,9 @@
                 },
                 "sandboxStatusAt": {
                   "column": "sandboxStatusAt"
+                },
+                "sandboxStatusReason": {
+                  "column": "sandboxStatusReason"
                 },
                 "spawnedBySessionId": {
                   "column": "spawnedBySessionId"
@@ -18845,6 +18855,11 @@
                     "precision": 3
                   }
                 },
+                "sandboxStatusReason": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
                 "spawnedBySessionId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -19489,7 +19504,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "f13535a1ebf4df5f3c2aa8979830f5e10f36fe0c7d49cc29dff96003e7be2b09"
+    "storageHash": "49996ca5c4f3f35d0cddd0e5a98397a2104b25dd3d3d67a605946e838d9529c4"
   },
   "execution": {
     "executionHash": "4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45",

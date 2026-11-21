@@ -39,6 +39,7 @@ const settingsHrefOf = (projectId: string | undefined): string =>
 export type PodStatusSectionProps = {
   pod: SessionStatusOutput['pod']
   live: boolean
+  sandbox?: SessionStatusOutput['sandbox']
   busy: PodBusy
   sandboxProvider?: string | undefined
   settingsHref: string
@@ -49,9 +50,9 @@ export const sandboxProviderLabelOf = (provider: string): string =>
   provider === ESandboxProvider.Agent37 ? 'Agent37' : 'Vercel'
 
 export function PodStatusSection(props: PodStatusSectionProps) {
-  const { pod, live, busy, sandboxProvider, settingsHref, onResize } = props
+  const { pod, live, sandbox, busy, sandboxProvider, settingsHref, onResize } = props
   const { confirmation, handleResize } = useResizeConfirmation({ busy, onResize })
-  const status = podChipStatusOf({ pod, live })
+  const status = podChipStatusOf({ pod, live, sandbox })
   if (status === null) return null
   return (
     <section data-session-pod aria-label="Pod" className="flex items-center gap-2">
@@ -82,6 +83,7 @@ export function SessionPodSection() {
     <PodStatusSection
       pod={status?.pod}
       live={status?.lease.live ?? false}
+      sandbox={status?.sandbox}
       busy={podBusyOfView(view, status?.state)}
       sandboxProvider={status?.sandboxProvider}
       settingsHref={settingsHrefOf(projectId)}

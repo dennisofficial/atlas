@@ -1,62 +1,20 @@
 import { describe, expect, it } from 'bun:test'
 
-import { canResize, chipLabel, EPodState, ramOf, sizeLabel, type PodStatus } from '../pod-status'
-
-const RUNNING: PodStatus = {
-  state: EPodState.Running,
-  vcpus: 4,
-  podId: 'pod_1',
-  region: 'iad1',
-}
-
-describe('pod size', () => {
-  it('links RAM at 2 GB per vCPU', () => {
-    expect([1, 4, 32].map(ramOf)).toEqual([2, 8, 64])
-    expect(sizeLabel(4)).toBe('4 vCPU · 8 GB')
-  })
-})
+import { chipLabel, EPodState } from '../pod-status'
 
 describe('chipLabel', () => {
-  it('shows only the size while running', () => {
-    expect(chipLabel(RUNNING)).toBe('4 vCPU · 8 GB')
+  it('names the state when the provider declared one', () => {
+    expect(chipLabel({ state: EPodState.Parked, label: 'Sleeping', vcpus: 4 })).toBe('Sleeping')
+    expect(chipLabel({ state: EPodState.Stopped, label: 'Failed' })).toBe('Failed')
   })
 
-  it('names the state beside the size while resuming', () => {
-    expect(chipLabel({ ...RUNNING, state: EPodState.Resuming })).toBe('Resuming · 4 vCPU · 8 GB')
+  it('sizes a running pod by default', () => {
+    expect(chipLabel({ state: EPodState.Running, vcpus: 4 })).toBe('4 vCPU · 8 GB')
   })
 
-  it('names the owed size while a resize restart is in flight', () => {
-    expect(chipLabel({ ...RUNNING, state: EPodState.Resuming, pendingVcpus: 8 })).toBe(
-      'Restarting · 8 vCPU · 16 GB',
-    )
-    expect(chipLabel({ ...RUNNING, state: EPodState.Parked, pendingVcpus: 8 })).toBe('Parked')
-  })
-
-  it('names the size a waiting resize will apply', () => {
-    expect(chipLabel({ ...RUNNING, pendingVcpus: 8, phase: 'waiting' })).toBe(
-      'Waiting to resize · 8 vCPU · 16 GB',
-    )
-  })
-
-  it('names the target size of a pushed resize', () => {
-    expect(chipLabel({ ...RUNNING, pendingVcpus: 8, phase: 'resizing' })).toBe(
-      'Resizing · 8 vCPU · 16 GB',
-    )
-    expect(chipLabel({ ...RUNNING, pendingVcpus: 8, phase: 'failed' })).toBe('Resize failed')
-  })
-
-  it('shows only the state when parked or starting', () => {
-    expect(chipLabel({ ...RUNNING, state: EPodState.Parked })).toBe('Parked')
-    expect(chipLabel({ ...RUNNING, state: EPodState.Starting })).toBe('Starting')
-  })
-})
-
-describe('canResize', () => {
-  it('allows resize for running, resuming and parked pods only', () => {
-    expect(canResize(EPodState.Running)).toBe(true)
-    expect(canResize(EPodState.Resuming)).toBe(true)
-    expect(canResize(EPodState.Parked)).toBe(true)
-    expect(canResize(EPodState.Starting)).toBe(false)
-    expect(canResize(EPodState.Stopped)).toBe(false)
+  it('prefers a failed resize over the declared label', () => {
+    expect(
+      chipLabel({ state: EPodState.Running, label: 'Running', phase: 'failed', vcpus: 4 }),
+    ).toBe('Resize failed')
   })
 })

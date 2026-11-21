@@ -24,18 +24,20 @@ export const setSandboxStatusIn = (params: {
   state: State
   sandboxInstanceId: string
   status: string
+  reason?: string | undefined
   at: string
-}): boolean => {
+}): string | null => {
   const row = [...params.state.sessions.values()].find(
     (session) => session.sandboxInstanceId === params.sandboxInstanceId,
   )
-  if (row === undefined) return false
+  if (row === undefined) return null
   if (row.sandboxStatusAt !== null && Date.parse(row.sandboxStatusAt) >= Date.parse(params.at)) {
-    return false
+    return null
   }
   row.sandboxStatus = params.status
   row.sandboxStatusAt = params.at
-  return true
+  row.sandboxStatusReason = params.reason ?? null
+  return row.sessionId
 }
 
 export const setSessionPodDesiredIn = (params: {
@@ -211,6 +213,7 @@ export const createSessionIn = (params: {
     sandboxInstanceId: params.sandboxInstanceId,
     sandboxStatus: null,
     sandboxStatusAt: null,
+    sandboxStatusReason: null,
     spawnedBySessionId: params.spawnedBySessionId ?? null,
     nested: params.nested ?? true,
     podSessionId: params.podSessionId ?? null,

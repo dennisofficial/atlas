@@ -10,11 +10,13 @@ export class Agent37WebhookService {
   async applyStatus(args: {
     instanceId: string
     status: ESandboxStatus
+    reason?: string | undefined
     at: string
   }): Promise<boolean> {
     const applied = await this.plane.setSandboxStatus({
       sandboxInstanceId: args.instanceId,
       status: args.status,
+      ...(args.reason === undefined ? {} : { reason: args.reason }),
       at: args.at,
     })
     if (

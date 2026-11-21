@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'f13535a1ebf4df5f3c2aa8979830f5e10f36fe0c7d49cc29dff96003e7be2b09'>;
+  StorageHashBase<'49996ca5c4f3f35d0cddd0e5a98397a2104b25dd3d3d67a605946e838d9529c4'>;
 export type ExecutionHash =
   ExecutionHashBase<'4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45'>;
 export type ProfileHash =
@@ -1370,6 +1370,7 @@ export namespace Models {
     sandboxProvider: FieldOutputTypes['v2']['V2Session']['sandboxProvider'];
     sandboxStatus: FieldOutputTypes['v2']['V2Session']['sandboxStatus'];
     sandboxStatusAt: FieldOutputTypes['v2']['V2Session']['sandboxStatusAt'];
+    sandboxStatusReason: FieldOutputTypes['v2']['V2Session']['sandboxStatusReason'];
     spawnedBySessionId: FieldOutputTypes['v2']['V2Session']['spawnedBySessionId'];
     title: FieldOutputTypes['v2']['V2Session']['title'];
     titledFromInboxId: FieldOutputTypes['v2']['V2Session']['titledFromInboxId'];
@@ -8057,6 +8058,12 @@ type ContractBase = Omit<
                   readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: true;
                   readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly sandboxStatusReason: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
                   readonly many: false;
                 };
                 readonly spawnedBySessionId: {
@@ -15005,6 +15012,10 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
+              readonly sandboxStatusReason: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly spawnedBySessionId: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -15152,6 +15163,7 @@ type ContractBase = Omit<
                 readonly sandboxProvider: { readonly column: 'sandboxProvider' };
                 readonly sandboxStatus: { readonly column: 'sandboxStatus' };
                 readonly sandboxStatusAt: { readonly column: 'sandboxStatusAt' };
+                readonly sandboxStatusReason: { readonly column: 'sandboxStatusReason' };
                 readonly spawnedBySessionId: { readonly column: 'spawnedBySessionId' };
                 readonly title: { readonly column: 'title' };
                 readonly titledFromInboxId: { readonly column: 'titledFromInboxId' };
