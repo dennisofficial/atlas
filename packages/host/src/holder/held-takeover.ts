@@ -10,6 +10,13 @@ import { spawnerOf } from './spawner-of'
 
 type Timed<T> = { value: T; ms: number }
 
+export enum ETakeoverLap {
+  Branches = 'branches',
+  Commands = 'commands',
+  Decide = 'decide',
+  Settle = 'settle',
+}
+
 const timed = async <T>(deps: HeldSessionDeps, work: () => Promise<T>): Promise<Timed<T>> => {
   const startedAt = deps.timers.now()
   const value = await work()
@@ -23,12 +30,29 @@ export class TakeOver {
   private configMs = 0
   private recordMs = 0
   private logged = false
+  private readonly laps = new Map<ETakeoverLap, number>()
 
   constructor(
     private readonly deps: HeldSessionDeps,
     private readonly claimMs: number,
   ) {
     this.startedAt = deps.timers.now()
+  }
+
+  async lapped<T>(args: { lap: ETakeoverLap; work: () => Promise<T> }): Promise<T> {
+    const startedAt = this.deps.timers.now()
+    const value = await args.work()
+    this.lap({ lap: args.lap, ms: this.deps.timers.now() - startedAt })
+    return value
+  }
+
+  private lap(args: { lap: ETakeoverLap; ms: number }): void {
+    this.laps.set(args.lap, args.ms)
+    if (args.lap === ETakeoverLap.Branches && this.logged) this.logBranchesTail(args.ms)
+  }
+
+  branchesSettled(): void {
+    this.lap({ lap: ETakeoverLap.Branches, ms: this.deps.timers.now() - this.startedAt })
   }
 
   async open(args: {
@@ -99,7 +123,25 @@ export class TakeOver {
         claimMs: this.claimMs,
         configMs: this.configMs,
         recordMs: this.recordMs,
+        ...this.lapFields(),
         firstStepMs: this.deps.timers.now() - this.startedAt,
+      },
+    })
+  }
+
+  private lapFields(): Record<string, number> {
+    return Object.fromEntries([...this.laps].map(([lap, ms]) => [`${lap}Ms`, ms]))
+  }
+
+  private logBranchesTail(branchesMs: number): void {
+    this.deps.log?.info({
+      source: 'holder.takeover',
+      message: `take-over of ${this.deps.sessionId} observed its branches after the first step`,
+      data: {
+        source: 'holder.takeover',
+        sessionId: this.deps.sessionId,
+        branchesMs,
+        afterFirstStepMs: this.deps.timers.now() - this.startedAt,
       },
     })
   }

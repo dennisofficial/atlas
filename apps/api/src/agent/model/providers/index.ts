@@ -17,6 +17,7 @@ import {
   OPENROUTER_PROVIDER_ID,
 } from '../provider-ids'
 import { createAnthropicModel } from './anthropic-model'
+import type { FastRefusal } from './fast-fallback'
 import { createGatewayModel } from './gateway-model'
 import { createInferenceModel } from './inference-model'
 import { createOpenAiProviderModel } from './openai-provider'
@@ -31,6 +32,7 @@ export function createProviderModel(args: {
   accountId?: AccountId | undefined
   effort: () => EEffort
   fast?: (() => boolean) | undefined
+  onFastRefused?: ((refusal: FastRefusal) => Promise<void> | void) | undefined
   fetch?: typeof fetch | undefined
 }): LanguageModelV4 {
   const { ref, ...rest } = args

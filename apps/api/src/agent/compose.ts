@@ -88,6 +88,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
       terminalStreams: (sessionId) => terminalDemand.countOf(sessionId),
       panelHolds: (sessionId) => panelDemand.countOf(sessionId),
       podSizing: args.plane,
+      sessions: args.plane,
       ...(args.log === undefined ? {} : { log: args.log }),
     }),
     ids: new RandomIds(),

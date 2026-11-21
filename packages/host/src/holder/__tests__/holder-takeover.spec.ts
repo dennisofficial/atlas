@@ -1,7 +1,20 @@
 import { describe, expect, it } from 'bun:test'
 import { LogPort, type LogEntry } from '@dltech/atlas-observability'
+import type { BranchSet } from '@dltech/atlas-protocol'
+import { defineOp, type DaemonGroupFactory } from '@dltech/atlas-protocol/engine'
+import { createInMemoryDaemon, type InMemoryDaemon } from '@dltech/atlas-protocol/testing'
 
-import { FakeClock, flushUntil, makeRig, seedSession, SESSION } from './holder-rig'
+import {
+  FakeClock,
+  flushUntil,
+  makeRig,
+  SANDBOX,
+  SECRET,
+  seedSession,
+  SESSION,
+  THREAD_ID,
+  type HolderRig,
+} from './holder-rig'
 
 class CollectingLog extends LogPort {
   readonly entries: LogEntry[] = []
@@ -9,6 +22,46 @@ class CollectingLog extends LogPort {
     this.entries.push(entry)
   }
 }
+
+const SET: BranchSet = {
+  repoPath: '/w',
+  head: 'aaa111',
+  branches: [{ name: 'main', sha: 'aaa111', pushRemote: null }],
+  worktrees: [{ path: '/w', branch: 'main', sha: 'aaa111', detached: false }],
+  remotes: [{ name: 'origin', url: 'git@github.com:acme/app.git' }],
+  checkouts: ['main'],
+}
+
+const gitGroup: DaemonGroupFactory = () => ({
+  name: 'git',
+  ops: [
+    defineOp({
+      op: 'git.read',
+      run: async ({ op }) => ({ ...SET, repoPath: op.repoPath }),
+    }),
+  ],
+})
+
+const readingDaemon = (): Promise<InMemoryDaemon> =>
+  createInMemoryDaemon({
+    version: 'test',
+    sandboxName: SANDBOX,
+    secret: SECRET,
+    groups: () => [gitGroup],
+  })
+
+type TakeoverLine = { branchesMs?: number; afterFirstStepMs?: number }
+
+const takeoverLineOf = (log: CollectingLog, message: string): TakeoverLine | undefined =>
+  log.entries.find((entry) => entry.source === 'holder.takeover' && entry.message.includes(message))
+    ?.data as TakeoverLine | undefined
+
+const eventsOf = async (rig: HolderRig): Promise<{ type: string; seq: number }[]> =>
+  (await rig.plane.readEvents({ threadId: THREAD_ID, afterSeq: 0, limit: 1000, visible: false }))
+    .events
+
+const hasEvent = async (rig: HolderRig, type: string): Promise<boolean> =>
+  (await eventsOf(rig)).some((event) => event.type === type)
 
 describe('SessionHolder take-over', () => {
   it('loads the record while the runtime config is still resolving', async () => {
@@ -71,9 +124,55 @@ describe('SessionHolder take-over', () => {
       claimMs: 0,
       configMs: runtimeDelay,
       recordMs: recordDelay,
+      settleMs: expect.any(Number),
+      commandsMs: expect.any(Number),
+      decideMs: expect.any(Number),
     })
     const firstStepMs = Number((line?.data as { firstStepMs?: number } | undefined)?.firstStepMs)
     expect(firstStepMs).toBeGreaterThanOrEqual(runtimeDelay)
     expect(firstStepMs).toBeLessThan(runtimeDelay + recordDelay)
   })
+
+  it('starts the handed-over session turn before the branch observation resolves', async () => {
+    const log = new CollectingLog()
+    const a = await makeRig({
+      daemon: await readingDaemon(),
+      script: [{ text: 'first' }],
+      watchedRepos: async () => ['/w'],
+    })
+    await seedSession(a)
+    await a.holder.start()
+    await a.post('first message')
+    await a.wake()
+    expect(await flushUntil({ check: () => hasEvent(a, 'branches-observed') })).toBe(true)
+    expect(await flushUntil({ check: () => hasEvent(a, 'assistant-said') })).toBe(true)
+
+    await a.holder.drain()
+    const handedOverAt = (await eventsOf(a)).at(-1)?.seq ?? 0
+
+    const b = await makeRig({
+      plane: a.plane,
+      store: a.store,
+      bus: a.bus,
+      clock: a.clock,
+      daemon: a.daemon,
+      script: [{ text: 'second' }],
+      watchedRepos: () => new Promise<readonly string[]>(() => {}),
+      log,
+    })
+    await b.holder.start()
+    await a.post('after the deploy')
+    await a.wake()
+
+    const answered = await flushUntil({
+      check: async () =>
+        (await eventsOf(b)).some(
+          (event) => event.type === 'assistant-said' && event.seq > handedOverAt,
+        ),
+      attempts: 600,
+    })
+    expect(answered).toBe(true)
+    expect(typeof takeoverLineOf(log, 'reached its first step')?.branchesMs).toBe('number')
+    expect(log.entries.some((entry) => entry.message.includes('after the first step'))).toBe(false)
+  }, 15_000)
 })
