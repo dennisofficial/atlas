@@ -9,6 +9,7 @@ import { mcpToolsResource } from '../resources'
 import { McpSignInBook } from '../sign-in-book'
 import { EMcpServerStatus } from '../snapshot'
 import { fakeDaemon, fakeProxyControl, invocation, recordingRig, snapshotEventOf } from './support'
+import { eventOf } from './recording'
 
 const searchTool = {
   name: 'search',
@@ -202,10 +203,14 @@ describe('the tools resource announcement', () => {
     }
 
     const first = recordingRig(daemon)
-    expect(resource.announce?.(value, first.ctx)).toHaveLength(2)
+    const announced = resource.announce?.(value, first.ctx) ?? []
+    expect(announced).toHaveLength(2)
 
     const second = recordingRig(daemon, {
-      records: [snapshotEventOf({ resource: MCP_TOOLS, value })],
+      records: [
+        snapshotEventOf({ resource: MCP_TOOLS, value }),
+        ...announced.map((draft, index) => eventOf(draft, index + 2)),
+      ],
     })
     expect(resource.announce?.(value, second.ctx)).toEqual([])
   })
