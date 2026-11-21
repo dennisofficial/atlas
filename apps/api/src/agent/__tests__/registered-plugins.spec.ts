@@ -59,14 +59,15 @@ describe('the agent host plugin composition', () => {
     ])
   })
 
-  it('registers the skills plugin with its two tools and both hooks', () => {
+  it('registers the skills plugin with its two tools, its resource and its listing hook', () => {
     const ctx = podContextOf('s-1')
     const names = composedPlugins.pod.tools(ctx).map((tool) => tool.name)
     const hooks = composedPlugins.pod.hooks(ctx)
 
     expect(names).toContain('skill')
     expect(names).toContain('skill_manage')
-    expect(hooks.beforeTurn?.map((hook) => hook.name)).toContain('skills-catalogue')
+    expect(composedPlugins.pod.resources.map((resource) => resource.name)).toContain('skills')
+    expect(hooks.beforeTurn?.map((hook) => hook.name) ?? []).not.toContain('skills-catalogue')
     expect(hooks.beforeStep?.map((hook) => hook.name)).toContain('skills-listing')
   })
 })
