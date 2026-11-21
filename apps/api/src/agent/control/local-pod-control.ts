@@ -27,6 +27,7 @@ import type { PreviewTunnels } from '@dltech/atlas-previews'
 import type { MemoryScope } from '@dltech/atlas-plugin-sdk'
 
 import type { SecretCipher } from '../config/secret-cipher'
+import { settingsVersionsOf } from './settings-versions'
 import { webSearchConfigOf } from './web-search-config'
 
 const NOT_IN_A_PROJECT = 'this session has no Atlas Cloud project, and routines belong to a project'
@@ -99,6 +100,7 @@ export const localPodControlOf = (args: {
   }
 
   return {
+    settingsVersions: async ({ threadId }) => await settingsVersionsOf({ db: args.db, threadId }),
     exposePort: async ({ threadId, port }) => {
       const owner = await ownerOf(threadId)
       return await args.previews.expose({ threadId, userId: owner.userId, port })

@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 
 import { toThreadId } from '@dltech/atlas-core'
-import { type PluginPodContext, EMPTY_MCP_CONTROL, EMPTY_ROUTINES } from '@dltech/atlas-plugin-sdk'
+import {
+  EMPTY_MCP_CONTROL,
+  EMPTY_POD_RESOURCES,
+  EMPTY_ROUTINES,
+  type PluginPodContext,
+  UNVERSIONED_SETTINGS,
+} from '@dltech/atlas-plugin-sdk'
 import {
   ECallFailure,
   ECallStatus,
@@ -31,12 +37,14 @@ const ctxOf = (args: {
   return {
     sessionId: 'ses_42',
     control: {
+      settingsVersions: async () => UNVERSIONED_SETTINGS,
       exposePort: unsupported,
       memory: {} as never,
       mcp: EMPTY_MCP_CONTROL,
       webSearch: { config: async () => ({ backend: 'bing', key: undefined }) },
       routines: EMPTY_ROUTINES,
     },
+    resources: EMPTY_POD_RESOURCES,
     crew: {} as never,
     sessions: {} as never,
     worktrees: {} as never,

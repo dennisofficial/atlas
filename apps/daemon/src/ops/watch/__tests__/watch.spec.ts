@@ -1,69 +1,9 @@
-import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { mkdir, rm, symlink, writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
 
-import type { CallOp, DaemonEvent, WatchChangedEvent } from '@dltech/atlas-protocol'
-import type { CallContext } from '@dltech/atlas-protocol/engine'
 import { describe, expect, it } from 'bun:test'
 
-import { watchGroup } from '..'
-
-const DEBOUNCE_MS = 40
-
-type Rig = {
-  events: DaemonEvent[]
-  call(op: CallOp): Promise<unknown>
-  changes(): WatchChangedEvent[]
-  stop(): Promise<void>
-}
-
-const rig = (): Rig => {
-  const events: DaemonEvent[] = []
-  const group = watchGroup({ publish: (event) => events.push(event) })
-  const ctx: CallContext = {
-    key: 'k',
-    signal: new AbortController().signal,
-    output: () => undefined,
-    publish: () => undefined,
-  }
-  return {
-    events,
-    call: async (op) => {
-      const registered = group.ops.find((candidate) => candidate.op === op.op)
-      if (registered === undefined) throw new Error(`no op ${op.op}`)
-      return await registered.run({ op, ctx })
-    },
-    changes: () =>
-      events.filter((event): event is WatchChangedEvent => event.type === 'watch.changed'),
-    stop: async () => {
-      await group.stop?.()
-    },
-  }
-}
-
-const waitUntil = async (ready: () => boolean, ms = 3_000): Promise<void> => {
-  const deadline = Date.now() + ms
-  while (Date.now() < deadline) {
-    if (ready()) return
-    await new Promise((resolve) => setTimeout(resolve, 10))
-  }
-  throw new Error('the watcher never reported the change')
-}
-
-const quiet = async (ms = 150): Promise<void> =>
-  await new Promise((resolve) => setTimeout(resolve, ms))
-
-const skillOf = (args: { root: string; name: string; text: string }): string =>
-  join(args.root, args.name, 'SKILL.md')
-
-const writeSkill = async (args: { root: string; name: string; text: string }): Promise<string> => {
-  const path = skillOf(args)
-  await mkdir(dirname(path), { recursive: true })
-  await writeFile(path, args.text)
-  return path
-}
-
-const scratchRoot = async (): Promise<string> => await mkdtemp(join(tmpdir(), 'atlas-watch-'))
+import { DEBOUNCE_MS, rig, waitUntil, quiet, writeSkill, scratchRoot } from './watch-rig'
 
 describe('the daemon watch op', () => {
   it('reports a new SKILL.md under a watched root', async () => {
@@ -179,6 +119,109 @@ describe('the daemon watch op', () => {
       await writeSkill({ root, name: 'alpha', text: 'a' })
       await waitUntil(() => watch.changes().length > 0)
       expect(watch.changes()[0]?.paths.some((path) => path.includes('skills'))).toBe(true)
+    } finally {
+      await watch.stop()
+      await rm(base, { recursive: true, force: true })
+    }
+  })
+
+  it('counts one seq per debounced batch', async () => {
+    const base = await scratchRoot()
+    const root = join(base, 'skills')
+    await mkdir(root, { recursive: true })
+    const watch = rig()
+    try {
+      await watch.call({ op: 'watch.start', watchId: 'w1', roots: [root], debounceMs: DEBOUNCE_MS })
+      const before = await watch.call({ op: 'watch.status', watchIds: ['w1'] })
+      expect(before).toMatchObject({ watches: [{ watchId: 'w1', seq: 0 }] })
+      await writeSkill({ root, name: 'alpha', text: 'a' })
+      await writeSkill({ root, name: 'beta', text: 'b' })
+      await waitUntil(() => watch.changes().length > 0)
+      await quiet()
+      expect(await watch.call({ op: 'watch.status', watchIds: ['w1'] })).toMatchObject({
+        watches: [{ watchId: 'w1', seq: 1 }],
+      })
+      await writeSkill({ root, name: 'gamma', text: 'c' })
+      await waitUntil(() => watch.changes().length > 1)
+      expect(await watch.call({ op: 'watch.status', watchIds: ['w1'] })).toMatchObject({
+        watches: [{ watchId: 'w1', seq: 2 }],
+      })
+    } finally {
+      await watch.stop()
+      await rm(base, { recursive: true, force: true })
+    }
+  })
+
+  it('ignores files whose basename the watch does not name', async () => {
+    const base = await scratchRoot()
+    const root = join(base, 'skills')
+    await mkdir(root, { recursive: true })
+    const watch = rig()
+    try {
+      await watch.call({
+        op: 'watch.start',
+        watchId: 'w1',
+        roots: [root],
+        basenames: ['SKILL.md'],
+        debounceMs: DEBOUNCE_MS,
+      })
+      await writeFile(join(root, 'notes.txt'), 'ignored')
+      await quiet(200)
+      expect(watch.changes()).toHaveLength(0)
+      expect(await watch.call({ op: 'watch.status', watchIds: ['w1'] })).toMatchObject({
+        watches: [{ watchId: 'w1', seq: 0 }],
+      })
+      await writeSkill({ root, name: 'alpha', text: 'a' })
+      await waitUntil(() => watch.changes().length > 0)
+      expect(watch.changes()[0]?.paths.some((path) => path.endsWith('SKILL.md'))).toBe(true)
+    } finally {
+      await watch.stop()
+      await rm(base, { recursive: true, force: true })
+    }
+  })
+
+  it('arms a root created after start and reports its children', async () => {
+    const base = await scratchRoot()
+    const root = join(base, 'skills')
+    const watch = rig()
+    try {
+      const armed = await watch.call({
+        op: 'watch.start',
+        watchId: 'w1',
+        roots: [root],
+        debounceMs: DEBOUNCE_MS,
+      })
+      expect(armed).toEqual([])
+      await mkdir(root, { recursive: true })
+      await waitUntil(() => watch.changes().length > 0)
+      const path = await writeSkill({ root, name: 'beta', text: 'b' })
+      await waitUntil(() => watch.changes().length > 1)
+      expect(watch.changes()[1]?.paths).toContain(path)
+    } finally {
+      await watch.stop()
+      await rm(base, { recursive: true, force: true })
+    }
+  })
+
+  it('reports one instance per group and omits unknown ids', async () => {
+    const base = await scratchRoot()
+    const root = join(base, 'skills')
+    await mkdir(root, { recursive: true })
+    const watch = rig()
+    try {
+      await watch.call({ op: 'watch.start', watchId: 'w1', roots: [root], debounceMs: DEBOUNCE_MS })
+      await watch.call({ op: 'watch.start', watchId: 'w2', roots: [root], debounceMs: DEBOUNCE_MS })
+      const first = (await watch.call({ op: 'watch.status', watchIds: ['w1', 'absent'] })) as {
+        instance: string
+        watches: { watchId: string }[]
+      }
+      const second = (await watch.call({ op: 'watch.status', watchIds: ['w1', 'w2'] })) as {
+        instance: string
+        watches: { watchId: string }[]
+      }
+      expect(first.instance).toBe(second.instance)
+      expect(first.watches.map((entry) => entry.watchId)).toEqual(['w1'])
+      expect(second.watches.map((entry) => entry.watchId)).toEqual(['w1', 'w2'])
     } finally {
       await watch.stop()
       await rm(base, { recursive: true, force: true })

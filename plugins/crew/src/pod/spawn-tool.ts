@@ -16,7 +16,8 @@ import {
   type RepoAgentType,
 } from '../core'
 import { crewRefusal } from './outcome'
-import { discoverRepoAgentTypes, repoAgentTypeOf } from './repo-agent-types'
+import { discoverRepoAgentTypes, type RepoAgentTypes } from './repo-agent-types'
+import { repoAgentTypesOf } from './resource'
 import { planTarget, provenanceIn } from './worktree-plan'
 
 const inputSchema = z.strictObject({
@@ -38,12 +39,19 @@ const description = [
   'A path adopts a worktree that git already lists instead.',
 ].join(' ')
 
+const repoAgentTypesFor = async (args: {
+  ctx: PluginPodContext
+  projectDirectory: string
+}): Promise<RepoAgentTypes> =>
+  repoAgentTypesOf(args.ctx) ??
+  (await discoverRepoAgentTypes({ ctx: args.ctx, projectDirectory: args.projectDirectory }))
+
 const unknownTypeRefusal = async (args: {
   ctx: PluginPodContext
   projectDirectory: string
   name: string
 }): Promise<string> => {
-  const found = await discoverRepoAgentTypes({
+  const found = await repoAgentTypesFor({
     ctx: args.ctx,
     projectDirectory: args.projectDirectory,
   })
@@ -77,11 +85,13 @@ export class AgentSpawnTool extends SchemaTool<typeof inputSchema> {
       return { prompt: spawnPromptOf({ contract: builtIn.contract, brief: args.brief }) }
     }
 
-    const repoType: RepoAgentType | undefined = await repoAgentTypeOf({
+    const found = await repoAgentTypesFor({
       ctx: this.ctx,
       projectDirectory: args.projectDirectory,
-      name: args.agentType,
     })
+    const repoType: RepoAgentType | undefined = found.types.find(
+      (type) => type.name === args.agentType,
+    )
     if (repoType === undefined) {
       return {
         refusal: await unknownTypeRefusal({

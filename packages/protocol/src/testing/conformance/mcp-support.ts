@@ -27,7 +27,8 @@ export const spawnEcho = (args: {
   command?: string
   script?: string
   env?: Record<string, string>
-}): Promise<{ serverId: string; pid: number }> =>
+  specHash?: string
+}): Promise<{ serverId: string; pid: number; attached: boolean; seq: number }> =>
   runToEnd({
     session: args.session,
     key: `spawn-${args.serverId}`,
@@ -37,6 +38,7 @@ export const spawnEcho = (args: {
       command: args.command ?? 'bun',
       args: args.command === undefined ? ['-e', args.script ?? ECHO_SCRIPT] : [],
       ...(args.env === undefined ? {} : { env: args.env }),
+      ...(args.specHash === undefined ? {} : { specHash: args.specHash }),
     },
   }).then((result) => okValue({ result, op: 'mcp.spawn' }))
 

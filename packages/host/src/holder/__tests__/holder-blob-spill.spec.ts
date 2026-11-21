@@ -9,8 +9,13 @@ import {
   toRunId,
   type V2Event,
 } from '@dltech/atlas-core'
+import { EMPTY_CREW, readResource } from '@dltech/atlas-plugin-sdk'
+import { z } from 'zod'
 
 import { flushUntil, makeRig, postAndRun, seedSession, SESSION, THREAD_ID } from './holder-rig'
+import type { HeldSessionDeps } from '../held-session-deps'
+import { pluginPodContextOf } from '../plugin-pod'
+import type { SessionRuntime } from '../ports'
 import { SessionRecord } from '../record/record-adapter'
 import { V2OnceLedger } from '../record/v2-once-ledger'
 
@@ -137,5 +142,77 @@ describe('SessionRecord blob spill', () => {
 
     const fresh = await SessionRecord.open(args)
     expect(canonicalJson(await replay(fresh))).toBe(canonicalJson(value))
+  }, 30_000)
+
+  it('round-trips a spilled resource snapshot through readResource', async () => {
+    const rig = await makeRig({})
+    await seedSession(rig)
+    await rig.holder.start()
+    await postAndRun(rig, 'hello')
+    const claimed = await flushUntil({
+      check: async () => (await rig.events()).some((event) => event.type === 'assistant-said'),
+    })
+    expect(claimed).toBe(true)
+
+    const runtime = rig.runtimes[0]
+    if (runtime === undefined) throw new Error('no runtime')
+    const lease = await recordLease(rig)
+    const record = await SessionRecord.open({
+      plane: rig.plane,
+      threadId: THREAD_ID,
+      epoch: lease.epoch,
+      timers: rig.clock,
+      remoteCalls: runtime.remoteCalls,
+      daemonTools: runtime.daemonTools,
+      nowIso: () => new Date(rig.clock.now()).toISOString(),
+    })
+
+    const value = { payload: 'resource-'.repeat(32 * 1024) }
+    await record.append({
+      threadId: THREAD_ID,
+      runId: toRunId('run-resource'),
+      drafts: [
+        {
+          type: 'resource-loaded',
+          resource: 'mcp',
+          fingerprint: 'instance-1:1:v1:/work',
+          value,
+        },
+      ],
+    })
+
+    const stored = await readStored(rig)
+    const storedSnapshot = stored.find((event) => event.type === 'resource-loaded')
+    if (storedSnapshot?.type !== 'resource-loaded') throw new Error('no stored snapshot')
+    expect(isBlobRef(storedSnapshot.value)).toBe(true)
+
+    const ctx = pluginPodContextOf({
+      deps: {
+        sessionId: SESSION,
+        ids: { nextRunId: () => toRunId('run-read') },
+        bus: {},
+      } as unknown as HeldSessionDeps,
+      runtime: {
+        launchDirectory: '/work',
+        remoteCalls: {
+          invoke: async () => {
+            throw new Error('the snapshot read makes no daemon call')
+          },
+          onEvent: () => () => undefined,
+        },
+      } as unknown as SessionRuntime,
+      record,
+      threadId: THREAD_ID,
+      signal: new AbortController().signal,
+      crew: EMPTY_CREW,
+    })
+    const resource = {
+      name: 'mcp',
+      schema: z.object({ payload: z.string() }),
+      load: async () => value,
+    }
+
+    expect(readResource({ ctx, resource })).toEqual(value)
+    expect(readResource({ ctx, resource })?.payload.length).toBe(value.payload.length)
   }, 30_000)
 })

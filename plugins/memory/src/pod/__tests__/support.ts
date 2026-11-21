@@ -10,6 +10,8 @@ import {
   EMPTY_ROUTINES,
   EMPTY_SESSIONS,
   EMPTY_WORKTREES,
+  EMPTY_POD_RESOURCES,
+  UNVERSIONED_SETTINGS,
 } from '@dltech/atlas-plugin-sdk'
 
 import { memoryPod } from '..'
@@ -90,6 +92,7 @@ export const fakeMemory = (args: { project?: string | null } = {}) => {
 export const rig = (memory: PodMemory = fakeMemory().port) => {
   const ctx: PluginPodContext = {
     sessionId: 's1',
+    resources: EMPTY_POD_RESOURCES,
     crew: EMPTY_CREW,
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
@@ -97,6 +100,7 @@ export const rig = (memory: PodMemory = fakeMemory().port) => {
       mcp: EMPTY_MCP_CONTROL,
       webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
       routines: EMPTY_ROUTINES,
+      settingsVersions: async () => UNVERSIONED_SETTINGS,
       exposePort: async () => {
         throw new Error('this rig exposes no port')
       },

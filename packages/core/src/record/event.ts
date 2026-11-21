@@ -14,6 +14,7 @@ import {
   type InputRefused,
   type InputWithdrawn,
 } from './input-events'
+import { resourceLoadedSchema, type ResourceLoaded } from './resource-loaded'
 import { retryScheduledSchema, type RetryScheduled } from './retry-scheduled'
 import { sessionStartFailedSchema, type SessionStartFailed } from './start-failure'
 import {
@@ -68,6 +69,7 @@ export type RecordBody =
   | { type: 'idle-released'; inboxHead: number }
   | { type: 'fact-recorded'; key: string; kind: string; value?: unknown }
   | RetryScheduled
+  | ResourceLoaded
   | BranchesObserved
   | WorkspacePrepared
   | WorkspacePrepareFailed
@@ -142,6 +144,7 @@ const recordBodySchema: z.ZodType<RecordBody> = z.discriminatedUnion('type', [
     value: z.unknown().optional(),
   }),
   retryScheduledSchema,
+  resourceLoadedSchema,
   branchesObservedSchema,
   workspacePreparedSchema,
   workspacePrepareFailedSchema,
@@ -159,6 +162,7 @@ const RECORD_TYPE_TABLE = {
   'idle-released': true,
   'fact-recorded': true,
   'retry-scheduled': true,
+  'resource-loaded': true,
   'branches-observed': true,
   'workspace-prepared': true,
   'workspace-prepare-failed': true,

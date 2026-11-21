@@ -2,12 +2,13 @@ import { HookChain, ToolRegistry, type HookChainArgs } from '@dltech/atlas-agent
 import {
   EModelFallbackReason,
   TEAMMATE_AGENT_TYPE,
+  projectDirectoryOfState,
   type EventDraft,
   type ThreadId,
   type ToolDeclaration,
   type ToolDefinition,
 } from '@dltech/atlas-core'
-import type { PluginPodContext, PodCrew } from '@dltech/atlas-plugin-sdk'
+import type { PluginPodContext, PodCrew, PodResources } from '@dltech/atlas-plugin-sdk'
 import type { CallOp, CallResult } from '@dltech/atlas-protocol'
 
 import { newKey } from '../calls/remote-calls'
@@ -17,6 +18,7 @@ import type { HeldSessionDeps } from './held-session-deps'
 import { fireLive } from './ports'
 import { MirrorPlanHook } from './plan-mirror'
 import { podControlOf } from './pod-control'
+import { pluginResourcesHook, reloadResource } from './plugin-resources'
 import { podSessionsOf } from './plugin-sessions'
 import { modelFellBackDraft } from './crew/model-fell-back'
 import type { RoleModelChoice, SessionRuntime } from './ports'
@@ -105,6 +107,30 @@ export const pluginCallOf = (args: {
     })
 }
 
+const podResourcesOf = (args: {
+  runtime: SessionRuntime
+  record: SessionRecord
+  threadId: ThreadId
+  ctx: () => PluginPodContext
+}): PodResources => {
+  const declared = args.runtime.plugins?.pod.resources ?? []
+  return {
+    reload: async (name) => {
+      const resource = declared.find((candidate) => candidate.name === name)
+      if (resource === undefined) return
+      const state = await args.record.loopState({ threadId: args.threadId })
+      await reloadResource({
+        ctx: args.ctx(),
+        resource,
+        directory: projectDirectoryOfState({
+          state,
+          launchDirectory: args.runtime.launchDirectory,
+        }),
+      })
+    },
+  }
+}
+
 export const pluginPodContextOf = (args: {
   deps: HeldSessionDeps
   runtime: SessionRuntime
@@ -117,7 +143,7 @@ export const pluginPodContextOf = (args: {
   const append = async (drafts: readonly EventDraft[]): Promise<void> => {
     await record.append({ threadId, runId: deps.ids.nextRunId(), drafts })
   }
-  return {
+  const ctx: PluginPodContext = {
     sessionId: deps.sessionId,
     workspaceDirectory: runtime.launchDirectory,
     control: podControlOf({
@@ -134,7 +160,10 @@ export const pluginPodContextOf = (args: {
     }),
     worktrees: worktreesOf({ calls: runtime.remoteCalls }),
     append,
-    events: () => record.eventCache().eventsAfter(0),
+    events: () => {
+      const cache = record.eventCache()
+      return cache.eventsAfter(0).map((event) => cache.resolvedEvent(event))
+    },
     call: pluginCallOf({
       invoke: (call) => runtime.remoteCalls.invoke(call),
       ...(runtime.env === undefined ? {} : { env: runtime.env }),
@@ -146,8 +175,10 @@ export const pluginPodContextOf = (args: {
       return off
     },
     log: (message) => deps.log?.info({ source: 'holder.plugin', message }),
+    resources: podResourcesOf({ runtime, record, threadId, ctx: () => ctx }),
     ...(runtime.env === undefined ? {} : { env: runtime.env }),
   }
+  return ctx
 }
 
 export const pluginToolsOf = (args: {
@@ -179,9 +210,14 @@ export const pluginHooksOf = (args: {
   if (plugins === undefined) return new HookChain(host)
 
   const plugin = plugins.pod.hooks(args.ctx)
+  const resources =
+    plugins.pod.resources.length === 0
+      ? []
+      : [pluginResourcesHook({ ctx: args.ctx, resources: plugins.pod.resources })]
   return new HookChain({
     ...host,
     ...plugin,
+    beforeTurn: [...resources, ...(plugin.beforeTurn ?? [])],
     afterTool: [...(host.afterTool ?? []), ...(plugin.afterTool ?? [])],
     trace: args.runtime.trace,
     onMishap: (mishap) => args.ctx.log(`hook ${mishap.label} ${mishap.kind}: ${mishap.detail}`),

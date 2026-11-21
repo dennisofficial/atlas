@@ -8,8 +8,8 @@ import {
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
 import { ESkillOrigin } from '../core'
-import { catalogueFor } from './catalogue-source'
-import type { SkillsPodOptions } from './hooks'
+import { catalogueOf } from './catalogue-source'
+import type { SkillsPodOptions } from './resources'
 import {
   hasClone,
   removeRepoSkillDirectory,
@@ -17,8 +17,7 @@ import {
   SKILL_ENTRY_PATH,
   writeRepoSkillFile,
 } from './repo-writes'
-import type { SkillsPodState } from './state'
-import { forgetCatalogue } from './state'
+import { SKILLS_RESOURCE } from './resources'
 import {
   builtInRefusal,
   isBuiltInSkillName,
@@ -48,7 +47,6 @@ export class SkillInstallTool extends SchemaTool<typeof installSchema> {
 
   constructor(
     private readonly ctx: PluginPodContext,
-    private readonly state: SkillsPodState,
     private readonly options: SkillsPodOptions,
   ) {
     super()
@@ -73,7 +71,7 @@ export class SkillInstallTool extends SchemaTool<typeof installSchema> {
         body: input.body,
       })
       if (!written.ok) return { ok: false, reason: written.reason }
-      forgetCatalogue(this.state)
+      await this.ctx.resources.reload(SKILLS_RESOURCE)
       return {
         ok: true,
         output: { name: input.name, layer: input.layer, path: written.path },
@@ -81,19 +79,19 @@ export class SkillInstallTool extends SchemaTool<typeof installSchema> {
       }
     }
 
-    if (this.options.writes === undefined) return cloudMissing()
+    const writes = this.options.writes?.(this.ctx)
+    if (writes === undefined) return cloudMissing()
     const elsewhere = elsewhereOf({
-      catalogue: await catalogueFor({
+      catalogue: await catalogueOf({
         ctx: this.ctx,
-        state: this.state,
-        cloud: this.options.cloud,
+        options: this.options,
         directory: projectDirectory,
       }),
       name: input.name,
       layer: input.layer,
     })
     if (elsewhere !== undefined) return { ok: false, reason: elsewhere }
-    const result = await this.options.writes.write({
+    const result = await writes.write({
       scope,
       name: input.name,
       path: SKILL_ENTRY_PATH,
@@ -102,7 +100,7 @@ export class SkillInstallTool extends SchemaTool<typeof installSchema> {
       baseRevision: 0,
     })
     if (!result.ok) return refused(result, input.name)
-    forgetCatalogue(this.state)
+    await this.ctx.resources.reload(SKILLS_RESOURCE)
     return {
       ok: true,
       output: { name: input.name, layer: input.layer, revision: result.revision },
@@ -124,7 +122,6 @@ export class SkillEditTool extends SchemaTool<typeof editSchema> {
 
   constructor(
     private readonly ctx: PluginPodContext,
-    private readonly state: SkillsPodState,
     private readonly options: SkillsPodOptions,
   ) {
     super()
@@ -144,10 +141,9 @@ export class SkillEditTool extends SchemaTool<typeof editSchema> {
       return { ok: false, reason: builtInRefusal(input.name) }
 
     if (scope === null) {
-      const catalogue = await catalogueFor({
+      const catalogue = await catalogueOf({
         ctx: this.ctx,
-        state: this.state,
-        cloud: this.options.cloud,
+        options: this.options,
         directory: projectDirectory,
       })
       const elsewhere = elsewhereOf({ catalogue, name: input.name, layer: input.layer })
@@ -168,7 +164,7 @@ export class SkillEditTool extends SchemaTool<typeof editSchema> {
         body: input.body,
       })
       if (!written.ok) return { ok: false, reason: written.reason }
-      forgetCatalogue(this.state)
+      await this.ctx.resources.reload(SKILLS_RESOURCE)
       return {
         ok: true,
         output: { name: input.name, layer: input.layer, path: written.path },
@@ -176,19 +172,19 @@ export class SkillEditTool extends SchemaTool<typeof editSchema> {
       }
     }
 
-    if (this.options.writes === undefined) return cloudMissing()
+    const writes = this.options.writes?.(this.ctx)
+    if (writes === undefined) return cloudMissing()
     const elsewhere = elsewhereOf({
-      catalogue: await catalogueFor({
+      catalogue: await catalogueOf({
         ctx: this.ctx,
-        state: this.state,
-        cloud: this.options.cloud,
+        options: this.options,
         directory: projectDirectory,
       }),
       name: input.name,
       layer: input.layer,
     })
     if (elsewhere !== undefined) return { ok: false, reason: elsewhere }
-    const result = await this.options.writes.write({
+    const result = await writes.write({
       scope,
       name: input.name,
       path,
@@ -197,7 +193,7 @@ export class SkillEditTool extends SchemaTool<typeof editSchema> {
       baseRevision: input.baseRevision ?? null,
     })
     if (!result.ok) return refused(result, input.name)
-    forgetCatalogue(this.state)
+    await this.ctx.resources.reload(SKILLS_RESOURCE)
     return {
       ok: true,
       output: { name: input.name, layer: input.layer, revision: result.revision },
@@ -218,7 +214,6 @@ export class SkillDeleteTool extends SchemaTool<typeof deleteSchema> {
 
   constructor(
     private readonly ctx: PluginPodContext,
-    private readonly state: SkillsPodState,
     private readonly options: SkillsPodOptions,
   ) {
     super()
@@ -241,10 +236,9 @@ export class SkillDeleteTool extends SchemaTool<typeof deleteSchema> {
           reason:
             'this session has no clone, so it has no <repo>/.agents/skills directory to delete from. Use layer user or layer project instead',
         }
-      const catalogue = await catalogueFor({
+      const catalogue = await catalogueOf({
         ctx: this.ctx,
-        state: this.state,
-        cloud: this.options.cloud,
+        options: this.options,
         directory: projectDirectory,
       })
       const elsewhere = elsewhereOf({ catalogue, name: input.name, layer: input.layer })
@@ -261,7 +255,7 @@ export class SkillDeleteTool extends SchemaTool<typeof deleteSchema> {
         directory: repoSkillDirectoryOf({ projectDirectory, name: input.name }),
       })
       if (!removed.ok) return { ok: false, reason: removed.reason }
-      forgetCatalogue(this.state)
+      await this.ctx.resources.reload(SKILLS_RESOURCE)
       return {
         ok: true,
         output: { name: input.name, layer: input.layer, path: removed.path },
@@ -269,21 +263,21 @@ export class SkillDeleteTool extends SchemaTool<typeof deleteSchema> {
       }
     }
 
-    if (this.options.writes === undefined) return cloudMissing()
+    const writes = this.options.writes?.(this.ctx)
+    if (writes === undefined) return cloudMissing()
     const elsewhere = elsewhereOf({
-      catalogue: await catalogueFor({
+      catalogue: await catalogueOf({
         ctx: this.ctx,
-        state: this.state,
-        cloud: this.options.cloud,
+        options: this.options,
         directory: projectDirectory,
       }),
       name: input.name,
       layer: input.layer,
     })
     if (elsewhere !== undefined) return { ok: false, reason: elsewhere }
-    const result = await this.options.writes.remove({ scope, name: input.name })
+    const result = await writes.remove({ scope, name: input.name })
     if (!result.ok) return { ok: false, reason: result.reason }
-    forgetCatalogue(this.state)
+    await this.ctx.resources.reload(SKILLS_RESOURCE)
     return {
       ok: true,
       output: { name: input.name, layer: input.layer },

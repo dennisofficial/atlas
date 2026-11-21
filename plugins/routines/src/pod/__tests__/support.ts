@@ -6,6 +6,8 @@ import {
   EMPTY_WORKTREES,
   type PluginPodContext,
   type PodRoutines,
+  EMPTY_POD_RESOURCES,
+  UNVERSIONED_SETTINGS,
 } from '@dltech/atlas-plugin-sdk'
 import type { Routine } from '@dltech/atlas-protocol'
 
@@ -97,12 +99,14 @@ export const fakeRoutines = (
 export const rig = (routines: PodRoutines = fakeRoutines().port) => {
   const ctx: PluginPodContext = {
     sessionId: 's1',
+    resources: EMPTY_POD_RESOURCES,
     crew: EMPTY_CREW,
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
     control: {
       mcp: EMPTY_MCP_CONTROL,
       webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
+      settingsVersions: async () => UNVERSIONED_SETTINGS,
       exposePort: async () => {
         throw new Error('this rig exposes no port')
       },

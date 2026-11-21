@@ -1,58 +1,23 @@
-import {
-  EContextSlot,
-  EStage,
-  type BeforeTurn,
-  type EventDraft,
-  type HookOrder,
-  type ThreadId,
-} from '@dltech/atlas-core'
+import { EContextSlot, type EventDraft } from '@dltech/atlas-core'
 
-import type { McpStore } from './store'
-
-export type McpInstructionsHook = {
-  name: string
-  order: HookOrder
-  run: BeforeTurn
-}
-
-export const mcpInstructionsOf = (args: {
-  live: ReadonlyMap<string, string>
-  offered: Set<string>
-}): EventDraft[] => {
-  const drafts: EventDraft[] = []
-  for (const [name, instructions] of args.live) {
-    if (args.offered.has(name)) continue
-    drafts.push({
-      type: 'context-loaded',
+export const mcpInstructionsDraftsOf = (args: {
+  previous: ReadonlyMap<string, string>
+  next: ReadonlyMap<string, string>
+}): readonly EventDraft[] => [
+  ...[...args.next]
+    .filter(([name, text]) => args.previous.get(name) !== text)
+    .map(([key, content]) => ({
+      type: 'context-loaded' as const,
       slot: EContextSlot.McpInstructions,
-      key: name,
-      content: instructions,
-    })
-    args.offered.add(name)
-  }
-  for (const name of [...args.offered]) {
-    if (args.live.has(name)) continue
-    drafts.push({
-      type: 'context-loaded',
+      key,
+      content,
+    })),
+  ...[...args.previous.keys()]
+    .filter((name) => !args.next.has(name))
+    .map((key) => ({
+      type: 'context-loaded' as const,
       slot: EContextSlot.McpInstructions,
-      key: name,
+      key,
       content: '',
-    })
-    args.offered.delete(name)
-  }
-  return drafts
-}
-
-export const mcpInstructionsHook = (args: {
-  store: McpStore
-  offered: Map<ThreadId, Set<string>>
-}): McpInstructionsHook => ({
-  name: 'mcp-instructions',
-  order: { stage: EStage.Observe, nudge: 20 },
-  run: async ({ threadId }) => {
-    const offered = args.offered.get(threadId) ?? new Set<string>()
-    const drafts = mcpInstructionsOf({ live: args.store.instructionsByServer(), offered })
-    args.offered.set(threadId, offered)
-    return drafts.length === 0 ? {} : { drafts }
-  },
-})
+    })),
+]

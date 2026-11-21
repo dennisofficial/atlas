@@ -9,7 +9,7 @@ export type RepoCatalogueSkill = {
   userInvocable: boolean
   modelInvocable: boolean
   argumentHint: string | undefined
-  origin: ESkillOrigin
+  origin: ESkillOrigin.Repo
   directory: string
   entryPath: string
   warnings: readonly SkillWarning[]
@@ -22,7 +22,7 @@ export type CloudCatalogueSkill = {
   userInvocable: boolean
   modelInvocable: boolean
   argumentHint: string | undefined
-  origin: ESkillOrigin
+  origin: ESkillOrigin.CloudUser | ESkillOrigin.CloudProject
   directory: null
   scope: SkillScopeName
   warnings: readonly SkillWarning[]
@@ -35,7 +35,7 @@ export type BuiltInCatalogueSkill = {
   userInvocable: boolean
   modelInvocable: boolean
   argumentHint: string | undefined
-  origin: ESkillOrigin
+  origin: ESkillOrigin.BuiltIn
   directory: null
   text: string
   files: readonly BuiltInFile[]

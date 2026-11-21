@@ -1,45 +1,35 @@
-import type { McpCloudRow } from '../../core'
-import { EMcpViewStatus } from '../../core'
+import { EDefinitionOrigin } from '@dltech/atlas-core'
+
+import { EMcpViewStatus, type McpServerRow } from '../../core'
 import { describe, expect, it } from 'bun:test'
 
-import { McpStore } from '../store'
-import { fakeDaemon, fakeProxyControl, rig } from './support'
+import { mcpRosterDraftsOf, rowsOf } from '../roster'
+import { EMcpServerStatus, type McpToolsSnapshot } from '../snapshot'
 
-const transport = { kind: 'stdio' as const, command: 'bun', args: ['run', 'server'] }
-
-const recordingRig = (
-  daemon: ReturnType<typeof fakeDaemon>,
-  over: { mcp?: ReturnType<typeof fakeProxyControl>['control'] } = {},
-) => {
-  const appended: unknown[] = []
-  const ctx = {
-    ...rig(daemon, over),
-    append: async (drafts: readonly unknown[]) => void appended.push(...drafts),
-  }
-  return { ctx, appended }
-}
-
-const storeWith = (args: {
-  ctx: ReturnType<typeof recordingRig>['ctx']
-  rows: () => readonly McpCloudRow[]
-}) =>
-  new McpStore({
-    ctx: args.ctx,
-    config: { read: async () => ({ rows: args.rows(), rejections: [] }) },
-    connectTimeoutMs: 200,
-    reconcileBudgetMs: 200,
-  })
+const snapshotOf = (args: {
+  status: EMcpServerStatus
+  reason?: string
+  tools?: readonly string[]
+}): McpToolsSnapshot => ({
+  configHash: 'h',
+  directory: '/repo',
+  servers: [
+    {
+      name: 'docs',
+      origin: EDefinitionOrigin.User,
+      transportKind: 'stdio',
+      configHash: 'c1',
+      status: args.status,
+      tools: (args.tools ?? []).map((name) => ({ name })),
+      ...(args.reason === undefined ? {} : { reason: args.reason }),
+    },
+  ],
+})
 
 describe('the mcp view event body', () => {
-  it('appends one changed row when a server connects', async () => {
-    const daemon = fakeDaemon({ docs: { tools: [{ name: 'search' }] } })
-    const { ctx, appended } = recordingRig(daemon)
-    const store = storeWith({
-      ctx,
-      rows: () => [{ source: 'user', spec: { name: 'docs', transport } }],
-    })
-    await store.boot()
-    expect(appended).toEqual([
+  it('appends one changed row when a server connects', () => {
+    const rows = rowsOf(snapshotOf({ status: EMcpServerStatus.Connected, tools: ['search'] }))
+    expect(mcpRosterDraftsOf({ previous: [], next: rows })).toEqual([
       {
         type: 'mcp-server-changed',
         row: {
@@ -47,67 +37,39 @@ describe('the mcp view event body', () => {
           transport: 'stdio',
           status: EMcpViewStatus.Connected,
           toolCount: 1,
-          layer: 'user',
+          layer: EDefinitionOrigin.User,
         },
       },
     ])
   })
 
-  it('appends a failed row with its reason', async () => {
-    const daemon = fakeDaemon({
-      docs: { exit: { exitCode: 1, signal: null }, stderr: ['boom'] },
-    })
-    const { ctx, appended } = recordingRig(daemon)
-    const store = storeWith({
-      ctx,
-      rows: () => [{ source: 'project', spec: { name: 'docs', transport } }],
-    })
-    await store.boot()
-    expect(appended).toHaveLength(1)
-    expect(appended[0]).toMatchObject({
+  it('appends a failed row with its reason', () => {
+    const rows = rowsOf(snapshotOf({ status: EMcpServerStatus.Failed, reason: 'boom' }))
+    expect(mcpRosterDraftsOf({ previous: [], next: rows })[0]).toMatchObject({
       type: 'mcp-server-changed',
-      row: { name: 'docs', status: EMcpViewStatus.Failed, toolCount: 0, layer: 'project' },
+      row: { name: 'docs', status: EMcpViewStatus.Failed, toolCount: 0, reason: 'boom' },
     })
   })
 
-  it('appends nothing when no row changed on reconcile', async () => {
-    const daemon = fakeDaemon({ docs: { tools: [{ name: 'search' }] } })
-    const { ctx, appended } = recordingRig(daemon)
-    const store = storeWith({
-      ctx,
-      rows: () => [{ source: 'user', spec: { name: 'docs', transport } }],
-    })
-    await store.boot()
-    await store.reconcile()
-    expect(appended).toHaveLength(1)
+  it('appends nothing when no row changed', () => {
+    const rows: readonly McpServerRow[] = rowsOf(
+      snapshotOf({ status: EMcpServerStatus.Connected, tools: ['s'] }),
+    )
+    expect(mcpRosterDraftsOf({ previous: rows, next: rows })).toEqual([])
   })
 
-  it('reopens a server, and republishes it, when only the proxy switch flips', async () => {
-    const daemon = fakeDaemon({ docs: { tools: [{ name: 'search' }] } })
-    const proxy = fakeProxyControl({ online: false })
-    const { ctx, appended } = recordingRig(daemon, { mcp: proxy.control })
-    let rows: readonly McpCloudRow[] = [{ source: 'user', spec: { name: 'docs', transport } }]
-    const store = storeWith({ ctx, rows: () => rows })
-    await store.boot()
-    expect(appended).toHaveLength(1)
-
-    rows = [{ source: 'user', spec: { name: 'docs', transport, proxy: true } }]
-    await store.reconcile()
-
-    expect(appended.at(-1)).toMatchObject({
-      type: 'mcp-server-changed',
-      row: { name: 'docs', status: EMcpViewStatus.Unavailable, reason: 'Mac app offline' },
-    })
+  it('appends a change when only the status flips', () => {
+    const connected = rowsOf(snapshotOf({ status: EMcpServerStatus.Connected, tools: ['s'] }))
+    const unavailable = rowsOf(
+      snapshotOf({ status: EMcpServerStatus.Failed, reason: 'Mac app offline' }),
+    )
+    expect(mcpRosterDraftsOf({ previous: connected, next: unavailable })).toHaveLength(1)
   })
 
-  it('appends a removal when a server leaves the config', async () => {
-    const daemon = fakeDaemon({ docs: { tools: [{ name: 'search' }] } })
-    const { ctx, appended } = recordingRig(daemon)
-    let rows: readonly McpCloudRow[] = [{ source: 'user', spec: { name: 'docs', transport } }]
-    const store = storeWith({ ctx, rows: () => rows })
-    await store.boot()
-    rows = []
-    await store.reconcile()
-    expect(appended.at(-1)).toEqual({ type: 'mcp-server-removed', name: 'docs' })
+  it('appends a removal when a server leaves the config', () => {
+    const before = rowsOf(snapshotOf({ status: EMcpServerStatus.Connected, tools: ['s'] }))
+    expect(mcpRosterDraftsOf({ previous: before, next: [] })).toEqual([
+      { type: 'mcp-server-removed', name: 'docs' },
+    ])
   })
 })

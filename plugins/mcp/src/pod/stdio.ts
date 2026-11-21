@@ -46,12 +46,14 @@ export class StdioClient implements McpTransportClient {
   private exitError: McpTransportError | null = null
   private off: (() => void) | null = null
   private catching: Promise<void> | null = null
+  private attached = false
 
   constructor(
     private readonly args: {
       ctx: PluginPodContext
       serverId: string
       transport: McpStdioTransport
+      specHash?: string | undefined
       timeoutMs?: number
       onExit?: (reason: string) => void
     },
@@ -60,6 +62,7 @@ export class StdioClient implements McpTransportClient {
   async connect(): Promise<McpConnection> {
     this.subscribe()
     await this.spawn()
+    if (this.attached) return { tools: await this.listTools() }
     const initialized = asRecord(
       await this.request({ method: 'initialize', params: INITIALIZATION }),
     )
@@ -67,6 +70,13 @@ export class StdioClient implements McpTransportClient {
     const tools = await this.listTools()
     const instructions = initialized?.['instructions']
     return { tools, ...(typeof instructions === 'string' ? { instructions } : {}) }
+  }
+
+  detach(): void {
+    this.off?.()
+    this.off = null
+    this.closed = true
+    this.rejectAll(new McpTransportError('the transport closed before a response could be read'))
   }
 
   async listTools(): Promise<readonly McpToolInfo[]> {
@@ -90,6 +100,7 @@ export class StdioClient implements McpTransportClient {
     this.off = null
     this.rejectAll(new McpTransportError('the transport closed before a response could be read'))
     if (!this.spawned) return
+    if (this.attached) return
     await this.args.ctx
       .call({ op: 'mcp.close', serverId: this.args.serverId })
       .catch(() => undefined)
@@ -132,12 +143,15 @@ export class StdioClient implements McpTransportClient {
       command: transport.command,
       ...(transport.args === undefined ? {} : { args: transport.args }),
       ...(transport.env === undefined ? {} : { env: transport.env }),
+      ...(this.args.specHash === undefined ? {} : { specHash: this.args.specHash }),
     })
     if (result.status !== ECallStatus.Ok || result.op !== 'mcp.spawn') {
       const reason = result.status === ECallStatus.Ok ? 'spawn failed' : result.error.message
       throw new McpTransportError(`could not start the server: ${reason}`)
     }
     this.spawned = true
+    this.attached = result.value.attached
+    if (result.value.attached) this.afterSeq = result.value.seq
   }
 
   private async request(payload: { method: string; params?: unknown }): Promise<unknown> {

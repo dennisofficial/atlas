@@ -14,7 +14,7 @@ import {
 import type { DaemonEventFrame } from '@dltech/atlas-protocol'
 import { z } from 'zod'
 
-import { definePlugin, type Plugin } from '..'
+import { UNVERSIONED_SETTINGS, definePlugin, type Plugin } from '..'
 import {
   EMPTY_CONTROL,
   EMPTY_POD,
@@ -183,6 +183,7 @@ const noControlPlane = async () => {
 }
 
 export const podControlStub: PodControl = {
+  settingsVersions: async () => UNVERSIONED_SETTINGS,
   exposePort: noControlPlane,
   mcp: EMPTY_MCP_CONTROL,
   webSearch: { config: noControlPlane },

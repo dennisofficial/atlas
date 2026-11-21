@@ -2,8 +2,8 @@ import { EDefinitionOrigin } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
 import type { McpCloudRow } from '../../core'
-import { EMcpServerStatus, McpStore } from '../store'
-import { fakeDaemon, rig } from './support'
+import { EMcpServerStatus } from '../snapshot'
+import { fakeDaemon, loadTools } from './support'
 
 const SERVER_URL = 'https://mcp.test/mcp'
 
@@ -56,18 +56,8 @@ const rowsOf = (accessToken?: string): readonly McpCloudRow[] => [
   },
 ]
 
-const start = async (rows: readonly McpCloudRow[]) => {
-  const daemon = fakeDaemon()
-  const config = { read: async () => ({ rows, rejections: [] }) }
-  const store = new McpStore({
-    ctx: rig(daemon),
-    config,
-    connectTimeoutMs: 200,
-    reconcileBudgetMs: 200,
-  })
-  await store.boot()
-  return store
-}
+const start = async (rows: readonly McpCloudRow[]) =>
+  (await loadTools({ daemon: fakeDaemon(), rows })).snapshot
 
 const initializeRequest = (requests: readonly Captured[]): Captured | undefined =>
   requests.find((request) => request.body['method'] === 'initialize')
@@ -76,10 +66,10 @@ describe('a cloud http server with an oauth grant', () => {
   it('sends the access token as a bearer header on initialize', async () => {
     const fetched = stubFetch(handshake)
     try {
-      const store = await start(rowsOf('token-1'))
+      const snapshot = await start(rowsOf('token-1'))
 
       expect(initializeRequest(fetched.requests)?.headers['authorization']).toBe('Bearer token-1')
-      expect(store.servers().map((server) => server.status)).toEqual([EMcpServerStatus.Connected])
+      expect(snapshot.servers.map((server) => server.status)).toEqual([EMcpServerStatus.Connected])
     } finally {
       fetched.restore()
     }
@@ -103,15 +93,16 @@ describe('a cloud http server with an oauth grant', () => {
         : new Response('no', { status: 401 }),
     )
     try {
-      const store = await start(rowsOf('stale-token'))
+      const snapshot = await start(rowsOf('stale-token'))
 
-      expect(store.servers()).toEqual([
+      expect(snapshot.servers).toEqual([
         {
           name: 'posthog',
           origin: EDefinitionOrigin.User,
-          transport: 'http',
+          transportKind: 'http',
+          configHash: expect.any(String),
           status: EMcpServerStatus.NeedsAuth,
-          tools: 0,
+          tools: [],
           reason:
             "the 'posthog' MCP server needs a sign-in; call operator_mcp_sign_in to start one",
         },

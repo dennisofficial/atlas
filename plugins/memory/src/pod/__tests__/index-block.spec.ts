@@ -6,6 +6,7 @@ import {
   type PodMemory,
   EMPTY_MCP_CONTROL,
   EMPTY_ROUTINES,
+  UNVERSIONED_SETTINGS,
 } from '@dltech/atlas-plugin-sdk'
 
 import { withMemoryIndex } from '../index-block'
@@ -21,6 +22,7 @@ const ctxWith = (memory: PodMemory): Pick<PluginPodContext, 'control'> => ({
     mcp: EMPTY_MCP_CONTROL,
     webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
     routines: EMPTY_ROUTINES,
+    settingsVersions: async () => UNVERSIONED_SETTINGS,
     exposePort: async () => {
       throw new Error('no port')
     },

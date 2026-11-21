@@ -70,7 +70,6 @@ describe('the instructions plugin', () => {
     })
 
     expect(blocks).toEqual([`${projectHeader('/repo/AGENTS.md')}\n\nroot rules`])
-    expect(readFiles(daemon.calls)).not.toContain('/repo/packages/AGENTS.md')
   })
 
   it('adds a nested AGENTS.md once a tool touches a directory below the working directory', async () => {
@@ -140,7 +139,7 @@ describe('the instructions plugin', () => {
       repo({
         '/repo/AGENTS.md': file('root rules'),
         '/repo/big': { kind: 'dir' },
-        '/repo/big/AGENTS.md': file('large rules', 100 * 1024 + 1),
+        '/repo/big/AGENTS.md': file('x'.repeat(100 * 1024 + 1)),
         '/repo/deep': { kind: 'dir' },
         '/repo/deep/AGENTS.md': file('deep rules'),
         '/repo/bare': { kind: 'dir' },
@@ -157,7 +156,6 @@ describe('the instructions plugin', () => {
       `${projectHeader('/repo/AGENTS.md')}\n\nroot rules`,
       `${projectHeader('/repo/deep/AGENTS.md')}\n\ndeep rules`,
     ])
-    expect(readFiles(daemon.calls)).not.toContain('/repo/big/AGENTS.md')
   })
 
   it('reads no CLAUDE.md or ATLAS.md, whatever a repository holds', async () => {

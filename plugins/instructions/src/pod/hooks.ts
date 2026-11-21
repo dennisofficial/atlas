@@ -1,66 +1,30 @@
-import { join } from 'node:path'
-
 import type { RegisteredHook } from '@dltech/atlas-agent'
-import { EStage, type AfterTool, type BeforeStep, type BeforeTurn } from '@dltech/atlas-core'
+import { EStage, type BeforeStep } from '@dltech/atlas-core'
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
+import { readResource } from '@dltech/atlas-plugin-sdk'
 
-import { blockOf, instructionFileOf, PERSONAL_HEADER, projectHeader } from './blocks'
+import { blockOf, instructionPathOf, PERSONAL_HEADER, projectHeader } from './blocks'
 import {
-  descentOf,
-  INSTRUCTION_FILE,
-  nestedDirectoriesOf,
-  repoRootOf,
-  touchedDirectoriesOf,
-} from './sources'
-import type { InstructionTurn, InstructionsPodState } from './state'
+  instructionsResource,
+  type InstructionsPodOptions,
+  type InstructionsSnapshot,
+} from './resources'
+import { descentOf, nestedDirectoriesOf, touchedSincePromptOf } from './sources'
 
-export type InstructionsPodOptions = {
-  personal: () => Promise<string | null>
-}
-
-type Ctx = Pick<PluginPodContext, 'call' | 'log'>
+type Ctx = Pick<PluginPodContext, 'events' | 'log'>
 
 const ORDER = { stage: EStage.Observe, nudge: 0 } as const
 
-const messageOf = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error)
-
-export const instructionsTurn = (args: {
-  state: InstructionsPodState
-}): RegisteredHook<BeforeTurn> => ({
-  name: 'instructions-turn',
-  order: ORDER,
-  run: async ({ threadId, projectDirectory }) => {
-    args.state.threadId = threadId
-    args.state.directory = projectDirectory
-    args.state.turn = { root: null, personal: null, files: new Map() }
-    return {}
-  },
-})
-
-export const instructionsTouch = (args: {
-  state: InstructionsPodState
-}): RegisteredHook<AfterTool> => ({
-  name: 'instructions-touch',
-  order: ORDER,
-  run: async ({ call, result }) => {
-    if (!result.ok) return {}
-    const touched = args.state.touched.get(call.threadId) ?? new Set<string>()
-    for (const directory of touchedDirectoriesOf(call.input)) touched.add(directory)
-    args.state.touched.set(call.threadId, touched)
-    return {}
-  },
-})
-
 export const instructionsBlocks = (args: {
   ctx: Ctx
-  state: InstructionsPodState
   options: InstructionsPodOptions
 }): RegisteredHook<BeforeStep> => ({
   name: 'instructions-blocks',
   order: ORDER,
   run: async ({ assembled }) => {
-    const blocks = await blocksOf(args)
+    const snapshot = readResource({ ctx: args.ctx, resource: instructionsResource(args.options) })
+    if (snapshot === undefined) return assembled
+    const blocks = blocksOf({ snapshot, touched: touchedSincePromptOf(args.ctx.events()) })
     if (blocks.length === 0) return assembled
     return {
       ...assembled,
@@ -69,56 +33,28 @@ export const instructionsBlocks = (args: {
   },
 })
 
-const blocksOf = async (args: {
-  ctx: Ctx
-  state: InstructionsPodState
-  options: InstructionsPodOptions
-}): Promise<readonly string[]> => {
-  const directory = args.state.directory
-  const threadId = args.state.threadId
-  if (directory === null || threadId === null) return []
-  const turn = args.state.turn ?? { root: null, personal: null, files: new Map() }
-  args.state.turn = turn
-  turn.root ??= repoRootOf({ ctx: args.ctx, directory })
-  const root = await turn.root
-
+const blocksOf = (args: {
+  snapshot: InstructionsSnapshot
+  touched: readonly string[]
+}): readonly string[] => {
+  const { snapshot } = args
   const blocks: string[] = []
-  const personal = blockOf({
-    header: PERSONAL_HEADER,
-    content: (await personalOf({ ctx: args.ctx, options: args.options, turn })) ?? '',
-  })
+
+  const personal = blockOf({ header: PERSONAL_HEADER, content: snapshot.personal ?? '' })
   if (personal !== null) blocks.push(personal)
 
-  const descent = descentOf({ root, directory })
+  const descent = descentOf({ root: snapshot.root, directory: snapshot.directory })
   const nested = nestedDirectoriesOf({
-    root,
+    root: snapshot.root,
     covered: descent,
-    touched: [...(args.state.touched.get(threadId) ?? [])],
+    touched: args.touched,
   })
-  for (const candidate of [...descent, ...nested]) {
-    const content = await instructionFileOf({
-      ctx: args.ctx,
-      directory: candidate,
-      cache: turn.files,
-    })
-    if (content === null) continue
-    const block = blockOf({
-      header: projectHeader(join(candidate, INSTRUCTION_FILE)),
-      content,
-    })
+  for (const directory of [...descent, ...nested]) {
+    const path = instructionPathOf(directory)
+    const content = snapshot.files[path]
+    if (content === undefined) continue
+    const block = blockOf({ header: projectHeader(path), content })
     if (block !== null) blocks.push(block)
   }
   return blocks
-}
-
-const personalOf = async (args: {
-  ctx: Ctx
-  options: InstructionsPodOptions
-  turn: InstructionTurn
-}): Promise<string | null> => {
-  args.turn.personal ??= args.options.personal().catch((error: unknown) => {
-    args.ctx.log(`personal instructions unavailable: ${messageOf(error)}`)
-    return null
-  })
-  return await args.turn.personal
 }

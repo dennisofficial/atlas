@@ -9,6 +9,8 @@ import {
   EMPTY_MCP_CONTROL,
   EMPTY_ROUTINES,
   EMPTY_WORKTREES,
+  EMPTY_POD_RESOURCES,
+  UNVERSIONED_SETTINGS,
 } from '@dltech/atlas-plugin-sdk'
 
 import { sessionsPod } from '..'
@@ -73,9 +75,11 @@ const rig = (sessions: PodSessions) => {
   const ctx: PluginPodContext = {
     sessionId: 's1',
     sessions,
+    resources: EMPTY_POD_RESOURCES,
     crew: EMPTY_CREW,
     worktrees: EMPTY_WORKTREES,
     control: {
+      settingsVersions: async () => UNVERSIONED_SETTINGS,
       exposePort: async () => {
         throw new Error('this rig exposes no port')
       },

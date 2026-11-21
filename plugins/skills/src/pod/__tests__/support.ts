@@ -1,6 +1,6 @@
 import { basename, dirname } from 'node:path'
 
-import { toThreadId, type Assembled } from '@dltech/atlas-core'
+import { toThreadId, type Assembled, type V2Event } from '@dltech/atlas-core'
 import {
   type PluginPodContext,
   EMPTY_CREW,
@@ -8,6 +8,8 @@ import {
   EMPTY_ROUTINES,
   EMPTY_SESSIONS,
   EMPTY_WORKTREES,
+  EMPTY_POD_RESOURCES,
+  UNVERSIONED_SETTINGS,
 } from '@dltech/atlas-plugin-sdk'
 import {
   ECallStatus,
@@ -40,6 +42,7 @@ const failed = (op: string, message: string): CallResult =>
 export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
   const calls: CallOp[] = []
   const watchers = new Set<(frame: DaemonEventFrame) => void>()
+  const events: V2Event[] = []
 
   const targetOf = (path: string): string | undefined => {
     const seen = new Set<string>()
@@ -120,6 +123,7 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
   const ctx: PluginPodContext = {
     sessionId: 's1',
     control: {
+      settingsVersions: async () => UNVERSIONED_SETTINGS,
       exposePort: async () => {
         throw new Error('this rig exposes no port')
       },
@@ -138,11 +142,14 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
       webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
       routines: EMPTY_ROUTINES,
     },
+    resources: EMPTY_POD_RESOURCES,
     crew: EMPTY_CREW,
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
-    append: async () => undefined,
-    events: () => [],
+    append: async (drafts) => {
+      for (const draft of drafts) events.push(draft as unknown as V2Event)
+    },
+    events: () => events,
     call,
     onDaemonEvent: (listener) => {
       watchers.add(listener)
@@ -156,7 +163,7 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
     for (const listener of watchers) listener({ kind: 'event', event })
   }
 
-  return { ctx, calls, nodes, emit }
+  return { ctx, calls, nodes, emit, events }
 }
 
 const bodyAt = (text: string | undefined): CloudSkillBody | null =>
@@ -201,8 +208,9 @@ export const invoke = async (args: {
   input: unknown
   projectDirectory?: string
 }) => {
-  const tool = skillsPodOf({ cloud: args.cloud, writes: args.writes })
-    .tools?.(args.ctx)
+  const ctx = withReload(args)
+  const tool = skillsPodOf({ cloud: () => args.cloud, writes: () => args.writes })
+    .tools?.(ctx)
     .find((candidate) => candidate.name === args.name)
   if (tool === undefined) throw new Error(`no tool ${args.name}`)
   return tool.invoke({
@@ -217,19 +225,63 @@ export const invoke = async (args: {
 export const textOf = (outcome: Awaited<ReturnType<typeof invoke>>): string =>
   outcome.ok ? outcome.modelText : outcome.reason
 
+export const refresh = async (args: {
+  ctx: PluginPodContext
+  cloud: CloudSkillSource
+  writes?: CloudSkillWriter | undefined
+  projectDirectory?: string
+}): Promise<void> => {
+  const pod = skillsPodOf({ cloud: () => args.cloud, writes: () => args.writes })
+  for (const resource of pod.resources ?? []) {
+    const value = await resource.load({
+      ctx: args.ctx,
+      directory: args.projectDirectory ?? '/repo',
+    })
+    await args.ctx.append([
+      { type: 'resource-loaded', resource: resource.name, fingerprint: 'rig', value },
+    ])
+  }
+}
+
+const withReload = (args: {
+  ctx: PluginPodContext
+  cloud: CloudSkillSource
+  writes?: CloudSkillWriter | undefined
+  projectDirectory?: string
+}): PluginPodContext => ({
+  ...args.ctx,
+  resources: { reload: async () => await refresh(args) },
+})
+
+export const step = async (args: {
+  ctx: PluginPodContext
+  cloud: CloudSkillSource
+  writes?: CloudSkillWriter | undefined
+}): Promise<readonly string[]> => {
+  const hooks = skillsPodOf({ cloud: () => args.cloud, writes: () => args.writes }).hooks?.(
+    withReload(args),
+  )
+  let assembled: Assembled = { system: [], messages: [] }
+  for (const hook of hooks?.beforeStep ?? []) assembled = await hook.run({ assembled, trace: [] })
+  return assembled.system.map((block) => block.text)
+}
+
 export const turn = async (args: {
   ctx: PluginPodContext
   cloud: CloudSkillSource
   writes?: CloudSkillWriter | undefined
   projectDirectory?: string
+  refresh?: boolean
 }): Promise<readonly string[]> => {
-  const pod = skillsPodOf({ cloud: args.cloud, writes: args.writes })
-  const hooks = pod.hooks?.(args.ctx)
+  const ctx = withReload(args)
+  const pod = skillsPodOf({ cloud: () => args.cloud, writes: () => args.writes })
+  const hooks = pod.hooks?.(ctx)
   for (const hook of hooks?.beforeTurn ?? [])
     await hook.run({
       threadId: toThreadId('t1'),
       projectDirectory: args.projectDirectory ?? '/repo',
     })
+  if (args.refresh !== false) await refresh({ ...args, ctx })
   const blocks: string[] = []
   let assembled: Assembled = { system: [], messages: [] }
   for (const hook of hooks?.beforeStep ?? []) assembled = await hook.run({ assembled, trace: [] })

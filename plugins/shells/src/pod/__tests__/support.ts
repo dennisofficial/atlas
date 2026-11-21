@@ -11,6 +11,7 @@ import {
   EMPTY_SESSIONS,
   EMPTY_WORKTREES,
   type PluginPodContext,
+  EMPTY_POD_RESOURCES,
 } from '@dltech/atlas-plugin-sdk'
 import {
   ECallStatus,
@@ -111,6 +112,7 @@ export const rig = () => {
 
   const ctx: PluginPodContext = {
     control: podControlStub,
+    resources: EMPTY_POD_RESOURCES,
     crew: EMPTY_CREW,
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,

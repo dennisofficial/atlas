@@ -1,99 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EAgentStatus, EReportKind, toThreadId } from '@dltech/atlas-core'
-import {
-  type PluginPodContext,
-  type PodCrew,
-  type SubagentSnapshot,
-  EMPTY_CREW,
-  EMPTY_MCP_CONTROL,
-  EMPTY_ROUTINES,
-  EMPTY_SESSIONS,
-  EMPTY_WORKTREES,
-} from '@dltech/atlas-plugin-sdk'
-import { ECallStatus, type CallResult } from '@dltech/atlas-protocol'
+import { EMPTY_CREW, type PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
 import { CREW_AGENT_TYPES, crewAgentTypeOf } from '../../core'
 import { crewPod } from '..'
-
-const startedAt = '2026-11-09T10:00:00.000Z'
-
-const snapshotOf = (overrides: Partial<SubagentSnapshot> = {}): SubagentSnapshot => ({
-  agentId: 'a1',
-  agentType: 'general-purpose',
-  intent: 'trace the port',
-  status: EAgentStatus.Running,
-  turns: 0,
-  toolCalls: 0,
-  startedAt,
-  ...overrides,
-})
-
-type Call = { method: string; args: unknown }
-
-const fakeCrew = (args: { queued?: boolean; held?: readonly SubagentSnapshot[] } = {}) => {
-  const calls: Call[] = []
-  const port: PodCrew = {
-    spawn: async (spawnArgs) => {
-      calls.push({ method: 'spawn', args: spawnArgs })
-      return snapshotOf({ agentType: spawnArgs.agentType, intent: spawnArgs.intent })
-    },
-    say: async (sayArgs) => {
-      calls.push({ method: 'say', args: sayArgs })
-      return { queued: args.queued ?? true, snapshot: snapshotOf({ agentId: sayArgs.agentId }) }
-    },
-    stop: async (stopArgs) => {
-      calls.push({ method: 'stop', args: stopArgs })
-      return snapshotOf({ agentId: stopArgs.agentId, status: EAgentStatus.Stopped })
-    },
-    list: () => args.held ?? [],
-    report: async (reportArgs) => {
-      calls.push({ method: 'report', args: reportArgs })
-      return snapshotOf({ agentId: 'main' })
-    },
-  }
-  return { port, calls }
-}
-
-const rig = (crew: PodCrew) => {
-  const ctx: PluginPodContext = {
-    sessionId: 's1',
-    crew,
-    sessions: EMPTY_SESSIONS,
-    worktrees: EMPTY_WORKTREES,
-    control: {
-      mcp: EMPTY_MCP_CONTROL,
-      webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
-      routines: EMPTY_ROUTINES,
-      exposePort: async () => {
-        throw new Error('this rig exposes no port')
-      },
-      memory: {
-        list: async () => ({ project: null, memories: [] }),
-        read: async () => null,
-        write: async () => {
-          throw new Error('this rig writes no memory')
-        },
-        edit: async () => {
-          throw new Error('this rig edits no memory')
-        },
-        delete: async () => false,
-      },
-    },
-    append: async () => undefined,
-    events: () => [],
-    call: async () =>
-      ({
-        status: ECallStatus.Failed,
-        op: 'readDirectory',
-        error: { code: 'not-found', message: 'this rig has no repository' },
-      }) as CallResult,
-    live: () => undefined,
-    onDaemonEvent: () => () => undefined,
-    log: () => undefined,
-  }
-  return { ctx }
-}
+import { snapshotOf, fakeCrew, rig } from './crew-tools-rig'
 
 const invoke = async (args: { ctx: PluginPodContext; name: string; input: unknown }) => {
   const tool = crewPod.tools?.(args.ctx).find((candidate) => candidate.name === args.name)

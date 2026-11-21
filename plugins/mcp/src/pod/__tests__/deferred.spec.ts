@@ -1,18 +1,42 @@
+import { DEFERRED_TOOLS_SOURCE, EDefinitionOrigin, type Assembled } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
-
-import { DEFERRED_TOOLS_SOURCE, type Assembled } from '@dltech/atlas-core'
 
 import { McpBridgeTool } from '../bridge-tool'
 import { mcpDeferredListingHook } from '../deferred-listing'
+import { toolNamesOf } from '../deferred-listing'
+import { EMcpServerStatus, type McpToolsSnapshot } from '../snapshot'
 
 const assembled: Assembled = { system: [], messages: [] }
 
-const store = {
-  toolNamesByServer: () =>
-    new Map([
-      ['docs', ['mcp__docs__search']],
-      ['events', ['mcp__events__list', 'mcp__events__drop']],
-    ]),
+const snapshot: McpToolsSnapshot = {
+  configHash: 'h',
+  directory: '/repo',
+  servers: [
+    {
+      name: 'docs',
+      origin: EDefinitionOrigin.User,
+      transportKind: 'stdio',
+      configHash: 'a',
+      status: EMcpServerStatus.Connected,
+      tools: [{ name: 'search' }],
+    },
+    {
+      name: 'events',
+      origin: EDefinitionOrigin.User,
+      transportKind: 'http',
+      configHash: 'b',
+      status: EMcpServerStatus.Connected,
+      tools: [{ name: 'list' }, { name: 'drop' }],
+    },
+    {
+      name: 'gone',
+      origin: EDefinitionOrigin.User,
+      transportKind: 'http',
+      configHash: 'c',
+      status: EMcpServerStatus.Failed,
+      tools: [{ name: 'hidden' }],
+    },
+  ],
 }
 
 describe('a bridge tool', () => {
@@ -29,7 +53,10 @@ describe('a bridge tool', () => {
 
 describe('the deferred listing hook', () => {
   it('appends one system block saying how to run them, then the names by server', async () => {
-    const next = await mcpDeferredListingHook({ store }).run({ assembled, trace: [] })
+    const next = await mcpDeferredListingHook({ snapshot: () => snapshot }).run({
+      assembled,
+      trace: [],
+    })
 
     expect(next.system).toHaveLength(1)
     expect(next.system[0]?.source).toBe(DEFERRED_TOOLS_SOURCE)
@@ -39,11 +66,13 @@ describe('the deferred listing hook', () => {
     expect(text).toContain('events: mcp__events__list, mcp__events__drop')
   })
 
-  it('adds nothing when no MCP server has tools', async () => {
-    const empty = { toolNamesByServer: () => new Map<string, readonly string[]>() }
+  it('lists nothing for a server that is not connected', () => {
+    expect([...toolNamesOf(snapshot).keys()]).toEqual(['docs', 'events'])
+  })
 
-    expect(await mcpDeferredListingHook({ store: empty }).run({ assembled, trace: [] })).toBe(
-      assembled,
-    )
+  it('adds nothing when no MCP server has tools', async () => {
+    const empty = { snapshot: () => undefined }
+
+    expect(await mcpDeferredListingHook(empty).run({ assembled, trace: [] })).toBe(assembled)
   })
 })

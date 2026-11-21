@@ -876,6 +876,7 @@
         "@dltech/atlas-core": "workspace:*",
         "@dltech/atlas-plugin-sdk": "workspace:*",
         "@dltech/atlas-protocol": "workspace:*",
+        "zod": "^4.4.3",
       },
       "devDependencies": {
         "@types/bun": "latest",

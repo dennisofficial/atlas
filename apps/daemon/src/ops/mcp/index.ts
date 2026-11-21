@@ -20,6 +20,7 @@ type Exit = { exitCode: number | null; signal: string | null }
 
 type RunningServer = {
   serverId: string
+  specHash: string | undefined
   child: ManagedProcess
   lines: BufferedLine[]
   partial: string
@@ -45,6 +46,9 @@ const scrubEnv = (args: {
     ...(args.extra ?? {}),
   }
 }
+
+const isAttachable = (args: { held: RunningServer; specHash: string | undefined }): boolean =>
+  args.specHash !== undefined && args.held.specHash === args.specHash
 
 const serverOf = (servers: Map<string, RunningServer>, serverId: string): RunningServer => {
   const server = servers.get(serverId)
@@ -112,11 +116,19 @@ export const mcpGroup =
         defineOp({
           op: 'mcp.spawn',
           run: async ({ op }) => {
-            if (servers.has(op.serverId)) {
-              throw new CallFailureError({
-                code: ECallFailure.AlreadyExists,
-                message: `an mcp server '${op.serverId}' is already running`,
-              })
+            const held = servers.get(op.serverId)
+            if (held !== undefined) {
+              if (held.ended === null && isAttachable({ held, specHash: op.specHash })) {
+                return {
+                  serverId: op.serverId,
+                  pid: held.child.pid,
+                  attached: true,
+                  seq: held.seq,
+                }
+              }
+              servers.delete(op.serverId)
+              held.child.kill()
+              await held.closed.catch(() => undefined)
             }
             const holder: { current: RunningServer | null } = { current: null }
             const child = ManagedProcess.spawn({
@@ -133,6 +145,7 @@ export const mcpGroup =
             })
             const server: RunningServer = {
               serverId: op.serverId,
+              specHash: op.specHash,
               child,
               lines: [],
               partial: '',
@@ -152,7 +165,7 @@ export const mcpGroup =
             }
             holder.current = server
             servers.set(op.serverId, server)
-            return { serverId: op.serverId, pid: child.pid }
+            return { serverId: op.serverId, pid: child.pid, attached: false, seq: 0 }
           },
         }),
         defineOp({

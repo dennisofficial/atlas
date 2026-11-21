@@ -166,18 +166,40 @@ export const describeMcpConformance = (target: DaemonConformanceTarget): void =>
         },
       }))
 
-    it('fails a duplicate server id with already-exists', () =>
+    it('attaches a second spawn with the same spec hash and replaces a changed one', () =>
       withDaemon({
         target,
         body: async (handle) => {
           const session = await connectAt({ handle })
-          await spawnEcho({ session, serverId: 'srv-dup' })
-          const duplicate = await runToEnd({
+          const first = await spawnEcho({ session, serverId: 'srv-dup', specHash: 'h1' })
+          expect(first.attached).toBe(false)
+          const again = await runToEnd({
             session,
             key: 'spawn-dup-again',
-            op: { op: 'mcp.spawn', serverId: 'srv-dup', command: 'bun', args: ['-e', ECHO_SCRIPT] },
-          })
-          expect(failureOf(duplicate)).toBe(ECallFailure.AlreadyExists)
+            op: {
+              op: 'mcp.spawn',
+              serverId: 'srv-dup',
+              command: 'bun',
+              args: ['-e', ECHO_SCRIPT],
+              specHash: 'h1',
+            },
+          }).then((result) => okValue({ result, op: 'mcp.spawn' }))
+          expect(again.attached).toBe(true)
+          expect(again.pid).toBe(first.pid)
+
+          const replaced = await runToEnd({
+            session,
+            key: 'spawn-dup-replaced',
+            op: {
+              op: 'mcp.spawn',
+              serverId: 'srv-dup',
+              command: 'bun',
+              args: ['-e', ECHO_SCRIPT],
+              specHash: 'h2',
+            },
+          }).then((result) => okValue({ result, op: 'mcp.spawn' }))
+          expect(replaced.attached).toBe(false)
+          expect(replaced.pid).not.toBe(first.pid)
         },
       }))
 
@@ -192,7 +214,9 @@ export const describeMcpConformance = (target: DaemonConformanceTarget): void =>
             key: 'list-running',
             op: { op: 'mcp.list' },
           })
-          expect(okValue({ result, op: 'mcp.list' })).toEqual([{ ...spawned, running: true }])
+          expect(okValue({ result, op: 'mcp.list' })).toEqual([
+            { serverId: spawned.serverId, pid: spawned.pid, running: true },
+          ])
         },
       }))
 

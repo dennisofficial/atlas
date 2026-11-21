@@ -12,11 +12,10 @@ import { z } from 'zod'
 
 import { ESkillOrigin, expandSkillBody, skillBodyOf } from '../core'
 import type { SkillCatalogue } from './catalogue'
-import { catalogueFor } from './catalogue-source'
+import { catalogueOf } from './catalogue-source'
 import { textOf } from './daemon'
-import type { SkillsPodOptions } from './hooks'
 import type { CloudSkillBody } from './port'
-import type { SkillsPodState } from './state'
+import type { SkillsPodOptions } from './resources'
 import type { BuiltInFile } from './builtin-files'
 import type {
   BuiltInCatalogueSkill,
@@ -130,7 +129,6 @@ export class SkillTool extends SchemaTool<typeof inputSchema> {
 
   constructor(
     private readonly ctx: PluginPodContext,
-    private readonly state: SkillsPodState,
     private readonly options: SkillsPodOptions,
   ) {
     super()
@@ -140,10 +138,9 @@ export class SkillTool extends SchemaTool<typeof inputSchema> {
     input,
     projectDirectory,
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
-    const catalogue = await catalogueFor({
+    const catalogue = await catalogueOf({
       ctx: this.ctx,
-      state: this.state,
-      cloud: this.options.cloud,
+      options: this.options,
       directory: projectDirectory,
     })
     if (catalogue === null)
@@ -204,8 +201,10 @@ export class SkillTool extends SchemaTool<typeof inputSchema> {
     skill: CatalogueSkill
     path: string
   }): Promise<CloudSkillBody | null> {
-    if (isCloudSkill(args.skill))
-      return await this.options.cloud.file(cloudEntryOf(args.skill), args.path)
+    if (isCloudSkill(args.skill)) {
+      const cloud = this.options.cloud(this.ctx)
+      return await cloud.file(cloudEntryOf(args.skill), args.path)
+    }
     if (isBuiltInSkill(args.skill)) {
       const found = args.skill.files.find(
         (file) => !isBinaryFile(file) && file.path.toLowerCase() === args.path.toLowerCase(),
@@ -252,6 +251,6 @@ export class SkillTool extends SchemaTool<typeof inputSchema> {
       const read = await textOf({ ctx: this.ctx, path: skill.entryPath })
       return read.ok ? { text: read.value, revision: 0, hash: '' } : null
     }
-    return await this.options.cloud.body(cloudEntryOf(skill))
+    return await this.options.cloud(this.ctx).body(cloudEntryOf(skill))
   }
 }

@@ -1,10 +1,4 @@
-import {
-  EToolEffect,
-  toCallId,
-  toThreadId,
-  type Assembled,
-  type ToolCall,
-} from '@dltech/atlas-core'
+import { toCallId, toThreadId, type Assembled, type V2Event } from '@dltech/atlas-core'
 import {
   EMPTY_CREW,
   EMPTY_MCP_CONTROL,
@@ -12,6 +6,8 @@ import {
   EMPTY_SESSIONS,
   EMPTY_WORKTREES,
   type PluginPodContext,
+  EMPTY_POD_RESOURCES,
+  UNVERSIONED_SETTINGS,
 } from '@dltech/atlas-plugin-sdk'
 import {
   ECallStatus,
@@ -32,6 +28,7 @@ const failed = (op: string, message: string): CallResult =>
 
 export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
   const calls: CallOp[] = []
+  const events: V2Event[] = []
 
   const call = async (op: CallOp): Promise<CallResult> => {
     calls.push(op)
@@ -46,6 +43,14 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
         isDirectory: node.kind === 'dir',
       })
     }
+    if (op.op === 'glob') {
+      const prefix = op.cwd.endsWith('/') ? op.cwd : `${op.cwd}/`
+      const found = Object.keys(nodes)
+        .filter((path) => path.startsWith(prefix))
+        .map((path) => path.slice(prefix.length))
+        .filter((path) => path === 'AGENTS.md' || path.endsWith('/AGENTS.md'))
+      return ok(op.op, found.sort())
+    }
     if (op.op === 'readFile') {
       const node = nodes[op.path]
       if (node === undefined || node.kind !== 'file')
@@ -58,6 +63,7 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
   const ctx: PluginPodContext = {
     sessionId: 's1',
     control: {
+      settingsVersions: async () => UNVERSIONED_SETTINGS,
       exposePort: async () => {
         throw new Error('this rig exposes no port')
       },
@@ -76,11 +82,14 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
       webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
       routines: EMPTY_ROUTINES,
     },
+    resources: EMPTY_POD_RESOURCES,
     crew: EMPTY_CREW,
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
-    append: async () => undefined,
-    events: () => [],
+    append: async (drafts) => {
+      for (const draft of drafts) events.push(draft as unknown as V2Event)
+    },
+    events: () => events,
     call,
     onDaemonEvent: (_listener: (frame: DaemonEventFrame) => void) => () => undefined,
     live: () => undefined,
@@ -93,17 +102,25 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
 const hooksOf = (args: { ctx: PluginPodContext; options: InstructionsPodOptions }) =>
   instructionsPodOf(args.options).hooks?.(args.ctx)
 
+export const refresh = async (args: {
+  ctx: PluginPodContext
+  options: InstructionsPodOptions
+  projectDirectory: string
+}): Promise<void> => {
+  for (const resource of instructionsPodOf(args.options).resources ?? []) {
+    const value = await resource.load({ ctx: args.ctx, directory: args.projectDirectory })
+    await args.ctx.append([
+      { type: 'resource-loaded', resource: resource.name, fingerprint: 'rig', value },
+    ])
+  }
+}
+
 export const startTurn = async (args: {
   ctx: PluginPodContext
   options: InstructionsPodOptions
   projectDirectory: string
 }): Promise<void> => {
-  const hooks = hooksOf(args)
-  for (const hook of hooks?.beforeTurn ?? [])
-    await hook.run({
-      threadId: toThreadId('t1'),
-      projectDirectory: args.projectDirectory,
-    })
+  await refresh(args)
 }
 
 export const step = async (args: {
@@ -130,21 +147,15 @@ export const touch = async (args: {
   name: string
   input: unknown
 }): Promise<void> => {
-  const hooks = hooksOf({ ctx: args.ctx, options: personal(null) })
-  const call: ToolCall = {
-    callId: toCallId('c1'),
-    name: args.name,
-    input: args.input,
-    effect: EToolEffect.Read,
-    threadId: toThreadId('t1'),
-  }
-  for (const hook of hooks?.afterTool ?? [])
-    await hook.run({
-      call,
-      result: { ok: true, output: null, modelText: '' },
-      projectDirectory: '/repo',
-      signal: new AbortController().signal,
-    })
+  await args.ctx.append([
+    {
+      type: 'tool-called',
+      callId: toCallId('c1'),
+      name: args.name,
+      input: args.input,
+      ordinal: 0,
+    },
+  ])
 }
 
 export const personal = (text: string | null): InstructionsPodOptions => ({

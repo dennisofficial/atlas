@@ -3,12 +3,12 @@ import { EMPTY_POD, type PodSlot } from '@dltech/atlas-plugin-sdk'
 import { EnterWorktreeTool } from './enter-worktree'
 import { ExitWorktreeTool } from './exit-worktree'
 import { CrewFragment } from './fragment'
-import { repoAgentListingHook, repoAgentTypesHook } from './hooks'
+import { repoAgentListingHook } from './hooks'
 import { AgentListTool } from './list-tool'
 import { ReportToMainTool } from './report-tool'
+import { repoAgentTypesResource } from './resource'
 import { AgentSayTool } from './say-tool'
 import { AgentSpawnTool } from './spawn-tool'
-import { stateFor } from './state'
 import { AgentStopTool } from './stop-tool'
 import { WorktreeListTool } from './worktree-list'
 import { worktreeTrackHook } from './worktree-hook'
@@ -16,11 +16,12 @@ import { worktreeTrackHook } from './worktree-hook'
 export { EnterWorktreeTool } from './enter-worktree'
 export { ExitWorktreeTool } from './exit-worktree'
 export { CrewFragment } from './fragment'
-export { repoAgentListingHook, repoAgentTypesHook } from './hooks'
+export { repoAgentListingHook } from './hooks'
 export { REPO_AGENT_HEADING, repoAgentListingOf } from './listing'
 export { AgentListTool } from './list-tool'
 export { crewRefusal } from './outcome'
 export { discoverRepoAgentTypes, REPO_AGENT_ROOTS } from './repo-agent-types'
+export { CREW_AGENT_TYPES_RESOURCE, repoAgentTypesResource } from './resource'
 export { ReportToMainTool } from './report-tool'
 export { AgentSayTool } from './say-tool'
 export { AgentSpawnTool } from './spawn-tool'
@@ -53,13 +54,10 @@ export const crewPod: PodSlot = {
     new ExitWorktreeTool(ctx),
     new WorktreeListTool(ctx),
   ],
-  hooks: (ctx) => {
-    const state = stateFor(ctx)
-    return {
-      beforeTurn: [repoAgentTypesHook({ ctx, state })],
-      beforeStep: [repoAgentListingHook({ state })],
-      afterTool: [worktreeTrackHook],
-    }
-  },
+  resources: [repoAgentTypesResource],
+  hooks: (ctx) => ({
+    beforeStep: [repoAgentListingHook({ ctx })],
+    afterTool: [worktreeTrackHook],
+  }),
   prompts: [new CrewFragment()],
 }
