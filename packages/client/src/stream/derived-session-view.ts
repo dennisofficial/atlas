@@ -21,6 +21,10 @@ export type FrameFacts = {
   lease: SessionStatusOutput['lease']
   spendTally: SpendTally
   pullRequests: SessionViewOutput['pullRequests']
+  pod: SessionStatusOutput['pod']
+  sandbox: SessionStatusOutput['sandbox']
+  sandboxProvider: SessionStatusOutput['sandboxProvider']
+  credentialSource: SessionStatusOutput['credentialSource']
 }
 
 export const EMPTY_SPEND_TALLY: SpendTally = {
@@ -36,12 +40,20 @@ export const EMPTY_FRAME_FACTS: FrameFacts = {
   lease: { epoch: 0, holderHostId: null, live: false },
   spendTally: EMPTY_SPEND_TALLY,
   pullRequests: [],
+  pod: undefined,
+  sandbox: undefined,
+  sandboxProvider: undefined,
+  credentialSource: undefined,
 }
 
 export const frameFactsOf = (view: SessionViewOutput): FrameFacts => ({
   lease: view.status.lease,
   spendTally: view.spend.tally,
   pullRequests: view.pullRequests,
+  pod: view.status.pod,
+  sandbox: view.status.sandbox,
+  sandboxProvider: view.status.sandboxProvider,
+  credentialSource: view.status.credentialSource,
 })
 
 const commandsOf = (window: SessionWindow): SessionCommandRow[] => {
@@ -75,7 +87,15 @@ export const deriveStatusOf = (args: {
     ...(status.reason === undefined ? {} : { reason: status.reason }),
     ...(status.since === undefined ? {} : { since: status.since }),
     lease: args.frame.lease,
+    ...(args.frame.sandbox == null ? {} : { sandbox: args.frame.sandbox }),
+    ...(args.frame.sandboxProvider === undefined
+      ? {}
+      : { sandboxProvider: args.frame.sandboxProvider }),
+    ...(args.frame.credentialSource === undefined
+      ? {}
+      : { credentialSource: args.frame.credentialSource }),
     ...(commands.length === 0 ? {} : { commands }),
+    ...(args.frame.pod === undefined ? {} : { pod: args.frame.pod }),
   }
 }
 
