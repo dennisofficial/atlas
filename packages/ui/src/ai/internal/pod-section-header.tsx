@@ -6,7 +6,7 @@ import { PowerIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { EPodState } from '../pod-status'
-import { EStatusTone, InlineSpinner, StatusDot } from './status-dot'
+import { InlineSpinner } from './status-dot'
 
 const STATE_TEXT: Record<EPodState, string> = {
   [EPodState.Starting]: 'Starting…',
@@ -16,12 +16,12 @@ const STATE_TEXT: Record<EPodState, string> = {
   [EPodState.Stopped]: 'Stopped',
 }
 
-const STATE_TONE: Record<EPodState, EStatusTone> = {
-  [EPodState.Starting]: EStatusTone.Pending,
-  [EPodState.Running]: EStatusTone.Live,
-  [EPodState.Resuming]: EStatusTone.Pending,
-  [EPodState.Parked]: EStatusTone.Idle,
-  [EPodState.Stopped]: EStatusTone.Idle,
+const POWER_TONE: Record<EPodState, string> = {
+  [EPodState.Starting]: 'text-warning',
+  [EPodState.Running]: 'text-success',
+  [EPodState.Resuming]: 'text-warning',
+  [EPodState.Parked]: 'text-muted-foreground',
+  [EPodState.Stopped]: 'text-muted-foreground',
 }
 
 function wakingOf(state: EPodState): boolean {
@@ -79,29 +79,27 @@ export function PodSectionHeader({
     <div className="flex items-center justify-between gap-2">
       <span className="flex min-w-0 items-center gap-2.5">
         <span className="flex h-4 w-4 shrink-0 items-center justify-center">
-          {pending ? <InlineSpinner /> : <StatusDot tone={STATE_TONE[state]} className="size-2" />}
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label={label}
+                  disabled={busy}
+                  onClick={handlePower}
+                  className={POWER_TONE[state]}
+                />
+              }
+            >
+              {pending || stopping ? <InlineSpinner /> : <PowerIcon aria-hidden />}
+            </TooltipTrigger>
+            <TooltipContent>{label}</TooltipContent>
+          </Tooltip>
         </span>
         <span className="truncate text-[13px] leading-4">{stateTextOf({ state, resizing })}</span>
       </span>
-      <span className="flex shrink-0 items-center gap-1">
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label={label}
-                disabled={busy}
-                onClick={handlePower}
-              />
-            }
-          >
-            {stopping || wakingOf(state) ? <InlineSpinner /> : <PowerIcon aria-hidden />}
-          </TooltipTrigger>
-          <TooltipContent>{label}</TooltipContent>
-        </Tooltip>
-        {sizeControl}
-      </span>
+      {sizeControl}
     </div>
   )
 }
