@@ -2,10 +2,11 @@
 
 import { AlertDialog } from '#components/alert-dialog'
 import { ChartContainer, type ChartConfig } from '#components/chart'
+import { MoonIcon } from 'lucide-react'
 import { Area, AreaChart, YAxis } from 'recharts'
 
 import { EPodAction, PodActionConfirm } from './internal/pod-action-confirm'
-import { SeriesKey, MetricSignals } from './internal/pod-metrics-parts'
+import { MetricSignals } from './internal/pod-metrics-parts'
 import { PodSectionHeader } from './internal/pod-section-header'
 import { PodSizeControl } from './internal/pod-size-control'
 import { podMetricViewOf, ramPercentOf, type PodMetricsSample } from './pod-metrics-model'
@@ -41,12 +42,49 @@ const COMBINED_CONFIG = {
   ram: { label: 'RAM', color: 'var(--muted-foreground)' },
 } satisfies ChartConfig
 
-const QUIET_TEXT: Record<EPodState, string> = {
-  [EPodState.Starting]: 'Starting the pod — usage appears once it is up',
-  [EPodState.Running]: 'Waiting for the first sample',
-  [EPodState.Resuming]: 'Starting the pod — usage appears once it is up',
-  [EPodState.Parked]: 'Pod is asleep — start it to see live usage',
-  [EPodState.Stopped]: 'Pod is stopped — start it to see live usage',
+const IDLE_TEXT: Record<EPodState, string> = {
+  [EPodState.Starting]: 'Starting',
+  [EPodState.Running]: 'No samples',
+  [EPodState.Resuming]: 'Starting',
+  [EPodState.Parked]: 'Asleep',
+  [EPodState.Stopped]: 'Stopped',
+}
+
+function PodSeriesRow({
+  label,
+  value,
+  swatch,
+  row,
+}: {
+  label: string
+  value: string
+  swatch: string
+  row: string
+}) {
+  return (
+    <>
+      <span className={`col-start-1 ${row} flex justify-center`}>
+        <span className={`size-2 rounded-[2px] ${swatch}`} />
+      </span>
+      <span className={`col-start-2 ${row} flex min-w-0 items-center gap-1.5`}>
+        <span className="text-muted-foreground">{label}</span>
+        <span className="truncate tabular-nums">{value}</span>
+      </span>
+    </>
+  )
+}
+
+function PodUsageIdle({ state }: { state: EPodState }) {
+  return (
+    <div
+      role="img"
+      aria-label={`No live usage — pod ${IDLE_TEXT[state].toLowerCase()}`}
+      className="flex h-9 w-28 items-center justify-center gap-1 rounded-md border border-dashed border-border text-[11px] text-muted-foreground"
+    >
+      <MoonIcon aria-hidden className="size-3" />
+      {IDLE_TEXT[state]}
+    </div>
+  )
 }
 
 function PodUsageSpark({ data }: { data: { index: number; cpu: number; ram: number }[] }) {
@@ -109,18 +147,24 @@ export function PodSection(props: PodSectionProps) {
         onStart={props.onStart}
         onStop={props.onStop}
       />
+      <div className="grid grid-cols-[1rem_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-0.5 text-xs">
+        <PodSeriesRow
+          label="CPU"
+          value={running ? view.cpuLabel : '—'}
+          swatch="bg-primary"
+          row="row-start-1"
+        />
+        <PodSeriesRow
+          label="RAM"
+          value={running ? view.ramLabel : `— / ${view.ramLimitGb} GB`}
+          swatch="bg-muted-foreground"
+          row="row-start-2"
+        />
+        <div className="col-start-3 row-span-2 row-start-1">
+          {running ? <PodUsageSpark data={data} /> : <PodUsageIdle state={props.state} />}
+        </div>
+      </div>
       <div className="flex flex-col gap-2 pl-[1.625rem]">
-        {running ? (
-          <div className="flex items-center gap-3">
-            <div className="flex min-w-0 flex-1 flex-col gap-0.5 text-xs">
-              <SeriesKey label="CPU" value={view.cpuLabel} swatch="bg-primary" />
-              <SeriesKey label="RAM" value={view.ramLabel} swatch="bg-muted-foreground" />
-            </div>
-            <PodUsageSpark data={data} />
-          </div>
-        ) : (
-          <p className="text-xs text-muted-foreground">{QUIET_TEXT[props.state]}</p>
-        )}
         <MetricSignals throttled={props.throttled === true} oomKills={props.oomKills ?? 0} />
         <PodSizeControl
           shape={props.shape}

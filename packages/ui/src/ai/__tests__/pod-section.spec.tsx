@@ -65,9 +65,12 @@ describe('pod section chart', () => {
     expect(htmlOf()).toContain('CPU and RAM over the last 15 minutes')
   })
 
-  it('replaces a stale chart with a quiet empty state while asleep', () => {
+  it('keeps the same rows while asleep with an empty chart and no stale values', () => {
     const asleep = htmlOf({ state: EPodState.Parked })
-    expect(asleep).toContain('Pod is asleep — start it to see live usage')
+    expect(asleep).toContain('No live usage — pod asleep')
+    expect(asleep).toContain('CPU')
+    expect(asleep).toContain('— / 16 GB')
+    expect(asleep).not.toContain('35%')
     expect(asleep).not.toContain('CPU and RAM over the last 15 minutes')
   })
 
