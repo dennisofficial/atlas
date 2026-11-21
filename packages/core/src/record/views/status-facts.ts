@@ -71,6 +71,9 @@ const TURN_NEUTRAL_TYPES: ReadonlySet<V2EventType> = new Set<V2EventType>([
   'input-withdrawn',
   'input-refused',
   'workspace-step',
+  'subscription-created',
+  'subscription-changed',
+  'subscription-ended',
 ])
 
 const KNOWN_TYPES: ReadonlySet<string> = new Set([...CORE_EVENT_TYPES, ...RECORD_ONLY_TYPES])
