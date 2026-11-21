@@ -63,14 +63,12 @@ describe('pod section header', () => {
 describe('pod section chart', () => {
   it('draws the live chart only while the pod runs', () => {
     expect(htmlOf()).toContain('CPU and RAM over the last 15 minutes')
-    expect(htmlOf()).toContain('Last 15 min')
   })
 
   it('replaces a stale chart with a quiet empty state while asleep', () => {
     const asleep = htmlOf({ state: EPodState.Parked })
     expect(asleep).toContain('Pod is asleep — start it to see live usage')
     expect(asleep).not.toContain('CPU and RAM over the last 15 minutes')
-    expect(asleep).not.toContain('Last 15 min')
   })
 
   it('reads the RAM limit off the shape, not off two GB per vCPU', () => {

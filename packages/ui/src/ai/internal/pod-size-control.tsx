@@ -106,7 +106,7 @@ export function PodSizeControl({
           onValueChange={handleValueChange}
           disabled={disabled}
         >
-          <SelectTrigger size="sm" aria-label="Pod size">
+          <SelectTrigger size="sm" aria-label="Pod size" className="text-xs">
             {pendingShape === undefined ? null : <InlineSpinner />}
             <SelectValue />
           </SelectTrigger>

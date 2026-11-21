@@ -36,8 +36,6 @@ export interface PodSectionProps {
   onCancel?: (() => void) | undefined
 }
 
-const WINDOW_LABEL = 'Last 15 min · every 3 s'
-
 const COMBINED_CONFIG = {
   cpu: { label: 'CPU', color: 'var(--primary)' },
   ram: { label: 'RAM', color: 'var(--muted-foreground)' },
@@ -49,6 +47,44 @@ const QUIET_TEXT: Record<EPodState, string> = {
   [EPodState.Resuming]: 'Starting the pod — usage appears once it is up',
   [EPodState.Parked]: 'Pod is asleep — start it to see live usage',
   [EPodState.Stopped]: 'Pod is stopped — start it to see live usage',
+}
+
+function PodUsageSpark({ data }: { data: { index: number; cpu: number; ram: number }[] }) {
+  return (
+    <div className="h-9 w-28 shrink-0">
+      <ChartContainer
+        config={COMBINED_CONFIG}
+        className="aspect-auto h-full w-full"
+        initialDimension={{ width: 112, height: 36 }}
+        role="img"
+        aria-label="CPU and RAM over the last 15 minutes"
+      >
+        <AreaChart data={data} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
+          <YAxis hide domain={[0, 100]} />
+          <Area
+            dataKey="ram"
+            type="monotone"
+            stroke="var(--color-ram)"
+            strokeWidth={1.25}
+            fill="var(--color-ram)"
+            fillOpacity={0.06}
+            dot={false}
+            isAnimationActive={false}
+          />
+          <Area
+            dataKey="cpu"
+            type="monotone"
+            stroke="var(--color-cpu)"
+            strokeWidth={1.25}
+            fill="var(--color-cpu)"
+            fillOpacity={0.1}
+            dot={false}
+            isAnimationActive={false}
+          />
+        </AreaChart>
+      </ChartContainer>
+    </div>
+  )
 }
 
 export function PodSection(props: PodSectionProps) {
@@ -75,56 +111,17 @@ export function PodSection(props: PodSectionProps) {
       />
       <div className="flex flex-col gap-2 pl-[1.625rem]">
         {running ? (
-          <div className="flex flex-col gap-1.5">
-            <div className="flex min-w-0 flex-col gap-0.5 text-[11px] leading-4">
+          <div className="flex items-center gap-3">
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5 text-xs">
               <SeriesKey label="CPU" value={view.cpuLabel} swatch="bg-primary" />
               <SeriesKey label="RAM" value={view.ramLabel} swatch="bg-muted-foreground" />
             </div>
-            <div className="h-20">
-              <ChartContainer
-                config={COMBINED_CONFIG}
-                className="aspect-auto h-full w-full"
-                initialDimension={{ width: 296, height: 80 }}
-                role="img"
-                aria-label="CPU and RAM over the last 15 minutes"
-              >
-                <AreaChart data={data} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
-                  <YAxis hide domain={[0, 100]} />
-                  <Area
-                    dataKey="ram"
-                    type="monotone"
-                    stroke="var(--color-ram)"
-                    strokeWidth={1.5}
-                    fill="var(--color-ram)"
-                    fillOpacity={0.06}
-                    dot={false}
-                    isAnimationActive={false}
-                  />
-                  <Area
-                    dataKey="cpu"
-                    type="monotone"
-                    stroke="var(--color-cpu)"
-                    strokeWidth={1.5}
-                    fill="var(--color-cpu)"
-                    fillOpacity={0.1}
-                    dot={false}
-                    isAnimationActive={false}
-                  />
-                </AreaChart>
-              </ChartContainer>
-            </div>
+            <PodUsageSpark data={data} />
           </div>
         ) : (
-          <div className="flex h-20 items-center justify-center rounded-lg border border-dashed border-border px-3">
-            <p className="text-center text-[11px] leading-4 text-muted-foreground">
-              {QUIET_TEXT[props.state]}
-            </p>
-          </div>
+          <p className="text-xs text-muted-foreground">{QUIET_TEXT[props.state]}</p>
         )}
-        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[11px] leading-4 text-muted-foreground">
-          <span>{running ? WINDOW_LABEL : 'No live usage'}</span>
-          <MetricSignals throttled={props.throttled === true} oomKills={props.oomKills ?? 0} />
-        </div>
+        <MetricSignals throttled={props.throttled === true} oomKills={props.oomKills ?? 0} />
         <PodSizeControl
           shape={props.shape}
           shapes={props.shapes}
