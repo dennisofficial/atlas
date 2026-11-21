@@ -1,5 +1,5 @@
 import { retryOnConnectionLoss, type Db, type Tx } from '@dltech/atlas-db'
-import { GENESIS_HASH, type InboxEntry, type Lease } from '@dltech/atlas-core'
+import { GENESIS_HASH, type InboxEntry, type Lease, type ThreadId } from '@dltech/atlas-core'
 import type { SessionChange } from '@dltech/atlas-protocol'
 
 import {
@@ -435,7 +435,11 @@ class PostgresTx implements ControlTx {
     return deleteInboxEntryIn({ tx: this.tx, ...params })
   }
 
-  async recentInboxEntries(params: { sessionId: string; limit: number }) {
+  async recentInboxEntries(params: {
+    sessionId: string
+    limit: number
+    forThread: ThreadId | null
+  }) {
     return recentInboxEntriesIn({ tx: this.tx, ...params })
   }
 
@@ -444,6 +448,7 @@ class PostgresTx implements ControlTx {
     afterId: number
     limit: number
     excludeKind?: string | undefined
+    forThread: ThreadId | null
   }) {
     return readInboxEntriesIn({ tx: this.tx, ...params })
   }

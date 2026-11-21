@@ -20,6 +20,7 @@ export type RemoteCallsArgs = {
   sessionId: string
   token: string | (() => string)
   connector(): Promise<DaemonConnector>
+  started?: Promise<unknown> | undefined
   timers: CallTimers
   onFenced(): void
   log?: LogPort | undefined

@@ -19,6 +19,7 @@ const needingHolderIn = (tx: Tx) =>
           AND (l."holderHostId" IS NOT NULL OR l."wantsHolder"
             OR EXISTS (SELECT 1 FROM "v2"."V2InboxEntry" i
               WHERE i."sessionId" = s."id" AND i."consumedSeq" IS NULL
+                AND i."threadId" IS NULL
                 AND i."kind" NOT LIKE ${COMMAND_KIND_LIKE}
                 AND i."kind" <> ${INBOX_KIND_RECORD}
                 AND (i."kind" = 'stop' OR i."inboxId" > GREATEST(COALESCE((
@@ -38,6 +39,10 @@ const needingHolderIn = (tx: Tx) =>
                         AND q."type" IN ('user-said', 'assistant-said', 'workspace-prepared',
                           'workspace-prepare-failed', 'run-failed'))
                   ORDER BY g."seq" DESC LIMIT 1), 0))))
+            OR EXISTS (SELECT 1 FROM "v2"."V2InboxEntry" c
+              WHERE c."sessionId" = s."id" AND c."consumedSeq" IS NULL
+                AND c."threadId" IS NOT NULL
+                AND EXISTS (SELECT 1 FROM "v2"."V2Event" ce WHERE ce."threadId" = c."threadId"))
             OR NOT EXISTS (SELECT 1 FROM "v2"."V2Event" e
               WHERE e."threadId" = s."mainThreadId"
                 AND e."type" IN ('workspace-prepared', 'user-said', 'workspace-prepare-failed',

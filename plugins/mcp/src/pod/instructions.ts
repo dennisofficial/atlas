@@ -1,23 +1,35 @@
-import { EContextSlot, type EventDraft } from '@dltech/atlas-core'
+import { EContextSlot, type EventDraft, type V2Event } from '@dltech/atlas-core'
+
+const SLOT = EContextSlot.McpInstructions
+
+const offeredOf = (events: readonly V2Event[]): ReadonlyMap<string, string> => {
+  const offered = new Map<string, string>()
+  for (const event of events) {
+    if (event.type !== 'context-loaded' || event.slot !== SLOT) continue
+    if (event.content === '') offered.delete(event.key)
+    else offered.set(event.key, event.content)
+  }
+  return offered
+}
+
+const draftOf = (args: { key: string; content: string }): EventDraft => ({
+  type: 'context-loaded',
+  slot: SLOT,
+  key: args.key,
+  content: args.content,
+})
 
 export const mcpInstructionsDraftsOf = (args: {
-  previous: ReadonlyMap<string, string>
+  events: readonly V2Event[]
   next: ReadonlyMap<string, string>
-}): readonly EventDraft[] => [
-  ...[...args.next]
-    .filter(([name, text]) => args.previous.get(name) !== text)
-    .map(([key, content]) => ({
-      type: 'context-loaded' as const,
-      slot: EContextSlot.McpInstructions,
-      key,
-      content,
-    })),
-  ...[...args.previous.keys()]
-    .filter((name) => !args.next.has(name))
-    .map((key) => ({
-      type: 'context-loaded' as const,
-      slot: EContextSlot.McpInstructions,
-      key,
-      content: '',
-    })),
-]
+}): readonly EventDraft[] => {
+  const offered = offeredOf(args.events)
+  return [
+    ...[...args.next]
+      .filter(([key, content]) => offered.get(key) !== content)
+      .map(([key, content]) => draftOf({ key, content })),
+    ...[...offered.keys()]
+      .filter((key) => !args.next.has(key))
+      .map((key) => draftOf({ key, content: '' })),
+  ]
+}

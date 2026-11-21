@@ -13,6 +13,7 @@ import { drainRecordEntry } from '../notice-drain'
 
 const entry = (payload: string): InboxEntry => ({
   sessionId: 'ses_1',
+  threadId: null,
   inboxId: 7,
   kind: INBOX_KIND_RECORD,
   payload,

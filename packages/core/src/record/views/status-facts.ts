@@ -3,6 +3,7 @@ import type { V2Event, V2EventType } from '../event'
 import { endsStartFailure } from '../start-failure'
 import type { OpenTurn, TurnEnd } from '../turns'
 import { countsAsPrepared } from '../workspace'
+import { attemptTagOf } from '../workspace-attempts'
 import { NO_BACKGROUND, stepBackground, type BackgroundFacts } from './background-facts'
 
 export type TimedReason = { reason: string; at: string }
@@ -21,6 +22,7 @@ export type ParkedFacts = Readonly<Record<string, ParkedFact>>
 
 export type StatusFacts = {
   firstSeq: number | null
+  attempt: number
   prepared: boolean
   prepareFailure: TimedReason | null
   startFailure: TimedReason | null
@@ -36,6 +38,7 @@ export type StatusFacts = {
 
 export const initialStatusFacts: StatusFacts = {
   firstSeq: null,
+  attempt: 0,
   prepared: false,
   prepareFailure: null,
   startFailure: null,
@@ -78,8 +81,12 @@ const withRetry = (retries: readonly RetryFact[], retry: RetryFact): readonly Re
 
 const stepWorkspace = (facts: StatusFacts, event: V2Event): StatusFacts => {
   const prepared = facts.prepared || countsAsPrepared(event)
+  if (event.type === 'workspace-attempt-started') {
+    return { ...facts, attempt: event.attempt, prepared, prepareFailure: null }
+  }
+  const currentAttempt = (attemptTagOf(event) ?? facts.attempt) === facts.attempt
   const prepareFailure =
-    event.type === 'workspace-prepare-failed'
+    event.type === 'workspace-prepare-failed' && currentAttempt
       ? { reason: event.reason, at: event.at }
       : facts.prepareFailure
   if (event.type === 'session-start-failed') {

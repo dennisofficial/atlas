@@ -17,6 +17,7 @@ import type { HeldSessionDeps } from './held-session-deps'
 import { LeaseLostError } from './record/record-adapter'
 import type { HeldTurns } from './held-turns'
 import { InboxIntake } from './inbox-intake'
+import { EIntakeScope } from './intake-scope'
 import { openChildren, type OpenChild } from './crew/open-children'
 import { operatorAnswersOf } from './operator-answer'
 import type { PodCrew } from '@dltech/atlas-plugin-sdk'
@@ -106,7 +107,9 @@ export const settleAndCheckResume = async (args: {
     threadId,
     effectOf: (name) => (runtime.daemonTools.has(name) ? EToolEffect.Read : runtime.effectOf(name)),
   })
-  await args.crew.adoptAll(await openChildren({ record, threadId }))
+  await args.crew.adoptAll(
+    await openChildren({ record, plane: deps.plane, sessionId: deps.sessionId, threadId }),
+  )
   return isResumableOf(await record.loopState({ threadId }))
 }
 
@@ -186,6 +189,7 @@ export const createLoopRunner = (args: {
     record,
     threadId,
     runId: () => deps.ids.nextRunId(),
+    scope: EIntakeScope.Main,
     commands: deps.commands,
     handlers: deps.commandHandlers,
     model: runtime.model,

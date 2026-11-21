@@ -4,6 +4,7 @@ import { composeCommands, defineCommand } from '@dltech/atlas-commands'
 import {
   chainEvents,
   EAgentStart,
+  EAgentStatus,
   ECommandGroup,
   ECommandTiming,
   ESetupPhase,
@@ -59,6 +60,7 @@ const entry = (params: { inboxId: number; kind: string }): InboxEntry => ({
   payload: '{}',
   postedAt: new Date().toISOString(),
   consumedSeq: null,
+  threadId: null,
   senderSessionId: null,
 })
 
@@ -211,5 +213,76 @@ describe('drainNeedsHolder over the children a takeover left open', () => {
     expect(
       await drainNeedsHolder({ deps, record: preparedRecord(events), turnRunning: false }),
     ).toBe(true)
+  })
+})
+
+const endedChild = (): V2Body => ({
+  type: 'agent-ended',
+  agentId: CHILD,
+  agentType: 'builder',
+  intent: 'takeover',
+  status: EAgentStatus.Finished,
+  prose: 'done',
+  turns: 1,
+  toolCalls: 0,
+})
+
+const targeted = (params: { inboxId: number }): InboxEntry => ({
+  ...entry({ inboxId: params.inboxId, kind: 'message' }),
+  threadId: CHILD,
+})
+
+const needsHolderOverEndedChild = (params: {
+  childEvents: readonly V2Event[]
+  rows: readonly InboxEntry[]
+}): Promise<boolean> => {
+  const deps = {
+    sessionId: 'session-1',
+    plane: {
+      readInbox: async (read: { forThread: string | null }) =>
+        read.forThread === null ? [] : [...params.rows],
+      readEvents: async () => ({ events: [...params.childEvents], next: undefined }),
+      endTerminals: async () => 0,
+    } as unknown as ControlPlane,
+    commands: composeCommands([ping]),
+    commandHandlers: new Map(),
+  } as unknown as HeldSessionDeps
+  return drainNeedsHolder({
+    deps,
+    record: preparedRecord(eventsOf([spawnedChild(), endedChild()])),
+    turnRunning: false,
+  })
+}
+
+describe('drainNeedsHolder over a child the parent already ended', () => {
+  it('wants a holder for a targeted row that ended child has not drained', async () => {
+    const childEvents = childEventsOf([
+      { type: 'user-said', text: 'go' },
+      { type: 'assistant-said', parts: [{ type: 'text', text: 'done' }] },
+    ])
+    expect(await needsHolderOverEndedChild({ childEvents, rows: [targeted({ inboxId: 7 })] })).toBe(
+      true,
+    )
+  })
+
+  it('wants a holder for a staged row that ended child has not said yet', async () => {
+    const childEvents = childEventsOf([
+      { type: 'user-said', text: 'go' },
+      { type: 'assistant-said', parts: [{ type: 'text', text: 'done' }] },
+      {
+        type: 'input-posted',
+        inboxId: 7,
+        kind: 'message',
+        postedAt: new Date().toISOString(),
+        text: 'late',
+      },
+    ])
+    expect(await needsHolderOverEndedChild({ childEvents, rows: [] })).toBe(true)
+  })
+
+  it('does not want a holder for a targeted row whose child thread has nothing', async () => {
+    expect(
+      await needsHolderOverEndedChild({ childEvents: [], rows: [targeted({ inboxId: 7 })] }),
+    ).toBe(false)
   })
 })

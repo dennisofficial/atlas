@@ -1,4 +1,4 @@
-import type { Hash, InboxEntry, Lease } from '@dltech/atlas-core'
+import { type Hash, type InboxEntry, type Lease, toThreadId } from '@dltech/atlas-core'
 
 import type {
   ControlSessionRow,
@@ -34,8 +34,13 @@ export const toInbox = (row: {
   payload: string
   postedAt: Date
   consumedSeq: number | null
+  threadId: string | null
   senderSessionId: string | null
-}): InboxEntry => ({ ...row, postedAt: iso(row.postedAt) })
+}): InboxEntry => ({
+  ...row,
+  postedAt: iso(row.postedAt),
+  threadId: row.threadId === null ? null : toThreadId(row.threadId),
+})
 
 export const toSessionRow = (row: {
   id: string

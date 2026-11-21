@@ -25,6 +25,11 @@ export enum ESpan {
   PodProvisionSandbox = 'pod.provision.sandbox',
   PodProvisionAgent = 'pod.provision.agent',
   PromptSend = 'prompt.send',
+  ResourceStatus = 'resource.status',
+  ResourceVersions = 'resource.versions',
+  ResourceArm = 'resource.arm',
+  ResourceLoad = 'resource.load',
+  ResourceAppend = 'resource.append',
 }
 
 export enum ESpanMark {
@@ -63,6 +68,7 @@ export type SpanFields = {
   readonly model?: string | undefined
   readonly tool?: string | undefined
   readonly hook?: string | undefined
+  readonly resource?: string | undefined
   readonly phase?: string | undefined
   readonly status?: string | undefined
   readonly failureKind?: string | undefined

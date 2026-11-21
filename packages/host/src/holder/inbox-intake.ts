@@ -1,7 +1,4 @@
 import {
-  INBOX_KIND_EVENT,
-  INBOX_KIND_RECORD,
-  INBOX_KIND_RETRY,
   INBOX_KIND_STOP,
   pendingInputsOf,
   type EventDraft,
@@ -11,31 +8,25 @@ import {
   type RecordBody,
   type RunId,
   type ThreadId,
+  type V2Event,
   userSaidOf,
 } from '@dltech/atlas-core'
 import type { ControlPlane } from '@dltech/atlas-control'
 import type { AgentIntake, PendingDrain } from '@dltech/atlas-agent'
 import type { CommandRegistry } from '@dltech/atlas-commands'
-import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
-import { INBOX_KIND_OPERATOR_ANSWER } from '@dltech/atlas-plugin-operator/core'
-import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
+import type { LogPort } from '@dltech/atlas-observability'
 
 import {
   consumeQuietly,
-  consumeUnknown,
-  runCommand,
   runLoggedCommands,
   turnOpenOf,
   type CommandGlue,
 } from './command-intake-glue'
 import { CommandIntake, isCommandKind, type CommandHandlers } from './command-intake'
-import { INBOX_INTAKE_MAX_PAGES, readInboxPages } from './held-inbox'
-import {
-  drainEventEntry,
-  drainLoggedNotices,
-  stagedMessageOf,
-  type StagedMessage,
-} from './notice-drain'
+import { EIntakeScope, intakeThreadOf, skipsInChildScope } from './intake-scope'
+import { fetchInboxEntries, INBOX_INTAKE_MAX_PAGES, logPendingInputIdsOf } from './held-inbox'
+import { drainEntries } from './intake-entries'
+import { drainLoggedNotices } from './notice-drain'
 import type { OperatorAnswerIntake } from './operator-answer'
 import type { SessionRecord } from './record/record-adapter'
 import { recoverUnfinishedCommands } from './recover-unfinished-commands'
@@ -49,7 +40,7 @@ import {
   type AppendDrafts,
   type Drainable,
 } from './staged-log'
-import { resolveWithdraws as applyWithdraws, type WithdrawLookup } from './withdraw-plan'
+import { resolveWithdraws, type WithdrawLookup } from './withdraw-plan'
 import { supersededRewindIdsOf } from './rewind-dedupe'
 
 export { INBOX_KIND_STOP }
@@ -60,6 +51,7 @@ export type InboxIntakeArgs = {
   record: SessionRecord
   threadId: ThreadId
   runId: () => RunId
+  scope: EIntakeScope
   commands?: CommandRegistry | undefined
   handlers?: CommandHandlers | undefined
   model?: ModelPort | undefined
@@ -92,12 +84,14 @@ export class InboxIntake implements AgentIntake {
   async logStaged(
     args: { willDrain?: (() => boolean) | undefined; prepared?: (() => boolean) | undefined } = {},
   ): Promise<void> {
+    const child = this.args.scope === EIntakeScope.Child
     await this.serial(async () => {
       await logStagedInputs({
         fetch: () => this.fetch(),
         willDrain: args.willDrain,
         prepared: args.prepared,
-        resolveWithdraws: (entries) => this.resolveWithdraws(entries),
+        resolveWithdraws: (entries) => this.withdrawsOf(entries),
+        skips: child ? skipsInChildScope : undefined,
         postedDraftsOf: (entry) => this.postedDraftsOf(entry),
         appendDrafts: (drafts) => this.appendDrafts(drafts),
         log: this.args.log,
@@ -109,15 +103,24 @@ export class InboxIntake implements AgentIntake {
     return await this.serial(() => this.drain())
   }
 
+  async stage(): Promise<void> {
+    await this.logStaged({ willDrain: () => false, prepared: () => true })
+  }
+
+  async hasQueued(): Promise<boolean> {
+    return await this.serial(async () => {
+      const entries = await this.fetch()
+      return entries.length > 0 || logPendingInputIdsOf(this.events()).length > 0
+    })
+  }
+
   /** Runs commands the holder already knows are safe to run outside a turn, without a model step. */
   async runCommands(entries: readonly InboxEntry[]): Promise<boolean> {
     if (this.commandIntake === undefined) return false
     return await this.serial(async () => {
       const glue = this.commandGlue()
-      const superseded = supersededRewindIdsOf({
-        entries,
-        events: this.args.record.eventCache().eventsAfter(0),
-      })
+      const events = this.events()
+      const superseded = supersededRewindIdsOf({ entries, events })
       let ran = false
       for (const entry of entries) {
         if (!isCommandKind(entry.kind)) continue
@@ -137,69 +140,41 @@ export class InboxIntake implements AgentIntake {
 
   private async drain(): Promise<PendingDrain> {
     const entries = await this.fetch()
-    const resolved = await this.resolveWithdraws(entries)
-    const superseded = supersededRewindIdsOf({
+    const resolved = await this.withdrawsOf(entries)
+    const before = this.events()
+    const superseded =
+      this.args.scope === EIntakeScope.Main
+        ? supersededRewindIdsOf({ entries, events: before })
+        : new Set<number>()
+    const drained = await drainEntries({
       entries,
-      events: this.args.record.eventCache().eventsAfter(0),
+      scope: this.args.scope,
+      resolved,
+      superseded,
+      glue: this.commandGlue(),
+      appendDrafts: this.append,
+      operatorAnswers: this.args.operatorAnswers,
     })
-    const glue = this.commandGlue()
-    const drainable: StagedMessage[] = []
-    let wakesTurn = false
-    for (const entry of entries) {
-      if (resolved.has(entry.inboxId)) continue
-      if (superseded.has(entry.inboxId)) {
-        await consumeQuietly({ ...glue, entry })
-        continue
-      }
-      if (entry.kind === INBOX_KIND_OPERATOR_ANSWER) {
-        const answers = this.args.operatorAnswers
-        if (answers !== undefined && (await answers.handle(entry)).wakesTurn) wakesTurn = true
-        await consumeQuietly({ ...glue, entry })
-        continue
-      }
-      if (entry.kind === INBOX_KIND_STOP) continue
-      if (entry.kind === INBOX_KIND_RETRY) {
-        await consumeQuietly({ ...glue, entry })
-        continue
-      }
-      if (entry.kind === INBOX_KIND_EVENT || entry.kind === INBOX_KIND_RECORD) {
-        if (await drainEventEntry({ entry, appendDrafts: this.append })) wakesTurn = true
-        continue
-      }
-      if (entry.kind === INBOX_KIND_MESSAGE) {
-        const stagedMessage = await stagedMessageOf({ entry, appendDrafts: this.append })
-        if (stagedMessage !== undefined) drainable.push(stagedMessage)
-        continue
-      }
-      if (isCommandKind(entry.kind)) {
-        await runCommand({ ...glue, entry })
-        continue
-      }
-      await consumeUnknown({ ...glue, entry })
-    }
-    const loggedWakes = await drainLoggedNotices({
-      events: this.args.record.eventCache().eventsAfter(0),
+    const events = this.events()
+    const noticesWake = await drainLoggedNotices({
+      events,
       staged: new Set(entries.map((entry) => entry.inboxId)),
       appendDrafts: this.append,
     })
-    if (loggedWakes) wakesTurn = true
     const order = drainOrderOf({
-      staged: drainable,
-      logged: loggedMessagesOf(this.args.record.eventCache().eventsAfter(0)),
-      posted: postedInboxIdsOf({ events: this.args.record.eventCache().eventsAfter(0) }),
+      staged: drained.drainable,
+      logged: loggedMessagesOf(events),
+      posted: postedInboxIdsOf({ events }),
     })
     if (order.length > 0) await this.cancelOpenForMessage()
-    for (const item of order) {
-      await this.appendDrafts(this.drainDraftsOf(item))
-      wakesTurn = true
-    }
+    for (const item of order) await this.appendDrafts(this.drainDraftsOf(item))
     await runLoggedCommands({
-      ...glue,
-      events: this.args.record.eventCache().eventsAfter(0),
+      ...this.commandGlue(),
+      events: before,
       readEntry: (inboxId) =>
         this.args.plane.readInboxEntry({ sessionId: this.args.sessionId, inboxId }),
     })
-    return { drafts: [], wakesTurn }
+    return { drafts: [], wakesTurn: drained.wakesTurn || noticesWake || order.length > 0 }
   }
 
   private async serial<T>(task: () => Promise<T>): Promise<T> {
@@ -219,6 +194,10 @@ export class InboxIntake implements AgentIntake {
     })
   }
 
+  private events(): V2Event[] {
+    return this.args.record.eventCache().eventsAfter(0)
+  }
+
   private commandGlue(): CommandGlue {
     return {
       commandIntake: this.commandIntake,
@@ -236,8 +215,9 @@ export class InboxIntake implements AgentIntake {
     })
   }
 
-  private async resolveWithdraws(entries: readonly InboxEntry[]): Promise<ReadonlySet<number>> {
-    return await applyWithdraws({
+  private async withdrawsOf(entries: readonly InboxEntry[]): Promise<ReadonlySet<number>> {
+    if (this.args.scope !== EIntakeScope.Main) return new Set<number>()
+    return await resolveWithdraws({
       entries,
       lookup: this.withdrawLookup(),
       appendDrafts: (drafts) => this.appendDrafts(drafts),
@@ -248,9 +228,7 @@ export class InboxIntake implements AgentIntake {
     return {
       stagedOf: (inboxId) => this.staged.get(inboxId),
       pendingOf: (inboxId) =>
-        pendingInputsOf(this.args.record.eventCache().eventsAfter(0)).pending.find(
-          (pending) => pending.inboxId === inboxId,
-        ),
+        pendingInputsOf(this.events()).pending.find((pending) => pending.inboxId === inboxId),
       postedDraftsOf: (entry) => this.postedDraftsOf(entry),
     }
   }
@@ -263,7 +241,7 @@ export class InboxIntake implements AgentIntake {
   }
 
   private async cancelOpenForMessage(): Promise<void> {
-    if (this.args.operatorAnswers === undefined) return
+    if (this.args.scope !== EIntakeScope.Main || this.args.operatorAnswers === undefined) return
     await this.args.operatorAnswers.cancelOpen({
       reason: 'the operator sent a message instead of answering',
     })
@@ -280,21 +258,14 @@ export class InboxIntake implements AgentIntake {
   }
 
   private async fetch(): Promise<InboxEntry[]> {
-    try {
-      const entries = await readInboxPages({
-        plane: this.args.plane,
-        sessionId: this.args.sessionId,
-        maxPages: INBOX_INTAKE_MAX_PAGES,
-      })
-      this.staged = new Map(entries.map((entry) => [entry.inboxId, entry]))
-      return entries
-    } catch (error) {
-      this.args.log?.error({
-        source: 'holder.intake',
-        message: 'reading the inbox failed',
-        ...logFieldsOf({ error }),
-      })
-      throw error
-    }
+    const entries = await fetchInboxEntries({
+      plane: this.args.plane,
+      sessionId: this.args.sessionId,
+      forThread: intakeThreadOf(this.args),
+      maxPages: INBOX_INTAKE_MAX_PAGES,
+      log: this.args.log,
+    })
+    this.staged = new Map(entries.map((entry) => [entry.inboxId, entry]))
+    return entries
   }
 }

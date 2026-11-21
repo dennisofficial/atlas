@@ -4,18 +4,20 @@ import {
   EReportKind,
   finishedTurnOf,
   type AgentLost,
+  INBOX_KIND_EVENT,
+  inboxEventPayloadOf,
   type EventBody,
   isResumableOf,
-  saidBody,
   type ThreadId,
 } from '@dltech/atlas-core'
+import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
 import { PauseSignal, type LoopTurnRunner, type TurnOutcome } from '@dltech/atlas-agent'
 import { logFieldsOf } from '@dltech/atlas-observability'
 import type { PodCrew, SubagentSaid, SubagentSnapshot } from '@dltech/atlas-plugin-sdk'
 
 import type { RoleModelChoice } from '../ports'
 import type { LeaseLostError, SessionRecord } from '../record/record-adapter'
-import { ChildIntake } from './child-intake'
+import { childInboxOf, type ChildInbox } from './child-inbox'
 import { childPortOf } from './child-port'
 import { childChoiceOf } from './child-model'
 import {
@@ -29,7 +31,7 @@ import { DRAIN_IN_FLIGHT_CAP_MS } from '../drain-cap'
 import { childRunnerOf } from './child-runner'
 import { ChildTranscript } from './child-transcript'
 import { driveLifecycle, type DriveArgs } from './child-turns'
-import { lastSeqOf } from './child-reports'
+import { lastSeqOf, messagePayloadOf } from './child-reports'
 import {
   adoptRecordOf,
   childRecordOf,
@@ -45,7 +47,7 @@ export type AdoptedRun = { ok: true; run: ChildRun } | { ok: false; lost: AgentL
 export class ChildRun {
   readonly agentId: ThreadId
   readonly startedAt: string
-  private readonly intake = new ChildIntake()
+  private inbox!: ChildInbox
   private readonly transcript: ChildTranscript
   private readonly pauseSignal = new PauseSignal()
   private record!: SessionRecord
@@ -95,6 +97,7 @@ export class ChildRun {
       agentId: run.agentId,
       onLeaseLost: (error) => run.lost(error),
     })
+    run.inbox = childInboxOf({ deps: args.deps, record: run.record, threadId: run.agentId })
     if (args.worktree !== undefined)
       await seedWorktreeOf({
         record: run.record,
@@ -120,6 +123,7 @@ export class ChildRun {
     })
     if (!adopted.ok) return adopted
     run.record = adopted.record
+    run.inbox = childInboxOf({ deps: args.deps, record: adopted.record, threadId: run.agentId })
     if (args.settled === undefined) await run.endSettledTurn()
     else {
       run.ending = args.settled.status
@@ -133,27 +137,24 @@ export class ChildRun {
   }
 
   async say(text: string): Promise<SubagentSaid> {
-    if (this.pump !== undefined) {
-      await this.record.append({
-        threadId: this.agentId,
-        runId: this.args.deps.ids.nextRunId(),
-        drafts: [saidBody({ text })],
-      })
-      this.intake.accept()
-      return { queued: true, snapshot: this.snapshot() }
-    }
-    this.begin({ text, restart: this.ending !== undefined })
+    await this.inbox.post({ kind: INBOX_KIND_MESSAGE, payload: messagePayloadOf({ text }) })
+    if (this.pump !== undefined) return { queued: true, snapshot: this.snapshot() }
+    this.begin({ restart: this.ending !== undefined })
     return { queued: false, snapshot: this.snapshot() }
   }
 
-  async notice(event: EventBody): Promise<void> {
-    this.intake.accept(event)
+  async notice(event: EventBody, options: { key: string }): Promise<void> {
+    await this.inbox.post({
+      kind: INBOX_KIND_EVENT,
+      payload: inboxEventPayloadOf({ event, clientId: options.key }),
+    })
     if (this.pump === undefined) this.begin({ resume: true })
   }
 
-  continueTurn(): void {
-    if (!this.resumable()) return
-    this.begin({ resume: true })
+  async continueTurn(): Promise<void> {
+    if (this.pump !== undefined) return
+    if (!this.resumable() && !(await this.inbox.intake.hasQueued())) return
+    this.begin(this.ending === undefined ? { resume: true } : { restart: true })
   }
 
   resumable(): boolean {
@@ -257,21 +258,21 @@ export class ChildRun {
         model: this.model,
         signal: listeners.signal,
         crew: this.port(),
-        intake: this.intake,
-        notify: (event) => this.notice(event),
+        parentRecord: this.args.parentRecord,
+        intake: this.inbox.intake,
+        notify: (event, options) => this.notice(event, options),
         isDraining: () => this.handingOff,
         onFallback: (refs) => this.transcript.fellBack(refs),
       })
       await driveLifecycle({
         drive,
         runner: this.runner,
-        intake: this.intake,
         pause: this.pauseSignal,
         threadId: this.agentId,
         signal: abort.signal,
         stopped: () => this.stopping,
         restarted: (via) => this.transcript.restarted({ via }),
-        owedTurn: () => !this.stopping && this.intake.pending > 0,
+        owedTurn: async () => !this.stopping && (await this.inbox.intake.hasQueued()),
         handingOff: () => this.handingOff,
         reset: () => this.resetDrive(),
         settle: (outcome) => this.settle(outcome),

@@ -1,3 +1,4 @@
+import { DAEMON_MIN_PROTOCOL_HEADER, DAEMON_PROTOCOL_HEADER } from '@dltech/atlas-protocol'
 import {
   type DaemonEngine,
   type EngineLink,
@@ -34,13 +35,26 @@ const deadlineOf = async (request: Request): Promise<number> => {
   }
 }
 
+export const bundleUrlOf = async (request: Request): Promise<string | undefined> => {
+  try {
+    const body: unknown = await request.json()
+    if (typeof body !== 'object' || body === null || !('bundleUrl' in body)) return undefined
+    const { bundleUrl } = body
+    return typeof bundleUrl === 'string' && bundleUrl !== '' ? bundleUrl : undefined
+  } catch {
+    return undefined
+  }
+}
+
 export const listenWebSocket = (args: {
   engine: DaemonEngine
   port: number
   token: string
   version: string
+  protocol: number
+  minProtocol: number
   drain(deadlineMs: number): void
-  restart(): void
+  restart(bundleUrl?: string | undefined): void
   cpu(): DaemonCpuReading
 }): DaemonListener => {
   let draining = false
@@ -54,13 +68,14 @@ export const listenWebSocket = (args: {
     queueMicrotask(() => args.drain(deadlineMs))
     return new Response('draining', { status: 202 })
   }
-  const handleRestart = (request: Request): Response => {
+  const handleRestart = async (request: Request): Promise<Response> => {
     if (!daemonTokenMatches({ want: args.token, token: bearerOf(request) })) {
       return new Response('forbidden', { status: 403 })
     }
     if (draining) return new Response('draining', { status: 409 })
     draining = true
-    queueMicrotask(() => args.restart())
+    const bundleUrl = await bundleUrlOf(request)
+    queueMicrotask(() => args.restart(bundleUrl))
     return new Response('restarting', { status: 202 })
   }
   const server = Bun.serve<SocketData>({
@@ -70,7 +85,13 @@ export const listenWebSocket = (args: {
       if (request.method === 'POST' && pathname === '/drain') return handleDrain(request)
       if (request.method === 'POST' && pathname === '/restart') return handleRestart(request)
       if (request.method === 'GET' && pathname === '/version') {
-        return new Response(args.version, { status: 200 })
+        return new Response(args.version, {
+          status: 200,
+          headers: {
+            [DAEMON_PROTOCOL_HEADER]: String(args.protocol),
+            [DAEMON_MIN_PROTOCOL_HEADER]: String(args.minProtocol),
+          },
+        })
       }
       if (request.method === 'GET' && pathname === '/cpu') {
         if (!daemonTokenMatches({ want: args.token, token: bearerOf(request) })) {

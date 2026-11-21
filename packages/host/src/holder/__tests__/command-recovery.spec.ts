@@ -147,7 +147,7 @@ describe('SessionHolder command recovery', () => {
     await rig.wake()
     await flushUntil({ check: async () => (await typesOf(rig)).includes('workspace-prepared') })
     await rig.flush()
-    expect(await typesOf(rig)).toEqual(['workspace-prepared'])
+    expect(await typesOf(rig)).toEqual(['workspace-attempt-started', 'workspace-prepared'])
   })
 
   it('logs and keeps the session alive when the replay throws', async () => {

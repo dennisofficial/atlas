@@ -58,10 +58,11 @@ export class HeldTurns {
     resume: boolean
   }): Promise<void> {
     this.turnAborted = ETurnAborted.Other
-    const turnId = await this.startTurn({ record: args.record, resume: args.resume })
     this.turnAbort = new AbortController()
     this.turnRunning = true
+    let turnId: string | undefined
     try {
+      turnId = await this.startTurn({ record: args.record, resume: args.resume })
       const outcome = args.resume
         ? await args.runner.resume({
             threadId: args.threadId,
@@ -79,7 +80,9 @@ export class HeldTurns {
         ending: turnEndingOf({ outcome, aborted: this.turnAborted }),
       })
     } catch (error) {
-      await this.endTurn({ record: args.record, turnId, ending: FAILED_BY_HOST })
+      if (turnId !== undefined) {
+        await this.endTurn({ record: args.record, turnId, ending: FAILED_BY_HOST })
+      }
       throw error
     } finally {
       this.turnRunning = false

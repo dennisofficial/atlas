@@ -15,6 +15,7 @@ import { ControlPlane } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 
 import { InboxIntake } from '../inbox-intake'
+import { EIntakeScope } from '../intake-scope'
 import { eventsOf } from './operator-answer-rig'
 import { podSessionsOf } from '../plugin-sessions'
 import type { AppendBody, SessionRecord } from '../record/record-adapter'
@@ -50,6 +51,7 @@ const saidDraftsOf = async (
     plane,
     sessionId,
     record,
+    scope: EIntakeScope.Main,
     threadId: toThreadId(mainThreadId),
     runId: () => toRunId('run-1'),
   }).prepare()

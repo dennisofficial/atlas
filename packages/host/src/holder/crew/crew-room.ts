@@ -30,7 +30,7 @@ export class CrewRoom {
       ...(args.worktree === undefined ? {} : { worktree: args.worktree }),
     })
     this.runs.set(run.agentId, run)
-    void run.say(args.prompt)
+    await run.say(args.prompt)
     return run.snapshot()
   }
 
@@ -46,13 +46,14 @@ export class CrewRoom {
       agentId: child.agentId,
       spawnedAt: child.spawnedAt,
       ...(child.worktree === undefined ? {} : { worktree: child.worktree }),
+      ...(child.settled === undefined ? {} : { settled: child.settled }),
     })
     if (!adopted.ok) {
       await this.lose({ child, lost: adopted.lost })
       return
     }
     this.runs.set(adopted.run.agentId, adopted.run)
-    adopted.run.continueTurn()
+    await adopted.run.continueTurn()
   }
 
   async say(args: { agentId: string; text: string }): Promise<SubagentSaid> {

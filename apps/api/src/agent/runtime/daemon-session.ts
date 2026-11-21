@@ -59,6 +59,7 @@ export const daemonSessionOf = (args: {
       wake,
       signal: args.signal,
     }),
+    started: endpoint,
     timers: args.timers,
     onFenced: () => {},
     ...(args.pingMs === undefined ? {} : { pingMs: args.pingMs }),

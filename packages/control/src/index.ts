@@ -10,7 +10,7 @@ export type {
   ChangesGcStore,
   ChangesGcSummary,
 } from './changes-gc'
-export { LeaseConflictError, UnknownThreadError } from './errors'
+export { LeaseConflictError, MainThreadOnlyKindError, UnknownThreadError } from './errors'
 export { idleReleaseGuardOf } from './idle-guard'
 export type { IdleReleaseGuard } from './idle-guard'
 export { ControlStorePort, SeqConflictError } from './port'
@@ -75,7 +75,12 @@ export {
 } from './routine-service'
 export type { RoutinePlane, RoutinesFor } from './routine-service'
 export { runRoutineIn } from './routine-ops'
-export { INBOX_KIND_WITHDRAW, MessageOriginRequiredError, withdrawPayloadOf } from './inbox-ops'
+export {
+  INBOX_KIND_WITHDRAW,
+  MessageOriginRequiredError,
+  isMainThreadOnlyKind,
+  withdrawPayloadOf,
+} from './inbox-ops'
 export type { RunRoutineParams, RunRoutineResult } from './routine-ops'
 export { unfinishedCommandIdsOf } from './command-rows'
 export { readSessionStatus, STATUS_EVENT_LIMIT } from './session-status'

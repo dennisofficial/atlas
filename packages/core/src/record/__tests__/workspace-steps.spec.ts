@@ -13,6 +13,8 @@ import {
   isWorkspacePrepared,
 } from '../workspace'
 import { workspaceStepsOf } from '../workspace-steps'
+import { latestAttemptOf, nextAttemptOf } from '../workspace-attempts'
+import { lastPrepareFailure } from '../workspace'
 import { NOW, runId, threadId } from './support'
 
 const log = (bodies: V2Body[]) => chainEvents({ threadId, runId, epoch: 1, at: NOW, bodies })
@@ -128,5 +130,119 @@ describe('workspace-step detail', () => {
     )
     expect(folded.clone?.repos).toEqual([{ repo: 'acme/app', state: EWorkspaceRepoState.Done }])
     expect(folded.setup).toMatchObject({ command: 'bun i', output: 'bad' })
+  })
+})
+
+const attemptStarted = (attempt: number): V2Body => ({ type: 'workspace-attempt-started', attempt })
+
+const FAILED = 'sandbox did not answer'
+
+const failedFirstAttempt = (): V2Body[] => [
+  attemptStarted(1),
+  step(EWorkspaceStep.Sandbox, EWorkspaceStepState.Started, { attempt: 1 }),
+  step(EWorkspaceStep.Sandbox, EWorkspaceStepState.Done, { attempt: 1 }),
+  step(EWorkspaceStep.Setup, EWorkspaceStepState.Started, { attempt: 1, command: 'bun i' }),
+  step(EWorkspaceStep.Setup, EWorkspaceStepState.Failed, {
+    attempt: 1,
+    reason: FAILED,
+    command: 'bun i',
+  }),
+  { type: 'workspace-prepare-failed', reason: FAILED, inboxHead: 1, attempt: 1 },
+]
+
+describe('workspace attempts', () => {
+  it('round-trips an attempt through the v2 event schema', () => {
+    const [event] = log([attemptStarted(2)])
+    expect(v2EventSchema.parse(event)).toMatchObject({
+      type: 'workspace-attempt-started',
+      attempt: 2,
+    })
+    expect(v2EventSchema.safeParse({ ...event, attempt: 0 }).success).toBe(false)
+  })
+
+  it('numbers the next attempt from the log', () => {
+    expect(nextAttemptOf(log(failedFirstAttempt()))).toBe(2)
+    expect(nextAttemptOf(log([]))).toBe(1)
+    expect(latestAttemptOf(log(failedFirstAttempt()))).toBe(1)
+  })
+
+  it('folds only the steps of the latest attempt', () => {
+    const folded = workspaceStepsOf(
+      log([
+        ...failedFirstAttempt(),
+        attemptStarted(2),
+        step(EWorkspaceStep.Clone, EWorkspaceStepState.Started, {
+          attempt: 2,
+          repos: [{ repo: 'acme/app', state: EWorkspaceRepoState.Cloning }],
+        }),
+      ]),
+    )
+    expect(folded.sandbox).toBeUndefined()
+    expect(folded.setup).toBeUndefined()
+    expect(folded.clone).toMatchObject({
+      state: EWorkspaceStepState.Started,
+      repos: [{ repo: 'acme/app', state: EWorkspaceRepoState.Cloning }],
+    })
+  })
+
+  it('folds an untagged log with the attempt in force at its position', () => {
+    const folded = workspaceStepsOf(
+      log([
+        attemptStarted(1),
+        step(EWorkspaceStep.Sandbox, EWorkspaceStepState.Done),
+        attemptStarted(2),
+        step(EWorkspaceStep.Daemon, EWorkspaceStepState.Done),
+      ]),
+    )
+    expect(folded.sandbox).toBeUndefined()
+    expect(folded.daemon?.state).toBe(EWorkspaceStepState.Done)
+  })
+
+  it('keeps folding a log that never recorded an attempt', () => {
+    const folded = workspaceStepsOf(
+      log([
+        step(EWorkspaceStep.Sandbox, EWorkspaceStepState.Done),
+        step(EWorkspaceStep.Daemon, EWorkspaceStepState.Started),
+      ]),
+    )
+    expect(folded.sandbox?.state).toBe(EWorkspaceStepState.Done)
+    expect(folded.daemon?.state).toBe(EWorkspaceStepState.Started)
+  })
+
+  it('clears the prepare failure when a new attempt starts', () => {
+    const status = sessionStatusOf({
+      events: log([...failedFirstAttempt(), attemptStarted(2)]),
+      live: true,
+      queuedSince: null,
+      messageAfterFailure: false,
+      now: NOW,
+    })
+    expect(status.state).toBe(ESessionStatus.Preparing)
+  })
+
+  it('ignores a failure the superseded attempt reports late', () => {
+    const events = log([
+      ...failedFirstAttempt(),
+      attemptStarted(2),
+      { type: 'workspace-prepare-failed', reason: 'late', inboxHead: 2, attempt: 1 },
+    ])
+    const status = sessionStatusOf({
+      events,
+      live: true,
+      queuedSince: null,
+      messageAfterFailure: false,
+      now: NOW,
+    })
+    expect(status.state).toBe(ESessionStatus.Preparing)
+    expect(lastPrepareFailure(events)).toBeUndefined()
+  })
+
+  it('reports the failure of the latest attempt', () => {
+    const events = log([
+      ...failedFirstAttempt(),
+      attemptStarted(2),
+      { type: 'workspace-prepare-failed', reason: 'again', inboxHead: 2, attempt: 2 },
+    ])
+    expect(lastPrepareFailure(events)).toMatchObject({ reason: 'again', inboxHead: 2 })
   })
 })

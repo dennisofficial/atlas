@@ -23,6 +23,7 @@ import { z } from 'zod'
 
 import type { CommandHandlers } from '../command-intake'
 import { InboxIntake } from '../inbox-intake'
+import { EIntakeScope } from '../intake-scope'
 import type { AppendBody, SessionRecord } from '../record/record-adapter'
 import { eventsOf } from './operator-answer-rig'
 
@@ -36,6 +37,7 @@ const entry = (inboxId: number, payload?: unknown, kind = 'message'): InboxEntry
   payload: JSON.stringify(payload ?? { text: `m${inboxId}` }),
   postedAt: new Date(NOW).toISOString(),
   consumedSeq: null,
+  threadId: null,
   senderSessionId: null,
 })
 
@@ -43,6 +45,7 @@ const withdrawOf = (inboxId: number, targetInboxId: number): InboxEntry =>
   entry(inboxId, { targetInboxId }, 'withdraw')
 
 type RigOptions = {
+  scope?: EIntakeScope
   commands?: boolean
   registry?: CommandRegistry
   handlers?: CommandHandlers
@@ -82,6 +85,7 @@ const rigOf = (entries: readonly InboxEntry[], options: RigOptions = {}) => {
     } as unknown as ControlPlane,
     sessionId: 'session-1',
     record,
+    scope: options.scope ?? EIntakeScope.Main,
     threadId: toThreadId('thread-1'),
     runId: () => toRunId('run-1'),
     ...(options.registry === undefined ? {} : { commands: options.registry }),
@@ -94,7 +98,10 @@ const rigOf = (entries: readonly InboxEntry[], options: RigOptions = {}) => {
       error: () => {},
     } as never,
   })
-  return { intake, appended, appends, warnings, infos }
+  const appendExternally = async (drafts: readonly AppendBody[]) => {
+    await record.append({ threadId: toThreadId('thread-1'), runId: toRunId('run-1'), drafts })
+  }
+  return { intake, appended, appends, warnings, infos, logged, appendExternally }
 }
 
 const posted = (inboxId: number, message?: object): AppendBody => ({
@@ -577,5 +584,72 @@ describe('InboxIntake staged logging against the drain', () => {
     const drain = await rig.intake.prepare()
     expect(rig.appends).toEqual([[posted(1, { text: 'm1' }), said(1)]])
     expect(drain.wakesTurn).toBe(true)
+  })
+})
+
+describe('InboxIntake hasQueued during a concurrent stage', () => {
+  it('counts a message another writer stages while its inbox read is in flight', async () => {
+    const rows = [entry(1)]
+    let entered: () => void = () => undefined
+    const reading = new Promise<void>((resolve) => {
+      entered = resolve
+    })
+    let release: () => void = () => undefined
+    const gated = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let reads = 0
+    const rig = rigOf(rows, {
+      scope: EIntakeScope.Child,
+      source: async ({ afterId, limit }) => {
+        reads += 1
+        if (reads === 1) {
+          entered()
+          await gated
+        }
+        return rows
+          .filter((kept) => kept.inboxId > afterId && !rig.logged.has(kept.inboxId))
+          .slice(0, limit)
+      },
+    })
+    const queued = rig.intake.hasQueued()
+    await reading
+    await rig.appendExternally([posted(1, { text: 'm1' })])
+    release()
+    expect(await queued).toBe(true)
+  })
+})
+
+describe('InboxIntake withdraw across a staged message', () => {
+  it('never says a message that a withdraw in the same drain cancelled', async () => {
+    const rows = [entry(1, { text: 'hello' })]
+    const rig = rigOf(rows)
+    await rig.intake.logStaged({ willDrain: () => false })
+    rows.push(withdrawOf(2, 1))
+    const drain = await rig.intake.prepare()
+    expect(drain).toEqual({ drafts: [], wakesTurn: false })
+    expect(rig.appended.some((draft) => draft.type === 'user-said')).toBe(false)
+    expect(rig.appends).toEqual([
+      [posted(1, { text: 'hello' })],
+      [{ type: 'input-withdrawn', inboxId: 1, requestInboxId: 2 }],
+    ])
+  })
+})
+
+describe('InboxIntake in the child scope', () => {
+  it('leaves a main-only row for the main thread in staging and in the drain', async () => {
+    const rows = [
+      withdrawOf(1, 9),
+      entry(2, {}, 'operator-answer'),
+      entry(3, {}, 'retry'),
+      entry(4, {}, 'stop'),
+      entry(5, {}, 'command:ping'),
+    ]
+    const rig = rigOf(rows, { scope: EIntakeScope.Child, commands: true })
+    await rig.intake.logStaged({ willDrain: () => false })
+    expect(rig.appends).toEqual([])
+    const drain = await rig.intake.prepare()
+    expect(drain).toEqual({ drafts: [], wakesTurn: false })
+    expect(rig.appends).toEqual([])
   })
 })

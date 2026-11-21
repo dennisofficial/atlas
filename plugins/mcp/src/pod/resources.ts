@@ -106,10 +106,7 @@ export const mcpToolsResource = (args: {
     const previous = previousToolsOf(ctx)
     return [
       ...mcpRosterDraftsOf({ previous: rowsOf(previous), next: rows }),
-      ...mcpInstructionsDraftsOf({
-        previous: instructionsOf(previous),
-        next: instructionsOf(value),
-      }),
+      ...mcpInstructionsDraftsOf({ events: ctx.events(), next: instructionsOf(value) }),
       ...args.signIns.resolutionsOf({ sessionId: ctx.sessionId, rows, now: Date.now() }),
     ]
   },

@@ -4,102 +4,45 @@ import {
   resourceFingerprintOf,
   EStage,
   type BeforeTurn,
-  type ThreadId,
+  type V2Event,
 } from '@dltech/atlas-core'
-import {
+import { ESpan, spanWith, type TracePort } from '@dltech/atlas-observability'
+import type {
   ECloudSetting,
-  type PluginPodContext,
-  type PodResource,
-  type ResourceWatch,
+  PluginPodContext,
+  PodResource,
+  ResourceWatch,
 } from '@dltech/atlas-plugin-sdk'
-import { ECallStatus } from '@dltech/atlas-protocol'
 
-const WATCH_DEBOUNCE_MS = 150
-const UNKNOWN = 'unknown'
-const DISALLOWED = /[^A-Za-z0-9_.:-]/g
+import {
+  armOf,
+  cloudStringOf,
+  messageOf,
+  statusOf,
+  versionsOf,
+  watchIdOf,
+} from './plugin-resource-probes'
+
 const RELOADED = 'reloaded'
 
 type Ctx = PluginPodContext
 
 type Appended = Parameters<PluginPodContext['append']>[0][number]
 
-type Entry = {
+type Watch = { readonly spec: ResourceWatch; readonly id: string }
+
+type Entry = { readonly resource: PodResource<unknown>; readonly watch: Watch | undefined }
+
+type Candidate = Entry & { readonly cloud: string; readonly seq: number | undefined }
+
+type Prepared = Candidate & { readonly fingerprint: string }
+
+const watchOf = (args: {
   resource: PodResource<unknown>
-  watch: ResourceWatch | undefined
-  watchId: string
-}
-
-type Candidate = Entry & { cloud: string; seq: number | undefined }
-
-type Prepared = Candidate & { fingerprint: string }
-
-const messageOf = (failure: unknown): string =>
-  failure instanceof Error ? failure.message : String(failure)
-
-const watchIdOf = (args: { name: string; threadId: ThreadId }): string =>
-  `resource.${args.name}.${args.threadId}`.replace(DISALLOWED, '-')
-
-const unknownVersions = (): Readonly<Record<ECloudSetting, string>> => ({
-  [ECloudSetting.McpServers]: UNKNOWN,
-  [ECloudSetting.Skills]: UNKNOWN,
-  [ECloudSetting.PersonalInstructions]: UNKNOWN,
-})
-
-const versionsOf = async (args: {
-  ctx: Ctx
-  needed: boolean
-}): Promise<Readonly<Record<ECloudSetting, string>>> => {
-  if (!args.needed) return unknownVersions()
-  try {
-    return await args.ctx.control.settingsVersions()
-  } catch (failure) {
-    args.ctx.log(`plugin resources could not read cloud versions: ${messageOf(failure)}`)
-    return unknownVersions()
-  }
-}
-
-const cloudStringOf = (args: {
-  settings: readonly ECloudSetting[] | undefined
-  versions: Readonly<Record<ECloudSetting, string>>
-}): string => {
-  if (args.settings === undefined) return ''
-  return Object.values(ECloudSetting)
-    .filter((setting) => args.settings?.includes(setting) === true)
-    .map((setting) => args.versions[setting])
-    .join('|')
-}
-
-const statusOf = async (args: {
-  ctx: Ctx
-  watchIds: readonly string[]
-}): Promise<{ instance: string; seqs: ReadonlyMap<string, number> }> => {
-  if (args.watchIds.length === 0) return { instance: UNKNOWN, seqs: new Map() }
-  try {
-    const result = await args.ctx.call({ op: 'watch.status', watchIds: [...args.watchIds] })
-    if (result.status !== ECallStatus.Ok) throw new Error(result.error.message)
-    if (result.op !== 'watch.status') throw new Error('the daemon answered another operation')
-    return {
-      instance: result.value.instance,
-      seqs: new Map(result.value.watches.map((entry) => [entry.watchId, entry.seq])),
-    }
-  } catch (failure) {
-    args.ctx.log(`plugin resources could not read watch status: ${messageOf(failure)}`)
-    return { instance: UNKNOWN, seqs: new Map() }
-  }
-}
-
-const armOf = async (args: { ctx: Ctx; watchId: string; watch: ResourceWatch }): Promise<void> => {
-  try {
-    await args.ctx.call({
-      op: 'watch.start',
-      watchId: args.watchId,
-      roots: [...args.watch.roots],
-      debounceMs: WATCH_DEBOUNCE_MS,
-      ...(args.watch.basenames === undefined ? {} : { basenames: [...args.watch.basenames] }),
-    })
-  } catch (failure) {
-    args.ctx.log(`plugin resources could not watch ${args.watchId}: ${messageOf(failure)}`)
-  }
+  directory: string
+}): Watch | undefined => {
+  const spec = args.resource.watch?.(args.directory)
+  return spec === undefined ? undefined : { spec, id: watchIdOf(spec) }
 }
 
 const draftsOf = <T>(args: {
@@ -156,14 +99,14 @@ export const reloadResource = async (args: {
 
 const staleOf = (args: {
   entries: readonly Entry[]
-  events: ReturnType<Ctx['events']>
+  events: readonly V2Event[]
   instance: string
   seqs: ReadonlyMap<string, number>
   versions: Readonly<Record<ECloudSetting, string>>
   directory: string
 }): Candidate[] =>
   args.entries.flatMap((entry) => {
-    const seq = entry.watch === undefined ? undefined : args.seqs.get(entry.watchId)
+    const seq = entry.watch === undefined ? undefined : args.seqs.get(entry.watch.id)
     const latest = latestResourceOf({ events: args.events, resource: entry.resource.name })
     const cloud = cloudStringOf({ settings: entry.resource.cloud, versions: args.versions })
     const fingerprint = resourceFingerprintOf({
@@ -181,22 +124,43 @@ const staleOf = (args: {
     return [{ ...entry, cloud, seq }]
   })
 
+const sharedValueOf = (args: {
+  resource: PodResource<unknown>
+  events: readonly V2Event[]
+  fingerprint: string
+  live: boolean
+}): { value: unknown } | undefined => {
+  if (!args.live) return undefined
+  const latest = latestResourceOf({ events: args.events, resource: args.resource.name })
+  if (latest === undefined || latest.fingerprint !== args.fingerprint) return undefined
+  const parsed = args.resource.schema.safeParse(latest.value)
+  if (!parsed.success) return undefined
+  if (args.resource.stale?.(parsed.data) === true) return undefined
+  return { value: parsed.data }
+}
+
 const refresh = async (args: {
   ctx: Ctx
   resources: readonly PodResource<unknown>[]
-  threadId: ThreadId
   projectDirectory: string
+  trace: TracePort | undefined
+  shared: (() => readonly V2Event[]) | undefined
 }): Promise<void> => {
-  const { ctx, resources, threadId, projectDirectory } = args
+  const { ctx, resources, projectDirectory, trace, shared } = args
   const entries: Entry[] = resources.map((resource) => ({
     resource,
-    watch: resource.watch?.(projectDirectory),
-    watchId: watchIdOf({ name: resource.name, threadId }),
+    watch: watchOf({ resource, directory: projectDirectory }),
   }))
-  const watchIds = entries.flatMap((entry) => (entry.watch === undefined ? [] : [entry.watchId]))
+  const watchIds = [
+    ...new Set(entries.flatMap((entry) => (entry.watch === undefined ? [] : [entry.watch.id]))),
+  ]
   const [status, versions] = await Promise.all([
-    statusOf({ ctx, watchIds }),
-    versionsOf({ ctx, needed: resources.some((resource) => resource.cloud !== undefined) }),
+    spanWith(trace, { name: ESpan.ResourceStatus, run: () => statusOf({ ctx, watchIds }) }),
+    spanWith(trace, {
+      name: ESpan.ResourceVersions,
+      run: () =>
+        versionsOf({ ctx, needed: resources.some((resource) => resource.cloud !== undefined) }),
+    }),
   ])
   const candidates = staleOf({
     entries,
@@ -206,15 +170,49 @@ const refresh = async (args: {
     versions,
     directory: projectDirectory,
   })
+  const sharedEvents = shared?.() ?? []
 
+  const adopted: Appended[] = []
   const prepared: Prepared[] = []
+  const armed = new Set<string>()
   for (const candidate of candidates) {
-    const latest = latestResourceOf({ events: ctx.events(), resource: candidate.resource.name })
-    const directoryChanged =
-      latest === undefined || !latest.fingerprint.endsWith(`:${projectDirectory}`)
+    const known = resourceFingerprintOf({
+      instance: status.instance,
+      seq: candidate.seq,
+      cloud: candidate.cloud,
+      directory: projectDirectory,
+    })
+    const snapshot =
+      shared === undefined
+        ? undefined
+        : sharedValueOf({
+            resource: candidate.resource,
+            events: sharedEvents,
+            fingerprint: known,
+            live: candidate.watch === undefined || candidate.seq !== undefined,
+          })
+    if (snapshot !== undefined) {
+      adopted.push(
+        ...draftsOf({
+          resource: candidate.resource,
+          ctx,
+          value: snapshot.value,
+          fingerprint: known,
+        }),
+      )
+      continue
+    }
     let seq = candidate.seq
-    if (candidate.watch !== undefined && (seq === undefined || directoryChanged)) {
-      await armOf({ ctx, watchId: candidate.watchId, watch: candidate.watch })
+    if (candidate.watch !== undefined && seq === undefined) {
+      const watch = candidate.watch
+      if (!armed.has(watch.id)) {
+        await spanWith(trace, {
+          name: ESpan.ResourceArm,
+          fields: { resource: candidate.resource.name },
+          run: () => armOf({ ctx, watchId: watch.id, watch: watch.spec }),
+        })
+        armed.add(watch.id)
+      }
       seq = 0
     }
     prepared.push({
@@ -237,18 +235,28 @@ const refresh = async (args: {
   const loading = prepared
     .filter((entry) => entry.resource.background !== true)
     .map((entry) =>
-      loadedDraftsOf({
-        resource: entry.resource,
-        ctx,
-        directory: projectDirectory,
-        fingerprint: entry.fingerprint,
+      spanWith(trace, {
+        name: ESpan.ResourceLoad,
+        fields: { resource: entry.resource.name },
+        run: () =>
+          loadedDraftsOf({
+            resource: entry.resource,
+            ctx,
+            directory: projectDirectory,
+            fingerprint: entry.fingerprint,
+          }),
       }).catch((failure: unknown) => {
         ctx.log(`plugin resource ${entry.resource.name} could not load: ${messageOf(failure)}`)
         return [] as Appended[]
       }),
     )
-  const drafts = (await Promise.all(loading)).flat()
-  if (drafts.length > 0) await ctx.append(drafts)
+  const drafts = [...adopted, ...(await Promise.all(loading)).flat()]
+  if (drafts.length === 0) return
+  await spanWith(trace, {
+    name: ESpan.ResourceAppend,
+    fields: { drafts: drafts.length },
+    run: () => ctx.append(drafts),
+  })
 }
 
 const startInBackground = (args: { ctx: Ctx; entry: Prepared; directory: string }): void => {
@@ -271,15 +279,18 @@ const startInBackground = (args: { ctx: Ctx; entry: Prepared; directory: string 
 export const pluginResourcesHook = (args: {
   ctx: Ctx
   resources: readonly PodResource<unknown>[]
+  trace?: TracePort | undefined
+  shared?: (() => readonly V2Event[]) | undefined
 }): RegisteredHook<BeforeTurn> => ({
   name: 'plugin-resources',
   order: { stage: EStage.Guard, nudge: 0 },
-  run: async ({ threadId, projectDirectory }) => {
+  run: async ({ projectDirectory }) => {
     await refresh({
       ctx: args.ctx,
       resources: args.resources,
-      threadId,
       projectDirectory,
+      trace: args.trace,
+      shared: args.shared,
     })
     return {}
   },

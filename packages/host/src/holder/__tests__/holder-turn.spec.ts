@@ -52,7 +52,9 @@ describe('SessionHolder turn', () => {
       ['turn-ended'],
     ])
 
-    const log = (await fullLog(rig)).filter((event) => event.type !== 'workspace-prepared')
+    const log = (await fullLog(rig)).filter(
+      (event) => event.type !== 'workspace-prepared' && event.type !== 'workspace-attempt-started',
+    )
     const types = log.map((event) => event.type)
     expect(types.slice(0, 4)).toEqual([
       'turn-started',
