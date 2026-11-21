@@ -10,12 +10,12 @@ import {
 } from '@dltech/atlas-plugin-sdk'
 
 import { withMemoryIndex } from '../index-block'
-import { markStale, type MemoryPodState } from '../state'
+import { emptyMemoryState, markStale, type MemoryPodState } from '../state'
 import { fakeMemory, rig } from './support'
 
 const assembled: Assembled = { system: [{ text: 'You are Atlas.' }], messages: [] }
 
-const state = (): MemoryPodState => ({ text: null, loading: null, failed: false, stale: false })
+const state = (): MemoryPodState => emptyMemoryState()
 
 const ctxWith = (memory: PodMemory): Pick<PluginPodContext, 'control'> => ({
   control: {

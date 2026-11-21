@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
-import { MAX_INDEX_LINES, renderMemoryIndex, type MemoryIndexLine } from '../index-render'
+import {
+  fairIndexShares,
+  MAX_INDEX_LINES,
+  renderMemoryIndex,
+  type MemoryIndexLine,
+} from '../index-render'
 
 const linesOf = (args: { prefix: string; count: number }): MemoryIndexLine[] =>
   Array.from({ length: args.count }, (_, index) => ({
@@ -63,31 +68,57 @@ describe('renderMemoryIndex', () => {
     expect(text).not.toContain('more memories')
   })
 
-  it('fills the cap with global lines first, then project, and says how many were cut', () => {
+  it('gives each scope a fair share so global cannot starve project', () => {
     const text = renderMemoryIndex({
-      global: linesOf({ prefix: 'g', count: 150 }),
-      project: { key: 'o/r', entries: linesOf({ prefix: 'p', count: 80 }) },
+      global: linesOf({ prefix: 'g', count: 300 }),
+      project: { key: 'o/r', entries: linesOf({ prefix: 'p', count: 200 }) },
     })
 
     const entries = text.split('\n').filter((line) => line.startsWith('- '))
     expect(entries).toHaveLength(MAX_INDEX_LINES)
-    expect(text).toContain('- g-149 — claim 149')
-    expect(text).toContain('- p-49 — claim 49')
-    expect(text).not.toContain('- p-50 ')
+    expect(entries.filter((line) => line.startsWith('- p-'))).toHaveLength(125)
+    expect(entries.filter((line) => line.startsWith('- g-'))).toHaveLength(125)
     expect(
       text.endsWith(
-        '> 30 more memories are not listed. Consolidate: merge overlapping memories and delete dead ones.',
+        '> 250 more memories are not listed. Consolidate: merge overlapping memories and delete dead ones.',
       ),
     ).toBe(true)
   })
 
-  it('drops all project lines when global alone fills the cap', () => {
+  it('keeps every project line when a large global scope fills the rest', () => {
     const text = renderMemoryIndex({
-      global: linesOf({ prefix: 'g', count: 205 }),
+      global: linesOf({ prefix: 'g', count: 300 }),
       project: { key: 'o/r', entries: linesOf({ prefix: 'p', count: 3 }) },
     })
 
-    expect(text).toContain('### Project o/r\n(none yet)')
-    expect(text).toContain('> 8 more memories are not listed.')
+    expect(text).toContain('### Project o/r\n- p-0 — claim 0\n- p-1 — claim 1\n- p-2 — claim 2')
+    expect(text).toContain('> 53 more memories are not listed.')
+  })
+})
+
+describe('fairIndexShares', () => {
+  it.each([
+    [
+      { global: 10, project: 20 },
+      { global: 10, project: 20 },
+    ],
+    [
+      { global: 300, project: 10 },
+      { global: 240, project: 10 },
+    ],
+    [
+      { global: 10, project: 300 },
+      { global: 10, project: 240 },
+    ],
+    [
+      { global: 300, project: 300 },
+      { global: 125, project: 125 },
+    ],
+    [
+      { global: 120, project: 130 },
+      { global: 120, project: 130 },
+    ],
+  ])('splits %o as %o', (counts, shares) => {
+    expect(fairIndexShares({ ...counts, cap: 250 })).toEqual(shares)
   })
 })

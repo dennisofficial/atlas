@@ -3,6 +3,7 @@ import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
 import { addressOf } from './address'
 import { addressLabelOf, memoryRefusal, scopeLabelOf } from './outcome'
+import { reconcileNoticeAfterChange } from './reconcile'
 import { markStale, type MemoryPodState } from './state'
 
 import type { MemoryAddressInput } from './read'
@@ -17,6 +18,7 @@ export const deleteMemory = async (args: {
     if (!deleted)
       return { ok: false, reason: `there is no ${addressLabelOf(addressOf(args.input))}` }
     markStale(args.state)
+    await reconcileNoticeAfterChange({ ctx: args.ctx, state: args.state, mayFire: false })
     return {
       ok: true,
       output: { scope: args.input.scope, name: args.input.name },

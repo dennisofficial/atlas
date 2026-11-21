@@ -11,6 +11,7 @@ import {
   EMemoryType,
   MAX_MEMORY_BODY_CHARS,
   MAX_MEMORY_DESCRIPTION_CHARS,
+  MEMORY_INDEX_DESCRIPTION_CHARS,
   MEMORY_NAME_PATTERN,
 } from '@dltech/atlas-core'
 import { z } from 'zod'
@@ -64,8 +65,8 @@ const description = [
   'Memory is named entries stored in Atlas Cloud.',
   'scope is global or project. global covers every project and holds what stays true when the repository changes. project covers this repository and every clone of it.',
   'name is lowercase words joined by hyphens, at most 100 characters, and states the claim, like bun-deflate-is-raw-not-zlib.',
-  `action write needs scope, name, description, type and body. It saves a memory, or replaces the one with this name in this scope. type is user, feedback, project or reference. description is one line of at most ${MAX_MEMORY_DESCRIPTION_CHARS} characters, which the index shows. body puts the fact first, then Why and How to apply, in at most ${MAX_MEMORY_BODY_CHARS} characters.`,
-  'action read needs scope and name, and returns the body and the revision.',
+  `action write needs scope, name, description, type and body. It saves a memory, or replaces the one with this name in this scope. type is user, feedback, project or reference. description is one line and one claim of at most ${MEMORY_INDEX_DESCRIPTION_CHARS} characters, which the index shows. body puts the fact first, then Why and How to apply, in at most ${MAX_MEMORY_BODY_CHARS} characters.`,
+  'action read needs scope and name, and returns the body, the revision and the date of the last update.',
   'action edit needs scope, name, old, new and revision. old must occur exactly once. revision is the one read reported. An edit is refused when the memory changed since; read it again.',
   'action delete needs scope and name, and removes a memory that turned out wrong.',
 ].join(' ')

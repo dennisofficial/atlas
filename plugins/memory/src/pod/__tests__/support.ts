@@ -1,4 +1,4 @@
-import { toThreadId } from '@dltech/atlas-core'
+import { toThreadId, type V2Event } from '@dltech/atlas-core'
 import {
   type MemoryKind,
   type MemoryScope,
@@ -90,6 +90,7 @@ export const fakeMemory = (args: { project?: string | null } = {}) => {
 }
 
 export const rig = (memory: PodMemory = fakeMemory().port) => {
+  const log: V2Event[] = []
   const ctx: PluginPodContext = {
     sessionId: 's1',
     resources: EMPTY_POD_RESOURCES,
@@ -106,9 +107,13 @@ export const rig = (memory: PodMemory = fakeMemory().port) => {
       },
       memory,
     },
-    append: async () => undefined,
+    append: async (drafts) => {
+      for (const body of drafts) {
+        log.push({ ...body, id: `e${log.length + 1}`, seq: log.length + 1 } as unknown as V2Event)
+      }
+    },
     notify: async () => undefined,
-    events: () => [],
+    events: () => log,
     call: async () => {
       throw new Error('this rig calls no daemon')
     },
@@ -116,7 +121,7 @@ export const rig = (memory: PodMemory = fakeMemory().port) => {
     onDaemonEvent: () => () => undefined,
     log: () => undefined,
   }
-  return { ctx }
+  return { ctx, log }
 }
 
 export const invoke = async (args: { ctx: PluginPodContext; name: string; input: unknown }) => {

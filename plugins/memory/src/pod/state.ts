@@ -1,7 +1,8 @@
-import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
+import type { MemorySnapshot, PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
 export type MemoryPodState = {
   text: string | null
+  snapshot: MemorySnapshot | null
   loading: Promise<void> | null
   failed: boolean
   stale: boolean
@@ -9,10 +10,18 @@ export type MemoryPodState = {
 
 const states = new WeakMap<PluginPodContext, MemoryPodState>()
 
+export const emptyMemoryState = (): MemoryPodState => ({
+  text: null,
+  snapshot: null,
+  loading: null,
+  failed: false,
+  stale: false,
+})
+
 export const stateFor = (ctx: PluginPodContext): MemoryPodState => {
   const kept = states.get(ctx)
   if (kept !== undefined) return kept
-  const state: MemoryPodState = { text: null, loading: null, failed: false, stale: false }
+  const state = emptyMemoryState()
   states.set(ctx, state)
   return state
 }

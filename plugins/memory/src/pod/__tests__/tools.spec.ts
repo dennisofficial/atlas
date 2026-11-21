@@ -21,14 +21,15 @@ describe('the memory tool', () => {
     expect(tools.map((tool) => tool.name)).toEqual(['memory'])
   })
 
-  it('write saves it and marks the index stale', async () => {
+  it('write saves it and reloads the index', async () => {
     const memory = fakeMemory()
     const { ctx } = rig(memory.port)
     const outcome = await invoke({ ctx, name: 'memory', input: { action: 'write', ...saved } })
     expect(outcome.ok).toBe(true)
     expect(memory.rows.get('global:dennis-prefers-bun')?.revision).toBe(1)
     expect(textOf(outcome)).toBe('Remembered dennis-prefers-bun (global, revision 1).')
-    expect(stateFor(ctx).stale).toBe(true)
+    expect(memory.calls).toEqual(['list'])
+    expect(stateFor(ctx).text).toContain('- dennis-prefers-bun — The workspace runs on Bun')
   })
 
   it('write reports a replacement as a new revision', async () => {
@@ -114,7 +115,7 @@ describe('the memory tool', () => {
     expect(refused.ok).toBe(false)
   })
 
-  it('takes a body of up to 20000 characters and a description of up to 300', async () => {
+  it('takes a body of up to 20000 characters and a description of up to 200', async () => {
     const { ctx } = rig(fakeMemory().port)
     const outcome = await invoke({
       ctx,
@@ -124,7 +125,7 @@ describe('the memory tool', () => {
         ...saved,
         scope: 'project',
         body: 'x'.repeat(20_000),
-        description: 'd'.repeat(300),
+        description: 'd'.repeat(200),
       },
     })
     expect(outcome.ok).toBe(true)

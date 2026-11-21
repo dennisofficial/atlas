@@ -1,4 +1,4 @@
-import { MAX_INDEX_LINES } from './index-render'
+import { MEMORY_INDEX_DESCRIPTION_CHARS } from './index-pressure'
 
 const opening: readonly string[] = [
   'You keep a memory across sessions: named entries stored in Atlas Cloud, reached only through the memory tools.',
@@ -29,9 +29,9 @@ const notWorthSaving: readonly string[] = [
 const howToSave: readonly string[] = [
   '## How to save one',
   '',
-  'Use `memory` with `action: write` and give it a name that states the claim, such as `bun-deflate-is-raw-not-zlib`, not `note-3`. Give it a specific one-line description and a type. Start the body with the fact. Follow it with **Why:** and **How to apply:**. Writing an existing name replaces that memory.',
+  `Use \`memory\` with \`action: write\` and give it a name that states the claim, such as \`bun-deflate-is-raw-not-zlib\`, not \`note-3\`. Give it a specific one-line description of at most ${MEMORY_INDEX_DESCRIPTION_CHARS} characters, one claim only, and a type. Start the body with the fact. Follow it with **Why:** and **How to apply:**. Writing an existing name replaces that memory.`,
   '',
-  `The name is the memory's identity. Rewrite the memory that already makes the claim instead of adding a second. \`action: delete\` the ones that turned out wrong. \`action: read\` loads a body. \`action: edit\` takes \`old\` and \`new\` plus the revision you read, and fails if the memory changed since then. Read it again. The index lists at most ${MAX_INDEX_LINES} entries. Near that bound, consolidate rather than adding more.`,
+  `The name is the memory's identity. Rewrite the memory that already makes the claim instead of adding a second. \`action: delete\` the ones that turned out wrong. \`action: read\` loads a body. \`action: edit\` takes \`old\` and \`new\` plus the revision you read, and fails if the memory changed since then. Read it again. A write tells you when the index grows too large. Then reconcile it as the notice says.`,
 ]
 
 const beforeRecommending: readonly string[] = [

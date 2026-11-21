@@ -1,5 +1,6 @@
 export * from './compose-pod'
 export * from './event-registry'
+export * from './latch'
 export * from './mcp-proxy'
 export * from './plugin'
 export * from './resources'
