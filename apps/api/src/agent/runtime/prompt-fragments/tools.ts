@@ -1,5 +1,7 @@
 import { PromptFragment } from '@dltech/atlas-core'
 
+import { pathEnvironmentNote } from '../../agent-tools/file-text'
+
 export class PreferDedicatedToolsFragment extends PromptFragment {
   readonly id = 'tools.prefer-dedicated'
 
@@ -16,5 +18,13 @@ export class ParallelToolCallsFragment extends PromptFragment {
 
   text(): string {
     return 'Batch independent read-only tool calls in the same response.'
+  }
+}
+
+export class PathEnvironmentFragment extends PromptFragment {
+  readonly id = 'tools.path-environment'
+
+  text(): string {
+    return pathEnvironmentNote
   }
 }

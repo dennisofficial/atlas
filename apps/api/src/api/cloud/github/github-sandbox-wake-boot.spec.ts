@@ -1,3 +1,5 @@
+import { ESpan } from '@dltech/atlas-observability'
+import { RecordingTracer } from '@dltech/atlas-observability/testing'
 import type { Sandbox } from '@vercel/sandbox'
 import type { ServeInstaller, ServeLauncher, VercelSdk } from '@dltech/atlas-wire'
 import { describe, expect, it, vi } from 'bun:test'
@@ -74,6 +76,26 @@ describe('VercelSandboxWakeBoot', () => {
     expect(launch.mock.calls[0]?.[0]).not.toHaveProperty('sandboxSessionId')
     expect(onFreshSandbox).not.toHaveBeenCalled()
     expect(deleted).toEqual([])
+  })
+
+  it('nests the sandbox and the agent phase under the provision trace it is given', async () => {
+    const { boot, args } = harness({ created: true })
+    const trace = new RecordingTracer()
+
+    await trace.span({
+      name: ESpan.PodProvision,
+      root: true,
+      run: () => boot.boot({ ...args, trace }),
+    })
+
+    expect(trace.spans.map((span) => span.name)).toEqual([
+      ESpan.PodProvision,
+      ESpan.PodProvisionSandbox,
+      ESpan.PodProvisionAgent,
+    ])
+    expect(trace.spans[1]?.parent?.name).toBe(ESpan.PodProvision)
+    expect(trace.spans[2]?.parent?.name).toBe(ESpan.PodProvision)
+    expect(trace.spans[1]?.fields).toMatchObject({ threadId: 'thr-1' })
   })
 
   it('asks Vercel for the requested size and leaves it unset when none is given', async () => {

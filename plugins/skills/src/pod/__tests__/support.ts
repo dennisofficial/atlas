@@ -149,6 +149,7 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
     append: async (drafts) => {
       for (const draft of drafts) events.push(draft as unknown as V2Event)
     },
+    notify: async () => undefined,
     events: () => events,
     call,
     onDaemonEvent: (listener) => {

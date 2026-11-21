@@ -1,10 +1,13 @@
 import {
   ESetupPhase,
   EWorkspaceStep,
+  INBOX_KIND_EVENT,
+  inboxEventPayloadOf,
   EWorkspaceStepState,
   setupFinishedText,
   setupStartedText,
   setupInFlightOf,
+  withoutRepeatedContext,
   workspaceStepsOf,
   type EventDraft,
   type RunId,
@@ -201,18 +204,19 @@ export class HeldPrepare {
     await this.steps
     // a replayed lifecycle, or an end an earlier host already recorded, is reported once
     if (!this.args.abandoned() && !setupNoticesOf(target.record).has(ESetupPhase.Finished)) {
-      await target.record
-        .append({
-          threadId: target.threadId,
-          runId: this.args.deps.ids.nextRunId(),
-          drafts: [
-            {
+      await this.args.deps.plane
+        .post({
+          sessionId: this.args.deps.sessionId,
+          kind: INBOX_KIND_EVENT,
+          payload: inboxEventPayloadOf({
+            event: {
               type: 'sandbox-setup-reported',
               text: finished.text,
               failed: finished.failed,
               phase: ESetupPhase.Finished,
             },
-          ],
+            clientId: `sandbox-setup-finished:${this.args.deps.sessionId}`,
+          }),
         })
         .catch(appendFailureReporter(this.args.deps, 'recording the end of the setup'))
     }
@@ -257,7 +261,10 @@ export class HeldPrepare {
       return
     }
     const warnings = result.warnings ?? []
-    const notices = (result.notices ?? []).map(bootDraftOf)
+    const notices = withoutRepeatedContext({
+      events: await args.record.composedEvents({ threadId: args.threadId }),
+      drafts: (result.notices ?? []).map(bootDraftOf),
+    })
     const drafts: AppendBody[] = [...started, ...baseFactDraftsOf(result.bases), ...notices]
     if (warnings.length > 0) {
       drafts.push({

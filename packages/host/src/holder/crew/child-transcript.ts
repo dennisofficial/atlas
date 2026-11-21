@@ -16,7 +16,13 @@ import type { HeldSessionDeps } from '../held-session-deps'
 import type { RoleModelChoice, SessionRuntime } from '../ports'
 import type { SessionRecord } from '../record/record-adapter'
 import { worktreeDraftOf, type Progress } from './child-progress'
-import { appendOnParent, wakeParent, type ChildParent } from './child-reports'
+import {
+  appendOnParent,
+  endingKeyOf,
+  postNotice,
+  reportKeyOf,
+  type ChildParent,
+} from './child-reports'
 import { modelFellBackDraft } from './model-fell-back'
 
 type ChildFallback = {
@@ -34,11 +40,10 @@ export type ChildTranscriptArgs = {
   agentId: ThreadId
   agentType: string
   intent: string
+  lastSeq(): number
 }
 
 export class ChildTranscript {
-  private woke = false
-
   constructor(private readonly args: ChildTranscriptArgs) {}
 
   get parent(): ChildParent {
@@ -85,19 +90,22 @@ export class ChildTranscript {
   }
 
   async reported(args: { kind: EReportKind; text: string }): Promise<void> {
-    await this.append([
-      {
-        type: 'agent-reported',
-        agentId: this.args.agentId,
-        agentType: this.args.agentType,
-        intent: this.args.intent,
-        prose: args.text,
-        kind: args.kind,
-      },
-    ])
-    if (!reportWakesParent(args.kind)) return
-    await wakeParent(this.parent)
-    this.woke = true
+    const event: EventDraft = {
+      type: 'agent-reported',
+      agentId: this.args.agentId,
+      agentType: this.args.agentType,
+      intent: this.args.intent,
+      prose: args.text,
+      kind: args.kind,
+    }
+    if (!reportWakesParent(args.kind)) {
+      await this.append([event])
+      return
+    }
+    await postNotice(this.parent, {
+      event,
+      key: reportKeyOf({ agentId: this.args.agentId, seq: this.args.lastSeq() }),
+    })
   }
 
   async ended(args: {
@@ -106,8 +114,8 @@ export class ChildTranscript {
     failure: string | undefined
     killedBy: EKilledBy | undefined
   }): Promise<void> {
-    await this.append([
-      {
+    await postNotice(this.parent, {
+      event: {
         type: 'agent-ended',
         agentId: this.args.agentId,
         agentType: this.args.agentType,
@@ -119,9 +127,8 @@ export class ChildTranscript {
         ...(args.killedBy === undefined ? {} : { killedBy: args.killedBy }),
         ...(args.failure === undefined ? {} : { failureCause: args.failure }),
       },
-    ])
-    if (this.woke) return
-    await wakeParent(this.parent)
+      key: endingKeyOf({ agentId: this.args.agentId, seq: this.args.lastSeq() }),
+    })
   }
 
   private unavailableDrafts(): readonly EventDraft[] {

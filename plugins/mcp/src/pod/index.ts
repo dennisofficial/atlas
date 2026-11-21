@@ -8,20 +8,17 @@ import {
 } from '@dltech/atlas-plugin-sdk'
 
 import { mcpCommand, mcpRosterOfEvents, type LoadedMcpEntry } from '../core'
-import { McpClients } from './clients'
 import type { McpConfigPort } from './config'
-import { mcpDeferredListingHook } from './deferred-listing'
 import { mcpReport } from './report'
 import { mcpConfigResource, mcpToolsResource, resolveMcpServers } from './resources'
 import { rowsOf } from './roster'
 import { McpSignInBook } from './sign-in-book'
 import { McpSignInTool } from './sign-in'
-import { CONNECT_TIMEOUT_MS } from './clients'
+import { CONNECT_TIMEOUT_MS, McpClients } from './clients'
 import { bridgeToolsOf } from './tools-of'
 import { McpTransportError } from './types'
 
 export { MCP_NAME_PREFIX, McpBridgeTool } from './bridge-tool'
-export { mcpDeferredListingHook } from './deferred-listing'
 export { mcpInstructionsDraftsOf } from './instructions'
 export { mcpReport, mcpReportRow, NO_MCP_SERVERS } from './report'
 export { mcpRosterDraftsOf, rowsOf } from './roster'
@@ -112,11 +109,6 @@ export const mcpPod = (args: McpPodArgs): PodSlot => {
         new McpSignInTool({ ctx, resource: config, signIns }),
       ]
     },
-    hooks: (ctx) => ({
-      beforeStep: [
-        mcpDeferredListingHook({ snapshot: () => readResource({ ctx, resource: tools }) }),
-      ],
-    }),
     commands: new Map([[mcpCommand.inboxKind, report]]),
   }
 }

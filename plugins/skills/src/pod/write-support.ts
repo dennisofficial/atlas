@@ -13,23 +13,47 @@ export enum ESkillWriteLayer {
   Repo = 'repo',
 }
 
-const installSchema = z.strictObject({
-  layer: z.enum(ESkillWriteLayer),
-  name: z.string().min(1),
-  body: z.string().min(1),
-})
+export enum ESkillAction {
+  Install = 'install',
+  Edit = 'edit',
+  Delete = 'delete',
+}
 
-const editSchema = z.strictObject({
-  name: z.string().min(1),
-  layer: z.enum(ESkillWriteLayer),
+export type SkillNameInput = { name: string; layer: ESkillWriteLayer }
+
+export type SkillInstallInput = SkillNameInput & { body: string }
+
+export type SkillEditInput = SkillInstallInput & {
+  path?: string | undefined
+  baseRevision?: number | undefined
+}
+
+const baseSchema = z.strictObject({
+  action: z.enum(ESkillAction),
+  layer: z.enum(ESkillWriteLayer).optional(),
+  name: z.string().min(1).optional(),
+  body: z.string().min(1).optional(),
   path: z.string().min(1).optional(),
-  body: z.string().min(1),
   baseRevision: z.number().int().min(0).optional(),
 })
 
-const deleteSchema = z.strictObject({
-  name: z.string().min(1),
-  layer: z.enum(ESkillWriteLayer),
+type SkillManageInput = z.output<typeof baseSchema>
+
+const REQUIRED: Readonly<Record<ESkillAction, readonly (keyof SkillManageInput)[]>> = {
+  [ESkillAction.Install]: ['layer', 'name', 'body'],
+  [ESkillAction.Edit]: ['layer', 'name', 'body'],
+  [ESkillAction.Delete]: ['layer', 'name'],
+}
+
+export const skillManageSchema = baseSchema.superRefine((input, context) => {
+  for (const field of REQUIRED[input.action]) {
+    if (input[field] !== undefined) continue
+    context.addIssue({
+      code: 'custom',
+      path: [field],
+      message: `action ${input.action} needs ${field}`,
+    })
+  }
 })
 
 const NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/
@@ -103,15 +127,10 @@ const refused = (result: CloudSkillRefusal, name: string): ToolOutcome => {
   }
 }
 
+export const requiredRefusal = (action: ESkillAction): ToolOutcome => ({
+  ok: false,
+  reason: `action ${action} needs ${REQUIRED[action].join(', ')}`,
+})
+
 const cloudMissing = (): ToolOutcome => ({ ok: false, reason: NO_CLOUD })
-export {
-  cloudMissing,
-  deleteSchema,
-  descriptionOf,
-  editSchema,
-  installSchema,
-  nameProblem,
-  pathProblem,
-  refused,
-  scopeOf,
-}
+export { cloudMissing, descriptionOf, nameProblem, pathProblem, refused, scopeOf }

@@ -12,6 +12,7 @@ const ORDER = { stage: EStage.Observe, nudge: 0 }
 export const repoAgentListingHook = (args: { ctx: Ctx }): RegisteredHook<BeforeStep> => ({
   name: 'crew-repo-agent-listing',
   order: ORDER,
+  awaited: true,
   run: async ({ assembled }) => {
     const found = repoAgentTypesOf(args.ctx)
     if (found === undefined) return assembled

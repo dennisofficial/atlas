@@ -161,6 +161,7 @@ export const rig = (
       },
     },
     append: async () => undefined,
+    notify: async () => undefined,
     events: () => args.events ?? [],
     call: async () => {
       throw new Error('this rig calls no daemon')

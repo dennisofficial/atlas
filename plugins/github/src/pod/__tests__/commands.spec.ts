@@ -97,7 +97,7 @@ describe('set-subscription-status command', () => {
       context({ subscriptionId: 'ghost', status: ESubscriptionStatus.Paused }),
     )
     expect(outcome).toMatchObject({ kind: 'refused' })
-    expect(outcome.kind === 'refused' ? outcome.reason : '').toContain('list_subscriptions')
+    expect(outcome.kind === 'refused' ? outcome.reason : '').toContain('action list')
     expect(log).toHaveLength(1)
   })
 })

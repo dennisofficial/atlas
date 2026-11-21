@@ -20,8 +20,13 @@ describe('the same three tools over the clone', () => {
     const installed = await invoke({
       ctx,
       cloud,
-      name: 'skill_install',
-      input: { layer: 'repo', name: 'gamma', body: skillDir('gamma', 'gamma body') },
+      name: 'skill_manage',
+      input: {
+        action: 'install',
+        layer: 'repo',
+        name: 'gamma',
+        body: skillDir('gamma', 'gamma body'),
+      },
     })
     expect(textOf(installed)).toContain('/repo/.agents/skills/gamma/SKILL.md')
     expect(nodes['/repo/.agents/skills/gamma/SKILL.md']).toEqual({
@@ -40,8 +45,8 @@ describe('the same three tools over the clone', () => {
     const edited = await invoke({
       ctx,
       cloud,
-      name: 'skill_edit',
-      input: { name: 'alpha', layer: 'repo', body: skillDir('alpha', 'changed') },
+      name: 'skill_manage',
+      input: { action: 'edit', name: 'alpha', layer: 'repo', body: skillDir('alpha', 'changed') },
     })
     expect(edited.ok).toBe(true)
     expect(nodes['/repo/.agents/skills/alpha/SKILL.md']).toEqual({
@@ -52,8 +57,8 @@ describe('the same three tools over the clone', () => {
     const deleted = await invoke({
       ctx,
       cloud,
-      name: 'skill_delete',
-      input: { name: 'alpha', layer: 'repo' },
+      name: 'skill_manage',
+      input: { action: 'delete', name: 'alpha', layer: 'repo' },
     })
     expect(deleted.ok).toBe(true)
     expect(nodes['/repo/.agents/skills/alpha']).toBeUndefined()
@@ -68,8 +73,13 @@ describe('the same three tools over the clone', () => {
     const installed = await invoke({
       ctx,
       cloud,
-      name: 'skill_install',
-      input: { layer: 'repo', name: 'gamma', body: skillDir('gamma', 'gamma body') },
+      name: 'skill_manage',
+      input: {
+        action: 'install',
+        layer: 'repo',
+        name: 'gamma',
+        body: skillDir('gamma', 'gamma body'),
+      },
     })
     expect(installed.ok).toBe(true)
 
@@ -83,11 +93,11 @@ describe('the same three tools over the clone', () => {
     const outcome = await invoke({
       ctx,
       cloud: fakeCloud({ entries: [] }),
-      name: 'skill_edit',
-      input: { name: 'delta', layer: 'repo', body: skillDir('delta', 'x') },
+      name: 'skill_manage',
+      input: { action: 'edit', name: 'delta', layer: 'repo', body: skillDir('delta', 'x') },
     })
     expect(outcome.ok).toBe(false)
-    expect(textOf(outcome)).toContain('call skill_install with layer repo')
+    expect(textOf(outcome)).toContain('call skill_manage with action install and layer repo')
   })
 
   it('refuses a repo write in a session with no clone, and says to use another layer', async () => {
@@ -97,8 +107,8 @@ describe('the same three tools over the clone', () => {
     const installed = await invoke({
       ctx,
       cloud,
-      name: 'skill_install',
-      input: { layer: 'repo', name: 'gamma', body: skillDir('gamma', 'x') },
+      name: 'skill_manage',
+      input: { action: 'install', layer: 'repo', name: 'gamma', body: skillDir('gamma', 'x') },
     })
     expect(installed.ok).toBe(false)
     expect(textOf(installed)).toContain('has no clone')
@@ -106,8 +116,8 @@ describe('the same three tools over the clone', () => {
     const deleted = await invoke({
       ctx,
       cloud,
-      name: 'skill_delete',
-      input: { name: 'alpha', layer: 'repo' },
+      name: 'skill_manage',
+      input: { action: 'delete', name: 'alpha', layer: 'repo' },
     })
     expect(deleted.ok).toBe(false)
     expect(textOf(deleted)).toContain('has no clone')
@@ -135,8 +145,14 @@ describe('a write aimed at a layer the name does not live in', () => {
       ctx,
       cloud: cloudAlpha,
       writes,
-      name: 'skill_edit',
-      input: { name: 'alpha', layer: 'user', baseRevision: 1, body: skillDir('alpha', 'changed') },
+      name: 'skill_manage',
+      input: {
+        action: 'edit',
+        name: 'alpha',
+        layer: 'user',
+        baseRevision: 1,
+        body: skillDir('alpha', 'changed'),
+      },
     })
 
     expect(outcome.ok).toBe(false)
@@ -153,8 +169,13 @@ describe('a write aimed at a layer the name does not live in', () => {
       ctx,
       cloud: cloudAlpha,
       writes,
-      name: 'skill_install',
-      input: { name: 'alpha', layer: 'user', body: skillDir('alpha', 'another') },
+      name: 'skill_manage',
+      input: {
+        action: 'install',
+        name: 'alpha',
+        layer: 'user',
+        body: skillDir('alpha', 'another'),
+      },
     })
 
     expect(outcome.ok).toBe(false)
@@ -169,8 +190,8 @@ describe('a write aimed at a layer the name does not live in', () => {
       ctx,
       cloud: cloudAlpha,
       writes,
-      name: 'skill_delete',
-      input: { name: 'alpha', layer: 'user' },
+      name: 'skill_manage',
+      input: { action: 'delete', name: 'alpha', layer: 'user' },
     })
 
     expect(outcome.ok).toBe(false)
@@ -187,8 +208,14 @@ describe('a write aimed at a layer the name does not live in', () => {
       ctx,
       cloud,
       writes: fakeWrites(),
-      name: 'skill_edit',
-      input: { name: 'beta', layer: 'user', baseRevision: 1, body: skillDir('beta', 'changed') },
+      name: 'skill_manage',
+      input: {
+        action: 'edit',
+        name: 'beta',
+        layer: 'user',
+        baseRevision: 1,
+        body: skillDir('beta', 'changed'),
+      },
     })
 
     expect(outcome.ok).toBe(false)
@@ -206,8 +233,13 @@ describe('a write aimed at a layer the name does not live in', () => {
       ctx,
       cloud,
       writes: fakeWrites(),
-      name: 'skill_install',
-      input: { name: 'beta', layer: 'repo', body: skillDir('beta', 'repo beta') },
+      name: 'skill_manage',
+      input: {
+        action: 'install',
+        name: 'beta',
+        layer: 'repo',
+        body: skillDir('beta', 'repo beta'),
+      },
     })
 
     expect(outcome.ok).toBe(true)

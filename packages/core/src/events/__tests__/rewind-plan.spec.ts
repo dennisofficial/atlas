@@ -25,6 +25,13 @@ const startedService = (callId: string): EventDraft => ({
   input: { command: 'npm run dev', description: 'dev server' },
   ordinal: 0,
 })
+const startedServiceTool = (callId: string): EventDraft => ({
+  type: 'tool-called',
+  callId: toCallId(callId),
+  name: 'service',
+  input: { action: 'start', command: 'npm run dev', description: 'dev server' },
+  ordinal: 0,
+})
 const serviceRunning = ({
   callId,
   serviceId,
@@ -186,6 +193,49 @@ describe('rewindPlan for services', () => {
       },
     ])
     expect(plan.reappend).toEqual([])
+  })
+
+  it('cuts a service started through the service tool with action start', () => {
+    const events = eventsFrom([
+      said('msg_1'),
+      startedServiceTool('call-1'),
+      serviceRunning({ callId: 'call-1', serviceId: 'svc_1' }),
+      said('msg_2'),
+      serviceEnded('svc_1'),
+    ])
+
+    const plan = rewindPlan({ events, toSeq: 1 })
+
+    expect(plan.cuts).toEqual([
+      {
+        kind: 'service',
+        seq: 3,
+        serviceId: 'svc_1',
+        command: 'npm run dev',
+        description: 'dev server',
+      },
+    ])
+    expect(plan.reappend).toEqual([])
+  })
+
+  it('leaves a service alone when the service tool holds another action', () => {
+    const events = eventsFrom([
+      said('msg_1'),
+      {
+        type: 'tool-called',
+        callId: toCallId('call-1'),
+        name: 'service',
+        input: { action: 'list' },
+        ordinal: 0,
+      },
+      serviceRunning({ callId: 'call-1', serviceId: 'svc_1' }),
+      said('msg_2'),
+      serviceEnded('svc_1'),
+    ])
+
+    const plan = rewindPlan({ events, toSeq: 1 })
+
+    expect(plan.cuts).toEqual([])
   })
 
   it('keeps the ending of a service that started below the cut', () => {

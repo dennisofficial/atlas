@@ -1,4 +1,5 @@
 import {
+  canonicalEvent,
   chainHash,
   type BlobPayload,
   type RunId,
@@ -38,6 +39,8 @@ type AppendRetryArgs = {
   onLeaseLost?: ((error: LeaseLostError) => void) | undefined
 }
 
+export type DaemonAck = { callId: string; name: string; runId: RunId }
+
 export class AppendRetry {
   private wakeSleep: (() => void) | undefined
 
@@ -52,7 +55,7 @@ export class AppendRetry {
     events: V2Event[]
     blobs: readonly BlobPayload[]
     resolved: ReadonlyMap<string, unknown>
-    ackDaemon?: { callId: string; name: string; runId: RunId } | undefined
+    ackDaemons?: readonly DaemonAck[] | undefined
   }): Promise<void> {
     let delayMs = 100
     let failingSince: number | undefined
@@ -71,9 +74,9 @@ export class AppendRetry {
         resolved: args.resolved,
       })
       if (outcome === 'committed') {
-        if (args.ackDaemon !== undefined) {
+        for (const ack of args.ackDaemons ?? []) {
           await ackDaemonScope({
-            ...args.ackDaemon,
+            ...ack,
             daemonTools: this.args.daemonTools,
             remoteCalls: this.args.remoteCalls,
             ...(this.args.log === undefined ? {} : { log: this.args.log }),
@@ -113,7 +116,11 @@ export class AppendRetry {
       return 'retry'
     }
     if (outcome.ok) {
-      this.args.cache.extend({ events: args.events, head: outcome.head, resolved: args.resolved })
+      this.args.cache.extend({
+        events: args.events.map((event) => canonicalEvent(event)),
+        head: outcome.head,
+        resolved: args.resolved,
+      })
       return 'committed'
     }
     const refusal = outcome.refusal

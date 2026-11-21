@@ -1,4 +1,10 @@
-import { toCallId, toThreadId, type Assembled, type V2Event } from '@dltech/atlas-core'
+import {
+  toCallId,
+  toThreadId,
+  type Assembled,
+  type EventDraft,
+  type V2Event,
+} from '@dltech/atlas-core'
 import {
   EMPTY_CREW,
   EMPTY_MCP_CONTROL,
@@ -25,6 +31,8 @@ const ok = (op: string, value: unknown): CallResult =>
 
 const failed = (op: string, message: string): CallResult =>
   ({ status: ECallStatus.Failed, op, error: { code: 'not-found', message } }) as CallResult
+
+export const THREAD = toThreadId('t1')
 
 export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
   const calls: CallOp[] = []
@@ -89,6 +97,7 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
     append: async (drafts) => {
       for (const draft of drafts) events.push(draft as unknown as V2Event)
     },
+    notify: async () => undefined,
     events: () => events,
     call,
     onDaemonEvent: (_listener: (frame: DaemonEventFrame) => void) => () => undefined,
@@ -96,7 +105,7 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
     log: () => undefined,
   }
 
-  return { ctx, calls, nodes }
+  return { ctx, calls, nodes, events }
 }
 
 const hooksOf = (args: { ctx: PluginPodContext; options: InstructionsPodOptions }) =>
@@ -157,6 +166,9 @@ export const touch = async (args: {
     },
   ])
 }
+
+export const nestedKeysOf = (drafts: readonly EventDraft[]): readonly string[] =>
+  drafts.flatMap((draft) => (draft.type === 'context-loaded' ? [draft.key] : []))
 
 export const personal = (text: string | null): InstructionsPodOptions => ({
   personal: async () => text,

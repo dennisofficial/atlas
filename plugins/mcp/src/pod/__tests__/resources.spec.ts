@@ -1,7 +1,7 @@
 import { EDefinitionOrigin, EToolEffect } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
-import { MCP_CONFIG, MCP_TOOLS, loadConfig, loadTools } from './support'
+import { MCP_TOOLS, loadConfig, loadTools } from './support'
 import type { McpCloudRow } from '../../core'
 import { mcpPod } from '..'
 import { McpBridgeTool } from '../bridge-tool'
@@ -174,19 +174,6 @@ describe('a fresh context with a recorded snapshot', () => {
     expect(outcome?.ok).toBe(true)
     expect(daemon.spawns.map((spawn) => spawn.serverId)).toEqual(['s1.docs'])
     expect(tool?.effect).toBe(EToolEffect.Read)
-  })
-
-  it('renders the deferred listing from the snapshot', async () => {
-    const daemon = fakeDaemon()
-    const { ctx } = recordingRig(daemon, {
-      records: [snapshotEventOf({ resource: MCP_TOOLS, value: recorded })],
-    })
-    const pod = mcpPod({ config: { read: async () => ({ rows: rowsOf(), rejections: [] }) } })
-    const hook = pod.hooks?.(ctx).beforeStep?.[0]
-    const next = await hook?.run({ assembled: { system: [], messages: [] }, trace: [] })
-
-    expect(next?.system[0]?.text).toContain('docs: mcp__docs__search')
-    expect(daemon.spawns).toEqual([])
   })
 })
 

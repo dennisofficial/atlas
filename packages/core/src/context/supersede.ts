@@ -1,3 +1,4 @@
+import type { EventDraft } from '../events/body'
 import type { Event, EventOfType } from '../events/envelope'
 
 type ContextLoaded = EventOfType<'context-loaded'>
@@ -18,6 +19,33 @@ export function currentContextEvents(events: readonly Event[]): readonly Context
   }
 
   return current
+}
+
+export function withoutRepeatedContext(args: {
+  events: readonly Event[]
+  drafts: readonly EventDraft[]
+}): readonly EventDraft[] {
+  const recorded = new Map<string, Map<string, string>>()
+  for (const event of currentContextEvents(args.events)) {
+    const byKey = recorded.get(event.slot) ?? new Map<string, string>()
+    byKey.set(event.key, event.content)
+    recorded.set(event.slot, byKey)
+  }
+
+  const kept: EventDraft[] = []
+  for (const draft of args.drafts) {
+    if (draft.type !== 'context-loaded') {
+      kept.push(draft)
+      continue
+    }
+    const byKey = recorded.get(draft.slot) ?? new Map<string, string>()
+    recorded.set(draft.slot, byKey)
+    if (byKey.get(draft.key) === draft.content) continue
+    byKey.set(draft.key, draft.content)
+    kept.push(draft)
+  }
+
+  return kept
 }
 
 export function supersededContextIds(events: readonly Event[]): ReadonlySet<string> {

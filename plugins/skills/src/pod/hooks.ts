@@ -16,6 +16,7 @@ export const skillsListingHook = (args: {
 }): RegisteredHook<BeforeStep> => ({
   name: 'skills-listing',
   order: ORDER,
+  awaited: true,
   run: async ({ assembled }) => {
     const catalogue = await catalogueOf({ ctx: args.ctx, options: args.options })
     if (catalogue === null) return assembled

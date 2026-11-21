@@ -7,8 +7,8 @@ import { liveSteps } from '@dltech/atlas-client/transcript'
 
 import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 
-import { headerStateOf, spawnerIdOf } from './data/header-model'
-import { bootViewOf, isPodFailed, isPodLiveEligible } from './data/boot-view'
+import { spawnerIdOf } from './data/header-model'
+import { bootViewOf, isPodLiveEligible } from './data/boot-view'
 import { clearedDraftOf } from './data/composer-handoff'
 import { notConfiguredOf } from './data/not-configured'
 import { restoredDraftOf } from './data/take-back'
@@ -52,7 +52,7 @@ import { ThreadPreviewsProvider } from './panel/thread-previews-provider'
 import { useRightPanel } from './panel/use-right-panel'
 import { useThreadPanelValue } from './panel/use-thread-panel-value'
 import { isBootStarting } from './sandbox-boot-props'
-import { ThreadHeader } from './thread-header'
+import { ThreadViewHeader } from './thread-view-header'
 import { ThreadLayout } from './thread-layout'
 import { ThreadLoadError } from './thread-load-error'
 import { ThreadMissing } from './thread-missing'
@@ -182,6 +182,8 @@ export function ThreadView({ threadId }: { threadId: string }) {
     attachments: images,
     send,
     sendLive,
+    podState: pod?.state ?? 'none',
+    turnWasRunning: working,
     setDraft,
     onSent: (sent) => {
       drafts.handleSent(sent.text)
@@ -217,22 +219,17 @@ export function ThreadView({ threadId }: { threadId: string }) {
   }
 
   const starting = isBootStarting(boot)
-  const failed = isPodFailed(pod)
 
   const header = (
-    <ThreadHeader
-      title={naming.headerTitle}
-      naming={naming.naming}
-      state={headerStateOf({
-        failed,
-        working,
-        waitingOnOperator: source.waitingOnOperator,
-      })}
-      parent={spawnerId === undefined ? undefined : { id: spawnerId, title: parentTitle }}
+    <ThreadViewHeader
+      naming={naming}
+      pod={pod}
+      working={working}
+      waitingOnOperator={source.waitingOnOperator}
+      spawnerId={spawnerId}
+      parentTitle={parentTitle}
       local={backend.local}
-      panelCollapsed={rightPanel.collapsed}
-      onOpenPanel={rightPanel.openPanel}
-      onTogglePanel={rightPanel.toggleCollapsed}
+      rightPanel={rightPanel}
     />
   )
 

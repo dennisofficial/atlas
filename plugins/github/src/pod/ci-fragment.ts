@@ -7,7 +7,7 @@ export class CiFeedFragment extends PromptFragment {
     return [
       "Atlas detects this project directory's pull request and shows it to the operator, but nothing",
       'about it reaches you unless a thread subscribes. After you push a branch with a pull request or',
-      'open one, call `subscribe` with provider `github.pull-request`. A blank target is this project',
+      'open one, call `subscription` with action subscribe and provider `github.pull-request`. A blank target is this project',
       'directory\u2019s pull request. If a blank target finds no pull request yet, pass `#<number>` from',
       '`gh pr create`\u2019s output. Then end your turn with no tool call and let the notice wake you. A',
       'subscription delivers comments, change requests, CI failure, and merge or close at once.',
@@ -20,7 +20,7 @@ export class CiFeedFragment extends PromptFragment {
       "`events: ['state']` so comments and CI do not wake you. A notice that needs no action gets a",
       'one-line reply.',
       'A workflow run that is not a pull request\u2019s \u2014 a deploy, a nightly, a run on main \u2014 is its own',
-      'subscription. Call `subscribe` with provider `github.workflow-run`. Pass a blank target for this',
+      'subscription. Call `subscription` with action subscribe and provider `github.workflow-run`. Pass a blank target for this',
       'push\u2019s run, `#<run id>`, `owner/repo#<run id>` or a run URL for one specific run. The',
       'subscription ends when that run finishes. Use `<workflow>@<branch>` for every completed run of',
       'that workflow on that branch. Use the workflow file or name that `gh run list` shows. A notice',

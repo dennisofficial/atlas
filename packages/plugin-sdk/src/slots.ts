@@ -2,10 +2,12 @@ import type { HookChainArgs } from '@dltech/atlas-agent'
 import type { TranscriptEntryFold } from '@dltech/atlas-client/transcript'
 import type { CommandHandler, ControlCommandHandler } from '@dltech/atlas-commands'
 import type {
+  EventBody,
   EventDraft,
   PluginEventBody,
   PromptFragment,
   RecordBody,
+  SubscriptionEndRules,
   ToolDefinition,
   V2Event,
 } from '@dltech/atlas-core'
@@ -91,6 +93,8 @@ export type PluginPodContext = {
   worktrees: PodWorktrees
   resources: PodResources
   append(drafts: readonly (EventDraft | RecordBody | PluginEventBody)[]): Promise<void>
+  /** Delivers a turn-taking notice through the agent's queue. */
+  notify(event: EventBody, options: { key: string }): Promise<void>
   events(): readonly V2Event[]
   call(
     op: CallOp,
@@ -106,6 +110,7 @@ export type PodSlot = {
   childDeny?: readonly string[] | undefined
   tools?(ctx: PluginPodContext): readonly ToolDefinition[]
   hooks?(ctx: PluginPodContext): HookChainArgs
+  subscriptionEnds?: SubscriptionEndRules | undefined
   prompts: readonly PromptFragment[]
   commands: ReadonlyMap<string, CommandHandler<unknown>>
   resources?: readonly PodResource<unknown>[] | undefined

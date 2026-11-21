@@ -28,6 +28,7 @@ export class ListSessionsTool extends SchemaTool<typeof inputSchema> {
   readonly effect = EToolEffect.Read
   override readonly isConcurrencySafe = (): boolean => true
   readonly inputSchema = inputSchema
+  readonly deferred = true
   override readonly pathFields = TAKES_NO_PATHS
 
   constructor(private readonly ctx: PluginPodContext) {

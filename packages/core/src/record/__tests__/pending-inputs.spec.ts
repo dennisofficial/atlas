@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
-import { toCallId } from '../../events/ids'
+import { EAgentStatus } from '../../agents/status'
+import { toCallId, toThreadId } from '../../events/ids'
 import { chainEvents } from '../chain-events'
 import type { V2Body, V2Event } from '../event'
 import { EInputKind, commandInputKind } from '../input-events'
@@ -8,6 +9,7 @@ import {
   EMPTY_PENDING,
   pendingInputsOf,
   pendingMessagesOf,
+  pendingNoticesOf,
   queuedSinceOf,
   stepPending,
 } from '../pending-inputs'
@@ -155,6 +157,39 @@ describe('stepPending', () => {
   it('ignores events that are not about inputs', () => {
     const [plain] = mint({ count: 1 })
     expect(stepPending(EMPTY_PENDING, plain as V2Event)).toBe(EMPTY_PENDING)
+  })
+})
+
+describe('pendingNoticesOf', () => {
+  const ended = {
+    type: 'agent-ended' as const,
+    agentId: toThreadId('agent-1'),
+    agentType: 'general-purpose',
+    intent: 'look around',
+    status: EAgentStatus.Finished,
+    prose: 'done',
+    turns: 1,
+    toolCalls: 3,
+  }
+
+  it('keeps the event a notice arrived with and leaves it out of the messages', () => {
+    const state = pendingInputsOf(
+      log([{ type: 'input-posted', inboxId: 11, kind: 'event', postedAt: NOW, event: ended }]),
+    )
+    expect(pendingMessagesOf(state)).toEqual([])
+    expect(pendingNoticesOf(state)).toMatchObject([
+      { inboxId: 11, kind: 'event', event: { type: 'agent-ended', agentId: 'agent-1' } },
+    ])
+  })
+
+  it('drops a notice once the drain consumes it', () => {
+    const state = pendingInputsOf(
+      log([
+        { type: 'input-posted', inboxId: 12, kind: 'event', postedAt: NOW, event: ended },
+        { type: 'input-consumed', inboxId: 12 },
+      ]),
+    )
+    expect(pendingNoticesOf(state)).toEqual([])
   })
 })
 

@@ -21,6 +21,7 @@ export const instructionsBlocks = (args: {
 }): RegisteredHook<BeforeStep> => ({
   name: 'instructions-blocks',
   order: ORDER,
+  awaited: true,
   run: async ({ assembled }) => {
     const snapshot = readResource({ ctx: args.ctx, resource: instructionsResource(args.options) })
     if (snapshot === undefined) return assembled

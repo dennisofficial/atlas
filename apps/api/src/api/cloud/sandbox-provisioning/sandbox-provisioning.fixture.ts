@@ -1,5 +1,6 @@
 import { EBootStep, EBootStepState, ERuntimePhase, type VercelSdk } from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
+import type { TracePort } from '@dltech/atlas-observability'
 import { seedThread as seedThreadRow, seedUser } from '@dltech/atlas-db/testing'
 import { vi } from 'bun:test'
 import type { Sandbox } from '@vercel/sandbox'
@@ -268,10 +269,12 @@ export function runDepsWith(
     sdk?: VercelSdk
     log?: (line: string) => void
     telemetryPepper?: string
+    trace?: TracePort
   } = {},
 ) {
   return {
     telemetryPepper: args.telemetryPepper,
+    ...(args.trace === undefined ? {} : { trace: args.trace }),
     cipher,
     sdk: args.sdk ?? fakeSdk().sdk,
     scoped: args.scoped ?? fakeScoped(),

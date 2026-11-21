@@ -9,11 +9,18 @@ export const INBOX_EVENT_TYPES: ReadonlySet<string> = new Set([
   'pr-event',
   'run-event',
   'agent-reported',
+  'agent-ended',
+  'background-shell-ended',
+  'service-ended',
+  'sandbox-setup-reported',
 ])
 
 export type InboxEvent = { event: EventBody }
 
-const inboxEventPayloadSchema = z.strictObject({ event: z.unknown() })
+const inboxEventPayloadSchema = z.strictObject({
+  event: z.unknown(),
+  clientId: z.string().min(1).optional(),
+})
 
 export type InboxEventRead = { ok: true; event: EventBody } | { ok: false; reason: string }
 
@@ -39,8 +46,13 @@ export const inboxEventOf = (payload: string): InboxEventRead => {
   return { ok: true, event: body.data }
 }
 
-export const inboxEventPayloadOf = (event: EventBody): string => {
-  const read = inboxEventOf(JSON.stringify({ event }))
+export const inboxEventPayloadOf = (args: {
+  event: EventBody
+  clientId?: string | undefined
+}): string => {
+  const { event, clientId } = args
+  const payload = { event, ...(clientId === undefined ? {} : { clientId }) }
+  const read = inboxEventOf(JSON.stringify(payload))
   if (!read.ok) throw new Error(read.reason)
-  return JSON.stringify({ event: read.event })
+  return JSON.stringify({ event: read.event, ...(clientId === undefined ? {} : { clientId }) })
 }

@@ -15,27 +15,12 @@ const inputSchema = z.strictObject({
 })
 
 const description = [
-  'Leave the worktree the session is in.',
-  "The session returns to the repository's main checkout.",
-  'keep leaves the worktree and its branch on disk, so the session can come back to them.',
-  'remove deletes both.',
-  'remove only touches a worktree that Atlas created with enter_worktree name or agent_spawn worktree.',
-  'A worktree that the session entered by path, or was launched inside, already existed.',
-  'Atlas leaves it on disk whichever action is asked for.',
-  'The operator removes it.',
-  'Call it only when the operator asks to leave.',
-  'Never call it on your own initiative.',
-  'Never call it to tidy up after finishing the work.',
-  'A remove is refused in three cases.',
-  'The worktree holds uncommitted changes.',
-  'The worktree holds commits that are on neither its upstream nor the ref the branch was cut from.',
-  'Atlas cannot tell what is not pushed.',
-  'The refusal names what would be lost.',
-  'discardChanges forces that removal.',
-  'Ask the operator before you set it.',
-  'Do not decide for the operator.',
-  'When the session is not in a worktree, this does nothing and says so.',
-  'Every file stays where it is.',
+  "Leave the worktree the session is in. The session returns to the repository's main checkout.",
+  'keep leaves the worktree and its branch on disk, so the session can come back to them. remove deletes both.',
+  'remove only touches a worktree that Atlas created with enter_worktree name or agent_spawn worktree. A worktree the session entered by path, or was launched inside, already existed: Atlas leaves it on disk whichever action is asked for, and the operator removes it.',
+  'Call it only when the operator asks to leave. Never call it on your own initiative, and never to tidy up after finishing the work.',
+  'A remove is refused in three cases: the worktree holds uncommitted changes, or commits that are on neither its upstream nor the ref the branch was cut from, and Atlas cannot tell what is not pushed. The refusal names what would be lost. discardChanges forces that removal. Ask the operator before you set it, and do not decide for the operator.',
+  'When the session is not in a worktree, this does nothing and says so. Every file stays where it is.',
 ].join(' ')
 
 const lostFilesOf = (state: WorktreeState): string => {

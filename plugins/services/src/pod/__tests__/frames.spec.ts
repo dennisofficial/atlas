@@ -40,8 +40,8 @@ const started = async (harness: ReturnType<typeof rig>, command = 'listen') =>
   serviceIdOf(
     await invoke({
       ctx: harness.ctx,
-      name: 'service_start',
-      input: { description: 'web', command },
+      name: 'service',
+      input: { action: 'start', description: 'web', command },
     }),
   )
 
@@ -66,23 +66,30 @@ describe('recordServiceFrame', () => {
     const frame = endedFrame({ serviceId, exitCode: 3 })
     await record(harness, frame)
     await record(harness, frame)
-    expect(harness.log.filter((event) => event.type === 'service-ended')).toMatchObject([
+    expect(harness.notices).toMatchObject([
       {
-        serviceId,
-        command: 'listen',
-        description: 'web',
-        status: EServiceStatus.Exited,
-        exitCode: 3,
-        tail: '',
+        event: {
+          serviceId,
+          command: 'listen',
+          description: 'web',
+          status: EServiceStatus.Exited,
+          exitCode: 3,
+          tail: '',
+        },
+        key: `service-ended:${serviceId}`,
       },
     ])
+    expect(harness.log.filter((event) => event.type === 'service-ended')).toHaveLength(0)
   })
 
   it('reads the tail from services.log', async () => {
     const harness = rig()
     const serviceId = await started(harness, 'echo hello; listen')
     await record(harness, endedFrame({ serviceId }))
-    expect(harness.log.at(-1)).toMatchObject({ type: 'service-ended', tail: 'hello\n' })
+    expect(harness.notices.at(-1)?.event).toMatchObject({
+      type: 'service-ended',
+      tail: 'hello\n',
+    })
   })
 
   it('keeps an empty tail when services.log fails', async () => {
@@ -91,7 +98,7 @@ describe('recordServiceFrame', () => {
       { type: 'service-started', serviceId: 'svc-x', command: 'listen', description: 'web' },
     ])
     await record(harness, endedFrame({ serviceId: 'svc-x' }))
-    expect(harness.log.at(-1)).toMatchObject({ type: 'service-ended', tail: '' })
+    expect(harness.notices.at(-1)?.event).toMatchObject({ type: 'service-ended', tail: '' })
   })
 
   it('maps a stop to a kill, and an out-of-memory kill to a failed exit', async () => {
@@ -101,7 +108,7 @@ describe('recordServiceFrame', () => {
       harness,
       endedFrame({ serviceId, status: EServiceRunStatus.Stopped, exitCode: null }),
     )
-    expect(harness.log.at(-1)).toMatchObject({
+    expect(harness.notices.at(-1)?.event).toMatchObject({
       status: EServiceStatus.Killed,
       killedBy: EKilledBy.Unrecorded,
     })
@@ -111,7 +118,7 @@ describe('recordServiceFrame', () => {
       other,
       endedFrame({ serviceId: oomId, status: EServiceRunStatus.OomKilled, exitCode: 137 }),
     )
-    const event = other.log.at(-1)
+    const event = other.notices.at(-1)?.event
     expect(event).toMatchObject({ status: EServiceStatus.Exited, exitCode: 137 })
     expect(event && 'killedBy' in event).toBe(false)
   })
@@ -129,14 +136,14 @@ describe('recordServiceFrame', () => {
       },
     ])
     await record(harness, endedFrame({ serviceId }))
-    expect(harness.log.filter((event) => event.type === 'service-ended')).toHaveLength(1)
+    expect(harness.notices).toHaveLength(0)
   })
 
   it('records an ending whose start the journal never held, from the daemon', async () => {
     const harness = rig()
     await record(harness, endedFrame({ serviceId: 'svc-lost', command: 'serve --port 80' }))
-    expect(harness.log).toMatchObject([
-      { type: 'service-ended', serviceId: 'svc-lost', command: 'serve --port 80' },
+    expect(harness.notices).toMatchObject([
+      { event: { type: 'service-ended', serviceId: 'svc-lost', command: 'serve --port 80' } },
     ])
   })
 
@@ -147,8 +154,8 @@ describe('recordServiceFrame', () => {
     })
     const serviceId = await started(harness, 'echo done')
     await settle()
-    expect(harness.log.map((event) => event.type)).toEqual(['service-started', 'service-ended'])
-    expect(harness.log[1]).toMatchObject({
+    expect(harness.log.map((event) => event.type)).toEqual(['service-started'])
+    expect(harness.notices[0]?.event).toMatchObject({
       serviceId,
       tail: 'done\n',
       status: EServiceStatus.Exited,

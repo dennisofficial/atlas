@@ -63,8 +63,8 @@ describe('the skills resource', () => {
     const outcome = await invoke({
       ctx: daemon.ctx,
       cloud,
-      name: 'skill_install',
-      input: { layer: 'repo', name: 'beta', body: skillDir('beta', 'body') },
+      name: 'skill_manage',
+      input: { action: 'install', layer: 'repo', name: 'beta', body: skillDir('beta', 'body') },
     })
     expect(outcome.ok).toBe(true)
 

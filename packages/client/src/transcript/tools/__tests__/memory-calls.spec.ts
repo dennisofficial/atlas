@@ -69,6 +69,37 @@ describe('changing a memory', () => {
   })
 })
 
+describe('the memory tool with an action', () => {
+  it('recalls on read', () => {
+    const reading = memoryOf({
+      name: 'memory',
+      input: { action: 'read', name: 'bun-deflate' },
+      output: { lines: 3 },
+    })
+
+    expect(reading.gather).toBe(EGather.Recall)
+    expect(reading.line).toBe('bun-deflate')
+    expect(reading.note).toBe('3 l')
+  })
+
+  it('renders write, edit and delete as the old names did', () => {
+    expect(memoryOf({ name: 'memory', input: { action: 'write' } }).line).toBe(
+      'Remembered bun-deflate',
+    )
+    expect(memoryOf({ name: 'memory', input: { action: 'edit' } }).line).toBe('Revised bun-deflate')
+    const forgotten = memoryOf({ name: 'memory', input: { action: 'delete' } })
+
+    expect(forgotten.line).toBe('Forgot bun-deflate')
+    expect(forgotten.note).toBe('forgotten')
+  })
+
+  it('falls back to the generic row when the action is unknown', () => {
+    const reading = memoryOf({ name: 'memory', input: { action: 'archive' } })
+
+    expect(reading.line).toBe('Called memory')
+  })
+})
+
 describe('shell commands on a memory path', () => {
   it('are no longer treated as memory', () => {
     const reading = classify({

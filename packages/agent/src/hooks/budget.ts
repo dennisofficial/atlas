@@ -46,6 +46,7 @@ export async function withinBudget<T>(args: {
   run: () => Promise<T>
   fallback: (mishap: HookMishap) => T
   budgetMs?: number | undefined
+  awaited?: boolean | undefined
   onMishap?: OnHookMishap | undefined
 }): Promise<T> {
   const attempt = (async (): Promise<Settled<T>> => {
@@ -68,11 +69,14 @@ export async function withinBudget<T>(args: {
     }
   })()
 
-  const settled = await raceBudget({
-    label: args.label,
-    attempt,
-    budgetMs: args.budgetMs ?? HOOK_BUDGET_MS,
-  })
+  const settled =
+    args.awaited === true
+      ? await attempt
+      : await raceBudget({
+          label: args.label,
+          attempt,
+          budgetMs: args.budgetMs ?? HOOK_BUDGET_MS,
+        })
 
   if ('value' in settled) return settled.value
 

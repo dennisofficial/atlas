@@ -43,9 +43,9 @@ const inputSchema = z.strictObject({
 })
 
 const description = [
-  'Load a skill: a packaged set of instructions someone already wrote for one kind of work, which becomes your procedure for it.',
-  'Call this whenever a skill listed in your system prompt covers the task in front of you. Call it before you plan an approach of your own. The packaged instructions know things about this project directory that you cannot infer.',
-  'Pass name exactly as the listing spells it. Pass arguments only when the task has a subject that the skill should be pointed at. Most skills need none.',
+  'Load a skill: a packaged set of instructions for one kind of work, which becomes your procedure for it.',
+  'Call it whenever a skill listed in your system prompt covers the task in front of you, before you plan an approach of your own. The packaged instructions know things about this project directory that you cannot infer.',
+  'Pass name exactly as the listing spells it, and arguments only when the task has a subject the skill should be pointed at. Most skills need none.',
   'Pass path to read one file a skill bundles: the path is relative to the skill\u2019s own directory.',
 ].join(' ')
 

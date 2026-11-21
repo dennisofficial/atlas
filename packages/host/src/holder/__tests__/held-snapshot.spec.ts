@@ -4,6 +4,7 @@ import {
   chainEvents,
   EHeldAction,
   EInputConsumed,
+  ESetupPhase,
   EShellStatus,
   visibleLoopEvents,
   toRunId,
@@ -121,6 +122,33 @@ describe('readHeldAction after a consumed stop', () => {
     expect(await actionOf({ events: eventsOf([said('go'), stopped(), said('try again')]) })).toBe(
       EHeldAction.StartTurn,
     )
+  })
+})
+
+const noticePosted = (): V2Body => ({
+  type: 'input-posted',
+  inboxId: 7,
+  kind: 'event',
+  postedAt: '2026-11-12T03:00:00.000Z',
+  event: {
+    type: 'sandbox-setup-reported',
+    text: 'setup finished after 1.2s',
+    failed: false,
+    phase: ESetupPhase.Finished,
+  },
+})
+
+describe('readHeldAction over a notice the drain has not reached', () => {
+  it('starts a turn for a staged notice with no operator message', async () => {
+    expect(await actionOf({ events: eventsOf([noticePosted()]) })).toBe(EHeldAction.StartTurn)
+  })
+
+  it('does not start another turn for a notice the drain already consumed', async () => {
+    const events = eventsOf([
+      noticePosted(),
+      { type: 'input-consumed', inboxId: 7, consumed: EInputConsumed.Message },
+    ])
+    expect(await actionOf({ events })).toBe(EHeldAction.Wait)
   })
 })
 

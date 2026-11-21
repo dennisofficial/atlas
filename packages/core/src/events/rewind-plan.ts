@@ -53,7 +53,9 @@ export type RewindPlan = {
 }
 
 const isServiceStart = (event: Event): boolean =>
-  event.type === 'tool-called' && event.name === 'service_start'
+  event.type === 'tool-called' &&
+  (event.name === 'service_start' ||
+    (event.name === 'service' && recordOf(event.input)?.action === 'start'))
 
 const toNotice = (event: Event): RewoundNotice => {
   const { id, seq, threadId, runId, parentRunId, depth, at, ...draft } = event

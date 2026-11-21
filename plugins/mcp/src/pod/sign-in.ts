@@ -17,6 +17,7 @@ export class McpSignInTool extends SchemaTool<typeof signInSchema> {
   readonly name = 'operator_mcp_sign_in'
   readonly effect = EToolEffect.Write
   readonly inputSchema = signInSchema
+  readonly deferred = true
   override readonly pathFields = TOUCHES_PATHS_IT_CANNOT_NAME
   readonly description = [
     'Sign in to an MCP server that the roster shows as needs-auth. The result is a link the operator opens and approves in their browser, which creates the grant this session uses on the next turn.',

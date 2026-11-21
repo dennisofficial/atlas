@@ -7,6 +7,7 @@ import { activityOverrides } from '@/features/shell/activity-overrides'
 
 import { sameAttachments } from './composer-attachments'
 import type { Handoff } from './composer-handoff'
+import { promptLatency } from './prompt-latency'
 import { deliverMessage } from './send-message'
 import type { LiveSend } from './live-thread-view'
 import { useThreadBackend } from './use-thread-backend'
@@ -40,28 +41,33 @@ export function useSend() {
       text: string
       attachments?: Attachment[]
       liveSend: LiveSend
+      podState: string
+      turnWasRunning: boolean
     }): Promise<Handoff | null> => {
-      const attachments = args.attachments ?? []
+      const { podState, turnWasRunning, ...message } = args
+      const attachments = message.attachments ?? []
       const sendId =
         attempt.current !== null &&
         isRetryOf({
           previous: attempt.current,
-          text: args.text,
+          text: message.text,
           attachments,
         })
           ? attempt.current.sendId
           : crypto.randomUUID()
-      attempt.current = { text: args.text, attachments, sendId }
+      attempt.current = { text: message.text, attachments, sendId }
+      promptLatency.begin({ threadId: message.threadId, sendId, podState, turnWasRunning })
       setSending(true)
-      const optimistic = activityOverrides.markWorking(args.threadId)
+      const optimistic = activityOverrides.markWorking(message.threadId)
       try {
-        await deliverMessage({ ...args, sendId, post: backend.postMessage })
+        await deliverMessage({ ...message, sendId, post: backend.postMessage })
         attempt.current = null
-        return { text: args.text, sendId }
+        return { text: message.text, sendId }
       } catch (failure) {
+        promptLatency.drop({ threadId: message.threadId })
         if (optimistic !== undefined) {
           activityOverrides.revert({
-            threadId: args.threadId,
+            threadId: message.threadId,
             override: optimistic,
           })
         }

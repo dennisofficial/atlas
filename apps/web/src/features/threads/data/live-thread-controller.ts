@@ -22,6 +22,7 @@ import {
   type ServeChannel,
 } from './live-thread-view'
 import { EPodConnectOutcome, type PodConnectResult } from './pod-connect'
+import { promptLatency } from './prompt-latency'
 
 export type LiveChannelOptions = Pick<
   RemoteDeltaChannelOptions,
@@ -114,7 +115,10 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
     channel: () => channel,
     events: () => state.events,
     closed: () => stopped || fellBack || historyRefreshing,
-    onEvents: (events) => commit(settleInto({ ...state, events })),
+    onEvents: (events) => {
+      promptLatency.sawEvents({ threadId: args.threadId, events })
+      commit(settleInto({ ...state, events }))
+    },
     onFailure: fallBack,
   })
 
@@ -128,8 +132,12 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
 
   const handleSignal = (signal: ChannelSignal) => {
     if (signal.type === 'events-appended') eventReader.read()
-    if (signal.type === 'turn-working') update({ working: signal.working })
+    if (signal.type === 'turn-working') {
+      update({ working: signal.working })
+      if (signal.working) promptLatency.turnStarted({ threadId: args.threadId })
+    }
     if (isStepSignal(signal) && signalTransport.absorb(signal).opened) args.onStepOpened?.()
+    if (isStepSignal(signal)) promptLatency.sawSignal({ threadId: args.threadId, signal })
     commit(absorbInto({ state, signal }))
   }
 
@@ -165,6 +173,7 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
   }
 
   const open = (first: SandboxAttachment, seed: WireEvent[]) => {
+    promptLatency.sawEvents({ threadId: args.threadId, events: seed })
     update({ events: seed })
     const live = createRemoteDeltaChannel({
       ...args.channelOptions,
@@ -276,6 +285,7 @@ export function createLiveThreadController(args: LiveThreadControllerArgs) {
       return sent
     },
     stop: () => {
+      promptLatency.drop({ threadId: args.threadId })
       update({ channel: null, ...RELEASED_FIELDS })
       stopped = true
       signalTransport.dropAll()

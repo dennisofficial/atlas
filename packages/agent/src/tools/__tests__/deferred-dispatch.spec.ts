@@ -148,7 +148,7 @@ describe('call_tool to a deferred tool', () => {
     expect(error).toContain(TOOL_SEARCH_NAME)
   })
 
-  it('refuses a direct call to a deferred tool and points at call_tool', async () => {
+  it('runs a direct call to a deferred tool by its real name', async () => {
     const target = new DeferredTool('mcp__meetings__search')
     const dispatcher = new HookedToolDispatcher({
       registry: fakeToolRegistry([target]),
@@ -157,8 +157,8 @@ describe('call_tool to a deferred tool', () => {
 
     const drafts = await dispatcher.dispatch(argsOf({ query: 'weekly' }, 'mcp__meetings__search'))
 
-    expect(target.inputs).toEqual([])
-    const error = drafts[0]?.type === 'tool-result' ? drafts[0].error?.message : undefined
-    expect(error).toContain(CALL_TOOL_NAME)
+    expect(target.inputs).toEqual([{ query: 'weekly' }])
+    const result = drafts.find((draft) => draft.type === 'tool-result')
+    expect(result?.type === 'tool-result' ? result.error : 'missing').toBeUndefined()
   })
 })

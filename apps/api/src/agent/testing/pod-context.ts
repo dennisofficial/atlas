@@ -37,6 +37,7 @@ export const podContextOf = (sessionId: string): PluginPodContext => ({
   worktrees: EMPTY_WORKTREES,
   resources: EMPTY_POD_RESOURCES,
   append: async () => undefined,
+  notify: async () => undefined,
   events: () => [],
   call: async (op: CallOp): Promise<CallResult> =>
     ({

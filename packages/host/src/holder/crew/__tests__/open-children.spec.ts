@@ -75,6 +75,7 @@ const parentRecordOf = (
   const appends: V2Body[][] = []
   const record = {
     ownEvents: async () => [...events],
+    eventCache: () => ({ eventsAfter: () => [...events] }),
     append: async (args: { threadId: ThreadId; runId: RunId; drafts: readonly V2Body[] }) => {
       appends.push([...args.drafts])
       events.push(
@@ -96,12 +97,19 @@ const parentRecordOf = (
 const childrenOf = async (bodies: readonly V2Body[]) =>
   openChildrenOf((await parentRecordOf(bodies).record.ownEvents({ threadId: PARENT })) as Event[])
 
-const crewOf = (args: { record: SessionRecord; plane: undefined }): CrewRoom =>
+const crewOf = (args: { record: SessionRecord; plane: undefined; posted: string[] }): CrewRoom =>
   new CrewRoom({
     deps: {
       sessionId: 'session-1',
       ids: new SequentialIds(),
       timers: { now: () => 0 },
+      plane: {
+        post: async (message: { payload: string }) => {
+          args.posted.push(message.payload)
+        },
+        readInbox: async () => [],
+        readEvents: async () => ({ events: [{ seq: 41 }], next: undefined }),
+      },
     } as unknown as HeldSessionDeps,
     runtime: {
       choiceFor: () => RIG_MODEL_CHOICE,
@@ -164,25 +172,26 @@ describe('adopting the children a takeover finds open', () => {
 describe('a child whose thread cannot be read', () => {
   it('gets the lost ending instead of a resumed turn', async () => {
     const log = parentRecordOf([spawned({ agentId: FIRST })])
-    const crew = crewOf({ record: log.record, plane: undefined })
+    const posted: string[] = []
+    const crew = crewOf({ record: log.record, plane: undefined, posted })
 
     await crew.adoptAll(await childrenOf([spawned({ agentId: FIRST })]))
 
-    expect(log.appends).toEqual([
-      [
-        {
-          type: 'agent-ended',
-          agentId: FIRST,
-          agentType: 'builder',
-          intent: 'build it',
-          status: EAgentStatus.Stopped,
-          killedBy: EKilledBy.Unrecorded,
-          prose: '',
-          turns: 0,
-          toolCalls: 0,
-        },
-      ],
-    ])
+    expect(posted).toHaveLength(1)
+    const payload = JSON.parse(posted[0] ?? '{}')
+    expect(payload.clientId).toBe(`agent-ended:${FIRST}:41`)
+    expect(payload.event).toMatchObject({
+      type: 'agent-ended',
+      agentId: FIRST,
+      agentType: 'builder',
+      intent: 'build it',
+      status: EAgentStatus.Stopped,
+      killedBy: EKilledBy.Unrecorded,
+      prose: '',
+      turns: 0,
+      toolCalls: 0,
+    })
+    expect(log.appends).toEqual([])
     expect(crew.list()).toEqual([])
   })
 })

@@ -16,7 +16,7 @@ import { nullUnlessInterrupted } from './interrupted'
 import { writeFileAtomically } from './atomic-write'
 import { FileWriteGuardPort, SerializedWrites } from './write-guard'
 import { captureText, makeChange } from './capture-text'
-import { filePathSchema, pathEnvironmentNote, resolveToolPath, toLf } from './file-text'
+import { filePathSchema, resolveToolPath, toLf } from './file-text'
 import type { PathEnvironment } from '../runtime/session-paths'
 import { replaceInContent } from './replace-text'
 import { renderUnifiedDiff } from './unified-diff'
@@ -37,10 +37,9 @@ const inputSchema = z.strictObject({
 const description = [
   'Apply several edits to one file in a single call.',
   'A relative path resolves against the project directory.',
-  pathEnvironmentNote,
-  "Each edit follows the edit tool's rules. oldString must match the file exactly, including indentation. oldString must be unique unless that edit's replaceAll is true.",
-  'Edits apply in array order. Each edit applies against the result of the edits before it. The file is written once: if any edit fails, nothing is written.',
-  'Prefer this tool over consecutive edit calls when you change several places in the same file. To create a file, use write.',
+  "Each edit follows the edit tool's rules: oldString must match the file exactly, including indentation, and be unique unless that edit's replaceAll is true.",
+  'Edits apply in array order, each against the result of the edits before it. The file is written once: if any edit fails, nothing is written.',
+  'Prefer it over consecutive edit calls when you change several places in one file. To create a file, use write.',
 ].join(' ')
 
 export class MultiEditTool extends SchemaTool<typeof inputSchema> {

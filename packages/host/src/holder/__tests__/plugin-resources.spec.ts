@@ -72,6 +72,7 @@ const rig = (args: { resources: readonly PodResource<unknown>[] }): Rig => {
     append: async (drafts) => {
       for (const draft of drafts) events.push(stamp(draft, events.length + 1))
     },
+    notify: async () => undefined,
     live: () => undefined,
     onDaemonEvent: () => () => undefined,
     log: (message) => logs.push(message),

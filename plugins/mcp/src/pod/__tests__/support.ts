@@ -1,18 +1,3 @@
-import { toThreadId } from '@dltech/atlas-core'
-import {
-  EMPTY_CREW,
-  EMPTY_MCP_CONTROL,
-  EMPTY_SESSIONS,
-  EMPTY_WORKTREES,
-  MacOfflineError,
-  type PluginPodContext,
-  type PodMcpControl,
-  type PodMcpProxyChannel,
-  type PodMcpProxyMessage,
-  type PodMcpProxyTransport,
-  EMPTY_POD_RESOURCES,
-} from '@dltech/atlas-plugin-sdk'
-import { podControlStub } from '@dltech/atlas-plugin-sdk/testing'
 import {
   type CallResult,
   type DaemonEvent,
@@ -21,10 +6,6 @@ import {
   ECallStatus,
 } from '@dltech/atlas-protocol'
 
-import type { McpCloudRow } from '../../core'
-import { McpSignInBook } from '../sign-in-book'
-import { MCP_CONFIG, MCP_TOOLS, mcpConfigResource, mcpToolsResource } from '../resources'
-import type { McpConfigSnapshot, McpToolsSnapshot } from '../snapshot'
 import type { McpCallResult, McpToolInfo } from '../types'
 
 export type FakeBehaviour = {

@@ -44,6 +44,7 @@ const ctx: PluginPodContext = {
   crew: EMPTY_CREW,
   sessions: EMPTY_SESSIONS,
   worktrees: EMPTY_WORKTREES,
+  notify: async () => undefined,
   append: async () => undefined,
   events: () => [],
   call: unavailable,

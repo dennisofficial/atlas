@@ -181,7 +181,7 @@ export const changeSubscriptionStatus = async (args: {
   if (found === undefined) {
     return {
       ok: false,
-      error: `This session has no subscription "${args.subscriptionId}". list_subscriptions shows the ones it has.`,
+      error: `This session has no subscription "${args.subscriptionId}". subscription with action list shows the ones it has.`,
     }
   }
   if (found.status === args.status) return { ok: true, label: found.label, changed: false }
@@ -206,7 +206,7 @@ export const unsubscribeFrom = async (args: {
   if (found === undefined) {
     return {
       ok: false,
-      error: `This session has no subscription "${args.subscriptionId}". list_subscriptions shows the ones it has.`,
+      error: `This session has no subscription "${args.subscriptionId}". subscription with action list shows the ones it has.`,
     }
   }
   await args.ctx.append([

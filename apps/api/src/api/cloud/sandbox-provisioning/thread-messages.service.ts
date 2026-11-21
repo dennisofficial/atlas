@@ -1,4 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
+import type { ThreadId } from '@dltech/atlas-core'
+import { ESpan } from '@dltech/atlas-observability'
+import { serverAnalytics } from '../../../agent'
 import {
   EThreadMessageState,
   EThreadStreamFrame,
@@ -56,6 +59,17 @@ export class ThreadMessagesService {
   ) {}
 
   async send(args: SendArgs): Promise<ThreadMessageReply> {
+    return serverAnalytics()
+      .traceFor(args.userId)
+      .span({
+        name: ESpan.PromptSend,
+        root: true,
+        fields: { threadId: args.threadId as ThreadId },
+        run: () => this.sendStaged(args),
+      })
+  }
+
+  private async sendStaged(args: SendArgs): Promise<ThreadMessageReply> {
     const { userId, threadId } = args
     const thread = await ownedThread({ reader: db, userId, threadId })
     const session = await sessionOfThread({ reader: db, threadId })

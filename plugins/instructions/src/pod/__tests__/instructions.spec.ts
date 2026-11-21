@@ -97,6 +97,24 @@ describe('the instructions plugin', () => {
     ])
   })
 
+  it('renders the same blocks on a fresh host from the recorded snapshot', async () => {
+    const nodes = repo({
+      '/repo/AGENTS.md': file('root rules'),
+      '/repo/packages': { kind: 'dir' },
+      '/repo/packages/AGENTS.md': file('package rules'),
+    })
+    const options = personal('be brief')
+
+    const daemon = fakeDaemon(nodes)
+    const opening = await turn({ ctx: daemon.ctx, options, projectDirectory: '/repo' })
+
+    const fresh = fakeDaemon(nodes)
+    fresh.events.push(...daemon.events)
+    const resumed = await turn({ ctx: fresh.ctx, options, projectDirectory: '/repo' })
+
+    expect(resumed).toEqual(opening)
+  })
+
   it('does not repeat a nested file the root-to-directory descent already carries', async () => {
     const daemon = fakeDaemon(
       repo({

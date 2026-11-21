@@ -78,6 +78,7 @@ const rig = (sessions: PodSessions) => {
     resources: EMPTY_POD_RESOURCES,
     crew: EMPTY_CREW,
     worktrees: EMPTY_WORKTREES,
+    notify: async () => undefined,
     control: {
       settingsVersions: async () => UNVERSIONED_SETTINGS,
       exposePort: async () => {

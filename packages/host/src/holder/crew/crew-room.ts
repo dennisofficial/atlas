@@ -7,6 +7,7 @@ import type {
 } from '@dltech/atlas-plugin-sdk'
 
 import { ChildRun, type ChildRunArgs } from './child-run'
+import { endingKeyOf, postNotice, threadLastSeq } from './child-reports'
 import { settledChildOf, type OpenChild } from './open-children'
 
 export type CrewRoomArgs = Omit<ChildRunArgs, 'agentType' | 'intent'>
@@ -143,15 +144,16 @@ export class CrewRoom {
   }
 
   private async lose(child: OpenChild): Promise<void> {
-    await this.args.parentRecord.append({
-      threadId: this.args.parentThreadId,
-      runId: this.args.deps.ids.nextRunId(),
-      drafts: [
-        lostAgentEnding({
-          agent: child,
-          progress: { turns: 0, toolCalls: 0, prose: '' },
-        }),
-      ],
+    const seq = await threadLastSeq({
+      plane: this.args.deps.plane,
+      threadId: child.agentId,
+    }).catch(() => 0)
+    await postNotice(this.args, {
+      event: lostAgentEnding({
+        agent: child,
+        progress: { turns: 0, toolCalls: 0, prose: '' },
+      }),
+      key: endingKeyOf({ agentId: child.agentId, seq }),
     })
   }
 
