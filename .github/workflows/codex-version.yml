@@ -40,7 +40,7 @@ jobs:
             --branch "$branch" \
             --message "fix(harness): bump codex client version to $version" \
             -- "$pinned"
-          gh pr create \
+          gh pr create --head "$branch" --base main \
             --title "fix(harness): bump codex client version to $version" \
             --body "Automated bump of \`CODEX_VERSION\` to the latest \`openai/codex\` CLI release ($version). Queued for auto-merge; lands once ci is green."
           gh pr merge --squash --auto "$(gh pr list --head "$branch" --json number --jq '.[0].number')"
