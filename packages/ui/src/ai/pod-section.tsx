@@ -9,18 +9,21 @@ import { SeriesKey, MetricSignals } from './internal/pod-metrics-parts'
 import { PodSectionHeader } from './internal/pod-section-header'
 import { PodSizeControl } from './internal/pod-size-control'
 import { podMetricViewOf, ramPercentOf, type PodMetricsSample } from './pod-metrics-model'
+import type { PodShape, UnavailablePodShape } from './pod-shapes'
 import { canResize, EPodState } from './pod-status'
 
 export { EPodAction } from './internal/pod-action-confirm'
 export type { PodMetricsSample } from './pod-metrics-model'
+export type { PodShape, UnavailablePodShape } from './pod-shapes'
 
 export interface PodSectionProps {
+  defaultSizeMenuOpen?: boolean | undefined
   state: EPodState
-  vcpus: number
-  sizes: readonly number[]
-  maxVcpus: number
+  shape: PodShape
+  shapes: readonly PodShape[]
+  unavailable?: readonly UnavailablePodShape[] | undefined
   series: readonly PodMetricsSample[]
-  pendingVcpus?: number | undefined
+  pendingShape?: PodShape | undefined
   resizeError?: string | undefined
   throttled?: boolean | undefined
   oomKills?: number | undefined
@@ -28,7 +31,7 @@ export interface PodSectionProps {
   confirmAction?: EPodAction | undefined
   onStart?: (() => void) | undefined
   onStop?: (() => void) | undefined
-  onResize?: ((vcpus: number) => void) | undefined
+  onResize?: ((shape: PodShape) => void) | undefined
   onConfirm?: (() => void) | undefined
   onCancel?: (() => void) | undefined
 }
@@ -49,7 +52,11 @@ const QUIET_TEXT: Record<EPodState, string> = {
 }
 
 export function PodSection(props: PodSectionProps) {
-  const view = podMetricViewOf({ series: props.series, vcpus: props.vcpus })
+  const view = podMetricViewOf({
+    series: props.series,
+    vcpus: props.shape.vcpus,
+    ramLimitGb: props.shape.memoryGb,
+  })
   const running = props.state === EPodState.Running
   const data = props.series.map((sample, index) => ({
     index,
@@ -115,12 +122,15 @@ export function PodSection(props: PodSectionProps) {
         <MetricSignals throttled={props.throttled === true} oomKills={props.oomKills ?? 0} />
       </div>
       <PodSizeControl
-        vcpus={props.vcpus}
-        sizes={props.sizes}
-        maxVcpus={props.maxVcpus}
-        pendingVcpus={props.pendingVcpus}
+        shape={props.shape}
+        shapes={props.shapes}
+        unavailable={props.unavailable}
+        pendingShape={props.pendingShape}
         resizeError={props.resizeError}
-        disabled={!canResize(props.state) || props.stopping === true}
+        disabled={
+          !canResize(props.state) || props.stopping === true || props.pendingShape !== undefined
+        }
+        defaultOpen={props.defaultSizeMenuOpen === true}
         onResize={props.onResize}
       />
       {props.confirmAction === undefined ? null : (

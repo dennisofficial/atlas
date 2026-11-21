@@ -55,20 +55,22 @@ export function formatRam({ usedGb, limitGb }: { usedGb: number; limitGb: number
 export function podMetricViewOf({
   series,
   vcpus = DEFAULT_VCPUS,
+  ramLimitGb,
 }: {
   series: readonly PodMetricsSample[]
   vcpus?: number | undefined
+  ramLimitGb?: number | undefined
 }): PodMetricView {
   const current = latestOf(series)
-  const ramLimitGb = ramOf(vcpus)
+  const limitGb = ramLimitGb ?? ramOf(vcpus)
   return {
     vcpus,
     cpuPercent: current === null ? 0 : current.cpu,
     ramGb: current === null ? 0 : current.ramGb,
-    ramLimitGb,
-    ramPercent: current === null ? 0 : ramPercentOf({ sample: current, limitGb: ramLimitGb }),
+    ramLimitGb: limitGb,
+    ramPercent: current === null ? 0 : ramPercentOf({ sample: current, limitGb }),
     cpuLabel: current === null ? '—' : formatCpu(current.cpu),
-    ramLabel: current === null ? '—' : formatRam({ usedGb: current.ramGb, limitGb: ramLimitGb }),
+    ramLabel: current === null ? '—' : formatRam({ usedGb: current.ramGb, limitGb }),
     cpuValues: series.map((sample) => sample.cpu),
     ramValues: series.map((sample) => sample.ramGb),
   }

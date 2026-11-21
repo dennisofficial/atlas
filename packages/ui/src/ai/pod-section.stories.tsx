@@ -4,10 +4,14 @@ import { useEffect, useState } from 'react'
 import { EPodAction, PodSection, type PodSectionProps, type PodMetricsSample } from './pod-section'
 import {
   nextPodSample,
-  POD_PLAN_CAP,
   POD_SAMPLE_MS,
-  POD_SECTION_SIZES,
+  POD_SECTION_SHAPE,
+  POD_SECTION_SHAPES,
   POD_SERIES,
+  VERCEL_HOBBY_UNAVAILABLE,
+  VERCEL_PLAN_CAP_SHAPES,
+  VERCEL_PRO_SHAPE,
+  VERCEL_PRO_SHAPES,
 } from './pod-metrics.fixtures'
 import { EPodState } from './pod-status'
 
@@ -47,9 +51,8 @@ const meta = {
   args: {
     live: false,
     state: EPodState.Running,
-    vcpus: 4,
-    sizes: POD_SECTION_SIZES,
-    maxVcpus: POD_PLAN_CAP,
+    shape: POD_SECTION_SHAPE,
+    shapes: POD_SECTION_SHAPES,
     series: POD_SERIES,
     throttled: false,
     oomKills: 0,
@@ -71,16 +74,52 @@ export const RunningLive: Story = { args: { live: true } }
 
 export const Throttled: Story = { args: { throttled: true, oomKills: 2 } }
 
-export const Resizing: Story = { args: { pendingVcpus: 8 } }
+export const Resizing: Story = { args: { pendingShape: { vcpus: 8, memoryGb: 64 } } }
 
 export const ResizeFailed: Story = {
-  args: { pendingVcpus: 8, resizeError: 'The pod did not come back in time' },
+  args: {
+    pendingShape: { vcpus: 8, memoryGb: 64 },
+    resizeError: 'The pod did not come back in time',
+  },
 }
 
-export const PlanCapped: Story = { args: { vcpus: 4, maxVcpus: 4 } }
+export const HobbyCap: Story = {
+  args: {
+    shape: VERCEL_PRO_SHAPE,
+    shapes: VERCEL_PRO_SHAPES,
+    unavailable: VERCEL_HOBBY_UNAVAILABLE,
+  },
+}
 
 export const Sleeping: Story = { args: { state: EPodState.Parked } }
 
 export const Starting: Story = { args: { state: EPodState.Starting } }
 
 export const StopConfirm: Story = { args: { confirmAction: EPodAction.Stop } }
+
+export const SizeMenuOpenAgent37: Story = { args: { defaultSizeMenuOpen: true } }
+
+export const SizeMenuOpenVercelHobby: Story = {
+  args: {
+    shape: VERCEL_PRO_SHAPE,
+    shapes: VERCEL_PRO_SHAPES,
+    unavailable: VERCEL_HOBBY_UNAVAILABLE,
+    defaultSizeMenuOpen: true,
+  },
+}
+
+export const SizeMenuOpenVercelPro: Story = {
+  args: {
+    shape: { vcpus: 2, memoryGb: 4 },
+    shapes: VERCEL_PRO_SHAPES,
+    defaultSizeMenuOpen: true,
+  },
+}
+
+export const SizeMenuOpenEnterprise: Story = {
+  args: {
+    shape: VERCEL_PRO_SHAPE,
+    shapes: VERCEL_PLAN_CAP_SHAPES,
+    defaultSizeMenuOpen: true,
+  },
+}

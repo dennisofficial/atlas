@@ -1,4 +1,10 @@
 import { clamp, type PodMetricsSample } from './pod-metrics-model'
+import {
+  AGENT37_POD_SHAPES,
+  type PodShape,
+  type UnavailablePodShape,
+  vercelPodShapesOf,
+} from './pod-shapes'
 import { EPodState } from './pod-status'
 
 export const POD_SAMPLE_MS = 3_000
@@ -6,9 +12,20 @@ export const POD_SAMPLE_COUNT = 300
 
 export const POD_STATUS_RUNNING = { state: EPodState.Running, vcpus: 4 } as const
 
-export const POD_SECTION_SIZES: readonly number[] = [2, 4, 8]
+export const POD_SECTION_SHAPE: PodShape = { vcpus: 4, memoryGb: 16 }
 
-export const POD_PLAN_CAP = 8
+export const POD_SECTION_SHAPES: readonly PodShape[] = AGENT37_POD_SHAPES
+
+export const VERCEL_PRO_SHAPE: PodShape = { vcpus: 4, memoryGb: 8 }
+
+export const VERCEL_PRO_SHAPES: readonly PodShape[] = vercelPodShapesOf({ maxVcpus: 8 })
+
+export const VERCEL_PLAN_CAP_SHAPES: readonly PodShape[] = vercelPodShapesOf({ maxVcpus: 32 })
+
+export const VERCEL_HOBBY_UNAVAILABLE: readonly UnavailablePodShape[] = [
+  { shape: { vcpus: 6, memoryGb: 12 }, reason: 'Needs Pro plan' },
+  { shape: { vcpus: 8, memoryGb: 16 }, reason: 'Needs Pro plan' },
+]
 
 export const POD_SIZES: readonly number[] = [
   1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32,

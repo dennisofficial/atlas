@@ -7,16 +7,23 @@ import {
   POD_CONFIRM_LABEL,
   POD_CONFIRM_TITLE,
 } from '../internal/pod-action-confirm'
-import { planCapHintOf } from '../internal/pod-size-control'
-import { POD_SECTION_SIZES, POD_SERIES } from '../pod-metrics.fixtures'
+import { podShapeOptionsOf } from '../internal/pod-size-control'
+import {
+  POD_SECTION_SHAPE,
+  POD_SECTION_SHAPES,
+  POD_SERIES,
+  VERCEL_HOBBY_UNAVAILABLE,
+  VERCEL_PRO_SHAPE,
+  VERCEL_PRO_SHAPES,
+} from '../pod-metrics.fixtures'
 import { PodSection, type PodSectionProps } from '../pod-section'
+import { podShapeKey, podShapeLabel } from '../pod-shapes'
 import { EPodState } from '../pod-status'
 
 const BASE: PodSectionProps = {
   state: EPodState.Running,
-  vcpus: 4,
-  sizes: POD_SECTION_SIZES,
-  maxVcpus: 8,
+  shape: POD_SECTION_SHAPE,
+  shapes: POD_SECTION_SHAPES,
   series: POD_SERIES,
 }
 
@@ -59,6 +66,11 @@ describe('pod section chart', () => {
     expect(asleep).not.toContain('Last 15 min')
   })
 
+  it('reads the RAM limit off the shape, not off two GB per vCPU', () => {
+    expect(htmlOf()).toContain('/ 16 GB')
+    expect(htmlOf({ shape: { vcpus: 4, memoryGb: 8 } })).toContain('/ 8 GB')
+  })
+
   it('keeps the signals footer', () => {
     const loud = htmlOf({ throttled: true, oomKills: 1 })
     expect(loud).toContain('Throttled')
@@ -68,39 +80,72 @@ describe('pod section chart', () => {
 })
 
 describe('pod size control', () => {
-  it('shows every size in vCPU and the RAM it buys', () => {
+  it('shows the current shape behind a Size label', () => {
     const html = htmlOf()
-    expect(html).toContain('2 vCPU')
-    expect(html).toContain('4 GB')
-    expect(html).toContain('8 vCPU')
-    expect(html).toContain('16 GB')
+    expect(html).toContain('Size')
+    expect(html).toContain('aria-label="Pod size"')
+    expect(html).toContain(podShapeLabel(POD_SECTION_SHAPE))
   })
 
-  it('marks the current size as pressed', () => {
-    expect(htmlOf()).toContain('aria-pressed="true"')
-    expect(htmlOf({ vcpus: 2 }).match(/aria-pressed="true"/g)).toHaveLength(1)
+  it('offers every shape the provider has, keyed by both values', () => {
+    const options = podShapeOptionsOf({
+      shapes: POD_SECTION_SHAPES,
+      current: POD_SECTION_SHAPE,
+    })
+    expect(options.map((option) => option.label)).toEqual([
+      '2 vCPU · 4 GB',
+      '4 vCPU · 8 GB',
+      '4 vCPU · 16 GB',
+      '4 vCPU · 32 GB',
+      '8 vCPU · 64 GB',
+    ])
+    expect(new Set(options.map((option) => option.key)).size).toBe(POD_SECTION_SHAPES.length)
+    expect(options.every((option) => option.disabled === false)).toBe(true)
   })
 
-  it('disables sizes above the plan cap', () => {
-    const capped = htmlOf({ maxVcpus: 4 })
-    expect(capped).toContain('aria-disabled="true"')
-    expect(htmlOf({ maxVcpus: 8 })).not.toContain('aria-disabled="true"')
-    expect(planCapHintOf({ size: 8, maxVcpus: 4 })).toBe('8 vCPU is above your plan limit of 4')
+  it('lists shapes above the plan cap as disabled with the reason', () => {
+    const options = podShapeOptionsOf({
+      shapes: VERCEL_PRO_SHAPES,
+      unavailable: VERCEL_HOBBY_UNAVAILABLE,
+      current: VERCEL_PRO_SHAPE,
+    })
+    const blocked = options.filter((option) => option.disabled)
+    expect(blocked.map((option) => option.label)).toEqual(['6 vCPU · 12 GB', '8 vCPU · 16 GB'])
+    expect(blocked.map((option) => option.reason)).toEqual(['Needs Pro plan', 'Needs Pro plan'])
   })
 
-  it('names the pending size and warns that the pod restarts', () => {
-    expect(htmlOf({ pendingVcpus: 8 })).toContain('Resizing to 8 vCPU — the pod restarts')
+  it('keeps the current shape in the list even when it is not offered', () => {
+    const options = podShapeOptionsOf({
+      shapes: VERCEL_PRO_SHAPES,
+      unavailable: VERCEL_HOBBY_UNAVAILABLE,
+      current: POD_SECTION_SHAPE,
+    })
+    expect(options.map((option) => option.key)).toContain(podShapeKey(POD_SECTION_SHAPE))
+    expect(
+      options.some((option) => option.disabled && option.key === podShapeKey(POD_SECTION_SHAPE)),
+    ).toBe(false)
+  })
+
+  it('names the pending shape and warns that the pod restarts', () => {
+    const pending = { vcpus: 8, memoryGb: 64 }
+    expect(htmlOf({ pendingShape: pending })).toContain(
+      'Resizing to 8 vCPU · 64 GB — the pod restarts',
+    )
   })
 
   it('offers a retry when the resize failed', () => {
-    const failed = htmlOf({ pendingVcpus: 8, resizeError: 'The pod did not come back in time' })
+    const failed = htmlOf({
+      pendingShape: { vcpus: 8, memoryGb: 64 },
+      resizeError: 'The pod did not come back in time',
+    })
     expect(failed).toContain('Could not resize the pod. The pod did not come back in time')
     expect(failed).toContain('Retry')
   })
 
-  it('locks the sizes while the pod starts', () => {
-    const starting = htmlOf({ state: EPodState.Starting })
-    expect(starting.match(/aria-disabled="true"/g)).toHaveLength(POD_SECTION_SIZES.length)
+  it('locks the dropdown while the pod starts or a resize is in flight', () => {
+    expect(htmlOf({ state: EPodState.Starting })).toContain('disabled')
+    expect(htmlOf({ pendingShape: { vcpus: 8, memoryGb: 64 } })).toContain('disabled')
+    expect(htmlOf({ state: EPodState.Stopped })).toContain('disabled')
   })
 })
 

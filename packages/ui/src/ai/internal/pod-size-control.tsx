@@ -1,114 +1,129 @@
 'use client'
 
-import { Tooltip, TooltipContent, TooltipTrigger } from '#components/tooltip'
-import { cn } from '#lib/utils'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '#components/select'
 import { TriangleAlertIcon } from 'lucide-react'
 
-import { ramOf } from '../pod-status'
+import {
+  type PodShape,
+  podShapeKey,
+  podShapeLabel,
+  samePodShape,
+  type UnavailablePodShape,
+} from '../pod-shapes'
 import { InlineSpinner } from './status-dot'
 
+export interface PodShapeOption {
+  key: string
+  label: string
+  shape: PodShape
+  disabled: boolean
+  reason?: string | undefined
+}
+
+export function podShapeOptionsOf({
+  shapes,
+  unavailable = [],
+  current,
+}: {
+  shapes: readonly PodShape[]
+  unavailable?: readonly UnavailablePodShape[] | undefined
+  current: PodShape
+}): PodShapeOption[] {
+  const currentKey = podShapeKey(current)
+  const reasons = new Map(unavailable.map((entry) => [podShapeKey(entry.shape), entry.reason]))
+  const offered = shapes.some((shape) => samePodShape({ a: shape, b: current }))
+    ? [...shapes]
+    : [...shapes, current]
+  const offeredKeys = new Set(offered.map(podShapeKey))
+  return [
+    ...offered.map((shape) => {
+      const key = podShapeKey(shape)
+      const reason = key === currentKey ? undefined : reasons.get(key)
+      return {
+        key,
+        label: podShapeLabel(shape),
+        shape,
+        disabled: reason !== undefined,
+        reason,
+      }
+    }),
+    ...unavailable
+      .filter((entry) => !offeredKeys.has(podShapeKey(entry.shape)))
+      .map((entry) => ({
+        key: podShapeKey(entry.shape),
+        label: podShapeLabel(entry.shape),
+        shape: entry.shape,
+        disabled: true,
+        reason: entry.reason,
+      })),
+  ]
+}
+
 export interface PodSizeControlProps {
-  vcpus: number
-  sizes: readonly number[]
-  maxVcpus: number
-  pendingVcpus?: number | undefined
+  shape: PodShape
+  shapes: readonly PodShape[]
+  unavailable?: readonly UnavailablePodShape[] | undefined
+  pendingShape?: PodShape | undefined
   resizeError?: string | undefined
   disabled?: boolean | undefined
-  onResize?: ((vcpus: number) => void) | undefined
-}
-
-export function planCapHintOf({ size, maxVcpus }: { size: number; maxVcpus: number }): string {
-  return `${size} vCPU is above your plan limit of ${maxVcpus}`
-}
-
-interface SegmentProps {
-  size: number
-  maxVcpus: number
-  selected: boolean
-  pending: boolean
-  capped: boolean
-  locked: boolean
-  onPick: (size: number) => void
-}
-
-function Segment({ size, maxVcpus, selected, pending, capped, locked, onPick }: SegmentProps) {
-  const handleClick = () => {
-    if (locked) return
-    onPick(size)
-  }
-  const segment = (
-    <button
-      type="button"
-      aria-pressed={selected}
-      aria-disabled={locked}
-      onClick={handleClick}
-      className={cn(
-        'flex min-w-0 flex-col items-center rounded-md px-1 py-1 text-center transition-colors',
-        selected
-          ? 'bg-background text-foreground ring-1 ring-border'
-          : 'text-muted-foreground hover:text-foreground',
-        locked && 'cursor-not-allowed opacity-45 hover:text-muted-foreground',
-      )}
-    >
-      <span className="flex items-center gap-1 text-xs font-medium whitespace-nowrap tabular-nums">
-        {pending ? <InlineSpinner /> : null}
-        {size} vCPU
-      </span>
-      <span className="text-[0.65rem] leading-tight whitespace-nowrap tabular-nums">
-        {ramOf(size)} GB
-      </span>
-    </button>
-  )
-  if (!capped) return segment
-  return (
-    <Tooltip>
-      <TooltipTrigger render={segment} />
-      <TooltipContent>{planCapHintOf({ size, maxVcpus })}</TooltipContent>
-    </Tooltip>
-  )
+  defaultOpen?: boolean | undefined
+  onResize?: ((shape: PodShape) => void) | undefined
 }
 
 export function PodSizeControl({
-  vcpus,
-  sizes,
-  maxVcpus,
-  pendingVcpus,
+  shape,
+  shapes,
+  unavailable,
+  pendingShape,
   resizeError,
   disabled = false,
+  defaultOpen = false,
   onResize,
 }: PodSizeControlProps) {
-  const pending = pendingVcpus
   const failed = resizeError !== undefined
+  const options = podShapeOptionsOf({ shapes, unavailable, current: shape })
 
-  const handlePick = (size: number) => {
-    if (size === vcpus || size === pending) return
-    onResize?.(size)
+  const handleValueChange = (next: unknown) => {
+    const picked = options.find((option) => option.key === next)
+    if (picked === undefined || picked.disabled) return
+    if (samePodShape({ a: picked.shape, b: shape })) return
+    onResize?.(picked.shape)
   }
 
   const handleRetry = () => {
-    if (pending === undefined) return
-    onResize?.(pending)
+    if (pendingShape === undefined) return
+    onResize?.(pendingShape)
   }
 
   return (
     <div className="flex flex-col gap-1.5 px-1">
-      <fieldset
-        aria-label="Pod size"
-        className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(4rem,1fr))] gap-0.5 rounded-lg border border-border bg-muted/40 p-0.5"
-      >
-        {sizes.map((size) => (
-          <Segment
-            key={size}
-            size={size}
-            maxVcpus={maxVcpus}
-            selected={size === vcpus}
-            pending={size === pending && !failed}
-            capped={size > maxVcpus}
-            locked={disabled || size > maxVcpus}
-            onPick={handlePick}
-          />
-        ))}
-      </fieldset>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs text-muted-foreground">Size</span>
+        <Select
+          items={options.map((option) => ({ value: option.key, label: option.label }))}
+          value={podShapeKey(shape)}
+          defaultOpen={defaultOpen}
+          onValueChange={handleValueChange}
+          disabled={disabled}
+        >
+          <SelectTrigger size="sm" aria-label="Pod size">
+            {pendingShape === undefined ? null : <InlineSpinner />}
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent align="end">
+            {options.map((option) => (
+              <SelectItem key={option.key} value={option.key} disabled={option.disabled}>
+                <span className="flex flex-col whitespace-normal">
+                  <span>{option.label}</span>
+                  {option.reason === undefined ? null : (
+                    <span className="text-xs text-muted-foreground">{option.reason}</span>
+                  )}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
       {failed ? (
         <p className="flex items-start gap-1 text-xs text-destructive">
           <TriangleAlertIcon aria-hidden className="mt-0.5 size-3 shrink-0" />
@@ -124,13 +139,10 @@ export function PodSizeControl({
           </span>
         </p>
       ) : null}
-      {!failed && pending !== undefined ? (
+      {!failed && pendingShape !== undefined ? (
         <p className="text-xs text-muted-foreground">
-          Resizing to {pending} vCPU — the pod restarts
+          Resizing to {podShapeLabel(pendingShape)} — the pod restarts
         </p>
-      ) : null}
-      {!failed && pending === undefined ? (
-        <p className="text-xs text-muted-foreground">2 GB per vCPU — RAM moves with the CPU.</p>
       ) : null}
     </div>
   )
