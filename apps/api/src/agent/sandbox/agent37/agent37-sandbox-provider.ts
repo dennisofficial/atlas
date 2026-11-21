@@ -15,6 +15,7 @@ import {
 import { agent37CreateBodyOf } from './agent37-create'
 import {
   agent37BundleVersionOf,
+  pinnedDaemonBundleUrlOf,
   waitForAgent37Daemon,
   waitForAgent37Instance,
   type Agent37DaemonBundle,
@@ -120,10 +121,14 @@ export class Agent37SandboxProvider extends SandboxProvider {
   private async ensureDaemon(args: { target: SandboxTarget; instanceId: string }): Promise<void> {
     const client = this.clientOf(apiKeyOf(args.target.credentials))
     const sandboxName = agent37InstanceNameOf(args.target.sandboxSessionId)
+    const version = await agent37BundleVersionOf(this.args.daemonBundle.path)
     await waitForAgent37Daemon({
       client,
       instanceId: args.instanceId,
-      version: await agent37BundleVersionOf(this.args.daemonBundle.path),
+      want: {
+        version,
+        url: pinnedDaemonBundleUrlOf({ url: this.args.daemonBundleUrl, version }),
+      },
       token: this.tokenOf(sandboxName),
       ...(this.args.log === undefined ? {} : { log: this.args.log }),
     })

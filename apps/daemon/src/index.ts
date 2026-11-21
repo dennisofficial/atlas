@@ -1,6 +1,13 @@
 import { randomUUID } from 'node:crypto'
+import { writeFile } from 'node:fs/promises'
 
-import { DAEMON_PORT, DAEMON_PORT_ENV } from '@dltech/atlas-protocol'
+import {
+  DAEMON_LINK_PROTOCOL_MIN_VERSION,
+  DAEMON_LINK_PROTOCOL_VERSION,
+  DAEMON_PORT,
+  DAEMON_PORT_ENV,
+  DAEMON_RESTART_HINT_ENV,
+} from '@dltech/atlas-protocol'
 import { DaemonEngine } from '@dltech/atlas-protocol/engine'
 
 import { sanitizeChildEnv } from './child-env'
@@ -64,9 +71,15 @@ const handleDrain = (deadlineMs: number): void => {
     .then(() => process.exit(0))
 }
 
-const handleRestart = (): void => {
+const handleRestart = async (bundleUrl?: string | undefined): Promise<void> => {
   if (drained) return
   drained = true
+  const hintPath = env[DAEMON_RESTART_HINT_ENV]
+  if (bundleUrl !== undefined && hintPath !== undefined && hintPath !== '') {
+    await writeFile(hintPath, `${bundleUrl}\n`).catch((error: unknown) => {
+      console.error(`atlas-daemon could not record its restart bundle: ${String(error)}`)
+    })
+  }
   console.log('atlas-daemon restarting')
   setTimeout(() => {
     listener.stop()
@@ -79,6 +92,8 @@ const listener = listenWebSocket({
   port: Number(env[DAEMON_PORT_ENV] ?? DAEMON_PORT),
   token,
   version: DAEMON_VERSION,
+  protocol: DAEMON_LINK_PROTOCOL_VERSION,
+  minProtocol: DAEMON_LINK_PROTOCOL_MIN_VERSION,
   drain: handleDrain,
   restart: handleRestart,
   cpu: () => daemonCpuReadingOf(),

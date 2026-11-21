@@ -94,7 +94,7 @@ const stateOf = (args: {
   if (phase === 'settled') {
     return args.previousDone ? EBootStepState.Done : EBootStepState.Pending
   }
-  return phase === 'live' && args.previousDone ? EBootStepState.Running : EBootStepState.Pending
+  return EBootStepState.Pending
 }
 
 const repoChildrenOf = (recorded: WorkspaceStepStatus | undefined): BootStepChild[] | undefined =>

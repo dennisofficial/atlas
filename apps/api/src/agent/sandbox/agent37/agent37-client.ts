@@ -56,7 +56,11 @@ export type Agent37ExecResult = {
 
 export type Agent37Pid = { pid: number }
 
-export type Agent37Answer = { status: number; body: string }
+export type Agent37Answer = {
+  status: number
+  body: string
+  headers?: Record<string, string> | undefined
+}
 
 export type Agent37ExecArgs = {
   id: string
@@ -81,6 +85,7 @@ export type Agent37Client = Agent37UsageClient & {
     path?: string
     method?: 'GET' | 'POST'
     authorization?: string
+    body?: string
   }): Promise<Agent37Answer>
   signedUrl(args: { id: string; port: number; ttlSeconds: number }): Promise<string>
 }
@@ -250,17 +255,23 @@ export const liveAgent37Client = (args: {
       }) as Promise<Agent37ExecResult | Agent37Pid>,
     // https://www.agent37.com/docs/agents-api/urls — every port answers at its preview URL, with a
     // transport error until something listens, so a probe reports the failure instead of throwing.
-    probe: async ({ id, port, path = '/', method = 'GET', authorization }) => {
+    probe: async ({ id, port, path = '/', method = 'GET', authorization, body }) => {
       try {
         const response = await transport(`https://${id}-${port}.agent37.app${path}`, {
           method,
           headers: {
             ...instanceKey,
             ...(authorization === undefined ? {} : { Authorization: authorization }),
+            ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
           },
+          ...(body === undefined ? {} : { body }),
           signal: AbortSignal.timeout(QUICK_TIMEOUT_MS),
         })
-        return { status: response.status, body: await response.text() }
+        return {
+          status: response.status,
+          body: await response.text(),
+          headers: Object.fromEntries(response.headers),
+        }
       } catch {
         return { status: 0, body: '' }
       }
