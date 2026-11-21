@@ -11,7 +11,7 @@
     "./testing/env": "./src/testing/env.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit",
+    "typecheck": "NODE_OPTIONS=--max-old-space-size=6144 tsc --noEmit",
     "contract:emit": "prisma contract emit",
     "db:plan": "prisma migration plan",
     "db:migrate": "prisma db migrate --to db",

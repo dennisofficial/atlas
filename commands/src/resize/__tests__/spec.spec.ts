@@ -24,6 +24,25 @@ describe('resize spec', () => {
     })
   })
 
+  it('takes a bigger disk beside the shape', () => {
+    expect(resizeArgs.parse({ vcpus: 4, memoryGb: 16, diskGb: 30 })).toEqual({
+      vcpus: 4,
+      memoryGb: 16,
+      diskGb: 30,
+    })
+    expect(resizeArgs.parse({ vcpus: 4, memoryGb: 16, diskGb: 100 })).toEqual({
+      vcpus: 4,
+      memoryGb: 16,
+      diskGb: 100,
+    })
+  })
+
+  it('refuses a disk outside the range a pod can hold', () => {
+    expect(resizeArgs.safeParse({ vcpus: 4, memoryGb: 16, diskGb: 0 }).success).toBe(false)
+    expect(resizeArgs.safeParse({ vcpus: 4, memoryGb: 16, diskGb: 101 }).success).toBe(false)
+    expect(resizeArgs.safeParse({ vcpus: 4, memoryGb: 16, diskGb: 30.5 }).success).toBe(false)
+  })
+
   it.each([
     { vcpus: 0, memoryGb: 4 },
     { vcpus: 3, memoryGb: 8 },

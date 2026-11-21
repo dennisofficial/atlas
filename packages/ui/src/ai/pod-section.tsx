@@ -5,11 +5,19 @@ import { ChartContainer, type ChartConfig } from '#components/chart'
 import { MoonIcon } from 'lucide-react'
 import { Area, AreaChart, YAxis } from 'recharts'
 
+import { PodDiskSelect } from './internal/pod-disk-control'
 import { EPodAction, PodActionConfirm } from './internal/pod-action-confirm'
 import { MetricSignals } from './internal/pod-metrics-parts'
 import { PodSectionHeader } from './internal/pod-section-header'
 import { PodSizeSelect, PodSizeStatus, type PodSizeControlProps } from './internal/pod-size-control'
-import { podMetricViewOf, ramPercentOf, type PodMetricsSample } from './pod-metrics-model'
+import {
+  diskPercentOf,
+  formatRam,
+  podDiskOf,
+  podMetricViewOf,
+  ramPercentOf,
+  type PodMetricsSample,
+} from './pod-metrics-model'
 import type { PodShape, UnavailablePodShape } from './pod-shapes'
 import { canResize, EPodState } from './pod-status'
 
@@ -34,6 +42,8 @@ export interface PodSectionProps {
   onStart?: (() => void) | undefined
   onStop?: (() => void) | undefined
   onResize?: ((shape: PodShape) => void) | undefined
+  diskGrow?: boolean | undefined
+  onGrowDisk?: ((diskGb: number) => void) | undefined
   onConfirm?: (() => void) | undefined
   onCancel?: (() => void) | undefined
 }
@@ -41,6 +51,7 @@ export interface PodSectionProps {
 const COMBINED_CONFIG = {
   cpu: { label: 'CPU', color: 'var(--primary)' },
   ram: { label: 'RAM', color: 'var(--muted-foreground)' },
+  disk: { label: 'Disk', color: 'var(--chart-2)' },
 } satisfies ChartConfig
 
 const IDLE_TEXT: Record<EPodState, string> = {
@@ -98,7 +109,13 @@ function PodUsageIdle({ state, unavailable }: { state: EPodState; unavailable: b
   )
 }
 
-function PodUsageSpark({ data }: { data: { index: number; cpu: number; ram: number }[] }) {
+function PodUsageSpark({
+  data,
+  withDisk,
+}: {
+  data: { index: number; cpu: number; ram: number; disk: number }[]
+  withDisk: boolean
+}) {
   return (
     <div className="h-9 w-28 shrink-0">
       <ChartContainer
@@ -106,10 +123,26 @@ function PodUsageSpark({ data }: { data: { index: number; cpu: number; ram: numb
         className="aspect-auto h-full w-full"
         initialDimension={{ width: 112, height: 36 }}
         role="img"
-        aria-label="CPU and RAM over the last 15 minutes"
+        aria-label={
+          withDisk
+            ? 'CPU, RAM and disk over the last 15 minutes'
+            : 'CPU and RAM over the last 15 minutes'
+        }
       >
         <AreaChart data={data} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
           <YAxis hide domain={[0, 100]} />
+          {withDisk ? (
+            <Area
+              dataKey="disk"
+              type="monotone"
+              stroke="var(--color-disk)"
+              strokeWidth={1.25}
+              fill="var(--color-disk)"
+              fillOpacity={0.06}
+              dot={false}
+              isAnimationActive={false}
+            />
+          ) : null}
           <Area
             dataKey="ram"
             type="monotone"
@@ -143,10 +176,12 @@ export function PodSection(props: PodSectionProps) {
     ramLimitGb: props.shape.memoryGb,
   })
   const running = props.state === EPodState.Running
+  const disk = podDiskOf(props.series)
   const data = props.series.map((sample, index) => ({
     index,
     cpu: sample.cpu,
     ram: ramPercentOf({ sample, limitGb: view.ramLimitGb }),
+    disk: diskPercentOf({ sample }),
   }))
 
   const sizeProps: PodSizeControlProps = {
@@ -184,13 +219,30 @@ export function PodSection(props: PodSectionProps) {
           swatch="bg-muted-foreground"
           row="row-start-2"
         />
+        {disk === undefined ? null : (
+          <PodSeriesRow
+            label="Disk"
+            value={formatRam({ usedGb: disk.usedGb, limitGb: disk.limitGb })}
+            swatch="bg-chart-2"
+            row="row-start-3"
+          />
+        )}
         <div className="col-start-3 row-span-2 row-start-1">
           {running && props.usageUnavailable !== true ? (
-            <PodUsageSpark data={data} />
+            <PodUsageSpark data={data} withDisk={disk !== undefined} />
           ) : (
             <PodUsageIdle state={props.state} unavailable={props.usageUnavailable === true} />
           )}
         </div>
+        {disk === undefined || props.diskGrow !== true ? null : (
+          <div className="col-start-3 row-start-3 flex justify-end">
+            <PodDiskSelect
+              limitGb={disk.limitGb}
+              disabled={sizeProps.disabled}
+              onGrow={props.onGrowDisk}
+            />
+          </div>
+        )}
       </div>
       <div className="flex flex-col gap-2 pl-[1.625rem]">
         <MetricSignals throttled={props.throttled === true} oomKills={props.oomKills ?? 0} />

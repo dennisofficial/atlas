@@ -1,3 +1,4 @@
+import { RESIZE_MAX_DISK_GB } from '@dltech/atlas-native-commands'
 import { z } from 'zod'
 import type { Task, TaskContract } from '../../../_core/ports/job-dispatcher'
 
@@ -8,6 +9,7 @@ export const podResizePayloadSchema = z.object({
   generation: z.number().int().min(1),
   vcpus: z.number().int().min(1),
   memoryGb: z.number().int().min(1),
+  diskGb: z.number().int().min(1).max(RESIZE_MAX_DISK_GB).optional(),
   whenIdle: z.boolean().optional(),
   waits: z.number().int().min(0).optional(),
 })

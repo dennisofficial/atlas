@@ -185,6 +185,7 @@ class PostgresTx implements ControlTx {
       vcpus: params.vcpus,
       memoryGb: params.memoryGb,
       generation: params.generation,
+      ...(params.diskGb === undefined ? {} : { diskGb: params.diskGb }),
     })
   }
 

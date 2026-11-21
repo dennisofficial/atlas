@@ -35,7 +35,7 @@ no tiers of its own. A service holds only `DOTENV_PRIVATE_KEY_PRODUCTION_ENC`. A
 | `AGENT37_TEMPLATE_ID`                | no       | —                                    |
 | `AGENT37_CPU`                        | no       | 2                                    |
 | `AGENT37_MEMORY_GB`                  | no       | 4                                    |
-| `AGENT37_DISK_GB`                    | no       | 64                                   |
+| `AGENT37_DISK_GB`                    | no       | 20                                   |
 | `PORT`                               | no       | 10000 (Render sets it)               |
 | `TRUSTED_ORIGINS`                    | no       | empty: any Origin; else a comma list |
 
@@ -55,6 +55,9 @@ command exits, so `atlas-boot.sh` has to stay PID 1. The template's entrypoint m
 a command that returns, or the instance dies and takes every exec with it.
 Every Agent37 instance mounts its disk at `/atlas` through `mount_path`, which hides whatever the
 image ships in that folder. The image must therefore keep nothing it needs under `/atlas`.
+A pod starts at `AGENT37_DISK_GB` and the `pod-disk-grow` schedule grows it to 1.5 times its size
+when it is 80% full and no turn is running, up to Agent37's 100 GB ceiling. A grow reboots the vm
+and keeps `/atlas`, and the pod is woken again afterwards.
 
 Missing required vars exit 78 with the names on stderr.
 

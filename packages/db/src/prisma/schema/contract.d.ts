@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'c746171405bfe47231db56934b722ceb1571a3839b181bde4cf88a4c8c39b411'>;
+  StorageHashBase<'002ccde9a04c81afe52c0bdcff59c1f67b359a4488f643ef5bd5b4c3e301e321'>;
 export type ExecutionHash =
   ExecutionHashBase<'4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45'>;
 export type ProfileHash =
@@ -1356,6 +1356,7 @@ export namespace Models {
     podActualMemoryGb: FieldOutputTypes['v2']['V2Session']['podActualMemoryGb'];
     podActualVcpus: FieldOutputTypes['v2']['V2Session']['podActualVcpus'];
     podAppliedGeneration: FieldOutputTypes['v2']['V2Session']['podAppliedGeneration'];
+    podDesiredDiskGb: FieldOutputTypes['v2']['V2Session']['podDesiredDiskGb'];
     podDesiredMemoryGb: FieldOutputTypes['v2']['V2Session']['podDesiredMemoryGb'];
     podDesiredVcpus: FieldOutputTypes['v2']['V2Session']['podDesiredVcpus'];
     podResizeError: FieldOutputTypes['v2']['V2Session']['podResizeError'];
@@ -7967,6 +7968,12 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly podAppliedGeneration: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly podDesiredDiskGb: {
                   readonly dataType: 'pg/int4';
                   readonly codecId: 'pg/int4@1';
                   readonly nullable: true;
@@ -14951,6 +14958,10 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
+              readonly podDesiredDiskGb: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
               readonly podDesiredMemoryGb: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
@@ -15156,6 +15167,7 @@ type ContractBase = Omit<
                 readonly podActualMemoryGb: { readonly column: 'podActualMemoryGb' };
                 readonly podActualVcpus: { readonly column: 'podActualVcpus' };
                 readonly podAppliedGeneration: { readonly column: 'podAppliedGeneration' };
+                readonly podDesiredDiskGb: { readonly column: 'podDesiredDiskGb' };
                 readonly podDesiredMemoryGb: { readonly column: 'podDesiredMemoryGb' };
                 readonly podDesiredVcpus: { readonly column: 'podDesiredVcpus' };
                 readonly podResizeError: { readonly column: 'podResizeError' };

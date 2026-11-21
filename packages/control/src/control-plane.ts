@@ -194,6 +194,7 @@ export class ControlPlane {
     sessionId: string
     vcpus: number
     memoryGb: number
+    diskGb?: number | undefined
   }): Promise<number> {
     return this.store.transact((tx) => recordPodDesiredIn({ tx, ...params }))
   }

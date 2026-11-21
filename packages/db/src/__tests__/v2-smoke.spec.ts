@@ -32,6 +32,7 @@ const sessionRow = () => ({
   readSeq: null,
   podDesiredVcpus: null,
   podDesiredMemoryGb: null,
+  podDesiredDiskGb: null,
   podSizeGeneration: 0,
   podActualVcpus: null,
   podActualMemoryGb: null,

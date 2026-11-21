@@ -1,7 +1,7 @@
 import type { Command, CommandHandler, ControlCommandHandler } from '@dltech/atlas-commands'
 
 import { renameHandler, type RenamePlane } from './rename/control'
-import { resize, resizeArgs } from './resize/spec'
+import { resize, RESIZE_MAX_DISK_GB, resizeArgs } from './resize/spec'
 import { rename } from './rename/spec'
 import { rewindHandler } from './rewind/pod'
 import { rewind } from './rewind/spec'
@@ -20,7 +20,7 @@ export const nativeControlHandlers: ReadonlyMap<
   ControlCommandHandler<RenamePlane, unknown>
 > = new Map([[rename.spec.name, renameHandler]])
 
-export { resize, resizeArgs }
+export { RESIZE_MAX_DISK_GB, resize, resizeArgs }
 export type { ResizeArgs } from './resize/spec'
 export { REFUSAL_NOT_A_MESSAGE, REFUSAL_NOTHING_TO_REWIND, rewindTargetOf } from './rewind/spec'
 export {

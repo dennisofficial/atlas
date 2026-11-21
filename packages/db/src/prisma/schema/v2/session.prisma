@@ -26,6 +26,7 @@ namespace v2 {
     podRetiredAt       TimestamptzJsDate(3)?
     podDesiredVcpus    Int?
     podDesiredMemoryGb Int?
+    podDesiredDiskGb   Int?
     podSizeGeneration  Int                   @default(0)
     podActualVcpus     Int?
     podActualMemoryGb  Int?

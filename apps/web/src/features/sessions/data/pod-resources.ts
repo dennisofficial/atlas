@@ -9,11 +9,17 @@ export const resizePod = async (args: {
   sessionId: string
   vcpus: number
   memoryGb: number
+  diskGb?: number | undefined
   whenIdle: boolean
 }): Promise<void> => {
   await args.api.command({
     sessionId: args.sessionId,
     name: 'resize',
-    args: { vcpus: args.vcpus, memoryGb: args.memoryGb, whenIdle: args.whenIdle },
+    args: {
+      vcpus: args.vcpus,
+      memoryGb: args.memoryGb,
+      ...(args.diskGb === undefined ? {} : { diskGb: args.diskGb }),
+      whenIdle: args.whenIdle,
+    },
   })
 }
