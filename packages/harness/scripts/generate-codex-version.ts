@@ -2,19 +2,29 @@ import { readFile, writeFile } from 'node:fs/promises'
 
 import { CODEX_VERSION } from '../src/models/codex-version'
 
-const VERSION_PATH = new URL('../src/providers/codex-version.ts', import.meta.url)
+const VERSION_PATH = new URL('../src/models/codex-version.ts', import.meta.url)
 const TAG_PREFIX = 'rust-v'
+const RELEASES_URL = 'https://api.github.com/repos/openai/codex/releases/latest'
 
 function isReleaseBody(body: unknown): body is { tag_name: string } {
   if (typeof body !== 'object' || body === null) return false
   return 'tag_name' in body && typeof body.tag_name === 'string'
 }
 
-const latestVersion = await fetch('https://api.github.com/repos/openai/codex/releases/latest', {
-  headers: { Accept: 'application/vnd.github+json' },
+function requestHeaders(token: string | undefined): Record<string, string> {
+  const headers: Record<string, string> = { Accept: 'application/vnd.github+json' }
+  if (token) headers.Authorization = `Bearer ${token}`
+  return headers
+}
+
+const latestVersion = await fetch(RELEASES_URL, {
+  headers: requestHeaders(process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN),
 })
-  .then((response) => {
-    if (!response.ok) throw new Error(`github releases answered ${response.status}`)
+  .then(async (response) => {
+    if (!response.ok) {
+      const body = await response.text()
+      throw new Error(`github releases answered ${response.status}: ${body.slice(0, 200)}`)
+    }
     return response.json() as Promise<unknown>
   })
   .then((body) => {

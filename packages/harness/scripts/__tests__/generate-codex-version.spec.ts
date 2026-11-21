@@ -21,6 +21,24 @@ describe('codex version pin', () => {
     expect(script).toContain('openai/codex/releases/latest')
   })
 
+  test('the generate script writes the same file it imports', async () => {
+    const script = await readFile(
+      new URL('scripts/generate-codex-version.ts', HARNESS_ROOT),
+      'utf8',
+    )
+    expect(script).toContain("from '../src/models/codex-version'")
+    expect(script).toContain("new URL('../src/models/codex-version.ts', import.meta.url)")
+  })
+
+  test('the generate script authenticates the releases call so runner IP quota is not shared', async () => {
+    const script = await readFile(
+      new URL('scripts/generate-codex-version.ts', HARNESS_ROOT),
+      'utf8',
+    )
+    expect(script).toContain('process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN')
+    expect(script).toContain('Authorization')
+  })
+
   test('package.json wires generate:codex-version to the script', async () => {
     const manifest: unknown = JSON.parse(
       await readFile(new URL('package.json', HARNESS_ROOT), 'utf8'),
@@ -35,5 +53,6 @@ describe('codex version pin', () => {
     expect(workflow).toContain('packages/harness/src/models/codex-version.ts')
     expect(workflow).toContain('codex-version/$version')
     expect(workflow).toContain('fix(harness): bump codex client version to $version')
+    expect(workflow).toContain('GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}')
   })
 })
