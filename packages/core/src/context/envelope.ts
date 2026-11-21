@@ -90,7 +90,7 @@ const HOOK_SLOT_PROVENANCE: Record<string, string> = {
   'outside-project':
     'The Atlas harness noticed a tool call touched a path outside the project directory. The operator did not write this:',
   compaction:
-    'The Atlas harness compacted earlier turns of this session to save context. The operator did not write this:',
+    'The Atlas harness compacted earlier turns of this thread to save context. The operator did not write this:',
 }
 
 export function provenanceOf({ slot, key }: { slot: string; key: string }): string {

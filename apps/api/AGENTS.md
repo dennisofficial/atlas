@@ -47,7 +47,7 @@ are destroyed. The snapshot sweeper covers every project still in use.
 **Sandbox storage ends a day after a session is archived.**
 `archived-sandbox-sweep` deletes the pod of a session archived past `ARCHIVED_SANDBOX_GRACE_MS`
 (24 h). `orphan-sandbox-sweep` deletes stopped
-sandboxes whose name no unarchived session resolves: a deleted thread's pod, a dead v2 session's, a
+sandboxes whose name no unarchived session resolves: a deleted session's pod, a dead v2 session's, a
 probe's. A sandbox is addressed only by name, so a name that nothing resolves is unreachable storage.
 The session rows stay for analytics. A
 missing piece still creates the thread and the message. The API answers `not-configured` with the gap. The

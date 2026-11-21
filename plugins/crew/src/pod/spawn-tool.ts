@@ -33,7 +33,7 @@ const description = [
   'Start a sub-agent. It works in the background. It hands you its answer the moment it stops.',
   'agentType is a built-in type or one defined in this repository; the system prompt lists both.',
   'intent is a few words that name what the sub-agent does.',
-  'brief is the whole instruction, because the sub-agent sees nothing of this session.',
+  'brief is the whole instruction, because the sub-agent sees nothing of this thread.',
   'worktree puts the sub-agent in a git worktree before its first turn.',
   'A name creates a new branch and a worktree cut from the fetched origin default branch.',
   'A path adopts a worktree that git already lists instead.',

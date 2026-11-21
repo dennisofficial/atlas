@@ -17,7 +17,7 @@ const inputSchema = z.strictObject({
 
 const description = [
   'Create an independent session of the operator’s, with its own sandbox, its own clone and its',
-  'own transcript. It appears at the top level of the operator’s sidebar beside this one, the',
+  'own threads. It appears at the top level of the operator’s sidebar beside this one, the',
   'same as a session made with the new-session button. `brief` is its first message, and the whole',
   'of what it knows of this session. You are not responsible for it, and it reports to no one.',
 ].join(' ')

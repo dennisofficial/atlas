@@ -30,14 +30,14 @@ manager owns the lifecycle.
 
 v2 separates them into three fields on the session record, each with its own writer:
 
-| Relation         | Question                             | v2 expression                                                                                | Writer                                 |
-| ---------------- | ------------------------------------ | -------------------------------------------------------------------------------------------- | -------------------------------------- |
-| **Placement**    | Which pod, context dir and services? | `podRef` on the session record: the pod the session's worker executes against                | The CP, at spawn and on explicit moves |
-| **Ownership**    | Who archives or stops it?            | Nothing to model: every session is operator-owned. Archive is an operator inbox command      | The operator, through the inbox        |
-| **Conversation** | Who may message it?                  | The session's sender ACL: the operator plus the sessions that spawned it or are linked to it | CP command handlers (sessions plugin)  |
+| Relation      | Question                             | v2 expression                                                                                | Writer                                 |
+| ------------- | ------------------------------------ | -------------------------------------------------------------------------------------------- | -------------------------------------- |
+| **Placement** | Which pod, context dir and services? | `podRef` on the session record: the pod the session's worker executes against                | The CP, at spawn and on explicit moves |
+| **Ownership** | Who archives or stops it?            | Nothing to model: every session is operator-owned. Archive is an operator inbox command      | The operator, through the inbox        |
+| **Messaging** | Who may message it?                  | The session's sender ACL: the operator plus the sessions that spawned it or are linked to it | CP command handlers (sessions plugin)  |
 
 A "teammate" is then not a kind of row but a preset over ordinary sessions: placement = the
-spawner's pod, conversation = operator + spawner, and a `spawned-by` link for the sidebar nesting
+spawner's pod, messaging = operator + spawner, and a `spawned-by` link for the sidebar nesting
 and the Done grouping (0020 decision 4).
 
 ## Per-session activity

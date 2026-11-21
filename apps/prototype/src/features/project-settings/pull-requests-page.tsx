@@ -38,7 +38,7 @@ export function PullRequestsPage() {
         <SettingsRow
           title="Muted comment editors"
           htmlFor="pr-muted-editors"
-          description={`Edits to pull request comments by these authors never reach a subscribed conversation. Status bots that rewrite one comment on every deploy belong here. ${LOGIN_HINT}`}
+          description={`Edits to pull request comments by these authors never reach a subscribed thread. Status bots that rewrite one comment on every deploy belong here. ${LOGIN_HINT}`}
           layout={ERowLayout.Stacked}
         >
           <Input
@@ -52,7 +52,7 @@ export function PullRequestsPage() {
         <SettingsRow
           title="Urgent comment editors"
           htmlFor="pr-urgent-editors"
-          description={`Edits to pull request comments by these authors wake a subscribed conversation at once, instead of arriving with the next batch of routine updates. Use it for review bots that report by editing one comment. ${LOGIN_HINT}`}
+          description={`Edits to pull request comments by these authors wake a subscribed thread at once, instead of arriving with the next batch of routine updates. Use it for review bots that report by editing one comment. ${LOGIN_HINT}`}
           layout={ERowLayout.Stacked}
         >
           <Input

@@ -8,6 +8,7 @@ import { Ctx, Input, Mutation, Router, UseMiddlewares } from 'nestjs-trpc'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
 import { SandboxProvisioningService } from './sandbox-provisioning.service'
 
+// Glossary: keyed by thread, but the pod belongs to that thread's session (CONTEXT.md).
 @Router({ alias: 'threadSandbox' })
 @UseMiddlewares(SessionMiddleware)
 export class SandboxProvisioningRouter {

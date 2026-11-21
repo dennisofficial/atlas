@@ -7,7 +7,7 @@ lane and stopped a peer message rendering as the operator's.
 
 ## Goal
 
-A session created by another session is an ordinary session: its own sandbox, clone, conversation and
+A session created by another session is an ordinary session: its own sandbox, clone, thread and
 lifecycle, linked to the one that created it by provenance and a message channel. A teammate is that
 session — not a second kind of session sharing someone else's sandbox. A main session orchestrates
 teammates; each teammate does its own work, opens its own PRs, and can fan out sub-agents inside its

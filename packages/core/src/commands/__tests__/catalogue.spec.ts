@@ -125,6 +125,6 @@ describe('argument parsers', () => {
 describe('fresh-thread refusal copy', () => {
   it('keeps the strings web and the TUI share', () => {
     expect(NOTHING_TO_ROTATE).toBe('nothing to rotate: the thread has no events yet')
-    expect(NOT_IN_THE_CLOUD).toBe('this conversation is not parked in the cloud')
+    expect(NOT_IN_THE_CLOUD).toBe('this session is not parked in the cloud')
   })
 })

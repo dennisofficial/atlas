@@ -17,6 +17,7 @@ const inputSchema = z.strictObject({
   expiresInMinutes: z.number().positive().optional(),
 })
 
+// Glossary: "conversation" here means the thread the subscription belongs to (CONTEXT.md).
 const description = [
   'Subscribe this conversation to an external event source, such as a pull request or a workflow run.',
   'Occurrences from a subscribed source are delivered to you as notices that wake you; nothing notifies you about a source you have not subscribed to.',

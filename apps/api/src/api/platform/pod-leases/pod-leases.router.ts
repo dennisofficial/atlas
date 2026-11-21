@@ -9,6 +9,7 @@ import { z } from 'zod'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
 import { PodLeasesService } from './pod-leases.service'
 
+// Glossary: a lease is taken by a thread against the pod its session owns (CONTEXT.md).
 @Router({ alias: 'podLeases' })
 @UseMiddlewares(SessionMiddleware)
 export class PodLeasesRouter {

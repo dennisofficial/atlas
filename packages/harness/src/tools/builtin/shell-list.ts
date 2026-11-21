@@ -17,6 +17,7 @@ const inputSchema = z.strictObject({
   runningOnly: z.boolean().optional(),
 })
 
+// Glossary: "conversation" here means the thread that started the shells (CONTEXT.md).
 const description = [
   'List the background shells this conversation has started, running and finished alike.',
   'Set runningOnly to leave out the ones that have already ended.',

@@ -159,7 +159,7 @@ export class ThreadsService {
       const storedCount = row.head
       if (args.draft.drafts.length < storedCount) {
         throw new ConflictException(
-          'the conversation is shorter than its cloud copy — refusing to clobber it',
+          'the thread is shorter than its cloud copy — refusing to clobber it',
         )
       }
       if (storedCount > 0) {
@@ -176,7 +176,7 @@ export class ThreadsService {
           replayed.type !== boundary.type ||
           replayed.body !== boundary.body
         ) {
-          throw new ConflictException('the conversation has diverged from its cloud copy')
+          throw new ConflictException('the thread has diverged from its cloud copy')
         }
       }
 

@@ -100,6 +100,7 @@ export class ThreadsRouter {
     private readonly drain: DrainStateService,
   ) {}
 
+  // Glossary: creates a session and its main thread (CONTEXT.md).
   @Mutation({ input: createThreadInputSchema, output: createThreadOutputSchema, meta: spawnMeta })
   async create(
     @Input() input: CreateThreadInput,
@@ -120,6 +121,7 @@ export class ThreadsRouter {
     return this.launcher.launch({ userId, draft: input, firstMessage: input.firstMessage })
   }
 
+  // Glossary: creates a session and its main thread, reopening the thread when the id already exists (CONTEXT.md).
   @Mutation({ input: openThreadInputSchema, output: openThreadReplySchema, meta: spawnMeta })
   async open(
     @Input() input: OpenThreadInput,
@@ -138,6 +140,7 @@ export class ThreadsRouter {
     })
   }
 
+  // Glossary: the newest main thread among the project's sessions, so it finds the session to reopen (CONTEXT.md).
   @Query({ input: recentThreadInputSchema, output: wireThreadSchema.nullable(), meta: readMeta })
   recent(
     @Input() input: RecentThreadInput,

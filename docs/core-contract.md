@@ -1,5 +1,8 @@
 # Core contract
 
+This file describes v1 and predates the glossary: its "session" mostly names what
+[CONTEXT.md](../CONTEXT.md) calls a **thread**.
+
 The seams of `@dltech/atlas-core`. Derived from four spikes, not from argument — every clause below
 that carries a _why_ earned it by breaking in code. Evidence lives in `docs/research/`.
 
@@ -107,7 +110,7 @@ type EventBody =
 - **`background-shell-ended` carries an excerpt and an optional full-output path.** Modern shells
   carry `outputPath` and optional byte-range fields from their append-only spool; the model can Read
   or Grep that path for complete output. Historical no-path events keep their original rendering. A shell that outlives
-  its turn has to re-enter the conversation somehow, and the two obvious shapes are both wrong: a
+  its turn has to re-enter the thread somehow, and the two obvious shapes are both wrong: a
   `user-said` puts words in the operator's mouth and renders as their message, and a notice saying
   "read it with `shell_output`" spends a whole model step fetching bytes the harness already held.
   So the ending is its own arm, projected by `messagesFromEvents` as a `user`-role
@@ -194,7 +197,7 @@ so a lookup scoped to `where: { threadId }` finds nothing, treats an unchanged `
 appends a duplicate — the per-thread unique index does not stop it, because the child's `threadId` differs.
 Nothing renders twice: `currentContextEvents` keys on `(slot, key)` without the digest and the last write
 wins, so the child's copy is the one the prompt carries. The damage is subtler than a duplicate. The file
-moves from the front of the conversation to the tail, so the composed prefix is no longer byte-identical to
+moves from the front of the thread to the tail, so the composed prefix is no longer byte-identical to
 the parent's at the position the parent's copy occupied, every cache anchor after it is dead, and the
 sub-agent pays full input price for the whole inherited history — which is the one cost inheriting by
 reference exists to avoid. So the lookup spans the inherited chain, an unchanged re-offer resolves to the
@@ -226,7 +229,7 @@ interface EventLog {
 **`read` returns the composed view; `readOwn` returns the thread's own rows.** They are the same thing
 until a thread is forked by reference, at which point the child holds no copy of the prefix it inherits
 and `read` has to stitch the parent's rows up to the fork point onto the child's own. Two readers need
-the difference: assembly and the transcript want the composed view, because that is the conversation;
+the difference: assembly and the transcript want the composed view, because that is the thread;
 anything reasoning about what this thread may _write_ wants `readOwn`, because a child must never mutate
 a row it does not own.
 
@@ -339,7 +342,7 @@ accounting are not peers of content rules — every one needed an escape hatch w
 **`cacheBreakpoints` is the first annotator**, and it is why the seam exists. Anthropic prices a
 cache read at ~0.1x input and rejects a fifth `cache_control`, so placement is a budget of four
 spent deliberately: one on the **last system block** — tools render before system, so that single
-marker caches tools and system together — and up to three across the conversation, the last of which
+marker caches tools and system together — and up to three across the thread, the last of which
 sits on the final content block so the next step reads the whole prefix back. The others are
 _anchors_ at absolute multiples of `CACHE_ANCHOR_STRIDE_BLOCKS` (15) content blocks. Absolute is the
 load-bearing word: the log only ever grows at the end, so a position counted from the front is the
@@ -347,16 +350,16 @@ same position next step, which is what lets a later request read what an earlier
 from the end they would move every step, write entries nothing ever reads, and cost the write
 premium for nothing. The stride is 15 against a 20-block lookback because each breakpoint walks back
 at most 20 blocks to find a prior entry: a step that appends more than 20 blocks — an assistant turn
-with a dozen parallel tool calls — would otherwise silently miss and rewrite the whole conversation.
+with a dozen parallel tool calls — would otherwise silently miss and rewrite the whole thread.
 
 **The marker goes on a part, never on a message.** `@ai-sdk/anthropic` will fall back to the message's
 `providerOptions` and mark its last content block, which is one interrupted turn away from putting
 `cache_control` on a `thinking` block — not a cacheable position. The annotator picks the last
 non-reasoning part itself, and marks nothing when a message has none.
 
-**The TTLs are fixed when the annotator is constructed**, 1h for system and 5m for the conversation.
+**The TTLs are fixed when the annotator is constructed**, 1h for system and 5m for the prompt.
 Not a default we inherited: the system prefix is the expensive, stable half and wants to survive a
-human's coffee break, while a step-to-step conversation gap is well under five minutes and the 2x
+human's coffee break, while a step-to-step prompt gap is well under five minutes and the 2x
 write premium buys nothing there. Anthropic requires the longer-lived entry to render first, which
 system does. Fixing them at construction is also what stops a mid-session flip, which would bust the
 prefix it was meant to protect.
@@ -458,12 +461,12 @@ type ToolCall = { callId: string; name: string; input: unknown; effect: EToolEff
   consumer a `harness` type. The chain reaches the registry as a thunk
   (`HookChainSourceToken`) — hooks resolve tools, tools resolve the registry — the same cycle break
   `ChildRunnerDepsToken` makes for the agent supervisor.
-- **`OnThreadOpen` is the second phase no turn drives.** Opening a conversation runs no turn, so a
+- **`OnThreadOpen` is the second phase no turn drives.** Opening a thread runs no turn, so a
   resumed thread that sits in a worktree would otherwise leave `BeforeTurn`-fed facts — the session's
   working directory above all — stale until somebody speaks. The app fires it when a thread becomes
-  the visible conversation (boot resume, `/resume`, a fresh conversation), carrying the directory the
+  the visible thread (boot resume, `/resume`, a fresh thread), carrying the directory the
   opened log implies. Its drafts append to that thread's log by the caller, never to a thread the
-  store does not know yet: a conversation nobody has spoken in is opened by its first turn, and a
+  store does not know yet: a thread nobody has spoken in is opened by its first turn, and a
   hook's draft must not open it early.
 - **Every phase is throw-isolated and time-bounded, at the chain rather than at the call site.**
   `HookChain` funnels all nine, so one budget lives in one place. A hook that throws, outlives
@@ -497,7 +500,7 @@ type ToolCall = { callId: string; name: string; input: unknown; effect: EToolEff
   short-circuits on effect before consulting the predicate. Direct file tools capture exact
   before/after text under the write lock, and serial calls must see the state the prior call settled.
   Making this structural rather than conventional stops a later tool reintroducing the hazard by
-  opting in. This is not file-restoring rewind: moving conversation history does not restore files.
+  opting in. This is not file-restoring rewind: moving thread history does not restore files.
 - **Ordering is by named stage**, with a numeric nudge within a stage. Bare integers work at three
   hooks and rot at thirty, where two authors both pick 50 and an alphabetical tiebreak silently
   decides security policy. `OnChunk` order is a **security** constraint: a hook returning `null` drops
@@ -611,7 +614,7 @@ Almost every member of that set is there because **the provider will reject it**
 stronger and more obvious reason. `EndsWithAssistant` is the one member that is not: Anthropic
 supports assistant prefill on some models, so a trailing assistant message is a rejection on the
 models Atlas uses and a feature elsewhere. It belongs here because Atlas has no prefill: the loop
-assembles only when the conversation is the user's to answer, so a prompt ending on the assistant is
+assembles only when the thread is the user's to answer, so a prompt ending on the assistant is
 a projection disagreeing with the loop's own gate, and sending it asks for a completion nobody meant
 to request. It is the false-positive question, not the rejection question, that decides membership —
 and this check cannot fire on a legitimate turn, because there is no legitimate turn it describes.

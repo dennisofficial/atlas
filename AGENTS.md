@@ -13,7 +13,8 @@ hangs, silent failures, seams that make the next feature cheap.
 
 Read `docs/architecture.md` before you change anything structural. It and `docs/core-contract.md`
 win over an inference from code. The v2 redesign (client ↔ control plane ↔ pod) lives in `docs/v2`.
-A package or app can carry its own `AGENTS.md` with local rules.
+A package or app can carry its own `AGENTS.md` with local rules. Call the units by their
+[CONTEXT.md](CONTEXT.md) names: a session, the threads inside it, a sub-agent, a teammate.
 
 ## Boundaries
 

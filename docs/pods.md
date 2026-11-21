@@ -1,5 +1,8 @@
 # Pods
 
+This file describes v1 and predates the glossary: its "session" mostly names what
+[CONTEXT.md](../CONTEXT.md) calls a **thread**.
+
 A **pod** is the external runtime a session runs in: a local Docker container or a Vercel Sandbox.
 The **runner** is which of the two hosts it (`ERunner` in `packages/core/src/execution/runner.ts`).
 Both runners boot the same `atlas-serve` binary and run the same serve code, so a session in a pod

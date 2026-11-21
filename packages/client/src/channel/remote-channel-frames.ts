@@ -23,8 +23,8 @@ const protocolMismatchOf = (peer: ProtocolRange): string | undefined => {
   const skew = protocolSkewOf(peer)
   if (skew === EProtocolSkew.Compatible) return undefined
   return skew === EProtocolSkew.PeerTooNew
-    ? `the sandbox's serve speaks a newer wire protocol (${peer.protocol}) than this Atlas (${CLIENT_RANGE}) — update Atlas, then re-open the conversation`
-    : `the sandbox's serve speaks an older wire protocol (${peer.protocol}) than this Atlas (${CLIENT_RANGE}) — re-open the conversation so the sandbox's serve is rebuilt`
+    ? `the sandbox's serve speaks a newer wire protocol (${peer.protocol}) than this Atlas (${CLIENT_RANGE}) — update Atlas, then re-open the thread`
+    : `the sandbox's serve speaks an older wire protocol (${peer.protocol}) than this Atlas (${CLIENT_RANGE}) — re-open the thread so the sandbox's serve is rebuilt`
 }
 
 export function createFrameHandler(core: ChannelCore) {

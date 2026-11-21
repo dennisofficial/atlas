@@ -186,7 +186,7 @@ it settles `failed` when the operator answers.
 **A message or a stop while parked** closes **every** open parked operator call, legacy ones
 included, with an error result ("the operator sent a message instead of answering", "the session was
 stopped while the request was open"), then appends the `user-said` or performs the stop, so the
-conversation stays valid and no card is stuck.
+thread stays valid and no card is stuck.
 
 **A parked call is never re-run.** The turn loop picks the call to settle from `settleablePendingOf`
 (`packages/core/src/record/loop-state.ts`), which leaves out everything in `LoopState.parked`, so a

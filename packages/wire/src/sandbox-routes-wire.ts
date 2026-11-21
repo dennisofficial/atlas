@@ -6,6 +6,7 @@ export enum ESandboxLifecycleState {
   Resuming = 'resuming',
 }
 
+// Glossary: the thread whose session owns the pod this input names (CONTEXT.md).
 export const sandboxThreadInputSchema = z.strictObject({ threadId: z.string().min(1) })
 export type SandboxThreadInput = z.infer<typeof sandboxThreadInputSchema>
 
@@ -19,6 +20,7 @@ export type RegisterSandboxMetadata = z.infer<typeof registerSandboxMetadataSche
 export const claimWorkspaceSpecSchema = z.strictObject({ remoteUrl: z.string().nullable() })
 export type ClaimWorkspaceSpec = z.infer<typeof claimWorkspaceSpecSchema>
 
+// Glossary: claims the pod of this thread's session, creating that session and its main thread when the id is new (CONTEXT.md).
 export const claimSandboxInputSchema = z.strictObject({
   threadId: z.string().min(1),
   clientToken: z.string().min(64).optional(),

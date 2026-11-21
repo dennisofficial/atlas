@@ -13,5 +13,6 @@ export function resumeHint(args: {
   const active = args.active
   if (active === null || !active.started) return null
 
+  // Glossary: "conversation" here means the thread being resumed (CONTEXT.md).
   return `\nResume this conversation with:\n  ${args.command} --resume "${threadHandle(active)}"\n`
 }

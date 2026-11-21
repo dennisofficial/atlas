@@ -60,7 +60,7 @@ const SUMMARISED_LINES: {
     `Atlas called ${event.name} with ${jsonOrDescription(event.input, limit)}`,
   'tool-result': toolResultLine,
   'tool-denied': ({ event, limit }) => `${event.name} was denied: ${clipped(event.reason, limit)}`,
-  'history-compacted': ({ event }) => `Summary of this session before this point: ${event.summary}`,
+  'history-compacted': ({ event }) => `Summary of this thread before this point: ${event.summary}`,
   'agent-ended': ({ event, limit }) =>
     `Sub-agent (${event.agentType}, ${event.intent}) ${event.status}: ${clipped(event.prose, limit)}`,
   'agent-reported': ({ event, limit }) => {

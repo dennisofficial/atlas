@@ -14,8 +14,8 @@ operator input still owe a live check. Next is slice 8, hardening and daily use.
 which is still open. Each slice in the [roadmap](roadmap.md) gets a spec in [slices/](slices/)
 before it is built.
 
-**Start here (every new session):** read this file, then [roadmap.md](roadmap.md) (its _Current
-state_ says what to do next and how slices move between sessions), then the next slice's spec.
+**Start here (every new agent run):** read this file, then [roadmap.md](roadmap.md) (its _Current
+state_ says what to do next and how slices move between agent runs), then the next slice's spec.
 Read [architecture.md](architecture.md) for the design. The research files are the evidence it
 rests on.
 
@@ -48,8 +48,9 @@ v2 changes who owns what.
 
 | File                                                                                             | What it is                                                                                                                                                                             |
 | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [../CONTEXT.md](../CONTEXT.md)                                                                   | The glossary every other file uses: session, thread, sub-agent, teammate, transcript                                                                                                   |
 | [architecture.md](architecture.md)                                                               | The authoritative v2 design: principles P1–P8, tiers, protocol, state ownership, package shape, side-by-side plan, risks                                                               |
-| [roadmap.md](roadmap.md)                                                                         | Current state, the session-per-slice workflow, and the ordered slices with exit criteria                                                                                               |
+| [roadmap.md](roadmap.md)                                                                         | Current state, the one-slice-per-run workflow, and the ordered slices with exit criteria                                                                                               |
 | [slices/](slices/)                                                                               | One spec per slice, written and approved before the slice is built; [slices/03-teammates.md](slices/03-teammates.md) is a design section (teammates as parallel sessions), not a slice |
 | [../decisions/0019-v2-package-map.md](../decisions/0019-v2-package-map.md)                       | The package map: foundations in `packages/`, plugins in `plugins/`, native commands in `commands/`                                                                                     |
 | [../decisions/0018-v2-pod-first-architecture.md](../decisions/0018-v2-pod-first-architecture.md) | The decision record for the locked decisions                                                                                                                                           |

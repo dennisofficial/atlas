@@ -15,6 +15,7 @@ import { z } from 'zod'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
 import { ThreadPodService } from './thread-pod.service'
 
+// Glossary: keyed by thread, but the pod belongs to that thread's session, one per session (CONTEXT.md).
 @Router({ alias: 'threadPod' })
 @UseMiddlewares(SessionMiddleware)
 export class ThreadPodRouter {

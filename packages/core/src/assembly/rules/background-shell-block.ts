@@ -59,7 +59,7 @@ const alreadyEnded = (args: {
   event: { shellId: string; command: string; description?: string | undefined }
   ended: NonNullable<ShellEventContext['endedBefore']>
 }): string =>
-  `Background shell ${args.event.shellId} ${shellLabel(args.event)} had already ended before this was recorded: it ${shellEnding(args.ended)}. Its ending appears earlier in this session. The shell is not running, there is nothing to wait for, and no further input or check-in can reach it.`
+  `Background shell ${args.event.shellId} ${shellLabel(args.event)} had already ended before this was recorded: it ${shellEnding(args.ended)}. Its ending appears earlier in this thread. The shell is not running, there is nothing to wait for, and no further input or check-in can reach it.`
 
 export function backgroundShellBlock(
   event: EventOfType<'background-shell-ended'>,
