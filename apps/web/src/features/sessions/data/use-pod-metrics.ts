@@ -31,6 +31,11 @@ export function usePodMetrics(args: {
       active = undefined
       previous?.unsubscribe()
     }
+    const resubscribe = (): void => {
+      if (stopped) return
+      close()
+      retry = setTimeout(open, RESUBSCRIBE_MS)
+    }
     const open = (): void => {
       if (stopped) return
       const subscription = api.sessions.podMetrics.subscribe(
@@ -41,12 +46,8 @@ export function usePodMetrics(args: {
             if (!frame.success) return
             setSeries((current) => seriesAfter({ series: current, frame: frame.data }))
           },
-          onError: () => undefined,
-          onComplete: () => {
-            if (stopped) return
-            close()
-            retry = setTimeout(open, RESUBSCRIBE_MS)
-          },
+          onError: () => resubscribe(),
+          onComplete: () => resubscribe(),
         },
       )
       if (stopped) subscription.unsubscribe()
