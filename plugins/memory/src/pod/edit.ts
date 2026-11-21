@@ -4,7 +4,6 @@ import type { EMemoryScope } from '@dltech/atlas-core'
 
 import { addressOf } from './address'
 import { memoryRefusal, scopeLabelOf } from './outcome'
-import { markStale, type MemoryPodState } from './state'
 
 export type MemoryEditInput = {
   scope: EMemoryScope
@@ -16,7 +15,6 @@ export type MemoryEditInput = {
 
 export const editMemory = async (args: {
   ctx: PluginPodContext
-  state: MemoryPodState
   input: MemoryEditInput
 }): Promise<ToolOutcome> => {
   try {
@@ -26,7 +24,6 @@ export const editMemory = async (args: {
       new: args.input.new,
       revision: args.input.revision,
     })
-    markStale(args.state)
     return {
       ok: true,
       output: { scope: args.input.scope, name: saved.name, revision: saved.revision },
