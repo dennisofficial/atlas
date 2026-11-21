@@ -23,6 +23,7 @@ const messageOf = (params: { clientId: string; text: string }): string =>
 
 const setup = async (): Promise<ControlPlane> => {
   await seedUser({ db: testDb().db, id: USER })
+  await testDb().db.orm.public.User.where({ id: USER }).updateAndCount({ active: true })
   const plane = new ControlPlane({
     store: new PostgresControlStore(testDb().db),
     clock: () => NOW,
