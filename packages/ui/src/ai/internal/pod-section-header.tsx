@@ -2,7 +2,7 @@
 
 import { Button } from '#components/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '#components/tooltip'
-import { PowerIcon } from 'lucide-react'
+import { PlayIcon, SquareIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { EPodState } from '../pod-status'
@@ -92,7 +92,13 @@ export function PodSectionHeader({
                 />
               }
             >
-              {pending || stopping ? <InlineSpinner /> : <PowerIcon aria-hidden />}
+              {pending || stopping ? (
+                <InlineSpinner />
+              ) : running ? (
+                <SquareIcon aria-hidden className="fill-current" />
+              ) : (
+                <PlayIcon aria-hidden className="fill-current" />
+              )}
             </TooltipTrigger>
             <TooltipContent>{label}</TooltipContent>
           </Tooltip>
