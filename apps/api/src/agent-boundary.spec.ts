@@ -16,6 +16,7 @@ const TRIGGER_VALUE_IMPORTS = new Set([
   'api/cloud/sandbox-provisioning/pod-provision-rollback.ts',
   'api/cloud/sandbox-provisioning/pod-provision-run.ts',
   'trigger/pod-power/pod-sleep-graph.ts',
+  'trigger/pod-disk/pod-disk-grow-graph.ts',
   'trigger/pod-resize/pod-resize-graph.ts',
   'trigger/sandbox-cost/agent37-usage-reconcile.task.ts',
   'trigger/sandbox-provisioning/orphan-sandbox-sweep.task.ts',

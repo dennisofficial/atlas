@@ -291,6 +291,7 @@ export interface ControlTx {
     sessionId: string
     vcpus: number
     memoryGb: number
+    diskGb?: number | undefined
     generation: number
   }): Promise<boolean>
   setSessionPodApplied(params: {

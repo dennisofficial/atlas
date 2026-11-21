@@ -144,6 +144,7 @@ export * from './agents/crew-fold'
 
 export * from './lifecycle/lifecycle'
 export * from './pod/pod-busy'
+export * from './pod/pod-disk'
 export * from './pod/pod-metrics'
 export * from './pod/pod-shapes'
 export * from './pod/serve-env'

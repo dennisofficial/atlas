@@ -24,6 +24,7 @@ export type ControlSessionRow = {
   podSessionId: string | null
   podDesiredVcpus: number | null
   podDesiredMemoryGb: number | null
+  podDesiredDiskGb: number | null
   podSizeGeneration: number
   podActualVcpus: number | null
   podActualMemoryGb: number | null

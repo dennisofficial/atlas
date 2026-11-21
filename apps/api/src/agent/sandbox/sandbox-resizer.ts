@@ -11,14 +11,18 @@ import { sandboxProvidersOf, type SandboxProvidersEnv } from './sandbox-provider
 import { recordSandboxRunClose, sandboxCumulativeCpuMsOf } from './sandbox-runs'
 
 export type SandboxResizer = {
-  resize(args: { sandboxSessionId: string; shape: PodShape }): Promise<PodResizeOutcome>
+  resize(args: {
+    sandboxSessionId: string
+    shape: PodShape
+    diskGb?: number | undefined
+  }): Promise<PodResizeOutcome>
 }
 
 export const sandboxResizerOf = (args: {
   config: ConfigSource
   sandbox: SandboxProviderRegistry
 }): SandboxResizer => ({
-  resize: async ({ sandboxSessionId, shape }) => {
+  resize: async ({ sandboxSessionId, shape, diskGb }) => {
     const config = await args.config.read({ sessionId: sandboxSessionId })
     if (config.sandbox.configured === false) {
       throw new SandboxNotConfiguredError(config.sandbox.gap)
@@ -31,7 +35,11 @@ export const sandboxResizerOf = (args: {
       sandboxStopped: false,
       ...(cpuCumulativeMs === undefined ? {} : { cpuCumulativeMs }),
     })
-    return await sandbox.resize({ target, shape })
+    return await sandbox.resize({
+      target,
+      shape,
+      ...(diskGb === undefined ? {} : { diskGb }),
+    })
   },
 })
 

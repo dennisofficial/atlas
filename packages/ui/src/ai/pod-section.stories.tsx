@@ -8,6 +8,8 @@ import {
   POD_SECTION_SHAPE,
   POD_SECTION_SHAPES,
   POD_SERIES,
+  POD_SERIES_DISK_FULL,
+  POD_SERIES_WITH_DISK,
   VERCEL_HOBBY_UNAVAILABLE,
   VERCEL_PLAN_CAP_SHAPES,
   VERCEL_PRO_SHAPE,
@@ -59,6 +61,7 @@ const meta = {
     onStart: () => {},
     onStop: () => {},
     onResize: () => {},
+    onGrowDisk: () => {},
   },
   parameters: { layout: 'centered' },
   render: (args) => <Stage {...args} />,
@@ -73,6 +76,14 @@ export const Running: Story = {}
 export const RunningLive: Story = { args: { live: true } }
 
 export const Throttled: Story = { args: { throttled: true, oomKills: 2 } }
+
+export const WithDisk: Story = { args: { series: POD_SERIES_WITH_DISK } }
+
+export const DiskGrow: Story = { args: { series: POD_SERIES_WITH_DISK, diskGrow: true } }
+
+export const DiskAtMaximum: Story = {
+  args: { series: POD_SERIES_DISK_FULL, diskGrow: true },
+}
 
 export const Resizing: Story = { args: { pendingShape: { vcpus: 8, memoryGb: 64 } } }
 

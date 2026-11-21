@@ -150,6 +150,7 @@ export const recordPodDesiredIn = async (params: {
   sessionId: string
   vcpus: number
   memoryGb: number
+  diskGb?: number | undefined
 }): Promise<number> => {
   const { tx, sessionId } = params
   const session = await tx.lockSession(sessionId)
@@ -160,6 +161,7 @@ export const recordPodDesiredIn = async (params: {
     vcpus: params.vcpus,
     memoryGb: params.memoryGb,
     generation,
+    ...(params.diskGb === undefined ? {} : { diskGb: params.diskGb }),
   })
   await tx.announce({ sessionId })
   return generation

@@ -15,11 +15,16 @@ const sessionOf = (over: Partial<PodResizeSession> = {}): PodResizeSession => ({
   podSizeGeneration: 2,
   podDesiredVcpus: 4,
   podDesiredMemoryGb: 16,
+  podDesiredDiskGb: null,
   ...over,
 })
 
 const depsOf = (over: Partial<PodResizeDeps> = {}) => {
-  const resizes: { sandboxSessionId: string; shape: { vcpus: number; memoryGb: number } }[] = []
+  const resizes: {
+    sandboxSessionId: string
+    shape: { vcpus: number; memoryGb: number }
+    diskGb?: number | undefined
+  }[] = []
   const rewakes: { sessionId: string }[] = []
   const applied: { sessionId: string; vcpus: number; memoryGb: number; generation: number }[] = []
   const failures: { sessionId: string; generation: number; error: string }[] = []
@@ -28,7 +33,11 @@ const depsOf = (over: Partial<PodResizeDeps> = {}) => {
   const deps: PodResizeDeps = {
     session: async () => sessionOf(),
     resize: async (args) => {
-      resizes.push({ sandboxSessionId: args.sandboxSessionId, shape: args.shape })
+      resizes.push({
+        sandboxSessionId: args.sandboxSessionId,
+        shape: args.shape,
+        ...(args.diskGb === undefined ? {} : { diskGb: args.diskGb }),
+      })
       return 'restarted'
     },
     rewake: async (args) => {
@@ -64,6 +73,28 @@ describe('runPodResize', () => {
     })
     expect(resizes).toEqual([{ sandboxSessionId: 'session-a', shape: { vcpus: 4, memoryGb: 16 } }])
     expect(rewakes).toEqual([{ sessionId: 'session-a' }])
+  })
+
+  it('resizes the disk the pod asked for beside the shape', async () => {
+    const { deps, resizes } = depsOf({
+      session: async () => sessionOf({ podDesiredDiskGb: 30 }),
+    })
+
+    await runPodResize({ payload, deps })
+
+    expect(resizes).toEqual([
+      { sandboxSessionId: 'session-a', shape: { vcpus: 4, memoryGb: 16 }, diskGb: 30 },
+    ])
+  })
+
+  it('falls back to the disk the payload carried when the pod recorded none', async () => {
+    const { deps, resizes } = depsOf()
+
+    await runPodResize({ payload: { ...payload, diskGb: 40 }, deps })
+
+    expect(resizes).toEqual([
+      { sandboxSessionId: 'session-a', shape: { vcpus: 4, memoryGb: 16 }, diskGb: 40 },
+    ])
   })
 
   it('records the applied size itself when the provider recreated the container', async () => {

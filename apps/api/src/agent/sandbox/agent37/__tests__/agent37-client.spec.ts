@@ -84,6 +84,24 @@ describe('liveAgent37Client', () => {
     expect(resized.resources).toEqual({ cpu: 4, memory: 8, disk: 20 })
   })
 
+  it('reads the disk series on the API host so a pod can see how full its volume is', async () => {
+    const metrics = {
+      series: { disk_bytes: [[1_783_293_600, 17_179_869_184]] },
+      limits: { cpu_cores: 2, memory_bytes: 4_294_967_296, disk_bytes: 21_474_836_480 },
+      hours: 1,
+      step_seconds: 60,
+      fetched_at: 1_783_293_660,
+    }
+    const { fetchImpl, calls } = fakeFetch([{ status: 200, body: metrics }])
+    const client = liveAgent37Client({ apiKey: 'sk_live_8', fetch: fetchImpl })
+    const answer = await client.metrics({ id: 'ab12', hours: 1 })
+    expect(calls[0]?.url).toBe('https://api.agent37.com/v1/instances/ab12/metrics?hours=1')
+    expect(calls[0]?.method).toBe('GET')
+    expect(calls[0]?.headers.Authorization).toBe('Bearer sk_live_8')
+    expect(answer.limits.disk_bytes).toBe(21_474_836_480)
+    expect(answer.series.disk_bytes).toEqual([[1_783_293_600, 17_179_869_184]])
+  })
+
   it('starts a stopped instance on the API host', async () => {
     const { fetchImpl, calls } = fakeFetch([
       { status: 200, body: { id: 'ab12', status: 'running' } },

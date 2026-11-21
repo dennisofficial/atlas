@@ -10108,6 +10108,13 @@
                   "kind": "scalar"
                 }
               },
+              "podDesiredDiskGb": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
               "podDesiredMemoryGb": {
                 "nullable": true,
                 "type": {
@@ -10436,6 +10443,9 @@
                 },
                 "podAppliedGeneration": {
                   "column": "podAppliedGeneration"
+                },
+                "podDesiredDiskGb": {
+                  "column": "podDesiredDiskGb"
                 },
                 "podDesiredMemoryGb": {
                   "column": "podDesiredMemoryGb"
@@ -18777,6 +18787,11 @@
                   "dataType": "pg/int4",
                   "nullable": true
                 },
+                "podDesiredDiskGb": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": true
+                },
                 "podDesiredMemoryGb": {
                   "codecId": "pg/int4@1",
                   "dataType": "pg/int4",
@@ -19513,7 +19528,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "c746171405bfe47231db56934b722ceb1571a3839b181bde4cf88a4c8c39b411"
+    "storageHash": "002ccde9a04c81afe52c0bdcff59c1f67b359a4488f643ef5bd5b4c3e301e321"
   },
   "execution": {
     "executionHash": "4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45",

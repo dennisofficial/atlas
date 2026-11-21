@@ -18,9 +18,11 @@ import { CGROUP_ROOT } from '@dltech/atlas-sandbox'
 import type { DaemonOpsDeps } from '../deps'
 import {
   METRICS_CGROUP_ROOT_ENV,
+  METRICS_DISK_ROOT_ENV,
   METRICS_PROC_ROOT_ENV,
   podVcpusOf,
   readPodCounters,
+  readPodDisk,
 } from './cgroup'
 
 export const METRICS_INTERVAL_ENV = 'ATLAS_METRICS_INTERVAL_MS'
@@ -48,6 +50,7 @@ export const metricsGroup =
   (groupCtx: GroupContext): DaemonGroup => {
     const root = deps.env[METRICS_CGROUP_ROOT_ENV] ?? CGROUP_ROOT
     const proc = deps.env[METRICS_PROC_ROOT_ENV] ?? '/proc'
+    const diskRoot = deps.env[METRICS_DISK_ROOT_ENV] ?? deps.home
     const intervalMs = intervalOf(deps.env)
     const vcpus = podVcpusOf({ root, fallback: availableParallelism() })
     const ring: PodSample[] = []
@@ -56,8 +59,14 @@ export const metricsGroup =
     let prev: PodCgroupCounters | null = null
     let lastAt = 0
 
+    const countersNow = (): PodCgroupCounters | null => {
+      const counters = readPodCounters({ root, proc })
+      if (counters === null) return null
+      return { ...counters, ...(readPodDisk({ root: diskRoot }) ?? {}) }
+    }
+
     const sample = (): void => {
-      const next = readPodCounters({ root, proc })
+      const next = countersNow()
       const at = Date.now()
       if (next === null) return
       const last = prev
@@ -78,7 +87,7 @@ export const metricsGroup =
 
     const startSampling = (): void => {
       if (timer !== null) return
-      prev = readPodCounters({ root, proc })
+      prev = countersNow()
       lastAt = Date.now()
       timer = setInterval(sample, intervalMs)
       timer.unref()
@@ -96,7 +105,7 @@ export const metricsGroup =
         defineOp({
           op: 'metrics.subscribe',
           run: () => {
-            if (readPodCounters({ root, proc }) === null) {
+            if (countersNow() === null) {
               throw new CallFailureError({
                 code: ECallFailure.NotFound,
                 message: 'pod metrics are not readable',

@@ -154,6 +154,87 @@ describe('SessionsService command', () => {
     })
   })
 
+  it('records the bigger disk on an Agent37 pod and dispatches it beside the shape', async () => {
+    const context = setup()
+    const created = await context.service.create({
+      userId: 'user-a',
+      projectId: 'proj-a',
+      provider: 'agent37',
+    })
+
+    expect(
+      await context.service.command({
+        userId: 'user-a',
+        sessionId: created.sessionId,
+        name: 'resize',
+        args: { vcpus: 8, memoryGb: 64, diskGb: 30 },
+      }),
+    ).toEqual({})
+
+    const row = await context.plane.readSession({ sessionId: created.sessionId })
+    expect(row?.podDesiredDiskGb).toBe(30)
+    expect(context.dispatcher.dispatches).toEqual([
+      {
+        payload: {
+          sessionId: created.sessionId,
+          generation: 1,
+          vcpus: 8,
+          memoryGb: 64,
+          diskGb: 30,
+        },
+        idempotencyKey: `pod-resize:${created.sessionId}:1:0`,
+      },
+    ])
+  })
+
+  it('keeps the disk a pod already asked for when a later resize leaves it out', async () => {
+    const context = setup()
+    const created = await context.service.create({
+      userId: 'user-a',
+      projectId: 'proj-a',
+      provider: 'agent37',
+    })
+
+    await context.service.command({
+      userId: 'user-a',
+      sessionId: created.sessionId,
+      name: 'resize',
+      args: { vcpus: 8, memoryGb: 64, diskGb: 30 },
+    })
+    await context.service.command({
+      userId: 'user-a',
+      sessionId: created.sessionId,
+      name: 'resize',
+      args: { vcpus: 4, memoryGb: 16 },
+    })
+
+    expect(
+      (await context.plane.readSession({ sessionId: created.sessionId }))?.podDesiredDiskGb,
+    ).toBe(30)
+  })
+
+  it('refuses a bigger disk on a Vercel pod without touching the pod', async () => {
+    const context = setup()
+    const created = await context.service.create({
+      userId: 'user-a',
+      projectId: 'proj-a',
+      provider: 'vercel',
+    })
+
+    const refused = context.service.command({
+      userId: 'user-a',
+      sessionId: created.sessionId,
+      name: 'resize',
+      args: { vcpus: 4, memoryGb: 8, diskGb: 30 },
+    })
+
+    await expect(refused).rejects.toBeInstanceOf(BadRequestException)
+    expect(context.dispatcher.dispatches).toEqual([])
+    const row = await context.plane.readSession({ sessionId: created.sessionId })
+    expect(row?.podSizeGeneration).toBe(0)
+    expect(row?.podDesiredDiskGb).toBeNull()
+  })
+
   it('bumps the generation for each resize so a newer one supersedes the last', async () => {
     const { service, plane, dispatcher, sessionId } = await seed()
 

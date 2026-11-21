@@ -31,9 +31,18 @@ export type PodShapeRequest = {
   whenIdle: boolean
 }
 
+export type PodDiskRequest = {
+  diskGb: number
+  whenIdle: boolean
+}
+
+export const podDiskRestartBody = (diskGb: number): string =>
+  `The pod restarts with a ${diskGb} GB disk. Files are kept.`
+
 type Confirmation = {
   running: readonly string[]
   canWait: boolean
+  detail: string | undefined
   wait: () => void
   force: () => void
   decline: () => void
@@ -43,8 +52,9 @@ function useBusyConfirmation<S>(args: {
   busy: PodBusy
   canWait: boolean
   apply: (size: S, whenIdle: boolean) => Promise<void>
+  detail?: ((size: S) => string) | undefined
 }) {
-  const { busy, canWait, apply } = args
+  const { busy, canWait, apply, detail } = args
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
 
   const askFirst = (size: S) =>
@@ -59,6 +69,7 @@ function useBusyConfirmation<S>(args: {
       setConfirmation({
         running: busy.running,
         canWait,
+        detail: detail?.(size),
         wait: () => settle(true),
         force: () => settle(false),
         decline: () => {
@@ -103,6 +114,21 @@ export function useShapeResizeConfirmation(args: {
   return { confirmation, handleResize: confirm }
 }
 
+export function useDiskResizeConfirmation(args: {
+  busy: PodBusy
+  onResize: (request: PodDiskRequest) => Promise<void>
+  canWait?: boolean
+}) {
+  const { busy, onResize, canWait = true } = args
+  const { confirmation, confirm } = useBusyConfirmation<number>({
+    busy,
+    canWait,
+    apply: (diskGb, whenIdle) => onResize({ diskGb, whenIdle }),
+    detail: podDiskRestartBody,
+  })
+  return { confirmation, handleGrow: confirm }
+}
+
 export function ResizeBusyDialog({
   confirmation,
   body = POD_RESTART_BODY,
@@ -113,6 +139,7 @@ export function ResizeBusyDialog({
   const handleOpenChange = (open: boolean) => {
     if (!open) confirmation?.decline()
   }
+  const bodyText = confirmation?.detail ?? body
 
   return (
     <AlertDialog open={confirmation !== null} onOpenChange={handleOpenChange}>
@@ -121,8 +148,8 @@ export function ResizeBusyDialog({
           <AlertDialogTitle>Resize a pod that is working?</AlertDialogTitle>
           <AlertDialogDescription>
             {confirmation === null || confirmation.running.length === 0
-              ? body
-              : `${confirmation.running.join(', ')} running. ${body}`}
+              ? bodyText
+              : `${confirmation.running.join(', ')} running. ${bodyText}`}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

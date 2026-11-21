@@ -1,10 +1,11 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, statfsSync } from 'node:fs'
 import { join } from 'node:path'
 
 import type { PodCgroupCounters } from '@dltech/atlas-core'
 
 export const METRICS_CGROUP_ROOT_ENV = 'ATLAS_DAEMON_CGROUP_ROOT'
 export const METRICS_PROC_ROOT_ENV = 'ATLAS_DAEMON_PROC_ROOT'
+export const METRICS_DISK_ROOT_ENV = 'ATLAS_DAEMON_DISK_ROOT'
 
 const textOf = (path: string): string | null => {
   try {
@@ -83,3 +84,17 @@ const quotaVcpusOf = (text: string | null): number | null => {
 
 export const podVcpusOf = (args: { root: string; fallback: number }): number =>
   quotaVcpusOf(textOf(join(args.root, 'cpu.max'))) ?? Math.max(1, args.fallback)
+
+export type PodDiskCounters = { diskUsedBytes: number; diskLimitBytes: number }
+
+export const readPodDisk = (args: { root: string }): PodDiskCounters | null => {
+  try {
+    const stats = statfsSync(args.root)
+    return {
+      diskUsedBytes: Math.max(0, (stats.blocks - stats.bfree) * stats.bsize),
+      diskLimitBytes: stats.blocks * stats.bsize,
+    }
+  } catch {
+    return null
+  }
+}

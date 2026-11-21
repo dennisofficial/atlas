@@ -7,11 +7,14 @@ import {
   POD_CONFIRM_LABEL,
   POD_CONFIRM_TITLE,
 } from '../internal/pod-action-confirm'
+import { podDiskGrowOptionsOf } from '../internal/pod-disk-control'
 import { podShapeOptionsOf } from '../internal/pod-size-control'
 import {
   POD_SECTION_SHAPE,
   POD_SECTION_SHAPES,
   POD_SERIES,
+  POD_SERIES_DISK_FULL,
+  POD_SERIES_WITH_DISK,
   VERCEL_HOBBY_UNAVAILABLE,
   VERCEL_PRO_SHAPE,
   VERCEL_PRO_SHAPES,
@@ -90,6 +93,41 @@ describe('pod section chart', () => {
     expect(loud).toContain('Throttled')
     expect(loud).toContain('1 OOM kill')
     expect(htmlOf()).not.toContain('Throttled')
+  })
+})
+
+describe('pod disk row', () => {
+  it('stays away when the sample reports no disk', () => {
+    const html = htmlOf()
+    expect(html).not.toContain('Disk')
+    expect(html).not.toContain('aria-label="Increase disk"')
+    expect(html).toContain('CPU and RAM over the last 15 minutes')
+  })
+
+  it('reads used of limit in GB off the sample and adds disk to the chart', () => {
+    const html = htmlOf({ series: POD_SERIES_WITH_DISK, diskGrow: true })
+    expect(html).toContain('Disk')
+    expect(html).toContain('/ 20 GB')
+    expect(html).toContain('CPU, RAM and disk over the last 15 minutes')
+    expect(html).toContain('aria-label="Increase disk"')
+  })
+
+  it('keeps the grow control off a pod whose provider cannot grow its disk', () => {
+    const html = htmlOf({ series: POD_SERIES_WITH_DISK })
+    expect(html).toContain('Disk')
+    expect(html).not.toContain('aria-label="Increase disk"')
+  })
+
+  it('offers only the sizes above the current limit', () => {
+    expect(podDiskGrowOptionsOf({ limitGb: 20 })).toEqual([30, 40, 60, 80, 100])
+    expect(podDiskGrowOptionsOf({ limitGb: 64 })).toEqual([80, 100])
+    expect(podDiskGrowOptionsOf({ limitGb: 100 })).toEqual([])
+  })
+
+  it('hides the grow control when no bigger size is left', () => {
+    const html = htmlOf({ series: POD_SERIES_DISK_FULL, diskGrow: true })
+    expect(html).toContain('/ 100 GB')
+    expect(html).not.toContain('aria-label="Increase disk"')
   })
 })
 

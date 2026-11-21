@@ -86,6 +86,7 @@ export type SessionRuntimeFactoryArgs = {
           | {
               podDesiredVcpus: number | null
               podDesiredMemoryGb: number | null
+              podDesiredDiskGb: number | null
               podSizeGeneration: number
             }
           | undefined
@@ -130,7 +131,11 @@ export const createSessionRuntimeFactory = (
         const pod = await args.podSizing.readSession({ sessionId: sandboxSessionId })
         if (pod === undefined || pod === null) return
         const neverResized = pod.podDesiredVcpus === null
-        const reachedDesired = pod.podDesiredVcpus === vcpus && pod.podDesiredMemoryGb === memoryGb
+        const diskReached =
+          pod.podDesiredDiskGb === null ||
+          (endpoint.diskGb !== undefined && endpoint.diskGb >= pod.podDesiredDiskGb)
+        const reachedDesired =
+          pod.podDesiredVcpus === vcpus && pod.podDesiredMemoryGb === memoryGb && diskReached
         if (!neverResized && !reachedDesired) return
         await args.podSizing.recordPodApplied({
           sessionId: sandboxSessionId,
@@ -155,6 +160,7 @@ export const createSessionRuntimeFactory = (
         vcpus,
         sandbox: provider,
         target,
+        ...(endpoint.diskGb === undefined ? {} : { diskGb: endpoint.diskGb }),
       })
     }
     const onWake = async (endpoint: DaemonEndpoint): Promise<void> => {

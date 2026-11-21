@@ -70,6 +70,13 @@ const clientOf = (args: {
     },
     signedUrl: async () => 'https://inst-1-47300.agent37.app/?a37_token=t',
     usage: async () => ({ from: '', to: '' }),
+    metrics: async () => ({
+      series: {},
+      limits: { cpu_cores: 0, memory_bytes: 0, disk_bytes: 0 },
+      hours: 1,
+      step_seconds: 60,
+      fetched_at: 0,
+    }),
     events: async () => ({ from: '', to: '', events: [] }),
   }
   return { client, execs, probes }
