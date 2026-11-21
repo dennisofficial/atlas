@@ -6,6 +6,7 @@ import type { PodCgroupCounters } from '@dltech/atlas-core'
 export const METRICS_CGROUP_ROOT_ENV = 'ATLAS_DAEMON_CGROUP_ROOT'
 export const METRICS_PROC_ROOT_ENV = 'ATLAS_DAEMON_PROC_ROOT'
 export const METRICS_DISK_ROOT_ENV = 'ATLAS_DAEMON_DISK_ROOT'
+export const SANDBOX_VOLUME_ROOT = '/atlas'
 
 const textOf = (path: string): string | null => {
   try {
@@ -97,4 +98,12 @@ export const readPodDisk = (args: { root: string }): PodDiskCounters | null => {
   } catch {
     return null
   }
+}
+
+export const readFirstPodDisk = (args: { roots: readonly string[] }): PodDiskCounters | null => {
+  for (const root of args.roots) {
+    const disk = readPodDisk({ root })
+    if (disk !== null) return disk
+  }
+  return null
 }
