@@ -244,4 +244,55 @@ describe('the daemon watch op', () => {
       await rm(base, { recursive: true, force: true })
     }
   })
+
+  it('keeps the running watch when the same id starts with the same spec', async () => {
+    const base = await scratchRoot()
+    const root = join(base, 'skills')
+    await mkdir(root, { recursive: true })
+    const watch = rig()
+    try {
+      await watch.call({ op: 'watch.start', watchId: 'w1', roots: [root], debounceMs: DEBOUNCE_MS })
+      await writeSkill({ root, name: 'alpha', text: 'a' })
+      await waitUntil(() => watch.changes().length > 0)
+      expect(await watch.call({ op: 'watch.status', watchIds: ['w1'] })).toMatchObject({
+        watches: [{ watchId: 'w1', seq: 1 }],
+      })
+      await watch.call({ op: 'watch.start', watchId: 'w1', roots: [root], debounceMs: DEBOUNCE_MS })
+      expect(await watch.call({ op: 'watch.status', watchIds: ['w1'] })).toMatchObject({
+        watches: [{ watchId: 'w1', seq: 1 }],
+      })
+    } finally {
+      await watch.stop()
+      await rm(base, { recursive: true, force: true })
+    }
+  })
+
+  it('replaces the watch when the same id starts with another spec', async () => {
+    const base = await scratchRoot()
+    const root = join(base, 'skills')
+    const other = join(base, 'other')
+    await mkdir(root, { recursive: true })
+    await mkdir(other, { recursive: true })
+    const watch = rig()
+    try {
+      await watch.call({ op: 'watch.start', watchId: 'w1', roots: [root], debounceMs: DEBOUNCE_MS })
+      await writeSkill({ root, name: 'alpha', text: 'a' })
+      await waitUntil(() => watch.changes().length > 0)
+      expect(await watch.call({ op: 'watch.status', watchIds: ['w1'] })).toMatchObject({
+        watches: [{ watchId: 'w1', seq: 1 }],
+      })
+      await watch.call({
+        op: 'watch.start',
+        watchId: 'w1',
+        roots: [other],
+        debounceMs: DEBOUNCE_MS,
+      })
+      expect(await watch.call({ op: 'watch.status', watchIds: ['w1'] })).toMatchObject({
+        watches: [{ watchId: 'w1', seq: 0 }],
+      })
+    } finally {
+      await watch.stop()
+      await rm(base, { recursive: true, force: true })
+    }
+  })
 })

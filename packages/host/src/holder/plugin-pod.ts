@@ -10,6 +10,7 @@ import {
   type ThreadId,
   type ToolDeclaration,
   type ToolDefinition,
+  type V2Event,
 } from '@dltech/atlas-core'
 import {
   mergeHooks,
@@ -17,15 +18,14 @@ import {
   type PodCrew,
   type PodResources,
 } from '@dltech/atlas-plugin-sdk'
-import type { CallOp, CallResult } from '@dltech/atlas-protocol'
 
-import { newKey } from '../calls/remote-calls'
 import { worktreesOf } from './checkouts'
 import { deferredListingHook } from './deferred-listing'
 import { withDiscoveryTools } from './discovery'
 import type { HeldSessionDeps } from './held-session-deps'
 import { fireLive } from './ports'
 import { MirrorPlanHook } from './plan-mirror'
+import { pluginCallOf } from './plugin-call'
 import { podControlOf } from './pod-control'
 import { pluginResourcesHook, reloadResource } from './plugin-resources'
 import { podSessionsOf } from './plugin-sessions'
@@ -95,28 +95,6 @@ const teammateFallbackOf = (args: {
   },
 })
 
-export const pluginCallOf = (args: {
-  invoke: (call: {
-    key: string
-    op: CallOp
-    signal?: AbortSignal | undefined
-    onOutput?: ((bytes: Uint8Array) => void) | undefined
-  }) => Promise<CallResult>
-  env?: (() => Promise<Record<string, string>>) | undefined
-}): PluginPodContext['call'] => {
-  const withEnv = async (op: CallOp): Promise<CallOp> => {
-    if (op.op !== 'exec' || args.env === undefined) return op
-    return { ...op, env: { ...(await args.env()), ...op.env } }
-  }
-  return async (op, options) =>
-    args.invoke({
-      key: newKey(),
-      op: await withEnv(op),
-      signal: options?.signal,
-      onOutput: options?.onOutput,
-    })
-}
-
 const podResourcesOf = (args: {
   runtime: SessionRuntime
   record: SessionRecord
@@ -153,6 +131,11 @@ const postNoticeToSession = async (args: {
   })
 }
 
+export const resolvedEventsOf = (record: SessionRecord): readonly V2Event[] => {
+  const cache = record.eventCache()
+  return cache.eventsAfter(0).map((event) => cache.resolvedEvent(event))
+}
+
 export const pluginPodContextOf = (args: {
   deps: HeldSessionDeps
   runtime: SessionRuntime
@@ -187,10 +170,7 @@ export const pluginPodContextOf = (args: {
       await (args.notify === undefined
         ? postNoticeToSession({ deps, event, key: options.key })
         : args.notify(event, options)),
-    events: () => {
-      const cache = record.eventCache()
-      return cache.eventsAfter(0).map((event) => cache.resolvedEvent(event))
-    },
+    events: () => resolvedEventsOf(record),
     call: pluginCallOf({
       invoke: (call) => runtime.remoteCalls.invoke(call),
       ...(runtime.env === undefined ? {} : { env: runtime.env }),
@@ -238,6 +218,7 @@ export const pluginHooksOf = (args: {
   ctx: PluginPodContext
   declarations: () => readonly ToolDeclaration[]
   now: () => Date
+  sharedEvents?: (() => readonly V2Event[]) | undefined
 }): HookChain => {
   const { plugins } = args.runtime
   const host = hostHooksOf({ declarations: args.declarations })
@@ -247,7 +228,14 @@ export const pluginHooksOf = (args: {
   const resources =
     plugins.pod.resources.length === 0
       ? []
-      : [pluginResourcesHook({ ctx: args.ctx, resources: plugins.pod.resources })]
+      : [
+          pluginResourcesHook({
+            ctx: args.ctx,
+            resources: plugins.pod.resources,
+            trace: args.runtime.trace,
+            shared: args.sharedEvents,
+          }),
+        ]
   const merged = mergeHooks([
     host,
     plugin,
