@@ -5,6 +5,7 @@ import {
   EAgentStatus,
   EKilledBy,
   EMessageOrigin,
+  ERunFailureKind,
   toCallId,
   type EventDraft,
   type ThreadId,
@@ -70,7 +71,7 @@ const endingsIn = async (open: OpenedSupervisor, threadId?: ThreadId) =>
   )
 
 describe('a child the process lost, found again at recovery', () => {
-  it('writes the ending nobody was alive to write, blaming no one', async () => {
+  it('writes the ending nobody was alive to write, naming why it was lost', async () => {
     const open = await crashedWith(worked)
 
     const recovered = await open.supervisor.recordLostAgents({ threadId: open.parent })
@@ -83,8 +84,8 @@ describe('a child the process lost, found again at recovery', () => {
 
     const [ending] = await endingsIn(open)
     expect(ending?.type === 'agent-ended' ? ending : undefined).toMatchObject({
-      status: EAgentStatus.Stopped,
-      killedBy: EKilledBy.Unrecorded,
+      status: EAgentStatus.Failed,
+      failureKind: ERunFailureKind.Lost,
       turns: 2,
       toolCalls: 1,
       prose: 'four callers, in two files',

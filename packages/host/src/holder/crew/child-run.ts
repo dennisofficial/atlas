@@ -3,6 +3,7 @@ import {
   EKilledBy,
   EReportKind,
   finishedTurnOf,
+  type AgentLost,
   INBOX_KIND_EVENT,
   inboxEventPayloadOf,
   type EventBody,
@@ -40,6 +41,8 @@ import {
 } from './child-record'
 
 export type { AdoptedChildArgs, ChildRunArgs }
+
+export type AdoptedRun = { ok: true; run: ChildRun } | { ok: false; lost: AgentLost }
 
 export class ChildRun {
   readonly agentId: ThreadId
@@ -106,27 +109,27 @@ export class ChildRun {
     return run
   }
 
-  static async adopt(args: AdoptedChildArgs): Promise<ChildRun | undefined> {
+  static async adopt(args: AdoptedChildArgs): Promise<AdoptedRun> {
     const run = new ChildRun(
       args,
       args.agentId,
       childChoiceOf({ runtime: args.runtime, agentType: args.agentType }),
       args.spawnedAt,
     )
-    const record = await adoptRecordOf({
+    const adopted = await adoptRecordOf({
       args,
       agentId: args.agentId,
       onLeaseLost: (error) => run.lost(error),
     })
-    if (record === undefined) return undefined
-    run.record = record
-    run.inbox = childInboxOf({ deps: args.deps, record, threadId: run.agentId })
+    if (!adopted.ok) return adopted
+    run.record = adopted.record
+    run.inbox = childInboxOf({ deps: args.deps, record: adopted.record, threadId: run.agentId })
     if (args.settled === undefined) await run.endSettledTurn()
     else {
       run.ending = args.settled.status
       run.endedAt = args.settled.endedAt
     }
-    return run
+    return { ok: true, run }
   }
 
   get done(): Promise<void> {

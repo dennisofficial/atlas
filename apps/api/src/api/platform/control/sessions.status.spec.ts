@@ -5,6 +5,7 @@ import {
   EMessageOrigin,
   ERunFailureKind,
   ESessionStatus,
+  ETurnCause,
   toRunId,
   toThreadId,
   type V2Body,
@@ -59,6 +60,7 @@ describe('SessionsService status and events', () => {
       hostId: 9001,
     })
     const bodies: V2Body[] = [
+      { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input },
       { type: 'input-consumed', inboxId: 1 },
       { type: 'user-said', text: 'hi', requestId: 'inbox:1' },
     ]
@@ -81,8 +83,8 @@ describe('SessionsService status and events', () => {
     expect(thinking.lease).toEqual({ epoch: granted.epoch, holderHostId: 9001, live: true })
 
     const events = await service.events({ userId: 'user-a', sessionId: created.sessionId })
-    expect(events.events).toHaveLength(4)
-    expect(events.events[3]).toMatchObject({ type: 'user-said', text: 'hi' })
+    expect(events.events).toHaveLength(5)
+    expect(events.events[4]).toMatchObject({ type: 'user-said', text: 'hi' })
   })
 
   it('derives status from the tail of a log longer than one page', async () => {

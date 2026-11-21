@@ -1,6 +1,7 @@
 import {
   initialFailureMessage,
   initialSessionViewState,
+  SESSION_VIEW_VERSION,
   isCommandLogEvent,
   isVisible,
   needsRebuild,
@@ -10,11 +11,39 @@ import {
   stepSessionViewWith,
   stepVisibility,
   type PluginViewFold,
+  type SessionViewState,
   type V2Event,
 } from '@dltech/atlas-core'
 
-import type { SessionLog } from './session-log'
+import type { SessionLog, SessionLogSnapshot } from './session-log'
 import type { SessionWindow } from './session-window'
+
+type RefoldArgs = {
+  log: SessionLog
+  sessionId: string
+  views: readonly PluginViewFold[]
+  throughSeq: number
+}
+
+const refoldViewOf = async (args: RefoldArgs): Promise<SessionViewState | undefined> => {
+  const cached = await args.log
+    .readRange({ sessionId: args.sessionId, fromSeq: 1, toSeq: args.throughSeq })
+    .catch(() => undefined)
+  if (cached === undefined) return undefined
+  return cached.reduce(
+    (state, event) => stepSessionViewWith({ state, views: args.views, event }),
+    initialSessionViewState,
+  )
+}
+
+const baseViewOf = async (
+  args: RefoldArgs & { saved: SessionLogSnapshot },
+): Promise<SessionViewState | undefined> => {
+  const view = args.saved.view
+  if (view === undefined) return initialSessionViewState
+  if (view.version === SESSION_VIEW_VERSION) return view
+  return refoldViewOf({ ...args, throughSeq: args.saved.throughSeq })
+}
 
 export const restoredWindowOf = async (args: {
   log: SessionLog
@@ -26,6 +55,8 @@ export const restoredWindowOf = async (args: {
   const views = args.views ?? []
   const saved = await log.loadSnapshot(sessionId).catch(() => undefined)
   if (saved === undefined) return undefined
+  const base = await baseViewOf({ log, sessionId, views, throughSeq: saved.throughSeq, saved })
+  if (base === undefined) return undefined
   const from = saved.throughSeq + 1
   const to = saved.cursor?.seq ?? saved.throughSeq
   const gap =
@@ -36,10 +67,7 @@ export const restoredWindowOf = async (args: {
       : []
   const visibility = gap.reduce(stepVisibility, saved.visibility)
   const pending = gap.reduce(stepPending, saved.pending)
-  const folded = gap.reduce(
-    (state, event) => stepSessionViewWith({ state, views, event }),
-    saved.view ?? initialSessionViewState,
-  )
+  const folded = gap.reduce((state, event) => stepSessionViewWith({ state, views, event }), base)
   const tail = await log.readTail({ sessionId, count: renderLimit }).catch(() => [])
   const events = tail.filter((event) => isVisible(visibility, event)).slice(-renderLimit)
   const view =

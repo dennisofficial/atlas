@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
 import {
   ECompactionAnchor,
+  ETurnCause,
   ESessionStatus,
   initialSessionViewState,
   PLAN_TOOL_NAME,
@@ -16,6 +17,8 @@ import { decodeViewState, encodeViewState } from '../../session-view-codec'
 import type { PrStateRow } from '../../port'
 import type { ConformanceParams } from './conformance'
 import { branches, linked, prStateOf, reading } from './conformance-views.fixture'
+const TURN_STARTED: V2Body = { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input }
+
 import { describeControlPlaneDigests } from './conformance-views.digests'
 import { describeControlPlanePullRequestViews } from './conformance-views.pull-requests'
 import {
@@ -126,7 +129,11 @@ export function describeControlPlaneViews(params: ConformanceParams): void {
 
     it('reads status, checkouts and a pull request derived from the branch index', async () => {
       await seedPr(prStateOf({ number: 7, state: 'open', updatedAt: '2026-11-02T12:00:00.000Z' }))
-      await appendBodies({ harness, epoch, bodies: [said('a'), linked(99), branches] })
+      await appendBodies({
+        harness,
+        epoch,
+        bodies: [TURN_STARTED, said('a'), linked(99), branches],
+      })
       const read = await view()
       expect(read.value.status.state).toBe(ESessionStatus.Resuming)
       expect(read.value.status.lease).toMatchObject({ epoch, live: false })

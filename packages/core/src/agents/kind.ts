@@ -1,5 +1,6 @@
 import type { EventDraft } from '../events/body'
 import { isNoticeArrival } from '../events/notice-stage'
+import { EShellEndCause } from '../shells/status'
 import { ESetupPhase } from '../workspace/setup-notice'
 import { reportWakesParent } from './report'
 
@@ -19,16 +20,17 @@ export const isTurnTaking = (event: EventDraft): boolean => {
     case 'background-shell-awaiting-input':
     case 'background-shell-matched':
     case 'background-shell-still-running':
-    case 'service-ended':
     case 'pr-event':
     case 'run-event':
       return true
+    case 'service-ended':
+      return event.cause !== EShellEndCause.SandboxStopped
     case 'agent-reported':
       return reportWakesParent(event.kind)
     case 'agent-ended':
       return event.relayed !== false
     case 'background-shell-ended':
-      return true
+      return event.cause !== EShellEndCause.SandboxStopped
     case 'sandbox-setup-reported':
       return event.phase === ESetupPhase.Finished
     default:

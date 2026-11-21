@@ -4,6 +4,7 @@ import { toCallId, toRunId, toThreadId } from '../../events/ids'
 import { chainEvents } from '../chain-events'
 import type { V2Body, V2Event } from '../event'
 import { ESessionStatus, sessionStatusOf } from '../session-status'
+import { ETurnCause } from '../turns'
 
 const NOW = '2026-11-13T12:00:00.000Z'
 const THREAD = toThreadId('t')
@@ -18,6 +19,7 @@ const statusOf = (bodies: readonly V2Body[]) =>
   sessionStatusOf({ events: eventsOf(bodies), live: true, queuedSince: null, now: NOW })
 
 const ASKED: readonly V2Body[] = [
+  { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input },
   { type: 'user-said', text: 'ask for the secret' },
   { type: 'assistant-said', parts: [] },
   { type: 'tool-called', callId: CALL, name: 'operator_input', ordinal: 0 },

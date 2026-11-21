@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
+  EAgentLostCause,
   EAgentStatus,
   EReportKind,
   EShellStatus,
@@ -265,6 +266,7 @@ describe('a takeover ending and a late real ending', () => {
       event: lostAgentEnding({
         agent: NOTICE_AGENT,
         progress: { turns: 0, toolCalls: 0, prose: '' },
+        lost: { cause: EAgentLostCause.RecordUnreadable, detail: 'its record is gone' },
       }),
       key,
     })

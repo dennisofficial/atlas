@@ -7,8 +7,8 @@ import { RIG_MODEL_CHOICE } from '../../__tests__/rig-runtime'
 import {
   EAgentRestart,
   EAgentStart,
-  EKilledBy,
   EAgentStatus,
+  ERunFailureKind,
   GENESIS_HASH,
   chainEvents,
   chainHash,
@@ -185,12 +185,13 @@ describe('a child whose thread cannot be read', () => {
       agentId: FIRST,
       agentType: 'builder',
       intent: 'build it',
-      status: EAgentStatus.Stopped,
-      killedBy: EKilledBy.Unrecorded,
+      status: EAgentStatus.Failed,
+      failureKind: ERunFailureKind.Lost,
       prose: '',
       turns: 0,
       toolCalls: 0,
     })
+    expect(payload.event.failureCause).toContain('could not reopen its record')
     expect(log.appends).toEqual([])
     expect(crew.list()).toEqual([])
   })

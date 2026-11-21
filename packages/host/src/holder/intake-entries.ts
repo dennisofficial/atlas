@@ -1,5 +1,6 @@
 import {
   INBOX_KIND_EVENT,
+  INBOX_KIND_RECORD,
   INBOX_KIND_RETRY,
   INBOX_KIND_STOP,
   type InboxEntry,
@@ -44,7 +45,7 @@ export const drainEntries = async (args: {
       await consumeQuietly({ ...args.glue, entry })
       continue
     }
-    if (entry.kind === INBOX_KIND_EVENT) {
+    if (entry.kind === INBOX_KIND_EVENT || entry.kind === INBOX_KIND_RECORD) {
       if (await drainEventEntry({ entry, appendDrafts: args.appendDrafts })) wakesTurn = true
       continue
     }

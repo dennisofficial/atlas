@@ -17,6 +17,7 @@ import {
 import { resourceLoadedSchema, type ResourceLoaded } from './resource-loaded'
 import { retryScheduledSchema, type RetryScheduled } from './retry-scheduled'
 import { sessionStartFailedSchema, type SessionStartFailed } from './start-failure'
+import { turnEndedSchema, turnStartedSchema, type TurnEnded, type TurnStarted } from './turns'
 import {
   workspaceAttemptStartedSchema,
   workspacePrepareFailedSchema,
@@ -78,6 +79,8 @@ export type RecordBody =
   | WorkspaceStep
   | WorkspaceAttemptStarted
   | SessionStartFailed
+  | TurnStarted
+  | TurnEnded
 
 export type V2Body =
   | Exclude<EventBody, { type: 'history-compacted' }>
@@ -154,6 +157,8 @@ const recordBodySchema: z.ZodType<RecordBody> = z.discriminatedUnion('type', [
   workspaceStepSchema,
   workspaceAttemptStartedSchema,
   sessionStartFailedSchema,
+  turnStartedSchema,
+  turnEndedSchema,
 ])
 
 const RECORD_TYPE_TABLE = {
@@ -173,6 +178,8 @@ const RECORD_TYPE_TABLE = {
   'workspace-step': true,
   'workspace-attempt-started': true,
   'session-start-failed': true,
+  'turn-started': true,
+  'turn-ended': true,
 } satisfies Record<RecordBody['type'], true>
 
 export const RECORD_ONLY_TYPES: ReadonlySet<V2EventType> = new Set<V2EventType>(

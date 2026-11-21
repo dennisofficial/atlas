@@ -1,4 +1,5 @@
 import {
+  INBOX_KIND_RECORD,
   inboxEventOf,
   isTurnTaking,
   type InboxEntry,
@@ -29,7 +30,14 @@ export const drainEventEntry = async (params: {
     return false
   }
   await params.appendDrafts([read.event, { type: 'input-consumed', inboxId: params.entry.inboxId }])
-  return isTurnTaking(read.event)
+  return params.entry.kind !== INBOX_KIND_RECORD && isTurnTaking(read.event)
+}
+
+export const drainRecordEntry = async (params: {
+  entry: InboxEntry
+  appendDrafts: AppendDrafts
+}): Promise<void> => {
+  await drainEventEntry(params)
 }
 
 export const drainLoggedNotices = async (params: {

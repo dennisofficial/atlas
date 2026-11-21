@@ -1,19 +1,39 @@
+import type { AgentOutput, LoopTurnRunner, PauseSignal } from '@dltech/atlas-agent'
 import {
-  ETurnStatus,
-  type AgentOutput,
-  type LoopTurnRunner,
-  type PauseSignal,
-} from '@dltech/atlas-agent'
-import type { ThreadId } from '@dltech/atlas-core'
+  ETurnCause,
+  openTurnOf,
+  type Event,
+  type RunId,
+  type ThreadId,
+  type V2Event,
+} from '@dltech/atlas-core'
+import { logFieldsOf } from '@dltech/atlas-observability'
 
 import { LiveStepBuffer } from './live-step-buffer'
 import { fireLive } from './ports'
 import type { HeldSessionDeps } from './held-session-deps'
+import type { AppendBody } from './record/append-drafts'
+import {
+  ETurnAborted,
+  FAILED_BY_HOST,
+  turnAbortedOf,
+  turnEndingOf,
+  type TurnEnding,
+} from './turn-boundary'
 
-const TURN_EXITED = new Set<ETurnStatus>([ETurnStatus.Failed, ETurnStatus.Interrupted])
+export type TurnLog = {
+  threadId: ThreadId
+  append(args: {
+    threadId: ThreadId
+    runId: RunId
+    drafts: readonly AppendBody[]
+  }): Promise<Event[]>
+  eventCache(): { eventsAfter(seq: number): V2Event[] }
+}
 
 export class HeldTurns {
   private turnAbort: AbortController | undefined
+  private turnAborted = ETurnAborted.Other
   private readonly idleWaiters: (() => void)[] = []
   turnRunning = false
   onTurnEnd: (() => void) | undefined
@@ -21,6 +41,7 @@ export class HeldTurns {
   constructor(private readonly deps: HeldSessionDeps) {}
 
   abort(reason?: unknown): void {
+    this.turnAborted = turnAbortedOf(reason)
     this.turnAbort?.abort(reason)
   }
 
@@ -31,13 +52,17 @@ export class HeldTurns {
 
   async drive(args: {
     runner: LoopTurnRunner
+    record: TurnLog
     threadId: ThreadId
     pause: PauseSignal
     resume: boolean
   }): Promise<void> {
+    this.turnAborted = ETurnAborted.Other
     this.turnAbort = new AbortController()
     this.turnRunning = true
+    let turnId: string | undefined
     try {
+      turnId = await this.startTurn({ record: args.record, resume: args.resume })
       const outcome = args.resume
         ? await args.runner.resume({
             threadId: args.threadId,
@@ -49,7 +74,16 @@ export class HeldTurns {
             signal: this.turnAbort.signal,
             pause: args.pause,
           })
-      if (TURN_EXITED.has(outcome.status as ETurnStatus)) this.onTurnEnd?.()
+      await this.endTurn({
+        record: args.record,
+        turnId,
+        ending: turnEndingOf({ outcome, aborted: this.turnAborted }),
+      })
+    } catch (error) {
+      if (turnId !== undefined) {
+        await this.endTurn({ record: args.record, turnId, ending: FAILED_BY_HOST })
+      }
+      throw error
     } finally {
       this.turnRunning = false
       this.turnAbort = undefined
@@ -99,6 +133,60 @@ export class HeldTurns {
           })
         }
       },
+    }
+  }
+
+  private async startTurn(args: { record: TurnLog; resume: boolean }): Promise<string> {
+    const open = openTurnOf(args.record.eventCache().eventsAfter(0))
+    if (open !== null) return open.turnId
+    const turnId = `turn-${String(this.deps.ids.nextEventId())}`
+    try {
+      await args.record.append({
+        threadId: args.record.threadId,
+        runId: this.deps.ids.nextRunId(),
+        drafts: [
+          {
+            type: 'turn-started',
+            turnId,
+            cause: args.resume ? ETurnCause.Resume : ETurnCause.Input,
+          },
+        ],
+      })
+    } catch (error) {
+      this.deps.log?.warn({
+        source: 'holder.turn',
+        message: `recording the start of turn ${turnId} on ${this.deps.sessionId} failed`,
+        ...logFieldsOf({ error }),
+      })
+    }
+    return turnId
+  }
+
+  private async endTurn(args: {
+    record: TurnLog
+    turnId: string
+    ending: TurnEnding | null
+  }): Promise<void> {
+    if (args.ending === null) return
+    try {
+      await args.record.append({
+        threadId: args.record.threadId,
+        runId: this.deps.ids.nextRunId(),
+        drafts: [
+          {
+            type: 'turn-ended',
+            turnId: args.turnId,
+            outcome: args.ending.outcome,
+            by: args.ending.by,
+          },
+        ],
+      })
+    } catch (error) {
+      this.deps.log?.warn({
+        source: 'holder.turn',
+        message: `recording the end of turn ${args.turnId} on ${this.deps.sessionId} failed`,
+        ...logFieldsOf({ error }),
+      })
     }
   }
 }

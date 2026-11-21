@@ -1,4 +1,4 @@
-import { EKilledBy, lostAgentEnding, type ThreadId } from '@dltech/atlas-core'
+import { EKilledBy, lostAgentEnding, type AgentLost, type ThreadId } from '@dltech/atlas-core'
 import type {
   PodCrew,
   SubagentSaid,
@@ -39,7 +39,7 @@ export class CrewRoom {
   }
 
   async adopt(child: OpenChild): Promise<void> {
-    const run = await ChildRun.adopt({
+    const adopted = await ChildRun.adopt({
       ...this.args,
       agentType: child.agentType,
       intent: child.intent,
@@ -48,12 +48,12 @@ export class CrewRoom {
       ...(child.worktree === undefined ? {} : { worktree: child.worktree }),
       ...(child.settled === undefined ? {} : { settled: child.settled }),
     })
-    if (run === undefined) {
-      await this.lose(child)
+    if (!adopted.ok) {
+      await this.lose({ child, lost: adopted.lost })
       return
     }
-    this.runs.set(run.agentId, run)
-    await run.continueTurn()
+    this.runs.set(adopted.run.agentId, adopted.run)
+    await adopted.run.continueTurn()
   }
 
   async say(args: { agentId: string; text: string }): Promise<SubagentSaid> {
@@ -127,7 +127,7 @@ export class CrewRoom {
       threadId: this.args.parentThreadId,
       agentId,
     })
-    const run =
+    const adopted =
       settled === undefined
         ? undefined
         : await ChildRun.adopt({
@@ -139,22 +139,23 @@ export class CrewRoom {
             settled: { status: settled.status, endedAt: settled.endedAt },
             ...(settled.worktree === undefined ? {} : { worktree: settled.worktree }),
           })
-    if (run === undefined) throw new Error(`no sub-agent ${agentId} in this session`)
-    this.runs.set(run.agentId, run)
-    return run
+    if (adopted?.ok !== true) throw new Error(`no sub-agent ${agentId} in this session`)
+    this.runs.set(adopted.run.agentId, adopted.run)
+    return adopted.run
   }
 
-  private async lose(child: OpenChild): Promise<void> {
+  private async lose(args: { child: OpenChild; lost: AgentLost }): Promise<void> {
     const seq = await threadLastSeq({
       plane: this.args.deps.plane,
-      threadId: child.agentId,
+      threadId: args.child.agentId,
     }).catch(() => 0)
     await postNotice(this.args, {
       event: lostAgentEnding({
-        agent: child,
+        agent: args.child,
         progress: { turns: 0, toolCalls: 0, prose: '' },
+        lost: args.lost,
       }),
-      key: endingKeyOf({ agentId: child.agentId, seq }),
+      key: endingKeyOf({ agentId: args.child.agentId, seq }),
     })
   }
 

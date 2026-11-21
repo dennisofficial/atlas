@@ -109,6 +109,11 @@ function wordsOf(args: {
         detail: `${name}${task} failed: ${failure.message} Open it to see why.`,
       }
     }
+    case ERunFailureKind.Lost:
+      return {
+        title: 'A run could not be continued',
+        detail: `${failure.message} Its work up to that point is intact, so resume it to continue.`,
+      }
     case ERunFailureKind.Crashed:
       return {
         title: 'The run crashed',

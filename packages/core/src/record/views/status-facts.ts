@@ -1,10 +1,7 @@
-import { isTurnTakingType } from '../../agents/kind'
-import { CORE_EVENT_TYPES } from '../../events/schema'
-import { RECORD_ONLY_TYPES } from '../event'
 import { EWaitEpisodeKind } from '../../model-recovery/waiting'
-import { EFinishReason } from '../../stream/chunk'
-import { EInputConsumed, type V2Event, type V2EventType } from '../event'
+import type { V2Event, V2EventType } from '../event'
 import { endsStartFailure } from '../start-failure'
+import type { OpenTurn, TurnEnd } from '../turns'
 import { countsAsPrepared } from '../workspace'
 import { attemptTagOf } from '../workspace-attempts'
 import { NO_BACKGROUND, stepBackground, type BackgroundFacts } from './background-facts'
@@ -14,7 +11,6 @@ export type TimedReason = { reason: string; at: string }
 export type TurnFact = {
   type: V2EventType
   at: string
-  endsTurn: boolean
   toolName: string | null
 }
 
@@ -31,8 +27,8 @@ export type StatusFacts = {
   prepareFailure: TimedReason | null
   startFailure: TimedReason | null
   turn: TurnFact | null
-  stopAfterTurn: boolean
-  stoppedAt: string | null
+  openTurn: OpenTurn | null
+  lastTurnEnd: TurnEnd | null
   unfinishedFailure: { message: string; at: string } | null
   credentialWait: { reason: string | null; at: string } | null
   retries: readonly RetryFact[]
@@ -47,8 +43,8 @@ export const initialStatusFacts: StatusFacts = {
   prepareFailure: null,
   startFailure: null,
   turn: null,
-  stopAfterTurn: false,
-  stoppedAt: null,
+  openTurn: null,
+  lastTurnEnd: null,
   unfinishedFailure: null,
   credentialWait: null,
   retries: [],
@@ -56,62 +52,27 @@ export const initialStatusFacts: StatusFacts = {
   background: NO_BACKGROUND,
 }
 
-const TURN_ENDING_TYPES: ReadonlySet<V2EventType> = new Set([
+const LABEL_TYPES: ReadonlySet<V2EventType> = new Set<V2EventType>([
+  'tool-dispatched',
+  'tool-called',
+  'tool-denied',
+  'tool-result',
+  'assistant-said',
+  'user-said',
   'run-failed',
-  'run-failure-dismissed',
-  'workspace-prepared',
-  'workspace-prepare-failed',
-  'session-start-failed',
 ])
 
-const TURN_NEUTRAL_TYPES: ReadonlySet<V2EventType> = new Set<V2EventType>([
-  'branches-observed',
-  'pull-request-linked',
-  'fact-recorded',
-  'retry-scheduled',
-  'input-consumed',
-  'input-posted',
-  'input-withdrawn',
-  'input-refused',
-  'workspace-step',
-  'workspace-attempt-started',
-  'subscription-created',
-  'subscription-changed',
-  'subscription-ended',
-])
-
-const KNOWN_TYPES: ReadonlySet<string> = new Set([...CORE_EVENT_TYPES, ...RECORD_ONLY_TYPES])
-
-const isTurnNeutral = (event: V2Event): boolean => {
-  if (TURN_NEUTRAL_TYPES.has(event.type)) return true
-  if (event.type === 'tool-result') return event.error !== undefined || event.interrupted === true
-  return !KNOWN_TYPES.has(event.type) && !isTurnTakingType(event.type)
-}
-
-const isTurnEnding = (event: V2Event): boolean =>
-  TURN_ENDING_TYPES.has(event.type) ||
-  (event.type === 'assistant-said' &&
-    event.aborted !== 'handoff' &&
-    event.finish !== EFinishReason.ToolCalls)
-
-const turnOf = (event: V2Event): TurnFact => ({
-  type: event.type,
-  at: event.at,
-  endsTurn: isTurnEnding(event),
-  toolName: event.type === 'tool-dispatched' ? event.name : null,
-})
-
-const unfinishedFailureAfter = (args: {
-  facts: StatusFacts
-  event: V2Event
-}): StatusFacts['unfinishedFailure'] => {
-  const { facts, event } = args
-  if (event.type === 'run-failed') return { message: event.failure.message, at: event.at }
-  if (event.type === 'run-failure-dismissed' && facts.turn?.type === 'run-failed') {
-    return facts.unfinishedFailure
+const labelOf = (event: V2Event): TurnFact | null => {
+  if (!LABEL_TYPES.has(event.type)) return null
+  return {
+    type: event.type,
+    at: event.at,
+    toolName: event.type === 'tool-dispatched' ? event.name : null,
   }
-  return null
 }
+
+const unfinishedFailureAfter = (event: V2Event): StatusFacts['unfinishedFailure'] =>
+  event.type === 'run-failed' ? { message: event.failure.message, at: event.at } : null
 
 const withRetry = (retries: readonly RetryFact[], retry: RetryFact): readonly RetryFact[] => {
   const deadline = Date.parse(retry.notBefore)
@@ -175,19 +136,19 @@ const stepParked = (facts: StatusFacts, event: V2Event): StatusFacts => {
 }
 
 const stepTurn = (facts: StatusFacts, event: V2Event): StatusFacts => {
-  if (!isTurnNeutral(event)) {
+  if (event.type === 'turn-started') {
+    return { ...facts, openTurn: { turnId: event.turnId, startedAt: event.at } }
+  }
+  if (event.type === 'turn-ended') {
     return {
       ...facts,
-      turn: turnOf(event),
-      stopAfterTurn: false,
-      stoppedAt: null,
-      unfinishedFailure: unfinishedFailureAfter({ facts, event }),
+      openTurn: facts.openTurn?.turnId === event.turnId ? null : facts.openTurn,
+      lastTurnEnd: { outcome: event.outcome, by: event.by, at: event.at },
     }
   }
-  if (event.type === 'input-consumed' && event.consumed === EInputConsumed.Stop) {
-    return { ...facts, stopAfterTurn: true, stoppedAt: event.at }
-  }
-  return facts
+  const label = labelOf(event)
+  if (label === null) return facts
+  return { ...facts, turn: label, unfinishedFailure: unfinishedFailureAfter(event) }
 }
 
 const stepBackgroundFacts = (facts: StatusFacts, event: V2Event): StatusFacts => {

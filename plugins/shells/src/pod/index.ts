@@ -6,6 +6,7 @@ import { ShellInputTool } from './input-tool'
 import { ShellKillTool } from './kill-tool'
 import { ShellListTool } from './list-tool'
 import { ShellOutputTool } from './output-tool'
+import { reconcileShells } from './reconcile'
 import { ShellTool } from './start-tool'
 import { stateFor } from './state'
 
@@ -39,6 +40,7 @@ export const shellsPod: PodSlot = {
       if (frame.event.type === 'shells.output') void state.live.note(frame.event.shellId)
       if (frame.event.type === 'shells.ended') state.live.forget(frame.event.shellId)
     })
+    void reconcileShells({ ctx, state })
     return {}
   },
   prompts: [new BackgroundShellsFragment()],

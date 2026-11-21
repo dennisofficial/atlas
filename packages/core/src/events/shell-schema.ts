@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 import { EServiceStatus } from '../services/status'
-import { EKilledBy, EShellStatus } from '../shells/status'
+import { EKilledBy, EShellEndCause, EShellStatus } from '../shells/status'
 import { noticeStampSchema } from './notice-stamp-schema'
 
 export const shellEventSchemas = [
@@ -23,6 +23,7 @@ export const shellEventSchemas = [
     status: z.enum(EShellStatus),
     killedBy: z.enum(EKilledBy).optional(),
     exitCode: z.number().int().optional(),
+    cause: z.enum(EShellEndCause).optional(),
     output: z.string(),
     droppedCharacters: z.number().int().nonnegative(),
     remainingCharacters: z.number().int().nonnegative(),
@@ -91,6 +92,7 @@ export const shellEventSchemas = [
     status: z.enum(EServiceStatus),
     killedBy: z.enum(EKilledBy).optional(),
     exitCode: z.number().int().optional(),
+    cause: z.enum(EShellEndCause).optional(),
     logPath: z.string().min(1).optional(),
     tail: z.string(),
     restarting: z.literal(true).optional(),
