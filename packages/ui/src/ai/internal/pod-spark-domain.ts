@@ -31,9 +31,7 @@ export interface PodSparkTip {
 }
 
 export function podSparkValuesOf(points: readonly PodSparkPoint[]): number[] {
-  return points.flatMap((point) =>
-    point.disk === undefined ? [point.cpu, point.ram] : [point.cpu, point.ram, point.disk],
-  )
+  return points.flatMap((point) => [point.cpu, point.ram])
 }
 
 export function podSparkDiskOf(point: PodSparkPoint): PodSparkDisk | undefined {

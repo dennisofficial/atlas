@@ -118,8 +118,10 @@ export function PodUsageSpark({ data, limitGb, defaultActiveIndex }: PodUsageSpa
           <AreaChart data={[...data]} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
             <XAxis hide type="number" dataKey="at" domain={[from, to]} />
             <YAxis hide domain={[low, high]} />
+            <YAxis hide yAxisId="disk" domain={[0, 100]} />
             {withDisk ? (
               <Area
+                yAxisId="disk"
                 dataKey="disk"
                 type="monotone"
                 stroke="var(--color-disk)"

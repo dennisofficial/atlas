@@ -90,13 +90,8 @@ describe('podSparkValuesOf', () => {
     expect(podSparkValuesOf([{ at: 0, cpu: 12, ram: 40, ramGb: 1.6 }])).toEqual([12, 40])
   })
 
-  it('widens the axis to hold the disk line', () => {
-    expect(podSparkValuesOf([{ at: 0, cpu: 12, ram: 40, ramGb: 1.6, disk: 91 }])).toEqual([
-      12, 40, 91,
-    ])
-    expect(
-      podSparkDomainOf(podSparkValuesOf([{ at: 0, cpu: 12, ram: 40, ramGb: 1.6, disk: 91 }])),
-    ).toEqual([8, 95])
+  it('keeps the disk on its own axis so cpu and ram stay zoomed', () => {
+    expect(podSparkValuesOf([{ at: 0, cpu: 12, ram: 40, ramGb: 1.6, disk: 91 }])).toEqual([12, 40])
   })
 })
 
