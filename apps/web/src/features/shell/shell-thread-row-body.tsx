@@ -63,7 +63,7 @@ export function ThreadRowBody({
       ? []
       : [v2View.pullRequest]
     : threadPullRequestsOf({ thread, teammates, collapsed, states, family })
-  const statusIcon = v2 ? v2StatusIconOf(v2View?.status) : threadStatusOf(thread)
+  const statusIcon = v2 ? v2StatusIconOf(v2View) : threadStatusOf(thread)
   const branch = v2 ? v2View?.branch : currentBranchOf(thread)
   const working = v2 ? statusIcon === EThreadStatus.Running : isWorking(thread)
   const latest = latestThreadPullRequestOf(entries)

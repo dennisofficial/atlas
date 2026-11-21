@@ -10,13 +10,15 @@ import type {
 import type { LogPort, TracePort } from '@dltech/atlas-observability'
 
 import { TRACE_FOR } from '../analytics/tokens'
+import type { PodMetricsBus } from '../bus/pod-metrics-bus'
+import { PodMetricsRelay } from '../bus/pod-metrics-relay'
 import type { PgWakeListener } from '../bus/pg-wake-listener'
 import { composeAgentHost } from '../compose'
 import { MacLinkModule } from '../mac-link/mac-link.module'
 import { MAC_LINK } from '../mac-link/port'
 import type { MacLink } from '../mac-link/port'
-import { podOpsOf } from './pod-ops'
-import { POD_OPS, TERMINAL_DEMAND } from './tokens'
+import { podOpsOf, type PodOps } from './pod-ops'
+import { POD_METRICS_BUS, POD_METRICS_RELAY, POD_OPS, TERMINAL_DEMAND } from './tokens'
 import type { ConfigSource } from '../config/agent-host-config'
 import type { AgentHostEnv } from '../config/env'
 import type { SandboxProviderRegistry } from '../sandbox/provider-registry'
@@ -123,10 +125,23 @@ const podOpsProvider: Provider = {
   inject: [HOLDER],
 }
 
+const podMetricsRelayProvider: Provider = {
+  provide: POD_METRICS_RELAY,
+  useFactory: (ops: PodOps, bus: PodMetricsBus, log: LogPort): PodMetricsRelay =>
+    new PodMetricsRelay({ ops, bus, log }),
+  inject: [POD_OPS, POD_METRICS_BUS, LOG],
+}
+
 @Global()
 @Module({
   imports: [ControlModule, RuntimeModule, MacLinkModule],
-  providers: [hostWatchProvider, holderProvider, podOpsProvider, terminalDemandProvider],
-  exports: [HOST_WATCH, HOLDER, POD_OPS, TERMINAL_DEMAND],
+  providers: [
+    hostWatchProvider,
+    holderProvider,
+    podOpsProvider,
+    podMetricsRelayProvider,
+    terminalDemandProvider,
+  ],
+  exports: [HOST_WATCH, HOLDER, POD_OPS, POD_METRICS_BUS, POD_METRICS_RELAY, TERMINAL_DEMAND],
 })
 export class HolderModule {}

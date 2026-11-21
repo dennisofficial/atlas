@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 import { ESessionStatus } from '@dltech/atlas-core'
-import { ESandboxProvider } from '@dltech/atlas-protocol'
+import { ESandboxProvider, ESandboxStatus } from '@dltech/atlas-protocol'
 import { SidebarProvider } from '@dltech/atlas-ui/components/sidebar'
 
 import { ThreadRow } from '../shell-thread-row'
@@ -48,6 +48,29 @@ describe('v2 sidebar row', () => {
       'aria-label="Failed"',
     )
     expect(render({ status: { state: ESessionStatus.Idle } })).toContain('aria-label="Idle"')
+  })
+
+  it('shows the pod state on an idle row', () => {
+    const idle = { state: ESessionStatus.Idle }
+    const sandbox = (status: ESandboxStatus) => ({ status, at: agoIso(1) })
+    const asleep = render({ status: idle, sandbox: sandbox(ESandboxStatus.Sleeping) })
+    expect(asleep).toContain('aria-label="Parked"')
+    expect(asleep).not.toContain('aria-label="Idle"')
+    const waking = render({ status: idle, sandbox: sandbox(ESandboxStatus.Waking) })
+    expect(waking).toContain('aria-label="Starting pod"')
+    expect(waking).toContain('animate-spin')
+    expect(render({ status: idle, sandbox: sandbox(ESandboxStatus.Running) })).toContain(
+      'aria-label="Idle"',
+    )
+  })
+
+  it('keeps the session state over the pod state', () => {
+    expect(
+      render({
+        status: { state: ESessionStatus.Thinking },
+        sandbox: { status: ESandboxStatus.Sleeping, at: agoIso(1) },
+      }),
+    ).toContain('aria-label="Working"')
   })
 
   it('shows the primary branch, or nothing when the view states none', () => {

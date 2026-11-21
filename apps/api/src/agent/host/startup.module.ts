@@ -3,6 +3,7 @@ import type { Pool } from '@dltech/atlas-db'
 import type { HostPresence, SessionHolder } from '@dltech/atlas-host'
 import type { LogPort } from '@dltech/atlas-observability'
 
+import type { PodMetricsBus } from '../bus/pod-metrics-bus'
 import type { PgWakeListener } from '../bus/pg-wake-listener'
 import type { RedisLiveFrames } from '../bus/redis-live-frames'
 import { ControlModule } from './control.module'
@@ -19,6 +20,7 @@ import {
   HOST_WATCH,
   LIVE_FRAMES,
   LOG,
+  POD_METRICS_BUS,
   POOL,
   PRESENCE,
   SESSION_STREAM,
@@ -45,6 +47,7 @@ const shutdownProvider: Provider = {
     presence: HostPresence,
     wakes: PgWakeListener,
     liveFrames: RedisLiveFrames,
+    podMetrics: PodMetricsBus,
     stream: SessionStream,
     follow: FollowStack,
     pool: Pool,
@@ -56,6 +59,7 @@ const shutdownProvider: Provider = {
       presence,
       wakes,
       liveFrames,
+      podMetrics,
       stream,
       follow,
       pool,
@@ -67,6 +71,7 @@ const shutdownProvider: Provider = {
     PRESENCE,
     WAKE_LISTENER,
     LIVE_FRAMES,
+    POD_METRICS_BUS,
     SESSION_STREAM,
     FOLLOW_STACK,
     POOL,

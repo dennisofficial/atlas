@@ -1,14 +1,13 @@
 'use client'
 
 import { AlertDialog } from '#components/alert-dialog'
-import { ChartContainer, type ChartConfig } from '#components/chart'
 import { MoonIcon } from 'lucide-react'
-import { Area, AreaChart, YAxis } from 'recharts'
 
 import { EPodAction, PodActionConfirm } from './internal/pod-action-confirm'
 import { MetricSignals } from './internal/pod-metrics-parts'
 import { PodSectionHeader } from './internal/pod-section-header'
 import { PodSizeSelect, PodSizeStatus, type PodSizeControlProps } from './internal/pod-size-control'
+import { PodUsageSpark } from './internal/pod-spark'
 import { podMetricViewOf, ramPercentOf, type PodMetricsSample } from './pod-metrics-model'
 import type { PodShape, UnavailablePodShape } from './pod-shapes'
 import { canResize, EPodState } from './pod-status'
@@ -31,17 +30,13 @@ export interface PodSectionProps {
   oomKills?: number | undefined
   stopping?: boolean | undefined
   confirmAction?: EPodAction | undefined
+  defaultActiveIndex?: number | undefined
   onStart?: (() => void) | undefined
   onStop?: (() => void) | undefined
   onResize?: ((shape: PodShape) => void) | undefined
   onConfirm?: (() => void) | undefined
   onCancel?: (() => void) | undefined
 }
-
-const COMBINED_CONFIG = {
-  cpu: { label: 'CPU', color: 'var(--primary)' },
-  ram: { label: 'RAM', color: 'var(--muted-foreground)' },
-} satisfies ChartConfig
 
 const IDLE_TEXT: Record<EPodState, string> = {
   [EPodState.Starting]: 'Starting',
@@ -81,7 +76,7 @@ function PodUsageIdle({ state, unavailable }: { state: EPodState; unavailable: b
       <div
         role="img"
         aria-label="Usage unavailable"
-        className="flex h-9 w-28 items-center justify-center rounded-md border border-dashed border-border text-[11px] text-muted-foreground"
+        className="flex h-10 w-28 items-center justify-center rounded-md border border-dashed border-border text-[11px] text-muted-foreground"
       >
         Usage unavailable
       </div>
@@ -90,48 +85,10 @@ function PodUsageIdle({ state, unavailable }: { state: EPodState; unavailable: b
     <div
       role="img"
       aria-label={`No live usage — pod ${IDLE_TEXT[state].toLowerCase()}`}
-      className="flex h-9 w-28 items-center justify-center gap-1 rounded-md border border-dashed border-border text-[11px] text-muted-foreground"
+      className="flex h-10 w-28 items-center justify-center gap-1 rounded-md border border-dashed border-border text-[11px] text-muted-foreground"
     >
       <MoonIcon aria-hidden className="size-3" />
       {IDLE_TEXT[state]}
-    </div>
-  )
-}
-
-function PodUsageSpark({ data }: { data: { index: number; cpu: number; ram: number }[] }) {
-  return (
-    <div className="h-9 w-28 shrink-0">
-      <ChartContainer
-        config={COMBINED_CONFIG}
-        className="aspect-auto h-full w-full"
-        initialDimension={{ width: 112, height: 36 }}
-        role="img"
-        aria-label="CPU and RAM over the last 15 minutes"
-      >
-        <AreaChart data={data} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
-          <YAxis hide domain={[0, 100]} />
-          <Area
-            dataKey="ram"
-            type="monotone"
-            stroke="var(--color-ram)"
-            strokeWidth={1.25}
-            fill="var(--color-ram)"
-            fillOpacity={0.06}
-            dot={false}
-            isAnimationActive={false}
-          />
-          <Area
-            dataKey="cpu"
-            type="monotone"
-            stroke="var(--color-cpu)"
-            strokeWidth={1.25}
-            fill="var(--color-cpu)"
-            fillOpacity={0.1}
-            dot={false}
-            isAnimationActive={false}
-          />
-        </AreaChart>
-      </ChartContainer>
     </div>
   )
 }
@@ -143,10 +100,11 @@ export function PodSection(props: PodSectionProps) {
     ramLimitGb: props.shape.memoryGb,
   })
   const running = props.state === EPodState.Running
-  const data = props.series.map((sample, index) => ({
-    index,
+  const data = props.series.map((sample) => ({
+    at: sample.t,
     cpu: sample.cpu,
     ram: ramPercentOf({ sample, limitGb: view.ramLimitGb }),
+    ramGb: sample.ramGb,
   }))
 
   const sizeProps: PodSizeControlProps = {
@@ -186,7 +144,11 @@ export function PodSection(props: PodSectionProps) {
         />
         <div className="col-start-3 row-span-2 row-start-1">
           {running && props.usageUnavailable !== true ? (
-            <PodUsageSpark data={data} />
+            <PodUsageSpark
+              data={data}
+              limitGb={view.ramLimitGb}
+              defaultActiveIndex={props.defaultActiveIndex}
+            />
           ) : (
             <PodUsageIdle state={props.state} unavailable={props.usageUnavailable === true} />
           )}

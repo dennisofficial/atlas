@@ -10,6 +10,7 @@ import { analyticsAppendHook } from '../analytics/append-hook'
 import { PRODUCT_ANALYTICS } from '../analytics/tokens'
 
 import { createHostBus } from '../bus/host-bus'
+import { createPodMetricsBus, type PodMetricsBus } from '../bus/pod-metrics-bus'
 import { startPgWakeListener, type PgWakeListener } from '../bus/pg-wake-listener'
 import { createRedisLiveFrames, type RedisLiveFrames } from '../bus/redis-live-frames'
 import { databaseUrlWithTls } from '../config/database-url'
@@ -24,6 +25,7 @@ import {
   HOST_BUS,
   LIVE_FRAMES,
   LOG,
+  POD_METRICS_BUS,
   WAKE_LISTENER,
 } from './tokens'
 
@@ -43,6 +45,13 @@ const liveFramesProvider: Provider = {
   provide: LIVE_FRAMES,
   useFactory: (env: AgentHostEnv, log: LogPort): RedisLiveFrames =>
     createRedisLiveFrames({ url: env.redisUrl, log }),
+  inject: [AGENT_HOST_ENV, LOG],
+}
+
+const podMetricsBusProvider: Provider = {
+  provide: POD_METRICS_BUS,
+  useFactory: (env: AgentHostEnv, log: LogPort): PodMetricsBus =>
+    createPodMetricsBus({ url: env.redisUrl, log }),
   inject: [AGENT_HOST_ENV, LOG],
 }
 
@@ -76,10 +85,11 @@ const followStackProvider: Provider = {
   providers: [
     controlPlaneProvider,
     liveFramesProvider,
+    podMetricsBusProvider,
     wakeListenerProvider,
     hostBusProvider,
     followStackProvider,
   ],
-  exports: [CONTROL_PLANE, LIVE_FRAMES, WAKE_LISTENER, HOST_BUS, FOLLOW_STACK],
+  exports: [CONTROL_PLANE, LIVE_FRAMES, POD_METRICS_BUS, WAKE_LISTENER, HOST_BUS, FOLLOW_STACK],
 })
 export class ControlModule {}

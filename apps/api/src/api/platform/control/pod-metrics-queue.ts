@@ -1,16 +1,16 @@
-import type { PodSample } from '@dltech/atlas-protocol'
+import { METRICS_RING_SIZE, type PodMetricsFrame } from '@dltech/atlas-protocol'
 
-const CAPACITY = 300
+const CAPACITY = METRICS_RING_SIZE
 
 export class PodMetricsQueue {
-  private samples: PodSample[] = []
+  private frames: PodMetricsFrame[] = []
   private ended = false
   private readonly waiters: (() => void)[] = []
 
-  push(sample: PodSample): void {
+  push(frame: PodMetricsFrame): void {
     if (this.ended) return
-    this.samples.push(sample)
-    if (this.samples.length > CAPACITY) this.samples.shift()
+    this.frames.push(frame)
+    if (this.frames.length > CAPACITY) this.frames.shift()
     this.wake()
   }
 
@@ -20,12 +20,12 @@ export class PodMetricsQueue {
     this.wake()
   }
 
-  async next(): Promise<PodSample | undefined> {
-    while (this.samples.length === 0) {
+  async next(): Promise<PodMetricsFrame | undefined> {
+    while (this.frames.length === 0) {
       if (this.ended) return undefined
       await new Promise<void>((resolve) => this.waiters.push(resolve))
     }
-    return this.samples.shift()
+    return this.frames.shift()
   }
 
   private wake(): void {
