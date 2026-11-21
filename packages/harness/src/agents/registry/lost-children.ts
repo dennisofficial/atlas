@@ -1,5 +1,6 @@
 import {
   agentProgress,
+  EAgentLostCause,
   EAgentStatus,
   EKilledBy,
   lostAgentEnding,
@@ -41,7 +42,16 @@ export async function settleLostChildren({
     const [recorded] = await log.append({
       threadId,
       runId: ids.nextRunId(),
-      drafts: [lostAgentEnding({ agent: child, progress })],
+      drafts: [
+        lostAgentEnding({
+          agent: child,
+          progress,
+          lost: {
+            cause: EAgentLostCause.SessionEnded,
+            detail: 'it was still open when the session ended',
+          },
+        }),
+      ],
     })
 
     child.status = EAgentStatus.Stopped

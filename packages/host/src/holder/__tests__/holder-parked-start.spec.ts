@@ -45,9 +45,12 @@ describe('SessionHolder first turn on a parked sandbox', () => {
     expect(thinking).toBe(true)
     const beforeGate = await a.events()
     expect(beforeGate.filter((event) => event.type === 'user-said')).toHaveLength(2)
-    expect(beforeGate.some((event) => event.type === 'tool-dispatched' && event.seq > 5)).toBe(
-      false,
-    )
+    expect(
+      beforeGate.some(
+        (event) =>
+          event.type === 'tool-dispatched' && (event as { callId?: string }).callId === 'call-2',
+      ),
+    ).toBe(false)
     expect(a.daemon.runCount()).toBe(1)
     expect(b.runtimes.flatMap((runtime) => runtime.ackedScopes)).toEqual([])
 

@@ -12,10 +12,12 @@ import type { BranchObserver } from './branch-observer'
 import { drainNeedsHolder } from './held-needs-holder'
 import type { HeldSessionDeps } from './held-session-deps'
 import type { HeldTurns } from './held-turns'
+import { closeOpenTurn } from './orphan-turn'
 import type { SessionRuntime } from './ports'
 import type { Reconciler } from './reconciler'
 import type { SessionRecord } from './record/record-adapter'
 import { startFailureOutcome } from './start-failure-record'
+import { ORPHAN_INTERRUPTED } from './turn-boundary'
 
 export class HeldEnding {
   private kind: EHeldOutcome | undefined
@@ -98,6 +100,12 @@ export class HeldEnding {
       })
     }
     await this.args.beforeRelease()
+    if (!this.args.turns.turnRunning)
+      await closeOpenTurn({
+        deps: this.args.deps,
+        record: this.args.record(),
+        ending: ORPHAN_INTERRUPTED,
+      })
     if (guard.reasons.length > 0) await this.markSettled({ guard, threadId: args.threadId })
     await runtime.release()
     this.wasReleased = true

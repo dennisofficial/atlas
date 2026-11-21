@@ -3,7 +3,7 @@ import type { EventOfType } from '../../events/envelope'
 import { elapsedPhrase } from '../../shells/elapsed'
 import { shellLabel } from '../../shells/label'
 import type { ShellEventContext } from '../../shells/lifecycle'
-import { EKilledBy, shellEnding } from '../../shells/status'
+import { EKilledBy, EShellEndCause, shellEnding } from '../../shells/status'
 
 const PRINTED_NOTHING = 'It printed nothing.'
 
@@ -14,6 +14,9 @@ const finalOutputNote = (ending: Ending): string =>
 
 const USER_KILLED =
   'The operator stopped this background shell deliberately. Nothing is wrong. Do not restart it, do not work around it, and do not spend another run reproducing what it was doing unless the operator asks.'
+
+const SANDBOX_STOPPED =
+  'The sandbox it ran in stopped, so it ended with the sandbox. Nothing it was doing failed on its own. Start it again if you still need what it was doing.'
 
 const droppedNote = (characters: number): string =>
   `[${characters} characters were lost before this point: the shell printed faster than it was read.]`
@@ -68,6 +71,8 @@ export function backgroundShellBlock(
   const headline = `Background shell ${event.shellId} ${shellLabel(event)} ${shellEnding(event)}. ${printed}. It has not been read yet.`
 
   const sections = [headline]
+
+  if (event.cause === EShellEndCause.SandboxStopped) sections.push(SANDBOX_STOPPED)
 
   if (event.killedBy === EKilledBy.User) sections.push(USER_KILLED)
 

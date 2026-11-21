@@ -6,7 +6,7 @@ import type { ReasoningPart, TextPart, UserContentPart } from '../message/parts'
 import type { CodeQualityReviewedBody } from '../quality/schema'
 import type { EServiceStatus } from '../services/status'
 import type { EModelWaitCause, WaitEpisodeRef, WaitingForModel } from '../model-recovery/waiting'
-import type { EKilledBy } from '../shells/status'
+import type { EKilledBy, EShellEndCause } from '../shells/status'
 import type { EFinishReason, ModelUsage } from '../stream/chunk'
 import type { ETldrStatus } from '../tldr/status'
 import type { ESetupPhase } from '../workspace/setup-notice'
@@ -275,6 +275,7 @@ export type EventBody =
       status: EServiceStatus
       killedBy?: EKilledBy | undefined
       exitCode?: number | undefined
+      cause?: EShellEndCause | undefined
       logPath?: string | undefined
       tail: string
       restarting?: true | undefined

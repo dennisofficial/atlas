@@ -36,6 +36,23 @@ export function describeControlPlaneClaimCommands(params: ConformanceParams): vo
       await fixture.releaseAll()
     })
 
+    it('never claims a holder for a record entry', async () => {
+      await fixture.preparedSession('record-only')
+      const hostId = await fixture.present()
+      const { inboxId } = await harness.plane.post({
+        sessionId: 'record-only',
+        kind: 'record',
+        payload: '{"event":{"type":"background-shell-ended"}}',
+      })
+      expect((await harness.plane.claimNext({ hostId, limit: 5 })).leases).toEqual([])
+      expect(
+        (await harness.plane.readInbox({ sessionId: 'record-only', afterId: 0, limit: 5 })).map(
+          (entry) => entry.inboxId,
+        ),
+      ).toEqual([inboxId])
+      await fixture.releaseAll()
+    })
+
     it('keeps an entry at or below the idle head from re-claiming, and claims a newer one at once', async () => {
       await fixture.preparedSession('idle-head')
       const { plane } = harness

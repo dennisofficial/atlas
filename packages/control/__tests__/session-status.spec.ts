@@ -5,6 +5,7 @@ import {
   EAttachmentStore,
   EInputConsumed,
   ESessionStatus,
+  ETurnCause,
   toRunId,
   toThreadId,
   type Attachment,
@@ -83,10 +84,14 @@ describe('readSessionStatus', () => {
     const lease = await plane.grant({ sessionId: SESSION, hostId: 7 })
     await append({
       epoch: lease.epoch,
-      bodies: [{ type: 'workspace-prepared' }, { type: 'user-said', text: 'hi' }],
+      bodies: [
+        { type: 'workspace-prepared' },
+        { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input },
+        { type: 'user-said', text: 'hi' },
+      ],
     })
     const status = await read()
-    expect(status.at).toBe(2)
+    expect(status.at).toBe(3)
     expect(status.value.state).toBe(ESessionStatus.Thinking)
     expect(status.value.lease).toEqual({ epoch: lease.epoch, holderHostId: 7, live: true })
   })

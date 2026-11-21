@@ -1,4 +1,5 @@
 import type { Tx } from '@dltech/atlas-db'
+import { INBOX_KIND_RECORD } from '@dltech/atlas-core'
 import { PG_PRESENCE_LOCK_NAMESPACE } from '@dltech/atlas-protocol'
 
 import { COMMAND_KIND_LIKE } from '../claim-ops'
@@ -19,6 +20,7 @@ const needingHolderIn = (tx: Tx) =>
             OR EXISTS (SELECT 1 FROM "v2"."V2InboxEntry" i
               WHERE i."sessionId" = s."id" AND i."consumedSeq" IS NULL
                 AND i."kind" NOT LIKE ${COMMAND_KIND_LIKE}
+                AND i."kind" <> ${INBOX_KIND_RECORD}
                 AND (i."kind" = 'stop' OR i."inboxId" > GREATEST(COALESCE((
                   SELECT (d."canonical"::jsonb ->> 'inboxHead')::int FROM "v2"."V2Event" d
                   WHERE d."threadId" = s."mainThreadId" AND d."type" = 'idle-released'

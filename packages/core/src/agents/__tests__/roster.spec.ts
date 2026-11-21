@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
+import { ERunFailureKind } from '../../events/run-failure'
 import { EKilledBy } from '../../shells/status'
 import { EAgentRestart } from '../restart'
 import { EAgentStart } from '../start'
@@ -7,7 +8,14 @@ import { EAgentStatus } from '../status'
 import type { Event } from '../../events/envelope'
 import type { EventDraft } from '../../events/body'
 import { toCallId, toEventId, toRunId, toThreadId } from '../../events/ids'
-import { agentProgress, agentRoster, isLost, lostAgentEnding, unendedSpawns } from '../roster'
+import {
+  agentProgress,
+  agentRoster,
+  EAgentLostCause,
+  isLost,
+  lostAgentEnding,
+  unendedSpawns,
+} from '../roster'
 
 const PARENT = toThreadId('thread_parent')
 const CHILD = toThreadId('thread_child')
@@ -335,10 +343,11 @@ describe('the record recovery writes for a child the process lost', () => {
     })
   })
 
-  it('writes an ending that carries the work and blames nobody for it', () => {
+  it('writes a failed ending that says why the host could not continue it', () => {
     const draft = lostAgentEnding({
       agent: { agentId: CHILD, agentType: 'explore', intent: 'find the callers' },
       progress: { turns: 2, toolCalls: 5, prose: 'four callers' },
+      lost: { cause: EAgentLostCause.RecordUnreadable, detail: 'thread brn_child is gone' },
     })
 
     expect(draft).toEqual({
@@ -346,11 +355,28 @@ describe('the record recovery writes for a child the process lost', () => {
       agentId: CHILD,
       agentType: 'explore',
       intent: 'find the callers',
-      status: EAgentStatus.Stopped,
-      killedBy: EKilledBy.Unrecorded,
+      status: EAgentStatus.Failed,
+      failureKind: ERunFailureKind.Lost,
+      failureCause:
+        'The host that took over this session could not reopen its record: thread brn_child is gone',
       prose: 'four callers',
       turns: 2,
       toolCalls: 5,
+    })
+  })
+
+  it('names a child that never started as such', () => {
+    const draft = lostAgentEnding({
+      agent: { agentId: CHILD, agentType: 'explore', intent: 'find the callers' },
+      progress: { turns: 0, toolCalls: 0, prose: '' },
+      lost: { cause: EAgentLostCause.NeverStarted, detail: 'its log holds no events' },
+    })
+
+    expect(draft).toMatchObject({
+      status: EAgentStatus.Failed,
+      failureKind: ERunFailureKind.Lost,
+      failureCause:
+        'The host that took over this session found no record of it: its log holds no events',
     })
   })
 })

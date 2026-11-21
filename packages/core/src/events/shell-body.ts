@@ -1,4 +1,4 @@
-import type { EKilledBy, EShellStatus } from '../shells/status'
+import type { EKilledBy, EShellEndCause, EShellStatus } from '../shells/status'
 import type { NoticeStamp } from './notice-stage'
 
 export type BackgroundShellEventBody =
@@ -20,6 +20,7 @@ export type BackgroundShellEventBody =
       status: EShellStatus
       killedBy?: EKilledBy | undefined
       exitCode?: number | undefined
+      cause?: EShellEndCause | undefined
       output: string
       droppedCharacters: number
       remainingCharacters: number
