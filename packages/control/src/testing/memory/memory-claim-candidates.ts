@@ -1,7 +1,15 @@
-import { actionableInboxIds, type Lease } from '@dltech/atlas-core'
+import { actionableInboxIds, type InboxEntry, type Lease } from '@dltech/atlas-core'
 
 import { wakesHolderOf } from '../../claim-ops'
 import { activeFailureOf, hasPrepareHistory, idleHeadOf, type State } from './memory-state'
+
+const childThreadIsLive = (params: { state: State; threadId: InboxEntry['threadId'] }): boolean =>
+  params.threadId !== null && (params.state.events.get(params.threadId) ?? []).length > 0
+
+const targetedDemandOf = (params: { state: State; entries: readonly InboxEntry[] }): boolean =>
+  params.entries.some((entry) =>
+    childThreadIsLive({ state: params.state, threadId: entry.threadId }),
+  )
 
 const needingHolderIn = (params: { state: State; presentHosts: ReadonlySet<number> }): Lease[] => {
   const { state } = params
@@ -17,8 +25,15 @@ const needingHolderIn = (params: { state: State; presentHosts: ReadonlySet<numbe
         (entry) => entry.consumedSeq === null && wakesHolderOf(entry.kind),
       )
       const head = Math.max(idleHeadOf(events), activeFailureOf(events)?.inboxHead ?? 0)
-      const actionable = actionableInboxIds({ entries: unconsumed, failure: { inboxHead: head } })
-      return actionable.length > 0 || !hasPrepareHistory(events)
+      const actionable = actionableInboxIds({
+        entries: unconsumed.filter((entry) => entry.threadId === null),
+        failure: { inboxHead: head },
+      })
+      return (
+        actionable.length > 0 ||
+        targetedDemandOf({ state, entries: unconsumed }) ||
+        !hasPrepareHistory(events)
+      )
     })
     .sort(
       (a, b) =>

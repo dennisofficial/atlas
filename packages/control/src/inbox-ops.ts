@@ -1,7 +1,8 @@
+import { EInputKind, isCommandInputKind, type ThreadId } from '@dltech/atlas-core'
 import { INBOX_KIND_MESSAGE, inboxMessageSchema } from '@dltech/atlas-protocol'
 
 import { wakesHolderOf } from './claim-ops'
-import { LeaseConflictError } from './errors'
+import { LeaseConflictError, MainThreadOnlyKindError } from './errors'
 import type { ControlTx } from './port'
 
 export const INBOX_KIND_WITHDRAW = 'withdraw'
@@ -9,6 +10,16 @@ export const INBOX_KIND_WITHDRAW = 'withdraw'
 export const INBOX_IDEMPOTENCY_LOOKBACK = 200
 
 export type WithdrawPayload = { targetInboxId: number }
+
+const MAIN_THREAD_ONLY_KINDS: ReadonlySet<string> = new Set([
+  EInputKind.Stop,
+  EInputKind.Retry,
+  EInputKind.OperatorAnswer,
+  INBOX_KIND_WITHDRAW,
+])
+
+export const isMainThreadOnlyKind = (kind: string): boolean =>
+  MAIN_THREAD_ONLY_KINDS.has(kind) || isCommandInputKind(kind)
 
 export const withdrawPayloadOf = (payload: string): WithdrawPayload | undefined => {
   try {
@@ -62,15 +73,20 @@ const alreadyPosted = async (params: {
   tx: ControlTx
   sessionId: string
   kind: string
+  threadId: ThreadId | null
   clientId: string | undefined
 }): Promise<number | undefined> => {
   if (params.clientId === undefined) return undefined
   const recent = await params.tx.recentInboxEntries({
     sessionId: params.sessionId,
     limit: INBOX_IDEMPOTENCY_LOOKBACK,
+    forThread: params.threadId,
   })
   return recent.find(
-    (entry) => entry.kind === params.kind && clientIdOfPayload(entry.payload) === params.clientId,
+    (entry) =>
+      entry.kind === params.kind &&
+      entry.threadId === params.threadId &&
+      clientIdOfPayload(entry.payload) === params.clientId,
   )?.inboxId
 }
 
@@ -95,6 +111,7 @@ export const postIn = async (params: {
   kind: string
   payload: string
   at: string
+  threadId?: ThreadId | undefined
   senderSessionId?: string | undefined
   wake?: boolean | undefined
 }): Promise<{ inboxId: number }> => {
@@ -104,10 +121,15 @@ export const postIn = async (params: {
   ) {
     throw new MessageOriginRequiredError()
   }
+  const threadId = params.threadId ?? null
+  if (threadId !== null && isMainThreadOnlyKind(params.kind)) {
+    throw new MainThreadOnlyKindError(params.kind)
+  }
   const existing = await alreadyPosted({
     tx: params.tx,
     sessionId: params.sessionId,
     kind: params.kind,
+    threadId,
     clientId: clientIdOfPayload(params.payload),
   })
   if (existing !== undefined) return { inboxId: existing }
@@ -119,6 +141,7 @@ export const postIn = async (params: {
     payload: params.payload,
     postedAt: params.at,
     consumedSeq: null,
+    threadId,
     senderSessionId: params.senderSessionId ?? null,
   })
   await requestHolderFor({ tx: params.tx, sessionId: params.sessionId, kind: params.kind })

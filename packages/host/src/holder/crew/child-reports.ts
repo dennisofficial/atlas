@@ -1,4 +1,5 @@
 import {
+  EMessageOrigin,
   INBOX_KIND_EVENT,
   inboxEventPayloadOf,
   type EventBody,
@@ -6,6 +7,7 @@ import {
   type ThreadId,
   type V2Event,
 } from '@dltech/atlas-core'
+import { inboxMessageSchema } from '@dltech/atlas-protocol'
 import type { ControlPlane } from '@dltech/atlas-control'
 
 import type { HeldSessionDeps } from '../held-session-deps'
@@ -61,6 +63,9 @@ export const reportKeyOf = (args: { agentId: ThreadId; seq: number }): string =>
 
 export const endingKeyOf = (args: { agentId: ThreadId; seq: number }): string =>
   `agent-ended:${args.agentId}:${args.seq}`
+
+export const messagePayloadOf = (args: { text: string }): string =>
+  JSON.stringify(inboxMessageSchema.parse({ text: args.text, via: EMessageOrigin.ParentAgent }))
 
 export const postNotice = async (
   parent: Pick<ChildParent, 'deps'>,

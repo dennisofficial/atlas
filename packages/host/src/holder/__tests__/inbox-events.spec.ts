@@ -14,6 +14,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { InboxIntake } from '../inbox-intake'
+import { EIntakeScope } from '../intake-scope'
 import type { AppendBody, SessionRecord } from '../record/record-adapter'
 import { eventsOf } from './operator-answer-rig'
 
@@ -46,6 +47,7 @@ const entryOf = (args: { inboxId: number; event: unknown }): InboxEntry => ({
   payload: JSON.stringify({ event: args.event }),
   postedAt: new Date(NOW).toISOString(),
   consumedSeq: null,
+  threadId: null,
   senderSessionId: null,
 })
 
@@ -87,6 +89,7 @@ const rigOf = (entries: readonly InboxEntry[]) => {
     } as unknown as ControlPlane,
     sessionId: 'session-1',
     record,
+    scope: EIntakeScope.Main,
     threadId: toThreadId('thread-1'),
     runId: () => toRunId('run-1'),
     now: () => NOW,

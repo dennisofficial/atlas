@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { EShellRunStatus } from '@dltech/atlas-protocol'
 
 import { shellsPod } from '..'
+import { stateFor } from '../state'
 import { invoke, rig, shellIdOf, textOf } from './support'
 
 const start = async (
@@ -77,8 +78,15 @@ describe('shell tools', () => {
     const read = await invoke({ ctx: harness.ctx, name: 'shell_output', input: { shellId } })
     expect(textOf(read)).toContain('waiting for input')
     await invoke({ ctx: harness.ctx, name: 'shell_output', input: { shellId } })
-    const waiting = harness.log.filter((e) => e.type === 'background-shell-awaiting-input')
-    expect(waiting).toMatchObject([{ shellId, output: 'Continue? (y/n)', inputSupported: true }])
+    const waiting = harness.notices.filter(
+      (notice) => notice.event.type === 'background-shell-awaiting-input',
+    )
+    expect(waiting).toMatchObject([
+      {
+        event: { shellId, output: 'Continue? (y/n)', inputSupported: true },
+        key: `background-shell-awaiting-input:${shellId}:0`,
+      },
+    ])
   })
 
   it('shell_input writes to the daemon and clears the awaiting mark', async () => {
@@ -99,7 +107,31 @@ describe('shell tools', () => {
     expect(textOf(sent)).toContain('Sent input')
     harness.print(shellId, 'Again: ')
     await invoke({ ctx: harness.ctx, name: 'shell_output', input: { shellId } })
-    expect(harness.log.filter((e) => e.type === 'background-shell-awaiting-input')).toHaveLength(2)
+    const waiting = harness.notices.filter(
+      (notice) => notice.event.type === 'background-shell-awaiting-input',
+    )
+    expect(waiting.map((notice) => notice.key)).toEqual([
+      `background-shell-awaiting-input:${shellId}:0`,
+      `background-shell-awaiting-input:${shellId}:10`,
+    ])
+    expect(new Set(waiting.map((notice) => notice.key)).size).toBe(2)
+  })
+
+  it('keeps one key for one prompt a takeover replays', async () => {
+    const harness = rig()
+    const { shellId } = await start(harness, { command: 'ask', input: true })
+    harness.print(shellId, 'Password: ')
+    await invoke({ ctx: harness.ctx, name: 'shell_output', input: { shellId } })
+
+    const state = stateFor(harness.ctx)
+    state.cursors.reset(shellId)
+    state.awaiting.clear()
+    await invoke({ ctx: harness.ctx, name: 'shell_output', input: { shellId } })
+
+    expect(harness.notices.map((notice) => notice.key)).toEqual([
+      `background-shell-awaiting-input:${shellId}:0`,
+      `background-shell-awaiting-input:${shellId}:0`,
+    ])
   })
 
   it('shell_kill renders the ending once and leaves the journal to the frame listener', async () => {

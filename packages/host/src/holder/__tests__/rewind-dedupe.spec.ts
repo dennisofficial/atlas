@@ -11,6 +11,7 @@ const rewind = (inboxId: number, toSeq: number): InboxEntry => ({
   payload: JSON.stringify({ toSeq }),
   postedAt: '2026-11-19T16:05:46.000Z',
   consumedSeq: null,
+  threadId: null,
   senderSessionId: null,
 })
 
@@ -21,6 +22,7 @@ const message = (inboxId: number): InboxEntry => ({
   payload: JSON.stringify({ text: `m${inboxId}` }),
   postedAt: '2026-11-19T16:05:46.000Z',
   consumedSeq: null,
+  threadId: null,
   senderSessionId: null,
 })
 

@@ -1,5 +1,5 @@
 import { and, type Tx } from '@dltech/atlas-db'
-import type { InboxEntry } from '@dltech/atlas-core'
+import type { InboxEntry, ThreadId } from '@dltech/atlas-core'
 
 import { toInbox } from './postgres-rows'
 
@@ -61,12 +61,14 @@ export const readInboxEntriesIn = async (params: {
   afterId: number
   limit: number
   excludeKind?: string | undefined
+  forThread: ThreadId | null
 }): Promise<InboxEntry[]> => {
   const rows = await params.tx.orm.v2.V2InboxEntry.where((e) =>
     and(
       e.sessionId.eq(params.sessionId),
       e.inboxId.gt(params.afterId),
       e.consumedSeq.isNull(),
+      params.forThread === null ? e.threadId.isNull() : e.threadId.eq(params.forThread),
       ...(params.excludeKind === undefined ? [] : [e.kind.neq(params.excludeKind)]),
     ),
   )
@@ -80,8 +82,14 @@ export const recentInboxEntriesIn = async (params: {
   tx: Tx
   sessionId: string
   limit: number
+  forThread: ThreadId | null
 }): Promise<InboxEntry[]> => {
-  const rows = await params.tx.orm.v2.V2InboxEntry.where((e) => e.sessionId.eq(params.sessionId))
+  const rows = await params.tx.orm.v2.V2InboxEntry.where((e) =>
+    and(
+      e.sessionId.eq(params.sessionId),
+      params.forThread === null ? e.threadId.isNull() : e.threadId.eq(params.forThread),
+    ),
+  )
     .orderBy((e) => e.inboxId.desc())
     .limit(params.limit)
     .all()

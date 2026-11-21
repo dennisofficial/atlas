@@ -12,6 +12,7 @@ const withdrawEntry = (args: { inboxId: number; targetInboxId: number }): InboxE
   payload: JSON.stringify({ targetInboxId: args.targetInboxId }),
   postedAt: '2026-11-20T10:00:00.000Z',
   consumedSeq: null,
+  threadId: null,
   senderSessionId: null,
 })
 
@@ -22,6 +23,7 @@ const stagedOf = (args: { inboxId: number; kind: string }): InboxEntry => ({
   payload: '{}',
   postedAt: '2026-11-20T10:00:00.000Z',
   consumedSeq: null,
+  threadId: null,
   senderSessionId: null,
 })
 

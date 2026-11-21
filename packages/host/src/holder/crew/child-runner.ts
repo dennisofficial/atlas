@@ -27,7 +27,7 @@ export const childRunnerOf = (args: {
   signal: AbortSignal
   crew: PodCrew
   intake: AgentIntake
-  notify(event: EventBody): Promise<void>
+  notify(event: EventBody, options: { key: string }): Promise<void>
   isDraining(): boolean
   onFallback?: ((refs: { from: ModelRef; to: ModelRef }) => void | Promise<void>) | undefined
 }): LoopTurnRunner => {
@@ -39,7 +39,7 @@ export const childRunnerOf = (args: {
     threadId: args.agentId,
     signal: args.signal,
     crew: args.crew,
-    notify: (event) => args.notify(event),
+    notify: (event, options) => args.notify(event, options),
   })
   const registry = new DeniedToolRegistry(
     pluginToolsOf({ runtime, ctx }),

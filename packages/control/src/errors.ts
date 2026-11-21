@@ -11,3 +11,10 @@ export class LeaseConflictError extends Error {
     this.name = 'LeaseConflictError'
   }
 }
+
+export class MainThreadOnlyKindError extends Error {
+  constructor(kind: string) {
+    super(`inbox kind "${kind}" can only be posted on the main thread`)
+    this.name = 'MainThreadOnlyKindError'
+  }
+}

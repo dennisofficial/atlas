@@ -1,4 +1,4 @@
-import type { InboxEntry, Lease } from '@dltech/atlas-core'
+import type { InboxEntry, Lease, ThreadId } from '@dltech/atlas-core'
 import type { SessionChange } from '@dltech/atlas-protocol'
 
 import {
@@ -374,11 +374,16 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
     afterId: number
     limit: number
     excludeKind?: string | undefined
+    forThread: ThreadId | null
   }) {
     return readInboxEntriesIn({ state: this.state, ...params })
   }
 
-  async recentInboxEntries(params: { sessionId: string; limit: number }) {
+  async recentInboxEntries(params: {
+    sessionId: string
+    limit: number
+    forThread: ThreadId | null
+  }) {
     return recentInboxEntriesIn({ state: this.state, ...params })
   }
 

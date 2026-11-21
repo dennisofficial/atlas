@@ -8,6 +8,7 @@ import {
   type RevokeResult,
   type V2Event,
   type V2EventType,
+  type ThreadId,
 } from '@dltech/atlas-core'
 import type { SessionModelAsk } from '@dltech/atlas-models'
 import type { z } from 'zod'
@@ -576,6 +577,7 @@ export class ControlPlane {
     sessionId: string
     kind: string
     payload: string
+    threadId?: ThreadId | undefined
   }): Promise<{ inboxId: number }> {
     return this.store.transact(async (tx) => postIn({ tx, ...params, at: await this.nowIn(tx) }))
   }
@@ -600,9 +602,14 @@ export class ControlPlane {
     sessionId: string
     afterId: number
     limit: number
+    forThread?: ThreadId | null
   }): Promise<InboxEntry[]> {
     return this.store.transact((tx) =>
-      tx.readInboxEntries({ ...params, limit: clampLimit(params.limit) }),
+      tx.readInboxEntries({
+        ...params,
+        forThread: params.forThread ?? null,
+        limit: clampLimit(params.limit),
+      }),
     )
   }
 
