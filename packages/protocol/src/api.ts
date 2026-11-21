@@ -10,6 +10,7 @@ import {
 import { z } from 'zod'
 
 import { changeFileStatusSchema, changeSideSchema } from './changes-state'
+import { METRICS_RING_SIZE, podSampleSchema } from './ops/metrics'
 import { sessionCommandRowSchema } from './command-row'
 import { inboxMediaSchema, sessionPostMediaListSchema } from './media'
 
@@ -371,6 +372,21 @@ export const sessionPodResourcesOutputSchema = z
 
 export type SessionPodResourcesInput = z.infer<typeof sessionPodResourcesInputSchema>
 export type SessionPodResourcesOutput = z.infer<typeof sessionPodResourcesOutputSchema>
+
+export const sessionPodMetricsInputSchema = z.strictObject({
+  sessionId: z.string().min(1),
+})
+
+export const podMetricsFrameSchema = z.discriminatedUnion('type', [
+  z.strictObject({
+    type: z.literal('samples'),
+    samples: z.array(podSampleSchema).max(METRICS_RING_SIZE),
+  }),
+  z.strictObject({ type: z.literal('sample'), sample: podSampleSchema }),
+])
+
+export type SessionPodMetricsInput = z.infer<typeof sessionPodMetricsInputSchema>
+export type PodMetricsFrame = z.infer<typeof podMetricsFrameSchema>
 
 export const sessionRetryOutputSchema = z.strictObject({ inboxId: z.number().int().min(1) })
 
