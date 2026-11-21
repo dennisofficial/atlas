@@ -113,6 +113,7 @@ export class RemoteCallsState {
       promise: this.gate.promise,
       timeoutMs: this.args.readyTimeoutMs ?? READY_TIMEOUT_MS,
       timers: this.args.timers,
+      ...(this.args.started === undefined ? {} : { armedAfter: this.args.started }),
     })
   }
 

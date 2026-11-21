@@ -49,7 +49,9 @@ describe('SessionHolder turn', () => {
     expect(appends[0]?.map((event) => event.type)).toEqual(['input-posted', 'user-said'])
     expect(appends[1]?.map((event) => event.type)).toEqual(['assistant-said'])
 
-    const log = (await fullLog(rig)).filter((event) => event.type !== 'workspace-prepared')
+    const log = (await fullLog(rig)).filter(
+      (event) => event.type !== 'workspace-prepared' && event.type !== 'workspace-attempt-started',
+    )
     const types = log.map((event) => event.type)
     expect(types.slice(0, 2)).toEqual(['input-posted', 'user-said'])
     const postedEvent = log[0]

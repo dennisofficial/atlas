@@ -43,6 +43,7 @@ type ProbeArgs = {
   path?: string
   method?: 'GET' | 'POST'
   authorization?: string
+  body?: string
 }
 
 const clientOf = (args: {
@@ -120,7 +121,7 @@ describe('waitForAgent37Daemon', () => {
       await waitForAgent37Daemon({
         client,
         instanceId: 'inst-1',
-        version: bundle.version,
+        want: { version: bundle.version, url: 'https://api/agent/daemon/bundle' },
         token: 'daemon-token',
         budgetMs: 10_000,
       })
@@ -149,7 +150,7 @@ describe('waitForAgent37Daemon', () => {
       await waitForAgent37Daemon({
         client,
         instanceId: 'inst-1',
-        version: bundle.version,
+        want: { version: bundle.version, url: 'https://api/agent/daemon/bundle' },
         token: 'daemon-token',
         budgetMs: 10_000,
       })
@@ -160,6 +161,10 @@ describe('waitForAgent37Daemon', () => {
         path: '/restart',
         method: 'POST',
         authorization: 'Bearer daemon-token',
+        body: JSON.stringify({
+          bundleUrl: 'https://api/agent/daemon/bundle',
+          bundleVersion: bundle.version,
+        }),
       })
     } finally {
       bundle.cleanup()
@@ -172,7 +177,7 @@ describe('waitForAgent37Daemon', () => {
       waitForAgent37Daemon({
         client,
         instanceId: 'inst-1',
-        version: 'expected',
+        want: { version: 'expected', url: 'https://api/agent/daemon/bundle' },
         token: 'daemon-token',
         budgetMs: 250,
       }),

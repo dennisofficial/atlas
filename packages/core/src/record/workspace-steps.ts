@@ -1,4 +1,5 @@
 import type { V2Event } from './event'
+import { withinLatestAttempt } from './workspace-attempts'
 import { EWorkspaceStep, EWorkspaceStepState, type WorkspaceStep } from './workspace'
 
 export type WorkspaceStepStatus = Pick<
@@ -19,8 +20,12 @@ export const workspaceStepsOf = (
   events: readonly V2Event[],
 ): Partial<Record<EWorkspaceStep, WorkspaceStepStatus>> => {
   const folded: Partial<Record<EWorkspaceStep, WorkspaceStepStatus>> = {}
-  for (const event of events) {
-    if (event.type !== 'workspace-step') continue
+  const current = withinLatestAttempt({
+    events,
+    keep: (event): event is Extract<V2Event, { type: 'workspace-step' }> =>
+      event.type === 'workspace-step',
+  })
+  for (const event of current) {
     const previous = folded[event.step]
     folded[event.step] = {
       state: event.state,

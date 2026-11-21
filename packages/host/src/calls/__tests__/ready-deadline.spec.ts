@@ -88,3 +88,52 @@ describe('Stop on a call that was never sent', () => {
     calls.close()
   })
 })
+
+describe('the ready deadline and the sandbox wake', () => {
+  const openArming = (args: { started: Promise<unknown>; readyTimeoutMs: number }) => {
+    const calls = new RemoteCalls({
+      sessionId: 's-ready-wake',
+      token: 'token',
+      connector: silentDaemon,
+      started: args.started,
+      timers: systemTimers,
+      onFenced: () => {},
+      readyTimeoutMs: args.readyTimeoutMs,
+    })
+    calls.open({ epoch: 1 })
+    return calls
+  }
+
+  it('does not start counting until the wake resolves', async () => {
+    let wake: (value: unknown) => void = () => {}
+    const started = new Promise<unknown>((resolve) => {
+      wake = resolve
+    })
+    const calls = openArming({ started, readyTimeoutMs: 40 })
+    const ready = calls.ready()
+    let settled = false
+    ready.then(
+      () => {
+        settled = true
+      },
+      () => {
+        settled = true
+      },
+    )
+
+    await Bun.sleep(200)
+    expect(settled).toBe(false)
+
+    wake(undefined)
+    await expect(ready).rejects.toBeInstanceOf(ReadyTimeoutError)
+    calls.close()
+  })
+
+  it('surfaces the reason the wake failed instead of a ready timeout', async () => {
+    const started = Promise.reject(new Error('the sandbox did not wake within 5 minutes'))
+    const calls = openArming({ started, readyTimeoutMs: 10_000 })
+
+    await expect(calls.ready()).rejects.toThrow('the sandbox did not wake within 5 minutes')
+    calls.close()
+  })
+})

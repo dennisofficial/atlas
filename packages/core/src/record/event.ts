@@ -18,9 +18,11 @@ import { resourceLoadedSchema, type ResourceLoaded } from './resource-loaded'
 import { retryScheduledSchema, type RetryScheduled } from './retry-scheduled'
 import { sessionStartFailedSchema, type SessionStartFailed } from './start-failure'
 import {
+  workspaceAttemptStartedSchema,
   workspacePrepareFailedSchema,
   workspacePreparedSchema,
   workspaceStepSchema,
+  type WorkspaceAttemptStarted,
   type WorkspacePrepared,
   type WorkspacePrepareFailed,
   type WorkspaceStep,
@@ -74,6 +76,7 @@ export type RecordBody =
   | WorkspacePrepared
   | WorkspacePrepareFailed
   | WorkspaceStep
+  | WorkspaceAttemptStarted
   | SessionStartFailed
 
 export type V2Body =
@@ -149,6 +152,7 @@ const recordBodySchema: z.ZodType<RecordBody> = z.discriminatedUnion('type', [
   workspacePreparedSchema,
   workspacePrepareFailedSchema,
   workspaceStepSchema,
+  workspaceAttemptStartedSchema,
   sessionStartFailedSchema,
 ])
 
@@ -167,6 +171,7 @@ const RECORD_TYPE_TABLE = {
   'workspace-prepared': true,
   'workspace-prepare-failed': true,
   'workspace-step': true,
+  'workspace-attempt-started': true,
   'session-start-failed': true,
 } satisfies Record<RecordBody['type'], true>
 

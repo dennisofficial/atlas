@@ -26,6 +26,7 @@ describe('SessionHolder prepare steps', () => {
     })
     expect(prepared).toBe(true)
     expect(await typesOf(rig)).toEqual([
+      'workspace-attempt-started',
       'workspace-step',
       'workspace-step',
       'workspace-step',
@@ -40,7 +41,13 @@ describe('SessionHolder prepare steps', () => {
     const labels: string[] = events.events.map((event) =>
       event.type === 'workspace-step' ? event.step : event.type,
     )
-    expect(labels).toEqual(['sandbox', 'sandbox', 'daemon', 'workspace-prepared'])
+    expect(labels).toEqual([
+      'workspace-attempt-started',
+      'sandbox',
+      'sandbox',
+      'daemon',
+      'workspace-prepared',
+    ])
   })
 
   it('records the failed step before the failure', async () => {
@@ -60,7 +67,11 @@ describe('SessionHolder prepare steps', () => {
     await flushUntil({
       check: async () => (await typesOf(rig)).includes('workspace-prepare-failed'),
     })
-    expect(await typesOf(rig)).toEqual(['workspace-step', 'workspace-prepare-failed'])
+    expect(await typesOf(rig)).toEqual([
+      'workspace-attempt-started',
+      'workspace-step',
+      'workspace-prepare-failed',
+    ])
   })
 })
 

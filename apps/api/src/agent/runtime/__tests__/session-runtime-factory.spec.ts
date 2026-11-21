@@ -69,7 +69,13 @@ class FakeSandbox extends SandboxProvider {
 
   wake(args: { target: SandboxTarget; signal: AbortSignal }): Promise<DaemonEndpoint> {
     this.wakeStarted.push(args.target.sandboxSessionId)
-    if (this.rejectWake) return Promise.reject(new Error('daemon bundle missing'))
+    if (this.rejectWake) {
+      return Promise.reject(
+        new SandboxUnavailableError(
+          'sandbox for s-wake-fail is unavailable: daemon bundle missing',
+        ),
+      )
+    }
     if (this.neverResolve) return new Promise(() => {})
     return new Promise((resolve) => {
       this.wakeResolve = resolve
@@ -413,6 +419,7 @@ describe('createSessionRuntimeFactory', () => {
     const dispatchOutcome = await Promise.race([dispatch, hung])
     await runtime.stop()
     expect(readyOutcome).toBeInstanceOf(SandboxUnavailableError)
+    expect((readyOutcome as Error).message).toContain('daemon bundle missing')
     expect(dispatchOutcome).toBeInstanceOf(SandboxUnavailableError)
   })
 
