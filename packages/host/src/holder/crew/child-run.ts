@@ -255,6 +255,7 @@ export class ChildRun {
         model: this.model,
         signal: listeners.signal,
         crew: this.port(),
+        parentRecord: this.args.parentRecord,
         intake: this.inbox.intake,
         notify: (event, options) => this.notice(event, options),
         isDraining: () => this.handingOff,
