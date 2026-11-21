@@ -84,7 +84,6 @@ export function PodSectionHeader({
         <span className="truncate text-[13px] leading-4">{stateTextOf({ state, resizing })}</span>
       </span>
       <span className="flex shrink-0 items-center gap-1">
-        {sizeControl}
         <Tooltip>
           <TooltipTrigger
             render={
@@ -101,6 +100,7 @@ export function PodSectionHeader({
           </TooltipTrigger>
           <TooltipContent>{label}</TooltipContent>
         </Tooltip>
+        {sizeControl}
       </span>
     </div>
   )

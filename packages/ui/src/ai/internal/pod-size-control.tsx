@@ -10,6 +10,7 @@ import {
   samePodShape,
   type UnavailablePodShape,
 } from '../pod-shapes'
+import { InlineSpinner } from './status-dot'
 
 export interface PodShapeOption {
   key: string
@@ -70,11 +71,12 @@ export interface PodSizeControlProps {
 }
 
 function podSizeOptionsOf(props: PodSizeControlProps): PodShapeOption[] {
-  return podShapeOptionsOf({
-    shapes: props.shapes,
-    unavailable: props.unavailable,
-    current: props.shape,
-  })
+  const pending = props.pendingShape
+  const shapes =
+    pending === undefined || props.shapes.some((shape) => samePodShape({ a: shape, b: pending }))
+      ? props.shapes
+      : [...props.shapes, pending]
+  return podShapeOptionsOf({ shapes, unavailable: props.unavailable, current: props.shape })
 }
 
 export function PodSizeSelect(props: PodSizeControlProps) {
@@ -90,12 +92,13 @@ export function PodSizeSelect(props: PodSizeControlProps) {
   return (
     <Select
       items={options.map((option) => ({ value: option.key, label: option.label }))}
-      value={podShapeKey(props.shape)}
+      value={podShapeKey(props.pendingShape ?? props.shape)}
       defaultOpen={props.defaultOpen === true}
       onValueChange={handleValueChange}
       disabled={props.disabled === true}
     >
       <SelectTrigger size="sm" aria-label="Pod size" className="text-xs">
+        {props.pendingShape === undefined ? null : <InlineSpinner />}
         <SelectValue />
       </SelectTrigger>
       <SelectContent align="end" className="w-auto min-w-(--anchor-width)">
@@ -137,10 +140,5 @@ export function PodSizeStatus({ pendingShape, resizeError, onResize }: PodSizeCo
       </p>
     )
   }
-  if (pendingShape === undefined) return null
-  return (
-    <p className="text-[11px] leading-4 text-muted-foreground">
-      Resizing to {podShapeLabel(pendingShape)} — the pod restarts
-    </p>
-  )
+  return null
 }

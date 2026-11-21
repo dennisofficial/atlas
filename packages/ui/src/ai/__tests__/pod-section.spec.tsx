@@ -90,8 +90,8 @@ describe('pod section chart', () => {
 describe('pod size control', () => {
   it('shows the current shape in the header beside the power button', () => {
     const html = htmlOf()
-    expect(html.indexOf('aria-label="Pod size"')).toBeLessThan(
-      html.indexOf('aria-label="Stop pod"'),
+    expect(html.indexOf('aria-label="Stop pod"')).toBeLessThan(
+      html.indexOf('aria-label="Pod size"'),
     )
     expect(html).toContain('aria-label="Pod size"')
     expect(html).toContain(podShapeLabel(POD_SECTION_SHAPE))
@@ -136,10 +136,13 @@ describe('pod size control', () => {
     ).toBe(false)
   })
 
-  it('names the pending shape and warns that the pod restarts', () => {
-    const pending = { vcpus: 8, memoryGb: 64 }
-    expect(htmlOf({ pendingShape: pending })).toContain(
-      'Resizing to 8 vCPU · 64 GB — the pod restarts',
+  it('shows the pending shape in the dropdown without an echo caption', () => {
+    const html = htmlOf({ pendingShape: { vcpus: 8, memoryGb: 64 } })
+    expect(html).toContain('8 vCPU · 64 GB')
+    expect(html).not.toContain('Resizing to')
+    const offList = htmlOf({ pendingShape: { vcpus: 8, memoryGb: 32 } })
+    expect(offList).toContain(
+      'data-slot="select-value" class="flex flex-1 text-left">8 vCPU · 32 GB<',
     )
   })
 
